@@ -16,27 +16,14 @@ import { promisify } from 'util';
 import * as zlib from 'zlib';
 
 import { desksMatch } from './deskManifest';
+import { loadEnvTest } from './envTest';
 import { shouldIncludeShip } from './shipSelection';
 
 const pipeline = promisify(stream.pipeline);
 
-// Load .env.test file if it exists
-const envTestPath = path.join(__dirname, '..', '..', '.env.test');
-if (fs.existsSync(envTestPath)) {
-  const envContent = fs.readFileSync(envTestPath, 'utf8');
-  envContent.split('\n').forEach((line) => {
-    // Skip comments and empty lines
-    if (line && !line.startsWith('#') && line.includes('=')) {
-      const [key, ...valueParts] = line.split('=');
-      const value = valueParts.join('=').trim();
-      // Only set if not already set (allow command-line overrides)
-      if (!process.env[key.trim()]) {
-        process.env[key.trim()] = value;
-      }
-    }
-  });
-  console.log('Loaded environment variables from .env.test');
-}
+// Load .env.test before anything reads process.env — getShips() below decides
+// the ship selection from it.
+loadEnvTest(__dirname);
 
 const spawnedProcesses: childProcess.ChildProcess[] = [];
 const startHashes: { [ship: string]: { [desk: string]: string } } = {};
@@ -87,12 +74,18 @@ export interface Ship {
   skipCommit: boolean;
   skipSetup: boolean;
   skipAuth?: boolean;
+  /** Boots only under INCLUDE_OPTIONAL_SHIPS (~bus, ~mug). */
   optional?: boolean;
   /**
+   * The N-1 desk pier (~bud). Selected ONLY by naming it in N1_SHIP, never by
+   * INCLUDE_OPTIONAL_SHIPS — see rube/shipSelection.ts.
+   */
+  n1?: boolean;
+  /**
    * The %groups desk release this pier is pinned to, for a ship rube does not
-   * build a desk on (skipCommit). Only ~bud has one: it is the N-1 pier, kept
-   * equal to MIN_GROUPS_VERSION and rebuilt by rube/build-n1-pier.sh. Ships
-   * rube commits to carry whatever the run's tree holds, and set nothing here.
+   * build a desk on (skipCommit). Only the N-1 pier has one, kept equal to
+   * MIN_GROUPS_VERSION and rebuilt by rube/build-n1-pier.sh. Ships rube commits
+   * to carry whatever the run's tree holds, and set nothing here.
    */
   deskVersion?: string;
 }

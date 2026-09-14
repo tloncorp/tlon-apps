@@ -39,6 +39,7 @@
     "skipSetup": false,
     "skipAuth": false,
     "optional": true,
+    "n1": true,
     "deskVersion": "12.2.0"
   },
   "~ten": {

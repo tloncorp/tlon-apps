@@ -7,7 +7,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 RUBE_DIR="$SCRIPT_DIR"
-DIST_DIR="$RUBE_DIR/dist"
+# Where extracted piers live. Overridable, matching construct-desk.sh, so a
+# caller that built a pier elsewhere (build-n1-pier.sh) can point this at it.
+DIST_DIR="${DIST_DIR:-$RUBE_DIR/dist}"
 # Binary used for sync/pack/meld/roll/chop. Normally downloaded by rube during
 # prepare_ships; with --skip-prepare you must supply one that runs on THIS host
 # and matches the piers' kelvin. Override with URBIT_BINARY=/path/to/urbit.
@@ -30,6 +32,13 @@ FRESH_BOOT=${FRESH_BOOT:-false}
 SKIP_PREPARE=${SKIP_PREPARE:-false}
 ARCHIVE_TAG=${ARCHIVE_TAG:-}
 SHIP_SELECTOR=""
+
+# Whether this run started the ship fleet (prepare_ships), and the PIDs it
+# spawned. The EXIT cleanup below sweeps every e2e port with kill -9, which is
+# indiscriminate -- it takes down ships another checkout booted -- so it may
+# only run when this script is the one that started them.
+STARTED_FLEET=false
+SPAWNED_PIDS=()
 
 # Parse command line arguments
 while [ "$#" -gt 0 ]; do
@@ -184,19 +193,34 @@ cleanup() {
         fi
     fi
 
-    # Stop any running playwright-dev processes
-    if [ -f "$PROJECT_ROOT/apps/tlon-web/.playwright-dev.pid" ]; then
-        print_info "Stopping playwright-dev environment..."
-        "$PROJECT_ROOT/stop-playwright-dev.sh" >/dev/null 2>&1 || true
+    # Anything this script spawned, whatever mode it ran in.
+    if [ "${#SPAWNED_PIDS[@]}" -gt 0 ]; then
+        for pid in "${SPAWNED_PIDS[@]}"; do
+            kill -TERM "$pid" 2>/dev/null || true
+        done
     fi
 
-    # Additional cleanup of e2e ports if needed
-    for port in 3000 3001 3002 3003 3004 35453 36963 38473 39983 41493; do
-        pids=$(lsof -ti:$port 2>/dev/null || true)
-        if [ -n "$pids" ]; then
-            echo "$pids" | xargs kill -9 2>/dev/null || true
+    # The rest only applies when this run started the fleet. A run that started
+    # nothing -- --skip-prepare, which is how the hand-built piers (~bus, ~bud)
+    # are archived -- must not stop a playwright-dev someone else is using, and
+    # must not run the port sweep: `lsof -ti:<port> | xargs kill -9` hits every
+    # process on those ports, including ships booted from another checkout, and
+    # it runs on success as well as on failure.
+    if [ "$STARTED_FLEET" = "true" ]; then
+        # Stop any running playwright-dev processes
+        if [ -f "$PROJECT_ROOT/apps/tlon-web/.playwright-dev.pid" ]; then
+            print_info "Stopping playwright-dev environment..."
+            "$PROJECT_ROOT/stop-playwright-dev.sh" >/dev/null 2>&1 || true
         fi
-    done
+
+        # Additional cleanup of e2e ports if needed
+        for port in 3000 3001 3002 3003 3004 35453 36963 38473 39983 41493; do
+            pids=$(lsof -ti:$port 2>/dev/null || true)
+            if [ -n "$pids" ]; then
+                echo "$pids" | xargs kill -9 2>/dev/null || true
+            fi
+        done
+    fi
 
     # Clean up the playwright-dev log file
     if [ -f "$PROJECT_ROOT/apps/tlon-web/playwright-dev-archive.log" ]; then
@@ -299,6 +323,10 @@ check_prerequisites() {
 prepare_ships() {
     print_info "Starting ships with latest desk code..."
 
+    # From here on this run owns the e2e ports, so the EXIT cleanup may sweep
+    # them.
+    STARTED_FLEET=true
+
     cd "$PROJECT_ROOT/apps/tlon-web"
 
     # The playwright-dev script runs rube which:
@@ -341,6 +369,7 @@ prepare_ships() {
         cd "$PROJECT_ROOT/apps/tlon-web"
         FORCE_EXTRACTION=true INCLUDE_OPTIONAL_SHIPS=true FRESH_BOOT=$FRESH_BOOT pnpm e2e:playwright-dev > "$PROJECT_ROOT/apps/tlon-web/playwright-dev-archive.log" 2>&1 &
         local playwright_pid=$!
+        SPAWNED_PIDS+=("$playwright_pid")
 
         # Monitor for SHIP_SETUP_COMPLETE signal which indicates ships are fully ready
         local wait_counter=0

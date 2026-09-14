@@ -1,5 +1,5 @@
 import { MIN_GROUPS_VERSION } from '@tloncorp/shared/logic/deskPolicy';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import shipManifest from '../e2e/shipManifest.json';
 import { shouldIncludeShip } from './shipSelection';
@@ -8,6 +8,7 @@ const N1_KEY = '~bud';
 
 type ManifestShip = (typeof shipManifest)[keyof typeof shipManifest] & {
   optional?: boolean;
+  n1?: boolean;
   deskVersion?: string;
 };
 
@@ -37,19 +38,50 @@ describe('the pinned N-1 ship', () => {
     expect(n1.skipCommit).toBe(true);
   });
 
-  it('is optional, and off unless N1_SHIP names it', () => {
-    expect(n1.optional).toBe(true);
+  describe('selection', () => {
+    // Both switches come from the ambient environment, and a run with
+    // INCLUDE_OPTIONAL_SHIPS already set would otherwise read as a pass.
+    let saved: Record<string, string | undefined>;
 
-    const before = process.env.N1_SHIP;
-    try {
+    beforeEach(() => {
+      saved = {
+        N1_SHIP: process.env.N1_SHIP,
+        INCLUDE_OPTIONAL_SHIPS: process.env.INCLUDE_OPTIONAL_SHIPS,
+      };
       delete process.env.N1_SHIP;
+      delete process.env.INCLUDE_OPTIONAL_SHIPS;
+    });
+
+    afterEach(() => {
+      for (const [key, value] of Object.entries(saved)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    });
+
+    it('is off by default and on when N1_SHIP names it', () => {
+      expect(n1.n1).toBe(true);
       expect(shouldIncludeShip(n1)).toBe(false);
       process.env.N1_SHIP = n1.ship;
       expect(shouldIncludeShip(n1)).toBe(true);
-    } finally {
-      if (before === undefined) delete process.env.N1_SHIP;
-      else process.env.N1_SHIP = before;
-    }
+    });
+
+    it('stays off under INCLUDE_OPTIONAL_SHIPS', () => {
+      // The archive preparation run and the parallel Docker image both set
+      // that flag, and neither has this pier.
+      process.env.INCLUDE_OPTIONAL_SHIPS = 'true';
+      expect(shouldIncludeShip(n1)).toBe(false);
+    });
+
+    it('leaves the other optional ships on INCLUDE_OPTIONAL_SHIPS', () => {
+      for (const [key, ship] of ships) {
+        if (key === N1_KEY || !ship.optional) continue;
+        expect(shouldIncludeShip(ship), key).toBe(false);
+        process.env.INCLUDE_OPTIONAL_SHIPS = 'true';
+        expect(shouldIncludeShip(ship), key).toBe(true);
+        delete process.env.INCLUDE_OPTIONAL_SHIPS;
+      }
+    });
   });
 });
 
@@ -75,6 +107,14 @@ describe('the manifest as a whole', () => {
       if (ship.deskVersion === undefined) continue;
       expect(ship.deskVersion, key).toMatch(/^\d+\.\d+\.\d+$/);
       expect(ship.skipCommit, key).toBe(true);
+    }
+  });
+
+  it('marks exactly one ship as the N-1 pier, and pins its desk', () => {
+    const n1Ships = ships.filter(([, ship]) => ship.n1);
+    expect(n1Ships.map(([key]) => key)).toEqual([N1_KEY]);
+    for (const [key, ship] of n1Ships) {
+      expect(ship.deskVersion, key).toBe(MIN_GROUPS_VERSION);
     }
   });
 });

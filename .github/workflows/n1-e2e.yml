@@ -8,9 +8,9 @@
 # failing to negotiate in the spec, which this job reports.
 #
 # Not a PR check by construction: it runs on staging pushes and on demand. The
-# `E2E Tests (Parallel)` job in ci.yml is untouched — ~bud is `optional` in
-# shipManifest.json, so nothing boots it unless N1_SHIP names it, and the rube
-# Docker image does not bake in its archive.
+# `E2E Tests (Parallel)` job in ci.yml is untouched — ~bud is marked `n1` in
+# shipManifest.json, so `N1_SHIP=bud` is the only thing that selects it, and
+# the rube Docker image does not bake in its archive.
 #
 # rube downloads the pier from the manifest's `downloadUrl`, so a rebuilt pier
 # must be uploaded to gs://bootstrap.urbit.org/ before this job can run against
@@ -28,10 +28,18 @@ jobs:
     # Same label as ci.yml's e2e job; three ships plus three Vite dev servers.
     runs-on: blacksmith-16vcpu-ubuntu-2204
     name: E2E against the pinned N-1 desk
+    # Every `run` gets `bash -eo pipefail`. Without it the default shell is
+    # `bash -e`, where a pipeline takes the exit status of its LAST command —
+    # so `pnpm e2e:test … | tee` below would report the status of `tee` and a
+    # failing spec, or a pier that never downloaded, would pass the job.
+    defaults:
+      run:
+        shell: bash
     env:
-      # Scope the optional-ship inclusion to the N-1 pier.
-      # INCLUDE_OPTIONAL_SHIPS is all-or-nothing and would also boot ~bus and
-      # ~mug and un-skip the specs gated on it.
+      # ~bud is marked `n1` in shipManifest.json, so naming it here is the
+      # only thing that selects it. INCLUDE_OPTIONAL_SHIPS deliberately does
+      # not: it is all-or-nothing and would also boot ~bus and ~mug and
+      # un-skip the specs gated on it.
       N1_SHIP: bud
     steps:
       - name: Checkout
@@ -50,9 +58,9 @@ jobs:
               args: [--frozen-lockfile]
 
       # ---------------------------------------------------------------- guards
-      # Runs before anything expensive: a pier pinned to the wrong release
-      # cannot prove anything, and would fail later in a way that reads like a
-      # product bug.
+      # Both run before anything expensive. A pier pinned to the wrong release,
+      # or whose archive was never published, cannot prove anything — and would
+      # fail later in a way that reads like a product bug.
       - name: The pinned pier matches the policy floor
         run: |
           set -euo pipefail
@@ -73,6 +81,24 @@ jobs:
             echo "**Failed:** the pier pin and the policy floor disagree." >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
+
+      # The pier is built by hand and uploaded by hand
+      # (docs/release-checklist.md), so the manifest can name an archive that
+      # was never published. Without this the run gets as far as booting ships
+      # and dies inside rube on a download, which reads like an infrastructure
+      # flake rather than a missing step.
+      - name: The pinned pier archive is published
+        run: |
+          set -euo pipefail
+          URL=$(node -p "require('./apps/tlon-web/e2e/shipManifest.json')['~${N1_SHIP}'].downloadUrl")
+          echo "~$N1_SHIP pier: $URL"
+          if ! curl -fsS --retry 3 --retry-delay 5 --head "$URL" >/dev/null; then
+            echo "::error::~$N1_SHIP's pier archive is not published at $URL. Rebuild it with apps/tlon-web/rube/build-n1-pier.sh, then: gsutil cp apps/tlon-web/rube/dist/$(basename "$URL") gs://bootstrap.urbit.org/ && gsutil acl ch -u AllUsers:R gs://bootstrap.urbit.org/$(basename "$URL")"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Failed:** \`$URL\` is not published." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "| pier archive | \`$URL\` |" >> "$GITHUB_STEP_SUMMARY"
 
       # --------------------------------------------------------------- the run
       - name: Build packages
@@ -110,7 +136,13 @@ jobs:
 
       - name: Run the N-1 desk spec
         id: n1-spec
-        run: pnpm e2e:test n1-desk.spec.ts 2>&1 | tee /tmp/n1-e2e.log
+        # pipefail is on (see `defaults` above), so the step's status is the
+        # test runner's, not tee's. Stated again here because a pipeline that
+        # silently reports the wrong status is exactly the failure this job
+        # exists to catch.
+        run: |
+          set -o pipefail
+          pnpm e2e:test n1-desk.spec.ts 2>&1 | tee /tmp/n1-e2e.log
         working-directory: ./apps/tlon-web
 
       - name: Report

@@ -88,7 +88,24 @@ commits the `%groups` desk from the git tag named by the ship's `deskVersion` in
 `archive-piers.sh --skip-prepare --ship bud` to produce `rube-bud<n>.tgz`.
 
 It does not upload. Publishing the archive to `gs://bootstrap.urbit.org/` is a
-maintainer step; the script prints the two `gsutil` commands.
+maintainer step; the script prints the two `gsutil` commands. `n1-e2e.yml`
+checks that the object is published before it boots anything, so an un-uploaded
+archive fails the job with that message rather than inside rube.
+
+**What decides the pier's contents**, so a rebuild on another machine matches:
+
+| input | pinned where |
+| ----- | ------------ |
+| vere | `VERE_VERSION` in the script (currently `v4.6`), fetched from `bootstrap.urbit.org/vere/live/` and verified with `urbit --version`. rube itself resolves an unpinned `latest`; this does not. |
+| boot pill | Implicit — whatever `urbit -F` fetches for that vere. At v4.6 that is a %brass pill with %base + %landscape + %groups, building `zuse: 0v1b.4qafq` (kelvin 408), matching `desk/sys.kelvin`. |
+| desk | The git tag named by the ship's `deskVersion`, assembled with that tag's own `peru.yaml`. |
+
+The repo's test pill (`backend/run-tests.sh`, `groups-v11-3-0-408k.pill`) is the
+same kernel but installs no `%docket`/`%settings`/`%storage`/`%landscape`, so the
+web client cannot run on a pier booted from it. That is why this uses `-F` and
+not `-B <pill>`. If a future vere bundles a pill on a different kelvin from
+`desk/sys.kelvin`, the desk commit will fail to build — bump `VERE_VERSION`
+deliberately.
 
 Re-run it whenever `MIN_GROUPS_VERSION`
 (`packages/shared/src/logic/deskPolicy.ts`) moves — the `N-1 Desk E2E` workflow

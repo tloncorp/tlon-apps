@@ -92,7 +92,7 @@ The testing environment uses five pre-configured Urbit ships:
 | ~bus | http://localhost:3001 | 36963     | `.auth/bus.json` | Secondary ship for protocol mismatch tests (purposefully not kept up to date) |
 | ~ten | http://localhost:3002 | 38473     | `.auth/ten.json` | Third ship for cross-ship testing                                              |
 | ~mug | http://localhost:3003 | 39983     | `.auth/mug.json` | Invite service provider (optional, started with `INCLUDE_OPTIONAL_SHIPS=true`) |
-| ~bud | http://localhost:3004 | 41493     | `.auth/bud.json` | Pinned N-1 desk, for `n1-desk.spec.ts` (optional, started with `N1_SHIP=bud`) |
+| ~bud | http://localhost:3004 | 41493     | `.auth/bud.json` | Pinned N-1 desk, for `n1-desk.spec.ts` (started only by `N1_SHIP=bud`, never by `INCLUDE_OPTIONAL_SHIPS`) |
 
 `~bud` carries the *previous* %groups release, named by `deskVersion` in the
 manifest and kept equal to `MIN_GROUPS_VERSION`; rebuild it with

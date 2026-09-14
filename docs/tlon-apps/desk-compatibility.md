@@ -69,9 +69,11 @@ try, and the job reports it like any other failure.
 
 It runs on pushes to `staging` and on `workflow_dispatch`, never on a PR: it
 needs a pier that only exists once a release has shipped, and the four-shard PR
-suite keeps its runtime. `~bud` is `optional`, and the job scopes inclusion with
-`N1_SHIP=bud` rather than `INCLUDE_OPTIONAL_SHIPS`, which is all-or-nothing and
-would also boot `~bus` and `~mug`.
+suite keeps its runtime. `~bud` is marked `n1` in the manifest, which means
+`N1_SHIP=bud` is the *only* thing that selects it —
+`INCLUDE_OPTIONAL_SHIPS=true` deliberately does not, because the archive
+preparation run and the parallel Docker image both set that flag and neither
+carries the N-1 pier.
 
 **Rebuilding it** is part of raising `MIN_GROUPS_VERSION`
 (`docs/release-checklist.md`): set the new `deskVersion` and the next

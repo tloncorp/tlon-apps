@@ -61,8 +61,10 @@ receive updates, and post against desk release N-1.
       2. `cd apps/tlon-web/rube && ./build-n1-pier.sh` — boots a fresh `~bud`,
          commits the `v<deskVersion>` desk to it, and leaves the archive in
          `rube/dist/`.
-      3. Upload it: `gsutil cp rube/dist/rube-bud<n>.tgz gs://bootstrap.urbit.org/`
-         then `gsutil acl ch -u AllUsers:R gs://bootstrap.urbit.org/rube-bud<n>.tgz`.
+      3. Upload it, from `apps/tlon-web/rube`:
+         `gsutil cp dist/rube-bud<n>.tgz gs://bootstrap.urbit.org/` then
+         `gsutil acl ch -u AllUsers:R gs://bootstrap.urbit.org/rube-bud<n>.tgz`.
+         The job refuses to boot until that object is public.
       4. Dispatch `n1-e2e.yml` to confirm the new pier works before the next
          staging push depends on it.
 - [ ] Cut mobile builds from the release tag if it includes native changes.

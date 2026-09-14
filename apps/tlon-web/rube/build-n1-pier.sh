@@ -13,8 +13,25 @@ set -euo pipefail
 # -> mountDesks -> copyDesks -> commitDesks), with one difference: the desk
 # source is the N-1 *tag* rather than the working tree. So the pier comes out
 # the same shape as ~zod's and ~ten's — %docket, %settings, %storage, %landscape
-# and the rest of %base, which the web client needs and which the repo's test
-# pill (backend/run-tests.sh) does not carry.
+# and the rest of %base, which the web client needs.
+#
+# Reproducibility — the three inputs that decide what the pier contains:
+#
+#   1. vere, PINNED below to $VERE_VERSION and verified with `urbit --version`.
+#      rube resolves an unpinned `latest`; this does not, so two rebuilds of the
+#      same tag agree.
+#   2. the boot pill: IMPLICIT, whatever `urbit -F` fetches for that vere. At
+#      v4.6 that is a %brass pill carrying %base + %landscape + %groups, and it
+#      builds `zuse: 0v1b.4qafq` (kelvin 408), matching desk/sys.kelvin. The
+#      repo's own test pill (backend/run-tests.sh, groups-v11-3-0-408k.pill) is
+#      the same kernel but installs no %docket/%settings/%storage/%landscape, so
+#      the web client cannot run on a pier booted from it — that is why this
+#      uses `-F` and not `-B <pill>`.
+#   3. the desk: the git tag named by the ship's `deskVersion`, assembled with
+#      that tag's own peru.yaml.
+#
+# If a future vere bundles a pill on a different kelvin from desk/sys.kelvin the
+# commit will fail to build; bump $VERE_VERSION deliberately, not by drifting.
 #
 # The desk is assembled the way deploy.sh does it: a git worktree of the tag,
 # `peru sync` against that tag's peru.yaml, then scripts/assemble-desk.sh
@@ -37,6 +54,9 @@ MANIFEST_FILE="$RUBE_DIR/../e2e/shipManifest.json"
 SHIP="bud"
 DESK_TAG=""
 HTTP_PORT=""
+# Pinned, not `latest`: see the header. Same host/layout backend/run-tests.sh
+# uses for its own pinned vere.
+VERE_VERSION="${VERE_VERSION:-v4.6}"
 # A fakeship binds ames on a port derived from its @p, so two fake ~buds cannot
 # run at once. This is only the build's port — rube boots the archived pier with
 # no -p and gets the derived one — but a developer machine often already has a
@@ -75,6 +95,7 @@ Options:
 Environment:
   DIST_DIR             Where piers live (default: $RUBE_DIR/dist)
   BUILD_ROOT           Where the pier is built before being moved into place
+  VERE_VERSION         Pinned vere release (default: $VERE_VERSION)
 EOF
 }
 
@@ -173,31 +194,45 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # ------------------------------------------------------------------ vere
-# The same binary, from the same URL, that rube runs the piers with — so the
-# pier we hand over is one rube can open, on the kernel the other E2E piers are
-# on.
-if [ ! -x "$VERE" ]; then
-    case "$(uname -s)" in
-        Darwin) plat=macos ;;
-        Linux)  plat=linux ;;
-        *) print_error "unsupported platform $(uname -s)"; exit 1 ;;
-    esac
-    case "$(uname -m)" in
-        arm64|aarch64) machine=aarch64 ;;
-        x86_64)        machine=x86_64 ;;
-        *) print_error "unsupported arch $(uname -m)"; exit 1 ;;
-    esac
-    print_info "Downloading urbit ($plat-$machine)..."
+# Pinned, and checked even when a binary is already there: rube downloads an
+# unpinned `latest` into this same path, so an existing file says nothing about
+# which vere it is.
+case "$(uname -s)" in
+    Darwin) plat=macos ;;
+    Linux)  plat=linux ;;
+    *) print_error "unsupported platform $(uname -s)"; exit 1 ;;
+esac
+case "$(uname -m)" in
+    arm64|aarch64) machine=aarch64 ;;
+    x86_64)        machine=x86_64 ;;
+    *) print_error "unsupported arch $(uname -m)"; exit 1 ;;
+esac
+
+vere_is_pinned() {
+    [ -x "$VERE" ] || return 1
+    "$VERE" --version 2>/dev/null | head -1 | grep -qx "urbit ${VERE_VERSION#v}"
+}
+
+if ! vere_is_pinned; then
+    if [ -x "$VERE" ]; then
+        print_warning "urbit at $VERE is $("$VERE" --version 2>/dev/null | head -1), not $VERE_VERSION; replacing it"
+    fi
+    print_info "Downloading urbit $VERE_VERSION ($plat-$machine)..."
     mkdir -p "$(dirname "$VERE")"
-    tmp_tgz="$(mktemp -t urbit-bin)"
-    curl -fsSL "https://urbit.org/install/$plat-$machine/latest" -o "$tmp_tgz"
-    tar -xzf "$tmp_tgz" -C "$(dirname "$VERE")"
-    rm -f "$tmp_tgz"
-    extracted="$(find "$(dirname "$VERE")" -maxdepth 1 -name 'vere-*' -type f | head -1)"
-    [ -n "$extracted" ] && mv "$extracted" "$VERE"
-    chmod +x "$VERE"
+    # A bare binary, not a tarball -- the layout backend/run-tests.sh pins too.
+    # mktemp needs an explicit XXXXXX template to be portable to GNU coreutils.
+    tmp_bin="$(mktemp -t urbit-bin.XXXXXX)"
+    curl -fsSL \
+        "https://bootstrap.urbit.org/vere/live/$VERE_VERSION/vere-$VERE_VERSION-$plat-$machine" \
+        -o "$tmp_bin"
+    chmod +x "$tmp_bin"
+    mv "$tmp_bin" "$VERE"
 fi
-print_status "urbit: $VERE"
+if ! vere_is_pinned; then
+    print_error "urbit at $VERE reports $("$VERE" --version 2>/dev/null | head -1), expected urbit ${VERE_VERSION#v}"
+    exit 1
+fi
+print_status "urbit: $VERE ($("$VERE" --version 2>/dev/null | head -1))"
 
 # ------------------------------------------------------------------ boot
 print_info "Booting a fresh ~$SHIP (this takes a few minutes)..."
@@ -340,21 +375,45 @@ if [ -z "$hash_after" ] || [ "$hash_before" = "$hash_after" ]; then
     exit 1
 fi
 
-print_info "kiln:"
-curl -fsS -b "$COOKIES" "http://localhost:$HTTP_PORT/~/scry/hood/kiln/pikes.json" \
-    | jq '{groups: .groups}' || true
+# kiln has to be running the desk, not merely holding it: a desk that failed
+# to build sits there with zest %dead and the ship serves nothing.
+pikes="$(curl -fsS -b "$COOKIES" "http://localhost:$HTTP_PORT/~/scry/hood/kiln/pikes.json")"
+zest="$(jq -r '.groups.zest // empty' <<<"$pikes")"
+if [ "$zest" != "live" ]; then
+    print_error "~$SHIP's %groups desk is zest '${zest:-<none>}', expected live"
+    jq '{groups: .groups}' <<<"$pikes" >&2 || true
+    exit 1
+fi
+print_status "%groups is live in kiln"
+jq '{groups: .groups}' <<<"$pikes"
 
 if [ "$KEEP_RUNNING" = "true" ]; then
     print_warning "Leaving ~$SHIP running (pid $SHIP_PID) — stop it before archiving"
     exit 0
 fi
 
+# The pier must be at rest before it is moved or tarred: a live serf is still
+# writing to the event log and the snapshot, and an archive taken underneath it
+# is a torn one. So this waits for the process to actually be gone, escalates,
+# and gives up loudly rather than carrying on.
 print_info "Stopping ~$SHIP..."
-kill -TERM "$SHIP_PID" 2>/dev/null || true
-for _ in $(seq 1 120); do
-    kill -0 "$SHIP_PID" 2>/dev/null || break
-    sleep 1
-done
+stop_ship() {
+    local signal
+    for signal in TERM KILL; do
+        kill -"$signal" "$SHIP_PID" 2>/dev/null || true
+        local _i
+        for _i in $(seq 1 120); do
+            kill -0 "$SHIP_PID" 2>/dev/null || return 0
+            sleep 1
+        done
+        print_warning "~$SHIP did not exit on SIG$signal after 120s"
+    done
+    return 1
+}
+if ! stop_ship; then
+    print_error "~$SHIP (pid $SHIP_PID) is still running; refusing to move or archive a live pier"
+    exit 1
+fi
 SHIP_PID=""
 print_status "~$SHIP stopped"
 
@@ -375,7 +434,9 @@ if [ "$SKIP_ARCHIVE" = "true" ]; then
 fi
 
 print_info "Archiving..."
-SKIP_UPLOAD=true SKIP_CLEANUP=true ARCHIVE_TAG="$ARCHIVE_TAG" \
+# DIST_DIR goes through too, so a caller's override actually reaches the
+# archiver rather than being silently replaced by its own default.
+SKIP_UPLOAD=true SKIP_CLEANUP=true ARCHIVE_TAG="$ARCHIVE_TAG" DIST_DIR="$DIST_DIR" \
     URBIT_BINARY="$VERE" "$RUBE_DIR/archive-piers.sh" --skip-prepare --ship "$SHIP"
 
 archive="$DIST_DIR/rube-${SHIP}${ARCHIVE_TAG}.tgz"

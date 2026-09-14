@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import fetch from 'node-fetch';
 import * as path from 'path';
 
+import { loadEnvTest } from './envTest';
 import { Ship } from './index';
 import { shouldIncludeShip } from './shipSelection';
 
@@ -18,6 +19,11 @@ interface WebServer {
 let rubeProcess: childProcess.ChildProcess | null = null;
 let webServers: WebServer[] = [];
 let isShuttingDown = false;
+
+// The rube child this harness spawns loads .env.test and decides its ship
+// selection from it. Load the same file here, or the two disagree and the
+// harness waits forever on a dev server for a ship rube never booted.
+loadEnvTest(__dirname);
 
 // Load ship manifest
 const manifestPath = path.join(

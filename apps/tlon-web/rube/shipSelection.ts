@@ -7,18 +7,24 @@
  * copies of it; a ship included by one and not another hangs the run waiting
  * on a port nothing is listening to.
  *
- * `INCLUDE_OPTIONAL_SHIPS` is all-or-nothing: turning it on boots ~bus and
- * ~mug as well and un-skips the specs gated on it. The N-1 desk job wants
- * exactly ~zod, ~ten and the pinned N-1 pier, so `N1_SHIP` names the single
- * optional ship to add instead.
+ * Two switches, and they do not overlap:
+ *
+ * - `optional` ships (~bus, ~mug) come in together under
+ *   `INCLUDE_OPTIONAL_SHIPS=true`, as they always have.
+ * - an `n1` ship (~bud) is selected *only* by naming it in `N1_SHIP`. It is
+ *   deliberately excluded from `INCLUDE_OPTIONAL_SHIPS`: that flag is what the
+ *   archive preparation run and the parallel Docker image use, and neither has
+ *   the N-1 pier — rube/Dockerfile bakes in zod/bus/ten/mug only, so selecting
+ *   ~bud there would look for a pier that is not in the image.
  */
 export interface SelectableShip {
   ship: string;
   skipSetup?: boolean;
   optional?: boolean;
+  n1?: boolean;
 }
 
-/** The optional ship named by `N1_SHIP`, if any. */
+/** The ship named by `N1_SHIP`, if any. */
 export const n1ShipName = (): string | undefined => {
   const name = process.env.N1_SHIP?.trim();
   return name ? name : undefined;
@@ -26,8 +32,7 @@ export const n1ShipName = (): string | undefined => {
 
 export function shouldIncludeShip(ship: SelectableShip): boolean {
   if (ship.skipSetup) return false;
+  if (ship.n1) return ship.ship === n1ShipName();
   if (!ship.optional) return true;
-  return (
-    process.env.INCLUDE_OPTIONAL_SHIPS === 'true' || ship.ship === n1ShipName()
-  );
+  return process.env.INCLUDE_OPTIONAL_SHIPS === 'true';
 }
