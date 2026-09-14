@@ -51,14 +51,19 @@ In this workflow the source checkout is a seed, not a workspace: every worktree 
 
 ### 2. Run the app
 
-**One build at a time.** Both are memory-hungry, and running `xcodebuild` and Gradle together makes D8 fail with `java.lang.OutOfMemoryError: Java heap space` (`org.gradle.jvmargs=-Xmx2048m` in `android/gradle.properties`). Overlapping them costs more than serialising them does.
+Build both platforms at once. Measured here with both caches bypassed: a cold `stim ios` (4m46s) and a cold `stim android` (3m08s) ran together and both succeeded, so the pair finishes when iOS does rather than three minutes later.
 
 ```bash
 stim start
-stim ios
-stim android                              # only after ios has finished
+stim ios &
+stim android
+wait
 stim logs --errors                        # exit 0 and "No matching log records" on stderr is the pass
 ```
+
+If Gradle fails with `java.lang.OutOfMemoryError: Java heap space`, run `stim android` again by itself once iOS is done. The knob is `org.gradle.jvmargs=-Xmx2048m` in `android/gradle.properties`; the retry costs only the Android build, since iOS is already in the cache.
+
+Two builds of the **same platform at the same fingerprint** -- `stim ios` in two worktrees on one commit -- are serialised by Stim, not by you: one compiles and the other waits, then installs its artifact, reporting `waited 23.1s for <worktree>'s build -> installed from cache`. That is the single-flight lock working; do not route around it.
 
 A cold `stim ios` takes 6 to 11 minutes here, longer than most tool timeouts. Run it in the background, or with the longest timeout your tools allow. If a call times out anyway, run the same command again: the build outlives the shell, and the retry waits for it and installs the result rather than compiling twice.
 
