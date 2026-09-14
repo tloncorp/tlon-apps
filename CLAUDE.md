@@ -248,7 +248,6 @@ To identify which component to modify:
 ### Web Development
 
 -   Requires `.env.local` file in `apps/tlon-web` with `VITE_SHIP_URL`
--   With `DEFAULT_SHIP_LOGIN_URL` and `DEFAULT_SHIP_LOGIN_ACCESS_CODE` set there too (the same pair `apps/tlon-mobile/.env.local` uses), the dev server signs in to the ship itself and the browser never sees a login page; `DEFAULT_SHIP_LOGIN_URL` also stands in for `VITE_SHIP_URL`
 -   Supports hot reloading via Vite
 
 ### Desktop Development
