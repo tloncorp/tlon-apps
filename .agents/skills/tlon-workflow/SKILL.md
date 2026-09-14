@@ -1,11 +1,11 @@
 ---
 name: tlon-workflow
-description: Use when taking a Tlon Messenger mobile task from a fresh worktree to a merged pull request: reproducing or fixing something in the iOS or Android app, validating it on a simulator or emulator, opening the PR with evidence, and following its review.
+description: Use when taking a Tlon Messenger task from a fresh worktree to a merged pull request: reproducing or fixing something in the iOS, Android or web app, validating it on a simulator, emulator or browser, opening the PR with evidence, and following its review.
 ---
 
-# Tlon mobile workflow
+# Tlon workflow
 
-One task, one worktree, one pull request. Stim owns the Metro port, the device, and the build caches; agent-device drives the screen; `gh` carries the evidence; a watcher tells you when a reviewer spoke.
+One task, one worktree, one pull request, across three platforms: iOS, Android and web. Stim owns the ports, the devices and the build caches; agent-device drives a device and a browser drives web; `gh` carries the evidence; a watcher tells you when a reviewer spoke.
 
 Stim's own guide is the reference for its commands and refusals. Read it once per session:
 
@@ -51,7 +51,7 @@ In this workflow the source checkout is a seed, not a workspace: every worktree 
 
 ### 2. Run the app
 
-Build both platforms at once. Measured here with both caches bypassed: a cold `stim ios` (4m46s) and a cold `stim android` (3m08s) ran together and both succeeded, so the pair finishes when iOS does rather than three minutes later.
+Build both native platforms at once. Measured here with both caches bypassed: a cold `stim ios` (4m46s) and a cold `stim android` (3m08s) ran together and both succeeded, so the pair finishes when iOS does rather than three minutes later.
 
 ```bash
 stim start
@@ -80,6 +80,26 @@ The preview app id is `io.tlon.groups.preview`; open that with agent-device. All
 Use `stim logs --errors`, not `--since 5m --level error`: the narrower form filters out the `hiddenapi ... AccessibilityNodeInfo` noise agent-device's own snapshots generate on Android.
 
 `ready` describes the process, not the screen: this app needs roughly another minute to paint its first screen.
+
+**Web** is a Vite server, no build, up in seconds. Every worktree wants the same port for it, so take one from stim rather than the default:
+
+```bash
+cd <worktree>
+pnpm --filter tlon-web exec vite --port "$(stim ports get web)" --strictPort
+```
+
+`stim ports get <label>` allocates a port to this worktree the first time and prints the same number every time after, so the line is safe to rerun. `--strictPort` is the point of that one: without it Vite silently moves to the next free port when yours is taken, and you get a server that works and serves the wrong worktree. The app is at `http://localhost:<port>/apps/groups/`. It needs `apps/tlon-web/.env.local` with `VITE_SHIP_URL` naming the ship the dev server proxies to -- the same self-hosted dev ship as step 3 -- which `stim worktree warm` carries over with the rest of the ignored files. `VITE_DISABLE_SPLASH_MODAL=true` there skips the wayfinding modal on a fresh profile.
+
+**Cosmos** renders a component in a chosen state without driving the app to it, and is the fastest way in for a component-level change:
+
+```bash
+cd <worktree>/apps/tlon-web
+npx cosmos --port "$(stim ports get cosmos)"
+```
+
+`cosmos.config.json` pins 5555; the flag wins over it. (`cosmos --help` lists only `--help` and `--version`, which is misleading -- react-cosmos parses argv with yargs and prefers `--port`. The flag works; it is just undocumented.) The renderer is a second server, based at 5050, and needs nothing: it retries upward when its port is taken and says where it landed. Cosmos needs `packages/editor/dist` built (`pnpm run build:packages` if it is missing). Fixtures live in `packages/app/fixtures`; the UI lists a file's named exports, so `ChatMessage.fixture.tsx` appears as `ChatMessage / MessageStates` and the like.
+
+`stim ports` lists this worktree's labels and numbers, Metro included. That is the answer to "which server is mine" -- open those and nothing else. A server on some other port is another worktree's, and reading it as yours fails in the worst way: the page renders, the fixtures load, and the code is someone else's. If you must open a port stim did not hand you, `lsof -a -p "$(lsof -nP -iTCP:<port> -sTCP:LISTEN -t | head -1)" -d cwd -Fn` prints the worktree being served.
 
 ### 3. Sign in
 
@@ -120,10 +140,12 @@ Run these one at a time, so a failed step is seen rather than skipped.
 What this app does that the sequence above does not show:
 
 - Both prompts come back after every full reload, not only the first launch.
-- A "Stay in the loop" sheet appears later over Home on both platforms and covers the bottom of the list: `press 'text="Not now"'`.
+- A "Stay in the loop" sheet appears later over Home on iOS and Android and covers the bottom of the list: `press 'text="Not now"'`.
 - On Android the notifications prompt can arrive after `alert dismiss` has already returned; `wait 3000` before it, or `screenshot` and dismiss what is there.
 - On Android this app's screens collapse into a few group nodes, so `find` matches nothing; a `text="..."` selector still resolves.
 - iOS shows a keyboard tip ("Speed up your typing...", `Continue`) on the first text entry, which swallows the next tap. Only reached when the fields are not prefilled.
+
+**Web** has no prefill. Open `http://localhost:<port>/apps/groups/` and the ship's own login page appears; enter the ship's `+code` -- the same value as `DEFAULT_SHIP_LOGIN_ACCESS_CODE` -- once per browser profile, and the cookie holds. `SHIP_ACCESS_CODE` in `apps/tlon-web/.env.local` is read by nothing in the repository; do not go looking for what consumes it.
 
 This yields an `authType: 'self'` session. It gets you into the app; it does not exercise the hosting-account flows (node status, revival, bot config).
 
@@ -133,7 +155,14 @@ This yields an `authType: 'self'` session. It gets you into the app; it does not
 
 For a bug or a change to existing behavior, record what the app does now, before touching code. A screen recording is the default; a screenshot only when the state is static and one frame shows it.
 
-**Which platforms.** One platform is enough, the one the ticket names or iOS, when the change is logic only, or UI built from components that behave the same everywhere (`View`, `Text`, layout, styling). Both platforms, before and after, when the change touches anything with platform quirks: `TextInput`, `Switch`, `ScrollView` and list behavior, keyboard, gestures, the WebView editor, permissions, notifications, a native module, `Platform.select`, or a `.ios.tsx` / `.android.tsx` file; or when the ticket reports a symptom on one platform only. When unsure, both. Decide before touching code: a "before" on a platform you skipped is not recoverable once the fix is in.
+**Which platforms.** Three exist: iOS, Android and web (which the desktop app wraps, so it covers both). Decide before touching code: a "before" on a platform you skipped is not recoverable once the fix is in.
+
+- **One platform, the one the ticket names**, when the change is logic only, or UI built from components that behave the same everywhere (`View`, `Text`, layout, styling). No named platform: iOS.
+- **Both iOS and Android**, before and after, when the change touches anything with native quirks: `TextInput`, `Switch`, `ScrollView` and list behavior, keyboard, gestures, the WebView editor, permissions, notifications, a native module, `Platform.select`, or a `.ios.tsx` / `.android.tsx` file; or when the ticket reports a symptom on one platform only.
+- **Web as well**, whenever the change is under `packages/app`, `packages/ui` or `packages/shared` and is layout or shared-component behavior: those ship to web and desktop too, and the desktop navigation is a different tree from the mobile one, so "it works in the app" says nothing about it. A change confined to `apps/tlon-mobile`, or to a `.ios.tsx` / `.android.tsx` file, does not reach web.
+- **Cosmos instead of a platform** for a difference that lives in one component rather than a flow; see below and step 6.
+
+When unsure, more platforms rather than fewer.
 
 Record the behavior, not the journey. Navigate to the screen first, start recording, do the one action that triggers it, stop as soon as the result is on screen. A reviewer watches these; sign-in, navigation and dead time are not evidence. Aim for under 30 seconds.
 
@@ -145,6 +174,8 @@ agent-device record stop --session <name>
 ```
 
 Use the sessions from step 3, on the udid and serial `stim status` prints for this worktree. Prove the repro first, then record it: "the behavior, not the journey" is only possible once you know the trigger. Otherwise wait for the result's text before `record stop`, then check that `record start` succeeded and, after `record stop`, the clip's duration and last frame.
+
+**Web** is driven by whatever browser automation you have -- this repository sets up the Playwright MCP server (see `CLAUDE.md`), and a browser pane works too. Same rule, same names: `before-web.png` for a static state, a recording for one with motion. Use the desktop window size a person would, not a phone-width viewport: the desktop navigation is its own tree, and a narrow viewport shows you the mobile one you already tested.
 
 **A clip is the default, but two cases need stills as well, and attaching only the clip fails them.** A state that lasts under about a second -- a delivery indicator between send and server echo -- is recorded from before the trigger and then proven with frames (`ffmpeg -ss <t> -i <clip> -frames:v 1 <png>`), since no end state will be there to wait for and a reviewer scrubbing the clip will miss it. A difference between two discrete states -- with the indicator and without it, empty and populated, collapsed and expanded -- is proven by a still of each, because the claim is a comparison and a recording forces the reviewer to hold one side in their head. Attach both the stills and the clip: the stills carry the claim, the clip shows it is real motion and not two staged screenshots.
 
@@ -160,7 +191,7 @@ Evidence goes in `.evidence/` at the root of your worktree: gitignored, so it ca
 
 Reproduce in a throwaway group named after the task and the time (`TLON-1234 repro 1435`), not the default "Untitled group": other agents make those too, earlier runs of the same ticket leave theirs behind, and on Android the group list collapses into one label, so same-named groups are indistinguishable. Making one: Home `Add a chat` → `New group` → `Basic group` (a chat, a gallery and a notebook channel) → name → `Next` → `Create group`; on iOS the group-type cards and those two buttons are `[other]` nodes that a ref does not press, so use coordinates from a screenshot. Refs come back from a `--settle` diff as `@eN~sNNN`; use that full form, a bare `@eN` is refused after the tree changed.
 
-Backgrounding, when the ticket or the variation calls for it: `agent-device home --session <name>` on either platform; back with `xcrun simctl launch <udid> io.tlon.groups` on iOS and `adb -s <serial> shell am start -n io.tlon.groups/io.tlon.landscape.MainActivity` on Android. A system activity over the app is `adb shell am start -a android.settings.INPUT_METHOD_SETTINGS`.
+Backgrounding, when the ticket or the variation calls for it: `agent-device home --session <name>` on either device; back with `xcrun simctl launch <udid> io.tlon.groups` on iOS and `adb -s <serial> shell am start -n io.tlon.groups/io.tlon.landscape.MainActivity` on Android. A system activity over the app is `adb shell am start -a android.settings.INPUT_METHOD_SETTINGS`.
 
 When a label is too long for the screen, read the text (`agent-device snapshot`) rather than trusting the picture.
 
@@ -186,36 +217,7 @@ Repeat step 4 into `after-<platform>.mp4` on the platform(s) you recorded before
 
 Keep `stim logs --since` windows short.
 
-**Web and Cosmos.** `packages/app`, `packages/ui` and `packages/shared` ship to web and desktop as well as to the app, so a change under any of them that is layout or shared-component behavior needs looking at there too -- and the desktop navigation is a different tree from the mobile one, so "it works in the app" says nothing about it. A change confined to `apps/tlon-mobile`, or to a `.ios.tsx` / `.android.tsx` file, does not.
-
-Cosmos is the fastest way in for a component-level change, and the only one that renders a state without driving the app to it. Every worktree wants the same port for it, so take one from stim rather than the default:
-
-```bash
-cd <worktree>/apps/tlon-web
-npx cosmos --port "$(stim ports get cosmos)"
-```
-
-`stim ports get <label>` allocates a port to this worktree the first time and prints the same number every time after, so the line is safe to rerun. `cosmos.config.json` pins 5555; the flag wins over it. (`cosmos --help` lists only `--help` and `--version`, which is misleading -- react-cosmos parses argv with yargs and prefers `--port`. The flag works; it is just undocumented.) The renderer is a second server, based at 5050, and needs nothing: it retries upward when its port is taken and says where it landed.
-
-Cosmos needs `packages/editor/dist` built (`pnpm run build:packages` if it is missing). Fixtures live in `packages/app/fixtures`; the UI lists a file's named exports, so `ChatMessage.fixture.tsx` appears as `ChatMessage / MessageStates` and the like.
-
-The full web app takes its port the same way:
-
-```bash
-pnpm --filter tlon-web exec vite --port "$(stim ports get web)" --strictPort
-```
-
-`--strictPort` is the point of that one. Without it Vite silently moves to the next free port when yours is taken, so you get a server that works and serves the wrong worktree. Web also needs `.env.local` in `apps/tlon-web` with `VITE_SHIP_URL`; `stim worktree warm` carries it over with the rest of the ignored files.
-
-`stim ports` lists this worktree's labels and numbers, Metro included. That is the answer to "which server is mine" -- open those and nothing else. A server on some other port is another worktree's, and reading it as yours fails in the worst way: the page renders, the fixtures load, and the code is someone else's. If you must open a port stim did not hand you, find out whose it is first:
-
-```bash
-lsof -a -p "$(lsof -nP -iTCP:<port> -sTCP:LISTEN -t | head -1)" -d cwd -Fn
-```
-
-The path it prints is the worktree being served.
-
-Two things that shape how you can verify: the Cosmos UI (5555) and its renderer (5050) are **different origins**, so page-level JavaScript cannot reach into the fixture's DOM to measure it -- screenshots and accessibility reads work, `document.querySelector` across the frame does not. And headless Chrome renders the Cosmos page blank however long you give it, so a browser you can see is the only way to capture one.
+**Web.** Validate on it whenever step 4 called for it, on the server and Cosmos you started in step 2. Two things that shape how you can verify: the Cosmos UI (5555) and its renderer (5050) are **different origins**, so page-level JavaScript cannot reach into the fixture's DOM to measure it -- screenshots and accessibility reads work, `document.querySelector` across the frame does not. And headless Chrome renders the Cosmos page blank however long you give it, so a browser you can see is the only way to capture one.
 
 ### 7. Get an independent review
 
@@ -238,6 +240,7 @@ git push -u origin <handle>/<topic>
 gh pr create --draft --base develop --title "<title>" --body-file <worktree>/.evidence/pr.md \
   --attach <worktree>/.evidence/before-ios.mp4 --attach <worktree>/.evidence/after-ios.mp4 \
   --attach <worktree>/.evidence/before-android.mp4 --attach <worktree>/.evidence/after-android.mp4
+  --attach '<worktree>/.evidence/before-web.png#before, web' --attach '<worktree>/.evidence/after-web.png#after, web'
 ```
 
 One `--attach` per recording or screenshot from steps 4 and 6, for every platform you tested; `gh pr create` prompts for a remote when the branch is not pushed, and a prompt in an unattended shell is a hang. `gh` appends the uploaded URLs to the body in `--attach` order, and rewrites a body reference only when it matches the `--attach` string exactly.
