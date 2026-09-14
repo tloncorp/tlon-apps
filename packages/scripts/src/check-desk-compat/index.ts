@@ -5,7 +5,8 @@ import { WORKTREE_REF, openTree } from './git';
 const USAGE = `
 Usage: pnpm --filter 'scripts' list:desk-requests [options]
 
-  --list                 print every request the client makes of the desk
+  --list                 print every request the client makes of the desk;
+                         a row marked ? is one this reader could not resolve
   --client-ref <ref>     client tree to extract from (default: ${WORKTREE_REF})
 
 Extraction only: this says what the client asks for, not whether any desk
@@ -29,7 +30,9 @@ function rows(deps: Dependency[]) {
 }
 
 const target = (d: Dependency) =>
-  d.mark ?? d.thread ?? d.path?.shape ?? d.path?.text ?? '?';
+  d.surface === 'thread'
+    ? `${d.thread ?? '?'} <- ${d.mark ?? '?'}`
+    : (d.mark ?? d.path?.shape ?? d.path?.text ?? '?');
 
 function main(): number {
   const args: Record<string, string | boolean> = {};
@@ -57,15 +60,22 @@ function main(): number {
     for (const row of listed) {
       console.log(
         [
+          row.dep.unresolved ? '?' : ' ',
           row.dep.surface.padEnd(kindWidth),
           (row.dep.app ?? '?').padEnd(appWidth),
           target(row.dep),
-        ].join('  ')
+        ].join(' ')
       );
-      console.log(`    ${row.sites.join(', ')}`);
+      // A row this reader could not resolve is still a request the client
+      // makes; printing the list without saying so reads like a clean sweep.
+      if (row.dep.unresolved)
+        console.log(`      unresolved: ${row.dep.unresolved}`);
+      console.log(`      ${row.sites.join(', ')}`);
     }
+    const unresolved = listed.filter((r) => r.dep.unresolved).length;
     console.log(
-      `\n${listed.length} distinct requests from ${listed.reduce((n, r) => n + r.sites.length, 0)} call sites`
+      `\n${listed.length} distinct requests from ${listed.reduce((n, r) => n + r.sites.length, 0)} call sites` +
+        `, ${unresolved} of them marked ? because this reader could not resolve them`
     );
     return 0;
   } finally {

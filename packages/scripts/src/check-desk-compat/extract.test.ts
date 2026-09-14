@@ -96,6 +96,40 @@ describe('binding is by import source, not by name', () => {
   });
 });
 
+describe('a wrapper name a nested scope has taken back', () => {
+  it('is not a ship call, however the shadow is bound', () => {
+    // The import map is file-wide, so without this each of these invents a
+    // dependency the client never has.
+    const shadowing = (body: string) =>
+      keys(`import { poke, scry } from './urbit';\n${body}`);
+    // A parameter.
+    expect(
+      shadowing(
+        "export const f = (poke: (x: unknown) => void) => poke({ app: 'groups', mark: 'group-action-5' });"
+      )
+    ).toEqual([]);
+    // A local.
+    expect(
+      shadowing(`export const f = () => {
+        const poke = (x: unknown) => x;
+        return poke({ app: 'groups', mark: 'group-action-5' });
+      };`)
+    ).toEqual([]);
+    // A destructured parameter, and a namespace object of the same name.
+    expect(
+      shadowing(
+        "export const f = ({ scry }: { scry: (x: unknown) => void }) => scry({ app: 'groups', path: '/v1/init' });"
+      )
+    ).toEqual([]);
+    // And the real import still resolves beside them.
+    expect(
+      shadowing(
+        "export const g = () => poke({ app: 'groups', mark: 'group-action-5' });"
+      )
+    ).toEqual(['poke groups group-action-5']);
+  });
+});
+
 describe('argument forms', () => {
   it('reads a template path down to its literal prefix, directly or through a local', () => {
     const inline = extract(
@@ -325,6 +359,19 @@ describe('argument forms', () => {
     ]);
   });
 
+  it('keeps an empty path a lone `if` may never overwrite', () => {
+    // Only one arm writes, so the root path still reaches the call. Dropping
+    // it hides a request the client really makes.
+    expect(
+      keys(`import { scry } from './urbit';
+        export const f = (flag: boolean) => {
+          let path = '';
+          if (flag) path = '/v1';
+          return scry({ app: 'chat', path });
+        };`)
+    ).toEqual(['scry chat /', 'scry chat /v1']);
+  });
+
   it('keeps an empty path that nothing overwrites', () => {
     // chatApi.ts subscribes to `/` for real. Only a competing assignment makes
     // an empty string a placeholder; on its own it is the request.
@@ -422,6 +469,54 @@ describe('argument forms', () => {
     expect(dep.unresolved).toBeDefined();
   });
 
+  it('carries the branch an assignment sits under as its guard', () => {
+    // An `if` arm is no less conditional than a ternary branch, and the
+    // GUARDED rule downstream reads exactly this text.
+    const deps = extract(`import { poke } from './urbit';
+      export const f = (supportsNew: boolean) => {
+        let params = { app: 'activity', mark: 'activity-action' };
+        if (supportsNew) {
+          params = { app: 'activity', mark: 'activity-action-2' };
+        } else {
+          params = { app: 'activity', mark: 'activity-action-1' };
+        }
+        return poke(params);
+      };`);
+    expect(
+      deps
+        .filter((d) => d.mark !== 'activity-action')
+        .map((d) => [d.mark, d.guard])
+    ).toEqual([
+      ['activity-action-2', 'supportsNew ? …'],
+      ['activity-action-1', '! (supportsNew)'],
+    ]);
+  });
+
+  it('conjoins nested branch conditions, and reads a case label', () => {
+    const nested = extract(`import { scry } from './urbit';
+      export const f = (a: boolean, b: boolean) => {
+        let path = '/v1';
+        if (a) { if (b) { path = '/v3'; } }
+        return scry({ app: 'chat', path });
+      };`);
+    expect(nested.find((d) => d.path?.text.includes('v3'))?.guard).toBe(
+      'a ? … && b ? …'
+    );
+    const switched = extract(`import { scry } from './urbit';
+      export const f = (kind: string) => {
+        let path = '/v1';
+        switch (kind) {
+          case 'dm':
+            path = '/v2';
+            break;
+        }
+        return scry({ app: 'chat', path });
+      };`);
+    expect(switched.find((d) => d.path?.text.includes('v2'))?.guard).toBe(
+      "kind === 'dm'"
+    );
+  });
+
   it('records what it cannot resolve rather than dropping it', () => {
     // An open value set: feedVersion() returns 'v7' | 'v6' | 'v5' at runtime.
     expect(
@@ -439,6 +534,14 @@ describe('argument forms', () => {
         'export const init = async (airlock: Urbit) => airlock.subscribe(sub(set, get));'
       )[0].unresolved
     ).toContain('airlock.subscribe');
+  });
+
+  it('marks a poke whose app it could not read, as the endpoint readers do', () => {
+    const [dep] = extract(
+      "import { poke } from './urbit';\nexport const f = (app: string) => poke({ app, mark: 'chat-negotiate' });"
+    );
+    expect(dep.key).toBe('poke ? chat-negotiate');
+    expect(dep.unresolved).toBe('app is not a string literal');
   });
 
   it('reads both dependencies of a tracked poke: the mark and the watch endpoint', () => {
@@ -565,6 +668,34 @@ describe('helper expansion', () => {
       ['packages/api/src']
     );
     expect(deps.map((d) => d.key)).toContain('poke channels channel-action-2');
+  });
+});
+
+describe('threads', () => {
+  const run = (body: string) =>
+    extract(`import { thread } from './urbit';\n${body}`)[0];
+
+  it('are identified by desk, name and the mark they take', () => {
+    // Two desks may both ship a `group-create-1`, and a thread that starts
+    // taking a different input mark is a different dependency.
+    expect(
+      run(
+        "export const f = () => thread({ desk: 'groups', threadName: 'group-create-1', inputMark: 'group-create-thread', outputMark: 'group-ui-2', body: {} });"
+      ).key
+    ).toBe('thread groups/group-create-1 group-create-thread');
+  });
+
+  it('are unresolved when any of the three is computed', () => {
+    const dep = run(
+      "export const f = (desk: string) => thread({ desk, threadName: 'group-create-1', inputMark: 'group-create-thread', body: {} });"
+    );
+    expect(dep.key).toBe('thread ?/group-create-1 group-create-thread');
+    expect(dep.unresolved).toBe('desk is not a string literal');
+    expect(
+      run(
+        "export const f = (n: string) => thread({ desk: 'groups', threadName: n, body: {} });"
+      ).unresolved
+    ).toBe('threadName, inputMark are not a string literal');
   });
 });
 

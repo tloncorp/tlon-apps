@@ -158,11 +158,57 @@ function collectBindings(sf: ts.SourceFile): Bindings {
 
 type Callee = { wrapper: string; positional: boolean } | 'airlock' | null;
 
+/**
+ * Does a scope between the call and the file declare this name?
+ *
+ * The import map is file-wide, so without this a parameter or local called
+ * `poke` reads as the imported wrapper and invents a dependency the client
+ * never has — which downstream is a `MISSING` nobody can fix.
+ */
+function shadowed(node: ts.Node, name: string): boolean {
+  const declares = (n: ts.BindingName): boolean =>
+    ts.isIdentifier(n)
+      ? n.text === name
+      : n.elements.some((e) => !ts.isOmittedExpression(e) && declares(e.name));
+  for (let cur: ts.Node | undefined = node; cur; cur = cur.parent) {
+    if (ts.isFunctionLike(cur) && cur.parameters.some((p) => declares(p.name)))
+      return true;
+    if (
+      (ts.isFunctionDeclaration(cur) || ts.isClassDeclaration(cur)) &&
+      cur.name?.text === name
+    ) {
+      return true;
+    }
+    if (ts.isCatchClause(cur) && cur.variableDeclaration) {
+      if (declares(cur.variableDeclaration.name)) return true;
+    }
+    const body = ts.isBlock(cur)
+      ? cur.statements
+      : ts.isSourceFile(cur)
+        ? []
+        : null;
+    if (body) {
+      for (const stmt of body) {
+        if (
+          ts.isVariableStatement(stmt) &&
+          stmt.declarationList.declarations.some((d) => declares(d.name))
+        ) {
+          return true;
+        }
+        if (ts.isFunctionDeclaration(stmt) && stmt.name?.text === name)
+          return true;
+      }
+    }
+  }
+  return false;
+}
+
 function resolveCallee(node: ts.CallExpression, b: Bindings): Callee {
   const callee = node.expression;
   if (ts.isIdentifier(callee)) {
     const wrapper = b.wrappers.get(callee.text);
-    return wrapper ? { wrapper, positional: false } : null;
+    if (!wrapper || shadowed(node, callee.text)) return null;
+    return { wrapper, positional: false };
   }
   if (
     !ts.isPropertyAccessExpression(callee) ||
@@ -173,6 +219,7 @@ function resolveCallee(node: ts.CallExpression, b: Bindings): Callee {
   const obj = callee.expression.text;
   const prop = callee.name.text;
   if (obj === 'airlock' && prop === 'subscribe') return 'airlock';
+  if (shadowed(node, obj)) return null;
   if (!WRAPPERS.has(prop)) return null;
   if (b.namespaces.has(obj)) return { wrapper: prop, positional: false };
   // The web client's `subscribeOnce(app, path, timeout)` is positional — a
@@ -192,7 +239,8 @@ const textOf = (_ctx: Ctx, node: ts.Node) =>
 
 function makeKey(d: Omit<Dependency, 'key' | 'site' | 'text'>): string {
   if (d.surface === 'poke') return `poke ${d.app ?? '?'} ${d.mark ?? '?'}`;
-  if (d.surface === 'thread') return `thread ${d.thread ?? '?'}`;
+  if (d.surface === 'thread')
+    return `thread ${d.app ?? '?'}/${d.thread ?? '?'} ${d.mark ?? '?'}`;
   if (d.surface === 'http') return `http ${d.path?.text ?? '?'}`;
   if (d.path === null) return `${d.surface} ${d.app ?? '?'} ?`;
   if (d.path.shape) return `${d.surface} ${d.app ?? '?'} ${d.path.shape}`;
@@ -328,6 +376,7 @@ function declaresName(scope: ts.Node, name: string): boolean {
  * parameter is never resolved to an outer variable of the same name.
  */
 function localAssignments(
+  ctx: Ctx,
   scope: ts.Node,
   name: string,
   /** Position of the call. Only assignments before it can reach it. */
@@ -336,7 +385,7 @@ function localAssignments(
   let cur: ts.Node | undefined = scope;
   let pos = before;
   while (cur) {
-    const found = scopeAssignments(cur, name, pos);
+    const found = scopeAssignments(ctx, cur, name, pos);
     if (found.length > 0 || declaresName(cur, name)) return found;
     pos = cur.getStart();
     cur = enclosingFunction(cur);
@@ -350,6 +399,7 @@ function localAssignments(
  * becomes its own record, carrying the block it came from.
  */
 function scopeAssignments(
+  ctx: Ctx,
   scope: ts.Node,
   name: string,
   /** Position of the call. Only assignments before it can reach it. */
@@ -392,18 +442,61 @@ function scopeAssignments(
       !shadows &&
       (before === undefined || node.getStart() < before)
     ) {
-      out.push({ value, block });
+      out.push({ value, block, guard: branchGuard(ctx, node, scope) });
     }
     ts.forEachChild(node, visit);
   };
   ts.forEachChild(scope, visit);
-  // `let scryPath = ''` is a placeholder only because something later
-  // overwrites it. On its own it is the value the call sends.
+  // `let scryPath = ''` is a placeholder only where something later is *sure*
+  // to overwrite it: a write on the straight line, or an if/else that assigns
+  // in both arms. Under a lone `if` the empty value still reaches the call,
+  // and dropping it hides a request to the root path.
   const isEmptyLiteral = (v: Val<ts.Expression>) =>
     (ts.isStringLiteral(v.value) ||
       ts.isNoSubstitutionTemplateLiteral(v.value)) &&
     v.value.text === '';
-  const kept = out.length > 1 ? out.filter((v) => !isEmptyLiteral(v)) : out;
+  const writes = out.filter((v) => !isEmptyLiteral(v));
+  const armOf = (v: Val<ts.Expression>) => {
+    for (let cur = v.value as ts.Node; cur.parent; cur = cur.parent) {
+      const parent = cur.parent;
+      if (ts.isIfStatement(parent) && parent.elseStatement) {
+        if (cur === parent.thenStatement)
+          return { branch: parent, arm: 'then' };
+        if (cur === parent.elseStatement)
+          return { branch: parent, arm: 'else' };
+      }
+    }
+    return null;
+  };
+  const certainlyOverwrites = (empty: Val<ts.Expression>) =>
+    writes.some((w) => {
+      if (
+        w.block != null &&
+        w.block === empty.block &&
+        runsUnconditionally(w.value, w.block)
+      ) {
+        return true;
+      }
+      // Both arms of one if/else, and that if/else itself on the straight line.
+      const mine = armOf(w);
+      if (!mine) return false;
+      const other = writes.find((x) => {
+        const theirs = armOf(x);
+        return theirs?.branch === mine.branch && theirs.arm !== mine.arm;
+      });
+      return (
+        other !== undefined &&
+        empty.block != null &&
+        runsUnconditionally(mine.branch, empty.block)
+      );
+    });
+  const kept =
+    writes.length > 0
+      ? [
+          ...writes,
+          ...out.filter((v) => isEmptyLiteral(v) && !certainlyOverwrites(v)),
+        ]
+      : out;
   // On a straight line the last write is the only one the call can read.
   // Anything that makes reachability a question — a branch, a loop, a
   // short-circuit, a `case` — keeps every candidate, since the reader cannot
@@ -417,6 +510,36 @@ function scopeAssignments(
     return [kept[kept.length - 1]];
   }
   return kept;
+}
+
+/**
+ * The conditions that had to hold for this node to run, outermost first.
+ *
+ * An assignment in an `if` arm is no less conditional than a ternary branch,
+ * and reporting `if (supportsNew) params = modern; else params = legacy` as
+ * two unguarded requests loses exactly the distinction the GUARDED rule reads.
+ */
+function branchGuard(
+  ctx: Ctx,
+  node: ts.Node,
+  scope: ts.Node
+): string | undefined {
+  const parts: string[] = [];
+  for (let cur = node; cur && cur !== scope; cur = cur.parent) {
+    const parent: ts.Node | undefined = cur.parent;
+    if (!parent) break;
+    if (ts.isIfStatement(parent)) {
+      const condition = textOf(ctx, parent.expression);
+      if (cur === parent.thenStatement) parts.unshift(`${condition} ? …`);
+      else if (cur === parent.elseStatement) parts.unshift(`! (${condition})`);
+    } else if (ts.isCaseClause(cur) && ts.isCaseBlock(parent)) {
+      const subject = ts.isSwitchStatement(parent.parent)
+        ? textOf(ctx, parent.parent.expression)
+        : '?';
+      parts.unshift(`${subject} === ${textOf(ctx, cur.expression)}`);
+    }
+  }
+  return parts.length > 0 ? parts.join(' && ') : undefined;
 }
 
 /** Does this assignment run every time control reaches its block? */
@@ -528,7 +651,7 @@ function literalValues(
   const prop = property(obj, name);
   if (prop === null) return [{ value: null }];
   const local = (identifier: string) =>
-    scope ? localAssignments(scope, identifier, callPos) : [];
+    scope ? localAssignments(ctx, scope, identifier, callPos) : [];
   const assignments =
     prop === 'shorthand'
       ? local(name)
@@ -537,7 +660,11 @@ function literalValues(
         : [];
   if (assignments.length > 0) {
     return assignments.flatMap((a) =>
-      resolve(a.value).map((v) => ({ ...v, block: a.block }))
+      resolve(a.value).map((v) => ({
+        ...v,
+        block: a.block,
+        guard: bothGuards(a.guard, v.guard),
+      }))
     );
   }
   return prop === 'shorthand' ? [{ value: null }] : resolve(prop);
@@ -591,12 +718,13 @@ function pathValues(
     );
   }
   if (ts.isIdentifier(expr) && depth === 0 && scope) {
-    const assignments = localAssignments(scope, expr.text, callPos);
+    const assignments = localAssignments(ctx, scope, expr.text, callPos);
     if (assignments.length > 0) {
       return assignments.flatMap((a) =>
         pathValues(ctx, a.value, scope, callPos, depth + 1).map((v) => ({
           ...v,
           block: a.block,
+          guard: bothGuards(a.guard, v.guard),
         }))
       );
     }
@@ -780,10 +908,12 @@ function expandHelper(ctx: Ctx, name: string, depth = 0): PokeParams[] {
     }
     // `const action: Poke<...> = {...}; return action;`
     const local = ts.isIdentifier(expr)
-      ? localAssignments(body, expr.text, expr.getStart(ctx.sf))
+      ? localAssignments(ctx, body, expr.text, expr.getStart(ctx.sf))
       : [];
     if (local.length > 0)
-      return local.forEach((a) => read(a.value, hop, guard));
+      return local.forEach((a) =>
+        read(a.value, hop, bothGuards(guard, a.guard))
+      );
     unresolved(`helper ${name} returns ${textOf(ctx, expr)}`);
   };
   returns.forEach(([expr, guard]) => read(expr, depth, guard));
@@ -809,7 +939,7 @@ function readEndpoint(
   }
   const assignments =
     ts.isIdentifier(arg) && scope
-      ? localAssignments(scope, arg.text, node.getStart(ctx.sf))
+      ? localAssignments(ctx, scope, arg.text, node.getStart(ctx.sf))
       : [];
   if (assignments.length === 0) {
     return push(ctx, node, {
@@ -847,12 +977,15 @@ function readEndpointObject(
   let paths: Val<PathPattern>[];
   if (prop === null) paths = unknown('<no path>');
   else if (prop === 'shorthand') {
-    const assignments = scope ? localAssignments(scope, 'path', callPos) : [];
+    const assignments = scope
+      ? localAssignments(ctx, scope, 'path', callPos)
+      : [];
     paths = assignments.length
       ? assignments.flatMap((a) =>
           pathValues(ctx, a.value, scope, callPos, 1).map((v) => ({
             ...v,
             block: a.block,
+            guard: bothGuards(a.guard, v.guard),
           }))
         )
       : unknown('path (shorthand, unresolved)');
@@ -895,7 +1028,11 @@ function readPokeParams(
       guard: bothGuards(guard, r.guard),
       unresolved:
         r.unresolved ??
-        (r.mark === null ? 'mark is not a string literal' : undefined),
+        (r.mark === null
+          ? 'mark is not a string literal'
+          : r.app === null
+            ? 'app is not a string literal'
+            : undefined),
     });
   const unresolved = (why: string) =>
     push(ctx, node, { surface: 'poke', guard, unresolved: why });
@@ -934,13 +1071,20 @@ function readPokeParams(
   // Bounded local-variable resolution: one hop.
   if (ts.isIdentifier(arg) && scope && depth === 0) {
     const assignments = localAssignments(
+      ctx,
       scope,
       arg.text,
       node.getStart(ctx.sf)
     );
     if (assignments.length) {
       return assignments.forEach((a) =>
-        readPokeParams(ctx, node, a.value, depth + 1, guard)
+        readPokeParams(
+          ctx,
+          node,
+          a.value,
+          depth + 1,
+          bothGuards(guard, a.guard)
+        )
       );
     }
   }
@@ -990,16 +1134,30 @@ function readCall(
       readPokeParams(ctx, node, args[0]);
       return readEndpoint(ctx, node, args[1], 'subscribe');
     case 'thread': {
-      const prop =
-        args[0] && ts.isObjectLiteralExpression(args[0])
-          ? property(args[0], 'threadName')
-          : null;
-      const name = prop && prop !== 'shorthand' ? stringLiteralOf(prop) : null;
+      // A thread is identified by the desk that runs it, its name, and the
+      // mark it takes: two desks may both ship a `group-create-1`, and a
+      // thread that starts taking a different input mark is a new dependency.
+      const obj =
+        args[0] && ts.isObjectLiteralExpression(args[0]) ? args[0] : null;
+      const literal = (name: string) => {
+        const prop = obj ? property(obj, name) : null;
+        return prop && prop !== 'shorthand' ? stringLiteralOf(prop) : null;
+      };
+      const desk = literal('desk');
+      const name = literal('threadName');
+      const inputMark = literal('inputMark');
+      const missing = (['desk', 'threadName', 'inputMark'] as const).filter(
+        (k) => literal(k) === null
+      );
       return push(ctx, node, {
         surface: 'thread',
+        app: desk,
+        mark: inputMark,
         thread: name,
         unresolved:
-          name === null ? 'threadName is not a string literal' : undefined,
+          missing.length > 0
+            ? `${missing.join(', ')} ${missing.length > 1 ? 'are' : 'is'} not a string literal`
+            : undefined,
       });
     }
     case 'requestJson':
