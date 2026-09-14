@@ -185,21 +185,29 @@ cd <worktree> && pnpm run cosmos:web     # UI on 5555, renderer on 5050
 
 It needs `packages/editor/dist` built (`pnpm run build:packages` if it is missing). Fixtures live in `packages/app/fixtures`; the UI lists a file's named exports, so `ChatMessage.fixture.tsx` appears as `ChatMessage / MessageStates` and the like.
 
-**Only one worktree can run Cosmos at a time, and the failure that matters is silent.** `apps/tlon-web/cosmos.config.json` pins port 5555, and react-cosmos 7.2.0 takes no `--port` and reads no environment variable, so the port cannot be varied per worktree without editing a tracked file. Starting a second instance fails loudly with `EADDRINUSE`, which is fine. The dangerous case is the other one: opening 5555 when another worktree's Cosmos is already serving it, and reading its code as your own. Before trusting anything Cosmos shows you, check whose it is:
+**Give it a port, or you will read another worktree's code as your own.** `cosmos.config.json` pins 5555, so every worktree wants the same one. Pass `--port` instead:
 
 ```bash
-lsof -a -p "$(lsof -nP -iTCP:5555 -sTCP:LISTEN -t | head -1)" -d cwd -Fn
+cd <worktree>/apps/tlon-web && npx cosmos --port <n>
 ```
 
-The path it prints is the worktree being served. If it is not yours, stop that instance or do the check elsewhere -- do not assume.
+`cosmos --help` lists only `--help` and `--version`, which is misleading -- react-cosmos parses argv with yargs and `getPort` prefers `--port` over the config file. The flag works; it is just undocumented. The renderer is a second server, based at 5050, and it needs no flag: it retries upward when its port is taken (`portRetries`, default 10), so a second worktree lands on 5051 by itself and says so.
 
-The full web app has no such limit: Vite takes a port, so give each worktree its own.
+Same for the full web app, where the flag is documented:
 
 ```bash
 pnpm --filter tlon-web exec vite --port <n> --strictPort
 ```
 
-`--strictPort` is the point of that line. Without it Vite silently moves to the next free port when yours is taken, which lands you in the same trap as Cosmos with none of the noise. Web also needs `.env.local` in `apps/tlon-web` with `VITE_SHIP_URL`; `stim worktree warm` carries it over with the rest of the ignored files.
+`--strictPort` is the point of that one. Without it Vite silently moves to the next free port, so you get a server that works and serves the wrong worktree. Web also needs `.env.local` in `apps/tlon-web` with `VITE_SHIP_URL`; `stim worktree warm` carries it over with the rest of the ignored files.
+
+When you open a port you did not just start -- reusing a server from earlier, or reaching for 5555 out of habit -- check whose it is first:
+
+```bash
+lsof -a -p "$(lsof -nP -iTCP:<port> -sTCP:LISTEN -t | head -1)" -d cwd -Fn
+```
+
+The path it prints is the worktree being served. A wrong answer here looks exactly like a right one: the page renders, the fixtures load, and the code is someone else's.
 
 Two things that shape how you can verify: the Cosmos UI (5555) and its renderer (5050) are **different origins**, so page-level JavaScript cannot reach into the fixture's DOM to measure it -- screenshots and accessibility reads work, `document.querySelector` across the frame does not. And headless Chrome renders the Cosmos page blank however long you give it, so a browser you can see is the only way to capture one.
 
