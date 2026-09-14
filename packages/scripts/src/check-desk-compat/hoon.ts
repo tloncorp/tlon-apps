@@ -349,9 +349,14 @@ export function parseDispatcher(
       const patternText = tokens.slice(0, take).join(' ');
       const readable = balance === 0 && looksLikeArmPattern(patternText);
       const alternatives = readable ? expandPattern(patternText) : null;
+      // Classify the *pattern*, never the whole line: the body beside it
+      // holds calls and wings, and judging on those discards
+      // `[%x %v1 kind=foo.bar ~]  (serve path)` as if it were a body line.
+      // An unbalanced `[` is a pattern carrying on to the next line, which is
+      // an arm this reader cannot read rather than a line to drop.
       if (alternatives !== null) {
         arms.push({ patternText, line: i + 1, alternatives, parsed: true });
-      } else if (plausiblePattern(trimmed)) {
+      } else if (balance > 0 || plausiblePattern(patternText)) {
         unparsedArms++;
         arms.push({
           patternText,
@@ -485,15 +490,21 @@ export function rewritesSubject(
   skipLine?: number
 ): boolean {
   const head = subject.replace(/^[+-]\./, '');
-  // `=.`, `=/`, `=*`, `=+`, `=;` and `=?` all bind; the face they bind may
-  // carry a `name=` prefix (`=/  path=path  t.path`) and may be a wing into
-  // the subject rather than the subject itself (`=.  t.path  …`), which
-  // rewrites it just the same.
-  const bound = new RegExp(
-    `^\\s*=[./*+;?]\\s+(?:[a-z][a-z0-9-]*=)?(?:[a-z0-9@^+-]+\\.)*${head}(?![a-z0-9-])`
-  );
+  // `=.`, `=/`, `=*`, `=+`, `=;` and `=?` all bind. What matters is the face
+  // they bind, which is not always spelled bare: `=path` is the shorthand and
+  // `path=t.path` names it explicitly, while `t.path` and `+.path` rewrite a
+  // wing of it. `other=path` binds `other` — the subject there is only the
+  // type, and reading it as a rewrite would withhold every verdict for the
+  // surface.
+  const wing = new RegExp(`^(?:[a-z0-9@^+>-]+\\.)+${head}$`);
+  const binds = (token: string) => {
+    const face = /^=?([a-z][a-z0-9-]*)(?:=|$)/.exec(token);
+    return face ? face[1] === head : wing.test(token);
+  };
   for (let i = from; i < to; i++) {
-    if (i !== skipLine && bound.test(lines[i])) return true;
+    if (i === skipLine) continue;
+    const m = /^\s*=[./*+;?]\s+(\S+)/.exec(lines[i]);
+    if (m && binds(m[1])) return true;
   }
   return false;
 }

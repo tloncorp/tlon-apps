@@ -186,8 +186,17 @@ function resolveSurface(
     };
   };
 
-  const inline = within(range);
-  if (inline.dispatcher?.arms.length) return inline;
+  // A dispatcher worth stopping at reads cleanly and says something: one
+  // unreadable arm, or nothing but the catch-all `~`/`*` shapes a body line
+  // can be mistaken for, is not enough to pre-empt the arm that really
+  // dispatches. Candidates are gathered and the first solid one wins;
+  // failing that, the first that parsed at all, so nothing is lost.
+  const solid = (s: Surface) =>
+    s.dispatcher !== null &&
+    s.dispatcher.unparsedArms === 0 &&
+    s.dispatcher.arms.some((a) => a.patternText.length > 1);
+  const candidates: Surface[] = [within(range)];
+  if (solid(candidates[0])) return candidates[0];
 
   const entryText = lines.slice(range.start, range.end).join('\n');
   for (const m of entryText.matchAll(
@@ -197,9 +206,10 @@ function resolveSurface(
     const target = arms.get(m[1]);
     if (!target) continue;
     const hop = within(target);
-    if (hop.dispatcher?.arms.length) return hop;
+    if (solid(hop)) return hop;
+    if (hop.dispatcher?.arms.length) candidates.push(hop);
   }
-  return inline;
+  return candidates.find((c) => c.dispatcher?.arms.length) ?? candidates[0];
 }
 
 type MatchKind = 'exact' | 'open' | 'prefix' | 'opaque' | 'no';
@@ -232,6 +242,9 @@ export function matchAlternative(
     // A `rest` accepts everything from here — but only once every element
     // before it has been matched, which is why this is not a `.some()`.
     if (el.k === 'rest') return settle('open');
+    // Before the exhaustion check, not after: a mold may stand for no
+    // segments at all, so `[%x %things =path]` can still take `/x/things`.
+    if (el.k === 'opaque') opaque = true;
     if (j >= known.length) {
       const remaining = alt.slice(i);
       if (remaining.length === 1 && remaining[0].k === 'nil') {
@@ -242,7 +255,6 @@ export function matchAlternative(
     }
     if (el.k === 'nil') return mismatch();
     if (el.k === 'lit' && el.v !== known[j]) return mismatch();
-    if (el.k === 'opaque') opaque = true;
     i++;
     j++;
   }

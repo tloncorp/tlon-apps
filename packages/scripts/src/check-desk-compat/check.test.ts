@@ -1,3 +1,7 @@
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -7,6 +11,7 @@ import {
   Report,
   classify,
   exitCodeFor,
+  runCheck,
   formatReport,
   isBlocking,
   isCapabilityGuard,
@@ -214,6 +219,28 @@ describe('what fails the run', () => {
         report({ allowedBumps: [{ difference: difference(), bump: bump() }] })
       )
     ).toBe(0);
+  });
+});
+
+describe('opening the trees', () => {
+  it('releases the ones it opened when a later open throws', () => {
+    // The desk ref is nonsense, so the second open fails after the first
+    // succeeded. Disposal is invisible in the return value, so watch what
+    // `openTree` leaves behind — in a temp directory of this test's own, since
+    // the rest of the suite is opening trees at the same time.
+    const sandbox = mkdtempSync(join(tmpdir(), 'desk-compat-test-'));
+    const previous = process.env.TMPDIR;
+    process.env.TMPDIR = sandbox;
+    try {
+      expect(() =>
+        runCheck({ clientRef: 'v12.2.0', deskRef: 'no-such-ref-at-all' })
+      ).toThrow();
+      expect(readdirSync(sandbox)).toEqual([]);
+    } finally {
+      if (previous === undefined) delete process.env.TMPDIR;
+      else process.env.TMPDIR = previous;
+      rmSync(sandbox, { recursive: true, force: true });
+    }
   });
 });
 

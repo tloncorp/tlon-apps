@@ -47,11 +47,14 @@ receive updates, and post against desk release N-1.
 - [ ] If run 1 reports an `ALLOWED PROTOCOL BUMP`, that bump is shipping in this
       release: N-1 support for the protocol is suspended, which is a deliberate
       break for anyone still on N-1. Confirm the issue it names says so.
-- [ ] If the checker warns that a `protocolBumps` entry matches no observed
-      difference, the bump it describes has become N-1. **Delete the entry** as
-      part of this release; a stale entry is standing permission for a mismatch
-      nobody is tracking. The same applies to a `gaps` entry the checker says
-      excused nothing: the request it covers is served again, so remove it.
+- [ ] A stale warning is only evidence from the run that could have seen the
+      thing. Run 2 compares the candidate desk with itself, so it can never
+      show a protocol difference and never proves a bump obsolete — the checker
+      suppresses the warning there. Trust a stale `protocolBumps` warning from
+      **run 1**, and a stale `gaps` warning from any full run (a request the
+      report did not reach cannot be said to be served). Where it does hold,
+      **delete the entry** as part of this release: a stale entry is standing
+      permission for a mismatch nobody is tracking.
 - [ ] Read the `GUARDED` list. Each entry is a request the desk cannot take,
       behind a capability guard nobody verified. For each, check the guard
       resolves false on N-1 and that the branch it falls back to is one N-1

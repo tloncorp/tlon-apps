@@ -154,14 +154,28 @@ describe('conditional branches', () => {
     ]);
   });
 
-  it('pairs a branching app with the branching path beside it, not by cross product', () => {
-    const deps = extract(
-      "import { scry } from './urbit';\nexport const f = () => scry({ app: dm ? 'chat' : 'channels', path: dm ? '/v1/dm' : '/v1/chan' });"
+  it('pairs two branches on the same condition, and crosses independent ones', () => {
+    // One condition, one choice: the cross product would invent `chat` with
+    // the channel path.
+    const same = extract(
+      "import { scry } from './urbit';\nexport const f = (dm: boolean) => scry({ app: dm ? 'chat' : 'channels', path: dm ? '/v1/dm' : '/v1/chan' });"
     );
-    expect(deps.map((d) => d.key)).toEqual([
+    expect(same.map((d) => d.key)).toEqual([
       'scry chat /v1/dm',
       'scry channels /v1/chan',
     ]);
+    // Two conditions: every combination is reachable, and pairing by position
+    // would drop half of them.
+    const independent = extract(
+      "import { scry } from './urbit';\nexport const f = (dm: boolean, v2: boolean) => scry({ app: dm ? 'chat' : 'channels', path: v2 ? '/v2' : '/v1' });"
+    );
+    expect(independent.map((d) => d.key).sort()).toEqual([
+      'scry channels /v1',
+      'scry channels /v2',
+      'scry chat /v1',
+      'scry chat /v2',
+    ]);
+    expect(independent[0].guard).toBe('dm ? … && v2 ? …');
   });
 });
 
@@ -203,6 +217,14 @@ describe('the one local binding this reader follows', () => {
         return scry({ app: 'groups', path });
       };`).unresolved
     ).toBeDefined();
+    // Declared in a block the call is not inside.
+    expect(
+      unresolved(`export const f = (flag: boolean) => {
+        const path = '/v1/live';
+        if (flag) { const path = '/v99/unused'; void path; }
+        return scry({ app: 'groups', path });
+      };`).key
+    ).toBe('scry groups /v1/live');
     // Bound in an outer scope.
     expect(
       unresolved(`const path = '/v1/a';
@@ -244,6 +266,29 @@ describe('helper expansion', () => {
       ['poke activity activity-action-1', 'getActivitySupportsReactions() ? …'],
       ['poke activity activity-action', '! (getActivitySupportsReactions())'],
     ]);
+  });
+
+  it('reads a cross-file helper\u2019s guard from that file, not the caller\u2019s', () => {
+    // The helper's nodes index into *its* source; slicing them out of the
+    // caller's text yields whatever sits at those offsets.
+    const deps = extractClient(
+      memoryTree({
+        'packages/api/src/urbit/activity.ts': [
+          'export function activityAction(action: unknown) {',
+          '  if (getActivitySupportsNotes()) {',
+          "    return { app: 'activity', mark: 'activity-action-2', json: action };",
+          '  }',
+          "  return { app: 'activity', mark: 'activity-action', json: action };",
+          '}',
+        ].join('\n'),
+        'packages/api/src/client/activityApi.ts':
+          "import { poke } from './urbit';\nimport * as ub from '@tloncorp/api/urbit';\nexport const f = () => poke(ub.activityAction({}));",
+      }),
+      ['packages/api/src']
+    );
+    expect(
+      deps.find((d) => d.key === 'poke activity activity-action-2')?.guard
+    ).toBe('getActivitySupportsNotes()');
   });
 
   it('records a helper return it cannot read rather than dropping it', () => {

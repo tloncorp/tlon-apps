@@ -181,8 +181,11 @@ function resolveCallee(node: ts.CallExpression, b: Bindings): Callee {
 
 const lineOf = (ctx: Ctx, node: ts.Node) =>
   ctx.sf.getLineAndCharacterOfPosition(node.getStart(ctx.sf)).line + 1;
-const textOf = (ctx: Ctx, node: ts.Node) =>
-  node.getText(ctx.sf).replace(/\s+/g, ' ').slice(0, 200);
+// Against the node's *own* file, not the file being scanned: a whitelisted
+// helper is often defined in another module, and slicing its node out of the
+// caller's text yields whatever happens to sit at those offsets.
+const textOf = (_ctx: Ctx, node: ts.Node) =>
+  node.getText(node.getSourceFile()).replace(/\s+/g, ' ').slice(0, 200);
 
 function makeKey(d: Omit<Dependency, 'key' | 'site' | 'text'>): string {
   if (d.surface === 'poke') return `poke ${d.app ?? '?'} ${d.mark ?? '?'}`;
@@ -242,6 +245,13 @@ const literalShape = (text: string) =>
  * catch. Anything less certain — a second declaration, a reassignment, a
  * binding from an outer scope — gives up and reports UNVERIFIED.
  */
+function enclosingBlock(node: ts.Node): ts.Node | null {
+  for (let cur = node.parent; cur; cur = cur.parent) {
+    if (ts.isBlock(cur) || ts.isCaseClause(cur)) return cur;
+  }
+  return null;
+}
+
 function soleConstInitializer(
   node: ts.Node,
   name: string
@@ -251,28 +261,38 @@ function soleConstInitializer(
     if (ts.isFunctionLike(cur)) scope = cur;
   }
   if (!scope) return null;
+  const pos = node.getStart();
+  /** Does this binding name `name`, destructured or not? */
+  const declares = (n: ts.BindingName): boolean =>
+    ts.isIdentifier(n)
+      ? n.text === name
+      : n.elements.some((e) => !ts.isOmittedExpression(e) && declares(e.name));
   const found: ts.Expression[] = [];
   let assigned = false;
   const visit = (n: ts.Node) => {
     // A nested closure's own `const path` is its own business, and a parameter
     // of that name shadows everything: either way this reader gives up rather
-    // than resolve to a binding the call cannot see.
+    // than resolve to a binding the call cannot see. A destructured `{ path }`
+    // parameter binds the name just as a plain one does.
     if (n !== scope && ts.isFunctionLike(n)) return;
-    if (ts.isParameter(n) && ts.isIdentifier(n.name) && n.name.text === name) {
+    if (ts.isParameter(n) && declares(n.name)) {
       assigned = true;
       return;
     }
-    if (
-      ts.isVariableDeclaration(n) &&
-      ts.isIdentifier(n.name) &&
-      n.name.text === name
-    ) {
+    if (ts.isVariableDeclaration(n) && declares(n.name)) {
+      // A declaration in a block the call is not inside is a different
+      // variable of the same name: `if (flag) { const path = … }` beside the
+      // call never reaches it.
+      const block = enclosingBlock(n);
+      if (block !== null && !(block.getStart() <= pos && pos < block.getEnd()))
+        return;
       const declared = n.parent;
       const isConst =
         ts.isVariableDeclarationList(declared) &&
         (declared.flags & ts.NodeFlags.Const) !== 0;
-      if (!isConst || !n.initializer) assigned = true;
-      else found.push(n.initializer);
+      if (!isConst || !n.initializer || !ts.isIdentifier(n.name)) {
+        assigned = true;
+      } else found.push(n.initializer);
     }
     if (
       ts.isBinaryExpression(n) &&
@@ -409,20 +429,30 @@ function pathValues(ctx: Ctx, raw: ts.Expression): Val<PathPattern>[] {
 }
 
 /**
- * Pair an `app` value against a `path` or `mark` value.
+ * Pair an `app` value against a `path` or `mark` value, one pair per request
+ * the code can actually make.
  *
- * One side is almost always a single literal. When both branch, they branch on
- * the same condition at the same site, so index order is the pairing; a cross
- * product there would invent requests no code path makes.
+ * `{ app: dm ? 'chat' : 'channels', path: dm ? … : … }` branches twice on the
+ * *same condition*, so the branches pair off and a cross product would invent
+ * `chat` with the channel path. Two *independent* conditions do cross-multiply,
+ * because every combination is reachable — pairing those by position would
+ * drop half the requests. Guard text tells them apart, and the pair carries
+ * both guards conjoined.
  */
 function pairValues<A, B>(
   as: Val<A>[],
   bs: Val<B>[]
-): { a: Val<A>; b: Val<B> }[] {
-  if (as.length === bs.length && as.length > 1) {
-    return as.map((a, i) => ({ a, b: bs[i] }));
+): { a: Val<A>; b: Val<B>; guard?: string }[] {
+  if (
+    as.length > 1 &&
+    as.length === bs.length &&
+    as.every((a, i) => a.guard !== undefined && a.guard === bs[i].guard)
+  ) {
+    return as.map((a, i) => ({ a, b: bs[i], guard: a.guard }));
   }
-  return as.flatMap((a) => bs.map((b) => ({ a, b })));
+  return as.flatMap((a) =>
+    bs.map((b) => ({ a, b, guard: bothGuards(a.guard, b.guard) }))
+  );
 }
 
 // --- helper expansion -------------------------------------------------------
@@ -519,14 +549,14 @@ function expandHelper(ctx: Ctx, name: string, depth = 0): PokeParams[] {
   const unresolved = (why: string) =>
     results.push({ app: null, mark: null, unresolved: why });
   const fromObject = (obj: ts.ObjectLiteralExpression, guard?: string) => {
-    for (const { a, b } of pairValues(
+    for (const pair of pairValues(
       literalValues(ctx, obj, 'app'),
       literalValues(ctx, obj, 'mark')
     )) {
       results.push({
-        app: a.value,
-        mark: b.value,
-        guard: bothGuards(guard, b.guard ?? a.guard),
+        app: pair.a.value,
+        mark: pair.b.value,
+        guard: bothGuards(guard, pair.guard),
       });
     }
   };
@@ -604,7 +634,7 @@ function readEndpointObject(
           ]
         : pathValues(ctx, prop);
 
-  for (const { a: app, b: path } of pairValues(
+  for (const { a: app, b: path, guard } of pairValues(
     literalValues(ctx, obj, 'app'),
     paths
   )) {
@@ -612,7 +642,7 @@ function readEndpointObject(
       surface,
       app: app.value,
       path: path.value,
-      guard: path.guard ?? app.guard,
+      guard,
       unresolved:
         app.value === null
           ? 'app is not a string literal'
@@ -645,11 +675,11 @@ function readPokeParams(
   if (ts.isObjectLiteralExpression(arg)) {
     // Each branch of a `mark: a ? new : old` is its own record, carrying its
     // own guard; never unioned. That guard is what the GUARDED rule reads.
-    for (const { a, b } of pairValues(
+    for (const { a, b, guard } of pairValues(
       literalValues(ctx, arg, 'app'),
       literalValues(ctx, arg, 'mark')
     )) {
-      emit({ app: a.value, mark: b.value, guard: b.guard ?? a.guard });
+      emit({ app: a.value, mark: b.value, guard });
     }
     return;
   }

@@ -178,6 +178,33 @@ describe('dispatcher discovery', () => {
     );
   });
 
+  it('classifies the pattern, not the body sitting beside it on the line', () => {
+    // The body holds a call; judging the whole line on that discards a real
+    // arm and reports the requests it takes as absent.
+    const inline = lines(`
+++  on-peek
+  |=  =path
+  ?+  path  [~ ~]
+    [%x %v1 kind=foo.bar ~]  (serve path)
+  ==
+`);
+    expect(parseDispatcher(inline, 0, inline.length)!.unparsedArms).toBe(1);
+  });
+
+  it('treats an unbalanced opener as the start of an arm it cannot read', () => {
+    const split = lines(`
+++  on-peek
+  |=  =path
+  ?+  path  [~ ~]
+    [
+      %x %v1 %init ~]  ~
+  ==
+`);
+    expect(
+      parseDispatcher(split, 0, split.length)!.unparsedArms
+    ).toBeGreaterThan(0);
+  });
+
   it('does not count a body expression as an arm it failed to read', () => {
     // Counting these would withhold MISSING from every agent whose arm bodies
     // run to more than one line, which is all of them.
@@ -310,9 +337,13 @@ describe('a subject rewritten before dispatch', () => {
     expect(rewritten('=*  path  t.path')).toBe(true);
     expect(rewritten('=+  path=t.path')).toBe(true);
     expect(rewritten('=;  path  ~')).toBe(true);
-    // A different name is a different binding.
+    // The face shorthand binds the subject too.
+    expect(rewritten('=/  =path  t.path')).toBe(true);
+    // A different name is a different binding — including when the subject is
+    // only the *type* it is annotated with.
     expect(rewritten('=/  other  t.path')).toBe(false);
     expect(rewritten('=/  pathological  ~')).toBe(false);
+    expect(rewritten('=/  other=path  ~')).toBe(false);
   });
 
   it('does not count a guard, which can only reject', () => {

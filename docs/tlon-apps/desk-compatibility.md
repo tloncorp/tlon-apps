@@ -98,6 +98,14 @@ An interpolation does not stop at a slash: a `groupId` is `~ship/name` and
 spans two segments, so `` `/v3/ui/groups/${id}` `` is decided by its known
 prefix or not at all.
 
+A request's identity is the literal text around its interpolations, with every
+interpolation written `{}` whatever is inside it. Literal braces are escaped,
+so no literal can spell a hole — but a suffix folded *into* an expression
+shares a key with the shorter path: `` `/chan/${id + '/new'}` `` and
+`` `/chan/${id}` `` are both `/chan/{}`. They cannot be exempted separately in
+`known-gaps.json`, so write the suffix outside the interpolation where it
+matters.
+
 ## What the checker does not decide
 
 Read this before treating a green run as a guarantee.

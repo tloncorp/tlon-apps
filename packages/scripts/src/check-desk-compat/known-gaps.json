@@ -10,7 +10,9 @@
     "",
     "A key is the exact request shape: every interpolation is written `{}` and",
     "literal braces are percent-escaped, so a longer path that merely shares a",
-    "prefix cannot inherit an exemption."
+    "prefix cannot inherit an exemption. The limit of that: a suffix folded",
+    "inside an interpolation collapses onto the shorter key, so an entry for",
+    "`/chan/{}` also excuses `` `/chan/${id + '/new'}` ``."
   ],
   "$protocolBumps": [
     "One in-flight `agent:neg` bump, while it is landing. Rule (d) makes any",

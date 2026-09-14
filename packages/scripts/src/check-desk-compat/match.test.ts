@@ -146,6 +146,30 @@ describe('a match the arms do not decide outright', () => {
     expect(verdictOf(scry(['v1', 'init']), odd)).toBe('MATCHED');
   });
 
+  it('does not stop discovery at a dispatcher that reads badly', () => {
+    // `on-peek` here holds a body line read as a `~` arm. Stopping there
+    // would hide the `?+` in `peek`, where the real arms are.
+    const delegating = desk({
+      'desk/app/ledger.hoon': `
+|_  =bowl:gall
+++  on-peek
+  |=  =path
+  ?:  =(~ path)
+    ?+  path  [~ ~]
+      ~
+    ==
+  (peek path)
+++  peek
+  |=  =path
+  ?+  path  [~ ~]
+    [%x %v1 %init ~]  ~
+  ==
+--
+`,
+    });
+    expect(verdictOf(scry(['v1', 'init']), delegating)).toBe('MATCHED');
+  });
+
   it('is UNVERIFIED when the agent rewrites the pole before dispatching', () => {
     const rewriting = desk({
       'desk/app/ledger.hoon': `
@@ -227,6 +251,8 @@ describe('a match the arms do not decide outright', () => {
 `,
     });
     expect(verdictOf(scry(['things', 'a', 'b']), molded)).toBe('WILDCARD');
+    // A mold may stand for no segments at all, so the request can end there.
+    expect(verdictOf(scry(['things']), molded)).toBe('WILDCARD');
     expect(verdictOf(scry(['posts', 'diary', 'a', 'new']), molded)).toBe(
       'WILDCARD'
     );

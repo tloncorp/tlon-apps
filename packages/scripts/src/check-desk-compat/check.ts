@@ -227,16 +227,25 @@ export function classify(
 }
 
 export function runCheck(options: CheckOptions): Report {
-  const clientTree = openTree(options.clientRef, CLIENT_ROOTS);
-  const deskTree = openTree(options.deskRef, DESK_PATHS);
-  // The desk that ships alongside the client ref: it supplies the protocol
-  // comparison, and tells a removal from an agent that was never ours.
-  const clientDeskTree =
-    options.clientRef === options.deskRef
-      ? deskTree
-      : openTree(options.clientRef, DESK_PATHS);
-
+  // Opened inside the try, and each remembered as it is: a second or third
+  // open that throws would otherwise leave the earlier temp directories on
+  // disk for the life of the process.
+  const opened: Tree[] = [];
+  const open = (ref: string, paths: string[]) => {
+    const tree = openTree(ref, paths);
+    opened.push(tree);
+    return tree;
+  };
   try {
+    const clientTree = open(options.clientRef, CLIENT_ROOTS);
+    const deskTree = open(options.deskRef, DESK_PATHS);
+    // The desk that ships alongside the client ref: it supplies the protocol
+    // comparison, and tells a removal from an agent that was never ours.
+    const clientDeskTree =
+      options.clientRef === options.deskRef
+        ? deskTree
+        : open(options.clientRef, DESK_PATHS);
+
     const desk = loadDesk(deskTree, options.deskRef, clientDeskTree);
     // Vendored availability is a property of the desk under test: a mark
     // dropped from *its* pick list without a local mar file is a removal, and
@@ -284,7 +293,12 @@ export function runCheck(options: CheckOptions): Report {
       deskRef: options.deskRef,
       protocolDifferences,
       allowedBumps,
-      staleBumps: bumps.filter((b) => !allowedBumps.some((a) => a.bump === b)),
+      // A candidate-vs-itself run compares a tree with itself and can never
+      // show a protocol difference, so every entry would look stale.
+      staleBumps:
+        options.clientRef === options.deskRef
+          ? []
+          : bumps.filter((b) => !allowedBumps.some((a) => a.bump === b)),
       staleGaps: [...allowlist.values()].filter((g) => !used.has(g.key)),
       findings,
       counts: {
@@ -297,9 +311,7 @@ export function runCheck(options: CheckOptions): Report {
       },
     };
   } finally {
-    clientTree.dispose();
-    if (clientDeskTree !== deskTree) clientDeskTree.dispose();
-    deskTree.dispose();
+    for (const tree of opened) tree.dispose();
   }
 }
 
