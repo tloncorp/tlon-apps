@@ -33,8 +33,8 @@
 ::
 ++  bucket-host      ~sampel-palnet
 ++  bucket-member    ~bud
-++  test-group       ~sampel-palnet^%my-test-group
-++  test-bucket      ~sampel-palnet^%project-files
+++  the-group       ~sampel-palnet^%my-test-group
+++  the-bucket      ~sampel-palnet^%project-files
 ++  bucket-nest      [%buckets ~sampel-palnet %project-files]
 ::  +create-test-group: the group the bucket is bound to.
 ::
@@ -196,7 +196,7 @@
   =/  m  (strand ,~)
   ^-  form:m
   =/  act=a-buckets:b
-    [%create %project-files 'Project Files' test-group ~ ~]
+    [%create %project-files 'Project Files' the-group ~ ~]
   (poke-app [bucket-host %buckets] buckets-action-1+[rid act])
 ::  +join-bucket: what %groups pokes a member's %buckets with when it joins
 ::  the channel. Sent directly here so the test does not depend on the
@@ -206,7 +206,7 @@
   |=  [joiner=ship]
   =/  m  (strand ,~)
   ^-  form:m
-  =/  =channel-join:b  [bucket-nest test-group]
+  =/  =channel-join:b  [bucket-nest the-group]
   (poke-app [joiner %buckets] group-channel-join+channel-join)
 ::  +token-url: where the host pushes a reader's access.
 ::
@@ -241,7 +241,7 @@
     %+  poke-app  [bucket-host %buckets]
     :-  %buckets-action-1
     ^-  command:b
-    [0v20 [%bucket test-bucket [%issue-bucket-read ~]]]
+    [0v20 [%bucket the-bucket [%issue-bucket-read ~]]]
   ::  the push goes out, and is answered
   ;<  put=[num=@ud =request:http]  bind:m  (memex-take bucket-host token-url)
   ;<  ~  bind:m  (memex-answer bucket-host num.put 200 (applied-json 1))
@@ -275,12 +275,12 @@
     %+  poke-app  [bucket-host %buckets]
     :-  %buckets-action-1
     ^-  command:b
-    [0v21 [%bucket test-bucket [%issue-bucket-read ~]]]
+    [0v21 [%bucket the-bucket [%issue-bucket-read ~]]]
   ;<  ~  bind:m
     %+  poke-app  [bucket-host %buckets]
     :-  %buckets-action-1
     ^-  command:b
-    [0v22 [%bucket test-bucket [%issue-bucket-read ~]]]
+    [0v22 [%bucket the-bucket [%issue-bucket-read ~]]]
   ::  the overtaken one is told, and told it is a race rather than a refusal
   |-
   ;<  res=req-response:b  bind:m
@@ -302,7 +302,7 @@
     %+  poke-app  [bucket-host %buckets]
     :-  %buckets-action-1
     ^-  command:b
-    [rid [%bucket test-bucket [%begin-upload ~ name 'text/markdown' 12 ~]]]
+    [rid [%bucket the-bucket [%begin-upload ~ name 'text/markdown' 12 ~]]]
   ;<  ask=[num=@ud =request:http]  bind:m  (memex-take bucket-host grant-url)
   ;<  ~  bind:m  (memex-answer bucket-host num.ask 200 (grant-json 'res-a'))
   ;<  granted=req-response:b  bind:m
@@ -337,7 +337,7 @@
     %+  poke-app  [bucket-host %buckets]
     :-  %buckets-action-1
     ^-  command:b
-    [0v10 [%bucket test-bucket [%finish-upload session]]]
+    [0v10 [%bucket the-bucket [%finish-upload session]]]
   =/  done-url=@t  (rap 3 broker-base '/uploads/res-a/complete' ~)
   ;<  fin=[num=@ud =request:http]  bind:m  (memex-take bucket-host done-url)
   ::  the uploader cancels before the receipt lands
@@ -345,7 +345,7 @@
     %+  poke-app  [bucket-host %buckets]
     :-  %buckets-action-1
     ^-  command:b
-    [0v11 [%bucket test-bucket [%cancel-upload session 'changed my mind']]]
+    [0v11 [%bucket the-bucket [%cancel-upload session 'changed my mind']]]
   ::  the displaced waiter is told, rather than left to hang
   ;<  first=req-response:b  bind:m
     %^    wait-for-app-fact-value
@@ -375,7 +375,7 @@
     %+  poke-app  [bucket-host %buckets]
     :-  %buckets-action-1
     ^-  command:b
-    [0v12 [%bucket test-bucket [%delete ~]]]
+    [0v12 [%bucket the-bucket [%delete ~]]]
   ::  which shows up as a cancel against the reservation
   =/  stop-url=@t  (rap 3 broker-base '/uploads/res-a/cancel' ~)
   ;<  *  bind:m  (memex-take bucket-host stop-url)
@@ -404,7 +404,7 @@
     %+  poke-app  [bucket-host %buckets]
     :-  %buckets-action-1
     ^-  command:b
-    [0v9 [%bucket test-bucket [%begin-upload ~ 'plan.md' 'text/markdown' 12 ~]]]
+    [0v9 [%bucket the-bucket [%begin-upload ~ 'plan.md' 'text/markdown' 12 ~]]]
   ;<  ask=[num=@ud =request:http]  bind:m  (memex-take bucket-host grant-url)
   =/  object=@t  (object-of request.ask)
   ;<  ~  bind:m  (memex-answer bucket-host num.ask 200 (grant-json 'res-a'))
@@ -422,7 +422,7 @@
     %+  poke-app  [bucket-host %buckets]
     :-  %buckets-action-1
     ^-  command:b
-    [0v10 [%bucket test-bucket [%finish-upload session]]]
+    [0v10 [%bucket the-bucket [%finish-upload session]]]
   =/  done-url=@t  (rap 3 broker-base '/uploads/res-a/complete' ~)
   ;<  fin=[num=@ud =request:http]  bind:m  (memex-take bucket-host done-url)
   ;<  ~  bind:m
@@ -444,7 +444,7 @@
   ;<  ~  bind:m  (bucket-with-replica 0v1)
   ::  the host bans ~bud, which takes its seat with it
   =/  =c-groups:g
-    [%group test-group [%entry [%ban [%add-ships (sy bucket-member ~)]]]]
+    [%group the-group [%entry [%ban [%add-ships (sy bucket-member ~)]]]]
   ;<  ~  bind:m  (poke-app [bucket-host %groups] group-command+c-groups)
   ::  and the bucket goes the way the group did
   ;<  ~  bind:m  (ex-bucket-update %delete)
@@ -464,7 +464,7 @@
   ;<  ~  bind:m
     %+  poke-app  [bucket-host %buckets]
     :-  %buckets-action-1
-    `command:b`[0v2 [%bucket test-bucket [%set-writers (sy %admin ~)]]]
+    `command:b`[0v2 [%bucket the-bucket [%set-writers (sy %admin ~)]]]
   ;<  ~  bind:m  (ex-bucket-update %writers)
   (pure:m ~)
 ::  Leaving the channel drops the replica.
@@ -508,7 +508,7 @@
   ::  and the deletion reaches it as an update
   ;<  ~  bind:m
     %+  poke-app  [bucket-host %buckets]
-    buckets-action-1+[0v2 `a-buckets:b`[%bucket test-bucket [%delete ~]]]
+    buckets-action-1+[0v2 `a-buckets:b`[%bucket the-bucket [%delete ~]]]
   ;<  ~  bind:m
     (ex-app-fact-mark /~bud/buckets/v1 [bucket-member %buckets] %buckets-response-1)
   (pure:m ~)
@@ -534,7 +534,7 @@
     (ex-app-fact-mark /~bud/buckets/v1 [bucket-member %buckets] %buckets-response-1)
   ;<  ~  bind:m
     %+  poke-app  [bucket-host %buckets]
-    buckets-action-1+[0v2 `a-buckets:b`[%bucket test-bucket [%delete ~]]]
+    buckets-action-1+[0v2 `a-buckets:b`[%bucket the-bucket [%delete ~]]]
   ;<  ~  bind:m
     (ex-app-fact-mark /~bud/buckets/v1 [bucket-member %buckets] %buckets-response-1)
   ::  the same flag again, and the replica has to arrive whole a second time
