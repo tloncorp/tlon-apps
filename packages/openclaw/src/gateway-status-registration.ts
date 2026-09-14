@@ -7,6 +7,7 @@ import {
   getGatewayStatusCoordinator,
   setGatewayStatusCoordinator,
 } from './gateway-status.js';
+import { readGatewayStopReason } from './gateway-stop-reason.js';
 
 // registerFull is NOT a once-per-process call: OpenClaw invokes it once per
 // load pass (tool discovery, full channel activation, and — on 6.11+ —
@@ -59,9 +60,21 @@ export function registerGatewayStatusHooks(
   // handler must stay pending until the %gateway-stop poke settles.
   // Discarding it lets shutdown race ahead of the poke, leaving steward %up
   // until the lease expires (and can drop the restart-notice behavior).
-  api.on('gateway_stop', (event) =>
-    coordinator.markStopped(coordinator.currentGeneration, event.reason)
-  );
+  // Prefer a fresh, root-owned marker written by the hosted entrypoint (e.g.
+  // `model-change`) over core's generic reason; see docs/steward.md
+  // "Stop-reason marker". Still return the promise — see the comment above.
+  api.on('gateway_stop', (event) => {
+    const marker = readGatewayStopReason({ logger: regOpts.logger });
+    if (marker) {
+      regOpts.logger.log?.(
+        `[gateway-status] stop reason from marker: ${marker}`
+      );
+    }
+    return coordinator.markStopped(
+      coordinator.currentGeneration,
+      marker ?? event.reason
+    );
+  });
 
   return coordinator;
 }

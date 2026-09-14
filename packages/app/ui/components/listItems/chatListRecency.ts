@@ -1,41 +1,32 @@
 import type * as db from '@tloncorp/shared/db';
+import { formatNotesActivityLabel } from '@tloncorp/shared/logic';
 
 export type GroupRecencyOverride = {
   label: string;
   timestamp: number;
+  channelId: string;
 };
 
 /**
- * Temporary UI companion to the TLON-6417 ordering workaround. When Notes
- * activity moves a group ahead of its latest post, describe that activity
- * instead of showing an unrelated post preview and timestamp.
+ * When a group's newest activity is a note rather than a post, describe that
+ * note instead of showing the older post preview and timestamp. Pending groups
+ * retain their invite presentation; pinned groups still get a fresh preview.
  */
 export function getGroupRecencyOverride(
   chat: db.Chat
 ): GroupRecencyOverride | null {
-  if (chat.type !== 'group' || chat.isPending || chat.pin) {
+  if (chat.type !== 'group' || chat.isPending) {
     return null;
   }
 
-  const latestNotesActivityAt = Math.max(
-    0,
-    ...(chat.group.channels ?? [])
-      .filter(
-        (channel) =>
-          channel.type === 'notes' && channel.currentUserIsMember === true
-      )
-      .map((channel) => channel.unread?.updatedAt ?? 0)
-  );
-
-  if (
-    latestNotesActivityAt <= (chat.group.lastPostAt ?? 0) ||
-    latestNotesActivityAt !== chat.timestamp
-  ) {
+  const activity = chat.notesActivity;
+  if (!activity || activity.timestamp <= (chat.group.lastPostAt ?? 0)) {
     return null;
   }
 
   return {
-    label: 'Notes activity',
-    timestamp: latestNotesActivityAt,
+    label: formatNotesActivityLabel(activity),
+    timestamp: activity.timestamp,
+    channelId: activity.channelId,
   };
 }

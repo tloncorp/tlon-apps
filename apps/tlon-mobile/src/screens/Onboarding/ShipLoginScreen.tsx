@@ -8,7 +8,7 @@ import {
 import { useShip } from '@tloncorp/app/contexts/ship';
 import {
   Field,
-  KeyboardAvoidingView,
+  OnboardingKeyboardScrollView,
   OnboardingTextBlock,
   ScreenHeader,
   TextInput,
@@ -153,7 +153,7 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
           </ScreenHeader.TextButton>
         }
       />
-      <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
+      <OnboardingKeyboardScrollView>
         <YStack gap="$m" paddingHorizontal="$2xl">
           <OnboardingTextBlock>
             <TlonText.Text size="$body" color="$primaryText">
@@ -261,7 +261,7 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
             </TlonText.Text>
           </View>
         </YStack>
-      </KeyboardAvoidingView>
+      </OnboardingKeyboardScrollView>
     </View>
   );
 };

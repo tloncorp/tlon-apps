@@ -19,6 +19,74 @@ export function screenNameFromChannelId(channelId: string) {
       : 'Channel';
 }
 
+export function getDesktopChannelRoute(
+  tab: 'Home' | 'Messages',
+  channelId: string,
+  groupId?: string,
+  selectedPostId?: string
+) {
+  const screenName = screenNameFromChannelId(channelId);
+  // Notes channels always open under Home: the notebook sidebar wiring
+  // (NotebookSidebarProvider + the GroupChannelsScreenView takeover) exists
+  // only in that drawer, so under Messages the desktop split view would
+  // render a note detail with no tree or create actions.
+  const resolvedTab = parseNotesChannelId(channelId) ? 'Home' : tab;
+  return {
+    name: resolvedTab,
+    params: {
+      screen: screenName,
+      pop: true,
+      params: {
+        channelId,
+        selectedPostId,
+        ...(groupId ? { groupId } : {}),
+        screen: 'ChannelRoot',
+        pop: true,
+        params: {
+          channelId,
+          selectedPostId,
+          ...(groupId ? { groupId } : {}),
+        },
+      },
+    },
+  } as const;
+}
+
+export function getDesktopGroupRoute(groupId: string) {
+  return {
+    name: 'Home',
+    params: {
+      screen: 'GroupChannels',
+      pop: true,
+      params: { groupId },
+    },
+  } as const;
+}
+
+/**
+ * Build the desktop route used when entering a group from a group row.
+ *
+ * A remembered channel is only useful while it still belongs to the group.
+ * With no valid memory, multi-channel groups open their channel list instead
+ * of whichever channel happens to be first in the backend map's hash order.
+ */
+export function getDesktopGroupEntryRoute(
+  groupId: string,
+  channelIds: string[],
+  lastVisitedChannelId: string | null
+) {
+  const validLastVisitedChannelId = lastVisitedChannelId
+    ? channelIds.find((channelId) => channelId === lastVisitedChannelId)
+    : undefined;
+  const channelId =
+    validLastVisitedChannelId ??
+    (channelIds.length === 1 ? channelIds[0] : undefined);
+
+  return channelId
+    ? getDesktopChannelRoute('Home', channelId, groupId)
+    : getDesktopGroupRoute(groupId);
+}
+
 // The real desktop top-level drawer route names (see
 // `navigation/desktop/TopLevelDrawer.tsx`). Shared with `getTab` in `utils.ts`
 // so the two top-level-drawer detectors can't drift. Note the correct name is

@@ -103,8 +103,8 @@ export class NativeDb extends BaseDb {
       } catch (e) {
         logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
           context: 'setupDb: error setting up db',
+          error: e,
           errorMessage: e.message,
-          errorStack: e.stack,
           severity: AnalyticsSeverity.Critical,
         });
         throw e;
@@ -169,8 +169,8 @@ export class NativeDb extends BaseDb {
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         context: 'purgeDb: error purging db',
+        error: e,
         errorMessage: e.message,
-        errorStack: e.stack,
         severity: AnalyticsSeverity.Critical,
       });
       throw e;
@@ -258,8 +258,8 @@ export class NativeDb extends BaseDb {
       );
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         context: 'runMigrations: schema health check failed',
+        error,
         errorMessage: error.message,
-        errorStack: error.stack,
         missingTables,
         attemptId: opts?.attemptId,
         elapsedMs: opts?.elapsedMs?.(),
@@ -300,8 +300,8 @@ export class NativeDb extends BaseDb {
       );
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         context: 'runMigrations: setup incomplete before migration',
+        error,
         errorMessage: error.message,
-        errorStack: error.stack,
         severity: AnalyticsSeverity.Critical,
       });
       throw error;
@@ -355,8 +355,8 @@ export class NativeDb extends BaseDb {
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         context:
           'runMigrations: migration/schema verification failed. Attempting to purge and retry',
+        error: e,
         errorMessage: e.message,
-        errorStack: e.stack,
         attemptId,
         elapsedMs: getElapsedMs(),
         migrationPhase: 'initial',
@@ -384,8 +384,8 @@ export class NativeDb extends BaseDb {
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         context: 'runMigrations: retry purge failed',
+        error: e,
         errorMessage: e.message,
-        errorStack: e.stack,
         attemptId,
         elapsedMs: getElapsedMs(),
         severity: AnalyticsSeverity.Critical,
@@ -418,8 +418,8 @@ export class NativeDb extends BaseDb {
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         context: 'runMigrations: retry migrate failed',
+        error: e,
         errorMessage: e.message,
-        errorStack: e.stack,
         attemptId,
         elapsedMs: getElapsedMs(),
         migrationPhase: 'retry',

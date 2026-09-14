@@ -16,7 +16,11 @@ import * as sync from '../sync';
 import { SyncPriority } from '../syncQueue';
 import { useDetectSequenceRegression } from '../useDetectSequenceRegression';
 import { mergePendingPosts } from '../useMergePendingPosts';
-import { getLatestChannelPostsInitialPage, queryKeyPrefix } from './queries';
+import {
+  getLatestChannelPostsInitialPage,
+  getOlderPageParam,
+  queryKeyPrefix,
+} from './queries';
 import { refreshStaleChannelPosts } from './refresh';
 import { useDeletedPosts, useNewPostListener } from './subscriptions';
 
@@ -142,25 +146,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
       _allPages,
       _lastPageParam
     ): UseChannelPostsPageParams | undefined => {
-      const oldestPost = lastPage.posts.at(-1);
-      const lastPageIsEmpty = !oldestPost?.id;
-
-      // corner case: if somehow we don't have any posts, we can't load more
-      if (lastPageIsEmpty) {
-        return undefined;
-      }
-
-      // main check: if we're at the beginning of the sequence, we're done
-      if (oldestPost && oldestPost.sequenceNum === 1) {
-        return undefined;
-      }
-
-      return {
-        channelId: options.channelId,
-        count: options.count ?? 50,
-        mode: 'older',
-        cursorSequenceNum: oldestPost.sequenceNum!,
-      };
+      return getOlderPageParam(lastPage.posts, options);
     },
     getPreviousPageParam: (
       firstPage,
@@ -381,8 +367,14 @@ async function hasNewerPosts(channelId: string, posts: db.Post[]) {
   // Even for empty channels, we should have a value here. If somehow we don't,
   // assume there's more to load and assume the next load will rectify sequence state.
   if (latestSequenceNum === null) {
+    // `getLatestChannelSequenceNum` returns null both when the channel row is
+    // missing and when the row's sequence number is unset, so say which. Only
+    // on this invariant-violation path, so the extra read is not in the hot
+    // path.
+    const channel = await db.getChannel({ id: channelId });
     postsLogger.trackError(
-      'invariant violation: channel missing latest sequence number'
+      'invariant violation: channel missing latest sequence number',
+      { channelId, hasChannelRow: !!channel }
     );
     return true;
   }

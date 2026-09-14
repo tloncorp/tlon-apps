@@ -110,6 +110,12 @@ export function ThemeScreen(props: Props) {
             {themes.map((theme, index) => (
               <Fragment key={theme.value}>
                 <Pressable
+                  accessibilityRole="radio"
+                  accessibilityLabel={theme.title}
+                  accessibilityState={{
+                    checked: theme.value === selectedTheme,
+                  }}
+                  testID={`ThemeOption-${theme.value}`}
                   disabled={loadingTheme !== null}
                   onPress={() => handleThemeChange(theme.value)}
                   borderRadius="$xl"
