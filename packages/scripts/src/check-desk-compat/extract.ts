@@ -184,8 +184,11 @@ function resolveCallee(node: ts.CallExpression, b: Bindings): Callee {
 
 const lineOf = (ctx: Ctx, node: ts.Node) =>
   ctx.sf.getLineAndCharacterOfPosition(node.getStart(ctx.sf)).line + 1;
-const textOf = (ctx: Ctx, node: ts.Node) =>
-  node.getText(ctx.sf).replace(/\s+/g, ' ').slice(0, 200);
+// Against the node's *own* file, not the file being scanned: a whitelisted
+// helper is often defined in another module, and slicing its node out of the
+// caller's text yields whatever happens to sit at those offsets.
+const textOf = (_ctx: Ctx, node: ts.Node) =>
+  node.getText(node.getSourceFile()).replace(/\s+/g, ' ').slice(0, 200);
 
 function makeKey(d: Omit<Dependency, 'key' | 'site' | 'text'>): string {
   if (d.surface === 'poke') return `poke ${d.app ?? '?'} ${d.mark ?? '?'}`;
@@ -372,8 +375,24 @@ function scopeAssignments(
             node.left.text === name
           ? node.right
           : null;
-    if (value && (before === undefined || node.getStart() < before)) {
-      out.push({ value, block: enclosingBlock(node) });
+    // A *declaration* in a block the call is not inside is a different
+    // variable of the same name, and never reaches the call:
+    // `if (flag) { const path = … }` beside the call declares its own `path`.
+    // An *assignment* in such a block writes the binding the call does read,
+    // so it still counts — which is how `let scryPath` written in both arms of
+    // an if/else is resolved.
+    const block = enclosingBlock(node);
+    const shadows =
+      ts.isVariableDeclaration(node) &&
+      before !== undefined &&
+      block !== null &&
+      !(block.getStart() <= before && before < block.getEnd());
+    if (
+      value &&
+      !shadows &&
+      (before === undefined || node.getStart() < before)
+    ) {
+      out.push({ value, block });
     }
     ts.forEachChild(node, visit);
   };
@@ -586,28 +605,48 @@ function pathValues(
 }
 
 /**
- * Pair values assigned in the same branch.
+ * Pair an `app` value with a `path` or `mark` value, one pair per request the
+ * code can actually make.
  *
- * `getPostWithReplies` assigns `app` and `path` in three `if/else` arms; the
- * cross product would invent `chat` + `/v5/...`, a request no code path makes.
+ * Two ways they can be one choice rather than two. `getPostWithReplies`
+ * assigns `app` and `path` in three `if/else` arms, so the block they sit in
+ * pairs them; `{ app: dm ? 'chat' : 'channels', path: dm ? …  : … }` branches
+ * twice on the *same condition*, so the guard text does. Either way the cross
+ * product would invent a request no code path makes.
+ *
+ * Independent conditions do cross-multiply, because each combination is
+ * reachable, and the pair carries both guards conjoined.
  */
-function pairByBlock<A, B>(
+function pairValues<A, B>(
   as: Val<A>[],
   bs: Val<B>[]
-): { a: Val<A>; b: Val<B> }[] {
-  if (
-    as.length > 1 &&
-    bs.length > 1 &&
-    as.every((v) => v.block) &&
-    bs.every((v) => v.block)
-  ) {
-    const paired = bs.map((b) => ({
-      a: as.find((a) => a.block === b.block),
-      b,
+): { a: Val<A>; b: Val<B>; guard?: string }[] {
+  const positional = (paired: { a: Val<A>; b: Val<B> }[]) =>
+    paired.map((p) => ({
+      ...p,
+      guard:
+        p.a.guard === p.b.guard ? p.a.guard : bothGuards(p.a.guard, p.b.guard),
     }));
-    if (paired.every((p) => p.a)) return paired as { a: Val<A>; b: Val<B> }[];
+
+  if (as.length > 1 && bs.length > 1) {
+    if (as.every((v) => v.block) && bs.every((v) => v.block)) {
+      const paired = bs.map((b) => ({
+        a: as.find((a) => a.block === b.block),
+        b,
+      }));
+      if (paired.every((p) => p.a))
+        return positional(paired as { a: Val<A>; b: Val<B> }[]);
+    }
+    if (
+      as.length === bs.length &&
+      as.every((a, i) => a.guard !== undefined && a.guard === bs[i].guard)
+    ) {
+      return positional(as.map((a, i) => ({ a, b: bs[i] })));
+    }
   }
-  return as.flatMap((a) => bs.map((b) => ({ a, b })));
+  return as.flatMap((a) =>
+    bs.map((b) => ({ a, b, guard: bothGuards(a.guard, b.guard) }))
+  );
 }
 
 // --- helper expansion -------------------------------------------------------
@@ -716,14 +755,14 @@ function expandHelper(ctx: Ctx, name: string, depth = 0): PokeParams[] {
   const unresolved = (why: string) =>
     results.push({ app: null, mark: null, unresolved: why });
   const fromObject = (obj: ts.ObjectLiteralExpression, guard?: string) => {
-    for (const { a, b } of pairByBlock(
+    for (const pair of pairValues(
       literalValues(ctx, obj, 'app', undefined),
       literalValues(ctx, obj, 'mark', undefined)
     )) {
       results.push({
-        app: a.value,
-        mark: b.value,
-        guard: bothGuards(guard, b.guard ?? a.guard),
+        app: pair.a.value,
+        mark: pair.b.value,
+        guard: bothGuards(guard, pair.guard),
       });
     }
   };
@@ -819,7 +858,7 @@ function readEndpointObject(
       : unknown('path (shorthand, unresolved)');
   } else paths = pathValues(ctx, prop, scope, callPos);
 
-  for (const { a: app, b: path } of pairByBlock(
+  for (const { a: app, b: path, guard } of pairValues(
     literalValues(ctx, obj, 'app', scope, callPos),
     paths
   )) {
@@ -827,7 +866,7 @@ function readEndpointObject(
       surface,
       app: app.value,
       path: path.value,
-      guard: path.guard ?? app.guard,
+      guard,
       unresolved:
         app.value === null
           ? 'app is not a string literal'
@@ -863,11 +902,11 @@ function readPokeParams(
   if (!arg) return unresolved('missing argument');
 
   if (ts.isObjectLiteralExpression(arg)) {
-    for (const { a, b } of pairByBlock(
+    for (const { a, b, guard } of pairValues(
       literalValues(ctx, arg, 'app', scope, pos),
       literalValues(ctx, arg, 'mark', scope, pos)
     )) {
-      emit({ app: a.value, mark: b.value, guard: b.guard ?? a.guard });
+      emit({ app: a.value, mark: b.value, guard });
     }
     return;
   }

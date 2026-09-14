@@ -122,6 +122,27 @@ describe('argument forms', () => {
     expect(deps.every((d) => d.guard)).toBe(true);
   });
 
+  it('pairs two ternaries on the same condition, and crosses independent ones', () => {
+    // One condition, one choice: the cross product would invent `chat` with
+    // the channel path.
+    expect(
+      keys(
+        "import { scry } from './urbit';\nexport const f = (dm: boolean) => scry({ app: dm ? 'chat' : 'channels', path: dm ? '/v1/dm' : '/v1/chan' });"
+      )
+    ).toEqual(['scry channels /v1/chan', 'scry chat /v1/dm']);
+    // Two conditions: every combination is reachable, and each carries both.
+    const independent = extract(
+      "import { scry } from './urbit';\nexport const f = (dm: boolean, v2: boolean) => scry({ app: dm ? 'chat' : 'channels', path: v2 ? '/v2' : '/v1' });"
+    );
+    expect(independent.map((d) => d.key).sort()).toEqual([
+      'scry channels /v1',
+      'scry channels /v2',
+      'scry chat /v1',
+      'scry chat /v2',
+    ]);
+    expect(independent[0].guard).toBe('dm ? … && v2 ? …');
+  });
+
   it('pairs multi-branch app and path by branch, not by cross product', () => {
     expect(
       keys(`
@@ -370,6 +391,23 @@ describe('argument forms', () => {
     expect(dep.unresolved).toBeDefined();
   });
 
+  it('ignores a binding in a block the call is not inside', () => {
+    // The `path` in the `if` is a different `path`; taking it would send a
+    // request no code path makes.
+    expect(
+      keys(`import { scry } from './urbit';
+        const outer = '/v1/live';
+        export const f = (flag: boolean) => {
+          const path = outer;
+          if (flag) {
+            const path = '/v99/unused';
+            void path;
+          }
+          return scry({ app: 'groups', path });
+        };`)
+    ).toEqual(['scry groups /*']);
+  });
+
   it('resolves nothing when a loop makes the ordering meaningless', () => {
     // In a loop the call sees the previous iteration's value, so position no
     // longer says which assignment reaches it.
@@ -490,6 +528,30 @@ describe('helper expansion', () => {
         `import { poke } from './urbit';\n${HELPERS}\nexport const f = () => { const action = groupAction({}); return poke(action); };`
       )
     ).toContain('poke groups group-action-5');
+  });
+
+  it('reads a cross-file helper\u2019s guard from that file, not the caller\u2019s', () => {
+    // The helper's nodes index into *its* source; slicing them out of the
+    // caller's text yields whatever sits at those offsets.
+    const deps = extractClient(
+      memoryTree({
+        'packages/api/src/urbit/activity.ts': [
+          'export function activityAction(action: unknown) {',
+          '  if (getActivitySupportsNotes()) {',
+          "    return { app: 'activity', mark: 'activity-action-2', json: action };",
+          '  }',
+          "  return { app: 'activity', mark: 'activity-action', json: action };",
+          '}',
+        ].join('\n'),
+        'packages/api/src/client/activityApi.ts':
+          "import { poke } from './urbit';\nimport * as ub from '@tloncorp/api/urbit';\nexport const f = () => poke(ub.activityAction({}));",
+      }),
+      ['packages/api/src']
+    );
+    const guarded = deps.find(
+      (d) => d.key === 'poke activity activity-action-2'
+    );
+    expect(guarded?.guard).toBe('getActivitySupportsNotes()');
   });
 
   it('finds a helper defined in another module of the scanned tree', () => {
