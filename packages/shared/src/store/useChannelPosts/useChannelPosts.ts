@@ -4,6 +4,7 @@ import {
   useInfiniteQuery,
 } from '@tanstack/react-query';
 import { getChannelIdType } from '@tloncorp/api';
+import { isThirdPartyChannel } from '@tloncorp/api/urbit';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import * as db from '../../db';
@@ -360,6 +361,11 @@ async function getLocalFirstPosts(options: UseChannelPostsPageParams) {
  * These run outside the context of the infinite query.
  */
 async function hasNewerPosts(channelId: string, posts: db.Post[]) {
+  // These channels load content through their backing agent, without post sequences.
+  if (isThirdPartyChannel(channelId)) {
+    return false;
+  }
+
   const latestSequenceNum = await db.getLatestChannelSequenceNum({
     channelId,
   });

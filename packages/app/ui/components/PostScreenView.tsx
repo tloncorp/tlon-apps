@@ -1,3 +1,4 @@
+import { useIsFocused } from '@react-navigation/native';
 import { ChannelContentConfiguration } from '@tloncorp/api';
 import * as urbit from '@tloncorp/api/urbit';
 import { JSONContent } from '@tloncorp/api/urbit';
@@ -26,10 +27,11 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, XStack, YStack } from 'tamagui';
 
+import useAppStatus from '../../hooks/useAppStatus';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useIsUserActive } from '../../hooks/useUserActivity';
 import { useCurrentUserId } from '../contexts/appDataContext';
@@ -67,6 +69,7 @@ import {
 const noop = async () => {};
 
 const HIGHLIGHT_DURATION_MS = 5000;
+const isAppForeground = () => AppState.currentState === 'active';
 
 interface ChatThreadHandle {
   posts: db.Post[];
@@ -670,12 +673,12 @@ function SinglePostView({
   );
   const hasThreadUnreadActivity = hasUnreadActivity(liveThreadUnread);
 
-  const { data: threadPosts, isLoading: isLoadingThreadPosts } =
-    store.useThreadPosts({
-      postId: parentPost.id,
-      authorId: parentPost.authorId,
-      channelId: channel.id,
-    });
+  const threadQuery = store.useThreadPosts({
+    postId: parentPost.id,
+    authorId: parentPost.authorId,
+    channelId: channel.id,
+  });
+  const { data: threadPosts, isLoading: isLoadingThreadPosts } = threadQuery;
 
   const { data: showDeleteMarkers = false } = store.useShowDeleteMarkers();
   const includeDeletedPosts =
@@ -696,6 +699,38 @@ function SinglePostView({
   const posts = useMemo(() => {
     return parentPost ? [...(visibleThreadPosts ?? []), parentPost] : null;
   }, [parentPost, visibleThreadPosts]);
+
+  const screenIsFocused = useIsFocused();
+  const appStatus = useAppStatus();
+  const threadTelemetryView = useMemo(
+    () => ({
+      queryReplies: threadPosts,
+      listReplies: visibleThreadPosts ?? [],
+      includeDeleted: includeDeletedPosts,
+      queryStatus: threadQuery.status,
+      fetchStatus: threadQuery.fetchStatus,
+      dataUpdatedAt: threadQuery.dataUpdatedAt,
+      errorUpdatedAt: threadQuery.errorUpdatedAt,
+      parentReplyCount: parentPost.replyCount,
+    }),
+    [
+      threadPosts,
+      visibleThreadPosts,
+      includeDeletedPosts,
+      threadQuery.status,
+      threadQuery.fetchStatus,
+      threadQuery.dataUpdatedAt,
+      threadQuery.errorUpdatedAt,
+      parentPost.replyCount,
+    ]
+  );
+  store.useThreadCatchupTelemetry({
+    postId: parentPost.id,
+    channelId: channel.id,
+    active: screenIsFocused && isFocusedPost && appStatus === 'active',
+    isForeground: isAppForeground,
+    view: threadTelemetryView,
+  });
 
   const currentUserId = useCurrentUserId();
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
