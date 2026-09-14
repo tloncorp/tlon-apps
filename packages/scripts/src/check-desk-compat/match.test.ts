@@ -128,6 +128,15 @@ describe('a match the arms do not decide outright', () => {
     expect(verdictOf(scry(['v1'], true))).toBe('UNVERIFIED');
   });
 
+  it('is UNVERIFIED when an interpolation that may be empty ends the pole', () => {
+    // `` `/v1/init/${suffix}` `` is `/v1/init` when `suffix` is '', which the
+    // arm takes. Calling that an absence reports a MISSING the agent does not
+    // have.
+    expect(verdictOf(scry(['v1', 'init'], true))).toBe('UNVERIFIED');
+    // A prefix no arm can take at all is still an absence.
+    expect(verdictOf(scry(['v9', 'nope'], true))).toBe('MISSING');
+  });
+
   it('is UNVERIFIED when an arm pattern would not parse', () => {
     const odd = desk({
       'desk/app/ledger.hoon': `

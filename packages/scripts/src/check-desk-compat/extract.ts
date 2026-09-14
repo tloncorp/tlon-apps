@@ -658,7 +658,14 @@ function expandHelper(ctx: Ctx, name: string, depth = 0): PokeParams[] {
     }
   };
 
-  const read = (expr: ts.Expression, hop: number, guard?: string) => {
+  const read = (raw: ts.Expression, hop: number, guard?: string) => {
+    const expr = unwrap(raw);
+    // A helper may return the choice rather than make it: split it here too.
+    if (ts.isConditionalExpression(expr)) {
+      const condition = textOf(ctx, expr.condition);
+      read(expr.whenTrue, hop, bothGuards(guard, `${condition} ? …`));
+      return read(expr.whenFalse, hop, bothGuards(guard, `! (${condition})`));
+    }
     if (ts.isObjectLiteralExpression(expr)) return fromObject(expr, guard);
     const forwarded = ts.isCallExpression(expr) ? calleeName(expr) : null;
     if (forwarded && hop < 2 && HELPER_WHITELIST.has(forwarded)) {
@@ -787,7 +794,28 @@ function readPokeParams(
   const unresolved = (why: string) =>
     push(ctx, node, { surface: 'poke', guard: outer, unresolved: why });
   if (!arg) return unresolved('missing argument');
+  arg = unwrap(arg);
 
+  // `const action = dm ? chatAction(…) : channelAction(…)` — the branches are
+  // separate requests, so the choice is split before the params are read.
+  // Without this the whole site reads as one unresolvable poke.
+  if (ts.isConditionalExpression(arg)) {
+    const condition = textOf(ctx, arg.condition);
+    readPokeParams(
+      ctx,
+      node,
+      arg.whenTrue,
+      hop,
+      bothGuards(outer, `${condition} ? …`)
+    );
+    return readPokeParams(
+      ctx,
+      node,
+      arg.whenFalse,
+      hop,
+      bothGuards(outer, `! (${condition})`)
+    );
+  }
   if (ts.isObjectLiteralExpression(arg)) {
     // Each branch of a `mark: a ? new : old` is its own record, carrying its
     // own guard; never unioned. That guard is what the GUARDED rule reads.

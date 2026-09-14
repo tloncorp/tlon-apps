@@ -509,7 +509,7 @@ export function formatReport(report: Report): string {
     line('\nNEGOTIATION PROTOCOL MISMATCH (blocks the pair outright)');
     for (const d of report.protocolDifferences) {
       line(
-        `  %${d.agent} ~.${d.protocol}: client desk [${d.clientDeskVersions.join(' ')}] vs desk under test [${d.n1Versions.join(' ')}]`
+        `  %${d.agent} expects ~.${d.protocol} of %${d.peer}: client desk [${d.clientDeskVersions.join(' ')}] vs desk under test [${d.n1Versions.join(' ')}]`
       );
     }
     line('  negotiate refuses a pair that disagrees on a protocol.');
@@ -602,7 +602,7 @@ export function markdownReport(report: Report): string {
     out.push('', '#### Negotiation protocol mismatch');
     for (const d of report.protocolDifferences) {
       out.push(
-        `- \`%${d.agent}\` \`~.${d.protocol}\`: client desk [${d.clientDeskVersions.join(' ')}] vs desk under test [${d.n1Versions.join(' ')}]`
+        `- \`%${d.agent}\` expects \`~.${d.protocol}\` of \`%${d.peer}\`: client desk [${d.clientDeskVersions.join(' ')}] vs desk under test [${d.n1Versions.join(' ')}]`
       );
     }
   }

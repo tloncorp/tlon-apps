@@ -29,6 +29,7 @@ const difference = (
   over: Partial<ProtocolDifference> = {}
 ): ProtocolDifference => ({
   agent: 'groups',
+  peer: 'groups',
   protocol: 'groups',
   clientDeskVersions: ['3'],
   n1Versions: ['2'],

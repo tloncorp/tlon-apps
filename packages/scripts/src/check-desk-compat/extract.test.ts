@@ -418,6 +418,38 @@ describe('a poke whose params are bound first', () => {
     expect(dep.unresolved).toBe('app is not a string literal');
   });
 
+  it('splits a bound choice between params objects', () => {
+    // `deletePost` binds `action` to a three-way conditional. Passing that
+    // into the params reader whole leaves the whole site unresolvable, when
+    // each branch is a perfectly readable request.
+    const deps = extract(`import { poke } from './urbit';
+      export async function deletePost(id: string) {
+        const action = isDm(id)
+          ? { app: 'chat', mark: 'chat-dm-action-2', json: {} }
+          : isClub(id)
+            ? { app: 'chat', mark: 'chat-club-action-2', json: {} }
+            : { app: 'channels', mark: 'channel-action-2', json: {} };
+        return poke(action);
+      }`);
+    expect(deps.map((d) => [d.key, d.guard])).toEqual([
+      ['poke chat chat-dm-action-2', 'isDm(id) ? …'],
+      ['poke chat chat-club-action-2', '! (isDm(id)) && isClub(id) ? …'],
+      ['poke channels channel-action-2', '! (isDm(id)) && ! (isClub(id))'],
+    ]);
+  });
+
+  it('splits a choice a helper returns, too', () => {
+    expect(
+      keys(`import { poke } from './urbit';
+        export function chatAction(whom: string) {
+          return whomIsDm(whom)
+            ? { app: 'chat', mark: 'chat-dm-action-2', json: {} }
+            : { app: 'chat', mark: 'chat-club-action-2', json: {} };
+        }
+        export const f = (whom: string) => poke(chatAction(whom));`)
+    ).toEqual(['poke chat chat-club-action-2', 'poke chat chat-dm-action-2']);
+  });
+
   it('still gives up when the binding is not the one the call reads', () => {
     const unresolved = (body: string) =>
       extract(`import { poke } from './urbit';\n${body}`)[0].unresolved;

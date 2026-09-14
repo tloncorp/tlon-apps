@@ -248,7 +248,10 @@ export function matchAlternative(
     if (j >= known.length) {
       const remaining = alt.slice(i);
       if (remaining.length === 1 && remaining[0].k === 'nil') {
-        return unknownTail ? mismatch() : settle('exact');
+        // The arm ends exactly where the known segments do. An interpolation
+        // can be empty — `` `/v1/${suffix}` `` is `/v1` when `suffix` is '' —
+        // so the tail is what decides, and an absence cannot be claimed.
+        return unknownTail ? 'prefix' : settle('exact');
       }
       // The arm still requires segments the request does not supply.
       return unknownTail ? 'prefix' : mismatch();
@@ -259,7 +262,9 @@ export function matchAlternative(
     j++;
   }
   if (j < known.length) return mismatch();
-  return unknownTail ? mismatch() : settle('exact');
+  // Same again for an arm with no trailing `~`: it takes the pole as sent,
+  // and only the interpolation decides whether that is the pole sent.
+  return unknownTail ? 'prefix' : settle('exact');
 }
 
 /**
