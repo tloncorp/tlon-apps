@@ -820,6 +820,72 @@
     =.  ent  ent(name name, updated-by actor, updated-at now.bowl)
     =.  entries.st  (~(put by entries.st) id ent)
     [~ (se-update [%entry id [%update ent]] actor)]
+  ::  +se-create-entry: put a finished entry in the manifest and broadcast it.
+  ::
+  ++  se-create-entry
+    |=  [ent=entry:b actor=ship]
+    ^+  se-core
+    =.  entries.st  (~(put by entries.st) id.ent ent)
+    (se-update [%entry id.ent [%create ent]] actor)
+  ::  +se-move: re-parent an entry.
+  ::
+  ++  se-move
+    |=  [id=@ud parent=(unit @ud) actor=ship]
+    ^-  [(unit response-body:b) _se-core]
+    ?.  (valid-parent st parent)
+      [`[%error %not-found 'no such parent folder'] se-core]
+    ?~  got=(~(get by entries.st) id)
+      [`[%error %not-found 'no such entry'] se-core]
+    =/  ent=entry:b  u.got
+    ?:  ?&(?=(^ parent) =(u.parent id))
+      [`[%error %invalid-input 'an entry cannot contain itself'] se-core]
+    ?:  ?&  ?=(%folder -.kind.ent)
+            ?=(^ parent)
+            (descendant st id u.parent)
+        ==
+      [`[%error %invalid-input 'a folder cannot move inside itself'] se-core]
+    =.  ent  ent(parent parent, updated-by actor, updated-at now.bowl)
+    =.  entries.st  (~(put by entries.st) id ent)
+    [~ (se-update [%entry id [%update ent]] actor)]
+  ::  +se-delete-entry: remove an entry, and a folder's contents with it.
+  ::
+  ++  se-delete-entry
+    |=  [id=@ud recursive=? actor=ship]
+    ^-  [(unit response-body:b) _se-core]
+    ?.  (~(has by entries.st) id)
+      [`[%error %not-found 'no such entry'] se-core]
+    =/  ids=(set @ud)  (descendants st id)
+    ?.  ?|(recursive =(1 ~(wyt in ids)))
+      [`[%error %invalid-input 'folder is not empty'] se-core]
+    =.  entries.st
+      %-  ~(rep in ids)
+      |=  [key=@ud acc=_entries.st]
+      (~(del by acc) key)
+    ::  An in-flight upload's entry is deliberately absent from entries.st,
+    ::  so it is never among the descendants -- but its parent can be. Give
+    ::  those up too: otherwise its completion still authorizes and publishes
+    ::  an entry under a folder that no longer exists, which nothing can reach.
+    ::
+    ::  Through +up-give-up rather than dropped where they stand, so the
+    ::  broker releases the reservation and whoever was waiting is told.
+    ::  +delete-bucket already went through +drop-bucket-sessions; deleting
+    ::  the folder above an upload did not, and leaked both.
+    =/  doomed=(list @uv)
+      %+  murn  ~(tap by sessions)
+      |=  [sid=@uv ses=upload-session:b]
+      ?.  =(flag flag.ses)  ~
+      ?.  ?|  (~(has in ids) id.entry.ses)
+              ?&  ?=(^ parent.entry.ses)
+                  (~(has in ids) u.parent.entry.ses)
+              ==
+          ==
+        ~
+      `sid
+    =.  cor
+      %+  roll  doomed
+      |=  [sid=@uv acc=_cor]
+      up-abet:(up-give-up:(up-abed:up-core:acc sid) 'the folder was deleted')
+    [~ (se-update [%entries-deleted ~(tap in ids)] actor)]
   --
 ::
 ++  set-title
@@ -1077,14 +1143,12 @@
   ++  up-publish
     |=  actor=ship
     ^+  up-core
-    =/  st=bucket-state:b  (need-state flag.ses)
     =/  ent=entry:b  entry.ses
     =/  fil=file:b  (entry-file ent)
     =.  fil  fil(status %ready)
     =.  ent  ent(updated-by actor, updated-at now.bowl, kind [%file fil])
     =.  ses  ses(status %complete, entry ent)
-    =.  entries.st  (~(put by entries.st) id.ent ent)
-    =.  cor  (commit-update flag.ses st [%entry id.ent [%create ent]] actor)
+    =.  cor  se-abet:(se-create-entry:(se-abed:se-core flag.ses) ent actor)
     up-core
   ::  +up-finish: the bytes are up, so settle the reservation and publish.
   ::
@@ -2196,65 +2260,18 @@
 ++  move-entry
   |=  [=flag:b id=@ud parent=(unit @ud) actor=ship]
   ^+  cor
-  =/  st=bucket-state:b  (need-state flag)
-  ?.  (valid-parent st parent)
-    (answer [%error %not-found 'no such parent folder'])
-  ?~  got=(~(get by entries.st) id)
-    (answer [%error %not-found 'no such entry'])
-  =/  ent=entry:b  u.got
-  ?:  ?&(?=(^ parent) =(u.parent id))
-    (answer [%error %invalid-input 'an entry cannot contain itself'])
-  ?:  ?&  ?=(%folder -.kind.ent)
-          ?=(^ parent)
-          (descendant st id u.parent)
-      ==
-    (answer [%error %invalid-input 'a folder cannot move inside itself'])
-  =.  ent  ent(parent parent, updated-by actor, updated-at now.bowl)
-  =.  entries.st  (~(put by entries.st) id ent)
-  (commit-update flag st [%entry id [%update ent]] actor)
+  =/  sec  (se-abed:se-core flag)
+  =^  err  sec  (se-move:sec id parent actor)
+  ?^  err  (answer u.err)
+  se-abet:sec
 ::
 ++  delete-entry
   |=  [=flag:b id=@ud recursive=? actor=ship]
   ^+  cor
-  =/  st=bucket-state:b  (need-state flag)
-  ?.  (~(has by entries.st) id)
-    (answer [%error %not-found 'no such entry'])
-  =/  ids=(set @ud)  (descendants st id)
-  ?.  ?|(recursive =(1 ~(wyt in ids)))
-    (answer [%error %invalid-input 'folder is not empty'])
-  =.  entries.st
-    %-  ~(rep in ids)
-    |=  [key=@ud acc=_entries.st]
-    (~(del by acc) key)
-  =.  sessions
-    %-  malt
-    %+  skip  ~(tap by sessions)
-    |=  [key=@uv ses=upload-session:b]
-    ?.  =(flag flag.ses)  |
-    ::  An in-flight upload's entry is deliberately absent from entries.st,
-    ::  so it is never among the descendants -- but its parent can be. Drop
-    ::  those too: otherwise its completion still authorizes and publishes an
-    ::  entry under a folder that no longer exists, which nothing can reach.
-    ?|  (~(has in ids) id.entry.ses)
-        ?&  ?=(^ parent.entry.ses)
-            (~(has in ids) u.parent.entry.ses)
-        ==
-    ==
-  (commit-update flag st [%entries-deleted ~(tap in ids)] actor)
-::
-::  +commit-update: bump the revision, stamp attribution on the bucket, and
-::  broadcast. The actor is passed in rather than read from src.bowl, which on
-::  a broker callback is us rather than the uploader.
-::
-++  commit-update
-  |=  [=flag:b st=bucket-state:b upd=u-bucket:b actor=ship]
-  ^+  cor
-  =.  revision.st  +(revision.st)
-  =.  bucket.st
-    bucket.st(updated-by actor, updated-at now.bowl)
-  =.  cor  (put-state flag st)
-  =/  res=response:b  [%update flag revision.st upd]
-  (give [%fact ~[/v1 (updates-path flag)] buckets-response-1+!>(res)])
+  =/  sec  (se-abed:se-core flag)
+  =^  err  sec  (se-delete-entry:sec id recursive actor)
+  ?^  err  (answer u.err)
+  se-abet:sec
 ::
 ++  valid-parent
   |=  [st=bucket-state:b parent=(unit @ud)]
@@ -3090,7 +3107,7 @@
   =/  kept=(set @tas)  (~(dif in writers.st) roles)
   ?:  =(kept writers.st)  acc
   %-  (slog leaf+"buckets: dropping deleted roles from {<flag>} writers" ~)
-  (commit-update:acc flag st(writers kept) [%writers kept] our.bowl)
+  se-abet:(se-set-writers:(se-abed:se-core:acc flag) kept our.bowl)
 ::
 ::  +recheck-every-host-sub: run the permission sweep for every group we host
 ::  a bucket in.
