@@ -1441,6 +1441,18 @@
     ?~  got=(~(get by readers) k)
       ~|(rd-abed-not-found+k !!)
     rd-core(key k, sync u.got)
+  ::  +rd-init: pick up the record for .k, or an empty one if we hold none.
+  ::
+  ::  +rd-sync is the only caller: a grant for a pair we have never synced
+  ::  starts here, and the empty record's revision 0 makes its first send
+  ::  revision 1 exactly as a fresh +sync-reader used to.
+  ::
+  ++  rd-init
+    |=  k=reader-key:b
+    ^+  rd-core
+    ?~  got=(~(get by readers) k)
+      rd-core(key k, sync *reader-sync:b)
+    rd-core(key k, sync u.got)
   ::  +rd-abet: write the record back, or drop it if it is gone.
   ::
   ++  rd-abet
@@ -1467,6 +1479,94 @@
     =.  rd-core  rd-core(sync sync(awaiting ~))
     =.  cor  (respond u.held (answer-paths reader.key u.held) body)
     rd-core
+  ::  +rd-confirm: the broker has caught up to `revision` for this pair.
+  ::
+  ::  If it reports a higher revision than we sent, our counter is behind its
+  ::  -- state loss on our side, or a message from an earlier incarnation.
+  ::  Adopt its number and re-send, so our desired state wins rather than
+  ::  being silently discarded as stale forever.
+  ::
+  ++  rd-confirm
+    |=  [sent=@ud theirs=(unit @ud) applied=(unit ?)]
+    ^+  rd-core
+    ::  Whether this ack tells us anything we did not already know. A repeat
+    ::  delivery must not re-install or re-arm anything.
+    =/  advanced=?  (gth sent synced.sync)
+    =?  sync  advanced  sync(synced sent)
+    ::  The broker did not take this write, so what we asked for is not what
+    ::  it holds however the numbers compare. Adopt its revision and re-send
+    ::  above it, or our desired state is discarded as stale from here on.
+    ::
+    ::  Its own report is the authority, not the comparison: a reader whose
+    ::  record was pruned at its expiry opens again at revision 1 while the
+    ::  broker still retains 1, and a strictly-greater test reads that as
+    ::  agreement -- the client is then handed a token the broker never
+    ::  stored. Where it says nothing, being behind is the only case we can
+    ::  detect.
+    =/  stale=?
+      ?^  applied  !u.applied
+      ?&(?=(^ theirs) (gth u.theirs revision.sync))
+    ?:  ?&(?=(^ theirs) stale)
+      ::  Above what it kept, so the resend cannot tie with it again.
+      =.  sync  sync(revision +(u.theirs), synced u.theirs)
+      %-  (slog leaf+"buckets: broker was ahead of us, resending" ~)
+      =.  rd-core
+        (emil (sync-cards ~[[key revision.sync bucket-id.sync desired.sync]]))
+      rd-core
+    ?.  advanced  rd-core
+    ::  Only once the broker is level with what we last decided -- an ack for
+    ::  a superseded revision says nothing about the state we now want.
+    ::  Bound to a leg first: ?= on a sampleless arm has no axis to refine
+    ::  along and mints vain.
+    =/  now-status=reader-status:b  rd-status
+    ?.  ?=(%settled now-status)  rd-core
+    ?.  ?=(%granted -.desired.sync)  rd-core
+    =/  tok=read-token:b  [token.desired.sync expires-at.desired.sync]
+    ::  Installing is independent of anyone waiting: a renewal fired by the
+    ::  refresh timer has no request behind it, and skipping it here left the
+    ::  local scry serving the previous token until it lapsed and then forever.
+    =?  read-tokens  =(reader.key our.bowl)
+      (~(put by read-tokens) flag.key tok)
+    =?  cor  =(reader.key our.bowl)
+      (arm-token-refresh flag.key expires-at.desired.sync)
+    (rd-answer [%token tok])
+  ::
+  ::  +rd-sync: record what this reader's access should be, and tell the
+  ::  broker. Grant, rotation and revoke are all this one operation.
+  ::
+  ::  The revision is what makes delivery order stop mattering: the broker
+  ::  keeps only the highest it has seen, so a delayed or duplicated request
+  ::  loses to the truth rather than overwriting it. That is why a revoke can
+  ::  be sent while a grant is still in flight, and why a retry of that grant
+  ::  is harmless when it lands afterwards.
+  ::
+  ++  rd-sync
+    |=  [bid=@t want=reader-state:b till=@da waiter=(unit request-id:b)]
+    ^+  rd-core
+    ::  A client still waiting on the grant this supersedes will never be
+    ::  answered by it -- the broker will keep the newer state -- so tell it
+    ::  now rather than leaving it to time out.
+    ::
+    ::  Which error matters. %not-authorized is what the replica reads as
+    ::  "access lost", and it answers by dropping the token it holds and its
+    ::  refresh with it. But a grant superseded by another grant is a race, not
+    ::  a revocation -- two panes opening a cold bucket inside one host round
+    ::  trip is enough -- and reporting it that way made a reader discard a
+    ::  token it could still use and see a permission error on a bucket it can
+    ::  read. Only a supersede by a revoke is a real loss of access.
+    =?  rd-core  !=(waiter awaiting.sync)
+      %-  rd-answer
+      ?:  ?=(%revoked -.want)
+        [%error %not-authorized 'access changed while the token was being issued']
+      [%error %unknown 'another request for this token overtook it']
+    =.  sync  [+(revision.sync) bid want till synced.sync | waiter]
+    =.  rd-core  (emil (sync-cards ~[[key revision.sync bid want]]))
+    ::  Unconditionally: one timer walks the whole owed set, and
+    ::  +arm-reader-retry is what keeps repeated arming from meaning repeated
+    ::  timers.
+    =.  cor  arm-reader-retry
+    rd-core
+  ::
   ::  +rd-give-up: the broker refused this revision as invalid.
   ::
   ::  Giving up is right for a grant, which the next access change supersedes
@@ -1506,12 +1606,6 @@
 ::  +sync-reader: record what a reader's access should be, and tell the
 ::  broker. Grant, rotation and revoke are all this one operation.
 ::
-::  The revision is what makes delivery order stop mattering: the broker keeps
-::  only the highest it has seen, so a delayed or duplicated request loses to
-::  the truth rather than overwriting it. That is why a revoke can be sent
-::  while a grant is still in flight, and why a retry of that grant is
-::  harmless when it lands afterwards.
-::
 ++  sync-reader
   |=  $:  =flag:b
           reader=ship
@@ -1522,33 +1616,7 @@
       ==
   ^+  cor
   =/  key=reader-key:b  [flag reader]
-  =/  prior=(unit reader-sync:b)  (~(get by readers) key)
-  =/  revision=@ud  ?~(prior 1 +(revision.u.prior))
-  =/  synced=@ud  ?~(prior 0 synced.u.prior)
-  ::  A client still waiting on the grant this supersedes will never be
-  ::  answered by it -- the broker will keep the newer state -- so tell it
-  ::  now rather than leaving it to time out.
-  ::
-  ::  Which error matters. %not-authorized is what the replica reads as
-  ::  "access lost", and it answers by dropping the token it holds and its
-  ::  refresh with it. But a grant superseded by another grant is a race, not
-  ::  a revocation -- two panes opening a cold bucket inside one host round
-  ::  trip is enough -- and reporting it that way made a reader discard a
-  ::  token it could still use and see a permission error on a bucket it can
-  ::  read. Only a supersede by a revoke is a real loss of access.
-  =/  stale=(unit request-id:b)  ?~(prior ~ awaiting.u.prior)
-  =/  revoked=?  ?=(%revoked -.desired)
-  =?  cor  !=(awaiting stale)
-    %+  answer-waiter  key
-    ?:  revoked
-      [%error %not-authorized 'access changed while the token was being issued']
-    [%error %unknown 'another request for this token overtook it']
-  =.  readers
-    (~(put by readers) key [revision bucket-id desired expires synced | awaiting])
-  =.  cor  (emil (sync-cards ~[[key revision bucket-id desired]]))
-  ::  Unconditionally: one timer walks the whole owed set, and +arm-reader-retry
-  ::  is what keeps repeated arming from meaning repeated timers.
-  arm-reader-retry
+  rd-abet:(rd-sync:(rd-init:rd-core key) bucket-id desired expires awaiting)
 ::
 ::  +reader-status: the one place a record's state is decided.
 ::
@@ -1908,45 +1976,8 @@
 ++  confirm-reader
   |=  [key=reader-key:b sent=@ud theirs=(unit @ud) applied=(unit ?)]
   ^+  cor
-  ?~  got=(~(get by readers) key)  cor
-  =/  sync=reader-sync:b  u.got
-  ::  Whether this ack tells us anything we did not already know. A repeat
-  ::  delivery must not re-install or re-arm anything.
-  =/  advanced=?  (gth sent synced.sync)
-  =?  sync  advanced  sync(synced sent)
-  ::  The broker did not take this write, so what we asked for is not what it
-  ::  holds however the numbers compare. Adopt its revision and re-send above
-  ::  it, or our desired state is discarded as stale from here on.
-  ::
-  ::  Its own report is the authority, not the comparison: a reader whose
-  ::  record was pruned at its expiry opens again at revision 1 while the
-  ::  broker still retains 1, and a strictly-greater test reads that as
-  ::  agreement -- the client is then handed a token the broker never stored.
-  ::  Where it says nothing, being behind is the only case we can detect.
-  =/  stale=?
-    ?^  applied  !u.applied
-    ?&(?=(^ theirs) (gth u.theirs revision.sync))
-  ?:  ?&(?=(^ theirs) stale)
-    ::  Above what it kept, so the resend cannot tie with it again.
-    =.  sync  sync(revision +(u.theirs), synced u.theirs)
-    =.  readers  (~(put by readers) key sync)
-    %-  (slog leaf+"buckets: broker was ahead of us, resending" ~)
-    (emil (sync-cards ~[[key revision.sync bucket-id.sync desired.sync]]))
-  =.  readers  (~(put by readers) key sync)
-  ?.  advanced  cor
-  ::  Only once the broker is level with what we last decided -- an ack for a
-  ::  superseded revision says nothing about the state we now want.
-  ?.  ?=(%settled (reader-status sync))  cor
-  ?.  ?=(%granted -.desired.sync)  cor
-  =/  tok=read-token:b  [token.desired.sync expires-at.desired.sync]
-  ::  Installing is independent of anyone waiting: a renewal fired by the
-  ::  refresh timer has no request behind it, and skipping it here left the
-  ::  local scry serving the previous token until it lapsed and then forever.
-  =?  read-tokens  =(reader.key our.bowl)
-    (~(put by read-tokens) flag.key tok)
-  =?  cor  =(reader.key our.bowl)
-    (arm-token-refresh flag.key expires-at.desired.sync)
-  (answer-waiter key [%token tok])
+  ?.  (~(has by readers) key)  cor
+  rd-abet:(rd-confirm:(rd-abed:rd-core key) sent theirs applied)
 ::
 ::  +granted-readers: pairs `test` accepts that currently hold a grant.
 ::
