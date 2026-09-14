@@ -1,27 +1,31 @@
 # Bot message journey observability
 
-This instrumentation traces a hosted bot DM from the owner's backend, through
-the bot moon and OpenClaw, and back to the owner's backend. For group replies,
-it also confirms persistence at the group host and, when the owner has the
-channel locally, at the bot moon's owner. It is content-free: event attributes
-contain routing metadata and canonical message IDs, but never message or reply
-text.
+This instrumentation traces bot messages across `%steward`, the bot moon,
+and the OpenClaw Tlon plugin. Events contain routing metadata and message
+correlation keys; they contain no message or reply text.
 
-The stateless `journey` module in the `%steward` Gall agent subscribes to the
-local `%chat` v4 and `%channels` v4 feeds and synchronously reads `%contacts`
-for candidate messages. It emits a stage only when the relevant profile
-already has a `bot-info` text field whose JSON says
-`"harness":"openclaw"`. On an owner ship, that is the child moon's profile; on
-a bot moon receiving owner input or persisting its own reply, it is the moon's
-self-profile. For a group persistence event, it is the message author's
-profile. A missing marker, malformed marker, or any other harness emits
-nothing, so human messages never enter the bot delivery alert population. This
-intentionally assumes the contact is already present; the observer stores no
-pending state and performs no retry.
+The stateless journey observer in `%steward` watches local `%chat /v4` and
+`%channels /v4` feeds. It emits events only for profiles with a valid
+[`bot-info`](../../../docs/bot-info.md) claim identifying the `openclaw` harness.
+It reads the child bot's contact on an owner ship, the self-contact on a bot
+ship, and the author's contact for channel messages. An unavailable `%contacts`
+agent, missing contact, or invalid claim emits nothing. This is the same
+best-effort profile check for DMs and channels. Once ordinary contact peering
+has delivered the profile, later messages can emit events. The observer does
+not fetch profiles or backfill messages skipped before the profile arrived.
 
-Context Lens is not part of the correlation contract. The inbound Tlon message
-ID joins the input stages and OpenClaw turn; the outbound Tlon message ID joins
-OpenClaw's successful send with owner-side persistence.
+Bot identity and ownership come from separate sources. The published
+`bot-info` claim contains the harness and versions, not the configured owner.
+Bot-side DM events use `%steward`'s configured `owner`. Owner-side DM events
+cover sponsored bots. Group-host events attribute the bot to its sponsor,
+matching the usual hosted configuration; they use the locally available bot
+profile as eligibility evidence. The additional owner-replica event exists
+when that sponsor has the channel locally. These observations are best effort:
+they do not establish a delegated-owner relationship when configuration
+differs from sponsorship.
+
+Context Lens is independent of this instrumentation. Input stages join on the
+inbound message ID; output stages join on the outgoing correlation key.
 
 ## Event contract
 
@@ -29,46 +33,60 @@ Schema version: `1`.
 
 | Event | Producer | Correlation | Meaning |
 | --- | --- | --- | --- |
-| `owner_input_accepted` | owner `%steward` journey module | `input_message_id` | The owner's local DM write was reduced for a child moon marked as an OpenClaw bot. |
-| `moon_input_persisted` | moon `%steward` journey module | `input_message_id` | The marked OpenClaw moon reduced the remote DM from its owner. |
+| `owner_message_sent` | owner `%steward` journey module | `input_message_id` | The owner's local DM write was reduced for a child moon marked as an OpenClaw bot. |
+| `bot_message_received` | moon `%steward` journey module | `input_message_id` | The bot's local chat feed observed a DM from its configured owner. |
 | `plugin_input_observed` | OpenClaw Tlon monitor | `input_message_id` | The DM subscription delivered the message to the plugin. |
 | `plugin_input_selected` | OpenClaw Tlon monitor | `input_message_id` | The plugin accepted the message for processing. |
 | `turn_started` | OpenClaw turn recorder | `input_message_id`, `run_id` | OpenClaw began a turn for the message. |
 | `tlon.agent_turn.terminal` | OpenClaw turn recorder | `input_message_id`, `run_id` | The turn ended, with `dispatch` set to `attempted`, `skipped`, or `not_applicable`. |
 | `reply_dispatch_attempted` | OpenClaw turn recorder | `input_message_id`, `run_id`, `attempt_number` | A Tlon reply transport call began, after local validation, setup, and authentication. There can be multiple attempts per turn. |
 | `reply_dispatch_failed` | OpenClaw turn recorder | `input_message_id`, `run_id`, `attempt_number` | A Tlon reply transport call failed. |
-| `moon_reply_enqueued` | OpenClaw turn recorder | `input_message_id`, `run_id`, `output_message_id` | The moon API accepted the outgoing message and returned its canonical ID. This is not proof of owner delivery. |
-| `moon_reply_persisted` | moon `%steward` journey module | `output_message_id` | The marked OpenClaw moon's `%chat` feed observed its locally authored DM reply to its owner. |
-| `owner_reply_persisted` | owner `%steward` journey module | `output_message_id` | The owner observed a remote reply from a child moon marked as an OpenClaw bot. |
-| `group_host_reply_persisted` | group host `%steward` journey module | `output_message_id` | The group host's `%channels` feed observed a top-level post or reply authored by a moon marked as an OpenClaw bot. |
-| `owner_group_reply_persisted` | owner `%steward` journey module | `output_message_id` | The bot moon's owner observed that OpenClaw-authored post or reply in its local `%channels` replica. This stage exists only when the owner has the channel locally. |
+| `moon_reply_enqueued` | OpenClaw turn recorder | `input_message_id`, `run_id`, `output_message_id` | The local API accepted the send. `output_message_id` is the sender correlation key; acceptance does not confirm remote delivery. |
+| `bot_message_sent` | moon `%steward` journey module | `output_message_id` | The bot's local chat feed observed its own DM to its configured owner. This records a local write, not a remote acknowledgement. |
+| `owner_message_received` | owner `%steward` journey module | `output_message_id` | The owner observed a remote reply from a child moon marked as an OpenClaw bot. |
+| `group_host_message_received` | group host `%steward` journey module | `output_message_id` | The group host's channel feed observed a new chat/gallery post or reply authored by a marked bot. |
+| `owner_group_message_received` | owner `%steward` journey module | `output_message_id` | The bot's sponsor observed the new chat/gallery post or reply in its local channel replica. |
 
-Dispatch events use the actual outbound target kind (`dm`, `group_channel`, or
-`notebook`), which can differ from the turn's inbound destination. Group posts
-and replies use their canonical `author/id` as `output_message_id`, matching the
-ID returned to OpenClaw. If the owner is also the group host, `%steward` emits
-both group persistence stages. Edits, reactions, and notebook updates do not
-emit these group stages.
+## Correlation and coverage
 
-## Grafana alert
+Ship attributes use canonical `~ship` form. Dispatch events use the actual
+outbound target kind (`dm`, `group_channel`, or `notebook`), which can differ
+from the turn's inbound destination.
 
-Use a Grafana-managed alert backed by Loki rather than an in-process timer. An
-in-process timer is lost on restart and creates a second timeout state machine.
-Evaluate every five minutes and alert when a moon-persisted DM reply at least
-30 minutes old has no matching owner persistence event. Starting at the
-independently observed moon stage keeps the moon-to-owner alert separate from
-the plugin-to-moon boundary.
+For DMs, the plugin and backend share the canonical `author/timestamp` message
+ID. For channel posts and replies, the host assigns the stored ID after the
+send. The plugin does not receive that ID from the poke acknowledgement.
+Instead, both producers emit `author/sent` as `output_message_id`, using the
+sender timestamp carried in the post or reply. It is a correlation key, not a
+host message address. The join assumes each send by a bot has a distinct
+millisecond timestamp; simultaneous sends with the same timestamp are
+ambiguous.
 
-First, count eligible moon-persisted replies. Hoon sends the
-`tlon.message_journey.*` attributes directly:
+Backend channel events cover new chat and gallery posts and replies (revision
+zero). Edits, deletions, and reactions emit no events. Legacy diary channels
+and Notes notebooks have no backend journey stages, even when their sends
+produce plugin dispatch events. When the owner is also the group host, both
+channel stages are emitted. Group input coverage begins when the plugin
+selects a message; there is no backend stage that predicts whether a bot
+should reply to every channel message.
+
+## Loki correlation example
+
+The following DM example finds bot-side sends at least 30 minutes old with
+no matching owner receipt in a bounded lookback. It describes a query, not an
+installed alert rule. The `{exporter="OTLP"}` selector and JSON attribute paths
+are examples; the deployed exporter determines the actual stream labels and
+field paths.
+
+The first expression counts eligible bot-side sends:
 
 ```logql
 sum by (output_message_id) (
   count_over_time(
     {exporter="OTLP"}
-      |= "tlon.message_journey.moon_reply_persisted"
+      |= "tlon.message_journey.bot_message_sent"
       | json stage=`attributes["tlon.message_journey.event"]`, output_message_id=`attributes["tlon.message_journey.output_message_id"]`, destination_kind=`attributes["tlon.message_journey.destination_kind"]`
-      | stage="moon_reply_persisted"
+      | stage="bot_message_sent"
       | destination_kind="dm"
       | output_message_id!=""
       | __error__=""
@@ -77,16 +95,15 @@ sum by (output_message_id) (
 )
 ```
 
-Then count owner acknowledgements. Hoon sends the `tlon.message_journey.*`
-attributes directly, without the gateway prefix:
+The second expression counts owner receipts:
 
 ```logql
 sum by (output_message_id) (
   count_over_time(
     {exporter="OTLP"}
-      |= "tlon.message_journey.owner_reply_persisted"
+      |= "tlon.message_journey.owner_message_received"
       | json stage=`attributes["tlon.message_journey.event"]`, output_message_id=`attributes["tlon.message_journey.output_message_id"]`
-      | stage="owner_reply_persisted"
+      | stage="owner_message_received"
       | output_message_id!=""
       | __error__=""
     [24h30m]
@@ -100,29 +117,18 @@ If those expressions are `A` and `B`, the missing-reply expression is:
 A unless on(output_message_id) B
 ```
 
-`A` and `B` above are shorthand for the two LogQL subexpressions, not Grafana
-query reference IDs. Configure the alert as one Loki query with the full first
-expression on the left of `unless` and the full second expression on the right.
+`A` and `B` are shorthand for the two LogQL subexpressions, not Grafana query
+reference IDs. The full query places them on either side of `unless`. An
+aggregate `sum(A unless on(output_message_id) B) or vector(0)` gives the count
+of missing receipts; the unaggregated expression retains the output IDs.
+The lookback bounds query cost and detection history.
 
-Use `sum(A unless on(output_message_id) B) or vector(0)` as the alert value and
-fire when it is greater than zero for five minutes. Keep a separate dashboard
-query with the unaggregated expression so responders can see the overdue output
-IDs. The 24-hour lookback bounds query cost; it is incident detection, not a
-durable retry queue.
+Earlier DM boundaries join `owner_message_sent` to `bot_message_received` on
+`input_message_id`, and `moon_reply_enqueued` to `bot_message_sent` on
+`output_message_id`. Plugin selection joins to `turn_started` on
+`input_message_id`.
 
-Before enabling the rule, deploy the instrumentation to staging and inspect one
-Hoon event to replace the broad `{exporter="OTLP"}` selector with its observed
-`service_name` or other stable stream labels. Also verify the attribute paths,
-because exporter changes can alter structured-field prefixes.
-
-Earlier gaps can use the same pattern with deadlines appropriate to each
-boundary: join `owner_input_accepted` to `moon_input_persisted`, or
-`plugin_input_selected` to `turn_started`, on `input_message_id`; join
-`moon_reply_enqueued` to `moon_reply_persisted` on `output_message_id`.
-
-For group replies, join a `moon_reply_enqueued` event whose
-`destination_kind` is `group_channel` to `group_host_reply_persisted` on
-`output_message_id`. That is the primary backend-delivery check: the group host
-is authoritative for the channel. `owner_group_reply_persisted` provides an
-additional owner-side replica check, but should only drive a separate alert
-where the owner is expected to have that channel locally.
+For supported channel outputs, `moon_reply_enqueued` joins to
+`group_host_message_received` on the sender `output_message_id`. The host is
+authoritative for the channel. `owner_group_message_received` is an additional
+replica check only where the sponsor is expected to have the channel locally.
