@@ -228,6 +228,9 @@
     (stop-sub flag)
   ==
 ::
+:: ------------------------- the HTTP surface, and the requests it holds open
+::
+::
 ::  +serve-http: route one Eyre request.
 ::
 ::  Only two shapes exist: POST /buckets/~/v1 submits an action and is held
@@ -588,6 +591,9 @@
   ?~  got  cor
   (emit [%pass (req-wake-wire host rid) %arvo %b %rest until.u.got])
 ::
+:: ---------------------------------------------------------- buckets we host
+::
+::
 ++  need-space
   |=  =flag:b
   ^-  space:b
@@ -887,6 +893,33 @@
   =^  err  sec  (se-create-folder:sec parent name actor)
   ?^  err  (answer u.err)
   se-abet:sec
+::
+++  rename-entry
+  |=  [=flag:b id=@ud name=@t actor=ship]
+  ^+  cor
+  =/  sec  (se-abed:se-core flag)
+  =^  err  sec  (se-rename:sec id name actor)
+  ?^  err  (answer u.err)
+  se-abet:sec
+::
+++  move-entry
+  |=  [=flag:b id=@ud parent=(unit @ud) actor=ship]
+  ^+  cor
+  =/  sec  (se-abed:se-core flag)
+  =^  err  sec  (se-move:sec id parent actor)
+  ?^  err  (answer u.err)
+  se-abet:sec
+::
+++  delete-entry
+  |=  [=flag:b id=@ud recursive=? actor=ship]
+  ^+  cor
+  =/  sec  (se-abed:se-core flag)
+  =^  err  sec  (se-delete-entry:sec id recursive actor)
+  ?^  err  (answer u.err)
+  se-abet:sec
+::
+:: ------------------------------------------------------------------ uploads
+::
 ::
 ::  +begin-upload: reserve an entry id and object key, open a host-private
 ::  session, and hand the session id back to the uploader as its broker
@@ -1311,6 +1344,74 @@
   =/  ses=upload-session:b  p.found
   up-abet:(up-cancel:(up-claim:(up-abed:up-core sid) rid) reason)
 ::
+::  +take-upload: route one broker answer to its session.
+::
+++  take-upload
+  |=  $:  sid=@uv
+          kind=?(%grant %retry %cancel %complete)
+          res=client-response:iris
+      ==
+  ^+  cor
+  ?.  (~(has by sessions) sid)  cor
+  up-abet:(up-took:(up-abed:up-core sid) kind res)
+::
+::  +verify-receipt: does what landed match what we asked for.
+::
+::  Far less to check than when a receipt was pushed at us. Identity is now
+::  ours by construction -- this is the answer to our own call against our own
+::  reservation -- so what is left is the broker reporting the object it
+::  actually stored, which is worth comparing against the entry we are about
+::  to publish.
+::
+++  verify-receipt
+  |=  [ses=upload-session:b res=client-response:iris]
+  ^-  ?
+  ?~  body=(broker-body:util res)  |
+  =/  fil=file:b  (entry-file:util entry.ses)
+  =/  object=(unit @t)
+    ?~  got=(~(get by u.body) 'objectId')  ~
+    ?.(?=([%s *] u.got) ~ `p.u.got)
+  =/  mime=(unit @t)
+    ?~  got=(~(get by u.body) 'mimeType')  ~
+    ?.(?=([%s *] u.got) ~ `p.u.got)
+  =/  size=(unit @ud)
+    ?~  got=(~(get by u.body) 'size')  ~
+    ?.(?=([%n *] u.got) ~ `(rash p.u.got dem))
+  ?&  =(object `object-key.fil)
+      =(mime `mime.fil)
+      =(size `size.fil)
+  ==
+::
+::  +drop-bucket-sessions: give up every session of a bucket that is going.
+::
+::  Was a skip over the map, which left the broker holding each reservation
+::  and its quota until they lapsed and left every waiting request
+::  unanswered. Each one leaves through +up-give-up now, the same path the
+::  lapsed prune uses.
+::
+++  drop-bucket-sessions
+  |=  =flag:b
+  ^+  cor
+  =/  doomed=(list @uv)
+    %+  murn  ~(tap by sessions)
+    |=  [sid=@uv ses=upload-session:b]
+    ?.(=(flag flag.ses) ~ `sid)
+  %+  roll  doomed
+  |=  [sid=@uv acc=_cor]
+  up-abet:(up-give-up:(up-abed:up-core:acc sid) 'the bucket was deleted')
+::
+::  +session-token: resolve the opaque string Memex presents back to the
+::  session that minted it.
+::
+++  session-token
+  |=  token=@t
+  ^-  (unit upload-session:b)
+  ?~  sid=(slaw %uv token)  ~
+  (~(get by sessions) u.sid)
+::
+:: ------------- the read token this ship holds for a bucket, and its refresh
+::
+::
 ::  +held-read-token: a live token we have already minted for this reader.
 ::
 ::  Keyed by reader as well as bucket: every reader gets its own token, so
@@ -1397,6 +1498,11 @@
     (~(put by object-capabilities) token [%delete flag `id actor expiry])
   (answer [%grant [token id expiry]])
 ::
+++  token-wire
+  |=  =flag:b
+  ^-  wire
+  /buckets/token/(scot %p ship.flag)/[name.flag]
+::
 ::  +arm-token-refresh: re-mint before the current token lapses, so a local
 ::  client never has to wait on one.
 ::
@@ -1425,6 +1531,16 @@
       %rest  (sub expires-at.u.tok token-margin)
   ==
 ::
+::  +retry-read-token: come back to a mint the broker refused.
+::
+++  retry-read-token
+  |=  =flag:b
+  ^+  cor
+  %-  emit
+  :*  %pass  (token-wire flag)  %arvo  %b
+      %wait  (add now.bowl push-retry)
+  ==
+::
 ::  +recover-local-reader: our own renewal has stopped making progress.
 ::
 ::  A renewal has no waiting request, so nothing else reports its failure and
@@ -1447,98 +1563,61 @@
   =.  read-tokens  (~(del by read-tokens) flag)
   (retry-read-token flag)
 ::
-++  token-wire
+::  +keep-read-token: store a token the host issued us, and arm its refresh.
+::
+++  keep-read-token
+  |=  [=flag:b tok=read-token:b]
+  ^+  cor
+  ?~  sp=(~(get by spaces) flag)  cor
+  ?.  =(%sub net.u.sp)  cor
+  ::  The same token back means the host still considers it live and we asked
+  ::  early -- our clock is ahead of its. Re-arming expiry-minus-margin would
+  ::  name an instant already behind us, behn would fire at once, and the two
+  ::  would spin a host round trip per iteration for the length of the skew.
+  ::  Waiting the push retry makes that a slow poll instead. Deliberately not
+  ::  clamped inside +arm-token-refresh: +disarm-token-refresh names the timer
+  ::  by recomputing expiry-minus-margin, so a clamp there would leave every
+  ::  disarm naming an instant that was never armed.
+  =/  same=?
+    ?~  held=(~(get by read-tokens) flag)  |
+    =(token.u.held token.tok)
+  =.  read-tokens  (~(put by read-tokens) flag tok)
+  ?:  same
+    (emit [%pass (token-wire flag) %arvo %b %wait (add now.bowl push-retry)])
+  (arm-token-refresh flag expires-at.tok)
+::
+::  +renew-read-token: keep this ship's token current without a client asking.
+::
+::  Hosting a bucket means minting for ourselves; subscribing means asking the
+::  host, over the same forwarding path a client action uses.
+::
+++  renew-read-token
   |=  =flag:b
-  ^-  wire
-  /buckets/token/(scot %p ship.flag)/[name.flag]
+  ^+  cor
+  ?~  sp=(~(get by spaces) flag)  cor
+  ?:  =(%pub net.u.sp)
+    =/  st=bucket-state:b  (need-state flag)
+    ?.  (group-can-read group.st flag our.bowl)
+      (drop-read-token flag)
+    (issue-read-token flag our.bowl ~)
+  (forward `@uv`eny.bowl [%bucket flag [%issue-bucket-read ~]] ship.flag)
 ::
-::  +retry-read-token: come back to a mint the broker refused.
+::  +drop-read-token: forget a bucket's token and revoke the capability behind
+::  it. Called when we lose the bucket, and when a subscriber loses access.
 ::
-++  retry-read-token
+++  drop-read-token
   |=  =flag:b
   ^+  cor
-  %-  emit
-  :*  %pass  (token-wire flag)  %arvo  %b
-      %wait  (add now.bowl push-retry)
-  ==
+  =.  cor  (disarm-token-refresh flag)
+  =.  read-tokens  (~(del by read-tokens) flag)
+  ::  On a subscriber this finds nothing: only a host mints, so only a host
+  ::  has anything to revoke.
+  %-  revoke-readers
+  %-  granted-readers
+  |=([key=reader-key:b sync=reader-sync:b] =(flag flag.key))
 ::
-::  +set-broker-base: point this ship's syncs at a different broker.
+:: -------------------------------------- pushing reader access to the broker
 ::
-::  Refuses anything but an https origin. The credential +sync-cards sends is
-::  a bearer header, so a base naming a plaintext or unexpected host does not
-::  fail closed -- it discloses the secret to whoever was named. One trailing
-::  slash is trimmed rather than refused, since every use appends its own path
-::  and a doubled slash would 404 against a broker that is otherwise right.
-::
-++  set-broker-base
-  |=  base=(unit @t)
-  ^+  cor
-  ?~  base
-    %-  (slog leaf+"buckets: broker base reset to the default" ~)
-    ::  Going back is a move between brokers like any other: the default has
-    ::  heard nothing we said while we were pointed elsewhere.
-    (rebase-readers default-broker-base)
-  =/  txt=tape  (trip u.base)
-  ::  Indexed rather than +rear/+snip on purpose: testing with ?= narrows the
-  ::  tape, and those wet gates do not survive being handed a narrowed list.
-  =.  txt
-    ?:  =(~ txt)  txt
-    =/  last=@ud  (dec (lent txt))
-    ?.(=('/' (snag last txt)) txt (scag last txt))
-  ?.  =("https://" (scag 8 txt))
-    %-  (slog leaf+"buckets: refusing a broker base that is not https" ~)
-    cor
-  %-  (slog leaf+"buckets: broker base is now {txt}" ~)
-  (rebase-readers (crip txt))
-::
-::  +rebase-readers: point every live grant at the broker we just moved to.
-::
-::  A broker holds only what it has been told. Swapping the address alone
-::  leaves every record reading as synced, so +owed skips them and the new
-::  broker learns nothing until each grant renews -- a day of reads failing
-::  against a broker that has never heard of them. Marking them owed again
-::  re-sends the state we already decided; revisions carry over, and a broker
-::  with no record of a pair accepts any revision above zero.
-::
-::  What this does not do is retire the grants the old broker still holds.
-::  Doing so means keeping the old address and revoking against it, which is
-::  a second broker's worth of bookkeeping for an operator action; their own
-::  expiry is the backstop, which is the same guarantee a missed revoke has.
-::
-++  rebase-readers
-  |=  base=@t
-  ^+  cor
-  ?:  =(base broker-base)  cor
-  =.  broker-base  base
-  =.  readers
-    %-  malt
-    %+  turn  ~(tap by readers)
-    |=  [key=reader-key:b sync=reader-sync:b]
-    ^-  [reader-key:b reader-sync:b]
-    ::  Nothing to re-send for a pair whose token could not be used anyway.
-    ?:  ?=(%lapsed (reader-status:util sync now.bowl))  [key sync]
-    ::  A new revision rather than the same one resent, because a request to
-    ::  the broker we just left may still be in flight and its wire carries
-    ::  the revision. Reusing it would let that broker's late 2xx confirm
-    ::  state the new broker has never been told, and +owed would then stop
-    ::  retrying it -- clients failing against the new broker until renewal.
-    [key sync(revision +(revision.sync), synced 0, failed |)]
-  retry-readers
-::
-::  +genuine-secret: this ship's shared secret with the broker.
-::
-::  %genuine mints it and serves it back over its own Eyre binding, which is
-::  how the broker checks a request really came from us. Absent until %genuine
-::  has initialised, which is a real state on a fresh ship rather than a bug,
-::  so this answers a unit instead of crashing the event.
-::
-++  genuine-secret
-  ^-  (unit @t)
-  ?.  .^(? %gu /(scot %p our.bowl)/genuine/(scot %da now.bowl)/$)  ~
-  =/  jon=json
-    .^(json %gx /(scot %p our.bowl)/genuine/(scot %da now.bowl)/secret/json)
-  ?.  ?=([%s *] jon)  ~
-  `p.jon
 ::
 ::  +rd-core: one reader's access to one bucket, as desired state.
 ::
@@ -1806,44 +1885,6 @@
       %request  request  *outbound-config:iris
   ==
 ::
-::  +take-upload: route one broker answer to its session.
-::
-++  take-upload
-  |=  $:  sid=@uv
-          kind=?(%grant %retry %cancel %complete)
-          res=client-response:iris
-      ==
-  ^+  cor
-  ?.  (~(has by sessions) sid)  cor
-  up-abet:(up-took:(up-abed:up-core sid) kind res)
-::
-::  +verify-receipt: does what landed match what we asked for.
-::
-::  Far less to check than when a receipt was pushed at us. Identity is now
-::  ours by construction -- this is the answer to our own call against our own
-::  reservation -- so what is left is the broker reporting the object it
-::  actually stored, which is worth comparing against the entry we are about
-::  to publish.
-::
-++  verify-receipt
-  |=  [ses=upload-session:b res=client-response:iris]
-  ^-  ?
-  ?~  body=(broker-body:util res)  |
-  =/  fil=file:b  (entry-file:util entry.ses)
-  =/  object=(unit @t)
-    ?~  got=(~(get by u.body) 'objectId')  ~
-    ?.(?=([%s *] u.got) ~ `p.u.got)
-  =/  mime=(unit @t)
-    ?~  got=(~(get by u.body) 'mimeType')  ~
-    ?.(?=([%s *] u.got) ~ `p.u.got)
-  =/  size=(unit @ud)
-    ?~  got=(~(get by u.body) 'size')  ~
-    ?.(?=([%n *] u.got) ~ `(rash p.u.got dem))
-  ?&  =(object `object-key.fil)
-      =(mime `mime.fil)
-      =(size `size.fil)
-  ==
-::
 ++  reader-wire
   |=  [key=reader-key:b revision=@ud]
   ^-  wire
@@ -1961,58 +2002,86 @@
   %-  sync-reader:acc
   [flag.key reader.key bucket-id.u.got [%revoked ~] expires.u.got ~]
 ::
-::  +keep-read-token: store a token the host issued us, and arm its refresh.
+::  +set-broker-base: point this ship's syncs at a different broker.
 ::
-++  keep-read-token
-  |=  [=flag:b tok=read-token:b]
+::  Refuses anything but an https origin. The credential +sync-cards sends is
+::  a bearer header, so a base naming a plaintext or unexpected host does not
+::  fail closed -- it discloses the secret to whoever was named. One trailing
+::  slash is trimmed rather than refused, since every use appends its own path
+::  and a doubled slash would 404 against a broker that is otherwise right.
+::
+++  set-broker-base
+  |=  base=(unit @t)
   ^+  cor
-  ?~  sp=(~(get by spaces) flag)  cor
-  ?.  =(%sub net.u.sp)  cor
-  ::  The same token back means the host still considers it live and we asked
-  ::  early -- our clock is ahead of its. Re-arming expiry-minus-margin would
-  ::  name an instant already behind us, behn would fire at once, and the two
-  ::  would spin a host round trip per iteration for the length of the skew.
-  ::  Waiting the push retry makes that a slow poll instead. Deliberately not
-  ::  clamped inside +arm-token-refresh: +disarm-token-refresh names the timer
-  ::  by recomputing expiry-minus-margin, so a clamp there would leave every
-  ::  disarm naming an instant that was never armed.
-  =/  same=?
-    ?~  held=(~(get by read-tokens) flag)  |
-    =(token.u.held token.tok)
-  =.  read-tokens  (~(put by read-tokens) flag tok)
-  ?:  same
-    (emit [%pass (token-wire flag) %arvo %b %wait (add now.bowl push-retry)])
-  (arm-token-refresh flag expires-at.tok)
+  ?~  base
+    %-  (slog leaf+"buckets: broker base reset to the default" ~)
+    ::  Going back is a move between brokers like any other: the default has
+    ::  heard nothing we said while we were pointed elsewhere.
+    (rebase-readers default-broker-base)
+  =/  txt=tape  (trip u.base)
+  ::  Indexed rather than +rear/+snip on purpose: testing with ?= narrows the
+  ::  tape, and those wet gates do not survive being handed a narrowed list.
+  =.  txt
+    ?:  =(~ txt)  txt
+    =/  last=@ud  (dec (lent txt))
+    ?.(=('/' (snag last txt)) txt (scag last txt))
+  ?.  =("https://" (scag 8 txt))
+    %-  (slog leaf+"buckets: refusing a broker base that is not https" ~)
+    cor
+  %-  (slog leaf+"buckets: broker base is now {txt}" ~)
+  (rebase-readers (crip txt))
 ::
-::  +renew-read-token: keep this ship's token current without a client asking.
+::  +rebase-readers: point every live grant at the broker we just moved to.
 ::
-::  Hosting a bucket means minting for ourselves; subscribing means asking the
-::  host, over the same forwarding path a client action uses.
+::  A broker holds only what it has been told. Swapping the address alone
+::  leaves every record reading as synced, so +owed skips them and the new
+::  broker learns nothing until each grant renews -- a day of reads failing
+::  against a broker that has never heard of them. Marking them owed again
+::  re-sends the state we already decided; revisions carry over, and a broker
+::  with no record of a pair accepts any revision above zero.
 ::
-++  renew-read-token
-  |=  =flag:b
+::  What this does not do is retire the grants the old broker still holds.
+::  Doing so means keeping the old address and revoking against it, which is
+::  a second broker's worth of bookkeeping for an operator action; their own
+::  expiry is the backstop, which is the same guarantee a missed revoke has.
+::
+++  rebase-readers
+  |=  base=@t
   ^+  cor
-  ?~  sp=(~(get by spaces) flag)  cor
-  ?:  =(%pub net.u.sp)
-    =/  st=bucket-state:b  (need-state flag)
-    ?.  (group-can-read group.st flag our.bowl)
-      (drop-read-token flag)
-    (issue-read-token flag our.bowl ~)
-  (forward `@uv`eny.bowl [%bucket flag [%issue-bucket-read ~]] ship.flag)
+  ?:  =(base broker-base)  cor
+  =.  broker-base  base
+  =.  readers
+    %-  malt
+    %+  turn  ~(tap by readers)
+    |=  [key=reader-key:b sync=reader-sync:b]
+    ^-  [reader-key:b reader-sync:b]
+    ::  Nothing to re-send for a pair whose token could not be used anyway.
+    ?:  ?=(%lapsed (reader-status:util sync now.bowl))  [key sync]
+    ::  A new revision rather than the same one resent, because a request to
+    ::  the broker we just left may still be in flight and its wire carries
+    ::  the revision. Reusing it would let that broker's late 2xx confirm
+    ::  state the new broker has never been told, and +owed would then stop
+    ::  retrying it -- clients failing against the new broker until renewal.
+    [key sync(revision +(revision.sync), synced 0, failed |)]
+  retry-readers
 ::
-::  +drop-read-token: forget a bucket's token and revoke the capability behind
-::  it. Called when we lose the bucket, and when a subscriber loses access.
+::  +genuine-secret: this ship's shared secret with the broker.
 ::
-++  drop-read-token
-  |=  =flag:b
-  ^+  cor
-  =.  cor  (disarm-token-refresh flag)
-  =.  read-tokens  (~(del by read-tokens) flag)
-  ::  On a subscriber this finds nothing: only a host mints, so only a host
-  ::  has anything to revoke.
-  %-  revoke-readers
-  %-  granted-readers
-  |=([key=reader-key:b sync=reader-sync:b] =(flag flag.key))
+::  %genuine mints it and serves it back over its own Eyre binding, which is
+::  how the broker checks a request really came from us. Absent until %genuine
+::  has initialised, which is a real state on a fresh ship rather than a bug,
+::  so this answers a unit instead of crashing the event.
+::
+++  genuine-secret
+  ^-  (unit @t)
+  ?.  .^(? %gu /(scot %p our.bowl)/genuine/(scot %da now.bowl)/$)  ~
+  =/  jon=json
+    .^(json %gx /(scot %p our.bowl)/genuine/(scot %da now.bowl)/secret/json)
+  ?.  ?=([%s *] jon)  ~
+  `p.jon
+::
+:: ---------------------------------- what the broker is allowed to ask of us
+::
 ::
 ::  +prune-broker-authority: drop expired capabilities, expired pending
 ::  sessions, and any reservation whose session is gone.
@@ -2099,147 +2168,6 @@
       %lapsed   |
     ==
   cor
-::
-::  +drop-bucket-sessions: give up every session of a bucket that is going.
-::
-::  Was a skip over the map, which left the broker holding each reservation
-::  and its quota until they lapsed and left every waiting request
-::  unanswered. Each one leaves through +up-give-up now, the same path the
-::  lapsed prune uses.
-::
-++  drop-bucket-sessions
-  |=  =flag:b
-  ^+  cor
-  =/  doomed=(list @uv)
-    %+  murn  ~(tap by sessions)
-    |=  [sid=@uv ses=upload-session:b]
-    ?.(=(flag flag.ses) ~ `sid)
-  %+  roll  doomed
-  |=  [sid=@uv acc=_cor]
-  up-abet:(up-give-up:(up-abed:up-core:acc sid) 'the bucket was deleted')
-::
-::  +session-token: resolve the opaque string Memex presents back to the
-::  session that minted it.
-::
-++  session-token
-  |=  token=@t
-  ^-  (unit upload-session:b)
-  ?~  sid=(slaw %uv token)  ~
-  (~(get by sessions) u.sid)
-::
-++  rename-entry
-  |=  [=flag:b id=@ud name=@t actor=ship]
-  ^+  cor
-  =/  sec  (se-abed:se-core flag)
-  =^  err  sec  (se-rename:sec id name actor)
-  ?^  err  (answer u.err)
-  se-abet:sec
-::
-++  move-entry
-  |=  [=flag:b id=@ud parent=(unit @ud) actor=ship]
-  ^+  cor
-  =/  sec  (se-abed:se-core flag)
-  =^  err  sec  (se-move:sec id parent actor)
-  ?^  err  (answer u.err)
-  se-abet:sec
-::
-++  delete-entry
-  |=  [=flag:b id=@ud recursive=? actor=ship]
-  ^+  cor
-  =/  sec  (se-abed:se-core flag)
-  =^  err  sec  (se-delete-entry:sec id recursive actor)
-  ?^  err  (answer u.err)
-  se-abet:sec
-::
-::  +group-exists: does %groups still hold this group?
-::
-::  Every permission read below has to ask this first. %groups' scry dispatch
-::  answers no-such-path for a group it does not have, and a scry that
-::  resolves to nothing crashes the event rather than returning ~ -- so
-::  without this guard, deleting a group takes down the very pass that would
-::  revoke its buckets' tokens, at exactly the moment it is needed.
-::
-::  Answering | is safe rather than merely convenient: a bucket is only ever
-::  hosted by its group's host, so a group we host is always local and
-::  "missing" means deleted, not not-yet-synced.
-::
-++  group-exists
-  |=  group=flag:b
-  ^-  ?
-  =/  pax=path
-    /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/(scot %p ship.group)/[name.group]
-  .^(? %gu pax)
-::
-++  group-can-read
-  |=  [group=flag:b =flag:b who=ship]
-  ^-  ?
-  ?:  =(who ship.flag)  &
-  ?.  (group-exists group)  |
-  =/  pax=path
-    /(scot %p our.bowl)/groups/(scot %da now.bowl)/v2/groups/(scot %p ship.group)/[name.group]/channels/can-read/noun
-  =/  test=$-([ship nest:b] ?)  .^($-([ship nest:b] ?) %gx pax)
-  (test who [%buckets ship.flag name.flag])
-::
-++  group-is-admin-for-create
-  |=  [group=flag:b who=ship]
-  ^-  ?
-  ?:  =(who ship.group)  &
-  ?.  (group-exists group)  |
-  =/  pax=path
-    /(scot %p our.bowl)/groups/(scot %da now.bowl)/v2/groups/(scot %p ship.group)/[name.group]/seats/(scot %p who)/is-admin/noun
-  .^(? %gx pax)
-::
-++  group-permissions
-  |=  [group=flag:b =flag:b who=ship]
-  ^-  (unit [admin=? roles=(set @tas)])
-  ?:  =(who ship.flag)  `[& ~]
-  ?.  (group-exists group)  ~
-  =/  pax=path
-    /(scot %p our.bowl)/groups/(scot %da now.bowl)/v2/groups/(scot %p ship.group)/[name.group]/channels/buckets/(scot %p ship.flag)/[name.flag]/can-write/(scot %p who)/noun
-  .^((unit [admin=? roles=(set @tas)]) %gx pax)
-::
-++  group-is-admin
-  |=  [group=flag:b =flag:b who=ship]
-  ^-  ?
-  =/  permissions=(unit [admin=? roles=(set @tas)])
-    (group-permissions group flag who)
-  ?~  permissions  |
-  admin.u.permissions
-::
-++  group-can-write
-  |=  [group=flag:b =flag:b writers=(set @tas) who=ship]
-  ^-  ?
-  ?.  (group-can-read group flag who)  |
-  =/  permissions=(unit [admin=? roles=(set @tas)])
-    (group-permissions group flag who)
-  ?~  permissions  |
-  ?|  admin.u.permissions
-      =(~ writers)
-      !=(~ (~(int in writers) roles.u.permissions))
-  ==
-::
-::  +action-authorized: may `who` run this verb on this bucket? Admin verbs
-::  gate on the group's admin set, writes on the bucket's writer roles, and a
-::  read grant only needs read access.
-::
-++  action-authorized
-  |=  [st=bucket-state:b =flag:b who=ship act=a-bucket:b]
-  ^-  ?
-  ?-  -.act
-    %delete         (group-is-admin group.st flag who)
-    %set-title      (group-is-admin group.st flag who)
-    %set-writers    (group-is-admin group.st flag who)
-    %issue-bucket-read  (group-can-read group.st flag who)
-    %create-folder  (group-can-write group.st flag writers.st who)
-    %begin-upload   (group-can-write group.st flag writers.st who)
-    ::  The session verbs check the uploader owns the session as well, so a
-    ::  writer cannot finish, retry or cancel someone else's upload.
-    %finish-upload  (group-can-write group.st flag writers.st who)
-    %retry-upload   (group-can-write group.st flag writers.st who)
-    %cancel-upload  (group-can-write group.st flag writers.st who)
-    %issue-delete   (group-can-write group.st flag writers.st who)
-    %entry          (group-can-write group.st flag writers.st who)
-  ==
 ::
 ++  broker-simple-verdict
   |=  result=@t
@@ -2337,6 +2265,102 @@
   :~  ['result' s+'authorized']
       [key payload]
   ==
+::
+:: ------------------------------------------- permissions, read from %groups
+::
+::
+::  +group-exists: does %groups still hold this group?
+::
+::  Every permission read below has to ask this first. %groups' scry dispatch
+::  answers no-such-path for a group it does not have, and a scry that
+::  resolves to nothing crashes the event rather than returning ~ -- so
+::  without this guard, deleting a group takes down the very pass that would
+::  revoke its buckets' tokens, at exactly the moment it is needed.
+::
+::  Answering | is safe rather than merely convenient: a bucket is only ever
+::  hosted by its group's host, so a group we host is always local and
+::  "missing" means deleted, not not-yet-synced.
+::
+++  group-exists
+  |=  group=flag:b
+  ^-  ?
+  =/  pax=path
+    /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/(scot %p ship.group)/[name.group]
+  .^(? %gu pax)
+::
+++  group-can-read
+  |=  [group=flag:b =flag:b who=ship]
+  ^-  ?
+  ?:  =(who ship.flag)  &
+  ?.  (group-exists group)  |
+  =/  pax=path
+    /(scot %p our.bowl)/groups/(scot %da now.bowl)/v2/groups/(scot %p ship.group)/[name.group]/channels/can-read/noun
+  =/  test=$-([ship nest:b] ?)  .^($-([ship nest:b] ?) %gx pax)
+  (test who [%buckets ship.flag name.flag])
+::
+++  group-is-admin-for-create
+  |=  [group=flag:b who=ship]
+  ^-  ?
+  ?:  =(who ship.group)  &
+  ?.  (group-exists group)  |
+  =/  pax=path
+    /(scot %p our.bowl)/groups/(scot %da now.bowl)/v2/groups/(scot %p ship.group)/[name.group]/seats/(scot %p who)/is-admin/noun
+  .^(? %gx pax)
+::
+++  group-permissions
+  |=  [group=flag:b =flag:b who=ship]
+  ^-  (unit [admin=? roles=(set @tas)])
+  ?:  =(who ship.flag)  `[& ~]
+  ?.  (group-exists group)  ~
+  =/  pax=path
+    /(scot %p our.bowl)/groups/(scot %da now.bowl)/v2/groups/(scot %p ship.group)/[name.group]/channels/buckets/(scot %p ship.flag)/[name.flag]/can-write/(scot %p who)/noun
+  .^((unit [admin=? roles=(set @tas)]) %gx pax)
+::
+++  group-is-admin
+  |=  [group=flag:b =flag:b who=ship]
+  ^-  ?
+  =/  permissions=(unit [admin=? roles=(set @tas)])
+    (group-permissions group flag who)
+  ?~  permissions  |
+  admin.u.permissions
+::
+++  group-can-write
+  |=  [group=flag:b =flag:b writers=(set @tas) who=ship]
+  ^-  ?
+  ?.  (group-can-read group flag who)  |
+  =/  permissions=(unit [admin=? roles=(set @tas)])
+    (group-permissions group flag who)
+  ?~  permissions  |
+  ?|  admin.u.permissions
+      =(~ writers)
+      !=(~ (~(int in writers) roles.u.permissions))
+  ==
+::
+::  +action-authorized: may `who` run this verb on this bucket? Admin verbs
+::  gate on the group's admin set, writes on the bucket's writer roles, and a
+::  read grant only needs read access.
+::
+++  action-authorized
+  |=  [st=bucket-state:b =flag:b who=ship act=a-bucket:b]
+  ^-  ?
+  ?-  -.act
+    %delete         (group-is-admin group.st flag who)
+    %set-title      (group-is-admin group.st flag who)
+    %set-writers    (group-is-admin group.st flag who)
+    %issue-bucket-read  (group-can-read group.st flag who)
+    %create-folder  (group-can-write group.st flag writers.st who)
+    %begin-upload   (group-can-write group.st flag writers.st who)
+    ::  The session verbs check the uploader owns the session as well, so a
+    ::  writer cannot finish, retry or cancel someone else's upload.
+    %finish-upload  (group-can-write group.st flag writers.st who)
+    %retry-upload   (group-can-write group.st flag writers.st who)
+    %cancel-upload  (group-can-write group.st flag writers.st who)
+    %issue-delete   (group-can-write group.st flag writers.st who)
+    %entry          (group-can-write group.st flag writers.st who)
+  ==
+::
+:: -------------------------------------------------- buckets we subscribe to
+::
 ::
 ++  updates-path
   |=  =flag:b
@@ -2481,6 +2505,34 @@
   ?.  (bu-held flag)  cor
   bu-abet:bu-resub:(bu-abed:bu-core flag)
 ::
+++  apply-response
+  |=  res=response:b
+  ^+  cor
+  ?.  (bu-held flag.res)  cor
+  bu-abet:(bu-apply:(bu-abed:bu-core flag.res) res)
+::
+++  local-snapshots
+  ^-  (list snapshot:b)
+  %+  murn  ~(tap by spaces)
+  |=  [=flag:b sp=space:b]
+  ?~  state.sp  ~
+  `[flag u.state.sp]
+::
+::  +local-summaries: the same buckets without their entries. Drops the one
+::  unbounded field, so asking which buckets exist costs the same whether
+::  they hold nothing or everything.
+::
+++  local-summaries
+  ^-  (list summary:b)
+  %+  murn  ~(tap by spaces)
+  |=  [=flag:b sp=space:b]
+  ?~  state.sp  ~
+  =/  st=bucket-state:b  u.state.sp
+  `[flag bucket.st group.st writers.st revision.st]
+::
+:: ------------------------------------------------------------ gall plumbing
+::
+::
 ++  watch
   |=  =(pole knot)
   ^+  cor
@@ -2575,25 +2627,6 @@
     =/  =flag:b  [(slav %p host.pole) `@tas`name.pole]
     ``loob+!>((~(has by spaces) flag))
   ==
-::
-++  local-snapshots
-  ^-  (list snapshot:b)
-  %+  murn  ~(tap by spaces)
-  |=  [=flag:b sp=space:b]
-  ?~  state.sp  ~
-  `[flag u.state.sp]
-::
-::  +local-summaries: the same buckets without their entries. Drops the one
-::  unbounded field, so asking which buckets exist costs the same whether
-::  they hold nothing or everything.
-::
-++  local-summaries
-  ^-  (list summary:b)
-  %+  murn  ~(tap by spaces)
-  |=  [=flag:b sp=space:b]
-  ?~  state.sp  ~
-  =/  st=bucket-state:b  u.state.sp
-  `[flag bucket.st group.st writers.st revision.st]
 ::
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]
@@ -2827,11 +2860,8 @@
     (deny rid ~[/v1/requests] %unknown 'the host did not answer in time')
   ==
 ::
-++  apply-response
-  |=  res=response:b
-  ^+  cor
-  ?.  (bu-held flag.res)  cor
-  bu-abet:(bu-apply:(bu-abed:bu-core flag.res) res)
+:: ----------------------------------- reacting to a group we host buckets in
+::
 ::
 ::  +recheck-host-subs: read permissions may have shifted in `changed`, so
 ::  re-run can-read for subscribers of buckets bound to that group and kick
