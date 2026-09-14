@@ -118,6 +118,24 @@ const checks = [
     },
   },
   {
+    name: 'stim ports',
+    test() {
+      if (!which('stim')) return { note: 'skipped; stim is not installed' };
+      // A capability probe rather than a version floor: the loop's web and
+      // Cosmos steps take their ports from `stim ports get`, and the release
+      // that carries the command is not pinned here. Probed bare, not with
+      // --help: `stim <anything> --help` prints the top-level usage and exits
+      // 0, so only the bare form reports an unknown command.
+      const r = run('stim', ['ports'], { cwd: APP });
+      if (!/unknown command/.test(r.stderr)) return { ok: 'available' };
+      return {
+        fix: `stim ${version('stim')} has no \`ports\` command; the loop's web and Cosmos steps take their ports from it`,
+        how: 'npm install -g stim@latest',
+        cmd: ['npm', ['install', '-g', 'stim@latest']],
+      };
+    },
+  },
+  {
     name: 'stim skill',
     test() {
       if (hasSkill('stim')) return { ok: 'installed' };

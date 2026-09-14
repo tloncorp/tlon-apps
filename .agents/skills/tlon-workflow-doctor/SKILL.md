@@ -22,6 +22,7 @@ Unsandboxed because `gh auth status` cannot reach the keyring inside a shell san
 |---|---|---|
 | `gh` | 2.99.0 or newer (the `--attach` upload flag), authenticated | nothing; prints the install or `gh auth login` line |
 | `stim` | the `stim` package, 1.1.0 or newer, resolved first on PATH; a note when npm has a newer one | installs or upgrades `stim`; uninstalls `stim-cli` when that is what resolves |
+| `stim ports` | the `ports` command, which the loop's web and Cosmos steps take their ports from | upgrades `stim` |
 | `stim skill` | `stim` skill in `~/.agents/skills` or this repo | `npx skills add appandflow/stim -g -y` |
 | `agent-device` | installed; a note when npm has a newer one | `npm install -g agent-device` |
 | `agent-device skill` | `agent-device` skill in `~/.agents/skills` or this repo | `npx skills add callstack/agent-device -g -y` |

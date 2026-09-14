@@ -177,37 +177,32 @@ Keep `stim logs --since` windows short.
 
 **Web and Cosmos.** `packages/app`, `packages/ui` and `packages/shared` ship to web and desktop as well as to the app, so a change under any of them that is layout or shared-component behavior needs looking at there too -- and the desktop navigation is a different tree from the mobile one, so "it works in the app" says nothing about it. A change confined to `apps/tlon-mobile`, or to a `.ios.tsx` / `.android.tsx` file, does not.
 
-Cosmos is the fastest way in for a component-level change, and the only one that renders a state without driving the app to it:
+Cosmos is the fastest way in for a component-level change, and the only one that renders a state without driving the app to it. Every worktree wants the same port for it, so take one from stim rather than the default:
 
 ```bash
-cd <worktree> && pnpm run cosmos:web     # UI on 5555, renderer on 5050
+cd <worktree>/apps/tlon-web
+npx cosmos --port "$(stim ports get cosmos)"
 ```
 
-It needs `packages/editor/dist` built (`pnpm run build:packages` if it is missing). Fixtures live in `packages/app/fixtures`; the UI lists a file's named exports, so `ChatMessage.fixture.tsx` appears as `ChatMessage / MessageStates` and the like.
+`stim ports get <label>` allocates a port to this worktree the first time and prints the same number every time after, so the line is safe to rerun. `cosmos.config.json` pins 5555; the flag wins over it. (`cosmos --help` lists only `--help` and `--version`, which is misleading -- react-cosmos parses argv with yargs and prefers `--port`. The flag works; it is just undocumented.) The renderer is a second server, based at 5050, and needs nothing: it retries upward when its port is taken and says where it landed.
 
-**Give it a port, or you will read another worktree's code as your own.** `cosmos.config.json` pins 5555, so every worktree wants the same one. Pass `--port` instead:
+Cosmos needs `packages/editor/dist` built (`pnpm run build:packages` if it is missing). Fixtures live in `packages/app/fixtures`; the UI lists a file's named exports, so `ChatMessage.fixture.tsx` appears as `ChatMessage / MessageStates` and the like.
+
+The full web app takes its port the same way:
 
 ```bash
-cd <worktree>/apps/tlon-web && npx cosmos --port <n>
+pnpm --filter tlon-web exec vite --port "$(stim ports get web)" --strictPort
 ```
 
-`cosmos --help` lists only `--help` and `--version`, which is misleading -- react-cosmos parses argv with yargs and `getPort` prefers `--port` over the config file. The flag works; it is just undocumented. The renderer is a second server, based at 5050, and it needs no flag: it retries upward when its port is taken (`portRetries`, default 10), so a second worktree lands on 5051 by itself and says so.
+`--strictPort` is the point of that one. Without it Vite silently moves to the next free port when yours is taken, so you get a server that works and serves the wrong worktree. Web also needs `.env.local` in `apps/tlon-web` with `VITE_SHIP_URL`; `stim worktree warm` carries it over with the rest of the ignored files.
 
-Same for the full web app, where the flag is documented:
-
-```bash
-pnpm --filter tlon-web exec vite --port <n> --strictPort
-```
-
-`--strictPort` is the point of that one. Without it Vite silently moves to the next free port, so you get a server that works and serves the wrong worktree. Web also needs `.env.local` in `apps/tlon-web` with `VITE_SHIP_URL`; `stim worktree warm` carries it over with the rest of the ignored files.
-
-When you open a port you did not just start -- reusing a server from earlier, or reaching for 5555 out of habit -- check whose it is first:
+`stim ports` lists this worktree's labels and numbers, Metro included. That is the answer to "which server is mine" -- open those and nothing else. A server on some other port is another worktree's, and reading it as yours fails in the worst way: the page renders, the fixtures load, and the code is someone else's. If you must open a port stim did not hand you, find out whose it is first:
 
 ```bash
 lsof -a -p "$(lsof -nP -iTCP:<port> -sTCP:LISTEN -t | head -1)" -d cwd -Fn
 ```
 
-The path it prints is the worktree being served. A wrong answer here looks exactly like a right one: the page renders, the fixtures load, and the code is someone else's.
+The path it prints is the worktree being served.
 
 Two things that shape how you can verify: the Cosmos UI (5555) and its renderer (5050) are **different origins**, so page-level JavaScript cannot reach into the fixture's DOM to measure it -- screenshots and accessibility reads work, `document.querySelector` across the frame does not. And headless Chrome renders the Cosmos page blank however long you give it, so a browser you can see is the only way to capture one.
 
@@ -304,6 +299,7 @@ After the pull request is merged or closed, and after asking the user. **Order m
 ```bash
 agent-device close --session <name>       # each session this run opened
 cd <worktree>/apps/tlon-mobile
+stim ports stop                            # kills web and Cosmos on this worktree's ports and releases them; leaves Metro alone
 stim stop
 cd <source checkout>
 stim worktree remove <source checkout>/.worktrees/<name>   # the path step 1 created; then, if the branch should go too:
