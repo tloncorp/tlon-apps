@@ -72,6 +72,25 @@ export function ensureRef(ref: string): void {
   );
 }
 
+/**
+ * Do two refs name the same tree?
+ *
+ * The self-check is spelled `--client-ref worktree --desk-ref $GITHUB_SHA` in
+ * one place and `--desk-ref <sha>` in another, so comparing the strings
+ * reports a self-comparison as a comparison of two desks — and then every
+ * `protocolBumps` entry looks stale, because a tree cannot differ from itself.
+ */
+export function sameRef(a: string, b: string): boolean {
+  if (a === b) return true;
+  if (a === WORKTREE_REF || b === WORKTREE_REF) return false;
+  const resolve = (ref: string) => {
+    const out = git(['rev-parse', `${ref}^{commit}`]);
+    return out.status === 0 ? out.stdout.trim() : null;
+  };
+  const left = resolve(a);
+  return left !== null && left === resolve(b);
+}
+
 export interface Tree {
   readonly ref: string;
   readFile(relPath: string): string | null;

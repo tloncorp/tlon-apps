@@ -8,7 +8,7 @@ import {
   SourceLocation,
   extractClient,
 } from './extract';
-import { Tree, openTree } from './git';
+import { Tree, openTree, sameRef } from './git';
 import {
   Desk,
   MatchResult,
@@ -77,6 +77,15 @@ export interface Report {
   staleGaps: KnownGap[];
   /** Set when no base ref was given, so entries were taken at face value. */
   exemptionsUnchecked?: string;
+  /**
+   * The base a known-gaps entry had to clear, and how many requests that base
+   * already could not have served. Reported because a reader judging an
+   * exemption needs to know what it was measured against — and because
+   * "measured against the wrong desk" is otherwise invisible.
+   */
+  baseline?: { ref: string; missing: number };
+  /** Whether the client and the desk under test are the same tree. */
+  selfCheck: boolean;
   findings: Finding[];
   counts: Record<Lowercase<Verdict> | 'allowed', number>;
 }
@@ -254,14 +263,26 @@ export function runCheck(options: CheckOptions): Report {
   try {
     const clientTree = open(options.clientRef, CLIENT_ROOTS);
     const deskTree = open(options.deskRef, DESK_PATHS);
+    // Spelled differently, the same commit is still the same tree.
+    const selfCheck = sameRef(options.clientRef, options.deskRef);
     // The desk that ships alongside the client ref: it supplies the protocol
     // comparison, and tells a removal from an agent that was never ours.
-    const clientDeskTree =
-      options.clientRef === options.deskRef
-        ? deskTree
-        : open(options.clientRef, DESK_PATHS);
+    const clientDeskTree = selfCheck
+      ? deskTree
+      : open(options.clientRef, DESK_PATHS);
 
-    const desk = loadDesk(deskTree, options.deskRef, clientDeskTree);
+    // A self-check has no earlier desk of its own to compare against, so a
+    // removal it makes — an agent dropped from desk.bill, a mar file deleted —
+    // would read as something that was never there. The base supplies the
+    // comparison the client ref cannot.
+    const baseDeskTree = options.baseRef
+      ? open(options.baseRef, DESK_PATHS)
+      : null;
+    const desk = loadDesk(
+      deskTree,
+      options.deskRef,
+      selfCheck && baseDeskTree ? baseDeskTree : clientDeskTree
+    );
     // Vendored availability is a property of the desk under test: a mark
     // dropped from *its* pick list without a local mar file is a removal, and
     // reading the client ref's older list would report it as unverifiable.
@@ -271,9 +292,17 @@ export function runCheck(options: CheckOptions): Report {
     // Which requests the base client already made, and already could not
     // have served. An entry excuses only those: anything this change
     // introduces is the change's own problem, whatever the file says.
-    const missingAtBase = options.baseRef
-      ? missingKeys(open(options.baseRef, CLIENT_ROOTS), desk, vendored)
-      : null;
+    // Against the BASE desk, not this one. A change that removes an arm and
+    // adds a gap entry in the same commit would otherwise clear the bar: the
+    // request is missing at base *because of the change under review*.
+    const missingAtBase =
+      options.baseRef && baseDeskTree
+        ? missingKeys(
+            open(options.baseRef, CLIENT_ROOTS),
+            loadDesk(baseDeskTree, options.baseRef),
+            loadOwnership(baseDeskTree)
+          )
+        : null;
 
     const deps = extractClient(clientTree);
 
@@ -323,10 +352,9 @@ export function runCheck(options: CheckOptions): Report {
       allowedBumps,
       // A candidate-vs-itself run compares a tree with itself and can never
       // show a protocol difference, so every entry would look stale.
-      staleBumps:
-        options.clientRef === options.deskRef
-          ? []
-          : bumps.filter((b) => !allowedBumps.some((a) => a.bump === b)),
+      staleBumps: selfCheck
+        ? []
+        : bumps.filter((b) => !allowedBumps.some((a) => a.bump === b)),
       staleGaps: [...allowlist.values()].filter((g) => !used.has(g.key)),
       ...(options.baseRef
         ? {}
@@ -335,6 +363,10 @@ export function runCheck(options: CheckOptions): Report {
               'no --base-ref given, so known-gaps entries were applied as written; a gate run must pass one',
           }),
       findings,
+      selfCheck,
+      ...(options.baseRef && missingAtBase
+        ? { baseline: { ref: options.baseRef, missing: missingAtBase.size } }
+        : {}),
       counts: {
         matched: count((f) => f.verdict === 'MATCHED'),
         wildcard: count((f) => f.verdict === 'WILDCARD'),
@@ -372,7 +404,7 @@ export function exemptionFor(
 }
 
 /** The request keys this client makes that the desk cannot take. */
-function missingKeys(
+export function missingKeys(
   tree: Tree,
   desk: Desk,
   vendored: Set<string>
@@ -500,6 +532,13 @@ export function formatReport(report: Report): string {
   }
   if (report.exemptionsUnchecked)
     line(`\nNOTICE: ${report.exemptionsUnchecked}`);
+  if (report.baseline) {
+    line(
+      `\nbaseline: ${report.baseline.missing} request(s) were already missing at ${report.baseline.ref}; only those can be excused by known-gaps.json`
+    );
+  }
+  if (report.selfCheck)
+    line('note:    client and desk are the same tree (self-consistency run)');
 
   for (const section of SECTIONS) {
     const rows = report.findings.filter(
@@ -632,6 +671,12 @@ export function markdownReport(report: Report): string {
   }
   if (report.exemptionsUnchecked) {
     out.push('', `> **Note** ${report.exemptionsUnchecked}.`);
+  }
+  if (report.baseline) {
+    out.push(
+      '',
+      `> **Note** ${report.baseline.missing} request(s) were already missing at \`${report.baseline.ref}\`; only those can be excused by known-gaps.json.`
+    );
   }
   for (const b of report.staleBumps) {
     out.push(

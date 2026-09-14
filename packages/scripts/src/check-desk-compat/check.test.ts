@@ -17,6 +17,7 @@ import {
   isBlocking,
   isCapabilityGuard,
   markdownReport,
+  missingKeys,
   matchBump,
 } from './check';
 import { Dependency } from './extract';
@@ -182,6 +183,7 @@ const report = (over: Partial<Report> = {}): Report => ({
   allowedBumps: [],
   staleBumps: [],
   staleGaps: [],
+  selfCheck: false,
   findings: [],
   counts: {
     matched: 0,
@@ -250,6 +252,38 @@ describe('a known-gaps entry', () => {
     expect(exemptionFor(entry.key, entry, null)).toEqual({ allowed: entry });
     // And says nothing about a request no entry names.
     expect(exemptionFor('scry groups /other', undefined, null)).toEqual({});
+  });
+});
+
+describe('the base a known-gaps entry is measured against', () => {
+  const client = memoryTree({
+    'packages/api/src/client/a.ts':
+      "import { scry } from './urbit';\nexport const f = () => scry({ app: 'ledger', path: '/v1/init' });",
+  });
+  const deskWith = (arm: string) =>
+    memoryTree({
+      'desk/desk.bill': ':~  %ledger\n==\n',
+      'desk/app/ledger.hoon': `
+|_  =bowl:gall
+++  on-peek
+  |=  =path
+  ?+  path  [~ ~]
+    [%x ${arm} ~]  ~
+  ==
+--
+`,
+      'peru.yaml': '',
+    });
+  const keys = (tree: ReturnType<typeof deskWith>) =>
+    missingKeys(client, loadDesk(tree, 'test'), new Set());
+
+  it('reads the desk it is handed, so a base desk that served it is not missing', () => {
+    // The entry bar is "already broken at base". Measuring the base client
+    // against the *candidate* desk instead makes every request the candidate
+    // just broke look already-broken, and an entry added in the same commit
+    // clears the bar.
+    expect([...keys(deskWith('%v9 %gone'))]).toEqual(['scry ledger /v1/init']);
+    expect([...keys(deskWith('%v1 %init'))]).toEqual([]);
   });
 });
 

@@ -74,10 +74,13 @@ dispatcher, not about the agent.
 
 - **`MISSING`** — a known agent's dispatcher has no arm whose pattern can take
   this pole under any completion; or a repo-owned mar file, an agent file, or a
-  `desk.bill` entry is absent. In the released-client direction, "absent" also
-  means *present in the client's own desk and gone here*, which is how a
-  removal is told from something that was never ours. **This is the only
-  verdict that fails a run.**
+  `desk.bill` entry that *another desk had* is absent here. Absence alone is
+  never enough: an agent may sit in `desk/app` unbilled on purpose — `%notes`
+  does, and `channels.hoon` reins it on through `%hood` — so "not in
+  `desk.bill`" does not mean "not running". Only the comparison tells a
+  removal from something that was never started this way, which is why a
+  self-check needs `--base-ref` to see one at all. **This is the only verdict
+  that fails a run.**
 - **`MATCHED`** — an arm's pattern consumes every segment of the request
   through literals, typed atoms (`@`, `@p`, `@ud`) and `?()` members, or the
   mar file exists. It says an arm is there for this shape. It does not say the

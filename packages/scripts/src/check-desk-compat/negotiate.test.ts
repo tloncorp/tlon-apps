@@ -1,6 +1,21 @@
 import { describe, expect, it } from 'vitest';
 
+import { WORKTREE_REF, sameRef } from './git';
+
 import { memoryTree } from './git';
+
+describe('sameRef', () => {
+  it('sees one commit spelled two ways as one tree', () => {
+    // The staging self-check passes `$GITHUB_SHA` where another run says
+    // `v12.2.0`; comparing the strings reports a tree as differing from
+    // itself, and every protocolBumps entry then looks stale.
+    expect(sameRef('v12.2.0', 'v12.2.0')).toBe(true);
+    expect(sameRef(WORKTREE_REF, WORKTREE_REF)).toBe(true);
+    expect(sameRef('v12.2.0', 'v12.1.0')).toBe(false);
+    // The working tree is not any commit, however it is spelled.
+    expect(sameRef(WORKTREE_REF, 'v12.2.0')).toBe(false);
+  });
+});
 import { compareProtocols, protocolsInSource } from './negotiate';
 
 // The `%9` below the agent:dbug line is past the declaration and must not be read.

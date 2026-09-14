@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,6 +26,8 @@ const CLIENT = '854b46c3ddd7ccf122485dd447a1225da7a66638';
 const N1 = 'v12.1.0';
 /** Two releases back: old enough that the activity guards are exercised. */
 const WITH_GUARDS = 'v12.0.0';
+/** The desk release the incident client shipped against. */
+const SHIPPED_WITH = 'v12.2.0';
 
 /**
  * The desk this working tree must support, read from the constant that defines
@@ -42,7 +45,14 @@ const MIN_GROUPS_VERSION = /MIN_GROUPS_VERSION = '([^']+)'/.exec(
 )?.[1];
 const N1_TAG = `v${MIN_GROUPS_VERSION}`;
 
-for (const ref of [CLIENT, N1, WITH_GUARDS, N1_TAG, 'origin/develop'])
+for (const ref of [
+  CLIENT,
+  N1,
+  WITH_GUARDS,
+  N1_TAG,
+  SHIPPED_WITH,
+  'origin/develop',
+])
   ensureRef(ref);
 
 const keysWith = (findings: Finding[], verdict: Finding['verdict']) =>
@@ -147,6 +157,35 @@ describe('a known-gaps entry against the base it claims to predate', () => {
         baseRef: 'no-such-base-ref',
       })
     ).toThrow();
+  });
+
+  it('measures the base client against the BASE desk, not this one', () => {
+    // `854b46c` is the client whose own desk served /v10/init and /v3/groups;
+    // `v12.1.0` is the desk that did not. Reading the base against the desk
+    // under test would count those as already-broken at base — which is how a
+    // change that removes an arm and adds an entry for it clears the bar.
+    const againstBase = runCheck({
+      clientRef: CLIENT,
+      deskRef: N1,
+      baseRef: CLIENT,
+    });
+    expect(againstBase.baseline?.ref).toBe(CLIENT);
+    // Its own desk serves the six the run reports missing, so only the
+    // long-standing `/chan/{}` breakage is there at base. Measured against
+    // v12.1.0 instead, all six would count — and any entry naming one of them
+    // would then be honoured.
+    expect(againstBase.baseline!.missing).toBe(1);
+    expect(againstBase.counts.missing).toBe(6);
+  });
+
+  it('knows a self-check spelled two ways is still one tree', () => {
+    const sha = execFileSync('git', ['rev-parse', `${SHIPPED_WITH}^{commit}`], {
+      encoding: 'utf8',
+    }).trim();
+    expect(runCheck({ clientRef: SHIPPED_WITH, deskRef: sha }).selfCheck).toBe(
+      true
+    );
+    expect(runCheck({ clientRef: CLIENT, deskRef: N1 }).selfCheck).toBe(false);
   });
 
   it('says so when no base was given, rather than pretending it checked', () => {

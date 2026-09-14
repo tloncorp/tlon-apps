@@ -58,9 +58,11 @@ jobs:
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
       # Candidate self-consistency: a client change needing a desk change
-      # nobody made. No `--base-ref`: a request the candidate desk itself
-      # cannot take is the candidate's own problem whether or not it is new,
-      # so there is no exemption question to settle against a base.
+      # nobody made. Both refs are the same SHA and spelled the same way, so
+      # the checker reads it as the self-comparison it is — a tree cannot
+      # differ from itself, and every `protocolBumps` entry would otherwise be
+      # reported stale. `--base-ref` is what lets it still see a removal this
+      # release makes, which its own desk alone cannot show.
       - name: Candidate client vs candidate desk
         id: candidate_client_vs_candidate_desk
         if: ${{ !cancelled() }}
@@ -69,7 +71,8 @@ jobs:
           set -o pipefail
           {
             echo "## Candidate client vs candidate desk"
-            pnpm check:desk-compat --desk-ref "$GITHUB_SHA" --markdown
+            pnpm check:desk-compat --client-ref "$GITHUB_SHA" \
+              --desk-ref "$GITHUB_SHA" --base-ref origin/master --markdown
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
       # Rule (c): a desk change that removed something the released client
