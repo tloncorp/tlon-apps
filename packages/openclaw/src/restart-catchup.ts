@@ -37,6 +37,97 @@ type StartupContext = Pick<OpenClawPluginApi, 'runtime' | 'logger'> & {
   config: OpenClawConfig;
 };
 
+function configuredFallbacks(
+  config: OpenClawConfig,
+  agentId: string
+): string[] {
+  const agentModel = config.agents?.list?.find(
+    (agent) => agent.id.trim().toLowerCase() === agentId.trim().toLowerCase()
+  )?.model;
+  // Match OpenClaw 2026.7.1: an agent-specific primary opts out of global
+  // fallbacks unless that agent also supplies its own fallback list.
+  const model = agentModel || config.agents?.defaults?.model;
+  if (!model || typeof model === 'string') return [];
+  const defaults = config.agents?.defaults?.model;
+  const fallbacks =
+    model.fallbacks ??
+    (model.primary?.trim() || typeof defaults === 'string'
+      ? []
+      : (defaults?.fallbacks ?? []));
+  return [...new Set(fallbacks.map((ref) => ref.trim()))].filter(
+    (ref) => ref && ref !== model.primary?.trim()
+  );
+}
+
+const PROVIDER_FAILOVER_REASONS = new Set([
+  'auth',
+  'auth_permanent',
+  'billing',
+  'rate_limit',
+  'overloaded',
+  'timeout',
+  'server_error',
+  'model_not_found',
+]);
+
+async function runCatchupWithFallbacks(
+  ctx: StartupContext,
+  params: Parameters<
+    OpenClawPluginApi['runtime']['agent']['runEmbeddedAgent']
+  >[0] & {
+    config: OpenClawConfig;
+    agentId: string;
+    sessionFile: string;
+  }
+) {
+  const fallbacks = configuredFallbacks(params.config, params.agentId);
+  const candidates = [undefined, ...fallbacks];
+  const deadline = Date.now() + params.timeoutMs;
+  let toolStarted = false;
+  for (const [index, model] of candidates.entries()) {
+    params.abortSignal?.throwIfAborted();
+    if (Date.now() >= deadline)
+      throw new Error('Restart catch-up model timeout');
+    try {
+      return await ctx.runtime.agent.runEmbeddedAgent({
+        ...params,
+        model,
+        timeoutMs: Math.max(1, deadline - Date.now()),
+        modelFallbacksOverride: fallbacks.slice(index),
+        // Let core probe another model after a transient provider cooldown.
+        allowTransientCooldownProbe: index > 0,
+        onAgentEvent: (event) => {
+          if (event.stream === 'tool') toolStarted = true;
+        },
+      });
+    } catch (error) {
+      // The SDK resolves the primary but leaves model failover to its caller.
+      // Retry only structured provider failures before ANY tool execution;
+      // replaying a partially completed checklist could duplicate messages.
+      if (
+        params.abortSignal?.aborted ||
+        toolStarted ||
+        index === candidates.length - 1 ||
+        Date.now() >= deadline ||
+        !error ||
+        typeof error !== 'object' ||
+        !('name' in error) ||
+        error.name !== 'FailoverError' ||
+        !('reason' in error) ||
+        !PROVIDER_FAILOVER_REASONS.has(String(error.reason))
+      )
+        throw error;
+      ctx.logger.warn(
+        `[tlon] Restart catch-up trying fallback ${candidates[index + 1]} (${String(error.reason)})`
+      );
+      // This is an unindexed scratch transcript and no tool has run. Start
+      // the next model with just the checklist, without failed-attempt text.
+      await rm(params.sessionFile, { force: true });
+    }
+  }
+  throw new Error('Restart catch-up exhausted model candidates');
+}
+
 export function isRestartCatchupEnabled(config: OpenClawConfig): boolean {
   const tlon = config.channels?.tlon as
     | { enabled?: boolean; restartCatchup?: { enabled?: boolean } }
@@ -242,7 +333,7 @@ export function createRestartCatchupCoordinator(
           clearTimeout(timer);
           ctx.logger.info(`[tlon] Restart catch-up started (runId=${bootId})`);
           try {
-            const result = await ctx.runtime.agent.runEmbeddedAgent({
+            const result = await runCatchupWithFallbacks(ctx, {
               sessionId: bootId,
               sessionKey: `agent:${route.agentId}:tlon-restart:${bootId}`,
               sessionFile,

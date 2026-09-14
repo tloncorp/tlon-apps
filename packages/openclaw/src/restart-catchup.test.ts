@@ -427,6 +427,161 @@ describe('restart catch-up', () => {
     expect(f.logger.error).toHaveBeenCalledTimes(1);
   });
 
+  describe('configured model fallback', () => {
+    const withFallbacks = (): OpenClawConfig => ({
+      ...config(),
+      agents: {
+        defaults: {
+          model: {
+            primary: 'openai/gpt-6-astra',
+            fallbacks: [
+              'openai/gpt-6-astra',
+              ' openrouter/openai/gpt-5.6-luna ',
+              'openrouter/openai/gpt-5.6-luna',
+              'openrouter/z-ai/glm-5.3-flash:nitro',
+            ],
+          },
+        },
+      },
+    });
+    const failover = (reason: string) =>
+      Object.assign(new Error(`provider failed: ${reason}`), {
+        name: 'FailoverError',
+        reason,
+      });
+
+    it.each(['model_not_found', 'rate_limit', 'auth', 'billing', 'overloaded'])(
+      'tries configured models in order after %s, within one run budget',
+      async (reason) => {
+        vi.mocked(rm).mockClear();
+        const f = fixture(withFallbacks());
+        f.run
+          .mockImplementationOnce(async () => {
+            vi.setSystemTime(Date.now() + 1_000);
+            throw failover(reason);
+          })
+          .mockRejectedValueOnce(failover('auth'));
+        f.ready();
+        f.coordinator.start(f.ctx);
+        await vi.advanceTimersByTimeAsync(0);
+        const attempts = f.run.mock.calls.map(([params]) => params);
+        expect(attempts.map((params) => params.model)).toEqual([
+          undefined,
+          'openrouter/openai/gpt-5.6-luna',
+          'openrouter/z-ai/glm-5.3-flash:nitro',
+        ]);
+        expect(attempts[1]).toMatchObject({
+          sessionId: attempts[0].sessionId,
+          sessionFile: attempts[0].sessionFile,
+          runId: attempts[0].runId,
+          timeoutMs: 119_000,
+          allowTransientCooldownProbe: true,
+          modelFallbacksOverride: ['openrouter/z-ai/glm-5.3-flash:nitro'],
+        });
+        expect(attempts[2].modelFallbacksOverride).toEqual([]);
+        expect(f.logger.error).not.toHaveBeenCalled();
+        expect(f.logger.info).toHaveBeenCalledWith(
+          expect.stringContaining('Restart catch-up completed')
+        );
+        // Failed-attempt text is removed before each retry; final cleanup
+        // still uses the original unindexed transcript.
+        expect(rm).toHaveBeenCalledTimes(3);
+      }
+    );
+
+    it.each([
+      { model: 'openai/agent-model', expected: [] },
+      { model: { primary: 'openai/agent-model' }, expected: [] },
+      { model: { fallbacks: [] }, expected: [] },
+      {
+        model: { fallbacks: ['openrouter/agent-fallback'] },
+        expected: ['openrouter/agent-fallback'],
+      },
+    ])(
+      'honors the routed agent model override: %j',
+      async ({ model, expected }) => {
+        const cfg = withFallbacks();
+        cfg.agents!.list = [{ id: 'owner-agent', model }];
+        const f = fixture(cfg);
+        f.run.mockRejectedValueOnce(failover('rate_limit'));
+        f.ready();
+        f.coordinator.start(f.ctx);
+        await vi.advanceTimersByTimeAsync(0);
+        expect(f.run.mock.calls.map(([params]) => params.model)).toEqual([
+          undefined,
+          ...expected,
+        ]);
+      }
+    );
+
+    it('does not retry a provider failure after a tool starts', async () => {
+      const f = fixture(withFallbacks());
+      f.run.mockImplementationOnce(async (params) => {
+        params.onAgentEvent({
+          stream: 'tool',
+          data: { phase: 'start', name: 'message' },
+        });
+        throw failover('rate_limit');
+      });
+      f.ready();
+      f.coordinator.start(f.ctx);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(f.run).toHaveBeenCalledTimes(1);
+      expect(f.logger.error).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([new Error('gateway response lost'), failover('context_overflow')])(
+      'does not retry an unrelated failure: %s',
+      async (error) => {
+        const f = fixture(withFallbacks());
+        f.run.mockRejectedValueOnce(error);
+        f.ready();
+        f.coordinator.start(f.ctx);
+        await vi.advanceTimersByTimeAsync(0);
+        expect(f.run).toHaveBeenCalledTimes(1);
+      }
+    );
+
+    it('stops after exhaustion without rearming catch-up', async () => {
+      const f = fixture(withFallbacks());
+      f.run.mockRejectedValue(failover('auth'));
+      f.ready();
+      f.coordinator.start(f.ctx);
+      await vi.advanceTimersByTimeAsync(0);
+      f.coordinator.start(f.ctx);
+      f.ready();
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(f.run).toHaveBeenCalledTimes(3);
+      expect(f.logger.error).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not start a fallback after shutdown', async () => {
+      const f = fixture(withFallbacks());
+      f.run.mockImplementationOnce(async () => {
+        void f.coordinator.stop();
+        throw failover('rate_limit');
+      });
+      f.ready();
+      f.coordinator.start(f.ctx);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(f.run).toHaveBeenCalledTimes(1);
+      expect(f.logger.error).not.toHaveBeenCalled();
+    });
+
+    it('does not give fallbacks a fresh timeout budget', async () => {
+      const f = fixture(withFallbacks());
+      f.run.mockImplementationOnce(async () => {
+        vi.setSystemTime(Date.now() + 120_000);
+        throw failover('rate_limit');
+      });
+      f.ready();
+      f.coordinator.start(f.ctx);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(f.run).toHaveBeenCalledTimes(1);
+      expect(f.logger.error).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('waits for active catch-up and transcript cleanup before completing shutdown', async () => {
     const f = fixture();
     const pending = deferred<{ meta: { aborted: boolean } }>();
