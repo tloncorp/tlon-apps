@@ -34,6 +34,43 @@ receive updates, and post against desk release N-1.
 
 - [ ] `MIN_GROUPS_VERSION` equals the **previous** desk release, not the one you
       are cutting.
+- [ ] `pnpm check:desk-compat` exits 0 for all three ref pairs — rule (b), then
+      self-consistency, then rule (c):
+
+      pnpm check:desk-compat --client-ref <candidate> --desk-ref v<N-1>
+      pnpm check:desk-compat --client-ref <candidate> --desk-ref <candidate>
+      pnpm check:desk-compat --client-ref origin/master --desk-ref <candidate>
+
+- [ ] Run 1 reports **no** negotiation-protocol difference. A bump blocks the
+      pair outright, whatever the paths say, so it must ship a release ahead of
+      the client that needs it.
+- [ ] If run 1 reports an `ALLOWED PROTOCOL BUMP`, that bump is shipping in this
+      release: N-1 support for the protocol is suspended, which is a deliberate
+      break for anyone still on N-1. Confirm the issue it names says so.
+- [ ] If the checker warns that a `protocolBumps` entry matches no observed
+      difference, the bump it describes has become N-1. **Delete the entry** as
+      part of this release; a stale entry is standing permission for a mismatch
+      nobody is tracking. The same applies to a `gaps` entry the checker says
+      excused nothing: the request it covers is served again, so remove it.
+- [ ] Read the `GUARDED` list. Each entry is a request the desk cannot take,
+      behind a capability guard nobody verified. For each, check the guard
+      resolves false on N-1 and that the branch it falls back to is one N-1
+      serves. These never fail the run, so nothing else will catch them.
+- [ ] Skim `WILDCARD` and `UNVERIFIED` rather than skipping them: neither
+      changes the exit code, and each entry is a call the checker could not
+      decide. `MATCHED` is not a promise either — it says an arm pattern
+      accepts the pole, not that the agent answers.
+
+### Shipping an `agent:neg` protocol bump
+
+A bump is the change that creates the difference rule (d) forbids, so the bump
+PR cannot pass its own gate unless it says so:
+
+- [ ] The bump PR adds a `protocolBumps` entry to
+      `packages/scripts/src/check-desk-compat/known-gaps.json` — agent,
+      protocol, `from`, `to`, and the issue tracking it.
+- [ ] The release *after* the one carrying the bump removes that entry, once the
+      bump has become N-1. The checker warns while an entry matches nothing.
 
 ## Tagging and deploying
 

@@ -39,3 +39,138 @@ channels render the mismatch notice — so no amount of path-and-mark
 compatibility rescues it. A protocol bump must ship one release ahead of the
 client that needs it, exactly like a new path. This is also why v12.1.0 is
 unusable as a pinned N-1 pier and v12.2.0 is.
+
+## Running the checker
+
+```
+pnpm check:desk-compat --client-ref <ref> --desk-ref <ref> [--json|--markdown]
+pnpm check:desk-compat --list
+```
+
+Exit `0` = nothing `MISSING`; `1` = at least one, or a protocol difference; `2`
+= internal error. `--list` prints every request extracted from the client and
+reads no desk at all, which is the fastest way to see what the client asks for.
+
+At release time it runs over **three** ref pairs:
+
+| run | client ref       | desk ref       | what it catches                                     |
+| --- | ---------------- | -------------- | --------------------------------------------------- |
+| 1   | candidate client | N-1 desk tag   | rule (b): the candidate needs something N-1 lacks   |
+| 2   | candidate client | candidate desk | candidate self-consistency                          |
+| 3   | released client  | candidate desk | rule (c): the candidate desk removed something live |
+
+Every PR runs pair 1 in `ci.yml` and posts the `--markdown` report as one
+sticky comment, edited in place on each push.
+
+## The five verdicts
+
+**The checker never says a request is served.** It reads arm *patterns* and
+file names; it does not read arm bodies, and it cannot know whether the code
+behind a matching pattern answers. Every verdict is a statement about the
+dispatcher, not about the agent.
+
+- **`MISSING`** — a known agent's dispatcher has no arm whose pattern can take
+  this pole under any completion; or a repo-owned mar file, an agent file, or a
+  `desk.bill` entry is absent. In the released-client direction, "absent" also
+  means *present in the client's own desk and gone here*, which is how a
+  removal is told from something that was never ours. **This is the only
+  verdict that fails a run.**
+- **`MATCHED`** — an arm's pattern consumes every segment of the request
+  through literals, typed atoms (`@`, `@p`, `@ud`) and `?()` members, or the
+  mar file exists. It says an arm is there for this shape. It does not say the
+  agent answers, that the JSON parses, or that the response has the shape the
+  client expects.
+- **`WILDCARD`** — the only arm that matches does so by swallowing the tail
+  with `*`/`rest=*`, or by consuming a segment as a named mold this reader
+  cannot resolve (`=kind:c` is `?(%diary %heap %chat)`, not "any knot"). The
+  pole is accepted; almost nothing follows from that.
+- **`UNVERIFIED`** — the checker could not decide. Each entry names why: an
+  unresolved request, an app outside this desk, a thread or an eyre endpoint,
+  an interpolated tail that is what decides, an arm pattern that would not
+  parse, or a dispatcher whose subject is rewritten before it runs.
+- **`GUARDED`** — `MISSING`, but extracted from behind a capability guard, so
+  the client may never send it to a desk that lacks it. Reported for review,
+  never blocking. See below.
+
+An interpolation does not stop at a slash: a `groupId` is `~ship/name` and
+spans two segments, so `` `/v3/ui/groups/${id}` `` is decided by its known
+prefix or not at all.
+
+## What the checker does not decide
+
+Read this before treating a green run as a guarantee.
+
+- **Whether a matching arm serves the request.** Arm bodies are not read. An
+  arm may `?-` on something, re-dispatch into a sub-handler, or return `[~ ~]`.
+- **Response shapes.** Nothing checks that the JSON the agent returns is what
+  the client parses.
+- **Whether an agent accepts a mark.** `MATCHED` for a poke means the mar file
+  exists in `desk/mar`, which is desk-global; it says nothing about the agent.
+- **Guards before the dispatcher.** `?>`, `?<` and `?.` can reject a request
+  the arms would have taken. They are ignored, because a guard can only weaken
+  a match — it can never invent an absence.
+- **Anything about a rewritten pole.** Where an agent rebinds its subject
+  before the `?+` (`%lanyard` strips the care and the version), the whole
+  surface is `UNVERIFIED`. The one rewrite that *is* modelled is the `%v0`
+  injection `%channels` and `%reel` write, because the arms are written against
+  the injected pole.
+- **Desks older than N-1**; web-glob versus desk skew; native store versions;
+  agents outside `desk/app/`; `tlon-skill` / `openclaw` / `hermes-tlon-adapter`
+  / `tlon-bot-e2e`.
+
+Layers 2 (agent review at release time) and 3 (a pinned N-1 `~bus` in the E2E
+suite) cover those.
+
+## How to write a fallback the checker recognises
+
+A request the desk cannot take is blocking unless the client only sends it to a
+desk that *can*. The checker recognises exactly one spelling of that: a branch
+whose guard names a **capability**.
+
+```ts
+path: getActivitySupportsNotes() ? '/v6/volume-settings' : '/volume-settings';
+```
+
+The guard must mention one of `getActivitySupportsNotes`,
+`activityVersionSupportsNotes`, `groupsVersionSupportsNotesSearch`,
+`groupsVersion`, or a `…MIN_GROUPS_VERSION` constant — something that asks what
+the desk supports, so the two branches are the same request written for two
+desk versions. A branch on `whomIsDm(whom)` or `type === 'channel'` picks
+between two requests the client makes in different *situations*; its sibling
+being served says nothing about N-1, and the `MISSING` one still blocks.
+
+A guarded branch is reported as `GUARDED` and does not fail the run. That is
+deliberately weaker than it sounds: **the checker does not verify the other
+branch is served, or that the guard is correct.** It is saying "a human wrote a
+desk-version branch here, go and look". An earlier version of this tool tried
+to prove the complement was served at the same call site; the analysis cost
+more than the signal was worth, and a reviewer reading one `GUARDED` line
+against N-1's arms does the job better.
+
+## Adding a known gap
+
+`packages/scripts/src/check-desk-compat/known-gaps.json` lists requests that
+are `MISSING` today and knowingly do not fail the gate. Every entry is debt: it
+records a client call the desk does not serve, so the feature behind it is
+already broken. An entry must name the commit that broke it and the issue
+tracking it, and matches one exact request key. Adding one to turn a red gate
+green is the one thing the file is not for — a *new* `MISSING` means the change
+under review needs its desk change to ship first.
+
+The checker **warns when an entry excuses nothing** in a full scan. Delete it:
+the gap it names has been fixed, and leaving it is standing permission for a
+regression nobody is tracking. The same warning covers a stale `protocolBumps`
+entry.
+
+## Shipping a protocol bump
+
+The bump PR is itself the change that creates the difference rule (d) forbids,
+so it would otherwise never be able to merge. It adds an entry to
+`protocolBumps` in `known-gaps.json` naming the agent, protocol, `from`/`to`
+versions and an issue. `from`/`to` name the transition, and an entry matches it
+in either orientation: the gate run reads the candidate against N-1 and sees
+new/old, while a released-client run reads the other way. Only that one pair of
+versions is excused. The checker still prints the difference loudly — in its own
+`ALLOWED PROTOCOL BUMP` section — but stops failing on that exact transition;
+any other mismatch still blocks. N-1 support for the protocol is suspended until
+the bump becomes N-1, and the next release removes the entry.

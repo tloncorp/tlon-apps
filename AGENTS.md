@@ -9,6 +9,32 @@ with a global `staleTime: Infinity` and refreshes only through explicit
 table-dependency invalidation, so its cache behavior does not match React Query
 defaults and should not be inferred from memory.
 
+## Reviewing the desk-compatibility report
+
+Every PR gets one sticky comment headed "Desk compatibility", from
+`pnpm check:desk-compat` (policy: `docs/tlon-apps/desk-compatibility.md`). It
+answers one question: can this client still start, sync, receive updates and
+post against the **previous** %groups desk release?
+
+Read it as a worklist, not a verdict. Only `MISSING` fails CI; the three
+sections that do not fail are exactly the ones that need a human:
+
+- **`GUARDED`** — the desk cannot take this request, and the client only sends
+  it behind a capability guard. The checker does **not** verify the guard is
+  correct or that the other branch is served. Check that the guard resolves
+  false on N-1, and that the branch it falls back to is one N-1 has an arm for.
+- **`WILDCARD`** — an arm matched only by swallowing the tail with `*` or by
+  consuming a named mold the reader could not resolve. Open the arm the report
+  links and confirm it really takes this pole.
+- **`UNVERIFIED`** — the checker could not decide, and says why on each entry.
+  Decide it by hand against N-1's arms, or say why it does not matter.
+
+**`MATCHED` is the weakest word in the report.** It means an agent has an arm
+whose *pattern* accepts the pole, or that a mar file exists. It does not mean
+the request is served: arm bodies are never read, response shapes are never
+checked, and a mar file is desk-global rather than per-agent. Do not treat a
+report of all-`MATCHED` as evidence a feature works against N-1.
+
 # Tlon Messenger backend
 The backend of the Tlon Messenger app is hosted on the Urbit platform.
 

@@ -1,57 +1,44 @@
 #!/usr/bin/env node
+import { exitCodeFor, formatReport, markdownReport, runCheck } from './check';
 import { CLIENT_ROOTS, Dependency, extractClient } from './extract';
 import { WORKTREE_REF, openTree } from './git';
 
 const USAGE = `
-Usage: pnpm --filter 'scripts' list:desk-requests [options]
+Usage: pnpm check:desk-compat [options]
 
-  --list                 print every request the client makes of the desk;
-                         a row marked ? is one this reader could not resolve
   --client-ref <ref>     client tree to extract from (default: ${WORKTREE_REF})
+  --desk-ref <ref>       desk tree to check against (required unless --list)
+  --json                 emit the report as JSON
+  --markdown             emit the report as markdown, for a PR comment
+  --list                 list every extracted request and exit; no desk is read
 
-Extraction only: this says what the client asks for, not whether any desk
-serves it. Roots scanned: ${CLIENT_ROOTS.join(', ')}.
+Exit codes: 0 = nothing MISSING, 1 = one or more MISSING (or a negotiation
+protocol difference), 2 = internal error.
+
+The three release-time runs (docs/tlon-apps/desk-compatibility.md):
+  --client-ref <candidate>     --desk-ref v<N-1>        rule (b)
+  --client-ref <candidate>     --desk-ref <candidate>   self-consistency
+  --client-ref origin/master   --desk-ref <candidate>   rule (c), removal
 `.trim();
 
 const at = (d: Dependency) => `${d.site.file}:${d.site.line}`;
-
-/** One row per request, with every site that makes it. */
-function rows(deps: Dependency[]) {
-  const byKey = new Map<string, { dep: Dependency; sites: string[] }>();
-  for (const dep of deps) {
-    const row = byKey.get(dep.key);
-    if (row) {
-      if (!row.sites.includes(at(dep))) row.sites.push(at(dep));
-    } else {
-      byKey.set(dep.key, { dep, sites: [at(dep)] });
-    }
-  }
-  return [...byKey.values()].sort((a, b) => a.dep.key.localeCompare(b.dep.key));
-}
-
 const target = (d: Dependency) =>
-  d.surface === 'thread'
-    ? `${d.thread ?? '?'} <- ${d.mark ?? '?'}`
-    : (d.mark ?? d.path?.shape ?? d.path?.text ?? '?');
+  d.mark ?? d.thread ?? d.path?.shape ?? d.path?.text ?? '?';
 
-function main(): number {
-  const args: Record<string, string | boolean> = {};
-  const argv = process.argv.slice(2);
-  argv.forEach((arg, i) => {
-    if (!arg.startsWith('--')) return;
-    const name = arg.slice(2);
-    args[name] = name === 'list' || name === 'help' ? true : argv[i + 1];
-  });
-
-  if (args.help || !args.list) {
-    console.log(USAGE);
-    return args.help ? 0 : 2;
-  }
-  const clientRef =
-    typeof args['client-ref'] === 'string' ? args['client-ref'] : WORKTREE_REF;
+/** `--list`: extraction only, so the reader can see what the client asks for. */
+function list(clientRef: string): number {
   const tree = openTree(clientRef, CLIENT_ROOTS);
   try {
-    const listed = rows(extractClient(tree));
+    const rows = new Map<string, { dep: Dependency; sites: string[] }>();
+    for (const dep of extractClient(tree)) {
+      const row = rows.get(dep.key);
+      if (row) {
+        if (!row.sites.includes(at(dep))) row.sites.push(at(dep));
+      } else rows.set(dep.key, { dep, sites: [at(dep)] });
+    }
+    const listed = [...rows.values()].sort((a, b) =>
+      a.dep.key.localeCompare(b.dep.key)
+    );
     console.log(`desk requests extracted from ${clientRef}\n`);
     const width = (pick: (r: (typeof listed)[number]) => string) =>
       Math.max(...listed.map((r) => pick(r).length), 0);
@@ -60,22 +47,15 @@ function main(): number {
     for (const row of listed) {
       console.log(
         [
-          row.dep.unresolved ? '?' : ' ',
           row.dep.surface.padEnd(kindWidth),
           (row.dep.app ?? '?').padEnd(appWidth),
           target(row.dep),
-        ].join(' ')
+        ].join('  ')
       );
-      // A row this reader could not resolve is still a request the client
-      // makes; printing the list without saying so reads like a clean sweep.
-      if (row.dep.unresolved)
-        console.log(`      unresolved: ${row.dep.unresolved}`);
-      console.log(`      ${row.sites.join(', ')}`);
+      console.log(`    ${row.sites.join(', ')}`);
     }
-    const unresolved = listed.filter((r) => r.dep.unresolved).length;
     console.log(
-      `\n${listed.length} distinct requests from ${listed.reduce((n, r) => n + r.sites.length, 0)} call sites` +
-        `, ${unresolved} of them marked ? because this reader could not resolve them`
+      `\n${listed.length} distinct requests from ${listed.reduce((n, r) => n + r.sites.length, 0)} call sites`
     );
     return 0;
   } finally {
@@ -83,9 +63,43 @@ function main(): number {
   }
 }
 
+function main(): number {
+  const flags = new Set(['json', 'markdown', 'list', 'help']);
+  const args: Record<string, string | boolean> = {};
+  const argv = process.argv.slice(2);
+  argv.forEach((arg, i) => {
+    if (!arg.startsWith('--')) return;
+    const name = arg.slice(2);
+    args[name] = flags.has(name) ? true : argv[i + 1];
+  });
+
+  if (args.help) {
+    console.log(USAGE);
+    return 0;
+  }
+  const clientRef =
+    typeof args['client-ref'] === 'string' ? args['client-ref'] : WORKTREE_REF;
+  if (args.list) return list(clientRef);
+
+  const deskRef = args['desk-ref'];
+  if (typeof deskRef !== 'string' || deskRef.length === 0) {
+    console.error(`error: --desk-ref is required\n\n${USAGE}`);
+    return 2;
+  }
+  const report = runCheck({ clientRef, deskRef });
+  console.log(
+    args.json
+      ? JSON.stringify(report, null, 2)
+      : args.markdown
+        ? markdownReport(report)
+        : formatReport(report)
+  );
+  return exitCodeFor(report);
+}
+
 try {
   process.exitCode = main();
 } catch (error) {
-  console.error(`desk-requests: ${(error as Error).message}`);
+  console.error(`desk-compat: ${(error as Error).message}`);
   process.exitCode = 2;
 }

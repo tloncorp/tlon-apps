@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "esbuild src/index.ts --bundle --format=iife --global-name=tlon --conditions=react-native --outfile=build/bundle.js",
-    "list:desk-requests": "tsx src/check-desk-compat/index.ts --list",
+    "check:desk-compat": "tsx src/check-desk-compat/index.ts",
     "tsc": "tsc --noEmit -p src/check-desk-compat/tsconfig.json",
     "test": "vitest --passWithNoTests"
   },

@@ -13,6 +13,9 @@
 ## Risks and impact
 
 - Safe to rollback without consulting PR author? (Yes | No)
+- Desk compatibility: read the **Desk compatibility** comment on this PR and
+  judge every `GUARDED`, `WILDCARD` and `UNVERIFIED` entry — none of them
+  fails CI (`docs/tlon-apps/desk-compatibility.md`).
 - Affects important code area:
   - [ ] Onboarding
   - [ ] State / providers

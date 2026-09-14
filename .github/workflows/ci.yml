@@ -61,6 +61,10 @@ jobs:
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.app != 'false' }}
     runs-on: blacksmith-4vcpu-ubuntu-2204
+    permissions:
+      contents: read
+      # The desk-compat report is posted as a sticky PR comment.
+      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -97,8 +101,67 @@ jobs:
       - name: Check Types
         run: pnpm -r tsc
 
+      # Desk N-1 compatibility (docs/tlon-apps/desk-compatibility.md). A
+      # depth-1 checkout has no tags and no history, so the checker's refs are
+      # fetched narrowly rather than by deepening the whole clone: the N-1 tag
+      # named by MIN_GROUPS_VERSION, plus the two refs the incident fixtures
+      # replay (kept in sync with fixtures.test.ts; the fixtures also fetch
+      # them on demand, so a drift here costs a slower failure, not a wrong
+      # one).
+      - name: Fetch desk refs for the compatibility check
+        run: |
+          set -euo pipefail
+          MIN=$(node -p "require('fs').readFileSync('packages/shared/src/logic/deskPolicy.ts','utf8').match(/MIN_GROUPS_VERSION = '([^']+)'/)[1]")
+          echo "MIN_GROUPS_VERSION=$MIN" >> "$GITHUB_ENV"
+          git fetch --no-tags --depth=1 origin "refs/tags/v${MIN}:refs/tags/v${MIN}"
+          git fetch --no-tags --depth=1 origin "refs/tags/v12.1.0:refs/tags/v12.1.0"
+          git fetch --no-tags --depth=1 origin "refs/tags/v12.0.0:refs/tags/v12.0.0"
+          git fetch --no-tags --depth=1 origin 854b46c3ddd7ccf122485dd447a1225da7a66638
+
       - name: Run Tests
         run: pnpm test:ci
+
+      # The report is written whatever the verdict, because GUARDED, WILDCARD
+      # and UNVERIFIED entries are the reviewer's worklist and none of them
+      # changes the exit code. `continue-on-error` keeps the comment step
+      # reachable; the verdict is re-raised after it.
+      - name: Check desk N-1 compatibility
+        id: desk_compat
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          pnpm check:desk-compat --desk-ref "v${MIN_GROUPS_VERSION}" --markdown \
+            | tee desk-compat.md
+
+      # One sticky comment, edited in place, so a PR does not collect one per
+      # push. Skipped outside a pull_request event, where there is nothing to
+      # comment on.
+      - name: Post the desk compatibility report
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          MARKER='<!-- desk-compat-report -->'
+          printf '%s\n\n' "$MARKER" > body.md
+          cat desk-compat.md >> body.md
+          EXISTING=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+            --jq "[.[] | select(.body | startswith(\"$MARKER\"))] | first | .id // empty")
+          if [ -n "$EXISTING" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$EXISTING" -F body=@body.md >/dev/null
+          else
+            gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@body.md >/dev/null
+          fi
+
+      # Rule (b): this branch may not depend on anything the previous desk
+      # release lacks. Blocking, and inside ci-ok by way of test-build.
+      - name: Desk N-1 compatibility verdict
+        if: ${{ steps.desk_compat.outcome == 'failure' }}
+        run: |
+          echo "::error::the branch depends on something desk v${MIN_GROUPS_VERSION} does not serve; see the desk-compat report"
+          exit 1
 
       - name: tlon-skill build smoke
         run: pnpm --filter '@tloncorp/tlon-skill' build:smoke
