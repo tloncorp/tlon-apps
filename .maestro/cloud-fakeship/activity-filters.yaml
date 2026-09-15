@@ -1,0 +1,36 @@
+appId: ${MAESTRO_APP_ID}
+name: Filter deterministic Activity events
+env:
+  JOURNEY: activity-filters
+---
+- runScript: ../reliability/data.js
+- runFlow: begin.yaml
+- assertVisible: ${'Activity-' + MAESTRO_RUN_TAG}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: '^Tab Bar$'
+          point: '50%,38%'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn: '^Activity.*$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Activity$'
+- assertVisible: '^All$'
+- assertVisible: '^Mentions$'
+- assertVisible: '^Replies$'
+- assertVisible: ${output.reliability.activityMentionPattern}
+- tapOn: '^Mentions$'
+- assertVisible: ${output.reliability.activityMentionPattern}
+- assertNotVisible: ${output.reliability.activityReplyPattern}
+- tapOn: '^Replies$'
+- assertVisible: ${output.reliability.activityReplyPattern}
+- assertNotVisible: ${output.reliability.activityMentionPattern}
+- tapOn: '^All$'
+- assertVisible: ${output.reliability.activityMentionPattern}
+- runFlow: ../reliability/subflows/home-tab.yaml

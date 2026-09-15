@@ -25,6 +25,10 @@ output.reliability = {
   ),
   groupSwipeTitlePattern: exact('SwipeGroup-' + MAESTRO_RUN_TAG),
   dmSwipePreviewPattern: exact(MAESTRO_RUN_TAG + ' dm swipe unread'),
+  activityMentionPattern:
+    '^.*' + exact(MAESTRO_RUN_TAG + ' activity mention').slice(1, -1) + '.*$',
+  activityReplyPattern:
+    '^.*' + exact(MAESTRO_RUN_TAG + ' activity reply').slice(1, -1) + '.*$',
   // ContactName exposes a spoken label (zod / sampel - palnet) on native.
   // Accept that exact identity or its literal display, never a partial match.
   shipPattern:

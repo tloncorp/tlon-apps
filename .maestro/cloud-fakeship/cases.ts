@@ -25,6 +25,7 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
     'contact-status',
     'group-mark-read',
     'channel-mark-read',
+    'activity-filters',
   ]);
   const selected = (name: string) =>
     selection === 'all'
@@ -221,6 +222,45 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
         groupId: g.groupId,
         channelId,
         unread: false,
+      });
+    });
+  }
+  if (selected('activity-filters')) {
+    const g = await group('Activity', zod);
+    const root = await zod.sendChannelPost({
+      channelId: g.chatChannel,
+      content: `${tag} activity root`,
+    });
+    const reply = await ten.replyToPost({
+      channelId: g.chatChannel,
+      parentId: root.id,
+      parentAuthor: root.authorId,
+      content: `${tag} activity reply`,
+    });
+    const mention = await ten.sendChannelPost({
+      channelId: g.chatChannel,
+      content: [{ inline: [{ ship: '~zod' }, ` ${tag} activity mention`] }],
+    });
+    await until('activity mention and reply reach zod feeds', async () => {
+      const feed = await zod.state.scry<{
+        mentions?: unknown[];
+        replies?: unknown[];
+      }>('activity', '/v5/feed/init/30');
+      return (
+        JSON.stringify(feed.mentions ?? []).includes(
+          `${tag} activity mention`
+        ) &&
+        JSON.stringify(feed.replies ?? []).includes(`${tag} activity reply`)
+      );
+    });
+    task('activity-filters', async () => {
+      record('activity-filter-state', {
+        groupId: g.groupId,
+        channelId: g.chatChannel,
+        mentionId: mention.id,
+        replyId: reply.id,
+        mentionFeedReady: true,
+        replyFeedReady: true,
       });
     });
   }
