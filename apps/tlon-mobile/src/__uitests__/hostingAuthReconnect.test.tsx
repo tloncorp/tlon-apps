@@ -84,10 +84,21 @@ jest.mock('../components/OnboardingInputs', () => {
   const { TextInput } =
     jest.requireActual<typeof import('react-native')>('react-native');
   return {
-    OTPInput: ({ onChange }: { onChange: (code: string[]) => void }) => (
+    OTPInput: ({
+      onChange,
+      value,
+      length,
+    }: {
+      onChange: (code: string[]) => void;
+      value: string[];
+      length: number;
+    }) => (
       <TextInput
         testID="otp"
-        onChangeText={(text) => onChange(text.split(''))}
+        value={value.join('')}
+        onChangeText={(text) =>
+          onChange(Array.from({ length }, (_, index) => text[index] ?? ''))
+        }
       />
     ),
   };
@@ -194,6 +205,79 @@ describe('Hosting auth reconnect interactions', () => {
     expect(initRecaptcha).toHaveBeenCalledTimes(1);
   });
 
+  it.each([
+    { method: 'typing', values: ['1', '12', '123', '1234', '12345', '123456'] },
+    { method: 'pasting', values: ['123456'] },
+  ])(
+    'automatically verifies a complete code after $method',
+    async ({ values }) => {
+      let finishVerification!: () => void;
+      verifyCode.mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            finishVerification = resolve;
+          })
+      );
+      render(
+        <HostingAuthReconnectScreen
+          profileId="~zod"
+          autoRequest={false}
+          initialOtpInfo={{ retryAfter: 0 }}
+          onRequestCode={sendCode}
+          onVerifyCode={verifyCode}
+          onLogout={logout}
+        />
+      );
+
+      for (const value of values) {
+        fireEvent.changeText(screen.getByTestId('otp'), value);
+        if (value.length < 6) {
+          expect(verifyCode).not.toHaveBeenCalled();
+        }
+      }
+      expect(verifyCode).toHaveBeenCalledWith('123456');
+      expect(
+        screen.getByTestId('hosting-auth-reconnect-primary-action').props
+          .loading
+      ).toBe(true);
+
+      fireEvent.changeText(screen.getByTestId('otp'), '123456');
+      fireEvent.press(screen.getByText('Confirm code'));
+      expect(verifyCode).toHaveBeenCalledTimes(1);
+
+      await act(async () => finishVerification());
+    }
+  );
+
+  it('allows another automatic verification after a failed attempt', async () => {
+    verifyCode
+      .mockRejectedValueOnce(new Error('Verification failed'))
+      .mockResolvedValueOnce();
+    render(
+      <HostingAuthReconnectScreen
+        profileId="~zod"
+        autoRequest={false}
+        initialOtpInfo={{ retryAfter: 0 }}
+        onRequestCode={sendCode}
+        onVerifyCode={verifyCode}
+        onLogout={logout}
+      />
+    );
+
+    await act(async () => {
+      fireEvent.changeText(screen.getByTestId('otp'), '123456');
+    });
+    expect(screen.getByTestId('otp').props.value).toBe('');
+    expect(
+      screen.getByTestId('hosting-auth-reconnect-primary-action').props.loading
+    ).toBe(false);
+
+    await act(async () => {
+      fireEvent.changeText(screen.getByTestId('otp'), '123456');
+    });
+    expect(verifyCode).toHaveBeenCalledTimes(2);
+  });
+
   it('disables logout until pending verification fails', async () => {
     let rejectVerification!: (error: Error) => void;
     verifyCode.mockImplementation(
@@ -213,7 +297,6 @@ describe('Hosting auth reconnect interactions', () => {
       />
     );
     fireEvent.changeText(screen.getByTestId('otp'), '123456');
-    fireEvent.press(screen.getByText('Confirm code'));
     expect(verifyCode).toHaveBeenCalledWith('123456');
     fireEvent.press(screen.getByText('Log out'));
     expect(logout).not.toHaveBeenCalled();

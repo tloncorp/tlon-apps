@@ -51,6 +51,7 @@ export function HostingAuthReconnectScreen({
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string>();
   const requestStarted = useRef(false);
+  const verificationInFlight = useRef(false);
   const insets = useSafeAreaInsets();
 
   const requestCode = useCallback(async () => {
@@ -89,6 +90,10 @@ export function HostingAuthReconnectScreen({
 
   const verifyCode = useCallback(
     async (code: string) => {
+      if (verificationInFlight.current) {
+        return;
+      }
+      verificationInFlight.current = true;
       setIsVerifying(true);
       setError(undefined);
       try {
@@ -104,19 +109,24 @@ export function HostingAuthReconnectScreen({
         } else {
           setError('We could not reconnect your account. Please try again.');
         }
-        setIsVerifying(false);
-        return;
       }
 
+      verificationInFlight.current = false;
       setIsVerifying(false);
     },
     [onVerifyCode]
   );
 
-  const handleCodeChanged = useCallback((nextCode: string[]) => {
-    setOtp(nextCode);
-    setError(undefined);
-  }, []);
+  const handleCodeChanged = useCallback(
+    (nextCode: string[]) => {
+      setOtp(nextCode);
+      setError(undefined);
+      if (nextCode.length === OTP_LENGTH && nextCode.every(Boolean)) {
+        void verifyCode(nextCode.join(''));
+      }
+    },
+    [verifyCode]
+  );
 
   const isCodeComplete =
     otp.length === OTP_LENGTH && otp.every((digit) => Boolean(digit));
