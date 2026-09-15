@@ -48,3 +48,16 @@ enforcement on another ship require multiparty tests.
 
 `thread-controls.yaml` remains standalone: iOS loses the muted state after
 relaunch. Its mute-persistence assertion remains intact for investigation.
+
+`thread-lifecycle.yaml` also checks reply counts through 1 → 2 → 1 → 0: cancel
+preserves both replies; deleting one preserves its sibling and parent; partial
+and final deletion persist after relaunch. It uses the existing identity gate
+and deletes its uniquely named group on success. A failed run can leave that
+group behind; remove only its exact `QA-<run tag>-replylife-<attempt>` fixture.
+
+Known iOS failure: after deleting one of two replies, the sibling and parent
+remain but the channel badge reports `3 replies` instead of `1 reply`. A cold
+relaunch corrects the badge to `1 reply` and the deleted body stays absent. The
+exact immediate-count assertion remains intact, so the journey stops there and
+does not yet reach its final-reply deletion checks on iOS. Android validation is
+pending.

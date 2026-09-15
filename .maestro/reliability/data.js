@@ -14,9 +14,17 @@ output.reliability = {
   text: MAESTRO_RUN_TAG + ' message',
   editedText: MAESTRO_RUN_TAG + ' edited',
   reply: MAESTRO_RUN_TAG + ' reply',
+  sibling: MAESTRO_RUN_TAG + ' sibling',
   title: MAESTRO_RUN_TAG + ' note',
   body: MAESTRO_RUN_TAG + ' body',
-  shipPattern: exact(MAESTRO_TEST_SHIP),
+  // ContactName exposes a spoken label (zod / sampel - palnet) on native.
+  // Accept that exact identity or its literal display, never a partial match.
+  shipPattern:
+    '^(' +
+    MAESTRO_TEST_SHIP +
+    '|' +
+    MAESTRO_TEST_SHIP.slice(1).replace(/-/g, ' - ') +
+    ')$',
 };
 output.reliability.groupPattern = exact(output.reliability.group);
 output.reliability.editedTextPattern = exact(
@@ -28,6 +36,11 @@ output.reliability.textPattern = exact(output.reliability.text + ' ').replace(
 );
 output.reliability.replyPattern = exact(output.reliability.reply + ' ').replace(
   / \$$/,
+  ' ?$'
+);
+
+output.reliability.siblingPattern = exact(output.reliability.sibling).replace(
+  /\$$/,
   ' ?$'
 );
 
