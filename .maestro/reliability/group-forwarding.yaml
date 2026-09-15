@@ -1,0 +1,46 @@
+appId: ${MAESTRO_APP_ID}
+name: Native group forwarding
+tags: [regression]
+env:
+  JOURNEY: forward
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/create-group.yaml
+- tapOn: ${output.reliability.groupPattern}
+- assertVisible: '^Group info & settings$'
+- tapOn:
+    id: GroupQuickAction-Forward reference
+- assertVisible: '^Forward group$'
+- assertVisible: '^Search channels$'
+- tapOn: '^Search channels$'
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.group}
+- assertVisible:
+    id: ChannelListItem-Chat
+- assertVisible: '^Chat$'
+- assertVisible: ${output.reliability.groupPattern}
+- tapOn:
+    id: ChannelListItem-Chat
+- assertVisible: '^Chat$'
+- assertVisible: ${output.reliability.groupPattern}
+- assertVisible: '^Forward to Chat$'
+- tapOn: '^Forward to Chat$'
+- extendedWaitUntil:
+    visible: '^Forwarded group to Chat$'
+    timeout: 5000
+- assertNotVisible: '^Forward group$'
+- tapOn: '^Back$'
+- tapOn: '^Chat$'
+- extendedWaitUntil:
+    visible:
+      id: Post
+      containsDescendants:
+        - text: '^Group$'
+        - text: ${output.reliability.groupPattern}
+    timeout: 5000
+- tapOn: '^Back$'
+- tapOn: ${output.reliability.groupPattern}
+- runFlow: subflows/delete-fixture-group.yaml

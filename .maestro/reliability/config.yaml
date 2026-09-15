@@ -18,6 +18,7 @@ flows:
   - references.yaml
   - profile-groups.yaml
   - group-privacy.yaml
+  - group-forwarding.yaml
   - sections.yaml
   - notification-preferences.yaml
   - roles.yaml
