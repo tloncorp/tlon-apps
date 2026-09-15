@@ -78,6 +78,126 @@ describe('contentToTextAndMentions / textAndMentionsToContent round-trip', () =>
   });
 });
 
+describe('textAndMentionsToContent closing fences', () => {
+  test('keeps prose typed directly onto the closing fence', () => {
+    expect(
+      textAndMentionsToContent('```\nconst x = 42;\n```after', [])
+    ).toEqual({
+      type: 'doc',
+      content: [
+        {
+          type: 'codeBlock',
+          content: [{ type: 'text', text: 'const x = 42;' }],
+          attrs: { language: 'plaintext' },
+        },
+        { type: 'paragraph', content: [{ type: 'text', text: 'after ' }] },
+      ],
+    });
+  });
+
+  test.each([
+    ['flush against the fence', '```~zod'],
+    ['separated by a space', '``` ~zod'],
+    ['separated by several spaces', '```   ~zod'],
+  ])('keeps a mention %s', (_label, closingLine) => {
+    const text = `\`\`\`\nconst x = 42;\n${closingLine}`;
+    const result = textAndMentionsToContent(text, [
+      {
+        id: '~zod',
+        display: '~zod',
+        start: text.indexOf('~zod'),
+        end: text.length,
+      },
+    ]);
+
+    // No stray text node before the mention: the gap between the fence and
+    // the mention must not shift the mention's offsets.
+    expect(result.content?.[1]).toEqual({
+      type: 'paragraph',
+      content: [{ type: 'mention', attrs: { id: '~zod' } }],
+    });
+  });
+
+  test('keeps prose separated from the closing fence by a space', () => {
+    expect(
+      textAndMentionsToContent('```\nconst x = 42;\n``` after', []).content?.[1]
+    ).toEqual({
+      type: 'paragraph',
+      content: [{ type: 'text', text: 'after ' }],
+    });
+  });
+
+  test('drops a bare closing fence with only trailing whitespace', () => {
+    expect(textAndMentionsToContent('```\nconst x = 42;\n```   ', [])).toEqual({
+      type: 'doc',
+      content: [
+        {
+          type: 'codeBlock',
+          content: [{ type: 'text', text: 'const x = 42;' }],
+          attrs: { language: 'plaintext' },
+        },
+      ],
+    });
+  });
+});
+
+describe('contentToTextAndMentions block separators', () => {
+  const paragraph = (text: string) => ({
+    type: 'paragraph',
+    content: [{ type: 'text', text }],
+  });
+
+  test('separates a code block from the paragraphs around it', () => {
+    const result = contentToTextAndMentions({
+      type: 'doc',
+      content: [
+        paragraph('before'),
+        {
+          type: 'codeBlock',
+          content: [{ type: 'text', text: 'const x = 42;' }],
+        },
+        paragraph('after'),
+      ],
+    });
+
+    expect(result.text).toBe('before\n```\nconst x = 42;\n```\nafter');
+  });
+
+  test('separates a blockquote from the paragraph before it', () => {
+    const result = contentToTextAndMentions({
+      type: 'doc',
+      content: [
+        paragraph('before'),
+        { type: 'blockquote', content: [paragraph('quoted')] },
+        paragraph('after'),
+      ],
+    });
+
+    expect(result.text).toBe('before\n> quoted\nafter');
+  });
+
+  test('keeps mention offsets aligned across blocks', () => {
+    const result = contentToTextAndMentions({
+      type: 'doc',
+      content: [
+        {
+          type: 'codeBlock',
+          content: [{ type: 'text', text: 'const x = 42;' }],
+        },
+        {
+          type: 'paragraph',
+          content: [{ type: 'mention', attrs: { id: '~zod' } }],
+        },
+      ],
+    });
+
+    expect(result.mentions).toHaveLength(1);
+    expect(
+      result.text.slice(result.mentions[0].start, result.mentions[0].end)
+    ).toBe('~zod');
+  });
+});
+
 describe('post blob helpers', () => {
   test('parses the complete agent onboarding protocol', () => {
     const entries = [

@@ -30,7 +30,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Keyboard, TextInput } from 'react-native';
+import { Keyboard, Platform, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -71,6 +71,9 @@ import {
 } from './useSlashCommands';
 
 const bareChatInputLogger = createDevLogger('bareChatInput', false);
+const MESSAGE_INPUT_CONTAINER_HEIGHT = 48;
+
+const AUTOCORRECT_FLUSH_TIMEOUT_MS = 20;
 
 function normalizePreviewUrl(url: string) {
   try {
@@ -347,7 +350,19 @@ function BareChatInput(
     resetSlashCommandMode,
   } = useSlashCommands({ manifest: slashCommandManifest });
   const maxInputHeight = useMaxInputHeight(maxInputHeightBasic);
+  // Android's material input pill is 48dp tall and bottom-anchors its content
+  // so multiline composers grow upward. Fill that pill at the single-line
+  // height; otherwise the 44dp text input sits 4dp low inside it.
+  const minimumInputHeight =
+    Platform.OS === 'android'
+      ? Math.max(initialHeight, MESSAGE_INPUT_CONTAINER_HEIGHT)
+      : initialHeight;
   const inputRef = useRef<TextInput>(null);
+  const runSendMessageRef = useRef<((isEdit: boolean) => void) | null>(null);
+  const pendingAutocorrectSendRef = useRef<{ isEdit: boolean } | null>(null);
+  const [queuedSend, setQueuedSend] = useState<{ isEdit: boolean } | null>(
+    null
+  );
 
   usePasteHandler(addAttachment);
 
@@ -417,6 +432,9 @@ function BareChatInput(
 
   const handleTextChange = useCallback(
     (newText: string) => {
+      const pendingSend = pendingAutocorrectSendRef.current;
+      pendingAutocorrectSendRef.current = null;
+
       const oldText = controlledText;
 
       bareChatInputLogger.log('text change', newText);
@@ -461,6 +479,10 @@ function BareChatInput(
         const jsonContent = textAndMentionsToContent(newText, mentions);
         bareChatInputLogger.log('setting draft', jsonContent);
         storeDraft(jsonContent);
+      }
+
+      if (pendingSend) {
+        setQueuedSend(pendingSend);
       }
     },
     [
@@ -657,17 +679,51 @@ function BareChatInput(
     [sendMessage]
   );
 
+  runSendMessageRef.current = runSendMessage;
+
+  const submit = useCallback(
+    (isEdit: boolean) => {
+      if (Platform.OS !== 'ios') {
+        runSendMessage(isEdit);
+        return;
+      }
+
+      // iOS applies a pending autocorrection when the send button is tapped,
+      // and delivers the corrected text through onChangeText after this handler
+      // has already run.
+      pendingAutocorrectSendRef.current = { isEdit };
+      setTimeout(() => {
+        if (pendingAutocorrectSendRef.current) {
+          pendingAutocorrectSendRef.current = null;
+          runSendMessageRef.current?.(isEdit);
+        }
+      }, AUTOCORRECT_FLUSH_TIMEOUT_MS);
+    },
+    [runSendMessage]
+  );
+
+  // React batches setQueuedSend with the state updates in handleTextChange, so
+  // this effect runs after the commit that carries the corrected text and the
+  // mention offsets it shifted.
+  useEffect(() => {
+    if (!queuedSend) {
+      return;
+    }
+    setQueuedSend(null);
+    runSendMessage(queuedSend.isEdit);
+  }, [queuedSend, runSendMessage]);
+
   const handleSend = useCallback(async () => {
-    runSendMessage(false);
-  }, [runSendMessage]);
+    submit(false);
+  }, [submit]);
 
   const handleEdit = useCallback(async () => {
     Keyboard.dismiss();
     if (!editingPost) {
       return;
     }
-    runSendMessage(true);
-  }, [runSendMessage, editingPost]);
+    submit(true);
+  }, [submit, editingPost]);
 
   // Handle autofocus
   useEffect(() => {
@@ -1085,7 +1141,7 @@ function BareChatInput(
     <MessageInputContainer
       onPressSend={handleSend}
       setShouldBlur={setShouldBlur}
-      containerHeight={48}
+      containerHeight={MESSAGE_INPUT_CONTAINER_HEIGHT}
       disableSend={disableSend}
       sendError={sendError}
       showWayfindingTooltip={showWayfindingTooltip}
@@ -1133,7 +1189,7 @@ function BareChatInput(
             {...(!isWeb ? placeholderTextColor : {})}
             style={{
               backgroundColor: 'transparent',
-              minHeight: initialHeight,
+              minHeight: minimumInputHeight,
               // Let the native input auto-size while it has content; force the
               // initial height when empty. The uncontrolled native input keeps a
               // stale (expanded) measurement after the text is cleared on send,
@@ -1141,7 +1197,7 @@ function BareChatInput(
               height: isWeb
                 ? inputHeight
                 : controlledText === ''
-                  ? initialHeight
+                  ? minimumInputHeight
                   : undefined,
               maxHeight: maxInputHeight - getTokenValue('$s', 'space'),
               paddingHorizontal: getTokenValue('$l', 'space'),

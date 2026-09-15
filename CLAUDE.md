@@ -534,7 +534,7 @@ The monorepo uses a dependency hierarchy:
 
 The frontend communicates with Urbit backend through:
 
--   HTTP API via `@urbit/http-api`
+-   HTTP API via `@tloncorp/api/http-api`
 -   Server-sent events for real-time updates
 -   Custom API layer in `packages/shared/src/api/`
 
