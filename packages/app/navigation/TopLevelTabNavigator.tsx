@@ -4,12 +4,11 @@ import {
 } from '@react-navigation/bottom-tabs';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 
-import { ActivityScreen } from '../features/top/ActivityScreen';
+import SettingsScreen from '../features/settings/SettingsScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
-import ContactsScreen from '../features/top/ContactsScreen';
-import { useTopLevelTabController } from '../hooks/useTopLevelTabController';
-import { AvatarNavIcon, NavBar, NavIcon } from '../ui/components/NavBar';
-import ProfileStatusSheet from '../ui/components/ProfileStatusSheet';
+import { useHomeGroupTab } from '../hooks/useHomeGroupTab';
+import { NavBar, NavIcon } from '../ui/components/NavBar';
+import { HomeGroupNavigator } from './HomeGroupNavigator';
 import { TopLevelTabName, trackTopLevelTabSelection } from './topLevelTabs';
 import type { TopLevelTabParamList } from './types';
 
@@ -17,12 +16,12 @@ const Tabs = createBottomTabNavigator<TopLevelTabParamList>();
 
 function ReactTopLevelTabBar({ state, navigation }: BottomTabBarProps) {
   const isWindowNarrow = useIsWindowNarrow();
-  const { currentUserId, haveUnreadActivity, statusSheet } =
-    useTopLevelTabController();
 
   if (!isWindowNarrow) {
     return null;
   }
+
+  const activeRouteName = state.routes[state.index]?.name;
 
   const pressTab = (name: TopLevelTabName) => {
     const index = state.routes.findIndex((route) => route.name === name);
@@ -46,65 +45,53 @@ function ReactTopLevelTabBar({ state, navigation }: BottomTabBarProps) {
     }
   };
 
-  const longPressProfile = () => {
-    const route = state.routes.find(
-      (candidate) => candidate.name === 'Contacts'
-    );
-    if (route) {
-      navigation.emit({
-        type: 'tabLongPress',
-        target: route.key,
-      });
-    }
-    statusSheet.openSheet();
-  };
+  const hasHomeGroupTab = state.routes.some(
+    (route) => route.name === 'HomeGroup'
+  );
 
   return (
-    <>
-      <NavBar>
+    <NavBar>
+      {hasHomeGroupTab && (
         <NavIcon
           type="Home"
           activeType="HomeFilled"
-          isActive={state.routes[state.index]?.name === 'ChatList'}
+          isActive={activeRouteName === 'HomeGroup'}
           hasUnreads={false}
-          onPress={() => pressTab('ChatList')}
-        />
-        <NavIcon
-          type="Notifications"
-          activeType="NotificationsFilled"
-          hasUnreads={haveUnreadActivity}
-          isActive={state.routes[state.index]?.name === 'Activity'}
-          onPress={() => pressTab('Activity')}
-        />
-        <AvatarNavIcon
-          id={currentUserId}
-          focused={state.routes[state.index]?.name === 'Contacts'}
-          onPress={() => pressTab('Contacts')}
-          onLongPress={longPressProfile}
-        />
-      </NavBar>
-      {statusSheet.open && (
-        <ProfileStatusSheet
-          open
-          onOpenChange={statusSheet.closeSheet}
-          onUpdateStatus={statusSheet.updateStatus}
+          onPress={() => pressTab('HomeGroup')}
         />
       )}
-    </>
+      <NavIcon
+        type="Messages"
+        activeType="MessagesFilled"
+        isActive={activeRouteName === 'ChatList'}
+        hasUnreads={false}
+        onPress={() => pressTab('ChatList')}
+      />
+      <NavIcon
+        type="Settings"
+        isActive={activeRouteName === 'Settings'}
+        hasUnreads={false}
+        onPress={() => pressTab('Settings')}
+      />
+    </NavBar>
   );
 }
 
 export function TopLevelTabNavigator() {
+  const homeGroup = useHomeGroupTab();
+
   return (
     <Tabs.Navigator
-      initialRouteName="ChatList"
+      initialRouteName={homeGroup.enabled ? 'HomeGroup' : 'ChatList'}
       backBehavior="history"
       screenOptions={{ headerShown: false }}
       tabBar={(props) => <ReactTopLevelTabBar {...props} />}
     >
+      {homeGroup.enabled ? (
+        <Tabs.Screen name="HomeGroup" component={HomeGroupNavigator} />
+      ) : null}
       <Tabs.Screen name="ChatList" component={ChatListScreen} />
-      <Tabs.Screen name="Activity" component={ActivityScreen} />
-      <Tabs.Screen name="Contacts" component={ContactsScreen} />
+      <Tabs.Screen name="Settings" component={SettingsScreen} />
     </Tabs.Navigator>
   );
 }

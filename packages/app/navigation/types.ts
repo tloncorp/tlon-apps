@@ -5,11 +5,27 @@ import type {
 } from '@react-navigation/native';
 
 export type TopLevelTabParamList = {
-  Contacts: undefined;
+  HomeGroup: NavigatorScreenParams<HomeGroupStackParamList> | undefined;
   ChatList:
     | { previewGroupId: string; previewGroupFromInviteNotification?: boolean }
     | undefined;
-  Activity: undefined;
+  Settings: undefined;
+};
+
+// The home-group tab hosts a channel, so it needs a stack navigation object
+// (push/goBack) for the screens a channel can open. Its params are spelled out
+// rather than read off `RootStackParamList['Channel']`: the root stack reaches
+// this list through MainTabs, and the round trip would make the alias circular.
+export type HomeGroupStackParamList = {
+  HomeGroupChannel: ChannelRouteParams;
+};
+
+export type ChannelRouteParams = {
+  channelId: string;
+  disableTransition?: boolean;
+  groupId?: string;
+  selectedPostId?: string | null;
+  startDraft?: boolean;
 };
 
 export type RootStackParamList = {
@@ -20,7 +36,8 @@ export type RootStackParamList = {
   };
   VerifierStub: undefined;
   Empty: undefined;
-  Settings: undefined;
+  Activity: undefined;
+  Contacts: undefined;
   DM: {
     channelId: string;
     selectedPostId?: string | null;
@@ -31,13 +48,7 @@ export type RootStackParamList = {
     selectedPostId?: string | null;
     startDraft?: boolean;
   };
-  Channel: {
-    channelId: string;
-    disableTransition?: boolean;
-    groupId?: string;
-    selectedPostId?: string | null;
-    startDraft?: boolean;
-  };
+  Channel: ChannelRouteParams;
   GroupChannels: {
     groupId: string;
   };
@@ -163,8 +174,8 @@ export type RootStackNavigationProp = NavigationProp<RootStackParamList>;
 export type RootDrawerParamList = {
   Home: NavigatorScreenParams<HomeDrawerParamList>;
   Messages: NavigatorScreenParams<HomeDrawerParamList>;
-} & Pick<TopLevelTabParamList, 'Activity' | 'Contacts'> &
-  Pick<RootStackParamList, 'Settings'>;
+} & Pick<RootStackParamList, 'Activity' | 'Contacts'> &
+  Pick<TopLevelTabParamList, 'Settings'>;
 
 // hack: adding the true contacts types causes lots of tsc failures that need
 // resolving. Added to support navigating deeply within the contacts drawer
@@ -172,8 +183,8 @@ export type ActualRootDrawerParamList = {
   Home: NavigatorScreenParams<HomeDrawerParamList>;
   Messages: NavigatorScreenParams<HomeDrawerParamList>;
   Contacts: NavigatorScreenParams<ProfileDrawerParamList>;
-} & Pick<TopLevelTabParamList, 'Activity'> &
-  Pick<RootStackParamList, 'Settings'>;
+} & Pick<RootStackParamList, 'Activity'> &
+  Pick<TopLevelTabParamList, 'Settings'>;
 
 export type CombinedParamList = RootStackParamList & RootDrawerParamList;
 
@@ -191,7 +202,7 @@ export type HomeDrawerParamList = Pick<TopLevelTabParamList, 'ChatList'> &
     ChatVolume: RootStackParamList['ChatVolume'];
   };
 
-export type ProfileDrawerParamList = Pick<TopLevelTabParamList, 'Contacts'> &
+export type ProfileDrawerParamList = Pick<RootStackParamList, 'Contacts'> &
   Pick<
     RootStackParamList,
     'AddContacts' | 'UserProfile' | 'EditProfile' | 'Attestation'
@@ -230,12 +241,14 @@ export type SettingsDrawerParamList = Pick<
 };
 
 // ChannelScreen is registered under several route names: the root stack's
-// Channel/DM/GroupDM and the desktop channel stack's ChannelRoot.
+// Channel/DM/GroupDM, the desktop channel stack's ChannelRoot, and the
+// home-group tab's HomeGroupChannel.
 export type ChannelScreenParamList = {
   Channel: RootStackParamList['Channel'];
   DM: RootStackParamList['Channel'];
   GroupDM: RootStackParamList['Channel'];
   ChannelRoot: RootStackParamList['Channel'];
+  HomeGroupChannel: RootStackParamList['Channel'];
 };
 
 export type ChannelStackParamList = {

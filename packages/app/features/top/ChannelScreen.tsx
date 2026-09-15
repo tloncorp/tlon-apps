@@ -48,7 +48,7 @@ const logger = createDevLogger('ChannelScreen', false);
 type Props = {
   route: RouteProp<
     ChannelScreenParamList,
-    'Channel' | 'DM' | 'GroupDM' | 'ChannelRoot'
+    'Channel' | 'DM' | 'GroupDM' | 'ChannelRoot' | 'HomeGroupChannel'
   >;
   navigation: NativeStackNavigationProp<RootStackParamList, 'Channel'>;
 };
@@ -75,6 +75,9 @@ export default function ChannelScreen(props: Props) {
     });
     return () => cancelAnimationFrame(frame);
   }, [disableTransition, props.navigation]);
+  // The home-group tab renders this screen as its root, where there is nothing
+  // to go back to.
+  const isTabRoot = props.route.name === 'HomeGroupChannel';
   const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
 
   useEffect(() => {
@@ -604,6 +607,7 @@ export default function ChannelScreen(props: Props) {
             clearedCursor || cursorPostIsHidden ? undefined : selectedPostId
           }
           goBack={navigationRef.current.goBack}
+          hideBackButton={isTabRoot}
           disableBackButton={agentOnboardingNavigationLocked}
           onPressLogout={agentOnboarding.locked ? handleLogout : undefined}
           suppressEmptyState={agentGroupSetupActive}

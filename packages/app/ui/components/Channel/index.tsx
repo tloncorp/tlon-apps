@@ -275,6 +275,8 @@ interface ChannelProps {
   group: db.Group | null;
   groupIsLoading?: boolean;
   goBack: () => void;
+  /** Hide the header's back control without disabling in-channel navigation. */
+  hideBackButton?: boolean;
   disableBackButton?: boolean;
   onPressLogout?: () => void;
   suppressEmptyState?: boolean;
@@ -322,6 +324,7 @@ export function Channel({
   group,
   groupIsLoading,
   goBack,
+  hideBackButton,
   disableBackButton,
   onPressLogout,
   suppressEmptyState,
@@ -939,7 +942,7 @@ export function Channel({
                           description={''}
                           backDisabled={disableBackButton}
                           goBack={
-                            isNarrow ||
+                            (isNarrow && !hideBackButton) ||
                             draftInputPresentationMode === 'fullscreen'
                               ? handleGoBack
                               : undefined
