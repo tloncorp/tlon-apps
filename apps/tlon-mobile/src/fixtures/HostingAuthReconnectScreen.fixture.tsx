@@ -10,7 +10,7 @@ const profile = {
 
 export default {
   'Security check — Confirm your OTP': (
-    <FixtureWrapper safeArea={false}>
+    <FixtureWrapper safeArea={false} fillWidth fillHeight>
       <HostingAuthReconnectScreen
         profileId={profile.id}
         profile={profile}
@@ -29,7 +29,7 @@ export default {
     </FixtureWrapper>
   ),
   'Security check — Confirm phone OTP': (
-    <FixtureWrapper safeArea={false}>
+    <FixtureWrapper safeArea={false} fillWidth fillHeight>
       <HostingAuthReconnectScreen
         profileId={profile.id}
         profile={profile}

@@ -211,6 +211,7 @@ const MainApp = () => {
         </View>
       ) : showAuthenticatedApp ? (
         <AuthenticatedApp
+          connected={connected}
           onLogout={handleSessionLogout}
           authenticatedContent={authenticatedContent}
           authenticatedOverlay={authenticatedOverlay}

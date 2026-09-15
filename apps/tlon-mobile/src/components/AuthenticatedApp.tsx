@@ -82,7 +82,10 @@ function useRequireHostingAuth(
   return useCallback(
     async (options = {}) => {
       if (checkInFlight.current) {
-        return checkInFlight.current;
+        const result = await checkInFlight.current;
+        if (!options.force) {
+          return result;
+        }
       }
 
       const check = (async () => {
@@ -105,8 +108,8 @@ function useRequireHostingAuth(
           hostingAuthLogger.trackEvent('Hosting Reconnect Required', {
             authType,
           });
-          await onHostingAuthExpired();
         }
+        await onHostingAuthExpired();
         return false;
       })();
 
@@ -309,10 +312,12 @@ function AuthenticatedAppContent({
 }
 
 export default function ConnectedAuthenticatedApp({
+  connected,
   onLogout,
   authenticatedContent,
   authenticatedOverlay,
 }: {
+  connected: boolean;
   onLogout: () => void | Promise<void>;
   authenticatedContent?: ReactNode;
   authenticatedOverlay?: ReactNode;
@@ -321,6 +326,10 @@ export default function ConnectedAuthenticatedApp({
     'checking' | 'valid' | 'expired'
   >('checking');
   const [authAttempt, setAuthAttempt] = useState(0);
+  const [checkedConnection, setCheckedConnection] = useState(false);
+  if (!connected && checkedConnection) {
+    setCheckedConnection(false);
+  }
   const [profile, setProfile] = useState<db.Contact | null>(null);
   const { contactId } = useShip();
   const { getToken: getRecaptchaToken } = useRecaptcha(
@@ -333,9 +342,7 @@ export default function ConnectedAuthenticatedApp({
 
   const handleGateAppStatusChange = useCallback(
     async (status: AppStatus) => {
-      if (status === 'opened') {
-        await requireHostingAuth({ force: true });
-      } else if (status === 'active') {
+      if (status === 'active') {
         await requireHostingAuth();
       }
     },
@@ -386,12 +393,17 @@ export default function ConnectedAuthenticatedApp({
   useEffect(() => {
     let canceled = false;
 
+    if (!connected) {
+      return;
+    }
+
     async function setup() {
       hostingAuthLogger.log('Starting authenticated app', { authAttempt });
       if (!(await requireHostingAuth({ force: true })) || canceled) {
         return;
       }
 
+      setCheckedConnection(true);
       setHostingAuthState('valid');
     }
     setup();
@@ -399,7 +411,7 @@ export default function ConnectedAuthenticatedApp({
     return () => {
       canceled = true;
     };
-  }, [authAttempt, requireHostingAuth]);
+  }, [authAttempt, connected, requireHostingAuth]);
 
   if (hostingAuthState === 'expired') {
     return (
@@ -413,7 +425,11 @@ export default function ConnectedAuthenticatedApp({
     );
   }
 
-  if (hostingAuthState === 'checking') {
+  if (!connected && authenticatedContent !== undefined) {
+    return authenticatedContent;
+  }
+
+  if (hostingAuthState === 'checking' || !checkedConnection) {
     return (
       <ZStack flex={1} alignItems="center" justifyContent="center">
         <LoadingSpinner />

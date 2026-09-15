@@ -14,6 +14,7 @@ import ProfileRow from '@tloncorp/app/ui/components/ProfileRow';
 import type * as db from '@tloncorp/shared/db';
 import { Button } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OTPInput } from '../components/OnboardingInputs';
@@ -55,6 +56,9 @@ export function HostingAuthReconnectScreen({
   const insets = useSafeAreaInsets();
 
   const requestCode = useCallback(async () => {
+    if (verificationInFlight.current) {
+      return;
+    }
     setRequestState('requesting');
     setError(undefined);
     setOtp([]);
@@ -191,8 +195,12 @@ export function HostingAuthReconnectScreen({
           }
         />
         <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={120}>
-          <YStack flex={1}>
-            <YStack paddingTop={29} paddingHorizontal={20}>
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ flexGrow: 1 }}
+            keyboardShouldPersistTaps="handled"
+          >
+            <YStack flexShrink={0} paddingTop={29} paddingHorizontal={20}>
               <ProfileRow
                 contactId={profileId}
                 contact={profile ?? undefined}
@@ -263,6 +271,7 @@ export function HostingAuthReconnectScreen({
                       preset="minimal"
                       size="medium"
                       label="Request a new code"
+                      disabled={isVerifying}
                       onPress={() => void requestCode()}
                       centered
                     />
@@ -280,6 +289,7 @@ export function HostingAuthReconnectScreen({
             </YStack>
 
             <YStack
+              flexShrink={0}
               marginTop="auto"
               paddingHorizontal={20}
               paddingTop="$xl"
@@ -299,7 +309,7 @@ export function HostingAuthReconnectScreen({
                 testID="hosting-auth-reconnect-primary-action"
               />
             </YStack>
-          </YStack>
+          </ScrollView>
         </KeyboardAvoidingView>
       </View>
     </AppDataContextProvider>

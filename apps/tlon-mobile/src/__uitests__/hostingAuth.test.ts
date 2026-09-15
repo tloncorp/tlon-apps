@@ -129,15 +129,37 @@ describe('refreshHostingAuth', () => {
     expect(db.hostingLastAuthCheck.setValue).toHaveBeenCalledWith(5678);
   });
 
-  it('records an indeterminate refresh attempt', async () => {
-    jest.mocked(getHostingHeartBeat).mockResolvedValue('unknown');
-    jest.spyOn(Date, 'now').mockReturnValue(9012);
+  it.each(['unknown', 'rejected'])(
+    'retries on foreground after an indeterminate background check (%s)',
+    async (failure) => {
+      let lastCheck = 0;
+      jest
+        .mocked(db.hostingLastAuthCheck.getValue)
+        .mockImplementation(async () => lastCheck);
+      jest
+        .mocked(db.hostingLastAuthCheck.setValue)
+        .mockImplementation(async (value) => {
+          lastCheck = typeof value === 'function' ? value(lastCheck) : value;
+        });
+      jest.spyOn(Date, 'now').mockReturnValue(100_000_000);
+      if (failure === 'unknown') {
+        jest.mocked(getHostingHeartBeat).mockResolvedValueOnce('unknown');
+      } else {
+        jest
+          .mocked(getHostingHeartBeat)
+          .mockRejectedValueOnce(new Error('Timeout'));
+      }
 
-    await expect(
-      refreshHostingAuth({ authType: 'hosted', force: true })
-    ).resolves.toBe('unknown');
-
-    expect(db.hostingAuthExpired.setValue).not.toHaveBeenCalled();
-    expect(db.hostingLastAuthCheck.setValue).toHaveBeenCalledWith(9012);
-  });
+      await expect(refreshHostingAuth({ authType: 'hosted' })).resolves.toBe(
+        'unknown'
+      );
+      expect(db.hostingLastAuthCheck.setValue).not.toHaveBeenCalled();
+      jest.mocked(getHostingHeartBeat).mockResolvedValueOnce('expired');
+      await expect(refreshHostingAuth({ authType: 'hosted' })).resolves.toBe(
+        'expired'
+      );
+      expect(getHostingHeartBeat).toHaveBeenCalledTimes(2);
+      expect(db.hostingAuthExpired.setValue).toHaveBeenCalledWith(true);
+    }
+  );
 });

@@ -58,12 +58,13 @@ export async function refreshHostingAuth(
     } else if (result === 'ok') {
       logger.trackEvent('Hosting Auth Still Valid');
     }
+    if (result !== 'unknown') {
+      await db.hostingLastAuthCheck.setValue(Date.now());
+    }
     return result;
   } catch (e) {
     logger.error('error checking hosting auth:', e);
     return 'unknown';
-  } finally {
-    await db.hostingLastAuthCheck.setValue(Date.now());
   }
 }
 

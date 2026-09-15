@@ -278,7 +278,7 @@ describe('Hosting auth reconnect interactions', () => {
     expect(verifyCode).toHaveBeenCalledTimes(2);
   });
 
-  it('disables logout until pending verification fails', async () => {
+  it('disables logout and resend until pending verification fails', async () => {
     let rejectVerification!: (error: Error) => void;
     verifyCode.mockImplementation(
       () =>
@@ -299,12 +299,19 @@ describe('Hosting auth reconnect interactions', () => {
     fireEvent.changeText(screen.getByTestId('otp'), '123456');
     expect(verifyCode).toHaveBeenCalledWith('123456');
     fireEvent.press(screen.getByText('Log out'));
+    fireEvent.press(screen.getByText('Request a new code'));
     expect(logout).not.toHaveBeenCalled();
+    expect(sendCode).not.toHaveBeenCalled();
+    expect(screen.getByTestId('otp').props.value).toBe('123456');
 
     await act(async () => {
       rejectVerification(new Error('Verification failed'));
     });
     fireEvent.press(screen.getByText('Log out'));
     expect(logout).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      fireEvent.press(screen.getByText('Request a new code'));
+    });
+    expect(sendCode).toHaveBeenCalledTimes(1);
   });
 });
