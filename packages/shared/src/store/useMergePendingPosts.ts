@@ -44,6 +44,8 @@ export const mergePendingPosts = ({
   });
   const hasDeletedOverlay = (post: db.Post) => {
     return (
+      post.isDeleted ||
+      deletedPosts[post.id] ||
       deletedPostIds.has(post.id) ||
       postMergeKeys(post).some((key) => deletedPostKeys.has(key))
     );
@@ -102,9 +104,10 @@ export const mergePendingPosts = ({
   const upperPaginationBound = hasNewest ? Infinity : existingPosts[0].sentAt;
 
   // A server-backed post carries the same id on both sides, so identity beats
-  // the `sentAt` proxy: a tombstone reports the host-assigned id time rather
-  // than `essay.sent`, so the same post arrives here with two different
-  // `sentAt` values and would otherwise be woven in twice under one key.
+  // the `sentAt` proxy: `toPostData`'s tombstone branch reports the
+  // host-assigned id time rather than `essay.sent`, so the same post arrives
+  // here with two different `sentAt` values and would otherwise be woven in
+  // twice under one key.
   const existingPostIds = new Set(existingPosts.map((p) => p.id));
   const filteredNewPosts = newAndPendingPosts.filter((p) => {
     return (

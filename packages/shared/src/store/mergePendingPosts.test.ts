@@ -676,6 +676,32 @@ describe('tombstones arriving with a re-derived sentAt', () => {
     expect(merged[0].isDeleted).toBe(true);
   });
 
+  test('drops the post entirely under filterDeleted', () => {
+    const merged = mergePendingPosts({
+      newPosts: [tombstone],
+      pendingPosts: [],
+      existingPosts: [original, { ...makePost(500), id: 'post-b' }],
+      deletedPosts: {},
+      hasNewest: true,
+      filterDeleted: true,
+    });
+
+    expect(merged.map((p) => p.id)).toEqual(['post-b']);
+  });
+
+  test('marks the surviving row deleted when the tombstone falls outside the page', () => {
+    const merged = mergePendingPosts({
+      newPosts: [{ ...tombstone, sentAt: 300 }],
+      pendingPosts: [],
+      existingPosts: [original, { ...makePost(500), id: 'post-b' }],
+      deletedPosts: {},
+      hasNewest: true,
+    });
+
+    expect(merged.map((p) => p.id)).toEqual(['post-a', 'post-b']);
+    expect(merged[0].isDeleted).toBe(true);
+  });
+
   test('marks the surviving row deleted for a remote delete', () => {
     const merged = mergePendingPosts({
       newPosts: [tombstone],
