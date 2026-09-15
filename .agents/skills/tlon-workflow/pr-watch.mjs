@@ -54,7 +54,9 @@ function seconds(name, raw, fallback, min) {
   if (raw === undefined) return fallback;
   const value = Number(raw);
   if (!Number.isFinite(value) || value < min)
-    usage(`--${name} takes a number of seconds${min > 0 ? `, at least ${min}` : ''}`);
+    usage(
+      `--${name} takes a number of seconds${min > 0 ? `, at least ${min}` : ''}`
+    );
   return value;
 }
 
@@ -79,7 +81,9 @@ function parseArgs(argv) {
   const bad = positionals.find((arg) => !/^\d+$/.test(arg));
   if (bad) usage(`unknown argument ${bad}`);
   if (positionals.length > 1)
-    usage(`two pull request numbers given: ${positionals[0]} and ${positionals[1]}`);
+    usage(
+      `two pull request numbers given: ${positionals[0]} and ${positionals[1]}`
+    );
   return {
     once: values.once ?? false,
     interval: seconds('interval', values.interval, 60, 5) * 1000,
@@ -173,11 +177,20 @@ let statusSeen = false;
 let ciActivity = 0;
 let repo;
 try {
-  repo = sh('gh', ['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner']);
+  repo = sh('gh', [
+    'repo',
+    'view',
+    '--json',
+    'nameWithOwner',
+    '--jq',
+    '.nameWithOwner',
+  ]);
 } catch (err) {
   // gh reads its token from the keychain, which a shell sandbox blocks, so this
   // is the first call that fails when pr-watch is run sandboxed.
-  usage(`gh cannot reach this repository (${err.message}). Run pr-watch unsandboxed, and from inside the repository.`);
+  usage(
+    `gh cannot reach this repository (${err.message}). Run pr-watch unsandboxed, and from inside the repository.`
+  );
 }
 const number =
   requested ?? sh('gh', ['pr', 'view', '--json', 'number', '--jq', '.number']);

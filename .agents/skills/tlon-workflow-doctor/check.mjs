@@ -176,7 +176,10 @@ const checks = [
       if (hasSkill('agent-device'))
         return {
           ok: 'installed',
-          refresh: ['npx', ['--yes', 'skills', 'update', 'agent-device', '-g', '-y']],
+          refresh: [
+            'npx',
+            ['--yes', 'skills', 'update', 'agent-device', '-g', '-y'],
+          ],
         };
       return {
         fix: 'the agent-device skill is not installed',
@@ -277,8 +280,19 @@ if (FIX) {
   // `skills list` shows no versions and `skills update` has no dry run, so the
   // only way to bring a skill current is to run the update, which is idempotent.
   const actions = results.flatMap(({ name, r }) => [
-    ...(r.fix && r.cmd ? [{ name, verb: 'fixing', cmd: r.cmd, how: r.how }] : []),
-    ...(r.refresh ? [{ name, verb: 'refreshing', cmd: r.refresh, how: r.refresh.flat().join(' ') }] : []),
+    ...(r.fix && r.cmd
+      ? [{ name, verb: 'fixing', cmd: r.cmd, how: r.how }]
+      : []),
+    ...(r.refresh
+      ? [
+          {
+            name,
+            verb: 'refreshing',
+            cmd: r.refresh,
+            how: r.refresh.flat().join(' '),
+          },
+        ]
+      : []),
   ]);
   for (const { name, verb, cmd: c, how } of actions) {
     const [cmd, args = [], opts = {}] = c;
