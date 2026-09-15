@@ -21,6 +21,8 @@ import {
   agentOnboardingCronProviderIds,
   agentOnboardingTesting,
   clearAgentOnboardingRuntime,
+  createAgentOnboardingCatchUpScheduler,
+  createAgentOnboardingReconciliationPresence,
   drainAgentOnboardingRuntime,
   handleAgentOnboardingCronChanged,
   handleAgentOnboardingMessageSent,
@@ -29,6 +31,7 @@ import {
   parseAgentOnboardingRequest,
   scanAgentOnboardingChannel,
 } from './agent-onboarding.js';
+import { createComputingPresenceTracker } from './computing-presence.js';
 
 const provision = {
   type: 'tlon-agent-provision' as const,
@@ -654,6 +657,91 @@ describe('first-run correlation', () => {
   });
 });
 
+describe('agent onboarding catch-up', () => {
+  it('recovers a request that appears after the first empty scan', async () => {
+    vi.useFakeTimers();
+    const scan = vi
+      .fn()
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+    const scheduler = createAgentOnboardingCatchUpScheduler({
+      scan,
+      retryDelaysMs: [10, 20, 30],
+    });
+
+    await expect(scheduler.reconcile('chat/~ten/general')).resolves.toBe(false);
+    expect(scheduler.schedule('chat/~ten/general')).toBe(false);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(scan).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(20);
+    await scheduler.drain();
+    expect(scan).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(scan).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops after the bounded empty-scan window', async () => {
+    vi.useFakeTimers();
+    const scan = vi.fn(async () => false);
+    const scheduler = createAgentOnboardingCatchUpScheduler({
+      scan,
+      retryDelaysMs: [10, 20],
+    });
+
+    await scheduler.reconcile('chat/~ten/general');
+    await vi.advanceTimersByTimeAsync(100);
+    await scheduler.drain();
+    expect(scan).toHaveBeenCalledTimes(3);
+  });
+
+  it('uses a fresh thinking run after a completed reconciliation', async () => {
+    const reporter = { publish: vi.fn(async () => {}) };
+    const tracker = createComputingPresenceTracker({
+      reporter,
+      minUpdateIntervalMs: 0,
+    });
+    const createRunId = vi
+      .fn()
+      .mockReturnValueOnce('reconcile-1')
+      .mockReturnValueOnce('reconcile-2');
+    const presentation = createAgentOnboardingReconciliationPresence({
+      conversationId: 'chat/~ten/general',
+      createRunId,
+      refreshRun: tracker.refreshRun,
+      stopRun: tracker.stopRun,
+    });
+
+    presentation.startThinking();
+    await Promise.resolve();
+    await Promise.resolve();
+    presentation.stopThinking();
+    await Promise.resolve();
+    await Promise.resolve();
+    presentation.startThinking();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(createRunId).toHaveBeenCalledTimes(2);
+    expect(reporter.publish).toHaveBeenCalledTimes(3);
+    expect(reporter.publish).toHaveBeenNthCalledWith(1, {
+      conversationId: 'chat/~ten/general',
+      thinking: true,
+      toolNames: [],
+    });
+    expect(reporter.publish).toHaveBeenNthCalledWith(2, {
+      conversationId: 'chat/~ten/general',
+      thinking: false,
+      toolNames: [],
+    });
+    expect(reporter.publish).toHaveBeenNthCalledWith(3, {
+      conversationId: 'chat/~ten/general',
+      thinking: true,
+      toolNames: [],
+    });
+  });
+});
+
 describe('agent onboarding requests', () => {
   it('forwards cancellation to the group membership scry', async () => {
     const abortController = new AbortController();
@@ -979,43 +1067,6 @@ describe('agent onboarding requests', () => {
     ).not.toBeNull();
   });
 
-  it('ends an additional group setup after services without onboarding tours', async () => {
-    const sendPost = successfulSendPost();
-    const trackStep = vi.fn();
-    const history = [
-      introRequest(0, false),
-      botMarker('purpose-picker', 0.5),
-      provisionAck(),
-      servicesCard(),
-      { author: '~ten', content: 'Done', timestamp: 3 },
-    ];
-
-    await expect(
-      scanAgentOnboardingChannel(generalScanContext({ trackStep }), {
-        fetchHistory: vi.fn(async () => history),
-        sendPost,
-      })
-    ).resolves.toBe(true);
-
-    expect(sendPost).toHaveBeenCalledOnce();
-    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).toContain(
-      'All set. Ask me here anytime'
-    );
-    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).not.toContain(
-      'what you can do here'
-    );
-    expect(parsePostBlob(sendPost.mock.calls[0]?.[0].blob)).toContainEqual(
-      expect.objectContaining({
-        type: 'tlon-agent-post-marker',
-        key: 'group-setup-complete',
-      })
-    );
-    expect(trackStep).toHaveBeenCalledWith({
-      step: 'onboarding_completed',
-      completionPath: 'additional_group_completed',
-    });
-  });
-
   it('offers each orientation step as a simple Yes/No choice', () => {
     const surface = agentOnboardingTesting.buildTourChoiceSurface(
       'agent-onboarding-app-tour:~ten/group',
@@ -1212,6 +1263,52 @@ describe('agent onboarding requests', () => {
     expect(sendPost).toHaveBeenCalledOnce();
   });
 
+  it('shows thinking while a later-group greeting is reconciled', async () => {
+    const events: string[] = [];
+    const introBlob = appendToPostBlob(undefined, {
+      type: 'tlon-agent-intro-request',
+      version: 1,
+      groupId: '~ten/group',
+    });
+    const sendPost = vi.fn(async (post: { story: unknown }) => {
+      events.push('post');
+      expect(JSON.stringify(post.story)).toContain('What can I help you with?');
+      return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
+    });
+
+    await expect(
+      scanAgentOnboardingChannel(
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/general',
+          groupId: '~ten/group',
+          ownerShip: '~ten',
+          presentation: {
+            startThinking: () => events.push('thinking:start'),
+            stopThinking: () => events.push('thinking:stop'),
+            minResponseDelayMs: 0,
+          },
+        },
+        {
+          fetchHistory: vi.fn(async () => [
+            {
+              author: '~ten',
+              content: "Let's get set up.",
+              timestamp: 1,
+              blob: introBlob,
+            },
+          ]),
+          sleep: vi.fn(async () => {}),
+          sendPost,
+        }
+      )
+    ).resolves.toBe(true);
+
+    expect(events).toEqual(['thinking:start', 'post', 'thinking:stop']);
+    expect(sendPost).toHaveBeenCalledOnce();
+  });
+
   it('describes only the provisioned home group as the first group', async () => {
     const promptFor = async (isFirstGroup?: boolean) => {
       clearAgentOnboardingRuntime();
@@ -1279,9 +1376,35 @@ describe('agent onboarding requests', () => {
 
     const additionalGroup = await promptFor();
     expect(additionalGroup).toHaveLength(1);
-    expect(JSON.stringify(parsePostBlob(additionalGroup[0]?.blob))).toContain(
+    expect(JSON.stringify(additionalGroup[0]?.story)).toContain(
       'What can I help you with?'
     );
+    expect(
+      JSON.stringify(parsePostBlob(additionalGroup[0]?.blob))
+    ).not.toContain('a2ui');
+    expect(parsePostBlob(additionalGroup[0]?.blob)).toContainEqual(
+      expect.objectContaining({
+        type: 'tlon-agent-post-marker',
+        key: 'group-setup-complete',
+      })
+    );
+  });
+
+  it('leaves replies to a later group greeting for ordinary agent chat', async () => {
+    const sendPost = successfulSendPost();
+    const history = [
+      introRequest(1, false),
+      botMarker('group-setup-complete', 2),
+      { author: '~ten', content: 'A daily digest', timestamp: 3 },
+    ];
+
+    await expect(
+      handleAgentOnboardingRequest(replyContext('A daily digest'), {
+        fetchHistory: vi.fn(async () => history),
+        sendPost,
+      })
+    ).resolves.toBe(false);
+    expect(sendPost).not.toHaveBeenCalled();
   });
 
   it('recognizes an unmarked legacy intro without suppressing other steps', () => {
@@ -1769,6 +1892,9 @@ describe('agent onboarding requests', () => {
       const pitch = agentOnboardingTesting.servicesPitch(purposeId);
       expect(pitch).toMatch(/^Connect your/);
       expect(pitch).not.toContain('to give me more to work with');
+      // No calendar connector exists, so nothing can source meetings or
+      // deadlines. The pitch must not offer what can't be connected.
+      expect(pitch).not.toMatch(/calendar|meetings|deadlines/i);
     }
   );
 
@@ -2495,6 +2621,7 @@ describe('provision coordinator ordering', () => {
     await handleAgentOnboardingRequest(context, deps);
 
     expect(steps).toEqual([
+      'topics_submitted:ok',
       'provision_received:ok',
       'cron_created:ok',
       'first_run_enqueued:ok',
@@ -2546,6 +2673,31 @@ describe('provision coordinator ordering', () => {
     expect(steps[0]).toMatchObject({
       step: 'provision_received',
       outcome: 'failed',
+    });
+  });
+
+  it('reports submitted topics before cron provisioning starts', async () => {
+    const trackStep = vi.fn();
+
+    await expect(
+      handleAgentOnboardingRequest(requestContext({ trackStep }), {
+        fetchHistory: vi.fn(async () => []),
+        getGroup: vi.fn(async () => provisionedGroup()),
+        getCron: () => undefined as never,
+        sendPost: vi.fn(),
+      })
+    ).rejects.toThrow(
+      `agent onboarding provision ${provision.provisionId} failed: cron service is not available`
+    );
+
+    expect(trackStep).toHaveBeenCalledOnce();
+    expect(trackStep).toHaveBeenCalledWith({
+      step: 'topics_submitted',
+      provisionId: provision.provisionId,
+      purposeId: provision.purposeId,
+      topicCount: provision.topics.length,
+      timezone: provision.timezone,
+      notebookNest: provision.notebookNest,
     });
   });
 

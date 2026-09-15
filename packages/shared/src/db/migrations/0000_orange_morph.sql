@@ -30,6 +30,7 @@ CREATE TABLE `activity_events` (
 	PRIMARY KEY(`id`, `bucket_id`)
 );
 --> statement-breakpoint
+CREATE INDEX `activity_events_channel_id_timestamp_index` ON `activity_events` (`channel_id`,`timestamp`);--> statement-breakpoint
 CREATE TABLE `attestations` (
 	`id` text PRIMARY KEY NOT NULL,
 	`provider` text NOT NULL,
@@ -185,6 +186,7 @@ CREATE TABLE `contacts` (
 	`color` text,
 	`coverImage` text,
 	`bot_info` text,
+	`bot_liveness` text,
 	`blocked` integer,
 	`isContact` integer,
 	`isContactSuggestion` integer,
@@ -327,6 +329,12 @@ CREATE TABLE `groups` (
 	`synced_at` integer,
 	`pending_members_dismissed_at` integer,
 	`member_count` integer
+);
+--> statement-breakpoint
+CREATE TABLE `notes_activity_event_tombstones` (
+	`channel_id` text NOT NULL,
+	`note_id` text NOT NULL,
+	PRIMARY KEY(`channel_id`, `note_id`)
 );
 --> statement-breakpoint
 CREATE TABLE `notes_folders` (

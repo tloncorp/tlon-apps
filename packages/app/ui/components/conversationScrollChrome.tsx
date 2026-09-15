@@ -32,6 +32,7 @@ export {
   floatingPinnedPostBannerGap,
   floatingPinnedPostBannerHeight,
   floatingScrollControlClearance,
+  getPostCollectionTopInset,
 } from './conversationInsets';
 
 /** Owns all measured geometry reserved around a conversation list. */
@@ -166,7 +167,12 @@ function AnimatedScrollToBottomButton({
       pointerEvents={visible ? 'auto' : 'none'}
       style={animatedStyle}
     >
-      <FloatingActionButton icon={content} onPress={onPress} />
+      <FloatingActionButton
+        icon={content}
+        onPress={onPress}
+        accessibilityLabel="Scroll to bottom"
+        testID="ScrollToBottomButton"
+      />
     </Animated.View>
   );
 }

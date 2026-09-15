@@ -14,6 +14,8 @@ import type * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import { Carousel, ForwardingProps } from '@tloncorp/ui';
 import {
+  Dispatch,
+  SetStateAction,
   createContext,
   memo,
   useCallback,
@@ -59,6 +61,7 @@ import { DraftInputContext } from './draftInputs';
 import {
   DraftInputContextProvider,
   DraftInputHandle,
+  GalleryDraftType,
 } from './draftInputs/shared';
 
 const noop = async () => {};
@@ -103,13 +106,16 @@ interface ChannelContext {
 interface GalleryDraftInputProps {
   channel: db.Channel;
   editingPost?: db.Post;
-  getDraft: (draftType?: string) => Promise<JSONContent | null>;
+  getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent | null>;
   group: db.Group | null;
-  clearDraft: (draftType?: string) => Promise<void>;
+  clearDraft: (draftType?: GalleryDraftType) => Promise<void>;
   setEditingPost?: (post: db.Post | undefined) => void;
-  setShouldBlur: (shouldBlur: boolean) => void;
+  setShouldBlur: Dispatch<SetStateAction<boolean>>;
   shouldBlur: boolean;
-  storeDraft: (content: JSONContent, draftType?: string) => Promise<void>;
+  storeDraft: (
+    content: JSONContent,
+    draftType?: GalleryDraftType
+  ) => Promise<void>;
 }
 
 const GalleryDraftInput = memo(function GalleryDraftInput({
@@ -830,15 +836,16 @@ function SinglePostView({
       isEditingParent &&
       (channel.type === 'notebook' || channel.type === 'gallery')
     );
+  const hasFloatingReplyInput = canRenderReplyInput && isChatChannel;
   const { bottom } = useSafeAreaInsets();
   const { contentInsets, onFloatingHeightChange } = useConversationInsets({
-    hasFloatingComposer: canRenderReplyInput,
+    hasFloatingComposer: hasFloatingReplyInput,
     hasTransparentHeader: isChatChannel,
   });
   // Native floating composers include the home-indicator inset. Web composers
   // stay inline, so the screen still owns its bottom safe-area clearance.
   const screenBottomInset =
-    canRenderReplyInput && Platform.OS !== 'web' ? undefined : bottom;
+    hasFloatingReplyInput && Platform.OS !== 'web' ? undefined : bottom;
 
   const threadComposerContext = useMemo(
     (): DraftInputContext => ({
@@ -922,7 +929,8 @@ function SinglePostView({
 
         {replyInput && (
           <ConversationComposerPlacement
-            enabled
+            enabled={hasFloatingReplyInput}
+            avoidKeyboard={!hasFloatingReplyInput}
             contentProps={containingProperties}
             inlineID="reply-container"
             onFloatingHeightChange={onFloatingHeightChange}

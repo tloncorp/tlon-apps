@@ -1,6 +1,13 @@
 import { NavigationContext } from '@react-navigation/native';
 import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
-import { useContext, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  useContext,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Platform } from 'react-native';
 import { useTheme } from 'tamagui';
 
@@ -25,7 +32,6 @@ export function useNativeHeader({
   enabled,
   title,
   titleElement,
-  titlePresentationKey,
   usesCustomTitle,
   backgroundColor,
   left,
@@ -33,6 +39,7 @@ export function useNativeHeader({
 }: UseNativeHeaderOptions) {
   const navigation = useContext(NavigationContext);
   const theme = useTheme();
+  const titleOwnerKey = useId();
   const [titleStore] = useState(() =>
     createNativeHeaderTitleStore(titleElement)
   );
@@ -47,11 +54,8 @@ export function useNativeHeader({
 
   const shouldUseNativeHeader =
     enabled && Platform.OS !== 'web' && navigation != null;
-  // iOS keeps the installed renderer stable so title updates cannot dismiss an
-  // open native menu. Android's header is React-rendered and can safely remount
-  // this stateless title when its semantic presentation changes.
-  const installedTitlePresentationKey =
-    Platform.OS === 'ios' ? undefined : titlePresentationKey;
+  // Keep this renderer mounted while its store reconciles title updates, but
+  // remount when a different screen installs its store into the shared header.
   const resolvedBackgroundColor = resolveNativeHeaderColor(
     backgroundColor,
     theme
@@ -77,12 +81,7 @@ export function useNativeHeader({
         ? { backgroundColor: resolvedBackgroundColor }
         : undefined,
       headerTitle: usesCustomTitle
-        ? () => (
-            <NativeHeaderTitle
-              key={installedTitlePresentationKey}
-              store={titleStore}
-            />
-          )
+        ? () => <NativeHeaderTitle key={titleOwnerKey} store={titleStore} />
         : undefined,
       title,
       ...buildNativeHeaderActionOptions({
@@ -98,9 +97,9 @@ export function useNativeHeader({
     } as NativeStackNavigationOptions;
   }, [
     actionPresentation,
-    installedTitlePresentationKey,
     resolvedBackgroundColor,
     title,
+    titleOwnerKey,
     titleStore,
     usesCustomTitle,
   ]);

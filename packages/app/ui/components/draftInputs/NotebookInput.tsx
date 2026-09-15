@@ -1,6 +1,5 @@
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { ParentAgnosticKeyboardAvoidingView } from '@tloncorp/ui';
 import {
   useCallback,
   useEffect,
@@ -87,6 +86,7 @@ export function NotebookInput({
 
   return (
     <SafeAreaView
+      style={showBigInput ? { flex: 1 } : undefined}
       edges={
         // We don't want to add padding insets when showing the FAB, since that
         // would add blank space below the scroll.
@@ -94,14 +94,12 @@ export function NotebookInput({
         showBigInput ? ['right', 'left', 'bottom'] : []
       }
     >
-      <ParentAgnosticKeyboardAvoidingView>
-        <DraftInputConnectedBigInput
-          draftInputContext={draftInputContext}
-          setShowBigInput={setShowBigInput}
-          hidden={!showBigInput}
-          overrideChannelType="notebook"
-        />
-      </ParentAgnosticKeyboardAvoidingView>
+      <DraftInputConnectedBigInput
+        draftInputContext={draftInputContext}
+        setShowBigInput={setShowBigInput}
+        hidden={!showBigInput}
+        overrideChannelType="notebook"
+      />
     </SafeAreaView>
   );
 }

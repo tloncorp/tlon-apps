@@ -187,8 +187,7 @@ export const connectNotifications = async () => {
     if (err instanceof Error) {
       logger.trackError('Notifications Debug', {
         contxt: 'Error requesting push notifications token',
-        errorMessage: err.message,
-        stack: err.stack,
+        error: err,
       });
     }
   }
@@ -205,10 +204,8 @@ export const connectNotifications = async () => {
     if (err instanceof Error) {
       logger.trackError('Notifications Debug', {
         contxt: 'Error connecting push notifications provider',
-        errorMessage: err.message,
-        stack: err.stack,
+        error: err,
       });
-      logger;
     }
     return false;
   }
