@@ -246,7 +246,9 @@ if (process.argv[2] === 'assess') {
   output('eas_run_id', id);
   const run = await wait(
     id,
-    env.QA_BUILD_ID ? 40 : 70,
+    // The lease includes EAS queueing, prerequisite jobs, tool installation,
+    // the 35-minute harness budget and artifact upload, even for reused builds.
+    env.PROOF_OUTPUT ? 100 : 70,
     Boolean(env.PROOF_OUTPUT),
     ['verdict', 'manual_report']
   );

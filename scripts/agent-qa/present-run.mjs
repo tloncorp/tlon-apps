@@ -22,7 +22,7 @@ import { renderReport } from './core.mjs';
 import { videoReader } from './video-tools.mjs';
 import { readActions } from './review-tools.mjs';
 import { reviewFindingClips } from './clip-review.mjs';
-import { verifyReplayReceipt } from './publish.mjs';
+import { verifyReplayReceipt, verifyPresentationReview } from './publish.mjs';
 
 const env = process.env,
   out = path.resolve('../../artifacts/qa-presentation');
@@ -109,8 +109,7 @@ const source = path.dirname(reports[0]),
 const c = original.context;
 if (expectedHarness && c.harnessSha !== expectedHarness)
   throw new Error('Recording source mismatch');
-if (replay?.reviewerRun && c.evidenceReview !== 'completed')
-  throw new Error('Recorded review did not complete');
+verifyPresentationReview(c);
 if (
   !/^[1-9][0-9]*$/.test(String(c.pr?.number)) ||
   !/^[a-f0-9]{40}$/.test(c.pr?.head?.sha) ||

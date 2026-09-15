@@ -2,6 +2,11 @@
 const project = '617bb643-5bf6-4c40-8af6-c6e9dd7e3bd0';
 const uuid = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
 
+export function verifyPresentationReview(context) {
+  if (context?.evidenceReview !== 'completed')
+    throw new Error('Recorded review did not complete');
+}
+
 export function selectReviewedEvidence(run, id) {
   if (
     !uuid.test(id || '') ||

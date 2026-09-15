@@ -68,6 +68,7 @@ if [ -d .proof-snapshot/zod ]; then
   export SKIP_DOWNLOAD=true
   echo 'Restored prepared ships and their runtime; native app unchanged.'
 fi
+node scripts/agent-qa/runtime.mjs
 tmux new-session -d -s proof-rube "cd '$PWD/apps/tlon-web' && SKIP_DOWNLOAD=${SKIP_DOWNLOAD:-false} SKIP_TESTS=true INCLUDE_OPTIONAL_SHIPS=false pnpm rube > '$PROOF_OUTPUT/rube.log' 2>&1"
 deadline=$((SECONDS+1200))
 [ "${SKIP_DOWNLOAD:-false}" != true ] || deadline=$((SECONDS+120))

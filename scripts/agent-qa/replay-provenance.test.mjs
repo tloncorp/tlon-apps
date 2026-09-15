@@ -1,6 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { selectReviewedEvidence, verifyReplayReceipt } from './publish.mjs';
+import {
+  selectReviewedEvidence,
+  verifyReplayReceipt,
+  verifyPresentationReview,
+} from './publish.mjs';
+test('presentation always requires completed evidence review, including raw replay', () => {
+  for (const evidenceReview of [undefined, 'pending', 'failed'])
+    assert.throws(
+      () => verifyPresentationReview({ evidenceReview }),
+      /review did not complete/
+    );
+  assert.doesNotThrow(() =>
+    verifyPresentationReview({ evidenceReview: 'completed' })
+  );
+});
 const id = '11111111-1111-4111-8111-111111111111';
 const other = '22222222-2222-4222-8222-222222222222';
 const artifact = { name: 'evidence-review-replay' };

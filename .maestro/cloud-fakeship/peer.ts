@@ -106,6 +106,7 @@ async function main() {
       })
     );
   const evidence = {
+    runtime: JSON.parse(readFileSync(`${out}/runtime.json`, 'utf8')),
     fixtures,
     regressionResults: existsSync(`${out}/regression-results.json`)
       ? JSON.parse(readFileSync(`${out}/regression-results.json`, 'utf8'))

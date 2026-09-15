@@ -78,7 +78,8 @@ jobs:
     needs: [assess, prepare_build]
     if: ${{ needs.assess.outputs.decision == 'test' && needs.assess.outputs.has_fixtures == 'true' }}
     runs-on: blacksmith-4vcpu-ubuntu-2204
-    timeout-minutes: 80
+    # 100-minute device lease plus ship preparation and cleanup.
+    timeout-minutes: 140
     outputs:
       eas_run_id: ${{ steps.qa.outputs.eas_run_id }}
     env:
@@ -113,7 +114,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .proof-snapshot
-          key: rube-prepared-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('desk/**', '!desk/commit.txt', 'peru.yaml', 'apps/tlon-web/e2e/shipManifest.json') }}
+          key: rube-prepared-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('desk/**', '!desk/commit.txt', 'peru.yaml', 'apps/tlon-web/e2e/shipManifest.json', 'scripts/agent-qa/runtime.json', 'scripts/agent-qa/runtime.mjs', 'apps/tlon-web/rube/**') }}
       - name: Install ship and tunnel tools
         run: |
           sudo apt-get update -qq
