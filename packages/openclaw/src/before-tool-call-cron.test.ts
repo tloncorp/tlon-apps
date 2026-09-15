@@ -132,6 +132,23 @@ function cronArgsBlockedLogs(logs: string[]): string[] {
   return logs.filter((line) => /^\[tlon\] cron args blocked/.test(line));
 }
 
+function allowedLogs(logs: string[]): string[] {
+  return logs.filter((line) => /^\[tlon\] Allowed /.test(line));
+}
+
+const TOOL_TRACE_BEFORE_PREFIX = 'tooltrace before: ';
+
+function beforeToolTracePayloads(logs: string[]): Record<string, unknown>[] {
+  return logs
+    .filter((line) => line.startsWith(TOOL_TRACE_BEFORE_PREFIX))
+    .map((line) => {
+      const body = JSON.parse(line.slice(TOOL_TRACE_BEFORE_PREFIX.length)) as {
+        payload: Record<string, unknown>;
+      };
+      return body.payload;
+    });
+}
+
 const DIRTY_ADD = {
   toolName: 'cron',
   params: {
@@ -175,6 +192,48 @@ describe('before_tool_call cron args guard', () => {
     expect(cronArgsBlockedLogs(logs)[0]).toContain(
       'job.payload.fallbacks=empty-fallbacks'
     );
+  });
+
+  it('never logs a vetoed cron add as allowed', async () => {
+    const { handler, logs } = registerEntry();
+    await expect(
+      handler(DIRTY_ADD, { sessionKey: OWNER_SESSION })
+    ).resolves.toEqual({
+      block: true,
+      blockReason: CRON_ARGS_BLOCK_REASON,
+    });
+    expect(cronArgsBlockedLogs(logs)).toHaveLength(1);
+    expect(allowedLogs(logs)).toHaveLength(0);
+  });
+
+  it('traces a vetoed cron add as blocked with the guard reason', async () => {
+    vi.stubEnv('TEST_LIVE_TOOL_TRACE_CONTENTS', '1');
+    const { handler, logs } = registerEntry();
+    await expect(
+      handler(DIRTY_ADD, { sessionKey: OWNER_SESSION })
+    ).resolves.toEqual({
+      block: true,
+      blockReason: CRON_ARGS_BLOCK_REASON,
+    });
+    const payloads = beforeToolTracePayloads(logs);
+    expect(payloads).toHaveLength(1);
+    expect(payloads[0]).toMatchObject({
+      blocked: true,
+      blockReason: CRON_ARGS_BLOCK_REASON,
+    });
+  });
+
+  it('traces an allowed owner cron add as not blocked', async () => {
+    vi.stubEnv('TEST_LIVE_TOOL_TRACE_CONTENTS', '1');
+    const { handler, logs } = registerEntry();
+    await expect(
+      handler(CLEAN_ADD, { sessionKey: OWNER_SESSION })
+    ).resolves.toBeUndefined();
+    const payloads = beforeToolTracePayloads(logs);
+    expect(payloads).toHaveLength(1);
+    expect(payloads[0]?.blocked).toBe(false);
+    expect(payloads[0]).not.toHaveProperty('blockReason');
+    expect(allowedLogs(logs)).toHaveLength(1);
   });
 
   it('records the guard block as a blocked Context Lens tool result', async () => {
@@ -230,6 +289,25 @@ describe('before_tool_call cron args guard', () => {
       blockReason: formatOwnerOnlyToolBlockReason('cron'),
     });
     expect(cronArgsBlockedLogs(logs)).toHaveLength(0);
+  });
+
+  it('traces a non-owner cron call with the owner-only reason, not the guard reason', async () => {
+    vi.stubEnv('TEST_LIVE_TOOL_TRACE_CONTENTS', '1');
+    const { handler, logs } = registerEntry();
+    await expect(
+      handler(DIRTY_ADD, { sessionKey: USER_SESSION })
+    ).resolves.toEqual({
+      block: true,
+      blockReason: formatOwnerOnlyToolBlockReason('cron'),
+    });
+    const payloads = beforeToolTracePayloads(logs);
+    expect(payloads).toHaveLength(1);
+    expect(payloads[0]).toMatchObject({
+      blocked: true,
+      blockReason: formatOwnerOnlyToolBlockReason('cron'),
+    });
+    expect(cronArgsBlockedLogs(logs)).toHaveLength(0);
+    expect(allowedLogs(logs)).toHaveLength(0);
   });
 
   it('allows the forbidden arguments when the guard is disabled', async () => {

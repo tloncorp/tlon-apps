@@ -1086,10 +1086,20 @@ export default defineBundledChannelEntry({
               event.params,
               allowedProviderIds
             )));
-      const isBlocked = blocksNonOwner || blocksOnboardingMcp;
+      const blocksPolicy = blocksNonOwner || blocksOnboardingMcp;
+      // Decided here, with the other block decisions, so the trace and the
+      // allowed/blocked logs below all describe the same outcome.
+      const forbiddenCronArgs =
+        !blocksPolicy && cronArgsGuardEnabled && event.toolName === 'cron'
+          ? findForbiddenCronArgs(event.toolName, event.params)
+          : [];
+      const blocksCronArgs = forbiddenCronArgs.length > 0;
+      const isBlocked = blocksPolicy || blocksCronArgs;
       const blockReason = blocksOnboardingMcp
         ? 'This scheduled onboarding update may inspect and call only selected-provider MCP tools explicitly described as read-only.'
-        : ownerOnlyDecision.reason;
+        : blocksCronArgs
+          ? CRON_ARGS_BLOCK_REASON
+          : ownerOnlyDecision.reason;
       if (contextLensEnabled) {
         // Capture tool activity even when no conversation run owns this
         // session (cron wakes — including jobs that reuse the main session
@@ -1149,7 +1159,7 @@ export default defineBundledChannelEntry({
         );
       }
 
-      if (!isOwnerOnlyTool && !blocksOnboardingMcp) {
+      if (!isOwnerOnlyTool && !blocksOnboardingMcp && !blocksCronArgs) {
         return undefined;
       }
 
@@ -1157,9 +1167,15 @@ export default defineBundledChannelEntry({
       // Internal sessions have no role because they're not triggered by DMs.
       // Only block when role is explicitly "user" (non-owner DM).
       if (isBlocked) {
-        api.logger.warn(
-          `[tlon] Blocked ${event.toolName} tool for non-owner. Session: ${ctx.sessionKey}, Role: ${role}`
-        );
+        if (blocksCronArgs) {
+          api.logger.info(
+            `[tlon] cron args blocked: ${forbiddenCronArgs.map((f) => `${f.path}=${f.kind}`).join(', ')}`
+          );
+        } else {
+          api.logger.warn(
+            `[tlon] Blocked ${event.toolName} tool for non-owner. Session: ${ctx.sessionKey}, Role: ${role}`
+          );
+        }
         recordBlockedToolCallInLens(
           ctx.sessionKey,
           event.toolName,
@@ -1176,24 +1192,6 @@ export default defineBundledChannelEntry({
         `[tlon] Allowed ${event.toolName} tool for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`
       );
 
-      if (cronArgsGuardEnabled && event.toolName === 'cron') {
-        const forbidden = findForbiddenCronArgs(event.toolName, event.params);
-        if (forbidden.length > 0) {
-          api.logger.info(
-            `[tlon] cron args blocked: ${forbidden.map((f) => `${f.path}=${f.kind}`).join(', ')}`
-          );
-          recordBlockedToolCallInLens(
-            ctx.sessionKey,
-            event.toolName,
-            CRON_ARGS_BLOCK_REASON,
-            toolCallId
-          );
-          return {
-            block: true,
-            blockReason: CRON_ARGS_BLOCK_REASON,
-          };
-        }
-      }
       return undefined;
     });
 
