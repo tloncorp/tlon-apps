@@ -328,6 +328,15 @@ export async function configureClient(params: ClientParams) {
   }
 }
 
+/**
+ * URL of the ship this client is configured for, or null before
+ * `configureClient` has run. Used to classify where a request failed when the
+ * error itself does not name a host.
+ */
+export function getConfiguredShipUrl(): string | null {
+  return config.shipUrl.length > 0 ? config.shipUrl : null;
+}
+
 export function internalRemoveClient() {
   config.client?.delete();
   config.client = null;

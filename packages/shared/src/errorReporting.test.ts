@@ -5,6 +5,7 @@ import {
   httpStatusFromError,
   populateScope,
   reduceUrls,
+  hostingFromUrl,
   requestHostFromError,
   scrubExtra,
   toSentryCapture,
@@ -1094,5 +1095,84 @@ describe('toSentryCapture request failure tags', () => {
       )
     );
     expect(JSON.stringify(tags)).not.toContain('minderfolden');
+  });
+});
+
+describe('fallbackHosting', () => {
+  // Web scries stringify to `[object Response]`; requestJson keeps only the
+  // body. Both lose the host, which is the case this option exists for.
+  const NO_HOST = 'HTTP 502: [object Response]';
+
+  function captureFor(message: string, fallbackHosting: Hosting | null) {
+    const error = new Error(message) as Error & { status?: number };
+    error.name = 'BadResponseError';
+    const capture = toSentryCapture(
+      'Sync Error',
+      { logger: 'sync', errorObject: error },
+      { fallbackHosting }
+    );
+    if (capture.kind !== 'exception') {
+      throw new Error('expected an exception capture');
+    }
+    return capture;
+  }
+
+  it('splits hostless failures by the caller-supplied hosting', () => {
+    const selfHosted = captureFor(NO_HOST, 'self');
+    const tlonHosted = captureFor(NO_HOST, 'tlon');
+
+    expect(selfHosted.tags).toEqual({
+      logger: 'sync',
+      http_status: '502',
+      hosting: 'self',
+    });
+    expect(selfHosted.fingerprint).toEqual([
+      '{{ default }}',
+      'http',
+      '502',
+      'self',
+    ]);
+    expect(tlonHosted.fingerprint).toEqual([
+      '{{ default }}',
+      'http',
+      '502',
+      'tlon',
+    ]);
+    expect(selfHosted.fingerprint).not.toEqual(tlonHosted.fingerprint);
+  });
+
+  it('prefers a host named by the error over the fallback', () => {
+    expect(
+      captureFor(
+        'HTTP 502: FetchResponse: { status: 502, statusText: , url: https://distux-sarmul.startram.io/~/scry/x.json }',
+        'tlon'
+      ).tags
+    ).toEqual({ logger: 'sync', http_status: '502', hosting: 'self' });
+  });
+
+  it('falls back to unknown-host when no hosting is supplied', () => {
+    const capture = captureFor(NO_HOST, null);
+    expect(capture.tags).toEqual({ logger: 'sync', http_status: '502' });
+    expect(capture.fingerprint).toEqual([
+      '{{ default }}',
+      'http',
+      '502',
+      'unknown-host',
+    ]);
+  });
+});
+
+describe('hostingFromUrl', () => {
+  it('classifies a ship url', () => {
+    expect(hostingFromUrl('https://malnev-pinlug.tlon.network')).toBe('tlon');
+    expect(hostingFromUrl('https://distux-sarmul.startram.io')).toBe('self');
+    expect(hostingFromUrl('http://localhost:3000')).toBe('local');
+  });
+
+  it('is null when the url is missing or unparseable', () => {
+    expect(hostingFromUrl(null)).toBeNull();
+    expect(hostingFromUrl(undefined)).toBeNull();
+    expect(hostingFromUrl('')).toBeNull();
+    expect(hostingFromUrl('not a url')).toBeNull();
   });
 });

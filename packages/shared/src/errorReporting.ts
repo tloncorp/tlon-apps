@@ -309,6 +309,18 @@ export function httpStatusFromError(error: unknown): number | null {
   return match ? Number(match[1]) : null;
 }
 
+/** Hosting class of a URL, or null when it is absent or unparseable. */
+export function hostingFromUrl(url: string | null | undefined): Hosting | null {
+  if (!url) {
+    return null;
+  }
+  try {
+    return hostingFromHostname(new URL(url).hostname);
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Host of the failed request, read from the error message.
  *
@@ -334,9 +346,21 @@ export function requestHostFromError(error: unknown): string | null {
   return unresolvedMatch ? unresolvedMatch[1] : null;
 }
 
+export interface SentryCaptureOptions {
+  /**
+   * Hosting class of the node this client talks to, used when the error does
+   * not name a host. Many failures never serialize their URL — web scries
+   * stringify to `[object Response]`, and `requestJson` keeps only the response
+   * body — so without this they would all share one fingerprint regardless of
+   * whether the node is ours.
+   */
+  fallbackHosting?: Hosting | null;
+}
+
 export function toSentryCapture(
   event: string,
-  data: Record<string, unknown>
+  data: Record<string, unknown>,
+  options: SentryCaptureOptions = {}
 ): SentryCapture {
   const logger =
     typeof data.logger === 'string' && data.logger.length > 0
@@ -381,7 +405,17 @@ export function toSentryCapture(
     // their grouping is untouched.
     const status = httpStatusFromError(errorObject);
     const host = requestHostFromError(errorObject);
-    const hosting = host === null ? null : hostingFromHostname(host);
+    // The fallback describes the node this client talks to, so it only applies
+    // once the error is already known to be a request failure. Without this
+    // gate every unrelated exception would inherit a hosting tag and an http
+    // fingerprint, since callers supply the fallback unconditionally.
+    const isRequestFailure = status !== null || host !== null;
+    const hosting =
+      host !== null
+        ? hostingFromHostname(host)
+        : isRequestFailure
+          ? (options.fallbackHosting ?? null)
+          : null;
     return {
       kind: 'exception',
       error: errorObject,
@@ -392,7 +426,7 @@ export function toSentryCapture(
         ...(hosting === null ? {} : { hosting }),
       },
       extra,
-      ...(status === null && hosting === null
+      ...(!isRequestFailure
         ? {}
         : {
             fingerprint: [
