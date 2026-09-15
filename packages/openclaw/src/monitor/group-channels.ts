@@ -291,13 +291,15 @@ export function createGroupChannelJournal(
     try {
       await deps.putEntry(value);
     } catch (err) {
-      // Roll back the additions and requeue them. A nest an observation
-      // confirmed meanwhile has already moved from `unconfirmed` to `observed`
-      // (the two sets are disjoint by construction), so it survives this and
-      // the retry is a no-op for it.
+      // Roll back and requeue only what is still unconfirmed. A nest no longer
+      // in `unconfirmed` was confirmed by an observation while the put was in
+      // flight (a rejection can follow an accepted PUT), and the ship's later
+      // state for it — kept, or since removed by another writer — is
+      // authoritative; requeueing it would write back an operator's removal.
       for (const nest of missing) {
-        unconfirmed.delete(nest);
-        pending.add(nest);
+        if (unconfirmed.delete(nest)) {
+          pending.add(nest);
+        }
       }
       deps.error?.(`[tlon] Failed to persist groupChannels: ${String(err)}`);
       return;

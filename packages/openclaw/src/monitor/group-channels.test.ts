@@ -556,6 +556,29 @@ describe('createGroupChannelJournal.persist', () => {
     expect(values().at(-1)).toEqual(['chat/~zod/a', 'chat/~zod/b']);
   });
 
+  it('does not write back a confirmed nest an operator removed before the rejection', async () => {
+    const first = deferred();
+    const putEntry = vi
+      .fn<(value: string[]) => Promise<unknown>>()
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValue(0);
+    const { journal, values } = makeJournal({ putEntry });
+
+    const inFlight = journal.persist(['chat/~zod/a']);
+    await flush();
+    // The ship applied the put and echoed it, an operator then removed the
+    // nest, and only afterwards the PUT's promise rejected (response cleanup).
+    journal.observe(['chat/~zod/a']);
+    journal.observe([]);
+    first.reject(new Error('release failed'));
+    await inFlight;
+
+    // A requeue here would resurrect the operator's removal on the next pass.
+    await journal.flush();
+    await journal.close();
+    expect(values()).toEqual([['chat/~zod/a']]);
+  });
+
   it('drains a held put and a queued addition before close() resolves', async () => {
     const first = deferred();
     const second = deferred();
