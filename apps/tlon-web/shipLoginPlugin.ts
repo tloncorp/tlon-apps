@@ -57,12 +57,13 @@ export default function shipLoginPlugin(
     <button type="submit">Sign in to ${target}</button>
   </form>
   <script>
-    // Submitting once per tab: a code the ship rejects comes back as its own
-    // login page, and landing here again should leave the form to the person
-    // rather than retrying on its own.
+    // Landing here twice in a few seconds means the ship refused the code, so
+    // the form is left to the person instead of being submitted again. Coming
+    // back later -- a restarted ship, an expired session -- signs in as usual.
     try {
-      if (!sessionStorage.getItem('tlon-dev-login')) {
-        sessionStorage.setItem('tlon-dev-login', '1');
+      var last = Number(sessionStorage.getItem('tlon-dev-login')) || 0;
+      if (Date.now() - last > 10000) {
+        sessionStorage.setItem('tlon-dev-login', String(Date.now()));
         document.getElementById('login').submit();
       }
     } catch (err) {
