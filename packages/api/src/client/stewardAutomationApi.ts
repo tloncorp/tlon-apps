@@ -146,7 +146,7 @@ function settle(
 /** Create a task on `bot`. Resolves with the job id the harness assigned. */
 export function createAutomation(params: {
   bot: string;
-  task: ub.StewardAutomationTask;
+  task: ub.StewardAutomationTaskInput;
   requestId?: string;
 }): Promise<StewardAutomationEditResult> {
   return editAutomation({
@@ -160,7 +160,7 @@ export function createAutomation(params: {
 export function updateAutomation(params: {
   bot: string;
   id: string;
-  task: ub.StewardAutomationTask;
+  task: ub.StewardAutomationTaskInput;
   requestId?: string;
 }): Promise<StewardAutomationEditResult> {
   return editAutomation({

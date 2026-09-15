@@ -41,10 +41,16 @@ export type StewardAutomationUpdate =
   | { del: { ship: string; id: string } }
   | { gone: { ship: string } };
 
+/** The writable fields of a task: everything the mirror carries except the harness-owned timestamps. */
+export type StewardAutomationTaskInput = Omit<
+  StewardAutomationTask,
+  'createdAtMs' | 'updatedAtMs'
+>;
+
 /** The edit verb. */
 export type StewardAutomationEdit =
-  | { create: StewardAutomationTask }
-  | { update: { id: string } & StewardAutomationTask }
+  | { create: StewardAutomationTaskInput }
+  | { update: { id: string } & StewardAutomationTaskInput }
   | { delete: { id: string } };
 
 /** POST /steward/~/v1/automation body. `requestId` is minted when absent. */

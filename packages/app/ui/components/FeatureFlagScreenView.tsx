@@ -1,11 +1,12 @@
 import { Switch } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SizableText, View, XStack, YStack } from 'tamagui';
+import { SizableText, View, XStack, YStack, getTokenValue } from 'tamagui';
 
 import { useIsWindowNarrow } from '../utils';
 import { Field, TextInput } from './Form';
 import { ScreenHeader } from './ScreenHeader';
-import { ScreenScrollView } from './ScreenScrollView';
+import { useScreenScrollProps } from './useScreenScrollProps';
 
 export type FeatureFlagTextSetting = {
   key: string;
@@ -28,6 +29,7 @@ export function FeatureFlagScreenView({
   onFlagToggled: (flagName: string, enabled: boolean) => void;
 }) {
   const insets = useSafeAreaInsets();
+  const scrollProps = useScreenScrollProps();
 
   const isWindowNarrow = useIsWindowNarrow();
 
@@ -39,7 +41,11 @@ export function FeatureFlagScreenView({
         title="Experimental features"
         placement="navigation"
       />
-      <ScreenScrollView
+      <KeyboardAwareScrollView
+        {...scrollProps}
+        bottomOffset={24}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
         style={{
           flex: 1,
           width: '100%',
@@ -47,9 +53,9 @@ export function FeatureFlagScreenView({
           marginHorizontal: 'auto',
         }}
         contentContainerStyle={{
-          gap: '$s',
-          paddingTop: '$l',
-          paddingHorizontal: '$l',
+          gap: getTokenValue('$s', 'size'),
+          paddingTop: getTokenValue('$l', 'size'),
+          paddingHorizontal: getTokenValue('$l', 'size'),
           paddingBottom: insets.bottom,
         }}
       >
@@ -86,7 +92,7 @@ export function FeatureFlagScreenView({
             </Field>
           </YStack>
         ))}
-      </ScreenScrollView>
+      </KeyboardAwareScrollView>
     </View>
   );
 }

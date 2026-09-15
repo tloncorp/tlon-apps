@@ -19,6 +19,9 @@ public final class TlonScrollEdgeEffectModule: Module {
 
 public final class ScrollEdgeElementContainer: ExpoView {
     private static let maxAttachmentAttempts = 100
+    // The custom-topic sheet starts its 250 ms close animation on the frame
+    // after the keyboard finishes hiding, then keeps a 100 ms teardown grace.
+    private static let keyboardDismissalAttachmentDelay: TimeInterval = 0.4
 
     private var scrollViewNativeID: String?
     // Held as AnyObject because UIScrollEdgeElementContainerInteraction is iOS
@@ -27,6 +30,7 @@ public final class ScrollEdgeElementContainer: ExpoView {
     private var edgeInteraction: AnyObject?
     private var pendingAttachment: DispatchWorkItem?
     private var pendingAttachmentValidation: DispatchWorkItem?
+    private var pendingKeyboardDismissalAttachment: DispatchWorkItem?
     private var attachmentAttempts = 0
     private var didLogAttachmentFailure = false
     private var edge: UIRectEdge = .bottom
@@ -45,11 +49,19 @@ public final class ScrollEdgeElementContainer: ExpoView {
             interaction.edge = edge
             edgeInteraction = interaction
             addInteraction(interaction)
+
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(keyboardDidHide),
+                name: UIResponder.keyboardDidHideNotification,
+                object: nil
+            )
         }
     }
 
     deinit {
         cancelPendingAttachmentWork()
+        NotificationCenter.default.removeObserver(self)
 
         if #available(iOS 26.0, *), let interaction = scrollEdgeInteraction {
             removeInteraction(interaction)
@@ -135,8 +147,44 @@ public final class ScrollEdgeElementContainer: ExpoView {
         edgeEffect.style = .soft
     }
 
+    @objc private func keyboardDidHide() {
+        guard edge == .bottom, window != nil else {
+            return
+        }
+
+        if #available(iOS 26.0, *), let interaction = scrollEdgeInteraction {
+            // KeyboardStickyView moves the composer with a transform. UIKit's
+            // edge interaction can retain the keyboard-open container geometry
+            // after that transform settles, leaving a tall soft fade over the
+            // conversation. Keep every attachment path paused through the
+            // sheet's close and teardown, then reattach once with the final
+            // keyboard-closed geometry. Establish the pause even when the
+            // interaction is already detached so a pending lookup cannot
+            // attach it during dismissal.
+            interaction.scrollView = nil
+            cancelPendingAttachmentWork()
+            resetAttachmentSearch()
+
+            let workItem = DispatchWorkItem { [weak self] in
+                guard let self else {
+                    return
+                }
+                pendingKeyboardDismissalAttachment = nil
+                attachToScrollViewIfPossible()
+            }
+            pendingKeyboardDismissalAttachment = workItem
+            DispatchQueue.main.asyncAfter(
+                deadline: .now() + Self.keyboardDismissalAttachmentDelay,
+                execute: workItem
+            )
+        }
+    }
+
     private func attachToScrollViewIfPossible() {
-        guard window != nil, let scrollViewNativeID else {
+        guard pendingKeyboardDismissalAttachment == nil,
+              window != nil,
+              let scrollViewNativeID
+        else {
             return
         }
 
@@ -245,6 +293,8 @@ public final class ScrollEdgeElementContainer: ExpoView {
         pendingAttachment = nil
         pendingAttachmentValidation?.cancel()
         pendingAttachmentValidation = nil
+        pendingKeyboardDismissalAttachment?.cancel()
+        pendingKeyboardDismissalAttachment = nil
     }
 
     private func resetAttachmentSearch() {

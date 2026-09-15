@@ -1296,6 +1296,32 @@ describe('StewardAutomationReconciler failure policy', () => {
     expect(reconcile).toHaveBeenCalledTimes(4);
   });
 
+  it('does not count a not-ready dependency toward the attempt cap', async () => {
+    const delay = vi.fn(async () => {});
+    const notReady = Object.assign(new Error('connection unpublished'), {
+      retryable: true,
+      waiting: true,
+    });
+    const reconcile = vi
+      .fn()
+      .mockRejectedValueOnce(notReady)
+      .mockRejectedValueOnce(notReady)
+      .mockRejectedValueOnce(notReady)
+      .mockRejectedValueOnce(notReady)
+      .mockResolvedValue(undefined);
+    const reconciler = new StewardAutomationReconciler(
+      reconcile,
+      delay,
+      0,
+      undefined,
+      2
+    );
+
+    await expect(reconciler.start(undefined)).resolves.toBeUndefined();
+    expect(reconcile).toHaveBeenCalledTimes(5);
+    expect(delay).toHaveBeenCalledTimes(4);
+  });
+
   it('warns once per job the projection drops when registered through the hooks', async () => {
     const api = createFakeHookApi();
     const warn = vi.fn();

@@ -83,6 +83,20 @@ function isRetryableError(error: unknown): boolean {
   return (error as { retryable?: unknown }).retryable !== false;
 }
 
+/**
+ * A dependency that is not ready yet — no cron service, no published ship
+ * connection — is a wait, not a failure: startup routinely spends longer
+ * than the attempt cap in that state, and nothing re-triggers the startup
+ * snapshot once the dependency appears. Such errors keep retrying at the
+ * fixed delay without counting toward the cap.
+ */
+function isWaitingError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) {
+    return false;
+  }
+  return (error as { waiting?: unknown }).waiting === true;
+}
+
 export class StewardAutomationReconciliationTimeoutError extends Error {
   readonly retryable = true;
 
@@ -191,6 +205,7 @@ const waitForRetryDelay: StewardAutomationRetryDelay = (delayMs, signal) =>
 
 export class StewardAutomationCronUnavailableError extends Error {
   readonly retryable = true;
+  readonly waiting = true;
 
   constructor(reason: 'missing-accessor' | 'missing-service') {
     const detail =
@@ -421,7 +436,9 @@ export class StewardAutomationReconciler {
             // batch rather than owning the worker forever. Triggers that
             // coalesced into it are rejected with it; the next trigger starts
             // a fresh batch and rereads the complete snapshot.
-            attempts += 1;
+            if (!isWaitingError(error)) {
+              attempts += 1;
+            }
             if (!isRetryableError(error)) {
               this.rejectBatch(batch, error);
               break;

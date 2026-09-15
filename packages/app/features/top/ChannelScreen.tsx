@@ -1,5 +1,6 @@
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/api';
 import { Story } from '@tloncorp/api/urbit';
 import {
@@ -22,8 +23,13 @@ import React, {
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupActions } from '../../hooks/useGroupActions';
+import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { usePushNotifTapTelemetry } from '../../hooks/usePushNotifTapTelemetry';
-import type { RootStackParamList } from '../../navigation/types';
+import { useResetDb } from '../../hooks/useResetDb';
+import type {
+  ChannelScreenParamList,
+  RootStackParamList,
+} from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
   AttachmentProvider,
@@ -33,12 +39,19 @@ import {
   useIsWindowNarrow,
 } from '../../ui';
 import { isAgentGroupSetupActive } from '../../ui/components/Channel/postVisibility';
+import { shouldAutoLoadOlderPosts } from './channelPagination';
 import { useAgentOnboardingChannel } from './useAgentOnboardingChannel';
 import { useAgentOnboardingFirstEntry } from './useAgentOnboardingFirstEntry';
 
 const logger = createDevLogger('ChannelScreen', false);
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Channel'>;
+type Props = {
+  route: RouteProp<
+    ChannelScreenParamList,
+    'Channel' | 'DM' | 'GroupDM' | 'ChannelRoot'
+  >;
+  navigation: NativeStackNavigationProp<RootStackParamList, 'Channel'>;
+};
 
 export default function ChannelScreen(props: Props) {
   const {
@@ -96,6 +109,8 @@ export default function ChannelScreen(props: Props) {
     routeGroupId,
   });
   const currentUserId = api.getCurrentUserId();
+  const resetDb = useResetDb();
+  const handleLogout = useHandleLogout({ resetDb });
 
   const channelIsPending = !channel || channel.isPendingChannel;
   useFocusEffect(
@@ -357,12 +372,15 @@ export default function ChannelScreen(props: Props) {
     // since adding no visible rows will not retrigger the boundary callback.
     const ENOUGH_POSTS_TO_FILL_SCREEN = 20;
     if (
-      !postsQuery.isFetching &&
-      postsQuery.hasNextPage &&
-      unreadDidInitialize &&
-      (!posts ||
-        posts.length < ENOUGH_POSTS_TO_FILL_SCREEN ||
-        oldestPageHasOnlyDeletedPosts)
+      shouldAutoLoadOlderPosts({
+        isFetching: postsQuery.isFetching,
+        isError: postsQuery.isError,
+        hasNextPage: postsQuery.hasNextPage,
+        unreadDidInitialize,
+        postCount: posts?.length,
+        minimumPostCount: ENOUGH_POSTS_TO_FILL_SCREEN,
+        oldestPageHasOnlyDeletedPosts,
+      })
     ) {
       loadOlder();
     }
@@ -587,6 +605,7 @@ export default function ChannelScreen(props: Props) {
           }
           goBack={navigationRef.current.goBack}
           disableBackButton={agentOnboardingNavigationLocked}
+          onPressLogout={agentOnboarding.locked ? handleLogout : undefined}
           suppressEmptyState={agentGroupSetupActive}
           suppressAnimatedSendScroll={agentGroupSetupActive}
           pendingThinkingLabel={pendingThinkingLabel}

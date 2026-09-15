@@ -35,6 +35,7 @@ export interface ScreenHeaderTextAction extends BaseAction {
 export interface ScreenHeaderMenuActionItem {
   id: string;
   label: string;
+  destructive?: boolean;
   onPress: () => void;
 }
 
@@ -60,7 +61,6 @@ export interface UseNativeHeaderOptions {
   enabled: boolean;
   title: string;
   titleElement: ReactNode;
-  titlePresentationKey: string;
   usesCustomTitle: boolean;
   backgroundColor?: string;
   left: ScreenHeaderAction[];
@@ -134,7 +134,11 @@ export function getScreenHeaderActionPresentation(
         icon: action.icon,
         label: action.label,
         testID: action.testID,
-        items: action.items.map(({ id, label }) => ({ id, label })),
+        items: action.items.map(({ id, label, destructive }) => ({
+          id,
+          label,
+          destructive,
+        })),
       };
     }
 

@@ -38,6 +38,7 @@ import {
 import { notifyDiaryMigrationDiscovery } from './src/diary-migration-discovery.js';
 import { suppressTlonFallbackNotice } from './src/fallback-notice-delivery.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
+import { registerRestartCatchupHooks } from './src/restart-catchup.js';
 import { createMigrateCommandHandler } from './src/migrate-command.js';
 import {
   clearCronJobForSession,
@@ -61,6 +62,7 @@ import {
 } from './src/monitor/agent-onboarding.js';
 import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import { setTlonRuntime } from './src/runtime.js';
+import { resolveOwnerOnlyToolBlock } from './src/owner-only-tools.js';
 import { getSessionRole } from './src/session-roles.js';
 import { registerStewardAutomationReconciliationHooks } from './src/steward-automation-reconciliation.js';
 import { parseTlonTarget } from './src/targets.js';
@@ -910,6 +912,7 @@ export default defineBundledChannelEntry({
         error: (m) => api.logger.warn(m),
       },
     });
+    registerRestartCatchupHooks(api);
 
     // Resolve the tlon tool binary once. The tool itself and version
     // diagnostics share this path so telemetry reports what OpenClaw will
@@ -1008,14 +1011,14 @@ export default defineBundledChannelEntry({
     });
 
     // Tool access control: block sensitive tools for non-owners
-    const ownerOnlyTools = new Set(['tlon', 'cron', 'read']);
     const logToolTraceContents = liveToolTraceContentsEnabled();
 
     api.on('before_tool_call', async (event, ctx) => {
       const toolCallId = readToolCallId(event);
       const role = getSessionRole(ctx.sessionKey ?? '');
-      const isOwnerOnlyTool = ownerOnlyTools.has(event.toolName);
-      const blocksNonOwner = isOwnerOnlyTool && role === 'user';
+      const ownerOnlyDecision = resolveOwnerOnlyToolBlock(event.toolName, role);
+      const isOwnerOnlyTool = ownerOnlyDecision.ownerOnly;
+      const blocksNonOwner = ownerOnlyDecision.blocked;
       const isMcpDescribe = isMcpDescribeToolName(event.toolName);
       const isMcpCall = isMcpCallToolName(event.toolName);
       const isMcpTool = isMcpDescribe || isMcpCall;
@@ -1047,9 +1050,7 @@ export default defineBundledChannelEntry({
       const isBlocked = blocksNonOwner || blocksOnboardingMcp;
       const blockReason = blocksOnboardingMcp
         ? 'This scheduled onboarding update may inspect and call only selected-provider MCP tools explicitly described as read-only.'
-        : blocksNonOwner
-          ? `The ${event.toolName} tool is not available.`
-          : undefined;
+        : ownerOnlyDecision.reason;
       if (contextLensEnabled) {
         // Capture tool activity even when no conversation run owns this
         // session (cron wakes — including jobs that reuse the main session

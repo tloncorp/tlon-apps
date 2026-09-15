@@ -11,6 +11,8 @@ const apiClientParamsSlot = sharedSlot<SharedApiClientParams>(
 
 export class StewardAutomationConnectionUnavailableError extends Error {
   readonly retryable = true;
+  /** Not a failure: the monitor has not connected yet. See the reconciler's attempt cap. */
+  readonly waiting = true;
 
   constructor() {
     super(

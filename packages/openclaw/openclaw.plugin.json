@@ -448,6 +448,15 @@
             },
             "additionalProperties": false
           },
+          "restartCatchup": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
           "nudgeActiveHours": {
             "type": "object",
             "properties": {
