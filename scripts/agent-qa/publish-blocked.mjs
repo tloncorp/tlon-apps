@@ -1,4 +1,5 @@
 import { publishComment } from './comment.mjs';
+import { fallbackReport } from './fallback-report.mjs';
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 const e = process.env;
@@ -12,7 +13,7 @@ fs.writeFileSync(
   [
     '## iOS agent QA',
     '',
-    e.QA_REPORT,
+    fallbackReport(e.QA_REPORT, e.QA_REVIEW_PENDING === 'true'),
     '',
     `[Run and evidence](${e.QA_WORKFLOW_URL}) · Requested commit \`${e.QA_HEAD_SHA}\``,
     '',

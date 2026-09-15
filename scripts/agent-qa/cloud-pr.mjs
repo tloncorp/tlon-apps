@@ -188,7 +188,7 @@ if (process.argv[2] === 'assess') {
   output('build_run_id', id);
 } else if (process.argv[2] === 'finish') {
   let id = env.QA_EAS_RUN_ID;
-  const original = await wait(id, 45, false, ['verdict', 'manual_report']);
+  const original = await wait(id, 75, false, ['verdict', 'manual_report']);
   let run = original;
   // One cross-worker recovery if publication failed after durable capture.
   // Same-worker checkpoints handle transient reviewer/editor failures first.
@@ -213,7 +213,7 @@ if (process.argv[2] === 'assess') {
       { review_evidence_json: descriptor },
       env.QA_TARGET_REF
     );
-    run = await wait(id, 40, false, ['review_recording']);
+    run = await wait(id, 75, false, ['review_recording']);
   }
   const published = run.jobs.find((j) => j.outputs?.comment_url);
   if (!published)

@@ -17,8 +17,61 @@ import {
   verifyDiscoveries,
   visualReviewInput,
   unresolvedVideoAssessment,
+  reconcileChecks,
 } from './review.mjs';
 import { verifyAssessment } from './assess.mjs';
+
+test('independent disproof clears a false positive without retaining contradictory checks', () => {
+  const old = {
+    scenarioId: 'change-1',
+    status: 'failed',
+    observed: 'Looks missing',
+    evidence: ['codex-trace'],
+  };
+  const passed = {
+    ...old,
+    status: 'passed',
+    observed: 'Complete event disproves the earlier observation',
+  };
+  const resolution = {
+    scenarioId: 'change-1',
+    reason: 'Before, trigger and outcome remain correct',
+    before: 1,
+    trigger: 2,
+    after: 3,
+  };
+  const actions = Array.from({ length: 3 }, () => ({
+    responseReceived: true,
+    isError: false,
+    content: [{ type: 'text', text: 'Observed state' }],
+  }));
+  const review = (resolutions = []) => ({
+    checks: [{ ...passed }],
+    resolutions,
+  });
+  assert.deepEqual(
+    reconcileChecks({ checks: [old] }, review([resolution]), {}, actions)
+      .checks,
+    [passed]
+  );
+  assert.deepEqual(
+    reconcileChecks({ checks: [old] }, review(), {}, actions).checks,
+    [old]
+  );
+  assert.deepEqual(
+    reconcileChecks({ checks: [old] }, review([resolution]), {}, []).checks,
+    [old]
+  );
+  assert.deepEqual(
+    reconcileChecks(
+      { checks: [old] },
+      review([{ ...resolution, after: 1 }]),
+      {},
+      actions
+    ).checks,
+    [old]
+  );
+});
 
 test('blind review reads pinned versions and callers, rejects invented citations and local files', () => {
   const repo = mkdtempSync(path.join(os.tmpdir(), 'qa-review-test-'));
@@ -149,7 +202,11 @@ test('blind review reads pinned versions and callers, rejects invented citations
       /Every independently discovered risk/
     );
     plan.scenarios[0].riskIds = ['risk-1'];
-    assert.equal(verifyAssessment(plan, ['consumer.ts']), plan);
+    assert.equal(verifyAssessment(plan, ['consumer.ts']).decision, 'blocked');
+    assert.deepEqual(
+      verifyAssessment(plan, ['consumer.ts']).scenarios,
+      plan.scenarios
+    );
   } finally {
     rmSync(repo, { recursive: true, force: true });
   }

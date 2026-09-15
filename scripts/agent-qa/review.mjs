@@ -431,6 +431,43 @@ export function unresolvedVideoAssessment(assessment, result) {
     ),
   };
 }
+export function reconcileChecks(previous, reviewed, receipts, actions) {
+  for (const old of previous.checks) {
+    if (old.status === 'passed') continue;
+    const current = reviewed.checks.find(
+      (c) => c.scenarioId === old.scenarioId
+    );
+    const resolution = reviewed.resolutions?.find(
+      (r) => r.scenarioId === old.scenarioId
+    );
+    const disproved =
+      current?.status === 'passed' &&
+      resolution?.reason?.trim() &&
+      resolution.before < resolution.trigger &&
+      resolution.trigger <= resolution.after &&
+      [resolution.before, resolution.trigger, resolution.after].every(
+        (i) => Number.isInteger(i) && hasActionEvidence(actions[i - 1])
+      );
+    const accountedFor =
+      current &&
+      (current.status === old.status ||
+        current.status === 'failed' ||
+        disproved ||
+        (old.status === 'blocked' &&
+          (current.evidence.some((id) => receipts[id]) ||
+            (old.observed.startsWith('Operator interrupted:') &&
+              current.evidence.includes('codex-trace')))));
+    if (!accountedFor) {
+      reviewed.checks = reviewed.checks.filter(
+        (c) => c.scenarioId !== old.scenarioId
+      );
+      reviewed.checks.push(old);
+    }
+  }
+  delete reviewed.resolutions;
+  return reviewed;
+}
+
 export async function reviewEvidence({
   assessment,
   result,
@@ -467,6 +504,17 @@ export async function reviewEvidence({
     if (!result.discoveries.some((x) => x.title === d.title))
       result.discoveries.push(d);
   const schema = resultSchemaFor(assessment, { video: Boolean(video) });
+  schema.properties.resolutions = {
+    type: 'array',
+    items: object({
+      scenarioId: text,
+      reason: text,
+      before: { type: 'integer' },
+      trigger: { type: 'integer' },
+      after: { type: 'integer' },
+    }),
+  };
+  schema.required.push('resolutions');
   schema.properties.checks.items.properties.evidence.items = {
     type: 'string',
     pattern: video ? '^(codex-trace|video-frames-[0-9]+)$' : '^codex-trace$',
@@ -511,6 +559,8 @@ Return findings for every exact scenario ID and expected criterion. Unexpected d
       clipSelectionContract: video
         ? 'For each failed or blocked check and unexpected discovery, include clipEvidence only when exact video frames prove a complete before, trigger, outcome and settled interval. Use one clip by default with frame, evidenceId and observation for all four moments; omit it when incomplete.'
         : 'No clipEvidence is needed without video.',
+      resolutionContract:
+        'To clear an operator failure, return a passed check and a resolutions entry for its scenarioId. Explain the disproof and cite actual before, trigger, and after action numbers covering the complete event. An empty array preserves unresolved failures; a normal final screen alone cannot clear one.',
     },
   });
   const receipts = video
@@ -525,22 +575,7 @@ Return findings for every exact scenario ID and expected criterion. Unexpected d
       )
     : {};
   verifyVideoReferences(reviewed, receipts);
-  for (const old of result.checks) {
-    if (
-      old.status !== 'passed' &&
-      !reviewed.checks.some(
-        (c) =>
-          c.scenarioId === old.scenarioId &&
-          (c.status === old.status ||
-            c.status === 'failed' ||
-            (old.status === 'blocked' &&
-              (c.evidence.some((id) => receipts[id]) ||
-                (old.observed.startsWith('Operator interrupted:') &&
-                  c.evidence.includes('codex-trace')))))
-      )
-    )
-      reviewed.checks.push(old);
-  }
+  reconcileChecks(result, reviewed, receipts, actions);
   verifyDiscoveries(reviewed, assessment, actions);
   for (const d of result.discoveries || [])
     if (!reviewed.discoveries.some((x) => x.title === d.title))

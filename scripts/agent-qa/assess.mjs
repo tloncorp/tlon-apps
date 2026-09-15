@@ -154,7 +154,17 @@ export function verifyAssessment(value, files) {
         'Every independently discovered risk needs an explicit validation or capability gap'
       );
   }
-  return verifySetupPlan(value);
+  verifySetupPlan(value);
+  if (
+    value.decision === 'test' &&
+    !value.scenarios.some((s) => s.method === 'simulator')
+  )
+    return {
+      ...value,
+      decision: 'blocked',
+      reason: `No executable simulator scenario is available. ${value.reason}`,
+    };
+  return value;
 }
 
 export function assessmentArgs(options) {
@@ -242,6 +252,10 @@ function git(args) {
   });
 }
 
+export function comparisonBase(base, head) {
+  return git(['merge-base', base, head]).trim();
+}
+
 async function main() {
   const output = path.resolve(
     process.env.QA_ASSESSMENT_DIR || '../../artifacts/qa-assessment'
@@ -293,6 +307,7 @@ async function main() {
     )
       throw new Error('Assessment checkout does not match the PR head');
     git(['fetch', '--no-tags', '--deepen=256', 'origin', baseSha, headSha]);
+    const reviewBaseSha = comparisonBase(baseSha, headSha);
     const files = git(['diff', '--name-only', '-z', `${baseSha}...${headSha}`])
       .split('\0')
       .filter(Boolean);
@@ -314,9 +329,14 @@ async function main() {
       if (!prepared.sourceReview && prepared.decision !== 'blocked')
         throw new Error('Prepared plan lacks independent code review');
       if (prepared.sourceReview)
+        if (prepared.sourceReview.baseSha !== reviewBaseSha)
+          throw new Error(
+            'Prepared review comparison base changed; reassess this PR'
+          );
+      if (prepared.sourceReview)
         verifySourceReview(prepared.sourceReview, {
           repo: git(['rev-parse', '--show-toplevel']).trim(),
-          base: baseSha,
+          base: reviewBaseSha,
           head: headSha,
           files,
         });
@@ -324,13 +344,14 @@ async function main() {
         ...verifyAssessment(prepared, files),
         files,
         baseSha,
+        reviewBaseSha,
         headSha,
       };
     } else {
       await verifyCodexAuth(process.env.OPENROUTER_API_KEY);
       const sourceReview = await reviewSource({
         repo: git(['rev-parse', '--show-toplevel']).trim(),
-        base: baseSha,
+        base: reviewBaseSha,
         head: headSha,
         files,
         diff,
@@ -364,6 +385,7 @@ async function main() {
             title: pr.title,
             description: pr.body,
             baseSha,
+            reviewBaseSha,
             headSha,
             files,
             diff,
@@ -403,6 +425,7 @@ async function main() {
         ),
         files,
         baseSha,
+        reviewBaseSha,
         headSha,
         tokens,
       };

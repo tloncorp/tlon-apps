@@ -5,6 +5,7 @@ import {
   verifyCoverage,
   assessmentArgs,
   verifySourceOverlay,
+  comparisonBase,
 } from './assess.mjs';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
@@ -84,6 +85,53 @@ const plan = {
   changes: ['Send failure handling'],
   scenarios: [scenario],
 };
+
+test('plans with only unavailable checks preserve capability gaps without leasing devices', () => {
+  const unavailable = {
+    ...plan,
+    scenarios: [
+      { ...scenario, method: 'unavailable', prerequisites: 'Needs Android' },
+    ],
+  };
+  const checked = verifyAssessment(unavailable, files);
+  assert.equal(checked.decision, 'blocked');
+  assert.equal(checked.scenarios[0].prerequisites, 'Needs Android');
+  assert.match(checked.reason, /No executable simulator/);
+  assert.equal(verifyAssessment(plan, files).decision, 'test');
+});
+
+test('advanced target-branch changes do not become the before-side of a PR review', () => {
+  const before = process.cwd();
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'qa-merge-base-'));
+  const git = (...args) =>
+    execFileSync('git', args, {
+      cwd: dir,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
+  try {
+    git('init');
+    git('config', 'user.email', 'qa@example.invalid');
+    git('config', 'user.name', 'QA');
+    writeFileSync(path.join(dir, 'app.txt'), 'original');
+    git('add', '.');
+    git('commit', '-m', 'shared');
+    const shared = git('rev-parse', 'HEAD');
+    writeFileSync(path.join(dir, 'app.txt'), 'PR change');
+    git('commit', '-am', 'head');
+    const head = git('rev-parse', 'HEAD');
+    git('checkout', '--detach', shared);
+    writeFileSync(path.join(dir, 'app.txt'), 'unrelated target change');
+    git('commit', '-am', 'base advanced');
+    const baseTip = git('rev-parse', 'HEAD');
+    process.chdir(dir);
+    assert.equal(comparisonBase(baseTip, head), shared);
+    assert.notEqual(comparisonBase(baseTip, head), baseTip);
+  } finally {
+    process.chdir(before);
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 test('assessment requires traceable behavioral scenarios and cannot skip known user-facing changes', () => {
   assert.equal(verifyAssessment(plan, files), plan);

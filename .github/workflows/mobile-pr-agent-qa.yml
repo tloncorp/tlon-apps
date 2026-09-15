@@ -177,7 +177,8 @@ jobs:
     needs: [assess, test]
     if: ${{ always() && needs.test.outputs.eas_run_id }}
     runs-on: ubuntu-latest
-    timeout-minutes: 85
+    # Two review attempts on each worker, plus one cross-worker recovery.
+    timeout-minutes: 170
     steps:
       - uses: actions/checkout@v4
         with:
