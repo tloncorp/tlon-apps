@@ -46,7 +46,9 @@ if (platform !== 'ios' && platform !== 'android') {
 if (!session) usage('--session is required');
 const device = platform === 'ios' ? values.udid : values.serial;
 if (!device) {
-  usage(`--${platform === 'ios' ? 'udid' : 'serial'} is required; stim status prints it`);
+  usage(
+    `--${platform === 'ios' ? 'udid' : 'serial'} is required; stim status prints it`
+  );
 }
 
 function device_(args, { allowFailure = false } = {}) {
@@ -54,14 +56,17 @@ function device_(args, { allowFailure = false } = {}) {
   if (r.error) usage(`agent-device did not run (${r.error.message})`);
   const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
   if (r.status !== 0 && !allowFailure) {
-    console.error(`mobile-login: ${args.slice(0, 2).join(' ')} failed\n${out.trim()}`);
+    console.error(
+      `mobile-login: ${args.slice(0, 2).join(' ')} failed\n${out.trim()}`
+    );
     process.exit(1);
   }
   return { ok: r.status === 0, out };
 }
 
 const S = ['--session', session];
-const onScreen = (text) => device_(['find', `text="${text}"`, ...S], { allowFailure: true }).ok;
+const onScreen = (text) =>
+  device_(['find', `text="${text}"`, ...S], { allowFailure: true }).ok;
 
 device_([
   'open',
