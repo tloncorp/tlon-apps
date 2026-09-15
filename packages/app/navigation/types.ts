@@ -5,21 +5,18 @@ import type {
 } from '@react-navigation/native';
 
 export type TopLevelTabParamList = {
-  HomeGroup: NavigatorScreenParams<HomeGroupStackParamList> | undefined;
+  // The home-group tab renders a channel directly, so it shares the root
+  // stack's native header the way the other tabs do.
+  HomeGroup: ChannelRouteParams | undefined;
   ChatList:
     | { previewGroupId: string; previewGroupFromInviteNotification?: boolean }
     | undefined;
   Settings: undefined;
 };
 
-// The home-group tab hosts a channel, so it needs a stack navigation object
-// (push/goBack) for the screens a channel can open. Its params are spelled out
-// rather than read off `RootStackParamList['Channel']`: the root stack reaches
-// this list through MainTabs, and the round trip would make the alias circular.
-export type HomeGroupStackParamList = {
-  HomeGroupChannel: ChannelRouteParams;
-};
-
+// Spelled out rather than read off `RootStackParamList['Channel']`: the root
+// stack reaches this list through MainTabs, and the round trip would make the
+// alias circular.
 export type ChannelRouteParams = {
   channelId: string;
   disableTransition?: boolean;
@@ -242,13 +239,13 @@ export type SettingsDrawerParamList = Pick<
 
 // ChannelScreen is registered under several route names: the root stack's
 // Channel/DM/GroupDM, the desktop channel stack's ChannelRoot, and the
-// home-group tab's HomeGroupChannel.
+// HomeGroup tab.
 export type ChannelScreenParamList = {
   Channel: RootStackParamList['Channel'];
   DM: RootStackParamList['Channel'];
   GroupDM: RootStackParamList['Channel'];
   ChannelRoot: RootStackParamList['Channel'];
-  HomeGroupChannel: RootStackParamList['Channel'];
+  HomeGroup: RootStackParamList['Channel'];
 };
 
 export type ChannelStackParamList = {

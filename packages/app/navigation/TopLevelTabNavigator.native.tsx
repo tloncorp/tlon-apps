@@ -3,9 +3,9 @@ import { Platform } from 'react-native';
 import { useTheme } from 'tamagui';
 
 import SettingsScreen from '../features/settings/SettingsScreen';
+import ChannelScreen from '../features/top/ChannelScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
 import { useHomeGroupTab } from '../hooks/useHomeGroupTab';
-import { HomeGroupNavigator } from './HomeGroupNavigator';
 import { TOP_LEVEL_TABS, trackTopLevelTabSelection } from './topLevelTabs';
 import type { TopLevelTabParamList } from './types';
 
@@ -67,7 +67,11 @@ export function TopLevelTabNavigator() {
       {homeGroup.enabled ? (
         <Tabs.Screen
           name="HomeGroup"
-          component={HomeGroupNavigator}
+          component={ChannelScreen}
+          initialParams={{
+            channelId: homeGroup.channelId,
+            groupId: homeGroup.groupId,
+          }}
           options={{
             title: TOP_LEVEL_TABS.HomeGroup.title,
             tabBarIcon: ({ focused }) => tabIcon('home', focused),

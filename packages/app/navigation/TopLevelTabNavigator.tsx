@@ -5,10 +5,10 @@ import {
 import { useIsWindowNarrow } from '@tloncorp/ui';
 
 import SettingsScreen from '../features/settings/SettingsScreen';
+import ChannelScreen from '../features/top/ChannelScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
 import { useHomeGroupTab } from '../hooks/useHomeGroupTab';
 import { NavBar, NavIcon } from '../ui/components/NavBar';
-import { HomeGroupNavigator } from './HomeGroupNavigator';
 import { TopLevelTabName, trackTopLevelTabSelection } from './topLevelTabs';
 import type { TopLevelTabParamList } from './types';
 
@@ -88,7 +88,14 @@ export function TopLevelTabNavigator() {
       tabBar={(props) => <ReactTopLevelTabBar {...props} />}
     >
       {homeGroup.enabled ? (
-        <Tabs.Screen name="HomeGroup" component={HomeGroupNavigator} />
+        <Tabs.Screen
+          name="HomeGroup"
+          component={ChannelScreen}
+          initialParams={{
+            channelId: homeGroup.channelId,
+            groupId: homeGroup.groupId,
+          }}
+        />
       ) : null}
       <Tabs.Screen name="ChatList" component={ChatListScreen} />
       <Tabs.Screen name="Settings" component={SettingsScreen} />
