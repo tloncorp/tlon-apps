@@ -153,6 +153,8 @@ export type GroupChannelJournalDeps = {
 export type GroupChannelJournal = {
   /** Count of key observations; a refresh compares it across its scry to detect a superseded result. */
   readonly observationSeq: number;
+  /** Count of known gaps (markUntrusted calls); a refresh compares it across its scry so a pre-gap result cannot re-trust the journal. */
+  readonly gapSeq: number;
   /** The key's value as last observed (echo or non-superseded fresh load). */
   readonly lastObserved: readonly string[] | undefined;
   /** Whether the write base may be used: a fresh load has run since the last known gap. */
@@ -238,6 +240,7 @@ export function createGroupChannelJournal(
   let trusted = deps.trusted;
   let closed = false;
   let observationSeq = 0;
+  let gapSeq = 0;
 
   const pruneUnconfirmed = (
     list: readonly string[] | undefined,
@@ -382,8 +385,12 @@ export function createGroupChannelJournal(
     markTrusted() {
       trusted = true;
     },
+    get gapSeq() {
+      return gapSeq;
+    },
     markUntrusted() {
       trusted = false;
+      gapSeq += 1;
     },
     unconfirmedSnapshot() {
       return new Set(unconfirmed);

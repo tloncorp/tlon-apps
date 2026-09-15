@@ -5456,6 +5456,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // Never rejects — callers treat a refresh failure as non-fatal.
       refreshSettingsNow = async (): Promise<void> => {
         const seqBefore = groupChannelJournal?.observationSeq;
+        const gapBefore = groupChannelJournal?.gapSeq;
         const unconfirmedBefore = groupChannelJournal?.unconfirmedSnapshot();
         let superseded = false;
         try {
@@ -5480,7 +5481,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               );
             },
           });
-          if (refreshResult.fresh) {
+          // A gap (subscription error/quit, stream reconnect) reported while
+          // the scry was in flight means this result predates edits whose
+          // echoes were missed: it must not re-trust the journal, nor judge
+          // its unconfirmed nests. The next refresh starts clean.
+          const gapped =
+            groupChannelJournal !== undefined &&
+            groupChannelJournal.gapSeq !== gapBefore;
+          if (refreshResult.fresh && !gapped) {
             // Before the snapshot: a byte-identical refresh short-circuits
             // inside applySettingsSnapshot, which would otherwise leave the
             // journal untrusted (and its pending nests unwritten) after a
@@ -5503,7 +5511,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           }
           applySettingsSnapshot(refreshResult.settings, 'refresh', {
             fresh: refreshResult.fresh,
-            journalObserve: refreshResult.fresh && !superseded,
+            journalObserve: refreshResult.fresh && !superseded && !gapped,
           });
           // Opportunistic drain of anything deferred while untrusted.
           if (refreshResult.fresh) void groupChannelJournal?.flush();

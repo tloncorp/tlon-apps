@@ -493,6 +493,15 @@ describe('createGroupChannelJournal.observe', () => {
     expect([...journal.unconfirmedSnapshot()]).toEqual([]);
   });
 
+  it('counts gaps so a scry a gap overtook cannot re-trust the journal', () => {
+    const { journal } = makeJournal({ trusted: true });
+    expect(journal.gapSeq).toBe(0);
+    journal.markUntrusted();
+    journal.markUntrusted();
+    expect(journal.gapSeq).toBe(2);
+    expect(journal.trusted).toBe(false);
+  });
+
   it('exposes trust so teardown can reconcile before closing', () => {
     const { journal } = makeJournal({ trusted: true });
     expect(journal.trusted).toBe(true);
@@ -958,6 +967,20 @@ describe('wiring', () => {
     const refresh = monitorSource.indexOf('await refreshSettingsNow();', guard);
     expect(refresh).toBeGreaterThan(guard);
     expect(refresh).toBeLessThan(closeJournal);
+  });
+
+  it('does not trust, observe, or prune from a scry that a gap overtook', () => {
+    const fn = sliceFrom('refreshSettingsNow = async');
+    const gapBefore = fn.indexOf('groupChannelJournal?.gapSeq');
+    const load = fn.indexOf('settingsManager.load(');
+    const gapped = fn.indexOf('groupChannelJournal.gapSeq !== gapBefore');
+    expect(gapBefore).toBeGreaterThan(-1);
+    expect(gapBefore).toBeLessThan(load);
+    expect(gapped).toBeGreaterThan(load);
+    expect(fn).toContain('if (refreshResult.fresh && !gapped) {');
+    expect(fn).toContain(
+      'journalObserve: refreshResult.fresh && !superseded && !gapped,'
+    );
   });
 
   it('prunes unconfirmed nests from a fresh, non-superseded load before the snapshot applies', () => {
