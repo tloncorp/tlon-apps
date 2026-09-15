@@ -36,3 +36,16 @@ env:
 - assertVisible:
     id: ScreenHeaderTitle
     text: '^Home$'
+- tapOn: '^Search$'
+- inputText: '~ten'
+- assertVisible:
+    id: 'ChannelListItem-~ten'
+- assertNotVisible:
+    id: ${'ChatListItem-HomeUnread-' + MAESTRO_RUN_TAG + '-unpinned'}
+- tapOn: '^Clear$'
+- assertVisible:
+    id: ${'ChatListItem-HomeUnread-' + MAESTRO_RUN_TAG + '-unpinned'}
+- tapOn: '^Close$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Home$'
