@@ -1627,8 +1627,13 @@ export function NotesNoteDetail({
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
         scrollEnabled={!useWebEditorPane}
+        // On native the content sizes to the note. Growing it to the viewport
+        // let automaticallyAdjustKeyboardInsets grant a keyboard's worth of
+        // scroll range to a three-line note, so it could scroll entirely off
+        // the top (TLON-6540). The web editor pane is pinned to the viewport
+        // and the textarea scrolls internally instead.
         contentContainerStyle={
-          useWebEditorPane ? { flexGrow: 1, height: '100%' } : { flexGrow: 1 }
+          useWebEditorPane ? { flexGrow: 1, height: '100%' } : undefined
         }
         onScroll={handleScroll}
         onScrollBeginDrag={handleScrollBeginDrag}
