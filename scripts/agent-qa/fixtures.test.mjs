@@ -1,12 +1,30 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { verifySetupPlan } from './fixtures.mjs';
+import { verifySetupPlan, requiresBackend } from './fixtures.mjs';
 import { verifyPeer } from './ship-proxy.mjs';
 const plan = {
   headSha: 'a'.repeat(40),
   setup: { fixtures: ['notes-v1'] },
   scenarios: [{ fixture: 'notes-v1', method: 'simulator', regression: 'none' }],
 };
+test('simulator checks without seeded data still get an isolated backend', () => {
+  const settings = {
+    decision: 'test',
+    setup: { fixtures: [] },
+    scenarios: [{ method: 'simulator', fixture: 'none', regression: 'none' }],
+  };
+  assert.equal(verifySetupPlan(settings), settings);
+  assert.equal(requiresBackend(settings), true);
+  assert.equal(requiresBackend(plan), true);
+  assert.equal(
+    requiresBackend({ ...settings, scenarios: [{ method: 'unavailable' }] }),
+    false
+  );
+  assert.equal(
+    requiresBackend({ ...settings, decision: 'skip', scenarios: [] }),
+    false
+  );
+});
 test('assessment selects reviewed setup and test recipes, never executable model commands', () => {
   assert.equal(verifySetupPlan(plan), plan);
   assert.throws(

@@ -1,4 +1,6 @@
 import { assessmentForRetry } from './reuse-assessment.mjs';
+import { verifySourceOverlay } from './assess.mjs';
+import { requiresBackend } from './fixtures.mjs';
 import { selectEvidence } from './publish.mjs';
 import {
   workflowState,
@@ -109,6 +111,7 @@ if (process.argv[2] === 'assess') {
     throw new Error('Invalid QA source ref');
   command('git', ['fetch', '--no-tags', '--depth=1', 'origin', requestedRef]);
   const ref = command('git', ['rev-parse', 'FETCH_HEAD']).trim();
+  verifySourceOverlay(p.head.sha, ref);
   const inputs = { assessment_pr_json: pr };
   if (env.QA_ASSESSMENT_RUN_ID) {
     if (
@@ -139,7 +142,8 @@ if (process.argv[2] === 'assess') {
   output('plan', plan);
   output('decision', plan.decision);
   output('fixture_plan', plan.setup);
-  output('has_fixtures', Boolean(plan.setup.fixtures.length).toString());
+  // Even a settings-only simulator check needs an isolated login/backend.
+  output('has_fixtures', requiresBackend(plan).toString());
   output('ref', ref);
   console.log(
     `Assessment: ${plan.decision}; fixtures: ${plan.setup.fixtures.join(', ') || 'none'}`

@@ -1,4 +1,12 @@
 // Reviewed setup/test recipes. Model output selects recipes, never shell code.
+export function requiresBackend(plan) {
+  return (
+    plan.setup.fixtures.length > 0 ||
+    (plan.decision === 'test' &&
+      plan.scenarios.some((scenario) => scenario.method === 'simulator'))
+  );
+}
+
 export const fixtureCatalog = {
   'chat-v1': {
     description:
