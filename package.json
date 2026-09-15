@@ -39,6 +39,7 @@
     "lint:all": "pnpm -r lint",
     "sync:native-navigation-icons": "node scripts/sync-native-navigation-icons.mjs",
     "check:native-navigation-icons": "node scripts/sync-native-navigation-icons.mjs --check",
+    "check:desk-requests": "pnpm --silent --filter 'scripts' diff:desk-requests",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "lint": "oxlint"

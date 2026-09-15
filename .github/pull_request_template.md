@@ -13,6 +13,9 @@
 ## Risks and impact
 
 - Safe to rollback without consulting PR author? (Yes | No)
+- [ ] Desk compatibility: every request in the **Desk requests** comment is one
+      the N-1 desk serves, or is flagged in review — nothing there fails CI
+      (`docs/tlon-apps/desk-compatibility.md`).
 - Affects important code area:
   - [ ] Onboarding
   - [ ] State / providers

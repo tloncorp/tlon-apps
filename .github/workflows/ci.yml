@@ -18,6 +18,7 @@ jobs:
       app: ${{ steps.filter-app.outputs.app }}
       backend: ${{ steps.filter.outputs.backend }}
       bots: ${{ steps.filter.outputs.bots }}
+      client: ${{ steps.filter.outputs.client }}
     steps:
       # An ignore-list filter only works with predicate-quantifier `every`:
       # a file counts only if it matches every pattern — `**` AND each `!`
@@ -52,6 +53,14 @@ jobs:
               - 'packages/hermes-tlon-adapter/**'
               - 'packages/tlon-bot-e2e/**'
               - 'packages/tlon-skill/**'
+            # Where the app's ship requests are written. Not every call site
+            # is here — the extractor also scans packages/app and the two app
+            # roots, which hold about 7% of them — so a PR that adds a request
+            # only in apps/tlon-web gets no report. The report is advisory, and
+            # this keeps it off PRs that cannot have moved the inventory.
+            client:
+              - 'packages/api/**'
+              - 'packages/shared/**'
 
   # The app-wide suite. Skipped only when the filter positively reported
   # app == 'false' (bot-/docs-only PRs). Written `!= 'false'` rather than
@@ -107,6 +116,157 @@ jobs:
         run: pnpm build:all
         env:
           NODE_OPTIONS: --max-old-space-size=6144
+
+  # Advisory: lists the requests this PR adds to, changes in, or drops from the
+  # set the client makes of the desk, so a reviewer can check each one against
+  # the N-1 desk (docs/tlon-apps/desk-compatibility.md, AGENTS.md).
+  #
+  # Deliberately *not* in `ci-ok`'s needs, unlike the other filter-gated jobs.
+  # No inventory change is wrong on its face — whether N-1 serves a request is
+  # a judgement a person makes — so this must never stand between a PR and its
+  # merge gate. Nothing in it is allowed to fail the job either.
+  #
+  # It runs on every PR, not only the ones that touch the client, so a report an
+  # earlier push posted is replaced rather than left standing once the branch
+  # moves off `packages/api` / `packages/shared`. Only the work — checkout,
+  # install, extraction — is gated on that filter; the comment is always brought
+  # up to date.
+  desk-requests:
+    needs: changes
+    if: ${{ !cancelled() }}
+    # Advisory means advisory: a failed checkout, Node setup or install must not
+    # show a red job beside a PR it has nothing to say about — the fallback
+    # comment already reports that no report could be produced.
+    continue-on-error: true
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    name: Desk Requests Report
+    # One run per PR: a superseded push has nothing to say about the head, and
+    # its report would only race the newer one.
+    concurrency:
+      group: desk-requests-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+    permissions:
+      contents: read
+      # The report is posted as a sticky PR comment.
+      pull-requests: write
+    env:
+      CLIENT: ${{ needs.changes.outputs.client }}
+    steps:
+      - name: Checkout
+        if: ${{ needs.changes.outputs.client == 'true' }}
+        uses: actions/checkout@v4
+        with:
+          # `git merge-base` needs the base branch's history, which the default
+          # depth-1 checkout does not have. Blobless keeps the whole commit
+          # graph cheap; the extractor's `git archive` pulls the blobs it reads
+          # on demand.
+          fetch-depth: 0
+          filter: blob:none
+
+      - name: Setup Node.js environment
+        if: ${{ needs.changes.outputs.client == 'true' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Setup PNPM
+        if: ${{ needs.changes.outputs.client == 'true' }}
+        uses: pnpm/action-setup@v3
+        with:
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile]
+
+      # The merge base, not the base branch tip: a request the base branch
+      # gained since this one forked is not something this PR added.
+      - name: Diff the desk request inventory
+        if: ${{ needs.changes.outputs.client == 'true' }}
+        continue-on-error: true
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          MERGE_BASE=$(git merge-base "origin/$BASE_REF" HEAD)
+          echo "diffing the inventory against merge base $MERGE_BASE"
+          pnpm --silent check:desk-requests "$MERGE_BASE" --markdown \
+            | tee desk-requests.md
+
+      # Every path through the steps above ends here with a body to post: the
+      # diff, a line saying the filter had nothing for this PR, or a line saying
+      # the run could not produce one. The comment is sticky, so silence would
+      # leave the previous push's list standing as though it were this one's.
+      #
+      # Only a literal `false` is "nothing to report". An empty `CLIENT` means
+      # the `changes` job itself failed, and claiming no client change on that
+      # evidence would overwrite a good report with a wrong one.
+      - name: Compose the report body
+        if: ${{ always() }}
+        run: |
+          set -euo pipefail
+          if [ "$CLIENT" = "false" ]; then
+            printf '## Desk requests\n\nNo changes under `packages/api` or `packages/shared` in this PR.\n' > desk-requests.md
+          elif [ ! -s desk-requests.md ]; then
+            printf '## Desk requests\n\nThe report could not be produced for this push; see the job log.\n' > desk-requests.md
+          fi
+
+      # The summary is always written; it is the only place the report lands on
+      # a fork or bot PR, where the token cannot comment.
+      - name: Write the report to the job summary
+        if: ${{ always() }}
+        run: cat desk-requests.md >> "$GITHUB_STEP_SUMMARY"
+
+      # One sticky comment, edited in place, so a PR does not collect one per
+      # push. A fork PR and Dependabot both get a read-only token, so posting
+      # would fail a job for a report that is already in the summary — skipped
+      # there, and never fatal anywhere. Needs only `gh`, so it runs on the path
+      # where nothing was checked out or installed.
+      - name: Post the desk requests report
+        if: >-
+          ${{ always()
+          && github.event_name == 'pull_request'
+          && github.event.pull_request.head.repo.fork == false
+          && github.actor != 'dependabot[bot]' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # Two pushes in quick succession race to edit the same comment, and
+          # the slower run would leave a report for a commit nobody is looking
+          # at. The head is stamped into the marker, and a run whose head is no
+          # longer the PR's simply stands down.
+          CURRENT=$(gh api "repos/$REPO/pulls/$PR" --jq .head.sha)
+          if [ "$CURRENT" != "$HEAD_SHA" ]; then
+            echo "head moved from $HEAD_SHA to $CURRENT; leaving the comment alone"
+            exit 0
+          fi
+          PREFIX='<!-- desk-requests-report'
+          printf '%s head=%s -->\n\n' "$PREFIX" "$HEAD_SHA" > body.md
+          cat desk-requests.md >> body.md
+          # Matched on the prefix, so a comment written before the head was
+          # stamped in is still the one that gets edited rather than a second
+          # one appearing beside it. --jq runs per page, so `first` would pick
+          # one match per page; collect every id and take the earliest. `awk`
+          # rather than `head`, which would close the pipe on a long thread and
+          # trip pipefail on gh's half-written page.
+          EXISTING=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+            --jq ".[] | select(.body | startswith(\"$PREFIX\")) | .id" \
+            | awk 'NR == 1')
+          # A PR the filter had nothing for replaces a stale report, but does
+          # not start one: a docs-only PR should not collect a comment saying
+          # there is nothing to say.
+          if [ -z "$EXISTING" ] && [ "$CLIENT" != "true" ]; then
+            echo "nothing to report and no comment to replace"
+            exit 0
+          fi
+          if [ -n "$EXISTING" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$EXISTING" -F body=@body.md >/dev/null
+          else
+            gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@body.md >/dev/null
+          fi
 
   # Unit-level checks for the bot/plugin packages, mirroring what test-build's
   # repo-wide format/lint/tsc/test:ci ran for them before gating. Only
@@ -183,7 +343,9 @@ jobs:
   # cancellation — including the changes job itself erroring — fails the
   # gate. `always()` (not `!cancelled()`) so a cancelled run reports a
   # failure instead of a skip, which would satisfy the required check.
-  # When adding a new filter-gated job, append it to `needs` here.
+  # When adding a new filter-gated job, append it to `needs` here — unless it
+  # is advisory by design, as `desk-requests` is, in which case say so on the
+  # job rather than wiring it into the gate.
   ci-ok:
     name: CI OK
     needs: [changes, test-build, bot-checks]
