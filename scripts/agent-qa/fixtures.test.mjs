@@ -128,3 +128,32 @@ test('chat fixture requires matching chat identity and verified peer message', (
     );
   }
 });
+
+test('pilot rejects regression plans on the runner path that cannot execute them', () => {
+  const regression = {
+    method: 'regression',
+    fixture: 'none',
+    regression: 'reply-snapshot',
+  };
+  const noShips = { setup: { fixtures: [] }, scenarios: [regression] };
+  assert.throws(
+    () => verifySetupPlan(noShips),
+    /require the disposable-fixture runner/
+  );
+  assert.throws(
+    () =>
+      verifySetupPlan({
+        ...noShips,
+        scenarios: [
+          ...noShips.scenarios,
+          { method: 'simulator', fixture: 'none', regression: 'none' },
+        ],
+      }),
+    /require the disposable-fixture runner/
+  );
+  assert.equal(
+    verifySetupPlan({ ...plan, scenarios: [...plan.scenarios, regression] })
+      .scenarios.length,
+    2
+  );
+});

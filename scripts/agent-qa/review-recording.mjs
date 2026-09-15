@@ -186,6 +186,7 @@ writeFileSync(
   path.join(out, 'report.md'),
   renderReport(context, result, usage)
 );
+writeFileSync('/tmp/qa-review-ready', 'true');
 console.log(result.summary);
 if (descriptor.complete)
   execFileSync(

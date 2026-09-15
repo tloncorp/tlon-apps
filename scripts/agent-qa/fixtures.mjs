@@ -52,5 +52,12 @@ export function verifySetupPlan(plan) {
     if (scenario.method !== 'regression' && scenario.regression !== 'none')
       throw new Error('Simulator check cannot claim regression evidence');
   }
+  if (
+    !plan.setup.fixtures.length &&
+    plan.scenarios.some((s) => s.method === 'regression')
+  )
+    throw new Error(
+      'Regression recipes require the disposable-fixture runner in this pilot; mark those scenarios unavailable when no fixture is selected'
+    );
   return plan;
 }

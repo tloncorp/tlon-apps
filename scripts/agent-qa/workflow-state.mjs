@@ -13,3 +13,16 @@ export function workflowState(run) {
   if (run.jobs.some((job) => job.status === 'CANCELED')) return 'CANCELED';
   return 'SUCCESS';
 }
+
+export function recoveryArtifact(run) {
+  const reviewed = run.jobs.find((j) => j.key === 'report_video');
+  if (reviewed?.outputs?.review_ready === 'true') {
+    const artifact = reviewed.artifacts?.find(
+      (a) => a.name === 'evidence-review-replay'
+    );
+    if (artifact) return artifact;
+  }
+  return run.jobs
+    .find((j) => j.key === 'qa_ios')
+    ?.artifacts?.find((a) => a.name === 'ios-agent-qa');
+}

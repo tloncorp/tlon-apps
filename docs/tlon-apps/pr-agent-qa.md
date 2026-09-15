@@ -126,6 +126,8 @@ as test-account data.
 ## Limits and qualification
 
 - iOS only. Unsupported web, Android, data-volume and timing requirements stay explicit.
+- Deterministic regression recipes currently run only alongside a disposable fixture.
+  Regression-only plans remain unavailable in this pilot.
 - Supported fixture recipes do not cover every product state. A generic login or
   chat smoke cannot satisfy unrelated PR criteria.
 - The workflow compares base/head source and before/after states on the head app.

@@ -1,6 +1,6 @@
 import { assessmentForRetry } from './reuse-assessment.mjs';
 import { selectEvidence } from './publish.mjs';
-import { workflowState } from './workflow-state.mjs';
+import { workflowState, recoveryArtifact } from './workflow-state.mjs';
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, writeFileSync, mkdirSync } from 'node:fs';
 const env = process.env;
@@ -167,14 +167,7 @@ if (process.argv[2] === 'assess') {
   // Same-worker checkpoints handle transient reviewer/editor failures first.
   if (!run.jobs.some((j) => j.outputs?.comment_url)) {
     const { video } = selectEvidence(original, id);
-    const reviewed = original.jobs
-      .find((j) => j.key === 'report_video')
-      ?.artifacts?.find((a) => a.name === 'evidence-review-replay');
-    const artifact =
-      reviewed ||
-      original.jobs
-        .find((j) => j.key === 'qa_ios')
-        ?.artifacts?.find((a) => a.name === 'ios-agent-qa');
+    const artifact = recoveryArtifact(original);
     if (!artifact || !video) throw new Error('No durable recording to resume');
     const descriptor = {
       id,

@@ -289,6 +289,7 @@ jobs:
     outputs:
       comment_url: ${{ steps.publish.outputs.comment_url }}
       qa_status: ${{ steps.publish.outputs.qa_status }}
+      review_ready: ${{ steps.review_receipt.outputs.ready }}
     steps:
       - uses: eas/checkout
       - name: Check the GitHub upload credential
@@ -316,6 +317,11 @@ jobs:
           node ../../scripts/agent-qa/retry-stage.mjs review-recording.mjs || exit 1
           set-output comment_url "$(cat /tmp/qa-comment-url)"
           set-output qa_status "$(cat /tmp/qa-product-status)"
+      - name: Record complete reviewed evidence for recovery
+        id: review_receipt
+        if: ${{ always() }}
+        run: |
+          if [ -f /tmp/qa-review-ready ]; then set-output ready true; fi
       - uses: eas/upload_artifact
         if: ${{ always() }}
         with:
