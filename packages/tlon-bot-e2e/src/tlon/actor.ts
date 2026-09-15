@@ -47,16 +47,21 @@ export interface PromptResult {
 export type StoryInput = Story | string;
 
 /** Channel kinds a scenario can seed. The value is the Urbit nest prefix. */
-export type ChannelKind = 'chat' | 'diary';
+export type ChannelKind = 'chat' | 'diary' | 'heap';
 
-const CHANNEL_KIND_DB_TYPES: Record<ChannelKind, 'chat' | 'notebook'> = {
+const CHANNEL_KIND_DB_TYPES: Record<
+  ChannelKind,
+  'chat' | 'notebook' | 'gallery'
+> = {
   chat: 'chat',
   diary: 'notebook',
+  heap: 'gallery',
 };
 
 const CHANNEL_KIND_DESCRIPTIONS: Record<ChannelKind, string> = {
   chat: 'General chat',
   diary: 'General notebook',
+  heap: 'General gallery',
 };
 
 export interface BotProfileInput {

@@ -1061,6 +1061,75 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
       await say(g.chatChannel, 'reaction removal verified');
     });
   }
+  if (selected('gallery-actions')) {
+    const g = await zod.createGroupWithChannel({
+      title: `GalleryActions-${tag}`,
+      members: ['~ten'],
+      channelKind: 'heap',
+      channelTitle: 'Gallery',
+    });
+    await ten.state.joinGroup(g.groupId);
+    await until('gallery peer joins', () =>
+      ten.state.isMemberOfGroup(g.groupId)
+    );
+    fixtures.GalleryActions = g;
+    const text = `${tag} gallery action target`;
+    const post = await zod.sendChannelPost({
+      channelId: g.chatChannel,
+      content: text,
+      metadata: { title: `${tag} gallery title` },
+    });
+    const peerPost = async () =>
+      (await ten.state.channelPosts(g.chatChannel)).find(
+        (candidate) => candidate.id === post.id
+      );
+    await until('gallery post reaches peer', async () => !!(await peerPost()));
+    task('gallery-actions', async () => {
+      await until(
+        'native gallery reaction reaches peer',
+        async () =>
+          await ten.withClient(async () => {
+            const result = await getChannelPosts({
+              channelId: g.chatChannel,
+              mode: 'newest',
+            });
+            const target = result.posts.find(
+              (candidate) => candidate.id === post.id
+            );
+            return !!target?.reactions?.some(
+              (reaction) =>
+                reaction.contactId === '~zod' && reaction.value === '👍'
+            );
+          }),
+        30 * 60_000
+      );
+      record('gallery-reaction', {
+        postId: post.id,
+        contactId: '~zod',
+        value: '👍',
+      });
+      await zod.sendChannelPost({
+        channelId: g.chatChannel,
+        content: `${tag} gallery reaction verified`,
+      });
+      await until(
+        'native gallery deletion reaches peer',
+        async () => (await peerPost())?.isDeleted === true,
+        30 * 60_000
+      );
+      record('gallery-delete', { postId: post.id, deleted: true });
+      await zod.sendChannelPost({
+        channelId: g.chatChannel,
+        content: `${tag} gallery delete verified`,
+      });
+      await until(
+        'native gallery fixture is removed',
+        async () => !(await zod.state.isMemberOfGroup(g.groupId)),
+        180_000
+      );
+      record('gallery-cleanup', { groupId: g.groupId, removed: true });
+    });
+  }
   if (selected('contact-status')) {
     const g = await group('Status');
     await zod.withClient(() => addContact('~ten'));
