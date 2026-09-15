@@ -8,7 +8,6 @@ import { useTheme } from 'tamagui';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { useScrollToTabTop } from '../../hooks/useScrollToTabTop';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
-import { getTopLevelTabRoute } from '../../navigation/topLevelTabs';
 import { useRootNavigation } from '../../navigation/utils';
 import { ActivityScreenView, View } from '../../ui';
 
@@ -86,8 +85,7 @@ export function ActivityScreen() {
   );
 
   const handleNavigateToContacts = useCallback(() => {
-    const route = getTopLevelTabRoute('Contacts');
-    navigation.navigate(route.name, route.params, { pop: true });
+    navigation.navigate('Contacts', undefined, { pop: true });
   }, [navigation]);
 
   const handleInviteFriends = useCallback(() => {

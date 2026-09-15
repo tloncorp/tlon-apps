@@ -333,8 +333,7 @@ export function useNavigateBackFromPost() {
         return;
       }
       if (lastScreenWasActivity) {
-        const route = getTopLevelTabRoute('Activity');
-        navigation.navigate(route.name, route.params, { pop: true });
+        navigation.navigate('Activity', undefined, { pop: true });
         return;
       }
       if (isWindowNarrow) {

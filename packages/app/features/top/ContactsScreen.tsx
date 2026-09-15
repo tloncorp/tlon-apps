@@ -104,15 +104,6 @@ export default function ContactsScreen() {
                 onPress: () => navigate('AddContacts'),
               },
             ]}
-            rightActions={[
-              {
-                id: 'contacts-settings',
-                icon: 'Settings',
-                label: 'Settings',
-                testID: 'ContactsSettingsButton',
-                onPress: () => navigate('Settings', undefined, { pop: true }),
-              },
-            ]}
             placement="navigation"
           />
           <SystemNotices.ContactBookPrompt

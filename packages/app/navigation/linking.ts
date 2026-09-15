@@ -16,11 +16,13 @@ export const getMobileLinkingConfig = (
         screens: {
           MainTabs: {
             screens: {
+              HomeGroup: 'home-group',
               ChatList: 'ChatList',
-              Activity: 'activity',
-              Contacts: 'contacts',
+              Settings: 'settings',
             },
           },
+          Activity: 'activity',
+          Contacts: 'contacts',
           DM: {
             path: 'dm/:channelId/:selectedPostId?',
             parse: parsePathParams('channelId', 'selectedPostId'),
@@ -102,7 +104,6 @@ export const getMobileLinkingConfig = (
           WompWomp: 'report-bug',
           AppInfo: 'app-info',
           PushNotificationSettings: 'push-notification-settings',
-          Settings: 'settings',
         },
       },
     },

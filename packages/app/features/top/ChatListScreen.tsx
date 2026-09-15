@@ -13,7 +13,6 @@ import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatListSettleTelemetry } from '../../hooks/useChatListSettleTelemetry';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useFilteredChats } from '../../hooks/useFilteredChats';
-import { TabName } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { useScrollToTabTop } from '../../hooks/useScrollToTabTop';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
@@ -38,7 +37,6 @@ import WayfindingNotice from '../../ui/components/Wayfinding/Notices';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { ChatList, ChatListItemData } from '../chat-list/ChatList';
 import { ChatListSearch } from '../chat-list/ChatListSearch';
-import { ChatListTabs } from '../chat-list/ChatListTabs';
 import { CreateChatSheet, CreateChatSheetMethods } from './CreateChatSheet';
 import { useAgentOnboardingLandingConsumer } from './useAgentOnboardingLandingConsumer';
 import {
@@ -47,6 +45,10 @@ import {
 } from './groupInvitePreview';
 
 const logger = createDevLogger('ChatListScreen', false);
+
+// Workspaces always shows the combined DM + group list. The filter is kept as
+// a named constant because analytics and `useFilteredChats` still take a tab.
+const COMBINED_CHAT_TAB = 'home' as const;
 
 export default function ChatListScreen() {
   const route = useRoute<RouteProp<TopLevelTabParamList, 'ChatList'>>();
@@ -77,7 +79,6 @@ export function ChatListScreenView({
   const { isOpen, setIsOpen } = useGlobalSearch();
   const chatListRef = useScrollToTabTop<FlashListRef<ChatListItemData>>();
 
-  const [activeTab, setActiveTab] = useState<TabName>('home');
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
     previewGroupId ?? null
   );
@@ -116,6 +117,7 @@ export function ChatListScreenView({
 
   const connStatus = store.useConnectionStatus();
   const session = store.useCurrentSession();
+  const haveUnreadActivity = store.useHaveUnreadUnseenActivity();
 
   // React to a later `previewGroupId` param (e.g. a notification tap while ChatList is already
   // mounted), mirroring desktop HomeSidebar. Also (re)marks whether the selection came from a
@@ -257,18 +259,6 @@ export function ChatListScreenView({
     [navigateToGroup, navigateToChannel, searchQuery]
   );
 
-  const handlePressTab = useCallback(
-    (tab: TabName) => {
-      if (tab !== activeTab) {
-        trackEvent(AnalyticsEvent.HomeFilterSelected, {
-          tab,
-        });
-        setActiveTab(tab);
-      }
-    },
-    [activeTab]
-  );
-
   const handlePressAddChat = useCallback(() => {
     // Close the filter input (and its keyboard) before opening the sheet so
     // the keyboard can't overlap it and trap touches (TLON-6187).
@@ -335,14 +325,14 @@ export function ChatListScreenView({
       }
       if (!showSearchInput) {
         trackEvent(AnalyticsEvent.HomeSearchOpened, {
-          tab: activeTab,
+          tab: COMBINED_CHAT_TAB,
         });
       }
       setShowSearchInput(!showSearchInput);
     } else {
       setIsOpen(!isOpen);
     }
-  }, [activeTab, showSearchInput, isWindowNarrow, isOpen, setIsOpen]);
+  }, [showSearchInput, isWindowNarrow, isOpen, setIsOpen]);
 
   const handleGroupAction = useCallback(
     (action: GroupPreviewAction, group: db.Group) => {
@@ -354,18 +344,15 @@ export function ChatListScreenView({
     [performGroupAction]
   );
 
+  const handlePressActivity = useCallback(() => {
+    navigation.navigate('Activity');
+  }, [navigation]);
+
   const handlePersonalInvitePress = useCallback(() => {
     logger.trackEvent(AnalyticsEvent.PersonalInvitePressed);
     db.hasViewedPersonalInvite.setValue(true);
     setPersonalInviteOpen(true);
   }, []);
-
-  const handlePressTryAll = useCallback(() => {
-    trackEvent(AnalyticsEvent.HomeFilterSelected, {
-      tab: 'home',
-    });
-    setActiveTab('home');
-  }, [setActiveTab]);
 
   const handlePressClear = useCallback(() => {
     setSearchQuery('');
@@ -378,7 +365,7 @@ export function ChatListScreenView({
   const displayData = useFilteredChats({
     ...resolvedChats,
     searchQuery,
-    activeTab,
+    activeTab: COMBINED_CHAT_TAB,
   });
   const handleChatListLoad = useCallback(() => {
     if (chats) {
@@ -398,7 +385,7 @@ export function ChatListScreenView({
               <WayfindingNotice.HomeAddTooltip top={isWeb ? 36 : 8} />
             )}
             <ScreenHeader
-              title="Home"
+              title="Workspaces"
               subtitle={syncSubtitle}
               loadingSubtitle={loadingSubtitle}
               showSubtitle={true}
@@ -412,6 +399,14 @@ export function ChatListScreenView({
                 },
               ]}
               rightActions={[
+                {
+                  id: 'activity',
+                  icon: 'Notifications',
+                  label: 'Activity',
+                  testID: 'ActivityHeaderButton',
+                  onPress: handlePressActivity,
+                  tint: haveUnreadActivity ? '$blue' : undefined,
+                },
                 {
                   id: 'search',
                   icon: 'Search',
@@ -437,10 +432,6 @@ export function ChatListScreenView({
               chats.pending.length ||
               chats.pinned.length) ? (
               <>
-                <ChatListTabs
-                  onPressTab={handlePressTab}
-                  activeTab={activeTab}
-                />
                 <ChatListSearch
                   query={searchQuery}
                   onQueryChange={setSearchQuery}
@@ -449,11 +440,7 @@ export function ChatListScreenView({
                   onPressClose={handlePressClose}
                 />
                 {searchQuery !== '' && !displayData[0]?.data.length ? (
-                  <SearchResultsEmpty
-                    activeTab={activeTab}
-                    onPressClear={handlePressClear}
-                    onPressTryAll={handlePressTryAll}
-                  />
+                  <SearchResultsEmpty onPressClear={handlePressClear} />
                 ) : (
                   <ChatList
                     data={displayData}
@@ -486,15 +473,7 @@ export function ChatListScreenView({
   );
 }
 
-function SearchResultsEmpty({
-  activeTab,
-  onPressClear,
-  onPressTryAll,
-}: {
-  activeTab: TabName;
-  onPressTryAll: () => void;
-  onPressClear: () => void;
-}) {
+function SearchResultsEmpty({ onPressClear }: { onPressClear: () => void }) {
   return (
     <YStack
       gap="$l"
@@ -504,11 +483,6 @@ function SearchResultsEmpty({
       paddingVertical="$m"
     >
       <Text>No results found.</Text>
-      {activeTab !== 'home' && (
-        <Pressable onPress={onPressTryAll}>
-          <Text textDecorationLine="underline">Try in All?</Text>
-        </Pressable>
-      )}
       <Pressable onPress={onPressClear}>
         <Text color="$positiveActionText">Clear search</Text>
       </Pressable>

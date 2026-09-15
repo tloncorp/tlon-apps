@@ -5,17 +5,17 @@ import type { RootStackParamList, TopLevelTabParamList } from './types';
 export type TopLevelTabName = keyof TopLevelTabParamList;
 
 export const TOP_LEVEL_TABS = {
-  ChatList: {
+  HomeGroup: {
     title: 'Home',
-    analyticsLabel: 'Home',
+    analyticsLabel: 'Home Group',
   },
-  Activity: {
-    title: 'Activity',
-    analyticsLabel: 'Activity',
+  ChatList: {
+    title: 'Workspaces',
+    analyticsLabel: 'Workspaces',
   },
-  Contacts: {
-    title: 'Contacts',
-    analyticsLabel: 'Contacts',
+  Settings: {
+    title: 'Settings',
+    analyticsLabel: 'Settings',
   },
 } as const satisfies Record<
   TopLevelTabName,
