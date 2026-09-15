@@ -55,15 +55,13 @@ jobs:
         run: |
           build_url="$(node -e 'const fs = require("node:fs"); const value = JSON.parse(fs.readFileSync("build-result.json", "utf8")); const build = Array.isArray(value) ? value[0] : value; process.stdout.write(build?.artifacts?.buildUrl || "")')"
           test -n "$build_url"
-          mkdir -p ios-build
           curl --fail --location --retry 3 "$build_url" --output ios-build.tar.gz
-          tar -xzf ios-build.tar.gz -C ios-build
-          test -n "$(find ios-build -type d -name '*.app' -print -quit)"
+          tar -tzf ios-build.tar.gz | awk '/\.app\/$/ { found = 1 } END { exit !found }'
       - name: Upload iOS app
         uses: actions/upload-artifact@v4
         with:
           name: reliability-ios-build
-          path: apps/tlon-mobile/ios-build
+          path: apps/tlon-mobile/ios-build.tar.gz
           retention-days: 1
 
   build-android:
@@ -118,7 +116,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: reliability-ios-build
-          path: ios-build
+          path: .
+      - name: Extract iOS app
+        run: |
+          mkdir -p ios-build
+          tar -xzf ios-build.tar.gz -C ios-build
       - id: app
         name: Find iOS app
         run: |
