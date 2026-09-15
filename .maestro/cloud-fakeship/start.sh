@@ -129,6 +129,7 @@ const optionalNames = [
   'dm-history-pagination',
   'activity-pagination',
   'permissions-restore',
+  'member-invitation-filter',
 ];
 const selected = process.env.PROOF_CASES === 'all' ? names : (process.env.PROOF_CASES || 'exchange').split(',');
 if (!selected.length || selected.some(name => ![...names, ...optionalNames].includes(name))) throw Error('Unknown proof case');

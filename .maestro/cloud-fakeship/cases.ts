@@ -153,6 +153,36 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
       await say(g.chatChannel, 'invite verified');
     });
   }
+  if (selected('member-invitation-filter')) {
+    const g = await zod.createGroupWithChannel({
+      title: `MemberInvite-${tag}`,
+    });
+    fixtures.MemberInvite = g;
+    await zod.sendChannelPost({
+      channelId: g.chatChannel,
+      content: `${tag} invite ready`,
+    });
+    await until('member invitation fixture post reaches host', async () =>
+      (await zod.state.channelPosts(g.chatChannel)).some(
+        (post) =>
+          post.authorId === '~zod' && post.text === `${tag} invite ready`
+      )
+    );
+    task('member-invitation-filter', async () => {
+      await until(
+        'native deletes member invitation filter fixture',
+        async () =>
+          !(await zod.state.isMemberOfGroup(g.groupId)) &&
+          !(await ten.state.isMemberOfGroup(g.groupId)),
+        30 * 60_000
+      );
+      record('member-invitation-filter-cleanup', {
+        groupId: g.groupId,
+        hostMember: false,
+        peerMember: false,
+      });
+    });
+  }
   if (selected('direct-messages')) {
     await ten.sendDm('~zod', `${tag} DM request`);
     task('direct-messages', async () => {

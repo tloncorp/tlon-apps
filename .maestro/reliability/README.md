@@ -36,8 +36,9 @@ The separate `Maestro two-ship test` workflow runs on demand. It starts disposab
 `~zod` and `~ten` ships on CI using this checkout's backend, exposes only `~zod`
 through an IP-restricted tunnel, and reuses a qualified Android Cloud binary.
 An API peer creates the group and sends a message; Maestro receives it, replies,
-and sees the peer's acknowledgement without reloading. Invite/accept UI is not
-covered. Dispatch `.github/workflows/maestro-fakeship-proof.yml` on this branch.
+and sees the peer's acknowledgement without reloading. Group invitation opening
+and filtering are covered; invitation submission and peer acceptance are not.
+Dispatch `.github/workflows/maestro-fakeship-proof.yml` on this branch.
 
 CI needs `MAESTRO_CLOUD_API_KEY` and `MAESTRO_FAKE_SHIP_NGROK_TOKEN`. The workflow
 pins the Cloud project, binary, device, and CLI. Prepared ship snapshots are keyed
@@ -49,6 +50,7 @@ Multiparty cases from the [Authenticated App QA sheet](https://docs.google.com/s
 
 | Rows | Case | Peer evidence |
 | --- | --- | --- |
+| 132-133 | Open Invite People and filter to `~ten` | Disposable native-hosted group is absent on both ships after cleanup |
 | 207-208 | Edit a mobile message | Same post ID has the edited text on the other ship |
 | 209 | Delete that message | Other ship receives its deletion tombstone |
 | 201-202 | Reply to a peer and receive a thread reply | Both replies have the expected authors under the same root; UI shows two replies and reopens them |
