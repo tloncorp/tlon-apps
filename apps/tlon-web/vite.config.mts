@@ -38,15 +38,10 @@ export default ({ mode }: { mode: string }) => {
     process.env,
     loadEnv(mode, process.cwd(), ['VITE_', 'DEFAULT_SHIP_LOGIN_'])
   );
-  // The bundle reads VITE_SHIP_URL as well (packages/app/lib/envVars.ts, for
-  // whether the ship is hosted), so the fallback has to reach it too -- behind
-  // SHIP_URL, which the proxy below prefers and e2e runs set, so the bundle
-  // never names a different ship than the one being served.
-  process.env.VITE_SHIP_URL ||=
-    process.env.SHIP_URL || process.env.DEFAULT_SHIP_LOGIN_URL;
   const SHIP_URL =
     process.env.SHIP_URL ||
     process.env.VITE_SHIP_URL ||
+    process.env.DEFAULT_SHIP_LOGIN_URL ||
     'http://localhost:8080';
   console.log(SHIP_URL);
   const SHIP_URL2 =
@@ -55,6 +50,11 @@ export default ({ mode }: { mode: string }) => {
     'http://localhost:8080';
   console.log(SHIP_URL2);
   const targetShipUrl = mode === 'dev2' ? SHIP_URL2 : SHIP_URL;
+  // The bundle reads VITE_SHIP_URL as well (packages/app/lib/envVars.ts, for
+  // whether the ship is hosted and which upload endpoint to use), so it gets
+  // the ship actually being served -- the dev2 target included, which is not
+  // the one the primary variables name.
+  process.env.VITE_SHIP_URL = targetShipUrl;
   const shouldUploadSourcemaps =
     process.env.CI === 'true' && Boolean(process.env.SENTRY_AUTH_TOKEN);
 
