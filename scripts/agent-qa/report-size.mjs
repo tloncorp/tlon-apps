@@ -1,4 +1,29 @@
 // Leave headroom below GitHub's body limit, including for multibyte text.
+function withoutFencedBlocks(markdown) {
+  let fence;
+  return markdown
+    .split('\n')
+    .filter((line) => {
+      const match = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+      if (fence) {
+        if (
+          match &&
+          match[1][0] === fence[0] &&
+          match[1].length >= fence.length &&
+          !match[2].trim()
+        )
+          fence = null;
+        return false;
+      }
+      if (match) {
+        fence = match[1];
+        return false;
+      }
+      return true;
+    })
+    .join('\n');
+}
+
 export function boundReport(markdown, limit = 40_000, sourceUrl) {
   if (Buffer.byteLength(markdown) <= limit) return markdown;
   const videos = [
@@ -26,7 +51,7 @@ export function boundReport(markdown, limit = 40_000, sourceUrl) {
   if (budget < 1000)
     throw new Error('Too many evidence links to fit the report');
   // Drop verbose folded evidence before shortening the visible findings.
-  const visible = markdown
+  const visible = withoutFencedBlocks(markdown)
     .replace(/<details>[\s\S]*?<\/details>/g, '')
     .replace(
       /https:\/\/github\.com\/user-attachments\/assets\/[a-f0-9-]+/g,

@@ -65,8 +65,28 @@ export function withCommentLock(
   try {
     return publish();
   } finally {
-    if (read().object.sha !== tag.sha)
-      throw new Error('QA publication lock ownership changed');
-    gh(['api', '--method', 'DELETE', endpoint]);
+    let deleting = false;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      let owner;
+      try {
+        owner = read().object.sha;
+      } catch (error) {
+        if (deleting && /HTTP 404/.test(String(error.stderr || error.message)))
+          break;
+        if (attempt === 2) throw error;
+        pause();
+        continue;
+      }
+      if (owner !== tag.sha)
+        throw new Error('QA publication lock ownership changed');
+      try {
+        deleting = true;
+        gh(['api', '--method', 'DELETE', endpoint]);
+        break;
+      } catch (error) {
+        if (attempt === 2) throw error;
+        pause();
+      }
+    }
   }
 }

@@ -1,7 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { renderReport } from './core.mjs';
+import { boundReport } from './report-size.mjs';
 import { renderComment, planComment } from './comment.mjs';
+
+test('shortening never puts retained video players inside an unfinished code fence', () => {
+  const video =
+    'https://github.com/user-attachments/assets/12345678-1234-1234-1234-123456789abc';
+  for (const fence of ['```', '~~~~', '`````']) {
+    const body = boundReport(
+      `Summary\n\n${fence}text\n${'example line\n'.repeat(200)}${fence}\n\n${video}`,
+      1500
+    );
+    assert.ok(Buffer.byteLength(body) <= 1500);
+    assert.ok(body.includes('Summary'));
+    assert.ok(body.includes(`\n\n${video}`));
+    assert.ok(!body.includes(fence));
+  }
+});
 
 test('verbose valid reports fit outputs and comments without losing video or artifact links', () => {
   const long = '界'.repeat(3000);

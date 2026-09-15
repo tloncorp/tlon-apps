@@ -13,10 +13,20 @@ function fixture() {
       if (state.loseResponse) throw new Error('Connection lost');
       return '{}';
     }
-    if (args.some((a) => a.includes('/git/ref/tags/')))
+    if (args.some((a) => a.includes('/git/ref/tags/'))) {
+      if (state.failReadOnce) {
+        state.failReadOnce = false;
+        throw new Error('Network unavailable');
+      }
+      if (!state.owner) throw new Error('HTTP 404');
       return JSON.stringify({ object: { sha: state.owner } });
+    }
     if (args.includes('DELETE')) {
       state.owner = null;
+      if (state.loseDeleteResponse) {
+        state.loseDeleteResponse = false;
+        throw new Error('Connection lost');
+      }
       return '';
     }
     throw new Error('Unexpected call');
@@ -56,6 +66,34 @@ test('contending publisher waits until the first owner releases, then owns the w
     'published'
   );
   assert.equal(state.owner, null);
+});
+
+test('transient release reads and lost delete responses recover without orphaning the lock', () => {
+  for (const failure of ['failReadOnce', 'loseDeleteResponse']) {
+    const { state, options } = lockFixture();
+    state.owner = null;
+    withCommentLock(
+      options,
+      () => {
+        state[failure] = true;
+      },
+      { pause: () => {} }
+    );
+    assert.equal(state.owner, null);
+  }
+});
+
+test('release never deletes another owners ref', () => {
+  const { state, options } = lockFixture();
+  state.owner = null;
+  assert.throws(
+    () =>
+      withCommentLock(options, () => {
+        state.owner = 'replacement';
+      }),
+    /ownership changed/
+  );
+  assert.equal(state.owner, 'replacement');
 });
 test('publication error releases lock, and ambiguous acquisition recovers only its own ref', () => {
   const { state, options } = lockFixture();
