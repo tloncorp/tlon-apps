@@ -119,6 +119,8 @@ const optionalNames = [
   'dm-unblock',
   'blocked-group-invite',
   'blocked-group-content',
+  'member-ban',
+  'invite-revocation',
   'group-swipe-read',
   'dm-swipe-read',
   'permissions-restore',

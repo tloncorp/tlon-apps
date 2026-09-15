@@ -86,6 +86,18 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
     path: string,
     ship: string
   ) => (await actor.state.scry<string[]>('chat', path)).includes(ship);
+  const hasValidGroupInvite = async (
+    actor: TlonActorClient,
+    groupId: string
+  ) => {
+    const foreigns = await actor.state.scry<Record<string, any>>(
+      'groups',
+      '/v1/foreigns'
+    );
+    return (foreigns?.[groupId]?.invites ?? []).some(
+      (invite: any) => invite.valid
+    );
+  };
   async function resetDmPeer() {
     if (await includesShip(zod, '/blocked', '~ten')) {
       await zod.state.poke({
@@ -616,6 +628,96 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
       blockedText,
       controlText,
       backendReceivedBlockedPost: true,
+    });
+  }
+  if (selected('member-ban')) {
+    const g = await group('Ban', zod);
+    await zod.sendChannelPost({
+      channelId: g.chatChannel,
+      content: `${tag} member ready`,
+    });
+    task('member-ban', async () => {
+      await until(
+        'native bans and removes peer member',
+        async () => {
+          const host: any = await zod.state.group(g.groupId);
+          return (
+            host?.bannedMembers?.some(
+              (member: any) => member.contactId === '~ten'
+            ) &&
+            !host?.members?.some(
+              (member: any) =>
+                member.contactId === '~ten' && member.status === 'joined'
+            ) &&
+            !(await ten.state.isMemberOfGroup(g.groupId))
+          );
+        },
+        30 * 60_000
+      );
+
+      let rejoinRejected = false;
+      try {
+        await ten.state.joinGroup(g.groupId);
+      } catch {
+        rejoinRejected = true;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 3_000));
+      const hostWhileBanned: any = await zod.state.group(g.groupId);
+      if (
+        !hostWhileBanned?.bannedMembers?.some(
+          (member: any) => member.contactId === '~ten'
+        ) ||
+        (await ten.state.isMemberOfGroup(g.groupId))
+      ) {
+        throw Error('Banned peer regained group membership');
+      }
+      await zod.sendChannelPost({
+        channelId: g.chatChannel,
+        content: `${tag} ban verified`,
+      });
+      record('member-ban-state', {
+        groupId: g.groupId,
+        contactId: '~ten',
+        banned: true,
+        member: false,
+        rejoinRejected,
+      });
+    });
+  }
+  if (selected('invite-revocation')) {
+    const g = await zod.createGroupWithChannel({
+      title: `RevokeInvite-${tag}`,
+    });
+    fixtures.RevokeInvite = g;
+    await zod.state.inviteToGroup(g.groupId, ['~ten']);
+    await until('active invite reaches host and peer', async () => {
+      const host: any = await zod.state.group(g.groupId);
+      return (
+        host?.members?.some(
+          (member: any) =>
+            member.contactId === '~ten' && member.status === 'invited'
+        ) && (await hasValidGroupInvite(ten, g.groupId))
+      );
+    });
+    task('invite-revocation', async () => {
+      await until(
+        'native revokes active peer invite',
+        async () => {
+          const host: any = await zod.state.group(g.groupId);
+          return (
+            !host?.members?.some(
+              (member: any) => member.contactId === '~ten'
+            ) && !(await hasValidGroupInvite(ten, g.groupId))
+          );
+        },
+        30 * 60_000
+      );
+      record('invite-revocation-state', {
+        groupId: g.groupId,
+        contactId: '~ten',
+        hostPending: false,
+        peerInvite: false,
+      });
     });
   }
   if (selected('moderation')) {
