@@ -984,7 +984,7 @@ export default defineBundledChannelEntry({
       label: 'Tlon CLI',
       description:
         'Tlon/Urbit API for reading data and administration: activity, channels, contacts, groups, messages, notes, posts, settings, upload, expose, hooks. ' +
-        'DO NOT use this tool to send ordinary messages — use the `message` tool instead. The exception is `browser handoff <signed-viewer-url>`, which sends the owner a client-native credential form without exposing credential values to the model. ' +
+	'DO NOT use this tool to send messages — use the `message` tool instead. ' +
         '%diary channels are deprecated and unsupported by this CLI tool; ask the owner to type `/migrate <diary-nest>` to move one to %notes. ' +
         'OpenClaw message delivery still accepts diary/ targets, including writable archives. ' +
         'Never use LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]) in note bodies or message text — Tlon renders no math; write math as plain text/Unicode or in code blocks. ' +
