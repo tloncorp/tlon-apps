@@ -16,7 +16,7 @@ export const getMobileLinkingConfig = (
         screens: {
           MainTabs: {
             screens: {
-              HomeGroup: 'home-group',
+              BotChat: 'bot',
               ChatList: 'ChatList',
               Settings: 'settings',
             },

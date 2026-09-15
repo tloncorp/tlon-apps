@@ -7,7 +7,7 @@ import { useIsWindowNarrow } from '@tloncorp/ui';
 import SettingsScreen from '../features/settings/SettingsScreen';
 import ChannelScreen from '../features/top/ChannelScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
-import { useHomeGroupTab } from '../hooks/useHomeGroupTab';
+import { useBotDmTab } from '../hooks/useBotDmTab';
 import { NavBar, NavIcon } from '../ui/components/NavBar';
 import { TopLevelTabName, trackTopLevelTabSelection } from './topLevelTabs';
 import type { TopLevelTabParamList } from './types';
@@ -45,19 +45,17 @@ function ReactTopLevelTabBar({ state, navigation }: BottomTabBarProps) {
     }
   };
 
-  const hasHomeGroupTab = state.routes.some(
-    (route) => route.name === 'HomeGroup'
-  );
+  const hasBotDmTab = state.routes.some((route) => route.name === 'BotChat');
 
   return (
     <NavBar>
-      {hasHomeGroupTab && (
+      {hasBotDmTab && (
         <NavIcon
           type="Home"
           activeType="HomeFilled"
-          isActive={activeRouteName === 'HomeGroup'}
+          isActive={activeRouteName === 'BotChat'}
           hasUnreads={false}
-          onPress={() => pressTab('HomeGroup')}
+          onPress={() => pressTab('BotChat')}
         />
       )}
       <NavIcon
@@ -78,23 +76,20 @@ function ReactTopLevelTabBar({ state, navigation }: BottomTabBarProps) {
 }
 
 export function TopLevelTabNavigator() {
-  const homeGroup = useHomeGroupTab();
+  const botDm = useBotDmTab();
 
   return (
     <Tabs.Navigator
-      initialRouteName={homeGroup.enabled ? 'HomeGroup' : 'ChatList'}
+      initialRouteName={botDm.enabled ? 'BotChat' : 'ChatList'}
       backBehavior="history"
       screenOptions={{ headerShown: false }}
       tabBar={(props) => <ReactTopLevelTabBar {...props} />}
     >
-      {homeGroup.enabled ? (
+      {botDm.enabled ? (
         <Tabs.Screen
-          name="HomeGroup"
+          name="BotChat"
           component={ChannelScreen}
-          initialParams={{
-            channelId: homeGroup.channelId,
-            groupId: homeGroup.groupId,
-          }}
+          initialParams={{ channelId: botDm.channelId }}
         />
       ) : null}
       <Tabs.Screen name="ChatList" component={ChatListScreen} />

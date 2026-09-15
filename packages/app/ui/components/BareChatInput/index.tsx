@@ -1060,7 +1060,7 @@ function BareChatInput(
         tappedChatInput: true,
       }));
     }
-    if (logic.isBotHomeGroupChatChannel(getCurrentUserId(), channelId)) {
+    if (logic.isBotDmChannel({ channel: { id: channelId } })) {
       db.wayfindingProgress.setValue((prev) => ({
         ...prev,
         tappedHomeGroupHint: true,

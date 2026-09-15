@@ -351,31 +351,6 @@ export async function updateCurrentUserProfile(
         );
       }
     }
-
-    // handle updating the home group title if user sets their nickname
-    const homeGroup = await db.getBotHomeGroup();
-    if (homeGroup) {
-      const hasDefaultTitle = logic.botHomeGroupHasDefaultTitle(
-        homeGroup,
-        currentUserContact?.peerNickname
-      );
-
-      if (hasDefaultTitle && hasNicknameUpdate) {
-        const newTitle = logic.generateBotHomeGroupTitle({
-          id: currentUserId,
-          nickname: update.nickname,
-        });
-        if (homeGroup.title !== newTitle) {
-          await GroupActions.updateGroupMeta(
-            {
-              ...homeGroup,
-              title: newTitle,
-            },
-            config
-          );
-        }
-      }
-    }
   } catch (e) {
     console.error('Error updating profile', e);
     // Rollback the update

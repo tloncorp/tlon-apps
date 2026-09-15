@@ -48,7 +48,7 @@ const logger = createDevLogger('ChannelScreen', false);
 type Props = {
   route: RouteProp<
     ChannelScreenParamList,
-    'Channel' | 'DM' | 'GroupDM' | 'ChannelRoot' | 'HomeGroup'
+    'Channel' | 'DM' | 'GroupDM' | 'ChannelRoot' | 'BotChat'
   >;
   navigation: NativeStackNavigationProp<RootStackParamList, 'Channel'>;
 };
@@ -75,9 +75,9 @@ export default function ChannelScreen(props: Props) {
     });
     return () => cancelAnimationFrame(frame);
   }, [disableTransition, props.navigation]);
-  // The home-group tab renders this screen directly, where there is nothing to
-  // go back to and no stack of its own to push onto.
-  const isTabRoot = props.route.name === 'HomeGroup';
+  // The bot tab renders this screen directly, where there is nothing to go
+  // back to and no stack of its own to push onto.
+  const isTabRoot = props.route.name === 'BotChat';
   const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
 
   useEffect(() => {

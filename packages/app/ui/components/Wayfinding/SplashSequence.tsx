@@ -100,7 +100,6 @@ import {
   initializeOpenAISubscriptionModels,
   resolveInitialProviderModel,
 } from './providerModelDefaults';
-import { useHomeGroupInviteLink } from './useHomeGroupInviteLink';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
 
 /**
@@ -2037,13 +2036,12 @@ export function GroupsPane(props: {
 }) {
   const insets = useSafeAreaInsets();
   const isDark = useIsDarkMode();
-  const { inviteUrl: homeGroupInviteUrl, state: homeGroupInviteState } =
-    useHomeGroupInviteLink({
-      enabled: !!props.hostingBotEnabled,
-    });
-  const groupInviteIsLoading = homeGroupInviteState === 'loading';
-  const groupInviteIsReady = homeGroupInviteState === 'ready';
-  const groupInviteHasError = homeGroupInviteState === 'unavailable';
+  // Invites connect people to the user rather than into one stable group:
+  // onboarding creates groups through the bot DM, so there is no fixed group
+  // to hand out. An absent link just means it has not arrived yet.
+  const homeGroupInviteUrl = db.personalInviteLink.useValue();
+  const groupInviteIsLoading = !homeGroupInviteUrl;
+  const groupInviteIsReady = !!homeGroupInviteUrl;
   const { doCopy: copyHomeGroupInvite, didCopy: didCopyHomeGroupInvite } =
     useCopy(homeGroupInviteUrl ?? '');
   const shareHomeGroupInvite = useCallback(async () => {
@@ -2183,43 +2181,37 @@ export function GroupsPane(props: {
                     ? 'Preparing invite link'
                     : 'Invite link unavailable'
                 }
-                accent={groupInviteHasError ? 'negative' : 'positive'}
+                accent="positive"
                 editable={false}
                 selectTextOnFocus={groupInviteIsReady}
                 frameStyle={{
                   flex: 1,
                   height: 44,
-                  ...(groupInviteHasError
-                    ? {}
-                    : {
-                        borderTopRightRadius: 0,
-                        borderBottomRightRadius: 0,
-                        borderRightWidth: 0,
-                      }),
+                  borderTopRightRadius: 0,
+                  borderBottomRightRadius: 0,
+                  borderRightWidth: 0,
                 }}
               />
-              {!groupInviteHasError && (
-                <Button
-                  onPress={groupInviteIsReady ? copyHomeGroupInvite : undefined}
-                  icon={didCopyHomeGroupInvite ? 'Checkmark' : 'Copy'}
-                  accessibilityLabel={
-                    didCopyHomeGroupInvite ? 'Copied' : 'Copy invite link'
-                  }
-                  intent="positive"
-                  size="small"
-                  width={44}
-                  borderTopLeftRadius={0}
-                  borderBottomLeftRadius={0}
-                  loading={groupInviteIsLoading}
-                  disabled={!groupInviteIsReady}
-                  glow={groupInviteIsReady}
-                />
-              )}
+              <Button
+                onPress={groupInviteIsReady ? copyHomeGroupInvite : undefined}
+                icon={didCopyHomeGroupInvite ? 'Checkmark' : 'Copy'}
+                accessibilityLabel={
+                  didCopyHomeGroupInvite ? 'Copied' : 'Copy invite link'
+                }
+                intent="positive"
+                size="small"
+                width={44}
+                borderTopLeftRadius={0}
+                borderBottomLeftRadius={0}
+                loading={groupInviteIsLoading}
+                disabled={!groupInviteIsReady}
+                glow={groupInviteIsReady}
+              />
             </XStack>
             <Button
               onPress={groupInviteIsReady ? shareHomeGroupInvite : undefined}
               label="Share link"
-              intent={groupInviteHasError ? 'negative' : 'positive'}
+              intent="positive"
               fill="outline"
               size="small"
               leadingIcon="Send"

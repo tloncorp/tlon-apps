@@ -5,7 +5,7 @@ import { useTheme } from 'tamagui';
 import SettingsScreen from '../features/settings/SettingsScreen';
 import ChannelScreen from '../features/top/ChannelScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
-import { useHomeGroupTab } from '../hooks/useHomeGroupTab';
+import { useBotDmTab } from '../hooks/useBotDmTab';
 import { TOP_LEVEL_TABS, trackTopLevelTabSelection } from './topLevelTabs';
 import type { TopLevelTabParamList } from './types';
 
@@ -37,11 +37,11 @@ function tabIcon(name: TabIconName, focused: boolean) {
 
 export function TopLevelTabNavigator() {
   const theme = useTheme();
-  const homeGroup = useHomeGroupTab();
+  const botDm = useBotDmTab();
 
   return (
     <Tabs.Navigator
-      initialRouteName={homeGroup.enabled ? 'HomeGroup' : 'ChatList'}
+      initialRouteName={botDm.enabled ? 'BotChat' : 'ChatList'}
       backBehavior="history"
       screenListeners={({ navigation, route }) => ({
         tabPress: () => {
@@ -64,16 +64,13 @@ export function TopLevelTabNavigator() {
           Platform.OS === 'ios' ? 'onScrollDown' : undefined,
       }}
     >
-      {homeGroup.enabled ? (
+      {botDm.enabled ? (
         <Tabs.Screen
-          name="HomeGroup"
+          name="BotChat"
           component={ChannelScreen}
-          initialParams={{
-            channelId: homeGroup.channelId,
-            groupId: homeGroup.groupId,
-          }}
+          initialParams={{ channelId: botDm.channelId }}
           options={{
-            title: TOP_LEVEL_TABS.HomeGroup.title,
+            title: TOP_LEVEL_TABS.BotChat.title,
             tabBarIcon: ({ focused }) => tabIcon('home', focused),
           }}
         />

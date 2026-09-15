@@ -38,7 +38,7 @@ describe('getTopLevelTabRoute', () => {
 
 describe('mobile top-level tab links', () => {
   test.each([
-    ['/apps/groups/home-group', 'HomeGroup'],
+    ['/apps/groups/bot', 'BotChat'],
     ['/apps/groups/ChatList', 'ChatList'],
     ['/apps/groups/settings', 'Settings'],
   ])('nests %s under MainTabs', (path, screen) => {

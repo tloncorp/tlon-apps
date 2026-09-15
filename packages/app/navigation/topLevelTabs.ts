@@ -5,9 +5,9 @@ import type { RootStackParamList, TopLevelTabParamList } from './types';
 export type TopLevelTabName = keyof TopLevelTabParamList;
 
 export const TOP_LEVEL_TABS = {
-  HomeGroup: {
-    title: 'Home',
-    analyticsLabel: 'Home Group',
+  BotChat: {
+    title: 'Bot',
+    analyticsLabel: 'Bot Chat',
   },
   ChatList: {
     title: 'Workspaces',
