@@ -47,7 +47,7 @@ on:
 
 concurrency:
   cancel_in_progress: true
-  group: ${{ workflow.filename }}-${{ github.ref }}
+  group: ${{ workflow.filename }}-${{ github.ref }}-${{ inputs.coordinator_failure_json && fromJSON(inputs.coordinator_failure_json).number || 'run' }}
 
 defaults:
   tools:

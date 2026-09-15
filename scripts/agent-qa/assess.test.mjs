@@ -192,3 +192,41 @@ test('planner tries captured transient states before requiring timing controls',
     /Transient states require an explicit timing-control prerequisite/
   );
 });
+
+import { appendInfrastructureFailure, verifyReport } from './core.mjs';
+
+test('infrastructure loss survives full report validation without satisfying coverage', () => {
+  const result = appendInfrastructureFailure(
+    {
+      status: 'failed',
+      summary: 'Reproduced',
+      checks: [
+        {
+          scenarioId: scenario.id,
+          expected: scenario.expected,
+          observed: 'Failure observed',
+          status: 'failed',
+          evidence: ['capture'],
+        },
+      ],
+    },
+    'Backend verification failed'
+  );
+  assert.equal(
+    verifyCoverage(verifyReport(result, new Map([['capture', {}]])), plan),
+    result
+  );
+  assert.equal(result.status, 'failed');
+  assert.throws(
+    () => verifyCoverage({ ...result, checks: [result.checks.at(-1)] }, plan),
+    /not accounted for/
+  );
+  assert.throws(
+    () =>
+      verifyCoverage(
+        { ...result, checks: [{ ...result.checks.at(-1), status: 'passed' }] },
+        plan
+      ),
+    /Invalid infrastructure/
+  );
+});

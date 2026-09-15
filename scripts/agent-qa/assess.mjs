@@ -207,6 +207,18 @@ export function verifyCoverage(report, assessment) {
   if (!assessment) return report;
   const planned = new Set(assessment.scenarios.map((s) => s.id));
   for (const check of report.checks) {
+    if (check.infrastructure === true) {
+      if (
+        check.scenarioId ||
+        check.status !== 'blocked' ||
+        !check.expected ||
+        !check.observed ||
+        !Array.isArray(check.evidence) ||
+        check.evidence.length
+      )
+        throw new Error('Invalid infrastructure check');
+      continue;
+    }
     if (!planned.has(check.scenarioId))
       throw new Error('Finding does not correspond to an assessed PR change');
     if (
