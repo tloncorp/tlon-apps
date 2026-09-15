@@ -1,8 +1,7 @@
 import { open } from '@op-engineering/op-sqlite';
 import { AnalyticsEvent, AnalyticsSeverity, escapeLog } from '@tloncorp/shared';
 import { schema, setClient } from '@tloncorp/shared/db';
-import { migrations } from '@tloncorp/shared/db/migrations';
-import { getTableName, sql } from 'drizzle-orm';
+import { getTableName } from 'drizzle-orm';
 
 import {
   BaseDb,
@@ -21,59 +20,6 @@ export const REQUIRED_SENTINEL_TABLES = [
   schema.posts,
   schema.activityEvents,
 ].map((table) => getTableName(table));
-
-// The table drizzle records applied migrations in. It creates this itself as the
-// first step of `migrate` (drizzle-orm/sqlite-core/dialect.js), so before the
-// first migrate on a fresh DB it does not exist yet.
-export const DRIZZLE_MIGRATIONS_TABLE = '__drizzle_migrations';
-
-// The newest `when` in the bundled journal. drizzle replays a migration when the
-// DB's recorded `created_at` is older than this and nothing else -- it never
-// compares hashes on op-sqlite (drizzle-orm/op-sqlite/migrator.js hardcodes
-// `hash: ''`).
-export const BUNDLED_MIGRATION_WHEN = migrations.journal.entries.reduce(
-  (newest, entry) => Math.max(newest, entry.when),
-  Number.NEGATIVE_INFINITY
-);
-
-// `packages/shared/reset-migrations.js` keeps exactly one baseline migration and
-// regenerates it on every schema change, which bumps the journal's `when`. So on
-// every existing install drizzle replays the whole baseline against a populated
-// DB and dies on the first `CREATE TABLE`. Purging and re-migrating is the only
-// route such an install has to the new schema -- it is the designed upgrade
-// path, not a failure, so it should not be reported as a Critical error.
-//
-// A collision on its own does not prove that, though: a populated DB whose
-// `__drizzle_migrations` is missing or empty (a partial prior migration, a lost
-// journal) raises the identical message without any upgrade having happened, and
-// that state is worth paging on. So the downgrade also requires drizzle's own
-// replay evidence -- a recorded `created_at` older than the bundled journal's
-// `when`, which is exactly the condition under which drizzle re-runs a baseline.
-//
-// The message is matched conservatively: op-sqlite prefixes errors raised while
-// running a query with `[op-sqlite] sqlite query error: ` (cpp/bridge.cpp; it
-// uses other prefixes for other failures), and neither drizzle nor op-sqlite's
-// transaction wrapper rewraps it, so only a table collision in that exact shape
-// qualifies. Everything else keeps the Critical path.
-const EXPECTED_BASELINE_REPLAY_COLLISION =
-  /^\[op-sqlite\] sqlite query error: table .+ already exists$/;
-
-export function isExpectedBaselineReplay(
-  error: unknown,
-  recordedMigrationWhen: number | null
-): boolean {
-  if (
-    recordedMigrationWhen === null ||
-    recordedMigrationWhen >= BUNDLED_MIGRATION_WHEN
-  ) {
-    return false;
-  }
-  const message = (error as { message?: unknown } | null | undefined)?.message;
-  return (
-    typeof message === 'string' &&
-    EXPECTED_BASELINE_REPLAY_COLLISION.test(message.trim())
-  );
-}
 
 type NativeDbOptions = {
   databaseName?: string;
@@ -331,31 +277,6 @@ export class NativeDb extends BaseDb {
     });
   }
 
-  /**
-   * The newest `created_at` drizzle has recorded in `__drizzle_migrations`, or
-   * `null` when there is no such record to read. Must be called before
-   * `migrate`, which creates the table and writes to it. A fresh DB has no such
-   * table and the read throws; any failure is treated as "no evidence", so a
-   * collision from an install with no migration history keeps the Critical path.
-   */
-  private async readRecordedMigrationWhen(): Promise<number | null> {
-    try {
-      const rows = await this.client.values(
-        sql`SELECT max(created_at) FROM ${sql.identifier(
-          DRIZZLE_MIGRATIONS_TABLE
-        )}`
-      );
-      const recorded = rows?.[0]?.[0];
-      // `max()` over an empty table returns a single NULL row, which is an
-      // install with no recorded migration -- not evidence of a prior baseline.
-      return typeof recorded === 'number' && Number.isFinite(recorded)
-        ? recorded
-        : null;
-    } catch {
-      return null;
-    }
-  }
-
   private async runMigrationsInternal() {
     if (this.didMigrate) {
       return;
@@ -420,10 +341,6 @@ export class NativeDb extends BaseDb {
       this.didMigrate = true;
     };
 
-    // Read before the first migrate: `migrate` creates and writes this table
-    // itself, so afterwards it no longer says what the install arrived with.
-    const recordedMigrationWhen = await this.readRecordedMigrationWhen();
-
     try {
       await runMigrationAttempt('Migration timeout exceeded', 'initial');
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
@@ -435,30 +352,23 @@ export class NativeDb extends BaseDb {
       });
       return;
     } catch (e) {
-      if (isExpectedBaselineReplay(e, recordedMigrationWhen)) {
-        logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
-          context:
-            'runMigrations: baseline replayed against populated DB (expected schema upgrade). Purging and retrying',
-          error: e,
-          errorMessage: e.message,
-          recordedMigrationWhen,
-          attemptId,
-          elapsedMs: getElapsedMs(),
-          migrationPhase: 'initial',
-          severity: AnalyticsSeverity.Low,
-        });
-      } else {
-        logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
-          context:
-            'runMigrations: migration/schema verification failed. Attempting to purge and retry',
-          error: e,
-          errorMessage: e.message,
-          attemptId,
-          elapsedMs: getElapsedMs(),
-          migrationPhase: 'initial',
-          severity: AnalyticsSeverity.Critical,
-        });
-      }
+      // The initial attempt failing is recovered by design: the repo keeps a
+      // single regenerated baseline migration, so on every existing install
+      // drizzle replays it against a populated DB and collides, and purging and
+      // re-migrating is the only route that install has to the new schema.
+      // Nothing downstream branches on why this attempt failed -- every error
+      // falls through to the same purge and retry -- and a failure that is not
+      // recovered is reported Critical and rethrown by the purge and retry
+      // catches below. So count this at Low rather than paging on it.
+      logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+        context: 'runMigrations: initial migrate failed. Purging and retrying',
+        error: e,
+        errorMessage: e.message,
+        attemptId,
+        elapsedMs: getElapsedMs(),
+        migrationPhase: 'initial',
+        severity: AnalyticsSeverity.Low,
+      });
     }
     logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
       context: 'runMigrations: retry start',
