@@ -21,3 +21,4 @@ flows:
   - notification-preferences.yaml
   - roles.yaml
   - thread-lifecycle.yaml
+  - self-hosted-recovery.yaml

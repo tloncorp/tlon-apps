@@ -1,7 +1,8 @@
 # Native reliability tests
 
-Twenty-two default single-ship journeys, including attachments, profile details,
-pins, references, privacy, sections, notification preferences, roles and replies.
+Twenty-three default single-ship journeys, including attachments, profile details,
+pins, references, privacy, sections, notification preferences, roles, replies and
+self-hosted login recovery.
 These cover a subset of the QA checklist, not the entire workbook.
 
 Use Maestro 2.6.1 and an installed build containing this branch's app changes.
@@ -45,6 +46,11 @@ color, iOS documents, offline send/retry, and gallery custom titles remain gaps.
 The new role/privacy/section/notification/thread journeys delete their own groups
 on success. Notification checks verify saved preferences; push delivery and
 enforcement on another ship require multiparty tests.
+
+`self-hosted-recovery.yaml` clears local state, rejects a malformed ship URL,
+rejects a well-formed access code that the configured ship does not accept, then
+corrects only the code and verifies the exact configured ship after login. Run it
+standalone when another flow owns the current native session.
 
 `thread-controls.yaml` remains standalone: iOS loses the muted state after
 relaunch. Its mute-persistence assertion remains intact for investigation.
