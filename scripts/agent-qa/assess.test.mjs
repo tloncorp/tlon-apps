@@ -175,3 +175,20 @@ test('assessment has no device MCP tools and uses an isolated read-only Codex se
   assert.ok(args.includes('--ignore-user-config'));
   assert.ok(args.includes('read-only'));
 });
+
+// Prevent the contradictory timing prerequisite that previously blocked brief UI states.
+test('planner tries captured transient states before requiring timing controls', async () => {
+  const { assessmentInstructions } = await import('./assess.mjs');
+  assert.match(
+    assessmentInstructions,
+    /plan a normal recorded interaction first/
+  );
+  assert.match(
+    assessmentInstructions,
+    /controlled timing is a follow-up only if the recorded state is absent or illegible/
+  );
+  assert.doesNotMatch(
+    assessmentInstructions,
+    /Transient states require an explicit timing-control prerequisite/
+  );
+});
