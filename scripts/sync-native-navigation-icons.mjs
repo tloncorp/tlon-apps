@@ -24,9 +24,9 @@ const checkOnly = process.argv.includes('--check');
 const tabIcons = [
   ['Home.svg', 'tab-home'],
   ['HomeFilled.svg', 'tab-home-filled'],
-  ['Notifications.svg', 'tab-notifications'],
-  ['NotificationsFilled.svg', 'tab-notifications-filled'],
-  ['Profile.svg', 'tab-profile'],
+  ['Messages.svg', 'tab-messages'],
+  ['MessagesFilled.svg', 'tab-messages-filled'],
+  ['Settings.svg', 'tab-settings'],
 ];
 
 const screenHeaderIcons = JSON.parse(
