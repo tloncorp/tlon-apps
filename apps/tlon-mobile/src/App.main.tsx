@@ -36,6 +36,7 @@ import { posthog } from '@tloncorp/app/utils/posthog';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { withRetry } from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import * as SplashScreen from 'expo-splash-screen';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, StatusBar } from 'react-native';
@@ -176,9 +177,15 @@ const MainApp = () => {
   const splashReplacesAuthenticatedApp =
     showSplashSequence &&
     (forcedSplash || activeSplashSequenceMode === 'tlonbotRevival');
+  // The revival splash onboards against the ship's desk, so it may only stand
+  // in for the app once a clean verdict exists. No verdict means "not probed
+  // yet", and the normal path below is what probes — it runs sync start — so a
+  // cold start renders that path (its spinner while probing) and hands over to
+  // the splash only when the desk is recorded as usable.
+  const deskCompat = store.useDeskCompatibility();
   const authenticatedContent = !connected ? (
     offline
-  ) : splashReplacesAuthenticatedApp ? (
+  ) : splashReplacesAuthenticatedApp && deskCompat?.status === 'ok' ? (
     <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
       {splash}
     </AppDataProvider>

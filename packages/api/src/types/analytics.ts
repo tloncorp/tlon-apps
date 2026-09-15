@@ -48,6 +48,7 @@ export enum AnalyticsEvent {
   LatestPostsFetched = 'Latest Posts Fetched',
   LatestPostsWritten = 'Latest Posts Written',
   SubscriptionsEstablished = 'Subscriptions Established',
+  DeskIncompatible = 'Desk Incompatible',
   AuthFailedToGetCode = 'Failed to get access code',
   AuthForcedLogout = 'Auth Forced Logout',
   NodeConnectionDebug = 'Node Connection Debug',
