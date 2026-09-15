@@ -7,6 +7,12 @@ export function requiresBackend(plan) {
   );
 }
 
+export function verifyDisposableBackend(context, isPr) {
+  if (context.testShip !== '~zod')
+    throw new Error('Disposable backend requires ~zod');
+  if (isPr) verifySetupPlan(context.assessment);
+}
+
 export const fixtureCatalog = {
   'chat-v1': {
     description:

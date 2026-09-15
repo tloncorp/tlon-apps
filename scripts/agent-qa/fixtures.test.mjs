@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { verifySetupPlan, requiresBackend } from './fixtures.mjs';
+import {
+  verifySetupPlan,
+  requiresBackend,
+  verifyDisposableBackend,
+} from './fixtures.mjs';
+import { backendInstructions } from './codex.mjs';
 import { verifyPeer } from './ship-proxy.mjs';
 const plan = {
   headSha: 'a'.repeat(40),
@@ -15,6 +20,37 @@ test('simulator checks without seeded data still get an isolated backend', () =>
   };
   assert.equal(verifySetupPlan(settings), settings);
   assert.equal(requiresBackend(settings), true);
+  const context = {
+    testShip: '~zod',
+    assessment: settings,
+    backend: { fixtures: [] },
+  };
+  assert.doesNotThrow(() => verifyDisposableBackend(context, true));
+  assert.throws(
+    () => verifyDisposableBackend({ ...context, testShip: '~ten' }, true),
+    /requires ~zod/
+  );
+  assert.throws(
+    () =>
+      verifyDisposableBackend(
+        { ...context, assessment: { ...settings, setup: null } },
+        true
+      ),
+    /known fixture/
+  );
+  const instructions = backendInstructions(context, {
+    QA_RUN_TAG: 'settings-test',
+  });
+  assert.match(instructions, /Execute the assessed simulator scenarios/);
+  assert.match(
+    instructions,
+    /settings changes explicitly required by the assessment are permitted/i
+  );
+  assert.doesNotMatch(instructions, /reply received|from mobile/);
+  assert.match(
+    backendInstructions({ backend: {} }, { QA_RUN_TAG: 'manual' }),
+    /manual reply received/
+  );
   assert.equal(requiresBackend(plan), true);
   assert.equal(
     requiresBackend({ ...settings, scenarios: [{ method: 'unavailable' }] }),

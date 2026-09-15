@@ -360,6 +360,19 @@ export async function supervise(
   }
 }
 
+export function backendInstructions(context, env) {
+  return context.backend?.fixtures?.length
+    ? `The runner has already provisioned and verified the fixtures below on disposable ships. Navigate to the exact group and channel named in each fixture and verify its identity before testing. For notes-v1, use its %notes notebook; legacy Getting Started/diary channels do not count. For chat-v1, confirm the supplied peer message in its chat; you may send and edit your own messages there. You may create/edit notes and folders only in notes-v1. Do not alter other groups. Exercise each supplied simulator scenario, including typing and saving where requested. Setup data is not a product-test pass. Fixture manifest: ${JSON.stringify(context.backend.fixtures)}`
+    : context.backend && context.assessment
+      ? `This is the isolated disposable account ~zod. No seeded data is required. Execute the assessed simulator scenarios using existing app navigation; do not perform a chat handshake. Account settings changes explicitly required by the assessment are permitted on this disposable account. Other writes need a verified fixture.`
+      : context.backend
+        ? `Only use fixture group Cloud-${env.QA_RUN_TAG} on fake ship ~zod.
+From Profile go Home, open that group, confirm "${env.QA_RUN_TAG} from ten",
+send exactly "${env.QA_RUN_TAG} from mobile" once, then observe "${env.QA_RUN_TAG} reply received"
+arrive live without refreshing. Capture its screenshot. An independent backend receipt also gates success.`
+        : `This is a shared test ship. Navigate and inspect only. Report blocked for checks requiring writes.`;
+}
+
 export async function runCodex({
   env,
   deviceEnv,
@@ -396,17 +409,8 @@ Never invent an unseen target or reuse stale coordinates. Rediscover after a fai
 Use screenshots to assess the whole visible screen, not just the element being clicked. Execute each scenario's checkpoints, capturing before the trigger, immediately after and after settling. Isolate one action at a time: focus, input, scroll and dismiss are distinct transitions. If a short fixture can isolate a layout transition, use it first; long content is for scrolling checks. Record action numbers and observations about changed positions, clipping, overlays, missing content, duplicated controls and intermediate states. A successful save does not establish visual correctness. Do not reinterpret unexplained motion as deliberate scrolling. Source hypotheses are questions to test, not facts to confirm. Report independently observed violations even if the hypothesized mechanism is wrong. There is no base-device run; do not claim one. Wait with await-ui-element, using bounded waits.
 For a long press, use gesture-custom with Down and Up at the discovered coordinates and an 800 ms delay before Up.
 The keyboard Return inserts a newline; the composer upward arrow sends. Send the requested text once.
-Do not change settings, log out, delete data, create groups or contact ships outside the verified disposable fixture. Sending and editing your own test messages in the supplied chat fixture is explicitly allowed.
-${
-  context.backend?.fixtures?.length
-    ? `The runner has already provisioned and verified the fixtures below on disposable ships. Navigate to the exact group and channel named in each fixture and verify its identity before testing. For notes-v1, use its %notes notebook; legacy Getting Started/diary channels do not count. For chat-v1, confirm the supplied peer message in its chat; you may send and edit your own messages there. You may create/edit notes and folders only in notes-v1. Do not alter other groups. Exercise each supplied simulator scenario, including typing and saving where requested. Setup data is not a product-test pass. Fixture manifest: ${JSON.stringify(context.backend.fixtures)}`
-    : context.backend
-      ? `Only use fixture group Cloud-${env.QA_RUN_TAG} on fake ship ~zod.
-From Profile go Home, open that group, confirm "${env.QA_RUN_TAG} from ten",
-send exactly "${env.QA_RUN_TAG} from mobile" once, then observe "${env.QA_RUN_TAG} reply received"
-arrive live without refreshing. Capture its screenshot. An independent backend receipt also gates success.`
-      : `This is a shared test ship. Navigate and inspect only. Report blocked for checks requiring writes.`
-}
+Do not log out, delete data, create groups or contact ships outside the verified disposable fixture. Settings changes are allowed only when the assessment explicitly requires them on a disposable account; otherwise do not change settings. Sending and editing your own test messages in the supplied chat fixture is explicitly allowed.
+${backendInstructions(context, env)}
 Return the supplied JSON schema: expected behavior, actual observation, and status for each check.
 Cite "codex-trace" for observations supported by tool output; the wrapper saves the full trace and final screen.
 Never claim passed for untested, inferred, or failed outcomes. Tool/infrastructure failures are blocked.

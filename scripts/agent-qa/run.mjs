@@ -1,3 +1,4 @@
+import { verifyDisposableBackend } from './fixtures.mjs';
 import { billingSummary } from './billing.mjs';
 import { reviewEvidence, unresolvedVideoAssessment } from './review.mjs';
 import { runCodex, verifyCodexAuth, interruptedResult } from './codex.mjs';
@@ -271,14 +272,7 @@ async function prepare() {
     deviceTools: 'Argent 0.23.0',
   };
   if (env.QA_SHIP_URL) {
-    if (
-      context.testShip !== '~zod' ||
-      (env.QA_MODE === 'pull_request' &&
-        !context.assessment.setup.fixtures.length)
-    )
-      throw new Error(
-        'Disposable backend requires ~zod and an explicit fixture plan'
-      );
+    verifyDisposableBackend(context, env.QA_MODE === 'pull_request');
     if (env.QA_MODE === 'pull_request')
       verifySourceOverlay(context.pr.head.sha, env.QA_BACKEND_SHA);
     ships = await connectShips(env);
