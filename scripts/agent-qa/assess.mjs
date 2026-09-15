@@ -213,6 +213,25 @@ export function verifySourceOverlay(prHead, overlay = 'HEAD') {
     throw new Error('QA overlay changes product source');
 }
 
+// The coordinator checkout is explicitly selected by the maintainer. Product
+// identity alone does not authorize PR-controlled code to receive QA secrets.
+export function verifyTrustedHarness(candidate, trusted = 'HEAD') {
+  const changed = git([
+    'diff',
+    '--name-only',
+    trusted,
+    candidate,
+    '--',
+    'scripts/agent-qa',
+    '.maestro/cloud-fakeship',
+    'apps/tlon-mobile/.eas/workflows/pr-agent-qa-ios.yml',
+  ]).trim();
+  if (changed)
+    throw new Error(
+      'QA harness differs from the trusted coordinator revision; use an approved tooling overlay'
+    );
+}
+
 export function verifyCoverage(report, assessment) {
   if (!assessment) return report;
   const planned = new Set(assessment.scenarios.map((s) => s.id));

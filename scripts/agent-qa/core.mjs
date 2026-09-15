@@ -1,3 +1,4 @@
+import { boundReport } from './report-size.mjs';
 export const statuses = ['passed', 'failed', 'blocked'];
 
 export function accountForRecordingCap(report, video) {
@@ -146,66 +147,68 @@ export function verifyVideo(probe, elapsedSeconds) {
 export function renderReport(context, report, usage) {
   const clean = (value) =>
     String(value).replace(/@/g, '@\u200b').slice(0, 3000);
-  return [
-    `**${context.mode}: ${report.status}**`,
-    '',
-    clean(report.summary),
-    '',
-    `App commit: \`${context.buildSha}\` · Build: \`${context.buildId}\``,
-    ...(context.sourceOverlay
-      ? [
-          `Requested PR source: \`${context.pr.head.sha}\`. The build commit adds QA tooling only; product source is verified identical.`,
-        ]
-      : []),
-    `Harness commit: \`${context.harnessSha}\` · Device: ${context.device || 'not started'}`,
-    ...(context.backend
-      ? [
-          `Backend commit: \`${context.backend.source}\` · ${context.backend.fixtures?.length ? `Fixture setup: ${context.backend.fixtures.every((f) => f.verified) ? 'verified' : 'not verified'}` : `Peer receipt: ${context.backend.replyVerified === true ? 'verified on ~ten' : 'not verified'}`}`,
-        ]
-      : []),
-    context.otaDisabled
-      ? 'Test-only configuration: OTA updates disabled in the installed copy.'
-      : 'App preparation did not complete.',
-    ...(context.smoke ? ['', `Scripted smoke: ${clean(context.smoke)}`] : []),
-    ...(context.bootstrapRecovery
-      ? ['', `Bootstrap limitation: ${clean(context.bootstrapRecovery)}`]
-      : []),
-    '',
-    context.video?.status === 'ready'
-      ? `Video: test-session.mp4 (${context.video.durationSeconds.toFixed(1)} seconds), attached as ios-agent-qa-video. Recording starts after login and account verification.`
-      : `Video unavailable: ${clean(context.video?.error || 'Testing did not reach the recording stage')}.`,
-    '',
-    ...(context.assessment?.sourceReview?.hypotheses || []).flatMap((h) => [
-      `- **Source hypothesis ${h.id} (${h.confidence} confidence; not a runtime finding):** ${clean(h.impact)} Trigger: ${clean(h.trigger)} Invariant: ${clean(h.invariant)}`,
-      `  Source: ${h.citations.map((c) => `${c.version}:${c.file}:${c.line}`).join(', ')}`,
-    ]),
-    '',
-    ...(report.discoveries || []).map(
-      (d) =>
-        `- **Unexpected finding — ${d.status}: ${clean(d.title)}**\n  Trigger: ${clean(d.trigger)}\n  Observed: ${clean(d.observed)}\n  Invariant: ${clean(d.invariant)} (source: ${clean(d.file)}; evidence actions: ${d.evidenceActions.join(', ')})`
-    ),
-    '',
-    ...(report.checks || []).map(
-      (check) =>
-        `- **${check.status}** — ${clean(check.expected)}\n  Observed: ${clean(check.observed)} (evidence: ${check.evidence.join(', ') || 'none'})`
-    ),
-    '',
-    ...(context.billing
-      ? [
-          context.billing.requests
-            ? `Provider billing: $${context.billing.reportedCost.toFixed(4)} reported across ${context.billing.pricedRequests}/${context.billing.requests} requests; ${context.billing.unpricedRequests} requests have unavailable cost (not zero).`
-            : 'Per-request provider billing is unavailable for the original captured run.',
-          ...(context.presentationBilling
-            ? [
-                `Report editing and clip verification: $${context.presentationBilling.reportedCost.toFixed(4)} reported; ${context.presentationBilling.unpricedRequests} requests unpriced.`,
-              ]
-            : []),
-        ]
-      : []),
-    `Agent usage: ${usage.calls} completed turns, ${usage.tokens} tokens. ${Number.isFinite(usage.cost) ? `$${usage.cost.toFixed(4)} reported cost.` : 'Completed-turn token counts may omit interrupted work; per-request provider billing is listed separately.'}`,
-    'Screenshots, action evidence, and the structured report are in the ios-agent-qa artifact.',
-    '',
-  ].join('\n');
+  return boundReport(
+    [
+      `**${context.mode}: ${report.status}**`,
+      '',
+      clean(report.summary),
+      '',
+      `App commit: \`${context.buildSha}\` · Build: \`${context.buildId}\``,
+      ...(context.sourceOverlay
+        ? [
+            `Requested PR source: \`${context.pr.head.sha}\`. The build commit adds QA tooling only; product source is verified identical.`,
+          ]
+        : []),
+      `Harness commit: \`${context.harnessSha}\` · Device: ${context.device || 'not started'}`,
+      ...(context.backend
+        ? [
+            `Backend commit: \`${context.backend.source}\` · ${context.backend.fixtures?.length ? `Fixture setup: ${context.backend.fixtures.every((f) => f.verified) ? 'verified' : 'not verified'}` : `Peer receipt: ${context.backend.replyVerified === true ? 'verified on ~ten' : 'not verified'}`}`,
+          ]
+        : []),
+      context.otaDisabled
+        ? 'Test-only configuration: OTA updates disabled in the installed copy.'
+        : 'App preparation did not complete.',
+      ...(context.smoke ? ['', `Scripted smoke: ${clean(context.smoke)}`] : []),
+      ...(context.bootstrapRecovery
+        ? ['', `Bootstrap limitation: ${clean(context.bootstrapRecovery)}`]
+        : []),
+      '',
+      context.video?.status === 'ready'
+        ? `Video: test-session.mp4 (${context.video.durationSeconds.toFixed(1)} seconds), attached as ios-agent-qa-video. Recording starts after login and account verification.`
+        : `Video unavailable: ${clean(context.video?.error || 'Testing did not reach the recording stage')}.`,
+      '',
+      ...(context.assessment?.sourceReview?.hypotheses || []).flatMap((h) => [
+        `- **Source hypothesis ${h.id} (${h.confidence} confidence; not a runtime finding):** ${clean(h.impact)} Trigger: ${clean(h.trigger)} Invariant: ${clean(h.invariant)}`,
+        `  Source: ${h.citations.map((c) => `${c.version}:${c.file}:${c.line}`).join(', ')}`,
+      ]),
+      '',
+      ...(report.discoveries || []).map(
+        (d) =>
+          `- **Unexpected finding — ${d.status}: ${clean(d.title)}**\n  Trigger: ${clean(d.trigger)}\n  Observed: ${clean(d.observed)}\n  Invariant: ${clean(d.invariant)} (source: ${clean(d.file)}; evidence actions: ${d.evidenceActions.join(', ')})`
+      ),
+      '',
+      ...(report.checks || []).map(
+        (check) =>
+          `- **${check.status}** — ${clean(check.expected)}\n  Observed: ${clean(check.observed)} (evidence: ${check.evidence.join(', ') || 'none'})`
+      ),
+      '',
+      ...(context.billing
+        ? [
+            context.billing.requests
+              ? `Provider billing: $${context.billing.reportedCost.toFixed(4)} reported across ${context.billing.pricedRequests}/${context.billing.requests} requests; ${context.billing.unpricedRequests} requests have unavailable cost (not zero).`
+              : 'Per-request provider billing is unavailable for the original captured run.',
+            ...(context.presentationBilling
+              ? [
+                  `Report editing and clip verification: $${context.presentationBilling.reportedCost.toFixed(4)} reported; ${context.presentationBilling.unpricedRequests} requests unpriced.`,
+                ]
+              : []),
+          ]
+        : []),
+      `Agent usage: ${usage.calls} completed turns, ${usage.tokens} tokens. ${Number.isFinite(usage.cost) ? `$${usage.cost.toFixed(4)} reported cost.` : 'Completed-turn token counts may omit interrupted work; per-request provider billing is listed separately.'}`,
+      'Screenshots, action evidence, and the structured report are in the ios-agent-qa artifact.',
+      '',
+    ].join('\n')
+  );
 }
 
 // Infrastructure loss must never erase product observations already captured.

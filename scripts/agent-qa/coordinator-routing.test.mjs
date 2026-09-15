@@ -12,32 +12,6 @@ const expression = fallback.match(/if: \$\{\{ (.*) \}\}/)[1];
 // Evaluate the actual workflow expression against completed job outcomes.
 const shouldPublish = new Function('needs', 'always', `return ${expression}`);
 
-test('EAS concurrency separates PRs and independent replay runs', () => {
-  const yaml = readFileSync(
-    new URL(
-      '../../apps/tlon-mobile/.eas/workflows/pr-agent-qa-ios.yml',
-      import.meta.url
-    ),
-    'utf8'
-  );
-  const group = yaml.match(/^  group: (.+)$/m)[1];
-  const key = (inputs, url) =>
-    group.replace(/\$\{\{ (.*?) \}\}/g, (_, expression) =>
-      new Function('inputs', 'workflow', 'fromJSON', `return ${expression}`)(
-        inputs,
-        { filename: 'qa', url },
-        JSON.parse
-      )
-    );
-  const first = key({ assessment_pr_json: '{"number":1}' }, 'run/1');
-  assert.notEqual(first, key({ assessment_pr_json: '{"number":2}' }, 'run/2'));
-  assert.equal(
-    first,
-    key({ coordinator_failure_json: '{"number":1}' }, 'failure/1')
-  );
-  assert.notEqual(key({}, 'replay/1'), key({}, 'replay/2'));
-});
-
 test('review waits and enclosing job cover both attempts and recovery', () => {
   const source = readFileSync(
     new URL('./cloud-pr.mjs', import.meta.url),

@@ -1,6 +1,8 @@
 // All publishers share one comment. Upload assets before changing the visible report.
 import { writeFileSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { boundReport } from './report-size.mjs';
+import { withCommentLock } from './comment-lock.mjs';
 
 export const repo = 'tloncorp/tlon-apps';
 const runPattern =
@@ -93,13 +95,10 @@ export function planComment({ comments, viewerId, pr, head, attempt }) {
 }
 export function renderComment(plan, report) {
   const history = plan.state.history;
-  return [
+  const envelope = [
     plan.marker,
     `<!-- ios-agent-qa-state:${Buffer.from(JSON.stringify(plan.state)).toString('base64')} -->`,
-    report
-      .split('\n<!-- ios-agent-qa-history -->')[0]
-      .replace(/<!-- ios-agent-qa[^\n]* -->\n?/g, '')
-      .trim(),
+    '__QA_REPORT_BODY__',
     ...(history.length
       ? [
           '\n<!-- ios-agent-qa-history -->',
@@ -116,6 +115,17 @@ export function renderComment(plan, report) {
       : []),
     '',
   ].join('\n');
+  const body = report
+    .split('\n<!-- ios-agent-qa-history -->')[0]
+    .replace(/<!-- ios-agent-qa[^\n]* -->\n?/g, '')
+    .trim();
+  return envelope.replace('__QA_REPORT_BODY__', () =>
+    boundReport(
+      body,
+      60_000 - Buffer.byteLength(envelope),
+      plan.state.current.url
+    )
+  );
 }
 
 export function publishComment({
@@ -199,48 +209,57 @@ export function publishComment({
       if (pattern.test(body)) body = body.replace(pattern, asset.url);
       else body += `\n\n${asset.url}\n`;
     }
-    // Another publisher may have finished while uploads were in progress.
-    plan = planning();
   }
-  if (plan.stale || plan.unchanged) body = plan.canonical.body;
-  const payload = path.join(directory, 'comment-payload.json');
-  writeFileSync(payload, JSON.stringify({ body: renderComment(plan, body) }));
-  const endpoint = plan.canonical
-    ? `repos/${repo}/issues/comments/${plan.canonical.id}`
-    : `repos/${repo}/issues/${pr}/comments`;
-  const published = JSON.parse(
-    gh([
-      'api',
-      '--method',
-      plan.canonical ? 'PATCH' : 'POST',
-      endpoint,
-      '--input',
-      payload,
-    ])
+  return withCommentLock(
+    { gh, repo, pr, head: target.head.sha, url: attempt.url },
+    () => {
+      // All writers hold the same lock from this read through update/verification.
+      plan = planning();
+      if (plan.stale || plan.unchanged) body = plan.canonical.body;
+      const payload = path.join(directory, 'comment-payload.json');
+      body = renderComment(plan, body);
+      writeFileSync(payload, JSON.stringify({ body }));
+      const endpoint = plan.canonical
+        ? `repos/${repo}/issues/comments/${plan.canonical.id}`
+        : `repos/${repo}/issues/${pr}/comments`;
+      const published = JSON.parse(
+        gh([
+          'api',
+          '--method',
+          plan.canonical ? 'PATCH' : 'POST',
+          endpoint,
+          '--input',
+          payload,
+        ])
+      );
+      const rendered = JSON.parse(
+        gh([
+          'api',
+          '-H',
+          'Accept: application/vnd.github.full+json',
+          `repos/${repo}/issues/comments/${published.id}`,
+        ])
+      );
+      const expectedPlayers = (
+        body.match(
+          /^https:\/\/github\.com\/user-attachments\/assets\/[a-f0-9-]+$/gm
+        ) || []
+      ).length;
+      const players = (rendered.body_html?.match(/<video\b/g) || []).length;
+      if (
+        players !== expectedPlayers ||
+        /\]\(\.\/[^)]*\.mp4\)/.test(rendered.body)
+      )
+        throw new Error('GitHub did not embed every recording');
+      // Consolidate only recognized QA comments by this publisher, after replacement succeeds.
+      for (const duplicate of plan.duplicates)
+        gh([
+          'api',
+          '--method',
+          'DELETE',
+          `repos/${repo}/issues/comments/${duplicate.id}`,
+        ]);
+      return { ...rendered, players, superseded: plan.stale };
+    }
   );
-  const rendered = JSON.parse(
-    gh([
-      'api',
-      '-H',
-      'Accept: application/vnd.github.full+json',
-      `repos/${repo}/issues/comments/${published.id}`,
-    ])
-  );
-  const expectedPlayers = (
-    body.match(
-      /^https:\/\/github\.com\/user-attachments\/assets\/[a-f0-9-]+$/gm
-    ) || []
-  ).length;
-  const players = (rendered.body_html?.match(/<video\b/g) || []).length;
-  if (players !== expectedPlayers || /\]\(\.\/[^)]*\.mp4\)/.test(rendered.body))
-    throw new Error('GitHub did not embed every recording');
-  // Consolidate only recognized QA comments by this publisher, after replacement succeeds.
-  for (const duplicate of plan.duplicates)
-    gh([
-      'api',
-      '--method',
-      'DELETE',
-      `repos/${repo}/issues/comments/${duplicate.id}`,
-    ]);
-  return { ...rendered, players, superseded: plan.stale };
 }

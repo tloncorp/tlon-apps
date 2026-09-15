@@ -23,6 +23,8 @@ gh workflow run mobile-pr-agent-qa.yml --repo tloncorp/tlon-apps \
 Before landing, run the action from `db/pr-agent-qa-ios` and set `qa_ref` to a QA
 overlay on the target PR's exact head. The overlay may change only the allowlisted
 QA tooling and fixture files. Product-source equality is checked from Git objects.
+Executed QA tooling must also exactly match the trusted coordinator checkout;
+PR changes to the harness are rejected until supplied in an approved overlay.
 The assessment records the exact PR base/head; the build and simulator revalidate
 those revisions and report the installed app and backend identities separately.
 
@@ -83,6 +85,14 @@ through the endpoint used by GitHub CLI's `--attach`, followed by an exact comme
 update and a rendered-player check. Failures retain the EAS evidence and an explicit
 incomplete report. Uploading videos requires `GH_QA_TOKEN`; `GITHUB_TOKEN` cannot
 replace it.
+
+Publication uses an atomic temporary Git tag, `ios-agent-qa-lock-pr-N`, to serialize
+the final freshness check and comment update across normal runs and replays.
+The QA token needs Contents read/write as well as PR comment and video access.
+Locks are released after publication, including errors. A killed worker may leave
+a lock: inspect its annotated tag for the owning EAS run, confirm that run has
+stopped, then delete that exact tag and retry. Locks never expire automatically.
+Oversized reports are shortened with links to the full artifacts; video links remain.
 
 Completed model stages are checkpointed against instructions, schema, input and
 implementation. A worker retries an interrupted review/publication once; the

@@ -45,10 +45,6 @@ on:
         type: string
         description: Saved evidence to review
 
-concurrency:
-  cancel_in_progress: true
-  group: ${{ workflow.filename }}-${{ fromJSON(inputs.assessment_pr_json || inputs.coordinator_failure_json || '{}').number || workflow.url }}
-
 defaults:
   tools:
     node: "22.22.0"

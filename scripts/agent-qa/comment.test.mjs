@@ -93,6 +93,20 @@ function harness(t) {
     const endpoint = args.find(
       (a) => a.startsWith('repos/') || a.startsWith('https://uploads.')
     );
+    if (endpoint?.endsWith('/git/tags'))
+      return JSON.stringify({ sha: 'lock-owner' });
+    if (endpoint?.endsWith('/git/refs')) {
+      assert.equal(store.lock, undefined);
+      store.lock = 'lock-owner';
+      store.onLock?.();
+      return '{}';
+    }
+    if (endpoint?.includes('/git/ref/tags/'))
+      return JSON.stringify({ object: { sha: store.lock } });
+    if (endpoint?.includes('/git/refs/tags/') && method === 'DELETE') {
+      delete store.lock;
+      return '';
+    }
     if (args.includes('user')) return JSON.stringify({ id: 1 });
     if (endpoint?.endsWith('/pulls/6516'))
       return JSON.stringify({
@@ -109,6 +123,7 @@ function harness(t) {
       return JSON.stringify({ url: asset });
     }
     if (method === 'PATCH' || method === 'POST') {
+      assert.equal(store.lock, 'lock-owner');
       store.mutations.push({ method, endpoint });
       const payload = JSON.parse(
         readFileSync(args[args.indexOf('--input') + 1])
@@ -119,6 +134,7 @@ function harness(t) {
       return JSON.stringify(c);
     }
     if (method === 'DELETE') {
+      assert.equal(store.lock, 'lock-owner');
       store.mutations.push({ method, endpoint });
       store.comments = store.comments.filter(
         (c) => c.id !== Number(endpoint.split('/').at(-1))
@@ -200,4 +216,22 @@ test('failed rendering does not delete earlier evidence comments', (t) => {
   );
   assert.ok(h.store.comments.some((c) => c.id === 2));
   assert.ok(!h.store.mutations.some((m) => m.method === 'DELETE'));
+});
+
+test('publisher rechecks freshness under lock before writing after a competing completion', (t) => {
+  const h = harness(t);
+  h.store.onLock = () => {
+    h.store.comments = [
+      make(1, renderComment(plan([]), 'Newer completed report')),
+    ];
+  };
+  const result = publishComment({
+    ...h,
+    pr: 6516,
+    body: 'Old result',
+    attempt: blocked,
+  });
+  assert.ok(result.body.includes('Newer completed report'));
+  assert.ok(!result.body.includes('Old result'));
+  assert.equal(h.store.lock, undefined);
 });

@@ -1,5 +1,5 @@
 import { assessmentForRetry } from './reuse-assessment.mjs';
-import { verifySourceOverlay } from './assess.mjs';
+import { verifySourceOverlay, verifyTrustedHarness } from './assess.mjs';
 import { requiresBackend } from './fixtures.mjs';
 import { selectEvidence } from './publish.mjs';
 import {
@@ -112,6 +112,7 @@ if (process.argv[2] === 'assess') {
   command('git', ['fetch', '--no-tags', '--depth=1', 'origin', requestedRef]);
   const ref = command('git', ['rev-parse', 'FETCH_HEAD']).trim();
   verifySourceOverlay(p.head.sha, ref);
+  verifyTrustedHarness(ref);
   const inputs = { assessment_pr_json: pr };
   if (env.QA_ASSESSMENT_RUN_ID) {
     if (
