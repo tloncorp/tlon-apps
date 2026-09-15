@@ -9,14 +9,25 @@ const {
 } = actorApi;
 import type { TlonActorClient } from '../../packages/tlon-bot-e2e/src/tlon/actor';
 
-// Each flow owns a group. Only the DM flow writes DMs; profile changes keep the
+// Each flow owns a group. Only DM cases write DMs; profile changes keep the
 // peer's name stable. Cloud devices can therefore exercise the same ships safely.
 export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
   const tag = process.env.MAESTRO_RUN_TAG!;
   const out = process.env.PROOF_OUTPUT!;
   const selection = process.env.PROOF_CASES ?? 'exchange';
+  const defaultCases = new Set([
+    'exchange',
+    'invitations',
+    'direct-messages',
+    'moderation',
+    'group-changes',
+    'reactions',
+    'contact-status',
+  ]);
   const selected = (name: string) =>
-    selection === 'all' || selection.split(',').includes(name);
+    selection === 'all'
+      ? defaultCases.has(name)
+      : selection.split(',').includes(name);
   const tasks: Array<() => Promise<void>> = [];
   const fixtures: Record<string, unknown> = {};
   async function until(
@@ -63,6 +74,38 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
     fixtures[name] = fixture;
     return fixture;
   }
+  const includesShip = async (
+    actor: TlonActorClient,
+    path: string,
+    ship: string
+  ) => (await actor.state.scry<string[]>('chat', path)).includes(ship);
+  async function resetDmPeer() {
+    if (await includesShip(zod, '/blocked', '~ten')) {
+      await zod.state.poke({
+        app: 'chat',
+        mark: 'chat-unblock-ship',
+        json: { ship: '~ten' },
+      });
+    }
+    if (
+      (await includesShip(zod, '/dm', '~ten')) ||
+      (await includesShip(zod, '/dm/invited', '~ten'))
+    ) {
+      await zod.state.poke({
+        app: 'chat',
+        mark: 'chat-dm-rsvp',
+        json: { ship: '~ten', ok: false },
+      });
+    }
+    await until('neutral DM control state', async () => {
+      const [blocked, active, invited] = await Promise.all([
+        includesShip(zod, '/blocked', '~ten'),
+        includesShip(zod, '/dm', '~ten'),
+        includesShip(zod, '/dm/invited', '~ten'),
+      ]);
+      return !blocked && !active && !invited;
+    });
+  }
   function task(name: string, fn: () => Promise<void>) {
     tasks.push(async () => {
       try {
@@ -101,6 +144,76 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
         text: `${tag} dm mobile`,
       });
       await ten.sendDm('~zod', `${tag} dm verified`);
+    });
+  }
+  if (selected('dm-deny')) {
+    await resetDmPeer();
+    await ten.sendDm('~zod', `${tag} deny request`);
+    await until('deny request reaches zod', () =>
+      includesShip(zod, '/dm/invited', '~ten')
+    );
+    task('dm-deny', async () => {
+      await until(
+        'native denies request',
+        async () => !(await includesShip(zod, '/dm/invited', '~ten')),
+        30 * 60_000
+      );
+      record('dm-deny-state', { requester: '~ten', blocked: false });
+    });
+  }
+  if (selected('dm-block')) {
+    await resetDmPeer();
+    await ten.sendDm('~zod', `${tag} block request`);
+    await until('block request reaches zod', () =>
+      includesShip(zod, '/dm/invited', '~ten')
+    );
+    task('dm-block', async () => {
+      await until(
+        'native blocks requester',
+        async () =>
+          (await includesShip(zod, '/blocked', '~ten')) &&
+          !(await includesShip(zod, '/dm/invited', '~ten')),
+        30 * 60_000
+      );
+      record('dm-block-state', { requester: '~ten', blocked: true });
+      let blockedSendError: string | null = null;
+      try {
+        await ten.sendDm('~zod', `${tag} blocked request`);
+      } catch (error) {
+        blockedSendError = String(error);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const [stillBlocked, leakedInvite] = await Promise.all([
+        includesShip(zod, '/blocked', '~ten'),
+        includesShip(zod, '/dm/invited', '~ten'),
+      ]);
+      if (!stillBlocked || leakedInvite) {
+        throw Error('Blocked peer created a visible DM invitation');
+      }
+      record('dm-block-suppression', {
+        requester: '~ten',
+        inviteSuppressed: true,
+        sendRejected: blockedSendError !== null,
+      });
+    });
+  }
+  if (selected('dm-unblock')) {
+    await resetDmPeer();
+    await zod.state.poke({
+      app: 'chat',
+      mark: 'chat-block-ship',
+      json: { ship: '~ten' },
+    });
+    await until('blocked user fixture reaches zod', () =>
+      includesShip(zod, '/blocked', '~ten')
+    );
+    task('dm-unblock', async () => {
+      await until(
+        'native unblocks requester',
+        async () => !(await includesShip(zod, '/blocked', '~ten')),
+        30 * 60_000
+      );
+      record('dm-unblock-state', { requester: '~ten', blocked: false });
     });
   }
   if (selected('moderation')) {

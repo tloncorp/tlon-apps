@@ -56,3 +56,13 @@ Multiparty cases from the [Authenticated App QA sheet](https://docs.google.com/s
 These run sequentially inside `exchange.yaml` to share one login and ship setup.
 `peer-checks.json` records completed backend checks even if a later step fails;
 Maestro must also pass before the run counts as successful.
+
+DM request controls use isolated, opt-in cases because each case changes the
+relationship between the same two ships. Dispatch `dm-deny`, `dm-block`, or
+`dm-unblock` separately; the workflow rejects combinations with another DM case.
+
+| Rows | Case | Peer evidence |
+| --- | --- | --- |
+| 340 | Deny an incoming request | The pending invite disappears without blocking the sender |
+| 341 | Block an incoming requester | The sender is blocked, the invite disappears, and another send creates no invite |
+| 462 | Unblock a blocked user | The ship disappears from the backend blocked set after native confirmation |
