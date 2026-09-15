@@ -1346,11 +1346,20 @@ async function reauth() {
 const MAX_LOGIN_ATTEMPTS = 4;
 
 async function performReauth(): Promise<string | void> {
-  // Everything below belongs to the account we started for: the code, the ship
+  // Everything here belongs to the account we started for: the code, the ship
   // we post it to, and the client the cookie lands on. A logout or account
-  // switch swaps all three out from under us mid-flight.
+  // switch can land on any await below and swap all three out from under us,
+  // and once it has, nothing that follows is the new account's business --
+  // not the cookie, not `loggingOut`, not its failure handler. Abandon.
   const startClient = config.client;
   const startShipUrl = config.shipUrl;
+  const abandonIfSwapped = () => {
+    if (config.client === startClient && config.shipUrl === startShipUrl) {
+      return;
+    }
+    logger.log('client changed during reauth, abandoning');
+    throw new Error('Error during reauth: client changed');
+  };
 
   let code: string;
   try {
@@ -1365,23 +1374,26 @@ async function performReauth(): Promise<string | void> {
   }
 
   for (let attempt = 0; ; attempt++) {
-    // Only an attempt that waited through the backoff can find a different
-    // account installed. Posting this code to the new ship would 400 and log
-    // that account out; a success would write this session's cookie onto its
-    // client. Neither is ours to do, so leave the new client untouched.
-    if (
-      attempt > 0 &&
-      (config.client !== startClient || config.shipUrl !== startShipUrl)
-    ) {
-      logger.log('client changed during reauth, abandoning');
-      throw new Error('Error during reauth: client changed');
+    // a swap during the backoff: stop before the request is even sent
+    if (attempt > 0) {
+      abandonIfSwapped();
     }
     const lastAttempt = attempt >= MAX_LOGIN_ATTEMPTS - 1;
     let authCookie: string | undefined;
+    let failure: { error: unknown } | undefined;
     try {
       logger.log('trying to auth with code', code);
       authCookie = await getLandscapeAuthCookie(startShipUrl, code);
     } catch (e) {
+      failure = { error: e };
+    }
+    // the request is a window of its own, so re-check before anything acts on
+    // the result -- the success path and every branch of the failure handling
+    // below all reach for whatever client is installed now
+    abandonIfSwapped();
+
+    if (failure) {
+      const e = failure.error;
       if (e instanceof AuthFailureError && e.responseStatus === 400) {
         // the code itself was rejected; no retry will fix that, so log out
         config.loggingOut = true;
@@ -1412,11 +1424,7 @@ async function performReauth(): Promise<string | void> {
 
     if (authCookie) {
       config.authEpoch += 1;
-      // the loop-top check can't cover a swap during getCode or during the
-      // first request, so the same snapshot gates the write itself: this
-      // cookie belongs to the account we logged in as, not to whoever is
-      // installed now
-      if (config.client && config.client === startClient) {
+      if (config.client) {
         config.client.cookie = authCookie;
         // logging in moved us to a new session. any channel we opened under
         // the old one is either gone (eyre closed the old session's channels)

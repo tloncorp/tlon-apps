@@ -399,6 +399,60 @@ describe('reauth', () => {
     expect(nextClient.seamlessReset).not.toHaveBeenCalled();
   });
 
+  test('a client swapped in during the login request is left alone', async () => {
+    // a 400 normally means the code was rejected: log out and tell the app.
+    // Neither belongs to the account that arrived while the request was in
+    // flight, so the whole branch has to be skipped.
+    const handleAuthFailure = vi.fn();
+    const client = fakeClient({
+      poke: vi.fn().mockRejectedValue(new AuthError('invalid session')),
+    });
+    const nextHandleAuthFailure = vi.fn();
+    const nextGetCode = vi.fn(async () => 'other-code');
+    const nextClient = fakeClient({ cookie: 'urbauth=other-account' });
+    const loginFetch = vi
+      .fn()
+      .mockImplementationOnce(async () => {
+        internalRemoveClient();
+        internalConfigureClient({
+          shipName: '~bus',
+          shipUrl: 'http://other.test',
+          getCode: nextGetCode,
+          handleAuthFailure: nextHandleAuthFailure,
+          client: nextClient as any,
+        });
+        return loginResponse(400);
+      })
+      .mockResolvedValue(loginResponse(200));
+    vi.stubGlobal('fetch', loginFetch);
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      handleAuthFailure,
+      client: client as any,
+    });
+
+    await expect(
+      poke({ app: 'a', mark: 'm', json: {} }).catch((e) => e)
+    ).resolves.toMatchObject({
+      message: 'Error during reauth: client changed',
+    });
+    expect(handleAuthFailure).not.toHaveBeenCalled();
+    expect(nextHandleAuthFailure).not.toHaveBeenCalled();
+    expect(nextClient.cookie).toBe('urbauth=other-account');
+
+    // loggingOut was left alone and pendingAuth was released, so the account
+    // that arrived can still authenticate for itself
+    nextClient.poke = vi
+      .fn()
+      .mockRejectedValueOnce(new AuthError('invalid session'))
+      .mockResolvedValue(1);
+    await expect(poke({ app: 'a', mark: 'm', json: {} })).resolves.toBe(1);
+    expect(nextGetCode).toHaveBeenCalled();
+    expect(nextClient.cookie).toBe('urbauth=refreshed');
+  });
+
   test('the same guard covers a 401 retry', async () => {
     vi.useFakeTimers();
     const handleAuthFailure = vi.fn();
