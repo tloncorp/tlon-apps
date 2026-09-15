@@ -385,6 +385,19 @@ function captureSendContext(client: Urbit | null): SendContext {
   return { authEpoch: config.authEpoch, channelId: client?.channelId };
 }
 
+// Seconds since the current channel id was minted. The uid is
+// `<unix seconds>-<random>`, so this needs no new state -- but it is the age
+// of the id, not of a connection: the id is minted when the client is
+// constructed, well before anything is sent on the channel, and a rotation
+// between the failing send and this report restarts the clock. Only the age is
+// reported; the uid itself is an identifier and stays out of analytics.
+function channelAgeSeconds(client: Urbit | null): number | undefined {
+  const opened = Number(client?.channelId?.split('-')[0]);
+  return Number.isFinite(opened) && opened > 0
+    ? Math.max(0, Math.round(Date.now() / 1000 - opened))
+    : undefined;
+}
+
 function rotateChannelOnce(client: Urbit, sent: SendContext, context: string) {
   if (sent.channelId !== undefined && client.channelId !== sent.channelId) {
     logger.log('channel already rotated, retrying', context);
@@ -706,6 +719,7 @@ export async function poke({ app, mark, json }: PokeParams) {
     mark,
   });
   const activeClient = resolveClient();
+  const startEpoch = config.authEpoch;
   let sent = captureSendContext(activeClient);
   const doPoke = async () => {
     if (!activeClient) {
@@ -722,6 +736,24 @@ export async function poke({ app, mark, json }: PokeParams) {
       ...describeError(err),
       app,
       mark,
+      // `AuthError: invalid session` carries no status and no session context.
+      // `authEpoch` counts reauths that completed in this process -- including
+      // one another caller started and this poke merely waited on -- and
+      // counts neither failed attempts nor the initial connect(), so 0 means
+      // no login has ever completed here. `reauthsDuringPoke` narrows that to
+      // the ones this call spanned.
+      errorStatus:
+        typeof err?.status === 'number'
+          ? err.status
+          : typeof err?.responseStatus === 'number'
+            ? err.responseStatus
+            : undefined,
+      authEpoch: config.authEpoch,
+      reauthsDuringPoke: config.authEpoch - startEpoch,
+      reauthInFlight: config.pendingAuth !== null,
+      channelOpened: activeClient?.channelOpened,
+      channelAgeSeconds: channelAgeSeconds(activeClient),
+      connectionStatus: config.lastStatus,
     });
     trackDuration('error');
     throw err;
@@ -1336,7 +1368,14 @@ async function performReauth(): Promise<string | void> {
       // recognizes; the response expires it, so a retry can go through clean
       const staleCookie =
         e instanceof AuthFailureError && e.responseStatus === 401;
-      if (!staleCookie || lastAttempt) {
+      // a 5xx is the ship failing to answer, not a verdict on our credentials,
+      // and anything that isn't an AuthFailureError means fetch itself
+      // rejected -- we have no response to judge, though the ship may well
+      // have received the request. Both can come good on the next attempt;
+      // every other 4xx is a refusal that a retry will only repeat.
+      const transient =
+        e instanceof AuthFailureError ? e.responseStatus >= 500 : true;
+      if (!(staleCookie || transient) || lastAttempt) {
         if (staleCookie && config.handleAuthFailure) {
           // we are out of retries with a cookie the ship keeps rejecting; let
           // the app decide what an unrecoverable session means for it

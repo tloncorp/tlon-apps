@@ -170,6 +170,133 @@ describe('reauth', () => {
     expect(handleAuthFailure).toHaveBeenCalledWith({ mustLogout: false });
   });
 
+  test('retries a login the ship answered with a 504', async () => {
+    vi.useFakeTimers();
+    const client = fakeClient({
+      poke: vi
+        .fn()
+        .mockRejectedValueOnce(new AuthError('invalid session'))
+        .mockResolvedValue(1),
+    });
+    const loginFetch = vi
+      .fn()
+      .mockResolvedValueOnce(loginResponse(504))
+      .mockResolvedValueOnce(loginResponse(200));
+    vi.stubGlobal('fetch', loginFetch);
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    const pending = poke({ app: 'a', mark: 'm', json: {} });
+    // the loop waits 3s before the second attempt; nothing before then
+    await vi.advanceTimersByTimeAsync(0);
+    expect(loginFetch).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(2_999);
+    expect(loginFetch).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(loginFetch).toHaveBeenCalledTimes(2);
+    await expect(pending).resolves.toBe(1);
+    expect(client.cookie).toBe('urbauth=refreshed');
+  });
+
+  test('a login that 504s every time gives up at the attempt bound', async () => {
+    vi.useFakeTimers();
+    const client = fakeClient({
+      poke: vi.fn().mockRejectedValue(new AuthError('invalid session')),
+    });
+    const loginFetch = vi.fn().mockResolvedValue(loginResponse(504));
+    vi.stubGlobal('fetch', loginFetch);
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    const pending = poke({ app: 'a', mark: 'm', json: {} }).catch((e) => e);
+    // four attempts, spaced by the loop's 3s / 5s / 9s backoff -- so the
+    // cumulative boundaries are 3s, 8s and 17s, and nothing fires early
+    await vi.advanceTimersByTimeAsync(0);
+    expect(loginFetch).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(2_999);
+    expect(loginFetch).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(loginFetch).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(loginFetch).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(loginFetch).toHaveBeenCalledTimes(3);
+    await vi.advanceTimersByTimeAsync(8_999);
+    expect(loginFetch).toHaveBeenCalledTimes(3);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(loginFetch).toHaveBeenCalledTimes(4);
+
+    await expect(pending).resolves.toMatchObject({
+      message: expect.stringContaining(
+        'Error during reauth: AuthFailureError: Authentication failed with status 504'
+      ),
+    });
+    // the bound holds: no fifth attempt, however long we wait
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(loginFetch).toHaveBeenCalledTimes(4);
+  });
+
+  test('retries a login whose request never reached the ship', async () => {
+    vi.useFakeTimers();
+    const client = fakeClient({
+      poke: vi
+        .fn()
+        .mockRejectedValueOnce(new AuthError('invalid session'))
+        .mockResolvedValue(1),
+    });
+    const loginFetch = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Network request failed'))
+      .mockResolvedValueOnce(loginResponse(200));
+    vi.stubGlobal('fetch', loginFetch);
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    const pending = poke({ app: 'a', mark: 'm', json: {} });
+    await vi.advanceTimersByTimeAsync(2_999);
+    expect(loginFetch).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(loginFetch).toHaveBeenCalledTimes(2);
+    await expect(pending).resolves.toBe(1);
+  });
+
+  test('a 403 from the login endpoint fails without retrying', async () => {
+    vi.useFakeTimers();
+    const client = fakeClient({
+      poke: vi.fn().mockRejectedValue(new AuthError('invalid session')),
+    });
+    const loginFetch = vi.fn().mockResolvedValue(loginResponse(403));
+    vi.stubGlobal('fetch', loginFetch);
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    const pending = poke({ app: 'a', mark: 'm', json: {} }).catch((e) => e);
+    await expect(pending).resolves.toMatchObject({
+      message: expect.stringContaining(
+        'Error during reauth: AuthFailureError: Authentication failed with status 403'
+      ),
+    });
+    // it threw before the first backoff, and no attempt follows
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(loginFetch).toHaveBeenCalledTimes(1);
+  });
+
   test('a rejected access code logs out instead of retrying', async () => {
     const handleAuthFailure = vi.fn();
     const client = fakeClient({
@@ -707,6 +834,139 @@ describe('subscribeOnce auth retry', () => {
     expect(trackEvent).toHaveBeenCalledWith(
       AnalyticsEvent.SubscribeOnceRecovered,
       expect.objectContaining({ subEndpoint: 'vitals/status/~zod' })
+    );
+  });
+});
+
+describe('bad poke diagnostics', () => {
+  function stubLogger() {
+    const stub = {
+      ...console,
+      crumb: vi.fn(),
+      sensitiveCrumb: vi.fn(),
+      trackError: vi.fn(),
+      trackEvent: vi.fn(),
+    };
+    configureLoggerFactory(() => stub as any);
+    return stub;
+  }
+
+  // a fixed clock so the reported channel age is exact rather than a floor
+  const now = new Date('2026-09-15T12:00:00Z');
+  const channelIdMintedSecondsAgo = (seconds: number) =>
+    `${Math.floor(now.getTime() / 1000) - seconds}-abc123`;
+
+  test('an invalid-session poke reports the session state it failed in', async () => {
+    // REACT-NATIVE-83: `AuthError: invalid session` carries no status, so the
+    // capture has to say for itself whether we were ever authenticated and
+    // whether a reauth was attempted
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    const { trackError } = stubLogger();
+    const client = fakeClient({
+      channelId: channelIdMintedSecondsAgo(42),
+      poke: vi.fn().mockRejectedValue(new AuthError('invalid session')),
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(loginResponse()));
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    await expect(
+      poke({ app: 'notify', mark: 'notify-client-action', json: {} })
+    ).rejects.toBeInstanceOf(AuthError);
+
+    expect(trackError).toHaveBeenCalledWith(
+      'bad poke',
+      expect.objectContaining({
+        app: 'notify',
+        mark: 'notify-client-action',
+        // a login has completed at some point, and this poke drove one of them
+        authEpoch: expect.any(Number),
+        reauthsDuringPoke: 1,
+        reauthInFlight: false,
+        channelOpened: true,
+        channelAgeSeconds: 42,
+        connectionStatus: expect.any(String),
+      })
+    );
+    const props = trackError.mock.calls[0][1] as Record<string, unknown>;
+    expect(props.authEpoch).toBeGreaterThan(0);
+    // nothing identifying: no ship, no url, no poke body
+    expect(JSON.stringify(props)).not.toContain('~zod');
+    expect(JSON.stringify(props)).not.toContain('example.test');
+  });
+
+  test('omits the channel age when the uid carries no timestamp', async () => {
+    const { trackError } = stubLogger();
+    const client = fakeClient({
+      channelId: 'not-a-timestamp',
+      poke: vi.fn().mockRejectedValue(new ChannelPutError(503, 'unavailable')),
+    });
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    await expect(
+      poke({ app: 'notify', mark: 'notify-client-action', json: {} })
+    ).rejects.toBeInstanceOf(ChannelPutError);
+    const props = trackError.mock.calls[0][1] as Record<string, unknown>;
+    expect(props.channelAgeSeconds).toBeUndefined();
+  });
+
+  test('carries the http status when the failure has one', async () => {
+    const { trackError } = stubLogger();
+    const client = fakeClient({
+      channelId: channelIdMintedSecondsAgo(0),
+      poke: vi.fn().mockRejectedValue(new ChannelPutError(503, 'unavailable')),
+    });
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    await expect(
+      poke({ app: 'notify', mark: 'notify-client-action', json: {} })
+    ).rejects.toBeInstanceOf(ChannelPutError);
+    expect(trackError).toHaveBeenCalledWith(
+      'bad poke',
+      expect.objectContaining({
+        errorStatus: 503,
+        reauthsDuringPoke: 0,
+        channelOpened: true,
+      })
+    );
+  });
+
+  test('falls back to responseStatus when that is where the status lives', async () => {
+    // AuthFailureError keeps its status under `responseStatus`, which
+    // describeError's `status` read misses entirely
+    const { trackError } = stubLogger();
+    const client = fakeClient({
+      channelId: channelIdMintedSecondsAgo(0),
+      poke: vi.fn().mockRejectedValue(new AuthFailureError(504)),
+    });
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    await expect(
+      poke({ app: 'notify', mark: 'notify-client-action', json: {} })
+    ).rejects.toBeInstanceOf(AuthFailureError);
+    expect(trackError).toHaveBeenCalledWith(
+      'bad poke',
+      expect.objectContaining({ errorStatus: 504 })
     );
   });
 });
