@@ -4,6 +4,7 @@ import {
   NativeDb,
   ensureDbReady as ensureSingletonDbReady,
   getDbPath as getSingletonDbPath,
+  isExpectedBaselineReplay,
   purgeDb as purgeSingletonDb,
   runMigrations as runSingletonMigrations,
   setupDb as setupSingletonDb,
@@ -22,22 +23,35 @@ type MockConnection = {
 
 type TrackPayload = Record<string, unknown>;
 
+// The bundled journal's `when` and a `__drizzle_migrations.created_at` from
+// before it -- the pair that tells drizzle to replay the baseline.
+const { BUNDLED_MIGRATION_WHEN, RECORDED_MIGRATION_WHEN } = vi.hoisted(() => ({
+  BUNDLED_MIGRATION_WHEN: 1_788_901_763_592,
+  RECORDED_MIGRATION_WHEN: 1_787_786_810_474,
+}));
+
 const sqliteRuntime = vi.hoisted(() => {
   const open = vi.fn(() => ({ __db: true }));
   const constructor = vi.fn();
   const queuedConnections: MockConnection[] = [];
   const createdConnections: MockConnection[] = [];
 
+  // `values` answers the `__drizzle_migrations` read. The default stands for an
+  // install that has a recorded baseline older than the bundled journal, i.e.
+  // one drizzle would replay.
+  const makeClient = (values?: MockConnection['migrateClient']) => ({
+    delete: vi.fn(() => ({ run: vi.fn(async () => undefined) })),
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({ all: vi.fn(async () => []) })),
+    })),
+    values: values ?? vi.fn(async () => [[RECORDED_MIGRATION_WHEN]]),
+  });
+
   const makeConnection = (
     overrides: Partial<MockConnection> = {}
   ): MockConnection => ({
     close: vi.fn(),
-    createClient: vi.fn(() => ({
-      delete: vi.fn(() => ({ run: vi.fn(async () => undefined) })),
-      select: vi.fn(() => ({
-        from: vi.fn(() => ({ all: vi.fn(async () => []) })),
-      })),
-    })),
+    createClient: vi.fn(() => makeClient()),
     delete: vi.fn(),
     execute: vi.fn(async () => undefined),
     getDbPath: vi.fn(() => '/tmp/tlon.sqlite'),
@@ -71,6 +85,7 @@ const sqliteRuntime = vi.hoisted(() => {
     constructor,
     createdConnections,
     enqueueConnection,
+    makeClient,
     makeConnection,
     nextConnection,
     open,
@@ -107,6 +122,7 @@ vi.mock('@tloncorp/shared', () => ({
   },
   AnalyticsSeverity: {
     Critical: 'Critical',
+    Low: 'Low',
   },
   createDevLogger: () => loggerSpies,
   escapeLog: (value: string) => value,
@@ -126,6 +142,22 @@ vi.mock('@tloncorp/shared/db', () => ({
   setClient: sharedDbSpies.setClient,
   userHasCompletedFirstSync: {
     resetValue: sharedDbSpies.resetUserHasCompletedFirstSync,
+  },
+}));
+
+vi.mock('@tloncorp/shared/db/migrations', () => ({
+  migrations: {
+    journal: {
+      entries: [
+        {
+          idx: 0,
+          when: BUNDLED_MIGRATION_WHEN,
+          tag: '0000_test',
+          breakpoints: true,
+        },
+      ],
+    },
+    migrations: { m0000: '' },
   },
 }));
 
@@ -167,6 +199,17 @@ function findPayload(
 ): TrackPayload | undefined {
   return eventPayloads().find(matcher);
 }
+
+function findEvent(
+  matcher: (event: string, payload: TrackPayload) => boolean
+): [string, TrackPayload] | undefined {
+  return loggerSpies.trackEvent.mock.calls.find(([event, payload]) =>
+    matcher(event as string, (payload ?? {}) as TrackPayload)
+  ) as [string, TrackPayload] | undefined;
+}
+
+const BASELINE_COLLISION_MESSAGE =
+  '[op-sqlite] sqlite query error: table `activity_event_contact_group_pins` already exists';
 
 describe('NativeDb', () => {
   beforeEach(() => {
@@ -528,5 +571,239 @@ describe('NativeDb', () => {
     await Promise.all([first, second]);
     await secondPass;
     expect(processChangesSpy).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('isExpectedBaselineReplay', () => {
+  const replayedBaseline = RECORDED_MIGRATION_WHEN;
+
+  it.each([
+    // Quoting is whatever the generated DDL used; drizzle emits backticks.
+    [BASELINE_COLLISION_MESSAGE, true],
+    [
+      '[op-sqlite] sqlite query error: table `activity_events` already exists',
+      true,
+    ],
+    ['[op-sqlite] sqlite query error: table "contacts" already exists', true],
+    [
+      '[op-sqlite] sqlite query error: table channel_writers already exists',
+      true,
+    ],
+    ['  ' + BASELINE_COLLISION_MESSAGE + '\n', true],
+    // Conservative: only a table collision from op-sqlite counts. Anything else
+    // is a real failure and keeps the Critical path.
+    [
+      '[op-sqlite] sqlite query error: bad parameter or other API misuse',
+      false,
+    ],
+    [
+      '[op-sqlite] sqlite query error: index `posts_channel_id` already exists',
+      false,
+    ],
+    ['[op-sqlite] sqlite query error: no such table: groups', false],
+    ['schema health check failed. Missing required tables: groups', false],
+    ['Migration timeout exceeded', false],
+    // Anchored, so a wrapped/annotated message is not silently downgraded.
+    ['migrate failed: ' + BASELINE_COLLISION_MESSAGE, false],
+  ])('classifies %s as expected=%s', (message, expected) => {
+    expect(isExpectedBaselineReplay(new Error(message), replayedBaseline)).toBe(
+      expected
+    );
+  });
+
+  it('does not classify non-errors as expected', () => {
+    expect(isExpectedBaselineReplay(undefined, replayedBaseline)).toBe(false);
+    expect(isExpectedBaselineReplay(null, replayedBaseline)).toBe(false);
+    expect(
+      isExpectedBaselineReplay(BASELINE_COLLISION_MESSAGE, replayedBaseline)
+    ).toBe(false);
+    expect(isExpectedBaselineReplay({ message: 42 }, replayedBaseline)).toBe(
+      false
+    );
+  });
+
+  it.each([
+    // Only a recorded baseline older than the bundled journal is evidence that
+    // drizzle replayed it. Everything else is a populated DB whose migration
+    // history we cannot account for, and stays Critical.
+    ['a prior baseline older than the bundle', replayedBaseline, true],
+    ['no journal row at all', null, false],
+    [
+      'a journal already at the bundled baseline',
+      BUNDLED_MIGRATION_WHEN,
+      false,
+    ],
+    [
+      'a journal ahead of the bundled baseline',
+      BUNDLED_MIGRATION_WHEN + 1,
+      false,
+    ],
+  ])('with %s (recorded=%s), expected=%s', (_label, recorded, expected) => {
+    expect(
+      isExpectedBaselineReplay(new Error(BASELINE_COLLISION_MESSAGE), recorded)
+    ).toBe(expected);
+  });
+});
+
+describe('NativeDb baseline replay reporting', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sqliteRuntime.reset();
+  });
+
+  function collidingConnection(overrides: Record<string, unknown> = {}) {
+    return sqliteRuntime.makeConnection({
+      migrateClient: vi
+        .fn()
+        .mockRejectedValue(new Error(BASELINE_COLLISION_MESSAGE)),
+      ...overrides,
+    });
+  }
+
+  it('reports the expected baseline collision as a schema upgrade, not a critical error', async () => {
+    const firstConnection = collidingConnection();
+    const secondConnection = sqliteRuntime.makeConnection();
+    sqliteRuntime.enqueueConnection(firstConnection);
+    sqliteRuntime.enqueueConnection(secondConnection);
+    const db = new NativeDb();
+
+    await db.runMigrations();
+
+    // Purge and retry are untouched.
+    expect(firstConnection.delete).toHaveBeenCalledTimes(1);
+    expect(secondConnection.migrateClient).toHaveBeenCalledTimes(1);
+
+    const upgrade = findEvent(
+      (_event, payload) =>
+        typeof payload.context === 'string' &&
+        payload.context.includes('baseline replayed against populated DB')
+    );
+    expect(upgrade?.[0]).toBe('NativeDbDebug');
+    expect(upgrade?.[1]).toMatchObject({
+      attemptId: expect.any(String),
+      elapsedMs: expect.any(Number),
+      error: expect.any(Error),
+      errorMessage: BASELINE_COLLISION_MESSAGE,
+      migrationPhase: 'initial',
+      recordedMigrationWhen: RECORDED_MIGRATION_WHEN,
+      severity: 'Low',
+    });
+
+    expect(
+      findEvent(
+        (event, payload) =>
+          event === 'ErrorNativeDb' && payload.migrationPhase === 'initial'
+      )
+    ).toBeUndefined();
+  });
+
+  /**
+   * A populated DB whose `__drizzle_migrations` cannot vouch for a prior
+   * baseline: the collision message is identical, but no upgrade has been shown
+   * to have happened, so it must still page.
+   */
+  async function expectCriticalWithoutEvidence(
+    values: MockConnection['migrateClient']
+  ) {
+    const firstConnection = collidingConnection({
+      createClient: vi.fn(() => sqliteRuntime.makeClient(values)),
+    });
+    const secondConnection = sqliteRuntime.makeConnection();
+    sqliteRuntime.enqueueConnection(firstConnection);
+    sqliteRuntime.enqueueConnection(secondConnection);
+    const db = new NativeDb();
+
+    await db.runMigrations();
+
+    const critical = findEvent(
+      (event, payload) =>
+        event === 'ErrorNativeDb' && payload.migrationPhase === 'initial'
+    );
+    expect(critical?.[1]).toMatchObject({
+      errorMessage: BASELINE_COLLISION_MESSAGE,
+      severity: 'Critical',
+    });
+
+    expect(
+      findEvent(
+        (_event, payload) =>
+          typeof payload.context === 'string' &&
+          payload.context.includes('baseline replayed against populated DB')
+      )
+    ).toBeUndefined();
+  }
+
+  it('keeps the critical report when the migrations table is missing', async () => {
+    await expectCriticalWithoutEvidence(
+      vi.fn(async () => {
+        throw new Error(
+          '[op-sqlite] sqlite query error: no such table: __drizzle_migrations'
+        );
+      })
+    );
+  });
+
+  it('keeps the critical report when the migrations table is empty', async () => {
+    await expectCriticalWithoutEvidence(vi.fn(async () => [[null]]));
+  });
+
+  it('keeps the critical report for an unrelated migration failure', async () => {
+    const firstConnection = sqliteRuntime.makeConnection({
+      migrateClient: vi
+        .fn()
+        .mockRejectedValue(
+          new Error(
+            '[op-sqlite] sqlite query error: bad parameter or other API misuse'
+          )
+        ),
+    });
+    const secondConnection = sqliteRuntime.makeConnection();
+    sqliteRuntime.enqueueConnection(firstConnection);
+    sqliteRuntime.enqueueConnection(secondConnection);
+    const db = new NativeDb();
+
+    await db.runMigrations();
+
+    const critical = findEvent(
+      (event, payload) =>
+        event === 'ErrorNativeDb' && payload.migrationPhase === 'initial'
+    );
+    expect(critical?.[1]).toMatchObject({
+      attemptId: expect.any(String),
+      elapsedMs: expect.any(Number),
+      errorMessage:
+        '[op-sqlite] sqlite query error: bad parameter or other API misuse',
+      severity: 'Critical',
+    });
+
+    expect(
+      findEvent(
+        (_event, payload) =>
+          typeof payload.context === 'string' &&
+          payload.context.includes('baseline replayed against populated DB')
+      )
+    ).toBeUndefined();
+  });
+
+  it('reports critically when the collision survives the purge', async () => {
+    const firstConnection = collidingConnection();
+    const secondConnection = collidingConnection();
+    sqliteRuntime.enqueueConnection(firstConnection);
+    sqliteRuntime.enqueueConnection(secondConnection);
+    const db = new NativeDb();
+
+    await expect(db.runMigrations()).rejects.toThrow(
+      BASELINE_COLLISION_MESSAGE
+    );
+
+    const retryFailure = findEvent(
+      (event, payload) =>
+        event === 'ErrorNativeDb' && payload.migrationPhase === 'retry'
+    );
+    expect(retryFailure?.[1]).toMatchObject({
+      context: 'runMigrations: retry migrate failed',
+      errorMessage: BASELINE_COLLISION_MESSAGE,
+      severity: 'Critical',
+    });
   });
 });
