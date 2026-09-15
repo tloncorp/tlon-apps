@@ -32,6 +32,11 @@ import {
   setCronServiceAccessor,
 } from './src/cron-telemetry.js';
 import {
+  CRON_ARGS_BLOCK_REASON,
+  findForbiddenCronArgs,
+  isCronArgsGuardEnabled,
+} from './src/cron-tool-args-guard.js';
+import {
   installTlonDiagnosticSubscriptions,
   shouldInstallTlonDiagnosticSubscriptions,
 } from './src/diagnostic-subscriptions.js';
@@ -1011,6 +1016,41 @@ export default defineBundledChannelEntry({
 
     // Tool access control: block sensitive tools for non-owners
     const logToolTraceContents = liveToolTraceContentsEnabled();
+    // Read once per registerFull pass; a hot reload that skips registerFull
+    // keeps the value the gateway started with (see the note above).
+    const cronArgsGuardEnabled = isCronArgsGuardEnabled();
+
+    const recordBlockedToolCallInLens = (
+      sessionKey: string | null | undefined,
+      toolName: string,
+      reason: string | undefined,
+      toolCallId: string | undefined
+    ) => {
+      if (!contextLensEnabled) {
+        return;
+      }
+      const blockedLens = recordContextLensToolResultForSession(
+        sessionKey,
+        toolName,
+        {
+          error: reason,
+          status: 'blocked',
+          toolCallId,
+        }
+      );
+      if (!blockedLens) {
+        return;
+      }
+      publishContextLensEvent('tool_result', blockedLens, {
+        toolName,
+        ...(toolCallId ? { toolCallId } : {}),
+        toolPhase: 'blocked',
+        toolCallCount: blockedLens.tools.callCount,
+      });
+      scheduleBackgroundContextLensFinalization(sessionKey, (finalLens) => {
+        publishContextLensEvent('final', finalLens);
+      });
+    };
 
     api.on('before_tool_call', async (event, ctx) => {
       const toolCallId = readToolCallId(event);
@@ -1120,31 +1160,12 @@ export default defineBundledChannelEntry({
         api.logger.warn(
           `[tlon] Blocked ${event.toolName} tool for non-owner. Session: ${ctx.sessionKey}, Role: ${role}`
         );
-        if (contextLensEnabled) {
-          const blockedLens = recordContextLensToolResultForSession(
-            ctx.sessionKey,
-            event.toolName,
-            {
-              error: blockReason,
-              status: 'blocked',
-              toolCallId,
-            }
-          );
-          if (blockedLens) {
-            publishContextLensEvent('tool_result', blockedLens, {
-              toolName: event.toolName,
-              ...(toolCallId ? { toolCallId } : {}),
-              toolPhase: 'blocked',
-              toolCallCount: blockedLens.tools.callCount,
-            });
-            scheduleBackgroundContextLensFinalization(
-              ctx.sessionKey,
-              (finalLens) => {
-                publishContextLensEvent('final', finalLens);
-              }
-            );
-          }
-        }
+        recordBlockedToolCallInLens(
+          ctx.sessionKey,
+          event.toolName,
+          blockReason,
+          toolCallId
+        );
         return {
           block: true,
           blockReason,
@@ -1154,6 +1175,25 @@ export default defineBundledChannelEntry({
       api.logger.info(
         `[tlon] Allowed ${event.toolName} tool for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`
       );
+
+      if (cronArgsGuardEnabled && event.toolName === 'cron') {
+        const forbidden = findForbiddenCronArgs(event.toolName, event.params);
+        if (forbidden.length > 0) {
+          api.logger.info(
+            `[tlon] cron args blocked: ${forbidden.map((f) => `${f.path}=${f.kind}`).join(', ')}`
+          );
+          recordBlockedToolCallInLens(
+            ctx.sessionKey,
+            event.toolName,
+            CRON_ARGS_BLOCK_REASON,
+            toolCallId
+          );
+          return {
+            block: true,
+            blockReason: CRON_ARGS_BLOCK_REASON,
+          };
+        }
+      }
       return undefined;
     });
 
