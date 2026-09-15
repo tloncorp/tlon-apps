@@ -43,7 +43,8 @@ const url = (values.url ?? '').replace(/\/+$/, '');
 if (!url) usage('--url is required');
 const statePath = resolve(REPO, values.state ?? '.evidence/web-auth.json');
 const timeout = Number(values.timeout ?? 30_000);
-if (!Number.isFinite(timeout) || timeout <= 0) usage('--timeout takes milliseconds');
+if (!Number.isFinite(timeout) || timeout <= 0)
+  usage('--timeout takes milliseconds');
 
 // dotenv semantics: an unquoted value ends at ` #`, a quoted one keeps it.
 function envValue(file, key) {
@@ -58,7 +59,10 @@ function envValue(file, key) {
 const code =
   values.code ||
   process.env.DEFAULT_SHIP_LOGIN_ACCESS_CODE ||
-  envValue(join(REPO, 'apps/tlon-mobile/.env.local'), 'DEFAULT_SHIP_LOGIN_ACCESS_CODE');
+  envValue(
+    join(REPO, 'apps/tlon-mobile/.env.local'),
+    'DEFAULT_SHIP_LOGIN_ACCESS_CODE'
+  );
 if (!code) {
   usage(
     'no access code: set DEFAULT_SHIP_LOGIN_ACCESS_CODE in apps/tlon-mobile/.env.local, or pass --code'
@@ -74,7 +78,9 @@ const require = createRequire(import.meta.url);
 let chromium;
 try {
   ({ chromium } = require(
-    require.resolve('@playwright/test', { paths: [join(REPO, 'apps/tlon-web')] })
+    require.resolve('@playwright/test', {
+      paths: [join(REPO, 'apps/tlon-web')],
+    })
   ));
 } catch {
   usage('@playwright/test is not installed; run pnpm install');
