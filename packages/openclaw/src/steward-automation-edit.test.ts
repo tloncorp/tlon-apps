@@ -120,6 +120,18 @@ describe('toStewardAutomationCronCreateInput', () => {
     });
   });
 
+  it('rejects an at timestamp outside the Date range as invalid', () => {
+    expect(
+      toStewardAutomationCronCreateInput(requestId, {
+        ...createTask,
+        schedule: { kind: 'at', at: 8_640_000_000_000_001 },
+      })
+    ).toEqual({
+      ok: false,
+      message: 'schedule.at is outside the representable date range',
+    });
+  });
+
   it('maps a systemEvent payload onto text', () => {
     const result = toStewardAutomationCronCreateInput(requestId, {
       ...createTask,
@@ -486,6 +498,34 @@ describe('StewardAutomationEditProcessor', () => {
               type: 'error',
               errorType: 'harness-error',
             }),
+          },
+        },
+      })
+    );
+  });
+
+  it('answers harness-error when applying throws unexpectedly', async () => {
+    const cron = cronService({
+      remove: vi.fn().mockImplementation(() => {
+        throw new TypeError('cron service exploded');
+      }),
+    });
+    const { instance, poke } = processor(cron);
+
+    await expect(
+      instance.handle({ requestId, action: { delete: { id: 'job-1' } } })
+    ).resolves.toBeUndefined();
+
+    expect(poke).toHaveBeenCalledWith(
+      expect.objectContaining({
+        json: {
+          finalize: {
+            requestId,
+            body: {
+              type: 'error',
+              errorType: 'harness-error',
+              message: ['cron service exploded'],
+            },
           },
         },
       })

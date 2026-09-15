@@ -22,6 +22,10 @@ const AUTOMATION_V1_PATH = '/steward/~/v1/automation';
 const REQUEST_V1_PATH = `${AUTOMATION_V1_PATH}/request`;
 const TASKS_V1_PATH = `${AUTOMATION_V1_PATH}/tasks`;
 const TASKS_FEED = { app: 'steward', path: '/v1/automation/tasks' };
+// Steward's Eyre routes answer 401 to an expired session, where requestJson
+// only reauthenticates on 403 by default.
+const AUTH_FAILURE_STATUSES = [401, 403] as const;
+const REQUEST_OPTIONS = { reauthStatuses: [...AUTH_FAILURE_STATUSES] };
 
 // Typed failure from the automation action-error union. `errorType` mirrors
 // the wire's `errorType`; `harness-offline` means no plugin is attached to
@@ -109,7 +113,12 @@ export interface StewardAutomationEditResult {
 export async function editAutomation(
   request: ub.StewardAutomationEditRequest
 ): Promise<StewardAutomationEditResult> {
-  const raw = await requestJson(AUTOMATION_V1_PATH, 'POST', request);
+  const raw = await requestJson(
+    AUTOMATION_V1_PATH,
+    'POST',
+    request,
+    REQUEST_OPTIONS
+  );
   const response = parseResponse(raw);
   return settle(response);
 }
@@ -183,7 +192,12 @@ export function deleteAutomation(params: {
 export async function getAutomationRequest(
   requestId: string
 ): Promise<ub.StewardAutomationResponse> {
-  const raw = await requestJson(`${REQUEST_V1_PATH}/${requestId}`, 'GET');
+  const raw = await requestJson(
+    `${REQUEST_V1_PATH}/${requestId}`,
+    'GET',
+    undefined,
+    REQUEST_OPTIONS
+  );
   return parseResponse(raw);
 }
 
@@ -213,7 +227,12 @@ export async function awaitAutomationRequest(
 
 /** The mirror: every ship's tasks keyed by `~ship`, over HTTP. */
 export async function getAutomations(): Promise<ub.StewardAutomationShipTasks> {
-  return requestJson<ub.StewardAutomationShipTasks>(TASKS_V1_PATH, 'GET');
+  return requestJson<ub.StewardAutomationShipTasks>(
+    TASKS_V1_PATH,
+    'GET',
+    undefined,
+    REQUEST_OPTIONS
+  );
 }
 
 /** The mirror via scry, for callers already on a channel. */

@@ -1459,7 +1459,7 @@ export const botReplyFeedback = sqliteTable(
 
 // Per-run bot introspection records synced from the %steward agent's lens
 // module. Payload is the gateway's run record as structured JSON (inner
-// schemaVersion); see docs/steward.md.
+// schemaVersion); see docs/backend/desk/app/steward.md.
 export const contextLensRuns = sqliteTable(
   'context_lens_runs',
   {

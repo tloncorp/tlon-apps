@@ -51,7 +51,8 @@ describe('createAutomation', () => {
     expect(requestJson).toHaveBeenCalledWith(
       '/steward/~/v1/automation',
       'POST',
-      { bot, action: { create: task } }
+      { bot, action: { create: task } },
+      { reauthStatuses: [401, 403] }
     );
   });
 
@@ -66,7 +67,8 @@ describe('createAutomation', () => {
     expect(requestJson).toHaveBeenCalledWith(
       '/steward/~/v1/automation',
       'POST',
-      { requestId, bot, action: { create: task } }
+      { requestId, bot, action: { create: task } },
+      { reauthStatuses: [401, 403] }
     );
   });
 
@@ -137,7 +139,8 @@ describe('updateAutomation and deleteAutomation', () => {
     expect(requestJson).toHaveBeenCalledWith(
       '/steward/~/v1/automation',
       'POST',
-      { bot, action: { update: { id: 'job-1', enabled: false } } }
+      { bot, action: { update: { id: 'job-1', enabled: false } } },
+      { reauthStatuses: [401, 403] }
     );
   });
 
@@ -154,7 +157,8 @@ describe('updateAutomation and deleteAutomation', () => {
     expect(requestJson).toHaveBeenCalledWith(
       '/steward/~/v1/automation',
       'POST',
-      { bot, action: { delete: { id: 'job-1' } } }
+      { bot, action: { delete: { id: 'job-1' } } },
+      { reauthStatuses: [401, 403] }
     );
   });
 });
@@ -172,7 +176,9 @@ describe('getAutomationRequest and awaitAutomationRequest', () => {
     });
     expect(requestJson).toHaveBeenCalledWith(
       `/steward/~/v1/automation/request/${requestId}`,
-      'GET'
+      'GET',
+      undefined,
+      { reauthStatuses: [401, 403] }
     );
   });
 
@@ -217,7 +223,9 @@ describe('reads', () => {
     await expect(getAutomations()).resolves.toEqual(mirror);
     expect(requestJson).toHaveBeenCalledWith(
       '/steward/~/v1/automation/tasks',
-      'GET'
+      'GET',
+      undefined,
+      { reauthStatuses: [401, 403] }
     );
   });
 

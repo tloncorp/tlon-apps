@@ -198,16 +198,19 @@ function mapSchedule(
             : { staggerMs: schedule.staggerMs }),
         },
       };
-    case 'at':
+    case 'at': {
       if (schedule.at === undefined) {
         return invalid('schedule.at is required for an at schedule');
       }
       // Steward carries absolute dates as Unix milliseconds; OpenClaw's
-      // create/patch schema wants ISO text.
-      return {
-        ok: true,
-        value: { kind: 'at', at: new Date(schedule.at).toISOString() },
-      };
+      // create/patch schema wants ISO text. A safe integer can still lie
+      // outside Date's range, where toISOString throws.
+      const at = new Date(schedule.at);
+      if (Number.isNaN(at.getTime())) {
+        return invalid('schedule.at is outside the representable date range');
+      }
+      return { ok: true, value: { kind: 'at', at: at.toISOString() } };
+    }
     case 'every':
       if (schedule.everyMs === undefined) {
         return invalid('schedule.everyMs is required for an every schedule');
@@ -532,7 +535,15 @@ export class StewardAutomationEditProcessor {
       return;
     }
 
-    const body = await applyStewardAutomationDispatch(dispatch, cron);
+    let body: StewardAutomationResponseBody;
+    try {
+      body = await applyStewardAutomationDispatch(dispatch, cron);
+    } catch (error) {
+      // applyStewardAutomationDispatch answers every expected failure as
+      // data; anything that still escapes must not take the processor or
+      // the gateway down, and the owner still deserves a terminal answer.
+      body = errorBody('harness-error', errorMessage(error));
+    }
     this.options.logger.log?.(
       `[tlon] Steward automation dispatch ${dispatch.requestId}: ${body.type}` +
         (body.type === 'error' ? ` (${body.errorType})` : ` ${body.id}`)

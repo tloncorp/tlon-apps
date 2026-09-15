@@ -2591,6 +2591,24 @@
   ;<  caz=(list card)  bind:m  (do-watch /http-response/eyre-1)
   (ex-cards caz ~)
 ::
+::  a remote ship cannot forge an eyre request or attach to a response path
+::
+++  test-automation-http-rejects-remote-source
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m
+    %-  ex-fail
+    %-  (do-as ~zod)
+    (do-http 'eyre-1' (http-request & %'POST' edit-url `(edit-post-body &)))
+  ;<  ~  bind:m
+    %-  ex-fail
+    %-  (do-as ~zod)
+    (do-watch /http-response/eyre-1)
+  ;<  reqs=requests:v1:au  bind:m  got-requests
+  (ex-equal !>(reqs) !>(*requests:v1:au))
+::
 ++  test-automation-http-unauthenticated-is-401
   %-  eval-mare
   =/  m  (mare ,~)
@@ -2703,6 +2721,9 @@
   ;<  caz=(list card)  bind:m
     (do-http 'eyre-2' (http-request & %'GET' request-url ~))
   ;<  ~  bind:m  (ex-cards caz (ex-http-response 'eyre-2' [%pending %sending]))
+  ::  a pending read does not count as fetched
+  ;<  req=incoming-request:v1:au  bind:m  got-request
+  ;<  ~  bind:m  (ex-equal !>(fetched.req) !>(|))
   ;<  *  bind:m  (do-req-watch-sign moon (response-fact created))
   ;<  caz=(list card)  bind:m
     (do-http 'eyre-3' (http-request & %'GET' request-url ~))

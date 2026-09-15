@@ -100,7 +100,7 @@ The plugin does not enable telemetry automatically just because an API key is pr
 
 ## Steward automation mirror
 
-Against the pinned OpenClaw `2026.7.1-2` (the hosted version), the plugin keeps a best-effort ship-side mirror of cron definitions in the bot's local `%steward`. `gateway_start` and every `cron_changed` action trigger a complete `getCron().list({ includeDisabled: true })` read. The plugin normalizes supported `cron`, `at`, and `every` schedules (including ISO `at` text to Unix milliseconds) and submits the complete list through `%steward-automation-action-1` as one `%project` poke.
+Against OpenClaw `2026.7.1-2` (the hosted version; the SDK devDependency stays on `2026.5.28` only because 7.1 requires Node ≥ 22.22.3 and the repo pins 22.22.0), the plugin keeps a best-effort ship-side mirror of cron definitions in the bot's local `%steward`. `gateway_start` and every `cron_changed` action trigger a complete `getCron().list({ includeDisabled: true })` read. The plugin normalizes supported `cron`, `at`, and `every` schedules (including ISO `at` text to Unix milliseconds) and submits the complete list through `%steward-automation-action-1` as one `%project` poke.
 
 Reconciliation is serialized and busy-period triggers are coalesced. Unavailable cron access, read failures, missing ship connections, and poke acknowledgement failures retry while the gateway is active. `gateway_stop` cancels retries and guards against a stale post-stop submission, but deliberately leaves the last successful Steward snapshot intact. The same process-lifetime worker is reused across OpenClaw plugin-registration passes. These behaviors repair the mirror after a later successful read; they do not guarantee continuous freshness.
 

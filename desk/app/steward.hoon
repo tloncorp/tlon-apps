@@ -176,9 +176,12 @@
       %steward-automation-command-1
     (au-poke-command:au-core !<(c-automation:v1:sa vase))
   ::
-  ::  the owner ship's HTTP surface for the edit loop
+  ::  the owner ship's HTTP surface for the edit loop. eyre pokes from
+  ::  the local ship; a remote poke of this mark could forge an
+  ::  authenticated request, so the source is checked before the body
   ::
       %handle-http-request
+    ?>  =(src.bowl our.bowl)
     (au-handle-http:au-core !<([eyre-id=@ta =inbound-request:eyre] vase))
   ==
 ::
@@ -194,6 +197,7 @@
   ::  %handle-http-request; the response facts go out on this path
   ::
       [%http-response *]
+    ?>  =(src.bowl our.bowl)
     cor
   ::
       [%v1 %lens *]
@@ -1252,7 +1256,10 @@
     =/  body=response-body:v1:sa
       ?~  result.u.req  [%pending poke-status.u.req]
       u.result.u.req
-    =.  requests.automation.state
+    ::  only a terminal body counts as fetched; a poller that saw %pending
+    ::  must still find the late result before the sweep evicts it
+    ::
+    =?  requests.automation.state  !?=(%pending -.body)
       (~(put by requests.automation.state) p.parsed u.req(fetched &))
     (au-give-http-response eyre-id [p.parsed body])
   ::
