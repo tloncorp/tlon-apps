@@ -1065,15 +1065,17 @@ export const verifyLoginOtpForUser = async ({
     },
   });
 
-  const result = (await response.json()) as HostingError | User;
   if (!response.ok) {
+    const result: unknown = await response.json().catch(() => null);
     throw new HostingError(
-      'message' in result ? result.message : 'An unknown error has occurred.',
+      isJsonObject(result) && typeof result.message === 'string'
+        ? result.message
+        : 'An unknown error has occurred.',
       { status: response.status, method: 'POST', path }
     );
   }
 
-  const user = result as User;
+  const user = (await response.json()) as User;
   await persistHostingSession(response, user);
   return user;
 };

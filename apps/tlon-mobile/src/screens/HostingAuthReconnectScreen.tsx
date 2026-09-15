@@ -171,7 +171,11 @@ export function HostingAuthReconnectScreen({
           title="Security check"
           backgroundColor="$background"
           leftControls={
-            <ScreenHeader.TextButton color="$secondaryText" onPress={onLogout}>
+            <ScreenHeader.TextButton
+              color="$secondaryText"
+              onPress={onLogout}
+              disabled={isVerifying}
+            >
               Log out
             </ScreenHeader.TextButton>
           }

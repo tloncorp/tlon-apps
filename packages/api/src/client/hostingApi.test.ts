@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  HostingError,
   completeTlawnLLMAuth,
   configureHostingSessionStore,
   deleteTlawnProviderKey,
@@ -388,4 +389,41 @@ describe('Hosting auth reconnect', () => {
     );
     expect(setUserId).toHaveBeenCalledWith('user/1');
   });
+
+  it.each([400, 401])(
+    'preserves HTTP %s for empty, text, and JSON verification errors',
+    async (status) => {
+      for (const body of [
+        null,
+        'Unauthorized',
+        'null',
+        '{"message":"Incorrect code"}',
+      ]) {
+        vi.stubGlobal(
+          'fetch',
+          vi.fn().mockResolvedValue(new Response(body, { status }))
+        );
+
+        const result = verifyLoginOtpForUser({
+          userId: 'user/1',
+          otp: '123456',
+        });
+
+        await expect(result).rejects.toBeInstanceOf(HostingError);
+        await expect(result).rejects.toMatchObject({
+          message:
+            body === '{"message":"Incorrect code"}'
+              ? 'Incorrect code'
+              : 'An unknown error has occurred.',
+          details: {
+            status,
+            method: 'POST',
+            path: '/v1/users/user%2F1/verify-login-otp',
+          },
+        });
+        expect(setAuthToken).not.toHaveBeenCalled();
+        expect(setUserId).not.toHaveBeenCalled();
+      }
+    }
+  );
 });
