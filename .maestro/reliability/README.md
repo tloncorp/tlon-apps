@@ -32,13 +32,16 @@ settings restores the original theme on success.
 Multi-ship delivery, DMs, notifications, media, extended onboarding/recovery, and
 advanced collaborative notebook cases remain outside this suite.
 
-The EAS workflow `apps/tlon-mobile/.eas/workflows/e2e-nightly-ios.yml` runs this
-suite on `develop` nightly at 07:00 UTC and supports manual runs. It has no push
-or pull-request trigger. It reuses the nightly iOS build and builds an Android
-APK; Android tests follow iOS even if iOS fails. The existing smoke alert reports
-smoke results; reliability failures appear in EAS and Maestro Cloud.
+The GitHub Actions workflow `.github/workflows/mobile-reliability-nightly.yml`
+runs this suite on `develop` nightly at 07:00 UTC and supports manual runs. It
+uses EAS to build an iOS Simulator app and Android APK, then runs the flows in
+Maestro Cloud. Android tests follow iOS even if iOS fails. The final Actions job
+reports every build and test result, with links to the Maestro Cloud runs.
 
-The production EAS environment supplies the test credentials for `~batbet-litnec`.
-Keep one Cloud device per platform for this shared account and avoid overlapping
-manual runs: Cloud can parallelize flows within a suite. The suite list comes
-from `config.yaml`, so later default journeys run nightly too.
+The EAS workflow `apps/tlon-mobile/.eas/workflows/e2e-nightly-ios.yml` remains a
+manual fallback and no longer owns the schedule.
+
+GitHub Actions supplies the test credentials for `~batbet-litnec` from repository
+secrets. Keep one Cloud device per platform for this shared account and avoid
+overlapping manual runs: Cloud can parallelize flows within a suite. The suite
+list comes from `config.yaml`, so later default journeys run nightly too.
