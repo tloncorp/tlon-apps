@@ -5,32 +5,32 @@ on:
     inputs:
       coordinator_failure_json:
         type: string
-        description: Publish a coordinator failure before simulator dispatch
+        description: Coordinator failure report
       prepared_assessment_json:
         type: string
         description: Source-checked test plan
       build_only:
         type: boolean
         default: false
-        description: Prepare an exact-source simulator build before leasing a backend
+        description: Prepare the simulator build
       full_pr_run:
         type: boolean
         default: false
         description: Assess, test and publish the supplied PR
       assessment_pr_json:
         type: string
-        description: GitHub PR JSON; assessment only unless full_pr_run is enabled
+        description: PR to assess
       build_id:
         type: string
         required: false
-        description: Existing simulator build; full PR runs independently verify identical product source
+        description: Existing simulator build ID
       build_sha:
         type: string
         required: false
         description: Full git commit from the existing EAS build record
       test_ship:
         type: string
-        description: Optional manual identity expectation; defaults to EAS MAESTRO_TEST_SHIP
+        description: Expected test ship
       ship_url:
         type: string
         description: Authenticated disposable backend tunnel for manual validation
@@ -40,10 +40,10 @@ on:
         type: string
       present_evidence_json:
         type: string
-        description: Reformat and publish an existing recorded report with finding clips; use replay.mjs with present
+        description: Publish saved evidence with finding clips
       review_evidence_json:
         type: string
-        description: Prepared replay descriptor; use scripts/agent-qa/replay.mjs
+        description: Saved evidence to review
 
 concurrency:
   cancel_in_progress: true
