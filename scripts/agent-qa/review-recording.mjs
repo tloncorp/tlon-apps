@@ -10,7 +10,7 @@ import {
   rmSync,
 } from 'node:fs';
 import path from 'node:path';
-import { reviewEvidence } from './review.mjs';
+import { reviewEvidence, replayVideoOnly } from './review.mjs';
 import { verifyCodexAuth, interruptedResult } from './codex.mjs';
 import { verifyReport, renderReport } from './core.mjs';
 import { verifyCoverage } from './assess.mjs';
@@ -118,7 +118,7 @@ if (original.context.evidenceReview !== 'completed') {
     artifacts: source,
     usage,
     video,
-    videoOnly: !descriptor.complete,
+    videoOnly: replayVideoOnly(original.context, descriptor.complete),
   });
   for (const check of original.report.checks.filter((c) => c.infrastructure))
     result.checks.push(check);

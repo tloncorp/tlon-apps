@@ -431,6 +431,34 @@ export function unresolvedVideoAssessment(assessment, result) {
     ),
   };
 }
+export function replayVideoOnly(context, complete) {
+  return context.evidenceReview === 'completed' && !complete;
+}
+
+function validResolution(resolution, actions) {
+  return (
+    resolution?.reason?.trim() &&
+    resolution.before < resolution.trigger &&
+    resolution.trigger <= resolution.after &&
+    [resolution.before, resolution.trigger, resolution.after].every(
+      (i) => Number.isInteger(i) && hasActionEvidence(actions[i - 1])
+    )
+  );
+}
+
+export function reconcileDiscoveries(previous, reviewed, actions) {
+  for (const old of previous.discoveries || []) {
+    const same = (d) => d.title === old.title && d.file === old.file;
+    const resolution = reviewed.discoveryResolutions?.find(same);
+    if (
+      !reviewed.discoveries.some(same) &&
+      !validResolution(resolution, actions)
+    )
+      reviewed.discoveries.push(old);
+  }
+  return reviewed;
+}
+
 export function reconcileChecks(previous, reviewed, receipts, actions) {
   for (const old of previous.checks) {
     if (old.status === 'passed') continue;
@@ -441,13 +469,7 @@ export function reconcileChecks(previous, reviewed, receipts, actions) {
       (r) => r.scenarioId === old.scenarioId
     );
     const disproved =
-      current?.status === 'passed' &&
-      resolution?.reason?.trim() &&
-      resolution.before < resolution.trigger &&
-      resolution.trigger <= resolution.after &&
-      [resolution.before, resolution.trigger, resolution.after].every(
-        (i) => Number.isInteger(i) && hasActionEvidence(actions[i - 1])
-      );
+      current?.status === 'passed' && validResolution(resolution, actions);
     const accountedFor =
       current &&
       (current.status === old.status ||
@@ -515,6 +537,18 @@ export async function reviewEvidence({
     }),
   };
   schema.required.push('resolutions');
+  schema.properties.discoveryResolutions = {
+    type: 'array',
+    items: object({
+      title: text,
+      file: text,
+      reason: text,
+      before: { type: 'integer' },
+      trigger: { type: 'integer' },
+      after: { type: 'integer' },
+    }),
+  };
+  schema.required.push('discoveryResolutions');
   schema.properties.checks.items.properties.evidence.items = {
     type: 'string',
     pattern: video ? '^(codex-trace|video-frames-[0-9]+)$' : '^codex-trace$',
@@ -559,6 +593,8 @@ Return findings for every exact scenario ID and expected criterion. Unexpected d
       clipSelectionContract: video
         ? 'For each failed or blocked check and unexpected discovery, include clipEvidence only when exact video frames prove a complete before, trigger, outcome and settled interval. Use one clip by default with frame, evidenceId and observation for all four moments; omit it when incomplete.'
         : 'No clipEvidence is needed without video.',
+      discoveryResolutionContract:
+        'To clear a disproved operator or blind-review discovery, omit it from discoveries and include its exact title and file in discoveryResolutions, with the reason and completed before/trigger/after action evidence that disproves it. Otherwise prior discoveries are retained. Return an empty array when none are disproved.',
       resolutionContract:
         'To clear an operator failure, return a passed check and a resolutions entry for its scenarioId. Explain the disproof and cite actual before, trigger, and after action numbers covering the complete event. An empty array preserves unresolved failures; a normal final screen alone cannot clear one.',
     },
@@ -577,18 +613,14 @@ Return findings for every exact scenario ID and expected criterion. Unexpected d
   verifyVideoReferences(reviewed, receipts);
   reconcileChecks(result, reviewed, receipts, actions);
   verifyDiscoveries(reviewed, assessment, actions);
-  for (const d of result.discoveries || [])
-    if (!reviewed.discoveries.some((x) => x.title === d.title))
-      reviewed.discoveries.push(d);
+  reconcileDiscoveries(result, reviewed, actions);
   if (videoOnly) {
     const ids = new Set(assessment.scenarios.map((s) => s.id));
     reviewed.checks = [
       ...previous.checks.filter((c) => !ids.has(c.scenarioId)),
       ...reviewed.checks,
     ];
-    for (const d of previous.discoveries || [])
-      if (!reviewed.discoveries.some((x) => x.title === d.title))
-        reviewed.discoveries.push(d);
+    reconcileDiscoveries(previous, reviewed, actions);
     const counts = Object.fromEntries(
       ['passed', 'failed', 'blocked'].map((status) => [
         status,
@@ -597,6 +629,7 @@ Return findings for every exact scenario ID and expected criterion. Unexpected d
     );
     reviewed.summary = `${counts.passed} passed, ${counts.failed} failed, ${counts.blocked} blocked after video review. Unexpected findings are listed separately.`;
   }
+  delete reviewed.discoveryResolutions;
   await writeFile(
     path.join(artifacts, 'evidence-review.json'),
     JSON.stringify(reviewed)

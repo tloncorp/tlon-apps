@@ -18,8 +18,82 @@ import {
   visualReviewInput,
   unresolvedVideoAssessment,
   reconcileChecks,
+  reconcileDiscoveries,
+  replayVideoOnly,
+  reviewEvidence,
 } from './review.mjs';
 import { verifyAssessment } from './assess.mjs';
+
+test('pending passed or failed replay cannot bypass full evidence review', async () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'qa-pending-replay-'));
+  try {
+    for (const status of ['passed', 'failed']) {
+      const mode = replayVideoOnly({ evidenceReview: 'pending' }, false);
+      assert.equal(mode, false);
+      await assert.rejects(
+        reviewEvidence({
+          assessment: {
+            scenarios: [
+              { id: 'change-1', method: 'simulator', files: ['app.ts'] },
+            ],
+          },
+          result: { status, checks: [{ scenarioId: 'change-1', status }] },
+          artifacts: dir,
+          videoOnly: mode,
+        }),
+        /ENOENT/
+      );
+    }
+    assert.equal(replayVideoOnly({ evidenceReview: 'completed' }, false), true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('only explicit completed-action disproof removes a prior discovery', () => {
+  const old = {
+    title: 'Possible keyboard issue',
+    file: 'app.ts',
+    status: 'failed',
+  };
+  const actions = Array.from({ length: 3 }, () => ({
+    responseReceived: true,
+    isError: false,
+    content: [{ type: 'text', text: 'state' }],
+  }));
+  const resolution = {
+    title: old.title,
+    file: old.file,
+    reason: 'The complete transition disproves it',
+    before: 1,
+    trigger: 2,
+    after: 3,
+  };
+  const review = (resolutions = []) => ({
+    discoveries: [],
+    discoveryResolutions: resolutions,
+  });
+  assert.deepEqual(
+    reconcileDiscoveries({ discoveries: [old] }, review([resolution]), actions)
+      .discoveries,
+    []
+  );
+  for (const resolutions of [
+    [],
+    [{ ...resolution, file: 'other.ts' }],
+    [{ ...resolution, after: 1 }],
+  ])
+    assert.deepEqual(
+      reconcileDiscoveries({ discoveries: [old] }, review(resolutions), actions)
+        .discoveries,
+      [old]
+    );
+  assert.deepEqual(
+    reconcileDiscoveries({ discoveries: [old] }, review([resolution]), [])
+      .discoveries,
+    [old]
+  );
+});
 
 test('independent disproof clears a false positive without retaining contradictory checks', () => {
   const old = {
