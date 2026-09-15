@@ -1,3 +1,4 @@
+import { isBotDmChannel } from '@tloncorp/api/client/utils';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useEffect, useRef } from 'react';
@@ -52,9 +53,15 @@ export function useAgentOnboardingLandingConsumer() {
             );
             consumedOnboardingLanding.current = true;
             resetToChannelRef.current(onboardingLanding.channelId, {
-              backToGroupIndex: true,
               disableTransition: true,
-              groupId: onboardingLanding.groupId,
+              // The furnished group sits behind a group chat, but the bot DM
+              // has no group index to go back to.
+              ...(isBotDmChannel({ channel })
+                ? {}
+                : {
+                    backToGroupIndex: true,
+                    groupId: onboardingLanding.groupId,
+                  }),
             });
             return;
           }
