@@ -1050,7 +1050,7 @@ describe('toSentryCapture request failure tags', () => {
           'FetchResponse: { status: 502, statusText: , url: https://macrep-racdec.lynko.net/~/scry/groups-ui/v10/init.json }'
         )
       )
-    ).toEqual({ logger: 'sync', http_status: '502', hosting: 'self' });
+    ).toEqual({ logger: 'sync', http_status: '502', request_hosting: 'self' });
 
     expect(
       tagsFor(
@@ -1059,7 +1059,7 @@ describe('toSentryCapture request failure tags', () => {
           'FetchResponse: { status: 503, statusText: service unavailable, url: https://malnev-pinlug.tlon.network/~/scry/presence/v1/init.json }'
         )
       )
-    ).toEqual({ logger: 'sync', http_status: '503', hosting: 'tlon' });
+    ).toEqual({ logger: 'sync', http_status: '503', request_hosting: 'tlon' });
   });
 
   it('marks a dev ship local rather than self-hosted', () => {
@@ -1070,7 +1070,7 @@ describe('toSentryCapture request failure tags', () => {
           'FetchResponse: { status: 502, statusText: , url: http://localhost:3000/~/scry/groups-ui/v10/init.json }'
         )
       )
-    ).toEqual({ logger: 'sync', http_status: '502', hosting: 'local' });
+    ).toEqual({ logger: 'sync', http_status: '502', request_hosting: 'local' });
   });
 
   it('omits both tags when neither can be derived', () => {
@@ -1084,7 +1084,7 @@ describe('toSentryCapture request failure tags', () => {
           'HTTP request failed: Error: fetch failed: java.net.UnknownHostException: Unable to resolve host "poster-findul.togten.com": No address associated with hostname'
         )
       )
-    ).toEqual({ logger: 'sync', hosting: 'self' });
+    ).toEqual({ logger: 'sync', request_hosting: 'self' });
   });
 
   it('never tags the request host itself', () => {
@@ -1124,7 +1124,7 @@ describe('fallbackHosting', () => {
     expect(selfHosted.tags).toEqual({
       logger: 'sync',
       http_status: '502',
-      hosting: 'self',
+      request_hosting: 'self',
     });
     expect(selfHosted.fingerprint).toEqual([
       '{{ default }}',
@@ -1147,7 +1147,7 @@ describe('fallbackHosting', () => {
         'HTTP 502: FetchResponse: { status: 502, statusText: , url: https://distux-sarmul.startram.io/~/scry/x.json }',
         'tlon'
       ).tags
-    ).toEqual({ logger: 'sync', http_status: '502', hosting: 'self' });
+    ).toEqual({ logger: 'sync', http_status: '502', request_hosting: 'self' });
   });
 
   it('falls back to unknown-host when no hosting is supplied', () => {
@@ -1174,5 +1174,80 @@ describe('hostingFromUrl', () => {
     expect(hostingFromUrl(undefined)).toBeNull();
     expect(hostingFromUrl('')).toBeNull();
     expect(hostingFromUrl('not a url')).toBeNull();
+  });
+});
+
+describe('develop-shape request failures', () => {
+  // On develop the message no longer carries a URL: BadResponseError gets the
+  // status as a field and the response body as its detail. These assert the
+  // primary path does not depend on the 9.5.2 message shapes above.
+  function captureFor(error: Error, fallbackHosting: Hosting | null = 'tlon') {
+    const capture = toSentryCapture(
+      'Sync Error',
+      { logger: 'sync', errorObject: error },
+      { fallbackHosting }
+    );
+    if (capture.kind !== 'exception') {
+      throw new Error('expected an exception capture');
+    }
+    return capture;
+  }
+
+  it('reads the status off the field with an opaque body', () => {
+    const error = new Error('HTTP 503: upstream connect error') as Error & {
+      status: number;
+    };
+    error.name = 'BadResponseError';
+    error.status = 503;
+
+    const capture = captureFor(error);
+    expect(capture.tags).toEqual({
+      logger: 'sync',
+      http_status: '503',
+      request_hosting: 'tlon',
+    });
+    expect(capture.fingerprint).toEqual([
+      '{{ default }}',
+      'http',
+      '503',
+      'tlon',
+    ]);
+  });
+
+  it('splits AuthFailureError, which carries responseStatus and no HTTP prefix', () => {
+    // Shape of packages/api/src/client/landscapeApi.ts
+    const error = new Error(
+      'Authentication failed with status 504. Unexpected response from the ship.'
+    ) as Error & { responseStatus: number };
+    error.name = 'AuthFailureError';
+    error.responseStatus = 504;
+
+    const capture = captureFor(error);
+    expect(capture.tags).toEqual({
+      logger: 'sync',
+      http_status: '504',
+      request_hosting: 'tlon',
+    });
+    expect(capture.fingerprint).toEqual([
+      '{{ default }}',
+      'http',
+      '504',
+      'tlon',
+    ]);
+  });
+
+  it('splits ChannelPutError, whose message never names a status', () => {
+    const error = new Error('Failed to PUT channel') as Error & {
+      status: number;
+    };
+    error.name = 'ChannelPutError';
+    error.status = 403;
+
+    expect(captureFor(error, 'self').fingerprint).toEqual([
+      '{{ default }}',
+      'http',
+      '403',
+      'self',
+    ]);
   });
 });

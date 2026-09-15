@@ -125,7 +125,7 @@ test('hostless request failures are classified by the configured ship url', () =
   expect(scope.setTags).toHaveBeenCalledWith({
     logger: 'sync',
     http_status: '502',
-    hosting: 'tlon',
+    request_hosting: 'tlon',
   });
   expect(scope.setFingerprint).toHaveBeenCalledWith([
     '{{ default }}',

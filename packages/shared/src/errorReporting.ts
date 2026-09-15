@@ -50,7 +50,7 @@ export type SentryCapture =
       kind: 'exception';
       error: Error;
       level: SentryLevel;
-      tags: { logger: string; http_status?: string; hosting?: Hosting };
+      tags: { logger: string; http_status?: string; request_hosting?: Hosting };
       extra: Record<string, unknown>;
       fingerprint?: string[];
     }
@@ -293,13 +293,19 @@ const UNRESOLVED_HOST_IN_MESSAGE = /unable to resolve host\s+"([^"]+)"/i;
 const STATUS_IN_MESSAGE = /\bHTTP\s+(\d{3})\b/;
 
 /**
- * HTTP status carried by an api client failure. `BadResponseError` exposes it
- * as a field; fall back to the message for errors that only stringify it.
+ * HTTP status carried by an api client failure. `BadResponseError` and
+ * `ChannelPutError` expose it as `status`, `AuthFailureError` as
+ * `responseStatus`; fall back to the message for errors that only stringify it.
  */
 export function httpStatusFromError(error: unknown): number | null {
-  const status = (error as { status?: unknown } | null | undefined)?.status;
-  if (typeof status === 'number' && Number.isFinite(status) && status > 0) {
-    return status;
+  const fields = error as
+    | { status?: unknown; responseStatus?: unknown }
+    | null
+    | undefined;
+  for (const value of [fields?.status, fields?.responseStatus]) {
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+      return value;
+    }
   }
   const message = (error as { message?: unknown } | null | undefined)?.message;
   if (typeof message !== 'string') {
@@ -400,6 +406,12 @@ export function toSentryCapture(
     // self-hosted 502 we cannot act on becomes its own issue rather than
     // sharing one with a 503 on our own nodes.
     //
+    // The tag is `request_hosting`, not `hosting`: the latter is set globally
+    // and means "what kind of node does this user have", which dashboards and
+    // the alert webhook read. This one describes the target of the failed
+    // request, which can differ — hosting-API and metagrab calls do not go to
+    // the user's own node.
+    //
     // `{{ default }}` keeps Sentry's stack-based grouping underneath instead of
     // replacing it. Exceptions we cannot classify get no fingerprint at all, so
     // their grouping is untouched.
@@ -423,7 +435,7 @@ export function toSentryCapture(
       tags: {
         logger,
         ...(status === null ? {} : { http_status: String(status) }),
-        ...(hosting === null ? {} : { hosting }),
+        ...(hosting === null ? {} : { request_hosting: hosting }),
       },
       extra,
       ...(!isRequestFailure
