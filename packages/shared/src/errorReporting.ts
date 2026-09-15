@@ -50,8 +50,9 @@ export type SentryCapture =
       kind: 'exception';
       error: Error;
       level: SentryLevel;
-      tags: { logger: string };
+      tags: { logger: string; http_status?: string; hosting?: Hosting };
       extra: Record<string, unknown>;
+      fingerprint?: string[];
     }
   | {
       kind: 'message';
@@ -287,6 +288,52 @@ function capText(input: string): string {
   return `${input.slice(0, MAX_TEXT_LENGTH)} [truncated ${input.length - MAX_TEXT_LENGTH} chars]`;
 }
 
+const URL_IN_MESSAGE = /url:\s*(https?:\/\/[^\s,}"]+)/i;
+const UNRESOLVED_HOST_IN_MESSAGE = /unable to resolve host\s+"([^"]+)"/i;
+const STATUS_IN_MESSAGE = /\bHTTP\s+(\d{3})\b/;
+
+/**
+ * HTTP status carried by an api client failure. `BadResponseError` exposes it
+ * as a field; fall back to the message for errors that only stringify it.
+ */
+export function httpStatusFromError(error: unknown): number | null {
+  const status = (error as { status?: unknown } | null | undefined)?.status;
+  if (typeof status === 'number' && Number.isFinite(status) && status > 0) {
+    return status;
+  }
+  const message = (error as { message?: unknown } | null | undefined)?.message;
+  if (typeof message !== 'string') {
+    return null;
+  }
+  const match = message.match(STATUS_IN_MESSAGE);
+  return match ? Number(match[1]) : null;
+}
+
+/**
+ * Host of the failed request, read from the error message.
+ *
+ * Must run before `reduceUrls` rewrites the host to its hosting placeholder,
+ * which is why this is derived at capture time rather than in `beforeSend`.
+ */
+export function requestHostFromError(error: unknown): string | null {
+  const message = (error as { message?: unknown } | null | undefined)?.message;
+  if (typeof message !== 'string') {
+    return null;
+  }
+
+  const urlMatch = message.match(URL_IN_MESSAGE);
+  if (urlMatch) {
+    try {
+      return new URL(urlMatch[1]).hostname;
+    } catch {
+      // Fall through to the bare-hostname pattern below.
+    }
+  }
+
+  const unresolvedMatch = message.match(UNRESOLVED_HOST_IN_MESSAGE);
+  return unresolvedMatch ? unresolvedMatch[1] : null;
+}
+
 export function toSentryCapture(
   event: string,
   data: Record<string, unknown>
@@ -323,12 +370,38 @@ export function toSentryCapture(
   const extra = scrubExtra(rest) as Record<string, unknown>;
 
   if (errorObject instanceof Error) {
+    // Request failures all land on one issue, because every BadResponseError is
+    // constructed at the same frame and exceptions group by stacktrace. Tag the
+    // status and hosting, and extend the fingerprint with them, so a
+    // self-hosted 502 we cannot act on becomes its own issue rather than
+    // sharing one with a 503 on our own nodes.
+    //
+    // `{{ default }}` keeps Sentry's stack-based grouping underneath instead of
+    // replacing it. Exceptions we cannot classify get no fingerprint at all, so
+    // their grouping is untouched.
+    const status = httpStatusFromError(errorObject);
+    const host = requestHostFromError(errorObject);
+    const hosting = host === null ? null : hostingFromHostname(host);
     return {
       kind: 'exception',
       error: errorObject,
       level,
-      tags: { logger },
+      tags: {
+        logger,
+        ...(status === null ? {} : { http_status: String(status) }),
+        ...(hosting === null ? {} : { hosting }),
+      },
       extra,
+      ...(status === null && hosting === null
+        ? {}
+        : {
+            fingerprint: [
+              '{{ default }}',
+              'http',
+              status === null ? 'no-status' : String(status),
+              hosting ?? 'unknown-host',
+            ],
+          }),
     };
   }
 
@@ -478,6 +551,7 @@ export interface ScopeLike {
   setLevel: (level: SentryLevel) => unknown;
   setTags: (tags: Record<string, string>) => unknown;
   setExtras: (extras: Record<string, unknown>) => unknown;
+  setFingerprint: (fingerprint: string[]) => unknown;
 }
 
 export function populateScope(
@@ -495,6 +569,11 @@ export function populateScope(
   );
   scope.setLevel(capture.level);
   scope.setTags(capture.tags);
+  // The message path carries its fingerprint on the event it captures; only the
+  // exception path needs it applied to the scope.
+  if (capture.kind === 'exception' && capture.fingerprint !== undefined) {
+    scope.setFingerprint(capture.fingerprint);
+  }
   scope.setExtras(capture.extra);
 }
 

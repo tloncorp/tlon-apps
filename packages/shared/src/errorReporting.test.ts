@@ -2,8 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   hostingFromHostname,
+  httpStatusFromError,
   populateScope,
   reduceUrls,
+  requestHostFromError,
   scrubExtra,
   toSentryCapture,
   scrubBreadcrumb,
@@ -764,6 +766,7 @@ describe('populateScope', () => {
       setLevel: vi.fn(),
       setTags: vi.fn(),
       setExtras: vi.fn(),
+      setFingerprint: vi.fn(),
     };
     const capture = toSentryCapture('Event', {
       logger: 'sync',
@@ -866,5 +869,230 @@ describe('SENTRY_DENY_URLS_WEB', () => {
         r.test('https://x.tlon.network/apps/groups/assets/index-abc.js')
       )
     ).toBe(false);
+  });
+});
+
+/** The error the api client actually throws (packages/api/src/client/urbit.ts). */
+function badResponse(status: number, body: string) {
+  const prefix = status > 0 ? `HTTP ${status}` : 'HTTP request failed';
+  const error = new Error(body ? `${prefix}: ${body}` : prefix) as Error & {
+    status: number;
+  };
+  error.name = 'BadResponseError';
+  error.status = status;
+  return error;
+}
+
+describe('httpStatusFromError', () => {
+  it('prefers the status field', () => {
+    expect(httpStatusFromError(badResponse(503, 'service unavailable'))).toBe(
+      503
+    );
+  });
+
+  it('falls back to parsing the message', () => {
+    expect(httpStatusFromError(new Error('HTTP 404: not found'))).toBe(404);
+  });
+
+  it('is null when the request never got a response', () => {
+    expect(httpStatusFromError(badResponse(0, 'fetch failed'))).toBeNull();
+    expect(httpStatusFromError(new Error('boom'))).toBeNull();
+    expect(httpStatusFromError(undefined)).toBeNull();
+  });
+});
+
+describe('requestHostFromError', () => {
+  it('reads the host out of a fetch response body', () => {
+    const error = badResponse(
+      502,
+      'FetchResponse: { status: 502, statusText: , url: https://distux-sarmul.startram.io/~/scry/groups-ui/v10/init.json }'
+    );
+    expect(requestHostFromError(error)).toBe('distux-sarmul.startram.io');
+  });
+
+  it('reads the host out of a DNS failure', () => {
+    const error = new Error(
+      'HTTP request failed: Error: fetch failed: java.net.UnknownHostException: Unable to resolve host "the.minderfolden.com": No address associated with hostname'
+    );
+    expect(requestHostFromError(error)).toBe('the.minderfolden.com');
+  });
+
+  it('is null when the message carries no host', () => {
+    expect(
+      requestHostFromError(
+        new Error(
+          'HTTP request failed: fetch failed: java.net.SocketException: Software caused connection abort'
+        )
+      )
+    ).toBeNull();
+  });
+});
+
+describe('request failure fingerprints', () => {
+  function captureFor(error: Error) {
+    const capture = toSentryCapture('Sync Error', {
+      logger: 'sync',
+      errorObject: error,
+    });
+    if (capture.kind !== 'exception') {
+      throw new Error('expected an exception capture');
+    }
+    return capture;
+  }
+
+  it('splits a self-hosted 502 from a Tlon-hosted 503', () => {
+    const selfHosted = captureFor(
+      badResponse(
+        502,
+        'FetchResponse: { status: 502, statusText: , url: https://macrep-racdec.lynko.net/~/scry/groups-ui/v10/init.json }'
+      )
+    );
+    const tlonHosted = captureFor(
+      badResponse(
+        503,
+        'FetchResponse: { status: 503, statusText: service unavailable, url: https://malnev-pinlug.tlon.network/~/scry/presence/v1/init.json }'
+      )
+    );
+
+    expect(selfHosted.fingerprint).toEqual([
+      '{{ default }}',
+      'http',
+      '502',
+      'self',
+    ]);
+    expect(tlonHosted.fingerprint).toEqual([
+      '{{ default }}',
+      'http',
+      '503',
+      'tlon',
+    ]);
+    expect(selfHosted.fingerprint).not.toEqual(tlonHosted.fingerprint);
+  });
+
+  it('splits two self-hosted failures by status', () => {
+    const body = (status: number) =>
+      `FetchResponse: { status: ${status}, statusText: , url: https://distux-sarmul.startram.io/~/scry/groups-ui/v10/init.json }`;
+    expect(captureFor(badResponse(502, body(502))).fingerprint).not.toEqual(
+      captureFor(badResponse(404, body(404))).fingerprint
+    );
+  });
+
+  it('marks a statusless failure rather than dropping the fingerprint', () => {
+    expect(
+      captureFor(
+        new Error(
+          'HTTP request failed: Error: fetch failed: java.net.UnknownHostException: Unable to resolve host "poster-findul.togten.com": No address associated with hostname'
+        )
+      ).fingerprint
+    ).toEqual(['{{ default }}', 'http', 'no-status', 'self']);
+  });
+
+  it('leaves unclassifiable exceptions on default grouping', () => {
+    expect(
+      captureFor(new Error('connection lost')).fingerprint
+    ).toBeUndefined();
+  });
+
+  it('applies the fingerprint to the scope, but not for message captures', () => {
+    const scope = {
+      addBreadcrumb: vi.fn(),
+      setLevel: vi.fn(),
+      setTags: vi.fn(),
+      setExtras: vi.fn(),
+      setFingerprint: vi.fn(),
+    };
+
+    populateScope(
+      scope,
+      captureFor(
+        badResponse(
+          502,
+          'FetchResponse: { status: 502, statusText: , url: https://macrep-racdec.lynko.net/~/scry/x.json }'
+        )
+      ),
+      []
+    );
+    expect(scope.setFingerprint).toHaveBeenCalledWith([
+      '{{ default }}',
+      'http',
+      '502',
+      'self',
+    ]);
+
+    scope.setFingerprint.mockClear();
+    populateScope(
+      scope,
+      toSentryCapture('Event', { logger: 'sync', errorTitle: 'Title' }),
+      []
+    );
+    expect(scope.setFingerprint).not.toHaveBeenCalled();
+  });
+});
+
+describe('toSentryCapture request failure tags', () => {
+  function tagsFor(error: Error) {
+    const capture = toSentryCapture('Sync Error', {
+      logger: 'sync',
+      errorObject: error,
+    });
+    if (capture.kind !== 'exception') {
+      throw new Error('expected an exception capture');
+    }
+    return capture.tags;
+  }
+
+  it('separates a self-hosted 502 from a Tlon-hosted 503', () => {
+    expect(
+      tagsFor(
+        badResponse(
+          502,
+          'FetchResponse: { status: 502, statusText: , url: https://macrep-racdec.lynko.net/~/scry/groups-ui/v10/init.json }'
+        )
+      )
+    ).toEqual({ logger: 'sync', http_status: '502', hosting: 'self' });
+
+    expect(
+      tagsFor(
+        badResponse(
+          503,
+          'FetchResponse: { status: 503, statusText: service unavailable, url: https://malnev-pinlug.tlon.network/~/scry/presence/v1/init.json }'
+        )
+      )
+    ).toEqual({ logger: 'sync', http_status: '503', hosting: 'tlon' });
+  });
+
+  it('marks a dev ship local rather than self-hosted', () => {
+    expect(
+      tagsFor(
+        badResponse(
+          502,
+          'FetchResponse: { status: 502, statusText: , url: http://localhost:3000/~/scry/groups-ui/v10/init.json }'
+        )
+      )
+    ).toEqual({ logger: 'sync', http_status: '502', hosting: 'local' });
+  });
+
+  it('omits both tags when neither can be derived', () => {
+    expect(tagsFor(new Error('connection lost'))).toEqual({ logger: 'sync' });
+  });
+
+  it('tags hosting without a status when the request never landed', () => {
+    expect(
+      tagsFor(
+        new Error(
+          'HTTP request failed: Error: fetch failed: java.net.UnknownHostException: Unable to resolve host "poster-findul.togten.com": No address associated with hostname'
+        )
+      )
+    ).toEqual({ logger: 'sync', hosting: 'self' });
+  });
+
+  it('never tags the request host itself', () => {
+    const tags = tagsFor(
+      badResponse(
+        502,
+        'FetchResponse: { status: 502, statusText: , url: https://the.minderfolden.com/~/scry/groups-ui/pins.json }'
+      )
+    );
+    expect(JSON.stringify(tags)).not.toContain('minderfolden');
   });
 });

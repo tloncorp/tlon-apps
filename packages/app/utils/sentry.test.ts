@@ -10,6 +10,7 @@ const { scope, captureException, captureEvent, withScope } = vi.hoisted(() => {
     setLevel: vi.fn(),
     setTags: vi.fn(),
     setExtras: vi.fn(),
+    setFingerprint: vi.fn(),
   };
   return {
     scope,
