@@ -1,8 +1,8 @@
 # Native reliability tests
 
-Twenty-four default single-ship journeys, including attachments, channel sorting,
+Twenty-five default single-ship journeys, including attachments, channel sorting,
 profile details, pins, references, privacy, sections, notification preferences,
-roles, replies and self-hosted login recovery.
+roles, replies, self-hosted login recovery and App Info clipboard verification.
 These cover a subset of the QA checklist, not the entire workbook.
 
 Use Maestro 2.6.1 and an installed build containing this branch's app changes.
@@ -59,6 +59,11 @@ standalone when another flow owns the current native session.
 
 `thread-controls.yaml` remains standalone: iOS loses the muted state after
 relaunch. Its mute-persistence assertion remains intact for investigation.
+
+`app-info-copy.yaml` seeds the operating-system clipboard with a unique value,
+copies the visible Build version from App Info, then pastes through the platform
+search UI and asserts the exact result. This intentionally does not use Maestro's
+separate in-memory clipboard as the copy oracle.
 
 `thread-lifecycle.yaml` also checks reply counts through 1 → 2 → 1 → 0: cancel
 preserves both replies; deleting one preserves its sibling and parent; partial

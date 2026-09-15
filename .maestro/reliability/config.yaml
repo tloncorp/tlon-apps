@@ -22,3 +22,4 @@ flows:
   - roles.yaml
   - thread-lifecycle.yaml
   - self-hosted-recovery.yaml
+  - app-info-copy.yaml
