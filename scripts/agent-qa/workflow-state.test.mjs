@@ -66,3 +66,30 @@ test('intermediate terminal jobs cannot finish a lazily scheduled build', () => 
     'FAILURE'
   );
 });
+
+test('failed repack waits for a lazily created native fallback', () => {
+  const finalStages = [
+    'build_ios',
+    { key: 'repack_ios', statuses: ['SUCCESS'] },
+    { key: 'reuse_build', statuses: ['SUCCESS'] },
+  ];
+  const run = {
+    status: 'IN_PROGRESS',
+    jobs: [{ key: 'repack_ios', status: 'FAILURE' }],
+  };
+  assert.equal(workflowState(run, finalStages), 'IN_PROGRESS');
+  run.jobs.push({ key: 'build_ios', status: 'IN_PROGRESS' });
+  assert.equal(workflowState(run, finalStages), 'IN_PROGRESS');
+  run.jobs[1].status = 'SUCCESS';
+  assert.notEqual(workflowState(run, finalStages), 'IN_PROGRESS');
+  assert.equal(
+    workflowState(
+      {
+        status: 'IN_PROGRESS',
+        jobs: [{ key: 'reuse_build', status: 'SUCCESS' }],
+      },
+      finalStages
+    ),
+    'SUCCESS'
+  );
+});

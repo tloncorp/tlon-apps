@@ -156,7 +156,11 @@ if (process.argv[2] === 'assess') {
     'reuse_build',
     'build_ios',
   ]);
-  const build = ['repack_ios', 'reuse_build', 'build_ios']
+  const build = [
+    'build_ios',
+    { key: 'repack_ios', statuses: ['SUCCESS'] },
+    { key: 'reuse_build', statuses: ['SUCCESS'] },
+  ]
     .map((key) => run.jobs.find((j) => j.key === key))
     .find((j) => j?.status === 'SUCCESS' && j.outputs?.build_id);
   if (!build) throw new Error('No verified simulator build prepared');
