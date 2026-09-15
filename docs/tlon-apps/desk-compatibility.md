@@ -65,6 +65,15 @@ summary always, and to one sticky PR comment edited in place on each push —
 except on a fork or Dependabot PR, whose token cannot write comments, where the
 job summary is the only copy.
 
+All three run in `desk-compat.yml`, a reusable workflow that the promoting
+workflows call as a job and gate on: `deploy-canary.yml` and
+`deploy-livenet.yml` before they deploy, `sync-dev.yml` before it back-merges
+`staging` into `develop`. Each passes the ref it is promoting — the staging tip,
+or the dispatched tag — so the gate reads the tree that ships rather than
+whichever ref the run was started from. A blocking verdict fails that job and
+the promotion does not run. It can also be dispatched by hand, where an empty
+`ref` means the ref you dispatched from.
+
 ## The five verdicts
 
 **The checker never says a request is served.** It reads arm *patterns* and
@@ -194,7 +203,7 @@ entry only applies to a request the base already made and the same desk already
 could not take: pass `--base-ref`, and an entry that does not clear that bar
 leaves its request `MISSING`, with the reason on the entry.
 
-`ci.yml` passes the PR's base commit; the staging workflow passes
+`ci.yml` passes the PR's base commit; `desk-compat.yml` passes
 `origin/master` on runs 1 and 2, and the release checklist says to pass it by
 hand the same way. Run 3 passes none and does not need one: it already has
 `origin/master` as its *client*, so it would be comparing that ref with itself.

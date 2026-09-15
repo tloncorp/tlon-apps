@@ -1,23 +1,47 @@
-# Desk N-1 compatibility on the release branch.
+# Desk N-1 compatibility for a release candidate.
 #
-# ci.yml is `pull_request`-only, so nothing there runs on a staging push — and
+# ci.yml is `pull_request`-only, so nothing there runs on a release branch — and
 # its `changes` job has no checkout (PR filtering goes through the API), which
 # is why a paths-filter is not an option here: dorny/paths-filter needs a
-# working tree on push. So this runs unconditionally.
+# working tree on push. So this runs unconditionally for the whole candidate.
+#
+# It is a reusable workflow rather than a `push` observer on purpose: the
+# workflows that promote a candidate (deploy-canary.yml and deploy-livenet.yml
+# deploy it, sync-dev.yml merges staging into develop) call it as a job their
+# promotion steps `need`, so a blocking verdict stops the promotion instead of
+# failing beside it.
+#
+# Each caller passes `ref` as the ref it actually deploys — the staging tip, or
+# the dispatched tag — because under `workflow_call` the run's own `github.sha`
+# is the *caller's* commit, which on a tag dispatch is not the tree being
+# shipped. `workflow_dispatch` stays for running the report by hand, where an
+# empty `ref` means the ref you dispatched from.
 #
 # Policy: docs/tlon-apps/desk-compatibility.md
 name: Desk N-1 Compatibility
 on:
-  push:
-    branches:
-      - "staging"
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        required: false
+        default: ""
+        description: The ref to check; defaults to the caller's commit.
   workflow_dispatch:
+    inputs:
+      ref:
+        type: string
+        required: false
+        default: ""
+        description: The ref to check; empty means the ref you dispatched from.
 jobs:
   check:
     runs-on: blacksmith-2vcpu-ubuntu-2404
     name: Check the release candidate against desk N-1
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
@@ -32,8 +56,14 @@ jobs:
       - name: Fetch the refs the check compares
         run: |
           set -euo pipefail
+          # The commit that was checked out, which is what the caller is
+          # promoting. Not $GITHUB_SHA: under workflow_call that is the
+          # caller's ref, and on a tag dispatch the two differ.
+          echo "CANDIDATE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
           MIN=$(node -p "require('fs').readFileSync('packages/shared/src/logic/deskPolicy.ts','utf8').match(/MIN_GROUPS_VERSION = '([^']+)'/)[1]")
           echo "MIN_GROUPS_VERSION=$MIN" >> "$GITHUB_ENV"
+          # Both refspecs are literal, so they resolve the same whether HEAD is
+          # a branch tip or a tag.
           git fetch --no-tags --depth=1 origin "refs/tags/v${MIN}:refs/tags/v${MIN}"
           git fetch --no-tags --depth=1 origin refs/heads/master:refs/remotes/origin/master
 
@@ -41,7 +71,7 @@ jobs:
       # goes to the job summary whatever the verdict, because GUARDED,
       # WILDCARD and UNVERIFIED entries are the release reviewer's worklist.
       #
-      # `--base-ref origin/master` is what stops a staging push carrying both a
+      # `--base-ref origin/master` is what stops a candidate carrying both a
       # new unsupported request and the known-gaps entry excusing it: an entry
       # only applies to a request the released client already made and this
       # desk already could not take.
@@ -71,8 +101,8 @@ jobs:
           set -o pipefail
           {
             echo "## Candidate client vs candidate desk"
-            pnpm check:desk-compat --client-ref "$GITHUB_SHA" \
-              --desk-ref "$GITHUB_SHA" --base-ref origin/master --markdown
+            pnpm check:desk-compat --client-ref "$CANDIDATE_SHA" \
+              --desk-ref "$CANDIDATE_SHA" --base-ref origin/master --markdown
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
       # Rule (c): a desk change that removed something the released client
@@ -91,7 +121,7 @@ jobs:
           set -o pipefail
           {
             echo "## Released client vs candidate desk"
-            pnpm check:desk-compat --client-ref origin/master --desk-ref "$GITHUB_SHA" --markdown
+            pnpm check:desk-compat --client-ref origin/master --desk-ref "$CANDIDATE_SHA" --markdown
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
       # Each comparison runs whatever the ones before it did — a release

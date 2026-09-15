@@ -633,12 +633,10 @@ export function formatReport(report: Report): string {
       if (f.exemptionRejected) line(`    entry: ${f.exemptionRejected}`);
       const guards = guardsOf(f);
       if (guards.length === 1) line(`    guard: ${guards[0]}`);
-      line(
-        `    sites: ${f.sites
-          .slice(0, 6)
-          .map((s) => siteWithGuard(s, guards.length > 1, ''))
-          .join(', ')}`
-      );
+      // Same rule as the Markdown report: a worklist verdict lists every
+      // site, since the release checklist runs this renderer and a reviewer
+      // has to check each site's guard.
+      line(`    sites: ${siteList(f, 8, '')}`);
       if (f.coverage) {
         line(
           `    also:  guarded at ${f.coverage.guarded.length} site(s); blocking at ${f.coverage.blocking.map(at).join(', ')}`

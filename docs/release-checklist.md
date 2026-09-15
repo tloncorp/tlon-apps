@@ -30,7 +30,10 @@ verified deployed SHA.
 ### Desk N-1 compatibility
 
 Policy: `docs/tlon-apps/desk-compatibility.md`. Release N must start, sync,
-receive updates, and post against desk release N-1.
+receive updates, and post against desk release N-1. `desk-compat.yml` runs these
+same three pairs as a gate on `deploy-canary.yml`, `deploy-livenet.yml` and
+`sync-dev.yml`, against the ref each promotes; running them by hand here is how
+you read the worklist before the tag exists.
 
 - [ ] `MIN_GROUPS_VERSION` equals the **previous** desk release, not the one you
       are cutting.
@@ -92,7 +95,8 @@ PR cannot pass its own gate unless it says so:
 
 - [ ] Create and push the `vX.Y.Z` tag on the release commit.
 - [ ] Dispatch `deploy-livenet.yml` with that tag. It refuses one that does not
-      exist.
+      exist, and its `desk-compat` job re-runs the three pairs against the tag
+      itself — a blocking verdict stops the deploy.
 - [ ] Confirm the deploy succeeded, then that `sync.yml` ran and `origin/master`
       now **contains** the commit you tagged — `sync.yml` does
       `git merge --no-ff staging`, so master gains a merge commit rather than

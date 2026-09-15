@@ -5,9 +5,14 @@ on:
     branches:
       - "staging"
 jobs:
+  # Desk N-1 gate: staging must not reach develop with a blocking verdict.
+  desk-compat:
+    name: "Desk N-1 compatibility"
+    uses: ./.github/workflows/desk-compat.yml
   sync:
     runs-on: ubuntu-latest
     name: "Syncs the latest staging deploy from staging to develop"
+    needs: [desk-compat]
     steps:
       - uses: actions/checkout@v3
         with:

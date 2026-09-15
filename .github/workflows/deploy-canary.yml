@@ -18,9 +18,20 @@ on:
 env:
   tag: ${{ github.event.inputs.tag || 'staging' }}
 jobs:
+  # Desk N-1 gate: a candidate that needs something the previous desk lacks,
+  # or drops something the released client still uses, must not deploy.
+  desk-compat:
+    name: "Desk N-1 compatibility"
+    uses: ./.github/workflows/desk-compat.yml
+    with:
+      # The workflow-level `env.tag` is not in scope for a `uses:` job's
+      # `with:`, so the expression behind it is repeated here. The gate must
+      # read the ref this workflow deploys, not the ref the run started from.
+      ref: ${{ github.event.inputs.tag || 'staging' }}
   build-frontend:
     runs-on: ubuntu-latest
     name: "Build Frontend"
+    needs: [desk-compat]
     if: ${{ github.event.inputs.backend-only != 'true' }}
     steps:
       - uses: actions/checkout@v3
@@ -97,10 +108,13 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     name: "Release to ~binnec-dozzod-marnus (canary)"
-    needs: [glob]
+    needs: [desk-compat, glob]
+    # `always()` keeps the backend-only path (glob skipped) deployable; the
+    # desk-compat gate must still have passed on every path.
     if:
-      ${{ always() && (needs.glob.result == 'success' || (needs.glob.result ==
-      'skipped' && github.event.inputs.backend-only == 'true')) }}
+      ${{ always() && needs.desk-compat.result == 'success' &&
+      (needs.glob.result == 'success' || (needs.glob.result == 'skipped' &&
+      github.event.inputs.backend-only == 'true')) }}
     steps:
       - uses: actions/checkout@v3
         with:

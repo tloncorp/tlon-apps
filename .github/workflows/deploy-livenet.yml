@@ -7,9 +7,18 @@ on:
         required: true
         description: Enter the tag to deploy
 jobs:
+  # Desk N-1 gate: the tag being released must not need something the previous
+  # desk lacks, or drop something the released client still uses.
+  desk-compat:
+    name: "Desk N-1 compatibility"
+    uses: ./.github/workflows/desk-compat.yml
+    with:
+      ref: ${{ inputs.tag }}
   deploy:
     runs-on: ubuntu-latest
     name: "Release to ~sogryp-dister-dozzod-dozzod (livenet)"
+    needs: [desk-compat]
+    if: ${{ needs.desk-compat.result == 'success' }}
     steps:
       - uses: actions/checkout@v3
       - id: 'tag-validate'

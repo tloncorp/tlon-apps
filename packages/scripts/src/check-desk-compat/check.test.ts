@@ -487,6 +487,22 @@ describe('the reports', () => {
     expect(unverified).toContain('(+12 more)');
   });
 
+  it('lists every site for a worklist verdict in the text report too', () => {
+    // The release checklist runs the CLI without --markdown, so the text
+    // renderer must not truncate the sites a reviewer has to check.
+    const many = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({ file: 'a.ts', line: i + 1 }));
+    const text = (verdict: Finding['verdict']) =>
+      formatReport(
+        report({ findings: [finding({ verdict, sites: many(20) })] })
+      );
+    expect(text('MISSING')).toContain('a.ts:20');
+    expect(text('GUARDED')).toContain('a.ts:20');
+    const unverified = text('UNVERIFIED');
+    expect(unverified).not.toContain('a.ts:20');
+    expect(unverified).toContain('(+12 more)');
+  });
+
   it('fences an excerpt that contains backticks', () => {
     const md = markdownReport(
       report({
