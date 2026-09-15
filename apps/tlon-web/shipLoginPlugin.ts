@@ -27,36 +27,18 @@ export default function shipLoginPlugin(
     LOOPBACK.has(remote) &&
     !!host &&
     /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host);
-  const escape = (value: string) =>
-    value.replace(
-      /[&<>"']/g,
-      (c) =>
-        ({
-          '&': '&amp;',
-          '<': '&lt;',
-          '>': '&gt;',
-          '"': '&quot;',
-          "'": '&#39;',
-        })[c] as string
-    );
-  // Eyre puts the post-login destination in a hidden field.
-  // Pass through only a path on this server, never an absolute url that would
-  // send the browser to another origin. A missing destination, or the bare `/`
-  // this app asks for, means the ship's own landing page, so send the browser
-  // back to the app it came from instead.
-  const safeRedirect = (url: string) => {
-    const query = url.includes('?') ? url.slice(url.indexOf('?') + 1) : '';
-    const to = new URLSearchParams(query).get('redirect') ?? '';
-    return /^\/(?!\/)/.test(to) && to !== '/' ? to : appBase;
-  };
-  const page = (redirect: string) => `<!doctype html>
+  // Eyre carries the post-login destination in a hidden field, and fills it
+  // with whichever request reached the ship unauthenticated: an api path, or
+  // the bare `/` it reads as its own landing page. Neither is where a person
+  // belongs after signing in, so the field always names this app.
+  const page = () => `<!doctype html>
 <meta charset="utf-8" />
 <title>Signing in</title>
 <body style="font: 14px system-ui; margin: 3rem">
   <form id="login" method="post" action="/~/login">
-    <input type="password" name="password" value="${escape(code ?? '')}" />
-    <input type="hidden" name="redirect" value="${escape(redirect)}" />
-    <button type="submit">Sign in to ${escape(target)}</button>
+    <input type="password" name="password" value="${code}" />
+    <input type="hidden" name="redirect" value="${appBase}" />
+    <button type="submit">Sign in to ${target}</button>
   </form>
   <script>
     // Submitting once per tab: a code the ship rejects comes back as its own
@@ -110,7 +92,7 @@ export default function shipLoginPlugin(
         }
         res.setHeader('content-type', 'text/html; charset=utf-8');
         res.setHeader('cache-control', 'no-store');
-        res.end(page(safeRedirect(url)));
+        res.end(page());
       });
       log.info(`ship login: the login page for ${target} is prefilled`);
     },
