@@ -121,6 +121,7 @@ const optionalNames = [
   'blocked-group-content',
   'member-ban',
   'invite-revocation',
+  'group-leave',
   'home-unread-preview',
   'group-swipe-read',
   'dm-swipe-read',

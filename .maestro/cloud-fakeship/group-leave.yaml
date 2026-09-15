@@ -1,0 +1,29 @@
+appId: ${MAESTRO_APP_ID}
+name: Member leaves a peer-hosted group
+env:
+  JOURNEY: group-leave
+---
+- runScript: ../reliability/data.js
+- runFlow: begin.yaml
+- scrollUntilVisible:
+    element: ${'Leave-' + MAESTRO_RUN_TAG}
+    direction: UP
+    timeout: 30000
+- longPressOn: ${'Leave-' + MAESTRO_RUN_TAG}
+- tapOn: '^Group info & settings$'
+- scrollUntilVisible:
+    element:
+      id: GroupLeaveAction-Leave group
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: GroupLeaveAction-Leave group
+- assertVisible: '^Leave Leave-.*[?]$'
+- assertVisible: '^You will no longer receive updates from this group\..*'
+- tapOn:
+    text: '^Leave Group$'
+    rightOf: '^Cancel$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Home$'
+- assertNotVisible: ${'^Leave-' + MAESTRO_RUN_TAG + '$'}

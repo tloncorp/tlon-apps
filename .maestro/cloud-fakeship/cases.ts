@@ -884,6 +884,50 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
       });
     });
   }
+  if (selected('group-leave')) {
+    const g = await group('Leave');
+    const readyText = `${tag} leave ready`;
+    await say(g.chatChannel, readyText);
+    await until('leave fixture post reaches native ship', async () =>
+      (await zod.state.channelPosts(g.chatChannel)).some(
+        (post) => post.authorId === '~ten' && post.text === readyText
+      )
+    );
+    task('group-leave', async () => {
+      await until(
+        'native leaves peer-hosted group',
+        async () => {
+          const host: any = await ten.state.group(g.groupId);
+          return (
+            !host?.members?.some(
+              (member: any) =>
+                member.contactId === '~zod' && member.status === 'joined'
+            ) && !(await zod.state.isMemberOfGroup(g.groupId))
+          );
+        },
+        30 * 60_000
+      );
+      let deleteAck = 'received';
+      try {
+        await ten.state.deleteGroup(g.groupId);
+      } catch (error) {
+        if (await ten.state.isMemberOfGroup(g.groupId)) throw error;
+        deleteAck = 'timed out after removal';
+      }
+      await until(
+        'peer host deletes leave fixture',
+        async () => !(await ten.state.isMemberOfGroup(g.groupId))
+      );
+      record('group-leave-state', {
+        groupId: g.groupId,
+        departedShip: '~zod',
+        hostMember: false,
+        clientMember: false,
+        hostFixtureDeleted: true,
+        deleteAck,
+      });
+    });
+  }
   if (selected('moderation')) {
     const g = await group('Kick');
     await say(g.chatChannel, 'member before kick');
