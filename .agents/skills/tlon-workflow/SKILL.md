@@ -13,7 +13,7 @@ Stim's own guide is the reference for its commands and refusals. Read it once pe
 stim guide agent
 ```
 
-Everything below is written from the **repository root**, and every `stim` command runs from `apps/tlon-mobile`: Stim resolves a workspace per directory, so from anywhere else it acts on a workspace that is not the app's. Give this skill's scripts an absolute path rather than a relative one from the wrong directory.
+Everything below is written from the **repository root**. `apps/tlon-mobile` is the app directory Stim wants, so every `stim` command runs from there -- including the ones for web and Cosmos ports, whose servers live elsewhere in the repository. Give this skill's scripts an absolute path rather than a relative one from the wrong directory.
 
 ## Before anything
 
@@ -45,7 +45,7 @@ The default branch is `develop`; every branch starts there and every PR targets 
 
 `git worktree add` writes `.git/config`, so it needs an unsandboxed shell. Sandboxed it half-fails: no worktree, but the branch is created, so the retry stops with `a branch named '<...>' already exists`. Delete the branch before retrying.
 
-`warm` copies the ignored state from the source checkout into this worktree: `node_modules`, `ios/Pods`, `.env.local`, and `.claude/` with whatever settings it holds. `--refresh` first brings that checkout up to date under a lock -- it fetches, fast-forwards its branch, and installs dependencies and pods only when their lockfiles moved. Wait for it to exit 0 before running anything else here.
+What `warm` carries that this repository cares about: `node_modules`, `ios/Pods`, both `.env.local` files, and `.claude/`. So the ship credentials in step 3 and the web variables in step 2 are set up once in the source checkout and reach every worktree.
 
 In this workflow the source checkout is a seed, not a workspace: every worktree is a copy of it, so keeping it clean and on `develop` is what makes it worth copying. `--refresh` refuses a dirty or detached one and prints the git line that clears it. Clear it rather than dropping `--refresh`; a stale seed hands its staleness to every worktree made from it.
 
@@ -85,19 +85,20 @@ Use `stim logs --errors`, not `--since 5m --level error`: the narrower form filt
 
 ```bash
 cd <worktree>
-pnpm --filter tlon-web exec vite --port "$(stim ports get web)" --strictPort
+pnpm --filter tlon-web exec vite \
+  --port "$(cd <worktree>/apps/tlon-mobile && stim ports get web)" --strictPort
 ```
 
-`stim ports get <label>` allocates a port to this worktree the first time and prints the same number every time after, so the line is safe to rerun. `--strictPort` is the point of that one: without it Vite silently moves to the next free port when yours is taken, and you get a server that works and serves the wrong worktree. The app is at `http://localhost:<port>/apps/groups/`. It needs `apps/tlon-web/.env.local` with `VITE_SHIP_URL` naming the ship the dev server proxies to -- the same self-hosted dev ship as step 3 -- which `stim worktree warm` carries over with the rest of the ignored files. `VITE_DISABLE_SPLASH_MODAL=true` there skips the wayfinding modal on a fresh profile.
+`stim ports get <label>` prints the same number every time, so the line is safe to rerun. The subshell in `apps/tlon-mobile` matters: a port taken from anywhere else belongs to a workspace cleanup never visits, so the server outlives the run. `--strictPort` matters too -- without it Vite moves to the next free port and serves you another worktree. The app is at `http://localhost:<port>/apps/groups/`. It needs `apps/tlon-web/.env.local` with `VITE_SHIP_URL` naming the ship the dev server proxies to -- the same self-hosted dev ship as step 3 -- which `stim worktree warm` carries over with the rest of the ignored files. `VITE_DISABLE_SPLASH_MODAL=true` there skips the wayfinding modal on a fresh profile.
 
 **Cosmos** renders a component in a chosen state without driving the app to it, and is the fastest way in for a component-level change:
 
 ```bash
 cd <worktree>/apps/tlon-web
-npx cosmos --port "$(stim ports get cosmos)"
+npx cosmos --port "$(cd <worktree>/apps/tlon-mobile && stim ports get cosmos)"
 ```
 
-`cosmos.config.json` pins 5555; the flag wins over it. (`cosmos --help` lists only `--help` and `--version`, which is misleading -- react-cosmos parses argv with yargs and prefers `--port`. The flag works; it is just undocumented.) The renderer is a second server, based at 5050, and needs nothing: it retries upward when its port is taken and says where it landed. Cosmos needs `packages/editor/dist` built (`pnpm run build:packages` if it is missing). Fixtures live in `packages/app/fixtures`; the UI lists a file's named exports, so `ChatMessage.fixture.tsx` appears as `ChatMessage / MessageStates` and the like.
+`--port` is undocumented -- `cosmos --help` lists only `--help` and `--version` -- but it works and beats the 5555 in `cosmos.config.json`. Cosmos needs `packages/editor/dist`: run `pnpm run build:packages` if it is missing. Fixtures live in `packages/app/fixtures`, listed by file and named export, so `ChatMessage.fixture.tsx` appears as `ChatMessage / MessageStates`.
 
 `stim ports` lists this worktree's labels and numbers, Metro included. That is the answer to "which server is mine" -- open those and nothing else. A server on some other port is another worktree's, and reading it as yours fails in the worst way: the page renders, the fixtures load, and the code is someone else's. If you must open a port stim did not hand you, `lsof -a -p "$(lsof -nP -iTCP:<port> -sTCP:LISTEN -t | head -1)" -d cwd -Fn` prints the worktree being served.
 
@@ -145,22 +146,15 @@ What this app does that the sequence above does not show:
 - On Android this app's screens collapse into a few group nodes, so `find` matches nothing; a `text="..."` selector still resolves.
 - iOS shows a keyboard tip ("Speed up your typing...", `Continue`) on the first text entry, which swallows the next tap. Only reached when the fields are not prefilled.
 
-**Web** has no prefill: the login page that appears is the ship's own, served through the dev server's proxy. Sign in with the same `DEFAULT_SHIP_LOGIN_ACCESS_CODE`, through whatever browser automation you have. The selectors are the ones `apps/tlon-web/e2e/auth.setup.ts` uses against these ships, so they are already known to work:
+**Web** has no prefill, and the login page that appears is the ship's own. Run the script instead of driving it by hand:
 
-```
-navigate  http://localhost:<port>/~/login
-fill      placeholder "sampel-ticlyt-migfun-falmel"  <the +code>
-click     the Continue button in that field's own form
-wait      until the url is no longer /~/login
+```bash
+node .agents/skills/tlon-workflow/web-login.mjs --url http://localhost:<port>
 ```
 
-A ship that offers eauth renders a second form below the first, with its own `Continue`, so the name alone matches twice and Playwright's strict mode refuses it. Take the button inside the form holding the `password` field -- `page.locator('form:has([name=password])').getByRole('button')` -- or submit that form directly. The e2e ships render only the one form, which is why `auth.setup.ts` gets away with the bare name.
+It takes the `+code` from `apps/tlon-mobile/.env.local`, signs in, and prints the path of a Playwright storageState file (`.evidence/web-auth.json` unless `--state` says otherwise). Hand that to a context -- `browser.newContext({ storageState })` -- and it starts signed in; the file is reusable for the rest of the run. Signing in by hand instead, the selectors are in `apps/tlon-web/e2e/auth.setup.ts`, with one difference: a ship offering eauth renders a second form with its own `Continue`, so scope the click to the form holding the `password` field.
 
-The cookie holds for that browser profile afterwards, so this is once per profile rather than once per run. Driving Playwright, `context.storageState({ path })` after signing in and reusing that file skips even the first time -- what the e2e suite does once per ship.
-
-Serve over https (`SSL=true`, as `pnpm dev` sets) if you are driving **Safari**: the ship marks its `urbauth-` cookie `Secure; SameSite=None`, and Safari drops such a cookie on a plain-http origin, so the app returns to the login page however many times you sign in. Chrome and Chromium treat `http://localhost` as a secure context and keep it, which is why the same steps pass there and loop in Safari.
-
-`SHIP_ACCESS_CODE` in `apps/tlon-web/.env.local` is read by nothing in the repository; do not go looking for what consumes it.
+The script fails loudly when the ship's cookie does not survive, which is what happens on an origin the browser does not treat as secure: the ship marks `urbauth-` as `Secure`, Safari drops it on plain http, and the app returns to the login page however many times you sign in. Serve over https (`SSL=true`) for those.
 
 This yields an `authType: 'self'` session. It gets you into the app; it does not exercise the hosting-account flows (node status, revival, bot config).
 
@@ -196,23 +190,13 @@ Use the sessions from step 3, on the udid and serial `stim status` prints for th
 
 For a difference that lives in one component rather than in a flow, a pair of Cosmos specimens beats both (see step 6). Two adjacent specimens differing only in the prop under test stay checkable by anyone who opens Cosmos, and fail visibly when someone later reintroduces the bug -- which no screenshot in a merged pull request can do.
 
-To capture a "before" after the fix is already committed (a reviewer asks for another case), swap the file, not the branch: `git checkout origin/develop -- <path>`, record under Fast Refresh, then `git checkout HEAD -- <path>`.
-
-`--quality high` records at device resolution; the default is 220x480, which loses anything smaller than a button. `press` and `longpress` are the interaction commands -- there is no `tap`. Dialogs, action sheets and long-press targets resolve by `[button]` ref from a fresh snapshot, not by `text=`; in a sequence too fast to re-snapshot, press coordinates from the last snapshot. The chat list does not respond to `scroll`; `swipe x1 y1 x2 y2` moves it, and the header Search is the reliable way to a group (tap the result twice: the first tap only dismisses the keyboard). On Android the list collapses into one label, and a ref has opened another agent's group: read the channel header before posting anything, and tap the list by screenshot coordinates.
-
-Attachments: the emulator has no photos (`adb push` one, then `am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file://<path>`); on iOS grant photo access before opening the app (`xcrun simctl privacy <udid> grant photos io.tlon.groups`), because `alert dismiss` on the permission prompt denies it and the recovery relaunches the app; the composer's `+` has no label, so it takes coordinates.
-
 Evidence goes in `.evidence/` at the root of your worktree: gitignored, so it cannot be committed, and removed with the worktree in step 10. Give it as an absolute path, because `$TMPDIR` differs between sandboxed and unsandboxed shells. After `record stop`, check the file exists; on Android a second recording in the same session has been seen to produce nothing without an error.
 
-Reproduce in a throwaway group named after the task and the time (`TLON-1234 repro 1435`), not the default "Untitled group": other agents make those too, earlier runs of the same ticket leave theirs behind, and on Android the group list collapses into one label, so same-named groups are indistinguishable. Making one: Home `Add a chat` → `New group` → `Basic group` (a chat, a gallery and a notebook channel) → name → `Next` → `Create group`; on iOS the group-type cards and those two buttons are `[other]` nodes that a ref does not press, so use coordinates from a screenshot. Refs come back from a `--settle` diff as `@eN~sNNN`; use that full form, a bare `@eN` is refused after the tree changed.
+Reproduce in a throwaway group named after the task and the time (`TLON-1234 repro 1435`), not the default "Untitled group": other agents make those too, earlier runs of the same ticket leave theirs behind, and on Android the group list collapses into one label, so same-named groups are indistinguishable.
 
-Backgrounding, when the ticket or the variation calls for it: `agent-device home --session <name>` on either device; back with `xcrun simctl launch <udid> io.tlon.groups` on iOS and `adb -s <serial> shell am start -n io.tlon.groups/io.tlon.landscape.MainActivity` on Android. A system activity over the app is `adb shell am start -a android.settings.INPUT_METHOD_SETTINGS`.
+Driving the device has its own set of traps -- recording quality, which commands resolve which targets, the chat list, attachments, backgrounding, making the throwaway group. They are in `references/driving-the-app.md`; read it before the first capture on a device.
 
-When a label is too long for the screen, read the text (`agent-device snapshot`) rather than trusting the picture.
-
-Reaching something off screen is one command, not a scroll-then-snapshot loop: `agent-device scroll down --until 'label="Channel settings"' --session <name>`. It stops when the target appears, says so when it was already visible, and when it hits the end of the content without finding it says that too, with a hint -- so a miss is distinguishable from a failed capture. The selector tokenizes on whitespace: a multi-word value needs its own double quotes inside the single-quoted argument, or it fails with `Invalid selector term "an", expected key=value`.
-
-If the steps do not reproduce as written, vary them before concluding anything: leave the channel and re-enter it, act from the other platform's client, background and foreground the app. Then check whether the fix already landed before doubting the ticket: `git log -S '<suspect expression>' --oneline -- <path>` on the code the ticket points at, and the merged pull requests since it was filed. A ticket filed weeks ago is often fixed. If it is, check the other platform before stopping: a fix that landed for the reported platform has left the other one broken. If both are fixed, stop: comment on the ticket naming the pull request that fixed it and the platforms you checked (text and links; the clips stay on disk), and report the same to the user. No pull request.
+If the steps do not reproduce as written, vary them before concluding anything: leave the channel and re-enter it, act from the other platform's client, background and foreground the app. Then check whether the fix already landed before doubting the ticket: `git log -S '<suspect expression>' --oneline -- <path>` on the code the ticket points at, and the merged pull requests since it was filed. A ticket filed weeks ago is often fixed. If it is, check the other platform before stopping: a fix that landed for the reported platform has left the other one broken. If both are fixed, stop: comment on the ticket naming the pull request that fixed it and the platforms you checked (text and links; the clips stay on disk), and report the same to the user. No pull request -- but step 10 still applies: it is written for a finished pull request, and an early exit leaves the same worktree, devices, ports and throwaway group behind.
 
 ### 5. Fix
 
@@ -228,7 +212,7 @@ Commit as you go. Everything after this step reads the branch, not the working t
 
 Repeat step 4 into `after-<platform>.mp4` on the platform(s) you recorded before, then `stim logs --errors` again. Evidence is the repro you already recorded, not a new scenario. Say in the pull request which platform(s) you tested and why one was enough, when it was.
 
-**Re-snapshot first.** agent-device expires a snapshot's refs when one of its own actions follows -- a stale `@e8` after a `press` is refused with `belongs to an expired ref frame`, which is loud and fine. It cannot see a change it did not cause. Fast Refresh and `stim reload` remount the tree without any agent-device action, so the refs stay live and a `press` replays the old snapshot's coordinates onto whatever is there now: it reports `Tapped`, and drives the wrong element. After any edit that reaches the running app, snapshot again before touching anything. An edit under `packages/` may be a full reload rather than a refresh: navigation resets to Home and the sign-in prompts return on both platforms (`alert dismiss`, `Not now`). After any `packages/` edit, `stim reload ios` and `stim reload android` before capturing, and confirm `stim logs --errors` is clean: an edit that adds an export in one module and imports it in another has left both apps throwing `ReferenceError: Property '<name>' doesn't exist` until reloaded, with Metro's bundle already correct. On iOS the reload itself can crash the app natively (`EXC_BAD_ACCESS` in `EXPermissionsService registerRequesters`, an expo-modules-core race, expo/expo#45314): `stim ios` relaunches from cache in seconds.
+**Re-snapshot first.** agent-device expires its refs after its own actions, but it cannot see a change it did not cause. Fast Refresh and `stim reload` remount the tree with no agent-device action, so the refs stay live and a `press` replays the old coordinates onto whatever is there now: it reports `Tapped`, and drives the wrong element. That failure is silent, unlike a stale ref. After any edit that reaches the running app, snapshot again before touching anything. An edit under `packages/` may be a full reload rather than a refresh: navigation resets to Home and the sign-in prompts return on both platforms (`alert dismiss`, `Not now`). After any `packages/` edit, `stim reload ios` and `stim reload android` before capturing, and confirm `stim logs --errors` is clean: an edit that adds an export in one module and imports it in another has left both apps throwing `ReferenceError: Property '<name>' doesn't exist` until reloaded, with Metro's bundle already correct. On iOS the reload itself can crash the app natively (`EXC_BAD_ACCESS` in `EXPermissionsService registerRequesters`, an expo-modules-core race, expo/expo#45314): `stim ios` relaunches from cache in seconds.
 
 Keep `stim logs --since` windows short.
 
@@ -325,18 +309,18 @@ Accept only `admin`, `maintain` or `write`, and move to the next candidate on an
 
 After the pull request is merged or closed, and after asking the user. **Order matters**: remove the worktree before the branch goes, or `remove` refuses because its commits are no longer on any remote. And leave the worktree before removing it: once it is gone, git cannot run from inside it.
 
+Delete the throwaway group on the ship first, while the app is still up and signed in: once the sessions are closed and the device is parked, the way in is gone and the group is left on the ship for the next run to find.
+
 ```bash
 agent-device close --session <name>       # each session this run opened
 cd <worktree>/apps/tlon-mobile
 stim ports stop                            # kills web and Cosmos on this worktree's ports and releases them; leaves Metro alone
 stim stop
-cd <source checkout>
+cd <source checkout>/apps/tlon-mobile
 stim worktree remove <source checkout>/.worktrees/<name>   # the path step 1 created; then, if the branch should go too:
 git branch -d <handle>/<topic>
 git push origin --delete <handle>/<topic>
 ```
-
-Delete the throwaway group on the ship as well, so the next run does not find it.
 
 `remove` deletes the worktree and parks the simulator or emulator it owned. Never reach for `--force`: it discards uncommitted and untracked files permanently. If it refuses because a commit exists nowhere else, push the branch rather than forcing.
 
