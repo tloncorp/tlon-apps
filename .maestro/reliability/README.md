@@ -1,6 +1,6 @@
 # Native reliability tests
 
-Twenty-six default single-ship journeys, including attachments, channel sorting,
+Twenty-seven default single-ship journeys, including attachments, channel sorting,
 Gallery links, profile details, pins, references, privacy, sections, notification
 preferences, roles, replies, self-hosted login recovery and App Info clipboard verification.
 These cover a subset of the QA checklist, not the entire workbook.
@@ -50,6 +50,9 @@ enforcement on another ship require multiparty tests.
 `gallery-link.yaml` validates the three-field Link composer, malformed-URL error,
 and rich metadata preview and prefill. It deletes its uniquely named fixture
 group.
+
+`join-group-navigation.yaml` opens the Join a group sheet from Home, verifies its
+code-entry controls, then closes it and returns to Home without mutating a group.
 
 `channel-sorting.yaml` creates a uniquely named text channel, posts there, then
 posts in Chat so recency and arrangement have different observable orders. It

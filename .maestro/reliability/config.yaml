@@ -5,6 +5,7 @@ flows:
   - notebook.yaml
   - gallery.yaml
   - gallery-link.yaml
+  - join-group-navigation.yaml
   - message-actions.yaml
   - search.yaml
   - history.yaml
