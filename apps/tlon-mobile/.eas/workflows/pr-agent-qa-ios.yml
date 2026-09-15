@@ -59,9 +59,9 @@ jobs:
     environment: preview
     runs_on: linux-medium
     env:
-      QA_PR_NUMBER: ${{ fromJSON(inputs.coordinator_failure_json).number }}
-      QA_HEAD_SHA: ${{ fromJSON(inputs.coordinator_failure_json).head }}
-      QA_REPORT: ${{ fromJSON(inputs.coordinator_failure_json).report }}
+      QA_PR_NUMBER: ${{ fromJSON(inputs.coordinator_failure_json || '{}').number }}
+      QA_HEAD_SHA: ${{ fromJSON(inputs.coordinator_failure_json || '{}').head }}
+      QA_REPORT: ${{ fromJSON(inputs.coordinator_failure_json || '{}').report }}
       QA_WORKFLOW_URL: ${{ workflow.url }}
     steps:
       - uses: eas/checkout
