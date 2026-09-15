@@ -77,6 +77,7 @@ export interface TlawnProviderConfigInfo {
 export interface TlawnModelEntry {
   provider: string;
   model: string;
+  zdr?: boolean;
   primary?: boolean;
   channels?: string[];
 }
@@ -94,12 +95,27 @@ export interface TlawnChannelModelsUpdate {
 export interface TlawnPrimaryModelUpdate {
   provider: string;
   model: string;
+  zdr?: boolean;
   fallbacks?: TlawnModelEntry[];
 }
 
 export interface TlawnProviderModel {
   id: string;
+  name?: string;
+  pricing?: {
+    prompt?: string;
+    completion?: string;
+  };
   [key: string]: unknown;
+}
+
+export interface TlawnOpenRouterZdrEndpoint {
+  modelId: string;
+  endpointName?: string;
+  providerName: string;
+  supportsImplicitCaching?: boolean;
+  promptPrice?: string;
+  completionPrice?: string;
 }
 
 export type TlawnLLMAuthProvider = 'openai' | 'anthropic' | 'xai';

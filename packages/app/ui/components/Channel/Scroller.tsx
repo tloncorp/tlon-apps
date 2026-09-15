@@ -392,11 +392,19 @@ const Scroller = forwardRef(
     const insets = useSafeAreaInsets();
     const rootVerticalPadding = getTokens().space.l.val;
     const composerBottomInset = contentInsets.bottom;
-    const scrollContentBottomInset =
+    // iOS conversation lists keep the composer inset native so the list can
+    // own keyboard and composer clearance; every other layout pads for it.
+    const listOwnsComposerInset =
       Platform.OS === 'ios' &&
-      collectionLayoutType === 'compact-list-bottom-to-top'
-        ? 0
-        : contentInsets.bottom;
+      collectionLayoutType === 'compact-list-bottom-to-top';
+    const scrollContentBottomInset = listOwnsComposerInset
+      ? 0
+      : contentInsets.bottom;
+    const [listFrameHeight, setListFrameHeight] = useState<number | null>(null);
+    const handleListFrameLayout = useCallback((event: LayoutChangeEvent) => {
+      const { height } = event.nativeEvent.layout;
+      setListFrameHeight((current) => (current === height ? current : height));
+    }, []);
     const standaloneBottomSafeArea =
       composerBottomInset > 0 ? 0 : insets.bottom;
     const scrollButtonBottom =
@@ -417,6 +425,18 @@ const Scroller = forwardRef(
                 standaloneBottomSafeArea +
                 rootVerticalPadding +
                 scrollContentBottomInset,
+            };
+          }
+          // LegendList end-aligns rows within the area above the native composer
+          // inset, but only once it has rows. With none it falls back to a
+          // viewport-sized container whose footer (the thinking indicator)
+          // lands wherever the scroll offset happens to be. Give the empty
+          // conversation that same above-the-composer height so the footer
+          // rests in place at offset 0 with no scroll range to drift into.
+          if (listOwnsComposerInset && listFrameHeight != null) {
+            return {
+              minHeight: Math.max(0, listFrameHeight - contentInsets.bottom),
+              paddingTop: contentInsets.top,
             };
           }
           return {
@@ -463,7 +483,10 @@ const Scroller = forwardRef(
         standaloneBottomSafeArea,
         visiblePosts?.length,
         collectionLayoutType,
+        contentInsets.bottom,
         contentInsets.top,
+        listFrameHeight,
+        listOwnsComposerInset,
         rootVerticalPadding,
         scrollContentBottomInset,
       ])
@@ -610,7 +633,10 @@ const Scroller = forwardRef(
     );
 
     return (
-      <View flex={1}>
+      <View
+        flex={1}
+        onLayout={listOwnsComposerInset ? handleListFrameLayout : undefined}
+      >
         {postsWithNeighbors != null && (
           <PostList
             anchor={anchor}

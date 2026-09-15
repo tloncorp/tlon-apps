@@ -7,6 +7,8 @@ import {
   disconnectTlawnLLMAuth,
   getTlawnLLMAuthFlow,
   getTlawnLLMAuthStatus,
+  getTlawnOpenRouterRecommendedModels,
+  getTlawnOpenRouterZdrEndpoints,
   startTlawnLLMAuth,
 } from './hostingApi';
 
@@ -204,5 +206,28 @@ describe('Tlawn provider auth', () => {
       'https://hosting.test/v1/tlawn/users/user-1/provider-keys/openai?ship=zod',
       expect.objectContaining({ method: 'DELETE' })
     );
+  });
+
+  it('loads OpenRouter model metadata from Solaris', async () => {
+    const recommendations = ['x-ai/grok-4.6'];
+    const endpoints = [
+      { modelId: 'x-ai/grok-4.6', providerName: 'xAI', promptPrice: '0.1' },
+    ];
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(() => respond(recommendations))
+      .mockImplementationOnce(() => respond(endpoints));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      getTlawnOpenRouterRecommendedModels('user-1')
+    ).resolves.toEqual(recommendations);
+    await expect(getTlawnOpenRouterZdrEndpoints('user-1')).resolves.toEqual(
+      endpoints
+    );
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      'https://hosting.test/v1/tlawn/users/user-1/openrouter/recommended-models',
+      'https://hosting.test/v1/tlawn/users/user-1/openrouter/zdr-endpoints',
+    ]);
   });
 });

@@ -830,15 +830,16 @@ function SinglePostView({
       isEditingParent &&
       (channel.type === 'notebook' || channel.type === 'gallery')
     );
+  const hasFloatingReplyInput = canRenderReplyInput && isChatChannel;
   const { bottom } = useSafeAreaInsets();
   const { contentInsets, onFloatingHeightChange } = useConversationInsets({
-    hasFloatingComposer: canRenderReplyInput,
+    hasFloatingComposer: hasFloatingReplyInput,
     hasTransparentHeader: isChatChannel,
   });
   // Native floating composers include the home-indicator inset. Web composers
   // stay inline, so the screen still owns its bottom safe-area clearance.
   const screenBottomInset =
-    canRenderReplyInput && Platform.OS !== 'web' ? undefined : bottom;
+    hasFloatingReplyInput && Platform.OS !== 'web' ? undefined : bottom;
 
   const threadComposerContext = useMemo(
     (): DraftInputContext => ({
@@ -922,7 +923,8 @@ function SinglePostView({
 
         {replyInput && (
           <ConversationComposerPlacement
-            enabled
+            enabled={hasFloatingReplyInput}
+            avoidKeyboard={!hasFloatingReplyInput}
             contentProps={containingProperties}
             inlineID="reply-container"
             onFloatingHeightChange={onFloatingHeightChange}

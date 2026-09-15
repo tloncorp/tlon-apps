@@ -109,12 +109,16 @@ export async function createGroupWithTemplate(
   });
   await page.getByText('Create group').click();
 
-  // Wait for group creation to complete and navigate to group
-  const channelHeader = page.getByTestId('ChannelHeaderTitle');
+  // Wait for group creation to complete and navigate to the group. Single-
+  // channel groups open their channel directly, while multi-channel groups
+  // without a remembered channel open the group channel list.
+  const groupDestination = page
+    .getByTestId('ChannelHeaderTitle')
+    .or(page.getByTestId('GroupChannelsHeaderTrigger'));
 
   try {
     // Wait briefly to see if we're automatically navigated to the group
-    await expect(channelHeader).toBeVisible({ timeout: 5000 });
+    await expect(groupDestination).toBeVisible({ timeout: 5000 });
     // Template groups don't show "Welcome to your group!" message
     await page.waitForTimeout(1000);
   } catch {
@@ -126,7 +130,7 @@ export async function createGroupWithTemplate(
     await page
       .getByTestId(`ChatListItem-${expectedGroupTitle}-unpinned`)
       .click();
-    await expect(channelHeader).toBeVisible({ timeout: 5000 });
+    await expect(groupDestination).toBeVisible({ timeout: 5000 });
     await page.waitForTimeout(1000);
   }
 }
