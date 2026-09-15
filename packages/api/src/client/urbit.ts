@@ -6,6 +6,11 @@ import {
   ChannelPutError,
   ChannelStatus,
   NounPokeInterface,
+  ReapError,
+  SSEBadResponseError,
+  SSETimeoutError,
+  SpinAbortedError,
+  SpinClosedError,
   Thread,
   Urbit,
 } from '../http-api';
@@ -867,24 +872,174 @@ async function track<R>(
   });
 }
 
-export async function checkIsNodeBusy() {
-  return config.client?.checkIsNodeBusy() || Promise.resolve('unknown');
+export type SpinErrorClass =
+  | 'timeout'
+  | 'http_4xx'
+  | 'http_5xx'
+  | 'content_type'
+  | 'closed'
+  | 'transport'
+  | 'aborted'
+  | 'other';
+
+export type SpinHintResult =
+  | {
+      outcome: 'hint';
+      nodeBusyStatus: 'available' | 'busy';
+      hints?: string;
+      durationMs: number;
+    }
+  | {
+      outcome: 'grace_expired';
+      nodeBusyStatus: 'unknown';
+      durationMs: number;
+    }
+  | {
+      outcome: 'failed';
+      nodeBusyStatus: 'unknown';
+      errorClass: SpinErrorClass;
+      durationMs: number;
+    }
+  | {
+      outcome: 'unavailable';
+      nodeBusyStatus: 'unknown';
+      durationMs: 0;
+    };
+
+export type SpinHintCheck = {
+  settleWithin(graceMs: number): Promise<SpinHintResult>;
+  cancel(): void;
+};
+
+function classifySpinError(error: unknown): SpinErrorClass {
+  if (
+    error instanceof SSETimeoutError ||
+    (error instanceof Error && error.message === 'getBytes timed out')
+  ) {
+    return 'timeout';
+  }
+  if (error instanceof ReapError) {
+    return 'http_4xx';
+  }
+  if (error instanceof SSEBadResponseError) {
+    if (error.status >= 400 && error.status < 500) {
+      return 'http_4xx';
+    }
+    if (error.status >= 500 && error.status < 600) {
+      return 'http_5xx';
+    }
+  }
+  if (
+    error instanceof Error &&
+    error.message.startsWith('Expected content-type to be text/event-stream')
+  ) {
+    return 'content_type';
+  }
+  if (error instanceof SpinClosedError) {
+    return 'closed';
+  }
+  if (
+    error instanceof SpinAbortedError ||
+    (error instanceof Error && error.name === 'AbortError')
+  ) {
+    return 'aborted';
+  }
+  if (
+    error instanceof TypeError ||
+    (error instanceof Error &&
+      /fetch|network|connection|socket|host/i.test(
+        `${error.name} ${error.message}`
+      ))
+  ) {
+    return 'transport';
+  }
+  return 'other';
 }
 
-export async function checkIsNodeBusyWithHints(): Promise<{
-  nodeBusyStatus: 'available' | 'busy' | 'unknown';
-  hints?: string;
-}> {
-  if (!config.client) {
-    throw new Error('Client not initialized');
+export function startSpinHintCheck(): SpinHintCheck {
+  const startedAt = Date.now();
+  const controller = new AbortController();
+  const activeClient = resolveClient();
+  let terminalResult: SpinHintResult | undefined;
+  let graceTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const settle = (result: SpinHintResult): SpinHintResult => {
+    terminalResult ??= result;
+    return terminalResult;
+  };
+
+  let resultPromise: Promise<SpinHintResult>;
+  if (!activeClient) {
+    resultPromise = Promise.resolve(
+      settle({
+        outcome: 'unavailable',
+        nodeBusyStatus: 'unknown',
+        durationMs: 0,
+      })
+    );
+  } else {
+    try {
+      resultPromise = Promise.resolve(
+        activeClient.getSpinHints({ signal: controller.signal })
+      ).then(
+        (hints) =>
+          settle({
+            outcome: 'hint',
+            nodeBusyStatus: hints === '/root' ? 'available' : 'busy',
+            ...(hints === '/root' ? {} : { hints }),
+            durationMs: Date.now() - startedAt,
+          }),
+        (error) =>
+          settle({
+            outcome: 'failed',
+            nodeBusyStatus: 'unknown',
+            errorClass: classifySpinError(error),
+            durationMs: Date.now() - startedAt,
+          })
+      );
+    } catch (error) {
+      resultPromise = Promise.resolve(
+        settle({
+          outcome: 'failed',
+          nodeBusyStatus: 'unknown',
+          errorClass: classifySpinError(error),
+          durationMs: Date.now() - startedAt,
+        })
+      );
+    }
   }
 
-  const result = await client.getSpinHints();
-  if (result === '/root') {
-    return { nodeBusyStatus: 'available' };
-  }
+  return {
+    async settleWithin(graceMs) {
+      if (terminalResult) {
+        return terminalResult;
+      }
 
-  return { nodeBusyStatus: 'busy', hints: result };
+      const graceResult = new Promise<SpinHintResult>((resolve) => {
+        graceTimer = setTimeout(() => {
+          const result = settle({
+            outcome: 'grace_expired',
+            nodeBusyStatus: 'unknown',
+            durationMs: Date.now() - startedAt,
+          });
+          controller.abort();
+          resolve(result);
+        }, graceMs);
+      });
+
+      try {
+        return await Promise.race([resultPromise, graceResult]);
+      } finally {
+        clearTimeout(graceTimer);
+        graceTimer = undefined;
+      }
+    },
+    cancel() {
+      clearTimeout(graceTimer);
+      graceTimer = undefined;
+      controller.abort();
+    },
+  };
 }
 
 export async function scry<T>({
@@ -933,7 +1088,7 @@ export async function scry<T>({
       errorMessage: res.message,
       responseStatus: res.status,
     });
-    throw new BadResponseError(res.status, res.toString());
+    throw new BadResponseError(res.status, await responseErrorBody(res));
   }
 }
 
@@ -984,10 +1139,17 @@ export async function requestJson<T = any>(
   }
 }
 
+// Reading a rejected response's body is purely diagnostic, and the request's
+// own timeout is already disarmed by the time the rejection reaches us
+// (`scryWithInfo` cleans its signal up in a `finally`), so an unbounded read
+// would hang a scry that had already failed. Give the read its own deadline
+// and settle for an empty body when it expires.
+const ERROR_BODY_READ_TIMEOUT = 5000;
+
 async function responseErrorBody(res: any): Promise<string> {
   if (typeof res?.text === 'function') {
     try {
-      return await res.text();
+      return await readWithin(res.text(), ERROR_BODY_READ_TIMEOUT);
     } catch {
       // Fall through to the generic cases below.
     }
@@ -996,6 +1158,17 @@ async function responseErrorBody(res: any): Promise<string> {
   if (typeof res?.message === 'string') return res.message;
   const text = String(res);
   return text === '[object Response]' ? '' : text;
+}
+
+// Resolves with whatever `read` produces, or with an empty body once `ms`
+// elapses. The abandoned read stays attached to the race, so a late rejection
+// is never unhandled.
+function readWithin(read: Promise<string>, ms: number): Promise<string> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<string>((resolve) => {
+    timer = setTimeout(() => resolve(''), ms);
+  });
+  return Promise.race([read, deadline]).finally(() => clearTimeout(timer));
 }
 
 export async function scryNoun({
@@ -1042,7 +1215,7 @@ export async function scryNoun({
       message: res.message,
       responseStatus: res.status,
     });
-    throw new BadResponseError(res.status, res.toString());
+    throw new BadResponseError(res.status, await responseErrorBody(res));
   }
 }
 

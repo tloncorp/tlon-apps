@@ -385,7 +385,10 @@ describe('seamlessReset', () => {
     const urbit = new Urbit('http://example.test', undefined, undefined, fetch);
     urbit.nodeId = '~zod';
     await expect(
-      (urbit as any).sendNounsToChannel(new Atom(0n))
+      (urbit as any).sendNounsToChannel(
+        { id: 1, action: 'poke', app: 'a', mark: 'm' },
+        new Atom(0n)
+      )
     ).rejects.toMatchObject({ name: 'ChannelPutError', status: 403 });
   });
 });

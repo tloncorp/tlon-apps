@@ -1,5 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import {
+  internalConfigureClient,
+  internalRemoveClient,
+  scry,
+  scryNoun,
+} from '../client/urbit';
 import { ThreadResponseBodyError, Urbit } from '../http-api/Urbit';
 
 // Mimics real fetch behavior for a response whose headers arrive but whose
@@ -22,6 +28,16 @@ function stalledBodyFetch(status = 200): typeof fetch {
       headers: { 'content-type': 'application/json' },
     });
   };
+}
+
+// Stalls only the scry itself, so tearing the client down (which POSTs a
+// channel delete) doesn't hit the stalled response too.
+function stalledScryFetch(status: number): typeof fetch {
+  const stalled = stalledBodyFetch(status);
+  return async (input: any, init?: any) =>
+    String(input).includes('/~/scry/')
+      ? stalled(input, init)
+      : new Response('', { status: 200 });
 }
 
 function completingFetch(body: string): typeof fetch {
@@ -111,5 +127,57 @@ describe('Urbit request timeouts cover the response body read', () => {
   it('request rejects when the response body stalls after headers', async () => {
     const client = new Urbit('', undefined, 'groups', stalledBodyFetch());
     await expect(client.request('/some/path', {}, 50)).rejects.toThrow();
+  });
+});
+
+describe('the client wrapper bounds its diagnostic error-body read', () => {
+  afterEach(() => {
+    internalRemoveClient();
+    vi.useRealTimers();
+  });
+
+  // The status arrives with the headers, but `scryWithInfo` disarms the
+  // request's timeout in its `finally` before the rejection reaches the
+  // wrapper -- so reading the body for the error message has to carry its own
+  // deadline, or a stalled error body hangs a scry that has already failed.
+  function configureStalledClient(status: number) {
+    vi.useFakeTimers();
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: '',
+      client: new Urbit('', undefined, 'groups', stalledScryFetch(status)),
+    });
+  }
+
+  it('scry rejects with the status when the error body stalls', async () => {
+    configureStalledClient(503);
+
+    const rejection = scry({
+      app: 'groups',
+      path: '/v3/groups',
+      timeout: 10,
+    }).catch((e) => e);
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    await expect(rejection).resolves.toMatchObject({
+      status: 503,
+      message: 'HTTP 503',
+    });
+  });
+
+  it('scryNoun rejects with the status when the error body stalls', async () => {
+    configureStalledClient(504);
+
+    const rejection = scryNoun({
+      app: 'lanyard',
+      path: '/v1/records',
+      timeout: 10,
+    }).catch((e) => e);
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    await expect(rejection).resolves.toMatchObject({
+      status: 504,
+      message: 'HTTP 504',
+    });
   });
 });

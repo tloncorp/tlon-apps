@@ -1,0 +1,74 @@
+appId: ${MAESTRO_APP_ID}
+name: Native chat smoke
+tags: [smoke, regression]
+env:
+  JOURNEY: c
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/create-group.yaml
+- tapOn: '^Chat$'
+- runFlow:
+    file: subflows/send.yaml
+    env:
+      MESSAGE: ${output.reliability.text}
+      MESSAGE_PATTERN: ${output.reliability.textPattern}
+      EMPTY_INPUT: '^Message$'
+# Exercise draft growth and exact text without an expensive history seed.
+- tapOn:
+    id: MessageInput
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: "One\nTwo\nThree"
+- assertVisible:
+    id: MessageInput
+    text: '^One\nTwo\nThree$'
+- assertVisible:
+    id: MessageInputSendButton
+- hideKeyboard
+- assertVisible:
+    id: MessageInput
+    text: '^One\nTwo\nThree$'
+- tapOn:
+    id: MessageInput
+    point: '95%,90%'
+- eraseText: 100
+- assertVisible:
+    id: MessageInput
+    text: '^Message$'
+- hideKeyboard
+- longPressOn: ${output.reliability.textPattern}
+- tapOn: '^Reply$'
+- assertVisible:
+    id: MessageInput
+    text: '^Reply$'
+- assertVisible: ${output.reliability.textPattern}
+- runFlow:
+    file: subflows/send.yaml
+    env:
+      MESSAGE: ${output.reliability.reply}
+      MESSAGE_PATTERN: ${output.reliability.replyPattern}
+      EMPTY_INPUT: '^Reply$'
+- hideKeyboard
+- tapOn: '^Back$'
+- assertVisible:
+    id: MessageInput
+    text: '^Message$'
+- assertVisible: '^1 reply$'
+- assertNotVisible: ${output.reliability.replyPattern}
+- tapOn: '^1 reply$'
+- assertVisible: ${output.reliability.textPattern}
+- assertVisible: ${output.reliability.replyPattern}
+- assertVisible:
+    id: MessageInput
+    text: '^Reply$'
+- tapOn: '^Back$'
+- assertVisible:
+    id: MessageInput
+    text: '^Message$'
+- tapOn: '^Back$'
+- assertVisible: ${output.reliability.groupPattern}
+- tapOn: '^Back$'
+- assertVisible: '^Home$'
+- assertVisible: ${output.reliability.groupPattern}

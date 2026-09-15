@@ -29,6 +29,22 @@ channels:
         code: 'your-access-code'
 ```
 
+### Hosted restart catch-up
+
+`channels.tlon.restartCatchup.enabled: true` opts into running the owner agent's
+workspace `BOOT.md` after gateway startup and authenticated Tlon connection
+readiness. Disable `hooks.internal.entries.boot-md.enabled` at the same time to
+avoid the generic startup hook racing or duplicating the checklist. tlonbot
+configures both settings together; self-hosted installs default to disabled.
+
+The plugin checks `bootstrapComplete` in a fresh settings read before starting an
+agent. Missing/false skips catch-up; failed reads retry in code within a
+three-minute readiness deadline. The checklist runs once per gateway startup,
+including in-process restarts, with cancellation on shutdown and no replay on
+reconnect, monitor reload, or plugin prewarming. It uses the public embedded agent
+runner with a temporary transcript rather than a resumable subagent task. The
+initial implementation requires one configured Tlon account with an owner.
+
 ### Full Configuration Example
 
 ```yaml
@@ -137,7 +153,7 @@ The owner can send these commands via DM:
 
 ```
 Harness: OpenClaw
-Harness Version: 2026.8.1
+Harness Version: 2026.9.4
 Adapter Version: 0.4.3
 Tlon Skill: 0.3.2
 Fingerprint: fp1:8aa23ca2bc8d

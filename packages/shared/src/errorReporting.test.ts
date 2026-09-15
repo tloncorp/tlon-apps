@@ -20,9 +20,9 @@ const HOSTING_CASES: Array<[string, Hosting]> = [
   ['TLON.NETWORK.', 'tlon'],
   ['notlon.network', 'self'],
   ['tlon.network.evil.com', 'self'],
-  ['togten.com', 'togten'],
-  ['poster-findul.togten.com', 'togten'],
-  ['sub.togten.com.', 'togten'],
+  ['togten.com', 'self'],
+  ['sampel-palnet.togten.com', 'self'],
+  ['sub.togten.com.', 'self'],
   ['localhost', 'local'],
   ['foo.localhost', 'local'],
   ['127.0.0.1', 'local'],
@@ -114,7 +114,7 @@ describe('reduceUrls', () => {
       reduceUrls(
         'a https://x.tlon.network/apps/groups/dm/~one b https://y.togten.com/apps/groups/group/~two c'
       )
-    ).toBe('a https://tlon/dm b https://togten/group c');
+    ).toBe('a https://tlon/dm b https://self/group c');
   });
 
   it('leaves text without urls unchanged', () => {
@@ -135,6 +135,12 @@ describe('reduceUrls bare hostnames', () => {
     expect(reduceUrls('Unable to resolve host "groups.example.org"')).toBe(
       'Unable to resolve host "self"'
     );
+  });
+
+  it('reduces a quoted togten host as self-hosted', () => {
+    expect(
+      reduceUrls('Unable to resolve host "sampel-palnet.togten.com"')
+    ).toBe('Unable to resolve host "self"');
   });
 
   it('reduces a quoted local host', () => {
@@ -167,6 +173,14 @@ describe('reduceUrls bare hostnames', () => {
     );
     expect(output).toContain('https://tlon/foo');
     expect(output).not.toContain('sampel-palnet');
+  });
+
+  it('reduces a togten url to the self-hosted placeholder', () => {
+    const output = reduceUrls(
+      'GET https://sampel-palnet.togten.com/apps/groups/foo failed'
+    );
+    expect(output).toContain('https://self/foo');
+    expect(output).not.toContain('togten');
   });
 });
 
@@ -292,7 +306,7 @@ describe('scrubExtra', () => {
         list: ['https://c.tlon.network/apps/groups/dm/~x', 3],
       })
     ).toEqual({
-      note: 'go https://togten/group',
+      note: 'go https://self/group',
       list: ['https://tlon/dm', 3],
     });
   });
@@ -471,7 +485,7 @@ describe('scrubBreadcrumb', () => {
     expect(scrubbed).not.toBeNull();
     expect(scrubbed?.data).toEqual({
       from: 'https://tlon/dm',
-      to: 'https://togten/group',
+      to: 'https://self/group',
     });
     expect(crumb.data.from).toBe('https://a.tlon.network/apps/groups/dm/~x');
   });
@@ -547,7 +561,7 @@ describe('scrubSentryEvent', () => {
     expect(output.breadcrumbs).toHaveLength(1);
     expect(output.breadcrumbs?.[0]).toMatchObject({ category: 'navigation' });
     expect(output.breadcrumbs?.[0]?.data).toEqual({
-      to: 'https://togten/group',
+      to: 'https://self/group',
     });
     expect(output.extra).toEqual({ note: 'see https://tlon/dm' });
     expect(output.tags).toEqual({ logger: 'sync' });
@@ -630,8 +644,8 @@ describe('scrubSentryEvent', () => {
     const outFrames = output.exception?.values?.[0]?.stacktrace?.frames;
     expect(outFrames).toHaveLength(2);
     expect(outFrames?.[0]).toEqual({
-      filename: 'https://togten/apps/groups/assets/index-abc.js',
-      abs_path: 'https://togten/apps/groups/assets/index-abc.js',
+      filename: 'https://self/apps/groups/assets/index-abc.js',
+      abs_path: 'https://self/apps/groups/assets/index-abc.js',
       lineno: 42,
       colno: 7,
       function: 'doWork',
@@ -641,7 +655,7 @@ describe('scrubSentryEvent', () => {
     expect(outFrames?.[0]).not.toBe(frames[0]);
     expect(outFrames?.[1]).toEqual({ filename: 'app:///main.jsbundle' });
     expect(output.debug_meta?.images?.[0]).toEqual({
-      code_file: 'https://togten/apps/groups/assets/index-abc.js',
+      code_file: 'https://self/apps/groups/assets/index-abc.js',
       debug_id: 'abc',
     });
     expect(output.debug_meta?.images?.[0]).not.toBe(images[0]);
@@ -800,6 +814,8 @@ const MUST_MATCH = [
   'BadResponseError: HTTP request failed: Error: fetch failed: java.net.UnknownHostException: Unable to resolve host "www.burtonjernigan.org": No address associated with hostname',
   'Error: fetch failed: UnexpectedException: The request timed out. (at ExpoModulesCore/Promise.swift:56)',
   'Error: fetch failed: The request timed out.',
+  'Error: fetch failed: UnexpectedException: Could not connect to the server. (at ExpoModulesCore/Promise.swift:56)',
+  'Error: fetch failed: Could not connect to the server.',
 ];
 
 const MUST_NOT_MATCH = [
@@ -807,9 +823,13 @@ const MUST_NOT_MATCH = [
   'Failed to fetch access code',
   'Failed to fetch image: 404',
   'Error: Hosting API call failed',
+  'Error: Hosting API call failed (401)',
   'Error: HTTP 503: FetchResponse: { status: 503, statusText: service unavailable }',
   'Error: Invalid server response',
+  'Error: Invalid server response: 403 Forbidden',
   'Error: Failed to PUT channel',
+  'ChannelPutError: Failed to PUT channel',
+  'ChannelPutError: Failed to PUT channel: 403 Forbidden',
   'PokeAckTimeoutError: Poke ack timed out after 30000ms',
   'Error: Expected content-type to be text/event-stream, Actual: text/html',
   'Error: No error message',
@@ -820,12 +840,15 @@ const MUST_NOT_MATCH = [
   'Error: discarded fetched data, had been running for 1271371ms',
   '[query] Database Query Error',
   'BadResponseError: HTTP 404: [object Response]',
+  'BadResponseError: HTTP 503: gall: agent not running',
+  'HostingError: Hosting request failed (401 Unauthorized)',
+  'HostingError: An unknown error has occurred. (404 Not Found)',
   'Error: Urbit client not set.',
 ];
 
 describe('SENTRY_IGNORE_ERRORS', () => {
   it('builds one regex per body', () => {
-    expect(SENTRY_IGNORE_ERRORS).toHaveLength(15);
+    expect(SENTRY_IGNORE_ERRORS).toHaveLength(16);
   });
 
   it.each(MUST_MATCH)('matches %s', (message) => {
@@ -834,6 +857,55 @@ describe('SENTRY_IGNORE_ERRORS', () => {
 
   it.each(MUST_NOT_MATCH)('does not match %s', (message) => {
     expect(SENTRY_IGNORE_ERRORS.some((r) => r.test(message))).toBe(false);
+  });
+});
+
+interface IgnoreEvent {
+  exception: { values: Array<{ type: string; value: string }> };
+}
+
+// Mirrors @sentry/core's `getPossibleEventMessages`: only the *last* exception
+// in `values` is tested, in both its bare `value` and `type: value` form.
+// `packages/shared` has no `@sentry/*` dependency, so this stands in for it.
+function possibleMessages(event: IgnoreEvent): string[] {
+  const last = event.exception.values[event.exception.values.length - 1];
+
+  if (!last?.value) {
+    return [];
+  }
+
+  return last.type ? [last.value, `${last.type}: ${last.value}`] : [last.value];
+}
+
+function isIgnored(event: IgnoreEvent): boolean {
+  return possibleMessages(event).some((message) =>
+    SENTRY_IGNORE_ERRORS.some((r) => r.test(message))
+  );
+}
+
+describe('SENTRY_IGNORE_ERRORS with linked exceptions', () => {
+  // Sentry RN's linked-errors integration appends `cause` chains after the
+  // original exception, so the last entry is a cause when one exists.
+  const timeout = {
+    type: 'DbInitTimeoutError',
+    value:
+      'Database initialization timed out after 30000ms (attempt 2, 30000 ms elapsed); last error: Error: Request timed out',
+  };
+  const ignoredCause = { type: 'Error', value: 'Request timed out' };
+
+  it('drops the whole event when an ignored error is attached as a cause', () => {
+    // Why DbInitTimeoutError deliberately carries no `cause`.
+    expect(isIgnored({ exception: { values: [timeout, ignoredCause] } })).toBe(
+      true
+    );
+  });
+
+  it('keeps the timeout when the cause only appears in its message', () => {
+    expect(isIgnored({ exception: { values: [timeout] } })).toBe(false);
+  });
+
+  it('still drops the ignored error on its own', () => {
+    expect(isIgnored({ exception: { values: [ignoredCause] } })).toBe(true);
   });
 });
 

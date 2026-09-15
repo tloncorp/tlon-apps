@@ -151,3 +151,39 @@ test('getBreadcrumbs filters sensitive entries when opted out', () => {
   expect(sanitized.some((entry) => entry.includes('token abc'))).toBe(false);
   expect(sanitized.some((entry) => entry.includes('visited x'))).toBe(true);
 });
+
+// PostHog never sees `errorObject` -- the composite logger strips it before the
+// PostHog sink -- so these two derived strings are the whole of what makes an
+// error legible there. A raw `Error` under `error` JSON-serializes to `{}`,
+// since `message` and `stack` are non-enumerable.
+test('trackError derives the PostHog error strings from { error }', async () => {
+  const logger = createDevLogger('t', false);
+  const error = new TypeError('serializable');
+  logger.trackError('boom', { error });
+  await vi.waitFor(() => expect(capture).toHaveBeenCalled());
+  const payload = capture.mock.calls[0][1];
+  expect(payload.errorMessage).toBe(error.message);
+  expect(payload.errorStack).toBe(error.stack);
+});
+
+test('trackError lets caller-supplied error strings win', async () => {
+  const logger = createDevLogger('t', false);
+  logger.trackError('boom', {
+    errorMessage: 'hand-rolled message',
+    errorStack: 'hand-rolled stack',
+  });
+  await vi.waitFor(() => expect(capture).toHaveBeenCalled());
+  const payload = capture.mock.calls[0][1];
+  expect(payload.errorMessage).toBe('hand-rolled message');
+  expect(payload.errorStack).toBe('hand-rolled stack');
+});
+
+test('trackError reports a non-Error `error` without message or stack', async () => {
+  const logger = createDevLogger('t', false);
+  logger.trackError('boom', { error: 'just a string' });
+  await vi.waitFor(() => expect(capture).toHaveBeenCalled());
+  const payload = capture.mock.calls[0][1];
+  expect(payload.error).toBe('just a string');
+  expect(payload.errorMessage).toBeUndefined();
+  expect(payload.errorStack).toBeUndefined();
+});

@@ -1,12 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  HostingError,
   completeTlawnLLMAuth,
   configureHostingSessionStore,
   deleteTlawnProviderKey,
   disconnectTlawnLLMAuth,
+  getTlawnBotInfo,
   getTlawnLLMAuthFlow,
   getTlawnLLMAuthStatus,
+  getTlawnNickname,
   getTlawnOpenRouterRecommendedModels,
   getTlawnOpenRouterZdrEndpoints,
   startTlawnLLMAuth,
@@ -229,5 +232,91 @@ describe('Tlawn provider auth', () => {
       'https://hosting.test/v1/tlawn/users/user-1/openrouter/recommended-models',
       'https://hosting.test/v1/tlawn/users/user-1/openrouter/zdr-endpoints',
     ]);
+  });
+});
+
+describe('hosting error reporting', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.stubGlobal('window', undefined);
+    vi.stubGlobal('tlonEnv', {
+      API_URL: 'https://hosting.test',
+      API_AUTH_USERNAME: undefined,
+      API_AUTH_PASSWORD: undefined,
+    });
+    configureHostingSessionStore({
+      authToken: {
+        getValue: async () => 'session=abc; HttpOnly;',
+        setValue: async () => undefined,
+      },
+    });
+  });
+
+  it('reports a rejected request by its status, not as a parse failure', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response('', { status: 401, statusText: 'Unauthorized' })
+        )
+    );
+
+    const rejection = await getTlawnBotInfo('~zod').catch((e) => e);
+
+    expect(rejection).toBeInstanceOf(HostingError);
+    expect(rejection.message).toBe('Hosting request failed (401 Unauthorized)');
+    expect(rejection.details).toMatchObject({ status: 401 });
+  });
+
+  it("keeps hosting's own error message when the body carries one", async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ message: 'node is booting' }), {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+    );
+
+    const rejection = await getTlawnBotInfo('~zod').catch((e) => e);
+
+    expect(rejection.message).toBe('node is booting');
+    expect(rejection.details).toMatchObject({ status: 409 });
+  });
+
+  it('still reports an unparseable success body as a parse failure', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response('<html>', { status: 200 }))
+    );
+
+    const rejection = await getTlawnBotInfo('~zod').catch((e) => e);
+
+    expect(rejection.message).toBe('Failed to parse response');
+    expect(rejection.details).toMatchObject({
+      status: 200,
+      responseText: '<html>',
+    });
+  });
+
+  it('carries the status in the nullable-string fallback message', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response('', { status: 404, statusText: 'Not Found' })
+        )
+    );
+
+    const rejection = await getTlawnNickname('~zod').catch((e) => e);
+
+    expect(rejection).toBeInstanceOf(HostingError);
+    expect(rejection.message).toBe(
+      'An unknown error has occurred. (404 Not Found)'
+    );
+    expect(rejection.details).toMatchObject({ status: 404 });
   });
 });
