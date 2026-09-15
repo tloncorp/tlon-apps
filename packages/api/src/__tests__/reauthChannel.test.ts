@@ -399,6 +399,50 @@ describe('reauth', () => {
     expect(nextClient.seamlessReset).not.toHaveBeenCalled();
   });
 
+  test('a client swapped in while the code request fails is left alone', async () => {
+    // a getCode failure normally hands off to the app's failure handler, which
+    // by now belongs to the account that arrived mid-request
+    const handleAuthFailure = vi.fn();
+    const nextHandleAuthFailure = vi.fn();
+    const client = fakeClient({
+      poke: vi.fn().mockRejectedValue(new AuthError('invalid session')),
+    });
+    const nextClient = fakeClient({ cookie: 'urbauth=other-account' });
+    const loginFetch = vi.fn();
+    vi.stubGlobal('fetch', loginFetch);
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(
+        () =>
+          new Promise<string>((_resolve, reject) =>
+            setTimeout(() => {
+              internalRemoveClient();
+              internalConfigureClient({
+                shipName: '~bus',
+                shipUrl: 'http://other.test',
+                getCode: vi.fn(async () => 'other-code'),
+                handleAuthFailure: nextHandleAuthFailure,
+                client: nextClient as any,
+              });
+              reject(new Error('no code available'));
+            })
+          )
+      ),
+      handleAuthFailure,
+      client: client as any,
+    });
+
+    await expect(
+      poke({ app: 'a', mark: 'm', json: {} }).catch((e) => e)
+    ).resolves.toMatchObject({
+      message: 'Error during reauth: client changed',
+    });
+    expect(handleAuthFailure).not.toHaveBeenCalled();
+    expect(nextHandleAuthFailure).not.toHaveBeenCalled();
+    expect(loginFetch).not.toHaveBeenCalled();
+  });
+
   test('a client swapped in during the login request is left alone', async () => {
     // a 400 normally means the code was rejected: log out and tell the app.
     // Neither belongs to the account that arrived while the request was in

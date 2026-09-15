@@ -1366,6 +1366,7 @@ async function performReauth(): Promise<string | void> {
     logger.log('getting urbit code');
     code = await config.getCode!();
   } catch (e) {
+    abandonIfSwapped();
     logger.error('error getting urbit code', e);
     if (config.handleAuthFailure) {
       return config.handleAuthFailure({ mustLogout: false });
