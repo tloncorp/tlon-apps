@@ -318,7 +318,10 @@ async function finishAgentGroupFurnishingOnce({
       })
     : initialGroup;
 
-  await ensureIntroRequest(group.id, chatChannel.id, isFirstGroup);
+  // Onboarding runs in the bot DM, so the intro request goes there rather than
+  // into the workspace chat. It is also how the bot learns which group this is:
+  // a DM's nest names no group, so this request is its only authoritative source.
+  await ensureIntroRequest(group.id, agentShipId, isFirstGroup);
   await db.pendingAgentGroupCreation.setValue((current) =>
     (typeof current === 'string' ? current : current?.groupId) === group.id
       ? null
@@ -645,6 +648,7 @@ async function reconcileCreatedOnboardingNotebook(
 
 async function ensureIntroRequest(
   groupId: string,
+  /** The bot's DM: a DM channel is addressed by the other party's id. */
   channelId: string,
   isFirstGroup: boolean
 ) {
@@ -671,7 +675,7 @@ async function ensureIntroRequest(
   await finalizeAndSendPost(
     {
       channelId,
-      channelType: 'chat',
+      channelType: 'dm',
       content: ["Let's get set up."],
       attachments: [],
       blob,

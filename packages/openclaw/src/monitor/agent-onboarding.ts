@@ -489,6 +489,46 @@ export async function agentOnboardingCronChannelNest(
   return channelNest;
 }
 
+/** A DM's nest is the other party's ship, with no group path. */
+export function isDmNest(nest: string): boolean {
+  return nest.startsWith('~') && !nest.includes('/');
+}
+
+/**
+ * The group a DM's onboarding belongs to.
+ *
+ * A group channel's nest names its group; a DM's does not. The app posts its
+ * intro request — which names the workspace it just furnished — into the bot
+ * DM, so the newest one the owner authored is the authoritative answer. Absent
+ * until furnishing finishes, so callers retry rather than treating it as final.
+ */
+export async function findOnboardingGroupIdInChannel(
+  context: Pick<
+    AgentOnboardingScanContext,
+    'api' | 'abortSignal' | 'channelNest' | 'ownerShip'
+  >,
+  deps: Pick<AgentOnboardingDeps, 'fetchHistory'> = {}
+): Promise<string | undefined> {
+  if (!context.ownerShip) return undefined;
+  const history = await fetchOnboardingHistory(context, deps);
+
+  return history
+    .filter((entry) => entry.author === context.ownerShip && entry.blob)
+    .map((entry) => ({
+      timestamp: entry.timestamp,
+      request: parseAgentOnboardingRequest(entry.blob),
+    }))
+    .filter(
+      (
+        candidate
+      ): candidate is {
+        timestamp: number;
+        request: Extract<AgentRequest, { type: 'tlon-agent-intro-request' }>;
+      } => candidate.request?.type === 'tlon-agent-intro-request'
+    )
+    .sort((a, b) => b.timestamp - a.timestamp)[0]?.request.groupId;
+}
+
 export function parseAgentOnboardingRequest(
   blob: string | null | undefined
 ): AgentRequest | null {

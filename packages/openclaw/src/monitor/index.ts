@@ -128,7 +128,9 @@ import {
   createAgentOnboardingCatchUpScheduler,
   createAgentOnboardingReconciliationPresence,
   drainAgentOnboardingRuntime,
+  findOnboardingGroupIdInChannel,
   handleAgentOnboardingRequest,
+  isDmNest,
   scanAgentOnboardingChannel,
 } from './agent-onboarding.js';
 import {
@@ -3947,9 +3949,29 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       nest: string
     ): Promise<boolean | undefined> => {
       if (opts.abortSignal?.aborted) return;
-      if (!nest.startsWith('chat/')) return;
+      const nestIsDm = isDmNest(nest);
+      if (!nest.startsWith('chat/') && !nestIsDm) return;
       let groupId = channelToGroup.get(nest);
-      if (!groupId) {
+      if (!groupId && nestIsDm) {
+        // A DM names no group. The app's intro request, posted into this DM,
+        // names the workspace it furnished; until it lands there is nothing to
+        // reconcile, so fall through to the retry below.
+        try {
+          groupId = await findOnboardingGroupIdInChannel({
+            api,
+            abortSignal: opts.abortSignal,
+            channelNest: nest,
+            ownerShip: effectiveOwnerShip,
+          });
+        } catch (error) {
+          runtime.error?.(
+            `[tlon] Failed to resolve onboarding group from ${nest}: ${error instanceof Error ? error.message : String(error)}`
+          );
+          scheduleAgentOnboardingRetry(nest);
+          return;
+        }
+      }
+      if (!groupId && !nestIsDm) {
         try {
           await mergeDiscoveredChannels();
           if (opts.abortSignal?.aborted) return;
@@ -4218,6 +4240,23 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         }
 
         let handledOnboardingRequest = false;
+        // Same gap as the reconciliation scan: a DM nest names no group, so
+        // read the workspace out of the app's intro request in this DM.
+        let onboardingGroupId = channelToGroup.get(nest);
+        if (!onboardingGroupId && isDmNest(nest)) {
+          try {
+            onboardingGroupId = await findOnboardingGroupIdInChannel({
+              api,
+              abortSignal: opts.abortSignal,
+              channelNest: nest,
+              ownerShip: effectiveOwnerShip,
+            });
+          } catch (error) {
+            runtime.error?.(
+              `[tlon] Failed to resolve onboarding group from ${nest}: ${error instanceof Error ? error.message : String(error)}`
+            );
+          }
+        }
         try {
           handledOnboardingRequest = await handleAgentOnboardingRequest({
             accountId: account.accountId,
@@ -4226,13 +4265,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             botShip: botShipName,
             botProfile: getBotProfile(),
             channelNest: nest,
-            groupId: channelToGroup.get(nest),
+            groupId: onboardingGroupId,
             ownerShip: effectiveOwnerShip,
             senderShip,
             rawText,
             blob: content.blob,
             log: (message) => runtime.log?.(message),
-            trackStep: trackOnboardingStep(nest, channelToGroup.get(nest)),
+            trackStep: trackOnboardingStep(nest, onboardingGroupId),
             presentation: {
               startThinking: () => {
                 computingPresence.refreshRun({
