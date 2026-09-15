@@ -1,9 +1,7 @@
-import { isTrustedBrowserViewerHost } from '@tloncorp/api/client/browserSession';
-
+import { validateBrowserViewerUrl } from '../browser-viewer';
 import { markdownToStory } from '../markdown';
 import type { PostsDeps } from './posts';
 import {
-  commandError,
   handleExpectedCommandError,
   isHelpArg,
   usageError,
@@ -30,30 +28,6 @@ export interface BrowserDeps extends Pick<
   'stdout' | 'stderr' | 'authenticate' | 'getCurrentUserId' | 'now' | 'postsApi'
 > {
   getOwnerShip: () => string;
-}
-
-function validateViewerUrl(raw: string): string {
-  let url: URL;
-  try {
-    url = new URL(raw);
-  } catch {
-    throw commandError('viewer URL is invalid');
-  }
-
-  if (
-    url.protocol !== 'https:' ||
-    url.username ||
-    url.password ||
-    url.hash ||
-    !isTrustedBrowserViewerHost(url.hostname) ||
-    !/^\/s\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(url.pathname)
-  ) {
-    throw commandError(
-      'viewer URL must be a signed URL on a trusted Tlon browser viewer host'
-    );
-  }
-
-  return url.toString();
 }
 
 function browserCredentialHandoffBlob(
@@ -190,7 +164,7 @@ export async function run(args: string[], deps: BrowserDeps): Promise<number> {
       throw usageError(BROWSER_HANDOFF_HELP);
     }
 
-    const viewerUrl = validateViewerUrl(args[1]);
+    const viewerUrl = validateBrowserViewerUrl(args[1]);
     const target = deps.getOwnerShip();
 
     await deps.authenticate(['chat']);
