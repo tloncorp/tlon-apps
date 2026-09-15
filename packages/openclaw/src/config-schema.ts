@@ -166,6 +166,9 @@ export const TlonConfigSchema = z.object({
   // Opt-in hosted-only re-engagement nudges; absent/false keeps the
   // scheduler off even when ownerShip is configured.
   reengagement: TlonReengagementSchema.optional(),
+  // Hosted BOOT.md catch-up, gated on authenticated connection readiness.
+  // The generic boot-md hook must be disabled when this is enabled.
+  restartCatchup: z.object({ enabled: z.boolean().optional() }).optional(),
   // Optional static file-config override for the plugin scheduler's
   // active hours. See TlonNudgeActiveHoursSchema for precedence.
   nudgeActiveHours: TlonNudgeActiveHoursSchema.optional(),

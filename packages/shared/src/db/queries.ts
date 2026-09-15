@@ -4090,6 +4090,7 @@ export const getSequencedChannelPosts = createReadQuery(
         where: and(
           eq($posts.channelId, options.channelId),
           not(eq($posts.type, 'reply')),
+          gt($posts.sequenceNum, 0),
           isNull($posts.deliveryStatus)
         ),
         with: {
@@ -4134,6 +4135,7 @@ export const getSequencedChannelPosts = createReadQuery(
         where: and(
           eq($posts.channelId, options.channelId),
           not(eq($posts.type, 'reply')),
+          gt($posts.sequenceNum, 0),
           lt($posts.sequenceNum, options.cursorSequenceNum),
           isNull($posts.deliveryStatus)
         ),
@@ -4252,6 +4254,7 @@ export const getSequencedChannelPosts = createReadQuery(
         where: and(
           eq($posts.channelId, options.channelId),
           not(eq($posts.type, 'reply')),
+          gt($posts.sequenceNum, 0),
           gte($posts.sequenceNum, lowerBound),
           lte($posts.sequenceNum, upperBound),
           isNull($posts.deliveryStatus)
