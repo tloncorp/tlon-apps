@@ -63,6 +63,30 @@ it('reports a request the branch drops', () => {
   expect(result.changed).toEqual([]);
 });
 
+describe("an added request's call sites", () => {
+  it('name the guard that reaches them, when there is one', () => {
+    const result = diff(UNBRANCHED, BRANCHED);
+    expect(result.added.map((r) => r.key)).toEqual([
+      'poke chat chat-club-action-2',
+    ]);
+    expect(renderText(result, refs)).toContain(
+      `${POKE_SITE} (guard: ! (flag))`
+    );
+    // The guard is its own span, so it is never swallowed into the site's.
+    expect(renderMarkdown(result, refs)).toContain(
+      `\`${POKE_SITE}\` (guard: \`! (flag)\`)`
+    );
+  });
+
+  it('say nothing about a guard when the call is unconditional', () => {
+    const result = diff(SCRY_V2, `${SCRY_V2}\n${SUBSCRIBE_UNREADS}`);
+    expect(renderText(result, refs)).toContain(`      ${FILE}:3`);
+    expect(renderText(result, refs)).not.toContain('guard');
+    expect(renderMarkdown(result, refs)).toContain(`— \`${FILE}:3\``);
+    expect(renderMarkdown(result, refs)).not.toContain('(guard:');
+  });
+});
+
 describe('a call site that survives a change to what it asks for', () => {
   it('is one change, not an unrelated add beside an unrelated remove', () => {
     const result = diff(SCRY_V2, SCRY_V3);
@@ -99,6 +123,32 @@ describe('a call site that survives a change to what it asks for', () => {
     ]);
   });
 
+  it('names both agents when the request changed agent', () => {
+    const result = diff(
+      SCRY_V3,
+      "export const f = () => scry({ app: 'groups-ui', path: '/v3/groups' });"
+    );
+    expect(result.changed).toHaveLength(1);
+    // Entries are grouped by the agent the request ends up at, so the one it
+    // came from has to be in the label or the move is invisible.
+    expect(renderText(result, refs)).toContain('  scry %groups-ui');
+    expect(renderText(result, refs)).toContain(
+      '    %groups -> %groups-ui  /v3/groups'
+    );
+    expect(renderMarkdown(result, refs)).toContain(
+      '- `%groups -> %groups-ui  /v3/groups` —'
+    );
+  });
+
+  it('names the path alone when the agent did not change', () => {
+    const result = diff(SCRY_V2, SCRY_V3);
+    expect(renderText(result, refs)).toContain('    /v2/groups -> /v3/groups');
+    expect(renderText(result, refs)).not.toContain('%groups ->');
+    expect(renderMarkdown(result, refs)).toContain(
+      '- `/v2/groups -> /v3/groups` —'
+    );
+  });
+
   it('falls back to an add and a remove when the call site also moved', () => {
     const result = diff(SCRY_V2, `const unrelated = 1;\n${SCRY_V3}`);
     expect(result.changed).toEqual([]);
@@ -109,24 +159,24 @@ describe('a call site that survives a change to what it asks for', () => {
   });
 });
 
-describe('a request whose key is unchanged', () => {
-  // A guard is recorded when a whitelisted poke-params helper branches. Both
-  // helper bodies are two lines, so the `poke` call stays on the same line and
-  // only the guard differs between the two fixtures.
-  const DM = "return { app: 'chat', mark: 'chat-dm-action-2', json: {} };";
-  const CLUB = "return { app: 'chat', mark: 'chat-club-action-2', json: {} };";
-  const helper = (first: string, second: string) =>
-    [
-      'function chatAction(flag: boolean) {',
-      `  ${first}`,
-      `  ${second}`,
-      '}',
-      'export const f = (flag: boolean) => poke(chatAction(flag));',
-    ].join('\n');
-  const POKE_SITE = `${FILE}:6`;
-  const BRANCHED = helper(`if (flag) ${DM}`, CLUB);
-  const UNBRANCHED = helper('// the club branch is gone', DM);
+// A guard is recorded when a whitelisted poke-params helper branches. Both
+// helper bodies are two lines, so the `poke` call stays on the same line and
+// only the guard differs between the two fixtures.
+const DM = "return { app: 'chat', mark: 'chat-dm-action-2', json: {} };";
+const CLUB = "return { app: 'chat', mark: 'chat-club-action-2', json: {} };";
+const helper = (first: string, second: string) =>
+  [
+    'function chatAction(flag: boolean) {',
+    `  ${first}`,
+    `  ${second}`,
+    '}',
+    'export const f = (flag: boolean) => poke(chatAction(flag));',
+  ].join('\n');
+const POKE_SITE = `${FILE}:6`;
+const BRANCHED = helper(`if (flag) ${DM}`, CLUB);
+const UNBRANCHED = helper('// the club branch is gone', DM);
 
+describe('a request whose key is unchanged', () => {
   it('is changed when it gains a call site', () => {
     const result = diff(
       SCRY_V2,

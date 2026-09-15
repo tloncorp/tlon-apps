@@ -309,18 +309,43 @@ const notesFor = (m: SiteMove, code: Code) =>
     ...m.removed.map((s) => `call site removed: ${code(s)}`),
   ]);
 
+/**
+ * A call site, with the guard that has to hold to reach it. A request made only
+ * from behind a guard is a different proposition against N-1 from one made
+ * unconditionally, so the site never appears without it.
+ */
+const siteLine = (s: SiteRecord, code: Code) =>
+  `${code(at(s))}${s.guard ? ` (guard: ${code(s.guard)})` : ''}`;
+
 const entryOf = (
   label: string,
   dep: Dependency,
-  sites: string[],
+  records: SiteRecord[],
+  code: Code,
   notes: string[] = []
-): Entry => ({
-  label,
-  unresolved: dep.unresolved,
-  sites: sites.slice(0, MAX_SITES),
-  more: Math.max(sites.length - MAX_SITES, 0),
-  notes,
-});
+): Entry => {
+  const sites = [...new Set(records.map((s) => siteLine(s, code)))];
+  return {
+    label,
+    unresolved: dep.unresolved,
+    sites: sites.slice(0, MAX_SITES),
+    more: Math.max(sites.length - MAX_SITES, 0),
+    notes,
+  };
+};
+
+/**
+ * The label carries whatever moved. Entries are grouped by the agent they end
+ * up addressed to, so a request that changed agents has to name the one it came
+ * from too, or the move is invisible.
+ */
+const changeLabel = (before: Dependency, after: Dependency) => {
+  if (agentOf(before) === agentOf(after))
+    return `${target(before)} -> ${target(after)}`;
+  if (target(before) === target(after))
+    return `${agentOf(before)} -> ${agentOf(after)}  ${target(after)}`;
+  return `${agentOf(before)} ${target(before)} -> ${agentOf(after)} ${target(after)}`;
+};
 
 /**
  * A same-key change lists what moved rather than every site it is made from:
@@ -328,11 +353,18 @@ const entryOf = (
  */
 const changedEntry = (c: ChangedRequest, code: Code): Entry =>
   c.moved
-    ? entryOf(target(c.after.dep), c.after.dep, [], notesFor(c.moved, code))
-    : entryOf(
-        `${target(c.before.dep)} -> ${target(c.after.dep)}`,
+    ? entryOf(
+        target(c.after.dep),
         c.after.dep,
-        sitesOf(c.after)
+        [],
+        code,
+        notesFor(c.moved, code)
+      )
+    : entryOf(
+        changeLabel(c.before.dep, c.after.dep),
+        c.after.dep,
+        c.after.records,
+        code
       );
 
 function entries(
@@ -348,7 +380,7 @@ function entries(
   }
   return grouped(diff[section], (r) => r.dep).map((g) => ({
     heading: g.heading,
-    items: g.items.map((r) => entryOf(target(r.dep), r.dep, sitesOf(r))),
+    items: g.items.map((r) => entryOf(target(r.dep), r.dep, r.records, code)),
   }));
 }
 
@@ -424,7 +456,9 @@ export function renderMarkdown(diff: InventoryDiff, refs: Refs): string {
     for (const group of groups) {
       out.push(`**${group.heading}**`, '');
       for (const e of group.items) {
-        const where = e.sites.map((s) => `\`${s}\``).join(', ');
+        // Already set off as code by `entryOf`: a site can carry a guard, and
+        // that has to be its own span rather than swallowed into the site's.
+        const where = e.sites.join(', ');
         out.push(
           `- \`${e.label}\`${where && ` — ${where}`}` +
             `${e.more ? ` _+${e.more} more_` : ''}` +
