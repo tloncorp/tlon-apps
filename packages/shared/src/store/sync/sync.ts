@@ -2593,7 +2593,8 @@ export const syncStart = async (
   try {
     let didLoadCachedContacts = false;
     // Only meaningful on the subscribing path: the marker below needs to know
-    // that this set went up, and its failure is caught out of reach of it.
+    // that this set went up, and both its failure and the writers' are caught
+    // out of reach of it.
     let didSubscribeHighPriority = false;
 
     // if running while already subscribed, execute the sync with lower priority. It's
@@ -2658,6 +2659,17 @@ export const syncStart = async (
           : setupHighPrioritySubscriptions({
               priority: syncStartPriority.high - 1,
             }).then(() => logger.crumb('subscribed high priority'));
+        // Recorded from this promise's own fulfillment, not after the `await`
+        // below: the writers in between can throw into the batch's catch, and
+        // this set is already live by then. The empty rejection handler is only
+        // here so this derived promise doesn't go unhandled — the `await` is
+        // still what surfaces a failed subscribe into the catch.
+        subsPromise.then(
+          () => {
+            didSubscribeHighPriority = true;
+          },
+          () => {}
+        );
 
         didLoadCachedContacts = await LocalCache.loadCachedContacts();
         // if we don't have cached contacts, we need to load them with high priority
@@ -2707,7 +2719,6 @@ export const syncStart = async (
         await contactsWriter();
 
         await subsPromise;
-        didSubscribeHighPriority = true;
         trackStep(AnalyticsEvent.SubscriptionsEstablished);
         logger.crumb('finished initializing high priority subs');
 

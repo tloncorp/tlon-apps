@@ -1265,6 +1265,30 @@ describe('desk compatibility gate', () => {
   );
 
   test(
+    'a failed write does not cost the next start its live subscriptions',
+    async () => {
+      // The high-priority subscriptions go up early in the batch, but the
+      // writers that follow can throw into the batch's catch long afterwards.
+      // What matters is whether the set is live, not whether everything else in
+      // the batch finished — otherwise a remount in the same login registers a
+      // second set on top of the one still running and doubles every event.
+      const insertGroups = vi
+        .spyOn(db, 'insertGroups')
+        .mockRejectedValueOnce(new Error('db gone'));
+
+      await syncStart();
+      expect(insertGroups).toHaveBeenCalled();
+      const afterFirst = vi.mocked(subscribe).mock.calls.length;
+      expect(afterFirst).toBeGreaterThan(0);
+
+      await syncStart();
+
+      expect(vi.mocked(subscribe).mock.calls.length).toBe(afterFirst);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
     'a failed low-priority subscribe leaves the next start to retry',
     async () => {
       vi.mocked(subscribe).mockImplementation((async (endpoint: {
