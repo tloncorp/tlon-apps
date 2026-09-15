@@ -33,6 +33,7 @@ import {
 } from 'tamagui';
 
 import { useIsUserActive } from '../../../hooks/useUserActivity';
+import { useTopLevelTabBarContentInset } from '../../../navigation/useTopLevelTabBarContentInset';
 import type { ChannelShareIntent } from '../../../types/shareIntent';
 import { normalizeUploadIntent } from '../../../utils/filepicker';
 import { useCurrentUserId } from '../../contexts/appDataContext';
@@ -275,8 +276,11 @@ interface ChannelProps {
   group: db.Group | null;
   groupIsLoading?: boolean;
   goBack: () => void;
-  /** Hide the header's back control without disabling in-channel navigation. */
-  hideBackButton?: boolean;
+  /**
+   * The channel is a top-level tab's own screen: it has nothing to go back to,
+   * and the floating tab bar would otherwise cover its message input.
+   */
+  isTopLevelTab?: boolean;
   disableBackButton?: boolean;
   onPressLogout?: () => void;
   suppressEmptyState?: boolean;
@@ -324,7 +328,7 @@ export function Channel({
   group,
   groupIsLoading,
   goBack,
-  hideBackButton,
+  isTopLevelTab,
   disableBackButton,
   onPressLogout,
   suppressEmptyState,
@@ -379,6 +383,7 @@ export function Channel({
   const canWrite = utils.useCanWrite(channel, currentUserId);
   const canRead = utils.useCanRead(channel, currentUserId);
   const isNarrow = useIsWindowNarrow();
+  const tabBarContentInset = useTopLevelTabBarContentInset();
   const inView = useIsFocused();
   const collectionRef = useRef<PostCollectionHandle>(null);
   const orientationCompletePostId = useMemo(
@@ -925,7 +930,11 @@ export function Channel({
                   disableBackButton ? undefined : goToGroupSettings
                 }
               >
-                <View backgroundColor={backgroundColor} flex={1}>
+                <View
+                  backgroundColor={backgroundColor}
+                  flex={1}
+                  paddingBottom={isTopLevelTab ? tabBarContentInset : undefined}
+                >
                   <FileDrop
                     flexDirection="column"
                     justifyContent="space-between"
@@ -942,7 +951,7 @@ export function Channel({
                           description={''}
                           backDisabled={disableBackButton}
                           goBack={
-                            (isNarrow && !hideBackButton) ||
+                            (isNarrow && !isTopLevelTab) ||
                             draftInputPresentationMode === 'fullscreen'
                               ? handleGoBack
                               : undefined
