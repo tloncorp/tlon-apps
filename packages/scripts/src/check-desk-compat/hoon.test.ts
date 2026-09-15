@@ -259,15 +259,36 @@ describe('dispatcher discovery', () => {
   });
 
   it('tells a default that answers nothing from one that may serve', () => {
-    // Only `[~ ~]`, `~`, `!!` and `:def` answer nothing. Anything else may
-    // take the pole no arm does, so an absence cannot be claimed from the
-    // arms alone.
+    // Only `[~ ~]`, `~`, `!!` and `:def` answer nothing — as the *whole*
+    // expression, or under a trace rune that only decorates the stack.
+    // Anything else may take the pole no arm does, so an absence cannot be
+    // claimed from the arms alone.
     expect(classifyDefault('[~ ~]')).toBe('empty');
     expect(classifyDefault('~')).toBe('empty');
+    expect(classifyDefault('!!')).toBe('crash');
     expect(classifyDefault('~|(bad-watch-path+pole !!)')).toBe('crash');
     expect(classifyDefault('on-peek:def')).toBe('default-agent');
+    expect(classifyDefault('  :def  ')).toBe('default-agent');
+    expect(classifyDefault('(on-watch:def path)')).toBe('default-agent');
+    expect(
+      classifyDefault('~|("bad pole: {<pole>}" (on-watch:def pole))')
+    ).toBe('default-agent');
     expect(classifyDefault('(serve-legacy pole)')).toBe('serves');
     expect(classifyDefault('(peek:old pole)')).toBe('serves');
+  });
+
+  it('reads a mixed default as undecidable, not as the failure inside it', () => {
+    // A `!!` or a `:def` reached down one branch says nothing about the other,
+    // which may serve the pole. Deciding on the substring made every such
+    // default a nack, and so made a pole that falls through to it a blocking
+    // MISSING the agent may not have.
+    expect(classifyDefault('?.  flag  (serve pole)  !!')).toBe('serves');
+    expect(classifyDefault('?:(flag !! (serve pole))')).toBe('serves');
+    expect(classifyDefault('?.  flag  (serve pole)  on-watch:def')).toBe(
+      'serves'
+    );
+    // And a trace rune around a served expression is still served.
+    expect(classifyDefault('~|(%slow (serve-legacy pole))')).toBe('serves');
   });
 
   it('reads the default whether it sits on the header line or under it', () => {

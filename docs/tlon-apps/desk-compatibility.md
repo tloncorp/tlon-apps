@@ -195,9 +195,8 @@ could not take: pass `--base-ref`, and an entry that does not clear that bar
 leaves its request `MISSING`, with the reason on the entry.
 
 `ci.yml` passes the PR's base commit; the staging workflow passes
-`origin/master` on run 1. Runs 2 and 3 pass none, and neither needs one: run 2
-checks the candidate against its own desk, where a request the desk cannot take
-is the candidate's problem whether or not it is new, and run 3 already has
+`origin/master` on runs 1 and 2, and the release checklist says to pass it by
+hand the same way. Run 3 passes none and does not need one: it already has
 `origin/master` as its *client*, so it would be comparing that ref with itself.
 
 A local run without `--base-ref` applies entries as written and says so in a

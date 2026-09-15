@@ -37,9 +37,17 @@ receive updates, and post against desk release N-1.
 - [ ] `pnpm check:desk-compat` exits 0 for all three ref pairs — rule (b), then
       self-consistency, then rule (c):
 
-      pnpm check:desk-compat --client-ref <candidate> --desk-ref v<N-1>
-      pnpm check:desk-compat --client-ref <candidate> --desk-ref <candidate>
+      pnpm check:desk-compat --client-ref <candidate> --desk-ref v<N-1> \
+        --base-ref origin/master
+      pnpm check:desk-compat --client-ref <candidate> --desk-ref <candidate> \
+        --base-ref origin/master
       pnpm check:desk-compat --client-ref origin/master --desk-ref <candidate>
+
+      `--base-ref` is not optional here: without it every `known-gaps.json`
+      entry is applied unread, so a candidate carrying both a new unsupported
+      request and the entry excusing it exits 0. Runs 1 and 2 pass it exactly
+      as `desk-compat.yml` does; run 3 has `origin/master` as its *client*, so
+      it would be comparing that ref with itself.
 
 - [ ] Run 1 reports **no** negotiation-protocol difference. A bump blocks the
       pair outright, whatever the paths say, so it must ship a release ahead of

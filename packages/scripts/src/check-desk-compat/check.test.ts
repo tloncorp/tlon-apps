@@ -354,6 +354,7 @@ describe('the reports', () => {
           key: 'scry activity /v6/volume-settings',
           guard: 'getActivitySupportsNotes() ? …',
         },
+        sites: [{ ...SITE, guard: 'getActivitySupportsNotes() ? …' }],
         excerpt: ['  ?+  path  [~ ~]'],
         source: { file: 'desk/app/activity.hoon', line: 425 },
       }),
@@ -382,6 +383,56 @@ describe('the reports', () => {
     // The arm or dispatcher the verdict turned on, quoted.
     expect(md).toContain('`desk/app/activity.hoon:425`');
     expect(md).toContain('```hoon');
+  });
+
+  it('keeps a guarded site next to its own guard, in both formats', () => {
+    // The same request behind a different guard at each site. Printing the
+    // first site's guard above a list of all of them leaves a reviewer
+    // checking one polarity and taking it for the rest — and polarity is the
+    // whole of what a GUARDED entry asks a human to read.
+    const split = report({
+      findings: [
+        finding({
+          verdict: 'GUARDED',
+          // The grouping keeps the first occurrence as the dependency, so a
+          // report rendering `dependency.guard` shows this one over both.
+          dependency: {
+            ...finding().dependency,
+            guard: 'getActivitySupportsNotes()',
+          },
+          sites: [
+            { ...SITE, guard: 'getActivitySupportsNotes()' },
+            {
+              file: 'packages/api/src/client/notesApi.ts',
+              line: 61,
+              guard: '!activityVersionSupportsNotes',
+            },
+          ],
+        }),
+      ],
+      counts: { ...report().counts, guarded: 1 },
+    });
+    // Still reported, still not blocking.
+    expect(exitCodeFor(split)).toBe(0);
+
+    const text = formatReport(split);
+    expect(text).toContain(
+      `${SITE.file}:28 (guard: getActivitySupportsNotes())`
+    );
+    expect(text).toContain(
+      'notesApi.ts:61 (guard: !activityVersionSupportsNotes)'
+    );
+    // And no single guard line standing in for both.
+    expect(text).not.toMatch(/^ +guard: /m);
+
+    const md = markdownReport(split);
+    expect(md).toContain(
+      `\`${SITE.file}:28\` (guard: \`getActivitySupportsNotes()\`)`
+    );
+    expect(md).toContain(
+      '`packages/api/src/client/notesApi.ts:61` (guard: `!activityVersionSupportsNotes`)'
+    );
+    expect(md).not.toContain('- guard:');
   });
 
   it('warns about an entry that excused nothing, in both formats', () => {

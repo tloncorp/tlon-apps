@@ -61,12 +61,73 @@ export interface Dispatcher {
   unparsedArms: number;
 }
 
+/** `[~ ~]`, whatever the spacing inside it. */
+const EMPTY_CELL = /^\[\s*~\s+~\s*\]$/;
+
+/** The pinned default-agent, as a wing: `on-peek:def`, or bare `:def`. */
+const DEFAULT_AGENT_WING = /^[\w.+-]*:def$/;
+
+/**
+ * `~|(trace expr)` and `~_(trace expr)`, which only decorate the stack: what
+ * happens to the pole is `expr`, and `~|(bad-watch-path+pole !!)` is how every
+ * on-watch in this desk spells its nack.
+ */
+const TRACE_WRAPPER = /^~[|_]\(([\s\S]*)\)$/;
+
+/** Whether every bracket and paren outside a cord or tape closes. */
+function balanced(text: string): boolean {
+  let depth = 0;
+  for (const c of blankQuoted(text)) {
+    if (c === '(' || c === '[') depth++;
+    else if (c === ')' || c === ']') depth--;
+    if (depth < 0) return false;
+  }
+  return depth === 0;
+}
+
+/** The trailing top-level expression of `text` — the one whose value it is. */
+function lastExpression(text: string): string {
+  const trimmed = text.trim();
+  const code = blankQuoted(trimmed);
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < code.length; i++) {
+    const c = code[i];
+    if (c === '(' || c === '[') depth++;
+    else if (c === ')' || c === ']') depth--;
+    else if (depth === 0 && /\s/.test(c)) start = i + 1;
+  }
+  return trimmed.slice(start);
+}
+
+/** The head of a call — `(on-watch:def path)` is `on-watch:def` — or the whole. */
+function headOf(text: string): string {
+  if (!text.startsWith('(') || !text.endsWith(')') || !balanced(text))
+    return text;
+  return splitTokens(text.slice(1, -1))[0] ?? '';
+}
+
+/**
+ * What a `?+` does with a pole no arm takes, read off the **whole** default
+ * expression.
+ *
+ * An earlier version asked whether `!!` or `:def` occurred anywhere in the
+ * text, which reads a mixed default — `?.  flag  (serve pole)  !!` — as a flat
+ * crash, and so turns a pole the served branch may well take into a blocking
+ * `MISSING`. A failure has to *be* the expression: the three nacks below, and
+ * the trace runes that wrap one, and nothing else. Anything this reader has no
+ * rule for may serve the request, so it claims no absence from the arms alone.
+ */
 export function classifyDefault(text: string): DefaultKind {
+  const t = text.trim();
+  if (t === '~' || EMPTY_CELL.test(t)) return 'empty';
+  if (t === '!!') return 'crash';
+  const wrapped = TRACE_WRAPPER.exec(t);
+  if (wrapped && balanced(wrapped[1]))
+    return classifyDefault(lastExpression(wrapped[1]));
   // The pinned default-agent crashes on an unsupported peek or watch rather
   // than returning [~ ~], so `:def` is a nack, not a silent empty.
-  if (/:def\b/.test(text)) return 'default-agent';
-  if (text.includes('!!')) return 'crash';
-  if (/^(\[\s*~\s+~\s*\]|~)$/.test(text.trim())) return 'empty';
+  if (DEFAULT_AGENT_WING.test(headOf(t))) return 'default-agent';
   return 'serves';
 }
 

@@ -156,6 +156,39 @@ describe('a match the arms do not decide outright', () => {
     expect(verdictOf(scry(['v9', 'gone']))).toBe('MISSING');
   });
 
+  it('reads the whole ?+ default, so a mixed one decides nothing', () => {
+    // `!!` is a *branch* of this default, not the default. The other branch
+    // may well serve the pole no arm takes, and an absence cannot be claimed
+    // from an expression that was only half read.
+    const withDefault = (dflt: string) =>
+      desk({
+        'desk/app/ledger.hoon': `
+|_  =bowl:gall
+++  on-peek
+  |=  =path
+  ?+  path  ${dflt}
+    [%x %v1 %init ~]  ~
+  ==
+--
+`,
+      });
+    const fell = scry(['v9', 'gone']);
+    expect(
+      verdictOf(fell, withDefault('?.  legacy-ok  (serve-legacy path)  !!'))
+    ).toBe('UNVERIFIED');
+    // Every spelling that *is* the whole answer still gives an absence.
+    for (const dflt of [
+      '[~ ~]',
+      '~',
+      '!!',
+      ':def',
+      'on-peek:def',
+      '(on-peek:def path)',
+      '~|(bad-peek-path+path !!)',
+    ])
+      expect(verdictOf(fell, withDefault(dflt))).toBe('MISSING');
+  });
+
   it('is UNVERIFIED when an arm pattern would not parse', () => {
     const odd = desk({
       'desk/app/ledger.hoon': `

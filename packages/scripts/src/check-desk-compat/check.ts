@@ -22,10 +22,20 @@ import {
 } from './match';
 import { ProtocolDifference, compareProtocols } from './negotiate';
 
+/**
+ * One call site, with the guard the request is written behind *there*. The
+ * same request is often made from several sites under different guards, and
+ * checking a guard's polarity against N-1 means reading the guard that sits at
+ * the site — not whichever site the grouping happened to keep.
+ */
+export interface CallSite extends SourceLocation {
+  guard?: string;
+}
+
 export interface Finding extends MatchResult {
   dependency: Dependency;
-  /** Every call site that produces this request. */
-  sites: SourceLocation[];
+  /** Every call site that produces this request, each with its own guard. */
+  sites: CallSite[];
   /**
    * Listed in known-gaps.json: still reported, still MISSING, but does not
    * fail the run. Pre-existing debt only — see that file's header.
@@ -348,7 +358,10 @@ export function runCheck(options: CheckOptions): Report {
       findings.push({
         ...result,
         dependency: group[0],
-        sites: group.map((d) => d.site),
+        sites: group.map((d) => ({
+          ...d.site,
+          ...(d.guard ? { guard: d.guard } : {}),
+        })),
         excerpt: excerpt(deskTree, result),
         ...(result.verdict === 'MISSING'
           ? exemptionFor(
@@ -484,12 +497,30 @@ const fence = (lines: string[]) => {
 };
 
 /**
+ * The distinct guards across a finding's sites. One of them is only worth a
+ * line of its own when it is the only one; where the sites disagree, the guard
+ * belongs beside the site it was written at, since that is the pairing a
+ * reviewer checks against N-1.
+ */
+const guardsOf = (f: Finding): string[] => [
+  ...new Set(
+    f.sites.map((s) => s.guard).filter((g): g is string => g !== undefined)
+  ),
+];
+
+/** One site, carrying its own guard where the finding's sites disagree. */
+const siteWithGuard = (s: CallSite, perSite: boolean, tick: string) =>
+  `${tick}${at(s)}${tick}` +
+  (perSite && s.guard ? ` (guard: ${tick}${s.guard}${tick})` : '');
+
+/**
  * Every site for a verdict a human must act on; a capped list with an explicit
  * remainder for the rest, since `UNVERIFIED` entries run to dozens of sites
  * and a silent `.slice()` reads as if that were all of them.
  */
-function siteList(f: Finding, cap = 8): string {
-  const all = f.sites.map((s) => `\`${at(s)}\``);
+function siteList(f: Finding, cap = 8, tick = '`'): string {
+  const perSite = guardsOf(f).length > 1;
+  const all = f.sites.map((s) => siteWithGuard(s, perSite, tick));
   if (f.verdict === 'MISSING' || f.verdict === 'GUARDED' || all.length <= cap) {
     return all.join(', ');
   }
@@ -600,8 +631,14 @@ export function formatReport(report: Report): string {
       if (f.evidence) line(`    desk:  ${f.evidence}`);
       if (f.failureMode) line(`    fails: ${FAILURE_TEXT[f.failureMode]}`);
       if (f.exemptionRejected) line(`    entry: ${f.exemptionRejected}`);
-      if (f.dependency.guard) line(`    guard: ${f.dependency.guard}`);
-      line(`    sites: ${f.sites.slice(0, 6).map(at).join(', ')}`);
+      const guards = guardsOf(f);
+      if (guards.length === 1) line(`    guard: ${guards[0]}`);
+      line(
+        `    sites: ${f.sites
+          .slice(0, 6)
+          .map((s) => siteWithGuard(s, guards.length > 1, ''))
+          .join(', ')}`
+      );
       if (f.coverage) {
         line(
           `    also:  guarded at ${f.coverage.guarded.length} site(s); blocking at ${f.coverage.blocking.map(at).join(', ')}`
@@ -671,7 +708,8 @@ export function markdownReport(report: Report): string {
     for (const f of rows) {
       out.push('', `**\`${f.dependency.key}\`** — ${f.reason}`);
       if (f.exemptionRejected) out.push(`- ${f.exemptionRejected}`);
-      if (f.dependency.guard) out.push(`- guard: \`${f.dependency.guard}\``);
+      const guards = guardsOf(f);
+      if (guards.length === 1) out.push(`- guard: \`${guards[0]}\``);
       if (f.failureMode) out.push(`- fails: ${FAILURE_TEXT[f.failureMode]}`);
       out.push(`- sites: ${siteList(f)}`);
       if (f.coverage) {
