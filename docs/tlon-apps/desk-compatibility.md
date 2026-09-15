@@ -39,3 +39,43 @@ channels render the mismatch notice — so no amount of path-and-mark
 compatibility rescues it. A protocol bump must ship one release ahead of the
 client that needs it, exactly like a new path. This is also why v12.1.0 is
 unusable as a pinned N-1 pier and v12.2.0 is.
+
+## The pinned N-1 pier
+
+The pier is the only part of this policy that runs real code against a real N-1
+desk. `~bud` is a fifth E2E ship carrying the **N-1 desk**: a hand-built
+fakeship pinned to `MIN_GROUPS_VERSION`, recorded as `deskVersion` in
+`apps/tlon-web/e2e/shipManifest.json`. `.github/workflows/n1-e2e.yml` boots it
+next to `~zod` and `~ten` on the candidate desk and runs
+`apps/tlon-web/e2e/n1-desk.spec.ts`: group create and invite across the version
+boundary, a post each way, and a DM each way.
+
+`~bud` is not `~bus`. `~bus` is deliberately far out of date, for
+protocol-mismatch rendering, and is never re-pinned.
+
+Three things keep the pier honest:
+
+- It is `skipCommit: true`, so rube never builds a desk on it. Everything on it
+  came from `rube/build-n1-pier.sh`.
+- The job refuses to run when `deskVersion` and `MIN_GROUPS_VERSION` disagree,
+  because every scenario would then be measuring the wrong boundary.
+- The spec reads each ship's reported `%groups` version at runtime and asserts
+  they differ. The manifest's label cannot prove the job crossed a boundary;
+  the ships can.
+
+A negotiation protocol bump strands the pier (rule (d)), and nothing predicts
+that ahead of the run: the pair cannot negotiate, the scenarios fail where they
+try, and the job reports it like any other failure.
+
+It runs on pushes to `staging` and on `workflow_dispatch`, never on a PR: it
+needs a pier that only exists once a release has shipped, and the four-shard PR
+suite keeps its runtime. `~bud` is marked `n1` in the manifest, which means
+`N1_SHIP=bud` is the *only* thing that selects it —
+`INCLUDE_OPTIONAL_SHIPS=true` deliberately does not, because the archive
+preparation run and the parallel Docker image both set that flag and neither
+carries the N-1 pier.
+
+**Rebuilding it** is part of raising `MIN_GROUPS_VERSION`
+(`docs/release-checklist.md`): set the new `deskVersion` and the next
+`rube-bud<n>.tgz` in the manifest, run `apps/tlon-web/rube/build-n1-pier.sh`,
+upload the archive it leaves in `rube/dist/`, then dispatch `n1-e2e.yml`.

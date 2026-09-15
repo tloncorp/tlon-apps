@@ -1,6 +1,29 @@
 import { Page, expect } from '@playwright/test';
 import * as path from 'path';
 
+import shipManifest from './shipManifest.json';
+
+/**
+ * Which ship a page is showing, derived from its web port via the manifest.
+ *
+ * Parallel shards offset every web port by a multiple of 20 (see
+ * rube/parallel-runner.sh), so the port is matched modulo 20 rather than
+ * exactly. This was an inline `port % 10` chain that knew three ships and
+ * resolved every other port to '~bus', so ~mug and the N-1 ship both came back
+ * as ~bus and the caller failed to skip its own ship.
+ */
+const SHIP_BY_WEB_PORT = new Map<number, string>(
+  Object.entries(shipManifest).map(([key, ship]: [string, any]) => [
+    parseInt(ship.webUrl.match(/:(\d+)/)?.[1] ?? '0', 10) % 20,
+    key,
+  ])
+);
+
+export function ownShipForPage(page: Page): string | undefined {
+  const port = parseInt(page.url().match(/:(\d+)/)?.[1] ?? '0', 10);
+  return SHIP_BY_WEB_PORT.get(port % 20);
+}
+
 export async function channelIsLoaded(page: Page) {
   await expect(
     page.getByTestId('ScreenHeaderTitle').getByText('Loading…')
@@ -2509,13 +2532,8 @@ export async function getAllContacts(page: Page): Promise<string[]> {
       // Extract ship ID from aria-label (e.g., "ContactListItem-~zod" -> "~zod")
       const shipId = ariaLabel.replace('ContactListItem-', '');
       if (shipId && shipId.startsWith('~')) {
-        // Skip own ship - determine by port pattern (works with sharding)
-        const urlMatch = page.url().match(/:(\d+)/);
-        const port = urlMatch ? parseInt(urlMatch[1], 10) : 0;
-        const portMod = port % 10;
-        const ownShip =
-          portMod === 0 ? '~zod' : portMod === 2 ? '~ten' : '~bus';
-        if (shipId !== ownShip) {
+        // Skip own ship
+        if (shipId !== ownShipForPage(page)) {
           contacts.push(shipId);
         }
       }
@@ -2598,12 +2616,12 @@ export async function removeAllContacts(page: Page) {
     if (contact.includes('You')) {
       continue;
     }
-    // Skip own ship - determine by port pattern (works with sharding)
-    const urlMatch = page.url().match(/:(\d+)/);
-    const port = urlMatch ? parseInt(urlMatch[1], 10) : 0;
-    const portMod = port % 10;
-    const ownShip = portMod === 0 ? '~zod' : portMod === 2 ? '~ten' : '~bus';
-    if (contact === ownShip || contact.includes(ownShip.substring(1))) {
+    // Skip own ship
+    const ownShip = ownShipForPage(page);
+    if (
+      ownShip &&
+      (contact === ownShip || contact.includes(ownShip.substring(1)))
+    ) {
       continue;
     }
     await removeContact(page, contact);

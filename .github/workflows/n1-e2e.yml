@@ -1,0 +1,177 @@
+# Ground truth for the desk N-1 policy: run the candidate client against a ship
+# carrying the *previous* %groups release.
+#
+# This boots the pinned N-1 pier (~bud, built by
+# apps/tlon-web/rube/build-n1-pier.sh) alongside ~zod and ~ten on the current
+# desk and makes them talk. Nothing here predicts a negotiation-protocol
+# mismatch between the candidate and the pinned desk: it surfaces as the pier
+# failing to negotiate in the spec, which this job reports.
+#
+# Not a PR check by construction: it runs on staging pushes and on demand. The
+# `E2E Tests (Parallel)` job in ci.yml is untouched — ~bud is marked `n1` in
+# shipManifest.json, so `N1_SHIP=bud` is the only thing that selects it, and
+# the rube Docker image does not bake in its archive.
+#
+# rube downloads the pier from the manifest's `downloadUrl`, so a rebuilt pier
+# must be uploaded to gs://bootstrap.urbit.org/ before this job can run against
+# it (docs/release-checklist.md). A 404 here means that upload is outstanding.
+#
+# Policy: docs/tlon-apps/desk-compatibility.md
+name: N-1 Desk E2E
+on:
+  push:
+    branches:
+      - "staging"
+  workflow_dispatch:
+jobs:
+  n1-e2e:
+    # Same label as ci.yml's e2e job; three ships plus three Vite dev servers.
+    runs-on: blacksmith-16vcpu-ubuntu-2204
+    name: E2E against the pinned N-1 desk
+    # Every `run` gets `bash -eo pipefail`. Without it the default shell is
+    # `bash -e`, where a pipeline takes the exit status of its LAST command —
+    # so `pnpm e2e:test … | tee` below would report the status of `tee` and a
+    # failing spec, or a pier that never downloaded, would pass the job.
+    defaults:
+      run:
+        shell: bash
+    env:
+      # ~bud is marked `n1` in shipManifest.json, so naming it here is the
+      # only thing that selects it. INCLUDE_OPTIONAL_SHIPS deliberately does
+      # not: it is all-or-nothing and would also boot ~bus and ~mug and
+      # un-skip the specs gated on it.
+      N1_SHIP: bud
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile]
+
+      # ---------------------------------------------------------------- guards
+      # Both run before anything expensive. A pier pinned to the wrong release,
+      # or whose archive was never published, cannot prove anything — and would
+      # fail later in a way that reads like a product bug.
+      - name: The pinned pier matches the policy floor
+        run: |
+          set -euo pipefail
+          MIN=$(node -p "require('fs').readFileSync('packages/shared/src/logic/deskPolicy.ts','utf8').match(/MIN_GROUPS_VERSION = '([^']+)'/)[1]")
+          PIN=$(node -p "require('./apps/tlon-web/e2e/shipManifest.json')['~${N1_SHIP}'].deskVersion")
+          echo "MIN_GROUPS_VERSION=$MIN" >> "$GITHUB_ENV"
+          {
+            echo "## N-1 desk E2E"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| \`MIN_GROUPS_VERSION\` | \`$MIN\` |"
+            echo "| \`~$N1_SHIP.deskVersion\` | \`$PIN\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$MIN" != "$PIN" ]; then
+            echo "::error::the ~$N1_SHIP pier is pinned to desk $PIN but MIN_GROUPS_VERSION is $MIN. Rebuild and re-pin the pier (apps/tlon-web/rube/build-n1-pier.sh), or this job tests the wrong desk."
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Failed:** the pier pin and the policy floor disagree." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+      # The pier is built by hand and uploaded by hand
+      # (docs/release-checklist.md), so the manifest can name an archive that
+      # was never published. Without this the run gets as far as booting ships
+      # and dies inside rube on a download, which reads like an infrastructure
+      # flake rather than a missing step.
+      - name: The pinned pier archive is published
+        run: |
+          set -euo pipefail
+          URL=$(node -p "require('./apps/tlon-web/e2e/shipManifest.json')['~${N1_SHIP}'].downloadUrl")
+          ARCHIVE=$(basename "$URL")
+          echo "~$N1_SHIP pier: $URL"
+          # --location because the bucket may answer a redirect, which is a
+          # fetchable archive, not a failure. The code is reported rather than
+          # interpreted: rube fetches this URL anonymously, so anything but a
+          # readable 200 stops the job, and only the maintainer can tell a
+          # never-uploaded archive from one that lost its public ACL.
+          CODE=$(curl -sS --location --retry 3 --retry-delay 5 --head \
+            -o /dev/null -w '%{http_code}' "$URL" || echo 000)
+          if [ "$CODE" != "200" ]; then
+            echo "::error::~$N1_SHIP's pier archive at $URL is not publicly readable or unreachable (HTTP $CODE). If it was never uploaded, rebuild with apps/tlon-web/rube/build-n1-pier.sh and publish: gsutil cp apps/tlon-web/rube/dist/$ARCHIVE gs://bootstrap.urbit.org/ && gsutil acl ch -u AllUsers:R gs://bootstrap.urbit.org/$ARCHIVE. If it was uploaded, check that ACL."
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Failed:** \`$URL\` is not publicly readable or unreachable (HTTP $CODE)." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "| pier archive | \`$URL\` |" >> "$GITHUB_STEP_SUMMARY"
+
+      # --------------------------------------------------------------- the run
+      - name: Build packages
+        run: pnpm build:packages
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+
+      - name: Get Playwright version
+        id: playwright-version
+        run:
+          echo "version=$(node -p
+          "require('@playwright/test/package.json').version")" >> $GITHUB_OUTPUT
+        working-directory: ./apps/tlon-web
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key:
+            playwright-${{ runner.os }}-${{
+            steps.playwright-version.outputs.version }}
+
+      - name: Install Playwright Browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install chromium
+        working-directory: ./apps/tlon-web
+
+      - name: Install peru
+        # rube runs `peru sync` to vendor desk deps into desk-deps/ before
+        # assembling the desks of the ships it does commit to (~zod, ~ten).
+        run: |
+          pipx install peru || pip install --user peru || pip3 install --user --break-system-packages peru
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Run the N-1 desk spec
+        id: n1-spec
+        # pipefail is on (see `defaults` above), so the step's status is the
+        # test runner's, not tee's. Stated again here because a pipeline that
+        # silently reports the wrong status is exactly the failure this job
+        # exists to catch.
+        run: |
+          set -o pipefail
+          pnpm e2e:test n1-desk.spec.ts 2>&1 | tee /tmp/n1-e2e.log
+        working-directory: ./apps/tlon-web
+
+      - name: Report
+        if: ${{ !cancelled() }}
+        run: |
+          {
+            echo ""
+            echo "### \`n1-desk.spec.ts\` (~zod on the candidate desk, ~$N1_SHIP on v$MIN_GROUPS_VERSION)"
+            echo ""
+            echo '```'
+            tail -40 /tmp/n1-e2e.log 2>/dev/null || echo "no output captured"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload test artifacts
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: n1-e2e-results
+          path: |
+            ./apps/tlon-web/test-results/
+            ./apps/tlon-web/playwright-report/
+            /tmp/n1-e2e.log
+          retention-days: 7

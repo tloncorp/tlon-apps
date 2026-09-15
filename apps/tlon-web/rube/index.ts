@@ -16,26 +16,14 @@ import { promisify } from 'util';
 import * as zlib from 'zlib';
 
 import { desksMatch } from './deskManifest';
+import { loadEnvTest } from './envTest';
+import { shouldIncludeShip } from './shipSelection';
 
 const pipeline = promisify(stream.pipeline);
 
-// Load .env.test file if it exists
-const envTestPath = path.join(__dirname, '..', '..', '.env.test');
-if (fs.existsSync(envTestPath)) {
-  const envContent = fs.readFileSync(envTestPath, 'utf8');
-  envContent.split('\n').forEach((line) => {
-    // Skip comments and empty lines
-    if (line && !line.startsWith('#') && line.includes('=')) {
-      const [key, ...valueParts] = line.split('=');
-      const value = valueParts.join('=').trim();
-      // Only set if not already set (allow command-line overrides)
-      if (!process.env[key.trim()]) {
-        process.env[key.trim()] = value;
-      }
-    }
-  });
-  console.log('Loaded environment variables from .env.test');
-}
+// Load .env.test before anything reads process.env — getShips() below decides
+// the ship selection from it.
+loadEnvTest(__dirname);
 
 const spawnedProcesses: childProcess.ChildProcess[] = [];
 const startHashes: { [ship: string]: { [desk: string]: string } } = {};
@@ -85,20 +73,27 @@ export interface Ship {
   extractPath: string;
   skipCommit: boolean;
   skipSetup: boolean;
+  skipAuth?: boolean;
+  /** Boots only under INCLUDE_OPTIONAL_SHIPS (~bus, ~mug). */
   optional?: boolean;
+  /**
+   * The N-1 desk pier (~bud). Selected ONLY by naming it in N1_SHIP, never by
+   * INCLUDE_OPTIONAL_SHIPS — see rube/shipSelection.ts.
+   */
+  n1?: boolean;
+  /**
+   * The %groups desk release this pier is pinned to, for a ship rube does not
+   * build a desk on (skipCommit). Only the N-1 pier has one, kept equal to
+   * MIN_GROUPS_VERSION and rebuilt by rube/build-n1-pier.sh. Ships rube commits
+   * to carry whatever the run's tree holds, and set nothing here.
+   */
+  deskVersion?: string;
 }
 
 function getShips(): Record<string, Ship> {
   return Object.fromEntries(
     Object.entries(shipManifest)
-      .filter(([, value]) => {
-        const v = value as Ship;
-        // Skip if marked as skipSetup
-        if (v.skipSetup) return false;
-        // Skip optional ships unless explicitly included
-        if (v.optional && !INCLUDE_OPTIONAL_SHIPS) return false;
-        return true;
-      })
+      .filter(([, value]) => shouldIncludeShip(value as Ship))
       .map(([, value]) => {
         const v = value as Ship;
         const ship = v.ship;
@@ -1538,17 +1533,14 @@ const cleanupSpawnedProcesses = () => {
   if (!process.env.IN_CONTAINER) {
     console.log('Cleaning up ports...');
     try {
-      const ports = [
-        '35453',
-        '36963',
-        '38473',
-        '39983',
-        '3000',
-        '3001',
-        '3002',
-        '3003',
-      ];
+      // Every ship in the manifest, not just the ones this run selected: a
+      // previous run may have left another ship's ports held.
+      const ports = Object.values(shipManifest).flatMap((ship: any) => [
+        ship.httpPort,
+        ship.webUrl.match(/:(\d+)/)?.[1],
+      ]);
       ports.forEach((port) => {
+        if (!port) return;
         try {
           const cmd = `command -v lsof >/dev/null 2>&1 && lsof -ti:${port} | xargs kill -9 2>/dev/null || true`;
           childProcess.execSync(cmd, { stdio: 'ignore', timeout: 1000 });
