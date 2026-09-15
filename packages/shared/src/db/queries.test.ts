@@ -10,6 +10,7 @@ import * as schema from '../db/schema';
 import { useDebugStore } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import { syncContacts, syncInitData } from '../store/sync';
+import { keyFromQueryDeps } from '../store/useKeyFromQueryDeps';
 import contactBookResponse from '../test/contactBook.json';
 import contactsDirectoryResponse from '../test/contactsDirectory.json';
 import groupsResponse from '../test/groups.json';
@@ -1442,6 +1443,77 @@ test('sequenced posts: gets newest posts', async () => {
   expect(newestPosts.length).toEqual(5);
   expect(newestPosts[0].sequenceNum).toEqual(19);
   expect(newestPosts[4].sequenceNum).toEqual(15);
+});
+
+test('sequenced posts: ignores posts without a positive server sequence', async () => {
+  const channelId = 'unsequenced';
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+  await queries.insertChannelPosts({
+    posts: [
+      {
+        id: 'optimistic',
+        type: 'chat',
+        channelId,
+        receivedAt: refDate,
+        sentAt: refDate,
+        sequenceNum: 0,
+        authorId: 'test',
+        syncedAt: 0,
+      },
+      {
+        id: 'unsequenced',
+        type: 'chat',
+        channelId,
+        receivedAt: refDate + 1,
+        sentAt: refDate + 1,
+        sequenceNum: null,
+        authorId: 'test',
+        syncedAt: 0,
+      },
+    ],
+  });
+
+  await expect(
+    queries.getSequencedChannelPosts({
+      mode: 'newest',
+      channelId,
+      count: 5,
+    })
+  ).resolves.toEqual([]);
+});
+
+test('sequenced posts: older mode stops at sequence one', async () => {
+  const channelId = 'older-with-optimistic';
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+  await queries.insertChannelPosts({
+    posts: getRangedPosts(channelId, 0, 2),
+  });
+
+  const posts = await queries.getSequencedChannelPosts({
+    mode: 'older',
+    channelId,
+    cursorSequenceNum: 2,
+    count: 5,
+  });
+
+  expect(posts.map((post) => post.sequenceNum)).toEqual([1]);
+});
+
+test('sequenced posts: around mode excludes sequence zero', async () => {
+  const channelId = 'around-with-optimistic';
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+  await queries.insertChannelPosts({
+    posts: getRangedPosts(channelId, 0, 2),
+  });
+
+  const posts = await queries.getSequencedChannelPosts({
+    mode: 'around',
+    channelId,
+    cursorSequenceNum: 1,
+    count: 5,
+  });
+
+  expect(posts.map((post) => post.sequenceNum)).toEqual([1]);
 });
 
 test('sequenced posts: gets newer posts', async () => {
@@ -3467,6 +3539,50 @@ describe('thread unreads by channel', () => {
     } as ThreadUnreadState;
   }
 
+  test.each([undefined, channelId])(
+    'returns null for an absent thread unread (channel: %s)',
+    async (scope) => {
+      const result = await queryClient.fetchQuery({
+        queryKey: ['missing-thread-unread', scope],
+        queryFn: () =>
+          queries.getThreadUnreadState({
+            parentId: 'missing-parent',
+            channelId: scope,
+          }),
+        retry: false,
+      });
+      expect(result).toBeNull();
+    }
+  );
+
+  test('observes unread activity inserted after a thread is opened', async () => {
+    const parentId = 'newly-active-thread';
+    const observer = new QueryObserver(queryClient, {
+      queryKey: [
+        'liveUnreadCount',
+        keyFromQueryDeps(queries.getThreadUnreadState),
+        'thread',
+        parentId,
+      ],
+      queryFn: () => queries.getThreadUnreadState({ parentId }),
+    });
+    const unsubscribe = observer.subscribe(() => {});
+    try {
+      await vi.waitFor(() => {
+        expect(observer.getCurrentResult().status).toBe('success');
+        expect(observer.getCurrentResult().data).toBeNull();
+      });
+
+      await queries.insertThreadUnreads([threadUnread(parentId, { count: 2 })]);
+
+      await vi.waitFor(() => {
+        expect(observer.getCurrentResult().data?.count).toBe(2);
+      });
+    } finally {
+      unsubscribe();
+    }
+  });
+
   // The channel-scoped thread-unread overlay keys its map on threadId and
   // matches it against post ids, so these rows have to come back keyed that
   // way. If this contract moves, the reply-summary dot silently stops
@@ -3511,5 +3627,29 @@ describe('thread unreads by channel', () => {
     const result = await queries.getThreadUnreadsByChannel({ channelId });
 
     expect(result.map((u) => u.threadId)).toEqual(['mine']);
+  });
+});
+
+describe('insertSettings', () => {
+  test('ignores a payload with no defined values', async () => {
+    // Optimistic rollbacks pass the previous value back in, and that value is
+    // undefined whenever the setting had never been written. Drizzle drops
+    // undefined entries and then throws `No values to set` on the empty
+    // remainder, so the write has to be skipped before it reaches drizzle.
+    await expect(
+      queries.insertSettings({ messagesFilter: undefined })
+    ).resolves.toBeUndefined();
+
+    expect(await queries.getSettings()).toBeUndefined();
+  });
+
+  test('leaves stored settings alone when every value is undefined', async () => {
+    await queries.insertSettings({ messagesFilter: 'all' });
+
+    await expect(
+      queries.insertSettings({ messagesFilter: undefined })
+    ).resolves.toBeUndefined();
+
+    expect((await queries.getSettings())?.messagesFilter).toBe('all');
   });
 });

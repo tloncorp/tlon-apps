@@ -814,6 +814,8 @@ const MUST_MATCH = [
   'BadResponseError: HTTP request failed: Error: fetch failed: java.net.UnknownHostException: Unable to resolve host "www.burtonjernigan.org": No address associated with hostname',
   'Error: fetch failed: UnexpectedException: The request timed out. (at ExpoModulesCore/Promise.swift:56)',
   'Error: fetch failed: The request timed out.',
+  'Error: fetch failed: UnexpectedException: Could not connect to the server. (at ExpoModulesCore/Promise.swift:56)',
+  'Error: fetch failed: Could not connect to the server.',
 ];
 
 const MUST_NOT_MATCH = [
@@ -821,9 +823,13 @@ const MUST_NOT_MATCH = [
   'Failed to fetch access code',
   'Failed to fetch image: 404',
   'Error: Hosting API call failed',
+  'Error: Hosting API call failed (401)',
   'Error: HTTP 503: FetchResponse: { status: 503, statusText: service unavailable }',
   'Error: Invalid server response',
+  'Error: Invalid server response: 403 Forbidden',
   'Error: Failed to PUT channel',
+  'ChannelPutError: Failed to PUT channel',
+  'ChannelPutError: Failed to PUT channel: 403 Forbidden',
   'PokeAckTimeoutError: Poke ack timed out after 30000ms',
   'Error: Expected content-type to be text/event-stream, Actual: text/html',
   'Error: No error message',
@@ -834,12 +840,15 @@ const MUST_NOT_MATCH = [
   'Error: discarded fetched data, had been running for 1271371ms',
   '[query] Database Query Error',
   'BadResponseError: HTTP 404: [object Response]',
+  'BadResponseError: HTTP 503: gall: agent not running',
+  'HostingError: Hosting request failed (401 Unauthorized)',
+  'HostingError: An unknown error has occurred. (404 Not Found)',
   'Error: Urbit client not set.',
 ];
 
 describe('SENTRY_IGNORE_ERRORS', () => {
   it('builds one regex per body', () => {
-    expect(SENTRY_IGNORE_ERRORS).toHaveLength(15);
+    expect(SENTRY_IGNORE_ERRORS).toHaveLength(16);
   });
 
   it.each(MUST_MATCH)('matches %s', (message) => {
@@ -848,6 +857,55 @@ describe('SENTRY_IGNORE_ERRORS', () => {
 
   it.each(MUST_NOT_MATCH)('does not match %s', (message) => {
     expect(SENTRY_IGNORE_ERRORS.some((r) => r.test(message))).toBe(false);
+  });
+});
+
+interface IgnoreEvent {
+  exception: { values: Array<{ type: string; value: string }> };
+}
+
+// Mirrors @sentry/core's `getPossibleEventMessages`: only the *last* exception
+// in `values` is tested, in both its bare `value` and `type: value` form.
+// `packages/shared` has no `@sentry/*` dependency, so this stands in for it.
+function possibleMessages(event: IgnoreEvent): string[] {
+  const last = event.exception.values[event.exception.values.length - 1];
+
+  if (!last?.value) {
+    return [];
+  }
+
+  return last.type ? [last.value, `${last.type}: ${last.value}`] : [last.value];
+}
+
+function isIgnored(event: IgnoreEvent): boolean {
+  return possibleMessages(event).some((message) =>
+    SENTRY_IGNORE_ERRORS.some((r) => r.test(message))
+  );
+}
+
+describe('SENTRY_IGNORE_ERRORS with linked exceptions', () => {
+  // Sentry RN's linked-errors integration appends `cause` chains after the
+  // original exception, so the last entry is a cause when one exists.
+  const timeout = {
+    type: 'DbInitTimeoutError',
+    value:
+      'Database initialization timed out after 30000ms (attempt 2, 30000 ms elapsed); last error: Error: Request timed out',
+  };
+  const ignoredCause = { type: 'Error', value: 'Request timed out' };
+
+  it('drops the whole event when an ignored error is attached as a cause', () => {
+    // Why DbInitTimeoutError deliberately carries no `cause`.
+    expect(isIgnored({ exception: { values: [timeout, ignoredCause] } })).toBe(
+      true
+    );
+  });
+
+  it('keeps the timeout when the cause only appears in its message', () => {
+    expect(isIgnored({ exception: { values: [timeout] } })).toBe(false);
+  });
+
+  it('still drops the ignored error on its own', () => {
+    expect(isIgnored({ exception: { values: [ignoredCause] } })).toBe(true);
   });
 });
 

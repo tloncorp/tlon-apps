@@ -436,7 +436,16 @@ export function useBootSequence() {
         Date.now() - tryingInviteHandling.current >
         HANDLE_INVITES_TIMEOUT
       ) {
-        logger.trackError('accept invites abort', { inviteId: lureMeta?.id });
+        logger.trackError('accept invites abort', {
+          inviteId: lureMeta?.id,
+          bootPhase,
+          bootPhaseName: BootPhaseNames[bootPhase],
+          // null when the abort fires before any phase has run, so a real
+          // elapsed time is never confused with time since the epoch.
+          elapsedMs: sequenceStartTimeRef.current
+            ? Date.now() - sequenceStartTimeRef.current
+            : null,
+        });
         setBootPhase(NodeBootPhase.READY);
         return;
       }

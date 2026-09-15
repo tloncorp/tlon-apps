@@ -1,7 +1,5 @@
 name: Hosted PR agent QA
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
     inputs:
       pr_number:
@@ -24,11 +22,10 @@ permissions:
   contents: read
   pull-requests: read
 concurrency:
-  group: hosted-pr-agent-qa-${{ github.event.pull_request.number || inputs.pr_number }}
+  group: hosted-pr-agent-qa-${{ inputs.pr_number }}
   cancel-in-progress: false
 jobs:
   assess:
-    if: ${{ github.event_name == 'workflow_dispatch' || (!github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     outputs:
@@ -48,7 +45,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          QA_PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+          QA_PR_NUMBER: ${{ inputs.pr_number }}
           QA_TARGET_REF: ${{ inputs.qa_ref || '' }}
           QA_ASSESSMENT_RUN_ID: ${{ inputs.assessment_run_id || '' }}
         run: node scripts/agent-qa/cloud-pr.mjs assess

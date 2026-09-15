@@ -66,6 +66,8 @@ export const HeaderBackButton = ({
 }) => {
   return (
     <HeaderIconButton
+      accessible
+      accessibilityLabel="Back"
       accessibilityRole="button"
       accessibilityState={{ disabled }}
       color={disabled ? '$tertiaryText' : '$primaryText'}
