@@ -59,6 +59,15 @@ describe('desk push command', () => {
     // reload every agent for a change no scenario can observe
     expect(ignoredIn(argv)).toEqual(['commit.txt', 'desk.docket-0']);
   });
+
+  test('waits for a desk agent to serve again before returning', () => {
+    // a commit to a live desk reloads every agent on it; clay advancing is not
+    // the same as the desk being usable, and run.ts starts scenarios next
+    const argv = deskPushArgv('zod');
+    expect(argv[argv.indexOf('--wait-scry') + 1]).toBe(
+      '/~/scry/groups/groups/light.json'
+    );
+  });
 });
 
 describe('desk push timeout', () => {

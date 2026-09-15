@@ -63,6 +63,9 @@ importers:
       '@resvg/resvg-js':
         specifier: ^2.6.2
         version: 2.6.2
+      '@urbit/nockjs':
+        specifier: ^1.6.0
+        version: 1.6.0
       concurrently:
         specifier: ^8.2.2
         version: 8.2.2

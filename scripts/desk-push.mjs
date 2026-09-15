@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // desk-push: commit an assembled desk to a ship through Clay, in one round trip.
 //
-//   node scripts/desk-push.mjs <assembled-dir> <desk> --pier <pier-path> [--code <+code>] [--install] [--reseed] [--ignore <path>]... [--dry-run]
+//   node scripts/desk-push.mjs <assembled-dir> <desk> --pier <pier-path> [--code <+code>] [--install] [--reseed] [--ignore <path>]... [--wait-scry <eyre-path>] [--dry-run]
 //   node scripts/desk-push.mjs <assembled-dir> <desk> --url http://host:port (--code <+code> | --cookie <urbauth>) [--install] [--dry-run]
 //
 // Verified end to end on a fresh fake ship (vere 4.6, kelvin 408): bootstrap
@@ -455,6 +455,22 @@ class Ship {
     return this.spider.fyrd(...a);
   }
 
+  // Whether an eyre scry answers. A commit to a live desk advances clay in one
+  // event but gall reloads the desk's agents over the events after it, so this
+  // is how a caller waits for the desk to actually be serving again.
+  async scryOk(scryPath) {
+    try {
+      const res = await httpPost(`${this.spider.url}${scryPath}`, {
+        method: 'GET',
+        headers: this.spider.cookie ? { cookie: this.spider.cookie } : {},
+        timeoutMs: 60_000,
+      });
+      return res.status === 200;
+    } catch {
+      return false;
+    }
+  }
+
   // kiln's view of the desk: %live once every agent in desk.bill is running
   async zest(desk) {
     const res = await httpPost(
@@ -567,7 +583,7 @@ function parseArgs(argv) {
     rest.includes(name) ? rest[rest.indexOf(name) + 1] : undefined;
   if (!dir || !desk || !(opt('--pier') || opt('--url'))) {
     console.error(
-      'usage: desk-push.mjs <assembled-dir> <desk> (--pier <path> | --url <http://host:port> (--code <+code> | --cookie <urbauth>)) [--install] [--reseed] [--ignore <desk-relative-path>]... [--dry-run]'
+      'usage: desk-push.mjs <assembled-dir> <desk> (--pier <path> | --url <http://host:port> (--code <+code> | --cookie <urbauth>)) [--install] [--reseed] [--ignore <desk-relative-path>]... [--wait-scry <eyre-path>] [--dry-run]'
     );
     process.exit(2);
   }
@@ -589,6 +605,10 @@ function parseArgs(argv) {
     ignore: rest.flatMap((a, i) =>
       a === '--ignore' ? [toClayPath(rest[i + 1])] : []
     ),
+    // an eyre scry path to poll after a commit, e.g.
+    // /~/scry/groups/groups/light.json — proves the desk's agents are serving
+    // again rather than only that clay advanced
+    waitScry: opt('--wait-scry'),
   };
 }
 
@@ -640,18 +660,17 @@ async function main() {
     if (args.reseed) throw new Error('--reseed requested');
     remote = await remoteHashes(ship, args.desk);
   } catch (e) {
-    if (e instanceof ThreadError && !args.reseed) {
-      // The thread ran and failed, so it is present but unhappy. The desk is
-      // there; push everything rather than guess at a delta.
-      console.log(
-        `-desk-hashes failed on %${args.desk}; pushing the full desk\n${e.message}`
-      );
-      remote = new Map();
-    } else if (exists) {
+    if (exists) {
       // The desk is there but has no usable threads — the normal state of any
-      // ship that has not yet taken a release carrying them. Seed it with a
-      // full %into, which is a delta on top of the current head and so leaves
-      // everything already committed in place.
+      // ship that has not yet taken a release carrying them, and also what a
+      // thread that runs but fails looks like. Seed it with a full %into,
+      // which is a delta on top of the current head and so leaves everything
+      // already committed in place. Re-reading the hashes afterwards is what
+      // makes deletions possible: without a remote file list there is no way
+      // to know what the branch removed, and quietly skipping deletions would
+      // leave stale marks and libraries on the ship while reporting success.
+      // If the thread still fails after seeding, remoteHashesRetrying rethrows
+      // rather than pretending the desk converged.
       console.log(
         `%${args.desk} exists but has no usable threads (${e.message.split('\n')[0]}); seeding it`
       );
@@ -755,6 +774,28 @@ async function main() {
       : `%${args.desk} still at revision ${aeon} (${hash}): clay found nothing new to commit`
   );
   if (args.install) await waitLive(ship, args.desk);
+  if (committed && args.waitScry) await waitScry(ship, args.waitScry);
+}
+
+// A commit that reloads agents leaves them unavailable for a while after clay
+// is done. Callers that hand the ship straight to a test suite need to wait for
+// that, or the suite races the reload.
+async function waitScry(ship, scryPath, timeoutMs = LIVE_TIMEOUT_MS) {
+  const t0 = Date.now();
+  for (;;) {
+    if (await ship.scryOk(scryPath)) {
+      console.log(
+        `${scryPath} answered ${((Date.now() - t0) / 1000).toFixed(1)}s after the commit`
+      );
+      return;
+    }
+    if (Date.now() - t0 > timeoutMs) {
+      throw new Error(
+        `${scryPath} did not answer within ${timeoutMs / 1000}s of the commit`
+      );
+    }
+    await sleep(2000);
+  }
 }
 
 // kiln acknowledges |install before gall has started every agent; poll its

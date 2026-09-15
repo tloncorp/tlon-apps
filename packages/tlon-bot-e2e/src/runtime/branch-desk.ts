@@ -32,6 +32,13 @@ const DESK_PUSH_SCRIPT = '/workspace/tlon-apps/scripts/desk-push.mjs';
 // agent on all three ships for nothing.
 const IGNORED_PATHS = ['commit.txt', 'desk.docket-0'];
 
+// A commit to a live %groups advances clay in one event, but gall reloads the
+// desk's agents over the events after it. run.ts hands the ships straight to
+// the bot and then to the scenarios, so without waiting for an agent on the
+// desk to answer again the suite races the reload — worst on the last ship
+// pushed. The old mount-based path polled this same scry before returning.
+const READY_SCRY = '/~/scry/groups/groups/light.json';
+
 // A first push to a pier whose %groups predates the push threads seeds the
 // whole desk, compiles it, and reloads every agent on it. Native CI runners
 // manage that in a few minutes; amd64 vere emulated under qemu (arm64 Docker
@@ -97,6 +104,8 @@ export function deskPushArgv(ship: ShipLabel): string[] {
     'groups',
     '--pier',
     `/data/${ship}`,
+    '--wait-scry',
+    READY_SCRY,
     ...IGNORED_PATHS.flatMap((file) => ['--ignore', file]),
   ];
 }
