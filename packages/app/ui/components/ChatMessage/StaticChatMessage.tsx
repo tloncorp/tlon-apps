@@ -1,7 +1,6 @@
 import {
   appendToPostBlob,
   getBotUserIdForUser,
-  isMoonOfUser,
   type PostBlobDataEntryA2UISelection,
   type PostBlobDataEntryAgentProvision,
 } from '@tloncorp/api';
@@ -153,19 +152,10 @@ export function StaticChatMessage({
       currentUserHostsPostGroup &&
       knownAgent === post.authorId
     );
-  const isDmCounterpart =
-    isDmChannelId(post.channelId) && post.authorId === post.channelId;
-  const isOwnedMoon = isMoonOfUser(post.authorId, currentUserId);
-  const { data: hasBotPosts } = store.useChannelHasBotPost({
-    channelId: isDmCounterpart && !isOwnedMoon ? post.channelId : null,
-    authorId: isDmCounterpart && !isOwnedMoon ? post.authorId : null,
-  });
   const allowBrowserHandoff = canUseBrowserHandoff({
     authorId: post.authorId,
     channelId: post.channelId,
     currentUserId,
-    isBot: post.isBot,
-    hasBotPosts,
     canUseAgentProviderControls,
   });
 

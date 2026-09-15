@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   complete: vi.fn(),
   discard: vi.fn(),
   resolve: vi.fn(),
+  isWeb: false,
 }));
 
 vi.mock('@tloncorp/ui', () => ({
@@ -28,6 +29,9 @@ vi.mock('@tloncorp/ui', () => ({
 }));
 
 vi.mock('tamagui', () => ({
+  get isWeb() {
+    return mocks.isWeb;
+  },
   View: 'View',
   XStack: 'XStack',
   YStack: 'YStack',
@@ -65,6 +69,7 @@ describe('BrowserCredentialHandoffScreen', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.isWeb = false;
     mocks.resolve.mockReturnValue(
       'https://browser-session-ovh1.tlon.network/s/payload.signature'
     );
@@ -169,6 +174,46 @@ describe('BrowserCredentialHandoffScreen', () => {
     });
     act(() => renderer!.unmount());
   });
+
+  it.each([true, false])(
+    'sets credential autofill for isWeb=%s',
+    async (isWeb) => {
+      mocks.isWeb = isWeb;
+      let renderer: ReactTestRenderer;
+      await act(async () => {
+        renderer = create(
+          <BrowserCredentialHandoffScreen
+            navigation={{ goBack: vi.fn() }}
+            route={{ params: { handoffId: 'opaque-handoff-id' } }}
+          />
+        );
+      });
+      const inputs = renderer!.root.findAllByType(
+        'TextInput' as React.ElementType
+      );
+      expect(inputs).toHaveLength(2);
+      expect(inputs[0].props).toMatchObject({
+        autoComplete: isWeb ? 'off' : 'username',
+        textContentType: isWeb ? 'none' : 'username',
+        importantForAutofill: isWeb ? 'no' : 'yes',
+      });
+      expect(inputs[1].props).toMatchObject({
+        autoComplete: isWeb ? 'off' : 'current-password',
+        textContentType: isWeb ? 'none' : 'password',
+        importantForAutofill: isWeb ? 'no' : 'yes',
+        secureTextEntry: true,
+      });
+      act(() =>
+        renderer!.root
+          .findByProps({ accessibilityLabel: 'Show password' })
+          .props.onPress()
+      );
+      expect(inputs[1].props.autoComplete).toBe(
+        isWeb ? 'off' : 'current-password'
+      );
+      await act(async () => renderer!.unmount());
+    }
+  );
 
   it('requires reopening the card when the in-memory handoff is unavailable', async () => {
     mocks.resolve.mockReturnValue(undefined);

@@ -10,9 +10,7 @@ const dm = {
 };
 
 describe('browser handoff trust', () => {
-  it('allows self-provisioned DM bots identified by bot messages or owned moons', () => {
-    expect(canUseBrowserHandoff({ ...dm, isBot: true })).toBe(true);
-    expect(canUseBrowserHandoff({ ...dm, hasBotPosts: true })).toBe(true);
+  it('allows self-provisioned DM bots on owned moons', () => {
     expect(
       canUseBrowserHandoff({
         ...dm,
@@ -22,20 +20,34 @@ describe('browser handoff trust', () => {
     ).toBe(true);
   });
 
-  it('requires a bot signal from the DM counterpart', () => {
+  it('does not trust sender-supplied bot metadata', () => {
     expect(canUseBrowserHandoff(dm)).toBe(false);
+    const botProfileSender = { ...dm, isBot: true, hasBotPosts: true };
+    expect(canUseBrowserHandoff(botProfileSender)).toBe(false);
+  });
+
+  it('requires the owned moon to be the DM counterpart', () => {
     expect(
       canUseBrowserHandoff({
         ...dm,
         authorId: dm.currentUserId,
-        hasBotPosts: true,
       })
     ).toBe(false);
     expect(
       canUseBrowserHandoff({
         ...dm,
+        authorId: '~dirmec-dolbes-sampel-palnet',
         channelId: 'chat/~sampel-palnet/general',
-        isBot: true,
+      })
+    ).toBe(false);
+  });
+
+  it('rejects another user’s moon', () => {
+    expect(
+      canUseBrowserHandoff({
+        ...dm,
+        authorId: '~dirmec-dolbes-finned-palmer',
+        channelId: '~dirmec-dolbes-finned-palmer',
       })
     ).toBe(false);
   });

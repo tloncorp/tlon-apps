@@ -1,6 +1,6 @@
 import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, XStack, YStack } from 'tamagui';
+import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import type { BrowserCredentialHandoffParams } from '../../navigation/types';
 import {
@@ -268,9 +268,10 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                     value={username}
                     autoCapitalize="none"
                     autoCorrect={false}
-                    autoComplete="username"
-                    importantForAutofill="yes"
-                    textContentType="username"
+                    // Web inputs belong to Tlon's origin, not the target site.
+                    autoComplete={isWeb ? 'off' : 'username'}
+                    importantForAutofill={isWeb ? 'no' : 'yes'}
+                    textContentType={isWeb ? 'none' : 'username'}
                     editable={!submitting}
                     onChangeText={setUsername}
                   />
@@ -286,9 +287,9 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                         secureTextEntry={!showPassword}
                         autoCapitalize="none"
                         autoCorrect={false}
-                        autoComplete="current-password"
-                        importantForAutofill="yes"
-                        textContentType="password"
+                        autoComplete={isWeb ? 'off' : 'current-password'}
+                        importantForAutofill={isWeb ? 'no' : 'yes'}
+                        textContentType={isWeb ? 'none' : 'password'}
                         editable={!submitting}
                         onChangeText={setPassword}
                         onSubmitEditing={() => void fillAndSubmit()}
