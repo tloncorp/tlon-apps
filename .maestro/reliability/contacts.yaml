@@ -1,5 +1,5 @@
 appId: ${MAESTRO_APP_ID}
-name: Native contact nickname and removal
+name: Native contact add, nickname, and removal
 tags: [regression]
 env:
   JOURNEY: k
@@ -61,6 +61,19 @@ onFlowComplete:
 - assertVisible: '^Add Contact$'
 - evalScript: ${output.contactAdded = false}
 - assertNotVisible: ${MAESTRO_RUN_TAG + ' contact'}
+
+# Add the foreign ship directly from its profile and verify the Contacts return.
+- tapOn: '^Add Contact$'
+- assertVisible: '^Remove Contact$'
+- evalScript: ${output.contactAdded = true}
 - tapOn: '^Back$'
-- assertNotVisible: ${MAESTRO_RUN_TAG + ' contact'}
+- assertVisible: ${MAESTRO_CONTACT_SHIP}
+
+# Restore the disposable fixture so repeated runs remain independent.
+- tapOn: ${MAESTRO_CONTACT_SHIP}
+- tapOn: '^Remove Contact$'
+- assertVisible: '^Add Contact$'
+- evalScript: ${output.contactAdded = false}
+- tapOn: '^Back$'
+- assertNotVisible: ${MAESTRO_CONTACT_SHIP}
 - runFlow: subflows/home-tab.yaml
