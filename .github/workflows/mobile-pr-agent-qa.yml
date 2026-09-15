@@ -191,6 +191,8 @@ jobs:
           QA_TARGET_REF: ${{ needs.assess.outputs.ref }}
         run: node scripts/agent-qa/cloud-pr.mjs finish
   without_fixtures:
+    outputs:
+      eas_run_id: ${{ steps.qa.outputs.eas_run_id }}
     needs: [assess, prepare_build]
     if: ${{ always() && needs.assess.result == 'success' && ( needs.assess.outputs.decision != 'test' || needs.assess.outputs.has_fixtures != 'true') }}
     runs-on: ubuntu-latest
@@ -203,6 +205,7 @@ jobs:
         with:
           node-version: "22.22.0"
       - name: Run or publish the assessment without a ship lease
+        id: qa
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           QA_PR_JSON: ${{ needs.assess.outputs.pr_json }}
@@ -213,8 +216,8 @@ jobs:
         run: node scripts/agent-qa/cloud-pr.mjs run
 
   coordinator_failure:
-    needs: [assess, prepare_build, test]
-    if: ${{ always() && !needs.test.outputs.eas_run_id && (needs.assess.result == 'failure' || needs.prepare_build.result == 'failure' || needs.test.result == 'failure' || needs.assess.result == 'cancelled' || needs.prepare_build.result == 'cancelled' || needs.test.result == 'cancelled') }}
+    needs: [assess, prepare_build, test, without_fixtures]
+    if: ${{ always() && !needs.test.outputs.eas_run_id && !needs.without_fixtures.outputs.eas_run_id && (needs.assess.result == 'failure' || needs.prepare_build.result == 'failure' || needs.test.result == 'failure' || needs.assess.result == 'cancelled' || needs.prepare_build.result == 'cancelled' || needs.test.result == 'cancelled' || needs.without_fixtures.result == 'failure' || needs.without_fixtures.result == 'cancelled') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -228,5 +231,5 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           QA_PR_NUMBER: ${{ inputs.pr_number }}
           QA_PR_JSON: ${{ needs.assess.outputs.pr_json || 'null' }}
-          QA_STAGE_RESULTS: assess=${{ needs.assess.result }}, build=${{ needs.prepare_build.result }}, setup=${{ needs.test.result }}
+          QA_STAGE_RESULTS: assess=${{ needs.assess.result }}, build=${{ needs.prepare_build.result }}, setup=${{ needs.test.result }}, without_fixtures=${{ needs.without_fixtures.result }}
         run: node scripts/agent-qa/cloud-pr.mjs failed

@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - scripts/agent-qa/**
+      - .maestro/cloud-fakeship/**
+      - .github/workflows/mobile-pr-agent-qa.yml
       - apps/tlon-mobile/.eas/workflows/pr-agent-qa-ios.yml
       - .github/workflows/mobile-agent-qa-checks.yml
 permissions:
