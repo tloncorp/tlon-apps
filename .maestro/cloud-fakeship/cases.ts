@@ -492,6 +492,55 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
       });
     });
   }
+  if (selected('dm-history-pagination')) {
+    await resetDmPeer();
+    await ten.sendDm('~zod', `${tag} dm history handshake`);
+    await until('DM history handshake reaches zod', () =>
+      includesShip(zod, '/dm/invited', '~ten')
+    );
+    await zod.state.poke({
+      app: 'chat',
+      mark: 'chat-dm-rsvp',
+      json: { ship: '~ten', ok: true },
+    });
+    await until('accepted DM history fixture reaches zod', async () => {
+      const [active, invited] = await Promise.all([
+        includesShip(zod, '/dm', '~ten'),
+        includesShip(zod, '/dm/invited', '~ten'),
+      ]);
+      return active && !invited;
+    });
+
+    const oldest = `${tag} dm history oldest`;
+    const newest = `${tag} dm history newest`;
+    await zod.sendDm('~ten', oldest);
+    // The native newest-page query requests 50 posts. Keep the oldest marker
+    // beyond that boundary so finding it requires the older-page action.
+    for (let i = 1; i <= 55; i++) {
+      await zod.sendDm('~ten', `${tag} dm history ${i}`);
+    }
+    await zod.sendDm('~ten', newest);
+    await until('DM history fixture reaches both ships', async () => {
+      const [nativePosts, peerPosts] = await Promise.all([
+        zod.state.channelPosts('~ten', 80),
+        ten.state.channelPosts('~zod', 80),
+      ]);
+      return [nativePosts, peerPosts].every(
+        (posts) =>
+          posts.some((post) => post.text === oldest) &&
+          posts.some((post) => post.text === newest)
+      );
+    });
+    task('dm-history-pagination', async () => {
+      record('dm-history-pagination-state', {
+        channelId: '~ten',
+        oldest,
+        newest,
+        seededMessages: 57,
+        initialPageCount: 50,
+      });
+    });
+  }
   if (selected('dm-deny')) {
     await resetDmPeer();
     await ten.sendDm('~zod', `${tag} deny request`);
