@@ -22,11 +22,27 @@ export default function shipLoginPlugin(
   // socket address is what says "this machine": a Host header can claim
   // anything.
   const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
-  const isOwnBrowser = (remote: string | undefined, host?: string) =>
-    !!remote &&
-    LOOPBACK.has(remote) &&
-    !!host &&
-    /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host);
+  const isOwnBrowser = (
+    remote: string | undefined,
+    host?: string,
+    origin?: string,
+    site?: string
+  ) => {
+    if (!remote || !LOOPBACK.has(remote)) return false;
+    if (!host || !/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host)) {
+      return false;
+    }
+    // A page on another site can reach this server over loopback with a
+    // localhost Host, so the request has to say it came from here or from no
+    // site at all -- a typed url or a bookmark.
+    if (site && site !== 'same-origin' && site !== 'none') return false;
+    if (!origin) return true;
+    try {
+      return new URL(origin).host === host;
+    } catch {
+      return false;
+    }
+  };
   // Eyre carries the post-login destination in a hidden field, and fills it
   // with whichever request reached the ship unauthenticated: an api path, or
   // the bare `/` it reads as its own landing page. Neither is where a person
@@ -87,7 +103,14 @@ export default function shipLoginPlugin(
         if (req.method !== 'GET' || url.split('?')[0] !== '/~/login') {
           return next();
         }
-        if (!isOwnBrowser(req.socket.remoteAddress, req.headers.host)) {
+        if (
+          !isOwnBrowser(
+            req.socket.remoteAddress,
+            req.headers.host,
+            req.headers.origin,
+            req.headers['sec-fetch-site'] as string | undefined
+          )
+        ) {
           return next();
         }
         res.setHeader('content-type', 'text/html; charset=utf-8');

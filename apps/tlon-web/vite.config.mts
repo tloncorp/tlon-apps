@@ -39,8 +39,11 @@ export default ({ mode }: { mode: string }) => {
     loadEnv(mode, process.cwd(), ['VITE_', 'DEFAULT_SHIP_LOGIN_'])
   );
   // The bundle reads VITE_SHIP_URL as well (packages/app/lib/envVars.ts, for
-  // whether the ship is hosted), so the fallback has to reach it too.
-  process.env.VITE_SHIP_URL ||= process.env.DEFAULT_SHIP_LOGIN_URL;
+  // whether the ship is hosted), so the fallback has to reach it too -- behind
+  // SHIP_URL, which the proxy below prefers and e2e runs set, so the bundle
+  // never names a different ship than the one being served.
+  process.env.VITE_SHIP_URL ||=
+    process.env.SHIP_URL || process.env.DEFAULT_SHIP_LOGIN_URL;
   const SHIP_URL =
     process.env.SHIP_URL ||
     process.env.VITE_SHIP_URL ||
