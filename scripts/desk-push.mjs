@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // desk-push: commit an assembled desk to a ship through Clay, in one round trip.
 //
-//   node scripts/desk-push.mjs <assembled-dir> <desk> --pier <pier-path> [--code <+code>] [--install] [--reseed] [--dry-run]
+//   node scripts/desk-push.mjs <assembled-dir> <desk> --pier <pier-path> [--code <+code>] [--install] [--reseed] [--ignore <path>]... [--dry-run]
 //   node scripts/desk-push.mjs <assembled-dir> <desk> --url http://host:port (--code <+code> | --cookie <urbauth>) [--install] [--dry-run]
 //
 // Verified end to end on a fresh fake ship (vere 4.6, kelvin 408): bootstrap
@@ -83,6 +83,9 @@ const clayPath = (rel) => {
   return parts;
 };
 const pathNoun = (segments) => dejs.list(segments.map(cord));
+// 'desk.docket-0' or '/desk/docket-0' -> '/desk/docket-0'
+const toClayPath = (rel) =>
+  '/' + clayPath(rel.replace(/^\//, '').split('/').join(sep)).join('/');
 const pathString = (noun) =>
   '/' + listToArray(noun).map(cordToString).join('/');
 
@@ -564,7 +567,7 @@ function parseArgs(argv) {
     rest.includes(name) ? rest[rest.indexOf(name) + 1] : undefined;
   if (!dir || !desk || !(opt('--pier') || opt('--url'))) {
     console.error(
-      'usage: desk-push.mjs <assembled-dir> <desk> (--pier <path> | --url <http://host:port> (--code <+code> | --cookie <urbauth>)) [--install] [--reseed] [--dry-run]'
+      'usage: desk-push.mjs <assembled-dir> <desk> (--pier <path> | --url <http://host:port> (--code <+code> | --cookie <urbauth>)) [--install] [--reseed] [--ignore <desk-relative-path>]... [--dry-run]'
     );
     process.exit(2);
   }
@@ -581,6 +584,11 @@ function parseArgs(argv) {
     // longer build, since the push itself depends on them. Never turns into a
     // %park against a desk that already exists.
     reseed: rest.includes('--reseed') || rest.includes('--bootstrap'),
+    // accepted either as it appears on disk (desk.docket-0) or as clay spells
+    // it (/desk/docket-0); both normalise to the clay path used for matching
+    ignore: rest.flatMap((a, i) =>
+      a === '--ignore' ? [toClayPath(rest[i + 1])] : []
+    ),
   };
 }
 
@@ -692,7 +700,15 @@ async function main() {
     }
   }
 
-  const changed = local.filter((f) => remote.get(f.path) !== shax(f.buf));
+  // --ignore leaves a path exactly as the ship has it: neither pushed when it
+  // differs nor deleted when absent locally. The bot harness uses it for
+  // commit.txt and desk.docket-0, which the glob bot rewrites several times a
+  // day without changing any hoon, so that a frontend-only develop does not
+  // force a commit and a full agent reload on every run.
+  const ignored = (p) => args.ignore.includes(p);
+  const changed = local.filter(
+    (f) => !ignored(f.path) && remote.get(f.path) !== shax(f.buf)
+  );
   if (process.env.DESK_PUSH_DEBUG) {
     for (const f of changed.slice(0, 4)) {
       console.log(
@@ -701,7 +717,9 @@ async function main() {
     }
   }
   const localPaths = new Set(local.map((f) => f.path));
-  const deleted = [...remote.keys()].filter((p) => !localPaths.has(p));
+  const deleted = [...remote.keys()].filter(
+    (p) => !localPaths.has(p) && !ignored(p)
+  );
 
   if (changed.length === 0 && deleted.length === 0) {
     console.log(`%${args.desk} unchanged (${remote.size} files)`);

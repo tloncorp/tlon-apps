@@ -1,16 +1,13 @@
-import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import type { RuntimeContext, ShipEndpoint } from '../drivers/types.js';
+import type { RuntimeContext } from '../drivers/types.js';
 import { runCommand } from './compose.js';
 import {
   copyIntoComposeService,
   execInComposeService,
-  restartComposeService,
 } from './docker-direct.js';
-import { waitFor, waitForShipLogin } from './waiters.js';
 
 type ShipLabel = keyof RuntimeContext['endpoints']['ships'];
 
@@ -21,22 +18,31 @@ type ShipLabel = keyof RuntimeContext['endpoints']['ships'];
 // poke path crashes outright (`%poke-to-mismatching-gill`) rather than deferring.
 const DEFAULT_DESK_SHIPS = '~zod,~ten,~mug';
 const STAGED_DESK = '/tmp/tlon-bot-e2e-groups';
-const COMMIT_ATTEMPTS = 4;
 const ASSEMBLE_DESK_TIMEOUT_MS = 300_000;
-const MOUNT_STABLE_SAMPLES = 3;
-const REQUEST_TIMEOUT_MS = 10_000;
-// A desk compile can occupy vere for minutes; poll patiently rather than
-// mistaking a busy ship for a dead one.
-const COMMIT_REQUEST_TIMEOUT_MS = 120_000;
 
-// Native CI runners commit the desk in ~4 minutes; amd64 vere emulated under
-// qemu (arm64 Docker hosts) takes several times that, so local runs can
-// raise the ceiling via env instead of editing the default. Read lazily —
-// the harness loads its .env file after this module is imported.
-function deskReadyTimeoutMs(): number {
+// The repo is bind-mounted read-only into the ships service (see
+// docker/docker-compose.base.yml). desk-push has to run in there rather than on
+// the host because seeding a desk that does not yet carry the push threads goes
+// through the pier's conn.sock.
+const DESK_PUSH_SCRIPT = '/workspace/tlon-apps/scripts/desk-push.mjs';
+
+// assemble-desk.sh stamps HEAD into commit.txt, and the glob bot rewrites the
+// glob hash in desk.docket-0 several times a day on develop. Neither changes
+// any Hoon the bot harness exercises, and committing them would reload every
+// agent on all three ships for nothing.
+const IGNORED_PATHS = ['commit.txt', 'desk.docket-0'];
+
+// A first push to a pier whose %groups predates the push threads seeds the
+// whole desk, compiles it, and reloads every agent on it. Native CI runners
+// manage that in a few minutes; amd64 vere emulated under qemu (arm64 Docker
+// hosts) took ~8 minutes per ship when this was measured, so the ceiling has
+// to leave real headroom above that rather than sit just over it. Steady-state
+// pushes are seconds. Raise it further via env instead of editing the default.
+// Read lazily — the harness loads its .env file after this module is imported.
+export function deskPushTimeoutMs(): number {
   const raw = process.env.TLON_BOT_E2E_DESK_READY_TIMEOUT_MS;
   if (raw === undefined || raw === '') {
-    return 600_000;
+    return 1_200_000;
   }
   const parsed = Number(raw);
   if (!Number.isInteger(parsed) || parsed <= 0) {
@@ -47,26 +53,10 @@ function deskReadyTimeoutMs(): number {
   return parsed;
 }
 
-class ShipUnavailableError extends Error {}
-// Distinct from unavailable: the ship holds the connection but has not
-// answered yet. A `%groups` commit makes vere compile the desk, which is
-// CPU-bound for minutes and cannot serve eyre meanwhile — treating that as a
-// dead ship and rebooting kills the compile, which is exactly what the first
-// live runs did. Rube imposes no request deadline at all and classifies only
-// connection-level failures (ECONNREFUSED/ECONNRESET/socket hang up) as
-// unavailable; this mirrors that, keeping a generous bound so nothing hangs
-// for the whole CI job.
-class ShipBusyError extends Error {}
-class MountedDeskUnavailableError extends Error {}
-
 export interface BranchDeskDependencies {
   runCommand: typeof runCommand;
   copyIntoComposeService: typeof copyIntoComposeService;
   execInComposeService: typeof execInComposeService;
-  restartComposeService: typeof restartComposeService;
-  waitFor: typeof waitFor;
-  waitForShipLogin: typeof waitForShipLogin;
-  fetch: typeof fetch;
   deskShips(): string | undefined;
 }
 
@@ -74,10 +64,6 @@ const DEFAULT_DEPENDENCIES: BranchDeskDependencies = {
   runCommand,
   copyIntoComposeService,
   execInComposeService,
-  restartComposeService,
-  waitFor,
-  waitForShipLogin,
-  fetch,
   deskShips: () => process.env.TLON_BOT_E2E_DESK_SHIPS,
 };
 
@@ -103,45 +89,16 @@ export function parseDeskShips(
   return [...new Set(ships as ShipLabel[])];
 }
 
-export async function withShipRebootRetry<T>(
-  action: (attempt: number) => Promise<T>,
-  reboot: (attempt: number, error: unknown) => Promise<void>,
-  unavailable: (error: unknown) => boolean,
-  maxAttempts = COMMIT_ATTEMPTS
-): Promise<T> {
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    try {
-      return await action(attempt);
-    } catch (error) {
-      if (!unavailable(error) || attempt === maxAttempts) {
-        throw error;
-      }
-      await reboot(attempt, error);
-    }
-  }
-  throw new Error('Unreachable desk commit retry state.');
-}
-
-export async function createDeskManifest(deskDir: string): Promise<string> {
-  const files = await listFiles(deskDir);
-  const lines = await Promise.all(
-    files
-      // Frontend-only commits must not force an otherwise identical Hoon desk
-      // through an expensive |commit: assemble-desk.sh stamps HEAD into
-      // commit.txt, and the glob bot rewrites the glob hash in desk.docket-0
-      // (several times a day on develop). Neither affects anything the bot
-      // harness exercises, and the docket-only skip leaves the pier's
-      // archived docket in place.
-      .filter((file) => file !== 'commit.txt' && file !== 'desk.docket-0')
-      .sort()
-      .map(async (file) => {
-        const digest = createHash('sha256')
-          .update(await readFile(path.join(deskDir, file)))
-          .digest('hex');
-        return `${digest}  ./${file.split(path.sep).join('/')}`;
-      })
-  );
-  return `${lines.join('\n')}\n`;
+export function deskPushArgv(ship: ShipLabel): string[] {
+  return [
+    'node',
+    DESK_PUSH_SCRIPT,
+    STAGED_DESK,
+    'groups',
+    '--pier',
+    `/data/${ship}`,
+    ...IGNORED_PATHS.flatMap((file) => ['--ignore', file]),
+  ];
 }
 
 export async function applyBranchDesk(
@@ -152,7 +109,6 @@ export async function applyBranchDesk(
   const ships = parseDeskShips(dependencies.deskShips());
   const tempDir = await mkdtemp(path.join(os.tmpdir(), 'tlon-bot-e2e-desk-'));
   const deskDir = path.join(tempDir, 'groups');
-  const manifestPath = path.join(tempDir, 'manifest.sha256');
 
   try {
     console.log(
@@ -171,18 +127,6 @@ export async function applyBranchDesk(
       }
     );
     requireSuccess(assembled, 'assemble branch desk');
-    // Any commit this apply issues must move the kiln hash: when Clay already
-    // holds the assembled content (piers freshly archived from this branch) a
-    // plain re-commit is a no-op, and waitForDeskReady would wait forever for
-    // a hash change. A unique commit.txt makes every issued commit a real,
-    // one-file change. It cannot force needless commits: manifests exclude
-    // commit.txt, so the unchanged-desk skip path still fires first.
-    await writeFile(
-      path.join(deskDir, 'commit.txt'),
-      `${ctx.runId} ${new Date().toISOString()}\n`
-    );
-    const manifest = await createDeskManifest(deskDir);
-    await writeFile(manifestPath, manifest);
 
     await requireShipExec(ctx, dependencies, [
       'bash',
@@ -194,424 +138,30 @@ export async function applyBranchDesk(
     await dependencies.copyIntoComposeService(
       ctx,
       ctx.services.ships,
-      `${tempDir}/.`,
+      `${deskDir}/.`,
       STAGED_DESK
     );
 
     for (const ship of ships) {
-      const endpoint = ctx.endpoints.ships[ship];
-      let cookie = await login(endpoint, dependencies);
-      await hoodCommand(ctx, ship, 'mount %groups', dependencies);
-      await waitForMountedDeskStable(ctx, ship, dependencies);
-      const startHash = await waitForGroupsHash(endpoint, cookie, dependencies);
-      if (await deskMatches(ctx, ship, manifest, dependencies)) {
-        console.log(`    ~${ship}: assembled desk unchanged; skipping commit`);
-        continue;
+      // Nothing is printed until the exec returns, and a first push to a pier
+      // that predates the threads can run for minutes, so name the ship first.
+      console.log(`    ~${ship}: pushing...`);
+      // desk-push reports what it did and exits non-zero on a failed build,
+      // carrying the compile trace, so there is nothing here to poll for.
+      const result = await dependencies.execInComposeService(
+        ctx,
+        ctx.services.ships,
+        deskPushArgv(ship),
+        { timeoutMs: deskPushTimeoutMs() }
+      );
+      for (const line of result.stdout.split('\n').filter(Boolean)) {
+        console.log(`    ~${ship}: ${line}`);
       }
-      logManifestDrift(
-        ship,
-        await readMountedDeskManifest(ctx, ship, dependencies),
-        manifest
-      );
-
-      console.log(`    ~${ship}: copying and committing assembled desk`);
-      await withShipRebootRetry(
-        async () => {
-          // Replacement happens inside every attempt: a vere reboot re-syncs
-          // the mount from Clay, wiping an uncommitted replacement (observed
-          // on the first live run — the commit segfaulted, the reboot
-          // restored the old desk, and the clobber guard refused). The
-          // staged copy under /tmp survives the container restart, so
-          // re-replacing is cheap; the mount is re-settled first, and the
-          // assert directly after the copy still refuses a concurrent
-          // clobber in the replace→commit window.
-          await waitForMountedDeskStable(ctx, ship, dependencies);
-          if (!(await deskMatches(ctx, ship, manifest, dependencies))) {
-            await replaceMountedDesk(ctx, ship, dependencies);
-            await assertDeskMatches(ctx, ship, manifest, dependencies);
-          }
-          if (
-            (await groupsHash(endpoint, cookie, dependencies)) === startHash
-          ) {
-            await hoodCommand(ctx, ship, 'commit %groups', dependencies);
-          }
-          await waitForDeskReady(endpoint, cookie, startHash, dependencies);
-        },
-        async (attempt) => {
-          // Vere can segfault in u3_readdir_r while rescanning a mounted desk.
-          // Restarting this pre-bot ships service is the rube mitigation.
-          console.log(
-            `    ~${ship}: unavailable during commit readiness ` +
-              `(attempt ${attempt}/${COMMIT_ATTEMPTS}); rebooting and retrying`
-          );
-          await dependencies.restartComposeService(ctx, ctx.services.ships);
-          await Promise.all(
-            Object.values(ctx.endpoints.ships).map((restarted) =>
-              dependencies.waitForShipLogin(restarted.hostUrl, restarted.code, {
-                timeoutMs: 120_000,
-                intervalMs: 1_000,
-                description: `${restarted.ship} reboot after desk commit`,
-              })
-            )
-          );
-          cookie = await login(endpoint, dependencies);
-        },
-        (error) => error instanceof ShipUnavailableError
-      );
+      requireSuccess(result, `push branch desk to ~${ship}`);
     }
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
-}
-
-async function listFiles(root: string, relative = ''): Promise<string[]> {
-  const entries = await readdir(path.join(root, relative), {
-    withFileTypes: true,
-  });
-  const files = await Promise.all(
-    entries.map(async (entry) => {
-      const child = path.join(relative, entry.name);
-      return entry.isDirectory() ? listFiles(root, child) : [child];
-    })
-  );
-  return files.flat();
-}
-
-async function readMountedDeskManifest(
-  ctx: RuntimeContext,
-  ship: ShipLabel,
-  dependencies: BranchDeskDependencies
-): Promise<string> {
-  const result = await dependencies.execInComposeService(
-    ctx,
-    ctx.services.ships,
-    [
-      'bash',
-      '-c',
-      'set -euo pipefail; mount="$1"; test -d "$mount" && test -r "$mount" && test -x "$mount" || exit 20; cd "$mount"; find . -type f ! -path ./commit.txt ! -path ./desk.docket-0 -print0 | sort -z | xargs -0r sha256sum',
-      'bash',
-      `/data/${ship}/groups`,
-    ]
-  );
-  if (result.exitCode !== 0) {
-    throw new MountedDeskUnavailableError(
-      `Mounted %groups desk for ~${ship} is missing or unreadable ` +
-        `(exit ${result.exitCode}): ${(result.stderr || result.stdout).trim()}`
-    );
-  }
-  return result.stdout;
-}
-
-async function waitForMountedDeskStable(
-  ctx: RuntimeContext,
-  ship: ShipLabel,
-  dependencies: BranchDeskDependencies
-): Promise<void> {
-  let previousManifest: string | undefined;
-  let stableSamples = 0;
-  await dependencies.waitFor(
-    async () => {
-      const manifest = await readMountedDeskManifest(ctx, ship, dependencies);
-      stableSamples = manifest === previousManifest ? stableSamples + 1 : 1;
-      previousManifest = manifest;
-      return stableSamples >= MOUNT_STABLE_SAMPLES ? { manifest } : false;
-    },
-    {
-      timeoutMs: 30_000,
-      intervalMs: 1_000,
-      description: `~${ship} %groups mount to exist and settle`,
-    }
-  );
-}
-
-async function deskMatches(
-  ctx: RuntimeContext,
-  ship: ShipLabel,
-  expectedManifest: string,
-  dependencies: BranchDeskDependencies
-): Promise<boolean> {
-  return (
-    (await readMountedDeskManifest(ctx, ship, dependencies)) ===
-    expectedManifest
-  );
-}
-
-// Two silent-timeout debugging rounds were spent guessing what differed; on a
-// mismatch, name the drifting paths so the next one is a one-look diagnosis.
-function logManifestDrift(
-  ship: ShipLabel,
-  mounted: string,
-  expected: string
-): void {
-  const mountedLines = new Set(mounted.split('\n'));
-  const expectedLines = new Set(expected.split('\n'));
-  const drift = [
-    ...[...expectedLines]
-      .filter((line) => line && !mountedLines.has(line))
-      .map((line) => `+ ${line}`),
-    ...[...mountedLines]
-      .filter((line) => line && !expectedLines.has(line))
-      .map((line) => `- ${line}`),
-  ];
-  const shown = drift.slice(0, 8);
-  console.log(`    ~${ship}: desk drift (${drift.length} manifest lines):`);
-  for (const line of shown) {
-    console.log(`      ${line}`);
-  }
-  if (drift.length > shown.length) {
-    console.log(`      … ${drift.length - shown.length} more`);
-  }
-}
-
-async function assertDeskMatches(
-  ctx: RuntimeContext,
-  ship: ShipLabel,
-  expectedManifest: string,
-  dependencies: BranchDeskDependencies
-): Promise<void> {
-  if (!(await deskMatches(ctx, ship, expectedManifest, dependencies))) {
-    throw new Error(
-      `Mounted %groups desk for ~${ship} changed after replacement; refusing to commit.`
-    );
-  }
-}
-
-async function replaceMountedDesk(
-  ctx: RuntimeContext,
-  ship: ShipLabel,
-  dependencies: BranchDeskDependencies
-) {
-  await requireShipExec(ctx, dependencies, [
-    'bash',
-    '-c',
-    'set -euo pipefail; target="$1"; source="$2"; mkdir -p "$target"; find "$target" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +; cp -a "$source"/. "$target"/',
-    'bash',
-    `/data/${ship}/groups`,
-    `${STAGED_DESK}/groups`,
-  ]);
-}
-
-async function login(
-  endpoint: ShipEndpoint,
-  dependencies: BranchDeskDependencies
-): Promise<string> {
-  const response = await shipFetch(
-    endpoint,
-    'login',
-    `${endpoint.hostUrl}/~/login`,
-    {
-      method: 'POST',
-      body: new URLSearchParams({ password: endpoint.code }),
-    },
-    dependencies
-  );
-  const cookie = response.headers.get('set-cookie');
-  if (!cookie?.includes('urbauth')) {
-    throw new Error(
-      `~${endpoint.ship.replace(/^~/, '')} login returned no urbauth cookie.`
-    );
-  }
-  return cookie;
-}
-
-// Vere can die (the u3_readdir_r commit segfault) while the lens request is
-// still in flight; the script signals connection-level failures with this
-// exit code so hoodCommand can route them into the reboot retry instead of
-// failing the run on a plain error.
-const HOOD_CONNECTION_FAILURE_EXIT = 21;
-
-// The {source, sink} dojo payload is the lens protocol, served only by
-// vere's loopback listener inside the container — the host-mapped eyre port
-// 404s it (found on the first live run). Rube posts to the same loopback
-// port; here the container's own node runs the request.
-const HOOD_LOOPBACK_SCRIPT = [
-  "const fs = require('fs');",
-  'const [ship, command] = process.argv.slice(1);',
-  "const lines = fs.readFileSync(`/data/${ship}/.http.ports`, 'utf8').split('\\n');",
-  "const port = lines.map((l) => l.split(' ')).find((p) => p[2] === 'loopback')?.[0];",
-  'if (!port) { console.error(`no loopback port for ${ship}`); process.exit(1); }',
-  'fetch(`http://127.0.0.1:${port}`, {',
-  "  method: 'POST',",
-  "  headers: { 'Content-Type': 'application/json' },",
-  '  body: JSON.stringify({ source: { dojo: `+hood/${command}` }, sink: { app: "hood" } }),',
-  '}).then(async (res) => {',
-  '  if (!res.ok) {',
-  '    console.error(`+hood/${command} on ${ship}: HTTP ${res.status}: ${await res.text()}`);',
-  '    process.exit(1);',
-  '  }',
-  '}, (err) => {',
-  '  const cause = err && err.cause ? err.cause : err;',
-  "  const code = cause && cause.code ? String(cause.code) : '';",
-  "  const connectionLevel = ['ECONNREFUSED', 'ECONNRESET', 'EPIPE', 'ETIMEDOUT', 'UND_ERR_SOCKET'].includes(code);",
-  '  console.error(String(err));',
-  `  process.exit(connectionLevel ? ${HOOD_CONNECTION_FAILURE_EXIT} : 1);`,
-  '});',
-].join('\n');
-
-async function hoodCommand(
-  ctx: RuntimeContext,
-  ship: ShipLabel,
-  command: string,
-  dependencies: BranchDeskDependencies
-) {
-  const result = await dependencies.execInComposeService(
-    ctx,
-    ctx.services.ships,
-    ['node', '-e', HOOD_LOOPBACK_SCRIPT, ship, command]
-  );
-  if (result.exitCode === HOOD_CONNECTION_FAILURE_EXIT) {
-    throw new ShipUnavailableError(
-      `+hood/${command} on ~${ship} failed at the connection level: ${(
-        result.stderr || result.stdout
-      ).trim()}`
-    );
-  }
-  requireSuccess(result, `exec in ${ctx.services.ships}`);
-}
-
-async function groupsHash(
-  endpoint: ShipEndpoint,
-  cookie: string,
-  dependencies: BranchDeskDependencies,
-  timeoutMs = REQUEST_TIMEOUT_MS
-) {
-  const data = await shipJson(
-    endpoint,
-    cookie,
-    'read %groups desk hash',
-    '/~/scry/hood/kiln/pikes.json',
-    dependencies,
-    timeoutMs
-  );
-  const hash = (data as { groups?: { hash?: unknown } }).groups?.hash;
-  if (typeof hash !== 'string') {
-    throw new Error(`No %groups desk hash returned by ${endpoint.ship}.`);
-  }
-  return hash;
-}
-
-async function waitForGroupsHash(
-  endpoint: ShipEndpoint,
-  cookie: string,
-  dependencies: BranchDeskDependencies
-) {
-  return dependencies.waitFor(
-    () => groupsHash(endpoint, cookie, dependencies),
-    {
-      timeoutMs: 30_000,
-      intervalMs: 1_000,
-      description: `${endpoint.ship} %groups desk in kiln`,
-    }
-  );
-}
-
-async function waitForDeskReady(
-  endpoint: ShipEndpoint,
-  cookie: string,
-  startHash: string,
-  dependencies: BranchDeskDependencies
-) {
-  await dependencies.waitFor(
-    async () => {
-      try {
-        if (
-          (await groupsHash(
-            endpoint,
-            cookie,
-            dependencies,
-            COMMIT_REQUEST_TIMEOUT_MS
-          )) === startHash
-        ) {
-          return false;
-        }
-        await shipJson(
-          endpoint,
-          cookie,
-          'check %groups app health',
-          '/~/scry/groups/groups/light.json',
-          dependencies,
-          COMMIT_REQUEST_TIMEOUT_MS
-        );
-        return true;
-      } catch (error) {
-        // Busy compiling is progress, not death: keep polling. Only a
-        // connection-level failure means vere actually went away, and that
-        // rethrows to the reboot retry.
-        if (error instanceof ShipBusyError) {
-          return false;
-        }
-        throw error;
-      }
-    },
-    {
-      timeoutMs: deskReadyTimeoutMs(),
-      intervalMs: 2_000,
-      description: `${endpoint.ship} %groups desk ready after commit`,
-      rethrowError: (error) => error instanceof ShipUnavailableError,
-    }
-  );
-}
-
-async function shipJson(
-  endpoint: ShipEndpoint,
-  cookie: string,
-  action: string,
-  pathname: string,
-  dependencies: BranchDeskDependencies,
-  timeoutMs = REQUEST_TIMEOUT_MS
-): Promise<unknown> {
-  const response = await shipFetch(
-    endpoint,
-    action,
-    `${endpoint.hostUrl}${pathname}`,
-    {
-      headers: { Cookie: cookie },
-    },
-    dependencies,
-    timeoutMs
-  );
-  return response.json();
-}
-
-function isAbortTimeout(error: unknown) {
-  return (
-    error instanceof Error &&
-    (error.name === 'TimeoutError' || error.name === 'AbortError')
-  );
-}
-
-async function shipFetch(
-  endpoint: ShipEndpoint,
-  action: string,
-  url: string,
-  init: RequestInit,
-  dependencies: BranchDeskDependencies,
-  timeoutMs = REQUEST_TIMEOUT_MS
-): Promise<Response> {
-  let response: Response;
-  try {
-    response = await dependencies.fetch(url, {
-      ...init,
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-  } catch (error) {
-    if (isAbortTimeout(error)) {
-      throw new ShipBusyError(
-        `${endpoint.ship} did not answer within ${timeoutMs}ms while attempting to ${action}`,
-        { cause: error }
-      );
-    }
-    throw new ShipUnavailableError(
-      `${endpoint.ship} became unavailable while attempting to ${action}`,
-      { cause: error }
-    );
-  }
-  if (!response.ok) {
-    throw new Error(
-      `${endpoint.ship} ${action} failed with HTTP ${response.status}: ${await response.text()}`
-    );
-  }
-  return response;
 }
 
 async function requireShipExec(
