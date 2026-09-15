@@ -7,6 +7,7 @@ import {
   verifyVideo,
   localRecordingPath,
   appendInfrastructureFailure,
+  accountForRecordingCap,
 } from './core.mjs';
 
 test('recording accepts the CLI materialized path and the MCP artifact handle', () => {
@@ -193,4 +194,43 @@ test('setup failure and interrupted passed run remain explicitly incomplete', ()
   const result = appendInfrastructureFailure(prior, 'Timeout');
   assert.equal(result.status, 'blocked');
   assert.equal(result.checks.length, 2);
+});
+
+test('the capture limit retains playable video and marks only coverage incomplete', () => {
+  const video = {
+    status: 'ready',
+    capped: true,
+    ...verifyVideo(
+      {
+        streams: [
+          { codec_type: 'video', codec_name: 'h264', width: 588, height: 1280 },
+        ],
+        format: { duration: 600 },
+      },
+      600
+    ),
+  };
+  const prior = {
+    status: 'passed',
+    summary: 'Saved',
+    checks: [
+      {
+        status: 'passed',
+        expected: 'Save',
+        observed: 'Saved',
+        evidence: ['frame'],
+      },
+    ],
+  };
+  const result = accountForRecordingCap(prior, video);
+  assert.equal(video.status, 'ready');
+  assert.equal(result.status, 'blocked');
+  assert.equal(result.checks[0], prior.checks[0]);
+  assert.equal(result.checks[1].infrastructure, true);
+  assert.match(result.checks[1].observed, /captured video remains usable/);
+  assert.equal(verifyReport(result, new Map([['frame', {}]])), result);
+  assert.equal(
+    accountForRecordingCap(prior, { ...video, capped: false }),
+    prior
+  );
 });

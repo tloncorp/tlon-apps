@@ -184,6 +184,8 @@ export function readActions(file) {
         name: entry.params.name,
         arguments: entry.params.arguments,
         content: [],
+        responseReceived: false,
+        isError: false,
       };
       actions.push(action);
       pending.set(entry.id, action);
@@ -192,10 +194,23 @@ export function readActions(file) {
       const action = pending.get(entry.id);
       if (!action) throw new Error('Device response has no matching action');
       action.content = entry.result?.content || [];
+      action.responseReceived = true;
+      action.isError = Boolean(entry.result?.isError || entry.error);
       pending.delete(entry.id);
     }
   }
   return actions;
+}
+export function hasActionEvidence(action) {
+  return (
+    action?.responseReceived === true &&
+    !action.isError &&
+    action.content.some((c) =>
+      c.type === 'text'
+        ? typeof c.text === 'string' && Boolean(c.text.trim())
+        : c.type === 'image' && typeof c.data === 'string' && c.data.length > 0
+    )
+  );
 }
 export function evidenceCall(actions, name, args) {
   if (name === 'list_actions')

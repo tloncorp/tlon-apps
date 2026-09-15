@@ -1,5 +1,14 @@
 export const statuses = ['passed', 'failed', 'blocked'];
 
+export function accountForRecordingCap(report, video) {
+  return video?.status === 'ready' && video.capped
+    ? appendInfrastructureFailure(
+        report,
+        'Recording stopped at its 10-minute limit. The captured video remains usable; any later interaction is unrecorded and incomplete.'
+      )
+    : report;
+}
+
 export function localRecordingPath(recording) {
   // The CLI materializes artifact handles to strings; MCP may retain handles.
   const file =

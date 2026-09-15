@@ -5,7 +5,12 @@ import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import os from 'node:os';
-import { sourceReader, evidenceCall, readActions } from './review-tools.mjs';
+import {
+  sourceReader,
+  evidenceCall,
+  readActions,
+  hasActionEvidence,
+} from './review-tools.mjs';
 import {
   verifySourceReview,
   reviewArgs,
@@ -252,7 +257,30 @@ test('unplanned defects cannot be hidden by passing planned checks or cite nonex
     ],
     discoveries: [discovery],
   };
-  assert.equal(verifyDiscoveries(result, assessment, [{}, {}]), result);
+  const completed = {
+    responseReceived: true,
+    isError: false,
+    content: [{ type: 'text', text: 'Observed state' }],
+  };
+  assert.equal(
+    verifyDiscoveries(result, assessment, [completed, completed]),
+    result
+  );
+  for (const invalid of [
+    { responseReceived: false, content: [] },
+    { responseReceived: true, content: [] },
+    { ...completed, isError: true },
+    { responseReceived: true, content: [{ type: 'text', text: '  ' }] },
+  ]) {
+    assert.throws(
+      () => verifyDiscoveries(result, assessment, [completed, invalid]),
+      /real before\/after/
+    );
+    assert.throws(
+      () => verifyDiscoveries(result, assessment, [invalid, invalid]),
+      /real before\/after/
+    );
+  }
   assert.throws(
     () =>
       verifyReport(result, new Map([['codex-trace', { screenshot: true }]])),
@@ -314,4 +342,51 @@ test('video follow-up prioritizes unresolved checks and preserves the full sourc
     ['change-2', 'change-3']
   );
   assert.equal(plan.files.length, 5);
+});
+
+test('pending requests remain indexed attempts and cannot establish observations', () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'qa-pending-'));
+  try {
+    const file = path.join(dir, 'trace.jsonl');
+    writeFileSync(
+      file,
+      [
+        { type: 'request', id: 1, params: { name: 'describe', arguments: {} } },
+        {
+          type: 'request',
+          id: 2,
+          params: { name: 'screenshot', arguments: {} },
+        },
+        {
+          type: 'response',
+          id: 2,
+          result: { content: [{ type: 'image', data: 'frame' }] },
+        },
+        { type: 'request', id: 3, params: { name: 'describe', arguments: {} } },
+        {
+          type: 'response',
+          id: 3,
+          result: { isError: true, content: [{ type: 'text', text: 'Error' }] },
+        },
+      ]
+        .map(JSON.stringify)
+        .join('\n')
+    );
+    const actions = readActions(file);
+    assert.deepEqual(
+      actions.map((a) => a.index),
+      [1, 2, 3]
+    );
+    assert.deepEqual(actions.map(hasActionEvidence), [false, true, false]);
+    const shown = JSON.parse(
+      evidenceCall(actions, 'inspect_action', { index: 1 })[0].text
+    );
+    assert.equal(shown.responseReceived, false);
+    assert.equal(
+      JSON.parse(evidenceCall(actions, 'list_actions', {})[0].text)[1].index,
+      2
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

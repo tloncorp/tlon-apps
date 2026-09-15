@@ -1,7 +1,7 @@
 // The caller's Expo session prepares an authenticated, read-only artifact replay.
 // Artifact URLs stay in the subprocess request and are never printed here.
 import { execFileSync } from 'node:child_process';
-import { selectEvidence } from './publish.mjs';
+import { selectEvidence, selectReviewedEvidence } from './publish.mjs';
 const [id, ref, mode, reviewerRun] = process.argv.slice(2);
 if (
   reviewerRun &&
@@ -32,11 +32,11 @@ const eas = (args) =>
 const run = eas(['workflow:view', id]);
 const { video } = selectEvidence(run, id);
 const artifactRun = reviewerRun ? eas(['workflow:view', reviewerRun]) : run;
-const artifact = artifactRun.jobs
-  .find((j) => j.key === (reviewerRun ? 'review_recording' : 'qa_ios'))
-  ?.artifacts.find(
-    (a) => a.name === (reviewerRun ? 'evidence-review-replay' : 'ios-agent-qa')
-  );
+const artifact = reviewerRun
+  ? selectReviewedEvidence(artifactRun, reviewerRun)
+  : artifactRun.jobs
+      .find((j) => j.key === 'qa_ios')
+      ?.artifacts.find((a) => a.name === 'ios-agent-qa');
 if (!artifact) throw new Error('Missing recorded evidence');
 const descriptor = {
   complete: mode === 'complete',

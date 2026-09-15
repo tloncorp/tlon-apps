@@ -5,6 +5,10 @@ mkdir -p "$PROOF_OUTPUT"
 start=$SECONDS
 : "${QA_TUNNEL_TOKEN:?Tunnel access credential missing}"
 [[ "$QA_TUNNEL_TOKEN" =~ ^[a-f0-9]{64}$ ]]
+proof_result_route="alias $PROOF_OUTPUT/peer-result.json;"
+if [ "${QA_PR_MODE:-false}" = true ]; then
+  proof_result_route='proxy_pass http://127.0.0.1:49380/result; proxy_read_timeout 15s;'
+fi
 # The EAS host proxy adds this credential; it never reaches the app or model.
 cat > "$RUNNER_TEMP/proof-nginx.conf" <<EOF
 pid $RUNNER_TEMP/proof-nginx.pid;
@@ -24,7 +28,7 @@ server {
   if (\$http_x_qa_token != "$QA_TUNNEL_TOKEN") { return 403; }
   access_log off;
   location = /qa-proof/ready { alias $PROOF_OUTPUT/peer-ready.json; }
-  location = /qa-proof/result { alias $PROOF_OUTPUT/peer-result.json; }
+  location = /qa-proof/result { $proof_result_route }
   location / {
     proxy_pass http://127.0.0.1:35453;
     proxy_http_version 1.1;

@@ -17,6 +17,7 @@ import {
   verifyVideo,
   localRecordingPath,
   appendInfrastructureFailure,
+  accountForRecordingCap,
 } from './core.mjs';
 
 const exec = promisify(execFile);
@@ -177,10 +178,6 @@ function stopRecording(capped = false) {
         capped,
         warning: recording.warning,
       };
-      if (capped)
-        throw new Error(
-          'Recording reached its 10-minute cap before testing finished'
-        );
       console.log(
         `Test video finalized: ${context.video.durationSeconds.toFixed(1)} seconds.`
       );
@@ -746,6 +743,7 @@ function finalize() {
     clearTimeout(watchdog);
     agentAbort.abort();
     await stopRecording();
+    report = accountForRecordingCap(report, context.video);
     if (recordingAttempted && context.video?.status !== 'ready') {
       if (report.status === 'passed') report.status = 'blocked';
       report.checks.push({

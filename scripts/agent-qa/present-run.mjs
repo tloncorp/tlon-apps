@@ -22,6 +22,7 @@ import { renderReport } from './core.mjs';
 import { videoReader } from './video-tools.mjs';
 import { readActions } from './review-tools.mjs';
 import { reviewFindingClips } from './clip-review.mjs';
+import { verifyReplayReceipt } from './publish.mjs';
 
 const env = process.env,
   out = path.resolve('../../artifacts/qa-presentation');
@@ -81,16 +82,27 @@ if (!statSync(trace).isDirectory()) {
   ]);
   trace = extract;
 }
-function findReports(dir) {
+function findFiles(dir, name) {
   return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
     e.isDirectory()
-      ? findReports(path.join(dir, e.name))
-      : e.isFile() && e.name === 'report.json'
+      ? findFiles(path.join(dir, e.name), name)
+      : e.isFile() && e.name === name
         ? [path.join(dir, e.name)]
         : []
   );
 }
-const reports = findReports(trace);
+if (replay?.reviewerRun) {
+  // A recovery archive may contain earlier receipts under recorded/. Bind the
+  // outer artifact's receipt, never a nested prior review with a matching ID.
+  const receipts = findFiles(trace, 'replay.json');
+  const depth = (p) => path.relative(trace, p).split(path.sep).length;
+  const min = Math.min(...receipts.map(depth));
+  const outer = receipts.filter((p) => depth(p) === min);
+  if (outer.length !== 1)
+    throw new Error('Missing or ambiguous reviewed-run receipt');
+  verifyReplayReceipt(JSON.parse(readFileSync(outer[0])), replay.id);
+}
+const reports = findFiles(trace, 'report.json');
 if (reports.length !== 1) throw new Error('Expected one recorded QA report');
 const source = path.dirname(reports[0]),
   original = JSON.parse(readFileSync(reports[0]));

@@ -2,6 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { seedNotes } from '../../scripts/agent-qa/seed-notes';
 import { TlonActorClient } from '../../packages/tlon-bot-e2e/src/tlon/actor';
+import { backendProofServer } from '../../scripts/agent-qa/backend-proof.mjs';
 
 // Runs on the CI host. No peer control service is exposed to the internet.
 process.chdir(fileURLToPath(new URL('../../', import.meta.url)));
@@ -120,12 +121,26 @@ async function main() {
   writeFileSync(`${out}/peer-ready.json`, JSON.stringify(evidence, null, 2));
   console.log('PEER_READY', JSON.stringify(evidence));
   if (process.env.QA_PR_MODE === 'true') {
-    writeFileSync(
-      `${out}/peer-result.json`,
-      JSON.stringify({ ...evidence, fixtureVerified: true }, null, 2)
-    );
+    const server = backendProofServer({
+      evidence,
+      readDeskHashes: async () => {
+        const live = await Promise.all(
+          [zod, ten].map((a) => a.state.scry<any>('hood', '/kiln/pikes'))
+        );
+        return live.map((state) => state.groups?.hash);
+      },
+      persist: (proof: unknown) =>
+        writeFileSync(
+          `${out}/peer-result.json`,
+          JSON.stringify(proof, null, 2)
+        ),
+    });
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(49380, '127.0.0.1', resolve);
+    });
     console.log('PR_FIXTURE_READY');
-    process.exit(0);
+    return;
   }
   await until(
     'native reply reaches ten',

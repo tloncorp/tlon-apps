@@ -17,6 +17,7 @@ import {
   sourceTools,
   evidenceTools,
   readActions,
+  hasActionEvidence,
 } from './review-tools.mjs';
 
 const text = { type: 'string' };
@@ -340,7 +341,9 @@ export function verifyDiscoveries(result, assessment, actions) {
       ) ||
       !Array.isArray(d.evidenceActions) ||
       new Set(d.evidenceActions).size < 2 ||
-      d.evidenceActions.some((i) => !Number.isInteger(i) || !actions[i - 1])
+      d.evidenceActions.some(
+        (i) => !Number.isInteger(i) || !hasActionEvidence(actions[i - 1])
+      )
     )
       throw new Error(
         'Unexpected findings need relevant source and real before/after action evidence'
@@ -399,8 +402,8 @@ Report at most six concrete discoveries: violated usability invariant, exact tri
         !Number.isInteger(t.before) ||
         !Number.isInteger(t.after) ||
         t.before >= t.after ||
-        !actions[t.before - 1] ||
-        !actions[t.after - 1]
+        !hasActionEvidence(actions[t.before - 1]) ||
+        !hasActionEvidence(actions[t.after - 1])
     )
   )
     throw new Error(

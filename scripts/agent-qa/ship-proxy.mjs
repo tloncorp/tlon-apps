@@ -1,5 +1,6 @@
 import http from 'node:http';
 import https from 'node:https';
+import { randomUUID } from 'node:crypto';
 
 export function verifyPeer(proof, sha, tag, complete = false, plan = null) {
   if (
@@ -43,6 +44,16 @@ export function verifyPeer(proof, sha, tag, complete = false, plan = null) {
   return proof;
 }
 
+export function verifyCompletionNonce(receipt, nonce) {
+  if (
+    !nonce ||
+    receipt.verificationNonce !== nonce ||
+    receipt.backendVerified !== true
+  )
+    throw new Error('Backend completion receipt is not fresh');
+  return receipt;
+}
+
 export async function connectShips(env) {
   const upstream = new URL(env.QA_SHIP_URL);
   if (
@@ -61,22 +72,28 @@ export async function connectShips(env) {
     throw new Error('Expected an authenticated QA ngrok origin');
   }
   const proof = async (complete) => {
-    const response = await fetch(
-      new URL(`/qa-proof/${complete ? 'result' : 'ready'}`, upstream),
-      {
-        headers: { 'X-QA-Token': env.QA_TUNNEL_TOKEN },
-        redirect: 'error',
-        signal: AbortSignal.timeout(20_000),
-      }
-    );
+    const plan =
+      env.QA_MODE === 'pull_request'
+        ? JSON.parse(env.QA_ASSESSMENT_JSON)
+        : null;
+    const nonce = complete && plan ? randomUUID() : null;
+    const url = new URL(`/qa-proof/${complete ? 'result' : 'ready'}`, upstream);
+    if (nonce) url.searchParams.set('nonce', nonce);
+    const response = await fetch(url, {
+      headers: { 'X-QA-Token': env.QA_TUNNEL_TOKEN },
+      redirect: 'error',
+      signal: AbortSignal.timeout(20_000),
+    });
     if (!response.ok)
       throw new Error(`Backend evidence unavailable (HTTP ${response.status})`);
+    const receipt = await response.json();
+    if (nonce) verifyCompletionNonce(receipt, nonce);
     return verifyPeer(
-      await response.json(),
+      receipt,
       env.QA_BACKEND_SHA,
       env.QA_RUN_TAG,
       complete,
-      env.QA_MODE === 'pull_request' ? JSON.parse(env.QA_ASSESSMENT_JSON) : null
+      plan
     );
   };
   const ready = await proof(false);
