@@ -135,6 +135,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       onEditorContentChange,
       onInitialContentSet,
       frameless = false,
+      testID,
     },
     ref
   ) => {
@@ -818,6 +819,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             style={{ width: '100%' }}
           >
             <RichText
+              testID={editorState.isReady ? testID : undefined}
               style={{
                 maxHeight: bigInput ? bigInputHeight : maxInputHeight,
                 width: '100%',
