@@ -3,7 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Platform, StatusBar } from 'react-native';
 
 import { InviteUsersScreen } from '../features/InviteUsersScreen';
-import { BrowserCredentialHandoffCompletionProvider } from '../features/browser/BrowserCredentialHandoffCompletion';
+import { BrowserCredentialHandoffProvider } from '../features/browser/BrowserCredentialHandoffProvider';
 import { BrowserCredentialHandoffScreen } from '../features/browser/BrowserCredentialHandoffScreen';
 import { ChannelMembersScreen } from '../features/channels/ChannelMembersScreen';
 import { ChannelMetaScreen } from '../features/channels/ChannelMetaScreen';
@@ -62,9 +62,9 @@ const nativeHeaderScreenOptions = {
 
 export function RootStack() {
   return (
-    <BrowserCredentialHandoffCompletionProvider>
+    <BrowserCredentialHandoffProvider>
       <RootStackContent />
-    </BrowserCredentialHandoffCompletionProvider>
+    </BrowserCredentialHandoffProvider>
   );
 }
 

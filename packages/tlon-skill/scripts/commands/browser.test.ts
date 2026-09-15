@@ -31,6 +31,39 @@ function makeDeps(ownerShip = '~owner') {
 }
 
 describe('browser handoff', () => {
+  it.each([
+    'browser-session-us-east5-cluster1.tlon.network',
+    'browser-session-ovh-test-1.test.tlon.systems',
+    'browser-session.tlon.network',
+    'session-viewer.tlon.network',
+    'browser-session.test.tlon.systems',
+    'session-viewer.test.tlon.systems',
+  ])('accepts a trusted viewer host: %s', async (host) => {
+    const context = makeDeps();
+    expect(
+      await run(
+        ['handoff', `https://${host}/s/payload.signature`],
+        context.deps
+      )
+    ).toBe(0);
+    expect(context.sent).toHaveLength(1);
+  });
+
+  it.each([
+    'browser-session.tlon.network.attacker.example',
+    'session-viewer.attacker.tlon.network',
+    'browser-session-ovh1.attacker.tlon.network',
+  ])('rejects a misleading viewer host: %s', async (host) => {
+    const context = makeDeps();
+    expect(
+      await run(
+        ['handoff', `https://${host}/s/payload.signature`],
+        context.deps
+      )
+    ).toBe(1);
+    expect(context.sent).toHaveLength(0);
+  });
+
   it('sends a native credential card to the configured owner', async () => {
     const context = makeDeps();
     const viewerUrl =

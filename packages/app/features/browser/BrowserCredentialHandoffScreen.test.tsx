@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   submitCredentials: vi.fn(),
   complete: vi.fn(),
   discard: vi.fn(),
+  resolve: vi.fn(),
 }));
 
 vi.mock('@tloncorp/ui', () => ({
@@ -39,10 +40,11 @@ vi.mock('../../ui', () => ({
   TextInput: 'TextInput',
 }));
 
-vi.mock('./BrowserCredentialHandoffCompletion', () => ({
-  useBrowserCredentialHandoffCompletion: () => ({
+vi.mock('./BrowserCredentialHandoffProvider', () => ({
+  useBrowserCredentialHandoff: () => ({
     complete: mocks.complete,
     discard: mocks.discard,
+    resolve: mocks.resolve,
   }),
 }));
 
@@ -63,6 +65,9 @@ describe('BrowserCredentialHandoffScreen', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.resolve.mockReturnValue(
+      'https://browser-session-ovh1.tlon.network/s/payload.signature'
+    );
     mocks.beginHandoff.mockResolvedValue({
       fillUrl:
         'https://browser-session-ovh1.tlon.network/credential-fills/handoff',
@@ -82,8 +87,7 @@ describe('BrowserCredentialHandoffScreen', () => {
           navigation={{ goBack: vi.fn() }}
           route={{
             params: {
-              viewerUrl:
-                'https://browser-session-ovh1.tlon.network/s/payload.signature',
+              handoffId: 'opaque-handoff-id',
             },
           }}
         />
@@ -145,8 +149,7 @@ describe('BrowserCredentialHandoffScreen', () => {
           navigation={{ goBack: vi.fn() }}
           route={{
             params: {
-              viewerUrl:
-                'https://browser-session-ovh1.tlon.network/s/payload.signature',
+              handoffId: 'opaque-handoff-id',
             },
           }}
         />
@@ -165,5 +168,24 @@ describe('BrowserCredentialHandoffScreen', () => {
       submit: true,
     });
     act(() => renderer!.unmount());
+  });
+
+  it('requires reopening the card when the in-memory handoff is unavailable', async () => {
+    mocks.resolve.mockReturnValue(undefined);
+    let renderer: ReactTestRenderer;
+    await act(async () => {
+      renderer = create(
+        <BrowserCredentialHandoffScreen
+          navigation={{ goBack: vi.fn() }}
+          route={{ params: { handoffId: 'expired-id' } }}
+        />
+      );
+    });
+    expect(mocks.beginHandoff).not.toHaveBeenCalled();
+    expect(JSON.stringify(renderer!.toJSON())).toContain(
+      'Reopen the browser login form from the conversation.'
+    );
+    await act(async () => renderer!.unmount());
+    expect(mocks.discard).toHaveBeenCalledWith('expired-id');
   });
 });

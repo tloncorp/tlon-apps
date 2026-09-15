@@ -9,7 +9,6 @@ import {
   onInternalDiagnosticEvent,
 } from 'openclaw/plugin-sdk/diagnostic-runtime';
 
-import { tlonPlugin } from './src/channel.js';
 import { registerTlonCommands } from './src/commands-registry.js';
 import { publishContextLensEvent } from './src/context-lens-events.js';
 import { registerContextLensRoutes } from './src/context-lens-routes.js';
@@ -61,7 +60,6 @@ import {
   isAgentOnboardingCronJob,
 } from './src/monitor/agent-onboarding.js';
 import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
-import { setTlonRuntime } from './src/runtime.js';
 import { getSessionRole } from './src/session-roles.js';
 import { parseTlonTarget } from './src/targets.js';
 import {
@@ -984,7 +982,7 @@ export default defineBundledChannelEntry({
       label: 'Tlon CLI',
       description:
         'Tlon/Urbit API for reading data and administration: activity, channels, contacts, groups, messages, notes, posts, settings, upload, expose, hooks. ' +
-	'DO NOT use this tool to send messages — use the `message` tool instead. ' +
+        'DO NOT use this tool to send messages — use the `message` tool instead. ' +
         '%diary channels are deprecated and unsupported by this CLI tool; ask the owner to type `/migrate <diary-nest>` to move one to %notes. ' +
         'OpenClaw message delivery still accepts diary/ targets, including writable archives. ' +
         'Never use LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]) in note bodies or message text — Tlon renders no math; write math as plain text/Unicode or in code blocks. ' +

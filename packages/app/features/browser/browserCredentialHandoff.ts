@@ -1,10 +1,4 @@
-const VIEWER_LABEL = 'browser-session-[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?';
-const PRODUCTION_VIEWER_HOST = new RegExp(
-  `^(?:${VIEWER_LABEL}|browser-session|session-viewer)\\.tlon\\.network$`
-);
-const TEST_VIEWER_HOST = new RegExp(
-  `^(?:${VIEWER_LABEL}|browser-session|session-viewer)\\.test\\.tlon\\.systems$`
-);
+import { isTrustedBrowserViewerHost } from '@tloncorp/api/client/browserSession';
 
 type BrowserCredentialHandoffBase = {
   fillUrl: string;
@@ -25,9 +19,7 @@ export type BrowserCredentialValues =
 function parseViewerUrl(viewerUrl: string): { url: URL; capability: string } {
   const url = new URL(viewerUrl);
   const trustedHostedViewer =
-    url.protocol === 'https:' &&
-    (PRODUCTION_VIEWER_HOST.test(url.hostname) ||
-      TEST_VIEWER_HOST.test(url.hostname));
+    url.protocol === 'https:' && isTrustedBrowserViewerHost(url.hostname);
   if (!trustedHostedViewer) {
     throw new Error('This browser login link is not from a trusted Tlon host.');
   }

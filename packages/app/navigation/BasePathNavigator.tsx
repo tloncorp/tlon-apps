@@ -1,7 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { memo } from 'react';
 
-import { BrowserCredentialHandoffCompletionProvider } from '../features/browser/BrowserCredentialHandoffCompletion';
+import { BrowserCredentialHandoffProvider } from '../features/browser/BrowserCredentialHandoffProvider';
 import { BrowserCredentialHandoffScreen } from '../features/browser/BrowserCredentialHandoffScreen';
 import { useRenderCount } from '../hooks/useRenderCount';
 import { RootStack } from './RootStack';
@@ -42,7 +42,7 @@ export const BasePathNavigator = memo(({ isMobile }: { isMobile: boolean }) => {
   }
 
   return (
-    <BrowserCredentialHandoffCompletionProvider>
+    <BrowserCredentialHandoffProvider>
       <DesktopBasePathStackNavigator.Navigator
         screenOptions={{ headerShown: false }}
       >
@@ -56,7 +56,7 @@ export const BasePathNavigator = memo(({ isMobile }: { isMobile: boolean }) => {
           options={{ presentation: 'modal' }}
         />
       </DesktopBasePathStackNavigator.Navigator>
-    </BrowserCredentialHandoffCompletionProvider>
+    </BrowserCredentialHandoffProvider>
   );
 });
 

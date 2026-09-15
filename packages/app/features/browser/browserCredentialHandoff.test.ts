@@ -83,7 +83,11 @@ describe('browser credential handoff', () => {
   it.each([
     'https://browser-session-us-east5-cluster1.tlon.network/s/payload.signature',
     'https://browser-session-ovh-test-1.test.tlon.systems/s/payload.signature',
-  ])('accepts a cluster-specific viewer host: %s', async (viewerUrl) => {
+    'https://browser-session.tlon.network/s/payload.signature',
+    'https://session-viewer.tlon.network/s/payload.signature',
+    'https://browser-session.test.tlon.systems/s/payload.signature',
+    'https://session-viewer.test.tlon.systems/s/payload.signature',
+  ])('accepts a trusted viewer host: %s', async (viewerUrl) => {
     const request = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({

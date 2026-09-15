@@ -527,10 +527,9 @@ export function useRootNavigation() {
   );
 
   const navigateToBrowserCredentialHandoff = useCallback(
-    (viewerUrl: string, completionId?: string) => {
+    (handoffId: string) => {
       navigationRef.current.navigate('BrowserCredentialHandoff', {
-        viewerUrl,
-        completionId,
+        handoffId,
       });
     },
     [navigationRef]

@@ -1,3 +1,5 @@
+import { isTrustedBrowserViewerHost } from '@tloncorp/api/client/browserSession';
+
 import { markdownToStory } from '../markdown';
 import type { PostsDeps } from './posts';
 import {
@@ -23,11 +25,6 @@ Example:
 export const BROWSER_HANDOFF_HELP =
   'Usage: tlon browser handoff <signed-viewer-url>';
 
-const VIEWER_LABEL = 'browser-session-[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?';
-const PRODUCTION_VIEWER_HOST = new RegExp(`^${VIEWER_LABEL}\\.tlon\\.network$`);
-const TEST_VIEWER_HOST = new RegExp(
-  `^${VIEWER_LABEL}\\.test\\.tlon\\.systems$`
-);
 export interface BrowserDeps extends Pick<
   PostsDeps,
   'stdout' | 'stderr' | 'authenticate' | 'getCurrentUserId' | 'now' | 'postsApi'
@@ -48,12 +45,11 @@ function validateViewerUrl(raw: string): string {
     url.username ||
     url.password ||
     url.hash ||
-    (!PRODUCTION_VIEWER_HOST.test(url.hostname) &&
-      !TEST_VIEWER_HOST.test(url.hostname)) ||
+    !isTrustedBrowserViewerHost(url.hostname) ||
     !/^\/s\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(url.pathname)
   ) {
     throw commandError(
-      'viewer URL must be a signed browser-session-*.tlon.network or browser-session-*.test.tlon.systems URL'
+      'viewer URL must be a signed URL on a trusted Tlon browser viewer host'
     );
   }
 

@@ -1,5 +1,5 @@
 import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
 import type { BrowserCredentialHandoffParams } from '../../navigation/types';
@@ -14,7 +14,7 @@ import {
   beginBrowserCredentialHandoff,
   submitBrowserCredentials,
 } from './browserCredentialHandoff';
-import { useBrowserCredentialHandoffCompletion } from './BrowserCredentialHandoffCompletion';
+import { useBrowserCredentialHandoff } from './BrowserCredentialHandoffProvider';
 
 type Props = {
   navigation: { goBack(): void };
@@ -46,21 +46,26 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   const [returning, setReturning] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string>();
-  const browserHandoffCompletion = useBrowserCredentialHandoffCompletion();
-  const completionId = route.params.completionId;
+  const { resolve, complete, discard } = useBrowserCredentialHandoff();
+  const handoffId = route.params.handoffId;
+  const activeHandoffs = useRef(new Set<string>());
 
   const load = useCallback(
     async (signal?: AbortSignal) => {
+      const viewerUrl = resolve(handoffId);
+      if (!viewerUrl) {
+        setError('Reopen the browser login form from the conversation.');
+        setLoading(false);
+        return;
+      }
       try {
-        setHandoff(
-          await beginBrowserCredentialHandoff(route.params.viewerUrl, signal)
-        );
+        setHandoff(await beginBrowserCredentialHandoff(viewerUrl, signal));
       } catch (nextError) {
         if (!signal?.aborted) setError(errorMessage(nextError));
       }
       if (!signal?.aborted) setLoading(false);
     },
-    [route.params.viewerUrl]
+    [handoffId, resolve]
   );
 
   useEffect(() => {
@@ -69,12 +74,17 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     return () => controller.abort();
   }, [load]);
 
-  useEffect(
-    () => () => {
-      if (completionId) browserHandoffCompletion.discard(completionId);
-    },
-    [browserHandoffCompletion, completionId]
-  );
+  useEffect(() => {
+    const active = activeHandoffs.current;
+    active.add(handoffId);
+    return () => {
+      active.delete(handoffId);
+      // Allow Strict Mode's effect replay to retain the in-memory handoff.
+      queueMicrotask(() => {
+        if (!active.has(handoffId)) discard(handoffId);
+      });
+    };
+  }, [discard, handoffId]);
 
   const fillAndSubmit = useCallback(async () => {
     if (!handoff) return;
@@ -128,15 +138,13 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     setReturning(true);
     setError(undefined);
     try {
-      if (completionId) {
-        await browserHandoffCompletion.complete(completionId);
-      }
+      await complete(handoffId);
       navigation.goBack();
     } catch (nextError) {
       setError(errorMessage(nextError));
       setReturning(false);
     }
-  }, [browserHandoffCompletion, completionId, navigation]);
+  }, [complete, handoffId, navigation]);
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">

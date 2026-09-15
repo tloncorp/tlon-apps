@@ -168,8 +168,7 @@ export type RootDrawerParamList = {
   Pick<RootStackParamList, 'Settings'>;
 
 export type BrowserCredentialHandoffParams = {
-  viewerUrl: string;
-  completionId?: string;
+  handoffId: string;
 };
 
 export type MobileBasePathStackParamList = {
