@@ -157,6 +157,24 @@ export type GroupChannelJournal = {
   readonly lastObserved: readonly string[] | undefined;
   /** A fresh settings load completed (even if unchanged). */
   markTrusted(): void;
+  /**
+   * The settings subscription errored or ended: echoes may have been missed,
+   * so the write base is stale until the next fresh load.
+   */
+  markUntrusted(): void;
+  /** Nests put by this process and not yet seen in an observation. */
+  unconfirmedSnapshot(): Set<string>;
+  /**
+   * A fresh, non-superseded scry is authoritative for the nests that were
+   * already unconfirmed when it began: any of `candidates` absent from `list`
+   * is not on the ship (the put was lost, or another writer removed it) and
+   * leaves the write base rather than resurrecting a removal. Runs even when
+   * the list is unchanged, so it is separate from `observe`.
+   */
+  pruneUnconfirmed(
+    list: readonly string[] | undefined,
+    candidates: ReadonlySet<string>
+  ): string[];
   /** Reconcile with an observed value of the key. Returns nests to start/stop watching. */
   observe(list: readonly string[] | undefined): {
     added: string[];
@@ -208,6 +226,21 @@ export function createGroupChannelJournal(
   let trusted = deps.trusted;
   let closed = false;
   let observationSeq = 0;
+
+  const pruneUnconfirmed = (
+    list: readonly string[] | undefined,
+    candidates: ReadonlySet<string>
+  ): string[] => {
+    const present = new Set(list ?? []);
+    const dropped: string[] = [];
+    for (const nest of candidates) {
+      if (unconfirmed.has(nest) && !present.has(nest)) {
+        unconfirmed.delete(nest);
+        dropped.push(nest);
+      }
+    }
+    return dropped;
+  };
 
   const observe = (
     list: readonly string[] | undefined
@@ -324,6 +357,13 @@ export function createGroupChannelJournal(
     markTrusted() {
       trusted = true;
     },
+    markUntrusted() {
+      trusted = false;
+    },
+    unconfirmedSnapshot() {
+      return new Set(unconfirmed);
+    },
+    pruneUnconfirmed,
     observe,
     persist(nests) {
       if (closed) {

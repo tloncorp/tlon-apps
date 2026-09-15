@@ -405,6 +405,44 @@ describe('createGroupChannelJournal.observe', () => {
     expect(values()).toEqual([['chat/~zod/a']]);
   });
 
+  it('defers again after markUntrusted() until the next fresh load', async () => {
+    const { journal, values, log } = makeJournal();
+    await journal.persist(['chat/~zod/a']);
+    expect(values()).toHaveLength(1);
+
+    // The settings subscription dropped: echoes may have been missed, so the
+    // write base is stale until a fresh load re-trusts it.
+    journal.markUntrusted();
+    await journal.persist(['chat/~zod/b']);
+    expect(values()).toHaveLength(1);
+    expect(log).toHaveBeenCalledWith(
+      '[tlon] groupChannels: deferring 1 nest(s): settings snapshot untrusted'
+    );
+
+    journal.markTrusted();
+    await journal.flush();
+    expect(values().at(-1)).toEqual(['chat/~zod/a', 'chat/~zod/b']);
+  });
+
+  it('drops an unconfirmed nest a fresh load omits, but only among the named candidates', async () => {
+    const { journal, values } = makeJournal();
+    await journal.persist(['chat/~zod/a']);
+    const candidates = journal.unconfirmedSnapshot();
+    expect([...candidates]).toEqual(['chat/~zod/a']);
+
+    // Put `b` after the scry began: it is not judged by this scry.
+    await journal.persist(['chat/~zod/b']);
+
+    // The scry, begun before `a`'s put echoed, shows neither nest: `a` was
+    // lost or removed by another writer; `b` is simply newer than the scry.
+    expect(journal.pruneUnconfirmed([], candidates)).toEqual(['chat/~zod/a']);
+    expect([...journal.unconfirmedSnapshot()]).toEqual(['chat/~zod/b']);
+
+    // The next put carries `b` but no longer resurrects `a`.
+    await journal.persist(['chat/~zod/c']);
+    expect(values().at(-1)).toEqual(['chat/~zod/b', 'chat/~zod/c']);
+  });
+
   it('trusts the snapshot after markTrusted()', async () => {
     const { journal, values, log } = makeJournal({ trusted: false });
 
@@ -806,6 +844,42 @@ describe('wiring', () => {
     expect(loadCall).toBeGreaterThan(-1);
     expect(reconcile).toBeGreaterThan(loadCall);
     expect(reconcile).toBeLessThan(fn.indexOf('applySettingsSnapshot('));
+  });
+
+  it('trusts the journal only from a fresh load taken after the subscription is live', () => {
+    const creation = monitorSource.indexOf('createGroupChannelJournal({');
+    expect(creation).toBeGreaterThan(-1);
+    expect(monitorSource.indexOf('trusted: false,', creation)).toBeLessThan(
+      monitorSource.indexOf('log: runtime.log,', creation)
+    );
+
+    const subscribe = monitorSource.indexOf(
+      'settingsManager.startSubscription({'
+    );
+    const gap = monitorSource.indexOf(
+      'onGap: () => groupChannelJournal?.markUntrusted()'
+    );
+    const firstRefresh = monitorSource.indexOf(
+      'await refreshSettingsNow();',
+      subscribe
+    );
+    expect(subscribe).toBeGreaterThan(-1);
+    expect(gap).toBeGreaterThan(subscribe);
+    expect(firstRefresh).toBeGreaterThan(subscribe);
+    expect(firstRefresh).toBeLessThan(
+      monitorSource.indexOf("path: '/groups/ui'")
+    );
+  });
+
+  it('prunes unconfirmed nests from a fresh, non-superseded load before the snapshot applies', () => {
+    const fn = sliceFrom('const refreshSettingsNow = async');
+    const snapshot = fn.indexOf('unconfirmedSnapshot()');
+    const load = fn.indexOf('settingsManager.load(');
+    const prune = fn.indexOf('pruneUnconfirmed(');
+    expect(snapshot).toBeGreaterThan(-1);
+    expect(snapshot).toBeLessThan(load);
+    expect(prune).toBeGreaterThan(load);
+    expect(prune).toBeLessThan(fn.indexOf('applySettingsSnapshot('));
   });
 
   it('reconciles the journal after the autoDiscoverChannels update', () => {

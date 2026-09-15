@@ -769,9 +769,13 @@ export function createSettingsManager(
     },
 
     /**
-     * Subscribe to settings changes.
+     * Subscribe to settings changes. `onGap` fires when the subscription
+     * errors or ends: echoes may have been missed, so any state derived from
+     * them is stale until the next fresh load.
      */
-    async startSubscription(): Promise<void> {
+    async startSubscription(
+      options: { onGap?: () => void } = {}
+    ): Promise<void> {
       await api.subscribe({
         app: 'settings',
         path: '/desk/' + SETTINGS_DESK,
@@ -796,9 +800,11 @@ export function createSettingsManager(
         },
         err: (error) => {
           logger?.error?.(`[settings] Subscription error: ${String(error)}`);
+          options.onGap?.();
         },
         quit: () => {
           logger?.log?.('[settings] Subscription ended');
+          options.onGap?.();
         },
       });
       logger?.log?.('[settings] Subscribed to settings updates');

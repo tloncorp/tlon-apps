@@ -681,6 +681,31 @@ describe('Settings: createSettingsManager.load', () => {
   });
 });
 
+describe('Settings: createSettingsManager.startSubscription onGap', () => {
+  it('reports a subscription error and a quit as gaps', async () => {
+    let handlers:
+      | { err: (error: unknown) => void; quit: () => void }
+      | undefined;
+    const manager = createSettingsManager({
+      scry: async () => ({}),
+      subscribe: async (params: {
+        err: (error: unknown) => void;
+        quit: () => void;
+      }) => {
+        handlers = params;
+      },
+    } as never);
+    const onGap = vi.fn();
+    await manager.startSubscription({ onGap });
+    expect(onGap).not.toHaveBeenCalled();
+
+    handlers?.err(new Error('stream broke'));
+    expect(onGap).toHaveBeenCalledTimes(1);
+    handlers?.quit();
+    expect(onGap).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('Settings: createSettingsManager.applyLocal', () => {
   it('updates the snapshot without notifying listeners', () => {
     const manager = createSettingsManager({ scry: async () => ({}) } as never);

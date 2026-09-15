@@ -925,9 +925,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     );
     let pendingApprovals: PendingApproval[] = [];
     let currentSettings: TlonSettingsStore = {};
-    // Whether the startup settings load scried fresh. The groupChannels
-    // journal defers its writes until the snapshot is trusted.
-    let startupSettingsFresh = false;
     // Tracks whether pendingNudge has been successfully rehydrated from the settings
     // store (or locally set/cleared). While false, refresh is allowed to recover a
     // persisted pendingNudge that was missed due to a transient startup scry failure.
@@ -1308,7 +1305,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     try {
       const loadResult = await settingsManager.load();
       currentSettings = loadResult.settings;
-      startupSettingsFresh = loadResult.fresh;
 
       // Only seed file config into %settings when the startup snapshot is fresh.
       // On a transient startup scry failure, `load()` preserves the last known
@@ -5451,6 +5447,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // Never rejects — callers treat a refresh failure as non-fatal.
       const refreshSettingsNow = async (): Promise<void> => {
         const seqBefore = groupChannelJournal?.observationSeq;
+        const unconfirmedBefore = groupChannelJournal?.unconfirmedSnapshot();
         let superseded = false;
         try {
           const refreshResult = await settingsManager.load({
@@ -5480,6 +5477,20 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             // journal untrusted (and its pending nests unwritten) after a
             // failed boot load followed by a successful unchanged one.
             groupChannelJournal?.markTrusted();
+            if (!superseded && unconfirmedBefore) {
+              // This scry is authoritative for nests already unconfirmed when
+              // it began: an absent one was lost or removed by another writer
+              // (its echo missed), and must not ride along on the next put.
+              const dropped = groupChannelJournal?.pruneUnconfirmed(
+                refreshResult.settings.groupChannels,
+                unconfirmedBefore
+              );
+              if (dropped?.length) {
+                runtime.log?.(
+                  `[tlon] groupChannels: dropped ${dropped.length} unconfirmed nest(s) absent from a fresh load: ${dropped.join(', ')}`
+                );
+              }
+            }
           }
           applySettingsSnapshot(refreshResult.settings, 'refresh', {
             fresh: refreshResult.fresh,
@@ -5498,7 +5509,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // key's ownership and conflict rules.
       groupChannelJournal = createGroupChannelJournal({
         initial: currentSettings.groupChannels,
-        trusted: startupSettingsFresh,
+        // Trusted only by a fresh load taken after the settings subscription
+        // is live (below): the startup scry predates it, and a change landing
+        // in between would otherwise be overwritten by the first journal put.
+        trusted: false,
         protectedNests: () =>
           new Set([
             ...account.groupChannels,
@@ -5537,13 +5551,21 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       });
 
       try {
-        await settingsManager.startSubscription();
+        await settingsManager.startSubscription({
+          // Echoes may have been missed: the journal's write base is stale
+          // until the next fresh refresh re-trusts it.
+          onGap: () => groupChannelJournal?.markUntrusted(),
+        });
       } catch (err) {
         // Settings subscription is optional - don't fail if it doesn't work
         runtime.log?.(
           `[tlon] Settings subscription not available: ${String(err)}`
         );
       }
+      // The journal's first trusted base: a fresh load taken now that the
+      // subscription is live, so nothing changed since the startup scry is
+      // missed. If it fails, the periodic refresh re-trusts later.
+      await refreshSettingsNow();
 
       // Subscribe to groups-ui for real-time channel additions (when invites are accepted)
       try {
