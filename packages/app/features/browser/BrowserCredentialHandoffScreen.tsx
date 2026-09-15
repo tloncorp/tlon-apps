@@ -310,7 +310,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                     </Text>
                     <TextInput
                       value={code}
-                      autoCapitalize="characters"
+                      autoCapitalize="none"
                       autoCorrect={false}
                       autoComplete="one-time-code"
                       importantForAutofill="yes"

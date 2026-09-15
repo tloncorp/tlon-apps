@@ -128,4 +128,42 @@ describe('BrowserCredentialHandoffScreen', () => {
 
     act(() => renderer!.unmount());
   });
+
+  it('submits a verification code with its original casing', async () => {
+    mocks.beginHandoff.mockResolvedValue({
+      fillUrl:
+        'https://browser-session-ovh1.tlon.network/credential-fills/handoff',
+      origin: 'https://example.com',
+      expiresAt: Date.now() + 60_000,
+      kind: 'otp',
+    });
+    mocks.submitCredentials.mockResolvedValue({ submitted: true });
+    let renderer: ReactTestRenderer;
+    await act(async () => {
+      renderer = create(
+        <BrowserCredentialHandoffScreen
+          navigation={{ goBack: vi.fn() }}
+          route={{
+            params: {
+              viewerUrl:
+                'https://browser-session-ovh1.tlon.network/s/payload.signature',
+            },
+          }}
+        />
+      );
+    });
+    const input = renderer!.root.findByProps({ autoComplete: 'one-time-code' });
+    expect(input.props.autoCapitalize).toBe('none');
+    act(() => input.props.onChangeText('aBc123'));
+    await act(async () => {
+      await renderer!.root
+        .findByProps({ label: 'Submit code' })
+        .props.onPress();
+    });
+    expect(mocks.submitCredentials).toHaveBeenCalledWith(expect.any(Object), {
+      code: 'aBc123',
+      submit: true,
+    });
+    act(() => renderer!.unmount());
+  });
 });

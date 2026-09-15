@@ -13,6 +13,7 @@ export type TopLevelTabParamList = {
 };
 
 export type RootStackParamList = {
+  BrowserCredentialHandoff: BrowserCredentialHandoffParams;
   MainTabs: NavigatorScreenParams<TopLevelTabParamList> | undefined;
   OnboardingStartup: {
     channelId: string;
@@ -173,7 +174,6 @@ export type BrowserCredentialHandoffParams = {
 
 export type MobileBasePathStackParamList = {
   Root: NavigatorScreenParams<RootStackParamList>;
-  BrowserCredentialHandoff: BrowserCredentialHandoffParams;
 };
 
 export type DesktopBasePathStackParamList = {

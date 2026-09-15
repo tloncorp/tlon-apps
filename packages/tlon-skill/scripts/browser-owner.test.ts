@@ -18,6 +18,30 @@ function resolver(
 }
 
 describe('browser owner resolution', () => {
+  it('uses the harness owner without an OpenClaw configuration file', () => {
+    expect(
+      resolveBrowserOwnerShip({
+        activeShip: '~bot',
+        env: { TLON_OWNER_SHIP: '  ~ZOD  ' },
+        exists: () => {
+          throw new Error('must not read OpenClaw config');
+        },
+      })
+    ).toBe('~zod');
+  });
+
+  it.each(['', '   ', '~zod/other', 'not a ship'])(
+    'rejects invalid harness owner %j',
+    (owner) => {
+      expect(() =>
+        resolveBrowserOwnerShip({
+          activeShip: '~bot',
+          env: { TLON_OWNER_SHIP: owner },
+        })
+      ).toThrow('TLON_OWNER_SHIP must name a configured owner');
+    }
+  );
+
   it('uses only the owner configured for the active bot', () => {
     expect(
       resolver({

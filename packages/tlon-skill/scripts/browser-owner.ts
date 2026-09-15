@@ -51,6 +51,11 @@ export function resolveBrowserOwnerShip(
   input: BrowserOwnerResolutionInput
 ): string {
   const env = input.env ?? process.env;
+  if (env.TLON_OWNER_SHIP !== undefined) {
+    const owner = ship(env.TLON_OWNER_SHIP);
+    if (!owner) throw new Error('TLON_OWNER_SHIP must name a configured owner');
+    return `~${owner}`;
+  }
   const homeDir = input.homeDir ?? os.homedir();
   const exists = input.exists ?? fs.existsSync;
   const readFile =
@@ -58,11 +63,7 @@ export function resolveBrowserOwnerShip(
   const explicitPath = env.OPENCLAW_CONFIG?.trim();
   const candidates = explicitPath
     ? [explicitPath]
-    : [
-        path.join(homeDir, '.openclaw', 'openclaw.json'),
-        path.join(homeDir, '.clawdbot', 'moltbot.json'),
-        path.join(homeDir, '.moltbot', 'moltbot.json'),
-      ];
+    : [path.join(homeDir, '.openclaw', 'openclaw.json')];
 
   for (const configPath of candidates) {
     if (!exists(configPath)) continue;

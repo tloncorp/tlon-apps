@@ -1,5 +1,5 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { memo, useMemo } from 'react';
+import { memo } from 'react';
 
 import { BrowserCredentialHandoffCompletionProvider } from '../features/browser/BrowserCredentialHandoffCompletion';
 import { BrowserCredentialHandoffScreen } from '../features/browser/BrowserCredentialHandoffScreen';
@@ -26,29 +26,36 @@ const DesktopBasePathStackNavigator =
  * is something other than `/`, eg `/apps/groups/`
  */
 export const BasePathNavigator = memo(({ isMobile }: { isMobile: boolean }) => {
-  const Navigator = isMobile
-    ? MobileBasePathStackNavigator
-    : DesktopBasePathStackNavigator;
-
-  const component = useMemo(() => {
-    if (isMobile) {
-      return RootStack;
-    }
-    return TopLevelDrawer;
-  }, [isMobile]);
-
   useRenderCount('BasePathNavigator');
+
+  if (isMobile) {
+    return (
+      <MobileBasePathStackNavigator.Navigator
+        screenOptions={{ headerShown: false }}
+      >
+        <MobileBasePathStackNavigator.Screen
+          name="Root"
+          component={RootStack}
+        />
+      </MobileBasePathStackNavigator.Navigator>
+    );
+  }
 
   return (
     <BrowserCredentialHandoffCompletionProvider>
-      <Navigator.Navigator screenOptions={{ headerShown: false }}>
-        <Navigator.Screen name="Root" component={component} />
-        <Navigator.Screen
+      <DesktopBasePathStackNavigator.Navigator
+        screenOptions={{ headerShown: false }}
+      >
+        <DesktopBasePathStackNavigator.Screen
+          name="Root"
+          component={TopLevelDrawer}
+        />
+        <DesktopBasePathStackNavigator.Screen
           name="BrowserCredentialHandoff"
           component={BrowserCredentialHandoffScreen}
           options={{ presentation: 'modal' }}
         />
-      </Navigator.Navigator>
+      </DesktopBasePathStackNavigator.Navigator>
     </BrowserCredentialHandoffCompletionProvider>
   );
 });

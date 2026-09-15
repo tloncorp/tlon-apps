@@ -1,6 +1,7 @@
 import {
   appendToPostBlob,
   getBotUserIdForUser,
+  isMoonOfUser,
   type PostBlobDataEntryA2UISelection,
   type PostBlobDataEntryAgentProvision,
 } from '@tloncorp/api';
@@ -17,6 +18,7 @@ import { ComponentProps, ReactNode, useCallback, useMemo } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
+import { canUseBrowserHandoff } from '../../../features/browser/browserHandoffTrust';
 import { useA2UINavigation } from '../../../hooks/useA2UINavigation';
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
 import { getPostImageViewerId } from '../../../utils/mediaViewer';
@@ -151,6 +153,21 @@ export function StaticChatMessage({
       currentUserHostsPostGroup &&
       knownAgent === post.authorId
     );
+  const isDmCounterpart =
+    isDmChannelId(post.channelId) && post.authorId === post.channelId;
+  const isOwnedMoon = isMoonOfUser(post.authorId, currentUserId);
+  const { data: hasBotPosts } = store.useChannelHasBotPost({
+    channelId: isDmCounterpart && !isOwnedMoon ? post.channelId : null,
+    authorId: isDmCounterpart && !isOwnedMoon ? post.authorId : null,
+  });
+  const allowBrowserHandoff = canUseBrowserHandoff({
+    authorId: post.authorId,
+    channelId: post.channelId,
+    currentUserId,
+    isBot: post.isBot,
+    hasBotPosts,
+    canUseAgentProviderControls,
+  });
 
   if (isNotice) {
     showAuthor = false;
@@ -355,7 +372,7 @@ export function StaticChatMessage({
         const target = action.event.context.target;
         await navigateToA2UITarget(action.event.context.target, {
           allowBotMcpSettings: canUseAgentProviderControls,
-          allowBrowserCredentialHandoff: canUseAgentProviderControls,
+          allowBrowserCredentialHandoff: allowBrowserHandoff,
           onBrowserCredentialHandoffComplete:
             target.type === 'screen' &&
             target.screen === 'browserCredentialHandoff'
@@ -398,6 +415,7 @@ export function StaticChatMessage({
     },
     [
       canUseAgentProviderControls,
+      allowBrowserHandoff,
       configureAgentProviders,
       navigateToA2UITarget,
       sendAgentProvision,
@@ -410,6 +428,9 @@ export function StaticChatMessage({
       if (action.event.name === A2UI.action.navigate) {
         const target = action.event.context.target;
         if (target.type !== 'screen') return true;
+        if (target.screen === 'browserCredentialHandoff') {
+          return allowBrowserHandoff;
+        }
         return canUseAgentProviderControls;
       }
 
@@ -452,7 +473,13 @@ export function StaticChatMessage({
 
       return false;
     },
-    [canUseAgentProviderControls, draftInputContext, group, post.groupId]
+    [
+      canUseAgentProviderControls,
+      allowBrowserHandoff,
+      draftInputContext,
+      group,
+      post.groupId,
+    ]
   );
 
   // `useGroup()` can briefly clear its query result while a live post is
