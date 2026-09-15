@@ -850,8 +850,8 @@ export const useShowBotMentionWayfinding = (channelId: string) => {
   const wayfindingProgress = db.wayfindingProgress.useValue();
   const currentUserId = api.getCurrentUserId();
   const isCorrectChan = useMemo(() => {
-    return logic.isBotHomeGroupChatChannel(currentUserId, channelId);
-  }, [channelId, currentUserId]);
+    return logic.isBotDmChannel({ channel: { id: channelId } });
+  }, [channelId]);
 
   return isCorrectChan && !wayfindingProgress.tappedHomeGroupHint;
 };

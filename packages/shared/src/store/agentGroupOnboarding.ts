@@ -1,6 +1,5 @@
 import * as api from '@tloncorp/api';
 import { desig } from '@tloncorp/api/lib/urbit';
-import { BotHomeGroupSlugs } from '@tloncorp/api/types/wayfinding';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
@@ -141,15 +140,10 @@ async function startAgentGroupFurnishingOnce(
   }));
   if (params.isFirstGroup) {
     const initialGroupTitle = group.title ?? null;
-    const currentUserContact = await db.getContact({
-      id: api.getCurrentUserId(),
-    });
+    // Only a group this flow just created under the default title may be
+    // renamed; a group the caller handed in keeps the name it already has.
     const canRenameGroup = params.groupId
-      ? group.id.endsWith(`/${BotHomeGroupSlugs.slug}`) &&
-        logic.botHomeGroupHasDefaultTitle(
-          group,
-          currentUserContact?.peerNickname
-        )
+      ? false
       : params.title == null || params.title === DEFAULT_AGENT_GROUP_TITLE;
 
     await db.agentGroupOnboardingLocks.setValue((current) => ({

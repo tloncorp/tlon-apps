@@ -1,3 +1,4 @@
+import { isBotDmChannel } from '@tloncorp/api/client/utils';
 import {
   isChatChannel,
   useConnectionStatus,
@@ -187,6 +188,17 @@ export function ChannelHeader({
   );
   const registeredLoadingSubtitle = context?.loadingSubtitle ?? null;
   const isWindowNarrow = useIsWindowNarrow();
+  // The bot's DM backs the first bottom tab, where the header is the bot's
+  // avatar and the caret alone. The DM path below already supplies that avatar
+  // and sends the caret to the bot's profile, so this only drops the title and
+  // subtitle. Narrow layouts only — the desktop header keeps its own.
+  const isBotDm = useMemo(() => {
+    if (!isWindowNarrow || channel.type !== 'dm') {
+      return false;
+    }
+
+    return isBotDmChannel({ channel });
+  }, [channel, currentUserId, isWindowNarrow]);
 
   const channelHost = useMemo(() => {
     return getChannelHost(channel, currentUserId);
@@ -376,7 +388,7 @@ export function ChannelHeader({
   }, [channel.type, goToProfile, goToChatDetails]);
 
   const headerProps = {
-    title: headerTitle,
+    title: isBotDm ? '' : headerTitle,
     titleIcon: hideIdentity ? null : (
       <>
         {avatarElement || titleIcon}
@@ -385,9 +397,9 @@ export function ChannelHeader({
         )}
       </>
     ),
-    subtitle: hideIdentity ? undefined : displaySubtitle,
+    subtitle: hideIdentity || isBotDm ? undefined : displaySubtitle,
     testID: 'ChannelHeaderTitle',
-    showSubtitle: !hideIdentity,
+    showSubtitle: !hideIdentity && !isBotDm,
     borderBottom: true,
     loadingSubtitle:
       hideIdentity && !registeredLoadingSubtitle ? null : headerLoadingSubtitle,

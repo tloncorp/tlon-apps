@@ -5,9 +5,10 @@ import type {
 } from '@react-navigation/native';
 
 export type TopLevelTabParamList = {
-  // The home-group tab renders a channel directly, so it shares the root
-  // stack's native header the way the other tabs do.
-  HomeGroup: ChannelRouteParams | undefined;
+  // The bot tab renders a channel directly, so it shares the root stack's
+  // native header the way the other tabs do. Its params are always supplied
+  // through initialParams, so they are not optional.
+  BotChat: ChannelRouteParams;
   ChatList:
     | { previewGroupId: string; previewGroupFromInviteNotification?: boolean }
     | undefined;
@@ -238,14 +239,14 @@ export type SettingsDrawerParamList = Pick<
 };
 
 // ChannelScreen is registered under several route names: the root stack's
-// Channel/DM/GroupDM, the desktop channel stack's ChannelRoot, and the
-// HomeGroup tab.
+// Channel/DM/GroupDM, the desktop channel stack's ChannelRoot, and the bot
+// tab.
 export type ChannelScreenParamList = {
   Channel: RootStackParamList['Channel'];
   DM: RootStackParamList['Channel'];
   GroupDM: RootStackParamList['Channel'];
   ChannelRoot: RootStackParamList['Channel'];
-  HomeGroup: RootStackParamList['Channel'];
+  BotChat: RootStackParamList['Channel'];
 };
 
 export type ChannelStackParamList = {
