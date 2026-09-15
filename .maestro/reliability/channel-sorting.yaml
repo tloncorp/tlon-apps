@@ -1,0 +1,101 @@
+appId: ${MAESTRO_APP_ID}
+name: Native channel sorting
+tags: [regression]
+env:
+  JOURNEY: sort
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/create-group.yaml
+
+# Give recency sorting a decisive order that differs from the arranged default.
+- tapOn: '^Edit channels$'
+- assertVisible: '^Channels$'
+- tapOn: '^New$'
+- tapOn: '^New channel$'
+- assertVisible: '^Create a new channel$'
+- tapOn:
+    id: ChannelTitleInput
+- inputText: ${MAESTRO_RUN_TAG + ' recent channel'}
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - pressKey: Enter
+      - scroll
+- tapOn: '^Create channel$'
+- extendedWaitUntil:
+    visible: ${MAESTRO_RUN_TAG + ' recent channel'}
+    timeout: 5000
+- tapOn: '^Back$'
+- tapOn: ${MAESTRO_RUN_TAG + ' recent channel'}
+- runFlow:
+    file: subflows/send.yaml
+    env:
+      MESSAGE: ${output.reliability.text}
+      MESSAGE_PATTERN: ${output.reliability.textPattern}
+      EMPTY_INPUT: '^Message$'
+- hideKeyboard
+- tapOn: '^Back$'
+- tapOn: '^Chat$'
+- runFlow:
+    file: subflows/send.yaml
+    env:
+      MESSAGE: ${output.reliability.sibling}
+      MESSAGE_PATTERN: ${output.reliability.siblingPattern}
+      EMPTY_INPUT: '^Message$'
+- hideKeyboard
+- tapOn: '^Back$'
+- tapOn: '^Back$'
+- assertVisible: '^Home$'
+
+# Establish arrangement explicitly so the account's prior preference cannot leak
+# into the fixture, then prove its observable order.
+- longPressOn: ${output.reliability.groupPattern}
+- assertVisible: '^Sort channels$'
+- tapOn: '^Sort channels$'
+- assertVisible: ${'Sort channels in ' + output.reliability.groupPattern.slice(1, -1)}
+- assertVisible: '^Choose your display preference$'
+- assertVisible: '^Sort by recency$'
+- assertVisible: '^Sort by arrangement$'
+- tapOn: '^Sort by arrangement$'
+- assertVisible: '^Home$'
+- tapOn: ${output.reliability.groupPattern}
+- assertNotVisible: '^Recent Channels$'
+- assertVisible:
+    text: ${MAESTRO_RUN_TAG + ' recent channel'}
+    above: '^Chat$'
+
+# Reopen the dedicated sorting sheet and apply recency sorting.
+- tapOn: '^Back$'
+- longPressOn: ${output.reliability.groupPattern}
+- tapOn: '^Sort channels$'
+- assertVisible: ${'Sort channels in ' + output.reliability.groupPattern.slice(1, -1)}
+- tapOn: '^Sort by recency$'
+- assertVisible: '^Home$'
+- tapOn: ${output.reliability.groupPattern}
+- assertVisible: '^Recent Channels$'
+- assertVisible:
+    text: '^Chat$'
+    above: ${MAESTRO_RUN_TAG + ' recent channel'}
+
+# Restore the arranged preference and prove the original order returns.
+- tapOn: '^Back$'
+- longPressOn: ${output.reliability.groupPattern}
+- tapOn: '^Sort channels$'
+- assertVisible: ${'Sort channels in ' + output.reliability.groupPattern.slice(1, -1)}
+- tapOn: '^Sort by arrangement$'
+- tapOn: ${output.reliability.groupPattern}
+- assertNotVisible: '^Recent Channels$'
+- assertVisible:
+    text: ${MAESTRO_RUN_TAG + ' recent channel'}
+    above: '^Chat$'
+
+# Delete only this run's fixture group.
+- tapOn: ${output.reliability.groupPattern}
+- runFlow: subflows/delete-fixture-group.yaml

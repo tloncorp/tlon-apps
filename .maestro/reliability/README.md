@@ -1,8 +1,8 @@
 # Native reliability tests
 
-Twenty-three default single-ship journeys, including attachments, profile details,
-pins, references, privacy, sections, notification preferences, roles, replies and
-self-hosted login recovery.
+Twenty-four default single-ship journeys, including attachments, channel sorting,
+profile details, pins, references, privacy, sections, notification preferences,
+roles, replies and self-hosted login recovery.
 These cover a subset of the QA checklist, not the entire workbook.
 
 Use Maestro 2.6.1 and an installed build containing this branch's app changes.
@@ -46,6 +46,11 @@ color, iOS documents, offline send/retry, and gallery custom titles remain gaps.
 The new role/privacy/section/notification/thread journeys delete their own groups
 on success. Notification checks verify saved preferences; push delivery and
 enforcement on another ship require multiparty tests.
+
+`channel-sorting.yaml` creates a uniquely named text channel, posts there, then
+posts in Chat so recency and arrangement have different observable orders. It
+asserts the recency section and channel positions, restores arrangement, and
+deletes its fixture group.
 
 `self-hosted-recovery.yaml` clears local state, rejects a malformed ship URL,
 rejects a well-formed access code that the configured ship does not accept, then
