@@ -1334,7 +1334,10 @@ async function performReauth(): Promise<string | void> {
           logger.log('auth failed, calling auth failure handler');
           config.handleAuthFailure({ mustLogout: false });
         }
-        throw new Error(`Error during reauth: ${e}`);
+        // keep the original as `cause`: the message stringifies it, but error
+        // reporting classifies failures by the status field, which a bare
+        // rethrow would drop
+        throw new Error(`Error during reauth: ${e}`, { cause: e });
       }
     }
 

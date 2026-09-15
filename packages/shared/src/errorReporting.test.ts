@@ -1251,3 +1251,73 @@ describe('develop-shape request failures', () => {
     ]);
   });
 });
+
+describe('wrapped failures', () => {
+  // performReauth (packages/api/src/client/urbit.ts) catches an
+  // AuthFailureError and rethrows a plain Error with the original as `cause`.
+  function authFailure(responseStatus: number) {
+    const error = new Error(
+      `Authentication failed with status ${responseStatus}. Unexpected response from the ship.`
+    ) as Error & { responseStatus: number };
+    error.name = 'AuthFailureError';
+    error.responseStatus = responseStatus;
+    return error;
+  }
+
+  it('reads the status through a rethrow that only stringifies the original', () => {
+    const inner = authFailure(503);
+    const wrapped = new Error(`Error during reauth: ${inner}`, {
+      cause: inner,
+    });
+    expect(httpStatusFromError(wrapped)).toBe(503);
+  });
+
+  it('reads the host through a wrapper', () => {
+    const inner = new Error(
+      'HTTP 502: FetchResponse: { status: 502, statusText: , url: https://distux-sarmul.startram.io/~/scry/x.json }'
+    );
+    expect(requestHostFromError(new Error('wrapped', { cause: inner }))).toBe(
+      'distux-sarmul.startram.io'
+    );
+  });
+
+  it('splits a wrapped reauth failure like a direct one', () => {
+    const inner = authFailure(504);
+    const wrapped = new Error(`Error during reauth: ${inner}`, {
+      cause: inner,
+    });
+    const capture = toSentryCapture(
+      'Reauth Error',
+      { logger: 'auth', errorObject: wrapped },
+      { fallbackHosting: 'tlon' }
+    );
+    if (capture.kind !== 'exception') {
+      throw new Error('expected an exception capture');
+    }
+    expect(capture.tags).toEqual({
+      logger: 'auth',
+      http_status: '504',
+      request_hosting: 'tlon',
+    });
+    expect(capture.fingerprint).toEqual([
+      '{{ default }}',
+      'http',
+      '504',
+      'tlon',
+    ]);
+  });
+
+  it('terminates on a self-referencing cause', () => {
+    const cyclic = new Error('boom') as Error & { cause?: unknown };
+    cyclic.cause = cyclic;
+    expect(httpStatusFromError(cyclic)).toBeNull();
+  });
+
+  it('terminates on a long cause chain', () => {
+    let error = new Error('HTTP 500: deep') as Error;
+    for (let i = 0; i < 10; i += 1) {
+      error = new Error(`wrap ${i}`, { cause: error });
+    }
+    expect(httpStatusFromError(error)).toBeNull();
+  });
+});

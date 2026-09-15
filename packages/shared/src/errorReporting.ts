@@ -292,27 +292,54 @@ const URL_IN_MESSAGE = /url:\s*(https?:\/\/[^\s,}"]+)/i;
 const UNRESOLVED_HOST_IN_MESSAGE = /unable to resolve host\s+"([^"]+)"/i;
 const STATUS_IN_MESSAGE = /\bHTTP\s+(\d{3})\b/;
 
+// Wrappers rethrow with the original attached as `cause` — `performReauth`
+// turns an AuthFailureError into a plain Error, for one — so the status and
+// host live one or more links down the chain. Bounded so a cycle cannot hang.
+const MAX_CAUSE_DEPTH = 4;
+
+function walkCauses<T>(
+  error: unknown,
+  read: (error: unknown) => T | null
+): T | null {
+  let current = error;
+  for (let depth = 0; depth <= MAX_CAUSE_DEPTH; depth += 1) {
+    const found = read(current);
+    if (found !== null) {
+      return found;
+    }
+    const cause = (current as { cause?: unknown } | null | undefined)?.cause;
+    if (cause === null || cause === undefined || cause === current) {
+      return null;
+    }
+    current = cause;
+  }
+  return null;
+}
+
 /**
  * HTTP status carried by an api client failure. `BadResponseError` and
  * `ChannelPutError` expose it as `status`, `AuthFailureError` as
  * `responseStatus`; fall back to the message for errors that only stringify it.
  */
 export function httpStatusFromError(error: unknown): number | null {
-  const fields = error as
-    | { status?: unknown; responseStatus?: unknown }
-    | null
-    | undefined;
-  for (const value of [fields?.status, fields?.responseStatus]) {
-    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
-      return value;
+  return walkCauses(error, (current) => {
+    const fields = current as
+      | { status?: unknown; responseStatus?: unknown }
+      | null
+      | undefined;
+    for (const value of [fields?.status, fields?.responseStatus]) {
+      if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+        return value;
+      }
     }
-  }
-  const message = (error as { message?: unknown } | null | undefined)?.message;
-  if (typeof message !== 'string') {
-    return null;
-  }
-  const match = message.match(STATUS_IN_MESSAGE);
-  return match ? Number(match[1]) : null;
+    const message = (current as { message?: unknown } | null | undefined)
+      ?.message;
+    if (typeof message !== 'string') {
+      return null;
+    }
+    const match = message.match(STATUS_IN_MESSAGE);
+    return match ? Number(match[1]) : null;
+  });
 }
 
 /** Hosting class of a URL, or null when it is absent or unparseable. */
@@ -334,22 +361,25 @@ export function hostingFromUrl(url: string | null | undefined): Hosting | null {
  * which is why this is derived at capture time rather than in `beforeSend`.
  */
 export function requestHostFromError(error: unknown): string | null {
-  const message = (error as { message?: unknown } | null | undefined)?.message;
-  if (typeof message !== 'string') {
-    return null;
-  }
-
-  const urlMatch = message.match(URL_IN_MESSAGE);
-  if (urlMatch) {
-    try {
-      return new URL(urlMatch[1]).hostname;
-    } catch {
-      // Fall through to the bare-hostname pattern below.
+  return walkCauses(error, (current) => {
+    const message = (current as { message?: unknown } | null | undefined)
+      ?.message;
+    if (typeof message !== 'string') {
+      return null;
     }
-  }
 
-  const unresolvedMatch = message.match(UNRESOLVED_HOST_IN_MESSAGE);
-  return unresolvedMatch ? unresolvedMatch[1] : null;
+    const urlMatch = message.match(URL_IN_MESSAGE);
+    if (urlMatch) {
+      try {
+        return new URL(urlMatch[1]).hostname;
+      } catch {
+        // Fall through to the bare-hostname pattern below.
+      }
+    }
+
+    const unresolvedMatch = message.match(UNRESOLVED_HOST_IN_MESSAGE);
+    return unresolvedMatch ? unresolvedMatch[1] : null;
+  });
 }
 
 export interface SentryCaptureOptions {
