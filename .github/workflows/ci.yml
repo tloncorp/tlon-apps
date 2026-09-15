@@ -134,6 +134,10 @@ jobs:
   desk-requests:
     needs: changes
     if: ${{ !cancelled() }}
+    # Advisory means advisory: a failed checkout, Node setup or install must not
+    # show a red job beside a PR it has nothing to say about — the fallback
+    # comment already reports that no report could be produced.
+    continue-on-error: true
     runs-on: blacksmith-2vcpu-ubuntu-2404
     name: Desk Requests Report
     # One run per PR: a superseded push has nothing to say about the head, and
