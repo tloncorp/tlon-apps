@@ -311,14 +311,15 @@ async function main() {
       const prepared = JSON.parse(process.env.QA_PREPARED_ASSESSMENT_JSON);
       if (prepared.headSha !== headSha || prepared.baseSha !== baseSha)
         throw new Error('Prepared plan source changed');
-      if (!prepared.sourceReview)
+      if (!prepared.sourceReview && prepared.decision !== 'blocked')
         throw new Error('Prepared plan lacks independent code review');
-      verifySourceReview(prepared.sourceReview, {
-        repo: git(['rev-parse', '--show-toplevel']).trim(),
-        base: baseSha,
-        head: headSha,
-        files,
-      });
+      if (prepared.sourceReview)
+        verifySourceReview(prepared.sourceReview, {
+          repo: git(['rev-parse', '--show-toplevel']).trim(),
+          base: baseSha,
+          head: headSha,
+          files,
+        });
       assessment = {
         ...verifyAssessment(prepared, files),
         files,
