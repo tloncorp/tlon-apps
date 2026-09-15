@@ -46,11 +46,11 @@ function output(key, value) {
     `${key}=${typeof value === 'string' ? value : JSON.stringify(value)}\n`
   );
 }
-async function wait(id, minutes, deviceOnly = false) {
+async function wait(id, minutes, deviceOnly = false, finalKeys = []) {
   const deadline = Date.now() + minutes * 60000;
   while (Date.now() < deadline) {
     const run = eas(['workflow:view', id]);
-    run.status = workflowState(run);
+    run.status = workflowState(run, finalKeys);
     if (
       deviceOnly &&
       run.jobs.some(
@@ -124,7 +124,7 @@ if (process.argv[2] === 'assess') {
   let plan = inputs.prepared_assessment_json;
   if (!plan) {
     const id = await dispatch(inputs, ref);
-    const run = await wait(id, 16);
+    const run = await wait(id, 16, false, ['assess_pr']);
     const job = run.jobs.find((j) => j.key === 'assess_pr');
     plan = JSON.parse(job?.outputs?.assessment || 'null');
   }
@@ -151,7 +151,11 @@ if (process.argv[2] === 'assess') {
       build_sha: env.QA_BUILD_SHA,
     });
   const id = await dispatch(input, env.QA_TARGET_REF);
-  const run = await wait(id, 50);
+  const run = await wait(id, 50, false, [
+    'repack_ios',
+    'reuse_build',
+    'build_ios',
+  ]);
   const build = ['repack_ios', 'reuse_build', 'build_ios']
     .map((key) => run.jobs.find((j) => j.key === key))
     .find((j) => j?.status === 'SUCCESS' && j.outputs?.build_id);
@@ -161,7 +165,7 @@ if (process.argv[2] === 'assess') {
   output('build_run_id', id);
 } else if (process.argv[2] === 'finish') {
   let id = env.QA_EAS_RUN_ID;
-  const original = await wait(id, 45);
+  const original = await wait(id, 45, false, ['verdict', 'manual_report']);
   let run = original;
   // One cross-worker recovery if publication failed after durable capture.
   // Same-worker checkpoints handle transient reviewer/editor failures first.
@@ -186,7 +190,7 @@ if (process.argv[2] === 'assess') {
       { review_evidence_json: descriptor },
       env.QA_TARGET_REF
     );
-    run = await wait(id, 40);
+    run = await wait(id, 40, false, ['review_recording']);
   }
   const published = run.jobs.find((j) => j.outputs?.comment_url);
   if (!published)
@@ -220,7 +224,8 @@ if (process.argv[2] === 'assess') {
   const run = await wait(
     id,
     env.QA_BUILD_ID ? 40 : 70,
-    Boolean(env.PROOF_OUTPUT)
+    Boolean(env.PROOF_OUTPUT),
+    ['verdict', 'manual_report']
   );
   if (env.PROOF_OUTPUT)
     writeFileSync(

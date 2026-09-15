@@ -1,6 +1,13 @@
 const terminal = new Set(['SUCCESS', 'FAILURE', 'CANCELED']);
-export function workflowState(run) {
+export function workflowState(run, finalKeys = []) {
   if (terminal.has(run.status)) return run.status;
+  // EAS adds dependent jobs lazily. Intermediate terminal jobs do not mean the DAG finished.
+  if (
+    !run.jobs?.some(
+      (job) => finalKeys.includes(job.key) && terminal.has(job.status)
+    )
+  )
+    return run.status;
   if (
     !run.jobs?.length ||
     run.jobs.some(
