@@ -4,6 +4,7 @@ import {
   useInfiniteQuery,
 } from '@tanstack/react-query';
 import { getChannelIdType } from '@tloncorp/api';
+import * as ub from '@tloncorp/api/urbit';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import * as db from '../../db';
@@ -359,7 +360,16 @@ async function getLocalFirstPosts(options: UseChannelPostsPageParams) {
  * over the sub) make their way into the result set via our post listeners.
  * These run outside the context of the infinite query.
  */
-async function hasNewerPosts(channelId: string, posts: db.Post[]) {
+export async function hasNewerPosts(channelId: string, posts: db.Post[]) {
+  // Third-party channels (e.g. %notes) are served by their backing agent, not
+  // %channels: `getChannelPosts` short-circuits them with
+  // `newestSequenceNum: null`, and their posts live outside `$posts`, so
+  // `last_post_sequence_num` is never written. There is nothing to page
+  // toward, and without this the invariant below fires on every notebook open.
+  if (ub.isThirdPartyChannel(channelId)) {
+    return false;
+  }
+
   const latestSequenceNum = await db.getLatestChannelSequenceNum({
     channelId,
   });
