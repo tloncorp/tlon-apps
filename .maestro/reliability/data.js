@@ -17,6 +17,7 @@ output.reliability = {
   sibling: MAESTRO_RUN_TAG + ' sibling',
   title: MAESTRO_RUN_TAG + ' note',
   body: MAESTRO_RUN_TAG + ' body',
+  linkUrl: 'https://tlon.io',
   // ContactName exposes a spoken label (zod / sampel - palnet) on native.
   // Accept that exact identity or its literal display, never a partial match.
   shipPattern:
@@ -38,7 +39,6 @@ output.reliability.replyPattern = exact(output.reliability.reply + ' ').replace(
   / \$$/,
   ' ?$'
 );
-
 output.reliability.siblingPattern = exact(output.reliability.sibling).replace(
   /\$$/,
   ' ?$'

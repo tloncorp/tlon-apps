@@ -1,8 +1,8 @@
 # Native reliability tests
 
-Twenty-five default single-ship journeys, including attachments, channel sorting,
-profile details, pins, references, privacy, sections, notification preferences,
-roles, replies, self-hosted login recovery and App Info clipboard verification.
+Twenty-six default single-ship journeys, including attachments, channel sorting,
+Gallery links, profile details, pins, references, privacy, sections, notification
+preferences, roles, replies, self-hosted login recovery and App Info clipboard verification.
 These cover a subset of the QA checklist, not the entire workbook.
 
 Use Maestro 2.6.1 and an installed build containing this branch's app changes.
@@ -46,6 +46,10 @@ color, iOS documents, offline send/retry, and gallery custom titles remain gaps.
 The new role/privacy/section/notification/thread journeys delete their own groups
 on success. Notification checks verify saved preferences; push delivery and
 enforcement on another ship require multiparty tests.
+
+`gallery-link.yaml` validates the three-field Link composer, malformed-URL error,
+and rich metadata preview and prefill. It deletes its uniquely named fixture
+group.
 
 `channel-sorting.yaml` creates a uniquely named text channel, posts there, then
 posts in Chat so recency and arrangement have different observable orders. It

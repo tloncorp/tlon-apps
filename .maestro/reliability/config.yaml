@@ -4,6 +4,7 @@ flows:
   - relaunch.yaml
   - notebook.yaml
   - gallery.yaml
+  - gallery-link.yaml
   - message-actions.yaml
   - search.yaml
   - history.yaml
