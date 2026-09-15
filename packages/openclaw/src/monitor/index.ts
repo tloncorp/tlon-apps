@@ -591,6 +591,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
   let api: UrbitSSEClient | null = null;
   let clearAgentOnboardingRetries: (() => void) | null = null;
+  // The groupChannels journal and the settings refresh it depends on live at
+  // function scope: the SSE client's reconnect hook (built in the first try
+  // below), the subscription setup, and the teardown finally all reach them
+  // (precedent: clearAgentOnboardingRetries).
+  let groupChannelJournal: GroupChannelJournal | undefined;
+  let refreshSettingsNow: () => Promise<void> = async () => {};
   let cookie: string;
   // Set by the boot self-contact scry; reconnect publishes re-read instead.
   let bootSelfContactRead: SelfContactRead | undefined;
@@ -662,6 +668,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       },
       // Re-authenticate on reconnect in case the session expired
       onReconnect: async (client) => {
+        // Settings echoes were missed while the stream was down: the
+        // groupChannels journal's write base is stale until the next fresh
+        // refresh re-trusts it.
+        groupChannelJournal?.markUntrusted();
         runtime.log?.('[tlon] Re-authenticating on SSE reconnect...');
         const newCookie = await authenticateWithRetry('re_auth');
         client.updateCookie(newCookie);
@@ -4909,10 +4919,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
     };
 
-    // Declared outside the subscription try so the teardown `finally` can
-    // drain it (precedent: nudgeRunner, clearAgentOnboardingRetries).
-    let groupChannelJournal: GroupChannelJournal | undefined;
-
     try {
       runtime.log?.('[tlon] Subscribing to firehose updates...');
 
@@ -5445,7 +5451,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // subscription can silently die (SSE quit without reconnect), leaving
       // both authorization state and heartbeat telemetry mirrors stale.
       // Never rejects — callers treat a refresh failure as non-fatal.
-      const refreshSettingsNow = async (): Promise<void> => {
+      refreshSettingsNow = async (): Promise<void> => {
         const seqBefore = groupChannelJournal?.observationSeq;
         const unconfirmedBefore = groupChannelJournal?.unconfirmedSnapshot();
         let superseded = false;
@@ -5562,10 +5568,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           `[tlon] Settings subscription not available: ${String(err)}`
         );
       }
-      // The journal's first trusted base: a fresh load taken now that the
-      // subscription is live, so nothing changed since the startup scry is
-      // missed. If it fails, the periodic refresh re-trusts later.
-      await refreshSettingsNow();
 
       // Subscribe to groups-ui for real-time channel additions (when invites are accepted)
       try {
@@ -5779,6 +5781,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       );
       await api.connect();
       runtime.log?.('[tlon] Connected! Firehose subscriptions active');
+      // The groupChannels journal's first trusted base: a fresh load taken
+      // now that the settings subscription is live (subscribe() only queues
+      // until connect()), so an edit landing after the startup scry is either
+      // in this load or delivered as an echo. If it fails, the periodic
+      // refresh re-trusts later. Before the invite catch-up, whose joins are
+      // the first facts the journal will persist.
+      await refreshSettingsNow();
       // The foreigns subscription gets no snapshot on watch; catch up now
       // that the channel is live so the boot gap cannot lose an invite.
       await groupInviteRunner.catchUp();
@@ -5985,7 +5994,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       await ownerReplyPersistence.flush();
       await pendingNudgePersistence.flush();
       // Drain the groupChannels journal before api.close(), which rejects
-      // later pokes; accepted nests would otherwise be lost.
+      // later pokes; accepted nests would otherwise be lost. A gap may have
+      // left it untrusted with no refresh since: take one now so close() has
+      // a base to write from, rather than dropping what was accepted.
+      if (groupChannelJournal && !groupChannelJournal.trusted) {
+        await refreshSettingsNow();
+      }
       await groupChannelJournal?.close();
       clearShadowsForAccount(account.accountId);
       setOutboundRouteReporter(null);

@@ -443,6 +443,65 @@ describe('createGroupChannelJournal.observe', () => {
     expect(values().at(-1)).toEqual(['chat/~zod/b', 'chat/~zod/c']);
   });
 
+  it('never prunes a nest whose put is still in flight', async () => {
+    const first = deferred();
+    const putEntry = vi
+      .fn<(value: string[]) => Promise<unknown>>()
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValue(0);
+    const { journal, values } = makeJournal({ putEntry });
+
+    const inFlight = journal.persist(['chat/~zod/a']);
+    await flush();
+    // A refresh scry begun now can overtake the put and omit `a`; the
+    // snapshot it judges must not include an in-flight addition.
+    const candidates = journal.unconfirmedSnapshot();
+    expect([...candidates]).toEqual([]);
+    expect(journal.pruneUnconfirmed([], candidates)).toEqual([]);
+
+    // The put then fails for real: the rejection handler still has `a` to
+    // requeue, and the next pass writes it.
+    first.reject(new Error('transport closed'));
+    await inFlight;
+    await journal.flush();
+    expect(values()).toEqual([['chat/~zod/a'], ['chat/~zod/a']]);
+  });
+
+  it('moves a settled put to unconfirmed unless an echo already confirmed it', async () => {
+    const first = deferred();
+    const second = deferred();
+    const putEntry = vi
+      .fn<(value: string[]) => Promise<unknown>>()
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise)
+      .mockResolvedValue(0);
+    const { journal } = makeJournal({ putEntry });
+
+    const a = journal.persist(['chat/~zod/a']);
+    await flush();
+    first.resolve(0);
+    await a;
+    // Settled, no echo yet: judged by the next fresh scry.
+    expect([...journal.unconfirmedSnapshot()]).toEqual(['chat/~zod/a']);
+
+    const b = journal.persist(['chat/~zod/b']);
+    await flush();
+    // The echo lands before the HTTP response: `b` is confirmed in flight.
+    journal.observe(['chat/~zod/a', 'chat/~zod/b']);
+    second.resolve(0);
+    await b;
+    expect([...journal.unconfirmedSnapshot()]).toEqual([]);
+  });
+
+  it('exposes trust so teardown can reconcile before closing', () => {
+    const { journal } = makeJournal({ trusted: true });
+    expect(journal.trusted).toBe(true);
+    journal.markUntrusted();
+    expect(journal.trusted).toBe(false);
+    journal.markTrusted();
+    expect(journal.trusted).toBe(true);
+  });
+
   it('trusts the snapshot after markTrusted()', async () => {
     const { journal, values, log } = makeJournal({ trusted: false });
 
@@ -826,7 +885,7 @@ describe('wiring', () => {
   };
 
   it('marks the journal trusted before applying a refreshed snapshot', () => {
-    const fn = sliceFrom('const refreshSettingsNow = async');
+    const fn = sliceFrom('refreshSettingsNow = async');
 
     // A byte-identical refresh short-circuits inside applySettingsSnapshot, so
     // trust recovery after a failed boot load has to happen first.
@@ -846,7 +905,7 @@ describe('wiring', () => {
     expect(reconcile).toBeLessThan(fn.indexOf('applySettingsSnapshot('));
   });
 
-  it('trusts the journal only from a fresh load taken after the subscription is live', () => {
+  it('trusts the journal only from a fresh load taken after the stream is connected', () => {
     const creation = monitorSource.indexOf('createGroupChannelJournal({');
     expect(creation).toBeGreaterThan(-1);
     expect(monitorSource.indexOf('trusted: false,', creation)).toBeLessThan(
@@ -859,20 +918,50 @@ describe('wiring', () => {
     const gap = monitorSource.indexOf(
       'onGap: () => groupChannelJournal?.markUntrusted()'
     );
+    expect(subscribe).toBeGreaterThan(-1);
+    expect(gap).toBeGreaterThan(subscribe);
+
+    // subscribe() only queues until connect(): the first refresh after the
+    // subscription must follow the connect, and precede the invite catch-up
+    // whose joins are the first facts the journal persists.
+    const connect = monitorSource.indexOf('await api.connect();');
     const firstRefresh = monitorSource.indexOf(
       'await refreshSettingsNow();',
       subscribe
     );
-    expect(subscribe).toBeGreaterThan(-1);
-    expect(gap).toBeGreaterThan(subscribe);
-    expect(firstRefresh).toBeGreaterThan(subscribe);
+    expect(connect).toBeGreaterThan(subscribe);
+    expect(firstRefresh).toBeGreaterThan(connect);
     expect(firstRefresh).toBeLessThan(
-      monitorSource.indexOf("path: '/groups/ui'")
+      monitorSource.indexOf('await groupInviteRunner.catchUp();')
     );
   });
 
+  it('marks the journal untrusted on a stream reconnect', () => {
+    const hook = monitorSource.indexOf('onReconnect: async (client) => {');
+    const next = monitorSource.indexOf('onSubscriptionRecovery:', hook);
+    const untrust = monitorSource.indexOf(
+      'groupChannelJournal?.markUntrusted()',
+      hook
+    );
+    expect(hook).toBeGreaterThan(-1);
+    expect(untrust).toBeGreaterThan(hook);
+    expect(untrust).toBeLessThan(next);
+  });
+
+  it('reconciles an untrusted journal before closing it in teardown', () => {
+    const closeJournal = monitorSource.indexOf('groupChannelJournal?.close()');
+    const guard = monitorSource.lastIndexOf(
+      'if (groupChannelJournal && !groupChannelJournal.trusted) {',
+      closeJournal
+    );
+    expect(guard).toBeGreaterThan(-1);
+    const refresh = monitorSource.indexOf('await refreshSettingsNow();', guard);
+    expect(refresh).toBeGreaterThan(guard);
+    expect(refresh).toBeLessThan(closeJournal);
+  });
+
   it('prunes unconfirmed nests from a fresh, non-superseded load before the snapshot applies', () => {
-    const fn = sliceFrom('const refreshSettingsNow = async');
+    const fn = sliceFrom('refreshSettingsNow = async');
     const snapshot = fn.indexOf('unconfirmedSnapshot()');
     const load = fn.indexOf('settingsManager.load(');
     const prune = fn.indexOf('pruneUnconfirmed(');

@@ -155,6 +155,8 @@ export type GroupChannelJournal = {
   readonly observationSeq: number;
   /** The key's value as last observed (echo or non-superseded fresh load). */
   readonly lastObserved: readonly string[] | undefined;
+  /** Whether the write base may be used: a fresh load has run since the last known gap. */
+  readonly trusted: boolean;
   /** A fresh settings load completed (even if unchanged). */
   markTrusted(): void;
   /**
@@ -162,7 +164,12 @@ export type GroupChannelJournal = {
    * so the write base is stale until the next fresh load.
    */
   markUntrusted(): void;
-  /** Nests put by this process and not yet seen in an observation. */
+  /**
+   * Nests whose put has settled but which no observation has echoed yet.
+   * Excludes puts still in flight: a scry started while a put is in flight
+   * can overtake it, and judging those would let a later transport rejection
+   * find nothing to requeue.
+   */
   unconfirmedSnapshot(): Set<string>;
   /**
    * A fresh, non-superseded scry is authoritative for the nests that were
@@ -220,6 +227,11 @@ export function createGroupChannelJournal(
   deps: GroupChannelJournalDeps
 ): GroupChannelJournal {
   let observed = new Set<string>(deps.initial ?? []);
+  // Put sent, HTTP not yet settled. Kept apart from `unconfirmed` so a scry
+  // that overtakes an in-flight put cannot prune what the put's own rejection
+  // handler still has to requeue.
+  const inFlight = new Set<string>();
+  // Put settled, not yet seen in an observation (echo or fresh load).
   const unconfirmed = new Set<string>();
   const pending = new Set<string>();
   let lastSeen: readonly string[] | undefined = deps.initial;
@@ -257,9 +269,12 @@ export function createGroupChannelJournal(
     trusted = true;
     // undefined = a del-entry or a non-list value; hermes writes empty.
     const next = new Set(list ?? []);
-    for (const nest of unconfirmed) {
-      if (next.has(nest)) {
-        unconfirmed.delete(nest);
+    // An echo can land before the HTTP response: confirm in-flight nests too.
+    for (const set of [unconfirmed, inFlight]) {
+      for (const nest of set) {
+        if (next.has(nest)) {
+          set.delete(nest);
+        }
       }
     }
     const protectedNests = deps.protectedNests();
@@ -271,8 +286,8 @@ export function createGroupChannelJournal(
     }
     const removed: string[] = [];
     for (const nest of observed) {
-      // Unconfirmed nests are never in `observed`, so echo lag cannot unwatch
-      // an addition this process is still waiting on.
+      // Unconfirmed and in-flight nests are never in `observed`, so echo lag
+      // cannot unwatch an addition this process is still waiting on.
       if (!next.has(nest) && !protectedNests.has(nest)) {
         removed.push(nest);
       }
@@ -309,33 +324,40 @@ export function createGroupChannelJournal(
     }
     missing.sort();
     const value = [
-      ...new Set([...observed, ...unconfirmed, ...missing]),
+      ...new Set([...observed, ...unconfirmed, ...inFlight, ...missing]),
     ].sort();
-    // Consume the whole batch before the put: record the additions so a drain
-    // that runs while it is in flight (or a rollback) counts them as part of
-    // the write base, and clear `pending` now — both so a request for the same
-    // nest accepted during the put survives the put's completion, and so an
+    // Consume the whole batch before the put: record the additions as in
+    // flight so a drain that runs meanwhile counts them as part of the write
+    // base, and clear `pending` now — both so a request for the same nest
+    // accepted during the put survives the put's completion, and so an
     // already-observed request does not linger and resurrect the nest after
     // an operator removes it.
     for (const nest of missing) {
-      unconfirmed.add(nest);
+      inFlight.add(nest);
     }
     pending.clear();
     try {
       await deps.putEntry(value);
     } catch (err) {
-      // Roll back and requeue only what is still unconfirmed. A nest no longer
-      // in `unconfirmed` was confirmed by an observation while the put was in
-      // flight (a rejection can follow an accepted PUT), and the ship's later
-      // state for it — kept, or since removed by another writer — is
-      // authoritative; requeueing it would write back an operator's removal.
+      // Roll back and requeue only what is still in flight. A nest no longer
+      // there was confirmed by an observation while the put was in flight (a
+      // rejection can follow an accepted PUT), and the ship's later state for
+      // it — kept, or since removed by another writer — is authoritative;
+      // requeueing it would write back an operator's removal.
       for (const nest of missing) {
-        if (unconfirmed.delete(nest)) {
+        if (inFlight.delete(nest)) {
           pending.add(nest);
         }
       }
       deps.error?.(`[tlon] Failed to persist groupChannels: ${String(err)}`);
       return;
+    }
+    // Settled but not yet echoed; an echo that arrived during the put has
+    // already confirmed the nest and taken it out of `inFlight`.
+    for (const nest of missing) {
+      if (inFlight.delete(nest)) {
+        unconfirmed.add(nest);
+      }
     }
     deps.log?.(
       `[tlon] Persisted ${missing.length} channel(s) to groupChannels: ${missing.join(', ')}`
@@ -353,6 +375,9 @@ export function createGroupChannelJournal(
     },
     get lastObserved() {
       return lastSeen;
+    },
+    get trusted() {
+      return trusted;
     },
     markTrusted() {
       trusted = true;
