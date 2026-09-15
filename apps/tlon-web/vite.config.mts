@@ -5,8 +5,6 @@ import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import react from '@vitejs/plugin-react';
 import fs from 'fs';
-import http from 'node:http';
-import https from 'node:https';
 import analyze from 'rollup-plugin-analyzer';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { fileURLToPath } from 'url';
@@ -26,66 +24,85 @@ import packageJson from './package.json';
 import reactNativeWeb from './reactNativeWebPlugin';
 import manifest from './src/manifest';
 
-// Signs the dev server into the ship with DEFAULT_SHIP_LOGIN_ACCESS_CODE and
-// attaches the resulting urbauth cookie to proxied requests, so the browser
-// never meets the ship's login page. The same two variables prefill the mobile
-// app's login form (apps/tlon-mobile/app.config.ts). Dev server only:
-// `apply: 'serve'` keeps it out of every build.
-function shipLoginPlugin(target: string): Plugin {
+// Answers the ship's login page with a copy whose access code is already
+// filled in, so a dev browser signs itself in with
+// DEFAULT_SHIP_LOGIN_ACCESS_CODE instead of the code being typed. The same two
+// variables prefill the mobile app's login form
+// (apps/tlon-mobile/app.config.ts). The browser posts the form itself, so the
+// session cookie is the ship's own, set in the browser the usual way. Dev
+// server only: `apply: 'serve'` keeps it out of every build.
+function shipLoginPlugin(target: string, appBase: string): Plugin {
   const code = process.env.DEFAULT_SHIP_LOGIN_ACCESS_CODE;
   const loginUrl = process.env.DEFAULT_SHIP_LOGIN_URL;
-  // The urbauth cookie is what makes this server act as the user, so it goes
-  // only to requests a person's own browser makes to this server from this
-  // machine. Vite answers cross-origin requests with
-  // Access-Control-Allow-Origin: * and checks no Host header, which is
-  // harmless while the browser holds no cookie for localhost and would
-  // otherwise let any open website read the ship and poke it as the user. The
-  // socket address is what says "this machine": under --host a script on the
-  // LAN can send any Host header it likes.
+  // The page carries the ship's access code, so it goes only to a browser on
+  // this machine. Vite answers cross-origin requests with
+  // Access-Control-Allow-Origin: * and checks no Host header, so without this
+  // any open website could read the code off this server under --host. The
+  // socket address is what says "this machine": a Host header can claim
+  // anything.
   const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
-  // Put our session cookie on the request, dropping any cookie of the same name
-  // the browser already holds -- a stale one from a previous ship session would
-  // otherwise reach the ship and 401 instead of authenticating.
-  const withShipCookie = (existing: string, name: string, value: string) =>
-    [
-      ...existing
-        .split(';')
-        .map((c) => c.trim())
-        .filter((c) => c && !c.startsWith(`${name}=`)),
-      value,
-    ].join('; ');
-  const isOwnBrowser = (
-    remote: string | undefined,
-    host?: string,
-    origin?: string,
-    site?: string
-  ) => {
-    if (!remote || !LOOPBACK.has(remote)) return false;
-    if (!host || !/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host)) {
-      return false;
-    }
-    if (site && site !== 'same-origin' && site !== 'none') return false;
-    if (!origin) return true;
-    try {
-      return new URL(origin).host === host;
-    } catch {
-      return false;
-    }
+  const isOwnBrowser = (remote: string | undefined, host?: string) =>
+    !!remote &&
+    LOOPBACK.has(remote) &&
+    !!host &&
+    /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host);
+  const escape = (value: string) =>
+    value.replace(
+      /[&<>"']/g,
+      (c) =>
+        ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;',
+        })[c] as string
+    );
+  // Eyre puts the post-login destination in a hidden field.
+  // Pass through only a path on this server, never an absolute url that would
+  // send the browser to another origin. A missing destination, or the bare `/`
+  // this app asks for, means the ship's own landing page, so send the browser
+  // back to the app it came from instead.
+  const safeRedirect = (url: string) => {
+    const query = url.includes('?') ? url.slice(url.indexOf('?') + 1) : '';
+    const to = new URLSearchParams(query).get('redirect') ?? '';
+    return /^\/(?!\/)/.test(to) && to !== '/' ? to : appBase;
   };
-  let cookie: string | null = null;
-  let cookieName = '';
-  let pending: Promise<void> | null = null;
+  const page = (redirect: string) => `<!doctype html>
+<meta charset="utf-8" />
+<title>Signing in</title>
+<body style="font: 14px system-ui; margin: 3rem">
+  <form id="login" method="post" action="/~/login">
+    <input type="password" name="password" value="${escape(code ?? '')}" />
+    <input type="hidden" name="redirect" value="${escape(redirect)}" />
+    <button type="submit">Sign in to ${escape(target)}</button>
+  </form>
+  <script>
+    // Submitting once per tab: a code the ship rejects comes back as its own
+    // login page, and landing here again should leave the form to the person
+    // rather than retrying on its own.
+    try {
+      if (!sessionStorage.getItem('tlon-dev-login')) {
+        sessionStorage.setItem('tlon-dev-login', '1');
+        document.getElementById('login').submit();
+      }
+    } catch (err) {
+      // A browser with storage disabled just gets the filled-in form.
+    }
+  </script>
+</body>
+`;
   return {
     name: 'tlon:ship-login',
     apply: 'serve',
-    async configureServer(server) {
+    configureServer(server) {
       if (!code) return;
       const log = server.config.logger;
+      const strip = (u?: string) => (u ?? '').replace(/\/+$/, '');
+      const base = strip(target);
       // The code belongs to one ship. A proxy pointed elsewhere -- the e2e
       // ships under SHIP_URL, or a VITE_SHIP_URL that differs -- must not be
       // handed it.
-      const strip = (u?: string) => (u ?? '').replace(/\/+$/, '');
-      const base = strip(target);
       if (!loginUrl || strip(loginUrl) !== base) {
         log.info(
           `ship login: skipped, the proxy targets ${target} and DEFAULT_SHIP_LOGIN_URL is ${
@@ -94,95 +111,27 @@ function shipLoginPlugin(target: string): Plugin {
         );
         return;
       }
-      const url = new URL(`${base}/~/login`);
-      const body = new URLSearchParams({ password: code }).toString();
-      const login = () =>
-        new Promise<void>((resolve, reject) => {
-          const mod = url.protocol === 'https:' ? https : http;
-          const req = mod.request(
-            url,
-            {
-              method: 'POST',
-              headers: {
-                'content-type': 'application/x-www-form-urlencoded',
-                'content-length': Buffer.byteLength(body),
-              },
-              timeout: 10_000,
-              // The proxy trusts this ship's certificate (`secure: false`
-              // below), so the login has to as well, or a self-signed dev ship
-              // the proxy can reach rejects the sign-in.
-              rejectUnauthorized: false,
-            },
-            (res) => {
-              res.resume();
-              const status = res.statusCode ?? 0;
-              // A rejected code still comes back with a Set-Cookie (HTTP 400
-              // and an urbauth value the ship will not honour), so the status
-              // decides.
-              const raw = res.headers['set-cookie']?.join(',') ?? '';
-              const match = /(urbauth-[^=]+)=[^;,]+/.exec(raw);
-              if (status >= 400 || !match) {
-                reject(
-                  new Error(
-                    status === 400
-                      ? 'the ship rejected DEFAULT_SHIP_LOGIN_ACCESS_CODE'
-                      : `HTTP ${status}`
-                  )
-                );
-                return;
-              }
-              cookie = match[0];
-              cookieName = match[1];
-              log.info(`ship login: signed in to ${target}`);
-              resolve();
-            }
-          );
-          req.on('timeout', () => req.destroy(new Error('login timed out')));
-          req.on('error', reject);
-          req.end(body);
-        });
-      const reason = (err: unknown) => (err as Error).message;
-      try {
-        await login();
-      } catch (err) {
+      // Eyre's own code pattern: anything else is not a code, and refusing it
+      // here keeps whatever it is out of the page.
+      if (!/^[a-z]{6}(-[a-z]{6}){3}$/.test(code)) {
         log.warn(
-          `ship login: ${reason(err)}; the ship's login page will appear`
+          'ship login: skipped, DEFAULT_SHIP_LOGIN_ACCESS_CODE is not a ship code'
         );
         return;
       }
       server.middlewares.use((req, res, next) => {
-        const existing = req.headers.cookie ?? '';
-        const own = isOwnBrowser(
-          req.socket.remoteAddress,
-          req.headers.host,
-          req.headers.origin,
-          req.headers['sec-fetch-site'] as string | undefined
-        );
-        if (cookie && own) {
-          const injected = cookie;
-          req.headers.cookie = withShipCookie(existing, cookieName, cookie);
-          // The ship answers a session it no longer knows with 401 on every
-          // path, /~/login included, so a stale cookie would lock the browser
-          // out too. Drop it and sign in again once; while that is pending,
-          // nothing is injected and the ship's own login page works.
-          res.once('finish', () => {
-            // Only the cookie that earned this 401 is dropped: a slow response
-            // sent with the previous one must not undo a sign-in that already
-            // replaced it.
-            if (res.statusCode !== 401 || pending || cookie !== injected)
-              return;
-            cookie = null;
-            pending = login()
-              .catch((err) => {
-                log.warn(`ship login: session expired and ${reason(err)}`);
-              })
-              .finally(() => {
-                pending = null;
-              });
-          });
+        const url = req.url ?? '';
+        if (req.method !== 'GET' || url.split('?')[0] !== '/~/login') {
+          return next();
         }
-        next();
+        if (!isOwnBrowser(req.socket.remoteAddress, req.headers.host)) {
+          return next();
+        }
+        res.setHeader('content-type', 'text/html; charset=utf-8');
+        res.setHeader('cache-control', 'no-store');
+        res.end(page(safeRedirect(url)));
       });
+      log.info(`ship login: the login page for ${target} is prefilled`);
     },
   };
 }
@@ -193,8 +142,9 @@ export default ({ mode }: { mode: string }) => {
     mode === 'dev' ? Date.now().toString() : packageJson.version;
 
   // loadEnv only reads VITE_-prefixed keys by default. The ship login pair is
-  // deliberately unprefixed so the access code never reaches the client bundle;
-  // it is consumed here, by the dev server, and nowhere else.
+  // deliberately unprefixed so the access code stays out of the client bundle;
+  // the dev server puts it in the login page it serves to this machine's
+  // browser, and nowhere else.
   Object.assign(
     process.env,
     loadEnv(mode, process.cwd(), ['VITE_', 'DEFAULT_SHIP_LOGIN_'])
@@ -282,7 +232,7 @@ export default ({ mode }: { mode: string }) => {
       process.env.SSL === 'true' ? (basicSsl() as PluginOption) : null,
       exportingRawText(/\.sql$/),
       expo52PatchPlugin(), // Fix Expo 52 static name assignments
-      shipLoginPlugin(targetShipUrl),
+      shipLoginPlugin(targetShipUrl, base(mode)),
       urbitPlugin({
         base: 'groups',
         target: targetShipUrl,
