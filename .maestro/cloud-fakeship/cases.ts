@@ -23,6 +23,7 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
     'group-changes',
     'reactions',
     'contact-status',
+    'group-mark-read',
   ]);
   const selected = (name: string) =>
     selection === 'all'
@@ -144,6 +145,31 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
         text: `${tag} dm mobile`,
       });
       await ten.sendDm('~zod', `${tag} dm verified`);
+    });
+  }
+  if (selected('group-mark-read')) {
+    // Host on the native ship so the peer post contributes to the group's
+    // aggregate unread badge and enables the group-level read action.
+    const g = await group('Unread', zod);
+    await say(g.chatChannel, `${tag} unread channel`);
+    const groupIsUnread = async () => {
+      const unreads = await zod.state.scry<any[]>(
+        'activity',
+        '/v4/activity/unreads'
+      );
+      return unreads.some((entry) => entry.source?.group === g.groupId);
+    };
+    await until('group unread fixture reaches zod', groupIsUnread);
+    task('group-mark-read', async () => {
+      await until(
+        'native marks channel read',
+        async () => !(await groupIsUnread()),
+        30 * 60_000
+      );
+      record('group-mark-read-state', {
+        channelId: g.chatChannel,
+        unread: false,
+      });
     });
   }
   if (selected('dm-deny')) {

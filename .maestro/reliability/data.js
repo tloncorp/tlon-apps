@@ -14,6 +14,9 @@ output.reliability = {
   reply: MAESTRO_RUN_TAG + ' reply',
   title: MAESTRO_RUN_TAG + ' note',
   body: MAESTRO_RUN_TAG + ' body',
+  unreadChannelPreviewPattern: exact(
+    '~ten: ' + MAESTRO_RUN_TAG + ' unread channel'
+  ),
   // ContactName exposes a spoken label (zod / sampel - palnet) on native.
   // Accept that exact identity or its literal display, never a partial match.
   shipPattern:

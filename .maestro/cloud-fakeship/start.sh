@@ -112,7 +112,7 @@ mkdir -p proof-flows
 cp -R .maestro/reliability .maestro/cloud-fakeship proof-flows/
 node --input-type=module <<'JS'
 import { writeFileSync } from 'node:fs';
-const names = ['exchange', 'invitations', 'direct-messages', 'moderation', 'group-changes', 'reactions', 'contact-status'];
+const names = ['exchange', 'invitations', 'direct-messages', 'moderation', 'group-changes', 'reactions', 'contact-status', 'group-mark-read'];
 const optionalNames = ['dm-deny', 'dm-block', 'dm-unblock'];
 const selected = process.env.PROOF_CASES === 'all' ? names : (process.env.PROOF_CASES || 'exchange').split(',');
 if (!selected.length || selected.some(name => ![...names, ...optionalNames].includes(name))) throw Error('Unknown proof case');
