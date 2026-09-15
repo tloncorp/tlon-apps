@@ -190,6 +190,60 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
       });
     });
   }
+  if (selected('home-unread-preview')) {
+    await resetDmPeer();
+
+    const g = await group('HomeUnread', zod);
+    const groupText = `${tag} home group unread`;
+    await say(g.chatChannel, groupText);
+
+    await ten.sendDm('~zod', `${tag} home dm handshake`);
+    await until('home DM handshake reaches zod', () =>
+      includesShip(zod, '/dm/invited', '~ten')
+    );
+    await zod.state.poke({
+      app: 'chat',
+      mark: 'chat-dm-rsvp',
+      json: { ship: '~ten', ok: true },
+    });
+    await until('accepted home DM reaches zod', async () => {
+      const [active, invited] = await Promise.all([
+        includesShip(zod, '/dm', '~ten'),
+        includesShip(zod, '/dm/invited', '~ten'),
+      ]);
+      return active && !invited;
+    });
+    const dmText = `${tag} home dm unread`;
+    await ten.sendDm('~zod', dmText);
+
+    const unreads = async () =>
+      zod.state.scry<any[]>('activity', '/v4/activity/unreads');
+    await until('home unread fixtures reach zod', async () => {
+      const [activity, groupPosts, dmPosts] = await Promise.all([
+        unreads(),
+        zod.state.channelPosts(g.chatChannel),
+        zod.state.channelPosts('~ten'),
+      ]);
+      return (
+        activity.some((entry) => entry.source?.group === g.groupId) &&
+        activity.some((entry) => entry.source?.dm?.ship === '~ten') &&
+        groupPosts.some(
+          (post) => post.authorId === '~ten' && post.text === groupText
+        ) &&
+        dmPosts.some((post) => post.authorId === '~ten' && post.text === dmText)
+      );
+    });
+    task('home-unread-preview', async () => {
+      record('home-unread-preview-state', {
+        groupId: g.groupId,
+        channelId: g.chatChannel,
+        groupText,
+        dmText,
+        groupUnread: true,
+        dmUnread: true,
+      });
+    });
+  }
   if (selected('channel-mark-read')) {
     const g = await group('UnreadChannels', zod);
     const channelName = `${tag.toLowerCase()}-unread-topic`;

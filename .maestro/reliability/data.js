@@ -24,6 +24,11 @@ output.reliability = {
     '~ten: ' + MAESTRO_RUN_TAG + ' group swipe unread'
   ),
   groupSwipeTitlePattern: exact('SwipeGroup-' + MAESTRO_RUN_TAG),
+  homeUnreadGroupTitlePattern: exact('HomeUnread-' + MAESTRO_RUN_TAG),
+  homeUnreadGroupPreviewPattern: exact(
+    '~ten: ' + MAESTRO_RUN_TAG + ' home group unread'
+  ),
+  homeUnreadDmPreviewPattern: exact(MAESTRO_RUN_TAG + ' home dm unread'),
   dmSwipePreviewPattern: exact(MAESTRO_RUN_TAG + ' dm swipe unread'),
   activityMentionPattern:
     '^.*' + exact(MAESTRO_RUN_TAG + ' activity mention').slice(1, -1) + '.*$',
