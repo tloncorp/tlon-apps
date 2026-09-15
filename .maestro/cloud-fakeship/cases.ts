@@ -429,6 +429,67 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
       });
     });
   }
+  if (selected('activity-pagination')) {
+    const g = await group('ActivityPage', zod);
+    const sourceCount = 32;
+    let oldest = '';
+    let newest = '';
+    for (let i = 1; i <= sourceCount; i++) {
+      const root = await zod.sendChannelPost({
+        channelId: g.chatChannel,
+        content: `${tag} activity page root ${i}`,
+      });
+      const marker =
+        i === 1
+          ? `${tag} activity page oldest`
+          : i === sourceCount
+            ? `${tag} activity page newest`
+            : `${tag} activity page ${i}`;
+      await ten.replyToPost({
+        channelId: g.chatChannel,
+        parentId: root.id,
+        parentAuthor: root.authorId,
+        content: marker,
+      });
+      if (i === 1) oldest = marker;
+      if (i === sourceCount) newest = marker;
+    }
+
+    let initialFeed: { all?: unknown[] } = {};
+    await until('newest Activity page reaches initial feed', async () => {
+      initialFeed = await zod.state.scry<{ all?: unknown[] }>(
+        'activity',
+        '/v5/feed/init/30'
+      );
+      return JSON.stringify(initialFeed.all ?? []).includes(newest);
+    });
+    const initialSerialized = JSON.stringify(initialFeed.all ?? []);
+    if (initialSerialized.includes(oldest)) {
+      throw Error('Oldest Activity marker unexpectedly entered initial page');
+    }
+    const fullFeed = await zod.state.scry<{ feed?: unknown[] }>(
+      'activity',
+      '/v5/feed/all/100'
+    );
+    const fullSerialized = JSON.stringify(fullFeed.feed ?? fullFeed);
+    if (!fullSerialized.includes(oldest) || !fullSerialized.includes(newest)) {
+      throw Error(
+        'Activity pagination boundary markers missing from full feed'
+      );
+    }
+    task('activity-pagination', async () => {
+      record('activity-pagination-state', {
+        groupId: g.groupId,
+        channelId: g.chatChannel,
+        oldest,
+        newest,
+        seededSources: sourceCount,
+        initialPageCount: 30,
+        oldestExcludedFromInitialPage: true,
+        fullFeedContainsBoundaryMarkers: true,
+      });
+    });
+  }
   if (selected('group-swipe-read')) {
     const g = await group('SwipeGroup', zod);
     await say(g.chatChannel, `${tag} group swipe unread`);

@@ -33,6 +33,14 @@ output.reliability = {
   activityGroupPattern: exact('Activity-' + MAESTRO_RUN_TAG),
   activityReplyPattern:
     '^.*' + exact(MAESTRO_RUN_TAG + ' activity reply').slice(1, -1) + '.*$',
+  activityPaginationOldestPattern:
+    '^.*' +
+    exact(MAESTRO_RUN_TAG + ' activity page oldest').slice(1, -1) +
+    '.*$',
+  activityPaginationNewestPattern:
+    '^.*' +
+    exact(MAESTRO_RUN_TAG + ' activity page newest').slice(1, -1) +
+    '.*$',
   permissionRestoredPostPattern: exact(
     MAESTRO_RUN_TAG + ' restored mobile post '
   ).replace(/ \$$/, ' ?$'),

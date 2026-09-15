@@ -124,6 +124,7 @@ const optionalNames = [
   'group-swipe-read',
   'dm-swipe-read',
   'dm-history-pagination',
+  'activity-pagination',
   'permissions-restore',
 ];
 const selected = process.env.PROOF_CASES === 'all' ? names : (process.env.PROOF_CASES || 'exchange').split(',');
