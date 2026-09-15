@@ -17,6 +17,9 @@ output.reliability = {
   unreadChannelPreviewPattern: exact(
     '~ten: ' + MAESTRO_RUN_TAG + ' unread channel'
   ),
+  unreadTopicPreviewPattern: exact(
+    '~ten: ' + MAESTRO_RUN_TAG + ' unread topic'
+  ),
   groupSwipePreviewPattern: exact(
     '~ten: ' + MAESTRO_RUN_TAG + ' group swipe unread'
   ),

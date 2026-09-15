@@ -24,6 +24,7 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
     'reactions',
     'contact-status',
     'group-mark-read',
+    'channel-mark-read',
   ]);
   const selected = (name: string) =>
     selection === 'all'
@@ -168,6 +169,57 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
       );
       record('group-mark-read-state', {
         channelId: g.chatChannel,
+        unread: false,
+      });
+    });
+  }
+  if (selected('channel-mark-read')) {
+    const g = await group('UnreadChannels', zod);
+    const channelName = `${tag.toLowerCase()}-unread-topic`;
+    const channelId = `chat/~zod/${channelName}`;
+    await zod.state.poke({
+      app: 'channels',
+      mark: 'channel-action-2',
+      json: {
+        create: {
+          kind: 'chat',
+          group: g.groupId,
+          name: channelName,
+          title: 'Unread topic',
+          description: 'Channel-level unread fixture',
+          meta: null,
+          readers: [],
+          writers: [],
+        },
+      },
+    });
+    await until('second channel reaches both ships', async () => {
+      const groups: any[] = await Promise.all([
+        zod.state.group(g.groupId),
+        ten.state.group(g.groupId),
+      ]);
+      return groups.every((candidate) =>
+        candidate?.channels?.some((channel: any) => channel.id === channelId)
+      );
+    });
+    await say(channelId, `${tag} unread topic`);
+    const channelIsUnread = async () => {
+      const unreads = await zod.state.scry<any[]>(
+        'activity',
+        '/v4/activity/unreads'
+      );
+      return unreads.some((entry) => entry.source?.channel?.nest === channelId);
+    };
+    await until('channel unread fixture reaches zod', channelIsUnread);
+    task('channel-mark-read', async () => {
+      await until(
+        'native marks individual channel read',
+        async () => !(await channelIsUnread()),
+        30 * 60_000
+      );
+      record('channel-mark-read-state', {
+        groupId: g.groupId,
+        channelId,
         unread: false,
       });
     });
