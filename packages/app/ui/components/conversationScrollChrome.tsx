@@ -167,7 +167,12 @@ function AnimatedScrollToBottomButton({
       pointerEvents={visible ? 'auto' : 'none'}
       style={animatedStyle}
     >
-      <FloatingActionButton icon={content} onPress={onPress} />
+      <FloatingActionButton
+        icon={content}
+        onPress={onPress}
+        accessibilityLabel="Scroll to bottom"
+        testID="ScrollToBottomButton"
+      />
     </Animated.View>
   );
 }

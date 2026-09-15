@@ -11,33 +11,58 @@
 ::    %steward-action-1 carries only cross-cutting config (the shared owner).
 ::
 /-  s=steward, a=activity, av=activity-ver, cv=chat-ver, st=story
-/-  sl=steward-lens, sg=steward-gateway, sa=steward-automation
+/-  sl=steward-lens, sg=steward-gateway, sa=steward-automation, c=contacts
 /+  default-agent, verb, dbug
 |%
 +$  card  card:agent:gall
-::  versioned persisted state. state-0 is released and remains decodable for
-::  migration. fresh installs and migrated agents use state-1.
+::  state is versioned; +on-load migrates older shapes forward.
 ::
 ::    .owner: shared owner ship (lens send target, gateway owner-DM tracking)
 ::    .bots:  owner-side trusted bots — ships allowed to send lens %entry
 ::            pokes cross-ship. explicit and ship-class-agnostic; an empty
 ::            set means only local pokes are accepted.
 ::
-+$  versioned-state  $%(state-1 state-0)
-+$  state-1
-  $:  %1
++$  state-2
+  $:  %2
       owner=(unit ship)
       bots=(set ship)
       lens=state:v1:sl
       gateway=state:v1:sg
       automation=state:v1:sa
   ==
++$  versioned-state  $%(state-0 state-1 state-2)
+::  pre-%2 shapes, kept for +on-load only. state-1 is the released shape
+::  before the automation slice; gateway-0 is the gateway slice before
+::  .notify-on-start was prepended (see sur/steward/gateway.hoon).
+::
++$  state-1
+  $:  %1
+      owner=(unit ship)
+      bots=(set ship)
+      lens=state:v1:sl
+      gateway=state:v1:sg
+  ==
 +$  state-0
   $:  %0
       owner=(unit ship)
       bots=(set ship)
       lens=state:v1:sl
-      gateway=state:v1:sg
+      gateway=gateway-0
+  ==
++$  gateway-0
+  $:  last-owner-msg=@da
+      last-owner-msg-id=(unit message-key:a)
+      status=status:v1:sg
+      boot-id=(unit @t)
+      lease-until=(unit @da)
+      last-heartbeat=(unit @da)
+      last-stop=(unit @da)
+      last-start=(unit @da)
+      pending-restart=?
+      last-auto-reply=(unit @da)
+      last-auto-reply-to=(unit message-key:a)
+      reply-cooldown=@dr
+      active-window=@dr
   ==
 ::  default cap on first install. conservative against the per-run ceiling:
 ::  3.000 runs * 512KB worst-case = ~1.5GB per bot, while typical runs are far
@@ -46,7 +71,7 @@
 ::
 ++  default-max-runs-per-bot  3.000
 --
-=|  state-1
+=|  state-2
 =*  state  -
 %-  agent:dbug
 %^  verb  |  %warn
@@ -62,25 +87,10 @@
     [~[watch-activity:cor] this]
   ++  on-save  !>(state)
   ++  on-load
-    |^  |=  ole=vase
-        ^-  (quip card _this)
-        =/  old=versioned-state  !<(versioned-state ole)
-        =?  old  ?=(%0 -.old)  (state-0-to-1 old)
-        ?>  ?=(%1 -.old)
-        `this(state old)
-    ::  preserve every released field and initialize the new module empty
-    ::
-    ++  state-0-to-1
-      |=  old=state-0
-      ^-  state-1
-      :*  %1
-          owner.old
-          bots.old
-          lens.old
-          gateway.old
-          *state:v1:sa
-      ==
-    --
+    |=  =vase
+    ^-  (quip card _this)
+    =^  cards  state  abet:(load:cor vase)
+    [cards this]
   ++  on-poke
     |=  [=mark =vase]
     ^-  (quip card _this)
@@ -117,6 +127,40 @@
 ++  abet  [(flop cards) state]
 ++  emit  |=(=card cor(cards [card cards]))
 ++  give  |=(=gift:agent:gall (emit %give gift))
+::
+::  +load: progressive migration, one version per step, with cards emitted
+::  at the version they belong to (the shape of +load in %activity).
+::
+++  load
+  |=  =vase
+  ^+  cor
+  =+  !<(old=versioned-state vase)
+  =?  cor  ?=(%0 -.old)  (seed-migrated-liveness old)
+  =?  old  ?=(%0 -.old)  (state-0-to-1 old)
+  =?  old  ?=(%1 -.old)  (state-1-to-2 old)
+  ?>  ?=(%2 -.old)
+  cor(state old)
+::  %0 → %1: the gateway slice gained leading .notify-on-start and
+::  .last-interaction fields
+++  state-0-to-1
+  |=  old=state-0
+  ^-  state-1
+  [%1 owner.old bots.old lens.old [| *@da gateway.old]]
+::  %1 → %2: the automation module arrives with an empty slice
+++  state-1-to-2
+  |=  old=state-1
+  ^-  state-2
+  [%2 owner.old bots.old lens.old gateway.old *state:v1:sa]
+::  a %0 bot's gateway registered before the liveness claim existed, and
+::  heartbeats only advertise on an up transition: seed the claim from the
+::  migrated status, or an already-up gateway stays unknown until its next
+::  restart. no owner means no bot (%steward runs on every ship); %unknown
+::  means the gateway never registered.
+++  seed-migrated-liveness
+  |=  old=state-0
+  ^+  cor
+  ?.  &(?=(^ owner.old) !?=(%unknown status.gateway.old))  cor
+  (ga-advertise-liveness:ga-core =(%up status.gateway.old))
 ::
 ++  poke
   |=  [=mark =vase]
@@ -237,6 +281,13 @@
         %poke-ack
       ?~  p.sign  cor
       ((slog 'steward: gateway dm send failed' u.p.sign) cor)
+    ==
+  ::
+      [%gateway %liveness ~]
+    ?+  -.sign  cor
+        %poke-ack
+      ?~  p.sign  cor
+      ((slog 'steward: liveness publish nacked' u.p.sign) cor)
     ==
   ::
   ::  a trusted bot's automation feed: only content the payload
@@ -518,6 +569,60 @@
         (lth (sub now last-owner-msg.gateway.state) active-window.gateway.state)
     ==
   ::
+  ::  the restart-notice window: the owner DM'd the bot, or anyone engaged it
+  ::  (see +ga-note-interaction), within .active-window
+  ::
+  ++  ga-is-recently-active
+    |=  now=@da
+    ^-  ?
+    ?|  (ga-is-owner-recently-active now)
+        ?&  (gth last-interaction.gateway.state *@da)
+            (lth (sub now last-interaction.gateway.state) active-window.gateway.state)
+        ==
+    ==
+  ::
+  ::  anyone engaging the bot counts as it being in use: an @-mention or a
+  ::  reply in one of its threads in a group, or a DM from anyone but itself.
+  ::  plain channel traffic the bot merely observes does not.
+  ::
+  ++  ga-note-interaction
+    |=  =event:a
+    ^+  cor
+    =/  engaged=?
+      ?+  -<.event  |
+        %post      mention.event
+        %reply     |(mention.event =(our.bowl p.id.parent.event))
+        %dm-post   !=(our.bowl p.id.key.event)
+        %dm-reply  !=(our.bowl p.id.key.event)
+      ==
+    ?.  engaged  cor
+    cor(last-interaction.gateway.state now.bowl)
+  ::
+  ::  owner-initiated stop reasons (the owner just asked for this restart in
+  ::  the app) get a specific notice regardless of owner activity; every other
+  ::  reason keeps the activity-gated generic notice. the reason arrives from
+  ::  the harness via %gateway-stop (docs/backend/desk/app/steward.md, "stop-reason marker").
+  ::
+  ++  ga-owner-notice
+    |=  reason=@t
+    ^-  (unit @t)
+    ?:  =('model-change' reason)
+      `'Your Tlon bot is restarting to switch models. I should be back shortly. 🔧'
+    ~
+  ::
+  ::  an owner-initiated stop latches .notify-on-start so the next start
+  ::  sends ✅ unconditionally. the latch only counts while the stop is
+  ::  recent; a restart that takes much longer falls back to the activity
+  ::  gate. evaluated lazily at start — no timer.
+  ::
+  ++  ga-latch-window  ~m15
+  ++  ga-is-latch-fresh
+    |=  now=@da
+    ^-  ?
+    =/  ls  last-stop.gateway.state
+    ?~  ls  |
+    (lth (sub now u.ls) ga-latch-window)
+  ::
   ++  ga-cancel-lease-timer
     |=  lease=(unit @da)
     ^+  cor
@@ -552,6 +657,25 @@
   ++  ga-notice-target
     ^-  (unit ship)
     owner.state
+  ::
+  ::  publish liveness into our own %contacts profile as a `bot-liveness`
+  ::  %text claim, so peers who have met this bot see when its gateway is
+  ::  down (docs/bot-liveness.md). %contacts merges %self and drops an
+  ::  unchanged edit, so emitting on every transition costs one local poke.
+  ::
+  ++  ga-advertise-liveness
+    |=  up=?
+    ^+  cor
+    =/  claim=@t
+      ?:  up  '{"v":1,"state":"online"}'
+      '{"v":1,"state":"offline"}'
+    =/  con=contact:c
+      (~(gas by *contact:c) ~[[%bot-liveness [%text claim]]])
+    =/  =action:c  [%self con]
+    %-  emit
+    :^    %pass  /gateway/liveness
+        %agent
+    [[our.bowl %contacts] %poke contact-action-1+!>(action)]
   ::
   ++  ga-poke-action
     |=  =action:v1:sg
@@ -596,14 +720,18 @@
     =.  lease-until.gateway.state  `lut
     =.  last-start.gateway.state  `now.bowl
     =.  cor  (emit %pass /gateway/lease-check %arvo %b %wait lut)
+    =/  latched
+      &(notify-on-start.gateway.state (ga-is-latch-fresh now.bowl))
     =?  cor
         ?&  pending-restart.gateway.state
-            (ga-is-owner-recently-active now.bowl)
+            |((ga-is-recently-active now.bowl) latched)
         ==
       =/  tgt  ga-notice-target
       ?~  tgt  cor
       (ga-send-dm u.tgt 'Your Tlon bot is back online and ready to chat again. ✅')
     =.  pending-restart.gateway.state  |
+    =.  notify-on-start.gateway.state  |
+    =.  cor  (ga-advertise-liveness &)
     ga-give-status-update
   ::
   ++  ga-handle-heartbeat
@@ -611,12 +739,15 @@
     ^+  cor
     ?>  ga-has-owner
     ?.  =(boot-id.gateway.state `bid)  cor
+    =/  was-up  =(%up status.gateway.state)
     =.  status.gateway.state  %up
     =.  pending-restart.gateway.state  |
     =.  cor  (ga-cancel-lease-timer lease-until.gateway.state)
     =.  lease-until.gateway.state  `lut
     =.  last-heartbeat.gateway.state  `now.bowl
     =.  cor  (emit %pass /gateway/lease-check %arvo %b %wait lut)
+    ::  a heartbeat that revives an expired lease is an up transition
+    =?  cor  !was-up  (ga-advertise-liveness &)
     ga-give-status-update
   ::
   ++  ga-handle-stop
@@ -629,10 +760,17 @@
     =.  cor  (ga-cancel-lease-timer lease-until.gateway.state)
     =.  last-stop.gateway.state  `now.bowl
     =.  pending-restart.gateway.state  &
-    =?  cor  (ga-is-owner-recently-active now.bowl)
+    =/  owner-notice  (ga-owner-notice reason)
+    =?  notify-on-start.gateway.state  ?=(^ owner-notice)  &
+    =/  notice=(unit @t)
+      ?^  owner-notice  owner-notice
+      ?.  (ga-is-recently-active now.bowl)  ~
+      `'Your Tlon bot is restarting. I should be back shortly. 🔧'
+    =?  cor  ?=(^ notice)
       =/  tgt  ga-notice-target
       ?~  tgt  cor
-      (ga-send-dm u.tgt 'Your Tlon bot is restarting. I should be back shortly. 🔧')
+      (ga-send-dm u.tgt u.notice)
+    =.  cor  (ga-advertise-liveness |)
     ga-give-status-update
   ::
   ++  ga-lease-check
@@ -645,6 +783,7 @@
     %-  (slog leaf+"steward: gateway lease expired, transitioning to down" ~)
     =.  status.gateway.state  %down
     =.  pending-restart.gateway.state  &
+    =.  cor  (ga-advertise-liveness |)
     ga-give-status-update
   ::
   ++  ga-should-auto-reply
@@ -664,6 +803,7 @@
   ++  ga-handle-activity-add
     |=  [=source:a =event:a]
     ^+  cor
+    =.  cor  (ga-note-interaction event)
     =/  mkey=(unit message-key:a)
       ?+  -<.event  ~
         %dm-post   `key.event

@@ -28,11 +28,11 @@ import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
 import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
 import { NotebookSidebarProvider } from '../../ui/contexts/notebookSidebar';
 import { getDesktopGroupInvitePreviewProps } from '../routeHelpers';
-import { HomeDrawerParamList } from '../types';
+import { DesktopChannelStackParamList, HomeDrawerParamList } from '../types';
 import { mediaViewerScreenOptions } from '../utils';
 import { HomeSidebar } from './HomeSidebar';
 
-const HomeDrawer = createDrawerNavigator();
+const HomeDrawer = createDrawerNavigator<HomeDrawerParamList>();
 
 export const HomeNavigator = () => {
   const theme = useTheme();
@@ -159,26 +159,43 @@ function MainStack() {
   );
 }
 
-const ChannelStackNavigator = createNativeStackNavigator();
+const ChannelStackNavigator =
+  createNativeStackNavigator<DesktopChannelStackParamList>();
+
+// The Channel/DM/GroupDM routes carry either the channel params directly or a
+// nested navigator payload; flatten to the channel params the inner stack needs.
+function channelRouteParams(
+  params: HomeDrawerParamList['Channel' | 'DM' | 'GroupDM']
+) {
+  if (params && 'channelId' in params) {
+    return params;
+  }
+  if (
+    params &&
+    'params' in params &&
+    params.params &&
+    'channelId' in params.params
+  ) {
+    return params.params;
+  }
+  return undefined;
+}
 
 function ChannelStack(
-  props: NativeStackScreenProps<HomeDrawerParamList, 'Channel'>
+  props: NativeStackScreenProps<
+    HomeDrawerParamList,
+    'Channel' | 'DM' | 'GroupDM'
+  >
 ) {
+  const channelParams = channelRouteParams(props.route.params);
   const navKey = () => {
-    let channelId = 'none';
-    let selectedPostId = '';
-    const params = props.route.params;
-    if (params && 'channelId' in params) {
-      channelId = String(params.channelId ?? 'none');
-      if ('selectedPostId' in params && params.selectedPostId) {
-        selectedPostId = String(params.selectedPostId);
-      }
-    } else if (params?.params && 'channelId' in params.params) {
-      channelId = String(params.params.channelId ?? 'none');
-      if ('selectedPostId' in params.params && params.params.selectedPostId) {
-        selectedPostId = String(params.params.selectedPostId);
-      }
-    }
+    const channelId = String(channelParams?.channelId ?? 'none');
+    const selectedPostId =
+      channelParams &&
+      'selectedPostId' in channelParams &&
+      channelParams.selectedPostId
+        ? String(channelParams.selectedPostId)
+        : '';
     return selectedPostId ? `${channelId}:${selectedPostId}` : channelId;
   };
 
@@ -193,7 +210,7 @@ function ChannelStack(
         <ChannelStackNavigator.Screen
           name="ChannelRoot"
           component={ChannelScreen}
-          initialParams={props.route.params}
+          initialParams={channelParams}
         />
         <ChannelStackNavigator.Screen
           name="GroupSettings"
@@ -206,22 +223,22 @@ function ChannelStack(
         <ChannelStackNavigator.Screen
           name="Post"
           component={PostScreen}
-          initialParams={props.route.params}
+          initialParams={channelParams}
         />
         <ChannelStackNavigator.Screen
           name="NotesDetail"
           component={NotesDetailScreen}
-          initialParams={props.route.params}
+          initialParams={channelParams}
         />
         <ChannelStackNavigator.Screen
           name="NotesFolder"
           component={NotesFolderScreen}
-          initialParams={props.route.params}
+          initialParams={channelParams}
         />
         <ChannelStackNavigator.Screen
           name="NotesSearch"
           component={NotesSearchScreen}
-          initialParams={props.route.params}
+          initialParams={channelParams}
         />
         <ChannelStackNavigator.Screen
           name="MediaViewer"

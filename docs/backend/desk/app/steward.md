@@ -27,29 +27,30 @@ The app helper core keeps each module's logic in its own sub-core: `le-core` for
 
 ## state model
 
-`%steward` is released and loads a `versioned-state` union. The released shape remains `state-0`; fresh installs and migrated agents use the current `state-1`:
+State is versioned (`state-2` today), defined in the app file; `on-load` migrates older shapes forward one version per step. Cross-cutting config is top level; each module owns its own slice, typed from its own sur file:
 
 ```
-state-0 (%0, released)
+state-2 (%2, current)
   owner       (unit ship)        shared owner config; ~ = inert
   bots        (set ship)         owner-side trusted lens bots
   lens        state:v1:lens      stored lens run records
   gateway     state:v1:gateway   liveness + auto-reply bookkeeping
-
-state-1 (%1, current)
-  owner       (unit ship)        copied unchanged from state-0
-  bots        (set ship)         copied unchanged from state-0
-  lens        state:v1:lens      copied unchanged from state-0
-  gateway     state:v1:gateway   copied unchanged from state-0
   automation  state:v1:automation
     tasks     (map ship tasks)   per-ship ID-keyed task maps (+$ tasks is (map @t task))
+    requests  (map request-id incoming-request)   owner-side in-flight edits (see edit loop)
+    pending   (map request-id pending-command)    bot-side commands awaiting the harness
 ```
+
+Migrations so far:
+
+- `%0 → %1`: the gateway slice gained two leading fields — `notify-on-start=?` (an owner-initiated stop is pending) and `last-interaction=@da` (when anyone last engaged the bot). They lead so the migration is a one-line cons, `[| *@da gateway.old]`. A migrated bot whose gateway is already `%up` or `%down` also seeds its `bot-liveness` claim (see the gateway module).
+- `%1 → %2`: the automation module arrives with an empty slice. The app keeps the pre-%2 shapes (`state-1`, `state-0`, `gateway-0`) only for `on-load`.
 
 The automation `tasks` map holds one entry per ship: the **local projection** lives under `our`, written only by accepted `%project` actions, and each **mirrored remote bot** lives under its own ship, written only by facts from the subscription to that bot. The writers are disjoint by key, so the two never collide. Every entry follows the same presence rule: absent until its first projection or snapshot arrives, present (possibly empty) afterward — an empty entry means "synced, zero tasks", an absent one means "never synced". `state-1` is unreleased, so this shape replaced the earlier flat task map in place with no extra state version; `state-0-to-1` is unchanged (it initializes automation from the bunt, which yields an empty map).
 
 `owner` is shared: the lens module sends runs to it, and the gateway module treats its DMs as owner activity worth auto-replying to. `bots` is the owner-side allowlist of ships permitted to fan lens runs in (see the `%entry` gate below); managed via the core `%trust-bot`/`%untrust-bot` pokes.
 
-`on-load` decodes the persisted vase as `versioned-state`. A current `%1` state is restored unchanged. Loading a released `%0` state runs the explicit `state-0-to-1` migration: `owner`, `bots`, `lens`, and `gateway` are copied unchanged, and `automation` starts with an empty task map. Migration does not auto-subscribe an already-trusted bot set — mirroring starts only from an explicit `%trust-bot` poke. `on-save` always writes the current `state-1` shape, so a migrated state remains current on later save/load cycles. A malformed or unrecognized persisted state fails visibly during decode; it is not replaced with bunt state. This is intentional protection against silent loss of released Steward data.
+`on-load` delegates to `load`, which decodes the persisted vase as `versioned-state` and migrates one version per step (`state-0-to-1`, `state-1-to-2`). Migration never auto-subscribes an already-trusted bot set — mirroring starts only from an explicit `%trust-bot` poke. `on-save` always writes the current `state-2` shape. A malformed or unrecognized persisted state fails visibly during decode; it is not replaced with bunt state.
 
 `run` (in `sur/steward/lens.hoon`):
 
@@ -88,7 +89,30 @@ Tracks the liveness of an external harness process and sends offline DM auto-rep
 
 The harness reports its lifecycle via the gateway action: `%gateway-start` (with a `boot-id` and a lease expiry), periodic `%gateway-heartbeat`s that extend the lease, and a graceful `%gateway-stop`. A behn timer on `/gateway/lease-check` fires at the lease expiry; if no heartbeat renewed it, the gateway is marked `%down`. `boot-id` matching distinguishes graceful-stop recovery from crash recovery exactly as in the original agent (stop clears `boot-id` so late heartbeats can't revive it; crash/expiry retains it so a delayed heartbeat can).
 
-While the gateway is not live, a DM from the configured `owner` triggers a canned offline auto-reply to that ship (subject to a dedupe on the triggering message key and a `reply-cooldown`). Around stop/start transitions, a "restarting" / "back online" notice is sent to the owner if they messaged within `active-window`. Inbound owner DMs are observed via a subscription to `%activity /v5`.
+While the gateway is not live, a DM from the configured `owner` triggers a canned offline auto-reply to that ship (subject to a dedupe on the triggering message key and a `reply-cooldown`). Around stop/start transitions, a "restarting" 🔧 / "back online" ✅ notice is sent to the owner if the bot was **recently active** — within `active-window`, either the owner DM'd it (`last-owner-msg`) or anyone engaged it (`last-interaction`: a group @-mention of the bot, a reply in one of its threads, or a DM from any ship but itself). Plain traffic in channels the bot merely observes does not count. Both signals come from the subscription to `%activity /v5`; the auto-reply stays owner-DM-only.
+
+### owner-initiated restarts
+
+The `reason` on `%gateway-stop` is free text; most stops carry the harness's generic reason (OpenClaw core sends `"gateway stopping"`). A stop whose reason names something the owner did themselves is **owner-initiated** and skips the activity gate — the owner just asked for the restart in the app and would otherwise hear nothing:
+
+| reason         | 🔧 text                                                                      |
+| -------------- | ---------------------------------------------------------------------------- |
+| `model-change` | "Your Tlon bot is restarting to switch models. I should be back shortly. 🔧" |
+
+An owner-initiated stop also latches `notify-on-start`, so the next `%gateway-start` sends ✅ regardless of activity. The latch is honoured only while the stop is recent (`now - last-stop < ~m15`, evaluated at start — no timer); a restart that takes longer falls back to the activity gate. Start clears the latch either way. There is no dedupe: rapid model cycling sends one 🔧/✅ pair per restart.
+
+### stop-reason marker (hosted)
+
+Hosted bots are restarted by their supervisor (`tlawn.py`), not by anything the ship can see, so the truthful reason has to be handed to the plugin out of band:
+
+- `tlawn.py` sets `TLON_GATEWAY_STOP_REASON_FILE` in the gateway's environment (hosted path `/tmp/tlon-gateway-stop-reason`). Unset ⇒ the plugin never looks for a marker (self-hosted, dev, integration harnesses).
+- When a reload is a primary-model change, `tlawn.py` writes the token `model-change` to that file immediately before terminating the gateway; it clears the file at boot, before every write, and after the reload cycle consumes it. The file is created root-owned with `O_CREAT|O_EXCL|O_NOFOLLOW` after an `unlink`, so a path planted by the gateway's uid is never followed.
+- The plugin's `gateway_stop` handler reads the marker (regular file, owned by uid 0, mtime under 5 minutes, one token matching `^[a-z][a-z0-9-]{0,63}$`) and passes it as the poke `reason`; otherwise it forwards core's reason unchanged. The plugin never deletes the marker.
+- Version skew is safe in both directions: an old plugin sends the generic reason (today's behaviour); an old desk ignores an unknown reason (`reason+so` accepts any cord).
+
+### liveness publication
+
+On every liveness transition the module publishes a `bot-liveness` claim into the bot's own `%contacts` profile (`%contact-action-1` `%self`, wire `/gateway/liveness`): `offline` on `%gateway-stop` and on lease expiry, `online` on `%gateway-start` and on a heartbeat that revives an expired lease. Peers who have met the bot see it as a dimmed avatar / "Bot · Offline" badge. Format, semantics and audience are in [bot-liveness.md](../../../bot-liveness.md).
 
 `owner` is the shared top-level `(unit ship)`, set via the core `%configure`, so a harness sends two pokes at startup: the core `%configure` for the owner, then the gateway `%configure` for timings. The gateway action's own `%configure` carries only timing (`active-window`, `reply-cooldown`); the owner is set once at the core level.
 
@@ -294,9 +318,9 @@ With no entries at all the exact JSON shape is `{}`. Task values use the support
 
 ## lifecycle and invariants
 
-- `on-init` creates `state-1`, subscribes to `%activity /v5` for the gateway module, seeds the default lens retention cap, and leaves automation empty. There is no lens prune timer (retention is count-only, enforced on insert/configure).
-- `on-load` decodes `versioned-state`: current `state-1` loads directly and released `state-0` migrates through `state-0-to-1`. Decode or migration failure is visible and never resets to bunt. `on-save` writes `state-1`.
-- Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`, and the owner-side automation watches on `/automation/tasks/[bot-p]` — everything arriving on an automation wire is applied only for the ship in the wire (facts naming other ships are ignored). The `%activity` subscription is re-watched on `%kick`; an automation watch is re-watched on `%kick` iff its bot is still trusted. Poke/DM nacks are logged and ignored (Ames retries); a nacked automation watch is slogged and left for a `%trust-bot` re-poke to repair.
+- `on-init` creates `state-2`, subscribes to `%activity /v5` for the gateway module, seeds the default lens retention cap, and leaves automation empty. There is no lens prune timer (retention is count-only, enforced on insert/configure).
+- `on-load` delegates to `load`, which migrates one version per step (`state-0-to-1`, `state-1-to-2`) in the same shape as `%activity`'s `load`. Its only migration card is the `bot-liveness` seed for a `%0` bot whose gateway is already `%up` or `%down` (owner configured): heartbeats advertise only on an up transition, so an already-up gateway would otherwise stay unknown until its next restart. Decode or migration failure is visible and never resets to bunt. `on-save` writes `state-2`.
+- Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`, liveness publication to `%contacts` on `/gateway/liveness`, and the owner-side automation watches on `/automation/tasks/[bot-p]` — everything arriving on an automation wire is applied only for the ship in the wire (facts naming other ships are ignored). The `%activity` subscription is re-watched on `%kick`; an automation watch is re-watched on `%kick` iff its bot is still trusted. Poke/DM nacks are logged and ignored (Ames retries); a nacked automation watch is slogged and left for a `%trust-bot` re-poke to repair.
 - `on-watch` auth is per-path: lens and gateway paths require `=(src our)`; `/v1/automation/tasks` also admits the configured owner. Rejection is a crash (watch nack). Dotket `on-peek` calls execute locally against current state without caller-source authorization. Core, gateway, and automation pokes are local only; lens applies its per-action source rules to admit trusted bot runs and owner relays.
 
 ## integration notes

@@ -1,0 +1,21 @@
+appId: ${MAESTRO_APP_ID}
+---
+# The saved post remains behind the editor. Target the editable body on each OS.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          text: ${output.reliability.body + '\n?'}
+          childOf:
+            text: RichTextEditor
+          point: '95%,50%'
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: ${output.reliability.body + '\n?'}
+          below:
+            id: NotebookTitleInput
+          point: '95%,50%'

@@ -135,6 +135,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       onEditorContentChange,
       onInitialContentSet,
       frameless = false,
+      testID,
     },
     ref
   ) => {
@@ -596,6 +597,9 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             `
               function updateContentHeight() {
                 const editorElement = document.querySelector('#root div .ProseMirror');
+                // The ready message can arrive before React mounts the editor.
+                // The observer below will measure it once it exists.
+                if (!editorElement) return;
                 editorElement.style.height = 'auto';
                 editorElement.style.overflow = 'auto';
                 const newHeight = editorElement.scrollHeight;
@@ -815,6 +819,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             style={{ width: '100%' }}
           >
             <RichText
+              testID={editorState.isReady ? testID : undefined}
               style={{
                 maxHeight: bigInput ? bigInputHeight : maxInputHeight,
                 width: '100%',

@@ -84,7 +84,7 @@
           [/v3/clubs %chat-club-action-1 ~]
           [/v3/dm/$ %writ-response-3 ~]
         ::
-          [/v4 %chat-club-action-2 %writ-response-4 %ships ~]
+          [/v4 %chat-club-action-2 %writ-response-4 %ships %chat-dm-status ~]
           [/v4/club/$ %writ-response-4 ~]
           [/v4/clubs %chat-club-action-2 ~]
           [/v4/dm/$ %writ-response-4 ~]
@@ -2473,6 +2473,15 @@
   =/  invites  ~(key by pending-dms)
   =.  cor  (emit (tell-log %dbug ~['current invites:' >invites<] ~))
   (give %fact ~[/ /dm/invited /v1 /v2 /v3] ships+invites)
+::  +give-dm-status: announce a dm entering, changing, or leaving .dms
+::
+::    the writ facts alone don't tell a subscriber that a dm now exists
+::    (a dm we start ourselves never passes through /dm/invited), so
+::    clients otherwise only learn of new dms from a full init scry.
+::
+++  give-dm-status
+  |=  =status:dm:c
+  (give %fact ~[/v4] chat-dm-status+status)
 ::
 ++  verses-to-inlines  ::  for backcompat
   |=  l=(list verse:d)
@@ -2500,10 +2509,14 @@
 ::  +di-core: direct messaging core
 ::
 ++  di-core
-  |_  [=ship =dm:c gone=_|]
+  ::  .was: net state when the core was entered, ~ if the dm didn't exist
+  ::
+  |_  [=ship =dm:c gone=_| was=(unit net:dm:c)]
   +*  di-pact  ~(. pac pact.dm)
   ++  di-core  .
   ++  di-abet
+    =/  now-net=(unit net:dm:c)  ?:(gone ~ `net.dm)
+    =?  cor  !=(was now-net)  (give-dm-status ship now-net)
     =?  last-updated  |(gone !(~(has by dms) ship))
       (~(put ol last-updated) [%ship ship] now.bowl)
     ?.  gone
@@ -2518,13 +2531,14 @@
     |=  s=@p
     ~>  %spin.['di-abed']
     ~|  ship=s
-    di-core(ship s, dm (~(got by dms) s))
+    =/  d=dm:c  (~(got by dms) s)
+    di-core(ship s, dm d, was `net.d)
   ::
   ++  di-abed-soft
     |=  s=@p
     ~>  %spin.['di-abed-soft']
     =/  dm  (~(get by dms) s)
-    ?^  dm  di-core(ship s, dm u.dm)
+    ?^  dm  di-core(ship s, dm u.dm, was `net.u.dm)
     =|  =remark:c
     =/  new=dm:c
       :*  *pact:c
@@ -2533,7 +2547,7 @@
           ?:(=(src our):bowl %inviting %invited)
           |
       ==
-    =.  di-core  di-core(ship s, dm new)
+    =.  di-core  di-core(ship s, dm new, was ~)
     ?:  &(!=(s our.bowl) =(src our):bowl)  di-core
     (di-activity [%invite ~] *story:d &)
   ::
