@@ -126,6 +126,7 @@
 ++  cor   .
 ++  abet  [(flop cards) state]
 ++  emit  |=(=card cor(cards [card cards]))
+++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
 ::
 ::  +load: progressive migration, one version per step, with cards emitted
@@ -143,11 +144,7 @@
   ::  re-establish the eyre binding and the request sweep on every load;
   ::  re-connecting a bound path is harmless and stacked timers are cheap
   ::
-  =/  cards  au-init-cards:au-core
-  |-  ^+  cor
-  ?~  cards  cor
-  =.  cor  (emit i.cards)
-  $(cards t.cards)
+  (emil au-init-cards:au-core)
 ::  %0 → %1: the gateway slice gained leading .notify-on-start and
 ::  .last-interaction fields
 ++  state-0-to-1
