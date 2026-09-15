@@ -4,6 +4,7 @@ import * as db from '@tloncorp/shared/db';
 import { useMemo } from 'react';
 
 import { useCalm } from '../ui/contexts/appDataContext';
+import { type SectionedChatData, buildChatSections } from './chatSections';
 import { useChatSearch } from './useChatSearch';
 
 export type TabName =
@@ -14,10 +15,13 @@ export type TabName =
   | 'talk'
   | 'channels';
 
-export type SectionedChatData = {
-  title: string;
-  data: db.Chat[];
-}[];
+export {
+  DIRECT_MESSAGES_SECTION_TITLE,
+  GROUPS_SECTION_TITLE,
+  PINNED_SECTION_TITLE,
+  buildChatSections,
+} from './chatSections';
+export type { SectionedChatData } from './chatSections';
 
 function getAllSectionHeader(
   activeTab: TabName,
@@ -40,12 +44,19 @@ export function useFilteredChats({
   pending,
   searchQuery,
   activeTab,
+  separateDirectMessages = false,
 }: {
   pinned: db.Chat[];
   unpinned: db.Chat[];
   pending: db.Chat[];
   searchQuery: string;
   activeTab: TabName;
+  /**
+   * Split the unpinned chats into direct messages and groups instead of one
+   * combined section. Anything that is not a DM sorts with the groups, so a
+   * chat can never fall out of the list.
+   */
+  separateDirectMessages?: boolean;
 }): SectionedChatData {
   const { disableNicknames } = useCalm();
   const { data } = useMessagesFilter();
@@ -80,17 +91,12 @@ export function useFilteredChats({
   return useMemo(() => {
     const isSearching = searchQuery && searchQuery.trim() !== '';
     if (!isSearching) {
-      const pinnedSection = {
-        title: 'Pinned',
-        data: pinnedChats,
-      };
-      const allSection = {
-        title: getAllSectionHeader(activeTab, talkFilter),
-        data: allChats,
-      };
-      return pinnedSection.data.length
-        ? [pinnedSection, allSection]
-        : [allSection];
+      return buildChatSections({
+        pinnedChats,
+        unpinnedChats: allChats,
+        combinedSectionTitle: getAllSectionHeader(activeTab, talkFilter),
+        separateDirectMessages,
+      });
     }
 
     return [
@@ -105,6 +111,7 @@ export function useFilteredChats({
     pinnedChats,
     searchQuery,
     searchResults,
+    separateDirectMessages,
     talkFilter,
   ]);
 }

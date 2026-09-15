@@ -366,6 +366,7 @@ export function ChatListScreenView({
     ...resolvedChats,
     searchQuery,
     activeTab: COMBINED_CHAT_TAB,
+    separateDirectMessages: true,
   });
   const handleChatListLoad = useCallback(() => {
     if (chats) {
