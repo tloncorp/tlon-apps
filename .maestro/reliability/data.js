@@ -27,6 +27,10 @@ output.reliability = {
   dmSwipePreviewPattern: exact(MAESTRO_RUN_TAG + ' dm swipe unread'),
   activityMentionPattern:
     '^.*' + exact(MAESTRO_RUN_TAG + ' activity mention').slice(1, -1) + '.*$',
+  activityMentionContextPattern: exact(
+    '~zod ' + MAESTRO_RUN_TAG + ' activity mention'
+  ),
+  activityGroupPattern: exact('Activity-' + MAESTRO_RUN_TAG),
   activityReplyPattern:
     '^.*' + exact(MAESTRO_RUN_TAG + ' activity reply').slice(1, -1) + '.*$',
   // ContactName exposes a spoken label (zod / sampel - palnet) on native.
