@@ -607,6 +607,45 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
       });
     });
   }
+  if (selected('dm-copy-message')) {
+    await resetDmPeer();
+    await ten.sendDm('~zod', `${tag} dm clipboard handshake`);
+    await until('DM clipboard handshake reaches zod', () =>
+      includesShip(zod, '/dm/invited', '~ten')
+    );
+    await zod.state.poke({
+      app: 'chat',
+      mark: 'chat-dm-rsvp',
+      json: { ship: '~ten', ok: true },
+    });
+    await until('accepted DM clipboard fixture reaches zod', async () => {
+      const [active, invited] = await Promise.all([
+        includesShip(zod, '/dm', '~ten'),
+        includesShip(zod, '/dm/invited', '~ten'),
+      ]);
+      return active && !invited;
+    });
+    const text = `${tag} dm clipboard target`;
+    await ten.sendDm('~zod', text);
+    await until('DM clipboard target reaches zod', async () =>
+      (await zod.state.channelPosts('~ten')).some(
+        (post) => post.authorId === '~ten' && post.text === text
+      )
+    );
+    fixtures.DmClipboard = { channelId: '~ten', text };
+    record('dm-copy-message-state', {
+      channelId: '~ten',
+      sender: '~ten',
+      recipient: '~zod',
+      text,
+    });
+    task('dm-copy-message', async () => {
+      const visible = (await zod.state.channelPosts('~ten')).some(
+        (post) => post.authorId === '~ten' && post.text === text
+      );
+      if (!visible) throw Error('DM clipboard target disappeared');
+    });
+  }
   if (selected('dm-history-pagination')) {
     await resetDmPeer();
     await ten.sendDm('~zod', `${tag} dm history handshake`);

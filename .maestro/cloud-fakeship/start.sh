@@ -125,13 +125,14 @@ const optionalNames = [
   'home-unread-preview',
   'group-swipe-read',
   'dm-swipe-read',
+  'dm-copy-message',
   'dm-history-pagination',
   'activity-pagination',
   'permissions-restore',
 ];
 const selected = process.env.PROOF_CASES === 'all' ? names : (process.env.PROOF_CASES || 'exchange').split(',');
 if (!selected.length || selected.some(name => ![...names, ...optionalNames].includes(name))) throw Error('Unknown proof case');
-if (selected.filter(name => ['direct-messages', 'dm-deny', 'dm-block', 'dm-unblock', 'blocked-group-invite', 'blocked-group-content', 'home-unread-preview', 'dm-swipe-read', 'dm-history-pagination'].includes(name)).length > 1) throw Error('Run DM cases separately');
+if (selected.filter(name => ['direct-messages', 'dm-deny', 'dm-block', 'dm-unblock', 'blocked-group-invite', 'blocked-group-content', 'home-unread-preview', 'dm-swipe-read', 'dm-copy-message', 'dm-history-pagination'].includes(name)).length > 1) throw Error('Run DM cases separately');
 // One device/login for a batch; selecting one case still gives a focused retry.
 writeFileSync('proof-flows/cloud-fakeship/selected.yaml',
   'appId: ${MAESTRO_APP_ID}\nname: Selected two-ship QA cases\n---\n' +
