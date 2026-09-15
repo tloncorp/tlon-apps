@@ -391,6 +391,14 @@ export function ChatListScreenView({
               showSubtitle={true}
               leftActions={[
                 {
+                  id: 'activity',
+                  icon: 'Notifications',
+                  label: 'Activity',
+                  testID: 'ActivityHeaderButton',
+                  onPress: handlePressActivity,
+                  tint: haveUnreadActivity ? '$blue' : undefined,
+                },
+                {
                   id: 'invite-people',
                   icon: 'AddPerson',
                   label: 'Invite people',
@@ -399,14 +407,6 @@ export function ChatListScreenView({
                 },
               ]}
               rightActions={[
-                {
-                  id: 'activity',
-                  icon: 'Notifications',
-                  label: 'Activity',
-                  testID: 'ActivityHeaderButton',
-                  onPress: handlePressActivity,
-                  tint: haveUnreadActivity ? '$blue' : undefined,
-                },
                 {
                   id: 'search',
                   icon: 'Search',
