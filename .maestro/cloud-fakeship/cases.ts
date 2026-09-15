@@ -253,7 +253,23 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
         JSON.stringify(feed.replies ?? []).includes(`${tag} activity reply`)
       );
     });
+    const fixtureIsUnread = async () => {
+      const unreads = await zod.state.scry<unknown[]>(
+        'activity',
+        '/v4/activity/unreads'
+      );
+      const serialized = JSON.stringify(unreads);
+      return (
+        serialized.includes(g.groupId) || serialized.includes(g.chatChannel)
+      );
+    };
+    await until('activity fixture reaches zod unreads', fixtureIsUnread);
     task('activity-filters', async () => {
+      await until(
+        'native marks all fixture activity read',
+        async () => !(await fixtureIsUnread()),
+        30 * 60_000
+      );
       record('activity-filter-state', {
         groupId: g.groupId,
         channelId: g.chatChannel,
@@ -261,6 +277,7 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
         replyId: reply.id,
         mentionFeedReady: true,
         replyFeedReady: true,
+        unread: false,
       });
     });
   }

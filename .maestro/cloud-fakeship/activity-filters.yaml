@@ -25,6 +25,14 @@ env:
 - assertVisible: '^Mentions$'
 - assertVisible: '^Replies$'
 - assertVisible: ${output.reliability.activityMentionPattern}
+- tapOn: '^Activity options$'
+- assertVisible: '^Mark all as read$'
+- tapOn: '^Mark all as read$'
+- assertVisible: '^Are you sure you want to mark all conversations and notifications as read\?$'
+- assertVisible: '^Mark all read$'
+- tapOn: '^Mark all read$'
+- assertNotVisible: '^Are you sure you want to mark all conversations and notifications as read\?$'
+- assertVisible: ${output.reliability.activityMentionPattern}
 - tapOn: '^Mentions$'
 - assertVisible: ${output.reliability.activityMentionPattern}
 - assertNotVisible: ${output.reliability.activityReplyPattern}
