@@ -1,0 +1,60 @@
+appId: ${MAESTRO_APP_ID}
+---
+# Kept independent of the exploratory reliability flows so this harness can be
+# introduced without changing those journeys. Credentials never go to the model.
+- launchApp:
+    clearState: true
+    clearKeychain: true
+- assertVisible: '^Tlon Messenger$'
+- tapOn: '^Have an account\? Log in$'
+- runFlow:
+    when:
+      visible:
+        id: log-in-with-email
+    commands:
+      - tapOn:
+          id: log-in-with-email
+- tapOn:
+    id: or-use-password
+- tapOn:
+    id: email-input-legacy
+- inputText:
+    text: ${MAESTRO_EMAIL}
+    label: Enter test account email
+- tapOn:
+    id: password-input-legacy
+- inputText:
+    text: ${MAESTRO_PASSWORD}
+    label: Enter test account password
+- tapOn: '^Submit$'
+- extendedWaitUntil:
+    visible: '^(Home|Usage Statistics|Save Password\?)$'
+    timeout: 60000
+- runFlow:
+    when:
+      visible: '^Save Password\?$'
+    commands:
+      - tapOn: '^Not Now$'
+- runFlow:
+    when:
+      visible: '^Usage Statistics$'
+    commands:
+      - tapOn: '^Next$'
+- extendedWaitUntil:
+    visible: '^Home$'
+    timeout: 60000
+- runFlow:
+    when:
+      visible: '^Contacts$'
+    commands:
+      - tapOn: '^Contacts$'
+- runFlow:
+    when:
+      notVisible: '^You$'
+    commands:
+      - tapOn:
+          text: '^Tab Bar$'
+          point: '71%,38%'
+- assertVisible: '^Contacts$'
+- tapOn: '^You$'
+- assertVisible: ${MAESTRO_TEST_SHIP_PATTERN}
