@@ -9,6 +9,44 @@ with a global `staleTime: Infinity` and refreshes only through explicit
 table-dependency invalidation, so its cache behavior does not match React Query
 defaults and should not be inferred from memory.
 
+## Reviewing the desk requests comment
+
+A PR touching `packages/api` or `packages/shared` gets one sticky comment headed
+"Desk requests", from `pnpm check:desk-requests <merge-base> --markdown`. It is
+an inventory diff: the scries, subscriptions, pokes and threads this branch
+**adds, changes or drops**, grouped by kind and agent, each with its call sites.
+It reads no desk, decides nothing, and never fails CI. The review is the check.
+
+For every **added** and **changed** entry, confirm the N-1 desk serves it. N-1
+is the tag `v<MIN_GROUPS_VERSION>` from
+`packages/shared/src/logic/deskPolicy.ts` (policy:
+`docs/tlon-apps/desk-compatibility.md`). Read that tag's
+`desk/app/<agent>.hoon`:
+
+- **The arm exists.** A scry needs a `++peek` pole under the right care, a
+  subscription a `++watch` pole, a poke an arm for that mark in `++poke` — and
+  the desk needs a `mar/` file for the mark.
+- **Version injection is accounted for.** An agent rewrites an unversioned pole
+  to its oldest version before matching — `%channels`' `peek` and `watch`
+  prepend `%v0` — so `/channels` and `/v0/channels` are one request there,
+  while `/v3/channels` is another. Match the pole the agent actually sees.
+- **`agent:neg` matches.** Each agent declares a protocol version, and when N
+  and N-1 disagree `negotiate` blocks the pair outright, which no path-or-mark
+  compatibility rescues. %groups went `~.groups^%2` at v12.1.0 to `~.groups^%3`
+  at v12.2.0.
+
+Then say so in the review:
+
+- Flag every entry you **cannot confirm** — an arm you could not find, a pole
+  swallowed by a mold you did not resolve, an entry the report itself marks
+  `unresolved`. "Could not confirm" is a finding, not a pass.
+- Flag every entry that works **only on the current desk**, unless each of its
+  call sites sits behind a capability guard whose other branch N-1 does serve.
+  Otherwise it waits for that desk to become N-1 (rule (b)).
+
+A **removed** entry is not a compatibility problem for this client; it bears
+only on desk removal (rule (c)).
+
 # Tlon Messenger backend
 The backend of the Tlon Messenger app is hosted on the Urbit platform.
 

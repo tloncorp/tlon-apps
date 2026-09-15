@@ -34,6 +34,8 @@ receive updates, and post against desk release N-1.
 
 - [ ] `MIN_GROUPS_VERSION` equals the **previous** desk release, not the one you
       are cutting.
+- [ ] The **Desk requests** comment on each PR in this release was reviewed — it
+      is advisory, so nothing in CI stopped an N-1 break from landing.
 
 ## Tagging and deploying
 

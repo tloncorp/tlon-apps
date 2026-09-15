@@ -39,3 +39,20 @@ channels render the mismatch notice — so no amount of path-and-mark
 compatibility rescues it. A protocol bump must ship one release ahead of the
 client that needs it, exactly like a new path. This is also why v12.1.0 is
 unusable as a pinned N-1 pier and v12.2.0 is.
+
+## The desk requests comment
+
+A PR touching `packages/api` or `packages/shared` gets one sticky comment
+headed "Desk requests" — an inventory diff between the PR's merge base and its
+head, listing the scries, subscriptions, pokes and threads the branch adds,
+changes or drops, grouped by kind and agent with their call sites. It comes
+from `pnpm check:desk-requests <ref> [--markdown]`
+(`packages/scripts/src/check-desk-compat/`), which extracts what the client
+asks for at two refs and compares the two inventories. It reads no desk.
+
+So the comment is a worklist, not a verdict: nothing in it fails CI, and rule
+(b) is enforced by a person. For each added or changed entry a reviewer
+confirms that N-1 has the arm, that version injection is accounted for, and
+that `agent:neg` agrees; an entry that cannot be confirmed is flagged rather
+than waved through. `AGENTS.md` carries that checklist, for human and agent
+reviewers alike.
