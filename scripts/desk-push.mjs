@@ -649,12 +649,27 @@ async function main() {
     path: '/' + clayPath(f.rel).join('/'),
   }));
 
+  // --ignore leaves a path exactly as the ship has it: neither pushed when it
+  // differs nor deleted when absent locally. The bot harness uses it for
+  // commit.txt and desk.docket-0, which the glob bot rewrites several times a
+  // day without changing any hoon, so that a frontend-only develop does not
+  // force a commit and a full agent reload on every run. It has to apply to
+  // the seed as well, or the one write that is supposed to leave these alone
+  // would be the write that overwrites them.
+  const ignored = (p) => args.ignore.includes(p);
+  const pushable = local.filter((f) => !ignored(f.path));
+
   // Whether the desk is already in clay decides how a missing thread is
   // handled, and it has to be decided BEFORE any write: %park makes a root
   // commit holding only what it is given, so parking the seed over a desk
   // that already has content would delete that content.
   const exists = await ship.exists(args.desk);
 
+  // A seed is a real commit against a live desk, so it reloads that desk's
+  // agents just as an ordinary push does. Whether to wait for the desk to
+  // serve again therefore depends on either write having happened, not only
+  // on the last one.
+  let seeded = false;
   let remote;
   try {
     if (args.reseed) throw new Error('--reseed requested');
@@ -681,11 +696,12 @@ async function main() {
         return;
       }
       const t0 = Date.now();
-      await ship.seedExisting(args.desk, modeNoun(local, []), {
+      await ship.seedExisting(args.desk, modeNoun(pushable, []), {
         timeoutMs: PUSH_TIMEOUT_MS,
       });
+      seeded = true;
       console.log(
-        `seeded %${args.desk} with ${local.length} files in ${((Date.now() - t0) / 1000).toFixed(1)}s`
+        `seeded %${args.desk} with ${pushable.length} files in ${((Date.now() - t0) / 1000).toFixed(1)}s`
       );
       remote = await remoteHashesRetrying(ship, args.desk);
     } else {
@@ -719,12 +735,6 @@ async function main() {
     }
   }
 
-  // --ignore leaves a path exactly as the ship has it: neither pushed when it
-  // differs nor deleted when absent locally. The bot harness uses it for
-  // commit.txt and desk.docket-0, which the glob bot rewrites several times a
-  // day without changing any hoon, so that a frontend-only develop does not
-  // force a commit and a full agent reload on every run.
-  const ignored = (p) => args.ignore.includes(p);
   const changed = local.filter(
     (f) => !ignored(f.path) && remote.get(f.path) !== shax(f.buf)
   );
@@ -742,6 +752,7 @@ async function main() {
 
   if (changed.length === 0 && deleted.length === 0) {
     console.log(`%${args.desk} unchanged (${remote.size} files)`);
+    if (seeded && args.waitScry) await waitScry(ship, args.waitScry);
     return;
   }
   console.log(
@@ -774,7 +785,9 @@ async function main() {
       : `%${args.desk} still at revision ${aeon} (${hash}): clay found nothing new to commit`
   );
   if (args.install) await waitLive(ship, args.desk);
-  if (committed && args.waitScry) await waitScry(ship, args.waitScry);
+  if ((committed || seeded) && args.waitScry) {
+    await waitScry(ship, args.waitScry);
+  }
 }
 
 // A commit that reloads agents leaves them unavailable for a while after clay
