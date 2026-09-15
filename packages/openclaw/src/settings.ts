@@ -47,7 +47,7 @@ export type TlonSettingsStore = {
   showModelSig?: boolean;
   autoAcceptDmInvites?: boolean;
   autoDiscoverChannels?: boolean;
-  /** No longer governs group-invite authorization (groupInviteAllowlist does); retained for channel persistence and back-compat */
+  /** No longer governs group-invite authorization or channel persistence; its only remaining effect is one term of the startup metadata-fetch predicate. Retained for config back-compat pending retirement. */
   autoAcceptGroupInvites?: boolean;
   /** Ships allowed to invite us to groups (allowlist membership is sufficient for auto-accept) */
   groupInviteAllowlist?: string[];
@@ -671,6 +671,13 @@ export type SettingsLogger = {
 export type SettingsLoadOptions = {
   /** Emit the compact snapshot summary. Intended for the initial startup load. */
   logSnapshot?: boolean;
+  /**
+   * Adjust a fresh scry result before it is installed as the snapshot. Runs
+   * synchronously, so a value the caller knows to be newer than the scry (an
+   * echo that overtook it) is never exposed as the baseline, not even to a
+   * subscription event in the same tick.
+   */
+  reconcile?: (settings: TlonSettingsStore) => TlonSettingsStore;
 };
 
 /**
@@ -730,7 +737,8 @@ export function createSettingsManager(
           all?: Record<string, Record<string, unknown>>;
         };
         const deskData = allData?.all?.[SETTINGS_DESK];
-        state.current = parseSettingsResponse(deskData ?? {});
+        const parsed = parseSettingsResponse(deskData ?? {});
+        state.current = options.reconcile ? options.reconcile(parsed) : parsed;
         state.loaded = true;
         if (options.logSnapshot !== false) {
           logger?.log?.(
@@ -747,6 +755,17 @@ export function createSettingsManager(
         state.loaded = true;
         return { settings: state.current, fresh: false };
       }
+    },
+
+    /**
+     * Fold a write this process made directly (a migration poke) into the
+     * snapshot without notifying listeners. The settings subscription starts
+     * after the migration and does not replay it, so without this the next
+     * unrelated fact would present the pre-write value as a key change.
+     */
+    applyLocal(key: string, value: unknown): TlonSettingsStore {
+      state.current = applySettingsUpdate(state.current, key, value);
+      return state.current;
     },
 
     /**

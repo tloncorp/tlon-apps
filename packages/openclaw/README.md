@@ -49,7 +49,7 @@ channels:
 
         # Auto-accept settings
         autoAcceptDmInvites: true # Accept DMs from ships in dmAllowlist
-        autoAcceptGroupInvites: false # Legacy: no longer governs group-invite authorization (groupInviteAllowlist does); controls channel persistence
+        autoAcceptGroupInvites: false # Legacy: no longer governs group-invite authorization or channel persistence; its only remaining effect is one term of the startup metadata-fetch predicate. Retained for config back-compat pending retirement.
 
         # Ships allowed to invite the bot to groups (auto-accepted unless blocked)
         groupInviteAllowlist:
@@ -57,7 +57,13 @@ channels:
 
         # Channel discovery
         autoDiscoverChannels: true # Monitor all channels in joined groups
-        groupChannels: # Additional channels to monitor explicitly
+        # Additional channels to monitor explicitly; also the journal of
+        # channels from joined groups, written best-effort from %groups facts.
+        # A `groupChannels` settings edit adds or removes settings-managed
+        # channels; file-configured channels, and discovered channels while
+        # `autoDiscoverChannels` is on, stay watched; traffic or discovery may
+        # re-add a removed channel.
+        groupChannels:
             - 'chat/~host-ship/channel-name'
 
         # Per-channel authorization

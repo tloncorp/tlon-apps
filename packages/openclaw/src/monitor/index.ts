@@ -63,6 +63,7 @@ import {
   DM_INVITE_PREVIEW,
   type TlonSettingsStore,
   createSettingsManager,
+  applySettingsUpdate,
 } from '../settings.js';
 import { sharedSlot } from '../shared-state.js';
 import {
@@ -171,6 +172,13 @@ import {
   resolveDispatchTimeoutMs,
 } from './dispatch-timeouts.js';
 import { dmReactionReplyParentId } from './dm-reactions.js';
+import {
+  type GroupChannelJournal,
+  type GroupsUiChannelHandlerDeps,
+  createGroupChannelJournal,
+  handleGroupsUiChannelFact,
+  parseGroupsUiChannelFact,
+} from './group-channels.js';
 import {
   type GroupInviteDeps,
   createCatchUpRunner,
@@ -868,6 +876,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     const processedTracker = createProcessedMessageTracker(2000);
     let groupChannels: string[] = [];
     const channelToGroup = new Map<string, string>();
+    // Every nest discovery has reported, recorded outside any "not already
+    // watched" guard so a nest the firehose watched first is still protected.
+    // Config-sourced nests are immune to settings-key removal; see the
+    // ownership rule in group-channels.ts.
+    const discoveredNests = new Set<string>();
     let botNickname: string | null = null;
     let botAvatar: string | null = null;
 
@@ -912,6 +925,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     );
     let pendingApprovals: PendingApproval[] = [];
     let currentSettings: TlonSettingsStore = {};
+    // Whether the startup settings load scried fresh. The groupChannels
+    // journal defers its writes until the snapshot is trusted.
+    let startupSettingsFresh = false;
     // Tracks whether pendingNudge has been successfully rehydrated from the settings
     // store (or locally set/cleared). While false, refresh is allowed to recover a
     // persisted pendingNudge that was missed due to a transient startup scry failure.
@@ -1134,17 +1150,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     const groupNameCache = new Map<string, string>();
     const channelNameCache = new Map<string, string>();
 
-    function extractMetadataTitle(value: unknown): string | undefined {
-      if (!value || typeof value !== 'object') {
-        return undefined;
-      }
-      const metadata = value as { meta?: { title?: unknown }; title?: unknown };
-      const title = metadata.meta?.title ?? metadata.title;
-      return typeof title === 'string' && title.trim()
-        ? title.trim()
-        : undefined;
-    }
-
     // Build display context for approval formatting
     function buildDisplayContext(): DisplayContext {
       const channelNames = new Map<string, string>();
@@ -1278,6 +1283,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             runtime.log?.(
               `[tlon] Migrated ${key} from config to settings store`
             );
+            // The settings subscription starts after the migration and does
+            // not replay it, so fold the write into the runtime snapshot and
+            // the manager's baseline. Otherwise the first unrelated fact
+            // would present the pre-migration value as a key change.
+            currentSettings = settingsManager.applyLocal(key, fileValue);
           } catch (err) {
             runtime.log?.(`[tlon] Failed to migrate ${key}: ${String(err)}`);
           }
@@ -1298,6 +1308,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     try {
       const loadResult = await settingsManager.load();
       currentSettings = loadResult.settings;
+      startupSettingsFresh = loadResult.fresh;
 
       // Only seed file config into %settings when the startup snapshot is fresh.
       // On a transient startup scry failure, `load()` preserves the last known
@@ -1544,6 +1555,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         });
         if (effectiveAutoDiscoverChannels && initData.channels.length > 0) {
           groupChannels = initData.channels;
+          for (const channelNest of initData.channels) {
+            discoveredNests.add(channelNest);
+          }
         }
         // Populate channel-to-group mapping for member hint injection
         for (const [nest, groupFlag] of initData.channelToGroup) {
@@ -1563,7 +1577,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
     }
 
-    // Merge manual config with auto-discovered channels
+    // Merge manual config with auto-discovered channels.
+    //
+    // Ownership rule for the boot known-set (the persisted key's rule is in
+    // group-channels.ts): discovery (while `autoDiscoverChannels` is on) and
+    // the file list (`openclaw.json` `groupChannels`, env-seeded on hosted
+    // bots) are config sources — unioned here, and immune to a settings-key
+    // removal. `%settings` `groupChannels` is the third source, written by
+    // solaris (the whole list = the `channelRules` keys, on every hosted
+    // save), by the `tlon settings add-channel`/`remove-channel` CLI, and by
+    // this plugin's append-only journal of joined-group channels. Conflict
+    // rule on that key: last write wins; the plugin never removes from it, and
+    // re-journals a group's channels whenever the host re-sends its state.
     if (account.groupChannels.length > 0) {
       for (const ch of account.groupChannels) {
         if (!groupChannels.includes(ch)) {
@@ -2110,6 +2135,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                     );
                     let newCount = 0;
                     for (const channelNest of discoveredChannels) {
+                      discoveredNests.add(channelNest);
                       if (!watchedChannels.has(channelNest)) {
                         watchedChannels.add(channelNest);
                         newCount++;
@@ -3843,6 +3869,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       for (const [flag, title] of initData.groupNames) {
         groupNameCache.set(flag, title);
       }
+      // Every discovery result is a config-sourced nest while discovery is
+      // on, whether or not it is already watched; see discoveredNests.
+      for (const nest of initData.channels) {
+        discoveredNests.add(nest);
+      }
       return initData.channels;
     };
 
@@ -4882,6 +4913,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
     };
 
+    // Declared outside the subscription try so the teardown `finally` can
+    // drain it (precedent: nudgeRunner, clearAgentOnboardingRetries).
+    let groupChannelJournal: GroupChannelJournal | undefined;
+
     try {
       runtime.log?.('[tlon] Subscribing to firehose updates...');
 
@@ -5178,7 +5213,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       const applySettingsSnapshot = (
         newSettings: TlonSettingsStore,
         source: 'subscription' | 'refresh',
-        snapshotOpts: { fresh?: boolean } = {}
+        snapshotOpts: { fresh?: boolean; journalObserve?: boolean } = {}
       ) => {
         const prevSettings = currentSettings;
 
@@ -5214,20 +5249,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         ) {
           currentSettings = nextRuntimeSettings;
           return;
-        }
-
-        // Update watched channels if settings changed
-        if (newSettings.groupChannels?.length) {
-          const newChannels = newSettings.groupChannels;
-          for (const ch of newChannels) {
-            if (!watchedChannels.has(ch)) {
-              watchedChannels.add(ch);
-              runtime.log?.(`[tlon] Settings: now watching channel ${ch}`);
-              void scanDiscoveredAgentOnboardingNest(ch);
-            }
-          }
-          // Note: we don't remove channels from watchedChannels to avoid missing messages
-          // during transitions. The authorization check handles access control.
         }
 
         // Update DM allowlist — respect empty lists (don't fall back to file config)
@@ -5298,6 +5319,40 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           runtime.log?.(
             `[tlon] Settings: autoDiscoverChannels = ${effectiveAutoDiscoverChannels}`
           );
+        }
+
+        // Reconcile the known-set with an observed value of the persisted
+        // `groupChannels` key. Placed after the discovery-flag update so
+        // `protectedNests()` sees the incoming flag. Subscription events are
+        // always observations; a refresh is one only when it scried fresh and
+        // no echo overtook its scry (`journalObserve`), so a stale refresh
+        // never reaches the journal.
+        //
+        // Removal only affects the known-set — the boot onboarding scan,
+        // approval display names, and telemetry counts. It does not gate
+        // handling: the /v4 firehose re-adds any member channel on its next
+        // event, and the discovery poll re-adds discovered channels while
+        // discovery is on. Authorization is `channelRules`.
+        if (
+          groupChannelJournal &&
+          (source === 'subscription' || snapshotOpts.journalObserve)
+        ) {
+          const { added, removed } = groupChannelJournal.observe(
+            newSettings.groupChannels
+          );
+          for (const nest of added) {
+            if (!watchedChannels.has(nest)) {
+              watchedChannels.add(nest);
+              runtime.log?.(`[tlon] Settings: now watching channel ${nest}`);
+              void scanDiscoveredAgentOnboardingNest(nest);
+            }
+          }
+          for (const nest of removed) {
+            watchedChannels.delete(nest);
+            runtime.log?.(
+              `[tlon] Settings: no longer watching channel ${nest}`
+            );
+          }
         }
 
         if (newSettings.ownerListenEnabled !== undefined) {
@@ -5390,6 +5445,93 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         currentSettings = nextRuntimeSettings;
       };
 
+      // Re-scry settings as a fallback for stale subscriptions: the settings
+      // subscription can silently die (SSE quit without reconnect), leaving
+      // both authorization state and heartbeat telemetry mirrors stale.
+      // Never rejects — callers treat a refresh failure as non-fatal.
+      const refreshSettingsNow = async (): Promise<void> => {
+        const seqBefore = groupChannelJournal?.observationSeq;
+        let superseded = false;
+        try {
+          const refreshResult = await settingsManager.load({
+            logSnapshot: false,
+            // Runs before the manager installs the scry result: a scry that an
+            // echo overtook is older than the journal's last observation, so
+            // the observed value replaces it in the baseline atomically and
+            // no fact can see the regression.
+            reconcile: (parsed) => {
+              if (
+                !groupChannelJournal ||
+                groupChannelJournal.observationSeq === seqBefore
+              ) {
+                return parsed;
+              }
+              superseded = true;
+              return applySettingsUpdate(
+                parsed,
+                'groupChannels',
+                groupChannelJournal.lastObserved
+              );
+            },
+          });
+          if (refreshResult.fresh) {
+            // Before the snapshot: a byte-identical refresh short-circuits
+            // inside applySettingsSnapshot, which would otherwise leave the
+            // journal untrusted (and its pending nests unwritten) after a
+            // failed boot load followed by a successful unchanged one.
+            groupChannelJournal?.markTrusted();
+          }
+          applySettingsSnapshot(refreshResult.settings, 'refresh', {
+            fresh: refreshResult.fresh,
+            journalObserve: refreshResult.fresh && !superseded,
+          });
+          // Opportunistic drain of anything deferred while untrusted.
+          if (refreshResult.fresh) void groupChannelJournal?.flush();
+        } catch (err) {
+          capturePluginError('settings_refresh', err);
+          runtime.error?.(`[tlon] Settings refresh failed: ${String(err)}`);
+        }
+      };
+
+      // Append-only journal of the channels of joined groups, persisted to the
+      // shared `groupChannels` settings key. See group-channels.ts for the
+      // key's ownership and conflict rules.
+      groupChannelJournal = createGroupChannelJournal({
+        initial: currentSettings.groupChannels,
+        trusted: startupSettingsFresh,
+        protectedNests: () =>
+          new Set([
+            ...account.groupChannels,
+            ...(effectiveAutoDiscoverChannels ? discoveredNests : []),
+          ]),
+        putEntry: (value) =>
+          api.poke({
+            app: 'settings',
+            mark: 'settings-event',
+            json: {
+              'put-entry': {
+                desk: 'moltbot',
+                'bucket-key': 'tlon',
+                'entry-key': 'groupChannels',
+                value,
+              },
+            },
+          }),
+        log: runtime.log,
+        error: runtime.error,
+      });
+      const journal = groupChannelJournal; // non-optional binding for the callbacks below
+
+      const groupsUiChannelDeps: GroupsUiChannelHandlerDeps = {
+        watched: watchedChannels,
+        channelToGroup,
+        channelNameCache,
+        groupNameCache,
+        persist: (nests) => journal.persist(nests),
+        scan: (nest) => scanDiscoveredAgentOnboardingNest(nest),
+        log: runtime.log,
+      };
+
       settingsManager.onChange((newSettings) => {
         applySettingsSnapshot(newSettings, 'subscription');
       });
@@ -5411,6 +5553,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           event: async (event: any) => {
             try {
               // Handle fleet (member) changes - inject system message for joins
+              //
+              // Known-dead: the `group-action-3` mark emits
+              // `update.diff.fleet.{ships, diff}`, not `update.fleet`, so this
+              // branch has never matched a real fact. Reviving it enables a
+              // model-visible system turn per member join, which is a product
+              // decision tracked in the TLON-6297 follow-up issue.
               if (event?.flag && event?.update?.fleet) {
                 const groupFlag = event.flag as string;
                 const fleet = event.update.fleet;
@@ -5455,132 +5603,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 }
               }
 
-              // Handle group/channel join events
-              // Event structure: { group: { flag: "~host/group-name", ... }, channels: { ... } }
-              if (event && typeof event === 'object') {
-                // Check for new channels being added to groups
-                if (event.channels && typeof event.channels === 'object') {
-                  const channels = event.channels as Record<string, any>;
-                  for (const [channelNest, _channelData] of Object.entries(
-                    channels
-                  )) {
-                    // Only monitor chat, heap, and diary channels
-                    if (
-                      !channelNest.startsWith('chat/') &&
-                      !channelNest.startsWith('heap/') &&
-                      !channelNest.startsWith('diary/')
-                    ) {
-                      continue;
-                    }
-
-                    const channelTitle = extractMetadataTitle(_channelData);
-                    if (channelTitle) {
-                      channelNameCache.set(channelNest, channelTitle);
-                    }
-
-                    // If this is a new channel we're not watching yet, add it
-                    if (!watchedChannels.has(channelNest)) {
-                      watchedChannels.add(channelNest);
-                      runtime.log?.(
-                        `[tlon] Auto-detected new channel (invite accepted): ${channelNest}`
-                      );
-                      await scanDiscoveredAgentOnboardingNest(channelNest);
-
-                      // Persist to settings store so it survives restarts
-                      if (effectiveAutoAcceptGroupInvites) {
-                        try {
-                          const currentChannels =
-                            currentSettings.groupChannels || [];
-                          if (!currentChannels.includes(channelNest)) {
-                            const updatedChannels = [
-                              ...currentChannels,
-                              channelNest,
-                            ];
-                            // Poke settings store to persist
-                            await api.poke({
-                              app: 'settings',
-                              mark: 'settings-event',
-                              json: {
-                                'put-entry': {
-                                  'bucket-key': 'tlon',
-                                  'entry-key': 'groupChannels',
-                                  value: updatedChannels,
-                                  desk: 'moltbot',
-                                },
-                              },
-                            });
-                            runtime.log?.(
-                              `[tlon] Persisted ${channelNest} to settings store`
-                            );
-                          }
-                        } catch (err) {
-                          runtime.error?.(
-                            `[tlon] Failed to persist channel to settings: ${String(err)}`
-                          );
-                        }
-                      }
-                    }
-                  }
-                }
-
-                // Also check for the "join" event structure
-                if (event.join && typeof event.join === 'object') {
-                  const join = event.join as {
-                    group?: string;
-                    channels?: string[];
-                  };
-                  if (join.channels) {
-                    for (const channelNest of join.channels) {
-                      if (
-                        !channelNest.startsWith('chat/') &&
-                        !channelNest.startsWith('heap/') &&
-                        !channelNest.startsWith('diary/')
-                      ) {
-                        continue;
-                      }
-                      if (!watchedChannels.has(channelNest)) {
-                        watchedChannels.add(channelNest);
-                        runtime.log?.(
-                          `[tlon] Auto-detected joined channel: ${channelNest}`
-                        );
-                        await scanDiscoveredAgentOnboardingNest(channelNest);
-
-                        // Persist to settings store
-                        if (effectiveAutoAcceptGroupInvites) {
-                          try {
-                            const currentChannels =
-                              currentSettings.groupChannels || [];
-                            if (!currentChannels.includes(channelNest)) {
-                              const updatedChannels = [
-                                ...currentChannels,
-                                channelNest,
-                              ];
-                              await api.poke({
-                                app: 'settings',
-                                mark: 'settings-event',
-                                json: {
-                                  'put-entry': {
-                                    'bucket-key': 'tlon',
-                                    'entry-key': 'groupChannels',
-                                    value: updatedChannels,
-                                    desk: 'moltbot',
-                                  },
-                                },
-                              });
-                              runtime.log?.(
-                                `[tlon] Persisted ${channelNest} to settings store`
-                              );
-                            }
-                          } catch (err) {
-                            runtime.error?.(
-                              `[tlon] Failed to persist channel to settings: ${String(err)}`
-                            );
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
+              if (opts.abortSignal?.aborted) return;
+              const fact = parseGroupsUiChannelFact(event);
+              if (fact) {
+                await handleGroupsUiChannelFact(fact, groupsUiChannelDeps);
               }
             } catch (error: any) {
               runtime.error?.(
@@ -5715,6 +5741,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       if (effectiveAutoDiscoverChannels) {
         const discoveredChannels = await fetchAllChannels(api, runtime);
         for (const channelNest of discoveredChannels) {
+          discoveredNests.add(channelNest);
           watchedChannels.add(channelNest);
         }
         runtime.log?.(`[tlon] Watching ${watchedChannels.size} channel(s)`);
@@ -5791,24 +5818,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         onError: (error) =>
           runtime.error?.(`[tlon] Cron snapshot failed: ${String(error)}`),
       });
-
-      // Re-scry settings as a fallback for stale subscriptions: the settings
-      // subscription can silently die (SSE quit without reconnect), leaving
-      // both authorization state and heartbeat telemetry mirrors stale.
-      // Never rejects — callers treat a refresh failure as non-fatal.
-      const refreshSettingsNow = async (): Promise<void> => {
-        try {
-          const refreshResult = await settingsManager.load({
-            logSnapshot: false,
-          });
-          applySettingsSnapshot(refreshResult.settings, 'refresh', {
-            fresh: refreshResult.fresh,
-          });
-        } catch (err) {
-          capturePluginError('settings_refresh', err);
-          runtime.error?.(`[tlon] Settings refresh failed: ${String(err)}`);
-        }
-      };
 
       // Periodically refresh channel discovery
       const pollInterval = setInterval(
@@ -5953,6 +5962,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       await nudgeRunner?.stop();
       await ownerReplyPersistence.flush();
       await pendingNudgePersistence.flush();
+      // Drain the groupChannels journal before api.close(), which rejects
+      // later pokes; accepted nests would otherwise be lost.
+      await groupChannelJournal?.close();
       clearShadowsForAccount(account.accountId);
       setOutboundRouteReporter(null);
       setReplyOutputReporter(null);
