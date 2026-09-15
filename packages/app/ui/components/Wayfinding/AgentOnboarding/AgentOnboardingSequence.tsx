@@ -9,6 +9,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AGENT_SHIP_OVERRIDE } from '../../../../lib/envVars';
 import { getDefaultBotName } from '../botName';
 import { TlonBotSetupPaneView } from '../TlonBotSetupPaneView';
+import { resolveLandingChannelId } from './landingChannel';
 import { PromiseTimeoutError, withTimeout } from './promiseTimeout';
 
 const logger = createDevLogger('AgentOnboardingSequence', false);
@@ -186,10 +187,18 @@ export function AgentOnboardingSequence(props: {
             return;
           }
           activeGroupId = furnished.group.id;
-          activeChannelId = furnished.chatChannelId;
+          activeChannelId = await resolveLandingChannelId({
+            botDmId:
+              AGENT_SHIP_OVERRIDE || api.getBotUserIdForUser(ownerId) || null,
+            furnishedChatChannelId: furnished.chatChannelId,
+            deadline,
+            channelExists: async (id) => !!(await db.getChannel({ id })),
+            wait,
+          });
+          if (cancelled) return;
           await db.agentOnboardingLanding.setValue({
             groupId: activeGroupId,
-            channelId: furnished.chatChannelId,
+            channelId: activeChannelId,
             status: 'pending',
           });
           // The onboarding conversation already teaches the bot interaction
@@ -214,7 +223,7 @@ export function AgentOnboardingSequence(props: {
             logger.trackError(error.message, {
               error,
               groupId: activeGroupId,
-              channelId: furnished.chatChannelId,
+              channelId: activeChannelId,
             });
             throw error;
           }
@@ -241,7 +250,7 @@ export function AgentOnboardingSequence(props: {
           completedRef.current = true;
           logger.trackEvent(AnalyticsEvent.AgentOnboardingChatOpened, {
             groupId: activeGroupId,
-            channelId: furnished.chatChannelId,
+            channelId: activeChannelId,
           });
           props.onCompleted();
           void store
