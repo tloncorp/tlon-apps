@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { workflowState, recoveryArtifact } from './workflow-state.mjs';
+import {
+  workflowState,
+  recoveryArtifact,
+  buildFinalStages,
+} from './workflow-state.mjs';
 test('terminal jobs release a coordinator despite stale workflow status', () => {
   const run = {
     status: 'IN_PROGRESS',
@@ -68,11 +72,7 @@ test('intermediate terminal jobs cannot finish a lazily scheduled build', () => 
 });
 
 test('failed repack waits for a lazily created native fallback', () => {
-  const finalStages = [
-    'build_ios',
-    { key: 'repack_ios', statuses: ['SUCCESS'] },
-    { key: 'reuse_build', statuses: ['SUCCESS'] },
-  ];
+  const finalStages = buildFinalStages;
   const run = {
     status: 'IN_PROGRESS',
     jobs: [{ key: 'repack_ios', status: 'FAILURE' }],

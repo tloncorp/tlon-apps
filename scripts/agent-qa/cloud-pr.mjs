@@ -1,6 +1,10 @@
 import { assessmentForRetry } from './reuse-assessment.mjs';
 import { selectEvidence } from './publish.mjs';
-import { workflowState, recoveryArtifact } from './workflow-state.mjs';
+import {
+  workflowState,
+  recoveryArtifact,
+  buildFinalStages,
+} from './workflow-state.mjs';
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, writeFileSync, mkdirSync } from 'node:fs';
 const env = process.env;
@@ -151,16 +155,8 @@ if (process.argv[2] === 'assess') {
       build_sha: env.QA_BUILD_SHA,
     });
   const id = await dispatch(input, env.QA_TARGET_REF);
-  const run = await wait(id, 50, false, [
-    'repack_ios',
-    'reuse_build',
-    'build_ios',
-  ]);
-  const build = [
-    'build_ios',
-    { key: 'repack_ios', statuses: ['SUCCESS'] },
-    { key: 'reuse_build', statuses: ['SUCCESS'] },
-  ]
+  const run = await wait(id, 50, false, buildFinalStages);
+  const build = ['repack_ios', 'reuse_build', 'build_ios']
     .map((key) => run.jobs.find((j) => j.key === key))
     .find((j) => j?.status === 'SUCCESS' && j.outputs?.build_id);
   if (!build) throw new Error('No verified simulator build prepared');

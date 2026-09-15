@@ -1,4 +1,9 @@
 const terminal = new Set(['SUCCESS', 'FAILURE', 'CANCELED']);
+export const buildFinalStages = [
+  'build_ios',
+  { key: 'repack_ios', statuses: ['SUCCESS'] },
+  { key: 'reuse_build', statuses: ['SUCCESS'] },
+];
 export function workflowState(run, finalKeys = []) {
   if (terminal.has(run.status)) return run.status;
   // EAS adds dependent jobs lazily. Intermediate terminal jobs do not mean the DAG finished.
