@@ -172,6 +172,69 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
       });
     });
   }
+  if (selected('group-swipe-read')) {
+    const g = await group('SwipeGroup', zod);
+    await say(g.chatChannel, `${tag} group swipe unread`);
+    const groupIsUnread = async () => {
+      const unreads = await zod.state.scry<any[]>(
+        'activity',
+        '/v4/activity/unreads'
+      );
+      return unreads.some((entry) => entry.source?.group === g.groupId);
+    };
+    await until('group swipe unread fixture reaches zod', groupIsUnread);
+    task('group-swipe-read', async () => {
+      await until(
+        'native swipe marks group read',
+        async () => !(await groupIsUnread()),
+        30 * 60_000
+      );
+      record('group-swipe-read-state', {
+        groupId: g.groupId,
+        channelId: g.chatChannel,
+        unread: false,
+      });
+    });
+  }
+  if (selected('dm-swipe-read')) {
+    await resetDmPeer();
+    await ten.sendDm('~zod', `${tag} dm handshake`);
+    await until('DM handshake reaches zod', () =>
+      includesShip(zod, '/dm/invited', '~ten')
+    );
+    await zod.state.poke({
+      app: 'chat',
+      mark: 'chat-dm-rsvp',
+      json: { ship: '~ten', ok: true },
+    });
+    await until('accepted DM fixture reaches zod', async () => {
+      const [active, invited] = await Promise.all([
+        includesShip(zod, '/dm', '~ten'),
+        includesShip(zod, '/dm/invited', '~ten'),
+      ]);
+      return active && !invited;
+    });
+    await ten.sendDm('~zod', `${tag} dm swipe unread`);
+    const dmIsUnread = async () => {
+      const unreads = await zod.state.scry<any[]>(
+        'activity',
+        '/v4/activity/unreads'
+      );
+      return unreads.some((entry) => entry.source?.dm?.ship === '~ten');
+    };
+    await until('DM swipe unread fixture reaches zod', dmIsUnread);
+    task('dm-swipe-read', async () => {
+      await until(
+        'native swipe marks DM read',
+        async () => !(await dmIsUnread()),
+        30 * 60_000
+      );
+      record('dm-swipe-read-state', {
+        channelId: '~ten',
+        unread: false,
+      });
+    });
+  }
   if (selected('dm-deny')) {
     await resetDmPeer();
     await ten.sendDm('~zod', `${tag} deny request`);

@@ -113,10 +113,16 @@ cp -R .maestro/reliability .maestro/cloud-fakeship proof-flows/
 node --input-type=module <<'JS'
 import { writeFileSync } from 'node:fs';
 const names = ['exchange', 'invitations', 'direct-messages', 'moderation', 'group-changes', 'reactions', 'contact-status', 'group-mark-read'];
-const optionalNames = ['dm-deny', 'dm-block', 'dm-unblock'];
+const optionalNames = [
+  'dm-deny',
+  'dm-block',
+  'dm-unblock',
+  'group-swipe-read',
+  'dm-swipe-read',
+];
 const selected = process.env.PROOF_CASES === 'all' ? names : (process.env.PROOF_CASES || 'exchange').split(',');
 if (!selected.length || selected.some(name => ![...names, ...optionalNames].includes(name))) throw Error('Unknown proof case');
-if (selected.filter(name => ['direct-messages', ...optionalNames].includes(name)).length > 1) throw Error('Run DM cases separately');
+if (selected.filter(name => ['direct-messages', 'dm-deny', 'dm-block', 'dm-unblock', 'dm-swipe-read'].includes(name)).length > 1) throw Error('Run DM cases separately');
 // One device/login for a batch; selecting one case still gives a focused retry.
 writeFileSync('proof-flows/cloud-fakeship/selected.yaml',
   'appId: ${MAESTRO_APP_ID}\nname: Selected two-ship QA cases\n---\n' +

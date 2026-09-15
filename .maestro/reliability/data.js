@@ -17,6 +17,11 @@ output.reliability = {
   unreadChannelPreviewPattern: exact(
     '~ten: ' + MAESTRO_RUN_TAG + ' unread channel'
   ),
+  groupSwipePreviewPattern: exact(
+    '~ten: ' + MAESTRO_RUN_TAG + ' group swipe unread'
+  ),
+  groupSwipeTitlePattern: exact('SwipeGroup-' + MAESTRO_RUN_TAG),
+  dmSwipePreviewPattern: exact(MAESTRO_RUN_TAG + ' dm swipe unread'),
   // ContactName exposes a spoken label (zod / sampel - palnet) on native.
   // Accept that exact identity or its literal display, never a partial match.
   shipPattern:
