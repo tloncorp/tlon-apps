@@ -78,7 +78,7 @@ jobs:
     needs: [assess, prepare_build]
     if: ${{ needs.assess.outputs.decision == 'test' && needs.assess.outputs.has_fixtures == 'true' }}
     runs-on: blacksmith-4vcpu-ubuntu-2204
-    timeout-minutes: 45
+    timeout-minutes: 80
     outputs:
       eas_run_id: ${{ steps.qa.outputs.eas_run_id }}
     env:
@@ -211,3 +211,22 @@ jobs:
           QA_BUILD_ID: ${{ needs.prepare_build.outputs.build_id }}
           QA_BUILD_SHA: ${{ needs.prepare_build.outputs.build_sha }}
         run: node scripts/agent-qa/cloud-pr.mjs run
+
+  coordinator_failure:
+    needs: [assess, prepare_build, test]
+    if: ${{ always() && !needs.test.outputs.eas_run_id && (needs.assess.result == 'failure' || needs.prepare_build.result == 'failure' || needs.test.result == 'failure' || needs.assess.result == 'cancelled' || needs.prepare_build.result == 'cancelled' || needs.test.result == 'cancelled') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.0"
+      - name: Publish infrastructure failure even before simulator dispatch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          QA_PR_NUMBER: ${{ inputs.pr_number }}
+          QA_PR_JSON: ${{ needs.assess.outputs.pr_json || 'null' }}
+          QA_STAGE_RESULTS: assess=${{ needs.assess.result }}, build=${{ needs.prepare_build.result }}, setup=${{ needs.test.result }}
+        run: node scripts/agent-qa/cloud-pr.mjs failed

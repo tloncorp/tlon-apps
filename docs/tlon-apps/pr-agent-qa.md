@@ -28,7 +28,7 @@ those revisions and report the installed app and backend identities separately.
 
 Optional inputs:
 
-- `assessment_run_id`: reuse a completed assessment only while both PR revisions
+- `assessment_run_id`: reuse a completed `test` assessment only while both PR revisions
   match. Its source citations and setup plan are revalidated.
 - `build_id` and `build_sha`: reuse an existing simulator build only after its
   source identity is independently verified.

@@ -93,3 +93,24 @@ test('failed repack waits for a lazily created native fallback', () => {
     'SUCCESS'
   );
 });
+
+import { selectPreparedBuild } from './workflow-state.mjs';
+
+test('a same-commit build cannot silently replace the requested artifact', () => {
+  const build = {
+    key: 'reuse_build',
+    status: 'SUCCESS',
+    outputs: { build_id: 'selected', git_commit_hash: 'commit' },
+  };
+  const run = { jobs: [build] };
+  assert.throws(
+    () => selectPreparedBuild(run, 'requested', 'commit'),
+    /differs/
+  );
+  assert.throws(
+    () => selectPreparedBuild(run, 'selected', 'wrong-commit'),
+    /differs/
+  );
+  assert.equal(selectPreparedBuild(run, 'selected', 'commit'), build);
+  assert.equal(selectPreparedBuild(run), build);
+});

@@ -4,6 +4,7 @@ import {
   workflowState,
   recoveryArtifact,
   buildFinalStages,
+  selectPreparedBuild,
 } from './workflow-state.mjs';
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -143,6 +144,27 @@ if (process.argv[2] === 'assess') {
   console.log(
     `Assessment: ${plan.decision}; fixtures: ${plan.setup.fixtures.join(', ') || 'none'}`
   );
+} else if (process.argv[2] === 'failed') {
+  const number = env.QA_PR_NUMBER;
+  if (!/^[1-9][0-9]*$/.test(number)) throw new Error('Missing PR number');
+  const p = JSON.parse(
+    command('gh', ['api', `repos/tloncorp/tlon-apps/pulls/${number}`])
+  );
+  if (p.head.repo.full_name !== 'tloncorp/tlon-apps' || p.draft)
+    throw new Error('Ineligible PR');
+  const pinned = JSON.parse(env.QA_PR_JSON || 'null');
+  const failure = {
+    number: p.number,
+    head: pinned?.head?.sha || p.head.sha,
+    report: `Testing did not reach the simulator. Coordinator stages: ${env.QA_STAGE_RESULTS}. No app behavior was verified. [Coordinator logs](https://github.com/tloncorp/tlon-apps/actions/runs/${env.GITHUB_RUN_ID}).`,
+  };
+  const id = await dispatch(
+    { coordinator_failure_json: failure },
+    env.GITHUB_SHA
+  );
+  const run = await wait(id, 10, false, ['coordinator_report']);
+  if (run.status !== 'SUCCESS')
+    throw new Error('Coordinator failure publication failed');
 } else if (process.argv[2] === 'build') {
   const input = {
     assessment_pr_json: JSON.parse(env.QA_PR_JSON),
@@ -156,10 +178,7 @@ if (process.argv[2] === 'assess') {
     });
   const id = await dispatch(input, env.QA_TARGET_REF);
   const run = await wait(id, 50, false, buildFinalStages);
-  const build = ['repack_ios', 'reuse_build', 'build_ios']
-    .map((key) => run.jobs.find((j) => j.key === key))
-    .find((j) => j?.status === 'SUCCESS' && j.outputs?.build_id);
-  if (!build) throw new Error('No verified simulator build prepared');
+  const build = selectPreparedBuild(run, env.QA_BUILD_ID, env.QA_BUILD_SHA);
   output('build_id', build.outputs.build_id);
   output('build_sha', build.outputs.git_commit_hash);
   output('build_run_id', id);
@@ -233,4 +252,4 @@ if (process.argv[2] === 'assess') {
       JSON.stringify({ id, status: run.status })
     );
   if (!env.PROOF_OUTPUT && run.status !== 'SUCCESS') process.exit(1);
-} else throw new Error('Expected assess, build, run or finish');
+} else throw new Error('Expected assess, build, run, finish or failed');

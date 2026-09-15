@@ -198,3 +198,29 @@ export function renderReport(context, report, usage) {
     '',
   ].join('\n');
 }
+
+// Infrastructure loss must never erase product observations already captured.
+export function appendInfrastructureFailure(report, reason) {
+  const checks = [
+    ...(report?.checks || []),
+    {
+      infrastructure: true,
+      status: 'blocked',
+      expected: 'Complete setup and verify the backend remained available',
+      observed: reason,
+      evidence: [],
+    },
+  ];
+  return {
+    ...report,
+    status:
+      checks.some((c) => c.status === 'failed') ||
+      report?.discoveries?.some((d) => d.status === 'failed')
+        ? 'failed'
+        : 'blocked',
+    summary: [report?.summary, `Infrastructure incomplete: ${reason}`]
+      .filter(Boolean)
+      .join(' '),
+    checks,
+  };
+}

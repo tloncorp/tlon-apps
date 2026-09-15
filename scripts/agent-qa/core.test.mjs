@@ -6,6 +6,7 @@ import {
   verifyReport,
   verifyVideo,
   localRecordingPath,
+  appendInfrastructureFailure,
 } from './core.mjs';
 
 test('recording accepts the CLI materialized path and the MCP artifact handle', () => {
@@ -155,4 +156,41 @@ test('video evidence rejects missing tracks, empty files, and truncated sessions
     /unplayable/
   );
   assert.throws(() => verifyVideo(probe, 120), /cover the test session/);
+});
+
+test('a post-test backend failure preserves passed checks and product findings', () => {
+  const prior = {
+    status: 'failed',
+    summary: 'Editing loses text',
+    checks: [
+      {
+        status: 'passed',
+        expected: 'Open note',
+        observed: 'Opened',
+        evidence: ['capture'],
+      },
+    ],
+    discoveries: [{ status: 'failed', title: 'Text disappears' }],
+  };
+  const result = appendInfrastructureFailure(prior, 'Tunnel disconnected');
+  assert.equal(result.status, 'failed');
+  assert.deepEqual(result.checks[0], prior.checks[0]);
+  assert.deepEqual(result.discoveries, prior.discoveries);
+  assert.equal(result.checks.at(-1).infrastructure, true);
+  assert.equal(prior.checks.length, 1);
+  assert.match(result.summary, /Editing loses text/);
+});
+test('setup failure and interrupted passed run remain explicitly incomplete', () => {
+  assert.equal(
+    appendInfrastructureFailure(undefined, 'Login failed').status,
+    'blocked'
+  );
+  const prior = {
+    status: 'passed',
+    summary: 'Opened',
+    checks: [{ status: 'passed', evidence: ['capture'] }],
+  };
+  const result = appendInfrastructureFailure(prior, 'Timeout');
+  assert.equal(result.status, 'blocked');
+  assert.equal(result.checks.length, 2);
 });

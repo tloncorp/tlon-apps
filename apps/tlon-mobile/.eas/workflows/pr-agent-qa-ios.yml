@@ -3,6 +3,9 @@ name: PR agent QA (iOS)
 on:
   workflow_dispatch:
     inputs:
+      coordinator_failure_json:
+        type: string
+        description: Publish a coordinator failure before simulator dispatch
       prepared_assessment_json:
         type: string
         description: Source-checked test plan
@@ -51,6 +54,21 @@ defaults:
     node: "22.22.0"
 
 jobs:
+  coordinator_report:
+    if: ${{ inputs.coordinator_failure_json }}
+    environment: preview
+    runs_on: linux-medium
+    env:
+      QA_PR_NUMBER: ${{ fromJSON(inputs.coordinator_failure_json).number }}
+      QA_HEAD_SHA: ${{ fromJSON(inputs.coordinator_failure_json).head }}
+      QA_REPORT: ${{ fromJSON(inputs.coordinator_failure_json).report }}
+      QA_WORKFLOW_URL: ${{ workflow.url }}
+    steps:
+      - uses: eas/checkout
+      - name: Install the report publisher
+        run: bash ../../scripts/agent-qa/install-publish-tools.sh
+      - name: Publish the incomplete run
+        run: node ../../scripts/agent-qa/publish-blocked.mjs
   present_recording:
     if: ${{ inputs.present_evidence_json }}
     environment: preview

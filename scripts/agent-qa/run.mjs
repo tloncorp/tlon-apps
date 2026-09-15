@@ -16,6 +16,7 @@ import {
   verifyReport,
   verifyVideo,
   localRecordingPath,
+  appendInfrastructureFailure,
 } from './core.mjs';
 
 const exec = promisify(execFile);
@@ -645,6 +646,8 @@ async function agent(diff) {
           });
       }
     }
+  }
+  if (context.assessment) {
     for (const scenario of context.assessment.scenarios.filter(
       (s) =>
         s.method === 'unavailable' &&
@@ -670,7 +673,11 @@ async function agent(diff) {
     for (const scenario of context.assessment.scenarios.filter(
       (s) => s.method === 'regression'
     )) {
-      const receipt = receipts.find((r) => r.id === scenario.regression);
+      const receipt = receipts.find(
+        (r) =>
+          r.id === scenario.regression &&
+          r.source === context.assessment.headSha
+      );
       result.checks.push({
         scenarioId: scenario.id,
         method: 'regression',
@@ -710,18 +717,7 @@ process.once('SIGTERM', () => void terminate('Workflow was terminated'));
 process.once('SIGINT', () => void terminate('Workflow was interrupted'));
 
 async function terminate(reason) {
-  report = {
-    status: 'blocked',
-    summary: reason,
-    checks: [
-      {
-        status: 'blocked',
-        expected: 'Complete the requested testing',
-        observed: reason,
-        evidence: [],
-      },
-    ],
-  };
+  report = appendInfrastructureFailure(report, reason);
   try {
     await finalize();
   } finally {
@@ -740,18 +736,7 @@ try {
     );
   }
 } catch (error) {
-  report = {
-    status: 'blocked',
-    summary: clean(error.message),
-    checks: [
-      {
-        status: 'blocked',
-        expected: 'Complete setup and verify the requested app behavior',
-        observed: clean(error.message),
-        evidence: [],
-      },
-    ],
-  };
+  report = appendInfrastructureFailure(report, clean(error.message));
 } finally {
   await finalize();
 }

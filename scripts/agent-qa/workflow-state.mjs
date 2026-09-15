@@ -42,3 +42,20 @@ export function recoveryArtifact(run) {
     .find((j) => j.key === 'qa_ios')
     ?.artifacts?.find((a) => a.name === 'ios-agent-qa');
 }
+
+export function selectPreparedBuild(run, expectedId, expectedSha) {
+  const build = ['repack_ios', 'reuse_build', 'build_ios']
+    .map((key) => run.jobs.find((j) => j.key === key))
+    .find((j) => j?.status === 'SUCCESS' && j.outputs?.build_id);
+  if (!build) throw new Error('No verified simulator build prepared');
+  // EAS get-build filters by commit, not ID. Refuse any substituted artifact.
+  if (
+    expectedId &&
+    (build.outputs.build_id !== expectedId ||
+      build.outputs.git_commit_hash !== expectedSha)
+  )
+    throw new Error(
+      'Prepared build differs from the requested build ID or commit'
+    );
+  return build;
+}

@@ -120,6 +120,8 @@ if (original.context.evidenceReview !== 'completed') {
     video,
     videoOnly: !descriptor.complete,
   });
+  for (const check of original.report.checks.filter((c) => c.infrastructure))
+    result.checks.push(check);
   for (const s of original.context.assessment.scenarios.filter(
     (s) => s.method === 'regression'
   )) {
