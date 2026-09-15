@@ -12,11 +12,13 @@ export function selectReviewedEvidence(run, id) {
     !/^[a-f0-9]{40}$/.test(run.gitCommitHash || '')
   )
     throw new Error('Reviewer run does not belong to completed QA evidence');
-  const artifact = run.jobs
-    .find((j) => ['review_recording', 'report_video'].includes(j.key))
-    ?.artifacts?.find((a) => a.name === 'evidence-review-replay');
-  if (!artifact) throw new Error('Missing reviewed evidence artifact');
-  return artifact;
+  const artifacts = run.jobs
+    .filter((j) => ['review_recording', 'report_video'].includes(j.key))
+    .flatMap((j) => j.artifacts || [])
+    .filter((a) => a.name === 'evidence-review-replay');
+  if (artifacts.length !== 1)
+    throw new Error('Missing or ambiguous reviewed evidence artifact');
+  return artifacts[0];
 }
 
 export function verifyReplayReceipt(receipt, originalRun) {

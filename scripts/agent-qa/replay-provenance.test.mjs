@@ -44,3 +44,28 @@ test('matching capture SHA and video shape cannot bind another runs report', () 
   );
   assert.throws(() => verifyReplayReceipt(null, id), /another original run/);
 });
+
+test('skipped replay jobs cannot hide the full runs reviewed recording', () => {
+  const full = {
+    ...run,
+    jobs: [
+      { key: 'review_recording', status: 'SKIPPED', artifacts: [] },
+      { key: 'report_video', status: 'SUCCESS', artifacts: [artifact] },
+    ],
+  };
+  assert.equal(selectReviewedEvidence(full, id), artifact);
+  assert.throws(
+    () =>
+      selectReviewedEvidence(
+        {
+          ...full,
+          jobs: [
+            ...full.jobs,
+            { key: 'review_recording', artifacts: [artifact] },
+          ],
+        },
+        id
+      ),
+    /ambiguous/
+  );
+});
