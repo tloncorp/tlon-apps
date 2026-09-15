@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { diffInventories, renderMarkdown, renderText } from './diff';
+import { diffInventories, renderMarkdown, renderText, sitesOf } from './diff';
 import { Dependency, extractFile } from './extract';
 
 const FILE = 'packages/api/src/client/thing.ts';
@@ -51,7 +51,7 @@ it('reports a request the branch adds', () => {
   expect(result.added.map((r) => r.key)).toEqual([
     'subscribe channels /v1/unreads',
   ]);
-  expect(result.added[0].sites).toEqual([`${FILE}:3`]);
+  expect(sitesOf(result.added[0])).toEqual([`${FILE}:3`]);
   expect(result.changed).toEqual([]);
   expect(result.removed).toEqual([]);
 });
@@ -106,6 +106,176 @@ describe('a call site that survives a change to what it asks for', () => {
     expect(result.removed.map((r) => r.key)).toEqual([
       'scry groups /v2/groups',
     ]);
+  });
+});
+
+describe('a request whose key is unchanged', () => {
+  // A guard is recorded when a whitelisted poke-params helper branches. Both
+  // helper bodies are two lines, so the `poke` call stays on the same line and
+  // only the guard differs between the two fixtures.
+  const DM = "return { app: 'chat', mark: 'chat-dm-action-2', json: {} };";
+  const CLUB = "return { app: 'chat', mark: 'chat-club-action-2', json: {} };";
+  const helper = (first: string, second: string) =>
+    [
+      'function chatAction(flag: boolean) {',
+      `  ${first}`,
+      `  ${second}`,
+      '}',
+      'export const f = (flag: boolean) => poke(chatAction(flag));',
+    ].join('\n');
+  const POKE_SITE = `${FILE}:6`;
+  const BRANCHED = helper(`if (flag) ${DM}`, CLUB);
+  const UNBRANCHED = helper('// the club branch is gone', DM);
+
+  it('is changed when it gains a call site', () => {
+    const result = diff(
+      SCRY_V2,
+      `${SCRY_V2}\nexport const g = () => scry({ app: 'groups', path: '/v2/groups' });`
+    );
+    expect(result.added).toEqual([]);
+    expect(result.removed).toEqual([]);
+    expect(result.changed).toHaveLength(1);
+    expect(result.changed[0].after.key).toBe('scry groups /v2/groups');
+    expect(result.changed[0].moved).toEqual({
+      added: [`${FILE}:3`],
+      removed: [],
+      guards: [],
+    });
+  });
+
+  it('is changed when it loses a call site', () => {
+    const result = diff(
+      `${SCRY_V2}\nexport const g = () => scry({ app: 'groups', path: '/v2/groups' });`,
+      SCRY_V2
+    );
+    expect(result.changed).toHaveLength(1);
+    expect(result.changed[0].moved).toEqual({
+      added: [],
+      removed: [`${FILE}:3`],
+      guards: [],
+    });
+  });
+
+  it('is changed when a guard is removed at a site that stayed put', () => {
+    const result = diff(BRANCHED, UNBRANCHED);
+    expect(result.changed).toHaveLength(1);
+    const change = result.changed[0];
+    expect(change.after.key).toBe('poke chat chat-dm-action-2');
+    expect(change.moved).toEqual({
+      added: [],
+      removed: [],
+      guards: [{ site: POKE_SITE, before: 'flag', after: undefined }],
+    });
+    // The branch the guard used to protect is gone outright.
+    expect(result.removed.map((r) => r.key)).toEqual([
+      'poke chat chat-club-action-2',
+    ]);
+    expect(result.added).toEqual([]);
+  });
+
+  it('is changed when a guard is added at a site that stayed put', () => {
+    const result = diff(UNBRANCHED, BRANCHED);
+    expect(result.changed).toHaveLength(1);
+    expect(result.changed[0].moved?.guards).toEqual([
+      { site: POKE_SITE, before: undefined, after: 'flag' },
+    ]);
+    expect(result.added.map((r) => r.key)).toEqual([
+      'poke chat chat-club-action-2',
+    ]);
+  });
+
+  it('is not changed when only its line numbers shifted', () => {
+    const result = diff(SCRY_V2, `const unrelated = 1;\n${SCRY_V2}`);
+    expect(result).toEqual({ added: [], changed: [], removed: [] });
+  });
+
+  it('is changed when one of two co-located branches is dropped', () => {
+    const club =
+      "return { app: 'chat', mark: 'chat-club-action-2', json: {} };";
+    const both = [
+      'function chatAction(a: boolean, b: boolean) {',
+      `  if (a) ${club}`,
+      `  if (b) ${club}`,
+      `  ${DM}`,
+      '}',
+      'export const f = (a: boolean, b: boolean) => poke(chatAction(a, b));',
+    ].join('\n');
+    const one = both.replace(
+      `  if (b) ${club}`,
+      '  // the second branch is gone'
+    );
+    const change = diff(both, one).changed.find(
+      (c) => c.after.key === 'poke chat chat-club-action-2'
+    );
+    // Both branches poke the same mark from the same line, so the guard is the
+    // only thing telling the two records apart.
+    expect(change?.moved?.removed).toEqual([`${FILE}:7`]);
+  });
+
+  it('is not changed when a guarded and an unguarded site swap lines', () => {
+    const guarded = 'export const f = (a: boolean) => poke(chatAction(a));';
+    const plain = `export const g = () => poke({ app: 'chat', mark: 'chat-dm-action-2', json: {} });`;
+    const body = (last: string[]) =>
+      [
+        'function chatAction(a: boolean) {',
+        `  if (a) ${DM}`,
+        `  ${CLUB}`,
+        '}',
+        ...last,
+      ].join('\n');
+    // Matching on file+guard before file+line is what keeps this quiet: pairing
+    // by line first would read the swap as two guards changing in place.
+    expect(diff(body([guarded, plain]), body([plain, guarded]))).toEqual({
+      added: [],
+      changed: [],
+      removed: [],
+    });
+  });
+
+  it('renders what moved rather than every site it is made from', () => {
+    const result = diff(
+      SCRY_V2,
+      `${SCRY_V2}\nexport const g = () => scry({ app: 'groups', path: '/v2/groups' });`
+    );
+    expect(renderText(result, refs)).toBe(
+      [
+        'Desk requests: base -> head',
+        '',
+        '0 added, 1 changed, 0 removed',
+        '',
+        'changed',
+        '  scry %groups',
+        '    /v2/groups',
+        `      call site added: ${FILE}:3`,
+      ].join('\n')
+    );
+    const md = renderMarkdown(result, refs);
+    expect(md).toContain('- `/v2/groups`\n');
+    expect(md).toContain(`  - call site added: \`${FILE}:3\``);
+  });
+
+  it('caps what moved, so a wholesale move cannot flood the comment', () => {
+    const calls = (n: number) =>
+      Array.from(
+        { length: n },
+        (_, i) =>
+          `export const f${i} = () => scry({ app: 'groups', path: '/v2/groups' });`
+      ).join('\n');
+    const rendered = renderText(diff(calls(10), calls(1)), refs);
+    expect(rendered.match(/call site removed/g)).toHaveLength(6);
+    expect(rendered).toContain('+3 more');
+  });
+
+  it('sets guard text off as code, so a backtick cannot break the comment', () => {
+    const backticked = helper(`if (tag === \`x\`) ${DM}`, CLUB);
+    const result = diff(backticked, UNBRANCHED);
+    expect(result.changed[0].moved?.guards[0].before).toBe('tag === `x`');
+    const note = renderMarkdown(result, refs)
+      .split('\n')
+      .find((l) => l.includes('guard removed'));
+    expect(note).toBe(
+      `  - guard removed at \`${POKE_SITE}\`, was: \`tag === 'x'\``
+    );
   });
 });
 

@@ -5,6 +5,7 @@ import {
   renderFailure,
   renderMarkdown,
   renderText,
+  sitesOf,
   target,
 } from './diff';
 import { CLIENT_ROOTS, extractClient } from './extract';
@@ -56,11 +57,11 @@ function list(clientRef: string): number {
     // makes; printing the list without saying so reads like a clean sweep.
     if (row.dep.unresolved)
       console.log(`      unresolved: ${row.dep.unresolved}`);
-    console.log(`      ${row.sites.join(', ')}`);
+    console.log(`      ${sitesOf(row).join(', ')}`);
   }
   const unresolved = listed.filter((r) => r.dep.unresolved).length;
   console.log(
-    `\n${listed.length} distinct requests from ${listed.reduce((n, r) => n + r.sites.length, 0)} call sites` +
+    `\n${listed.length} distinct requests from ${listed.reduce((n, r) => n + sitesOf(r).length, 0)} call sites` +
       `, ${unresolved} of them marked ? because this reader could not resolve them`
   );
   return 0;

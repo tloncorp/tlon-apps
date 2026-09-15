@@ -9,8 +9,15 @@ import { Dependency, Surface } from './extract';
  * reads a desk.
  */
 
+/** One call site of a request, with the guard that has to hold to reach it. */
+export interface SiteRecord {
+  file: string;
+  line: number;
+  guard?: string;
+}
+
 /** `file:line` for a call site. */
-const at = (d: Dependency) => `${d.site.file}:${d.site.line}`;
+const at = (s: SiteRecord) => `${s.file}:${s.line}`;
 
 /** The agent a request is addressed to. */
 const agentOf = (d: Dependency) => (d.app ? `%${d.app}` : '(no agent)');
@@ -25,13 +32,36 @@ export const target = (d: Dependency) =>
 export interface Request {
   key: string;
   dep: Dependency;
-  sites: string[];
+  records: SiteRecord[];
 }
 
-/** A request whose call site survived while its app, path or mark did not. */
+/** `file:line` per call site, deduped, in the order they were found. */
+export const sitesOf = (r: Request): string[] => [
+  ...new Set(r.records.map(at)),
+];
+
+/** A guard that appeared, disappeared, or was rewritten at one call site. */
+export interface GuardChange {
+  site: string;
+  before?: string;
+  after?: string;
+}
+
+/** What moved when a request's identity stayed the same. */
+export interface SiteMove {
+  added: string[];
+  removed: string[];
+  guards: GuardChange[];
+}
+
 export interface ChangedRequest {
   before: Request;
   after: Request;
+  /**
+   * Set when the key itself is unchanged and only the call sites moved. Absent
+   * for a key change, where the `old -> new` label already says what moved.
+   */
+  moved?: SiteMove;
 }
 
 export interface InventoryDiff {
@@ -49,29 +79,99 @@ export interface Refs {
  * One row per request, keyed by the identity the extractor already assigns
  * (`Dependency.key`: surface + app + path/mark). Sorted by that key, so two
  * inventories read in the same order.
+ *
+ * Call sites are deduped on `file:line` *and* guard: one site can produce two
+ * records for the same key under opposite guards, and collapsing them would
+ * hide a guard being removed from one of them.
  */
 export function collate(deps: Dependency[]): Request[] {
-  const byKey = new Map<string, Request>();
+  const byKey = new Map<string, { req: Request; seen: Set<string> }>();
   for (const dep of deps) {
+    const record: SiteRecord = { ...dep.site, guard: dep.guard };
+    const id = `${at(record)}|${dep.guard ?? ''}`;
     const row = byKey.get(dep.key);
-    if (row) {
-      if (!row.sites.includes(at(dep))) row.sites.push(at(dep));
-    } else {
-      byKey.set(dep.key, { key: dep.key, dep, sites: [at(dep)] });
+    if (!row) {
+      byKey.set(dep.key, {
+        req: { key: dep.key, dep, records: [record] },
+        seen: new Set([id]),
+      });
+    } else if (!row.seen.has(id)) {
+      row.seen.add(id);
+      row.req.records.push(record);
     }
   }
-  return [...byKey.values()].sort((a, b) => a.key.localeCompare(b.key));
+  return [...byKey.values()]
+    .map((r) => r.req)
+    .sort((a, b) => a.key.localeCompare(b.key));
+}
+
+/**
+ * How a base call site is matched to a head one, most specific first. The first
+ * two mean "the same site"; the last two mean "the same site, guarded
+ * differently". Dropping the line before dropping the guard is what makes a
+ * pure line shift invisible while a guard edit in place is still reported.
+ */
+const MATCHERS: ((s: SiteRecord) => string)[] = [
+  (s) => `${s.file}|${s.line}|${s.guard ?? ''}`,
+  (s) => `${s.file}|${s.guard ?? ''}`,
+  (s) => `${s.file}|${s.line}`,
+  (s) => s.file,
+];
+
+/**
+ * Compare the call sites of one request against itself at another ref.
+ *
+ * `null` when nothing moved — including when every site only shifted lines,
+ * which is the common case and never worth a reviewer's attention. When
+ * several sites in a file share a guard, which of them is named as the added
+ * or removed one is arbitrary among that set; the count is still right.
+ */
+function moveOf(before: SiteRecord[], after: SiteRecord[]): SiteMove | null {
+  let unmatchedBefore = [...before];
+  let unmatchedAfter = [...after];
+  const guards: GuardChange[] = [];
+  for (const keyOf of MATCHERS) {
+    const pool = new Map<string, SiteRecord[]>();
+    for (const a of unmatchedAfter) {
+      const bucket = pool.get(keyOf(a));
+      if (bucket) bucket.push(a);
+      else pool.set(keyOf(a), [a]);
+    }
+    const matched = new Set<SiteRecord>();
+    const kept: SiteRecord[] = [];
+    for (const b of unmatchedBefore) {
+      const a = pool.get(keyOf(b))?.shift();
+      if (!a) {
+        kept.push(b);
+        continue;
+      }
+      matched.add(a);
+      if (b.guard !== a.guard)
+        guards.push({ site: at(a), before: b.guard, after: a.guard });
+    }
+    unmatchedBefore = kept;
+    unmatchedAfter = unmatchedAfter.filter((a) => !matched.has(a));
+  }
+  const added = unmatchedAfter.map(at);
+  const removed = unmatchedBefore.map(at);
+  if (!added.length && !removed.length && !guards.length) return null;
+  return { added, removed, guards };
 }
 
 /**
  * Compare two inventories.
  *
  * Membership is by `Dependency.key`, so a request is "the same request" exactly
- * when the extractor says it is. A dropped key and a new key that share a call
- * site (`file:line`) on the same surface are then reported as one change rather
- * than an unrelated pair — the usual shape of editing a path or bumping a mark
- * in place. A call site that also moved lines shows up as an add beside a
- * remove, which is the same information, less tidily.
+ * when the extractor says it is. Three things count as a change:
+ *
+ * - a dropped key and a new key that share a call site (`file:line`) on the
+ *   same surface — the usual shape of editing a path or bumping a mark in
+ *   place. A call site that also moved lines shows up as an add beside a
+ *   remove, which is the same information, less tidily;
+ * - a key present at both refs whose call sites differ;
+ * - a key present at both refs where a call site's guard was added, removed or
+ *   rewritten. A request that stops being guarded is exactly the kind of change
+ *   this report exists to surface, and the key does not move when it happens.
  */
 export function diffInventories(
   baseDeps: Dependency[],
@@ -79,26 +179,33 @@ export function diffInventories(
 ): InventoryDiff {
   const base = collate(baseDeps);
   const head = collate(headDeps);
-  const baseKeys = new Set(base.map((r) => r.key));
+  const baseByKey = new Map(base.map((r) => [r.key, r]));
   const headKeys = new Set(head.map((r) => r.key));
-  const appeared = head.filter((r) => !baseKeys.has(r.key));
+  const appeared = head.filter((r) => !baseByKey.has(r.key));
   const vanished = base.filter((r) => !headKeys.has(r.key));
 
   const changed: ChangedRequest[] = [];
   const paired = new Set<Request>();
   for (const before of vanished) {
-    const sites = new Set(before.sites);
+    const sites = new Set(before.records.map(at));
     const after = appeared.find(
       (a) =>
         !paired.has(a) &&
         a.dep.surface === before.dep.surface &&
-        a.sites.some((s) => sites.has(s))
+        a.records.some((r) => sites.has(at(r)))
     );
     if (!after) continue;
     paired.add(before);
     paired.add(after);
     changed.push({ before, after });
   }
+  for (const after of head) {
+    const before = baseByKey.get(after.key);
+    if (!before) continue;
+    const moved = moveOf(before.records, after.records);
+    if (moved) changed.push({ before, after, moved });
+  }
+  changed.sort((a, b) => a.after.key.localeCompare(b.after.key));
   return {
     added: appeared.filter((r) => !paired.has(r)),
     changed,
@@ -150,9 +257,15 @@ const SECTIONS = ['added', 'changed', 'removed'] as const;
 
 /**
  * A request made from everywhere names a few of its call sites and says how
- * many more there are. A PR comment is read, not scrolled.
+ * many more there are, and so does one whose call sites moved en masse. A PR
+ * comment is read, not scrolled.
  */
 const MAX_SITES = 6;
+
+const capped = (lines: string[]) =>
+  lines.length <= MAX_SITES
+    ? lines
+    : [...lines.slice(0, MAX_SITES), `+${lines.length - MAX_SITES} more`];
 
 interface Entry {
   label: string;
@@ -165,34 +278,77 @@ interface Entry {
   sites: string[];
   /** Call sites beyond `MAX_SITES`, left unlisted. */
   more: number;
+  /** For a same-key change: what moved, one phrase per line. */
+  notes: string[];
 }
 
-const entryOf = (label: string, dep: Dependency, sites: string[]): Entry => ({
+/**
+ * How a literal is set off from the prose around it. Guard text is source and
+ * can carry backticks of its own, which would break out of a markdown span.
+ */
+type Code = (text: string) => string;
+const asText: Code = (text) => text;
+const asMarkdown: Code = (text) => `\`${text.replace(/`/g, "'")}\``;
+
+const guardPhrase = (g: GuardChange, code: Code) => {
+  const where = `at ${code(g.site)}`;
+  if (g.before === undefined)
+    return `guard added ${where}: ${code(g.after ?? '')}`;
+  if (g.after === undefined)
+    return `guard removed ${where}, was: ${code(g.before)}`;
+  return `guard changed ${where}: ${code(g.before)} -> ${code(g.after)}`;
+};
+
+// Guards first: a request that stopped being guarded is the highest-signal
+// thing in the report, and must not be crowded out of a capped list by a
+// wholesale move of call sites.
+const notesFor = (m: SiteMove, code: Code) =>
+  capped([
+    ...m.guards.map((g) => guardPhrase(g, code)),
+    ...m.added.map((s) => `call site added: ${code(s)}`),
+    ...m.removed.map((s) => `call site removed: ${code(s)}`),
+  ]);
+
+const entryOf = (
+  label: string,
+  dep: Dependency,
+  sites: string[],
+  notes: string[] = []
+): Entry => ({
   label,
   unresolved: dep.unresolved,
   sites: sites.slice(0, MAX_SITES),
   more: Math.max(sites.length - MAX_SITES, 0),
+  notes,
 });
+
+/**
+ * A same-key change lists what moved rather than every site it is made from:
+ * the sites that did not move are what the reviewer already accepted.
+ */
+const changedEntry = (c: ChangedRequest, code: Code): Entry =>
+  c.moved
+    ? entryOf(target(c.after.dep), c.after.dep, [], notesFor(c.moved, code))
+    : entryOf(
+        `${target(c.before.dep)} -> ${target(c.after.dep)}`,
+        c.after.dep,
+        sitesOf(c.after)
+      );
 
 function entries(
   diff: InventoryDiff,
-  section: (typeof SECTIONS)[number]
+  section: (typeof SECTIONS)[number],
+  code: Code
 ): { heading: string; items: Entry[] }[] {
   if (section === 'changed') {
     return grouped(diff.changed, (c) => c.after.dep).map((g) => ({
       heading: g.heading,
-      items: g.items.map((c) =>
-        entryOf(
-          `${target(c.before.dep)} -> ${target(c.after.dep)}`,
-          c.after.dep,
-          c.after.sites
-        )
-      ),
+      items: g.items.map((c) => changedEntry(c, code)),
     }));
   }
   return grouped(diff[section], (r) => r.dep).map((g) => ({
     heading: g.heading,
-    items: g.items.map((r) => entryOf(target(r.dep), r.dep, r.sites)),
+    items: g.items.map((r) => entryOf(target(r.dep), r.dep, sitesOf(r))),
   }));
 }
 
@@ -213,7 +369,7 @@ export function renderText(diff: InventoryDiff, refs: Refs): string {
   if (isEmpty(diff)) return summary;
   const out = [`${HEADER}: ${refs.base} -> ${refs.head}`, '', summary, ''];
   for (const section of SECTIONS) {
-    const groups = entries(diff, section);
+    const groups = entries(diff, section, asText);
     if (groups.length === 0) continue;
     out.push(section);
     for (const group of groups) {
@@ -221,6 +377,7 @@ export function renderText(diff: InventoryDiff, refs: Refs): string {
       for (const e of group.items) {
         out.push(`    ${e.label}`);
         if (e.unresolved) out.push(`      unresolved: ${e.unresolved}`);
+        for (const note of e.notes) out.push(`      ${note}`);
         for (const site of e.sites) out.push(`      ${site}`);
         if (e.more) out.push(`      +${e.more} more`);
       }
@@ -261,7 +418,7 @@ export function renderMarkdown(diff: InventoryDiff, refs: Refs): string {
   }
   out.push(GUIDANCE, '');
   for (const section of SECTIONS) {
-    const groups = entries(diff, section);
+    const groups = entries(diff, section, asMarkdown);
     if (groups.length === 0) continue;
     out.push(`### ${section[0].toUpperCase()}${section.slice(1)}`, '');
     for (const group of groups) {
@@ -269,9 +426,11 @@ export function renderMarkdown(diff: InventoryDiff, refs: Refs): string {
       for (const e of group.items) {
         const where = e.sites.map((s) => `\`${s}\``).join(', ');
         out.push(
-          `- \`${e.label}\` — ${where}${e.more ? ` _+${e.more} more_` : ''}` +
+          `- \`${e.label}\`${where && ` — ${where}`}` +
+            `${e.more ? ` _+${e.more} more_` : ''}` +
             (e.unresolved ? ` _(unresolved: ${e.unresolved})_` : '')
         );
+        for (const note of e.notes) out.push(`  - ${note}`);
       }
       out.push('');
     }

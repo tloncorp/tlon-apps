@@ -746,6 +746,22 @@ it('skips the wrapper definitions and test files', () => {
   expect(deps.map((d) => d.key)).toEqual(['scry groups /v1/init']);
 });
 
+it('skips a plain test directory, but only on an exact segment', () => {
+  const call = (path: string) =>
+    `import { scry } from '@tloncorp/api';\nexport const f = () => scry({ app: 'groups', path: '${path}' });`;
+  const deps = extractClient(
+    memoryTree({
+      'packages/api/src/test/helpers.ts': call('/from-api-test'),
+      'packages/shared/src/test/setup.ts': call('/from-shared-test'),
+      'packages/app/test/fixtures.ts': call('/from-app-test'),
+      'apps/tlon-mobile/src/test/mock.ts': call('/from-mobile-test'),
+      'packages/api/src/tests/other.ts': call('/from-plural-tests'),
+      'packages/api/src/testimony/real.ts': call('/from-testimony'),
+    })
+  );
+  expect(deps.map((d) => d.key)).toEqual(['scry groups /from-testimony']);
+});
+
 it('scans both app source roots by default', () => {
   const deps = extractClient(
     memoryTree({

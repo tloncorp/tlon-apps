@@ -104,9 +104,18 @@ const DEFINITION_FILES = [
   'apps/tlon-web/src/api.ts',
 ];
 
+/**
+ * Test trees, by both conventions this repo uses: `__tests__`/`__mocks__` and a
+ * plain `test`/`tests` directory (`packages/api/src/test`,
+ * `packages/shared/src/test`, `packages/app/test`, `apps/tlon-mobile/src/test`).
+ * The segment must be exactly that, so a `testimony/` directory still counts as
+ * shipped code.
+ */
+const TEST_DIR = /(^|\/)(__tests__|__mocks__|tests?)\//;
+
 const isSkipped = (file: string) =>
   DEFINITION_FILES.some((d) => file === d || file.startsWith(d)) ||
-  /(^|\/)(__tests__|__mocks__)\//.test(file) ||
+  TEST_DIR.test(file) ||
   /\.(test|spec)\.tsx?$/.test(file);
 
 type Helpers = Map<string, ts.FunctionLikeDeclaration>;

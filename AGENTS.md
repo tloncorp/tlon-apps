@@ -12,10 +12,13 @@ defaults and should not be inferred from memory.
 ## Reviewing the desk requests comment
 
 A PR touching `packages/api` or `packages/shared` gets one sticky comment headed
-"Desk requests", from `pnpm check:desk-requests <merge-base> --markdown`. It is
-an inventory diff: the scries, subscriptions, pokes and threads this branch
-**adds, changes or drops**, grouped by kind and agent, each with its call sites.
-It reads no desk, decides nothing, and never fails CI. The review is the check.
+"Desk requests". It is an inventory diff: the scries, subscriptions, pokes and
+threads this branch **adds, changes or drops**, grouped by kind and agent, each
+with its call sites. A request counts as changed when its path or mark moved,
+when it gained or lost a call site, or when a guard around one was added or
+removed — a request that stops being guarded is new to N-1 even though nothing
+about it moved. It reads no desk, decides nothing, and never fails CI. The
+review is the check.
 
 For every **added** and **changed** entry, confirm the N-1 desk serves it. N-1
 is the tag `v<MIN_GROUPS_VERSION>` from
@@ -44,8 +47,7 @@ Then say so in the review:
   call sites sits behind a capability guard whose other branch N-1 does serve.
   Otherwise it waits for that desk to become N-1 (rule (b)).
 
-A **removed** entry is not a compatibility problem for this client; it bears
-only on desk removal (rule (c)).
+A **removed** entry bears only on desk removal (rule (c)), not on this client.
 
 # Tlon Messenger backend
 The backend of the Tlon Messenger app is hosted on the Urbit platform.
