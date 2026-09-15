@@ -18,7 +18,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { supportsNativeScrollEdgeChrome } from '../../navigation/nativeHeaderOptions';
+import { useHasFloatingHeader } from '../../navigation/useFloatingHeaderHeight';
 import { GlassSurface, supportsLiquidGlass } from './GlassSurface';
 import {
   floatingChromeMetrics,
@@ -33,6 +33,7 @@ export {
   floatingPinnedPostBannerHeight,
   floatingScrollControlClearance,
   getPostCollectionTopInset,
+  unobscuredConversationBottomGap,
 } from './conversationInsets';
 
 /** Owns all measured geometry reserved around a conversation list. */
@@ -49,12 +50,7 @@ export function useConversationInsets({
 }) {
   const headerHeight = useContext(HeaderHeightContext) ?? 0;
   const { bottom: bottomSafeArea } = useSafeAreaInsets();
-  const usesTransparentHeader =
-    supportsNativeScrollEdgeChrome(
-      Platform.OS,
-      Platform.Version,
-      supportsLiquidGlass()
-    ) && hasTransparentHeader;
+  const usesTransparentHeader = useHasFloatingHeader(hasTransparentHeader);
   const [measuredComposerHeight, setMeasuredComposerHeight] = useState<
     number | null
   >(null);

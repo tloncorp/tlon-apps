@@ -33,7 +33,7 @@ import {
 } from 'tamagui';
 
 import { useIsUserActive } from '../../../hooks/useUserActivity';
-import { useTopLevelTabBarContentInset } from '../../../navigation/useTopLevelTabBarContentInset';
+import { useTopLevelTabBarClearance } from '../../../navigation/useTopLevelTabBarContentInset';
 import type { ChannelShareIntent } from '../../../types/shareIntent';
 import { normalizeUploadIntent } from '../../../utils/filepicker';
 import { useCurrentUserId } from '../../contexts/appDataContext';
@@ -383,7 +383,7 @@ export function Channel({
   const canWrite = utils.useCanWrite(channel, currentUserId);
   const canRead = utils.useCanRead(channel, currentUserId);
   const isNarrow = useIsWindowNarrow();
-  const tabBarContentInset = useTopLevelTabBarContentInset();
+  const tabBarClearance = useTopLevelTabBarClearance();
   const inView = useIsFocused();
   const collectionRef = useRef<PostCollectionHandle>(null);
   const orientationCompletePostId = useMemo(
@@ -930,11 +930,7 @@ export function Channel({
                   disableBackButton ? undefined : goToGroupSettings
                 }
               >
-                <View
-                  backgroundColor={backgroundColor}
-                  flex={1}
-                  paddingBottom={isTopLevelTab ? tabBarContentInset : undefined}
-                >
+                <View backgroundColor={backgroundColor} flex={1}>
                   <FileDrop
                     flexDirection="column"
                     justifyContent="space-between"
@@ -1104,6 +1100,9 @@ export function Channel({
                                 <DraftInputView
                                   draftInputContext={draftInputContext}
                                   type={draftInputType}
+                                  bottomChromeClearance={
+                                    isTopLevelTab ? tabBarClearance : 0
+                                  }
                                   onFloatingHeightChange={
                                     onFloatingHeightChange
                                   }
