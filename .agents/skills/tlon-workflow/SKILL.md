@@ -145,7 +145,22 @@ What this app does that the sequence above does not show:
 - On Android this app's screens collapse into a few group nodes, so `find` matches nothing; a `text="..."` selector still resolves.
 - iOS shows a keyboard tip ("Speed up your typing...", `Continue`) on the first text entry, which swallows the next tap. Only reached when the fields are not prefilled.
 
-**Web** has no prefill. Open `http://localhost:<port>/apps/groups/` and the ship's own login page appears; enter the ship's `+code` -- the same value as `DEFAULT_SHIP_LOGIN_ACCESS_CODE` -- once per browser profile, and the cookie holds. `SHIP_ACCESS_CODE` in `apps/tlon-web/.env.local` is read by nothing in the repository; do not go looking for what consumes it.
+**Web** has no prefill: the login page that appears is the ship's own, served through the dev server's proxy. Sign in with the same `DEFAULT_SHIP_LOGIN_ACCESS_CODE`, through whatever browser automation you have. The selectors are the ones `apps/tlon-web/e2e/auth.setup.ts` uses against these ships, so they are already known to work:
+
+```
+navigate  http://localhost:<port>/~/login
+fill      placeholder "sampel-ticlyt-migfun-falmel"  <the +code>
+click     the Continue button in that field's own form
+wait      until the url is no longer /~/login
+```
+
+A ship that offers eauth renders a second form below the first, with its own `Continue`, so the name alone matches twice and Playwright's strict mode refuses it. Take the button inside the form holding the `password` field -- `page.locator('form:has([name=password])').getByRole('button')` -- or submit that form directly. The e2e ships render only the one form, which is why `auth.setup.ts` gets away with the bare name.
+
+The cookie holds for that browser profile afterwards, so this is once per profile rather than once per run. Driving Playwright, `context.storageState({ path })` after signing in and reusing that file skips even the first time -- what the e2e suite does once per ship.
+
+Serve over https (`SSL=true`, as `pnpm dev` sets) if you are driving **Safari**: the ship marks its `urbauth-` cookie `Secure; SameSite=None`, and Safari drops such a cookie on a plain-http origin, so the app returns to the login page however many times you sign in. Chrome and Chromium treat `http://localhost` as a secure context and keep it, which is why the same steps pass there and loop in Safari.
+
+`SHIP_ACCESS_CODE` in `apps/tlon-web/.env.local` is read by nothing in the repository; do not go looking for what consumes it.
 
 This yields an `authType: 'self'` session. It gets you into the app; it does not exercise the hosting-account flows (node status, revival, bot config).
 

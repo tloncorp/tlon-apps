@@ -18,6 +18,19 @@ const REPO = dirname(
   ).stdout?.trim() || join(resolve(HERE, '..', '..', '..'), '.git')
 );
 const APP = join(REPO, 'apps', 'tlon-mobile');
+const WEB = join(REPO, 'apps', 'tlon-web');
+
+// dotenv semantics: an unquoted value ends at ` #`, a quoted one keeps it.
+function envHas(dir, key) {
+  const file = join(dir, '.env.local');
+  const text = existsSync(file) ? readFileSync(file, 'utf8') : '';
+  const line = text.match(new RegExp(`^${key}=(.*)$`, 'm'));
+  if (!line) return false;
+  const raw = line[1].trim();
+  const quoted = raw.match(/^(["'])(.*)\1/);
+  const value = quoted ? quoted[2] : raw.replace(/\s+#.*$/, '');
+  return value.trim() !== '';
+}
 const SKILL_DIRS = [
   join(homedir(), '.agents', 'skills'),
   join(REPO, '.agents', 'skills'),
@@ -206,17 +219,7 @@ const checks = [
   {
     name: 'ship login',
     test() {
-      const env = join(APP, '.env.local');
-      const text = existsSync(env) ? readFileSync(env, 'utf8') : '';
-      // dotenv semantics: an unquoted value ends at ` #`, a quoted one keeps it.
-      const has = (k) => {
-        const line = text.match(new RegExp(`^${k}=(.*)$`, 'm'));
-        if (!line) return false;
-        const raw = line[1].trim();
-        const quoted = raw.match(/^(["'])(.*)\1/);
-        const value = quoted ? quoted[2] : raw.replace(/\s+#.*$/, '');
-        return value.trim() !== '';
-      };
+      const has = (k) => envHas(APP, k);
       const self = ['DEFAULT_SHIP_LOGIN_URL', 'DEFAULT_SHIP_LOGIN_ACCESS_CODE'];
       const hosted = [
         'DEFAULT_TLON_LOGIN_EMAIL',
@@ -226,6 +229,17 @@ const checks = [
       if (hosted.every(has)) return { ok: 'hosted login configured' };
       return {
         note: `neither ${self.join(' + ')} nor ${hosted.join(' + ')} set in apps/tlon-mobile/.env.local; sign-in will need a person`,
+      };
+    },
+  },
+  {
+    name: 'web ship url',
+    test() {
+      if (envHas(WEB, 'VITE_SHIP_URL')) return { ok: 'configured' };
+      // The dev server proxies to this ship; without it web comes up against
+      // localhost:8080 and the sign-in below has nothing to sign in to.
+      return {
+        note: 'VITE_SHIP_URL is not set in apps/tlon-web/.env.local; the web dev server will proxy to localhost:8080',
       };
     },
   },
