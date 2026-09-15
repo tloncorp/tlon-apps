@@ -1,10 +1,14 @@
 import * as React from 'react';
-import Animated, { Easing, FadeIn } from 'react-native-reanimated';
+import { EaseView, type TimingTransition } from 'react-native-ease';
 
 import { getAppendedPostIds } from './postArrivals';
 import type { PostListComponentProps, PostWithNeighbors } from './shared';
 
-const messageFadeIn = FadeIn.duration(220).easing(Easing.out(Easing.quad));
+const messageFadeIn: TimingTransition = {
+  type: 'timing',
+  duration: 220,
+  easing: 'easeOut',
+};
 
 function PostArrival({
   postId,
@@ -25,9 +29,13 @@ function PostArrival({
   }, [displayedPostIds, postId]);
 
   return (
-    <Animated.View entering={shouldAnimate ? messageFadeIn : undefined}>
+    <EaseView
+      initialAnimate={shouldAnimate ? { opacity: 0 } : undefined}
+      animate={{ opacity: 1 }}
+      transition={messageFadeIn}
+    >
       {children}
-    </Animated.View>
+    </EaseView>
   );
 }
 

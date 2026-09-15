@@ -378,6 +378,9 @@ importers:
       react-native-device-info:
         specifier: ^10.8.0
         version: 10.12.0(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))
+      react-native-ease:
+        specifier: 0.8.0
+        version: 0.8.0(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       react-native-email-link:
         specifier: ~1.16.1
         version: 1.16.1(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
@@ -1026,6 +1029,9 @@ importers:
       posthog-js:
         specifier: ^1.234.4
         version: 1.234.4
+      react-native-ease:
+        specifier: 0.8.0
+        version: 0.8.0(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       refractor:
         specifier: ^4.8.0
         version: 4.8.0
@@ -11538,6 +11544,19 @@ packages:
       react-native: 0.86.3
       react-native-gesture-handler: ~2.32.0
       react-native-reanimated: 4.5.0
+
+  react-native-ease@0.8.0:
+    resolution: {integrity: sha512-V77tfBOPt8RXZIPY+/VQYqp0OTE1n6Wp9kNaauAIHUxGZ39q3jMd3d2VJLrjH4u/r+/+dZbBdONCmV1pdEtq2Q==}
+    peerDependencies:
+      nativewind: '>=4'
+      react: 19.2.3
+      react-native: 0.86.3
+      uniwind: '>=1'
+    peerDependenciesMeta:
+      nativewind:
+        optional: true
+      uniwind:
+        optional: true
 
   react-native-email-link@1.16.1:
     resolution: {integrity: sha512-uTolJXOa6HKPEiRAQuLKN/OhVwUA4xS++yPV6YiCtRBWxl2q3FUlrJt1G6plfMAEU4qNhmwZnH3tCJ9WNYIDhg==}
@@ -26285,6 +26304,11 @@ snapshots:
       react-native-gesture-handler: 2.32.0(patch_hash=e6fc0413229a6f38cc4b2432f69ea6cc8692cc4d611e47452f4c65678df5caf4)(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       react-native-reanimated: 4.5.0(patch_hash=dca1e6927879993905550e8e56f8fa98423ff51ce87750ea4478bd40a4341f7f)(react-native-worklets@0.10.3(patch_hash=493073c3d3dffc3a19003c8bb99960497eb1d81f29e6dc25068c4b85a86c312e)(@babel/core@7.29.0)(@react-native/metro-config@0.86.3)(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       use-latest-callback: 0.2.6(react@19.2.3)
+
+  react-native-ease@0.8.0(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3):
+    dependencies:
+      react: 19.2.3
+      react-native: 0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3)
 
   react-native-email-link@1.16.1(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3):
     dependencies:

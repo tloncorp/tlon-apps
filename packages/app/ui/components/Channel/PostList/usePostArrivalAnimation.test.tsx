@@ -10,10 +10,8 @@ import {
   vi,
 } from 'vitest';
 
-vi.mock('react-native-reanimated', () => ({
-  default: { View: 'animated-row' },
-  Easing: { out: () => null, quad: null },
-  FadeIn: { duration: () => ({ easing: () => 'fade-in' }) },
+vi.mock('react-native-ease', () => ({
+  EaseView: 'animated-row',
 }));
 
 import type { PostWithNeighbors } from './shared';
@@ -66,11 +64,11 @@ function update(props: React.ComponentProps<typeof List>) {
   act(() => renderer.update(<List {...props} />));
 }
 
-function entering(id: string) {
+function initialOpacity(id: string) {
   return renderer.root
     .findAllByType('animated-row' as never)
     .find((row) => row.findByType('post' as never).props.id === id)?.props
-    .entering;
+    .initialAnimate?.opacity;
 }
 
 describe('message entry animations', () => {
@@ -79,30 +77,30 @@ describe('message entry animations', () => {
     render({ data: initial, enabled: false });
     update({ data: initial });
     update({ data: posts('a', 'b', 'c') });
-    expect(entering('a')).toBeUndefined();
-    expect(entering('b')).toBe('fade-in');
-    expect(entering('c')).toBe('fade-in');
+    expect(initialOpacity('a')).toBeUndefined();
+    expect(initialOpacity('b')).toBe(0);
+    expect(initialOpacity('c')).toBe(0);
   });
 
   it('does not replay a fade after virtualization remounts a message', () => {
     render({ data: posts('a') });
     const data = posts('a', 'b');
     update({ data });
-    expect(entering('b')).toBe('fade-in');
+    expect(initialOpacity('b')).toBe(0);
     update({ data, visible: ['a'] });
     update({ data });
-    expect(entering('b')).toBeUndefined();
+    expect(initialOpacity('b')).toBeUndefined();
   });
 
   it('does not fade a newer history page when returning to live mode', () => {
     render({ data: posts('a'), enabled: false });
     update({ data: posts('a', 'b'), enabled: true });
-    expect(entering('b')).toBeUndefined();
+    expect(initialOpacity('b')).toBeUndefined();
   });
 
   it('leaves arrivals immediate while animations are disabled', () => {
     render({ data: posts('a') });
     update({ data: posts('a', 'b'), enabled: false });
-    expect(entering('b')).toBeUndefined();
+    expect(initialOpacity('b')).toBeUndefined();
   });
 });
