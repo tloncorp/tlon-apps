@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+set -euo pipefail
+: "${NGROK_AUTHTOKEN:?Tunnel credential missing}"
+mkdir -p "$PROOF_OUTPUT"
+start=$SECONDS
+: "${QA_TUNNEL_TOKEN:?Tunnel access credential missing}"
+[[ "$QA_TUNNEL_TOKEN" =~ ^[a-f0-9]{64}$ ]]
+# The EAS host proxy adds this credential; it never reaches the app or model.
+cat > "$RUNNER_TEMP/proof-nginx.conf" <<EOF
+pid $RUNNER_TEMP/proof-nginx.pid;
+error_log $PROOF_OUTPUT/proxy.log;
+events { worker_connections 1024; }
+http {
+# Compatibility for the existing binary's SSE parser: carry stream bytes
+# unchanged through ngrok. Remove after qualifying a binary with the parser fix.
+map \$upstream_http_content_type \$proof_content_type {
+  default \$upstream_http_content_type;
+  ~*^text/event-stream "application/octet-stream";
+}
+client_body_temp_path $RUNNER_TEMP/proof-nginx-body;
+proxy_temp_path $RUNNER_TEMP/proof-nginx-temp;
+server {
+  listen 127.0.0.1:49379;
+  if (\$http_x_qa_token != "$QA_TUNNEL_TOKEN") { return 403; }
+  access_log off;
+  location = /qa-proof/ready { alias $PROOF_OUTPUT/peer-ready.json; }
+  location = /qa-proof/result { alias $PROOF_OUTPUT/peer-result.json; }
+  location / {
+    proxy_pass http://127.0.0.1:35453;
+    proxy_http_version 1.1;
+    proxy_set_header Host \$http_host;
+    proxy_buffering off;
+    proxy_hide_header Content-Type;
+    add_header Content-Type \$proof_content_type;
+    proxy_read_timeout 300s;
+  }
+}
+}
+EOF
+nginx -t -c "$RUNNER_TEMP/proof-nginx.conf"
+nginx -c "$RUNNER_TEMP/proof-nginx.conf"
+status=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:49379)
+test "$status" = 403
+echo 'Proxy rejected an unauthenticated request.'
+ngrok http 127.0.0.1:49379 --inspect=false --log stdout --log-format json > "$PROOF_OUTPUT/ngrok.log" 2>&1 &
+echo $! > "$PROOF_OUTPUT/ngrok.pid"
+url=''
+for attempt in $(seq 1 10); do
+  url=$(curl -fsS http://127.0.0.1:4040/api/tunnels 2>/dev/null | jq -r '.tunnels[]? | select(.proto == "https") | .public_url' || true)
+  [ -n "$url" ] && break
+  kill -0 "$(cat "$PROOF_OUTPUT/ngrok.pid")" || { cat "$PROOF_OUTPUT/ngrok.log"; exit 1; }
+  sleep 1
+done
+[[ "$url" == https://* ]]
+echo "Tunnel connected after $((SECONDS-start)) seconds."
+
+# Rube owns preparation, desk commit/readiness and ship process cleanup.
+if [ -d .proof-snapshot/zod ]; then
+  dist=apps/tlon-web/rube/dist
+  cp -a .proof-snapshot/zod .proof-snapshot/ten "$dist/"
+  mkdir -p "$dist/urbit_extracted" .peru
+  cp -a .proof-snapshot/urbit "$dist/urbit_extracted/urbit"
+  cp -a .proof-snapshot/peru-cache .peru/cache
+  export SKIP_DOWNLOAD=true
+  echo 'Restored prepared ships and their runtime; native app unchanged.'
+fi
+tmux new-session -d -s proof-rube "cd '$PWD/apps/tlon-web' && SKIP_DOWNLOAD=${SKIP_DOWNLOAD:-false} SKIP_TESTS=true INCLUDE_OPTIONAL_SHIPS=false pnpm rube > '$PROOF_OUTPUT/rube.log' 2>&1"
+deadline=$((SECONDS+1200))
+[ "${SKIP_DOWNLOAD:-false}" != true ] || deadline=$((SECONDS+120))
+last_progress=$SECONDS
+until grep -q SHIP_SETUP_COMPLETE "$PROOF_OUTPUT/rube.log" 2>/dev/null; do
+  tmux has-session -t proof-rube || { tail -60 "$PROOF_OUTPUT/rube.log"; exit 1; }
+  if [ "${SKIP_DOWNLOAD:-false}" = true ] && grep -q 'Committing desks on ships that need updates' "$PROOF_OUTPUT/rube.log"; then
+    echo 'Prepared snapshot does not match this backend; refusing a surprise cold compile.'
+    exit 1
+  fi
+  if ((SECONDS > deadline)); then tail -60 "$PROOF_OUTPUT/rube.log"; exit 1; fi
+  if ((SECONDS-last_progress >= 30)); then tail -4 "$PROOF_OUTPUT/rube.log"; last_progress=$SECONDS; fi
+  sleep 5
+done
+echo "Ships prepared after $((SECONDS-start)) seconds."
+
+# Capture checkout and the actual assembled desk, including vendored files.
+git rev-parse HEAD > "$PROOF_OUTPUT/source.txt"
+find apps/tlon-web/rube/dist/desk-staging -type f -print0 | sort -z | xargs -0 sha256sum > "$PROOF_OUTPUT/desk-manifest.txt"
+PROOF_PUBLIC_URL="http://127.0.0.1:35453" NODE_OPTIONS=--conditions=tlon-source pnpm --filter @tloncorp/tlon-bot-e2e exec tsx "$PWD/.maestro/cloud-fakeship/peer.ts" > "$PROOF_OUTPUT/peer.log" 2>&1 &
+echo $! > "$PROOF_OUTPUT/peer.pid"
+deadline=$((SECONDS+120))
+until [ -f "$PROOF_OUTPUT/peer-ready.json" ]; do
+  kill -0 "$(cat "$PROOF_OUTPUT/peer.pid")" || { cat "$PROOF_OUTPUT/peer.log"; exit 1; }
+  if ((SECONDS > deadline)); then cat "$PROOF_OUTPUT/peer.log"; exit 1; fi
+  sleep 1
+done
+cat "$PROOF_OUTPUT/peer-ready.json"
+code=$(jq -r '."~zod".code' apps/tlon-web/e2e/shipManifest.json)
+echo "::add-mask::$code"
+# Verify authentication over the same public HTTPS route the device will use.
+curl -fsS -H "X-QA-Token: $QA_TUNNEL_TOKEN" -c "$RUNNER_TEMP/proof-cookie" --data-urlencode "password=$code" "$url/~/login" >/dev/null
+curl -fsS -H "X-QA-Token: $QA_TUNNEL_TOKEN" -b "$RUNNER_TEMP/proof-cookie" "$url/~/scry/groups/groups/light.json" | jq -e 'type == "object"' >/dev/null
+rm "$RUNNER_TEMP/proof-cookie"
+echo "url=$url" >> "$GITHUB_OUTPUT"
+echo "code=$code" >> "$GITHUB_OUTPUT"
+printf '{"readySeconds":%s}\n' "$((SECONDS-start))" > "$PROOF_OUTPUT/preparation.json"
