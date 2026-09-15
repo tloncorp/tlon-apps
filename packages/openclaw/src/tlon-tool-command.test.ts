@@ -405,6 +405,7 @@ describe('checkBlockedTlonOperation', () => {
 
 const documentedActionOperations = {
   activity: ['mentions', 'replies', 'all', 'unreads'],
+  browser: ['handoff'],
   channels: [
     'dms',
     'group-dms',
@@ -711,6 +712,21 @@ describe('tlon tool telemetry summarizer', () => {
     expect(JSON.stringify(summary)).not.toContain(
       'https://cdn.example.com/private-assets/avatar.png'
     );
+  });
+
+  it('summarizes browser handoff without storing its signed capability', () => {
+    const summary = summarizeTlonCommand(
+      'browser handoff https://browser-session-ovh1.tlon.network/s/private.signature'
+    );
+
+    expect(summary).toMatchObject({
+      summaryKey: 'browser.handoff',
+      subcommand: 'browser',
+      operation: 'handoff',
+      intent: 'write',
+      isKnownSubcommand: true,
+    });
+    expect(JSON.stringify(summary)).not.toContain('private.signature');
   });
 
   it('marks wrong-path DM sends as blocked without storing the target ship', () => {
