@@ -550,6 +550,74 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
       record('dm-unblock-state', { requester: '~ten', blocked: false });
     });
   }
+  if (selected('blocked-group-invite')) {
+    await resetDmPeer();
+    await zod.state.poke({
+      app: 'chat',
+      mark: 'chat-block-ship',
+      json: { ship: '~ten' },
+    });
+    await until('blocked group inviter fixture reaches zod', () =>
+      includesShip(zod, '/blocked', '~ten')
+    );
+    const blockedInvite = await ten.createGroupWithChannel({
+      title: `BlockedInvite-${tag}`,
+      members: ['~zod'],
+    });
+    fixtures.BlockedInvite = blockedInvite;
+    await new Promise((resolve) => setTimeout(resolve, 3_000));
+    const foreigns = await zod.state.scry<Record<string, any>>(
+      'groups',
+      '/v1/foreigns'
+    );
+    const backendHasInvite = (
+      foreigns?.[blockedInvite.groupId]?.invites ?? []
+    ).some((invite: any) => invite.valid);
+    const control = await zod.createGroupWithChannel({
+      title: `InviteControl-${tag}`,
+    });
+    fixtures.InviteControl = control;
+    await until('invite control group reaches zod', () =>
+      zod.state.isMemberOfGroup(control.groupId)
+    );
+    record('blocked-group-invite-state', {
+      blockedShip: '~ten',
+      blockedInviteGroupId: blockedInvite.groupId,
+      backendHasInvite,
+      controlGroupId: control.groupId,
+    });
+  }
+  if (selected('blocked-group-content')) {
+    await resetDmPeer();
+    const g = await group('BlockedContent', zod);
+    await zod.state.poke({
+      app: 'chat',
+      mark: 'chat-block-ship',
+      json: { ship: '~ten' },
+    });
+    await until('blocked shared-group peer fixture reaches zod', () =>
+      includesShip(zod, '/blocked', '~ten')
+    );
+    const blockedText = `${tag} blocked group post`;
+    const controlText = `${tag} blocker control post`;
+    await say(g.chatChannel, blockedText);
+    await until('blocked peer post reaches blocker backend', async () =>
+      (await zod.state.channelPosts(g.chatChannel)).some(
+        (post) => post.authorId === '~ten' && post.text === blockedText
+      )
+    );
+    await zod.sendChannelPost({
+      channelId: g.chatChannel,
+      content: controlText,
+    });
+    record('blocked-group-content-state', {
+      groupId: g.groupId,
+      blockedShip: '~ten',
+      blockedText,
+      controlText,
+      backendReceivedBlockedPost: true,
+    });
+  }
   if (selected('moderation')) {
     const g = await group('Kick');
     await say(g.chatChannel, 'member before kick');
