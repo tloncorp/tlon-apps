@@ -2,6 +2,9 @@ import { writeFileSync } from 'node:fs';
 import { actorApi } from '../../packages/tlon-bot-e2e/src/tlon/actor';
 const {
   addContact,
+  addChannelWriters,
+  addGroupRole,
+  addMembersToRole,
   getChannelPosts,
   getContacts,
   kickUsersFromGroup,
@@ -26,6 +29,7 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
     'group-mark-read',
     'channel-mark-read',
     'activity-filters',
+    'permissions',
   ]);
   const selected = (name: string) =>
     selection === 'all'
@@ -224,6 +228,138 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
         unread: false,
       });
     });
+  }
+  if (selected('permissions') || selected('permissions-restore')) {
+    const restoresPermissions = selected('permissions-restore');
+    const g = await group('Permissions');
+    const roleId = `${tag.toLowerCase()}-member`;
+    const channelName = `${tag.toLowerCase()}-permission-target`;
+    const channelId = `chat/~ten/${channelName}`;
+    await ten.withClient(() =>
+      addGroupRole({
+        groupId: g.groupId,
+        roleId,
+        meta: {
+          title: `${tag} member`,
+          description: 'Native permission enforcement fixture',
+        },
+      })
+    );
+    await ten.withClient(() =>
+      addMembersToRole({
+        groupId: g.groupId,
+        roleId,
+        ships: ['~zod'],
+      })
+    );
+    await ten.state.poke({
+      app: 'channels',
+      mark: 'channel-action-2',
+      json: {
+        create: {
+          kind: 'chat',
+          group: g.groupId,
+          name: channelName,
+          title: 'Permission target',
+          description: 'Native member permission enforcement',
+          meta: null,
+          readers: ['admin', roleId],
+          writers: ['admin'],
+        },
+      },
+    });
+    await until('read-only permission fixture reaches both ships', async () => {
+      const groups: any[] = await Promise.all([
+        zod.state.group(g.groupId),
+        ten.state.group(g.groupId),
+      ]);
+      return groups.every((candidate) =>
+        candidate?.channels?.some(
+          (channel: any) =>
+            channel.id === channelId && channel.currentUserIsMember !== false
+        )
+      );
+    });
+    await ten.sendChannelPost({
+      channelId,
+      content: `${tag} read-only visible`,
+    });
+    await until('read-only post reaches native member', async () =>
+      (await zod.state.channelPosts(channelId)).some(
+        (post) =>
+          post.authorId === '~ten' && post.text === `${tag} read-only visible`
+      )
+    );
+
+    const changeReaders = (action: 'add-readers' | 'del-readers') =>
+      ten.state.poke({
+        app: 'groups',
+        mark: 'group-action-5',
+        json: {
+          group: {
+            flag: g.groupId,
+            'a-group': {
+              channel: {
+                nest: channelId,
+                'a-channel': { [action]: [roleId] },
+              },
+            },
+          },
+        },
+      });
+    const canReadTargetChannel = async () => {
+      const member: any = await zod.state.group(g.groupId);
+      return member?.channels?.some(
+        (channel: any) =>
+          channel.id === channelId && channel.currentUserIsMember !== false
+      );
+    };
+    task(
+      restoresPermissions ? 'permissions-restore' : 'permissions',
+      async () => {
+        await received(g.chatChannel, `${tag} request no-read`, 30 * 60_000);
+        await changeReaders('del-readers');
+        await until(
+          'target channel hidden from native member',
+          async () => !(await canReadTargetChannel())
+        );
+        await say(g.chatChannel, `${tag} no-read applied`);
+        record('permission-read-only', {
+          groupId: g.groupId,
+          channelId,
+          roleId,
+          seededPost: `${tag} read-only visible`,
+        });
+        record('permission-no-read-backend', {
+          groupId: g.groupId,
+          channelId,
+          roleId,
+          readable: false,
+        });
+        if (!restoresPermissions) return;
+
+        await received(g.chatChannel, `${tag} request restore`, 30 * 60_000);
+        await changeReaders('add-readers');
+        await ten.withClient(() =>
+          addChannelWriters({ channelId, writers: [roleId] })
+        );
+        await until(
+          'target channel restored to native member',
+          canReadTargetChannel
+        );
+        await ten.sendChannelPost({
+          channelId,
+          content: `${tag} read-write restored`,
+        });
+        await received(channelId, `${tag} restored mobile post`, 30 * 60_000);
+        record('permission-restored', {
+          groupId: g.groupId,
+          channelId,
+          roleId,
+          restoredPost: `${tag} restored mobile post`,
+        });
+      }
+    );
   }
   if (selected('activity-filters')) {
     const g = await group('Activity', zod);

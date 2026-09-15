@@ -33,6 +33,12 @@ output.reliability = {
   activityGroupPattern: exact('Activity-' + MAESTRO_RUN_TAG),
   activityReplyPattern:
     '^.*' + exact(MAESTRO_RUN_TAG + ' activity reply').slice(1, -1) + '.*$',
+  permissionRestoredPostPattern: exact(
+    MAESTRO_RUN_TAG + ' restored mobile post '
+  ).replace(/ \$$/, ' ?$'),
+  permissionRestoredNoticePattern: exact(
+    MAESTRO_RUN_TAG + ' read-write restored '
+  ).replace(/ \$$/, ' ?$'),
   // ContactName exposes a spoken label (zod / sampel - palnet) on native.
   // Accept that exact identity or its literal display, never a partial match.
   shipPattern:
