@@ -950,7 +950,8 @@ describe('desk compatibility gate', () => {
     async () => {
       reportedDeskVersion = '12.1.0';
 
-      await syncStart();
+      // Reported, not left for the caller to reconstruct from the session.
+      await expect(syncStart()).resolves.toBe('gated');
 
       expect(getSession()?.deskCompat).toEqual({
         status: 'incompatible',
@@ -1102,7 +1103,7 @@ describe('desk compatibility gate', () => {
       });
 
       release();
-      await started;
+      await expect(started).resolves.toBe('ok');
 
       expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
     },
@@ -1206,9 +1207,13 @@ describe('desk compatibility gate', () => {
     async () => {
       reportedDeskVersion = '12.1.0';
 
-      await Promise.all([syncStart(), syncStart()]);
+      const [first, second] = await Promise.all([syncStart(), syncStart()]);
 
       expect(probeCount()).toBe(1);
+      // The second call took the lock's word for it and did nothing — which is
+      // not the same thing as finding the desk outdated itself.
+      expect(first).toBe('gated');
+      expect(second).toBe('busy');
     },
     FULL_SYNC_TIMEOUT
   );
@@ -1355,6 +1360,29 @@ describe('desk compatibility gate', () => {
       expect(getSession()?.deskCompat).toMatchObject({
         status: 'incompatible',
         current: '12.1.0',
+      });
+      expect(onRecovered).not.toHaveBeenCalled();
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a gated retry leaves its own verdict standing, not the one it started from',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+      await syncStart();
+
+      // A different outdated version, so the two ways the notice can end up
+      // saying 'incompatible' are told apart: the probe's fresh verdict, or the
+      // retry putting back the gate it was showing before. A retry that reached
+      // the probe must never do the latter.
+      reportedDeskVersion = '12.0.0';
+      const onRecovered = vi.fn();
+      await retryDeskCompatibility({ onRecovered });
+
+      expect(getSession()?.deskCompat).toMatchObject({
+        status: 'incompatible',
+        current: '12.0.0',
       });
       expect(onRecovered).not.toHaveBeenCalled();
     },
@@ -1549,7 +1577,9 @@ describe('desk compatibility gate', () => {
 
       logOut();
       release();
-      await started;
+      // Reported as abandoned rather than as a clean or gated start: there is
+      // no verdict to act on, because there is no longer anyone to act for.
+      await expect(started).resolves.toBe('abandoned');
 
       // Not just "no gate": startup must not resurrect the session it was
       // running for, either.

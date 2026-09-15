@@ -153,7 +153,9 @@ function AuthenticatedApp({
 }) {
   const telemetry = useTelemetry();
   const deskCompat = store.useDeskCompatibility();
-  const { contactId } = useShip();
+  // Same field refreshHostingAuth keys off, and the same reading of it: only an
+  // explicit 'hosted' login is one Tlon updates on the user's behalf.
+  const { contactId, authType } = useShip();
   const checkNodeStopped = useCheckNodeStopped();
   const { maybeShowPrompt, promptSheet } = useTlonbotRevivalPrompt();
   const { splashSheet: webAppSplashSheet } = useWebAppSplash();
@@ -303,6 +305,7 @@ function AuthenticatedApp({
           minimumVersion={deskCompat.minimum}
           shipName={contactId ?? undefined}
           isProbing={deskCompat.status === 'probing'}
+          isHosted={authType === 'hosted'}
           onRetry={handleRetryDeskCompatibility}
           onLogout={onLogout}
         />
@@ -346,7 +349,15 @@ function AuthenticatedAppContent({
     db.didSyncInitialPosts.getValue().then(() => {
       sync
         .syncStart()
-        .then(syncInitialPostsIfNeeded)
+        .then((outcome) => {
+          // A gated start stopped before the paths this prefetch needs, and an
+          // abandoned one belongs to a login that's already gone. 'busy' is
+          // another start holding the lock, which is no reason to skip.
+          if (outcome === 'gated' || outcome === 'abandoned') {
+            return;
+          }
+          return syncInitialPostsIfNeeded();
+        })
         .catch(() => {});
 
       if (!canceled) {

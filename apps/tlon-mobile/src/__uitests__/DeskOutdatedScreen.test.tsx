@@ -5,7 +5,7 @@ import {
 } from '@react-navigation/native';
 import { render, screen, userEvent } from '@testing-library/react-native';
 import '@testing-library/react-native/extend-expect';
-import { DESK_UPDATE_HELP_URL } from '@tloncorp/app/constants';
+import { DESK_UPDATE_HELP_URL, SUPPORT_EMAIL } from '@tloncorp/app/constants';
 import { DeskOutdatedScreen } from '@tloncorp/app/features/DeskOutdatedScreen';
 import { Provider as TamaguiProvider } from '@tloncorp/app/provider';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared';
@@ -95,6 +95,36 @@ describe('DeskOutdatedScreen', () => {
 
     await user.press(screen.getByTestId('desk-outdated-retry'));
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('tells a hosted customer Tlon runs the update, and drops the how-to', async () => {
+    const user = userEvent.setup();
+    const onRetry = jest.fn();
+    renderScreen({ isHosted: true, onRetry });
+
+    // The version sentence still reports what the ship has and what it needs.
+    expect(screen.getByTestId('desk-outdated-current')).toHaveTextContent(
+      '12.1.0'
+    );
+    expect(screen.getByTestId('desk-outdated-minimum')).toHaveTextContent(
+      '12.2.0'
+    );
+    expect(screen.getByTestId('desk-outdated-hosted-note')).toBeOnTheScreen();
+    // Nothing a hosted customer could act on: they have no shell to run the
+    // self-hosting instructions in.
+    expect(screen.queryByTestId('desk-outdated-help')).toBeNull();
+    // Support is the escalation the copy points at, so it has to be there.
+    expect(screen.getByText(SUPPORT_EMAIL)).toBeOnTheScreen();
+
+    await user.press(screen.getByTestId('desk-outdated-retry'));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the self-update instructions for a self-hosted ship', () => {
+    renderScreen();
+
+    expect(screen.getByTestId('desk-outdated-help')).toBeOnTheScreen();
+    expect(screen.queryByTestId('desk-outdated-hosted-note')).toBeNull();
   });
 
   it('opens the update instructions', async () => {

@@ -18,6 +18,11 @@ export type DeskOutdatedScreenProps = {
   shipName?: string;
   /** A re-probe is in flight, so the retry action is unavailable. */
   isProbing?: boolean;
+  /**
+   * The login came through Tlon hosting, so the update isn't the user's to
+   * run: point them at us rather than at the self-hosting instructions.
+   */
+  isHosted?: boolean;
   onRetry: () => void;
   /** Omitted where there's no logout to offer, e.g. web. */
   onLogout?: () => void | Promise<void>;
@@ -28,6 +33,7 @@ export function DeskOutdatedScreen({
   minimumVersion,
   shipName,
   isProbing = false,
+  isHosted = false,
   onRetry,
   onLogout,
 }: DeskOutdatedScreenProps) {
@@ -79,6 +85,18 @@ export function DeskOutdatedScreen({
             </TlonText.RawText>
             .
           </TlonText.Text>
+          {isHosted ? (
+            <TlonText.Text
+              size="$label/xl"
+              color="$secondaryText"
+              trimmed={false}
+              maxWidth={340}
+              testID="desk-outdated-hosted-note"
+            >
+              Tlon hosts this ship, so we run the update for you. Try again in a
+              few minutes, and contact support if this keeps happening.
+            </TlonText.Text>
+          ) : null}
         </YStack>
 
         <YStack marginTop="auto" gap="$xl">
@@ -90,14 +108,18 @@ export function DeskOutdatedScreen({
             onPress={onRetry}
             testID="desk-outdated-retry"
           />
-          <Button
-            preset="minimal"
-            size="medium"
-            label="How to update"
-            onPress={handleHelpPress}
-            centered
-            testID="desk-outdated-help"
-          />
+          {/* Self-hosting instructions only: a hosted node's owner has no
+              shell to run them in. */}
+          {isHosted ? null : (
+            <Button
+              preset="minimal"
+              size="medium"
+              label="How to update"
+              onPress={handleHelpPress}
+              centered
+              testID="desk-outdated-help"
+            />
+          )}
           <EmailSupportLink
             size="$label/l"
             prompt="Still stuck? Email"

@@ -555,7 +555,15 @@ function ConnectedWebApp() {
       if (!hasSyncedRef.current) {
         sync
           .syncStart(false)
-          .then(() => sync.syncInitialPosts({ syncSize: 'light' }))
+          .then((outcome) => {
+            // A gated start stopped before the paths this prefetch needs, and
+            // an abandoned one belongs to a login that's already gone. 'busy'
+            // is another start holding the lock, which is no reason to skip.
+            if (outcome === 'gated' || outcome === 'abandoned') {
+              return;
+            }
+            return sync.syncInitialPosts({ syncSize: 'light' });
+          })
           .catch(() => {});
         hasSyncedRef.current = true;
         telemetry.captureAppActive('web');

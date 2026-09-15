@@ -2280,9 +2280,11 @@ export const handleDiscontinuity = async (config: {
   // finally, refetch start data. A session gated before it ever subscribed has
   // to recover as a cold start, or a newly compatible desk would never get its
   // subscriptions set up.
-  await syncStart(isDeskGated(deskCompat) ? deskCompat.subscribed : true);
+  const outcome = await syncStart(
+    isDeskGated(deskCompat) ? deskCompat.subscribed : true
+  );
 
-  if (isDeskGated(deskCompat) && getSession()?.deskCompat?.status === 'ok') {
+  if (isDeskGated(deskCompat) && outcome === 'ok') {
     // The gate cleared on this restart, so the shells' post-start prefetch —
     // which returned as a no-op while it was up — has to be redone here.
     syncInitialPosts({ syncSize: 'light' }).catch(() => {});
@@ -2351,8 +2353,24 @@ export function clearSyncStartLock() {
 const DESK_PROBE_TIMEOUT = 10 * 1000;
 
 /**
+ * What a `syncStart` call actually did, so its callers can decide what to do
+ * next without re-reading the session to work it out.
+ *
+ * - `ok`: the whole of sync start ran.
+ * - `gated`: the desk probe refused the ship's %groups desk and recorded that
+ *   verdict itself; nothing past the probe ran.
+ * - `busy`: another start held the sync lock, so this call did nothing at all —
+ *   in particular it did not re-probe.
+ * - `abandoned`: the login ended mid-probe, so there is no one left to report
+ *   to and the session was deliberately left alone.
+ */
+export type SyncStartOutcome = 'ok' | 'gated' | 'busy' | 'abandoned';
+
+/**
  * Startup probe: is the ship's %groups desk new enough to serve the paths the
- * rest of sync start depends on? Returns false when startup should stop.
+ * rest of sync start depends on? Anything other than `'ok'` means startup
+ * should stop, and the non-`'ok'` outcomes are already recorded in the session
+ * (or deliberately not, for `'abandoned'`) by the time this returns.
  *
  * Version only, and it fails open: a network error, a timeout, a missing docket
  * charge or anything else unparseable proceeds exactly as before. The docket
@@ -2368,7 +2386,7 @@ const DESK_PROBE_TIMEOUT = 10 * 1000;
 const checkDeskCompatibility = async (
   alreadySubscribed: boolean | undefined,
   syncStartPriority: { high: number; low: number }
-) => {
+): Promise<Exclude<SyncStartOutcome, 'busy'>> => {
   const existingDeskCompat = getSession()?.deskCompat;
   const priorGate = isDeskGated(existingDeskCompat)
     ? existingDeskCompat
@@ -2434,7 +2452,7 @@ const checkDeskCompatibility = async (
   if (loginEnded()) {
     // Logged out, or re-clientted, while we waited. Leave the session alone and
     // stop: whoever comes next runs their own sync start.
-    return false;
+    return 'abandoned';
   }
 
   if (!appInfo) {
@@ -2455,7 +2473,7 @@ const checkDeskCompatibility = async (
       deskCompat: { ...priorGate, status: 'incompatible' },
     });
     logger.crumb('desk compatibility retry was inconclusive; keeping the gate');
-    return false;
+    return 'gated';
   }
 
   if (classification === 'outdated') {
@@ -2473,7 +2491,7 @@ const checkDeskCompatibility = async (
       minimum: MIN_GROUPS_VERSION,
       recovery: !!alreadySubscribed,
     });
-    return false;
+    return 'gated';
   }
 
   // A recorded verdict, not a clear: until this lands, nothing else in the app
@@ -2481,7 +2499,7 @@ const checkDeskCompatibility = async (
   // able to recover in place once the ship updates.
   updateSession({ deskCompat: { status: 'ok' } });
   logger.crumb(`finished syncing app info`);
-  return true;
+  return 'ok';
 };
 
 /**
@@ -2491,9 +2509,9 @@ const checkDeskCompatibility = async (
  * run had, so a recovery-time gate never double-subscribes.
  *
  * `onRecovered` is the caller's own post-start work. The shells chain it off
- * their one `syncStart` call, which already resolved as a gated no-op, so a
- * successful retry has to run it again — and they don't agree on what it is
- * (mobile picks a sync size from the network, web always asks for a light one).
+ * their one `syncStart` call, which already resolved `'gated'`, so a successful
+ * retry has to run it again — and they don't agree on what it is (mobile picks
+ * a sync size from the network, web always asks for a light one).
  */
 export const retryDeskCompatibility = async (options?: {
   onRecovered?: () => void | Promise<void>;
@@ -2509,26 +2527,50 @@ export const retryDeskCompatibility = async (options?: {
   const retryGeneration = getClientGeneration();
   const isSameLogin = () => getClientGeneration() === retryGeneration;
 
-  updateSession({ deskCompat: { ...deskCompat, status: 'probing' } });
-  try {
-    await syncStart(deskCompat.subscribed);
-  } finally {
-    if (isSameLogin() && getSession()?.deskCompat?.status === 'probing') {
-      // Either syncStart bailed on the sync lock or it threw, so nothing
-      // re-probed. Put the notice back rather than leaving Try again spinning.
+  // Nothing re-probed, so put the notice back rather than leaving Try again
+  // spinning.
+  const restoreNotice = () => {
+    if (isSameLogin()) {
       updateSession({ deskCompat: { ...deskCompat, status: 'incompatible' } });
     }
+  };
+
+  updateSession({ deskCompat: { ...deskCompat, status: 'probing' } });
+
+  let outcome: SyncStartOutcome;
+  try {
+    outcome = await syncStart(deskCompat.subscribed);
+  } catch (err) {
+    // A throw carries no outcome, so this is the one place that still has to
+    // ask the session what happened: sync start can also fail well *after* the
+    // probe cleared the desk, and that verdict stands — the failure was
+    // somewhere else, and the notice must not come back and claim otherwise.
+    if (getSession()?.deskCompat?.status === 'probing') {
+      restoreNotice();
+    }
+    throw err;
   }
 
-  if (isSameLogin() && getSession()?.deskCompat?.status === 'ok') {
+  if (outcome === 'busy') {
+    // Another sync start held the lock, so the retry's own start never reached
+    // the probe.
+    restoreNotice();
+    return;
+  }
+
+  if (outcome === 'ok' && isSameLogin()) {
+    // 'gated' needs nothing more — the probe wrote its own verdict — and
+    // 'abandoned' means the login that pressed the button is gone.
     await options?.onRecovered?.();
   }
 };
 
-export const syncStart = async (alreadySubscribed?: boolean) => {
+export const syncStart = async (
+  alreadySubscribed?: boolean
+): Promise<SyncStartOutcome> => {
   if (isSyncing) {
     // we probably don't want multiple sync starts
-    return;
+    return 'busy';
   }
   isSyncing = true;
   const startGeneration = getClientGeneration();
@@ -2561,11 +2603,16 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       low: isSubscribed ? SyncPriority.Low : SyncPriority.Medium,
     };
 
-    if (!(await checkDeskCompatibility(isSubscribed, syncStartPriority))) {
+    const deskOutcome = await checkDeskCompatibility(
+      isSubscribed,
+      syncStartPriority
+    );
+    if (deskOutcome !== 'ok') {
       // The ship's desk is too old to serve the paths the rest of this function
-      // needs. Stop before init, subscriptions and first-sync bookkeeping, and
-      // resolve rather than throw so every caller's success path is a no-op.
-      return;
+      // needs, or the login it was running for has gone. Stop before init,
+      // subscriptions and first-sync bookkeeping, and resolve rather than throw
+      // so every caller's success path is a no-op.
+      return deskOutcome;
     }
 
     // it's important that this isn't within the main batchEffects block. If we're
@@ -2748,6 +2795,8 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     // post sync initialization work
     await verifyUserInviteLink();
     db.userHasCompletedFirstSync.setValue(true);
+
+    return 'ok';
   } finally {
     if (getClientGeneration() === startGeneration) {
       // Only the login that started this run gets to mark it done; otherwise
