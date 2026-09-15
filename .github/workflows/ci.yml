@@ -191,11 +191,15 @@ jobs:
       # diff, a line saying the filter had nothing for this PR, or a line saying
       # the run could not produce one. The comment is sticky, so silence would
       # leave the previous push's list standing as though it were this one's.
+      #
+      # Only a literal `false` is "nothing to report". An empty `CLIENT` means
+      # the `changes` job itself failed, and claiming no client change on that
+      # evidence would overwrite a good report with a wrong one.
       - name: Compose the report body
         if: ${{ always() }}
         run: |
           set -euo pipefail
-          if [ "$CLIENT" != "true" ]; then
+          if [ "$CLIENT" = "false" ]; then
             printf '## Desk requests\n\nNo changes under `packages/api` or `packages/shared` in this PR.\n' > desk-requests.md
           elif [ ! -s desk-requests.md ]; then
             printf '## Desk requests\n\nThe report could not be produced for this push; see the job log.\n' > desk-requests.md

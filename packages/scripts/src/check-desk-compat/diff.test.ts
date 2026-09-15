@@ -328,8 +328,12 @@ describe('the markdown report', () => {
     expect(rendered).not.toContain('### Removed');
   });
 
-  it('tells the reader it is advisory', () => {
-    expect(rendered).toContain('never fails CI');
+  it('scopes the N-1 check to added and changed, and says it is advisory', () => {
+    expect(rendered).toContain('For every **added** and **changed** request');
+    expect(rendered).toContain(
+      'A **removed** request bears only on desk removal, not on this client'
+    );
+    expect(rendered).toContain('nothing here fails CI');
   });
 });
 

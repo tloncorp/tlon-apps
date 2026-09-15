@@ -355,11 +355,11 @@ function entries(
 const HEADER = 'Desk requests';
 
 const GUIDANCE =
-  'For every request listed here, check that the N-1 desk serves it: ' +
-  'the agent has an arm for that path or mark, version injection is ' +
-  'accounted for, and any `agent:neg` protocol version matches. ' +
-  'See the desk-compatibility section of `AGENTS.md`. Advisory only — ' +
-  'this never fails CI.';
+  'For every **added** and **changed** request, check that the N-1 desk ' +
+  'serves it: the agent has an arm for that path or mark, version injection ' +
+  'is accounted for, and any `agent:neg` protocol version matches (see the ' +
+  'desk-compatibility section of `AGENTS.md`). A **removed** request bears ' +
+  'only on desk removal, not on this client — and nothing here fails CI.';
 
 /** Plain text, for a terminal. */
 export function renderText(diff: InventoryDiff, refs: Refs): string {
