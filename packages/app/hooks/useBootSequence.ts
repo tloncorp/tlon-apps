@@ -202,24 +202,21 @@ export function useBootSequence() {
       if (lureMeta?.invitedGroupId !== GETTING_STARTED_GROUP_ID) {
         api.joinGroup(GETTING_STARTED_GROUP_ID).catch((e) => {
           logger.trackError('failed to join getting started group', {
-            errorMessage: e.message,
-            errorStack: e.stack,
+            error: e,
           });
         });
       }
 
       store.leaveGroup(TLON_STUDIO).catch((e) => {
         logger.trackError('failed to leave tlon studio group', {
-          errorMessage: e.message,
-          errorStack: e.stack,
+          error: e,
         });
       });
 
       if (lureMeta?.invitedGroupId !== TLONBOT_GENERAL_GROUP_ID) {
         store.leaveGroup(TLONBOT_GENERAL_GROUP_ID).catch((e) => {
           logger.trackError('failed to leave Tlonbot general group', {
-            errorMessage: e.message,
-            errorStack: e.stack,
+            error: e,
           });
         });
       }
@@ -439,7 +436,16 @@ export function useBootSequence() {
         Date.now() - tryingInviteHandling.current >
         HANDLE_INVITES_TIMEOUT
       ) {
-        logger.trackError('accept invites abort', { inviteId: lureMeta?.id });
+        logger.trackError('accept invites abort', {
+          inviteId: lureMeta?.id,
+          bootPhase,
+          bootPhaseName: BootPhaseNames[bootPhase],
+          // null when the abort fires before any phase has run, so a real
+          // elapsed time is never confused with time since the epoch.
+          elapsedMs: sequenceStartTimeRef.current
+            ? Date.now() - sequenceStartTimeRef.current
+            : null,
+        });
         setBootPhase(NodeBootPhase.READY);
         return;
       }

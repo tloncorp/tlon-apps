@@ -6,6 +6,11 @@ import {
   ChannelPutError,
   ChannelStatus,
   NounPokeInterface,
+  ReapError,
+  SSEBadResponseError,
+  SSETimeoutError,
+  SpinAbortedError,
+  SpinClosedError,
   Thread,
   Urbit,
 } from '../http-api';
@@ -323,6 +328,15 @@ export async function configureClient(params: ClientParams) {
   }
 }
 
+/**
+ * URL of the ship this client is configured for, or null before
+ * `configureClient` has run. Used to classify where a request failed when the
+ * error itself does not name a host.
+ */
+export function getConfiguredShipUrl(): string | null {
+  return config.shipUrl.length > 0 ? config.shipUrl : null;
+}
+
 export function internalRemoveClient() {
   config.client?.delete();
   config.client = null;
@@ -386,6 +400,13 @@ function rotateChannelOnce(client: Urbit, sent: SendContext, context: string) {
     return;
   }
   rotateChannel(client, context);
+}
+
+// Did a login actually complete since the request went out? Only an epoch
+// advance proves that. A channel that merely rotated does not: an SSE reap or
+// 500 rotates it without authenticating anything.
+function sessionRefreshedSince(sent: SendContext) {
+  return config.authEpoch !== sent.authEpoch;
 }
 
 async function reauthOnce(sent: SendContext) {
@@ -503,43 +524,109 @@ export async function subscribeOnce<T>(
     await config.pendingAuth;
   }
   logger.log('subscribing once to', printEndpoint(endpoint));
-  try {
-    return config.client.subscribeOnce<T>(
-      endpoint.app,
-      endpoint.path,
-      ship,
-      timeout
-    );
-  } catch (err) {
-    if (err !== 'timeout' && err !== 'quit') {
-      logger.trackError('bad subscribeOnce', {
-        ...describeError(err),
-        endpoint: printEndpoint(endpoint),
-      });
-    } else if (err === 'timeout') {
-      logger.error('subscribeOnce timed out', printEndpoint(endpoint));
-      logger.trackEvent(AnalyticsEvent.ErrorSubscribeOnceTimeout, {
-        requestTag: requestConfig?.tag,
-        subEndpoint: printEndpoint(endpoint),
-        connectionStatus: config.lastStatus,
-        timeoutDuration: timeout,
-      });
-    } else {
-      logger.error('subscribeOnce quit', printEndpoint(endpoint));
-    }
 
-    if (!(err instanceof AuthError)) {
-      throw err;
+  // Both the first attempt and the post-reauth retry go through here, so a
+  // retry reports the same telemetry the first attempt would. `return await`,
+  // not `return`: returning the promise hands it out of the try before it
+  // settles, which is why none of this reporting ever ran.
+  const attempt = async (isRetry: boolean): Promise<T> => {
+    const client = config.client;
+    if (!client) {
+      throw new Error('Client not initialized');
     }
+    const sent = captureSendContext(client);
+    try {
+      const result = await client.subscribeOnce<T>(
+        endpoint.app,
+        endpoint.path,
+        ship,
+        timeout
+      );
+      if (isRetry) {
+        // the reauth earned its keep; counted in PostHog rather than reported
+        // as an error, since the caller never saw a failure
+        logger.trackEvent(AnalyticsEvent.SubscribeOnceRecovered, {
+          requestTag: requestConfig?.tag,
+          subEndpoint: printEndpoint(endpoint),
+        });
+      }
+      return result;
+    } catch (err) {
+      // Never retry on a client that is no longer the configured one. A
+      // logout or account switch can replace it while this request is still
+      // in flight, and attempt() reads config.client — so a retry would
+      // replay this endpoint against a different ship's session.
+      const willRetry =
+        !isRetry && err instanceof AuthError && config.client === client;
 
-    await reauth();
-    return config.client.subscribeOnce<T>(
-      endpoint.app,
-      endpoint.path,
-      ship,
-      timeout
-    );
-  }
+      // Only report once we know the caller is actually going to see a
+      // failure. A first attempt that recovers on retry was never visible to
+      // the user, and reporting it would fill Sentry with errors that did not
+      // happen from their point of view.
+      const reportTerminalFailure = () => {
+        if (err !== 'timeout' && err !== 'quit') {
+          logger.trackError('bad subscribeOnce', {
+            ...describeError(err),
+            endpoint: printEndpoint(endpoint),
+            isRetry,
+          });
+        } else if (err === 'timeout') {
+          logger.error('subscribeOnce timed out', printEndpoint(endpoint));
+          logger.trackEvent(AnalyticsEvent.ErrorSubscribeOnceTimeout, {
+            requestTag: requestConfig?.tag,
+            subEndpoint: printEndpoint(endpoint),
+            connectionStatus: config.lastStatus,
+            timeoutDuration: timeout,
+            isRetry,
+          });
+        } else {
+          logger.error('subscribeOnce quit', printEndpoint(endpoint), {
+            isRetry,
+          });
+        }
+      };
+
+      // isRetry bounds this to a single extra round trip
+      if (!willRetry) {
+        reportTerminalFailure();
+        throw err;
+      }
+
+      logger.log('subscribeOnce retrying after auth', printEndpoint(endpoint));
+
+      // reauthOnce, not reauth: matches subscribe/poke/scry. A bare reauth()
+      // would start a second login for every caller that failed against the
+      // same dead session, and eyre closes the session each login arrives
+      // with.
+      try {
+        await reauthOnce(sent);
+      } catch (reauthErr) {
+        // reauth can throw outright — no getCode and no failure handler, or a
+        // login that exhausted its attempts. Report the failure the caller
+        // actually asked about before the reauth error replaces it, or both
+        // go unreported.
+        reportTerminalFailure();
+        throw reauthErr;
+      }
+      // reauthOnce resolves without having refreshed anything when we are
+      // logging out, when there is no getCode, or when the ship rejected the
+      // code. Retrying then just fires at a session already known to be dead,
+      // and on mobile races the forced-logout alert. Only an epoch advance
+      // proves a login completed.
+      if (config.loggingOut || !sessionRefreshedSince(sent)) {
+        reportTerminalFailure();
+        throw err;
+      }
+      // the client can be swapped out while we await above
+      if (config.client !== client) {
+        reportTerminalFailure();
+        throw err;
+      }
+      return attempt(true);
+    }
+  };
+
+  return attempt(false);
 }
 
 export async function unsubscribe(id: number) {
@@ -549,14 +636,21 @@ export async function unsubscribe(id: number) {
   if (config.pendingAuth) {
     await config.pendingAuth;
   }
+  // See subscribeOnce: `return` handed the promise out of the try, so this
+  // catch never ran and the AuthError retry it contained was dead code.
   try {
-    return config.client.unsubscribe(id);
+    return await config.client.unsubscribe(id);
   } catch (err) {
     logger.error('bad unsubscribe', id, err);
-    if (err instanceof AuthError) {
-      await reauth();
-      return config.client.unsubscribe(id);
-    }
+    // Deliberately no reauth-and-retry, unlike the other verbs. A successful
+    // reauth rotates the channel (performReauth -> rotateChannel ->
+    // seamlessReset), which resets lastEventId to 0 and replays outstanding
+    // subscriptions under freshly allocated ids. `id` would then be stale and
+    // could well name a *different* subscription, so retrying risks
+    // unsubscribing the wrong one. No retry happened here before either --
+    // the catch was unreachable -- so rethrowing keeps today's behavior and
+    // only makes the logging live.
+    throw err;
   }
 }
 
@@ -787,24 +881,174 @@ async function track<R>(
   });
 }
 
-export async function checkIsNodeBusy() {
-  return config.client?.checkIsNodeBusy() || Promise.resolve('unknown');
+export type SpinErrorClass =
+  | 'timeout'
+  | 'http_4xx'
+  | 'http_5xx'
+  | 'content_type'
+  | 'closed'
+  | 'transport'
+  | 'aborted'
+  | 'other';
+
+export type SpinHintResult =
+  | {
+      outcome: 'hint';
+      nodeBusyStatus: 'available' | 'busy';
+      hints?: string;
+      durationMs: number;
+    }
+  | {
+      outcome: 'grace_expired';
+      nodeBusyStatus: 'unknown';
+      durationMs: number;
+    }
+  | {
+      outcome: 'failed';
+      nodeBusyStatus: 'unknown';
+      errorClass: SpinErrorClass;
+      durationMs: number;
+    }
+  | {
+      outcome: 'unavailable';
+      nodeBusyStatus: 'unknown';
+      durationMs: 0;
+    };
+
+export type SpinHintCheck = {
+  settleWithin(graceMs: number): Promise<SpinHintResult>;
+  cancel(): void;
+};
+
+function classifySpinError(error: unknown): SpinErrorClass {
+  if (
+    error instanceof SSETimeoutError ||
+    (error instanceof Error && error.message === 'getBytes timed out')
+  ) {
+    return 'timeout';
+  }
+  if (error instanceof ReapError) {
+    return 'http_4xx';
+  }
+  if (error instanceof SSEBadResponseError) {
+    if (error.status >= 400 && error.status < 500) {
+      return 'http_4xx';
+    }
+    if (error.status >= 500 && error.status < 600) {
+      return 'http_5xx';
+    }
+  }
+  if (
+    error instanceof Error &&
+    error.message.startsWith('Expected content-type to be text/event-stream')
+  ) {
+    return 'content_type';
+  }
+  if (error instanceof SpinClosedError) {
+    return 'closed';
+  }
+  if (
+    error instanceof SpinAbortedError ||
+    (error instanceof Error && error.name === 'AbortError')
+  ) {
+    return 'aborted';
+  }
+  if (
+    error instanceof TypeError ||
+    (error instanceof Error &&
+      /fetch|network|connection|socket|host/i.test(
+        `${error.name} ${error.message}`
+      ))
+  ) {
+    return 'transport';
+  }
+  return 'other';
 }
 
-export async function checkIsNodeBusyWithHints(): Promise<{
-  nodeBusyStatus: 'available' | 'busy' | 'unknown';
-  hints?: string;
-}> {
-  if (!config.client) {
-    throw new Error('Client not initialized');
+export function startSpinHintCheck(): SpinHintCheck {
+  const startedAt = Date.now();
+  const controller = new AbortController();
+  const activeClient = resolveClient();
+  let terminalResult: SpinHintResult | undefined;
+  let graceTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const settle = (result: SpinHintResult): SpinHintResult => {
+    terminalResult ??= result;
+    return terminalResult;
+  };
+
+  let resultPromise: Promise<SpinHintResult>;
+  if (!activeClient) {
+    resultPromise = Promise.resolve(
+      settle({
+        outcome: 'unavailable',
+        nodeBusyStatus: 'unknown',
+        durationMs: 0,
+      })
+    );
+  } else {
+    try {
+      resultPromise = Promise.resolve(
+        activeClient.getSpinHints({ signal: controller.signal })
+      ).then(
+        (hints) =>
+          settle({
+            outcome: 'hint',
+            nodeBusyStatus: hints === '/root' ? 'available' : 'busy',
+            ...(hints === '/root' ? {} : { hints }),
+            durationMs: Date.now() - startedAt,
+          }),
+        (error) =>
+          settle({
+            outcome: 'failed',
+            nodeBusyStatus: 'unknown',
+            errorClass: classifySpinError(error),
+            durationMs: Date.now() - startedAt,
+          })
+      );
+    } catch (error) {
+      resultPromise = Promise.resolve(
+        settle({
+          outcome: 'failed',
+          nodeBusyStatus: 'unknown',
+          errorClass: classifySpinError(error),
+          durationMs: Date.now() - startedAt,
+        })
+      );
+    }
   }
 
-  const result = await client.getSpinHints();
-  if (result === '/root') {
-    return { nodeBusyStatus: 'available' };
-  }
+  return {
+    async settleWithin(graceMs) {
+      if (terminalResult) {
+        return terminalResult;
+      }
 
-  return { nodeBusyStatus: 'busy', hints: result };
+      const graceResult = new Promise<SpinHintResult>((resolve) => {
+        graceTimer = setTimeout(() => {
+          const result = settle({
+            outcome: 'grace_expired',
+            nodeBusyStatus: 'unknown',
+            durationMs: Date.now() - startedAt,
+          });
+          controller.abort();
+          resolve(result);
+        }, graceMs);
+      });
+
+      try {
+        return await Promise.race([resultPromise, graceResult]);
+      } finally {
+        clearTimeout(graceTimer);
+        graceTimer = undefined;
+      }
+    },
+    cancel() {
+      clearTimeout(graceTimer);
+      graceTimer = undefined;
+      controller.abort();
+    },
+  };
 }
 
 export async function scry<T>({
@@ -853,7 +1097,7 @@ export async function scry<T>({
       errorMessage: res.message,
       responseStatus: res.status,
     });
-    throw new BadResponseError(res.status, res.toString());
+    throw new BadResponseError(res.status, await responseErrorBody(res));
   }
 }
 
@@ -904,10 +1148,17 @@ export async function requestJson<T = any>(
   }
 }
 
+// Reading a rejected response's body is purely diagnostic, and the request's
+// own timeout is already disarmed by the time the rejection reaches us
+// (`scryWithInfo` cleans its signal up in a `finally`), so an unbounded read
+// would hang a scry that had already failed. Give the read its own deadline
+// and settle for an empty body when it expires.
+const ERROR_BODY_READ_TIMEOUT = 5000;
+
 async function responseErrorBody(res: any): Promise<string> {
   if (typeof res?.text === 'function') {
     try {
-      return await res.text();
+      return await readWithin(res.text(), ERROR_BODY_READ_TIMEOUT);
     } catch {
       // Fall through to the generic cases below.
     }
@@ -916,6 +1167,17 @@ async function responseErrorBody(res: any): Promise<string> {
   if (typeof res?.message === 'string') return res.message;
   const text = String(res);
   return text === '[object Response]' ? '' : text;
+}
+
+// Resolves with whatever `read` produces, or with an empty body once `ms`
+// elapses. The abandoned read stays attached to the race, so a late rejection
+// is never unhandled.
+function readWithin(read: Promise<string>, ms: number): Promise<string> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<string>((resolve) => {
+    timer = setTimeout(() => resolve(''), ms);
+  });
+  return Promise.race([read, deadline]).finally(() => clearTimeout(timer));
 }
 
 export async function scryNoun({
@@ -962,7 +1224,7 @@ export async function scryNoun({
       message: res.message,
       responseStatus: res.status,
     });
-    throw new BadResponseError(res.status, res.toString());
+    throw new BadResponseError(res.status, await responseErrorBody(res));
   }
 }
 
@@ -1090,7 +1352,10 @@ async function performReauth(): Promise<string | void> {
           logger.log('auth failed, calling auth failure handler');
           config.handleAuthFailure({ mustLogout: false });
         }
-        throw new Error(`Error during reauth: ${e}`);
+        // keep the original as `cause`: the message stringifies it, but error
+        // reporting classifies failures by the status field, which a bare
+        // rethrow would drop
+        throw new Error(`Error during reauth: ${e}`, { cause: e });
       }
     }
 

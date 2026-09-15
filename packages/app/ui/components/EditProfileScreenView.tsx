@@ -4,20 +4,15 @@ import {
   validateNickname,
 } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import {
-  DEFAULT_BOTTOM_PADDING,
-  KEYBOARD_EXTRA_PADDING,
-  KeyboardAvoidingView,
-  useIsWindowNarrow,
-} from '@tloncorp/ui';
+import { DEFAULT_BOTTOM_PADDING, useIsWindowNarrow } from '@tloncorp/ui';
 import { ConfirmDialog } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View, XStack, useTheme } from 'tamagui';
+import { View, XStack, useTheme } from 'tamagui';
 
 import { useContact, useCurrentUserId } from '../contexts/appDataContext';
-import { useKeyboardAwareScroll } from '../hooks/useKeyboardAwareScroll';
 import { SigilAvatar } from './Avatar';
 import { EditAttestationsDisplay } from './EditProfile/EditAttestationsDisplay';
 import { FavoriteGroupsDisplay } from './FavoriteGroupsDisplay';
@@ -44,13 +39,6 @@ export function EditProfileScreenView(props: Props) {
   const currentUserId = useCurrentUserId();
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
 
-  const {
-    scrollViewRef,
-    keyboardHeight,
-    handleInputFocus,
-    registerInputLayout,
-    getInputPosition,
-  } = useKeyboardAwareScroll();
   const userContact = useContact(props.userId);
   const [pinnedGroups, setPinnedGroups] = useState<db.Group[]>(
     (userContact?.pinnedGroups
@@ -219,176 +207,160 @@ export function EditProfileScreenView(props: Props) {
         }
       />
 
-      <KeyboardAvoidingView>
-        <ScrollView
-          ref={scrollViewRef}
-          keyboardDismissMode="on-drag"
-          flex={1}
-          contentContainerStyle={{
-            width: '100%',
-            maxWidth: 600,
-            marginHorizontal: 'auto',
-            paddingBottom:
-              keyboardHeight > 0
-                ? keyboardHeight + KEYBOARD_EXTRA_PADDING
-                : insets.bottom + DEFAULT_BOTTOM_PADDING,
-          }}
-        >
-          <FormFrame>
-            <XStack alignItems="flex-end" gap="$m">
-              <View flex={1}>
+      <KeyboardAwareScrollView
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        bottomOffset={24}
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          width: '100%',
+          maxWidth: 600,
+          marginHorizontal: 'auto',
+          paddingBottom: insets.bottom + DEFAULT_BOTTOM_PADDING,
+        }}
+      >
+        <FormFrame>
+          <XStack alignItems="flex-end" gap="$m">
+            <View flex={1}>
+              <ControlledTextField
+                name="nickname"
+                label="Nickname"
+                control={control}
+                renderInputContainer={
+                  isCurrUser
+                    ? ({ children }) => {
+                        return (
+                          <XStack gap="$m">
+                            <View flex={1}>{children}</View>
+                            <SigilAvatar
+                              contactId={currentUserId}
+                              contactOverride={{
+                                ...userContact,
+                                id: currentUserId,
+                                color: currentSigilColor || null,
+                              }}
+                              width={56}
+                              height={56}
+                              borderRadius="$l"
+                              size="custom"
+                            />
+                          </XStack>
+                        );
+                      }
+                    : undefined
+                }
+                inputProps={{
+                  placeholder: nicknamePlaceholder,
+                  testID: 'ProfileNicknameInput',
+                }}
+                rules={{
+                  maxLength: {
+                    value: 30,
+                    message: 'Your nickname is limited to 30 characters',
+                  },
+                  validate: (value) => {
+                    if (!isCurrUser) {
+                      return true;
+                    }
+                    const result = validateNickname(value, currentUserId);
+                    if (!result.isValid) {
+                      return getNicknameErrorMessage(result.errorType);
+                    }
+                    return true;
+                  },
+                }}
+              />
+            </View>
+          </XStack>
+
+          <ControlledImageField
+            label="Avatar image"
+            name="avatarImage"
+            hideError={true}
+            control={control}
+            inputProps={{
+              buttonLabel: 'Change avatar image',
+              placeholderUri: avatarPlaceholder,
+            }}
+            rules={{
+              pattern: {
+                value: /^(?!file|data).+/,
+                message: 'Image has not finished uploading',
+              },
+            }}
+          />
+
+          {isCurrUser ? (
+            <ControlledColorField
+              name="sigilColor"
+              label="Default avatar color"
+              control={control}
+            />
+          ) : null}
+
+          {isCurrUser ? (
+            <>
+              <View>
                 <ControlledTextField
-                  name="nickname"
-                  label="Nickname"
+                  name="status"
+                  label="Status"
                   control={control}
-                  renderInputContainer={
-                    isCurrUser
-                      ? ({ children }) => {
-                          return (
-                            <XStack gap="$m">
-                              <View flex={1}>{children}</View>
-                              <SigilAvatar
-                                contactId={currentUserId}
-                                contactOverride={{
-                                  ...userContact,
-                                  id: currentUserId,
-                                  color: currentSigilColor || null,
-                                }}
-                                width={56}
-                                height={56}
-                                borderRadius="$l"
-                                size="custom"
-                              />
-                            </XStack>
-                          );
-                        }
-                      : undefined
-                  }
                   inputProps={{
-                    placeholder: nicknamePlaceholder,
-                    testID: 'ProfileNicknameInput',
+                    placeholder: 'Hanging out...',
                   }}
                   rules={{
                     maxLength: {
-                      value: 30,
-                      message: 'Your nickname is limited to 30 characters',
-                    },
-                    validate: (value) => {
-                      if (!isCurrUser) {
-                        return true;
-                      }
-                      const result = validateNickname(value, currentUserId);
-                      if (!result.isValid) {
-                        return getNicknameErrorMessage(result.errorType);
-                      }
-                      return true;
+                      value: 50,
+                      message: 'Your status is limited to 50 characters',
                     },
                   }}
                 />
               </View>
-            </XStack>
+              <View>
+                <ControlledTextareaField
+                  name="bio"
+                  label="Bio"
+                  control={control}
+                  inputProps={{
+                    placeholder: 'About yourself',
+                    numberOfLines: 5,
+                    multiline: true,
+                  }}
+                  rules={{
+                    maxLength: {
+                      value: 300,
+                      message: 'Your bio is limited to 300 characters',
+                    },
+                  }}
+                />
+              </View>
+              <Field label="Pinned groups">
+                <FavoriteGroupsDisplay
+                  groups={pinnedGroups}
+                  onUpdate={handleUpdatePinnedGroups}
+                />
+              </Field>
 
-            <ControlledImageField
-              label="Avatar image"
-              name="avatarImage"
-              hideError={true}
-              control={control}
-              inputProps={{
-                buttonLabel: 'Change avatar image',
-                placeholderUri: avatarPlaceholder,
-              }}
-              rules={{
-                pattern: {
-                  value: /^(?!file|data).+/,
-                  message: 'Image has not finished uploading',
-                },
-              }}
-            />
-
-            {isCurrUser ? (
-              <ControlledColorField
-                name="sigilColor"
-                label="Default avatar color"
-                control={control}
+              <EditAttestationsDisplay
+                attestations={attestations}
+                onPressAttestation={props.onGoToAttestation}
               />
-            ) : null}
-
-            {isCurrUser ? (
-              <>
-                <View onLayout={registerInputLayout('status')}>
-                  <ControlledTextField
-                    name="status"
-                    label="Status"
-                    control={control}
-                    inputProps={{
-                      placeholder: 'Hanging out...',
-                      onFocus: () => {
-                        const position = getInputPosition('status');
-                        if (position !== undefined) {
-                          handleInputFocus(position);
-                        }
-                      },
-                    }}
-                    rules={{
-                      maxLength: {
-                        value: 50,
-                        message: 'Your status is limited to 50 characters',
-                      },
-                    }}
-                  />
-                </View>
-                <View onLayout={registerInputLayout('bio')}>
-                  <ControlledTextareaField
-                    name="bio"
-                    label="Bio"
-                    control={control}
-                    inputProps={{
-                      placeholder: 'About yourself',
-                      numberOfLines: 5,
-                      multiline: true,
-                      onFocus: () => {
-                        const position = getInputPosition('bio');
-                        if (position !== undefined) {
-                          handleInputFocus(position);
-                        }
-                      },
-                    }}
-                    rules={{
-                      maxLength: {
-                        value: 300,
-                        message: 'Your bio is limited to 300 characters',
-                      },
-                    }}
-                  />
-                </View>
-                <Field label="Pinned groups">
-                  <FavoriteGroupsDisplay
-                    groups={pinnedGroups}
-                    onUpdate={handleUpdatePinnedGroups}
-                  />
-                </Field>
-
-                <EditAttestationsDisplay
-                  attestations={attestations}
-                  onPressAttestation={props.onGoToAttestation}
-                />
-              </>
-            ) : (
-              <>
-                <BioDisplay
-                  bio={userContact?.bio ?? ''}
-                  backgroundColor="$secondaryBackground"
-                />
-                <PinnedGroupsDisplay
-                  groups={pinnedGroups ?? []}
-                  onPressGroup={() => {}}
-                  itemProps={{ backgroundColor: '$secondaryBackground' }}
-                />
-              </>
-            )}
-          </FormFrame>
-        </ScrollView>
-      </KeyboardAvoidingView>
+            </>
+          ) : (
+            <>
+              <BioDisplay
+                bio={userContact?.bio ?? ''}
+                backgroundColor="$secondaryBackground"
+              />
+              <PinnedGroupsDisplay
+                groups={pinnedGroups ?? []}
+                onPressGroup={() => {}}
+                itemProps={{ backgroundColor: '$secondaryBackground' }}
+              />
+            </>
+          )}
+        </FormFrame>
+      </KeyboardAwareScrollView>
       <ConfirmDialog
         open={discardDialogOpen}
         onOpenChange={setDiscardDialogOpen}

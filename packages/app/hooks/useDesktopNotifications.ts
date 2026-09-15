@@ -10,6 +10,8 @@ import { getTextContent } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 
+import { reactDisplayValue } from '../ui/components/Activity/ActivitySummaryMessage';
+import { getNotificationCopy, isReactActivityType } from './notificationCopy';
 import { useIsElectron } from './useIsElectron';
 
 const logger = createDevLogger('useDesktopNotifications', false);
@@ -48,8 +50,6 @@ export default function useDesktopNotifications(isClientReady: boolean) {
         );
       }
 
-      let body = '';
-
       if (!activityEvent.channelId) {
         logger.error('No channel ID in activity event:', activityEvent);
         return;
@@ -59,13 +59,6 @@ export default function useDesktopNotifications(isClientReady: boolean) {
         const channel = await db.getChannelWithRelations({
           id: activityEvent.channelId,
         });
-        if (activityEvent.content) {
-          body =
-            getTextContent(activityEvent.content as api.PostContent) ||
-            'New message';
-        } else {
-          body = 'New message';
-        }
 
         const contactId = activityEvent.authorId;
         const contact = contactId
@@ -78,19 +71,24 @@ export default function useDesktopNotifications(isClientReady: boolean) {
         // This matches the logic in ContactNameV2
         const contactName = contact?.nickname ?? contactId ?? 'Unknown';
 
-        let title = channel.title ? channel.title : contactName;
+        const group = activityEvent.groupId
+          ? await db.getGroup({ id: activityEvent.groupId })
+          : null;
 
-        if (activityEvent.groupId) {
-          const group = await db.getGroup({ id: activityEvent.groupId });
-          if (group) {
-            if (activityEvent.content) {
-              body = `${contactName}: ${getTextContent(activityEvent.content as api.PostContent)}`;
-              title = title + ` in ${group.title}`;
-            } else {
-              body = `New message in ${group.title}`;
-            }
-          }
-        }
+        // Reactions carry their emoji in `content` instead of post content, so
+        // running it through getTextContent would yield a bare emoji body.
+        const isReact = isReactActivityType(activityEvent.type);
+        const { title, body } = getNotificationCopy({
+          activityType: activityEvent.type,
+          channelTitle: channel.title,
+          contactName,
+          contentText:
+            !isReact && activityEvent.content
+              ? (getTextContent(activityEvent.content as api.PostContent) ?? '')
+              : '',
+          groupTitle: group?.title,
+          reactValue: isReact ? reactDisplayValue(activityEvent.content) : '',
+        });
 
         logger.log('Showing desktop notification:', title);
 
