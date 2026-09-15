@@ -3,7 +3,11 @@ import { type LegendListRef } from '@legendapp/list/react-native';
 import { layoutForType } from '@tloncorp/shared';
 import * as React from 'react';
 import { Platform, type ScrollView } from 'react-native';
-import { type SharedValue, useSharedValue } from 'react-native-reanimated';
+import {
+  type SharedValue,
+  useReducedMotion,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -13,6 +17,7 @@ import {
   useScrollDirectionTracker,
 } from '../../../contexts/scroll';
 import { PostList as PostListFlatList } from './PostListFlatList';
+import { usePostArrivalAnimation } from './usePostArrivalAnimation';
 import {
   getPostListAnchorKey,
   getPostListInitialization,
@@ -541,6 +546,25 @@ const ConversationPostListAttempt = React.forwardRef<
     // change. React Native onScroll can retain an intermediate value while the
     // initial anchor settles, briefly showing the scroll-to-bottom control.
     const isNearEnd = useLegendListIsNearEnd(listRef);
+    const reduceMotion = useReducedMotion();
+    const renderAnimatedItem = usePostArrivalAnimation({
+      posts: postsWithNeighbors,
+      renderItem,
+      enabled:
+        anchorToEnd &&
+        didFinishInitialScroll &&
+        isNearEnd &&
+        !isLoading &&
+        !hasNewerPosts &&
+        !reduceMotion,
+    });
+    const maintainScrollAtEnd = React.useMemo(
+      () =>
+        anchorToEnd && !hasNewerPosts
+          ? { animated: didFinishInitialScroll && !reduceMotion }
+          : false,
+      [anchorToEnd, didFinishInitialScroll, hasNewerPosts, reduceMotion]
+    );
     const conversationScrollEndAnchor = useConversationScrollEndAnchor();
     const shouldRestoreEndAnchorRef = React.useRef(false);
     const endAnchorHandler = React.useMemo(
@@ -575,20 +599,18 @@ const ConversationPostListAttempt = React.forwardRef<
       !didFinishInitialScroll ||
       (!hasUserScrolled && isNearEnd) ||
       isWithinBottomThreshold;
-    // Data anchoring and end anchoring choose different items to preserve.
-    // Let end anchoring own updates while the conversation is being followed;
-    // retain data anchoring only after the user has moved away from the end.
-    // With no rows there is nothing to keep in view, and LegendList's default
-    // size anchoring (left on by `undefined`) scrolls iOS by any top padding
-    // change, which carried an empty conversation up by the header inset when
-    // the transparent header reported its height after mount.
+    // Disable both data and size anchoring while following the latest posts.
+    // `undefined` still enables size anchoring: native MVCP can jump to the
+    // new end before the animated scroll runs, particularly on Android.
+    // History keeps its visible post anchored; empty lists have no post to
+    // preserve as the header and composer settle.
     const maintainVisibleContentPosition =
       postsWithNeighbors.length === 0
         ? false
         : collectionLayout.shouldMaintainVisibleContentPosition &&
             !(anchorToEnd && !hasNewerPosts && isNearEnd)
           ? true
-          : undefined;
+          : false;
     usePostListBottomCallbacks(isAtBottom, {
       onScrolledToBottom,
       onScrolledAwayFromBottom,
@@ -638,7 +660,7 @@ const ConversationPostListAttempt = React.forwardRef<
         dataKey={channel.id}
         data={postsWithNeighbors}
         keyExtractor={getPostId}
-        renderItem={renderItem}
+        renderItem={renderAnimatedItem}
         getItemType={({ post }) => post.type}
         estimatedItemSize={ESTIMATED_ITEM_SIZE}
         // Chat rows are stateful and highly variable-height; recycling them can
@@ -651,7 +673,7 @@ const ConversationPostListAttempt = React.forwardRef<
           initialScrollIndex === undefined
         }
         initialScrollIndex={initialScrollIndex}
-        maintainScrollAtEnd={anchorToEnd && !hasNewerPosts}
+        maintainScrollAtEnd={maintainScrollAtEnd}
         // A2UI rows can change by more than a small fraction of the viewport.
         // Keep the normal chat end anchor across those remeasurements whenever
         // the list was within one viewport of the latest message. Far-away
@@ -669,7 +691,12 @@ const ConversationPostListAttempt = React.forwardRef<
         // message anchored as the keyboard or composer grows at the end.
         keyboardLiftBehavior="whenAtEnd"
         keyboardOffset={insets.bottom}
-        scrollIndicatorInsets={{ top: 0, bottom: insets.bottom }}
+        // KeyboardChatScrollView already adds the keyboard and full composer
+        // height (including the safe area) to the iOS indicator's bottom inset.
+        scrollIndicatorInsets={{
+          top: contentInsets.top,
+          bottom: Platform.OS === 'ios' ? 0 : insets.bottom,
+        }}
         automaticallyAdjustsScrollIndicatorInsets={false}
         scrollEnabled={scrollEnabled}
         style={[
