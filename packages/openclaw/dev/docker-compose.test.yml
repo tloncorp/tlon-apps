@@ -1,6 +1,6 @@
 services:
   fake-model:
-    image: node:22-bookworm-slim
+    image: node:24.16.0-bookworm-slim
     working_dir: /workspace/openclaw-tlon
     command: ["node", "test/support/fake-model/server.mjs"]
     volumes:
@@ -15,7 +15,7 @@ services:
     # Node's Debian image supplies a glibc runtime, tar/gzip, and an HTTPS
     # client without an apt-get at container startup. Avoiding Ubuntu's HTTP
     # package mirror keeps ship boot independent of ports.ubuntu.com.
-    image: node:22-bookworm-slim
+    image: node:24.16.0-bookworm-slim
     command:
       - bash
       - -c

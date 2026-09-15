@@ -1,4 +1,4 @@
-FROM node:24.17.0-bookworm-slim
+FROM node:24.16.0-bookworm-slim
 
 RUN apt-get update && apt-get install -y git curl gettext-base unzip && apt-get install -y git curl jq && rm -rf /var/lib/apt/lists/*
 
