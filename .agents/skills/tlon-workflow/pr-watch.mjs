@@ -334,6 +334,10 @@ function collect() {
   for (const r of api(`${pulls}/reviews?per_page=100`)) {
     if (!qualifies(r.user, r.body)) continue;
     if (!r.body && r.state === 'COMMENTED') continue;
+    // A draft review comes back to its own author as PENDING with no
+    // timestamp, and nobody else can see it yet. Left in, it sorts against a
+    // null below and takes the poll down with it.
+    if (!r.submitted_at) continue;
     // A dismissed approval keeps its id and changes state; key on both so the
     // dismissal is reported.
     items.push({

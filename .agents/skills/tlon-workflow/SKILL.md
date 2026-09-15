@@ -149,10 +149,10 @@ What this app does that the sequence above does not show:
 **Web** has no prefill, and the login page that appears is the ship's own. Run the script instead of driving it by hand:
 
 ```bash
-node .agents/skills/tlon-workflow/web-login.mjs --url http://localhost:<port>
+node <worktree>/.agents/skills/tlon-workflow/web-login.mjs --url http://localhost:<port>
 ```
 
-It takes the `+code` from `apps/tlon-mobile/.env.local`, signs in, and prints the path of a Playwright storageState file (`.evidence/web-auth.json` unless `--state` says otherwise). Hand that to a context -- `browser.newContext({ storageState })` -- and it starts signed in; the file is reusable for the rest of the run. Signing in by hand instead, the selectors are in `apps/tlon-web/e2e/auth.setup.ts`, with one difference: a ship offering eauth renders a second form with its own `Continue`, so scope the click to the form holding the `password` field.
+Give it the worktree path, as with every script here: run from `apps/tlon-mobile` or `apps/tlon-web` the relative path does not resolve, and from the source checkout it signs in and writes the session outside your worktree. It takes the `+code` from `apps/tlon-mobile/.env.local`, signs in, and prints the path of a Playwright storageState file (`.evidence/web-auth.json` unless `--state` says otherwise). Hand that to a context -- `browser.newContext({ storageState })` -- and it starts signed in; the file is reusable for the rest of the run. Signing in by hand instead, the selectors are in `apps/tlon-web/e2e/auth.setup.ts`, with one difference: a ship offering eauth renders a second form with its own `Continue`, so scope the click to the form holding the `password` field.
 
 The script fails loudly when the ship's cookie does not survive, which is what happens on an origin the browser does not treat as secure: the ship marks `urbauth-` as `Secure`, Safari drops it on plain http, and the app returns to the login page however many times you sign in. Serve over https (`SSL=true`) for those.
 
