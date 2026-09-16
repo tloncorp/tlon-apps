@@ -899,9 +899,11 @@ export const useShowChatInputWayfinding = (channelId: string) => {
 export const useShowBotMentionWayfinding = (channelId: string) => {
   const wayfindingProgress = db.wayfindingProgress.useValue();
   const currentUserId = api.getCurrentUserId();
+  // The user's own bot only: another user's Tlonbot is a bot-shaped DM too,
+  // and the coach mark speaks of "your Tlonbot".
   const isCorrectChan = useMemo(() => {
-    return logic.isBotDmChannel({ channel: { id: channelId } });
-  }, [channelId]);
+    return channelId === api.getBotUserIdForUser(currentUserId);
+  }, [channelId, currentUserId]);
 
   return isCorrectChan && !wayfindingProgress.tappedHomeGroupHint;
 };
