@@ -5248,6 +5248,51 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           ...newSettings,
           pendingNudge: effectivePendingNudge,
         };
+        // Update auto-discover channels
+        if (newSettings.autoDiscoverChannels !== undefined) {
+          effectiveAutoDiscoverChannels = newSettings.autoDiscoverChannels;
+          runtime.log?.(
+            `[tlon] Settings: autoDiscoverChannels = ${effectiveAutoDiscoverChannels}`
+          );
+        }
+
+        // Reconcile the known-set with an observed value of the persisted
+        // `groupChannels` key. Placed after the discovery-flag update so
+        // `protectedNests()` sees the incoming flag. Subscription events are
+        // always observations; a refresh is one only when it scried fresh and
+        // no echo overtook its scry (`journalObserve`), so a stale refresh
+        // never reaches the journal.
+        //
+        // Removal only affects the known-set — the boot onboarding scan,
+        // approval display names, and telemetry counts. It does not gate
+        // handling: the /v4 firehose re-adds any member channel on its next
+        // event, and the discovery poll re-adds discovered channels while
+        // discovery is on. Authorization is `channelRules`.
+        if (
+          groupChannelJournal &&
+          (source === 'subscription' || snapshotOpts.journalObserve)
+        ) {
+          const { added, removed } = groupChannelJournal.observe(
+            newSettings.groupChannels
+          );
+          for (const nest of added) {
+            if (!watchedChannels.has(nest)) {
+              watchedChannels.add(nest);
+              runtime.log?.(`[tlon] Settings: now watching channel ${nest}`);
+              void scanDiscoveredAgentOnboardingNest(nest);
+            }
+          }
+          for (const nest of removed) {
+            watchedChannels.delete(nest);
+            runtime.log?.(
+              `[tlon] Settings: no longer watching channel ${nest}`
+            );
+          }
+        }
+
+        // A gapped refresh can update the runtime snapshot without observing
+        // the journal. Reconcile above even when the next fresh snapshot is
+        // identical, so trusting it cannot leave an older journal write base.
         if (
           source === 'refresh' &&
           JSON.stringify(prevSettings) === JSON.stringify(nextRuntimeSettings)
@@ -5316,48 +5361,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           runtime.log?.(
             `[tlon] Settings: defaultAuthorizedShips updated to ${(newSettings.defaultAuthorizedShips || []).join(', ')}`
           );
-        }
-
-        // Update auto-discover channels
-        if (newSettings.autoDiscoverChannels !== undefined) {
-          effectiveAutoDiscoverChannels = newSettings.autoDiscoverChannels;
-          runtime.log?.(
-            `[tlon] Settings: autoDiscoverChannels = ${effectiveAutoDiscoverChannels}`
-          );
-        }
-
-        // Reconcile the known-set with an observed value of the persisted
-        // `groupChannels` key. Placed after the discovery-flag update so
-        // `protectedNests()` sees the incoming flag. Subscription events are
-        // always observations; a refresh is one only when it scried fresh and
-        // no echo overtook its scry (`journalObserve`), so a stale refresh
-        // never reaches the journal.
-        //
-        // Removal only affects the known-set — the boot onboarding scan,
-        // approval display names, and telemetry counts. It does not gate
-        // handling: the /v4 firehose re-adds any member channel on its next
-        // event, and the discovery poll re-adds discovered channels while
-        // discovery is on. Authorization is `channelRules`.
-        if (
-          groupChannelJournal &&
-          (source === 'subscription' || snapshotOpts.journalObserve)
-        ) {
-          const { added, removed } = groupChannelJournal.observe(
-            newSettings.groupChannels
-          );
-          for (const nest of added) {
-            if (!watchedChannels.has(nest)) {
-              watchedChannels.add(nest);
-              runtime.log?.(`[tlon] Settings: now watching channel ${nest}`);
-              void scanDiscoveredAgentOnboardingNest(nest);
-            }
-          }
-          for (const nest of removed) {
-            watchedChannels.delete(nest);
-            runtime.log?.(
-              `[tlon] Settings: no longer watching channel ${nest}`
-            );
-          }
         }
 
         if (newSettings.ownerListenEnabled !== undefined) {
