@@ -3,7 +3,6 @@ import { desig } from '@tloncorp/api/lib/urbit';
 import { BotHomeGroupSlugs } from '@tloncorp/api/types/wayfinding';
 
 import * as db from '../db';
-import { getClientDateTimeContext } from '../clientDateTimeContext';
 import { createDevLogger } from '../debug';
 import * as logic from '../logic';
 import { createChannel, deleteChannel } from './channelActions';
@@ -28,6 +27,14 @@ const agentGroupFurnishingFlights = new Map<
   string,
   Promise<AgentGroupFurnishingStart>
 >();
+
+function getClientDateTimeContext() {
+  const resolved = Intl.DateTimeFormat().resolvedOptions();
+  return {
+    timezone: resolved.timeZone?.trim() || 'UTC',
+    locale: resolved.locale?.trim() || 'en-US',
+  };
+}
 
 export type AgentGroupFurnishing = {
   group: db.Group;
