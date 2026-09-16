@@ -158,10 +158,7 @@ device_(['alert', 'dismiss', ...S], { allowFailure: true });
 // The "Stay in the loop" sheet comes later, over Home.
 if (onScreen('Not now')) device_(['press', 'text="Not now"', ...S, '--settle']);
 
-if (!onScreen('Home')) {
-  console.error(
-    `mobile-login: ran the sequence but Home is not up. Snapshot the session (agent-device snapshot --session ${session}); a build without the login variables shows empty fields here.`
-  );
-  process.exit(1);
-}
+// A fresh disposable ship can still be completing its first sync after the
+// prompts are gone. Wait for the destination instead of assuming three seconds.
+device_(['wait', 'text', 'Home', '60000', ...S]);
 console.log(`${session}: signed in`);
