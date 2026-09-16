@@ -97,6 +97,14 @@ type AgentOnboardingContext = {
   presentation?: {
     startThinking: () => void | Promise<void>;
     stopThinking: () => void | Promise<void>;
+    /**
+     * A second presence run, keyed separately, for work that outlives this
+     * request. The request's own run is stopped when its handler returns, and
+     * the tracker tombstones that id — so the first entry, which is written
+     * afterwards by cron, cannot borrow it.
+     */
+    startBackgroundThinking?: (key: string) => void | Promise<void>;
+    stopBackgroundThinking?: (key: string) => void | Promise<void>;
     minResponseDelayMs?: number;
     minInterMessageDelayMs?: number;
   };
@@ -391,6 +399,8 @@ type FirstRunCorrelation = {
   presentationReady: boolean;
   /** Re-enters the configured API scope when lifecycle hooks fire later. */
   runInApiScope?: TlonApiScopeRunner;
+  /** Stops the thinking presence held while the entry is being written. */
+  releaseThinking?: () => Promise<void>;
 };
 
 function correlationFunnelFields(correlation: FirstRunCorrelation) {
@@ -1590,6 +1600,7 @@ async function failFirstRunCorrelation(
       })
     );
   }
+  await correlation.releaseThinking?.();
   if (await retireSupersededFirstRun(correlationRunId, correlation, 'failed')) {
     return;
   }
@@ -1788,6 +1799,7 @@ async function completeFirstRunCorrelation(
       )
     );
   }
+  await correlation.releaseThinking?.();
   if (
     await retireSupersededFirstRun(correlationRunId, correlation, 'completed')
   ) {
@@ -2169,6 +2181,56 @@ async function restoreFirstRunFromDurable(
   return record;
 }
 
+// The entry is written by cron after the request handler has returned, so
+// nothing refreshes the thinking presence while the user waits on "I'll be
+// back in a few seconds". Hold it open here: the tracker publishes only when
+// something calls in, and the ship ages an active entry out after 90s.
+const FIRST_RUN_PRESENCE_REFRESH_MS = 20_000;
+// A run that never resolves must not leave the indicator spinning forever.
+const FIRST_RUN_PRESENCE_MAX_MS = 5 * 60_000;
+
+function holdFirstRunThinking(
+  context: AgentOnboardingScanContext,
+  key: string
+): () => Promise<void> {
+  const config = context.presentation;
+  if (!config?.startBackgroundThinking) return async () => {};
+
+  let released = false;
+  let failsafe: ReturnType<typeof setTimeout> | undefined;
+
+  const beat = () => {
+    if (released) return;
+    void Promise.resolve(config.startBackgroundThinking?.(key)).catch((error) =>
+      context.log?.(
+        `[tlon] failed to hold first-run thinking presence: ${String(error)}`
+      )
+    );
+  };
+
+  const release = async () => {
+    if (released) return;
+    released = true;
+    clearInterval(ticker);
+    if (failsafe) clearTimeout(failsafe);
+    try {
+      await config.stopBackgroundThinking?.(key);
+    } catch (error) {
+      context.log?.(
+        `[tlon] failed to stop first-run thinking presence: ${String(error)}`
+      );
+    }
+  };
+
+  beat();
+  const ticker = setInterval(beat, FIRST_RUN_PRESENCE_REFRESH_MS);
+  ticker.unref?.();
+  failsafe = setTimeout(() => void release(), FIRST_RUN_PRESENCE_MAX_MS);
+  failsafe.unref?.();
+
+  return release;
+}
+
 async function activateFirstRunPresentation(
   cron: TlonCronService,
   context: AgentOnboardingScanContext,
@@ -2191,6 +2253,10 @@ async function activateFirstRunPresentation(
   );
   if (correlation) {
     correlation[1].presentationReady = true;
+    correlation[1].releaseThinking ??= holdFirstRunThinking(
+      context,
+      request.provisionId
+    );
   } else {
     await restoreFirstRunFromDurable(context, request, notebookName, jobId);
   }

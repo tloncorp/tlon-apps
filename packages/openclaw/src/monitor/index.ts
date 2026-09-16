@@ -4285,6 +4285,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   runId: `onboarding:${String(messageId)}`,
                 });
               },
+              startBackgroundThinking: (key) => {
+                computingPresence.refreshRun({
+                  conversationId: nest,
+                  runId: `onboarding-background:${key}`,
+                });
+              },
+              stopBackgroundThinking: (key) => {
+                computingPresence.stopRun({
+                  conversationId: nest,
+                  runId: `onboarding-background:${key}`,
+                });
+              },
             },
           });
         } catch (error) {
@@ -4945,6 +4957,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   computingPresence.stopRun({
                     conversationId: whom,
                     runId: `onboarding:${String(effectiveMessageId)}`,
+                  });
+                },
+                startBackgroundThinking: (key) => {
+                  computingPresence.refreshRun({
+                    conversationId: whom,
+                    runId: `onboarding-background:${key}`,
+                  });
+                },
+                stopBackgroundThinking: (key) => {
+                  computingPresence.stopRun({
+                    conversationId: whom,
+                    runId: `onboarding-background:${key}`,
                   });
                 },
               },

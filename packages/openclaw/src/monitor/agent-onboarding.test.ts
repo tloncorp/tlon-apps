@@ -2864,6 +2864,37 @@ describe('provision coordinator ordering', () => {
     );
   });
 
+  it('keeps thinking presence up while the first entry is written', async () => {
+    // The entry is written by cron after this handler returns, so the run the
+    // handler stops cannot be the one covering that wait.
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    const { cron } = provisionCronHarness();
+    const stopThinking = vi.fn();
+    const startBackgroundThinking = vi.fn();
+    const stopBackgroundThinking = vi.fn();
+
+    await expect(
+      handleAgentOnboardingRequest(
+        requestContext({
+          presentation: {
+            startThinking: vi.fn(),
+            stopThinking,
+            startBackgroundThinking,
+            stopBackgroundThinking,
+            minResponseDelayMs: 0,
+          },
+        }),
+        provisionDeps(cron)
+      )
+    ).resolves.toBe(true);
+
+    expect(startBackgroundThinking).toHaveBeenCalledWith(provision.provisionId);
+    // The request is done; the wait it promised is not.
+    expect(stopThinking).toHaveBeenCalled();
+    expect(stopBackgroundThinking).not.toHaveBeenCalled();
+  });
+
   it('releases a durable claim when enqueue rejects', async () => {
     const store = memoryRunStore();
     setAgentOnboardingRunStore(store);

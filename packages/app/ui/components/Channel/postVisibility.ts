@@ -1,21 +1,10 @@
 import * as db from '@tloncorp/shared/db';
-import {
-  getBotUserIdForUser,
-  isMoonOfUser,
-} from '@tloncorp/api/client/apiUtils';
-import { isBotHomeGroupChatChannel } from '@tloncorp/api/client/wayfinding';
+import { getBotUserIdForUser } from '@tloncorp/api/client/apiUtils';
 import {
   findPostBlobEntry,
   parsePostBlob,
   postHasBlobEntry,
 } from '@tloncorp/api';
-
-// Provisioned by ylem before the conversational onboarding begins. Keep the
-// exact full copy here so a later bot message that builds on it remains visible.
-export const TLAWN_HOME_GROUP_WELCOME_MESSAGE =
-  'Welcome! This is your private group with me, your Tlonbot. You can @ me ' +
-  'here anytime and I will respond. Invite some friends, and they can @ me ' +
-  'too—we can all chat together.';
 
 // Posted into the bot DM before the conversational onboarding begins
 // (`INTRO_MESSAGE` in tlonbot's `entrypoint/tlawn.py`). It interpolates the
@@ -45,14 +34,6 @@ export function isVisibleChannelPost(
   currentUserId: string,
   channelId?: string
 ): boolean {
-  if (
-    channelId &&
-    isBotHomeGroupChatChannel(currentUserId, channelId) &&
-    (post.isBot === true || isMoonOfUser(post.authorId, currentUserId)) &&
-    post.textContent?.trim() === TLAWN_HOME_GROUP_WELCOME_MESSAGE
-  ) {
-    return false;
-  }
   // A DM channel is addressed by the other party, so the bot's own DM is the
   // only place this can match, and only for a post the bot itself authored.
   if (
