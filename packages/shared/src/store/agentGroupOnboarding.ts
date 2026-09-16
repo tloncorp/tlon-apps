@@ -64,9 +64,16 @@ type FurnishParams = {
    * Let onboarding name a group it adopted. Adoption otherwise keeps whatever
    * name the group arrived with, since the caller usually hands in a group the
    * user already owns — but onboarding's home group arrives under a generated
-   * placeholder that exists to be replaced.
+   * placeholder that exists to be replaced. Honoured only while the title
+   * still is such a placeholder (`isProvisionedAgentGroupTitle`).
    */
   canRenameGroup?: boolean;
+  /**
+   * Remove the pin Hosting places on the provisioned group. Only the splash's
+   * pre-handoff pass asks: a repair after the app is visible could otherwise
+   * remove a pin the user has since placed.
+   */
+  removeProvisionedPin?: boolean;
 };
 
 /**
@@ -153,14 +160,18 @@ async function startAgentGroupFurnishingOnce(
   if (params.isFirstGroup) {
     const initialGroupTitle = group.title ?? null;
     // A group this flow just created under the default title may be renamed;
-    // one the caller handed in keeps its name unless the caller says otherwise.
-    // Either way the rename only fires while the title is still untouched, so
-    // it cannot clobber a name the user chose.
+    // one the caller handed in keeps its name unless the caller vouches that
+    // it arrived under a placeholder — and even then only while the title
+    // still is one, since the user may have named it on another client before
+    // this ran. Afterwards the rename fires only while the title is untouched,
+    // so it cannot clobber a name the user chose.
     const canRenameGroup =
-      params.canRenameGroup ??
-      (params.groupId
-        ? false
-        : params.title == null || params.title === DEFAULT_AGENT_GROUP_TITLE);
+      params.canRenameGroup == null
+        ? params.groupId
+          ? false
+          : params.title == null || params.title === DEFAULT_AGENT_GROUP_TITLE
+        : params.canRenameGroup &&
+          isProvisionedAgentGroupTitle(initialGroupTitle, await ownerNaming());
 
     await db.agentGroupOnboardingLocks.setValue((current) => ({
       ...current,
@@ -183,6 +194,7 @@ async function startAgentGroupFurnishingOnce(
     agentShipId: resolved.agentShipId,
     hostedShipId: resolved.hostedShipId,
     isFirstGroup: params.isFirstGroup ?? false,
+    removeProvisionedPin: params.removeProvisionedPin ?? false,
   });
 
   return {
@@ -291,12 +303,14 @@ async function finishAgentGroupFurnishing({
   agentShipId,
   hostedShipId,
   isFirstGroup,
+  removeProvisionedPin,
 }: {
   group: db.Group;
   chatChannel: db.Channel;
   agentShipId: string;
   hostedShipId: string | null;
   isFirstGroup: boolean;
+  removeProvisionedPin: boolean;
 }): Promise<AgentGroupFurnishing> {
   return retryAgentGroupFurnishCore(
     () =>
@@ -306,6 +320,7 @@ async function finishAgentGroupFurnishing({
         agentShipId,
         hostedShipId,
         isFirstGroup,
+        removeProvisionedPin,
       }),
     { groupId: initialGroup.id }
   );
@@ -317,14 +332,16 @@ async function finishAgentGroupFurnishingOnce({
   agentShipId,
   hostedShipId,
   isFirstGroup,
+  removeProvisionedPin,
 }: {
   initialGroup: db.Group;
   chatChannel: db.Channel;
   agentShipId: string;
   hostedShipId: string | null;
   isFirstGroup: boolean;
+  removeProvisionedPin: boolean;
 }): Promise<AgentGroupFurnishing> {
-  if (isFirstGroup) await unpinProvisionedGroup(initialGroup.id);
+  if (removeProvisionedPin) await unpinProvisionedGroup(initialGroup.id);
   const notebook = isFirstGroup
     ? await ensureSingleNotesChannel(initialGroup.id)
     : null;
@@ -682,6 +699,35 @@ async function reconcileCreatedOnboardingNotebook(
  * slot as well. Only during first-run furnishing, so a pin the user put there
  * themselves is never removed — at this point they have not seen the list.
  */
+async function ownerNaming() {
+  const id = api.getCurrentUserId();
+  const contact = await db.getContact({ id }).catch(() => null);
+  return { id, nickname: contact?.nickname };
+}
+
+/**
+ * Hosting provisions the home group as "<owner>'s Group" — the ship, or the
+ * nickname when one was set — and older flows used a few bare defaults. Only a
+ * title still in that family is a placeholder onboarding may replace.
+ */
+function isProvisionedAgentGroupTitle(
+  title: string | null,
+  owner: { id: string; nickname?: string | null }
+) {
+  const trimmed = title?.trim() ?? '';
+  if (!trimmed || trimmed === DEFAULT_AGENT_GROUP_TITLE) return true;
+  if (['Group', 'Home', 'Home Group'].includes(trimmed)) return true;
+  const possessive = /['\u2019]s Group$/;
+  if (!possessive.test(trimmed)) return false;
+  const named = trimmed.replace(possessive, '');
+  const nickname = owner.nickname?.trim();
+  return (
+    named === owner.id ||
+    named === desig(owner.id) ||
+    (!!nickname && named === nickname)
+  );
+}
+
 async function unpinProvisionedGroup(groupId: string) {
   try {
     const pin = (await db.getPins()).find((entry) => entry.itemId === groupId);
@@ -944,6 +990,7 @@ function agentHasAdmin(group: db.Group, agentShipId: string) {
 export const agentGroupOnboardingTesting = {
   addCordonThenJoin,
   ensureIntroRequest,
+  isProvisionedAgentGroupTitle,
   agentGroupFurnishingFlightKey,
   agentHasAdmin,
   retryAgentGroupFurnishCore,

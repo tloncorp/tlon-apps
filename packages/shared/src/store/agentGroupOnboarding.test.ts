@@ -424,3 +424,36 @@ describe('agent group furnishing retry', () => {
     expect(onReadyToReveal).toHaveBeenCalledOnce();
   });
 });
+
+describe('isProvisionedAgentGroupTitle', () => {
+  const owner = { id: '~zod', nickname: 'Dan' };
+
+  it('recognises the titles Hosting and older flows generate', () => {
+    for (const title of [
+      null,
+      '',
+      'My agent group',
+      "~zod's Group",
+      "Dan's Group",
+      'Dan’s Group',
+      'Home Group',
+    ]) {
+      expect(
+        agentGroupOnboardingTesting.isProvisionedAgentGroupTitle(title, owner)
+      ).toBe(true);
+    }
+  });
+
+  it('treats any other title as the user’s own', () => {
+    for (const title of [
+      'Peptides Digest',
+      "~bus's Group",
+      "Alice's Group",
+      'Dan’s workspace',
+    ]) {
+      expect(
+        agentGroupOnboardingTesting.isProvisionedAgentGroupTitle(title, owner)
+      ).toBe(false);
+    }
+  });
+});
