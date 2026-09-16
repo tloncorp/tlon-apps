@@ -589,9 +589,9 @@
   %-  (do-as ~zod)
   (do-poke %steward-lens-action-1 !>(`action:v1:l`[%retry ~dev 'lens-r']))
 ::
-::  on-init subscribes to %activity and seeds the default retention cap
+::  on-init subscribes to %activity, %chat, and %channels, and seeds the cap
 ::
-++  test-init-arms-activity-and-cap
+++  test-init-arms-observers-and-cap
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
@@ -601,6 +601,8 @@
   ;<  ~  bind:m
     %+  ex-cards  caz
     :~  (ex-task /activity [~dev %activity] %watch /v5)
+        (ex-task /journey/chat [~dev %chat] %watch /v4)
+        (ex-task /journey/channels [~dev %channels] %watch /v4)
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
   =/  st  !<(state-1 !<(vase q.res))
@@ -1098,6 +1100,43 @@
       (ex-arvo /gateway/lease-check %b %wait new-lease)
       (ex-fact-paths ~[/v1/gateway])
   ==
+::
+::  an upgrade from before journey observation preserves the liveness seed
+::  while installing both missing subscriptions
+::
+++  test-on-load-migration-adds-journey-watches
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(wex ~)))
+  =/  g=gateway-0  *gateway-0
+  =.  status.g  %up
+  =/  old=state-0  [%0 `~bus (sy ~[moon]) *state:v1:l g]
+  ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
+  %+  ex-cards  caz
+  :~  (ex-task /journey/channels [~dev %channels] %watch /v4)
+      (ex-task /journey/chat [~dev %chat] %watch /v4)
+      (liveness-poke &)
+  ==
+::
+::  current-state upgrades install missing watches once, without a migration
+::  liveness seed or duplicate subscriptions on the next load
+::
+++  test-on-load-state-1-adds-journey-watches-once
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(wex ~)))
+  ;<  caz=(list card)  bind:m  (do-load agent ~)
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  (ex-task /journey/channels [~dev %channels] %watch /v4)
+        (ex-task /journey/chat [~dev %chat] %watch /v4)
+    ==
+  ;<  caz=(list card)  bind:m  (do-load agent ~)
+  (ex-cards caz ~)
 ::
 ::  on-load migrates a %0 state: every gateway field survives and the new
 ::  notify-on-start flag starts cleared

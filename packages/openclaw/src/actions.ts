@@ -5,6 +5,7 @@ import type {
 import { readStringParam } from 'openclaw/plugin-sdk/param-readers';
 
 import { normalizeShip, parseTlonTarget } from './targets.js';
+import { observeActiveTlonTurnDelivery } from './turn-recorder.js';
 import { resolveTlonAccount } from './types.js';
 import { withAuthenticatedTlonApi } from './urbit/api-client.js';
 import {
@@ -297,11 +298,15 @@ async function handleReply({
     );
   }
 
-  await sendChannelPost({
-    fromShip,
-    nest: parsed.nest,
-    story,
-    replyToId: messageId,
-  });
+  await observeActiveTlonTurnDelivery(
+    () =>
+      sendChannelPost({
+        fromShip,
+        nest: parsed.nest,
+        story,
+        replyToId: messageId,
+      }),
+    { destinationKind: 'group_channel' }
+  );
   return jsonResult({ ok: true, replied: messageId, target: to });
 }
