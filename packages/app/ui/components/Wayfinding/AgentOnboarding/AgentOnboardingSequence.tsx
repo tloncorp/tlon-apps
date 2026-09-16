@@ -173,6 +173,9 @@ export function AgentOnboardingSequence(props: {
             // The home group arrives under a generated placeholder name, so
             // the topics the user picks should still replace it.
             canRenameGroup: true,
+            // Hosting pins it. This pass runs before the user sees the app, so
+            // no pin of theirs can be removed; the repair pass later must not.
+            removeProvisionedPin: true,
           });
           let furnished: Awaited<typeof furnishing>;
           try {

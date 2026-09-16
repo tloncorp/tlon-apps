@@ -28,6 +28,18 @@ export function trackTopLevelTabSelection(tab: TopLevelTabName) {
   });
 }
 
+/**
+ * While first-run onboarding holds its navigation lock, the conversation is
+ * the Bot tab itself; the other tabs would carry the user away from the
+ * pickers, as a back gesture would, so their presses are refused.
+ */
+export function isTabPressBlockedByOnboardingLock(
+  locked: boolean,
+  tab: TopLevelTabName
+) {
+  return locked && tab !== 'BotChat';
+}
+
 export function getTopLevelTabRoute<Tab extends TopLevelTabName>(
   screen: Tab,
   params?: TopLevelTabParamList[Tab]

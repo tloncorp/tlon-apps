@@ -297,8 +297,9 @@ export function BotMentionTooltip() {
           testID="BotMentionWayfindingTooltip"
         >
           <Text size="$label/l" color="$white">
-            Since you own this group, your Tlonbot will automatically respond to
-            your messages. Others can @-mention your bot to interact with it.
+            This is your private chat with your Tlonbot: it answers everything
+            you say here, no @-mention needed. In a group, @-mention it to bring
+            it into the conversation.
           </Text>
           <View position="absolute" top={8} right={8} padding={4}>
             <Icon

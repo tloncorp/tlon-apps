@@ -11,11 +11,13 @@ import SettingsScreen from '../features/settings/SettingsScreen';
 import ChannelScreen from '../features/top/ChannelScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
 import { useAgentOnboardingLandingConsumer } from '../features/top/useAgentOnboardingLandingConsumer';
+import { useAnyAgentGroupOnboardingLock } from '../hooks/useAgentGroupOnboardingLock';
 import { useBotDmTab } from '../hooks/useBotDmTab';
 import { NavBar, NavIcon } from '../ui/components/NavBar';
 import {
   TopLevelTabName,
   getTopLevelTabRoute,
+  isTabPressBlockedByOnboardingLock,
   trackTopLevelTabSelection,
 } from './topLevelTabs';
 import type { TopLevelTabParamList } from './types';
@@ -33,6 +35,7 @@ function ReactTopLevelTabBar({ state, navigation }: BottomTabBarProps) {
   const unseenActivityCount = store.useUnreadUnseenActivityCount({
     excludeChannelId: botDm.enabled ? botDm.channelId : undefined,
   });
+  const onboardingLock = useAnyAgentGroupOnboardingLock();
 
   if (!isWindowNarrow) {
     return null;
@@ -41,6 +44,9 @@ function ReactTopLevelTabBar({ state, navigation }: BottomTabBarProps) {
   const activeRouteName = state.routes[state.index]?.name;
 
   const pressTab = (name: TopLevelTabName) => {
+    if (isTabPressBlockedByOnboardingLock(onboardingLock.locked, name)) {
+      return;
+    }
     const index = state.routes.findIndex((route) => route.name === name);
     const route = state.routes[index];
     if (!route) {
