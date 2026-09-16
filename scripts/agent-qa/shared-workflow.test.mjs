@@ -38,6 +38,10 @@ test('watcher surfaces a new run in an edited comment once, without treating it 
     qaResult(first).id,
     qaResult(comment('11111111-1111-1111-1111-111111111111', 'blocked')).id
   );
+  const skipped = comment('11111111-1111-1111-1111-111111111111', 'blocked');
+  skipped.body +=
+    '\n**PR assessment: no user-facing changes — simulator skipped**';
+  assert.equal(qaResult(skipped).status, 'skipped');
   assert.equal(qaResult({ body: 'Normal review' }), undefined);
   assert.equal(
     qaResult({ body: '<!-- ios-agent-qa:pr-1 --> broken state' }),

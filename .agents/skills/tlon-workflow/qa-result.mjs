@@ -18,13 +18,24 @@ export function qaResult(comment) {
       !['report', 'blocked'].includes(current.kind)
     )
       return null;
+    // Assessment-only publication uses the same fallback envelope as setup
+    // failures. Its explicit skip verdict is successful, not incomplete QA.
+    const skipped =
+      current.kind === 'blocked' &&
+      comment.body.includes(
+        '**PR assessment: no user-facing changes — simulator skipped**'
+      );
     return {
       kind: 'qa-result',
       id: `qa:${comment.id}:${current.head}:${current.url}:${current.kind}`,
       at: comment.updated_at || comment.created_at,
       author: comment.user.login,
       headSha: current.head,
-      status: current.kind === 'blocked' ? 'incomplete' : 'reviewed',
+      status: skipped
+        ? 'skipped'
+        : current.kind === 'blocked'
+          ? 'incomplete'
+          : 'reviewed',
       url: comment.html_url,
       runUrl: current.url,
       body: comment.body,
