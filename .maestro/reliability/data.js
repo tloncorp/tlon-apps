@@ -57,6 +57,12 @@ output.reliability.folderLeafQuery = 'descendantomega';
 output.reliability.folderArchive = MAESTRO_RUN_TAG + '-targetarchive';
 output.reliability.folderArchiveQuery = 'targetarchive';
 output.reliability.folderDelete = MAESTRO_RUN_TAG + '-delete-me';
+output.reliability.noteMove = MAESTRO_RUN_TAG + '-move-note';
+output.reliability.noteMoveBody = MAESTRO_RUN_TAG + '-move-body';
+output.reliability.noteDelete = MAESTRO_RUN_TAG + '-delete-note';
+output.reliability.noteDeleteBody = MAESTRO_RUN_TAG + '-delete-body';
+output.reliability.noteKeeper = MAESTRO_RUN_TAG + '-keep-note';
+output.reliability.noteKeeperBody = MAESTRO_RUN_TAG + '-keep-body';
 output.reliability.folderParentRowId =
   'NotesFolderRow-' + output.reliability.folderParent;
 output.reliability.folderChildRowId =
@@ -82,11 +88,27 @@ output.reliability.folderDeleteMessagePattern = exact(
     output.reliability.folderDelete +
     '"? This folder will be permanently deleted.'
 );
+output.reliability.folderTreeDeleteMessagePattern = exact(
+  'Delete "' +
+    output.reliability.folderArchive +
+    '"? This will permanently delete 1 note and 2 folders inside this folder.'
+);
 output.reliability.folderMoveActionPattern = exact(
   'Move to ' + output.reliability.folderArchive
 );
 output.reliability.folderMoveToastPattern = exact(
   'Moved folder to ' + output.reliability.folderArchive
+);
+output.reliability.noteMoveActionPattern = exact(
+  'Move to ' + output.reliability.folderArchive
+);
+output.reliability.noteMoveToastPattern = exact(
+  'Moved note to ' + output.reliability.folderArchive
+);
+output.reliability.noteDeleteMessagePattern = exact(
+  'Delete "' +
+    output.reliability.noteDelete +
+    '"? This note will be removed from the notebook.'
 );
 
 if (

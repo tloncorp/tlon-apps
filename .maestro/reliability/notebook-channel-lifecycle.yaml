@@ -222,6 +222,88 @@ env:
 - assertVisible:
     id: ${output.reliability.folderChildRowId}
 
+# Create three exact notes in the source folder. One moves, one is deleted, and
+# the third is a control proving destructive actions do not remove a sibling.
+- runFlow:
+    file: subflows/create-notes-note.yaml
+    env:
+      NOTE_TITLE: ${output.reliability.noteMove}
+      NOTE_BODY: ${output.reliability.noteMoveBody}
+- runFlow:
+    file: subflows/create-notes-note.yaml
+    env:
+      NOTE_TITLE: ${output.reliability.noteDelete}
+      NOTE_BODY: ${output.reliability.noteDeleteBody}
+- runFlow:
+    file: subflows/create-notes-note.yaml
+    env:
+      NOTE_TITLE: ${output.reliability.noteKeeper}
+      NOTE_BODY: ${output.reliability.noteKeeperBody}
+
+# Move one note to the searched root destination and prove it leaves the source.
+- longPressOn: ${output.reliability.noteMove}
+- tapOn: '^Move to folder$'
+- assertVisible: '^Move note$'
+- assertVisible: ${'Choose a new folder for ' + output.reliability.noteMove + '.'}
+- tapOn: '^Search folders$'
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.folderArchiveQuery}
+- assertVisible: ${output.reliability.folderArchive}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn: ${output.reliability.folderArchive}
+      - tapOn: ${output.reliability.folderArchive}
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+      - tapOn: ${output.reliability.folderArchive}
+- assertVisible: ${output.reliability.noteMoveActionPattern}
+- tapOn: ${output.reliability.noteMoveActionPattern}
+- extendedWaitUntil:
+    visible: ${output.reliability.noteMoveToastPattern}
+    timeout: 5000
+- assertNotVisible: ${output.reliability.noteMove}
+- assertVisible: ${output.reliability.noteDelete}
+- assertVisible: ${output.reliability.noteKeeper}
+
+# Cancel then confirm deletion of exactly one note, preserving the sibling.
+- longPressOn: ${output.reliability.noteDelete}
+- tapOn: '^Delete note$'
+- assertVisible: '^Delete note$'
+- assertVisible: ${output.reliability.noteDeleteMessagePattern}
+- tapOn: '^Cancel$'
+- assertVisible: ${output.reliability.noteDelete}
+- assertVisible: ${output.reliability.noteKeeper}
+- longPressOn: ${output.reliability.noteDelete}
+- tapOn: '^Delete note$'
+- assertVisible: ${output.reliability.noteDeleteMessagePattern}
+- tapOn: '^Delete$'
+- extendedWaitUntil:
+    notVisible: ${output.reliability.noteDelete}
+    timeout: 15000
+- assertVisible: ${output.reliability.noteKeeper}
+
+# Open the destination and prove the moved note retained its body exactly once.
+- tapOn: '^Back$'
+- tapOn:
+    id: ${output.reliability.folderArchiveRowId}
+- extendedWaitUntil:
+    visible: ${output.reliability.noteMove}
+    timeout: 15000
+- tapOn: ${output.reliability.noteMove}
+- assertVisible: ${output.reliability.noteMoveBody}
+- tapOn: '^Back$'
+- assertVisible: ${output.reliability.noteMove}
+- tapOn: '^Back$'
+- tapOn:
+    id: ${output.reliability.folderParentRowId}
+
 # The move picker must exclude the current parent, the folder itself, and its
 # descendant. Search gives the native picker a stable, local empty-state oracle.
 - longPressOn:
@@ -314,6 +396,59 @@ env:
     visible:
       id: ${output.reliability.folderLeafRowId}
     timeout: 15000
+
+# The destination now owns one moved note and the two-folder subtree. Relaunch
+# and re-enter the exact Notebook so the destructive root-folder action does
+# not depend on a fragile count of nested Back actions. Cancel preserves every
+# item; confirmation removes the subtree and leaves the source control note.
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: '^Home$'
+    timeout: 15000
+- runFlow: subflows/open-fixture-group.yaml
+- tapOn: ${MAESTRO_RUN_TAG + ' notebook'}
+- extendedWaitUntil:
+    visible:
+      id: ${output.reliability.folderArchiveRowId}
+    timeout: 15000
+- assertVisible:
+    id: ${output.reliability.folderParentRowId}
+- assertVisible:
+    id: ${output.reliability.folderArchiveRowId}
+- longPressOn:
+    id: ${output.reliability.folderArchiveRowId}
+- tapOn:
+    id: NotesDeleteFolderAction
+- assertVisible: '^Delete folder and contents[?]$'
+- assertVisible: ${output.reliability.folderTreeDeleteMessagePattern}
+- tapOn: '^Cancel$'
+- assertVisible:
+    id: ${output.reliability.folderArchiveRowId}
+- tapOn:
+    id: ${output.reliability.folderArchiveRowId}
+- assertVisible: ${output.reliability.noteMove}
+- assertVisible:
+    id: ${output.reliability.folderChildRowId}
+- tapOn: '^Back$'
+- longPressOn:
+    id: ${output.reliability.folderArchiveRowId}
+- tapOn:
+    id: NotesDeleteFolderAction
+- assertVisible: ${output.reliability.folderTreeDeleteMessagePattern}
+- tapOn: '^Delete$'
+- extendedWaitUntil:
+    notVisible:
+      id: ${output.reliability.folderArchiveRowId}
+    timeout: 15000
+- assertVisible:
+    id: ${output.reliability.folderParentRowId}
+- tapOn:
+    id: ${output.reliability.folderParentRowId}
+- assertVisible: ${output.reliability.noteKeeper}
+- assertNotVisible: ${output.reliability.noteDelete}
+- assertNotVisible:
+    id: ${output.reliability.folderChildRowId}
 
 # Relaunch after the move to retain the existing channel-deletion persistence
 # check and reset navigation before cleanup.

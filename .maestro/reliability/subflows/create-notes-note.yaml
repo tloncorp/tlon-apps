@@ -1,0 +1,32 @@
+appId: ${MAESTRO_APP_ID}
+---
+- tapOn:
+    id: NotesRootNewHeaderAction
+- tapOn:
+    id: NotesNewNoteAction
+- extendedWaitUntil:
+    visible:
+      id: NotesTitleInput
+    timeout: 15000
+- tapOn:
+    id: NotesTitleInput
+- runFlow:
+    file: input.yaml
+    env:
+      INPUT_TEXT: ${NOTE_TITLE}
+- pressKey: Enter
+- tapOn:
+    id: NotesBodyInput
+- runFlow:
+    file: input.yaml
+    env:
+      INPUT_TEXT: ${NOTE_BODY}
+- assertVisible: '^Not synced$'
+- tapOn: '^Preview$'
+- extendedWaitUntil:
+    visible: '^Synced$'
+    timeout: 15000
+- tapOn: '^Back$'
+- extendedWaitUntil:
+    visible: ${NOTE_TITLE}
+    timeout: 15000
