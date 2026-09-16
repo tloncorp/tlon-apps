@@ -841,12 +841,21 @@ async function main() {
 // A commit that reloads agents leaves them unavailable for a while after clay
 // is done. Callers that hand the ship straight to a test suite need to wait for
 // that, or the suite races the reload.
+// One success is not proof the desk is back: a commit advances clay in a single
+// event, and gall tears the desk's agents down and rebuilds them over the
+// events after it, so the very first probe can be answered by an agent that is
+// about to stop. Requiring several in a row means an agent that goes away
+// mid-window resets the count instead of passing.
+const READY_SAMPLES = 3;
+
 async function waitScry(ship, scryPath, timeoutMs) {
   const t0 = Date.now();
+  let consecutive = 0;
   for (;;) {
-    if (await ship.scryOk(scryPath)) {
+    consecutive = (await ship.scryOk(scryPath)) ? consecutive + 1 : 0;
+    if (consecutive >= READY_SAMPLES) {
       console.log(
-        `${scryPath} answered ${((Date.now() - t0) / 1000).toFixed(1)}s after the commit`
+        `${scryPath} answered ${READY_SAMPLES}x by ${((Date.now() - t0) / 1000).toFixed(1)}s after the commit`
       );
       return;
     }
