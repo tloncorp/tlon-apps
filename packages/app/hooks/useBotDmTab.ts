@@ -1,6 +1,6 @@
 import { getBotUserIdForUser, getCurrentUserIsHosted } from '@tloncorp/api';
+import * as db from '@tloncorp/shared/db';
 
-import { useHasExpectedBotDm } from '../utils/botSettings';
 import { useCurrentUserId } from './useCurrentUser';
 
 export type BotDmTab =
@@ -11,18 +11,19 @@ export type BotDmTab =
  * Whether the first bottom tab — the user's conversation with their bot —
  * should be shown, and what it opens.
  *
- * The tab is only meaningful for a hosted user whose bot DM has been
- * provisioned; until then there is nothing to open, so callers fall back to
- * Workspaces as the first tab. A DM's channel id is the other party's id, so
- * the bot's user id addresses the conversation directly.
+ * The tab exists for a hosted user whose bot is enabled. It must not wait for
+ * the DM's channel row: the tab renders the DM by id, and onboarding lands in
+ * it before the row has synced — a tab registered only once the row arrives
+ * would leave that landing with no screen to reach. A DM's channel id is the
+ * other party's id, so the bot's user id addresses the conversation directly.
  */
 export function useBotDmTab(): BotDmTab {
   const currentUserId = useCurrentUserId();
   const isHostedUser = getCurrentUserIsHosted();
-  const hasBotDm = useHasExpectedBotDm(currentUserId, isHostedUser);
+  const { value: botEnabled } = db.hostingBotEnabled.useStorageItem();
   const channelId = getBotUserIdForUser(currentUserId);
 
-  if (!isHostedUser || !hasBotDm || !channelId) {
+  if (!isHostedUser || !botEnabled || !channelId) {
     return { enabled: false };
   }
 

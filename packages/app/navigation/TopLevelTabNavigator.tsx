@@ -101,6 +101,22 @@ export function TopLevelTabNavigator() {
     if (!botDm.enabled || focusedBotTab.current) {
       return;
     }
+    // Claim only while the user is still where the cold start left them —
+    // MainTabs with the initial ChatList tab showing. If the DM syncs after
+    // they have opened Settings or another root screen, leave them there.
+    const rootState = navigation.getState();
+    const rootRoute = rootState?.routes[rootState.index];
+    const tabsState = rootRoute?.state as
+      | { index?: number; routes?: { name: string }[] }
+      | undefined;
+    const focusedTab = tabsState?.routes?.[tabsState.index ?? 0]?.name;
+    if (
+      rootRoute?.name !== 'MainTabs' ||
+      (focusedTab && focusedTab !== 'ChatList')
+    ) {
+      focusedBotTab.current = true;
+      return;
+    }
     focusedBotTab.current = true;
     const route = getTopLevelTabRoute('BotChat');
     (navigation.navigate as (...args: unknown[]) => void)(

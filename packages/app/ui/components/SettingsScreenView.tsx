@@ -13,6 +13,7 @@ import { AlertDialog, View, XStack, YStack, isWeb } from 'tamagui';
 import { ContactName } from './ContactNameV2';
 import { ListItem } from './ListItem';
 import { ScreenHeader } from './ScreenHeader';
+import { useTopLevelTabBarContentInset } from '../../navigation/useTopLevelTabBarContentInset';
 import { ScreenScrollView } from './ScreenScrollView';
 import { TlonLogo } from './TlonLogo';
 
@@ -69,6 +70,9 @@ export function SettingsScreenView(props: Props) {
 
   const isWindowNarrow = useIsWindowNarrow();
 
+  // Settings is a top-level tab now, so its last rows must clear the bar
+  // that floats over the bottom of the screen, as the Workspaces list does.
+  const bottomContentInset = useTopLevelTabBarContentInset();
   return (
     <>
       <ScreenHeader
@@ -78,7 +82,12 @@ export function SettingsScreenView(props: Props) {
         placement="navigation"
       />
       <ScreenScrollView>
-        <YStack flex={1} padding="$l" gap="$s">
+        <YStack
+          flex={1}
+          padding="$l"
+          paddingBottom={bottomContentInset}
+          gap="$s"
+        >
           {props.onProfilePressed && (
             <ProfileAction
               currentUserId={props.currentUserId}

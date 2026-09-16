@@ -100,6 +100,8 @@ export default function ChannelScreen(props: Props) {
   });
 
   const groupId = channel?.groupId ?? group?.id;
+  // The bot DM belongs to no group; onboarding's group rides on the route.
+  const onboardingGroupId = routeGroupId ?? groupId;
   const {
     agentOnboarding,
     agentShipId,
@@ -412,7 +414,7 @@ export default function ChannelScreen(props: Props) {
     agentShipId,
     awaitingFirstEntry: agentOnboarding.awaitingFirstEntry,
     channelId: currentChannelId,
-    groupId,
+    groupId: onboardingGroupId,
     isFocused,
     posts: filteredPosts,
     provisionId: agentOnboarding.marker?.provision?.provisionId,
