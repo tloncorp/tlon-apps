@@ -127,6 +127,7 @@ interface HostingResponseErrorDetails {
   method: string;
   path: string;
   responseText?: string;
+  retryAfter?: number;
 }
 export class HostingError extends Error {
   details: HostingResponseErrorDetails;
@@ -258,6 +259,17 @@ const hostingFetch = async <T extends object>(
         method: init?.method ?? 'GET',
         path,
         status: response.status,
+        retryAfter:
+          response.status === 429 &&
+          parsed &&
+          typeof result === 'object' &&
+          result !== null &&
+          'retryAfter' in result &&
+          typeof result.retryAfter === 'number' &&
+          Number.isFinite(result.retryAfter) &&
+          result.retryAfter > 0
+            ? result.retryAfter
+            : undefined,
       }
     );
     const eventId = EXPECTED_ERRORS.includes(err.details.status ?? 0)

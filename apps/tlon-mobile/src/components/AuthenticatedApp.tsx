@@ -57,6 +57,7 @@ import { useSyncAppBadge } from '../hooks/useSyncAppBadge';
 import { useSyncReactionCapability } from '../hooks/useSyncReactionCapability';
 import { useRecaptcha } from '../hooks/useRecaptcha';
 import { inviteSystemContacts } from '../lib/contactsHelpers';
+import { setActiveNotificationRoute } from '../lib/notificationPresentation';
 import {
   clearHostingNativeCookie,
   refreshHostingAuth,
@@ -202,6 +203,8 @@ function AuthenticatedApp({
   );
 
   useAppStatusChange(handleAppStatusChange);
+
+  useEffect(() => () => setActiveNotificationRoute(undefined), []);
 
   // track sync completion for telemetry
   useEffect(() => {

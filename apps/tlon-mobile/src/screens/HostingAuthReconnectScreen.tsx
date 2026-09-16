@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { OTPInput } from '../components/OnboardingInputs';
 
 const OTP_LENGTH = 6;
+const FALLBACK_RESEND_WAIT_SECONDS = 30;
 
 type RequestState = 'idle' | 'requesting' | 'sent';
 
@@ -62,6 +63,11 @@ export function HostingAuthReconnectScreen({
   );
   const insets = useSafeAreaInsets();
 
+  const startResendCooldown = useCallback((seconds: number) => {
+    setResendAvailableAt(Date.now() + seconds * 1000);
+    setResendWait(Math.max(0, Math.ceil(seconds)));
+  }, []);
+
   useEffect(() => {
     if (resendWait <= 0) {
       return;
@@ -88,8 +94,7 @@ export function HostingAuthReconnectScreen({
 
     try {
       const info = await onRequestCode();
-      setResendAvailableAt(Date.now() + info.retryAfter * 1000);
-      setResendWait(Math.max(0, Math.ceil(info.retryAfter)));
+      startResendCooldown(info.retryAfter);
       setOtpInfo(info);
       setOtp([]);
       setRequestState('sent');
@@ -99,6 +104,9 @@ export function HostingAuthReconnectScreen({
         requestError.details.status === 429
       ) {
         // A recent request means the user should already have a usable code.
+        startResendCooldown(
+          requestError.details.retryAfter ?? FALLBACK_RESEND_WAIT_SECONDS
+        );
         setRequestState('sent');
         setError('A code was sent recently. Enter it below or try again soon.');
       } else {
@@ -107,7 +115,7 @@ export function HostingAuthReconnectScreen({
       }
     }
     requestInFlight.current = false;
-  }, [onRequestCode, resendAvailableAt]);
+  }, [onRequestCode, resendAvailableAt, startResendCooldown]);
 
   useEffect(() => {
     if (!autoRequest || requestStarted.current) {

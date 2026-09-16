@@ -297,6 +297,38 @@ describe('Hosting auth reconnect interactions', () => {
   });
 
   it.each([
+    { retryAfter: 60, wait: 60 },
+    { retryAfter: undefined, wait: 30 },
+  ])(
+    'applies a $wait-second cooldown to an initial 429',
+    async ({ retryAfter, wait }) => {
+      sendCode.mockRejectedValueOnce(
+        new HostingError('Too many requests', {
+          status: 429,
+          method: 'POST',
+          path: '/request-login-otp',
+          retryAfter,
+        })
+      );
+      render(<ReconnectGate expired />);
+      await act(async () => {});
+      fireEvent.changeText(screen.getByTestId('otp'), '123');
+      fireEvent.press(screen.getByText(`Request a new code in ${wait}s`));
+      expect(sendCode).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId('otp').props.value).toBe('123');
+
+      jest.setSystemTime(Date.now() + wait * 1000);
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(1000);
+      });
+      await act(async () => {
+        fireEvent.press(screen.getByText('Request a new code'));
+      });
+      expect(sendCode).toHaveBeenCalledTimes(2);
+    }
+  );
+
+  it.each([
     { method: 'typing', values: ['1', '12', '123', '1234', '12345', '123456'] },
     { method: 'pasting', values: ['123456'] },
   ])(

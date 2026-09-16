@@ -392,6 +392,32 @@ describe('Hosting auth reconnect', () => {
     expect(setUserId).toHaveBeenCalledWith('user/1');
   });
 
+  it.each([60, undefined, 0, -1, '60'])(
+    'preserves only a positive numeric resend interval from a 429 (%s)',
+    async (retryAfter) => {
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockImplementation(() =>
+            respond({ message: 'Code was sent recently', retryAfter }, 429)
+          )
+      );
+      await expect(
+        requestLoginOtpForUser({
+          userId: 'user/1',
+          recaptchaToken: 'recaptcha-token',
+          platform: 'ios',
+        })
+      ).rejects.toMatchObject({
+        details: {
+          status: 429,
+          retryAfter: retryAfter === 60 ? 60 : undefined,
+        },
+      });
+    }
+  );
+
   it.each([400, 401])(
     'preserves HTTP %s for empty, text, and JSON verification errors',
     async (status) => {

@@ -24,7 +24,10 @@ async function performSync() {
   const timings: Record<string, number> = {
     start: Date.now(),
   };
-  const shipInfo = await storage.shipInfo.getValue();
+  const [shipInfo, hostingAuthToken] = await Promise.all([
+    storage.shipInfo.getValue(true),
+    storage.hostingAuthToken.getValue(true),
+  ]);
   if (shipInfo == null) {
     logger.trackEvent('Skipping background sync', {
       context: 'no ship info',
@@ -57,6 +60,27 @@ async function performSync() {
     if (hostingAuth === 'expired') {
       logger.trackEvent('Skipping background sync', {
         context: 'hosting auth expired',
+        taskExecutionId,
+      });
+      didSucceed = true;
+      return;
+    }
+
+    // The heartbeat can outlive logout or an account switch. Wait for pending
+    // storage writes before deciding whether this task still owns the session.
+    const [currentShipInfo, currentHostingAuthToken] = await Promise.all([
+      storage.shipInfo.getValue(true),
+      storage.hostingAuthToken.getValue(true),
+    ]);
+    if (
+      currentShipInfo?.ship !== shipInfo.ship ||
+      currentShipInfo?.shipUrl !== shipInfo.shipUrl ||
+      currentShipInfo?.authType !== shipInfo.authType ||
+      currentShipInfo?.authCookie !== shipInfo.authCookie ||
+      currentHostingAuthToken !== hostingAuthToken
+    ) {
+      logger.trackEvent('Skipping background sync', {
+        context: 'session changed during hosting auth check',
         taskExecutionId,
       });
       didSucceed = true;

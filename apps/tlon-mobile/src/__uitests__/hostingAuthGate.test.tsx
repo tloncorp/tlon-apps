@@ -20,6 +20,7 @@ import * as db from '@tloncorp/shared/db';
 
 import ConnectedAuthenticatedApp from '../components/AuthenticatedApp';
 import { refreshHostingAuth } from '../lib/hostingAuth';
+import { setActiveNotificationRoute } from '../lib/notificationPresentation';
 import { sync } from '@tloncorp/shared';
 
 jest.unmock('../components/AuthenticatedApp');
@@ -133,6 +134,9 @@ jest.mock('../hooks/useSyncReactionCapability', () => ({
 }));
 jest.mock('../hooks/useRecaptcha', () => ({ useRecaptcha: () => ({}) }));
 jest.mock('../lib/contactsHelpers', () => ({}));
+jest.mock('../lib/notificationPresentation', () => ({
+  setActiveNotificationRoute: jest.fn(),
+}));
 jest.mock('../lib/hostingAuth', () => ({
   refreshHostingAuth: jest.fn(),
   clearHostingNativeCookie: async () => {},
@@ -276,12 +280,14 @@ describe('Hosting auth gate', () => {
     expect(screen.getByText('Authenticated content')).toBeTruthy();
 
     for (let attempt = 0; attempt < 2; attempt++) {
+      jest.mocked(setActiveNotificationRoute).mockClear();
       await act(async () => {
         await db.hostingAuthExpired.setValue(true);
       });
       expect(screen.getByText('Reconnect session')).toBeTruthy();
       expect(screen.queryByText('Authenticated content')).toBeNull();
       expect(logout).not.toHaveBeenCalled();
+      expect(setActiveNotificationRoute).toHaveBeenCalledWith(undefined);
 
       await act(async () => {
         fireEvent.press(screen.getByText('Reconnect session'));
