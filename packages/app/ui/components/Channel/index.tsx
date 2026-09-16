@@ -410,6 +410,9 @@ export function Channel({
   useEffect(() => {
     if (
       disableBackButton ||
+      // The hint points at the back control. A tab root has none, so the
+      // one-shot waits for a pushed conversation that does.
+      isTopLevelTab ||
       !inView ||
       !isNarrow ||
       shownOnboardingBackTooltipsLoading ||
@@ -428,6 +431,7 @@ export function Channel({
     hasFirstGroupOnboardingRequest,
     inView,
     isNarrow,
+    isTopLevelTab,
     orientationCompletePostId,
     shownOnboardingBackTooltips,
     shownOnboardingBackTooltipsLoading,

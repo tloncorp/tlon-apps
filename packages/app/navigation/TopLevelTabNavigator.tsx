@@ -17,6 +17,7 @@ import { NavBar, NavIcon } from '../ui/components/NavBar';
 import {
   TopLevelTabName,
   getTopLevelTabRoute,
+  isAtColdStartPosition,
   isTabPressBlockedByOnboardingLock,
   trackTopLevelTabSelection,
 } from './topLevelTabs';
@@ -112,18 +113,11 @@ export function TopLevelTabNavigator() {
       return;
     }
     // Claim only while the user is still where the cold start left them —
-    // MainTabs with the initial ChatList tab showing. If the DM syncs after
-    // they have opened Settings or another root screen, leave them there.
-    const rootState = navigation.getState();
-    const rootRoute = rootState?.routes[rootState.index];
-    const tabsState = rootRoute?.state as
-      | { index?: number; routes?: { name: string }[] }
-      | undefined;
-    const focusedTab = tabsState?.routes?.[tabsState.index ?? 0]?.name;
-    if (
-      rootRoute?.name !== 'MainTabs' ||
-      (focusedTab && focusedTab !== 'ChatList')
-    ) {
+    // MainTabs with the initial ChatList tab showing and nothing asked of it.
+    // If the DM syncs after they have opened Settings or another root screen,
+    // or a deep link sent them to Workspaces with an invite to preview, leave
+    // them there.
+    if (!isAtColdStartPosition(navigation.getState())) {
       focusedBotTab.current = true;
       return;
     }

@@ -4,6 +4,7 @@ import { describe, expect, test, vi } from 'vitest';
 import { getMobileLinkingConfig } from './linking';
 import {
   getTopLevelTabRoute,
+  isAtColdStartPosition,
   isTabPressBlockedByOnboardingLock,
 } from './topLevelTabs';
 
@@ -90,5 +91,74 @@ describe('isTabPressBlockedByOnboardingLock', () => {
   test('lets every tab through once the lock lifts', () => {
     expect(isTabPressBlockedByOnboardingLock(false, 'ChatList')).toBe(false);
     expect(isTabPressBlockedByOnboardingLock(false, 'Settings')).toBe(false);
+  });
+});
+
+describe('isAtColdStartPosition', () => {
+  const tabs = (name: string, params?: object) => ({
+    index: 0,
+    routes: [{ name, params }],
+  });
+
+  test('holds on MainTabs before the tabs render, and on a bare Workspaces tab', () => {
+    expect(
+      isAtColdStartPosition({ index: 0, routes: [{ name: 'MainTabs' }] })
+    ).toBe(true);
+    expect(
+      isAtColdStartPosition({
+        index: 0,
+        routes: [{ name: 'MainTabs', state: tabs('ChatList') }],
+      })
+    ).toBe(true);
+  });
+
+  test('is over once another root screen or tab is showing', () => {
+    expect(
+      isAtColdStartPosition({
+        index: 1,
+        routes: [{ name: 'MainTabs' }, { name: 'Activity' }],
+      })
+    ).toBe(false);
+    expect(
+      isAtColdStartPosition({
+        index: 0,
+        routes: [{ name: 'MainTabs', state: tabs('Settings') }],
+      })
+    ).toBe(false);
+    expect(isAtColdStartPosition(undefined)).toBe(false);
+  });
+
+  test('yields to a destination Workspaces was sent to', () => {
+    expect(
+      isAtColdStartPosition({
+        index: 0,
+        routes: [
+          {
+            name: 'MainTabs',
+            state: tabs('ChatList', { previewGroupId: '~zod/garden' }),
+          },
+        ],
+      })
+    ).toBe(false);
+    expect(
+      isAtColdStartPosition({
+        index: 0,
+        routes: [
+          {
+            name: 'MainTabs',
+            params: {
+              screen: 'ChatList',
+              params: { previewGroupId: '~zod/garden' },
+            },
+          },
+        ],
+      })
+    ).toBe(false);
+    expect(
+      isAtColdStartPosition({
+        index: 0,
+        routes: [{ name: 'MainTabs', params: { screen: 'ChatList' } }],
+      })
+    ).toBe(false);
   });
 });

@@ -15,6 +15,7 @@ import { useBotDmTab } from '../hooks/useBotDmTab';
 import {
   TOP_LEVEL_TABS,
   getTopLevelTabRoute,
+  isAtColdStartPosition,
   isTabPressBlockedByOnboardingLock,
   trackTopLevelTabSelection,
 } from './topLevelTabs';
@@ -85,19 +86,13 @@ export function TopLevelTabNavigator() {
     }
     // A tab press is not the only way to leave the cold-start position. If the
     // DM syncs after the user has opened Activity, Contacts, a workspace or
-    // any other screen, claiming the tab now would yank them back to it. Only
-    // claim while MainTabs is still the focused root route with the initial
-    // ChatList tab showing; otherwise the moment has passed for good.
-    const rootState = navigation.getState();
-    const rootRoute = rootState?.routes[rootState.index];
-    const tabsState = rootRoute?.state as
-      | { index?: number; routes?: { name: string }[] }
-      | undefined;
-    const focusedTab = tabsState?.routes?.[tabsState.index ?? 0]?.name;
-    if (
-      rootRoute?.name !== 'MainTabs' ||
-      (focusedTab && focusedTab !== 'ChatList')
-    ) {
+    // any other screen, claiming the tab now would yank them back to it — and
+    // a deep link or notification that reset to Workspaces with a destination
+    // (an invite preview) sent them somewhere, which is not where the cold
+    // start left them. Only claim while MainTabs is still the focused root
+    // route with the initial ChatList tab showing and nothing asked of it;
+    // otherwise the moment has passed for good.
+    if (!isAtColdStartPosition(navigation.getState())) {
       focusedBotTab.current = true;
       return;
     }
