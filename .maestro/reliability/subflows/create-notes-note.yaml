@@ -4,28 +4,11 @@ appId: ${MAESTRO_APP_ID}
     id: NotesRootNewHeaderAction
 - tapOn:
     id: NotesNewNoteAction
-- extendedWaitUntil:
-    visible:
-      id: NotesTitleInput
-    timeout: 15000
-- tapOn:
-    id: NotesTitleInput
 - runFlow:
-    file: input.yaml
+    file: fill-open-notes-note.yaml
     env:
-      INPUT_TEXT: ${NOTE_TITLE}
-- pressKey: Enter
-- tapOn:
-    id: NotesBodyInput
-- runFlow:
-    file: input.yaml
-    env:
-      INPUT_TEXT: ${NOTE_BODY}
-- assertVisible: '^Not synced$'
-- tapOn: '^Preview$'
-- extendedWaitUntil:
-    visible: '^Synced$'
-    timeout: 15000
+      NOTE_TITLE: ${NOTE_TITLE}
+      NOTE_BODY: ${NOTE_BODY}
 - tapOn: '^Back$'
 - extendedWaitUntil:
     visible: ${NOTE_TITLE}

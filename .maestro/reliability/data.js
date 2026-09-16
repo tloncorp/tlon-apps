@@ -29,8 +29,11 @@ output.reliability = {
 };
 // Native group titles are capped at 24 characters. This lifecycle creates and
 // deletes its own exact fixture, so a short run-tagged name remains isolated.
-if (JOURNEY === 'notebookchannel') {
-  output.reliability.group = 'QA-' + MAESTRO_RUN_TAG + '-notebook';
+if (JOURNEY === 'notebookchannel' || JOURNEY === 'notebookcontents') {
+  output.reliability.group =
+    'QA-' +
+    MAESTRO_RUN_TAG +
+    (JOURNEY === 'notebookchannel' ? '-notebook' : '-contents');
 }
 output.reliability.groupPattern = exact(output.reliability.group);
 output.reliability.editedTextPattern = exact(
@@ -63,6 +66,14 @@ output.reliability.noteDelete = MAESTRO_RUN_TAG + '-delete-note';
 output.reliability.noteDeleteBody = MAESTRO_RUN_TAG + '-delete-body';
 output.reliability.noteKeeper = MAESTRO_RUN_TAG + '-keep-note';
 output.reliability.noteKeeperBody = MAESTRO_RUN_TAG + '-keep-body';
+output.reliability.noteRootOlder = MAESTRO_RUN_TAG + '-root-older';
+output.reliability.noteRootOlderBody = MAESTRO_RUN_TAG + '-root-older-body';
+output.reliability.noteRootNewer = MAESTRO_RUN_TAG + '-root-newer';
+output.reliability.noteRootNewerBody = MAESTRO_RUN_TAG + '-root-newer-body';
+output.reliability.noteRowTarget = MAESTRO_RUN_TAG + '-row-target';
+output.reliability.noteRowTargetBody = MAESTRO_RUN_TAG + '-row-target-body';
+output.reliability.noteViewedTarget = MAESTRO_RUN_TAG + '-view-target';
+output.reliability.noteViewedTargetBody = MAESTRO_RUN_TAG + '-view-target-body';
 output.reliability.folderParentRowId =
   'NotesFolderRow-' + output.reliability.folderParent;
 output.reliability.folderChildRowId =

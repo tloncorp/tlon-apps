@@ -1,0 +1,206 @@
+appId: ${MAESTRO_APP_ID}
+name: Native Notebook folder contents and targeted notes
+tags: [regression]
+env:
+  JOURNEY: notebookcontents
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/create-group.yaml
+- tapOn: '^Edit channels$'
+- assertVisible: '^Channels$'
+- tapOn: '^New$'
+- tapOn: '^New channel$'
+- assertVisible: '^Create a new channel$'
+- tapOn: '^Collaborative markdown notebooks$'
+- tapOn:
+    id: ChannelTitleInput
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${MAESTRO_RUN_TAG + '-contents'}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - pressKey: Enter
+      - scroll
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+- tapOn: '^Create channel$'
+- extendedWaitUntil:
+    visible: ${MAESTRO_RUN_TAG + '-contents'}
+    timeout: 15000
+- tapOn: '^Back$'
+- tapOn: ${MAESTRO_RUN_TAG + '-contents'}
+- extendedWaitUntil:
+    visible: '^No notes or folders$'
+    timeout: 15000
+
+# Root notes establish that folders render before notes and that notes use
+# newest-updated-first order without leaking into nested views.
+- runFlow:
+    file: subflows/create-notes-note.yaml
+    env:
+      NOTE_TITLE: ${output.reliability.noteRootOlder}
+      NOTE_BODY: ${output.reliability.noteRootOlderBody}
+- runFlow:
+    file: subflows/create-notes-note.yaml
+    env:
+      NOTE_TITLE: ${output.reliability.noteRootNewer}
+      NOTE_BODY: ${output.reliability.noteRootNewerBody}
+
+# Create two root folders, then assert their visible alphabetical order.
+- tapOn:
+    id: NotesRootNewHeaderAction
+- tapOn:
+    id: NotesNewFolderAction
+- tapOn: '^Folder name$'
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.folderParent}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - pressKey: Enter
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+      - tapOn: '^Add folder$'
+- extendedWaitUntil:
+    visible:
+      id: ${output.reliability.folderParentRowId}
+    timeout: 15000
+- tapOn:
+    id: NotesRootNewHeaderAction
+- tapOn:
+    id: NotesNewFolderAction
+- tapOn: '^Folder name$'
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.folderArchive}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - pressKey: Enter
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+      - tapOn: '^Add folder$'
+- extendedWaitUntil:
+    visible:
+      id: ${output.reliability.folderArchiveRowId}
+    timeout: 15000
+
+# The folder-row action must create the note in that folder while the root is
+# still visible, not in Root or whichever note was selected most recently.
+- longPressOn:
+    id: ${output.reliability.folderParentRowId}
+- tapOn:
+    id: NotesCreateNoteInFolderAction
+- runFlow:
+    file: subflows/fill-open-notes-note.yaml
+    env:
+      NOTE_TITLE: ${output.reliability.noteRowTarget}
+      NOTE_BODY: ${output.reliability.noteRowTargetBody}
+- tapOn: '^Back$'
+- assertNotVisible: ${output.reliability.noteRowTarget}
+- assertVisible:
+    text: '^1 note$'
+    below: ${output.reliability.folderParent}
+- assertVisible:
+    text: '^Folder$'
+    below: ${output.reliability.folderArchive}
+
+# Root contains only its immediate children. Folders are alphabetic and appear
+# before notes; the newest root note appears before the older root note.
+- assertNotVisible:
+    id: ${output.reliability.folderChildRowId}
+- assertVisible:
+    text: ${output.reliability.folderParent}
+    above: ${output.reliability.folderArchive}
+- assertVisible:
+    text: ${output.reliability.folderParent}
+    above: ${output.reliability.noteRootNewer}
+- assertVisible:
+    text: ${output.reliability.noteRootNewer}
+    above: ${output.reliability.noteRootOlder}
+
+# Enter the parent, create a nested folder from the viewed-folder action, then
+# create a note while viewing that child. Each screen must remain immediate-only.
+- tapOn:
+    id: ${output.reliability.folderParentRowId}
+- assertVisible: ${output.reliability.noteRowTarget}
+- assertNotVisible: ${output.reliability.noteRootNewer}
+- tapOn:
+    id: NotesRootNewHeaderAction
+- tapOn:
+    id: NotesNewFolderAction
+- assertVisible: ${output.reliability.folderParentTargetPattern}
+- tapOn: '^Folder name$'
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.folderChild}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - pressKey: Enter
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+      - tapOn: '^Add folder$'
+- extendedWaitUntil:
+    visible:
+      id: ${output.reliability.folderChildRowId}
+    timeout: 15000
+- tapOn:
+    id: ${output.reliability.folderChildRowId}
+- assertVisible: '^No notes or folders$'
+- runFlow:
+    file: subflows/create-notes-note.yaml
+    env:
+      NOTE_TITLE: ${output.reliability.noteViewedTarget}
+      NOTE_BODY: ${output.reliability.noteViewedTargetBody}
+- assertVisible: ${output.reliability.noteViewedTarget}
+- assertNotVisible: ${output.reliability.noteRowTarget}
+- tapOn: '^Back$'
+- assertVisible:
+    id: ${output.reliability.folderChildRowId}
+- assertVisible: ${output.reliability.noteRowTarget}
+- assertNotVisible: ${output.reliability.noteViewedTarget}
+- assertVisible:
+    text: '^1 note$'
+    below: ${output.reliability.folderChild}
+- tapOn: '^Back$'
+
+# The parent's root-row count includes both its direct note and the descendant
+# note exactly once, while the empty control retains the Folder label.
+- assertVisible:
+    text: '^2 notes$'
+    below: ${output.reliability.folderParent}
+- assertVisible:
+    text: '^Folder$'
+    below: ${output.reliability.folderArchive}
+- assertNotVisible: ${output.reliability.noteRowTarget}
+- assertNotVisible: ${output.reliability.noteViewedTarget}
+
+# Delete only this run's fixture group.
+- tapOn: '^Back$'
+- assertVisible: ${output.reliability.groupPattern}
+- tapOn: ${output.reliability.groupPattern}
+- runFlow: subflows/delete-fixture-group.yaml
