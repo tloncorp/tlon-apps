@@ -330,10 +330,19 @@ async function finishAgentGroupFurnishingOnce({
       })
     : initialGroup;
 
-  // Onboarding runs in the bot DM, so the intro request goes there rather than
-  // into the workspace chat. It is also how the bot learns which group this is:
-  // a DM's nest names no group, so this request is its only authoritative source.
-  await ensureIntroRequest(group.id, agentShipId, isFirstGroup);
+  // The request goes where the user is. First-run onboarding happens in the
+  // bot DM, so its request goes there — and, since a DM's nest names no group,
+  // that request is how the bot learns which group is the user's. A later
+  // workspace opens straight into its own chat, so its request goes there;
+  // sending it to the DM would have the bot answer in a conversation the user
+  // has just left.
+  await ensureIntroRequest(
+    group.id,
+    isFirstGroup
+      ? { channelId: agentShipId, channelType: 'dm' }
+      : { channelId: chatChannel.id, channelType: 'chat' },
+    isFirstGroup
+  );
   await db.pendingAgentGroupCreation.setValue((current) =>
     (typeof current === 'string' ? current : current?.groupId) === group.id
       ? null
@@ -677,8 +686,8 @@ async function unpinProvisionedGroup(groupId: string) {
 
 async function ensureIntroRequest(
   groupId: string,
-  /** The bot's DM: a DM channel is addressed by the other party's id. */
-  channelId: string,
+  /** The bot DM (addressed by the bot's id) or the workspace's own chat. */
+  { channelId, channelType }: { channelId: string; channelType: 'dm' | 'chat' },
   isFirstGroup: boolean
 ) {
   const currentUserId = api.getCurrentUserId();
@@ -704,7 +713,7 @@ async function ensureIntroRequest(
   await finalizeAndSendPost(
     {
       channelId,
-      channelType: 'dm',
+      channelType,
       content: ["Let's get set up."],
       attachments: [],
       blob,
