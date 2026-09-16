@@ -18,6 +18,18 @@ describe('countUnseenActivity', () => {
     expect(countUnseenActivity(rows, { excludeChannelId: BOT_DM })).toBe(1);
   });
 
+  it('counts an event stored under several buckets once', () => {
+    // A mentioned reply lands in `all`, `mentions` and `replies`; the key
+    // includes the bucket, so the query returns three rows for one event.
+    const mentionedReply = [
+      { activity_events: { id: 'ev-1', channelId: 'chat/~ten/general' } },
+      { activity_events: { id: 'ev-1', channelId: 'chat/~ten/general' } },
+      { activity_events: { id: 'ev-1', channelId: 'chat/~ten/general' } },
+      { activity_events: { id: 'ev-2', channelId: 'chat/~ten/general' } },
+    ];
+    expect(countUnseenActivity(mentionedReply)).toBe(2);
+  });
+
   it('is zero for nothing', () => {
     expect(countUnseenActivity(undefined)).toBe(0);
     expect(countUnseenActivity([])).toBe(0);

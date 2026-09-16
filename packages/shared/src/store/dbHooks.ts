@@ -342,7 +342,23 @@ export const useChannelUnreadCount = (channelId?: string | null) =>
  */
 export const useChannelHasUnread = (channelId?: string | null) => {
   const row = useChannelUnreadRow(channelId);
-  return (row?.count ?? 0) > 0 || row?.notify === true;
+  // A reply or reaction inside a thread is recorded in thread_unreads alone;
+  // the channel row keeps count and notify untouched.
+  const threadDepsKey = useKeyFromQueryDeps(db.getThreadUnreadsByChannel);
+  const { data: threadUnreads } = useQuery({
+    enabled: !!channelId,
+    queryKey: ['channelThreadUnreads', threadDepsKey, channelId],
+    queryFn: () =>
+      db.getThreadUnreadsByChannel({
+        channelId: channelId ?? '',
+        excludeRead: true,
+      }),
+  });
+  return (
+    (row?.count ?? 0) > 0 ||
+    row?.notify === true ||
+    (threadUnreads?.length ?? 0) > 0
+  );
 };
 
 export const useLiveThreadUnread = (unread: db.ThreadUnreadState | null) => {
