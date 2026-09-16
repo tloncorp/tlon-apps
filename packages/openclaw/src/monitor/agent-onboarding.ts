@@ -2309,21 +2309,28 @@ async function activateFirstRunPresentation(
     request.provisionId
   );
   if (!record || record.status !== 'enqueued') return;
-  const correlation = findFirstRunCorrelation(
-    record.runId,
-    record.notebookNest,
-    record.jobId,
-    true,
-    context.accountId
-  );
+  const lookup = () =>
+    findFirstRunCorrelation(
+      record.runId,
+      record.notebookNest,
+      record.jobId,
+      true,
+      context.accountId
+    );
+  let correlation = lookup();
+  if (!correlation) {
+    // A monitor restart between enqueue and completion left no in-memory
+    // correlation; restore it, then treat it exactly like a live one — the
+    // run is still writing, so it needs the presence hold as much as any.
+    await restoreFirstRunFromDurable(context, request, notebookName, jobId);
+    correlation = lookup();
+  }
   if (correlation) {
     correlation[1].presentationReady = true;
     correlation[1].releaseThinking ??= holdFirstRunThinking(
       context,
       request.provisionId
     );
-  } else {
-    await restoreFirstRunFromDurable(context, request, notebookName, jobId);
   }
   await reconcileRestoredFirstRun(cron, record, deps);
 }
