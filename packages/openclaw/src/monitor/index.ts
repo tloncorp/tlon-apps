@@ -48,6 +48,7 @@ import {
   getGatewayStatusCoordinator,
 } from '../gateway-status.js';
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
+import { setTlonSessionSurface } from '../onboarding-tool-boundary.js';
 import {
   type PendingNudge,
   clearPendingNudge,
@@ -3096,6 +3097,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // Store role for before_tool_call hook (tool access control)
       for (const sessionKey of lensSessionKeys) {
         setSessionRole(sessionKey, senderRole);
+        setTlonSessionSurface(sessionKey, {
+          kind: isGroup ? 'group' : 'direct',
+          ...(isGroup && channelNest ? { channelNest } : {}),
+          bootstrapComplete: currentSettings.bootstrapComplete === true,
+        });
       }
       runtime.log?.(
         `[tlon] Stored session role: sessionKeys=${lensSessionKeys.join(', ')}, role=${senderRole}`

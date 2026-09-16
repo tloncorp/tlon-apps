@@ -37,6 +37,10 @@ import {
 } from './src/diagnostic-subscriptions.js';
 import { notifyDiaryMigrationDiscovery } from './src/diary-migration-discovery.js';
 import { suppressTlonFallbackNotice } from './src/fallback-notice-delivery.js';
+import {
+  getTlonSessionSurface,
+  onboardingToolBlockReason,
+} from './src/onboarding-tool-boundary.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
 import { registerRestartCatchupHooks } from './src/restart-catchup.js';
 import { createMigrateCommandHandler } from './src/migrate-command.js';
@@ -1046,10 +1050,17 @@ export default defineBundledChannelEntry({
               event.params,
               allowedProviderIds
             )));
-      const isBlocked = blocksNonOwner || blocksOnboardingMcp;
+      const onboardingBoundaryReason = onboardingToolBlockReason(
+        event.toolName,
+        event.params,
+        getTlonSessionSurface(ctx.sessionKey)
+      );
+      const blocksOnboardingBoundary = Boolean(onboardingBoundaryReason);
+      const isBlocked =
+        blocksNonOwner || blocksOnboardingMcp || blocksOnboardingBoundary;
       const blockReason = blocksOnboardingMcp
         ? 'This scheduled onboarding update may inspect and call only selected-provider MCP tools explicitly described as read-only.'
-        : ownerOnlyDecision.reason;
+        : (onboardingBoundaryReason ?? ownerOnlyDecision.reason);
       if (contextLensEnabled) {
         // Capture tool activity even when no conversation run owns this
         // session (cron wakes — including jobs that reuse the main session
@@ -1109,7 +1120,11 @@ export default defineBundledChannelEntry({
         );
       }
 
-      if (!isOwnerOnlyTool && !blocksOnboardingMcp) {
+      if (
+        !isOwnerOnlyTool &&
+        !blocksOnboardingMcp &&
+        !blocksOnboardingBoundary
+      ) {
         return undefined;
       }
 
@@ -1118,7 +1133,7 @@ export default defineBundledChannelEntry({
       // Only block when role is explicitly "user" (non-owner DM).
       if (isBlocked) {
         api.logger.warn(
-          `[tlon] Blocked ${event.toolName} tool for non-owner. Session: ${ctx.sessionKey}, Role: ${role}`
+          `[tlon] Blocked ${event.toolName} tool. Session: ${ctx.sessionKey}, Role: ${role}, Reason: ${blockReason}`
         );
         if (contextLensEnabled) {
           const blockedLens = recordContextLensToolResultForSession(
