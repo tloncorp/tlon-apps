@@ -97,6 +97,12 @@ type AgentOnboardingContext = {
    * identity and timing.
    */
   trackStep?: (report: OnboardingStepReport) => void;
+  /**
+   * Onboarding in this conversation has finished — this request posted the
+   * completing marker, or found one already in history — so the caller can
+   * stop consulting the control plane for reply-shaped messages here.
+   */
+  onConversationComplete?: () => void;
   presentation?: {
     startThinking: () => void | Promise<void>;
     stopThinking: () => void | Promise<void>;
@@ -850,6 +856,7 @@ async function postIntro(
         step: 'onboarding_completed',
         completionPath: 'additional_group_completed',
       });
+      context.onConversationComplete?.();
     }
     return;
   }
@@ -992,6 +999,7 @@ async function advanceOrientationConversation(
     hasPostMarker(history, context.botShip, 'orientation-complete') ||
     hasPostMarker(history, context.botShip, AGENT_GROUP_SETUP_COMPLETE_MARKER)
   ) {
+    context.onConversationComplete?.();
     return false;
   }
 
@@ -1026,6 +1034,7 @@ async function advanceOrientationConversation(
         completionPath:
           decision === 'yes' ? 'bot_tour_completed' : 'bot_tour_declined',
       });
+      context.onConversationComplete?.();
     }
     return true;
   }
@@ -1089,6 +1098,7 @@ async function advanceOrientationConversation(
         step: 'onboarding_completed',
         completionPath: 'app_tour_declined',
       });
+      context.onConversationComplete?.();
     }
     return true;
   }

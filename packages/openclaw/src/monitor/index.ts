@@ -135,6 +135,7 @@ import {
   isDmNest,
   scanAgentOnboardingChannel,
 } from './agent-onboarding.js';
+import { OnboardingDmState } from './onboarding-dm-state.js';
 import {
   type ApprovalRequestOutcome,
   type DisplayContext,
@@ -875,8 +876,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     const processedTracker = createProcessedMessageTracker(2000);
     let groupChannels: string[] = [];
     const channelToGroup = new Map<string, string>();
-    // Onboarding group per DM nest, from the last owner-authored request seen.
-    const onboardingGroupByDm = new Map<string, string>();
+    // Where onboarding stands in each DM: the group its last request named,
+    // or that it has finished (or holds no request) and replies are just talk.
+    const onboardingDmState = new OnboardingDmState();
     let botNickname: string | null = null;
     let botAvatar: string | null = null;
 
@@ -4932,18 +4934,24 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           // Onboarding is a sliver of DM traffic, so ordinary messages must not
           // pay a 500-writ history read. A typed request names its own group.
           // A picker choice typed as text needs the group the last request
-          // named, cached per DM after one lookup. Anything else skips the
+          // named, cached per DM after one lookup — and once onboarding here
+          // has finished, or a lookup found no request to act on, a "yes" or
+          // "done" is ordinary conversation again. Anything else skips the
           // control plane.
           const request = parseAgentOnboardingRequest(dmContent.blob);
           const fromOwner =
             !!effectiveOwnerShip && senderShip === effectiveOwnerShip;
           let onboardingGroupId: string | undefined = request?.groupId;
           if (onboardingGroupId && fromOwner) {
-            onboardingGroupByDm.set(whom, onboardingGroupId);
+            onboardingDmState.noteRequest(whom, onboardingGroupId);
           }
-          onboardingGroupId ??= onboardingGroupByDm.get(whom);
-          const isReply = !request && isAgentOnboardingReply(rawText);
-          if (!onboardingGroupId && isReply && fromOwner) {
+          onboardingGroupId ??= onboardingDmState.groupFor(whom);
+          const isReply =
+            !request &&
+            fromOwner &&
+            !onboardingDmState.isInactive(whom) &&
+            isAgentOnboardingReply(rawText);
+          if (!onboardingGroupId && isReply) {
             try {
               onboardingGroupId = await findOnboardingGroupIdInChannel({
                 api,
@@ -4951,9 +4959,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 channelNest: whom,
                 ownerShip: effectiveOwnerShip,
               });
-              if (onboardingGroupId) {
-                onboardingGroupByDm.set(whom, onboardingGroupId);
-              }
+              onboardingDmState.noteLookup(whom, onboardingGroupId);
             } catch (error) {
               runtime.error?.(
                 `[tlon] Failed to resolve onboarding group from ${whom}: ${error instanceof Error ? error.message : String(error)}`
@@ -4977,6 +4983,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 blob: dmContent.blob,
                 log: (message) => runtime.log?.(message),
                 trackStep: trackOnboardingStep(whom, onboardingGroupId),
+                onConversationComplete: () =>
+                  onboardingDmState.noteComplete(whom),
                 presentation: {
                   startThinking: () => {
                     computingPresence.refreshRun({

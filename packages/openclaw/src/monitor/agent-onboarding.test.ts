@@ -1093,6 +1093,26 @@ describe('agent onboarding requests', () => {
     ]);
   });
 
+  it('reports a conversation already finished in history, and does nothing else', async () => {
+    const onConversationComplete = vi.fn();
+    const sendPost = vi.fn();
+    await expect(
+      handleAgentOnboardingRequest(
+        replyContext('yes', { onConversationComplete }),
+        {
+          fetchHistory: vi.fn(async () => [
+            firstGroupIntro(),
+            provisionAck(),
+            botMarker('orientation-complete', 2),
+          ]),
+          sendPost,
+        }
+      )
+    ).resolves.toBe(false);
+    expect(onConversationComplete).toHaveBeenCalledOnce();
+    expect(sendPost).not.toHaveBeenCalled();
+  });
+
   it('runs the post-setup tours in order and only after each Yes', async () => {
     const sent: Array<{ story: unknown; blob?: string }> = [];
     const sendPost = vi.fn(async (post: { story: unknown; blob?: string }) => {
@@ -1106,7 +1126,8 @@ describe('agent onboarding requests', () => {
       botMarker('onboarding-follow-up', 2),
       { author: '~ten', content: 'Yes', timestamp: 3 },
     ];
-    const context = replyContext('Yes', { trackStep });
+    const onConversationComplete = vi.fn();
+    const context = replyContext('Yes', { trackStep, onConversationComplete });
 
     await expect(
       handleAgentOnboardingRequest(context, {
@@ -1129,6 +1150,7 @@ describe('agent onboarding requests', () => {
       step: 'app_tour_answered',
       answer: 'yes',
     });
+    expect(onConversationComplete).not.toHaveBeenCalled();
     trackStep.mockClear();
 
     history.push(
@@ -1165,6 +1187,7 @@ describe('agent onboarding requests', () => {
         },
       ],
     ]);
+    expect(onConversationComplete).toHaveBeenCalledOnce();
   });
 
   it('ends the optional tour cleanly after No', async () => {
