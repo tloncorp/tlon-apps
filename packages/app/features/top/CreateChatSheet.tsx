@@ -93,7 +93,9 @@ function createTypeActions(
     startIcon: <ListItem.SystemIcon icon="Send" />,
   });
 
-  if (!isWindowNarrow) {
+  // Without an agent there is no New Workspace, so the ordinary group action
+  // is the only way to create a group on mobile and has to stay.
+  if (!isWindowNarrow || !hasAgent) {
     actions.push({
       title: CHAT_TYPE_CONFIG.group.actionTitle,
       description: CHAT_TYPE_CONFIG.group.actionDescription,
@@ -583,8 +585,9 @@ function TypeSelectionContent({
           />
         ))}
       </ActionSheet.ActionGroup>
-      {/* Held back on mobile for now; the desktop sidebars share this sheet. */}
-      {!isWindowNarrow && (
+      {/* Held back on mobile for now where the agent flow exists; the desktop
+          sidebars share this sheet, and a user with no agent keeps it. */}
+      {(!isWindowNarrow || !hasAvailableAgent) && (
         <View
           paddingHorizontal="$2xl"
           paddingTop="$l"

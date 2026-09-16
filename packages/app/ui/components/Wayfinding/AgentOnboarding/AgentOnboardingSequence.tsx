@@ -192,13 +192,10 @@ export function AgentOnboardingSequence(props: {
             return;
           }
           activeGroupId = furnished.group.id;
-          activeChannelId = await resolveLandingChannelId({
+          activeChannelId = resolveLandingChannelId({
             botDmId:
               AGENT_SHIP_OVERRIDE || api.getBotUserIdForUser(ownerId) || null,
             furnishedChatChannelId: furnished.chatChannelId,
-            deadline,
-            channelExists: async (id) => !!(await db.getChannel({ id })),
-            wait,
           });
           if (cancelled) return;
           await db.agentOnboardingLanding.setValue({
