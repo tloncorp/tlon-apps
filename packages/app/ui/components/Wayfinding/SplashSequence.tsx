@@ -2135,7 +2135,7 @@ export function GroupsPane(props: {
         <SplashTitle>
           {props.hostingBotEnabled ? (
             <>
-              Your <Text color="$positiveActionText">group</Text> is ready.
+              Your <Text color="$positiveActionText">Tlonbot</Text> is ready.
             </>
           ) : (
             <>
@@ -2151,15 +2151,13 @@ export function GroupsPane(props: {
           {props.hostingBotEnabled ? (
             <>
               <SplashParagraph>
-                We made you a group on your server, and{' '}
-                {props.didConfigureBot ? props.botName : 'your Tlonbot'} is
-                already there.{' '}
-                {props.didConfigureBot ? props.botName : 'Your Tlonbot'} loves
-                conversation, reading along with the group and chiming in to
-                help.
+                {props.didConfigureBot ? props.botName : 'Your Tlonbot'} is
+                waiting for you in a private chat, with a workspace ready on
+                your server. It reads along and chimes in to help.
               </SplashParagraph>
               <SplashParagraph>
-                Share the link below to bring your friends in.
+                Share the link below and friends can find you and message you
+                directly.
               </SplashParagraph>
             </>
           ) : (

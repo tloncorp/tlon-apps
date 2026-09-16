@@ -42,7 +42,6 @@ import { ChatList, ChatListItemData } from '../chat-list/ChatList';
 import { ChatListFilterTabs } from '../chat-list/ChatListFilterTabs';
 import { ChatListSearch } from '../chat-list/ChatListSearch';
 import { CreateChatSheet, CreateChatSheetMethods } from './CreateChatSheet';
-import { useAgentOnboardingLandingConsumer } from './useAgentOnboardingLandingConsumer';
 import {
   getGroupInviteSheetState,
   isGroupInviteReady,
@@ -101,7 +100,6 @@ export function ChatListScreenView({
     enabled: isFocused,
   });
 
-  useAgentOnboardingLandingConsumer();
   const { performGroupAction } = useGroupActions();
 
   const handleInviteFriends = useCallback(() => {

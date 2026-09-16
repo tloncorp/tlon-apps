@@ -193,8 +193,11 @@ export function AgentOnboardingSequence(props: {
           }
           activeGroupId = furnished.group.id;
           activeChannelId = resolveLandingChannelId({
-            botDmId:
-              AGENT_SHIP_OVERRIDE || api.getBotUserIdForUser(ownerId) || null,
+            // The override has no hosted DM; its intro request went to the
+            // furnished chat, so that is where onboarding lands.
+            botDmId: AGENT_SHIP_OVERRIDE
+              ? null
+              : api.getBotUserIdForUser(ownerId) || null,
             furnishedChatChannelId: furnished.chatChannelId,
           });
           if (cancelled) return;

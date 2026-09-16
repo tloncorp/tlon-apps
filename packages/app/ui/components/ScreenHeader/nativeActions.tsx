@@ -7,6 +7,7 @@ import {
   type ScreenHeaderActionPresentation,
   attachLatestScreenHeaderActionCallbacks,
 } from './actions';
+import { NativeHeaderBadgeButton } from './NativeHeaderBadgeButton';
 import { ScreenHeaderItemElements } from './primitives';
 
 /**
@@ -18,6 +19,14 @@ import { ScreenHeaderItemElements } from './primitives';
  */
 
 export type ThemeValues = ReturnType<typeof useTheme>;
+
+/** UIBarButtonItem gained a badge in iOS 26; earlier systems ignore it. */
+export function supportsNativeHeaderBadge(
+  platform: string = Platform.OS,
+  version: string | number = Platform.Version
+) {
+  return platform === 'ios' && Number.parseInt(String(version), 10) >= 26;
+}
 
 export function resolveNativeHeaderColor(
   color: ColorTokens | string | undefined,
@@ -76,6 +85,27 @@ export function buildNativeHeaderItem(
       sharesBackground: true,
       tintColor: action.tint,
     };
+  }
+
+  if (action.badge != null && !supportsNativeHeaderBadge()) {
+    // UIBarButtonItem badges exist from iOS 26. Earlier systems ignore the
+    // property, and because the native header is still in use the React
+    // header never mounts, so the count would simply vanish. Host a React
+    // button as a custom item instead.
+    return {
+      type: 'custom',
+      element: (
+        <NativeHeaderBadgeButton
+          iconUri={`TlonHeader${action.icon}`}
+          label={action.label}
+          badge={action.badge}
+          tint={action.tint}
+          onPress={action.onPress ?? noop}
+          disabled={action.disabled}
+          testID={action.testID ?? action.id}
+        />
+      ),
+    } as NativeStackHeaderItem;
   }
 
   return {

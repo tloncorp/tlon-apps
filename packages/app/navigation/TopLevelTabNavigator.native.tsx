@@ -9,6 +9,7 @@ import ChannelScreen from '../features/top/ChannelScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
 import * as store from '@tloncorp/shared/store';
 
+import { useAgentOnboardingLandingConsumer } from '../features/top/useAgentOnboardingLandingConsumer';
 import { useBotDmTab } from '../hooks/useBotDmTab';
 import {
   TOP_LEVEL_TABS,
@@ -46,6 +47,10 @@ function tabIcon(name: TabIconName, focused: boolean) {
 export function TopLevelTabNavigator() {
   const theme = useTheme();
   const botDm = useBotDmTab();
+  // Tab screens mount lazily and BotChat is the initial tab, so a consumer
+  // living in the Workspaces screen would never run on a fresh account; it
+  // sits here, above every tab, and can reset the root stack from here.
+  useAgentOnboardingLandingConsumer();
   const botDmHasUnread = store.useChannelHasUnread(
     botDm.enabled ? botDm.channelId : undefined
   );

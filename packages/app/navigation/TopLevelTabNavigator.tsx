@@ -10,6 +10,7 @@ import { useEffect, useRef } from 'react';
 import SettingsScreen from '../features/settings/SettingsScreen';
 import ChannelScreen from '../features/top/ChannelScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
+import { useAgentOnboardingLandingConsumer } from '../features/top/useAgentOnboardingLandingConsumer';
 import { useBotDmTab } from '../hooks/useBotDmTab';
 import { NavBar, NavIcon } from '../ui/components/NavBar';
 import {
@@ -91,6 +92,9 @@ function ReactTopLevelTabBar({ state, navigation }: BottomTabBarProps) {
 
 export function TopLevelTabNavigator() {
   const botDm = useBotDmTab();
+  // Above the lazy tabs, as on native: BotChat is the initial tab, so the
+  // Workspaces screen — the consumer's old home — never mounts on a fresh account.
+  useAgentOnboardingLandingConsumer();
   const navigation = useNavigation();
   const focusedBotTab = useRef(false);
 

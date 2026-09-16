@@ -14,9 +14,11 @@ import {
 const logger = createDevLogger('useAgentOnboardingLandingConsumer', false);
 
 /**
- * ChatListScreen's half of the onboarding handoff: wait for the furnished
- * setup chat to exist locally, claim the durable landing exactly once, then
- * reset navigation into it with the failsafe clock started at the handoff.
+ * The tab navigator's half of the onboarding handoff: wait for a group-chat
+ * landing to exist locally (a DM landing needs no row), claim the durable
+ * landing exactly once, then reset navigation into it with the failsafe clock
+ * started at the handoff. It lives above the tabs because they mount lazily
+ * and the Bot tab is the initial one.
  */
 export function useAgentOnboardingLandingConsumer() {
   const { resetToChannel } = useRootNavigation();
