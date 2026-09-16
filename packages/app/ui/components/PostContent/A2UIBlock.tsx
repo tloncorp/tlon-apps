@@ -17,6 +17,7 @@ import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { useConversationScrollEndAnchor } from '../../contexts/scroll';
 import { ActionSheet } from '../ActionSheet';
+import { resolveAgentProvisionButtonLabel } from '../ChatMessage/agentProvision';
 import { TextInput } from '../Form';
 import { A2UIMenuRow } from './A2UIMenuRow';
 import { McpConnectControl } from './McpConnectControl';
@@ -771,6 +772,7 @@ export function A2UIBlock({
   const [locallyConsumedChoices, setLocallyConsumedChoices] = useState<
     Record<string, string>
   >({});
+  const [pendingButtonIds, setPendingButtonIds] = useState<string[]>([]);
   const buttonPressLocksRef = useRef(new Set<string>());
   const choicePressLocksRef = useRef(new Set<string>());
   const smallChoiceSubmitLocksRef = useRef(new Set<string>());
@@ -800,6 +802,9 @@ export function A2UIBlock({
 
       const consumeAction = isConsumableA2UIAction(component.action);
       buttonPressLocksRef.current.add(component.id);
+      setPendingButtonIds((previous) =>
+        previous.includes(component.id) ? previous : [...previous, component.id]
+      );
       try {
         await onA2UIAction?.(
           component.action,
@@ -822,6 +827,9 @@ export function A2UIBlock({
       } catch {
         buttonPressLocksRef.current.delete(component.id);
       } finally {
+        setPendingButtonIds((previous) =>
+          previous.filter((componentId) => componentId !== component.id)
+        );
         if (!consumeAction) {
           buttonPressLocksRef.current.delete(component.id);
         }
@@ -1061,6 +1069,7 @@ export function A2UIBlock({
               isA2UIActionConsumed?.(component.action) === true);
           const disabled =
             actionConsumed ||
+            pendingButtonIds.includes(component.id) ||
             consumptionPending ||
             component.disabled ||
             !onA2UIAction ||
@@ -1070,6 +1079,14 @@ export function A2UIBlock({
             components
           );
           const treatment = getButtonTreatment(component);
+          const visibleLabel =
+            component.action.event.name === A2UI.action.provisionAgent
+              ? resolveAgentProvisionButtonLabel(
+                  label,
+                  pendingButtonIds.includes(component.id),
+                  actionConsumed
+                )
+              : label;
           return (
             <Button.Frame
               key={component.id}
@@ -1093,11 +1110,14 @@ export function A2UIBlock({
               importantForAccessibility="auto"
               disabled={disabled}
               dimmed={disabled}
+              accessibilityRole="button"
+              accessibilityLabel={visibleLabel}
+              testID={`A2UIButton-${component.id}`}
               onPress={
                 disabled ? undefined : () => handleButtonPress(component)
               }
             >
-              <Button.Text size="medium">{label}</Button.Text>
+              <Button.Text size="medium">{visibleLabel}</Button.Text>
             </Button.Frame>
           );
         }
@@ -1371,6 +1391,7 @@ export function A2UIBlock({
       locallyConsumedComponentIds,
       locallyConsumedChoices,
       onA2UIAction,
+      pendingButtonIds,
       provisionedAgentTopics,
       surfaceId,
     ]

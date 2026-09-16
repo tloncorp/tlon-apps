@@ -129,6 +129,7 @@ import {
 } from '../version.js';
 import {
   type OnboardingStepReport,
+  agentOnboardingClientDateTimeContext,
   createAgentOnboardingCatchUpScheduler,
   createAgentOnboardingReconciliationPresence,
   drainAgentOnboardingRuntime,
@@ -3170,6 +3171,19 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         const groupFlag = channelToGroup.get(channelNest);
         if (groupFlag) {
           bodyWithAttachments += `\n[Group members available via: tlon groups info ${groupFlag}]`;
+          const clientDateTime = agentOnboardingClientDateTimeContext(
+            route.accountId ?? botShipName,
+            groupFlag
+          );
+          if (clientDateTime) {
+            bodyWithAttachments +=
+              `\n[Client date/time context: device timezone ${clientDateTime.timezone}; ` +
+              `locale ${clientDateTime.locale}. Interpret unqualified schedule times in this ` +
+              'device timezone. Format visible times for the locale. Keep cron expressions and ' +
+              'technical timezone identifiers out of user-facing choices and confirmations. ' +
+              'If the owner explicitly names another timezone, preserve that override and ' +
+              'describe it in ordinary language.]';
+          }
           contextLenses.recordContextSource(lens.lensId, {
             kind: 'system',
             label: 'Group member lookup hint',

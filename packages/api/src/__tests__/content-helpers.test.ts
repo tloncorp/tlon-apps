@@ -206,6 +206,8 @@ describe('post blob helpers', () => {
         version: 1,
         groupId: '~zod/test',
         isFirstGroup: true,
+        clientTimezone: 'America/Los_Angeles',
+        clientLocale: 'en-US',
       },
       {
         type: 'tlon-agent-provision',

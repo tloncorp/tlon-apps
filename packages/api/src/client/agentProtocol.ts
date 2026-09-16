@@ -17,6 +17,7 @@ export const AGENT_PROTOCOL_LIMITS = {
   scheduleExpressionLength: 200,
   scheduleDescriptionLength: 200,
   timezoneLength: 100,
+  localeLength: 100,
   notebookNestLength: 512,
   notebookTitleLength: 200,
   providerCount: 12,
@@ -79,6 +80,13 @@ export const AgentProvisionActionContextSchema = z.object({
   /** Human-readable cadence used in the confirmation message. */
   scheduleDescription: agentProtocolString(
     AGENT_PROTOCOL_LIMITS.scheduleDescriptionLength
+  ).optional(),
+  /**
+   * Set only when the owner explicitly names a different timezone. The client
+   * otherwise supplies its current device timezone at confirmation time.
+   */
+  timezoneOverride: agentProtocolString(
+    AGENT_PROTOCOL_LIMITS.timezoneLength
   ).optional(),
 });
 

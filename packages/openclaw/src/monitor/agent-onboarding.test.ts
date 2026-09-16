@@ -19,6 +19,7 @@ import {
 import {
   agentOnboardingCronChannelNest,
   agentOnboardingCronProviderIds,
+  agentOnboardingClientDateTimeContext,
   agentOnboardingTesting,
   clearAgentOnboardingRuntime,
   createAgentOnboardingCatchUpScheduler,
@@ -1272,9 +1273,7 @@ describe('agent onboarding requests', () => {
     });
     const sendPost = vi.fn(async (post: { story: unknown }) => {
       events.push('post');
-      expect(JSON.stringify(post.story)).toContain(
-        'What should I do for you regularly?'
-      );
+      expect(JSON.stringify(post.story)).toContain('What can I help you with?');
       return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
     });
 
@@ -1358,10 +1357,10 @@ describe('agent onboarding requests', () => {
       'Welcome! This is your private group with me, your Tlonbot.'
     );
     expect(JSON.stringify(firstGroup[0]?.story)).toContain(
-      'set up one useful recurring task'
+      'I can keep you informed, help you learn, or follow a question over time.'
     );
     expect(JSON.stringify(firstGroup[0]?.story)).toContain(
-      'What should I do for you regularly?'
+      'What can I help you with?'
     );
     expect(parsePostBlob(firstGroup[0]?.blob)).toEqual(
       expect.arrayContaining([
@@ -1379,7 +1378,7 @@ describe('agent onboarding requests', () => {
     const additionalGroup = await promptFor();
     expect(additionalGroup).toHaveLength(1);
     expect(JSON.stringify(additionalGroup[0]?.story)).toContain(
-      'What should I do for you regularly?'
+      'What can I help you with?'
     );
     expect(
       JSON.stringify(parsePostBlob(additionalGroup[0]?.blob))
@@ -1431,13 +1430,14 @@ describe('agent onboarding requests', () => {
     ).toBe(false);
   });
 
-  it('hands the starter selection to the model with a free-text option', async () => {
+  it('preserves the develop starter card, then hands its reply to the model', async () => {
     const sent: Array<{ story: unknown; blob?: string }> = [];
     const sendPost = vi.fn(async (post: { story: unknown; blob?: string }) => {
       sent.push(post);
       return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
     });
     const base = {
+      accountId: 'starter-card-test',
       api: { scry: vi.fn() },
       botShip: '~bot',
       channelNest: 'chat/~ten/general',
@@ -1460,6 +1460,8 @@ describe('agent onboarding requests', () => {
           version: 1,
           groupId: '~ten/group',
           isFirstGroup: true,
+          clientTimezone: 'America/Los_Angeles',
+          clientLocale: 'en-US',
         }),
       },
     ];
@@ -1476,9 +1478,12 @@ describe('agent onboarding requests', () => {
       (entry) => entry.type === 'a2ui'
     );
     expect(starterA2UI).toMatchObject({ storyMode: 'fallback' });
-    expect(JSON.stringify(starterA2UI)).toContain('SmallChoice');
-    expect(JSON.stringify(starterA2UI)).toContain('Describe your own…');
-    expect(JSON.stringify(starterA2UI)).toContain('I want help with:');
+    expect(JSON.stringify(starterA2UI)).toContain('Choice');
+    expect(JSON.stringify(starterA2UI)).toContain(
+      'A short summary of anything you care about, posted every morning.'
+    );
+    expect(JSON.stringify(starterA2UI)).not.toContain('SmallChoice');
+    expect(JSON.stringify(starterA2UI)).not.toContain('Describe your own…');
     expect(parsePostBlob(sent[0].blob)).toContainEqual(
       expect.objectContaining({
         type: 'tlon-agent-post-marker',
@@ -1495,7 +1500,7 @@ describe('agent onboarding requests', () => {
       },
       {
         author: '~ten',
-        content: 'I want help with: A daily digest',
+        content: 'A daily digest',
         timestamp: 3,
       }
     );
@@ -1504,13 +1509,16 @@ describe('agent onboarding requests', () => {
       handleAgentOnboardingRequest(
         {
           ...base,
-          rawText: 'I want help with: A daily digest',
+          rawText: 'A daily digest',
           blob: undefined,
         },
         { fetchHistory: vi.fn(async () => history), sendPost }
       )
     ).resolves.toBe(false);
     expect(sent).toHaveLength(1);
+    expect(
+      agentOnboardingClientDateTimeContext('starter-card-test', '~ten/group')
+    ).toEqual({ timezone: 'America/Los_Angeles', locale: 'en-US' });
   });
 
   it('shows thinking and paces the combined onboarding opening', async () => {

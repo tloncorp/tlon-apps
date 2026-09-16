@@ -17,6 +17,7 @@ export type AgentTaskPlanToolParams = {
   scheduleMinute: number;
   scheduleExpression: string;
   scheduleDescription: string;
+  timezoneOverride?: string;
   taskPrompt: string;
 };
 
@@ -61,6 +62,11 @@ export const agentTaskPlanToolParameters = {
     scheduleDescription: {
       type: 'string',
       description: 'Phrase completing “the task will run …”.',
+    },
+    timezoneOverride: {
+      type: 'string',
+      description:
+        'IANA timezone only when the owner explicitly requested a timezone different from the client device. Omit for ordinary local-time schedules.',
     },
     taskPrompt: {
       type: 'string',
@@ -135,6 +141,31 @@ function parseParams(params: AgentTaskPlanToolParams): AgentTaskPlanToolParams {
   if (!params.summary.trim() || params.summary.length > 2000) {
     throw new Error('summary must be 1-2000 characters');
   }
+  if (params.timezoneOverride) {
+    try {
+      new Intl.DateTimeFormat('en', {
+        timeZone: params.timezoneOverride,
+      }).format();
+    } catch {
+      throw new Error('timezoneOverride must be a valid IANA timezone');
+    }
+  }
+  const userFacingScheduleCopy = [
+    params.fallbackSummary,
+    params.summary,
+    params.scheduleDescription,
+  ].join('\n');
+  if (
+    /\b(?:Africa|America|Antarctica|Arctic|Asia|Atlantic|Australia|Europe|Indian|Pacific)\/[A-Za-z_+-]+(?:\/[A-Za-z_+-]+)?\b/.test(
+      userFacingScheduleCopy
+    ) ||
+    /\bUTC\b/.test(userFacingScheduleCopy) ||
+    userFacingScheduleCopy.includes(params.scheduleExpression)
+  ) {
+    throw new Error(
+      'user-facing schedule copy must use ordinary local-time wording, not cron or technical timezone identifiers'
+    );
+  }
   const hasSparseCountFallback =
     /(?:fewer|less) than (?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)/i.test(
       params.taskPrompt
@@ -157,6 +188,7 @@ function parseParams(params: AgentTaskPlanToolParams): AgentTaskPlanToolParams {
     scheduleMinute: params.scheduleMinute,
     scheduleExpression: params.scheduleExpression,
     scheduleDescription: params.scheduleDescription,
+    timezoneOverride: params.timezoneOverride,
     taskPrompt: params.taskPrompt,
   });
   if (!context.success) {
@@ -213,6 +245,9 @@ export function buildAgentTaskPlanBlob(input: AgentTaskPlanToolParams) {
                       scheduleMinute: params.scheduleMinute,
                       scheduleExpression: params.scheduleExpression,
                       scheduleDescription: params.scheduleDescription,
+                      ...(params.timezoneOverride
+                        ? { timezoneOverride: params.timezoneOverride }
+                        : {}),
                       taskPrompt: params.taskPrompt,
                     },
                   },

@@ -65,8 +65,7 @@ describe('agent task plan tool', () => {
                       context: expect.objectContaining({
                         groupId: '~zod/home-group',
                         scheduleExpression: '30 8 * * 1-5',
-                        taskPrompt:
-                          expect.stringContaining('product designers'),
+                        taskPrompt: validPlan.taskPrompt,
                       }),
                     },
                   },
@@ -77,6 +76,9 @@ describe('agent task plan tool', () => {
         ]),
       }),
     ]);
+    expect(JSON.stringify(buildAgentTaskPlanBlob(validPlan))).toContain(
+      validPlan.summary
+    );
   });
 
   it('serializes and posts one valid blob without model-authored shell quoting', async () => {
@@ -127,6 +129,38 @@ describe('agent task plan tool', () => {
     });
 
     expect(result.details).toEqual({ error: true });
+    expect(postPlan).not.toHaveBeenCalled();
+  });
+
+  it('keeps an explicit timezone override internal to the action', () => {
+    const blob = buildAgentTaskPlanBlob({
+      ...validPlan,
+      fallbackSummary: 'Thursday robotics brief at 3 PM Tokyo time.',
+      summary: 'Japanese robotics releases every Thursday at 3 PM Tokyo time.',
+      scheduleExpression: '0 15 * * 4',
+      scheduleDescription: 'every Thursday at 3 PM Tokyo time',
+      timezoneOverride: 'Asia/Tokyo',
+    });
+
+    expect(JSON.stringify(blob)).toContain('"timezoneOverride":"Asia/Tokyo"');
+    expect(JSON.stringify(blob)).toContain('Tokyo time');
+  });
+
+  it('rejects invalid overrides and technical timezone copy', async () => {
+    const postPlan = vi.fn(async () => 'unexpected');
+    const execute = createAgentTaskPlanToolExecutor({ postPlan });
+
+    const invalidOverride = await execute('call-invalid-timezone', {
+      ...validPlan,
+      timezoneOverride: 'Mars/Olympus',
+    });
+    const leakedIdentifier = await execute('call-leaked-timezone', {
+      ...validPlan,
+      summary: 'Run every weekday at 8:30 AM in America/New_York.',
+    });
+
+    expect(invalidOverride.details).toEqual({ error: true });
+    expect(leakedIdentifier.details).toEqual({ error: true });
     expect(postPlan).not.toHaveBeenCalled();
   });
 

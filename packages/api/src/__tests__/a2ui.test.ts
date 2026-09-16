@@ -208,6 +208,7 @@ describe('a2ui blob entries', () => {
             taskPrompt: 'Summarize meaningful open-hardware releases.',
             scheduleExpression: '0 8 * * 1-5',
             scheduleDescription: 'every weekday at 8 AM',
+            timezoneOverride: 'Asia/Tokyo',
           },
         },
       },

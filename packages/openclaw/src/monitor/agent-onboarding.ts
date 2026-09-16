@@ -58,6 +58,11 @@ type AgentRequest =
   | PostBlobDataEntryAgentProviderConfig
   | PostBlobDataEntryAgentProvision;
 
+export type AgentOnboardingClientDateTimeContext = {
+  timezone: string;
+  locale: string;
+};
+
 export type OnboardingStepReport = {
   step: TlonOnboardingStep;
   outcome?: 'ok' | 'failed';
@@ -157,6 +162,10 @@ const postOnceFlights = new Map<string, Promise<void>>();
 const completedPostMarkers = sharedMap<string, true>(
   'agentOnboarding.completedPostMarkers'
 );
+const clientDateTimeContexts = sharedMap<
+  string,
+  AgentOnboardingClientDateTimeContext
+>('agentOnboarding.clientDateTimeContexts');
 const ORIENTATION_HISTORY_LIMIT = 500;
 const DEFAULT_MIN_RESPONSE_DELAY_MS = 2_000;
 const DEFAULT_MIN_INTER_MESSAGE_DELAY_MS = 1_750;
@@ -178,9 +187,9 @@ const TLAWN_HOME_GROUP_WELCOME_MESSAGE =
   'too—we can all chat together.';
 const AGENT_ONBOARDING_GROUP_INTRO =
   `${TLAWN_HOME_GROUP_WELCOME_MESSAGE}\n\n` +
-  'Let’s set up one useful recurring task. I’ll ask a few questions, then ' +
-  'show you the plan.';
-const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What should I do for you regularly?';
+  'I can keep you informed, help you learn, or follow a ' +
+  'question over time.';
+const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What can I help you with?';
 const AGENT_ONBOARDING_APP_TOUR_PROMPT =
   'Want me to tell you more about what you can do here?';
 const AGENT_ONBOARDING_APP_TOUR_EXPLANATION =
@@ -427,6 +436,19 @@ function onboardingAccountId(context: AgentOnboardingScanContext) {
   return context.accountId ?? context.botShip;
 }
 
+function clientDateTimeContextKey(accountId: string, groupId: string) {
+  return `${accountId}\u0000${groupId}`;
+}
+
+export function agentOnboardingClientDateTimeContext(
+  accountId: string,
+  groupId: string
+) {
+  return clientDateTimeContexts.get(
+    clientDateTimeContextKey(accountId, groupId)
+  );
+}
+
 function startSingleFlight<Key, Value>(
   flights: Map<Key, Promise<Value>>,
   key: Key,
@@ -552,6 +574,17 @@ async function handleAgentOnboardingRequestInternal(
       '[tlon] rejected agent onboarding request: owner/group mismatch'
     );
     return true;
+  }
+
+  if (
+    request.type === 'tlon-agent-intro-request' &&
+    request.clientTimezone &&
+    request.clientLocale
+  ) {
+    clientDateTimeContexts.set(
+      clientDateTimeContextKey(onboardingAccountId(context), request.groupId),
+      { timezone: request.clientTimezone, locale: request.clientLocale }
+    );
   }
 
   const history = await fetchOnboardingHistory(context, deps);
@@ -2848,7 +2881,7 @@ function purposePickerFallbackText(prompt: string) {
   const labels = AGENT_ONBOARDING_PURPOSE_OPTIONS.map(
     (option) => `“${option.label}”`
   ).join(', ');
-  return `${prompt} Choose ${labels}, or add your own idea.`;
+  return `${prompt} Reply ${labels}.`;
 }
 
 function buildPurposePickerSurface(
@@ -2865,19 +2898,15 @@ function buildPurposePickerSurface(
       { id: 'prompt', component: 'Text', text: prompt },
       {
         id: 'choices',
-        component: 'SmallChoice',
+        component: 'Choice',
         options: AGENT_ONBOARDING_PURPOSE_OPTIONS.map((option) => ({
           id: option.id,
           label: option.label,
+          description: option.description,
+          icon: option.icon,
+          accent: option.accent,
+          action: choiceAction(option.label),
         })),
-        submitLabel: 'Continue',
-        freeTextPlaceholder: 'Describe your own…',
-        action: {
-          event: {
-            name: A2UI.action.sendMessage,
-            context: { text: 'I want help with:' },
-          },
-        },
       },
     ])
   );

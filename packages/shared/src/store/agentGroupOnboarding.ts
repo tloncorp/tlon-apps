@@ -3,6 +3,7 @@ import { desig } from '@tloncorp/api/lib/urbit';
 import { BotHomeGroupSlugs } from '@tloncorp/api/types/wayfinding';
 
 import * as db from '../db';
+import { getClientDateTimeContext } from '../clientDateTimeContext';
 import { createDevLogger } from '../debug';
 import * as logic from '../logic';
 import { createChannel, deleteChannel } from './channelActions';
@@ -669,11 +670,14 @@ async function ensureIntroRequest(
   );
   if (alreadyPosted) return;
 
+  const clientDateTime = getClientDateTimeContext();
   const blob = logic.appendToPostBlob(undefined, {
     type: 'tlon-agent-intro-request',
     version: 1,
     groupId,
     ...(isFirstGroup ? { isFirstGroup: true } : {}),
+    clientTimezone: clientDateTime.timezone,
+    clientLocale: clientDateTime.locale,
   });
   await finalizeAndSendPost(
     {

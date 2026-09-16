@@ -41,6 +41,7 @@ import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
+import { resolveAgentProvisionTimezone } from './agentProvision';
 
 function receiptFollowsPost(
   receipt:
@@ -343,8 +344,10 @@ export function StaticChatMessage({
       }
 
       if (action.event.name === A2UI.action.provisionAgent) {
-        const timezone =
-          Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+        const timezone = resolveAgentProvisionTimezone(
+          action.event.context.timezoneOverride,
+          Intl.DateTimeFormat().resolvedOptions().timeZone
+        );
         await sendAgentProvision(
           { ...action.event.context, timezone },
           selection

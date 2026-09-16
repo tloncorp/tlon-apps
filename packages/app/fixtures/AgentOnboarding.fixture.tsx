@@ -32,9 +32,9 @@ import {
 // are authoritative for the actual emitted surfaces.
 const AGENT_ONBOARDING_GROUP_INTRO =
   `${TLAWN_HOME_GROUP_WELCOME_MESSAGE}\n\n` +
-  'Let’s set up one useful recurring task. I’ll ask a few questions, then ' +
-  'show you the plan.';
-const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What should I do for you regularly?';
+  'I can keep you informed, help you learn, or follow a ' +
+  'question over time.';
+const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What can I help you with?';
 const AGENT_ONBOARDING_APP_TOUR_PROMPT =
   'Want me to tell you more about what you can do here?';
 const AGENT_ONBOARDING_APP_TOUR_EXPLANATION =
@@ -53,14 +53,24 @@ const PURPOSE_PICKER_OPTIONS = [
   {
     id: 'agent-daily-digest',
     label: 'A daily digest',
+    description:
+      'A short summary of anything you care about, posted every morning.',
+    icon: 'ChannelNotebooks',
+    accent: 'blue',
   },
   {
     id: 'agent-learning',
     label: 'Learn something',
+    description: 'One idea each morning, taking your topics in turn.',
+    icon: 'Clock',
+    accent: 'green',
   },
   {
     id: 'agent-research',
     label: 'Research',
+    description: 'A source-backed briefing that follows meaningful new work.',
+    icon: 'Search',
+    accent: 'indigo',
   },
 ] as const;
 
@@ -166,19 +176,15 @@ const purposePicker = makeA2UI('onboarding-purpose-fixture', [
   },
   {
     id: 'choices',
-    component: 'SmallChoice',
+    component: 'Choice',
     options: PURPOSE_PICKER_OPTIONS.map((option) => ({
       id: option.id,
       label: option.label,
+      description: option.description,
+      icon: option.icon,
+      accent: option.accent,
+      action: action(option.label),
     })),
-    submitLabel: 'Continue',
-    freeTextPlaceholder: 'Describe your own…',
-    action: {
-      event: {
-        name: 'tlon.sendMessage',
-        context: { text: 'I want help with:' },
-      },
-    },
   } as A2UI.Component,
 ]);
 
@@ -348,14 +354,14 @@ const transcript = [
     author: tlonbot,
     text:
       `${AGENT_ONBOARDING_GROUP_INTRO}\n\n` +
-      `${AGENT_ONBOARDING_PURPOSE_PROMPT} Choose “A daily digest”, “Learn something”, “Research”, or add your own idea.`,
+      `${AGENT_ONBOARDING_PURPOSE_PROMPT} Reply “A daily digest”, “Learn something”, “Research”.`,
     a2ui: purposePicker,
     minute: 1,
   }),
   transcriptPost({
     id: 'onboarding-03-purpose-reply',
     author: owner,
-    text: 'I want help with: Research',
+    text: 'Research',
     minute: 3,
   }),
   transcriptPost({
