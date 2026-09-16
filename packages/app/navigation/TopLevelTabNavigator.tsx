@@ -3,6 +3,7 @@ import {
   createBottomTabNavigator,
 } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
+import * as store from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useEffect, useRef } from 'react';
 
@@ -22,6 +23,15 @@ const Tabs = createBottomTabNavigator<TopLevelTabParamList>();
 
 function ReactTopLevelTabBar({ state, navigation }: BottomTabBarProps) {
   const isWindowNarrow = useIsWindowNarrow();
+  // Hooks stay above the early return below. The bot DM badges its own tab;
+  // Workspaces badges activity everywhere else.
+  const botDm = useBotDmTab();
+  const botDmUnreadCount = store.useChannelUnreadCount(
+    botDm.enabled ? botDm.channelId : undefined
+  );
+  const unseenActivityCount = store.useUnreadUnseenActivityCount({
+    excludeChannelId: botDm.enabled ? botDm.channelId : undefined,
+  });
 
   if (!isWindowNarrow) {
     return null;
@@ -59,14 +69,14 @@ function ReactTopLevelTabBar({ state, navigation }: BottomTabBarProps) {
         <NavIcon
           type="SmushStar"
           isActive={activeRouteName === 'BotChat'}
-          hasUnreads={false}
+          hasUnreads={botDmUnreadCount > 0}
           onPress={() => pressTab('BotChat')}
         />
       )}
       <NavIcon
         type="Channel"
         isActive={activeRouteName === 'ChatList'}
-        hasUnreads={false}
+        hasUnreads={unseenActivityCount > 0}
         onPress={() => pressTab('ChatList')}
       />
       <NavIcon

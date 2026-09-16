@@ -13,6 +13,7 @@ import { useEffect, useMemo } from 'react';
 import * as db from '../db';
 import { GroupedChats } from '../db/types';
 import * as logic from '../logic';
+import { countUnseenActivity } from './activityBadges';
 import { getBotReplyFeedbackQueryKey } from './botReplyFeedback';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
 import { syncChannelPreivews, syncPostReference } from './sync';
@@ -299,7 +300,14 @@ export const useActivityIsEmpty = () => {
   });
 };
 
-export const useHaveUnreadUnseenActivity = () => {
+/**
+ * Unseen activity that deserves a badge. Pass `excludeChannelId` for a
+ * surface that already badges that channel on its own, so one message does
+ * not light several indicators at once.
+ */
+export const useUnreadUnseenActivityCount = ({
+  excludeChannelId,
+}: { excludeChannelId?: string | null } = {}) => {
   const depsKey = useKeyFromQueryDeps(db.getUnreadUnseenActivityEvents);
   const { data: seenMarker } = useActivitySeenMarker();
   const { data: meaningfulUnseenActivity } = useQuery({
@@ -308,7 +316,21 @@ export const useHaveUnreadUnseenActivity = () => {
       db.getUnreadUnseenActivityEvents({ seenMarker: seenMarker ?? Infinity }),
   });
 
-  return (meaningfulUnseenActivity?.length ?? 0) > 0;
+  return countUnseenActivity(meaningfulUnseenActivity, { excludeChannelId });
+};
+
+export const useHaveUnreadUnseenActivity = () =>
+  useUnreadUnseenActivityCount() > 0;
+
+export const useChannelUnreadCount = (channelId?: string | null) => {
+  const depsKey = useKeyFromQueryDeps(db.getChannelUnread);
+  const { data } = useQuery({
+    enabled: !!channelId,
+    queryKey: ['channelUnreadCount', depsKey, channelId],
+    queryFn: () => db.getChannelUnread({ channelId: channelId ?? '' }),
+  });
+
+  return data?.count ?? 0;
 };
 
 export const useLiveThreadUnread = (unread: db.ThreadUnreadState | null) => {

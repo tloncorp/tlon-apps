@@ -91,6 +91,17 @@ export function buildNativeHeaderItem(
     disabled: action.disabled,
     sharesBackground: true,
     tintColor: action.tint,
+    // UIBarButtonItem badges exist from iOS 26; earlier systems ignore this
+    // and the React header draws its own. The badge takes the tint so a count
+    // reads as part of the lit icon rather than a second colour beside it.
+    ...(action.badge != null
+      ? {
+          badge: {
+            value: action.badge,
+            ...(action.tint ? { style: { backgroundColor: action.tint } } : {}),
+          },
+        }
+      : {}),
   } as NativeStackHeaderItem;
 }
 

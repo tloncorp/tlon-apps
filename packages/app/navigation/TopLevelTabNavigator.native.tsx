@@ -7,6 +7,8 @@ import { useTheme } from 'tamagui';
 import SettingsScreen from '../features/settings/SettingsScreen';
 import ChannelScreen from '../features/top/ChannelScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
+import * as store from '@tloncorp/shared/store';
+
 import { useBotDmTab } from '../hooks/useBotDmTab';
 import {
   TOP_LEVEL_TABS,
@@ -44,6 +46,17 @@ function tabIcon(name: TabIconName, focused: boolean) {
 export function TopLevelTabNavigator() {
   const theme = useTheme();
   const botDm = useBotDmTab();
+  const botDmUnreadCount = store.useChannelUnreadCount(
+    botDm.enabled ? botDm.channelId : undefined
+  );
+  // Activity elsewhere: the bot DM already badges its own tab.
+  const unseenActivityCount = store.useUnreadUnseenActivityCount({
+    excludeChannelId: botDm.enabled ? botDm.channelId : undefined,
+  });
+  // A native badge is text; a single space is UIKit's empty pill, which reads
+  // as a dot. Undefined removes it.
+  const dot = (lit: boolean) => (lit ? ' ' : undefined);
+  const tabBarBadgeStyle = { backgroundColor: theme.blue?.val };
   const navigation = useNavigation();
   const changedTabs = useRef(false);
   const focusedBotTab = useRef(false);
@@ -99,6 +112,8 @@ export function TopLevelTabNavigator() {
           options={{
             title: TOP_LEVEL_TABS.BotChat.title,
             tabBarIcon: ({ focused }) => tabIcon('bot', focused),
+            tabBarBadge: dot(botDmUnreadCount > 0),
+            tabBarBadgeStyle,
           }}
         />
       ) : null}
@@ -108,6 +123,8 @@ export function TopLevelTabNavigator() {
         options={{
           title: TOP_LEVEL_TABS.ChatList.title,
           tabBarIcon: ({ focused }) => tabIcon('workspaces', focused),
+          tabBarBadge: dot(unseenActivityCount > 0),
+          tabBarBadgeStyle,
         }}
       />
       <Tabs.Screen
