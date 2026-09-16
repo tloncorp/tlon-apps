@@ -6,6 +6,7 @@ import {
   it,
   jest,
 } from '@jest/globals';
+import { useNetInfo } from '@react-native-community/netinfo';
 import {
   act,
   cleanup,
@@ -22,6 +23,11 @@ import { refreshHostingAuth } from '../lib/hostingAuth';
 import { sync } from '@tloncorp/shared';
 
 jest.unmock('../components/AuthenticatedApp');
+jest.mock('@react-native-community/netinfo', () => ({
+  __esModule: true,
+  default: { fetch: jest.fn() },
+  useNetInfo: jest.fn(),
+}));
 jest.mock('@tloncorp/app/contexts/ship', () => ({
   useShip: () => ({ authType: 'hosted' }),
 }));
@@ -155,12 +161,82 @@ jest.mock('../components/TlonbotRevivalPromptSheet', () => ({
 
 describe('Hosting auth gate', () => {
   beforeEach(async () => {
+    jest.mocked(useNetInfo).mockReturnValue({
+      isConnected: true,
+      isInternetReachable: true,
+    } as ReturnType<typeof useNetInfo>);
     await db.hostingAuthExpired.setValue(false);
     jest.mocked(refreshHostingAuth).mockReset().mockResolvedValue('ok');
     jest.mocked(sync.syncStart).mockReset().mockResolvedValue();
     jest.mocked(useConfigureUrbitClient()).mockClear();
   });
   afterEach(cleanup);
+
+  it.each([null, false])(
+    'rechecks when reachability changes from %s to true while still connected',
+    async (isInternetReachable) => {
+      jest.mocked(useNetInfo).mockReturnValue({
+        isConnected: true,
+        isInternetReachable,
+      } as ReturnType<typeof useNetInfo>);
+      jest
+        .mocked(refreshHostingAuth)
+        .mockResolvedValueOnce('unknown')
+        .mockResolvedValueOnce('expired');
+      const view = render(
+        <ConnectedAuthenticatedApp connected onLogout={() => {}} />
+      );
+      await act(async () => {});
+      expect(screen.getByText('Authenticated content')).toBeTruthy();
+
+      jest.mocked(useNetInfo).mockReturnValue({
+        isConnected: true,
+        isInternetReachable: true,
+      } as ReturnType<typeof useNetInfo>);
+      view.rerender(
+        <ConnectedAuthenticatedApp connected onLogout={() => {}} />
+      );
+      await act(async () => {});
+      expect(refreshHostingAuth).toHaveBeenCalledTimes(2);
+      expect(refreshHostingAuth).toHaveBeenLastCalledWith({
+        authType: 'hosted',
+        force: true,
+      });
+      expect(screen.getByText('Reconnect session')).toBeTruthy();
+      expect(screen.queryByText('Authenticated content')).toBeNull();
+      expect(sync.syncStart).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it('waits for a fresh check when reachability resolves during startup', async () => {
+    jest.mocked(useNetInfo).mockReturnValue({
+      isConnected: true,
+      isInternetReachable: null,
+    } as ReturnType<typeof useNetInfo>);
+    let finishOldCheck!: (result: 'unknown') => void;
+    jest
+      .mocked(refreshHostingAuth)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishOldCheck = resolve;
+          })
+      )
+      .mockResolvedValueOnce('expired');
+    const view = render(
+      <ConnectedAuthenticatedApp connected onLogout={() => {}} />
+    );
+    jest.mocked(useNetInfo).mockReturnValue({
+      isConnected: true,
+      isInternetReachable: true,
+    } as ReturnType<typeof useNetInfo>);
+    view.rerender(<ConnectedAuthenticatedApp connected onLogout={() => {}} />);
+
+    await act(async () => finishOldCheck('unknown'));
+    expect(refreshHostingAuth).toHaveBeenCalledTimes(2);
+    expect(screen.getByText('Reconnect session')).toBeTruthy();
+    expect(sync.syncStart).not.toHaveBeenCalled();
+  });
 
   it('rechecks after a previously valid connection goes offline and returns', async () => {
     const view = render(

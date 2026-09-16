@@ -14,7 +14,7 @@ import {
   renderHook,
   screen,
 } from '@testing-library/react-native';
-import type { HostingLoginOtpInfo } from '@tloncorp/api';
+import { HostingError, type HostingLoginOtpInfo } from '@tloncorp/api';
 import { useCallback, type PropsWithChildren, type ReactNode } from 'react';
 import type { PressableProps } from 'react-native';
 
@@ -37,7 +37,15 @@ jest.mock('../lib/OnboardingContext', () => ({
 }));
 jest.mock(
   '@tloncorp/api',
-  () => ({ HostingError: class HostingError extends Error {} }),
+  () => ({
+    HostingError: class HostingError extends Error {
+      details: { status: number };
+      constructor(message: string, details: { status: number }) {
+        super(message);
+        this.details = details;
+      }
+    },
+  }),
   { virtual: true }
 );
 jest.mock('@tloncorp/app/ui', () => {
@@ -136,7 +144,7 @@ describe('Hosting auth reconnect interactions', () => {
     verifyCode.mockReset();
     execRecaptchaLogin.mockResolvedValue('login-token');
     execRecaptchaRequestOtp.mockResolvedValue('otp-token');
-    sendCode.mockResolvedValue({ retryAfter: 0 });
+    sendCode.mockReset().mockResolvedValue({ retryAfter: 0 });
     jest.mocked(useOnboardingContext).mockReturnValue({
       initRecaptcha,
       execRecaptchaLogin,
@@ -203,6 +211,89 @@ describe('Hosting auth reconnect interactions', () => {
     expect(execRecaptchaLogin).toHaveBeenCalledTimes(1);
     expect(execRecaptchaRequestOtp).not.toHaveBeenCalled();
     expect(initRecaptcha).toHaveBeenCalledTimes(1);
+  });
+
+  it('honors the resend cooldown without clearing a partially entered code', async () => {
+    sendCode.mockResolvedValue({ retryAfter: 3 });
+    render(<ReconnectGate expired />);
+    await act(async () => {});
+    fireEvent.changeText(screen.getByTestId('otp'), '123');
+    fireEvent.press(screen.getByText('Request a new code in 3s'));
+    expect(sendCode).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('otp').props.value).toBe('123');
+
+    for (const secondsLeft of [2, 1]) {
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(1000);
+      });
+      fireEvent.press(
+        screen.getByText(`Request a new code in ${secondsLeft}s`)
+      );
+      expect(sendCode).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId('otp').props.value).toBe('123');
+    }
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(1000);
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText('Request a new code'));
+    });
+    expect(sendCode).toHaveBeenCalledTimes(2);
+    expect(screen.getByTestId('otp').props.value).toBe('');
+    expect(screen.getByText('Request a new code in 3s')).toBeTruthy();
+  });
+
+  it('honors an initial cooldown and accounts for time spent in the background', async () => {
+    render(
+      <HostingAuthReconnectScreen
+        profileId="~zod"
+        autoRequest={false}
+        initialOtpInfo={{ retryAfter: 30 }}
+        onRequestCode={sendCode}
+        onVerifyCode={verifyCode}
+        onLogout={logout}
+      />
+    );
+    fireEvent.press(screen.getByText('Request a new code in 30s'));
+    expect(sendCode).not.toHaveBeenCalled();
+
+    jest.setSystemTime(Date.now() + 30_000);
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(1000);
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText('Request a new code'));
+    });
+    expect(sendCode).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the entered code when a resend is rate-limited', async () => {
+    sendCode.mockRejectedValueOnce(
+      new HostingError('Too many requests', {
+        status: 429,
+        method: 'POST',
+        path: '/request-login-otp',
+      })
+    );
+    render(
+      <HostingAuthReconnectScreen
+        profileId="~zod"
+        autoRequest={false}
+        initialOtpInfo={{ retryAfter: 0 }}
+        onRequestCode={sendCode}
+        onVerifyCode={verifyCode}
+        onLogout={logout}
+      />
+    );
+    fireEvent.changeText(screen.getByTestId('otp'), '123');
+    await act(async () => {
+      fireEvent.press(screen.getByText('Request a new code'));
+    });
+    expect(screen.getByTestId('otp').props.value).toBe('123');
+    await act(async () => {
+      fireEvent.changeText(screen.getByTestId('otp'), '123456');
+    });
+    expect(verifyCode).toHaveBeenCalledWith('123456');
   });
 
   it.each([

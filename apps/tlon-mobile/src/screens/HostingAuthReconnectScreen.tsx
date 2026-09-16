@@ -52,20 +52,46 @@ export function HostingAuthReconnectScreen({
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string>();
   const requestStarted = useRef(false);
+  const requestInFlight = useRef(false);
   const verificationInFlight = useRef(false);
+  const [resendAvailableAt, setResendAvailableAt] = useState(
+    () => Date.now() + (initialOtpInfo?.retryAfter ?? 0) * 1000
+  );
+  const [resendWait, setResendWait] = useState(() =>
+    Math.max(0, Math.ceil(initialOtpInfo?.retryAfter ?? 0))
+  );
   const insets = useSafeAreaInsets();
 
-  const requestCode = useCallback(async () => {
-    if (verificationInFlight.current) {
+  useEffect(() => {
+    if (resendWait <= 0) {
       return;
     }
+    const timer = setTimeout(() => {
+      setResendWait(
+        Math.max(0, Math.ceil((resendAvailableAt - Date.now()) / 1000))
+      );
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [resendAvailableAt, resendWait]);
+
+  const requestCode = useCallback(async () => {
+    if (
+      verificationInFlight.current ||
+      requestInFlight.current ||
+      Date.now() < resendAvailableAt
+    ) {
+      return;
+    }
+    requestInFlight.current = true;
     setRequestState('requesting');
     setError(undefined);
-    setOtp([]);
 
     try {
       const info = await onRequestCode();
+      setResendAvailableAt(Date.now() + info.retryAfter * 1000);
+      setResendWait(Math.max(0, Math.ceil(info.retryAfter)));
       setOtpInfo(info);
+      setOtp([]);
       setRequestState('sent');
     } catch (requestError) {
       if (
@@ -75,13 +101,13 @@ export function HostingAuthReconnectScreen({
         // A recent request means the user should already have a usable code.
         setRequestState('sent');
         setError('A code was sent recently. Enter it below or try again soon.');
-        return;
+      } else {
+        setRequestState('idle');
+        setError('We could not send a confirmation code. Please try again.');
       }
-
-      setRequestState('idle');
-      setError('We could not send a confirmation code. Please try again.');
     }
-  }, [onRequestCode]);
+    requestInFlight.current = false;
+  }, [onRequestCode, resendAvailableAt]);
 
   useEffect(() => {
     if (!autoRequest || requestStarted.current) {
@@ -270,8 +296,12 @@ export function HostingAuthReconnectScreen({
                     <Button
                       preset="minimal"
                       size="medium"
-                      label="Request a new code"
-                      disabled={isVerifying}
+                      label={
+                        resendWait > 0
+                          ? `Request a new code in ${resendWait}s`
+                          : 'Request a new code'
+                      }
+                      disabled={isVerifying || resendWait > 0}
                       onPress={() => void requestCode()}
                       centered
                     />

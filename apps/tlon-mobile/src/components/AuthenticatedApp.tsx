@@ -1,5 +1,5 @@
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import NetInfo from '@react-native-community/netinfo';
+import NetInfo, { useNetInfo } from '@react-native-community/netinfo';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import {
   AppStatus,
@@ -340,6 +340,7 @@ export default function ConnectedAuthenticatedApp({
   authenticatedContent?: ReactNode;
   authenticatedOverlay?: ReactNode;
 }) {
+  const { isInternetReachable } = useNetInfo();
   const [hostingAuthState, setHostingAuthState] = useState<
     'checking' | 'valid' | 'expired'
   >('checking');
@@ -419,7 +420,10 @@ export default function ConnectedAuthenticatedApp({
     }
 
     async function setup() {
-      hostingAuthLogger.log('Starting authenticated app', { authAttempt });
+      hostingAuthLogger.log('Starting authenticated app', {
+        authAttempt,
+        isInternetReachable,
+      });
       if (!(await requireHostingAuth({ force: true })) || canceled) {
         return;
       }
@@ -432,7 +436,7 @@ export default function ConnectedAuthenticatedApp({
     return () => {
       canceled = true;
     };
-  }, [authAttempt, connected, requireHostingAuth]);
+  }, [authAttempt, connected, isInternetReachable, requireHostingAuth]);
 
   if (needsHostingReconnect) {
     return (
