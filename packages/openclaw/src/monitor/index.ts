@@ -48,7 +48,10 @@ import {
   getGatewayStatusCoordinator,
 } from '../gateway-status.js';
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
-import { setTlonSessionSurface } from '../onboarding-tool-boundary.js';
+import {
+  rememberTlonSessionRunSurface,
+  setTlonSessionSurface,
+} from '../onboarding-tool-boundary.js';
 import {
   type PendingNudge,
   clearPendingNudge,
@@ -3101,6 +3104,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           kind: isGroup ? 'group' : 'direct',
           ...(isGroup && channelNest ? { channelNest } : {}),
           bootstrapComplete: currentSettings.bootstrapComplete === true,
+          messageId: String(messageId),
         });
       }
       runtime.log?.(
@@ -3264,6 +3268,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       const compactionObservationTimeoutMs =
         resolveCompactionObservationTimeoutMs(cfg);
       const runId = randomUUID();
+      rememberTlonSessionRunSurface(runId, route.sessionKey);
       const turnRecorder = startTlonAgentTurn({
         accountId: account.accountId,
         agentId: route.agentId,

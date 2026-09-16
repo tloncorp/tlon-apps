@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   _testing,
   getTlonSessionSurface,
+  getTlonSessionRunSurface,
   onboardingToolBlockReason,
+  rememberTlonSessionRunSurface,
   setTlonSessionSurface,
 } from './onboarding-tool-boundary.js';
 
@@ -96,5 +98,52 @@ describe('onboarding tool boundary', () => {
       getTlonSessionSurface('agent:dev:tlon:group:chat/~zod/home:thread:170.1')
         ?.channelNest
     ).toBe('chat/~zod/home');
+  });
+
+  it('blocks a typed card from a run superseded by newer owner input', () => {
+    const sessionKey = 'agent:dev:tlon:group:chat/~zod/home';
+    setTlonSessionSurface(sessionKey, {
+      kind: 'group',
+      channelNest: 'chat/~zod/home',
+      bootstrapComplete: false,
+      messageId: '~owner/100',
+    });
+    rememberTlonSessionRunSurface('run-old', sessionKey);
+
+    setTlonSessionSurface(sessionKey, {
+      kind: 'group',
+      channelNest: 'chat/~zod/home',
+      bootstrapComplete: false,
+      messageId: '~owner/101',
+    });
+
+    const current = getTlonSessionSurface(sessionKey);
+    const oldRun = getTlonSessionRunSurface('run-old');
+    expect(
+      onboardingToolBlockReason(
+        'tlon_agent_task_plan',
+        { target: 'chat/~zod/home' },
+        current,
+        oldRun
+      )
+    ).toContain('newer owner message');
+    expect(
+      onboardingToolBlockReason(
+        'tlon_agent_choice',
+        { target: 'chat/~zod/home' },
+        current,
+        oldRun
+      )
+    ).toContain('newer owner message');
+
+    rememberTlonSessionRunSurface('run-current', sessionKey);
+    expect(
+      onboardingToolBlockReason(
+        'tlon_agent_task_plan',
+        { target: 'chat/~zod/home' },
+        current,
+        getTlonSessionRunSurface('run-current')
+      )
+    ).toBeUndefined();
   });
 });

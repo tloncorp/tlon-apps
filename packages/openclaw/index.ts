@@ -38,6 +38,8 @@ import {
 import { notifyDiaryMigrationDiscovery } from './src/diary-migration-discovery.js';
 import { suppressTlonFallbackNotice } from './src/fallback-notice-delivery.js';
 import {
+  clearTlonSessionRunSurface,
+  getTlonSessionRunSurface,
   getTlonSessionSurface,
   onboardingToolBlockReason,
 } from './src/onboarding-tool-boundary.js';
@@ -1053,7 +1055,8 @@ export default defineBundledChannelEntry({
       const onboardingBoundaryReason = onboardingToolBlockReason(
         event.toolName,
         event.params,
-        getTlonSessionSurface(ctx.sessionKey)
+        getTlonSessionSurface(ctx.sessionKey),
+        getTlonSessionRunSurface(ctx.runId)
       );
       const blocksOnboardingBoundary = Boolean(onboardingBoundaryReason);
       const isBlocked =
@@ -1550,6 +1553,7 @@ export default defineBundledChannelEntry({
     // deliver the reply (stamped + recorded via the outbound send path).
     api.on('agent_end', (_event, ctx) => {
       clearCronJobForSession(ctx.sessionKey, ctx.jobId);
+      clearTlonSessionRunSurface(ctx.runId);
       if (!contextLensEnabled) {
         return;
       }
