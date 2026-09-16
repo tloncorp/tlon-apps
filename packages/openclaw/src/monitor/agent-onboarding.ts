@@ -20,6 +20,7 @@ import { MCP_READ_TOOL_NAMES } from '../mcp-readonly-policy.js';
 import { noteIdFromDeliveryMessageId } from '../notes-delivery-state.js';
 import { sharedMap } from '../shared-state.js';
 import { type Sleeper, defaultSleep } from '../sleep.js';
+import { isDmNest } from '../targets.js';
 import type {
   TlonOnboardingAnswer,
   TlonOnboardingCompletionPath,
@@ -489,10 +490,7 @@ export async function agentOnboardingCronChannelNest(
   return channelNest;
 }
 
-/** A DM's nest is the other party's ship, with no group path. */
-export function isDmNest(nest: string): boolean {
-  return nest.startsWith('~') && !nest.includes('/');
-}
+export { isDmNest };
 
 /**
  * The group a DM's onboarding belongs to.

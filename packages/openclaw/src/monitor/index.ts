@@ -4901,6 +4901,67 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           return;
         }
 
+        // Onboarding now runs in the bot DM, and a DM writ never reaches the
+        // channels firehose — so the control-plane check has to happen here
+        // too, before the message wakes the model as ordinary conversation.
+        if (isDmNest(whom)) {
+          let onboardingGroupId: string | undefined;
+          try {
+            onboardingGroupId = await findOnboardingGroupIdInChannel({
+              api,
+              abortSignal: opts.abortSignal,
+              channelNest: whom,
+              ownerShip: effectiveOwnerShip,
+            });
+          } catch (error) {
+            runtime.error?.(
+              `[tlon] Failed to resolve onboarding group from ${whom}: ${error instanceof Error ? error.message : String(error)}`
+            );
+          }
+          let handledOnboardingRequest = false;
+          try {
+            handledOnboardingRequest = await handleAgentOnboardingRequest({
+              accountId: account.accountId,
+              api,
+              abortSignal: opts.abortSignal,
+              botShip: botShipName,
+              botProfile: getBotProfile(),
+              channelNest: whom,
+              groupId: onboardingGroupId,
+              ownerShip: effectiveOwnerShip,
+              senderShip,
+              rawText,
+              blob: dmContent.blob,
+              log: (message) => runtime.log?.(message),
+              trackStep: trackOnboardingStep(whom, onboardingGroupId),
+              presentation: {
+                startThinking: () => {
+                  computingPresence.refreshRun({
+                    conversationId: whom,
+                    runId: `onboarding:${String(effectiveMessageId)}`,
+                  });
+                },
+                stopThinking: () => {
+                  computingPresence.stopRun({
+                    conversationId: whom,
+                    runId: `onboarding:${String(effectiveMessageId)}`,
+                  });
+                },
+              },
+            });
+          } catch (error) {
+            // This writ is already in the processed-message tracker, so no
+            // duplicate event will retry it. Reconcile from durable history.
+            scheduleAgentOnboardingRetry(whom);
+            throw error;
+          }
+          if (handledOnboardingRequest) {
+            // Control-plane traffic: its visible text stays in the transcript
+            // but must not wake the model.
+            return;
+          }
+        }
+
         const citedContent = await resolveCitedContent(dmContent.content);
         await processMessage({
           messageId: effectiveMessageId ?? '',
@@ -5781,7 +5842,15 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // The foreigns subscription gets no snapshot on watch; catch up now
       // that the channel is live so the boot gap cannot lose an invite.
       await groupInviteRunner.catchUp();
-      const startupOnboardingNests = [...watchedChannels];
+      // watchedChannels holds group channels only; the bot DM is never added
+      // to it, and the firehose auto-watch admits only kind/host/slug nests.
+      // Without seeding it here an intro request posted while the bot was
+      // down — or running older code — would never be reconciled, since the
+      // app posts one per group and will not post another.
+      const startupOnboardingNests = [
+        ...watchedChannels,
+        ...(effectiveOwnerShip ? [effectiveOwnerShip] : []),
+      ];
       let nextOnboardingNest = 0;
       const scanNextOnboardingNest = async () => {
         while (
