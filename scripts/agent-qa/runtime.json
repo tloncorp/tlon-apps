@@ -1,7 +1,0 @@
-{
-  "version": "vere-v4.6",
-  "url": "https://github.com/urbit/vere/releases/download/vere-v4.6/linux-x86_64.tgz",
-  "member": "vere-v4.6-linux-x86_64",
-  "archiveSha256": "f332e96d66cb767f847fbf15e04b4f953fd078e610b449fbbc26629ea312a3ae",
-  "binarySha256": "47ad302e8934271dfc00dcdab1d553c6d6460b105e3099ff47e0e4e4231bb26d"
-}
