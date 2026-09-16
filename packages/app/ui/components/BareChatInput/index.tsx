@@ -1,4 +1,8 @@
-import { getCurrentUserId, toContentReference } from '@tloncorp/api';
+import {
+  getBotUserIdForUser,
+  getCurrentUserId,
+  toContentReference,
+} from '@tloncorp/api';
 import { JSONContent, Story, pathToCite } from '@tloncorp/api/urbit';
 import {
   Attachment,
@@ -1060,7 +1064,10 @@ function BareChatInput(
         tappedChatInput: true,
       }));
     }
-    if (logic.isBotDmChannel({ channel: { id: channelId } })) {
+    // The user's own bot DM only, matching `useShowBotMentionWayfinding`:
+    // focusing another user's Tlonbot must not dismiss a coach mark that has
+    // not been seen.
+    if (channelId === getBotUserIdForUser(getCurrentUserId())) {
       db.wayfindingProgress.setValue((prev) => ({
         ...prev,
         tappedHomeGroupHint: true,
