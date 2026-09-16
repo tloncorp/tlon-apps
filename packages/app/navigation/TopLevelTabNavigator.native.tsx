@@ -2,7 +2,7 @@ import { createNativeBottomTabNavigator } from '@react-navigation/bottom-tabs/un
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
-import { useTheme } from 'tamagui';
+import { getTokenValue, useTheme } from 'tamagui';
 
 import SettingsScreen from '../features/settings/SettingsScreen';
 import ChannelScreen from '../features/top/ChannelScreen';
@@ -21,28 +21,25 @@ const Tabs = createNativeBottomTabNavigator<TopLevelTabParamList>();
 
 type TabIconName = 'bot' | 'workspaces' | 'settings';
 
-// No filled variants, so one glyph serves both tab states. Unread is a second
-// asset with a small dot beneath the glyph — see the icon sync script for why
-// it is not a native badge.
 const tabIcons = {
   bot: {
     regular: require('./assets/tab-bot.png'),
-    unread: require('./assets/tab-bot-unread.png'),
+    selected: require('./assets/tab-bot.png'),
   },
   workspaces: {
     regular: require('./assets/tab-workspaces.png'),
-    unread: require('./assets/tab-workspaces-unread.png'),
+    selected: require('./assets/tab-workspaces.png'),
   },
   settings: {
     regular: require('./assets/tab-settings.png'),
+    selected: require('./assets/tab-settings.png'),
   },
 } as const;
 
-function tabIcon(name: TabIconName, unread = false) {
-  const icons: { regular: number; unread?: number } = tabIcons[name];
+function tabIcon(name: TabIconName, focused: boolean) {
   return {
     type: 'image' as const,
-    source: (unread && icons.unread) || icons.regular,
+    source: focused ? tabIcons[name].selected : tabIcons[name].regular,
   };
 }
 
@@ -56,6 +53,12 @@ export function TopLevelTabNavigator() {
   const unseenActivityCount = store.useUnreadUnseenActivityCount({
     excludeChannelId: botDm.enabled ? botDm.channelId : undefined,
   });
+  // A native badge is text; a single space is UIKit's empty pill, which reads
+  // as a dot. Undefined removes it.
+  const dot = (lit: boolean) => (lit ? ' ' : undefined);
+  // `blue` is a colour token, not a theme key: `useTheme().blue` is undefined
+  // and the badge would fall back to the navigator's red. Read the token.
+  const tabBarBadgeStyle = { backgroundColor: getTokenValue('$blue', 'color') };
   const navigation = useNavigation();
   const changedTabs = useRef(false);
   const focusedBotTab = useRef(false);
@@ -110,7 +113,9 @@ export function TopLevelTabNavigator() {
           initialParams={{ channelId: botDm.channelId }}
           options={{
             title: TOP_LEVEL_TABS.BotChat.title,
-            tabBarIcon: () => tabIcon('bot', botDmUnreadCount > 0),
+            tabBarIcon: ({ focused }) => tabIcon('bot', focused),
+            tabBarBadge: dot(botDmUnreadCount > 0),
+            tabBarBadgeStyle,
           }}
         />
       ) : null}
@@ -119,7 +124,9 @@ export function TopLevelTabNavigator() {
         component={ChatListScreen}
         options={{
           title: TOP_LEVEL_TABS.ChatList.title,
-          tabBarIcon: () => tabIcon('workspaces', unseenActivityCount > 0),
+          tabBarIcon: ({ focused }) => tabIcon('workspaces', focused),
+          tabBarBadge: dot(unseenActivityCount > 0),
+          tabBarBadgeStyle,
         }}
       />
       <Tabs.Screen
@@ -127,7 +134,7 @@ export function TopLevelTabNavigator() {
         component={SettingsScreen}
         options={{
           title: TOP_LEVEL_TABS.Settings.title,
-          tabBarIcon: () => tabIcon('settings'),
+          tabBarIcon: ({ focused }) => tabIcon('settings', focused),
         }}
       />
     </Tabs.Navigator>

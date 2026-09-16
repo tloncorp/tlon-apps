@@ -23,46 +23,11 @@ const checkOnly = process.argv.includes('--check');
 
 // Neither the bot nor the workspaces glyph has a filled variant, so each tab
 // draws the same asset in both states — as Settings already does.
-//
-// Unread is a second asset with a dot baked beneath the glyph, not a native
-// badge: UIKit fixes a UITabBarItem badge's size and top-right position, and
-// there is no public API to move or shrink it. Every tab renders on the same
-// taller canvas so glyphs line up whether or not a dot is present. The dot is
-// part of the template image, so it takes the tab's tint like the glyph does;
-// keeping it a fixed colour would mean opting the whole icon out of tinting
-// and baking glyph colours per state and theme.
 const tabIcons = [
   ['SmushStar.svg', 'tab-bot'],
-  ['SmushStar.svg', 'tab-bot-unread', { dot: true }],
   ['Channel.svg', 'tab-workspaces'],
-  ['Channel.svg', 'tab-workspaces-unread', { dot: true }],
   ['Settings.svg', 'tab-settings'],
 ];
-
-const TAB_GLYPH_SIZE = 24;
-const TAB_CANVAS_HEIGHT = 30;
-const TAB_DOT_RADIUS = 2;
-
-// Nest the source as-is (its own viewBox scales it, its root attributes such
-// as fill="none" survive) inside a fixed canvas, with an optional dot below.
-function frameTabGlyph(svg, { dot = false } = {}) {
-  const nested = svg
-    .replace(/<\?xml[^>]*>\s*/i, '')
-    .replace(/<svg\b([^>]*)>/i, (_match, attrs) => {
-      const sized = attrs
-        .replace(/\swidth="[^"]*"/, ` width="${TAB_GLYPH_SIZE}"`)
-        .replace(/\sheight="[^"]*"/, ` height="${TAB_GLYPH_SIZE}"`);
-      return `<svg x="0" y="0"${sized}>`;
-    });
-  const dotMarkup = dot
-    ? `<circle cx="${TAB_GLYPH_SIZE / 2}" cy="${TAB_CANVAS_HEIGHT - TAB_DOT_RADIUS - 0.5}" r="${TAB_DOT_RADIUS}" fill="#000000"/>`
-    : '';
-  return (
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${TAB_GLYPH_SIZE}" ` +
-    `height="${TAB_CANVAS_HEIGHT}" viewBox="0 0 ${TAB_GLYPH_SIZE} ${TAB_CANVAS_HEIGHT}">` +
-    `${nested}${dotMarkup}</svg>`
-  );
-}
 
 const screenHeaderIcons = JSON.parse(
   await readFile(
@@ -94,18 +59,15 @@ const iosImageSetContents = (fileName) => ({
 async function buildTabAssets() {
   const files = new Map();
 
-  for (const [sourceName, outputName, variant] of tabIcons) {
-    const source = frameTabGlyph(
-      normalizeSvgColor(
-        await readFile(path.join(sourceDirectory, sourceName), 'utf8')
-      ),
-      variant
+  for (const [sourceName, outputName] of tabIcons) {
+    const source = normalizeSvgColor(
+      await readFile(path.join(sourceDirectory, sourceName), 'utf8')
     );
 
     for (const scale of [1, 2, 3]) {
       const suffix = scale === 1 ? '' : `@${scale}x`;
       const png = new Resvg(source, {
-        fitTo: { mode: 'width', value: TAB_GLYPH_SIZE * scale },
+        fitTo: { mode: 'width', value: 24 * scale },
       })
         .render()
         .asPng();
