@@ -126,3 +126,4 @@ export * from './computingStatus';
 export * from './presenceApi';
 export * from './stewardGatewayApi';
 export * from './lensApi';
+export * from './stewardPromptsApi';

@@ -12,6 +12,7 @@ Ship-native umbrella agent: the durable, always-on ship-side half of an ephemera
 | `lens`       | `sur/steward/lens.hoon`          | `%steward-lens-action-1`, `%steward-lens-update-1`                       |
 | `gateway`    | `sur/steward/gateway.hoon`       | `%steward-gateway-action-1`, `%steward-gateway-update-1`                 |
 | `automation` | `sur/steward/automation.hoon`    | `%steward-automation-action-1`, `%steward-automation-update-1`, `%steward-automation-tasks-1` |
+| `prompts`    | `sur/steward/prompts.hoon`       | `%steward-prompts-action-1`, `%steward-prompts-update-1`, `%steward-prompts-files-1` |
 
 Each sur file is versioned on its own (`++v1`), referenced by callers as `action:v1:lens`, `update:v1:gateway`, etc. The core `sur/steward.hoon` carries only cross-cutting config (currently just `%configure`); each module's protocol lives in its own file.
 
@@ -22,20 +23,22 @@ Modules:
 | `lens`       | Per-run bot introspection (folded in from the former `%context-lens`). |
 | `gateway`    | Harness liveness tracking + offline DM auto-replies.                   |
 | `automation` | Durable best-effort mirror of OpenClaw cron task definitions, propagated bot → owner → client. |
+| `prompts`    | Projection of the OpenClaw workspace prompt files, with edits relayed back to the harness. |
 
-The app helper core keeps each module's logic in its own sub-core: `le-core` for lens, `ga-core` for gateway, and `au-core` for automation. Adding a new module means a new `sur/steward/<module>.hoon`, its own mark family, and a dispatch arm in the app — existing modules and marks are untouched.
+The app helper core keeps each module's logic in its own sub-core: `le-core` for lens, `ga-core` for gateway, `au-core` for automation, and `pr-core` for prompts. Adding a new module means a new `sur/steward/<module>.hoon`, its own mark family, and a dispatch arm in the app — existing modules and marks are untouched.
 
 ## state model
 
-State is versioned (`state-2` today), defined in the app file; `on-load` migrates older shapes forward one version per step. Cross-cutting config is top level; each module owns its own slice, typed from its own sur file:
+State is versioned (`state-3` today), defined in the app file; `on-load` migrates older shapes forward one version per step. Cross-cutting config is top level; each module owns its own slice, typed from its own sur file:
 
 ```
-state-2 (%2, current)
+state-3 (%3, current)
   owner       (unit ship)        shared owner config; ~ = inert
   bots        (set ship)         owner-side trusted lens bots
   lens        state:v1:lens      stored lens run records
   gateway     state:v1:gateway   liveness + auto-reply bookkeeping
   automation  state:v1:automation
+  prompts     state:v1:prompts
     tasks     (map ship tasks)   per-ship ID-keyed task maps (+$ tasks is (map @t task))
     requests  (map request-id incoming-request)   owner-side in-flight edits (see edit loop)
     pending   (map request-id pending-command)    bot-side commands awaiting the harness
@@ -45,6 +48,7 @@ Migrations so far:
 
 - `%0 → %1`: the gateway slice gained two leading fields — `notify-on-start=?` (an owner-initiated stop is pending) and `last-interaction=@da` (when anyone last engaged the bot). They lead so the migration is a one-line cons, `[| *@da gateway.old]`. A migrated bot whose gateway is already `%up` or `%down` also seeds its `bot-liveness` claim (see the gateway module).
 - `%1 → %2`: the automation module arrives with an empty slice. The app keeps the pre-%2 shapes (`state-1`, `state-0`, `gateway-0`) only for `on-load`.
+- `%2 → %3`: the prompts module arrives with an empty slice. `state-2` remains only for `on-load`.
 
 The automation `tasks` map holds one entry per ship: the **local projection** lives under `our`, written only by accepted `%project` actions, and each **mirrored remote bot** lives under its own ship, written only by facts from the subscription to that bot. The writers are disjoint by key, so the two never collide. Every entry follows the same presence rule: absent until its first projection or snapshot arrives, present (possibly empty) afterward — an empty entry means "synced, zero tasks", an absent one means "never synced". `state-1` is unreleased, so this shape replaced the earlier flat task map in place with no extra state version; `state-0-to-1` is unchanged (it initializes automation from the bunt, which yields an empty map).
 
@@ -245,6 +249,34 @@ Reconciliation work is serialized so the worker does not deliberately start over
 
 These triggers repair missed changes when a later complete operation succeeds, but they do not provide exact continuous freshness. A process crash, missed event, offline OpenClaw instance, or repeated failure can leave the mirror stale.
 
+## module: prompts
+
+`%steward` mirrors the six workspace prompt files that OpenClaw owns:
+`AGENTS.md`, `SOUL.md`, `TOOLS.md`, `IDENTITY.md`, `USER.md`, and
+`BOOTSTRAP.md`. The OpenClaw workspace is authoritative. Steward retains the
+last accepted projection and never changes its file map directly for an edit.
+
+The local harness projects its complete allowlisted file map with
+`%steward-prompts-action-1` `%project`. The bot exposes `/v1/prompts/files` to
+its configured owner and local clients; trusted owner ships mirror a remote
+bot's projection through the same snapshot-plus-delta pattern as automation.
+The map is scriable at `/x/v1/prompts/files`.
+
+An edit follows the owner → bot → local harness relay. The owner sends
+`a-prompts` `%edit`, watches the bot's request path, and pokes
+`c-prompts` `%edit`. The bot records the command and gives it on the local
+`/v1/prompts/harness` feed. The plugin writes the file atomically, projects the
+complete workspace again, then sends `a-prompts` `%finalize`. A reconnecting
+harness receives every unresolved command in sent order. `%pending` only
+closes a held HTTP request; it is not a terminal harness result and a later
+finalize still completes the record.
+
+The public HTTP routes are:
+
+- `POST /steward/~/v1/prompts` — `{ requestId?, bot, action: { set: { name, text } } }`.
+- `GET /steward/~/v1/prompts/request/<uv>` — returns the current request response.
+- `GET /steward/~/v1/prompts/files` — returns the ship-keyed file projection.
+
 ## poke surface
 
 Four inbound marks, each ownership-gated to admit exactly the right source.
@@ -377,8 +409,8 @@ With no entries at all the exact JSON shape is `{}`. Task values use the support
 
 ## lifecycle and invariants
 
-- `on-init` creates `state-2`, subscribes to `%activity /v5` for the gateway module, seeds the default lens retention cap, and leaves automation empty. There is no lens prune timer (retention is count-only, enforced on insert/configure).
-- `on-load` delegates to `load`, which migrates one version per step (`state-0-to-1`, `state-1-to-2`) in the same shape as `%activity`'s `load`. Its only migration card is the `bot-liveness` seed for a `%0` bot whose gateway is already `%up` or `%down` (owner configured): heartbeats advertise only on an up transition, so an already-up gateway would otherwise stay unknown until its next restart. Every load re-emits the Eyre binding for `/steward`; the automation sweep chain is armed once, by `on-init` or by the `%1 → %2` step, since it re-arms itself. Decode or migration failure is visible and never resets to bunt. `on-save` writes `state-2`.
+- `on-init` creates `state-3`, subscribes to `%activity /v5` for the gateway module, seeds the default lens retention cap, and leaves automation and prompts empty. There is no lens prune timer (retention is count-only, enforced on insert/configure).
+- `on-load` delegates to `load`, which migrates one version per step (`state-0-to-1`, `state-1-to-2`, `state-2-to-3`) in the same shape as `%activity`'s `load`. Its only migration card is the `bot-liveness` seed for a `%0` bot whose gateway is already `%up` or `%down` (owner configured): heartbeats advertise only on an up transition, so an already-up gateway would otherwise stay unknown until its next restart. Every load re-emits the Eyre binding for `/steward`; each module's sweep chain is armed with its migration and then re-arms itself. Decode or migration failure is visible and never resets to bunt. `on-save` writes `state-3`.
 - Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`, liveness publication to `%contacts` on `/gateway/liveness`, and the owner-side automation watches on `/automation/tasks/[bot-p]` — everything arriving on an automation wire is applied only for the ship in the wire (facts naming other ships are ignored). The `%activity` subscription is re-watched on `%kick`; an automation watch is re-watched on `%kick` iff its bot is still trusted. Poke/DM nacks are logged and ignored (Ames retries); a nacked automation watch is slogged and left for a `%trust-bot` re-poke to repair.
 - `on-watch` auth is per-path: lens and gateway paths require `=(src our)`; `/v1/automation/tasks` also admits the configured owner. Rejection is a crash (watch nack). Dotket `on-peek` calls execute locally against current state without caller-source authorization. Core, gateway, and automation pokes are local only; lens applies its per-action source rules to admit trusted bot runs and owner relays.
 
