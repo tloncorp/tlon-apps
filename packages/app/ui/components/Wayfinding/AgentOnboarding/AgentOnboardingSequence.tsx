@@ -65,6 +65,25 @@ async function clearNavigationLock(groupId: string) {
   });
 }
 
+/**
+ * Record where onboarding lands beside the lock, so a restart inside the lock
+ * window reopens the conversation holding the pickers — the bot DM on a hosted
+ * first run — rather than the setup chat the lock was created with.
+ */
+async function rememberNavigationLockLanding(
+  groupId: string,
+  channelId: string
+) {
+  await db.agentGroupOnboardingLocks.setValue((current) => {
+    const marker = current[groupId];
+    if (!marker || marker.landingChannelId === channelId) return current;
+    return {
+      ...current,
+      [groupId]: { ...marker, landingChannelId: channelId },
+    };
+  });
+}
+
 async function retryLaterAgentGroupFurnishing({
   agentShipId,
   groupId,
@@ -201,6 +220,7 @@ export function AgentOnboardingSequence(props: {
             furnishedChatChannelId: furnished.chatChannelId,
           });
           if (cancelled) return;
+          await rememberNavigationLockLanding(activeGroupId, activeChannelId);
           await db.agentOnboardingLanding.setValue({
             groupId: activeGroupId,
             channelId: activeChannelId,

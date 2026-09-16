@@ -101,6 +101,7 @@ import {
   resolveInitialProviderModel,
 } from './providerModelDefaults';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
+import { resolvePersonalInviteLinkState } from './personalInviteLinkState';
 
 /**
  * Splash sequence panes.
@@ -2038,29 +2039,36 @@ export function GroupsPane(props: {
   const isDark = useIsDarkMode();
   // Invites connect people to the user rather than into one stable group:
   // onboarding creates groups through the bot DM, so there is no fixed group
-  // to hand out. An absent link just means it has not arrived yet.
-  const homeGroupInviteUrl = db.personalInviteLink.useValue();
-  const groupInviteIsLoading = !homeGroupInviteUrl;
-  const groupInviteIsReady = !!homeGroupInviteUrl;
-  const { doCopy: copyHomeGroupInvite, didCopy: didCopyHomeGroupInvite } =
-    useCopy(homeGroupInviteUrl ?? '');
-  const shareHomeGroupInvite = useCallback(async () => {
-    if (!homeGroupInviteUrl) return;
+  // to hand out. Verification runs in the background; an absent link is
+  // loading until that records a failure.
+  const inviteUrl = db.personalInviteLink.useValue();
+  const inviteUnavailable = db.personalInviteLinkUnavailable.useValue();
+  const inviteState = resolvePersonalInviteLinkState({
+    inviteUrl,
+    unavailable: inviteUnavailable,
+  });
+  const inviteIsLoading = inviteState === 'loading';
+  const inviteIsReady = inviteState === 'ready';
+  const { doCopy: copyInvite, didCopy: didCopyInvite } = useCopy(
+    inviteUrl ?? ''
+  );
+  const shareInvite = useCallback(async () => {
+    if (!inviteUrl) return;
 
     try {
       if (isWeb) {
         if (typeof navigator.share === 'function') {
-          await navigator.share({ url: homeGroupInviteUrl });
+          await navigator.share({ url: inviteUrl });
         } else {
-          await copyHomeGroupInvite();
+          await copyInvite();
         }
       } else {
-        await Share.share({ message: homeGroupInviteUrl });
+        await Share.share({ message: inviteUrl });
       }
     } catch (e) {
       console.error('Failed to share invite link:', e);
     }
-  }, [copyHomeGroupInvite, homeGroupInviteUrl]);
+  }, [copyInvite, inviteUrl]);
   const [resolvedBotShipId, setResolvedBotShipId] = useState(
     props.botShipId ?? null
   );
@@ -2173,15 +2181,15 @@ export function GroupsPane(props: {
           <YStack width="100%" gap="$s">
             <XStack width="100%">
               <TextInput
-                value={groupInviteIsReady ? (homeGroupInviteUrl ?? '') : ''}
+                value={inviteIsReady ? (inviteUrl ?? '') : ''}
                 placeholder={
-                  groupInviteIsLoading
+                  inviteIsLoading
                     ? 'Preparing invite link'
                     : 'Invite link unavailable'
                 }
                 accent="positive"
                 editable={false}
-                selectTextOnFocus={groupInviteIsReady}
+                selectTextOnFocus={inviteIsReady}
                 frameStyle={{
                   flex: 1,
                   height: 44,
@@ -2191,29 +2199,29 @@ export function GroupsPane(props: {
                 }}
               />
               <Button
-                onPress={groupInviteIsReady ? copyHomeGroupInvite : undefined}
-                icon={didCopyHomeGroupInvite ? 'Checkmark' : 'Copy'}
+                onPress={inviteIsReady ? copyInvite : undefined}
+                icon={didCopyInvite ? 'Checkmark' : 'Copy'}
                 accessibilityLabel={
-                  didCopyHomeGroupInvite ? 'Copied' : 'Copy invite link'
+                  didCopyInvite ? 'Copied' : 'Copy invite link'
                 }
                 intent="positive"
                 size="small"
                 width={44}
                 borderTopLeftRadius={0}
                 borderBottomLeftRadius={0}
-                loading={groupInviteIsLoading}
-                disabled={!groupInviteIsReady}
-                glow={groupInviteIsReady}
+                loading={inviteIsLoading}
+                disabled={!inviteIsReady}
+                glow={inviteIsReady}
               />
             </XStack>
             <Button
-              onPress={groupInviteIsReady ? shareHomeGroupInvite : undefined}
+              onPress={inviteIsReady ? shareInvite : undefined}
               label="Share link"
               intent="positive"
               fill="outline"
               size="small"
               leadingIcon="Send"
-              disabled={!groupInviteIsReady}
+              disabled={!inviteIsReady}
             />
           </YStack>
         ) : null}
