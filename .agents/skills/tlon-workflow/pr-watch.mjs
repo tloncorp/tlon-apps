@@ -35,6 +35,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { qaResult } from './qa-result.mjs';
 
 const BOT = 'chatgpt-codex-connector[bot]';
 const AGENT_MARKER = '<!-- tlon-workflow:agent -->';
@@ -305,6 +306,11 @@ function collect() {
         findings,
         url: c.html_url,
       });
+      continue;
+    }
+    const qa = qaResult(c);
+    if (qa !== undefined) {
+      if (qa) items.push(qa);
       continue;
     }
     items.push({

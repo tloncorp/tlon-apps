@@ -1,5 +1,5 @@
 // Infrastructure retries may reuse a successful plan for unchanged product commits.
-// EAS still revalidates every scenario and source citation against pinned Git blobs.
+// EAS still revalidates every scenario against pinned Git blobs.
 export function assessmentForRetry(run, id, pr) {
   const job = run?.jobs?.find((j) => j.key === 'assess_pr');
   if (
@@ -14,7 +14,7 @@ export function assessmentForRetry(run, id, pr) {
     );
   const plan = JSON.parse(job.outputs?.assessment || 'null');
   if (
-    !plan?.sourceReview ||
+    !plan ||
     plan.decision !== 'test' ||
     plan.headSha !== pr.head.sha ||
     plan.baseSha !== pr.base.sha

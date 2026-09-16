@@ -239,6 +239,14 @@ ffmpeg -v error -i <clip> -ss <start> -to <end> -c:v libx264 -preset veryfast -c
 
 Mark it ready once the evidence is in: the Codex reviewer only reviews ready pull requests.
 
+### Optional: hosted PR QA
+
+For an independent cloud test after the PR is ready, use
+[hosted QA](references/hosted-qa.md). It follows this skill's testing and evidence
+rules, runs against a disposable backend, and updates one PR comment with findings
+and video. It does not fix, push, request reviewers, or merge. Read its declared
+platform and base-version gaps; an iOS run does not cover all of step 4.
+
 ### 9. Follow the review
 
 ```bash
@@ -249,7 +257,15 @@ Unsandboxed (sandboxed it stops at once with `gh cannot reach this repository`),
 
 It blocks until the pull request gets a review, review comment, or comment from the Codex reviewer (`chatgpt-codex-connector[bot]`) or someone with write access, keeps collecting until the round is complete (Codex's status for the head commit, then its CI result, up to twenty minutes later), prints each item as one JSON line (`kind`, `author`, `path`, `line`, `url`, `body`), and exits. Other lines: `{"kind":"codex-status","headSha":...,"findings":<n>}` once, when Codex's review completes, `findings` counting its inline comments on that commit; `{"kind":"ci","status":"failure","failed":[{name,url}]}` as soon as a check fails, or `{"kind":"ci","status":"success"}` once every check on the head commit has passed; `{"kind":"closed","merged":true}`, at which go to step 10; `{"kind":"timeout"}`, when nothing has happened on the pull request, by anyone, for `--timeout` seconds (default 1800; pass a shorter one for a quick run) -- any commit, comment, or review restarts that budget.
 
-One run is one round. A failed check is an item like any other: `gh run view --job <job id> --log-failed` (the job id is the last path segment of its url), fix, and it re-runs on the push. For every item: fix what is real, reply in that thread with what changed (`kind: review_comment` → `gh api repos/{owner}/{repo}/pulls/<number>/comments/<root>/replies -f body=...`, where `<root>` is the watcher's `replyTo` when set and its numeric `commentId` otherwise, since GitHub only accepts replies to a thread's first comment; `kind: comment` or `review` → `gh pr comment`), and push back, with reasons, on what is not. End every reply and comment you post with the line `<!-- tlon-workflow:agent -->`; it is how the watcher tells your replies from a reviewer's. Push once for the whole round, re-capture evidence if the visible behavior changed, then run the watcher again. Codex reviews each push.
+One run is one round. A failed check is an item like any other: `gh run view --job <job id> --log-failed` (the job id is the last path segment of its url), fix, and it re-runs on the push. A `qa-result` is an advisory hosted test report for its `headSha`, not a request
+to restart the review loop. Read it once, check that it matches the current PR
+commit, and address verified findings as part of the current round. Do not rerun
+QA merely because it posted or edited its comment. Rerun only after a relevant
+fix or at the user's request; incomplete platform coverage is not a code defect.
+The watcher surfaces completed results but does not wait for a hosted run that
+has not published yet.
+
+For every review item: fix what is real, reply in that thread with what changed (`kind: review_comment` → `gh api repos/{owner}/{repo}/pulls/<number>/comments/<root>/replies -f body=...`, where `<root>` is the watcher's `replyTo` when set and its numeric `commentId` otherwise, since GitHub only accepts replies to a thread's first comment; `kind: comment` or `review` → `gh pr comment`), and push back, with reasons, on what is not. End every reply and comment you post with the line `<!-- tlon-workflow:agent -->`; it is how the watcher tells your replies from a reviewer's. Push once for the whole round, re-capture evidence if the visible behavior changed, then run the watcher again. Codex reviews each push.
 
 Codex reports only what is new on each push, so `findings: 0` means nothing new, not clean. Keep your own list of every thread the watcher has printed and what you did with it. Stop when every thread on that list has a reply from you (a fix or a reasoned push-back), the head commit has `{"kind":"ci","status":"success"}` (every check, including workflows for packages you did not touch; a running check counts as activity, so the budget waits for it) and its `{"kind":"codex-status"}` has arrived with nothing unanswered; or when the pull request is merged or closed; or on `{"kind":"timeout"}`. Report what is still open.
 

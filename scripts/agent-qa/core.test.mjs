@@ -5,26 +5,9 @@ import {
   verifyContext,
   verifyReport,
   verifyVideo,
-  localRecordingPath,
   appendInfrastructureFailure,
   accountForRecordingCap,
 } from './core.mjs';
-
-test('recording accepts the CLI materialized path and the MCP artifact handle', () => {
-  assert.equal(
-    localRecordingPath({ video: '/tmp/session.mp4' }),
-    '/tmp/session.mp4'
-  );
-  assert.equal(
-    localRecordingPath({ video: { hostPath: '/tmp/session.mp4' } }),
-    '/tmp/session.mp4'
-  );
-  assert.throws(
-    () => localRecordingPath({ video: 'https://example.com/session.mp4' }),
-    /local video/
-  );
-  assert.throws(() => localRecordingPath({}), /local video/);
-});
 
 const sha = 'a'.repeat(40);
 const pr = {

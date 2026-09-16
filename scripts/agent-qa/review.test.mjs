@@ -12,13 +12,9 @@ import {
   hasActionEvidence,
 } from './review-tools.mjs';
 import {
-  verifySourceReview,
   reviewArgs,
   verifyDiscoveries,
-  visualReviewInput,
   unresolvedVideoAssessment,
-  reconcileChecks,
-  reconcileDiscoveries,
   replayVideoOnly,
   reviewEvidence,
 } from './review.mjs';
@@ -50,242 +46,6 @@ test('pending passed or failed replay cannot bypass full evidence review', async
   }
 });
 
-test('only explicit completed-action disproof removes a prior discovery', () => {
-  const old = {
-    title: 'Possible keyboard issue',
-    file: 'app.ts',
-    status: 'failed',
-  };
-  const actions = Array.from({ length: 3 }, () => ({
-    responseReceived: true,
-    isError: false,
-    content: [{ type: 'text', text: 'state' }],
-  }));
-  const resolution = {
-    title: old.title,
-    file: old.file,
-    reason: 'The complete transition disproves it',
-    before: 1,
-    trigger: 2,
-    after: 3,
-  };
-  const review = (resolutions = []) => ({
-    discoveries: [],
-    discoveryResolutions: resolutions,
-  });
-  assert.deepEqual(
-    reconcileDiscoveries({ discoveries: [old] }, review([resolution]), actions)
-      .discoveries,
-    []
-  );
-  for (const resolutions of [
-    [],
-    [{ ...resolution, file: 'other.ts' }],
-    [{ ...resolution, after: 1 }],
-  ])
-    assert.deepEqual(
-      reconcileDiscoveries({ discoveries: [old] }, review(resolutions), actions)
-        .discoveries,
-      [old]
-    );
-  assert.deepEqual(
-    reconcileDiscoveries({ discoveries: [old] }, review([resolution]), [])
-      .discoveries,
-    [old]
-  );
-});
-
-test('independent disproof clears a false positive without retaining contradictory checks', () => {
-  const old = {
-    scenarioId: 'change-1',
-    status: 'failed',
-    observed: 'Looks missing',
-    evidence: ['codex-trace'],
-  };
-  const passed = {
-    ...old,
-    status: 'passed',
-    observed: 'Complete event disproves the earlier observation',
-  };
-  const resolution = {
-    scenarioId: 'change-1',
-    reason: 'Before, trigger and outcome remain correct',
-    before: 1,
-    trigger: 2,
-    after: 3,
-  };
-  const actions = Array.from({ length: 3 }, () => ({
-    responseReceived: true,
-    isError: false,
-    content: [{ type: 'text', text: 'Observed state' }],
-  }));
-  const review = (resolutions = []) => ({
-    checks: [{ ...passed }],
-    resolutions,
-  });
-  assert.deepEqual(
-    reconcileChecks({ checks: [old] }, review([resolution]), {}, actions)
-      .checks,
-    [passed]
-  );
-  assert.deepEqual(
-    reconcileChecks({ checks: [old] }, review(), {}, actions).checks,
-    [old]
-  );
-  assert.deepEqual(
-    reconcileChecks({ checks: [old] }, review([resolution]), {}, []).checks,
-    [old]
-  );
-  assert.deepEqual(
-    reconcileChecks(
-      { checks: [old] },
-      review([{ ...resolution, after: 1 }]),
-      {},
-      actions
-    ).checks,
-    [old]
-  );
-});
-
-test('blind review reads pinned versions and callers, rejects invented citations and local files', () => {
-  const repo = mkdtempSync(path.join(os.tmpdir(), 'qa-review-test-'));
-  const git = (...args) =>
-    execFileSync('git', args, { cwd: repo, encoding: 'utf8' }).trim();
-  try {
-    git('init', '-q');
-    git('config', 'user.email', 'qa@example.invalid');
-    git('config', 'user.name', 'QA');
-    writeFileSync(
-      path.join(repo, 'consumer.ts'),
-      'export const consume = items => items;\n'
-    );
-    writeFileSync(path.join(repo, 'caller.ts'), 'consume(uniqueItems);\n');
-    git('add', '.');
-    git('commit', '-qm', 'base');
-    const base = git('rev-parse', 'HEAD');
-    writeFileSync(
-      path.join(repo, 'consumer.ts'),
-      'export const consume = items => items.concat(items);\n'
-    );
-    mkdirSync(path.join(repo, 'scripts/agent-qa'), { recursive: true });
-    writeFileSync(
-      path.join(repo, 'scripts/agent-qa/known-findings.md'),
-      'external answer'
-    );
-    git('add', '.');
-    git('commit', '-qm', 'head');
-    const head = git('rev-parse', 'HEAD');
-    writeFileSync(path.join(repo, 'caller.ts'), 'uncommitted content');
-    const reader = sourceReader({ repo, base, head });
-    assert.match(
-      reader.call('read_source', {
-        version: 'head',
-        file: 'caller.ts',
-        start: 1,
-        limit: 10,
-      }).text,
-      /consume\(uniqueItems\)/
-    );
-    assert.match(
-      reader.call('read_source', {
-        version: 'base',
-        file: 'consumer.ts',
-        start: 1,
-        limit: 10,
-      }).text,
-      /items => items;/
-    );
-    assert.equal(
-      reader.call('search_source', {
-        version: 'head',
-        query: 'consume(',
-        prefix: '',
-      }).length,
-      1
-    );
-    assert.throws(() => reader.lines('head', '../caller.ts'), /relative/);
-    assert.throws(
-      () => reader.lines('head', 'scripts/agent-qa/known-findings.md'),
-      /Outside/
-    );
-    assert.throws(() => reader.lines('HEAD', 'caller.ts'), /revision/);
-    const review = {
-      summary: 'Duplicated work',
-      hypotheses: [
-        {
-          id: 'risk-1',
-          changedFile: 'consumer.ts',
-          invariant: 'Consume each item once',
-          trigger: 'Call consume with one item',
-          impact: 'Each item is processed twice',
-          confidence: 'high',
-          validation: 'Count items before and after consume',
-          citations: [
-            {
-              version: 'base',
-              file: 'consumer.ts',
-              line: 1,
-              quote: 'items => items;',
-            },
-            {
-              version: 'head',
-              file: 'consumer.ts',
-              line: 1,
-              quote: 'items.concat(items)',
-            },
-          ],
-        },
-      ],
-    };
-    assert.equal(
-      verifySourceReview(review, { repo, base, head, files: ['consumer.ts'] })
-        .input,
-      'code-only; no PR prose or discussion'
-    );
-    const fake = structuredClone(review);
-    fake.hypotheses[0].citations[1].quote = 'imaginary code';
-    assert.throws(
-      () =>
-        verifySourceReview(fake, { repo, base, head, files: ['consumer.ts'] }),
-      /citation mismatch/
-    );
-    const plan = {
-      decision: 'test',
-      reason: 'Changed consumption',
-      changes: ['Consumption'],
-      setup: { fixtures: [] },
-      sourceReview: review,
-      scenarios: [
-        {
-          id: 'change-1',
-          change: 'Consumption',
-          files: ['consumer.ts'],
-          expected: 'One processing operation per item',
-          steps: ['Count calls'],
-          prerequisites: 'Instrumentation unavailable',
-          method: 'unavailable',
-          fixture: 'none',
-          regression: 'none',
-          riskIds: [],
-          checkpoints: ['Count before and after'],
-        },
-      ],
-    };
-    assert.throws(
-      () => verifyAssessment(plan, ['consumer.ts']),
-      /Every independently discovered risk/
-    );
-    plan.scenarios[0].riskIds = ['risk-1'];
-    assert.equal(verifyAssessment(plan, ['consumer.ts']).decision, 'blocked');
-    assert.deepEqual(
-      verifyAssessment(plan, ['consumer.ts']).scenarios,
-      plan.scenarios
-    );
-  } finally {
-    rmSync(repo, { recursive: true, force: true });
-  }
-});
-
 test('evidence reviewer can inspect original frames but has no device or shell tools', () => {
   const args = reviewArgs(
     {
@@ -297,7 +57,7 @@ test('evidence reviewer can inspect original frames but has no device or shell t
     'evidence'
   );
   assert.ok(args.includes('features.shell_tool=false'));
-  assert.ok(!args.some((a) => a.includes('mcp_servers.argent')));
+  assert.ok(!args.some((a) => a.includes('mcp_servers.device')));
   assert.ok(args.some((a) => a.includes('inspect_action')));
   assert.ok(
     !args.some(
@@ -353,6 +113,7 @@ test('interleaved device responses remain attached to their original actions', (
           result: { content: [{ type: 'text', text: 'first' }] },
         },
       ]
+        .map(nativeEvent)
         .map((x) => JSON.stringify(x))
         .join('\n')
     );
@@ -431,26 +192,6 @@ test('unplanned defects cannot be hidden by passing planned checks or cite nonex
   );
 });
 
-test('blind visual review input excludes the plan and all previous conclusions', () => {
-  const input = visualReviewInput({
-    files: ['screen.tsx', 'unplanned.tsx'],
-    title: 'PR conclusion',
-    body: 'Human findings',
-    sourceReview: { summary: 'Source conclusions' },
-    scenarios: [{ files: ['screen.tsx'], expected: 'Planned criterion' }],
-    operatorResult: { summary: 'Passed' },
-  });
-  assert.deepEqual(Object.keys(input).sort(), [
-    'baselineDeviceEvidence',
-    'files',
-  ]);
-  assert.deepEqual(input.files, ['screen.tsx', 'unplanned.tsx']);
-  assert.doesNotMatch(
-    JSON.stringify(input),
-    /conclusion|criterion|Human|Passed/
-  );
-});
-
 test('video follow-up prioritizes unresolved checks and preserves the full source scope', () => {
   const assessment = {
     scenarios: [
@@ -500,6 +241,7 @@ test('pending requests remain indexed attempts and cannot establish observations
           result: { isError: true, content: [{ type: 'text', text: 'Error' }] },
         },
       ]
+        .map(nativeEvent)
         .map(JSON.stringify)
         .join('\n')
     );
@@ -521,3 +263,19 @@ test('pending requests remain indexed attempts and cannot establish observations
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+function nativeEvent(entry) {
+  return {
+    type: entry.type === 'request' ? 'item.started' : 'item.completed',
+    at: new Date().toISOString(),
+    item: {
+      id: String(entry.id),
+      type: 'mcp_tool_call',
+      server: 'device',
+      tool: entry.params?.name || 'snapshot',
+      arguments: entry.params?.arguments || {},
+      result: entry.result,
+      error: entry.error,
+    },
+  };
+}

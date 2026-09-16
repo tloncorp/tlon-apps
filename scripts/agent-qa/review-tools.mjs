@@ -173,30 +173,31 @@ export function sourceReader({ repo, base, head }) {
   };
 }
 export function readActions(file) {
-  const actions = [];
-  const pending = new Map();
+  const actions = [],
+    pending = new Map();
   for (const line of readFileSync(file, 'utf8').split('\n').filter(Boolean)) {
-    const entry = JSON.parse(line);
-    if (entry.type === 'request') {
-      const action = {
+    const { type, item, at } = JSON.parse(line);
+    if (item?.type !== 'mcp_tool_call' || item.server !== 'device') continue;
+    let action = pending.get(item.id);
+    if (!action) {
+      action = {
         index: actions.length + 1,
-        at: entry.at,
-        name: entry.params.name,
-        arguments: entry.params.arguments,
+        at,
+        name: item.tool,
+        arguments: item.arguments,
         content: [],
         responseReceived: false,
         isError: false,
       };
+      pending.set(item.id, action);
       actions.push(action);
-      pending.set(entry.id, action);
     }
-    if (entry.type === 'response') {
-      const action = pending.get(entry.id);
-      if (!action) throw new Error('Device response has no matching action');
-      action.content = entry.result?.content || [];
+    if (type === 'item.completed') {
+      action.content = item.result?.content || [];
       action.responseReceived = true;
-      action.isError = Boolean(entry.result?.isError || entry.error);
-      pending.delete(entry.id);
+      action.isError = Boolean(
+        item.error || item.result?.isError || item.status === 'failed'
+      );
     }
   }
   return actions;

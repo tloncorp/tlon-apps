@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { verifyClipReview, clipReviewSchema } from './clip-review.mjs';
+import { verifyClipReview } from './clip-review.mjs';
 
 const presentation = { findings: [{ title: 'Appended text disappears' }] };
 const moment = (frame, observation) => ({
@@ -41,7 +41,6 @@ test('one complete clip retains a late disappearance instead of cutting early fr
   assert.equal(windows[0][0].start, 19);
   assert.equal(windows[0][0].end, 59);
   assert.ok(windows[0][0].end > 55);
-  assert.deepEqual(clipReviewSchema(presentation).required, ['group-1']);
 });
 test('clips require observed ordered outcomes; repeated footage is rejected', () => {
   for (const mutate of [

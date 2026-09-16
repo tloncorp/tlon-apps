@@ -8,7 +8,7 @@ on:
         description: Coordinator failure report
       prepared_assessment_json:
         type: string
-        description: Source-checked test plan
+        description: Tester plan for these commits
       build_only:
         type: boolean
         default: false
@@ -252,11 +252,9 @@ jobs:
       QA_TEST_SHIP: ${{ inputs.test_ship || '' }}
     steps:
       - uses: eas/checkout
-      - name: Install device and smoke test tools
+      - name: Install the shared device tools
         run: |
-          npm install -g @openai/codex@0.145.0 @swmansion/argent@0.23.0
-          curl --fail --location --retry 2 https://github.com/mobile-dev-inc/maestro/releases/download/cli-2.6.1/maestro.zip -o /tmp/qa-maestro.zip
-          unzip -q /tmp/qa-maestro.zip -d /tmp/qa-maestro
+          npm install -g @openai/codex@0.145.0 agent-device@0.21.5
           command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null || brew install ffmpeg
       - uses: eas/download_build
         id: download
@@ -264,11 +262,8 @@ jobs:
           build_id: ${{ env.QA_BUILD_ID }}
           extensions: [app]
       - id: run
-        name: Verify build, log in, and run Codex and Argent QA
-        env:
-          QA_MAESTRO_BIN: /tmp/qa-maestro/maestro/bin/maestro
+        name: Verify build, sign in with tlon-workflow, and test with agent-device
         run: |
-          export QA_ARGENT_SKILL_DIR="$(npm root -g)/@swmansion/argent/skills"
           node ../../scripts/agent-qa/run.mjs "${{ steps.download.outputs.artifact_path }}"
           set-output report "$(cat ../../artifacts/agent-qa/report.md)"
           set-output video_ready "$(node -e 'console.log(require("../../artifacts/agent-qa/report.json").context.video?.status === "ready")')"

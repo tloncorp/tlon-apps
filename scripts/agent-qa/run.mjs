@@ -16,7 +16,6 @@ import {
   verifyContext,
   verifyReport,
   verifyVideo,
-  localRecordingPath,
   appendInfrastructureFailure,
   accountForRecordingCap,
 } from './core.mjs';
@@ -64,9 +63,12 @@ const deviceEnv = Object.fromEntries(
     .map((key) => [key, env[key]])
 );
 deviceEnv.CI = '1';
-deviceEnv.MAESTRO_CLI_NO_ANALYTICS = '1';
-deviceEnv.ARGENT_SIMULATOR_NO_WINDOW = '1';
-deviceEnv.ARGENT_SCREENSHOT_SCALE = '0.75';
+deviceEnv.AGENT_DEVICE_SESSION = 'hosted-pr-qa';
+deviceEnv.AGENT_DEVICE_PLATFORM = 'ios';
+deviceEnv.AGENT_DEVICE_STATE_DIR = path.join(
+  env.TMPDIR || '/tmp',
+  'qa-agent-device'
+);
 
 async function run(command, args, options = {}) {
   try {
@@ -90,10 +92,10 @@ async function run(command, args, options = {}) {
   }
 }
 
-function argent(tool, args = {}, timeout = 60_000) {
+function device(args, timeout = 60_000) {
   return run(
-    'argent',
-    ['run', tool, '--args', JSON.stringify({ udid, ...args }), '--json'],
+    'agent-device',
+    [...args, '--session', deviceEnv.AGENT_DEVICE_SESSION],
     { timeout }
   );
 }
@@ -102,11 +104,8 @@ async function startRecording() {
   // Bootstrap has already completed: never capture credential entry.
   context.video = { status: 'recording' };
   recordingAttempted = true;
-  await argent('screen-recording-start', {
-    timeLimitSeconds: 600,
-    trimStatic: false,
-    showTouches: true,
-  });
+  rawVideo = path.join(env.TMPDIR || '/tmp', 'qa-test-session.mp4');
+  await device(['record', 'start', rawVideo, '--quality', 'high']);
   recordingStarted = Date.now();
   console.log('Recording the authenticated agent test session.');
   // Independent cap also stops capture if the agent loop gets stuck.
@@ -123,14 +122,7 @@ function stopRecording(capped = false) {
       ? (Date.now() - recordingStarted) / 1000
       : 0;
     try {
-      const recording = JSON.parse(
-        await argent('screen-recording-stop', {}, 120_000)
-      );
-      rawVideo = localRecordingPath(recording);
-      await writeFile(
-        path.join(artifacts, 'recording.json'),
-        clean(JSON.stringify(recording, null, 2))
-      );
+      await device(['record', 'stop'], 120_000);
       await mkdir(videoDirectory, { recursive: true });
       const file = path.join(videoDirectory, 'test-session.mp4');
       // Decode the entire recording and produce browser-compatible, seekable H.264.
@@ -177,7 +169,6 @@ function stopRecording(capped = false) {
         startedAt: recordingStarted,
         ...verifyVideo(probe, elapsedSeconds),
         capped,
-        warning: recording.warning,
       };
       console.log(
         `Test video finalized: ${context.video.durationSeconds.toFixed(1)} seconds.`
@@ -196,29 +187,25 @@ async function capture(args = [], screenshot = false) {
   const id = `e${evidence.size + 1}`;
   const filename = `${id}.${screenshot ? 'png' : 'txt'}`;
   if (screenshot) {
-    await run('argent', [
-      'run',
+    await device([
       'screenshot',
-      '--udid',
-      udid,
-      '--scale',
-      '0.75',
-      '--out',
       path.join(artifacts, filename),
+      '--pixel-density',
+      '2',
     ]);
     const bytes = await readFile(path.join(artifacts, filename));
     if (!bytes.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex')))
-      throw new Error('Argent did not produce a PNG screenshot');
+      throw new Error('agent-device did not produce a PNG screenshot');
   } else {
     await writeFile(
       path.join(artifacts, filename),
-      clean(await argent('describe'))
+      clean(await device(['snapshot']))
     );
   }
   evidence.set(id, {
     file: filename,
     screenshot,
-    command: screenshot ? 'screenshot' : 'describe',
+    command: screenshot ? 'screenshot' : 'snapshot',
     at: new Date().toISOString(),
   });
   return id;
@@ -269,7 +256,7 @@ async function prepare() {
     model: 'openai/gpt-5.6-sol',
     provider: 'OpenRouter Responses API',
     reasoning: 'high',
-    deviceTools: 'Argent 0.23.0',
+    deviceTools: 'agent-device 0.21.5',
   };
   if (env.QA_SHIP_URL) {
     verifyDisposableBackend(context, env.QA_MODE === 'pull_request');
@@ -374,165 +361,39 @@ async function prepare() {
   console.log(`Selected simulator: ${context.device}`);
   // Existing-build qualification is not a native compilation. The downloaded
   // artifact and the explicit simulator remain owned by this CI wrapper.
-  await argent('boot-device', { headless: true }, 180_000);
+  deviceEnv.AGENT_DEVICE_UDID = udid;
+  await device(['boot', '--platform', 'ios', '--udid', udid], 180_000);
   await run('xcrun', ['simctl', 'install', udid, appCopy], {
     timeout: 180_000,
   });
 
-  const shipPattern =
-    '^' +
-    (ships ? 'zod' : context.testShip).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
-    '$';
+  if (!ships || !shipCode)
+    throw new Error('Hosted QA requires disposable ship credentials');
   await run(
-    env.QA_MAESTRO_BIN || 'maestro',
+    process.execPath,
     [
-      'test',
+      path.join(root, '.agents/skills/tlon-workflow/mobile-login.mjs'),
+      '--platform',
+      'ios',
       '--udid',
       udid,
-      '--format',
-      'junit',
-      '--output',
-      path.join(env.TMPDIR || '/tmp', 'qa-login.xml'),
-      '--debug-output',
-      path.join(env.TMPDIR || '/tmp', 'qa-login-debug'),
-      path.join(here, ships ? 'ship-smoke.yaml' : 'smoke.yaml'),
+      '--session',
+      deviceEnv.AGENT_DEVICE_SESSION,
+      '--app',
+      context.appId,
     ],
     {
       timeout: 240_000,
       env: {
         ...deviceEnv,
-        MAESTRO_APP_ID: context.appId,
-        MAESTRO_TEST_SHIP_PATTERN: shipPattern,
-        MAESTRO_LOGIN_URL: ships?.url || '',
-        MAESTRO_LOGIN_CODE: shipCode || '',
-        MAESTRO_EMAIL: env.MAESTRO_EMAIL,
-        MAESTRO_PASSWORD: env.MAESTRO_PASSWORD,
+        TLON_LOGIN_URL: ships.url,
+        TLON_LOGIN_CODE: shipCode,
       },
     }
-  ).catch(async (error) => {
-    let bootstrapFailure;
-    const loginXml = path.join(env.TMPDIR || '/tmp', 'qa-login.xml');
-    await readFile(loginXml, 'utf8')
-      .then((text) =>
-        writeFile(path.join(artifacts, 'bootstrap.xml'), clean(text))
-      )
-      .catch(() => {});
-    async function collectCommands(dir) {
-      for (const entry of await readdir(dir, { withFileTypes: true }).catch(
-        () => []
-      )) {
-        const full = path.join(dir, entry.name);
-        if (entry.isDirectory()) await collectCommands(full);
-        else if (
-          entry.name.startsWith('commands-') &&
-          entry.name.endsWith('.json')
-        ) {
-          const commandText = clean(await readFile(full, 'utf8'));
-          await writeFile(path.join(artifacts, entry.name), commandText);
-          const failed = JSON.parse(commandText).find(
-            (item) => item.metadata?.status === 'FAILED'
-          )?.metadata?.error;
-          if (failed?.message) {
-            bootstrapFailure = (
-              JSON.stringify(failed.hierarchyRoot) || ''
-            ).includes('Something went wrong')
-              ? 'The app displayed "Something went wrong" during login bootstrap'
-              : `Login bootstrap: ${failed.message}`;
-          }
-        }
-      }
-    }
-    await collectCommands(path.join(env.TMPDIR || '/tmp', 'qa-login-debug'));
-    const hierarchy = await run(
-      env.QA_MAESTRO_BIN || 'maestro',
-      ['--udid', udid, 'hierarchy', '--no-reinstall-driver'],
-      { timeout: 60_000 }
-    ).catch(() => 'Could not inspect the bootstrap screen');
-    await writeFile(
-      path.join(artifacts, 'bootstrap-screen.txt'),
-      clean(hierarchy)
-    );
-    const appErrors = await run('xcrun', [
-      'simctl',
-      'spawn',
-      udid,
-      'log',
-      'show',
-      '--last',
-      '6m',
-      '--style',
-      'compact',
-      '--predicate',
-      '(process == "Tlon" OR process == "Landscape") AND subsystem != "com.apple.dt.xctest" AND (eventMessage CONTAINS[c] "error" OR eventMessage CONTAINS[c] "exception")',
-    ]).catch(() => 'Could not collect app errors');
-    await writeFile(
-      path.join(artifacts, 'bootstrap-app-errors.txt'),
-      clean(appErrors).slice(-32000)
-    );
-    if (
-      context.mode === 'Harness validation only' &&
-      bootstrapFailure?.includes('The app displayed')
-    ) {
-      context.bootstrapRecovery = `${bootstrapFailure}. Manual harness validation retried once by relaunching; this does not qualify fresh login.`;
-      console.log(context.bootstrapRecovery);
-      await run(
-        env.QA_MAESTRO_BIN || 'maestro',
-        ['test', '--udid', udid, path.join(here, 'recover-smoke.yaml')],
-        {
-          timeout: 180_000,
-          env: {
-            ...deviceEnv,
-            MAESTRO_APP_ID: context.appId,
-            MAESTRO_TEST_SHIP_PATTERN: shipPattern,
-          },
-        }
-      );
-    } else throw bootstrapFailure ? new Error(bootstrapFailure) : error;
-  });
-  context.smoke = context.bootstrapRecovery
-    ? 'Passed after one app relaunch: Home, Contacts, and exact test-ship identity. Fresh login failed.'
-    : 'Passed: fresh login, Home, Contacts, and exact test-ship identity';
-  console.log(context.smoke);
-  const fixture = context.backend?.fixtures?.find(
-    (f) => f.recipe === 'chat-v1'
   );
-  if (fixture) {
-    const flow = path.join(artifacts, 'fixture-navigation.yaml');
-    const literal = (value) =>
-      JSON.stringify('^' + value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$');
-    await writeFile(
-      flow,
-      `appId: ${context.appId}
----
-- assertVisible: '^Profile$'
-- tapOn:
-    point: '8%,9%'
-    label: Return from verified Profile
-- tapOn:
-    text: '^Tab Bar$'
-    point: '29%,38%'
-- assertVisible: '^Home$'
-- tapOn: ${literal(fixture.groupTitle)}
-- extendedWaitUntil:
-    visible: ${literal(fixture.peerMessage)}
-    timeout: 15000
-`
-    );
-    try {
-      await run(
-        env.QA_MAESTRO_BIN || 'maestro',
-        ['--device', udid, 'test', flow],
-        { timeout: 45000 }
-      );
-      context.fixtureNavigation =
-        'Runner opened the verified chat and confirmed its unique peer message.';
-    } catch {
-      context.fixtureNavigation =
-        'Scripted fixture navigation did not finish; operator must verify and reach the fixture.';
-    }
-    console.log(context.fixtureNavigation);
-  }
-  await argent('launch-app', { bundleId: context.appId }, 120_000);
+  context.smoke =
+    'Signed in through tlon-workflow/mobile-login.mjs to the isolated backend.';
+  console.log(context.smoke);
   await capture();
   await capture([], true);
   return diff;
@@ -540,7 +401,7 @@ async function prepare() {
 
 async function agent(diff) {
   evidence.set('codex-trace', {
-    file: 'argent-trace.jsonl',
+    file: 'codex-events.jsonl',
     screenshot: false,
     command: 'codex exec',
   });
@@ -693,7 +554,7 @@ async function agent(diff) {
     context.evidenceReview = 'pending';
   const counts = { passed: 0, failed: 0, blocked: 0 };
   for (const check of result.checks) counts[check.status]++;
-  result.summary = `${counts.passed} checks passed; ${counts.failed} failed; ${counts.blocked} not fully verified. ${result.discoveries?.length || 0} unexpected findings. See individual observations and source hypotheses below.`;
+  result.summary = `${counts.passed} checks passed; ${counts.failed} failed; ${counts.blocked} not fully verified. ${result.discoveries?.length || 0} unexpected findings. See individual observations below.`;
   report =
     env.QA_DEFER_REVIEW === 'true'
       ? verifyReport(result, evidence)
@@ -764,10 +625,7 @@ function finalize() {
     );
     console.log(`${context.mode}: ${report.status}. ${clean(report.summary)}`);
     if (udid) {
-      await argent('stop-all-simulator-servers', {
-        udid: undefined,
-        devices: [udid],
-      }).catch(() => {});
+      await device(['close']).catch(() => {});
       await run('xcrun', ['simctl', 'shutdown', udid]).catch(() => {});
     }
     if (ships) {

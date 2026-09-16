@@ -249,7 +249,7 @@ test('assessment has no device MCP tools and uses an isolated read-only Codex se
     instructions: 'Assess',
   });
   assert.equal(
-    args.some((arg) => arg.includes('mcp_servers')),
+    args.some((arg) => arg.includes('mcp_servers.device')),
     false
   );
   assert.ok(args.includes('features.shell_tool=false'));
@@ -258,21 +258,6 @@ test('assessment has no device MCP tools and uses an isolated read-only Codex se
 });
 
 // Prevent the contradictory timing prerequisite that previously blocked brief UI states.
-test('planner tries captured transient states before requiring timing controls', async () => {
-  const { assessmentInstructions } = await import('./assess.mjs');
-  assert.match(
-    assessmentInstructions,
-    /plan a normal recorded interaction first/
-  );
-  assert.match(
-    assessmentInstructions,
-    /controlled timing is a follow-up only if the recorded state is absent or illegible/
-  );
-  assert.doesNotMatch(
-    assessmentInstructions,
-    /Transient states require an explicit timing-control prerequisite/
-  );
-});
 
 import { appendInfrastructureFailure, verifyReport } from './core.mjs';
 
@@ -310,4 +295,24 @@ test('infrastructure loss survives full report validation without satisfying cov
       ),
     /Invalid infrastructure/
   );
+});
+
+// Required platform/base coverage must never become a claimed iOS pass.
+test('unsupported platforms and base comparisons cannot execute as iOS head scenarios', () => {
+  for (const extra of [
+    { platform: 'android' },
+    { platform: 'web' },
+    { platform: 'cosmos' },
+    { version: 'base' },
+  ]) {
+    const p = structuredClone(plan);
+    Object.assign(p.scenarios[0], extra);
+    assert.throws(
+      () => verifyAssessment(p, [scenario.files[0]]),
+      /Only iOS head/
+    );
+    p.scenarios[0].method = 'unavailable';
+    p.scenarios[0].fixture = 'none';
+    assert.equal(verifyAssessment(p, [scenario.files[0]]).decision, 'blocked');
+  }
 });

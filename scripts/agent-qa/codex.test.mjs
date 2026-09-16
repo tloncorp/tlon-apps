@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import {
   supervise,
   verifyCodexAuth,
-  allowArgentCall,
   resultSchemaFor,
   interruptedResult,
 } from './codex.mjs';
@@ -50,47 +49,6 @@ test('operator interruption keeps each acceptance criterion pending for review',
   );
   assert.deepEqual(result.discoveries, []);
   assert.ok(result.checks.every((c) => c.evidence.length === 0));
-});
-
-test('device boundary rejects other simulators, apps, tools and exhausted runs', () => {
-  const valid = { name: 'describe', arguments: { udid: 'assigned-device' } };
-  assert.doesNotThrow(() =>
-    allowArgentCall(valid, 'assigned-device', 'io.tlon.groups', 1)
-  );
-  assert.throws(
-    () => allowArgentCall(valid, 'other-device', 'io.tlon.groups', 1),
-    /assigned simulator/
-  );
-  assert.throws(
-    () =>
-      allowArgentCall(
-        { ...valid, name: 'debugger-evaluate' },
-        'assigned-device',
-        'io.tlon.groups',
-        1
-      ),
-    /outside/
-  );
-  assert.throws(
-    () =>
-      allowArgentCall(
-        {
-          name: 'launch-app',
-          arguments: {
-            udid: 'assigned-device',
-            bundleId: 'com.apple.mobilesafari',
-          },
-        },
-        'assigned-device',
-        'io.tlon.groups',
-        1
-      ),
-    /app under test/
-  );
-  assert.throws(
-    () => allowArgentCall(valid, 'assigned-device', 'io.tlon.groups', 101),
-    /100-tool-call/
-  );
 });
 
 test('missing or denied OpenRouter credentials fail before device setup', async () => {

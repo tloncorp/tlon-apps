@@ -4,11 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { execFileSync, spawnSync } from 'node:child_process';
 import path from 'node:path';
 import os from 'node:os';
-import {
-  verifyPresentation,
-  cutClip,
-  renderPresentation,
-} from './presentation.mjs';
+import { explainReport, cutClip, renderPresentation } from './presentation.mjs';
 import { reviewArgs } from './review.mjs';
 const finding = {
   title: 'Title moved',
@@ -39,48 +35,7 @@ const value = {
     { source: 'check-1', explanation: 'Update ordering was not tested.' },
   ],
 };
-test('editing may group duplicates but cannot lose or invent findings or coverage', () => {
-  assert.equal(verifyPresentation(value, report), value);
-  for (const mutate of [
-    (v) => v.findings[0].sources.pop(),
-    (v) => v.findings[0].sources.push('finding-3'),
-    (v) => v.findings[0].sources.push('finding-1'),
-    (v) => v.incomplete.pop(),
-  ]) {
-    const v = structuredClone(value);
-    mutate(v);
-    assert.throws(() => verifyPresentation(v, report));
-  }
-  assert.throws(() =>
-    verifyPresentation(value, {
-      ...report,
-      discoveries: [finding, { ...finding, status: 'blocked' }],
-    })
-  );
-  const args = reviewArgs(
-    { cwd: '/tmp', schema: 's', output: 'o', instructions: 'i' },
-    'editorial'
-  );
-  assert.ok(!args.some((a) => a.startsWith('mcp_servers.')));
-  assert.ok(args.includes('features.shell_tool=false'));
-});
-test('one observed defect may include different source files and a failed planned check', () => {
-  const r = {
-    ...report,
-    discoveries: [finding, { ...finding, file: 'Header.tsx' }],
-    checks: [
-      ...report.checks,
-      {
-        status: 'failed',
-        expected: 'Title remains visible',
-        observed: finding.observed,
-      },
-    ],
-  };
-  const v = structuredClone(value);
-  v.findings[0].sources.push('check-2');
-  assert.equal(verifyPresentation(v, r), v);
-});
+
 test('finding clip is beside its explanation and full evidence remains available', () => {
   const output = renderPresentation(
     { context: { pr: { head: { sha: 'a'.repeat(40) } } }, report },
@@ -142,31 +97,11 @@ test(
   }
 );
 
-test('every original finding and incomplete check is a required output field', async () => {
-  const { presentationPlan } = await import('./presentation.mjs');
-  const { schema, decode } = presentationPlan(report);
-  assert.deepEqual(schema.properties.assignments.required, [
-    'finding-1',
-    'finding-2',
+test('publishing preserves every finding and incomplete check without another model', () => {
+  const rendered = explainReport(report);
+  assert.equal(rendered.findings.length, 2);
+  assert.equal(rendered.findings[0].happened, finding.observed);
+  assert.deepEqual(rendered.incomplete, [
+    { source: 'check-1', explanation: 'No counters' },
   ]);
-  assert.deepEqual(schema.properties.incomplete.required, ['check-1']);
-  const raw = {
-    findings: [
-      {
-        id: 'group-1',
-        title: 'Title hides',
-        when: 'Saving',
-        happened: 'Title moves',
-        impact: 'Title is obscured',
-      },
-    ],
-    assignments: { 'finding-1': 'group-1', 'finding-2': 'group-1' },
-    incomplete: { 'check-1': 'Ordering was not tested.' },
-  };
-  assert.equal(
-    verifyPresentation(decode(raw), report).findings[0].sources.length,
-    2
-  );
-  delete raw.assignments['finding-2'];
-  assert.throws(() => decode(raw), /required report assignments/);
 });

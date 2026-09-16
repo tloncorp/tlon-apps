@@ -20,7 +20,7 @@ gh workflow run mobile-pr-agent-qa.yml --repo tloncorp/tlon-apps \
   --ref develop -f pr_number=PR_NUMBER
 ```
 
-Before landing, run the action from `db/pr-agent-qa-ios` and set `qa_ref` to a QA
+Before landing, run the action from `db/hosted-pr-qa-review` and set `qa_ref` to a QA
 overlay on the target PR's exact head. The overlay may change only the allowlisted
 QA tooling and fixture files. Product-source equality is checked from Git objects.
 Executed QA tooling must also exactly match the trusted coordinator checkout;
@@ -31,45 +31,44 @@ those revisions and report the installed app and backend identities separately.
 Optional inputs:
 
 - `assessment_run_id`: reuse a completed `test` assessment only while both PR revisions
-  match. Its source citations and setup plan are revalidated.
+  match. Its change coverage and setup plan are revalidated.
 - `build_id` and `build_sha`: reuse an existing simulator build only after its
   source identity is independently verified.
 - `qa_ref`: QA overlay for pre-landing qualification; normally omitted after landing.
 
 ## What the agent does
 
-1. An independent source reviewer reads pinned base/head code, diff, callers and
-   helpers without PR prose or human comments. Checked line citations support its
-   regression hypotheses; hypotheses are not runtime findings.
-2. A planner maps every declared user-facing change and source hypothesis to concrete tests.
-   A supported conclusion of no user-facing changes skips device work. Missing
-   context or unsupported requirements are explicit; supported tests still run.
-3. The workflow checks native compatibility and repacks JavaScript into a compatible
-   existing app. It falls back to a native build when required. Builds finish before
-   the backend lease starts. The installed copy has OTA updates disabled, and its
-   bundle identity is recorded.
-4. A four-CPU Blacksmith runner prepares disposable ~zod/~ten ships. Reviewed
-   `chat-v1` and `notes-v1` recipes create and verify the selected fixture. Models
-   select recipes, never arbitrary setup commands. Cached ships are isolated copies
-   keyed by backend inputs; changes to those inputs require fresh preparation.
-5. Scripted Maestro login verifies Home and the exact account identity. Routine
-   navigation opens the fixture. Codex drives Argent for the planned checks and
-   exploratory inspection; visible controls missing from accessibility may be
-   targeted from screenshots. Recording starts after login and finishes independently
-   of the model, including when the operator times out.
-6. Once capture and upload finish, the backend stops. A fresh visual reviewer examines
-   actions and screenshots without the plan or operator conclusions. A separate
-   evidence reviewer checks coverage and can inspect consecutive native video frames
-   for brief states that screenshots missed. Missing evidence stays incomplete.
-7. An editor groups duplicate findings and writes plain-language explanations. A
-   fidelity pass checks meaning, uncertainty and event order. Verified video moments
-   produce one complete clip per finding; an extra clip review runs only when needed.
-   Clips must show the before state, trigger, outcome and settled result.
+The tester and evidence reviewer read testing guidance directly from
+[tlon-workflow](../../.agents/skills/tlon-workflow/SKILL.md). Platform selection,
+reproduction conditions, lifecycle variations and evidence standards have one
+source of truth. The hosted adaptation is documented in that skill's
+[hosted QA reference](../../.agents/skills/tlon-workflow/references/hosted-qa.md).
 
-All model stages currently use Codex CLI 0.145.0 with `openai/gpt-5.6-sol` at high
-reasoning through OpenRouter. Device interaction uses Argent 0.23.0. Source, visual
-and evidence review remain independent. Smaller models or lower effort require
-quality comparisons before changing these defaults.
+1. The tester plans from the pinned diff and read-only base/head source. Every
+   declared user-facing change has a scenario. A supported conclusion of no
+   user-facing changes skips device work; missing capability stays explicit.
+2. CI reuses/repackages a compatible native app or builds when required, then
+   prepares disposable ~zod/~ten ships and the selected chat/notebook fixtures.
+   Build and backend source are verified against the requested PR.
+3. The existing `tlon-workflow/mobile-login.mjs` signs in using runtime disposable
+   credentials. Codex executes the plan with the official agent-device MCP server.
+   The runner captures the authenticated session, including when the tester times out.
+4. One independent evidence reviewer examines actions, screenshots and native video
+   frames. It writes concise findings and selects one complete trigger-to-outcome
+   clip per finding. Unsupported or unobserved behavior stays incomplete.
+5. Deterministic code checks frame receipts, cuts clips, and updates the canonical
+   PR comment. There are no separate source-critic, blind-visual, editorial,
+   fidelity or clip-selection agents.
+
+Both roles use Codex CLI 0.145.0 with `openai/gpt-5.6-sol` at high reasoning through
+OpenRouter. The tester has a planning phase before device allocation and an
+execution phase on EAS. Device interaction uses agent-device 0.21.5. Local builds
+remain owned by Stim; the hosted runner installs the verified EAS Release artifact.
+The shared skill's local authoring/fixing/merge steps are not run by hosted QA.
+
+`pr-watch.mjs` identifies QA comments as advisory `qa-result` events, keyed by run,
+commit and completed publication state. An updated result in the same comment is
+visible once, without creating another automatic repair/review cycle.
 
 ## Publication and recovery
 
@@ -97,8 +96,7 @@ Oversized reports are shortened with links to the full artifacts; video links re
 Completed model stages are checkpointed against instructions, schema, input and
 implementation. A worker retries an interrupted review/publication once; the
 coordinator can recover from durable artifacts without repeating simulator work.
-Repeated frame requests are deduplicated within a review session, but independent
-reviewers each receive the images they request.
+Repeated frame requests are deduplicated within a review session, and the evidence reviewer selects clips in the same pass.
 
 For a diagnostic replay, from `apps/tlon-mobile`:
 
@@ -115,7 +113,7 @@ Signed artifact URLs are passed to the worker without printing them in diagnosti
 
 GitHub needs `EXPO_TOKEN`, `MAESTRO_FAKE_SHIP_NGROK_TOKEN`, and `QA_TUNNEL_TOKEN`.
 The EAS preview environment needs `OPENROUTER_API_KEY`, `GH_QA_TOKEN`, the matching
-`QA_TUNNEL_TOKEN`, and the configured test-login variables. Use a dedicated QA
+`QA_TUNNEL_TOKEN`, and no developer ship-login credentials. Disposable login credentials are supplied at runtime. Use a dedicated QA
 account for GitHub publication with repository write access; do not put credentials
 in repository files or model prompts.
 
@@ -136,7 +134,7 @@ as test-account data.
 
 ## Limits and qualification
 
-- iOS only. Unsupported web, Android, data-volume and timing requirements stay explicit.
+- First stage: iOS PR build only. Apply the shared skill's platform and before/after rules, but mark required Android, web, Cosmos and base-build checks unavailable. Supported iOS checks still run; incomplete overall coverage cannot be reported as a pass.
 - Deterministic regression recipes currently run only alongside a disposable fixture.
   Regression-only plans remain unavailable in this pilot.
 - Supported fixture recipes do not cover every product state. A generic login or
@@ -148,16 +146,10 @@ as test-account data.
 - A cold native build or backend preparation can cost substantially more than reuse.
   Dollar totals distinguish measured provider charges from estimated runner costs.
 
-Historical qualification: [#6460 notebook/header evidence](https://github.com/tloncorp/tlon-apps/pull/6460#issuecomment-5636234222),
-[#6511 editing evidence](https://github.com/tloncorp/tlon-apps/pull/6511#issuecomment-5637423244),
-and [#6516 delivery-indicator evidence](https://github.com/tloncorp/tlon-apps/pull/6516#issuecomment-5642081001).
-These runs required harness fixes or continuations and are not clean qualifications
-of a later harness revision. Product observations came from the automated reviewers.
-The #6516 run cost about $3.05 including failures/retries; its completed retry alone
-was about $1.58, with prepared assessment/app/ships reused. These are examples, not
-per-PR guarantees.
+## Validation
 
-Run `node --test scripts/agent-qa/*.test.mjs` for harness regression checks. Before
-landing a changed publisher or coordinator, qualify a user-facing PR through new
-video uploads, a documentation-only skip, and publication retry against the same
-comment. Record the exact harness revision and cloud results in the PR description.
+Run `node --test scripts/agent-qa/*.test.mjs` for harness regression checks.
+Qualify changes to the device path on a hosted PR run; local unit tests do not
+establish simulator, video-review or publication success. Record the exact harness
+revision and cloud run in the PR description. Older Argent-based runs do not
+qualify this agent-device implementation.

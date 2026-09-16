@@ -119,7 +119,7 @@ if (process.argv[2] === 'assess') {
       pr
     );
     console.log(
-      `Reusing assessment ${env.QA_ASSESSMENT_RUN_ID}; the build job revalidates its source citations before backend setup.`
+      `Reusing assessment ${env.QA_ASSESSMENT_RUN_ID}; the build job revalidates its scenarios before backend setup.`
     );
   }
   let plan = inputs.prepared_assessment_json;
@@ -184,7 +184,7 @@ if (process.argv[2] === 'assess') {
   const original = await wait(id, 75, false, ['verdict', 'manual_report']);
   let run = original;
   // One cross-worker recovery if publication failed after durable capture.
-  // Same-worker checkpoints handle transient reviewer/editor failures first.
+  // Same-worker checkpoints handle transient reviewer/publication failures first.
   if (!run.jobs.some((j) => j.outputs?.comment_url)) {
     const { video } = selectEvidence(original, id);
     const artifact = recoveryArtifact(original);

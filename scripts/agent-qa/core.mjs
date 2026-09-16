@@ -10,21 +10,6 @@ export function accountForRecordingCap(report, video) {
     : report;
 }
 
-export function localRecordingPath(recording) {
-  // The CLI materializes artifact handles to strings; MCP may retain handles.
-  const file =
-    typeof recording.video === 'string'
-      ? recording.video
-      : recording.video?.hostPath;
-  if (
-    typeof file !== 'string' ||
-    !file.startsWith('/') ||
-    !file.endsWith('.mp4')
-  )
-    throw new Error('Argent did not return a local video path');
-  return file;
-}
-
 export function verifyContext(env, harnessSha) {
   const pr = JSON.parse(env.QA_PR_JSON || 'null');
   if (!/^[a-f0-9]{40}$/.test(env.QA_BUILD_SHA || ''))
@@ -176,11 +161,6 @@ export function renderReport(context, report, usage) {
       context.video?.status === 'ready'
         ? `Video: test-session.mp4 (${context.video.durationSeconds.toFixed(1)} seconds), attached as ios-agent-qa-video. Recording starts after login and account verification.`
         : `Video unavailable: ${clean(context.video?.error || 'Testing did not reach the recording stage')}.`,
-      '',
-      ...(context.assessment?.sourceReview?.hypotheses || []).flatMap((h) => [
-        `- **Source hypothesis ${h.id} (${h.confidence} confidence; not a runtime finding):** ${clean(h.impact)} Trigger: ${clean(h.trigger)} Invariant: ${clean(h.invariant)}`,
-        `  Source: ${h.citations.map((c) => `${c.version}:${c.file}:${c.line}`).join(', ')}`,
-      ]),
       '',
       ...(report.discoveries || []).map(
         (d) =>

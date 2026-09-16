@@ -1,6 +1,6 @@
 import { publishComment } from './comment.mjs';
 import { billingSummary } from './billing.mjs';
-// Run on the publisher worker. Only the editorial agent rewrites the recorded report.
+// Publish the evidence reviewer's report deterministically; no additional model pass.
 import { execFileSync } from 'node:child_process';
 import {
   existsSync,
@@ -15,13 +15,13 @@ import {
 import path from 'node:path';
 import {
   explainReport,
+  selectFindingClips,
   makeClips,
   renderPresentation,
 } from './presentation.mjs';
 import { renderReport } from './core.mjs';
 import { videoReader } from './video-tools.mjs';
 import { readActions } from './review-tools.mjs';
-import { reviewFindingClips } from './clip-review.mjs';
 import { verifyReplayReceipt, verifyPresentationReview } from './publish.mjs';
 
 const env = process.env,
@@ -151,11 +151,11 @@ const info = existsSync(path.join(source, 'video-frames/video-info.json'))
       file: fullVideo,
       outputDir: path.join(source, 'video-frames'),
       startedAt: c.video.startedAt,
-      actions: readActions(path.join(source, 'argent-trace.jsonl')),
+      actions: readActions(path.join(source, 'codex-events.jsonl')),
       drawLabels: false,
     }).info;
 const usage = { calls: 0, tokens: 0, cost: null };
-const presentation = await explainReport(original.report, out, usage);
+const presentation = explainReport(original.report);
 writeFileSync(
   path.join(out, 'presentation.json'),
   JSON.stringify(
@@ -164,14 +164,13 @@ writeFileSync(
     2
   )
 );
-const reviewedClips = await reviewFindingClips({
-  original,
+const reviewedClips = selectFindingClips(
+  original.report,
   presentation,
-  source,
-  video: fullVideo,
-  outputDir: out,
-  usage,
-});
+  optionalJSON(path.join(source, 'video-frames/receipts.json')),
+  info,
+  c.video.durationSeconds
+);
 writeFileSync(
   path.join(out, 'clip-selection.json'),
   JSON.stringify(reviewedClips)
