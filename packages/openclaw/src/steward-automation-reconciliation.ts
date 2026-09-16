@@ -645,9 +645,11 @@ export function registerStewardAutomationReconciliationHooks(
   options: RegisterStewardAutomationReconciliationHooksOptions
 ): StewardAutomationReconciler {
   let reportedIneligibleAccountCount: number | null = null;
-  // Set when the account guard, not gateway_stop, stopped the reconciler:
-  // a hot reload does not replay gateway_start, so the next eligible
-  // cron_changed has to start the new epoch itself.
+  // Set when the account guard, not gateway_stop, kept the reconciler off
+  // during a live gateway, whether it stopped an epoch or refused to start
+  // one: a hot reload does not replay gateway_start, so the next eligible
+  // cron_changed has to start the epoch itself.
+  let gatewayLive = false;
   let stoppedByGuard = false;
   const warnSafely = (message: string): void => {
     try {
@@ -690,7 +692,7 @@ export function registerStewardAutomationReconciliationHooks(
     try {
       config = options.getConfig();
     } catch (error) {
-      stoppedByGuard = stoppedByGuard || reconciler.isActive();
+      stoppedByGuard = stoppedByGuard || gatewayLive;
       reconciler.stop();
       warnSafely(
         `[tlon] Steward automation projection disabled: current Tlon ` +
@@ -707,7 +709,7 @@ export function registerStewardAutomationReconciliationHooks(
     // The connection slot is process-global, so no ship can be selected
     // safely when several account monitors can publish into it. Fail closed
     // and stop any epoch that began under an earlier one-account config.
-    stoppedByGuard = stoppedByGuard || reconciler.isActive();
+    stoppedByGuard = stoppedByGuard || gatewayLive;
     reconciler.stop();
     if (accountCount > 1 && reportedIneligibleAccountCount !== accountCount) {
       reportedIneligibleAccountCount = accountCount;
@@ -720,6 +722,7 @@ export function registerStewardAutomationReconciliationHooks(
   };
 
   api.on('gateway_start', (_event, ctx) => {
+    gatewayLive = true;
     stoppedByGuard = false;
     if (guardSingleAccount()) {
       observeProjectionWork(reconciler.start(ctx.getCron), options.logger);
@@ -737,6 +740,7 @@ export function registerStewardAutomationReconciliationHooks(
     observeProjectionWork(reconciler.trigger(ctx.getCron), options.logger);
   });
   api.on('gateway_stop', () => {
+    gatewayLive = false;
     stoppedByGuard = false;
     reconciler.stop();
   });

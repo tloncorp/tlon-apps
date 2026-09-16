@@ -1419,6 +1419,26 @@ describe('registerStewardAutomationReconciliationHooks account transitions', () 
     expect(getStewardAutomationReconciler()?.isActive()).toBe(true);
   });
 
+  it('starts projection when a gateway that began ineligible becomes eligible', async () => {
+    const api = createFakeHookApi();
+    let config = two;
+    registerStewardAutomationReconciliationHooks(api, {
+      logger: { warn: vi.fn() },
+      getConfig: () => config,
+    });
+    const { context } = cronContext(jobs);
+
+    await api.fire('gateway_start', { port: 3000 }, context);
+    expect(submitStewardAutomationProjection).not.toHaveBeenCalled();
+
+    config = one;
+    await api.fire('cron_changed', { action: 'added', jobId: 'x' }, context);
+    await vi.waitFor(() =>
+      expect(submitStewardAutomationProjection).toHaveBeenCalledOnce()
+    );
+    expect(getStewardAutomationReconciler()?.isActive()).toBe(true);
+  });
+
   it('still ignores cron changes after gateway_stop', async () => {
     const api = createFakeHookApi();
     registerStewardAutomationReconciliationHooks(api, {
