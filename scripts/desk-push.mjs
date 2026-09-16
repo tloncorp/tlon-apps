@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // desk-push: commit an assembled desk to a ship through Clay, in one round trip.
 //
-//   node scripts/desk-push.mjs <assembled-dir> <desk> --pier <pier-path> [--code <+code>] [--install] [--reseed] [--dry-run]
+//   node scripts/desk-push.mjs <assembled-dir> <desk> --pier <pier-path> [--code <+code>] [--install] [--reseed] [--ignore <path>]... [--incidental <path>]... [--wait-scry <eyre-path>] [--wait-timeout <ms>] [--dry-run]
 //   node scripts/desk-push.mjs <assembled-dir> <desk> --url http://host:port (--code <+code> | --cookie <urbauth>) [--install] [--dry-run]
 //
 // Verified end to end on a fresh fake ship (vere 4.6, kelvin 408): bootstrap
@@ -83,6 +83,9 @@ const clayPath = (rel) => {
   return parts;
 };
 const pathNoun = (segments) => dejs.list(segments.map(cord));
+// 'desk.docket-0' or '/desk/docket-0' -> '/desk/docket-0'
+const toClayPath = (rel) =>
+  '/' + clayPath(rel.replace(/^\//, '').split('/').join(sep)).join('/');
 const pathString = (noun) =>
   '/' + listToArray(noun).map(cordToString).join('/');
 
@@ -452,6 +455,22 @@ class Ship {
     return this.spider.fyrd(...a);
   }
 
+  // Whether an eyre scry answers. A commit to a live desk advances clay in one
+  // event but gall reloads the desk's agents over the events after it, so this
+  // is how a caller waits for the desk to actually be serving again.
+  async scryOk(scryPath) {
+    try {
+      const res = await httpPost(`${this.spider.url}${scryPath}`, {
+        method: 'GET',
+        headers: this.spider.cookie ? { cookie: this.spider.cookie } : {},
+        timeoutMs: 60_000,
+      });
+      return res.status === 200;
+    } catch {
+      return false;
+    }
+  }
+
   // kiln's view of the desk: %live once every agent in desk.bill is running
   async zest(desk) {
     const res = await httpPost(
@@ -564,7 +583,7 @@ function parseArgs(argv) {
     rest.includes(name) ? rest[rest.indexOf(name) + 1] : undefined;
   if (!dir || !desk || !(opt('--pier') || opt('--url'))) {
     console.error(
-      'usage: desk-push.mjs <assembled-dir> <desk> (--pier <path> | --url <http://host:port> (--code <+code> | --cookie <urbauth>)) [--install] [--reseed] [--dry-run]'
+      'usage: desk-push.mjs <assembled-dir> <desk> (--pier <path> | --url <http://host:port> (--code <+code> | --cookie <urbauth>)) [--install] [--reseed] [--ignore <path>]... [--incidental <path>]... [--wait-scry <eyre-path>] [--wait-timeout <ms>] [--dry-run]'
     );
     process.exit(2);
   }
@@ -581,6 +600,27 @@ function parseArgs(argv) {
     // longer build, since the push itself depends on them. Never turns into a
     // %park against a desk that already exists.
     reseed: rest.includes('--reseed') || rest.includes('--bootstrap'),
+    // accepted either as it appears on disk (desk.docket-0) or as clay spells
+    // it (/desk/docket-0); both normalise to the clay path used for matching
+    ignore: rest.flatMap((a, i) =>
+      a === '--ignore' ? [toClayPath(rest[i + 1])] : []
+    ),
+    // paths that must not make a commit happen on their own, but that should
+    // ride along with any commit that does. desk/app/groups.hoon and
+    // desk/app/logs.hoon both import /commit/txt, putting it in crash traces
+    // and telemetry, so a stale stamp names the wrong revision in exactly the
+    // reports someone reads when a test fails.
+    incidental: rest.flatMap((a, i) =>
+      a === '--incidental' ? [toClayPath(rest[i + 1])] : []
+    ),
+    // an eyre scry path to poll after a commit, e.g.
+    // /~/scry/groups/groups/light.json — proves the desk's agents are serving
+    // again rather than only that clay advanced
+    waitScry: opt('--wait-scry'),
+    // how long a slow ship may take for one phase; the readiness poll uses it
+    waitTimeout: opt('--wait-timeout')
+      ? Number(opt('--wait-timeout'))
+      : LIVE_TIMEOUT_MS,
   };
 }
 
@@ -621,29 +661,46 @@ async function main() {
     path: '/' + clayPath(f.rel).join('/'),
   }));
 
+  // --ignore leaves a path exactly as the ship has it: neither pushed when it
+  // differs nor deleted when absent locally. The bot harness uses it for
+  // commit.txt and desk.docket-0, which the glob bot rewrites several times a
+  // day without changing any hoon, so that a frontend-only develop does not
+  // force a commit and a full agent reload on every run. It has to apply to
+  // the seed as well, or the one write that is supposed to leave these alone
+  // would be the write that overwrites them.
+  const ignored = (p) => args.ignore.includes(p);
+  const incidental = (p) => args.incidental.includes(p);
+  // the seed is a full write, so incidental paths belong in it; only the fully
+  // ignored ones are held back
+  const pushable = local.filter((f) => !ignored(f.path));
+
   // Whether the desk is already in clay decides how a missing thread is
   // handled, and it has to be decided BEFORE any write: %park makes a root
   // commit holding only what it is given, so parking the seed over a desk
   // that already has content would delete that content.
   const exists = await ship.exists(args.desk);
 
+  // A seed is a real commit against a live desk, so it reloads that desk's
+  // agents just as an ordinary push does. Whether to wait for the desk to
+  // serve again therefore depends on either write having happened, not only
+  // on the last one.
+  let seeded = false;
   let remote;
   try {
     if (args.reseed) throw new Error('--reseed requested');
     remote = await remoteHashes(ship, args.desk);
   } catch (e) {
-    if (e instanceof ThreadError && !args.reseed) {
-      // The thread ran and failed, so it is present but unhappy. The desk is
-      // there; push everything rather than guess at a delta.
-      console.log(
-        `-desk-hashes failed on %${args.desk}; pushing the full desk\n${e.message}`
-      );
-      remote = new Map();
-    } else if (exists) {
+    if (exists) {
       // The desk is there but has no usable threads — the normal state of any
-      // ship that has not yet taken a release carrying them. Seed it with a
-      // full %into, which is a delta on top of the current head and so leaves
-      // everything already committed in place.
+      // ship that has not yet taken a release carrying them, and also what a
+      // thread that runs but fails looks like. Seed it with a full %into,
+      // which is a delta on top of the current head and so leaves everything
+      // already committed in place. Re-reading the hashes afterwards is what
+      // makes deletions possible: without a remote file list there is no way
+      // to know what the branch removed, and quietly skipping deletions would
+      // leave stale marks and libraries on the ship while reporting success.
+      // If the thread still fails after seeding, remoteHashesRetrying rethrows
+      // rather than pretending the desk converged.
       console.log(
         `%${args.desk} exists but has no usable threads (${e.message.split('\n')[0]}); seeding it`
       );
@@ -654,11 +711,12 @@ async function main() {
         return;
       }
       const t0 = Date.now();
-      await ship.seedExisting(args.desk, modeNoun(local, []), {
+      await ship.seedExisting(args.desk, modeNoun(pushable, []), {
         timeoutMs: PUSH_TIMEOUT_MS,
       });
+      seeded = true;
       console.log(
-        `seeded %${args.desk} with ${local.length} files in ${((Date.now() - t0) / 1000).toFixed(1)}s`
+        `seeded %${args.desk} with ${pushable.length} files in ${((Date.now() - t0) / 1000).toFixed(1)}s`
       );
       remote = await remoteHashesRetrying(ship, args.desk);
     } else {
@@ -692,7 +750,13 @@ async function main() {
     }
   }
 
-  const changed = local.filter((f) => remote.get(f.path) !== shax(f.buf));
+  const differs = (f) => remote.get(f.path) !== shax(f.buf);
+  const changed = local.filter(
+    (f) => !ignored(f.path) && !incidental(f.path) && differs(f)
+  );
+  // included only once something else is already being committed, so the stamp
+  // never triggers a rebuild by itself but is never stale after a real one
+  const carried = local.filter((f) => incidental(f.path) && differs(f));
   if (process.env.DESK_PUSH_DEBUG) {
     for (const f of changed.slice(0, 4)) {
       console.log(
@@ -701,14 +765,21 @@ async function main() {
     }
   }
   const localPaths = new Set(local.map((f) => f.path));
-  const deleted = [...remote.keys()].filter((p) => !localPaths.has(p));
+  const deleted = [...remote.keys()].filter(
+    (p) => !localPaths.has(p) && !ignored(p) && !incidental(p)
+  );
 
   if (changed.length === 0 && deleted.length === 0) {
     console.log(`%${args.desk} unchanged (${remote.size} files)`);
+    if (seeded && args.waitScry) {
+      await waitScry(ship, args.waitScry, args.waitTimeout);
+    }
     return;
   }
   console.log(
-    `%${args.desk}: ${changed.length} changed, ${deleted.length} deleted, ${local.length - changed.length} unchanged`
+    `%${args.desk}: ${changed.length} changed, ${deleted.length} deleted, ` +
+      `${local.length - changed.length - carried.length} unchanged` +
+      (carried.length ? `, ${carried.length} carried along` : '')
   );
   if (args.dryRun) {
     for (const f of changed) console.log(`  ~ ${f.path}`);
@@ -718,7 +789,7 @@ async function main() {
 
   const arg = cell(
     cord(args.desk),
-    cell(modeNoun(changed, deleted), args.install ? YES : NO)
+    cell(modeNoun([...changed, ...carried], deleted), args.install ? YES : NO)
   );
 
   // a commit that fails to build crashes the event; that surfaces from fyrd()
@@ -736,12 +807,36 @@ async function main() {
       ? `committed %${args.desk} at revision ${aeon} (${hash}) in ${secs}s`
       : `%${args.desk} still at revision ${aeon} (${hash}): clay found nothing new to commit`
   );
-  if (args.install) await waitLive(ship, args.desk);
+  if (args.install) await waitLive(ship, args.desk, args.waitTimeout);
+  if ((committed || seeded) && args.waitScry) {
+    await waitScry(ship, args.waitScry, args.waitTimeout);
+  }
+}
+
+// A commit that reloads agents leaves them unavailable for a while after clay
+// is done. Callers that hand the ship straight to a test suite need to wait for
+// that, or the suite races the reload.
+async function waitScry(ship, scryPath, timeoutMs) {
+  const t0 = Date.now();
+  for (;;) {
+    if (await ship.scryOk(scryPath)) {
+      console.log(
+        `${scryPath} answered ${((Date.now() - t0) / 1000).toFixed(1)}s after the commit`
+      );
+      return;
+    }
+    if (Date.now() - t0 > timeoutMs) {
+      throw new Error(
+        `${scryPath} did not answer within ${timeoutMs / 1000}s of the commit`
+      );
+    }
+    await sleep(2000);
+  }
 }
 
 // kiln acknowledges |install before gall has started every agent; poll its
 // own view rather than probing one agent's scry
-async function waitLive(ship, desk, timeoutMs = LIVE_TIMEOUT_MS) {
+async function waitLive(ship, desk, timeoutMs) {
   const t0 = Date.now();
   for (;;) {
     const zest = await ship.zest(desk);

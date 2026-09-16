@@ -189,6 +189,11 @@ services:
     volumes:
       - ships-data:/data
       - ${FAKE_SHIP_CACHE_DIR:-fake-ship-cache}:/cache
+      # scripts/desk-push.mjs runs in here to commit the branch desk: it needs
+      # the pier's conn.sock, which only exists inside this container. Mounted
+      # read-only, like fake-model above, so the script resolves its one
+      # dependency (@urbit/nockjs) from the repo's own node_modules.
+      - ${REPO_ROOT:?REPO_ROOT is required}:/workspace/tlon-apps:ro
     ports:
       - "${ZOD_PORT:?ZOD_PORT is required}:8080"
       - "${TEN_PORT:?TEN_PORT is required}:8081"
