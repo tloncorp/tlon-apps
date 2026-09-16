@@ -138,13 +138,19 @@
   =+  !<(old=versioned-state vase)
   =?  cor  ?=(%0 -.old)  (seed-migrated-liveness old)
   =?  old  ?=(%0 -.old)  (state-0-to-1 old)
+  ::  the sweep is a self-rearming chain: it starts once, when the
+  ::  automation slice is created, and a later load must not stack another
+  ::
+  =/  new-slice  ?=(%1 -.old)
   =?  old  ?=(%1 -.old)  (state-1-to-2 old)
   ?>  ?=(%2 -.old)
   =.  state  old
-  ::  re-establish the eyre binding and the request sweep on every load;
-  ::  re-connecting a bound path is harmless and stacked timers are cheap
+  ::  re-establish the eyre binding on every load; re-connecting a bound
+  ::  path is harmless
   ::
-  (emil au-init-cards:au-core)
+  =.  cor  (emit au-eyre-card:au-core)
+  ?.  new-slice  cor
+  (emit au-cleanup-card:au-core)
 ::  %0 → %1: the gateway slice gained leading .notify-on-start and
 ::  .last-interaction fields
 ++  state-0-to-1
@@ -1099,11 +1105,15 @@
   ::  an edit; the change becomes visible through the harness's next
   ::  %project. see docs/backend/desk/app/steward.md
   ::
+  ++  au-eyre-card
+    ^-  card
+    [%pass /eyre/steward %arvo %e %connect [~ /steward] %steward]
+  ++  au-cleanup-card
+    ^-  card
+    [%pass /automation/cleanup %arvo %b %wait (add now.bowl ~m5)]
   ++  au-init-cards
     ^-  (list card)
-    :~  [%pass /eyre/steward %arvo %e %connect [~ /steward] %steward]
-        [%pass /automation/cleanup %arvo %b %wait (add now.bowl ~m5)]
-    ==
+    ~[au-eyre-card au-cleanup-card]
   ::
   ++  au-harness-path  `path`/v1/automation/harness
   ++  au-req-wire

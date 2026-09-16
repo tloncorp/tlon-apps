@@ -575,6 +575,17 @@
   =/  after=state-2  !<(state-2 !<(vase q.after-res))
   (assert-migrated-state old after)
 ::
+::  reloading a current state rebinds eyre and nothing else: the sweep
+::  chain already runs
+::
+++  test-migration-current-state-reload-rebinds-eyre-only
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m  (do-load agent ~)
+  (ex-cards caz ~[ex-eyre-connect])
+::
 ++  test-migration-malformed-state-fails-without-reset
   %-  eval-mare
   =/  m  (mare ,~)
