@@ -63,10 +63,12 @@ deletes its fixture group.
 channel management, proves it opens the folder/note interface rather than the
 legacy Bulletin feed, creates a root folder and nested folders through both the
 parent-row and viewed-folder actions, cancels and confirms deletion of an empty
-folder, and filters invalid folder-move destinations while keeping Root and a
-valid peer destination visible. It also exercises cancel and confirm on channel
-deletion and relaunches before proving the deleted Notebook remains absent. It
-deletes its short, run-tagged fixture group on success.
+folder, filters invalid folder-move destinations while keeping Root and a valid
+peer destination visible, and moves the full nested subtree to that searched
+destination while checking the exact action and success toast. It also exercises
+cancel and confirm on channel deletion and relaunches before proving the deleted
+Notebook remains absent. It deletes its short, run-tagged fixture group on
+success.
 
 `self-hosted-recovery.yaml` clears local state, rejects a malformed ship URL,
 rejects a well-formed access code that the configured ship does not accept, then

@@ -82,6 +82,12 @@ output.reliability.folderDeleteMessagePattern = exact(
     output.reliability.folderDelete +
     '"? This folder will be permanently deleted.'
 );
+output.reliability.folderMoveActionPattern = exact(
+  'Move to ' + output.reliability.folderArchive
+);
+output.reliability.folderMoveToastPattern = exact(
+  'Moved folder to ' + output.reliability.folderArchive
+);
 
 if (
   output.reliability.session !== 'fresh' &&

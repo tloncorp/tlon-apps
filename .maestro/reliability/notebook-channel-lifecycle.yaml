@@ -258,9 +258,65 @@ env:
 - tapOn: '^Clear$'
 - assertNotVisible: '^No folders found$'
 
-# Reset the modal through app lifecycle; iOS exposes a backdrop element whose
-# bounds overlap the sheet, and both semantic backdrop tap and Back leave this
-# particular sheet open. Relaunch is deterministic and preserves the fixture.
+# Search for the valid destination, select it, and move the whole subtree. On
+# iOS the first result tap dismisses the search keyboard; the second selects it.
+- tapOn: '^Search folders$'
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.folderArchiveQuery}
+- assertVisible: ${output.reliability.folderArchive}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn: ${output.reliability.folderArchive}
+      - tapOn: ${output.reliability.folderArchive}
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+      - tapOn: ${output.reliability.folderArchive}
+- assertVisible: ${output.reliability.folderMoveActionPattern}
+- tapOn: ${output.reliability.folderMoveActionPattern}
+- extendedWaitUntil:
+    visible: ${output.reliability.folderMoveToastPattern}
+    timeout: 5000
+- extendedWaitUntil:
+    notVisible:
+      id: ${output.reliability.folderChildRowId}
+    timeout: 15000
+
+# The source parent no longer contains the moving folder. The destination has
+# exactly that folder and its descendant, proving the subtree moved intact.
+- tapOn: '^Back$'
+- assertVisible:
+    id: ${output.reliability.folderParentRowId}
+- assertVisible:
+    id: ${output.reliability.folderArchiveRowId}
+- assertNotVisible:
+    id: ${output.reliability.folderChildRowId}
+- tapOn:
+    id: ${output.reliability.folderParentRowId}
+- assertNotVisible:
+    id: ${output.reliability.folderChildRowId}
+- tapOn: '^Back$'
+- tapOn:
+    id: ${output.reliability.folderArchiveRowId}
+- extendedWaitUntil:
+    visible:
+      id: ${output.reliability.folderChildRowId}
+    timeout: 15000
+- tapOn:
+    id: ${output.reliability.folderChildRowId}
+- extendedWaitUntil:
+    visible:
+      id: ${output.reliability.folderLeafRowId}
+    timeout: 15000
+
+# Relaunch after the move to retain the existing channel-deletion persistence
+# check and reset navigation before cleanup.
 - stopApp
 - launchApp
 - extendedWaitUntil:
