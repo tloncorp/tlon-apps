@@ -196,9 +196,9 @@ describe('agent task plan tool', () => {
     });
     const unlistedReadableZone = await execute('call-unlisted-zone', {
       ...validPlan,
-      fallbackSummary: 'Daily research brief at 8:30 AM Sydney time.',
-      summary: 'Track agent tools daily at 8:30 AM Sydney time.',
-      scheduleDescription: 'daily at 8:30 AM Sydney time',
+      fallbackSummary: 'Daily research brief at 8:30 AM, Sydney time.',
+      summary: 'Track agent tools daily at 8:30 AM, Sydney time.',
+      scheduleDescription: 'daily at 8:30 AM, Sydney time',
     });
 
     expect(invalidOverride.details).toEqual({ error: true });

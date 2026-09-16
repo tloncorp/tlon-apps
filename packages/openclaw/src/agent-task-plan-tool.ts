@@ -41,7 +41,7 @@ function copyHasDailyTime(copy: string, acceptedDisplayTimes: string[]) {
 }
 
 const READABLE_TIMEZONE_AFTER_CLOCK =
-  /\b(?:AM|PM)\s+[A-Za-z]+(?:\s+[A-Za-z]+){0,2}\s+time\b/i;
+  /\b(?:AM|PM)(?:\s*[,;:()\-–—]\s*|\s+)(?:in\s+)?[A-Za-z]+(?:\s+[A-Za-z]+){0,2}\s+time\b/i;
 
 const TIMEZONE_READABLE_ALIASES: Record<string, string[]> = {
   'America/New_York': ['New York', 'Eastern'],
