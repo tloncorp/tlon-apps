@@ -129,6 +129,8 @@ import {
   createAgentOnboardingReconciliationPresence,
   drainAgentOnboardingRuntime,
   findOnboardingGroupIdInChannel,
+  isAgentOnboardingReply,
+  parseAgentOnboardingRequest,
   handleAgentOnboardingRequest,
   isDmNest,
   scanAgentOnboardingChannel,
@@ -873,6 +875,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     const processedTracker = createProcessedMessageTracker(2000);
     let groupChannels: string[] = [];
     const channelToGroup = new Map<string, string>();
+    // Onboarding group per DM nest, from the last owner-authored request seen.
+    const onboardingGroupByDm = new Map<string, string>();
     let botNickname: string | null = null;
     let botAvatar: string | null = null;
 
@@ -4925,72 +4929,92 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         // channels firehose — so the control-plane check has to happen here
         // too, before the message wakes the model as ordinary conversation.
         if (isDmNest(whom)) {
-          let onboardingGroupId: string | undefined;
-          try {
-            onboardingGroupId = await findOnboardingGroupIdInChannel({
-              api,
-              abortSignal: opts.abortSignal,
-              channelNest: whom,
-              ownerShip: effectiveOwnerShip,
-            });
-          } catch (error) {
-            runtime.error?.(
-              `[tlon] Failed to resolve onboarding group from ${whom}: ${error instanceof Error ? error.message : String(error)}`
-            );
+          // Onboarding is a sliver of DM traffic, so ordinary messages must not
+          // pay a 500-writ history read. A typed request names its own group.
+          // A picker choice typed as text needs the group the last request
+          // named, cached per DM after one lookup. Anything else skips the
+          // control plane.
+          const request = parseAgentOnboardingRequest(dmContent.blob);
+          const fromOwner =
+            !!effectiveOwnerShip && senderShip === effectiveOwnerShip;
+          let onboardingGroupId: string | undefined = request?.groupId;
+          if (onboardingGroupId && fromOwner) {
+            onboardingGroupByDm.set(whom, onboardingGroupId);
           }
-          let handledOnboardingRequest = false;
-          try {
-            handledOnboardingRequest = await handleAgentOnboardingRequest({
-              accountId: account.accountId,
-              api,
-              abortSignal: opts.abortSignal,
-              botShip: botShipName,
-              botProfile: getBotProfile(),
-              channelNest: whom,
-              groupId: onboardingGroupId,
-              ownerShip: effectiveOwnerShip,
-              senderShip,
-              rawText,
-              blob: dmContent.blob,
-              log: (message) => runtime.log?.(message),
-              trackStep: trackOnboardingStep(whom, onboardingGroupId),
-              presentation: {
-                startThinking: () => {
-                  computingPresence.refreshRun({
-                    conversationId: whom,
-                    runId: `onboarding:${String(effectiveMessageId)}`,
-                  });
-                },
-                stopThinking: () => {
-                  computingPresence.stopRun({
-                    conversationId: whom,
-                    runId: `onboarding:${String(effectiveMessageId)}`,
-                  });
-                },
-                startBackgroundThinking: (key) => {
-                  computingPresence.refreshRun({
-                    conversationId: whom,
-                    runId: `onboarding-background:${key}`,
-                  });
-                },
-                stopBackgroundThinking: (key) => {
-                  computingPresence.stopRun({
-                    conversationId: whom,
-                    runId: `onboarding-background:${key}`,
-                  });
-                },
-              },
-            });
-          } catch (error) {
-            // This writ is already in the processed-message tracker, so no
-            // duplicate event will retry it. Reconcile from durable history.
-            scheduleAgentOnboardingRetry(whom);
-            throw error;
+          onboardingGroupId ??= onboardingGroupByDm.get(whom);
+          const isReply = !request && isAgentOnboardingReply(rawText);
+          if (!onboardingGroupId && isReply && fromOwner) {
+            try {
+              onboardingGroupId = await findOnboardingGroupIdInChannel({
+                api,
+                abortSignal: opts.abortSignal,
+                channelNest: whom,
+                ownerShip: effectiveOwnerShip,
+              });
+              if (onboardingGroupId) {
+                onboardingGroupByDm.set(whom, onboardingGroupId);
+              }
+            } catch (error) {
+              runtime.error?.(
+                `[tlon] Failed to resolve onboarding group from ${whom}: ${error instanceof Error ? error.message : String(error)}`
+              );
+            }
           }
-          if (handledOnboardingRequest) {
-            // Control-plane traffic: its visible text stays in the transcript
-            // but must not wake the model.
-            return;
+          if (request || (isReply && onboardingGroupId)) {
+            let handledOnboardingRequest = false;
+            try {
+              handledOnboardingRequest = await handleAgentOnboardingRequest({
+                accountId: account.accountId,
+                api,
+                abortSignal: opts.abortSignal,
+                botShip: botShipName,
+                botProfile: getBotProfile(),
+                channelNest: whom,
+                groupId: onboardingGroupId,
+                ownerShip: effectiveOwnerShip,
+                senderShip,
+                rawText,
+                blob: dmContent.blob,
+                log: (message) => runtime.log?.(message),
+                trackStep: trackOnboardingStep(whom, onboardingGroupId),
+                presentation: {
+                  startThinking: () => {
+                    computingPresence.refreshRun({
+                      conversationId: whom,
+                      runId: `onboarding:${String(effectiveMessageId)}`,
+                    });
+                  },
+                  stopThinking: () => {
+                    computingPresence.stopRun({
+                      conversationId: whom,
+                      runId: `onboarding:${String(effectiveMessageId)}`,
+                    });
+                  },
+                  startBackgroundThinking: (key) => {
+                    computingPresence.refreshRun({
+                      conversationId: whom,
+                      runId: `onboarding-background:${key}`,
+                    });
+                  },
+                  stopBackgroundThinking: (key) => {
+                    computingPresence.stopRun({
+                      conversationId: whom,
+                      runId: `onboarding-background:${key}`,
+                    });
+                  },
+                },
+              });
+            } catch (error) {
+              // This writ is already in the processed-message tracker, so no
+              // duplicate event will retry it. Reconcile from durable history.
+              scheduleAgentOnboardingRetry(whom);
+              throw error;
+            }
+            if (handledOnboardingRequest) {
+              // Control-plane traffic: its visible text stays in the transcript
+              // but must not wake the model.
+              return;
+            }
           }
         }
 

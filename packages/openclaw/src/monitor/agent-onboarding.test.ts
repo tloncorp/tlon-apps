@@ -3188,6 +3188,7 @@ describe('provision coordinator ordering', () => {
             noteId: 7,
             title: 'Open Hardware Daily Digest',
             createdAt: 1_700_000_050_000,
+            createdBy: context.botShip,
           },
         ]),
       }
@@ -3236,9 +3237,26 @@ describe('provision coordinator ordering', () => {
         sleep: vi.fn(async () => {}),
         listNotes: vi.fn(async () => [
           // Well before the run, and so outside the clock-skew window.
-          { noteId: 2, title: 'Older entry', createdAt: 1_699_999_000_000 },
+          {
+            noteId: 2,
+            title: 'Older entry',
+            createdAt: 1_699_999_000_000,
+            createdBy: context.botShip,
+          },
           // No creation time, so it cannot be attributed to this run.
-          { noteId: 3, title: 'Undated entry', createdAt: null },
+          {
+            noteId: 3,
+            title: 'Undated entry',
+            createdAt: null,
+            createdBy: context.botShip,
+          },
+          // In the window, but somebody else wrote it.
+          {
+            noteId: 4,
+            title: 'Someone else',
+            createdAt: 1_700_000_050_000,
+            createdBy: '~sampel-palnet',
+          },
         ]),
       }
     );

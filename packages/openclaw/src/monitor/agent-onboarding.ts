@@ -23,7 +23,7 @@ import {
 } from '../notes-delivery-state.js';
 import { sharedMap } from '../shared-state.js';
 import { type Sleeper, defaultSleep } from '../sleep.js';
-import { isDmNest } from '../targets.js';
+import { isDmNest, normalizeShip } from '../targets.js';
 import type {
   TlonOnboardingAnswer,
   TlonOnboardingCompletionPath,
@@ -537,6 +537,17 @@ export async function findOnboardingGroupIdInChannel(
       } => candidate.request?.type === 'tlon-agent-intro-request'
     )
     .sort((a, b) => b.timestamp - a.timestamp)[0]?.request.groupId;
+}
+
+/**
+ * Whether plain text is a picker choice typed by hand — a purpose, or an
+ * orientation answer — and so worth resolving the onboarding group for.
+ * Ordinary conversation is not, and must not pay for a history read.
+ */
+export function isAgentOnboardingReply(text: string | null | undefined) {
+  const reply = text?.trim();
+  if (!reply) return false;
+  return purposeForReply(reply) != null || isOrientationReply(reply);
 }
 
 export function parseAgentOnboardingRequest(
@@ -1955,11 +1966,20 @@ async function recoverDeliveredFirstRunNote(
   }).catch(() => []);
   const earliest = correlation.enqueuedAt - FIRST_RUN_NOTE_CLOCK_SLACK_MS;
 
-  // An entry without a creation time cannot be attributed to this run, and
-  // claiming one that is not ours would report the wrong note as the owner's
-  // first. Those stay a failure.
+  // Creation time alone is not evidence: a delayed write from an earlier
+  // provision, or another author in the notebook, can land in the window.
+  // Require the bot's own authorship as well; an entry missing either cannot
+  // be attributed to this run, and claiming one that is not ours would report
+  // the wrong note as the owner's first. Those stay a failure.
+  const botShip = normalizeShip(correlation.context.botShip);
   return listed
-    .filter((note) => note.createdAt != null && note.createdAt >= earliest)
+    .filter(
+      (note) =>
+        note.createdAt != null &&
+        note.createdAt >= earliest &&
+        note.createdBy != null &&
+        normalizeShip(note.createdBy) === botShip
+    )
     .sort((left, right) => right.noteId - left.noteId)[0]?.noteId;
 }
 

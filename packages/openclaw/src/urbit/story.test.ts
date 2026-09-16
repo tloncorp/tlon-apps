@@ -51,6 +51,15 @@ describe('markdownToStory', () => {
       }
     });
 
+    it('keeps sentence punctuation out of the reference, as text', () => {
+      // The period stays in the paragraph's inline verse; blocks are hoisted
+      // after it, as images already are.
+      expect(markdownToStory('See /1/group/~ten/workspace.')).toEqual([
+        { inline: ['See ', '.'] },
+        { block: { cite: { group: '~ten/workspace' } } },
+      ]);
+    });
+
     it('leaves a path that is not a reference as literal text', () => {
       expect(markdownToStory('/1/nonsense/workspace')).toEqual([
         { inline: ['/1/nonsense/workspace'] },

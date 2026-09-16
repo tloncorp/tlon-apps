@@ -10,6 +10,9 @@ import { valid } from '@urbit/aura';
 const REF_PATH_REGEX = /^\/1\/(?:chan|group|desk)\/[^\s]+/;
 /** Unanchored, to find where a reference starts inside a run of prose. */
 const REF_PATH_START_REGEX = /\/1\/(?:chan|group|desk)\//;
+// Prose ends sentences after a path — "See /1/group/~ten/workspace." — and
+// the punctuation is not part of the reference.
+const REF_TRAILING_PUNCTUATION = /[.,;:!?)\]]+$/;
 
 /**
  * Tlon Story Format - Rich text converter
@@ -138,17 +141,18 @@ function parseInlineMarkdown(
     // Reference paths, hoisted to a cite block like images below.
     const refMatch = remaining.match(REF_PATH_REGEX);
     if (refMatch) {
+      const path = refMatch[0].replace(REF_TRAILING_PUNCTUATION, '');
       if (!allowRefs) {
         // Consumed whole as text so the ship-mention scanner cannot claim
         // the host out of the middle of the path.
-        result.push(refMatch[0]);
-        remaining = remaining.slice(refMatch[0].length);
+        result.push(path);
+        remaining = remaining.slice(path.length);
         continue;
       }
-      const cite = pathToCite(refMatch[0]);
+      const cite = pathToCite(path);
       if (cite) {
         result.push({ __cite: cite } as unknown as StoryInline);
-        remaining = remaining.slice(refMatch[0].length);
+        remaining = remaining.slice(path.length);
         continue;
       }
       // Unparseable: fall through and keep it as literal text rather than
