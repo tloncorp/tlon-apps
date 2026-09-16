@@ -402,8 +402,6 @@ export type GroupResponseAsk =
 export type GroupResponseSeat =
   | { add: Seat }
   | { del: null }
-  // the response nests the role list under a `roles` key (groups-json.hoon
-  // `++r-seat`), unlike the bare array the outbound $c-seat action takes
   | { 'add-roles': { roles: string[] } }
   | { 'del-roles': { roles: string[] } };
 
