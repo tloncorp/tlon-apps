@@ -584,4 +584,52 @@ describe('StewardAutomationEditProcessor', () => {
     expect(poke).toHaveBeenCalledTimes(4);
     expect(logger.warn.mock.calls.at(-1)?.[0]).toMatch(/giving up/);
   });
+
+  it('drops new facts and stops answering once the monitor aborts', async () => {
+    const controller = new AbortController();
+    const cron = cronService();
+    const poke = vi.fn().mockResolvedValue(undefined);
+    const instance = new StewardAutomationEditProcessor({
+      poke,
+      getCron: () => cron,
+      logger: { warn: vi.fn() },
+      wait: vi.fn().mockResolvedValue(undefined),
+      signal: controller.signal,
+    });
+
+    controller.abort();
+    await instance.handle({
+      requestId: 'a',
+      action: { delete: { id: 'job-1' } },
+    });
+
+    expect(cron.remove).not.toHaveBeenCalled();
+    expect(poke).not.toHaveBeenCalled();
+  });
+
+  it('does not finalize a dispatch whose apply outlived the monitor', async () => {
+    const controller = new AbortController();
+    const poke = vi.fn().mockResolvedValue(undefined);
+    const cron = cronService({
+      remove: vi.fn().mockImplementation(async () => {
+        controller.abort();
+        return { ok: true, removed: true };
+      }),
+    });
+    const instance = new StewardAutomationEditProcessor({
+      poke,
+      getCron: () => cron,
+      logger: { log: vi.fn(), warn: vi.fn() },
+      wait: vi.fn().mockResolvedValue(undefined),
+      signal: controller.signal,
+    });
+
+    await instance.handle({
+      requestId: 'a',
+      action: { delete: { id: 'job-1' } },
+    });
+
+    expect(cron.remove).toHaveBeenCalledOnce();
+    expect(poke).not.toHaveBeenCalled();
+  });
 });

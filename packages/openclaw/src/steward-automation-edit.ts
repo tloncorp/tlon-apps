@@ -463,6 +463,8 @@ export interface StewardAutomationEditProcessorOptions {
   cronWaitAttempts?: number;
   finalizeDelaysMs?: readonly number[];
   wait?: (delayMs: number) => Promise<void>;
+  /** The monitor's teardown signal: once aborted, nothing further is applied or answered. */
+  signal?: AbortSignal;
 }
 
 const defaultWait = (delayMs: number) =>
@@ -497,8 +499,19 @@ export class StewardAutomationEditProcessor {
     this.wait = options.wait ?? defaultWait;
   }
 
-  /** Enqueue one harness-feed fact. Resolves when its finalize has been poked. */
+  private get aborted(): boolean {
+    return this.options.signal?.aborted === true;
+  }
+
+  /**
+   * Enqueue one harness-feed fact. Resolves when its finalize has been
+   * poked. After the monitor's teardown signal fires, facts are dropped:
+   * the replacement monitor receives the bot's replay and answers instead.
+   */
   handle(data: unknown): Promise<void> {
+    if (this.aborted) {
+      return Promise.resolve();
+    }
     const run = this.queue.then(() => this.process(data));
     this.queue = run.catch(() => undefined);
     return run;
@@ -531,6 +544,11 @@ export class StewardAutomationEditProcessor {
     }
 
     const cron = await this.waitForCron();
+    // A monitor torn down mid-dispatch neither applies nor answers; the
+    // command stays pending on the bot for the next subscriber's replay.
+    if (this.aborted) {
+      return;
+    }
     if (!cron) {
       await this.finalize(
         dispatch.requestId,
@@ -555,6 +573,9 @@ export class StewardAutomationEditProcessor {
       `[tlon] Steward automation dispatch ${dispatch.requestId}: ${body.type}` +
         (body.type === 'error' ? ` (${body.errorType})` : ` ${body.id}`)
     );
+    if (this.aborted) {
+      return;
+    }
     await this.finalize(dispatch.requestId, body);
   }
 
@@ -562,6 +583,9 @@ export class StewardAutomationEditProcessor {
     StewardAutomationCronWriteService | undefined
   > {
     for (let attempt = 0; ; attempt += 1) {
+      if (this.aborted) {
+        return undefined;
+      }
       const cron = this.options.getCron();
       if (cron) {
         return cron;
@@ -584,6 +608,9 @@ export class StewardAutomationEditProcessor {
     body: StewardAutomationResponseBody
   ): Promise<void> {
     for (let attempt = 0; ; attempt += 1) {
+      if (this.aborted) {
+        return;
+      }
       try {
         await this.options.poke({
           app: 'steward',
