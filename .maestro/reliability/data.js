@@ -27,6 +27,11 @@ output.reliability = {
     MAESTRO_TEST_SHIP.slice(1).replace(/-/g, ' - ') +
     ')$',
 };
+// Native group titles are capped at 24 characters. This lifecycle creates and
+// deletes its own exact fixture, so a short run-tagged name remains isolated.
+if (JOURNEY === 'notebookchannel') {
+  output.reliability.group = 'QA-' + MAESTRO_RUN_TAG + '-notebook';
+}
 output.reliability.groupPattern = exact(output.reliability.group);
 output.reliability.editedTextPattern = exact(
   output.reliability.editedText
@@ -43,17 +48,34 @@ output.reliability.siblingPattern = exact(output.reliability.sibling).replace(
   /\$$/,
   ' ?$'
 );
-output.reliability.folderParent = MAESTRO_RUN_TAG + '-projects';
-output.reliability.folderChild = MAESTRO_RUN_TAG + '-alpha';
+output.reliability.folderParent = MAESTRO_RUN_TAG + '-sourceqzx';
+output.reliability.folderParentQuery = 'sourceqzx';
+output.reliability.folderChild = MAESTRO_RUN_TAG + '-movingkappa';
+output.reliability.folderChildQuery = 'movingkappa';
+output.reliability.folderLeaf = MAESTRO_RUN_TAG + '-descendantomega';
+output.reliability.folderLeafQuery = 'descendantomega';
+output.reliability.folderArchive = MAESTRO_RUN_TAG + '-targetarchive';
+output.reliability.folderArchiveQuery = 'targetarchive';
 output.reliability.folderDelete = MAESTRO_RUN_TAG + '-delete-me';
 output.reliability.folderParentRowId =
   'NotesFolderRow-' + output.reliability.folderParent;
 output.reliability.folderChildRowId =
   'NotesFolderRow-' + output.reliability.folderChild;
+output.reliability.folderLeafRowId =
+  'NotesFolderRow-' + output.reliability.folderLeaf;
+output.reliability.folderArchiveRowId =
+  'NotesFolderRow-' + output.reliability.folderArchive;
 output.reliability.folderDeleteRowId =
   'NotesFolderRow-' + output.reliability.folderDelete;
 output.reliability.folderParentTargetPattern = exact(
   'Create in ' + output.reliability.folderParent + '.'
+);
+output.reliability.folderChildTargetPattern = exact(
+  'Create in ' +
+    output.reliability.folderParent +
+    ' / ' +
+    output.reliability.folderChild +
+    '.'
 );
 output.reliability.folderDeleteMessagePattern = exact(
   'Delete "' +

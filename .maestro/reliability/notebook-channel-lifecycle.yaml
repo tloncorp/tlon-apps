@@ -80,6 +80,33 @@ env:
       id: ${output.reliability.folderParentRowId}
     timeout: 15000
 
+# Create a valid root destination before entering the source subtree.
+- tapOn:
+    id: NotesRootNewHeaderAction
+- tapOn:
+    id: NotesNewFolderAction
+- assertVisible: '^Create in Root[.]$'
+- tapOn: '^Folder name$'
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.folderArchive}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - pressKey: Enter
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+      - tapOn: '^Add folder$'
+- extendedWaitUntil:
+    visible:
+      id: ${output.reliability.folderArchiveRowId}
+    timeout: 15000
+
 # The row action must target the selected parent even before navigating into it.
 - longPressOn:
     id: ${output.reliability.folderParentRowId}
@@ -110,6 +137,38 @@ env:
     visible:
       id: ${output.reliability.folderChildRowId}
     timeout: 15000
+
+# Give the moving folder a descendant so relocation proves the subtree follows.
+- longPressOn:
+    id: ${output.reliability.folderChildRowId}
+- tapOn:
+    id: NotesCreateFolderInFolderAction
+- assertVisible: ${output.reliability.folderChildTargetPattern}
+- tapOn: '^Folder name$'
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.folderLeaf}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - pressKey: Enter
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+      - tapOn: '^Add folder$'
+- tapOn:
+    id: ${output.reliability.folderChildRowId}
+- extendedWaitUntil:
+    visible:
+      id: ${output.reliability.folderLeafRowId}
+    timeout: 15000
+- tapOn: '^Back$'
+- assertVisible:
+    id: ${output.reliability.folderChildRowId}
 
 # Creating while viewing the parent must state and preserve that same target.
 - tapOn:
@@ -163,12 +222,56 @@ env:
 - assertVisible:
     id: ${output.reliability.folderChildRowId}
 
-# Return to root and prove the nested child does not leak into the root list.
-- tapOn: '^Back$'
-- assertVisible:
-    id: ${output.reliability.folderParentRowId}
-- assertNotVisible:
+# The move picker must exclude the current parent, the folder itself, and its
+# descendant. Search gives the native picker a stable, local empty-state oracle.
+- longPressOn:
     id: ${output.reliability.folderChildRowId}
+- tapOn:
+    id: NotesMoveFolderAction
+- assertVisible: '^Move folder$'
+- assertVisible: '^Search folders$'
+- assertVisible: '^Root$'
+- assertVisible: '^Top level$'
+- assertVisible: ${output.reliability.folderArchive}
+- tapOn: '^Search folders$'
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.folderParentQuery}
+- assertVisible: '^No folders found$'
+- tapOn: '^Clear$'
+- assertNotVisible: '^No folders found$'
+- tapOn: '^Search folders$'
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.folderChildQuery}
+- assertVisible: '^No folders found$'
+- tapOn: '^Clear$'
+- assertNotVisible: '^No folders found$'
+- tapOn: '^Search folders$'
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.folderLeafQuery}
+- assertVisible: '^No folders found$'
+- tapOn: '^Clear$'
+- assertNotVisible: '^No folders found$'
+
+# Reset the modal through app lifecycle; iOS exposes a backdrop element whose
+# bounds overlap the sheet, and both semantic backdrop tap and Back leave this
+# particular sheet open. Relaunch is deterministic and preserves the fixture.
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: '^Home$'
+    timeout: 15000
+- runFlow: subflows/open-fixture-group.yaml
+- tapOn: ${MAESTRO_RUN_TAG + ' notebook'}
+- extendedWaitUntil:
+    visible:
+      id: NotesRootNewHeaderAction
+    timeout: 15000
 
 # Exercise both branches of the destructive confirmation.
 - tapOn: ${MAESTRO_RUN_TAG + ' notebook'}
