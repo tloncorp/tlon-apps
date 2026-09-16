@@ -3,6 +3,38 @@ import { describe, expect, it } from 'vitest';
 import { hasMarkdown, markdownToStory } from './story.js';
 
 describe('markdownToStory', () => {
+  describe('reference paths', () => {
+    it('hoists a group reference to a cite block', () => {
+      expect(markdownToStory('/1/group/~ten/workspace')).toEqual([
+        { block: { cite: { group: '~ten/workspace' } } },
+      ]);
+    });
+
+    it('hoists a channel reference to a cite block', () => {
+      expect(markdownToStory('/1/chan/chat/~ten/general')).toEqual([
+        {
+          block: { cite: { chan: { nest: 'chat/~ten/general', where: '/' } } },
+        },
+      ]);
+    });
+
+    it('keeps the surrounding prose as inline text', () => {
+      // The reference renders as its own card, so the sentence introducing it
+      // has to survive alongside rather than being swallowed.
+      expect(markdownToStory('Continue here: /1/group/~ten/workspace')).toEqual(
+        [
+          { inline: ['Continue here: '] },
+          { block: { cite: { group: '~ten/workspace' } } },
+        ]
+      );
+    });
+
+    it('leaves a path that is not a reference as literal text', () => {
+      expect(markdownToStory('/1/nonsense/workspace')).toEqual([
+        { inline: ['/1/nonsense/workspace'] },
+      ]);
+    });
+  });
   describe('ship mentions', () => {
     it('converts plain ship mention', () => {
       const story = markdownToStory('~zod is cool');

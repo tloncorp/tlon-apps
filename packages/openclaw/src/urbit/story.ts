@@ -1,4 +1,15 @@
+import { type Cite, pathToCite } from '@tloncorp/api';
 import { valid } from '@urbit/aura';
+
+/**
+ * A reference path, as the app's composer recognises it when one is pasted:
+ * `/1/group/~host/slug`, `/1/chan/<nest>/...`, `/1/desk/...`. The app converts
+ * these to a cite on the way out, so text carrying one renders as a reference
+ * card rather than as the raw path — do the same for anything we send.
+ */
+const REF_PATH_REGEX = /^\/1\/(?:chan|group|desk)\/[^\s]+/;
+/** Unanchored, to find where a reference starts inside a run of prose. */
+const REF_PATH_START_REGEX = /\/1\/(?:chan|group|desk)\//;
 
 /**
  * Tlon Story Format - Rich text converter
@@ -30,6 +41,7 @@ export type StoryBlock =
     }
   | { code: { code: string; lang: string } }
   | { image: { src: string; height: number; width: number; alt: string } }
+  | { cite: Cite }
   | { rule: null }
   | { listing: StoryListing };
 
@@ -109,6 +121,19 @@ function parseInlineMarkdown(text: string): StoryInline[] {
       continue;
     }
 
+    // Reference paths, hoisted to a cite block like images below.
+    const refMatch = remaining.match(REF_PATH_REGEX);
+    if (refMatch) {
+      const cite = pathToCite(refMatch[0]);
+      if (cite) {
+        result.push({ __cite: cite } as unknown as StoryInline);
+        remaining = remaining.slice(refMatch[0].length);
+        continue;
+      }
+      // Unparseable: fall through and keep it as literal text rather than
+      // dropping something the author meant to send.
+    }
+
     // Markdown images: ![alt](url)
     const imageMatch = remaining.match(/^!\[([^\]]*)\]\(([^)]+)\)/);
     if (imageMatch) {
@@ -154,6 +179,11 @@ function parseInlineMarkdown(text: string): StoryInline[] {
     const urlIndex = remaining.search(/https?:\/\//);
     if (urlIndex >= 0) {
       specialTokenIndices.push(urlIndex);
+    }
+
+    const refIndex = remaining.search(REF_PATH_START_REGEX);
+    if (refIndex >= 0) {
+      specialTokenIndices.push(refIndex);
     }
 
     const nextTokenIndex =
@@ -209,27 +239,30 @@ export function createImageBlock(
 }
 
 /**
- * Process inlines and extract any image markers into blocks
+ * Process inlines and extract image and reference markers into blocks
  */
-function processInlinesForImages(inlines: StoryInline[]): {
+function processInlinesForBlocks(inlines: StoryInline[]): {
   inlines: StoryInline[];
-  imageBlocks: StoryVerse[];
+  blocks: StoryVerse[];
 } {
   const cleanInlines: StoryInline[] = [];
-  const imageBlocks: StoryVerse[] = [];
+  const blocks: StoryVerse[] = [];
 
   for (const inline of inlines) {
     if (typeof inline === 'object' && '__image' in inline) {
       const img = (
         inline as unknown as { __image: { src: string; alt: string } }
       ).__image;
-      imageBlocks.push(createImageBlock(img.src, img.alt));
+      blocks.push(createImageBlock(img.src, img.alt));
+    } else if (typeof inline === 'object' && '__cite' in inline) {
+      const { __cite: cite } = inline as unknown as { __cite: Cite };
+      blocks.push({ block: { cite } });
     } else {
       cleanInlines.push(inline);
     }
   }
 
-  return { inlines: cleanInlines, imageBlocks };
+  return { inlines: cleanInlines, blocks };
 }
 
 /**
@@ -345,13 +378,13 @@ export function markdownToStory(markdown: string): Story {
       }
 
       // Extract any images from inlines and add as separate blocks
-      const { inlines: cleanInlines, imageBlocks } =
-        processInlinesForImages(withBreaks);
+      const { inlines: cleanInlines, blocks } =
+        processInlinesForBlocks(withBreaks);
 
       if (cleanInlines.length > 0) {
         story.push({ inline: cleanInlines });
       }
-      story.push(...imageBlocks);
+      story.push(...blocks);
     }
   }
 
