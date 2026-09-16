@@ -29,7 +29,7 @@ packages/tlon-skill/bin/tlon
 *.xst
 zod*
 bud
-/backend/.cookie-*.txt
+/backend/.cookie-*
 vere-*
 *.pill
 /rube/zod/
