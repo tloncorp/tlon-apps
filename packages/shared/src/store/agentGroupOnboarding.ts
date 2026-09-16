@@ -336,9 +336,12 @@ async function finishAgentGroupFurnishingOnce({
   // workspace opens straight into its own chat, so its request goes there;
   // sending it to the DM would have the bot answer in a conversation the user
   // has just left.
+  // The local agent override has no Hosting behind it and so no provisioned
+  // DM row to post into — sending there throws and furnishing spins to its
+  // deadline. It stays in the chat; only a hosted bot's first run uses the DM.
   await ensureIntroRequest(
     group.id,
-    isFirstGroup
+    isFirstGroup && hostedShipId
       ? { channelId: agentShipId, channelType: 'dm' }
       : { channelId: chatChannel.id, channelType: 'chat' },
     isFirstGroup
