@@ -10,13 +10,16 @@ import {
 const validChoice: AgentChoiceToolParams = {
   target: 'chat/~zod/home-group-chat',
   surfaceId: 'agent-choice-focus-1',
+  dimension: 'focus',
   question: 'Which part of AI agent tooling should I follow?',
   options: ['New products', 'Design patterns', 'Research papers'],
 };
 
 describe('agent choice tool', () => {
   it('builds a valid A2UI SmallChoice with model-authored options', () => {
-    const [entry] = buildAgentChoiceBlob(validChoice);
+    const entry = buildAgentChoiceBlob(validChoice).find(
+      (candidate) => candidate.type === 'a2ui'
+    );
 
     expect(A2UI.validateBlobEntry(entry)).toBe(true);
     expect(entry).toEqual(
@@ -42,6 +45,23 @@ describe('agent choice tool', () => {
           }),
         ]),
       })
+    );
+  });
+
+  it('durably marks an approach question for later owner-answer verification', () => {
+    expect(
+      buildAgentChoiceBlob({
+        ...validChoice,
+        dimension: 'approach',
+        surfaceId: 'agent-choice-approach-1',
+      })
+    ).toContainEqual({
+      type: 'tlon-agent-post-marker',
+      version: 1,
+      key: 'agent-choice-dimension:approach',
+    });
+    expect(buildAgentChoiceBlob(validChoice)).not.toContainEqual(
+      expect.objectContaining({ key: 'agent-choice-dimension:approach' })
     );
   });
 

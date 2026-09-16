@@ -3179,7 +3179,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             bodyWithAttachments +=
               `\n[Client date/time context: device timezone ${clientDateTime.timezone}; ` +
               `locale ${clientDateTime.locale}. Interpret unqualified schedule times in this ` +
-              'device timezone. Format visible times for the locale. Keep cron expressions and ' +
+              'device timezone. Always format visible onboarding times with AM/PM, even when the locale normally uses 24-hour time. Keep cron expressions and ' +
               'technical timezone identifiers out of user-facing choices and confirmations. ' +
               'If the owner explicitly names another timezone, preserve that override and ' +
               'describe it in ordinary language.]';

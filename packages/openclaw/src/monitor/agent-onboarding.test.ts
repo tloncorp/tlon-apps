@@ -817,6 +817,115 @@ describe('agent onboarding requests', () => {
     expect(parseAgentOnboardingRequest('not-json')).toBeNull();
   });
 
+  it('requires a matching durable approach answer for automatic plans', () => {
+    const automaticProvision = {
+      ...provision,
+      approach: 'Compare expert perspectives',
+      taskPrompt: 'Track the most useful current developments.',
+    };
+    const approachQuestion = {
+      author: '~bot',
+      id: 'approach-question',
+      content: 'How should I research this?',
+      timestamp: 1,
+      blob: appendToPostBlob(undefined, {
+        type: 'tlon-agent-post-marker',
+        version: 1,
+        key: 'agent-choice-dimension:approach',
+      }),
+    };
+    const approachAnswer = {
+      author: '~ten',
+      id: 'approach-answer',
+      content: 'Compare expert perspectives',
+      timestamp: 2,
+      blob: appendToPostBlob(undefined, {
+        type: 'tlon-a2ui-selection',
+        version: 1,
+        sourcePostId: 'approach-question',
+        surfaceId: 'agent-choice-approach-1',
+        componentId: 'choices',
+        values: ['Compare expert perspectives'],
+      }),
+    };
+    const planPost = {
+      author: '~bot',
+      id: 'plan',
+      content: 'Daily plan',
+      timestamp: 3,
+    };
+    const provisionPost = {
+      author: '~ten',
+      id: 'provision',
+      content: '',
+      timestamp: 4,
+      blob: appendToPostBlob(appendToPostBlob(undefined, automaticProvision), {
+        type: 'tlon-a2ui-selection',
+        version: 1,
+        sourcePostId: 'plan',
+        surfaceId: 'agent-task-plan-1',
+        componentId: 'auto-provision',
+        values: ['AI, Climate'],
+      }),
+    };
+    const history = [approachQuestion, approachAnswer, planPost, provisionPost];
+
+    expect(
+      agentOnboardingTesting.validateAutomaticPlanEvidence(
+        history,
+        '~ten',
+        '~bot',
+        automaticProvision
+      )
+    ).toBeNull();
+    expect(
+      agentOnboardingTesting.validateAutomaticPlanEvidence(
+        history.slice(0, -1),
+        '~ten',
+        '~bot',
+        automaticProvision,
+        provisionPost.blob
+      )
+    ).toBeNull();
+    expect(
+      agentOnboardingTesting.validateAutomaticPlanEvidence(
+        [
+          ...history.slice(0, -1),
+          { ...provisionPost, id: 'duplicate-provision', timestamp: 3.5 },
+          provisionPost,
+        ],
+        '~ten',
+        '~bot',
+        automaticProvision
+      )
+    ).toBeNull();
+    expect(
+      agentOnboardingTesting.validateAutomaticPlanEvidence(
+        history.filter((post) => post.id !== 'approach-answer'),
+        '~ten',
+        '~bot',
+        automaticProvision
+      )
+    ).toContain('approach');
+    expect(
+      agentOnboardingTesting.validateAutomaticPlanEvidence(
+        [
+          ...history.slice(0, -1),
+          {
+            author: '~ten',
+            id: 'correction',
+            content: 'Actually, use 9 AM.',
+            timestamp: 3.5,
+          },
+          provisionPost,
+        ],
+        '~ten',
+        '~bot',
+        automaticProvision
+      )
+    ).toContain('superseded');
+  });
+
   it('keeps the services follow-up action flat', () => {
     const services = agentOnboardingTesting.buildServicesSurface(
       'pitch',
@@ -2697,13 +2806,14 @@ describe('provision coordinator ordering', () => {
 
   it('reports submitted topics before cron provisioning starts', async () => {
     const trackStep = vi.fn();
+    const sendPost = vi.fn();
 
     await expect(
       handleAgentOnboardingRequest(requestContext({ trackStep }), {
         fetchHistory: vi.fn(async () => []),
         getGroup: vi.fn(async () => provisionedGroup()),
         getCron: () => undefined as never,
-        sendPost: vi.fn(),
+        sendPost,
       })
     ).rejects.toThrow(
       `agent onboarding provision ${provision.provisionId} failed: cron service is not available`
@@ -2718,6 +2828,10 @@ describe('provision coordinator ordering', () => {
       timezone: provision.timezone,
       notebookNest: provision.notebookNest,
     });
+    expect(sendPost).toHaveBeenCalledOnce();
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).toContain(
+      "couldn't finish setting up the daily task yet"
+    );
   });
 
   it('retries a valid provision while notebook membership converges', async () => {
@@ -2953,7 +3067,16 @@ describe('provision coordinator ordering', () => {
     await expect(store.lookup(storedRunKey())).resolves.toMatchObject({
       status: 'enqueued',
     });
-    expect(history).toHaveLength(2);
+    expect(history).toHaveLength(3);
+    expect(
+      history.filter((post) =>
+        parsePostBlob(post.blob ?? '').some(
+          (entry) =>
+            entry.type === 'tlon-agent-post-marker' &&
+            entry.key === 'provision-retrying:provision-1'
+        )
+      )
+    ).toHaveLength(1);
   });
 
   it('does not enqueue twice when acknowledgement fails after enqueue', async () => {
@@ -2998,7 +3121,16 @@ describe('provision coordinator ordering', () => {
       status: 'enqueued',
       runId: 'run-1',
     });
-    expect(history).toHaveLength(2);
+    expect(history).toHaveLength(3);
+    expect(
+      history.filter((post) =>
+        parsePostBlob(post.blob ?? '').some(
+          (entry) =>
+            entry.type === 'tlon-agent-post-marker' &&
+            entry.key === 'provision-retrying:provision-1'
+        )
+      )
+    ).toHaveLength(1);
   });
 
   it('finishes a completed first run discovered after plugin restart', async () => {

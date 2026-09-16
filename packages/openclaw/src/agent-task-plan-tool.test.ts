@@ -1,3 +1,4 @@
+import { A2UI } from '@tloncorp/api';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -9,17 +10,18 @@ import {
 
 const validPlan: AgentTaskPlanToolParams = {
   target: 'chat/~zod/home-group-chat',
-  fallbackSummary: 'Weekday research brief at 8:30 AM.',
+  fallbackSummary: 'Daily research brief at 8:30 AM.',
   surfaceId: 'agent-task-plan-test-1',
-  summary: 'Track agent tools for designers every weekday at 8:30 AM.',
+  summary: 'Track agent tools for designers daily at 8:30 AM.',
   groupId: '~zod/home-group',
   purposeId: 'agent-research',
   purpose: 'Agent tools research',
+  approach: 'Compare primary releases with independent expert analysis',
   topics: ['AI agents', 'Product design'],
   scheduleHour: 8,
   scheduleMinute: 30,
-  scheduleExpression: '30 8 * * 1-5',
-  scheduleDescription: 'every weekday at 8:30 AM',
+  scheduleExpression: '30 8 * * *',
+  scheduleDescription: 'daily at 8:30 AM',
   taskPrompt:
     'Track newly released AI-agent tools for product designers and summarize useful evidence with source links.',
 };
@@ -49,7 +51,7 @@ describe('agent task plan tool', () => {
     );
   });
 
-  it('builds the owner-confirmable A2UI action from typed model input', () => {
+  it('builds an automatic A2UI action without a confirmation control', () => {
     expect(buildAgentTaskPlanBlob(validPlan)).toEqual([
       expect.objectContaining({
         type: 'a2ui',
@@ -58,13 +60,14 @@ describe('agent task plan tool', () => {
             updateComponents: expect.objectContaining({
               components: expect.arrayContaining([
                 expect.objectContaining({
-                  id: 'confirm',
+                  id: 'auto-provision',
                   action: {
                     event: {
                       name: 'tlon.provisionAgent',
                       context: expect.objectContaining({
                         groupId: '~zod/home-group',
-                        scheduleExpression: '30 8 * * 1-5',
+                        scheduleExpression: '30 8 * * *',
+                        approach: validPlan.approach,
                         taskPrompt: validPlan.taskPrompt,
                       }),
                     },
@@ -78,6 +81,12 @@ describe('agent task plan tool', () => {
     ]);
     expect(JSON.stringify(buildAgentTaskPlanBlob(validPlan))).toContain(
       validPlan.summary
+    );
+    const serialized = JSON.stringify(buildAgentTaskPlanBlob(validPlan));
+    expect(serialized).not.toContain('Create this task');
+    expect(serialized).toContain('"children":["summary"]');
+    expect(A2UI.validateBlobEntry(buildAgentTaskPlanBlob(validPlan)[0])).toBe(
+      true
     );
   });
 
@@ -135,15 +144,25 @@ describe('agent task plan tool', () => {
   it('keeps an explicit timezone override internal to the action', () => {
     const blob = buildAgentTaskPlanBlob({
       ...validPlan,
-      fallbackSummary: 'Thursday robotics brief at 3 PM Tokyo time.',
-      summary: 'Japanese robotics releases every Thursday at 3 PM Tokyo time.',
-      scheduleExpression: '0 15 * * 4',
-      scheduleDescription: 'every Thursday at 3 PM Tokyo time',
+      fallbackSummary: 'Daily robotics brief at 3 PM Tokyo time.',
+      summary: 'Japanese robotics releases daily at 3 PM Tokyo time.',
+      scheduleHour: 15,
+      scheduleMinute: 0,
+      scheduleExpression: '0 15 * * *',
+      scheduleDescription: 'daily at 3 PM Tokyo time',
       timezoneOverride: 'Asia/Tokyo',
     });
 
     expect(JSON.stringify(blob)).toContain('"timezoneOverride":"Asia/Tokyo"');
     expect(JSON.stringify(blob)).toContain('Tokyo time');
+  });
+
+  it('normalizes a blank timezone override to the device-local path', () => {
+    const serialized = JSON.stringify(
+      buildAgentTaskPlanBlob({ ...validPlan, timezoneOverride: '' })
+    );
+
+    expect(serialized).not.toContain('timezoneOverride');
   });
 
   it('rejects invalid overrides and technical timezone copy', async () => {
@@ -156,12 +175,90 @@ describe('agent task plan tool', () => {
     });
     const leakedIdentifier = await execute('call-leaked-timezone', {
       ...validPlan,
-      summary: 'Run every weekday at 8:30 AM in America/New_York.',
+      summary: 'Run daily at 8:30 AM in America/New_York.',
+    });
+    const omittedOverride = await execute('call-omitted-timezone', {
+      ...validPlan,
+      fallbackSummary: 'Daily research brief at 8:30 AM Tokyo time.',
+      summary: 'Track agent tools daily at 8:30 AM Tokyo time.',
+      scheduleDescription: 'daily at 8:30 AM Tokyo time',
+    });
+    const hiddenOverride = await execute('call-hidden-timezone', {
+      ...validPlan,
+      timezoneOverride: 'Asia/Tokyo',
+    });
+    const mismatchedOverride = await execute('call-mismatched-timezone', {
+      ...validPlan,
+      fallbackSummary: 'Daily research brief at 8:30 AM Tokyo time.',
+      summary: 'Track agent tools daily at 8:30 AM Tokyo time.',
+      scheduleDescription: 'daily at 8:30 AM Tokyo time',
+      timezoneOverride: 'Europe/London',
+    });
+    const unlistedReadableZone = await execute('call-unlisted-zone', {
+      ...validPlan,
+      fallbackSummary: 'Daily research brief at 8:30 AM Sydney time.',
+      summary: 'Track agent tools daily at 8:30 AM Sydney time.',
+      scheduleDescription: 'daily at 8:30 AM Sydney time',
     });
 
     expect(invalidOverride.details).toEqual({ error: true });
     expect(leakedIdentifier.details).toEqual({ error: true });
+    expect(omittedOverride.details).toEqual({ error: true });
+    expect(hiddenOverride.details).toEqual({ error: true });
+    expect(mismatchedOverride.details).toEqual({ error: true });
+    expect(unlistedReadableZone.details).toEqual({ error: true });
     expect(postPlan).not.toHaveBeenCalled();
+  });
+
+  it('rejects a visible summary that contradicts the actual daily time', async () => {
+    const postPlan = vi.fn(async () => 'unexpected');
+    const execute = createAgentTaskPlanToolExecutor({ postPlan });
+
+    const result = await execute('call-contradictory-copy', {
+      ...validPlan,
+      summary: 'Track agent tools daily at 9 AM.',
+    });
+
+    expect(result.details).toEqual({ error: true });
+    expect(postPlan).not.toHaveBeenCalled();
+  });
+
+  it('rejects non-daily schedules and 24-hour display copy', async () => {
+    const postPlan = vi.fn(async () => 'unexpected');
+    const execute = createAgentTaskPlanToolExecutor({ postPlan });
+
+    const weekly = await execute('call-weekly', {
+      ...validPlan,
+      scheduleExpression: '30 8 * * 1',
+      scheduleDescription: 'weekly on Monday at 8:30 AM',
+    });
+    const twentyFourHour = await execute('call-24-hour', {
+      ...validPlan,
+      fallbackSummary: 'Daily research brief at 18:00.',
+      summary: 'Track agent tools daily at 18:00.',
+      scheduleHour: 18,
+      scheduleMinute: 0,
+      scheduleExpression: '0 18 * * *',
+      scheduleDescription: 'daily at 18:00',
+    });
+
+    expect(weekly.details).toEqual({ error: true });
+    expect(twentyFourHour.details).toEqual({ error: true });
+    expect(postPlan).not.toHaveBeenCalled();
+  });
+
+  it('accepts readable :00 copy and cadence words that belong to the topic', () => {
+    expect(() =>
+      buildAgentTaskPlanBlob({
+        ...validPlan,
+        fallbackSummary: 'Daily weekly-meal-planning advice at 8:00 AM.',
+        summary:
+          'Improve a weekly meal plan with one focused update daily at 8:00 AM.',
+        scheduleMinute: 0,
+        scheduleExpression: '0 8 * * *',
+        scheduleDescription: 'every day at 8:00 AM',
+      })
+    ).not.toThrow();
   });
 
   it('rejects contradictory result-count instructions before posting', async () => {

@@ -1,5 +1,6 @@
 import {
   A2UI,
+  AGENT_ONBOARDING_APPROACH_CHOICE_MARKER,
   AGENT_ONBOARDING_FIRST_ENTRY_FAILED_MARKER,
   AGENT_ONBOARDING_FIRST_ENTRY_MARKER,
   type AgentOnboardingPurposeId,
@@ -57,6 +58,8 @@ type AgentRequest =
   | PostBlobDataEntryAgentIntroRequest
   | PostBlobDataEntryAgentProviderConfig
   | PostBlobDataEntryAgentProvision;
+
+const AUTO_PROVISION_COMPONENT_ID = 'auto-provision';
 
 export type AgentOnboardingClientDateTimeContext = {
   timezone: string;
@@ -621,10 +624,38 @@ async function handleAgentOnboardingRequestInternal(
     context.log?.('[tlon] rejected agent provision: request was superseded');
     return true;
   }
+  const automaticPlanError = validateAutomaticPlanEvidence(
+    history,
+    context.ownerShip,
+    context.botShip,
+    request,
+    context.blob
+  );
+  if (automaticPlanError) {
+    context.log?.(
+      `[tlon] rejected automatic agent provision: ${automaticPlanError}`
+    );
+    return true;
+  }
   try {
     await provision(context, history, request, deps, presentation);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
+    try {
+      await postOnce(
+        context,
+        history,
+        `provision-retrying:${request.provisionId}`,
+        async () => ({
+          text: "I couldn't finish setting up the daily task yet. I'll keep retrying safely, and I won't create a duplicate.",
+        }),
+        deps,
+        presentation
+      );
+    } catch {
+      // Preserve the coordinator failure as the actionable error even when
+      // the best-effort status post cannot be delivered either.
+    }
     throw new Error(
       `agent onboarding provision ${request.provisionId} failed: ${detail}`,
       { cause: error }
@@ -1254,7 +1285,7 @@ async function provision(
     }
 
     const acknowledgement = request.taskPrompt
-      ? `Got it. I’ll publish each result in ${notebookName}, this group’s notebook. ${scheduleConfirmation(request)}`
+      ? `Got it. I’ll publish ${request.purpose.toLowerCase()} in ${notebookName}, this group’s notebook. ${scheduleConfirmation(request)}`
       : `${formatTopicList(request.topics)}—got it. ${provisionCadence(request.purposeId, notebookName)} ${scheduleConfirmation(request)}`;
     await postOnce(
       context,
@@ -2581,6 +2612,103 @@ function findNewestProvisionRequest(
   return request?.type === 'tlon-agent-provision' ? request : null;
 }
 
+function validateAutomaticPlanEvidence(
+  history: TlonHistoryEntry[],
+  ownerShip: string,
+  botShip: string,
+  request: PostBlobDataEntryAgentProvision,
+  inboundBlob?: string | null
+) {
+  const requestPost = history.find(
+    (post) =>
+      post.author === ownerShip &&
+      post.blob &&
+      parsePostBlob(post.blob).some(
+        (entry) =>
+          entry.type === 'tlon-agent-provision' &&
+          entry.provisionId === request.provisionId
+      )
+  );
+  const requestBlob = requestPost?.blob ?? inboundBlob;
+  if (!requestBlob) return null;
+  const automaticSelection = parsePostBlob(requestBlob).find(
+    (entry) =>
+      entry.type === 'tlon-a2ui-selection' &&
+      entry.componentId === AUTO_PROVISION_COMPONENT_ID
+  );
+  if (
+    !automaticSelection ||
+    automaticSelection.type !== 'tlon-a2ui-selection'
+  ) {
+    // Retained manual provisions remain valid and are not migrated.
+    return null;
+  }
+  if (!request.approach?.trim()) {
+    return 'the plan did not preserve the selected approach';
+  }
+  const normalizedApproach = request.approach.trim().toLocaleLowerCase();
+  const hasApproachAnswer = history.some((answerPost) => {
+    if (answerPost.author !== ownerShip || !answerPost.blob) return false;
+    return parsePostBlob(answerPost.blob).some((entry) => {
+      if (
+        entry.type !== 'tlon-a2ui-selection' ||
+        !entry.sourcePostId ||
+        !entry.values.some(
+          (value) => value.trim().toLocaleLowerCase() === normalizedApproach
+        )
+      ) {
+        return false;
+      }
+      const questionPost = history.find(
+        (candidate) =>
+          candidate.id === entry.sourcePostId && candidate.author === botShip
+      );
+      return Boolean(
+        questionPost?.blob &&
+        parsePostBlob(questionPost.blob).some(
+          (questionEntry) =>
+            questionEntry.type === 'tlon-agent-post-marker' &&
+            questionEntry.key === AGENT_ONBOARDING_APPROACH_CHOICE_MARKER
+        )
+      );
+    });
+  });
+  if (!hasApproachAnswer) {
+    return 'no matching answered approach question was found';
+  }
+
+  const planPost = automaticSelection.sourcePostId
+    ? history.find(
+        (candidate) =>
+          candidate.id === automaticSelection.sourcePostId &&
+          candidate.author === botShip
+      )
+    : undefined;
+  if (!planPost) return 'the source plan is unavailable';
+  const hasNewerOwnerAnswer = history.some((candidate) => {
+    if (
+      candidate.author !== ownerShip ||
+      candidate.id === requestPost?.id ||
+      candidate.timestamp < planPost.timestamp ||
+      (requestPost && candidate.timestamp > requestPost.timestamp)
+    ) {
+      return false;
+    }
+    const duplicateAutomaticTransport = candidate.blob
+      ? parsePostBlob(candidate.blob).some(
+          (entry) =>
+            entry.type === 'tlon-a2ui-selection' &&
+            entry.componentId === AUTO_PROVISION_COMPONENT_ID &&
+            entry.sourcePostId === planPost.id
+        )
+      : false;
+    return !duplicateAutomaticTransport;
+  });
+  return hasNewerOwnerAnswer
+    ? 'a newer owner answer superseded the plan'
+    : null;
+}
+
 function findLatestProviderConfig(
   history: TlonHistoryEntry[],
   ownerShip: string,
@@ -2854,7 +2982,10 @@ function buildRecurringPrompt(
 ) {
   const providerGuidance = buildProviderGuidance(providerIds);
   if (request.taskPrompt) {
-    return `Carry out this recurring task: ${request.taskPrompt.trim()} Use the current run date and time when deciding what is relevant. Search the web when the task depends on current or externally verifiable information, and cite useful sources.${providerGuidance} Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note. The coordinator will publish your final response exactly once.`;
+    const approachGuidance = request.approach
+      ? ` Follow the owner's selected approach: ${request.approach.trim()}.`
+      : '';
+    return `Carry out this recurring task: ${request.taskPrompt.trim()}${approachGuidance} Use the current run date and time when deciding what is relevant. Search the web when the task depends on current or externally verifiable information, and cite useful sources.${providerGuidance} Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note. The coordinator will publish your final response exactly once.`;
   }
   if (request.purposeId === 'agent-learning') {
     return `Build one entry in a progressive learning series. The topics are: ${request.topics.join(', ')}. Cover exactly one topic; never combine or force connections between topics. Rotate through the list over time, using the current date to vary the topic. Put that topic in the note title. Explain one useful idea for that topic with concrete examples. Keep it concise, search the web for reliable information, and cite useful sources.${providerGuidance} Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note. The coordinator will publish your final response exactly once.`;
@@ -3142,4 +3273,5 @@ export const agentOnboardingTesting = {
   scheduleConfirmation,
   servicesPitch,
   upsertPrimaryJob,
+  validateAutomaticPlanEvidence,
 };

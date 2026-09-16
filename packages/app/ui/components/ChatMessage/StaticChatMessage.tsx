@@ -41,7 +41,12 @@ import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
-import { resolveAgentProvisionTimezone } from './agentProvision';
+import {
+  hasAnsweredApproachChoice,
+  hasNewerOwnerPost,
+  resolveAgentProvisionId,
+  resolveAgentProvisionTimezone,
+} from './agentProvision';
 
 function receiptFollowsPost(
   receipt:
@@ -73,6 +78,7 @@ function provisionMatchesPlan(
     provision.groupId === plan.groupId &&
     provision.purposeId === plan.purposeId &&
     provision.purpose === plan.purpose &&
+    provision.approach === plan.approach &&
     provision.timezone === plan.timezone &&
     provision.scheduleHour === plan.scheduleHour &&
     provision.scheduleMinute === plan.scheduleMinute &&
@@ -225,6 +231,45 @@ export function StaticChatMessage({
       }
       const notebookTitle = notebooks[0].title ?? 'Updates';
 
+      if (selection?.componentId === 'auto-provision') {
+        const selections = await db.getA2UISelections({
+          channelId: post.channelId,
+          authorId: currentUserId,
+        });
+        const sourcePostIds = [
+          ...new Set(
+            selections
+              .map((candidate) => candidate.sourcePostId)
+              .filter((id): id is string => Boolean(id))
+          ),
+        ];
+        const sourcePosts = await Promise.all(
+          sourcePostIds.map((postId) => db.getPost({ postId }))
+        );
+        if (
+          !hasAnsweredApproachChoice({
+            approach: plan.approach,
+            selections,
+            sourcePosts,
+            planPost: post,
+            botAuthorId: post.authorId,
+          })
+        ) {
+          throw new Error(
+            'Choose how this task should gather or develop its answer first'
+          );
+        }
+        if (
+          hasNewerOwnerPost({
+            planPost: post,
+            channelPosts: await db.getChanPosts({ channelId: post.channelId }),
+            ownerId: currentUserId,
+          })
+        ) {
+          throw new Error('This plan was replaced by a newer answer');
+        }
+      }
+
       const locks = await db.agentGroupOnboardingLocks.getValue();
       const existingLock = locks[groupId];
       // Reuse an id only for an exact retry of the same unacknowledged plan.
@@ -239,14 +284,27 @@ export function StaticChatMessage({
         )
           ? existingLock?.provision?.provisionId
           : undefined;
+      const fallbackProvisionId = `${getRandomId()}-${Date.now().toString(36)}`;
       const request = {
         type: 'tlon-agent-provision',
         version: 1,
         provisionId:
-          provisionId ?? `${getRandomId()}-${Date.now().toString(36)}`,
+          provisionId ??
+          resolveAgentProvisionId(
+            selection?.sourcePostId ?? post.id,
+            selection?.componentId,
+            fallbackProvisionId,
+            JSON.stringify({
+              ...plan,
+              groupId,
+              notebookNest: notebooks[0].id,
+              notebookTitle,
+            })
+          ),
         groupId,
         purposeId: plan.purposeId,
         purpose: plan.purpose,
+        ...(plan.approach ? { approach: plan.approach } : {}),
         topics: plan.topics,
         timezone: plan.timezone,
         scheduleHour: plan.scheduleHour,
@@ -291,7 +349,7 @@ export function StaticChatMessage({
         topics: plan.topics,
       });
     },
-    [resolveActionGroup]
+    [currentUserId, post, resolveActionGroup]
   );
 
   const configureAgentProviders = useCallback(

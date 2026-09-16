@@ -20,6 +20,10 @@ import { ActionSheet } from '../ActionSheet';
 import { resolveAgentProvisionButtonLabel } from '../ChatMessage/agentProvision';
 import { TextInput } from '../Form';
 import { A2UIMenuRow } from './A2UIMenuRow';
+import {
+  AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID,
+  shouldAttemptAutomaticProvision,
+} from './autoProvision';
 import { McpConnectControl } from './McpConnectControl';
 import { useContentContext } from './contentUtils';
 import { useOneShotAction } from './useOneShotAction';
@@ -773,7 +777,10 @@ export function A2UIBlock({
     Record<string, string>
   >({});
   const [pendingButtonIds, setPendingButtonIds] = useState<string[]>([]);
+  const [failedAutoProvisionSurfaceIds, setFailedAutoProvisionSurfaceIds] =
+    useState<string[]>([]);
   const buttonPressLocksRef = useRef(new Set<string>());
+  const autoProvisionAttemptsRef = useRef(new Set<string>());
   const choicePressLocksRef = useRef(new Set<string>());
   const smallChoiceSubmitLocksRef = useRef(new Set<string>());
   const update = A2UI.getUpdateMessage(block.a2ui);
@@ -797,7 +804,7 @@ export function A2UIBlock({
         (component.action.event.name === A2UI.action.sendMessage &&
           !component.action.event.context.text.trim())
       ) {
-        return;
+        return false;
       }
 
       const consumeAction = isConsumableA2UIAction(component.action);
@@ -824,8 +831,10 @@ export function A2UIBlock({
               : [...previous, component.id]
           );
         }
+        return true;
       } catch {
         buttonPressLocksRef.current.delete(component.id);
+        return false;
       } finally {
         setPendingButtonIds((previous) =>
           previous.filter((componentId) => componentId !== component.id)
@@ -837,6 +846,51 @@ export function A2UIBlock({
     },
     [a2uiSourcePostId, onA2UIAction, surfaceId]
   );
+
+  useEffect(() => {
+    const component = components.get(
+      AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID
+    );
+    if (!component || component.component !== 'Button' || !onA2UIAction) {
+      return;
+    }
+    if (
+      !shouldAttemptAutomaticProvision({
+        componentId: component.id,
+        actionName: component.action.event.name,
+        selectionsPending: Boolean(areA2UISelectionsPending),
+        actionAvailable: isA2UIActionAvailable?.(component.action) !== false,
+        consumed: Boolean(
+          getConsumedA2UISelection?.(surfaceId, component.id) ||
+          isA2UIActionConsumed?.(component.action) === true
+        ),
+        attemptedThisMount: autoProvisionAttemptsRef.current.has(surfaceId),
+      })
+    ) {
+      return;
+    }
+
+    // This is the automatic handoff from a completed model interview to the
+    // existing owner-authenticated provision coordinator. One mount makes one
+    // attempt; durable selection/provision receipts suppress remount retries.
+    autoProvisionAttemptsRef.current.add(surfaceId);
+    void handleButtonPress(component).then((succeeded) => {
+      if (!succeeded) {
+        setFailedAutoProvisionSurfaceIds((previous) =>
+          previous.includes(surfaceId) ? previous : [...previous, surfaceId]
+        );
+      }
+    });
+  }, [
+    areA2UISelectionsPending,
+    components,
+    getConsumedA2UISelection,
+    handleButtonPress,
+    isA2UIActionAvailable,
+    isA2UIActionConsumed,
+    onA2UIAction,
+    surfaceId,
+  ]);
 
   const handleChoicePress = useCallback(
     async (
@@ -1401,9 +1455,47 @@ export function A2UIBlock({
     return null;
   }
 
+  const failedAutoProvision = failedAutoProvisionSurfaceIds.includes(surfaceId)
+    ? components.get(AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID)
+    : undefined;
+
   return (
     <YStack gap="$s" maxWidth={560} {...props}>
       {renderComponent(root)}
+      {failedAutoProvision?.component === 'Button' ? (
+        <YStack gap="$s" marginTop="$m">
+          <Text size="$body" color="$secondaryText">
+            Setup couldn’t start. You can try again.
+          </Text>
+          <Button.Frame
+            size="medium"
+            fill="outline"
+            intent="secondary"
+            alignSelf="flex-start"
+            accessibilityRole="button"
+            accessibilityLabel="Retry setup"
+            testID="A2UIAutoProvisionRetry"
+            onPress={() => {
+              autoProvisionAttemptsRef.current.delete(surfaceId);
+              setFailedAutoProvisionSurfaceIds((previous) =>
+                previous.filter((id) => id !== surfaceId)
+              );
+              autoProvisionAttemptsRef.current.add(surfaceId);
+              void handleButtonPress(failedAutoProvision).then((succeeded) => {
+                if (!succeeded) {
+                  setFailedAutoProvisionSurfaceIds((previous) =>
+                    previous.includes(surfaceId)
+                      ? previous
+                      : [...previous, surfaceId]
+                  );
+                }
+              });
+            }}
+          >
+            <Button.Text size="medium">Retry setup</Button.Text>
+          </Button.Frame>
+        </YStack>
+      ) : null}
     </YStack>
   );
 }

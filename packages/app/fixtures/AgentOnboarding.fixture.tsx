@@ -192,19 +192,19 @@ const taskPlanSurface = makeA2UI('onboarding-task-plan-fixture', [
   {
     id: 'root',
     component: 'Column',
-    children: ['summary', 'confirm'],
+    children: ['summary'],
   },
   {
     id: 'summary',
     component: 'Text',
     text:
-      'Battery research brief · every weekday at 8:30 AM · one concise, ' +
+      'Battery research brief · daily at 8:30 AM · one concise, ' +
       'source-backed note covering material results from the last seven days.',
   },
   {
-    id: 'confirm',
+    id: 'auto-provision',
     component: 'Button',
-    child: 'confirm-label',
+    child: 'auto-provision-label',
     variant: 'primary',
     action: {
       event: {
@@ -216,8 +216,8 @@ const taskPlanSurface = makeA2UI('onboarding-task-plan-fixture', [
           topics: ['Battery materials'],
           scheduleHour: 8,
           scheduleMinute: 30,
-          scheduleExpression: '30 8 * * 1-5',
-          scheduleDescription: 'every weekday at 8:30 AM',
+          scheduleExpression: '30 8 * * *',
+          scheduleDescription: 'daily at 8:30 AM',
           taskPrompt:
             'Track material battery research from primary sources. Include ' +
             'only results published in the last seven days, explain practical ' +
@@ -227,15 +227,15 @@ const taskPlanSurface = makeA2UI('onboarding-task-plan-fixture', [
     },
   } as A2UI.Component,
   {
-    id: 'confirm-label',
+    id: 'auto-provision-label',
     component: 'Text',
-    text: 'Create this task',
+    text: 'Set up daily task',
   },
 ]);
 
 const acknowledgement =
   'Got it. I’ll publish each result in Updates, this group’s notebook. After ' +
-  'this first entry, the task will run every weekday at 8:30 AM.';
+  'this first entry, the task will run daily at 8:30 AM.';
 const firstEntryPending =
   'I’ll be back in a few seconds with your tailored post.';
 const firstEntryReady =
@@ -381,29 +381,23 @@ const transcript = [
   transcriptPost({
     id: 'onboarding-06-schedule-question',
     author: tlonbot,
-    text: 'How often should I publish it, and at what time?',
+    text: 'What time should your daily update arrive?',
     minute: 6,
   }),
   transcriptPost({
     id: 'onboarding-07-schedule-reply',
     author: owner,
-    text: 'Weekdays at 8:30 in the morning.',
+    text: '8:30 AM.',
     minute: 7,
   }),
   transcriptPost({
     id: 'onboarding-08-plan',
     author: tlonbot,
     text:
-      'Battery research brief, every weekday at 8:30 AM, as one concise ' +
-      'source-backed note. Tap Create this task to confirm.',
+      'Battery research brief, daily at 8:30 AM, as one concise ' +
+      'source-backed note. I’m setting it up now.',
     a2ui: taskPlanSurface,
     minute: 8,
-  }),
-  transcriptPost({
-    id: 'onboarding-09-plan-confirmed',
-    author: owner,
-    text: 'Battery materials',
-    minute: 9,
   }),
   transcriptPost({
     id: 'onboarding-10-ack',
@@ -634,7 +628,7 @@ function McpServicesPreview() {
 export default {
   'Agent-driven task starter': <OnboardingTranscript through={1} />,
   'Agent narrowing interview': <OnboardingTranscript through={6} />,
-  'Owner-confirmable task plan': <OnboardingTranscript through={7} />,
+  'Automatic task plan': <OnboardingTranscript through={7} />,
   'Conversation combined opening': <OnboardingConversation through={1} />,
   'Conversation topic selection': <OnboardingConversation />,
   'Completed topic selection': <OnboardingTranscript through={4} />,

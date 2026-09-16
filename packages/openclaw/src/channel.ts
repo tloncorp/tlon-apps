@@ -220,11 +220,11 @@ export const tlonPlugin = createChatChannelPlugin({
           name: 'tlon_agent_choice',
           label: 'Tlon Agent Choice',
           description:
-            'Ask the owner one question using a Tlon A2UI choice control with model-authored options and a free-form answer path. Use it when the task lacks a concrete focus, supported cadence, or clock time, or needs a cron-representable alternative.',
+            'Ask the owner one question using a Tlon A2UI choice control with model-authored options and a free-form answer path. Use it to establish a concrete focus, daily delivery time, topic-specific approach, or another material task detail.',
           promptSnippet:
             '`tlon_agent_choice`: ask one concise question with selectable answers and a write-your-own option',
           promptGuidelines: [
-            'During first-run recurring-task onboarding, ask each narrowing question with `tlon_agent_choice`; never invent a missing topic, frequency, day, or time; after it posts successfully, return NO_REPLY and wait for the owner.',
+            'During first-run recurring-task onboarding, ask each narrowing question with `tlon_agent_choice`; never invent a missing topic, daily time, approach, or material preference; include one topic-specific approach question before planning; after it posts successfully, return NO_REPLY and wait for the owner.',
           ],
           parameters: agentChoiceToolParameters,
           execute: (id, params) =>
@@ -234,12 +234,12 @@ export const tlonPlugin = createChatChannelPlugin({
           name: 'tlon_agent_task_plan',
           label: 'Tlon Agent Task Plan',
           description:
-            'Post one owner-confirmable recurring-task plan during first-run onboarding. ' +
-            'Call only after the owner supplied a concrete focus and a supported cadence with a clock time. The plan confirms final values and cannot collect missing choices. Use this instead of hand-authoring an A2UI JSON blob or calling cron directly.',
+            'Post one automatically provisioned daily recurring-task plan during first-run onboarding. ' +
+            'Call only after the owner supplied a concrete focus, daily clock time, and topic-specific approach. The trusted client and coordinator create it without a confirmation gate. Use this instead of hand-authoring A2UI or calling cron directly.',
           promptSnippet:
-            '`tlon_agent_task_plan`: post the owner-confirmable recurring-task plan during first-run onboarding',
+            '`tlon_agent_task_plan`: automatically provision the finished daily recurring task during first-run onboarding',
           promptGuidelines: [
-            'During first-run recurring-task onboarding, use `tlon_agent_task_plan` only after the owner supplied a concrete focus and supported cadence plus clock time; never invent those required values and do not call `cron` directly.',
+            'During first-run recurring-task onboarding, use `tlon_agent_task_plan` only after the owner supplied a concrete focus, daily clock time, and topic-specific approach; never invent those required values and do not call `cron` directly.',
           ],
           parameters: agentTaskPlanToolParameters,
           execute: (id, params) =>

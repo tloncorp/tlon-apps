@@ -11,6 +11,7 @@ export const AGENT_PROTOCOL_LIMITS = {
   groupIdLength: 512,
   identifierLength: 128,
   purposeLength: 200,
+  approachLength: 1000,
   topicLength: 200,
   topicCount: 12,
   taskPromptLength: 4000,
@@ -28,6 +29,8 @@ export const AGENT_PROTOCOL_LIMITS = {
 export const TLON_A2UI_CATALOG_ID = 'tlon.a2ui.basic.v2';
 export const AGENT_ONBOARDING_FIRST_ENTRY_MARKER = 'first-entry-ping';
 export const AGENT_ONBOARDING_FIRST_ENTRY_FAILED_MARKER = 'first-entry-failed';
+export const AGENT_ONBOARDING_APPROACH_CHOICE_MARKER =
+  'agent-choice-dimension:approach';
 
 export const AGENT_ONBOARDING_PURPOSE_IDS = [
   'agent-daily-digest',
@@ -51,6 +54,14 @@ export const AgentProvisionActionContextSchema = z.object({
   groupId: agentProtocolString(AGENT_PROTOCOL_LIMITS.groupIdLength),
   purposeId: AgentOnboardingPurposeIdSchema,
   purpose: agentProtocolString(AGENT_PROTOCOL_LIMITS.purposeLength),
+  /**
+   * The owner's selected information-gathering/development approach. Optional
+   * on the wire so retained pre-interview provision receipts remain valid;
+   * the automatic onboarding plan requires and verifies it separately.
+   */
+  approach: agentProtocolString(
+    AGENT_PROTOCOL_LIMITS.approachLength
+  ).optional(),
   topics: z
     .array(agentProtocolString(AGENT_PROTOCOL_LIMITS.topicLength))
     .min(1)

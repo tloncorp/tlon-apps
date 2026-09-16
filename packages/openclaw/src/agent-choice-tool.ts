@@ -1,4 +1,7 @@
-import { TLON_A2UI_CATALOG_ID } from '@tloncorp/api';
+import {
+  AGENT_ONBOARDING_APPROACH_CHOICE_MARKER,
+  TLON_A2UI_CATALOG_ID,
+} from '@tloncorp/api';
 
 const MAX_OPTIONS = 6;
 const MAX_QUESTION_LENGTH = 1000;
@@ -10,6 +13,7 @@ const RESERVED_FREEFORM_OPTION =
 export type AgentChoiceToolParams = {
   target: string;
   surfaceId: string;
+  dimension: 'focus' | 'time' | 'approach' | 'context' | 'priority' | 'output';
   question: string;
   options: string[];
 };
@@ -26,6 +30,12 @@ export const agentChoiceToolParameters = {
       type: 'string',
       description: 'Unique A2UI surface ID beginning with agent-choice-.',
     },
+    dimension: {
+      type: 'string',
+      enum: ['focus', 'time', 'approach', 'context', 'priority', 'output'],
+      description:
+        'The single decision this question resolves. Every onboarding interview must include an approach question before the task plan.',
+    },
     question: {
       type: 'string',
       description:
@@ -40,7 +50,7 @@ export const agentChoiceToolParameters = {
       items: { type: 'string' },
     },
   },
-  required: ['target', 'surfaceId', 'question', 'options'],
+  required: ['target', 'surfaceId', 'dimension', 'question', 'options'],
   additionalProperties: false,
 } as const;
 
@@ -55,6 +65,13 @@ function parseParams(params: AgentChoiceToolParams): AgentChoiceToolParams {
     throw new Error(
       `surfaceId must begin with agent-choice- and be at most ${MAX_SURFACE_ID_LENGTH} characters`
     );
+  }
+  if (
+    !['focus', 'time', 'approach', 'context', 'priority', 'output'].includes(
+      params.dimension
+    )
+  ) {
+    throw new Error('dimension must identify one supported interview decision');
   }
 
   const question = params.question.trim();
@@ -87,6 +104,15 @@ function parseParams(params: AgentChoiceToolParams): AgentChoiceToolParams {
 export function buildAgentChoiceBlob(input: AgentChoiceToolParams) {
   const params = parseParams(input);
   return [
+    ...(params.dimension === 'approach'
+      ? [
+          {
+            type: 'tlon-agent-post-marker' as const,
+            version: 1 as const,
+            key: AGENT_ONBOARDING_APPROACH_CHOICE_MARKER,
+          },
+        ]
+      : []),
     {
       type: 'a2ui',
       version: 1,

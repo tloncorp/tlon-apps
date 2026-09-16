@@ -4,6 +4,8 @@ import {
   TLON_A2UI_CATALOG_ID,
 } from '@tloncorp/api';
 
+const AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID = 'auto-provision';
+
 export type AgentTaskPlanToolParams = {
   target: string;
   fallbackSummary: string;
@@ -12,6 +14,7 @@ export type AgentTaskPlanToolParams = {
   groupId: string;
   purposeId: string;
   purpose: string;
+  approach: string;
   topics: string[];
   scheduleHour: number;
   scheduleMinute: number;
@@ -19,6 +22,36 @@ export type AgentTaskPlanToolParams = {
   scheduleDescription: string;
   timezoneOverride?: string;
   taskPrompt: string;
+};
+
+function formatDailyTime(hour: number, minute: number): string {
+  const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+  const meridiem = hour < 12 ? 'AM' : 'PM';
+  return minute === 0
+    ? `${displayHour} ${meridiem}`
+    : `${displayHour}:${String(minute).padStart(2, '0')} ${meridiem}`;
+}
+
+function copyHasDailyTime(copy: string, acceptedDisplayTimes: string[]) {
+  const upper = copy.toUpperCase();
+  return (
+    /\b(?:daily|every day)\b/i.test(copy) &&
+    acceptedDisplayTimes.some((time) => upper.includes(time))
+  );
+}
+
+const READABLE_TIMEZONE_AFTER_CLOCK =
+  /\b(?:AM|PM)\s+[A-Za-z]+(?:\s+[A-Za-z]+){0,2}\s+time\b/i;
+
+const TIMEZONE_READABLE_ALIASES: Record<string, string[]> = {
+  'America/New_York': ['New York', 'Eastern'],
+  'America/Chicago': ['Chicago', 'Central'],
+  'America/Denver': ['Denver', 'Mountain'],
+  'America/Los_Angeles': ['Los Angeles', 'Pacific'],
+  'Europe/London': ['London', 'British'],
+  'Europe/Paris': ['Paris', 'Central European'],
+  'Asia/Tokyo': ['Tokyo', 'Japan'],
+  'Australia/Sydney': ['Sydney', 'Australian Eastern'],
 };
 
 export const agentTaskPlanToolParameters = {
@@ -47,6 +80,11 @@ export const agentTaskPlanToolParameters = {
       enum: ['agent-daily-digest', 'agent-learning', 'agent-research'],
     },
     purpose: { type: 'string' },
+    approach: {
+      type: 'string',
+      description:
+        'The owner’s exact selected answer to the required topic-specific approach question.',
+    },
     topics: {
       type: 'array',
       minItems: 1,
@@ -57,7 +95,8 @@ export const agentTaskPlanToolParameters = {
     scheduleMinute: { type: 'integer', minimum: 0, maximum: 59 },
     scheduleExpression: {
       type: 'string',
-      description: 'Ordinary five-field cron expression.',
+      description:
+        'Daily five-field cron expression matching scheduleHour and scheduleMinute: “minute hour * * *”.',
     },
     scheduleDescription: {
       type: 'string',
@@ -83,6 +122,7 @@ export const agentTaskPlanToolParameters = {
     'groupId',
     'purposeId',
     'purpose',
+    'approach',
     'topics',
     'scheduleHour',
     'scheduleMinute',
@@ -141,30 +181,90 @@ function parseParams(params: AgentTaskPlanToolParams): AgentTaskPlanToolParams {
   if (!params.summary.trim() || params.summary.length > 2000) {
     throw new Error('summary must be 1-2000 characters');
   }
-  if (params.timezoneOverride) {
+  const timezoneOverride = params.timezoneOverride?.trim() || undefined;
+  if (timezoneOverride) {
     try {
       new Intl.DateTimeFormat('en', {
-        timeZone: params.timezoneOverride,
+        timeZone: timezoneOverride,
       }).format();
     } catch {
       throw new Error('timezoneOverride must be a valid IANA timezone');
     }
   }
-  const userFacingScheduleCopy = [
+  const expectedDailyExpression = `${params.scheduleMinute} ${params.scheduleHour} * * *`;
+  if (params.scheduleExpression.trim() !== expectedDailyExpression) {
+    throw new Error(
+      `onboarding schedules must be daily (${expectedDailyExpression})`
+    );
+  }
+  const expectedDisplayTime = formatDailyTime(
+    params.scheduleHour,
+    params.scheduleMinute
+  );
+  const acceptedDisplayTimes =
+    params.scheduleMinute === 0
+      ? [
+          expectedDisplayTime,
+          `${params.scheduleHour % 12 || 12}:00 ${params.scheduleHour < 12 ? 'AM' : 'PM'}`,
+        ]
+      : [expectedDisplayTime];
+  const scheduleCopies = [
     params.fallbackSummary,
     params.summary,
     params.scheduleDescription,
-  ].join('\n');
+  ];
+  if (
+    !scheduleCopies.every((copy) =>
+      copyHasDailyTime(copy, acceptedDisplayTimes)
+    )
+  ) {
+    throw new Error(
+      `all user-facing plan copy must describe a daily schedule at ${expectedDisplayTime}`
+    );
+  }
+  const userFacingScheduleCopy = scheduleCopies.join('\n');
   if (
     /\b(?:Africa|America|Antarctica|Arctic|Asia|Atlantic|Australia|Europe|Indian|Pacific)\/[A-Za-z_+-]+(?:\/[A-Za-z_+-]+)?\b/.test(
       userFacingScheduleCopy
     ) ||
     /\bUTC\b/.test(userFacingScheduleCopy) ||
-    userFacingScheduleCopy.includes(params.scheduleExpression)
+    userFacingScheduleCopy.includes(params.scheduleExpression) ||
+    /\b(?:[01]?\d|2[0-3]):[0-5]\d(?!\s*(?:AM|PM))\b/i.test(
+      userFacingScheduleCopy
+    )
   ) {
     throw new Error(
-      'user-facing schedule copy must use ordinary local-time wording, not cron or technical timezone identifiers'
+      'user-facing schedule copy must use AM/PM, not 24-hour time, cron, or technical timezone identifiers'
     );
+  }
+  if (
+    !timezoneOverride &&
+    READABLE_TIMEZONE_AFTER_CLOCK.test(userFacingScheduleCopy)
+  ) {
+    throw new Error(
+      'timezone-specific copy requires the matching explicit timezoneOverride'
+    );
+  }
+  if (timezoneOverride) {
+    const timezoneParts = timezoneOverride.split('/');
+    const readableCity = timezoneParts[timezoneParts.length - 1]?.replace(
+      /_/g,
+      ' '
+    );
+    const acceptableLabels = [
+      ...(TIMEZONE_READABLE_ALIASES[timezoneOverride] ?? []),
+      ...(readableCity ? [readableCity] : []),
+    ];
+    const description = params.scheduleDescription.toLocaleLowerCase();
+    if (
+      !acceptableLabels.some((label) =>
+        description.includes(`${label.toLocaleLowerCase()} time`)
+      )
+    ) {
+      throw new Error(
+        'an explicit timezoneOverride requires a matching readable timezone in scheduleDescription'
+      );
+    }
   }
   const hasSparseCountFallback =
     /(?:fewer|less) than (?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)/i.test(
@@ -183,18 +283,19 @@ function parseParams(params: AgentTaskPlanToolParams): AgentTaskPlanToolParams {
     groupId: params.groupId,
     purposeId: params.purposeId,
     purpose: params.purpose,
+    approach: params.approach,
     topics: params.topics,
     scheduleHour: params.scheduleHour,
     scheduleMinute: params.scheduleMinute,
     scheduleExpression: params.scheduleExpression,
     scheduleDescription: params.scheduleDescription,
-    timezoneOverride: params.timezoneOverride,
+    timezoneOverride,
     taskPrompt: params.taskPrompt,
   });
   if (!context.success) {
     throw new Error(`invalid task plan: ${context.error.message}`);
   }
-  return { ...params, ...context.data };
+  return { ...params, ...context.data, timezoneOverride };
 }
 
 export function buildAgentTaskPlanBlob(input: AgentTaskPlanToolParams) {
@@ -221,7 +322,7 @@ export function buildAgentTaskPlanBlob(input: AgentTaskPlanToolParams) {
               {
                 id: 'root',
                 component: 'Column',
-                children: ['summary', 'confirm'],
+                children: ['summary'],
               },
               {
                 id: 'summary',
@@ -229,9 +330,12 @@ export function buildAgentTaskPlanBlob(input: AgentTaskPlanToolParams) {
                 text: params.summary,
               },
               {
-                id: 'confirm',
+                // This trusted orphan action is intentionally not rendered.
+                // The client submits it once when the plan arrives, keeping
+                // authorization and idempotency in the existing coordinator.
+                id: AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID,
                 component: 'Button',
-                child: 'confirm-label',
+                child: 'auto-provision-label',
                 variant: 'primary',
                 action: {
                   event: {
@@ -240,6 +344,7 @@ export function buildAgentTaskPlanBlob(input: AgentTaskPlanToolParams) {
                       groupId: params.groupId,
                       purposeId: params.purposeId,
                       purpose: params.purpose,
+                      approach: params.approach,
                       topics: params.topics,
                       scheduleHour: params.scheduleHour,
                       scheduleMinute: params.scheduleMinute,
@@ -254,9 +359,9 @@ export function buildAgentTaskPlanBlob(input: AgentTaskPlanToolParams) {
                 },
               },
               {
-                id: 'confirm-label',
+                id: 'auto-provision-label',
                 component: 'Text',
-                text: 'Create this task',
+                text: 'Set up daily task',
               },
             ],
           },

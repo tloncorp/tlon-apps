@@ -38,7 +38,10 @@ export function isVisibleChannelPost(
   if (post.authorId !== currentUserId) return true;
   if (post.deliveryStatus === 'failed') return true;
 
-  return !postHasBlobEntry(post.blob, 'tlon-agent-intro-request');
+  return !(
+    postHasBlobEntry(post.blob, 'tlon-agent-intro-request') ||
+    postHasBlobEntry(post.blob, 'tlon-agent-provision')
+  );
 }
 
 export function isAgentOnboardingOrientationCompletePost(
