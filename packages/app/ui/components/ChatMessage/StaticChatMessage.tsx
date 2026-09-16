@@ -26,6 +26,7 @@ import { A2UIBlock } from '../PostContent/A2UIBlock';
 import { DefaultRendererProps } from '../PostContent/BlockRenderer';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import { isA2UISendMessageActionConsumed } from '../PostContent/a2uiActionConsumption';
+import { isPendingProvisionSuperseded } from './a2uiActionCompletion';
 import {
   hasRenderableA2UIStoryFallback,
   isA2UIBlockRenderable,
@@ -419,6 +420,7 @@ export function StaticChatMessage({
         // denormalized channel relation catches up; submission validates the
         // canonical channel table above.
         return Boolean(
+          !isPendingProvisionSuperseded(a2uiActionCompletion) &&
           draftInputContext &&
           draftInputContext.canStartDraft !== false &&
           groupId &&
@@ -442,7 +444,13 @@ export function StaticChatMessage({
 
       return false;
     },
-    [canUseAgentProviderControls, draftInputContext, group, post.groupId]
+    [
+      a2uiActionCompletion,
+      canUseAgentProviderControls,
+      draftInputContext,
+      group,
+      post.groupId,
+    ]
   );
 
   // `useGroup()` can briefly clear its query result while a live post is
