@@ -2895,6 +2895,47 @@ describe('provision coordinator ordering', () => {
     expect(stopBackgroundThinking).not.toHaveBeenCalled();
   });
 
+  it('releases the thinking hold when the runtime drains or is cleared', async () => {
+    type Api = { scry: ReturnType<typeof vi.fn> };
+    for (const retire of [
+      (api: Api) => drainAgentOnboardingRuntime(api),
+      (api: Api) => clearAgentOnboardingRuntime(api),
+    ]) {
+      clearAgentOnboardingRuntime();
+      const store = memoryRunStore();
+      setAgentOnboardingRunStore(store);
+      const { cron } = provisionCronHarness();
+      const api: Api = { scry: vi.fn() };
+      const stopBackgroundThinking = vi.fn();
+      await expect(
+        handleAgentOnboardingRequest(
+          requestContext({
+            api,
+            presentation: {
+              startThinking: vi.fn(),
+              stopThinking: vi.fn(),
+              startBackgroundThinking: vi.fn(),
+              stopBackgroundThinking,
+              minResponseDelayMs: 0,
+            },
+          }),
+          provisionDeps(cron)
+        )
+      ).resolves.toBe(true);
+      expect(stopBackgroundThinking).not.toHaveBeenCalled();
+
+      await retire(api);
+
+      // Whether the monitor drains or the runtime is cleared, the hold ends
+      // with the correlation; nothing keeps beating presence for a retired run.
+      await vi.waitFor(() =>
+        expect(stopBackgroundThinking).toHaveBeenCalledWith(
+          provision.provisionId
+        )
+      );
+    }
+  });
+
   it('releases a durable claim when enqueue rejects', async () => {
     const store = memoryRunStore();
     setAgentOnboardingRunStore(store);

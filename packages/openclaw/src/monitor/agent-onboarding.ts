@@ -2390,6 +2390,8 @@ export function clearAgentOnboardingRuntime(
     .map(([key]) => key);
   for (const key of ownedKeys) {
     firstRunCompletionFlights.delete(key);
+    // A correlation that is forgotten must not keep beating its presence.
+    void firstRunCorrelations.get(key)?.releaseThinking?.();
     firstRunCorrelations.delete(key);
   }
 }
@@ -2397,12 +2399,18 @@ export function clearAgentOnboardingRuntime(
 export async function drainAgentOnboardingRuntime(
   api: AgentOnboardingScanContext['api']
 ): Promise<void> {
-  const ownedKeys = [...firstRunCorrelations]
-    .filter(([, correlation]) => correlation.context.api === api)
-    .map(([key]) => key);
+  const owned = [...firstRunCorrelations].filter(
+    ([, correlation]) => correlation.context.api === api
+  );
+  const ownedKeys = owned.map(([key]) => key);
   // Stop lifecycle hooks from installing a new completion flight after the
   // drain snapshot. Already-running flights retain their captured correlation.
   for (const key of ownedKeys) firstRunCorrelations.delete(key);
+  // The hold would otherwise outlive the monitor by its failsafe, beating
+  // through an API about to close; release it while that API is still up.
+  await Promise.allSettled(
+    owned.map(([, correlation]) => correlation.releaseThinking?.())
+  );
   await Promise.allSettled(
     ownedKeys
       .map((key) => firstRunCompletionFlights.get(key))
