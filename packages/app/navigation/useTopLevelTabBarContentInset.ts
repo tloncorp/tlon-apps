@@ -4,11 +4,9 @@ import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getTokenValue } from 'tamagui';
 
-// iOS 26 draws the tab bar as a floating pill (~60pt) inset from the bottom
-// edge, so the band it occludes subsumes the home indicator rather than
-// stacking on top of it. Android's bar sits directly above the safe area.
-const IOS_TAB_BAR_CLEARANCE = 84;
-const ANDROID_TAB_BAR_HEIGHT = 80;
+import { supportsLiquidGlass } from '../ui/components/GlassSurface';
+import { supportsNativeScrollEdgeChrome } from './nativeHeaderOptions';
+import { getTopLevelTabBarClearance } from './topLevelTabBarClearance';
 
 /**
  * Height of the band the top-level tab bar occludes, measured up from the
@@ -26,14 +24,15 @@ export function useTopLevelTabBarClearance() {
     return 0;
   }
 
-  switch (Platform.OS) {
-    case 'ios':
-      return IOS_TAB_BAR_CLEARANCE;
-    case 'android':
-      return ANDROID_TAB_BAR_HEIGHT + bottom;
-    default:
-      return 0;
-  }
+  return getTopLevelTabBarClearance({
+    platform: Platform.OS,
+    floatingTabBar: supportsNativeScrollEdgeChrome(
+      Platform.OS,
+      Platform.Version,
+      supportsLiquidGlass()
+    ),
+    bottomInset: bottom,
+  });
 }
 
 /**
