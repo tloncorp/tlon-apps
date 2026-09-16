@@ -73,8 +73,11 @@ export class StewardAutomationReconciliationExhaustedError extends Error {
 
 /**
  * Errors that mark themselves non-retryable stop a batch at once. Anything
- * else — a nack, a transport failure, an unknown throw — is retried up to
- * the attempt cap, since a transient cause is the common case.
+ * else — a failed channel PUT, a read failure, an unknown throw — is retried
+ * up to the attempt cap, since a transient cause is the common case. A poke
+ * that the ship nacks after the PUT succeeded is logged by the SSE client
+ * and not retried here: the ship rejected that exact payload, and the next
+ * `cron_changed` rereads and resubmits anyway.
  */
 function isRetryableError(error: unknown): boolean {
   if (typeof error !== 'object' || error === null) {
@@ -309,6 +312,11 @@ export class StewardAutomationReconciler {
     this.activeEpoch = epoch;
     this.activeController = controller;
     return this.enqueue(epoch, controller, getCron);
+  }
+
+  /** Whether a gateway epoch is active, i.e. whether `trigger` would do anything. */
+  isActive(): boolean {
+    return this.activeEpoch !== null;
   }
 
   /** Ignore cron changes safely while no gateway epoch is active. */
@@ -637,6 +645,10 @@ export function registerStewardAutomationReconciliationHooks(
   options: RegisterStewardAutomationReconciliationHooksOptions
 ): StewardAutomationReconciler {
   let reportedIneligibleAccountCount: number | null = null;
+  // Set when the account guard, not gateway_stop, stopped the reconciler:
+  // a hot reload does not replay gateway_start, so the next eligible
+  // cron_changed has to start the new epoch itself.
+  let stoppedByGuard = false;
   const warnSafely = (message: string): void => {
     try {
       options.logger.warn(message);
@@ -645,6 +657,22 @@ export function registerStewardAutomationReconciliationHooks(
     }
   };
 
+  // The same unrepresentable job is rejected on every reconciliation; report
+  // each distinct job and reason once per process.
+  const reported = new Set<string>();
+  const reportOnce = (rejected: readonly StewardAutomationRejectedJob[]) => {
+    const fresh = rejected.filter((job) => {
+      const key = `${job.id ?? ''}|${job.kind}|${job.reason}`;
+      if (reported.has(key)) {
+        return false;
+      }
+      reported.add(key);
+      return true;
+    });
+    if (fresh.length > 0) {
+      reportRejectedJobs(fresh, warnSafely);
+    }
+  };
   let reconciler = getStewardAutomationReconciler();
   if (!reconciler) {
     reconciler = new StewardAutomationReconciler(
@@ -653,7 +681,7 @@ export function registerStewardAutomationReconciliationHooks(
       undefined,
       undefined,
       undefined,
-      (rejected) => reportRejectedJobs(rejected, warnSafely)
+      reportOnce
     );
     setStewardAutomationReconciler(reconciler);
   }
@@ -662,6 +690,7 @@ export function registerStewardAutomationReconciliationHooks(
     try {
       config = options.getConfig();
     } catch (error) {
+      stoppedByGuard = stoppedByGuard || reconciler.isActive();
       reconciler.stop();
       warnSafely(
         `[tlon] Steward automation projection disabled: current Tlon ` +
@@ -678,6 +707,7 @@ export function registerStewardAutomationReconciliationHooks(
     // The connection slot is process-global, so no ship can be selected
     // safely when several account monitors can publish into it. Fail closed
     // and stop any epoch that began under an earlier one-account config.
+    stoppedByGuard = stoppedByGuard || reconciler.isActive();
     reconciler.stop();
     if (accountCount > 1 && reportedIneligibleAccountCount !== accountCount) {
       reportedIneligibleAccountCount = accountCount;
@@ -690,16 +720,24 @@ export function registerStewardAutomationReconciliationHooks(
   };
 
   api.on('gateway_start', (_event, ctx) => {
+    stoppedByGuard = false;
     if (guardSingleAccount()) {
       observeProjectionWork(reconciler.start(ctx.getCron), options.logger);
     }
   });
   api.on('cron_changed', (_event, ctx) => {
-    if (guardSingleAccount()) {
-      observeProjectionWork(reconciler.trigger(ctx.getCron), options.logger);
+    if (!guardSingleAccount()) {
+      return;
     }
+    if (stoppedByGuard && !reconciler.isActive()) {
+      stoppedByGuard = false;
+      observeProjectionWork(reconciler.start(ctx.getCron), options.logger);
+      return;
+    }
+    observeProjectionWork(reconciler.trigger(ctx.getCron), options.logger);
   });
   api.on('gateway_stop', () => {
+    stoppedByGuard = false;
     reconciler.stop();
   });
   return reconciler;

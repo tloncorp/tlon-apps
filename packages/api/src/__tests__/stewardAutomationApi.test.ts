@@ -126,6 +126,19 @@ describe('createAutomation', () => {
   });
 });
 
+describe('millisecond validation', () => {
+  test('rejects a fractional millisecond field before posting', async () => {
+    const error = await createAutomation({
+      bot,
+      task: { ...task, schedule: { kind: 'every', everyMs: 1500.5 } },
+    }).catch((e) => e);
+    expect(error).toBeInstanceOf(StewardAutomationEditError);
+    expect(error).toMatchObject({ errorType: 'invalid' });
+    expect(error.message).toMatch(/everyMs must be an integer/);
+    expect(requestJson).not.toHaveBeenCalled();
+  });
+});
+
 describe('updateAutomation and deleteAutomation', () => {
   test('update sends the id beside the patch fields', async () => {
     vi.mocked(requestJson).mockResolvedValue({
@@ -212,6 +225,29 @@ describe('getAutomationRequest and awaitAutomationRequest', () => {
     expect(error).toBeInstanceOf(StewardAutomationPendingError);
     expect(error).toMatchObject({ requestId, status: 'acked' });
     expect(requestJson).toHaveBeenCalledTimes(3);
+  });
+
+  test('awaitAutomationRequest passes its abort signal through and stops when aborted', async () => {
+    const controller = new AbortController();
+    vi.mocked(requestJson).mockImplementation(async () => {
+      controller.abort();
+      return { requestId, body: { type: 'pending', status: 'acked' } };
+    });
+
+    await expect(
+      awaitAutomationRequest(requestId, {
+        intervalMs: 0,
+        attempts: 5,
+        signal: controller.signal,
+      })
+    ).rejects.toThrow();
+    expect(requestJson).toHaveBeenCalledTimes(1);
+    expect(requestJson).toHaveBeenCalledWith(
+      `/steward/~/v1/automation/request/${requestId}`,
+      'GET',
+      undefined,
+      { reauthStatuses: [401, 403], signal: controller.signal }
+    );
   });
 });
 

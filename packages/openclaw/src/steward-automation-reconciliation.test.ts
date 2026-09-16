@@ -1183,6 +1183,7 @@ describe('registerStewardAutomationReconciliationHooks', () => {
       start: vi.fn().mockRejectedValue(terminal),
       trigger: vi.fn().mockResolvedValue(undefined),
       stop: vi.fn(),
+      isActive: vi.fn(() => false),
     } as unknown as StewardAutomationReconciler;
     setStewardAutomationReconciler(injected);
     const telemetry = vi.fn();
@@ -1206,6 +1207,7 @@ describe('registerStewardAutomationReconciliationHooks', () => {
       start: vi.fn().mockResolvedValue(undefined),
       trigger: vi.fn().mockResolvedValue(undefined),
       stop: vi.fn(),
+      isActive: vi.fn(() => false),
     } as unknown as StewardAutomationReconciler;
     const warn = vi.fn(() => {
       throw new Error('logger unavailable');
@@ -1234,6 +1236,7 @@ describe('registerStewardAutomationReconciliationHooks', () => {
       start: vi.fn().mockRejectedValue(terminal),
       trigger: vi.fn().mockResolvedValue(undefined),
       stop: vi.fn(),
+      isActive: vi.fn(() => false),
     } as unknown as StewardAutomationReconciler;
     const warn = vi.fn(() => {
       throw new Error('logger unavailable');
@@ -1355,5 +1358,115 @@ describe('StewardAutomationReconciler failure policy', () => {
     expect(warn.mock.calls[0]?.[0]).toMatch(
       /dropped cron job watcher: .*unsupported value on-exit/
     );
+  });
+});
+
+describe('registerStewardAutomationReconciliationHooks account transitions', () => {
+  const one = {
+    channels: {
+      tlon: {
+        ship: '~zod',
+        url: 'http://zod.test',
+        code: 'lidlut-tabwed-pillex-ridrup',
+      },
+    },
+  } as OpenClawConfig;
+  const two = {
+    channels: {
+      tlon: {
+        ship: '~zod',
+        url: 'http://zod.test',
+        code: 'lidlut-tabwed-pillex-ridrup',
+        accounts: {
+          second: {
+            ship: '~bus',
+            url: 'http://bus.test',
+            code: 'racmut-batdur-sivhes-nidweb',
+          },
+        },
+      },
+    },
+  } as OpenClawConfig;
+
+  it('restarts projection when the account set becomes eligible again', async () => {
+    const api = createFakeHookApi();
+    let config = one;
+    registerStewardAutomationReconciliationHooks(api, {
+      logger: { warn: vi.fn() },
+      getConfig: () => config,
+    });
+    const { context } = cronContext(jobs);
+
+    await api.fire('gateway_start', { port: 3000 }, context);
+    await vi.waitFor(() =>
+      expect(submitStewardAutomationProjection).toHaveBeenCalledOnce()
+    );
+
+    config = two;
+    await api.fire('cron_changed', { action: 'added', jobId: 'x' }, context);
+    expect(getStewardAutomationReconciler()?.isActive()).toBe(false);
+
+    config = one;
+    const changed = cronContext([...jobs, job('after-reload')]);
+    await api.fire(
+      'cron_changed',
+      { action: 'added', jobId: 'y' },
+      changed.context
+    );
+    await vi.waitFor(() =>
+      expect(submitStewardAutomationProjection).toHaveBeenCalledTimes(2)
+    );
+    expect(getStewardAutomationReconciler()?.isActive()).toBe(true);
+  });
+
+  it('still ignores cron changes after gateway_stop', async () => {
+    const api = createFakeHookApi();
+    registerStewardAutomationReconciliationHooks(api, {
+      logger: { warn: vi.fn() },
+      getConfig: () => one,
+    });
+    const { context } = cronContext(jobs);
+
+    await api.fire('gateway_start', { port: 3000 }, context);
+    await vi.waitFor(() =>
+      expect(submitStewardAutomationProjection).toHaveBeenCalledOnce()
+    );
+    await api.fire('gateway_stop', {}, {});
+    await api.fire('cron_changed', { action: 'added', jobId: 'x' }, context);
+
+    expect(getStewardAutomationReconciler()?.isActive()).toBe(false);
+    expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
+  });
+
+  it('reports each dropped job once across reconciliations', async () => {
+    const api = createFakeHookApi();
+    const warn = vi.fn();
+    registerStewardAutomationReconciliationHooks(api, {
+      logger: { warn },
+      getConfig: () => one,
+    });
+    const invalid = {
+      ...job('watcher'),
+      schedule: { kind: 'on-exit', command: 'x' },
+    } as unknown as PluginHookGatewayCronJob;
+    const first = cronContext([invalid, job('a')]);
+    const second = cronContext([invalid, job('a'), job('b')]);
+
+    await api.fire('gateway_start', { port: 3000 }, first.context);
+    await vi.waitFor(() =>
+      expect(submitStewardAutomationProjection).toHaveBeenCalledOnce()
+    );
+    await api.fire(
+      'cron_changed',
+      { action: 'added', jobId: 'b' },
+      second.context
+    );
+    await vi.waitFor(() =>
+      expect(submitStewardAutomationProjection).toHaveBeenCalledTimes(2)
+    );
+
+    expect(
+      warn.mock.calls.filter((c) => /dropped cron job/.test(c[0]))
+    ).toHaveLength(1);
   });
 });

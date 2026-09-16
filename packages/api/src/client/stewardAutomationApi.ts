@@ -99,6 +99,27 @@ function errorMessage(
   }`;
 }
 
+// The ship parses millisecond fields with `ni`, which rejects fractions with a
+// 400 before any request record exists; catch them here as a typed invalid.
+const MILLISECOND_FIELDS = ['staggerMs', 'at', 'everyMs', 'anchorMs'] as const;
+
+function assertIntegerMilliseconds(task: ub.StewardAutomationTaskInput): void {
+  const schedule = task.schedule as Record<string, unknown> | undefined;
+  if (!schedule) {
+    return;
+  }
+  for (const field of MILLISECOND_FIELDS) {
+    const value = schedule[field];
+    if (value !== undefined && !Number.isInteger(value)) {
+      throw new StewardAutomationEditError(
+        `%steward automation error (invalid): schedule.${field} must be an integer number of milliseconds`,
+        'invalid',
+        ''
+      );
+    }
+  }
+}
+
 export interface StewardAutomationEditResult {
   requestId: string;
   /** The harness's job id: the created id, or the id that was updated or deleted. */
@@ -144,11 +165,12 @@ function settle(
 }
 
 /** Create a task on `bot`. Resolves with the job id the harness assigned. */
-export function createAutomation(params: {
+export async function createAutomation(params: {
   bot: string;
   task: ub.StewardAutomationTaskInput;
   requestId?: string;
 }): Promise<StewardAutomationEditResult> {
+  assertIntegerMilliseconds(params.task);
   return editAutomation({
     ...(params.requestId ? { requestId: params.requestId } : {}),
     bot: params.bot,
@@ -157,12 +179,13 @@ export function createAutomation(params: {
 }
 
 /** Patch task `id` on `bot`; only the fields present in `task` change. */
-export function updateAutomation(params: {
+export async function updateAutomation(params: {
   bot: string;
   id: string;
   task: ub.StewardAutomationTaskInput;
   requestId?: string;
 }): Promise<StewardAutomationEditResult> {
+  assertIntegerMilliseconds(params.task);
   return editAutomation({
     ...(params.requestId ? { requestId: params.requestId } : {}),
     bot: params.bot,
@@ -190,13 +213,16 @@ export function deleteAutomation(params: {
  * or swept request) surfaces as a BadResponseError from requestJson.
  */
 export async function getAutomationRequest(
-  requestId: string
+  requestId: string,
+  options: { signal?: AbortSignal } = {}
 ): Promise<ub.StewardAutomationResponse> {
   const raw = await requestJson(
     `${REQUEST_V1_PATH}/${requestId}`,
     'GET',
     undefined,
-    REQUEST_OPTIONS
+    options.signal
+      ? { ...REQUEST_OPTIONS, signal: options.signal }
+      : REQUEST_OPTIONS
   );
   return parseResponse(raw);
 }
@@ -207,17 +233,22 @@ export async function getAutomationRequest(
  */
 export async function awaitAutomationRequest(
   requestId: string,
-  options: { intervalMs?: number; attempts?: number } = {}
+  options: { intervalMs?: number; attempts?: number; signal?: AbortSignal } = {}
 ): Promise<StewardAutomationEditResult> {
   const intervalMs = options.intervalMs ?? 2_000;
   const attempts = options.attempts ?? 30;
   let last: ub.StewardAutomationResponse | undefined;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
-    last = await getAutomationRequest(requestId);
+    options.signal?.throwIfAborted();
+    last = await getAutomationRequest(requestId, {
+      ...(options.signal ? { signal: options.signal } : {}),
+    });
     if (last.body.type !== 'pending') {
       return settle(last);
     }
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    if (attempt + 1 < attempts) {
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
   }
   throw new StewardAutomationPendingError(
     requestId,

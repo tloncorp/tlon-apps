@@ -424,10 +424,9 @@ export async function applyStewardAutomationDispatch(
 
   const { id } = action.delete;
   try {
-    const result = await cron.remove(id);
-    if (result?.removed !== true) {
-      return errorBody('not-found', `unknown cron job id: ${id}`);
-    }
+    // Deletes are idempotent: a job that is already gone, including one a
+    // replayed dispatch removed the first time, is a successful delete.
+    await cron.remove(id);
     return { type: 'deleted', id };
   } catch (error) {
     return errorBody('harness-error', errorMessage(error));

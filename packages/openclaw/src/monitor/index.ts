@@ -5197,6 +5197,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             log: (message) => runtime.log?.(message),
             warn: (message) => runtime.error?.(message),
           },
+          ...(opts.abortSignal ? { signal: opts.abortSignal } : {}),
         });
         try {
           await api.subscribe({

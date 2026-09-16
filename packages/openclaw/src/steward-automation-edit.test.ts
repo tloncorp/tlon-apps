@@ -330,7 +330,7 @@ describe('applyStewardAutomationDispatch', () => {
     });
   });
 
-  it('deletes, and reports not-found when nothing was removed', async () => {
+  it('deletes idempotently, treating an already-removed job as deleted', async () => {
     const cron = cronService();
     expect(
       await applyStewardAutomationDispatch(
@@ -344,11 +344,7 @@ describe('applyStewardAutomationDispatch', () => {
         { requestId, action: { delete: { id: 'job-9' } } },
         cron
       )
-    ).toEqual({
-      type: 'error',
-      errorType: 'not-found',
-      message: ['unknown cron job id: job-9'],
-    });
+    ).toEqual({ type: 'deleted', id: 'job-9' });
   });
 });
 
