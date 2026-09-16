@@ -9,8 +9,9 @@ import { supportsNativeScrollEdgeChrome } from './nativeHeaderOptions';
  * Height a floating header occludes at the top of the screen, or 0 when the
  * header is opaque and content already starts beneath it.
  *
- * Scrolling content under the glass is the point, so this belongs on a scroll
- * view's content inset — never as layout padding on the screen itself.
+ * For a scroll view this belongs on the content inset, so content still runs
+ * under the glass. For content that must not — a filter row above a list, an
+ * absolutely positioned tooltip — it is layout on that content instead.
  */
 export function useFloatingHeaderHeight(enabled = true) {
   const headerHeight = useContext(HeaderHeightContext) ?? 0;
