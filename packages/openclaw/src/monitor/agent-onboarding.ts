@@ -61,6 +61,23 @@ type AgentRequest =
 
 const AUTO_PROVISION_COMPONENT_ID = 'auto-provision';
 
+function normalizeEvidencePostId(id: string | undefined | null) {
+  if (!id || id !== id.trim()) return null;
+  if (/^(?:0|[1-9]\d*)$/.test(id)) return id;
+  if (!/^[1-9]\d{0,2}(?:\.\d{3})+$/.test(id)) return null;
+  return id.replaceAll('.', '');
+}
+
+function sameEvidencePostId(
+  left: string | undefined | null,
+  right: string | undefined | null
+) {
+  const normalizedLeft = normalizeEvidencePostId(left);
+  return (
+    normalizedLeft !== null && normalizedLeft === normalizeEvidencePostId(right)
+  );
+}
+
 export type AgentOnboardingClientDateTimeContext = {
   timezone: string;
   locale: string;
@@ -2661,7 +2678,8 @@ function validateAutomaticPlanEvidence(
       }
       const questionPost = history.find(
         (candidate) =>
-          candidate.id === entry.sourcePostId && candidate.author === botShip
+          sameEvidencePostId(candidate.id, entry.sourcePostId) &&
+          candidate.author === botShip
       );
       return Boolean(
         questionPost?.blob &&
@@ -2680,7 +2698,7 @@ function validateAutomaticPlanEvidence(
   const planPost = automaticSelection.sourcePostId
     ? history.find(
         (candidate) =>
-          candidate.id === automaticSelection.sourcePostId &&
+          sameEvidencePostId(candidate.id, automaticSelection.sourcePostId) &&
           candidate.author === botShip
       )
     : undefined;
@@ -2699,7 +2717,7 @@ function validateAutomaticPlanEvidence(
           (entry) =>
             entry.type === 'tlon-a2ui-selection' &&
             entry.componentId === AUTO_PROVISION_COMPONENT_ID &&
-            entry.sourcePostId === planPost.id
+            sameEvidencePostId(entry.sourcePostId, planPost.id)
         )
       : false;
     return !duplicateAutomaticTransport;

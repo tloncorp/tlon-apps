@@ -825,7 +825,7 @@ describe('agent onboarding requests', () => {
     };
     const approachQuestion = {
       author: '~bot',
-      id: 'approach-question',
+      id: '170141184508164136620680233968906272768',
       content: 'How should I research this?',
       timestamp: 1,
       blob: appendToPostBlob(undefined, {
@@ -842,7 +842,7 @@ describe('agent onboarding requests', () => {
       blob: appendToPostBlob(undefined, {
         type: 'tlon-a2ui-selection',
         version: 1,
-        sourcePostId: 'approach-question',
+        sourcePostId: '170.141.184.508.164.136.620.680.233.968.906.272.768',
         surfaceId: 'agent-choice-approach-1',
         componentId: 'choices',
         values: ['Compare expert perspectives'],
@@ -850,7 +850,7 @@ describe('agent onboarding requests', () => {
     };
     const planPost = {
       author: '~bot',
-      id: 'plan',
+      id: '170141184508164139641457862078644617216',
       content: 'Daily plan',
       timestamp: 3,
     };
@@ -862,7 +862,7 @@ describe('agent onboarding requests', () => {
       blob: appendToPostBlob(appendToPostBlob(undefined, automaticProvision), {
         type: 'tlon-a2ui-selection',
         version: 1,
-        sourcePostId: 'plan',
+        sourcePostId: '170.141.184.508.164.139.641.457.862.078.644.617.216',
         surfaceId: 'agent-task-plan-1',
         componentId: 'auto-provision',
         values: ['AI, Climate'],
@@ -907,6 +907,34 @@ describe('agent onboarding requests', () => {
         automaticProvision
       )
     ).toContain('approach');
+    for (const invalidSourcePostId of [
+      '~other/170.141.184.508.164.136.620.680.233.968.906.272.768',
+      '17.014.118.450.816.413.662.068.023.396.890.627.276.8',
+      ' 170.141.184.508.164.136.620.680.233.968.906.272.768',
+      '',
+    ]) {
+      const invalidAnswer = {
+        ...approachAnswer,
+        blob: JSON.stringify([
+          {
+            type: 'tlon-a2ui-selection',
+            version: 1,
+            sourcePostId: invalidSourcePostId,
+            surfaceId: 'agent-choice-approach-1',
+            componentId: 'choices',
+            values: ['Compare expert perspectives'],
+          },
+        ]),
+      };
+      expect(
+        agentOnboardingTesting.validateAutomaticPlanEvidence(
+          [approachQuestion, invalidAnswer, planPost, provisionPost],
+          '~ten',
+          '~bot',
+          automaticProvision
+        )
+      ).toContain('approach');
+    }
     expect(
       agentOnboardingTesting.validateAutomaticPlanEvidence(
         [
@@ -919,6 +947,31 @@ describe('agent onboarding requests', () => {
           },
           provisionPost,
         ],
+        '~ten',
+        '~bot',
+        automaticProvision
+      )
+    ).toContain('superseded');
+    const prefixedDuplicate = {
+      author: '~ten',
+      id: 'not-the-provision',
+      content: '',
+      timestamp: 3.5,
+      blob: JSON.stringify([
+        {
+          type: 'tlon-a2ui-selection',
+          version: 1,
+          sourcePostId:
+            '~other/170.141.184.508.164.139.641.457.862.078.644.617.216',
+          surfaceId: 'agent-task-plan-1',
+          componentId: 'auto-provision',
+          values: ['AI, Climate'],
+        },
+      ]),
+    };
+    expect(
+      agentOnboardingTesting.validateAutomaticPlanEvidence(
+        [...history.slice(0, -1), prefixedDuplicate, provisionPost],
         '~ten',
         '~bot',
         automaticProvision
