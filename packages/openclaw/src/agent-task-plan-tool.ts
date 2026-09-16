@@ -394,7 +394,12 @@ export function createAgentTaskPlanToolExecutor(deps: {
         blob: JSON.stringify(buildAgentTaskPlanBlob(parsed)),
       });
       return {
-        content: [{ type: 'text' as const, text: output }],
+        content: [
+          {
+            type: 'text' as const,
+            text: `${output}\nReturn NO_REPLY now. The deterministic coordinator owns all activation and result status.`,
+          },
+        ],
         details: undefined,
       };
     } catch (error) {

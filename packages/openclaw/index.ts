@@ -38,6 +38,10 @@ import {
 import { notifyDiaryMigrationDiscovery } from './src/diary-migration-discovery.js';
 import { suppressTlonFallbackNotice } from './src/fallback-notice-delivery.js';
 import {
+  recordSuccessfulAgentTaskPlan,
+  suppressReplyAfterSuccessfulAgentTaskPlan,
+} from './src/agent-task-plan-reply-delivery.js';
+import {
   clearTlonSessionRunSurface,
   getTlonSessionRunSurface,
   getTlonSessionSurface,
@@ -1176,6 +1180,7 @@ export default defineBundledChannelEntry({
     });
 
     api.on('after_tool_call', async (event, ctx) => {
+      recordSuccessfulAgentTaskPlan(event, ctx);
       const toolCallId = readToolCallId(event);
       const tlonCommandContext =
         event.toolName === 'tlon' && typeof event.params.command === 'string'
@@ -1383,6 +1388,7 @@ export default defineBundledChannelEntry({
     // answer. Terminal provider failures are not marked as fallback notices
     // and continue through the normal delivery path.
     api.on('reply_payload_sending', suppressTlonFallbackNotice);
+    api.on('reply_payload_sending', suppressReplyAfterSuccessfulAgentTaskPlan);
 
     // ── Route diagnostics ───────────────────────────────────────────────
     // Fires for every outbound send OpenClaw routes — the primary streamed
