@@ -21,12 +21,12 @@ const iosHeaderAssetDirectory = path.join(
 );
 const checkOnly = process.argv.includes('--check');
 
+// Neither the bot nor the workspaces glyph has a filled variant, so each tab
+// draws the same asset in both states — as Settings already does.
 const tabIcons = [
-  ['Home.svg', 'tab-home'],
-  ['HomeFilled.svg', 'tab-home-filled'],
-  ['Notifications.svg', 'tab-notifications'],
-  ['NotificationsFilled.svg', 'tab-notifications-filled'],
-  ['Profile.svg', 'tab-profile'],
+  ['SmushStar.svg', 'tab-bot'],
+  ['Channel.svg', 'tab-workspaces'],
+  ['Settings.svg', 'tab-settings'],
 ];
 
 const screenHeaderIcons = JSON.parse(

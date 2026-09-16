@@ -1,7 +1,8 @@
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getCurrentUserIsHosted } from '@tloncorp/api';
 import { useMutableRef } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
+import { triggerHaptic } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { getVariableValue, useTheme } from 'tamagui';
@@ -10,16 +11,15 @@ import { useDMLureLink } from '../../hooks/useBranchLink';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
-import { RootStackParamList } from '../../navigation/types';
+import { useNavigation } from '../../navigation/utils';
 import { SettingsScreenView, View, openTlonWebApp } from '../../ui';
+import ProfileStatusSheet from '../../ui/components/ProfileStatusSheet';
 import {
   openExternalBotSettings,
   useHasExpectedBotDm,
 } from '../../utils/botSettings';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
-
-export default function SettingsScreen(props: Props) {
+export default function SettingsScreen() {
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
   const currentUserId = useCurrentUserId();
@@ -35,7 +35,8 @@ export default function SettingsScreen(props: Props) {
     Platform.OS === 'web'
       ? isHostedUser && hasExpectedBotDm
       : isHostedUser && hostingBotEnabled;
-  const navigationRef = useMutableRef(props.navigation);
+  const navigationRef = useMutableRef(useNavigation());
+  const [statusSheetOpen, setStatusSheetOpen] = useState(false);
 
   const onAppInfoPressed = useCallback(() => {
     navigationRef.current.navigate('AppInfo');
@@ -69,10 +70,6 @@ export default function SettingsScreen(props: Props) {
     navigationRef.current.navigate('WompWomp');
   }, [navigationRef]);
 
-  const onBack = useCallback(() => {
-    navigationRef.current.goBack();
-  }, [navigationRef]);
-
   const onThemePressed = useCallback(() => {
     navigationRef.current.navigate('Theme');
   }, [navigationRef]);
@@ -80,6 +77,25 @@ export default function SettingsScreen(props: Props) {
   const onPrivacyPressed = useCallback(() => {
     navigationRef.current.navigate('PrivacySettings');
   }, [navigationRef]);
+
+  const onProfilePressed = useCallback(() => {
+    navigationRef.current.navigate('UserProfile', { userId: currentUserId });
+  }, [currentUserId, navigationRef]);
+
+  const onProfileLongPressed = useCallback(() => {
+    triggerHaptic('sheetOpen');
+    setStatusSheetOpen(true);
+  }, []);
+
+  const onContactsPressed = useCallback(() => {
+    navigationRef.current.navigate('Contacts', undefined, { pop: true });
+  }, [navigationRef]);
+
+  const onUpdateStatus = useCallback((status: string) => {
+    store.updateCurrentUserProfile({ status });
+    setStatusSheetOpen(false);
+  }, []);
+
   const backgroundColor = getVariableValue(useTheme().background);
 
   return (
@@ -97,11 +113,20 @@ export default function SettingsScreen(props: Props) {
         onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
         onThemePressed={onThemePressed}
         onPrivacyPressed={onPrivacyPressed}
+        onProfilePressed={onProfilePressed}
+        onProfileLongPressed={onProfileLongPressed}
+        onContactsPressed={onContactsPressed}
         onWebAppPressed={isHostedUser ? openTlonWebApp : undefined}
         dmLink={dmLink}
-        onBackPressed={onBack}
         botEnabled={botEnabled}
       />
+      {statusSheetOpen && (
+        <ProfileStatusSheet
+          open
+          onOpenChange={() => setStatusSheetOpen(false)}
+          onUpdateStatus={onUpdateStatus}
+        />
+      )}
     </View>
   );
 }

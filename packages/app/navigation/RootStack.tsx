@@ -26,13 +26,14 @@ import { FeatureFlagScreen } from '../features/settings/FeatureFlagScreen';
 import { ManageAccountScreen } from '../features/settings/ManageAccountScreen';
 import { PrivacySettingsScreen } from '../features/settings/PrivacyScreen';
 import { PushNotificationSettingsScreen } from '../features/settings/PushNotificationSettingsScreen';
-import SettingsScreen from '../features/settings/SettingsScreen';
 import { ThemeScreen } from '../features/settings/ThemeScreen';
 import { UserBugReportScreen } from '../features/settings/UserBugReportScreen';
+import { ActivityScreen } from '../features/top/ActivityScreen';
 import ChannelScreen from '../features/top/ChannelScreen';
 import ChannelSearchScreen from '../features/top/ChannelSearchScreen';
 import { ChatDetailsScreen } from '../features/top/ChatDetailsScreen';
 import { ChatVolumeScreen } from '../features/top/ChatVolumeScreen';
+import ContactsScreen from '../features/top/ContactsScreen';
 import { GroupChannelsScreen } from '../features/top/GroupChannelsScreen';
 import MediaViewerScreen from '../features/top/MediaViewerScreen';
 import { NotesDetailScreen } from '../features/top/NotesDetailScreen';
@@ -42,7 +43,6 @@ import PostScreen from '../features/top/PostScreen';
 import { UserProfileScreen } from '../features/top/UserProfileScreen';
 import { useIsDarkMode } from '../hooks/useDarkMode';
 import { useAgentGroupOnboardingStartupRoute } from '../hooks/useAgentGroupOnboardingLock';
-import { useFeatureFlag } from '../lib/featureFlags';
 import { useTheme } from '../ui';
 import { GroupSettingsStack } from './GroupSettingsStack';
 import { OnboardingStartupScreen } from './OnboardingStartupScreen';
@@ -60,7 +60,6 @@ const nativeHeaderScreenOptions = {
 
 export function RootStack() {
   const isDarkMode = useIsDarkMode();
-  const [contactsTabEnabled] = useFeatureFlag('contactsTab');
 
   // Android status bar has a solid color by default, so we clear it
   useFocusEffect(() => {
@@ -106,13 +105,14 @@ export function RootStack() {
         }}
       />
       <Root.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{
-          ...nativeHeaderScreenOptions,
-          animation: contactsTabEnabled ? undefined : 'none',
-          gestureEnabled: false,
-        }}
+        name="Activity"
+        component={ActivityScreen}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="Contacts"
+        component={ContactsScreen}
+        options={nativeHeaderScreenOptions}
       />
 
       {/* individual screens */}

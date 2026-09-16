@@ -54,8 +54,12 @@ export const useDeepLinkListener = () => {
               const inviter = lure.inviterUserId;
               if (inviter) {
                 logger.log(`handling deep link to user`, inviter);
+                // Contacts is a stack screen now, not a tab, so seat it over
+                // the Workspaces tab: back from the profile still lands on
+                // Contacts, and back from there on the list.
                 reset([
-                  getTopLevelTabRoute('Contacts'),
+                  getTopLevelTabRoute('ChatList'),
+                  { name: 'Contacts' },
                   {
                     name: 'UserProfile',
                     params: { userId: inviter },

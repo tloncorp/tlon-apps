@@ -113,6 +113,9 @@ async function initializeCachedHostedInviteLink({
 
 export async function verifyUserInviteLink() {
   try {
+    // An attempt is under way: whatever the last one left behind, the link is
+    // loading again until this one settles.
+    await db.personalInviteLinkUnavailable.setValue(false);
     const cachedInviteLink = await db.personalInviteLink.getValue();
     if (cachedInviteLink) {
       logger.log('have cached invite link', cachedInviteLink);
@@ -154,6 +157,11 @@ export async function verifyUserInviteLink() {
     }
   } catch (e) {
     logger.trackError('Failed to verify personal invite link', e);
+    // Nothing retries from here, so record the failure: a screen waiting on
+    // the link would otherwise read its absence as loading indefinitely.
+    await db.personalInviteLinkUnavailable
+      .setValue(true)
+      .catch(() => undefined);
   }
 }
 

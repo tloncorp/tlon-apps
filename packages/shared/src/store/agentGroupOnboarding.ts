@@ -1,11 +1,15 @@
 import * as api from '@tloncorp/api';
 import { desig } from '@tloncorp/api/lib/urbit';
-import { BotHomeGroupSlugs } from '@tloncorp/api/types/wayfinding';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as logic from '../logic';
-import { createChannel, deleteChannel } from './channelActions';
+import {
+  createChannel,
+  deleteChannel,
+  unpinItem,
+  upsertDmChannel,
+} from './channelActions';
 import { createDefaultGroup, updateGroupMeta } from './groupActions';
 import { finalizeAndSendPost } from './postActions';
 
@@ -56,6 +60,20 @@ type FurnishParams = {
   isFirstGroup?: boolean;
   /** Distinguishes explicit later creations while preserving remount retries. */
   requestId?: string;
+  /**
+   * Let onboarding name a group it adopted. Adoption otherwise keeps whatever
+   * name the group arrived with, since the caller usually hands in a group the
+   * user already owns — but onboarding's home group arrives under a generated
+   * placeholder that exists to be replaced. Honoured only while the title
+   * still is such a placeholder (`isProvisionedAgentGroupTitle`).
+   */
+  canRenameGroup?: boolean;
+  /**
+   * Remove the pin Hosting places on the provisioned group. Only the splash's
+   * pre-handoff pass asks: a repair after the app is visible could otherwise
+   * remove a pin the user has since placed.
+   */
+  removeProvisionedPin?: boolean;
 };
 
 /**
@@ -141,16 +159,19 @@ async function startAgentGroupFurnishingOnce(
   }));
   if (params.isFirstGroup) {
     const initialGroupTitle = group.title ?? null;
-    const currentUserContact = await db.getContact({
-      id: api.getCurrentUserId(),
-    });
-    const canRenameGroup = params.groupId
-      ? group.id.endsWith(`/${BotHomeGroupSlugs.slug}`) &&
-        logic.botHomeGroupHasDefaultTitle(
-          group,
-          currentUserContact?.peerNickname
-        )
-      : params.title == null || params.title === DEFAULT_AGENT_GROUP_TITLE;
+    // A group this flow just created under the default title may be renamed;
+    // one the caller handed in keeps its name unless the caller vouches that
+    // it arrived under a placeholder — and even then only while the title
+    // still is one, since the user may have named it on another client before
+    // this ran. Afterwards the rename fires only while the title is untouched,
+    // so it cannot clobber a name the user chose.
+    const canRenameGroup =
+      params.canRenameGroup == null
+        ? params.groupId
+          ? false
+          : params.title == null || params.title === DEFAULT_AGENT_GROUP_TITLE
+        : params.canRenameGroup &&
+          isProvisionedAgentGroupTitle(initialGroupTitle, await ownerNaming());
 
     await db.agentGroupOnboardingLocks.setValue((current) => ({
       ...current,
@@ -173,6 +194,7 @@ async function startAgentGroupFurnishingOnce(
     agentShipId: resolved.agentShipId,
     hostedShipId: resolved.hostedShipId,
     isFirstGroup: params.isFirstGroup ?? false,
+    removeProvisionedPin: params.removeProvisionedPin ?? false,
   });
 
   return {
@@ -281,12 +303,14 @@ async function finishAgentGroupFurnishing({
   agentShipId,
   hostedShipId,
   isFirstGroup,
+  removeProvisionedPin,
 }: {
   group: db.Group;
   chatChannel: db.Channel;
   agentShipId: string;
   hostedShipId: string | null;
   isFirstGroup: boolean;
+  removeProvisionedPin: boolean;
 }): Promise<AgentGroupFurnishing> {
   return retryAgentGroupFurnishCore(
     () =>
@@ -296,6 +320,7 @@ async function finishAgentGroupFurnishing({
         agentShipId,
         hostedShipId,
         isFirstGroup,
+        removeProvisionedPin,
       }),
     { groupId: initialGroup.id }
   );
@@ -307,13 +332,16 @@ async function finishAgentGroupFurnishingOnce({
   agentShipId,
   hostedShipId,
   isFirstGroup,
+  removeProvisionedPin,
 }: {
   initialGroup: db.Group;
   chatChannel: db.Channel;
   agentShipId: string;
   hostedShipId: string | null;
   isFirstGroup: boolean;
+  removeProvisionedPin: boolean;
 }): Promise<AgentGroupFurnishing> {
+  if (removeProvisionedPin) await unpinProvisionedGroup(initialGroup.id);
   const notebook = isFirstGroup
     ? await ensureSingleNotesChannel(initialGroup.id)
     : null;
@@ -324,7 +352,22 @@ async function finishAgentGroupFurnishingOnce({
       })
     : initialGroup;
 
-  await ensureIntroRequest(group.id, chatChannel.id, isFirstGroup);
+  // The request goes where the user is. First-run onboarding happens in the
+  // bot DM, so its request goes there — and, since a DM's nest names no group,
+  // that request is how the bot learns which group is the user's. A later
+  // workspace opens straight into its own chat, so its request goes there;
+  // sending it to the DM would have the bot answer in a conversation the user
+  // has just left.
+  // The local agent override has no Hosting behind it and so no provisioned
+  // DM row to post into — sending there throws and furnishing spins to its
+  // deadline. It stays in the chat; only a hosted bot's first run uses the DM.
+  await ensureIntroRequest(
+    group.id,
+    isFirstGroup && hostedShipId
+      ? { channelId: agentShipId, channelType: 'dm' }
+      : { channelId: chatChannel.id, channelType: 'chat' },
+    isFirstGroup
+  );
   await db.pendingAgentGroupCreation.setValue((current) =>
     (typeof current === 'string' ? current : current?.groupId) === group.id
       ? null
@@ -649,9 +692,66 @@ async function reconcileCreatedOnboardingNotebook(
   throw new Error('Could not reconcile concurrent onboarding notebooks.');
 }
 
+/**
+ * Drop the pin Hosting ships the provisioned group with.
+ *
+ * The group is already the first tab's neighbour and does not need a pinned
+ * slot as well. Only during first-run furnishing, so a pin the user put there
+ * themselves is never removed — at this point they have not seen the list.
+ */
+/**
+ * The names Hosting could have built the group's title from. Signup persists
+ * the chosen nickname locally before the profile update reaches the ship, and
+ * revival defers that update, so the synced contact alone can lag the title.
+ */
+async function ownerNaming() {
+  const id = api.getCurrentUserId();
+  const [contact, splashNickname] = await Promise.all([
+    db.getContact({ id }).catch(() => null),
+    db.splashNickname.getValue().catch(() => ''),
+  ]);
+  return { id, nicknames: [contact?.nickname, splashNickname] };
+}
+
+/**
+ * Hosting provisions the home group as "<owner>'s Group" — the ship, or the
+ * nickname when one was set — and older flows used a few bare defaults. Only a
+ * title still in that family is a placeholder onboarding may replace.
+ */
+function isProvisionedAgentGroupTitle(
+  title: string | null,
+  owner: { id: string; nicknames?: Array<string | null | undefined> }
+) {
+  const trimmed = title?.trim() ?? '';
+  if (!trimmed || trimmed === DEFAULT_AGENT_GROUP_TITLE) return true;
+  if (['Group', 'Home', 'Home Group'].includes(trimmed)) return true;
+  const possessive = /['\u2019]s Group$/;
+  if (!possessive.test(trimmed)) return false;
+  const named = trimmed.replace(possessive, '');
+  return (
+    named === owner.id ||
+    named === desig(owner.id) ||
+    (owner.nicknames ?? []).some((nickname) => {
+      const candidate = nickname?.trim();
+      return !!candidate && named === candidate;
+    })
+  );
+}
+
+async function unpinProvisionedGroup(groupId: string) {
+  try {
+    const pin = (await db.getPins()).find((entry) => entry.itemId === groupId);
+    if (pin) await unpinItem(pin);
+  } catch (error) {
+    // A pin left in place is cosmetic; it must not fail furnishing.
+    logger.trackError('Failed to unpin the provisioned agent group', { error });
+  }
+}
+
 async function ensureIntroRequest(
   groupId: string,
-  channelId: string,
+  /** The bot DM (addressed by the bot's id) or the workspace's own chat. */
+  { channelId, channelType }: { channelId: string; channelType: 'dm' | 'chat' },
   isFirstGroup: boolean
 ) {
   const currentUserId = api.getCurrentUserId();
@@ -674,10 +774,17 @@ async function ensureIntroRequest(
     groupId,
     ...(isFirstGroup ? { isFirstGroup: true } : {}),
   });
+  // Sending needs the channel row locally, and on a fresh account the bot's
+  // DM may so far exist only on the ship — Hosting made it, sync has not
+  // caught up. Starting the DM from here is the same pending row the New
+  // Message flow uses; the first writ lands in the DM the ship already has.
+  if (channelType === 'dm') {
+    await upsertDmChannel({ participants: [channelId] });
+  }
   await finalizeAndSendPost(
     {
       channelId,
-      channelType: 'chat',
+      channelType,
       content: ["Let's get set up."],
       attachments: [],
       blob,
@@ -892,6 +999,8 @@ function agentHasAdmin(group: db.Group, agentShipId: string) {
 
 export const agentGroupOnboardingTesting = {
   addCordonThenJoin,
+  ensureIntroRequest,
+  isProvisionedAgentGroupTitle,
   agentGroupFurnishingFlightKey,
   agentHasAdmin,
   retryAgentGroupFurnishCore,

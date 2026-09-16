@@ -170,8 +170,14 @@ export const tlonbotRevivalDeferredConfig =
 export const AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS = 30_000;
 
 export type AgentGroupOnboardingLock = {
-  /** Setup chat restored on launch while first-run navigation is locked. */
+  /** The furnished setup chat; the launch restore when no landing is recorded. */
   chatChannelId?: string;
+  /**
+   * Where first-run onboarding actually landed — the bot DM for a hosted first
+   * run, the setup chat otherwise. Restored on launch while navigation is
+   * locked, so a restart reopens the conversation that holds the pickers.
+   */
+  landingChannelId?: string;
   provision?: PostBlobDataEntryAgentProvision;
   /** The bot accepted the plan; navigation is unlocked while its first entry runs. */
   provisionAcknowledgedAt?: number;
@@ -297,6 +303,16 @@ export const lastAddedSuggestionsAt = createStorageItem<number>({
 export const personalInviteLink = createStorageItem<string | null>({
   key: 'personalInviteLink',
   defaultValue: null,
+});
+
+/**
+ * The last attempt to verify or create the personal invite link failed, and
+ * nothing retries from there. Screens waiting on the link show it unavailable
+ * instead of loading forever. Cleared whenever an attempt begins.
+ */
+export const personalInviteLinkUnavailable = createStorageItem<boolean>({
+  key: 'personalInviteLinkUnavailable',
+  defaultValue: false,
 });
 
 export const homeGroupInviteLink = createStorageItem<string | null>({

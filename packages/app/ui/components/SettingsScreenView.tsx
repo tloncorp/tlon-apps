@@ -1,5 +1,6 @@
 import {
   Button,
+  Icon,
   IconType,
   Pressable,
   Text,
@@ -9,14 +10,19 @@ import { PropsWithChildren, ReactElement } from 'react';
 import { Alert } from 'react-native';
 import { AlertDialog, View, XStack, YStack, isWeb } from 'tamagui';
 
+import { ContactName } from './ContactNameV2';
 import { ListItem } from './ListItem';
 import { ScreenHeader } from './ScreenHeader';
+import { useTopLevelTabBarContentInset } from '../../navigation/useTopLevelTabBarContentInset';
 import { ScreenScrollView } from './ScreenScrollView';
 import { TlonLogo } from './TlonLogo';
 
 interface Props {
   currentUserId: string;
   hasHostedAuth: boolean;
+  onProfilePressed?: () => void;
+  onProfileLongPressed?: () => void;
+  onContactsPressed?: () => void;
   onAppInfoPressed?: () => void;
   onNotificationSettingsPressed: () => void;
   onBlockedUsersPressed: () => void;
@@ -64,6 +70,9 @@ export function SettingsScreenView(props: Props) {
 
   const isWindowNarrow = useIsWindowNarrow();
 
+  // Settings is a top-level tab now, so its last rows must clear the bar
+  // that floats over the bottom of the screen, as the Workspaces list does.
+  const bottomContentInset = useTopLevelTabBarContentInset();
   return (
     <>
       <ScreenHeader
@@ -73,7 +82,29 @@ export function SettingsScreenView(props: Props) {
         placement="navigation"
       />
       <ScreenScrollView>
-        <YStack flex={1} padding="$l" gap="$s">
+        <YStack
+          flex={1}
+          padding="$l"
+          paddingBottom={bottomContentInset}
+          gap="$s"
+        >
+          {props.onProfilePressed && (
+            <ProfileAction
+              currentUserId={props.currentUserId}
+              onPress={props.onProfilePressed}
+              onLongPress={props.onProfileLongPressed}
+              isFocused={props.focusedRouteName === 'UserProfile'}
+            />
+          )}
+          {props.onContactsPressed && (
+            <SettingsAction
+              title="Contacts"
+              leftIcon="AddPerson"
+              rightIcon={'ChevronRight'}
+              onPress={props.onContactsPressed}
+              isFocused={props.focusedRouteName === 'Contacts'}
+            />
+          )}
           <SettingsAction
             title="Notification settings"
             leftIcon="Notifications"
@@ -171,6 +202,45 @@ export function SettingsScreenView(props: Props) {
         </YStack>
       </ScreenScrollView>
     </>
+  );
+}
+
+/**
+ * The user's own profile, which moved here when the bottom bar dropped its
+ * avatar tab. Long press still opens the status sheet, as it did on that tab.
+ */
+function ProfileAction({
+  currentUserId,
+  onPress,
+  onLongPress,
+  isFocused,
+}: {
+  currentUserId: string;
+  onPress: () => void;
+  onLongPress?: () => void;
+  isFocused?: boolean;
+}) {
+  return (
+    <Pressable
+      borderRadius="$xl"
+      onPress={onPress}
+      onLongPress={onLongPress}
+      backgroundColor={isFocused ? '$secondaryBackground' : 'transparent'}
+      testID="SettingsProfileRow"
+    >
+      <ListItem>
+        <ListItem.ContactIcon size="$3xl" contactId={currentUserId} />
+        <ListItem.MainContent>
+          <ListItem.Title>
+            <ContactName expandLongIds contactId={currentUserId} />
+          </ListItem.Title>
+          <ListItem.Subtitle>View your profile</ListItem.Subtitle>
+        </ListItem.MainContent>
+        <ListItem.EndContent>
+          <Icon type="ChevronRight" color="$tertiaryText" size="$m" />
+        </ListItem.EndContent>
+      </ListItem>
+    </Pressable>
   );
 }
 

@@ -59,6 +59,7 @@ export {
   type WritDelta,
   type WritDiff,
   type StewardGatewayAction,
+  pathToCite,
   type Cite,
   type PostDataResponse,
   type ReplyWithMemo,
