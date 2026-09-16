@@ -11,6 +11,7 @@ type A2UIMenuRowProps = {
   dividerAfter?: boolean;
   dividerOutside?: boolean;
   label: string;
+  labelCanWrap?: boolean;
   labelColor?: ComponentProps<typeof Text>['color'];
   leading?: ReactNode;
   marginTop?: ComponentProps<typeof XStack>['marginTop'];
@@ -33,6 +34,7 @@ export function A2UIMenuRow({
   dividerAfter = false,
   dividerOutside = false,
   label,
+  labelCanWrap = false,
   labelColor,
   leading,
   marginTop,
@@ -76,7 +78,7 @@ export function A2UIMenuRow({
               size="$label/l"
               color={labelColor ?? (prominent ? '$background' : '$primaryText')}
               trimmed={false}
-              numberOfLines={1}
+              numberOfLines={labelCanWrap ? undefined : 1}
             >
               {label}
             </Text>
@@ -91,7 +93,7 @@ export function A2UIMenuRow({
             trimmed={false}
             flex={1}
             minWidth={0}
-            numberOfLines={1}
+            numberOfLines={labelCanWrap ? undefined : 1}
           >
             {label}
           </Text>

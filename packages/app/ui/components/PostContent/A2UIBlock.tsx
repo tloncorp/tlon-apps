@@ -137,6 +137,7 @@ function SmallChoiceRow({
       dividerOutside
       dimmed={disabled && !isSelected}
       label={label}
+      labelCanWrap
       paddingVertical="$m"
       leading={
         <View

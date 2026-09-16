@@ -6,6 +6,7 @@ import {
 const MAX_OPTIONS = 6;
 const MAX_QUESTION_LENGTH = 1000;
 const MAX_OPTION_LENGTH = 64;
+const MAX_APPROACH_OPTION_LENGTH = 36;
 const MAX_SURFACE_ID_LENGTH = 512;
 const RESERVED_FREEFORM_OPTION =
   /^(?:other|custom|something else|write your own)(?:\s*(?:\([^)]*\)|[-–—:/].*))?$/i;
@@ -46,7 +47,7 @@ export const agentChoiceToolParameters = {
       minItems: 2,
       maxItems: MAX_OPTIONS,
       description:
-        'Two to six short, useful answers. The control also lets the owner write their own answer.',
+        'Two to six short, useful answers. Approach answers must be concise ways of gathering information or developing the answer, not output formats or topic slices. The control also lets the owner write their own answer.',
       items: { type: 'string' },
     },
   },
@@ -85,6 +86,14 @@ function parseParams(params: AgentChoiceToolParams): AgentChoiceToolParams {
   const options = params.options.map((option) => option.trim());
   if (options.some((option) => !option || option.length > MAX_OPTION_LENGTH)) {
     throw new Error(`each option must be 1-${MAX_OPTION_LENGTH} characters`);
+  }
+  if (
+    params.dimension === 'approach' &&
+    options.some((option) => option.length > MAX_APPROACH_OPTION_LENGTH)
+  ) {
+    throw new Error(
+      `each approach option must be at most ${MAX_APPROACH_OPTION_LENGTH} characters`
+    );
   }
   if (
     new Set(options.map((option) => option.toLocaleLowerCase())).size !==

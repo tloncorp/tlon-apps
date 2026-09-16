@@ -98,6 +98,27 @@ describe('agent choice tool', () => {
     expect(postChoice).not.toHaveBeenCalled();
   });
 
+  it('keeps approach labels concise while retaining the general option limit', async () => {
+    const postChoice = vi.fn(async () => '{"ok":true}');
+    const execute = createAgentChoiceToolExecutor({ postChoice });
+    const longLabel = 'A'.repeat(37);
+
+    const approachResult = await execute('call-long-approach', {
+      ...validChoice,
+      dimension: 'approach',
+      options: ['Use primary research', longLabel],
+    });
+    const focusResult = await execute('call-long-focus', {
+      ...validChoice,
+      options: ['New products', longLabel],
+    });
+
+    expect(approachResult.details).toEqual({ error: true });
+    expect(approachResult.content[0]?.text).toContain('approach option');
+    expect(focusResult.details).toBeUndefined();
+    expect(postChoice).toHaveBeenCalledOnce();
+  });
+
   it('rejects options that duplicate the built-in freeform answer', async () => {
     const postChoice = vi.fn(async () => 'unexpected');
     const execute = createAgentChoiceToolExecutor({ postChoice });
