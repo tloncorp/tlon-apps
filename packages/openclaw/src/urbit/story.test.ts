@@ -71,6 +71,14 @@ describe('markdownToStory', () => {
       ]);
     });
 
+    it('keeps an incomplete reference literal, its ship unmentioned', () => {
+      const story = markdownToStory('See /1/group/~zod today');
+      const serialized = JSON.stringify(story);
+      expect(serialized).toContain('/1/group/~zod');
+      expect(serialized).not.toContain('"ship"');
+      expect(story.some((verse) => 'block' in verse)).toBe(false);
+    });
+
     it('leaves a path that is not a reference as literal text', () => {
       expect(markdownToStory('/1/nonsense/workspace')).toEqual([
         { inline: ['/1/nonsense/workspace'] },

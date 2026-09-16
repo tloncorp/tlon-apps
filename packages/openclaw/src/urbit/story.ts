@@ -156,8 +156,12 @@ function parseInlineMarkdown(
         remaining = remaining.slice(path.length);
         continue;
       }
-      // Unparseable: fall through and keep it as literal text rather than
-      // dropping something the author meant to send.
+      // A recognised but incomplete path. Keep the whole match as literal
+      // text: left to fall through, `/1/group/` would be consumed as text and
+      // the ship after it claimed as a mention the author never made.
+      result.push(refMatch[0]);
+      remaining = remaining.slice(refMatch[0].length);
+      continue;
     }
 
     // Markdown images: ![alt](url)
