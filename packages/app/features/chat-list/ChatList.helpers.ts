@@ -1,16 +1,11 @@
 import * as db from '@tloncorp/shared/db';
 
-import {
-  PINNED_SECTION_TITLE,
-  type SectionedChatData,
-} from '../../hooks/chatSections';
+import type { SectionedChatData } from '../../hooks/useFilteredChats';
 
 export type SectionHeaderData = { type: 'sectionHeader'; title: string };
 export type ChatListItemData = db.Chat | SectionHeaderData;
 
-// The hook that builds the sections owns the title; re-exported so the list and
-// its helpers keep importing it from one place.
-export { PINNED_SECTION_TITLE };
+export const PINNED_SECTION_TITLE = 'Pinned';
 
 export function buildChatListItems(
   data: SectionedChatData

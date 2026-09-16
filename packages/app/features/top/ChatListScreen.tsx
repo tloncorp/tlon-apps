@@ -12,11 +12,13 @@ import { Text, YStack, isWeb } from 'tamagui';
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatListSettleTelemetry } from '../../hooks/useChatListSettleTelemetry';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import type { ChatListFilter } from '../../hooks/chatListFilters';
 import { useFilteredChats } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { useScrollToTabTop } from '../../hooks/useScrollToTabTop';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
 import { reportChatListFirstPaint } from '../../lib/chatListSettleTelemetry';
+import { useFloatingHeaderHeight } from '../../navigation/useFloatingHeaderHeight';
 import type { TopLevelTabParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
@@ -36,6 +38,7 @@ import SystemNotices from '../../ui/components/SystemNotices';
 import WayfindingNotice from '../../ui/components/Wayfinding/Notices';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { ChatList, ChatListItemData } from '../chat-list/ChatList';
+import { ChatListFilterTabs } from '../chat-list/ChatListFilterTabs';
 import { ChatListSearch } from '../chat-list/ChatListSearch';
 import { CreateChatSheet, CreateChatSheetMethods } from './CreateChatSheet';
 import { useAgentOnboardingLandingConsumer } from './useAgentOnboardingLandingConsumer';
@@ -362,11 +365,30 @@ export function ChatListScreenView({
     handleSearchInputToggled();
   }, [handleSearchInputToggled]);
 
+  const [listFilter, setListFilter] = useState<ChatListFilter>('all');
+  // The native header floats over the screen on iOS 26, and this screen's
+  // content starts at the top of that area. The filter tabs sit above the
+  // list, so the clearance has to be layout on the column rather than a
+  // scroll inset on the list — nothing here scrolls under the header.
+  const headerClearance = useFloatingHeaderHeight();
+  const handlePressFilter = useCallback(
+    (filter: ChatListFilter) => {
+      if (filter === listFilter) return;
+      trackEvent(AnalyticsEvent.HomeFilterSelected, { tab: filter });
+      setListFilter(filter);
+    },
+    [listFilter]
+  );
+  const handlePressTryAll = useCallback(() => {
+    trackEvent(AnalyticsEvent.HomeFilterSelected, { tab: 'all' });
+    setListFilter('all');
+  }, []);
+
   const displayData = useFilteredChats({
     ...resolvedChats,
     searchQuery,
     activeTab: COMBINED_CHAT_TAB,
-    separateDirectMessages: true,
+    listFilter,
   });
   const handleChatListLoad = useCallback(() => {
     if (chats) {
@@ -381,7 +403,7 @@ export function ChatListScreenView({
         onPressInvite={handlePressInvite}
       >
         <NavigationProvider focusedChannelId={focusedChannelId}>
-          <View userSelect="none" flex={1}>
+          <View userSelect="none" flex={1} paddingTop={headerClearance}>
             {showHomeAddTooltip && (
               <WayfindingNotice.HomeAddTooltip top={isWeb ? 36 : 8} />
             )}
@@ -433,6 +455,10 @@ export function ChatListScreenView({
               chats.pending.length ||
               chats.pinned.length) ? (
               <>
+                <ChatListFilterTabs
+                  activeFilter={listFilter}
+                  onPressFilter={handlePressFilter}
+                />
                 <ChatListSearch
                   query={searchQuery}
                   onQueryChange={setSearchQuery}
@@ -441,7 +467,11 @@ export function ChatListScreenView({
                   onPressClose={handlePressClose}
                 />
                 {searchQuery !== '' && !displayData[0]?.data.length ? (
-                  <SearchResultsEmpty onPressClear={handlePressClear} />
+                  <SearchResultsEmpty
+                    activeFilter={listFilter}
+                    onPressClear={handlePressClear}
+                    onPressTryAll={handlePressTryAll}
+                  />
                 ) : (
                   <ChatList
                     data={displayData}
@@ -474,7 +504,15 @@ export function ChatListScreenView({
   );
 }
 
-function SearchResultsEmpty({ onPressClear }: { onPressClear: () => void }) {
+function SearchResultsEmpty({
+  activeFilter,
+  onPressClear,
+  onPressTryAll,
+}: {
+  activeFilter: ChatListFilter;
+  onPressClear: () => void;
+  onPressTryAll: () => void;
+}) {
   return (
     <YStack
       gap="$l"
@@ -484,6 +522,11 @@ function SearchResultsEmpty({ onPressClear }: { onPressClear: () => void }) {
       paddingVertical="$m"
     >
       <Text>No results found.</Text>
+      {activeFilter !== 'all' && (
+        <Pressable onPress={onPressTryAll}>
+          <Text textDecorationLine="underline">Try in All?</Text>
+        </Pressable>
+      )}
       <Pressable onPress={onPressClear}>
         <Text color="$positiveActionText">Clear search</Text>
       </Pressable>

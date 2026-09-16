@@ -1,11 +1,17 @@
+import { getBotUserIdForUser } from '@tloncorp/api';
 import type { TalkSidebarFilter } from '@tloncorp/api/urbit';
 import { useMessagesFilter } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useMemo } from 'react';
 
 import { useCalm } from '../ui/contexts/appDataContext';
-import { type SectionedChatData, buildChatSections } from './chatSections';
+import {
+  CHAT_LIST_FILTER_LABELS,
+  type ChatListFilter,
+  filterChatsByListFilter,
+} from './chatListFilters';
 import { useChatSearch } from './useChatSearch';
+import { useCurrentUserId } from './useCurrentUser';
 
 export type TabName =
   | 'all'
@@ -15,13 +21,10 @@ export type TabName =
   | 'talk'
   | 'channels';
 
-export {
-  DIRECT_MESSAGES_SECTION_TITLE,
-  GROUPS_SECTION_TITLE,
-  PINNED_SECTION_TITLE,
-  buildChatSections,
-} from './chatSections';
-export type { SectionedChatData } from './chatSections';
+export type SectionedChatData = {
+  title: string;
+  data: db.Chat[];
+}[];
 
 function getAllSectionHeader(
   activeTab: TabName,
@@ -44,21 +47,25 @@ export function useFilteredChats({
   pending,
   searchQuery,
   activeTab,
-  separateDirectMessages = false,
+  listFilter = 'all',
 }: {
   pinned: db.Chat[];
   unpinned: db.Chat[];
   pending: db.Chat[];
   searchQuery: string;
   activeTab: TabName;
-  /**
-   * Split the unpinned chats into direct messages and groups instead of one
-   * combined section. Anything that is not a DM sorts with the groups, so a
-   * chat can never fall out of the list.
-   */
-  separateDirectMessages?: boolean;
+  /** Narrows an already-tab-filtered list to one segment of the chat list. */
+  listFilter?: ChatListFilter;
 }): SectionedChatData {
   const { disableNicknames } = useCalm();
+  const currentUserId = useCurrentUserId();
+  const filterIds = useMemo(
+    () => ({
+      currentUserId,
+      botUserId: getBotUserIdForUser(currentUserId),
+    }),
+    [currentUserId]
+  );
   const { data } = useMessagesFilter();
   const talkFilter = useMemo(
     () =>
@@ -70,8 +77,13 @@ export function useFilteredChats({
     [pinned, unpinned, pending]
   );
   const searchableChats = useMemo(
-    () => filterChats(chats, activeTab, talkFilter),
-    [activeTab, chats, talkFilter]
+    () =>
+      filterChatsByListFilter(
+        filterChats(chats, activeTab, talkFilter),
+        listFilter,
+        filterIds
+      ),
+    [activeTab, chats, filterIds, listFilter, talkFilter]
   );
   const { results: searchResults } = useChatSearch({
     chats: searchableChats,
@@ -80,23 +92,43 @@ export function useFilteredChats({
     disableNicknames,
   });
   const pinnedChats = useMemo(
-    () => filterChats(pinned, activeTab, talkFilter),
-    [activeTab, pinned, talkFilter]
+    () =>
+      filterChatsByListFilter(
+        filterChats(pinned, activeTab, talkFilter),
+        listFilter,
+        filterIds
+      ),
+    [activeTab, filterIds, listFilter, pinned, talkFilter]
   );
   const allChats = useMemo(
-    () => filterChats([...pending, ...unpinned], activeTab, talkFilter),
-    [activeTab, pending, talkFilter, unpinned]
+    () =>
+      filterChatsByListFilter(
+        filterChats([...pending, ...unpinned], activeTab, talkFilter),
+        listFilter,
+        filterIds
+      ),
+    [activeTab, filterIds, listFilter, pending, talkFilter, unpinned]
   );
 
   return useMemo(() => {
     const isSearching = searchQuery && searchQuery.trim() !== '';
     if (!isSearching) {
-      return buildChatSections({
-        pinnedChats,
-        unpinnedChats: allChats,
-        combinedSectionTitle: getAllSectionHeader(activeTab, talkFilter),
-        separateDirectMessages,
-      });
+      const pinnedSection = {
+        title: 'Pinned',
+        data: pinnedChats,
+      };
+      const allSection = {
+        // A segment names itself; only the unsegmented list keeps the
+        // tab-derived heading.
+        title:
+          listFilter === 'all'
+            ? getAllSectionHeader(activeTab, talkFilter)
+            : CHAT_LIST_FILTER_LABELS[listFilter],
+        data: allChats,
+      };
+      return pinnedSection.data.length
+        ? [pinnedSection, allSection]
+        : [allSection];
     }
 
     return [
@@ -108,10 +140,10 @@ export function useFilteredChats({
   }, [
     activeTab,
     allChats,
+    listFilter,
     pinnedChats,
     searchQuery,
     searchResults,
-    separateDirectMessages,
     talkFilter,
   ]);
 }

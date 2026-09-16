@@ -8,7 +8,6 @@ import { getTokenValue } from 'tamagui';
 import { SectionedChatData } from '../../hooks/useFilteredChats';
 import { usePinnedChatOrdering } from '../../hooks/usePinnedChatOrdering';
 import { useRenderCount } from '../../hooks/useRenderCount';
-import { useFloatingHeaderHeight } from '../../navigation/useFloatingHeaderHeight';
 import { useTopLevelTabBarContentInset } from '../../navigation/useTopLevelTabBarContentInset';
 import {
   ChatListItem,
@@ -50,7 +49,6 @@ export const ChatList = React.memo(function ChatListComponent({
   scrollRef?: React.RefObject<FlashListRef<ChatListItemData> | null>;
 }) {
   const bottomContentInset = useTopLevelTabBarContentInset();
-  const topContentInset = useFloatingHeaderHeight();
   // The pinned section renders as the FlashList ListHeaderComponent (sortable),
   // and only the non-pinned sections feed the virtualized list (TLON-5948 §5.5).
   const { pinned, rest } = useMemo(() => splitPinnedSection(data), [data]);
@@ -90,12 +88,8 @@ export const ChatList = React.memo(function ChatListComponent({
   // removed the use of useStyle here because it was causing FlashList to
   // peg the CPU and freeze the app on web
   // see: https://github.com/Shopify/flash-list/pull/852
-  const contentSpacing = getTokenValue('$l', 'size');
   const contentContainerStyle = {
-    padding: contentSpacing,
-    // The header floats over the list on iOS 26, so the first row starts below
-    // it rather than behind it while still scrolling underneath.
-    paddingTop: contentSpacing + topContentInset,
+    padding: getTokenValue('$l', 'size'),
     paddingBottom: bottomContentInset,
   };
 

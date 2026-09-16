@@ -134,6 +134,7 @@ export enum AnalyticsEvent {
   ActionViewProfileGroup = 'Viewed Pinned Profile Group',
   ActionSelectActivityEvent = 'Tapped Activity Event',
   NavigationTabSelected = 'Navigation Tab Selected',
+  HomeFilterSelected = 'Home Filter Selected',
   MessagesFilterSelected = 'Messages Filter Selected',
   HomeSearchOpened = 'Home Search Opened',
   CreateMenuOpened = 'Create Menu Opened',
