@@ -1,0 +1,99 @@
+appId: ${MAESTRO_APP_ID}
+name: Native public Notebook channel lifecycle
+tags: [regression]
+env:
+  JOURNEY: notebookchannel
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/create-group.yaml
+- tapOn: '^Edit channels$'
+- assertVisible: '^Channels$'
+- assertNotVisible: ${MAESTRO_RUN_TAG + ' notebook'}
+- tapOn: '^New$'
+- tapOn: '^New channel$'
+- assertVisible: '^Create a new channel$'
+- assertVisible: '^Collaborative markdown notebooks$'
+- assertVisible: '^Bulletin$'
+- tapOn: '^Collaborative markdown notebooks$'
+- tapOn:
+    id: ChannelTitleInput
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${MAESTRO_RUN_TAG + ' notebook'}
+- assertVisible:
+    id: ChannelTitleInput
+    text: ${MAESTRO_RUN_TAG + ' notebook'}
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - pressKey: Enter
+      - scroll
+- tapOn: '^Create channel$'
+- extendedWaitUntil:
+    visible: ${MAESTRO_RUN_TAG + ' notebook'}
+    timeout: 15000
+- tapOn: '^Back$'
+- assertVisible: ${output.reliability.groupPattern}
+- assertVisible: ${MAESTRO_RUN_TAG + ' notebook'}
+- tapOn: ${MAESTRO_RUN_TAG + ' notebook'}
+- extendedWaitUntil:
+    visible: '^No notes or folders$'
+    timeout: 15000
+- assertVisible:
+    id: NotesRootNewHeaderAction
+- assertNotVisible: '^Write something …\n?$'
+
+# Exercise both branches of the destructive confirmation.
+- tapOn: ${MAESTRO_RUN_TAG + ' notebook'}
+- scrollUntilVisible:
+    element:
+      id: ChannelLeaveAction-Delete channel
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: ChannelLeaveAction-Delete channel
+- assertVisible: "^Delete ${MAESTRO_RUN_TAG} notebook[?]$"
+- tapOn: '(?i)^Cancel$'
+- assertVisible: ${MAESTRO_RUN_TAG + ' notebook'}
+- tapOn:
+    id: ChannelLeaveAction-Delete channel
+- assertVisible: "^Delete ${MAESTRO_RUN_TAG} notebook[?]$"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: '^Delete channel$'
+          above: '^Cancel$'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn: '(?i)^Delete channel$'
+- extendedWaitUntil:
+    notVisible: ${MAESTRO_RUN_TAG + ' notebook'}
+    timeout: 15000
+
+# Prove the deleted Notebook does not return from the local cache on relaunch.
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: '^Home$'
+    timeout: 15000
+- runFlow: subflows/open-fixture-group.yaml
+- assertNotVisible: ${MAESTRO_RUN_TAG + ' notebook'}
+- assertVisible: '^Chat$'
+- assertVisible: '^Gallery$'
+- assertVisible: '^Notebook$'
+
+# Delete only this run's fixture group.
+- tapOn: ${output.reliability.groupPattern}
+- runFlow: subflows/delete-fixture-group.yaml

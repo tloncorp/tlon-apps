@@ -3,6 +3,7 @@ flows:
   - settings.yaml
   - relaunch.yaml
   - notebook.yaml
+  - notebook-channel-lifecycle.yaml
   - gallery.yaml
   - gallery-link.yaml
   - join-group-navigation.yaml
