@@ -426,7 +426,7 @@ describe('agent group furnishing retry', () => {
 });
 
 describe('isProvisionedAgentGroupTitle', () => {
-  const owner = { id: '~zod', nickname: 'Dan' };
+  const owner = { id: '~zod', nicknames: ['Dan'] };
 
   it('recognises the titles Hosting and older flows generate', () => {
     for (const title of [
@@ -442,6 +442,27 @@ describe('isProvisionedAgentGroupTitle', () => {
         agentGroupOnboardingTesting.isProvisionedAgentGroupTitle(title, owner)
       ).toBe(true);
     }
+  });
+
+  it('reads the persisted signup nickname before the contact has synced', () => {
+    expect(
+      agentGroupOnboardingTesting.isProvisionedAgentGroupTitle(
+        "Alice's Group",
+        {
+          id: '~zod',
+          nicknames: [undefined, 'Alice'],
+        }
+      )
+    ).toBe(true);
+    expect(
+      agentGroupOnboardingTesting.isProvisionedAgentGroupTitle(
+        "Alice's Group",
+        {
+          id: '~zod',
+          nicknames: [null, ''],
+        }
+      )
+    ).toBe(false);
   });
 
   it('treats any other title as the user’s own', () => {

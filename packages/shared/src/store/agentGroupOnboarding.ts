@@ -699,10 +699,18 @@ async function reconcileCreatedOnboardingNotebook(
  * slot as well. Only during first-run furnishing, so a pin the user put there
  * themselves is never removed — at this point they have not seen the list.
  */
+/**
+ * The names Hosting could have built the group's title from. Signup persists
+ * the chosen nickname locally before the profile update reaches the ship, and
+ * revival defers that update, so the synced contact alone can lag the title.
+ */
 async function ownerNaming() {
   const id = api.getCurrentUserId();
-  const contact = await db.getContact({ id }).catch(() => null);
-  return { id, nickname: contact?.nickname };
+  const [contact, splashNickname] = await Promise.all([
+    db.getContact({ id }).catch(() => null),
+    db.splashNickname.getValue().catch(() => ''),
+  ]);
+  return { id, nicknames: [contact?.nickname, splashNickname] };
 }
 
 /**
@@ -712,7 +720,7 @@ async function ownerNaming() {
  */
 function isProvisionedAgentGroupTitle(
   title: string | null,
-  owner: { id: string; nickname?: string | null }
+  owner: { id: string; nicknames?: Array<string | null | undefined> }
 ) {
   const trimmed = title?.trim() ?? '';
   if (!trimmed || trimmed === DEFAULT_AGENT_GROUP_TITLE) return true;
@@ -720,11 +728,13 @@ function isProvisionedAgentGroupTitle(
   const possessive = /['\u2019]s Group$/;
   if (!possessive.test(trimmed)) return false;
   const named = trimmed.replace(possessive, '');
-  const nickname = owner.nickname?.trim();
   return (
     named === owner.id ||
     named === desig(owner.id) ||
-    (!!nickname && named === nickname)
+    (owner.nicknames ?? []).some((nickname) => {
+      const candidate = nickname?.trim();
+      return !!candidate && named === candidate;
+    })
   );
 }
 
