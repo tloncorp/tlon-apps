@@ -14,6 +14,8 @@ import {
   screen,
 } from '@testing-library/react-native';
 import { Text } from 'react-native';
+import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
+import * as db from '@tloncorp/shared/db';
 
 import ConnectedAuthenticatedApp from '../components/AuthenticatedApp';
 import { refreshHostingAuth } from '../lib/hostingAuth';
@@ -74,12 +76,30 @@ jest.mock('@tloncorp/shared', () => ({
   observeSyncSinceCompletion: jest.fn(),
   sync: { syncStart: jest.fn<() => Promise<void>>() },
 }));
-jest.mock('@tloncorp/shared/db', () => ({
-  didSyncInitialPosts: { getValue: async () => true },
-  nodeStoppedWhileLoggedIn: { setValue: jest.fn() },
-}));
+jest.mock('@tloncorp/shared/db', () => {
+  const { useSyncExternalStore } = require('react');
+  let expired = false;
+  const listeners = new Set<() => void>();
+  const subscribe = (listener: () => void) => {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+  };
+  return {
+    didSyncInitialPosts: { getValue: async () => true },
+    nodeStoppedWhileLoggedIn: { setValue: jest.fn() },
+    hostingAuthExpired: {
+      useValue: () => useSyncExternalStore(subscribe, () => expired),
+      setValue: async (value: boolean) => {
+        expired = value;
+        listeners.forEach((listener) => listener());
+      },
+    },
+  };
+});
 jest.mock('@tloncorp/shared/store', () => ({
-  confirmHostingAuthReconnectCode: async () => {},
+  confirmHostingAuthReconnectCode: async () => {
+    await require('@tloncorp/shared/db').hostingAuthExpired.setValue(false);
+  },
 }));
 jest.mock('../hooks/analytics', () => ({ useCheckAppUpdated: jest.fn() }));
 jest.mock('../hooks/useAutomatedTestDbCommands', () => ({
@@ -134,9 +154,11 @@ jest.mock('../components/TlonbotRevivalPromptSheet', () => ({
 }));
 
 describe('Hosting auth gate', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await db.hostingAuthExpired.setValue(false);
     jest.mocked(refreshHostingAuth).mockReset().mockResolvedValue('ok');
     jest.mocked(sync.syncStart).mockReset().mockResolvedValue();
+    jest.mocked(useConfigureUrbitClient()).mockClear();
   });
   afterEach(cleanup);
 
@@ -162,6 +184,45 @@ describe('Hosting auth gate', () => {
     await act(async () => {});
     expect(screen.getByText('Reconnect session')).toBeTruthy();
     expect(sync.syncStart).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('Reconnect session'));
+    });
+    expect(screen.getByText('Authenticated content')).toBeTruthy();
+    expect(sync.syncStart).toHaveBeenCalledTimes(1);
+    expect(useConfigureUrbitClient()).toHaveBeenCalledTimes(1);
+  });
+
+  it('handles client-reported expiration immediately and reuses subscriptions after OTP', async () => {
+    const logout = jest.fn<() => void>();
+    render(<ConnectedAuthenticatedApp connected onLogout={logout} />);
+    await act(async () => {});
+    expect(screen.getByText('Authenticated content')).toBeTruthy();
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await act(async () => {
+        await db.hostingAuthExpired.setValue(true);
+      });
+      expect(screen.getByText('Reconnect session')).toBeTruthy();
+      expect(screen.queryByText('Authenticated content')).toBeNull();
+      expect(logout).not.toHaveBeenCalled();
+
+      await act(async () => {
+        fireEvent.press(screen.getByText('Reconnect session'));
+      });
+      expect(screen.getByText('Authenticated content')).toBeTruthy();
+      expect(sync.syncStart).toHaveBeenCalledTimes(1);
+      expect(useConfigureUrbitClient()).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it('keeps a previously reported expiration gated before client initialization', async () => {
+    await db.hostingAuthExpired.setValue(true);
+    render(<ConnectedAuthenticatedApp connected onLogout={() => {}} />);
+    await act(async () => {});
+    expect(screen.getByText('Reconnect session')).toBeTruthy();
+    expect(sync.syncStart).not.toHaveBeenCalled();
+    expect(useConfigureUrbitClient()).not.toHaveBeenCalled();
   });
 
   it('checks restored connectivity before mounting authenticated content', async () => {

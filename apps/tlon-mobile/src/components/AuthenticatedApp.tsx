@@ -242,38 +242,55 @@ function AuthenticatedApp({
   );
 }
 
+function useInitializeAuthenticatedSession() {
+  const configureClient = useConfigureUrbitClient();
+  const initialization = useRef<Promise<void> | null>(null);
+
+  return useCallback(() => {
+    // The gate outlives its content. Reconnecting must reuse the live client's
+    // subscriptions instead of running a second cold sync after the remount.
+    if (initialization.current) {
+      return initialization.current;
+    }
+    configureClient();
+    initialization.current = db.didSyncInitialPosts
+      .getValue()
+      .then((didSyncInitialPosts) => {
+        sync
+          .syncStart()
+          .then(async () => {
+            if (!didSyncInitialPosts) {
+              const net = await NetInfo.fetch();
+              const syncSize =
+                net.isConnected &&
+                (net.type === 'wifi' ||
+                  (net.type === 'cellular' &&
+                    ['4g', '5g'].includes(
+                      net.details.cellularGeneration ?? ''
+                    )))
+                  ? 'heavy'
+                  : 'light';
+              sync.syncInitialPosts({ syncSize });
+            }
+          })
+          .catch(() => {});
+      });
+    return initialization.current;
+  }, [configureClient]);
+}
+
 function AuthenticatedAppContent({
   requireHostingAuth,
+  initializeSession,
 }: {
   requireHostingAuth: RequireHostingAuth;
+  initializeSession: () => Promise<void>;
 }) {
   const [clientReady, setClientReady] = useState(false);
-  const configureClient = useConfigureUrbitClient();
 
   useEffect(() => {
     let canceled = false;
-
-    configureClient();
-    // we store a flag to ensure this runs only once per login, not anytime
-    // the app is opened
-    db.didSyncInitialPosts.getValue().then((didSyncInitialPosts) => {
-      sync
-        .syncStart()
-        .then(async () => {
-          if (!didSyncInitialPosts) {
-            const net = await NetInfo.fetch();
-            const syncSize =
-              net.isConnected &&
-              (net.type === 'wifi' ||
-                (net.type === 'cellular' &&
-                  ['4g', '5g'].includes(net.details.cellularGeneration ?? '')))
-                ? 'heavy'
-                : 'light';
-            sync.syncInitialPosts({ syncSize });
-          }
-        })
-        .catch(() => {});
-
+    initializeSession().then(() => {
       if (!canceled) {
         setClientReady(true);
       }
@@ -282,7 +299,7 @@ function AuthenticatedAppContent({
     return () => {
       canceled = true;
     };
-  }, [configureClient]);
+  }, [initializeSession]);
 
   if (!clientReady) {
     return (
@@ -331,10 +348,13 @@ export default function ConnectedAuthenticatedApp({
     setCheckedConnection(false);
   }
   const [profile, setProfile] = useState<db.Contact | null>(null);
-  const { contactId } = useShip();
-  const { getToken: getRecaptchaToken } = useRecaptcha(
-    hostingAuthState === 'expired'
-  );
+  const { contactId, authType } = useShip();
+  const hostingAuthExpired = db.hostingAuthExpired.useValue();
+  const needsHostingReconnect =
+    hostingAuthState === 'expired' ||
+    (authType === 'hosted' && hostingAuthExpired);
+  const initializeSession = useInitializeAuthenticatedSession();
+  const { getToken: getRecaptchaToken } = useRecaptcha(needsHostingReconnect);
   const handleHostingAuthExpired = useCallback(() => {
     setHostingAuthState('expired');
   }, []);
@@ -413,7 +433,7 @@ export default function ConnectedAuthenticatedApp({
     };
   }, [authAttempt, connected, requireHostingAuth]);
 
-  if (hostingAuthState === 'expired') {
+  if (needsHostingReconnect) {
     return (
       <HostingAuthReconnectScreen
         profileId={contactId ?? ''}
@@ -443,7 +463,10 @@ export default function ConnectedAuthenticatedApp({
 
   return (
     <ZStack flex={1}>
-      <AuthenticatedAppContent requireHostingAuth={requireHostingAuth} />
+      <AuthenticatedAppContent
+        requireHostingAuth={requireHostingAuth}
+        initializeSession={initializeSession}
+      />
       {authenticatedOverlay}
     </ZStack>
   );
