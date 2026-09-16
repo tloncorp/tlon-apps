@@ -1176,8 +1176,13 @@
     ?.  ?=(%poke-ack -.sign)  cor
     ?~  req=(~(get by requests.automation.state) rid)  cor
     ?~  p.sign
+      ::  a wake that already stored %pending reads its status from the
+      ::  result, so refresh that too or a poller reads %sending forever
+      ::
+      =/  next  u.req(poke-status %acked)
+      =?  result.next  ?=([~ %pending *] result.next)  `[%pending %acked]
       =.  requests.automation.state
-        (~(put by requests.automation.state) rid u.req(poke-status %acked))
+        (~(put by requests.automation.state) rid next)
       cor
     =.  requests.automation.state
       (~(put by requests.automation.state) rid u.req(poke-status %nacked))

@@ -2405,6 +2405,23 @@
   ;<  req=incoming-request:v1:au  bind:m  got-request
   (ex-equal !>(result.req) !>(`created))
 ::
+::  an ack after the wake refreshes the stored pending status
+::
+++  test-automation-edit-ack-after-wake-refreshes-pending-status
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  ;<  *  bind:m  (do-edit moon edit-create)
+  ;<  *  bind:m  (do-req-wake moon)
+  ;<  caz=(list card)  bind:m  (do-req-poke-sign moon %poke-ack ~)
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  req=incoming-request:v1:au  bind:m  got-request
+  ;<  ~  bind:m  (ex-equal !>(result.req) !>(`[%pending %acked]))
+  ;<  caz=(list card)  bind:m
+    (do-http 'eyre-1' (http-request & %'GET' request-url ~))
+  (ex-cards caz (ex-http-response 'eyre-1' [%pending %acked]))
+::
 ++  test-automation-edit-wake-after-terminal-is-silent
   %-  eval-mare
   =/  m  (mare ,~)
