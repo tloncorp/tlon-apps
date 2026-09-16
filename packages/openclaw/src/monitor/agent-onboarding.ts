@@ -222,9 +222,10 @@ const AGENT_ONBOARDING_BOT_TOUR_PROMPT =
 const AGENT_ONBOARDING_BOT_TOUR_EXPLANATION =
   'I can research questions, change what this group follows, publish ' +
   'scheduled updates, help in other groups, and use connected services you ' +
-  'authorize. Try asking me to adjust tomorrow’s update or investigate ' +
-  'something now.';
-const AGENT_ONBOARDING_TOUR_DECLINED = 'No problem. You can ask me anytime.';
+  'authorize. Ask me anytime to change or pause this daily task, or to ' +
+  'investigate something now.';
+const AGENT_ONBOARDING_TOUR_DECLINED =
+  'No problem. You can ask me anytime—including to change or pause this daily task.';
 const AGENT_GROUP_SETUP_COMPLETE_MARKER = 'group-setup-complete';
 const AGENT_ONBOARDING_PURPOSE_OPTIONS = [
   {
@@ -1929,7 +1930,10 @@ async function postFirstRunServices(
     history,
     'services-card',
     async () => {
-      const message = `${servicesPitch(correlation.purposeId)}\n\nPick anything you’d like, or tap Done to continue.`;
+      const message = `${servicesPitch(
+        correlation.purposeId,
+        correlation.topics[0]
+      )}\n\nPick anything you’d like, or tap Done to continue.`;
       return {
         text: message,
         blob: appendToPostBlob(
@@ -3142,19 +3146,32 @@ function scheduleConfirmation(request: PostBlobDataEntryAgentProvision) {
  * chosen. Name only what the connector catalog actually offers: there is no
  * calendar connector, so the pitch can't promise one.
  */
-function servicesPitch(purposeId: AgentOnboardingPurposeId) {
+function servicesPitch(
+  purposeId: AgentOnboardingPurposeId,
+  primaryTopic?: string
+) {
+  const topic = primaryTopic?.trim();
   switch (purposeId) {
     case 'agent-learning':
+      if (topic) {
+        return `Connect your notes or docs and I can build each ${topic} lesson around material you already have.`;
+      }
       return (
         'Connect your notes or docs and I can build each update on what ' +
         'you’re already reading.'
       );
     case 'agent-research':
+      if (topic) {
+        return `Connect your docs or notes and I can compare new ${topic} findings with what you’ve already saved.`;
+      }
       return (
         'Connect your docs or notes and I can tell what’s genuinely new to ' +
         'you, instead of repeating what you’ve already filed.'
       );
     case 'agent-daily-digest':
+      if (topic) {
+        return `Connect your docs or notes and I can include details you already track about ${topic} in each digest.`;
+      }
       return (
         'Connect your docs and notes and your morning digest can cover your ' +
         'own projects, not just the news.'

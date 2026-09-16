@@ -1311,7 +1311,7 @@ describe('agent onboarding requests', () => {
     ).resolves.toBe(true);
     expect(sent).toHaveLength(2);
     expect(JSON.stringify(sent[1])).toContain(
-      'Try asking me to adjust tomorrow’s update or investigate something now.'
+      'Ask me anytime to change or pause this daily task, or to investigate something now.'
     );
     expect(parsePostBlob(sent[1]!.blob)).toContainEqual(
       expect.objectContaining({
@@ -2044,6 +2044,17 @@ describe('agent onboarding requests', () => {
       expect(pitch).not.toMatch(/calendar|meetings|deadlines/i);
     }
   );
+
+  it('ties the services benefit to the task topic when available', () => {
+    expect(
+      agentOnboardingTesting.servicesPitch(
+        'agent-daily-digest',
+        'community garden'
+      )
+    ).toBe(
+      'Connect your docs or notes and I can include details you already track about community garden in each digest.'
+    );
+  });
 
   it('describes the recurring schedule after the forced first entry', () => {
     expect(
