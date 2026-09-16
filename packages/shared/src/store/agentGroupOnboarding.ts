@@ -4,7 +4,12 @@ import { desig } from '@tloncorp/api/lib/urbit';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as logic from '../logic';
-import { createChannel, deleteChannel, unpinItem } from './channelActions';
+import {
+  createChannel,
+  deleteChannel,
+  unpinItem,
+  upsertDmChannel,
+} from './channelActions';
 import { createDefaultGroup, updateGroupMeta } from './groupActions';
 import { finalizeAndSendPost } from './postActions';
 
@@ -713,6 +718,13 @@ async function ensureIntroRequest(
     groupId,
     ...(isFirstGroup ? { isFirstGroup: true } : {}),
   });
+  // Sending needs the channel row locally, and on a fresh account the bot's
+  // DM may so far exist only on the ship — Hosting made it, sync has not
+  // caught up. Starting the DM from here is the same pending row the New
+  // Message flow uses; the first writ lands in the DM the ship already has.
+  if (channelType === 'dm') {
+    await upsertDmChannel({ participants: [channelId] });
+  }
   await finalizeAndSendPost(
     {
       channelId,
@@ -931,6 +943,7 @@ function agentHasAdmin(group: db.Group, agentShipId: string) {
 
 export const agentGroupOnboardingTesting = {
   addCordonThenJoin,
+  ensureIntroRequest,
   agentGroupFurnishingFlightKey,
   agentHasAdmin,
   retryAgentGroupFurnishCore,

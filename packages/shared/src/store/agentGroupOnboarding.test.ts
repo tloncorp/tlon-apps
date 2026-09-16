@@ -1,9 +1,63 @@
-import { describe, expect, it, vi } from 'vitest';
+import * as api from '@tloncorp/api';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   agentGroupOnboardingTesting,
   buildAgentGroupTitle,
 } from './agentGroupOnboarding';
+import { upsertDmChannel } from './channelActions';
+import { finalizeAndSendPost } from './postActions';
+
+vi.mock('./postActions', () => ({
+  finalizeAndSendPost: vi.fn(async () => undefined),
+}));
+vi.mock('./channelActions', () => ({
+  createChannel: vi.fn(),
+  deleteChannel: vi.fn(),
+  unpinItem: vi.fn(),
+  upsertDmChannel: vi.fn(
+    async ({ participants }: { participants: string[] }) => ({
+      id: participants[0],
+      type: 'dm',
+    })
+  ),
+}));
+
+describe('ensureIntroRequest', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(api, 'getCurrentUserId').mockReturnValue('~zod');
+    vi.spyOn(api, 'getChannelPosts').mockResolvedValue({
+      posts: [],
+    } as unknown as Awaited<ReturnType<typeof api.getChannelPosts>>);
+  });
+
+  it('makes the bot DM row locally before the first-run intro is sent there', async () => {
+    await agentGroupOnboardingTesting.ensureIntroRequest(
+      '~zod/home',
+      { channelId: '~bot', channelType: 'dm' },
+      true
+    );
+    expect(upsertDmChannel).toHaveBeenCalledWith({ participants: ['~bot'] });
+    expect(vi.mocked(upsertDmChannel).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(finalizeAndSendPost).mock.invocationCallOrder[0]
+    );
+    expect(finalizeAndSendPost).toHaveBeenCalledWith(
+      expect.objectContaining({ channelId: '~bot', channelType: 'dm' }),
+      { rejectOnDefinitiveFailure: true }
+    );
+  });
+
+  it('leaves a workspace chat alone; its row arrived with the group', async () => {
+    await agentGroupOnboardingTesting.ensureIntroRequest(
+      '~zod/home',
+      { channelId: 'chat/~zod/general', channelType: 'chat' },
+      false
+    );
+    expect(upsertDmChannel).not.toHaveBeenCalled();
+    expect(finalizeAndSendPost).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe('buildAgentGroupTitle', () => {
   it('names each purpose from its selected topic', () => {
