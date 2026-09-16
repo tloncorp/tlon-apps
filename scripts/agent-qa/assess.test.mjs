@@ -82,9 +82,42 @@ const plan = {
   decision: 'test',
   setup: { fixtures: [] },
   reason: 'Changes send failure behavior',
-  changes: ['Send failure handling'],
+  changes: [scenario.change],
   scenarios: [scenario],
 };
+
+test('all declared changes have scenarios and scenarios cannot invent an unrelated change', () => {
+  assert.throws(
+    () =>
+      verifyAssessment(
+        { ...plan, changes: [scenario.change, 'New navigation'] },
+        files
+      ),
+    /Every assessed change/
+  );
+  assert.throws(
+    () =>
+      verifyAssessment(
+        { ...plan, scenarios: [{ ...scenario, change: 'Unrelated smoke' }] },
+        files
+      ),
+    /Scenario/
+  );
+  const covered = {
+    ...plan,
+    changes: [scenario.change, 'New navigation'],
+    scenarios: [
+      scenario,
+      {
+        ...scenario,
+        id: 'change-2',
+        change: 'New navigation',
+        method: 'unavailable',
+      },
+    ],
+  };
+  assert.equal(verifyAssessment(covered, files), covered);
+});
 
 test('plans with only unavailable checks preserve capability gaps without leasing devices', () => {
   const unavailable = {

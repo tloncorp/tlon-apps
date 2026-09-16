@@ -82,7 +82,7 @@ export const assessmentInstructions = `Assess whether this Tlon Messenger PR cha
 User-facing means behavior experienced by Tlon end users in the product, including messages from their product bots. Changes solely to developer documentation, internal QA/CI agents, engineering digests or operational tooling are not product user-facing changes unless the diff also changes product runtime behavior. Do not confuse a staff-only automation consumer of documentation with an end-user product feature.
 Use the entire supplied diff and file list, not paths alone. UI, copy, assets, navigation, data behavior, error handling and backend changes can all be user-facing. Refactors, tests, docs, build/CI tooling may be non-user-facing only when the diff supports that conclusion. A bug fix is user-facing even without visual changes.
 decision=skip ONLY when there are no user-facing behavior changes; changes and scenarios must then be empty. Uncertainty, missing binary asset content, incomplete context, unsupported platforms or unavailable fixtures must never become a skip. Use blocked with the exact reason if meaningful simulator checks cannot be planned.
-For test, describe user-facing changes and at most sixteen atomic scenarios covering those changes. Each scenario must have a unique change-N id, relevant changed files, concrete navigation/actions, prerequisites/test data, and an observable expected result. Cover failure cases when implicated by the diff. Do not substitute generic Home/login/message smoke tests for the changed behavior. Do not invent UI labels unsupported by the diff: instruct the device agent to discover them.
+For test, describe user-facing changes and at most sixteen atomic scenarios covering those changes. Every declared change must have at least one scenario, including an unavailable scenario for unsupported coverage. Each scenario must copy its change value exactly from the changes array and have a unique change-N id, relevant changed files, concrete navigation/actions, prerequisites/test data, and an observable expected result. Cover failure cases when implicated by the diff. Do not substitute generic Home/login/message smoke tests for the changed behavior. Do not invent UI labels unsupported by the diff: instruct the device agent to discover them.
 Target: iOS Simulator on disposable ships provisioned from the requested PR source. Return a setup plan selecting available fixture recipes; the runner creates and verifies that data before the simulator starts. Missing initial data is not a blocker when a recipe supplies it. Writes are permitted only inside these disposable fixtures. Each scenario selects its fixture and method. For simulator checks, regression must be none. In this pilot regression recipes execute only alongside a disposable fixture; if the plan has no fixture-backed simulator checks, mark regression-only requirements method=unavailable rather than claiming execution. For a known deterministic regression recipe, method=regression, regression=its ID, fixture=none; its real test result is attached separately and is never represented as a simulator observation. Prefer these recipes for event-order races and permission/capability combinations the real backend cannot expose. Never ask a UI agent to control database event order. Do not add impossible backend states just to enumerate hypothetical cases. Use the supplied supporting source to distinguish legacy notebook/diary screens from %notes. Include a positive feature-identity check in navigation steps. Do not combine independent behaviors into one all-or-nothing check. Android/web/physical-only checks remain blocked. If no supported recipe or executable scenario can cover the change, use blocked with the capability gap.
 The independent code-only review has already identified regression hypotheses. Plan falsification, not just confirmation of intended features. Bind each hypothesis to at least one scenario via riskIds; use an empty array for ordinary intended-behavior checks. Cover EVERY hypothesis, including performance/side-effect risks that leave final data correct. Existing regression recipes cover only their stated assertions: do not use a final-state test as proof of unmeasured intermediate work. For visible transient states and navigation transitions, plan a normal recorded interaction first (method=simulator). The evidence reviewer can inspect every encoded video frame and enlarge the header region. Do not require network delays or mark these unavailable just because they may be fast; controlled timing is a follow-up only if the recorded state is absent or illegible. If no recipe can execute the required nonvisual probe, use method=unavailable and explicitly describe the missing instrumentation rather than disguising it as covered. An unsupported scenario must not prevent supported ones from running. method=unavailable uses regression=none, fixture=none.
 For each simulator scenario supply checkpoints: exact screen states to capture before the trigger, immediately after, and after settling/recovery. Use a single invariant per scenario. Separate focus from input, and input from deliberate scrolling; inspect the whole screen after each transition. Choose a short fixture item when a long document could make keyboard auto-scrolling ambiguous. Do not combine appearance, save success, transient status and keyboard behavior into one acceptance criterion. Base/head source comparison is supplied, but there is no base-version app recording: never claim device regression attribution from a head-only run. Distinguish an observed defect from whether the PR introduced it.
@@ -94,7 +94,8 @@ export function verifyAssessment(value, files) {
     typeof value.reason !== 'string' ||
     !value.reason.trim() ||
     !Array.isArray(value.changes) ||
-    !value.changes.every((s) => typeof s === 'string') ||
+    !value.changes.every((s) => typeof s === 'string' && s.trim()) ||
+    new Set(value.changes).size !== value.changes.length ||
     !Array.isArray(value.scenarios) ||
     value.scenarios.length > 16
   )
@@ -115,6 +116,7 @@ export function verifyAssessment(value, files) {
       !/^change-(?:[1-9]|1[0-6])$/.test(scenario.id) ||
       ids.has(scenario.id) ||
       !scenario.change?.trim() ||
+      !value.changes.includes(scenario.change) ||
       !scenario.expected?.trim() ||
       typeof scenario.prerequisites !== 'string' ||
       !Array.isArray(scenario.files) ||
@@ -129,6 +131,14 @@ export function verifyAssessment(value, files) {
       );
     ids.add(scenario.id);
   }
+  if (
+    value.decision === 'test' &&
+    value.changes.some(
+      (change) =>
+        !value.scenarios.some((scenario) => scenario.change === change)
+    )
+  )
+    throw new Error('Every assessed change needs at least one scenario');
   if (value.sourceReview) {
     const risks = new Set(value.sourceReview.hypotheses.map((h) => h.id));
     for (const scenario of value.scenarios) {

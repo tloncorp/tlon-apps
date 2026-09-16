@@ -1,4 +1,5 @@
 import { assessmentForRetry } from './reuse-assessment.mjs';
+import { dispatchWorkflow } from './eas-dispatch.mjs';
 import { verifySourceOverlay, verifyTrustedHarness } from './assess.mjs';
 import { requiresBackend } from './fixtures.mjs';
 import { selectEvidence } from './publish.mjs';
@@ -74,16 +75,7 @@ async function wait(id, minutes, deviceOnly = false, finalKeys = []) {
   throw new Error('EAS exceeded its backend lease');
 }
 async function dispatch(inputs, ref) {
-  const result = eas([
-    'workflow:run',
-    '.eas/workflows/pr-agent-qa-ios.yml',
-    '--ref',
-    ref,
-    ...Object.entries(inputs).flatMap(([k, v]) => [
-      '-F',
-      `${k}=${typeof v === 'string' ? v : JSON.stringify(v)}`,
-    ]),
-  ]);
+  const result = dispatchWorkflow(eas, inputs, ref);
   const run = Array.isArray(result) ? result[0] : result;
   console.log(
     `Cloud run: https://expo.dev/accounts/tlon/projects/groups/workflows/${run.id}`

@@ -69,7 +69,9 @@ if [ -d .proof-snapshot/zod ]; then
   echo 'Restored prepared ships and their runtime; native app unchanged.'
 fi
 node scripts/agent-qa/runtime.mjs
-tmux new-session -d -s proof-rube "cd '$PWD/apps/tlon-web' && SKIP_DOWNLOAD=${SKIP_DOWNLOAD:-false} SKIP_TESTS=true INCLUDE_OPTIONAL_SHIPS=false pnpm rube > '$PROOF_OUTPUT/rube.log' 2>&1"
+SKIP_DOWNLOAD=${SKIP_DOWNLOAD:-false} SKIP_TESTS=true INCLUDE_OPTIONAL_SHIPS=false \
+  bash scripts/agent-qa/fixture-env.sh tmux new-session -d -s proof-rube \
+  "cd '$PWD/apps/tlon-web' && bash '$PWD/scripts/agent-qa/fixture-env.sh' pnpm rube > '$PROOF_OUTPUT/rube.log' 2>&1"
 deadline=$((SECONDS+1200))
 [ "${SKIP_DOWNLOAD:-false}" != true ] || deadline=$((SECONDS+120))
 last_progress=$SECONDS
@@ -88,7 +90,8 @@ echo "Ships prepared after $((SECONDS-start)) seconds."
 # Capture checkout and the actual assembled desk, including vendored files.
 git rev-parse HEAD > "$PROOF_OUTPUT/source.txt"
 find apps/tlon-web/rube/dist/desk-staging -type f -print0 | sort -z | xargs -0 sha256sum > "$PROOF_OUTPUT/desk-manifest.txt"
-PROOF_PUBLIC_URL="http://127.0.0.1:35453" NODE_OPTIONS=--conditions=tlon-source pnpm --filter @tloncorp/tlon-bot-e2e exec tsx "$PWD/.maestro/cloud-fakeship/peer.ts" > "$PROOF_OUTPUT/peer.log" 2>&1 &
+PROOF_PUBLIC_URL="http://127.0.0.1:35453" NODE_OPTIONS=--conditions=tlon-source \
+  bash scripts/agent-qa/fixture-env.sh pnpm --filter @tloncorp/tlon-bot-e2e exec tsx "$PWD/.maestro/cloud-fakeship/peer.ts" > "$PROOF_OUTPUT/peer.log" 2>&1 &
 echo $! > "$PROOF_OUTPUT/peer.pid"
 deadline=$((SECONDS+120))
 until [ -f "$PROOF_OUTPUT/peer-ready.json" ]; do

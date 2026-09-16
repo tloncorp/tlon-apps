@@ -41,7 +41,7 @@ Optional inputs:
 1. An independent source reviewer reads pinned base/head code, diff, callers and
    helpers without PR prose or human comments. Checked line citations support its
    regression hypotheses; hypotheses are not runtime findings.
-2. A planner maps changed behavior and every source hypothesis to concrete tests.
+2. A planner maps every declared user-facing change and source hypothesis to concrete tests.
    A supported conclusion of no user-facing changes skips device work. Missing
    context or unsupported requirements are explicit; supported tests still run.
 3. The workflow checks native compatibility and repacks JavaScript into a compatible
@@ -121,7 +121,8 @@ in repository files or model prompts.
 
 The public backend tunnel rejects requests without its token. A loopback proxy on
 EAS adds that token; app/device tools do not receive it. Fixture setup is checked
-before device execution. Model and MCP subprocess environments are stripped, shell
+before device execution. Rube and fixture actor subprocesses receive an allowlisted
+environment without tunnel or CI credentials. Model and MCP environments are stripped, shell
 and web tools are disabled, and evidence reviewers have no live device tools.
 Only selected same-repository source runs in the credentialed workflow; this is
 not a sandbox for arbitrary external PRs. Changes to QA scripts, workflows and
