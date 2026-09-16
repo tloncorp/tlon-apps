@@ -1122,6 +1122,37 @@ describe('agent onboarding requests', () => {
     );
   });
 
+  it('continues orientation after an additional-group intro is provisioned', async () => {
+    const sendPost = successfulSendPost();
+    const history = [
+      introRequest(0, false),
+      botMarker('group-setup-complete', 0.2),
+      provisionAck(),
+      servicesCard(),
+      { author: '~ten', content: 'Done', timestamp: 3 },
+    ];
+    const blob = appendToPostBlob(undefined, {
+      type: 'tlon-a2ui-selection',
+      version: 1,
+      sourcePostId: '123',
+      surfaceId: 'agent-services',
+      componentId: 'providers',
+      values: ['Done'],
+    });
+
+    await expect(
+      handleAgentOnboardingRequest(replyContext('', { blob }), {
+        fetchHistory: vi.fn(async () => history),
+        sendPost,
+      })
+    ).resolves.toBe(true);
+
+    expect(sendPost).toHaveBeenCalledOnce();
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).toContain(
+      'Your results live in Updates'
+    );
+  });
+
   it('recovers a typed Done when durable history is also blob-only', async () => {
     const sendPost = successfulSendPost();
     const blob = appendToPostBlob(undefined, {
@@ -1367,6 +1398,29 @@ describe('agent onboarding requests', () => {
     expect(sendPost).toHaveBeenCalledOnce();
     expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).toContain(
       'Want me to tell you more about what you can do here?'
+    );
+  });
+
+  it('recovers additional-group services completion after a plugin restart', async () => {
+    const sendPost = successfulSendPost();
+    const history = [
+      introRequest(0, false),
+      botMarker('group-setup-complete', 0.2),
+      provisionAck(),
+      servicesCard(),
+      { author: '~ten', content: 'Done', timestamp: 3 },
+    ];
+
+    await expect(
+      scanAgentOnboardingChannel(generalScanContext(), {
+        fetchHistory: vi.fn(async () => history),
+        sendPost,
+      })
+    ).resolves.toBe(true);
+
+    expect(sendPost).toHaveBeenCalledOnce();
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).toContain(
+      'Your results live in Updates'
     );
   });
 

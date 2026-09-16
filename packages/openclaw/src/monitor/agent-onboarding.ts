@@ -843,10 +843,7 @@ function pendingDurableReply(
   ownerShip: string
 ) {
   if (hasProvisionAck(history, botShip)) {
-    if (
-      hasPostMarker(history, botShip, 'orientation-complete') ||
-      hasPostMarker(history, botShip, AGENT_GROUP_SETUP_COMPLETE_MARKER)
-    ) {
+    if (hasPostMarker(history, botShip, 'orientation-complete')) {
       return null;
     }
     const active =
@@ -1122,10 +1119,7 @@ async function advanceOrientationConversation(
   deps: AgentOnboardingDeps,
   presentation: OnboardingPresentation
 ): Promise<boolean> {
-  if (
-    hasPostMarker(history, context.botShip, 'orientation-complete') ||
-    hasPostMarker(history, context.botShip, AGENT_GROUP_SETUP_COMPLETE_MARKER)
-  ) {
+  if (hasPostMarker(history, context.botShip, 'orientation-complete')) {
     return false;
   }
 
