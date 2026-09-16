@@ -85,6 +85,11 @@ renders every heading/emphasis/list/code/link construct in its deterministic bod
 opens the exact example-link host, returns to the live editor, and verifies the
 original Markdown source is preserved exactly. It deletes its run-tagged group.
 
+`notebook-title-edges.yaml` creates an untitled note and proves its fallback,
+whitespace trimming, and body preservation. It then saves a long title and
+asserts that title in the detail view, Notebook row, and action sheet before and
+after relaunch. It deletes its run-tagged group.
+
 `self-hosted-recovery.yaml` clears local state, rejects a malformed ship URL,
 rejects a well-formed access code that the configured ship does not accept, then
 corrects only the code and verifies the exact configured ship after login. Run it

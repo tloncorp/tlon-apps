@@ -32,7 +32,8 @@ output.reliability = {
 if (
   JOURNEY === 'notebookchannel' ||
   JOURNEY === 'notebookcontents' ||
-  JOURNEY === 'notebookpreview'
+  JOURNEY === 'notebookpreview' ||
+  JOURNEY === 'notebooktitles'
 ) {
   output.reliability.group =
     'QA-' +
@@ -41,7 +42,9 @@ if (
       ? '-notebook'
       : JOURNEY === 'notebookcontents'
         ? '-contents'
-        : '-preview');
+        : JOURNEY === 'notebookpreview'
+          ? '-preview'
+          : '-titles');
 }
 output.reliability.groupPattern = exact(output.reliability.group);
 output.reliability.editedTextPattern = exact(
@@ -83,6 +86,16 @@ output.reliability.noteRowTargetBody = MAESTRO_RUN_TAG + '-row-target-body';
 output.reliability.noteViewedTarget = MAESTRO_RUN_TAG + '-view-target';
 output.reliability.noteViewedTargetBody = MAESTRO_RUN_TAG + '-view-target-body';
 output.reliability.notePreviewTitle = MAESTRO_RUN_TAG + '-preview-note';
+output.reliability.noteTrimmedTitle = MAESTRO_RUN_TAG + '-trimmed-title';
+output.reliability.noteSpacedTitle =
+  '  ' + output.reliability.noteTrimmedTitle + '  ';
+output.reliability.noteLongTitle =
+  MAESTRO_RUN_TAG +
+  '-a-deliberately-long-notebook-title-that-remains-usable-in-detail-row-and-actions';
+output.reliability.noteLongTitlePattern = exact(
+  output.reliability.noteLongTitle
+);
+output.reliability.noteTitleEdgeBody = MAESTRO_RUN_TAG + '-body-preserved';
 output.reliability.markdownMalformed = '# Broken edge [';
 output.reliability.markdownMalformedRendered = '^Broken edge \\[$';
 output.reliability.markdownBody =
