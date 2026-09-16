@@ -43,6 +43,23 @@ output.reliability.siblingPattern = exact(output.reliability.sibling).replace(
   /\$$/,
   ' ?$'
 );
+output.reliability.folderParent = MAESTRO_RUN_TAG + '-projects';
+output.reliability.folderChild = MAESTRO_RUN_TAG + '-alpha';
+output.reliability.folderDelete = MAESTRO_RUN_TAG + '-delete-me';
+output.reliability.folderParentRowId =
+  'NotesFolderRow-' + output.reliability.folderParent;
+output.reliability.folderChildRowId =
+  'NotesFolderRow-' + output.reliability.folderChild;
+output.reliability.folderDeleteRowId =
+  'NotesFolderRow-' + output.reliability.folderDelete;
+output.reliability.folderParentTargetPattern = exact(
+  'Create in ' + output.reliability.folderParent + '.'
+);
+output.reliability.folderDeleteMessagePattern = exact(
+  'Delete "' +
+    output.reliability.folderDelete +
+    '"? This folder will be permanently deleted.'
+);
 
 if (
   output.reliability.session !== 'fresh' &&

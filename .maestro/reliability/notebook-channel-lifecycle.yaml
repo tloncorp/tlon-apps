@@ -51,6 +51,125 @@ env:
     id: NotesRootNewHeaderAction
 - assertNotVisible: '^Write something …\n?$'
 
+# Create a parent at the root, then exercise both nested-folder entry points.
+- tapOn:
+    id: NotesRootNewHeaderAction
+- assertVisible: '^New$'
+- tapOn:
+    id: NotesNewFolderAction
+- assertVisible: '^Add folder$'
+- assertVisible: '^Create in Root[.]$'
+- tapOn: '^Folder name$'
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.folderParent}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - pressKey: Enter
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+      - tapOn: '^Add folder$'
+- extendedWaitUntil:
+    visible:
+      id: ${output.reliability.folderParentRowId}
+    timeout: 15000
+
+# The row action must target the selected parent even before navigating into it.
+- longPressOn:
+    id: ${output.reliability.folderParentRowId}
+- assertVisible:
+    id: NotesCreateFolderInFolderAction
+- tapOn:
+    id: NotesCreateFolderInFolderAction
+- assertVisible: ${output.reliability.folderParentTargetPattern}
+- tapOn: '^Folder name$'
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.folderChild}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - pressKey: Enter
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+      - tapOn: '^Add folder$'
+- tapOn:
+    id: ${output.reliability.folderParentRowId}
+- extendedWaitUntil:
+    visible:
+      id: ${output.reliability.folderChildRowId}
+    timeout: 15000
+
+# Creating while viewing the parent must state and preserve that same target.
+- tapOn:
+    id: NotesRootNewHeaderAction
+- tapOn:
+    id: NotesNewFolderAction
+- assertVisible: ${output.reliability.folderParentTargetPattern}
+- tapOn: '^Folder name$'
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.folderDelete}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - pressKey: Enter
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+      - tapOn: '^Add folder$'
+- extendedWaitUntil:
+    visible:
+      id: ${output.reliability.folderDeleteRowId}
+    timeout: 15000
+- assertVisible:
+    id: ${output.reliability.folderChildRowId}
+
+# Cancel once, then confirm deletion of only the empty control folder.
+- longPressOn:
+    id: ${output.reliability.folderDeleteRowId}
+- tapOn:
+    id: NotesDeleteFolderAction
+- assertVisible: '^Delete folder[?]$'
+- assertVisible: ${output.reliability.folderDeleteMessagePattern}
+- tapOn: '^Cancel$'
+- assertVisible:
+    id: ${output.reliability.folderDeleteRowId}
+- longPressOn:
+    id: ${output.reliability.folderDeleteRowId}
+- tapOn:
+    id: NotesDeleteFolderAction
+- assertVisible: ${output.reliability.folderDeleteMessagePattern}
+- tapOn: '^Delete$'
+- extendedWaitUntil:
+    notVisible:
+      id: ${output.reliability.folderDeleteRowId}
+    timeout: 15000
+- assertVisible:
+    id: ${output.reliability.folderChildRowId}
+
+# Return to root and prove the nested child does not leak into the root list.
+- tapOn: '^Back$'
+- assertVisible:
+    id: ${output.reliability.folderParentRowId}
+- assertNotVisible:
+    id: ${output.reliability.folderChildRowId}
+
 # Exercise both branches of the destructive confirmation.
 - tapOn: ${MAESTRO_RUN_TAG + ' notebook'}
 - scrollUntilVisible:

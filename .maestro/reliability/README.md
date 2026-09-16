@@ -61,9 +61,11 @@ deletes its fixture group.
 
 `notebook-channel-lifecycle.yaml` creates a public `%notes` Notebook through
 channel management, proves it opens the folder/note interface rather than the
-legacy Bulletin feed, exercises cancel and confirm on channel deletion, and
-relaunches before proving the deleted Notebook remains absent. It deletes its
-fixture group on success.
+legacy Bulletin feed, creates a root folder and nested folders through both the
+parent-row and viewed-folder actions, cancels and confirms deletion of an empty
+folder, exercises cancel and confirm on channel deletion, and relaunches before
+proving the deleted Notebook remains absent. It deletes its fixture group on
+success.
 
 `self-hosted-recovery.yaml` clears local state, rejects a malformed ship URL,
 rejects a well-formed access code that the configured ship does not accept, then
