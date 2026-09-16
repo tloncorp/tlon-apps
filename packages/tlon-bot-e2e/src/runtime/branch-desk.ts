@@ -26,11 +26,19 @@ const ASSEMBLE_DESK_TIMEOUT_MS = 300_000;
 // through the pier's conn.sock.
 const DESK_PUSH_SCRIPT = '/workspace/tlon-apps/scripts/desk-push.mjs';
 
-// assemble-desk.sh stamps HEAD into commit.txt, and the glob bot rewrites the
-// glob hash in desk.docket-0 several times a day on develop. Neither changes
-// any Hoon the bot harness exercises, and committing them would reload every
-// agent on all three ships for nothing.
-const IGNORED_PATHS = ['commit.txt', 'desk.docket-0'];
+// The glob bot rewrites the glob hash in desk.docket-0 several times a day on
+// develop. It changes no Hoon the harness exercises, and these piers have no
+// route to fetch the glob it names, so it is held back entirely.
+const IGNORED_PATHS = ['desk.docket-0'];
+
+// assemble-desk.sh restamps commit.txt on every run, so letting it count as a
+// change would commit and reload every agent on all three ships for nothing.
+// It cannot simply be ignored either: desk/app/groups.hoon and
+// desk/app/logs.hoon both import /commit/txt, groups putting it in crash
+// traces and logs attaching it to telemetry, so a stale stamp makes an E2E
+// failure name the pier's archived revision instead of the code under test.
+// Carrying it along with any commit that happens anyway gets both.
+const INCIDENTAL_PATHS = ['commit.txt'];
 
 // A commit to a live %groups advances clay in one event, but gall reloads the
 // desk's agents over the events after it. run.ts hands the ships straight to
@@ -106,7 +114,12 @@ export function deskPushArgv(ship: ShipLabel): string[] {
     `/data/${ship}`,
     '--wait-scry',
     READY_SCRY,
+    // the readiness poll lives inside the script, so the ceiling has to reach
+    // it rather than only bounding the exec around it
+    '--wait-timeout',
+    String(deskPushTimeoutMs()),
     ...IGNORED_PATHS.flatMap((file) => ['--ignore', file]),
+    ...INCIDENTAL_PATHS.flatMap((file) => ['--incidental', file]),
   ];
 }
 
@@ -161,7 +174,9 @@ export async function applyBranchDesk(
         ctx,
         ctx.services.ships,
         deskPushArgv(ship),
-        { timeoutMs: deskPushTimeoutMs() }
+        // the exec spans two phases that each get the configured budget — the
+        // push itself and then the readiness poll — so it has to outlast both
+        { timeoutMs: deskPushTimeoutMs() * 2 }
       );
       for (const line of result.stdout.split('\n').filter(Boolean)) {
         console.log(`    ~${ship}: ${line}`);

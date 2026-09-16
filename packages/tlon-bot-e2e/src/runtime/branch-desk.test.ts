@@ -54,10 +54,21 @@ describe('desk push command', () => {
     ]);
     expect(argv).toContain('groups');
     expect(argv.slice(argv.indexOf('--pier'))).toContain('/data/ten');
-    // the glob bot rewrites desk.docket-0 on develop several times a day and
-    // assemble-desk.sh always restamps commit.txt; committing either would
-    // reload every agent for a change no scenario can observe
-    expect(ignoredIn(argv)).toEqual(['commit.txt', 'desk.docket-0']);
+    // the glob bot rewrites desk.docket-0 on develop several times a day, and
+    // these piers cannot fetch the glob it names, so it is held back outright
+    expect(flagValues(argv, '--ignore')).toEqual(['desk.docket-0']);
+    // the stamp must not cause a commit by itself, but groups and logs import
+    // it, so it has to ride along with any commit that does happen
+    expect(flagValues(argv, '--incidental')).toEqual(['commit.txt']);
+  });
+
+  test('gives the readiness poll the configured budget, and the exec more', () => {
+    // the poll runs inside the script, so bounding only the exec would let a
+    // slow ship fail at the script's own default no matter what is configured
+    const argv = deskPushArgv('zod');
+    expect(argv[argv.indexOf('--wait-timeout') + 1]).toBe(
+      String(deskPushTimeoutMs())
+    );
   });
 
   test('waits for a desk agent to serve again before returning', () => {
@@ -183,8 +194,8 @@ describe('applyBranchDesk', () => {
   });
 });
 
-function ignoredIn(argv: string[]): string[] {
-  return argv.flatMap((arg, i) => (arg === '--ignore' ? [argv[i + 1]] : []));
+function flagValues(argv: string[], flag: string): string[] {
+  return argv.flatMap((arg, i) => (arg === flag ? [argv[i + 1]] : []));
 }
 
 function dependencies(): BranchDeskDependencies {

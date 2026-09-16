@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // desk-push: commit an assembled desk to a ship through Clay, in one round trip.
 //
-//   node scripts/desk-push.mjs <assembled-dir> <desk> --pier <pier-path> [--code <+code>] [--install] [--reseed] [--ignore <path>]... [--wait-scry <eyre-path>] [--dry-run]
+//   node scripts/desk-push.mjs <assembled-dir> <desk> --pier <pier-path> [--code <+code>] [--install] [--reseed] [--ignore <path>]... [--incidental <path>]... [--wait-scry <eyre-path>] [--wait-timeout <ms>] [--dry-run]
 //   node scripts/desk-push.mjs <assembled-dir> <desk> --url http://host:port (--code <+code> | --cookie <urbauth>) [--install] [--dry-run]
 //
 // Verified end to end on a fresh fake ship (vere 4.6, kelvin 408): bootstrap
@@ -583,7 +583,7 @@ function parseArgs(argv) {
     rest.includes(name) ? rest[rest.indexOf(name) + 1] : undefined;
   if (!dir || !desk || !(opt('--pier') || opt('--url'))) {
     console.error(
-      'usage: desk-push.mjs <assembled-dir> <desk> (--pier <path> | --url <http://host:port> (--code <+code> | --cookie <urbauth>)) [--install] [--reseed] [--ignore <desk-relative-path>]... [--wait-scry <eyre-path>] [--dry-run]'
+      'usage: desk-push.mjs <assembled-dir> <desk> (--pier <path> | --url <http://host:port> (--code <+code> | --cookie <urbauth>)) [--install] [--reseed] [--ignore <path>]... [--incidental <path>]... [--wait-scry <eyre-path>] [--wait-timeout <ms>] [--dry-run]'
     );
     process.exit(2);
   }
@@ -605,10 +605,22 @@ function parseArgs(argv) {
     ignore: rest.flatMap((a, i) =>
       a === '--ignore' ? [toClayPath(rest[i + 1])] : []
     ),
+    // paths that must not make a commit happen on their own, but that should
+    // ride along with any commit that does. desk/app/groups.hoon and
+    // desk/app/logs.hoon both import /commit/txt, putting it in crash traces
+    // and telemetry, so a stale stamp names the wrong revision in exactly the
+    // reports someone reads when a test fails.
+    incidental: rest.flatMap((a, i) =>
+      a === '--incidental' ? [toClayPath(rest[i + 1])] : []
+    ),
     // an eyre scry path to poll after a commit, e.g.
     // /~/scry/groups/groups/light.json — proves the desk's agents are serving
     // again rather than only that clay advanced
     waitScry: opt('--wait-scry'),
+    // how long a slow ship may take for one phase; the readiness poll uses it
+    waitTimeout: opt('--wait-timeout')
+      ? Number(opt('--wait-timeout'))
+      : LIVE_TIMEOUT_MS,
   };
 }
 
@@ -657,6 +669,9 @@ async function main() {
   // the seed as well, or the one write that is supposed to leave these alone
   // would be the write that overwrites them.
   const ignored = (p) => args.ignore.includes(p);
+  const incidental = (p) => args.incidental.includes(p);
+  // the seed is a full write, so incidental paths belong in it; only the fully
+  // ignored ones are held back
   const pushable = local.filter((f) => !ignored(f.path));
 
   // Whether the desk is already in clay decides how a missing thread is
@@ -735,9 +750,13 @@ async function main() {
     }
   }
 
+  const differs = (f) => remote.get(f.path) !== shax(f.buf);
   const changed = local.filter(
-    (f) => !ignored(f.path) && remote.get(f.path) !== shax(f.buf)
+    (f) => !ignored(f.path) && !incidental(f.path) && differs(f)
   );
+  // included only once something else is already being committed, so the stamp
+  // never triggers a rebuild by itself but is never stale after a real one
+  const carried = local.filter((f) => incidental(f.path) && differs(f));
   if (process.env.DESK_PUSH_DEBUG) {
     for (const f of changed.slice(0, 4)) {
       console.log(
@@ -747,16 +766,20 @@ async function main() {
   }
   const localPaths = new Set(local.map((f) => f.path));
   const deleted = [...remote.keys()].filter(
-    (p) => !localPaths.has(p) && !ignored(p)
+    (p) => !localPaths.has(p) && !ignored(p) && !incidental(p)
   );
 
   if (changed.length === 0 && deleted.length === 0) {
     console.log(`%${args.desk} unchanged (${remote.size} files)`);
-    if (seeded && args.waitScry) await waitScry(ship, args.waitScry);
+    if (seeded && args.waitScry) {
+      await waitScry(ship, args.waitScry, args.waitTimeout);
+    }
     return;
   }
   console.log(
-    `%${args.desk}: ${changed.length} changed, ${deleted.length} deleted, ${local.length - changed.length} unchanged`
+    `%${args.desk}: ${changed.length} changed, ${deleted.length} deleted, ` +
+      `${local.length - changed.length - carried.length} unchanged` +
+      (carried.length ? `, ${carried.length} carried along` : '')
   );
   if (args.dryRun) {
     for (const f of changed) console.log(`  ~ ${f.path}`);
@@ -766,7 +789,7 @@ async function main() {
 
   const arg = cell(
     cord(args.desk),
-    cell(modeNoun(changed, deleted), args.install ? YES : NO)
+    cell(modeNoun([...changed, ...carried], deleted), args.install ? YES : NO)
   );
 
   // a commit that fails to build crashes the event; that surfaces from fyrd()
@@ -784,16 +807,16 @@ async function main() {
       ? `committed %${args.desk} at revision ${aeon} (${hash}) in ${secs}s`
       : `%${args.desk} still at revision ${aeon} (${hash}): clay found nothing new to commit`
   );
-  if (args.install) await waitLive(ship, args.desk);
+  if (args.install) await waitLive(ship, args.desk, args.waitTimeout);
   if ((committed || seeded) && args.waitScry) {
-    await waitScry(ship, args.waitScry);
+    await waitScry(ship, args.waitScry, args.waitTimeout);
   }
 }
 
 // A commit that reloads agents leaves them unavailable for a while after clay
 // is done. Callers that hand the ship straight to a test suite need to wait for
 // that, or the suite races the reload.
-async function waitScry(ship, scryPath, timeoutMs = LIVE_TIMEOUT_MS) {
+async function waitScry(ship, scryPath, timeoutMs) {
   const t0 = Date.now();
   for (;;) {
     if (await ship.scryOk(scryPath)) {
@@ -813,7 +836,7 @@ async function waitScry(ship, scryPath, timeoutMs = LIVE_TIMEOUT_MS) {
 
 // kiln acknowledges |install before gall has started every agent; poll its
 // own view rather than probing one agent's scry
-async function waitLive(ship, desk, timeoutMs = LIVE_TIMEOUT_MS) {
+async function waitLive(ship, desk, timeoutMs) {
   const t0 = Date.now();
   for (;;) {
     const zest = await ship.zest(desk);
