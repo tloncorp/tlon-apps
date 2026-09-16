@@ -17,16 +17,16 @@ import type { TopLevelTabParamList } from './types';
 
 const Tabs = createNativeBottomTabNavigator<TopLevelTabParamList>();
 
-type TabIconName = 'home' | 'workspaces' | 'settings';
+type TabIconName = 'bot' | 'workspaces' | 'settings';
 
 const tabIcons = {
-  home: {
-    regular: require('./assets/tab-home.png'),
-    selected: require('./assets/tab-home-filled.png'),
+  bot: {
+    regular: require('./assets/tab-bot.png'),
+    selected: require('./assets/tab-bot.png'),
   },
   workspaces: {
-    regular: require('./assets/tab-messages.png'),
-    selected: require('./assets/tab-messages-filled.png'),
+    regular: require('./assets/tab-workspaces.png'),
+    selected: require('./assets/tab-workspaces.png'),
   },
   settings: {
     regular: require('./assets/tab-settings.png'),
@@ -98,7 +98,7 @@ export function TopLevelTabNavigator() {
           initialParams={{ channelId: botDm.channelId }}
           options={{
             title: TOP_LEVEL_TABS.BotChat.title,
-            tabBarIcon: ({ focused }) => tabIcon('home', focused),
+            tabBarIcon: ({ focused }) => tabIcon('bot', focused),
           }}
         />
       ) : null}

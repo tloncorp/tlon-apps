@@ -57,16 +57,14 @@ function ReactTopLevelTabBar({ state, navigation }: BottomTabBarProps) {
     <NavBar>
       {hasBotDmTab && (
         <NavIcon
-          type="Home"
-          activeType="HomeFilled"
+          type="SmushStar"
           isActive={activeRouteName === 'BotChat'}
           hasUnreads={false}
           onPress={() => pressTab('BotChat')}
         />
       )}
       <NavIcon
-        type="Messages"
-        activeType="MessagesFilled"
+        type="Channel"
         isActive={activeRouteName === 'ChatList'}
         hasUnreads={false}
         onPress={() => pressTab('ChatList')}
