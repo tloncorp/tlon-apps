@@ -22,10 +22,10 @@ const AUTOMATION_V1_PATH = '/steward/~/v1/automation';
 const REQUEST_V1_PATH = `${AUTOMATION_V1_PATH}/request`;
 const TASKS_V1_PATH = `${AUTOMATION_V1_PATH}/tasks`;
 const TASKS_FEED = { app: 'steward', path: '/v1/automation/tasks' };
-// Steward's Eyre routes answer 401 to an expired session, where requestJson
-// only reauthenticates on 403 by default.
-const AUTH_FAILURE_STATUSES = [401, 403] as const;
-const REQUEST_OPTIONS = { reauthStatuses: [...AUTH_FAILURE_STATUSES] };
+// Steward answers an expired session with 401, where requestJson only
+// reauthenticates on 403 by default. 403 is left out on purpose: the edit
+// route uses it for an untrusted bot, which no reauthentication can fix.
+const REQUEST_OPTIONS = { reauthStatuses: [401] };
 
 // Typed failure from the automation action-error union. `errorType` mirrors
 // the wire's `errorType`; `harness-offline` means no plugin is attached to

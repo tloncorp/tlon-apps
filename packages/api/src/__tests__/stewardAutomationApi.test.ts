@@ -52,7 +52,7 @@ describe('createAutomation', () => {
       '/steward/~/v1/automation',
       'POST',
       { bot, action: { create: task } },
-      { reauthStatuses: [401, 403] }
+      { reauthStatuses: [401] }
     );
   });
 
@@ -68,7 +68,7 @@ describe('createAutomation', () => {
       '/steward/~/v1/automation',
       'POST',
       { requestId, bot, action: { create: task } },
-      { reauthStatuses: [401, 403] }
+      { reauthStatuses: [401] }
     );
   });
 
@@ -153,7 +153,7 @@ describe('updateAutomation and deleteAutomation', () => {
       '/steward/~/v1/automation',
       'POST',
       { bot, action: { update: { id: 'job-1', enabled: false } } },
-      { reauthStatuses: [401, 403] }
+      { reauthStatuses: [401] }
     );
   });
 
@@ -171,7 +171,7 @@ describe('updateAutomation and deleteAutomation', () => {
       '/steward/~/v1/automation',
       'POST',
       { bot, action: { delete: { id: 'job-1' } } },
-      { reauthStatuses: [401, 403] }
+      { reauthStatuses: [401] }
     );
   });
 });
@@ -191,7 +191,7 @@ describe('getAutomationRequest and awaitAutomationRequest', () => {
       `/steward/~/v1/automation/request/${requestId}`,
       'GET',
       undefined,
-      { reauthStatuses: [401, 403] }
+      { reauthStatuses: [401] }
     );
   });
 
@@ -246,7 +246,7 @@ describe('getAutomationRequest and awaitAutomationRequest', () => {
       `/steward/~/v1/automation/request/${requestId}`,
       'GET',
       undefined,
-      { reauthStatuses: [401, 403], signal: controller.signal }
+      { reauthStatuses: [401], signal: controller.signal }
     );
   });
 });
@@ -261,7 +261,7 @@ describe('reads', () => {
       '/steward/~/v1/automation/tasks',
       'GET',
       undefined,
-      { reauthStatuses: [401, 403] }
+      { reauthStatuses: [401] }
     );
   });
 
