@@ -1,0 +1,328 @@
+/**
+ * Mirror the OpenClaw agent workspace into %steward's prompts projection.
+ *
+ * The workspace is authoritative. %steward sends owner edits to this harness;
+ * after a successful local write, we publish the complete workspace snapshot
+ * and then finalize that edit. This makes the ship a projection of what the
+ * gateway is actually running rather than a second source of prompt state.
+ */
+import { randomUUID } from 'node:crypto';
+import nodeFs, { promises as fs } from 'node:fs';
+import path from 'node:path';
+
+import {
+  DEFAULT_ACCOUNT_ID,
+  type OpenClawConfig,
+} from 'openclaw/plugin-sdk/core';
+
+import { resolveTlonAccount } from './types.js';
+
+export const PROMPT_FILE_NAMES = [
+  'AGENTS.md',
+  'SOUL.md',
+  'TOOLS.md',
+  'IDENTITY.md',
+  'USER.md',
+  'BOOTSTRAP.md',
+] as const;
+
+export type PromptFileName = (typeof PROMPT_FILE_NAMES)[number];
+
+/** Must match %steward's per-file cap. */
+export const MAX_PROMPT_BYTES = 65_536;
+const MAX_COMPLETED_REQUESTS = 1_000;
+
+type Logger = {
+  log: (message: string) => void;
+  warn: (message: string) => void;
+};
+
+type Poke = (params: {
+  app: string;
+  mark: string;
+  json: unknown;
+}) => Promise<unknown>;
+
+type PromptDispatch = {
+  requestId: string;
+  action: { set: { name: PromptFileName; text: string } };
+};
+
+type PromptOutcome =
+  | { type: 'updated'; name: PromptFileName }
+  | { type: 'error'; errorType: 'harness-error'; message: string[] };
+
+export type PromptSync = {
+  /** Configure the owner and publish the initial workspace projection. */
+  start: () => Promise<void>;
+  /** Publish the current workspace projection, for reconnect recovery. */
+  project: (reason: string) => Promise<void>;
+  /** Apply one typed dispatch from /v1/prompts/harness. */
+  handleDispatch: (fact: unknown) => Promise<void>;
+  /** Resolves once all queued filesystem and Gall operations have settled. */
+  flush: () => Promise<void>;
+};
+
+export function isAllowedPromptName(name: unknown): name is PromptFileName {
+  return (
+    typeof name === 'string' &&
+    (PROMPT_FILE_NAMES as readonly string[]).includes(name)
+  );
+}
+
+function isWithinSizeLimit(text: string): boolean {
+  return Buffer.byteLength(text, 'utf8') <= MAX_PROMPT_BYTES;
+}
+
+/**
+ * Only one account may project prompts because OpenClaw resolves all account
+ * monitors to the same default-agent workspace.
+ */
+export function shouldRunPromptSync(
+  config: OpenClawConfig,
+  accountId: string
+): boolean {
+  if (accountId === DEFAULT_ACCOUNT_ID) {
+    return true;
+  }
+  const accounts = (
+    config.channels?.tlon as { accounts?: Record<string, unknown> } | undefined
+  )?.accounts;
+  const runnable = [DEFAULT_ACCOUNT_ID, ...Object.keys(accounts ?? {})].filter(
+    (id) => {
+      const account = resolveTlonAccount(config, id);
+      return account.configured && account.enabled;
+    }
+  );
+  return runnable.length === 1 && runnable[0] === accountId;
+}
+
+function parseDispatch(fact: unknown): PromptDispatch | null {
+  if (!fact || typeof fact !== 'object') {
+    return null;
+  }
+  const candidate = fact as {
+    requestId?: unknown;
+    action?: { set?: { name?: unknown; text?: unknown } };
+  };
+  const requestId = candidate.requestId;
+  const set = candidate.action?.set;
+  if (
+    typeof requestId !== 'string' ||
+    requestId.length === 0 ||
+    !set ||
+    !isAllowedPromptName(set.name) ||
+    typeof set.text !== 'string'
+  ) {
+    return null;
+  }
+  return { requestId, action: { set: { name: set.name, text: set.text } } };
+}
+
+/**
+ * Read a file from its descriptor, never following a final-component link or
+ * blocking on a FIFO. A prepared workspace must not be able to project an
+ * arbitrary readable host file to the owner ship.
+ */
+async function readPromptFile(filePath: string): Promise<string | null> {
+  const handle = await fs.open(
+    filePath,
+    nodeFs.constants.O_RDONLY |
+      nodeFs.constants.O_NOFOLLOW |
+      nodeFs.constants.O_NONBLOCK
+  );
+  try {
+    const info = await handle.stat();
+    if (!info.isFile()) {
+      throw new Error('not a regular file');
+    }
+    if (info.size > MAX_PROMPT_BYTES) {
+      throw new Error(`exceeds ${MAX_PROMPT_BYTES} byte limit`);
+    }
+    const text = await handle.readFile('utf8');
+    if (!isWithinSizeLimit(text)) {
+      throw new Error(`exceeds ${MAX_PROMPT_BYTES} byte limit`);
+    }
+    return text;
+  } finally {
+    await handle.close().catch(() => {});
+  }
+}
+
+export async function readWorkspacePrompts(
+  workspaceDir: string
+): Promise<Record<string, string>> {
+  const prompts: Record<string, string> = {};
+  for (const name of PROMPT_FILE_NAMES) {
+    try {
+      const text = await readPromptFile(path.join(workspaceDir, name));
+      if (text !== null) {
+        prompts[name] = text;
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        continue;
+      }
+      throw new Error(`cannot read ${name}: ${String(error)}`);
+    }
+  }
+  return prompts;
+}
+
+/** Atomically replace an allowlisted workspace file. */
+export async function writeWorkspacePrompt(params: {
+  workspaceDir: string;
+  name: PromptFileName;
+  text: string;
+}): Promise<void> {
+  if (!isWithinSizeLimit(params.text)) {
+    throw new Error(`${params.name} exceeds ${MAX_PROMPT_BYTES} byte limit`);
+  }
+  await fs.mkdir(params.workspaceDir, { recursive: true });
+  const target = path.join(params.workspaceDir, params.name);
+  const temporary = `${target}.${randomUUID()}.tmp`;
+  try {
+    await fs.writeFile(temporary, params.text, {
+      encoding: 'utf8',
+      flag: 'wx',
+    });
+    await fs.rename(temporary, target);
+  } catch (error) {
+    await fs.unlink(temporary).catch(() => {});
+    throw error;
+  }
+}
+
+function errorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.slice(0, 1_000);
+}
+
+/**
+ * Create the local harness relay. Operations are serialized so two owner
+ * edits cannot project an intermediate workspace or race their finalization.
+ */
+export function createPromptSync(opts: {
+  owner: string;
+  workspaceDir: string;
+  poke: Poke;
+  logger: Logger;
+}): PromptSync {
+  let configured = false;
+  let queue: Promise<void> = Promise.resolve();
+  // Steward suppresses completed commands itself. This cache also makes a
+  // duplicate fact on one live SSE channel a terminal-result retry rather
+  // than a second workspace write.
+  const completed = new Map<string, PromptOutcome>();
+
+  const configure = async () => {
+    if (configured) {
+      return;
+    }
+    await opts.poke({
+      app: 'steward',
+      mark: 'steward-action-1',
+      json: { configure: { owner: opts.owner } },
+    });
+    configured = true;
+  };
+
+  const publish = async (reason: string) => {
+    const prompts = await readWorkspacePrompts(opts.workspaceDir);
+    await opts.poke({
+      app: 'steward',
+      mark: 'steward-prompts-action-1',
+      json: { project: prompts },
+    });
+    opts.logger.log(
+      `[tlon] Projected ${Object.keys(prompts).length} prompt file(s) (${reason})`
+    );
+  };
+
+  const finalize = async (requestId: string, body: PromptOutcome) => {
+    await opts.poke({
+      app: 'steward',
+      mark: 'steward-prompts-action-1',
+      json: { finalize: { requestId, body } },
+    });
+  };
+
+  const rememberCompleted = (requestId: string, outcome: PromptOutcome) => {
+    completed.delete(requestId);
+    completed.set(requestId, outcome);
+    while (completed.size > MAX_COMPLETED_REQUESTS) {
+      const oldest = completed.keys().next().value;
+      if (oldest === undefined) {
+        return;
+      }
+      completed.delete(oldest);
+    }
+  };
+
+  const enqueue = (work: () => Promise<void>) => {
+    queue = queue.then(work).catch((error) => {
+      opts.logger.warn(`[tlon] Prompt sync failed: ${errorMessage(error)}`);
+    });
+    return queue;
+  };
+
+  return {
+    start: () =>
+      enqueue(async () => {
+        await configure();
+        await publish('startup');
+      }),
+    project: (reason) =>
+      enqueue(async () => {
+        await configure();
+        await publish(reason);
+      }),
+    handleDispatch: (fact) =>
+      enqueue(async () => {
+        const dispatch = parseDispatch(fact);
+        if (!dispatch) {
+          opts.logger.warn('[tlon] Ignored malformed steward prompt dispatch');
+          return;
+        }
+        const { requestId, action } = dispatch;
+        const prior = completed.get(requestId);
+        if (prior) {
+          await finalize(requestId, prior);
+          return;
+        }
+        try {
+          // Facts can arrive as soon as the subscription becomes live. Ensure
+          // an early replay cannot run ahead of the startup projection's
+          // owner configuration.
+          await configure();
+          await writeWorkspacePrompt({
+            workspaceDir: opts.workspaceDir,
+            name: action.set.name,
+            text: action.set.text,
+          });
+          // The projection lands before %finalize, so every terminal owner
+          // response corresponds to the workspace snapshot it requested.
+          await publish(`edit ${action.set.name}`);
+        } catch (error) {
+          const outcome: PromptOutcome = {
+            type: 'error',
+            errorType: 'harness-error',
+            message: [errorMessage(error)],
+          };
+          await finalize(requestId, outcome);
+          rememberCompleted(requestId, outcome);
+          opts.logger.warn(
+            `[tlon] Prompt edit ${requestId} failed: ${errorMessage(error)}`
+          );
+          return;
+        }
+        const outcome: PromptOutcome = {
+          type: 'updated',
+          name: action.set.name,
+        };
+        await finalize(requestId, outcome);
+        rememberCompleted(requestId, outcome);
+      }),
+    flush: () => queue,
+  };
+}
