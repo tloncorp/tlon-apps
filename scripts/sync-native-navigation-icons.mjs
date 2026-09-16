@@ -40,7 +40,11 @@ const tabIcons = [
 ];
 
 const TAB_GLYPH_SIZE = 24;
-const TAB_CANVAS_HEIGHT = 30;
+// UITabBar centres the whole image, so the glyph must sit at the canvas's
+// vertical centre or every tab rides high. Pad equally above and below; the
+// dot lives in the bottom pad.
+const TAB_CANVAS_HEIGHT = 34;
+const TAB_GLYPH_OFFSET_Y = (TAB_CANVAS_HEIGHT - TAB_GLYPH_SIZE) / 2;
 const TAB_DOT_RADIUS = 2;
 
 // Nest the source as-is (its own viewBox scales it, its root attributes such
@@ -52,7 +56,7 @@ function frameTabGlyph(svg, { dot = false } = {}) {
       const sized = attrs
         .replace(/\swidth="[^"]*"/, ` width="${TAB_GLYPH_SIZE}"`)
         .replace(/\sheight="[^"]*"/, ` height="${TAB_GLYPH_SIZE}"`);
-      return `<svg x="0" y="0"${sized}>`;
+      return `<svg x="0" y="${TAB_GLYPH_OFFSET_Y}"${sized}>`;
     });
   const dotMarkup = dot
     ? `<circle cx="${TAB_GLYPH_SIZE / 2}" cy="${TAB_CANVAS_HEIGHT - TAB_DOT_RADIUS - 0.5}" r="${TAB_DOT_RADIUS}" fill="#000000"/>`
