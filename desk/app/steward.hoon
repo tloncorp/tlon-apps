@@ -1381,6 +1381,15 @@
         `@uv`eny.bowl
       =/  parsed=(each @uv tang)  (mule |.((slav %uv p.u.rj)))
       ?:(?=(%& -.parsed) p.parsed `@uv`eny.bowl)
+    ::  a retried id is answered from its record and never re-dispatched:
+    ::  a second watch on the same wire would crash the poke, and a second
+    ::  command would apply the edit twice
+    ::
+    =/  existing  (~(get by requests.automation.state) rid)
+    ?^  existing
+      %+  au-give-http-response  eyre-id
+      ?~  result.u.existing  [rid %pending poke-status.u.existing]
+      [rid u.result.u.existing]
     =.  requests.automation.state
       %+  ~(put by requests.automation.state)  rid
       [rid p.bot-res `eyre-id %sending ~ ~ |]

@@ -400,6 +400,14 @@
   ^-  form:m
   ;<  ~  bind:m  (trust moon)
   (pure:m ~)
+::  an owner ship that already trusts +moon, for edit-loop tests
+::
+++  setup-owner
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  (pure:m ~)
 ::
 ::  automation sync fixtures: ~dev doubles as the bot under test (with
 ::  ~bus configured as its owner) and as the owner mirroring +moon
@@ -2779,6 +2787,27 @@
     (ex-cards caz ~[(ex-local-response created) (ex-req-leave moon)])
   ;<  req=incoming-request:v1:au  bind:m  got-request
   (ex-equal !>(result.req) !>(`created))
+::
+::  a retried request id is answered from the stored record: pending while
+::  the first POST is held, the result once it lands, and never re-relayed
+::
+++  test-automation-http-retried-request-id-answers-without-redispatch
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  ;<  caz=(list card)  bind:m
+    (do-http 'eyre-1' (http-request & %'POST' edit-url `(edit-post-body &)))
+  ;<  ~  bind:m  (ex-cards caz (ex-relay moon edit-create ~2024.1.1))
+  ;<  caz=(list card)  bind:m
+    (do-http 'eyre-2' (http-request & %'POST' edit-url `(edit-post-body &)))
+  ;<  ~  bind:m  (ex-cards caz (ex-http-response 'eyre-2' [%pending %sending]))
+  ;<  req=incoming-request:v1:au  bind:m  got-request
+  ;<  ~  bind:m  (ex-equal !>(http-id.req) !>(`'eyre-1'))
+  ;<  *  bind:m  (do-req-watch-sign moon (response-fact created))
+  ;<  caz=(list card)  bind:m
+    (do-http 'eyre-3' (http-request & %'POST' edit-url `(edit-post-body &)))
+  (ex-cards caz (ex-http-response 'eyre-3' created))
 ::
 ++  test-automation-http-post-mints-request-id
   %-  eval-mare
