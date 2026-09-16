@@ -2607,6 +2607,28 @@
   ;<  caz=(list card)  bind:m  (do-finalize created)
   (ex-cards caz ~[(ex-bot-response ~bus created)])
 ::
+::  a command the harness never answers is closed out at the sweep
+::
+++  test-automation-command-swept-answers-harness-offline
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m  (do-watch harness-path)
+  ;<  *  bind:m
+    %-  (do-as ~bus)
+    (do-command edit-create)
+  ;<  ~  bind:m  (advance-clock ~h2)
+  ;<  caz=(list card)  bind:m  do-cleanup-wake
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  (ex-bot-response ~bus [%error %harness-offline ~])
+        (ex-cleanup-timer (add ~2024.1.1 ~h2))
+    ==
+  ;<  pen=pending:v1:au  bind:m  got-pending
+  (ex-equal !>(pen) !>(*pending:v1:au))
+::
 ++  test-automation-finalize-unknown-id-ignored
   %-  eval-mare
   =/  m  (mare ,~)

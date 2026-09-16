@@ -1315,11 +1315,24 @@
         ?:((gth age ~h1) out (~(put by out) id req))
       ?:  |(fetched.req (gth age ~d1))  out
       (~(put by out) id req)
+    ::  a command the harness never answered is closed out to its
+    ::  requester as harness-offline, so the owner's record finalizes
+    ::  instead of ageing out as pending
+    ::
+    =/  expired
+      |=  pen=pending-command:v1:sa
+      &((gte now.bowl sent-at.pen) (gth (sub now.bowl sent-at.pen) ~h1))
+    =/  dropped  (skim ~(val by pending.automation.state) expired)
+    =.  cor
+      |-  ^+  cor
+      ?~  dropped  cor
+      =.  cor
+        (au-give-response requester.i.dropped [id.i.dropped %error %harness-offline ~])
+      $(dropped t.dropped)
     =.  pending.automation.state
       %-  ~(rep by pending.automation.state)
       |=  [[id=request-id:v1:sa pen=pending-command:v1:sa] out=pending:v1:sa]
-      ?:  (lth now.bowl sent-at.pen)  (~(put by out) id pen)
-      ?:  (gth (sub now.bowl sent-at.pen) ~h1)  out
+      ?:  (expired pen)  out
       (~(put by out) id pen)
     (emit %pass /automation/cleanup %arvo %b %wait (add now.bowl ~m5))
   ::
