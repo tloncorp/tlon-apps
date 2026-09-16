@@ -322,15 +322,27 @@ export const useUnreadUnseenActivityCount = ({
 export const useHaveUnreadUnseenActivity = () =>
   useUnreadUnseenActivityCount() > 0;
 
-export const useChannelUnreadCount = (channelId?: string | null) => {
+const useChannelUnreadRow = (channelId?: string | null) => {
   const depsKey = useKeyFromQueryDeps(db.getChannelUnread);
   const { data } = useQuery({
     enabled: !!channelId,
-    queryKey: ['channelUnreadCount', depsKey, channelId],
+    queryKey: ['channelUnread', depsKey, channelId],
     queryFn: () => db.getChannelUnread({ channelId: channelId ?? '' }),
   });
+  return data ?? null;
+};
 
-  return data?.count ?? 0;
+export const useChannelUnreadCount = (channelId?: string | null) =>
+  useChannelUnreadRow(channelId)?.count ?? 0;
+
+/**
+ * Whether a channel should read as unread. New posts raise `count`; a
+ * notification-only event such as a reaction raises `notify` and leaves
+ * `count` alone, and a badge keyed on the count alone would miss it.
+ */
+export const useChannelHasUnread = (channelId?: string | null) => {
+  const row = useChannelUnreadRow(channelId);
+  return (row?.count ?? 0) > 0 || row?.notify === true;
 };
 
 export const useLiveThreadUnread = (unread: db.ThreadUnreadState | null) => {

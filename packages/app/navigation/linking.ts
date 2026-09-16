@@ -13,6 +13,10 @@ export const getMobileLinkingConfig = (
     screens: {
       Root: {
         path: basePathForMode(mode),
+        // Activity, Contacts and the rest are root-stack screens above the
+        // tabs. A cold link straight to one would otherwise build a stack
+        // with nothing beneath it: back does nothing and there is no tab bar.
+        initialRouteName: 'MainTabs',
         screens: {
           MainTabs: {
             screens: {

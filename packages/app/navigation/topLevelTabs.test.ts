@@ -60,16 +60,18 @@ describe('mobile top-level tab links', () => {
   });
 
   // Activity and Contacts left the tab bar; they are now root stack screens.
+  // A cold link seats MainTabs beneath them so back and the tab bar work.
   test.each([
     ['/apps/groups/activity', 'Activity'],
     ['/apps/groups/contacts', 'Contacts'],
-  ])('routes %s to the root stack', (path, screen) => {
+  ])('routes %s to the root stack over MainTabs', (path, screen) => {
     const state = getStateFromPath(path, getMobileLinkingConfig('').config!);
 
     expect(state?.routes[0]).toMatchObject({
       name: 'Root',
       state: {
-        routes: [{ name: screen }],
+        index: 1,
+        routes: [{ name: 'MainTabs' }, { name: screen }],
       },
     });
   });

@@ -26,7 +26,7 @@ function ReactTopLevelTabBar({ state, navigation }: BottomTabBarProps) {
   // Hooks stay above the early return below. The bot DM badges its own tab;
   // Workspaces badges activity everywhere else.
   const botDm = useBotDmTab();
-  const botDmUnreadCount = store.useChannelUnreadCount(
+  const botDmHasUnread = store.useChannelHasUnread(
     botDm.enabled ? botDm.channelId : undefined
   );
   const unseenActivityCount = store.useUnreadUnseenActivityCount({
@@ -69,7 +69,7 @@ function ReactTopLevelTabBar({ state, navigation }: BottomTabBarProps) {
         <NavIcon
           type="SmushStar"
           isActive={activeRouteName === 'BotChat'}
-          hasUnreads={botDmUnreadCount > 0}
+          hasUnreads={botDmHasUnread}
           onPress={() => pressTab('BotChat')}
         />
       )}

@@ -46,7 +46,7 @@ function tabIcon(name: TabIconName, focused: boolean) {
 export function TopLevelTabNavigator() {
   const theme = useTheme();
   const botDm = useBotDmTab();
-  const botDmUnreadCount = store.useChannelUnreadCount(
+  const botDmHasUnread = store.useChannelHasUnread(
     botDm.enabled ? botDm.channelId : undefined
   );
   // Activity elsewhere: the bot DM already badges its own tab.
@@ -69,6 +69,24 @@ export function TopLevelTabNavigator() {
   // the user has already chosen a tab themselves.
   useEffect(() => {
     if (!botDm.enabled || focusedBotTab.current || changedTabs.current) {
+      return;
+    }
+    // A tab press is not the only way to leave the cold-start position. If the
+    // DM syncs after the user has opened Activity, Contacts, a workspace or
+    // any other screen, claiming the tab now would yank them back to it. Only
+    // claim while MainTabs is still the focused root route with the initial
+    // ChatList tab showing; otherwise the moment has passed for good.
+    const rootState = navigation.getState();
+    const rootRoute = rootState?.routes[rootState.index];
+    const tabsState = rootRoute?.state as
+      | { index?: number; routes?: { name: string }[] }
+      | undefined;
+    const focusedTab = tabsState?.routes?.[tabsState.index ?? 0]?.name;
+    if (
+      rootRoute?.name !== 'MainTabs' ||
+      (focusedTab && focusedTab !== 'ChatList')
+    ) {
+      focusedBotTab.current = true;
       return;
     }
     focusedBotTab.current = true;
@@ -114,7 +132,7 @@ export function TopLevelTabNavigator() {
           options={{
             title: TOP_LEVEL_TABS.BotChat.title,
             tabBarIcon: ({ focused }) => tabIcon('bot', focused),
-            tabBarBadge: dot(botDmUnreadCount > 0),
+            tabBarBadge: dot(botDmHasUnread),
             tabBarBadgeStyle,
           }}
         />
