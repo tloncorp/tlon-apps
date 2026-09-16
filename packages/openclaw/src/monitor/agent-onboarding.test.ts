@@ -843,7 +843,7 @@ describe('agent onboarding requests', () => {
       component: 'McpConnect',
       maxVisible: 4,
       seeAllLabel: 'See all connectors',
-      submitLabel: 'Use for this group',
+      submitLabel: 'Use for this workspace',
       completionLabel: 'Done',
       completionAction: {
         event: { name: A2UI.action.sendMessage, context: { text: 'Done' } },
@@ -1309,7 +1309,7 @@ describe('agent onboarding requests', () => {
     expect(sendPost).toHaveBeenCalledOnce();
   });
 
-  it('describes only the provisioned home group as the first group', async () => {
+  it('introduces itself only for the first workspace', async () => {
     const promptFor = async (isFirstGroup?: boolean) => {
       clearAgentOnboardingRuntime();
       const sent: Array<{ blob?: string; story?: unknown }> = [];
@@ -1353,7 +1353,7 @@ describe('agent onboarding requests', () => {
     const firstGroup = await promptFor(true);
     expect(firstGroup).toHaveLength(1);
     expect(JSON.stringify(firstGroup[0]?.story)).toContain(
-      'Welcome! This is your private group with me, your Tlonbot.'
+      'Welcome! This is your private chat with me, your Tlonbot.'
     );
     expect(JSON.stringify(firstGroup[0]?.story)).toContain(
       'I can keep you informed, help you learn, or follow a question over time.'
@@ -1850,7 +1850,7 @@ describe('agent onboarding requests', () => {
     ['agent-learning', 'write one useful idea in Field notes'],
     [
       'agent-research',
-      'write a source-backed update in Field notes, this group’s notebook',
+      'write a source-backed update in Field notes, the notebook in your workspace',
     ],
   ])('explains the ongoing cadence for %s', (purposeId, expectation) => {
     // Every variant has to name the notebook it writes into. "Publish", and

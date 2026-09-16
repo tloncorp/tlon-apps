@@ -173,12 +173,11 @@ const READ_MS_PER_CHARACTER = 10;
 const READ_DELAY_CAP_MS = 1_500;
 const JITTER_RATIO = 0.2;
 const LEGACY_GROUP_INTRO_PREFIX = "I'm your Tlonbot.";
-const TLAWN_HOME_GROUP_WELCOME_MESSAGE =
-  'Welcome! This is your private group with me, your Tlonbot. You can @ me ' +
-  'here anytime and I will respond. Invite some friends, and they can @ me ' +
-  'too—we can all chat together.';
-const AGENT_ONBOARDING_GROUP_INTRO =
-  `${TLAWN_HOME_GROUP_WELCOME_MESSAGE}\n\n` +
+const TLONBOT_DM_WELCOME_MESSAGE =
+  'Welcome! This is your private chat with me, your Tlonbot. Ask me ' +
+  'anything here anytime.';
+const AGENT_ONBOARDING_INTRO =
+  `${TLONBOT_DM_WELCOME_MESSAGE}\n\n` +
   'I can keep you informed, help you learn, or follow a ' +
   'question over time.';
 const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What can I help you with?';
@@ -192,7 +191,7 @@ const AGENT_ONBOARDING_APP_TOUR_EXPLANATION =
 const AGENT_ONBOARDING_BOT_TOUR_PROMPT =
   'Want me to tell you more about what Tlonbot can do for you?';
 const AGENT_ONBOARDING_BOT_TOUR_EXPLANATION =
-  'I can research questions, change what this group follows, publish ' +
+  'I can research questions, change what your workspace follows, publish ' +
   'scheduled updates, help in other groups, and use connected services you ' +
   'authorize. Try asking me to adjust tomorrow’s update or investigate ' +
   'something now.';
@@ -839,7 +838,7 @@ async function postIntro(
     'purpose-picker',
     async () => {
       const prompt = needsIntro
-        ? `${AGENT_ONBOARDING_GROUP_INTRO}\n\n${AGENT_ONBOARDING_PURPOSE_PROMPT}`
+        ? `${AGENT_ONBOARDING_INTRO}\n\n${AGENT_ONBOARDING_PURPOSE_PROMPT}`
         : AGENT_ONBOARDING_PURPOSE_PROMPT;
       return {
         text: purposePickerFallbackText(prompt),
@@ -1607,7 +1606,7 @@ async function failFirstRunCorrelation(
     async () => ({
       text:
         `I couldn’t publish the first entry to ${correlation.notebookName}. ` +
-        'You can keep using this group; I’ll try again at the next scheduled time.',
+        'Your workspace still works; I’ll try again at the next scheduled time.',
     }),
     runDeps
   );
@@ -1821,12 +1820,12 @@ async function completeFirstRunCorrelation(
         // card be a bonus rather than the whole message.
         const title = newest?.title?.trim();
         const message = title
-          ? `Your first entry is ready: “${title}” in ${notebookName}, this ` +
-            'group’s notebook. That notebook is where everything I write ' +
-            'for you lands; this chat is for talking to me.'
-          : `Your first entry is ready in ${notebookName}, this group’s ` +
-            'notebook. That notebook is where everything I write for you ' +
-            'lands; this chat is for talking to me.';
+          ? `Your first entry is ready: “${title}” in ${notebookName}, the ` +
+            'notebook in your workspace. That notebook is where everything ' +
+            'I write for you lands; this chat is for talking to me.'
+          : `Your first entry is ready in ${notebookName}, the notebook in ` +
+            'your workspace. That notebook is where everything I write for ' +
+            'you lands; this chat is for talking to me.';
         const story = markdownToStory(message);
         if (newest) {
           story.push({
@@ -2955,18 +2954,18 @@ function provisionCadence(
   switch (purposeId) {
     case 'agent-learning':
       return (
-        `Every morning I’ll write one useful idea in ${notebookName}, this ` +
-        'group’s notebook, rotating through your topics.'
+        `Every morning I’ll write one useful idea in ${notebookName}, the ` +
+        'notebook in your workspace, rotating through your topics.'
       );
     case 'agent-research':
       return (
         `Every morning I’ll check for new work and write a source-backed ` +
-        `update in ${notebookName}, this group’s notebook.`
+        `update in ${notebookName}, the notebook in your workspace.`
       );
     case 'agent-daily-digest':
       return (
-        `Every morning I’ll write a fresh digest in ${notebookName}, this ` +
-        'group’s notebook.'
+        `Every morning I’ll write a fresh digest in ${notebookName}, the ` +
+        'notebook in your workspace.'
       );
   }
 }
@@ -3067,7 +3066,7 @@ function buildServicesSurface(
         component: 'McpConnect',
         maxVisible: 4,
         seeAllLabel: 'See all connectors',
-        submitLabel: 'Use for this group',
+        submitLabel: 'Use for this workspace',
         action: {
           event: {
             name: A2UI.action.navigate,

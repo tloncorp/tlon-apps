@@ -1,5 +1,4 @@
 import * as api from '@tloncorp/api';
-import { BotHomeGroupSlugs } from '@tloncorp/api/types/wayfinding';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { withRetry } from '@tloncorp/shared/logic';
@@ -120,11 +119,12 @@ export function AgentOnboardingSequence(props: {
         return;
       }
 
-      // Hosting provisions the deterministic home group. The local override
-      // has no Hosting automation, so let furnishing create a real group.
+      // Onboarding builds the user a workspace of its own rather than reusing
+      // the deterministic home group Hosting provisions. Furnishing creates it
+      // on their ship with the bot as a member, so they host what it fills,
+      // and the topics they pick can name it.
       const ownerId = api.getCurrentUserId();
-      const hostedHomeGroupId = `${ownerId}/${BotHomeGroupSlugs.slug}`;
-      let activeGroupId = AGENT_SHIP_OVERRIDE ? undefined : hostedHomeGroupId;
+      let activeGroupId: string | undefined;
       let activeChannelId: string | undefined;
       let landedInAgentChat = false;
       const deadline = Date.now() + 2 * 60_000;
@@ -146,7 +146,6 @@ export function AgentOnboardingSequence(props: {
       while (!cancelled && !completedRef.current && Date.now() < deadline) {
         try {
           const furnishing = store.ensureAgentGroupFurnished({
-            groupId: AGENT_SHIP_OVERRIDE ? undefined : hostedHomeGroupId,
             agentShipId: AGENT_SHIP_OVERRIDE || undefined,
             isFirstGroup: true,
           });
