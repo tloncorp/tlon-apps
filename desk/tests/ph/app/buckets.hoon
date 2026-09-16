@@ -28,14 +28,20 @@
 ::
 ::  %buckets refuses a create whose group host is not a %duke -- the same gate
 ::  that refuses moons -- so the aqua convention of numbering galaxies cannot
-::  be used here. ~sampel-palnet is sponsored by ~talpur under ~pur, and both
-::  have to be in the fleet for ames to route to it.
+::  be used here.
 ::
-++  bucket-host      ~sampel-palnet
+::  It has to be a planet CI already boots. backend/run-tests.sh fixes the
+::  fleet at ~[~zod ~nec ~bud ~wes ~dem ~fen ~loshut-lonreg ~rivfur-livmet],
+::  and a host outside that list is simply unreachable there however well it
+::  works locally -- which is how these passed on a hand-built fleet and
+::  failed every case in CI. Adding a planet and its sponsors would cost
+::  three ship boots on every backend run, for one test file.
+::
+++  bucket-host      ~loshut-lonreg
 ++  bucket-member    ~bud
-++  the-group       ~sampel-palnet^%my-test-group
-++  the-bucket      ~sampel-palnet^%project-files
-++  bucket-nest      [%buckets ~sampel-palnet %project-files]
+++  the-group       ~loshut-lonreg^%my-test-group
+++  the-bucket      ~loshut-lonreg^%project-files
+++  bucket-nest      [%buckets ~loshut-lonreg %project-files]
 ::  +create-test-group: the group the bucket is bound to.
 ::
 ++  create-test-group
