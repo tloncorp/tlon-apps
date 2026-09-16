@@ -79,6 +79,12 @@ The nested-note check asserts its exact folder path, full updated date, title,
 body, and note → folder → Notebook Back path. It deletes its run-tagged fixture
 group.
 
+`notebook-preview.yaml` creates one disposable `%notes` Notebook and note. It
+asserts the empty preview message, contains malformed Markdown without a crash,
+renders every heading/emphasis/list/code/link construct in its deterministic body,
+opens the exact example-link host, returns to the live editor, and verifies the
+original Markdown source is preserved exactly. It deletes its run-tagged group.
+
 `self-hosted-recovery.yaml` clears local state, rejects a malformed ship URL,
 rejects a well-formed access code that the configured ship does not accept, then
 corrects only the code and verifies the exact configured ship after login. Run it

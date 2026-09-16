@@ -1,0 +1,138 @@
+appId: ${MAESTRO_APP_ID}
+name: Native Notebook Markdown preview and empty state
+tags: [regression]
+env:
+  JOURNEY: notebookpreview
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/create-group.yaml
+- tapOn: '^Edit channels$'
+- assertVisible: '^Channels$'
+- tapOn: '^New$'
+- tapOn: '^New channel$'
+- assertVisible: '^Create a new channel$'
+- tapOn: '^Collaborative markdown notebooks$'
+- tapOn:
+    id: ChannelTitleInput
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${MAESTRO_RUN_TAG + '-preview'}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - pressKey: Enter
+      - scroll
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+- tapOn: '^Create channel$'
+- extendedWaitUntil:
+    visible: ${MAESTRO_RUN_TAG + '-preview'}
+    timeout: 15000
+- tapOn: '^Back$'
+- tapOn: ${MAESTRO_RUN_TAG + '-preview'}
+- extendedWaitUntil:
+    visible: '^No notes or folders$'
+    timeout: 15000
+
+# An empty note has a specific preview state and stays editable.
+- tapOn:
+    id: NotesRootNewHeaderAction
+- tapOn:
+    id: NotesNewNoteAction
+- extendedWaitUntil:
+    visible:
+      id: NotesTitleInput
+    timeout: 15000
+- tapOn:
+    id: NotesTitleInput
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.notePreviewTitle}
+- tapOn:
+    id: NotesPreviewToggle
+- assertVisible:
+    id: NotesPreviewPane
+- assertVisible: '^Nothing to preview yet\.$'
+- tapOn:
+    id: NotesPreviewToggle
+- assertVisible:
+    id: NotesBodyInput
+
+# A malformed Markdown edge is contained in the preview instead of crashing.
+- tapOn:
+    id: NotesBodyInput
+- setClipboard: ${output.reliability.markdownMalformed}
+- pasteText
+- tapOn:
+    id: NotesPreviewToggle
+- assertVisible:
+    id: NotesPreviewPane
+- assertVisible: ${output.reliability.markdownMalformedRendered}
+- tapOn:
+    id: NotesPreviewToggle
+- tapOn:
+    id: NotesBodyInput
+- eraseText: 1000
+
+# Every construct in this deterministic body must render as content rather
+# than source, and the example link must open its exact host.
+- setClipboard: ${output.reliability.markdownBody}
+- pasteText
+- assertVisible:
+    id: NotesBodyInput
+- tapOn:
+    id: NotesPreviewToggle
+- extendedWaitUntil:
+    visible: '^Synced$'
+    timeout: 15000
+- assertVisible:
+    id: NotesPreviewContent
+- assertVisible: '^Rendered heading$'
+- assertVisible: '^Bold sample and italic sample$'
+- assertVisible: '^First item$'
+- assertVisible: '^Second item$'
+- assertVisible: '^inline code$'
+- assertVisible: '^Example link$'
+- assertNotVisible: '^# Rendered heading$'
+- tapOn:
+    text: '^Example link$'
+    # The accessibility row spans the full preview width although the linked
+    # glyphs are left-aligned. Tap the linked text, not the row's blank center.
+    point: '10%,50%'
+- extendedWaitUntil:
+    # Safari prefixes the address value with an invisible direction marker.
+    visible: '.*tlon\.io.*'
+    timeout: 15000
+- launchApp:
+    appId: ${MAESTRO_APP_ID}
+    stopApp: false
+- extendedWaitUntil:
+    visible:
+      id: NotesPreviewToggle
+    timeout: 15000
+- assertVisible: '^Edit$'
+- tapOn:
+    id: NotesPreviewToggle
+- tapOn:
+    id: NotesBodyInput
+- copyTextFrom:
+    id: NotesBodyInput
+- assertTrue: ${maestro.copiedText === output.reliability.markdownBody}
+- inputText: X
+- copyTextFrom:
+    id: NotesBodyInput
+- assertTrue: ${maestro.copiedText.includes('X')}
+
+# Delete only this run's fixture group.
+- tapOn: '^Back$'
+- tapOn: '^Back$'
+- assertVisible: ${output.reliability.groupPattern}
+- tapOn: ${output.reliability.groupPattern}
+- runFlow: subflows/delete-fixture-group.yaml

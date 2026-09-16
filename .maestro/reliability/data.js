@@ -29,11 +29,19 @@ output.reliability = {
 };
 // Native group titles are capped at 24 characters. This lifecycle creates and
 // deletes its own exact fixture, so a short run-tagged name remains isolated.
-if (JOURNEY === 'notebookchannel' || JOURNEY === 'notebookcontents') {
+if (
+  JOURNEY === 'notebookchannel' ||
+  JOURNEY === 'notebookcontents' ||
+  JOURNEY === 'notebookpreview'
+) {
   output.reliability.group =
     'QA-' +
     MAESTRO_RUN_TAG +
-    (JOURNEY === 'notebookchannel' ? '-notebook' : '-contents');
+    (JOURNEY === 'notebookchannel'
+      ? '-notebook'
+      : JOURNEY === 'notebookcontents'
+        ? '-contents'
+        : '-preview');
 }
 output.reliability.groupPattern = exact(output.reliability.group);
 output.reliability.editedTextPattern = exact(
@@ -74,6 +82,15 @@ output.reliability.noteRowTarget = MAESTRO_RUN_TAG + '-row-target';
 output.reliability.noteRowTargetBody = MAESTRO_RUN_TAG + '-row-target-body';
 output.reliability.noteViewedTarget = MAESTRO_RUN_TAG + '-view-target';
 output.reliability.noteViewedTargetBody = MAESTRO_RUN_TAG + '-view-target-body';
+output.reliability.notePreviewTitle = MAESTRO_RUN_TAG + '-preview-note';
+output.reliability.markdownMalformed = '# Broken edge [';
+output.reliability.markdownMalformedRendered = '^Broken edge \\[$';
+output.reliability.markdownBody =
+  '# Rendered heading\n\n' +
+  '**Bold sample** and *italic sample*\n\n' +
+  '- First item\n- Second item\n\n' +
+  '`inline code`\n\n' +
+  '[Example link](https://tlon.io)';
 output.reliability.folderParentRowId =
   'NotesFolderRow-' + output.reliability.folderParent;
 output.reliability.folderChildRowId =
