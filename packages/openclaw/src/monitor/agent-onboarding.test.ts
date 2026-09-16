@@ -1475,7 +1475,7 @@ describe('agent onboarding requests', () => {
   it('describes only the provisioned home group as the first group', async () => {
     const promptFor = async (isFirstGroup?: boolean) => {
       clearAgentOnboardingRuntime();
-    const sent: Array<{ blob?: string; story?: unknown }> = [];
+      const sent: Array<{ blob?: string; story?: unknown }> = [];
       const introBlob = appendToPostBlob(undefined, {
         type: 'tlon-agent-intro-request',
         version: 1,
@@ -1597,10 +1597,7 @@ describe('agent onboarding requests', () => {
 
   it('posts a freeform first invitation, then hands its reply to the model', async () => {
     const sent: Array<{ story?: unknown; blob?: string }> = [];
-    const sendPost = vi.fn(async (post: {
-      story?: unknown;
-      blob?: string;
-    }) => {
+    const sendPost = vi.fn(async (post: { story?: unknown; blob?: string }) => {
       sent.push(post);
       return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
     });
@@ -1642,7 +1639,9 @@ describe('agent onboarding requests', () => {
     expect(JSON.stringify(parsePostBlob(sent[0].blob))).not.toContain(
       'the cards are only starts'
     );
-    expect(JSON.stringify(sent[0].story)).toContain('What can I help you with?');
+    expect(JSON.stringify(sent[0].story)).toContain(
+      'What can I help you with?'
+    );
     expect(JSON.stringify(parsePostBlob(sent[0].blob))).not.toContain('a2ui');
     expect(parsePostBlob(sent[0].blob)).toContainEqual(
       expect.objectContaining({
