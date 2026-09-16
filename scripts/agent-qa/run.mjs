@@ -109,7 +109,18 @@ async function startRecording() {
   context.video = { status: 'recording' };
   recordingAttempted = true;
   rawVideo = path.join(env.TMPDIR || '/tmp', 'qa-test-session.mp4');
-  await device(['record', 'start', rawVideo, '--quality', 'high']);
+  // Capture the whole simulator. We normalize the video below, so skip the
+  // device tool's extra Swift touch-overlay export (slow on a cold CI host).
+  await device([
+    'record',
+    'start',
+    rawVideo,
+    '--scope',
+    'device',
+    '--quality',
+    'high',
+    '--hide-touches',
+  ]);
   recordingStarted = Date.now();
   console.log('Recording the authenticated agent test session.');
   // Independent cap also stops capture if the agent loop gets stuck.
@@ -622,6 +633,17 @@ function finalize() {
     report = accountForRecordingCap(report, context.video);
     if (recordingAttempted && context.video?.status !== 'ready') {
       if (report.status === 'passed') report.status = 'blocked';
+      if (context.evidenceReview === 'pending') {
+        for (const check of report.checks) {
+          if (check.status === 'passed') {
+            check.status = 'blocked';
+            check.observed +=
+              ' Independent evidence review did not run because the recording is unavailable.';
+          }
+        }
+        report.summary =
+          'Testing finished, but the recording is unavailable and independent review has not completed.';
+      }
       report.checks.push({
         status: 'blocked',
         expected: 'Attach a playable recording of the complete agent test',
