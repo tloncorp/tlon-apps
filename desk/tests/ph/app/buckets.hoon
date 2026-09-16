@@ -21,21 +21,27 @@
 ::  here as one.
 ::
 /-  spider, b=buckets, g=groups, gv=groups-ver
-/+  *ph-io, *ph-test
+/+  *ph-io, *ph-test, putil=ph-util
 =,  strand=strand:spider
 |%
 ::  The bucket host is a planet, not a galaxy.
 ::
 ::  %buckets refuses a create whose group host is not a %duke -- the same gate
 ::  that refuses moons -- so the aqua convention of numbering galaxies cannot
-::  be used here. ~sampel-palnet is sponsored by ~talpur under ~pur, and both
-::  have to be in the fleet for ames to route to it.
+::  be used here.
 ::
-++  bucket-host      ~sampel-palnet
+::  It has to be a planet CI already boots. backend/run-tests.sh fixes the
+::  fleet at ~[~zod ~nec ~bud ~wes ~dem ~fen ~loshut-lonreg ~rivfur-livmet],
+::  and a host outside that list is simply unreachable there however well it
+::  works locally -- which is how these passed on a hand-built fleet and
+::  failed every case in CI. Adding a planet and its sponsors would cost
+::  three ship boots on every backend run, for one test file.
+::
+++  bucket-host      ~loshut-lonreg
 ++  bucket-member    ~bud
-++  test-group       ~sampel-palnet^%my-test-group
-++  test-bucket      ~sampel-palnet^%project-files
-++  bucket-nest      [%buckets ~sampel-palnet %project-files]
+++  the-group       ~loshut-lonreg^%my-test-group
+++  the-bucket      ~loshut-lonreg^%project-files
+++  bucket-nest      [%buckets ~loshut-lonreg %project-files]
 ::  +create-test-group: the group the bucket is bound to.
 ::
 ++  create-test-group
@@ -87,6 +93,77 @@
   |=  rep=r-groups:v10:gv
   ;<  ~  bind:m  (ex-equal !>(flag.rep) !>(`flag:gv`host^%my-test-group))
   (ex-equal !>(`@tas`-.r-group.rep) !>(%create))
+::  +broker-base: where %buckets calls storage, absent a poke saying otherwise.
+::
+++  broker-base  'https://memex.tlon.network/v2/buckets'
+++  grant-url    (rap 3 broker-base '/uploads/grant' ~)
+::  +memex-take: wait for one outbound broker call to .dest and hand it back.
+::
+::  Aqua has no iris driver, so a %request goes out as an effect nobody
+::  answers and the host waits forever. Watching /effect/request and injecting
+::  the reply as an iris %receive is the whole of a broker for testing
+::  purposes -- the effect carries its own request id, which is what makes the
+::  correlation possible at all.
+::
+::  Calls to other endpoints are skipped rather than failed: the host mints
+::  and pushes read tokens on its own schedule, so an unrelated PUT can land
+::  in the middle of an upload.
+::
+++  memex-take
+  |=  [who=ship dest=@t]
+  =/  m  (strand ,[num=@ud =request:http])
+  ^-  form:m
+  |-
+  ;<  =aqua-effect  bind:m  (take-effect /effect/request)
+  ?.  =(who who.aqua-effect)  $
+  ?~  req=(extract-request:putil ufs.aqua-effect dest)  $
+  (pure:m u.req)
+::  +memex-answer: answer request .num on .who with .body.
+::
+++  memex-answer
+  |=  [who=ship num=@ud code=@ud body=json]
+  =/  m  (strand ,~)
+  ^-  form:m
+  =/  txt=@t  (en:json:html body)
+  =/  =http-event:http
+    :+  %start
+      [code ~[['content-type' 'application/json']]]
+    [`[(met 3 txt) txt] &]
+  %-  send-events
+  ~[[%event who /i/aqua/memex [%receive num http-event]]]
+::  +object-of: the object key the host told the broker it would store.
+::
+::  Read back out of its own request so the receipt names the same object,
+::  which is what +verify-receipt insists on. A real broker does the same.
+::
+++  object-of
+  |=  =request:http
+  ^-  @t
+  ?~  body.request  ~|(%memex-no-body !!)
+  =/  jon=json  (need (de:json:html q.u.body.request))
+  ?>  ?=(%o -.jon)
+  =/  got=json  (~(got by p.jon) 'gallObjectId')
+  ?>  ?=(%s -.got)
+  p.got
+::  +grant-json: a signed PUT, as the broker answers one.
+::
+++  grant-json
+  |=  reservation=@t
+  ^-  json
+  %-  pairs:enjs:format
+  :~  ['uploadUrl' s+'https://storage.test/put']
+      ['reservationId' s+reservation]
+  ==
+::  +receipt-json: what the broker says it stored.
+::
+++  receipt-json
+  |=  [object=@t mime=@t size=@ud]
+  ^-  json
+  %-  pairs:enjs:format
+  :~  ['objectId' s+object]
+      ['mimeType' s+mime]
+      ['size' (numb:enjs:format size)]
+  ==
 ::  +bucket-with-replica: the state every test below starts from.
 ::
 ::  ~bud is in the group, the bucket exists, and ~bud holds a replica of it.
@@ -125,7 +202,7 @@
   =/  m  (strand ,~)
   ^-  form:m
   =/  act=a-buckets:b
-    [%create %project-files 'Project Files' test-group ~ ~]
+    [%create %project-files 'Project Files' the-group ~ ~]
   (poke-app [bucket-host %buckets] buckets-action-1+[rid act])
 ::  +join-bucket: what %groups pokes a member's %buckets with when it joins
 ::  the channel. Sent directly here so the test does not depend on the
@@ -135,8 +212,231 @@
   |=  [joiner=ship]
   =/  m  (strand ,~)
   ^-  form:m
-  =/  =channel-join:b  [bucket-nest test-group]
+  =/  =channel-join:b  [bucket-nest the-group]
   (poke-app [joiner %buckets] group-channel-join+channel-join)
+::  +token-url: where the host pushes a reader's access.
+::
+++  token-url
+  (rap 3 broker-base '/tokens/' (rsh [3 1] (scot %p bucket-host)) ~)
+::  +applied-json: the broker took the write.
+::
+++  applied-json
+  |=  revision=@ud
+  ^-  json
+  %-  pairs:enjs:format
+  :~  ['applied' b+&]
+      ['currentRevision' (numb:enjs:format revision)]
+  ==
+::  A read token is served only once the broker has taken it.
+::
+::  Access is pushed as desired state rather than handed to the reader to
+::  carry, so the token is worth nothing until the broker holds it -- serving
+::  it earlier means a client with a token that 403s. The requester gets
+::  %pending while the push is out and the token only after.
+::
+++  ph-test-bucket-read-token-waits-for-the-broker
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (bucket-with-replica 0v1)
+  ;<  ~  bind:m  (watch-our /effect/request %aqua /effect/request)
+  ;<  ~  bind:m
+    %^  watch-app  /host/buckets/v1/requests
+      [bucket-host %buckets]
+    /v1/requests
+  ;<  ~  bind:m
+    %+  poke-app  [bucket-host %buckets]
+    :-  %buckets-action-1
+    ^-  command:b
+    [0v20 [%bucket the-bucket [%issue-bucket-read ~]]]
+  ::  the push goes out, and is answered
+  ;<  put=[num=@ud =request:http]  bind:m  (memex-take bucket-host token-url)
+  ;<  ~  bind:m  (memex-answer bucket-host num.put 200 (applied-json 1))
+  ::  and the token arrives, rather than the %pending that preceded it
+  |-
+  ;<  res=req-response:b  bind:m
+    %^    wait-for-app-fact-value
+        req-response:b
+      /host/buckets/v1/requests
+    [bucket-host %buckets]
+  ?:  ?=(%pending -.body.res)  $
+  (ex-equal !>(`@tas`-.body.res) !>(%token))
+::  A grant overtaken by another grant is not reported as lost access.
+::
+::  %not-authorized is what a replica reads as "your access is gone", and it
+::  answers by dropping the token it holds and its refresh with it. Two panes
+::  opening a cold bucket inside one host round trip is enough to overtake a
+::  grant, and reporting that as %not-authorized made a reader discard a token
+::  it could still use. Only a supersede by a revoke is a real loss.
+::
+++  ph-test-bucket-overtaken-grant-is-not-lost-access
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (bucket-with-replica 0v1)
+  ;<  ~  bind:m
+    %^  watch-app  /host/buckets/v1/requests
+      [bucket-host %buckets]
+    /v1/requests
+  ::  two asks before the first push is answered
+  ;<  ~  bind:m
+    %+  poke-app  [bucket-host %buckets]
+    :-  %buckets-action-1
+    ^-  command:b
+    [0v21 [%bucket the-bucket [%issue-bucket-read ~]]]
+  ;<  ~  bind:m
+    %+  poke-app  [bucket-host %buckets]
+    :-  %buckets-action-1
+    ^-  command:b
+    [0v22 [%bucket the-bucket [%issue-bucket-read ~]]]
+  ::  the overtaken one is told, and told it is a race rather than a refusal
+  |-
+  ;<  res=req-response:b  bind:m
+    %^    wait-for-app-fact-value
+        req-response:b
+      /host/buckets/v1/requests
+    [bucket-host %buckets]
+  ?:  ?=(%pending -.body.res)  $
+  ?.  ?=(%error -.body.res)
+    (ex-equal !>(`@tas`-.body.res) !>(%error))
+  (ex-not-equal !>(`@tas`type.body.res) !>(%not-authorized))
+::  +begin-and-grant: open an upload and answer its grant. Yields the session.
+::
+++  begin-and-grant
+  |=  [rid=@uv name=@t]
+  =/  m  (strand ,@uv)
+  ^-  form:m
+  ;<  ~  bind:m
+    %+  poke-app  [bucket-host %buckets]
+    :-  %buckets-action-1
+    ^-  command:b
+    [rid [%bucket the-bucket [%begin-upload ~ name 'text/markdown' 12 ~]]]
+  ;<  ask=[num=@ud =request:http]  bind:m  (memex-take bucket-host grant-url)
+  ;<  ~  bind:m  (memex-answer bucket-host num.ask 200 (grant-json 'res-a'))
+  ;<  granted=req-response:b  bind:m
+    %^    wait-for-app-fact-value
+        req-response:b
+      /host/buckets/v1/requests
+    [bucket-host %buckets]
+  ?.  ?=(%upload -.body.granted)
+    ;<  ~  bind:m  (ex-equal !>(`@tas`-.body.granted) !>(%upload))
+    (pure:m *@uv)
+  (pure:m session.upload-grant.body.granted)
+::  A cancel arriving mid-completion does not steal the finish's answer.
+::
+::  One .awaiting slot, and the three session verbs each used to write it
+::  unconditionally: the cancel overwrote the finish's waiter, so the receipt
+::  answered the cancel with %ok while the finish hung for good and a local
+::  client polled %pending forever. Both requests get an answer now, and the
+::  one that gets %ok is the one that asked for it.
+::
+++  ph-test-bucket-cancel-does-not-steal-the-finish
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (bucket-with-replica 0v1)
+  ;<  ~  bind:m  (watch-our /effect/request %aqua /effect/request)
+  ;<  ~  bind:m
+    %^  watch-app  /host/buckets/v1/requests
+      [bucket-host %buckets]
+    /v1/requests
+  ;<  session=@uv  bind:m  (begin-and-grant 0v9 'plan.md')
+  ::  finish goes out and its completion call is in flight
+  ;<  ~  bind:m
+    %+  poke-app  [bucket-host %buckets]
+    :-  %buckets-action-1
+    ^-  command:b
+    [0v10 [%bucket the-bucket [%finish-upload session]]]
+  =/  done-url=@t  (rap 3 broker-base '/uploads/res-a/complete' ~)
+  ;<  fin=[num=@ud =request:http]  bind:m  (memex-take bucket-host done-url)
+  ::  the uploader cancels before the receipt lands
+  ;<  ~  bind:m
+    %+  poke-app  [bucket-host %buckets]
+    :-  %buckets-action-1
+    ^-  command:b
+    [0v11 [%bucket the-bucket [%cancel-upload session 'changed my mind']]]
+  ::  the displaced waiter is told, rather than left to hang
+  ;<  first=req-response:b  bind:m
+    %^    wait-for-app-fact-value
+        req-response:b
+      /host/buckets/v1/requests
+    [bucket-host %buckets]
+  (ex-equal !>(?=(%error -.body.first)) !>(&))
+::  A bucket deletion releases its uploads at the broker.
+::
+::  +drop-bucket-sessions used to skip them out of the map where they stood,
+::  so the broker kept each reservation and its quota until it lapsed. It goes
+::  through +us-give-up now, which cancels -- and that cancel is an outbound
+::  call this test can watch for.
+::
+++  ph-test-bucket-delete-releases-uploads
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (bucket-with-replica 0v1)
+  ;<  ~  bind:m  (watch-our /effect/request %aqua /effect/request)
+  ;<  ~  bind:m
+    %^  watch-app  /host/buckets/v1/requests
+      [bucket-host %buckets]
+    /v1/requests
+  ;<  session=@uv  bind:m  (begin-and-grant 0v9 'plan.md')
+  ::  the bucket goes while that upload is still open
+  ;<  ~  bind:m
+    %+  poke-app  [bucket-host %buckets]
+    :-  %buckets-action-1
+    ^-  command:b
+    [0v12 [%bucket the-bucket [%delete ~]]]
+  ::  which shows up as a cancel against the reservation
+  =/  stop-url=@t  (rap 3 broker-base '/uploads/res-a/cancel' ~)
+  ;<  *  bind:m  (memex-take bucket-host stop-url)
+  (pure:m ~)
+::  An upload runs the whole broker round trip.
+::
+::  Nothing in the unit suite reaches this: those tests poke a vase and mock
+::  the scries, so the two calls the host makes to storage are never made.
+::  Here they go out as real iris requests and come back as real responses.
+::
+::  What it pins: the grant answer is handed to the uploader as %upload, the
+::  completion receipt is verified against the entry the host reserved, and
+::  the entry only joins the manifest once the object has landed.
+::
+++  ph-test-bucket-upload-round-trips
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (bucket-with-replica 0v1)
+  ;<  ~  bind:m  (watch-our /effect/request %aqua /effect/request)
+  ;<  ~  bind:m
+    %^  watch-app  /host/buckets/v1/requests
+      [bucket-host %buckets]
+    /v1/requests
+  ::  the uploader asks, and the host calls storage rather than answering
+  ;<  ~  bind:m
+    %+  poke-app  [bucket-host %buckets]
+    :-  %buckets-action-1
+    ^-  command:b
+    [0v9 [%bucket the-bucket [%begin-upload ~ 'plan.md' 'text/markdown' 12 ~]]]
+  ;<  ask=[num=@ud =request:http]  bind:m  (memex-take bucket-host grant-url)
+  =/  object=@t  (object-of request.ask)
+  ;<  ~  bind:m  (memex-answer bucket-host num.ask 200 (grant-json 'res-a'))
+  ::  which comes back to the uploader as the signed PUT
+  ;<  granted=req-response:b  bind:m
+    %^    wait-for-app-fact-value
+        req-response:b
+      /host/buckets/v1/requests
+    [bucket-host %buckets]
+  ?.  ?=(%upload -.body.granted)
+    (ex-equal !>(`@tas`-.body.granted) !>(%upload))
+  =/  session=@uv  session.upload-grant.body.granted
+  ::  the bytes land out of band, and the uploader says so
+  ;<  ~  bind:m
+    %+  poke-app  [bucket-host %buckets]
+    :-  %buckets-action-1
+    ^-  command:b
+    [0v10 [%bucket the-bucket [%finish-upload session]]]
+  =/  done-url=@t  (rap 3 broker-base '/uploads/res-a/complete' ~)
+  ;<  fin=[num=@ud =request:http]  bind:m  (memex-take bucket-host done-url)
+  ;<  ~  bind:m
+    %-  memex-answer
+    [bucket-host num.fin 200 (receipt-json object 'text/markdown' 12)]
+  ::  and the entry joins the manifest, which the replica hears about
+  ;<  ~  bind:m  (ex-bucket-update %entry)
+  (pure:m ~)
 ::  Losing read access takes the replica with it.
 ::
 ::  This is the path +recheck-host-subs drives: the host kicks the reader off
@@ -150,7 +450,7 @@
   ;<  ~  bind:m  (bucket-with-replica 0v1)
   ::  the host bans ~bud, which takes its seat with it
   =/  =c-groups:g
-    [%group test-group [%entry [%ban [%add-ships (sy bucket-member ~)]]]]
+    [%group the-group [%entry [%ban [%add-ships (sy bucket-member ~)]]]]
   ;<  ~  bind:m  (poke-app [bucket-host %groups] group-command+c-groups)
   ::  and the bucket goes the way the group did
   ;<  ~  bind:m  (ex-bucket-update %delete)
@@ -170,7 +470,7 @@
   ;<  ~  bind:m
     %+  poke-app  [bucket-host %buckets]
     :-  %buckets-action-1
-    `command:b`[0v2 [%bucket test-bucket [%set-writers (sy %admin ~)]]]
+    `command:b`[0v2 [%bucket the-bucket [%set-writers (sy %admin ~)]]]
   ;<  ~  bind:m  (ex-bucket-update %writers)
   (pure:m ~)
 ::  Leaving the channel drops the replica.
@@ -214,7 +514,7 @@
   ::  and the deletion reaches it as an update
   ;<  ~  bind:m
     %+  poke-app  [bucket-host %buckets]
-    buckets-action-1+[0v2 `a-buckets:b`[%bucket test-bucket [%delete ~]]]
+    buckets-action-1+[0v2 `a-buckets:b`[%bucket the-bucket [%delete ~]]]
   ;<  ~  bind:m
     (ex-app-fact-mark /~bud/buckets/v1 [bucket-member %buckets] %buckets-response-1)
   (pure:m ~)
@@ -240,7 +540,7 @@
     (ex-app-fact-mark /~bud/buckets/v1 [bucket-member %buckets] %buckets-response-1)
   ;<  ~  bind:m
     %+  poke-app  [bucket-host %buckets]
-    buckets-action-1+[0v2 `a-buckets:b`[%bucket test-bucket [%delete ~]]]
+    buckets-action-1+[0v2 `a-buckets:b`[%bucket the-bucket [%delete ~]]]
   ;<  ~  bind:m
     (ex-app-fact-mark /~bud/buckets/v1 [bucket-member %buckets] %buckets-response-1)
   ::  the same flag again, and the replica has to arrive whole a second time
