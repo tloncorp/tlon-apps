@@ -1,11 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
-  STEWARD_AUTOMATION_ACTION_MARK,
   type StewardAutomationCronWriteService,
   StewardAutomationEditProcessor,
   applyStewardAutomationDispatch,
-  buildStewardAutomationFinalize,
   deriveStewardAutomationJobId,
   parseStewardAutomationDispatch,
   toStewardAutomationCronCreateInput,
@@ -353,34 +351,30 @@ describe('StewardAutomationEditProcessor', () => {
     cron: StewardAutomationCronWriteService | undefined,
     extra: { attempts?: number } = {}
   ) {
-    const poke = vi.fn().mockResolvedValue(undefined);
+    const finalize = vi.fn().mockResolvedValue(undefined);
     const wait = vi.fn().mockResolvedValue(undefined);
     const logger = { log: vi.fn(), warn: vi.fn() };
     const instance = new StewardAutomationEditProcessor({
-      poke,
+      finalize,
       getCron: () => cron,
       logger,
       cronWaitMs: 1,
       cronWaitAttempts: extra.attempts ?? 2,
       wait,
     });
-    return { instance, poke, wait, logger };
+    return { instance, finalize, wait, logger };
   }
 
-  it('applies a dispatch and pokes the typed finalize under the action mark', async () => {
+  it('applies a dispatch and finalizes it with the response envelope', async () => {
     const cron = cronService();
-    const { instance, poke } = processor(cron);
+    const { instance, finalize } = processor(cron);
 
     await instance.handle({ requestId, action: { delete: { id: 'job-1' } } });
 
-    expect(poke).toHaveBeenCalledOnce();
-    expect(poke).toHaveBeenCalledWith({
-      app: 'steward',
-      mark: STEWARD_AUTOMATION_ACTION_MARK,
-      json: buildStewardAutomationFinalize(requestId, {
-        type: 'deleted',
-        id: 'job-1',
-      }),
+    expect(finalize).toHaveBeenCalledOnce();
+    expect(finalize).toHaveBeenCalledWith({
+      requestId,
+      body: { type: 'deleted', id: 'job-1' },
     });
   });
 
@@ -424,42 +418,38 @@ describe('StewardAutomationEditProcessor', () => {
   });
 
   it('answers a malformed action as invalid when the id is readable', async () => {
-    const { instance, poke } = processor(cronService());
+    const { instance, finalize } = processor(cronService());
 
     await instance.handle({ requestId, action: { explode: {} } });
 
-    expect(poke).toHaveBeenCalledWith(
+    expect(finalize).toHaveBeenCalledWith(
       expect.objectContaining({
-        json: {
-          finalize: {
-            requestId,
-            body: expect.objectContaining({
-              type: 'error',
-              errorType: 'invalid',
-            }),
-          },
-        },
+        requestId,
+        body: expect.objectContaining({
+          type: 'error',
+          errorType: 'invalid',
+        }),
       })
     );
   });
 
   it('ignores a fact with no request id', async () => {
-    const { instance, poke, logger } = processor(cronService());
+    const { instance, finalize, logger } = processor(cronService());
 
     await instance.handle('garbage');
 
-    expect(poke).not.toHaveBeenCalled();
+    expect(finalize).not.toHaveBeenCalled();
     expect(logger.warn).toHaveBeenCalledOnce();
   });
 
   it('waits for the cron service to appear before applying', async () => {
     let cron: StewardAutomationCronWriteService | undefined;
-    const poke = vi.fn().mockResolvedValue(undefined);
+    const finalize = vi.fn().mockResolvedValue(undefined);
     const wait = vi.fn().mockImplementation(async () => {
       cron = cronService();
     });
     const instance = new StewardAutomationEditProcessor({
-      poke,
+      finalize,
       getCron: () => cron,
       logger: { warn: vi.fn() },
       cronWaitMs: 1,
@@ -470,32 +460,27 @@ describe('StewardAutomationEditProcessor', () => {
     await instance.handle({ requestId, action: { delete: { id: 'job-1' } } });
 
     expect(wait).toHaveBeenCalledOnce();
-    expect(poke).toHaveBeenCalledWith(
+    expect(finalize).toHaveBeenCalledWith(
       expect.objectContaining({
-        json: {
-          finalize: { requestId, body: { type: 'deleted', id: 'job-1' } },
-        },
+        requestId,
+        body: { type: 'deleted', id: 'job-1' },
       })
     );
   });
 
   it('answers harness-error when the cron service never appears', async () => {
-    const { instance, poke, wait } = processor(undefined, { attempts: 2 });
+    const { instance, finalize, wait } = processor(undefined, { attempts: 2 });
 
     await instance.handle({ requestId, action: { delete: { id: 'job-1' } } });
 
     expect(wait).toHaveBeenCalledTimes(2);
-    expect(poke).toHaveBeenCalledWith(
+    expect(finalize).toHaveBeenCalledWith(
       expect.objectContaining({
-        json: {
-          finalize: {
-            requestId,
-            body: expect.objectContaining({
-              type: 'error',
-              errorType: 'harness-error',
-            }),
-          },
-        },
+        requestId,
+        body: expect.objectContaining({
+          type: 'error',
+          errorType: 'harness-error',
+        }),
       })
     );
   });
@@ -506,31 +491,27 @@ describe('StewardAutomationEditProcessor', () => {
         throw new TypeError('cron service exploded');
       }),
     });
-    const { instance, poke } = processor(cron);
+    const { instance, finalize } = processor(cron);
 
     await expect(
       instance.handle({ requestId, action: { delete: { id: 'job-1' } } })
     ).resolves.toBeUndefined();
 
-    expect(poke).toHaveBeenCalledWith(
+    expect(finalize).toHaveBeenCalledWith(
       expect.objectContaining({
-        json: {
-          finalize: {
-            requestId,
-            body: {
-              type: 'error',
-              errorType: 'harness-error',
-              message: ['cron service exploded'],
-            },
-          },
+        requestId,
+        body: {
+          type: 'error',
+          errorType: 'harness-error',
+          message: ['cron service exploded'],
         },
       })
     );
   });
 
-  it('retries a failed finalize poke with backoff and then succeeds', async () => {
+  it('retries a failed finalize with backoff and then succeeds', async () => {
     const cron = cronService();
-    const poke = vi
+    const finalize = vi
       .fn()
       .mockRejectedValueOnce(new Error('poke failed'))
       .mockRejectedValueOnce(new Error('poke failed again'))
@@ -538,7 +519,7 @@ describe('StewardAutomationEditProcessor', () => {
     const wait = vi.fn().mockResolvedValue(undefined);
     const logger = { warn: vi.fn() };
     const instance = new StewardAutomationEditProcessor({
-      poke,
+      finalize,
       getCron: () => cron,
       logger,
       finalizeDelaysMs: [10, 20, 40],
@@ -550,14 +531,14 @@ describe('StewardAutomationEditProcessor', () => {
       action: { delete: { id: 'job-1' } },
     });
 
-    expect(poke).toHaveBeenCalledTimes(3);
+    expect(finalize).toHaveBeenCalledTimes(3);
     expect(wait.mock.calls.map((call) => call[0])).toEqual([10, 20]);
     expect(logger.warn).toHaveBeenCalledTimes(2);
   });
 
   it('gives up finalizing after the backoff schedule and keeps processing', async () => {
     const cron = cronService();
-    const poke = vi
+    const finalize = vi
       .fn()
       .mockRejectedValueOnce(new Error('1'))
       .mockRejectedValueOnce(new Error('2'))
@@ -565,7 +546,7 @@ describe('StewardAutomationEditProcessor', () => {
       .mockResolvedValue(undefined);
     const logger = { warn: vi.fn() };
     const instance = new StewardAutomationEditProcessor({
-      poke,
+      finalize,
       getCron: () => cron,
       logger,
       finalizeDelaysMs: [1, 1],
@@ -581,16 +562,16 @@ describe('StewardAutomationEditProcessor', () => {
       action: { delete: { id: 'job-2' } },
     });
 
-    expect(poke).toHaveBeenCalledTimes(4);
+    expect(finalize).toHaveBeenCalledTimes(4);
     expect(logger.warn.mock.calls.at(-1)?.[0]).toMatch(/giving up/);
   });
 
   it('drops new facts and stops answering once the monitor aborts', async () => {
     const controller = new AbortController();
     const cron = cronService();
-    const poke = vi.fn().mockResolvedValue(undefined);
+    const finalize = vi.fn().mockResolvedValue(undefined);
     const instance = new StewardAutomationEditProcessor({
-      poke,
+      finalize,
       getCron: () => cron,
       logger: { warn: vi.fn() },
       wait: vi.fn().mockResolvedValue(undefined),
@@ -604,12 +585,12 @@ describe('StewardAutomationEditProcessor', () => {
     });
 
     expect(cron.remove).not.toHaveBeenCalled();
-    expect(poke).not.toHaveBeenCalled();
+    expect(finalize).not.toHaveBeenCalled();
   });
 
   it('does not finalize a dispatch whose apply outlived the monitor', async () => {
     const controller = new AbortController();
-    const poke = vi.fn().mockResolvedValue(undefined);
+    const finalize = vi.fn().mockResolvedValue(undefined);
     const cron = cronService({
       remove: vi.fn().mockImplementation(async () => {
         controller.abort();
@@ -617,7 +598,7 @@ describe('StewardAutomationEditProcessor', () => {
       }),
     });
     const instance = new StewardAutomationEditProcessor({
-      poke,
+      finalize,
       getCron: () => cron,
       logger: { log: vi.fn(), warn: vi.fn() },
       wait: vi.fn().mockResolvedValue(undefined),
@@ -630,6 +611,6 @@ describe('StewardAutomationEditProcessor', () => {
     });
 
     expect(cron.remove).toHaveBeenCalledOnce();
-    expect(poke).not.toHaveBeenCalled();
+    expect(finalize).not.toHaveBeenCalled();
   });
 });

@@ -19,7 +19,9 @@ import { z } from 'zod';
  * declaration, exactly as the projection normalizer does for reads.
  */
 
-export const STEWARD_AUTOMATION_ACTION_MARK = 'steward-automation-action-1';
+/** The bot's HTTP finalize route; its reply is the acknowledgement a channel poke never gives. */
+export const STEWARD_AUTOMATION_FINALIZE_PATH =
+  '/steward/~/v1/automation/finalize';
 export const STEWARD_AUTOMATION_HARNESS_PATH = '/v1/automation/harness';
 const STEWARD_JOB_ID_PREFIX = 'steward-';
 
@@ -93,11 +95,10 @@ export type StewardAutomationResponseBody =
       message: string[];
     };
 
-export interface StewardAutomationFinalizeAction {
-  finalize: {
-    requestId: string;
-    body: StewardAutomationResponseBody;
-  };
+/** POST body for the finalize route: the response envelope as the bot renders it. */
+export interface StewardAutomationFinalizeRequest {
+  requestId: string;
+  body: StewardAutomationResponseBody;
 }
 
 export type StewardAutomationCronWriteService = Pick<
@@ -433,26 +434,16 @@ export async function applyStewardAutomationDispatch(
   }
 }
 
-export function buildStewardAutomationFinalize(
-  requestId: string,
-  body: StewardAutomationResponseBody
-): StewardAutomationFinalizeAction {
-  return { finalize: { requestId, body } };
-}
-
 export const DEFAULT_STEWARD_AUTOMATION_CRON_WAIT_MS = 1_000;
 export const DEFAULT_STEWARD_AUTOMATION_CRON_WAIT_ATTEMPTS = 30;
-/** Backoff between finalize poke attempts; about a minute in total. */
+/** Backoff between finalize attempts; about a minute in total. */
 export const DEFAULT_STEWARD_AUTOMATION_FINALIZE_DELAYS_MS = [
   2_000, 4_000, 8_000, 16_000, 32_000,
 ];
 
 export interface StewardAutomationEditProcessorOptions {
-  poke: (params: {
-    app: string;
-    mark: string;
-    json: unknown;
-  }) => Promise<unknown>;
+  /** POST the finalize to the bot; resolves once steward has consumed the command. */
+  finalize: (request: StewardAutomationFinalizeRequest) => Promise<unknown>;
   /** The cron service, once a gateway hook has stashed it; undefined until then. */
   getCron: () => StewardAutomationCronWriteService | undefined;
   logger: {
@@ -474,8 +465,8 @@ const defaultWait = (delayMs: number) =>
   });
 
 /**
- * Applies harness-feed dispatches one at a time and pokes `%finalize` for
- * each. Serialization means two edits to one job cannot race inside the
+ * Applies harness-feed dispatches one at a time and finalizes each over the
+ * bot's HTTP route. Serialization means two edits to one job cannot race inside the
  * plugin; OpenClaw's store lock protects across processes.
  *
  * The harness feed and the gateway's cron service become available at about
@@ -598,10 +589,11 @@ export class StewardAutomationEditProcessor {
   }
 
   /**
-   * Poke %finalize, retrying with backoff: a lost answer leaves the owner
-   * pending and the bot holding the command. Once the attempts are spent
-   * the bot's pending record is left alone, so a later resubscribe replays
-   * the command.
+   * POST the finalize, retrying with backoff: a lost answer leaves the owner
+   * pending and the bot holding the command. The route reports whether the
+   * id was still pending, so a retry after a lost reply is harmless. Once
+   * the attempts are spent the bot's pending record is left alone, so a
+   * later resubscribe replays the command.
    */
   private async finalize(
     requestId: string,
@@ -612,11 +604,7 @@ export class StewardAutomationEditProcessor {
         return;
       }
       try {
-        await this.options.poke({
-          app: 'steward',
-          mark: STEWARD_AUTOMATION_ACTION_MARK,
-          json: buildStewardAutomationFinalize(requestId, body),
-        });
+        await this.options.finalize({ requestId, body });
         return;
       } catch (error) {
         if (attempt >= this.finalizeDelaysMs.length) {

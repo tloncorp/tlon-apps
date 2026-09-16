@@ -76,6 +76,7 @@ import {
 } from '../silent-failure-notice.js';
 import {
   STEWARD_AUTOMATION_HARNESS_PATH,
+  STEWARD_AUTOMATION_FINALIZE_PATH,
   StewardAutomationEditProcessor,
 } from '../steward-automation-edit.js';
 import { isStewardAutomationProjectionEligible } from '../steward-automation-reconciliation.js';
@@ -5185,13 +5186,19 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // Subscribe to the bot ship's %steward automation harness feed: the
       // owner's edit commands (create/update/delete a cron job) arrive here
       // as dispatch facts, get applied to the gateway cron service, and are
-      // answered with a %finalize poke. Outstanding commands are replayed on
+      // answered over HTTP, whose reply is the acknowledgement a channel poke
+      // never gives. Outstanding commands are replayed on
       // (re)subscribe, so a restart resumes in-flight edits. Gated like the
       // projection: the cron service is process-global, so edits are only
       // accepted when exactly one Tlon account is runnable.
       if (isStewardAutomationProjectionEligible(cfg)) {
         const editProcessor = new StewardAutomationEditProcessor({
-          poke: (params) => api!.poke(params),
+          finalize: (response) =>
+            api!.requestJson(
+              STEWARD_AUTOMATION_FINALIZE_PATH,
+              'POST',
+              response
+            ),
           getCron: () => getTlonCronService(),
           logger: {
             log: (message) => runtime.log?.(message),
