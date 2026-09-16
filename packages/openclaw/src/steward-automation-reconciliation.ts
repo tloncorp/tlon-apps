@@ -73,8 +73,11 @@ export class StewardAutomationReconciliationExhaustedError extends Error {
 
 /**
  * Errors that mark themselves non-retryable stop a batch at once. Anything
- * else — a nack, a transport failure, an unknown throw — is retried up to
- * the attempt cap, since a transient cause is the common case.
+ * else — a failed channel PUT, a read failure, an unknown throw — is retried
+ * up to the attempt cap, since a transient cause is the common case. A poke
+ * that the ship nacks after the PUT succeeded is logged by the SSE client
+ * and not retried here: the ship rejected that exact payload, and the next
+ * `cron_changed` rereads and resubmits anyway.
  */
 function isRetryableError(error: unknown): boolean {
   if (typeof error !== 'object' || error === null) {
