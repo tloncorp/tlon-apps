@@ -783,6 +783,11 @@ async function main() {
   const deleted = [...remote.keys()].filter(
     (p) => !localPaths.has(p) && !ignored(p) && !incidental(p)
   );
+  // the removal of an incidental path rides along on the same terms its
+  // content does: never the reason for a commit, always part of one
+  const carriedDeletes = [...remote.keys()].filter(
+    (p) => !localPaths.has(p) && incidental(p)
+  );
 
   if (changed.length === 0 && deleted.length === 0) {
     console.log(`%${args.desk} unchanged (${remote.size} files)`);
@@ -794,7 +799,9 @@ async function main() {
   console.log(
     `%${args.desk}: ${changed.length} changed, ${deleted.length} deleted, ` +
       `${local.length - changed.length - carried.length} unchanged` +
-      (carried.length ? `, ${carried.length} carried along` : '')
+      (carried.length + carriedDeletes.length
+        ? `, ${carried.length + carriedDeletes.length} carried along`
+        : '')
   );
   if (args.dryRun) {
     for (const f of changed) console.log(`  ~ ${f.path}`);
@@ -804,7 +811,10 @@ async function main() {
 
   const arg = cell(
     cord(args.desk),
-    cell(modeNoun([...changed, ...carried], deleted), args.install ? YES : NO)
+    cell(
+      modeNoun([...changed, ...carried], [...deleted, ...carriedDeletes]),
+      args.install ? YES : NO
+    )
   );
 
   // a commit that fails to build crashes the event; that surfaces from fyrd()
