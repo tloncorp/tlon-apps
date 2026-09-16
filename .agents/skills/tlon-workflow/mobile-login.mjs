@@ -61,7 +61,14 @@ if (!device) {
   );
 }
 
-function device_(args, { allowFailure = false, retrySystemSheet = true } = {}) {
+function device_(
+  args,
+  {
+    allowFailure = false,
+    retrySystemSheet = true,
+    retryPasswordSheet = true,
+  } = {}
+) {
   const r = spawnSync('agent-device', args, { encoding: 'utf8' });
   if (r.error) usage(`agent-device did not run (${r.error.message})`);
   const out = redact(`${r.stdout ?? ''}${r.stderr ?? ''}`);
@@ -77,7 +84,26 @@ function device_(args, { allowFailure = false, retrySystemSheet = true } = {}) {
   ) {
     console.log(`${session}: dismissing an unreadable iOS login sheet`);
     device_(['alert', 'dismiss', ...S], { allowFailure: true });
-    return device_(args, { allowFailure, retrySystemSheet: false });
+    return device_(args, {
+      allowFailure,
+      retrySystemSheet: false,
+      retryPasswordSheet,
+    });
+  }
+  if (
+    r.status !== 0 &&
+    retryPasswordSheet &&
+    args[0] === 'wait' &&
+    args[2] === 'Usage Statistics' &&
+    out.includes('Save Password?')
+  ) {
+    // The password sheet can arrive after Connect's immediate prompt check.
+    device_(['press', 'text="Not Now"', ...S, '--settle']);
+    return device_(args, {
+      allowFailure,
+      retrySystemSheet,
+      retryPasswordSheet: false,
+    });
   }
   if (r.status !== 0 && !allowFailure) {
     console.error(
