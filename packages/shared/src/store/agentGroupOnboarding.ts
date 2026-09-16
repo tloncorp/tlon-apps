@@ -59,8 +59,8 @@ type FurnishParams = {
 };
 
 /**
- * Establish an agent group. First-run onboarding also gets exactly one notes
- * channel; later groups open directly into ordinary chat.
+ * Establish an agent group with the chat and notes destinations its recurring
+ * task onboarding needs.
  */
 export async function ensureAgentGroupFurnished(
   params: FurnishParams = {}
@@ -314,9 +314,10 @@ async function finishAgentGroupFurnishingOnce({
   hostedShipId: string | null;
   isFirstGroup: boolean;
 }): Promise<AgentGroupFurnishing> {
-  const notebook = isFirstGroup
-    ? await ensureSingleNotesChannel(initialGroup.id)
-    : null;
+  // Every explicit agent group can receive a typed recurring-task plan, not
+  // only the hosted first group. Provisioning requires exactly one durable
+  // Notes destination, so finish it before the bot can offer confirmation.
+  const notebook = await ensureSingleNotesChannel(initialGroup.id);
   const group = notebook
     ? ((await db.getGroup({ id: initialGroup.id })) ?? {
         ...initialGroup,

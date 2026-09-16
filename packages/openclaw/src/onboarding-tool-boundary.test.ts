@@ -52,7 +52,7 @@ describe('onboarding tool boundary', () => {
     ).toBeUndefined();
   });
 
-  it('blocks cron only for an incomplete first-run direct session', () => {
+  it('blocks direct model cron calls during incomplete onboarding', () => {
     expect(
       onboardingToolBlockReason(
         'cron',
@@ -80,7 +80,31 @@ describe('onboarding tool boundary', () => {
         'cron',
         {},
         {
+          kind: 'group',
+          channelNest: 'chat/~zod/onboarding',
+          bootstrapComplete: false,
+          timestamp: Date.now(),
+        }
+      )
+    ).toContain('typed task-plan coordinator');
+    expect(
+      onboardingToolBlockReason(
+        'cron',
+        {},
+        {
           kind: 'direct',
+          bootstrapComplete: true,
+          timestamp: Date.now(),
+        }
+      )
+    ).toBeUndefined();
+    expect(
+      onboardingToolBlockReason(
+        'cron',
+        {},
+        {
+          kind: 'group',
+          channelNest: 'chat/~zod/established',
           bootstrapComplete: true,
           timestamp: Date.now(),
         }
