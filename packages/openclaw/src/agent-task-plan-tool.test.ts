@@ -4,6 +4,7 @@ import {
   AgentTaskPlanToolParams,
   buildAgentTaskPlanBlob,
   createAgentTaskPlanToolExecutor,
+  resolveTaskPlanGroupId,
 } from './agent-task-plan-tool.js';
 
 const validPlan: AgentTaskPlanToolParams = {
@@ -24,6 +25,30 @@ const validPlan: AgentTaskPlanToolParams = {
 };
 
 describe('agent task plan tool', () => {
+  it('resolves the exact current group from the target channel', () => {
+    expect(
+      resolveTaskPlanGroupId(
+        JSON.stringify([
+          {
+            id: '~zod/other-group',
+            channels: [{ nest: 'chat/~zod/other-chat' }],
+          },
+          {
+            id: '~zod/home-group-full',
+            channels: [{ nest: validPlan.target }],
+          },
+        ]),
+        validPlan.target
+      )
+    ).toBe('~zod/home-group-full');
+  });
+
+  it('rejects a target that does not identify exactly one group', () => {
+    expect(() => resolveTaskPlanGroupId('[]', validPlan.target)).toThrow(
+      'exactly one Tlon group'
+    );
+  });
+
   it('builds the owner-confirmable A2UI action from typed model input', () => {
     expect(buildAgentTaskPlanBlob(validPlan)).toEqual([
       expect.objectContaining({
@@ -66,6 +91,29 @@ describe('agent task plan tool', () => {
     expect(posted?.target).toBe(validPlan.target);
     expect(JSON.parse(posted?.blob ?? '')).toEqual(
       buildAgentTaskPlanBlob(validPlan)
+    );
+  });
+
+  it('replaces a mistyped model group with the deterministic channel group', async () => {
+    const postPlan = vi.fn(async () => '{"ok":true}');
+    const resolveGroupId = vi.fn(async () => '~zod/home-group-full');
+    const execute = createAgentTaskPlanToolExecutor({
+      postPlan,
+      resolveGroupId,
+    });
+
+    await execute('call-resolved-group', {
+      ...validPlan,
+      groupId: '~zod/home-group-ful',
+    });
+
+    expect(resolveGroupId).toHaveBeenCalledWith(validPlan.target);
+    const posted = postPlan.mock.calls[0]?.[0];
+    expect(JSON.parse(posted?.blob ?? '')).toEqual(
+      buildAgentTaskPlanBlob({
+        ...validPlan,
+        groupId: '~zod/home-group-full',
+      })
     );
   });
 

@@ -87,6 +87,41 @@ export const agentTaskPlanToolParameters = {
   additionalProperties: false,
 } as const;
 
+export function resolveTaskPlanGroupId(
+  groupsOutput: string,
+  target: string
+): string {
+  let groups: unknown;
+  try {
+    groups = JSON.parse(groupsOutput);
+  } catch {
+    throw new Error('could not read the current Tlon groups');
+  }
+  if (!Array.isArray(groups)) {
+    throw new Error('could not read the current Tlon groups');
+  }
+
+  const matches = groups.filter((group) => {
+    if (!group || typeof group !== 'object') return false;
+    const candidate = group as { id?: unknown; channels?: unknown };
+    return (
+      typeof candidate.id === 'string' &&
+      Array.isArray(candidate.channels) &&
+      candidate.channels.some(
+        (channel) =>
+          channel &&
+          typeof channel === 'object' &&
+          (channel as { nest?: unknown }).nest === target
+      )
+    );
+  }) as Array<{ id: string }>;
+
+  if (matches.length !== 1) {
+    throw new Error('task plan target must belong to exactly one Tlon group');
+  }
+  return matches[0].id;
+}
+
 function parseParams(params: AgentTaskPlanToolParams): AgentTaskPlanToolParams {
   if (!/^chat\/~[a-z0-9-]+\/[a-z0-9-]+$/i.test(params.target)) {
     throw new Error('target must be a chat channel nest');
@@ -202,10 +237,17 @@ export function createAgentTaskPlanToolExecutor(deps: {
     fallbackSummary: string;
     blob: string;
   }) => Promise<string>;
+  resolveGroupId?: (target: string) => Promise<string>;
 }) {
   return async function execute(_id: string, params: AgentTaskPlanToolParams) {
     try {
-      const parsed = parseParams(params);
+      // The model describes the plan, but it does not authorize its target.
+      // Resolve the active channel's group from Tlon so a mistyped or truncated
+      // model-authored flag cannot leave a valid plan permanently disabled.
+      const groupId = deps.resolveGroupId
+        ? await deps.resolveGroupId(params.target)
+        : params.groupId;
+      const parsed = parseParams({ ...params, groupId });
       const output = await deps.postPlan({
         target: parsed.target,
         fallbackSummary: parsed.fallbackSummary,

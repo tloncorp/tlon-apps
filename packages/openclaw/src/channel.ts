@@ -26,6 +26,7 @@ import {
   type AgentTaskPlanToolParams,
   agentTaskPlanToolParameters,
   createAgentTaskPlanToolExecutor,
+  resolveTaskPlanGroupId,
 } from './agent-task-plan-tool.js';
 import { tlonChannelConfigSchema } from './config-schema.js';
 import { resolveTlonOutboundSessionRoute } from './session-route.js';
@@ -200,6 +201,16 @@ export const tlonPlugin = createChatChannelPlugin({
           postSurface(target, fallbackQuestion, blob),
       });
       const executeTaskPlan = createAgentTaskPlanToolExecutor({
+        resolveGroupId: async (target) =>
+          resolveTaskPlanGroupId(
+            await runTlonCommand(
+              tlonBinary,
+              ['channels', 'groups'],
+              credentials,
+              { timeoutMs }
+            ),
+            target
+          ),
         postPlan: ({ target, fallbackSummary, blob }) =>
           postSurface(target, fallbackSummary, blob),
       });
