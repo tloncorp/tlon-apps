@@ -227,6 +227,31 @@ describe('getAutomationRequest and awaitAutomationRequest', () => {
     expect(requestJson).toHaveBeenCalledTimes(3);
   });
 
+  test('awaitAutomationRequest passes its abort signal through and stops when aborted', async () => {
+    const controller = new AbortController();
+    vi.mocked(requestJson).mockImplementation(async () => {
+      controller.abort();
+      return { requestId, body: { type: 'pending', status: 'acked' } };
+    });
+
+    await expect(
+      awaitAutomationRequest(requestId, {
+        intervalMs: 0,
+        attempts: 5,
+        signal: controller.signal,
+      })
+    ).rejects.toThrow();
+    expect(requestJson).toHaveBeenCalledTimes(1);
+    expect(requestJson).toHaveBeenCalledWith(
+      `/steward/~/v1/automation/request/${requestId}`,
+      'GET',
+      undefined,
+      { reauthStatuses: [401, 403], signal: controller.signal }
+    );
+  });
+});
+
+describe('reads', () => {
   test('getAutomations reads the mirror over HTTP', async () => {
     const mirror = { [bot]: { 'job-1': task } };
     vi.mocked(requestJson).mockResolvedValue(mirror);
