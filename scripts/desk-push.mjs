@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // desk-push: commit an assembled desk to a ship through Clay, in one round trip.
 //
-//   node scripts/desk-push.mjs <assembled-dir> <desk> --pier <pier-path> [--code <+code>] [--install] [--reseed] [--ignore <path>]... [--incidental <path>]... [--wait-scry <eyre-path>] [--wait-timeout <ms>] [--dry-run]
+//   node scripts/desk-push.mjs <assembled-dir> <desk> --pier <pier-path> [--code <+code>] [--install] [--reseed] [--ignore <path>]... [--incidental <path>]... [--wait-scry <eyre-path>] [--timeout <ms>] [--dry-run]
 //   node scripts/desk-push.mjs <assembled-dir> <desk> --url http://host:port (--code <+code> | --cookie <urbauth>) [--install] [--dry-run]
 //
 // Verified end to end on a fresh fake ship (vere 4.6, kelvin 408): bootstrap
@@ -573,9 +573,26 @@ class ThreadError extends Error {
 
 // --- main ----------------------------------------------------------------------
 
+// How long any one ship-side phase may take: creating or seeding the desk,
+// the push itself, and the waits afterwards. --timeout replaces it wholesale,
+// because a ship slow enough to need more for one of these needs more for all
+// of them; having some phases configurable and others not just moves which one
+// fails first.
+const PHASE_TIMEOUT_MS = 30 * 60_000;
+// Deliberately left out of --timeout and deliberately shorter. This read is
+// how a desk with no usable threads is detected, and that detection has to
+// stay quick: raising it would make the ordinary first run against a
+// pre-thread pier wait out the whole budget before deciding to seed.
 const HASH_TIMEOUT_MS = 5 * 60_000;
-const PUSH_TIMEOUT_MS = 30 * 60_000; // a full-desk compile can take minutes
-const LIVE_TIMEOUT_MS = 10 * 60_000;
+
+function positiveMs(raw, fallback, flag) {
+  if (raw === undefined) return fallback;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`${flag} wants a positive whole number of ms, got: ${raw}`);
+  }
+  return parsed;
+}
 
 function parseArgs(argv) {
   const [dir, desk, ...rest] = argv;
@@ -583,7 +600,7 @@ function parseArgs(argv) {
     rest.includes(name) ? rest[rest.indexOf(name) + 1] : undefined;
   if (!dir || !desk || !(opt('--pier') || opt('--url'))) {
     console.error(
-      'usage: desk-push.mjs <assembled-dir> <desk> (--pier <path> | --url <http://host:port> (--code <+code> | --cookie <urbauth>)) [--install] [--reseed] [--ignore <path>]... [--incidental <path>]... [--wait-scry <eyre-path>] [--wait-timeout <ms>] [--dry-run]'
+      'usage: desk-push.mjs <assembled-dir> <desk> (--pier <path> | --url <http://host:port> (--code <+code> | --cookie <urbauth>)) [--install] [--reseed] [--ignore <path>]... [--incidental <path>]... [--wait-scry <eyre-path>] [--timeout <ms>] [--dry-run]'
     );
     process.exit(2);
   }
@@ -618,9 +635,7 @@ function parseArgs(argv) {
     // again rather than only that clay advanced
     waitScry: opt('--wait-scry'),
     // how long a slow ship may take for one phase; the readiness poll uses it
-    waitTimeout: opt('--wait-timeout')
-      ? Number(opt('--wait-timeout'))
-      : LIVE_TIMEOUT_MS,
+    timeout: positiveMs(opt('--timeout'), PHASE_TIMEOUT_MS, '--timeout'),
   };
 }
 
@@ -712,7 +727,7 @@ async function main() {
       }
       const t0 = Date.now();
       await ship.seedExisting(args.desk, modeNoun(pushable, []), {
-        timeoutMs: PUSH_TIMEOUT_MS,
+        timeoutMs: args.timeout,
       });
       seeded = true;
       console.log(
@@ -742,7 +757,7 @@ async function main() {
         }))
       );
       const t0 = Date.now();
-      await ship.park(args.desk, pages, { timeoutMs: PUSH_TIMEOUT_MS });
+      await ship.park(args.desk, pages, { timeoutMs: args.timeout });
       console.log(
         `parked ${seed.length} bootstrap files into %${args.desk} in ${((Date.now() - t0) / 1000).toFixed(1)}s`
       );
@@ -772,7 +787,7 @@ async function main() {
   if (changed.length === 0 && deleted.length === 0) {
     console.log(`%${args.desk} unchanged (${remote.size} files)`);
     if (seeded && args.waitScry) {
-      await waitScry(ship, args.waitScry, args.waitTimeout);
+      await waitScry(ship, args.waitScry, args.timeout);
     }
     return;
   }
@@ -796,7 +811,7 @@ async function main() {
   // as a ShipError carrying the trace, so a result here means it landed
   const t0 = Date.now();
   const result = await ship.fyrd(args.desk, 'desk-push', arg, {
-    timeoutMs: PUSH_TIMEOUT_MS,
+    timeoutMs: args.timeout,
   });
   const secs = ((Date.now() - t0) / 1000).toFixed(1);
   const committed = result.head.number === 0n;
@@ -807,9 +822,9 @@ async function main() {
       ? `committed %${args.desk} at revision ${aeon} (${hash}) in ${secs}s`
       : `%${args.desk} still at revision ${aeon} (${hash}): clay found nothing new to commit`
   );
-  if (args.install) await waitLive(ship, args.desk, args.waitTimeout);
+  if (args.install) await waitLive(ship, args.desk, args.timeout);
   if ((committed || seeded) && args.waitScry) {
-    await waitScry(ship, args.waitScry, args.waitTimeout);
+    await waitScry(ship, args.waitScry, args.timeout);
   }
 }
 

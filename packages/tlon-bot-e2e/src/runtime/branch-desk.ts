@@ -114,9 +114,10 @@ export function deskPushArgv(ship: ShipLabel): string[] {
     `/data/${ship}`,
     '--wait-scry',
     READY_SCRY,
-    // the readiness poll lives inside the script, so the ceiling has to reach
-    // it rather than only bounding the exec around it
-    '--wait-timeout',
+    // every ship-side phase lives inside the script — the seed, the push, and
+    // the readiness poll — so the ceiling has to reach them rather than only
+    // bounding the exec around them
+    '--timeout',
     String(deskPushTimeoutMs()),
     ...IGNORED_PATHS.flatMap((file) => ['--ignore', file]),
     ...INCIDENTAL_PATHS.flatMap((file) => ['--incidental', file]),
@@ -174,8 +175,8 @@ export async function applyBranchDesk(
         ctx,
         ctx.services.ships,
         deskPushArgv(ship),
-        // the exec spans two phases that each get the configured budget — the
-        // push itself and then the readiness poll — so it has to outlast both
+        // the exec spans two of those phases back to back — the seed or push,
+        // then the readiness poll — so it has to outlast both
         { timeoutMs: deskPushTimeoutMs() * 2 }
       );
       for (const line of result.stdout.split('\n').filter(Boolean)) {

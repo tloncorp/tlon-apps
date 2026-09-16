@@ -62,13 +62,15 @@ describe('desk push command', () => {
     expect(flagValues(argv, '--incidental')).toEqual(['commit.txt']);
   });
 
-  test('gives the readiness poll the configured budget, and the exec more', () => {
-    // the poll runs inside the script, so bounding only the exec would let a
-    // slow ship fail at the script's own default no matter what is configured
+  test('gives every ship-side phase the configured budget', () => {
+    // the seed, the push and the readiness poll all run inside the script, so
+    // bounding only the exec would let a slow ship fail at one of the script's
+    // own defaults no matter what is configured
     const argv = deskPushArgv('zod');
-    expect(argv[argv.indexOf('--wait-timeout') + 1]).toBe(
+    expect(argv[argv.indexOf('--timeout') + 1]).toBe(
       String(deskPushTimeoutMs())
     );
+    expect(argv).not.toContain('--wait-timeout');
   });
 
   test('waits for a desk agent to serve again before returning', () => {
