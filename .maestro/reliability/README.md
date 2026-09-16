@@ -73,8 +73,11 @@ deletes its short, run-tagged fixture group on success.
 `notebook-folder-contents.yaml` builds a small root/parent/child tree with root,
 direct, and descendant notes. It verifies immediate-only folder contents,
 folder-before-note and newest-note ordering, descendant-inclusive singular and
-plural counts, and note creation targeted through both a folder-row action and
-the currently viewed nested folder. It deletes its run-tagged fixture group.
+plural counts, note creation targeted through both a folder-row action and the
+currently viewed nested folder, and narrow stacked navigation into a nested note.
+The nested-note check asserts its exact folder path, full updated date, title,
+body, and note → folder → Notebook Back path. It deletes its run-tagged fixture
+group.
 
 `self-hosted-recovery.yaml` clears local state, rejects a malformed ship URL,
 rejects a well-formed access code that the configured ship does not accept, then

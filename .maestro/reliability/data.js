@@ -87,6 +87,11 @@ output.reliability.folderDeleteRowId =
 output.reliability.folderParentTargetPattern = exact(
   'Create in ' + output.reliability.folderParent + '.'
 );
+output.reliability.folderParentPathPattern = exact(
+  'Root / ' + output.reliability.folderParent
+);
+output.reliability.noteDatePattern =
+  '^(January|February|March|April|May|June|July|August|September|October|November|December) [0-9]{1,2}(st|nd|rd|th), 20[0-9]{2}$';
 output.reliability.folderChildTargetPattern = exact(
   'Create in ' +
     output.reliability.folderParent +

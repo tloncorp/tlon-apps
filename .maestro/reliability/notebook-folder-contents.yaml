@@ -116,6 +116,27 @@ env:
       NOTE_BODY: ${output.reliability.noteRowTargetBody}
 - tapOn: '^Back$'
 - assertNotVisible: ${output.reliability.noteRowTarget}
+
+# On the narrow native layout, opening a folder and then its note uses stacked
+# screens. The note exposes its exact nested path and a full updated date;
+# Back returns note -> folder -> Notebook without losing the selected content.
+- tapOn:
+    id: ${output.reliability.folderParentRowId}
+- assertVisible: ${output.reliability.noteRowTarget}
+- assertVisible: ${output.reliability.noteRowTargetBody}
+- assertNotVisible: ${output.reliability.noteRootNewer}
+- tapOn: ${output.reliability.noteRowTarget}
+- assertVisible: ${output.reliability.noteRowTarget}
+- assertVisible: ${output.reliability.noteRowTargetBody}
+- assertVisible: ${output.reliability.folderParentPathPattern}
+- assertVisible: ${output.reliability.noteDatePattern}
+- tapOn: '^Back$'
+- assertVisible: ${output.reliability.noteRowTarget}
+- assertVisible: ${output.reliability.noteRowTargetBody}
+- tapOn: '^Back$'
+- assertVisible:
+    id: ${output.reliability.folderParentRowId}
+- assertNotVisible: ${output.reliability.noteRowTarget}
 - assertVisible:
     text: '^1 note$'
     below: ${output.reliability.folderParent}
