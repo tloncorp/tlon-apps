@@ -82,7 +82,13 @@ function device_(
     // accessibility tree has no reliable viewport in agent-device's regular
     // projection; raw selectors can still target the actual Not Now button.
     console.log(`${session}: dismissing the iOS password sheet`);
-    device_(['press', 'text="Not Now"', ...S, '--raw', '--settle']);
+    device_([
+      'press',
+      'role="button" text="Not Now"',
+      ...S,
+      '--raw',
+      '--settle',
+    ]);
     return device_(args, { allowFailure, retryPasswordSheet: false });
   }
   if (r.status !== 0 && !allowFailure) {
@@ -133,7 +139,13 @@ for (const [press, next] of steps) {
   if (press === 'Connect') {
     // Password-manager prompts and skipped analytics vary by build/account.
     if (onScreen('Save Password?'))
-      device_(['press', 'text="Not Now"', ...S, '--raw', '--settle']);
+      device_([
+        'press',
+        'role="button" text="Not Now"',
+        ...S,
+        '--raw',
+        '--settle',
+      ]);
     if (onScreen('Home')) break;
   }
   if (next) device_(['wait', 'text', next, ...S]);

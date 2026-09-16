@@ -67,7 +67,7 @@ if (process.env.LOGIN_TEST_FAIL && args[0] === 'fill') { console.error(args.join
 if (process.env.LOGIN_TEST_SYSTEM_SHEET === 'viewport' && args[0] === 'wait' && args[2] === 'Usage Statistics' && !fs.existsSync(p+'.dismissed')) { console.error('regular iOS snapshot presentation requires a valid viewport: com.apple.SafariViewService'); process.exit(1); }
 if (process.env.LOGIN_TEST_SYSTEM_SHEET && args[0] === 'wait' && args[2] === 'Usage Statistics' && !fs.existsSync(p+'.password')) { console.error('wait timed out for text: Usage Statistics. Current surface: Save Password?, Not Now, Save.'); process.exit(1); }
 if (args[0] === 'alert' && args[1] === 'dismiss') fs.writeFileSync(p+'.dismissed','yes');
-if (args[0] === 'press' && args[1] === 'text="Not Now"' && args.includes('--raw')) { fs.writeFileSync(p+'.password','yes'); fs.writeFileSync(p+'.dismissed','yes'); }
+if (args[0] === 'press' && args[1] === 'role="button" text="Not Now"' && args.includes('--raw')) { fs.writeFileSync(p+'.password','yes'); fs.writeFileSync(p+'.dismissed','yes'); }
 if (args[0] === 'press' && args[1] === 'text="Next"') fs.writeFileSync(p+'.home','yes');
 if (args[0] === 'find') process.exit(args[1] === 'text="Home"' && fs.existsSync(p+'.home') ? 0 : 1);
 `,
@@ -115,7 +115,7 @@ if (args[0] === 'find') process.exit(args[1] === 'text="Home"' && fs.existsSync(
         );
         assert.deepEqual(commands[wait + 1].slice(0, 2), [
           'press',
-          'text="Not Now"',
+          'role="button" text="Not Now"',
         ]);
         assert.ok(commands[wait + 1].includes('--raw'));
         assert.deepEqual(commands[wait + 2], commands[wait]);
