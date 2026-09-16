@@ -56,6 +56,7 @@ beforeAll(async () => {
       ${callback('const applySettingsSnapshot = (')}
       let refreshSettingsNow;
       ${callback('refreshSettingsNow = async (): Promise<void> =>')}
+      settingsManager.onChange((settings) => applySettingsSnapshot(settings, 'subscription'));
       return {
         refresh: refreshSettingsNow,
         get current() { return currentSettings; },
@@ -76,11 +77,76 @@ describe('group-channel refresh after a subscription gap', () => {
   const changed = 'chat/~zod/changed';
   const joined = 'chat/~zod/joined';
 
+  it('does not re-trust a gapped refresh through an unrelated settings fact', async () => {
+    const snapshot = (groupChannels: string[]) => ({
+      all: { moltbot: { tlon: { groupChannels } } },
+    });
+    let response:
+      | ReturnType<typeof snapshot>
+      | Promise<ReturnType<typeof snapshot>> = snapshot([kept]);
+    let emit!: (event: unknown) => void;
+    const settingsManager = createSettingsManager({
+      scry: () => Promise.resolve(response),
+      subscribe: async (params: { event: typeof emit }) => {
+        emit = params.event;
+      },
+    } as never);
+    await settingsManager.load();
+    await settingsManager.startSubscription();
+
+    const putEntry = vi.fn(async (_value: string[]) => undefined);
+    const journal = createGroupChannelJournal({
+      initial: [kept],
+      trusted: true,
+      protectedNests: () => new Set(),
+      putEntry,
+    });
+    const runtime = { log: vi.fn(), error: vi.fn() };
+    const monitor = makeMonitor({
+      groupChannelJournal: journal,
+      settingsManager,
+      applySettingsUpdate,
+      runtime,
+    });
+
+    let resolve!: (value: ReturnType<typeof snapshot>) => void;
+    response = new Promise((done) => {
+      resolve = done;
+    });
+    const interruptedRefresh = monitor.refresh();
+    journal.markUntrusted();
+    // This scry captured a channel that the owner removed during the gap.
+    resolve(snapshot([kept, changed]));
+    await interruptedRefresh;
+    expect(journal.trusted).toBe(false);
+
+    emit({
+      'put-entry': {
+        desk: 'moltbot',
+        'bucket-key': 'tlon',
+        'entry-key': 'autoDiscoverChannels',
+        value: false,
+      },
+    });
+    expect(journal.trusted).toBe(false);
+    expect(settingsManager.current.groupChannels).toEqual([kept]);
+    expect(monitor.current.autoDiscoverChannels).toBe(false);
+    await journal.persist([joined]);
+    expect(putEntry).not.toHaveBeenCalled();
+
+    response = snapshot([kept]);
+    await monitor.refresh();
+    await journal.flush();
+    expect(runtime.error).not.toHaveBeenCalled();
+    expect(journal.trusted).toBe(true);
+    expect(putEntry).toHaveBeenCalledExactlyOnceWith([kept, joined].sort());
+  });
+
   it.each([
     { change: 'removal', before: [kept, changed], after: [kept] },
     { change: 'addition', before: [kept], after: [kept, changed] },
   ])(
-    'preserves an owner $change when the next fresh snapshot is unchanged',
+    'preserves an owner $change when the next scry repeats the interrupted snapshot',
     async ({ before, after }) => {
       const snapshot = (groupChannels: string[]) => ({
         all: { moltbot: { tlon: { groupChannels } } },
@@ -118,7 +184,7 @@ describe('group-channel refresh after a subscription gap', () => {
       await interruptedRefresh;
       expect(journal.trusted).toBe(false);
       expect(journal.lastObserved).toEqual(before);
-      expect(monitor.current.groupChannels).toEqual(after);
+      expect(monitor.current.groupChannels).toEqual(before);
 
       response = snapshot(after);
       await monitor.refresh();

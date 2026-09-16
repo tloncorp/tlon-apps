@@ -5465,14 +5465,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         try {
           const refreshResult = await settingsManager.load({
             logSnapshot: false,
-            // Runs before the manager installs the scry result: a scry that an
-            // echo overtook is older than the journal's last observation, so
-            // the observed value replaces it in the baseline atomically and
-            // no fact can see the regression.
+            // An echo or gap can invalidate this scry. Preserve the last
+            // observation before the manager installs it, or an unrelated
+            // settings fact could re-trust the journal from a pre-gap value.
             reconcile: (parsed) => {
               if (
                 !groupChannelJournal ||
-                groupChannelJournal.observationSeq === seqBefore
+                (groupChannelJournal.observationSeq === seqBefore &&
+                  groupChannelJournal.gapSeq === gapBefore)
               ) {
                 return parsed;
               }
