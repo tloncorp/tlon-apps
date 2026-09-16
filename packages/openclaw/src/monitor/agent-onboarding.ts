@@ -391,6 +391,15 @@ export function createAgentOnboardingReconciliationPresence({
       activeRunId = null;
       stopRun({ conversationId, runId });
     },
+    // A first run restored by this scan holds presence past it through these.
+    // They key their own run, as the firehose sites do, so the request-scoped
+    // run above can stop without taking the hold with it.
+    startBackgroundThinking: (key: string) => {
+      refreshRun({ conversationId, runId: `onboarding-background:${key}` });
+    },
+    stopBackgroundThinking: (key: string) => {
+      stopRun({ conversationId, runId: `onboarding-background:${key}` });
+    },
   };
 }
 

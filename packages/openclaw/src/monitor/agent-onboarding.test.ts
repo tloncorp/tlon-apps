@@ -740,6 +740,32 @@ describe('agent onboarding catch-up', () => {
       toolNames: [],
     });
   });
+
+  it('holds a background run for a restored first run, keyed apart from the request', () => {
+    const refreshRun = vi.fn();
+    const stopRun = vi.fn();
+    const presentation = createAgentOnboardingReconciliationPresence({
+      conversationId: '~ten',
+      createRunId: () => 'reconcile-1',
+      refreshRun,
+      stopRun,
+    });
+
+    presentation.startBackgroundThinking('provision-1');
+    // Ending the request's own run leaves the hold in place.
+    presentation.stopThinking();
+    expect(refreshRun).toHaveBeenCalledWith({
+      conversationId: '~ten',
+      runId: 'onboarding-background:provision-1',
+    });
+    expect(stopRun).not.toHaveBeenCalled();
+
+    presentation.stopBackgroundThinking('provision-1');
+    expect(stopRun).toHaveBeenCalledWith({
+      conversationId: '~ten',
+      runId: 'onboarding-background:provision-1',
+    });
+  });
 });
 
 describe('agent onboarding requests', () => {
