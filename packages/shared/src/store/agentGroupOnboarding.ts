@@ -4,7 +4,7 @@ import { desig } from '@tloncorp/api/lib/urbit';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as logic from '../logic';
-import { createChannel, deleteChannel } from './channelActions';
+import { createChannel, deleteChannel, unpinItem } from './channelActions';
 import { createDefaultGroup, updateGroupMeta } from './groupActions';
 import { finalizeAndSendPost } from './postActions';
 
@@ -319,6 +319,7 @@ async function finishAgentGroupFurnishingOnce({
   hostedShipId: string | null;
   isFirstGroup: boolean;
 }): Promise<AgentGroupFurnishing> {
+  if (isFirstGroup) await unpinProvisionedGroup(initialGroup.id);
   const notebook = isFirstGroup
     ? await ensureSingleNotesChannel(initialGroup.id)
     : null;
@@ -655,6 +656,23 @@ async function reconcileCreatedOnboardingNotebook(
     }
   }
   throw new Error('Could not reconcile concurrent onboarding notebooks.');
+}
+
+/**
+ * Drop the pin Hosting ships the provisioned group with.
+ *
+ * The group is already the first tab's neighbour and does not need a pinned
+ * slot as well. Only during first-run furnishing, so a pin the user put there
+ * themselves is never removed — at this point they have not seen the list.
+ */
+async function unpinProvisionedGroup(groupId: string) {
+  try {
+    const pin = (await db.getPins()).find((entry) => entry.itemId === groupId);
+    if (pin) await unpinItem(pin);
+  } catch (error) {
+    // A pin left in place is cosmetic; it must not fail furnishing.
+    logger.trackError('Failed to unpin the provisioned agent group', { error });
+  }
 }
 
 async function ensureIntroRequest(
