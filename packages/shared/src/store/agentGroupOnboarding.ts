@@ -55,6 +55,13 @@ type FurnishParams = {
   isFirstGroup?: boolean;
   /** Distinguishes explicit later creations while preserving remount retries. */
   requestId?: string;
+  /**
+   * Let onboarding name a group it adopted. Adoption otherwise keeps whatever
+   * name the group arrived with, since the caller usually hands in a group the
+   * user already owns — but onboarding's home group arrives under a generated
+   * placeholder that exists to be replaced.
+   */
+  canRenameGroup?: boolean;
 };
 
 /**
@@ -140,11 +147,15 @@ async function startAgentGroupFurnishingOnce(
   }));
   if (params.isFirstGroup) {
     const initialGroupTitle = group.title ?? null;
-    // Only a group this flow just created under the default title may be
-    // renamed; a group the caller handed in keeps the name it already has.
-    const canRenameGroup = params.groupId
-      ? false
-      : params.title == null || params.title === DEFAULT_AGENT_GROUP_TITLE;
+    // A group this flow just created under the default title may be renamed;
+    // one the caller handed in keeps its name unless the caller says otherwise.
+    // Either way the rename only fires while the title is still untouched, so
+    // it cannot clobber a name the user chose.
+    const canRenameGroup =
+      params.canRenameGroup ??
+      (params.groupId
+        ? false
+        : params.title == null || params.title === DEFAULT_AGENT_GROUP_TITLE);
 
     await db.agentGroupOnboardingLocks.setValue((current) => ({
       ...current,

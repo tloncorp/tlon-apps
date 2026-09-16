@@ -184,8 +184,8 @@ export function HomeAddTooltip({ top = 36 }: { top?: number }) {
         >
           <Text size="$label/l" color="$white">
             {botEnabled
-              ? 'Tap here to create a new group and invite your Tlonbot.'
-              : 'Tap here to create a new group.'}
+              ? 'Tap here to create a new workspace with your Tlonbot.'
+              : 'Tap here to create a new workspace.'}
           </Text>
           <View position="absolute" top={8} right={8} padding={4}>
             <Icon

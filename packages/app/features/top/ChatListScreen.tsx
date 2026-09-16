@@ -405,7 +405,12 @@ export function ChatListScreenView({
         <NavigationProvider focusedChannelId={focusedChannelId}>
           <View userSelect="none" flex={1} paddingTop={headerClearance}>
             {showHomeAddTooltip && (
-              <WayfindingNotice.HomeAddTooltip top={isWeb ? 36 : 8} />
+              // Absolute, so the column's padding does not move it: it has
+              // to clear the floating header itself to sit under the + it
+              // points at.
+              <WayfindingNotice.HomeAddTooltip
+                top={isWeb ? 36 : headerClearance + 8}
+              />
             )}
             <ScreenHeader
               title="Workspaces"
