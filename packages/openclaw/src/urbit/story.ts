@@ -11,8 +11,9 @@ const REF_PATH_REGEX = /^\/1\/(?:chan|group|desk)\/[^\s]+/;
 /** Unanchored, to find where a reference starts inside a run of prose. */
 const REF_PATH_START_REGEX = /\/1\/(?:chan|group|desk)\//;
 // Prose ends sentences after a path — "See /1/group/~ten/workspace." — and
-// the punctuation is not part of the reference.
-const REF_TRAILING_PUNCTUATION = /[.,;:!?)\]]+$/;
+// closes quotations around one; neither the punctuation nor the closing quote
+// is part of the reference.
+const REF_TRAILING_PUNCTUATION = /[.,;:!?)\]"'\u201D\u2019\u00BB]+$/;
 
 /**
  * Tlon Story Format - Rich text converter
