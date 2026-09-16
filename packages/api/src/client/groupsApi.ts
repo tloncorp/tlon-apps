@@ -1342,10 +1342,6 @@ export const subscribeGroups = async (
   );
 };
 
-// A seat response nests its role list under a `roles` key (groups-json.hoon
-// `++r-seat`), unlike the bare array the outbound $c-seat action takes. Read
-// that list, and drop an update whose list isn't one: a non-array reaching the
-// DB layer blows up `.map` on insert and `inArray` binding on delete.
 const readRoleIds = (
   payload: { roles: string[] },
   field: string
