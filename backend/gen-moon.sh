@@ -232,61 +232,40 @@ run_thread() {
 
 vere_url="https://bootstrap.urbit.org/vere/live"
 vere_ver="v4.6"
+vere=""
 
-arch=`uname -m`
-platform=""
+# Only a boot needs the runtime, so key generation alone never touches the
+# network or writes a binary into the working directory.
+fetch_vere() {
+    local arch platform vere_bin
+    arch=$(uname -m)
+    platform=""
 
-case $OSTYPE in
-  linux*)
-    platform=linux
-    case $arch in
-      x86_64)
-          arch=x86_64
-          ;;
-      arm64 | aarch64)
-          arch=aarch64
-          ;;
+    case $OSTYPE in
+      linux*)
+        platform=linux
+        case $arch in
+          x86_64) arch=x86_64 ;;
+          arm64 | aarch64) arch=aarch64 ;;
+          *) fatal "Unsupported arch $arch" ;;
+        esac ;;
+      darwin*)
+        platform=macos
+        case $arch in
+          x86_64) arch=x86_64 ;;
+          arm64 | aarch64) arch=aarch64 ;;
+          *) fatal "Unsupported arch $arch" ;;
+        esac ;;
       *)
-          fatal "Unsupported arch $arch"
-    esac ;;
-  darwin*)
-    platform=macos
-    case $arch in
-      x86_64)
-          arch=x86_64
-          ;;
-      arm64)
-          arch=arm64
-          ;;
-      *)
-          fatal "Unsupported arch $arch"
-          ;;
-    esac ;;
-  *)
-      fatal "Unsupported platform $OSTYPE"
-      ;;
-esac
+        fatal "Unsupported platform $OSTYPE" ;;
+    esac
 
-
-if [[ -z $platform ]]
-then
-    echo "Unsupported platform $OSTYPE"
-    exit 1
-fi
-
-if [[ -z $arch ]]
-then
-    echo "Unsupported architecture $arch"
-    exit 1
-fi
-
-vere_bin="vere-$vere_ver-$platform-$arch"
-
-find_download "$vere_url/$vere_ver/$vere_bin" $vere_bin \
-    || fatal "Failed to download $vere_bin"
-vere="./$vere_bin"
-
-if [[ ! -x $vere_bin ]]; then chmod +x $vere_bin; fi
+    vere_bin="vere-$vere_ver-$platform-$arch"
+    find_download "$vere_url/$vere_ver/$vere_bin" "$vere_bin" \
+        || fatal "Failed to download $vere_bin"
+    if [[ ! -x $vere_bin ]]; then chmod +x "$vere_bin"; fi
+    vere="./$vere_bin"
+}
 
 boot_moon() {
 
@@ -342,6 +321,13 @@ boot_moon() {
     rm -f "$key_file"
     trap - EXIT
 }
+
+# Fetch the runtime before minting so a failed download never leaves a moon
+# minted but unbootable.
+if $boot
+then
+    fetch_vere
+fi
 
 result=$(run_thread groups json gen-moon json null)
 printf '%s\n' "$result"
