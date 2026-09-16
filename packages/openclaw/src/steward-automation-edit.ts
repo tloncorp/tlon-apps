@@ -442,6 +442,10 @@ export function buildStewardAutomationFinalize(
 
 export const DEFAULT_STEWARD_AUTOMATION_CRON_WAIT_MS = 1_000;
 export const DEFAULT_STEWARD_AUTOMATION_CRON_WAIT_ATTEMPTS = 30;
+/** Backoff between finalize poke attempts; about a minute in total. */
+export const DEFAULT_STEWARD_AUTOMATION_FINALIZE_DELAYS_MS = [
+  2_000, 4_000, 8_000, 16_000, 32_000,
+];
 
 export interface StewardAutomationEditProcessorOptions {
   poke: (params: {
@@ -457,6 +461,7 @@ export interface StewardAutomationEditProcessorOptions {
   };
   cronWaitMs?: number;
   cronWaitAttempts?: number;
+  finalizeDelaysMs?: readonly number[];
   wait?: (delayMs: number) => Promise<void>;
 }
 
@@ -479,6 +484,7 @@ export class StewardAutomationEditProcessor {
   private queue: Promise<void> = Promise.resolve();
   private readonly cronWaitMs: number;
   private readonly cronWaitAttempts: number;
+  private readonly finalizeDelaysMs: readonly number[];
   private readonly wait: (delayMs: number) => Promise<void>;
 
   constructor(private readonly options: StewardAutomationEditProcessorOptions) {
@@ -486,6 +492,8 @@ export class StewardAutomationEditProcessor {
       options.cronWaitMs ?? DEFAULT_STEWARD_AUTOMATION_CRON_WAIT_MS;
     this.cronWaitAttempts =
       options.cronWaitAttempts ?? DEFAULT_STEWARD_AUTOMATION_CRON_WAIT_ATTEMPTS;
+    this.finalizeDelaysMs =
+      options.finalizeDelaysMs ?? DEFAULT_STEWARD_AUTOMATION_FINALIZE_DELAYS_MS;
     this.wait = options.wait ?? defaultWait;
   }
 
@@ -565,23 +573,39 @@ export class StewardAutomationEditProcessor {
     }
   }
 
+  /**
+   * Poke %finalize, retrying with backoff: a lost answer leaves the owner
+   * pending and the bot holding the command. Once the attempts are spent
+   * the bot's pending record is left alone, so a later resubscribe replays
+   * the command.
+   */
   private async finalize(
     requestId: string,
     body: StewardAutomationResponseBody
   ): Promise<void> {
-    try {
-      await this.options.poke({
-        app: 'steward',
-        mark: STEWARD_AUTOMATION_ACTION_MARK,
-        json: buildStewardAutomationFinalize(requestId, body),
-      });
-    } catch (error) {
-      // The bot keeps the command pending and replays it when we resubscribe,
-      // so a lost finalize is recovered by the next delivery, and a replayed
-      // create is idempotent under its derived id.
-      this.options.logger.warn(
-        `[tlon] Steward automation finalize for ${requestId} failed: ${errorMessage(error)}`
-      );
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        await this.options.poke({
+          app: 'steward',
+          mark: STEWARD_AUTOMATION_ACTION_MARK,
+          json: buildStewardAutomationFinalize(requestId, body),
+        });
+        return;
+      } catch (error) {
+        if (attempt >= this.finalizeDelaysMs.length) {
+          this.options.logger.warn(
+            `[tlon] Steward automation finalize for ${requestId} failed ` +
+              `${attempt + 1} times, giving up: ${errorMessage(error)}`
+          );
+          return;
+        }
+        const delayMs = this.finalizeDelaysMs[attempt] ?? 0;
+        this.options.logger.warn(
+          `[tlon] Steward automation finalize for ${requestId} failed, ` +
+            `retrying in ${delayMs}ms: ${errorMessage(error)}`
+        );
+        await this.wait(delayMs);
+      }
     }
   }
 }

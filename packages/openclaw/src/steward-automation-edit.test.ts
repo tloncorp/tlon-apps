@@ -528,17 +528,47 @@ describe('StewardAutomationEditProcessor', () => {
     );
   });
 
-  it('survives a failed finalize poke and keeps processing', async () => {
+  it('retries a failed finalize poke with backoff and then succeeds', async () => {
     const cron = cronService();
     const poke = vi
       .fn()
       .mockRejectedValueOnce(new Error('poke failed'))
+      .mockRejectedValueOnce(new Error('poke failed again'))
+      .mockResolvedValue(undefined);
+    const wait = vi.fn().mockResolvedValue(undefined);
+    const logger = { warn: vi.fn() };
+    const instance = new StewardAutomationEditProcessor({
+      poke,
+      getCron: () => cron,
+      logger,
+      finalizeDelaysMs: [10, 20, 40],
+      wait,
+    });
+
+    await instance.handle({
+      requestId: 'a',
+      action: { delete: { id: 'job-1' } },
+    });
+
+    expect(poke).toHaveBeenCalledTimes(3);
+    expect(wait.mock.calls.map((call) => call[0])).toEqual([10, 20]);
+    expect(logger.warn).toHaveBeenCalledTimes(2);
+  });
+
+  it('gives up finalizing after the backoff schedule and keeps processing', async () => {
+    const cron = cronService();
+    const poke = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('1'))
+      .mockRejectedValueOnce(new Error('2'))
+      .mockRejectedValueOnce(new Error('3'))
       .mockResolvedValue(undefined);
     const logger = { warn: vi.fn() };
     const instance = new StewardAutomationEditProcessor({
       poke,
       getCron: () => cron,
       logger,
+      finalizeDelaysMs: [1, 1],
       wait: vi.fn().mockResolvedValue(undefined),
     });
 
@@ -551,7 +581,7 @@ describe('StewardAutomationEditProcessor', () => {
       action: { delete: { id: 'job-2' } },
     });
 
-    expect(poke).toHaveBeenCalledTimes(2);
-    expect(logger.warn).toHaveBeenCalledOnce();
+    expect(poke).toHaveBeenCalledTimes(4);
+    expect(logger.warn.mock.calls.at(-1)?.[0]).toMatch(/giving up/);
   });
 });
