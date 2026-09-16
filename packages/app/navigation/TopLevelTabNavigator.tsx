@@ -2,14 +2,20 @@ import {
   BottomTabBarProps,
   createBottomTabNavigator,
 } from '@react-navigation/bottom-tabs';
+import { useNavigation } from '@react-navigation/native';
 import { useIsWindowNarrow } from '@tloncorp/ui';
+import { useEffect, useRef } from 'react';
 
 import SettingsScreen from '../features/settings/SettingsScreen';
 import ChannelScreen from '../features/top/ChannelScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
 import { useBotDmTab } from '../hooks/useBotDmTab';
 import { NavBar, NavIcon } from '../ui/components/NavBar';
-import { TopLevelTabName, trackTopLevelTabSelection } from './topLevelTabs';
+import {
+  TopLevelTabName,
+  getTopLevelTabRoute,
+  trackTopLevelTabSelection,
+} from './topLevelTabs';
 import type { TopLevelTabParamList } from './types';
 
 const Tabs = createBottomTabNavigator<TopLevelTabParamList>();
@@ -77,6 +83,23 @@ function ReactTopLevelTabBar({ state, navigation }: BottomTabBarProps) {
 
 export function TopLevelTabNavigator() {
   const botDm = useBotDmTab();
+  const navigation = useNavigation();
+  const focusedBotTab = useRef(false);
+
+  // `initialRouteName` is read once, and on a cold start the bot DM has not
+  // synced yet — so the tab is absent, ChatList wins, and focus stays there
+  // once the tab appears. Claim it the first time it becomes available.
+  useEffect(() => {
+    if (!botDm.enabled || focusedBotTab.current) {
+      return;
+    }
+    focusedBotTab.current = true;
+    const route = getTopLevelTabRoute('BotChat');
+    (navigation.navigate as (...args: unknown[]) => void)(
+      route.name,
+      route.params
+    );
+  }, [botDm.enabled, navigation]);
 
   return (
     <Tabs.Navigator

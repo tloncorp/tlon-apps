@@ -4,7 +4,8 @@ import * as db from '@tloncorp/shared/db';
 import { useEffect, useRef } from 'react';
 
 import { startAgentGroupNavigationLockFailsafe } from '../../hooks/useAgentGroupOnboardingLock';
-import { useRootNavigation } from '../../navigation/utils';
+import { getTopLevelTabRoute } from '../../navigation/topLevelTabs';
+import { useRootNavigation, useTypedReset } from '../../navigation/utils';
 import {
   canClaimAgentOnboardingLanding,
   claimAgentOnboardingLanding,
@@ -19,10 +20,13 @@ const logger = createDevLogger('useAgentOnboardingLandingConsumer', false);
  */
 export function useAgentOnboardingLandingConsumer() {
   const { resetToChannel } = useRootNavigation();
+  const reset = useTypedReset();
   const onboardingLanding = db.agentOnboardingLanding.useValue();
   const consumedOnboardingLanding = useRef(false);
   const resetToChannelRef = useRef(resetToChannel);
   resetToChannelRef.current = resetToChannel;
+  const resetRef = useRef(reset);
+  resetRef.current = reset;
   useEffect(() => {
     if (
       !canClaimAgentOnboardingLanding(onboardingLanding) ||
@@ -52,17 +56,18 @@ export function useAgentOnboardingLandingConsumer() {
               claimAgentOnboardingLanding(onboardingLanding)
             );
             consumedOnboardingLanding.current = true;
-            resetToChannelRef.current(onboardingLanding.channelId, {
-              disableTransition: true,
-              // The furnished group sits behind a group chat, but the bot DM
-              // has no group index to go back to.
-              ...(isBotDmChannel({ channel })
-                ? {}
-                : {
-                    backToGroupIndex: true,
-                    groupId: onboardingLanding.groupId,
-                  }),
-            });
+            if (isBotDmChannel({ channel })) {
+              // The bot DM is a tab, not a pushed screen. Landing on the tab
+              // leaves the user where onboarding continues, rather than one
+              // back-press above Workspaces.
+              resetRef.current([getTopLevelTabRoute('BotChat')]);
+            } else {
+              resetToChannelRef.current(onboardingLanding.channelId, {
+                backToGroupIndex: true,
+                disableTransition: true,
+                groupId: onboardingLanding.groupId,
+              });
+            }
             return;
           }
         } catch (error) {

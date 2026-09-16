@@ -1,4 +1,6 @@
 import { createNativeBottomTabNavigator } from '@react-navigation/bottom-tabs/unstable';
+import { useNavigation } from '@react-navigation/native';
+import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import { useTheme } from 'tamagui';
 
@@ -6,7 +8,11 @@ import SettingsScreen from '../features/settings/SettingsScreen';
 import ChannelScreen from '../features/top/ChannelScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
 import { useBotDmTab } from '../hooks/useBotDmTab';
-import { TOP_LEVEL_TABS, trackTopLevelTabSelection } from './topLevelTabs';
+import {
+  TOP_LEVEL_TABS,
+  getTopLevelTabRoute,
+  trackTopLevelTabSelection,
+} from './topLevelTabs';
 import type { TopLevelTabParamList } from './types';
 
 const Tabs = createNativeBottomTabNavigator<TopLevelTabParamList>();
@@ -38,6 +44,25 @@ function tabIcon(name: TabIconName, focused: boolean) {
 export function TopLevelTabNavigator() {
   const theme = useTheme();
   const botDm = useBotDmTab();
+  const navigation = useNavigation();
+  const changedTabs = useRef(false);
+  const focusedBotTab = useRef(false);
+
+  // `initialRouteName` is read once, and on a cold start the bot DM has not
+  // synced yet — so the tab is absent, ChatList wins, and focus stays there
+  // once the tab appears. Claim it the first time it becomes available, unless
+  // the user has already chosen a tab themselves.
+  useEffect(() => {
+    if (!botDm.enabled || focusedBotTab.current || changedTabs.current) {
+      return;
+    }
+    focusedBotTab.current = true;
+    const route = getTopLevelTabRoute('BotChat');
+    (navigation.navigate as (...args: unknown[]) => void)(
+      route.name,
+      route.params
+    );
+  }, [botDm.enabled, navigation]);
 
   return (
     <Tabs.Navigator
@@ -45,6 +70,8 @@ export function TopLevelTabNavigator() {
       backBehavior="history"
       screenListeners={({ navigation, route }) => ({
         tabPress: () => {
+          // A deliberate tab choice outranks the bot-tab claim above.
+          changedTabs.current = true;
           // Match the web nav bar: track selections, not re-presses of the
           // active tab.
           if (!navigation.isFocused()) {
