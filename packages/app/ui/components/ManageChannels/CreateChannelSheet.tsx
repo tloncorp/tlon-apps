@@ -13,6 +13,7 @@ import { FormProvider, useForm, useWatch } from 'react-hook-form';
 import { YStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
+import { useFeatureFlag } from '../../../lib/featureFlags';
 import { GroupSettingsStackParamList } from '../../../navigation/types';
 import { useIsAdmin } from '../../utils/channelUtils';
 import { ActionSheet } from '../ActionSheet';
@@ -113,10 +114,14 @@ export function CreateChannelSheet({
   const isGroupAdmin = useIsAdmin(group.id, currentUserId);
   const isNonHostAdmin = isGroupAdmin && !group.currentUserIsHost;
   const { data: notesAvailable = false } = useNotesDeskAvailable();
+  const [bucketsEnabled] = useFeatureFlag('buckets');
   const { data: bucketsDeskAvailable = false } = useBucketsDeskAvailable();
   const bucketsHostSupported = canGroupHostBuckets(group.hostUserId);
-  const bucketsAvailable =
-    bucketsDeskAvailable && isGroupAdmin && bucketsHostSupported;
+  // Buckets are still behind a flag. This gates the offer, not the channel
+  // type: a bucket someone already made keeps working and the host keeps
+  // serving it -- only the route to making a new one is closed.
+  const bucketsOffered = bucketsEnabled && bucketsDeskAvailable && isGroupAdmin;
+  const bucketsAvailable = bucketsOffered && bucketsHostSupported;
   const channelTypes = useMemo(
     () => buildChannelTypes(notesAvailable, bucketsAvailable),
     [bucketsAvailable, notesAvailable]
@@ -212,7 +217,7 @@ export function CreateChannelSheet({
               name={'channelType'}
             />
           </ActionSheet.FormBlock>
-          {bucketsDeskAvailable && isGroupAdmin && !bucketsHostSupported && (
+          {bucketsOffered && !bucketsHostSupported && (
             <ActionSheet.FormBlock>
               <SystemNotices.NoticeFrame>
                 <SystemNotices.NoticeBody>

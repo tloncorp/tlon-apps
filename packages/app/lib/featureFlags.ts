@@ -21,6 +21,11 @@ export const featureMeta = {
     label: 'Enable Markdown mode for notebook posts',
     onlyTlon: true,
   },
+  buckets: {
+    default: false,
+    label: 'Enable Buckets channels',
+    onlyTlon: false,
+  },
 } satisfies Record<
   string,
   { default: boolean; label: string; onlyTlon: boolean }
