@@ -3145,6 +3145,109 @@ describe('provision coordinator ordering', () => {
     );
   });
 
+  it('completes when the entry landed despite a failed delivery', async () => {
+    // %notes answers an unsettled write with `pending` and the write path
+    // throws, so a slow host reports a published entry as a failed delivery.
+    const context = scanContext();
+    rememberFirstRun('run-pending-write', {
+      context,
+      notebookName: 'Updates',
+      jobId: 'job-1',
+      enqueuedAt: 1_700_000_000_000,
+    });
+    const sendPost = successfulSendPost();
+    const cron = {
+      list: vi.fn(async () => [
+        {
+          id: 'job-1',
+          state: {
+            lastRunAtMs: 200,
+            lastRunStatus: 'ok',
+            lastDelivered: false,
+          },
+        },
+      ]),
+    } as unknown as TlonCronService;
+
+    await agentOnboardingTesting.reconcileRestoredFirstRun(
+      cron,
+      storedRunRecord({
+        runId: 'run-pending-write',
+        channelNest: context.channelNest,
+        notebookName: 'Updates',
+        claimedAt: 100,
+        enqueuedAt: 100,
+        outcome: { status: 'error', delivered: false, observedAt: 200 },
+      }),
+      {
+        fetchHistory: vi.fn(async () => []),
+        sendPost,
+        sleep: vi.fn(async () => {}),
+        listNotes: vi.fn(async () => [
+          {
+            noteId: 7,
+            title: 'Open Hardware Daily Digest',
+            createdAt: 1_700_000_050_000,
+          },
+        ]),
+      }
+    );
+
+    const story = JSON.stringify(sendPost.mock.calls[0]?.[0].story);
+    expect(story).toContain('Your first entry is ready');
+    expect(story).not.toContain('couldn’t publish the first entry');
+  });
+
+  it('still fails when the notebook holds nothing this run could have written', async () => {
+    const context = scanContext();
+    rememberFirstRun('run-genuinely-failed', {
+      context,
+      notebookName: 'Updates',
+      jobId: 'job-1',
+      enqueuedAt: 1_700_000_000_000,
+    });
+    const sendPost = successfulSendPost();
+    const cron = {
+      list: vi.fn(async () => [
+        {
+          id: 'job-1',
+          state: {
+            lastRunAtMs: 200,
+            lastRunStatus: 'ok',
+            lastDelivered: false,
+          },
+        },
+      ]),
+    } as unknown as TlonCronService;
+
+    await agentOnboardingTesting.reconcileRestoredFirstRun(
+      cron,
+      storedRunRecord({
+        runId: 'run-genuinely-failed',
+        channelNest: context.channelNest,
+        notebookName: 'Updates',
+        claimedAt: 100,
+        enqueuedAt: 100,
+        outcome: { status: 'error', delivered: false, observedAt: 200 },
+      }),
+      {
+        fetchHistory: vi.fn(async () => []),
+        sendPost,
+        sleep: vi.fn(async () => {}),
+        listNotes: vi.fn(async () => [
+          // Well before the run, and so outside the clock-skew window.
+          { noteId: 2, title: 'Older entry', createdAt: 1_699_999_000_000 },
+          // No creation time, so it cannot be attributed to this run.
+          { noteId: 3, title: 'Undated entry', createdAt: null },
+        ]),
+      }
+    );
+
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0].story)).toContain(
+      'couldn’t publish the first entry'
+    );
+  });
+
   it('does not infer the forced-run outcome from aggregate job state', async () => {
     const sendPost = vi.fn();
     const list = vi.fn(async () => [

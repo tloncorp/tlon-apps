@@ -17,7 +17,10 @@ import type {
 
 import { type TlonCronService, getTlonCronService } from '../cron-telemetry.js';
 import { MCP_READ_TOOL_NAMES } from '../mcp-readonly-policy.js';
-import { noteIdFromDeliveryMessageId } from '../notes-delivery-state.js';
+import {
+  noteIdFromDeliveryMessageId,
+  notesDeliveryMessageId,
+} from '../notes-delivery-state.js';
 import { sharedMap } from '../shared-state.js';
 import { type Sleeper, defaultSleep } from '../sleep.js';
 import { isDmNest } from '../targets.js';
@@ -114,6 +117,7 @@ type AgentOnboardingDeps = {
   fetchHistory?: typeof fetchChannelHistoryOrThrow;
   getCron?: typeof getTlonCronService;
   getGroup?: (groupId: string) => Promise<OnboardingGroup>;
+  listNotes?: typeof notes.listNotes;
   now?: () => number;
   /** Injectable so pacing jitter is deterministic under test. */
   random?: () => number;
@@ -123,11 +127,10 @@ type AgentOnboardingDeps = {
 
 type AgentOnboardingCronDeps = Pick<
   AgentOnboardingDeps,
-  'fetchHistory' | 'sendPost' | 'sleep'
+  'fetchHistory' | 'listNotes' | 'sendPost' | 'sleep'
 > & {
   /** Internal recursion guard after re-entering the captured client scope. */
   inApiScope?: boolean;
-  listNotes?: typeof notes.listNotes;
 };
 
 type OnboardingGroup = {
@@ -1601,6 +1604,24 @@ async function failFirstRunCorrelation(
     );
   }
   await correlation.releaseThinking?.();
+  const recoveredNoteId = await recoverDeliveredFirstRunNote(
+    correlation,
+    deps.listNotes ?? notes.listNotes
+  );
+  if (recoveredNoteId !== undefined) {
+    correlation.context.log?.(
+      `[tlon] first-run delivery reported failure but note ${recoveredNoteId} ` +
+        `landed in ${correlation.notebookNest}; completing instead`
+    );
+    // Hand it down the ordinary success path by the id it would have carried
+    // had delivery reported one.
+    return completeFirstRunCorrelation(
+      correlationRunId,
+      correlation,
+      notesDeliveryMessageId(correlation.context.botShip, recoveredNoteId),
+      deps
+    );
+  }
   if (await retireSupersededFirstRun(correlationRunId, correlation, 'failed')) {
     return;
   }
@@ -1916,6 +1937,30 @@ async function postFirstRunServices(
       ...correlationFunnelFields(correlation),
     });
   }
+}
+
+// %notes answers a write it has accepted but not yet applied with `pending`,
+// and nothing resolves that — the write path throws on the spot. A slow host,
+// which a freshly provisioned ship reliably is, therefore reports a published
+// entry as a failed delivery. Look before telling the owner we could not
+// publish: an entry created no earlier than this run was enqueued is ours.
+const FIRST_RUN_NOTE_CLOCK_SLACK_MS = 5_000;
+
+async function recoverDeliveredFirstRunNote(
+  correlation: FirstRunCorrelation,
+  listNotes: typeof notes.listNotes
+): Promise<number | undefined> {
+  const listed = await listNotes(correlation.notebookNest, {
+    signal: correlation.context.abortSignal,
+  }).catch(() => []);
+  const earliest = correlation.enqueuedAt - FIRST_RUN_NOTE_CLOCK_SLACK_MS;
+
+  // An entry without a creation time cannot be attributed to this run, and
+  // claiming one that is not ours would report the wrong note as the owner's
+  // first. Those stay a failure.
+  return listed
+    .filter((note) => note.createdAt != null && note.createdAt >= earliest)
+    .sort((left, right) => right.noteId - left.noteId)[0]?.noteId;
 }
 
 async function findDeliveredRunNote(
@@ -2274,6 +2319,9 @@ async function reconcileRestoredFirstRun(
     fetchHistory: deps.fetchHistory,
     sendPost: deps.sendPost,
     sleep: deps.sleep,
+    // Both outcomes read the notebook — the success path to name the entry,
+    // the failure path to check whether one landed anyway.
+    listNotes: deps.listNotes,
   };
   if (outcome.status === 'ok' && outcome.delivered) {
     await completeFirstRun(
