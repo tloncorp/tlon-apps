@@ -878,7 +878,7 @@ async function postIntro(
     hasPostMarker(history, context.botShip, 'task-interview') ||
     // Do not insert the new interview into an in-flight deterministic setup.
     hasPostMarker(history, context.botShip, 'purpose-picker');
-  const pickerPosted = hadPicker
+  const invitationPosted = hadPicker
     ? false
     : await postOnce(
         context,
@@ -892,11 +892,7 @@ async function postIntro(
             ? `${AGENT_ONBOARDING_GROUP_INTRO}\n\n${AGENT_ONBOARDING_PURPOSE_PROMPT}`
             : AGENT_ONBOARDING_PURPOSE_PROMPT;
           return {
-            text: purposePickerFallbackText(prompt),
-            blob: appendToPostBlob(
-              undefined,
-              buildPurposePickerSurface(context.groupId!, prompt)
-            ),
+            text: prompt,
             entries: needsIntro
               ? [
                   {
@@ -911,7 +907,7 @@ async function postIntro(
         deps,
         presentation
       );
-  if (!hadPicker && pickerPosted) {
+  if (!hadPicker && invitationPosted) {
     if (needsIntro) {
       context.trackStep?.({ step: 'intro_posted' });
     }

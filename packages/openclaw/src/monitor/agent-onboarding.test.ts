@@ -1475,7 +1475,7 @@ describe('agent onboarding requests', () => {
   it('describes only the provisioned home group as the first group', async () => {
     const promptFor = async (isFirstGroup?: boolean) => {
       clearAgentOnboardingRuntime();
-      const sent: Array<{ blob?: string; story?: unknown }> = [];
+    const sent: Array<{ blob?: string; story?: unknown }> = [];
       const introBlob = appendToPostBlob(undefined, {
         type: 'tlon-agent-intro-request',
         version: 1,
@@ -1503,7 +1503,7 @@ describe('agent onboarding requests', () => {
             },
           ]),
           sleep: vi.fn(async () => {}),
-          sendPost: vi.fn(async (post: { blob?: string }) => {
+          sendPost: vi.fn(async (post: { blob?: string; story?: unknown }) => {
             sent.push(post);
             return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
           }),
@@ -1515,14 +1515,17 @@ describe('agent onboarding requests', () => {
 
     const firstGroup = await promptFor(true);
     expect(firstGroup).toHaveLength(1);
-    expect(JSON.stringify(firstGroup[0]?.story)).toContain(
+    expect(JSON.stringify(firstGroup[0])).toContain(
       'Welcome! This is your private group with me, your Tlonbot.'
     );
-    expect(JSON.stringify(firstGroup[0]?.story)).toContain(
+    expect(JSON.stringify(firstGroup[0])).toContain(
       'I can keep you informed, help you learn, or follow a question over time.'
     );
-    expect(JSON.stringify(firstGroup[0]?.story)).toContain(
+    expect(JSON.stringify(firstGroup[0])).toContain(
       'What can I help you with?'
+    );
+    expect(JSON.stringify(parsePostBlob(firstGroup[0]?.blob))).not.toContain(
+      'a2ui'
     );
     expect(parsePostBlob(firstGroup[0]?.blob)).toEqual(
       expect.arrayContaining([
@@ -1592,9 +1595,12 @@ describe('agent onboarding requests', () => {
     ).toBe(false);
   });
 
-  it('preserves the develop starter card, then hands its reply to the model', async () => {
-    const sent: Array<{ story: unknown; blob?: string }> = [];
-    const sendPost = vi.fn(async (post: { story: unknown; blob?: string }) => {
+  it('posts a freeform first invitation, then hands its reply to the model', async () => {
+    const sent: Array<{ story?: unknown; blob?: string }> = [];
+    const sendPost = vi.fn(async (post: {
+      story?: unknown;
+      blob?: string;
+    }) => {
       sent.push(post);
       return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
     });
@@ -1636,16 +1642,8 @@ describe('agent onboarding requests', () => {
     expect(JSON.stringify(parsePostBlob(sent[0].blob))).not.toContain(
       'the cards are only starts'
     );
-    const starterA2UI = parsePostBlob(sent[0].blob).find(
-      (entry) => entry.type === 'a2ui'
-    );
-    expect(starterA2UI).toMatchObject({ storyMode: 'fallback' });
-    expect(JSON.stringify(starterA2UI)).toContain('Choice');
-    expect(JSON.stringify(starterA2UI)).toContain(
-      'A short summary of anything you care about, posted every morning.'
-    );
-    expect(JSON.stringify(starterA2UI)).not.toContain('SmallChoice');
-    expect(JSON.stringify(starterA2UI)).not.toContain('Describe your own…');
+    expect(JSON.stringify(sent[0].story)).toContain('What can I help you with?');
+    expect(JSON.stringify(parsePostBlob(sent[0].blob))).not.toContain('a2ui');
     expect(parsePostBlob(sent[0].blob)).toContainEqual(
       expect.objectContaining({
         type: 'tlon-agent-post-marker',
