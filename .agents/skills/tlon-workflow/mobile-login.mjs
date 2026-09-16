@@ -63,47 +63,27 @@ if (!device) {
 
 function device_(
   args,
-  {
-    allowFailure = false,
-    retrySystemSheet = true,
-    retryPasswordSheet = true,
-  } = {}
+  { allowFailure = false, retryPasswordSheet = true } = {}
 ) {
   const r = spawnSync('agent-device', args, { encoding: 'utf8' });
   if (r.error) usage(`agent-device did not run (${r.error.message})`);
   const out = redact(`${r.stdout ?? ''}${r.stderr ?? ''}`);
-  // iOS can present its password sheet during login, before a text wait sees
-  // it. Use the native alert action when that sheet has no readable viewport.
-  // Retry once; leave other accessibility and navigation failures visible.
-  if (
-    r.status !== 0 &&
-    retrySystemSheet &&
-    ['find', 'wait'].includes(args[0]) &&
-    out.includes('com.apple.SafariViewService') &&
-    out.includes('requires a valid viewport')
-  ) {
-    console.log(`${session}: dismissing an unreadable iOS login sheet`);
-    device_(['alert', 'dismiss', ...S], { allowFailure: true });
-    return device_(args, {
-      allowFailure,
-      retrySystemSheet: false,
-      retryPasswordSheet,
-    });
-  }
   if (
     r.status !== 0 &&
     retryPasswordSheet &&
+    platform === 'ios' &&
     args[0] === 'wait' &&
     args[2] === 'Usage Statistics' &&
-    out.includes('Save Password?')
+    /Save Password\?|com\.apple\.SafariViewService|system web sign-in sheet/.test(
+      out
+    )
   ) {
-    // The password sheet can arrive after Connect's immediate prompt check.
-    device_(['press', 'text="Not Now"', ...S, '--settle']);
-    return device_(args, {
-      allowFailure,
-      retrySystemSheet,
-      retryPasswordSheet: false,
-    });
+    // Save Password can arrive after Connect's immediate check. Its native
+    // accessibility tree has no reliable viewport in agent-device's regular
+    // projection; raw selectors can still target the actual Not Now button.
+    console.log(`${session}: dismissing the iOS password sheet`);
+    device_(['press', 'text="Not Now"', ...S, '--raw', '--settle']);
+    return device_(args, { allowFailure, retryPasswordSheet: false });
   }
   if (r.status !== 0 && !allowFailure) {
     console.error(
@@ -153,7 +133,7 @@ for (const [press, next] of steps) {
   if (press === 'Connect') {
     // Password-manager prompts and skipped analytics vary by build/account.
     if (onScreen('Save Password?'))
-      device_(['press', 'text="Not Now"', ...S, '--settle']);
+      device_(['press', 'text="Not Now"', ...S, '--raw', '--settle']);
     if (onScreen('Home')) break;
   }
   if (next) device_(['wait', 'text', next, ...S]);
