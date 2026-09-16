@@ -1,6 +1,7 @@
 import type { Story } from '@tloncorp/api';
 import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
+import { resolveDefaultAgentId } from 'openclaw/plugin-sdk/agent-runtime';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
 import type { OpenClawConfig, ReplyPayload } from 'openclaw/plugin-sdk/core';
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
@@ -48,6 +49,11 @@ import {
   getGatewayStatusCoordinator,
 } from '../gateway-status.js';
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
+import {
+  type PromptSync,
+  createPromptSync,
+  shouldRunPromptSync,
+} from '../prompt-sync.js';
 import {
   type PendingNudge,
   clearPendingNudge,
@@ -591,6 +597,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   };
 
   let api: UrbitSSEClient | null = null;
+  let promptSync: PromptSync | null = null;
   let clearAgentOnboardingRetries: (() => void) | null = null;
   let cookie: string;
   // Set by the boot self-contact scry; reconnect publishes re-read instead.
@@ -709,6 +716,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           // publish, or a key cleared while this process stayed alive, would
           // otherwise persist until a restart. Fire-and-forget and non-fatal.
           void publishBotInfoNow('reconnect');
+          // A reconnect may follow a failed initial project or a ship-side
+          // state reset. Re-assert the workspace projection; steward retains
+          // pending edits and will replay them through the harness feed.
+          void promptSync?.project('reconnect');
           if (event.attempt > 0 || (event.downtimeMs ?? 0) > 0) {
             capturePluginError(
               'sse_stream',
@@ -4894,6 +4905,63 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     try {
       runtime.log?.('[tlon] Subscribing to firehose updates...');
 
+      // The OpenClaw workspace is %steward's source of truth for prompt
+      // files. Register its local harness feed before connecting so a queued
+      // owner edit cannot slip between the initial projection and the watch.
+      // Multiple accounts share this workspace, so exactly one monitor owns
+      // the relay.
+      if (!effectiveOwnerShip) {
+        runtime.log?.(
+          '[tlon] Prompt sync disabled: no ownerShip is configured'
+        );
+      } else if (!shouldRunPromptSync(cfg, account.accountId)) {
+        runtime.log?.(
+          `[tlon] Prompt sync disabled for account ${account.accountId}: accounts share one agent workspace`
+        );
+      } else {
+        promptSync = createPromptSync({
+          owner: effectiveOwnerShip,
+          workspaceDir: core.agent.resolveAgentWorkspaceDir(
+            cfg,
+            resolveDefaultAgentId(cfg)
+          ),
+          poke: api.poke.bind(api),
+          logger: {
+            log: (message) => runtime.log?.(message),
+            warn: (message) => runtime.error?.(message),
+          },
+        });
+        const sync = promptSync;
+        try {
+          await api.subscribe({
+            app: 'steward',
+            path: '/v1/prompts/harness',
+            event: (fact) => {
+              void sync.handleDispatch(fact);
+            },
+            err: (error) => {
+              capturePluginError('steward_subscription', error);
+              runtime.error?.(
+                `[tlon] Steward prompts harness subscription error: ${String(error)}`
+              );
+            },
+            quit: () => {
+              runtime.log?.(
+                '[tlon] Steward prompts harness quit received, SSE client will resubscribe'
+              );
+            },
+          });
+          runtime.log?.(
+            '[tlon] Subscribed to steward prompts harness (/v1/prompts/harness)'
+          );
+        } catch (error) {
+          promptSync = null;
+          runtime.log?.(
+            `[tlon] Steward prompts sync unavailable: ${String(error)}`
+          );
+        }
+      }
+
       // Subscribe to channels firehose (/v4)
       await api.subscribe({
         app: 'channels',
@@ -5799,6 +5867,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       );
       await api.connect();
       runtime.log?.('[tlon] Connected! Firehose subscriptions active');
+      await promptSync?.start();
       if (!opts.abortSignal?.aborted && api.isConnected) {
         opts.onReady?.({
           isConnected: () => api.isConnected,
