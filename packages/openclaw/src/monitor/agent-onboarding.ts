@@ -59,6 +59,20 @@ type AgentRequest =
   | PostBlobDataEntryAgentProviderConfig
   | PostBlobDataEntryAgentProvision;
 
+function typedSelectionReply(blob: string | null | undefined) {
+  if (!blob) return null;
+  const selection = parsePostBlob(blob).find(
+    (entry) => entry.type === 'tlon-a2ui-selection'
+  );
+  if (
+    selection?.type !== 'tlon-a2ui-selection' ||
+    selection.values.length !== 1
+  ) {
+    return null;
+  }
+  return selection;
+}
+
 const AUTO_PROVISION_COMPONENT_ID = 'auto-provision';
 
 function normalizeEvidencePostId(id: string | undefined | null) {
@@ -211,6 +225,8 @@ const AGENT_ONBOARDING_GROUP_INTRO =
   'question over time.';
 const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What can I help you with?';
 const AGENT_ONBOARDING_APP_TOUR_PROMPT =
+  'Your results live in Updates, this group’s notebook. Ask me anytime to ' +
+  'change or pause this daily task.\n\n' +
   'Want me to tell you more about what you can do here?';
 const AGENT_ONBOARDING_APP_TOUR_EXPLANATION =
   'Tlon is organized into groups. Each group can have chat channels for ' +
@@ -571,19 +587,41 @@ async function handleAgentOnboardingRequestInternal(
   const request = parseAgentOnboardingRequest(context.blob);
   if (!request) {
     if (
-      !context.rawText?.trim() ||
       !context.ownerShip ||
       context.senderShip !== context.ownerShip ||
       !context.groupId
     ) {
       return false;
     }
-    const reply = context.rawText.trim();
-    if (!purposeForReply(reply) && !isOrientationReply(reply)) {
+    // Native typed controls can arrive on the firehose as blob-only posts even
+    // though their durable story renders the selected label. Recover that one
+    // typed value so deterministic services/tour replies do not wake the model.
+    // The active durable card is still verified below before anything is
+    // consumed; arbitrary A2UI selections remain ordinary conversation.
+    const rawReply = context.rawText?.trim();
+    const typedSelection = typedSelectionReply(context.blob);
+    const reply = rawReply || typedSelection?.values[0]?.trim();
+    if (!reply) return false;
+    const purpose = purposeForReply(reply);
+    const orientationReply = isOrientationReply(reply);
+    if (!purpose && !orientationReply) {
       return false;
     }
     const history = await fetchOnboardingHistory(context, deps);
-    return advanceDurableConversation(context, history, deps, presentation);
+    if (
+      typedSelection &&
+      !(orientationReply
+        ? matchesActiveOrientationSelection(context, history, typedSelection)
+        : matchesActivePurposeSelection(context, history, typedSelection))
+    ) {
+      return false;
+    }
+    return advanceDurableConversation(
+      { ...context, rawText: reply },
+      history,
+      deps,
+      presentation
+    );
   }
   if (
     !context.ownerShip ||
@@ -979,10 +1017,82 @@ function newestOwnerReplyAfter(
       (entry) =>
         entry.author === ownerShip &&
         entry.timestamp > timestamp &&
-        entry.content.trim() &&
-        isValid(entry.content)
+        durableReplyText(entry) &&
+        isValid(durableReplyText(entry))
     )
     .sort((a, b) => b.timestamp - a.timestamp)[0];
+}
+
+function durableReplyText(entry: TlonHistoryEntry) {
+  return (
+    entry.content.trim() ||
+    typedSelectionReply(entry.blob)?.values[0]?.trim() ||
+    ''
+  );
+}
+
+function matchesSelectionSource(
+  selection: NonNullable<ReturnType<typeof typedSelectionReply>>,
+  post: TlonHistoryEntry | undefined,
+  surfaceId: string,
+  componentId: string
+) {
+  return Boolean(
+    post?.id &&
+    sameEvidencePostId(selection.sourcePostId, post.id) &&
+    selection.surfaceId === surfaceId &&
+    selection.componentId === componentId
+  );
+}
+
+function matchesActiveOrientationSelection(
+  context: AgentOnboardingContext,
+  history: TlonHistoryEntry[],
+  selection: NonNullable<ReturnType<typeof typedSelectionReply>>
+) {
+  if (!hasProvisionAck(history, context.botShip)) return false;
+  const botTourOffer = markerPost(history, context.botShip, 'bot-tour-offer');
+  if (botTourOffer) {
+    return matchesSelectionSource(
+      selection,
+      botTourOffer,
+      `agent-onboarding-bot-tour:${context.groupId!}`,
+      'choice'
+    );
+  }
+  const appTourOffer = markerPost(
+    history,
+    context.botShip,
+    'onboarding-follow-up'
+  );
+  if (appTourOffer) {
+    return matchesSelectionSource(
+      selection,
+      appTourOffer,
+      `agent-onboarding-app-tour:${context.groupId!}`,
+      'choice'
+    );
+  }
+  return matchesSelectionSource(
+    selection,
+    markerPost(history, context.botShip, 'services-card'),
+    'agent-services',
+    'providers'
+  );
+}
+
+function matchesActivePurposeSelection(
+  context: AgentOnboardingContext,
+  history: TlonHistoryEntry[],
+  selection: NonNullable<ReturnType<typeof typedSelectionReply>>
+) {
+  if (hasProvisionAck(history, context.botShip)) return false;
+  return matchesSelectionSource(
+    selection,
+    markerPost(history, context.botShip, 'purpose-picker'),
+    `agent-onboarding-purpose:${context.groupId!}`,
+    'choices'
+  );
 }
 
 function yesNoDecision(text: string): 'yes' | 'no' | null {
@@ -1027,7 +1137,7 @@ async function advanceOrientationConversation(
       botTourOffer.timestamp,
       (text) => yesNoDecision(text) !== null
     );
-    const decision = reply ? yesNoDecision(reply.content) : null;
+    const decision = reply ? yesNoDecision(durableReplyText(reply)) : null;
     if (!decision) return false;
 
     const posted = await postOnce(
@@ -1068,7 +1178,9 @@ async function advanceOrientationConversation(
       servicesCard.timestamp,
       isServicesCompleteReply
     );
-    if (!reply || !isServicesCompleteReply(reply.content)) return false;
+    if (!reply || !isServicesCompleteReply(durableReplyText(reply))) {
+      return false;
+    }
 
     await postOnce(
       context,
@@ -1095,7 +1207,7 @@ async function advanceOrientationConversation(
     appTourOffer.timestamp,
     (text) => yesNoDecision(text) !== null
   );
-  const decision = reply ? yesNoDecision(reply.content) : null;
+  const decision = reply ? yesNoDecision(durableReplyText(reply)) : null;
   if (!decision) return false;
 
   if (decision === 'no') {

@@ -161,6 +161,7 @@ const firstGroupIntro = (timestamp = 0) => introRequest(timestamp);
 function botMarker(key: string, timestamp: number) {
   return {
     author: '~bot',
+    id: String(1_000 + Math.round(timestamp * 1_000)),
     content: key,
     timestamp,
     blob: appendToPostBlob(undefined, {
@@ -204,6 +205,7 @@ function provisionRequest(
 function servicesCard(timestamp = 2) {
   return {
     author: '~bot',
+    id: '123',
     content: 'Pick anything you’d like, or tap Done to continue.',
     timestamp,
     blob: appendToPostBlob(undefined, {
@@ -1078,6 +1080,169 @@ describe('agent onboarding requests', () => {
       expect.objectContaining({
         type: 'tlon-agent-post-marker',
         key: 'onboarding-follow-up',
+      })
+    );
+  });
+
+  it('recovers blob-only typed Done replies before they wake the model', async () => {
+    const sendPost = successfulSendPost();
+    const history = [
+      firstGroupIntro(),
+      botMarker('intro', 0.1),
+      botMarker('purpose-picker', 0.2),
+      provisionAck(),
+      servicesCard(),
+      { author: '~ten', content: 'Done', timestamp: 3 },
+    ];
+    const blob = appendToPostBlob(undefined, {
+      type: 'tlon-a2ui-selection',
+      version: 1,
+      sourcePostId: '123',
+      surfaceId: 'agent-services',
+      componentId: 'providers',
+      values: ['Done'],
+    });
+
+    await expect(
+      handleAgentOnboardingRequest(replyContext('', { blob }), {
+        fetchHistory: vi.fn(async () => history),
+        sendPost,
+      })
+    ).resolves.toBe(true);
+
+    expect(sendPost).toHaveBeenCalledOnce();
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).toContain(
+      'Want me to tell you more about what you can do here?'
+    );
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).toContain(
+      'Your results live in Updates'
+    );
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).toContain(
+      'change or pause this daily task'
+    );
+  });
+
+  it('recovers a typed Done when durable history is also blob-only', async () => {
+    const sendPost = successfulSendPost();
+    const blob = appendToPostBlob(undefined, {
+      type: 'tlon-a2ui-selection',
+      version: 1,
+      sourcePostId: '123',
+      surfaceId: 'agent-services',
+      componentId: 'providers',
+      values: ['Done'],
+    });
+    const history = [
+      firstGroupIntro(),
+      provisionAck(),
+      servicesCard(),
+      { author: '~ten', content: '', timestamp: 3, blob },
+    ];
+
+    await expect(
+      handleAgentOnboardingRequest(replyContext('', { blob }), {
+        fetchHistory: vi.fn(async () => history),
+        sendPost,
+      })
+    ).resolves.toBe(true);
+    expect(sendPost).toHaveBeenCalledOnce();
+  });
+
+  it('does not treat a wrong-source typed Done as services completion', async () => {
+    const sendPost = successfulSendPost();
+    const blob = appendToPostBlob(undefined, {
+      type: 'tlon-a2ui-selection',
+      version: 1,
+      sourcePostId: '124',
+      surfaceId: 'agent-services',
+      componentId: 'providers',
+      values: ['Done'],
+    });
+    const history = [firstGroupIntro(), provisionAck(), servicesCard()];
+
+    await expect(
+      handleAgentOnboardingRequest(replyContext('Done', { blob }), {
+        fetchHistory: vi.fn(async () => history),
+        sendPost,
+      })
+    ).resolves.toBe(false);
+    expect(sendPost).not.toHaveBeenCalled();
+  });
+
+  it('does not treat a wrong-source typed Yes as a tour answer', async () => {
+    const sendPost = successfulSendPost();
+    const blob = appendToPostBlob(undefined, {
+      type: 'tlon-a2ui-selection',
+      version: 1,
+      sourcePostId: '124',
+      surfaceId: 'agent-onboarding-app-tour:~ten/group',
+      componentId: 'choice',
+      values: ['Yes'],
+    });
+    const history = [
+      firstGroupIntro(),
+      provisionAck(),
+      botMarker('onboarding-follow-up', 2),
+    ];
+
+    await expect(
+      handleAgentOnboardingRequest(replyContext('Yes', { blob }), {
+        fetchHistory: vi.fn(async () => history),
+        sendPost,
+      })
+    ).resolves.toBe(false);
+    expect(sendPost).not.toHaveBeenCalled();
+  });
+
+  it('leaves unrelated blob-only typed replies for ordinary conversation', async () => {
+    const fetchHistory = vi.fn(async () => {
+      throw new Error('history should not be fetched');
+    });
+    const blob = appendToPostBlob(undefined, {
+      type: 'tlon-a2ui-selection',
+      version: 1,
+      sourcePostId: 'question-post',
+      surfaceId: 'agent-choice-context',
+      componentId: 'choices',
+      values: ['Use concrete examples'],
+    });
+
+    await expect(
+      handleAgentOnboardingRequest(replyContext('', { blob }), {
+        fetchHistory,
+      })
+    ).resolves.toBe(false);
+    expect(fetchHistory).not.toHaveBeenCalled();
+  });
+
+  it('preserves typed legacy purpose-picker replies', async () => {
+    const sendPost = successfulSendPost();
+    const history = [
+      firstGroupIntro(),
+      botMarker('intro', 0.1),
+      botMarker('purpose-picker', 0.2),
+      { author: '~ten', content: 'A daily digest', timestamp: 1 },
+    ];
+    const blob = appendToPostBlob(undefined, {
+      type: 'tlon-a2ui-selection',
+      version: 1,
+      sourcePostId: '1200',
+      surfaceId: 'agent-onboarding-purpose:~ten/group',
+      componentId: 'choices',
+      values: ['A daily digest'],
+    });
+
+    await expect(
+      handleAgentOnboardingRequest(replyContext('A daily digest', { blob }), {
+        fetchHistory: vi.fn(async () => history),
+        sendPost,
+      })
+    ).resolves.toBe(true);
+    expect(sendPost).toHaveBeenCalledOnce();
+    expect(parsePostBlob(sendPost.mock.calls[0]?.[0].blob)).toContainEqual(
+      expect.objectContaining({
+        type: 'tlon-agent-post-marker',
+        key: 'topics-picker',
       })
     );
   });
