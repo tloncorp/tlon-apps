@@ -51,9 +51,15 @@ Multiparty cases from the [Authenticated App QA sheet](https://docs.google.com/s
 | Rows | Case | Peer evidence |
 | --- | --- | --- |
 | 132-133 | Open Invite People and filter to `~ten` | Disposable native-hosted group is absent on both ships after cleanup |
+| 455-456 | Select global mentions/replies and no-notification modes | Exact Activity events prove ordinary/mention/reply notification bits, the default is restored, and fixtures are deleted |
 | 207-208 | Edit a mobile message | Same post ID has the edited text on the other ship |
 | 209 | Delete that message | Other ship receives its deletion tombstone |
 | 201-202 | Reply to a peer and receive a thread reply | Both replies have the expected authors under the same root; UI shows two replies and reopens them |
+
+The global notification case intentionally fails its peer assertion while the
+current backend marks a reply as notifying after the native client selects
+`Nothing`. The flow still restores the default level and the peer deletes all
+four case-owned fixture groups before reporting that product failure.
 
 These run sequentially inside `exchange.yaml` to share one login and ship setup.
 `peer-checks.json` records completed backend checks even if a later step fails;

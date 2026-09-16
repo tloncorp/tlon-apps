@@ -128,6 +128,7 @@ const optionalNames = [
   'dm-copy-message',
   'dm-history-pagination',
   'activity-pagination',
+  'global-notification-preferences',
   'permissions-restore',
   'member-invitation-filter',
 ];

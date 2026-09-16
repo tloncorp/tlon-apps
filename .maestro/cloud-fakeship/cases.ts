@@ -513,6 +513,206 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
       });
     });
   }
+  if (selected('global-notification-preferences')) {
+    const softGroup = await group('NotifySoft', zod);
+    const softOrdinaryGroup = await group('NotifySoftPost', zod);
+    const hushGroup = await group('NotifyHush', zod);
+    const hushOrdinaryGroup = await group('NotifyHushPost', zod);
+    type RawVolume = Record<string, { unreads?: boolean; notify?: boolean }>;
+    type RawFeedSource = {
+      events?: Array<{
+        event?: { notified?: boolean } & Record<string, unknown>;
+      }>;
+    };
+    const baseLevel = async () => {
+      const settings = await zod.state.scry<Record<string, RawVolume>>(
+        'activity',
+        '/v6/volume-settings'
+      );
+      const base = settings.base;
+      if (!base) return 'default';
+      const entries = Object.values(base);
+      if (entries.length > 0 && entries.every((entry) => !entry.notify)) {
+        return 'hush';
+      }
+      if (
+        base.post?.notify === false &&
+        base['post-mention']?.notify === true &&
+        base['reply-mention']?.notify === true &&
+        base['dm-post']?.notify === true
+      ) {
+        return 'soft';
+      }
+      if (base.post?.notify === true) return 'medium';
+      return 'unknown';
+    };
+    const eventNotified = async (marker: string) => {
+      const response = await zod.state.scry<{
+        feed?: RawFeedSource[];
+      }>('activity', '/v5/feed/all/100');
+      for (const source of response.feed ?? []) {
+        for (const wrapped of source.events ?? []) {
+          if (JSON.stringify(wrapped.event).includes(marker)) {
+            return wrapped.event?.notified;
+          }
+        }
+      }
+      return undefined;
+    };
+    const sendPhase = async (
+      notificationFixture: Awaited<ReturnType<typeof group>>,
+      ordinaryFixture: Awaited<ReturnType<typeof group>>,
+      phase: 'soft' | 'hush'
+    ) => {
+      const root = await zod.sendChannelPost({
+        channelId: notificationFixture.chatChannel,
+        content: `${tag} notification ${phase} root`,
+      });
+      await until(`${phase} root reaches peer`, async () =>
+        (await ten.state.channelPosts(notificationFixture.chatChannel)).some(
+          (post) => post.id === root.id
+        )
+      );
+      const ordinary = `${tag} notification ${phase} ordinary`;
+      const mention = `${tag} notification ${phase} mention`;
+      const reply = `${tag} notification ${phase} reply`;
+      await ten.sendChannelPost({
+        channelId: ordinaryFixture.chatChannel,
+        content: ordinary,
+      });
+      await ten.sendChannelPost({
+        channelId: notificationFixture.chatChannel,
+        content: [{ inline: [{ ship: '~zod' }, ` ${mention}`] }],
+      });
+      await ten.replyToPost({
+        channelId: notificationFixture.chatChannel,
+        parentId: root.id,
+        parentAuthor: root.authorId,
+        content: reply,
+      });
+      await until(
+        `${phase} notification messages reach native ship`,
+        async () => {
+          const ordinaryArrived = (
+            await zod.state.channelPosts(ordinaryFixture.chatChannel)
+          ).some((post) => post.authorId === '~ten' && post.text === ordinary);
+          const mentionArrived = (
+            await zod.state.channelPosts(notificationFixture.chatChannel)
+          ).some(
+            (post) => post.authorId === '~ten' && post.text.includes(mention)
+          );
+          const replies = await zod.state.postWithReplies({
+            channelId: notificationFixture.chatChannel,
+            rootId: root.id,
+            rootAuthor: root.authorId,
+          });
+          return (
+            ordinaryArrived &&
+            mentionArrived &&
+            replies.replies.some(
+              (post) => post.author === '~ten' && post.text === reply
+            )
+          );
+        }
+      );
+      let delivered: string | undefined;
+      if (phase === 'hush') {
+        delivered = `${tag} notification hush delivered`;
+        await ten.sendChannelPost({
+          channelId: ordinaryFixture.chatChannel,
+          content: delivered,
+        });
+        await until('hush Home-preview barrier reaches native ship', async () =>
+          (await zod.state.channelPosts(ordinaryFixture.chatChannel)).some(
+            (post) => post.authorId === '~ten' && post.text === delivered
+          )
+        );
+      }
+      return { ordinary, mention, reply, delivered };
+    };
+    task('global-notification-preferences', async () => {
+      const failures: string[] = [];
+      await until(
+        'native selects mentions-and-replies notification level',
+        async () => (await baseLevel()) === 'soft',
+        30 * 60_000
+      );
+      const softMarkers = await sendPhase(softGroup, softOrdinaryGroup, 'soft');
+      let soft: Record<string, boolean | undefined> = {};
+      await until('soft mention and reply reach Activity', async () => {
+        soft = {
+          ordinary: await eventNotified(softMarkers.ordinary),
+          mention: await eventNotified(softMarkers.mention),
+          reply: await eventNotified(softMarkers.reply),
+        };
+        return soft.mention !== undefined && soft.reply !== undefined;
+      });
+      record('global-notification-soft', {
+        level: 'soft',
+        ordinaryInActivity: soft.ordinary !== undefined,
+        mentionNotified: soft.mention,
+        replyNotified: soft.reply,
+      });
+      if (soft.ordinary !== undefined) {
+        failures.push('soft ordinary post entered Activity');
+      }
+      if (soft.mention !== true) failures.push('soft mention did not notify');
+      if (soft.reply !== true) failures.push('soft reply did not notify');
+
+      await until(
+        'native selects no-notifications level',
+        async () => (await baseLevel()) === 'hush',
+        30 * 60_000
+      );
+      const hushMarkers = await sendPhase(hushGroup, hushOrdinaryGroup, 'hush');
+
+      await until(
+        'native restores default notification level',
+        async () => (await baseLevel()) === 'medium',
+        30 * 60_000
+      );
+      const hush = {
+        ordinary: await eventNotified(hushMarkers.ordinary),
+        mention: await eventNotified(hushMarkers.mention),
+        reply: await eventNotified(hushMarkers.reply),
+      };
+      record('global-notification-hush', {
+        level: 'hush',
+        ordinaryNotified: hush.ordinary ?? null,
+        mentionNotified: hush.mention ?? null,
+        replyNotified: hush.reply ?? null,
+        deliveredMarker: hushMarkers.delivered,
+      });
+      if (Object.values(hush).some((value) => value === true)) {
+        failures.push('hush emitted a notifying Activity event');
+      }
+      const notificationFixtures = [
+        softGroup,
+        softOrdinaryGroup,
+        hushGroup,
+        hushOrdinaryGroup,
+      ];
+      for (const fixture of notificationFixtures) {
+        try {
+          await zod.state.deleteGroup(fixture.groupId);
+        } catch (error) {
+          if (await zod.state.isMemberOfGroup(fixture.groupId)) throw error;
+        }
+        await until(
+          `notification fixture ${fixture.groupId} is removed`,
+          async () =>
+            !(await zod.state.isMemberOfGroup(fixture.groupId)) &&
+            !(await ten.state.isMemberOfGroup(fixture.groupId))
+        );
+      }
+      record('global-notification-cleanup', {
+        groupIds: notificationFixtures.map((fixture) => fixture.groupId),
+        restoredLevel: 'medium',
+        removed: true,
+      });
+      if (failures.length) throw Error(failures.join('; '));
+    });
+  }
   if (selected('activity-pagination')) {
     const g = await group('ActivityPage', zod);
     const sourceCount = 32;
