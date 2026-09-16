@@ -1437,4 +1437,36 @@ describe('registerStewardAutomationReconciliationHooks account transitions', () 
     expect(getStewardAutomationReconciler()?.isActive()).toBe(false);
     expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
   });
+
+  it('reports each dropped job once across reconciliations', async () => {
+    const api = createFakeHookApi();
+    const warn = vi.fn();
+    registerStewardAutomationReconciliationHooks(api, {
+      logger: { warn },
+      getConfig: () => one,
+    });
+    const invalid = {
+      ...job('watcher'),
+      schedule: { kind: 'on-exit', command: 'x' },
+    } as unknown as PluginHookGatewayCronJob;
+    const first = cronContext([invalid, job('a')]);
+    const second = cronContext([invalid, job('a'), job('b')]);
+
+    await api.fire('gateway_start', { port: 3000 }, first.context);
+    await vi.waitFor(() =>
+      expect(submitStewardAutomationProjection).toHaveBeenCalledOnce()
+    );
+    await api.fire(
+      'cron_changed',
+      { action: 'added', jobId: 'b' },
+      second.context
+    );
+    await vi.waitFor(() =>
+      expect(submitStewardAutomationProjection).toHaveBeenCalledTimes(2)
+    );
+
+    expect(
+      warn.mock.calls.filter((c) => /dropped cron job/.test(c[0]))
+    ).toHaveLength(1);
+  });
 });

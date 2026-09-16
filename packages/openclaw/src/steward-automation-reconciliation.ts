@@ -654,6 +654,22 @@ export function registerStewardAutomationReconciliationHooks(
     }
   };
 
+  // The same unrepresentable job is rejected on every reconciliation; report
+  // each distinct job and reason once per process.
+  const reported = new Set<string>();
+  const reportOnce = (rejected: readonly StewardAutomationRejectedJob[]) => {
+    const fresh = rejected.filter((job) => {
+      const key = `${job.id ?? ''}|${job.kind}|${job.reason}`;
+      if (reported.has(key)) {
+        return false;
+      }
+      reported.add(key);
+      return true;
+    });
+    if (fresh.length > 0) {
+      reportRejectedJobs(fresh, warnSafely);
+    }
+  };
   let reconciler = getStewardAutomationReconciler();
   if (!reconciler) {
     reconciler = new StewardAutomationReconciler(
@@ -662,7 +678,7 @@ export function registerStewardAutomationReconciliationHooks(
       undefined,
       undefined,
       undefined,
-      (rejected) => reportRejectedJobs(rejected, warnSafely)
+      reportOnce
     );
     setStewardAutomationReconciler(reconciler);
   }
