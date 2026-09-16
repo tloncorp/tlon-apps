@@ -97,6 +97,62 @@ describe('isVisibleChannelPost', () => {
     );
   });
 
+  it('hides the tlonbot intro only in this user\u2019s own bot DM', () => {
+    // Verbatim from tlonbot's INTRO_MESSAGE, ship interpolated mid-message,
+    // which is why this one cannot be matched whole.
+    const intro = [
+      "Howdy, I'm your Tlonbot \u{1F331} ",
+      "I'm a purpose-built AI agent that can help you get things done.",
+      "You can chat with me here or add me to a group; in groups, you'll need" +
+        " to mention me (just @ten's tlonbot) to get my attention.",
+      "I'd love to get to know you a bit so I can be more useful. What should" +
+        ' I call you, and what kinds of things do you want help with on Tlon?',
+      'I can send you a daily morning brief on any topic (AI, news, sports,' +
+        ' anything), a daily reminder, or your local weather every morning.' +
+        " Just say the word and I'll be there every day. \u{1F305} ",
+    ].join('\n\n');
+    const post = { authorId: '~pinser-botter-ten', blob: null, isBot: true };
+
+    expect(
+      isVisibleChannelPost(
+        { ...post, textContent: intro },
+        '~ten',
+        '~pinser-botter-ten'
+      )
+    ).toBe(false);
+    // Another bot's DM must not be able to blank a message this way.
+    expect(
+      isVisibleChannelPost(
+        { ...post, textContent: intro },
+        '~ten',
+        '~pinser-botter-zod'
+      )
+    ).toBe(true);
+    // Nor may anyone but the bot itself, in its own DM.
+    expect(
+      isVisibleChannelPost(
+        { ...post, authorId: '~ten', textContent: intro },
+        '~ten',
+        '~pinser-botter-ten'
+      )
+    ).toBe(true);
+  });
+
+  it('keeps a later bot message that merely opens the same way visible', () => {
+    expect(
+      isVisibleChannelPost(
+        {
+          authorId: '~pinser-botter-ten',
+          blob: null,
+          isBot: true,
+          textContent: "Howdy, I'm your Tlonbot \u{1F331} — anything else?",
+        },
+        '~ten',
+        '~pinser-botter-ten'
+      )
+    ).toBe(true);
+  });
+
   it('keeps user-authored and combined onboarding welcomes visible', () => {
     const channelId = 'chat/~ten/home-group-chat';
     expect(
