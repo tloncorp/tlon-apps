@@ -372,6 +372,20 @@ async function prepare() {
   await run('xcrun', ['simctl', 'install', udid, appCopy], {
     timeout: 180_000,
   });
+  console.log('Preparing the agent-device XCTest helper for this CI host.');
+  await device(
+    [
+      'prepare',
+      'ios-runner',
+      '--platform',
+      'ios',
+      '--udid',
+      udid,
+      '--timeout',
+      '180000',
+    ],
+    240_000
+  );
 
   if (!ships || !shipCode)
     throw new Error('Hosted QA requires disposable ship credentials');
