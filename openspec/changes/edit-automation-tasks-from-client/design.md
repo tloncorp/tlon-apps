@@ -77,6 +77,8 @@ The monitor owns the SSE client and already subscribes to the lens feed, while t
 
 The subscription is gated by the same exactly-one-runnable-account rule as projection, because it shares the process-global connection slot. Command handling is serialized per bot so two edits to one job cannot race inside the plugin; OpenClaw's own store lock protects across processes.
 
+The plugin answers each command over the bot's `POST /steward/~/v1/automation/finalize` rather than a channel poke. The channel `PUT` only says Eyre queued the poke, and a later gall nack reaches the SSE client as a logged event, so a lost finalize would strand the command; the HTTP reply is produced inside the event that consumed it, and reports whether the id was still pending so a retry is harmless.
+
 ### 6. HTTP on the owner ship
 
 `%steward` binds `/steward/~/v1` in Eyre. `POST /steward/~/v1/automation` takes `{ requestId?, bot, action }` and is held open until the terminal response or the pending wake. `GET /steward/~/v1/automation/request/<uv>` returns the record and marks it fetched. `GET /steward/~/v1/automation/tasks` returns the mirror scry JSON so a client can read and write through one transport. Authorization is Eyre's authenticated-session check, the same as the rest of the desk's HTTP mounts; a request id is not a capability, so `GET` is gated identically to `POST`.
@@ -100,7 +102,7 @@ The subscription is gated by the same exactly-one-runnable-account rule as proje
 ## Risks / Trade-offs
 
 - **Pending will be common.** The held-open `POST` spans two ships and a gateway hop; a slow bot or harness routinely exceeds 20 seconds. Mitigation: `pending` is a normal response, the record stays alive for late pickup, and the client module treats it as a first-class outcome with the request id and the reads that confirm it.
-- **Applied but unreported.** A harness that applies a command and dies before poking `%finalize` leaves the request pending until the sweep, while the projection shows the change. This is the same uncertain-outcome boundary the projection design already documents for pokes. Mitigation: the client relies on the mirror delta as confirmation, never on the response alone; replay on resubscribe usually recovers the response, and the derived create id makes that replay safe.
+- **Applied but unreported.** A harness that applies a command and dies before its finalize is answered leaves the request pending until the sweep, while the projection shows the change. This is the same uncertain-outcome boundary the projection design already documents for pokes. Mitigation: the client relies on the mirror delta as confirmation, never on the response alone; replay on resubscribe usually recovers the response, and the derived create id makes that replay safe.
 - **Narrow SDK types.** The plugin casts past the `.d.ts` create input to reach the service's real schema. Mitigation: Zod validation on our side, and a fixture test against each supported OpenClaw version's schema.
 - **Older plugin.** A bot running a plugin without the harness subscription returns `harness-offline` for every edit. Mitigation: the error is typed and the read-side mirror keeps working; the client can show "update the bot" rather than a generic failure.
 

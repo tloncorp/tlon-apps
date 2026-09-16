@@ -145,18 +145,18 @@ On an accepted command the bot SHALL check for a live local subscriber on `/v1/a
 
 #### Scenario: Harness responds
 
-- **WHEN** the harness pokes a response for a pending id
+- **WHEN** the harness finalizes a pending id, over `POST /steward/~/v1/automation/finalize` or the `%finalize` action
 - **THEN** the bot gives it on the requester's per-request path and drops the record
 
 #### Scenario: Harness responds after the owner's pending wake
 
-- **WHEN** the harness pokes `%finalize` for a command pending longer than 20 seconds
+- **WHEN** the harness finalizes a command pending longer than 20 seconds
 - **THEN** the bot gives it on the per-request path like any other response, and the owner finalizes its record for pickup by id
 
 #### Scenario: Response for an unknown id
 
-- **WHEN** a `%finalize` names an id with no pending record
-- **THEN** it is ignored and no fact is given
+- **WHEN** a finalize names an id with no pending record
+- **THEN** it is ignored and no fact is given; the HTTP route answers `finalized: false` so a retry after a lost reply is harmless
 
 #### Scenario: Task map is untouched
 

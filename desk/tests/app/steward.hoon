@@ -2283,6 +2283,19 @@
   ^-  @t
   (crip "/steward/~/v1/automation/request/{(scow %uv rid)}")
 ++  tasks-url  ^-  @t  '/steward/~/v1/automation/tasks'
+++  finalize-url  ^-  @t  '/steward/~/v1/automation/finalize'
+++  finalize-post-body
+  |=  body=response-body:v1:au
+  ^-  @t
+  (en:json:html (response:enjs:aj [rid body]))
+++  ex-http-finalized
+  |=  [eyre-id=@ta finalized=?]
+  ^-  (list $-(card tang))
+  %-  ex-http
+  :^  eyre-id  200  'application/json'
+  %-  en:json:html
+  %-  pairs:enjs:format
+  ~[['requestId' (request-id:enjs:aj rid)] ['finalized' b+finalized]]
 ++  edit-post-body
   |=  with-rid=?
   ^-  @t
@@ -2601,6 +2614,48 @@
   ;<  ~  bind:m  (ex-cards caz ~[(ex-bot-response ~bus created)])
   ;<  pen=pending:v1:au  bind:m  got-pending
   (ex-equal !>(pen) !>(*pending:v1:au))
+::
+::  the harness's HTTP finalize answers the requester and reports whether
+::  the id was still pending, so a retried finalize is harmless
+::
+++  test-automation-http-finalize-answers-and-drops-pending
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m  (do-watch harness-path)
+  ;<  *  bind:m
+    %-  (do-as ~bus)
+    (do-command edit-create)
+  ;<  caz=(list card)  bind:m
+    %+  do-http  'eyre-1'
+    (http-request & %'POST' finalize-url `(finalize-post-body created))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    [(ex-bot-response ~bus created) (ex-http-finalized 'eyre-1' &)]
+  ;<  pen=pending:v1:au  bind:m  got-pending
+  ;<  ~  bind:m  (ex-equal !>(pen) !>(*pending:v1:au))
+  ;<  caz=(list card)  bind:m
+    %+  do-http  'eyre-2'
+    (http-request & %'POST' finalize-url `(finalize-post-body created))
+  (ex-cards caz (ex-http-finalized 'eyre-2' |))
+::
+++  test-automation-http-finalize-rejects-malformed
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    (do-http 'eyre-1' (http-request & %'POST' finalize-url `'nope'))
+  ;<  ~  bind:m  (ex-cards caz (ex-http 'eyre-1' 400 'text/plain' 'invalid json'))
+  ;<  caz=(list card)  bind:m
+    (do-http 'eyre-2' (http-request & %'POST' finalize-url `'{"requestId": "0v1234.5678"}'))
+  ;<  ~  bind:m
+    (ex-cards caz (ex-http 'eyre-2' 400 'text/plain' 'malformed response'))
+  ;<  caz=(list card)  bind:m
+    (do-http 'eyre-3' (http-request & %'GET' finalize-url ~))
+  (ex-cards caz (ex-http 'eyre-3' 405 'text/plain' 'method not allowed'))
 ::
 ::  a late finalize, long after the owner's wake, still answers
 ::

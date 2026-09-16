@@ -1383,6 +1383,12 @@
         ?~  ext  i.t.t.t.t.t.site
         (rap 3 i.t.t.t.t.t.site '.' u.ext ~)
       (au-handle-http-get-request eyre-id rid-knot)
+    ::  the harness answers a dispatch here (bot side): the reply is the
+    ::  acknowledgement a channel poke never gives it
+    ::
+    ?:  =(site ~[%steward %~.~ %v1 %automation %finalize])
+      ?.  =(%'POST' method)  (au-http-error eyre-id 405 'method not allowed')
+      (au-handle-http-finalize eyre-id inbound-request)
     (au-http-error eyre-id 404 'not found')
   ::
   ::  POST body: { requestId?, bot, action }. malformed input is a 400,
@@ -1433,6 +1439,33 @@
       %+  ~(put by requests.automation.state)  rid
       [rid p.bot-res `eyre-id %sending ~ ~ |]
     (au-handle-edit rid p.bot-res p.edit-res)
+  ::
+  ::  POST body: the response JSON, { requestId, body }. answers
+  ::  { requestId, finalized }, with finalized false for an id no longer
+  ::  pending, so a retry after a lost reply is harmless
+  ::
+  ++  au-handle-http-finalize
+    |=  [eyre-id=@ta =inbound-request:eyre]
+    ^+  cor
+    ?~  body.request.inbound-request
+      (au-http-error eyre-id 400 'missing body')
+    ?~  jon=(de:json:html q.u.body.request.inbound-request)
+      (au-http-error eyre-id 400 'invalid json')
+    =/  parsed=(each response:v1:sa tang)
+      %-  mule  |.
+      %.  u.jon
+      (ot:dejs:format 'requestId'^request-id:dejs:aj body+response-body:dejs:aj ~)
+    ?:  ?=(%| -.parsed)
+      (au-http-error eyre-id 400 'malformed response')
+    =/  finalized  (~(has by pending.automation.state) id.p.parsed)
+    =.  cor  (au-handle-finalize id.p.parsed body.p.parsed)
+    %^  au-give-http  eyre-id  200
+    :-  'application/json'
+    %-  en:json:html
+    %-  pairs:enjs:format
+    :~  ['requestId' (request-id:enjs:aj id.p.parsed)]
+        ['finalized' b+finalized]
+    ==
   ::
   ++  au-handle-http-get-request
     |=  [eyre-id=@ta rid-knot=@t]
