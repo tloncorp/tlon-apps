@@ -213,16 +213,13 @@ export function deleteAutomation(params: {
  * or swept request) surfaces as a BadResponseError from requestJson.
  */
 export async function getAutomationRequest(
-  requestId: string,
-  options: { signal?: AbortSignal } = {}
+  requestId: string
 ): Promise<ub.StewardAutomationResponse> {
   const raw = await requestJson(
     `${REQUEST_V1_PATH}/${requestId}`,
     'GET',
     undefined,
-    options.signal
-      ? { ...REQUEST_OPTIONS, signal: options.signal }
-      : REQUEST_OPTIONS
+    REQUEST_OPTIONS
   );
   return parseResponse(raw);
 }
@@ -233,22 +230,17 @@ export async function getAutomationRequest(
  */
 export async function awaitAutomationRequest(
   requestId: string,
-  options: { intervalMs?: number; attempts?: number; signal?: AbortSignal } = {}
+  options: { intervalMs?: number; attempts?: number } = {}
 ): Promise<StewardAutomationEditResult> {
   const intervalMs = options.intervalMs ?? 2_000;
   const attempts = options.attempts ?? 30;
   let last: ub.StewardAutomationResponse | undefined;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
-    options.signal?.throwIfAborted();
-    last = await getAutomationRequest(requestId, {
-      ...(options.signal ? { signal: options.signal } : {}),
-    });
+    last = await getAutomationRequest(requestId);
     if (last.body.type !== 'pending') {
       return settle(last);
     }
-    if (attempt + 1 < attempts) {
-      await new Promise((resolve) => setTimeout(resolve, intervalMs));
-    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
   throw new StewardAutomationPendingError(
     requestId,
