@@ -59,7 +59,7 @@ export function onboardingToolBlockReason(
     if (surface?.kind !== 'group' || !surface.channelNest) {
       return (
         'Recurring-task onboarding is available only in the active Tlonbot ' +
-        'group. Direct the owner to New Tlonbot group and stop.'
+        'group. Tell the owner to choose +, then New Tlonbot group, and stop.'
       );
     }
     const target =
@@ -78,7 +78,7 @@ export function onboardingToolBlockReason(
   ) {
     return (
       'First-run recurring-task provisioning is owned by the group ' +
-      'coordinator. Direct the owner to New Tlonbot group and stop.'
+      'coordinator. Tell the owner to choose +, then New Tlonbot group, and stop.'
     );
   }
 

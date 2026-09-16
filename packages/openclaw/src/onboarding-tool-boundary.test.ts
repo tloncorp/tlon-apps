@@ -22,6 +22,9 @@ describe('onboarding tool boundary', () => {
     expect(
       onboardingToolBlockReason('tlon_agent_task_plan', {}, surface)
     ).toContain('only in the active Tlonbot group');
+    expect(
+      onboardingToolBlockReason('tlon_agent_choice', {}, surface)
+    ).toContain('choose +, then New Tlonbot group');
   });
 
   it('requires the typed tool target to match the active group channel', () => {
@@ -59,6 +62,17 @@ describe('onboarding tool boundary', () => {
         }
       )
     ).toContain('group coordinator');
+    expect(
+      onboardingToolBlockReason(
+        'cron',
+        {},
+        {
+          kind: 'direct',
+          bootstrapComplete: false,
+          timestamp: Date.now(),
+        }
+      )
+    ).toContain('choose +, then New Tlonbot group');
     expect(
       onboardingToolBlockReason(
         'cron',

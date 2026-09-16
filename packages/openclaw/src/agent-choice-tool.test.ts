@@ -29,6 +29,7 @@ describe('agent choice tool', () => {
                 expect.objectContaining({
                   id: 'choices',
                   component: 'SmallChoice',
+                  selectionMode: 'single',
                   freeTextPlaceholder: 'Write your own…',
                   options: [
                     { id: 'choice-1', label: 'New products' },
@@ -73,6 +74,26 @@ describe('agent choice tool', () => {
         options,
       });
       expect(result.details).toEqual({ error: true });
+    }
+    expect(postChoice).not.toHaveBeenCalled();
+  });
+
+  it('rejects options that duplicate the built-in freeform answer', async () => {
+    const postChoice = vi.fn(async () => 'unexpected');
+    const execute = createAgentChoiceToolExecutor({ postChoice });
+
+    for (const duplicate of [
+      'Other',
+      'Custom: describe it',
+      'Something else (write it in)',
+      'Write your own',
+    ]) {
+      const result = await execute('call-redundant-freeform', {
+        ...validChoice,
+        options: ['New products', duplicate],
+      });
+      expect(result.details).toEqual({ error: true });
+      expect(result.content[0]?.text).toContain('built-in freeform');
     }
     expect(postChoice).not.toHaveBeenCalled();
   });

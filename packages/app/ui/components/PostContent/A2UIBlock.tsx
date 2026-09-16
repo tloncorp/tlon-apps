@@ -158,9 +158,9 @@ function SmallChoiceRow({
 }
 
 /**
- * A compact questionnaire for selecting several short answers. Selection is
- * local until submit — no per-tap posting — so it lives in a child component
- * with its own state rather than in the render callback.
+ * A compact questionnaire for selecting one or several short answers.
+ * Selection is local until submit — no per-tap posting — so it lives in a
+ * child component with its own state rather than in the render callback.
  */
 function SmallChoiceControl({
   component,
@@ -190,6 +190,7 @@ function SmallChoiceControl({
   const customInputOpenRef = useRef(false);
   const conversationScrollEndAnchor = useConversationScrollEndAnchor();
   const oneShot = useOneShotAction(Boolean(consumedSelection));
+  const isSingleSelect = component.selectionMode === 'single';
 
   const setCustomInputVisibility = useCallback(
     (open: boolean) => {
@@ -224,6 +225,11 @@ function SmallChoiceControl({
       if (oneShot.isLocked()) {
         return;
       }
+      if (isSingleSelect) {
+        setCustomTopics([]);
+        setSelectedIds((previous) => (previous.includes(id) ? [] : [id]));
+        return;
+      }
       setSelectedIds((previous) => {
         if (previous.includes(id)) {
           return previous.filter((selected) => selected !== id);
@@ -237,7 +243,7 @@ function SmallChoiceControl({
         return [...previous, id];
       });
     },
-    [customTopics.length, oneShot]
+    [customTopics.length, isSingleSelect, oneShot]
   );
 
   const messageForSelection = useMemo(
@@ -365,6 +371,12 @@ function SmallChoiceControl({
       (option) => option.label.toLocaleLowerCase() === topic.toLocaleLowerCase()
     );
     if (matchingOption) {
+      if (isSingleSelect) {
+        setCustomTopics([]);
+        setSelectedIds([matchingOption.id]);
+        setCustomInputOpen(false);
+        return;
+      }
       setSelectedIds((previous) =>
         previous.includes(matchingOption.id) ||
         previous.length + customTopics.length >=
@@ -373,6 +385,12 @@ function SmallChoiceControl({
           : [...previous, matchingOption.id]
       );
     } else {
+      if (isSingleSelect) {
+        setSelectedIds([]);
+        setCustomTopics([topic]);
+        setCustomInputOpen(false);
+        return;
+      }
       setCustomTopics((previous) => {
         if (
           selectedIds.length + previous.length >=
@@ -394,6 +412,7 @@ function SmallChoiceControl({
     component.options,
     customDraft,
     customTopics.length,
+    isSingleSelect,
     oneShot,
     selectedIds.length,
   ]);

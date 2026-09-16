@@ -4,6 +4,8 @@ const MAX_OPTIONS = 6;
 const MAX_QUESTION_LENGTH = 1000;
 const MAX_OPTION_LENGTH = 64;
 const MAX_SURFACE_ID_LENGTH = 512;
+const RESERVED_FREEFORM_OPTION =
+  /^(?:other|custom|something else|write your own)(?:\s*(?:\([^)]*\)|[-–—:/].*))?$/i;
 
 export type AgentChoiceToolParams = {
   target: string;
@@ -73,6 +75,11 @@ function parseParams(params: AgentChoiceToolParams): AgentChoiceToolParams {
   ) {
     throw new Error('options must be unique');
   }
+  if (options.some((option) => RESERVED_FREEFORM_OPTION.test(option))) {
+    throw new Error(
+      'options must not duplicate the built-in freeform answer (Other, Custom, Something else, or Write your own)'
+    );
+  }
 
   return { ...params, question, options };
 }
@@ -111,6 +118,7 @@ export function buildAgentChoiceBlob(input: AgentChoiceToolParams) {
               {
                 id: 'choices',
                 component: 'SmallChoice',
+                selectionMode: 'single',
                 options: params.options.map((label, index) => ({
                   id: `choice-${index + 1}`,
                   label,
