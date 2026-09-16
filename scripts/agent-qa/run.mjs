@@ -84,8 +84,12 @@ async function run(command, args, options = {}) {
     const operation = path.basename(command);
     await writeFile(
       path.join(artifacts, `${operation}-error.txt`),
-      clean(`${error.stdout || ''}\n${error.stderr || ''}`).slice(-16000)
-    );
+      clean(`${error.stdout || ''}\n${error.stderr || ''}`).slice(-16000),
+      { flag: 'wx' }
+    ).catch((writeError) => {
+      // Cleanup may fail after setup does; retain the original cause.
+      if (writeError.code !== 'EEXIST') throw writeError;
+    });
     throw new Error(
       `${operation} failed (${error.code || error.signal || 'timeout'})`
     );
@@ -362,13 +366,16 @@ async function prepare() {
   // Existing-build qualification is not a native compilation. The downloaded
   // artifact and the explicit simulator remain owned by this CI wrapper.
   deviceEnv.AGENT_DEVICE_UDID = udid;
+  console.log('Booting the selected simulator.');
   await device(['boot', '--platform', 'ios', '--udid', udid], 180_000);
+  console.log('Simulator booted; installing the verified app.');
   await run('xcrun', ['simctl', 'install', udid, appCopy], {
     timeout: 180_000,
   });
 
   if (!ships || !shipCode)
     throw new Error('Hosted QA requires disposable ship credentials');
+  console.log('App installed; starting shared login.');
   await run(
     process.execPath,
     [
