@@ -40,6 +40,9 @@ jest.mock('@tloncorp/shared', () => ({
 }));
 
 jest.mock('@tloncorp/shared/db', () => ({
+  hostingAuthToken: {
+    getValue: jest.fn(),
+  },
   hostingAuthExpired: {
     getValue: jest.fn(),
     setValue: jest.fn(),
@@ -72,6 +75,7 @@ describe('refreshHostingAuth', () => {
       authCookie: 'urbauth',
     });
     jest.mocked(db.hostingAuthExpired.getValue).mockResolvedValue(false);
+    jest.mocked(db.hostingAuthToken.getValue).mockResolvedValue('session-old');
     jest.mocked(db.hostingLastAuthCheck.getValue).mockResolvedValue(0);
     jest.mocked(db.hostingAuthExpired.setValue).mockResolvedValue();
     jest.mocked(db.hostingLastAuthCheck.setValue).mockResolvedValue();
@@ -128,6 +132,44 @@ describe('refreshHostingAuth', () => {
     expect(db.hostingAuthExpired.setValue).not.toHaveBeenCalled();
     expect(db.hostingLastAuthCheck.setValue).toHaveBeenCalledWith(5678);
   });
+
+  it.each([
+    { result: 'expired' as const, nextToken: 'session-renewed' },
+    { result: 'ok' as const, nextToken: '' },
+  ])(
+    'ignores a stale $result heartbeat after the stored session changes',
+    async ({ result, nextToken }) => {
+      let finishHeartbeat!: (result: 'expired' | 'ok') => void;
+      let startedHeartbeat!: () => void;
+      const heartbeatStarted = new Promise<void>((resolve) => {
+        startedHeartbeat = resolve;
+      });
+      jest.mocked(getHostingHeartBeat).mockImplementationOnce(() => {
+        startedHeartbeat();
+        return new Promise((resolve) => {
+          finishHeartbeat = resolve;
+        });
+      });
+      const backgroundCheck = refreshHostingAuth({
+        authType: 'hosted',
+        force: true,
+      });
+      await heartbeatStarted;
+
+      jest.mocked(db.hostingAuthToken.getValue).mockResolvedValue(nextToken);
+      finishHeartbeat(result);
+      await expect(backgroundCheck).resolves.toBe('unknown');
+      expect(db.hostingAuthExpired.setValue).not.toHaveBeenCalled();
+      expect(db.hostingLastAuthCheck.setValue).not.toHaveBeenCalled();
+
+      jest.mocked(getHostingHeartBeat).mockResolvedValueOnce('ok');
+      await expect(
+        refreshHostingAuth({ authType: 'hosted', force: true })
+      ).resolves.toBe('ok');
+      expect(getHostingHeartBeat).toHaveBeenCalledTimes(2);
+      expect(db.hostingAuthExpired.setValue).not.toHaveBeenCalled();
+    }
+  );
 
   it.each(['unknown', 'rejected'])(
     'retries on foreground after an indeterminate background check (%s)',

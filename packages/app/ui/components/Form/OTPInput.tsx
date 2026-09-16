@@ -129,6 +129,7 @@ export function OTPInput({
           })}
           <RNTextInput
             ref={inputRef}
+            accessibilityLabel={helperText}
             // Remounting is the only race-free way to rewrite the uncontrolled
             // native buffer (see handleChangeText).
             key={reseedKey}
