@@ -133,7 +133,8 @@ function AuthenticatedApp({
 }) {
   const telemetry = useTelemetry();
   const checkNodeStopped = useCheckNodeStopped();
-  const { maybeShowPrompt, promptSheet } = useTlonbotRevivalPrompt();
+  const { maybeShowPrompt, promptSheet } =
+    useTlonbotRevivalPrompt(requireHostingAuth);
   const { splashSheet: webAppSplashSheet } = useWebAppSplash();
   useNotificationListener();
   useUpdatePresentedNotifications();
