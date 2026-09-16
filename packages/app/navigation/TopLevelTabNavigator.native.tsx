@@ -2,7 +2,7 @@ import { createNativeBottomTabNavigator } from '@react-navigation/bottom-tabs/un
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
-import { useTheme } from 'tamagui';
+import { getTokenValue, useTheme } from 'tamagui';
 
 import SettingsScreen from '../features/settings/SettingsScreen';
 import ChannelScreen from '../features/top/ChannelScreen';
@@ -56,7 +56,9 @@ export function TopLevelTabNavigator() {
   // A native badge is text; a single space is UIKit's empty pill, which reads
   // as a dot. Undefined removes it.
   const dot = (lit: boolean) => (lit ? ' ' : undefined);
-  const tabBarBadgeStyle = { backgroundColor: theme.blue?.val };
+  // `blue` is a colour token, not a theme key: `useTheme().blue` is undefined
+  // and the badge would fall back to the navigator's red. Read the token.
+  const tabBarBadgeStyle = { backgroundColor: getTokenValue('$blue', 'color') };
   const navigation = useNavigation();
   const changedTabs = useRef(false);
   const focusedBotTab = useRef(false);
