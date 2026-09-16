@@ -88,7 +88,7 @@ export default function SettingsScreen() {
   }, []);
 
   const onContactsPressed = useCallback(() => {
-    navigationRef.current.navigate('Contacts');
+    navigationRef.current.navigate('Contacts', undefined, { pop: true });
   }, [navigationRef]);
 
   const onUpdateStatus = useCallback((status: string) => {

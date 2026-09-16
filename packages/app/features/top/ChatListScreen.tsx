@@ -355,7 +355,7 @@ export function ChatListScreenView({
   );
 
   const handlePressActivity = useCallback(() => {
-    navigation.navigate('Activity');
+    navigation.navigate('Activity', undefined, { pop: true });
   }, [navigation]);
 
   const handlePersonalInvitePress = useCallback(() => {
