@@ -61,13 +61,27 @@ if (!device) {
   );
 }
 
-function device_(args, { allowFailure = false } = {}) {
+function device_(args, { allowFailure = false, retrySystemSheet = true } = {}) {
   const r = spawnSync('agent-device', args, { encoding: 'utf8' });
   if (r.error) usage(`agent-device did not run (${r.error.message})`);
   const out = redact(`${r.stdout ?? ''}${r.stderr ?? ''}`);
+  // iOS can present its password sheet during login, before a text wait sees
+  // it. Use the native alert action when that sheet has no readable viewport.
+  // Retry once; leave other accessibility and navigation failures visible.
+  if (
+    r.status !== 0 &&
+    retrySystemSheet &&
+    ['find', 'wait'].includes(args[0]) &&
+    out.includes('com.apple.SafariViewService') &&
+    out.includes('requires a valid viewport')
+  ) {
+    console.log(`${session}: dismissing an unreadable iOS login sheet`);
+    device_(['alert', 'dismiss', ...S], { allowFailure: true });
+    return device_(args, { allowFailure, retrySystemSheet: false });
+  }
   if (r.status !== 0 && !allowFailure) {
     console.error(
-      `mobile-login: ${args.slice(0, 2).join(' ')} failed\n${out.trim()}`
+      `mobile-login: ${redact(args.slice(0, 3).join(' '))} failed\n${out.trim()}`
     );
     process.exit(1);
   }
@@ -104,6 +118,7 @@ const steps = [
   ['Next', null],
 ];
 for (const [press, next] of steps) {
+  console.log(`${session}: login step ${press}`);
   if (press === 'Connect' && loginUrl) {
     device_(['fill', 'id="textInput shipUrl"', loginUrl, ...S, '--settle']);
     device_(['fill', 'id="textInput accessCode"', loginCode, ...S, '--settle']);
