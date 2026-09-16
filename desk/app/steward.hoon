@@ -927,6 +927,7 @@
       (au-give-deltas our.bowl old projected)
     ::
         %edit
+      ?>  (au-bot-editable bot.action)
       (au-handle-edit [request-id bot edit]:action)
     ::
         %finalize
@@ -1116,6 +1117,12 @@
     ~[au-eyre-card au-cleanup-card]
   ::
   ++  au-harness-path  `path`/v1/automation/harness
+  ::  the owner edits its own bots: the local ship, or a trusted one
+  ::
+  ++  au-bot-editable
+    |=  bot=ship
+    ^-  ?
+    |(=(bot our.bowl) (~(has in bots.state) bot))
   ++  au-req-wire
     |=  [bot=ship rid=request-id:v1:sa kind=@ta]
     ^-  wire
@@ -1403,6 +1410,10 @@
     =/  edit-res=(each edit:v1:sa tang)  (mule |.((edit:dejs:aj u.act-j)))
     ?:  ?=(%| -.edit-res)
       (au-http-error eyre-id 400 'malformed action')
+    ::  a well-formed body is authorized last, so malformed input stays 400
+    ::
+    ?.  (au-bot-editable p.bot-res)
+      (au-http-error eyre-id 403 'bot is not trusted')
     =/  rid=request-id:v1:sa
       =/  rj=(unit json)  (~(get by p.u.jon) 'requestId')
       ?.  ?&(?=(^ rj) ?=([%s *] u.rj))

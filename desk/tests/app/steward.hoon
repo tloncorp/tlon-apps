@@ -2304,7 +2304,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  setup-owner
   ;<  caz=(list card)  bind:m  (do-edit moon edit-create)
   ;<  ~  bind:m  (ex-cards caz (ex-relay moon edit-create ~2024.1.1))
   ;<  req=incoming-request:v1:au  bind:m  got-request
@@ -2317,7 +2317,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  setup-owner
   ;<  ~  bind:m
     %-  ex-fail
     %-  (do-as ~zod)
@@ -2332,7 +2332,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   =/  why=tang  ~[leaf+"denied"]
-  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  setup-owner
   ;<  *  bind:m  (do-edit moon edit-create)
   ;<  caz=(list card)  bind:m  (do-req-watch-sign moon %watch-ack `why)
   ;<  ~  bind:m
@@ -2344,7 +2344,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  setup-owner
   ;<  *  bind:m  (do-edit moon edit-create)
   ;<  caz=(list card)  bind:m  (do-req-poke-sign moon %poke-ack ~)
   ;<  ~  bind:m  (ex-cards caz ~)
@@ -2358,7 +2358,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   =/  why=tang  ~[leaf+"crash"]
-  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  setup-owner
   ;<  *  bind:m  (do-edit moon edit-create)
   ;<  caz=(list card)  bind:m  (do-req-poke-sign moon %poke-ack `why)
   ;<  ~  bind:m
@@ -2374,7 +2374,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  setup-owner
   ;<  *  bind:m  (do-edit moon edit-create)
   ;<  caz=(list card)  bind:m  (do-req-watch-sign moon (response-fact created))
   ;<  ~  bind:m
@@ -2390,7 +2390,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   =/  other=response:v1:au  [`@uv`0xdead created]
-  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  setup-owner
   ;<  *  bind:m  (do-edit moon edit-create)
   ;<  caz=(list card)  bind:m
     (do-req-watch-sign moon %fact %steward-automation-response-1 !>(other))
@@ -2404,7 +2404,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  setup-owner
   ;<  *  bind:m  (do-edit moon edit-create)
   ;<  caz=(list card)  bind:m  (do-req-wake moon)
   ;<  ~  bind:m  (ex-cards caz ~[(ex-local-response [%pending %sending])])
@@ -2437,7 +2437,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  setup-owner
   ;<  *  bind:m  (do-edit moon edit-create)
   ;<  *  bind:m  (do-req-watch-sign moon (response-fact created))
   ;<  caz=(list card)  bind:m  (do-req-wake moon)
@@ -2452,7 +2452,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  setup-owner
   ;<  *  bind:m  (do-edit moon edit-create)
   ;<  caz=(list card)  bind:m  (do-watch local-req-path)
   ;<  ~  bind:m  (ex-cards caz ~)
@@ -2466,7 +2466,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  setup-owner
   ;<  *  bind:m  (do-edit moon edit-create)
   %-  ex-fail
   %-  (do-as ~zod)
@@ -2480,7 +2480,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  setup-owner
   ;<  *  bind:m  (do-edit moon edit-create)
   ;<  *  bind:m  (do-req-watch-sign moon (response-fact created))
   ;<  caz=(list card)  bind:m  do-cleanup-wake
@@ -2492,7 +2492,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  setup-owner
   ;<  *  bind:m  (do-edit moon edit-create)
   ;<  *  bind:m  (do-req-watch-sign moon (response-fact created))
   ;<  ~  bind:m  (advance-clock ~d2)
@@ -2505,7 +2505,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  setup-owner
   ;<  *  bind:m  (do-edit moon edit-create)
   ;<  *  bind:m  (do-req-wake moon)
   ;<  ~  bind:m  (advance-clock ~m30)
@@ -2521,7 +2521,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  setup-owner
   ;<  *  bind:m  (do-edit moon edit-create)
   ;<  ~  bind:m  (advance-clock ~d2)
   ;<  *  bind:m  do-cleanup-wake
@@ -2770,7 +2770,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  setup-owner
   ;<  ~  bind:m
     %-  ex-fail
     %-  (do-as ~zod)
@@ -2782,11 +2782,25 @@
   ;<  reqs=requests:v1:au  bind:m  got-requests
   (ex-equal !>(reqs) !>(*requests:v1:au))
 ::
-++  test-automation-http-unauthenticated-is-401
+::  the owner only edits bots it trusts (or itself)
+::
+++  test-automation-edit-rejects-untrusted-bot
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    (do-http 'eyre-1' (http-request & %'POST' edit-url `(edit-post-body &)))
+  ;<  ~  bind:m  (ex-cards caz (ex-http 'eyre-1' 403 'text/plain' 'bot is not trusted'))
+  ;<  ~  bind:m  (ex-fail (do-edit moon edit-create))
+  ;<  reqs=requests:v1:au  bind:m  got-requests
+  (ex-equal !>(reqs) !>(*requests:v1:au))
+::
+++  test-automation-http-unauthenticated-is-401
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
   ;<  caz=(list card)  bind:m
     (do-http 'eyre-1' (http-request | %'POST' edit-url `(edit-post-body &)))
   ;<  ~  bind:m  (ex-cards caz (ex-http 'eyre-1' 401 'text/plain' 'unauthorized'))
@@ -2800,7 +2814,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  setup-owner
   ;<  caz=(list card)  bind:m
     (do-http 'eyre-1' (http-request & %'POST' edit-url `(edit-post-body &)))
   ;<  ~  bind:m  (ex-cards caz (ex-relay moon edit-create ~2024.1.1))
@@ -2824,7 +2838,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  setup-owner
   ;<  *  bind:m
     (do-http 'eyre-1' (http-request & %'POST' edit-url `(edit-post-body &)))
   ;<  caz=(list card)  bind:m  (do-req-wake moon)
@@ -2863,7 +2877,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  setup-owner
   ;<  *  bind:m
     (do-http 'eyre-1' (http-request & %'POST' edit-url `(edit-post-body |)))
   ;<  reqs=requests:v1:au  bind:m  got-requests
@@ -2906,7 +2920,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  setup-owner
   ;<  caz=(list card)  bind:m
     (do-http 'eyre-1' (http-request & %'GET' request-url ~))
   ;<  ~  bind:m
