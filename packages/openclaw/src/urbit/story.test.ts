@@ -29,6 +29,28 @@ describe('markdownToStory', () => {
       );
     });
 
+    it('keeps a reference inside bold as text rather than a stray marker', () => {
+      // Only a top-level inline can be hoisted to a cite block; a marker left
+      // inside bold would go out as an inline Tlon does not have.
+      const story = markdownToStory('**/1/group/~ten/workspace**');
+      expect(story).toEqual([
+        { inline: [{ bold: ['/1/group/~ten/workspace'] }] },
+      ]);
+      expect(JSON.stringify(story)).not.toContain('__cite');
+    });
+
+    it('keeps a reference in a heading or blockquote as text', () => {
+      for (const md of [
+        '# /1/group/~ten/workspace',
+        '> /1/group/~ten/workspace',
+      ]) {
+        const serialized = JSON.stringify(markdownToStory(md));
+        expect(serialized).not.toContain('__cite');
+        expect(serialized).not.toContain('"cite"');
+        expect(serialized).toContain('/1/group/~ten/workspace');
+      }
+    });
+
     it('leaves a path that is not a reference as literal text', () => {
       expect(markdownToStory('/1/nonsense/workspace')).toEqual([
         { inline: ['/1/nonsense/workspace'] },

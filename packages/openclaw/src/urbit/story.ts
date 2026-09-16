@@ -64,7 +64,17 @@ export type Story = StoryVerse[];
 /**
  * Parse inline markdown formatting (bold, italic, code, links, mentions)
  */
-function parseInlineMarkdown(text: string): StoryInline[] {
+/**
+ * `allowRefs` is true only for the top level of a paragraph. A reference is
+ * hoisted to a cite *block*, and only processInlinesForBlocks does that, on
+ * top-level inlines. Inside bold, a heading or a blockquote the marker would
+ * never be hoisted and would go out as an inline Tlon does not have, failing
+ * the whole message — so there the path stays as the text it was.
+ */
+function parseInlineMarkdown(
+  text: string,
+  { allowRefs = true }: { allowRefs?: boolean } = {}
+): StoryInline[] {
   const result: StoryInline[] = [];
   let remaining = text;
 
@@ -81,7 +91,7 @@ function parseInlineMarkdown(text: string): StoryInline[] {
     const boldMatch = remaining.match(/^\*\*(.+?)\*\*|^__(.+?)__/);
     if (boldMatch) {
       const content = boldMatch[1] || boldMatch[2];
-      result.push({ bold: parseInlineMarkdown(content) });
+      result.push({ bold: parseInlineMarkdown(content, { allowRefs: false }) });
       remaining = remaining.slice(boldMatch[0].length);
       continue;
     }
@@ -92,7 +102,9 @@ function parseInlineMarkdown(text: string): StoryInline[] {
     );
     if (italicsMatch) {
       const content = italicsMatch[1] || italicsMatch[2];
-      result.push({ italics: parseInlineMarkdown(content) });
+      result.push({
+        italics: parseInlineMarkdown(content, { allowRefs: false }),
+      });
       remaining = remaining.slice(italicsMatch[0].length);
       continue;
     }
@@ -100,7 +112,9 @@ function parseInlineMarkdown(text: string): StoryInline[] {
     // Strikethrough: ~~text~~
     const strikeMatch = remaining.match(/^~~(.+?)~~/);
     if (strikeMatch) {
-      result.push({ strike: parseInlineMarkdown(strikeMatch[1]) });
+      result.push({
+        strike: parseInlineMarkdown(strikeMatch[1], { allowRefs: false }),
+      });
       remaining = remaining.slice(strikeMatch[0].length);
       continue;
     }
@@ -124,6 +138,13 @@ function parseInlineMarkdown(text: string): StoryInline[] {
     // Reference paths, hoisted to a cite block like images below.
     const refMatch = remaining.match(REF_PATH_REGEX);
     if (refMatch) {
+      if (!allowRefs) {
+        // Consumed whole as text so the ship-mention scanner cannot claim
+        // the host out of the middle of the path.
+        result.push(refMatch[0]);
+        remaining = remaining.slice(refMatch[0].length);
+        continue;
+      }
       const cite = pathToCite(refMatch[0]);
       if (cite) {
         result.push({ __cite: cite } as unknown as StoryInline);
@@ -306,7 +327,7 @@ export function markdownToStory(markdown: string): Story {
         block: {
           header: {
             tag,
-            content: parseInlineMarkdown(headerMatch[2]),
+            content: parseInlineMarkdown(headerMatch[2], { allowRefs: false }),
           },
         },
       });
@@ -330,7 +351,9 @@ export function markdownToStory(markdown: string): Story {
       }
       const quoteText = quoteLines.join('\n');
       story.push({
-        inline: [{ blockquote: parseInlineMarkdown(quoteText) }],
+        inline: [
+          { blockquote: parseInlineMarkdown(quoteText, { allowRefs: false }) },
+        ],
       });
       continue;
     }
