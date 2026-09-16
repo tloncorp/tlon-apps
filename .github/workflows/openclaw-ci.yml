@@ -10,6 +10,7 @@ on:
       - "desk/**"
       - "peru.yaml"
       - "scripts/assemble-desk.sh"
+      - "scripts/desk-push.mjs"
       - "scripts/sync-deps.sh"
       - "pnpm-lock.yaml"
       - ".github/workflows/openclaw-ci.yml"

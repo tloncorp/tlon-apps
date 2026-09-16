@@ -175,9 +175,14 @@ export async function applyBranchDesk(
         ctx,
         ctx.services.ships,
         deskPushArgv(ship),
-        // the exec spans two of those phases back to back — the seed or push,
-        // then the readiness poll — so it has to outlast both
-        { timeoutMs: deskPushTimeoutMs() * 2 }
+        // A backstop against a wedged `docker exec`, not a functional limit:
+        // the script bounds each of its own phases with the value passed as
+        // --timeout, and reports which one gave up. A first push to a
+        // pre-thread pier can run three of them back to back — seed, then the
+        // delta push, then the readiness poll — with hash reads on their own
+        // fixed budget in between, so this has to sit well clear of all of it
+        // or it, rather than the configured budget, becomes what fails.
+        { timeoutMs: deskPushTimeoutMs() * 4 }
       );
       for (const line of result.stdout.split('\n').filter(Boolean)) {
         console.log(`    ~${ship}: ${line}`);
