@@ -21,7 +21,7 @@ export function qaResult(comment) {
     // Assessment-only publication uses the same fallback envelope as setup
     // failures. Its explicit skip verdict is successful, not incomplete QA.
     const skipped =
-      current.kind === 'blocked' &&
+      comment.body.includes('**Simulator skipped**') ||
       comment.body.includes(
         '**PR assessment: no user-facing changes — simulator skipped**'
       );

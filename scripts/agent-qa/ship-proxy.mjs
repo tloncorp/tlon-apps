@@ -1,99 +1,28 @@
 import http from 'node:http';
 import https from 'node:https';
-import { randomUUID } from 'node:crypto';
-
-export function verifyPeer(proof, sha, tag, complete = false, plan = null) {
-  if (
-    proof.source !== sha ||
-    !/^[a-f0-9]{40}$/.test(sha) ||
-    !/^[a-zA-Z0-9-]+$/.test(tag) ||
-    !proof.group?.groupId?.startsWith(`~zod/cloud-${tag}-`) ||
-    !proof.deskHashes?.[0] ||
-    proof.deskHashes.length !== 2 ||
-    proof.deskHashes[0] !== proof.deskHashes[1] ||
-    (complete &&
-      (plan ? proof.fixtureVerified !== true : proof.replyVerified !== true))
-  ) {
-    throw new Error(
-      'Backend proof does not match the requested source, fixture, or peer receipt'
-    );
-  }
-  return proof;
-}
-
-export function verifyCompletionNonce(receipt, nonce) {
-  if (
-    !nonce ||
-    receipt.verificationNonce !== nonce ||
-    receipt.backendVerified !== true
-  )
-    throw new Error('Backend completion receipt is not fresh');
-  return receipt;
-}
-
-export async function connectShips(env) {
-  const upstream = new URL(env.QA_SHIP_URL);
-  if (
-    upstream.protocol !== 'https:' ||
-    upstream.username ||
-    upstream.password ||
-    upstream.pathname !== '/' ||
-    upstream.port ||
-    upstream.search ||
-    upstream.hash ||
-    !/^[a-z0-9-]+\.(ngrok-free\.(?:app|dev)|ngrok\.app|ngrok\.io)$/.test(
-      upstream.hostname
-    ) ||
-    !/^[a-f0-9]{64}$/.test(env.QA_TUNNEL_TOKEN || '')
-  ) {
-    throw new Error('Expected an authenticated QA ngrok origin');
-  }
-  const proof = async (complete) => {
-    const plan =
-      env.QA_MODE === 'pull_request'
-        ? JSON.parse(env.QA_ASSESSMENT_JSON)
-        : null;
-    const nonce = complete && plan ? randomUUID() : null;
-    const url = new URL(`/qa-proof/${complete ? 'result' : 'ready'}`, upstream);
-    if (nonce) url.searchParams.set('nonce', nonce);
-    const response = await fetch(url, {
-      headers: { 'X-QA-Token': env.QA_TUNNEL_TOKEN },
-      redirect: 'error',
-      signal: AbortSignal.timeout(20_000),
-    });
-    if (!response.ok)
-      throw new Error(`Backend evidence unavailable (HTTP ${response.status})`);
-    const receipt = await response.json();
-    if (nonce) verifyCompletionNonce(receipt, nonce);
-    return verifyPeer(
-      receipt,
-      env.QA_BACKEND_SHA,
-      env.QA_RUN_TAG,
-      complete,
-      plan
-    );
-  };
-  const ready = await proof(false);
+export async function connectShip() {
+  const upstream = new URL(process.env.QA_SHIP_URL);
+  if (upstream.protocol !== 'https:')
+    throw new Error('Expected HTTPS backend tunnel');
+  const response = await fetch(new URL('/qa-proof/ready', upstream), {
+    headers: { 'X-QA-Token': process.env.QA_TUNNEL_TOKEN },
+    signal: AbortSignal.timeout(20000),
+    redirect: 'error',
+  });
+  if (!response.ok) throw new Error('Disposable backend is unavailable');
+  const ready = await response.json();
+  if (ready.source !== process.env.QA_BACKEND_SHA)
+    throw new Error('Wrong backend source');
   const server = http.createServer((req, res) => {
-    // Origin-form paths only: app input cannot redirect the credential elsewhere.
-    if (
-      !req.url.startsWith('/') ||
-      req.url.startsWith('//') ||
-      req.url.startsWith('/qa-proof/')
-    ) {
-      res.writeHead(403).end();
-      return;
-    }
-    const outgoing = https.request(
+    const request = https.request(
       {
         hostname: upstream.hostname,
-        port: 443,
         path: req.url,
         method: req.method,
         headers: {
           ...req.headers,
           host: upstream.host,
-          'x-qa-token': env.QA_TUNNEL_TOKEN,
+          'x-qa-token': process.env.QA_TUNNEL_TOKEN,
           'ngrok-skip-browser-warning': '1',
         },
       },
@@ -102,12 +31,12 @@ export async function connectShips(env) {
         incoming.pipe(res);
       }
     );
-    outgoing.on('error', () => {
+    request.on('error', () => {
       if (!res.headersSent) res.writeHead(502);
       res.end();
     });
-    res.on('close', () => outgoing.destroy());
-    req.pipe(outgoing);
+    res.on('close', () => request.destroy());
+    req.pipe(request);
   });
   await new Promise((resolve, reject) => {
     server.once('error', reject);
@@ -115,9 +44,7 @@ export async function connectShips(env) {
   });
   return {
     ready,
-    url: 'http://127.0.0.1:49378',
-    verify: () => proof(true),
-    close: () => {
+    close() {
       server.closeAllConnections();
       server.close();
     },

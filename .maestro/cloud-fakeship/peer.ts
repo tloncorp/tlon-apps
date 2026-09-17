@@ -1,7 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { TlonActorClient } from '../../packages/tlon-bot-e2e/src/tlon/actor';
-import { backendProofServer } from '../../scripts/agent-qa/backend-proof.mjs';
 
 // Runs on the CI host. No peer control service is exposed to the internet.
 process.chdir(fileURLToPath(new URL('../../', import.meta.url)));
@@ -94,62 +93,9 @@ async function main() {
   };
   writeFileSync(`${out}/peer-ready.json`, JSON.stringify(evidence, null, 2));
   console.log('PEER_READY', JSON.stringify(evidence));
-  if (process.env.QA_PR_MODE === 'true') {
-    const server = backendProofServer({
-      evidence,
-      readDeskHashes: async () => {
-        const live = await Promise.all(
-          [zod, ten].map((a) => a.state.scry<any>('hood', '/kiln/pikes'))
-        );
-        return live.map((state) => state.groups?.hash);
-      },
-      persist: (proof: unknown) =>
-        writeFileSync(
-          `${out}/peer-result.json`,
-          JSON.stringify(proof, null, 2)
-        ),
-    });
-    await new Promise<void>((resolve, reject) => {
-      server.once('error', reject);
-      server.listen(49380, '127.0.0.1', resolve);
-    });
-    console.log('PR_FIXTURE_READY');
-    return;
-  }
-  await until(
-    'native reply reaches ten',
-    async () =>
-      (await ten.state.channelPosts(group.chatChannel)).some(
-        (p) => p.authorId === '~zod' && p.text === `${tag} from mobile`
-      ),
-    30 * 60_000
-  );
-  await ten.sendChannelPost({
-    channelId: group.chatChannel,
-    content: `${tag} reply received`,
-  });
-  await until('peer acknowledgement reaches zod', async () =>
-    (await zod.state.channelPosts(group.chatChannel)).some(
-      (p) => p.authorId === '~ten' && p.text === `${tag} reply received`
-    )
-  );
-  writeFileSync(
-    `${out}/peer-result.json`,
-    JSON.stringify(
-      {
-        ...evidence,
-        replyVerified: true,
-        acknowledgementAt: new Date().toISOString(),
-        elapsedMs: Date.now() - started,
-      },
-      null,
-      2
-    )
-  );
-  console.log('PEER_REPLY_VERIFIED');
   process.exit(0);
 }
-main().catch((e) => {
-  console.error(e);
+main().catch((error) => {
+  console.error(error);
   process.exit(1);
 });

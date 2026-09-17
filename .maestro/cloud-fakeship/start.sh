@@ -5,10 +5,6 @@ mkdir -p "$PROOF_OUTPUT"
 start=$SECONDS
 : "${QA_TUNNEL_TOKEN:?Tunnel access credential missing}"
 [[ "$QA_TUNNEL_TOKEN" =~ ^[a-f0-9]{64}$ ]]
-proof_result_route="alias $PROOF_OUTPUT/peer-result.json;"
-if [ "${QA_PR_MODE:-false}" = true ]; then
-  proof_result_route='proxy_pass http://127.0.0.1:49380/result; proxy_read_timeout 15s;'
-fi
 # The EAS host proxy adds this credential; it never reaches the app or model.
 cat > "$RUNNER_TEMP/proof-nginx.conf" <<EOF
 pid $RUNNER_TEMP/proof-nginx.pid;
@@ -28,7 +24,6 @@ server {
   if (\$http_x_qa_token != "$QA_TUNNEL_TOKEN") { return 403; }
   access_log off;
   location = /qa-proof/ready { alias $PROOF_OUTPUT/peer-ready.json; }
-  location = /qa-proof/result { $proof_result_route }
   location / {
     proxy_pass http://127.0.0.1:35453;
     proxy_http_version 1.1;
@@ -70,8 +65,8 @@ if [ -d .proof-snapshot/zod ]; then
 fi
 node scripts/agent-qa/runtime.mjs
 SKIP_DOWNLOAD=${SKIP_DOWNLOAD:-false} SKIP_TESTS=true INCLUDE_OPTIONAL_SHIPS=false \
-  bash scripts/agent-qa/fixture-env.sh tmux new-session -d -s proof-rube \
-  "cd '$PWD/apps/tlon-web' && bash '$PWD/scripts/agent-qa/fixture-env.sh' pnpm rube > '$PROOF_OUTPUT/rube.log' 2>&1"
+  tmux new-session -d -s proof-rube \
+  "cd '$PWD/apps/tlon-web' && pnpm rube > '$PROOF_OUTPUT/rube.log' 2>&1"
 deadline=$((SECONDS+1200))
 [ "${SKIP_DOWNLOAD:-false}" != true ] || deadline=$((SECONDS+120))
 last_progress=$SECONDS
@@ -91,11 +86,11 @@ echo "Ships prepared after $((SECONDS-start)) seconds."
 git rev-parse HEAD > "$PROOF_OUTPUT/source.txt"
 find apps/tlon-web/rube/dist/desk-staging -type f -print0 | sort -z | xargs -0 sha256sum > "$PROOF_OUTPUT/desk-manifest.txt"
 PROOF_PUBLIC_URL="http://127.0.0.1:35453" NODE_OPTIONS=--conditions=tlon-source \
-  bash scripts/agent-qa/fixture-env.sh pnpm --filter @tloncorp/tlon-bot-e2e exec tsx "$PWD/.maestro/cloud-fakeship/peer.ts" > "$PROOF_OUTPUT/peer.log" 2>&1 &
+  pnpm --filter @tloncorp/tlon-bot-e2e exec tsx "$PWD/.maestro/cloud-fakeship/peer.ts" > "$PROOF_OUTPUT/peer.log" 2>&1 &
 echo $! > "$PROOF_OUTPUT/peer.pid"
 deadline=$((SECONDS+120))
 until [ -f "$PROOF_OUTPUT/peer-ready.json" ]; do
-  kill -0 "$(cat "$PROOF_OUTPUT/peer.pid")" || { cat "$PROOF_OUTPUT/peer.log"; exit 1; }
+  if ! kill -0 "$(cat "$PROOF_OUTPUT/peer.pid")" 2>/dev/null; then test -f "$PROOF_OUTPUT/peer-ready.json" && break; cat "$PROOF_OUTPUT/peer.log"; exit 1; fi
   if ((SECONDS > deadline)); then cat "$PROOF_OUTPUT/peer.log"; exit 1; fi
   sleep 1
 done

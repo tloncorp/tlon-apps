@@ -20,6 +20,9 @@ beyond them. One independent evidence reviewer checks the recording and selects
 one complete clip per finding. Publishing updates a single PR comment automatically.
 There is no extra code reviewer, editor or automatic fix/merge loop here.
 
+The two QA sessions and publication run on one EAS Mac worker. Failed runs retain
+artifacts for a rerun; there is no custom recovery layer.
+
 Current scope is the implemented iOS PR build. Other platforms and the base build
 are outside scope. A completed run may find bugs and leave paths unexplored; those
 are separate from infrastructure failure. The report states all three clearly.
