@@ -18,3 +18,15 @@ env:
     direction: DOWN
     timeout: 30000
 - assertNotVisible: ${'BlockedInvite-' + MAESTRO_RUN_TAG}
+- tapOn: ${'InviteControl-' + MAESTRO_RUN_TAG}
+- runFlow:
+    file: ../reliability/subflows/send.yaml
+    env:
+      MESSAGE: ${MAESTRO_RUN_TAG + ' blocked invite verified'}
+      MESSAGE_PATTERN: ${MAESTRO_RUN_TAG + ' blocked invite verified ?'}
+      EMPTY_INPUT: '^Message$'
+- hideKeyboard
+- tapOn: '^Back$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Home$'

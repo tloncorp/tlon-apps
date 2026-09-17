@@ -1022,14 +1022,6 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
       members: ['~zod'],
     });
     fixtures.BlockedInvite = blockedInvite;
-    await new Promise((resolve) => setTimeout(resolve, 3_000));
-    const foreigns = await zod.state.scry<Record<string, any>>(
-      'groups',
-      '/v1/foreigns'
-    );
-    const backendHasInvite = (
-      foreigns?.[blockedInvite.groupId]?.invites ?? []
-    ).some((invite: any) => invite.valid);
     const control = await zod.createGroupWithChannel({
       title: `InviteControl-${tag}`,
     });
@@ -1037,11 +1029,36 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
     await until('invite control group reaches zod', () =>
       zod.state.isMemberOfGroup(control.groupId)
     );
-    record('blocked-group-invite-state', {
-      blockedShip: '~ten',
-      blockedInviteGroupId: blockedInvite.groupId,
-      backendHasInvite,
-      controlGroupId: control.groupId,
+    task('blocked-group-invite', async () => {
+      const acknowledgement = `${tag} blocked invite verified`;
+      const deadline = Date.now() + 30 * 60_000;
+      let acknowledgedAt: number | undefined;
+      while (Date.now() < deadline) {
+        if (await hasValidGroupInvite(zod, blockedInvite.groupId)) {
+          throw Error('Blocked ship invitation reached the backend');
+        }
+        if (!acknowledgedAt) {
+          const posts = await zod.state.channelPosts(control.chatChannel);
+          if (
+            posts.some(
+              (post) =>
+                post.authorId === '~zod' && post.text === acknowledgement
+            )
+          ) {
+            acknowledgedAt = Date.now();
+          }
+        } else if (Date.now() - acknowledgedAt >= 5_000) {
+          record('blocked-group-invite-state', {
+            blockedShip: '~ten',
+            blockedInviteGroupId: blockedInvite.groupId,
+            backendHasInvite: false,
+            controlGroupId: control.groupId,
+          });
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+      throw Error('Timed out waiting for blocked invitation verification');
     });
   }
   if (selected('blocked-group-content')) {
