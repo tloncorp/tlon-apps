@@ -64,11 +64,14 @@ function update(props: React.ComponentProps<typeof List>) {
   act(() => renderer.update(<List {...props} />));
 }
 
-function initialOpacity(id: string) {
+function row(id: string) {
   return renderer.root
     .findAllByType('animated-row' as never)
-    .find((row) => row.findByType('post' as never).props.id === id)?.props
-    .initialAnimate?.opacity;
+    .find((row) => row.findByType('post' as never).props.id === id)!;
+}
+
+function initialOpacity(id: string) {
+  return row(id).props.initialAnimate?.opacity;
 }
 
 describe('message entry animations', () => {
@@ -80,6 +83,34 @@ describe('message entry animations', () => {
     expect(initialOpacity('a')).toBeUndefined();
     expect(initialOpacity('b')).toBe(0);
     expect(initialOpacity('c')).toBe(0);
+    expect(row('a').props.animate.opacity).toBe(1);
+    expect(row('a').props.onLayout).toBeUndefined();
+  });
+
+  it('starts a new arrival fade only after the row has a nonzero layout', () => {
+    render({ data: posts('a') });
+    const data = posts('a', 'b');
+    update({ data });
+    expect(row('b').props.animate.opacity).toBe(0);
+
+    const onLayout = row('b').props.onLayout;
+    act(() => onLayout({ nativeEvent: { layout: { width: 320, height: 0 } } }));
+    expect(row('b').props.animate.opacity).toBe(0);
+    act(() => onLayout({ nativeEvent: { layout: { width: 0, height: 60 } } }));
+    expect(row('b').props.animate.opacity).toBe(0);
+
+    act(() =>
+      onLayout({ nativeEvent: { layout: { width: 320, height: 60 } } })
+    );
+    expect(row('b').props.animate.opacity).toBe(1);
+    expect(row('b').props.onLayout).toBeUndefined();
+
+    // A delivery update or a later layout must not restart the entry fade.
+    update({ data: posts('a', 'b') });
+    act(() =>
+      onLayout({ nativeEvent: { layout: { width: 320, height: 90 } } })
+    );
+    expect(row('b').props.animate.opacity).toBe(1);
   });
 
   it('does not replay a fade after virtualization remounts a message', () => {
@@ -90,6 +121,8 @@ describe('message entry animations', () => {
     update({ data, visible: ['a'] });
     update({ data });
     expect(initialOpacity('b')).toBeUndefined();
+    expect(row('b').props.animate.opacity).toBe(1);
+    expect(row('b').props.onLayout).toBeUndefined();
   });
 
   it('does not fade a newer history page when returning to live mode', () => {
@@ -102,5 +135,7 @@ describe('message entry animations', () => {
     render({ data: posts('a') });
     update({ data: posts('a', 'b'), enabled: false });
     expect(initialOpacity('b')).toBeUndefined();
+    expect(row('b').props.animate.opacity).toBe(1);
+    expect(row('b').props.onLayout).toBeUndefined();
   });
 });
