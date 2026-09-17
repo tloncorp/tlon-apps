@@ -1,8 +1,6 @@
-import { verifyDisposableBackend } from './fixtures.mjs';
 import { billingSummary } from './billing.mjs';
-import { reviewEvidence, unresolvedVideoAssessment } from './review.mjs';
 import { runCodex, verifyCodexAuth, interruptedResult } from './codex.mjs';
-import { verifyCoverage, verifySourceOverlay } from './assess.mjs';
+import { verifySourceOverlay } from './assess.mjs';
 import { connectShips } from './ship-proxy.mjs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -28,13 +26,7 @@ const env = {
   ...process.env,
   QA_TEST_SHIP: process.env.QA_TEST_SHIP || process.env.MAESTRO_TEST_SHIP,
 };
-const secrets = [
-  env.MAESTRO_EMAIL,
-  env.MAESTRO_PASSWORD,
-  env.OPENROUTER_API_KEY,
-  env.QA_TUNNEL_TOKEN,
-  env.GH_QA_TOKEN,
-];
+const secrets = [env.OPENROUTER_API_KEY, env.QA_TUNNEL_TOKEN, env.GH_QA_TOKEN];
 const clean = (text) => redact(text, secrets);
 const usage = { calls: 0, tokens: 0, cost: null };
 const evidence = new Map();
@@ -257,12 +249,9 @@ async function prepare() {
     )
       throw new Error('EAS resolved a different build than requested');
   }
-  if (
-    (!env.QA_SHIP_URL && (!env.MAESTRO_EMAIL || !env.MAESTRO_PASSWORD)) ||
-    !env.OPENROUTER_API_KEY
-  )
+  if (!env.QA_SHIP_URL || !env.OPENROUTER_API_KEY)
     throw new Error(
-      'EAS preview needs OPENROUTER_API_KEY; shared-ship mode also needs MAESTRO_EMAIL and MAESTRO_PASSWORD'
+      'Hosted QA needs OPENROUTER_API_KEY and a disposable backend URL'
     );
   // Check authentication before paying for simulator/driver setup.
   await verifyCodexAuth(env.OPENROUTER_API_KEY);
@@ -274,7 +263,8 @@ async function prepare() {
     deviceTools: 'agent-device 0.21.5',
   };
   if (env.QA_SHIP_URL) {
-    verifyDisposableBackend(context, env.QA_MODE === 'pull_request');
+    if (context.testShip !== '~zod')
+      throw new Error('Disposable backend requires ~zod');
     if (env.QA_MODE === 'pull_request')
       verifySourceOverlay(context.pr.head.sha, env.QA_BACKEND_SHA);
     ships = await connectShips(env);
@@ -307,10 +297,7 @@ async function prepare() {
       '--unified=3',
       `${base}...${context.pr.head.sha}`,
     ]);
-    if (!diff.trim())
-      throw new Error(
-        'No mobile behavior diff: manual harness validation is available instead'
-      );
+    if (!diff.trim()) throw new Error('No product diff to explore');
     if (diff.length > 240_000)
       throw new Error(
         'Mobile diff exceeds the agent context budget; split or narrow this PR'
@@ -441,17 +428,7 @@ async function agent(diff) {
     env,
     deviceEnv,
     artifacts,
-    context: context.assessment
-      ? {
-          ...context,
-          assessment: {
-            ...context.assessment,
-            scenarios: context.assessment.scenarios.filter(
-              (s) => s.method === 'simulator'
-            ),
-          },
-        }
-      : context,
+    context,
     udid,
     diff,
     clean,
@@ -471,135 +448,19 @@ async function agent(diff) {
   );
   // Preserve completed results if the app crashes during the final captures.
   report = result;
-  if (env.QA_DEFER_REVIEW === 'true' && context.assessment)
-    context.evidenceReview = 'pending';
+  context.evidenceReview = 'pending';
   await capture();
   await capture([], true);
   await stopRecording();
-  if (context.assessment && env.QA_DEFER_REVIEW !== 'true') {
-    const simulatorPlan = {
-      ...context.assessment,
-      scenarios: context.assessment.scenarios.filter(
-        (s) => s.method !== 'regression'
-      ),
-    };
-    try {
-      result = await reviewEvidence({
-        assessment: simulatorPlan,
-        result,
-        artifacts,
-        usage,
-        signal: agentAbort.signal,
-        video:
-          context.video?.status === 'ready'
-            ? {
-                file: path.join(videoDirectory, 'test-session.mp4'),
-                startedAt: context.video.startedAt,
-              }
-            : undefined,
-      });
-      if (context.video?.status === 'ready') {
-        const receipts = JSON.parse(
-          await readFile(
-            path.join(artifacts, 'video-frames/receipts.json'),
-            'utf8'
-          ).catch((error) => {
-            if (error.code === 'ENOENT') return '{}';
-            throw error;
-          })
-        );
-        for (const [id, receipt] of Object.entries(receipts))
-          evidence.set(id, receipt);
-      }
-      context.evidenceReview = 'completed';
-    } catch (error) {
-      context.evidenceReview = clean(error.message);
-      const affected =
-        error.reviewScope === 'video'
-          ? unresolvedVideoAssessment(simulatorPlan, result)
-          : simulatorPlan;
-      for (const s of affected.scenarios) {
-        const message = `Independent ${error.reviewScope === 'video' ? 'video' : 'evidence'} review unavailable: ${clean(error.message)}`;
-        const prior = result.checks.find((c) => c.scenarioId === s.id);
-        if (prior) {
-          prior.status = 'blocked';
-          prior.observed += ` ${message}`;
-        } else
-          result.checks.push({
-            scenarioId: s.id,
-            expected: s.expected,
-            status: 'blocked',
-            observed: message,
-            evidence: [],
-          });
-      }
-    }
-  }
-  if (context.assessment) {
-    for (const scenario of context.assessment.scenarios.filter(
-      (s) =>
-        s.method === 'unavailable' &&
-        !result.checks.some((c) => c.scenarioId === s.id)
-    ))
-      result.checks.push({
-        scenarioId: scenario.id,
-        expected: scenario.expected,
-        status: 'blocked',
-        observed: `Not exercised: ${scenario.prerequisites}. Required validation: ${scenario.steps.join('; ')}`,
-        evidence: [],
-      });
-    const receipts = context.backend?.regressionResults || [];
-    evidence.set('regression-tests', {
-      file: 'regression-results.json',
-      screenshot: false,
-      command: 'Selected regression recipes on the backend runner',
-    });
-    await writeFile(
-      path.join(artifacts, 'regression-results.json'),
-      JSON.stringify(receipts)
-    );
-    for (const scenario of context.assessment.scenarios.filter(
-      (s) => s.method === 'regression'
-    )) {
-      const receipt = receipts.find(
-        (r) =>
-          r.id === scenario.regression &&
-          r.source === context.assessment.headSha
-      );
-      result.checks.push({
-        scenarioId: scenario.id,
-        method: 'regression',
-        expected: scenario.expected,
-        status: ['passed', 'failed'].includes(receipt?.status)
-          ? receipt.status
-          : 'blocked',
-        observed: `Automated regression, not a simulator check: ${receipt?.summary || 'No verified test receipt'}`,
-        evidence: receipt ? ['regression-tests'] : [],
-      });
-    }
-    result.status =
-      result.checks.some((c) => c.status === 'failed') ||
-      result.discoveries?.some((d) => d.status === 'failed')
-        ? 'failed'
-        : result.checks.some((c) => c.status === 'blocked') ||
-            result.discoveries?.some((d) => d.status === 'blocked')
-          ? 'blocked'
-          : 'passed';
-  }
-  if (env.QA_DEFER_REVIEW === 'true' && context.assessment)
-    context.evidenceReview = 'pending';
   const counts = { passed: 0, failed: 0, blocked: 0 };
   for (const check of result.checks) counts[check.status]++;
   result.summary = `${counts.passed} checks passed; ${counts.failed} failed; ${counts.blocked} not fully verified. ${result.discoveries?.length || 0} unexpected findings. See individual observations below.`;
-  report =
-    env.QA_DEFER_REVIEW === 'true'
-      ? verifyReport(result, evidence)
-      : verifyCoverage(verifyReport(result, evidence), context.assessment);
+  report = verifyReport(result, evidence);
 }
 
 await mkdir(artifacts, { recursive: true });
 const watchdog = setTimeout(() => {
-  void terminate('Harness reached its 25-minute limit');
+  void terminate('Harness reached its 35-minute limit');
 }, 35 * 60_000);
 process.once('SIGTERM', () => void terminate('Workflow was terminated'));
 process.once('SIGINT', () => void terminate('Workflow was interrupted'));

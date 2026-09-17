@@ -38,5 +38,5 @@ Read a result once and handle verified findings in the current review round.
 
 CI owns build selection, disposable ships, shared login and full-session capture.
 The login helper accepts runtime disposable credentials; developer credentials
-are not used. The optional peer helper supplies cross-ship state when needed.
+are not used. The backend's preflight chat supplies peer state when useful.
 Keep this review manual and advisory; completion is not merge approval.

@@ -22,7 +22,6 @@ import {
 import { renderReport } from './core.mjs';
 import { videoReader } from './video-tools.mjs';
 import { readActions } from './review-tools.mjs';
-import { verifyReplayReceipt, verifyPresentationReview } from './publish.mjs';
 
 const env = process.env,
   out = path.resolve('../../artifacts/qa-presentation');
@@ -35,42 +34,9 @@ const command = (bin, args, options = {}) =>
     stdio: ['ignore', 'pipe', 'pipe'],
     ...options,
   });
-async function download(a, file) {
-  const url = new URL(a?.downloadUrl);
-  if (
-    url.protocol !== 'https:' ||
-    url.hostname !== 'wf-artifacts.eascdn.net' ||
-    url.username ||
-    url.password ||
-    !(a.fileSizeBytes > 0 && a.fileSizeBytes <= 200 * 1024 * 1024)
-  )
-    throw new Error('Invalid recorded artifact');
-  const r = await fetch(url, { signal: AbortSignal.timeout(120000) });
-  if (!r.ok) throw new Error('Recorded artifact download failed');
-  const bytes = Buffer.from(await r.arrayBuffer());
-  if (bytes.length !== a.fileSizeBytes)
-    throw new Error('Recorded artifact size mismatch');
-  writeFileSync(file, bytes);
-  return file;
-}
-let trace = env.QA_EVIDENCE_PATH,
-  video = env.QA_VIDEO_PATH,
-  sourceUrl = env.QA_WORKFLOW_URL,
-  expectedHarness;
-const replay = env.QA_PRESENT_EVIDENCE
-  ? JSON.parse(env.QA_PRESENT_EVIDENCE)
-  : null;
-if (replay) {
-  if (
-    !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(replay.id) ||
-    !/^[a-f0-9]{40}$/.test(replay.sha)
-  )
-    throw new Error('Missing replay provenance');
-  expectedHarness = replay.sha;
-  sourceUrl = `https://expo.dev/accounts/tlon/projects/groups/workflows/${replay.id}`;
-  trace = await download(replay.artifact, path.join(out, 'source.tar.gz'));
-  video = await download(replay.video, path.join(out, 'test-session.mp4'));
-}
+let trace = env.QA_EVIDENCE_PATH;
+const video = env.QA_VIDEO_PATH,
+  sourceUrl = env.QA_WORKFLOW_URL;
 if (!trace || !video) throw new Error('Missing recorded report or video');
 if (!statSync(trace).isDirectory()) {
   const extract = path.join(out, 'recorded');
@@ -91,25 +57,13 @@ function findFiles(dir, name) {
         : []
   );
 }
-if (replay?.reviewerRun) {
-  // A recovery archive may contain earlier receipts under recorded/. Bind the
-  // outer artifact's receipt, never a nested prior review with a matching ID.
-  const receipts = findFiles(trace, 'replay.json');
-  const depth = (p) => path.relative(trace, p).split(path.sep).length;
-  const min = Math.min(...receipts.map(depth));
-  const outer = receipts.filter((p) => depth(p) === min);
-  if (outer.length !== 1)
-    throw new Error('Missing or ambiguous reviewed-run receipt');
-  verifyReplayReceipt(JSON.parse(readFileSync(outer[0])), replay.id);
-}
 const reports = findFiles(trace, 'report.json');
 if (reports.length !== 1) throw new Error('Expected one recorded QA report');
 const source = path.dirname(reports[0]),
   original = JSON.parse(readFileSync(reports[0]));
 const c = original.context;
-if (expectedHarness && c.harnessSha !== expectedHarness)
-  throw new Error('Recording source mismatch');
-verifyPresentationReview(c);
+if (c.evidenceReview !== 'completed')
+  throw new Error('Recorded review did not complete');
 if (
   !/^[1-9][0-9]*$/.test(String(c.pr?.number)) ||
   !/^[a-f0-9]{40}$/.test(c.pr?.head?.sha) ||
@@ -218,10 +172,6 @@ if (
 )
   throw new Error('Target PR is outside the expected repository');
 const historical = target.head.sha !== c.pr.head.sha;
-if (historical) {
-  const notice = `> **Earlier test results.** These clips were recorded at commit \`${c.pr.head.sha.slice(0, 10)}\`. The PR is now at \`${target.head.sha.slice(0, 10)}\`. This updates the presentation of the saved run; it does not retest the latest code.\n\n`;
-  writeFileSync(path.join(out, 'report.md'), marker + '\n' + notice + text);
-}
 const rendered = publishComment({
   gh,
   pr,

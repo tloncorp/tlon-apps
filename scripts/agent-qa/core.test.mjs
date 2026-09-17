@@ -75,12 +75,11 @@ test('assessment must match both PR commits before a simulator can start', () =>
       /assessment/
     );
 });
-test('manual validation cannot claim to certify a PR', () => {
-  const context = verifyContext(
-    { ...env, QA_MODE: 'workflow_dispatch', QA_PR_JSON: 'null' },
-    'b'.repeat(40)
+test('simulator-only harness mode is no longer supported', () => {
+  assert.throws(
+    () => verifyContext({ ...env, QA_MODE: 'workflow_dispatch' }, sha),
+    /Unsupported/
   );
-  assert.equal(context.mode, 'Harness validation only');
 });
 test('reports require real evidence and cannot turn incomplete checks into a pass', () => {
   const evidence = new Map([['e1', { screenshot: true }]]);

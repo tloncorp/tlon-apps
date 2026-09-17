@@ -10,54 +10,24 @@ import {
   rmSync,
 } from 'node:fs';
 import path from 'node:path';
-import { reviewEvidence, replayVideoOnly } from './review.mjs';
+import { reviewEvidence } from './review.mjs';
 import { verifyCodexAuth, interruptedResult } from './codex.mjs';
 import { verifyReport, renderReport } from './core.mjs';
-import { verifyCoverage } from './assess.mjs';
 import { billingSummary } from './billing.mjs';
 const env = process.env;
 const root = path.resolve('../..'),
-  out = path.join(root, 'artifacts/evidence-replay');
+  out = path.join(root, 'artifacts/evidence-review');
 mkdirSync(out, { recursive: true });
-const descriptor = env.QA_REPLAY_EVIDENCE
-  ? JSON.parse(env.QA_REPLAY_EVIDENCE)
-  : {
-      id: env.QA_WORKFLOW_URL?.split('/').at(-1),
-      sha: execFileSync('git', ['rev-parse', 'HEAD'], {
-        encoding: 'utf8',
-      }).trim(),
-      complete: true,
-    };
-const { id, sha } = descriptor;
-if (
-  !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(id || '') ||
-  !/^[a-f0-9]{40}$/.test(sha || '')
-)
-  throw new Error('Expected pinned evidence source');
-async function download(a, target) {
-  const url = new URL(a?.downloadUrl);
-  if (
-    url.protocol !== 'https:' ||
-    url.hostname !== 'wf-artifacts.eascdn.net' ||
-    url.username ||
-    url.password ||
-    !(a.fileSizeBytes > 0 && a.fileSizeBytes <= 200 * 1024 * 1024)
-  )
-    throw new Error('Invalid evidence artifact');
-  const response = await fetch(url, { signal: AbortSignal.timeout(120000) });
-  if (!response.ok) throw new Error(`Evidence download ${response.status}`);
-  const bytes = Buffer.from(await response.arrayBuffer());
-  if (bytes.length !== a.fileSizeBytes)
-    throw new Error('Evidence size mismatch');
-  writeFileSync(target, bytes);
-  return target;
-}
+const id = env.QA_WORKFLOW_URL?.split('/').at(-1);
+const sha = execFileSync('git', ['rev-parse', 'HEAD'], {
+  encoding: 'utf8',
+}).trim();
+if (!env.QA_EVIDENCE_PATH || !env.QA_VIDEO_PATH || !id)
+  throw new Error('Missing workflow evidence');
 const extract = path.join(out, 'recorded');
 const marker = path.join(out, 'extracted.json');
 if (!existsSync(marker)) {
-  const archive =
-    env.QA_EVIDENCE_PATH ||
-    (await download(descriptor.artifact, path.join(out, 'source.tar.gz')));
+  const archive = env.QA_EVIDENCE_PATH;
   if (statSync(archive).isDirectory())
     cpSync(archive, extract, { recursive: true });
   else
@@ -85,15 +55,8 @@ const source = execFileSync(
 const original = JSON.parse(readFileSync(path.join(source, 'report.json')));
 if (original.context.harnessSha !== sha)
   throw new Error('Recording source mismatch');
-const assessment = {
-  ...original.context.assessment,
-  scenarios: original.context.assessment.scenarios.filter(
-    (s) => s.method !== 'regression'
-  ),
-};
-const videoFile =
-  env.QA_VIDEO_PATH ||
-  (await download(descriptor.video, path.join(out, 'test-session.mp4')));
+const assessment = original.context.assessment;
+const videoFile = env.QA_VIDEO_PATH;
 const video = { file: videoFile, startedAt: original.context.video.startedAt };
 const usage = original.usage || { calls: 0, tokens: 0, cost: null };
 let result = original.report;
@@ -107,7 +70,7 @@ if (original.context.evidenceReview !== 'completed') {
         ),
       }
     : interruptedResult(assessment, original.report.summary);
-  // Include missing criteria without treating pending coverage as a product failure.
+  // Unreached starting paths remain visible to the reviewer.
   for (const c of interruptedResult(assessment, 'evidence awaiting review')
     .checks)
     if (!operator.checks.some((old) => old.scenarioId === c.scenarioId))
@@ -118,40 +81,16 @@ if (original.context.evidenceReview !== 'completed') {
     artifacts: source,
     usage,
     video,
-    videoOnly: replayVideoOnly(original.context, descriptor.complete),
   });
   for (const check of original.report.checks.filter((c) => c.infrastructure))
     result.checks.push(check);
-  for (const s of original.context.assessment.scenarios.filter(
-    (s) => s.method === 'regression'
-  )) {
-    const receipt = original.context.backend?.regressionResults?.find(
-      (r) => r.id === s.regression && r.source === assessment.headSha
-    );
-    const evidence = receipt ? ['regression-tests'] : [];
-    if (receipt) {
-      original.evidence['regression-tests'] = {
-        file: 'regression-results.json',
-        screenshot: false,
-        command: 'deterministic regression',
-      };
-      writeFileSync(
-        path.join(source, 'regression-results.json'),
-        JSON.stringify(original.context.backend.regressionResults)
-      );
-    }
-    result.checks.push({
-      scenarioId: s.id,
-      method: 'regression',
-      expected: s.expected,
-      status: ['passed', 'failed'].includes(receipt?.status)
-        ? receipt.status
-        : 'blocked',
-      observed: receipt?.summary || 'No verified regression receipt',
-      evidence,
-    });
-  }
 }
+for (const check of interruptedResult(
+  assessment,
+  'Not explored in this session'
+).checks)
+  if (!result.checks.some((c) => c.scenarioId === check.scenarioId))
+    result.checks.push({ ...check, observed: 'Not explored in this session.' });
 const receiptPath = path.join(source, 'video-frames/receipts.json');
 const receipts = existsSync(receiptPath)
   ? JSON.parse(readFileSync(receiptPath))
@@ -166,10 +105,7 @@ result.status = [...result.checks, ...(result.discoveries || [])].some(
     ? 'blocked'
     : 'passed';
 const evidence = { ...original.evidence, ...receipts };
-verifyCoverage(
-  verifyReport(result, new Map(Object.entries(evidence))),
-  original.context.assessment
-);
+verifyReport(result, new Map(Object.entries(evidence)));
 const context = {
   ...original.context,
   evidenceReview: 'completed',
@@ -181,27 +117,25 @@ result.summary = `${counts.passed} checks passed; ${counts.failed} failed; ${cou
 const final = { ...original, context, report: result, usage, evidence };
 writeFileSync(path.join(source, 'report.json'), JSON.stringify(final));
 writeFileSync(
-  path.join(out, 'replay.json'),
+  path.join(out, 'review.json'),
   JSON.stringify({ originalRun: id, result, evidence, usage })
 );
 writeFileSync(
   path.join(out, 'report.md'),
   renderReport(context, result, usage)
 );
-writeFileSync('/tmp/qa-review-ready', 'true');
 console.log(result.summary);
-if (descriptor.complete)
-  execFileSync(
-    process.execPath,
-    [path.join(root, 'scripts/agent-qa/present-run.mjs')],
-    {
-      env: {
-        ...env,
-        QA_EVIDENCE_PATH: source,
-        QA_VIDEO_PATH: videoFile,
-        QA_WORKFLOW_URL: `https://expo.dev/accounts/tlon/projects/groups/workflows/${id}`,
-      },
-      stdio: 'inherit',
-      timeout: 12 * 60_000,
-    }
-  );
+execFileSync(
+  process.execPath,
+  [path.join(root, 'scripts/agent-qa/present-run.mjs')],
+  {
+    env: {
+      ...env,
+      QA_EVIDENCE_PATH: source,
+      QA_VIDEO_PATH: videoFile,
+      QA_WORKFLOW_URL: `https://expo.dev/accounts/tlon/projects/groups/workflows/${id}`,
+    },
+    stdio: 'inherit',
+    timeout: 12 * 60_000,
+  }
+);

@@ -8,11 +8,6 @@ import {
   qaWaitState,
 } from '../../.agents/skills/tlon-workflow/qa-result.mjs';
 import { renderComment, planComment } from './comment.mjs';
-import {
-  fixtureCatalog,
-  verifySetupPlan,
-  requiresBackend,
-} from './fixtures.mjs';
 import { backendInstructions, deviceTools } from './codex.mjs';
 
 const head = 'a'.repeat(40);
@@ -128,19 +123,11 @@ test('report and watcher preserve completion separately from findings and covera
 });
 
 test('ordinary data needs no custom fixture and lifecycle exploration is available', async () => {
-  const plan = {
-    decision: 'test',
-    setup: { fixtures: [] },
-    scenarios: [{ method: 'simulator', fixture: 'none', regression: 'none' }],
-  };
-  assert.equal(verifySetupPlan(plan), plan);
-  assert.equal(requiresBackend(plan), true);
-  assert.equal(fixtureCatalog['notes-v1'], undefined);
   const instructions = backendInstructions(
-    { backend: { fixtures: [] }, assessment: plan },
+    { backend: { group: {} } },
     { QA_RUN_TAG: 'run-1' }
   );
-  assert.match(instructions, /Create the ordinary test data/);
+  assert.match(instructions, /Create ordinary test data/);
   assert.match(instructions, /notes and messages/);
   assert.doesNotMatch(instructions, /Other writes need a verified fixture/);
   assert.ok(deviceTools.includes('home') && deviceTools.includes('open'));

@@ -82,25 +82,8 @@ async function main() {
       (p) => p.authorId === '~ten' && p.text === `${tag} from ten`
     )
   );
-  const setup = JSON.parse(process.env.QA_FIXTURE_PLAN || '{"fixtures":[]}');
-  const fixtures = [];
-  if (setup.fixtures.includes('chat-v1'))
-    fixtures.push({
-      recipe: 'chat-v1',
-      verified: true,
-      groupId: group.groupId,
-      groupTitle: `Cloud-${tag}`,
-      channelId: group.chatChannel,
-      peerMessage: `${tag} from ten`,
-      peerMessageVerified: true,
-      writable: true,
-    });
   const evidence = {
     runtime: JSON.parse(readFileSync(`${out}/runtime.json`, 'utf8')),
-    fixtures,
-    regressionResults: existsSync(`${out}/regression-results.json`)
-      ? JSON.parse(readFileSync(`${out}/regression-results.json`, 'utf8'))
-      : [],
     source: readFileSync(`${out}/source.txt`, 'utf8').trim(),
     snapshotSource: snapshot?.source,
     previousFixtureCleared: snapshot ? true : null,

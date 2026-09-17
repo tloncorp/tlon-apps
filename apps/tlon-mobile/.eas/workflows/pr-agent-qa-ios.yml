@@ -38,12 +38,6 @@ on:
         type: string
       run_tag:
         type: string
-      present_evidence_json:
-        type: string
-        description: Publish saved evidence with finding clips
-      review_evidence_json:
-        type: string
-        description: Saved evidence to review
 
 defaults:
   tools:
@@ -65,72 +59,14 @@ jobs:
         run: bash ../../scripts/agent-qa/install-publish-tools.sh
       - name: Publish the incomplete run
         run: node ../../scripts/agent-qa/publish-blocked.mjs
-  present_recording:
-    if: ${{ inputs.present_evidence_json }}
-    environment: preview
-    runs_on: linux-medium
-    env:
-      QA_PRESENT_EVIDENCE: ${{ inputs.present_evidence_json }}
-    outputs:
-      comment_url: ${{ steps.publish.outputs.comment_url }}
-      qa_status: ${{ steps.publish.outputs.qa_status }}
-    steps:
-      - uses: eas/checkout
-      - name: Install the report editor and clip tools
-        run: |
-          bash ../../scripts/agent-qa/install-publish-tools.sh
-      - name: Explain recorded findings and attach their clips automatically
-        id: publish
-        run: |
-          node ../../scripts/agent-qa/retry-stage.mjs present-run.mjs || exit 1
-          set-output comment_url "$(cat /tmp/qa-comment-url)"
-          set-output qa_status "$(cat /tmp/qa-product-status)"
-      - uses: eas/upload_artifact
-        if: ${{ always() }}
-        with:
-          type: other
-          name: qa-presentation
-          path: artifacts/qa-presentation/**
-  review_recording:
-    if: ${{ inputs.review_evidence_json }}
-    environment: preview
-    runs_on: linux-medium
-    outputs:
-      comment_url: ${{ steps.review.outputs.comment_url }}
-      qa_status: ${{ steps.review.outputs.qa_status }}
-    env:
-      QA_REPLAY_EVIDENCE: ${{ inputs.review_evidence_json }}
-    steps:
-      - uses: eas/checkout
-      - name: Install the evidence reviewer
-        run: |
-          bash ../../scripts/agent-qa/install-publish-tools.sh
-      - name: Review original evidence without a device or human findings
-        id: review
-        run: |
-          node ../../scripts/agent-qa/retry-stage.mjs review-recording.mjs
-          if [ -f /tmp/qa-comment-url ]; then set-output comment_url "$(cat /tmp/qa-comment-url)"; set-output qa_status "$(cat /tmp/qa-product-status)"; fi
-      - uses: eas/upload_artifact
-        if: ${{ always() }}
-        with:
-          type: other
-          name: evidence-review-replay
-          path: artifacts/evidence-replay
-      - uses: eas/upload_artifact
-        if: ${{ always() }}
-        with:
-          type: other
-          name: qa-presentation
-          path: artifacts/qa-presentation/**
   assess_pr:
-    if: ${{ github.event_name == 'pull_request' || inputs.assessment_pr_json }}
+    if: ${{ inputs.assessment_pr_json }}
     environment: preview
     runs_on: linux-medium
     env:
-      QA_PR_JSON: ${{ inputs.assessment_pr_json || toJSON(github.event.pull_request) }}
+      QA_PR_JSON: ${{ inputs.assessment_pr_json }}
       QA_FULL_PR_RUN: ${{ (inputs.full_pr_run || inputs.build_only) && 'true' || 'false' }}
       QA_PREPARED_ASSESSMENT_JSON: ${{ inputs.prepared_assessment_json || '' }}
-      QA_ASSESSMENT_ONLY: ${{ github.event_name != 'pull_request' && 'true' || 'false' }}
     outputs:
       pr_number: ${{ steps.assess.outputs.pr_number }}
       head_sha: ${{ steps.assess.outputs.head_sha }}
@@ -204,7 +140,7 @@ jobs:
 
   build_ios:
     after: [assess_pr, compatible_build, repack_ios]
-    if: ${{ always() && (github.event_name == 'pull_request' || inputs.full_pr_run || inputs.build_only) && after.assess_pr.outputs.decision == 'test' && !inputs.build_id && after.repack_ios.status != 'success' }}
+    if: ${{ always() && (inputs.full_pr_run || inputs.build_only) && after.assess_pr.outputs.decision == 'test' && !inputs.build_id && after.repack_ios.status != 'success' }}
     type: build
     environment: preview
     params:
@@ -236,7 +172,7 @@ jobs:
 
   qa_ios:
     after: [assess_pr, build_ios, reuse_build, repack_ios]
-    if: ${{ always() && !inputs.build_only && (after.repack_ios.status == 'success' || after.build_ios.status == 'success' || after.reuse_build.outputs.build_id || (inputs.build_id && !inputs.assessment_pr_json && !inputs.full_pr_run)) }}
+    if: ${{ always() && !inputs.build_only && (after.repack_ios.status == 'success' || after.build_ios.status == 'success' || after.reuse_build.outputs.build_id) }}
     environment: preview
     runs_on: macos-medium
     image: macos-tahoe-26.4-xcode-26.4
@@ -249,17 +185,14 @@ jobs:
       QA_BUILD_ID: ${{ after.repack_ios.outputs.build_id || after.build_ios.outputs.build_id || after.reuse_build.outputs.build_id || inputs.build_id }}
       QA_BUILD_SHA: ${{ after.repack_ios.outputs.git_commit_hash || after.build_ios.outputs.git_commit_hash || after.reuse_build.outputs.git_commit_hash || inputs.build_sha }}
       QA_APP_ID: ${{ after.repack_ios.outputs.app_identifier || after.build_ios.outputs.app_identifier || after.reuse_build.outputs.app_identifier || 'io.tlon.groups' }}
-      QA_PR_JSON: ${{ inputs.assessment_pr_json || toJSON(github.event.pull_request) || 'null' }}
+      QA_PR_JSON: ${{ inputs.assessment_pr_json || 'null' }}
       QA_FULL_PR_RUN: ${{ inputs.full_pr_run && 'true' || 'false' }}
-      QA_MODE: ${{ inputs.build_id && !inputs.full_pr_run && 'workflow_dispatch' || 'pull_request' }}
+      QA_MODE: pull_request
       QA_ASSESSMENT_JSON: ${{ after.assess_pr.outputs.assessment || 'null' }}
-      QA_DEFER_REVIEW: ${{ inputs.full_pr_run && 'true' || 'false' }}
-      QA_FOCUS: ""
       QA_WORKFLOW_URL: ${{ workflow.url }}
       QA_SHIP_URL: ${{ inputs.ship_url || '' }}
       QA_BACKEND_SHA: ${{ inputs.backend_sha || '' }}
       QA_RUN_TAG: ${{ inputs.run_tag || '' }}
-      QA_MODEL: openai/gpt-5.6-sol
       QA_TEST_SHIP: ${{ inputs.test_ship || '' }}
     steps:
       - uses: eas/checkout
@@ -298,18 +231,17 @@ jobs:
 
   report_video:
     after: [assess_pr, qa_ios]
-    if: ${{ always() && (github.event_name == 'pull_request' || inputs.full_pr_run) && after.qa_ios.outputs.video_artifact }}
+    if: ${{ always() && (inputs.full_pr_run) && after.qa_ios.outputs.video_artifact }}
     environment: preview
     runs_on: linux-medium
     env:
       QA_REPORT: ${{ after.qa_ios.outputs.report }}
-      QA_PR_NUMBER: ${{ after.assess_pr.outputs.pr_number || github.event.pull_request.number }}
-      QA_HEAD_SHA: ${{ after.assess_pr.outputs.head_sha || github.event.pull_request.head.sha }}
+      QA_PR_NUMBER: ${{ after.assess_pr.outputs.pr_number }}
+      QA_HEAD_SHA: ${{ after.assess_pr.outputs.head_sha }}
       QA_WORKFLOW_URL: ${{ workflow.url }}
     outputs:
       comment_url: ${{ steps.publish.outputs.comment_url }}
       qa_status: ${{ steps.publish.outputs.qa_status }}
-      review_ready: ${{ steps.review_receipt.outputs.ready }}
     steps:
       - uses: eas/checkout
       - name: Check the GitHub upload credential
@@ -334,14 +266,9 @@ jobs:
         run: |
           export QA_EVIDENCE_PATH="${{ steps.evidence.outputs.artifact_path }}"
           export QA_VIDEO_PATH="${{ steps.recording.outputs.artifact_path }}"
-          node ../../scripts/agent-qa/retry-stage.mjs review-recording.mjs || exit 1
+          node ../../scripts/agent-qa/retry-stage.mjs || exit 1
           set-output comment_url "$(cat /tmp/qa-comment-url)"
           set-output qa_status "$(cat /tmp/qa-product-status)"
-      - name: Record complete reviewed evidence for recovery
-        id: review_receipt
-        if: ${{ always() }}
-        run: |
-          if [ -f /tmp/qa-review-ready ]; then set-output ready true; fi
       - uses: eas/upload_artifact
         if: ${{ always() }}
         with:
@@ -352,8 +279,8 @@ jobs:
         if: ${{ always() }}
         with:
           type: other
-          name: evidence-review-replay
-          path: artifacts/evidence-replay
+          name: evidence-review
+          path: artifacts/evidence-review
 
   verdict:
     needs: [report_video]
@@ -364,7 +291,7 @@ jobs:
 
   assessment_status:
     after: [assess_pr]
-    if: ${{ always() && (github.event_name == 'pull_request' || inputs.assessment_pr_json) && after.assess_pr.outputs.decision != 'test' && after.assess_pr.outputs.decision != 'skip' }}
+    if: ${{ always() && (inputs.assessment_pr_json) && after.assess_pr.outputs.decision != 'test' && after.assess_pr.outputs.decision != 'skip' }}
     runs_on: linux-medium
     steps:
       - name: Reflect blocked assessment in the check status

@@ -18,26 +18,6 @@ export function verifyPeer(proof, sha, tag, complete = false, plan = null) {
       'Backend proof does not match the requested source, fixture, or peer receipt'
     );
   }
-  if (plan) {
-    for (const recipe of plan.setup.fixtures) {
-      const fixture = proof.fixtures?.find((f) => f.recipe === recipe);
-      if (
-        !fixture?.verified ||
-        fixture.groupId !== proof.group.groupId ||
-        !fixture.writable ||
-        recipe !== 'chat-v1' ||
-        !fixture.channelId?.startsWith('chat/~zod/') ||
-        fixture.channelId !== proof.group.chatChannel ||
-        fixture.peerMessage !== `${tag} from ten` ||
-        fixture.peerMessageVerified !== true
-      )
-        throw new Error('Requested fixture was not provisioned and verified');
-    }
-    for (const result of proof.regressionResults || []) {
-      if (result.source !== plan.headSha)
-        throw new Error('Regression evidence source mismatch');
-    }
-  }
   return proof;
 }
 

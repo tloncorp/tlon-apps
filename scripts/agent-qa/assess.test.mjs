@@ -2,13 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   verifyAssessment,
-  verifyCoverage,
   assessmentArgs,
   verifySourceOverlay,
   comparisonBase,
+  prepareSourceCheckout,
 } from './assess.mjs';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import {
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  rmSync,
+} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -66,70 +72,33 @@ test('QA overlay accepts tooling only and refuses altered product source', () =>
   }
 });
 
-const files = ['packages/app/features/chat/Chat.tsx'];
-const scenario = {
-  id: 'change-1',
-  change: 'Show send failure',
-  files,
-  steps: ['Open a test conversation', 'Attempt a send while offline'],
-  expected: 'The message shows an error and retry action',
-  prerequisites: 'Isolated writable account and network control',
-  method: 'simulator',
-  fixture: 'none',
-  regression: 'none',
-};
 const plan = {
   decision: 'test',
-  setup: { fixtures: [] },
-  reason: 'Changes send failure behavior',
-  changes: [scenario.change],
-  scenarios: [scenario],
+  reason: 'Changes editing',
+  scopeNotes: [],
+  scenarios: [
+    { steps: ['Edit and save a note'], expected: 'The edited text persists' },
+  ],
 };
-
-test('exploration can prioritize paths but cannot invent an unrelated change', () => {
-  assert.equal(
-    verifyAssessment(
-      { ...plan, changes: [scenario.change, 'New navigation'] },
-      files
-    ).decision,
-    'test'
+test('assessment is a bounded exploration plan, without fixture or coverage contracts', () => {
+  const checked = verifyAssessment(plan);
+  assert.deepEqual(checked.scenarios, [{ ...plan.scenarios[0], id: 'path-1' }]);
+  assert.throws(
+    () => verifyAssessment({ ...plan, scenarios: [] }),
+    /exploration plan/
   );
   assert.throws(
-    () =>
-      verifyAssessment(
-        { ...plan, scenarios: [{ ...scenario, change: 'Unrelated smoke' }] },
-        files
-      ),
-    /Scenario/
+    () => verifyAssessment({ ...plan, decision: 'skip' }),
+    /exploration plan/
   );
-  const covered = {
-    ...plan,
-    changes: [scenario.change, 'New navigation'],
-    scenarios: [
-      scenario,
-      {
-        ...scenario,
-        id: 'change-2',
-        change: 'New navigation',
-        method: 'unavailable',
-      },
-    ],
-  };
-  assert.equal(verifyAssessment(covered, files), covered);
-});
-
-test('plans with only unavailable checks preserve capability gaps without leasing devices', () => {
-  const unavailable = {
-    ...plan,
-    scenarios: [
-      { ...scenario, method: 'unavailable', prerequisites: 'Needs Android' },
-    ],
-  };
-  const checked = verifyAssessment(unavailable, files);
-  assert.equal(checked.decision, 'blocked');
-  assert.equal(checked.scenarios[0].prerequisites, 'Needs Android');
-  assert.match(checked.reason, /No executable simulator/);
-  assert.equal(verifyAssessment(plan, files).decision, 'test');
+  assert.equal(
+    verifyAssessment({ ...plan, decision: 'skip', scenarios: [] }).decision,
+    'skip'
+  );
+  assert.equal(
+    verifyAssessment({ ...plan, decision: 'blocked', scenarios: [] }).decision,
+    'blocked'
+  );
 });
 
 test('advanced target-branch changes do not become the before-side of a PR review', () => {
@@ -159,101 +128,24 @@ test('advanced target-branch changes do not become the before-side of a PR revie
     process.chdir(dir);
     assert.equal(comparisonBase(baseTip, head), shared);
     assert.notEqual(comparisonBase(baseTip, head), baseTip);
+    const checkout = path.join(dir, 'review-source');
+    prepareSourceCheckout(checkout, head);
+    assert.equal(
+      readFileSync(path.join(checkout, 'app.txt'), 'utf8'),
+      'PR change'
+    );
+    assert.equal(
+      git('rev-parse', 'HEAD'),
+      baseTip,
+      'original checkout stays on its own branch'
+    );
   } finally {
     process.chdir(before);
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test('assessment requires traceable behavioral scenarios and cannot skip known user-facing changes', () => {
-  assert.equal(verifyAssessment(plan, files), plan);
-  assert.throws(
-    () => verifyAssessment({ ...plan, decision: 'skip' }, files),
-    /silently skipped/
-  );
-  assert.throws(
-    () => verifyAssessment({ ...plan, scenarios: [] }, files),
-    /requires/
-  );
-  assert.throws(() => verifyAssessment(plan, ['README.md']), /changed file/);
-  assert.throws(
-    () => verifyAssessment({ ...plan, scenarios: [scenario, scenario] }, files),
-    /Scenario/
-  );
-  assert.equal(
-    verifyAssessment(
-      {
-        decision: 'skip',
-        setup: { fixtures: [] },
-        reason: 'Documentation only',
-        changes: [],
-        scenarios: [],
-      },
-      ['README.md']
-    ).decision,
-    'skip'
-  );
-  assert.equal(
-    verifyAssessment(
-      { ...plan, decision: 'blocked', reason: 'No isolated account' },
-      files
-    ).decision,
-    'blocked'
-  );
-});
-
-test('generic smoke success or omitted PR changes cannot satisfy the assessment', () => {
-  assert.throws(
-    () =>
-      verifyCoverage(
-        { checks: [{ expected: 'Home loads', status: 'passed' }] },
-        plan
-      ),
-    /does not correspond/
-  );
-  assert.throws(
-    () => verifyCoverage({ checks: [] }, plan),
-    /not accounted for/
-  );
-  const blocked = {
-    checks: [
-      {
-        scenarioId: 'change-1',
-        expected: scenario.expected,
-        status: 'blocked',
-        observed: 'No writable fixture',
-      },
-    ],
-  };
-  assert.equal(verifyCoverage(blocked, plan), blocked);
-  assert.throws(
-    () =>
-      verifyCoverage(
-        {
-          checks: [
-            blocked.checks[0],
-            { ...blocked.checks[0], status: 'failed' },
-          ],
-        },
-        plan
-      ),
-    /Duplicate scenario/
-  );
-  assert.throws(
-    () =>
-      verifyCoverage(
-        {
-          checks: [
-            { ...blocked.checks[0], expected: 'Home loads', status: 'passed' },
-          ],
-        },
-        plan
-      ),
-    /acceptance criterion/
-  );
-});
-
-test('assessment has no device MCP tools and uses an isolated read-only Codex session', () => {
+test('assessment has no device MCP tools and uses an normal read-only Codex shell', () => {
   const args = assessmentArgs({
     cwd: '/tmp/work',
     schema: '/tmp/schema',
@@ -264,72 +156,8 @@ test('assessment has no device MCP tools and uses an isolated read-only Codex se
     args.some((arg) => arg.includes('mcp_servers.device')),
     false
   );
-  assert.ok(args.includes('features.shell_tool=false'));
+  assert.ok(args.includes('features.shell_tool=true'));
+  assert.ok(!args.some((arg) => arg.includes('mcp_servers.')));
   assert.ok(args.includes('--ignore-user-config'));
   assert.ok(args.includes('read-only'));
-});
-
-// Prevent the contradictory timing prerequisite that previously blocked brief UI states.
-
-import { appendInfrastructureFailure, verifyReport } from './core.mjs';
-
-test('infrastructure loss survives full report validation without satisfying coverage', () => {
-  const result = appendInfrastructureFailure(
-    {
-      status: 'failed',
-      summary: 'Reproduced',
-      checks: [
-        {
-          scenarioId: scenario.id,
-          expected: scenario.expected,
-          observed: 'Failure observed',
-          status: 'failed',
-          evidence: ['capture'],
-        },
-      ],
-    },
-    'Backend verification failed'
-  );
-  assert.equal(
-    verifyCoverage(verifyReport(result, new Map([['capture', {}]])), plan),
-    result
-  );
-  assert.equal(result.status, 'failed');
-  assert.throws(
-    () => verifyCoverage({ ...result, checks: [result.checks.at(-1)] }, plan),
-    /not accounted for/
-  );
-  assert.throws(
-    () =>
-      verifyCoverage(
-        { ...result, checks: [{ ...result.checks.at(-1), status: 'passed' }] },
-        plan
-      ),
-    /Invalid infrastructure/
-  );
-});
-
-// Required platform/base coverage must never become a claimed iOS pass.
-test('other platforms and base versions become scope notes, not iOS criteria', () => {
-  for (const extra of [
-    { platform: 'android' },
-    { platform: 'web' },
-    { platform: 'cosmos' },
-    { version: 'base' },
-  ]) {
-    const outside = { ...scenario, id: 'change-2', ...extra };
-    const mixed = verifyAssessment(
-      { ...plan, scenarios: [scenario, outside] },
-      files
-    );
-    assert.equal(mixed.decision, 'test');
-    assert.deepEqual(mixed.scenarios, [scenario]);
-    assert.equal(mixed.scopeNotes.length, 1);
-    const unsupported = verifyAssessment(
-      { ...plan, scenarios: [outside] },
-      files
-    );
-    assert.equal(unsupported.decision, 'blocked');
-    assert.equal(unsupported.scenarios.length, 0);
-  }
 });

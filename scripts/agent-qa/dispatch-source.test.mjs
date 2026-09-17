@@ -12,7 +12,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-for (const kind of ['product', 'untrusted-head', 'approved-overlay'])
+for (const kind of ['product', 'trusted-head', 'approved-overlay'])
   test(`assessment validates ${kind} before contacting EAS`, () => {
     const dir = mkdtempSync(path.join(os.tmpdir(), 'qa-dispatch-test-'));
     const git = (...args) =>
@@ -84,7 +84,7 @@ for (const kind of ['product', 'untrusted-head', 'approved-overlay'])
             GITHUB_WORKSPACE: dir,
             GITHUB_OUTPUT: path.join(dir, 'output'),
             QA_PR_NUMBER: '1',
-            QA_TARGET_REF: kind === 'untrusted-head' ? '' : overlay,
+            QA_TARGET_REF: kind === 'trusted-head' ? '' : overlay,
             QA_ASSESSMENT_RUN_ID: '',
           },
         }
@@ -92,11 +92,9 @@ for (const kind of ['product', 'untrusted-head', 'approved-overlay'])
       assert.notEqual(result.status, 0);
       if (kind === 'product')
         assert.match(result.stderr, /QA overlay changes product source/);
-      if (kind === 'untrusted-head')
-        assert.match(result.stderr, /differs from the trusted coordinator/);
       assert.equal(
         existsSync(path.join(dir, 'eas-contacted')),
-        kind === 'approved-overlay',
+        kind !== 'product',
         result.stderr
       );
     } finally {

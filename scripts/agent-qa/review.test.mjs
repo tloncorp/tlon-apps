@@ -6,45 +6,12 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import os from 'node:os';
 import {
-  sourceReader,
   evidenceCall,
   readActions,
   hasActionEvidence,
 } from './review-tools.mjs';
-import {
-  reviewArgs,
-  verifyDiscoveries,
-  unresolvedVideoAssessment,
-  replayVideoOnly,
-  reviewEvidence,
-} from './review.mjs';
+import { reviewArgs, verifyDiscoveries, reviewEvidence } from './review.mjs';
 import { verifyAssessment } from './assess.mjs';
-
-test('pending passed or failed replay cannot bypass full evidence review', async () => {
-  const dir = mkdtempSync(path.join(os.tmpdir(), 'qa-pending-replay-'));
-  try {
-    for (const status of ['passed', 'failed']) {
-      const mode = replayVideoOnly({ evidenceReview: 'pending' }, false);
-      assert.equal(mode, false);
-      await assert.rejects(
-        reviewEvidence({
-          assessment: {
-            scenarios: [
-              { id: 'change-1', method: 'simulator', files: ['app.ts'] },
-            ],
-          },
-          result: { status, checks: [{ scenarioId: 'change-1', status }] },
-          artifacts: dir,
-          videoOnly: mode,
-        }),
-        /ENOENT/
-      );
-    }
-    assert.equal(replayVideoOnly({ evidenceReview: 'completed' }, false), true);
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
 
 test('evidence reviewer can inspect original frames but has no device or shell tools', () => {
   const args = reviewArgs(
@@ -188,32 +155,8 @@ test('unplanned defects cannot be hidden by passing planned checks or cite nonex
         {},
         {},
       ]),
-    /relevant source/
+    /real before\/after/
   );
-});
-
-test('video follow-up prioritizes unresolved checks and preserves the full source scope', () => {
-  const assessment = {
-    scenarios: [
-      { id: 'change-1', method: 'simulator', files: ['one.tsx'] },
-      { id: 'change-2', method: 'simulator', files: ['two.tsx'] },
-      { id: 'change-3', method: 'unavailable', files: ['three.tsx'] },
-      { id: 'change-4', method: 'regression', files: ['four.ts'] },
-      { id: 'change-5', method: 'simulator', files: ['five.tsx'] },
-    ],
-  };
-  const plan = unresolvedVideoAssessment(assessment, {
-    checks: [
-      { scenarioId: 'change-1', status: 'passed' },
-      { scenarioId: 'change-2', status: 'blocked' },
-      { scenarioId: 'change-5', status: 'failed' },
-    ],
-  });
-  assert.deepEqual(
-    plan.scenarios.map((s) => s.id),
-    ['change-2', 'change-3']
-  );
-  assert.equal(plan.files.length, 5);
 });
 
 test('pending requests remain indexed attempts and cannot establish observations', () => {

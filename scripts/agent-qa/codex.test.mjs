@@ -36,7 +36,6 @@ test('operator interruption keeps each acceptance criterion pending for review',
     scenarios: [
       { id: 'edit', method: 'simulator', expected: 'The edited text persists' },
       { id: 'missing', method: 'unavailable', expected: 'Peer receives text' },
-      { id: 'unit', method: 'regression', expected: 'Parser retains text' },
     ],
   };
   const result = interruptedResult(plan, 'time limit');
@@ -135,7 +134,7 @@ test('parent cancellation terminates the agent', async () => {
   }
 });
 
-test('PR output schema rejects the generic smoke finding that broke the live run', () => {
+test('report refers to starting paths without enforcing acceptance text', () => {
   const schema = resultSchemaFor({
     scenarios: [
       {
@@ -148,10 +147,7 @@ test('PR output schema rejects the generic smoke finding that broke the live run
   const props = schema.properties.checks.items.properties;
   assert.deepEqual(props.scenarioId.enum, ['change-1', 'change-2']);
   assert.ok(!props.scenarioId.enum.includes('harness'));
-  assert.deepEqual(props.expected.enum, [
-    'Native header remains clear while scrolling',
-    'Edit opens the editor',
-  ]);
+  assert.equal(props.expected.enum, undefined);
   assert.deepEqual(
     resultSchemaFor().properties.checks.items.properties.scenarioId.enum,
     ['harness']

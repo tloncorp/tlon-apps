@@ -4,13 +4,15 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-const name = process.argv[2];
-if (!['review-recording.mjs', 'present-run.mjs'].includes(name))
-  throw new Error('Unknown resumable stage');
 for (let attempt = 1; attempt <= 2; attempt++) {
   const result = spawnSync(
     process.execPath,
-    [path.join(path.dirname(fileURLToPath(import.meta.url)), name)],
+    [
+      path.join(
+        path.dirname(fileURLToPath(import.meta.url)),
+        'review-recording.mjs'
+      ),
+    ],
     {
       stdio: 'inherit',
       env: process.env,

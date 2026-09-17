@@ -1,13 +1,9 @@
 import path from 'node:path';
 import os from 'node:os';
-import { assessmentForRetry } from './reuse-assessment.mjs';
 import { dispatchWorkflow } from './eas-dispatch.mjs';
-import { verifySourceOverlay, verifyTrustedHarness } from './assess.mjs';
-import { requiresBackend } from './fixtures.mjs';
-import { selectEvidence } from './publish.mjs';
+import { verifySourceOverlay } from './assess.mjs';
 import {
   workflowState,
-  recoveryArtifact,
   buildFinalStages,
   selectPreparedBuild,
   requestedBuild,
@@ -115,43 +111,18 @@ if (process.argv[2] === 'assess') {
   command('git', ['fetch', '--no-tags', '--depth=1', 'origin', requestedRef]);
   const ref = command('git', ['rev-parse', 'FETCH_HEAD']).trim();
   verifySourceOverlay(p.head.sha, ref);
-  verifyTrustedHarness(ref);
   const inputs = { assessment_pr_json: pr };
-  if (env.QA_ASSESSMENT_RUN_ID) {
-    if (
-      !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(
-        env.QA_ASSESSMENT_RUN_ID
-      )
-    )
-      throw new Error('Invalid assessment run ID');
-    inputs.prepared_assessment_json = assessmentForRetry(
-      eas(['workflow:view', env.QA_ASSESSMENT_RUN_ID]),
-      env.QA_ASSESSMENT_RUN_ID,
-      pr
-    );
-    console.log(
-      `Reusing assessment ${env.QA_ASSESSMENT_RUN_ID}; the build job revalidates its scenarios before backend setup.`
-    );
-  }
-  let plan = inputs.prepared_assessment_json;
-  if (!plan) {
-    const id = await dispatch(inputs, ref);
-    const run = await wait(id, 16, false, ['assess_pr']);
-    const job = run.jobs.find((j) => j.key === 'assess_pr');
-    plan = JSON.parse(job?.outputs?.assessment || 'null');
-  }
+  const id = await dispatch(inputs, ref);
+  const run = await wait(id, 16, false, ['assess_pr']);
+  const job = run.jobs.find((j) => j.key === 'assess_pr');
+  const plan = JSON.parse(job?.outputs?.assessment || 'null');
   if (!plan || plan.headSha !== p.head.sha || plan.baseSha !== p.base.sha)
     throw new Error('Assessment source mismatch');
   output('pr_json', pr);
   output('plan', plan);
   output('decision', plan.decision);
-  output('fixture_plan', plan.setup);
-  // Even a settings-only simulator check needs an isolated login/backend.
-  output('has_fixtures', requiresBackend(plan).toString());
   output('ref', ref);
-  console.log(
-    `Assessment: ${plan.decision}; fixtures: ${plan.setup.fixtures.join(', ') || 'none'}`
-  );
+  console.log(`Assessment: ${plan.decision}`);
 } else if (process.argv[2] === 'failed') {
   const number = env.QA_PR_NUMBER;
   if (!/^[1-9][0-9]*$/.test(number)) throw new Error('Missing PR number');
@@ -198,38 +169,14 @@ if (process.argv[2] === 'assess') {
   output('build_sha', build.outputs.git_commit_hash);
   output('build_run_id', id);
 } else if (process.argv[2] === 'finish') {
-  let id = env.QA_EAS_RUN_ID;
-  const original = await wait(id, 75, false, ['verdict', 'manual_report']);
-  let run = original;
-  // One cross-worker recovery if publication failed after durable capture.
-  // Same-worker checkpoints handle transient reviewer/publication failures first.
-  if (!run.jobs.some((j) => j.outputs?.comment_url)) {
-    const { video } = selectEvidence(original, id);
-    const artifact = recoveryArtifact(original);
-    if (!artifact || !video) throw new Error('No durable recording to resume');
-    const descriptor = {
-      id,
-      sha: original.gitCommitHash,
-      complete: true,
-      artifact: {
-        downloadUrl: artifact.downloadUrl,
-        fileSizeBytes: artifact.fileSizeBytes,
-      },
-      video: {
-        downloadUrl: video.downloadUrl,
-        fileSizeBytes: video.fileSizeBytes,
-      },
-    };
-    id = await dispatch(
-      { review_evidence_json: descriptor },
-      env.QA_TARGET_REF
-    );
-    run = await wait(id, 75, false, ['review_recording']);
-  }
+  const run = await wait(env.QA_EAS_RUN_ID, 75, false, [
+    'verdict',
+    'manual_report',
+  ]);
   const published = run.jobs.find((j) => j.outputs?.comment_url);
   if (!published)
     throw new Error(
-      'Review publication failed after recorded-evidence recovery'
+      'Review publication failed; see the saved artifacts and rerun the workflow'
     );
   console.log(`Automatic report: ${published.outputs.comment_url}`);
   output('comment_url', published.outputs.comment_url);

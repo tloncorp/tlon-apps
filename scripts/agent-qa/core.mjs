@@ -42,12 +42,11 @@ export function verifyContext(env, harnessSha) {
       throw new Error(
         'PR testing requires an assessment for these exact commits'
       );
-  } else if (env.QA_MODE !== 'workflow_dispatch') {
+  } else {
     throw new Error('Unsupported QA trigger');
   }
   return {
-    mode:
-      env.QA_MODE === 'pull_request' ? 'PR review' : 'Harness validation only',
+    mode: 'PR review',
     buildId: env.QA_BUILD_ID,
     buildSha: env.QA_BUILD_SHA,
     harnessSha,
@@ -55,10 +54,7 @@ export function verifyContext(env, harnessSha) {
     testShip: env.QA_TEST_SHIP,
     pr,
     sourceOverlay: env.QA_FULL_PR_RUN === 'true',
-    assessment:
-      env.QA_MODE === 'pull_request'
-        ? JSON.parse(env.QA_ASSESSMENT_JSON)
-        : undefined,
+    assessment: JSON.parse(env.QA_ASSESSMENT_JSON),
   };
 }
 
@@ -145,7 +141,7 @@ export function renderReport(context, report, usage) {
       `Harness commit: \`${context.harnessSha}\` · Device: ${context.device || 'not started'}`,
       ...(context.backend
         ? [
-            `Backend commit: \`${context.backend.source}\` · ${context.backend.fixtures?.length ? `Fixture setup: ${context.backend.fixtures.every((f) => f.verified) ? 'verified' : 'not verified'}` : `Peer receipt: ${context.backend.replyVerified === true ? 'verified on ~ten' : 'not verified'}`}`,
+            `Backend commit: \`${context.backend.source}\` · Backend preflight verified`,
           ]
         : []),
       context.otaDisabled
@@ -162,7 +158,7 @@ export function renderReport(context, report, usage) {
       '',
       ...(report.discoveries || []).map(
         (d) =>
-          `- **Unexpected finding — ${d.status}: ${clean(d.title)}**\n  Trigger: ${clean(d.trigger)}\n  Observed: ${clean(d.observed)}\n  Invariant: ${clean(d.invariant)} (source: ${clean(d.file)}; evidence actions: ${d.evidenceActions.join(', ')})`
+          `- **Unexpected finding — ${d.status}: ${clean(d.title)}**\n  Trigger: ${clean(d.trigger)}\n  Observed: ${clean(d.observed)}\n  Invariant: ${clean(d.invariant)} (evidence actions: ${d.evidenceActions.join(', ')})`
       ),
       '',
       ...(report.checks || []).map(
