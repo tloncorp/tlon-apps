@@ -1,6 +1,8 @@
 import type { Story } from '@tloncorp/api';
 import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
+import { isStopTips } from './campaign/templates.js';
+import { createLiveCampaign } from './campaign/live.js';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
 import type { OpenClawConfig, ReplyPayload } from 'openclaw/plugin-sdk/core';
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
@@ -743,7 +745,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     api.poke.bind(api),
     botShipName,
     account.url,
-    ({ app, path }) => api.scry(`/~/scry/${app}${path}.json`),
+    ({ app, path }) => api.scry(`/${app}${path}.json`),
     (path, method, body, options) =>
       api.requestJson(path, method, body, options)
   );
@@ -1462,6 +1464,21 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     });
 
     let nudgeRunner: ReturnType<typeof createNudgeRunner> | null = null;
+    let campaignActiveRuns = 0;
+    const campaign = effectiveOwnerShip
+      ? createLiveCampaign({
+          accountId: account.accountId,
+          owner: effectiveOwnerShip,
+          bot: botShipName,
+          config: () => core.config.loadConfig(),
+          botProfile: getBotProfile,
+          busy: () => campaignActiveRuns > 0,
+          telemetry,
+          signal: opts.abortSignal,
+          error: (error) =>
+            runtime.error?.(`[tlon] campaign: ${String(error)}`),
+        })
+      : null;
 
     // Clear expired pending nudge on startup (after persist callback is registered so del-entry fires).
     const rehydratedNudge = getPendingNudge(account.accountId);
@@ -2425,7 +2442,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       return /^~?[a-z-]+$/i.test(normalized) ? normalized : '';
     }
 
-    const processMessage = async (params: {
+    const processMessage = async (
+      params: Parameters<typeof processMessageInternal>[0]
+    ) => {
+      campaignActiveRuns++;
+      try {
+        return await processMessageInternal(params);
+      } finally {
+        campaignActiveRuns--;
+      }
+    };
+
+    const processMessageInternal = async (params: {
       messageId: string;
       senderShip: string;
       messageText: string;
@@ -3611,6 +3639,19 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                           }
 
                           deliveredMessageCount += 1;
+                          // These direct HTTP replies bypass the gateway message_sent hook.
+                          if (senderShip === effectiveOwnerShip) {
+                            await campaign
+                              ?.observeReply(
+                                replyText,
+                                groupChannel ?? senderShip
+                              )
+                              .catch((error) =>
+                                runtime.error?.(
+                                  `[tlon] campaign offer: ${String(error)}`
+                                )
+                              );
+                          }
                           contextLenses.recordPersistence(lens.lensId, {
                             postsReply: true,
                           });
@@ -3984,6 +4025,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           ownerShip: effectiveOwnerShip,
           log: (message) => runtime.log?.(message),
           trackStep: trackOnboardingStep(nest, groupId),
+          onInitialIntro: async (request, occurredAt) => {
+            await campaign
+              ?.enroll({ ...request, occurredAt, channelId: nest })
+              .catch((error) =>
+                runtime.error?.(`[tlon] campaign enrollment: ${String(error)}`)
+              );
+          },
           presentation,
         });
         if (opts.abortSignal?.aborted) return;
@@ -4217,6 +4265,16 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           return;
         }
 
+        if (senderShip === effectiveOwnerShip) {
+          if (
+            await campaign
+              ?.inbound(rawText, isStopTips(rawText))
+              .catch((error) =>
+                runtime.error?.(`[tlon] campaign activity: ${String(error)}`)
+              )
+          )
+            return;
+        }
         let handledOnboardingRequest = false;
         try {
           handledOnboardingRequest = await handleAgentOnboardingRequest({
@@ -4233,6 +4291,16 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             blob: content.blob,
             log: (message) => runtime.log?.(message),
             trackStep: trackOnboardingStep(nest, channelToGroup.get(nest)),
+            requestSentAt: content.sent,
+            onInitialIntro: async (request, occurredAt) => {
+              await campaign
+                ?.enroll({ ...request, occurredAt, channelId: nest })
+                .catch((error) =>
+                  runtime.error?.(
+                    `[tlon] campaign enrollment: ${String(error)}`
+                  )
+                );
+            },
             presentation: {
               startThinking: () => {
                 computingPresence.refreshRun({
@@ -4529,12 +4597,19 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           }
         }
 
+        let campaignContext: string | undefined;
+        if (senderShip === effectiveOwnerShip) {
+          campaignContext = await campaign?.replyContext(nest);
+          if (await campaign?.inboundInConversation(rawText, nest)) return;
+        }
         const parsed = parseChannelNest(nest);
         const citedContent = await resolveCitedContent(content.content);
         await processMessage({
           messageId: messageId ?? '',
           senderShip,
-          messageText: rawText,
+          messageText: campaignContext
+            ? `${campaignContext}\n\n[Current owner message]\n${rawText}`
+            : rawText,
           ...(citedContent ? { citedContent } : {}),
           gateText: engagementText,
           trigger,
@@ -4862,11 +4937,25 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           return;
         }
 
+        let campaignContext: string | undefined;
+        if (
+          authorShip === effectiveOwnerShip &&
+          senderShip === effectiveOwnerShip
+        ) {
+          try {
+            campaignContext = await campaign?.replyContext();
+            if (await campaign?.inbound(rawText, true)) return;
+          } catch (error) {
+            runtime.error?.(`[tlon] campaign reply: ${String(error)}`);
+          }
+        }
         const citedContent = await resolveCitedContent(dmContent.content);
         await processMessage({
           messageId: effectiveMessageId ?? '',
           senderShip,
-          messageText: rawText,
+          messageText: campaignContext
+            ? `${campaignContext}\n\n[Current owner message]\n${rawText}`
+            : rawText,
           ...(citedContent ? { citedContent } : {}),
           gateText: engagementText,
           trigger: 'dm',
@@ -5819,6 +5908,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         }
       };
 
+      campaign?.start();
+
       // Periodically refresh channel discovery
       const pollInterval = setInterval(
         async () => {
@@ -5856,11 +5947,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         2 * 60 * 1000
       );
 
+      let campaignRefreshTicks = 0;
       const settingsRefreshInterval = setInterval(async () => {
         if (opts.abortSignal?.aborted) {
           return;
         }
         await refreshSettingsNow();
+        // Reuse the five-minute monitor interval for a local campaign check
+        // every fifteen minutes. History/privacy are fetched only when due.
+        if (++campaignRefreshTicks === 3) {
+          campaignRefreshTicks = 0;
+          await campaign?.check();
+        }
       }, SETTINGS_REFRESH_INTERVAL_MS);
 
       // Plugin-owned re-engagement nudge scheduler. Owns tick lifecycle and
@@ -5959,6 +6057,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // `setLocalPendingNudge` / `enqueueStageClear` / etc. writes land
       // inside the queues we flush below, rather than leaking into a
       // half-closed api after cleanup.
+      await campaign?.stop();
       await nudgeRunner?.stop();
       await ownerReplyPersistence.flush();
       await pendingNudgePersistence.flush();
