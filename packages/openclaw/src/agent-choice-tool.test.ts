@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   type AgentChoiceToolParams,
+  agentChoiceToolParameters,
   buildAgentChoiceBlob,
   createAgentChoiceToolExecutor,
 } from './agent-choice-tool.js';
@@ -16,6 +17,13 @@ const validChoice: AgentChoiceToolParams = {
 };
 
 describe('agent choice tool', () => {
+  it('advertises the mobile-safe label limit to the model', () => {
+    expect(agentChoiceToolParameters.properties.options.items).toEqual({
+      type: 'string',
+      maxLength: 36,
+    });
+  });
+
   it('builds a valid A2UI SmallChoice with model-authored options', () => {
     const entry = buildAgentChoiceBlob(validChoice).find(
       (candidate) => candidate.type === 'a2ui'

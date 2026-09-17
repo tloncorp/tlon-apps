@@ -47,8 +47,8 @@ export const agentChoiceToolParameters = {
       minItems: 2,
       maxItems: MAX_OPTIONS,
       description:
-        'Two to six short, useful answers. Approach answers must be concise ways of gathering information or developing the answer, not output formats or topic slices. The control also lets the owner write their own answer.',
-      items: { type: 'string' },
+        'Two to six short, useful answers, each at most 36 characters so labels fit the mobile row. Approach answers must be concise ways of gathering information or developing the answer, not output formats or topic slices. The control also lets the owner write their own answer.',
+      items: { type: 'string', maxLength: MAX_APPROACH_OPTION_LENGTH },
     },
   },
   required: ['target', 'surfaceId', 'dimension', 'question', 'options'],
