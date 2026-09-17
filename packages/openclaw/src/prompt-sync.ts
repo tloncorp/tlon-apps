@@ -15,6 +15,7 @@ import {
   type OpenClawConfig,
 } from 'openclaw/plugin-sdk/core';
 
+import { normalizeShip } from './targets.js';
 import { resolveTlonAccount } from './types.js';
 
 export const PROMPT_FILE_NAMES = [
@@ -35,6 +36,15 @@ export const STEWARD_PROMPTS_FINALIZE_PATH = '/steward/~/v1/prompts/finalize';
 const MAX_COMPLETED_REQUESTS = 1_000;
 /** Coalesce an editor's write/rename event burst into one projection. */
 export const PROMPT_WATCH_DEBOUNCE_MS = 150;
+/**
+ * A failed poke does not necessarily drop the SSE stream, so nothing else
+ * would re-run a lost owner configuration or projection. Retries run inside
+ * the serial queue: ordering matters more than latency here, and the ceiling
+ * keeps a wedged ship from blocking shutdown for longer than a close takes.
+ */
+export const PROMPT_RETRY_ATTEMPTS = 6;
+export const PROMPT_RETRY_BASE_MS = 500;
+export const PROMPT_RETRY_MAX_MS = 30_000;
 
 type Logger = {
   log: (message: string) => void;
@@ -65,12 +75,17 @@ type WatchWorkspace = (
 
 type PromptDispatch = {
   requestId: string;
+  requester: string;
   action: { set: { name: PromptFileName; text: string } };
 };
 
 type PromptOutcome =
   | { type: 'updated'; name: PromptFileName }
-  | { type: 'error'; errorType: 'harness-error'; message: string[] };
+  | {
+      type: 'error';
+      errorType: 'harness-error' | 'not-authorized';
+      message: string[];
+    };
 
 export type PromptSync = {
   /** Configure the owner and publish the initial workspace projection. */
@@ -97,8 +112,11 @@ function isWithinSizeLimit(text: string): boolean {
 }
 
 /**
- * Only one account may project prompts because OpenClaw resolves all account
- * monitors to the same default-agent workspace.
+ * Only one account may project prompts. Accounts usually resolve to the same
+ * agent workspace, and two monitors writing one workspace would race each
+ * other's edits. Routing can in principle give two accounts different
+ * workspaces; this gate stays conservative rather than trying to detect that,
+ * so the cost of the exotic case is a missing projection, never a corrupt one.
  */
 export function shouldRunPromptSync(
   config: OpenClawConfig,
@@ -125,20 +143,28 @@ function parseDispatch(fact: unknown): PromptDispatch | null {
   }
   const candidate = fact as {
     requestId?: unknown;
+    requester?: unknown;
     action?: { set?: { name?: unknown; text?: unknown } };
   };
   const requestId = candidate.requestId;
+  const requester = candidate.requester;
   const set = candidate.action?.set;
   if (
     typeof requestId !== 'string' ||
     requestId.length === 0 ||
+    typeof requester !== 'string' ||
+    requester.length === 0 ||
     !set ||
     !isAllowedPromptName(set.name) ||
     typeof set.text !== 'string'
   ) {
     return null;
   }
-  return { requestId, action: { set: { name: set.name, text: set.text } } };
+  return {
+    requestId,
+    requester: normalizeShip(requester),
+    action: { set: { name: set.name, text: set.text } },
+  };
 }
 
 /**
@@ -203,11 +229,33 @@ export async function writeWorkspacePrompt(params: {
   await fs.mkdir(params.workspaceDir, { recursive: true });
   const target = path.join(params.workspaceDir, params.name);
   const temporary = `${target}.${randomUUID()}.tmp`;
+  // Replacing through a temporary file would otherwise reset the target to
+  // Node's default 0666 filtered by the umask, so an owner edit of a 0600
+  // prompt would publish it to every other local user. lstat, so a symlinked
+  // name reports the link rather than whatever it points at; only a regular
+  // file's mode is worth carrying over. A file we create keeps the process
+  // default, as any other new workspace file would.
+  let mode: number | null = null;
+  try {
+    const existing = await fs.lstat(target);
+    if (existing.isFile()) {
+      mode = existing.mode & 0o777;
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw error;
+    }
+  }
   try {
     await fs.writeFile(temporary, params.text, {
       encoding: 'utf8',
       flag: 'wx',
+      ...(mode === null ? {} : { mode }),
     });
+    // writeFile's mode is still masked by the umask; chmod is not.
+    if (mode !== null) {
+      await fs.chmod(temporary, mode);
+    }
     await fs.rename(temporary, target);
   } catch (error) {
     await fs.unlink(temporary).catch(() => {});
@@ -232,45 +280,100 @@ export function createPromptSync(opts: {
   logger: Logger;
   /** Injectable so the watcher behavior can be tested without open handles. */
   watchWorkspace?: WatchWorkspace;
+  /** Injectable so retry behavior can be tested without real backoff waits. */
+  retry?: { attempts?: number; baseMs?: number; maxMs?: number };
 }): PromptSync {
+  const retryAttempts = opts.retry?.attempts ?? PROMPT_RETRY_ATTEMPTS;
+  const retryBaseMs = opts.retry?.baseMs ?? PROMPT_RETRY_BASE_MS;
+  const retryMaxMs = opts.retry?.maxMs ?? PROMPT_RETRY_MAX_MS;
   let configured = false;
   let closed = false;
   let watcher: WorkspaceWatcher | null = null;
   let watchTimer: ReturnType<typeof setTimeout> | null = null;
   let queue: Promise<void> = Promise.resolve();
+  // Woken by close() so a backoff sleep never outlives the monitor.
+  let retryWaiters = new Set<() => void>();
   // Steward suppresses completed commands itself. This cache also makes a
   // duplicate fact on one live SSE channel a terminal-result retry rather
   // than a second workspace write.
   const completed = new Map<string, PromptOutcome>();
 
-  const configure = async () => {
-    if (configured) {
+  const sleep = (ms: number) =>
+    new Promise<void>((resolve) => {
+      if (closed) {
+        resolve();
+        return;
+      }
+      const wake = () => {
+        clearTimeout(timer);
+        retryWaiters.delete(wake);
+        resolve();
+      };
+      const timer = setTimeout(wake, ms);
+      retryWaiters.add(wake);
+    });
+
+  /** Retry a ship-side operation until it lands, this sync closes, or we give up. */
+  const withRetry = async (label: string, work: () => Promise<void>) => {
+    for (let attempt = 1; ; attempt += 1) {
+      if (closed) {
+        throw new Error(`${label} abandoned: prompt sync closed`);
+      }
+      try {
+        await work();
+        return;
+      } catch (error) {
+        if (closed || attempt >= retryAttempts) {
+          throw error;
+        }
+        const wait = Math.min(retryBaseMs * 2 ** (attempt - 1), retryMaxMs);
+        opts.logger.warn(
+          `[tlon] ${label} failed (attempt ${attempt}), retrying in ${wait}ms: ${errorMessage(error)}`
+        );
+        await sleep(wait);
+      }
+    }
+  };
+
+  /**
+   * `force` re-asserts ownership after a reconnect: %steward may have been
+   * reset or re-pointed while this process stayed up, in which case a cached
+   * flag would leave the owner unauthorized to watch or edit until restart.
+   */
+  const configure = async (force = false) => {
+    if (configured && !force) {
       return;
     }
-    await opts.poke({
-      app: 'steward',
-      mark: 'steward-action-1',
-      json: { configure: { owner: opts.owner } },
+    await withRetry('Steward owner configure', async () => {
+      await opts.poke({
+        app: 'steward',
+        mark: 'steward-action-1',
+        json: { configure: { owner: opts.owner } },
+      });
     });
     configured = true;
   };
 
   const publish = async (reason: string) => {
-    const prompts = await readWorkspacePrompts(opts.workspaceDir);
-    await opts.poke({
-      app: 'steward',
-      mark: 'steward-prompts-action-1',
-      json: { project: prompts },
+    await withRetry(`Prompt projection (${reason})`, async () => {
+      const prompts = await readWorkspacePrompts(opts.workspaceDir);
+      await opts.poke({
+        app: 'steward',
+        mark: 'steward-prompts-action-1',
+        json: { project: prompts },
+      });
+      opts.logger.log(
+        `[tlon] Projected ${Object.keys(prompts).length} prompt file(s) (${reason})`
+      );
     });
-    opts.logger.log(
-      `[tlon] Projected ${Object.keys(prompts).length} prompt file(s) (${reason})`
-    );
   };
 
   const finalize = async (requestId: string, body: PromptOutcome) => {
-    await opts.requestJson(STEWARD_PROMPTS_FINALIZE_PATH, 'POST', {
-      requestId,
-      body,
+    await withRetry(`Prompt finalize ${requestId}`, async () => {
+      await opts.requestJson(STEWARD_PROMPTS_FINALIZE_PATH, 'POST', {
+        requestId,
+        body,
+      });
     });
   };
 
@@ -287,6 +390,13 @@ export function createPromptSync(opts: {
   };
 
   const enqueue = (work: () => Promise<void>) => {
+    // A dispatch can still arrive between close() and the SSE client
+    // shutting down. Refuse it rather than let a torn-down monitor write
+    // the workspace its replacement already owns.
+    if (closed) {
+      opts.logger.warn('[tlon] Prompt sync is closed; dropped queued work');
+      return queue;
+    }
     queue = queue.then(work).catch((error) => {
       opts.logger.warn(`[tlon] Prompt sync failed: ${errorMessage(error)}`);
     });
@@ -352,7 +462,7 @@ export function createPromptSync(opts: {
       }),
     project: (reason) =>
       enqueue(async () => {
-        await configure();
+        await configure(true);
         await publish(reason);
       }),
     handleDispatch: (fact) =>
@@ -362,47 +472,83 @@ export function createPromptSync(opts: {
           opts.logger.warn('[tlon] Ignored malformed steward prompt dispatch');
           return;
         }
-        const { requestId, action } = dispatch;
+        const { requestId, requester, action } = dispatch;
         const prior = completed.get(requestId);
         if (prior) {
           await finalize(requestId, prior);
           return;
         }
+        // %steward authorizes a command against the owner it held when the
+        // command arrived, and replays it to whichever harness subscribes.
+        // After an ownerShip change this watch goes live before our
+        // %configure lands, so the replay can carry the previous owner's
+        // edit; applying it would write text the current owner never asked
+        // for.
+        if (requester !== opts.owner) {
+          const outcome: PromptOutcome = {
+            type: 'error',
+            errorType: 'not-authorized',
+            message: [`requester ${requester} is not the configured owner`],
+          };
+          rememberCompleted(requestId, outcome);
+          opts.logger.warn(
+            `[tlon] Refused prompt edit ${requestId}: ${requester} is not the configured owner ${opts.owner}`
+          );
+          await finalize(requestId, outcome);
+          return;
+        }
+        // Facts can arrive as soon as the subscription becomes live. Ensure
+        // an early replay cannot run ahead of the startup projection's
+        // owner configuration.
+        await configure();
+        let outcome: PromptOutcome;
         try {
-          // Facts can arrive as soon as the subscription becomes live. Ensure
-          // an early replay cannot run ahead of the startup projection's
-          // owner configuration.
-          await configure();
           await writeWorkspacePrompt({
             workspaceDir: opts.workspaceDir,
             name: action.set.name,
             text: action.set.text,
           });
-          // The projection lands before %finalize, so every terminal owner
-          // response corresponds to the workspace snapshot it requested.
-          await publish(`edit ${action.set.name}`);
+          outcome = { type: 'updated', name: action.set.name };
         } catch (error) {
-          const outcome: PromptOutcome = {
+          outcome = {
             type: 'error',
             errorType: 'harness-error',
             message: [errorMessage(error)],
           };
-          await finalize(requestId, outcome);
-          rememberCompleted(requestId, outcome);
           opts.logger.warn(
             `[tlon] Prompt edit ${requestId} failed: ${errorMessage(error)}`
           );
-          return;
         }
-        const outcome: PromptOutcome = {
-          type: 'updated',
-          name: action.set.name,
-        };
-        await finalize(requestId, outcome);
+        // Cache before the ship steps. The write has already either happened
+        // or not, so a replay after a failed projection or finalize must
+        // retry only the terminal response — repeating the write would put
+        // this text back over whatever edit landed in between.
         rememberCompleted(requestId, outcome);
+        if (outcome.type === 'updated') {
+          // The projection lands before %finalize, so every terminal owner
+          // response corresponds to the workspace snapshot it requested. A
+          // projection that fails anyway must not turn a completed write
+          // into an error: the write stands, the watcher this write already
+          // woke re-projects it, and a reconnect re-projects it again.
+          try {
+            await publish(`edit ${action.set.name}`);
+          } catch (error) {
+            opts.logger.warn(
+              `[tlon] Prompt edit ${requestId} was written but not projected: ${errorMessage(error)}`
+            );
+          }
+        }
+        await finalize(requestId, outcome);
       }),
     close: async () => {
       closed = true;
+      // Wake every backoff sleep so an unreachable ship cannot hold the
+      // queue — and therefore this close — open for its full retry budget.
+      const waiters = retryWaiters;
+      retryWaiters = new Set();
+      for (const wake of waiters) {
+        wake();
+      }
       if (watchTimer) {
         clearTimeout(watchTimer);
         watchTimer = null;

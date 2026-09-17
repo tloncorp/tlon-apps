@@ -12,6 +12,9 @@ import {
   shouldRunPromptSync,
 } from './prompt-sync.js';
 
+/** Matches the injected retry budget below, so tests can exhaust it. */
+const RETRY_ATTEMPTS = 3;
+
 let workspaceDir: string;
 
 beforeEach(() => {
@@ -22,7 +25,24 @@ afterEach(() => {
   fs.rmSync(workspaceDir, { recursive: true, force: true });
 });
 
-function makeSync() {
+/** A dispatch as %steward sends it, authorized by the configured owner. */
+function dispatchFrom(
+  requestId: string,
+  name: 'SOUL.md' | 'USER.md' | 'AGENTS.md',
+  text: string,
+  requester = '~zod'
+) {
+  return { requestId, requester, action: { set: { name, text } } };
+}
+
+function makeSync(
+  opts: {
+    /** Fail the first `n` pokes carrying this json key, then succeed. */
+    failPokes?: { key: string; times: number };
+    /** Fail the first `n` finalize requests, then succeed. */
+    failFinalize?: number;
+  } = {}
+) {
   const pokes: Array<{ app: string; mark: string; json: unknown }> = [];
   const requests: Array<{ path: string; method: string; body: unknown }> = [];
   const logger = { log: vi.fn(), warn: vi.fn() };
@@ -36,13 +56,27 @@ function makeSync() {
       return watcher;
     },
   };
+  let pokeFailuresLeft = opts.failPokes?.times ?? 0;
+  let finalizeFailuresLeft = opts.failFinalize ?? 0;
   const sync = createPromptSync({
     owner: '~zod',
     workspaceDir,
     poke: async (poke) => {
+      if (
+        opts.failPokes &&
+        pokeFailuresLeft > 0 &&
+        Object.hasOwn(poke.json as object, opts.failPokes.key)
+      ) {
+        pokeFailuresLeft -= 1;
+        throw new Error(`poke ${opts.failPokes.key} refused`);
+      }
       pokes.push(poke);
     },
     requestJson: async (path, method, body) => {
+      if (finalizeFailuresLeft > 0) {
+        finalizeFailuresLeft -= 1;
+        throw new Error('finalize refused');
+      }
       requests.push({ path, method, body });
     },
     logger,
@@ -50,6 +84,8 @@ function makeSync() {
       watchListeners.push(listener);
       return watcher;
     },
+    // Exercise the retry loop without waiting out the real backoff.
+    retry: { attempts: RETRY_ATTEMPTS, baseMs: 0, maxMs: 0 },
   });
   return { sync, pokes, requests, logger, watchListeners, watcherClose };
 }
@@ -156,10 +192,7 @@ describe('prompt workspace projection', () => {
   it('writes an owner edit, projects it, and then finalizes it', async () => {
     const { sync, pokes, requests } = makeSync();
 
-    await sync.handleDispatch({
-      requestId: '0v1',
-      action: { set: { name: 'SOUL.md', text: 'be exact' } },
-    });
+    await sync.handleDispatch(dispatchFrom('0v1', 'SOUL.md', 'be exact'));
 
     expect(fs.readFileSync(path.join(workspaceDir, 'SOUL.md'), 'utf8')).toBe(
       'be exact'
@@ -192,10 +225,9 @@ describe('prompt workspace projection', () => {
     fs.mkdirSync(path.join(workspaceDir, 'SOUL.md'));
     const { sync, pokes, requests } = makeSync();
 
-    await sync.handleDispatch({
-      requestId: '0v2',
-      action: { set: { name: 'SOUL.md', text: 'cannot write a directory' } },
-    });
+    await sync.handleDispatch(
+      dispatchFrom('0v2', 'SOUL.md', 'cannot write a directory')
+    );
 
     expect(pokes).toEqual([
       {
@@ -224,14 +256,8 @@ describe('prompt workspace projection', () => {
     const { sync, pokes, requests } = makeSync();
 
     await Promise.all([
-      sync.handleDispatch({
-        requestId: '0v3',
-        action: { set: { name: 'SOUL.md', text: 'first' } },
-      }),
-      sync.handleDispatch({
-        requestId: '0v4',
-        action: { set: { name: 'USER.md', text: 'second' } },
-      }),
+      sync.handleDispatch(dispatchFrom('0v3', 'SOUL.md', 'first')),
+      sync.handleDispatch(dispatchFrom('0v4', 'USER.md', 'second')),
     ]);
 
     expect(pokes.map((poke) => poke.json)).toEqual([
@@ -255,10 +281,7 @@ describe('prompt workspace projection', () => {
 
   it('re-finalizes duplicate dispatches without writing or projecting again', async () => {
     const { sync, pokes, requests } = makeSync();
-    const dispatch = {
-      requestId: '0v5',
-      action: { set: { name: 'SOUL.md' as const, text: 'once' } },
-    };
+    const dispatch = dispatchFrom('0v5', 'SOUL.md', 'once');
 
     await sync.handleDispatch(dispatch);
     await sync.handleDispatch(dispatch);
@@ -279,6 +302,134 @@ describe('prompt workspace projection', () => {
         body: { requestId: '0v5', body: { type: 'updated', name: 'SOUL.md' } },
       },
     ]);
+  });
+
+  it('refuses a dispatch authorized by a previous owner', async () => {
+    const { sync, pokes, requests, logger } = makeSync();
+
+    await sync.handleDispatch(
+      dispatchFrom('0v6', 'SOUL.md', 'from the old owner', '~bus')
+    );
+
+    expect(fs.existsSync(path.join(workspaceDir, 'SOUL.md'))).toBe(false);
+    expect(pokes).toEqual([]);
+    expect(requests).toEqual([
+      {
+        path: '/steward/~/v1/prompts/finalize',
+        method: 'POST',
+        body: {
+          requestId: '0v6',
+          body: {
+            type: 'error',
+            errorType: 'not-authorized',
+            message: [expect.stringContaining('~bus')],
+          },
+        },
+      },
+    ]);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('not the configured owner')
+    );
+  });
+
+  it('replays only the response when a completed edit failed to finalize', async () => {
+    const { sync, requests } = makeSync({ failFinalize: RETRY_ATTEMPTS });
+    const dispatch = dispatchFrom('0v7', 'SOUL.md', 'original');
+
+    await sync.handleDispatch(dispatch);
+    expect(requests).toEqual([]);
+
+    // %steward still holds the request, so it replays it after recovery. The
+    // newer text must survive: only the terminal response may be retried.
+    fs.writeFileSync(path.join(workspaceDir, 'SOUL.md'), 'newer local edit');
+    await sync.handleDispatch(dispatch);
+
+    expect(fs.readFileSync(path.join(workspaceDir, 'SOUL.md'), 'utf8')).toBe(
+      'newer local edit'
+    );
+    expect(requests).toEqual([
+      {
+        path: '/steward/~/v1/prompts/finalize',
+        method: 'POST',
+        body: { requestId: '0v7', body: { type: 'updated', name: 'SOUL.md' } },
+      },
+    ]);
+  });
+
+  it('reports a written edit as updated even when its projection fails', async () => {
+    const { sync, requests } = makeSync({
+      failPokes: { key: 'project', times: 99 },
+    });
+
+    await sync.handleDispatch(dispatchFrom('0v8', 'SOUL.md', 'written'));
+
+    expect(fs.readFileSync(path.join(workspaceDir, 'SOUL.md'), 'utf8')).toBe(
+      'written'
+    );
+    expect(requests).toEqual([
+      {
+        path: '/steward/~/v1/prompts/finalize',
+        method: 'POST',
+        body: { requestId: '0v8', body: { type: 'updated', name: 'SOUL.md' } },
+      },
+    ]);
+  });
+
+  it('retries a failed projection until it lands', async () => {
+    const { sync, pokes, logger } = makeSync({
+      failPokes: { key: 'project', times: 2 },
+    });
+    fs.writeFileSync(path.join(workspaceDir, 'SOUL.md'), 'eventually');
+
+    await sync.start();
+
+    expect(pokes.map((poke) => poke.json)).toEqual([
+      { configure: { owner: '~zod' } },
+      { project: { 'SOUL.md': 'eventually' } },
+    ]);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('retrying')
+    );
+  });
+
+  it('re-asserts ownership when reprojecting after a reconnect', async () => {
+    const { sync, pokes } = makeSync();
+
+    await sync.start();
+    await sync.project('reconnect');
+
+    // %steward may have been reset or re-pointed while this process stayed
+    // up, so the owner is configured again rather than assumed.
+    expect(pokes.map((poke) => poke.json)).toEqual([
+      { configure: { owner: '~zod' } },
+      { project: {} },
+      { configure: { owner: '~zod' } },
+      { project: {} },
+    ]);
+  });
+
+  it('drops dispatches that arrive after close', async () => {
+    const { sync, pokes, requests } = makeSync();
+
+    await sync.start();
+    await sync.close();
+    await sync.handleDispatch(dispatchFrom('0v9', 'SOUL.md', 'too late'));
+
+    expect(fs.existsSync(path.join(workspaceDir, 'SOUL.md'))).toBe(false);
+    expect(pokes).toHaveLength(2);
+    expect(requests).toEqual([]);
+  });
+
+  it('keeps a restrictive mode when replacing an existing prompt file', async () => {
+    const target = path.join(workspaceDir, 'SOUL.md');
+    fs.writeFileSync(target, 'private', { mode: 0o600 });
+    fs.chmodSync(target, 0o600);
+    const { sync } = makeSync();
+
+    await sync.handleDispatch(dispatchFrom('0va', 'SOUL.md', 'still private'));
+
+    expect(fs.readFileSync(target, 'utf8')).toBe('still private');
+    expect(fs.statSync(target).mode & 0o777).toBe(0o600);
   });
 });
 
