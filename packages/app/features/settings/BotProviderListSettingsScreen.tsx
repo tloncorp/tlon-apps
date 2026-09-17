@@ -21,6 +21,7 @@ import {
   getLLMAuthProviderStatus,
   isLLMAuthProviderConnected,
 } from './bot/openAiSubscription';
+import { useBotSettingsDraftStore } from './bot/botSettingsDraftStore';
 import { useBotSettingsQueries } from './bot/useBotSettingsData';
 
 type Props = NativeStackScreenProps<
@@ -28,7 +29,7 @@ type Props = NativeStackScreenProps<
   'BotProviderListSettings'
 >;
 
-export type BotProviderListKind = 'subscriptions' | 'apiKeys';
+type BotProviderListKind = 'subscriptions' | 'apiKeys';
 
 const listMeta: Record<
   BotProviderListKind,
@@ -49,6 +50,7 @@ export function BotProviderListSettingsScreen(props: Props) {
   const meta = listMeta[kind];
   const isWindowNarrow = useIsWindowNarrow();
   const queries = useBotSettingsQueries();
+  const applying = useBotSettingsDraftStore((state) => state.applying);
 
   const handleBack = useCallback(() => {
     props.navigation.goBack();
@@ -108,7 +110,9 @@ export function BotProviderListSettingsScreen(props: Props) {
                     value={provider.summary}
                     valueColor={provider.connected ? '$primaryText' : undefined}
                     icon="Link"
-                    disabled={!queries.botReady || !providerKeysReady}
+                    disabled={
+                      applying || !queries.botReady || !providerKeysReady
+                    }
                     onPress={() =>
                       navigate('BotOpenAISubscription', {
                         provider: provider.providerId,
@@ -128,7 +132,7 @@ export function BotProviderListSettingsScreen(props: Props) {
                         : 'Add key'
                     }
                     icon="Lock"
-                    disabled={!providerKeysReady}
+                    disabled={applying || !providerKeysReady}
                     onPress={() =>
                       navigate('BotApiKeySettings', { provider: option.id })
                     }

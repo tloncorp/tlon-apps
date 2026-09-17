@@ -1,6 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createDevLogger } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/db';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect } from 'react';
 import { Alert } from 'react-native';
@@ -16,6 +15,7 @@ import {
   BotSettingsSections,
   useBotSettingsHub,
 } from './bot/BotSettingsSections';
+import { useHostingSession } from './bot/useHostingSession';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BotSettings'> & {
   zdrRowLayout?: {
@@ -35,60 +35,42 @@ export function BotSettingsScreen(props: Props) {
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
   const hub = useBotSettingsHub();
+  const hostingSession = useHostingSession();
+  const { navigation } = props;
 
-  // Bot settings require a live hosting session: prompt for re-auth when the
-  // stored session is expired, and bail out when credentials are missing
-  // entirely (nothing here can load without them).
+  // Bot settings require a live hosting session. This screen can be reached
+  // directly (profile link, deep link), so prompt for re-auth when the stored
+  // session is stale and bail out when credentials are missing entirely.
   useEffect(() => {
-    let cancelled = false;
-    async function checkHostingSession() {
-      const [isExpired, authToken, hostingUserId] = await Promise.all([
-        db.hostingAuthExpired.getValue(),
-        db.hostingAuthToken.getValue(),
-        db.hostingUserId.getValue(),
-      ]);
-      if (cancelled) {
-        return;
-      }
-      if (isExpired) {
-        Alert.alert(
-          'Logout Required',
-          "To access bot settings, you'll need to log back in again.",
-          [
-            {
-              text: 'Cancel',
-              onPress: () => props.navigation.goBack(),
-              style: 'cancel',
-            },
-            {
-              text: 'Logout',
-              onPress: handleLogout,
-            },
-          ]
-        );
-        return;
-      }
-      if (!authToken || !hostingUserId) {
-        logger.trackError('Bot settings opened without hosting session', {
-          hasAuthToken: Boolean(authToken),
-          hasHostingUserId: Boolean(hostingUserId),
-        });
-        Alert.alert('Error', 'Cannot access bot settings.', [
-          { text: 'OK', onPress: () => props.navigation.goBack() },
-        ]);
-      }
+    if (hostingSession === 'expired') {
+      Alert.alert(
+        'Logout Required',
+        "To access bot settings, you'll need to log back in again.",
+        [
+          {
+            text: 'Cancel',
+            onPress: () => navigation.goBack(),
+            style: 'cancel',
+          },
+          {
+            text: 'Logout',
+            onPress: handleLogout,
+          },
+        ]
+      );
+      return;
     }
-    checkHostingSession().catch((error) => {
-      logger.trackError('Failed to check hosting session', { error });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [handleLogout, props.navigation]);
+    if (hostingSession === 'missing') {
+      logger.trackError('Bot settings opened without hosting session');
+      Alert.alert('Error', 'Cannot access bot settings.', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
+    }
+  }, [handleLogout, hostingSession, navigation]);
 
   const handleBack = useCallback(() => {
-    props.navigation.goBack();
-  }, [props.navigation]);
+    navigation.goBack();
+  }, [navigation]);
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
@@ -106,9 +88,7 @@ export function BotSettingsScreen(props: Props) {
         <View paddingBottom="$2xl">
           <BotSettingsSections
             hub={hub}
-            navigate={
-              props.navigation.navigate as unknown as BotSettingsNavigate
-            }
+            navigate={navigation.navigate as unknown as BotSettingsNavigate}
             zdrRowLayout={props.zdrRowLayout}
           />
         </View>

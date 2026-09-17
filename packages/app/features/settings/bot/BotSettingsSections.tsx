@@ -10,6 +10,7 @@ import {
   BotSettingsRow,
   BotSettingsSection,
   BotSwitchRow,
+  PendingBadge,
 } from './BotSettingsUI';
 import {
   BASIC_PROVIDER_ID,
@@ -43,9 +44,10 @@ export type BotSettingsNavigate = (
 ) => void;
 
 /**
- * Queries, draft and apply state for one bot-settings surface. Mount this once
- * per screen: `useApplyBotSettings` keeps its own `applying`/`applyError`, so a
- * second instance would render an apply bar that never reflects the first.
+ * Queries, draft and apply state for one bot-settings surface. Several of these
+ * can be mounted at once (the Settings tab plus whichever bot screen is open on
+ * top of it); the draft and the apply state both live in the shared store, so
+ * every apply bar shows the same thing.
  */
 export function useBotSettingsHub() {
   const queries = useBotSettingsQueries();
@@ -101,8 +103,9 @@ export function BotSettingsSections({
   const onBasicModel = draft.model.provider === BASIC_PROVIDER_ID;
   // Tlon picks the fallback chain for its own hosted model, so there is no
   // count to show until the user moves off it or sets fallbacks themselves.
-  const fallbacksValue =
-    onBasicModel && draft.model.fallbacks.length === 0
+  const fallbacksValue = !settingsReady
+    ? undefined
+    : onBasicModel && draft.model.fallbacks.length === 0
       ? 'Managed by Tlon'
       : `${draft.model.fallbacks.length} set`;
 
@@ -150,7 +153,10 @@ export function BotSettingsSections({
           value={
             queries.llmAuthStatusQuery.isLoading
               ? 'Checking…'
-              : `${connectedSubscriptionCount} connected`
+              : queries.llmAuthStatusQuery.isError &&
+                  queries.llmAuthStatusQuery.data === undefined
+                ? 'Unavailable'
+                : `${connectedSubscriptionCount} connected`
           }
           disabled={applying || !queries.providerConfigQuery.isSuccess}
           onPress={() =>
@@ -195,9 +201,35 @@ export function BotSettingsSections({
         />
       </BotSettingsSection>
 
+      {/* Zero data retention stays in the open rather than moving under
+          Advanced: it is a privacy control, and a pending toggle hidden behind
+          a collapsed disclosure leaves the apply bar counting a change the user
+          cannot see. */}
+      {settingsReady && onBasicModel && draft.model.model ? (
+        <BotSettingsSection title="Privacy">
+          <BotSwitchRow
+            label="Zero data retention"
+            description="Avoid model providers that retain data. May use your included credits faster."
+            descriptionNumberOfLines={3}
+            multilineDescriptionGap={zdrRowLayout?.descriptionGap}
+            multilinePaddingVertical={zdrRowLayout?.paddingVertical}
+            checked={draft.model.zdr}
+            pending={pending.zdr}
+            disabled={controlsReadOnly}
+            onCheckedChange={(value) =>
+              commitDraft((current) => ({
+                ...current,
+                model: { ...current.model, zdr: value },
+              }))
+            }
+          />
+        </BotSettingsSection>
+      ) : null}
+
       <BotSettingsSection>
         <AdvancedToggle
           open={advancedOpen}
+          pending={pending.nickname}
           onPress={() => setAdvancedOpen((open) => !open)}
         />
         {advancedOpen ? (
@@ -205,32 +237,11 @@ export function BotSettingsSections({
             <BotSettingsDivider />
             <BotSettingsRow
               label="Identity"
-              description="Name and self-description"
+              description="Your bot's name"
               pending={pending.nickname}
               disabled={controlsReadOnly}
               onPress={() => navigate('BotIdentitySettings')}
             />
-            {settingsReady && onBasicModel && draft.model.model ? (
-              <>
-                <BotSettingsDivider />
-                <BotSwitchRow
-                  label="Zero data retention"
-                  description="Avoid model providers that retain data. May use your included credits faster."
-                  descriptionNumberOfLines={3}
-                  multilineDescriptionGap={zdrRowLayout?.descriptionGap}
-                  multilinePaddingVertical={zdrRowLayout?.paddingVertical}
-                  checked={draft.model.zdr}
-                  pending={pending.zdr}
-                  disabled={controlsReadOnly}
-                  onCheckedChange={(value) =>
-                    commitDraft((current) => ({
-                      ...current,
-                      model: { ...current.model, zdr: value },
-                    }))
-                  }
-                />
-              </>
-            ) : null}
           </>
         ) : null}
       </BotSettingsSection>
@@ -240,9 +251,11 @@ export function BotSettingsSections({
 
 function AdvancedToggle({
   open,
+  pending,
   onPress,
 }: {
   open: boolean;
+  pending?: boolean;
   onPress: () => void;
 }) {
   return (
@@ -258,7 +271,10 @@ function AdvancedToggle({
         <ListItem.MainContent justifyContent="center">
           <ListItem.Title>Advanced</ListItem.Title>
         </ListItem.MainContent>
-        <XStack alignItems="center" flexShrink={0}>
+        {/* A pending edit inside a collapsed Advanced would otherwise be
+            invisible while the apply bar counts it. */}
+        <XStack alignItems="center" gap="$s" flexShrink={0}>
+          {pending && !open ? <PendingBadge /> : null}
           <Text size="$label/m" color="$tertiaryText">
             {open ? 'Hide' : 'Show'}
           </Text>
