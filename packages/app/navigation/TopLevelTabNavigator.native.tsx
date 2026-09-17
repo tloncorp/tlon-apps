@@ -2,7 +2,8 @@ import { createNativeBottomTabNavigator } from '@react-navigation/bottom-tabs/un
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
-import { getTokenValue, useTheme } from 'tamagui';
+import { LoadingSpinner } from '@tloncorp/ui';
+import { View, getTokenValue, useTheme } from 'tamagui';
 
 import SettingsScreen from '../features/settings/SettingsScreen';
 import ChannelScreen from '../features/top/ChannelScreen';
@@ -120,6 +121,22 @@ export function TopLevelTabNavigator() {
       route.params
     );
   }, [botDm.enabled, navigation]);
+
+  // Rehydration drops a saved route whose screen is not registered, so a
+  // restored position that named the bot tab loses it while the hosted-bot
+  // flag is still loading — wherever in the stack that position sits, since a
+  // screen pushed from the bot tab lives on the root stack above these tabs.
+  // Holding the tabs unmounted until the flag resolves costs the restore
+  // nothing: `MainTabs`' saved child state stays untouched on the parent route
+  // until this navigator mounts to claim it. Only on a restore, so an ordinary
+  // launch still mounts straight away and the claim above stays its correction.
+  if (didRestoreNavigation() && botDm.isLoading) {
+    return (
+      <View flex={1} alignItems="center" justifyContent="center">
+        <LoadingSpinner />
+      </View>
+    );
+  }
 
   return (
     <Tabs.Navigator
