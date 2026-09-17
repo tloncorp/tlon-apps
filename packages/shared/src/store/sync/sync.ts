@@ -225,7 +225,7 @@ export const syncSince = async ({
 }: {
   queryCtx?: QueryCtx;
   syncCtx?: SyncCtx;
-  callCtx?: { cause?: string };
+  callCtx?: { cause?: string; taskExecutionId?: string };
   since?: number;
 } = {}) => {
   logger.log(`syncing since...`);
@@ -265,7 +265,9 @@ export const syncSince = async ({
           const latestPostsSyncedAt = await db.headsSyncedAt.getValue();
           if (!latestPostsSyncedAt) {
             neededToSyncLatestPosts = true;
-            await syncLatestPosts();
+            await syncLatestPosts(syncCtx, batchCtx, false, {
+              throwOnError: true,
+            });
           }
         }));
   } catch (e) {
@@ -298,6 +300,7 @@ export const syncSince = async ({
   }
   logger.log(`sync since complete`);
   updateSession({ isSyncing: false });
+  return result;
 };
 
 type SyncSinceCompletion = {
@@ -339,7 +342,7 @@ export const syncLatestChanges = async ({
 }: {
   syncCtx?: SyncCtx;
   queryCtx?: QueryCtx;
-  callCtx?: { cause?: string };
+  callCtx?: { cause?: string; taskExecutionId?: string };
   since?: number;
   yieldWriter?: boolean;
 }): Promise<{
@@ -365,6 +368,7 @@ export const syncLatestChanges = async ({
       await db.changesSyncedAt.setValue(start);
     } catch (e) {
       logger.trackError('Failed latest changes fallback', e);
+      throw e;
     }
     return {
       hadChanges: true,
@@ -520,13 +524,15 @@ export const syncCachedChanges = async (input: {
 export const syncLatestPosts = async (
   ctx?: SyncCtx,
   queryCtx?: QueryCtx,
-  yieldWriter?: boolean
+  yieldWriter?: boolean,
+  options?: { throwOnError?: boolean }
 ): Promise<() => Promise<void>> => {
   try {
     const syncedAt = await db.headsSyncedAt.getValue();
     const result = await syncQueue.add('latestPosts', ctx, () =>
       api.getLatestPosts({
         afterCursor: new Date(syncedAt),
+        throwOnError: options?.throwOnError,
       })
     );
     logger.crumb('got latest posts from api');
@@ -547,6 +553,7 @@ export const syncLatestPosts = async (
     logger.trackError('failed to sync latest posts', {
       error: e,
     });
+    if (options?.throwOnError) throw e;
     return () => Promise.resolve();
   }
 };
@@ -638,6 +645,7 @@ export const syncSystemContacts = async (
 };
 
 export type ContactDiscoveryResult = {
+  didSucceed: boolean;
   didDiscover: boolean;
   newMatches: [string, string][];
 };
@@ -649,6 +657,7 @@ export const syncContactDiscovery = async (
   logger.log('syncContactDiscovery: starting');
   const invokeHandler = opts?.invokeHandler !== false;
   const empty: ContactDiscoveryResult = {
+    didSucceed: true,
     didDiscover: false,
     newMatches: [],
   };
@@ -688,6 +697,7 @@ export const syncContactDiscovery = async (
   }
 
   let didDiscover = false;
+  let didSucceed = true;
   try {
     const matches = (
       await syncQueue.add('discoverContacts', ctx, () =>
@@ -703,6 +713,7 @@ export const syncContactDiscovery = async (
     const newMatchIds = newMatches.map(([, id]) => id);
 
     await db.linkSystemContacts({ matches }).catch((e) => {
+      didSucceed = false;
       logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
         context: 'failed to link system contacts',
         severity: AnalyticsSeverity.Critical,
@@ -716,6 +727,7 @@ export const syncContactDiscovery = async (
 
     if (newMatchIds.length > 0) {
       await addContacts(newMatchIds).catch((e) => {
+        didSucceed = false;
         logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
           context: 'failed to add contacts',
           severity: AnalyticsSeverity.Critical,
@@ -730,6 +742,7 @@ export const syncContactDiscovery = async (
           matchedAt: Date.now(),
         })
         .catch((e) => {
+          didSucceed = false;
           logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
             context: 'failed to mark contacts as matched',
             error: e,
@@ -748,6 +761,7 @@ export const syncContactDiscovery = async (
           })
         )
       ).catch((e) => {
+        didSucceed = false;
         logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
           context: 'failed to update contact metadata',
           severity: AnalyticsSeverity.Critical,
@@ -760,7 +774,7 @@ export const syncContactDiscovery = async (
       await invokeContactsMatchedHandler(newMatchIds);
     }
 
-    return { didDiscover, newMatches };
+    return { didDiscover, didSucceed, newMatches };
   } catch (error) {
     logger.error('error discovering contacts', error);
     logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
@@ -768,7 +782,7 @@ export const syncContactDiscovery = async (
       severity: AnalyticsSeverity.Critical,
       error,
     });
-    return { ...empty, didDiscover };
+    return { ...empty, didDiscover, didSucceed: false };
   }
 };
 

@@ -8,7 +8,7 @@ import {
 } from '@jest/globals';
 import { configureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { discoverContactsAndNotify } from '@tloncorp/app/lib/notifications';
-import { syncSince } from '@tloncorp/shared';
+import { createDevLogger, syncSince } from '@tloncorp/shared';
 import { storage, type ShipInfo } from '@tloncorp/shared/db';
 import * as TaskManager from 'expo-task-manager';
 
@@ -22,14 +22,20 @@ jest.mock('@tloncorp/app/lib/nativeDb', () => ({
   ensureDbReady: async () => {},
 }));
 jest.mock('@tloncorp/app/lib/notifications', () => ({
-  discoverContactsAndNotify: jest.fn(async () => ({ newMatchCount: 0 })),
+  discoverContactsAndNotify: jest.fn(async () => ({
+    newMatchCount: 0,
+    didSucceed: true,
+  })),
 }));
-jest.mock('@tloncorp/shared', () => ({
-  SyncPriority: { High: 1 },
-  createDevLogger: () => ({ trackEvent: jest.fn(), trackError: jest.fn() }),
-  flushErrorLogger: async () => {},
-  syncSince: jest.fn(async () => {}),
-}));
+jest.mock('@tloncorp/shared', () => {
+  const logger = { trackEvent: jest.fn(), trackError: jest.fn() };
+  return {
+    SyncPriority: { High: 1 },
+    createDevLogger: () => logger,
+    flushErrorLogger: async () => {},
+    syncSince: jest.fn(async () => 'success'),
+  };
+});
 jest.mock('@tloncorp/shared/db', () => ({
   storage: {
     shipInfo: { getValue: jest.fn() },
@@ -44,6 +50,7 @@ jest.mock('expo-task-manager', () => ({ defineTask: jest.fn() }));
 jest.mock('uuid', () => ({ v4: () => 'test-task' }));
 jest.mock('../lib/hostingAuth', () => ({ refreshHostingAuth: jest.fn() }));
 
+const logger = createDevLogger('test', false);
 const originalShip: ShipInfo = {
   ship: '~zod',
   shipUrl: 'https://zod.tlon.network',
@@ -113,7 +120,15 @@ describe('background sync session ownership', () => {
       jest.mocked(storage.shipInfo.getValue).mockResolvedValue(ship);
       jest.mocked(storage.hostingAuthToken.getValue).mockResolvedValue(token);
       finishHeartbeat('unknown');
-      await pending;
+      expect(await pending).toBe('success');
+      expect(logger.trackEvent).toHaveBeenCalledWith(
+        'Background sync timing',
+        expect.objectContaining({ result: 'skipped', didSucceed: false })
+      );
+      expect(logger.trackEvent).not.toHaveBeenCalledWith(
+        'Background sync complete',
+        expect.anything()
+      );
       expect(configureUrbitClient).not.toHaveBeenCalled();
       expect(syncSince).not.toHaveBeenCalled();
       expect(discoverContactsAndNotify).not.toHaveBeenCalled();
@@ -126,7 +141,7 @@ describe('background sync session ownership', () => {
     'still syncs an unchanged session after a %s auth check',
     async (status) => {
       jest.mocked(refreshHostingAuth).mockResolvedValue(status);
-      await runTask();
+      expect(await runTask()).toBe('success');
       expect(configureUrbitClient).toHaveBeenCalledWith({
         ship: originalShip.ship,
         shipUrl: originalShip.shipUrl,
@@ -139,7 +154,15 @@ describe('background sync session ownership', () => {
 
   it('skips an expired session', async () => {
     jest.mocked(refreshHostingAuth).mockResolvedValue('expired');
-    await runTask();
+    expect(await runTask()).toBe('success');
+    expect(logger.trackEvent).toHaveBeenCalledWith(
+      'Background sync timing',
+      expect.objectContaining({ result: 'skipped', didSucceed: false })
+    );
+    expect(logger.trackEvent).not.toHaveBeenCalledWith(
+      'Background sync complete',
+      expect.anything()
+    );
     expect(configureUrbitClient).not.toHaveBeenCalled();
     expect(syncSince).not.toHaveBeenCalled();
   });
