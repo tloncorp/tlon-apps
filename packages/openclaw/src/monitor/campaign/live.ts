@@ -1,6 +1,10 @@
 import {
   appendToPostBlob,
   getChannelPosts,
+  getGroup,
+  subscribeToPresenceUpdates,
+  unsubscribe,
+  type PresenceStatus,
   parsePostBlob,
 } from '@tloncorp/api';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
@@ -13,9 +17,30 @@ import { sharedMap } from '../../shared-state.js';
 import type { TlonTelemetryClient } from '../../telemetry.js';
 import { listRunnableTlonAccountIds } from '../../types.js';
 import { captureTlonApiScope } from '../../urbit/api-client.js';
-import { type BotProfile, sendDm } from '../../urbit/send.js';
-import { type CampaignConfig } from './model.js';
+import { type BotProfile, sendDm, sendChannelPost } from '../../urbit/send.js';
+import { markdownToStory } from '../../urbit/story.js';
+import { getCampaignStore } from './store.js';
+import {
+  type CampaignTask,
+  type CampaignState,
+  type CampaignConfig,
+} from './model.js';
 import { createCampaign } from './runner.js';
+
+const replyObservers = sharedMap<
+  string,
+  (text: string, destination: string) => Promise<void>
+>('onboardingCampaign.replyObservers');
+export async function notifyCampaignReply(
+  accountId: string,
+  text: string,
+  destination: string
+) {
+  await replyObservers.get(accountId)?.(
+    text,
+    destination.replace(/^tlon:/, '')
+  );
+}
 
 const observers = sharedMap<
   string,
@@ -52,6 +77,39 @@ export function createLiveCampaign(deps: {
     return capturedScope(fn);
   };
   const runningJobs = new Set<string>();
+  let stopped = false;
+  let presenceSubscription: Promise<number | null> | undefined;
+  const jobs = async () => {
+    const cron = getTlonCronService();
+    if (!cron) throw new Error('Campaign deferred: cron service unavailable');
+    return (await cron.list({ includeDisabled: true })).filter(
+      isUserRecurringTask
+    );
+  };
+  const destination = (state: CampaignState) =>
+    scope(async () => {
+      if (
+        state.destination === deps.owner ||
+        !state.groupId ||
+        !state.channelId
+      )
+        return deps.owner;
+      const group = await getGroup(state.groupId);
+      // Invitations count too: a third person must never receive personal tips.
+      if (
+        (group.privacy !== 'private' && group.privacy !== 'secret') ||
+        !group.members?.some(
+          (member) =>
+            member.contactId === deps.owner && member.status === 'joined'
+        ) ||
+        group.members.some(
+          (member) =>
+            member.contactId !== deps.owner && member.contactId !== deps.bot
+        )
+      )
+        return deps.owner;
+      return state.channelId;
+    });
   const campaign = createCampaign({
     owner: deps.owner,
     config: () => {
@@ -70,17 +128,76 @@ export function createLiveCampaign(deps: {
       };
     },
     busy: () => deps.busy() || runningJobs.size > 0,
-    hasTask: async () => {
-      const cron = getTlonCronService();
-      if (!cron) throw new Error('Campaign deferred: cron service unavailable');
-      return (await cron.list({ includeDisabled: true })).some(
-        isUserRecurringTask
-      );
+    hasTask: async () => (await jobs()).length > 0,
+    task: async () => {
+      // Failed work takes precedence over another task's successful result.
+      const tasks: CampaignTask[] = (await jobs()).map((job) => ({
+        id: job.id,
+        name: job.name ?? 'Recurring task',
+        enabled: job.enabled !== false,
+        ...(job.state?.lastRunStatus === 'error' ||
+        job.state?.lastDeliveryStatus === 'not-delivered'
+          ? { failedAt: job.state.lastRunAtMs }
+          : job.state?.lastDelivered === true ||
+              job.state?.lastDeliveryStatus === 'delivered'
+            ? { deliveredAt: job.state.lastRunAtMs }
+            : {}),
+      }));
+      return tasks.sort(
+        (a, b) =>
+          Number(Boolean(b.failedAt)) - Number(Boolean(a.failedAt)) ||
+          (b.failedAt ?? b.deliveredAt ?? 0) -
+            (a.failedAt ?? a.deliveredAt ?? 0)
+      )[0];
     },
-    readMarker: (key) =>
+    destination,
+    context: (state) =>
+      scope(async () => {
+        if (!state.channelId) return {};
+        const { posts } = await getChannelPosts({
+          channelId: state.channelId,
+          mode: 'newest',
+          count: 100,
+        });
+        // Topics come from authenticated, structured onboarding choices, not generated summaries.
+        for (const post of [...posts].sort(
+          (a, b) => Number(b.sentAt) - Number(a.sentAt)
+        )) {
+          if (post.authorId !== deps.owner || !post.blob) continue;
+          for (const entry of parsePostBlob(post.blob) ?? []) {
+            if (entry.type === 'tlon-agent-provision')
+              return { topic: entry.topics.join(', ') };
+            if (entry.type !== 'tlon-a2ui-selection' || !entry.sourcePostId)
+              continue;
+            const source = posts.find(
+              (p) => p.id === entry.sourcePostId && p.authorId === deps.bot
+            );
+            if (
+              source?.blob &&
+              (parsePostBlob(source.blob) ?? []).some(
+                (e) =>
+                  e.type === 'tlon-agent-post-marker' &&
+                  e.key === 'topics-picker'
+              )
+            )
+              return { topic: entry.values.join(', ') };
+            if (
+              source?.blob &&
+              (parsePostBlob(source.blob) ?? []).some(
+                (e) =>
+                  e.type === 'tlon-agent-post-marker' &&
+                  e.key === 'purpose-picker'
+              )
+            )
+              return { purpose: entry.values.join(', ') };
+          }
+        }
+        return {};
+      }),
+    readMarker: (key, conversation = deps.owner) =>
       scope(async () => {
         const { posts } = await getChannelPosts({
-          channelId: deps.owner,
+          channelId: conversation,
           mode: 'newest',
           count: 50,
         });
@@ -94,24 +211,29 @@ export function createLiveCampaign(deps: {
         );
         return post ? Number(post.sentAt) : undefined;
       }),
-    send: (text, key) =>
+    send: (text, key, conversation = deps.owner) =>
       scope(async () => {
         deps.signal?.throwIfAborted();
-        await sendDm({
+        const blob = key
+          ? appendToPostBlob(undefined, {
+              type: 'tlon-agent-post-marker',
+              version: 1,
+              key,
+            })
+          : undefined;
+        const profile = {
           fromShip: deps.bot,
-          toShip: deps.owner,
-          text,
           botProfile: deps.botProfile(),
-          ...(key
-            ? {
-                blob: appendToPostBlob(undefined, {
-                  type: 'tlon-agent-post-marker',
-                  version: 1,
-                  key,
-                }),
-              }
-            : {}),
-        });
+          blob,
+        };
+        if (conversation === deps.owner)
+          await sendDm({ ...profile, toShip: deps.owner, text });
+        else
+          await sendChannelPost({
+            ...profile,
+            nest: conversation,
+            story: markdownToStory(text),
+          });
       }),
     report: (event) =>
       deps.telemetry?.captureOnboardingCampaign({
@@ -135,16 +257,73 @@ export function createLiveCampaign(deps: {
       void campaign.taskCreated().catch(deps.error);
     } else if (event.action !== 'started') void campaign.check();
   };
+  const onPresence = async (presence: PresenceStatus) => {
+    if (
+      stopped ||
+      presence.key.ship !== deps.owner ||
+      presence.key.topic !== 'other' ||
+      !presence.display.blob ||
+      Date.now() - presence.timing.since > 90_000
+    )
+      return;
+    let view: {
+      type?: string;
+      version?: number;
+      token?: string;
+      timezone?: string;
+      open?: boolean;
+    };
+    try {
+      view = JSON.parse(presence.display.blob);
+    } catch {
+      return;
+    }
+    if (
+      view.type !== 'tlon-onboarding-view' ||
+      view.version !== 1 ||
+      typeof view.token !== 'string'
+    )
+      return;
+    const state = await getCampaignStore()?.lookup(deps.owner);
+    if (
+      !state ||
+      (presence.contextId !== deps.owner &&
+        presence.contextId !== (await destination(state)))
+    )
+      return;
+    if (view.open === true) await campaign.opened(view.token, view.timezone);
+    else campaign.closed(view.token);
+  };
   return {
     ...campaign,
     start() {
       observers.set(deps.accountId, onCron);
+      replyObservers.set(deps.accountId, campaign.observeReply);
       campaign.start();
+      presenceSubscription = scope(() =>
+        subscribeToPresenceUpdates((event) => {
+          const states =
+            event.type === 'init'
+              ? event.states
+              : event.type === 'set'
+                ? [event.state]
+                : [];
+          for (const state of states) void onPresence(state).catch(deps.error);
+        })
+      ).catch((error) => {
+        deps.error(error);
+        return null;
+      });
     },
     async stop() {
       if (observers.get(deps.accountId) === onCron)
         observers.delete(deps.accountId);
+      stopped = true;
+      if (replyObservers.get(deps.accountId) === campaign.observeReply)
+        replyObservers.delete(deps.accountId);
       await campaign.stop();
+      const id = await presenceSubscription;
+      if (id != null) await scope(() => unsubscribe(id)).catch(deps.error);
     },
   };
 }

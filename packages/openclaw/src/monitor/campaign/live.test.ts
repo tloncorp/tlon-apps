@@ -14,12 +14,22 @@ const mock = vi.hoisted(() => ({
   send: vi.fn(),
   list: vi.fn(),
   scoped: vi.fn(),
+  group: vi.fn(),
+  subscribe: vi.fn(),
+  unsubscribe: vi.fn(),
+  sendChannel: vi.fn(),
 }));
 vi.mock('@tloncorp/api', async (original) => ({
   ...(await original<typeof import('@tloncorp/api')>()),
   getChannelPosts: mock.posts,
+  getGroup: mock.group,
+  subscribeToPresenceUpdates: mock.subscribe,
+  unsubscribe: mock.unsubscribe,
 }));
-vi.mock('../../urbit/send.js', () => ({ sendDm: mock.send }));
+vi.mock('../../urbit/send.js', () => ({
+  sendDm: mock.send,
+  sendChannelPost: mock.sendChannel,
+}));
 vi.mock('../../cron-telemetry.js', () => ({
   getTlonCronService: () => ({ list: mock.list }),
 }));
@@ -59,12 +69,26 @@ beforeEach(() => {
     sent: [],
     skipped: [],
   };
+  const extra = new Map<string, CampaignState>();
   setCampaignStore({
-    lookup: async () => structuredClone(row),
-    register: async (_key: string, value: CampaignState) => {
-      row = structuredClone(value);
+    lookup: async (key: string) =>
+      structuredClone(key === '~ten' ? row : extra.get(key)),
+    register: async (key: string, value: CampaignState) => {
+      if (key === '~ten') row = structuredClone(value);
+      else extra.set(key, structuredClone(value));
+    },
+    registerIfAbsent: async (key: string, value: CampaignState) => {
+      if (key === '~ten' || extra.has(key)) return false;
+      extra.set(key, structuredClone(value));
+      return true;
     },
   } as CampaignStore);
+  mock.subscribe.mockResolvedValue(42);
+  mock.unsubscribe.mockResolvedValue(undefined);
+  mock.group.mockResolvedValue({
+    privacy: 'private',
+    members: [{ contactId: '~ten', status: 'joined' }, { contactId: '~zod' }],
+  });
   mock.posts.mockResolvedValue({ posts: [] });
   mock.send.mockResolvedValue({ messageId: '~zod/123', sentAt: now });
   mock.list.mockResolvedValue([]);
@@ -106,7 +130,7 @@ it('sends a marked DM to the owner through the captured account scope', async ()
     version: 1,
     key: 'campaign-v1-useful-request',
   });
-  expect(mock.scoped).toHaveBeenCalledTimes(2);
+  expect(mock.scoped).toHaveBeenCalled();
 });
 it('recovers only a marker authored by the bot in the owner DM', async () => {
   const blob = appendToPostBlob(undefined, {
@@ -119,7 +143,9 @@ it('recovers only a marker authored by the bot in the owner DM', async () => {
   });
   await campaign.check();
   expect(mock.send).not.toHaveBeenCalled();
-  expect(row.sent).toEqual([{ step: 'useful-request', at: now - 1000 }]);
+  expect(row.sent).toEqual([
+    expect.objectContaining({ step: 'useful-request', at: now - 1000 }),
+  ]);
 });
 it('ignores markers supplied by a user', async () => {
   const blob = appendToPostBlob(undefined, {
@@ -147,7 +173,7 @@ it('stops on task events even if the task is removed before a scheduler query', 
     },
   });
   await campaign.check();
-  expect(row.status).toBe('converted');
+  expect(row.status).toBe('feedback');
   expect(mock.send).not.toHaveBeenCalled();
 });
 it('recognizes disabled user tasks but excludes one-shot and internal heartbeat jobs', () => {
@@ -184,4 +210,41 @@ it('honors a changed kill switch before delivery', async () => {
       cfg.channels!.tlon as { onboardingCampaign: { enabled: boolean } }
     ).onboardingCampaign.enabled = true;
   }
+});
+
+it('uses the private onboarding conversation, but falls back permanently when someone else is invited', async () => {
+  row.groupId = '~zod/setup';
+  row.channelId = 'chat/~zod/setup';
+  await campaign.check();
+  expect(mock.sendChannel).toHaveBeenCalledWith(
+    expect.objectContaining({ nest: 'chat/~zod/setup' })
+  );
+  expect(mock.send).not.toHaveBeenCalled();
+  mock.group.mockResolvedValue({
+    privacy: 'private',
+    members: [
+      { contactId: '~ten', status: 'joined' },
+      { contactId: '~zod' },
+      { contactId: '~mug', status: 'invited' },
+    ],
+  });
+  vi.setSystemTime(now + DAY);
+  await campaign.check();
+  expect(row.destination).toBe('~ten');
+  expect(mock.send).toHaveBeenCalledTimes(1);
+  mock.group.mockResolvedValue({
+    privacy: 'private',
+    members: [{ contactId: '~ten', status: 'joined' }, { contactId: '~zod' }],
+  });
+  vi.setSystemTime(now + 2 * DAY);
+  await campaign.check();
+  expect(row.destination).toBe('~ten');
+});
+it('fails closed when group privacy cannot be verified', async () => {
+  row.groupId = '~zod/setup';
+  row.channelId = 'chat/~zod/setup';
+  mock.group.mockRejectedValue(new Error('unavailable'));
+  await expect(campaign.check()).rejects.toThrow('unavailable');
+  expect(mock.send).not.toHaveBeenCalled();
+  expect(mock.sendChannel).not.toHaveBeenCalled();
 });

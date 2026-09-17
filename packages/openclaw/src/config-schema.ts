@@ -166,11 +166,22 @@ export const TlonConfigSchema = z.object({
   // Opt-in hosted-only re-engagement nudges; absent/false keeps the
   // scheduler off even when ownerShip is configured.
   reengagement: TlonReengagementSchema.optional(),
-  // Default-off first-week DM campaign. A rollout cutoff is required to enroll.
+  // Default-off first-week private conversation campaign. A rollout cutoff is required to enroll.
   onboardingCampaign: z
     .object({
       enabled: z.boolean().optional(),
       enrollAfter: z.iso.datetime().optional(),
+      direction: z.enum(['useful', 'archive', 'routine']).optional(),
+      copy: z
+        .object({
+          'useful-request': z.string().min(1).max(4000).optional(),
+          'recurring-help': z.string().min(1).max(4000).optional(),
+          archive: z.string().min(1).max(4000).optional(),
+          'own-material': z.string().min(1).max(4000).optional(),
+          closing: z.string().min(1).max(4000).optional(),
+          'task-feedback': z.string().min(1).max(4000).optional(),
+        })
+        .optional(),
     })
     .optional(),
   // Hosted BOOT.md catch-up, gated on authenticated connection readiness.

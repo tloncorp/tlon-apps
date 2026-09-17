@@ -36,7 +36,8 @@ function campaignState(): CampaignState | undefined {
     ) ?? undefined
   );
 }
-function reloadConfig(patch: Record<string, unknown>) {
+async function reloadConfig(patch: Record<string, unknown>) {
+  const since = new Date().toISOString();
   inBot(
     `
     import fs from 'node:fs';
@@ -47,6 +48,15 @@ function reloadConfig(patch: Record<string, unknown>) {
   `,
     JSON.stringify(patch)
   );
+  await waitFor(async () => {
+    const logs = execFileSync('docker', ['logs', '--since', since, container], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return logs.includes('Connected! Firehose subscriptions active')
+      ? true
+      : undefined;
+  }, 30_000);
 }
 beforeAll(async () => {
   const project = process.env.TEST_COMPOSE_PROJECT_NAME;
@@ -69,9 +79,9 @@ beforeAll(async () => {
   fixtures = await getFixtures();
 });
 
-test('enrolls a live initial request, sends one marked DM, supplies yes-reply context, and saves opt-out', async () => {
+test('enrolls a live initial request, sends one marked private-channel tip, supplies yes-reply context, and saves opt-out', async () => {
   if (!fixtures.group) throw new Error('Fixture group required');
-  reloadConfig({
+  await reloadConfig({
     onboardingCampaign: {
       enabled: true,
       enrollAfter: new Date(Date.now() - 60000).toISOString(),
@@ -112,13 +122,13 @@ test('enrolls a live initial request, sends one marked DM, supplies yes-reply co
     String(DAY)
   );
   // Exercise monitor restart: durable state survives, ephemeral recent activity resets.
-  reloadConfig({ showModelSignature: true });
+  await reloadConfig({ showModelSignature: true });
   await waitFor(
     async () => (campaignState()?.sent.length === 1 ? true : undefined),
     90_000
   );
   const posts = (await fixtures.userState.channelPosts(
-    fixtures.botShip,
+    fixtures.group.chatChannel,
     50
   )) as { authorId: string; blob?: string }[];
   expect(
@@ -134,11 +144,19 @@ test('enrolls a live initial request, sends one marked DM, supplies yes-reply co
     )
   ).toHaveLength(1);
   const tag = await registerEngagingTurn('campaign-yes', [
-    { kind: 'text', content: 'What topic would you like help with?' },
+    {
+      kind: 'text',
+      content:
+        'Here is a useful answer with sources. Would this be useful every week?',
+    },
   ]);
   expect((await fixtures.client.prompt(`yes ${tag}`)).success).toBe(true);
   expect(JSON.stringify(await fakeModel.received('campaign-yes'))).toContain(
-    'Your most recent onboarding tip in this DM'
+    'Your most recent onboarding tip in this conversation'
+  );
+  await waitFor(
+    async () => (campaignState()?.offeredAt ? true : undefined),
+    20_000
   );
   await fixtures.client.sendDm('/stop-tips');
   await waitFor(

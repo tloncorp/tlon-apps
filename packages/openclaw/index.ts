@@ -1,5 +1,8 @@
 import { setCampaignStore } from './src/monitor/campaign/store.js';
-import { notifyCampaignCronChanged } from './src/monitor/campaign/live.js';
+import {
+  notifyCampaignCronChanged,
+  notifyCampaignReply,
+} from './src/monitor/campaign/live.js';
 import { createRequire } from 'node:module';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -1436,6 +1439,14 @@ export default defineBundledChannelEntry({
     });
 
     api.on('message_sent', (event, ctx) => {
+      if (ctx.channelId === 'tlon' && event.success)
+        void notifyCampaignReply(
+          ctx.accountId ?? 'default',
+          event.content,
+          event.to
+        ).catch((error) =>
+          api.logger.error(`[tlon] campaign offer: ${String(error)}`)
+        );
       void handleAgentOnboardingMessageSent(
         event,
         {},

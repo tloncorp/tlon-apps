@@ -40,6 +40,7 @@ import {
 } from '../../ui';
 import { isAgentGroupSetupActive } from '../../ui/components/Channel/postVisibility';
 import { shouldAutoLoadOlderPosts } from './channelPagination';
+import { useCampaignPresence } from './useCampaignPresence';
 import { useAgentOnboardingChannel } from './useAgentOnboardingChannel';
 import { useAgentOnboardingFirstEntry } from './useAgentOnboardingFirstEntry';
 
@@ -186,6 +187,7 @@ export default function ChannelScreen(props: Props) {
     React.useState(false);
   const [clearedCursor, setClearedCursor] = React.useState(false);
   const isFocused = useIsFocused();
+  useCampaignPresence(channelId, groupId, isFocused);
   useFocusEffect(
     useCallback(() => {
       let isCurrent = true;

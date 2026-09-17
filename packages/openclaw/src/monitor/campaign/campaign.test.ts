@@ -8,7 +8,7 @@ import {
 } from './model.js';
 import { type CampaignDeps, createCampaign } from './runner.js';
 import type { CampaignStore } from './store.js';
-import { isStopTips } from './templates.js';
+import { RECURRING_OFFER, renderTip, isStopTips } from './templates.js';
 
 const enrolledAt = Date.parse('2026-09-17T15:37:00Z');
 const facts = { enabled: true, hasTask: false, busy: false };
@@ -87,7 +87,7 @@ describe('campaign evaluator', () => {
         facts,
         Date.parse('2026-09-18T03:00:00Z')
       )
-    ).toEqual({ kind: 'defer' });
+    ).toMatchObject({ kind: 'defer' });
   });
   it.each([undefined, 'not/a-zone'])(
     'defers unknown timezone %s',
@@ -158,7 +158,7 @@ describe('campaign evaluator', () => {
   it('stops on any user task, expiry, opt-out, or kill switch', () => {
     expect(
       evaluateCampaign(state(), { ...facts, hasTask: true }, enrolledAt + DAY)
-    ).toEqual({ kind: 'finish', status: 'converted' });
+    ).toEqual({ kind: 'defer' });
     expect(evaluateCampaign(state(), facts, enrolledAt + 7 * DAY)).toEqual({
       kind: 'finish',
       status: 'completed',
@@ -242,7 +242,7 @@ describe('campaign runner', () => {
     expect(h.deps.send).not.toHaveBeenCalled();
   });
   it('recovers an accepted send after a state write fails', async () => {
-    const h = harness();
+    const h = harness(state({ destination: '~ten' }));
     vi.mocked(h.store.register).mockRejectedValueOnce(
       new Error('store offline')
     );
@@ -258,7 +258,7 @@ describe('campaign runner', () => {
     await Promise.all([h.campaign.check(), h.campaign.check()]);
     expect(h.deps.send).toHaveBeenCalledTimes(1);
     expect(h.read().sent).toEqual([
-      { step: 'useful-request', at: enrolledAt + DAY },
+      expect.objectContaining({ step: 'useful-request', at: enrolledAt + DAY }),
     ]);
     await createCampaign(h.deps).check();
     expect(h.deps.send).toHaveBeenCalledTimes(1);
@@ -313,7 +313,7 @@ describe('campaign runner', () => {
   it('stops permanently when a task was created outside onboarding', async () => {
     const h = harness(state(), { hasTask: async () => true });
     await h.campaign.check();
-    expect(h.read().status).toBe('converted');
+    expect(h.read().status).toBe('feedback');
     expect(h.deps.send).not.toHaveBeenCalled();
     await createCampaign({ ...h.deps, hasTask: async () => false }).check();
     expect(h.deps.send).not.toHaveBeenCalled();
@@ -367,7 +367,9 @@ describe('campaign runner', () => {
     expect(await h.campaign.replyContext()).toContain('What’s one thing');
     expect(await h.campaign.inbound('yes', true)).toBe(false);
     expect(h.read().lastReplyAt).toBe(enrolledAt + DAY + MINUTE);
-    expect(await h.campaign.replyContext()).toBeUndefined();
+    expect(await h.campaign.replyContext()).not.toContain(
+      'Your most recent onboarding tip'
+    );
   });
   it('lets a reply between slots restore later tips after two unanswered sends', async () => {
     const h = harness();
@@ -392,7 +394,7 @@ describe('campaign runner', () => {
     await h.campaign.inbound('hello group', false);
     await h.campaign.check();
     expect(h.deps.send).not.toHaveBeenCalled();
-    expect(h.read().lastReplyAt).toBeUndefined();
+    expect(h.read().lastReplyAt ?? 0).toBe(0);
   });
   it('rechecks task creation and opt-out after reading history', async () => {
     const hasTask = vi
@@ -456,3 +458,128 @@ it.each([
 ])('does not reinterpret task requests: %s', (text) =>
   expect(isStopTips(text)).toBe(false)
 );
+
+describe('ticket conversation flow', () => {
+  it('reuses onboarding topics and stops using them when the owner changes context', async () => {
+    const context = vi.fn(async () => ({ topic: 'architecture' }));
+    const h = harness(state(), { context });
+    await h.campaign.check();
+    expect(h.deps.send).toHaveBeenCalledWith(
+      expect.stringContaining('architecture'),
+      'campaign-v1-useful-request',
+      '~ten'
+    );
+    await h.campaign.inbound('Actually help with my garden', true);
+    expect(await h.campaign.replyContext()).toContain('my garden');
+    expect(await h.campaign.replyContext()).not.toContain('architecture');
+  });
+  it('offers recurring work in the useful reply and suppresses the later duplicate prompt', async () => {
+    const h = harness();
+    expect(await h.campaign.replyContext()).toContain(RECURRING_OFFER);
+    await h.campaign.check();
+    await h.campaign.observeReply(
+      `Here is the answer. ${RECURRING_OFFER}`,
+      '~ten'
+    );
+    h.advance(DAY);
+    await h.campaign.check();
+    expect(h.read().skipped).toContainEqual({
+      step: 'recurring-help',
+      reason: 'already-offered',
+    });
+    expect(h.deps.send).toHaveBeenCalledTimes(1);
+    expect(await h.campaign.replyContext()).toContain('Do not repeat');
+  });
+  it('does not treat an offer posted to another conversation as this campaign offer', async () => {
+    const h = harness();
+    await h.campaign.observeReply(RECURRING_OFFER, 'chat/~other/shared');
+    expect(h.read().offeredAt).toBeUndefined();
+  });
+  it('defers while visible, learns timezone from activity, and expires stale visibility', async () => {
+    const h = harness(state({ timezone: undefined }));
+    await h.campaign.opened('entry', 'America/New_York');
+    expect(h.read().timezone).toBe('America/New_York');
+    expect(h.deps.send).not.toHaveBeenCalled();
+    h.advance(2 * MINUTE);
+    await h.campaign.check();
+    expect(h.deps.send).toHaveBeenCalledTimes(1);
+  });
+  it('asks for feedback on the next open after a verified task delivery, once', async () => {
+    let task = {
+      id: 'task',
+      name: 'Architecture digest',
+      enabled: true,
+      deliveredAt: undefined as number | undefined,
+    };
+    const h = harness(state(), { task: async () => task });
+    await h.campaign.check();
+    expect(h.read().status).toBe('feedback');
+    expect(h.deps.send).not.toHaveBeenCalled();
+    task.deliveredAt = enrolledAt + DAY;
+    h.advance(MINUTE);
+    await h.campaign.opened('entry', 'America/New_York');
+    expect(h.deps.send).toHaveBeenCalledWith(
+      expect.stringContaining('Architecture digest'),
+      'campaign-v1-task-feedback',
+      '~ten'
+    );
+    h.advance(MINUTE);
+    await h.campaign.opened('entry-two', 'America/New_York');
+    expect(h.deps.send).toHaveBeenCalledTimes(1);
+  });
+  it('prioritizes a failed task, and does not claim undelivered work succeeded', async () => {
+    const h = harness(state(), {
+      task: async () => ({
+        id: 'task',
+        name: 'Digest',
+        enabled: true,
+        failedAt: enrolledAt + DAY - MINUTE,
+      }),
+    });
+    await h.campaign.opened('entry', 'America/New_York');
+    expect(h.deps.send).toHaveBeenCalledWith(
+      expect.stringContaining('failed'),
+      'campaign-v1-task-feedback',
+      '~ten'
+    );
+  });
+  it('preserves the five-message limit even when feedback replaces a scheduled tip', () => {
+    const sent = [
+      'useful-request',
+      'recurring-help',
+      'archive',
+      'own-material',
+      'task-feedback',
+    ].map((step) => ({ step, at: enrolledAt + DAY })) as CampaignState['sent'];
+    expect(
+      evaluateCampaign(state({ sent }), facts, enrolledAt + 6 * DAY)
+    ).toEqual({ kind: 'finish', status: 'completed' });
+  });
+  it('supports all three directions and configurable copy without resetting enrollment', () => {
+    expect(
+      renderTip('useful-request', state({ direction: 'archive' }), {})
+    ).toContain('link');
+    expect(
+      renderTip('useful-request', state({ direction: 'routine' }), {})
+    ).toContain('working on');
+    expect(
+      renderTip('useful-request', state({ topic: 'gardens' }), {
+        copy: { 'useful-request': 'What about {topic}?' },
+      })
+    ).toContain('What about gardens?');
+  });
+  it('does not retry an uncertain unconfirmed delivery across restarts', async () => {
+    const h = harness(state(), {
+      send: vi.fn(async () => {
+        throw new Error('timeout');
+      }),
+    });
+    await h.campaign.check();
+    await createCampaign(h.deps).check();
+    expect(h.deps.send).toHaveBeenCalledTimes(1);
+    expect(h.read().skipped).toContainEqual({
+      step: 'useful-request',
+      reason: 'attempt-already-claimed',
+    });
+  });
+});

@@ -1,6 +1,7 @@
 import type { Story } from '@tloncorp/api';
 import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
+import { isStopTips } from './campaign/templates.js';
 import { createLiveCampaign } from './campaign/live.js';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
 import type { OpenClawConfig, ReplyPayload } from 'openclaw/plugin-sdk/core';
@@ -3638,6 +3639,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                           }
 
                           deliveredMessageCount += 1;
+                          if (senderShip === effectiveOwnerShip) {
+                            await campaign
+                              ?.observeReply(
+                                replyText,
+                                groupChannel ?? senderShip
+                              )
+                              .catch((error) =>
+                                runtime.error?.(
+                                  `[tlon] campaign offer: ${String(error)}`
+                                )
+                              );
+                          }
                           contextLenses.recordPersistence(lens.lensId, {
                             postsReply: true,
                           });
@@ -4013,7 +4026,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           trackStep: trackOnboardingStep(nest, groupId),
           onInitialIntro: async (request, occurredAt) => {
             await campaign
-              ?.enroll({ ...request, occurredAt })
+              ?.enroll({ ...request, occurredAt, channelId: nest })
               .catch((error) =>
                 runtime.error?.(`[tlon] campaign enrollment: ${String(error)}`)
               );
@@ -4252,11 +4265,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         }
 
         if (senderShip === effectiveOwnerShip) {
-          await campaign
-            ?.inbound(rawText, false)
-            .catch((error) =>
-              runtime.error?.(`[tlon] campaign activity: ${String(error)}`)
-            );
+          if (
+            await campaign
+              ?.inbound(rawText, isStopTips(rawText))
+              .catch((error) =>
+                runtime.error?.(`[tlon] campaign activity: ${String(error)}`)
+              )
+          )
+            return;
         }
         let handledOnboardingRequest = false;
         try {
@@ -4277,7 +4293,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             requestSentAt: content.sent,
             onInitialIntro: async (request, occurredAt) => {
               await campaign
-                ?.enroll({ ...request, occurredAt })
+                ?.enroll({ ...request, occurredAt, channelId: nest })
                 .catch((error) =>
                   runtime.error?.(
                     `[tlon] campaign enrollment: ${String(error)}`
@@ -4580,12 +4596,20 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           }
         }
 
+        let campaignContext: string | undefined;
+        if (senderShip === effectiveOwnerShip) {
+          campaignContext = await campaign?.replyContext(nest);
+          if (campaignContext && (await campaign?.inbound(rawText, true)))
+            return;
+        }
         const parsed = parseChannelNest(nest);
         const citedContent = await resolveCitedContent(content.content);
         await processMessage({
           messageId: messageId ?? '',
           senderShip,
-          messageText: rawText,
+          messageText: campaignContext
+            ? `${campaignContext}\n\n[Current owner message]\n${rawText}`
+            : rawText,
           ...(citedContent ? { citedContent } : {}),
           gateText: engagementText,
           trigger,
