@@ -2535,6 +2535,9 @@ describe('primary onboarding cron slot', () => {
     const prompt = agentOnboardingTesting.buildRecurringPrompt(interviewPlan);
     expect(prompt).toContain(interviewPlan.taskPrompt);
     expect(prompt).toContain('Use the current run date and time');
+    expect(prompt).toContain('render it in America/New_York');
+    expect(prompt).toContain('ordinary 12-hour AM/PM wording');
+    expect(prompt).toContain('Never expose UTC');
     expect(prompt).toContain('one self-contained Markdown note');
 
     const harness = cronHarness();
@@ -2554,6 +2557,19 @@ describe('primary onboarding cron slot', () => {
     expect(agentOnboardingTesting.scheduleConfirmation(interviewPlan)).toBe(
       'After this first entry, the task will run every weekday at 8:30 AM.'
     );
+    const acknowledgement =
+      agentOnboardingTesting.buildProvisionAcknowledgement(
+        {
+          ...interviewPlan,
+          purpose:
+            'Keep material battery research visible without a large system.',
+        },
+        'Updates'
+      );
+    expect(acknowledgement).toContain(
+      'I’ll publish the first tailored update about AI and Climate in Updates'
+    );
+    expect(acknowledgement).not.toContain('I’ll publish keep');
   });
 
   it('keeps research updates narrow, sourced, and honest about freshness', () => {

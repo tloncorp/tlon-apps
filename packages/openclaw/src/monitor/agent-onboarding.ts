@@ -1404,9 +1404,10 @@ async function provision(
       });
     }
 
-    const acknowledgement = request.taskPrompt
-      ? `Got it. I’ll publish ${request.purpose.toLowerCase()} in ${notebookName}, this group’s notebook. ${scheduleConfirmation(request)}`
-      : `${formatTopicList(request.topics)}—got it. ${provisionCadence(request.purposeId, notebookName)} ${scheduleConfirmation(request)}`;
+    const acknowledgement = buildProvisionAcknowledgement(
+      request,
+      notebookName
+    );
     await postOnce(
       context,
       history,
@@ -3105,21 +3106,31 @@ function buildRecurringPrompt(
   providerIds: readonly string[] = []
 ) {
   const providerGuidance = buildProviderGuidance(providerIds);
+  const localTimeGuidance = ` When a date or time appears in the finished note, render it in ${request.timezone} using ordinary 12-hour AM/PM wording. Never expose UTC, an IANA timezone identifier, or a cron expression in the note.`;
   if (request.taskPrompt) {
     const approachGuidance = request.approach
       ? ` Follow the owner's selected approach: ${request.approach.trim()}.`
       : '';
-    return `Carry out this recurring task: ${request.taskPrompt.trim()}${approachGuidance} Use the current run date and time when deciding what is relevant. Search the web when the task depends on current or externally verifiable information, and cite useful sources.${providerGuidance} Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note. The coordinator will publish your final response exactly once.`;
+    return `Carry out this recurring task: ${request.taskPrompt.trim()}${approachGuidance} Use the current run date and time when deciding what is relevant.${localTimeGuidance} Search the web when the task depends on current or externally verifiable information, and cite useful sources.${providerGuidance} Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note. The coordinator will publish your final response exactly once.`;
   }
   if (request.purposeId === 'agent-learning') {
-    return `Build one entry in a progressive learning series. The topics are: ${request.topics.join(', ')}. Cover exactly one topic; never combine or force connections between topics. Rotate through the list over time, using the current date to vary the topic. Put that topic in the note title. Explain one useful idea for that topic with concrete examples. Keep it concise, search the web for reliable information, and cite useful sources.${providerGuidance} Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note. The coordinator will publish your final response exactly once.`;
+    return `Build one entry in a progressive learning series. The topics are: ${request.topics.join(', ')}. Cover exactly one topic; never combine or force connections between topics. Rotate through the list over time, using the current date to vary the topic. Put that topic in the note title. Explain one useful idea for that topic with concrete examples.${localTimeGuidance} Keep it concise, search the web for reliable information, and cite useful sources.${providerGuidance} Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note. The coordinator will publish your final response exactly once.`;
   }
 
   const purposeGuidance =
     request.purposeId === 'agent-research'
       ? 'Focus on meaningful recent work. Prioritize primary sources and direct links. Distinguish publication dates from event dates, label uncertainty or conflicting evidence, and stay tightly within the requested scope. If nothing meaningful changed, say that plainly instead of padding the entry.'
       : 'Make the entry self-contained. Lead with the items most likely to matter today. Distinguish new information from background, order items by urgency, and keep the result concise and scannable.';
-  return `Write ${request.purpose.toLowerCase()} about ${request.topics.join(', ')}. ${purposeGuidance} Search the web for current information and cite useful sources.${providerGuidance} Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note. The coordinator will publish your final response exactly once.`;
+  return `Write ${request.purpose.toLowerCase()} about ${request.topics.join(', ')}. ${purposeGuidance}${localTimeGuidance} Search the web for current information and cite useful sources.${providerGuidance} Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note. The coordinator will publish your final response exactly once.`;
+}
+
+function buildProvisionAcknowledgement(
+  request: PostBlobDataEntryAgentProvision,
+  notebookName: string
+) {
+  return request.taskPrompt
+    ? `Got it. I’ll publish the first tailored update about ${formatTopicList(request.topics)} in ${notebookName}, this group’s notebook. ${scheduleConfirmation(request)}`
+    : `${formatTopicList(request.topics)}—got it. ${provisionCadence(request.purposeId, notebookName)} ${scheduleConfirmation(request)}`;
 }
 
 function choiceAction(text: string): A2UI.SendMessageAction {
@@ -3392,6 +3403,7 @@ function buildTourChoiceSurface(surfaceId: string, prompt: string) {
 }
 
 export const agentOnboardingTesting = {
+  buildProvisionAcknowledgement,
   buildTopicsPickerSurface,
   buildTourChoiceSurface,
   buildRecurringPrompt,
