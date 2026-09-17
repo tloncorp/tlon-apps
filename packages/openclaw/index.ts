@@ -1,4 +1,7 @@
-import { setCampaignStore } from './src/monitor/campaign/store.js';
+import {
+  campaignStoreForDirectory,
+  setCampaignStore,
+} from './src/monitor/campaign/store.js';
 import {
   notifyCampaignCronChanged,
   notifyCampaignReply,
@@ -894,10 +897,7 @@ export default defineBundledChannelEntry({
 
     try {
       setCampaignStore(
-        api.runtime.state.openKeyedStore({
-          namespace: 'tlon-onboarding-campaign',
-          maxEntries: 500,
-        })
+        campaignStoreForDirectory(api.runtime.state.resolveStateDir())
       );
     } catch (error) {
       setCampaignStore(null);

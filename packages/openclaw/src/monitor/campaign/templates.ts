@@ -58,7 +58,7 @@ export function renderTip(
   task?: CampaignTask
 ): string {
   const direction = state.direction ?? 'useful';
-  const topic = state.topic;
+  const topic = state.lastReplyAt ? undefined : state.topic;
   let text = ALTERNATIVES[direction][step] ?? TEMPLATES[step];
   if (!topic && state.purpose && step === 'useful-request')
     text = `You chose “${state.purpose}” during setup. What would you like to focus on? I can help you try it with one useful answer first.`;
@@ -76,7 +76,11 @@ export function renderTip(
     text = `Want a notebook about ${topic} to keep growing? Each week I can research one question and add an update with sources. You choose the day.`;
   if (topic && direction === 'routine' && step === 'archive')
     text = `Would a weekly check-in on ${topic} help? I can ask how it’s going, then help you work out the next step. What day would suit you?`;
-  if (step === 'closing' && state.sent.some((s) => s.step === 'task-feedback'))
+  if (
+    step === 'closing' &&
+    !task?.failedAt &&
+    state.sent.some((s) => s.step === 'task-feedback')
+  )
     return 'I’ll leave you to explore after today. You can ask me to adjust your existing tasks whenever you like.';
   if (step === 'task-feedback' || (step === 'closing' && task)) {
     text = task?.failedAt

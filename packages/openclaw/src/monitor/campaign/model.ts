@@ -40,6 +40,7 @@ export type CampaignState = {
   skipped: { step: StepId; reason: string }[];
   lastReplyAt?: number;
   lastActivityAt?: number;
+  lastAttemptAt?: number;
 };
 export type CampaignConfig = {
   enabled?: boolean;
@@ -109,7 +110,7 @@ export function evaluateCampaign(
     feedbackPhase &&
     resultAt !== undefined &&
     (state.openedAt ?? 0) > resultAt &&
-    now - (state.openedAt ?? 0) < 90_000 &&
+    facts.visible === true &&
     !state.sent.some((s) => s.step === 'task-feedback');
   const step = feedbackDue
     ? { id: 'task-feedback' as const, start: 0, end: 7 * DAY }
@@ -137,7 +138,8 @@ export function evaluateCampaign(
   ).length;
   if (unanswered >= 2 && step.id !== 'closing' && step.id !== 'task-feedback')
     return { kind: 'skip', step: step.id, reason: 'unanswered' };
-  const lastSend = state.sent.at(-1)?.at;
+  const lastSend =
+    Math.max(state.sent.at(-1)?.at ?? 0, state.lastAttemptAt ?? 0) || undefined;
   if (facts.busy || (!feedbackDue && facts.visible))
     return { kind: 'defer', reason: 'active-conversation' };
   if (

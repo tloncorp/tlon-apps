@@ -2,8 +2,7 @@ import {
   appendToPostBlob,
   getChannelPosts,
   getGroup,
-  subscribeToPresenceUpdates,
-  unsubscribe,
+  type PresenceEvent,
   type PresenceStatus,
   parsePostBlob,
 } from '@tloncorp/api';
@@ -69,6 +68,7 @@ export function createLiveCampaign(deps: {
   telemetry?: TlonTelemetryClient | null;
   error: (error: unknown) => void;
   signal?: AbortSignal;
+  presence?: (handler: (event: PresenceEvent) => void) => Promise<void>;
 }) {
   const capturedScope = captureTlonApiScope();
   const scope = <T>(fn: () => Promise<T>): Promise<T> => {
@@ -78,7 +78,6 @@ export function createLiveCampaign(deps: {
   };
   const runningJobs = new Set<string>();
   let stopped = false;
-  let presenceSubscription: Promise<number | null> | undefined;
   const jobs = async () => {
     const cron = getTlonCronService();
     if (!cron) throw new Error('Campaign deferred: cron service unavailable');
@@ -137,10 +136,20 @@ export function createLiveCampaign(deps: {
         enabled: job.enabled !== false,
         ...(job.state?.lastRunStatus === 'error' ||
         job.state?.lastDeliveryStatus === 'not-delivered'
-          ? { failedAt: job.state.lastRunAtMs }
+          ? {
+              failedAt:
+                job.state.lastRunAtMs === undefined
+                  ? undefined
+                  : job.state.lastRunAtMs + (job.state.lastDurationMs ?? 0),
+            }
           : job.state?.lastDelivered === true ||
               job.state?.lastDeliveryStatus === 'delivered'
-            ? { deliveredAt: job.state.lastRunAtMs }
+            ? {
+                deliveredAt:
+                  job.state.lastRunAtMs === undefined
+                    ? undefined
+                    : job.state.lastRunAtMs + (job.state.lastDurationMs ?? 0),
+              }
             : {}),
       }));
       return tasks.sort(
@@ -159,14 +168,16 @@ export function createLiveCampaign(deps: {
           mode: 'newest',
           count: 100,
         });
+        const choices: Pick<CampaignState, 'topic' | 'purpose'> = {};
         // Topics come from authenticated, structured onboarding choices, not generated summaries.
         for (const post of [...posts].sort(
           (a, b) => Number(b.sentAt) - Number(a.sentAt)
         )) {
           if (post.authorId !== deps.owner || !post.blob) continue;
           for (const entry of parsePostBlob(post.blob) ?? []) {
-            if (entry.type === 'tlon-agent-provision')
-              return { topic: entry.topics.join(', ') };
+            if (entry.type === 'tlon-agent-provision') {
+              choices.topic ??= entry.topics.join(', ');
+            }
             if (entry.type !== 'tlon-a2ui-selection' || !entry.sourcePostId)
               continue;
             const source = posts.find(
@@ -180,7 +191,7 @@ export function createLiveCampaign(deps: {
                   e.key === 'topics-picker'
               )
             )
-              return { topic: entry.values.join(', ') };
+              choices.topic ??= entry.values.join(', ');
             if (
               source?.blob &&
               (parsePostBlob(source.blob) ?? []).some(
@@ -189,10 +200,10 @@ export function createLiveCampaign(deps: {
                   e.key === 'purpose-picker'
               )
             )
-              return { purpose: entry.values.join(', ') };
+              choices.purpose ??= entry.values.join(', ');
           }
         }
-        return {};
+        return choices;
       }),
     readMarker: (key, conversation = deps.owner) =>
       scope(async () => {
@@ -300,8 +311,8 @@ export function createLiveCampaign(deps: {
       observers.set(deps.accountId, onCron);
       replyObservers.set(deps.accountId, campaign.observeReply);
       campaign.start();
-      presenceSubscription = scope(() =>
-        subscribeToPresenceUpdates((event) => {
+      void deps
+        .presence?.((event) => {
           const states =
             event.type === 'init'
               ? event.states
@@ -310,10 +321,7 @@ export function createLiveCampaign(deps: {
                 : [];
           for (const state of states) void onPresence(state).catch(deps.error);
         })
-      ).catch((error) => {
-        deps.error(error);
-        return null;
-      });
+        .catch(deps.error);
     },
     async stop() {
       if (observers.get(deps.accountId) === onCron)
@@ -322,8 +330,6 @@ export function createLiveCampaign(deps: {
       if (replyObservers.get(deps.accountId) === campaign.observeReply)
         replyObservers.delete(deps.accountId);
       await campaign.stop();
-      const id = await presenceSubscription;
-      if (id != null) await scope(() => unsubscribe(id)).catch(deps.error);
     },
   };
 }

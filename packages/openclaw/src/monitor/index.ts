@@ -1,6 +1,7 @@
 import type { Story } from '@tloncorp/api';
 import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
+import { toPresenceEvent } from '@tloncorp/api';
 import { isStopTips } from './campaign/templates.js';
 import { createLiveCampaign } from './campaign/live.js';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
@@ -745,7 +746,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     api.poke.bind(api),
     botShipName,
     account.url,
-    ({ app, path }) => api.scry(`/~/scry/${app}${path}.json`),
+    ({ app, path }) => api.scry(`/${app}${path}.json`),
     (path, method, body, options) =>
       api.requestJson(path, method, body, options)
   );
@@ -1473,6 +1474,24 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           config: () => core.config.loadConfig(),
           botProfile: getBotProfile,
           busy: () => campaignActiveRuns > 0,
+          // The monitor owns SSE subscriptions; the HTTP API shim cannot subscribe.
+          presence: async (handler) => {
+            await api.subscribe({
+              app: 'presence',
+              path: '/v1',
+              event: (data) => {
+                try {
+                  handler(
+                    toPresenceEvent(
+                      data as Parameters<typeof toPresenceEvent>[0]
+                    )
+                  );
+                } catch (error) {
+                  runtime.error?.(`[tlon] campaign presence: ${String(error)}`);
+                }
+              },
+            });
+          },
           telemetry,
           signal: opts.abortSignal,
           error: (error) =>

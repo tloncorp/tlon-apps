@@ -471,7 +471,13 @@ describe('ticket conversation flow', () => {
     );
     await h.campaign.inbound('Actually help with my garden', true);
     expect(await h.campaign.replyContext()).toContain('my garden');
-    expect(await h.campaign.replyContext()).not.toContain('architecture');
+    expect(await h.campaign.replyContext()).toContain('architecture');
+    expect(await h.campaign.replyContext()).toContain(
+      'latest owner request takes precedence'
+    );
+    expect(renderTip('useful-request', h.read(), {})).not.toContain(
+      'architecture'
+    );
   });
   it('offers recurring work in the useful reply and suppresses the later duplicate prompt', async () => {
     const h = harness();
@@ -582,4 +588,57 @@ describe('ticket conversation flow', () => {
       reason: 'attempt-already-claimed',
     });
   });
+});
+
+it('keeps feedback pending through a busy conversation while presence is refreshed', async () => {
+  let busy = true;
+  const h = harness(state(), {
+    busy: () => busy,
+    task: async () => ({
+      id: 'task',
+      name: 'Digest',
+      enabled: true,
+      deliveredAt: enrolledAt + DAY - MINUTE,
+    }),
+  });
+  await h.campaign.inbound('thanks', true);
+  await h.campaign.opened('entry', 'America/New_York');
+  h.advance(16 * MINUTE);
+  await h.campaign.opened('entry', 'America/New_York');
+  busy = false;
+  await h.campaign.check();
+  expect(h.read().sent.at(-1)?.step).toBe('task-feedback');
+});
+it('prioritizes a newly failed task at closing even after earlier feedback', () => {
+  const current = state({
+    status: 'feedback',
+    sent: [{ step: 'task-feedback', at: enrolledAt + DAY }],
+  });
+  expect(
+    renderTip(
+      'closing',
+      current,
+      {},
+      {
+        id: 'task',
+        name: 'Digest',
+        enabled: true,
+        failedAt: enrolledAt + 5 * DAY,
+      }
+    )
+  ).toContain('failed');
+});
+
+it('keeps spacing after an ambiguous late send whose marker is unavailable', async () => {
+  const h = harness(state(), {
+    send: vi.fn(async () => {
+      throw new Error('timeout');
+    }),
+  });
+  h.setTime(enrolledAt + 2 * DAY - MINUTE);
+  await h.campaign.check();
+  await createCampaign(h.deps).check();
+  h.advance(2 * MINUTE);
+  await createCampaign(h.deps).check();
+  expect(h.deps.send).toHaveBeenCalledTimes(1);
 });

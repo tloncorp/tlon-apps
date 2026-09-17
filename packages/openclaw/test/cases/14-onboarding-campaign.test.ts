@@ -1,5 +1,10 @@
 /** Real gateway/DM proof; accelerate only the disposable fixture's durable enrollment time. */
-import { appendToPostBlob, parsePostBlob } from '@tloncorp/api';
+import {
+  appendToPostBlob,
+  parsePostBlob,
+  conversationIdToPresenceContext,
+} from '@tloncorp/api';
+import { publishCampaignView } from '../../../app/features/top/campaignPresence.js';
 import { execFileSync } from 'node:child_process';
 import { beforeAll, expect, test } from 'vitest';
 import type { CampaignState } from '../../src/monitor/campaign/model.js';
@@ -27,8 +32,8 @@ function campaignState(): CampaignState | undefined {
       inBot(
         `
     import { DatabaseSync } from 'node:sqlite';
-    const db = new DatabaseSync('/root/.openclaw/plugin-state/state.sqlite');
-    const row = db.prepare('SELECT value_json FROM plugin_state_entries WHERE plugin_id = ? AND namespace = ? AND entry_key = ?').get('tlon', 'tlon-onboarding-campaign', process.argv[1]);
+    const db = new DatabaseSync('/root/.openclaw/tlon/onboarding-campaign.sqlite');
+    const row = db.prepare('SELECT value_json FROM campaign_state WHERE key = ?').get(process.argv[1]);
     console.log(row?.value_json ?? 'null'); db.close();
   `,
         fixtures.userShip
@@ -79,7 +84,7 @@ beforeAll(async () => {
   fixtures = await getFixtures();
 });
 
-test('enrolls a live initial request, sends one marked private-channel tip, supplies yes-reply context, and saves opt-out', async () => {
+test('enrolls a live initial request, sends one marked private-channel tip, creates agreed work, asks feedback on open, and saves opt-out', async () => {
   if (!fixtures.group) throw new Error('Fixture group required');
   await reloadConfig({
     onboardingCampaign: {
@@ -108,14 +113,14 @@ test('enrolls a live initial request, sends one marked private-channel tip, supp
   inBot(
     `
     import { DatabaseSync } from 'node:sqlite';
-    const db = new DatabaseSync('/root/.openclaw/plugin-state/state.sqlite');
-    const key = ['tlon', 'tlon-onboarding-campaign', process.argv[1]];
-    const state = JSON.parse(db.prepare('SELECT value_json FROM plugin_state_entries WHERE plugin_id=? AND namespace=? AND entry_key=?').get(...key).value_json);
+    const db = new DatabaseSync('/root/.openclaw/tlon/onboarding-campaign.sqlite');
+    const key = [process.argv[1]];
+    const state = JSON.parse(db.prepare('SELECT value_json FROM campaign_state WHERE key=?').get(...key).value_json);
     state.enrolledAt = Date.now() - Number(process.argv[2]) - 60000;
     state.lastActivityAt = 0;
     const offset = new Date().getUTCHours() - 12;
     state.timezone = offset === 0 ? 'Etc/UTC' : 'Etc/GMT' + (offset > 0 ? '+' : '') + offset;
-    db.prepare('UPDATE plugin_state_entries SET value_json=? WHERE plugin_id=? AND namespace=? AND entry_key=?').run(JSON.stringify(state), ...key);
+    db.prepare('UPDATE campaign_state SET value_json=? WHERE key=?').run(JSON.stringify(state), ...key);
     db.close();
   `,
     fixtures.userShip,
@@ -158,10 +163,121 @@ test('enrolls a live initial request, sends one marked private-channel tip, supp
     async () => (campaignState()?.offeredAt ? true : undefined),
     20_000
   );
+  const resultTag = await registerEngagingTurn('campaign-result', [
+    { kind: 'text', content: 'Architecture result: a verified test delivery.' },
+  ]);
+  const createTag = await registerEngagingTurn('campaign-task', [
+    {
+      kind: 'tool_call',
+      name: 'cron',
+      args: {
+        action: 'add',
+        job: {
+          name: 'tlon-campaign-e2e-digest',
+          schedule: { kind: 'cron', expr: '0 12 * * 5', tz: 'UTC' },
+          sessionTarget: 'isolated',
+          payload: {
+            kind: 'agentTurn',
+            message: `Send the architecture digest. ${resultTag}`,
+          },
+          delivery: {
+            mode: 'announce',
+            channel: 'tlon',
+            to: fixtures.userShip,
+          },
+        },
+      },
+    },
+    { kind: 'text', content: 'Your Friday digest is scheduled.' },
+  ]);
+  expect(
+    (
+      await fixtures.client.prompt(
+        `Yes, send an architecture digest every Friday at 12:00 UTC in this DM. ${createTag}`
+      )
+    ).success
+  ).toBe(true);
+  const readTask = () =>
+    JSON.parse(
+      inBot(
+        `import fs from 'node:fs'; const data=JSON.parse(fs.readFileSync('/root/.openclaw/cron/jobs.json','utf8')); console.log(JSON.stringify(data.jobs.find(j=>j.name==='tlon-campaign-e2e-digest') ?? null));`
+      )
+    );
+  const task = await waitFor(async () => readTask() ?? undefined, 20_000);
+  await waitFor(
+    async () => (campaignState()?.status === 'feedback' ? true : undefined),
+    20_000
+  );
+  const runTag = await registerEngagingTurn('campaign-run', [
+    {
+      kind: 'tool_call',
+      name: 'cron',
+      args: { action: 'run', jobId: task.id },
+    },
+    { kind: 'text', content: 'Running the first example now.' },
+  ]);
+  expect(
+    (await fixtures.client.prompt(`Run that task once now. ${runTag}`)).success
+  ).toBe(true);
+  await waitFor(
+    async () => (readTask()?.state?.lastDelivered === true ? true : undefined),
+    60_000
+  );
+  // Advance only this disposable fixture past recent-conversation suppression.
+  inBot(
+    `import {DatabaseSync} from 'node:sqlite'; const db=new DatabaseSync('/root/.openclaw/tlon/onboarding-campaign.sqlite'); const row=JSON.parse(db.prepare('SELECT value_json FROM campaign_state WHERE key=?').get(process.argv[1]).value_json); row.lastActivityAt=0; db.prepare('UPDATE campaign_state SET value_json=? WHERE key=?').run(JSON.stringify(row),process.argv[1]); db.close();`,
+    fixtures.userShip
+  );
+  await reloadConfig({ showModelSignature: false });
+  const closeView = publishCampaignView({
+    conversationId: fixtures.group.chatChannel,
+    bot: fixtures.botShip,
+    token: 'campaign-feedback-open',
+    timezone: campaignState()!.timezone!,
+    reportError: (error) => {
+      throw error;
+    },
+    publish: async (input) =>
+      fixtures.userState.poke({
+        app: 'presence',
+        mark: 'presence-action-1',
+        json: {
+          set: {
+            disclose: input.disclose,
+            key: {
+              context: conversationIdToPresenceContext(input.conversationId),
+              ship: fixtures.userShip,
+              topic: input.topic,
+            },
+            timeout: input.timeout,
+            display: {
+              icon: null,
+              text: null,
+              blob: input.display?.blob ?? null,
+            },
+          },
+        },
+      }),
+  });
+  try {
+    await waitFor(
+      async () =>
+        campaignState()?.sent.some((s) => s.step === 'task-feedback')
+          ? true
+          : undefined,
+      30_000
+    );
+    expect(
+      campaignState()?.sent.find((s) => s.step === 'task-feedback')?.text
+    ).toContain('tlon-campaign-e2e-digest');
+  } finally {
+    await closeView();
+  }
   await fixtures.client.sendDm('/stop-tips');
   await waitFor(
     async () => (campaignState()?.status === 'opted-out' ? true : undefined),
     20_000
   );
-  expect(campaignState()?.sent).toHaveLength(1);
+  expect(campaignState()?.sent).toHaveLength(2);
+  expect(readTask()?.id).toBe(task.id);
 }, 180_000);
