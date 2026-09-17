@@ -30,6 +30,8 @@ export type PromptFileName = (typeof PROMPT_FILE_NAMES)[number];
 
 /** Must match %steward's per-file cap. */
 export const MAX_PROMPT_BYTES = 65_536;
+/** The bot's HTTP finalize route; its reply confirms steward consumed it. */
+export const STEWARD_PROMPTS_FINALIZE_PATH = '/steward/~/v1/prompts/finalize';
 const MAX_COMPLETED_REQUESTS = 1_000;
 
 type Logger = {
@@ -42,6 +44,12 @@ type Poke = (params: {
   mark: string;
   json: unknown;
 }) => Promise<unknown>;
+
+type RequestJson = (
+  path: string,
+  method: 'POST',
+  body: unknown
+) => Promise<unknown>;
 
 type PromptDispatch = {
   requestId: string;
@@ -206,6 +214,7 @@ export function createPromptSync(opts: {
   owner: string;
   workspaceDir: string;
   poke: Poke;
+  requestJson: RequestJson;
   logger: Logger;
 }): PromptSync {
   let configured = false;
@@ -240,10 +249,9 @@ export function createPromptSync(opts: {
   };
 
   const finalize = async (requestId: string, body: PromptOutcome) => {
-    await opts.poke({
-      app: 'steward',
-      mark: 'steward-prompts-action-1',
-      json: { finalize: { requestId, body } },
+    await opts.requestJson(STEWARD_PROMPTS_FINALIZE_PATH, 'POST', {
+      requestId,
+      body,
     });
   };
 

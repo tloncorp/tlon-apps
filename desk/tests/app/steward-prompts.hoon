@@ -154,6 +154,7 @@
   :^  eyre-id  200  'application/json'
   (en:json:html (response:enjs:pj [rid body]))
 ++  edit-url  ^-  @t  '/steward/~/v1/prompts'
+++  finalize-url  ^-  @t  '/steward/~/v1/prompts/finalize'
 ++  request-url
   ^-  @t
   (crip "/steward/~/v1/prompts/request/{(scow %uv rid)}")
@@ -166,6 +167,24 @@
     ==
   =?  fields  with-rid  [['requestId' s+(scot %uv rid)] fields]
   (en:json:html (pairs:enjs:format fields))
+++  finalize-post-body
+  |=  body=outcome:v1:pr
+  ^-  @t
+  %-  en:json:html
+  %-  pairs:enjs:format
+  :~  ['requestId' (request-id:enjs:pj rid)]
+      ['body' (response-body:enjs:pj body)]
+  ==
+++  ex-finalize-http
+  |=  [eyre-id=@ta finalized=?]
+  ^-  (list $-(card tang))
+  %-  ex-http
+  :^  eyre-id  200  'application/json'
+  %-  en:json:html
+  %-  pairs:enjs:format
+  :~  ['requestId' (request-id:enjs:pj rid)]
+      ['finalized' b+finalized]
+  ==
 ::
 ::  ----------------------------------------------------------
 ::  owner side
@@ -780,6 +799,23 @@
   ;<  caz=(list card)  bind:m
     (do-http 'second' (http-request & %'POST' edit-url `(edit-post-body &)))
   (ex-cards caz (ex-http 'second' 409 'text/plain' 'request id already used for another edit'))
+::
+++  test-http-finalize-answers-and-is-idempotent
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m  (do-watch harness-path)
+  ;<  *  bind:m  ((do-as ~bus) (do-command edit-set))
+  ;<  caz=(list card)  bind:m
+    (do-http 'finalize' (http-request & %'POST' finalize-url `(finalize-post-body updated)))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    [(ex-bot-response ~bus updated) (ex-finalize-http 'finalize' &)]
+  ;<  caz=(list card)  bind:m
+    (do-http 'retry' (http-request & %'POST' finalize-url `(finalize-post-body updated)))
+  (ex-cards caz (ex-finalize-http 'retry' |))
 ::
 ++  test-final-response-cannot-be-overwritten
   %-  eval-mare

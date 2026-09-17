@@ -23,6 +23,7 @@ afterEach(() => {
 
 function makeSync() {
   const pokes: Array<{ app: string; mark: string; json: unknown }> = [];
+  const requests: Array<{ path: string; method: string; body: unknown }> = [];
   const logger = { log: vi.fn(), warn: vi.fn() };
   const sync = createPromptSync({
     owner: '~zod',
@@ -30,9 +31,12 @@ function makeSync() {
     poke: async (poke) => {
       pokes.push(poke);
     },
+    requestJson: async (path, method, body) => {
+      requests.push({ path, method, body });
+    },
     logger,
   });
-  return { sync, pokes, logger };
+  return { sync, pokes, requests, logger };
 }
 
 describe('prompt workspace projection', () => {
@@ -80,7 +84,7 @@ describe('prompt workspace projection', () => {
   });
 
   it('writes an owner edit, projects it, and then finalizes it', async () => {
-    const { sync, pokes } = makeSync();
+    const { sync, pokes, requests } = makeSync();
 
     await sync.handleDispatch({
       requestId: '0v1',
@@ -101,14 +105,14 @@ describe('prompt workspace projection', () => {
         mark: 'steward-prompts-action-1',
         json: { project: { 'SOUL.md': 'be exact' } },
       },
+    ]);
+    expect(requests).toEqual([
       {
-        app: 'steward',
-        mark: 'steward-prompts-action-1',
-        json: {
-          finalize: {
-            requestId: '0v1',
-            body: { type: 'updated', name: 'SOUL.md' },
-          },
+        path: '/steward/~/v1/prompts/finalize',
+        method: 'POST',
+        body: {
+          requestId: '0v1',
+          body: { type: 'updated', name: 'SOUL.md' },
         },
       },
     ]);
@@ -116,7 +120,7 @@ describe('prompt workspace projection', () => {
 
   it('finalizes a failed edit without replacing the last projection', async () => {
     fs.mkdirSync(path.join(workspaceDir, 'SOUL.md'));
-    const { sync, pokes } = makeSync();
+    const { sync, pokes, requests } = makeSync();
 
     await sync.handleDispatch({
       requestId: '0v2',
@@ -129,17 +133,17 @@ describe('prompt workspace projection', () => {
         mark: 'steward-action-1',
         json: { configure: { owner: '~zod' } },
       },
+    ]);
+    expect(requests).toEqual([
       {
-        app: 'steward',
-        mark: 'steward-prompts-action-1',
-        json: {
-          finalize: {
-            requestId: '0v2',
-            body: {
-              type: 'error',
-              errorType: 'harness-error',
-              message: [expect.any(String)],
-            },
+        path: '/steward/~/v1/prompts/finalize',
+        method: 'POST',
+        body: {
+          requestId: '0v2',
+          body: {
+            type: 'error',
+            errorType: 'harness-error',
+            message: [expect.any(String)],
           },
         },
       },
@@ -147,7 +151,7 @@ describe('prompt workspace projection', () => {
   });
 
   it('serializes dispatches so each finalize follows its projection', async () => {
-    const { sync, pokes } = makeSync();
+    const { sync, pokes, requests } = makeSync();
 
     await Promise.all([
       sync.handleDispatch({
@@ -163,24 +167,24 @@ describe('prompt workspace projection', () => {
     expect(pokes.map((poke) => poke.json)).toEqual([
       { configure: { owner: '~zod' } },
       { project: { 'SOUL.md': 'first' } },
-      {
-        finalize: {
-          requestId: '0v3',
-          body: { type: 'updated', name: 'SOUL.md' },
-        },
-      },
       { project: { 'SOUL.md': 'first', 'USER.md': 'second' } },
+    ]);
+    expect(requests).toEqual([
       {
-        finalize: {
-          requestId: '0v4',
-          body: { type: 'updated', name: 'USER.md' },
-        },
+        path: '/steward/~/v1/prompts/finalize',
+        method: 'POST',
+        body: { requestId: '0v3', body: { type: 'updated', name: 'SOUL.md' } },
+      },
+      {
+        path: '/steward/~/v1/prompts/finalize',
+        method: 'POST',
+        body: { requestId: '0v4', body: { type: 'updated', name: 'USER.md' } },
       },
     ]);
   });
 
   it('re-finalizes duplicate dispatches without writing or projecting again', async () => {
-    const { sync, pokes } = makeSync();
+    const { sync, pokes, requests } = makeSync();
     const dispatch = {
       requestId: '0v5',
       action: { set: { name: 'SOUL.md' as const, text: 'once' } },
@@ -192,17 +196,17 @@ describe('prompt workspace projection', () => {
     expect(pokes.map((poke) => poke.json)).toEqual([
       { configure: { owner: '~zod' } },
       { project: { 'SOUL.md': 'once' } },
+    ]);
+    expect(requests).toEqual([
       {
-        finalize: {
-          requestId: '0v5',
-          body: { type: 'updated', name: 'SOUL.md' },
-        },
+        path: '/steward/~/v1/prompts/finalize',
+        method: 'POST',
+        body: { requestId: '0v5', body: { type: 'updated', name: 'SOUL.md' } },
       },
       {
-        finalize: {
-          requestId: '0v5',
-          body: { type: 'updated', name: 'SOUL.md' },
-        },
+        path: '/steward/~/v1/prompts/finalize',
+        method: 'POST',
+        body: { requestId: '0v5', body: { type: 'updated', name: 'SOUL.md' } },
       },
     ]);
   });

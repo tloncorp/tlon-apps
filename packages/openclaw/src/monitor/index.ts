@@ -4926,6 +4926,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             resolveDefaultAgentId(cfg)
           ),
           poke: api.poke.bind(api),
+          requestJson: api.requestJson.bind(api),
           logger: {
             log: (message) => runtime.log?.(message),
             warn: (message) => runtime.error?.(message),

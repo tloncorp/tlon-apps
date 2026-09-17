@@ -1742,7 +1742,7 @@
   --
 ::  |pr-core: prompt-file projection module
 ::
-+++  pr-core
+++  pr-core
   |%
   ++  pr-valid-edit
     |=  =edit:v1:sp
@@ -2219,6 +2219,12 @@
       ?.  =(%'GET' method)  (http-error eyre-id 405 'method not allowed')
       %^  give-http  eyre-id  200
       ['application/json' (en:json:html (ship-files:enjs:pj files.prompts.state))]
+    ::  the harness answers a dispatch here (bot side): the reply is the
+    ::  acknowledgement a channel poke never gives it
+    ::
+    ?:  =(site ~[%steward %~.~ %v1 %prompts %finalize])
+      ?.  =(%'POST' method)  (http-error eyre-id 405 'method not allowed')
+      (pr-handle-http-finalize eyre-id inbound-request)
     ?:  ?=([%steward %~.~ %v1 %prompts %request @ ~] site)
       ?.  =(%'GET' method)  (http-error eyre-id 405 'method not allowed')
       ::  a @uv carries dots; apat split its last dot-group off as a
@@ -2295,6 +2301,40 @@
     =?  requests.prompts.state  !?=(%pending -.body)
       (~(put by requests.prompts.state) p.parsed u.req(fetched &))
     (pr-give-http-response eyre-id [p.parsed body])
+  ::
+  ::  POST body: { requestId, body }. The harness uses this instead of a
+  ::  channel poke so its reply confirms that steward consumed the result.
+  ::  Retrying a lost reply is harmless: an already-settled id returns
+  ::  finalized=false.
+  ::
+  ++  pr-handle-http-finalize
+    |=  [eyre-id=@ta =inbound-request:eyre]
+    ^+  cor
+    ?~  body.request.inbound-request
+      (http-error eyre-id 400 'missing body')
+    ?~  jon=(de:json:html q.u.body.request.inbound-request)
+      (http-error eyre-id 400 'invalid json')
+    =/  parsed=(each [request-id:v1:sp outcome:v1:sp] tang)
+      %-  mule  |.
+      %.  u.jon
+      (ot:dejs:format 'requestId'^request-id:dejs:pj body+result:dejs:pj ~)
+    ?:  ?=(%| -.parsed)
+      (http-error eyre-id 400 'malformed response')
+    =/  [rid=request-id:v1:sp =outcome:v1:sp]  p.parsed
+    ::  Terminal responses stay in pending for replay/deduplication, so
+    ::  only an unresolved entry was actually finalized by this request.
+    =/  finalized
+      ?~  pen=(~(get by pending.prompts.state) rid)  |
+      ?~  result.u.pen  &
+      |
+    =.  cor  (pr-handle-finalize rid outcome)
+    %^  give-http  eyre-id  200
+    :-  'application/json'
+    %-  en:json:html
+    %-  pairs:enjs:format
+    :~  ['requestId' (request-id:enjs:pj rid)]
+        ['finalized' b+finalized]
+    ==
   ::
   ++  pr-give-http-response
     |=  [eyre-id=@ta =response:v1:sp]
