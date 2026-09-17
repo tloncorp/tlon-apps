@@ -264,18 +264,37 @@ The map is scriable at `/x/v1/prompts/files`.
 
 An edit follows the owner → bot → local harness relay. The owner sends
 `a-prompts` `%edit`, watches the bot's request path, and pokes
-`c-prompts` `%edit`. The bot records the command and gives it on the local
-`/v1/prompts/harness` feed. The plugin writes the file atomically, projects the
-complete workspace again, then sends `a-prompts` `%finalize`. A reconnecting
-harness receives every unresolved command in sent order. `%pending` only
-closes a held HTTP request; it is not a terminal harness result and a later
-finalize still completes the record.
+`c-prompts` `%edit`. Only a bot this ship manages — the local ship, or one in
+the trusted set — may be sent an edit; the HTTP route answers 403 for anything
+else, and the local action crashes, exactly as automation does. The bot records
+the command and gives it on the local `/v1/prompts/harness` feed. The plugin
+writes the file atomically, projects the complete workspace again, then
+finalizes over HTTP. A reconnecting harness receives every unresolved command in
+sent order. `%pending` only closes a held HTTP request; it is not a terminal
+harness result and a later finalize still completes the record. A command the
+harness never answers is closed out to its requester as `%harness-offline` when
+the hourly sweep drops it, so the owner's record finalizes instead of ageing out
+as pending.
+
+The `dispatch` carries the `requester` that authorized it. The harness compares
+it against its own configured owner and refuses the edit when they differ: this
+watch goes live before the harness's `%configure` lands, so a replay after an
+owner change would otherwise write the previous owner's text into the workspace.
+
+Trust changes drive the prompts mirror the way they drive automation's:
+`%trust-bot` subscribes to the bot's `/v1/prompts/files` (idempotent, guarded on
+`wex.bowl`), `%untrust-bot` leaves and deletes that bot's entry, and `%configure`
+with a new owner kicks the replaced owner off the feed. A ship upgrading into
+`%3` subscribes the bots it already trusts, since nothing else would. A **nacked**
+watch keeps the last good projection rather than wiping it — a nack schedules no
+retry, so dropping the mirror would strand it until someone re-pokes `%trust-bot`.
 
 The public HTTP routes are:
 
-- `POST /steward/~/v1/prompts` — `{ requestId?, bot, action: { set: { name, text } } }`.
+- `POST /steward/~/v1/prompts` — `{ requestId?, bot, action: { set: { name, text } } }`. 403 when `bot` is not managed.
 - `GET /steward/~/v1/prompts/request/<uv>` — returns the current request response.
 - `GET /steward/~/v1/prompts/files` — returns the ship-keyed file projection.
+- `POST /steward/~/v1/prompts/finalize` — bot side, for the harness. Its reply is the acknowledgement a channel poke never gives.
 
 ## poke surface
 
@@ -361,6 +380,13 @@ The owner ship's HTTP surface for the edit loop, described under [HTTP surface](
 - `/v1/automation/harness` (local only): `%steward-automation-dispatch-1` facts (`dispatch`, `[rid edit]`) — the bot's pending edit commands for its harness; every outstanding command is replayed on subscribe, oldest first.
 - `/v1/automation/request/<owner>/<uv>` (the requester named in the path, and only when it is the configured owner): one `%steward-automation-response-1` fact (`response`) when the bot finalizes that request.
 - `/v1/automation/request/<uv>` (local only): one `%steward-automation-response-1` fact when the owner finalizes that request; a stored result is replayed at subscribe time.
+
+The prompts module mirrors that surface one-for-one:
+
+- `/v1/prompts/files` (local **or** configured owner): `%steward-prompts-update-1` facts (`update:v1:prompts`) — one initial `%files` snapshot of the ship-keyed map on subscribe, then ship-attributed `%set`/`%del` deltas, fresh full `%files` snapshots when an entry appears, and `%gone` entry removals.
+- `/v1/prompts/harness` (local only): `%steward-prompts-dispatch-1` facts (`dispatch`, `[rid requester edit]`) — the bot's pending edit commands for its harness; every outstanding command is replayed on subscribe, oldest first. `requester` is the owner that authorized the command, so a harness can refuse a replay authorized under a previous owner.
+- `/v1/prompts/request/<owner>/<uv>` (the requester named in the path, and only when it is the configured owner): one `%steward-prompts-response-1` fact when the bot finalizes that request.
+- `/v1/prompts/request/<uv>` (local only): one `%steward-prompts-response-1` fact when the owner finalizes that request; a stored result is replayed at subscribe time.
 
 Bare `/v1/automation` binds nothing — the feed is `tasks`, not the namespace root.
 
