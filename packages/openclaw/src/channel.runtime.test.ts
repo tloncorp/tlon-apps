@@ -444,3 +444,71 @@ describe('notes delivery', () => {
     );
   });
 });
+
+describe('gateway startup catch-up wiring', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('publishes readiness from the provider and cancels immediately on host abort', async () => {
+    const { startTlonGatewayAccount } = await import('./channel.runtime.js');
+    const { monitorTlonProvider } = await import('./monitor/index.js');
+    const { getRestartCatchupCoordinator } =
+      await import('./restart-catchup.js');
+    const connected = vi.fn();
+    const stop = vi.fn();
+    const attach = vi
+      .spyOn(getRestartCatchupCoordinator(), 'attachMonitor')
+      .mockReturnValue({ connected, stop });
+    let finish!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const connection = { isConnected: () => true, readSettings: vi.fn() };
+    vi.mocked(monitorTlonProvider).mockImplementationOnce(async (opts) => {
+      opts?.onReady?.(connection);
+      await pending;
+    });
+    const abort = new AbortController();
+    const cfg = {};
+    const running = startTlonGatewayAccount({
+      cfg,
+      account: { accountId: 'default', ship: '~zod' },
+      abortSignal: abort.signal,
+      setStatus: vi.fn(),
+      runtime: {},
+    } as never);
+    expect(attach).toHaveBeenCalledWith('default', cfg);
+    expect(connected).toHaveBeenCalledWith(connection);
+    abort.abort();
+    expect(stop).toHaveBeenCalledTimes(1);
+    finish();
+    await running;
+    expect(stop).toHaveBeenCalledTimes(2);
+  });
+
+  it('cleans up catch-up eligibility when authentication or provider bootstrap fails', async () => {
+    const { startTlonGatewayAccount } = await import('./channel.runtime.js');
+    const { monitorTlonProvider } = await import('./monitor/index.js');
+    const { getRestartCatchupCoordinator } =
+      await import('./restart-catchup.js');
+    const connected = vi.fn();
+    const stop = vi.fn();
+    vi.spyOn(getRestartCatchupCoordinator(), 'attachMonitor').mockReturnValue({
+      connected,
+      stop,
+    });
+    vi.mocked(monitorTlonProvider).mockRejectedValueOnce(
+      new Error('authentication failed')
+    );
+    await expect(
+      startTlonGatewayAccount({
+        cfg: {},
+        account: { accountId: 'default' },
+        abortSignal: new AbortController().signal,
+        setStatus: vi.fn(),
+        runtime: {},
+      } as never)
+    ).rejects.toThrow('authentication failed');
+    expect(connected).not.toHaveBeenCalled();
+    expect(stop).toHaveBeenCalledTimes(1);
+  });
+});

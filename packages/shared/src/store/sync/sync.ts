@@ -199,6 +199,24 @@ export const syncBlockedUsers = async (ctx?: SyncCtx) => {
   await db.insertBlockedContacts({ blockedIds });
 };
 
+/**
+ * Thrown by `syncLatestChanges` when the fetch it was awaiting outlived the
+ * freshness threshold, whatever held it up -- a slow or wedged request as well
+ * as a suspension, since JS timers freeze while the app is backgrounded and the
+ * elapsed time only says the threshold expired. Either way the data in hand may
+ * no longer be current, and discarding it is the designed behaviour rather than
+ * a failure, so `syncSince` reports this as an event instead of an error.
+ */
+export class StaleSyncDataError extends Error {
+  readonly runningForMs: number;
+
+  constructor(runningForMs: number) {
+    super(`discarded fetched data, had been running for ${runningForMs}ms`);
+    this.name = 'StaleSyncDataError';
+    this.runningForMs = runningForMs;
+  }
+}
+
 export const syncSince = async ({
   queryCtx,
   syncCtx = { priority: SyncPriority.High },
@@ -252,10 +270,20 @@ export const syncSince = async ({
         }));
   } catch (e) {
     result = 'error';
-    logger.trackError('sync since failed', {
-      error: e,
-      ...callCtx,
-    });
+    if (e instanceof StaleSyncDataError) {
+      // Expected: the fetch outlived the freshness threshold. Discarding is
+      // the point, so report it as an event rather than an error.
+      logger.trackEvent('sync since discarded stale data', {
+        sync: 'syncLatestChanges',
+        runningForMs: e.runningForMs,
+        ...callCtx,
+      });
+    } else {
+      logger.trackError('sync since failed', {
+        error: e,
+        ...callCtx,
+      });
+    }
   } finally {
     notifySyncSinceCompletion({
       cause: callCtx.cause,
@@ -382,9 +410,7 @@ export const syncLatestChanges = async ({
   const FRESHNESS_THRESHOLD = 2 * 60 * 1000; // 2 minutes
   const runningForMs = Date.now() - start;
   if (runningForMs > FRESHNESS_THRESHOLD) {
-    throw new Error(
-      `discarded fetched data, had been running for ${runningForMs}ms`
-    );
+    throw new StaleSyncDataError(runningForMs);
   }
 
   await perfTime(
@@ -1919,28 +1945,38 @@ export async function handleAddPost(
       // first check if it's a reply. If it is and we haven't already cached
       // it, we need to add it to the parent post
       if (post.parentId) {
-        const cachedReply = await db.getPostByCacheId({
-          channelId: post.channelId,
-          sentAt: post.sentAt,
-          authorId: post.authorId,
-        });
-        if (!cachedReply) {
-          await perfTime('handleAddPost.addReplyToPost', () =>
-            db.addReplyToPost(
+        // Serialize the cache check with both writes. A snapshot or another
+        // event may otherwise insert the reply after this check but before
+        // the count update, causing the same reply to be counted twice.
+        await batchEffects('handleAddPost.reply', (defaultCtx) =>
+          withTransactionCtx(ctx ?? defaultCtx, async (txCtx) => {
+            const cachedReply = await db.getPostByCacheId(
               {
-                parentId: post.parentId!,
-                replyAuthor: post.authorId,
-                replyTime: post.sentAt,
-                replyMeta,
+                channelId: post.channelId,
+                sentAt: post.sentAt,
+                authorId: post.authorId,
               },
-              ctx
-            )
-          );
-        }
-        await perfTime(
-          'handleAddPost.insertChannelPosts',
-          () => db.insertChannelPosts({ posts: [post] }, ctx),
-          { isReply: 'true' }
+              txCtx
+            );
+            if (!cachedReply) {
+              await perfTime('handleAddPost.addReplyToPost', () =>
+                db.addReplyToPost(
+                  {
+                    parentId: post.parentId!,
+                    replyAuthor: post.authorId,
+                    replyTime: post.sentAt,
+                    replyMeta,
+                  },
+                  txCtx
+                )
+              );
+            }
+            await perfTime(
+              'handleAddPost.insertChannelPosts',
+              () => db.insertChannelPosts({ posts: [post] }, txCtx),
+              { isReply: 'true' }
+            );
+          })
         );
       } else {
         addToChannelPosts(post);

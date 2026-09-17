@@ -36,6 +36,7 @@ import {
   unbindContextLensFromSession,
 } from '../context-lens.js';
 import { scheduleCronSnapshot } from '../cron-telemetry.js';
+import type { RestartCatchupConnection } from '../restart-catchup.js';
 import {
   getEffectiveOwnerShip,
   setEffectiveOwnerShip,
@@ -58,6 +59,7 @@ import {
 } from '../pending-nudge.js';
 import { emitTlonPluginErrorTelemetry } from '../plugin-error-observability.js';
 import { getTlonRuntime } from '../runtime.js';
+import { OWNER_ONLY_TOOLS } from '../owner-only-tools.js';
 import { setSessionRole } from '../session-roles.js';
 import {
   DM_INVITE_PREVIEW,
@@ -302,6 +304,7 @@ export type MonitorTlonOpts = {
   runtime?: RuntimeEnv;
   abortSignal?: AbortSignal;
   accountId?: string | null;
+  onReady?: (connection: RestartCatchupConnection) => void;
   /**
    * Channel-start config snapshot (the gateway adapter's `ctx.cfg`), used
    * instead of an independent `core.config.loadConfig()` call so
@@ -3082,7 +3085,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         const currentLens = contextLenses.get(lens.lensId);
         contextLenses.update(lens.lensId, {
           tools: {
-            ownerOnlyAvailable: ['tlon', 'cron', 'read'],
+            ownerOnlyAvailable: [...OWNER_ONLY_TOOLS],
             called: currentLens?.tools.called ?? [],
             callCount: currentLens?.tools.callCount ?? 0,
             lastStartedAt: currentLens?.tools.lastStartedAt ?? null,
@@ -5730,6 +5733,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       );
       await api.connect();
       runtime.log?.('[tlon] Connected! Firehose subscriptions active');
+      if (!opts.abortSignal?.aborted && api.isConnected) {
+        opts.onReady?.({
+          isConnected: () => api.isConnected,
+          readSettings: (signal) => api.scry('/settings/all.json', { signal }),
+        });
+      }
       // The foreigns subscription gets no snapshot on watch; catch up now
       // that the channel is live so the boot gap cannot lose an invite.
       await groupInviteRunner.catchUp();
