@@ -32,6 +32,7 @@ packageExtensionsChecksum: sha256-K4eydWmeQNcdzWbHGrjh8w9sCBKxxun5omSxd05+kpE=
 patchedDependencies:
   '@10play/tentap-editor': 520c7388382aa0cadd02408de7c832242dbf1d72c9a80de5712a2cddfa88ca41
   '@gorhom/bottom-sheet': 19cd5e0683f069b1119d662ee476d31448ec23ff1700b6895fe3f4e0b93b2882
+  '@legendapp/list@3.3.3': fcd44042e1c7883ea1b22893bda269f5e8dc9ee7a5cecfe36315b3d3ac3ca8cf
   '@mattermost/react-native-paste-input@2.0.1': 313cd7a4e43eaaa79e0a2d2c03a592d1814b7ca83b5f8d6fec9c4603c4ac323d
   '@react-navigation/bottom-tabs@7.18.14': 6c92d56c83cbda5c10b90545c24763ce3cf82aa05beea645706269314a1d52b0
   '@simform_solutions/react-native-audio-waveform': af72fc5c183530a26f093004261c71c1d7797475d7beeb6d52b5f10a55a5cee2
@@ -1013,7 +1014,7 @@ importers:
         version: 1.1.2
       '@legendapp/list':
         specifier: 3.3.3
-        version: 3.3.3(react-dom@19.2.3(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+        version: 3.3.3(patch_hash=fcd44042e1c7883ea1b22893bda269f5e8dc9ee7a5cecfe36315b3d3ac3ca8cf)(react-dom@19.2.3(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       '@mattermost/react-native-paste-input':
         specifier: 2.0.1
         version: 2.0.1(patch_hash=313cd7a4e43eaaa79e0a2d2c03a592d1814b7ca83b5f8d6fec9c4603c4ac323d)(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
@@ -16667,7 +16668,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@legendapp/list@3.3.3(react-dom@19.2.3(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)':
+  '@legendapp/list@3.3.3(patch_hash=fcd44042e1c7883ea1b22893bda269f5e8dc9ee7a5cecfe36315b3d3ac3ca8cf)(react-dom@19.2.3(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)':
     dependencies:
       react: 19.2.3
       use-sync-external-store: 1.6.0(react@19.2.3)
