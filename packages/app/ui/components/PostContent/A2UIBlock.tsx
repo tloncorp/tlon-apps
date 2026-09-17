@@ -226,6 +226,13 @@ function SmallChoiceControl({
     []
   );
 
+  useEffect(() => {
+    // A choice is the next interaction after an owner message. Keep the
+    // composer's keyboard from covering half the newly arrived options while
+    // still allowing the first tap on a row to select it.
+    void KeyboardController.dismiss();
+  }, []);
+
   const toggle = useCallback(
     (id: string) => {
       if (oneShot.isLocked()) {
@@ -488,6 +495,7 @@ function SmallChoiceControl({
                 ? displayedCustomTopicSummary
                 : customChoiceLabel
             }
+            labelCanWrap
             labelColor={
               displayedCustomTopics.length ? '$primaryText' : '$secondaryText'
             }

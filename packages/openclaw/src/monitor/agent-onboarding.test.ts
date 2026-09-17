@@ -2295,6 +2295,11 @@ describe('agent onboarding requests', () => {
         timezone: 'Asia/Tokyo',
       } as never)
     ).toBe('After this first entry, new ones arrive at 12:05 AM.');
+    expect(
+      agentOnboardingTesting.scheduleConfirmation({
+        scheduleDescription: 'the task will run daily at 5:30 PM.',
+      } as never)
+    ).toBe('After this first entry, the task will run daily at 5:30 PM.');
   });
 });
 

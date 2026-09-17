@@ -3248,7 +3248,11 @@ function provisionCadence(
  */
 function scheduleConfirmation(request: PostBlobDataEntryAgentProvision) {
   if (request.scheduleDescription) {
-    return `After this first entry, the task will run ${request.scheduleDescription}.`;
+    const scheduleDescription = request.scheduleDescription
+      .trim()
+      .replace(/^the task will run\s+/i, '')
+      .replace(/[.!?]+$/, '');
+    return `After this first entry, the task will run ${scheduleDescription}.`;
   }
   const hour = request.scheduleHour % 12 === 0 ? 12 : request.scheduleHour % 12;
   const meridiem = request.scheduleHour < 12 ? 'AM' : 'PM';
