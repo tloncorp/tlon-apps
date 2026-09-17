@@ -234,8 +234,16 @@ vere_url="https://bootstrap.urbit.org/vere/live"
 vere_ver="v4.6"
 vere=""
 
-# Only a boot needs the runtime, so key generation alone never touches the
-# network or writes a binary into the working directory.
+# Everything a boot needs, checked before the mint. Minting is irreversible,
+# so a missing local dependency must never cost a moon. Key generation alone
+# needs none of this: it never touches the network or writes a binary into
+# the working directory.
+boot_preflight() {
+    command -v jq > /dev/null \
+        || fatal "jq is required to boot the generated moon"
+    fetch_vere
+}
+
 fetch_vere() {
     local arch platform vere_bin
     arch=$(uname -m)
@@ -272,11 +280,6 @@ boot_moon() {
     if (( $# != 2 ))
     then
         fatal "boot_moon(): expected the gen-moon JSON response and boot directory"
-    fi
-
-    if ! command -v jq > /dev/null
-    then
-        fatal "jq is required to boot the generated moon"
     fi
 
     local result=$1
@@ -322,11 +325,11 @@ boot_moon() {
     trap - EXIT
 }
 
-# Fetch the runtime before minting so a failed download never leaves a moon
-# minted but unbootable.
+# Check every boot prerequisite before minting, so a missing dependency or a
+# failed download never leaves a moon minted but unbootable.
 if $boot
 then
-    fetch_vere
+    boot_preflight
 fi
 
 result=$(run_thread groups json gen-moon json null)
