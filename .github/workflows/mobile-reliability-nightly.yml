@@ -49,7 +49,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build for iOS Simulator
         working-directory: apps/tlon-mobile
-        run: eas build --profile e2e --platform ios --environment production --non-interactive --wait --json > build-result.json
+        run: eas build --profile e2e --platform ios --non-interactive --wait --json > build-result.json
       - name: Download iOS app
         working-directory: apps/tlon-mobile
         run: |
@@ -85,7 +85,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build for Android
         working-directory: apps/tlon-mobile
-        run: eas build --profile local-testing --platform android --environment production --non-interactive --wait --json > build-result.json
+        run: eas build --profile local-testing --platform android --non-interactive --wait --json > build-result.json
       - name: Download Android app
         working-directory: apps/tlon-mobile
         run: |
