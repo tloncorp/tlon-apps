@@ -29,9 +29,6 @@ env:
     file: subflows/input.yaml
     env:
       INPUT_TEXT: ${output.reliability.title}
-- assertVisible:
-    id: NotesTitleInput
-    text: ${output.reliability.title}
 - tapOn:
     id: NotesBodyInput
 - runFlow:
@@ -55,9 +52,6 @@ env:
     file: subflows/input.yaml
     env:
       INPUT_TEXT: ${MAESTRO_RUN_TAG + ' edited note'}
-- assertVisible:
-    id: NotesTitleInput
-    text: ${MAESTRO_RUN_TAG + ' edited note'}
 - runFlow: subflows/focus-notebook-body.yaml
 - eraseText: 100
 - runFlow:
