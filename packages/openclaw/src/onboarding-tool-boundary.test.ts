@@ -25,6 +25,9 @@ describe('onboarding tool boundary', () => {
       onboardingToolBlockReason('tlon_agent_task_plan', {}, surface)
     ).toContain('only in the active Tlonbot group');
     expect(
+      onboardingToolBlockReason('tlon_agent_service_setup', {}, surface)
+    ).toContain('only in the active Tlonbot group');
+    expect(
       onboardingToolBlockReason('tlon_agent_choice', {}, surface)
     ).toContain('choose +, then New Tlonbot group');
   });
@@ -50,6 +53,13 @@ describe('onboarding tool boundary', () => {
         surface
       )
     ).toBeUndefined();
+    expect(
+      onboardingToolBlockReason(
+        'tlon_agent_service_setup',
+        { target: 'chat/~zod/invented-group' },
+        surface
+      )
+    ).toContain('must match');
   });
 
   it('blocks direct model cron calls during incomplete onboarding', () => {
@@ -154,6 +164,14 @@ describe('onboarding tool boundary', () => {
     expect(
       onboardingToolBlockReason(
         'tlon_agent_choice',
+        { target: 'chat/~zod/home' },
+        current,
+        oldRun
+      )
+    ).toContain('newer owner message');
+    expect(
+      onboardingToolBlockReason(
+        'tlon_agent_service_setup',
         { target: 'chat/~zod/home' },
         current,
         oldRun

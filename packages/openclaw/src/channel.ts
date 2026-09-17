@@ -23,6 +23,11 @@ import {
   createAgentChoiceToolExecutor,
 } from './agent-choice-tool.js';
 import {
+  type AgentServiceSetupToolParams,
+  agentServiceSetupToolParameters,
+  createAgentServiceSetupToolExecutor,
+} from './agent-service-setup-tool.js';
+import {
   type AgentTaskPlanToolParams,
   agentTaskPlanToolParameters,
   createAgentTaskPlanToolExecutor,
@@ -200,6 +205,10 @@ export const tlonPlugin = createChatChannelPlugin({
         postChoice: ({ target, fallbackQuestion, blob }) =>
           postSurface(target, fallbackQuestion, blob),
       });
+      const executeServiceSetup = createAgentServiceSetupToolExecutor({
+        postSetup: ({ target, fallbackMessage, blob }) =>
+          postSurface(target, fallbackMessage, blob),
+      });
       const executeTaskPlan = createAgentTaskPlanToolExecutor({
         resolveGroupId: async (target) =>
           resolveTaskPlanGroupId(
@@ -244,6 +253,20 @@ export const tlonPlugin = createChatChannelPlugin({
           parameters: agentTaskPlanToolParameters,
           execute: (id, params) =>
             executeTaskPlan(id, params as AgentTaskPlanToolParams),
+        },
+        {
+          name: 'tlon_agent_service_setup',
+          label: 'Tlon Agent Service Setup',
+          description:
+            'Post an actionable Connected Services recovery card when the owner explicitly chooses to connect a private source required before a first-run task can be created. The client opens its existing service-management flow, preserving hosted OAuth and the native unavailable state.',
+          promptSnippet:
+            '`tlon_agent_service_setup`: open Connected Services for an owner-chosen private source that is required before planning',
+          promptGuidelines: [
+            'When first-run onboarding cannot proceed because an explicitly chosen private source is not connected and the owner chooses to connect it, call `tlon_agent_service_setup` instead of ending with prose; after it posts successfully, return NO_REPLY and wait for the owner. Do not call it when the owner chose an immediately executable fallback.',
+          ],
+          parameters: agentServiceSetupToolParameters,
+          execute: (id, params) =>
+            executeServiceSetup(id, params as AgentServiceSetupToolParams),
         },
       ];
     },

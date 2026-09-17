@@ -103,7 +103,7 @@ describe('tlonPlugin messaging surface (explicit-target wiring)', () => {
 });
 
 describe('tlonPlugin agent tools', () => {
-  it('exposes the onboarding choice and plan tools through the channel', () => {
+  it('exposes the onboarding choice, plan, and service recovery tools through the channel', () => {
     expect(typeof tlonPlugin.agentTools).toBe('function');
     if (typeof tlonPlugin.agentTools !== 'function') {
       return;
@@ -113,6 +113,7 @@ describe('tlonPlugin agent tools', () => {
     expect(tools.map((tool) => tool.name)).toEqual([
       'tlon_agent_choice',
       'tlon_agent_task_plan',
+      'tlon_agent_service_setup',
     ]);
   });
 });

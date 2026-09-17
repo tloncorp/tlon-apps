@@ -102,7 +102,9 @@ export function onboardingToolBlockReason(
   runSurface?: TlonSessionRunSurface
 ): string | undefined {
   const isTypedOnboardingTool =
-    toolName === 'tlon_agent_choice' || toolName === 'tlon_agent_task_plan';
+    toolName === 'tlon_agent_choice' ||
+    toolName === 'tlon_agent_task_plan' ||
+    toolName === 'tlon_agent_service_setup';
 
   if (isTypedOnboardingTool) {
     if (surface?.kind !== 'group' || !surface.channelNest) {
@@ -125,7 +127,7 @@ export function onboardingToolBlockReason(
     ) {
       return (
         'A newer owner message arrived during this response. Do not post this ' +
-        'choice or plan; stop and let the newer owner turn handle the latest intent.'
+        'onboarding action; stop and let the newer owner turn handle the latest intent.'
       );
     }
   }
