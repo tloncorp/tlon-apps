@@ -63,6 +63,34 @@ export function isAtColdStartPosition(state: NavigationSnapshot): boolean {
 }
 
 /**
+ * Whether a restored position that named the bot tab is still waiting for it.
+ * The tab is absent from the navigator while the hosted-bot flag loads, and
+ * rehydration drops a route whose screen is not registered — so a restore that
+ * asked for `BotChat` lands on `ChatList` instead. Selecting it once the tab
+ * exists completes that restore. Only while `MainTabs` is still the focused
+ * root route: anything pushed above it is somewhere the user has moved since.
+ */
+export function isAwaitingRestoredBotTab(state: NavigationSnapshot): boolean {
+  const rootRoute = state?.routes[state.index];
+  if (rootRoute?.name !== 'MainTabs') return false;
+  // A deep link or notification that arrived after the restore names its own
+  // tab and carries what it wants shown there. That intent is newer than the
+  // saved position, so the restore has been overtaken — only the untouched
+  // fallback is still waiting for the tab. A restored position that reached
+  // the bot tab through the claim carries `screen: 'BotChat'` itself, which is
+  // the position, not a newer instruction.
+  const screen = (rootRoute.params as { screen?: string } | undefined)?.screen;
+  if (screen != null && screen !== 'BotChat') return false;
+  const tabs = rootRoute.state;
+  const focusedTab = tabs?.routes?.[tabs.index ?? 0];
+  if (!focusedTab) return true;
+  if (focusedTab.name === 'BotChat') return false;
+  return (
+    focusedTab.name === 'ChatList' && !hasDestinationParams(focusedTab.params)
+  );
+}
+
+/**
  * While first-run onboarding holds its navigation lock, the conversation is
  * the Bot tab itself; the other tabs would carry the user away from the
  * pickers, as a back gesture would, so their presses are refused.

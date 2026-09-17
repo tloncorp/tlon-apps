@@ -342,6 +342,30 @@ export const lastVisitedChannelId = (groupId: string) => {
   });
 };
 
+/**
+ * The navigator state as of the last time the user moved, so a relaunch can
+ * put them back where they were. `state` is the root navigator's serialized
+ * state, kept opaque here because this package does not depend on React
+ * Navigation; `savedAt` lets the reader refuse a position too old to be what
+ * the user still means to return to, and `userId` stops one account's position
+ * being served to the next if a force-quit beats the logout that clears this.
+ */
+export type PersistedNavigationState = {
+  savedAt: number;
+  userId: string | null;
+  state: unknown;
+};
+
+/**
+ * Deliberately not `persistAfterLogout`: the next account must not land on the
+ * previous one's screen.
+ */
+export const lastNavigationState =
+  createStorageItem<PersistedNavigationState | null>({
+    key: 'lastNavigationState',
+    defaultValue: null,
+  });
+
 export const themeSettings = createStorageItem<AppThemeName | null>({
   key: '@user_theme',
   defaultValue: null,

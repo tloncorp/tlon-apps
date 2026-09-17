@@ -5,6 +5,7 @@ import { getMobileLinkingConfig } from './linking';
 import {
   getTopLevelTabRoute,
   isAtColdStartPosition,
+  isAwaitingRestoredBotTab,
   isTabPressBlockedByOnboardingLock,
 } from './topLevelTabs';
 
@@ -158,6 +159,101 @@ describe('isAtColdStartPosition', () => {
       isAtColdStartPosition({
         index: 0,
         routes: [{ name: 'MainTabs', params: { screen: 'ChatList' } }],
+      })
+    ).toBe(false);
+  });
+});
+
+describe('isAwaitingRestoredBotTab', () => {
+  const tabs = (name: string) => ({ index: 0, routes: [{ name }] });
+
+  test('holds when the restore landed on Workspaces instead of the bot tab', () => {
+    expect(
+      isAwaitingRestoredBotTab({
+        index: 0,
+        routes: [{ name: 'MainTabs', state: tabs('ChatList') }],
+      })
+    ).toBe(true);
+  });
+
+  test('holds before the tabs render', () => {
+    expect(
+      isAwaitingRestoredBotTab({ index: 0, routes: [{ name: 'MainTabs' }] })
+    ).toBe(true);
+  });
+
+  test('releases once the bot tab is the focused one', () => {
+    expect(
+      isAwaitingRestoredBotTab({
+        index: 0,
+        routes: [{ name: 'MainTabs', state: tabs('BotChat') }],
+      })
+    ).toBe(false);
+  });
+
+  test('releases when the user has moved above MainTabs', () => {
+    expect(
+      isAwaitingRestoredBotTab({
+        index: 1,
+        routes: [
+          { name: 'MainTabs', state: tabs('ChatList') },
+          { name: 'ChannelRoot' },
+        ],
+      })
+    ).toBe(false);
+  });
+
+  test('holds when the position itself named the bot tab', () => {
+    expect(
+      isAwaitingRestoredBotTab({
+        index: 0,
+        routes: [
+          {
+            name: 'MainTabs',
+            params: { screen: 'BotChat' },
+            state: tabs('ChatList'),
+          },
+        ],
+      })
+    ).toBe(true);
+  });
+
+  test('releases to a deep link that landed after the restore', () => {
+    expect(
+      isAwaitingRestoredBotTab({
+        index: 0,
+        routes: [
+          {
+            name: 'MainTabs',
+            state: {
+              index: 0,
+              routes: [
+                { name: 'ChatList', params: { previewGroupId: '~zod/garden' } },
+              ],
+            },
+          },
+        ],
+      })
+    ).toBe(false);
+    expect(
+      isAwaitingRestoredBotTab({
+        index: 0,
+        routes: [
+          {
+            name: 'MainTabs',
+            params: { screen: 'ChatList' },
+            state: tabs('ChatList'),
+          },
+        ],
+      })
+    ).toBe(false);
+  });
+
+  test('releases on a tab that is neither the bot tab nor the fallback', () => {
+    expect(
+      isAwaitingRestoredBotTab({
+        index: 0,
+        routes: [{ name: 'MainTabs', state: tabs('Settings') }],
       })
     ).toBe(false);
   });

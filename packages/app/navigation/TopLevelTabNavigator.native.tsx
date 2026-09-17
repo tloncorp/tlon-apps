@@ -2,7 +2,8 @@ import { createNativeBottomTabNavigator } from '@react-navigation/bottom-tabs/un
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
-import { getTokenValue, useTheme } from 'tamagui';
+import { LoadingSpinner } from '@tloncorp/ui';
+import { View, getTokenValue, useTheme } from 'tamagui';
 
 import SettingsScreen from '../features/settings/SettingsScreen';
 import ChannelScreen from '../features/top/ChannelScreen';
@@ -13,9 +14,14 @@ import { useAgentOnboardingLandingConsumer } from '../features/top/useAgentOnboa
 import { useAnyAgentGroupOnboardingLock } from '../hooks/useAgentGroupOnboardingLock';
 import { useBotDmTab } from '../hooks/useBotDmTab';
 import {
+  didRestoreNavigation,
+  getRestoredTopLevelTab,
+} from './navigationRestore';
+import {
   TOP_LEVEL_TABS,
   getTopLevelTabRoute,
   isAtColdStartPosition,
+  isAwaitingRestoredBotTab,
   isTabPressBlockedByOnboardingLock,
   trackTopLevelTabSelection,
 } from './topLevelTabs';
@@ -84,6 +90,18 @@ export function TopLevelTabNavigator() {
     if (!botDm.enabled || focusedBotTab.current || changedTabs.current) {
       return;
     }
+    // A restored position is a choice the user already made, but a restored
+    // ChatList looks exactly like a default one to `isAtColdStartPosition`, so
+    // the shape cannot tell them apart and the claim would override it. The
+    // bot tab is the exception: it is not registered while the hosted-bot flag
+    // loads, so a position that named it is dropped and lands on ChatList —
+    // there the claim completes the restore rather than overriding it.
+    const completingRestore =
+      getRestoredTopLevelTab() === 'BotChat' &&
+      isAwaitingRestoredBotTab(navigation.getState());
+    if (didRestoreNavigation() && !completingRestore) {
+      return;
+    }
     // A tab press is not the only way to leave the cold-start position. If the
     // DM syncs after the user has opened Activity, Contacts, a workspace or
     // any other screen, claiming the tab now would yank them back to it — and
@@ -92,7 +110,7 @@ export function TopLevelTabNavigator() {
     // start left them. Only claim while MainTabs is still the focused root
     // route with the initial ChatList tab showing and nothing asked of it;
     // otherwise the moment has passed for good.
-    if (!isAtColdStartPosition(navigation.getState())) {
+    if (!completingRestore && !isAtColdStartPosition(navigation.getState())) {
       focusedBotTab.current = true;
       return;
     }
@@ -103,6 +121,22 @@ export function TopLevelTabNavigator() {
       route.params
     );
   }, [botDm.enabled, navigation]);
+
+  // Rehydration drops a saved route whose screen is not registered, so a
+  // restored position that named the bot tab loses it while the hosted-bot
+  // flag is still loading — wherever in the stack that position sits, since a
+  // screen pushed from the bot tab lives on the root stack above these tabs.
+  // Holding the tabs unmounted until the flag resolves costs the restore
+  // nothing: `MainTabs`' saved child state stays untouched on the parent route
+  // until this navigator mounts to claim it. Only on a restore, so an ordinary
+  // launch still mounts straight away and the claim above stays its correction.
+  if (didRestoreNavigation() && botDm.isLoading) {
+    return (
+      <View flex={1} alignItems="center" justifyContent="center">
+        <LoadingSpinner />
+      </View>
+    );
+  }
 
   return (
     <Tabs.Navigator
