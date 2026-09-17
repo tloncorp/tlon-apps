@@ -54,7 +54,7 @@ test('every coordinator branch publishes failures before EAS dispatch', () => {
         needs[dispatched].outputs.eas_run_id = 'already-dispatched';
         assert.equal(
           shouldPublish(needs, () => true),
-          false
+          dispatched === 'without_fixtures'
         );
         delete needs[dispatched].outputs.eas_run_id;
       }
@@ -69,4 +69,23 @@ test('every coordinator branch publishes failures before EAS dispatch', () => {
       false
     );
   }
+});
+
+test('a blocked assessment with a published report needs no fallback', () => {
+  const needs = Object.fromEntries(
+    dependencies.map((name) => [name, { result: 'skipped', outputs: {} }])
+  );
+  needs.without_fixtures = {
+    result: 'failure',
+    outputs: { eas_run_id: 'dispatched', report_published: 'true' },
+  };
+  assert.equal(
+    shouldPublish(needs, () => true),
+    false
+  );
+  needs.without_fixtures.outputs.report_published = 'false';
+  assert.equal(
+    shouldPublish(needs, () => true),
+    true
+  );
 });

@@ -215,13 +215,24 @@ jobs:
   reuse_build:
     after: [assess_pr]
     if: ${{ (inputs.full_pr_run || inputs.build_only) && inputs.build_id && inputs.build_sha && after.assess_pr.outputs.decision == 'test' }}
-    type: get-build
-    params:
-      platform: ios
-      profile: e2e
-      simulator: true
-      git_commit_hash: ${{ inputs.build_sha }}
-      app_identifier: io.tlon.groups
+    environment: preview
+    runs_on: linux-medium
+    env:
+      QA_BUILD_ID: ${{ inputs.build_id }}
+      QA_BUILD_SHA: ${{ inputs.build_sha }}
+    outputs:
+      build_id: ${{ steps.selected.outputs.build_id }}
+      git_commit_hash: ${{ steps.selected.outputs.git_commit_hash }}
+      app_identifier: ${{ steps.selected.outputs.app_identifier }}
+    steps:
+      - uses: eas/checkout
+      - name: Verify the exact requested build
+        id: selected
+        run: |
+          node ../../scripts/agent-qa/cloud-pr.mjs requested-build
+          set-output build_id "$(node -p 'require("/tmp/qa-requested-build.json").build_id')"
+          set-output git_commit_hash "$(node -p 'require("/tmp/qa-requested-build.json").git_commit_hash')"
+          set-output app_identifier "$(node -p 'require("/tmp/qa-requested-build.json").app_identifier')"
 
   qa_ios:
     after: [assess_pr, build_ios, reuse_build, repack_ios]

@@ -110,7 +110,7 @@ function harness(t) {
     if (args.includes('user')) return JSON.stringify({ id: 1 });
     if (endpoint?.endsWith('/pulls/6516'))
       return JSON.stringify({
-        head: { sha: head, repo: { full_name: repo } },
+        head: { sha: store.head || head, repo: { full_name: repo } },
         base: { repo: { full_name: repo, id: 123 } },
       });
     if (endpoint?.includes('?per_page='))
@@ -234,4 +234,42 @@ test('publisher rechecks freshness under lock before writing after a competing c
   assert.ok(result.body.includes('Newer completed report'));
   assert.ok(!result.body.includes('Old result'));
   assert.equal(h.store.lock, undefined);
+});
+
+test('publication reads the current PR head after acquiring the lock', (t) => {
+  const h = harness(t);
+  h.store.onLock = () => {
+    h.store.head = 'b'.repeat(40);
+  };
+  const result = publishComment({
+    ...h,
+    pr: 6516,
+    body: 'Completed earlier head',
+    attempt: complete,
+  });
+  assert.match(result.body, /Earlier test results/);
+});
+
+test('an old-head publisher preserves a competing current-head report', (t) => {
+  const h = harness(t);
+  h.store.onLock = () => {
+    h.store.head = 'b'.repeat(40);
+    h.store.comments = [
+      make(
+        1,
+        renderComment(
+          plan([], { ...blocked, head: h.store.head }, h.store.head),
+          'Current-head report'
+        )
+      ),
+    ];
+  };
+  const result = publishComment({
+    ...h,
+    pr: 6516,
+    body: 'Old-head result',
+    attempt: complete,
+  });
+  assert.match(result.body, /Current-head report/);
+  assert.doesNotMatch(result.body, /Old-head result/);
 });

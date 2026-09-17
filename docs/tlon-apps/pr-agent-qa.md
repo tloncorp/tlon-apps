@@ -9,6 +9,15 @@ be made a required merge check. Product failures and incomplete coverage remain
 visible in the report and workflow status. Automatic PR assessment will be enabled
 separately after the pilot demonstrates reliable completion and useful findings.
 
+## Trust boundary
+
+This is a manual developer tool for trusted same-repository code. The dispatcher
+must trust both the selected workflow ref and the target PR, including build hooks,
+Expo configuration and regression tests. These execute in credentialed CI jobs;
+source/harness checks prevent accidental mismatches, not malicious code execution.
+Forks and untrusted contributions are outside this pilot's scope. Do not dispatch
+this workflow for code you would not otherwise run with development credentials.
+
 ## Run a PR
 
 Choose **Actions → Hosted PR agent QA → Run workflow**, select the landed branch,

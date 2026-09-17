@@ -48,7 +48,7 @@ export function selectPreparedBuild(run, expectedId, expectedSha) {
     .map((key) => run.jobs.find((j) => j.key === key))
     .find((j) => j?.status === 'SUCCESS' && j.outputs?.build_id);
   if (!build) throw new Error('No verified simulator build prepared');
-  // EAS get-build filters by commit, not ID. Refuse any substituted artifact.
+  // Refuse any substituted artifact.
   if (
     expectedId &&
     (build.outputs.build_id !== expectedId ||
@@ -58,4 +58,25 @@ export function selectPreparedBuild(run, expectedId, expectedSha) {
       'Prepared build differs from the requested build ID or commit'
     );
   return build;
+}
+
+export function requestedBuild(build, id, sha) {
+  if (
+    build.id !== id ||
+    build.gitCommitHash !== sha ||
+    build.status !== 'FINISHED' ||
+    build.platform !== 'IOS' ||
+    build.buildProfile !== 'e2e' ||
+    !build.isForIosSimulator ||
+    build.appIdentifier !== 'io.tlon.groups' ||
+    build.app?.id !== '617bb643-5bf6-4c40-8af6-c6e9dd7e3bd0'
+  )
+    throw new Error(
+      'Requested build is not a matching finished e2e simulator build'
+    );
+  return {
+    build_id: build.id,
+    git_commit_hash: build.gitCommitHash,
+    app_identifier: build.appIdentifier,
+  };
 }

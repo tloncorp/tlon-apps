@@ -134,6 +134,14 @@ test('video evidence rejects missing tracks, empty files, and truncated sessions
     format: { duration: '30.0' },
   };
   assert.equal(verifyVideo(probe, 31).durationSeconds, 30);
+  assert.throws(
+    () => verifyVideo({ ...probe, format: { duration: 540 } }, 600),
+    /cover the test session/
+  );
+  assert.equal(
+    verifyVideo({ ...probe, format: { duration: 598 } }, 600).durationSeconds,
+    598
+  );
   assert.throws(() => verifyVideo({ ...probe, streams: [] }, 30), /unplayable/);
   assert.throws(
     () => verifyVideo({ ...probe, format: { duration: '0' } }, 30),

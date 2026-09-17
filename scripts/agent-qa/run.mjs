@@ -469,6 +469,10 @@ async function agent(diff) {
     path.join(artifacts, 'agent-result.json'),
     clean(JSON.stringify(result))
   );
+  // Preserve completed results if the app crashes during the final captures.
+  report = result;
+  if (env.QA_DEFER_REVIEW === 'true' && context.assessment)
+    context.evidenceReview = 'pending';
   await capture();
   await capture([], true);
   await stopRecording();
@@ -516,11 +520,11 @@ async function agent(diff) {
           : simulatorPlan;
       for (const s of affected.scenarios) {
         const message = `Independent ${error.reviewScope === 'video' ? 'video' : 'evidence'} review unavailable: ${clean(error.message)}`;
-        const prior = result.checks.find(
-          (c) => c.scenarioId === s.id && c.status === 'blocked'
-        );
-        if (prior) prior.observed += ` ${message}`;
-        else
+        const prior = result.checks.find((c) => c.scenarioId === s.id);
+        if (prior) {
+          prior.status = 'blocked';
+          prior.observed += ` ${message}`;
+        } else
           result.checks.push({
             scenarioId: s.id,
             expected: s.expected,

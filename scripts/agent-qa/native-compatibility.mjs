@@ -1,6 +1,7 @@
+import os from 'node:os';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -38,8 +39,9 @@ async function main() {
   const fingerprint = process.env.QA_NATIVE_FINGERPRINT;
   if (!/^[a-f0-9]{40}$/.test(fingerprint || ''))
     throw new Error('Missing current native fingerprint');
-  const dir = path.resolve('.qa-native-query');
-  mkdirSync(dir, { recursive: true });
+  const dir = mkdtempSync(
+    path.join(process.env.RUNNER_TEMP || os.tmpdir(), 'qa-native-query-')
+  );
   writeFileSync(
     path.join(dir, 'package.json'),
     JSON.stringify({ name: 'qa-native-query', private: true })
@@ -59,7 +61,14 @@ async function main() {
     JSON.parse(
       execFileSync(
         'npx',
-        ['--yes', 'eas-cli@23.2.0', ...args, '--json', '--non-interactive'],
+        [
+          '--yes',
+          '--registry=https://registry.npmjs.org',
+          'eas-cli@23.2.0',
+          ...args,
+          '--json',
+          '--non-interactive',
+        ],
         {
           cwd: dir,
           encoding: 'utf8',

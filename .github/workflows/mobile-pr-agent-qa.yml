@@ -114,7 +114,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .proof-snapshot
-          key: rube-prepared-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('desk/**', '!desk/commit.txt', 'peru.yaml', 'apps/tlon-web/e2e/shipManifest.json', 'scripts/agent-qa/runtime.json', 'scripts/agent-qa/runtime.mjs', 'apps/tlon-web/rube/**') }}
+          key: rube-prepared-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('desk/**', '!desk/commit.txt', 'peru.yaml', 'scripts/assemble-desk.sh', 'scripts/sync-deps.sh', 'apps/tlon-web/e2e/shipManifest.json', 'scripts/agent-qa/runtime.json', 'scripts/agent-qa/runtime.mjs', 'apps/tlon-web/rube/**') }}
       - name: Install ship and tunnel tools
         run: |
           sudo apt-get update -qq
@@ -194,6 +194,7 @@ jobs:
         run: node scripts/agent-qa/cloud-pr.mjs finish
   without_fixtures:
     outputs:
+      report_published: ${{ steps.qa.outputs.report_published }}
       eas_run_id: ${{ steps.qa.outputs.eas_run_id }}
     needs: [assess, prepare_build]
     if: ${{ always() && needs.assess.result == 'success' && ( needs.assess.outputs.decision != 'test' || needs.assess.outputs.has_fixtures != 'true') }}
@@ -219,7 +220,7 @@ jobs:
 
   coordinator_failure:
     needs: [assess, prepare_build, test, without_fixtures]
-    if: ${{ always() && !needs.test.outputs.eas_run_id && !needs.without_fixtures.outputs.eas_run_id && (needs.assess.result == 'failure' || needs.prepare_build.result == 'failure' || needs.test.result == 'failure' || needs.assess.result == 'cancelled' || needs.prepare_build.result == 'cancelled' || needs.test.result == 'cancelled' || needs.without_fixtures.result == 'failure' || needs.without_fixtures.result == 'cancelled') }}
+    if: ${{ always() && !needs.test.outputs.eas_run_id && needs.without_fixtures.outputs.report_published != 'true' && (needs.assess.result == 'failure' || needs.prepare_build.result == 'failure' || needs.test.result == 'failure' || needs.assess.result == 'cancelled' || needs.prepare_build.result == 'cancelled' || needs.test.result == 'cancelled' || needs.without_fixtures.result == 'failure' || needs.without_fixtures.result == 'cancelled') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

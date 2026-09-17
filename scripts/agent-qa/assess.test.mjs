@@ -232,6 +232,19 @@ test('generic smoke success or omitted PR changes cannot satisfy the assessment'
       verifyCoverage(
         {
           checks: [
+            blocked.checks[0],
+            { ...blocked.checks[0], status: 'failed' },
+          ],
+        },
+        plan
+      ),
+    /Duplicate scenario/
+  );
+  assert.throws(
+    () =>
+      verifyCoverage(
+        {
+          checks: [
             { ...blocked.checks[0], expected: 'Home loads', status: 'passed' },
           ],
         },

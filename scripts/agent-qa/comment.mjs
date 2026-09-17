@@ -142,7 +142,7 @@ export function publishComment({
     !attempt.key
   )
     throw new Error('Missing publication provenance');
-  const target = JSON.parse(gh(['api', `repos/${repo}/pulls/${pr}`]));
+  let target = JSON.parse(gh(['api', `repos/${repo}/pulls/${pr}`]));
   if (
     target.head.repo?.full_name !== repo ||
     target.base.repo?.full_name !== repo
@@ -214,8 +214,13 @@ export function publishComment({
     { gh, repo, pr, head: target.head.sha, url: attempt.url },
     () => {
       // All writers hold the same lock from this read through update/verification.
+      target = JSON.parse(gh(['api', `repos/${repo}/pulls/${pr}`]));
       plan = planning();
       if (plan.stale || plan.unchanged) body = plan.canonical.body;
+      else if (attempt.head !== target.head.sha) {
+        body = body.replace(/^> \*\*Earlier test results\.\*\*[^\n]*\n\n/, '');
+        body = `> **Earlier test results.** Recorded at commit \`${attempt.head.slice(0, 10)}\`; the PR is now at \`${target.head.sha.slice(0, 10)}\`. This does not retest the latest code.\n\n${body}`;
+      }
       const payload = path.join(directory, 'comment-payload.json');
       body = renderComment(plan, body);
       writeFileSync(payload, JSON.stringify({ body }));

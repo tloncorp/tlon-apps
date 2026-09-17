@@ -36,12 +36,6 @@ export const regressionCatalog = {
     description:
       'Executes the real database/sync regression for sequential and concurrent snapshot/reply delivery, a new reply, and its duplicate. This is not simulator evidence.',
   },
-  'notes-action-gates': {
-    file: 'packages/app/ui/components/NotesChannel/NotesHeaderActions.test.ts',
-    cwd: 'packages/app',
-    description:
-      'Component-action tests for edit-permission and search-capability visibility combinations. Covers unsupported backend combinations without claiming device coverage.',
-  },
 };
 export function verifySetupPlan(plan) {
   if (

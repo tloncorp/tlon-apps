@@ -121,7 +121,7 @@ export function verifyVideo(probe, elapsedSeconds) {
     !(stream.width > 0 && stream.height > 0) ||
     !Number.isFinite(durationSeconds) ||
     durationSeconds <= 0 ||
-    durationSeconds < elapsedSeconds - Math.max(3, elapsedSeconds * 0.1)
+    durationSeconds < elapsedSeconds - 3
   )
     throw new Error(
       'Video is missing, unplayable, or does not cover the test session'

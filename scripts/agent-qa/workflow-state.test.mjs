@@ -94,7 +94,7 @@ test('failed repack waits for a lazily created native fallback', () => {
   );
 });
 
-import { selectPreparedBuild } from './workflow-state.mjs';
+import { selectPreparedBuild, requestedBuild } from './workflow-state.mjs';
 
 test('a same-commit build cannot silently replace the requested artifact', () => {
   const build = {
@@ -113,4 +113,31 @@ test('a same-commit build cannot silently replace the requested artifact', () =>
   );
   assert.equal(selectPreparedBuild(run, 'selected', 'commit'), build);
   assert.equal(selectPreparedBuild(run), build);
+});
+
+test('reuse verifies the exact requested build rather than selecting by commit', () => {
+  const build = {
+    id: 'requested',
+    gitCommitHash: 'commit',
+    status: 'FINISHED',
+    platform: 'IOS',
+    buildProfile: 'e2e',
+    isForIosSimulator: true,
+    appIdentifier: 'io.tlon.groups',
+    app: { id: '617bb643-5bf6-4c40-8af6-c6e9dd7e3bd0' },
+  };
+  assert.equal(
+    requestedBuild(build, 'requested', 'commit').build_id,
+    'requested'
+  );
+  for (const changed of [
+    { id: 'other' },
+    { gitCommitHash: 'other' },
+    { status: 'ERRORED' },
+    { isForIosSimulator: false },
+  ])
+    assert.throws(
+      () => requestedBuild({ ...build, ...changed }, 'requested', 'commit'),
+      /matching finished/
+    );
 });

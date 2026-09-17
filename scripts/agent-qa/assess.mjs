@@ -229,6 +229,7 @@ export function verifyTrustedHarness(candidate, trusted = 'HEAD') {
 export function verifyCoverage(report, assessment) {
   if (!assessment) return report;
   const planned = new Set(assessment.scenarios.map((s) => s.id));
+  const seen = new Set();
   for (const check of report.checks) {
     if (check.infrastructure === true) {
       if (
@@ -242,6 +243,9 @@ export function verifyCoverage(report, assessment) {
         throw new Error('Invalid infrastructure check');
       continue;
     }
+    if (seen.has(check.scenarioId))
+      throw new Error(`Duplicate scenario result: ${check.scenarioId}`);
+    seen.add(check.scenarioId);
     if (!planned.has(check.scenarioId))
       throw new Error('Finding does not correspond to an assessed PR change');
     if (

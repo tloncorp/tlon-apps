@@ -1,3 +1,5 @@
+import path from 'node:path';
+import os from 'node:os';
 import { assessmentForRetry } from './reuse-assessment.mjs';
 import { dispatchWorkflow } from './eas-dispatch.mjs';
 import { verifySourceOverlay, verifyTrustedHarness } from './assess.mjs';
@@ -8,13 +10,15 @@ import {
   recoveryArtifact,
   buildFinalStages,
   selectPreparedBuild,
+  requestedBuild,
 } from './workflow-state.mjs';
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { appendFileSync, writeFileSync, mkdtempSync } from 'node:fs';
 const env = process.env;
 // Ref-based dispatch needs only project identity, not app dependencies/config.
-const queryDir = `${env.GITHUB_WORKSPACE}/.qa-eas-query`;
-mkdirSync(queryDir, { recursive: true });
+const queryDir = mkdtempSync(
+  path.join(env.RUNNER_TEMP || os.tmpdir(), 'qa-eas-query-')
+);
 writeFileSync(
   `${queryDir}/package.json`,
   JSON.stringify({ name: 'qa-eas-coordinator', private: true })
@@ -43,7 +47,14 @@ function eas(args) {
   return JSON.parse(
     command(
       'npx',
-      ['--yes', 'eas-cli@23.2.0', ...args, '--json', '--non-interactive'],
+      [
+        '--yes',
+        '--registry=https://registry.npmjs.org',
+        'eas-cli@23.2.0',
+        ...args,
+        '--json',
+        ...(args[0] === 'build:view' ? [] : ['--non-interactive']),
+      ],
       { cwd: queryDir }
     )
   );
@@ -153,7 +164,7 @@ if (process.argv[2] === 'assess') {
   const failure = {
     number: p.number,
     head: pinned?.head?.sha || p.head.sha,
-    report: `Testing did not reach the simulator. Coordinator stages: ${env.QA_STAGE_RESULTS}. No app behavior was verified. [Coordinator logs](https://github.com/tloncorp/tlon-apps/actions/runs/${env.GITHUB_RUN_ID}).`,
+    report: `Hosted QA could not finish. Coordinator stages: ${env.QA_STAGE_RESULTS}. No app behavior was verified. [Coordinator logs](https://github.com/tloncorp/tlon-apps/actions/runs/${env.GITHUB_RUN_ID}).`,
   };
   const id = await dispatch(
     { coordinator_failure_json: failure },
@@ -162,6 +173,13 @@ if (process.argv[2] === 'assess') {
   const run = await wait(id, 10, false, ['coordinator_report']);
   if (run.status !== 'SUCCESS')
     throw new Error('Coordinator failure publication failed');
+} else if (process.argv[2] === 'requested-build') {
+  const metadata = requestedBuild(
+    eas(['build:view', env.QA_BUILD_ID]),
+    env.QA_BUILD_ID,
+    env.QA_BUILD_SHA
+  );
+  writeFileSync('/tmp/qa-requested-build.json', JSON.stringify(metadata));
 } else if (process.argv[2] === 'build') {
   const input = {
     assessment_pr_json: JSON.parse(env.QA_PR_JSON),
@@ -250,5 +268,15 @@ if (process.argv[2] === 'assess') {
       `${env.PROOF_OUTPUT}/eas-run.json`,
       JSON.stringify({ id, status: run.status })
     );
-  if (!env.PROOF_OUTPUT && run.status !== 'SUCCESS') process.exit(1);
+  if (!env.PROOF_OUTPUT) {
+    output(
+      'report_published',
+      run.jobs.some(
+        (job) =>
+          job.outputs?.comment_url ||
+          (job.key === 'manual_report' && job.status === 'SUCCESS')
+      )
+    );
+    if (run.status !== 'SUCCESS') process.exit(1);
+  }
 } else throw new Error('Expected assess, build, run, finish or failed');
