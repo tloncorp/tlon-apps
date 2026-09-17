@@ -200,7 +200,7 @@ test('enrolls a live initial request, sends one marked private-channel tip, crea
   const readTask = () =>
     JSON.parse(
       inBot(
-        `import fs from 'node:fs'; const data=JSON.parse(fs.readFileSync('/root/.openclaw/cron/jobs.json','utf8')); console.log(JSON.stringify(data.jobs.find(j=>j.name==='tlon-campaign-e2e-digest') ?? null));`
+        `import fs from 'node:fs'; const data=JSON.parse(fs.readFileSync('/root/.openclaw/cron/jobs.json','utf8')); const job=data.jobs.find(j=>j.name==='tlon-campaign-e2e-digest'); const states=fs.existsSync('/root/.openclaw/cron/jobs-state.json') ? JSON.parse(fs.readFileSync('/root/.openclaw/cron/jobs-state.json','utf8')).jobs : {}; console.log(JSON.stringify(job ? {...job,state:states[job.id]?.state ?? job.state} : null));`
       )
     );
   const task = await waitFor(async () => readTask() ?? undefined, 20_000);

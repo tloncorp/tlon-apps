@@ -377,7 +377,13 @@ export function createCampaign(deps: CampaignDeps) {
     }
     await locked(async (store) => {
       const state = await store.lookup(deps.owner);
-      if (!state) return;
+      if (
+        !state ||
+        state.status === 'opted-out' ||
+        state.status === 'completed' ||
+        now() >= state.enrolledAt + 7 * DAY
+      )
+        return;
       await saveProgress(store, {
         ...state,
         lastActivityAt,
