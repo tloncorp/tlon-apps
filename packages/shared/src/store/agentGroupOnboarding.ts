@@ -13,7 +13,7 @@ const logger = createDevLogger('agentGroupOnboarding', false);
 const wait = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 const DEFAULT_AGENT_GROUP_TITLE = 'My agent group';
-const MAX_GENERATED_GROUP_TITLE_LENGTH = 48;
+const MAX_GENERATED_GROUP_TITLE_LENGTH = 32;
 const PENDING_GROUP_ADOPTION_ATTEMPTS = 8;
 const PENDING_GROUP_ADOPTION_DELAY_MS = 500;
 const notesChannelFlights = new Map<string, Promise<db.Channel>>();
@@ -414,10 +414,16 @@ export function buildAgentGroupTitle({
       countSuffix.length -
       suffix.length
   );
-  const clippedPrimary =
-    primaryTopic.length > maxPrimaryLength
-      ? `${primaryTopic.slice(0, maxPrimaryLength - 1).trimEnd()}…`
-      : primaryTopic;
+  const clippedPrimary = (() => {
+    if (primaryTopic.length <= maxPrimaryLength) return primaryTopic;
+
+    const candidate = primaryTopic.slice(0, maxPrimaryLength + 1);
+    const lastWordBoundary = candidate.lastIndexOf(' ');
+    if (lastWordBoundary > 0) {
+      return candidate.slice(0, lastWordBoundary).trimEnd();
+    }
+    return `${primaryTopic.slice(0, maxPrimaryLength - 1).trimEnd()}…`;
+  })();
 
   return `${prefix}${clippedPrimary}${countSuffix}${suffix}`;
 }
