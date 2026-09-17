@@ -17,5 +17,5 @@ appId: ${MAESTRO_APP_ID}
       - tapOn:
           text: ${output.reliability.body + '\n?'}
           below:
-            id: NotebookTitleInput
+            id: NotesTitleInput
           point: '95%,50%'

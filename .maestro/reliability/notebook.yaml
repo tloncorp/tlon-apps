@@ -15,14 +15,14 @@ env:
     visible: '^New note$'
     timeout: 15000
 - tapOn:
-    id: NotesNewNoteAction
+    point: '50%,60%'
 - extendedWaitUntil:
     visible:
-      id: NotebookTitleInput
+      id: NotesTitleInput
     timeout: 15000
 - tapOn: '^Write something …\n?$'
 - tapOn:
-    id: NotebookTitleInput
+    id: NotesTitleInput
     point: '95%,50%'
 - eraseText: 100
 - runFlow:
@@ -30,7 +30,7 @@ env:
     env:
       INPUT_TEXT: ${output.reliability.title}
 - assertVisible:
-    id: NotebookTitleInput
+    id: NotesTitleInput
     text: ${output.reliability.title}
 - tapOn: '^Write something …\n?$'
 - runFlow:
@@ -50,7 +50,7 @@ env:
     id: ChannelHeaderEditButton
 - runFlow: subflows/focus-notebook-body.yaml
 - tapOn:
-    id: NotebookTitleInput
+    id: NotesTitleInput
     point: '95%,50%'
 - eraseText: 100
 - runFlow:
@@ -58,7 +58,7 @@ env:
     env:
       INPUT_TEXT: ${MAESTRO_RUN_TAG + ' edited note'}
 - assertVisible:
-    id: NotebookTitleInput
+    id: NotesTitleInput
     text: ${MAESTRO_RUN_TAG + ' edited note'}
 - runFlow: subflows/focus-notebook-body.yaml
 - eraseText: 100
