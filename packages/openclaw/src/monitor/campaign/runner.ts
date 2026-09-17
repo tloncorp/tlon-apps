@@ -375,7 +375,9 @@ export function createCampaign(deps: CampaignDeps) {
       if (
         state &&
         !state.offeredAt &&
-        (destination === state.destination || destination === deps.owner)
+        (destination === deps.owner ||
+          destination ===
+            ((await deps.destination?.(state)) ?? state.destination))
       )
         await saveCampaign(store, { ...state, offeredAt: now() });
     });

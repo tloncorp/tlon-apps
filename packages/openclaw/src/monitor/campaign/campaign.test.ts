@@ -752,3 +752,63 @@ it('applies spacing and quiet hours to scheduled feedback', () => {
     )
   ).toMatchObject({ kind: 'defer', reason: 'quiet-hours' });
 });
+
+it.each([
+  ['20:44', 'usual-activity-time'],
+  ['20:45', undefined],
+  ['20:52', undefined],
+  ['20:59', undefined],
+  ['21:00', 'quiet-hours'],
+])('handles late activity preferences at the %s check', (time, reason) => {
+  const current = state({ timezone: 'Etc/UTC', activityMinute: 20 * 60 + 59 });
+  const decision = evaluateCampaign(
+    current,
+    facts,
+    Date.parse(`2026-09-18T${time}:00Z`)
+  );
+  expect(decision).toEqual(
+    reason
+      ? { kind: 'defer', reason }
+      : { kind: 'send', step: 'useful-request' }
+  );
+});
+
+it('allows a late-evening enrollee to receive the first tip before its window expires', () => {
+  const current = state({
+    timezone: 'Etc/UTC',
+    enrolledAt: Date.parse('2026-09-17T20:50:00Z'),
+  });
+  // The previous day's final check was still less than 24 hours after enrollment.
+  expect(
+    evaluateCampaign(current, facts, Date.parse('2026-09-19T20:45:00Z'))
+  ).toEqual({ kind: 'send', step: 'useful-request' });
+});
+
+it('records a verified group offer before the first tip and suppresses the later prompt', async () => {
+  const channel = 'chat/~zod/setup';
+  const h = harness(state({ channelId: channel }), {
+    destination: async () => channel,
+  });
+  h.setTime(enrolledAt + MINUTE);
+  await h.campaign.check();
+  expect(h.read().destination).toBeUndefined();
+  expect(await h.campaign.replyContext(channel)).toContain(RECURRING_OFFER);
+  await h.campaign.observeReply(RECURRING_OFFER, channel);
+  expect(h.read().offeredAt).toBe(enrolledAt + MINUTE);
+  h.setTime(enrolledAt + 2 * DAY);
+  await h.campaign.check();
+  expect(h.read().skipped).toContainEqual({
+    step: 'recurring-help',
+    reason: 'already-offered',
+  });
+  expect(h.deps.send).not.toHaveBeenCalled();
+});
+
+it('does not record a group offer when its route now falls back to DM', async () => {
+  const channel = 'chat/~zod/setup';
+  const h = harness(state({ destination: channel }), {
+    destination: async () => '~ten',
+  });
+  await h.campaign.observeReply(RECURRING_OFFER, channel);
+  expect(h.read().offeredAt).toBeUndefined();
+});

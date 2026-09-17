@@ -143,7 +143,9 @@ export function evaluateCampaign(
       state.activityMinute ?? localMinute(state.enrolledAt, state.timezone)
     )
   );
-  if (minute < preferred)
+  // The monitor checks every 15 minutes, at an arbitrary minute offset.
+  // Let its final daytime check satisfy a later preference before quiet hours.
+  if (minute < preferred && minute < DAYTIME_END * 60 - 15)
     return { kind: 'defer', reason: 'usual-activity-time' };
   return { kind: 'send', step: step.id };
 }
