@@ -560,9 +560,10 @@ async function handleAgentOnboardingRequestInternal(
     return true;
   }
 
+  if (request.type === 'tlon-agent-intro-request')
+    await context.onInitialIntro?.(request, context.requestSentAt ?? 0);
   const history = await fetchOnboardingHistory(context, deps);
   if (request.type === 'tlon-agent-intro-request') {
-    await context.onInitialIntro?.(request, context.requestSentAt ?? 0);
     await postIntro(
       context,
       history,

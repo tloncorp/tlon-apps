@@ -80,9 +80,10 @@ export function renderTip(
     step === 'closing' &&
     !task?.failedAt &&
     state.sent.some((s) => s.step === 'task-feedback')
-  )
-    return 'I’ll leave you to explore after today. You can ask me to adjust your existing tasks whenever you like.';
-  if (step === 'task-feedback' || (step === 'closing' && task)) {
+  ) {
+    text =
+      'I’ll leave you to explore after today. You can ask me to adjust your existing tasks whenever you like.';
+  } else if (step === 'task-feedback' || (step === 'closing' && task)) {
     text = task?.failedAt
       ? `The last run or delivery of “${task.name}” failed. Want me to help fix that before we add anything else?`
       : task?.deliveredAt

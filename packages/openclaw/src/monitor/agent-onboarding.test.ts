@@ -3917,3 +3917,28 @@ describe('provision coordinator ordering', () => {
     expect(sendPost).not.toHaveBeenCalled();
   });
 });
+
+it('observes a validated initial intro before an unrelated history failure', async () => {
+  const onInitialIntro = vi.fn();
+  const fetchHistory = vi.fn(async () => {
+    throw new Error('history unavailable');
+  });
+  const context = requestContext({
+    blob: firstGroupIntro().blob,
+    requestSentAt: 123,
+    onInitialIntro,
+  });
+  await expect(
+    handleAgentOnboardingRequest(context, { fetchHistory })
+  ).rejects.toThrow('history unavailable');
+  expect(onInitialIntro).toHaveBeenCalledWith(
+    expect.objectContaining({ type: 'tlon-agent-intro-request' }),
+    123
+  );
+  onInitialIntro.mockClear();
+  await handleAgentOnboardingRequest(
+    { ...context, senderShip: '~mug' },
+    { fetchHistory }
+  );
+  expect(onInitialIntro).not.toHaveBeenCalled();
+});

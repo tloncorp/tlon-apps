@@ -698,3 +698,26 @@ it('records a verified group reply even when optional context cannot load', asyn
   await h.campaign.inboundInConversation('unrelated', 'chat/~mug/public');
   expect(h.read().lastReplyAt).toBe(enrolledAt + DAY);
 });
+
+it('applies closing copy after successful task feedback', () => {
+  const current = state({
+    sent: [{ step: 'task-feedback', at: enrolledAt + DAY }],
+  });
+  const task = {
+    id: 'task',
+    name: 'Digest',
+    enabled: true,
+    deliveredAt: enrolledAt + DAY,
+  };
+  expect(
+    renderTip(
+      'closing',
+      current,
+      { copy: { closing: 'Adjust {task} anytime.' } },
+      task
+    )
+  ).toBe('Adjust Digest anytime.');
+  expect(renderTip('closing', current, {}, task)).toContain(
+    'adjust your existing tasks'
+  );
+});
