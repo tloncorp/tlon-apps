@@ -1,4 +1,5 @@
-import { mkdirSync, readFileSync, cpSync, rmSync } from 'node:fs';
+import { mkdirSync, readFileSync, cpSync, appendFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
 import path from 'node:path';
 import {
   root,
@@ -12,7 +13,43 @@ import {
 import { connectShip } from './ship-proxy.mjs';
 const pr = JSON.parse(process.env.QA_PR_JSON);
 const session = 'hosted-pr-qa';
-let ship, udid, started;
+let ship, udid, stopRecording;
+async function record(udid) {
+  const child = spawn(
+    'xcrun',
+    ['simctl', 'io', udid, 'recordVideo', '--codec=h264', recording],
+    { stdio: ['ignore', 'ignore', 'pipe'] }
+  );
+  const closed = new Promise((resolve) => {
+    child.once('error', (error) => resolve({ error }));
+    child.once('close', (code) => resolve({ code }));
+  });
+  await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      child.kill('SIGINT');
+      reject(new Error('Recorder did not start'));
+    }, 30000);
+    child.stderr.on('data', (chunk) => {
+      appendFileSync(path.join(out, 'recording.log'), chunk);
+      if (String(chunk).includes('Recording started')) {
+        clearTimeout(timer);
+        resolve();
+      }
+    });
+    closed.then(() => {
+      clearTimeout(timer);
+      reject(new Error('Recorder stopped before capture'));
+    });
+  });
+  return async () => {
+    child.kill('SIGINT');
+    const timer = setTimeout(() => child.kill('SIGKILL'), 30000);
+    const result = await closed;
+    clearTimeout(timer);
+    if (result.error || result.code !== 0)
+      throw new Error('Recorder could not finalize the video');
+  };
+}
 const device = async (args) =>
   await commandAsync('agent-device', [...args, '--session', session]);
 const recording = path.join(out, 'session.mp4');
@@ -115,17 +152,7 @@ try {
       },
     }
   );
-  await device([
-    'record',
-    'start',
-    path.join(out, 'raw.mp4'),
-    '--scope',
-    'device',
-    '--quality',
-    'high',
-    '--hide-touches',
-  ]);
-  started = Date.now();
+  stopRecording = await record(udid);
   try {
     const guidance = readFileSync(
       path.join(root, '.agents/skills/tlon-workflow/references/pr-reviewer.md'),
@@ -155,35 +182,8 @@ Inspect the whole screen, follow suspicious behavior, and report what you actual
   } catch (error) {
     save(path.join(out, 'operator-interruption.txt'), error.message);
   }
-  const elapsed = (Date.now() - started) / 1000;
-  await device(['record', 'stop']);
-  started = null;
-  await commandAsync(
-    'ffmpeg',
-    [
-      '-v',
-      'error',
-      '-xerror',
-      '-y',
-      '-i',
-      path.join(out, 'raw.mp4'),
-      '-vf',
-      'scale=-2:1280',
-      '-c:v',
-      'libx264',
-      '-preset',
-      'fast',
-      '-crf',
-      '24',
-      '-pix_fmt',
-      'yuv420p',
-      '-an',
-      '-movflags',
-      '+faststart',
-      recording,
-    ],
-    { timeout: 180000 }
-  );
+  await stopRecording();
+  stopRecording = null;
   const duration = Number(
     await commandAsync('ffprobe', [
       '-v',
@@ -195,18 +195,16 @@ Inspect the whole screen, follow suspicious behavior, and report what you actual
       recording,
     ])
   );
-  if (!(duration > 0) || duration < elapsed - 5)
-    throw new Error('Recording is incomplete');
-  rmSync(path.join(out, 'raw.mp4'), { force: true });
+  if (!(duration > 0)) throw new Error('Recording is empty');
   result.status = 'recorded';
   result.duration = duration;
   result.summary = 'Awaiting independent recording review';
 } catch (error) {
   result.summary = error.message;
 } finally {
-  if (started) {
+  if (stopRecording) {
     try {
-      await device(['record', 'stop']);
+      await stopRecording();
     } catch {}
   }
   if (udid) {
