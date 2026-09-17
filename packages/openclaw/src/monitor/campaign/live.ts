@@ -71,17 +71,35 @@ export function createLiveCampaign(deps: {
   presence?: (handler: (event: PresenceEvent) => void) => Promise<void>;
 }) {
   const capturedScope = captureTlonApiScope();
+  // API helpers do not all expose transport cancellation. Release the monitor
+  // immediately on abort and prevent continuation into further campaign I/O.
+  const io = <T>(fn: () => Promise<T>): Promise<T> => {
+    const signal = deps.signal;
+    if (!signal) return fn();
+    if (signal.aborted) return Promise.reject(signal.reason);
+    return new Promise<T>((resolve, reject) => {
+      const abort = () => reject(signal.reason);
+      signal.addEventListener('abort', abort, { once: true });
+      Promise.resolve()
+        .then(() => {
+          signal.throwIfAborted();
+          return fn();
+        })
+        .then(resolve, reject)
+        .finally(() => signal.removeEventListener('abort', abort));
+    });
+  };
   const scope = <T>(fn: () => Promise<T>): Promise<T> => {
     if (!capturedScope)
       return Promise.reject(new Error('Campaign API scope unavailable'));
-    return capturedScope(fn);
+    return io(() => capturedScope(fn));
   };
   const runningJobs = new Set<string>();
   let stopped = false;
   const jobs = async () => {
     const cron = getTlonCronService();
     if (!cron) throw new Error('Campaign deferred: cron service unavailable');
-    return (await cron.list({ includeDisabled: true })).filter(
+    return (await io(() => cron.list({ includeDisabled: true }))).filter(
       isUserRecurringTask
     );
   };
@@ -296,6 +314,8 @@ export function createLiveCampaign(deps: {
     )
       return;
     const state = await getCampaignStore()?.lookup(deps.owner);
+    // Remote /dm/<bot> presence is translated by %presence into the receiving
+    // bot's local /dm/<owner> context (desk/app/presence.hoon).
     if (
       !state ||
       (presence.contextId !== deps.owner &&

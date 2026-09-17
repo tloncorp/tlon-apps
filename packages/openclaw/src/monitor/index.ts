@@ -4618,8 +4618,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         let campaignContext: string | undefined;
         if (senderShip === effectiveOwnerShip) {
           campaignContext = await campaign?.replyContext(nest);
-          if (campaignContext && (await campaign?.inbound(rawText, true)))
-            return;
+          if (await campaign?.inboundInConversation(rawText, nest)) return;
         }
         const parsed = parseChannelNest(nest);
         const citedContent = await resolveCitedContent(content.content);

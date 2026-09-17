@@ -329,3 +329,50 @@ it('requires a new open after completion, not an open during a task run', async 
   await campaign.opened('after-delivery', 'America/New_York');
   expect(row.sent.at(-1)?.step).toBe('task-feedback');
 });
+
+it.each(['history', 'privacy', 'send', 'cron'])(
+  'stops promptly when aborted during %s I/O',
+  async (operation) => {
+    await campaign.stop();
+    const abort = new AbortController();
+    const errors = vi.fn();
+    let entered!: () => void;
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    let release!: (value: any) => void;
+    const hanging = () => {
+      entered();
+      return new Promise<any>((resolve) => {
+        release = resolve;
+      });
+    };
+    if (operation === 'history') mock.posts.mockImplementationOnce(hanging);
+    if (operation === 'privacy') {
+      row.groupId = '~zod/setup';
+      row.channelId = 'chat/~zod/setup';
+      mock.group.mockImplementationOnce(hanging);
+    }
+    if (operation === 'send') mock.send.mockImplementationOnce(hanging);
+    if (operation === 'cron') mock.list.mockImplementationOnce(hanging);
+    campaign = createLiveCampaign({
+      accountId: 'default',
+      owner: '~ten',
+      bot: '~zod',
+      config: () => cfg,
+      botProfile: () => undefined,
+      busy: () => false,
+      error: errors,
+      signal: abort.signal,
+    });
+    const tick = campaign.check();
+    await started;
+    abort.abort();
+    await campaign.stop();
+    await tick;
+    expect(row.sent).toHaveLength(0);
+    if (operation !== 'send') expect(mock.send).not.toHaveBeenCalled();
+    release(operation === 'cron' ? [] : { posts: [] });
+    await Promise.resolve();
+  }
+);

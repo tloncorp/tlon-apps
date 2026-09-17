@@ -58,6 +58,7 @@ export function createCampaign(deps: CampaignDeps) {
   let flight: Promise<void> | undefined;
   let lastActivityAt = 0;
   let optedOut = false;
+  let knownEnrollment = false;
   let converted = false;
   let visibleUntil = 0;
   let openToken: string | undefined;
@@ -152,7 +153,10 @@ export function createCampaign(deps: CampaignDeps) {
           report(pendingEnrollment, 'enrolled');
         state = await store.lookup(deps.owner);
       }
-      if (state) pendingEnrollment = undefined;
+      if (state) {
+        pendingEnrollment = undefined;
+        knownEnrollment = true;
+      }
       if (optedOut || (await store.lookup(`optout:${deps.owner}`))) {
         if (state && state.status !== 'opted-out')
           await saveCampaign(store, { ...state, status: 'opted-out' });
@@ -334,7 +338,18 @@ export function createCampaign(deps: CampaignDeps) {
   }
   async function inbound(text: string, personal: boolean): Promise<boolean> {
     lastActivityAt = now();
+    if (!deps.config().enabled) return false;
     if (personal && isStopTips(text)) {
+      // Preserve a known owner's stop request during an outage, but never
+      // intercept ordinary messages for users who have not been enrolled.
+      if (!knownEnrollment) {
+        try {
+          knownEnrollment = Boolean(await getStore()?.lookup(deps.owner));
+        } catch (error) {
+          deps.error(error);
+        }
+      }
+      if (!knownEnrollment && !pendingEnrollment) return false;
       optedOut = true;
       let saved = false;
       try {
@@ -400,6 +415,21 @@ export function createCampaign(deps: CampaignDeps) {
       if (personal && state.sent.length) report(state, 'reply');
     });
     return false;
+  }
+  async function inboundInConversation(
+    text: string,
+    destination: string
+  ): Promise<boolean> {
+    if (!deps.config().enabled) return false;
+    try {
+      const state = await getStore()?.lookup(deps.owner);
+      if (!state || destination !== (await deps.destination?.(state)))
+        return false;
+      return await inbound(text, true);
+    } catch (error) {
+      deps.error(error);
+      return false;
+    }
   }
   async function opened(token: string, timezone?: string) {
     visibleUntil = now() + 90_000;
@@ -504,6 +534,7 @@ export function createCampaign(deps: CampaignDeps) {
     check,
     enroll,
     inbound,
+    inboundInConversation,
     replyContext,
     taskCreated,
     observeReply,

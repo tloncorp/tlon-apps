@@ -181,7 +181,6 @@ export function eligibleEnrollment(
     input.isFirstGroup === true &&
     input.campaignVersion === VERSION &&
     input.occurredAt >= cutoff &&
-    input.occurredAt <= now &&
-    now - input.occurredAt <= 5 * MINUTE
+    Math.abs(now - input.occurredAt) <= 5 * MINUTE
   );
 }

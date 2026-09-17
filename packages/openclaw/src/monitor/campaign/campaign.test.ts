@@ -346,8 +346,9 @@ describe('campaign runner', () => {
     await createCampaign(h.deps).check();
     expect(h.deps.send).toHaveBeenCalledTimes(2); // One tip and the stop acknowledgement.
   });
-  it('consumes opt-out even when context lookup, persistence, and acknowledgment fail', async () => {
+  it('consumes opt-out for a known enrollee even when context lookup, persistence, and acknowledgment fail', async () => {
     const h = harness();
+    await h.campaign.check();
     vi.mocked(h.store.lookup).mockRejectedValue(new Error('store unavailable'));
     vi.mocked(h.deps.send).mockRejectedValue(
       new Error('transport unavailable')
@@ -641,4 +642,59 @@ it('keeps spacing after an ambiguous late send whose marker is unavailable', asy
   h.advance(2 * MINUTE);
   await createCampaign(h.deps).check();
   expect(h.deps.send).toHaveBeenCalledTimes(1);
+});
+
+it('accepts bounded clock skew but rejects stale or far-future intros', () => {
+  const config = { enabled: true, enrollAfter: '2026-09-17T00:00:00Z' };
+  for (const delta of [-5 * MINUTE, 5 * MINUTE]) {
+    expect(
+      eligibleEnrollment(
+        {
+          isFirstGroup: true,
+          campaignVersion: 1,
+          occurredAt: enrolledAt + delta,
+        },
+        config,
+        enrolledAt
+      )
+    ).toBe(true);
+  }
+  for (const delta of [-5 * MINUTE - 1, 5 * MINUTE + 1]) {
+    expect(
+      eligibleEnrollment(
+        {
+          isFirstGroup: true,
+          campaignVersion: 1,
+          occurredAt: enrolledAt + delta,
+        },
+        config,
+        enrolledAt
+      )
+    ).toBe(false);
+  }
+});
+it('does not intercept opt-out text when disabled or never enrolled', async () => {
+  const disabled = harness(state(), { config: () => ({ enabled: false }) });
+  const memory = memoryStore();
+  const absent = harness(state(), { store: () => memory.store });
+  for (const h of [disabled, absent]) {
+    expect(await h.campaign.inbound('/stop-tips', true)).toBe(false);
+    expect(h.deps.send).not.toHaveBeenCalled();
+  }
+  expect(disabled.read().status).toBe('active');
+  expect(memory.store.register).not.toHaveBeenCalled();
+});
+it('records a verified group reply even when optional context cannot load', async () => {
+  const h = harness(state(), {
+    destination: async () => 'chat/~zod/setup',
+    context: async () => {
+      throw new Error('history unavailable');
+    },
+  });
+  expect(await h.campaign.replyContext('chat/~zod/setup')).toBeUndefined();
+  await h.campaign.inboundInConversation('yes', 'chat/~zod/setup');
+  expect(h.read().lastReplyAt).toBe(enrolledAt + DAY);
+  h.advance(MINUTE);
+  await h.campaign.inboundInConversation('unrelated', 'chat/~mug/public');
+  expect(h.read().lastReplyAt).toBe(enrolledAt + DAY);
 });

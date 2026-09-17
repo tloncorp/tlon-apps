@@ -34,8 +34,8 @@ message always includes opt-out instructions.
 One runnable Tlon account per gateway is required: cron state is shared at the
 gateway level. The new signup client's first intro request carries timezone and
 `campaignVersion: 1`. Returning accounts and later groups omit the version.
-Only authenticated owner intros newer than the cutoff and at most five minutes
-old can enroll. Catch-up can recover a fresh intro; it does not backfill old
+Only authenticated owner intros newer than the cutoff and within five minutes
+of the gateway clock can enroll (allowing bounded clock skew). Catch-up can recover a fresh intro; it does not backfill old
 history. The server's first observation starts the week, once per owner.
 
 ## Conversation flow
@@ -83,7 +83,9 @@ open-based feedback.
 
 `/stop-tips` and explicit requests such as “stop these tips” persist opt-out.
 Bare “stop” remains an ordinary bot request. Opt-out never cancels scheduled work.
-Disabling the flag stops campaign delivery without resetting state.
+Disabling the flag stops campaign delivery and command interception without
+resetting state. Opt-out commands are handled only while enabled and for enrolled
+owners.
 
 ## Persistence and verification
 
@@ -105,7 +107,8 @@ remain separate from campaign sends. A reply event is not proof of conversion.
 Tests cover clock decisions, silence, task transitions, privacy fallback,
 presence ownership/lifecycle, reply context, suppression, opt-out, restart, and
 independent SQLite claims. The shared fake-ship case exercises a real owner
-intro, marked delivery, useful reply/offer recording, and durable opt-out:
+intro, marked private-channel delivery, useful reply/offer recording, agreed task
+creation and delivery, real two-ship DM presence/feedback, and durable opt-out:
 
 ```sh
 pnpm --dir packages/openclaw test:integration:shared:package test/cases/14-onboarding-campaign.test.ts

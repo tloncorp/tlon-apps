@@ -48,7 +48,11 @@ async function reloadConfig(patch: Record<string, unknown>) {
     import fs from 'node:fs';
     const file = '/root/.openclaw/openclaw.json';
     const config = JSON.parse(fs.readFileSync(file, 'utf8'));
+    // Always change a reloadable channel option, even when an earlier suite
+    // left it enabled. An identical config write does not restart the monitor.
+    const signature = config.channels.tlon.showModelSignature === true;
     Object.assign(config.channels.tlon, JSON.parse(process.argv[1]));
+    config.channels.tlon.showModelSignature = !signature;
     fs.writeFileSync(file, JSON.stringify(config));
   `,
     JSON.stringify(patch)
@@ -127,7 +131,7 @@ test('enrolls a live initial request, sends one marked private-channel tip, crea
     String(DAY)
   );
   // Exercise monitor restart: durable state survives, ephemeral recent activity resets.
-  await reloadConfig({ showModelSignature: true });
+  await reloadConfig({});
   await waitFor(
     async () => (campaignState()?.sent.length === 1 ? true : undefined),
     90_000
@@ -225,12 +229,14 @@ test('enrolls a live initial request, sends one marked private-channel tip, crea
   );
   // Advance only this disposable fixture past recent-conversation suppression.
   inBot(
-    `import {DatabaseSync} from 'node:sqlite'; const db=new DatabaseSync('/root/.openclaw/tlon/onboarding-campaign.sqlite'); const row=JSON.parse(db.prepare('SELECT value_json FROM campaign_state WHERE key=?').get(process.argv[1]).value_json); row.lastActivityAt=0; db.prepare('UPDATE campaign_state SET value_json=? WHERE key=?').run(JSON.stringify(row),process.argv[1]); db.close();`,
+    `import {DatabaseSync} from 'node:sqlite'; const db=new DatabaseSync('/root/.openclaw/tlon/onboarding-campaign.sqlite'); const row=JSON.parse(db.prepare('SELECT value_json FROM campaign_state WHERE key=?').get(process.argv[1]).value_json); row.lastActivityAt=0; row.destination=process.argv[1]; db.prepare('UPDATE campaign_state SET value_json=? WHERE key=?').run(JSON.stringify(row),process.argv[1]); db.close();`,
     fixtures.userShip
   );
-  await reloadConfig({ showModelSignature: false });
+  await reloadConfig({});
   const closeView = publishCampaignView({
-    conversationId: fixtures.group.chatChannel,
+    // Exercise the owner's DM peer ID across two actual %presence agents.
+    // The receiver translates it to the owner's ID before the campaign sees it.
+    conversationId: fixtures.botShip,
     bot: fixtures.botShip,
     token: 'campaign-feedback-open',
     timezone: campaignState()!.timezone!,
