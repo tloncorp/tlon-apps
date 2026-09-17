@@ -106,10 +106,6 @@ export default function SettingsScreen() {
     navigationRef.current.navigate('Contacts', undefined, { pop: true });
   }, [navigationRef]);
 
-  const onActivityPressed = useCallback(() => {
-    navigationRef.current.navigate('Activity', undefined, { pop: true });
-  }, [navigationRef]);
-
   const onUpdateStatus = useCallback((status: string) => {
     store.updateCurrentUserProfile({ status });
     setStatusSheetOpen(false);
@@ -133,7 +129,6 @@ export default function SettingsScreen() {
     onProfilePressed,
     onProfileLongPressed,
     onContactsPressed,
-    onActivityPressed,
     onWebAppPressed: isHostedUser ? openTlonWebApp : undefined,
     botEnabled,
     themeLabel,

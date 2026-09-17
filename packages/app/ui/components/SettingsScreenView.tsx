@@ -17,7 +17,6 @@ interface Props {
   onProfilePressed?: () => void;
   onProfileLongPressed?: () => void;
   onContactsPressed?: () => void;
-  onActivityPressed?: () => void;
   onAppInfoPressed?: () => void;
   onNotificationSettingsPressed: () => void;
   onBlockedUsersPressed: () => void;
@@ -139,21 +138,6 @@ export function SettingsScreenView(props: Props) {
       />
     ),
   });
-  if (props.onActivityPressed) {
-    appRows.push({
-      key: 'activity',
-      node: (
-        <SettingsAction
-          title="Activity"
-          subtitle="Completed work and updates"
-          leftIcon="Bulletin"
-          rightIcon="ChevronRight"
-          onPress={props.onActivityPressed}
-          isFocused={props.focusedRouteName === 'Activity'}
-        />
-      ),
-    });
-  }
   if (props.hasHostedAuth) {
     appRows.push({
       key: 'manage-account',
