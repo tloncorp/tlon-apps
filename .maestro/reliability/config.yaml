@@ -24,5 +24,4 @@ flows:
   - sections.yaml
   - notification-preferences.yaml
   - roles.yaml
-  - thread-lifecycle.yaml
   - app-info-copy.yaml

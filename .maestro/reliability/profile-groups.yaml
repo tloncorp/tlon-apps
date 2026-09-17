@@ -97,7 +97,7 @@ onFlowComplete:
 - runFlow: subflows/home-tab.yaml
 - tapOn: '^Search$'
 # Keep the query distinct from the result's accessible name.
-- inputText: ${MAESTRO_RUN_TAG}
+- inputText: ${output.reliability.groupQuery}
 - hideKeyboard
 - tapOn: ${output.reliability.groupPattern}
 - tapOn: ${output.reliability.groupPattern}

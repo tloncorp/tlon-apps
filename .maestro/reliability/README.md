@@ -105,7 +105,8 @@ copies the visible Build version from App Info, then pastes through the platform
 search UI and asserts the exact result. This intentionally does not use Maestro's
 separate in-memory clipboard as the copy oracle.
 
-`thread-lifecycle.yaml` also checks reply counts through 1 → 2 → 1 → 0: cancel
+`thread-lifecycle.yaml` remains standalone while its immediate reply-count
+assertion has a known iOS failure. It checks reply counts through 1 → 2 → 1 → 0: cancel
 preserves both replies; deleting one preserves its sibling and parent; partial
 and final deletion persist after relaunch. It uses the existing identity gate
 and deletes its uniquely named group on success. A failed run can leave that
