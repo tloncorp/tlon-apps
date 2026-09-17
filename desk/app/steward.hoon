@@ -12,7 +12,8 @@
 ::
 /-  s=steward, a=activity, av=activity-ver, cv=chat-ver, st=story
 /-  sl=steward-lens, sg=steward-gateway, sa=steward-automation, c=contacts
-/+  default-agent, verb, dbug, server, aj=steward-automation-json
+/-  lg=logs
+/+  default-agent, verb, dbug, server, logs, aj=steward-automation-json
 |%
 +$  card  card:agent:gall
 ::  state is versioned; +on-load migrates older shapes forward.
@@ -119,15 +120,33 @@
   ++  on-fail
     |=  [=term =tang]
     ^-  (quip card _this)
-    %-  (slog 'steward: on-fail' >term< tang)
-    [~ this]
+    :_  this
+    [(~(on-fail logs bowl /logs) term tang)]~
   --
 |_  [=bowl:gall cards=(list card)]
++*  log  ~(. logs [bowl /logs])
 ++  cor   .
 ++  abet  [(flop cards) state]
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
+::  +log-tell, +log-fail: report to %logs, which forwards at or above its
+::  volume threshold to PostHog and to OTLP (docs/backend/desk/app/steward.md).
+::  .event names the event and .extra rides along as properties, so a
+::  fleet-wide question has an answer without reading slogs on one ship.
+::
+::    +log-fail is for faults only: it emits a %fail, which is what the
+::    crash dashboards and the unknown-crash burst alert count. An expected
+::    outcome, however unwelcome, is a +log-tell.
+::
+++  log-tell
+  |=  [vol=volume:v1:lg event=@t =echo:v1:lg extra=log-data:v1:lg]
+  ^+  cor
+  (emit (tell:log vol echo ['event'^s+event extra]))
+++  log-fail
+  |=  [event=@t =echo:v1:lg =tang extra=log-data:v1:lg]
+  ^+  cor
+  (emit (fail:log %error echo tang ['event'^s+event extra]))
 ::
 ::  +load: progressive migration, one version per step, with cards emitted
 ::  at the version they belong to (the shape of +load in %activity).
@@ -304,14 +323,14 @@
     ?+  -.sign  cor
         %poke-ack
       ?~  p.sign  cor
-      ((slog 'steward: lens run fan-out nacked' u.p.sign) cor)
+      (log-fail 'Lens Fan-out Nacked' ~['lens fan-out nacked'] u.p.sign ~)
     ==
   ::
       [%lens %retry *]
     ?+  -.sign  cor
         %poke-ack
       ?~  p.sign  cor
-      ((slog 'steward: lens retry relay nacked' u.p.sign) cor)
+      (log-fail 'Lens Retry Nacked' ~['lens retry relay nacked'] u.p.sign ~)
     ==
   ::
       [%activity ~]
@@ -329,21 +348,27 @@
     ::
         %watch-ack
       ?~  p.sign  cor
-      ((slog 'steward: activity watch nacked' u.p.sign) cor)
+      %:  log-fail  'Activity Watch Nacked'
+          ~['activity watch nacked']  u.p.sign  ~
+      ==
     ==
   ::
       [%gateway %dm %send ~]
     ?+  -.sign  cor
         %poke-ack
       ?~  p.sign  cor
-      ((slog 'steward: gateway dm send failed' u.p.sign) cor)
+      %:  log-fail  'Gateway DM Send Failed'
+          ~['gateway dm send failed']  u.p.sign  ~
+      ==
     ==
   ::
       [%gateway %liveness ~]
     ?+  -.sign  cor
         %poke-ack
       ?~  p.sign  cor
-      ((slog 'steward: liveness publish nacked' u.p.sign) cor)
+      %:  log-fail  'Gateway Liveness Nacked'
+          ~['liveness publish nacked']  u.p.sign  ~
+      ==
     ==
   ::
   ::  a trusted bot's automation feed: only content the payload
@@ -454,8 +479,10 @@
     ^+  cor
     ::  drop oversized payloads to keep loom usage bounded
     ?:  (gth (met 3 (jam payload)) max-payload-bytes)
-      %-  (slog leaf+"steward: lens payload oversized, dropping" ~)
-      cor
+      %:  log-tell  %warn  'Lens Payload Oversized'
+          ~['lens payload oversized, dropping']
+          ~['ship'^s+(scot %p src.bowl)]
+      ==
     ?:  =(src.bowl our.bowl)
       (le-send id payload final)
     (le-store src.bowl id payload final)
@@ -857,7 +884,11 @@
     =/  lut  lease-until.gateway.state
     ?~  lut  cor
     ?.  (lte u.lut now.bowl)  cor
-    %-  (slog leaf+"steward: gateway lease expired, transitioning to down" ~)
+    =.  cor
+      %:  log-tell  %warn  'Gateway Lease Expired'
+          ~['gateway lease expired, transitioning to down']
+          ~
+      ==
     =.  status.gateway.state  %down
     =.  pending-restart.gateway.state  &
     =.  cor  (ga-advertise-liveness |)
@@ -905,6 +936,22 @@
 ::
 ++  au-core
   |%
+  ::  every automation event carries the same flow, so one PostHog or Loki
+  ::  query covers the whole edit loop across owner and bot
+  ::
+  ++  au-tell
+    |=  [vol=volume:v1:lg event=@t =echo:v1:lg extra=log-data:v1:lg]
+    ^+  cor
+    (log-tell vol event echo ['flow'^s+'steward-automation' extra])
+  ++  au-fail
+    |=  [event=@t =echo:v1:lg =tang extra=log-data:v1:lg]
+    ^+  cor
+    (log-fail event echo tang ['flow'^s+'steward-automation' extra])
+  ++  au-log-props
+    |=  [rid=request-id:v1:sa key=@t who=ship]
+    ^-  log-data:v1:lg
+    ~['requestId'^s+(scot %uv rid) key^s+(scot %p who)]
+  ::
   ++  au-poke-action
     |=  =action:v1:sa
     ^+  cor
@@ -1020,7 +1067,10 @@
     ::
         %watch-ack
       ?~  p.sign  cor
-      ((slog 'steward: automation watch nacked' u.p.sign) cor)
+      %:  au-fail  'Mirror Watch Nacked'
+          ~['automation mirror watch nacked']  u.p.sign
+          ~['bot'^s+(scot %p bot)]
+      ==
     ==
   ::
   ++  au-apply-bot-update
@@ -1151,6 +1201,11 @@
       %+  ~(put by requests.automation.state)  rid
       [rid bot ~ %sending ~ ~ |]
     =.  cor
+      %:  au-tell  %dbug  'Edit Relayed'
+          ~['relaying edit to bot']
+          (au-log-props rid 'bot' bot)
+      ==
+    =.  cor
       %-  emit
       :*  %pass  (au-req-wire bot rid %watch)
           %agent  [bot %steward]
@@ -1214,6 +1269,7 @@
     ^+  cor
     ?~  req=(~(get by requests.automation.state) rid)  cor
     =/  =response:v1:sa  [rid body]
+    =.  cor  (au-report-result rid bot.u.req body)
     =.  requests.automation.state
       %+  ~(put by requests.automation.state)  rid
       u.req(http-id ~, result `body, final-at `now.bowl)
@@ -1222,6 +1278,28 @@
       [%fact ~[(au-local-req-path rid)] %steward-automation-response-1 !>(response)]
     ?~  http-id.u.req  cor
     (au-give-http-response u.http-id.u.req response)
+  ::  +au-report-result: one report per settled edit. only a fault is a
+  ::  %fail: harness-offline is the bot telling us its plugin is down, and
+  ::  invalid or not-found is the client's own input coming back
+  ::
+  ++  au-report-result
+    |=  [rid=request-id:v1:sa bot=ship body=response-body:v1:sa]
+    ^+  cor
+    =/  props  (au-log-props rid 'bot' bot)
+    ?.  ?=(%error -.body)
+      (au-tell %dbug 'Edit Settled' ~['edit settled'] props)
+    =/  vol=?(%info %warn %error)
+      ?+  type.body        %warn
+        %harness-offline   %info
+        %not-authorized    %error
+        %harness-error     %error
+        %unknown           %error
+      ==
+    =.  props  ['errorType'^s+type.body props]
+    =/  =echo:v1:lg  ~[(cat 3 'edit failed: ' type.body)]
+    ?:  ?=(%error vol)
+      (au-fail 'Edit Failed' echo message.body props)
+    (au-tell vol 'Edit Failed' echo props)
   ::
   ::  the pending wake: close a held HTTP request with %pending and keep
   ::  the record for the late answer. a request already terminal is
@@ -1235,6 +1313,11 @@
     ?:  ?=(^ result.u.req)  cor
     =/  body=response-body:v1:sa  [%pending poke-status.u.req]
     =/  =response:v1:sa  [rid body]
+    =.  cor
+      %:  au-tell  %dbug  'Edit Pending'
+          ~['pending wake fired before the bot answered']
+          (au-log-props rid 'bot' bot.u.req)
+      ==
     =.  requests.automation.state
       %+  ~(put by requests.automation.state)  rid
       u.req(http-id ~, result `body, final-at `now.bowl)
@@ -1269,15 +1352,29 @@
   ++  au-poke-command
     |=  =c-automation:v1:sa
     ^+  cor
-    ?>  ?&(?=(^ owner.state) =(src.bowl u.owner.state))
+    ::  narrow a local, not the state field: narrowing .owner in place
+    ::  would retype the core and fight the +cor assignments below
+    ::
+    =/  own  owner.state
+    ?>  ?&(?=(^ own) =(src.bowl u.own))
     ?-  -.c-automation
         %edit
       =*  rid  request-id.c-automation
       ?.  au-harness-online
+        =.  cor
+          %:  au-tell  %info  'Command Refused'
+              ~['no harness subscribed, refusing edit']
+              (au-log-props rid 'requester' src.bowl)
+          ==
         (au-give-response src.bowl [rid %error %harness-offline ~])
       =.  pending.automation.state
         %+  ~(put by pending.automation.state)  rid
         [rid src.bowl edit.c-automation now.bowl]
+      =.  cor
+        %:  au-tell  %dbug  'Command Dispatched'
+            ~['handing edit to the harness']
+            (au-log-props rid 'requester' src.bowl)
+        ==
       (au-give-dispatch ~[au-harness-path] [rid edit.c-automation])
     ==
   ::
@@ -1299,7 +1396,11 @@
   ++  au-handle-finalize
     |=  [rid=request-id:v1:sa body=response-body:v1:sa]
     ^+  cor
-    ?~  pen=(~(get by pending.automation.state) rid)  cor
+    ?~  pen=(~(get by pending.automation.state) rid)
+      %:  au-tell  %dbug  'Finalize Unknown'
+          ~['finalize names no pending command']
+          ~['requestId'^s+(scot %uv rid)]
+      ==
     =.  pending.automation.state  (~(del by pending.automation.state) rid)
     (au-give-response requester.u.pen [rid body])
   ::
@@ -1322,6 +1423,27 @@
   ::
   ++  au-cleanup
     ^+  cor
+    ::  a request that aged out still holding a %pending result was never
+    ::  answered by the bot: the client asked for something and nothing
+    ::  ever came back, so it is the one sweep case worth reporting
+    ::
+    =/  stranded
+      %+  skim  ~(val by requests.automation.state)
+      |=  req=incoming-request:v1:sa
+      ?&  ?=([~ %pending *] result.req)
+          ?=(^ final-at.req)
+          (gte now.bowl u.final-at.req)
+          (gth (sub now.bowl u.final-at.req) ~h1)
+      ==
+    =.  cor
+      |-  ^+  cor
+      ?~  stranded  cor
+      =.  cor
+        %:  au-tell  %warn  'Request Expired'
+            ~['request expired without an answer']
+            (au-log-props id.i.stranded 'bot' bot.i.stranded)
+        ==
+      $(stranded t.stranded)
     =.  requests.automation.state
       %-  ~(rep by requests.automation.state)
       |=  [[id=request-id:v1:sa req=incoming-request:v1:sa] out=requests:v1:sa]
@@ -1343,6 +1465,11 @@
     =.  cor
       |-  ^+  cor
       ?~  dropped  cor
+      =.  cor
+        %:  au-tell  %warn  'Command Expired'
+            ~['command expired without a harness answer']
+            (au-log-props id.i.dropped 'requester' requester.i.dropped)
+        ==
       =.  cor
         (au-give-response requester.i.dropped [id.i.dropped %error %harness-offline ~])
       $(dropped t.dropped)
@@ -1498,6 +1625,11 @@
   ++  au-http-error
     |=  [eyre-id=@ta code=@ud message=@t]
     ^+  cor
+    =.  cor
+      %:  au-tell  %info  'HTTP Error'
+          ~[(cat 3 'http error: ' message)]
+          ~['status'^n+(scot %ud code) 'detail'^s+message]
+      ==
     (au-give-http eyre-id code 'text/plain' message)
   ::
   ++  au-give-http-response

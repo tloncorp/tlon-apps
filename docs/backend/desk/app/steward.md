@@ -382,6 +382,36 @@ With no entries at all the exact JSON shape is `{}`. Task values use the support
 - Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`, liveness publication to `%contacts` on `/gateway/liveness`, and the owner-side automation watches on `/automation/tasks/[bot-p]` — everything arriving on an automation wire is applied only for the ship in the wire (facts naming other ships are ignored). The `%activity` subscription is re-watched on `%kick`; an automation watch is re-watched on `%kick` iff its bot is still trusted. Poke/DM nacks are logged and ignored (Ames retries); a nacked automation watch is slogged and left for a `%trust-bot` re-poke to repair.
 - `on-watch` auth is per-path: lens and gateway paths require `=(src our)`; `/v1/automation/tasks` also admits the configured owner. Rejection is a crash (watch nack). Dotket `on-peek` calls execute locally against current state without caller-source authorization. Core, gateway, and automation pokes are local only; lens applies its per-action source rules to admit trusted bot runs and owner relays.
 
+## reporting
+
+`%steward` reports through `/lib/logs`, like `%activity` and `%groups`: `on-fail` sends the crash, and the arms below send named events. `%logs` forwards everything at or above its volume threshold (`%info` after `on-init`) to PostHog as `Backend Log`, and to OTLP when an endpoint is set, so a fleet-wide question does not depend on reading one ship's terminal. Only a fault is sent as a `%fail`, because that is what the crash dashboards and the unknown-crash burst alert count; an expected outcome, however unwelcome, is a `%tell`.
+
+Every automation event carries `flow: steward-automation`, and each one names the request it belongs to, so one query follows an edit across both ships.
+
+| event | volume | where | property |
+| --- | --- | --- | --- |
+| `Edit Relayed` | `%dbug` | owner | `requestId`, `bot` |
+| `Edit Pending` | `%dbug` | owner | `requestId`, `bot` |
+| `Edit Settled` | `%dbug` | owner | `requestId`, `bot` |
+| `Edit Failed` | `%error` fail, or `%info`/`%warn` | owner | `requestId`, `bot`, `errorType` |
+| `Request Expired` | `%warn` | owner | `requestId`, `bot` |
+| `Command Refused` | `%info` | bot | `requestId`, `requester` |
+| `Command Dispatched` | `%dbug` | bot | `requestId`, `requester` |
+| `Command Expired` | `%warn` | bot | `requestId`, `requester` |
+| `Finalize Unknown` | `%dbug` | bot | `requestId` |
+| `HTTP Error` | `%info` | owner | `status`, `detail` |
+| `Mirror Watch Nacked` | `%error` fail | owner | `bot` |
+| `Lens Fan-out Nacked`, `Lens Retry Nacked` | `%error` fail | bot, owner | — |
+| `Lens Payload Oversized` | `%warn` | owner | `ship` |
+| `Activity Watch Nacked`, `Gateway DM Send Failed`, `Gateway Liveness Nacked` | `%error` fail | any | — |
+| `Gateway Lease Expired` | `%warn` | bot | — |
+
+`Edit Failed` is the one event whose volume depends on its cause: `not-authorized`, `unknown` and `harness-error` carry a stack trace and report as faults, `harness-offline` is the bot saying its plugin is down and reports at `%info`, and a client-shaped `invalid` or `not-found` reports at `%warn`.
+
+The two expiries are the ones worth alerting on. `Request Expired` means a client asked for an edit and nothing ever came back; `Command Expired` means the bot accepted a command its harness never answered.
+
+The plugin reports its own side to PostHog through `reportTelemetryError`: `steward_automation_edit` with `finalize_abandoned` (the answer never reached the bot, so the request is stranded), `apply_failed` (the cron service could not apply the edit) and `cron_unavailable`; `steward_automation_projection` with `projection_failed` / `projection_exhausted` (the mirror is going stale) and one event per cron job dropped from a snapshot.
+
 ## integration notes
 
 - The gateway (openclaw-tlon / hermes) pokes core `%configure` on monitor activation and `%steward-lens-action-1` run milestones from its run event stream. Lens recording is config-gated on the gateway side (`channels.tlon.contextLens`).

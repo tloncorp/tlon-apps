@@ -4,6 +4,7 @@
 /-  l=steward-lens, g=steward-gateway, au=steward-automation
 /-  cv=chat-ver, st=story, c=contacts
 /-  chv=channels-ver, gv=groups-ver
+/-  lg=logs
 /+  *test-agent, aj=steward-automation-json
 /=  agent  /app/steward
 |%
@@ -2284,6 +2285,28 @@
   (crip "/steward/~/v1/automation/request/{(scow %uv rid)}")
 ++  tasks-url  ^-  @t  '/steward/~/v1/automation/tasks'
 ++  finalize-url  ^-  @t  '/steward/~/v1/automation/finalize'
+::  +got-logs: the [volume event] of every report steward sent to %logs.
+::  ex-cards drops these cards, so the reports are asserted on their own
+::
+++  got-logs
+  |=  caz=(list card)
+  ^-  (list [volume:v1:lg @t])
+  %+  murn  caz
+  |=  =card
+  ^-  (unit [volume:v1:lg @t])
+  ?.  ?=([%pass [%logs ~] %agent [@ %logs] %poke %log-action-1 *] card)
+    ~
+  =+  !<(=a-log:v1:lg q.cage.task.q.card)
+  ?.  ?=(%log -.a-log)  ~
+  =/  vol=volume:v1:lg
+    ?-  -.event.a-log
+      %fail  vol.event.a-log
+      %tell  vol.event.a-log
+    ==
+  =/  named  (skim data.a-log |=([k=@t *] =('event' k)))
+  ?~  named  ~
+  ?.  ?=([%s *] q.i.named)  ~
+  `[vol p.q.i.named]
 ++  finalize-post-body
   |=  body=response-body:v1:au
   ^-  @t
@@ -3017,6 +3040,64 @@
   ;<  caz=(list card)  bind:m
     (do-http 'eyre-1' (http-request & %'GET' '/steward/~/v1/nope' ~))
   (ex-cards caz (ex-http 'eyre-1' 404 'text/plain' 'not found'))
+::
+::  LOG REPORTING
+::  ==========================================================
+::
+::  a nacked command poke is a fault: it reports as a %fail, which is what
+::  the crash dashboards count
+::
+++  test-logs-edit-nack-reports-a-fail
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  why=tang  ~[leaf+"crash"]
+  ;<  ~  bind:m  setup-owner
+  ;<  *  bind:m  (do-edit moon edit-create)
+  ;<  caz=(list card)  bind:m  (do-req-poke-sign moon %poke-ack `why)
+  (ex-equal !>((got-logs caz)) !>(~[[%error 'Edit Failed']]))
+::
+::  a bot with no harness subscribed is an expected outcome, not a fault:
+::  refusing the edit must not report as a crash on either ship
+::
+++  test-logs-harness-offline-is-not-a-fail
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  caz=(list card)  bind:m
+    %-  (do-as ~bus)
+    (do-command edit-create)
+  (ex-equal !>((got-logs caz)) !>(~[[%info 'Command Refused']]))
+::
+::  a command the harness never answered is swept an hour later; that is a
+::  lost edit, so it reports at %warn on the bot
+::
+++  test-logs-command-sweep-warns
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m  (do-watch harness-path)
+  ;<  *  bind:m
+    %-  (do-as ~bus)
+    (do-command edit-create)
+  ;<  ~  bind:m  (advance-clock ~h2)
+  ;<  caz=(list card)  bind:m  do-cleanup-wake
+  (ex-equal !>((got-logs caz)) !>(~[[%warn 'Command Expired']]))
+::
+::  every HTTP refusal reports once, with its status as a property
+::
+++  test-logs-http-error-reports
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    (do-http 'eyre-1' (http-request & %'GET' '/steward/~/v1/nope' ~))
+  (ex-equal !>((got-logs caz)) !>(~[[%info 'HTTP Error']]))
 ::
 ::  OWNER-INITIATED RESTART NOTICES + LIVENESS PUBLICATION
 ::  ==========================================================
