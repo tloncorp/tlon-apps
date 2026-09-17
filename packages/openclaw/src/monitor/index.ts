@@ -1,7 +1,6 @@
 import type { Story } from '@tloncorp/api';
 import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
-import { resolveDefaultAgentId } from 'openclaw/plugin-sdk/agent-runtime';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
 import type { OpenClawConfig, ReplyPayload } from 'openclaw/plugin-sdk/core';
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
@@ -4919,11 +4918,21 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           `[tlon] Prompt sync disabled for account ${account.accountId}: accounts share one agent workspace`
         );
       } else {
+        // Project the workspace the owner's own messages are routed to, the
+        // way restart catch-up resolves BOOT.md. Assuming the default agent
+        // would project and edit an unrelated agent's prompts whenever this
+        // account is bound to a non-default one.
+        const promptRoute = core.channel.routing.resolveAgentRoute({
+          cfg,
+          channel: 'tlon',
+          accountId: account.accountId,
+          peer: { kind: 'direct', id: effectiveOwnerShip },
+        });
         promptSync = createPromptSync({
           owner: effectiveOwnerShip,
           workspaceDir: core.agent.resolveAgentWorkspaceDir(
             cfg,
-            resolveDefaultAgentId(cfg)
+            promptRoute.agentId
           ),
           poke: api.poke.bind(api),
           requestJson: api.requestJson.bind(api),
