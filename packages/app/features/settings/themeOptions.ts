@@ -1,5 +1,5 @@
 import { AppTheme } from '../../types/theme';
-import { ListItemInputOption } from '../../ui';
+import type { ListItemInputOption } from '../../ui';
 
 export const THEME_OPTIONS: ListItemInputOption<AppTheme>[] = [
   {
