@@ -35,15 +35,13 @@ env:
     file: subflows/input.yaml
     env:
       INPUT_TEXT: ${output.reliability.body}
-- tapOn:
-    id: NotesPreviewToggle
+- tapOn: '^Preview$'
 - extendedWaitUntil:
     visible: '^Synced$'
     timeout: 30000
 - assertVisible: ${output.reliability.title}
 - assertVisible: ${output.reliability.body}
-- tapOn:
-    id: NotesPreviewToggle
+- tapOn: '^Edit$'
 - runFlow: subflows/focus-notebook-body.yaml
 - tapOn:
     id: NotesTitleInput
@@ -58,8 +56,7 @@ env:
     file: subflows/input.yaml
     env:
       INPUT_TEXT: ${MAESTRO_RUN_TAG + ' edited body'}
-- tapOn:
-    id: NotesPreviewToggle
+- tapOn: '^Preview$'
 - extendedWaitUntil:
     visible: '^Synced$'
     timeout: 30000
