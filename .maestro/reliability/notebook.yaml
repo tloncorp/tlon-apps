@@ -1,6 +1,6 @@
 appId: ${MAESTRO_APP_ID}
 name: Native Notebook publish, edit and persist
-tags: [regression]
+tags: [regression, notebook]
 env:
   JOURNEY: n
 ---
@@ -8,9 +8,16 @@ env:
 - runFlow: subflows/begin.yaml
 - runFlow: subflows/create-group.yaml
 - tapOn: '^Notebook$'
-- tapOn: '^New$'
+- tapOn:
+    text: '^New$'
+    retryTapIfNoChange: true
 - extendedWaitUntil:
-    visible: '^Write something …\n?$'
+    visible: '^New note$'
+    timeout: 15000
+- tapOn: '^New note$'
+- extendedWaitUntil:
+    visible:
+      id: NotebookTitleInput
     timeout: 15000
 - tapOn: '^Write something …\n?$'
 - tapOn:

@@ -4,6 +4,23 @@ on:
   schedule:
     - cron: '0 7 * * *'
   workflow_dispatch:
+    inputs:
+      ios-app-binary-id:
+        description: Reuse an existing Maestro Cloud iOS app binary
+        required: false
+        type: string
+      android-app-binary-id:
+        description: Reuse an existing Maestro Cloud Android app binary
+        required: false
+        type: string
+      ios-smoke-include-tags:
+        description: Run only matching iOS smoke flow tags
+        required: false
+        type: string
+      reliability-include-tags:
+        description: Run only matching reliability flow tags
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -30,6 +47,7 @@ jobs:
 
   build-ios:
     name: Build iOS app
+    if: ${{ inputs.ios-app-binary-id == '' }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -66,6 +84,7 @@ jobs:
 
   build-android:
     name: Build Android app
+    if: ${{ inputs.android-app-binary-id == '' }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -102,7 +121,7 @@ jobs:
   test-ios:
     name: Test iOS app
     needs: [prepare, build-ios]
-    if: ${{ needs.prepare.result == 'success' && needs.build-ios.result == 'success' }}
+    if: ${{ always() && needs.prepare.result == 'success' && (needs.build-ios.result == 'success' || inputs.ios-app-binary-id != '') }}
     runs-on: ubuntu-latest
     outputs:
       smoke-url: ${{ steps.smoke.outputs.MAESTRO_CLOUD_CONSOLE_URL }}
@@ -113,16 +132,19 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
       - name: Download iOS app
+        if: ${{ inputs.ios-app-binary-id == '' }}
         uses: actions/download-artifact@v4
         with:
           name: reliability-ios-build
           path: .
       - name: Extract iOS app
+        if: ${{ inputs.ios-app-binary-id == '' }}
         run: |
           mkdir -p ios-build
           tar -xzf ios-build.tar.gz -C ios-build
       - id: app
         name: Find iOS app
+        if: ${{ inputs.ios-app-binary-id == '' }}
         run: |
           app_path="$(find ios-build -type d -name '*.app' -print -quit)"
           test -n "$app_path"
@@ -135,10 +157,12 @@ jobs:
           api-key: ${{ secrets.MAESTRO_CLOUD_API_KEY }}
           project-id: ${{ secrets.ROBIN_PROJECT_ID }}
           app-file: ${{ steps.app.outputs.path }}
+          app-binary-id: ${{ inputs.ios-app-binary-id }}
           workspace: .maestro
           name: nightly-develop-ios
           device-model: iPhone-17
           device-os: iOS-26-2
+          include-tags: ${{ inputs.ios-smoke-include-tags }}
           env: |
             MAESTRO_EMAIL=${{ secrets.MAESTRO_EMAIL }}
             MAESTRO_PASSWORD=${{ secrets.MAESTRO_PASSWORD }}
@@ -151,11 +175,13 @@ jobs:
           api-key: ${{ secrets.MAESTRO_CLOUD_API_KEY }}
           project-id: ${{ secrets.ROBIN_PROJECT_ID }}
           app-file: ${{ steps.app.outputs.path }}
+          app-binary-id: ${{ inputs.ios-app-binary-id }}
           workspace: .maestro/reliability
           name: nightly-reliability-ios
           timeout: 60
           device-model: iPhone-17
           device-os: iOS-26-2
+          include-tags: ${{ inputs.reliability-include-tags }}
           env: |
             MAESTRO_APP_ID=io.tlon.groups
             MAESTRO_EMAIL=${{ secrets.MAESTRO_EMAIL }}
@@ -178,7 +204,7 @@ jobs:
   test-android:
     name: Test Android app
     needs: [prepare, build-android, test-ios]
-    if: ${{ always() && needs.prepare.result == 'success' && needs.build-android.result == 'success' }}
+    if: ${{ always() && needs.prepare.result == 'success' && (needs.build-android.result == 'success' || inputs.android-app-binary-id != '') }}
     runs-on: ubuntu-latest
     outputs:
       reliability-url: ${{ steps.reliability.outputs.MAESTRO_CLOUD_CONSOLE_URL }}
@@ -187,6 +213,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
       - name: Download Android app
+        if: ${{ inputs.android-app-binary-id == '' }}
         uses: actions/download-artifact@v4
         with:
           name: reliability-android-build
@@ -198,11 +225,13 @@ jobs:
         with:
           api-key: ${{ secrets.MAESTRO_CLOUD_API_KEY }}
           project-id: ${{ secrets.ROBIN_PROJECT_ID }}
-          app-file: android-build.apk
+          app-file: ${{ inputs.android-app-binary-id == '' && 'android-build.apk' || '' }}
+          app-binary-id: ${{ inputs.android-app-binary-id }}
           workspace: .maestro/reliability
           name: nightly-reliability-android
           timeout: 60
           android-api-level: 33
+          include-tags: ${{ inputs.reliability-include-tags }}
           env: |
             MAESTRO_APP_ID=io.tlon.groups
             MAESTRO_EMAIL=${{ secrets.MAESTRO_EMAIL }}
@@ -238,6 +267,8 @@ jobs:
           IOS_SMOKE_URL: ${{ needs.test-ios.outputs.smoke-url }}
           IOS_RELIABILITY_URL: ${{ needs.test-ios.outputs.reliability-url }}
           ANDROID_RELIABILITY_URL: ${{ needs.test-android.outputs.reliability-url }}
+          IOS_APP_BINARY_ID: ${{ inputs.ios-app-binary-id }}
+          ANDROID_APP_BINARY_ID: ${{ inputs.android-app-binary-id }}
         run: |
           result_link() {
             if [ -n "$2" ]; then
@@ -253,16 +284,16 @@ jobs:
             echo '| Stage | Result |'
             echo '| --- | --- |'
             echo "| Prepare | $PREPARE_STATUS |"
-            echo "| iOS build | $IOS_BUILD_STATUS |"
-            echo "| Android build | $ANDROID_BUILD_STATUS |"
+            echo "| iOS build | $([ -n "$IOS_APP_BINARY_ID" ] && echo reused || echo "$IOS_BUILD_STATUS") |"
+            echo "| Android build | $([ -n "$ANDROID_APP_BINARY_ID" ] && echo reused || echo "$ANDROID_BUILD_STATUS") |"
             echo "| iOS smoke | $(result_link "${IOS_SMOKE_STATUS:-$IOS_TEST_STATUS}" "$IOS_SMOKE_URL") |"
             echo "| iOS reliability | $(result_link "${IOS_RELIABILITY_STATUS:-$IOS_TEST_STATUS}" "$IOS_RELIABILITY_URL") |"
             echo "| Android reliability | $(result_link "${ANDROID_RELIABILITY_STATUS:-$ANDROID_TEST_STATUS}" "$ANDROID_RELIABILITY_URL") |"
           } >> "$GITHUB_STEP_SUMMARY"
 
           if [ "$PREPARE_STATUS" != success ] ||
-             [ "$IOS_BUILD_STATUS" != success ] ||
-             [ "$ANDROID_BUILD_STATUS" != success ] ||
+             { [ -z "$IOS_APP_BINARY_ID" ] && [ "$IOS_BUILD_STATUS" != success ]; } ||
+             { [ -z "$ANDROID_APP_BINARY_ID" ] && [ "$ANDROID_BUILD_STATUS" != success ]; } ||
              [ "$IOS_TEST_STATUS" != success ] ||
              [ "$ANDROID_TEST_STATUS" != success ]; then
             echo 'One or more nightly stages failed or were skipped.' >&2
