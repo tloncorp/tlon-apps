@@ -116,6 +116,9 @@ export type RootStackParamList = {
     channelLabel: string;
     groupJoined: boolean;
   };
+  BotPermissionsSettings: undefined;
+  BotIdentitySettings: undefined;
+  BotProviderListSettings: { kind: 'subscriptions' | 'apiKeys' };
   BlockedUsers: undefined;
   PrivacySettings: undefined;
   AppInfo: undefined;
@@ -227,6 +230,9 @@ export type SettingsDrawerParamList = Pick<
   | 'BotShipListSettings'
   | 'BotChannelRulesSettings'
   | 'BotChannelRuleSettings'
+  | 'BotPermissionsSettings'
+  | 'BotIdentitySettings'
+  | 'BotProviderListSettings'
   | 'BlockedUsers'
   | 'AppInfo'
   | 'PushNotificationSettings'
