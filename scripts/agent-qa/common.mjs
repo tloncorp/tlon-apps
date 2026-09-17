@@ -155,7 +155,7 @@ export async function model(
   prompt,
   { cwd = out, schema, device, minutes = 6 } = {}
 ) {
-  mkdirSync(out, { recursive: true });
+  mkdirSync(path.join(out, `codex-${name}`), { recursive: true });
   save(path.join(out, `${name}-prompt.txt`), prompt);
   if (schema) save(path.join(out, `${name}.schema.json`), schema);
   const log = openSync(path.join(out, `${name}.jsonl`), 'w');

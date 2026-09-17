@@ -272,3 +272,57 @@ test('device subprocesses can use the ship proxy while the runner waits', async 
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+test('model subprocess receives an existing temporary home and saves its result', async () => {
+  const dir = temp();
+  const bin = path.join(dir, 'bin');
+  mkdirSync(bin);
+  writeFileSync(
+    path.join(bin, 'codex'),
+    `#!/usr/bin/env node
+const fs = require('node:fs');
+if (!fs.statSync(process.env.CODEX_HOME).isDirectory()) process.exit(2);
+if (process.env.GH_TOKEN) process.exit(3);
+let prompt = '';
+process.stdin.on('data', data => prompt += data);
+process.stdin.on('end', () => {
+  const result = process.argv[process.argv.indexOf('--output-last-message') + 1];
+  fs.writeFileSync(result, JSON.stringify({summary: prompt}));
+  console.log(JSON.stringify({type:'turn.completed',usage:{input_tokens:1,output_tokens:1}}));
+});
+`,
+    { mode: 0o755 }
+  );
+  try {
+    const common = new URL('./common.mjs', import.meta.url).href;
+    await commandAsync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        `import {model} from ${JSON.stringify(common)}; const result = await model('assessment', 'test prompt', {schema:{type:'object'}}); if(result.summary!=='test prompt') process.exit(4);`,
+      ],
+      {
+        env: {
+          ...process.env,
+          PATH: `${bin}:${process.env.PATH}`,
+          QA_DIR: dir,
+          GH_TOKEN: 'must-not-reach-model',
+        },
+      }
+    );
+    assert.equal(
+      JSON.parse(readFileSync(path.join(dir, 'assessment.txt'), 'utf8'))
+        .summary,
+      'test prompt'
+    );
+    assert.ok(
+      readFileSync(path.join(dir, 'assessment.jsonl'), 'utf8').includes(
+        'turn.completed'
+      )
+    );
+    assert.throws(() => readFileSync(path.join(dir, 'codex-assessment')));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
