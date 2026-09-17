@@ -21,11 +21,13 @@ const iosHeaderAssetDirectory = path.join(
 );
 const checkOnly = process.argv.includes('--check');
 
-// Neither the bot nor the workspaces glyph has a filled variant, so each tab
-// draws the same asset in both states — as Settings already does.
+// No tab draws a filled variant: two of these glyphs do not have one, so the
+// bar marks the selected tab by tint alone and every tab uses a single asset
+// in both states.
 const tabIcons = [
   ['SmushStar.svg', 'tab-bot'],
   ['Channel.svg', 'tab-workspaces'],
+  ['Notifications.svg', 'tab-activity'],
   ['Settings.svg', 'tab-settings'],
 ];
 

@@ -6,6 +6,7 @@ import { LoadingSpinner } from '@tloncorp/ui';
 import { View, getTokenValue, useTheme } from 'tamagui';
 
 import SettingsScreen from '../features/settings/SettingsScreen';
+import { ActivityScreen } from '../features/top/ActivityScreen';
 import ChannelScreen from '../features/top/ChannelScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
 import * as store from '@tloncorp/shared/store';
@@ -29,7 +30,7 @@ import type { TopLevelTabParamList } from './types';
 
 const Tabs = createNativeBottomTabNavigator<TopLevelTabParamList>();
 
-type TabIconName = 'bot' | 'workspaces' | 'settings';
+type TabIconName = 'bot' | 'workspaces' | 'activity' | 'settings';
 
 const tabIcons = {
   bot: {
@@ -39,6 +40,10 @@ const tabIcons = {
   workspaces: {
     regular: require('./assets/tab-workspaces.png'),
     selected: require('./assets/tab-workspaces.png'),
+  },
+  activity: {
+    regular: require('./assets/tab-activity.png'),
+    selected: require('./assets/tab-activity.png'),
   },
   settings: {
     regular: require('./assets/tab-settings.png'),
@@ -68,7 +73,8 @@ export function TopLevelTabNavigator() {
   const botDmHasUnread = store.useChannelHasUnread(
     botDm.enabled ? botDm.channelId : undefined
   );
-  // Activity elsewhere: the bot DM already badges its own tab.
+  // What the Activity tab badges: the bot DM already badges its own tab, so
+  // one message never lights both.
   const unseenActivityCount = store.useUnreadUnseenActivityCount({
     excludeChannelId: botDm.enabled ? botDm.channelId : undefined,
   });
@@ -197,11 +203,23 @@ export function TopLevelTabNavigator() {
         options={{
           title: TOP_LEVEL_TABS.ChatList.title,
           tabBarIcon: ({ focused }) => tabIcon('workspaces', focused),
+          tabBarSelectionEnabled: !isTabPressBlockedByOnboardingLock(
+            onboardingLock.locked,
+            'ChatList'
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="Activity"
+        component={ActivityScreen}
+        options={{
+          title: TOP_LEVEL_TABS.Activity.title,
+          tabBarIcon: ({ focused }) => tabIcon('activity', focused),
           tabBarBadge: dot(unseenActivityCount > 0),
           tabBarBadgeStyle,
           tabBarSelectionEnabled: !isTabPressBlockedByOnboardingLock(
             onboardingLock.locked,
-            'ChatList'
+            'Activity'
           ),
         }}
       />

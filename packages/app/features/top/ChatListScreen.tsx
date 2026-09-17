@@ -11,7 +11,6 @@ import { Text, YStack, isWeb } from 'tamagui';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatListSettleTelemetry } from '../../hooks/useChatListSettleTelemetry';
-import { useBotDmTab } from '../../hooks/useBotDmTab';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import type { ChatListFilter } from '../../hooks/chatListFilters';
 import { useFilteredChats } from '../../hooks/useFilteredChats';
@@ -36,6 +35,7 @@ import {
   useIsWindowNarrow,
 } from '../../ui';
 import SystemNotices from '../../ui/components/SystemNotices';
+import { useScreenScrollProps } from '../../ui/components/useScreenScrollProps';
 import WayfindingNotice from '../../ui/components/Wayfinding/Notices';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { ChatList, ChatListItemData } from '../chat-list/ChatList';
@@ -119,13 +119,6 @@ export function ChatListScreenView({
 
   const connStatus = store.useConnectionStatus();
   const session = store.useCurrentSession();
-  // The bot DM badges itself on the first tab; the bell counts what is
-  // happening everywhere else, so one message never lights both.
-  const botDm = useBotDmTab();
-  const unseenActivityCount = store.useUnreadUnseenActivityCount({
-    excludeChannelId: botDm.enabled ? botDm.channelId : undefined,
-  });
-  const haveUnreadActivity = unseenActivityCount > 0;
 
   // React to a later `previewGroupId` param (e.g. a notification tap while ChatList is already
   // mounted), mirroring desktop HomeSidebar. Also (re)marks whether the selection came from a
@@ -352,10 +345,6 @@ export function ChatListScreenView({
     [performGroupAction]
   );
 
-  const handlePressActivity = useCallback(() => {
-    navigation.navigate('Activity', undefined, { pop: true });
-  }, [navigation]);
-
   const handlePersonalInvitePress = useCallback(() => {
     logger.trackEvent(AnalyticsEvent.PersonalInvitePressed);
     db.hasViewedPersonalInvite.setValue(true);
@@ -371,6 +360,11 @@ export function ChatListScreenView({
   }, [handleSearchInputToggled]);
 
   const [listFilter, setListFilter] = useState<ChatListFilter>('all');
+  // The top-level tabs share one native header, and it stays opaque until a
+  // screen installs the scroll-edge options. Install them here rather than
+  // inheriting whichever tab was focused last: the clearance below is only
+  // the right offset once the header actually floats.
+  useScreenScrollProps();
   // The native header floats over the screen on iOS 26, and this screen's
   // content starts at the top of that area. The filter tabs sit above the
   // list, so the clearance has to be layout on the column rather than a
@@ -423,15 +417,6 @@ export function ChatListScreenView({
               loadingSubtitle={loadingSubtitle}
               showSubtitle={true}
               leftActions={[
-                {
-                  id: 'activity',
-                  icon: 'Notifications',
-                  label: 'Activity',
-                  testID: 'ActivityHeaderButton',
-                  onPress: handlePressActivity,
-                  tint: haveUnreadActivity ? '$blue' : undefined,
-                  badge: haveUnreadActivity ? unseenActivityCount : undefined,
-                },
                 {
                   id: 'invite-people',
                   icon: 'AddPerson',
