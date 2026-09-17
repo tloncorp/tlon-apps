@@ -1,8 +1,8 @@
 # Native reliability tests
 
-Twenty-seven default single-ship journeys, including attachments, channel sorting,
-Gallery links, profile details, pins, references, privacy, sections, notification
-preferences, roles, replies, self-hosted login recovery and App Info clipboard verification.
+Twenty-seven default single-ship journeys, including attachments, Gallery links,
+profile details, pins, references, privacy, sections, notification preferences,
+roles, replies and App Info clipboard verification.
 These cover a subset of the QA checklist, not the entire workbook.
 
 Use Maestro 2.6.1 and an installed build containing this branch's app changes.
@@ -30,10 +30,12 @@ groups and posts that remain on the ship; only the lifecycle tests delete their
 own fixtures. Profile restores the original nickname in its completion hook;
 settings restores the original theme on success.
 
-Two extra flows have prerequisites: `contacts.yaml` requires `MAESTRO_CONTACT_SHIP`
+Three extra flows have prerequisites: `contacts.yaml` requires `MAESTRO_CONTACT_SHIP`
 to name another test ship absent from Contacts; `files.yaml` requires Android and
-network access to the pinned public PDF fixture. It checks attachment persistence
-and opening, not PDF contents. These two are excluded from the default suite.
+network access to the pinned public PDF fixture; and `self-hosted-recovery.yaml`
+requires `MAESTRO_LOGIN_URL` and `MAESTRO_LOGIN_CODE`. They are excluded from the
+default suite. The files flow checks attachment persistence and opening, not PDF
+contents. `channel-sorting.yaml` is also a focused standalone flow.
 
 Profile details restore the original status/bio. Profile groups remove their new
 pin on completion and delete their fixture group on success. Serialize profile

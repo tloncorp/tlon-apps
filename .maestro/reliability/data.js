@@ -5,12 +5,19 @@ if (!/^~[a-z]+(?:-[a-z]+)*$/.test(MAESTRO_TEST_SHIP))
   throw new Error('Expected test ship is required');
 if (!/^[A-Za-z0-9-]+$/.test(MAESTRO_RUN_TAG))
   throw new Error('A unique run tag is required');
+var groupSuffix = '-' + JOURNEY + '-' + Date.now().toString(36);
+var renamedGroupSuffix = ' renamed';
+var maxGroupRunTagLength = Math.max(
+  1,
+  30 - 'QA-'.length - groupSuffix.length - renamedGroupSuffix.length
+);
+
 output.reliability = {
   hosted: typeof MAESTRO_EMAIL !== 'undefined' && !!MAESTRO_EMAIL,
   session: typeof MAESTRO_SESSION === 'undefined' ? 'fresh' : MAESTRO_SESSION,
   // Cloud retries reuse env values; each attempt still needs its own fixture.
   group:
-    'QA-' + MAESTRO_RUN_TAG + '-' + JOURNEY + '-' + Date.now().toString(36),
+    'QA-' + MAESTRO_RUN_TAG.slice(0, maxGroupRunTagLength) + groupSuffix,
   text: MAESTRO_RUN_TAG + ' message',
   editedText: MAESTRO_RUN_TAG + ' edited',
   reply: MAESTRO_RUN_TAG + ' reply',
