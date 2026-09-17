@@ -131,6 +131,7 @@ const optionalNames = [
   'global-notification-preferences',
   'permissions-restore',
   'member-invitation-filter',
+  'gallery-actions',
 ];
 const selected = process.env.PROOF_CASES === 'all' ? names : (process.env.PROOF_CASES || 'exchange').split(',');
 if (!selected.length || selected.some(name => ![...names, ...optionalNames].includes(name))) throw Error('Unknown proof case');
