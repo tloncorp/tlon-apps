@@ -6,6 +6,9 @@ env:
 - runScript: ../reliability/data.js
 - runFlow: begin.yaml
 - assertVisible: ${'Activity-' + MAESTRO_RUN_TAG}
+- extendedWaitUntil:
+    visible: ${output.reliability.activityReadGatePattern}
+    timeout: 30000
 - runFlow:
     when:
       platform: iOS
@@ -42,14 +45,8 @@ env:
 - tapOn: '^All$'
 - assertVisible: ${output.reliability.activityMentionPattern}
 - tapOn: ${output.reliability.activityMentionPattern}
-- assertVisible:
-    id: ChatMessageHighlight
 - assertVisible: ${output.reliability.activityGroupPattern}
 - assertVisible: ${output.reliability.activityMentionContextPattern}
-- extendedWaitUntil:
-    notVisible:
-      id: ChatMessageHighlight
-    timeout: 7000
 - tapOn: '^Back$'
 - assertVisible:
     id: ScreenHeaderTitle

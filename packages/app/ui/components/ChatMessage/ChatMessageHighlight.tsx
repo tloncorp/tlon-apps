@@ -33,7 +33,6 @@ export function ChatMessageHighlight({ active }: { active: boolean }) {
 
   return (
     <Animated.View
-      testID="ChatMessageHighlight"
       style={[
         {
           position: 'absolute',

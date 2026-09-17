@@ -32,6 +32,9 @@ output.reliability = {
   dmSwipePreviewPattern: exact(MAESTRO_RUN_TAG + ' dm swipe unread'),
   activityMentionPattern:
     '^.*' + exact(MAESTRO_RUN_TAG + ' activity mention').slice(1, -1) + '.*$',
+  activityReadGatePattern: exact(
+    '~ten: ' + MAESTRO_RUN_TAG + ' targeted reads verified'
+  ),
   activityMentionContextPattern: exact(
     '~zod ' + MAESTRO_RUN_TAG + ' activity mention'
   ),

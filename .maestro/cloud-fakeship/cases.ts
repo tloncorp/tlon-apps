@@ -497,6 +497,18 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
     };
     await until('activity fixture reaches zod unreads', fixtureIsUnread);
     task('activity-filters', async () => {
+      const targetedReadChecks = [
+        selected('group-mark-read') ? 'group-mark-read-state' : null,
+        selected('channel-mark-read') ? 'channel-mark-read-state' : null,
+      ].filter((name): name is string => name !== null);
+      if (targetedReadChecks.length) {
+        await until(
+          'targeted read checks complete',
+          async () => targetedReadChecks.every((name) => name in checks),
+          30 * 60_000
+        );
+      }
+      await say(g.chatChannel, `${tag} targeted reads verified`);
       await until(
         'native marks all fixture activity read',
         async () => !(await fixtureIsUnread()),
