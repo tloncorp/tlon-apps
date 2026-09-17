@@ -22,6 +22,7 @@ import type {
 import {
   TOP_LEVEL_DRAWER_ROUTES,
   getActiveTopLevelDrawerRouteName,
+  getActivityBackTargetName,
   getDesktopChannelRoute,
   getDesktopGroupEntryRoute,
   getDesktopGroupInviteRoute,
@@ -333,15 +334,11 @@ export function useNavigateBackFromPost() {
         return;
       }
       if (lastScreenWasActivity) {
-        // Activity is a tab under MainTabs on mobile and narrow web, and a
-        // top-level drawer route on desktop. `isActivityBackTarget` accepts
-        // both shapes, so aim at whichever one the route being returned to has.
-        if (previousRoute?.name === 'MainTabs') {
-          const route = getTopLevelTabRoute('Activity');
-          navigation.navigate(route.name, route.params, { pop: true });
-        } else {
-          navigation.navigate('Activity', undefined, { pop: true });
-        }
+        navigation.navigate(
+          getActivityBackTargetName(previousRoute),
+          undefined,
+          { pop: true }
+        );
         return;
       }
       if (isWindowNarrow) {
