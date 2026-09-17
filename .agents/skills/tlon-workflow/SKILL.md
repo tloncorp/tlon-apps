@@ -175,6 +175,8 @@ Read `references/driving-the-app.md` before the first capture on a device: recor
 
 If the steps do not reproduce as written, vary them before concluding anything: leave the channel and re-enter it, act from the other platform's client, background and foreground the app. Then check whether the fix already landed: `git log -S '<suspect expression>' --oneline -- <path>` on the code the ticket points at, and the merged pull requests since it was filed. If it did, check the other platform before stopping: a fix for the reported platform may have left the other one broken. If both are fixed, stop: comment on the ticket naming the pull request that fixed it and the platforms you checked (text and links; the clips stay on disk), report the same to the user, and still do step 10.
 
+To capture a "before" after the fix is already committed (a reviewer asks for another case), swap the file, not the branch: `git checkout origin/develop -- <path>`, record under Fast Refresh, then `git checkout HEAD -- <path>`.
+
 ### 5. Fix
 
 The ticket's diagnosis is a lead, not the cause: confirm the mechanism in code before changing it, and say so in the pull request when the two differ. Then the smallest change that fixes it -- no refactor, no cleanup of what sits next to it.
@@ -242,10 +244,9 @@ Mark it ready once the evidence is in: the Codex reviewer only reviews ready pul
 ### Optional: hosted PR QA
 
 For an independent cloud test after the PR is ready, use
-[hosted QA](references/hosted-qa.md). It follows this skill's testing and evidence
-rules, runs against a disposable backend, and updates one PR comment with findings
-and video. It does not fix, push, request reviewers, or merge. Read its declared
-platform and base-version gaps; an iOS run does not cover all of step 4.
+[hosted QA](references/hosted-qa.md). It explores the implemented PR using
+[reviewer guidance](references/pr-reviewer.md), a disposable backend, and one PR
+comment with findings and video. It does not fix, push, request reviewers, or merge. It does not require base recordings or all-platform acceptance coverage.
 
 ### 9. Follow the review
 
@@ -262,8 +263,11 @@ to restart the review loop. Read it once, check that it matches the current PR
 commit, and address verified findings as part of the current round. Do not rerun
 QA merely because it posted or edited its comment. Rerun only after a relevant
 fix or at the user's request; incomplete platform coverage is not a code defect.
-The watcher surfaces completed results but does not wait for a hosted run that
-has not published yet.
+If you explicitly dispatched hosted QA, pass `--qa-run <EAS workflow UUID>` to
+the same watcher before the human handoff. It waits for that run on the current
+head within `--timeout`, or reports that the head changed. Without this option,
+it only surfaces results already published. A completed review can contain
+findings or unexplored paths; neither starts another run automatically.
 
 For every review item: fix what is real, reply in that thread with what changed (`kind: review_comment` → `gh api repos/{owner}/{repo}/pulls/<number>/comments/<root>/replies -f body=...`, where `<root>` is the watcher's `replyTo` when set and its numeric `commentId` otherwise, since GitHub only accepts replies to a thread's first comment; `kind: comment` or `review` → `gh pr comment`), and push back, with reasons, on what is not. End every reply and comment you post with the line `<!-- tlon-workflow:agent -->`; it is how the watcher tells your replies from a reviewer's. Push once for the whole round, re-capture evidence if the visible behavior changed, then run the watcher again. Codex reviews each push.
 

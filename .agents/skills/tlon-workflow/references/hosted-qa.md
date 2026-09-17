@@ -1,36 +1,42 @@
-# Hosted PR QA
+# Hosted PR review
 
-Use the same reproduction, platform selection, and evidence rules as steps 4,
-6 and 8 of `tlon-workflow`. Those sections and `driving-the-app.md` are read
-by the hosted tester directly; do not maintain a separate testing playbook.
+This bot explores an implemented PR as a reviewer. It reads
+[reviewer guidance](pr-reviewer.md) and the shared [navigation notes](driving-the-app.md),
+not the author's before/after acceptance workflow. It creates ordinary test data
+through the app on a disposable ship, investigates suspicious behavior, and reports
+what it observed with video. Base recordings are not required.
 
-Dispatch for an existing ready, same-repository PR:
+Dispatch for a ready, trusted same-repository PR:
 
 ```sh
 gh workflow run mobile-pr-agent-qa.yml --ref develop -f pr_number=<number>
 ```
 
-Before the workflow lands, use the reviewed QA branch for `--ref` and a
-source-verified tooling overlay for `qa_ref`; see
-`docs/tlon-apps/pr-agent-qa.md`. Do not use an arbitrary PR's harness with secrets.
+Before landing, use the reviewed QA branch and a source-verified tooling overlay;
+see `docs/tlon-apps/pr-agent-qa.md` for setup and the trusted-code boundary.
 
-The tester plans before allocating devices, then executes that plan with the
-official agent-device tools. A separate evidence reviewer examines the recording,
-writes findings in plain language, and chooses one complete clip per finding.
-Publishing is automatic and edits one canonical comment. `pr-watch.mjs` reports
-these as `qa-result`, once per run, head and completed publication state.
+The planning phase chooses useful starting paths. The device reviewer can explore
+beyond them. One independent evidence reviewer checks the recording and selects
+one complete clip per finding. Publishing updates a single PR comment automatically.
+There is no extra code reviewer, editor or automatic fix/merge loop here.
 
-Current capability: iOS PR build on EAS, with disposable ships. Android, web,
-Cosmos, and a base-build comparison are still unavailable. The planner must apply
-the shared skill's selection rules and list required missing coverage explicitly;
-it must still execute supported iOS cases. Do not call an observed defect a new
-regression solely from the PR recording.
+Current scope is the implemented iOS PR build. Other platforms and the base build
+are outside scope. A completed run may find bugs and leave paths unexplored; those
+are separate from infrastructure failure. The report states all three clearly.
 
-Build selection, ship provisioning and full-session capture belong to CI.
-Do not execute the local workflow's fix/commit/review-request/merge/cleanup loop
-inside hosted QA. A developer's local ship credentials are not used in CI:
-`mobile-login.mjs` accepts `TLON_LOGIN_URL` and `TLON_LOGIN_CODE` for the
-disposable login, and the testing agent starts only after login has completed.
+If you requested a hosted run, wait for that exact EAS run before handing the PR to
+a human:
 
-Keep runs manual and advisory. A failure or incomplete check does not authorize
-an automatic repair cycle or merge.
+```sh
+node .agents/skills/tlon-workflow/pr-watch.mjs <pr> --qa-run <EAS-workflow-UUID>
+```
+
+The watcher still handles normal review/CI events. `--qa-run` waits within its
+`--timeout` budget, ends the wait if the PR head changes, and never dispatches or
+retries QA. Without it, the watcher only surfaces already-published QA results.
+Read a result once and handle verified findings in the current review round.
+
+CI owns build selection, disposable ships, shared login and full-session capture.
+The login helper accepts runtime disposable credentials; developer credentials
+are not used. The optional peer helper supplies cross-ship state when needed.
+Keep this review manual and advisory; completion is not merge approval.

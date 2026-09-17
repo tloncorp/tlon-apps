@@ -25,14 +25,11 @@ export function verifyPeer(proof, sha, tag, complete = false, plan = null) {
         !fixture?.verified ||
         fixture.groupId !== proof.group.groupId ||
         !fixture.writable ||
-        (recipe === 'chat-v1'
-          ? !fixture.channelId?.startsWith('chat/~zod/') ||
-            fixture.channelId !== proof.group.chatChannel ||
-            fixture.peerMessage !== `${tag} from ten` ||
-            fixture.peerMessageVerified !== true
-          : !fixture.channelId?.startsWith('notes/~zod/') ||
-            fixture.noteCount < 1 ||
-            !fixture.searchVerified)
+        recipe !== 'chat-v1' ||
+        !fixture.channelId?.startsWith('chat/~zod/') ||
+        fixture.channelId !== proof.group.chatChannel ||
+        fixture.peerMessage !== `${tag} from ten` ||
+        fixture.peerMessageVerified !== true
       )
         throw new Error('Requested fixture was not provisioned and verified');
     }

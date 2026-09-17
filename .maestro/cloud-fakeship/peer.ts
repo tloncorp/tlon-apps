@@ -1,6 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { seedNotes } from '../../scripts/agent-qa/seed-notes';
 import { TlonActorClient } from '../../packages/tlon-bot-e2e/src/tlon/actor';
 import { backendProofServer } from '../../scripts/agent-qa/backend-proof.mjs';
 
@@ -96,15 +95,6 @@ async function main() {
       peerMessageVerified: true,
       writable: true,
     });
-  if (setup.fixtures.includes('notes-v1'))
-    fixtures.push(
-      await seedNotes({
-        url: process.env.PROOF_PUBLIC_URL!,
-        code: manifest['~zod'].code,
-        groupId: group.groupId,
-        tag,
-      })
-    );
   const evidence = {
     runtime: JSON.parse(readFileSync(`${out}/runtime.json`, 'utf8')),
     fixtures,

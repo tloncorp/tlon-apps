@@ -9,8 +9,8 @@ import { backendInstructions } from './codex.mjs';
 import { verifyPeer } from './ship-proxy.mjs';
 const plan = {
   headSha: 'a'.repeat(40),
-  setup: { fixtures: ['notes-v1'] },
-  scenarios: [{ fixture: 'notes-v1', method: 'simulator', regression: 'none' }],
+  setup: { fixtures: ['chat-v1'] },
+  scenarios: [{ fixture: 'chat-v1', method: 'simulator', regression: 'none' }],
 };
 test('simulator checks without seeded data still get an isolated backend', () => {
   const settings = {
@@ -41,11 +41,8 @@ test('simulator checks without seeded data still get an isolated backend', () =>
   const instructions = backendInstructions(context, {
     QA_RUN_TAG: 'settings-test',
   });
-  assert.match(instructions, /Execute the assessed simulator scenarios/);
-  assert.match(
-    instructions,
-    /settings changes explicitly required by the assessment are permitted/i
-  );
+  assert.match(instructions, /Create the ordinary test data/);
+  assert.match(instructions, /exercise relevant account settings/i);
   assert.doesNotMatch(instructions, /reply received|from mobile/);
   assert.match(
     backendInstructions({ backend: {} }, { QA_RUN_TAG: 'manual' }),
@@ -89,17 +86,17 @@ test('assessment selects reviewed setup and test recipes, never executable model
 test('fixture gate requires authoritative matching readiness before device setup', () => {
   const proof = {
     source: 'a'.repeat(40),
-    group: { groupId: '~zod/cloud-test-1' },
+    group: { groupId: '~zod/cloud-test-1', chatChannel: 'chat/~zod/test' },
     deskHashes: ['hash', 'hash'],
     fixtureVerified: true,
     fixtures: [
       {
-        recipe: 'notes-v1',
+        recipe: 'chat-v1',
         verified: true,
         groupId: '~zod/cloud-test-1',
-        channelId: 'notes/~zod/test',
-        noteCount: 14,
-        searchVerified: true,
+        channelId: 'chat/~zod/test',
+        peerMessage: 'test from ten',
+        peerMessageVerified: true,
         writable: true,
       },
     ],

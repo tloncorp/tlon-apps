@@ -117,7 +117,7 @@ export function renderComment(plan, report) {
   ].join('\n');
   const body = report
     .split('\n<!-- ios-agent-qa-history -->')[0]
-    .replace(/<!-- ios-agent-qa[^\n]* -->\n?/g, '')
+    .replace(/<!-- ios-agent-qa(?!-outcome:)[^\n]* -->\n?/g, '')
     .trim();
   return envelope.replace('__QA_REPORT_BODY__', () =>
     boundReport(

@@ -360,7 +360,7 @@ jobs:
     runs_on: linux-medium
     steps:
       - name: Reflect reviewed product result
-        run: test '${{ needs.report_video.outputs.qa_status }}' = 'passed'
+        run: test '${{ needs.report_video.outputs.qa_status }}' = 'completed'
 
   assessment_status:
     after: [assess_pr]

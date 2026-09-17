@@ -6,7 +6,7 @@
 // skill has the agent put in every reply, not by login: the agent and the
 // human reviewing it usually share one GitHub account.
 //
-//   node pr-watch.mjs [<number>] [--interval <seconds>] [--timeout <seconds>] [--settle <seconds>] [--once]
+//   node pr-watch.mjs [<number>] [--interval <seconds>] [--timeout <seconds>] [--settle <seconds>] [--once] [--qa-run <EAS run ID>]
 //
 // A round arrives in pieces: CI fails or passes, Codex posts its comments,
 // then its status a minute later. After the first new item the run keeps
@@ -35,7 +35,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { qaResult } from './qa-result.mjs';
+import { qaResult, qaWaitState } from './qa-result.mjs';
 
 const BOT = 'chatgpt-codex-connector[bot]';
 const AGENT_MARKER = '<!-- tlon-workflow:agent -->';
@@ -46,7 +46,7 @@ const MAX_BUFFER = 64 * 1024 * 1024;
 
 function usage(message) {
   process.stderr.write(
-    `pr-watch: ${message}\nusage: pr-watch.mjs [<number>] [--interval <seconds>] [--timeout <seconds>] [--settle <seconds>] [--once]\n`
+    `pr-watch: ${message}\nusage: pr-watch.mjs [<number>] [--interval <seconds>] [--timeout <seconds>] [--settle <seconds>] [--once] [--qa-run <EAS run ID>]\n`
   );
   process.exit(2);
 }
@@ -69,6 +69,7 @@ function parseArgs(argv) {
       allowPositionals: true,
       options: {
         once: { type: 'boolean' },
+        'qa-run': { type: 'string' },
         interval: { type: 'string' },
         settle: { type: 'string' },
         timeout: { type: 'string' },
@@ -85,7 +86,13 @@ function parseArgs(argv) {
     usage(
       `two pull request numbers given: ${positionals[0]} and ${positionals[1]}`
     );
+  if (
+    values['qa-run'] &&
+    !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(values['qa-run'])
+  )
+    usage('--qa-run takes an EAS workflow UUID');
   return {
+    qaRun: values['qa-run'],
     once: values.once ?? false,
     interval: seconds('interval', values.interval, 60, 5) * 1000,
     timeout: seconds('timeout', values.timeout, 1800, 1) * 1000,
@@ -162,6 +169,7 @@ function checks(sha) {
 }
 
 const {
+  qaRun,
   once,
   interval,
   timeout,
@@ -171,6 +179,9 @@ const {
 // The last activity GitHub reported, so a run whose polls start failing still
 // ends on the same budget instead of retrying forever.
 let lastSeen = Date.now();
+const qaDeadline = Date.now() + timeout;
+let qaInitialHead;
+let qaState;
 // Set when the first new item of this run arrives; the run then collects the
 // rest of the round rather than exiting on the first piece.
 let settling = null;
@@ -368,14 +379,20 @@ for (;;) {
   try {
     pr = JSON.parse(sh('gh', ['api', `repos/${repo}/pulls/${number}`]));
     ci = checks(pr.head.sha);
-    fresh = [...collect(), ...(ci ? [ci] : [])]
+    const collected = collect();
+    qaInitialHead ??= pr.head.sha;
+    qaState = qaWaitState(qaRun, collected, pr.head.sha, qaInitialHead);
+    fresh = [...collected, ...(ci ? [ci] : [])]
       .sort((a, b) => a.at.localeCompare(b.at))
       .filter((i) => !seen.has(i.id));
   } catch (err) {
     process.stderr.write(`pr-watch: ${err.message}\n`);
     // A one-shot run reports the failure rather than turning into a daemon.
     if (once) process.exit(1);
-    if (Date.now() - lastSeen >= timeout) {
+    if (
+      (qaRun && Date.now() >= qaDeadline) ||
+      Date.now() - lastSeen >= timeout
+    ) {
       console.log(
         JSON.stringify({
           kind: 'timeout',
@@ -405,7 +422,41 @@ for (;;) {
     );
     break;
   }
-  if (once) break;
+  if (qaRun && qaState === 'superseded') {
+    console.log(
+      JSON.stringify({
+        kind: 'qa-superseded',
+        runId: qaRun,
+        headSha: pr.head.sha,
+      })
+    );
+    break;
+  }
+  if (once) {
+    if (qaState === 'pending')
+      console.log(
+        JSON.stringify({
+          kind: 'qa-pending',
+          runId: qaRun,
+          headSha: pr.head.sha,
+        })
+      );
+    break;
+  }
+  if (qaRun && qaState === 'pending') {
+    if (Date.now() >= qaDeadline) {
+      console.log(
+        JSON.stringify({
+          kind: 'timeout',
+          waitingForQa: qaRun,
+          seconds: timeout / 1000,
+        })
+      );
+      break;
+    }
+    await sleep(interval);
+    continue;
+  }
   if (settling !== null) {
     const ciResolved = ci !== null && ci !== undefined;
     if (statusSeen && ciResolved) break;

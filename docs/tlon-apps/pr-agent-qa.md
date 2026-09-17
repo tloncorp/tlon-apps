@@ -1,12 +1,13 @@
 # Hosted PR simulator QA
 
 The manual `Hosted PR agent QA` GitHub action assesses a PR, prepares disposable
-fixtures, tests supported user-facing changes on an EAS iOS simulator, and posts
+ships, explores implemented user-facing changes on an EAS iOS simulator, and posts
 findings with video. It does not require a developer Mac, Metro, or desktop agent.
 
 This is an advisory pilot. It has no automatic pull-request trigger and must not
-be made a required merge check. Product failures and incomplete coverage remain
-visible in the report and workflow status. Automatic PR assessment will be enabled
+be made a required merge check. Findings and unexplored paths remain
+visible in the report. Workflow success means review and publication completed,
+not that the PR is correct; infrastructure failures remain red. Automatic PR assessment will be enabled
 separately after the pilot demonstrates reliable completion and useful findings.
 
 ## Trust boundary
@@ -47,27 +48,22 @@ Optional inputs:
 
 ## What the agent does
 
-The tester and evidence reviewer read testing guidance directly from
-[tlon-workflow](../../.agents/skills/tlon-workflow/SKILL.md). Platform selection,
-reproduction conditions, lifecycle variations and evidence standards have one
-source of truth. The hosted adaptation is documented in that skill's
-[hosted QA reference](../../.agents/skills/tlon-workflow/references/hosted-qa.md).
+The device reviewer and independent evidence reviewer read
+[reviewer guidance](../../.agents/skills/tlon-workflow/references/pr-reviewer.md).
+They share Janic's login, navigation, and evidence conventions without adopting
+the author's mandatory before/after or all-platform acceptance workflow.
 
-1. The tester plans from the pinned diff and read-only base/head source. Every
-   declared user-facing change has a scenario. A supported conclusion of no
-   user-facing changes skips device work; missing capability stays explicit.
-2. CI reuses/repackages a compatible native app or builds when required, then
-   prepares disposable ~zod/~ten ships and the selected chat/notebook fixtures.
-   Build and backend source are verified against the requested PR.
-3. The existing `tlon-workflow/mobile-login.mjs` signs in using runtime disposable
-   credentials. Codex executes the plan with the official agent-device MCP server.
-   The runner captures the authenticated session, including when the tester times out.
-4. One independent evidence reviewer examines actions, screenshots and native video
-   frames. It writes concise findings and selects one complete trigger-to-outcome
-   clip per finding. Unsupported or unobserved behavior stays incomplete.
-5. Deterministic code checks frame receipts, cuts clips, and updates the canonical
-   PR comment. There are no separate source-critic, blind-visual, editorial,
-   fidelity or clip-selection agents.
+1. Read the PR description and pinned code to understand intended behavior and
+   choose a few useful starting paths. Skip changes with no end-user behavior.
+2. Prepare the app and disposable ships. Create ordinary groups, channels, notes
+   and messages through the app; use the backend peer helper only when necessary.
+3. Explore the implemented feature with agent-device. Follow suspicious behavior
+   and nearby interactions rather than mechanically finishing every planned case.
+4. Independently inspect the recorded evidence and explain any findings with one
+   complete trigger-to-outcome clip each. A base recording is not needed to report
+   observed problems, but do not claim the PR introduced them without evidence.
+5. Publish one comment that separates execution completion, findings and coverage.
+   Missing base or other-platform comparisons do not fail an iOS review.
 
 Both roles use Codex CLI 0.145.0 with `openai/gpt-5.6-sol` at high reasoning through
 OpenRouter. The tester has a planning phase before device allocation and an
@@ -77,7 +73,10 @@ The shared skill's local authoring/fixing/merge steps are not run by hosted QA.
 
 `pr-watch.mjs` identifies QA comments as advisory `qa-result` events, keyed by run,
 commit and completed publication state. An updated result in the same comment is
-visible once, without creating another automatic repair/review cycle.
+visible once, without creating another automatic repair/review cycle. When the
+author explicitly requested a run, `pr-watch.mjs <pr> --qa-run <EAS-workflow-UUID>`
+waits for that exact run before human handoff, bounded by `--timeout` and the
+current head. It never dispatches another review.
 
 ## Publication and recovery
 
@@ -143,14 +142,14 @@ as test-account data.
 
 ## Limits and qualification
 
-- First stage: iOS PR build only. Apply the shared skill's platform and before/after rules, but mark required Android, web, Cosmos and base-build checks unavailable. Supported iOS checks still run; incomplete overall coverage cannot be reported as a pass.
+- Current scope is iOS on the PR build. Android, web, Cosmos and base comparison are outside this exploratory review, not failed requirements. Unreached paths are disclosed separately from execution completion.
 - Deterministic regression recipes currently run only alongside a disposable fixture.
   Regression-only plans remain unavailable in this pilot.
-- Supported fixture recipes do not cover every product state. A generic login or
-  chat smoke cannot satisfy unrelated PR criteria.
-- The workflow compares base/head source and before/after states on the head app.
-  It has no paired base/head device run and must not claim a visual defect was
-  introduced by the PR without that evidence.
+- The reviewer creates ordinary state through the app; unusual peer or backend
+  states may still be unavailable. A generic login or chat smoke does not establish
+  that the changed feature was exercised.
+- Findings describe the implemented app. The review does not establish that the PR
+  introduced an observed defect.
 - Long scenarios may exceed the operator budget. Unfinished checks are not passes.
 - A cold native build or backend preparation can cost substantially more than reuse.
   Dollar totals distinguish measured provider charges from estimated runner costs.

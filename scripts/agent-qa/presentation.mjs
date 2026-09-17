@@ -1,3 +1,4 @@
+import { reviewOutcome } from './review-outcome.mjs';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -159,15 +160,17 @@ export function renderPresentation(
   fallbackReport
 ) {
   const { context, report } = original;
+  const outcome = reviewOutcome(original);
   const counts = { passed: 0, failed: 0, blocked: 0 };
   for (const c of report.checks || []) counts[c.status]++;
   const sources = new Map(findingSources(report).map((s) => [s.id, s]));
   return [
     '## iOS agent QA',
+    `<!-- ios-agent-qa-outcome:${JSON.stringify(outcome)} -->`,
     '',
-    `**${report.status === 'failed' ? 'Issues found' : report.status === 'blocked' ? 'Testing incomplete' : 'Checks passed'}** · ${presentation.findings.length} findings · ${counts.passed} checks passed · ${counts.blocked} checks incomplete`,
+    `**${outcome.execution === 'completed' ? 'Review completed' : 'Review incomplete'}** · ${presentation.findings.length} findings · ${counts.passed + counts.failed} paths exercised · ${outcome.coverageGaps} paths not fully explored`,
     '',
-    'Findings below come from the automated evidence reviewer. This run tested the PR version; it did not compare against a recording of the base version.',
+    'Exploratory review of the implemented iOS PR build. Findings describe observed behavior; they do not establish when a bug was introduced. Android, web and base-build comparison are outside this run.',
     '',
     ...presentation.findings.flatMap((f, i) => [
       `### ${i + 1}. ${clean(f.title)}${sources.get(f.sources[0]).status === 'blocked' ? ' — needs verification' : ''}`,
@@ -208,9 +211,17 @@ export function renderPresentation(
     ]),
     ...(presentation.incomplete.length
       ? [
-          '### Still unverified',
+          '### Not fully explored',
           '',
           ...presentation.incomplete.map((c) => `- ${clean(c.explanation)}`),
+          '',
+        ]
+      : []),
+    ...(context.assessment?.scopeNotes?.length
+      ? [
+          '### Review scope',
+          '',
+          ...context.assessment.scopeNotes.map((note) => `- ${clean(note)}`),
           '',
         ]
       : []),

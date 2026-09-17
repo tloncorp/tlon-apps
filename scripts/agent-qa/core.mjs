@@ -47,9 +47,7 @@ export function verifyContext(env, harnessSha) {
   }
   return {
     mode:
-      env.QA_MODE === 'pull_request'
-        ? 'PR verification'
-        : 'Harness validation only',
+      env.QA_MODE === 'pull_request' ? 'PR review' : 'Harness validation only',
     buildId: env.QA_BUILD_ID,
     buildSha: env.QA_BUILD_SHA,
     harnessSha,

@@ -32,7 +32,7 @@ const env = {
 };
 
 test('PR verification binds source, artifact, and PR to the same commit', () => {
-  assert.equal(verifyContext(env, sha).mode, 'PR verification');
+  assert.equal(verifyContext(env, sha).mode, 'PR review');
   assert.throws(
     () => verifyContext({ ...env, QA_BUILD_SHA: 'b'.repeat(40) }, sha),
     /do not match/
@@ -58,7 +58,7 @@ test('assessment must match both PR commits before a simulator can start', () =>
       { ...env, QA_PR_JSON: JSON.stringify({ ...pr, labels: [] }) },
       sha
     ).mode,
-    'PR verification'
+    'PR review'
   );
   const plan = JSON.parse(env.QA_ASSESSMENT_JSON);
   for (const changed of [

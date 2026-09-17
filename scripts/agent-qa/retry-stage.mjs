@@ -1,3 +1,4 @@
+import { reviewOutcome } from './review-outcome.mjs';
 // Retry infrastructure failures on the same worker; review checkpoints skip completed stages.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -23,7 +24,7 @@ for (let attempt = 1; attempt <= 2; attempt++) {
     if (existsSync(report))
       writeFileSync(
         '/tmp/qa-product-status',
-        JSON.parse(readFileSync(report)).report.status
+        reviewOutcome(JSON.parse(readFileSync(report))).execution
       );
     process.exit(0);
   }

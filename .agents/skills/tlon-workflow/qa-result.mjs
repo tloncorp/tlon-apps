@@ -25,7 +25,12 @@ export function qaResult(comment) {
       comment.body.includes(
         '**PR assessment: no user-facing changes — simulator skipped**'
       );
+    const outcomeText = comment.body.match(
+      /<!-- ios-agent-qa-outcome:(.*?) -->/
+    )?.[1];
+    const outcome = outcomeText ? JSON.parse(outcomeText) : {};
     return {
+      ...outcome,
       kind: 'qa-result',
       id: `qa:${comment.id}:${current.head}:${current.url}:${current.kind}`,
       at: comment.updated_at || comment.created_at,
@@ -43,4 +48,18 @@ export function qaResult(comment) {
   } catch {
     return null;
   }
+}
+
+// A caller opts in to waiting for one exact hosted run, never a new review loop.
+export function qaWaitState(runId, items, head, initialHead) {
+  if (!runId) return 'none';
+  if (head !== initialHead) return 'superseded';
+  return items.some(
+    (item) =>
+      item.kind === 'qa-result' &&
+      item.headSha === head &&
+      item.runUrl.endsWith(`/${runId}`)
+  )
+    ? 'received'
+    : 'pending';
 }

@@ -86,14 +86,13 @@ const plan = {
   scenarios: [scenario],
 };
 
-test('all declared changes have scenarios and scenarios cannot invent an unrelated change', () => {
-  assert.throws(
-    () =>
-      verifyAssessment(
-        { ...plan, changes: [scenario.change, 'New navigation'] },
-        files
-      ),
-    /Every assessed change/
+test('exploration can prioritize paths but cannot invent an unrelated change', () => {
+  assert.equal(
+    verifyAssessment(
+      { ...plan, changes: [scenario.change, 'New navigation'] },
+      files
+    ).decision,
+    'test'
   );
   assert.throws(
     () =>
@@ -311,21 +310,26 @@ test('infrastructure loss survives full report validation without satisfying cov
 });
 
 // Required platform/base coverage must never become a claimed iOS pass.
-test('unsupported platforms and base comparisons cannot execute as iOS head scenarios', () => {
+test('other platforms and base versions become scope notes, not iOS criteria', () => {
   for (const extra of [
     { platform: 'android' },
     { platform: 'web' },
     { platform: 'cosmos' },
     { version: 'base' },
   ]) {
-    const p = structuredClone(plan);
-    Object.assign(p.scenarios[0], extra);
-    assert.throws(
-      () => verifyAssessment(p, [scenario.files[0]]),
-      /Only iOS head/
+    const outside = { ...scenario, id: 'change-2', ...extra };
+    const mixed = verifyAssessment(
+      { ...plan, scenarios: [scenario, outside] },
+      files
     );
-    p.scenarios[0].method = 'unavailable';
-    p.scenarios[0].fixture = 'none';
-    assert.equal(verifyAssessment(p, [scenario.files[0]]).decision, 'blocked');
+    assert.equal(mixed.decision, 'test');
+    assert.deepEqual(mixed.scenarios, [scenario]);
+    assert.equal(mixed.scopeNotes.length, 1);
+    const unsupported = verifyAssessment(
+      { ...plan, scenarios: [outside] },
+      files
+    );
+    assert.equal(unsupported.decision, 'blocked');
+    assert.equal(unsupported.scenarios.length, 0);
   }
 });

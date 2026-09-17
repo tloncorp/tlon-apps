@@ -13,7 +13,7 @@ test('fixture children receive required settings but no inherited credentials, i
     GH_TOKEN: 'secret-github',
     FUTURE_API_KEY: 'secret-future',
     PROOF_OUTPUT: '/tmp/output with spaces',
-    QA_FIXTURE_PLAN: '{"fixtures":["notes-v1"]}',
+    QA_FIXTURE_PLAN: '{"fixtures":["chat-v1"]}',
     MAESTRO_RUN_TAG: 'fixture-test',
     SKIP_TESTS: 'true',
     NODE_OPTIONS: '--conditions=tlon-source',

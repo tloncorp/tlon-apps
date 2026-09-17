@@ -155,3 +155,76 @@ if (args[0] === 'find') process.exit(args[1] === 'text="Home"' && fs.existsSync(
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('watcher waits for the requested QA run after code review and CI finish', () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'tlon-qa-watch-'));
+  const run = '11111111-1111-1111-1111-111111111111';
+  const head = 'a'.repeat(40);
+  const watcher = new URL(
+    '../../.agents/skills/tlon-workflow/pr-watch.mjs',
+    import.meta.url
+  );
+  writeFileSync(path.join(dir, 'qa.json'), JSON.stringify(comment(run)));
+  writeFileSync(
+    path.join(dir, 'gh'),
+    `#!/usr/bin/env node
+const fs = require('fs');
+const args = process.argv.slice(2), route = args.find(a => a.startsWith('repos/')) || '';
+const emit = value => console.log(JSON.stringify(value));
+if (args[0] === 'repo') console.log('tloncorp/tlon-apps');
+else if (route.endsWith('/permission')) console.log('write');
+else if (route.endsWith('/pulls/1')) {
+  const poll = fs.existsSync('poll') ? Number(fs.readFileSync('poll')) + 1 : 1;
+  fs.writeFileSync('poll', String(poll));
+  emit({head:{sha:'${head}'},state:'open',updated_at:new Date().toISOString()});
+} else if (route.includes('/check-runs')) emit([{check_runs:[{status:'completed',conclusion:'success',completed_at:'2026-09-16T00:00:00Z'}]}]);
+else if (route.includes('/issues/1/comments')) {
+  const status = {id:1,user:{login:'chatgpt-codex-connector[bot]'},created_at:'2026-09-16T00:00:00Z',body:'<!-- codex-pull-request-review-summary --> {"status":"completed","headSha":"${head}"}'};
+  const qa = Number(fs.readFileSync('poll')) > 1 ? [JSON.parse(fs.readFileSync('qa.json'))] : [];
+  emit([[status,...qa]]);
+} else if (route.includes('/comments?') || route.includes('/reviews?')) emit([[]]);
+else process.exit(2);
+`,
+    { mode: 0o755 }
+  );
+  try {
+    execFileSync('git', ['init', '-q', dir]);
+    const output = execFileSync(
+      process.execPath,
+      [
+        watcher.pathname,
+        '1',
+        '--interval',
+        '5',
+        '--settle',
+        '0',
+        '--timeout',
+        '20',
+        '--qa-run',
+        run,
+      ],
+      {
+        cwd: dir,
+        env: { ...process.env, PATH: `${dir}:${process.env.PATH}` },
+        encoding: 'utf8',
+        timeout: 25000,
+      }
+    );
+    const events = output
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line));
+    assert.ok(events.some((event) => event.kind === 'codex-status'));
+    assert.ok(
+      events.some((event) => event.kind === 'ci' && event.status === 'success')
+    );
+    assert.ok(
+      events.some(
+        (event) => event.kind === 'qa-result' && event.runUrl.endsWith(run)
+      )
+    );
+    assert.equal(readFileSync(path.join(dir, 'poll'), 'utf8'), '2');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

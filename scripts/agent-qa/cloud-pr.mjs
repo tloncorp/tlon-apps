@@ -233,7 +233,7 @@ if (process.argv[2] === 'assess') {
     );
   console.log(`Automatic report: ${published.outputs.comment_url}`);
   output('comment_url', published.outputs.comment_url);
-  if (published.outputs.qa_status !== 'passed') process.exit(1);
+  if (published.outputs.qa_status !== 'completed') process.exit(1);
 } else if (process.argv[2] === 'run') {
   const pr = JSON.parse(env.QA_PR_JSON);
   const plan = JSON.parse(env.QA_ASSESSMENT_JSON);
