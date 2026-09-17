@@ -14,7 +14,8 @@ env:
 - extendedWaitUntil:
     visible: '^New note$'
     timeout: 15000
-- tapOn: '^New note$'
+- tapOn:
+    id: NotesNewNoteAction
 - extendedWaitUntil:
     visible:
       id: NotebookTitleInput

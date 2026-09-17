@@ -23,10 +23,10 @@ onFlowComplete:
 
 # get test email and use it
 - runScript: scripts/generateSignupEmail.js
-- tapOn: sampel@pal.net
+- tapOn: Email Address
 - inputText: ${output.signupEmail}
 - hideKeyboard
-- tapOn: Submit
+- tapOn: Sign up
 
 # get OTP and submit it digit by digit. Attempting to insert
 # all at once causes flakiness. extendedWaitUntil calls are a
