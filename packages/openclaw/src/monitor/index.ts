@@ -1,7 +1,6 @@
 import type { Story } from '@tloncorp/api';
 import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
-import { toPresenceEvent } from '@tloncorp/api';
 import { isStopTips } from './campaign/templates.js';
 import { createLiveCampaign } from './campaign/live.js';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
