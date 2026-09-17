@@ -8,6 +8,7 @@ import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useEffect, useRef } from 'react';
 
 import SettingsScreen from '../features/settings/SettingsScreen';
+import { ActivityScreen } from '../features/top/ActivityScreen';
 import ChannelScreen from '../features/top/ChannelScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
 import { useAgentOnboardingLandingConsumer } from '../features/top/useAgentOnboardingLandingConsumer';
@@ -28,7 +29,7 @@ const Tabs = createBottomTabNavigator<TopLevelTabParamList>();
 function ReactTopLevelTabBar({ state, navigation }: BottomTabBarProps) {
   const isWindowNarrow = useIsWindowNarrow();
   // Hooks stay above the early return below. The bot DM badges its own tab;
-  // Workspaces badges activity everywhere else.
+  // Activity badges what is happening everywhere else.
   const botDm = useBotDmTab();
   const botDmHasUnread = store.useChannelHasUnread(
     botDm.enabled ? botDm.channelId : undefined
@@ -84,8 +85,14 @@ function ReactTopLevelTabBar({ state, navigation }: BottomTabBarProps) {
       <NavIcon
         type="Channel"
         isActive={activeRouteName === 'ChatList'}
-        hasUnreads={unseenActivityCount > 0}
         onPress={() => pressTab('ChatList')}
+      />
+      <NavIcon
+        type="Notifications"
+        isActive={activeRouteName === 'Activity'}
+        hasUnreads={unseenActivityCount > 0}
+        onPress={() => pressTab('Activity')}
+        testID="ActivityNavIcon"
       />
       <NavIcon
         type="Settings"
@@ -144,6 +151,7 @@ export function TopLevelTabNavigator() {
         />
       ) : null}
       <Tabs.Screen name="ChatList" component={ChatListScreen} />
+      <Tabs.Screen name="Activity" component={ActivityScreen} />
       <Tabs.Screen name="Settings" component={SettingsScreen} />
     </Tabs.Navigator>
   );

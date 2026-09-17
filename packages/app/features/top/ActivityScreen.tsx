@@ -92,10 +92,6 @@ export function ActivityScreen() {
     navigation.navigate('InviteSystemContacts');
   }, [navigation]);
 
-  const handleBack = useCallback(() => {
-    navigation.goBack();
-  }, [navigation]);
-
   return (
     <View backgroundColor={theme.background?.val} flex={1}>
       <View flex={1} width="100%" maxWidth={600} marginHorizontal="auto">
@@ -112,7 +108,6 @@ export function ActivityScreen() {
           loadingSubtitle={loadingSubtitle}
           onNavigateToContacts={handleNavigateToContacts}
           onInviteFriends={handleInviteFriends}
-          onBackPressed={handleBack}
           scrollRef={scrollRef}
         />
       </View>

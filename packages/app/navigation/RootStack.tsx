@@ -28,7 +28,6 @@ import { PrivacySettingsScreen } from '../features/settings/PrivacyScreen';
 import { PushNotificationSettingsScreen } from '../features/settings/PushNotificationSettingsScreen';
 import { ThemeScreen } from '../features/settings/ThemeScreen';
 import { UserBugReportScreen } from '../features/settings/UserBugReportScreen';
-import { ActivityScreen } from '../features/top/ActivityScreen';
 import ChannelScreen from '../features/top/ChannelScreen';
 import ChannelSearchScreen from '../features/top/ChannelSearchScreen';
 import { ChatDetailsScreen } from '../features/top/ChatDetailsScreen';
@@ -103,11 +102,6 @@ export function RootStack() {
           animation: 'none',
           gestureEnabled: false,
         }}
-      />
-      <Root.Screen
-        name="Activity"
-        component={ActivityScreen}
-        options={nativeHeaderScreenOptions}
       />
       <Root.Screen
         name="Contacts"

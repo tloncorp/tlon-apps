@@ -45,6 +45,7 @@ describe('mobile top-level tab links', () => {
   test.each([
     ['/apps/groups/bot', 'BotChat'],
     ['/apps/groups/ChatList', 'ChatList'],
+    ['/apps/groups/activity', 'Activity'],
     ['/apps/groups/settings', 'Settings'],
   ])('nests %s under MainTabs', (path, screen) => {
     const state = getStateFromPath(path, getMobileLinkingConfig('').config!);
@@ -64,19 +65,19 @@ describe('mobile top-level tab links', () => {
     });
   });
 
-  // Activity and Contacts left the tab bar; they are now root stack screens.
-  // A cold link seats MainTabs beneath them so back and the tab bar work.
-  test.each([
-    ['/apps/groups/activity', 'Activity'],
-    ['/apps/groups/contacts', 'Contacts'],
-  ])('routes %s to the root stack over MainTabs', (path, screen) => {
-    const state = getStateFromPath(path, getMobileLinkingConfig('').config!);
+  // Contacts left the tab bar; it is a root stack screen. A cold link seats
+  // MainTabs beneath it so back and the tab bar work.
+  test('routes /apps/groups/contacts to the root stack over MainTabs', () => {
+    const state = getStateFromPath(
+      '/apps/groups/contacts',
+      getMobileLinkingConfig('').config!
+    );
 
     expect(state?.routes[0]).toMatchObject({
       name: 'Root',
       state: {
         index: 1,
-        routes: [{ name: 'MainTabs' }, { name: screen }],
+        routes: [{ name: 'MainTabs' }, { name: 'Contacts' }],
       },
     });
   });
@@ -85,12 +86,14 @@ describe('mobile top-level tab links', () => {
 describe('isTabPressBlockedByOnboardingLock', () => {
   test('refuses every tab but Bot while onboarding is locked', () => {
     expect(isTabPressBlockedByOnboardingLock(true, 'ChatList')).toBe(true);
+    expect(isTabPressBlockedByOnboardingLock(true, 'Activity')).toBe(true);
     expect(isTabPressBlockedByOnboardingLock(true, 'Settings')).toBe(true);
     expect(isTabPressBlockedByOnboardingLock(true, 'BotChat')).toBe(false);
   });
 
   test('lets every tab through once the lock lifts', () => {
     expect(isTabPressBlockedByOnboardingLock(false, 'ChatList')).toBe(false);
+    expect(isTabPressBlockedByOnboardingLock(false, 'Activity')).toBe(false);
     expect(isTabPressBlockedByOnboardingLock(false, 'Settings')).toBe(false);
   });
 });
@@ -117,7 +120,13 @@ describe('isAtColdStartPosition', () => {
     expect(
       isAtColdStartPosition({
         index: 1,
-        routes: [{ name: 'MainTabs' }, { name: 'Activity' }],
+        routes: [{ name: 'MainTabs' }, { name: 'Contacts' }],
+      })
+    ).toBe(false);
+    expect(
+      isAtColdStartPosition({
+        index: 0,
+        routes: [{ name: 'MainTabs', state: tabs('Activity') }],
       })
     ).toBe(false);
     expect(

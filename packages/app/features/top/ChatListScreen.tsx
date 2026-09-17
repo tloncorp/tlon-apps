@@ -11,7 +11,6 @@ import { Text, YStack, isWeb } from 'tamagui';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatListSettleTelemetry } from '../../hooks/useChatListSettleTelemetry';
-import { useBotDmTab } from '../../hooks/useBotDmTab';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import type { ChatListFilter } from '../../hooks/chatListFilters';
 import { useFilteredChats } from '../../hooks/useFilteredChats';
@@ -119,14 +118,6 @@ export function ChatListScreenView({
 
   const connStatus = store.useConnectionStatus();
   const session = store.useCurrentSession();
-  // The bot DM badges itself on the first tab; the bell counts what is
-  // happening everywhere else, so one message never lights both.
-  const botDm = useBotDmTab();
-  const unseenActivityCount = store.useUnreadUnseenActivityCount({
-    excludeChannelId: botDm.enabled ? botDm.channelId : undefined,
-  });
-  const haveUnreadActivity = unseenActivityCount > 0;
-
   // React to a later `previewGroupId` param (e.g. a notification tap while ChatList is already
   // mounted), mirroring desktop HomeSidebar. Also (re)marks whether the selection came from a
   // group-invite notification.
@@ -352,10 +343,6 @@ export function ChatListScreenView({
     [performGroupAction]
   );
 
-  const handlePressActivity = useCallback(() => {
-    navigation.navigate('Activity', undefined, { pop: true });
-  }, [navigation]);
-
   const handlePersonalInvitePress = useCallback(() => {
     logger.trackEvent(AnalyticsEvent.PersonalInvitePressed);
     db.hasViewedPersonalInvite.setValue(true);
@@ -423,15 +410,6 @@ export function ChatListScreenView({
               loadingSubtitle={loadingSubtitle}
               showSubtitle={true}
               leftActions={[
-                {
-                  id: 'activity',
-                  icon: 'Notifications',
-                  label: 'Activity',
-                  testID: 'ActivityHeaderButton',
-                  onPress: handlePressActivity,
-                  tint: haveUnreadActivity ? '$blue' : undefined,
-                  badge: haveUnreadActivity ? unseenActivityCount : undefined,
-                },
                 {
                   id: 'invite-people',
                   icon: 'AddPerson',

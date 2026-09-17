@@ -13,6 +13,10 @@ export const TOP_LEVEL_TABS = {
     title: 'Workspaces',
     analyticsLabel: 'Workspaces',
   },
+  Activity: {
+    title: 'Activity',
+    analyticsLabel: 'Activity',
+  },
   Settings: {
     title: 'Settings',
     analyticsLabel: 'Settings',

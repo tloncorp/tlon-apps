@@ -12,6 +12,7 @@ export type TopLevelTabParamList = {
   ChatList:
     | { previewGroupId: string; previewGroupFromInviteNotification?: boolean }
     | undefined;
+  Activity: undefined;
   Settings: undefined;
 };
 
@@ -34,7 +35,6 @@ export type RootStackParamList = {
   };
   VerifierStub: undefined;
   Empty: undefined;
-  Activity: undefined;
   Contacts: undefined;
   DM: {
     channelId: string;
@@ -172,8 +172,8 @@ export type RootStackNavigationProp = NavigationProp<RootStackParamList>;
 export type RootDrawerParamList = {
   Home: NavigatorScreenParams<HomeDrawerParamList>;
   Messages: NavigatorScreenParams<HomeDrawerParamList>;
-} & Pick<RootStackParamList, 'Activity' | 'Contacts'> &
-  Pick<TopLevelTabParamList, 'Settings'>;
+} & Pick<RootStackParamList, 'Contacts'> &
+  Pick<TopLevelTabParamList, 'Activity' | 'Settings'>;
 
 // hack: adding the true contacts types causes lots of tsc failures that need
 // resolving. Added to support navigating deeply within the contacts drawer
@@ -181,8 +181,7 @@ export type ActualRootDrawerParamList = {
   Home: NavigatorScreenParams<HomeDrawerParamList>;
   Messages: NavigatorScreenParams<HomeDrawerParamList>;
   Contacts: NavigatorScreenParams<ProfileDrawerParamList>;
-} & Pick<RootStackParamList, 'Activity'> &
-  Pick<TopLevelTabParamList, 'Settings'>;
+} & Pick<TopLevelTabParamList, 'Activity' | 'Settings'>;
 
 export type CombinedParamList = RootStackParamList & RootDrawerParamList;
 
