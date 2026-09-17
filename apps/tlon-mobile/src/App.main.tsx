@@ -11,6 +11,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { RequiredUpdateScreen } from '@tloncorp/app/features/RequiredUpdateScreen';
+import { findAgentGroupOnboardingStartupRoute } from '@tloncorp/app/hooks/useAgentGroupOnboardingLock';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useDarkMode';
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
@@ -47,10 +48,15 @@ import AuthenticatedApp from './components/AuthenticatedApp';
 import { useTopLevelRouting } from './hooks/useTopLevelRouting';
 import { registerBackgroundSyncTask } from './lib/backgroundSync';
 import { inviteSystemContacts } from './lib/contactsHelpers';
+import {
+  isPersistableNavigationState,
+  isRestorableNavigationState,
+} from './lib/navigationStatePersistence';
 import { setActiveNotificationRoute } from './lib/notificationPresentation';
 import { SignupProvider } from './lib/signupContext';
 
 const splashscreenLogger = createDevLogger('splashscreen', false);
+const navigationStateLogger = createDevLogger('navigationState', false);
 
 if (Platform.OS === 'ios') {
   SplashScreen.preventAutoHideAsync().catch((err) => {
@@ -250,6 +256,54 @@ function ConnectedNavigationContent({
   const routeNameRef = useRef<string>(undefined);
   const navigationLogging = useNavigationLogging();
 
+  // Backgrounded apps get evicted, and the relaunch that follows is a cold
+  // start: without this the navigator rebuilds from `initialRouteName` and the
+  // user loses their place. Resolved once, before the navigator mounts,
+  // because `initialState` is read only on the first render.
+  const [restoredState, setRestoredState] = useState<{
+    ready: boolean;
+    initialState?: NavigationState;
+  }>({ ready: false });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restore() {
+      let initialState: NavigationState | undefined;
+      try {
+        const [saved, locks] = await Promise.all([
+          db.lastNavigationState.getValue(),
+          db.agentGroupOnboardingLocks.getValue(true),
+        ]);
+        // Onboarding owns the root when it has a startup route, and reaches it
+        // through `initialRouteName`; restoring over that would drop the user
+        // out of a flow they have not finished.
+        const onboardingOwnsRoot =
+          findAgentGroupOnboardingStartupRoute(locks) != null;
+        if (
+          !onboardingOwnsRoot &&
+          isRestorableNavigationState(saved, Date.now())
+        ) {
+          initialState = saved?.state as NavigationState;
+        }
+      } catch (err) {
+        // A position is a convenience; failing to read one must not stop the
+        // app from starting.
+        navigationStateLogger.trackError('Failed to restore navigation state', {
+          errorKind: err instanceof Error ? err.name : typeof err,
+        });
+      }
+      if (!cancelled) {
+        setRestoredState({ ready: true, initialState });
+      }
+    }
+
+    restore();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const onReady = () => {
     const route = navigationContainerRef.current?.getCurrentRoute();
     routeNameRef.current = route?.name;
@@ -272,12 +326,29 @@ function ConnectedNavigationContent({
     setActiveNotificationRoute(route);
 
     navigationLogging.onStateChange(state);
+
+    if (state && isPersistableNavigationState(state)) {
+      db.lastNavigationState
+        .setValue({ savedAt: Date.now(), state })
+        .catch((err) => {
+          navigationStateLogger.trackError('Failed to save navigation state', {
+            errorKind: err instanceof Error ? err.name : typeof err,
+          });
+        });
+    }
   };
+
+  // The navigator reads `initialState` once, on mount, so it must not mount
+  // before the saved position has been read back.
+  if (!restoredState.ready) {
+    return null;
+  }
 
   return (
     <NavigationContainer
       theme={navigationTheme}
       ref={navigationContainerRef}
+      initialState={restoredState.initialState}
       onReady={onReady}
       onStateChange={onStateChange}
       navigationInChildEnabled
