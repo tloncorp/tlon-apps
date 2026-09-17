@@ -24,7 +24,6 @@ env:
     id: NotesBodyInput
 - tapOn:
     id: NotesTitleInput
-    point: '95%,50%'
 - eraseText: 100
 - runFlow:
     file: subflows/input.yaml
@@ -39,21 +38,18 @@ env:
     file: subflows/input.yaml
     env:
       INPUT_TEXT: ${output.reliability.body}
-- tapOn: '^Post$'
+- tapOn:
+    id: NotesPreviewToggle
 - extendedWaitUntil:
-    visible: ${output.reliability.title}
-    timeout: 5000
-- assertVisible: ${output.reliability.title}
-- assertVisible: ${output.reliability.body}
-- tapOn: ${output.reliability.title}
+    visible: '^Synced$'
+    timeout: 30000
 - assertVisible: ${output.reliability.title}
 - assertVisible: ${output.reliability.body}
 - tapOn:
-    id: ChannelHeaderEditButton
+    id: NotesPreviewToggle
 - runFlow: subflows/focus-notebook-body.yaml
 - tapOn:
     id: NotesTitleInput
-    point: '95%,50%'
 - eraseText: 100
 - runFlow:
     file: subflows/input.yaml
@@ -68,7 +64,11 @@ env:
     file: subflows/input.yaml
     env:
       INPUT_TEXT: ${MAESTRO_RUN_TAG + ' edited body'}
-- tapOn: '^Save$'
+- tapOn:
+    id: NotesPreviewToggle
+- extendedWaitUntil:
+    visible: '^Synced$'
+    timeout: 30000
 - assertVisible: ${MAESTRO_RUN_TAG + ' edited note'}
 - assertVisible: ${MAESTRO_RUN_TAG + ' edited body'}
 - tapOn: '^Back$'

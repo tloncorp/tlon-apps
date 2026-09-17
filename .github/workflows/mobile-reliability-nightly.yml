@@ -163,6 +163,10 @@ jobs:
           device-model: iPhone-17
           device-os: iOS-26-2
           include-tags: ${{ inputs.ios-smoke-include-tags }}
+          # Signup consumes a ship from a finite hosted test pool. Keep it
+          # available for explicit tagged runs, but do not make that external
+          # inventory a daily reliability gate.
+          exclude-tags: ${{ inputs.ios-smoke-include-tags == '' && 'signup' || '' }}
           env: |
             MAESTRO_EMAIL=${{ secrets.MAESTRO_EMAIL }}
             MAESTRO_PASSWORD=${{ secrets.MAESTRO_PASSWORD }}
