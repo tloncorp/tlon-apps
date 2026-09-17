@@ -55,6 +55,7 @@ import { alias } from 'drizzle-orm/sqlite-core';
 import { trackEvent } from '../analytics';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
+import { reduceUrls } from '../errorReporting';
 import {
   appendContactIdToReplies,
   getCompositeGroups,
@@ -204,6 +205,13 @@ export const insertPendingMemberDismissals = createWriteQuery(
 export const insertSettings = createWriteQuery(
   'insertSettings',
   async (settings: Partial<Settings>, ctx: QueryCtx) => {
+    // Drizzle drops undefined entries when building the update set and throws
+    // `No values to set` on the empty remainder. Optimistic rollbacks pass the
+    // previous value back in, which is undefined whenever the setting had never
+    // been written, so there is nothing to write here either.
+    if (Object.values(settings).every((value) => value === undefined)) {
+      return;
+    }
     return ctx.db
       .insert($settings)
       .values({ ...settings, id: SETTINGS_SINGLETON_KEY })
@@ -1959,6 +1967,9 @@ export const insertMembers = createWriteQuery(
         logger.trackEvent(domain.AnalyticsEvent.ErrorDatabaseQuery, {
           context: 'failed to insert chat members batch',
           count: batch.length,
+          // No stack: this event is PostHog-only, so it never passes through
+          // the Sentry scrubber, and a raw stack can carry ship origins.
+          errorMessage: reduceUrls(e instanceof Error ? e.message : String(e)),
         });
       }
     }
@@ -4079,6 +4090,7 @@ export const getSequencedChannelPosts = createReadQuery(
         where: and(
           eq($posts.channelId, options.channelId),
           not(eq($posts.type, 'reply')),
+          gt($posts.sequenceNum, 0),
           isNull($posts.deliveryStatus)
         ),
         with: {
@@ -4123,6 +4135,7 @@ export const getSequencedChannelPosts = createReadQuery(
         where: and(
           eq($posts.channelId, options.channelId),
           not(eq($posts.type, 'reply')),
+          gt($posts.sequenceNum, 0),
           lt($posts.sequenceNum, options.cursorSequenceNum),
           isNull($posts.deliveryStatus)
         ),
@@ -4241,6 +4254,7 @@ export const getSequencedChannelPosts = createReadQuery(
         where: and(
           eq($posts.channelId, options.channelId),
           not(eq($posts.type, 'reply')),
+          gt($posts.sequenceNum, 0),
           gte($posts.sequenceNum, lowerBound),
           lte($posts.sequenceNum, upperBound),
           isNull($posts.deliveryStatus)
@@ -4539,8 +4553,15 @@ export const insertLatestPosts = createWriteQuery(
 const insertPostsBatchSize = 300;
 
 async function insertPosts(posts: Post[], ctx: QueryCtx) {
-  for (let i = 0; i < posts.length; i += insertPostsBatchSize) {
-    const batch = posts.slice(i, i + insertPostsBatchSize);
+  // Snapshots can include nested replies already reflected in the parent's
+  // replyCount. Persist both in the same transaction so later reply events
+  // recognize those rows instead of incrementing the count a second time.
+  const postsWithReplies = posts.flatMap((post) => [
+    post,
+    ...(post.replies ?? []),
+  ]);
+  for (let i = 0; i < postsWithReplies.length; i += insertPostsBatchSize) {
+    const batch = postsWithReplies.slice(i, i + insertPostsBatchSize);
     await insertPostsBatch(batch, ctx);
   }
 }

@@ -173,7 +173,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         compileSdk rootProject.ext.compileSdkVersion
         versionCode 108
-        versionName "9.5.2"
+        versionName "9.5.3"
 
         // Read by RNFB as `rnfirebase_crashlytics_auto_collection_enabled`, ahead of
         // its own `BuildConfig.DEBUG` check. That check can't be trusted here: RNGP

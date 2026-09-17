@@ -1445,6 +1445,77 @@ test('sequenced posts: gets newest posts', async () => {
   expect(newestPosts[4].sequenceNum).toEqual(15);
 });
 
+test('sequenced posts: ignores posts without a positive server sequence', async () => {
+  const channelId = 'unsequenced';
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+  await queries.insertChannelPosts({
+    posts: [
+      {
+        id: 'optimistic',
+        type: 'chat',
+        channelId,
+        receivedAt: refDate,
+        sentAt: refDate,
+        sequenceNum: 0,
+        authorId: 'test',
+        syncedAt: 0,
+      },
+      {
+        id: 'unsequenced',
+        type: 'chat',
+        channelId,
+        receivedAt: refDate + 1,
+        sentAt: refDate + 1,
+        sequenceNum: null,
+        authorId: 'test',
+        syncedAt: 0,
+      },
+    ],
+  });
+
+  await expect(
+    queries.getSequencedChannelPosts({
+      mode: 'newest',
+      channelId,
+      count: 5,
+    })
+  ).resolves.toEqual([]);
+});
+
+test('sequenced posts: older mode stops at sequence one', async () => {
+  const channelId = 'older-with-optimistic';
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+  await queries.insertChannelPosts({
+    posts: getRangedPosts(channelId, 0, 2),
+  });
+
+  const posts = await queries.getSequencedChannelPosts({
+    mode: 'older',
+    channelId,
+    cursorSequenceNum: 2,
+    count: 5,
+  });
+
+  expect(posts.map((post) => post.sequenceNum)).toEqual([1]);
+});
+
+test('sequenced posts: around mode excludes sequence zero', async () => {
+  const channelId = 'around-with-optimistic';
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+  await queries.insertChannelPosts({
+    posts: getRangedPosts(channelId, 0, 2),
+  });
+
+  const posts = await queries.getSequencedChannelPosts({
+    mode: 'around',
+    channelId,
+    cursorSequenceNum: 1,
+    count: 5,
+  });
+
+  expect(posts.map((post) => post.sequenceNum)).toEqual([1]);
+});
+
 test('sequenced posts: gets newer posts', async () => {
   const channelId = 'test';
   await queries.insertChannels([{ id: channelId, type: 'chat' }]);
@@ -3556,5 +3627,29 @@ describe('thread unreads by channel', () => {
     const result = await queries.getThreadUnreadsByChannel({ channelId });
 
     expect(result.map((u) => u.threadId)).toEqual(['mine']);
+  });
+});
+
+describe('insertSettings', () => {
+  test('ignores a payload with no defined values', async () => {
+    // Optimistic rollbacks pass the previous value back in, and that value is
+    // undefined whenever the setting had never been written. Drizzle drops
+    // undefined entries and then throws `No values to set` on the empty
+    // remainder, so the write has to be skipped before it reaches drizzle.
+    await expect(
+      queries.insertSettings({ messagesFilter: undefined })
+    ).resolves.toBeUndefined();
+
+    expect(await queries.getSettings()).toBeUndefined();
+  });
+
+  test('leaves stored settings alone when every value is undefined', async () => {
+    await queries.insertSettings({ messagesFilter: 'all' });
+
+    await expect(
+      queries.insertSettings({ messagesFilter: undefined })
+    ).resolves.toBeUndefined();
+
+    expect((await queries.getSettings())?.messagesFilter).toBe('all');
   });
 });

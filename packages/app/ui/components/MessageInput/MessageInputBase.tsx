@@ -90,6 +90,7 @@ export interface MessageInputProps {
   goBack?: () => void;
   shouldAutoFocus?: boolean;
   frameless?: boolean;
+  testID?: string;
   ref?: React.RefObject<{
     editor: EditorBridge | null;
   }>;

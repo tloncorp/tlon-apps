@@ -21,6 +21,9 @@ export function usePosthog() {
       distinctId: () => {
         return posthog?.getDistinctId();
       },
+      ready: async () => {
+        await posthog?.ready();
+      },
     };
   }, [posthog]);
 }

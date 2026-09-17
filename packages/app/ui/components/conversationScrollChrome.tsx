@@ -35,6 +35,22 @@ export {
   getPostCollectionTopInset,
 } from './conversationInsets';
 
+/**
+ * Height the native header floats over, or 0 when it is opaque. A scroll view
+ * gets this from contentInsetAdjustmentBehavior. Content rendered outside one,
+ * such as a banner pinned above the list, has to clear it itself.
+ */
+export function useFloatingHeaderHeight(hasTransparentHeader: boolean) {
+  const headerHeight = useContext(HeaderHeightContext) ?? 0;
+  const usesTransparentHeader =
+    supportsNativeScrollEdgeChrome(
+      Platform.OS,
+      Platform.Version,
+      supportsLiquidGlass()
+    ) && hasTransparentHeader;
+  return usesTransparentHeader ? headerHeight : 0;
+}
+
 /** Owns all measured geometry reserved around a conversation list. */
 export function useConversationInsets({
   hasFloatingComposer,
@@ -49,12 +65,11 @@ export function useConversationInsets({
 }) {
   const headerHeight = useContext(HeaderHeightContext) ?? 0;
   const { bottom: bottomSafeArea } = useSafeAreaInsets();
-  const usesTransparentHeader =
-    supportsNativeScrollEdgeChrome(
-      Platform.OS,
-      Platform.Version,
-      supportsLiquidGlass()
-    ) && hasTransparentHeader;
+  const floatingHeaderHeight = useFloatingHeaderHeight(hasTransparentHeader);
+  // getConversationContentInsets reduces this to `hasTransparentHeader ?
+  // headerHeight : 0`, which is the floating height, so the two agree by
+  // construction rather than by two copies of the same condition.
+  const usesTransparentHeader = floatingHeaderHeight > 0;
   const [measuredComposerHeight, setMeasuredComposerHeight] = useState<
     number | null
   >(null);
@@ -87,7 +102,7 @@ export function useConversationInsets({
   return {
     contentInsets,
     navigationHeaderHeight: headerHeight,
-    floatingHeaderHeight: usesTransparentHeader ? headerHeight : 0,
+    floatingHeaderHeight,
     onFloatingHeightChange:
       Platform.OS !== 'web' && hasFloatingComposer
         ? onFloatingHeightChange
