@@ -3041,6 +3041,25 @@
     (do-http 'eyre-1' (http-request & %'GET' '/steward/~/v1/nope' ~))
   (ex-cards caz (ex-http 'eyre-1' 404 'text/plain' 'not found'))
 ::
+::  a retried request id on the action path is not relayed a second time:
+::  a duplicate watch crashes the poke and a duplicate command applies the
+::  edit twice. the first request's record stands
+::
+++  test-automation-edit-duplicate-id-is-not-relayed-again
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  ;<  caz=(list card)  bind:m  (do-edit moon edit-create)
+  ;<  ~  bind:m  (ex-cards caz (ex-relay moon edit-create ~2024.1.1))
+  ;<  caz=(list card)  bind:m  (do-edit moon edit-create)
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  ~  bind:m  (ex-equal !>((got-logs caz)) !>(~[[%info 'Edit Duplicate']]))
+  ;<  reqs=requests:v1:au  bind:m  got-requests
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by reqs)) !>(1))
+  ;<  req=incoming-request:v1:au  bind:m  got-request
+  (ex-equal !>(poke-status.req) !>(%sending))
+::
 ::  LOG REPORTING
 ::  ==========================================================
 ::

@@ -975,7 +975,7 @@
     ::
         %edit
       ?>  (au-bot-editable bot.action)
-      (au-handle-edit [request-id bot edit]:action)
+      (au-handle-edit request-id.action bot.action edit.action ~)
     ::
         %finalize
       (au-handle-finalize [request-id body]:action)
@@ -1193,13 +1193,23 @@
   ::  owner always pokes the bot; gall loops the poke back when the bot
   ::  is this ship
   ::
+  ::    both entry points land here, so the retry guard lives here: a
+  ::    second watch on a live wire crashes the poke, and a second command
+  ::    applies the edit twice. the HTTP handler answers a retried id from
+  ::    its record before calling; a client on the action path is watching
+  ::    the per-request path, which replays a stored result on subscribe
+  ::
   ++  au-handle-edit
-    |=  [rid=request-id:v1:sa bot=ship =edit:v1:sa]
+    |=  [rid=request-id:v1:sa bot=ship =edit:v1:sa http-id=(unit @ta)]
     ^+  cor
-    =?  requests.automation.state
-        !(~(has by requests.automation.state) rid)
+    ?:  (~(has by requests.automation.state) rid)
+      %:  au-tell  %info  'Edit Duplicate'
+          ~['request id already in flight, not relaying again']
+          (au-log-props rid 'bot' bot)
+      ==
+    =.  requests.automation.state
       %+  ~(put by requests.automation.state)  rid
-      [rid bot ~ %sending ~ ~ |]
+      [rid bot http-id %sending ~ ~ |]
     =.  cor
       %:  au-tell  %dbug  'Edit Relayed'
           ~['relaying edit to bot']
@@ -1562,10 +1572,7 @@
       %+  au-give-http-response  eyre-id
       ?~  result.u.existing  [rid %pending poke-status.u.existing]
       [rid u.result.u.existing]
-    =.  requests.automation.state
-      %+  ~(put by requests.automation.state)  rid
-      [rid p.bot-res `eyre-id %sending ~ ~ |]
-    (au-handle-edit rid p.bot-res p.edit-res)
+    (au-handle-edit rid p.bot-res p.edit-res `eyre-id)
   ::
   ::  POST body: the response JSON, { requestId, body }. answers
   ::  { requestId, finalized }, with finalized false for an id no longer
