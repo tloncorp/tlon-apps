@@ -106,6 +106,7 @@ test('enrolls a live initial request, sends one marked private-channel tip, crea
     campaignVersion: 1,
     timezone: 'Etc/UTC',
   });
+  const introSentAt = Date.now();
   await fixtures.userState.sendPost({
     channelId: fixtures.group.chatChannel,
     content: [{ inline: ["Let's get set up."] }],
@@ -114,6 +115,13 @@ test('enrolls a live initial request, sends one marked private-channel tip, crea
   const enrolled = await waitFor(async () => campaignState(), 30_000);
   expect(enrolled.status).toBe('active');
   expect(enrolled.sent).toHaveLength(0);
+  // Enrollment may arrive through catch-up before the live intro handler has
+  // recorded owner activity. Let it settle before advancing fixture time.
+  await waitFor(
+    async () =>
+      (campaignState()?.lastActivityAt ?? 0) >= introSentAt ? true : undefined,
+    30_000
+  );
   inBot(
     `
     import { DatabaseSync } from 'node:sqlite';
