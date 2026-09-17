@@ -1,5 +1,4 @@
 import { appendFileSync, mkdtempSync } from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { root, repo, project, command, save, verifySource } from './common.mjs';
@@ -43,7 +42,7 @@ export function finished(run, phase) {
 async function main() {
   const env = process.env,
     mode = process.argv[2];
-  const directory = mkdtempSync(path.join(os.tmpdir(), 'qa-eas-'));
+  const directory = mkdtempSync(path.join(root, '.qa-eas-'));
   save(path.join(directory, 'package.json'), {
     name: 'qa-coordinator',
     private: true,
