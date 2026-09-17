@@ -106,6 +106,8 @@ function buildActionSelection(
 }
 
 function SmallChoiceRow({
+  accessibilityRole,
+  accessibilityValue,
   disabled,
   isLast,
   isSelected,
@@ -114,6 +116,8 @@ function SmallChoiceRow({
   shortcut,
   testID,
 }: {
+  accessibilityRole?: ComponentProps<typeof A2UIMenuRow>['accessibilityRole'];
+  accessibilityValue?: ComponentProps<typeof A2UIMenuRow>['accessibilityValue'];
   disabled: boolean;
   isLast: boolean;
   isSelected: boolean;
@@ -130,7 +134,9 @@ function SmallChoiceRow({
     <A2UIMenuRow
       testID={testID}
       accessibilityLabel={label}
+      accessibilityRole={accessibilityRole}
       accessibilityState={{ disabled, selected: isSelected }}
+      accessibilityValue={accessibilityValue}
       disabled={disabled}
       onPress={onPress}
       dividerAfter={!isLast}
@@ -469,6 +475,12 @@ function SmallChoiceControl({
                 testID={`A2UISmallChoice-${option.id}`}
                 label={option.label}
                 shortcut={smallChoiceShortcut(index)}
+                accessibilityRole={isSingleSelect ? 'radio' : undefined}
+                accessibilityValue={
+                  isSingleSelect
+                    ? { text: isSelected ? 'Selected' : 'Not selected' }
+                    : undefined
+                }
                 isSelected={isSelected}
                 isLast={isLast}
                 disabled={disabled}

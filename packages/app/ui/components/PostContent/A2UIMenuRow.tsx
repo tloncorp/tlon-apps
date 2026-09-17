@@ -4,7 +4,9 @@ import { XStack, YStack } from 'tamagui';
 
 type A2UIMenuRowProps = {
   accessibilityLabel: string;
+  accessibilityRole?: ComponentProps<typeof Pressable>['accessibilityRole'];
   accessibilityState?: ComponentProps<typeof Pressable>['accessibilityState'];
+  accessibilityValue?: ComponentProps<typeof Pressable>['accessibilityValue'];
   bordered?: boolean;
   dimmed?: boolean;
   disabled?: boolean;
@@ -27,7 +29,9 @@ type A2UIMenuRowProps = {
 /** Shared scaffold for the compact controls embedded in A2UI chat cards. */
 export function A2UIMenuRow({
   accessibilityLabel,
+  accessibilityRole,
   accessibilityState,
+  accessibilityValue,
   bordered = false,
   dimmed = false,
   disabled = false,
@@ -50,7 +54,9 @@ export function A2UIMenuRow({
     <Pressable
       testID={testID}
       accessibilityLabel={accessibilityLabel}
+      accessibilityRole={accessibilityRole}
       accessibilityState={accessibilityState}
+      accessibilityValue={accessibilityValue}
       disabled={disabled}
       onPress={disabled ? undefined : onPress}
     >
