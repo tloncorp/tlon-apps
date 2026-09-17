@@ -1474,24 +1474,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           config: () => core.config.loadConfig(),
           botProfile: getBotProfile,
           busy: () => campaignActiveRuns > 0,
-          // The monitor owns SSE subscriptions; the HTTP API shim cannot subscribe.
-          presence: async (handler) => {
-            await api.subscribe({
-              app: 'presence',
-              path: '/v1',
-              event: (data) => {
-                try {
-                  handler(
-                    toPresenceEvent(
-                      data as Parameters<typeof toPresenceEvent>[0]
-                    )
-                  );
-                } catch (error) {
-                  runtime.error?.(`[tlon] campaign presence: ${String(error)}`);
-                }
-              },
-            });
-          },
           telemetry,
           signal: opts.abortSignal,
           error: (error) =>
@@ -3658,6 +3640,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                           }
 
                           deliveredMessageCount += 1;
+                          // These direct HTTP replies bypass the gateway message_sent hook.
                           if (senderShip === effectiveOwnerShip) {
                             await campaign
                               ?.observeReply(
@@ -5965,11 +5948,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         2 * 60 * 1000
       );
 
+      let campaignRefreshTicks = 0;
       const settingsRefreshInterval = setInterval(async () => {
         if (opts.abortSignal?.aborted) {
           return;
         }
         await refreshSettingsNow();
+        // Reuse the five-minute monitor interval for a local campaign check
+        // every fifteen minutes. History/privacy are fetched only when due.
+        if (++campaignRefreshTicks === 3) {
+          campaignRefreshTicks = 0;
+          await campaign?.check();
+        }
       }, SETTINGS_REFRESH_INTERVAL_MS);
 
       // Plugin-owned re-engagement nudge scheduler. Owns tick lifecycle and

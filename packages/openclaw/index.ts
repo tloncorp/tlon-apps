@@ -1439,6 +1439,7 @@ export default defineBundledChannelEntry({
     });
 
     api.on('message_sent', (event, ctx) => {
+      // Gateway/tool sends use this hook; direct monitor replies are observed at delivery.
       if (ctx.channelId === 'tlon' && event.success)
         void notifyCampaignReply(
           ctx.accountId ?? 'default',

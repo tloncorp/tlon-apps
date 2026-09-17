@@ -5,7 +5,6 @@ import {
   type CampaignState,
   eligibleEnrollment,
   evaluateCampaign,
-  nextCampaignWake,
 } from './model.js';
 import { type CampaignDeps, createCampaign } from './runner.js';
 import type { CampaignStore } from './store.js';
@@ -32,13 +31,8 @@ function memoryStore(initial?: CampaignState) {
     lookup: vi.fn(async (key: string) =>
       rows.has(key) ? structuredClone(rows.get(key)) : undefined
     ),
-    register: vi.fn(async (key: string, value: CampaignState) => {
-      rows.set(key, structuredClone(value));
-    }),
-    registerIfAbsent: vi.fn(async (key: string, value: CampaignState) => {
-      if (rows.has(key)) return false;
-      rows.set(key, structuredClone(value));
-      return true;
+    save: vi.fn(async (value: CampaignState) => {
+      rows.set(value.owner, structuredClone(value));
     }),
   } as unknown as CampaignStore;
   return { store, read: () => rows.get('~ten')! };
@@ -244,9 +238,7 @@ describe('campaign runner', () => {
   });
   it('recovers an accepted send after a state write fails', async () => {
     const h = harness(state({ destination: '~ten' }));
-    vi.mocked(h.store.register).mockRejectedValueOnce(
-      new Error('store offline')
-    );
+    vi.mocked(h.store.save).mockRejectedValueOnce(new Error('store offline'));
     await h.campaign.check();
     expect(h.read().sent).toHaveLength(0);
     vi.mocked(h.deps.readMarker).mockResolvedValue(enrolledAt + DAY);
@@ -429,13 +421,13 @@ describe('campaign runner', () => {
     expect(h2.deps.send).toHaveBeenCalledTimes(1);
     expect(h2.read().sent).toHaveLength(0);
   });
-  it('owns one scheduled wake and cleans it up on shutdown or abort', async () => {
+  it('uses no private timer and stops checking after shutdown or abort', async () => {
     vi.useFakeTimers();
     const abort = new AbortController();
     const h = harness(state(), { signal: abort.signal });
     h.campaign.start();
     await h.campaign.check();
-    expect(vi.getTimerCount()).toBe(1);
+    expect(vi.getTimerCount()).toBe(0);
     abort.abort();
     expect(vi.getTimerCount()).toBe(0);
     await h.campaign.stop();
@@ -503,16 +495,8 @@ describe('ticket conversation flow', () => {
     await h.campaign.observeReply(RECURRING_OFFER, 'chat/~other/shared');
     expect(h.read().offeredAt).toBeUndefined();
   });
-  it('defers while visible, learns timezone from activity, and expires stale visibility', async () => {
-    const h = harness(state({ timezone: undefined }));
-    await h.campaign.opened('entry', 'America/New_York');
-    expect(h.read().timezone).toBe('America/New_York');
-    expect(h.deps.send).not.toHaveBeenCalled();
-    h.advance(2 * MINUTE);
-    await h.campaign.check();
-    expect(h.deps.send).toHaveBeenCalledTimes(1);
-  });
-  it('asks for feedback on the next open after a verified task delivery, once', async () => {
+
+  it('asks for feedback on a regular check after verified task delivery, once', async () => {
     let task = {
       id: 'task',
       name: 'Architecture digest',
@@ -525,14 +509,14 @@ describe('ticket conversation flow', () => {
     expect(h.deps.send).not.toHaveBeenCalled();
     task.deliveredAt = enrolledAt + DAY;
     h.advance(MINUTE);
-    await h.campaign.opened('entry', 'America/New_York');
+    await h.campaign.check();
     expect(h.deps.send).toHaveBeenCalledWith(
       expect.stringContaining('Architecture digest'),
       'campaign-v1-task-feedback',
       '~ten'
     );
     h.advance(MINUTE);
-    await h.campaign.opened('entry-two', 'America/New_York');
+    await h.campaign.check();
     expect(h.deps.send).toHaveBeenCalledTimes(1);
   });
   it('prioritizes a failed task, and does not claim undelivered work succeeded', async () => {
@@ -544,7 +528,7 @@ describe('ticket conversation flow', () => {
         failedAt: enrolledAt + DAY - MINUTE,
       }),
     });
-    await h.campaign.opened('entry', 'America/New_York');
+    await h.campaign.check();
     expect(h.deps.send).toHaveBeenCalledWith(
       expect.stringContaining('failed'),
       'campaign-v1-task-feedback',
@@ -563,36 +547,9 @@ describe('ticket conversation flow', () => {
       evaluateCampaign(state({ sent }), facts, enrolledAt + 6 * DAY)
     ).toEqual({ kind: 'finish', status: 'completed' });
   });
-  it('supports all three directions and configurable copy without resetting enrollment', () => {
-    expect(
-      renderTip('useful-request', state({ direction: 'archive' }), {})
-    ).toContain('link');
-    expect(
-      renderTip('useful-request', state({ direction: 'routine' }), {})
-    ).toContain('working on');
-    expect(
-      renderTip('useful-request', state({ topic: 'gardens' }), {
-        copy: { 'useful-request': 'What about {topic}?' },
-      })
-    ).toContain('What about gardens?');
-  });
-  it('does not retry an uncertain unconfirmed delivery across restarts', async () => {
-    const h = harness(state(), {
-      send: vi.fn(async () => {
-        throw new Error('timeout');
-      }),
-    });
-    await h.campaign.check();
-    await createCampaign(h.deps).check();
-    expect(h.deps.send).toHaveBeenCalledTimes(1);
-    expect(h.read().skipped).toContainEqual({
-      step: 'useful-request',
-      reason: 'attempt-already-claimed',
-    });
-  });
 });
 
-it('keeps feedback pending through a busy conversation while presence is refreshed', async () => {
+it('keeps feedback pending through recent messages and busy runs', async () => {
   let busy = true;
   const h = harness(state(), {
     busy: () => busy,
@@ -604,9 +561,9 @@ it('keeps feedback pending through a busy conversation while presence is refresh
     }),
   });
   await h.campaign.inbound('thanks', true);
-  await h.campaign.opened('entry', 'America/New_York');
+  await h.campaign.check();
   h.advance(16 * MINUTE);
-  await h.campaign.opened('entry', 'America/New_York');
+  await h.campaign.check();
   busy = false;
   await h.campaign.check();
   expect(h.read().sent.at(-1)?.step).toBe('task-feedback');
@@ -629,20 +586,6 @@ it('prioritizes a newly failed task at closing even after earlier feedback', () 
       }
     )
   ).toContain('failed');
-});
-
-it('keeps spacing after an ambiguous late send whose marker is unavailable', async () => {
-  const h = harness(state(), {
-    send: vi.fn(async () => {
-      throw new Error('timeout');
-    }),
-  });
-  h.setTime(enrolledAt + 2 * DAY - MINUTE);
-  await h.campaign.check();
-  await createCampaign(h.deps).check();
-  h.advance(2 * MINUTE);
-  await createCampaign(h.deps).check();
-  expect(h.deps.send).toHaveBeenCalledTimes(1);
 });
 
 it('accepts bounded clock skew but rejects stale or far-future intros', () => {
@@ -683,7 +626,7 @@ it('does not intercept opt-out text when disabled or never enrolled', async () =
     expect(h.deps.send).not.toHaveBeenCalled();
   }
   expect(disabled.read().status).toBe('active');
-  expect(memory.store.register).not.toHaveBeenCalled();
+  expect(memory.store.save).not.toHaveBeenCalled();
 });
 it('records a verified group reply even when optional context cannot load', async () => {
   const h = harness(state(), {
@@ -723,209 +666,89 @@ it('applies closing copy after successful task feedback', () => {
   );
 });
 
-describe('one-shot scheduling', () => {
-  function clockHarness(
-    initial = state(),
-    overrides: Partial<CampaignDeps> = {}
-  ) {
-    vi.useFakeTimers();
-    vi.setSystemTime(initial.enrolledAt);
-    return harness(initial, {
-      now: () => Date.now(),
-      context: vi.fn(async () => ({})),
-      destination: vi.fn(async () => '~ten'),
-      ...overrides,
-    });
+it('retries an unconfirmed send on the next check and records success', async () => {
+  const h = harness();
+  vi.mocked(h.deps.send).mockRejectedValueOnce(new Error('timeout'));
+  await h.campaign.check();
+  expect(h.read().sent).toHaveLength(0);
+  h.advance(15 * MINUTE);
+  await h.campaign.check();
+  expect(h.deps.send).toHaveBeenCalledTimes(2);
+  expect(h.read().sent).toHaveLength(1);
+});
+it('does no history or privacy reads before a tip is due', async () => {
+  const destination = vi.fn(async () => '~ten');
+  const context = vi.fn(async () => ({ topic: 'gardens' }));
+  const h = harness(state(), { destination, context });
+  h.setTime(enrolledAt);
+  for (let i = 0; i < 96; i++) {
+    await h.campaign.check();
+    h.advance(15 * MINUTE);
   }
-  it('sleeps through the first day without history or privacy reads, then sends once', async () => {
-    const h = clockHarness();
-    h.campaign.start();
-    await h.campaign.check();
-    expect(vi.getTimerCount()).toBe(1);
-    expect(h.deps.context).not.toHaveBeenCalled();
-    expect(h.deps.destination).not.toHaveBeenCalled();
-    const initialChecks = vi.mocked(h.deps.hasTask).mock.calls.length;
-    await vi.advanceTimersByTimeAsync(DAY - 1);
-    expect(h.deps.hasTask).toHaveBeenCalledTimes(initialChecks);
-    expect(h.deps.send).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(1);
-    expect(h.deps.send).toHaveBeenCalledTimes(1);
-    expect(h.deps.context).toHaveBeenCalledTimes(1);
-    expect(vi.getTimerCount()).toBe(1);
-    await h.campaign.stop();
+  expect(destination).not.toHaveBeenCalled();
+  expect(context).not.toHaveBeenCalled();
+  expect(h.deps.readMarker).not.toHaveBeenCalled();
+  await h.campaign.check();
+  expect(h.deps.send).toHaveBeenCalledTimes(1);
+});
+it('caches setup choices and task facts across replies and persists choices', async () => {
+  const context = vi.fn(async () => ({ topic: 'gardens', purpose: 'learn' }));
+  const task = vi.fn(async () => undefined);
+  const h = harness(state(), { context, task });
+  await h.campaign.check();
+  task.mockClear();
+  for (let i = 0; i < 3; i++)
+    expect(await h.campaign.replyContext()).toContain('gardens');
+  expect(context).toHaveBeenCalledTimes(1);
+  expect(task).not.toHaveBeenCalled();
+  await createCampaign(h.deps).replyContext();
+  expect(context).toHaveBeenCalledTimes(1);
+});
+it('records an offer only once across both successful-send observers', async () => {
+  const h = harness();
+  await h.campaign.observeReply(RECURRING_OFFER, '~ten');
+  h.advance(MINUTE);
+  await h.campaign.observeReply(RECURRING_OFFER, '~ten');
+  expect(h.store.save).toHaveBeenCalledTimes(1);
+  expect(h.read().offeredAt).toBe(enrolledAt + DAY);
+});
+it('uses copy overrides within the single campaign direction', () => {
+  expect(
+    renderTip('useful-request', state({ topic: 'gardens' }), {
+      copy: { 'useful-request': 'What about {topic}?' },
+    })
+  ).toContain('What about gardens?');
+});
+it('applies spacing and quiet hours to scheduled feedback', () => {
+  const task = {
+    id: 'task',
+    name: 'Digest',
+    enabled: true,
+    deliveredAt: enrolledAt + DAY,
+  };
+  const current = state({
+    status: 'feedback',
+    sent: [{ step: 'useful-request', at: enrolledAt + DAY }],
   });
-  it('restores the next send time from persisted progress on restart', async () => {
-    const h = clockHarness(
-      state({ sent: [{ step: 'useful-request', at: enrolledAt + DAY }] })
-    );
-    vi.setSystemTime(enrolledAt + DAY + 12 * 60 * MINUTE);
-    h.campaign.start();
-    await h.campaign.check();
-    expect(h.deps.context).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(12 * 60 * MINUTE - 1);
-    expect(h.deps.send).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(1);
-    expect(h.deps.send).toHaveBeenCalledTimes(1);
-    expect(h.read().sent.at(-1)?.step).toBe('recurring-help');
-    await h.campaign.stop();
-  });
-  it('retries a busy due send after fifteen minutes without polling in between', async () => {
-    let busy = true;
-    const h = clockHarness(state(), { busy: () => busy });
-    vi.setSystemTime(enrolledAt + DAY);
-    h.campaign.start();
-    await h.campaign.check();
-    expect(h.deps.context).not.toHaveBeenCalled();
-    const checks = vi.mocked(h.deps.hasTask).mock.calls.length;
-    await vi.advanceTimersByTimeAsync(15 * MINUTE - 1);
-    expect(h.deps.hasTask).toHaveBeenCalledTimes(checks);
-    busy = false;
-    await vi.advanceTimersByTimeAsync(1);
-    expect(h.deps.send).toHaveBeenCalledTimes(1);
-    await h.campaign.stop();
-  });
-  it('backs off after a due history lookup fails, then recovers without a hot loop', async () => {
-    const context = vi
-      .fn()
-      .mockRejectedValueOnce(new Error('offline'))
-      .mockResolvedValue({});
-    const h = clockHarness(state(), { context });
-    vi.setSystemTime(enrolledAt + DAY);
-    h.campaign.start();
-    await h.campaign.check();
-    expect(context).toHaveBeenCalledTimes(1);
-    await vi.advanceTimersByTimeAsync(15 * MINUTE - 1);
-    expect(context).toHaveBeenCalledTimes(1);
-    await vi.advanceTimersByTimeAsync(1);
-    expect(h.deps.send).toHaveBeenCalledTimes(1);
-    await h.campaign.stop();
-  });
-  it('reschedules after a personal reply and skips the generic first prompt', async () => {
-    const h = clockHarness();
-    h.campaign.start();
-    await h.campaign.check();
-    await vi.advanceTimersByTimeAsync(DAY - 10 * MINUTE);
-    await h.campaign.inbound('Help me research architecture', true);
-    await vi.advanceTimersByTimeAsync(10 * MINUTE);
-    expect(h.deps.send).not.toHaveBeenCalled();
-    expect(h.read().skipped).toContainEqual({
-      step: 'useful-request',
-      reason: 'context-changed',
-    });
-    await vi.advanceTimersByTimeAsync(DAY);
-    expect(h.read().sent.at(-1)?.step).toBe('recurring-help');
-    await h.campaign.stop();
-  });
-  it('uses a task/open event for feedback instead of waiting for the scheduled closing', async () => {
-    let task:
-      | { id: string; name: string; enabled: boolean; deliveredAt?: number }
-      | undefined;
-    const h = clockHarness(state(), { task: async () => task });
-    h.campaign.start();
-    await h.campaign.check();
-    await vi.advanceTimersByTimeAsync(60 * MINUTE);
-    task = {
-      id: 'digest',
-      name: 'Digest',
-      enabled: true,
-      deliveredAt: Date.now() - 1,
-    };
-    await h.campaign.taskCreated();
-    expect(h.read().status).toBe('feedback');
-    expect(h.deps.context).not.toHaveBeenCalled();
-    await h.campaign.opened('returned', 'America/New_York');
-    expect(h.read().sent.at(-1)?.step).toBe('task-feedback');
-    await h.campaign.stop();
-  });
-  it('does not lose an open event while an older task lookup is in flight', async () => {
-    let release!: () => void;
-    let entered!: () => void;
-    const gate = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    const waiting = new Promise<void>((resolve) => {
-      entered = resolve;
-    });
-    let task: {
-      id: string;
-      name: string;
-      enabled: boolean;
-      deliveredAt?: number;
-    } = { id: 'digest', name: 'Digest', enabled: true };
-    let first = true;
-    const h = clockHarness(state({ status: 'feedback' }), {
-      task: async () => {
-        const snapshot = task;
-        if (first) {
-          first = false;
-          entered();
-          await gate;
-        }
-        return snapshot;
-      },
-    });
-    vi.setSystemTime(enrolledAt + DAY);
-    h.campaign.start();
-    await waiting;
-    task = { ...task, deliveredAt: Date.now() - 1 };
-    const opened = h.campaign.opened('after-delivery', 'America/New_York');
-    release();
-    await opened;
-    expect(h.read().sent.at(-1)?.step).toBe('task-feedback');
-    await h.campaign.stop();
-  });
-  it('cancels scheduled wakes on opt-out, and schedules nothing for disabled or finished campaigns', async () => {
-    const h = clockHarness();
-    h.campaign.start();
-    await h.campaign.check();
-    await h.campaign.inbound('/stop-tips', true);
-    expect(vi.getTimerCount()).toBe(0);
-    await h.campaign.stop();
-    for (const status of ['completed', 'opted-out'] as const) {
-      const done = clockHarness(state({ status }));
-      done.campaign.start();
-      await done.campaign.check();
-      expect(vi.getTimerCount()).toBe(0);
-      await done.campaign.stop();
-    }
-    const disabled = clockHarness(state(), {
-      config: () => ({ enabled: false }),
-    });
-    disabled.campaign.start();
-    await disabled.campaign.check();
-    expect(vi.getTimerCount()).toBe(0);
-    await disabled.campaign.stop();
-  });
-  it('waits until the next local window when spacing ends at night', () => {
-    const current = state({
-      enrolledAt: Date.parse('2026-09-17T00:00:00Z'),
-      activityMinute: 9 * 60,
-      sent: [
-        { step: 'useful-request', at: Date.parse('2026-09-18T02:00:00Z') },
-      ],
-    });
-    const at = Date.parse('2026-09-19T01:00:00Z');
-    expect(nextCampaignWake(current, facts, at)).toBe(
-      Date.parse('2026-09-19T13:00:00Z')
-    );
-  });
-  it.each([
-    ['2026-03-08T03:00:00Z', '2026-03-08T13:00:00Z'],
-    ['2026-11-01T02:00:00Z', '2026-11-01T14:00:00Z'],
-  ])(
-    'keeps the local wake time across an offset change at %s',
-    (at, expected) => {
-      const now = Date.parse(at);
-      expect(
-        nextCampaignWake(
-          state({
-            enrolledAt: now - DAY - 60 * MINUTE,
-            activityMinute: 9 * 60,
-          }),
-          facts,
-          now
-        )
-      ).toBe(Date.parse(expected));
-    }
-  );
+  expect(
+    evaluateCampaign(
+      current,
+      { ...facts, task, hasTask: true },
+      enrolledAt + DAY + MINUTE
+    )
+  ).toMatchObject({ kind: 'defer', reason: 'spacing' });
+  expect(
+    evaluateCampaign(
+      current,
+      { ...facts, task, hasTask: true },
+      enrolledAt + 2 * DAY
+    )
+  ).toEqual({ kind: 'send', step: 'task-feedback' });
+  expect(
+    evaluateCampaign(
+      current,
+      { ...facts, task, hasTask: true },
+      Date.parse('2026-09-20T03:00:00Z')
+    )
+  ).toMatchObject({ kind: 'defer', reason: 'quiet-hours' });
 });

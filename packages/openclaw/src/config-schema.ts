@@ -171,7 +171,6 @@ export const TlonConfigSchema = z.object({
     .object({
       enabled: z.boolean().optional(),
       enrollAfter: z.iso.datetime().optional(),
-      direction: z.enum(['useful', 'archive', 'routine']).optional(),
       copy: z
         .object({
           'useful-request': z.string().min(1).max(4000).optional(),

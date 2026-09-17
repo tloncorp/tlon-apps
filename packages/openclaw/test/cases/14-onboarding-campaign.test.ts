@@ -1,10 +1,5 @@
 /** Real gateway/DM proof; accelerate only the disposable fixture's durable enrollment time. */
-import {
-  appendToPostBlob,
-  parsePostBlob,
-  conversationIdToPresenceContext,
-} from '@tloncorp/api';
-import { publishCampaignView } from '../../../app/features/top/campaignPresence.js';
+import { appendToPostBlob, parsePostBlob } from '@tloncorp/api';
 import { execFileSync } from 'node:child_process';
 import { beforeAll, expect, test } from 'vitest';
 import type { CampaignState } from '../../src/monitor/campaign/model.js';
@@ -33,8 +28,13 @@ function campaignState(): CampaignState | undefined {
         `
     import { DatabaseSync } from 'node:sqlite';
     const db = new DatabaseSync('/root/.openclaw/tlon/onboarding-campaign.sqlite');
-    const row = db.prepare('SELECT value_json FROM campaign_state WHERE key = ?').get(process.argv[1]);
-    console.log(row?.value_json ?? 'null'); db.close();
+    const owner = process.argv[1];
+    const row = db.prepare('SELECT * FROM campaign_owner WHERE owner=?').get(owner);
+    if (row) {
+      row.sent = db.prepare('SELECT step,at,text,destination FROM campaign_sent WHERE owner=? ORDER BY at').all(owner);
+      row.skipped = db.prepare('SELECT step,reason FROM campaign_skipped WHERE owner=?').all(owner);
+    }
+    console.log(JSON.stringify(row ?? null)); db.close();
   `,
         fixtures.userShip
       )
@@ -88,7 +88,7 @@ beforeAll(async () => {
   fixtures = await getFixtures();
 });
 
-test('enrolls a live initial request, sends one marked private-channel tip, creates agreed work, asks feedback on open, and saves opt-out', async () => {
+test('enrolls a live initial request, sends one marked private-channel tip, creates agreed work, asks scheduled feedback, and saves opt-out', async () => {
   if (!fixtures.group) throw new Error('Fixture group required');
   await reloadConfig({
     onboardingCampaign: {
@@ -126,13 +126,10 @@ test('enrolls a live initial request, sends one marked private-channel tip, crea
     `
     import { DatabaseSync } from 'node:sqlite';
     const db = new DatabaseSync('/root/.openclaw/tlon/onboarding-campaign.sqlite');
-    const key = [process.argv[1]];
-    const state = JSON.parse(db.prepare('SELECT value_json FROM campaign_state WHERE key=?').get(...key).value_json);
-    state.enrolledAt = Date.now() - Number(process.argv[2]) - 60000;
-    state.lastActivityAt = 0;
     const offset = new Date().getUTCHours() - 12;
-    state.timezone = offset === 0 ? 'Etc/UTC' : 'Etc/GMT' + (offset > 0 ? '+' : '') + offset;
-    db.prepare('UPDATE campaign_state SET value_json=? WHERE key=?').run(JSON.stringify(state), ...key);
+    const timezone = offset === 0 ? 'Etc/UTC' : 'Etc/GMT' + (offset > 0 ? '+' : '') + offset;
+    db.prepare('UPDATE campaign_owner SET enrolledAt=?, lastActivityAt=0, timezone=? WHERE owner=?')
+      .run(Date.now() - Number(process.argv[2]) - 60000, timezone, process.argv[1]);
     db.close();
   `,
     fixtures.userShip,
@@ -235,58 +232,28 @@ test('enrolls a live initial request, sends one marked private-channel tip, crea
     async () => (readTask()?.state?.lastDelivered === true ? true : undefined),
     60_000
   );
-  // Advance only this disposable fixture past recent-conversation suppression.
+  // Advance the disposable fixture past spacing/recent activity, then exercise
+  // the ordinary startup check. No client presence or conversation-open event.
   inBot(
-    `import {DatabaseSync} from 'node:sqlite'; const db=new DatabaseSync('/root/.openclaw/tlon/onboarding-campaign.sqlite'); const row=JSON.parse(db.prepare('SELECT value_json FROM campaign_state WHERE key=?').get(process.argv[1]).value_json); row.lastActivityAt=0; row.destination=process.argv[1]; db.prepare('UPDATE campaign_state SET value_json=? WHERE key=?').run(JSON.stringify(row),process.argv[1]); db.close();`,
-    fixtures.userShip
+    `import {DatabaseSync} from 'node:sqlite';
+    const db=new DatabaseSync('/root/.openclaw/tlon/onboarding-campaign.sqlite');
+    db.prepare('UPDATE campaign_owner SET lastActivityAt=0, destination=? WHERE owner=?').run(process.argv[1],process.argv[1]);
+    db.prepare('UPDATE campaign_sent SET at=? WHERE owner=?').run(Date.now()-Number(process.argv[2])-60000,process.argv[1]);
+    db.close();`,
+    fixtures.userShip,
+    String(DAY)
   );
   await reloadConfig({});
-  const closeView = publishCampaignView({
-    // Exercise the owner's DM peer ID across two actual %presence agents.
-    // The receiver translates it to the owner's ID before the campaign sees it.
-    conversationId: fixtures.botShip,
-    bot: fixtures.botShip,
-    token: 'campaign-feedback-open',
-    timezone: campaignState()!.timezone!,
-    reportError: (error) => {
-      throw error;
-    },
-    publish: async (input) =>
-      fixtures.userState.poke({
-        app: 'presence',
-        mark: 'presence-action-1',
-        json: {
-          set: {
-            disclose: input.disclose,
-            key: {
-              context: conversationIdToPresenceContext(input.conversationId),
-              ship: fixtures.userShip,
-              topic: input.topic,
-            },
-            timeout: input.timeout,
-            display: {
-              icon: null,
-              text: null,
-              blob: input.display?.blob ?? null,
-            },
-          },
-        },
-      }),
-  });
-  try {
-    await waitFor(
-      async () =>
-        campaignState()?.sent.some((s) => s.step === 'task-feedback')
-          ? true
-          : undefined,
-      30_000
-    );
-    expect(
-      campaignState()?.sent.find((s) => s.step === 'task-feedback')?.text
-    ).toContain('tlon-campaign-e2e-digest');
-  } finally {
-    await closeView();
-  }
+  await waitFor(
+    async () =>
+      campaignState()?.sent.some((s) => s.step === 'task-feedback')
+        ? true
+        : undefined,
+    30_000
+  );
+  expect(
+    campaignState()?.sent.find((s) => s.step === 'task-feedback')?.text
+  ).toContain('tlon-campaign-e2e-digest');
   await fixtures.client.sendDm('/stop-tips');
   await waitFor(
     async () => (campaignState()?.status === 'opted-out' ? true : undefined),

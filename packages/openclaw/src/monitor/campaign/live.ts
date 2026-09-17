@@ -2,8 +2,6 @@ import {
   appendToPostBlob,
   getChannelPosts,
   getGroup,
-  type PresenceEvent,
-  type PresenceStatus,
   parsePostBlob,
 } from '@tloncorp/api';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
@@ -18,7 +16,6 @@ import { listRunnableTlonAccountIds } from '../../types.js';
 import { captureTlonApiScope } from '../../urbit/api-client.js';
 import { type BotProfile, sendDm, sendChannelPost } from '../../urbit/send.js';
 import { markdownToStory } from '../../urbit/story.js';
-import { getCampaignStore } from './store.js';
 import {
   type CampaignTask,
   type CampaignState,
@@ -68,7 +65,6 @@ export function createLiveCampaign(deps: {
   telemetry?: TlonTelemetryClient | null;
   error: (error: unknown) => void;
   signal?: AbortSignal;
-  presence?: (handler: (event: PresenceEvent) => void) => Promise<void>;
 }) {
   const capturedScope = captureTlonApiScope();
   // API helpers do not all expose transport cancellation. Release the monitor
@@ -95,7 +91,6 @@ export function createLiveCampaign(deps: {
     return io(() => capturedScope(fn));
   };
   const runningJobs = new Set<string>();
-  let stopped = false;
   const jobs = async () => {
     const cron = getTlonCronService();
     if (!cron) throw new Error('Campaign deferred: cron service unavailable');
@@ -284,47 +279,7 @@ export function createLiveCampaign(deps: {
       isUserRecurringTask(event.job)
     ) {
       void campaign.taskCreated().catch(deps.error);
-    } else if (event.action !== 'started')
-      void campaign.refresh().catch(deps.error);
-  };
-  const onPresence = async (presence: PresenceStatus) => {
-    if (
-      stopped ||
-      presence.key.ship !== deps.owner ||
-      presence.key.topic !== 'other' ||
-      !presence.display.blob ||
-      Date.now() - presence.timing.since > 90_000
-    )
-      return;
-    let view: {
-      type?: string;
-      version?: number;
-      token?: string;
-      timezone?: string;
-      open?: boolean;
-    };
-    try {
-      view = JSON.parse(presence.display.blob);
-    } catch {
-      return;
     }
-    if (
-      view.type !== 'tlon-onboarding-view' ||
-      view.version !== 1 ||
-      typeof view.token !== 'string'
-    )
-      return;
-    const state = await getCampaignStore()?.lookup(deps.owner);
-    // Remote /dm/<bot> presence is translated by %presence into the receiving
-    // bot's local /dm/<owner> context (desk/app/presence.hoon).
-    if (
-      !state ||
-      (presence.contextId !== deps.owner &&
-        presence.contextId !== (await destination(state)))
-    )
-      return;
-    if (view.open === true) await campaign.opened(view.token, view.timezone);
-    else campaign.closed(view.token);
   };
   return {
     ...campaign,
@@ -332,22 +287,10 @@ export function createLiveCampaign(deps: {
       observers.set(deps.accountId, onCron);
       replyObservers.set(deps.accountId, campaign.observeReply);
       campaign.start();
-      void deps
-        .presence?.((event) => {
-          const states =
-            event.type === 'init'
-              ? event.states
-              : event.type === 'set'
-                ? [event.state]
-                : [];
-          for (const state of states) void onPresence(state).catch(deps.error);
-        })
-        .catch(deps.error);
     },
     async stop() {
       if (observers.get(deps.accountId) === onCron)
         observers.delete(deps.accountId);
-      stopped = true;
       if (replyObservers.get(deps.accountId) === campaign.observeReply)
         replyObservers.delete(deps.accountId);
       await campaign.stop();

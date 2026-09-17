@@ -5,36 +5,29 @@ import { expect, it } from 'vitest';
 import { openCampaignStore } from './store.js';
 import type { CampaignState } from './model.js';
 
-it('persists state and arbitrates competing claims across independent database connections', async () => {
+it('persists owner opt-out and sent steps independently across restarts', async () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), 'tlon-campaign-'));
-  const first = openCampaignStore(directory);
-  const second = openCampaignStore(directory);
+  let store = openCampaignStore(directory);
   const row: CampaignState = {
     owner: '~ten',
     version: 1,
     enrolledAt: Date.now(),
     status: 'active',
-    sent: [],
+    timezone: 'Etc/UTC',
+    sent: [{ step: 'useful-request', at: Date.now(), text: 'Hello' }],
     skipped: [],
   };
   try {
-    expect(
-      await Promise.all([
-        first.registerIfAbsent('~ten', row),
-        second.registerIfAbsent('~ten', row),
-      ])
-    ).toEqual([true, false]);
-    await second.register('~ten', { ...row, status: 'opted-out' });
-    expect((await first.lookup('~ten'))?.status).toBe('opted-out');
-    first.close();
-    const restarted = openCampaignStore(directory);
-    try {
-      expect((await restarted.lookup('~ten'))?.status).toBe('opted-out');
-    } finally {
-      restarted.close();
-    }
+    await store.save(row);
+    await store.save(row);
+    // Owner updates cannot erase an accepted sent step.
+    await store.save({ ...row, sent: [], status: 'opted-out' });
+    store.close();
+    store = openCampaignStore(directory);
+    expect(await store.lookup('~ten')).toEqual({ ...row, status: 'opted-out' });
+    expect(await store.lookup('~mug')).toBeUndefined();
   } finally {
-    second.close();
+    store.close();
     rmSync(directory, { recursive: true, force: true });
   }
 });

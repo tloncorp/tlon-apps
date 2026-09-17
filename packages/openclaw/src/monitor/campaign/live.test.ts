@@ -15,16 +15,12 @@ const mock = vi.hoisted(() => ({
   list: vi.fn(),
   scoped: vi.fn(),
   group: vi.fn(),
-  subscribe: vi.fn(),
-  unsubscribe: vi.fn(),
   sendChannel: vi.fn(),
 }));
 vi.mock('@tloncorp/api', async (original) => ({
   ...(await original<typeof import('@tloncorp/api')>()),
   getChannelPosts: mock.posts,
   getGroup: mock.group,
-  subscribeToPresenceUpdates: mock.subscribe,
-  unsubscribe: mock.unsubscribe,
 }));
 vi.mock('../../urbit/send.js', () => ({
   sendDm: mock.send,
@@ -69,22 +65,12 @@ beforeEach(() => {
     sent: [],
     skipped: [],
   };
-  const extra = new Map<string, CampaignState>();
   setCampaignStore({
-    lookup: async (key: string) =>
-      structuredClone(key === '~ten' ? row : extra.get(key)),
-    register: async (key: string, value: CampaignState) => {
-      if (key === '~ten') row = structuredClone(value);
-      else extra.set(key, structuredClone(value));
-    },
-    registerIfAbsent: async (key: string, value: CampaignState) => {
-      if (key === '~ten' || extra.has(key)) return false;
-      extra.set(key, structuredClone(value));
-      return true;
+    lookup: async () => structuredClone(row),
+    save: async (value: CampaignState) => {
+      row = structuredClone(value);
     },
   } as CampaignStore);
-  mock.subscribe.mockResolvedValue(42);
-  mock.unsubscribe.mockResolvedValue(undefined);
   mock.group.mockResolvedValue({
     privacy: 'private',
     members: [{ contactId: '~ten', status: 'joined' }, { contactId: '~zod' }],
@@ -99,7 +85,6 @@ beforeEach(() => {
     config: () => cfg,
     botProfile: () => undefined,
     busy: () => false,
-    presence: mock.subscribe,
     error: (e) => {
       throw e;
     },
@@ -250,7 +235,7 @@ it('fails closed when group privacy cannot be verified', async () => {
   expect(mock.sendChannel).not.toHaveBeenCalled();
 });
 
-it('accepts only fresh owner presence in the personal conversation and sends verified-result feedback', async () => {
+it('sends verified-result feedback on a regular check without presence', async () => {
   mock.list.mockResolvedValue([
     {
       id: 'task',
@@ -264,70 +249,13 @@ it('accepts only fresh owner presence in the personal conversation and sends ver
       },
     },
   ]);
-  campaign.start();
-  await campaign.check();
-  const handler = mock.subscribe.mock.calls[0][0];
-  const presence = {
-    key: { ship: '~mug', topic: 'other', context: '/dm/~ten' },
-    contextId: '~ten',
-    timing: { since: now, timeout: null },
-    display: {
-      blob: JSON.stringify({
-        type: 'tlon-onboarding-view',
-        version: 1,
-        token: 'entry',
-        timezone: 'America/New_York',
-        open: true,
-      }),
-    },
-  };
-  handler({ type: 'set', state: presence });
-  await vi.advanceTimersByTimeAsync(1);
-  expect(mock.send).not.toHaveBeenCalled();
-  handler({
-    type: 'set',
-    state: {
-      ...presence,
-      key: { ...presence.key, ship: '~ten' },
-      contextId: 'chat/~mug/public',
-    },
-  });
-  await vi.advanceTimersByTimeAsync(1);
-  expect(mock.send).not.toHaveBeenCalled();
-  handler({
-    type: 'set',
-    state: { ...presence, key: { ...presence.key, ship: '~ten' } },
-  });
-  await vi.advanceTimersByTimeAsync(1);
   await campaign.check();
   expect(row.sent.at(-1)?.step).toBe('task-feedback');
   expect(mock.send).toHaveBeenCalledWith(
     expect.objectContaining({ text: expect.stringContaining('Digest') })
   );
-});
-
-it('requires a new open after completion, not an open during a task run', async () => {
-  let delivered = false;
-  mock.list.mockImplementation(async () => [
-    {
-      id: 'task',
-      name: 'Digest',
-      enabled: true,
-      schedule: { kind: 'cron', expr: '0 8 * * *' },
-      state: {
-        lastRunAtMs: now - 1000,
-        lastDurationMs: 2000,
-        lastDelivered: delivered,
-      },
-    },
-  ]);
-  await campaign.opened('during-run', 'America/New_York');
-  vi.setSystemTime(now + 2000);
-  delivered = true;
   await campaign.check();
-  expect(mock.send).not.toHaveBeenCalled();
-  await campaign.opened('after-delivery', 'America/New_York');
-  expect(row.sent.at(-1)?.step).toBe('task-feedback');
+  expect(mock.send).toHaveBeenCalledTimes(1);
 });
 
 it.each(['history', 'privacy', 'send', 'cron'])(

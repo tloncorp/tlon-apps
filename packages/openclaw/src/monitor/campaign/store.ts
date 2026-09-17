@@ -5,42 +5,103 @@ import { sharedMap, sharedSlot } from '../../shared-state.js';
 import type { CampaignState } from './model.js';
 
 export type CampaignStore = {
-  lookup(key: string): Promise<CampaignState | undefined>;
-  register(key: string, value: CampaignState): Promise<void>;
-  registerIfAbsent(key: string, value: CampaignState): Promise<boolean>;
+  lookup(owner: string): Promise<CampaignState | undefined>;
+  save(state: CampaignState): Promise<void>;
 };
 
-// OpenClaw restricts runtime.state.openKeyedStore to bundled/official plugins.
-// Tlon is also deployed as a local plugin, so own this small durable store in
-// the same state directory. SQLite INSERT OR IGNORE provides cross-process claims.
+// Local plugins cannot use OpenClaw's bundled-plugin keyed store.
+// Owner writes are serialized by withCampaignLock; sent steps have a durable key.
 export function openCampaignStore(stateDir: string) {
   const directory = path.join(stateDir, 'tlon');
   mkdirSync(directory, { recursive: true, mode: 0o700 });
   const file = path.join(directory, 'onboarding-campaign.sqlite');
   const database = new DatabaseSync(file);
   chmodSync(file, 0o600);
-  database.exec(
-    'PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS campaign_state (key TEXT PRIMARY KEY, value_json TEXT NOT NULL)'
+  database.exec(`
+    PRAGMA busy_timeout=5000;
+    PRAGMA journal_mode=WAL;
+    CREATE TABLE IF NOT EXISTS campaign_owner (
+      owner TEXT PRIMARY KEY, version INTEGER NOT NULL, enrolledAt INTEGER NOT NULL,
+      status TEXT NOT NULL, timezone TEXT, groupId TEXT, channelId TEXT, destination TEXT,
+      topic TEXT, purpose TEXT, lastOwnerText TEXT, offeredAt INTEGER, activityMinute INTEGER,
+      lastReplyAt INTEGER, lastActivityAt INTEGER
+    );
+    CREATE TABLE IF NOT EXISTS campaign_sent (
+      owner TEXT NOT NULL, step TEXT NOT NULL, at INTEGER NOT NULL, text TEXT, destination TEXT,
+      PRIMARY KEY(owner, step)
+    );
+    CREATE TABLE IF NOT EXISTS campaign_skipped (
+      owner TEXT NOT NULL, step TEXT NOT NULL, reason TEXT NOT NULL, PRIMARY KEY(owner, step)
+    );
+  `);
+  const columns = [
+    'owner',
+    'version',
+    'enrolledAt',
+    'status',
+    'timezone',
+    'groupId',
+    'channelId',
+    'destination',
+    'topic',
+    'purpose',
+    'lastOwnerText',
+    'offeredAt',
+    'activityMinute',
+    'lastReplyAt',
+    'lastActivityAt',
+  ] as const;
+  const owner =
+    database.prepare(`INSERT INTO campaign_owner (${columns.join(',')})
+    VALUES (${columns.map(() => '?').join(',')}) ON CONFLICT(owner) DO UPDATE SET
+    ${columns
+      .slice(1)
+      .map((c) => `${c}=excluded.${c}`)
+      .join(',')}`);
+  const sent = database.prepare(
+    'INSERT OR IGNORE INTO campaign_sent(owner,step,at,text,destination) VALUES (?,?,?,?,?)'
   );
-  const lookup = database.prepare(
-    'SELECT value_json FROM campaign_state WHERE key=?'
+  const skipped = database.prepare(
+    'INSERT OR IGNORE INTO campaign_skipped(owner,step,reason) VALUES (?,?,?)'
   );
-  const register = database.prepare(
-    'INSERT INTO campaign_state(key,value_json) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json'
+  const lookup = database.prepare('SELECT * FROM campaign_owner WHERE owner=?');
+  const sentRows = database.prepare(
+    'SELECT step,at,text,destination FROM campaign_sent WHERE owner=? ORDER BY at'
   );
-  const claim = database.prepare(
-    'INSERT OR IGNORE INTO campaign_state(key,value_json) VALUES (?,?)'
+  const skippedRows = database.prepare(
+    'SELECT step,reason FROM campaign_skipped WHERE owner=?'
   );
   return {
     async lookup(key: string): Promise<CampaignState | undefined> {
-      const row = lookup.get(key) as { value_json: string } | undefined;
-      return row ? (JSON.parse(row.value_json) as CampaignState) : undefined;
+      const row = lookup.get(key);
+      if (!row) return undefined;
+      const omitNull = (value: Record<string, unknown>) =>
+        Object.fromEntries(Object.entries(value).filter(([, v]) => v !== null));
+      return {
+        ...omitNull(row),
+        sent: sentRows.all(key).map(omitNull),
+        skipped: skippedRows.all(key),
+      } as CampaignState;
     },
-    async register(key: string, value: CampaignState) {
-      register.run(key, JSON.stringify(value));
-    },
-    async registerIfAbsent(key: string, value: CampaignState) {
-      return claim.run(key, JSON.stringify(value)).changes === 1;
+    async save(state: CampaignState) {
+      database.exec('BEGIN');
+      try {
+        owner.run(...columns.map((c) => state[c] ?? null));
+        for (const step of state.sent)
+          sent.run(
+            state.owner,
+            step.step,
+            step.at,
+            step.text ?? null,
+            step.destination ?? null
+          );
+        for (const step of state.skipped)
+          skipped.run(state.owner, step.step, step.reason);
+        database.exec('COMMIT');
+      } catch (error) {
+        database.exec('ROLLBACK');
+        throw error;
+      }
     },
     close() {
       database.close();
@@ -79,9 +140,5 @@ export async function withCampaignLock<T>(
 }
 
 export async function saveCampaign(store: CampaignStore, state: CampaignState) {
-  // OpenClaw state rejects undefined even in optional fields.
-  await store.register(
-    state.owner,
-    JSON.parse(JSON.stringify(state)) as CampaignState
-  );
+  await store.save(state);
 }

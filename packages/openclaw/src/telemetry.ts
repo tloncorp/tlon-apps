@@ -1444,7 +1444,6 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
       properties: this.properties({
         campaignAction: event.action,
         campaignVersion: event.version,
-        campaignDirection: event.direction,
         campaignEnrolledAt: event.enrolledAt,
         campaignStep: event.step,
         skipReason: event.reason,

@@ -1,22 +1,20 @@
 # First-week onboarding campaign
 
-The existing channel monitor owns one timer for the next eligible send. `model.ts` evaluates timing
-with a supplied clock; `runner.ts` persists progression; `live.ts` connects Tlon
-messages, presence, and OpenClaw cron state. Tips need no extra model call,
-service, queue, or user cron job. Normal replies carry the conversational part
-of the campaign.
+The channel monitor checks the campaign at startup and every 15 minutes, using
+its existing five-minute settings interval. There is no campaign timer, service,
+queue, model call, or user cron job. `model.ts` makes timing decisions with a
+supplied clock; `runner.ts` saves progress; `live.ts` connects messages and cron.
 
 ## Rollout
 
-Default off. Review the message copy before enabling a cohort. Configure the
-selected gateways under `channels.tlon`:
+Default off. Review the single set of templates before enabling a cohort under
+`channels.tlon`:
 
 ```json
 {
   "onboardingCampaign": {
     "enabled": true,
     "enrollAfter": "2026-10-01T00:00:00Z",
-    "direction": "useful",
     "copy": {
       "own-material": "Send me a note or link about a project. I can help you work out what to do next."
     }
@@ -24,102 +22,82 @@ selected gateways under `channels.tlon`:
 }
 ```
 
-Use the actual rollout boundary; the example is not an activation date.
-Directions are `useful` (default), `archive`, and `routine`; the enrolled
-owner retains their direction if configuration changes. Copy overrides support
-`{topic}` and `{task}`. Missing overrides use the typed templates. Keep overrides
-conditional and truthful; do not assert that notes or results exist. The first
-message always includes opt-out instructions.
+Use the actual rollout boundary. Optional per-step copy overrides support
+`{topic}` and `{task}`; keep them truthful about whether notes or results exist.
+The first tip always includes opt-out instructions.
 
-One runnable Tlon account per gateway is required: cron state is shared at the
-gateway level. The new signup client's first intro request carries timezone and
-`campaignVersion: 1`. Returning accounts and later groups omit the version.
-Only authenticated owner intros newer than the cutoff and within five minutes
-of the gateway clock can enroll (allowing bounded clock skew). Catch-up can recover a fresh intro; it does not backfill old
-history. The server's first observation starts the week, once per owner.
+One runnable Tlon account per gateway is required because cron state is shared.
+The first signup intro carries timezone and `campaignVersion: 1`; returning
+accounts and later groups omit the version. Only authenticated owner intros
+newer than the cutoff and within five minutes of the gateway clock can enroll.
+The first server observation starts the week once per owner. No old-user backfill.
 
 ## Conversation flow
 
-- Reuse structured topic and purpose choices from owner posts tied to bot setup
-  cards. Keep these facts after ordinary replies, but give the owner's latest
-  request precedence. Do not restart the feature menu.
-- After a useful answer or verified saved note, the normal bot turn is instructed
-  to ask “Would this be useful every week?” A confirmed delivered offer suppresses
-  the equivalent scheduled prompt for that direction. This conversational judgment
-  is model-driven; timing and suppression are deterministic.
-- Task creation still follows the ordinary bot tools: obtain agreement and resolve
-  the work, cadence, clock time, timezone, and destination. Campaign code creates
-  no tasks. Never claim a note, connection, or result exists without checking it.
-- Any user recurring task, including disabled tasks or ones made outside guided
-  onboarding, switches acquisition to feedback. Removing it does not restart
-  acquisition. One-shot and internal heartbeat jobs do not count.
-- After verified task delivery, the next conversation open makes feedback pending.
-  It waits for safe conditions while the conversation stays visible. Failed runs
-  or deliveries take precedence over successful work, including the closing tip.
-  One feedback tip can replace a scheduled tip within the five-message cap.
+- Reuse structured topic/purpose choices tied to bot setup cards. Save them and
+  use them in subsequent replies; the owner's latest request takes precedence.
+  Missing choices are fetched at most once per 15 minutes in a running monitor.
+  Reply context uses task facts cached by the campaign check, not another cron read.
+- Normal replies ask “Would this be useful every week?” after a useful answer or
+  verified saved note. A successfully delivered offer suppresses the scheduled
+  recurring-help prompt. The gateway hook covers tool/gateway sends; the monitor
+  also observes its direct HTTP replies. Recording the offer is idempotent.
+- Existing bot tools create tasks only after agreement and resolving work,
+  cadence, clock time, timezone, and destination. Campaign code creates no tasks.
+- Any user recurring task, including a disabled task or one created outside
+  onboarding, stops acquisition prompts. Removing it does not restart them.
+  One-shot and internal heartbeat jobs do not count.
+- A verified task result makes one feedback tip eligible on a regular check,
+  subject to the same spacing, activity, and quiet hours as other tips. Failures
+  take precedence over successful work. Feedback counts toward the five-tip cap.
 
-Use the original private onboarding channel while it contains only owner and
-bot. Public groups, extra members/invitations, or an owner who left route to the
-owner DM. Recheck privacy before sending; once moved to DM, remain there.
-Failure to read group privacy defers delivery. A reply in either personal route
-receives the most recent tip plus campaign facts in the normal bot context.
+Use the private onboarding channel while it contains only the owner and bot.
+Public groups, extra members/invitations, or an owner who left route to the owner
+DM permanently. Verify privacy before delivery; an unavailable privacy read defers.
+There is no campaign presence publisher, heartbeat, or conversation-open trigger.
 
 ## Timing and opt-out
 
-The five windows begin 24, 48, 72, 120, and 144 hours after enrollment, each lasting
-24 hours. Scheduled tips are at least 24 hours apart, between 09:00 and 21:00 in
-local time, near enrollment time or observed activity time. Unknown timezone
-waits for a client activity signal. Expired windows are skipped; no catch-up burst.
-Two unanswered tips suppress intermediate steps but retain a quiet closing.
-Everything stops after seven days or five proactive messages.
+The five windows begin 24, 48, 72, 120, and 144 hours after enrollment and last
+24 hours. Tips are at least 24 hours apart, between 09:00 and 21:00 local time,
+near enrollment time or observed message activity. Unknown timezone defers.
+Expired windows are skipped without a catch-up burst. Two unanswered tips suppress
+intermediate steps but retain a quiet closing. Stop after seven days or five tips.
 
-The next wake is calculated from enrollment, spacing, recent activity, and local
-quiet hours, and restored from durable progress on startup. Replies, recurring
-offers, task changes, and conversation opens/closes recalculate scheduling.
-A due send blocked by active work or unavailable storage/network retries after
-15 minutes. Disabled, completed, and opted-out campaigns schedule no wake.
-History and privacy are loaded only for a due send or missed-slot reconciliation.
+Active bot/task runs and owner messages in the past 15 minutes defer delivery.
+Each check evaluates local state and reads in-process cron state; history and
+privacy reads wait until delivery or missed-slot marker reconciliation is due.
+A failed/blocked check can retry on the next 15-minute monitor check.
 
-Active bot/task runs and recent owner messages defer delivery. The shared client
-publishes bot-only `other` presence while its conversation is focused and the app
-is active. One token identifies each open; 30-second keepalives expire after
-90 seconds. Close events retain the token so an older view cannot close a newer
-one. This uses existing `%presence`, with no chat control posts or backend change.
-Older clients still get the recent-message/active-run checks but cannot trigger
-open-based feedback.
-
-`/stop-tips` and explicit requests such as “stop these tips” persist opt-out.
-Bare “stop” remains an ordinary bot request. Opt-out never cancels scheduled work.
-Disabling the flag stops campaign delivery and command interception without
-resetting state. Opt-out commands are handled only while enabled and for enrolled
-owners.
+`/stop-tips` or explicit “stop these tips” requests save opt-out on the owner row.
+Bare “stop” stays an ordinary bot request. Opt-out never cancels scheduled tasks.
+Setting `enabled: false` stops campaign sends and command interception without
+resetting progress. Commands are intercepted only for enrolled owners.
 
 ## Persistence and verification
 
-State is in `<OpenClaw state directory>/tlon/onboarding-campaign.sqlite`. Tlon
-owns this file because OpenClaw restricts its generic keyed-store API to bundled
-or trusted official plugins, while Tlon also runs as a local plugin. SQLite
-atomically claims enrollment, each step, and up to five send slots. Opt-out has
-its own durable record. No writable store means no tip.
+`<OpenClaw state directory>/tlon/onboarding-campaign.sqlite` contains owner rows,
+sent steps keyed by `(owner, step)`, and skipped steps. Tlon owns this SQLite file
+because OpenClaw's keyed store is unavailable to local plugins. Every owner write
+holds the existing per-owner lock. No store means no tip.
 
-The sent list and bot-authored post markers reconcile accepted sends. A permanent
-attempt claim prevents duplicate retries across workers/restarts; an ambiguous
-send with no visible marker may lose a tip rather than repeat it. Enrollment
-observed during a storage outage survives only until that process exits.
+The durable sent table prevents replay across restarts. Bot-authored chat markers
+recover accepted sends after a crash or send error. There are no permanent attempt
+claims, send-slot claims, fake opt-out records, or cross-process state merges.
+An ambiguous send with no visible marker may be retried and could duplicate a tip.
+Pending enrollment during a storage outage survives only while the process runs.
 
-`TlonBot Onboarding Campaign` records enrollment, direction, send, defer/skip
-reason, reply, and opt-out. Existing cron events describe creation/delivery and
-remain separate from campaign sends. A reply event is not proof of conversion.
+`TlonBot Onboarding Campaign` records enrollment, send, defer/skip reason, reply,
+and opt-out. Existing cron events remain separate; a reply is not conversion.
 
-Tests cover clock decisions, silence, task transitions, privacy fallback,
-presence ownership/lifecycle, reply context, suppression, opt-out, restart, and
-independent SQLite claims. The shared fake-ship case exercises a real owner
-intro, marked private-channel delivery, useful reply/offer recording, agreed task
-creation and delivery, real two-ship DM presence/feedback, and durable opt-out:
+Tests cover timing, silence, task transitions, cached context, privacy fallback,
+marker recovery, opt-out, and durable sent rows. The shared fake-ship case covers
+intro → private tip → useful reply/offer → agreed task → delivered result →
+scheduled feedback → opt-out, retaining the task:
 
 ```sh
 pnpm --dir packages/openclaw test:integration:shared:package test/cases/14-onboarding-campaign.test.ts
 ```
 
-The harness accelerates only its disposable fixture's enrollment clock. Copy and
-real-model conversational quality still require cohort review before rollout.
+The fixture accelerates enrollment and spacing only in its disposable database.
+Real-model copy and conversation quality still require cohort review.
