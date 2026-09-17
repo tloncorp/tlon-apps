@@ -73,8 +73,21 @@ export function isAtColdStartPosition(state: NavigationSnapshot): boolean {
 export function isAwaitingRestoredBotTab(state: NavigationSnapshot): boolean {
   const rootRoute = state?.routes[state.index];
   if (rootRoute?.name !== 'MainTabs') return false;
+  // A deep link or notification that arrived after the restore names its own
+  // tab and carries what it wants shown there. That intent is newer than the
+  // saved position, so the restore has been overtaken — only the untouched
+  // fallback is still waiting for the tab. A restored position that reached
+  // the bot tab through the claim carries `screen: 'BotChat'` itself, which is
+  // the position, not a newer instruction.
+  const screen = (rootRoute.params as { screen?: string } | undefined)?.screen;
+  if (screen != null && screen !== 'BotChat') return false;
   const tabs = rootRoute.state;
-  return tabs?.routes?.[tabs.index ?? 0]?.name !== 'BotChat';
+  const focusedTab = tabs?.routes?.[tabs.index ?? 0];
+  if (!focusedTab) return true;
+  if (focusedTab.name === 'BotChat') return false;
+  return (
+    focusedTab.name === 'ChatList' && !hasDestinationParams(focusedTab.params)
+  );
 }
 
 /**

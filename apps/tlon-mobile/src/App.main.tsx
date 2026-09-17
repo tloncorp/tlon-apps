@@ -289,10 +289,25 @@ function ConnectedNavigationContent({
           findAgentGroupOnboardingStartupRoute(locks) != null;
         if (
           !onboardingOwnsRoot &&
+          saved != null &&
           isRestorableNavigationState(saved, Date.now(), shipInfo?.ship ?? null)
         ) {
-          initialState = saved?.state as NavigationState;
+          initialState = saved.state as NavigationState;
           markNavigationRestored(getFocusedTopLevelTab(initialState));
+          // The window measures how recently a position was in use, not when
+          // it last changed. Only `onStateChange` writes it otherwise, so a
+          // restored screen the user reads without navigating away keeps the
+          // age it had before the eviction, and a later relaunch refuses it.
+          // Issued before the navigator mounts, and `createStorageItem` chains
+          // writes in order, so it cannot land on top of a newer position.
+          db.lastNavigationState
+            .setValue({ ...saved, savedAt: Date.now() })
+            .catch((err) => {
+              navigationStateLogger.trackError(
+                'Failed to refresh restored navigation state',
+                { errorKind: err instanceof Error ? err.name : typeof err }
+              );
+            });
         }
       } catch (err) {
         // A position is a convenience; failing to read one must not stop the

@@ -202,4 +202,59 @@ describe('isAwaitingRestoredBotTab', () => {
       })
     ).toBe(false);
   });
+
+  test('holds when the position itself named the bot tab', () => {
+    expect(
+      isAwaitingRestoredBotTab({
+        index: 0,
+        routes: [
+          {
+            name: 'MainTabs',
+            params: { screen: 'BotChat' },
+            state: tabs('ChatList'),
+          },
+        ],
+      })
+    ).toBe(true);
+  });
+
+  test('releases to a deep link that landed after the restore', () => {
+    expect(
+      isAwaitingRestoredBotTab({
+        index: 0,
+        routes: [
+          {
+            name: 'MainTabs',
+            state: {
+              index: 0,
+              routes: [
+                { name: 'ChatList', params: { previewGroupId: '~zod/garden' } },
+              ],
+            },
+          },
+        ],
+      })
+    ).toBe(false);
+    expect(
+      isAwaitingRestoredBotTab({
+        index: 0,
+        routes: [
+          {
+            name: 'MainTabs',
+            params: { screen: 'ChatList' },
+            state: tabs('ChatList'),
+          },
+        ],
+      })
+    ).toBe(false);
+  });
+
+  test('releases on a tab that is neither the bot tab nor the fallback', () => {
+    expect(
+      isAwaitingRestoredBotTab({
+        index: 0,
+        routes: [{ name: 'MainTabs', state: tabs('Settings') }],
+      })
+    ).toBe(false);
+  });
 });
