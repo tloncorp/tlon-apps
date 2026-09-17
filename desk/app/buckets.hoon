@@ -10,7 +10,7 @@
 ::  returned only to the requester — they never appear in a broadcast.
 ::
 /-  b=buckets, gv=groups-ver
-/+  default-agent, dbug, verb, server, util=buckets-util, eyre-reply
+/+  default-agent, dbug, verb, server, util=buckets-util, eyre-reply, logs
 /=  buckets-json  /lib/buckets/json
 |%
 +$  card  card:agent:gall
@@ -118,8 +118,7 @@
   ++  on-fail
     |=  [=term =tang]
     ^-  (quip card _this)
-    %-  (slog 'buckets: on-fail' >term< tang)
-    [~ this]
+    [[(~(on-fail logs bowl /logs) term tang)]~ this]
   --
 ::
 |_  [=bowl:gall cards=(list card) reply=(unit response-body:b)]
@@ -128,6 +127,35 @@
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
+::  +note: emit one structured log line.
+::
+::  Everything here used to be a +slog, which reaches dill's stdout and so is
+::  only visible where a ship's output happens to be collected. %logs carries
+::  it to the fleet-wide sink instead, with a severity the sink can filter on
+::  and fields it can group by -- which is the difference between "somebody
+::  noticed this ship is unhappy" and "show me every bucket whose revoke the
+::  broker refused this week".
+::
+::  Returns cor, so it reads the same inside the sub-cores, where a bare +emit
+::  would give back the door instead.
+::
+++  note
+  |=  [vol=volume:logs =echo:logs fields=(list (pair @t json))]
+  ^+  cor
+  (emit (~(tell logs bowl /logs) vol echo fields))
+::  +log-bucket: name a bucket as a queryable field rather than only inside
+::  the message, so a search can be scoped to one bucket.
+::
+++  log-bucket
+  |=  =flag:b
+  ^-  (list (pair @t json))
+  ~[['bucket' s+(rap 3 (scot %p ship.flag) '/' (scot %tas name.flag) ~)]]
+::  +log-reader: the same, for one (bucket, reader) pair.
+::
+++  log-reader
+  |=  key=reader-key:b
+  ^-  (list (pair @t json))
+  (snoc (log-bucket flag.key) ['reader' s+(scot %p reader.key)])
 ::  +answer: record the terminal body for the action being applied. Arms that
 ::  mint a token or refuse call this; +settle turns it into the response.
 ::
@@ -571,6 +599,10 @@
   |=  [host=ship rid=request-id:b why=@t]
   ^+  cor
   ?.  (request-live rid)  cor
+  =.  cor
+    %^  note  %warn
+      ~[leaf+"buckets: gave up on a request to a host"]
+    ~[['host' s+(scot %p host)] ['reason' s+why]]
   =/  token-for=(unit flag:b)
     ?~(got=(~(get by pending) rid) ~ token-for.u.got)
   =.  cor  (close-request host rid)
@@ -1143,6 +1175,10 @@
   ++  up-unreachable
     ^+  up-core
     =.  ses  ses(status %cancelled, error `'storage is unreachable')
+    =.  cor
+      %^  note  %warn
+        ~[leaf+"buckets: cannot reach storage, upload cancelled"]
+      (log-bucket flag.ses)
     (up-answer [%error %unknown 'this ship cannot reach storage yet'])
   ::  +up-fail: the broker refused this call, or never made it.
   ::
@@ -1150,6 +1186,10 @@
     |=  why=@t
     ^+  up-core
     =.  ses  ses(status %cancelled, error `why)
+    =.  cor
+      %^  note  %warn
+        ~[leaf+"buckets: upload failed at the broker"]
+      (snoc (log-bucket flag.ses) ['reason' s+why])
     (up-answer [%error %unknown why])
   ::  +up-publish: move this session's entry into the manifest and broadcast
   ::  it. The session is retained as %complete so a repeated completion is a
@@ -1352,7 +1392,14 @@
           res=client-response:iris
       ==
   ^+  cor
-  ?.  (~(has by sessions) sid)  cor
+  ::  The session is gone -- swept as lapsed, or dropped with its bucket or
+  ::  folder -- so there is nobody to answer and nothing to advance. Worth
+  ::  saying: if the broker stored the object anyway, this is the line that
+  ::  explains an orphan nothing in the manifest points at.
+  ?.  (~(has by sessions) sid)
+    %^  note  %warn
+      ~[leaf+"buckets: broker answered about an upload we no longer hold"]
+    ~[['session' s+(scot %uv sid)] ['call' s+(scot %tas kind)]]
   up-abet:(up-took:(up-abed:up-core sid) kind res)
 ::
 ::  +verify-receipt: does what landed match what we asked for.
@@ -1472,7 +1519,10 @@
   ?^  secret  (answer [%pending ~])
   ::  A client should not be left holding a request we cannot act on yet, so
   ::  it is told; the timer path has no one waiting and just retries.
-  %-  (slog leaf+"buckets: no %genuine secret, reader sync deferred" ~)
+  =.  cor
+    %^  note  %warn
+      ~[leaf+"buckets: no %genuine secret, reader sync deferred"]
+    (log-bucket flag)
   ?~  rid  cor
   (answer [%error %unknown 'this ship cannot reach storage yet'])
 ::
@@ -1708,7 +1758,10 @@
     ?:  ?&(?=(^ theirs) stale)
       ::  Above what it kept, so the resend cannot tie with it again.
       =.  sync  sync(revision +(u.theirs), synced u.theirs)
-      %-  (slog leaf+"buckets: broker was ahead of us, resending" ~)
+      =.  cor
+        %^  note  %warn
+          ~[leaf+"buckets: broker was ahead of us, resending"]
+        (log-reader key)
       =.  rd-core
         (emil (sync-cards ~[[key revision.sync bucket-id.sync desired.sync]]))
       rd-core
@@ -1780,11 +1833,13 @@
     ^+  rd-core
     =/  granted=?  ?=(%granted -.desired.sync)
     =?  rd-core  granted  rd-core(sync sync(failed &))
+    ::  %error rather than %warn: a revoke the broker will not take leaves a
+    ::  reader we believe is cut off still able to read, and nothing retries
+    ::  it into correctness.
     =?  cor  !granted
-      %-  %-  slog
-          :_  ~
-          leaf+"buckets: broker refused a revoke for {<key>}, still owed"
-      cor
+      %^  note  %error
+        ~[leaf+"buckets: broker refused a revoke, reader still has access"]
+      (log-reader key)
     (rd-answer [%error %unknown why])
   --
 ::
@@ -1837,7 +1892,8 @@
   ?~  wants  ~
   =/  secret=(unit @t)  genuine-secret
   ?~  secret
-    %-  (slog leaf+"buckets: no %genuine secret, cannot sync readers" ~)
+    =.  cor
+      (note %warn ~[leaf+"buckets: no %genuine secret, cannot sync readers"] ~)
     ~
   %+  turn  wants
   |=  [key=reader-key:b revision=@ud bucket-id=@t desired=reader-state:b]
@@ -2014,7 +2070,8 @@
   |=  base=(unit @t)
   ^+  cor
   ?~  base
-    %-  (slog leaf+"buckets: broker base reset to the default" ~)
+    =.  cor
+      (note %info ~[leaf+"buckets: broker base reset to the default"] ~)
     ::  Going back is a move between brokers like any other: the default has
     ::  heard nothing we said while we were pointed elsewhere.
     (rebase-readers default-broker-base)
@@ -2026,9 +2083,13 @@
     =/  last=@ud  (dec (lent txt))
     ?.(=('/' (snag last txt)) txt (scag last txt))
   ?.  =("https://" (scag 8 txt))
-    %-  (slog leaf+"buckets: refusing a broker base that is not https" ~)
+    =.  cor
+      (note %warn ~[leaf+"buckets: refusing a broker base that is not https"] ~)
     cor
-  %-  (slog leaf+"buckets: broker base is now {txt}" ~)
+  =.  cor
+    %^  note  %info
+      ~[leaf+"buckets: broker base changed"]
+    ~[['base' s+(crip txt)]]
   (rebase-readers (crip txt))
 ::
 ::  +rebase-readers: point every live grant at the broker we just moved to.
@@ -2191,7 +2252,10 @@
 ++  refuse
   |=  why=@tas
   ^-  json
-  %-  (slog leaf+"buckets: refused a broker request, {<why>}" ~)
+  =.  cor
+    %^  note  %warn
+      ~[leaf+"buckets: refused a broker request"]
+    ~[['reason' s+why]]
   (broker-simple-verdict 'denied')
 ::
 ::  +broker-object-verdict: answer Memex about one object.
@@ -2648,7 +2712,12 @@
       ::  changed while we had no feed was never delivered, and nothing else
       ::  will go looking for it.
       ?~  p.sign  recheck-every-host-sub
-      %-  (slog leaf+"buckets: groups watch refused, retrying" u.p.sign)
+      ::  %error: without this feed nothing calls +recheck-host-subs, so
+      ::  nothing revokes, and a reader who has lost access keeps a working
+      ::  token until it expires. The retry below is the only thing standing
+      ::  between that and permanence.
+      =.  cor
+        (note %error [leaf+"buckets: groups watch refused, retrying" u.p.sign] ~)
       (emit [%pass /groups/retry %arvo %b %wait (add now.bowl groups-retry)])
     ==
   ::
@@ -2672,10 +2741,11 @@
       ::  emptiness on to its real host, where it opens the bucket to every
       ::  reader.
       ?.  =(flag flag.res)
-        %-  %+  slog
-              leaf+"buckets: {<flag>} published a fact about {<flag.res>}"
-            ~
-        cor
+        %^  note  %error
+          ~[leaf+"buckets: host published a fact about another bucket"]
+        %+  snoc  (log-bucket flag)
+        :-  'claimed'
+        s+(rap 3 (scot %p ship.flag.res) '/' (scot %tas name.flag.res) ~)
       (apply-response res)
     ::
     ::  A kick is not a revocation, so re-watch rather than dropping the
@@ -2747,22 +2817,29 @@
     ?+  -.sign  cor
         %poke-ack
       ?~  p.sign  cor
-      %-  (slog leaf+"buckets: host command failed" u.p.sign)
+      =.  cor
+        %^  note  %warn
+          [leaf+"buckets: host rejected a command" u.p.sign]
+        ~[['host' s+(scot %p host)]]
       (abandon-request host rid 'host rejected the command')
     ==
   ::
-      [%buckets @ @ ?(%create %delete) ~]
+      [%buckets host=@ name=@ ?(%create %delete) ~]
     ?+  -.sign  cor
         %poke-ack
       ?~  p.sign  cor
-      ((slog leaf+"buckets: group channel registration failed" u.p.sign) cor)
+      ::  %error: %groups never learned about this channel, so the bucket
+      ::  exists here and is invisible to every member.
+      %^  note  %error
+        [leaf+"buckets: group channel registration failed" u.p.sign]
+      (log-bucket [(slav %p host.pole) `@tas`name.pole])
     ==
   ::
       [%report-active ~]
     ?+  -.sign  cor
         %poke-ack
       ?~  p.sign  cor
-      ((slog leaf+"buckets: active-channel report failed" u.p.sign) cor)
+      (note %warn [leaf+"buckets: active-channel report failed" u.p.sign] ~)
     ==
   ==
 ::
@@ -2773,7 +2850,8 @@
       [%eyre ~]
     ?.  ?=([%eyre %bound *] sign-arvo)  cor
     ?:  accepted.sign-arvo  cor
-    %-  (slog leaf+"buckets: eyre bind rejected" ~)
+    =.  cor
+      (note %error ~[leaf+"buckets: eyre bind rejected, no HTTP surface"] ~)
     cor
   ::
       [%buckets %token host=@ name=@ ~]
@@ -2803,8 +2881,9 @@
     ::  A cancelled request is a refusal, not silence. Nothing is undone: the
     ::  desired state stands and the retry timer will send it again.
     ?:  ?=(%cancel -.res)
-      %-  (slog leaf+"buckets: reader sync was cancelled" ~)
-      cor
+      %^  note  %warn
+        ~[leaf+"buckets: reader sync was cancelled"]
+      (log-reader key)
     =/  code=@ud  status-code.response-header.res
     =/  theirs=(unit @ud)  (broker-revision:util res)
     ::  A stale write is not a failure -- it answers 200 with the revision it
@@ -2817,11 +2896,17 @@
     ::  path instead: a stale write answers 200 with the revision the broker
     ::  kept, which +confirm-reader adopts.
     ?:  (broker-retryable:util res)
-      %-  (slog leaf+"buckets: reader sync failed, status {<code>}, retrying" ~)
-      cor
+      %^  note  %warn
+        ~[leaf+"buckets: reader sync failed, retrying"]
+      (snoc (log-reader key) ['status' (numb:enjs:format code)])
     ::  Refused as invalid rather than stale. Another attempt gets the same
     ::  answer, so stop owing it and tell anyone waiting.
-    %-  (slog leaf+"buckets: reader sync rejected, status {<code>}" ~)
+    ::  %error: refused as invalid, so no retry will fix it. A grant stops
+    ::  arriving, or a revoke stops being enforced, until someone looks.
+    =.  cor
+      %^  note  %error
+        ~[leaf+"buckets: reader sync rejected as invalid"]
+      (snoc (log-reader key) ['status' (numb:enjs:format code)])
     (fail-reader key sent)
   ::
       [%groups %retry ~]
@@ -2926,7 +3011,10 @@
   ?.  =(group group.st)  acc
   =/  kept=(set @tas)  (~(dif in writers.st) roles)
   ?:  =(kept writers.st)  acc
-  %-  (slog leaf+"buckets: dropping deleted roles from {<flag>} writers" ~)
+  =.  acc
+    %^  note:acc  %info
+      ~[leaf+"buckets: dropping deleted roles from writers"]
+    (log-bucket:acc flag)
   se-abet:(se-set-writers:(se-abed:se-core:acc flag) kept our.bowl)
 ::
 ::  +recheck-every-host-sub: run the permission sweep for every group we host
