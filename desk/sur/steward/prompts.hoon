@@ -26,7 +26,11 @@
       [%pending status=poke-status]
   ==
 +$  response  [id=request-id body=response-body]
-+$  dispatch  [id=request-id =edit]
+::  $dispatch: .requester is the owner that authorized the command. the
+::  harness re-checks it against its own configured owner: a replay can
+::  reach a harness that has not yet re-pointed the bot at a new owner
+::
++$  dispatch  [id=request-id requester=ship =edit]
 ::  $incoming-request: owner-side HTTP wait and eventual result
 ::
 +$  incoming-request

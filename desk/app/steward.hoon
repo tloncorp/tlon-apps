@@ -183,7 +183,7 @@
   ::
   =.  cor  (emit au-eyre-card:au-core)
   =?  cor  new-automation  (emit au-cleanup-card:au-core)
-  =?  cor  new-prompts  (emil pr-init-cards:pr-core)
+  =?  cor  new-prompts  (emil pr-migrate-cards:pr-core)
   cor
 ::  %0 → %1: the gateway slice gained leading .notify-on-start and
 ::  .last-interaction fields
@@ -1783,6 +1783,7 @@
       (pr-give-deltas our.bowl old projected)
     ::
         %edit
+      ?>  (pr-bot-editable bot.action)
       (pr-handle-edit [request-id bot edit]:action)
     ::
         %finalize
@@ -1873,11 +1874,13 @@
       ?.  (~(has in bots.state) bot)  cor
       (emit (pr-watch-card bot))
     ::
+    ::  a nack schedules no retry, so dropping the mirror here would
+    ::  strand it until someone re-pokes %trust-bot. keep the last good
+    ::  projection; a %kick or a fresh %trust-bot repairs it
+    ::
         %watch-ack
       ?~  p.sign  cor
-      ?.  (~(has by files.prompts.state) bot)  cor
-      =.  files.prompts.state  (~(del by files.prompts.state) bot)
-      (pr-give-update [%gone bot])
+      ((slog 'steward: prompts watch nacked' u.p.sign) cor)
     ==
   ::
   ++  pr-apply-bot-update
@@ -1954,6 +1957,32 @@
   ++  pr-init-cards
     ^-  (list card)
     ~[[%pass /prompts/cleanup %arvo %b %wait (add now.bowl ~m5)]]
+  ::  a ship upgrading into %3 already has its trusted set. prompt
+  ::  watches are otherwise only created by %trust-bot, so subscribe the
+  ::  preserved bots here or their projections never arrive
+  ::
+  ++  pr-migrate-cards
+    ^-  (list card)
+    %+  welp  pr-init-cards
+    %+  turn
+      ::  guarded on wex like +pr-trust-bot: the local ship never gets a
+      ::  watch, and a second card on a live wire crashes the subscribe
+      ::
+      %+  skip  ~(tap in bots.state)
+      |=  bot=ship
+      ?|  =(bot our.bowl)
+          (~(has by wex.bowl) [/prompts/files/(scot %p bot) bot %steward])
+      ==
+    pr-watch-card
+  ::
+  ::  an edit may only be relayed to a bot this ship manages: the local
+  ::  ship, or one in the trusted set. without this a client could drive
+  ::  a workspace edit on any ship that names us as its owner
+  ::
+  ++  pr-bot-editable
+    |=  bot=ship
+    ^-  ?
+    |(=(bot our.bowl) (~(has in bots.state) bot))
   ::
   ++  pr-harness-path  `path`/v1/prompts/harness
   ++  pr-req-wire
@@ -2039,8 +2068,13 @@
     ?~  req=(~(get by requests.prompts.state) rid)  cor
     ?.  =(bot bot.u.req)  cor
     ?~  p.sign
+      ::  a wake that already stored %pending reads its status from the
+      ::  result, so refresh that too or a poller reads %sending forever
+      ::
+      =/  next  u.req(poke-status %acked)
+      =?  result.next  ?=([~ %pending *] result.next)  `[%pending %acked]
       =.  requests.prompts.state
-        (~(put by requests.prompts.state) rid u.req(poke-status %acked))
+        (~(put by requests.prompts.state) rid next)
       cor
     =.  requests.prompts.state
       (~(put by requests.prompts.state) rid u.req(poke-status %nacked))
@@ -2126,7 +2160,7 @@
       =.  pending.prompts.state
         %+  ~(put by pending.prompts.state)  rid
         [rid src.bowl edit.c-prompts now.bowl ~]
-      (pr-give-dispatch ~[pr-harness-path] [rid edit.c-prompts])
+      (pr-give-dispatch ~[pr-harness-path] [rid src.bowl edit.c-prompts])
     ==
   ::
   ++  pr-give-dispatch
@@ -2166,7 +2200,7 @@
     ?~  entries  cor
     =?  cor
         &(?=(~ result.i.entries) =(`requester.i.entries owner.state))
-      (pr-give-dispatch ~ [id edit]:i.entries)
+      (pr-give-dispatch ~ [id requester edit]:i.entries)
     $(entries t.entries)
   ::
   ::  sweep: terminal records go once fetched or after a day; a pending
@@ -2190,6 +2224,23 @@
         (~(del by requests.prompts.state.cor) id)
       =?  cor  waiting  (pr-leave-req:pr-core:cor bot.req id)
       (give:cor %kick ~[(pr-local-req-path id)] ~)
+    ::  a command the harness never answered is closed out to its
+    ::  requester as harness-offline, so the owner's record finalizes
+    ::  instead of ageing out as pending
+    ::
+    =/  expired
+      |=  pen=pending-command:v1:sp
+      ?&  ?=(~ result.pen)
+          (gte now.bowl sent-at.pen)
+          (gth (sub now.bowl sent-at.pen) ~h1)
+      ==
+    =/  dropped  (skim ~(val by pending.prompts.state) expired)
+    =.  cor
+      |-  ^+  cor
+      ?~  dropped  cor
+      =.  cor
+        (pr-give-response requester.i.dropped [id.i.dropped %error %harness-offline ~])
+      $(dropped t.dropped)
     =.  pending.prompts.state
       %-  ~(rep by pending.prompts.state)
       |=  [[id=request-id:v1:sp pen=pending-command:v1:sp] out=pending:v1:sp]
@@ -2265,6 +2316,10 @@
       (http-error eyre-id 400 'malformed action')
     ?.  (pr-valid-edit p.edit-res)
       (http-error eyre-id 400 'unsupported file or oversized text')
+    ::  a well-formed body is authorized last, so malformed input stays 400
+    ::
+    ?.  (pr-bot-editable p.bot-res)
+      (http-error eyre-id 403 'bot is not trusted')
     =/  rj  (~(get by p.u.jon) 'requestId')
     =/  parsed=(each request-id:v1:sp tang)
       ?~  rj  [%& `@uv`eny.bowl]

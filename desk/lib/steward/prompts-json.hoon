@@ -35,7 +35,7 @@
   ++  response
     (ot 'requestId'^request-id body+response-body ~)
   ++  dispatch
-    (ot 'requestId'^request-id action+edit ~)
+    (ot 'requestId'^request-id requester+(se %p) action+edit ~)
   ++  action
     |=  jon=json
     ^-  action:v1:p
@@ -108,7 +108,11 @@
   ++  dispatch
     |=  =dispatch:v1:p
     ^-  json
-    (pairs ~[['requestId' (request-id id.dispatch)] ['action' (edit edit.dispatch)]])
+    %-  pairs
+    :~  ['requestId' (request-id id.dispatch)]
+        ['requester' s+(scot %p requester.dispatch)]
+        ['action' (edit edit.dispatch)]
+    ==
   ++  action
     |=  =action:v1:p
     ^-  json
