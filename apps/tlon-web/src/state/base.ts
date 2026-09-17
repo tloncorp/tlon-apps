@@ -1,10 +1,10 @@
 /* eslint-disable no-param-reassign */
-import UrbitMock from '@tloncorp/mock-http-api';
-import { Poke } from '@urbit/api';
 import Urbit, {
   FatalError,
   SubscriptionRequestInterface,
-} from '@urbit/http-api';
+} from '@tloncorp/api/http-api';
+import UrbitMock from '@tloncorp/mock-http-api';
+import { Poke } from '@urbit/api';
 import {
   Patch,
   applyPatches,

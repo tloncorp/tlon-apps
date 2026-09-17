@@ -1,6 +1,6 @@
 import { RouteProp, useIsFocused, useRoute } from '@react-navigation/native';
 import { FlashListRef } from '@shopify/flash-list';
-import { markInvitesRead } from '@tloncorp/api';
+import { markInvitesRead, reportBackgroundFailure } from '@tloncorp/api';
 import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
@@ -306,7 +306,10 @@ export function ChatListScreenView({
           'markInvitesRead',
           { priority: store.SyncPriority.Medium },
           async () => {
-            markInvitesRead();
+            // left unawaited so the queue thread isn't held for the backoff
+            markInvitesRead().catch(
+              reportBackgroundFailure(logger, 'mark invites read')
+            );
           }
         );
       }, 1000);

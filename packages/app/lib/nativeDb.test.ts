@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   NativeDb,
@@ -11,13 +11,13 @@ import {
 import { TRIGGER_SETUP } from './triggers';
 
 type MockConnection = {
-  close: ReturnType<typeof vi.fn>;
-  createClient: ReturnType<typeof vi.fn>;
-  delete: ReturnType<typeof vi.fn>;
-  execute: ReturnType<typeof vi.fn>;
-  getDbPath: ReturnType<typeof vi.fn>;
-  migrateClient: ReturnType<typeof vi.fn>;
-  updateHook: ReturnType<typeof vi.fn>;
+  close: Mock<any, any>;
+  createClient: Mock<any, any>;
+  delete: Mock<any, any>;
+  execute: Mock<any, any>;
+  getDbPath: Mock<any, any>;
+  migrateClient: Mock<any, any>;
+  updateHook: Mock<any, any>;
 };
 
 type TrackPayload = Record<string, unknown>;
@@ -107,6 +107,7 @@ vi.mock('@tloncorp/shared', () => ({
   },
   AnalyticsSeverity: {
     Critical: 'Critical',
+    Low: 'Low',
   },
   createDevLogger: () => loggerSpies,
   escapeLog: (value: string) => value,
@@ -167,6 +168,17 @@ function findPayload(
 ): TrackPayload | undefined {
   return eventPayloads().find(matcher);
 }
+
+function findEvent(
+  matcher: (event: string, payload: TrackPayload) => boolean
+): [string, TrackPayload] | undefined {
+  return loggerSpies.trackEvent.mock.calls.find(([event, payload]) =>
+    matcher(event as string, (payload ?? {}) as TrackPayload)
+  ) as [string, TrackPayload] | undefined;
+}
+
+const BASELINE_COLLISION_MESSAGE =
+  '[op-sqlite] sqlite query error: table `activity_event_contact_group_pins` already exists';
 
 describe('NativeDb', () => {
   beforeEach(() => {
@@ -352,7 +364,7 @@ describe('NativeDb', () => {
 
   it('throws if retry purge fails', async () => {
     const firstConnection = sqliteRuntime.makeConnection({
-      delete: vi.fn(() => {
+      delete: vi.fn((): void => {
         throw new Error('delete failed');
       }),
       migrateClient: vi
@@ -528,5 +540,94 @@ describe('NativeDb', () => {
     await Promise.all([first, second]);
     await secondPass;
     expect(processChangesSpy).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('NativeDb initial migrate reporting', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sqliteRuntime.reset();
+  });
+
+  function rejectingConnection(message: string) {
+    return sqliteRuntime.makeConnection({
+      migrateClient: vi.fn().mockRejectedValue(new Error(message)),
+    });
+  }
+
+  /**
+   * Nothing downstream branches on why the initial attempt failed -- every error
+   * falls through to the same purge and retry -- so the report is the same event
+   * at the same severity whatever the failure was.
+   */
+  function expectLowInitialFailure(message: string) {
+    const initialFailure = findEvent(
+      (_event, payload) =>
+        payload.context ===
+        'runMigrations: initial migrate failed. Purging and retrying'
+    );
+    expect(initialFailure?.[0]).toBe('NativeDbDebug');
+    expect(initialFailure?.[1]).toMatchObject({
+      attemptId: expect.any(String),
+      elapsedMs: expect.any(Number),
+      error: expect.any(Error),
+      errorMessage: message,
+      migrationPhase: 'initial',
+      severity: 'Low',
+    });
+
+    expect(findEvent((event) => event === 'ErrorNativeDb')).toBeUndefined();
+  }
+
+  it('counts the baseline replay collision without paging, and still purges and retries', async () => {
+    const firstConnection = rejectingConnection(BASELINE_COLLISION_MESSAGE);
+    const secondConnection = sqliteRuntime.makeConnection();
+    sqliteRuntime.enqueueConnection(firstConnection);
+    sqliteRuntime.enqueueConnection(secondConnection);
+    const db = new NativeDb();
+
+    await db.runMigrations();
+
+    expect(firstConnection.delete).toHaveBeenCalledTimes(1);
+    expect(secondConnection.migrateClient).toHaveBeenCalledTimes(1);
+    expectLowInitialFailure(BASELINE_COLLISION_MESSAGE);
+  });
+
+  it('counts an unrelated initial failure the same way', async () => {
+    const firstConnection = rejectingConnection('Migration timeout exceeded');
+    const secondConnection = sqliteRuntime.makeConnection();
+    sqliteRuntime.enqueueConnection(firstConnection);
+    sqliteRuntime.enqueueConnection(secondConnection);
+    const db = new NativeDb();
+
+    await db.runMigrations();
+
+    expect(firstConnection.delete).toHaveBeenCalledTimes(1);
+    expect(secondConnection.migrateClient).toHaveBeenCalledTimes(1);
+    expectLowInitialFailure('Migration timeout exceeded');
+  });
+
+  it('reports critically when the failure survives the purge', async () => {
+    sqliteRuntime.enqueueConnection(
+      rejectingConnection(BASELINE_COLLISION_MESSAGE)
+    );
+    sqliteRuntime.enqueueConnection(
+      rejectingConnection(BASELINE_COLLISION_MESSAGE)
+    );
+    const db = new NativeDb();
+
+    await expect(db.runMigrations()).rejects.toThrow(
+      BASELINE_COLLISION_MESSAGE
+    );
+
+    const retryFailure = findEvent(
+      (event, payload) =>
+        event === 'ErrorNativeDb' && payload.migrationPhase === 'retry'
+    );
+    expect(retryFailure?.[1]).toMatchObject({
+      context: 'runMigrations: retry migrate failed',
+      errorMessage: BASELINE_COLLISION_MESSAGE,
+      severity: 'Critical',
+    });
   });
 });

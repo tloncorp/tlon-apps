@@ -151,9 +151,18 @@ export function useConfigureUrbitClient() {
             await logout();
           } else {
             // we can recover if hosting auth is still valid, only logout if we
-            // know for sure it's expired. Notably, this will never trigger if you're
-            // offline.
-            const hostingAuthStatus = await api.getHostingHeartBeat();
+            // know for sure it's expired. Notably, this will never trigger if
+            // you're offline -- an unreachable hosting API throws, which we
+            // treat as "not known to be expired".
+            const hostingAuthStatus = await api
+              .getHostingHeartBeat()
+              .catch((e) => {
+                api.reportBackgroundFailure(
+                  clientLogger,
+                  'hosting heartbeat'
+                )(e);
+                return null;
+              });
             if (hostingAuthStatus === 'expired') {
               clientLogger.trackEvent(AnalyticsEvent.AuthForcedLogout, {
                 authType,
