@@ -27,7 +27,7 @@ onFlowComplete:
     point: '50%,30%'
 - inputText: ${output.signupEmail}
 - hideKeyboard
-- tapOn: Submit
+- tapOn: Sign up
 
 # get OTP and submit it digit by digit. Attempting to insert
 # all at once causes flakiness. extendedWaitUntil calls are a

@@ -20,7 +20,8 @@ env:
     visible:
       id: NotesTitleInput
     timeout: 15000
-- tapOn: '^Write something …\n?$'
+- tapOn:
+    id: NotesBodyInput
 - tapOn:
     id: NotesTitleInput
     point: '95%,50%'
@@ -32,7 +33,8 @@ env:
 - assertVisible:
     id: NotesTitleInput
     text: ${output.reliability.title}
-- tapOn: '^Write something …\n?$'
+- tapOn:
+    id: NotesBodyInput
 - runFlow:
     file: subflows/input.yaml
     env:
