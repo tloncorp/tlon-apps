@@ -1,3 +1,5 @@
+import { setCampaignStore } from './src/monitor/campaign/store.js';
+import { notifyCampaignCronChanged } from './src/monitor/campaign/live.js';
 import { createRequire } from 'node:module';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -887,6 +889,20 @@ export default defineBundledChannelEntry({
       );
     }
 
+    try {
+      setCampaignStore(
+        api.runtime.state.openKeyedStore({
+          namespace: 'tlon-onboarding-campaign',
+          maxEntries: 500,
+        })
+      );
+    } catch (error) {
+      setCampaignStore(null);
+      api.logger.warn(
+        `[tlon] campaign disabled without durable state: ${String(error)}`
+      );
+    }
+
     // ── Gateway-status liveness integration ───────────────────
     //
     // registerFull is NOT a once-per-process call: OpenClaw invokes it once
@@ -1325,6 +1341,7 @@ export default defineBundledChannelEntry({
     });
 
     api.on('cron_changed', async (event, ctx) => {
+      notifyCampaignCronChanged(event);
       try {
         await handleCronChangedEvent(event, ctx);
       } catch (error) {

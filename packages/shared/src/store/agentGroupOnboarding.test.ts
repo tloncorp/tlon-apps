@@ -370,3 +370,34 @@ describe('agent group furnishing retry', () => {
     expect(onReadyToReveal).toHaveBeenCalledOnce();
   });
 });
+
+describe('initial onboarding campaign metadata', () => {
+  it('includes timezone before a task has been provisioned', () => {
+    const request = agentGroupOnboardingTesting.buildIntroRequest(
+      '~zod/home',
+      true,
+      true
+    );
+    expect(request).toMatchObject({
+      type: 'tlon-agent-intro-request',
+      version: 1,
+      groupId: '~zod/home',
+      isFirstGroup: true,
+      campaignVersion: 1,
+    });
+    expect(request.timezone).toBe(
+      Intl.DateTimeFormat().resolvedOptions().timeZone
+    );
+    expect(request.timezone).toBeTruthy();
+  });
+  it('does not enroll returning accounts or later group creations', () => {
+    expect(
+      agentGroupOnboardingTesting.buildIntroRequest('~zod/home', true, false)
+        .campaignVersion
+    ).toBeUndefined();
+    expect(
+      agentGroupOnboardingTesting.buildIntroRequest('~zod/later', false, true)
+        .campaignVersion
+    ).toBeUndefined();
+  });
+});
