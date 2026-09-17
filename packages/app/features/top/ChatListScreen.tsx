@@ -19,6 +19,7 @@ import { useScrollToTabTop } from '../../hooks/useScrollToTabTop';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
 import { reportChatListFirstPaint } from '../../lib/chatListSettleTelemetry';
 import { useFloatingHeaderHeight } from '../../navigation/useFloatingHeaderHeight';
+import { useScreenScrollProps } from '../../ui/components/useScreenScrollProps';
 import type { TopLevelTabParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
@@ -358,6 +359,11 @@ export function ChatListScreenView({
   }, [handleSearchInputToggled]);
 
   const [listFilter, setListFilter] = useState<ChatListFilter>('all');
+  // The top-level tabs share one native header, and it stays opaque until a
+  // screen installs the scroll-edge options. Install them here rather than
+  // inheriting whichever tab was focused last: the clearance below is only
+  // the right offset once the header actually floats.
+  useScreenScrollProps();
   // The native header floats over the screen on iOS 26, and this screen's
   // content starts at the top of that area. The filter tabs sit above the
   // list, so the clearance has to be layout on the column rather than a

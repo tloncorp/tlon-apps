@@ -39,7 +39,6 @@ export function ActivityScreenView({
   loadingSubtitle,
   onNavigateToContacts,
   onInviteFriends,
-  onBackPressed,
   scrollRef,
 }: {
   isFocused: boolean;
@@ -54,8 +53,6 @@ export function ActivityScreenView({
   loadingSubtitle?: string | null;
   onNavigateToContacts?: () => void;
   onInviteFriends?: () => void;
-  /** Mobile pushes Activity onto the root stack; the desktop drawer does not. */
-  onBackPressed?: () => void;
   scrollRef?: React.RefObject<FlatList | null>;
 }) {
   const { data: activitySeenMarker } = store.useActivitySeenMarker();
@@ -276,7 +273,6 @@ export function ActivityScreenView({
       loadingSubtitle={loadingSubtitle}
       onNavigateToContacts={onNavigateToContacts}
       onInviteFriends={onInviteFriends}
-      onBackPressed={onBackPressed}
       scrollRef={scrollRef}
     />
   );
@@ -299,7 +295,6 @@ export function ActivityScreenContent({
   loadingSubtitle,
   onNavigateToContacts,
   onInviteFriends,
-  onBackPressed,
   scrollRef,
 }: {
   activeTab: db.ActivityBucket;
@@ -318,8 +313,6 @@ export function ActivityScreenContent({
   loadingSubtitle?: string | null;
   onNavigateToContacts?: () => void;
   onInviteFriends?: () => void;
-  /** Mobile pushes Activity onto the root stack; the desktop drawer does not. */
-  onBackPressed?: () => void;
   scrollRef?: React.RefObject<FlatList | null>;
 }) {
   const bottomContentInset = useTopLevelTabBarContentInset();
@@ -408,7 +401,6 @@ export function ActivityScreenContent({
           title="Activity"
           subtitle={subtitle}
           loadingSubtitle={loadingSubtitle}
-          backAction={onBackPressed}
           rightActions={activityHeaderActions}
           placement="navigation"
         />
