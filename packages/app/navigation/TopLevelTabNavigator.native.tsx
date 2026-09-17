@@ -12,11 +12,15 @@ import * as store from '@tloncorp/shared/store';
 import { useAgentOnboardingLandingConsumer } from '../features/top/useAgentOnboardingLandingConsumer';
 import { useAnyAgentGroupOnboardingLock } from '../hooks/useAgentGroupOnboardingLock';
 import { useBotDmTab } from '../hooks/useBotDmTab';
-import { didRestoreNavigation } from './navigationRestore';
+import {
+  didRestoreNavigation,
+  getRestoredTopLevelTab,
+} from './navigationRestore';
 import {
   TOP_LEVEL_TABS,
   getTopLevelTabRoute,
   isAtColdStartPosition,
+  isAwaitingRestoredBotTab,
   isTabPressBlockedByOnboardingLock,
   trackTopLevelTabSelection,
 } from './topLevelTabs';
@@ -82,15 +86,19 @@ export function TopLevelTabNavigator() {
   // once the tab appears. Claim it the first time it becomes available, unless
   // the user has already chosen a tab themselves.
   useEffect(() => {
+    if (!botDm.enabled || focusedBotTab.current || changedTabs.current) {
+      return;
+    }
     // A restored position is a choice the user already made, but a restored
     // ChatList looks exactly like a default one to `isAtColdStartPosition`, so
-    // the shape cannot tell them apart and the claim would override it.
-    if (
-      !botDm.enabled ||
-      focusedBotTab.current ||
-      changedTabs.current ||
-      didRestoreNavigation()
-    ) {
+    // the shape cannot tell them apart and the claim would override it. The
+    // bot tab is the exception: it is not registered while the hosted-bot flag
+    // loads, so a position that named it is dropped and lands on ChatList —
+    // there the claim completes the restore rather than overriding it.
+    const completingRestore =
+      getRestoredTopLevelTab() === 'BotChat' &&
+      isAwaitingRestoredBotTab(navigation.getState());
+    if (didRestoreNavigation() && !completingRestore) {
       return;
     }
     // A tab press is not the only way to leave the cold-start position. If the
@@ -101,7 +109,7 @@ export function TopLevelTabNavigator() {
     // start left them. Only claim while MainTabs is still the focused root
     // route with the initial ChatList tab showing and nothing asked of it;
     // otherwise the moment has passed for good.
-    if (!isAtColdStartPosition(navigation.getState())) {
+    if (!completingRestore && !isAtColdStartPosition(navigation.getState())) {
       focusedBotTab.current = true;
       return;
     }

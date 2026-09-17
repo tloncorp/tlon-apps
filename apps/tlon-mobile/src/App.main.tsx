@@ -51,6 +51,7 @@ import { useTopLevelRouting } from './hooks/useTopLevelRouting';
 import { registerBackgroundSyncTask } from './lib/backgroundSync';
 import { inviteSystemContacts } from './lib/contactsHelpers';
 import {
+  getFocusedTopLevelTab,
   isRestorableNavigationState,
   sanitizeNavigationStateForPersistence,
 } from './lib/navigationStatePersistence';
@@ -291,7 +292,7 @@ function ConnectedNavigationContent({
           isRestorableNavigationState(saved, Date.now(), shipInfo?.ship ?? null)
         ) {
           initialState = saved?.state as NavigationState;
-          markNavigationRestored();
+          markNavigationRestored(getFocusedTopLevelTab(initialState));
         }
       } catch (err) {
         // A position is a convenience; failing to read one must not stop the

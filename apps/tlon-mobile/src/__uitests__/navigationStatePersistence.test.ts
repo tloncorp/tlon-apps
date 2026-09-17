@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import {
   NAVIGATION_STATE_MAX_AGE_MS,
+  getFocusedTopLevelTab,
   isPersistableNavigationState,
   isRestorableNavigationState,
   sanitizeNavigationStateForPersistence,
@@ -147,6 +148,120 @@ describe('sanitizeNavigationStateForPersistence', () => {
     const clean = sanitizeNavigationStateForPersistence(state) as any;
     expect(clean.routes).toHaveLength(1);
     expect(clean.index).toBe(0);
+  });
+
+  it('drops a one-shot param nested in a navigator instruction', () => {
+    // What `getTopLevelTabRoute('ChatList', { previewGroupId })` records on
+    // MainTabs; rehydration merges this inner `params` back into the child.
+    const state = {
+      index: 0,
+      routes: [
+        {
+          name: 'MainTabs',
+          params: {
+            screen: 'ChatList',
+            params: { previewGroupId: '~zod/group', someTabParam: 'keep' },
+          },
+          state: { index: 0, routes: [{ name: 'ChatList' }] },
+        },
+      ],
+    };
+    const clean = sanitizeNavigationStateForPersistence(state) as any;
+    expect(clean.routes[0].params).toEqual({
+      screen: 'ChatList',
+      params: { someTabParam: 'keep' },
+    });
+  });
+
+  it('cuts the stack below a route whose params cannot be serialized', () => {
+    const state = {
+      index: 2,
+      routes: [
+        { name: 'MainTabs' },
+        { name: 'GroupSettings', params: { groupId: '~zod/group' } },
+        {
+          name: 'SelectRoleMembers',
+          params: {
+            groupId: '~zod/group',
+            selectedMembers: [],
+            onSave: () => {},
+          },
+        },
+      ],
+    };
+    const clean = sanitizeNavigationStateForPersistence(state) as any;
+    expect(clean.routes.map((r: any) => r.name)).toEqual([
+      'MainTabs',
+      'GroupSettings',
+    ]);
+    expect(clean.index).toBe(1);
+  });
+
+  it('refuses the whole position when the root route is unrestorable', () => {
+    const state = {
+      index: 0,
+      routes: [{ name: 'MainTabs', params: { onSave: () => {} } }],
+    };
+    expect(sanitizeNavigationStateForPersistence(state)).toBeNull();
+  });
+
+  it('survives a JSON round trip, which is how it is actually stored', () => {
+    const state = {
+      index: 1,
+      routes: [
+        {
+          name: 'MainTabs',
+          state: { index: 0, routes: [{ name: 'ChatList' }] },
+        },
+        {
+          name: 'ChannelRoot',
+          params: { channelId: 'chat/~zod/hello', onSave: () => {} },
+        },
+      ],
+    };
+    const clean = sanitizeNavigationStateForPersistence(state);
+    expect(JSON.parse(JSON.stringify(clean))).toEqual(clean);
+  });
+});
+
+describe('getFocusedTopLevelTab', () => {
+  it('names the focused tab', () => {
+    expect(getFocusedTopLevelTab(mainTabsState())).toBe('ChatList');
+  });
+
+  it('names the bot tab, which rehydration drops while its flag loads', () => {
+    const state = {
+      index: 0,
+      routes: [
+        {
+          name: 'MainTabs',
+          state: { index: 0, routes: [{ name: 'BotChat' }] },
+        },
+      ],
+    };
+    expect(getFocusedTopLevelTab(state)).toBe('BotChat');
+  });
+
+  it('names no tab when the position is deeper than the tab navigator', () => {
+    const state = {
+      index: 1,
+      routes: [
+        {
+          name: 'MainTabs',
+          state: { index: 0, routes: [{ name: 'BotChat' }] },
+        },
+        { name: 'ChannelRoot' },
+      ],
+    };
+    expect(getFocusedTopLevelTab(state)).toBeNull();
+  });
+
+  it('names no tab for malformed input', () => {
+    expect(getFocusedTopLevelTab(undefined)).toBeNull();
+    expect(getFocusedTopLevelTab({})).toBeNull();
+    expect(
+      getFocusedTopLevelTab({ index: 0, routes: [{ name: 'MainTabs' }] })
+    ).toBeNull();
   });
 });
 

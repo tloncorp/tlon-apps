@@ -55,26 +55,82 @@ export function isPersistableNavigationState(state: unknown): boolean {
   return Array.isArray(routes) && routes[0]?.name === 'MainTabs';
 }
 
-function stripOneShotParams(route: RouteSnapshot): RouteSnapshot {
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Whether a param carries something `JSON.stringify` would silently drop. The
+ * one case in the route tree is a callback the pushing screen passes for the
+ * pushed one to hand its result back — `SelectRoleMembers` and its `onSave`.
+ * Restoring that route would mount it without the callback, and it would throw
+ * the moment the user backed out of it.
+ */
+function hasNonSerializableParams(value: unknown): boolean {
+  if (typeof value === 'function' || typeof value === 'symbol') {
+    return true;
+  }
+  if (Array.isArray(value)) {
+    return value.some(hasNonSerializableParams);
+  }
+  if (isPlainObject(value)) {
+    return Object.values(value).some(hasNonSerializableParams);
+  }
+  return false;
+}
+
+function stripOneShotParams(
+  params: Record<string, unknown>
+): Record<string, unknown> {
+  const next = { ...params };
+  for (const key of ONE_SHOT_PARAM_KEYS) {
+    delete next[key];
+  }
+  // `navigate(parent, { screen, params })` records the instruction on the
+  // *parent* route, and rehydration merges that inner `params` back into the
+  // child — so a one-shot key sitting there is replayed even though the child
+  // route's own params were cleaned. Follow the instruction down.
+  if (typeof next.screen === 'string' && isPlainObject(next.params)) {
+    next.params = stripOneShotParams(next.params);
+  }
+  return next;
+}
+
+function sanitizeRoute(route: RouteSnapshot): RouteSnapshot | null {
+  if (route.params && hasNonSerializableParams(route.params)) {
+    return null;
+  }
+
   const next: RouteSnapshot = { ...route };
 
   if (next.params) {
-    const params = { ...next.params };
-    for (const key of ONE_SHOT_PARAM_KEYS) {
-      delete params[key];
-    }
-    next.params = params;
+    next.params = stripOneShotParams(next.params);
   }
 
   if (next.state?.routes) {
-    next.state = sanitizeState(next.state);
+    const state = sanitizeState(next.state);
+    if (state == null) {
+      return null;
+    }
+    next.state = state;
   }
 
   return next;
 }
 
-function sanitizeState(state: StateSnapshot): StateSnapshot {
-  const routes = (state.routes ?? []).map(stripOneShotParams);
+function sanitizeState(state: StateSnapshot): StateSnapshot | null {
+  const routes: RouteSnapshot[] = [];
+  for (const route of state.routes ?? []) {
+    const sanitized = sanitizeRoute(route);
+    // A route that cannot be restored takes what sits above it with it: the
+    // stack below is still a position, but the routes above are only reachable
+    // through the one being dropped.
+    if (sanitized == null) {
+      break;
+    }
+    routes.push(sanitized);
+  }
+
   // Only trailing overlays are dropped: one buried under later pushes is not
   // what the user is looking at, and removing it would renumber the stack.
   let end = routes.length;
@@ -85,6 +141,9 @@ function sanitizeState(state: StateSnapshot): StateSnapshot {
     end -= 1;
   }
   const trimmed = routes.slice(0, end);
+  if (trimmed.length === 0) {
+    return null;
+  }
   const index = Math.min(state.index ?? trimmed.length - 1, trimmed.length - 1);
   return { ...state, routes: trimmed, index: Math.max(index, 0) };
 }
@@ -100,6 +159,22 @@ export function sanitizeNavigationStateForPersistence(
     return null;
   }
   return sanitizeState(state as StateSnapshot);
+}
+
+/**
+ * The top-level tab a saved position was focused on, or null when the position
+ * is deeper than the tab navigator — anything pushed above `MainTabs` is a
+ * position in its own right, not a tab to re-select.
+ */
+export function getFocusedTopLevelTab(state: unknown): string | null {
+  const root = (state as StateSnapshot | undefined)?.routes?.[
+    (state as StateSnapshot | undefined)?.index ?? 0
+  ];
+  if (root?.name !== 'MainTabs') {
+    return null;
+  }
+  const tabs = root.state;
+  return tabs?.routes?.[tabs.index ?? 0]?.name ?? null;
 }
 
 /**
