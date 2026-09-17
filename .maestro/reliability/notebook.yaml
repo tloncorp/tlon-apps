@@ -35,10 +35,12 @@ env:
     file: subflows/input.yaml
     env:
       INPUT_TEXT: ${output.reliability.body}
-- tapOn: '^Preview$'
+- hideKeyboard
 - extendedWaitUntil:
     visible: '^Synced$'
     timeout: 30000
+- tapOn: '^Preview$'
+- assertVisible: '^Edit$'
 - assertVisible: ${output.reliability.title}
 - assertVisible: ${output.reliability.body}
 - tapOn: '^Edit$'
@@ -56,10 +58,12 @@ env:
     file: subflows/input.yaml
     env:
       INPUT_TEXT: ${MAESTRO_RUN_TAG + ' edited body'}
-- tapOn: '^Preview$'
+- hideKeyboard
 - extendedWaitUntil:
     visible: '^Synced$'
     timeout: 30000
+- tapOn: '^Preview$'
+- assertVisible: '^Edit$'
 - assertVisible: ${MAESTRO_RUN_TAG + ' edited note'}
 - assertVisible: ${MAESTRO_RUN_TAG + ' edited body'}
 - tapOn: '^Back$'
