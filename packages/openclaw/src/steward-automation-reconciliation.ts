@@ -625,6 +625,19 @@ function observeProjectionWork(
       return;
     }
     try {
+      reportTelemetryError({
+        telemetrySource: 'steward_automation_projection',
+        sourceEventName:
+          error instanceof StewardAutomationReconciliationExhaustedError
+            ? 'projection_exhausted'
+            : 'projection_failed',
+        errorKind: 'projection',
+        errorText: String(error),
+      });
+    } catch {
+      // Telemetry failures never affect the projection.
+    }
+    try {
       logger.warn(
         `[tlon] Steward automation projection failed: ${String(error)}`
       );

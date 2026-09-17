@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   type StewardAutomationCronWriteService,
@@ -9,6 +9,7 @@ import {
   toStewardAutomationCronCreateInput,
   toStewardAutomationCronPatch,
 } from './steward-automation-edit.js';
+import { setErrorTelemetryReporter } from './telemetry.js';
 
 const requestId = '0v4.jd3o0';
 const jobId = deriveStewardAutomationJobId(requestId);
@@ -612,5 +613,78 @@ describe('StewardAutomationEditProcessor', () => {
 
     expect(cron.remove).toHaveBeenCalledOnce();
     expect(finalize).not.toHaveBeenCalled();
+  });
+});
+
+describe('StewardAutomationEditProcessor telemetry', () => {
+  afterEach(() => {
+    setErrorTelemetryReporter(null);
+  });
+
+  function captureReports(): { event: { sourceEventName?: string | null } }[] {
+    const reports: { event: { sourceEventName?: string | null } }[] = [];
+    setErrorTelemetryReporter((report) => {
+      reports.push(report as { event: { sourceEventName?: string | null } });
+    });
+    return reports;
+  }
+
+  it('reports a finalize it gave up on, so a stranded edit is findable', async () => {
+    const reports = captureReports();
+    const instance = new StewardAutomationEditProcessor({
+      finalize: vi.fn().mockRejectedValue(new Error('channel down')),
+      getCron: () => cronService(),
+      logger: { warn: vi.fn() },
+      finalizeDelaysMs: [],
+      wait: vi.fn().mockResolvedValue(undefined),
+    });
+
+    await instance.handle({ requestId, action: { delete: { id: 'job-1' } } });
+
+    expect(reports).toHaveLength(1);
+    expect(reports[0]?.event).toMatchObject({
+      telemetrySource: 'steward_automation_edit',
+      sourceEventName: 'finalize_abandoned',
+      errorKind: 'finalize',
+    });
+  });
+
+  it('reports an edit the cron service threw on', async () => {
+    const reports = captureReports();
+    const cron = cronService({
+      remove: vi.fn().mockImplementation(() => {
+        throw new TypeError('cron service exploded');
+      }),
+    });
+    const instance = new StewardAutomationEditProcessor({
+      finalize: vi.fn().mockResolvedValue(undefined),
+      getCron: () => cron,
+      logger: { log: vi.fn(), warn: vi.fn() },
+      wait: vi.fn().mockResolvedValue(undefined),
+    });
+
+    await instance.handle({ requestId, action: { delete: { id: 'job-1' } } });
+
+    expect(reports.map((report) => report.event.sourceEventName)).toEqual([
+      'apply_failed',
+    ]);
+  });
+
+  it('reports an edit no cron service ever answered', async () => {
+    const reports = captureReports();
+    const instance = new StewardAutomationEditProcessor({
+      finalize: vi.fn().mockResolvedValue(undefined),
+      getCron: () => undefined,
+      logger: { warn: vi.fn() },
+      cronWaitMs: 1,
+      cronWaitAttempts: 1,
+      wait: vi.fn().mockResolvedValue(undefined),
+    });
+
+    await instance.handle({ requestId, action: { delete: { id: 'job-1' } } });
+
+    expect(reports.map((report) => report.event.sourceEventName)).toEqual([
+      'cron_unavailable',
+    ]);
   });
 });

@@ -1,6 +1,8 @@
 import type { PluginHookGatewayCronService } from 'openclaw/plugin-sdk/types';
 import { z } from 'zod';
 
+import { reportTelemetryError } from './telemetry.js';
+
 /**
  * The bot → harness leg of the Steward automation edit loop.
  *
@@ -458,6 +460,28 @@ export interface StewardAutomationEditProcessorOptions {
   signal?: AbortSignal;
 }
 
+/**
+ * Report a failed or abandoned edit. The owner ship is holding a request
+ * open for this dispatch, so these are the plugin-side conditions behind a
+ * "my automation never applied" question. Reporting never disturbs the loop.
+ */
+function reportEditError(
+  sourceEventName: string,
+  errorKind: string,
+  errorText: string
+): void {
+  try {
+    reportTelemetryError({
+      telemetrySource: 'steward_automation_edit',
+      sourceEventName,
+      errorKind,
+      errorText,
+    });
+  } catch {
+    // Telemetry failures never affect the edit loop.
+  }
+}
+
 const defaultWait = (delayMs: number) =>
   new Promise<void>((resolve) => {
     const timeout = setTimeout(resolve, delayMs);
@@ -548,6 +572,11 @@ export class StewardAutomationEditProcessor {
           'the gateway cron service is unavailable to this plugin'
         )
       );
+      reportEditError(
+        'cron_unavailable',
+        'harness-error',
+        'the gateway cron service is unavailable to this plugin'
+      );
       return;
     }
 
@@ -559,6 +588,13 @@ export class StewardAutomationEditProcessor {
       // data; anything that still escapes must not take the processor or
       // the gateway down, and the owner still deserves a terminal answer.
       body = errorBody('harness-error', errorMessage(error));
+    }
+    // Every harness-error answer is an edit the owner asked for and the
+    // harness could not apply, whether it was caught here or inside the
+    // apply itself. Client-shaped answers (invalid, not-found) are not
+    // faults and stay out of telemetry.
+    if (body.type === 'error' && body.errorType === 'harness-error') {
+      reportEditError('apply_failed', 'harness-error', body.message.join(' '));
     }
     this.options.logger.log?.(
       `[tlon] Steward automation dispatch ${dispatch.requestId}: ${body.type}` +
@@ -611,6 +647,11 @@ export class StewardAutomationEditProcessor {
           this.options.logger.warn(
             `[tlon] Steward automation finalize for ${requestId} failed ` +
               `${attempt + 1} times, giving up: ${errorMessage(error)}`
+          );
+          reportEditError(
+            'finalize_abandoned',
+            'finalize',
+            `after ${attempt + 1} attempts: ${errorMessage(error)}`
           );
           return;
         }

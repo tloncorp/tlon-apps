@@ -8,6 +8,7 @@ import type {
   PluginHookGatewayCronJob,
 } from 'openclaw/plugin-sdk/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { setErrorTelemetryReporter } from './telemetry.js';
 
 import { submitStewardAutomationProjection } from './steward-automation-adapter.js';
 import {
@@ -1437,6 +1438,34 @@ describe('registerStewardAutomationReconciliationHooks account transitions', () 
       expect(submitStewardAutomationProjection).toHaveBeenCalledOnce()
     );
     expect(getStewardAutomationReconciler()?.isActive()).toBe(true);
+  });
+
+  it('reports a failed projection to telemetry', async () => {
+    const api = createFakeHookApi();
+    const reports: { event: { sourceEventName?: string | null } }[] = [];
+    setErrorTelemetryReporter((report) => {
+      reports.push(report as { event: { sourceEventName?: string | null } });
+    });
+    const injected = {
+      start: vi.fn().mockRejectedValue(new Error('projection failed')),
+      trigger: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn(),
+      isActive: vi.fn(() => false),
+    } as unknown as StewardAutomationReconciler;
+    setStewardAutomationReconciler(injected);
+    registerStewardAutomationReconciliationHooks(api, {
+      logger: { warn: vi.fn() },
+      getConfig: () => one,
+    });
+
+    await api.fire('gateway_start', { port: 3000 }, { getCron: undefined });
+    await vi.waitFor(() => expect(reports).toHaveLength(1));
+
+    expect(reports[0]?.event).toMatchObject({
+      telemetrySource: 'steward_automation_projection',
+      sourceEventName: 'projection_failed',
+    });
+    setErrorTelemetryReporter(null);
   });
 
   it('still ignores cron changes after gateway_stop', async () => {
