@@ -62,7 +62,9 @@ test('reports a suspension-stale sync as an event, not an error', async () => {
   useDebugStore.getState().initializeErrorLogger({ capture });
   const realNow = suspendDuringFetch(3 * 60 * 1000);
 
-  await syncSince({ since: realNow(), callCtx: { cause: 'test' } });
+  await expect(
+    syncSince({ since: realNow(), callCtx: { cause: 'test' } })
+  ).resolves.toBe('error');
 
   await vi.waitFor(() => {
     expect(capture).toHaveBeenCalledWith(
