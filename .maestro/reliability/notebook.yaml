@@ -10,11 +10,9 @@ env:
 - tapOn: '^Notebook$'
 - tapOn: '^New$'
 - extendedWaitUntil:
-    visible:
-      id: NotebookBodyInput
+    visible: '^Write something …\n?$'
     timeout: 15000
-- tapOn:
-    id: NotebookBodyInput
+- tapOn: '^Write something …\n?$'
 - tapOn:
     id: NotebookTitleInput
     point: '95%,50%'
@@ -26,8 +24,7 @@ env:
 - assertVisible:
     id: NotebookTitleInput
     text: ${output.reliability.title}
-- tapOn:
-    id: NotebookBodyInput
+- tapOn: '^Write something …\n?$'
 - runFlow:
     file: subflows/input.yaml
     env:

@@ -140,10 +140,9 @@ jobs:
           device-model: iPhone-17
           device-os: iOS-26-2
           env: |
-            URL=${{ secrets.MAESTRO_URL }}
-            CODE=${{ secrets.MAESTRO_CODE }}
-            EMAIL=${{ secrets.MAESTRO_EMAIL }}
-            PASSWORD=${{ secrets.MAESTRO_PASSWORD }}
+            MAESTRO_EMAIL=${{ secrets.MAESTRO_EMAIL }}
+            MAESTRO_PASSWORD=${{ secrets.MAESTRO_PASSWORD }}
+            MAESTRO_TEST_MAIL_SERVER_ID=${{ secrets.MAESTRO_TEST_MAIL_SERVER_ID }}
       - id: reliability
         name: Run iOS reliability tests
         continue-on-error: true
