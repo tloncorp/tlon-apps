@@ -465,6 +465,19 @@
 ::
 ++  ex-moon-automation-leave
   (ex-task moon-tasks-wire [moon %steward] %leave ~)
+::  trust changes drive the prompts mirror alongside the automation one,
+::  so every trust-bot/untrust-bot card list carries both
+::
+++  moon-files-wire  ^-  wire  /prompts/files/(scot %p moon)
+++  ex-moon-prompts-watch
+  (ex-task moon-files-wire [moon %steward] %watch /v1/prompts/files)
+::
+++  ex-moon-prompts-leave
+  (ex-task moon-files-wire [moon %steward] %leave ~)
+::
+++  ex-prompts-cleanup-timer
+  |=  at=@da
+  (ex-card %pass /prompts/cleanup %arvo %b %wait (add at ~m5))
 ::
 ++  ex-tasks-fact
   |=  =update:v1:au
@@ -565,7 +578,15 @@
   =/  before=state-3  !<(state-3 !<(vase q.before-res))
   =/  old=state-1  (as-released-state before)
   ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
-  ;<  ~  bind:m  (ex-cards caz ~[ex-eyre-connect (ex-cleanup-timer ~2024.1.1)])
+  ::  +moon is already subscribed from the populate step, so the migration
+  ::  re-watches nothing
+  ::
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  ex-eyre-connect
+        (ex-cleanup-timer ~2024.1.1)
+        (ex-prompts-cleanup-timer ~2024.1.1)
+    ==
   ;<  after-res=cage  bind:m  (got-peek /x/dbug/state)
   =/  after=state-3  !<(state-3 !<(vase q.after-res))
   (assert-migrated-state old after)
@@ -924,7 +945,10 @@
     (do-watch /v1/automation/tasks)
   ;<  caz=(list card)  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~zod]))
-  (ex-cards caz ~[(ex-card %give %kick ~[/v1/automation/tasks] `~bus)])
+  %+  ex-cards  caz
+  :~  (ex-card %give %kick ~[/v1/automation/tasks] `~bus)
+      (ex-card %give %kick ~[/v1/prompts/files] `~bus)
+  ==
 ::
 ++  test-automation-configure-same-owner-no-kick
   %-  eval-mare
@@ -963,7 +987,8 @@
   ;<  ~  bind:m  setup
   ;<  caz=(list card)  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot moon]))
-  ;<  ~  bind:m  (ex-cards caz ~[ex-moon-automation-watch])
+  ;<  ~  bind:m
+    (ex-cards caz ~[ex-moon-automation-watch ex-moon-prompts-watch])
   ;<  st=state-3  bind:m  got-state
   (ex-equal !>((~(has by tasks.automation.st) moon)) !>(|))
 ::
@@ -1035,6 +1060,7 @@
     %+  ex-cards  caz
     :~  ex-moon-automation-leave
         (ex-tasks-fact %gone moon)
+        ex-moon-prompts-leave
     ==
   ;<  st=state-3  bind:m  got-state
   (ex-equal !>((~(has by tasks.automation.st) moon)) !>(|))
@@ -1050,7 +1076,8 @@
   ;<  ~  bind:m  trust-moon
   ;<  caz=(list card)  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot moon]))
-  ;<  ~  bind:m  (ex-cards caz ~[ex-moon-automation-leave])
+  ;<  ~  bind:m
+    (ex-cards caz ~[ex-moon-automation-leave ex-moon-prompts-leave])
   ;<  st=state-3  bind:m  got-state
   (ex-equal !>((~(has by tasks.automation.st) moon)) !>(|))
 ::
@@ -1867,6 +1894,7 @@
     :~  (ex-task /activity [~dev %activity] %watch /v5)
         ex-eyre-connect
         (ex-cleanup-timer ~2000.1.1)
+        (ex-prompts-cleanup-timer ~2000.1.1)
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
   =/  st  !<(state-3 !<(vase q.res))
@@ -3345,7 +3373,14 @@
   =/  old=state-0  [%0 `~bus (sy ~[moon]) *state:v1:l g]
   ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
   ::  an already-up gateway seeds the liveness claim it predates
-  ;<  ~  bind:m  (ex-cards caz (liveness-poke &) ex-eyre-connect (ex-cleanup-timer ~2024.1.1) ~)
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  (liveness-poke &)
+        ex-eyre-connect
+        (ex-cleanup-timer ~2024.1.1)
+        (ex-prompts-cleanup-timer ~2024.1.1)
+        ex-moon-prompts-watch
+    ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
   =/  st  !<(state-3 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(owner.st) !>(`(unit ship)``~bus))
@@ -3368,7 +3403,13 @@
   =.  status.g  %down
   =/  old=state-0  [%0 `~bus (sy ~[moon]) *state:v1:l g]
   ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
-  (ex-cards caz (liveness-poke |) ex-eyre-connect (ex-cleanup-timer ~2024.1.1) ~)
+  %+  ex-cards  caz
+  :~  (liveness-poke |)
+      ex-eyre-connect
+      (ex-cleanup-timer ~2024.1.1)
+      (ex-prompts-cleanup-timer ~2024.1.1)
+      ex-moon-prompts-watch
+  ==
 ::
 ::  no seed without an owner (%steward runs on every ship) ...
 ::
@@ -3381,7 +3422,12 @@
   =.  status.g  %up
   =/  old=state-0  [%0 ~ (sy ~[moon]) *state:v1:l g]
   ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
-  (ex-cards caz ex-eyre-connect (ex-cleanup-timer ~2024.1.1) ~)
+  %+  ex-cards  caz
+  :~  ex-eyre-connect
+      (ex-cleanup-timer ~2024.1.1)
+      (ex-prompts-cleanup-timer ~2024.1.1)
+      ex-moon-prompts-watch
+  ==
 ::
 ::  ... or for a gateway that never registered
 ::
@@ -3392,7 +3438,12 @@
   ;<  ~  bind:m  setup
   =/  old=state-0  [%0 `~bus (sy ~[moon]) *state:v1:l *gateway-0]
   ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
-  (ex-cards caz ex-eyre-connect (ex-cleanup-timer ~2024.1.1) ~)
+  %+  ex-cards  caz
+  :~  ex-eyre-connect
+      (ex-cleanup-timer ~2024.1.1)
+      (ex-prompts-cleanup-timer ~2024.1.1)
+      ex-moon-prompts-watch
+  ==
 ::
 ::  ==========================================================
 ::  ACTIVITY WINDOW: ANYONE ENGAGING THE BOT COUNTS
