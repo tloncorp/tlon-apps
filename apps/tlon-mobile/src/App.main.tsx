@@ -10,8 +10,10 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
+import { useShip } from '@tloncorp/app/contexts/ship';
 import { RequiredUpdateScreen } from '@tloncorp/app/features/RequiredUpdateScreen';
 import { findAgentGroupOnboardingStartupRoute } from '@tloncorp/app/hooks/useAgentGroupOnboardingLock';
+import { markNavigationRestored } from '@tloncorp/app/navigation/navigationRestore';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useDarkMode';
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
@@ -49,8 +51,8 @@ import { useTopLevelRouting } from './hooks/useTopLevelRouting';
 import { registerBackgroundSyncTask } from './lib/backgroundSync';
 import { inviteSystemContacts } from './lib/contactsHelpers';
 import {
-  isPersistableNavigationState,
   isRestorableNavigationState,
+  sanitizeNavigationStateForPersistence,
 } from './lib/navigationStatePersistence';
 import { setActiveNotificationRoute } from './lib/notificationPresentation';
 import { SignupProvider } from './lib/signupContext';
@@ -252,6 +254,7 @@ function ConnectedNavigationContent({
   splashIsHidden: boolean;
 }) {
   const navigationTheme = useAppNavigationTheme();
+  const { ship } = useShip();
   const navigationContainerRef = useNavigationContainerRef();
   const routeNameRef = useRef<string>(undefined);
   const navigationLogging = useNavigationLogging();
@@ -271,9 +274,12 @@ function ConnectedNavigationContent({
     async function restore() {
       let initialState: NavigationState | undefined;
       try {
-        const [saved, locks] = await Promise.all([
+        const [saved, locks, shipInfo] = await Promise.all([
           db.lastNavigationState.getValue(),
           db.agentGroupOnboardingLocks.getValue(true),
+          // Not `getCurrentUserId()`: this runs before `configureClient`, so
+          // the client has no id yet and would refuse every restore.
+          db.shipInfo.getValue(),
         ]);
         // Onboarding owns the root when it has a startup route, and reaches it
         // through `initialRouteName`; restoring over that would drop the user
@@ -282,9 +288,10 @@ function ConnectedNavigationContent({
           findAgentGroupOnboardingStartupRoute(locks) != null;
         if (
           !onboardingOwnsRoot &&
-          isRestorableNavigationState(saved, Date.now())
+          isRestorableNavigationState(saved, Date.now(), shipInfo?.ship ?? null)
         ) {
           initialState = saved?.state as NavigationState;
+          markNavigationRestored();
         }
       } catch (err) {
         // A position is a convenience; failing to read one must not stop the
@@ -327,9 +334,14 @@ function ConnectedNavigationContent({
 
     navigationLogging.onStateChange(state);
 
-    if (state && isPersistableNavigationState(state)) {
+    const position = sanitizeNavigationStateForPersistence(state);
+    if (position) {
       db.lastNavigationState
-        .setValue({ savedAt: Date.now(), state })
+        .setValue({
+          savedAt: Date.now(),
+          userId: ship ?? null,
+          state: position,
+        })
         .catch((err) => {
           navigationStateLogger.trackError('Failed to save navigation state', {
             errorKind: err instanceof Error ? err.name : typeof err,
@@ -339,9 +351,15 @@ function ConnectedNavigationContent({
   };
 
   // The navigator reads `initialState` once, on mount, so it must not mount
-  // before the saved position has been read back.
+  // before the saved position has been read back. Matches the spinner
+  // `MigrationCheck` shows just above, so the launch does not flash a blank
+  // screen between the two.
   if (!restoredState.ready) {
-    return null;
+    return (
+      <View flex={1} alignItems="center" justifyContent="center">
+        <LoadingSpinner />
+      </View>
+    );
   }
 
   return (

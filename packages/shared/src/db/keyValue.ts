@@ -347,10 +347,12 @@ export const lastVisitedChannelId = (groupId: string) => {
  * put them back where they were. `state` is the root navigator's serialized
  * state, kept opaque here because this package does not depend on React
  * Navigation; `savedAt` lets the reader refuse a position too old to be what
- * the user still means to return to.
+ * the user still means to return to, and `userId` stops one account's position
+ * being served to the next if a force-quit beats the logout that clears this.
  */
 export type PersistedNavigationState = {
   savedAt: number;
+  userId: string | null;
   state: unknown;
 };
 
