@@ -6,6 +6,8 @@ import {
   openSync,
   closeSync,
   rmSync,
+  cpSync,
+  existsSync,
 } from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -109,7 +111,7 @@ export function modelArgs({ name, cwd, schema, device }) {
     '--model',
     'openai/gpt-5.6-sol',
     '--json',
-    '--ephemeral',
+    ...(name === 'review' ? [] : ['--ephemeral']),
     '--ignore-user-config',
     '--ignore-rules',
     '--skip-git-repo-check',
@@ -196,6 +198,10 @@ export async function model(
   } finally {
     closeSync(log);
     closeSync(errors);
+    const sessions = path.join(out, `codex-${name}`, 'sessions');
+    // Codex's compact JSON stream omits view_image calls; keep its native trace.
+    if (name === 'review' && existsSync(sessions))
+      cpSync(sessions, path.join(out, 'review-session'), { recursive: true });
     rmSync(path.join(out, `codex-${name}`), { recursive: true, force: true });
   }
   const result = readFileSync(path.join(out, `${name}.txt`), 'utf8');

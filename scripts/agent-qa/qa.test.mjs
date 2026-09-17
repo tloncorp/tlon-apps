@@ -51,6 +51,8 @@ test('Codex owns tools: device exploration and ordinary file/video review are se
   assert.ok(operator.some((s) => s.includes('mcp_servers.device.command')));
   const reviewer = modelArgs({ ...options, name: 'review', device: undefined });
   assert.ok(reviewer.includes('workspace-write'));
+  assert.ok(!reviewer.includes('--ephemeral'));
+  assert.ok(operator.includes('--ephemeral'));
   assert.ok(reviewer.includes('features.shell_tool=true'));
   assert.ok(!reviewer.some((s) => s.includes('mcp_servers.')));
   assert.ok(
@@ -283,6 +285,8 @@ test('model subprocess receives an existing temporary home and saves its result'
 const fs = require('node:fs');
 if (!fs.statSync(process.env.CODEX_HOME).isDirectory()) process.exit(2);
 if (process.env.GH_TOKEN) process.exit(3);
+fs.mkdirSync(process.env.CODEX_HOME+'/sessions', {recursive:true});
+fs.writeFileSync(process.env.CODEX_HOME+'/sessions/native.jsonl', '{"tool":"view_image"}');
 let prompt = '';
 process.stdin.on('data', data => prompt += data);
 process.stdin.on('end', () => {
@@ -300,7 +304,7 @@ process.stdin.on('end', () => {
       [
         '--input-type=module',
         '-e',
-        `import {model} from ${JSON.stringify(common)}; const result = await model('assessment', 'test prompt', {schema:{type:'object'}}); if(result.summary!=='test prompt') process.exit(4);`,
+        `import {model} from ${JSON.stringify(common)}; const result = await model('assessment', 'test prompt', {schema:{type:'object'}}); if(result.summary!=='test prompt') process.exit(4); await model('review', 'test review', {schema:{type:'object'}});`,
       ],
       {
         env: {
@@ -322,6 +326,11 @@ process.stdin.on('end', () => {
       )
     );
     assert.throws(() => readFileSync(path.join(dir, 'codex-assessment')));
+    assert.throws(() => readFileSync(path.join(dir, 'codex-review')));
+    assert.match(
+      readFileSync(path.join(dir, 'review-session/native.jsonl'), 'utf8'),
+      /view_image/
+    );
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
