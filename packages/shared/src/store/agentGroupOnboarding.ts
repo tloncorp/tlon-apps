@@ -211,8 +211,26 @@ async function createOrResumeAgentGroup({
       : `chat/${currentUserId}/${logic.getRandomId()}`;
 
   if (pendingGroupId) {
+    let completedPendingGroup = false;
     try {
-      return await waitForPendingGroupWithChat(() => adoptGroup(groupId));
+      const pendingGroup = await waitForPendingGroupWithChat(() =>
+        adoptGroup(groupId)
+      );
+      const pendingChat = pendingGroup.channels?.find(
+        (channel) => channel.type === 'chat'
+      );
+      if (
+        pendingChat &&
+        (await channelHasAgentIntroRequest(
+          pendingGroup.id,
+          pendingChat.id,
+          currentUserId
+        ))
+      ) {
+        completedPendingGroup = true;
+      } else {
+        return pendingGroup;
+      }
     } catch {
       // Retrying the exact group/channel payload is safe even if an ambiguous
       // earlier request finishes late, and recovers definitive pre-send
@@ -239,6 +257,19 @@ async function createOrResumeAgentGroup({
           throw createError;
         }
       }
+    }
+
+    if (completedPendingGroup) {
+      // The intro request is written only after the notebook exists. If it is
+      // already durable, this marker survived a crash between that post and
+      // the local clear; treating it as unfinished would reopen a completed
+      // onboarding instead of creating the group the user asked for now.
+      await db.pendingAgentGroupCreation.setValue((current) =>
+        (typeof current === 'string' ? current : current?.groupId) === groupId
+          ? null
+          : current
+      );
+      return createOrResumeAgentGroup({ agentShipId, title });
     }
   }
 
@@ -672,16 +703,10 @@ async function ensureIntroRequest(
   isFirstGroup: boolean
 ) {
   const currentUserId = api.getCurrentUserId();
-  const history = await api.getChannelPosts({
+  const alreadyPosted = await channelHasAgentIntroRequest(
+    groupId,
     channelId,
-    mode: 'newest',
-    count: 50,
-  });
-  const alreadyPosted = history.posts.some(
-    (post) =>
-      post.authorId === currentUserId &&
-      logic.findPostBlobEntry(post.blob, 'tlon-agent-intro-request')
-        ?.groupId === groupId
+    currentUserId
   );
   if (alreadyPosted) return;
 
@@ -705,6 +730,32 @@ async function ensureIntroRequest(
       isEdit: false,
     },
     { rejectOnDefinitiveFailure: true }
+  );
+}
+
+async function channelHasAgentIntroRequest(
+  groupId: string,
+  channelId: string,
+  currentUserId: string
+) {
+  const history = await api.getChannelPosts({
+    channelId,
+    mode: 'newest',
+    count: 50,
+  });
+  return historyHasAgentIntroRequest(history.posts, currentUserId, groupId);
+}
+
+function historyHasAgentIntroRequest(
+  posts: Awaited<ReturnType<typeof api.getChannelPosts>>['posts'],
+  currentUserId: string,
+  groupId: string
+) {
+  return posts.some(
+    (post) =>
+      post.authorId === currentUserId &&
+      logic.findPostBlobEntry(post.blob, 'tlon-agent-intro-request')
+        ?.groupId === groupId
   );
 }
 
@@ -917,6 +968,7 @@ export const agentGroupOnboardingTesting = {
   retryAgentGroupFurnishCore,
   agentHasJoined,
   ensureSingleNotesChannel,
+  historyHasAgentIntroRequest,
   isAgentGroupTitleRenameEligible,
   chooseCreatedNotebookResolution,
   retryAgentStanding,
