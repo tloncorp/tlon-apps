@@ -34,6 +34,8 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
     private var indicationBaseTransform: CGAffineTransform?
     private var indicationBaseAlpha: CGFloat?
     private var indicationRestingFrameInWindow: CGRect?
+    // Keep activation strict so a slow scroll does not become a long press.
+    private let pressAllowableMovement: CGFloat = 10
     private let gestureDeadZoneRadius: CGFloat = 40
 
     private lazy var pressIndicationGestureRecognizer: UILongPressGestureRecognizer = {
@@ -42,7 +44,7 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
             action: #selector(handlePressIndication(_:))
         )
         recognizer.minimumPressDuration = Animation.pressIndicationDelay
-        recognizer.allowableMovement = gestureDeadZoneRadius
+        recognizer.allowableMovement = pressAllowableMovement
         recognizer.cancelsTouchesInView = false
         recognizer.delegate = self
         return recognizer
@@ -54,7 +56,7 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
             action: #selector(handleLongPress(_:))
         )
         recognizer.minimumPressDuration = Animation.menuDelay
-        recognizer.allowableMovement = gestureDeadZoneRadius
+        recognizer.allowableMovement = pressAllowableMovement
         recognizer.cancelsTouchesInView = true
         recognizer.delegate = self
         return recognizer

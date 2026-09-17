@@ -5,7 +5,7 @@ import { AnalyticsEvent, createDevLogger, sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { configureClient } from '@tloncorp/shared/store';
 import { useCallback } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 
 import { ENABLED_LOGGERS } from '../constants';
 import { useShip } from '../contexts/ship';
@@ -150,11 +150,27 @@ export function useConfigureUrbitClient() {
             });
             await logout();
           } else {
-            // we can recover if hosting auth is still valid, only logout if we
-            // know for sure it's expired. Notably, this will never trigger if you're
-            // offline.
-            const hostingAuthStatus = await api.getHostingHeartBeat();
-            if (hostingAuthStatus === 'expired') {
+            // Mobile can renew an expired Hosting session in place. Only a
+            // confirmed expiration should interrupt the app; network failures
+            // leave the existing session alone.
+            const checkedToken = await db.hostingAuthToken.getValue(true);
+            const hostingAuthStatus = await api
+              .getHostingHeartBeat()
+              .catch((e) => {
+                api.reportBackgroundFailure(
+                  clientLogger,
+                  'hosting heartbeat'
+                )(e);
+                return null;
+              });
+            if (
+              hostingAuthStatus === 'expired' &&
+              (await db.hostingAuthToken.getValue(true)) === checkedToken
+            ) {
+              if (Platform.OS !== 'web') {
+                await db.hostingAuthExpired.setValue(true);
+                return;
+              }
               clientLogger.trackEvent(AnalyticsEvent.AuthForcedLogout, {
                 authType,
                 context: 'Hosting auth was expired',

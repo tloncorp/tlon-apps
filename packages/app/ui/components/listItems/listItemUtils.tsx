@@ -1,8 +1,14 @@
 import type * as db from '@tloncorp/shared/db';
 import { useCallback } from 'react';
 
-export function useBoundHandler<T>(model: T, handler?: (model: T) => void) {
+export function useBoundHandler<T>(
+  model: T,
+  handler?: (model: NonNullable<T>) => void
+) {
   return useCallback(() => {
+    if (model == null) {
+      return;
+    }
     handler?.(model);
   }, [model, handler]);
 }
