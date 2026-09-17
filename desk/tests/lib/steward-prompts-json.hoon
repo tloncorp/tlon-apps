@@ -52,6 +52,8 @@
   (expect-eq !>(update) !>((update:dejs:pj (update:enjs:pj update))))
 ++  test-dispatch-json
   %+  expect-eq
-    !>((parse '{"requestId":"0v1","action":{"set":{"name":"SOUL.md","text":"hello"}}}'))
-  !>((dispatch:enjs:pj [0v1 %set 'SOUL.md' 'hello']))
+    =/  text=@t
+      '{"requestId":"0v1","requester":"~zod","action":{"set":{"name":"SOUL.md","text":"hello"}}}'
+    !>((parse text))
+  !>((dispatch:enjs:pj [0v1 ~zod %set 'SOUL.md' 'hello']))
 --

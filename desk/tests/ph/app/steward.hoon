@@ -79,7 +79,7 @@
   steward-prompts-response-1+!>(`response:v1:sp`[0v1 body])
 ++  ex-dispatch
   %^  ex-app-fact  /harness  [~nec %steward]
-  steward-prompts-dispatch-1+!>(`dispatch:v1:sp`[0v1 edit])
+  steward-prompts-dispatch-1+!>(`dispatch:v1:sp`[0v1 ~zod edit])
 ::  ~zod edits ~nec's workspace. The simulated OC harness receives the edit,
 ::  while both projections retain their old contents. It projects the changed
 ::  workspace, then finalizes the request.
