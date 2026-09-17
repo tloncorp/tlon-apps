@@ -44,6 +44,7 @@ import { ReactionsDisplay } from './ReactionsDisplay';
 import {
   hasAnsweredApproachChoice,
   hasNewerOwnerPost,
+  findConsumedProvisionSelection,
   resolveAgentProvisionId,
   resolveAgentProvisionTimezone,
 } from './agentProvision';
@@ -332,17 +333,21 @@ export function StaticChatMessage({
           provision: request,
         },
       }));
-      // A definitive failure leaves a retryable timeline row. Treat that row
-      // as the sole retry path and keep the source control consumed.
-      await draftInput.sendPostFromDraft({
-        channelId: draftInput.channel.id,
-        content: [plan.topics.join(', ')],
-        attachments: [],
-        blob,
-        channelType: draftInput.channel.type,
-        replyToPostId: null,
-        isEdit: false,
-      });
+      // Surface definitive failures on the source plan card. The typed
+      // transport remains hidden so synthetic plan fields never look like a
+      // message the owner composed.
+      await draftInput.sendPostFromDraft(
+        {
+          channelId: draftInput.channel.id,
+          content: [plan.topics.join(', ')],
+          attachments: [],
+          blob,
+          channelType: draftInput.channel.type,
+          replyToPostId: null,
+          isEdit: false,
+        },
+        { rejectOnDefinitiveFailure: true }
+      );
       await renameAgentGroupFromOnboarding({
         groupId,
         purposeId: plan.purposeId,
@@ -595,13 +600,16 @@ export function StaticChatMessage({
   );
   const getConsumedA2UISelection = useCallback(
     (surfaceId: string, componentId: string) =>
-      a2uiSelections.data?.find(
-        (entry) =>
-          entry.sourcePostId === post.id &&
-          entry.surfaceId === surfaceId &&
-          entry.componentId === componentId
-      ),
-    [a2uiSelections.data, post.id]
+      findConsumedProvisionSelection({
+        sourcePostId: post.id,
+        surfaceId,
+        componentId,
+        selections: a2uiSelections.data,
+        successfulProvisionSelections: provisionReceipts?.flatMap((receipt) =>
+          receipt.selection ? [receipt.selection] : []
+        ),
+      }),
+    [a2uiSelections.data, post.id, provisionReceipts]
   );
   const lastEditPostContent = usePostLastEditContent(post);
   const blobContent = useMemo(

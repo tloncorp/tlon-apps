@@ -147,34 +147,36 @@ async function startAgentGroupFurnishingOnce(
     ...current,
     [group.id]: resolved.agentShipId!,
   }));
-  if (params.isFirstGroup) {
-    const initialGroupTitle = group.title ?? null;
-    const currentUserContact = await db.getContact({
-      id: api.getCurrentUserId(),
-    });
-    const canRenameGroup = params.groupId
-      ? group.id.endsWith(`/${BotHomeGroupSlugs.slug}`) &&
-        logic.botHomeGroupHasDefaultTitle(
-          group,
-          currentUserContact?.peerNickname
-        )
-      : params.title == null || params.title === DEFAULT_AGENT_GROUP_TITLE;
+  const initialGroupTitle = group.title ?? null;
+  const currentUserContact = await db.getContact({
+    id: api.getCurrentUserId(),
+  });
+  const canRenameGroup = params.groupId
+    ? group.id.endsWith(`/${BotHomeGroupSlugs.slug}`) &&
+      logic.botHomeGroupHasDefaultTitle(group, currentUserContact?.peerNickname)
+    : params.title == null || params.title === DEFAULT_AGENT_GROUP_TITLE;
 
-    await db.agentGroupOnboardingLocks.setValue((current) => ({
-      ...current,
-      [group.id]: {
-        ...current[group.id],
-        chatChannelId: chatChannel.id,
-        createdAt: current[group.id]?.createdAt ?? Date.now(),
-        navigationLockExpiresAt:
-          current[group.id]?.navigationLockExpiresAt ??
-          Date.now() + db.AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS,
-        initialGroupTitle:
-          current[group.id]?.initialGroupTitle ?? initialGroupTitle,
-        canRenameGroup: current[group.id]?.canRenameGroup ?? canRenameGroup,
-      },
-    }));
-  }
+  // Every newly created agent group starts with the same placeholder title,
+  // even when it is not the hosted first group. Keep rename provenance for all
+  // of them; only the first-run path receives the navigation lock.
+  await db.agentGroupOnboardingLocks.setValue((current) => ({
+    ...current,
+    [group.id]: {
+      ...current[group.id],
+      chatChannelId: chatChannel.id,
+      createdAt: current[group.id]?.createdAt ?? Date.now(),
+      ...(params.isFirstGroup
+        ? {
+            navigationLockExpiresAt:
+              current[group.id]?.navigationLockExpiresAt ??
+              Date.now() + db.AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS,
+          }
+        : {}),
+      initialGroupTitle:
+        current[group.id]?.initialGroupTitle ?? initialGroupTitle,
+      canRenameGroup: current[group.id]?.canRenameGroup ?? canRenameGroup,
+    },
+  }));
   const complete = finishAgentGroupFurnishing({
     group,
     chatChannel,
@@ -403,7 +405,7 @@ export function buildAgentGroupTitle({
     purposeId === 'agent-learning'
       ? ''
       : purposeId === 'agent-daily-digest'
-        ? ' Digest'
+        ? ' Updates'
         : ' Research';
   const maxPrimaryLength = Math.max(
     1,

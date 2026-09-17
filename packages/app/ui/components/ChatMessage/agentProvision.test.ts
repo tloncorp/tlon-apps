@@ -1,12 +1,48 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  findConsumedProvisionSelection,
   hasAnsweredApproachChoice,
   hasNewerOwnerPost,
   resolveAgentProvisionId,
   resolveAgentProvisionButtonLabel,
   resolveAgentProvisionTimezone,
 } from './agentProvision';
+
+describe('findConsumedProvisionSelection', () => {
+  const failedSelection = {
+    type: 'tlon-a2ui-selection' as const,
+    version: 1 as const,
+    sourcePostId: 'plan-post',
+    surfaceId: 'agent-task-plan-1',
+    componentId: 'auto-provision',
+    values: ['Rescue-dog patterns'],
+  };
+
+  it('does not consume automatic provisioning from a failed-only selection', () => {
+    expect(
+      findConsumedProvisionSelection({
+        sourcePostId: 'plan-post',
+        surfaceId: 'agent-task-plan-1',
+        componentId: 'auto-provision',
+        selections: [failedSelection],
+        successfulProvisionSelections: [],
+      })
+    ).toBeUndefined();
+  });
+
+  it('consumes automatic provisioning after a successful typed receipt', () => {
+    expect(
+      findConsumedProvisionSelection({
+        sourcePostId: 'plan-post',
+        surfaceId: 'agent-task-plan-1',
+        componentId: 'auto-provision',
+        selections: [failedSelection],
+        successfulProvisionSelections: [failedSelection],
+      })
+    ).toBe(failedSelection);
+  });
+});
 
 const approachMarkerBlob = JSON.stringify([
   {

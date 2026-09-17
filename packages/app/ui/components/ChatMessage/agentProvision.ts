@@ -81,6 +81,25 @@ export function hasNewerOwnerPost(input: {
   );
 }
 
+export function findConsumedProvisionSelection(input: {
+  sourcePostId: string;
+  surfaceId: string;
+  componentId: string;
+  selections: PostBlobDataEntryA2UISelection[] | undefined;
+  successfulProvisionSelections: PostBlobDataEntryA2UISelection[] | undefined;
+}) {
+  const candidates =
+    input.componentId === 'auto-provision'
+      ? input.successfulProvisionSelections
+      : input.selections;
+  return candidates?.find(
+    (entry) =>
+      entry.sourcePostId === input.sourcePostId &&
+      entry.surfaceId === input.surfaceId &&
+      entry.componentId === input.componentId
+  );
+}
+
 export function resolveAgentProvisionTimezone(
   timezoneOverride: string | undefined,
   deviceTimezone: string | undefined

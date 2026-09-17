@@ -3276,11 +3276,11 @@ function servicesPitch(
       );
     case 'agent-daily-digest':
       if (topic) {
-        return `Connect your docs or notes and I can include details you already track about ${topic} in each digest.`;
+        return `Connect your docs or notes and I can include details you already track about ${topic} in future updates.`;
       }
       return (
-        'Connect your docs and notes and your morning digest can cover your ' +
-        'own projects, not just the news.'
+        'Connect your docs and notes and these daily updates can use your ' +
+        'own material, not just public information.'
       );
   }
 }

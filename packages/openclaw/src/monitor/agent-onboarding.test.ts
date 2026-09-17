@@ -2270,7 +2270,13 @@ describe('agent onboarding requests', () => {
         'community garden'
       )
     ).toBe(
-      'Connect your docs or notes and I can include details you already track about community garden in each digest.'
+      'Connect your docs or notes and I can include details you already track about community garden in future updates.'
+    );
+  });
+
+  it('describes a generic daily task as updates rather than a digest', () => {
+    expect(agentOnboardingTesting.servicesPitch('agent-daily-digest')).toBe(
+      'Connect your docs and notes and these daily updates can use your own material, not just public information.'
     );
   });
 

@@ -12,7 +12,7 @@ describe('buildAgentGroupTitle', () => {
         purposeId: 'agent-daily-digest',
         topics: ['Peptides'],
       })
-    ).toBe('Peptides Digest');
+    ).toBe('Peptides Updates');
     expect(
       buildAgentGroupTitle({
         purposeId: 'agent-learning',
@@ -54,13 +54,22 @@ describe('buildAgentGroupTitle', () => {
           'CTA delays and service changes',
         ],
       })
-    ).toBe('Chicago weather and school clos… + 1 more Digest');
+    ).toBe('Chicago weather and school clo… + 1 more Updates');
     expect(
       buildAgentGroupTitle({
         purposeId: 'agent-research',
         topics: ['Private equity ownership of Pennsylvania nursing homes'],
       })
     ).toBe('Private equity ownership of Pennsylvan… Research');
+  });
+
+  it('uses the concrete topic even when the purpose is generic', () => {
+    expect(
+      buildAgentGroupTitle({
+        purposeId: 'agent-daily-digest',
+        topics: ['nervous rescue dog'],
+      })
+    ).toBe('nervous rescue dog Updates');
   });
 });
 

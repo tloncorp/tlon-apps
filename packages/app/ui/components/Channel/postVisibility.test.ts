@@ -56,7 +56,7 @@ describe('isVisibleChannelPost', () => {
     ).toBe(false);
   });
 
-  it('keeps a failed automatic provision visible for retry', () => {
+  it('keeps a failed automatic provision hidden while its plan card offers retry', () => {
     expect(
       isVisibleChannelPost(
         {
@@ -81,7 +81,7 @@ describe('isVisibleChannelPost', () => {
         },
         '~ten'
       )
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it('keeps onboarding intro requests from other authors visible', () => {
