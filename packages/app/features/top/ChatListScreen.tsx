@@ -19,7 +19,6 @@ import { useScrollToTabTop } from '../../hooks/useScrollToTabTop';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
 import { reportChatListFirstPaint } from '../../lib/chatListSettleTelemetry';
 import { useFloatingHeaderHeight } from '../../navigation/useFloatingHeaderHeight';
-import { useScreenScrollProps } from '../../ui/components/useScreenScrollProps';
 import type { TopLevelTabParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
@@ -36,6 +35,7 @@ import {
   useIsWindowNarrow,
 } from '../../ui';
 import SystemNotices from '../../ui/components/SystemNotices';
+import { useScreenScrollProps } from '../../ui/components/useScreenScrollProps';
 import WayfindingNotice from '../../ui/components/Wayfinding/Notices';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { ChatList, ChatListItemData } from '../chat-list/ChatList';
@@ -119,6 +119,7 @@ export function ChatListScreenView({
 
   const connStatus = store.useConnectionStatus();
   const session = store.useCurrentSession();
+
   // React to a later `previewGroupId` param (e.g. a notification tap while ChatList is already
   // mounted), mirroring desktop HomeSidebar. Also (re)marks whether the selection came from a
   // group-invite notification.
