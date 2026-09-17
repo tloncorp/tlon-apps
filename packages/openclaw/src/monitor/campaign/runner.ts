@@ -116,6 +116,22 @@ export function createCampaign(deps: CampaignDeps) {
           return;
         }
         if (decision.kind === 'skip') {
+          // A send can succeed just before a crash crosses the slot boundary.
+          const recoveredAt: number | undefined =
+            decision.reason === 'expired-slot'
+              ? await deps.readMarker(
+                  `campaign-v${state.version}-${decision.step}`
+                )
+              : undefined;
+          if (recoveredAt !== undefined) {
+            state = {
+              ...state,
+              sent: [...state.sent, { step: decision.step, at: recoveredAt }],
+            };
+            await saveCampaign(store, state);
+            report(state, 'sent', { step: decision.step });
+            continue;
+          }
           state = {
             ...state,
             skipped: [
@@ -204,51 +220,52 @@ export function createCampaign(deps: CampaignDeps) {
     lastActivityAt = now(); // Synchronous: a send in flight sees this before persistence.
     if (isDm && isStopTips(text)) {
       optedOut = true;
-      if (!getStore()) {
-        await deps.send(
-          'I’ve paused these tips here, but couldn’t save that preference. Please send /stop-tips again when the bot is back online. Your scheduled tasks are unchanged.'
-        );
-        return true;
+      let saved = false;
+      try {
+        saved =
+          (await locked(async (store) => {
+            const state = (await store.lookup(deps.owner)) ?? {
+              owner: deps.owner,
+              version: VERSION,
+              enrolledAt: now(),
+              status: 'active' as const,
+              sent: [],
+              skipped: [],
+            };
+            await saveCampaign(store, {
+              ...state,
+              status: 'opted-out',
+              lastActivityAt,
+            });
+            if (state.status !== 'opted-out') report(state, 'opted-out');
+            return true;
+          })) ?? false;
+      } catch (error) {
+        deps.error(error);
       }
+      try {
+        await deps.send(
+          saved
+            ? 'I’ve stopped the onboarding tips. Your scheduled tasks are unchanged.'
+            : 'I’ve paused these tips here, but couldn’t save that preference. Please send /stop-tips again when the bot is back online. Your scheduled tasks are unchanged.'
+        );
+      } catch (error) {
+        deps.error(error);
+      }
+      return true; // Never route an explicit tip opt-out into task cancellation.
     }
-    return (
-      (await locked(async (store) => {
-        const existing = await store.lookup(deps.owner);
-        const state =
-          existing ??
-          (optedOut
-            ? {
-                owner: deps.owner,
-                version: VERSION,
-                enrolledAt: now(),
-                status: 'active' as const,
-                sent: [],
-                skipped: [],
-              }
-            : undefined);
-        if (!state) return false;
-        if (isDm && isStopTips(text)) {
-          await saveCampaign(store, {
-            ...state,
-            status: 'opted-out',
-            lastActivityAt,
-          });
-          if (state.status !== 'opted-out') report(state, 'opted-out');
-          await deps.send(
-            'I’ve stopped the onboarding tips. Your scheduled tasks are unchanged.'
-          );
-          return true;
-        }
-        await saveCampaign(store, {
-          ...state,
-          lastActivityAt,
-          ...(isDm ? { lastReplyAt: lastActivityAt } : {}),
-        });
-        if (isDm && state.status === 'active' && state.sent.length)
-          report(state, 'reply');
-        return false;
-      })) ?? false
-    );
+    await locked(async (store) => {
+      const state = await store.lookup(deps.owner);
+      if (!state) return;
+      await saveCampaign(store, {
+        ...state,
+        lastActivityAt,
+        ...(isDm ? { lastReplyAt: lastActivityAt } : {}),
+      });
+      if (isDm && state.status === 'active' && state.sent.length)
+        report(state, 'reply');
+    });
+    return false;
   }
   async function taskCreated() {
     converted = true; // Invalidate any send already reading history.
@@ -259,7 +276,13 @@ export function createCampaign(deps: CampaignDeps) {
     });
   }
   async function replyContext(): Promise<string | undefined> {
-    const state = await getStore()?.lookup(deps.owner);
+    let state: CampaignState | undefined;
+    try {
+      state = await getStore()?.lookup(deps.owner);
+    } catch (error) {
+      deps.error(error);
+      return;
+    }
     const last = state?.sent.at(-1);
     // Only bridge the first reply to an out-of-band tip; later normal turns have their own transcript.
     if (!state || !last || (state.lastReplyAt ?? 0) > last.at) return;

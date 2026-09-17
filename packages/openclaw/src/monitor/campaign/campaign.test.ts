@@ -286,6 +286,19 @@ describe('campaign runner', () => {
     expect(h.read().sent).toHaveLength(1);
     expect(h.deps.error).not.toHaveBeenCalled();
   });
+  it('recovers a late accepted send across the slot boundary before evaluating the next tip', async () => {
+    const sentAt = enrolledAt + 2 * DAY - MINUTE;
+    const h = harness(state(), {
+      readMarker: vi.fn(async (key) =>
+        key === 'campaign-v1-useful-request' ? sentAt : undefined
+      ),
+    });
+    h.setTime(enrolledAt + 2 * DAY + MINUTE);
+    await h.campaign.check();
+    expect(h.read().sent).toEqual([{ step: 'useful-request', at: sentAt }]);
+    expect(h.deps.send).not.toHaveBeenCalled();
+    expect(h.read().skipped).toEqual([]);
+  });
   it('skips missed slots and sends at most one current tip after downtime', async () => {
     const h = harness();
     h.advance(5 * DAY);
@@ -333,6 +346,20 @@ describe('campaign runner', () => {
     await createCampaign(h.deps).check();
     expect(h.deps.send).toHaveBeenCalledTimes(2); // One tip and the stop acknowledgement.
   });
+  it('consumes opt-out even when context lookup, persistence, and acknowledgment fail', async () => {
+    const h = harness();
+    vi.mocked(h.store.lookup).mockRejectedValue(new Error('store unavailable'));
+    vi.mocked(h.deps.send).mockRejectedValue(
+      new Error('transport unavailable')
+    );
+    expect(await h.campaign.replyContext()).toBeUndefined();
+    expect(await h.campaign.inbound('/stop-tips', true)).toBe(true);
+    vi.mocked(h.store.lookup).mockResolvedValue(state());
+    vi.mocked(h.deps.send).mockClear();
+    await h.campaign.check();
+    expect(h.read().status).toBe('opted-out');
+    expect(h.deps.send).not.toHaveBeenCalled();
+  });
   it('bridges an ordinary yes reply to the last out-of-band DM tip', async () => {
     const h = harness();
     await h.campaign.check();
@@ -341,6 +368,24 @@ describe('campaign runner', () => {
     expect(await h.campaign.inbound('yes', true)).toBe(false);
     expect(h.read().lastReplyAt).toBe(enrolledAt + DAY + MINUTE);
     expect(await h.campaign.replyContext()).toBeUndefined();
+  });
+  it('lets a reply between slots restore later tips after two unanswered sends', async () => {
+    const h = harness();
+    await h.campaign.check();
+    h.advance(DAY);
+    await h.campaign.check();
+    h.advance(MINUTE);
+    await h.campaign.check();
+    expect(h.read().skipped).toEqual([]);
+    h.advance(MINUTE);
+    await h.campaign.inbound('yes', true);
+    h.advance(DAY);
+    await h.campaign.check();
+    expect(h.read().sent.map((post) => post.step)).toEqual([
+      'useful-request',
+      'recurring-help',
+      'archive',
+    ]);
   });
   it('a group message delays sends but does not count as a campaign reply', async () => {
     const h = harness();

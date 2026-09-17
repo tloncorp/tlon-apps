@@ -71,6 +71,7 @@ export function evaluateCampaign(
   if (now >= state.enrolledAt + step.end) {
     return { kind: 'skip', step: step.id, reason: 'expired-slot' };
   }
+  if (now < state.enrolledAt + step.start) return { kind: 'defer' };
   const unanswered = state.sent.filter(
     (sent) => sent.at > (state.lastReplyAt ?? 0)
   ).length;
@@ -79,7 +80,6 @@ export function evaluateCampaign(
   }
   const lastSend = state.sent.at(-1)?.at;
   if (
-    now < state.enrolledAt + step.start ||
     (lastSend !== undefined && now - lastSend < DAY) ||
     facts.busy ||
     now - Math.max(facts.lastActivityAt ?? 0, state.lastActivityAt ?? 0) <
