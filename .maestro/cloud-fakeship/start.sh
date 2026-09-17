@@ -133,8 +133,15 @@ const optionalNames = [
   'member-invitation-filter',
   'gallery-actions',
 ];
-const selected = process.env.PROOF_CASES === 'all' ? names : (process.env.PROOF_CASES || 'exchange').split(',');
-if (!selected.length || selected.some(name => ![...names, ...optionalNames].includes(name))) throw Error('Unknown proof case');
+const requested = process.env.PROOF_CASES === 'all' ? names : (process.env.PROOF_CASES || 'exchange').split(',');
+if (!requested.length || requested.some(name => ![...names, ...optionalNames].includes(name))) throw Error('Unknown proof case');
+const readCaseOrder = ['group-mark-read', 'channel-mark-read', 'activity-filters'];
+const firstReadIndex = requested.findIndex(name => readCaseOrder.includes(name));
+const selected = firstReadIndex < 0 ? requested : [
+  ...requested.slice(0, firstReadIndex),
+  ...readCaseOrder.filter(name => requested.includes(name)),
+  ...requested.slice(firstReadIndex).filter(name => !readCaseOrder.includes(name)),
+];
 if (selected.filter(name => ['direct-messages', 'dm-deny', 'dm-block', 'dm-unblock', 'blocked-group-invite', 'blocked-group-content', 'home-unread-preview', 'dm-swipe-read', 'dm-copy-message', 'dm-history-pagination'].includes(name)).length > 1) throw Error('Run DM cases separately');
 // One device/login for a batch; selecting one case still gives a focused retry.
 writeFileSync('proof-flows/cloud-fakeship/selected.yaml',
