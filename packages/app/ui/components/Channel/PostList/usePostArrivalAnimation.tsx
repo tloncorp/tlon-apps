@@ -1,5 +1,4 @@
 import * as React from 'react';
-import type { LayoutChangeEvent } from 'react-native';
 import { EaseView, type TimingTransition } from 'react-native-ease';
 
 import { getAppendedPostIds } from './postArrivals';
@@ -24,17 +23,6 @@ function PostArrival({
   const [shouldAnimate] = React.useState(
     () => animate && !displayedPostIds.has(postId)
   );
-  // LegendList measures new rows before placing them in the scrolling content.
-  // Keep the fade pending until the row has a real layout.
-  const [hasLayout, setHasLayout] = React.useState(false);
-  const handleLayout = React.useCallback(
-    ({ nativeEvent }: LayoutChangeEvent) => {
-      if (nativeEvent.layout.width > 0 && nativeEvent.layout.height > 0) {
-        setHasLayout(true);
-      }
-    },
-    []
-  );
   React.useLayoutEffect(() => {
     // Virtualization may mount this post again when returning from history.
     displayedPostIds.add(postId);
@@ -43,8 +31,7 @@ function PostArrival({
   return (
     <EaseView
       initialAnimate={shouldAnimate ? { opacity: 0 } : undefined}
-      animate={{ opacity: shouldAnimate && !hasLayout ? 0 : 1 }}
-      onLayout={shouldAnimate && !hasLayout ? handleLayout : undefined}
+      animate={{ opacity: 1 }}
       transition={messageFadeIn}
     >
       {children}

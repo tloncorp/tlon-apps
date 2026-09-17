@@ -87,29 +87,18 @@ describe('message entry animations', () => {
     expect(row('a').props.onLayout).toBeUndefined();
   });
 
-  it('starts a new arrival fade only after the row has a nonzero layout', () => {
+  it('provides the entry fade at mount and preserves the row on delivery updates', () => {
     render({ data: posts('a') });
     const data = posts('a', 'b');
     update({ data });
-    expect(row('b').props.animate.opacity).toBe(0);
-
-    const onLayout = row('b').props.onLayout;
-    act(() => onLayout({ nativeEvent: { layout: { width: 320, height: 0 } } }));
-    expect(row('b').props.animate.opacity).toBe(0);
-    act(() => onLayout({ nativeEvent: { layout: { width: 0, height: 60 } } }));
-    expect(row('b').props.animate.opacity).toBe(0);
-
-    act(() =>
-      onLayout({ nativeEvent: { layout: { width: 320, height: 60 } } })
-    );
+    const arrival = row('b');
+    expect(initialOpacity('b')).toBe(0);
     expect(row('b').props.animate.opacity).toBe(1);
     expect(row('b').props.onLayout).toBeUndefined();
 
-    // A delivery update or a later layout must not restart the entry fade.
+    // Retaining the mounted row avoids replaying initialAnimate on delivery.
     update({ data: posts('a', 'b') });
-    act(() =>
-      onLayout({ nativeEvent: { layout: { width: 320, height: 90 } } })
-    );
+    expect(row('b')).toBe(arrival);
     expect(row('b').props.animate.opacity).toBe(1);
   });
 
