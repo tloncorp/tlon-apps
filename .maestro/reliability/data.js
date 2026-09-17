@@ -16,8 +16,7 @@ output.reliability = {
   hosted: typeof MAESTRO_EMAIL !== 'undefined' && !!MAESTRO_EMAIL,
   session: typeof MAESTRO_SESSION === 'undefined' ? 'fresh' : MAESTRO_SESSION,
   // Cloud retries reuse env values; each attempt still needs its own fixture.
-  group:
-    'QA-' + MAESTRO_RUN_TAG.slice(0, maxGroupRunTagLength) + groupSuffix,
+  group: 'QA-' + MAESTRO_RUN_TAG.slice(0, maxGroupRunTagLength) + groupSuffix,
   groupQuery: MAESTRO_RUN_TAG.slice(0, maxGroupRunTagLength),
   text: MAESTRO_RUN_TAG + ' message',
   editedText: MAESTRO_RUN_TAG + ' edited',

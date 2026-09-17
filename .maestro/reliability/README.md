@@ -37,10 +37,11 @@ requires `MAESTRO_LOGIN_URL` and `MAESTRO_LOGIN_CODE`. They are excluded from th
 default suite. The files flow checks attachment persistence and opening, not PDF
 contents. `channel-sorting.yaml` is also a focused standalone flow.
 
-Profile details restore the original status/bio. Profile groups remove their new
-pin on completion and delete their fixture group on success. Serialize profile
-mutations on a shared ship. Image tests import `fixtures/attachment.png`; media
-picker selectors assume the qualified portrait iOS/Android layouts.
+The default suite runs profile, profile details, and profile groups serially on
+the shared account. Profile details restore the original status/bio. Profile
+groups remove their new pin on completion and delete their fixture group on
+success. Image tests import `fixtures/attachment.png`; media picker selectors
+assume the qualified portrait iOS/Android layouts.
 
 The full default suite has not been rerun together. DMs, push notifications, avatar
 color, iOS documents, offline send/retry, and gallery custom titles remain gaps.

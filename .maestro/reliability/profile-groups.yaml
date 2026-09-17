@@ -83,8 +83,8 @@ onFlowComplete:
     rightOf: ${output.reliability.groupPattern}
 - assertNotVisible: ${output.reliability.groupPattern}
 - tapOn: '^Save$'
-- assertNotVisible: ${output.reliability.groupPattern}
 - evalScript: ${output.profileGroupAdded = false}
+- assertNotVisible: ${output.reliability.groupPattern}
 - stopApp
 - launchApp
 - extendedWaitUntil:

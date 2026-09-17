@@ -15,14 +15,12 @@ flows:
   - search.yaml
   - history.yaml
   - home-groups.yaml
-  - profile.yaml
+  - profile-mutations.yaml
   - channels.yaml
   - links.yaml
   - attachments.yaml
-  - profile-details.yaml
   - pins.yaml
   - references.yaml
-  - profile-groups.yaml
   - group-privacy.yaml
   - group-forwarding.yaml
   - sections.yaml
