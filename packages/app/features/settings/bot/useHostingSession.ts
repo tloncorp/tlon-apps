@@ -19,7 +19,12 @@ export type HostingSessionState =
  * telling the user to log in. Gate on 'valid' before mounting them.
  */
 export function useHostingSession(): HostingSessionState {
-  const [state, setState] = useState<HostingSessionState>('checking');
+  const [readState, setReadState] = useState<HostingSessionState>('checking');
+  // A session can go stale while a screen stays mounted: returning from the
+  // background runs refreshHostingAuth, which sets this flag. The stored value
+  // is read reactively so an already-open Settings tab drops the bot queries
+  // rather than leaving them retrying against a dead session.
+  const expired = db.hostingAuthExpired.useValue();
 
   useEffect(() => {
     let cancelled = false;
@@ -33,16 +38,16 @@ export function useHostingSession(): HostingSessionState {
         return;
       }
       if (isExpired) {
-        setState('expired');
+        setReadState('expired');
       } else if (!authToken || !hostingUserId) {
-        setState('missing');
+        setReadState('missing');
       } else {
-        setState('valid');
+        setReadState('valid');
       }
     }
     read().catch(() => {
       if (!cancelled) {
-        setState('missing');
+        setReadState('missing');
       }
     });
     return () => {
@@ -50,5 +55,8 @@ export function useHostingSession(): HostingSessionState {
     };
   }, []);
 
-  return state;
+  // The credentials themselves are only read once, on mount: they change at
+  // login and logout, both of which tear this tree down anyway. Expiry is the
+  // one transition that happens underneath a live screen.
+  return readState === 'valid' && expired ? 'expired' : readState;
 }
