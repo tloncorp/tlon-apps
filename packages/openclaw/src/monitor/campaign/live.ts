@@ -284,7 +284,8 @@ export function createLiveCampaign(deps: {
       isUserRecurringTask(event.job)
     ) {
       void campaign.taskCreated().catch(deps.error);
-    } else if (event.action !== 'started') void campaign.check();
+    } else if (event.action !== 'started')
+      void campaign.refresh().catch(deps.error);
   };
   const onPresence = async (presence: PresenceStatus) => {
     if (

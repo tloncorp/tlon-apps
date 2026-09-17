@@ -165,6 +165,104 @@ export function evaluateCampaign(
     return { kind: 'defer', reason: 'usual-activity-time' };
   return { kind: 'send', step: step.id };
 }
+/** Compute a single wake time using local state only; no network polling. */
+export function nextCampaignWake(
+  state: CampaignState,
+  facts: CampaignFacts,
+  now: number
+): number | undefined {
+  if (
+    !facts.enabled ||
+    state.status === 'completed' ||
+    state.status === 'opted-out'
+  )
+    return;
+  const expiresAt = state.enrolledAt + 7 * DAY;
+  const resultAt = facts.task?.failedAt ?? facts.task?.deliveredAt;
+  const feedbackDue =
+    (facts.hasTask ||
+      state.status === 'feedback' ||
+      state.status === 'converted') &&
+    resultAt !== undefined &&
+    (state.openedAt ?? 0) > resultAt &&
+    facts.visible === true &&
+    !state.sent.some((s) => s.step === 'task-feedback');
+  // Current activity cannot predict whether the bot will be busy tomorrow.
+  // First find the time allowed by the calendar, then back off if busy now.
+  const calendarFacts = { ...facts, busy: false, visible: feedbackDue };
+  let candidate = now;
+  for (let i = 0; i < 20; i++) {
+    const decision = evaluateCampaign(state, calendarFacts, candidate);
+    if (decision.kind === 'finish' || decision.kind === 'skip')
+      return candidate;
+    if (decision.kind === 'send') {
+      return candidate === now &&
+        (facts.busy || (facts.visible && !feedbackDue))
+        ? Math.min(now + RECENT_ACTIVITY_MS, expiresAt)
+        : candidate;
+    }
+    switch (decision.reason) {
+      case 'disabled':
+        return;
+      case 'timezone-unavailable':
+        return expiresAt;
+      case 'recent-message':
+        candidate =
+          Math.max(facts.lastActivityAt ?? 0, state.lastActivityAt ?? 0) +
+          RECENT_ACTIVITY_MS;
+        break;
+      case 'spacing':
+        candidate =
+          Math.max(state.sent.at(-1)?.at ?? 0, state.lastAttemptAt ?? 0) + DAY;
+        break;
+      case 'quiet-hours':
+      case 'usual-activity-time': {
+        const zone = state.timezone!;
+        const minute = localMinute(candidate, zone);
+        const preferred = feedbackDue
+          ? DAYTIME_START * 60
+          : Math.max(
+              DAYTIME_START * 60,
+              Math.min(
+                DAYTIME_END * 60 - 1,
+                state.activityMinute ?? localMinute(state.enrolledAt, zone)
+              )
+            );
+        // Re-evaluate after the jump so timezone offset changes are respected.
+        const minutes =
+          minute < preferred
+            ? preferred - minute
+            : 24 * 60 - minute + preferred;
+        const before = candidate;
+        candidate += minutes * MINUTE;
+        for (let adjustment = 0; adjustment < 3; adjustment++) {
+          const correction =
+            (preferred - localMinute(candidate, zone)) * MINUTE;
+          if (!correction || candidate + correction <= before) break;
+          candidate += correction;
+        }
+        break;
+      }
+      default: {
+        const feedbackPhase =
+          facts.hasTask ||
+          state.status === 'feedback' ||
+          state.status === 'converted';
+        const step = STEPS.find(
+          (s) =>
+            (!feedbackPhase || s.id === 'closing') &&
+            !state.sent.some((sent) => sent.step === s.id) &&
+            !state.skipped.some((skipped) => skipped.step === s.id)
+        );
+        candidate = step ? state.enrolledAt + step.start : expiresAt;
+      }
+    }
+    candidate = Math.min(candidate, expiresAt);
+  }
+  // The campaign lasts only a week; unexpected calendar data must not spin.
+  return expiresAt;
+}
+
 export function eligibleEnrollment(
   input: {
     isFirstGroup?: boolean;

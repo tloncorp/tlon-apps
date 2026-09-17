@@ -1,6 +1,6 @@
 # First-week onboarding campaign
 
-The existing channel monitor owns one minute timer. `model.ts` evaluates timing
+The existing channel monitor owns one timer for the next eligible send. `model.ts` evaluates timing
 with a supplied clock; `runner.ts` persists progression; `live.ts` connects Tlon
 messages, presence, and OpenClaw cron state. Tips need no extra model call,
 service, queue, or user cron job. Normal replies carry the conversational part
@@ -72,6 +72,13 @@ local time, near enrollment time or observed activity time. Unknown timezone
 waits for a client activity signal. Expired windows are skipped; no catch-up burst.
 Two unanswered tips suppress intermediate steps but retain a quiet closing.
 Everything stops after seven days or five proactive messages.
+
+The next wake is calculated from enrollment, spacing, recent activity, and local
+quiet hours, and restored from durable progress on startup. Replies, recurring
+offers, task changes, and conversation opens/closes recalculate scheduling.
+A due send blocked by active work or unavailable storage/network retries after
+15 minutes. Disabled, completed, and opted-out campaigns schedule no wake.
+History and privacy are loaded only for a due send or missed-slot reconciliation.
 
 Active bot/task runs and recent owner messages defer delivery. The shared client
 publishes bot-only `other` presence while its conversation is focused and the app

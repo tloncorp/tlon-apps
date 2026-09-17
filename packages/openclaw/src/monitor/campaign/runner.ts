@@ -4,7 +4,8 @@ import {
   type CampaignTask,
   type StepId,
   DAY,
-  MINUTE,
+  RECENT_ACTIVITY_MS,
+  nextCampaignWake,
   VERSION,
   STEPS,
   eligibleEnrollment,
@@ -53,7 +54,11 @@ export type CampaignDeps = {
 export function createCampaign(deps: CampaignDeps) {
   const now = deps.now ?? Date.now;
   const getStore = deps.store ?? getCampaignStore;
-  let timer: ReturnType<typeof setInterval> | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let started = false;
+  let scheduleGeneration = 0;
+  let lastTask: CampaignTask | undefined;
+  let lastHasTask = false;
   let stopped = false;
   let flight: Promise<void> | undefined;
   let lastActivityAt = 0;
@@ -169,18 +174,26 @@ export function createCampaign(deps: CampaignDeps) {
       )
         return;
       if (!deps.config().enabled) return;
+      if (now() >= state.enrolledAt + 7 * DAY || state.sent.length >= 5) {
+        await saveProgress(store, { ...state, status: 'completed' });
+        return;
+      }
       const task = await deps.task?.();
       const hasTask = converted || Boolean(task) || (await deps.hasTask());
       if (hasTask && state.status === 'active') {
         state.status = 'feedback';
         await saveProgress(store, state);
       }
-      if (deps.context) state = { ...state, ...(await deps.context(state)) };
-      const destination = (await deps.destination?.(state)) ?? deps.owner;
-      if (state.destination !== destination) {
-        state.destination = destination;
-        await saveProgress(store, state);
-      }
+      lastTask = task;
+      lastHasTask = hasTask;
+      const resolveDestination = async () => {
+        const destination = (await deps.destination?.(state!)) ?? deps.owner;
+        if (state!.destination !== destination) {
+          state!.destination = destination;
+          await saveProgress(store, state!);
+        }
+        return destination;
+      };
       for (let i = 0; i <= STEPS.length; i++) {
         if (stopped || deps.signal?.aborted || optedOut) return;
         const facts = {
@@ -207,7 +220,7 @@ export function createCampaign(deps: CampaignDeps) {
         if (decision.kind === 'skip') {
           const recoveredAt =
             decision.reason === 'expired-slot'
-              ? await deps.readMarker(key, destination)
+              ? await deps.readMarker(key, await resolveDestination())
               : undefined;
           if (recoveredAt !== undefined) {
             state.sent.push({ step: decision.step, at: recoveredAt });
@@ -223,6 +236,8 @@ export function createCampaign(deps: CampaignDeps) {
           });
           continue;
         }
+        if (deps.context) state = { ...state, ...(await deps.context(state)) };
+        const destination = await resolveDestination();
         let text = renderTip(decision.step, state, deps.config(), task);
         let sentAt = await deps.readMarker(key, destination);
         if (sentAt === undefined) {
@@ -304,14 +319,81 @@ export function createCampaign(deps: CampaignDeps) {
       }
     });
   }
+  async function reschedule(retry = false) {
+    const generation = ++scheduleGeneration;
+    if (timer) clearTimeout(timer);
+    timer = undefined;
+    if (
+      !started ||
+      stopped ||
+      optedOut ||
+      deps.signal?.aborted ||
+      !deps.config().enabled
+    )
+      return;
+    let wakeAt: number | undefined;
+    try {
+      const store = getStore();
+      const state = await store?.lookup(deps.owner);
+      if (!store || (!state && pendingEnrollment))
+        wakeAt = now() + RECENT_ACTIVITY_MS;
+      else if (state)
+        wakeAt = nextCampaignWake(
+          state,
+          {
+            enabled: true,
+            task: lastTask,
+            hasTask: converted || lastHasTask,
+            busy: deps.busy(),
+            visible: now() < visibleUntil,
+            lastActivityAt,
+          },
+          now()
+        );
+      if (wakeAt !== undefined && retry && wakeAt <= now())
+        wakeAt = Math.max(wakeAt, now() + RECENT_ACTIVITY_MS);
+    } catch (error) {
+      deps.error(error);
+      wakeAt = now() + RECENT_ACTIVITY_MS;
+    }
+    if (
+      generation !== scheduleGeneration ||
+      stopped ||
+      deps.signal?.aborted ||
+      !deps.config().enabled ||
+      wakeAt === undefined
+    )
+      return;
+    timer = setTimeout(
+      () => {
+        timer = undefined;
+        void check();
+      },
+      Math.max(0, wakeAt - now())
+    );
+    timer.unref?.();
+  }
   function check(): Promise<void> {
-    if (!flight)
+    if (!flight) {
       flight = tick()
         .catch(deps.error)
-        .finally(() => {
-          flight = undefined;
+        .finally(async () => {
+          // A due send can become blocked while I/O is in flight. Back off
+          // rather than immediately retrying that same unresolved decision.
+          try {
+            await reschedule(true);
+          } finally {
+            flight = undefined;
+          }
         });
+    }
     return flight;
+  }
+  async function refresh() {
+    // Events that arrive during a check must read fresh task facts afterward;
+    // there is no periodic poll left to pick up a coalesced event later.
+    await flight;
+    await check();
   }
   async function enroll(input: {
     isFirstGroup?: boolean;
@@ -351,6 +433,7 @@ export function createCampaign(deps: CampaignDeps) {
       }
       if (!knownEnrollment && !pendingEnrollment) return false;
       optedOut = true;
+      await reschedule();
       let saved = false;
       try {
         saved =
@@ -414,6 +497,7 @@ export function createCampaign(deps: CampaignDeps) {
       });
       if (personal && state.sent.length) report(state, 'reply');
     });
+    await reschedule();
     return false;
   }
   async function inboundInConversation(
@@ -447,10 +531,13 @@ export function createCampaign(deps: CampaignDeps) {
           : {}),
       });
     });
-    await check();
+    await refresh();
   }
   function closed(token: string) {
-    if (token === openToken) visibleUntil = 0;
+    if (token === openToken) {
+      visibleUntil = 0;
+      void reschedule().catch(deps.error);
+    }
   }
   async function taskCreated() {
     converted = true;
@@ -459,6 +546,7 @@ export function createCampaign(deps: CampaignDeps) {
       if (state?.status === 'active')
         await saveProgress(store, { ...state, status: 'feedback' });
     });
+    await refresh();
   }
   async function observeReply(text: string, destination: string) {
     if (!text.includes(RECURRING_OFFER)) return;
@@ -470,6 +558,7 @@ export function createCampaign(deps: CampaignDeps) {
       )
         await saveProgress(store, { ...state, offeredAt: now() });
     });
+    await reschedule();
   }
   async function replyContext(
     destination = deps.owner
@@ -510,17 +599,15 @@ export function createCampaign(deps: CampaignDeps) {
     }
   }
   function start() {
-    if (timer || stopped || deps.signal?.aborted) return;
-    timer = setInterval(() => {
-      void check();
-    }, MINUTE);
-    timer.unref?.();
+    if (started || stopped || deps.signal?.aborted) return;
+    started = true;
     deps.signal?.addEventListener('abort', halt, { once: true });
     void check();
   }
   function halt() {
     stopped = true;
-    if (timer) clearInterval(timer);
+    scheduleGeneration++;
+    if (timer) clearTimeout(timer);
     timer = undefined;
   }
   async function stop() {
@@ -532,6 +619,7 @@ export function createCampaign(deps: CampaignDeps) {
     start,
     stop,
     check,
+    refresh,
     enroll,
     inbound,
     inboundInConversation,
