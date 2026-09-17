@@ -2621,6 +2621,7 @@ describe('provision coordinator ordering', () => {
     await handleAgentOnboardingRequest(context, deps);
 
     expect(steps).toEqual([
+      'topics_submitted:ok',
       'provision_received:ok',
       'cron_created:ok',
       'first_run_enqueued:ok',
@@ -2672,6 +2673,31 @@ describe('provision coordinator ordering', () => {
     expect(steps[0]).toMatchObject({
       step: 'provision_received',
       outcome: 'failed',
+    });
+  });
+
+  it('reports submitted topics before cron provisioning starts', async () => {
+    const trackStep = vi.fn();
+
+    await expect(
+      handleAgentOnboardingRequest(requestContext({ trackStep }), {
+        fetchHistory: vi.fn(async () => []),
+        getGroup: vi.fn(async () => provisionedGroup()),
+        getCron: () => undefined as never,
+        sendPost: vi.fn(),
+      })
+    ).rejects.toThrow(
+      `agent onboarding provision ${provision.provisionId} failed: cron service is not available`
+    );
+
+    expect(trackStep).toHaveBeenCalledOnce();
+    expect(trackStep).toHaveBeenCalledWith({
+      step: 'topics_submitted',
+      provisionId: provision.provisionId,
+      purposeId: provision.purposeId,
+      topicCount: provision.topics.length,
+      timezone: provision.timezone,
+      notebookNest: provision.notebookNest,
     });
   });
 

@@ -1,0 +1,14 @@
+diff --git a/android/src/main/java/expo/modules/kotlin/activityresult/DataPersistor.kt b/android/src/main/java/expo/modules/kotlin/activityresult/DataPersistor.kt
+index 386055f4a5717e511310c3db7f6feb6e327bed0f..0f8e69b46cb774b819b8427f90bc6f3f986cd7e5 100644
+--- a/android/src/main/java/expo/modules/kotlin/activityresult/DataPersistor.kt
++++ b/android/src/main/java/expo/modules/kotlin/activityresult/DataPersistor.kt
+@@ -115,8 +115,7 @@ private fun String.toBundle(): Bundle? {
+   return Parcel.obtain().run {
+     unmarshall(bytes, 0, bytes.size)
+     setDataPosition(0)
+-    @Suppress("ParcelClassLoader")
+-    val bundle = readBundle(null)
++    val bundle = readBundle(DataPersistor::class.java.classLoader)
+     recycle()
+     bundle
+   }

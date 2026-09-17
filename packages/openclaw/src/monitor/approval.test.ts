@@ -1,6 +1,7 @@
 import { A2UI } from '@tloncorp/api';
 import { describe, expect, it, vi } from 'vitest';
 
+import { markdownToStory } from '../urbit/story.js';
 import {
   APPROVAL_TTL_MS,
   type ApprovalQueueContext,
@@ -18,10 +19,12 @@ import {
   formatApprovalConfirmation,
   formatApprovalRequestNotification,
   formatBlockedList,
+  formatChannelApprovalAck,
   formatGroupLabel,
   formatPendingList,
   generateApprovalId,
   isExpired,
+  isNotificationDelivered,
   mergeApprovalDeliveryState,
   normalizeNotificationId,
   removePendingApproval,
@@ -786,6 +789,84 @@ describe('formatApprovalConfirmation', () => {
 });
 
 // ---------------------------------------------------------------------------
+// In-Channel Approval Status (TLON-6451)
+// ---------------------------------------------------------------------------
+
+describe('formatChannelApprovalAck', () => {
+  it('addresses the requester and identifies the owner by nickname and ship', () => {
+    const ctx: DisplayContext = {
+      contactNames: new Map([
+        ['~nocsyx', 'nocsyx'],
+        ['~sampel-palnet', 'Sam'],
+      ]),
+    };
+    const text = formatChannelApprovalAck('~sampel-palnet', '~nocsyx', ctx);
+    // Bare ship prefix, not the nickname — the story parser only turns a
+    // bare ~ship token into a mention.
+    expect(text.startsWith('~sampel-palnet: ')).toBe(true);
+    expect(text).toContain('nocsyx (~nocsyx)');
+    expect(text).toContain("I've sent them the request");
+    // Only the newest pending mention is replayed after approval, so the
+    // status must not promise a reply to this specific message.
+    expect(text).not.toContain('reply here');
+  });
+
+  it('falls back to the bare owner ship without context', () => {
+    const text = formatChannelApprovalAck('~sampel-palnet', '~nocsyx');
+    expect(text).toContain('~nocsyx');
+    expect(text).not.toContain('(~nocsyx)');
+  });
+
+  it('does not claim the request was sent when the owner DM failed', () => {
+    const text = formatChannelApprovalAck(
+      '~sampel-palnet',
+      '~nocsyx',
+      undefined,
+      { ownerNotified: false }
+    );
+    expect(text.startsWith('~sampel-palnet: ')).toBe(true);
+    expect(text).toContain("I couldn't reach them just now");
+    expect(text).toContain('mention me again later');
+    expect(text).not.toContain("I've sent them the request");
+  });
+
+  it('renders the requester prefix as a real mention in story format', () => {
+    const story = markdownToStory(
+      formatChannelApprovalAck('~sampel-palnet', '~nocsyx')
+    );
+    const inlines = story.flatMap((verse) =>
+      'inline' in verse ? verse.inline : []
+    );
+    expect(inlines[0]).toEqual({ ship: '~sampel-palnet' });
+  });
+});
+
+describe('isNotificationDelivered', () => {
+  const base: PendingApproval = {
+    id: 'ca111',
+    type: 'channel',
+    requestingShip: '~ten',
+    channelNest: 'chat/~host/a',
+    timestamp: 1,
+  };
+
+  it('requires a real message ID, not just any persisted marker', () => {
+    expect(isNotificationDelivered(base)).toBe(false);
+    expect(
+      isNotificationDelivered({ ...base, notificationMessageId: '170141' })
+    ).toBe(true);
+    for (const bogus of [null, '', 12345]) {
+      expect(
+        isNotificationDelivered({
+          ...base,
+          notificationMessageId: bogus as unknown as string,
+        })
+      ).toBe(false);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Blocked & Pending List Formatting
 // ---------------------------------------------------------------------------
 
@@ -1238,6 +1319,34 @@ describe('applyApprovalRequest', () => {
 
     expect(h.getPending().map((a) => a.id)).toEqual(['ca111', 'ca222']);
     expect(h.notify).toHaveBeenCalledTimes(3);
+  });
+
+  it('reports the outcome so callers can gate the in-channel status (TLON-6451)', async () => {
+    const h = makeQueueHarness();
+    const channel = (id: string): PendingApproval => ({
+      id,
+      type: 'channel',
+      requestingShip: '~ten',
+      channelNest: 'chat/~host/a',
+      timestamp: h.now(),
+    });
+
+    expect(await applyApprovalRequest(channel('ca111'), h.ctx)).toBe('queued');
+    expect(await applyApprovalRequest(channel('ca222'), h.ctx)).toBe('updated');
+
+    const blocked = makeQueueHarness({ blocked: true });
+    expect(await applyApprovalRequest(channel('ca333'), blocked.ctx)).toBe(
+      'blocked'
+    );
+    expect(
+      await applyApprovalRequest(blocked.groupApproval(), blocked.ctx)
+    ).toBe('blocked');
+
+    // Group semantics: queued when new, suppressed once delivered.
+    expect(await applyApprovalRequest(h.groupApproval(), h.ctx)).toBe('queued');
+    expect(await applyApprovalRequest(h.groupApproval(), h.ctx)).toBe(
+      'suppressed'
+    );
   });
 
   it('does not lose the approval when the pending list is replaced during a delayed notify', async () => {

@@ -1,0 +1,18 @@
+appId: ${MAESTRO_APP_ID}
+---
+# The current iOS native tabs expose only their container to accessibility.
+# Anchor within that container, then verify the destination. No screen pixels.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: '^Tab Bar$'
+          point: '71%,38%'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn: '^Contacts$'
+- assertVisible: '^Contacts$'
+- assertVisible: '^You$'

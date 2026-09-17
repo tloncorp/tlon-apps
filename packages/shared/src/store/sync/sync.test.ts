@@ -1,5 +1,6 @@
 import {
   StructuredChannelDescriptionPayload,
+  scry,
   toClientGroup,
 } from '@tloncorp/api';
 import '@tloncorp/api';
@@ -39,8 +40,10 @@ import {
   setupDatabaseTestSuite,
 } from '../../test/helpers';
 import rawGroupsInit2 from '../../test/init.json';
+import { syncQueue } from '../syncQueue';
 import {
   ensureDmInviteChannel,
+  handleDmStatus,
   syncChannelWithBackoff,
   syncDms,
   syncGroups,
@@ -49,6 +52,7 @@ import {
   syncPinnedItems,
   syncPosts,
   syncThreadPosts,
+  syncUpdatedPosts,
 } from './sync';
 import { syncContacts } from './syncContacts';
 
@@ -492,6 +496,173 @@ test('ensureDmInviteChannel returns missing without deleting a non-invite local 
   expect(channel?.isDmInvite).toBe(false);
 });
 
+// the %chat-dm-status fact is the only live signal for a dm this client
+// didn't start (e.g. the reciprocal dm %grouper creates when someone redeems
+// our personal invite): posts alone never create the channel row
+test('handleDmStatus keeps the channel row in step with the backend dm set', async () => {
+  // on the wire the writ fact precedes the status fact, so the post is
+  // already in the db when the row gets created
+  await db.insertChannelPosts({
+    posts: [
+      {
+        id: 'first-post',
+        type: 'chat',
+        channelId: '~sampel-palnet',
+        authorId: '~sampel-palnet',
+        sentAt: 1700000000000,
+        receivedAt: 1700000000000,
+        sequenceNum: 1,
+        content: JSON.stringify([{ inline: ['hi'] }]),
+        syncedAt: 1700000000000,
+      } as unknown as db.Post,
+    ],
+  });
+  expect(await db.getChannel({ id: '~sampel-palnet' })).toBeNull();
+
+  // a dm we started, not yet accepted, is a regular dm on our side
+  await handleDmStatus('~sampel-palnet', 'inviting');
+  let channel = await db.getChannel({ id: '~sampel-palnet' });
+  expect(channel?.type).toBe('dm');
+  expect(channel?.isDmInvite).toBe(false);
+  expect(channel?.contactId).toBe('~sampel-palnet');
+  // and the chat list has something to sort and preview
+  expect(channel?.lastPostId).toBe('first-post');
+  expect(channel?.lastPostAt).toBe(1700000000000);
+
+  // a pending invite to us shows as an invite until we accept
+  await handleDmStatus('~wicdev-wisryt', 'invited');
+  channel = await db.getChannel({ id: '~wicdev-wisryt' });
+  expect(channel?.isDmInvite).toBe(true);
+  await handleDmStatus('~wicdev-wisryt', 'done');
+  channel = await db.getChannel({ id: '~wicdev-wisryt' });
+  expect(channel?.isDmInvite).toBe(false);
+
+  // accepting elsewhere must not wipe what we already know about the dm
+  await db.insertChannelPosts({
+    posts: [
+      {
+        id: 'kept-post',
+        type: 'chat',
+        channelId: '~wicdev-wisryt',
+        authorId: '~wicdev-wisryt',
+        sentAt: 1700000000000,
+        receivedAt: 1700000000000,
+        sequenceNum: 1,
+        content: JSON.stringify([{ inline: ['hi'] }]),
+        syncedAt: 1700000000000,
+      } as unknown as db.Post,
+    ],
+  });
+  await handleDmStatus('~wicdev-wisryt', 'done');
+  channel = await db.getChannel({ id: '~wicdev-wisryt' });
+  expect(channel?.lastPostId).toBe('kept-post');
+
+  // gone (declined or left) and archived both drop out of the dm list
+  await handleDmStatus('~sampel-palnet', null);
+  expect(await db.getChannel({ id: '~sampel-palnet' })).toBeNull();
+  await handleDmStatus('~wicdev-wisryt', 'archive');
+  expect(await db.getChannel({ id: '~wicdev-wisryt' })).toBeNull();
+});
+
+// the backend's dm list is authoritative: a dm left, declined, or archived
+// from another client while this one had no live channel is only ever
+// noticed by the next full snapshot
+test('syncInitData drops dms the backend no longer lists', async () => {
+  await db.insertChannels([
+    dmChannel('~stale-dm', false),
+    dmChannel('~draft-dm', false),
+  ]);
+  // a dm we just started locally isn't on the backend until its first
+  // message lands, so an unsent post keeps the row
+  await db.insertChannelPosts({
+    posts: [
+      {
+        id: 'draft',
+        type: 'chat',
+        channelId: '~draft-dm',
+        authorId: '~zod',
+        sentAt: Date.now(),
+        receivedAt: Date.now(),
+        sequenceNum: 0,
+        content: JSON.stringify([{ inline: ['first message'] }]),
+        deliveryStatus: 'pending',
+        syncedAt: Date.now(),
+      } as unknown as db.Post,
+    ],
+  });
+
+  setScryOutput(rawGroupsInitData);
+  await syncInitData();
+
+  expect(await db.getChannel({ id: '~stale-dm' })).toBeNull();
+  expect((await db.getChannel({ id: '~draft-dm' }))?.type).toBe('dm');
+  const kept = await getClient()
+    ?.select({ count: $.count() })
+    .from(db.schema.channels)
+    .where($.eq(db.schema.channels.type, 'dm'));
+  expect(kept?.[0].count).toEqual(groupsInitData.chat.dms.length + 1);
+});
+
+// the two ways a row can look absent from a snapshot without being gone on
+// the backend: it was created locally and not sent yet, or a live fact
+// inserted it while the snapshot fetch was in flight
+test('deleteAbsentDmChannels leaves unconfirmed and newly arrived dms alone', async () => {
+  await db.insertChannels([
+    dmChannel('~stale-dm', false),
+    { ...dmChannel('~pending-dm', false), isPendingChannel: true },
+  ]);
+  // the pending row is never a candidate: the server has never seen it
+  const candidateIds = await db.getDmChannelIds();
+  expect(candidateIds).toEqual(['~stale-dm']);
+  // ...and while the snapshot is in flight its first message goes out, so by
+  // the time we reconcile it looks like any other confirmed dm
+  await db.updateChannel({ id: '~pending-dm', isPendingChannel: false });
+  await db.insertChannelPosts({
+    posts: [
+      {
+        id: 'first-sent',
+        type: 'chat',
+        channelId: '~pending-dm',
+        authorId: '~zod',
+        sentAt: Date.now(),
+        receivedAt: Date.now(),
+        sequenceNum: 1,
+        content: JSON.stringify([{ inline: ['hello'] }]),
+        deliveryStatus: 'sent',
+        syncedAt: Date.now(),
+      } as unknown as db.Post,
+    ],
+  });
+  // arrives (via a status fact) after the snapshot was requested
+  await db.insertChannels([dmChannel('~arrived-dm', false)]);
+
+  const deleted = await db.deleteAbsentDmChannels({
+    keepIds: [],
+    candidateIds,
+  });
+
+  expect(deleted).toEqual(['~stale-dm']);
+  expect(await db.getChannel({ id: '~stale-dm' })).toBeNull();
+  expect((await db.getChannel({ id: '~pending-dm' }))?.type).toBe('dm');
+  expect((await db.getChannel({ id: '~arrived-dm' }))?.type).toBe('dm');
+});
+
+// syncDms composes three scries that aren't a consistent snapshot, so it must
+// never delete: a dm accepted between `/dm` and `/dm/invited` returning would
+// be in neither list
+test('syncDms is insert-only', async () => {
+  await db.insertChannels([
+    dmChannel('~sampel-palnet', false),
+    dmChannel('~stale-dm', true),
+  ]);
+  setScryOutputs([['~sampel-palnet'], {}, []]);
+
+  await syncDms();
+
+  expect((await db.getChannel({ id: '~stale-dm' }))?.type).toBe('dm');
+  expect((await db.getChannel({ id: '~sampel-palnet' }))?.type).toBe('dm');
+});
+
 const groupId = '~solfer-magfed/test-group';
 const channelId = 'chat/~solfer-magfed/test-channel';
 
@@ -643,6 +814,58 @@ test('syncs thread posts', async () => {
   expect(posts.length).toEqual(
     Object.keys(channelPostWithRepliesData.seal.replies).length + 1
   );
+});
+
+test.each([
+  ['DM', '~pinser-botter-podfyl-parseb'],
+  ['group DM', '0v4.00000.qd4mk.d4htu.er4b8.eao21'],
+])('syncUpdatedPosts skips %s before queueing', async (_label, channelId) => {
+  const enqueue = vi.spyOn(syncQueue, 'add');
+  vi.mocked(scry).mockClear();
+  try {
+    await expect(
+      syncUpdatedPosts(
+        {
+          channelId,
+          startCursor: '1',
+          endCursor: '2',
+          afterTime: new Date(0),
+        },
+        { priority: 4 }
+      )
+    ).resolves.toBeUndefined();
+
+    expect(enqueue).not.toHaveBeenCalled();
+    expect(scry).not.toHaveBeenCalled();
+    expect(await db.getPosts()).toEqual([]);
+  } finally {
+    enqueue.mockRestore();
+  }
+});
+
+test('syncUpdatedPosts fetches and persists changed group-channel posts', async () => {
+  await db.insertChannels([{ id: channelId, type: 'chat' }]);
+  vi.mocked(scry).mockClear();
+  setScryOutput(rawChannelPostsData);
+
+  const response = await syncUpdatedPosts({
+    channelId,
+    startCursor: '1',
+    endCursor: '2',
+    afterTime: new Date(0),
+  });
+
+  expect(scry).toHaveBeenCalledOnce();
+  expect(scry).toHaveBeenCalledWith({
+    app: 'channels',
+    path: `/v4/${channelId}/posts/changes/1/2/~1970.1.1`,
+  });
+  expect(response?.posts.length).toBeGreaterThan(0);
+  const savedPosts = await db.getPosts();
+  expect(savedPosts.map((post) => post.id).sort()).toEqual(
+    response?.posts.map((post) => post.id).sort()
+  );
+  expect(savedPosts.every((post) => post.channelId === channelId)).toBe(true);
 });
 
 test('syncs groups, decoding structured description payloads', async () => {

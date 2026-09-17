@@ -48,6 +48,7 @@ import {
   Share,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardAvoidingView as KeyboardControllerAvoidingView } from 'react-native-keyboard-controller';
 import {
   View,
   XStack,
@@ -1655,7 +1656,11 @@ export function BotApiKeyPane(props: {
   }, [onApiKeyChange, providerLabel]);
 
   return (
-    <KeyboardAvoidingView keyboardVerticalOffset={0}>
+    <KeyboardControllerAvoidingView
+      behavior="height"
+      automaticOffset
+      style={{ flex: 1 }}
+    >
       <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
         <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
           <View paddingHorizontal="$xl">
@@ -1714,7 +1719,7 @@ export function BotApiKeyPane(props: {
           marginTop="$xl"
         />
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardControllerAvoidingView>
   );
 }
 

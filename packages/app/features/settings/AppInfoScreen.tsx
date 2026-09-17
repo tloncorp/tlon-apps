@@ -8,7 +8,11 @@ import { useCallback } from 'react';
 import { Alert, Platform, Switch } from 'react-native';
 import { getEmailClients, openComposer } from 'react-native-email-link';
 
-import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../../constants';
+import {
+  NOTIFY_PROVIDER,
+  NOTIFY_SERVICE,
+  SUPPORT_EMAIL,
+} from '../../constants';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { downloadDb } from '../../lib/downloadDb';
 import { RootStackParamList } from '../../navigation/types';
@@ -106,7 +110,7 @@ export function AppInfoScreen(props: Props) {
     }
 
     openComposer({
-      to: 'support@tlon.io',
+      to: SUPPORT_EMAIL,
       subject: `${currentUserId} uploaded logs ${id}`,
       body: makeDebugEmail(appInfo, platformInfo, currentUserId),
     });
@@ -193,7 +197,7 @@ export function AppInfoScreen(props: Props) {
           )}
           {enabled && logId && !hasClients && (
             <YStack padding="$l">
-              <Text>Please email support@tlon.io with this log ID:</Text>
+              <Text>Please email {SUPPORT_EMAIL} with this log ID:</Text>
               <Text>{logId}</Text>
             </YStack>
           )}

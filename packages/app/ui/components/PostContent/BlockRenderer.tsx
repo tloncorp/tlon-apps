@@ -992,7 +992,11 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   table: TableBlock,
 };
 
-type BlockSettings<T extends ComponentType> = Partial<ComponentProps<T>> & {
+// `ComponentType` alone means `ComponentType<{}>`, which TypeScript 7 rejects
+// for components that declare required props.
+type BlockSettings<T extends ComponentType<any>> = Partial<
+  ComponentProps<T>
+> & {
   wrapperProps?: Partial<ComponentProps<typeof BlockWrapper>>;
 };
 

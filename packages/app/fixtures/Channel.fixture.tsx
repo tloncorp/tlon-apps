@@ -507,14 +507,19 @@ function ChannelWithControlledPostLoading() {
 
 // Replays the agent group setup lifecycle on a timer: posts load into an
 // empty channel, the first-entry indicator appears, the first entry arrives,
-// then the indicator clears. The header height mimics the transparent native
-// header so the list carries a top content inset like it does on iOS.
+// then the indicator clears. The header height arrives late, as the
+// transparent native header does on iOS, so the top inset changes under
+// an empty list.
 function AgentGroupSetupSequence() {
   const [posts, setPosts] = useState<db.Post[] | null>(null);
   const [label, setLabel] = useState<string | undefined>(undefined);
+  // The transparent native header reports its height after the channel
+  // mounts, so the list's top inset changes while it is still empty.
+  const [headerHeight, setHeaderHeight] = useState(0);
   useEffect(() => {
     const timeouts = [
       setTimeout(() => setPosts([]), 1500),
+      setTimeout(() => setHeaderHeight(103), 2500),
       setTimeout(() => setLabel('Writing your first entry…'), 5000),
       setTimeout(() => setPosts([createFakePost()]), 9000),
       setTimeout(() => setLabel(undefined), 11000),
@@ -522,7 +527,7 @@ function AgentGroupSetupSequence() {
     return () => timeouts.forEach(clearTimeout);
   }, []);
   return (
-    <HeaderHeightContext.Provider value={103}>
+    <HeaderHeightContext.Provider value={headerHeight}>
       <ChannelFixture
         negotiationMatch={true}
         theme={'light'}

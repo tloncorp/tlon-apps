@@ -2,6 +2,7 @@ export type BotSettingsPendingFields = {
   nickname: boolean;
   modelProvider: boolean;
   model: boolean;
+  zdr: boolean;
   fallbacks: boolean;
   dmAllowlist: boolean;
   defaultAuthorizedShips: boolean;
@@ -17,6 +18,7 @@ export const getChangeLabels = (
   const labels: string[] = [];
   if (pending.nickname) labels.push('Nickname');
   if (pending.modelProvider || pending.model) labels.push('Default model');
+  if (pending.zdr) labels.push('Zero data retention');
   if (pending.fallbacks) labels.push('Fallback models');
   if (pending.dmAllowlist) labels.push('DM allowlist');
   if (pending.defaultAuthorizedShips) labels.push('Authorized ships');
