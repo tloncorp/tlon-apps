@@ -2,7 +2,7 @@
 
 The channel monitor checks the campaign at startup and every 15 minutes, using
 its existing five-minute settings interval. There is no campaign timer, service,
-queue, model call, or user cron job. `model.ts` makes timing decisions with a
+queue or user cron job. A due tip can make one bounded model call for wording. `model.ts` makes timing decisions with a
 supplied clock; `runner.ts` saves progress; `live.ts` connects messages and cron.
 
 ## Rollout
@@ -56,6 +56,22 @@ Public groups, extra members/invitations, or an owner who left route to the owne
 DM permanently. Verify privacy before delivery; an unavailable privacy read defers.
 There is no campaign presence publisher, heartbeat, or conversation-open trigger.
 
+## Personalized wording
+
+After a tip becomes due and marker recovery finds no prior send, a model-only
+run adapts the base template to saved topic/purpose choices, the latest personal
+owner message, and current task facts. It uses the owner's routed agent and
+configured model, with all tools and direct delivery disabled. Context is bounded;
+no extra conversation-history fetch is added. Without useful context, keep the
+template. Empty, excessive, failed, or timed-out output also falls back to it.
+
+The run has a 15-second timeout and an isolated temporary transcript that is
+removed afterward. The prompt asks for one concrete workflow application in at
+most 80 words, preserves the step's intent, and forbids invented work or results.
+The host appends first-tip opt-out wording. Eligibility, privacy, task state, and
+recent activity are checked again before delivery; changed task facts use the
+fresh template. Inference does not run on idle 15-minute checks or recovered sends.
+
 ## Timing and opt-out
 
 The five windows begin 24, 48, 72, 120, and 144 hours after enrollment and last
@@ -90,9 +106,9 @@ Pending enrollment during a storage outage survives only while the process runs.
 `TlonBot Onboarding Campaign` records enrollment, send, defer/skip reason, reply,
 and opt-out. Existing cron events remain separate; a reply is not conversion.
 
-Tests cover timing, silence, task transitions, cached context, privacy fallback,
+Tests cover inference/fallback, timing, silence, task transitions, cached context, privacy fallback,
 marker recovery, opt-out, and durable sent rows. The shared fake-ship case covers
-intro → private tip → useful reply/offer → agreed task → delivered result →
+intro → personalized private tip → useful reply/offer → agreed task → delivered result →
 scheduled feedback → opt-out, retaining the task:
 
 ```sh

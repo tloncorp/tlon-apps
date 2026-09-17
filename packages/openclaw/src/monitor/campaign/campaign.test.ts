@@ -812,3 +812,60 @@ it('does not record a group offer when its route now falls back to DM', async ()
   await h.campaign.observeReply(RECURRING_OFFER, channel);
   expect(h.read().offeredAt).toBeUndefined();
 });
+
+it('personalizes only a due unmarked tip and appends opt-out in code', async () => {
+  const personalize = vi.fn(
+    async () => 'For your Friday meetings, I could prepare a company update.'
+  );
+  const h = harness(state({ topic: 'client meetings' }), { personalize });
+  h.setTime(enrolledAt);
+  await h.campaign.check();
+  expect(personalize).not.toHaveBeenCalled();
+  h.advance(DAY);
+  await h.campaign.check();
+  expect(h.deps.send).toHaveBeenCalledWith(
+    expect.stringContaining('Friday meetings'),
+    'campaign-v1-useful-request',
+    '~ten'
+  );
+  expect(h.read().sent[0].text).toContain('/stop-tips');
+  await h.campaign.check();
+  expect(personalize).toHaveBeenCalledTimes(1);
+  const recovered = harness(state(), {
+    personalize,
+    readMarker: async () => enrolledAt + DAY,
+  });
+  await recovered.campaign.check();
+  expect(personalize).toHaveBeenCalledTimes(1);
+});
+it('falls back to the original tip when inference fails', async () => {
+  const h = harness(state(), {
+    personalize: async () => {
+      throw new Error('offline');
+    },
+  });
+  await h.campaign.check();
+  expect(h.read().sent[0].text).toContain('What’s one thing');
+  expect(h.read().sent[0].text).toContain('/stop-tips');
+});
+it('rechecks owner activity after inference before sending', async () => {
+  let release!: (text: string) => void;
+  let entered!: () => void;
+  const started = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const h = harness(state(), {
+    personalize: async () => {
+      entered();
+      return new Promise<string>((resolve) => {
+        release = resolve;
+      });
+    },
+  });
+  const check = h.campaign.check();
+  await started;
+  const inbound = h.campaign.inbound('Help with something else', true);
+  release('A personalized tip.');
+  await Promise.all([check, inbound]);
+  expect(h.deps.send).not.toHaveBeenCalled();
+});

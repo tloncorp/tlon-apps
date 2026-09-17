@@ -86,6 +86,23 @@ beforeAll(async () => {
   if (!container || container.includes('\n'))
     throw new Error('Expected one isolated gateway');
   fixtures = await getFixtures();
+  // Give this case its own marker history, including when the fake ships are reused.
+  const title = `Campaign ${Date.now()}`;
+  const created = await fixtures.botState.createGroup(title, [
+    fixtures.userShip,
+  ]);
+  await fixtures.userState.joinGroup(created.groupId);
+  await waitFor(
+    async () =>
+      (await fixtures.userState.isMemberOfGroup(created.groupId))
+        ? true
+        : undefined,
+    30_000
+  );
+  fixtures = {
+    ...fixtures,
+    group: { id: created.groupId, title, chatChannel: created.chatChannel },
+  };
 });
 
 test('enrolls a live initial request, sends one marked private-channel tip, creates agreed work, asks scheduled feedback, and saves opt-out', async () => {
@@ -122,24 +139,37 @@ test('enrolls a live initial request, sends one marked private-channel tip, crea
       (campaignState()?.lastActivityAt ?? 0) >= introSentAt ? true : undefined,
     30_000
   );
+  const personalized =
+    'Before your Friday client meetings, I could prepare a short company update. Which company should we try?';
+  const draftTag = await registerEngagingTurn('campaign-personalized', [
+    { kind: 'text', content: personalized },
+  ]);
   inBot(
     `
     import { DatabaseSync } from 'node:sqlite';
     const db = new DatabaseSync('/root/.openclaw/tlon/onboarding-campaign.sqlite');
     const offset = new Date().getUTCHours() - 12;
     const timezone = offset === 0 ? 'Etc/UTC' : 'Etc/GMT' + (offset > 0 ? '+' : '') + offset;
-    db.prepare('UPDATE campaign_owner SET enrolledAt=?, lastActivityAt=0, timezone=? WHERE owner=?')
-      .run(Date.now() - Number(process.argv[2]) - 60000, timezone, process.argv[1]);
+    db.prepare('UPDATE campaign_owner SET enrolledAt=?, lastActivityAt=0, timezone=?, topic=? WHERE owner=?')
+      .run(Date.now() - Number(process.argv[2]) - 60000, timezone, process.argv[3], process.argv[1]);
     db.close();
   `,
     fixtures.userShip,
-    String(DAY)
+    String(DAY),
+    `Friday client meetings ${draftTag}`
   );
   // Exercise monitor restart: durable state survives, ephemeral recent activity resets.
   await reloadConfig({});
   await waitFor(
     async () => (campaignState()?.sent.length === 1 ? true : undefined),
     90_000
+  );
+  expect(campaignState()?.sent[0].text).toContain(personalized);
+  expect(campaignState()?.sent[0].text).toContain('/stop-tips');
+  const draftCalls = await fakeModel.received('campaign-personalized');
+  expect(JSON.stringify(draftCalls)).toContain('Friday client meetings');
+  expect(draftCalls).toContainEqual(
+    expect.objectContaining({ model: 'tlon-test-scripted', toolCount: 0 })
   );
   const posts = (await fixtures.userState.channelPosts(
     fixtures.group.chatChannel,

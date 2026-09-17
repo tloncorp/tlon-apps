@@ -18,7 +18,13 @@ import {
   saveCampaign,
   withCampaignLock,
 } from './store.js';
-import { RECURRING_OFFER, isStopTips, renderTip } from './templates.js';
+import type { TipDraft } from './personalize.js';
+import {
+  RECURRING_OFFER,
+  isStopTips,
+  renderTip,
+  withOptOut,
+} from './templates.js';
 
 export type CampaignEvent = {
   action: 'enrolled' | 'sent' | 'skipped' | 'deferred' | 'reply' | 'opted-out';
@@ -37,6 +43,7 @@ export type CampaignDeps = {
     state: CampaignState
   ) => Promise<Partial<Pick<CampaignState, 'topic' | 'purpose'>>>;
   destination?: (state: CampaignState) => Promise<string>;
+  personalize?: (draft: TipDraft) => Promise<string | undefined>;
   busy: () => boolean;
   readMarker: (
     key: string,
@@ -189,6 +196,20 @@ export function createCampaign(deps: CampaignDeps) {
         let text = renderTip(decision.step, state, deps.config(), task);
         let sentAt = await deps.readMarker(key, destination);
         if (sentAt === undefined) {
+          try {
+            text = withOptOut(
+              (await deps.personalize?.({
+                step: decision.step,
+                state,
+                task,
+                text,
+              })) ?? text,
+              state
+            );
+          } catch (error) {
+            // Wording is optional; a provider outage must not block a due tip.
+            deps.error(error);
+          }
           const freshTask = await deps.task?.();
           const freshHasTask =
             converted || Boolean(freshTask) || (await deps.hasTask());
@@ -218,12 +239,9 @@ export function createCampaign(deps: CampaignDeps) {
             (await deps.destination(state)) !== destination
           )
             return;
-          text = renderTip(
-            decision.step,
-            state,
-            deps.config(),
-            freshTask ?? task
-          );
+          // If task facts changed while drafting, use fresh factual copy.
+          if (JSON.stringify(freshTask) !== JSON.stringify(task))
+            text = renderTip(decision.step, state, deps.config(), freshTask);
           if (optedOut || stopped || deps.signal?.aborted) return;
           try {
             await deps.send(text, key, destination);

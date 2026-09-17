@@ -17,6 +17,7 @@ const mock = vi.hoisted(() => ({
   group: vi.fn(),
   sendChannel: vi.fn(),
 }));
+vi.mock('./personalize.js', () => ({ personalizeTip: async () => undefined }));
 vi.mock('@tloncorp/api', async (original) => ({
   ...(await original<typeof import('@tloncorp/api')>()),
   getChannelPosts: mock.posts,

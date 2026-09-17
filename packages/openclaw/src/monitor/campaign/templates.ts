@@ -60,6 +60,10 @@ export function renderTip(
     text = override
       .replaceAll('{topic}', topic ?? 'your interests')
       .replaceAll('{task}', task?.name ?? 'your task');
+  return withOptOut(text, state);
+}
+
+export function withOptOut(text: string, state: CampaignState): string {
   if (!state.sent.length && !text.includes('stop these tips'))
     text +=
       '\n\nYou can tell me to stop these tips anytime, or send /stop-tips.';

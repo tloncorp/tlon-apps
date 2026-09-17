@@ -22,6 +22,7 @@ import {
   type CampaignConfig,
 } from './model.js';
 import { createCampaign } from './runner.js';
+import { personalizeTip } from './personalize.js';
 
 const replyObservers = sharedMap<
   string,
@@ -173,6 +174,10 @@ export function createLiveCampaign(deps: {
       )[0];
     },
     destination,
+    personalize: (draft) =>
+      io(() =>
+        personalizeTip(draft, deps.config(), deps.accountId, deps.signal)
+      ),
     context: (state) =>
       scope(async () => {
         if (!state.channelId) return {};
