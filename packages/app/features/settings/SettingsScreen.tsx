@@ -7,7 +7,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { getVariableValue, useTheme } from 'tamagui';
 
-import { useDMLureLink } from '../../hooks/useBranchLink';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
@@ -18,13 +17,16 @@ import {
   openExternalBotSettings,
   useHasExpectedBotDm,
 } from '../../utils/botSettings';
+import {
+  BotSettingsApplyBar,
+  BotSettingsNavigate,
+  BotSettingsSections,
+  useBotSettingsHub,
+} from './bot/BotSettingsSections';
+import { useSettingsRowLabels } from './useSettingsRowLabels';
 
 export default function SettingsScreen() {
-  const resetDb = useResetDb();
-  const handleLogout = useHandleLogout({ resetDb });
   const currentUserId = useCurrentUserId();
-  const { dmLink } = useDMLureLink();
-  const hasHostedAuth = useHasHostedAuth();
   const hostingBotEnabled = db.hostingBotEnabled.useValue();
   const isHostedUser = getCurrentUserIsHosted();
   const hasExpectedBotDm = useHasExpectedBotDm(
@@ -35,8 +37,62 @@ export default function SettingsScreen() {
     Platform.OS === 'web'
       ? isHostedUser && hasExpectedBotDm
       : isHostedUser && hostingBotEnabled;
+  // Web has no inline bot settings — its row opens the hosted page instead — so
+  // only native mounts the sections and the queries behind them.
+  const showsInlineBotSettings = botEnabled && Platform.OS !== 'web';
+
+  return showsInlineBotSettings ? (
+    <SettingsScreenWithBot />
+  ) : (
+    <SettingsScreenContent botEnabled={botEnabled} />
+  );
+}
+
+/**
+ * Mounts the bot queries and draft once, and hands the Settings view its
+ * sections plus the apply bar that commits them.
+ */
+function SettingsScreenWithBot() {
+  const hub = useBotSettingsHub();
+  const navigationRef = useMutableRef(useNavigation());
+  const navigate = useCallback(
+    (screen: Parameters<BotSettingsNavigate>[0], params?: object) => {
+      (
+        navigationRef.current.navigate as unknown as (
+          name: string,
+          params?: object
+        ) => void
+      )(screen, params);
+    },
+    [navigationRef]
+  );
+
+  return (
+    <SettingsScreenContent
+      botEnabled
+      botSections={<BotSettingsSections hub={hub} navigate={navigate} />}
+      bottomBar={<BotSettingsApplyBar hub={hub} />}
+    />
+  );
+}
+
+function SettingsScreenContent({
+  botEnabled,
+  botSections,
+  bottomBar,
+}: {
+  botEnabled?: boolean;
+  botSections?: React.ReactNode;
+  bottomBar?: React.ReactNode;
+}) {
+  const resetDb = useResetDb();
+  const handleLogout = useHandleLogout({ resetDb });
+  const currentUserId = useCurrentUserId();
+  const hasHostedAuth = useHasHostedAuth();
+  const isHostedUser = getCurrentUserIsHosted();
   const navigationRef = useMutableRef(useNavigation());
   const [statusSheetOpen, setStatusSheetOpen] = useState(false);
+  const { themeLabel, notificationsLabel } = useSettingsRowLabels();
 
   const onAppInfoPressed = useCallback(() => {
     navigationRef.current.navigate('AppInfo');
@@ -91,6 +147,10 @@ export default function SettingsScreen() {
     navigationRef.current.navigate('Contacts', undefined, { pop: true });
   }, [navigationRef]);
 
+  const onActivityPressed = useCallback(() => {
+    navigationRef.current.navigate('Activity', undefined, { pop: true });
+  }, [navigationRef]);
+
   const onUpdateStatus = useCallback((status: string) => {
     store.updateCurrentUserProfile({ status });
     setStatusSheetOpen(false);
@@ -116,9 +176,13 @@ export default function SettingsScreen() {
         onProfilePressed={onProfilePressed}
         onProfileLongPressed={onProfileLongPressed}
         onContactsPressed={onContactsPressed}
+        onActivityPressed={onActivityPressed}
         onWebAppPressed={isHostedUser ? openTlonWebApp : undefined}
-        dmLink={dmLink}
         botEnabled={botEnabled}
+        botSections={botSections}
+        bottomBar={bottomBar}
+        themeLabel={themeLabel}
+        notificationsLabel={notificationsLabel}
       />
       {statusSheetOpen && (
         <ProfileStatusSheet

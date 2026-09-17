@@ -19,6 +19,9 @@ import { BotChannelRulesScreen } from '../features/settings/BotChannelRulesScree
 import { BotMcpSettingsScreen } from '../features/settings/BotMcpSettingsScreen';
 import { BotModelSettingsScreen } from '../features/settings/BotModelSettingsScreen';
 import { BotOpenAISubscriptionScreen } from '../features/settings/BotOpenAISubscriptionScreen';
+import { BotIdentitySettingsScreen } from '../features/settings/BotIdentitySettingsScreen';
+import { BotPermissionsSettingsScreen } from '../features/settings/BotPermissionsSettingsScreen';
+import { BotProviderListSettingsScreen } from '../features/settings/BotProviderListSettingsScreen';
 import { BotSettingsScreen } from '../features/settings/BotSettingsScreen';
 import { BotShipListSettingsScreen } from '../features/settings/BotShipListSettingsScreen';
 import { EditProfileScreen } from '../features/settings/EditProfileScreen';
@@ -203,6 +206,21 @@ export function RootStack() {
       <Root.Screen
         name="BotChannelRuleSettings"
         component={BotChannelRuleSettingsScreen}
+        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
+      />
+      <Root.Screen
+        name="BotPermissionsSettings"
+        component={BotPermissionsSettingsScreen}
+        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
+      />
+      <Root.Screen
+        name="BotIdentitySettings"
+        component={BotIdentitySettingsScreen}
+        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
+      />
+      <Root.Screen
+        name="BotProviderListSettings"
+        component={BotProviderListSettingsScreen}
         options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
       />
       <Root.Screen
