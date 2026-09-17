@@ -4,6 +4,9 @@ flows:
   - relaunch.yaml
   - notebook.yaml
   - notebook-channel-lifecycle.yaml
+  - notebook-folder-contents.yaml
+  - notebook-preview.yaml
+  - notebook-title-edges.yaml
   - gallery.yaml
   - gallery-link.yaml
   - join-group-navigation.yaml

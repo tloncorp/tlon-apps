@@ -1,6 +1,6 @@
 # Native reliability tests
 
-Twenty-seven default single-ship journeys, including attachments, Gallery links,
+Thirty default single-ship journeys, including attachments, Gallery links,
 profile details, pins, references, privacy, sections, notification preferences,
 roles, replies and App Info clipboard verification.
 These cover a subset of the QA checklist, not the entire workbook.
