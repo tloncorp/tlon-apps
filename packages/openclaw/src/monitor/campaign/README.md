@@ -68,10 +68,11 @@ Unit tests exercise the clock, missed slots, silence backoff, persistence,
 opt-out, shutdown, task creation, DM transport, marker recovery, and reply context.
 The shared client tests cover timezone and signup-only metadata.
 
-The integration case sends an intro on disposable fake ships, accelerates only
+The shared integration harness builds the branch API and applies its backend to
+disposable fake ships. The campaign case sends an intro, accelerates only
 its fixture enrollment clock, checks a real marked DM, replies “yes,” and verifies
 stored opt-out:
 
 ```sh
-pnpm --dir packages/openclaw test:integration test/cases/14-onboarding-campaign.test.ts
+pnpm --dir packages/openclaw test:integration:shared:package test/cases/14-onboarding-campaign.test.ts
 ```
