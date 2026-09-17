@@ -127,6 +127,7 @@ test('gh attachments update one canonical comment and stay beside their findings
   let comments = [],
     nextId = 1,
     uploads = 0,
+    failure,
     currentHead = head;
   const gh = (args) => {
     if (args.includes(`repos/tloncorp/tlon-apps/pulls/1`))
@@ -135,7 +136,9 @@ test('gh attachments update one canonical comment and stay beside their findings
     if (args.includes('--slurp')) return JSON.stringify([comments]);
     if (args[0] === 'pr') {
       let body = readFileSync(args[args.indexOf('--body-file') + 1], 'utf8');
-      const count = args.filter((s) => s === '--attach').length;
+      const count =
+        args.filter((s) => s === '--attach').length -
+        (failure === 'missing attachment' ? 1 : 0);
       for (let i = 0; i < count; i++)
         body += `\nhttps://github.com/user-attachments/assets/aaaa-${++uploads}\n`;
       const comment = {
@@ -145,9 +148,12 @@ test('gh attachments update one canonical comment and stay beside their findings
         html_url: 'https://github.com/tloncorp/tlon-apps/pull/1#issuecomment-1',
       };
       comments = [comment];
+      assert.equal(qaResult(comment).status, 'incomplete');
+      assert.doesNotMatch(body, /Review completed|\{\{VIDEO/);
       return comment.html_url;
     }
     if (args.includes('PATCH')) {
+      if (failure === 'PATCH failed') throw new Error(failure);
       comments[0].body = readFileSync(args.at(-1).slice(6), 'utf8');
       return JSON.stringify(comments[0]);
     }
@@ -174,6 +180,20 @@ test('gh attachments update one canonical comment and stay beside their findings
     );
     assert.doesNotMatch(comments[0].body, /\{\{VIDEO/);
     assert.equal(qaResult(comments[0]).execution, 'completed');
+    for (failure of ['missing attachment', 'PATCH failed']) {
+      assert.throws(
+        () => publish(result, ['session.mp4'], render(result, []), gh, dir),
+        /every attachment|PATCH failed/
+      );
+      assert.equal(comments.length, 1);
+      assert.equal(qaResult(comments[0]).status, 'incomplete');
+      assert.equal(qaResult(comments[0]).execution, 'incomplete');
+      assert.doesNotMatch(comments[0].body, /Review completed|\{\{VIDEO/);
+    }
+    failure = undefined;
+    publish(result, ['session.mp4'], render(result, []), gh, dir);
+    assert.equal(nextId, 2);
+    assert.equal(qaResult(comments[0]).status, 'reviewed');
     currentHead = 'b'.repeat(40);
     assert.throws(
       () => publish(result, [], render(result, []), gh, dir),

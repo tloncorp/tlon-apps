@@ -103,7 +103,23 @@ export function publish(result, files, body, gh, directory = out) {
       'QA account has a newer unrelated comment; refusing to edit it'
     );
   const bodyFile = path.join(directory, 'comment.md');
-  save(bodyFile, body);
+  // Completion is published only after every attachment is verified and placed.
+  save(
+    bodyFile,
+    files.length
+      ? render(
+          {
+            ...result,
+            status: 'incomplete',
+            summary:
+              'Publishing videos. Review remains incomplete until all attachments are verified and placed.',
+            report: undefined,
+            duration: undefined,
+          },
+          []
+        )
+      : body
+  );
   // Janic's gh --attach path owns uploads. Only this serialized workflow publishes QA.
   gh([
     'pr',
