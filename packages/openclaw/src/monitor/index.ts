@@ -6096,6 +6096,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // inside the queues we flush below, rather than leaking into a
       // half-closed api after cleanup.
       await nudgeRunner?.stop();
+      await promptSync?.close();
+      promptSync = null;
       await ownerReplyPersistence.flush();
       await pendingNudgePersistence.flush();
       clearShadowsForAccount(account.accountId);

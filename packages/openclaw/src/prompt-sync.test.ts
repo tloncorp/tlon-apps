@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   MAX_PROMPT_BYTES,
+  PROMPT_WATCH_DEBOUNCE_MS,
   createPromptSync,
   isAllowedPromptName,
   readWorkspacePrompts,
@@ -25,6 +26,16 @@ function makeSync() {
   const pokes: Array<{ app: string; mark: string; json: unknown }> = [];
   const requests: Array<{ path: string; method: string; body: unknown }> = [];
   const logger = { log: vi.fn(), warn: vi.fn() };
+  const watchListeners: Array<
+    (eventType: string, filename: string | Buffer | null) => void
+  > = [];
+  const watcherClose = vi.fn();
+  const watcher = {
+    close: watcherClose,
+    on(_event: 'error', _listener: (error: Error) => void) {
+      return watcher;
+    },
+  };
   const sync = createPromptSync({
     owner: '~zod',
     workspaceDir,
@@ -35,8 +46,12 @@ function makeSync() {
       requests.push({ path, method, body });
     },
     logger,
+    watchWorkspace: (_directory, listener) => {
+      watchListeners.push(listener);
+      return watcher;
+    },
   });
-  return { sync, pokes, requests, logger };
+  return { sync, pokes, requests, logger, watchListeners, watcherClose };
 }
 
 describe('prompt workspace projection', () => {
@@ -81,6 +96,61 @@ describe('prompt workspace projection', () => {
         json: { project: { 'SOUL.md': 'be concise' } },
       },
     ]);
+  });
+
+  it('projects a local allowlisted write after its atomic rename event', async () => {
+    vi.useFakeTimers();
+    try {
+      const { sync, pokes, watchListeners } = makeSync();
+      await sync.start();
+      fs.writeFileSync(path.join(workspaceDir, 'AGENTS.md'), 'local change');
+
+      watchListeners[0]('rename', 'AGENTS.md');
+      await vi.advanceTimersByTimeAsync(PROMPT_WATCH_DEBOUNCE_MS);
+      await sync.flush();
+
+      expect(pokes.map((poke) => poke.json)).toEqual([
+        { configure: { owner: '~zod' } },
+        { project: {} },
+        { project: { 'AGENTS.md': 'local change' } },
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('ignores workspace changes outside the prompt allowlist', async () => {
+    vi.useFakeTimers();
+    try {
+      const { sync, pokes, watchListeners } = makeSync();
+      await sync.start();
+
+      watchListeners[0]('change', 'MEMORY.md');
+      await vi.advanceTimersByTimeAsync(PROMPT_WATCH_DEBOUNCE_MS);
+      await sync.flush();
+
+      expect(pokes).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('closes its workspace watcher and ignores later events', async () => {
+    vi.useFakeTimers();
+    try {
+      const { sync, pokes, watchListeners, watcherClose } = makeSync();
+      await sync.start();
+      await sync.close();
+
+      watchListeners[0]('change', 'AGENTS.md');
+      await vi.advanceTimersByTimeAsync(PROMPT_WATCH_DEBOUNCE_MS);
+      await sync.flush();
+
+      expect(watcherClose).toHaveBeenCalledOnce();
+      expect(pokes).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('writes an owner edit, projects it, and then finalizes it', async () => {

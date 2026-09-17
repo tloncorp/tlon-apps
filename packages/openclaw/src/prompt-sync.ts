@@ -33,6 +33,8 @@ export const MAX_PROMPT_BYTES = 65_536;
 /** The bot's HTTP finalize route; its reply confirms steward consumed it. */
 export const STEWARD_PROMPTS_FINALIZE_PATH = '/steward/~/v1/prompts/finalize';
 const MAX_COMPLETED_REQUESTS = 1_000;
+/** Coalesce an editor's write/rename event burst into one projection. */
+export const PROMPT_WATCH_DEBOUNCE_MS = 150;
 
 type Logger = {
   log: (message: string) => void;
@@ -51,6 +53,16 @@ type RequestJson = (
   body: unknown
 ) => Promise<unknown>;
 
+type WorkspaceWatcher = {
+  close: () => void;
+  on: (event: 'error', listener: (error: Error) => void) => unknown;
+};
+
+type WatchWorkspace = (
+  workspaceDir: string,
+  listener: (eventType: string, filename: string | Buffer | null) => void
+) => WorkspaceWatcher;
+
 type PromptDispatch = {
   requestId: string;
   action: { set: { name: PromptFileName; text: string } };
@@ -67,6 +79,8 @@ export type PromptSync = {
   project: (reason: string) => Promise<void>;
   /** Apply one typed dispatch from /v1/prompts/harness. */
   handleDispatch: (fact: unknown) => Promise<void>;
+  /** Stop observing the workspace and settle already queued operations. */
+  close: () => Promise<void>;
   /** Resolves once all queued filesystem and Gall operations have settled. */
   flush: () => Promise<void>;
 };
@@ -216,8 +230,13 @@ export function createPromptSync(opts: {
   poke: Poke;
   requestJson: RequestJson;
   logger: Logger;
+  /** Injectable so the watcher behavior can be tested without open handles. */
+  watchWorkspace?: WatchWorkspace;
 }): PromptSync {
   let configured = false;
+  let closed = false;
+  let watcher: WorkspaceWatcher | null = null;
+  let watchTimer: ReturnType<typeof setTimeout> | null = null;
   let queue: Promise<void> = Promise.resolve();
   // Steward suppresses completed commands itself. This cache also makes a
   // duplicate fact on one live SSE channel a terminal-result retry rather
@@ -274,9 +293,60 @@ export function createPromptSync(opts: {
     return queue;
   };
 
+  const scheduleWorkspaceProjection = () => {
+    if (closed) {
+      return;
+    }
+    if (watchTimer) {
+      clearTimeout(watchTimer);
+    }
+    watchTimer = setTimeout(() => {
+      watchTimer = null;
+      void enqueue(async () => {
+        await configure();
+        await publish('workspace change');
+      });
+    }, PROMPT_WATCH_DEBOUNCE_MS);
+  };
+
+  const startWatcher = async () => {
+    if (closed || watcher) {
+      return;
+    }
+    await fs.mkdir(opts.workspaceDir, { recursive: true });
+    if (closed || watcher) {
+      return;
+    }
+    const watchWorkspace =
+      opts.watchWorkspace ??
+      ((directory, listener) => nodeFs.watch(directory, listener));
+    watcher = watchWorkspace(opts.workspaceDir, (_eventType, filename) => {
+      // Writing through a temporary file emits events for both that file and
+      // the final rename. Only the final allowlisted name can change the
+      // projection. A missing filename is documented on some platforms, so
+      // conservatively re-read the complete allowlist in that case.
+      if (
+        filename === null ||
+        isAllowedPromptName(path.basename(filename.toString()))
+      ) {
+        scheduleWorkspaceProjection();
+      }
+    });
+    watcher.on('error', (error) => {
+      if (!closed) {
+        opts.logger.warn(
+          `[tlon] Prompt workspace watcher failed: ${errorMessage(error)}`
+        );
+      }
+    });
+  };
+
   return {
     start: () =>
       enqueue(async () => {
+        // Install the watcher first. A local edit made during the initial
+        // owner configuration is then queued after this startup projection.
+        await startWatcher();
         await configure();
         await publish('startup');
       }),
@@ -331,6 +401,24 @@ export function createPromptSync(opts: {
         await finalize(requestId, outcome);
         rememberCompleted(requestId, outcome);
       }),
+    close: async () => {
+      closed = true;
+      if (watchTimer) {
+        clearTimeout(watchTimer);
+        watchTimer = null;
+      }
+      if (watcher) {
+        try {
+          watcher.close();
+        } catch (error) {
+          opts.logger.warn(
+            `[tlon] Prompt workspace watcher cleanup failed: ${errorMessage(error)}`
+          );
+        }
+        watcher = null;
+      }
+      await queue;
+    },
     flush: () => queue,
   };
 }
