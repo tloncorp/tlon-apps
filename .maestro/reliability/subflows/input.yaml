@@ -2,28 +2,33 @@ appId: ${MAESTRO_APP_ID}
 ---
 - assertTrue: ${/^[A-Za-z0-9 _\n-]+$/.test(INPUT_TEXT)}
 - runScript: input.js
-# Try complete lines first; verify exact text before accepting bulk input.
-- repeat:
-    times: ${INPUT_TEXT.split('\n').length}
-    commands:
-      - runFlow:
-          when:
-            true: ${output.fixtureInput.index > 0}
-          commands:
-            - pressKey: Enter
-      - inputText: ${INPUT_TEXT.split('\n')[output.fixtureInput.index]}
-      - evalScript: ${output.fixtureInput.index += 1}
-# A positive check returns immediately for correct input; notVisible
-# would wait for that text to disappear before skipping the fallback.
+# Try complete lines first unless the caller needs React Native to acknowledge
+# each character; verify exact text before accepting bulk input.
 - runFlow:
     when:
-      visible: ${output.fixtureInput.pattern}
+      true: ${!output.fixtureInput.forceIncremental}
     commands:
-      - evalScript: ${output.fixtureInput.complete = true}
+      - repeat:
+          times: ${INPUT_TEXT.split('\n').length}
+          commands:
+            - runFlow:
+                when:
+                  true: ${output.fixtureInput.index > 0}
+                commands:
+                  - pressKey: Enter
+            - inputText: ${INPUT_TEXT.split('\n')[output.fixtureInput.index]}
+            - evalScript: ${output.fixtureInput.index += 1}
+      # A positive check returns immediately for correct input; notVisible
+      # would wait for that text to disappear before skipping the fallback.
+      - runFlow:
+          when:
+            visible: ${output.fixtureInput.pattern}
+          commands:
+            - evalScript: ${output.fixtureInput.complete = true}
 # Fall back once to acknowledged prefixes if bulk entry dropped text.
 - runFlow:
     when:
-      true: ${!output.fixtureInput.complete}
+      true: ${output.fixtureInput.forceIncremental || !output.fixtureInput.complete}
     commands:
       - eraseText: 100
       - evalScript: ${output.fixtureInput.index = 0}

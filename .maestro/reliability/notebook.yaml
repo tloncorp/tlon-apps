@@ -29,6 +29,7 @@ env:
     file: subflows/input.yaml
     env:
       INPUT_TEXT: ${output.reliability.title}
+      INPUT_FORCE_INCREMENTAL: 'true'
 - tapOn:
     id: NotesBodyInput
 - runFlow:
@@ -52,6 +53,7 @@ env:
     file: subflows/input.yaml
     env:
       INPUT_TEXT: ${MAESTRO_RUN_TAG + ' edited note'}
+      INPUT_FORCE_INCREMENTAL: 'true'
 - runFlow: subflows/focus-notebook-body.yaml
 - eraseText: 100
 - runFlow:
