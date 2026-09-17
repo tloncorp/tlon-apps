@@ -455,7 +455,7 @@ export interface StewardAutomationEditProcessorOptions {
   cronWaitMs?: number;
   cronWaitAttempts?: number;
   finalizeDelaysMs?: readonly number[];
-  wait?: (delayMs: number) => Promise<void>;
+  wait?: (delayMs: number, signal?: AbortSignal) => Promise<void>;
   /** The monitor's teardown signal: once aborted, nothing further is applied or answered. */
   signal?: AbortSignal;
 }
@@ -482,10 +482,25 @@ function reportEditError(
   }
 }
 
-const defaultWait = (delayMs: number) =>
+/**
+ * Sleep, but give up the moment the monitor's teardown signal fires: a
+ * backoff between finalize attempts is the one place this processor would
+ * otherwise outlive its monitor, for as long as the schedule's last delay.
+ */
+const defaultWait = (delayMs: number, signal?: AbortSignal): Promise<void> =>
   new Promise<void>((resolve) => {
-    const timeout = setTimeout(resolve, delayMs);
+    if (signal?.aborted) {
+      resolve();
+      return;
+    }
+    const finish = () => {
+      clearTimeout(timeout);
+      signal?.removeEventListener('abort', finish);
+      resolve();
+    };
+    const timeout = setTimeout(finish, delayMs);
     timeout.unref?.();
+    signal?.addEventListener('abort', finish, { once: true });
   });
 
 /**
@@ -502,7 +517,10 @@ export class StewardAutomationEditProcessor {
   private readonly cronWaitMs: number;
   private readonly cronWaitAttempts: number;
   private readonly finalizeDelaysMs: readonly number[];
-  private readonly wait: (delayMs: number) => Promise<void>;
+  private readonly wait: (
+    delayMs: number,
+    signal?: AbortSignal
+  ) => Promise<void>;
 
   constructor(private readonly options: StewardAutomationEditProcessorOptions) {
     this.cronWaitMs =
@@ -620,7 +638,7 @@ export class StewardAutomationEditProcessor {
       if (attempt >= this.cronWaitAttempts) {
         return undefined;
       }
-      await this.wait(this.cronWaitMs);
+      await this.wait(this.cronWaitMs, this.options.signal);
     }
   }
 
@@ -660,7 +678,7 @@ export class StewardAutomationEditProcessor {
           `[tlon] Steward automation finalize for ${requestId} failed, ` +
             `retrying in ${delayMs}ms: ${errorMessage(error)}`
         );
-        await this.wait(delayMs);
+        await this.wait(delayMs, this.options.signal);
       }
     }
   }

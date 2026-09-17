@@ -688,3 +688,50 @@ describe('StewardAutomationEditProcessor telemetry', () => {
     ]);
   });
 });
+
+describe('StewardAutomationEditProcessor cancellation', () => {
+  it('abandons a finalize backoff as soon as the monitor aborts', async () => {
+    const controller = new AbortController();
+    const finalize = vi.fn().mockRejectedValue(new Error('channel down'));
+    const instance = new StewardAutomationEditProcessor({
+      finalize,
+      getCron: () => cronService(),
+      logger: { warn: vi.fn() },
+      // Long enough that only the signal can end the wait.
+      finalizeDelaysMs: [600_000],
+      signal: controller.signal,
+    });
+
+    const run = instance.handle({
+      requestId,
+      action: { delete: { id: 'job-1' } },
+    });
+    await vi.waitFor(() => expect(finalize).toHaveBeenCalledOnce());
+    controller.abort();
+
+    await expect(run).resolves.toBeUndefined();
+    expect(finalize).toHaveBeenCalledOnce();
+  });
+
+  it('abandons a wait for the cron service as soon as the monitor aborts', async () => {
+    const controller = new AbortController();
+    const getCron = vi.fn().mockReturnValue(undefined);
+    const instance = new StewardAutomationEditProcessor({
+      finalize: vi.fn().mockResolvedValue(undefined),
+      getCron,
+      logger: { warn: vi.fn() },
+      cronWaitMs: 600_000,
+      cronWaitAttempts: 30,
+      signal: controller.signal,
+    });
+
+    const run = instance.handle({
+      requestId,
+      action: { delete: { id: 'job-1' } },
+    });
+    await vi.waitFor(() => expect(getCron).toHaveBeenCalled());
+    controller.abort();
+
+    await expect(run).resolves.toBeUndefined();
+  });
+});
