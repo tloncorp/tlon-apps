@@ -361,7 +361,7 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
   const insets = useSafeAreaInsets();
   const botDm = useBotDmTab();
   const { disableNicknames } = useCalm();
-  const { navigateToGroup, navigateToChannel } = useRootNavigation();
+  const { resetToGroup, resetToChannel } = useRootNavigation();
   // What each target marks: the bot DM marks its own control, so one message
   // never lights both it and Activity.
   const botDmHasUnread = store.useChannelHasUnread(
@@ -444,19 +444,25 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
         source: 'drawer',
       });
       // These rows are the workspace list's chats, so what they open is a
-      // position inside Workspaces however the drawer was reached. Without
-      // this the conversation is pushed above whichever section happened to be
-      // showing, and stays attributed to it: reopen the drawer from a chat you
-      // picked here and it marks Activity or Settings, and back returns there.
-      navigation.dispatch(getTopLevelTabNavigateAction('ChatList'));
+      // position inside Workspaces however the drawer was reached — otherwise
+      // it is pushed above whichever section happened to be showing and stays
+      // attributed to it, and backing out returns there.
+      //
+      // Both of these reset to that position and the chat together, in one
+      // dispatch. Selecting the section first and then navigating would show
+      // the workspace list in between, because the group route has to read the
+      // group before it knows whether to open its channel list or its only
+      // channel — long enough to see.
       if (chat.type === 'group') {
-        navigateToGroup(chat.group.id);
+        resetToGroup(chat.group.id);
       } else {
-        navigateToChannel(chat.channel);
+        resetToChannel(chat.channel.id, {
+          groupId: chat.channel.groupId ?? undefined,
+        });
       }
       navigation.closeDrawer();
     },
-    [chatsLocked, navigateToChannel, navigateToGroup, navigation]
+    [chatsLocked, navigation, resetToChannel, resetToGroup]
   );
 
   const hasUnread: Partial<Record<TopLevelTabName, boolean>> = {
