@@ -13,11 +13,12 @@ import { Button, Text } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 
 import type { NodeStatusCheckResult } from '../hooks/useCheckNodeStopped';
-import { refreshHostingAuth } from '../lib/hostingAuth';
 
 const logger = createDevLogger('TlonbotRevivalPromptSheet', true);
 
-export function useTlonbotRevivalPrompt() {
+export function useTlonbotRevivalPrompt(
+  requireHostingAuth: (options?: { force?: boolean }) => Promise<boolean>
+) {
   const { authCookie, authType, setShip, ship, shipUrl } = useShip();
   const { closeAfterAnimation } = useSheetCloseAfterAnimation();
   const [open, setOpen] = useState(false);
@@ -34,13 +35,15 @@ export function useTlonbotRevivalPrompt() {
         return;
       }
 
-      await refreshHostingAuth({ force: true });
+      if (!(await requireHostingAuth({ force: true }))) {
+        return;
+      }
       const hostingBotEnabled = await db.hostingBotEnabled.getValue();
       if (!hostingBotEnabled) {
         setOpen(true);
       }
     },
-    [snoozed]
+    [requireHostingAuth, snoozed]
   );
 
   const handleOpenChange = useCallback((nextOpen: boolean) => {

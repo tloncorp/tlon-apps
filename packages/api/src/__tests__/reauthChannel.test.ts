@@ -171,6 +171,370 @@ describe('reauth', () => {
     expect(handleAuthFailure).toHaveBeenCalledWith({ mustLogout: false });
   });
 
+  test('retries a login the ship answered with a 504', async () => {
+    vi.useFakeTimers();
+    const client = fakeClient({
+      poke: vi
+        .fn()
+        .mockRejectedValueOnce(new AuthError('invalid session'))
+        .mockResolvedValue(1),
+    });
+    const loginFetch = vi
+      .fn()
+      .mockResolvedValueOnce(loginResponse(504))
+      .mockResolvedValueOnce(loginResponse(200));
+    vi.stubGlobal('fetch', loginFetch);
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    const pending = poke({ app: 'a', mark: 'm', json: {} });
+    // the loop waits 3s before the second attempt; nothing before then
+    await vi.advanceTimersByTimeAsync(0);
+    expect(loginFetch).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(2_999);
+    expect(loginFetch).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(loginFetch).toHaveBeenCalledTimes(2);
+    await expect(pending).resolves.toBe(1);
+    expect(client.cookie).toBe('urbauth=refreshed');
+  });
+
+  test('a login that 504s every time gives up at the attempt bound', async () => {
+    vi.useFakeTimers();
+    const client = fakeClient({
+      poke: vi.fn().mockRejectedValue(new AuthError('invalid session')),
+    });
+    const loginFetch = vi.fn().mockResolvedValue(loginResponse(504));
+    vi.stubGlobal('fetch', loginFetch);
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    const pending = poke({ app: 'a', mark: 'm', json: {} }).catch((e) => e);
+    // four attempts, spaced by the loop's 3s / 5s / 9s backoff -- so the
+    // cumulative boundaries are 3s, 8s and 17s, and nothing fires early
+    await vi.advanceTimersByTimeAsync(0);
+    expect(loginFetch).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(2_999);
+    expect(loginFetch).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(loginFetch).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(loginFetch).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(loginFetch).toHaveBeenCalledTimes(3);
+    await vi.advanceTimersByTimeAsync(8_999);
+    expect(loginFetch).toHaveBeenCalledTimes(3);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(loginFetch).toHaveBeenCalledTimes(4);
+
+    await expect(pending).resolves.toMatchObject({
+      message: expect.stringContaining(
+        'Error during reauth: AuthFailureError: Authentication failed with status 504'
+      ),
+    });
+    // the bound holds: no fifth attempt, however long we wait
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(loginFetch).toHaveBeenCalledTimes(4);
+  });
+
+  test('retries a login whose request never reached the ship', async () => {
+    vi.useFakeTimers();
+    const client = fakeClient({
+      poke: vi
+        .fn()
+        .mockRejectedValueOnce(new AuthError('invalid session'))
+        .mockResolvedValue(1),
+    });
+    const loginFetch = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Network request failed'))
+      .mockResolvedValueOnce(loginResponse(200));
+    vi.stubGlobal('fetch', loginFetch);
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    const pending = poke({ app: 'a', mark: 'm', json: {} });
+    await vi.advanceTimersByTimeAsync(2_999);
+    expect(loginFetch).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(loginFetch).toHaveBeenCalledTimes(2);
+    await expect(pending).resolves.toBe(1);
+  });
+
+  test('a 403 from the login endpoint fails without retrying', async () => {
+    vi.useFakeTimers();
+    const client = fakeClient({
+      poke: vi.fn().mockRejectedValue(new AuthError('invalid session')),
+    });
+    const loginFetch = vi.fn().mockResolvedValue(loginResponse(403));
+    vi.stubGlobal('fetch', loginFetch);
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    const pending = poke({ app: 'a', mark: 'm', json: {} }).catch((e) => e);
+    await expect(pending).resolves.toMatchObject({
+      message: expect.stringContaining(
+        'Error during reauth: AuthFailureError: Authentication failed with status 403'
+      ),
+    });
+    // it threw before the first backoff, and no attempt follows
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(loginFetch).toHaveBeenCalledTimes(1);
+  });
+
+  test('a client swapped in mid-backoff is left alone', async () => {
+    // logout / account switch between attempts: the code and cookie in hand
+    // belong to the account we started for, so neither may touch the new one
+    vi.useFakeTimers();
+    const handleAuthFailure = vi.fn();
+    const client = fakeClient({
+      poke: vi.fn().mockRejectedValue(new AuthError('invalid session')),
+    });
+    const loginFetch = vi.fn().mockResolvedValue(loginResponse(504));
+    vi.stubGlobal('fetch', loginFetch);
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      handleAuthFailure,
+      client: client as any,
+    });
+
+    const pending = poke({ app: 'a', mark: 'm', json: {} }).catch((e) => e);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(loginFetch).toHaveBeenCalledTimes(1);
+
+    const nextHandleAuthFailure = vi.fn();
+    const nextGetCode = vi.fn(async () => 'other-code');
+    const nextClient = fakeClient({ cookie: 'urbauth=other-account' });
+    internalRemoveClient();
+    internalConfigureClient({
+      shipName: '~bus',
+      shipUrl: 'http://other.test',
+      getCode: nextGetCode,
+      handleAuthFailure: nextHandleAuthFailure,
+      client: nextClient as any,
+    });
+
+    // the backoff elapses into an account that is no longer the one we
+    // started for, so the loop stops instead of posting the old code to it
+    await vi.advanceTimersByTimeAsync(30_000);
+    await expect(pending).resolves.toMatchObject({
+      message: 'Error during reauth: client changed',
+    });
+    expect(loginFetch).toHaveBeenCalledTimes(1);
+    expect(nextHandleAuthFailure).not.toHaveBeenCalled();
+    expect(handleAuthFailure).not.toHaveBeenCalled();
+    expect(nextClient.cookie).toBe('urbauth=other-account');
+    expect(nextClient.seamlessReset).not.toHaveBeenCalled();
+
+    // the abandoned login settled and released pendingAuth, so the new
+    // account can authenticate for itself
+    loginFetch.mockResolvedValue(loginResponse(200));
+    nextClient.poke = vi
+      .fn()
+      .mockRejectedValueOnce(new AuthError('invalid session'))
+      .mockResolvedValue(1);
+    const next = poke({ app: 'a', mark: 'm', json: {} });
+    await vi.advanceTimersByTimeAsync(0);
+    await expect(next).resolves.toBe(1);
+    expect(nextGetCode).toHaveBeenCalled();
+    expect(nextClient.cookie).toBe('urbauth=refreshed');
+  });
+
+  test('a client swapped in while fetching the code is left alone', async () => {
+    // the loop-top check can't see this window, so the snapshotted ship url
+    // and client have to carry it: the login goes to the ship we started for
+    // and its cookie stays off the account that replaced it
+    const client = fakeClient({
+      poke: vi.fn().mockRejectedValue(new AuthError('invalid session')),
+    });
+    const loginFetch = vi.fn().mockResolvedValue(loginResponse(200));
+    vi.stubGlobal('fetch', loginFetch);
+    const nextClient = fakeClient({ cookie: 'urbauth=other-account' });
+    const getCode = vi.fn(
+      () =>
+        new Promise<string>((resolve) =>
+          setTimeout(() => {
+            internalRemoveClient();
+            internalConfigureClient({
+              shipName: '~bus',
+              shipUrl: 'http://other.test',
+              getCode: vi.fn(async () => 'other-code'),
+              client: nextClient as any,
+            });
+            resolve('code');
+          })
+        )
+    );
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode,
+      client: client as any,
+    });
+
+    await poke({ app: 'a', mark: 'm', json: {} }).catch(() => {});
+
+    expect(loginFetch).toHaveBeenCalledWith(
+      'http://example.test/~/login',
+      expect.anything()
+    );
+    expect(nextClient.cookie).toBe('urbauth=other-account');
+    expect(nextClient.seamlessReset).not.toHaveBeenCalled();
+  });
+
+  test('a client swapped in while the code request fails is left alone', async () => {
+    // a getCode failure normally hands off to the app's failure handler, which
+    // by now belongs to the account that arrived mid-request
+    const handleAuthFailure = vi.fn();
+    const nextHandleAuthFailure = vi.fn();
+    const client = fakeClient({
+      poke: vi.fn().mockRejectedValue(new AuthError('invalid session')),
+    });
+    const nextClient = fakeClient({ cookie: 'urbauth=other-account' });
+    const loginFetch = vi.fn();
+    vi.stubGlobal('fetch', loginFetch);
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(
+        () =>
+          new Promise<string>((_resolve, reject) =>
+            setTimeout(() => {
+              internalRemoveClient();
+              internalConfigureClient({
+                shipName: '~bus',
+                shipUrl: 'http://other.test',
+                getCode: vi.fn(async () => 'other-code'),
+                handleAuthFailure: nextHandleAuthFailure,
+                client: nextClient as any,
+              });
+              reject(new Error('no code available'));
+            })
+          )
+      ),
+      handleAuthFailure,
+      client: client as any,
+    });
+
+    await expect(
+      poke({ app: 'a', mark: 'm', json: {} }).catch((e) => e)
+    ).resolves.toMatchObject({
+      message: 'Error during reauth: client changed',
+    });
+    expect(handleAuthFailure).not.toHaveBeenCalled();
+    expect(nextHandleAuthFailure).not.toHaveBeenCalled();
+    expect(loginFetch).not.toHaveBeenCalled();
+  });
+
+  test('a client swapped in during the login request is left alone', async () => {
+    // a 400 normally means the code was rejected: log out and tell the app.
+    // Neither belongs to the account that arrived while the request was in
+    // flight, so the whole branch has to be skipped.
+    const handleAuthFailure = vi.fn();
+    const client = fakeClient({
+      poke: vi.fn().mockRejectedValue(new AuthError('invalid session')),
+    });
+    const nextHandleAuthFailure = vi.fn();
+    const nextGetCode = vi.fn(async () => 'other-code');
+    const nextClient = fakeClient({ cookie: 'urbauth=other-account' });
+    const loginFetch = vi
+      .fn()
+      .mockImplementationOnce(async () => {
+        internalRemoveClient();
+        internalConfigureClient({
+          shipName: '~bus',
+          shipUrl: 'http://other.test',
+          getCode: nextGetCode,
+          handleAuthFailure: nextHandleAuthFailure,
+          client: nextClient as any,
+        });
+        return loginResponse(400);
+      })
+      .mockResolvedValue(loginResponse(200));
+    vi.stubGlobal('fetch', loginFetch);
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      handleAuthFailure,
+      client: client as any,
+    });
+
+    await expect(
+      poke({ app: 'a', mark: 'm', json: {} }).catch((e) => e)
+    ).resolves.toMatchObject({
+      message: 'Error during reauth: client changed',
+    });
+    expect(handleAuthFailure).not.toHaveBeenCalled();
+    expect(nextHandleAuthFailure).not.toHaveBeenCalled();
+    expect(nextClient.cookie).toBe('urbauth=other-account');
+
+    // loggingOut was left alone and pendingAuth was released, so the account
+    // that arrived can still authenticate for itself
+    nextClient.poke = vi
+      .fn()
+      .mockRejectedValueOnce(new AuthError('invalid session'))
+      .mockResolvedValue(1);
+    await expect(poke({ app: 'a', mark: 'm', json: {} })).resolves.toBe(1);
+    expect(nextGetCode).toHaveBeenCalled();
+    expect(nextClient.cookie).toBe('urbauth=refreshed');
+  });
+
+  test('the same guard covers a 401 retry', async () => {
+    vi.useFakeTimers();
+    const handleAuthFailure = vi.fn();
+    const client = fakeClient({
+      poke: vi.fn().mockRejectedValue(new AuthError('invalid session')),
+    });
+    const loginFetch = vi.fn().mockResolvedValue(loginResponse(401));
+    vi.stubGlobal('fetch', loginFetch);
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      handleAuthFailure,
+      client: client as any,
+    });
+
+    const pending = poke({ app: 'a', mark: 'm', json: {} }).catch((e) => e);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(loginFetch).toHaveBeenCalledTimes(1);
+
+    const nextClient = fakeClient({ cookie: 'urbauth=other-account' });
+    internalRemoveClient();
+    internalConfigureClient({
+      shipName: '~bus',
+      shipUrl: 'http://other.test',
+      getCode: vi.fn(async () => 'other-code'),
+      client: nextClient as any,
+    });
+
+    await vi.advanceTimersByTimeAsync(30_000);
+    await expect(pending).resolves.toMatchObject({
+      message: 'Error during reauth: client changed',
+    });
+    expect(loginFetch).toHaveBeenCalledTimes(1);
+    expect(nextClient.cookie).toBe('urbauth=other-account');
+  });
+
   test('reports the refreshed cookie so native copies can be updated', async () => {
     const onAuthCookieChange = vi.fn();
     const client = fakeClient({
@@ -198,11 +562,11 @@ describe('reauth', () => {
     });
   });
 
-  // Reauth reads config.* after its awaits, so one started before an account
-  // switch can land after it (TLON-6500). The identity it reports must be the
-  // one the login actually ran under, otherwise a handler cannot tell that the
-  // cookie belongs to a client it is no longer configured for.
-  test('reports the identity the login used, not whatever is configured later', async () => {
+  // develop's abandonIfSwapped now aborts a reauth whose client was swapped,
+  // so the cookie callback must not fire at all for one -- a stale cookie is
+  // never offered to a handler in the first place, rather than offered and
+  // rejected. This pins that seam between the two.
+  test('does not report a cookie for a reauth whose client was swapped', async () => {
     const onAuthCookieChange = vi.fn();
     const client = fakeClient({
       poke: vi
@@ -210,17 +574,16 @@ describe('reauth', () => {
         .mockRejectedValueOnce(new AuthError('invalid session'))
         .mockResolvedValue(1),
     });
-    // switch ships at the moment the login request goes out, so the switch
-    // lands while the login response is still in flight
     vi.stubGlobal(
       'fetch',
       vi.fn(() => {
+        // swap ships while the login request is in flight
         internalConfigureClient({
           shipName: '~bus',
           shipUrl: 'http://ship-b.test',
           getCode: vi.fn(async () => 'code'),
           onAuthCookieChange,
-          client: client as any,
+          client: fakeClient() as any,
         });
         return new Promise<Response>((resolve) =>
           setTimeout(() => resolve(loginResponse()))
@@ -235,14 +598,10 @@ describe('reauth', () => {
       client: client as any,
     });
 
-    await expect(poke({ app: 'a', mark: 'm', json: {} })).resolves.toBe(1);
-
-    expect(onAuthCookieChange).toHaveBeenCalledWith({
-      shipName: '~zod',
-      shipUrl: 'http://ship-a.test',
-      authCookie: 'urbauth=refreshed',
-      clientGeneration: expect.any(Number),
-    });
+    await expect(poke({ app: 'a', mark: 'm', json: {} })).rejects.toThrow(
+      /client changed/
+    );
+    expect(onAuthCookieChange).not.toHaveBeenCalled();
   });
 
   // A url is not an identity: the same self-hosted endpoint can end up serving
@@ -553,7 +912,10 @@ describe('seamlessReset', () => {
     const urbit = new Urbit('http://example.test', undefined, undefined, fetch);
     urbit.nodeId = '~zod';
     await expect(
-      (urbit as any).sendNounsToChannel(new Atom(0n))
+      (urbit as any).sendNounsToChannel(
+        { id: 1, action: 'poke', app: 'a', mark: 'm' },
+        new Atom(0n)
+      )
     ).rejects.toMatchObject({ name: 'ChannelPutError', status: 403 });
   });
 });
@@ -872,6 +1234,139 @@ describe('subscribeOnce auth retry', () => {
     expect(trackEvent).toHaveBeenCalledWith(
       AnalyticsEvent.SubscribeOnceRecovered,
       expect.objectContaining({ subEndpoint: 'vitals/status/~zod' })
+    );
+  });
+});
+
+describe('bad poke diagnostics', () => {
+  function stubLogger() {
+    const stub = {
+      ...console,
+      crumb: vi.fn(),
+      sensitiveCrumb: vi.fn(),
+      trackError: vi.fn(),
+      trackEvent: vi.fn(),
+    };
+    configureLoggerFactory(() => stub as any);
+    return stub;
+  }
+
+  // a fixed clock so the reported channel age is exact rather than a floor
+  const now = new Date('2026-09-15T12:00:00Z');
+  const channelIdMintedSecondsAgo = (seconds: number) =>
+    `${Math.floor(now.getTime() / 1000) - seconds}-abc123`;
+
+  test('an invalid-session poke reports the session state it failed in', async () => {
+    // REACT-NATIVE-83: `AuthError: invalid session` carries no status, so the
+    // capture has to say for itself whether we were ever authenticated and
+    // whether a reauth was attempted
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    const { trackError } = stubLogger();
+    const client = fakeClient({
+      channelId: channelIdMintedSecondsAgo(42),
+      poke: vi.fn().mockRejectedValue(new AuthError('invalid session')),
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(loginResponse()));
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    await expect(
+      poke({ app: 'notify', mark: 'notify-client-action', json: {} })
+    ).rejects.toBeInstanceOf(AuthError);
+
+    expect(trackError).toHaveBeenCalledWith(
+      'bad poke',
+      expect.objectContaining({
+        app: 'notify',
+        mark: 'notify-client-action',
+        // a login has completed at some point, and this poke drove one of them
+        authEpoch: expect.any(Number),
+        reauthsDuringPoke: 1,
+        reauthInFlight: false,
+        channelOpened: true,
+        channelAgeSeconds: 42,
+        connectionStatus: expect.any(String),
+      })
+    );
+    const props = trackError.mock.calls[0][1] as Record<string, unknown>;
+    expect(props.authEpoch).toBeGreaterThan(0);
+    // nothing identifying: no ship, no url, no poke body
+    expect(JSON.stringify(props)).not.toContain('~zod');
+    expect(JSON.stringify(props)).not.toContain('example.test');
+  });
+
+  test('omits the channel age when the uid carries no timestamp', async () => {
+    const { trackError } = stubLogger();
+    const client = fakeClient({
+      channelId: 'not-a-timestamp',
+      poke: vi.fn().mockRejectedValue(new ChannelPutError(503, 'unavailable')),
+    });
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    await expect(
+      poke({ app: 'notify', mark: 'notify-client-action', json: {} })
+    ).rejects.toBeInstanceOf(ChannelPutError);
+    const props = trackError.mock.calls[0][1] as Record<string, unknown>;
+    expect(props.channelAgeSeconds).toBeUndefined();
+  });
+
+  test('carries the http status when the failure has one', async () => {
+    const { trackError } = stubLogger();
+    const client = fakeClient({
+      channelId: channelIdMintedSecondsAgo(0),
+      poke: vi.fn().mockRejectedValue(new ChannelPutError(503, 'unavailable')),
+    });
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    await expect(
+      poke({ app: 'notify', mark: 'notify-client-action', json: {} })
+    ).rejects.toBeInstanceOf(ChannelPutError);
+    expect(trackError).toHaveBeenCalledWith(
+      'bad poke',
+      expect.objectContaining({
+        errorStatus: 503,
+        reauthsDuringPoke: 0,
+        channelOpened: true,
+      })
+    );
+  });
+
+  test('falls back to responseStatus when that is where the status lives', async () => {
+    // AuthFailureError keeps its status under `responseStatus`, which
+    // describeError's `status` read misses entirely
+    const { trackError } = stubLogger();
+    const client = fakeClient({
+      channelId: channelIdMintedSecondsAgo(0),
+      poke: vi.fn().mockRejectedValue(new AuthFailureError(504)),
+    });
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    await expect(
+      poke({ app: 'notify', mark: 'notify-client-action', json: {} })
+    ).rejects.toBeInstanceOf(AuthFailureError);
+    expect(trackError).toHaveBeenCalledWith(
+      'bad poke',
+      expect.objectContaining({ errorStatus: 504 })
     );
   });
 });

@@ -370,6 +370,15 @@ export async function configureClient(params: ClientParams) {
   }
 }
 
+/**
+ * URL of the ship this client is configured for, or null before
+ * `configureClient` has run. Used to classify where a request failed when the
+ * error itself does not name a host.
+ */
+export function getConfiguredShipUrl(): string | null {
+  return config.shipUrl.length > 0 ? config.shipUrl : null;
+}
+
 export function internalRemoveClient() {
   config.client?.delete();
   config.client = null;
@@ -427,6 +436,19 @@ interface SendContext {
 
 function captureSendContext(client: Urbit | null): SendContext {
   return { authEpoch: config.authEpoch, channelId: client?.channelId };
+}
+
+// Seconds since the current channel id was minted. The uid is
+// `<unix seconds>-<random>`, so this needs no new state -- but it is the age
+// of the id, not of a connection: the id is minted when the client is
+// constructed, well before anything is sent on the channel, and a rotation
+// between the failing send and this report restarts the clock. Only the age is
+// reported; the uid itself is an identifier and stays out of analytics.
+function channelAgeSeconds(client: Urbit | null): number | undefined {
+  const opened = Number(client?.channelId?.split('-')[0]);
+  return Number.isFinite(opened) && opened > 0
+    ? Math.max(0, Math.round(Date.now() / 1000 - opened))
+    : undefined;
 }
 
 function rotateChannelOnce(client: Urbit, sent: SendContext, context: string) {
@@ -750,6 +772,7 @@ export async function poke({ app, mark, json }: PokeParams) {
     mark,
   });
   const activeClient = resolveClient();
+  const startEpoch = config.authEpoch;
   let sent = captureSendContext(activeClient);
   const doPoke = async () => {
     if (!activeClient) {
@@ -766,6 +789,31 @@ export async function poke({ app, mark, json }: PokeParams) {
       ...describeError(err),
       app,
       mark,
+      // `AuthError: invalid session` carries no status and no session context.
+      errorStatus:
+        typeof err?.status === 'number'
+          ? err.status
+          : typeof err?.responseStatus === 'number'
+            ? err.responseStatus
+            : undefined,
+      channelOpened: activeClient?.channelOpened,
+      channelAgeSeconds: channelAgeSeconds(activeClient),
+      // A resolver-provided client owns its own auth, so config's session
+      // state describes the singleton rather than the client that failed;
+      // report it only when they are the same client. `authEpoch` counts
+      // reauths that completed in this process -- including one another
+      // caller started and this poke merely waited on -- and counts neither
+      // failed attempts nor the initial connect(), so 0 means no login has
+      // ever completed here. `reauthsDuringPoke` narrows that to the ones
+      // this call spanned.
+      ...(activeClient === config.client
+        ? {
+            authEpoch: config.authEpoch,
+            reauthsDuringPoke: config.authEpoch - startEpoch,
+            reauthInFlight: config.pendingAuth !== null,
+            connectionStatus: config.lastStatus,
+          }
+        : {}),
     });
     trackDuration('error');
     throw err;
@@ -1132,7 +1180,7 @@ export async function scry<T>({
       errorMessage: res.message,
       responseStatus: res.status,
     });
-    throw new BadResponseError(res.status, res.toString());
+    throw new BadResponseError(res.status, await responseErrorBody(res));
   }
 }
 
@@ -1183,10 +1231,17 @@ export async function requestJson<T = any>(
   }
 }
 
+// Reading a rejected response's body is purely diagnostic, and the request's
+// own timeout is already disarmed by the time the rejection reaches us
+// (`scryWithInfo` cleans its signal up in a `finally`), so an unbounded read
+// would hang a scry that had already failed. Give the read its own deadline
+// and settle for an empty body when it expires.
+const ERROR_BODY_READ_TIMEOUT = 5000;
+
 async function responseErrorBody(res: any): Promise<string> {
   if (typeof res?.text === 'function') {
     try {
-      return await res.text();
+      return await readWithin(res.text(), ERROR_BODY_READ_TIMEOUT);
     } catch {
       // Fall through to the generic cases below.
     }
@@ -1195,6 +1250,17 @@ async function responseErrorBody(res: any): Promise<string> {
   if (typeof res?.message === 'string') return res.message;
   const text = String(res);
   return text === '[object Response]' ? '' : text;
+}
+
+// Resolves with whatever `read` produces, or with an empty body once `ms`
+// elapses. The abandoned read stays attached to the race, so a late rejection
+// is never unhandled.
+function readWithin(read: Promise<string>, ms: number): Promise<string> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<string>((resolve) => {
+    timer = setTimeout(() => resolve(''), ms);
+  });
+  return Promise.race([read, deadline]).finally(() => clearTimeout(timer));
 }
 
 export async function scryNoun({
@@ -1241,7 +1307,7 @@ export async function scryNoun({
       message: res.message,
       responseStatus: res.status,
     });
-    throw new BadResponseError(res.status, res.toString());
+    throw new BadResponseError(res.status, await responseErrorBody(res));
   }
 }
 
@@ -1333,11 +1399,32 @@ async function reauth() {
 const MAX_LOGIN_ATTEMPTS = 4;
 
 async function performReauth(): Promise<string | void> {
+  // Everything here belongs to the account we started for: the code, the ship
+  // we post it to, and the client the cookie lands on. A logout or account
+  // switch can land on any await below and swap all three out from under us,
+  // and once it has, nothing that follows is the new account's business --
+  // not the cookie, not `loggingOut`, not its failure handler. Abandon.
+  const startClient = config.client;
+  const startShipUrl = config.shipUrl;
+  // reported to onAuthCookieChange so a handler can tell, after its own
+  // awaits, whether the session this cookie was minted for is still live --
+  // abandonIfSwapped only covers the window inside this function
+  const startShipName = config.shipName;
+  const startGeneration = config.clientGeneration;
+  const abandonIfSwapped = () => {
+    if (config.client === startClient && config.shipUrl === startShipUrl) {
+      return;
+    }
+    logger.log('client changed during reauth, abandoning');
+    throw new Error('Error during reauth: client changed');
+  };
+
   let code: string;
   try {
     logger.log('getting urbit code');
     code = await config.getCode!();
   } catch (e) {
+    abandonIfSwapped();
     logger.error('error getting urbit code', e);
     if (config.handleAuthFailure) {
       return config.handleAuthFailure({ mustLogout: false });
@@ -1346,17 +1433,26 @@ async function performReauth(): Promise<string | void> {
   }
 
   for (let attempt = 0; ; attempt++) {
+    // a swap during the backoff: stop before the request is even sent
+    if (attempt > 0) {
+      abandonIfSwapped();
+    }
     const lastAttempt = attempt >= MAX_LOGIN_ATTEMPTS - 1;
     let authCookie: string | undefined;
-    // read once, so the identity reported to onAuthCookieChange is provably
-    // the one this login ran under even if config changes while we await
-    const loginShipName = config.shipName;
-    const loginShipUrl = config.shipUrl;
-    const loginGeneration = config.clientGeneration;
+    let failure: { error: unknown } | undefined;
     try {
       logger.log('trying to auth with code', code);
-      authCookie = await getLandscapeAuthCookie(loginShipUrl, code);
+      authCookie = await getLandscapeAuthCookie(startShipUrl, code);
     } catch (e) {
+      failure = { error: e };
+    }
+    // the request is a window of its own, so re-check before anything acts on
+    // the result -- the success path and every branch of the failure handling
+    // below all reach for whatever client is installed now
+    abandonIfSwapped();
+
+    if (failure) {
+      const e = failure.error;
       if (e instanceof AuthFailureError && e.responseStatus === 400) {
         // the code itself was rejected; no retry will fix that, so log out
         config.loggingOut = true;
@@ -1367,24 +1463,34 @@ async function performReauth(): Promise<string | void> {
       // recognizes; the response expires it, so a retry can go through clean
       const staleCookie =
         e instanceof AuthFailureError && e.responseStatus === 401;
-      if (!staleCookie || lastAttempt) {
+      // a 5xx is the ship failing to answer, not a verdict on our credentials,
+      // and anything that isn't an AuthFailureError means fetch itself
+      // rejected -- we have no response to judge, though the ship may well
+      // have received the request. Both can come good on the next attempt;
+      // every other 4xx is a refusal that a retry will only repeat.
+      const transient =
+        e instanceof AuthFailureError ? e.responseStatus >= 500 : true;
+      if (!(staleCookie || transient) || lastAttempt) {
         if (staleCookie && config.handleAuthFailure) {
           // we are out of retries with a cookie the ship keeps rejecting; let
           // the app decide what an unrecoverable session means for it
           logger.log('auth failed, calling auth failure handler');
           config.handleAuthFailure({ mustLogout: false });
         }
-        throw new Error(`Error during reauth: ${e}`);
+        // keep the original as `cause`: the message stringifies it, but error
+        // reporting classifies failures by the status field, which a bare
+        // rethrow would drop
+        throw new Error(`Error during reauth: ${e}`, { cause: e });
       }
     }
 
     if (authCookie) {
       config.authEpoch += 1;
       config.onAuthCookieChange?.({
-        shipName: loginShipName,
-        shipUrl: loginShipUrl,
+        shipName: startShipName,
+        shipUrl: startShipUrl,
         authCookie,
-        clientGeneration: loginGeneration,
+        clientGeneration: startGeneration,
       });
       if (config.client) {
         config.client.cookie = authCookie;

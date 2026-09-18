@@ -586,6 +586,7 @@ export function BigInput({
                 width="100%"
                 borderColor="transparent"
                 placeholder="New Title"
+                testID="NotebookTitleInput"
                 placeholderTextColor={'$tertiaryText'}
                 onChangeText={setTitle}
                 value={title}
@@ -697,6 +698,9 @@ export function BigInput({
               frameless={true}
               bigInput={true}
               shouldAutoFocus={true}
+              testID={
+                channelType === 'notebook' ? 'NotebookBodyInput' : undefined
+              }
               showInlineAttachments={channelType === 'gallery'}
               onEditorContentChange={handleEditorContentChanged}
               onEditorStateChange={handleEditorStateChange}

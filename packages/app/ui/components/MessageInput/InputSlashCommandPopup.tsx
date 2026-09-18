@@ -5,7 +5,7 @@ import { Portal, View, YStack } from 'tamagui';
 
 import { useIsWindowNarrow } from '../Emoji';
 import SlashCommandPopup, {
-  type SlashCommandPopupRef,
+  type SlashCommandController,
 } from '../SlashCommandPopup';
 import { useInputPopupBottomOffset } from './useInputPopupBottomOffset';
 
@@ -28,7 +28,7 @@ function InputSlashCommandPopupInternal(
     onSelectSlashCommand: (option: SlashCommandOption) => void;
     onDismiss?: () => void;
   }>,
-  ref: SlashCommandPopupRef
+  ref: React.ForwardedRef<SlashCommandController>
 ) {
   const isNarrow = useIsWindowNarrow();
   const { bottomOffset, backdropBottom } = useInputPopupBottomOffset(
