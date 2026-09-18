@@ -57,6 +57,19 @@ const FOOTER_CONTROL_RADIUS = floatingChromeMetrics.controlRadius;
 // own flat surfaces everywhere else.
 const usesIOSGlass = supportsLiquidGlass();
 
+// Both controls float over the list, so they get the lift the app's other
+// floating chrome has — the composer's own value, written the way a shadow is
+// written in a native style rather than as a `boxShadow` string. It sits on a
+// wrapper rather than on the glass itself: the glass clips to its bounds, and
+// a view that clips does not cast.
+const FOOTER_CONTROL_SHADOW = {
+  shadowColor: 'rgba(0, 0, 0, 0.10)',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 1,
+  shadowRadius: 8,
+  elevation: 2,
+} as const;
+
 /**
  * The sections the drawer lists as rows, in the order it lists them.
  *
@@ -207,6 +220,7 @@ function DrawerChatButton({
         onPress={onPress}
         accessibilityLabel={accessibilityLabel}
         testID="TopLevelDrawerChatButton"
+        {...FOOTER_CONTROL_SHADOW}
       />
     );
   }
@@ -217,7 +231,11 @@ function DrawerChatButton({
     // underneath. So the glass goes behind as a backdrop, and the pressable
     // above it both sets the size and takes the touch. The settings button,
     // which has a fixed size, can host its pressable inside the glass.
-    <View alignSelf="flex-start" borderRadius={FOOTER_CONTROL_RADIUS}>
+    <View
+      alignSelf="flex-start"
+      borderRadius={FOOTER_CONTROL_RADIUS}
+      {...FOOTER_CONTROL_SHADOW}
+    >
       {/* Tinted rather than clear: this is the drawer's primary action, and
           clear glass over a pale panel leaves the label competing with the
           chat titles behind it. The tint is the fill the primary button
@@ -295,13 +313,19 @@ function DrawerSettingsButton({
   );
 
   if (!usesIOSGlass) {
-    return control;
+    return (
+      <View borderRadius={FOOTER_CONTROL_RADIUS} {...FOOTER_CONTROL_SHADOW}>
+        {control}
+      </View>
+    );
   }
 
   return (
-    <GlassSurface isInteractive style={footerStyles.settingsButton}>
-      {control}
-    </GlassSurface>
+    <View borderRadius={FOOTER_CONTROL_RADIUS} {...FOOTER_CONTROL_SHADOW}>
+      <GlassSurface isInteractive style={footerStyles.settingsButton}>
+        {control}
+      </GlassSurface>
+    </View>
   );
 }
 
