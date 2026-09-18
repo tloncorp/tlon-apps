@@ -67,13 +67,17 @@ export const ShipProvider = ({
   const [isLoading, setIsLoading] = useState(!initialShipInfo);
   const [shipInfo, setShipInfo] = useState(initialShipInfo ?? emptyShip);
   // Lets a callback that was captured earlier tell whether the account it was
-  // created for is still the current one. Kept in an effect rather than
-  // assigned during render; every reader runs from an event or a timer, well
-  // after effects have flushed.
+  // created for is still the current one.
   const shipInfoRef = useRef(shipInfo);
-  useEffect(() => {
-    shipInfoRef.current = shipInfo;
-  }, [shipInfo]);
+  // Every session change goes through here so the ref is exact from the moment
+  // it happens. An effect would leave a window: setShip enqueues its state
+  // update synchronously, but the ref would not catch up until passive effects
+  // flush, and a splash completion firing in between would still see the old
+  // session -- and then enqueue its own update behind the new one.
+  const applyShipInfo = useCallback((next: ShipInfo) => {
+    shipInfoRef.current = next;
+    setShipInfo(next);
+  }, []);
 
   const setShip = useCallback(
     ({
@@ -90,7 +94,7 @@ export const ShipProvider = ({
         storage.shipInfo.resetValue();
 
         // Clear context state
-        setShipInfo(emptyShip);
+        applyShipInfo(emptyShip);
 
         // Clear native storage (only in native platforms)
         if (UrbitModule) {
@@ -114,7 +118,7 @@ export const ShipProvider = ({
       storage.shipInfo.setValue(nextShipInfo);
 
       // Save context state
-      setShipInfo(nextShipInfo);
+      applyShipInfo(nextShipInfo);
 
       // Configure analytics (only on native platforms)
       // Skip for web/electron to avoid 'crashlytics is not a function' error
@@ -146,7 +150,7 @@ export const ShipProvider = ({
           });
           const fetchedAuthCookie = response.headers.get('set-cookie');
           if (fetchedAuthCookie) {
-            setShipInfo({ ...nextShipInfo, authCookie: fetchedAuthCookie });
+            applyShipInfo({ ...nextShipInfo, authCookie: fetchedAuthCookie });
             storage.shipInfo.setValue({
               ...nextShipInfo,
               authCookie: fetchedAuthCookie,
@@ -162,7 +166,7 @@ export const ShipProvider = ({
       logger.trackEvent(AnalyticsEvent.NodeAuthSaved);
       setIsLoading(false);
     },
-    []
+    [applyShipInfo]
   );
 
   useEffect(() => {
@@ -190,9 +194,9 @@ export const ShipProvider = ({
   }, [initialShipInfo, setShip]);
 
   const clearShip = useCallback(() => {
-    setShipInfo(emptyShip);
+    applyShipInfo(emptyShip);
     storage.shipInfo.resetValue();
-  }, []);
+  }, [applyShipInfo]);
 
   const clearNeedsSplashSequence = useCallback(() => {
     // SplashSequence awaits up to seven seconds before calling onCompleted, so
@@ -207,7 +211,7 @@ export const ShipProvider = ({
       return;
     }
 
-    setShipInfo({
+    applyShipInfo({
       ...shipInfo,
       needsSplashSequence: false,
       splashSequenceMode: undefined,
@@ -229,7 +233,7 @@ export const ShipProvider = ({
           }
         : stored
     );
-  }, [shipInfo]);
+  }, [applyShipInfo, shipInfo]);
 
   useEffect(() => {
     if (shipInfo.ship && Platform.OS !== 'web') {
