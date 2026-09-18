@@ -179,8 +179,17 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
  * list scrolling under it the way the composer's do. Everywhere else it is the
  * app's ordinary primary button, which brings its own fill.
  */
-function DrawerChatButton({ onPress }: { onPress: () => void }) {
+function DrawerChatButton({
+  hasUnread,
+  onPress,
+}: {
+  hasUnread: boolean;
+  onPress: () => void;
+}) {
   const theme = useTheme();
+  // The dot beside the button is decorative, so the unread state has to reach
+  // a screen reader through the label — as the Bot row's did before it.
+  const accessibilityLabel = hasUnread ? 'Chat, unread' : 'Chat';
 
   if (!usesIOSGlass) {
     return (
@@ -189,6 +198,7 @@ function DrawerChatButton({ onPress }: { onPress: () => void }) {
         label="Chat"
         leadingIcon={TOP_LEVEL_TABS.BotChat.icon}
         onPress={onPress}
+        accessibilityLabel={accessibilityLabel}
         testID="TopLevelDrawerChatButton"
       />
     );
@@ -214,7 +224,7 @@ function DrawerChatButton({ onPress }: { onPress: () => void }) {
       <Pressable
         onPress={onPress}
         accessibilityRole="button"
-        accessibilityLabel="Chat"
+        accessibilityLabel={accessibilityLabel}
         testID="TopLevelDrawerChatButton"
         height={FOOTER_CONTROL_SIZE}
         flexDirection="row"
@@ -404,6 +414,12 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
         ),
         source: 'drawer',
       });
+      // These rows are the workspace list's chats, so what they open is a
+      // position inside Workspaces however the drawer was reached. Without
+      // this the conversation is pushed above whichever section happened to be
+      // showing, and stays attributed to it: reopen the drawer from a chat you
+      // picked here and it marks Activity or Settings, and back returns there.
+      navigation.dispatch(getTopLevelTabNavigateAction('ChatList'));
       if (chat.type === 'group') {
         navigateToGroup(chat.group.id);
       } else {
@@ -505,7 +521,10 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
       >
         {botDm.enabled ? (
           <View>
-            <DrawerChatButton onPress={() => select('BotChat')} />
+            <DrawerChatButton
+              hasUnread={botDmHasUnread}
+              onPress={() => select('BotChat')}
+            />
             {botDmHasUnread ? (
               <Circle
                 size="$s"
