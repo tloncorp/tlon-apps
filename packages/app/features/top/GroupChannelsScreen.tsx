@@ -8,6 +8,7 @@ import { useCallback, useState } from 'react';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useAnyAgentGroupOnboardingLock } from '../../hooks/useAgentGroupOnboardingLock';
 import { useGroupContext } from '../../hooks/useGroupContext';
+import { isDrawerDestinationRoute } from '../../navigation/drawerDestination';
 import { getTopLevelTabRoute } from '../../navigation/topLevelTabs';
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
@@ -24,15 +25,22 @@ type Props = NativeStackScreenProps<RootStackParamList, 'GroupChannels'>;
 const logger = createDevLogger('GroupChannelsScreen', false);
 
 export function GroupChannelsScreen({ route }: Props) {
-  return <GroupChannelsScreenContent groupId={route.params.groupId} />;
+  return (
+    <GroupChannelsScreenContent
+      groupId={route.params.groupId}
+      isDrawerDestination={isDrawerDestinationRoute(route)}
+    />
+  );
 }
 
 export function GroupChannelsScreenContent({
   groupId: id,
   focusedChannelId,
+  isDrawerDestination,
 }: {
   groupId: string;
   focusedChannelId?: string;
+  isDrawerDestination?: boolean;
 }) {
   const isWindowNarrow = useIsWindowNarrow();
   const { group } = useGroupContext({ groupId: id });
@@ -136,6 +144,7 @@ export function GroupChannelsScreenContent({
           focusedChannelId={focusedChannelId}
           unjoinedChannels={unjoinedChannels}
           disabled={navigationDisabled}
+          isDrawerDestination={isDrawerDestination}
         />
       </NavigationProvider>
       {!isWindowNarrow && (

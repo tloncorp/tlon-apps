@@ -28,7 +28,7 @@ export type ChannelRouteParams = {
   /**
    * This is the only channel its group has, so the group is entered through it
    * and there is no channel list behind it to go back to. See
-   * `isConversationRootRoute`.
+   * `isDrawerDestinationRoute`.
    */
   isOnlyChannel?: boolean;
 };

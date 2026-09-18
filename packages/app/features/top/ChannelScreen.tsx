@@ -30,7 +30,7 @@ import type {
   ChannelScreenParamList,
   RootStackParamList,
 } from '../../navigation/types';
-import { isConversationRootRoute } from '../../navigation/conversationRoot';
+import { isDrawerDestinationRoute } from '../../navigation/drawerDestination';
 import { useRootNavigation } from '../../navigation/utils';
 import {
   AttachmentProvider,
@@ -81,7 +81,7 @@ export default function ChannelScreen(props: Props) {
   const isTabRoot = props.route.name === 'BotChat';
   // A DM or a one-channel group stands on its own: the drawer button takes the
   // slot a back caret would, and the edge that would pop it opens the drawer.
-  const isConversationRoot = isConversationRootRoute(props.route);
+  const isConversationRoot = isDrawerDestinationRoute(props.route);
   const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
 
   useEffect(() => {

@@ -29,6 +29,7 @@ import { useGroupTitle, useIsAdmin } from '../utils/channelUtils';
 import { Badge } from './Badge';
 import { GroupAvatar } from './GroupAvatar';
 import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';
+import { useTopLevelDrawerToggleAction } from '../../navigation/useTopLevelDrawerToggle';
 import { ScreenHeader } from './ScreenHeader';
 import SystemNotices from './SystemNotices';
 import WayfindingNotice from './Wayfinding/Notices';
@@ -52,6 +53,11 @@ type GroupChannelsScreenViewProps = {
   onBackPressed: () => void;
   onGoToGroupMembers: () => void;
   onPressManageChannels: (groupId: string, fromChatDetails?: boolean) => void;
+  /**
+   * The drawer opened this list, so it is a destination rather than something
+   * pushed over the group: the drawer button takes the caret's slot.
+   */
+  isDrawerDestination?: boolean;
 };
 
 export const GroupChannelsScreenView = React.memo(
@@ -65,8 +71,13 @@ export const GroupChannelsScreenView = React.memo(
     onBackPressed,
     onGoToGroupMembers,
     onPressManageChannels,
+    isDrawerDestination = false,
   }: GroupChannelsScreenViewProps) {
     useRenderCount('GroupChannelsScreenView');
+    const drawerToggle = useTopLevelDrawerToggleAction({
+      onPushedScreen: isDrawerDestination,
+    });
+    const showsDrawerToggle = isDrawerDestination && drawerToggle != null;
     const [showCreateChannel, setShowCreateChannel] = useState(false);
     const sortBy = db.channelSortPreference.useValue();
     const insets = useSafeAreaInsets();
@@ -325,7 +336,8 @@ export const GroupChannelsScreenView = React.memo(
           subtitle={subtitle}
           showSubtitle={isWindowNarrow}
           borderBottom={isWindowNarrow}
-          backAction={disabled ? undefined : onBackPressed}
+          backAction={showsDrawerToggle || disabled ? undefined : onBackPressed}
+          leftActions={showsDrawerToggle ? [drawerToggle] : undefined}
           onTitlePress={disabled ? undefined : handleTitlePress}
           rightActions={[
             {
