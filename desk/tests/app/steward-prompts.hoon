@@ -1015,4 +1015,65 @@
     ==
   ;<  st=state-3  bind:m  got-state
   (ex-equal !>(bots.st) !>((sy ~[moon ~dev])))
+::
+::  a kick on the per-request watch while the edit is in flight re-watches,
+::  or the bot's answer would arrive with no subscriber
+::
+++  test-prompts-req-kick-resubscribes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  ;<  *  bind:m  (do-edit moon edit-set)
+  ;<  caz=(list card)  bind:m  (do-req-watch-sign moon %kick ~)
+  (ex-cards caz ~[(ex-req-watch moon)])
+
+::
+::  a %pending result is not terminal, so a kick still re-watches
+::
+++  test-prompts-req-kick-after-pending-resubscribes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  ;<  *  bind:m  (do-edit moon edit-set)
+  ;<  *  bind:m  (do-req-wake moon)
+  ;<  caz=(list card)  bind:m  (do-req-watch-sign moon %kick ~)
+  (ex-cards caz ~[(ex-req-watch moon)])
+::
+::  bot side: an owner re-subscribing after a kick is handed the result the
+::  harness already reported, so the dropped subscription loses nothing
+::
+++  test-prompts-bot-request-watch-replays-result
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m  (do-watch harness-path)
+  ;<  *  bind:m  ((do-as ~bus) (do-command edit-set))
+  ;<  *  bind:m  (do-finalize updated)
+  ;<  caz=(list card)  bind:m
+    %-  (do-as ~bus)
+    (do-watch (req-path ~bus))
+  %+  ex-cards  caz
+  :~  %^  ex-fact  ~  %steward-prompts-response-1
+      !>(`response:v1:pr`[rid updated])
+  ==
+::
+::  an unanswered command replays nothing; the response arrives when the
+::  harness finalizes it
+::
+++  test-prompts-bot-request-watch-without-result-is-silent
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m  (do-watch harness-path)
+  ;<  *  bind:m  ((do-as ~bus) (do-command edit-set))
+  ;<  caz=(list card)  bind:m
+    %-  (do-as ~bus)
+    (do-watch (req-path ~bus))
+  (ex-cards caz ~)
 --
