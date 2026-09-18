@@ -45,6 +45,9 @@ function DrawerSection({
       onPress={disabled ? undefined : onPress}
       disabled={disabled}
       accessibilityRole="button"
+      // The dot beside the label is decorative, so the unread state has to
+      // reach a screen reader through the label itself.
+      accessibilityLabel={hasUnread ? `${label}, unread` : label}
       accessibilityState={{ disabled, selected }}
       borderRadius="$l"
       paddingHorizontal="$l"

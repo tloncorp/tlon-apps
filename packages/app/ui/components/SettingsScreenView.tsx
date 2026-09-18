@@ -4,6 +4,7 @@ import { Alert } from 'react-native';
 import { View, YStack, isWeb } from 'tamagui';
 
 import { useTopLevelDrawerToggleAction } from '../../navigation/useTopLevelDrawerToggle';
+import { useTopLevelScrollViewContentInset } from '../../navigation/useTopLevelContentInset';
 import { ContactName } from './ContactNameV2';
 import { ListItem } from './ListItem';
 import { ScreenHeader } from './ScreenHeader';
@@ -77,6 +78,7 @@ export function SettingsScreenView(props: Props) {
   const isWindowNarrow = useIsWindowNarrow();
 
   const drawerToggle = useTopLevelDrawerToggleAction();
+  const bottomContentInset = useTopLevelScrollViewContentInset();
 
   // Rows the mockup names come first; the rest of the app's settings continue
   // the same section rather than moving somewhere less reachable.
@@ -253,10 +255,12 @@ export function SettingsScreenView(props: Props) {
         placement="navigation"
       />
       <ScreenScrollView>
-        {/* ScreenScrollView restores UIKit's automatic safe-area adjustment,
-            which reserves the home indicator on its own; the padding below is
-            only this screen's own edge spacing. */}
-        <YStack flex={1} padding="$l" gap="$2xl">
+        <YStack
+          flex={1}
+          padding="$l"
+          paddingBottom={bottomContentInset}
+          gap="$2xl"
+        >
           {props.botSections}
           {/* Web can't host the bot's settings inline, so it keeps the single
               row that opens the hosted page. */}
