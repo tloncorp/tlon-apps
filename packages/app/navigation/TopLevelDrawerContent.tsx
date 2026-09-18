@@ -15,6 +15,7 @@ import { Circle, View, XStack, YStack, getTokenValue, useTheme } from 'tamagui';
 import { useAnyAgentGroupOnboardingLock } from '../hooks/useAgentGroupOnboardingLock';
 import { useBotDmTab } from '../hooks/useBotDmTab';
 import { ListItem } from '../ui';
+import { floatingChromeMetrics } from '../ui/components/conversationInsets';
 import {
   GlassSurface,
   supportsLiquidGlass,
@@ -41,12 +42,16 @@ const SECTION_ROW_MIN_HEIGHT = 48;
 // Shorter than a section row: these carry one line of text and there are many
 // of them, so the list stays scannable rather than becoming a stack of slabs.
 const CHAT_ROW_MIN_HEIGHT = 40;
-// Holds the unread dot and the gap after it, so a row without one still lines
-// its title up with the rows that have one.
-const UNREAD_DOT_SLOT_WIDTH = 10;
-// The footer's two controls, sized to match each other.
-const FOOTER_CONTROL_SIZE = 48;
-const FOOTER_CONTROL_RADIUS = FOOTER_CONTROL_SIZE / 2;
+// How far a row's own background is held off the panel's edge, and then how
+// far its content is held off that. Everything the eye reads down the left —
+// a section's icon, a chat's name, the `Chat` button — starts at their sum.
+const PANEL_INSET = '$l' as const;
+const CONTENT_INSET = '$l' as const;
+// The footer's controls are the composer's controls: the settings button is
+// the `+` button in another place, so it takes the same size and radius from
+// the same source rather than a matching pair of numbers here.
+const FOOTER_CONTROL_SIZE = floatingChromeMetrics.controlSize;
+const FOOTER_CONTROL_RADIUS = floatingChromeMetrics.controlRadius;
 
 // The footer controls are Liquid Glass on an OS that has it, and the drawer's
 // own flat surfaces everywhere else.
@@ -91,7 +96,7 @@ function DrawerSection({
       accessibilityLabel={hasUnread ? `${label}, unread` : label}
       accessibilityState={{ disabled, selected }}
       borderRadius="$l"
-      paddingHorizontal="$l"
+      paddingHorizontal={CONTENT_INSET}
       justifyContent="center"
       minHeight={SECTION_ROW_MIN_HEIGHT}
       opacity={disabled ? 0.4 : 1}
@@ -100,7 +105,13 @@ function DrawerSection({
       hoverStyle={{ backgroundColor: '$secondaryBackground' }}
     >
       <XStack alignItems="center" gap="$l">
-        <Icon type={icon} color={selected ? '$primaryText' : '$tertiaryText'} />
+        {/* Frame sized to the glyph: the default leaves 4pt of padding inside
+            it, which would set every icon in from the column the names keep. */}
+        <Icon
+          type={icon}
+          customSize={['$2xl', '$2xl']}
+          color={selected ? '$primaryText' : '$tertiaryText'}
+        />
         <Text
           flex={1}
           size="$label/l"
@@ -144,7 +155,7 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
       accessibilityState={{ disabled }}
       testID={`TopLevelDrawerChat-${chat.id}`}
       borderRadius="$l"
-      paddingHorizontal="$l"
+      paddingHorizontal={CONTENT_INSET}
       justifyContent="center"
       minHeight={CHAT_ROW_MIN_HEIGHT}
       opacity={disabled ? 0.4 : 1}
@@ -152,11 +163,6 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
       hoverStyle={{ backgroundColor: '$secondaryBackground' }}
     >
       <XStack alignItems="center" gap="$m">
-        {/* The dot sits in a fixed-width slot rather than in the flow, so one
-            unread row does not indent its title past every read one. */}
-        <View width={UNREAD_DOT_SLOT_WIDTH} alignItems="flex-start">
-          {hasUnread ? <Circle size="$s" backgroundColor="$blue" /> : null}
-        </View>
         <Text
           flex={1}
           numberOfLines={1}
@@ -167,6 +173,7 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
           {title}
         </Text>
         <ListItem.Time time={chat.timestamp} paddingBottom={0} />
+        {hasUnread ? <Circle size="$s" backgroundColor="$blue" /> : null}
       </XStack>
     </Pressable>
   );
@@ -255,7 +262,6 @@ function DrawerSettingsButton({
   disabled: boolean;
   onPress: () => void;
 }) {
-  const theme = useTheme();
   const control = (
     <Pressable
       onPress={disabled ? undefined : onPress}
@@ -282,10 +288,9 @@ function DrawerSettingsButton({
         usesIOSGlass ? undefined : { backgroundColor: '$secondaryBackground' }
       }
     >
-      <Icon
-        type={TOP_LEVEL_TABS.Settings.icon}
-        color={selected ? '$primaryText' : '$tertiaryText'}
-      />
+      {/* The composer's `+` glyph colour: this is that button in another
+          place, so it reads the same rather than dimming when unselected. */}
+      <Icon type={TOP_LEVEL_TABS.Settings.icon} color="$primaryText" />
     </Pressable>
   );
 
@@ -294,11 +299,7 @@ function DrawerSettingsButton({
   }
 
   return (
-    <GlassSurface
-      isInteractive
-      tintColor={selected ? theme.secondaryBackground?.val : undefined}
-      style={footerStyles.settingsButton}
-    >
+    <GlassSurface isInteractive style={footerStyles.settingsButton}>
       {control}
     </GlassSurface>
   );
@@ -477,6 +478,7 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
   // computed: the non-glass `Chat` button is a different height from the glass
   // pill, and the list has to reserve whatever is actually there.
   const [footerHeight, setFooterHeight] = useState(0);
+  const panelInset = getTokenValue(PANEL_INSET, 'space');
 
   const settingsDisabled = isTabPressBlockedByOnboardingLock(
     onboardingLock.locked,
@@ -487,8 +489,8 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
     <YStack
       flex={1}
       paddingTop={insets.top + getTokenValue('$m', 'space')}
-      paddingLeft={insets.left + getTokenValue('$m', 'space')}
-      paddingRight={insets.right + getTokenValue('$m', 'space')}
+      paddingLeft={insets.left + panelInset}
+      paddingRight={insets.right + panelInset}
     >
       <ScrollView
         contentContainerStyle={{ paddingBottom: footerHeight }}
@@ -508,13 +510,16 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
       <XStack
         position="absolute"
         bottom={0}
-        // The container's own padding already insets an absolute child, so
-        // these stay at its edges rather than adding a second one.
-        left={0}
-        right={0}
+        // An absolutely positioned child is laid out against the container's
+        // border box, not its padding box, so it carries the panel's inset
+        // itself — and then its own padding puts the controls on the same
+        // column as the rows' contents.
+        left={insets.left + panelInset}
+        right={insets.right + panelInset}
         alignItems="center"
         justifyContent="space-between"
         gap="$m"
+        paddingHorizontal={CONTENT_INSET}
         paddingTop="$m"
         paddingBottom={insets.bottom + getTokenValue('$m', 'space')}
         onLayout={(event) => setFooterHeight(event.nativeEvent.layout.height)}
