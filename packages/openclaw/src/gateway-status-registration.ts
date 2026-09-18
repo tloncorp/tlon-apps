@@ -61,7 +61,7 @@ export function registerGatewayStatusHooks(
   // Discarding it lets shutdown race ahead of the poke, leaving steward %up
   // until the lease expires (and can drop the restart-notice behavior).
   // Prefer a fresh, root-owned marker written by the hosted entrypoint (e.g.
-  // `model-change`) over core's generic reason; see docs/steward.md
+  // `model-change`) over core's generic reason; see docs/backend/desk/app/steward.md
   // "Stop-reason marker". Still return the promise — see the comment above.
   api.on('gateway_stop', (event) => {
     const marker = readGatewayStopReason({ logger: regOpts.logger });
