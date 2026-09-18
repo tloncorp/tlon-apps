@@ -8,6 +8,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from 'react';
 import { Platform, TurboModuleRegistry } from 'react-native';
@@ -65,6 +66,30 @@ export const ShipProvider = ({
 }) => {
   const [isLoading, setIsLoading] = useState(!initialShipInfo);
   const [shipInfo, setShipInfo] = useState(initialShipInfo ?? emptyShip);
+  // Lets a callback that was captured earlier tell whether the account it was
+  // created for is still the current one.
+  const shipInfoRef = useRef(shipInfo);
+  // Counts sessions, not state objects. The object is replaced for reasons that
+  // are not a new session -- the background cookie fetch below, clearing the
+  // splash flag -- and a captured callback must not read those as one.
+  const [sessionId, setSessionId] = useState(0);
+  const sessionIdRef = useRef(0);
+  // Every state change goes through here so both refs are exact from the moment
+  // it happens. An effect would leave a window: setShip enqueues its state
+  // update synchronously, but a ref would not catch up until passive effects
+  // flush, and a splash completion firing in between would still see the old
+  // session -- and then enqueue its own update behind the new one.
+  const applyShipInfo = useCallback(
+    (next: ShipInfo, { newSession = false }: { newSession?: boolean } = {}) => {
+      if (newSession) {
+        sessionIdRef.current += 1;
+        setSessionId(sessionIdRef.current);
+      }
+      shipInfoRef.current = next;
+      setShipInfo(next);
+    },
+    []
+  );
 
   const setShip = useCallback(
     ({
@@ -81,7 +106,7 @@ export const ShipProvider = ({
         storage.shipInfo.resetValue();
 
         // Clear context state
-        setShipInfo(emptyShip);
+        applyShipInfo(emptyShip, { newSession: true });
 
         // Clear native storage (only in native platforms)
         if (UrbitModule) {
@@ -105,7 +130,7 @@ export const ShipProvider = ({
       storage.shipInfo.setValue(nextShipInfo);
 
       // Save context state
-      setShipInfo(nextShipInfo);
+      applyShipInfo(nextShipInfo, { newSession: true });
 
       // Configure analytics (only on native platforms)
       // Skip for web/electron to avoid 'crashlytics is not a function' error
@@ -137,7 +162,7 @@ export const ShipProvider = ({
           });
           const fetchedAuthCookie = response.headers.get('set-cookie');
           if (fetchedAuthCookie) {
-            setShipInfo({ ...nextShipInfo, authCookie: fetchedAuthCookie });
+            applyShipInfo({ ...nextShipInfo, authCookie: fetchedAuthCookie });
             storage.shipInfo.setValue({
               ...nextShipInfo,
               authCookie: fetchedAuthCookie,
@@ -153,7 +178,7 @@ export const ShipProvider = ({
       logger.trackEvent(AnalyticsEvent.NodeAuthSaved);
       setIsLoading(false);
     },
-    []
+    [applyShipInfo]
   );
 
   useEffect(() => {
@@ -181,22 +206,51 @@ export const ShipProvider = ({
   }, [initialShipInfo, setShip]);
 
   const clearShip = useCallback(() => {
-    setShipInfo(emptyShip);
+    applyShipInfo(emptyShip, { newSession: true });
     storage.shipInfo.resetValue();
-  }, []);
+  }, [applyShipInfo]);
 
   const clearNeedsSplashSequence = useCallback(() => {
-    setShipInfo({
-      ...shipInfo,
+    // SplashSequence awaits up to seven seconds before calling onCompleted, so
+    // a completion can arrive through a callback still holding the session the
+    // sequence ran for. Clearing the flag then would skip the current session's
+    // own signup or revival sequence.
+    //
+    // Compared by session rather than by ship and url, which cannot tell a
+    // logout and re-login to the *same* ship apart -- and not by object
+    // identity either, since the background cookie fetch in setShip replaces
+    // the object for a session that has not changed.
+    if (sessionIdRef.current !== sessionId) {
+      return;
+    }
+
+    // Rebuilt from the live snapshot rather than this callback's capture: that
+    // cookie fetch may have landed since, and rebuilding from the capture would
+    // drop the cookie it just fetched.
+    const current = shipInfoRef.current;
+    applyShipInfo({
+      ...current,
       needsSplashSequence: false,
       splashSequenceMode: undefined,
     });
-    storage.shipInfo.setValue({
-      ...shipInfo,
-      needsSplashSequence: false,
-      splashSequenceMode: undefined,
-    });
-  }, [shipInfo]);
+    // Partial update, applied inside StorageItem's write lock: this provider's
+    // snapshot can be stale by the time splash completes -- notably authCookie,
+    // which a mid-session reauth refreshes in storage but not here -- so
+    // writing the whole snapshot back would clobber the fresher record. The
+    // identity is rechecked against the record itself, since a switch can also
+    // land between the check above and this write.
+    storage.shipInfo.setValue((stored) =>
+      stored &&
+      stored.ship === current.ship &&
+      stored.shipUrl === current.shipUrl
+        ? {
+            ...stored,
+            needsSplashSequence: false,
+            splashSequenceMode: undefined,
+          }
+        : stored
+    );
+  }, [applyShipInfo, sessionId]);
 
   useEffect(() => {
     if (shipInfo.ship && Platform.OS !== 'web') {
