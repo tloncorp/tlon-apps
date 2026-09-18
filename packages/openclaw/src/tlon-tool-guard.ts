@@ -9,7 +9,6 @@ import { canonicalizeNest } from './targets.js';
 
 export const ALLOWED_TLON_COMMANDS = [
   'activity',
-  'browser',
   'channels',
   'contacts',
   'dms',
