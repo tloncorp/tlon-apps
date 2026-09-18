@@ -21,6 +21,22 @@ function isDirectMessage(chat: db.Chat) {
 }
 
 /**
+ * Whether a chat belongs in the workspace list.
+ *
+ * `getChats` returns every channel the account carries, group channels
+ * included. A group channel is reached through its group, so only the groups
+ * themselves, direct messages, and a chat channel the user pinned to the top
+ * level stand on their own here.
+ */
+export function isWorkspaceChat(chat: db.Chat) {
+  return (
+    chat.type === 'group' ||
+    isDirectMessage(chat) ||
+    (chat.type === 'channel' && chat.channel.type === 'chat' && !!chat.pin)
+  );
+}
+
+/**
  * Whether a group holds nobody but its owner and their bot.
  *
  * `getChats` loads only the first few members for avatar display, so an

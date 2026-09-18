@@ -191,6 +191,22 @@ export function getGroupTitle(
   }
 }
 
+/**
+ * The name a chat goes by in a list, whichever kind of chat it is.
+ */
+export function getChatTitle(chat: db.Chat, disableNicknames: boolean): string {
+  if (chat.type === 'channel') {
+    return getChannelTitle({
+      ...configurationFromChannel(chat.channel),
+      channelTitle: chat.channel.title,
+      members: chat.channel.members,
+      disableNicknames,
+    });
+  }
+
+  return getGroupTitle(chat.group, disableNicknames);
+}
+
 export function useGroupTitle(
   group?: db.Group | null,
   hostContact?: db.Contact | null

@@ -9,6 +9,7 @@ import {
   CHAT_LIST_FILTER_LABELS,
   type ChatListFilter,
   filterChatsByListFilter,
+  isWorkspaceChat,
 } from './chatListFilters';
 import { useChatSearch } from './useChatSearch';
 import { useCurrentUserId } from './useCurrentUser';
@@ -191,12 +192,7 @@ function filterChats(
     }
 
     if (activeTab === 'home') {
-      return (
-        chat.type === 'group' ||
-        (chat.type === 'channel' && chat.channel.type === 'dm') ||
-        (chat.type === 'channel' && chat.channel.type === 'groupDm') ||
-        (chat.type === 'channel' && chat.channel.type === 'chat' && !!chat.pin)
-      );
+      return isWorkspaceChat(chat);
     }
 
     return true;

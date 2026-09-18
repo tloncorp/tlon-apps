@@ -141,8 +141,11 @@ export function getTopLevelTabRoute<Tab extends TopLevelTabName>(
  * second `MainTabs`, and with it a second copy of every section screen, rather
  * than returning to the one already there.
  */
-export function getTopLevelTabNavigateAction(section: TopLevelTabName) {
-  const route = getTopLevelTabRoute(section);
+export function getTopLevelTabNavigateAction<Tab extends TopLevelTabName>(
+  section: Tab,
+  params?: TopLevelTabParamList[Tab]
+) {
+  const route = getTopLevelTabRoute(section, params);
   return CommonActions.navigate(route.name, route.params, { pop: true });
 }
 
