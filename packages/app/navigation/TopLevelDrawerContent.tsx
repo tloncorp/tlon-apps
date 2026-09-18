@@ -7,13 +7,7 @@ import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { Button, Icon, IconType, Pressable, Text } from '@tloncorp/ui';
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { FlashList } from '@shopify/flash-list';
 import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -166,11 +160,17 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
   onPress: (chat: db.Chat) => void;
 }) {
   const handlePress = useCallback(() => onPress(chat), [chat, onPress]);
+  // A reaction, mention or thread reply can leave a row notified with a count
+  // of zero, which the workspace rows read as unread and so does this.
+  const notified =
+    chat.type === 'group'
+      ? (chat.group.unread?.notify ?? false)
+      : (chat.channel.unread?.notify ?? false);
   // A muted chat is one the user asked not to be drawn back to, so it keeps
   // its unread count on the workspace list — where counts are read
   // deliberately — without lighting a dot here.
   const hasUnread =
-    chat.unreadCount > 0 &&
+    (chat.unreadCount > 0 || notified) &&
     !logic.isMuted(chat.volumeSettings?.level, chat.type);
 
   return (
@@ -389,7 +389,12 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
     excludeChannelId: botDm.enabled ? botDm.channelId : undefined,
   });
   const onboardingLock = useAnyAgentGroupOnboardingLock();
-  const openingChatRef = useRef(false);
+  // Every request to leave the drawer takes the next number; a continuation
+  // that finishes holding an older one has been superseded and drops what it
+  // was going to do. A chat open can outlive its own tap — the group has to be
+  // read before its route is known — and by then the user may have chosen
+  // something else, here or from any of the other controls.
+  const navigationRequestRef = useRef(0);
   // The panel is mounted for the app's whole life, open or not, so this query
   // would otherwise observe every chat forever — and `useCurrentChats` is
   // shared by key with the workspace list, whose own observer is deliberately
@@ -399,11 +404,7 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
   const { data: chats } = store.useCurrentChats({ enabled: drawerOpen });
   // Armed fresh each time the panel opens, so the one-chat-per-opening guard
   // in `openChat` never outlives the opening it belongs to.
-  useEffect(() => {
-    if (drawerOpen) {
-      openingChatRef.current = false;
-    }
-  }, [drawerOpen]);
+
   // The drawer's own state holds one route — the root stack — so the section
   // to mark is read out of that stack's state. A cold load that named no
   // section leaves the sections navigator yet to report its state upward, and
@@ -417,6 +418,8 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
       if (isTabPressBlockedByOnboardingLock(onboardingLock.locked, section)) {
         return;
       }
+      // Choosing a section supersedes a chat still resolving its route.
+      navigationRequestRef.current += 1;
       // Match the bar this replaces: track selections, not re-selections of
       // the section already showing — and let a re-selection send that
       // section's list back to the top, which is the other thing pressing the
@@ -446,15 +449,10 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
 
   const openChat = useCallback(
     (chat: db.Chat) => {
-      if (chatsLocked || openingChatRef.current) {
+      if (chatsLocked) {
         return;
       }
-      // Opening a group reads it before it knows which route to build, and the
-      // drawer takes a moment to slide shut over that. A second tap in the gap
-      // would navigate first and then be overwritten when the first read came
-      // back, landing somewhere the user did not choose last. One per opening;
-      // the next open clears it.
-      openingChatRef.current = true;
+      const request = ++navigationRequestRef.current;
       if (chat.type === 'group' && chat.isPending) {
         // An invite is acted on through the preview sheet, which belongs to
         // the workspace list — so this lands there with the sheet open rather
@@ -488,14 +486,31 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
       // sections keep what they were holding — the workspace list's filter and
       // scroll, Activity's scroll — as they would through an ordinary tab
       // switch.
-      const sectionRoute = getExistingTopLevelTabRoute(
-        state.routes[state.index]?.state,
-        'ChatList'
-      );
+      // Already showing it: resetting would replace the route with a newly
+      // keyed one, remounting the conversation and throwing away the scroll
+      // position of whoever is reading it. Closing is all that was asked for.
+      const stackState = state.routes[state.index]?.state;
+      const focused = stackState?.routes?.[stackState.index ?? 0];
+      const focusedParams = focused?.params as
+        | { channelId?: string; groupId?: string }
+        | undefined;
+      const alreadyShowing =
+        chat.type === 'channel'
+          ? focusedParams?.channelId === chat.channel.id
+          : focusedParams?.groupId === chat.group.id;
+      if (alreadyShowing) {
+        navigation.closeDrawer();
+        return;
+      }
+
+      const sectionRoute = getExistingTopLevelTabRoute(stackState, 'ChatList');
       if (chat.type === 'group') {
-        getMainGroupRoute(chat.group.id, true).then((groupRoute) =>
-          reset([sectionRoute, groupRoute])
-        );
+        getMainGroupRoute(chat.group.id, true).then((groupRoute) => {
+          if (navigationRequestRef.current !== request) {
+            return;
+          }
+          reset([sectionRoute, groupRoute]);
+        });
       } else {
         reset([
           sectionRoute,

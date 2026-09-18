@@ -204,7 +204,38 @@ export function getChatTitle(chat: db.Chat, disableNicknames: boolean): string {
     });
   }
 
-  return getGroupTitle(chat.group, disableNicknames);
+  return getGroupTitle(withInviteHostAsMember(chat.group), disableNicknames);
+}
+
+/**
+ * An untitled invite, named after whoever sent it.
+ *
+ * `getGroupTitle` falls back to the members for a group with no title, and an
+ * invite has none loaded — so every pending invite comes out as `New group`
+ * and a list of them is a list of identical rows. Its host is known before
+ * its membership is, and standing the host in as the member it will turn out
+ * to have produces `New group by ~host`, which is what the workspace rows show
+ * through `useGroupTitle`.
+ */
+function withInviteHostAsMember(group: db.Group): db.Group {
+  const isUnnamedInvite =
+    !group.title &&
+    group.haveInvite === true &&
+    group.currentUserIsMember === false &&
+    !group.members?.length;
+  if (!isUnnamedInvite || !group.hostUserId) {
+    return group;
+  }
+  return {
+    ...group,
+    members: [
+      {
+        contactId: group.hostUserId,
+        contact: null,
+        membershipType: 'group',
+      } as db.ChatMember,
+    ],
+  };
 }
 
 export function useGroupTitle(

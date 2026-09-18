@@ -43,8 +43,13 @@ export function trackTopLevelTabSelection(tab: TopLevelTabName) {
 
 export type RouteSnapshot = {
   name: string;
+  key?: string;
   params?: object;
-  state?: { index?: number; routes?: ReadonlyArray<RouteSnapshot> };
+  state?: {
+    index?: number;
+    routes?: ReadonlyArray<RouteSnapshot>;
+    history?: ReadonlyArray<unknown>;
+  };
 };
 type NavigationSnapshot =
   | { index: number; routes: ReadonlyArray<RouteSnapshot> }
@@ -196,7 +201,11 @@ export function getExistingTopLevelTabRoute(
   name: 'MainTabs';
   key?: string;
   params?: NonNullable<RootStackParamList['MainTabs']>;
-  state?: { index: number; routes?: ReadonlyArray<RouteSnapshot> };
+  state?: {
+    index: number;
+    routes?: ReadonlyArray<RouteSnapshot>;
+    history?: ReadonlyArray<unknown>;
+  };
 } {
   const mainTabs = stackState?.routes?.find(
     (route) => route.name === 'MainTabs'
@@ -206,20 +215,27 @@ export function getExistingTopLevelTabRoute(
   if (!mainTabs || !sections || index == null || index < 0) {
     return getTopLevelTabRoute(section);
   }
-  // `history` goes with it. The sections navigator runs `backBehavior:
-  // "history"`, so a history kept from before the switch still names the
-  // section that was showing, and the next system Back would read it and go
-  // somewhere this never visited. Left out, the router rebuilds one for where
-  // the tabs actually are.
-  const { history: _staleHistory, ...sectionsWithoutHistory } = sections as {
-    history?: unknown;
-  } & typeof sections;
+  // `history` has to move with the index. The sections navigator runs
+  // `backBehavior: "history"`, and this is a live router state — it carries
+  // `stale: false`, so React Navigation takes it as already rehydrated and
+  // will not rebuild anything left out. A history still naming the section
+  // that was showing would send the next system Back somewhere the app never
+  // went; a missing one would leave `TabRouter` reading a field that is not
+  // there. So it is rewritten the way a tab switch rewrites it: the section
+  // being focused becomes the most recent entry.
+  const target = sections.routes?.[index];
+  const history = [
+    ...(sections.history ?? []).filter(
+      (entry) => (entry as { key?: string } | null)?.key !== target?.key
+    ),
+    ...(target?.key ? [{ type: 'route' as const, key: target.key }] : []),
+  ];
   return {
     ...(mainTabs as typeof mainTabs & {
       key?: string;
       params?: NonNullable<RootStackParamList['MainTabs']>;
     }),
     name: 'MainTabs',
-    state: { ...sectionsWithoutHistory, index },
+    state: { ...sections, index, history },
   };
 }
