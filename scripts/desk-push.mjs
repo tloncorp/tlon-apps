@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // desk-push: commit an assembled desk to a ship through Clay, in one round trip.
 //
-//   node scripts/desk-push.mjs <assembled-dir> <desk> --pier <pier-path> [--code <+code>] [--install] [--bootstrap] [--dry-run]
+//   node scripts/desk-push.mjs <assembled-dir> <desk> --pier <pier-path> [--code <+code>] [--install] [--reseed] [--dry-run]
 //   node scripts/desk-push.mjs <assembled-dir> <desk> --url http://host:port (--code <+code> | --cookie <urbauth>) [--install] [--dry-run]
 //
 // Verified end to end on a fresh fake ship (vere 4.6, kelvin 408): bootstrap
@@ -105,6 +105,16 @@ const mimeNoun = (buf) =>
     cell(Atom.fromInt(buf.length), atomFromBytes(buf))
   );
 
+// $mode: what clay is being asked to change. A file carries its bytes as a
+// mime; a removed path carries ~. Unlisted paths are left alone.
+const modeNoun = (changed, deleted) =>
+  dejs.list([
+    ...changed.map((f) =>
+      cell(pathNoun(clayPath(f.rel)), cell(Atom.zero, mimeNoun(f.buf)))
+    ),
+    ...deleted.map((p) => cell(pathNoun(p.slice(1).split('/')), Atom.zero)),
+  ]);
+
 // --- tank rendering (good enough to read a compile error) --------------------
 
 const renderTank = (tank) => {
@@ -127,6 +137,14 @@ const renderGoof = (goof) => {
   return `${mote}\n${renderTang(rest)}`;
 };
 
+// Desk names reach the ship inside hoon source, so keep them to what a @tas
+// can hold rather than trusting the caller.
+function assertDeskName(desk) {
+  if (!/^[a-z][a-z0-9-]*$/.test(desk)) {
+    throw new Error(`not a usable desk name: ${desk}`);
+  }
+}
+
 // --- local tree ----------------------------------------------------------------
 
 function walk(root, dir = root, out = []) {
@@ -141,8 +159,9 @@ function walk(root, dir = root, out = []) {
 
 // The smallest desk that can build the two threads: the marks |new-desk
 // copies, the strand libraries, and the threads themselves. The threads live
-// in ted/desk/ but are still invoked as %desk-push / %desk-hashes: +get-fit
-// tries /ted/desk-push/hoon and then /ted/desk/push/hoon.
+// in ted/desk/ but are invoked as %desk-filter / %desk-hashes /
+// %desk-install: +get-fit tries /ted/desk-filter/hoon, then
+// /ted/desk/filter/hoon.
 const BOOTSTRAP_FILES = [
   'sys.kelvin',
   'mar/hoon.hoon',
@@ -153,7 +172,8 @@ const BOOTSTRAP_FILES = [
   'sur/spider.hoon',
   'lib/strand.hoon',
   'lib/strandio.hoon',
-  'ted/desk/push.hoon',
+  'ted/desk/filter.hoon',
+  'ted/desk/install.hoon',
   'ted/desk/hashes.hoon',
 ];
 
@@ -262,6 +282,52 @@ class Conn {
     if (!m)
       throw new Error(`conn +code returned something unexpected: ${tape}`);
     return m[0];
+  }
+
+  // Mount through hood rather than a raw %mont ovum, so `our` and `now` stay
+  // on the ship instead of having to be built as atoms here.
+  async mount(desk) {
+    assertDeskName(desk);
+    const hoon =
+      '=/  m  (strand ,vase)  ' +
+      ';<  =bowl  bind:m  get-bowl  ' +
+      `=/  p=path  [(scot %p our.bowl) %${desk} (scot %da now.bowl) ~]  ` +
+      `;<  ~  bind:m  (poke [our.bowl %hood] kiln-mount+!>([p %${desk}]))  ` +
+      '(pure:m !>(%ok))';
+    const payload = cell(
+      cord('base'),
+      cell(
+        cord('khan-eval'),
+        cell(cord('noun'), cell(cord('ted-eval'), cord(hoon)))
+      )
+    );
+    const res = await this.send('fyrd', payload, { timeoutMs: 120_000 });
+    if (cordToString(res.head) !== 'avow' || res.tail.head.number !== 0n) {
+      throw new Error(`could not mount %${desk} through hood`);
+    }
+  }
+
+  // [%ovum [%c /sync [%into desk all=& mode]]]. A delta on top of the current
+  // head, so it adds to a desk without disturbing what is already committed.
+  //
+  // Injected on /sync deliberately, and this is the only way this tool is
+  // allowed to commit. Clay's %into handler makes its sender the pier's unix
+  // sync duct (`=. hez.ruf `hen`); %ergo and %dirk are both emitted to that
+  // duct, and %mont only repairs it when empty. So an %into passed from an
+  // agent permanently kills mount writes and |commit for every desk on the
+  // ship (urbit/urbit#7427). /sync is one of the three wires vere's own
+  // dispatcher accepts, so committing this way leaves the duct pointing where
+  // vere is listening — and repairs a pier a previous agent-duct %into broke.
+  async into(desk, mode, opts) {
+    const card = cell(cord('into'), cell(cord(desk), cell(YES, mode)));
+    const ovum = cell(cord('c'), cell(dejs.list([cord('sync')]), card));
+    const res = await this.send('ovum', ovum, opts);
+    const tag = cordToString(res.head);
+    if (tag === 'bail') throw new ShipError('%into bailed', res.tail);
+    const news = cordToString(res.tail);
+    if (tag !== 'news' || news !== 'done') {
+      throw new Error(`%into did not complete: %${tag} %${news}`);
+    }
   }
 
   // [%ovum [%c /sync [%park desk yoki rang]]] -> %news %done | %bail (list goof)
@@ -396,8 +462,8 @@ class Ship {
     return this.spider.fyrd(...a);
   }
 
-  // kiln's view of the desk: %live once every agent in desk.bill is running
-  async zest(desk) {
+  // kiln's record for one desk, or null when it holds none
+  async pike(desk) {
     const res = await httpPost(
       `${this.spider.url}/~/scry/hood/kiln/pikes.json`,
       {
@@ -407,16 +473,54 @@ class Ship {
       }
     );
     if (res.status !== 200) throw new Error(`pikes scry: HTTP ${res.status}`);
-    return JSON.parse(res.body.toString('utf8'))[desk]?.zest ?? 'absent';
+    return JSON.parse(res.body.toString('utf8'))[desk] ?? null;
   }
 
-  park(...a) {
+  // %live once every agent in desk.bill is running
+  async zest(desk) {
+    return (await this.pike(desk))?.zest ?? 'absent';
+  }
+
+  // Whether clay already holds this desk. Kiln lists every desk it knows,
+  // including ones created by %park and never installed, so this is the check
+  // that decides between creating a desk and adding to one.
+  async exists(desk) {
+    return (await this.zest(desk)) !== 'absent';
+  }
+
+  requireConn(what) {
     if (!this.conn) {
       throw new Error(
-        'the desk does not exist on the ship and bootstrapping needs conn.sock; rerun with --pier'
+        `${what} needs conn.sock, which only --pier provides; rerun with --pier`
       );
     }
-    return this.conn.park(...a);
+    return this.conn;
+  }
+
+  // %park writes a root commit holding only the pages it is given, so running
+  // it against a desk that already has content replaces that content — and for
+  // a live desk that means a commit with no desk.bill and no agents, which
+  // tears every one of them down. Creating a desk is the only safe use, so
+  // check that here, next to the operation, rather than trusting the caller.
+  async park(desk, pages, opts) {
+    if (await this.exists(desk)) {
+      throw new Error(
+        `refusing to %park over the existing %${desk}: a root commit would ` +
+          `replace everything in it. Seed it with %into instead.`
+      );
+    }
+    return this.requireConn('creating a desk').park(desk, pages, opts);
+  }
+
+  // commits go through conn's /sync ovum, never an agent duct
+  into(desk, mode, opts) {
+    return this.requireConn('committing to a desk').into(desk, mode, opts);
+  }
+
+  async seedExisting(desk, mode, opts) {
+    const conn = this.requireConn('seeding an existing desk');
+    await conn.mount(desk);
+    await conn.into(desk, mode, opts);
   }
 }
 
@@ -480,7 +584,7 @@ function parseArgs(argv) {
     rest.includes(name) ? rest[rest.indexOf(name) + 1] : undefined;
   if (!dir || !desk || !(opt('--pier') || opt('--url'))) {
     console.error(
-      'usage: desk-push.mjs <assembled-dir> <desk> (--pier <path> | --url <http://host:port> (--code <+code> | --cookie <urbauth>)) [--install] [--bootstrap] [--dry-run]'
+      'usage: desk-push.mjs <assembled-dir> <desk> (--pier <path> | --url <http://host:port> (--code <+code> | --cookie <urbauth>)) [--install] [--reseed] [--dry-run]'
     );
     process.exit(2);
   }
@@ -493,9 +597,10 @@ function parseArgs(argv) {
     code: opt('--code'),
     install: rest.includes('--install'),
     dryRun: rest.includes('--dry-run'),
-    // force the %park even if the desk exists: repairs a desk whose threads
-    // no longer build, since the push itself depends on them
-    bootstrap: rest.includes('--bootstrap'),
+    // re-seed even if -desk-hashes answers: repairs a desk whose threads no
+    // longer build, since the push itself depends on them. Never turns into a
+    // %park against a desk that already exists.
+    reseed: rest.includes('--reseed') || rest.includes('--bootstrap'),
   };
 }
 
@@ -536,21 +641,49 @@ async function main() {
     path: '/' + clayPath(f.rel).join('/'),
   }));
 
+  // Whether the desk is already in clay decides how a missing thread is
+  // handled, and it has to be decided BEFORE any write: %park makes a root
+  // commit holding only what it is given, so parking the seed over a desk
+  // that already has content would delete that content.
+  const exists = await ship.exists(args.desk);
+
   let remote;
   try {
-    if (args.bootstrap) throw new Error('--bootstrap requested');
+    if (args.reseed) throw new Error('--reseed requested');
     remote = await remoteHashes(ship, args.desk);
   } catch (e) {
-    if (e instanceof ThreadError && !args.bootstrap) {
-      // the thread exists but failed: the desk is there, its files are not
-      // trustworthy, so push everything rather than guess at a delta
+    if (e instanceof ThreadError && !args.reseed) {
+      // The thread ran and failed, so it is present but unhappy. The desk is
+      // there; push everything rather than guess at a delta.
       console.log(
         `-desk-hashes failed on %${args.desk}; pushing the full desk\n${e.message}`
       );
       remote = new Map();
+    } else if (exists) {
+      // The desk is there but has no usable threads — the normal state of any
+      // ship that has not yet taken a release carrying them. Seed it with a
+      // full %into, which is a delta on top of the current head and so leaves
+      // everything already committed in place.
+      console.log(
+        `%${args.desk} exists but has no usable threads (${e.message.split('\n')[0]}); seeding it`
+      );
+      if (args.dryRun) {
+        console.log(
+          `would mount %${args.desk} and %into ${local.length} files to add the threads`
+        );
+        return;
+      }
+      const t0 = Date.now();
+      await ship.seedExisting(args.desk, modeNoun(local, []), {
+        timeoutMs: PUSH_TIMEOUT_MS,
+      });
+      console.log(
+        `seeded %${args.desk} with ${local.length} files in ${((Date.now() - t0) / 1000).toFixed(1)}s`
+      );
+      remote = await remoteHashesRetrying(ship, args.desk);
     } else {
       console.log(
-        `no usable %${args.desk} on the ship (${e.message.split('\n')[0]}); bootstrapping`
+        `no %${args.desk} on the ship (${e.message.split('\n')[0]}); creating it`
       );
       const seed = local.filter((f) => BOOTSTRAP_FILES.includes(f.rel));
       const missing = BOOTSTRAP_FILES.filter(
@@ -603,29 +736,62 @@ async function main() {
     return;
   }
 
-  const mode = dejs.list([
-    ...changed.map((f) =>
-      cell(pathNoun(clayPath(f.rel)), cell(Atom.zero, mimeNoun(f.buf)))
-    ),
-    ...deleted.map((p) => cell(pathNoun(p.slice(1).split('/')), Atom.zero)),
-  ]);
-  const arg = cell(cord(args.desk), cell(mode, args.install ? YES : NO));
+  const fullMode = modeNoun(changed, deleted);
 
-  // a commit that fails to build crashes the event; that surfaces from fyrd()
-  // as a ShipError carrying the trace, so a result here means it landed
+  // Ask the ship which of these actually move clay: a mime whose parsed noun
+  // already matches what clay holds changes nothing, and the client cannot
+  // tell, because several marks do not round-trip to identical bytes. A desk
+  // that does not carry the filter yet — including the push that installs it
+  // — commits the whole delta instead; this only avoids needless commits.
   const t0 = Date.now();
-  const result = await ship.fyrd(args.desk, 'desk-push', arg, {
-    timeoutMs: PUSH_TIMEOUT_MS,
-  });
-  const secs = ((Date.now() - t0) / 1000).toFixed(1);
-  const committed = result.head.number === 0n;
-  const aeon = result.tail.head.number;
-  const hash = result.tail.tail.number.toString(16).slice(0, 10);
-  console.log(
-    committed
-      ? `committed %${args.desk} at revision ${aeon} (${hash}) in ${secs}s`
-      : `%${args.desk} still at revision ${aeon} (${hash}): clay found nothing new to commit`
+  let realPaths;
+  try {
+    const real = await ship.fyrd(
+      args.desk,
+      'desk-filter',
+      cell(cord(args.desk), fullMode),
+      { timeoutMs: PUSH_TIMEOUT_MS }
+    );
+    realPaths = new Set(listToArray(real).map(pathString));
+  } catch (e) {
+    console.log(
+      `  -desk-filter unavailable (${e.message.split('\n')[0]}); committing the whole delta`
+    );
+    realPaths = new Set([...changed.map((f) => f.path), ...deleted]);
+  }
+
+  if (realPaths.size === 0) {
+    console.log(`%${args.desk}: nothing here changes clay; no commit`);
+    return;
+  }
+
+  const before = (await ship.pike(args.desk))?.hash;
+  await ship.into(
+    args.desk,
+    modeNoun(
+      changed.filter((f) => realPaths.has(f.path)),
+      deleted.filter((p) => realPaths.has(p))
+    ),
+    { timeoutMs: PUSH_TIMEOUT_MS }
   );
+  const after = (await ship.pike(args.desk))?.hash;
+  const secs = ((Date.now() - t0) / 1000).toFixed(1);
+  if (after === before) {
+    throw new Error(
+      `%${args.desk} is still at ${before} after committing ${realPaths.size} ` +
+        `paths: clay accepted the event and committed nothing, which usually ` +
+        `means its mount is one clay and vere disagree about.`
+    );
+  }
+  console.log(
+    `committed ${realPaths.size} paths to %${args.desk} (${after.slice(0, 12)}) in ${secs}s`
+  );
+
+  if (args.install) {
+    await ship.fyrd(args.desk, 'desk-install', cord(args.desk), {
+      timeoutMs: PUSH_TIMEOUT_MS,
+    });
+  }
   if (args.install) await waitLive(ship, args.desk);
 }
 

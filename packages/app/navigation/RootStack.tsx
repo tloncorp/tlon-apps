@@ -154,8 +154,16 @@ function RootStackContent() {
         options={nativeHeaderScreenOptions}
       />
       <Root.Screen name="Post" component={PostScreen} />
-      <Root.Screen name="NotesDetail" component={NotesDetailScreen} />
-      <Root.Screen name="NotesFolder" component={NotesFolderScreen} />
+      <Root.Screen
+        name="NotesDetail"
+        component={NotesDetailScreen}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="NotesFolder"
+        component={NotesFolderScreen}
+        options={nativeHeaderScreenOptions}
+      />
       <Root.Screen name="NotesSearch" component={NotesSearchScreen} />
       <Root.Screen
         name="GroupChannels"

@@ -135,6 +135,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       onEditorContentChange,
       onInitialContentSet,
       frameless = false,
+      testID,
     },
     ref
   ) => {
@@ -589,9 +590,12 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             : (JSON.parse(data) as MessageEditorMessage);
 
         if (type === 'editor-ready') {
-          if (reloadContentRef.current) {
-            setHasSetInitialContent(false);
-          }
+          // Android can discard a backgrounded WebView's web content and reload
+          // the page without the app asking for it, which leaves the editor
+          // blank. Put back what the editor last held; on the first load there
+          // is nothing yet, so initial content setup runs as usual.
+          reloadContentRef.current ??= editorContent as JSONContent | undefined;
+          setHasSetInitialContent(false);
           webviewRef.current?.injectJavaScript(
             `
               function updateContentHeight() {
@@ -673,6 +677,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       },
       [
         editor,
+        editorContent,
         handlePaste,
         setHeight,
         webviewRef,
@@ -818,6 +823,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             style={{ width: '100%' }}
           >
             <RichText
+              testID={editorState.isReady ? testID : undefined}
               style={{
                 maxHeight: bigInput ? bigInputHeight : maxInputHeight,
                 width: '100%',
