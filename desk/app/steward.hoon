@@ -354,7 +354,7 @@
             ?=(^ owner.state)
             =(src.bowl u.owner.state)
         ==
-    cor
+    (pr-watch-bot-request:pr-core (slav %uv i.t.t.t.t.path))
   ==
 ::
 ++  peek
@@ -1744,6 +1744,19 @@
 ::
 ++  pr-core
   |%
+  ++  pr-tell
+    |=  [vol=volume:v1:lg event=@t =echo:v1:lg extra=log-data:v1:lg]
+    ^+  cor
+    (log-tell vol event echo ['flow'^s+'steward-prompts' extra])
+  ++  pr-fail
+    |=  [event=@t =echo:v1:lg =tang extra=log-data:v1:lg]
+    ^+  cor
+    (log-fail event echo tang ['flow'^s+'steward-prompts' extra])
+  ++  pr-log-props
+    |=  [rid=request-id:v1:sp key=@t who=ship]
+    ^-  log-data:v1:lg
+    ~['requestId'^s+(scot %uv rid) key^s+(scot %p who)]
+  ::
   ++  pr-valid-edit
     |=  =edit:v1:sp
     ^-  ?
@@ -1880,7 +1893,10 @@
     ::
         %watch-ack
       ?~  p.sign  cor
-      ((slog 'steward: prompts watch nacked' u.p.sign) cor)
+      %:  pr-fail  'Mirror Watch Nacked'
+          ~['prompts mirror watch nacked']  u.p.sign
+          ~['bot'^s+(scot %p bot)]
+      ==
     ==
   ::
   ++  pr-apply-bot-update
@@ -2052,6 +2068,21 @@
       ?~  p.sign  cor
       (pr-finalize-request rid [%error %not-authorized u.p.sign])
     ::
+    ::  a kick with the edit still in flight would leave the response with
+    ::  no subscriber, and the record would then age out as %pending even
+    ::  though the bot answered. re-watch; a result the bot already stored
+    ::  is replayed to the fresh subscription. a terminal record is left
+    ::  alone: every path that finalizes one also leaves the subscription,
+    ::  so this only guards a future path that does not
+    ::
+        %kick
+      ?:  ?&(?=(^ result.u.req) !?=(%pending -.u.result.u.req))  cor
+      %-  emit
+      :*  %pass  (pr-req-wire bot rid %watch)
+          %agent  [bot %steward]
+          %watch  (pr-req-path our.bowl rid)
+      ==
+    ::
         %fact
       ?>  ?=(%steward-prompts-response-1 p.cage.sign)
       =+  !<(=response:v1:sp q.cage.sign)
@@ -2121,6 +2152,19 @@
     (pr-give-http-response u.http-id.u.req response)
   ::
   ::  a client subscribing after the result landed gets it immediately
+  ::
+  ::  the owner re-subscribing after a kick gets a result the harness has
+  ::  already reported, so a dropped subscription cannot lose it
+  ::
+  ++  pr-watch-bot-request
+    |=  rid=request-id:v1:sp
+    ^+  cor
+    ?~  pen=(~(get by pending.prompts.state) rid)  cor
+    ?~  result.u.pen  cor
+    %-  give
+    :*  %fact  ~  %steward-prompts-response-1
+        !>(`response:v1:sp`[rid u.result.u.pen])
+    ==
   ::
   ++  pr-watch-local-request
     |=  rid=request-id:v1:sp
@@ -2239,6 +2283,11 @@
       |-  ^+  cor
       ?~  dropped  cor
       =.  cor
+        %:  pr-tell  %warn  'Command Expired'
+            ~['command expired without a harness answer']
+            (pr-log-props id.i.dropped 'requester' requester.i.dropped)
+        ==
+      =.  cor
         (pr-give-response requester.i.dropped [id.i.dropped %error %harness-offline ~])
       $(dropped t.dropped)
     =.  pending.prompts.state
@@ -2262,22 +2311,22 @@
     =*  ext   ext.request-line
     =/  method=@tas  method.request.inbound-request
     ?.  authenticated.inbound-request
-      (http-error eyre-id 401 'unauthorized')
+      (pr-http-error eyre-id 401 'unauthorized')
     ?:  =(site ~[%steward %~.~ %v1 %prompts])
-      ?.  =(%'POST' method)  (http-error eyre-id 405 'method not allowed')
+      ?.  =(%'POST' method)  (pr-http-error eyre-id 405 'method not allowed')
       (pr-handle-http-edit eyre-id inbound-request)
     ?:  =(site ~[%steward %~.~ %v1 %prompts %files])
-      ?.  =(%'GET' method)  (http-error eyre-id 405 'method not allowed')
+      ?.  =(%'GET' method)  (pr-http-error eyre-id 405 'method not allowed')
       %^  give-http  eyre-id  200
       ['application/json' (en:json:html (ship-files:enjs:pj files.prompts.state))]
     ::  the harness answers a dispatch here (bot side): the reply is the
     ::  acknowledgement a channel poke never gives it
     ::
     ?:  =(site ~[%steward %~.~ %v1 %prompts %finalize])
-      ?.  =(%'POST' method)  (http-error eyre-id 405 'method not allowed')
+      ?.  =(%'POST' method)  (pr-http-error eyre-id 405 'method not allowed')
       (pr-handle-http-finalize eyre-id inbound-request)
     ?:  ?=([%steward %~.~ %v1 %prompts %request @ ~] site)
-      ?.  =(%'GET' method)  (http-error eyre-id 405 'method not allowed')
+      ?.  =(%'GET' method)  (pr-http-error eyre-id 405 'method not allowed')
       ::  a @uv carries dots; apat split its last dot-group off as a
       ::  file extension, so glue it back before parsing
       ::
@@ -2285,7 +2334,7 @@
         ?~  ext  i.t.t.t.t.t.site
         (rap 3 i.t.t.t.t.t.site '.' u.ext ~)
       (pr-handle-http-get-request eyre-id rid-knot)
-    (http-error eyre-id 404 'not found')
+    (pr-http-error eyre-id 404 'not found')
   ::
   ::  POST body: { requestId?, bot, action }. malformed input is a 400,
   ::  never a crash. a client-supplied id is honored when it parses;
@@ -2296,40 +2345,40 @@
     |=  [eyre-id=@ta =inbound-request:eyre]
     ^+  cor
     ?~  body.request.inbound-request
-      (http-error eyre-id 400 'missing body')
+      (pr-http-error eyre-id 400 'missing body')
     ?:  (gth p.u.body.request.inbound-request 524.288)
-      (http-error eyre-id 413 'request body too large')
+      (pr-http-error eyre-id 413 'request body too large')
     ?~  jon=(de:json:html q.u.body.request.inbound-request)
-      (http-error eyre-id 400 'invalid json')
+      (pr-http-error eyre-id 400 'invalid json')
     ?.  ?=([%o *] u.jon)
-      (http-error eyre-id 400 'body must be a json object')
+      (pr-http-error eyre-id 400 'body must be a json object')
     =/  bot-j=(unit json)  (~(get by p.u.jon) 'bot')
     ?.  ?&(?=(^ bot-j) ?=([%s *] u.bot-j))
-      (http-error eyre-id 400 'missing `bot` field')
+      (pr-http-error eyre-id 400 'missing `bot` field')
     =/  bot-res=(each ship tang)  (mule |.((slav %p p.u.bot-j)))
     ?:  ?=(%| -.bot-res)
-      (http-error eyre-id 400 'malformed bot')
+      (pr-http-error eyre-id 400 'malformed bot')
     ?~  act-j=(~(get by p.u.jon) 'action')
-      (http-error eyre-id 400 'missing `action` field')
+      (pr-http-error eyre-id 400 'missing `action` field')
     =/  edit-res=(each edit:v1:sp tang)  (mule |.((edit:dejs:pj u.act-j)))
     ?:  ?=(%| -.edit-res)
-      (http-error eyre-id 400 'malformed action')
+      (pr-http-error eyre-id 400 'malformed action')
     ?.  (pr-valid-edit p.edit-res)
-      (http-error eyre-id 400 'unsupported file or oversized text')
+      (pr-http-error eyre-id 400 'unsupported file or oversized text')
     ::  a well-formed body is authorized last, so malformed input stays 400
     ::
     ?.  (pr-bot-editable p.bot-res)
-      (http-error eyre-id 403 'bot is not trusted')
+      (pr-http-error eyre-id 403 'bot is not trusted')
     =/  rj  (~(get by p.u.jon) 'requestId')
     =/  parsed=(each request-id:v1:sp tang)
       ?~  rj  [%& `@uv`eny.bowl]
       (mule |.((request-id:dejs:pj u.rj)))
     ?:  ?=(%| -.parsed)
-      (http-error eyre-id 400 'malformed request id')
+      (pr-http-error eyre-id 400 'malformed request id')
     =/  rid  p.parsed
     ?^  old=(~(get by requests.prompts.state) rid)
       ?.  =([p.bot-res p.edit-res] [bot edit]:u.old)
-        (http-error eyre-id 409 'request id already used for another edit')
+        (pr-http-error eyre-id 409 'request id already used for another edit')
       =/  body=response-body:v1:sp
         ?~  result.u.old  [%pending poke-status.u.old]
         u.result.u.old
@@ -2344,9 +2393,9 @@
     ^+  cor
     =/  parsed=(each @uv tang)  (mule |.((slav %uv rid-knot)))
     ?:  ?=(%| -.parsed)
-      (http-error eyre-id 400 'malformed request id')
+      (pr-http-error eyre-id 400 'malformed request id')
     ?~  req=(~(get by requests.prompts.state) p.parsed)
-      (http-error eyre-id 404 'request not found')
+      (pr-http-error eyre-id 404 'request not found')
     =/  body=response-body:v1:sp
       ?~  result.u.req  [%pending poke-status.u.req]
       u.result.u.req
@@ -2366,15 +2415,15 @@
     |=  [eyre-id=@ta =inbound-request:eyre]
     ^+  cor
     ?~  body.request.inbound-request
-      (http-error eyre-id 400 'missing body')
+      (pr-http-error eyre-id 400 'missing body')
     ?~  jon=(de:json:html q.u.body.request.inbound-request)
-      (http-error eyre-id 400 'invalid json')
+      (pr-http-error eyre-id 400 'invalid json')
     =/  parsed=(each [request-id:v1:sp outcome:v1:sp] tang)
       %-  mule  |.
       %.  u.jon
       (ot:dejs:format 'requestId'^request-id:dejs:pj body+result:dejs:pj ~)
     ?:  ?=(%| -.parsed)
-      (http-error eyre-id 400 'malformed response')
+      (pr-http-error eyre-id 400 'malformed response')
     =/  [rid=request-id:v1:sp =outcome:v1:sp]  p.parsed
     ::  Terminal responses stay in pending for replay/deduplication, so
     ::  only an unresolved entry was actually finalized by this request.
@@ -2390,6 +2439,20 @@
     :~  ['requestId' (request-id:enjs:pj rid)]
         ['finalized' b+finalized]
     ==
+  ::
+  ::  every prompts 4xx is reported the way automation's is: the shared
+  ::  /steward binding sends unknown routes here, so the fleet-wide
+  ::  'HTTP Error' signal has to come from this handler too
+  ::
+  ++  pr-http-error
+    |=  [eyre-id=@ta code=@ud message=@t]
+    ^+  cor
+    =.  cor
+      %:  pr-tell  %info  'HTTP Error'
+          ~[(cat 3 'http error: ' message)]
+          ~['status'^n+(scot %ud code) 'detail'^s+message]
+      ==
+    (http-error eyre-id code message)
   ::
   ++  pr-give-http-response
     |=  [eyre-id=@ta =response:v1:sp]
