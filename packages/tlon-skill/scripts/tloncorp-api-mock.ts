@@ -22,6 +22,12 @@
  * posts, invites), and the notes runtimes (notesV1 et al.).
  */
 import type { NotesV1Api } from '@tloncorp/api';
+// @ts-expect-error -- subpath export not resolvable under moduleResolution:Node
+// (bun resolves it fine at runtime and in tests)
+import { parsePostBlob } from '@tloncorp/api/client/content-helpers';
+// @ts-expect-error -- subpath export not resolvable under moduleResolution:Node
+// (bun resolves it fine at runtime and in tests)
+import { getTextContent } from '@tloncorp/api/client/postContent';
 import { mock } from 'bun:test';
 
 export const NOTES_V1_OPS = [
@@ -140,6 +146,10 @@ mock.module('@tloncorp/api', () => ({
   sendReply: async () => undefined,
   batchImportNotesV1: async (input: { requestId: string }) => input.requestId,
   getChannelPosts: (...args: unknown[]) => mockedGetChannelPosts.impl(...args),
+  // message-content.ts value imports -- the real renderers, not stubs: their
+  // output is exactly what the parse repair is under test for.
+  parsePostBlob,
+  getTextContent,
   toUrbitStory: (content: unknown) => content ?? [],
   updateChannel: async () => undefined,
   // notes runtime value imports
