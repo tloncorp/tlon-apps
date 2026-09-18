@@ -38,11 +38,14 @@ const MAX_COMPLETED_REQUESTS = 1_000;
 export const PROMPT_WATCH_DEBOUNCE_MS = 150;
 /**
  * A failed poke does not necessarily drop the SSE stream, so nothing else
- * would re-run a lost owner configuration or projection. Retries run inside
- * the serial queue: ordering matters more than latency here, and the ceiling
- * keeps a wedged ship from blocking shutdown for longer than a close takes.
+ * would re-run a lost owner configuration or projection: with the stream
+ * still up and no local edit, a ship that missed its startup poke would stay
+ * unconfigured or stale for the life of the process. So retries are not
+ * capped by a count — only `close()` ends them. Retries run inside the serial
+ * queue, which keeps ordering but means a permanently failing operation holds
+ * the queue until close; that is the intended trade, since the alternative is
+ * silently serving a stale projection.
  */
-export const PROMPT_RETRY_ATTEMPTS = 6;
 export const PROMPT_RETRY_BASE_MS = 500;
 export const PROMPT_RETRY_MAX_MS = 30_000;
 
@@ -280,10 +283,14 @@ export function createPromptSync(opts: {
   logger: Logger;
   /** Injectable so the watcher behavior can be tested without open handles. */
   watchWorkspace?: WatchWorkspace;
-  /** Injectable so retry behavior can be tested without real backoff waits. */
+  /**
+   * Injectable so retry behavior can be tested without real backoff waits.
+   * `attempts` exists only so a test can force the give-up path; production
+   * retries until the operation lands or `close()` aborts it.
+   */
   retry?: { attempts?: number; baseMs?: number; maxMs?: number };
 }): PromptSync {
-  const retryAttempts = opts.retry?.attempts ?? PROMPT_RETRY_ATTEMPTS;
+  const retryAttempts = opts.retry?.attempts ?? Number.POSITIVE_INFINITY;
   const retryBaseMs = opts.retry?.baseMs ?? PROMPT_RETRY_BASE_MS;
   const retryMaxMs = opts.retry?.maxMs ?? PROMPT_RETRY_MAX_MS;
   let configured = false;
@@ -313,7 +320,7 @@ export function createPromptSync(opts: {
       retryWaiters.add(wake);
     });
 
-  /** Retry a ship-side operation until it lands, this sync closes, or we give up. */
+  /** Retry a ship-side operation until it lands or this sync closes. */
   const withRetry = async (label: string, work: () => Promise<void>) => {
     for (let attempt = 1; ; attempt += 1) {
       if (closed) {

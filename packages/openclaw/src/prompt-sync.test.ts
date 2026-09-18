@@ -41,6 +41,9 @@ function makeSync(
     failPokes?: { key: string; times: number };
     /** Fail the first `n` finalize requests, then succeed. */
     failFinalize?: number;
+    /** Attempt cap; pass undefined for the production (uncapped) behavior. */
+    retryAttempts?: number;
+    retryBaseMs?: number;
   } = {}
 ) {
   const pokes: Array<{ app: string; mark: string; json: unknown }> = [];
@@ -85,7 +88,11 @@ function makeSync(
       return watcher;
     },
     // Exercise the retry loop without waiting out the real backoff.
-    retry: { attempts: RETRY_ATTEMPTS, baseMs: 0, maxMs: 0 },
+    retry: {
+      attempts: 'retryAttempts' in opts ? opts.retryAttempts : RETRY_ATTEMPTS,
+      baseMs: opts.retryBaseMs ?? 0,
+      maxMs: opts.retryBaseMs ?? 0,
+    },
   });
   return { sync, pokes, requests, logger, watchListeners, watcherClose };
 }
@@ -373,6 +380,44 @@ describe('prompt workspace projection', () => {
         body: { requestId: '0v8', body: { type: 'updated', name: 'SOUL.md' } },
       },
     ]);
+  });
+
+  it('keeps retrying a projection past any fixed attempt budget', async () => {
+    // The default has no attempt cap: only close() ends the retries, so a
+    // ship outage longer than a fixed budget cannot leave a stale projection.
+    const { sync, pokes } = makeSync({
+      failPokes: { key: 'project', times: 25 },
+      retryAttempts: undefined,
+    });
+    fs.writeFileSync(path.join(workspaceDir, 'SOUL.md'), 'persistent');
+
+    await sync.start();
+
+    expect(pokes.map((poke) => poke.json)).toEqual([
+      { configure: { owner: '~zod' } },
+      { project: { 'SOUL.md': 'persistent' } },
+    ]);
+  });
+
+  it('abandons retries when the sync closes mid-outage', async () => {
+    const { sync, pokes, logger } = makeSync({
+      failPokes: { key: 'project', times: 1_000 },
+      retryAttempts: undefined,
+      retryBaseMs: 50,
+    });
+
+    const started = sync.start();
+    await sync.close();
+    await started;
+
+    // close() both stops the retries and settles the queue, so the projection
+    // is abandoned rather than hanging on a ship that never answers.
+    expect(
+      pokes.some((poke) => Object.hasOwn(poke.json as object, 'project'))
+    ).toBe(false);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('Prompt sync failed')
+    );
   });
 
   it('retries a failed projection until it lands', async () => {
