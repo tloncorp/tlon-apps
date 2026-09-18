@@ -43,12 +43,14 @@ export function getTopLevelDrawerWidth(windowWidth: number) {
  * so the navigation bar travels with the screen it belongs to and none of the
  * app is left drawn on top of the panel. Nothing dims for the same reason —
  * the app is beside the drawer, not behind it — but the overlay stays there,
- * transparent, to catch the tap that closes it.
+ * transparent, to catch the tap that closes it. The panel's own right edge is
+ * what separates the two.
  */
 export function useTopLevelDrawerScreenOptions(): DrawerNavigationOptions {
   const { width } = useWindowDimensions();
   const theme = useTheme();
   const background = theme.background?.val;
+  const border = theme.border?.val;
   const drawerWidth = getTopLevelDrawerWidth(width);
 
   return useMemo(
@@ -60,8 +62,12 @@ export function useTopLevelDrawerScreenOptions(): DrawerNavigationOptions {
       drawerStyle: {
         width: drawerWidth,
         backgroundColor: background,
+        // `slide` leaves a strip of the app beside the panel, and both are the
+        // same colour. This is the only thing that says where one ends.
+        borderRightWidth: 1,
+        borderRightColor: border,
       },
     }),
-    [background, drawerWidth]
+    [background, border, drawerWidth]
   );
 }
