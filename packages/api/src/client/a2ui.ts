@@ -61,7 +61,7 @@ const buttonVariantSchema = z.enum([
   'secondary',
   'borderless',
 ]);
-const screenNameSchema = z.enum(['botMcpSettings', 'browserCredentialHandoff']);
+const screenNameSchema = z.enum(['botMcpSettings']);
 
 const nonEmptyString = (max?: number) => {
   const schema = max === undefined ? z.string() : z.string().max(max);
@@ -114,21 +114,12 @@ const chatVolumeNavigationTargetSchema = z.object({
   chatId: targetIdSchema,
   groupId: targetIdSchema.optional(),
 });
-const botMcpSettingsNavigationTargetSchema = z.object({
+const screenNavigationTargetSchema = z.object({
   type: z.literal('screen'),
-  screen: z.literal('botMcpSettings'),
+  screen: screenNameSchema,
   providerId: targetIdSchema.optional(),
 });
-const browserCredentialHandoffNavigationTargetSchema = z.object({
-  type: z.literal('screen'),
-  screen: z.literal('browserCredentialHandoff'),
-  viewerUrl: z.string().url().max(2048),
-});
-const screenNavigationTargetSchema = z.union([
-  botMcpSettingsNavigationTargetSchema,
-  browserCredentialHandoffNavigationTargetSchema,
-]);
-const navigationTargetSchema = z.union([
+const navigationTargetSchema = z.discriminatedUnion('type', [
   messageNavigationTargetSchema,
   channelNavigationTargetSchema,
   groupNavigationTargetSchema,
@@ -264,7 +255,9 @@ const mcpSettingsNavigateActionSchema = z.object({
   event: z.object({
     name: z.literal(ACTION_NAVIGATE),
     context: z.object({
-      target: botMcpSettingsNavigationTargetSchema,
+      target: screenNavigationTargetSchema.extend({
+        screen: z.literal('botMcpSettings'),
+      }),
     }),
   }),
 });
@@ -343,9 +336,6 @@ export namespace A2UI {
   export type ScreenName = z.infer<typeof screenNameSchema>;
   export type ScreenNavigationTarget = z.infer<
     typeof screenNavigationTargetSchema
-  >;
-  export type BrowserCredentialHandoffNavigationTarget = z.infer<
-    typeof browserCredentialHandoffNavigationTargetSchema
   >;
   export type NavigationTarget = z.infer<typeof navigationTargetSchema>;
   export type NavigateEvent = z.infer<typeof navigateEventSchema>;

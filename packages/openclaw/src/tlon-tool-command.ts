@@ -70,7 +70,6 @@ const INVALID_OPERATION = 'invalid';
 
 const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
   ['activity', new Set(['mentions', 'replies', 'all', 'unreads'])],
-  ['browser', new Set(['handoff'])],
   [
     'channels',
     new Set([
@@ -443,8 +442,6 @@ function summarizeKnownTlonCommand(
   switch (subcommand) {
     case 'activity':
       return build('read');
-    case 'browser':
-      return build('write');
     case 'channels':
       return summarizeChannelsOperation(operation, remainder, build);
     case 'contacts':

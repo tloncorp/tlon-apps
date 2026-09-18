@@ -17,17 +17,6 @@ SPEC.loader.exec_module(tlon_api)
 
 
 class TlonConfigTests(unittest.TestCase):
-    def test_cli_env_uses_configured_owner_for_browser_handoff(self):
-        cfg = tlon_api.TlonConfig.from_env(env={"TLON_OWNER_SHIP": "~zod"})
-        env = cfg.cli_env(base={"TLON_OWNER_SHIP": "~nec"})
-        self.assertEqual(env["TLON_OWNER_SHIP"], "~zod")
-
-    def test_cli_env_removes_owner_when_config_has_none(self):
-        cfg = tlon_api.TlonConfig(ship_url="", ship_name="")
-        self.assertNotIn(
-            "TLON_OWNER_SHIP", cfg.cli_env(base={"TLON_OWNER_SHIP": "~nec"})
-        )
-
     def test_from_env_accepts_hermes_names_and_seeds_cli_aliases(self):
         cfg = tlon_api.TlonConfig.from_env(
             env={

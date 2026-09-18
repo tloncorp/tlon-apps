@@ -39,7 +39,6 @@ logger = logging.getLogger(__name__)
 ALLOWED_TLON_COMMANDS = frozenset(
     {
         "activity",
-        "browser",
         "channels",
         "contacts",
         "dms",
