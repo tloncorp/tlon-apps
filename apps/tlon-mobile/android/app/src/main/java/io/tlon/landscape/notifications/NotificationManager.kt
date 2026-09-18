@@ -56,6 +56,10 @@ object NotificationMessagesCache {
         cache[preview.groupingKey] = nextCachedList
     }
 
+    fun clearConversation(groupingKey: String) {
+        cache.remove(groupingKey)
+    }
+
     fun removeMessageWithId(id: String) {
         cache.forEach { (groupingKey, messages) ->
             val filteredMessages = messages.filter { message ->
@@ -174,18 +178,12 @@ private fun showRichNotification(context: Context, uid: String, preview: Activit
         return
     }
 
+    // notifications for the same conversation share a slot, so newer ones
+    // replace older ones rather than stacking
+    val notificationId = preview.groupingKey?.hashCode() ?: id
+
     val builder: NotificationCompat.Builder = NotificationCompat.Builder(context, TalkNotificationManager.CHANNEL_ID)
         .buildMessagingTappable(context, id, extras)
-
-    val markAsReadIntent = Intent(context, TalkBroadcastReceiver::class.java)
-    markAsReadIntent.setAction(TalkBroadcastReceiver.MARK_AS_READ_ACTION)
-    markAsReadIntent.replaceExtras(extras)
-    val markAsReadPendingIntent = PendingIntent.getBroadcast(
-        context,
-        id,
-        markAsReadIntent,
-        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-    )
 
     val person = preview.messagingMetadata?.sender?.person
     val title = preview.title
@@ -220,12 +218,39 @@ private fun showRichNotification(context: Context, uid: String, preview: Activit
         .setContentTitle(title)
         .setContentText(text)
         .setGroup(preview.groupingKey)
-        .addAction(
+
+    // events with no source of their own (contact updates) have nothing to
+    // read, so they get no action rather than one that silently does nothing
+    preview.readSource?.let { readSource ->
+        builder.addAction(
             R.drawable.ic_mark_as_read,
             context.getString(R.string.landscape_notification_mark_as_read),
-            markAsReadPendingIntent
+            buildMarkAsReadIntent(context, notificationId, readSource, preview.groupingKey)
         )
-    NotificationManagerCompat.from(context).notify(preview.groupingKey?.hashCode() ?: id, builder.build())
+    }
+
+    NotificationManagerCompat.from(context).notify(notificationId, builder.build())
+}
+
+private fun buildMarkAsReadIntent(
+    context: Context,
+    notificationId: Int,
+    readSource: String,
+    groupingKey: String?
+): PendingIntent {
+    val intent = Intent(context, TalkBroadcastReceiver::class.java)
+    intent.action = TalkBroadcastReceiver.MARK_AS_READ_ACTION
+    intent.putExtra("readSource", readSource)
+    intent.putExtra("notificationId", notificationId)
+    intent.putExtra("groupingKey", groupingKey)
+    // keyed by notification slot, so FLAG_UPDATE_CURRENT refreshes the extras
+    // of whichever notification is currently showing for this conversation
+    return PendingIntent.getBroadcast(
+        context,
+        notificationId,
+        intent,
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+    )
 }
 
 fun showGenericNotification(
