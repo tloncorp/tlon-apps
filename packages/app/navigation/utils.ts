@@ -601,7 +601,9 @@ export async function getMainGroupRoute(
   if (group && group.channels && group.channels.length === 1) {
     return {
       name: 'Channel',
-      params: { channelId: group.channels[0].id, groupId },
+      // Entering the group *is* opening this channel, so the screen stands on
+      // its own rather than over a channel list.
+      params: { channelId: group.channels[0].id, groupId, isOnlyChannel: true },
       pop: true,
     } as const;
   } else {

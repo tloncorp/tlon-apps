@@ -25,6 +25,12 @@ export type ChannelRouteParams = {
   groupId?: string;
   selectedPostId?: string | null;
   startDraft?: boolean;
+  /**
+   * This is the only channel its group has, so the group is entered through it
+   * and there is no channel list behind it to go back to. See
+   * `isConversationRootRoute`.
+   */
+  isOnlyChannel?: boolean;
 };
 
 export type RootStackParamList = {

@@ -280,6 +280,7 @@ interface ChannelProps {
    * and the floating tab bar would otherwise cover its message input.
    */
   isTopLevelTab?: boolean;
+  isConversationRoot?: boolean;
   disableBackButton?: boolean;
   onPressLogout?: () => void;
   suppressEmptyState?: boolean;
@@ -328,6 +329,7 @@ export function Channel({
   groupIsLoading,
   goBack,
   isTopLevelTab,
+  isConversationRoot,
   disableBackButton,
   onPressLogout,
   suppressEmptyState,
@@ -948,6 +950,7 @@ export function Channel({
                           title={title ?? ''}
                           description={''}
                           isTopLevelTab={isTopLevelTab}
+                          isConversationRoot={isConversationRoot}
                           backDisabled={disableBackButton}
                           goBack={
                             (isNarrow && !isTopLevelTab) ||
