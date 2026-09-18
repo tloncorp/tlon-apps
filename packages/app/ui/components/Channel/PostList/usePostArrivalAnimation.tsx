@@ -1,3 +1,7 @@
+import {
+  convertContent,
+  plaintextPreviewOf,
+} from '@tloncorp/api/client/postContent';
 import * as React from 'react';
 import { EaseView, type TimingTransition } from 'react-native-ease';
 
@@ -10,18 +14,41 @@ const messageFadeIn: TimingTransition = {
   easing: 'easeInOut',
 };
 
+const multilineMessageFadeIn: TimingTransition = {
+  type: 'timing',
+  delay: 100,
+  duration: 550,
+  easing: 'easeInOut',
+};
+
+function getMessageFadeIn(content: unknown): TimingTransition {
+  try {
+    // The stored text preview flattens line breaks. Read the message body so
+    // paragraphs, blank lines and inline breaks all get the multiline timing.
+    const text = plaintextPreviewOf(convertContent(content, undefined));
+    return text.includes('\n') ? multilineMessageFadeIn : messageFadeIn;
+  } catch {
+    return messageFadeIn;
+  }
+}
+
 function PostArrival({
   postId,
+  content,
   animate,
   displayedPostIds,
   children,
 }: React.PropsWithChildren<{
   postId: string;
+  content: unknown;
   animate: boolean;
   displayedPostIds: Set<string>;
 }>) {
   const [shouldAnimate] = React.useState(
     () => animate && !displayedPostIds.has(postId)
+  );
+  const [transition] = React.useState(() =>
+    shouldAnimate ? getMessageFadeIn(content) : messageFadeIn
   );
   React.useLayoutEffect(() => {
     // Virtualization may mount this post again when returning from history.
@@ -32,7 +59,7 @@ function PostArrival({
     <EaseView
       initialAnimate={shouldAnimate ? { opacity: 0 } : undefined}
       animate={{ opacity: 1 }}
-      transition={messageFadeIn}
+      transition={transition}
     >
       {children}
     </EaseView>
@@ -73,6 +100,7 @@ export function usePostArrivalAnimation({
       <PostArrival
         key={props.item.post.id}
         postId={props.item.post.id}
+        content={props.item.post.content}
         animate={arrivals.has(props.item.post.id)}
         displayedPostIds={displayedPostIds}
       >

@@ -74,7 +74,73 @@ function initialOpacity(id: string) {
   return row(id).props.initialAnimate?.opacity;
 }
 
+function message(id: string, content: unknown): PostWithNeighbors {
+  return { post: { id, content } } as PostWithNeighbors;
+}
+
 describe('message entry animations', () => {
+  it('keeps single-line arrivals at the current timing', () => {
+    render({ data: posts('a') });
+    update({
+      data: [...posts('a'), message('b', [{ inline: ['Hello'] }])],
+    });
+    expect(row('b').props.transition).toEqual({
+      type: 'timing',
+      duration: 400,
+      easing: 'easeInOut',
+    });
+  });
+
+  it.each([
+    ['paragraphs', [{ inline: ['First line'] }, { inline: ['Second line'] }]],
+    ['inline breaks', [{ inline: ['First line\nSecond line'] }]],
+    [
+      'stored JSON with blank lines',
+      JSON.stringify([
+        { inline: ['First line'] },
+        { inline: [''] },
+        { inline: ['Last line'] },
+      ]),
+    ],
+  ])('gives multiline %s a brief delay and a slower fade', (_name, content) => {
+    render({ data: posts('a') });
+    update({ data: [...posts('a'), message('b', content)] });
+    expect(initialOpacity('b')).toBe(0);
+    expect(row('b').props.transition).toEqual({
+      type: 'timing',
+      delay: 100,
+      duration: 550,
+      easing: 'easeInOut',
+    });
+    const transition = row('b').props.transition;
+    update({ data: [...posts('a'), message('b', [{ inline: ['Updated'] }])] });
+    expect(row('b').props.transition).toBe(transition);
+  });
+
+  it('does not delay multiline history, disabled animations or recycled rows', () => {
+    const data = [
+      message('a', [{ inline: ['First'] }, { inline: ['Second'] }]),
+    ];
+    render({ data });
+    expect(initialOpacity('a')).toBeUndefined();
+    expect(row('a').props.transition.delay).toBeUndefined();
+    const added = [...data, message('b', data[0].post.content)];
+    update({ data: added, enabled: false });
+    expect(initialOpacity('b')).toBeUndefined();
+    expect(row('b').props.transition.delay).toBeUndefined();
+    update({ data: added, visible: ['a'] });
+    update({ data: added });
+    expect(initialOpacity('b')).toBeUndefined();
+    expect(row('b').props.transition.delay).toBeUndefined();
+  });
+
+  it('keeps malformed content from breaking an arriving row', () => {
+    render({ data: posts('a') });
+    update({ data: [...posts('a'), message('b', '{not JSON')] });
+    expect(initialOpacity('b')).toBe(0);
+    expect(row('b').props.transition.duration).toBe(400);
+  });
+
   it('reveals initial data immediately and fades only subsequent arrivals', () => {
     const initial = posts('a');
     render({ data: initial, enabled: false });

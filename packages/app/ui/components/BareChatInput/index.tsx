@@ -44,6 +44,7 @@ import {
 } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
+import { useConversationComposerHeight } from '../../contexts/scroll';
 import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 import { getVideoPreviewData } from '../../utils/videoPreviewData';
 import { MentionController } from '../MentionPopup';
@@ -316,6 +317,23 @@ function BareChatInput(
     removeAttachment,
   } = useAttachmentContext();
   const [controlledText, setControlledText] = useState('');
+  const [pendingComposerSends, setPendingComposerSends] = useState(0);
+  const pendingComposerSendsRef = useRef(0);
+  const awaitingComposerSettlement = useRef(false);
+  const {
+    beginSend: beginComposerSend,
+    finishSend: finishComposerSend,
+    isSendCoordinated,
+  } = useConversationComposerHeight();
+  const handleComposerHeightSettled = useCallback(() => {
+    if (
+      awaitingComposerSettlement.current &&
+      pendingComposerSendsRef.current === 0
+    ) {
+      awaitingComposerSettlement.current = false;
+      finishComposerSend();
+    }
+  }, [finishComposerSend]);
   const [inputHeight, setInputHeight] = useState(initialHeight);
   const [sendError, setSendError] = useState(false);
   const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
@@ -616,6 +634,23 @@ function BareChatInput(
       inputSessionRef.current += 1;
       setLinkMetaLoading(false);
 
+      // Keep the occupied composer space until the optimistic message exists,
+      // so clearing a tall draft cannot pull history down before its arrival.
+      let holdingComposerHeight = !isWeb && !isEdit;
+      if (holdingComposerHeight) {
+        beginComposerSend();
+        awaitingComposerSettlement.current = true;
+        pendingComposerSendsRef.current += 1;
+        setPendingComposerSends((count) => count + 1);
+      }
+      const releaseComposerHeight = () => {
+        if (holdingComposerHeight) {
+          holdingComposerHeight = false;
+          pendingComposerSendsRef.current -= 1;
+          setPendingComposerSends((count) => count - 1);
+        }
+      };
+
       setControlledText('');
       bareChatInputLogger.log('clearing attachments');
       clearAttachments();
@@ -627,7 +662,10 @@ function BareChatInput(
 
       try {
         bareChatInputLogger.log('sending message');
-        const sendOperation = sendPostFromDraft(draft);
+        const sendOperation = sendPostFromDraft(draft, {
+          onEnqueued: releaseComposerHeight,
+          scrollHandled: isSendCoordinated(),
+        });
         bareChatInputLogger.log('clearing draft');
         await clearDraft();
         await sendOperation;
@@ -635,6 +673,7 @@ function BareChatInput(
         bareChatInputLogger.error('Error sending message', e);
         setSendError(true);
       } finally {
+        releaseComposerHeight();
         onSend?.();
         bareChatInputLogger.log('sent message');
         setMentions([]);
@@ -659,6 +698,8 @@ function BareChatInput(
       initialHeight,
       resetMentionMode,
       resetSlashCommandMode,
+      beginComposerSend,
+      isSendCoordinated,
     ]
   );
 
@@ -1173,7 +1214,11 @@ function BareChatInput(
       >
         {linkMetaLoading && <LinkPreviewLoading />}
         {showInlineAttachments && <AttachmentPreviewList />}
-        <AnimatedInputHeight minimumHeight={minimumInputHeight}>
+        <AnimatedInputHeight
+          minimumHeight={minimumInputHeight}
+          holdHeight={pendingComposerSends > 0}
+          onHeightSettled={handleComposerHeightSettled}
+        >
           <PasteableTextInput
             testID="MessageInput"
             ref={inputRef}

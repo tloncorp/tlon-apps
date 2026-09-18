@@ -3,6 +3,10 @@ import { View } from 'tamagui';
 
 export function AnimatedInputHeight({
   children,
-}: PropsWithChildren<{ minimumHeight: number }>) {
+}: PropsWithChildren<{
+  minimumHeight: number;
+  holdHeight?: boolean;
+  onHeightSettled?: () => void;
+}>) {
   return <View position="relative">{children}</View>;
 }

@@ -1,8 +1,9 @@
-import { PropsWithChildren, useCallback, useRef } from 'react';
+import { PropsWithChildren, useCallback, useLayoutEffect, useRef } from 'react';
 import { LayoutChangeEvent, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   ReduceMotion,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -11,28 +12,59 @@ import Animated, {
 export function AnimatedInputHeight({
   children,
   minimumHeight,
-}: PropsWithChildren<{ minimumHeight: number }>) {
+  holdHeight = false,
+  onHeightSettled,
+}: PropsWithChildren<{
+  minimumHeight: number;
+  holdHeight?: boolean;
+  onHeightSettled?: () => void;
+}>) {
   const height = useSharedValue(minimumHeight);
   const targetHeight = useRef(minimumHeight);
+  const measuredHeight = useRef(minimumHeight);
   const animatedStyle = useAnimatedStyle(() => ({ height: height.value }));
-  const handleLayout = useCallback(
-    (event: LayoutChangeEvent) => {
-      const nextHeight = Math.max(
-        minimumHeight,
-        event.nativeEvent.layout.height
-      );
+  const animateToHeight = useCallback(
+    (nextHeight: number) => {
       if (nextHeight === targetHeight.current) {
+        if (height.value === nextHeight) {
+          onHeightSettled?.();
+        }
         return;
       }
       targetHeight.current = nextHeight;
-      height.value = withTiming(nextHeight, {
-        duration: 180,
-        easing: Easing.out(Easing.cubic),
-        reduceMotion: ReduceMotion.System,
-      });
+      height.value = withTiming(
+        nextHeight,
+        {
+          duration: 180,
+          easing: Easing.out(Easing.cubic),
+          reduceMotion: ReduceMotion.System,
+        },
+        (finished) => {
+          if (finished && onHeightSettled) {
+            runOnJS(onHeightSettled)();
+          }
+        }
+      );
     },
-    [height, minimumHeight]
+    [height, onHeightSettled]
   );
+  const handleLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      measuredHeight.current = Math.max(
+        minimumHeight,
+        event.nativeEvent.layout.height
+      );
+      if (!holdHeight || measuredHeight.current > targetHeight.current) {
+        animateToHeight(measuredHeight.current);
+      }
+    },
+    [animateToHeight, holdHeight, minimumHeight]
+  );
+  useLayoutEffect(() => {
+    if (!holdHeight) {
+      animateToHeight(measuredHeight.current);
+    }
+  }, [animateToHeight, holdHeight]);
 
   return (
     <Animated.View style={[styles.frame, animatedStyle]}>
