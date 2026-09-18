@@ -1,4 +1,10 @@
-import { RouteProp, useIsFocused, useRoute } from '@react-navigation/native';
+import {
+  NavigationProp,
+  RouteProp,
+  useIsFocused,
+  useNavigation,
+  useRoute,
+} from '@react-navigation/native';
 import { FlashListRef } from '@shopify/flash-list';
 import { markInvitesRead, reportBackgroundFailure } from '@tloncorp/api';
 import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
@@ -56,9 +62,26 @@ const COMBINED_CHAT_TAB = 'home' as const;
 
 export default function ChatListScreen() {
   const route = useRoute<RouteProp<TopLevelTabParamList, 'ChatList'>>();
+  const navigation =
+    useNavigation<NavigationProp<TopLevelTabParamList, 'ChatList'>>();
   const previewGroupId = route.params?.previewGroupId;
   const previewGroupFromInviteNotification =
     route.params?.previewGroupFromInviteNotification;
+
+  // The view opens its preview sheet when this id *changes*, so a param left
+  // sitting on the route names a group it will not open a second time: asking
+  // for the same one again writes an identical value and nothing re-runs.
+  // Consuming it here makes each request a fresh change. The drawer's chat
+  // list is what makes re-asking an ordinary thing to do.
+  useEffect(() => {
+    if (previewGroupId) {
+      navigation.setParams({
+        previewGroupId: undefined,
+        previewGroupFromInviteNotification: undefined,
+      });
+    }
+  }, [navigation, previewGroupId]);
+
   return (
     <ChatListScreenView
       previewGroupId={previewGroupId}

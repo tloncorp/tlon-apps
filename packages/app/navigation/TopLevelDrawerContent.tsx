@@ -1,10 +1,13 @@
-import { DrawerContentComponentProps } from '@react-navigation/drawer';
+import {
+  DrawerContentComponentProps,
+  useDrawerStatus,
+} from '@react-navigation/drawer';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { Button, Icon, IconType, Pressable, Text } from '@tloncorp/ui';
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Circle, View, XStack, YStack, getTokenValue, useTheme } from 'tamagui';
@@ -139,6 +142,7 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
       // reader through the label itself.
       accessibilityLabel={hasUnread ? `${title}, unread` : title}
       accessibilityState={{ disabled }}
+      testID={`TopLevelDrawerChat-${chat.id}`}
       borderRadius="$l"
       paddingHorizontal="$l"
       justifyContent="center"
@@ -328,7 +332,13 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
     excludeChannelId: botDm.enabled ? botDm.channelId : undefined,
   });
   const onboardingLock = useAnyAgentGroupOnboardingLock();
-  const { data: chats } = store.useCurrentChats();
+  // The panel is mounted for the app's whole life, open or not, so this query
+  // would otherwise observe every chat forever — and `useCurrentChats` is
+  // shared by key with the workspace list, whose own observer is deliberately
+  // gated on focus. An ungated one here would hold that gate open and re-run
+  // the whole chat query on every inbound message.
+  const drawerOpen = useDrawerStatus() === 'open';
+  const { data: chats } = store.useCurrentChats({ enabled: drawerOpen });
   // The drawer's own state holds one route — the root stack — so the section
   // to mark is read out of that stack's state. A cold load that named no
   // section leaves the sections navigator yet to report its state upward, and
@@ -374,6 +384,18 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
       if (chatsLocked) {
         return;
       }
+      if (chat.type === 'group' && chat.isPending) {
+        // An invite is acted on through the preview sheet, which belongs to
+        // the workspace list — so this lands there with the sheet open rather
+        // than opening a group the user has not joined. No `ActionTappedChat`
+        // for the same reason the workspace list does not record one: opening
+        // a preview is not opening a chat.
+        navigation.dispatch(
+          getTopLevelTabNavigateAction('ChatList', { previewGroupId: chat.id })
+        );
+        navigation.closeDrawer();
+        return;
+      }
       logger.trackEvent(AnalyticsEvent.ActionTappedChat, {
         ...logic.getModelAnalytics(
           chat.type === 'group'
@@ -382,14 +404,7 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
         ),
         source: 'drawer',
       });
-      if (chat.type === 'group' && chat.isPending) {
-        // An invite is acted on through the preview sheet, which belongs to
-        // the workspace list — so this lands there with the sheet open rather
-        // than opening a group the user has not joined.
-        navigation.dispatch(
-          getTopLevelTabNavigateAction('ChatList', { previewGroupId: chat.id })
-        );
-      } else if (chat.type === 'group') {
+      if (chat.type === 'group') {
         navigateToGroup(chat.group.id);
       } else {
         navigateToChannel(chat.channel);
@@ -403,7 +418,13 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
     Activity: unseenActivityCount > 0,
   };
 
-  const drawerChats = useMemo(() => getDrawerChats(chats), [chats]);
+  // Closed, the rows are not merely invisible but unbuilt: there is no
+  // virtualisation here, so leaving them mounted would keep one view per chat
+  // alive behind a panel nobody is looking at.
+  const drawerChats = useMemo(
+    () => (drawerOpen ? getDrawerChats(chats) : []),
+    [chats, drawerOpen]
+  );
   const titles = useMemo(
     () =>
       new Map(
@@ -435,26 +456,26 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
     </YStack>
   );
 
+  // The footer floats over the list so the chats pass under the glass — that
+  // is what gives it something to refract. Its height is measured rather than
+  // computed: the non-glass `Chat` button is a different height from the glass
+  // pill, and the list has to reserve whatever is actually there.
+  const [footerHeight, setFooterHeight] = useState(0);
+
   const settingsDisabled = isTabPressBlockedByOnboardingLock(
     onboardingLock.locked,
     'Settings'
   );
 
-  // The controls float over the list rather than sitting below it, so the
-  // chats pass under them — which is what gives the glass something to refract
-  // and, without it, leaves the controls looking like flat cutouts. The list
-  // reserves the height they cover so its last row is still reachable.
-  const footerClearance =
-    FOOTER_CONTROL_SIZE + getTokenValue('$m', 'space') * 2 + insets.bottom;
-
   return (
     <YStack
       flex={1}
       paddingTop={insets.top + getTokenValue('$m', 'space')}
-      paddingHorizontal="$m"
+      paddingLeft={insets.left + getTokenValue('$m', 'space')}
+      paddingRight={insets.right + getTokenValue('$m', 'space')}
     >
       <ScrollView
-        contentContainerStyle={{ paddingBottom: footerClearance }}
+        contentContainerStyle={{ paddingBottom: footerHeight }}
         testID="TopLevelDrawerChats"
       >
         {sectionRows}
@@ -471,13 +492,16 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
       <XStack
         position="absolute"
         bottom={0}
-        left="$m"
-        right="$m"
+        // The container's own padding already insets an absolute child, so
+        // these stay at its edges rather than adding a second one.
+        left={0}
+        right={0}
         alignItems="center"
         justifyContent="space-between"
         gap="$m"
         paddingTop="$m"
         paddingBottom={insets.bottom + getTokenValue('$m', 'space')}
+        onLayout={(event) => setFooterHeight(event.nativeEvent.layout.height)}
       >
         {botDm.enabled ? (
           <View>
