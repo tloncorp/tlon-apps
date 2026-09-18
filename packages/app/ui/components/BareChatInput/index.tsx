@@ -56,6 +56,7 @@ import {
 import { hydrateEditPost } from '../MessageInput/helpers';
 import { type SlashCommandController } from '../SlashCommandPopup';
 import type { DraftInputHandle } from '../draftInputs/shared';
+import { AnimatedInputHeight } from './AnimatedInputHeight';
 import { PasteableTextInput } from './PasteableTextInput';
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
 import { PastedFile, attachPastedImageFiles } from './pastedImage';
@@ -1172,7 +1173,7 @@ function BareChatInput(
       >
         {linkMetaLoading && <LinkPreviewLoading />}
         {showInlineAttachments && <AttachmentPreviewList />}
-        <View position="relative">
+        <AnimatedInputHeight minimumHeight={minimumInputHeight}>
           <PasteableTextInput
             testID="MessageInput"
             ref={inputRef}
@@ -1250,7 +1251,7 @@ function BareChatInput(
                 </RawText>
               </View>
             )}
-        </View>
+        </AnimatedInputHeight>
       </YStack>
     </MessageInputContainer>
   );
