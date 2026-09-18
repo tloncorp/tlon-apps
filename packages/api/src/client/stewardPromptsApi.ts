@@ -8,7 +8,10 @@ import type {
 import { requestJson, scry, subscribe } from './urbit';
 
 const PATH = '/steward/~/v1/prompts';
-const OPTIONS = { reauthStatuses: [401, 403] };
+// Steward answers an expired session with 401, where requestJson only
+// reauthenticates on 403 by default. 403 is left out on purpose: the edit
+// route uses it for an untrusted bot, which no reauthentication can fix.
+const OPTIONS = { reauthStatuses: [401] };
 const responseSchema = z.object({
   requestId: z.string(),
   body: z.discriminatedUnion('type', [
