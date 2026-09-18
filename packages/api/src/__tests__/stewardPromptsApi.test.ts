@@ -33,7 +33,7 @@ test('posts an edit and waits for the workspace result', async () => {
       bot: '~bus',
       action: { set: { name: 'SOUL.md', text: 'new' } },
     },
-    { reauthStatuses: [401, 403] }
+    { reauthStatuses: [401] }
   );
 });
 test('pending preserves the request id for later retrieval', async () => {
