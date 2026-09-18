@@ -276,6 +276,18 @@ harness never answers is closed out to its requester as `%harness-offline` when
 the hourly sweep drops it, so the owner's record finalizes instead of ageing out
 as pending.
 
+A `%kick` on the owner's per-request watch re-subscribes rather than falling
+through: the bot can still answer a command whose subscriber went away, and the
+record would otherwise age out as `%pending` even though the edit succeeded. The
+bot side closes the same gap from its end — an owner re-subscribing to
+`/v1/prompts/request/<owner>/<uv>` is handed a result the harness already
+reported, so a dropped subscription cannot lose it.
+
+Prompts 4xx responses report to `%logs` as `'HTTP Error'`, the way automation's
+do. The shared `/steward` binding routes every non-`automation` path to the
+prompts handler, unknown routes included, so that signal has to come from this
+handler too.
+
 The `dispatch` carries the `requester` that authorized it. The harness compares
 it against its own configured owner and refuses the edit when they differ: this
 watch goes live before the harness's `%configure` lands, so a replay after an
