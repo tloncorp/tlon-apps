@@ -9,6 +9,7 @@ import { Circle, XStack, YStack } from 'tamagui';
 
 import { useAnyAgentGroupOnboardingLock } from '../hooks/useAgentGroupOnboardingLock';
 import { useBotDmTab } from '../hooks/useBotDmTab';
+import { announceTopLevelSectionReselected } from './topLevelSectionReselect';
 import {
   TOP_LEVEL_TABS,
   TopLevelTabName,
@@ -108,8 +109,12 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
         return;
       }
       // Match the bar this replaces: track selections, not re-selections of
-      // the section already showing.
-      if (section !== selected) {
+      // the section already showing — and let a re-selection send that
+      // section's list back to the top, which is the other thing pressing the
+      // active tab used to do.
+      if (section === selected) {
+        announceTopLevelSectionReselected(section);
+      } else {
         trackTopLevelTabSelection(section);
       }
       // `MainTabs` is a route of the stack this drawer hosts, not of the

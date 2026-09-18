@@ -1,7 +1,10 @@
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import {
+  BottomTabBarProps,
+  createBottomTabNavigator,
+} from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import { LoadingSpinner } from '@tloncorp/ui';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { View } from 'tamagui';
 
 import SettingsScreen from '../features/settings/SettingsScreen';
@@ -10,6 +13,7 @@ import ChannelScreen from '../features/top/ChannelScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
 import { useAgentOnboardingLandingConsumer } from '../features/top/useAgentOnboardingLandingConsumer';
 import { useBotDmTab } from '../hooks/useBotDmTab';
+import { useTopLevelSectionReselected } from './topLevelSectionReselect';
 import {
   didRestoreNavigation,
   getRestoredTopLevelTab,
@@ -24,10 +28,35 @@ import type { TopLevelTabParamList } from './types';
 
 const Tabs = createBottomTabNavigator<TopLevelTabParamList>();
 
-// The sections are reached from the top-level drawer, which sits above the
-// whole root stack. This navigator only holds them side by side and switches
-// between them, so it draws no bar of its own.
-const noTabBar = () => null;
+/**
+ * The sections are reached from the top-level drawer, which sits above the
+ * whole root stack, so this navigator draws no bar of its own.
+ *
+ * It still mounts one, because the bar is where this navigator's `navigation`
+ * is in reach: choosing the section already showing has to arrive as a
+ * `tabPress` on it, which is the event `useScrollToTop` listens for to send a
+ * list back to the top. The drawer cannot emit that from outside.
+ */
+function SectionTabBar({ state, navigation }: BottomTabBarProps) {
+  useTopLevelSectionReselected(
+    useCallback(
+      (section) => {
+        const focused = state.routes[state.index];
+        if (focused?.name !== section) {
+          return;
+        }
+        navigation.emit({
+          type: 'tabPress',
+          target: focused.key,
+          canPreventDefault: true,
+        });
+      },
+      [navigation, state]
+    )
+  );
+
+  return null;
+}
 
 export function TopLevelNavigator() {
   const botDm = useBotDmTab();
@@ -101,7 +130,7 @@ export function TopLevelNavigator() {
       initialRouteName={getInitialTopLevelTab(botDm.enabled)}
       backBehavior="history"
       screenOptions={{ headerShown: false }}
-      tabBar={noTabBar}
+      tabBar={(props) => <SectionTabBar {...props} />}
     >
       {botDm.enabled ? (
         <Tabs.Screen
