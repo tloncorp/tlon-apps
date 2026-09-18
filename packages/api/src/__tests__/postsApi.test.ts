@@ -10,6 +10,7 @@ import {
   toPostData,
   toPostReplyData,
   toPostsData,
+  toReplyMeta,
 } from '../client/postsApi';
 import { poke, scry, subscribeOnce } from '../client/urbit';
 import type { Post } from '../types/models';
@@ -70,6 +71,67 @@ test('toPostData handles string author unchanged', () => {
   const post = makeBotPost('~zod');
   const result = toPostData('chat/~zod/test', post);
   expect(result.authorId).toBe('~zod');
+});
+
+const planetBot: ub.BotProfile = {
+  ship: '~sitrul-nacwyl',
+  nickname: 'Planet bot',
+  avatar: 'https://example.com/planet-bot.png',
+};
+const moonBot: ub.BotProfile = {
+  ship: '~pinser-botter-malmur-halmex',
+  nickname: 'Moon bot',
+  avatar: 'https://example.com/moon-bot.png',
+};
+
+test.each<{
+  name: string;
+  authors: ub.Author[];
+  expected: string[];
+}>([
+  {
+    name: 'string authors',
+    authors: ['~zod', '~nec'],
+    expected: ['~zod', '~nec'],
+  },
+  { name: 'planet bot', authors: [planetBot], expected: [planetBot.ship] },
+  { name: 'moon bot', authors: [moonBot], expected: [moonBot.ship] },
+  {
+    name: 'mixed authors',
+    authors: [planetBot, '~zod', moonBot],
+    expected: [planetBot.ship, '~zod', moonBot.ship],
+  },
+  { name: 'no replies', authors: [], expected: [] },
+])(
+  'reply metadata normalizes $name for post loads and live updates',
+  ({ authors, expected }) => {
+    const meta: ub.ReplyMeta = {
+      replyCount: authors.length,
+      lastReply: authors.length ? 1701276293246 : null,
+      lastRepliers: authors,
+    };
+    const originalMeta = structuredClone(meta);
+    const expectedMeta = {
+      replyCount: meta.replyCount,
+      replyTime: meta.lastReply,
+      replyContactIds: expected,
+    };
+
+    expect(toReplyMeta(meta)).toEqual(expectedMeta);
+
+    for (const channelId of ['chat/~zod/test', '~sitrul-nacwyl']) {
+      const post = makeBotPost('~zod');
+      post.seal.meta = meta;
+      expect(toPostData(channelId, post)).toMatchObject(expectedMeta);
+    }
+    // Converting a post must not rewrite the wire payload's author profiles.
+    expect(meta).toEqual(originalMeta);
+  }
+);
+
+test('toReplyMeta preserves absent metadata', () => {
+  expect(toReplyMeta(null)).toBeNull();
+  expect(toReplyMeta(undefined)).toBeNull();
 });
 
 test('toPostData counts a direct %any reaction before UI normalization', () => {
