@@ -7,6 +7,7 @@ import {
   applySettingsUpdate,
   createSettingsManager,
   parseSettingsResponse,
+  type TlonSettingsStore,
 } from './settings.js';
 
 describe('Settings: parseSettingsResponse', () => {
@@ -677,5 +678,150 @@ describe('Settings: createSettingsManager.load', () => {
 
     expect(log).not.toHaveBeenCalled();
     expect(manager.current).toEqual({ ownerShip: '~zod' });
+  });
+});
+
+describe('Settings: createSettingsManager.startSubscription onGap', () => {
+  it('reports a subscription error and a quit as gaps', async () => {
+    let handlers:
+      | { err: (error: unknown) => void; quit: () => void }
+      | undefined;
+    const manager = createSettingsManager({
+      scry: async () => ({}),
+      subscribe: async (params: {
+        err: (error: unknown) => void;
+        quit: () => void;
+      }) => {
+        handlers = params;
+      },
+    } as never);
+    const onGap = vi.fn();
+    await manager.startSubscription({ onGap });
+    expect(onGap).not.toHaveBeenCalled();
+
+    handlers?.err(new Error('stream broke'));
+    expect(onGap).toHaveBeenCalledTimes(1);
+    handlers?.quit();
+    expect(onGap).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('Settings: createSettingsManager.applyLocal', () => {
+  it('updates the snapshot without notifying listeners', () => {
+    const manager = createSettingsManager({ scry: async () => ({}) } as never);
+    const listener = vi.fn();
+    manager.onChange(listener);
+
+    expect(manager.applyLocal('groupChannels', ['chat/~zod/general'])).toEqual({
+      groupChannels: ['chat/~zod/general'],
+    });
+    expect(manager.current).toEqual({
+      groupChannels: ['chat/~zod/general'],
+    });
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('normalizes the value exactly like a subscription event would', () => {
+    const manager = createSettingsManager({ scry: async () => ({}) } as never);
+
+    manager.applyLocal('groupChannels', ['chat/~zod/general', 7]);
+
+    expect(manager.current).toEqual({
+      groupChannels: ['chat/~zod/general'],
+    });
+  });
+
+  it('installs what reconcile returns, never the raw scry result', async () => {
+    // A refresh scry that an echo overtook carries an older value; the
+    // monitor's reconcile hook substitutes the observed value before the
+    // manager installs it, so no subscription event can build on the stale
+    // baseline.
+    let emit: ((event: unknown) => void) | undefined;
+    const manager = createSettingsManager({
+      scry: async () => ({
+        all: { moltbot: { tlon: { groupChannels: [], ownerShip: '~zod' } } },
+      }),
+      subscribe: async (params: { event: (event: unknown) => void }) => {
+        emit = params.event;
+      },
+    } as never);
+    await manager.startSubscription();
+    const listener = vi.fn();
+    manager.onChange(listener);
+
+    const reconcile = vi.fn((settings: TlonSettingsStore) =>
+      applySettingsUpdate(settings, 'groupChannels', ['chat/~zod/a'])
+    );
+    const result = await manager.load({ logSnapshot: false, reconcile });
+
+    expect(reconcile).toHaveBeenCalledWith({
+      groupChannels: [],
+      ownerShip: '~zod',
+    });
+    expect(result).toEqual({
+      settings: { groupChannels: ['chat/~zod/a'], ownerShip: '~zod' },
+      fresh: true,
+    });
+    expect(manager.current.groupChannels).toEqual(['chat/~zod/a']);
+
+    emit?.({
+      'put-entry': {
+        desk: 'moltbot',
+        'bucket-key': 'tlon',
+        'entry-key': 'showModelSig',
+        value: true,
+      },
+    });
+    expect(listener).toHaveBeenCalledWith({
+      groupChannels: ['chat/~zod/a'],
+      ownerShip: '~zod',
+      showModelSig: true,
+    });
+  });
+
+  it('does not call reconcile when the scry fails', async () => {
+    const manager = createSettingsManager({
+      scry: async () => {
+        throw new Error('settings unavailable');
+      },
+    } as never);
+    const reconcile = vi.fn((settings: TlonSettingsStore) => settings);
+
+    const result = await manager.load({ logSnapshot: false, reconcile });
+
+    expect(result.fresh).toBe(false);
+    expect(reconcile).not.toHaveBeenCalled();
+  });
+
+  it('is the baseline a later subscription event builds on', async () => {
+    // The migration poke is invisible locally: the subscription starts after
+    // it and does not replay. Without the local apply, the first unrelated
+    // fact would present a snapshot that lost the migrated key.
+    let emit: ((event: unknown) => void) | undefined;
+    const manager = createSettingsManager({
+      scry: async () => ({}),
+      subscribe: async (params: { event: (event: unknown) => void }) => {
+        emit = params.event;
+      },
+    } as never);
+    const listener = vi.fn();
+    manager.onChange(listener);
+    await manager.startSubscription();
+
+    manager.applyLocal('groupChannels', ['chat/~zod/general']);
+    emit?.({
+      'put-entry': {
+        desk: 'moltbot',
+        'bucket-key': 'tlon',
+        'entry-key': 'ownerShip',
+        value: '~zod',
+      },
+    });
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledWith({
+      groupChannels: ['chat/~zod/general'],
+      ownerShip: '~zod',
+    });
   });
 });
