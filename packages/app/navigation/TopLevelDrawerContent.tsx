@@ -469,13 +469,11 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
     Activity: unseenActivityCount > 0,
   };
 
-  // Closed, the rows are not merely invisible but unbuilt: there is no
-  // virtualisation here, so leaving them mounted would keep one view per chat
-  // alive behind a panel nobody is looking at.
-  const drawerChats = useMemo(
-    () => (drawerOpen ? getDrawerChats(chats) : []),
-    [chats, drawerOpen]
-  );
+  // Built once the drawer has been opened once, and kept after it closes.
+  // Discarding them made every later open pay to mount the whole list again,
+  // which showed as an empty panel for the length of that mount. What bounds
+  // the cost of keeping them is `DRAWER_CHAT_LIMIT`, not the drawer's state.
+  const drawerChats = useMemo(() => getDrawerChats(chats), [chats]);
   const titles = useMemo(
     () =>
       new Map(
