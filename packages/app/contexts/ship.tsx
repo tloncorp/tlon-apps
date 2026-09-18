@@ -69,15 +69,27 @@ export const ShipProvider = ({
   // Lets a callback that was captured earlier tell whether the account it was
   // created for is still the current one.
   const shipInfoRef = useRef(shipInfo);
-  // Every session change goes through here so the ref is exact from the moment
+  // Counts sessions, not state objects. The object is replaced for reasons that
+  // are not a new session -- the background cookie fetch below, clearing the
+  // splash flag -- and a captured callback must not read those as one.
+  const [sessionId, setSessionId] = useState(0);
+  const sessionIdRef = useRef(0);
+  // Every state change goes through here so both refs are exact from the moment
   // it happens. An effect would leave a window: setShip enqueues its state
-  // update synchronously, but the ref would not catch up until passive effects
+  // update synchronously, but a ref would not catch up until passive effects
   // flush, and a splash completion firing in between would still see the old
   // session -- and then enqueue its own update behind the new one.
-  const applyShipInfo = useCallback((next: ShipInfo) => {
-    shipInfoRef.current = next;
-    setShipInfo(next);
-  }, []);
+  const applyShipInfo = useCallback(
+    (next: ShipInfo, { newSession = false }: { newSession?: boolean } = {}) => {
+      if (newSession) {
+        sessionIdRef.current += 1;
+        setSessionId(sessionIdRef.current);
+      }
+      shipInfoRef.current = next;
+      setShipInfo(next);
+    },
+    []
+  );
 
   const setShip = useCallback(
     ({
@@ -94,7 +106,7 @@ export const ShipProvider = ({
         storage.shipInfo.resetValue();
 
         // Clear context state
-        applyShipInfo(emptyShip);
+        applyShipInfo(emptyShip, { newSession: true });
 
         // Clear native storage (only in native platforms)
         if (UrbitModule) {
@@ -118,7 +130,7 @@ export const ShipProvider = ({
       storage.shipInfo.setValue(nextShipInfo);
 
       // Save context state
-      applyShipInfo(nextShipInfo);
+      applyShipInfo(nextShipInfo, { newSession: true });
 
       // Configure analytics (only on native platforms)
       // Skip for web/electron to avoid 'crashlytics is not a function' error
@@ -194,7 +206,7 @@ export const ShipProvider = ({
   }, [initialShipInfo, setShip]);
 
   const clearShip = useCallback(() => {
-    applyShipInfo(emptyShip);
+    applyShipInfo(emptyShip, { newSession: true });
     storage.shipInfo.resetValue();
   }, [applyShipInfo]);
 
@@ -204,15 +216,20 @@ export const ShipProvider = ({
     // sequence ran for. Clearing the flag then would skip the current session's
     // own signup or revival sequence.
     //
-    // Compared by identity rather than by ship and url: setShip always installs
-    // a fresh object, so this also catches a logout and re-login to the *same*
-    // ship, which those two fields cannot tell apart.
-    if (shipInfoRef.current !== shipInfo) {
+    // Compared by session rather than by ship and url, which cannot tell a
+    // logout and re-login to the *same* ship apart -- and not by object
+    // identity either, since the background cookie fetch in setShip replaces
+    // the object for a session that has not changed.
+    if (sessionIdRef.current !== sessionId) {
       return;
     }
 
+    // Rebuilt from the live snapshot rather than this callback's capture: that
+    // cookie fetch may have landed since, and rebuilding from the capture would
+    // drop the cookie it just fetched.
+    const current = shipInfoRef.current;
     applyShipInfo({
-      ...shipInfo,
+      ...current,
       needsSplashSequence: false,
       splashSequenceMode: undefined,
     });
@@ -224,8 +241,8 @@ export const ShipProvider = ({
     // land between the check above and this write.
     storage.shipInfo.setValue((stored) =>
       stored &&
-      stored.ship === shipInfo.ship &&
-      stored.shipUrl === shipInfo.shipUrl
+      stored.ship === current.ship &&
+      stored.shipUrl === current.shipUrl
         ? {
             ...stored,
             needsSplashSequence: false,
@@ -233,7 +250,7 @@ export const ShipProvider = ({
           }
         : stored
     );
-  }, [applyShipInfo, shipInfo]);
+  }, [applyShipInfo, sessionId]);
 
   useEffect(() => {
     if (shipInfo.ship && Platform.OS !== 'web') {
