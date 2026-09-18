@@ -11,6 +11,7 @@ Ship-native umbrella agent: the durable, always-on ship-side half of an ephemera
 | (core)    | `sur/steward.hoon`         | `%steward-action-1`                                      |
 | `lens`    | `sur/steward/lens.hoon`    | `%steward-lens-action-1`, `%steward-lens-update-1`       |
 | `gateway` | `sur/steward/gateway.hoon` | `%steward-gateway-action-1`, `%steward-gateway-update-1` |
+| `journey` | —                          | —                                                        |
 
 Each sur file is versioned on its own (`++v1`), referenced by callers as `action:v1:lens`, `update:v1:gateway`, etc. The core `sur/steward.hoon` carries only cross-cutting config (currently just `%configure`); each module's protocol lives in its own file.
 
@@ -20,8 +21,9 @@ Modules:
 | --------- | ---------------------------------------------------------------------- |
 | `lens`    | Per-run bot introspection (folded in from the former `%context-lens`). |
 | `gateway` | Harness liveness tracking + offline DM auto-replies.                   |
+| `journey` | Content-free OpenClaw DM and channel delivery telemetry.                |
 
-The app helper core keeps each module's logic in its own sub-core: `le-core` for lens, `ga-core` for gateway. Adding a new module means a new `sur/steward/<module>.hoon`, its own mark family, and a dispatch arm in the app — existing modules and marks are untouched.
+The app helper core keeps each module's logic in its own sub-core: `le-core` for lens, `ga-core` for gateway. Adding a new module means a new `sur/steward/<module>.hoon`, its own mark family, and a dispatch arm in the app — existing modules and marks are untouched. The stateless journey observer uses `jo-core` and has no protocol types or marks.
 
 ## state model
 
@@ -105,6 +107,16 @@ On every liveness transition the module publishes a `bot-liveness` claim into th
 
 `owner` is the shared top-level `(unit ship)`, set via the core `%configure`, so a harness sends two pokes at startup: the core `%configure` for the owner, then the gateway `%configure` for timings. The gateway action's own `%configure` carries only timing (`active-window`, `reply-cooldown`); the owner is set once at the core level.
 
+## module: journey
+
+Emits content-free delivery telemetry for OpenClaw bot DMs and new chat/gallery posts and replies. The module watches `%chat /v4` on `/journey/chat` and `%channels /v4` on `/journey/channels`. It checks the relevant `%contacts` profile for a valid `bot-info` claim identifying `"harness":"openclaw"`. Missing contacts, unavailable `%contacts`, and missing or malformed claims emit nothing. The observer stores no state and adds no poke, watch, or scry surface.
+
+DM stages are `owner_message_sent`, `bot_message_received`, `bot_message_sent`, and `owner_message_received`. Bot-side stages use the configured `owner`; owner-side stages identify sponsored bots. Channel stages are `group_host_message_received` and `owner_group_message_received`; the latter requires the bot's sponsor to have the channel locally. Edits, reactions, legacy diary channels, and Notes notebooks emit no channel stages.
+
+DM and channel observations share the same best-effort contact check: profiles already delivered by ordinary peering qualify later messages, with no profile fetch or backfill. The profile establishes bot identity; sponsorship supplies remote owner attribution.
+
+Events use the canonical DM ID or the channel message's sender `author/sent` correlation key and emit through `%logs` with source `steward/journey`. Channel host IDs differ from the sender key. See [Bot message journey observability](../packages/openclaw/docs/message-journey-observability.md) for the cross-system event contract and correlation details.
+
 ## poke surface
 
 Three inbound marks, each ownership-gated to admit exactly the right source.
@@ -178,9 +190,9 @@ All lens scries return the `%steward-lens-update-1` mark so the HTTP client read
 
 ## lifecycle and invariants
 
-- `on-init` subscribes to `%activity /v5` for the gateway module and seeds the default lens retention cap. There is no prune timer (retention is count-only, enforced on insert/configure).
-- `on-load` delegates to `load`, which migrates one version per step (`state-0-to-1`) in the same shape as `%activity`'s `load`, so a future `%2` is one appended step. Its only card is the `bot-liveness` seed for a migrated bot whose gateway is already `%up` or `%down` (owner configured): heartbeats advertise only on an up transition, so an already-up gateway would otherwise stay unknown until its next restart. Subscriptions and timers survive an upgrade.
-- Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`, liveness publication to `%contacts` on `/gateway/liveness`. The `%activity` subscription is re-watched on `%kick`. Poke/DM nacks are logged and ignored: Ames retries undelivered remote pokes on its own, but an explicitly nacked poke (including a local `%contacts` liveness publish) is not replayed — the next liveness transition publishes again.
+- `on-init` subscribes to `%activity /v5` for the gateway module and `%chat /v4` plus `%channels /v4` for the journey module, and seeds the default lens retention cap. There is no prune timer (retention is count-only, enforced on insert/configure).
+- `on-load` delegates to `load`, which migrates one version per step (`state-0-to-1`) in the same shape as `%activity`'s `load`, so a future `%2` is one appended step. Migration seeds `bot-liveness` for a bot whose gateway is already `%up` or `%down` (owner configured): heartbeats advertise only on an up transition, so an already-up gateway would otherwise stay unknown until its next restart. Existing subscriptions and timers survive an upgrade; `on-load` also establishes any missing journey `%chat` and `%channels` watches.
+- Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`, liveness publication to `%contacts` on `/gateway/liveness`, journey chat observation on `/journey/chat`, channel observation on `/journey/channels`, and journey log pokes on `/journey/logs`. The `%activity`, journey `%chat`, and journey `%channels` subscriptions are re-watched on `%kick`. Poke/DM nacks are logged and ignored: Ames retries undelivered remote pokes on its own, but an explicitly nacked poke (including a local `%contacts` liveness publish) is not replayed — the next liveness transition publishes again.
 - `on-watch` and `on-peek` assert `=(src our)` — no cross-ship subscriptions or foreign scries. Only the lens poke is ownership-gated (to admit a bot's runs).
 
 ## integration notes

@@ -48,6 +48,7 @@ import {
   getGatewayStatusCoordinator,
 } from '../gateway-status.js';
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
+import { recordTlonMessageJourneyEvent } from '../message-journey.js';
 import {
   type PendingNudge,
   clearPendingNudge,
@@ -2459,6 +2460,15 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         isThreadReply,
         messageContent,
       } = params;
+      recordTlonMessageJourneyEvent({
+        botShip: botShipName,
+        destinationKind: isGroup ? 'group_channel' : 'dm',
+        inputMessageId: messageId,
+        ownerShip: effectiveOwnerShip,
+        peerShip: senderShip,
+        stage: 'plugin_input_selected',
+        trigger: params.trigger ?? 'unknown',
+      });
       // replyParentId overrides parentId for the deliver callback (thread reply routing)
       // but doesn't affect the ctx payload (MessageThreadId/ReplyToId).
       // Used for reactions: agent sees no thread context (so it responds), but
@@ -3262,6 +3272,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         accountId: account.accountId,
         agentId: route.agentId,
         destinationKind: isGroup ? 'group_channel' : 'dm',
+        inputMessageId: messageId,
         runId,
         sessionKey: route.sessionKey,
         ship: botShipName,
@@ -4812,6 +4823,16 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         if (!senderShip || senderShip === botShipName) {
           return;
         }
+
+        recordTlonMessageJourneyEvent({
+          botShip: botShipName,
+          destinationKind: 'dm',
+          inputMessageId: effectiveMessageId,
+          ownerShip: effectiveOwnerShip,
+          peerShip: senderShip,
+          stage: 'plugin_input_observed',
+          trigger: 'dm',
+        });
 
         // Log mismatch between author and partner for debugging
         if (authorShip && partnerShip && authorShip !== partnerShip) {
