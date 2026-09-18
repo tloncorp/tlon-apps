@@ -1,7 +1,7 @@
 import type * as db from '@tloncorp/shared/db';
 import { describe, expect, it } from 'vitest';
 
-import { getDrawerChats } from './drawerChats';
+import { DRAWER_CHAT_LIMIT, getDrawerChats } from './drawerChats';
 
 function group(id: string, timestamp: number): db.Chat {
   return {
@@ -73,6 +73,23 @@ describe('getDrawerChats', () => {
     });
 
     expect(chats.map((c) => c.id)).toEqual(['pinned-channel']);
+  });
+
+  it('keeps the newest up to the limit, and drops the rest', () => {
+    const many = Array.from({ length: DRAWER_CHAT_LIMIT + 25 }, (_, i) =>
+      group(`chat-${i}`, i)
+    );
+
+    const chats = getDrawerChats({
+      pinned: [],
+      unpinned: many,
+      pending: [],
+    });
+
+    expect(chats).toHaveLength(DRAWER_CHAT_LIMIT);
+    // Newest first, so the highest timestamps survive the cut.
+    expect(chats[0].id).toBe(`chat-${DRAWER_CHAT_LIMIT + 24}`);
+    expect(chats.at(-1)?.id).toBe(`chat-25`);
   });
 
   it('is empty before the chats have loaded', () => {

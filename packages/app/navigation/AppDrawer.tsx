@@ -43,6 +43,11 @@ function DrawerHostedStack() {
         <BlurView
           intensity={24}
           tint="systemUltraThinMaterial"
+          // Android renders a semi-transparent view rather than a blur unless
+          // a method is named. The SDK 31+ one falls back to exactly that on
+          // older versions, where the library's own blur costs more than it is
+          // worth.
+          blurMethod="dimezisBlurViewSdk31Plus"
           style={StyleSheet.absoluteFill}
           pointerEvents="none"
         />
