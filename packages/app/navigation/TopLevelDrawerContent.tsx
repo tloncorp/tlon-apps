@@ -7,7 +7,13 @@ import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { Button, Icon, IconType, Pressable, Text } from '@tloncorp/ui';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { FlashList } from '@shopify/flash-list';
 import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -299,8 +305,10 @@ function DrawerSettingsButton({
       alignItems="center"
       justifyContent="center"
       opacity={disabled ? 0.4 : 1}
-      // Under glass the surface is the chrome, and a second fill on top of it
-      // would flatten the effect; selection is tinted into the glass instead.
+      // Under glass this carries no selected state at all: it is the
+      // composer's `+` in another place and reads the same way, and the `+`
+      // has none. Where the section rows are is what marks the open section.
+      // Off glass it keeps the fill, which is the only thing it would have.
       backgroundColor={
         !usesIOSGlass && selected ? '$secondaryBackground' : 'transparent'
       }
@@ -372,6 +380,7 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
     excludeChannelId: botDm.enabled ? botDm.channelId : undefined,
   });
   const onboardingLock = useAnyAgentGroupOnboardingLock();
+  const openingChatRef = useRef(false);
   // The panel is mounted for the app's whole life, open or not, so this query
   // would otherwise observe every chat forever — and `useCurrentChats` is
   // shared by key with the workspace list, whose own observer is deliberately
@@ -379,6 +388,13 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
   // the whole chat query on every inbound message.
   const drawerOpen = useDrawerStatus() === 'open';
   const { data: chats } = store.useCurrentChats({ enabled: drawerOpen });
+  // Armed fresh each time the panel opens, so the one-chat-per-opening guard
+  // in `openChat` never outlives the opening it belongs to.
+  useEffect(() => {
+    if (drawerOpen) {
+      openingChatRef.current = false;
+    }
+  }, [drawerOpen]);
   // The drawer's own state holds one route — the root stack — so the section
   // to mark is read out of that stack's state. A cold load that named no
   // section leaves the sections navigator yet to report its state upward, and
@@ -421,9 +437,15 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
 
   const openChat = useCallback(
     (chat: db.Chat) => {
-      if (chatsLocked) {
+      if (chatsLocked || openingChatRef.current) {
         return;
       }
+      // Opening a group reads it before it knows which route to build, and the
+      // drawer takes a moment to slide shut over that. A second tap in the gap
+      // would navigate first and then be overwritten when the first read came
+      // back, landing somewhere the user did not choose last. One per opening;
+      // the next open clears it.
+      openingChatRef.current = true;
       if (chat.type === 'group' && chat.isPending) {
         // An invite is acted on through the preview sheet, which belongs to
         // the workspace list — so this lands there with the sheet open rather
