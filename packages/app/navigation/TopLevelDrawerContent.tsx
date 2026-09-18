@@ -8,7 +8,8 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { Button, Icon, IconType, Pressable, Text } from '@tloncorp/ui';
 import React, { useCallback, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
+import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Circle, View, XStack, YStack, getTokenValue, useTheme } from 'tamagui';
 
@@ -469,10 +470,9 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
     Activity: unseenActivityCount > 0,
   };
 
-  // Built once the drawer has been opened once, and kept after it closes.
-  // Discarding them made every later open pay to mount the whole list again,
-  // which showed as an empty panel for the length of that mount. What bounds
-  // the cost of keeping them is `DRAWER_CHAT_LIMIT`, not the drawer's state.
+  // Not gated on the drawer being open: the list is virtualised, so what is
+  // mounted is what is on screen, and discarding it on close only made the
+  // next open pay to build it again.
   const drawerChats = useMemo(() => getDrawerChats(chats), [chats]);
   const titles = useMemo(
     () =>
@@ -524,21 +524,21 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
       paddingLeft={insets.left + panelInset}
       paddingRight={insets.right + panelInset}
     >
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: footerHeight }}
-        testID="TopLevelDrawerChats"
-      >
-        {sectionRows}
-        {drawerChats.map((chat) => (
+      <FlashList
+        data={drawerChats}
+        keyExtractor={(chat) => chat.id}
+        renderItem={({ item }) => (
           <DrawerChatRow
-            key={chat.id}
-            chat={chat}
-            title={titles.get(chat.id) ?? ''}
+            chat={item}
+            title={titles.get(item.id) ?? ''}
             disabled={chatsLocked}
             onPress={openChat}
           />
-        ))}
-      </ScrollView>
+        )}
+        ListHeaderComponent={sectionRows}
+        contentContainerStyle={{ paddingBottom: footerHeight }}
+        testID="TopLevelDrawerChats"
+      />
       <XStack
         position="absolute"
         bottom={0}
