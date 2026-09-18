@@ -1,0 +1,32 @@
+import { DrawerActions, NavigationContext } from '@react-navigation/native';
+import { useContext, useMemo } from 'react';
+
+import type { ScreenHeaderAction } from '../ui/components/ScreenHeader';
+
+/**
+ * The header button that opens the top-level drawer, for the top-level
+ * sections. Null everywhere else — a screen pushed onto the root stack shows
+ * its back button in that slot instead, and the sections are the only tab
+ * screens in either tree.
+ *
+ * The drawer sits above the whole root stack, so the action is dispatched
+ * rather than called on a drawer navigation object: it travels up from the
+ * section to the navigator that owns the drawer.
+ */
+export function useTopLevelDrawerToggleAction(): ScreenHeaderAction | null {
+  const navigation = useContext(NavigationContext);
+  const isTopLevelSection = navigation?.getState().type === 'tab';
+
+  return useMemo(() => {
+    if (!isTopLevelSection || !navigation) {
+      return null;
+    }
+    return {
+      id: 'open-navigation',
+      icon: 'LeftSidebar',
+      label: 'Open navigation',
+      testID: 'TopLevelDrawerToggle',
+      onPress: () => navigation.dispatch(DrawerActions.openDrawer()),
+    };
+  }, [isTopLevelSection, navigation]);
+}

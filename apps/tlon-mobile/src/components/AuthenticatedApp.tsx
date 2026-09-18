@@ -21,7 +21,7 @@ import {
   markPushNotifTapSyncSinceComplete,
 } from '@tloncorp/app/lib/pushNotifTapTelemetry';
 import { recoverTlonbotRevivalDeferredConfig } from '@tloncorp/app/lib/tlonbotRevivalDeferredConfig';
-import { RootStack } from '@tloncorp/app/navigation/RootStack';
+import { AppDrawer } from '@tloncorp/app/navigation/AppDrawer';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import {
   ForwardPostSheetProvider,
@@ -237,7 +237,7 @@ function AuthenticatedApp({
 
   return (
     <ZStack flex={1}>
-      <RootStack />
+      <AppDrawer />
       {AUTOMATED_TEST && <AutomatedTestSyncScreen />}
       {poorUxReportModal}
       {promptSheet}

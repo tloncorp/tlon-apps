@@ -11,7 +11,6 @@ import { Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, XStack, YStack } from 'tamagui';
 
-import { useTopLevelTabBarClearance } from '../../../navigation/useTopLevelTabBarContentInset';
 import { ImageAvatar } from '../../../ui/components/Avatar';
 import { Badge } from '../../../ui/components/Badge';
 import { ListItem } from '../../../ui/components/ListItem';
@@ -265,10 +264,6 @@ export function ApplyChangesBar({
   onApply: () => void;
 }) {
   const insets = useSafeAreaInsets();
-  // On the Settings tab the native tab bar floats over the bottom of the
-  // screen, so the bar has to clear it rather than the home indicator alone.
-  // Off the tab screens the clearance is 0 and the safe area applies as before.
-  const tabBarClearance = useTopLevelTabBarClearance();
 
   if (changeCount === 0 && !error && !applying) {
     return null;
@@ -281,7 +276,7 @@ export function ApplyChangesBar({
       backgroundColor="$background"
       paddingHorizontal="$l"
       paddingTop="$m"
-      paddingBottom={tabBarClearance || insets.bottom}
+      paddingBottom={insets.bottom}
       gap="$m"
     >
       {/* Surface apply errors right here, above the buttons — otherwise they're

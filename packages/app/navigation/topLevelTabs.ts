@@ -1,29 +1,38 @@
+import { CommonActions } from '@react-navigation/routers';
 import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
+import type { IconType } from '@tloncorp/ui';
 
 import type { RootStackParamList, TopLevelTabParamList } from './types';
 
 export type TopLevelTabName = keyof TopLevelTabParamList;
 
+// `MainTabs` and this param list keep the names they were given: both are
+// written into saved navigation state and into deep links, so every route name
+// spoken here still says "tab" even though a drawer now lists the sections.
 export const TOP_LEVEL_TABS = {
   BotChat: {
     title: 'Bot',
     analyticsLabel: 'Bot Chat',
+    icon: 'SmushStar',
   },
   ChatList: {
     title: 'Workspaces',
     analyticsLabel: 'Workspaces',
+    icon: 'Channel',
   },
   Activity: {
     title: 'Activity',
     analyticsLabel: 'Activity',
+    icon: 'Notifications',
   },
   Settings: {
     title: 'Settings',
     analyticsLabel: 'Settings',
+    icon: 'Settings',
   },
 } as const satisfies Record<
   TopLevelTabName,
-  { title: string; analyticsLabel: string }
+  { title: string; analyticsLabel: string; icon: IconType }
 >;
 
 export function trackTopLevelTabSelection(tab: TopLevelTabName) {
@@ -32,7 +41,7 @@ export function trackTopLevelTabSelection(tab: TopLevelTabName) {
   });
 }
 
-type RouteSnapshot = {
+export type RouteSnapshot = {
   name: string;
   params?: object;
   state?: { index?: number; routes?: ReadonlyArray<RouteSnapshot> };
@@ -120,4 +129,48 @@ export function getTopLevelTabRoute<Tab extends TopLevelTabName>(
       ...(params === undefined ? {} : { params }),
     } as NonNullable<RootStackParamList['MainTabs']>,
   };
+}
+
+/**
+ * The action that takes the app to a section, for the drawer to dispatch at
+ * the stack that owns `MainTabs`.
+ *
+ * `pop` is what makes that stack reuse the `MainTabs` it already has. A
+ * NAVIGATE without it only reuses the *focused* route, so choosing a section
+ * from anywhere deeper — a channel, a settings sub-screen — would append a
+ * second `MainTabs`, and with it a second copy of every section screen, rather
+ * than returning to the one already there.
+ */
+export function getTopLevelTabNavigateAction(section: TopLevelTabName) {
+  const route = getTopLevelTabRoute(section);
+  return CommonActions.navigate(route.name, route.params, { pop: true });
+}
+
+/**
+ * The section the navigator starts on: the bot's own conversation when the
+ * account has one, the workspace list otherwise.
+ */
+export function getInitialTopLevelTab(botEnabled: boolean): TopLevelTabName {
+  return botEnabled ? 'BotChat' : 'ChatList';
+}
+
+/**
+ * The section a position in the root stack is inside, or null when the stack
+ * has not built `MainTabs` yet. Whatever is pushed above MainTabs does not
+ * change the answer: a channel opened from Workspaces is still a position
+ * within Workspaces, and the drawer marks that section.
+ *
+ * Distinct from the mobile persistence module's `getFocusedTopLevelTab`, which
+ * asks the narrower question of whether a saved position *is* a section — and
+ * answers null for anything deeper, since there is no section to re-select.
+ */
+export function getActiveTopLevelTab(
+  state: RouteSnapshot['state']
+): TopLevelTabName | null {
+  const mainTabs = state?.routes?.find((route) => route.name === 'MainTabs');
+  const sections = mainTabs?.state;
+  const focused = sections?.routes?.[sections.index ?? 0]?.name;
+  return focused != null && focused in TOP_LEVEL_TABS
+    ? (focused as TopLevelTabName)
+    : null;
 }

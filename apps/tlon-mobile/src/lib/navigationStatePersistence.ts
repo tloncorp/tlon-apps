@@ -45,14 +45,25 @@ type StateSnapshot = {
 };
 
 /**
- * The root stack is rooted at `MainTabs` through a normal session, and at
- * `OnboardingStartup` while first-run onboarding owns the root. Only the first
- * is a position worth returning to: saving the second would let a relaunch
- * restore a half-finished onboarding as though it were an ordinary screen.
+ * The container's root is the top-level drawer, whose one screen holds the
+ * root stack. That stack is rooted at `MainTabs` through a normal session, and
+ * at `OnboardingStartup` while first-run onboarding owns the root. Only the
+ * first is a position worth returning to: saving the second would let a
+ * relaunch restore a half-finished onboarding as though it were an ordinary
+ * screen.
+ *
+ * A position saved before the drawer existed is rooted at the stack itself.
+ * Refusing it here is what keeps it from being restored into a tree it no
+ * longer fits — rehydration would drop every route and leave the session
+ * marked as restored, which stands the cold-start corrections down for good.
  */
 export function isPersistableNavigationState(state: unknown): boolean {
-  const routes = (state as StateSnapshot | undefined)?.routes;
-  return Array.isArray(routes) && routes[0]?.name === 'MainTabs';
+  const drawerRoutes = (state as StateSnapshot | undefined)?.routes;
+  if (!Array.isArray(drawerRoutes)) {
+    return false;
+  }
+  const stackRoutes = drawerRoutes[0]?.state?.routes;
+  return Array.isArray(stackRoutes) && stackRoutes[0]?.name === 'MainTabs';
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -167,9 +178,12 @@ export function sanitizeNavigationStateForPersistence(
  * position in its own right, not a tab to re-select.
  */
 export function getFocusedTopLevelTab(state: unknown): string | null {
-  const root = (state as StateSnapshot | undefined)?.routes?.[
-    (state as StateSnapshot | undefined)?.index ?? 0
-  ];
+  // The container's root is the top-level drawer, whose one screen holds the
+  // root stack; a position written by a build that had no drawer will not have
+  // that level, and is not restorable into this tree anyway.
+  const drawer = state as StateSnapshot | undefined;
+  const stack = drawer?.routes?.[drawer?.index ?? 0]?.state;
+  const root = stack?.routes?.[stack.index ?? 0];
   if (root?.name !== 'MainTabs') {
     return null;
   }
@@ -217,7 +231,11 @@ export function isRestorableNavigationState(
     return false;
   }
 
-  const { index, routes } = state as StateSnapshot;
+  // The drawer level is one route we synthesize; the position that can be
+  // malformed is the stack inside it.
+  const stack = (state as StateSnapshot | undefined)?.routes?.[0]?.state;
+  const index = stack?.index;
+  const routes = stack?.routes;
   if (!Array.isArray(routes) || routes.length === 0) {
     return false;
   }

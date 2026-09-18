@@ -3,7 +3,7 @@ import { Fragment, ReactElement, ReactNode } from 'react';
 import { Alert } from 'react-native';
 import { View, YStack, isWeb } from 'tamagui';
 
-import { useTopLevelTabBarContentInset } from '../../navigation/useTopLevelTabBarContentInset';
+import { useTopLevelDrawerToggleAction } from '../../navigation/useTopLevelDrawerToggle';
 import { ContactName } from './ContactNameV2';
 import { ListItem } from './ListItem';
 import { ScreenHeader } from './ScreenHeader';
@@ -76,9 +76,7 @@ export function SettingsScreenView(props: Props) {
 
   const isWindowNarrow = useIsWindowNarrow();
 
-  // Settings is a top-level tab now, so its last rows must clear the bar
-  // that floats over the bottom of the screen, as the Workspaces list does.
-  const bottomContentInset = useTopLevelTabBarContentInset();
+  const drawerToggle = useTopLevelDrawerToggleAction();
 
   // Rows the mockup names come first; the rest of the app's settings continue
   // the same section rather than moving somewhere less reachable.
@@ -249,17 +247,16 @@ export function SettingsScreenView(props: Props) {
     <>
       <ScreenHeader
         title="Settings"
+        leftActions={drawerToggle ? [drawerToggle] : undefined}
         backAction={props.onBackPressed}
         borderBottom={isWindowNarrow}
         placement="navigation"
       />
       <ScreenScrollView>
-        <YStack
-          flex={1}
-          padding="$l"
-          paddingBottom={bottomContentInset}
-          gap="$2xl"
-        >
+        {/* ScreenScrollView restores UIKit's automatic safe-area adjustment,
+            which reserves the home indicator on its own; the padding below is
+            only this screen's own edge spacing. */}
+        <YStack flex={1} padding="$l" gap="$2xl">
           {props.botSections}
           {/* Web can't host the bot's settings inline, so it keeps the single
               row that opens the hosted page. */}

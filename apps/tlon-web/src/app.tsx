@@ -134,8 +134,11 @@ function getFriendlyName(routeName: string) {
 
 const extractNestedRouteMobile = (state: any) => {
   if (!state) return null;
-  const route = state.routes[state.index];
-  return route.state?.routes[route.state?.index || 0] || null;
+  // Root -> the top-level drawer's one screen -> the root stack's focused
+  // route, which is what carries the channel or group the title names.
+  const root = state.routes[state.index];
+  const drawer = root.state?.routes[root.state?.index || 0];
+  return drawer?.state?.routes[drawer.state?.index || 0] || null;
 };
 
 const extractNestedRouteDesktop = (state: any) => {

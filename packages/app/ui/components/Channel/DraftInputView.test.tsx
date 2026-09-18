@@ -225,18 +225,15 @@ describe('web inline replies', () => {
   });
 });
 
-describe('floating composer bottom clearance', () => {
+describe('floating composer bottom placement', () => {
   beforeAll(() => {
     keyboard.platform = 'ios';
   });
 
-  function paddingBottomFor(bottomChromeClearance?: number) {
+  function paddingBottom() {
     act(() => {
       renderer = create(
-        <ConversationComposerPlacement
-          enabled
-          bottomChromeClearance={bottomChromeClearance}
-        >
+        <ConversationComposerPlacement enabled>
           <input />
         </ConversationComposerPlacement>
       );
@@ -247,12 +244,8 @@ describe('floating composer bottom clearance', () => {
     return style[0].paddingBottom;
   }
 
-  it('clears only the home indicator when no chrome sits below', () => {
-    expect(paddingBottomFor()).toBe(34);
-  });
-
-  it('clears the tab bar and its gap when one does', () => {
-    expect(paddingBottomFor(84)).toBe(92);
+  it('clears the home indicator, the only chrome below it', () => {
+    expect(paddingBottom()).toBe(34);
   });
 
   it('keeps its padding while the keyboard is open', () => {
@@ -260,17 +253,17 @@ describe('floating composer bottom clearance', () => {
     // keyboard visibility — doing so jumps the composer mid-animation.
     keyboard.visible = true;
     try {
-      expect(paddingBottomFor(84)).toBe(92);
+      expect(paddingBottom()).toBe(34);
     } finally {
       keyboard.visible = false;
     }
   });
 
-  it('reports the part of its height the keyboard collapses', () => {
+  it('reports no part of its height as collapsible', () => {
     composer.reports.length = 0;
     act(() => {
       renderer = create(
-        <ConversationComposerPlacement enabled bottomChromeClearance={84}>
+        <ConversationComposerPlacement enabled>
           <input />
         </ConversationComposerPlacement>
       );
@@ -281,13 +274,7 @@ describe('floating composer bottom clearance', () => {
         .props.onLayout({ nativeEvent: { layout: { height: 140 } } });
     });
 
-    // 92pt of padding, of which the 34pt home indicator still counts.
-    expect(composer.reports.at(-1)).toEqual([140, 58]);
-  });
-
-  it('does not stack the safe area on top of the clearance', () => {
-    // The tab bar's band already covers the home indicator, so a bar shorter
-    // than the safe area must not push the composer past it.
-    expect(paddingBottomFor(10)).toBe(34);
+    // All 34pt of the padding is the home indicator, which still counts.
+    expect(composer.reports.at(-1)).toEqual([140, 0]);
   });
 });

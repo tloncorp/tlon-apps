@@ -172,6 +172,15 @@ export type GroupSettingsStackRouteProp<
 
 export type RootStackNavigationProp = NavigationProp<RootStackParamList>;
 
+/**
+ * The mobile tree's outermost navigator: the top-level drawer, whose one
+ * screen is the whole root stack. Opening the drawer insets that stack — its
+ * native navigation bar included — rather than covering it.
+ */
+export type AppDrawerParamList = {
+  Main: NavigatorScreenParams<RootStackParamList>;
+};
+
 export type RootDrawerParamList = {
   Home: NavigatorScreenParams<HomeDrawerParamList>;
   Messages: NavigatorScreenParams<HomeDrawerParamList>;

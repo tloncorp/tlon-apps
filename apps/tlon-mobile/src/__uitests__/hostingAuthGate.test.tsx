@@ -55,9 +55,12 @@ jest.mock('@tloncorp/app/lib/notifications', () => ({
 }));
 jest.mock('@tloncorp/app/lib/pushNotifTapTelemetry', () => ({}));
 jest.mock('@tloncorp/app/lib/tlonbotRevivalDeferredConfig', () => ({}));
-jest.mock('@tloncorp/app/navigation/RootStack', () => {
+// The authenticated tree is rooted at the top-level drawer, which holds the
+// root stack. This gate is about what gets past the auth check, not about what
+// the tree renders, so the whole tree stands in as one node.
+jest.mock('@tloncorp/app/navigation/AppDrawer', () => {
   const { Text } = require('react-native');
-  return { RootStack: () => <Text>Authenticated content</Text> };
+  return { AppDrawer: () => <Text>Authenticated content</Text> };
 });
 jest.mock('@tloncorp/app/provider/AppDataProvider', () => ({
   AppDataProvider: require('react-native').View,

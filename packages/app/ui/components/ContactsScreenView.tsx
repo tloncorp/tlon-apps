@@ -4,7 +4,7 @@ import { RefObject, useCallback, useMemo } from 'react';
 import { SectionList } from 'react-native';
 import { View, XStack, getTokenValue } from 'tamagui';
 
-import { useTopLevelTabBarContentInset } from '../../navigation/useTopLevelTabBarContentInset';
+import { useTopLevelContentInset } from '../../navigation/useTopLevelContentInset';
 import { useContact, useCurrentUserId } from '../contexts/appDataContext';
 import { useSortedContacts } from '../hooks/contactSorters';
 import { SystemIconAvatar } from './Avatar';
@@ -29,7 +29,7 @@ interface Section {
 }
 
 export function ContactsScreenView(props: Props) {
-  const bottomContentInset = useTopLevelTabBarContentInset();
+  const bottomContentInset = useTopLevelContentInset();
   const currentUserId = useCurrentUserId();
   const userContact = useContact(currentUserId);
 
