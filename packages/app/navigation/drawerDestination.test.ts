@@ -10,11 +10,13 @@ describe('isDrawerDestinationRoute', () => {
     );
   });
 
-  it('claims the single channel a one-channel group is entered through', () => {
+  it('claims a channel that was opened as a destination in its own right', () => {
+    // A one-channel group's only channel, and a channel picked out of the
+    // drawer, both arrive stamped.
     expect(
       isDrawerDestinationRoute({
         name: 'Channel',
-        params: { channelId: 'c', groupId: 'g', isOnlyChannel: true },
+        params: { channelId: 'c', groupId: 'g', isDrawerDestination: true },
       })
     ).toBe(true);
   });
@@ -29,7 +31,7 @@ describe('isDrawerDestinationRoute', () => {
     expect(
       isDrawerDestinationRoute({
         name: 'Channel',
-        params: { channelId: 'c', groupId: 'g', isOnlyChannel: false },
+        params: { channelId: 'c', groupId: 'g', isDrawerDestination: false },
       })
     ).toBe(false);
   });

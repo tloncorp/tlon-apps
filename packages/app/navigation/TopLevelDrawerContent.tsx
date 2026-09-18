@@ -237,6 +237,7 @@ function DrawerChatButton({
         leadingIcon={TOP_LEVEL_TABS.BotChat.icon}
         onPress={onPress}
         accessibilityLabel={accessibilityLabel}
+        accessibilityState={{ selected }}
         testID="TopLevelDrawerChatButton"
         {...FOOTER_CONTROL_SHADOW}
       />
@@ -505,6 +506,11 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
               ...(chat.channel.groupId
                 ? { groupId: chat.channel.groupId }
                 : {}),
+              // Picked straight out of the drawer, so it stands on its own
+              // like every other row here — nothing is pushed behind it for a
+              // caret to lead back to. A DM says this by its route name; a
+              // channel pinned out of a group has to say it in a param.
+              isDrawerDestination: true,
             },
           },
         ]);

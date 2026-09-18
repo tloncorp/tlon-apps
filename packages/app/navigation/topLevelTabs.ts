@@ -206,12 +206,20 @@ export function getExistingTopLevelTabRoute(
   if (!mainTabs || !sections || index == null || index < 0) {
     return getTopLevelTabRoute(section);
   }
+  // `history` goes with it. The sections navigator runs `backBehavior:
+  // "history"`, so a history kept from before the switch still names the
+  // section that was showing, and the next system Back would read it and go
+  // somewhere this never visited. Left out, the router rebuilds one for where
+  // the tabs actually are.
+  const { history: _staleHistory, ...sectionsWithoutHistory } = sections as {
+    history?: unknown;
+  } & typeof sections;
   return {
     ...(mainTabs as typeof mainTabs & {
       key?: string;
       params?: NonNullable<RootStackParamList['MainTabs']>;
     }),
     name: 'MainTabs',
-    state: { ...sections, index },
+    state: { ...sectionsWithoutHistory, index },
   };
 }

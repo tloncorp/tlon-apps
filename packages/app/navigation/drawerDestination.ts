@@ -1,6 +1,6 @@
 type RouteLike = {
   name?: string;
-  params?: { isOnlyChannel?: boolean } | object;
+  params?: { isDrawerDestination?: boolean } | object;
 };
 
 /**
@@ -15,10 +15,11 @@ type RouteLike = {
  * screen involved can answer the same question the same way.
  *
  * `DM` and `GroupDM` are named from the channel id itself, so every way of
- * reaching one lands on a route that says so. A one-channel group is stamped
- * by `getMainGroupRoute`, the one place that decides to enter a group through
- * its channel instead of its channel list; a route to that same channel built
- * anywhere else keeps its caret.
+ * reaching one lands on a route that says so. A plain channel says so with a
+ * param instead, stamped by the two places that open one as a destination:
+ * `getMainGroupRoute`, for the single channel a one-channel group is entered
+ * through, and the drawer, for a channel pinned out of a group it lists. A
+ * route to that same channel built anywhere else keeps its caret.
  */
 export function isDrawerDestinationRoute(
   route: RouteLike | undefined
@@ -32,6 +33,7 @@ export function isDrawerDestinationRoute(
   }
   return (
     route?.name === 'Channel' &&
-    !!(route.params as { isOnlyChannel?: boolean } | undefined)?.isOnlyChannel
+    !!(route.params as { isDrawerDestination?: boolean } | undefined)
+      ?.isDrawerDestination
   );
 }
