@@ -63,10 +63,14 @@ const usesIOSGlass = supportsLiquidGlass();
 // wrapper rather than on the glass itself: the glass clips to its bounds, and
 // a view that clips does not cast.
 const FOOTER_CONTROL_SHADOW = {
-  shadowColor: 'rgba(0, 0, 0, 0.10)',
+  // The strength lives in `shadowOpacity`, never in the colour's alpha: on
+  // iOS the opacity replaces it rather than multiplying with it, so an alpha
+  // written into the colour beside `shadowOpacity: 1` is simply discarded and
+  // the shadow comes out full-strength black.
+  shadowColor: '#000000',
   shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 1,
-  shadowRadius: 8,
+  shadowOpacity: 0.06,
+  shadowRadius: 12,
   elevation: 2,
 } as const;
 
