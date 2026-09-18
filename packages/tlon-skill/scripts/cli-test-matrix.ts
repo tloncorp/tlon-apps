@@ -2,6 +2,7 @@ import { DIARY_REMOVED, NOTES_CHANNEL_CONTENT_UNSUPPORTED } from './cli-utils';
 
 export const COMMAND_FAMILIES = [
   'activity',
+  'browser',
   'channels',
   'contacts',
   'dms',
@@ -34,6 +35,7 @@ export type CliCase = {
 const SCRIPT_ERA_PATTERNS = [
   'npx ts-node',
   'Usage: activity.ts',
+  'Usage: browser.ts',
   'Usage: channels.ts',
   'Usage: contacts.ts',
   'Usage: dms.ts',
@@ -45,6 +47,7 @@ const SCRIPT_ERA_PATTERNS = [
   'Usage: settings.ts',
   'Usage: upload.ts',
   'Example: activity.ts',
+  'Example: browser.ts',
   'Example: channels.ts',
   'Example: contacts.ts',
   'Example: dms.ts',
@@ -55,6 +58,7 @@ const SCRIPT_ERA_PATTERNS = [
   'Example: posts.ts',
   'Example: settings.ts',
   'Example: upload.ts',
+  'scripts/browser.ts',
   'scripts/channels.ts',
   'scripts/contacts.ts',
   'scripts/dms.ts',
