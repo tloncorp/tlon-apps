@@ -1390,7 +1390,8 @@ async function configureProvidersOnce(
     !latestConfig ||
     latestConfig.providerIds.length !== config.providerIds.length ||
     latestConfig.providerIds.some(
-      (providerId, index) => providerId !== config.providerIds[index]
+      (providerId: string, index: number) =>
+        providerId !== config.providerIds[index]
     )
   ) {
     context.log?.(
@@ -2547,7 +2548,7 @@ function findLatestProviderConfig(
   ownerShip: string,
   groupId: string,
   provisionId: string
-) {
+): PostBlobDataEntryAgentProviderConfig | null {
   const config = blobEntriesByAuthor(history, ownerShip, true).find(
     ({ entry }) =>
       entry.type === 'tlon-agent-provider-config' &&
