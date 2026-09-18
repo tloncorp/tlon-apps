@@ -358,12 +358,24 @@ export function useNavigateBackFromPost() {
       }
       if (isMobileTree) {
         const screenName = screenNameFromChannelId(channel.id);
+        // `popTo` overwrites the matched route's params, so anything the route
+        // was carrying has to be carried back. `isOnlyChannel` says the screen
+        // is a drawer destination rather than something pushed over a channel
+        // list; dropped here, its header turns back into a caret on the first
+        // return from a post.
+        const matched = navigation
+          .getState()
+          ?.routes?.find((route) => route.name === screenName);
+        const isOnlyChannel = (
+          matched?.params as { isOnlyChannel?: boolean } | undefined
+        )?.isOnlyChannel;
         const params = {
           channelId: channel.id,
           // we don't want to highlight the selected post we're returning from
           // if we aren't in a chat
           selectedPostId: isChatShaped ? postId : undefined,
           ...(channel.groupId ? { groupId: channel.groupId } : {}),
+          ...(isOnlyChannel ? { isOnlyChannel: true } : {}),
         };
         // popTo pops back to the target channel if it's already in the stack
         // (the normal in-channel thread case), or replaces the focused Post in

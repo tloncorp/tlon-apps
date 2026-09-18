@@ -177,3 +177,41 @@ export function getActiveTopLevelTab(
     ? (focused as TopLevelTabName)
     : null;
 }
+
+/**
+ * The `MainTabs` route as it already stands, with `section` brought to the
+ * front, or a fresh one when the sections have not been built yet.
+ *
+ * For resetting the stack to a section *and* something above it in a single
+ * dispatch. Naming `MainTabs` afresh would do that too, but it would be a new
+ * route: the tabs would remount and every section would lose what it was
+ * holding — the workspace list's filter and scroll, Activity's scroll. Keeping
+ * the route's key and its children's state, and moving only which child is
+ * focused, is the same thing an ordinary tab switch does.
+ */
+export function getExistingTopLevelTabRoute(
+  stackState: RouteSnapshot['state'],
+  section: TopLevelTabName
+): {
+  name: 'MainTabs';
+  key?: string;
+  params?: NonNullable<RootStackParamList['MainTabs']>;
+  state?: { index: number; routes?: ReadonlyArray<RouteSnapshot> };
+} {
+  const mainTabs = stackState?.routes?.find(
+    (route) => route.name === 'MainTabs'
+  );
+  const sections = mainTabs?.state;
+  const index = sections?.routes?.findIndex((route) => route.name === section);
+  if (!mainTabs || !sections || index == null || index < 0) {
+    return getTopLevelTabRoute(section);
+  }
+  return {
+    ...(mainTabs as typeof mainTabs & {
+      key?: string;
+      params?: NonNullable<RootStackParamList['MainTabs']>;
+    }),
+    name: 'MainTabs',
+    state: { ...sections, index },
+  };
+}

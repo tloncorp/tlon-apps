@@ -35,12 +35,17 @@ import {
   TOP_LEVEL_TABS,
   TopLevelTabName,
   getActiveTopLevelTab,
+  getExistingTopLevelTabRoute,
   getInitialTopLevelTab,
   getTopLevelTabNavigateAction,
   isTabPressBlockedByOnboardingLock,
   trackTopLevelTabSelection,
 } from './topLevelTabs';
-import { useRootNavigation } from './utils';
+import {
+  getMainGroupRoute,
+  screenNameFromChannelId,
+  useTypedReset,
+} from './utils';
 
 const logger = createDevLogger('TopLevelDrawerContent', false);
 
@@ -212,9 +217,11 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
  */
 function DrawerChatButton({
   hasUnread,
+  selected,
   onPress,
 }: {
   hasUnread: boolean;
+  selected: boolean;
   onPress: () => void;
 }) {
   const theme = useTheme();
@@ -261,6 +268,7 @@ function DrawerChatButton({
         onPress={onPress}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
+        accessibilityState={{ selected }}
         testID="TopLevelDrawerChatButton"
         height={FOOTER_CONTROL_SIZE}
         flexDirection="row"
@@ -370,7 +378,7 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
   const insets = useSafeAreaInsets();
   const botDm = useBotDmTab();
   const { disableNicknames } = useCalm();
-  const { resetToGroup, resetToChannel } = useRootNavigation();
+  const reset = useTypedReset();
   // What each target marks: the bot DM marks its own control, so one message
   // never lights both it and Activity.
   const botDmHasUnread = store.useChannelHasUnread(
@@ -469,23 +477,41 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
       // These rows are the workspace list's chats, so what they open is a
       // position inside Workspaces however the drawer was reached — otherwise
       // it is pushed above whichever section happened to be showing and stays
-      // attributed to it, and backing out returns there.
+      // attributed to it.
       //
-      // Both of these reset to that position and the chat together, in one
-      // dispatch. Selecting the section first and then navigating would show
-      // the workspace list in between, because the group route has to read the
-      // group before it knows whether to open its channel list or its only
-      // channel — long enough to see.
+      // One dispatch for the section and the chat together: selecting the
+      // section first and then navigating would show the workspace list in
+      // between, because the group route has to read the group before it knows
+      // whether to open its channel list or its only channel. And the section
+      // is the `MainTabs` already standing rather than a fresh one, so the
+      // sections keep what they were holding — the workspace list's filter and
+      // scroll, Activity's scroll — as they would through an ordinary tab
+      // switch.
+      const sectionRoute = getExistingTopLevelTabRoute(
+        state.routes[state.index]?.state,
+        'ChatList'
+      );
       if (chat.type === 'group') {
-        resetToGroup(chat.group.id);
+        getMainGroupRoute(chat.group.id, true).then((groupRoute) =>
+          reset([sectionRoute, groupRoute])
+        );
       } else {
-        resetToChannel(chat.channel.id, {
-          groupId: chat.channel.groupId ?? undefined,
-        });
+        reset([
+          sectionRoute,
+          {
+            name: screenNameFromChannelId(chat.channel.id),
+            params: {
+              channelId: chat.channel.id,
+              ...(chat.channel.groupId
+                ? { groupId: chat.channel.groupId }
+                : {}),
+            },
+          },
+        ]);
       }
       navigation.closeDrawer();
     },
-    [chatsLocked, navigation, resetToChannel, resetToGroup]
+    [chatsLocked, navigation, reset, state]
   );
 
   const hasUnread: Partial<Record<TopLevelTabName, boolean>> = {
@@ -582,6 +608,7 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
           <View>
             <DrawerChatButton
               hasUnread={botDmHasUnread}
+              selected={selected === 'BotChat'}
               onPress={() => select('BotChat')}
             />
             {botDmHasUnread ? (

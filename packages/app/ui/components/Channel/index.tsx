@@ -950,7 +950,13 @@ export function Channel({
                           title={title ?? ''}
                           description={''}
                           isTopLevelTab={isTopLevelTab}
-                          isConversationRoot={isConversationRoot}
+                          // A fullscreen draft owns this slot: `goBack` below
+                          // is `exitFullscreen` in that state, and it is the
+                          // only way out of the editor without submitting.
+                          isConversationRoot={
+                            isConversationRoot &&
+                            draftInputPresentationMode !== 'fullscreen'
+                          }
                           backDisabled={disableBackButton}
                           goBack={
                             (isNarrow && !isTopLevelTab) ||
