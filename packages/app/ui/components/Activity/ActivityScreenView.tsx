@@ -15,7 +15,8 @@ import {
 import { View, XStack, isWeb, useStyle } from 'tamagui';
 
 import { useIsDarkMode } from '../../../hooks/useDarkMode';
-import { useTopLevelTabBarContentInset } from '../../../navigation/useTopLevelTabBarContentInset';
+import { useTopLevelContentInset } from '../../../navigation/useTopLevelContentInset';
+import { useTopLevelDrawerToggleAction } from '../../../navigation/useTopLevelDrawerToggle';
 import { NavigationProvider } from '../../contexts/navigation';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { PersonalInviteSheet } from '../PersonalInviteSheet';
@@ -315,7 +316,8 @@ export function ActivityScreenContent({
   onInviteFriends?: () => void;
   scrollRef?: React.RefObject<FlatList | null>;
 }) {
-  const bottomContentInset = useTopLevelTabBarContentInset();
+  const bottomContentInset = useTopLevelContentInset();
+  const drawerToggle = useTopLevelDrawerToggleAction();
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
   const [markAllReadConfirmationOpen, setMarkAllReadConfirmationOpen] =
@@ -401,6 +403,7 @@ export function ActivityScreenContent({
           title="Activity"
           subtitle={subtitle}
           loadingSubtitle={loadingSubtitle}
+          leftActions={drawerToggle ? [drawerToggle] : undefined}
           rightActions={activityHeaderActions}
           placement="navigation"
         />

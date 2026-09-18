@@ -20,6 +20,7 @@ import {
 import { View } from 'tamagui';
 
 import { useShipConnectionStatus } from '../../../features/top/useShipConnectionStatus';
+import { useTopLevelDrawerToggleAction } from '../../../navigation/useTopLevelDrawerToggle';
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import {
   getChannelHost,
@@ -177,6 +178,7 @@ export function ChannelHeader({
   const chatTitle = useChatTitle(channel, group);
   const chatDescription = useChatDescription(channel, group);
   const currentUserId = useCurrentUserId();
+  const topLevelDrawerToggle = useTopLevelDrawerToggleAction();
 
   // Get contact info for 1:1 DMs - only fetch when we have a valid contact ID
   const dmContactId = channel.type === 'dm' ? channel.contactId : null;
@@ -411,6 +413,10 @@ export function ChannelHeader({
     onTitlePress: hideIdentity ? undefined : handleTitlePress,
     useHorizontalTitleLayout: !isWindowNarrow,
   };
+  // The Bot section has no caret — it is a root, not something pushed — so
+  // the drawer button takes that slot, as it does on every other section.
+  const leftActions: ScreenHeaderAction[] =
+    isTopLevelTab && topLevelDrawerToggle ? [topLevelDrawerToggle] : [];
   const rightActions: ScreenHeaderAction[] = [
     {
       id: 'channel-search',
@@ -470,6 +476,7 @@ export function ChannelHeader({
         placement="navigation"
         backAction={goBack}
         backDisabled={backDisabled}
+        leftActions={leftActions}
         rightActions={rightActions}
       />
     );
@@ -480,6 +487,7 @@ export function ChannelHeader({
       {...headerProps}
       backAction={goBack}
       backDisabled={backDisabled}
+      leftActions={leftActions}
       rightActions={rightActions}
       rightControls={
         contextItems.length ? (

@@ -1,118 +1,129 @@
-import type { LinkingOptions } from '@react-navigation/native';
+import type { LinkingOptions, PathConfig } from '@react-navigation/native';
 
 import {
   DesktopBasePathStackParamList,
   MobileBasePathStackParamList,
 } from './BasePathNavigator';
+import type { RootStackParamList } from './types';
 
 export const getMobileLinkingConfig = (
   mode: string
-): LinkingOptions<MobileBasePathStackParamList> => ({
-  prefixes: [],
-  config: {
+): LinkingOptions<MobileBasePathStackParamList> => {
+  // Contacts and the rest are root-stack screens above the sections. A cold
+  // link straight to one would otherwise build a stack with nothing beneath
+  // it, so back does nothing and the drawer marks no section.
+  const mainPathConfig: PathConfig<RootStackParamList> = {
+    initialRouteName: 'MainTabs',
     screens: {
-      Root: {
-        path: basePathForMode(mode),
-        // Contacts and the rest are root-stack screens above the tabs. A cold
-        // link straight to one would otherwise build a stack with nothing
-        // beneath it: back does nothing and there is no tab bar.
-        initialRouteName: 'MainTabs',
+      MainTabs: {
         screens: {
-          MainTabs: {
-            screens: {
-              BotChat: 'bot',
-              ChatList: 'ChatList',
-              Activity: 'activity',
-              Settings: 'settings',
-            },
+          BotChat: 'bot',
+          ChatList: 'ChatList',
+          Activity: 'activity',
+          Settings: 'settings',
+        },
+      },
+      Contacts: 'contacts',
+      DM: {
+        path: 'dm/:channelId/:selectedPostId?',
+        parse: parsePathParams('channelId', 'selectedPostId'),
+      },
+      GroupDM: {
+        path: 'group-dm/:channelId/:selectedPostId?',
+        parse: parsePathParams('contactId', 'selectedPostId'),
+      },
+      Channel: {
+        path: 'group/:groupId/channel/:channelId/:selectedPostId?',
+        parse: parsePathParams('channelId', 'groupId', 'selectedPostId'),
+      },
+      NotesDetail: {
+        path: 'group/:groupId/channel/:channelId/note/:noteId',
+        parse: {
+          ...parsePathParams('channelId', 'groupId'),
+          noteId: Number,
+        },
+      },
+      NotesFolder: {
+        path: 'group/:groupId/channel/:channelId/folder/:folderId',
+        parse: {
+          ...parsePathParams('channelId', 'groupId'),
+          folderId: Number,
+        },
+      },
+      ChannelSearch: { path: 'channel/:channelId/search' },
+      NotesSearch: {
+        path: 'channel/:channelId/search-notes',
+        parse: parsePathParams('channelId'),
+      },
+      ContextLensRuns: { path: 'lens/runs' },
+      ContextLensRun: {
+        path: 'lens/run/:botShip/:lensId',
+        parse: parsePathParams('botShip', 'lensId'),
+      },
+      Post: postScreenConfig(mode),
+      MediaViewer: 'media-viewer/:mediaType',
+      ChatDetails: {
+        path: 'chat-details/:chatType/:chatId',
+        parse: parsePathParams('chatType', 'chatId'),
+      },
+      GroupSettings: {
+        screens: {
+          GroupMeta: {
+            path: 'group/:groupId/meta',
+            parse: parsePathParams('groupId'),
           },
-          Contacts: 'contacts',
-          DM: {
-            path: 'dm/:channelId/:selectedPostId?',
-            parse: parsePathParams('channelId', 'selectedPostId'),
+          GroupMembers: {
+            path: 'group/:groupId/members',
+            parse: parsePathParams('groupId'),
           },
-          GroupDM: {
-            path: 'group-dm/:channelId/:selectedPostId?',
-            parse: parsePathParams('contactId', 'selectedPostId'),
+          ManageChannels: {
+            path: 'group/:groupId/manage-channels',
+            parse: parsePathParams('groupId'),
           },
-          Channel: {
-            path: 'group/:groupId/channel/:channelId/:selectedPostId?',
-            parse: parsePathParams('channelId', 'groupId', 'selectedPostId'),
+          Privacy: {
+            path: 'group/:groupId/privacy',
+            parse: parsePathParams('groupId'),
           },
-          NotesDetail: {
-            path: 'group/:groupId/channel/:channelId/note/:noteId',
-            parse: {
-              ...parsePathParams('channelId', 'groupId'),
-              noteId: Number,
-            },
+          GroupRoles: {
+            path: 'group/:groupId/roles',
+            parse: parsePathParams('groupId'),
           },
-          NotesFolder: {
-            path: 'group/:groupId/channel/:channelId/folder/:folderId',
-            parse: {
-              ...parsePathParams('channelId', 'groupId'),
-              folderId: Number,
-            },
+          EditChannelMeta: {
+            path: 'group/:groupId/channel/:channelId/edit-meta',
+            parse: parsePathParams('groupId', 'channelId'),
           },
-          ChannelSearch: { path: 'channel/:channelId/search' },
-          NotesSearch: {
-            path: 'channel/:channelId/search-notes',
-            parse: parsePathParams('channelId'),
+          EditChannelPrivacy: {
+            path: 'group/:groupId/channel/:channelId/edit-privacy',
+            parse: parsePathParams('groupId', 'channelId'),
           },
-          ContextLensRuns: { path: 'lens/runs' },
-          ContextLensRun: {
-            path: 'lens/run/:botShip/:lensId',
-            parse: parsePathParams('botShip', 'lensId'),
-          },
-          Post: postScreenConfig(mode),
-          MediaViewer: 'media-viewer/:mediaType',
-          ChatDetails: {
-            path: 'chat-details/:chatType/:chatId',
-            parse: parsePathParams('chatType', 'chatId'),
-          },
-          GroupSettings: {
-            screens: {
-              GroupMeta: {
-                path: 'group/:groupId/meta',
-                parse: parsePathParams('groupId'),
-              },
-              GroupMembers: {
-                path: 'group/:groupId/members',
-                parse: parsePathParams('groupId'),
-              },
-              ManageChannels: {
-                path: 'group/:groupId/manage-channels',
-                parse: parsePathParams('groupId'),
-              },
-              Privacy: {
-                path: 'group/:groupId/privacy',
-                parse: parsePathParams('groupId'),
-              },
-              GroupRoles: {
-                path: 'group/:groupId/roles',
-                parse: parsePathParams('groupId'),
-              },
-              EditChannelMeta: {
-                path: 'group/:groupId/channel/:channelId/edit-meta',
-                parse: parsePathParams('groupId', 'channelId'),
-              },
-              EditChannelPrivacy: {
-                path: 'group/:groupId/channel/:channelId/edit-privacy',
-                parse: parsePathParams('groupId', 'channelId'),
-              },
-            },
-          },
-          AppSettings: 'app-settings',
-          FeatureFlags: 'feature-flags',
-          ManageAccount: 'manage-account',
-          BlockedUsers: 'blocked-users',
-          WompWomp: 'report-bug',
-          AppInfo: 'app-info',
-          PushNotificationSettings: 'push-notification-settings',
+        },
+      },
+      AppSettings: 'app-settings',
+      FeatureFlags: 'feature-flags',
+      ManageAccount: 'manage-account',
+      BlockedUsers: 'blocked-users',
+      WompWomp: 'report-bug',
+      AppInfo: 'app-info',
+      PushNotificationSettings: 'push-notification-settings',
+    },
+  };
+
+  return {
+    prefixes: [],
+    config: {
+      screens: {
+        Root: {
+          path: basePathForMode(mode),
+          // `PathConfigMap` stops resolving a param list through two levels
+          // of `NavigatorScreenParams`, so this slot types as `any`. The
+          // annotation on `mainPathConfig` above is what actually checks the
+          // stack's screens.
+          screens: { Main: mainPathConfig },
         },
       },
     },
-  },
-});
+  };
+};
 
 export const getDesktopLinkingConfig = (
   mode: string

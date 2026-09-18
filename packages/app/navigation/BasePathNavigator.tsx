@@ -3,12 +3,12 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { memo, useMemo } from 'react';
 
 import { useRenderCount } from '../hooks/useRenderCount';
-import { RootStack } from './RootStack';
+import { AppDrawer } from './AppDrawer';
 import { TopLevelDrawer } from './desktop/TopLevelDrawer';
-import { RootDrawerParamList, RootStackParamList } from './types';
+import { AppDrawerParamList, RootDrawerParamList } from './types';
 
 export type MobileBasePathStackParamList = {
-  Root: NavigatorScreenParams<RootStackParamList>;
+  Root: NavigatorScreenParams<AppDrawerParamList>;
 };
 
 export type DesktopBasePathStackParamList = {
@@ -31,7 +31,7 @@ export const BasePathNavigator = memo(({ isMobile }: { isMobile: boolean }) => {
 
   const component = useMemo(() => {
     if (isMobile) {
-      return RootStack;
+      return AppDrawer;
     }
     return TopLevelDrawer;
   }, [isMobile]);

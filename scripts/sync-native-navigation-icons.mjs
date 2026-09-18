@@ -1,4 +1,3 @@
-import { Resvg } from '@resvg/resvg-js';
 import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,25 +10,11 @@ const sourceDirectory = path.join(
   rootDirectory,
   'packages/ui/src/assets/icons'
 );
-const tabAssetDirectory = path.join(
-  rootDirectory,
-  'packages/app/navigation/assets'
-);
 const iosHeaderAssetDirectory = path.join(
   rootDirectory,
   'apps/tlon-mobile/ios/Landscape/HeaderIcons.xcassets'
 );
 const checkOnly = process.argv.includes('--check');
-
-// No tab draws a filled variant: two of these glyphs do not have one, so the
-// bar marks the selected tab by tint alone and every tab uses a single asset
-// in both states.
-const tabIcons = [
-  ['SmushStar.svg', 'tab-bot'],
-  ['Channel.svg', 'tab-workspaces'],
-  ['Notifications.svg', 'tab-activity'],
-  ['Settings.svg', 'tab-settings'],
-];
 
 const screenHeaderIcons = JSON.parse(
   await readFile(
@@ -58,33 +43,8 @@ const iosImageSetContents = (fileName) => ({
   },
 });
 
-async function buildTabAssets() {
-  const files = new Map();
-
-  for (const [sourceName, outputName] of tabIcons) {
-    const source = normalizeSvgColor(
-      await readFile(path.join(sourceDirectory, sourceName), 'utf8')
-    );
-
-    for (const scale of [1, 2, 3]) {
-      const suffix = scale === 1 ? '' : `@${scale}x`;
-      const png = new Resvg(source, {
-        fitTo: { mode: 'width', value: 24 * scale },
-      })
-        .render()
-        .asPng();
-
-      files.set(`${outputName}${suffix}.png`, png);
-    }
-  }
-
-  return files;
-}
-
-// Native tabs consume density-specific PNGs from React Native, while iOS
-// native-stack headers resolve named template vectors from an asset catalog.
-// Keep those format-specific builders separate while sharing source SVG
-// normalization and the sync/check lifecycle below.
+// iOS native-stack headers resolve named template vectors from an asset
+// catalog, so the source SVGs are normalized and written through unchanged.
 async function buildIOSHeaderAssets() {
   const files = new Map([
     ['Contents.json', json({ info: { author: 'xcode', version: 1 } })],
@@ -191,12 +151,6 @@ async function syncTarget({ name, directory, build }) {
     );
   }
 }
-
-await syncTarget({
-  name: 'Native tab icons',
-  directory: tabAssetDirectory,
-  build: buildTabAssets,
-});
 
 await syncTarget({
   name: 'Native header icons',

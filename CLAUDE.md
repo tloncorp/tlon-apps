@@ -178,13 +178,21 @@ When using the `=<` + helper core pattern with `^+  cor`, be aware that type-nar
 
 ### Navigation Entry Points
 
--   **Mobile**: Uses `packages/app/navigation/RootStack.tsx`
+-   **Mobile**: Uses `packages/app/navigation/AppDrawer.tsx`, which wraps
+    `packages/app/navigation/RootStack.tsx` as its one screen (`Main`).
 -   **Desktop/Web**: Uses `packages/app/navigation/desktop/TopLevelDrawer.tsx`
 
 The platform is determined by `BasePathNavigator` using the `isMobile` prop:
 
--   `isMobile={true}` → Renders `RootStack` (mobile navigation)
+-   `isMobile={true}` → Renders `AppDrawer` (mobile navigation)
 -   `isMobile={false}` → Renders `TopLevelDrawer` (desktop navigation)
+
+`AppDrawer` is the top-level drawer the four sections are chosen from. It sits
+**above** the root stack so that opening it insets the app — native navigation
+bar included — rather than covering it; a drawer nested any deeper could only
+cover the screens below that bar. This puts an extra level in the navigation
+state, so anything that walks the container state (saved-position restore, the
+web tree's document title) has to step through `Main` before reaching the stack.
 
 ### Main Navigation Components
 
@@ -194,7 +202,7 @@ The platform is determined by `BasePathNavigator` using the `isMobile` prop:
 | **Settings** | `features/settings/SettingsScreen.tsx` | `navigation/desktop/SettingsNavigator.tsx` |
 | **Activity** | `features/top/ActivityScreen.tsx`      | `navigation/desktop/ActivityNavigator.tsx` |
 | **Messages** | `features/top/ChatListScreen.tsx`      | `navigation/desktop/MessagesNavigator.tsx` |
-| **Home**     | N/A (uses bottom tabs)                 | `navigation/desktop/HomeNavigator.tsx`     |
+| **Home**     | N/A (sections come from `AppDrawer`)   | `navigation/desktop/HomeNavigator.tsx`     |
 
 ### E2E Testing Guidelines
 

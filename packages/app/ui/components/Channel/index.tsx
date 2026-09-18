@@ -33,7 +33,6 @@ import {
 } from 'tamagui';
 
 import { useIsUserActive } from '../../../hooks/useUserActivity';
-import { useTopLevelTabBarClearance } from '../../../navigation/useTopLevelTabBarContentInset';
 import type { ChannelShareIntent } from '../../../types/shareIntent';
 import { normalizeUploadIntent } from '../../../utils/filepicker';
 import { useCurrentUserId } from '../../contexts/appDataContext';
@@ -383,7 +382,6 @@ export function Channel({
   const canWrite = utils.useCanWrite(channel, currentUserId);
   const canRead = utils.useCanRead(channel, currentUserId);
   const isNarrow = useIsWindowNarrow();
-  const tabBarClearance = useTopLevelTabBarClearance();
   const inView = useIsFocused();
   const collectionRef = useRef<PostCollectionHandle>(null);
   const orientationCompletePostId = useMemo(
@@ -1105,9 +1103,6 @@ export function Channel({
                                 <DraftInputView
                                   draftInputContext={draftInputContext}
                                   type={draftInputType}
-                                  bottomChromeClearance={
-                                    isTopLevelTab ? tabBarClearance : 0
-                                  }
                                   onFloatingHeightChange={
                                     onFloatingHeightChange
                                   }

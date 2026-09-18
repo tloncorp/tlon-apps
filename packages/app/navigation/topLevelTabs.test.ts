@@ -1,4 +1,5 @@
 import { getStateFromPath } from '@react-navigation/core';
+import { StackRouter } from '@react-navigation/routers';
 import { describe, expect, test, vi } from 'vitest';
 
 import { getMobileLinkingConfig } from './linking';
@@ -6,8 +7,12 @@ import {
   getTopLevelTabRoute,
   isAtColdStartPosition,
   isAwaitingRestoredBotTab,
+  getActiveTopLevelTab,
+  getTopLevelTabNavigateAction,
+  getInitialTopLevelTab,
   isTabPressBlockedByOnboardingLock,
 } from './topLevelTabs';
+import type { RouteSnapshot } from './topLevelTabs';
 
 vi.mock('@tloncorp/shared', () => ({
   AnalyticsEvent: { NavigationTabSelected: 'Navigation Tab Selected' },
@@ -50,14 +55,22 @@ describe('mobile top-level tab links', () => {
   ])('nests %s under MainTabs', (path, screen) => {
     const state = getStateFromPath(path, getMobileLinkingConfig('').config!);
 
+    // `Main` is the top-level drawer's one screen, which holds the stack.
     expect(state?.routes[0]).toMatchObject({
       name: 'Root',
       state: {
         routes: [
           {
-            name: 'MainTabs',
+            name: 'Main',
             state: {
-              routes: [{ name: screen }],
+              routes: [
+                {
+                  name: 'MainTabs',
+                  state: {
+                    routes: [{ name: screen }],
+                  },
+                },
+              ],
             },
           },
         ],
@@ -65,8 +78,8 @@ describe('mobile top-level tab links', () => {
     });
   });
 
-  // Contacts left the tab bar; it is a root stack screen. A cold link seats
-  // MainTabs beneath it so back and the tab bar work.
+  // Contacts left the navigation bar; it is a root stack screen. A cold link
+  // seats MainTabs beneath it so back works and the drawer marks its section.
   test('routes /apps/groups/contacts to the root stack over MainTabs', () => {
     const state = getStateFromPath(
       '/apps/groups/contacts',
@@ -76,10 +89,96 @@ describe('mobile top-level tab links', () => {
     expect(state?.routes[0]).toMatchObject({
       name: 'Root',
       state: {
-        index: 1,
-        routes: [{ name: 'MainTabs' }, { name: 'Contacts' }],
+        routes: [
+          {
+            name: 'Main',
+            state: {
+              index: 1,
+              routes: [{ name: 'MainTabs' }, { name: 'Contacts' }],
+            },
+          },
+        ],
       },
     });
+  });
+});
+
+describe('getTopLevelTabNavigateAction', () => {
+  const router = StackRouter({});
+  const routerOptions = {
+    routeNames: ['MainTabs', 'Channel'],
+    routeParamList: {},
+    routeGetIdList: {},
+  };
+  const stackWithChannel = () =>
+    ({
+      stale: false,
+      type: 'stack',
+      key: 'stack-1',
+      index: 1,
+      routeNames: ['MainTabs', 'Channel'],
+      preloadedRoutes: [],
+      routes: [
+        { key: 'MainTabs-1', name: 'MainTabs', params: { screen: 'ChatList' } },
+        { key: 'Channel-1', name: 'Channel', params: { channelId: 'c1' } },
+      ],
+    }) as Parameters<ReturnType<typeof StackRouter>['getStateForAction']>[0];
+
+  // A NAVIGATE that does not pop only reuses the *focused* route, so choosing
+  // a section from a pushed screen would leave a second MainTabs — and a
+  // second copy of every section screen — on the stack.
+  test('returns to the MainTabs already on the stack instead of pushing another', () => {
+    const next = router.getStateForAction(
+      stackWithChannel(),
+      getTopLevelTabNavigateAction('Activity'),
+      routerOptions
+    );
+
+    expect(next?.routes.map((route) => route.name)).toEqual(['MainTabs']);
+    expect(next?.index).toBe(0);
+    expect(next?.routes[0].key).toBe('MainTabs-1');
+    expect(next?.routes[0].params).toMatchObject({ screen: 'Activity' });
+  });
+});
+
+describe('getActiveTopLevelTab', () => {
+  const stack = (routes: RouteSnapshot[], index = 0) => ({ index, routes });
+  const mainTabs = (section: string) => ({
+    name: 'MainTabs',
+    state: { index: 0, routes: [{ name: section }] },
+  });
+
+  test('names the section MainTabs is showing', () => {
+    expect(getActiveTopLevelTab(stack([mainTabs('Activity')]))).toBe(
+      'Activity'
+    );
+  });
+
+  test('still names it with a screen pushed above, which is a position within it', () => {
+    expect(
+      getActiveTopLevelTab(
+        stack([mainTabs('ChatList'), { name: 'Channel' }], 1)
+      )
+    ).toBe('ChatList');
+  });
+
+  test('names nothing before the stack has built MainTabs', () => {
+    expect(getActiveTopLevelTab(undefined)).toBeNull();
+    expect(
+      getActiveTopLevelTab(stack([{ name: 'OnboardingStartup' }]))
+    ).toBeNull();
+    expect(getActiveTopLevelTab(stack([{ name: 'MainTabs' }]))).toBeNull();
+  });
+
+  test('names nothing for a section this build does not have', () => {
+    expect(getActiveTopLevelTab(stack([mainTabs('Retired')]))).toBeNull();
+  });
+});
+
+describe('getInitialTopLevelTab', () => {
+  test('starts on the bot when the account has one, the list otherwise', () => {
+    expect(getInitialTopLevelTab(true)).toBe('BotChat');
+    expect(getInitialTopLevelTab(false)).toBe('ChatList');
   });
 });
 

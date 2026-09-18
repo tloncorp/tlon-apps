@@ -11,7 +11,8 @@ import {
 const NOW = 1_700_000_000_000;
 const SHIP = '~bosser-hatber';
 
-function mainTabsState(overrides: object = {}) {
+// The root stack, which is the position these cases are really about.
+function stackState(overrides: object = {}) {
   return {
     index: 0,
     routes: [
@@ -25,6 +26,25 @@ function mainTabsState(overrides: object = {}) {
     ],
     ...overrides,
   };
+}
+
+// What the container actually holds: the top-level drawer, whose one screen is
+// that stack. Every entry point here is handed this whole state.
+function drawerState(stack: object) {
+  return { index: 0, routes: [{ name: 'Main', state: stack }] };
+}
+
+function mainTabsState(overrides: object = {}) {
+  return drawerState(stackState(overrides));
+}
+
+// The save side is given the container state; these cases assert on the stack
+// inside it, so unwrap the drawer level again after sanitizing.
+function sanitizeStack(stack: object) {
+  const position = sanitizeNavigationStateForPersistence(
+    drawerState(stack)
+  ) as any;
+  return position?.routes[0].state ?? null;
 }
 
 function saved(
@@ -41,11 +61,18 @@ describe('isPersistableNavigationState', () => {
   });
 
   it('accepts a MainTabs root with screens pushed on top', () => {
-    const state = {
+    const state = drawerState({
       index: 1,
       routes: [{ name: 'MainTabs' }, { name: 'ChannelRoot' }],
-    };
+    });
     expect(isPersistableNavigationState(state)).toBe(true);
+  });
+
+  // A position written before the drawer existed is rooted at the stack. It
+  // cannot be rehydrated into this tree, and accepting it would leave the
+  // session marked restored with nothing restored.
+  it('refuses a position saved without the drawer level', () => {
+    expect(isPersistableNavigationState(stackState())).toBe(false);
   });
 
   it('refuses a stack rooted at OnboardingStartup', () => {
@@ -64,7 +91,7 @@ describe('isPersistableNavigationState', () => {
 describe('sanitizeNavigationStateForPersistence', () => {
   it('returns null for a state not worth saving', () => {
     const onboarding = { index: 0, routes: [{ name: 'OnboardingStartup' }] };
-    expect(sanitizeNavigationStateForPersistence(onboarding)).toBeNull();
+    expect(sanitizeStack(onboarding)).toBeNull();
     expect(sanitizeNavigationStateForPersistence(undefined)).toBeNull();
   });
 
@@ -89,7 +116,7 @@ describe('sanitizeNavigationStateForPersistence', () => {
         },
       ],
     };
-    const clean = sanitizeNavigationStateForPersistence(state) as any;
+    const clean = sanitizeStack(state);
     expect(clean.routes[0].state.routes[0].params).toEqual({});
   });
 
@@ -108,7 +135,7 @@ describe('sanitizeNavigationStateForPersistence', () => {
         },
       ],
     };
-    const clean = sanitizeNavigationStateForPersistence(state) as any;
+    const clean = sanitizeStack(state);
     expect(clean.routes[1].params).toEqual({ channelId: 'chat/~zod/hello' });
     expect(clean.index).toBe(1);
   });
@@ -122,7 +149,7 @@ describe('sanitizeNavigationStateForPersistence', () => {
         { name: 'MediaViewer', params: { uri: 'https://example.com/a.png' } },
       ],
     };
-    const clean = sanitizeNavigationStateForPersistence(state) as any;
+    const clean = sanitizeStack(state);
     expect(clean.routes.map((r: any) => r.name)).toEqual([
       'MainTabs',
       'ChannelRoot',
@@ -139,13 +166,13 @@ describe('sanitizeNavigationStateForPersistence', () => {
         { name: 'ChannelRoot' },
       ],
     };
-    const clean = sanitizeNavigationStateForPersistence(state) as any;
+    const clean = sanitizeStack(state);
     expect(clean.routes).toHaveLength(3);
   });
 
   it('never trims away the root', () => {
     const state = { index: 0, routes: [{ name: 'MainTabs' }] };
-    const clean = sanitizeNavigationStateForPersistence(state) as any;
+    const clean = sanitizeStack(state);
     expect(clean.routes).toHaveLength(1);
     expect(clean.index).toBe(0);
   });
@@ -166,7 +193,7 @@ describe('sanitizeNavigationStateForPersistence', () => {
         },
       ],
     };
-    const clean = sanitizeNavigationStateForPersistence(state) as any;
+    const clean = sanitizeStack(state);
     expect(clean.routes[0].params).toEqual({
       screen: 'ChatList',
       params: { someTabParam: 'keep' },
@@ -189,7 +216,7 @@ describe('sanitizeNavigationStateForPersistence', () => {
         },
       ],
     };
-    const clean = sanitizeNavigationStateForPersistence(state) as any;
+    const clean = sanitizeStack(state);
     expect(clean.routes.map((r: any) => r.name)).toEqual([
       'MainTabs',
       'GroupSettings',
@@ -202,7 +229,7 @@ describe('sanitizeNavigationStateForPersistence', () => {
       index: 0,
       routes: [{ name: 'MainTabs', params: { onSave: () => {} } }],
     };
-    expect(sanitizeNavigationStateForPersistence(state)).toBeNull();
+    expect(sanitizeStack(state)).toBeNull();
   });
 
   it('survives a JSON round trip, which is how it is actually stored', () => {
@@ -219,7 +246,7 @@ describe('sanitizeNavigationStateForPersistence', () => {
         },
       ],
     };
-    const clean = sanitizeNavigationStateForPersistence(state);
+    const clean = sanitizeStack(state);
     expect(JSON.parse(JSON.stringify(clean))).toEqual(clean);
   });
 });
@@ -230,7 +257,7 @@ describe('getFocusedTopLevelTab', () => {
   });
 
   it('names the bot tab, which rehydration drops while its flag loads', () => {
-    const state = {
+    const stack = {
       index: 0,
       routes: [
         {
@@ -239,11 +266,11 @@ describe('getFocusedTopLevelTab', () => {
         },
       ],
     };
-    expect(getFocusedTopLevelTab(state)).toBe('BotChat');
+    expect(getFocusedTopLevelTab(drawerState(stack))).toBe('BotChat');
   });
 
   it('names no tab when the position is deeper than the tab navigator', () => {
-    const state = {
+    const stack = {
       index: 1,
       routes: [
         {
@@ -253,15 +280,22 @@ describe('getFocusedTopLevelTab', () => {
         { name: 'ChannelRoot' },
       ],
     };
-    expect(getFocusedTopLevelTab(state)).toBeNull();
+    expect(getFocusedTopLevelTab(drawerState(stack))).toBeNull();
   });
 
   it('names no tab for malformed input', () => {
     expect(getFocusedTopLevelTab(undefined)).toBeNull();
     expect(getFocusedTopLevelTab({})).toBeNull();
     expect(
-      getFocusedTopLevelTab({ index: 0, routes: [{ name: 'MainTabs' }] })
+      getFocusedTopLevelTab(
+        drawerState({ index: 0, routes: [{ name: 'MainTabs' }] })
+      )
     ).toBeNull();
+  });
+
+  // A position saved before the drawer existed is rooted at the stack itself.
+  it('names no tab for a position saved without the drawer level', () => {
+    expect(getFocusedTopLevelTab(stackState())).toBeNull();
   });
 });
 
@@ -371,7 +405,8 @@ describe('isRestorableNavigationState', () => {
   });
 
   it('round-trips what the save side actually writes', () => {
-    const live = {
+    // The whole container state, which is what `onStateChange` hands over.
+    const live = drawerState({
       index: 1,
       routes: [
         {
@@ -380,7 +415,7 @@ describe('isRestorableNavigationState', () => {
         },
         { name: 'ChannelRoot', params: { channelId: 'x', startDraft: true } },
       ],
-    };
+    });
     const position = sanitizeNavigationStateForPersistence(live);
     expect(isRestorableNavigationState(saved(position), NOW, SHIP)).toBe(true);
   });

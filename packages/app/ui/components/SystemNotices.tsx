@@ -17,7 +17,7 @@ import { View, XStack, YStack, isWeb, styled } from 'tamagui';
 import { useContactPermissions } from '../../hooks/useContactPermissions';
 import { useNag } from '../../hooks/useNag';
 import { useNotificationPermissions } from '../../lib/notifications';
-import { useTopLevelTabBarContentInset } from '../../navigation/useTopLevelTabBarContentInset';
+import { useTopLevelContentInset } from '../../navigation/useTopLevelContentInset';
 
 const logger = createDevLogger('SystemNotices', false);
 
@@ -290,10 +290,10 @@ export function NotificationsPromptView({
   onPrimaryAction: () => void;
   presentation?: SystemNoticePresentation;
 }) {
-  // Both platforms' tab bars float over screen content, so the notice has to
-  // clear the bar itself — otherwise its actions land under it and stop
-  // receiving touches. The hook returns plain spacing off the tab screens.
-  const bottomContentInset = useTopLevelTabBarContentInset();
+  // The notice floats over screen content against the bottom edge, so it
+  // reserves the safe area itself rather than landing under the home
+  // indicator. The hook returns plain spacing off the top-level sections.
+  const bottomContentInset = useTopLevelContentInset();
   const presentation = useSystemNoticePresentation(
     presentationOverride,
     'expanded'

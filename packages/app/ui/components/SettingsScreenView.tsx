@@ -3,7 +3,8 @@ import { Fragment, ReactElement, ReactNode } from 'react';
 import { Alert } from 'react-native';
 import { View, YStack, isWeb } from 'tamagui';
 
-import { useTopLevelTabBarContentInset } from '../../navigation/useTopLevelTabBarContentInset';
+import { useTopLevelDrawerToggleAction } from '../../navigation/useTopLevelDrawerToggle';
+import { useTopLevelScrollViewContentInset } from '../../navigation/useTopLevelContentInset';
 import { ContactName } from './ContactNameV2';
 import { ListItem } from './ListItem';
 import { ScreenHeader } from './ScreenHeader';
@@ -76,9 +77,8 @@ export function SettingsScreenView(props: Props) {
 
   const isWindowNarrow = useIsWindowNarrow();
 
-  // Settings is a top-level tab now, so its last rows must clear the bar
-  // that floats over the bottom of the screen, as the Workspaces list does.
-  const bottomContentInset = useTopLevelTabBarContentInset();
+  const drawerToggle = useTopLevelDrawerToggleAction();
+  const bottomContentInset = useTopLevelScrollViewContentInset();
 
   // Rows the mockup names come first; the rest of the app's settings continue
   // the same section rather than moving somewhere less reachable.
@@ -249,6 +249,7 @@ export function SettingsScreenView(props: Props) {
     <>
       <ScreenHeader
         title="Settings"
+        leftActions={drawerToggle ? [drawerToggle] : undefined}
         backAction={props.onBackPressed}
         borderBottom={isWindowNarrow}
         placement="navigation"

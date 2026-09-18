@@ -48,7 +48,7 @@ import { useAgentGroupOnboardingStartupRoute } from '../hooks/useAgentGroupOnboa
 import { useTheme } from '../ui';
 import { GroupSettingsStack } from './GroupSettingsStack';
 import { OnboardingStartupScreen } from './OnboardingStartupScreen';
-import { TopLevelTabNavigator } from './TopLevelTabNavigator';
+import { TopLevelNavigator } from './TopLevelNavigator';
 import { nativeHeaderPresentationOptions } from './nativeHeaderOptions';
 import type { RootStackParamList } from './types';
 import { mediaViewerScreenOptions } from './utils';
@@ -96,10 +96,10 @@ export function RootStack() {
           options={{ animation: 'none', gestureEnabled: false }}
         />
       ) : null}
-      {/* top level tabs */}
+      {/* top level sections */}
       <Root.Screen
         name="MainTabs"
-        component={TopLevelTabNavigator}
+        component={TopLevelNavigator}
         options={{
           ...nativeHeaderScreenOptions,
           animation: 'none',

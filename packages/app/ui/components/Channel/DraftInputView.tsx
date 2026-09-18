@@ -21,22 +21,17 @@ import {
   useConversationScrollViewNativeID,
 } from '../../contexts/scroll';
 import { ScrollEdgeElementContainer } from '../ScrollEdgeElementContainer';
-import {
-  floatingScrollControlClearance,
-  unobscuredConversationBottomGap,
-} from '../conversationScrollChrome';
+import { floatingScrollControlClearance } from '../conversationScrollChrome';
 import { DraftInputContext } from '../draftInputs';
 import { DraftInputContextProvider } from '../draftInputs/shared';
 
 export function DraftInputView({
   draftInputContext,
   type,
-  bottomChromeClearance,
   onFloatingHeightChange,
 }: {
   draftInputContext: DraftInputContext;
   type: DraftInputId;
-  bottomChromeClearance?: number;
   onFloatingHeightChange?: (height: number) => void;
 }) {
   const { inputs } = useComponentsKitContext();
@@ -52,7 +47,6 @@ export function DraftInputView({
     return (
       <ConversationComposerPlacement
         enabled={type === DraftInputId.chat}
-        bottomChromeClearance={bottomChromeClearance}
         onFloatingHeightChange={onFloatingHeightChange}
       >
         {input}
@@ -109,36 +103,22 @@ export function ConversationComposerPlacement({
   children,
   enabled,
   avoidKeyboard = false,
-  bottomChromeClearance = 0,
   onFloatingHeightChange,
   contentProps,
   inlineID,
 }: PropsWithChildren<{
   enabled: boolean;
   avoidKeyboard?: boolean;
-  /**
-   * Band occluded by chrome below the composer — the top-level tab bar. Its
-   * band already covers the home indicator, so clear the larger of the two
-   * rather than stacking them.
-   */
-  bottomChromeClearance?: number;
   onFloatingHeightChange?: (height: number) => void;
   contentProps?: ComponentProps<typeof View>;
   inlineID?: string;
 }>) {
   const insets = useSafeAreaInsets();
-  const composerBottomInset = bottomChromeClearance
-    ? Math.max(
-        insets.bottom,
-        bottomChromeClearance + unobscuredConversationBottomGap
-      )
-    : insets.bottom;
-  // Padding and the sticky view's offset have to agree, so both stay constant —
-  // changing them on keyboard visibility jumps the composer mid-animation. The
-  // sticky view cancels this padding to sit on the keyboard's edge, so that much
-  // of the measured height stops occupying the list; the list interpolates it
-  // away on keyboard progress instead.
-  const collapsibleInset = composerBottomInset - insets.bottom;
+  // Nothing sits between the composer and the window's bottom edge now that
+  // the top-level sections are reached from a drawer, so the home indicator is
+  // the whole of the inset — and none of it collapses when the keyboard opens,
+  // which is what every pushed channel already did.
+  const composerBottomInset = insets.bottom;
   const theme = useTheme();
   const scrollViewNativeID = useConversationScrollViewNativeID();
   const scrollToBottomControl = useConversationScrollToBottomControl();
@@ -186,7 +166,7 @@ export function ConversationComposerPlacement({
             // Feed the list's Reanimated content inset before publishing the
             // React geometry used by surrounding controls. The scroll view can
             // then adjust its inset and offset in one native commit.
-            reportConversationComposerHeight(height, collapsibleInset);
+            reportConversationComposerHeight(height, 0);
             onFloatingHeightChange?.(height);
           }}
         >

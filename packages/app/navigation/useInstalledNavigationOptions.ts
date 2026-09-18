@@ -8,10 +8,13 @@ export function useInstalledNavigationOptions(
   enabled = true,
   resetOptions?: object
 ) {
-  const isTabScreen = navigation?.getState().type === 'tab';
-  // Top-level tabs share the root stack's navigation bar with pushed screens.
-  // Installing on the parent keeps one native header alive for the transition.
-  const optionsNavigation = isTabScreen ? navigation?.getParent() : navigation;
+  const isTopLevelSection = navigation?.getState().type === 'tab';
+  // The top-level sections share the root stack's navigation bar with pushed
+  // screens. Installing on the parent keeps one native header alive for the
+  // transition.
+  const optionsNavigation = isTopLevelSection
+    ? navigation?.getParent()
+    : navigation;
 
   useLayoutEffect(() => {
     if (!enabled || !optionsNavigation) {
@@ -19,16 +22,16 @@ export function useInstalledNavigationOptions(
     }
 
     const installOptions = () => optionsNavigation.setOptions(options);
-    if (!isTabScreen || navigation?.isFocused()) {
+    if (!isTopLevelSection || navigation?.isFocused()) {
       installOptions();
     }
 
-    // Native tabs remain mounted after their first visit, so restore each
-    // tab's options when it becomes active instead of letting a stale tab win.
-    if (isTabScreen && navigation) {
+    // Sections stay mounted after their first visit, so restore each section's
+    // options when it becomes active instead of letting a stale one win.
+    if (isTopLevelSection && navigation) {
       return navigation.addListener('focus', installOptions);
     }
-  }, [enabled, isTabScreen, navigation, options, optionsNavigation]);
+  }, [enabled, isTopLevelSection, navigation, options, optionsNavigation]);
 
   useLayoutEffect(() => {
     if (!enabled || !navigation || !optionsNavigation || !resetOptions) {
