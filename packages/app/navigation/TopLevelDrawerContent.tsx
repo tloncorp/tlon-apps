@@ -31,10 +31,15 @@ import {
   getActiveTopLevelTab,
   getInitialTopLevelTab,
   getTopLevelTabNavigateAction,
+  getTopLevelTabRoute,
   isTabPressBlockedByOnboardingLock,
   trackTopLevelTabSelection,
 } from './topLevelTabs';
-import { useRootNavigation } from './utils';
+import {
+  getMainGroupRoute,
+  screenNameFromChannelId,
+  useTypedReset,
+} from './utils';
 
 const logger = createDevLogger('TopLevelDrawerContent', false);
 
@@ -362,7 +367,7 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
   const insets = useSafeAreaInsets();
   const botDm = useBotDmTab();
   const { disableNicknames } = useCalm();
-  const { resetToGroup, resetToChannel } = useRootNavigation();
+  const reset = useTypedReset();
   // What each target marks: the bot DM marks its own control, so one message
   // never lights both it and Activity.
   const botDmHasUnread = store.useChannelHasUnread(
@@ -420,7 +425,7 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
   );
 
   const openChat = useCallback(
-    (chat: db.Chat) => {
+    async (chat: db.Chat) => {
       if (chatsLocked) {
         return;
       }
@@ -447,23 +452,35 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
       // These rows are the workspace list's chats, so what they open is a
       // position inside Workspaces however the drawer was reached — otherwise
       // it is pushed above whichever section happened to be showing and stays
-      // attributed to it, and backing out returns there.
+      // attributed to it, and backing out returns there. Resetting to the
+      // section and the chat together keeps that one dispatch: selecting the
+      // section first and then navigating would show the workspace list in
+      // between, because the group route has to read the group before it knows
+      // whether to open its channel list or its only channel.
       //
-      // Both of these reset to that position and the chat together, in one
-      // dispatch. Selecting the section first and then navigating would show
-      // the workspace list in between, because the group route has to read the
-      // group before it knows whether to open its channel list or its only
-      // channel — long enough to see.
-      if (chat.type === 'group') {
-        resetToGroup(chat.group.id);
-      } else {
-        resetToChannel(chat.channel.id, {
-          groupId: chat.channel.groupId ?? undefined,
-        });
-      }
+      // The routes are the mobile tree's, named here rather than taken from
+      // `useRootNavigation`, whose resets choose between the two trees on
+      // window width. This drawer only exists in the mobile tree — a phone in
+      // landscape or a tablet is still it — so width is the wrong question and
+      // would answer with `Home` and `Messages`, which this stack does not
+      // have.
+      reset([
+        getTopLevelTabRoute('ChatList'),
+        chat.type === 'group'
+          ? await getMainGroupRoute(chat.group.id, true)
+          : {
+              name: screenNameFromChannelId(chat.channel.id),
+              params: {
+                channelId: chat.channel.id,
+                ...(chat.channel.groupId
+                  ? { groupId: chat.channel.groupId }
+                  : {}),
+              },
+            },
+      ]);
       navigation.closeDrawer();
     },
-    [chatsLocked, navigation, resetToChannel, resetToGroup]
+    [chatsLocked, navigation, reset]
   );
 
   const hasUnread: Partial<Record<TopLevelTabName, boolean>> = {
