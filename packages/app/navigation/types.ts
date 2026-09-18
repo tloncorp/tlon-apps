@@ -13,6 +13,7 @@ export type TopLevelTabParamList = {
 };
 
 export type RootStackParamList = {
+  BrowserCredentialHandoff: BrowserCredentialHandoffParams;
   MainTabs: NavigatorScreenParams<TopLevelTabParamList> | undefined;
   OnboardingStartup: {
     channelId: string;
@@ -165,6 +166,19 @@ export type RootDrawerParamList = {
   Messages: NavigatorScreenParams<HomeDrawerParamList>;
 } & Pick<TopLevelTabParamList, 'Activity' | 'Contacts'> &
   Pick<RootStackParamList, 'Settings'>;
+
+export type BrowserCredentialHandoffParams = {
+  handoffId: string;
+};
+
+export type MobileBasePathStackParamList = {
+  Root: NavigatorScreenParams<RootStackParamList>;
+};
+
+export type DesktopBasePathStackParamList = {
+  Root: NavigatorScreenParams<RootDrawerParamList>;
+  BrowserCredentialHandoff: BrowserCredentialHandoffParams;
+};
 
 // hack: adding the true contacts types causes lots of tsc failures that need
 // resolving. Added to support navigating deeply within the contacts drawer
