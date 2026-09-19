@@ -3,6 +3,8 @@ import { useMemo } from 'react';
 import { useWindowDimensions } from 'react-native';
 import { useTheme } from 'tamagui';
 
+import { drawerOwnsEdge } from './drawerDestination';
+
 // Wide enough for a section label at a comfortable reading size, narrow enough
 // to leave a strip of the app visible beside it.
 const MAX_DRAWER_WIDTH = 320;
@@ -14,19 +16,30 @@ const DRAWER_SWIPE_EDGE_WIDTH = 44;
 /**
  * Whether the edge swipe should open the drawer, given the stack's state.
  *
- * Only at the stack's root. Deeper than that the same edge belongs to the
- * back gesture — iOS's interactive pop, Android's system back — and a drawer
- * that also claimed it would leave which one you get down to gesture
- * arbitration.
+ * At the stack's root, and on a conversation sitting directly on it — see
+ * `drawerOwnsEdge`, which is the same question asked of one route. Those
+ * screens carry the drawer button instead of a back caret, and the gesture has
+ * to agree with the button above it: swiping where the header offers no way
+ * back was popping to the section behind, which is a screen the user never
+ * chose to return to.
+ *
+ * Anywhere else the same edge belongs to the back gesture — iOS's interactive
+ * pop, Android's system back — and a drawer that also claimed it would leave
+ * which one you get down to gesture arbitration. `useDrawerEdgeGesture` turns
+ * the pop gesture off on exactly the routes this claims, so only ever one of
+ * the two is listening.
  */
-export function isTopLevelDrawerSwipeTarget(route: object | undefined) {
-  // A route carries its child navigator's state at runtime, but `RouteProp`
-  // does not declare it. Index 0 is the stack sitting on `MainTabs` with
-  // nothing pushed above it; an absent state is a stack that has not built
-  // itself yet, which is the same position.
-  const stackState = (route as { state?: { index?: number } } | undefined)
-    ?.state;
-  return (stackState?.index ?? 0) === 0;
+export function isTopLevelDrawerSwipeTarget(
+  stackState: { index?: number; routes?: ReadonlyArray<object> } | undefined
+) {
+  // Index 0 is the stack sitting on `MainTabs` with nothing pushed above it;
+  // an absent state is a stack that has not built itself yet, which is the
+  // same position.
+  const index = stackState?.index ?? 0;
+  if (index === 0) {
+    return true;
+  }
+  return drawerOwnsEdge(stackState);
 }
 
 export function getTopLevelDrawerWidth(windowWidth: number) {

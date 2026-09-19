@@ -30,6 +30,7 @@ import {
   isActivityBackTarget,
   screenNameFromChannelId,
 } from './routeHelpers';
+import { carriedConversationParams } from './drawerDestination';
 import { getTopLevelTabRoute } from './topLevelTabs';
 import { CombinedParamList, RootStackParamList } from './types';
 
@@ -359,29 +360,24 @@ export function useNavigateBackFromPost() {
       if (isMobileTree) {
         const screenName = screenNameFromChannelId(channel.id);
         // `popTo` overwrites the matched route's params, so anything that route
-        // was carrying has to be carried back. `isDrawerDestination` says the
-        // screen stands on its own rather than sitting over a channel list;
-        // dropped here, its header turns back into a caret on the first return
-        // from a post.
+        // was carrying has to be carried back — see
+        // `carriedConversationParams` for what and why.
         //
         // Read from the *nearest* match, which is the one `popTo` will land
         // on. With more than one `Channel` in the stack, the first would be an
-        // older, unrelated one and its marker would be copied onto this route
+        // older, unrelated one and its markers would be copied onto this route
         // or withheld from it.
         const stackRoutes = navigation.getState()?.routes ?? [];
         const matched = [...stackRoutes]
           .reverse()
           .find((route) => route.name === screenName);
-        const isDrawerDestination = (
-          matched?.params as { isDrawerDestination?: boolean } | undefined
-        )?.isDrawerDestination;
         const params = {
           channelId: channel.id,
           // we don't want to highlight the selected post we're returning from
           // if we aren't in a chat
           selectedPostId: isChatShaped ? postId : undefined,
           ...(channel.groupId ? { groupId: channel.groupId } : {}),
-          ...(isDrawerDestination ? { isDrawerDestination: true } : {}),
+          ...carriedConversationParams(matched?.params),
         };
         // popTo pops back to the target channel if it's already in the stack
         // (the normal in-channel thread case), or replaces the focused Post in

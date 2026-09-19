@@ -4,7 +4,7 @@ import * as api from '@tloncorp/api';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { BackHandler } from 'react-native';
 
 import { useAgentGroupOnboardingLock } from '../../hooks/useAgentGroupOnboardingLock';
@@ -43,9 +43,6 @@ export function useAgentOnboardingChannel({
   /** Group id passed on the route, available before records load. */
   routeGroupId?: string;
 }) {
-  const navigationRef = useRef(navigation);
-  navigationRef.current = navigation;
-
   const onboardingLanding = db.agentOnboardingLanding.useValue();
   const resetNavigation = useMemo(
     () => createTypedReset(navigation),
@@ -154,11 +151,12 @@ export function useAgentOnboardingChannel({
     latestChannelSequenceNum,
   ]);
 
-  useEffect(() => {
-    navigationRef.current.setOptions({
-      gestureEnabled: !navigationLocked,
-    });
-  }, [navigationLocked]);
+  // `navigationLocked` is returned rather than applied here. `setOptions` is
+  // last-write-wins across a screen's effects, and this one ran after the
+  // drawer's and re-enabled the pop gesture it had just turned off, leaving
+  // both that and the drawer's swipe on the same edge. `useDrawerEdgeGesture`
+  // is the one writer of `gestureEnabled` for these screens and takes the lock
+  // as an argument.
 
   useFocusEffect(
     useCallback(() => {

@@ -168,6 +168,24 @@ const ListItemTime = ListItemTimeText.styleable<{
   }
 );
 
+/**
+ * How a row says what kind of unread it is holding.
+ *
+ * Two kinds, and the difference is worth seeing at a glance: activity that
+ * asked for the user by name — a mention, a reply, a DM — reads in the accent,
+ * and everything else that is merely unread reads in the same grey as the rest
+ * of a row's secondary text. Shared so that a row showing this as a count and
+ * a row showing it as a dot cannot drift apart on which colour means which.
+ */
+export function getUnreadColors(notified: boolean): {
+  foreground: ColorTokens;
+  background: ColorTokens;
+} {
+  return notified
+    ? { foreground: '$positiveActionText', background: '$positiveBackground' }
+    : { foreground: '$secondaryText', background: '$secondaryBackground' };
+}
+
 const ListItemCount = ({
   notified,
   muted,
@@ -180,12 +198,8 @@ const ListItemCount = ({
   count: number;
   opacity?: number;
 } & ComponentProps<typeof View>) => {
-  const foregroundColor: ColorTokens = notified
-    ? '$positiveActionText'
-    : '$secondaryText';
-  const backgroundColor: ColorTokens = notified
-    ? '$positiveBackground'
-    : '$secondaryBackground';
+  const { foreground: foregroundColor, background: backgroundColor } =
+    getUnreadColors(notified);
   const resolvedBackgroundColor = count < 1 ? undefined : backgroundColor;
   return (
     <View
