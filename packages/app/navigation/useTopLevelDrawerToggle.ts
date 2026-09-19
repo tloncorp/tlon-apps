@@ -9,16 +9,22 @@ import type { ScreenHeaderAction } from '../ui/components/ScreenHeader';
  * its back button in that slot instead, and the sections are the only tab
  * screens in either tree.
  *
+ * `onPushedScreen` is for the exception: a conversation the app enters in its
+ * own right has nothing behind it worth a caret, so it claims the slot despite
+ * being pushed.
+ *
  * The drawer sits above the whole root stack, so the action is dispatched
  * rather than called on a drawer navigation object: it travels up from the
- * section to the navigator that owns the drawer.
+ * screen to the navigator that owns the drawer.
  */
-export function useTopLevelDrawerToggleAction(): ScreenHeaderAction | null {
+export function useTopLevelDrawerToggleAction({
+  onPushedScreen = false,
+}: { onPushedScreen?: boolean } = {}): ScreenHeaderAction | null {
   const navigation = useContext(NavigationContext);
   const isTopLevelSection = navigation?.getState().type === 'tab';
 
   return useMemo(() => {
-    if (!isTopLevelSection || !navigation) {
+    if ((!isTopLevelSection && !onPushedScreen) || !navigation) {
       return null;
     }
     return {
@@ -28,5 +34,5 @@ export function useTopLevelDrawerToggleAction(): ScreenHeaderAction | null {
       testID: 'TopLevelDrawerToggle',
       onPress: () => navigation.dispatch(DrawerActions.openDrawer()),
     };
-  }, [isTopLevelSection, navigation]);
+  }, [isTopLevelSection, navigation, onPushedScreen]);
 }

@@ -30,6 +30,7 @@ import type {
   ChannelScreenParamList,
   RootStackParamList,
 } from '../../navigation/types';
+import { isDrawerDestinationRoute } from '../../navigation/drawerDestination';
 import { useRootNavigation } from '../../navigation/utils';
 import {
   AttachmentProvider,
@@ -78,6 +79,9 @@ export default function ChannelScreen(props: Props) {
   // The bot tab renders this screen directly, where there is nothing to go
   // back to and no stack of its own to push onto.
   const isTabRoot = props.route.name === 'BotChat';
+  // A DM or a one-channel group stands on its own: the drawer button takes the
+  // slot a back caret would, and the edge that would pop it opens the drawer.
+  const isConversationRoot = isDrawerDestinationRoute(props.route);
   const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
 
   useEffect(() => {
@@ -614,6 +618,7 @@ export default function ChannelScreen(props: Props) {
           }
           goBack={navigationRef.current.goBack}
           isTopLevelTab={isTabRoot}
+          isConversationRoot={isConversationRoot}
           disableBackButton={agentOnboardingNavigationLocked}
           onPressLogout={agentOnboarding.locked ? handleLogout : undefined}
           suppressEmptyState={agentGroupSetupActive}

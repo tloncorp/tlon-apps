@@ -148,6 +148,7 @@ export function ChannelHeader({
   preferProvidedTitle = false,
   post,
   isTopLevelTab = false,
+  isConversationRoot = false,
 }: {
   title: string;
   titleIcon?: React.ReactNode;
@@ -173,12 +174,19 @@ export function ChannelHeader({
   post?: db.Post;
   /** Rendered as the Bot tab's root, rather than pushed onto the stack. */
   isTopLevelTab?: boolean;
+  /**
+   * A conversation the app enters in its own right — a DM, or a one-channel
+   * group — so the slot a caret would take carries the drawer button instead.
+   */
+  isConversationRoot?: boolean;
 }) {
   const connectionStatus = useConnectionStatus();
   const chatTitle = useChatTitle(channel, group);
   const chatDescription = useChatDescription(channel, group);
   const currentUserId = useCurrentUserId();
-  const topLevelDrawerToggle = useTopLevelDrawerToggleAction();
+  const topLevelDrawerToggle = useTopLevelDrawerToggleAction({
+    onPushedScreen: isConversationRoot,
+  });
 
   // Get contact info for 1:1 DMs - only fetch when we have a valid contact ID
   const dmContactId = channel.type === 'dm' ? channel.contactId : null;
@@ -414,9 +422,13 @@ export function ChannelHeader({
     useHorizontalTitleLayout: !isWindowNarrow,
   };
   // The Bot section has no caret — it is a root, not something pushed — so
-  // the drawer button takes that slot, as it does on every other section.
+  // the drawer button takes that slot, as it does on every other section. A
+  // DM or a one-channel group is pushed, but there is no channel list or
+  // section behind it that a caret would mean anything about, so it takes the
+  // slot the same way.
+  const showsDrawerToggle = isTopLevelTab || isConversationRoot;
   const leftActions: ScreenHeaderAction[] =
-    isTopLevelTab && topLevelDrawerToggle ? [topLevelDrawerToggle] : [];
+    showsDrawerToggle && topLevelDrawerToggle ? [topLevelDrawerToggle] : [];
   const rightActions: ScreenHeaderAction[] = [
     {
       id: 'channel-search',
@@ -474,7 +486,7 @@ export function ChannelHeader({
       <ScreenHeader
         {...headerProps}
         placement="navigation"
-        backAction={goBack}
+        backAction={showsDrawerToggle ? undefined : goBack}
         backDisabled={backDisabled}
         leftActions={leftActions}
         rightActions={rightActions}
@@ -485,7 +497,7 @@ export function ChannelHeader({
   return (
     <ScreenHeader
       {...headerProps}
-      backAction={goBack}
+      backAction={showsDrawerToggle ? undefined : goBack}
       backDisabled={backDisabled}
       leftActions={leftActions}
       rightActions={rightActions}

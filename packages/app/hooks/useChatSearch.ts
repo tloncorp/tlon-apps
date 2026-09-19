@@ -1,10 +1,9 @@
-import { configurationFromChannel } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import Fuse from 'fuse.js';
 import { debounce } from 'lodash';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
-import { getChannelTitle, getGroupTitle } from '../ui/utils/channelUtils';
+import { getChatTitle, getGroupTitle } from '../ui/utils/channelUtils';
 import {
   ChatSearchCandidate,
   ChatSearchFuzzyScore,
@@ -51,19 +50,6 @@ function buildChatSearchDoc<TChat extends db.Chat>(
     combined: `${title} ${groupTitle} ${id}`.trim(),
     timestamp: chat.timestamp,
   };
-}
-
-function getChatTitle(chat: db.Chat, disableNicknames: boolean): string {
-  if (chat.type === 'channel') {
-    return getChannelTitle({
-      ...configurationFromChannel(chat.channel),
-      channelTitle: chat.channel.title,
-      members: chat.channel.members,
-      disableNicknames,
-    });
-  }
-
-  return getGroupTitle(chat.group, disableNicknames);
 }
 
 function scoreSubstringMatch(

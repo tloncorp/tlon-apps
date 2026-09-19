@@ -25,6 +25,13 @@ export type ChannelRouteParams = {
   groupId?: string;
   selectedPostId?: string | null;
   startDraft?: boolean;
+  /**
+   * This channel was opened as a destination in its own right — it is the only
+   * channel its group has, or it was picked straight out of the drawer — so
+   * there is no channel list behind it to go back to. See
+   * `isDrawerDestinationRoute`.
+   */
+  isDrawerDestination?: boolean;
 };
 
 export type RootStackParamList = {

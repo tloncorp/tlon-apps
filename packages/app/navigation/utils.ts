@@ -70,6 +70,21 @@ export function createTypedReset<T extends Record<string, any>>(
   };
 }
 
+/**
+ * Whether the mobile navigation tree is the one mounted.
+ *
+ * The two trees hold different routes, so anything choosing between route
+ * shapes has to ask this rather than how wide the window is. On web they are
+ * the same question — `app.tsx` mounts one tree or the other on the same 768
+ * threshold `useIsWindowNarrow` reads. On native they are not: `AppDrawer` is
+ * the only tree built, at any width, so a tablet or a phone held sideways is
+ * still the mobile tree and width would answer with routes that do not exist.
+ */
+export function useIsMobileTree() {
+  const isWindowNarrow = useIsWindowNarrow();
+  return Platform.OS !== 'web' || isWindowNarrow;
+}
+
 // This is a custom hook that returns a function that resets the navigation stack
 // to the provided routes. It's useful for resetting the navigation stack to a
 // specific route or set of routes.
@@ -82,7 +97,7 @@ function useResetToChannel() {
   const navigation = useNavigation();
   const navigationRef = logic.useMutableRef(navigation);
   const reset = useTypedReset();
-  const isWindowNarrow = useIsWindowNarrow();
+  const isMobileTree = useIsMobileTree();
   const { lastOpenTab } = useGlobalSearch();
 
   return useCallback(
@@ -98,7 +113,7 @@ function useResetToChannel() {
     ) {
       const screenName = screenNameFromChannelId(channelId);
 
-      if (isWindowNarrow) {
+      if (isMobileTree) {
         const { backToGroupIndex, ...channelOptions } = options ?? {};
         reset([
           getTopLevelTabRoute('ChatList'),
@@ -130,7 +145,7 @@ function useResetToChannel() {
         reset([channelRoute]);
       }
     },
-    [isWindowNarrow, lastOpenTab, navigationRef, reset]
+    [isMobileTree, lastOpenTab, navigationRef, reset]
   );
 }
 
@@ -138,12 +153,12 @@ function useResetToPost() {
   const navigation = useNavigation();
   const navigationRef = logic.useMutableRef(navigation);
   const reset = useTypedReset();
-  const isWindowNarrow = useIsWindowNarrow();
+  const isMobileTree = useIsMobileTree();
   const { lastOpenTab } = useGlobalSearch();
 
   return useCallback(
     function resetToPost(postParams: RootStackParamList['Post']) {
-      if (isWindowNarrow) {
+      if (isMobileTree) {
         const screenName = screenNameFromChannelId(postParams.channelId);
         reset([
           getTopLevelTabRoute('ChatList'),
@@ -161,7 +176,7 @@ function useResetToPost() {
         reset([getDesktopPostRoute(tab, postParams)]);
       }
     },
-    [isWindowNarrow, lastOpenTab, navigationRef, reset]
+    [isMobileTree, lastOpenTab, navigationRef, reset]
   );
 }
 
@@ -182,10 +197,10 @@ function useResetToDm() {
 
 function useResetToGroup() {
   const reset = useTypedReset();
-  const isWindowNarrow = useIsWindowNarrow();
+  const isMobileTree = useIsMobileTree();
 
   return async function resetToGroup(groupId: string) {
-    if (isWindowNarrow) {
+    if (isMobileTree) {
       reset([
         getTopLevelTabRoute('ChatList'),
         await getMainGroupRoute(groupId, true),
@@ -208,10 +223,10 @@ function useResetToGroup() {
 
 function useResetToGroupInvite() {
   const reset = useTypedReset();
-  const isWindowNarrow = useIsWindowNarrow();
+  const isMobileTree = useIsMobileTree();
 
   return async function resetToGroupInvite(groupId: string) {
-    if (isWindowNarrow) {
+    if (isMobileTree) {
       // matches the mobile push-notification tap: chat list with the invited
       // group's preview sheet open (see groupInvitePreviewRouteStack)
       reset([
@@ -227,13 +242,13 @@ function useResetToGroupInvite() {
 }
 
 function useNavigateToChannel() {
-  const isWindowNarrow = useIsWindowNarrow();
+  const isMobileTree = useIsMobileTree();
   const navigation = useNavigation();
   const { lastOpenTab } = useGlobalSearch();
 
   return useCallback(
     (channel: db.Channel, selectedPostId?: string) => {
-      if (isWindowNarrow) {
+      if (isMobileTree) {
         const screenName = screenNameFromChannelId(channel.id);
         navigation.navigate(
           screenName,
@@ -262,12 +277,12 @@ function useNavigateToChannel() {
         navigation.navigate(channelRoute);
       }
     },
-    [isWindowNarrow, navigation, lastOpenTab]
+    [isMobileTree, navigation, lastOpenTab]
   );
 }
 
 export function useNavigateToPost() {
-  const isWindowNarrow = useIsWindowNarrow();
+  const isMobileTree = useIsMobileTree();
   const navigation = useNavigation();
   const { lastOpenTab } = useGlobalSearch();
 
@@ -287,7 +302,7 @@ export function useNavigateToPost() {
       const currentScreenIsActivity =
         getActiveTopLevelDrawerRouteName(navigation) === 'Activity';
 
-      if (!isWindowNarrow && currentScreenIsActivity) {
+      if (!isMobileTree && currentScreenIsActivity) {
         const tab = getTab(navigation, lastOpenTab);
         logger.log('navigateToPost', tab, postParams);
 
@@ -297,12 +312,12 @@ export function useNavigateToPost() {
 
       navigation.navigate('Post', postParams, { pop: true });
     },
-    [isWindowNarrow, navigation, lastOpenTab]
+    [isMobileTree, navigation, lastOpenTab]
   );
 }
 
 export function useNavigateBackFromPost() {
-  const isWindowNarrow = useIsWindowNarrow();
+  const isMobileTree = useIsMobileTree();
   const navigation = useNavigation();
 
   return useCallback(
@@ -341,14 +356,32 @@ export function useNavigateBackFromPost() {
         );
         return;
       }
-      if (isWindowNarrow) {
+      if (isMobileTree) {
         const screenName = screenNameFromChannelId(channel.id);
+        // `popTo` overwrites the matched route's params, so anything that route
+        // was carrying has to be carried back. `isDrawerDestination` says the
+        // screen stands on its own rather than sitting over a channel list;
+        // dropped here, its header turns back into a caret on the first return
+        // from a post.
+        //
+        // Read from the *nearest* match, which is the one `popTo` will land
+        // on. With more than one `Channel` in the stack, the first would be an
+        // older, unrelated one and its marker would be copied onto this route
+        // or withheld from it.
+        const stackRoutes = navigation.getState()?.routes ?? [];
+        const matched = [...stackRoutes]
+          .reverse()
+          .find((route) => route.name === screenName);
+        const isDrawerDestination = (
+          matched?.params as { isDrawerDestination?: boolean } | undefined
+        )?.isDrawerDestination;
         const params = {
           channelId: channel.id,
           // we don't want to highlight the selected post we're returning from
           // if we aren't in a chat
           selectedPostId: isChatShaped ? postId : undefined,
           ...(channel.groupId ? { groupId: channel.groupId } : {}),
+          ...(isDrawerDestination ? { isDrawerDestination: true } : {}),
         };
         // popTo pops back to the target channel if it's already in the stack
         // (the normal in-channel thread case), or replaces the focused Post in
@@ -372,7 +405,7 @@ export function useNavigateBackFromPost() {
         );
       }
     },
-    [navigation, isWindowNarrow]
+    [navigation, isMobileTree]
   );
 }
 
@@ -414,25 +447,25 @@ function getTab(
 }
 
 export function useRootNavigation() {
-  const isWindowNarrow = useIsWindowNarrow();
+  const isMobileTree = useIsMobileTree();
   const navigation = useNavigation();
   const navigationRef = logic.useMutableRef(navigation);
   const navigateToGroup = useCallback(
     async (groupId: string) => {
       navigationRef.current.navigate(
-        await getMainGroupRoute(groupId, isWindowNarrow)
+        await getMainGroupRoute(groupId, isMobileTree)
       );
     },
-    [navigationRef, isWindowNarrow]
+    [navigationRef, isMobileTree]
   );
 
   const useNavigateToChatDetails = () => {
-    const isWindowNarrow = useIsWindowNarrow();
+    const isMobileTree = useIsMobileTree();
     const { lastOpenTab } = useGlobalSearch();
 
     return useCallback(
       (chat: { type: 'group' | 'channel'; id: string; groupId?: string }) => {
-        if (isWindowNarrow) {
+        if (isMobileTree) {
           navigationRef.current.navigate(
             'ChatDetails',
             {
@@ -458,17 +491,17 @@ export function useRootNavigation() {
           );
         }
       },
-      [isWindowNarrow]
+      [isMobileTree]
     );
   };
 
   const useNavigateToChatVolume = () => {
-    const isWindowNarrow = useIsWindowNarrow();
+    const isMobileTree = useIsMobileTree();
     const { lastOpenTab } = useGlobalSearch();
 
     return useCallback(
       (chat: { type: 'group' | 'channel'; id: string; groupId?: string }) => {
-        if (isWindowNarrow) {
+        if (isMobileTree) {
           navigationRef.current.navigate(
             'ChatVolume',
             {
@@ -494,7 +527,7 @@ export function useRootNavigation() {
           );
         }
       },
-      [isWindowNarrow]
+      [isMobileTree]
     );
   };
 
@@ -503,7 +536,7 @@ export function useRootNavigation() {
   }, [navigationRef]);
 
   const navigateToBotSettings = useCallback(() => {
-    if (isWindowNarrow) {
+    if (isMobileTree) {
       navigationRef.current.navigate('BotSettings');
       return;
     }
@@ -515,7 +548,7 @@ export function useRootNavigation() {
     navigateToNestedSettings('Settings', {
       screen: 'BotSettings',
     });
-  }, [isWindowNarrow, navigationRef]);
+  }, [isMobileTree, navigationRef]);
 
   const navigateToBotMcpSettings = useCallback(
     (providerId?: string) => {
@@ -580,17 +613,17 @@ export function useRootNavigation() {
 
 export async function getMainGroupRoute(
   groupId: string,
-  isWindowNarrow: boolean
+  isMobileTree: boolean
 ) {
   // This route decision already needs the full group. Populate the same query
   // cache used by GroupChannels so its first render does not repeat the DB read
   // during the native push animation.
   const [group, lastVisitedChannelId] = await Promise.all([
     store.fetchGroup(groupId),
-    isWindowNarrow ? null : db.lastVisitedChannelId(groupId).getValue(),
+    isMobileTree ? null : db.lastVisitedChannelId(groupId).getValue(),
   ]);
 
-  if (!isWindowNarrow) {
+  if (!isMobileTree) {
     return getDesktopGroupEntryRoute(
       groupId,
       group?.channels?.map((channel) => channel.id) ?? [],
@@ -601,7 +634,13 @@ export async function getMainGroupRoute(
   if (group && group.channels && group.channels.length === 1) {
     return {
       name: 'Channel',
-      params: { channelId: group.channels[0].id, groupId },
+      // Entering the group *is* opening this channel, so the screen stands on
+      // its own rather than over a channel list.
+      params: {
+        channelId: group.channels[0].id,
+        groupId,
+        isDrawerDestination: true,
+      },
       pop: true,
     } as const;
   } else {

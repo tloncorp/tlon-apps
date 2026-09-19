@@ -43,8 +43,13 @@ export function trackTopLevelTabSelection(tab: TopLevelTabName) {
 
 export type RouteSnapshot = {
   name: string;
+  key?: string;
   params?: object;
-  state?: { index?: number; routes?: ReadonlyArray<RouteSnapshot> };
+  state?: {
+    index?: number;
+    routes?: ReadonlyArray<RouteSnapshot>;
+    history?: ReadonlyArray<unknown>;
+  };
 };
 type NavigationSnapshot =
   | { index: number; routes: ReadonlyArray<RouteSnapshot> }
@@ -141,8 +146,11 @@ export function getTopLevelTabRoute<Tab extends TopLevelTabName>(
  * second `MainTabs`, and with it a second copy of every section screen, rather
  * than returning to the one already there.
  */
-export function getTopLevelTabNavigateAction(section: TopLevelTabName) {
-  const route = getTopLevelTabRoute(section);
+export function getTopLevelTabNavigateAction<Tab extends TopLevelTabName>(
+  section: Tab,
+  params?: TopLevelTabParamList[Tab]
+) {
+  const route = getTopLevelTabRoute(section, params);
   return CommonActions.navigate(route.name, route.params, { pop: true });
 }
 
@@ -173,4 +181,61 @@ export function getActiveTopLevelTab(
   return focused != null && focused in TOP_LEVEL_TABS
     ? (focused as TopLevelTabName)
     : null;
+}
+
+/**
+ * The `MainTabs` route as it already stands, with `section` brought to the
+ * front, or a fresh one when the sections have not been built yet.
+ *
+ * For resetting the stack to a section *and* something above it in a single
+ * dispatch. Naming `MainTabs` afresh would do that too, but it would be a new
+ * route: the tabs would remount and every section would lose what it was
+ * holding — the workspace list's filter and scroll, Activity's scroll. Keeping
+ * the route's key and its children's state, and moving only which child is
+ * focused, is the same thing an ordinary tab switch does.
+ */
+export function getExistingTopLevelTabRoute(
+  stackState: RouteSnapshot['state'],
+  section: TopLevelTabName
+): {
+  name: 'MainTabs';
+  key?: string;
+  params?: NonNullable<RootStackParamList['MainTabs']>;
+  state?: {
+    index: number;
+    routes?: ReadonlyArray<RouteSnapshot>;
+    history?: ReadonlyArray<unknown>;
+  };
+} {
+  const mainTabs = stackState?.routes?.find(
+    (route) => route.name === 'MainTabs'
+  );
+  const sections = mainTabs?.state;
+  const index = sections?.routes?.findIndex((route) => route.name === section);
+  if (!mainTabs || !sections || index == null || index < 0) {
+    return getTopLevelTabRoute(section);
+  }
+  // `history` has to move with the index. The sections navigator runs
+  // `backBehavior: "history"`, and this is a live router state — it carries
+  // `stale: false`, so React Navigation takes it as already rehydrated and
+  // will not rebuild anything left out. A history still naming the section
+  // that was showing would send the next system Back somewhere the app never
+  // went; a missing one would leave `TabRouter` reading a field that is not
+  // there. So it is rewritten the way a tab switch rewrites it: the section
+  // being focused becomes the most recent entry.
+  const target = sections.routes?.[index];
+  const history = [
+    ...(sections.history ?? []).filter(
+      (entry) => (entry as { key?: string } | null)?.key !== target?.key
+    ),
+    ...(target?.key ? [{ type: 'route' as const, key: target.key }] : []),
+  ];
+  return {
+    ...(mainTabs as typeof mainTabs & {
+      key?: string;
+      params?: NonNullable<RootStackParamList['MainTabs']>;
+    }),
+    name: 'MainTabs',
+    state: { ...sections, index, history },
+  };
 }
