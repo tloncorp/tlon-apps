@@ -24,6 +24,7 @@ import {
 import { useCalm } from '../ui/contexts/appDataContext';
 import { getChatTitle } from '../ui/utils/channelUtils';
 import { getDrawerChats } from './drawerChats';
+import { routeShowsChat } from './drawerDestination';
 import { announceTopLevelSectionReselected } from './topLevelSectionReselect';
 import {
   TOP_LEVEL_TABS,
@@ -151,11 +152,13 @@ function DrawerSection({
 const DrawerChatRow = React.memo(function DrawerChatRowComponent({
   chat,
   title,
+  selected,
   disabled,
   onPress,
 }: {
   chat: db.Chat;
   title: string;
+  selected: boolean;
   disabled: boolean;
   onPress: (chat: db.Chat) => void;
 }) {
@@ -181,13 +184,14 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
       // The dot is decorative, so the unread state has to reach a screen
       // reader through the label itself.
       accessibilityLabel={hasUnread ? `${title}, unread` : title}
-      accessibilityState={{ disabled }}
+      accessibilityState={{ disabled, selected }}
       testID={`TopLevelDrawerChat-${chat.id}`}
       borderRadius="$l"
       paddingHorizontal={CONTENT_INSET}
       justifyContent="center"
       minHeight={CHAT_ROW_MIN_HEIGHT}
       opacity={disabled ? 0.4 : 1}
+      backgroundColor={selected ? '$secondaryBackground' : 'transparent'}
       pressStyle={{ backgroundColor: '$secondaryBackground' }}
       hoverStyle={{ backgroundColor: '$secondaryBackground' }}
     >
@@ -412,6 +416,12 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
   const selected =
     getActiveTopLevelTab(state.routes[state.index]?.state) ??
     getInitialTopLevelTab(botDm.enabled);
+  // What the app is standing on behind the panel, so a row can say it is the
+  // one already open.
+  const focusedStackRoute = (() => {
+    const stack = state.routes[state.index]?.state;
+    return stack?.routes?.[stack.index ?? 0];
+  })();
 
   const select = useCallback(
     (section: TopLevelTabName) => {
@@ -496,7 +506,7 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
       // are two rows here, and both routes carry the same `groupId`, so
       // comparing ids would make either one answer for the other.
       const stackState = state.routes[state.index]?.state;
-      const focused = stackState?.routes?.[stackState.index ?? 0];
+      const focused = focusedStackRoute;
       const focusedParams = focused?.params as
         | { channelId?: string; groupId?: string }
         | undefined;
@@ -515,8 +525,21 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
       const sectionRoute = getExistingTopLevelTabRoute(stackState, 'ChatList');
       if (chat.type === 'group') {
         getMainGroupRoute(chat.group.id, true).then((groupRoute) => {
+          // The generation covers anything chosen from this panel. It cannot
+          // see the app itself: the drawer has closed by now, and whoever is
+          // on the screen behind it may have gone somewhere before this read
+          // came back. So the stack has to be where this left it too.
+          const liveState = navigation.getState() as unknown as {
+            index: number;
+            routes: {
+              state?: { index?: number; routes?: { key?: string }[] };
+            }[];
+          };
+          const liveStack = liveState.routes[liveState.index]?.state;
+          const liveFocused = liveStack?.routes?.[liveStack.index ?? 0];
           if (
             navigationRequestRef.current !== request ||
+            liveFocused?.key !== focusedStackRoute?.key ||
             showsRoute(groupRoute)
           ) {
             return;
@@ -545,7 +568,7 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
       }
       navigation.closeDrawer();
     },
-    [chatsLocked, navigation, reset, state]
+    [chatsLocked, focusedStackRoute, navigation, reset, state]
   );
 
   const hasUnread: Partial<Record<TopLevelTabName, boolean>> = {
@@ -555,7 +578,10 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
   // Not gated on the drawer being open: the list is virtualised, so what is
   // mounted is what is on screen, and discarding it on close only made the
   // next open pay to build it again.
-  const drawerChats = useMemo(() => getDrawerChats(chats), [chats]);
+  const drawerChats = useMemo(
+    () => getDrawerChats(chats, botDm.enabled ? botDm.channelId : undefined),
+    [chats, botDm]
+  );
   const titles = useMemo(
     () =>
       new Map(
@@ -613,6 +639,7 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
           <DrawerChatRow
             chat={item}
             title={titles.get(item.id) ?? ''}
+            selected={routeShowsChat(item, focusedStackRoute)}
             disabled={chatsLocked}
             onPress={openChat}
           />

@@ -37,3 +37,37 @@ export function isDrawerDestinationRoute(
       ?.isDrawerDestination
   );
 }
+
+type ChatLike =
+  | { type: 'channel'; channel: { id: string } }
+  | {
+      type: 'group';
+      group: { id: string; channels?: { id: string }[] | null };
+    };
+
+/**
+ * Whether `route` is the screen this chat opens.
+ *
+ * For marking the row the drawer is currently standing in. A group answers for
+ * whichever of the two screens it is entered through — its channel list, or
+ * its only channel — because those are the two routes `getMainGroupRoute`
+ * builds. Ids alone will not do it: a group and a channel pinned out of that
+ * group carry the same `groupId`, so each would answer for the other.
+ */
+export function routeShowsChat(
+  chat: ChatLike,
+  route: RouteLike | undefined
+): boolean {
+  const params = route?.params as
+    | { channelId?: string; groupId?: string }
+    | undefined;
+  if (chat.type === 'channel') {
+    return params?.channelId === chat.channel.id;
+  }
+  if (route?.name === 'GroupChannels') {
+    return params?.groupId === chat.group.id;
+  }
+  const only =
+    chat.group.channels?.length === 1 ? chat.group.channels[0].id : null;
+  return only != null && params?.channelId === only;
+}
