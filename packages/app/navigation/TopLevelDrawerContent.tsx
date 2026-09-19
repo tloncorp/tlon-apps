@@ -486,49 +486,62 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
       // sections keep what they were holding — the workspace list's filter and
       // scroll, Activity's scroll — as they would through an ordinary tab
       // switch.
-      // Already showing it: resetting would replace the route with a newly
-      // keyed one, remounting the conversation and throwing away the scroll
-      // position of whoever is reading it. Closing is all that was asked for.
+      // Resetting to what is already showing would replace that route with a
+      // newly keyed one, remounting the conversation and throwing away the
+      // scroll position of whoever is reading it — so a row for where we
+      // already are only closes the drawer.
+      //
+      // What "already there" means has to be the route this would build, not
+      // the chat it came from. A group and a channel pinned out of that group
+      // are two rows here, and both routes carry the same `groupId`, so
+      // comparing ids would make either one answer for the other.
       const stackState = state.routes[state.index]?.state;
       const focused = stackState?.routes?.[stackState.index ?? 0];
       const focusedParams = focused?.params as
         | { channelId?: string; groupId?: string }
         | undefined;
-      const alreadyShowing =
-        chat.type === 'channel'
-          ? focusedParams?.channelId === chat.channel.id
-          : focusedParams?.groupId === chat.group.id;
-      if (alreadyShowing) {
-        navigation.closeDrawer();
-        return;
-      }
+      const showsRoute = (route: { name: string; params?: object }) => {
+        if (route.name !== focused?.name) {
+          return false;
+        }
+        const params = route.params as
+          | { channelId?: string; groupId?: string }
+          | undefined;
+        return route.name === 'GroupChannels'
+          ? params?.groupId === focusedParams?.groupId
+          : params?.channelId === focusedParams?.channelId;
+      };
 
       const sectionRoute = getExistingTopLevelTabRoute(stackState, 'ChatList');
       if (chat.type === 'group') {
         getMainGroupRoute(chat.group.id, true).then((groupRoute) => {
-          if (navigationRequestRef.current !== request) {
+          if (
+            navigationRequestRef.current !== request ||
+            showsRoute(groupRoute)
+          ) {
             return;
           }
           reset([sectionRoute, groupRoute]);
         });
       } else {
-        reset([
-          sectionRoute,
-          {
-            name: screenNameFromChannelId(chat.channel.id),
-            params: {
-              channelId: chat.channel.id,
-              ...(chat.channel.groupId
-                ? { groupId: chat.channel.groupId }
-                : {}),
-              // Picked straight out of the drawer, so it stands on its own
-              // like every other row here — nothing is pushed behind it for a
-              // caret to lead back to. A DM says this by its route name; a
-              // channel pinned out of a group has to say it in a param.
-              isDrawerDestination: true,
-            },
+        const channelRoute = {
+          name: screenNameFromChannelId(chat.channel.id) as
+            | 'DM'
+            | 'GroupDM'
+            | 'Channel',
+          params: {
+            channelId: chat.channel.id,
+            ...(chat.channel.groupId ? { groupId: chat.channel.groupId } : {}),
+            // Picked straight out of the drawer, so it stands on its own like
+            // every other row here — nothing is pushed behind it for a caret
+            // to lead back to. A DM says this by its route name; a channel
+            // pinned out of a group has to say it in a param.
+            isDrawerDestination: true,
           },
-        ]);
+        };
+        if (!showsRoute(channelRoute)) {
+          reset([sectionRoute, channelRoute]);
+        }
       }
       navigation.closeDrawer();
     },
