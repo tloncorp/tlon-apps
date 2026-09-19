@@ -61,6 +61,7 @@ import { DraftInputContext } from './draftInputs';
 import {
   DraftInputContextProvider,
   DraftInputHandle,
+  type DraftSendOptions,
   GalleryDraftType,
 } from './draftInputs/shared';
 
@@ -811,7 +812,7 @@ function SinglePostView({
   );
 
   const sendFromThreadComposer = useCallback(
-    async (draft: domain.PostDataDraft, options?: store.PostSendOptions) => {
+    async (draft: domain.PostDataDraft, options?: DraftSendOptions) => {
       setEditingPost?.(undefined);
       if (draft.isEdit) {
         await store.finalizeAndSendPost(draft, options);
@@ -820,7 +821,9 @@ function SinglePostView({
 
       draft.replyToPostId = parentPost.id;
       await store.finalizeAndSendPost(draft, options);
-      scrollToNewReply();
+      if (!options?.scrollHandled) {
+        scrollToNewReply();
+      }
     },
     [parentPost, scrollToNewReply, setEditingPost]
   );

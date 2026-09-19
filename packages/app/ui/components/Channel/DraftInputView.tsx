@@ -18,7 +18,6 @@ import { useComponentsKitContext } from '../../contexts/componentsKits';
 import {
   useConversationComposerHeight,
   useConversationScrollToBottomControl,
-  useConversationScrollViewNativeID,
 } from '../../contexts/scroll';
 import { ScrollEdgeElementContainer } from '../ScrollEdgeElementContainer';
 import { floatingScrollControlClearance } from '../conversationScrollChrome';
@@ -115,7 +114,6 @@ export function ConversationComposerPlacement({
 }>) {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
-  const scrollViewNativeID = useConversationScrollViewNativeID();
   const scrollToBottomControl = useConversationScrollToBottomControl();
   const { report: reportConversationComposerHeight } =
     useConversationComposerHeight();
@@ -140,9 +138,10 @@ export function ConversationComposerPlacement({
         offset={{ closed: 0, opened: insets.bottom }}
         style={styles.floatingInput}
       >
+        {/* Preserve hit testing around glass controls, but leave this moving
+            host unbound: UIKit's edge effect retains the keyboard-open extent. */}
         <ScrollEdgeElementContainer
           edge="bottom"
-          scrollViewNativeID={scrollViewNativeID}
           style={[
             { paddingBottom: insets.bottom },
             Platform.OS === 'android'

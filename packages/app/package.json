@@ -19,6 +19,7 @@
     "@tloncorp/shared": "workspace:*",
     "@tloncorp/ui": "workspace:*",
     "posthog-js": "^1.234.4",
+    "react-native-ease": "0.8.0",
     "refractor": "^4.8.0",
     "sqlocal": "^0.14.1"
   },

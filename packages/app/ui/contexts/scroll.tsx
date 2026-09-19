@@ -28,6 +28,11 @@ export type ConversationScrollToBottomControl = {
 };
 
 type ConversationComposerHeightHandler = (height: number) => void;
+type ConversationComposerSendHandler = {
+  begin: () => void;
+  finish: () => void;
+  isActive: () => boolean;
+};
 
 // @ts-expect-error - No other props than value are needed
 const INITIAL_VALUE: ScrollContextTuple = [{ value: 0 }, () => {}];
@@ -60,7 +65,18 @@ const ConversationScrollToBottomContext = createContext<{
 const ConversationComposerHeightContext = createContext<{
   register: (handler: ConversationComposerHeightHandler) => () => void;
   report: (height: number) => void;
-}>({ register: () => () => {}, report: () => {} });
+  registerSend: (handler: ConversationComposerSendHandler) => () => void;
+  beginSend: () => void;
+  finishSend: () => void;
+  isSendCoordinated: () => boolean;
+}>({
+  register: () => () => {},
+  report: () => {},
+  registerSend: () => () => {},
+  beginSend: () => {},
+  finishSend: () => {},
+  isSendCoordinated: () => false,
+});
 
 export const useScrollContext = () => useContext(ScrollContext);
 export const useConversationScrollViewNativeID = () =>
@@ -166,6 +182,9 @@ export const ScrollContextProvider: React.FC<React.PropsWithChildren> = ({
   const conversationComposerHeightHandler =
     useRef<ConversationComposerHeightHandler | null>(null);
   const lastConversationComposerHeight = useRef<number | null>(null);
+  const composerSendHandler = useRef<ConversationComposerSendHandler | null>(
+    null
+  );
   const scrollViewNativeID = `${defaultConversationScrollViewNativeID}-${useId()}`;
   const [scrollToBottomControl, setScrollToBottomControl] =
     useState<ConversationScrollToBottomControl | null>(null);
@@ -220,6 +239,17 @@ export const ScrollContextProvider: React.FC<React.PropsWithChildren> = ({
         lastConversationComposerHeight.current = height;
         conversationComposerHeightHandler.current?.(height);
       },
+      registerSend: (handler: ConversationComposerSendHandler) => {
+        composerSendHandler.current = handler;
+        return () => {
+          if (composerSendHandler.current === handler) {
+            composerSendHandler.current = null;
+          }
+        };
+      },
+      beginSend: () => composerSendHandler.current?.begin(),
+      finishSend: () => composerSendHandler.current?.finish(),
+      isSendCoordinated: () => composerSendHandler.current?.isActive() ?? false,
     }),
     []
   );

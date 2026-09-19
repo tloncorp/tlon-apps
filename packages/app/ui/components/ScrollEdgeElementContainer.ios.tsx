@@ -5,7 +5,7 @@ import { ViewProps } from 'react-native';
 type ScrollEdgeElementContainerProps = PropsWithChildren<
   ViewProps & {
     edge?: 'top' | 'bottom';
-    scrollViewNativeID: string;
+    scrollViewNativeID?: string;
   }
 >;
 

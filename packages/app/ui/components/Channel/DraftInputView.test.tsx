@@ -73,7 +73,6 @@ vi.mock('tamagui', () => ({
 }));
 vi.mock('../../contexts/componentsKits', () => ({}));
 vi.mock('../../contexts/scroll', () => ({
-  useConversationScrollViewNativeID: () => undefined,
   useConversationScrollToBottomControl: () => undefined,
   useConversationComposerHeight: () => ({ report: () => {} }),
 }));

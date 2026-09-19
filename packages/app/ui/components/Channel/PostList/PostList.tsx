@@ -3,7 +3,11 @@ import { type LegendListRef } from '@legendapp/list/react-native';
 import { layoutForType } from '@tloncorp/shared';
 import * as React from 'react';
 import { Platform, type ScrollView } from 'react-native';
-import { type SharedValue, useSharedValue } from 'react-native-reanimated';
+import {
+  type SharedValue,
+  useReducedMotion,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -13,6 +17,8 @@ import {
   useScrollDirectionTracker,
 } from '../../../contexts/scroll';
 import { PostList as PostListFlatList } from './PostListFlatList';
+import { usePostArrivalAnimation } from './usePostArrivalAnimation';
+import { useComposerSendTransition } from './useComposerSendTransition';
 import {
   getPostListAnchorKey,
   getPostListInitialization,
@@ -468,21 +474,51 @@ const ConversationPostListAttempt = React.forwardRef<
     const composerContentInset = useSharedValue(0);
     const conversationKeyboardListProps =
       useConversationKeyboardListProps(composerContentInset);
-    const { register: registerConversationComposerHeight } =
-      useConversationComposerHeight();
+    const {
+      register: registerConversationComposerHeight,
+      registerSend: registerComposerSend,
+    } = useConversationComposerHeight();
     const postsWithNeighborsRef = React.useRef(postsWithNeighbors);
     const scrollViewNativeID = useConversationScrollViewNativeID();
     const insets = useSafeAreaInsets();
+    const reduceMotion = useReducedMotion();
     const collectionLayout = React.useMemo(
       () => layoutForType(collectionLayoutType),
       [collectionLayoutType]
     );
-    const reportConversationComposerHeight = React.useCallback(
+    const applyConversationComposerHeight = React.useCallback(
       (height: number) => {
         composerContentInset.set(height);
         listRef.current?.reportContentInset({ bottom: height });
       },
       [composerContentInset]
+    );
+    const {
+      active: composerSendActive,
+      begin: beginComposerSend,
+      finish: finishComposerSend,
+      isActive: isComposerSendActive,
+      reportHeight: reportConversationComposerHeight,
+      cancelFollowing: cancelComposerSendFollowing,
+    } = useComposerSendTransition(
+      listRef,
+      applyConversationComposerHeight,
+      Platform.OS === 'ios' && anchorToEnd && !hasNewerPosts,
+      !reduceMotion
+    );
+    React.useLayoutEffect(
+      () =>
+        registerComposerSend({
+          begin: beginComposerSend,
+          finish: finishComposerSend,
+          isActive: isComposerSendActive,
+        }),
+      [
+        beginComposerSend,
+        finishComposerSend,
+        isComposerSendActive,
+        registerComposerSend,
+      ]
     );
     React.useLayoutEffect(() => {
       if (Platform.OS !== 'ios') {
@@ -503,7 +539,7 @@ const ConversationPostListAttempt = React.forwardRef<
     const {
       didFinishInitialScroll,
       hasUserScrolled,
-      markUserScrolled,
+      markUserScrolled: markInitialUserScrolled,
       scheduleInitialScroll,
     } = useInitialConversationScroll({
       anchorTarget,
@@ -512,6 +548,10 @@ const ConversationPostListAttempt = React.forwardRef<
       itemCount: postsWithNeighbors.length,
       onInitialScrollCompleted,
     });
+    const markUserScrolled = React.useCallback(() => {
+      cancelComposerSendFollowing();
+      markInitialUserScrolled();
+    }, [cancelComposerSendFollowing, markInitialUserScrolled]);
     const { initialScrollIndex } = anchorTarget;
     React.useLayoutEffect(() => {
       postsWithNeighborsRef.current = postsWithNeighbors;
@@ -541,6 +581,30 @@ const ConversationPostListAttempt = React.forwardRef<
     // change. React Native onScroll can retain an intermediate value while the
     // initial anchor settles, briefly showing the scroll-to-bottom control.
     const isNearEnd = useLegendListIsNearEnd(listRef);
+    const renderAnimatedItem = usePostArrivalAnimation({
+      posts: postsWithNeighbors,
+      renderItem,
+      enabled:
+        anchorToEnd &&
+        didFinishInitialScroll &&
+        isNearEnd &&
+        !isLoading &&
+        !hasNewerPosts &&
+        !reduceMotion,
+    });
+    const maintainScrollAtEnd = React.useMemo(
+      () =>
+        anchorToEnd && !hasNewerPosts && !composerSendActive
+          ? { animated: didFinishInitialScroll && !reduceMotion }
+          : false,
+      [
+        anchorToEnd,
+        composerSendActive,
+        didFinishInitialScroll,
+        hasNewerPosts,
+        reduceMotion,
+      ]
+    );
     const conversationScrollEndAnchor = useConversationScrollEndAnchor();
     const shouldRestoreEndAnchorRef = React.useRef(false);
     const endAnchorHandler = React.useMemo(
@@ -575,20 +639,22 @@ const ConversationPostListAttempt = React.forwardRef<
       !didFinishInitialScroll ||
       (!hasUserScrolled && isNearEnd) ||
       isWithinBottomThreshold;
-    // Data anchoring and end anchoring choose different items to preserve.
-    // Let end anchoring own updates while the conversation is being followed;
-    // retain data anchoring only after the user has moved away from the end.
-    // With no rows there is nothing to keep in view, and LegendList's default
-    // size anchoring (left on by `undefined`) scrolls iOS by any top padding
-    // change, which carried an empty conversation up by the header inset when
-    // the transparent header reported its height after mount.
+    // Disable both data and size anchoring while following the latest posts.
+    // `undefined` still enables size anchoring: native MVCP can jump to the
+    // new end before the animated scroll runs, particularly on Android.
+    // History keeps its visible post anchored; empty lists have no post to
+    // preserve as the header and composer settle.
     const maintainVisibleContentPosition =
       postsWithNeighbors.length === 0
         ? false
         : collectionLayout.shouldMaintainVisibleContentPosition &&
-            !(anchorToEnd && !hasNewerPosts && isNearEnd)
+            !(
+              anchorToEnd &&
+              !hasNewerPosts &&
+              (isNearEnd || composerSendActive)
+            )
           ? true
-          : undefined;
+          : false;
     usePostListBottomCallbacks(isAtBottom, {
       onScrolledToBottom,
       onScrolledAwayFromBottom,
@@ -638,7 +704,7 @@ const ConversationPostListAttempt = React.forwardRef<
         dataKey={channel.id}
         data={postsWithNeighbors}
         keyExtractor={getPostId}
-        renderItem={renderItem}
+        renderItem={renderAnimatedItem}
         getItemType={({ post }) => post.type}
         estimatedItemSize={ESTIMATED_ITEM_SIZE}
         // Chat rows are stateful and highly variable-height; recycling them can
@@ -651,7 +717,7 @@ const ConversationPostListAttempt = React.forwardRef<
           initialScrollIndex === undefined
         }
         initialScrollIndex={initialScrollIndex}
-        maintainScrollAtEnd={anchorToEnd && !hasNewerPosts}
+        maintainScrollAtEnd={maintainScrollAtEnd}
         // A2UI rows can change by more than a small fraction of the viewport.
         // Keep the normal chat end anchor across those remeasurements whenever
         // the list was within one viewport of the latest message. Far-away
@@ -667,9 +733,14 @@ const ConversationPostListAttempt = React.forwardRef<
         {...conversationKeyboardListProps}
         // Preserve older messages while browsing history, but keep the latest
         // message anchored as the keyboard or composer grows at the end.
-        keyboardLiftBehavior="whenAtEnd"
+        keyboardLiftBehavior={composerSendActive ? 'never' : 'whenAtEnd'}
         keyboardOffset={insets.bottom}
-        scrollIndicatorInsets={{ top: 0, bottom: insets.bottom }}
+        // KeyboardChatScrollView already adds the keyboard and full composer
+        // height (including the safe area) to the iOS indicator's bottom inset.
+        scrollIndicatorInsets={{
+          top: contentInsets.top,
+          bottom: Platform.OS === 'ios' ? 0 : insets.bottom,
+        }}
         automaticallyAdjustsScrollIndicatorInsets={false}
         scrollEnabled={scrollEnabled}
         style={[

@@ -1,6 +1,5 @@
 import type { BridgeState, EditorBridge } from '@10play/tentap-editor';
 import { JSONContent } from '@tloncorp/api/urbit';
-import type { PostSendOptions } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import { Button, FloatingActionButton, Icon } from '@tloncorp/ui';
@@ -38,7 +37,7 @@ import {
   floatingScrollControlClearance,
   floatingChromeMetrics as metrics,
 } from '../conversationScrollChrome';
-import { GalleryDraftType } from '../draftInputs/shared';
+import { type DraftSendOptions, GalleryDraftType } from '../draftInputs/shared';
 import AttachmentButton from './AttachmentButton';
 import InputMentionPopup from './InputMentionPopup';
 import InputSlashCommandPopup from './InputSlashCommandPopup';
@@ -48,7 +47,7 @@ export interface MessageInputProps {
   setShouldBlur: (shouldBlur: boolean) => void;
   sendPostFromDraft: (
     draft: domain.PostDataDraft,
-    options?: PostSendOptions
+    options?: DraftSendOptions
   ) => Promise<void>;
   channelId: string;
   groupId?: string | null;

@@ -724,7 +724,7 @@ export function Channel({
       sendPostFromDraft: async (draft, options) => {
         setEditingPost?.(undefined);
         await finalizeAndSendPost(draft, options);
-        if (!draft.isEdit) {
+        if (!draft.isEdit && !options?.scrollHandled) {
           scrollToNewMessage();
         }
       },
