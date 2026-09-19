@@ -1,0 +1,42 @@
+appId: ${MAESTRO_APP_ID}
+---
+# QA Authenticated App rows 201-202. Peer replies only after receiving ours.
+- scrollUntilVisible:
+    element:
+      text: ${MAESTRO_RUN_TAG + ' from ten'}
+    direction: UP
+    timeout: 5000
+- longPressOn: ${MAESTRO_RUN_TAG + ' from ten'}
+- tapOn: '^Reply$'
+- assertVisible:
+    id: MessageInput
+    text: '^Reply$'
+- runFlow:
+    file: ../reliability/subflows/send.yaml
+    env:
+      MESSAGE: ${MAESTRO_RUN_TAG + ' thread from mobile'}
+      MESSAGE_PATTERN: ${MAESTRO_RUN_TAG + ' thread from mobile ?'}
+      EMPTY_INPUT: '^Reply$'
+- hideKeyboard
+- extendedWaitUntil:
+    visible: ${MAESTRO_RUN_TAG + ' thread from ten'}
+    timeout: 15000
+- assertVisible: ${MAESTRO_RUN_TAG + ' thread from mobile ?'}
+- tapOn: '^Back$'
+- assertVisible:
+    id: MessageInput
+    text: '^Message$'
+- scrollUntilVisible:
+    element:
+      text: '^2 replies$'
+    direction: UP
+    timeout: 5000
+- assertNotVisible: ${MAESTRO_RUN_TAG + ' thread from mobile ?'}
+- assertNotVisible: ${MAESTRO_RUN_TAG + ' thread from ten'}
+- tapOn: '^2 replies$'
+- assertVisible: ${MAESTRO_RUN_TAG + ' from ten'}
+- assertVisible: ${MAESTRO_RUN_TAG + ' thread from mobile ?'}
+- assertVisible: ${MAESTRO_RUN_TAG + ' thread from ten'}
+- assertVisible:
+    id: MessageInput
+    text: '^Reply$'

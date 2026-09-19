@@ -1,0 +1,19 @@
+appId: ${MAESTRO_APP_ID}
+name: Deny an incoming DM request
+env:
+  JOURNEY: dm-deny
+---
+- runScript: ../reliability/data.js
+- runFlow: begin.yaml
+- extendedWaitUntil:
+    visible: '^~ten$'
+    timeout: 15000
+- tapOn: '^~ten$'
+- assertVisible: ${MAESTRO_RUN_TAG + ' deny request'}
+- assertVisible: '^Deny$'
+- tapOn: '^Deny$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Home$'
+- assertNotVisible: ${MAESTRO_RUN_TAG + ' deny request'}
+- assertNotVisible: '^~ten$'

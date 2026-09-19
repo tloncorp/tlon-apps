@@ -1,0 +1,10 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runFlow:
+    when:
+      true: ${output.reliability.session === 'fresh'}
+    file: ../reliability/subflows/begin.yaml
+# A batch stays on the same verified ship; each case returns to Home.
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Home$'

@@ -14,7 +14,55 @@ output.reliability = {
   reply: MAESTRO_RUN_TAG + ' reply',
   title: MAESTRO_RUN_TAG + ' note',
   body: MAESTRO_RUN_TAG + ' body',
-  shipPattern: exact(MAESTRO_TEST_SHIP),
+  unreadChannelPreviewPattern: exact(
+    '~ten: ' + MAESTRO_RUN_TAG + ' unread channel'
+  ),
+  unreadTopicPreviewPattern: exact(
+    '~ten: ' + MAESTRO_RUN_TAG + ' unread topic'
+  ),
+  groupSwipePreviewPattern: exact(
+    '~ten: ' + MAESTRO_RUN_TAG + ' group swipe unread'
+  ),
+  groupSwipeTitlePattern: exact('SwipeGroup-' + MAESTRO_RUN_TAG),
+  homeUnreadGroupTitlePattern: exact('HomeUnread-' + MAESTRO_RUN_TAG),
+  homeUnreadGroupPreviewPattern: exact(
+    '~ten: ' + MAESTRO_RUN_TAG + ' home group unread'
+  ),
+  homeUnreadDmPreviewPattern: exact(MAESTRO_RUN_TAG + ' home dm unread'),
+  dmSwipePreviewPattern: exact(MAESTRO_RUN_TAG + ' dm swipe unread'),
+  activityMentionPattern:
+    '^.*' + exact(MAESTRO_RUN_TAG + ' activity mention').slice(1, -1) + '.*$',
+  activityReadGatePattern: exact(
+    '~ten: ' + MAESTRO_RUN_TAG + ' targeted reads verified'
+  ),
+  activityMentionContextPattern: exact(
+    '~zod ' + MAESTRO_RUN_TAG + ' activity mention'
+  ),
+  activityGroupPattern: exact('Activity-' + MAESTRO_RUN_TAG),
+  activityReplyPattern:
+    '^.*' + exact(MAESTRO_RUN_TAG + ' activity reply').slice(1, -1) + '.*$',
+  activityPaginationOldestPattern:
+    '^.*' +
+    exact(MAESTRO_RUN_TAG + ' activity page oldest').slice(1, -1) +
+    '.*$',
+  activityPaginationNewestPattern:
+    '^.*' +
+    exact(MAESTRO_RUN_TAG + ' activity page newest').slice(1, -1) +
+    '.*$',
+  permissionRestoredPostPattern: exact(
+    MAESTRO_RUN_TAG + ' restored mobile post '
+  ).replace(/ \$$/, ' ?$'),
+  permissionRestoredNoticePattern: exact(
+    MAESTRO_RUN_TAG + ' read-write restored '
+  ).replace(/ \$$/, ' ?$'),
+  // ContactName exposes a spoken label (zod / sampel - palnet) on native.
+  // Accept that exact identity or its literal display, never a partial match.
+  shipPattern:
+    '^(' +
+    MAESTRO_TEST_SHIP +
+    '|' +
+    MAESTRO_TEST_SHIP.slice(1).replace(/-/g, ' - ') +
+    ')$',
 };
 output.reliability.groupPattern = exact(output.reliability.group);
 output.reliability.editedTextPattern = exact(

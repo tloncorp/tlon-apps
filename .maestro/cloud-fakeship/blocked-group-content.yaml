@@ -1,0 +1,28 @@
+appId: ${MAESTRO_APP_ID}
+name: Suppress shared-group posts from a blocked peer
+env:
+  JOURNEY: blocked-group-content
+---
+- runScript: ../reliability/data.js
+- runFlow: begin.yaml
+- runFlow: ../reliability/subflows/contacts-tab.yaml
+- tapOn: '^Settings$'
+- tapOn: '^Blocked users$'
+- assertVisible: '^Blocked users$'
+- assertVisible: '^(~ten|ten)$'
+- tapOn: '^Back$'
+- tapOn: '^Back$'
+- runFlow: ../reliability/subflows/home-tab.yaml
+- scrollUntilVisible:
+    element: ${'BlockedContent-' + MAESTRO_RUN_TAG}
+    direction: UP
+    timeout: 30000
+- tapOn: ${'BlockedContent-' + MAESTRO_RUN_TAG}
+- extendedWaitUntil:
+    visible: ${MAESTRO_RUN_TAG + ' blocker control post'}
+    timeout: 30000
+- assertNotVisible: ${MAESTRO_RUN_TAG + ' blocked group post'}
+- tapOn: '^Back$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Home$'
