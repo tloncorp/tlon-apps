@@ -1,0 +1,82 @@
+appId: ${MAESTRO_APP_ID}
+name: Native document attachment persistence (Android)
+tags: [regression, android, media]
+env:
+  JOURNEY: d
+---
+- assertTrue: ${maestro.platform === 'android'}
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+# Android's document picker reads Downloads. addMedia supports images/video only.
+# Pin a public PDF.js fixture; the W3C host challenges Cloud devices with CAPTCHA.
+- openLink:
+    link: https://raw.githubusercontent.com/mozilla/pdf.js/f4f90c2f6902fb2e707d1cc22c42fad4c7f67dc5/test/pdfs/basicapi.pdf
+    browser: true
+- runFlow:
+    when:
+      visible: '^Download again$'
+    commands:
+      - tapOn: '^Download again$'
+- runFlow:
+    when:
+      visible: '^Choose where to download$'
+    commands:
+      - tapOn: '^Download$'
+# The picker below verifies the file exists; Chrome's download toast is transient.
+- launchApp:
+    stopApp: false
+- runFlow: subflows/home-tab.yaml
+- runFlow: subflows/create-group.yaml
+- tapOn: '^Chat$'
+- assertVisible:
+    id: MessageInput
+    text: '^Message$'
+# Portrait, closed keyboard: the plus icon has no accessibility label.
+- tapOn:
+    point: '9%,93%'
+- tapOn: '^Upload a File$'
+- tapOn: '^basicapi[.]pdf$'
+- assertVisible: '^Remove attachment$'
+- tapOn: '^Remove attachment$'
+- assertNotVisible: '^Remove attachment$'
+- assertNotVisible:
+    id: Post
+- tapOn:
+    point: '9%,93%'
+- tapOn: '^Upload a File$'
+- tapOn: '^basicapi[.]pdf$'
+- tapOn:
+    id: MessageInput
+- inputText: ${MAESTRO_RUN_TAG + ' document'}
+- tapOn:
+    id: MessageInputSendButton
+- extendedWaitUntil:
+    notVisible:
+      id: ChatMessageDeliveryStatus
+    timeout: 30000
+- assertNotVisible: '^Send failed, tap to retry$'
+- assertVisible: '^basicapi[.]pdf$'
+- stopApp
+- launchApp
+- runFlow: subflows/home-tab.yaml
+- tapOn: ${output.reliability.groupPattern}
+- tapOn: '^Chat$'
+- assertVisible: ${MAESTRO_RUN_TAG + ' document ?'}
+- assertVisible: '^basicapi[.]pdf$'
+- tapOn: '^basicapi[.]pdf$'
+- runFlow:
+    when:
+      visible: '^Download again$'
+    commands:
+      - tapOn: '^Download again$'
+- runFlow:
+    when:
+      visible: '^Open$'
+    commands:
+      - tapOn: '^Open$'
+- assertVisible: '^basicapi[.]pdf$'
+- assertNotVisible:
+    id: MessageInput
+- launchApp:
+    stopApp: false
+- assertVisible: ${MAESTRO_RUN_TAG + ' document ?'}
