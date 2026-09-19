@@ -39,6 +39,7 @@ export type TlonCronJobSnapshot = {
   scheduleKindCronCount: number;
   scheduleKindEveryCount: number;
   scheduleKindOnExitCount: number;
+  scheduleKindStreamCount: number;
   totalCronJobCount: number;
 };
 
@@ -111,7 +112,7 @@ type CronAgentContextRecord = {
 };
 
 const MAX_CRON_AGENT_SESSIONS = 512;
-const SCHEDULE_KINDS = new Set(['at', 'cron', 'every', 'on-exit']);
+const SCHEDULE_KINDS = new Set(['at', 'cron', 'every', 'on-exit', 'stream']);
 const SESSION_TARGET_KINDS = new Set([
   'current',
   'isolated',
@@ -312,6 +313,9 @@ export function createTlonCronOtelObserver(options?: {
         });
         result.observe(jobSnapshot.scheduleKindOnExitCount, {
           schedule_kind: 'on-exit',
+        });
+        result.observe(jobSnapshot.scheduleKindStreamCount, {
+          schedule_kind: 'stream',
         });
       });
     });

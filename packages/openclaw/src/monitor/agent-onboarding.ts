@@ -10,12 +10,12 @@ import {
   notes,
   parsePostBlob,
 } from '@tloncorp/api';
-import type {
-  PluginHookCronChangedEvent,
-  PluginHookMessageSentEvent,
-} from 'openclaw/plugin-sdk/types';
 
-import { type TlonCronService, getTlonCronService } from '../cron-telemetry.js';
+import {
+  type CronChangedEvent as PluginHookCronChangedEvent,
+  type TlonCronService,
+  getTlonCronService,
+} from '../cron-telemetry.js';
 import { MCP_READ_TOOL_NAMES } from '../mcp-readonly-policy.js';
 import { noteIdFromDeliveryMessageId } from '../notes-delivery-state.js';
 import { sharedMap } from '../shared-state.js';
@@ -52,6 +52,16 @@ import {
   fetchChannelHistory,
   fetchChannelHistoryOrThrow,
 } from './history.js';
+
+type PluginHookMessageSentEvent = {
+  to: string;
+  content: string;
+  success?: boolean;
+  messageId?: string;
+  sessionKey?: string;
+  runId?: string;
+  error?: string;
+};
 
 type AgentRequest =
   | PostBlobDataEntryAgentIntroRequest
