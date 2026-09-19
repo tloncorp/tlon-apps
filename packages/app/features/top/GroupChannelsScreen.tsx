@@ -9,6 +9,7 @@ import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation
 import { useAnyAgentGroupOnboardingLock } from '../../hooks/useAgentGroupOnboardingLock';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { isDrawerDestinationRoute } from '../../navigation/drawerDestination';
+import { useDrawerEdgeGesture } from '../../navigation/useDrawerEdgeGesture';
 import { getTopLevelTabRoute } from '../../navigation/topLevelTabs';
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
@@ -25,6 +26,10 @@ type Props = NativeStackScreenProps<RootStackParamList, 'GroupChannels'>;
 const logger = createDevLogger('GroupChannelsScreen', false);
 
 export function GroupChannelsScreen({ route }: Props) {
+  // The drawer takes the left edge only where this screen sits on the
+  // sections; pushed over a conversation the pop gesture keeps it, since the
+  // header here shows no caret to get back with.
+  useDrawerEdgeGesture(route.key);
   return (
     <GroupChannelsScreenContent
       groupId={route.params.groupId}

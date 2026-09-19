@@ -31,6 +31,7 @@ import type {
   RootStackParamList,
 } from '../../navigation/types';
 import { isDrawerDestinationRoute } from '../../navigation/drawerDestination';
+import { useDrawerEdgeGesture } from '../../navigation/useDrawerEdgeGesture';
 import { useRootNavigation } from '../../navigation/utils';
 import {
   AttachmentProvider,
@@ -117,6 +118,12 @@ export default function ChannelScreen(props: Props) {
     groupId,
     routeGroupId,
   });
+  // The drawer takes the left edge only on a conversation it opened; reached
+  // any other way the pop gesture keeps it, since the header here shows no
+  // caret to get back with. Onboarding's lock is passed in rather than applied
+  // separately: two effects writing `gestureEnabled` means the later one wins,
+  // and this screen needs both conditions to hold at once.
+  useDrawerEdgeGesture(props.route.key, agentOnboardingNavigationLocked);
   const currentUserId = api.getCurrentUserId();
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });

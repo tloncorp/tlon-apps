@@ -184,25 +184,29 @@ export function getActiveTopLevelTab(
 }
 
 /**
- * The `MainTabs` route as it already stands, with `section` brought to the
- * front, or a fresh one when the sections have not been built yet.
+ * The `MainTabs` route exactly as it stands, sections untouched.
  *
- * For resetting the stack to a section *and* something above it in a single
- * dispatch. Naming `MainTabs` afresh would do that too, but it would be a new
- * route: the tabs would remount and every section would lose what it was
- * holding — the workspace list's filter and scroll, Activity's scroll. Keeping
- * the route's key and its children's state, and moving only which child is
- * focused, is the same thing an ordinary tab switch does.
+ * For opening a chat over wherever the user already is. The sibling below
+ * brings a named section to the front first; a chat picked out of the drawer
+ * wants neither. It is not a position inside any section — the panel marks the
+ * chat's own row, not a section's — so naming one underneath it only claims
+ * the user is somewhere they never went, and the claim is visible: the stack
+ * animates the outgoing screen away before the incoming one arrives, so a
+ * section switched to in the same dispatch gets a moment on screen, still
+ * half-drawn, between the chat being left and the chat being opened.
+ *
+ * Falls back to a fresh route naming `fallbackSection` only when the stack has
+ * no `MainTabs` yet, which is a cold position with nothing to preserve.
  */
-export function getExistingTopLevelTabRoute(
+export function getStandingTopLevelTabRoute(
   stackState: RouteSnapshot['state'],
-  section: TopLevelTabName
+  fallbackSection: TopLevelTabName
 ): {
   name: 'MainTabs';
   key?: string;
   params?: NonNullable<RootStackParamList['MainTabs']>;
   state?: {
-    index: number;
+    index?: number;
     routes?: ReadonlyArray<RouteSnapshot>;
     history?: ReadonlyArray<unknown>;
   };
@@ -210,32 +214,12 @@ export function getExistingTopLevelTabRoute(
   const mainTabs = stackState?.routes?.find(
     (route) => route.name === 'MainTabs'
   );
-  const sections = mainTabs?.state;
-  const index = sections?.routes?.findIndex((route) => route.name === section);
-  if (!mainTabs || !sections || index == null || index < 0) {
-    return getTopLevelTabRoute(section);
+  if (!mainTabs?.state) {
+    return getTopLevelTabRoute(fallbackSection);
   }
-  // `history` has to move with the index. The sections navigator runs
-  // `backBehavior: "history"`, and this is a live router state — it carries
-  // `stale: false`, so React Navigation takes it as already rehydrated and
-  // will not rebuild anything left out. A history still naming the section
-  // that was showing would send the next system Back somewhere the app never
-  // went; a missing one would leave `TabRouter` reading a field that is not
-  // there. So it is rewritten the way a tab switch rewrites it: the section
-  // being focused becomes the most recent entry.
-  const target = sections.routes?.[index];
-  const history = [
-    ...(sections.history ?? []).filter(
-      (entry) => (entry as { key?: string } | null)?.key !== target?.key
-    ),
-    ...(target?.key ? [{ type: 'route' as const, key: target.key }] : []),
-  ];
-  return {
-    ...(mainTabs as typeof mainTabs & {
-      key?: string;
-      params?: NonNullable<RootStackParamList['MainTabs']>;
-    }),
-    name: 'MainTabs',
-    state: { ...sections, index, history },
+  return mainTabs as typeof mainTabs & {
+    name: 'MainTabs';
+    key?: string;
+    params?: NonNullable<RootStackParamList['MainTabs']>;
   };
 }

@@ -10,6 +10,7 @@ import {
   getActiveTopLevelTab,
   getTopLevelTabNavigateAction,
   getInitialTopLevelTab,
+  getStandingTopLevelTabRoute,
   isTabPressBlockedByOnboardingLock,
 } from './topLevelTabs';
 import type { RouteSnapshot } from './topLevelTabs';
@@ -364,5 +365,71 @@ describe('isAwaitingRestoredBotTab', () => {
         routes: [{ name: 'MainTabs', state: tabs('Settings') }],
       })
     ).toBe(false);
+  });
+});
+
+describe('getStandingTopLevelTabRoute', () => {
+  const stack = (focused: string) => ({
+    index: 1,
+    routes: [
+      {
+        name: 'MainTabs',
+        key: 'MainTabs-abc',
+        state: {
+          index: ['BotChat', 'ChatList', 'Activity', 'Settings'].indexOf(
+            focused
+          ),
+          routes: [
+            { name: 'BotChat', key: 'BotChat-1' },
+            { name: 'ChatList', key: 'ChatList-1' },
+            { name: 'Activity', key: 'Activity-1' },
+            { name: 'Settings', key: 'Settings-1' },
+          ],
+          history: [{ type: 'route' as const, key: `${focused}-1` }],
+        },
+      },
+      { name: 'DM', key: 'DM-1' },
+    ],
+  });
+
+  // The whole point: a chat opened from the drawer must not drag the sections
+  // to Workspaces behind it.
+  test('hands back the sections untouched, whichever one is showing', () => {
+    for (const section of ['BotChat', 'ChatList', 'Activity', 'Settings']) {
+      const route = getStandingTopLevelTabRoute(stack(section), 'ChatList');
+      expect(route.name).toBe('MainTabs');
+      expect(route.key).toBe('MainTabs-abc');
+      expect(route.state?.routes?.[route.state.index ?? 0]?.name).toBe(section);
+    }
+  });
+
+  test('keeps the route identical, so nothing below it remounts', () => {
+    const state = stack('Activity');
+    const mainTabs = state.routes[0];
+    expect(getStandingTopLevelTabRoute(state, 'ChatList')).toBe(mainTabs);
+  });
+
+  test('falls back to a fresh route only when the stack has no MainTabs', () => {
+    expect(getStandingTopLevelTabRoute(undefined, 'ChatList')).toEqual({
+      name: 'MainTabs',
+      params: { screen: 'ChatList' },
+    });
+    expect(
+      getStandingTopLevelTabRoute(
+        { index: 0, routes: [{ name: 'OnboardingStartup' }] },
+        'BotChat'
+      )
+    ).toEqual({ name: 'MainTabs', params: { screen: 'BotChat' } });
+  });
+
+  // A MainTabs the navigator has not reported state for yet cannot be reused
+  // as-is: it carries no sections to preserve.
+  test('falls back when MainTabs is there but has not built its sections', () => {
+    expect(
+      getStandingTopLevelTabRoute(
+        { index: 0, routes: [{ name: 'MainTabs', key: 'MainTabs-abc' }] },
+        'ChatList'
+      )
+    ).toEqual({ name: 'MainTabs', params: { screen: 'ChatList' } });
   });
 });

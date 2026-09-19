@@ -71,3 +71,80 @@ export function routeShowsChat(
     chat.group.channels?.length === 1 ? chat.group.channels[0].id : null;
   return only != null && params?.channelId === only;
 }
+
+type StackSnapshot =
+  | {
+      index?: number;
+      routes?: ReadonlyArray<RouteLike & { key?: string }>;
+    }
+  | undefined;
+
+/**
+ * Whether the drawer owns the left edge on a route, rather than the stack's
+ * own back gesture.
+ *
+ * Being a drawer destination is not enough on its own. These same screens are
+ * reached by being opened from somewhere — a participant's DM from a channel,
+ * a group from a link in a message or in the bot's own conversation — and
+ * there the screen behind is one the user was on a moment ago and expects to
+ * get back to. Taking the edge there would leave no way back at all, since the
+ * header on these screens shows the drawer button in place of a caret.
+ *
+ * So the edge is the drawer's only where the route sits directly on the
+ * sections: there is nothing behind it but the section it was chosen from, and
+ * reaching that section is what the panel is for.
+ *
+ * This deliberately does not ask *how* the conversation was reached. One at
+ * this depth opened from a link inside a tab — a group linked in the bot's own
+ * conversation, a DM opened from Activity — also gives up its back gesture,
+ * and that is the intended behaviour rather than an oversight: the panel
+ * carries a row for every section, so the tab is one tap away, and the
+ * alternative reinstates the thing this branch exists to fix. Pinning it to
+ * provenance instead, a conversation opened from the workspace list swipes
+ * back to the workspace list, which is the report that started this.
+ *
+ * Pass `routeKey` to ask about a particular route; omit it to ask about
+ * whichever route the stack has focused.
+ */
+export function drawerOwnsEdge(
+  stackState: StackSnapshot,
+  routeKey?: string
+): boolean {
+  const routes = stackState?.routes;
+  if (!routes?.length) {
+    return false;
+  }
+  const index =
+    routeKey == null
+      ? (stackState?.index ?? 0)
+      : routes.findIndex((route) => route.key === routeKey);
+  // Index 0 is `MainTabs` itself, and a route we cannot find is not one whose
+  // gesture we should be claiming.
+  if (index < 1) {
+    return false;
+  }
+  if (routes[index - 1]?.name !== 'MainTabs') {
+    return false;
+  }
+  return isDrawerDestinationRoute(routes[index]);
+}
+
+/**
+ * The params that say what a conversation route *is*, lifted off a route so
+ * they can be put back on one.
+ *
+ * `popTo` overwrites the params of the route it lands on, so returning from a
+ * post would otherwise strip these and change the screen underneath the user:
+ * without `isDrawerDestination` its header turns back into a caret. Gathered
+ * here so that the next marker added to a conversation route is added in one
+ * place rather than two, the second of which is easy to miss — a second marker
+ * was added and missed here exactly once already.
+ */
+export function carriedConversationParams(params: object | undefined): {
+  isDrawerDestination?: true;
+} {
+  const marks = params as { isDrawerDestination?: boolean } | undefined;
+  return {
+    ...(marks?.isDrawerDestination ? { isDrawerDestination: true } : {}),
+  };
+}

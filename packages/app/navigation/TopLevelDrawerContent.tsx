@@ -7,7 +7,13 @@ import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { Button, Icon, IconType, Pressable, Text } from '@tloncorp/ui';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { FlashList } from '@shopify/flash-list';
 import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,7 +21,7 @@ import { Circle, View, XStack, YStack, getTokenValue, useTheme } from 'tamagui';
 
 import { useAnyAgentGroupOnboardingLock } from '../hooks/useAgentGroupOnboardingLock';
 import { useBotDmTab } from '../hooks/useBotDmTab';
-import { ListItem } from '../ui';
+import { ListItem, getUnreadColors } from '../ui';
 import { floatingChromeMetrics } from '../ui/components/conversationInsets';
 import {
   GlassSurface,
@@ -24,14 +30,15 @@ import {
 import { useCalm } from '../ui/contexts/appDataContext';
 import { getChatTitle } from '../ui/utils/channelUtils';
 import { getDrawerChats } from './drawerChats';
-import { routeShowsChat } from './drawerDestination';
+import { drawerOwnsEdge, routeShowsChat } from './drawerDestination';
 import { announceTopLevelSectionReselected } from './topLevelSectionReselect';
+import type { RouteSnapshot } from './topLevelTabs';
 import {
   TOP_LEVEL_TABS,
   TopLevelTabName,
   getActiveTopLevelTab,
-  getExistingTopLevelTabRoute,
   getInitialTopLevelTab,
+  getStandingTopLevelTabRoute,
   getTopLevelTabNavigateAction,
   isTabPressBlockedByOnboardingLock,
   trackTopLevelTabSelection,
@@ -116,7 +123,9 @@ function DrawerSection({
       disabled={disabled}
       accessibilityRole="button"
       // The dot beside the label is decorative, so the unread state has to
-      // reach a screen reader through the label itself.
+      // reach a screen reader through the label itself. It is always the
+      // accent: Activity is where notifying activity collects, so there is no
+      // quieter kind here to tell it apart from.
       accessibilityLabel={hasUnread ? `${label}, unread` : label}
       accessibilityState={{ disabled, selected }}
       borderRadius="$l"
@@ -143,7 +152,12 @@ function DrawerSection({
         >
           {label}
         </Text>
-        {hasUnread ? <Circle size="$s" backgroundColor="$blue" /> : null}
+        {hasUnread ? (
+          <Circle
+            size="$s"
+            backgroundColor={getUnreadColors(true).foreground}
+          />
+        ) : null}
       </XStack>
     </Pressable>
   );
@@ -175,15 +189,24 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
   const hasUnread =
     (chat.unreadCount > 0 || notified) &&
     !logic.isMuted(chat.volumeSettings?.level, chat.type);
+  // The same accent/grey split the workspace list's count badge makes, in the
+  // form this row has room for: the dot is the badge with the number taken
+  // out, so it reads the colours from the same place rather than picking its
+  // own.
+  const unreadColor = getUnreadColors(notified).foreground;
 
   return (
     <Pressable
       onPress={disabled ? undefined : handlePress}
       disabled={disabled}
       accessibilityRole="button"
-      // The dot is decorative, so the unread state has to reach a screen
-      // reader through the label itself.
-      accessibilityLabel={hasUnread ? `${title}, unread` : title}
+      // The dot is decorative, and its colour carries a distinction a screen
+      // reader would otherwise lose entirely, so the label makes it in words.
+      accessibilityLabel={
+        hasUnread
+          ? `${title}, ${notified ? 'unread, notified' : 'unread'}`
+          : title
+      }
       accessibilityState={{ disabled, selected }}
       testID={`TopLevelDrawerChat-${chat.id}`}
       borderRadius="$l"
@@ -206,7 +229,7 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
           {title}
         </Text>
         <ListItem.Time time={chat.timestamp} paddingBottom={0} />
-        {hasUnread ? <Circle size="$s" backgroundColor="$blue" /> : null}
+        {hasUnread ? <Circle size="$s" backgroundColor={unreadColor} /> : null}
       </XStack>
     </Pressable>
   );
@@ -399,29 +422,49 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
   // read before its route is known — and by then the user may have chosen
   // something else, here or from any of the other controls.
   const navigationRequestRef = useRef(0);
-  // The panel is mounted for the app's whole life, open or not, so this query
-  // would otherwise observe every chat forever — and `useCurrentChats` is
-  // shared by key with the workspace list, whose own observer is deliberately
-  // gated on focus. An ungated one here would hold that gate open and re-run
-  // the whole chat query on every inbound message.
+  // Ungated, as the desktop sidebars this panel is the mobile counterpart of
+  // are. Gating it on the panel being open looks like a saving — the query is
+  // a heavy one and the panel is shut most of the time — but React Query only
+  // refetches a stale entry for an *active* observer, so a shut panel meant
+  // every unread arriving in the meantime merely marked the entry stale.
+  // Opening it then served the last value it happened to hold, sometimes
+  // minutes old, and corrected it a beat later. The panel is the only place
+  // unreads are visible from inside a conversation now that the tab bar is
+  // gone, so its data has to be live, not fetched at the moment of looking.
+  const { data: chats } = store.useCurrentChats();
+  // Every closing of the panel voids whatever it had in flight. A chat open
+  // outlives its own tap — the group has to be read before its route is known
+  // — and the panel can be dismissed in that gap by the overlay, a back
+  // action or a swipe, none of which go through the rows. Without this the
+  // read would come back and navigate to a chat the user had just backed away
+  // from. A closing the panel did itself, having navigated, is counted too:
+  // by then the reset has already gone out.
   const drawerOpen = useDrawerStatus() === 'open';
-  const { data: chats } = store.useCurrentChats({ enabled: drawerOpen });
-  // Armed fresh each time the panel opens, so the one-chat-per-opening guard
-  // in `openChat` never outlives the opening it belongs to.
+  useEffect(() => {
+    if (!drawerOpen) {
+      navigationRequestRef.current += 1;
+    }
+  }, [drawerOpen]);
 
-  // The drawer's own state holds one route — the root stack — so the section
-  // to mark is read out of that stack's state. A cold load that named no
-  // section leaves the sections navigator yet to report its state upward, and
-  // until it does it is showing the route it initialises to.
-  const selected =
-    getActiveTopLevelTab(state.routes[state.index]?.state) ??
-    getInitialTopLevelTab(botDm.enabled);
+  // The drawer's own state holds one route — the root stack — so everything
+  // about where the app is standing is read out of that stack's state.
+  const rootStackState = state.routes[state.index]?.state;
   // What the app is standing on behind the panel, so a row can say it is the
   // one already open.
-  const focusedStackRoute = (() => {
-    const stack = state.routes[state.index]?.state;
-    return stack?.routes?.[stack.index ?? 0];
-  })();
+  const focusedStackRoute = rootStackState?.routes?.[rootStackState.index ?? 0];
+  // A cold load that named no section leaves the sections navigator yet to
+  // report its state upward, and until it does it is showing the route it
+  // initialises to.
+  const activeSection =
+    getActiveTopLevelTab(rootStackState) ??
+    getInitialTopLevelTab(botDm.enabled);
+  // Standing in a chat the drawer opened, no section is marked. The section
+  // below such a chat is only whichever one happened to be showing when it was
+  // chosen — the chat was not reached through it — so marking it would light a
+  // second row beside the chat's own and name somewhere the user is not. A
+  // chat pushed over another screen is a position inside that hierarchy and
+  // keeps its section marked.
+  const selected = drawerOwnsEdge(rootStackState) ? null : activeSection;
 
   const select = useCallback(
     (section: TopLevelTabName) => {
@@ -483,19 +526,17 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
         ),
         source: 'drawer',
       });
-      // These rows are the workspace list's chats, so what they open is a
-      // position inside Workspaces however the drawer was reached — otherwise
-      // it is pushed above whichever section happened to be showing and stays
-      // attributed to it.
+      // The sections are left exactly as they stand. A chat picked here is not
+      // a position inside any of them — the row below marks itself — and a
+      // section named underneath it would be one the user never chose. It also
+      // showed: the stack animates the outgoing screen away before the
+      // incoming one arrives, so a workspace list switched to in this same
+      // dispatch got a moment on screen, still half-drawn, between the chat
+      // being left and the chat being opened.
       //
-      // One dispatch for the section and the chat together: selecting the
-      // section first and then navigating would show the workspace list in
-      // between, because the group route has to read the group before it knows
-      // whether to open its channel list or its only channel. And the section
-      // is the `MainTabs` already standing rather than a fresh one, so the
-      // sections keep what they were holding — the workspace list's filter and
-      // scroll, Activity's scroll — as they would through an ordinary tab
-      // switch.
+      // Still one dispatch for the two together, and still the `MainTabs`
+      // already standing rather than a fresh one, so nothing below remounts
+      // and every section keeps what it was holding.
       // Resetting to what is already showing would replace that route with a
       // newly keyed one, remounting the conversation and throwing away the
       // scroll position of whoever is reading it — so a row for where we
@@ -522,49 +563,81 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
           : params?.channelId === focusedParams?.channelId;
       };
 
-      const sectionRoute = getExistingTopLevelTabRoute(stackState, 'ChatList');
       if (chat.type === 'group') {
-        getMainGroupRoute(chat.group.id, true).then((groupRoute) => {
-          // The generation covers anything chosen from this panel. It cannot
-          // see the app itself: the drawer has closed by now, and whoever is
-          // on the screen behind it may have gone somewhere before this read
-          // came back. So the stack has to be where this left it too.
-          const liveState = navigation.getState() as unknown as {
-            index: number;
-            routes: {
-              state?: { index?: number; routes?: { key?: string }[] };
-            }[];
-          };
-          const liveStack = liveState.routes[liveState.index]?.state;
-          const liveFocused = liveStack?.routes?.[liveStack.index ?? 0];
-          if (
-            navigationRequestRef.current !== request ||
-            liveFocused?.key !== focusedStackRoute?.key ||
-            showsRoute(groupRoute)
-          ) {
-            return;
-          }
-          reset([sectionRoute, groupRoute]);
-        });
-      } else {
-        const channelRoute = {
-          name: screenNameFromChannelId(chat.channel.id) as
-            | 'DM'
-            | 'GroupDM'
-            | 'Channel',
-          params: {
-            channelId: chat.channel.id,
-            ...(chat.channel.groupId ? { groupId: chat.channel.groupId } : {}),
-            // Picked straight out of the drawer, so it stands on its own like
-            // every other row here — nothing is pushed behind it for a caret
-            // to lead back to. A DM says this by its route name; a channel
-            // pinned out of a group has to say it in a param.
-            isDrawerDestination: true,
-          },
-        };
-        if (!showsRoute(channelRoute)) {
-          reset([sectionRoute, channelRoute]);
-        }
+        getMainGroupRoute(chat.group.id, true)
+          .then((groupRoute) => {
+            // The generation covers anything chosen from this panel. It cannot
+            // see the app itself: whoever is on the screen behind the panel may
+            // have gone somewhere before this read came back, so the stack has
+            // to be where this left it too.
+            const liveState = navigation.getState() as unknown as {
+              index: number;
+              routes: ReadonlyArray<RouteSnapshot>;
+            };
+            const liveStack = liveState.routes[liveState.index]?.state;
+            const liveFocused = liveStack?.routes?.[liveStack.index ?? 0];
+            if (
+              navigationRequestRef.current !== request ||
+              liveFocused?.key !== focusedStackRoute?.key ||
+              showsRoute(groupRoute)
+            ) {
+              return;
+            }
+            // Read after the wait, not before it. The sections are carried
+            // through this reset whole, so a snapshot taken before the group
+            // was read would put back the tab that was showing then — and the
+            // check above cannot notice, because a tab change inside
+            // `MainTabs` leaves the route it looks at with the same key. The
+            // cold-start claim of the bot section is one such change, and
+            // undoing it would also spend its one shot.
+            reset([
+              getStandingTopLevelTabRoute(liveStack, 'ChatList'),
+              groupRoute,
+            ]);
+          })
+          .catch((err) => {
+            logger.trackError('Failed to open chat from drawer', err);
+          })
+          // Closing waits for the swap, and closing at all does not wait for
+          // it to have succeeded. The panel covers the screen the swap happens
+          // on, so closing first plays it in the open: the panel slides away
+          // onto the chat being left, and only then does the new one push in
+          // over it. Closing after, the panel slides away onto the chat asked
+          // for, already there.
+          //
+          // Only the request still current closes, for the same reason only it
+          // navigates. A superseded one has had its closing done for it by
+          // whatever superseded it, and closing again could shut a panel the
+          // user has since reopened.
+          .finally(() => {
+            if (navigationRequestRef.current === request) {
+              navigation.closeDrawer();
+            }
+          });
+        return;
+      }
+
+      // A channel's route is known without a read, so its swap lands in this
+      // same tick — nothing can move underneath it — and the close below
+      // already follows it.
+      const sectionRoute = getStandingTopLevelTabRoute(stackState, 'ChatList');
+      const channelRoute = {
+        name: screenNameFromChannelId(chat.channel.id) as
+          | 'DM'
+          | 'GroupDM'
+          | 'Channel',
+        params: {
+          channelId: chat.channel.id,
+          ...(chat.channel.groupId ? { groupId: chat.channel.groupId } : {}),
+          // Picked straight out of the drawer, so it stands on its own like
+          // every other row here — nothing is pushed behind it for a caret
+          // to lead back to. A DM says this by its route name; a channel
+          // pinned out of a group has to say it in a param.
+          isDrawerDestination: true,
+        },
+      };
+      if (!showsRoute(channelRoute)) {
+        reset([sectionRoute, channelRoute]);
       }
       navigation.closeDrawer();
     },
