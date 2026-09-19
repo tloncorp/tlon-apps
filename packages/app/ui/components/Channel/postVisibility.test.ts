@@ -29,6 +29,61 @@ describe('isVisibleChannelPost', () => {
     ).toBe(false);
   });
 
+  it('hides successful automatic provision transport posts', () => {
+    expect(
+      isVisibleChannelPost(
+        {
+          authorId: '~ten',
+          blob: appendToPostBlob(undefined, {
+            type: 'tlon-agent-provision',
+            version: 1,
+            provisionId: 'auto-plan-post',
+            groupId: '~ten/group',
+            purposeId: 'agent-learning',
+            purpose: 'Learning',
+            topics: ['Balcony gardening'],
+            scheduleHour: 18,
+            scheduleMinute: 0,
+            scheduleExpression: '0 18 * * *',
+            scheduleDescription: 'daily at 6 PM',
+            taskPrompt: 'Teach one practical balcony-gardening lesson.',
+            timezone: 'Europe/Paris',
+            notebookNest: 'notes/~ten/updates',
+          }),
+        },
+        '~ten'
+      )
+    ).toBe(false);
+  });
+
+  it('keeps a failed automatic provision hidden while its plan card offers retry', () => {
+    expect(
+      isVisibleChannelPost(
+        {
+          authorId: '~ten',
+          deliveryStatus: 'failed',
+          blob: appendToPostBlob(undefined, {
+            type: 'tlon-agent-provision',
+            version: 1,
+            provisionId: 'auto-plan-post',
+            groupId: '~ten/group',
+            purposeId: 'agent-learning',
+            purpose: 'Learning',
+            topics: ['Balcony gardening'],
+            scheduleHour: 18,
+            scheduleMinute: 0,
+            scheduleExpression: '0 18 * * *',
+            scheduleDescription: 'daily at 6 PM',
+            taskPrompt: 'Teach one practical balcony-gardening lesson.',
+            timezone: 'Europe/Paris',
+            notebookNest: 'notes/~ten/updates',
+          }),
+        },
+        '~ten'
+      )
+    ).toBe(false);
+  });
+
   it('keeps onboarding intro requests from other authors visible', () => {
     expect(
       isVisibleChannelPost(

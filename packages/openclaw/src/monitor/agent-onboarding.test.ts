@@ -19,6 +19,7 @@ import {
 import {
   agentOnboardingCronChannelNest,
   agentOnboardingCronProviderIds,
+  agentOnboardingClientDateTimeContext,
   agentOnboardingTesting,
   clearAgentOnboardingRuntime,
   createAgentOnboardingCatchUpScheduler,
@@ -160,6 +161,7 @@ const firstGroupIntro = (timestamp = 0) => introRequest(timestamp);
 function botMarker(key: string, timestamp: number) {
   return {
     author: '~bot',
+    id: String(1_000 + Math.round(timestamp * 1_000)),
     content: key,
     timestamp,
     blob: appendToPostBlob(undefined, {
@@ -203,6 +205,7 @@ function provisionRequest(
 function servicesCard(timestamp = 2) {
   return {
     author: '~bot',
+    id: '123',
     content: 'Pick anything you’d like, or tap Done to continue.',
     timestamp,
     blob: appendToPostBlob(undefined, {
@@ -816,6 +819,168 @@ describe('agent onboarding requests', () => {
     expect(parseAgentOnboardingRequest('not-json')).toBeNull();
   });
 
+  it('requires a matching durable approach answer for automatic plans', () => {
+    const automaticProvision = {
+      ...provision,
+      approach: 'Compare expert perspectives',
+      taskPrompt: 'Track the most useful current developments.',
+    };
+    const approachQuestion = {
+      author: '~bot',
+      id: '170141184508164136620680233968906272768',
+      content: 'How should I research this?',
+      timestamp: 1,
+      blob: appendToPostBlob(undefined, {
+        type: 'tlon-agent-post-marker',
+        version: 1,
+        key: 'agent-choice-dimension:approach',
+      }),
+    };
+    const approachAnswer = {
+      author: '~ten',
+      id: 'approach-answer',
+      content: 'Compare expert perspectives',
+      timestamp: 2,
+      blob: appendToPostBlob(undefined, {
+        type: 'tlon-a2ui-selection',
+        version: 1,
+        sourcePostId: '170.141.184.508.164.136.620.680.233.968.906.272.768',
+        surfaceId: 'agent-choice-approach-1',
+        componentId: 'choices',
+        values: ['Compare expert perspectives'],
+      }),
+    };
+    const planPost = {
+      author: '~bot',
+      id: '170141184508164139641457862078644617216',
+      content: 'Daily plan',
+      timestamp: 3,
+    };
+    const provisionPost = {
+      author: '~ten',
+      id: 'provision',
+      content: '',
+      timestamp: 4,
+      blob: appendToPostBlob(appendToPostBlob(undefined, automaticProvision), {
+        type: 'tlon-a2ui-selection',
+        version: 1,
+        sourcePostId: '170.141.184.508.164.139.641.457.862.078.644.617.216',
+        surfaceId: 'agent-task-plan-1',
+        componentId: 'auto-provision',
+        values: ['AI, Climate'],
+      }),
+    };
+    const history = [approachQuestion, approachAnswer, planPost, provisionPost];
+
+    expect(
+      agentOnboardingTesting.validateAutomaticPlanEvidence(
+        history,
+        '~ten',
+        '~bot',
+        automaticProvision
+      )
+    ).toBeNull();
+    expect(
+      agentOnboardingTesting.validateAutomaticPlanEvidence(
+        history.slice(0, -1),
+        '~ten',
+        '~bot',
+        automaticProvision,
+        provisionPost.blob
+      )
+    ).toBeNull();
+    expect(
+      agentOnboardingTesting.validateAutomaticPlanEvidence(
+        [
+          ...history.slice(0, -1),
+          { ...provisionPost, id: 'duplicate-provision', timestamp: 3.5 },
+          provisionPost,
+        ],
+        '~ten',
+        '~bot',
+        automaticProvision
+      )
+    ).toBeNull();
+    expect(
+      agentOnboardingTesting.validateAutomaticPlanEvidence(
+        history.filter((post) => post.id !== 'approach-answer'),
+        '~ten',
+        '~bot',
+        automaticProvision
+      )
+    ).toContain('approach');
+    for (const invalidSourcePostId of [
+      '~other/170.141.184.508.164.136.620.680.233.968.906.272.768',
+      '17.014.118.450.816.413.662.068.023.396.890.627.276.8',
+      ' 170.141.184.508.164.136.620.680.233.968.906.272.768',
+      '',
+    ]) {
+      const invalidAnswer = {
+        ...approachAnswer,
+        blob: JSON.stringify([
+          {
+            type: 'tlon-a2ui-selection',
+            version: 1,
+            sourcePostId: invalidSourcePostId,
+            surfaceId: 'agent-choice-approach-1',
+            componentId: 'choices',
+            values: ['Compare expert perspectives'],
+          },
+        ]),
+      };
+      expect(
+        agentOnboardingTesting.validateAutomaticPlanEvidence(
+          [approachQuestion, invalidAnswer, planPost, provisionPost],
+          '~ten',
+          '~bot',
+          automaticProvision
+        )
+      ).toContain('approach');
+    }
+    expect(
+      agentOnboardingTesting.validateAutomaticPlanEvidence(
+        [
+          ...history.slice(0, -1),
+          {
+            author: '~ten',
+            id: 'correction',
+            content: 'Actually, use 9 AM.',
+            timestamp: 3.5,
+          },
+          provisionPost,
+        ],
+        '~ten',
+        '~bot',
+        automaticProvision
+      )
+    ).toContain('superseded');
+    const prefixedDuplicate = {
+      author: '~ten',
+      id: 'not-the-provision',
+      content: '',
+      timestamp: 3.5,
+      blob: JSON.stringify([
+        {
+          type: 'tlon-a2ui-selection',
+          version: 1,
+          sourcePostId:
+            '~other/170.141.184.508.164.139.641.457.862.078.644.617.216',
+          surfaceId: 'agent-task-plan-1',
+          componentId: 'auto-provision',
+          values: ['AI, Climate'],
+        },
+      ]),
+    };
+    expect(
+      agentOnboardingTesting.validateAutomaticPlanEvidence(
+        [...history.slice(0, -1), prefixedDuplicate, provisionPost],
+        '~ten',
+        '~bot',
+        automaticProvision
+      )
+    ).toContain('superseded');
+  });
+
   it('keeps the services follow-up action flat', () => {
     const services = agentOnboardingTesting.buildServicesSurface(
       'pitch',
@@ -864,7 +1029,7 @@ describe('agent onboarding requests', () => {
     expect(A2UI.validateBlobEntry(services)).toBe(true);
   });
 
-  it('labels the topic submit action Done', () => {
+  it('labels the legacy topic submit action Done', () => {
     const topics = agentOnboardingTesting.buildTopicsPickerSurface(
       '~ten/group',
       {
@@ -915,6 +1080,200 @@ describe('agent onboarding requests', () => {
       expect.objectContaining({
         type: 'tlon-agent-post-marker',
         key: 'onboarding-follow-up',
+      })
+    );
+  });
+
+  it('recovers blob-only typed Done replies before they wake the model', async () => {
+    const sendPost = successfulSendPost();
+    const history = [
+      firstGroupIntro(),
+      botMarker('intro', 0.1),
+      botMarker('purpose-picker', 0.2),
+      provisionAck(),
+      servicesCard(),
+      { author: '~ten', content: 'Done', timestamp: 3 },
+    ];
+    const blob = appendToPostBlob(undefined, {
+      type: 'tlon-a2ui-selection',
+      version: 1,
+      sourcePostId: '123',
+      surfaceId: 'agent-services',
+      componentId: 'providers',
+      values: ['Done'],
+    });
+
+    await expect(
+      handleAgentOnboardingRequest(replyContext('', { blob }), {
+        fetchHistory: vi.fn(async () => history),
+        sendPost,
+      })
+    ).resolves.toBe(true);
+
+    expect(sendPost).toHaveBeenCalledOnce();
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).toContain(
+      'Want me to tell you more about what you can do here?'
+    );
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).toContain(
+      'Your results live in Updates'
+    );
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).toContain(
+      'change or pause this daily task'
+    );
+  });
+
+  it('continues orientation after an additional-group intro is provisioned', async () => {
+    const sendPost = successfulSendPost();
+    const history = [
+      introRequest(0, false),
+      botMarker('group-setup-complete', 0.2),
+      provisionAck(),
+      servicesCard(),
+      { author: '~ten', content: 'Done', timestamp: 3 },
+    ];
+    const blob = appendToPostBlob(undefined, {
+      type: 'tlon-a2ui-selection',
+      version: 1,
+      sourcePostId: '123',
+      surfaceId: 'agent-services',
+      componentId: 'providers',
+      values: ['Done'],
+    });
+
+    await expect(
+      handleAgentOnboardingRequest(replyContext('', { blob }), {
+        fetchHistory: vi.fn(async () => history),
+        sendPost,
+      })
+    ).resolves.toBe(true);
+
+    expect(sendPost).toHaveBeenCalledOnce();
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).toContain(
+      'Your results live in Updates'
+    );
+  });
+
+  it('recovers a typed Done when durable history is also blob-only', async () => {
+    const sendPost = successfulSendPost();
+    const blob = appendToPostBlob(undefined, {
+      type: 'tlon-a2ui-selection',
+      version: 1,
+      sourcePostId: '123',
+      surfaceId: 'agent-services',
+      componentId: 'providers',
+      values: ['Done'],
+    });
+    const history = [
+      firstGroupIntro(),
+      provisionAck(),
+      servicesCard(),
+      { author: '~ten', content: '', timestamp: 3, blob },
+    ];
+
+    await expect(
+      handleAgentOnboardingRequest(replyContext('', { blob }), {
+        fetchHistory: vi.fn(async () => history),
+        sendPost,
+      })
+    ).resolves.toBe(true);
+    expect(sendPost).toHaveBeenCalledOnce();
+  });
+
+  it('does not treat a wrong-source typed Done as services completion', async () => {
+    const sendPost = successfulSendPost();
+    const blob = appendToPostBlob(undefined, {
+      type: 'tlon-a2ui-selection',
+      version: 1,
+      sourcePostId: '124',
+      surfaceId: 'agent-services',
+      componentId: 'providers',
+      values: ['Done'],
+    });
+    const history = [firstGroupIntro(), provisionAck(), servicesCard()];
+
+    await expect(
+      handleAgentOnboardingRequest(replyContext('Done', { blob }), {
+        fetchHistory: vi.fn(async () => history),
+        sendPost,
+      })
+    ).resolves.toBe(false);
+    expect(sendPost).not.toHaveBeenCalled();
+  });
+
+  it('does not treat a wrong-source typed Yes as a tour answer', async () => {
+    const sendPost = successfulSendPost();
+    const blob = appendToPostBlob(undefined, {
+      type: 'tlon-a2ui-selection',
+      version: 1,
+      sourcePostId: '124',
+      surfaceId: 'agent-onboarding-app-tour:~ten/group',
+      componentId: 'choice',
+      values: ['Yes'],
+    });
+    const history = [
+      firstGroupIntro(),
+      provisionAck(),
+      botMarker('onboarding-follow-up', 2),
+    ];
+
+    await expect(
+      handleAgentOnboardingRequest(replyContext('Yes', { blob }), {
+        fetchHistory: vi.fn(async () => history),
+        sendPost,
+      })
+    ).resolves.toBe(false);
+    expect(sendPost).not.toHaveBeenCalled();
+  });
+
+  it('leaves unrelated blob-only typed replies for ordinary conversation', async () => {
+    const fetchHistory = vi.fn(async () => {
+      throw new Error('history should not be fetched');
+    });
+    const blob = appendToPostBlob(undefined, {
+      type: 'tlon-a2ui-selection',
+      version: 1,
+      sourcePostId: 'question-post',
+      surfaceId: 'agent-choice-context',
+      componentId: 'choices',
+      values: ['Use concrete examples'],
+    });
+
+    await expect(
+      handleAgentOnboardingRequest(replyContext('', { blob }), {
+        fetchHistory,
+      })
+    ).resolves.toBe(false);
+    expect(fetchHistory).not.toHaveBeenCalled();
+  });
+
+  it('preserves typed legacy purpose-picker replies', async () => {
+    const sendPost = successfulSendPost();
+    const history = [
+      firstGroupIntro(),
+      botMarker('intro', 0.1),
+      botMarker('purpose-picker', 0.2),
+      { author: '~ten', content: 'A daily digest', timestamp: 1 },
+    ];
+    const blob = appendToPostBlob(undefined, {
+      type: 'tlon-a2ui-selection',
+      version: 1,
+      sourcePostId: '1200',
+      surfaceId: 'agent-onboarding-purpose:~ten/group',
+      componentId: 'choices',
+      values: ['A daily digest'],
+    });
+
+    await expect(
+      handleAgentOnboardingRequest(replyContext('A daily digest', { blob }), {
+        fetchHistory: vi.fn(async () => history),
+        sendPost,
+      })
+    ).resolves.toBe(true);
+    expect(sendPost).toHaveBeenCalledOnce();
+    expect(parsePostBlob(sendPost.mock.calls[0]?.[0].blob)).toContainEqual(
+      expect.objectContaining({
+        type: 'tlon-agent-post-marker',
+        key: 'topics-picker',
       })
     );
   });
@@ -1042,6 +1401,29 @@ describe('agent onboarding requests', () => {
     );
   });
 
+  it('recovers additional-group services completion after a plugin restart', async () => {
+    const sendPost = successfulSendPost();
+    const history = [
+      introRequest(0, false),
+      botMarker('group-setup-complete', 0.2),
+      provisionAck(),
+      servicesCard(),
+      { author: '~ten', content: 'Done', timestamp: 3 },
+    ];
+
+    await expect(
+      scanAgentOnboardingChannel(generalScanContext(), {
+        fetchHistory: vi.fn(async () => history),
+        sendPost,
+      })
+    ).resolves.toBe(true);
+
+    expect(sendPost).toHaveBeenCalledOnce();
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).toContain(
+      'Your results live in Updates'
+    );
+  });
+
   it('restores an enqueued run after its request leaves bounded history', async () => {
     const store = memoryRunStore();
     setAgentOnboardingRunStore(store);
@@ -1148,7 +1530,7 @@ describe('agent onboarding requests', () => {
     ).resolves.toBe(true);
     expect(sent).toHaveLength(2);
     expect(JSON.stringify(sent[1])).toContain(
-      'Try asking me to adjust tomorrow’s update or investigate something now.'
+      'Ask me anytime to change or pause this daily task, or to investigate something now.'
     );
     expect(parsePostBlob(sent[1]!.blob)).toContainEqual(
       expect.objectContaining({
@@ -1340,7 +1722,7 @@ describe('agent onboarding requests', () => {
             },
           ]),
           sleep: vi.fn(async () => {}),
-          sendPost: vi.fn(async (post: { blob?: string }) => {
+          sendPost: vi.fn(async (post: { blob?: string; story?: unknown }) => {
             sent.push(post);
             return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
           }),
@@ -1352,14 +1734,17 @@ describe('agent onboarding requests', () => {
 
     const firstGroup = await promptFor(true);
     expect(firstGroup).toHaveLength(1);
-    expect(JSON.stringify(firstGroup[0]?.story)).toContain(
+    expect(JSON.stringify(firstGroup[0])).toContain(
       'Welcome! This is your private group with me, your Tlonbot.'
     );
-    expect(JSON.stringify(firstGroup[0]?.story)).toContain(
+    expect(JSON.stringify(firstGroup[0])).toContain(
       'I can keep you informed, help you learn, or follow a question over time.'
     );
-    expect(JSON.stringify(firstGroup[0]?.story)).toContain(
+    expect(JSON.stringify(firstGroup[0])).toContain(
       'What can I help you with?'
+    );
+    expect(JSON.stringify(parsePostBlob(firstGroup[0]?.blob))).not.toContain(
+      'a2ui'
     );
     expect(parsePostBlob(firstGroup[0]?.blob)).toEqual(
       expect.arrayContaining([
@@ -1369,7 +1754,7 @@ describe('agent onboarding requests', () => {
         }),
         expect.objectContaining({
           type: 'tlon-agent-post-marker',
-          key: 'purpose-picker',
+          key: 'task-interview',
         }),
       ])
     );
@@ -1429,13 +1814,14 @@ describe('agent onboarding requests', () => {
     ).toBe(false);
   });
 
-  it('posts each picker as a durable channel message', async () => {
-    const sent: Array<{ story: unknown; blob?: string }> = [];
-    const sendPost = vi.fn(async (post: { story: unknown; blob?: string }) => {
+  it('posts a freeform first invitation, then hands its reply to the model', async () => {
+    const sent: Array<{ story?: unknown; blob?: string }> = [];
+    const sendPost = vi.fn(async (post: { story?: unknown; blob?: string }) => {
       sent.push(post);
       return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
     });
     const base = {
+      accountId: 'starter-card-test',
       api: { scry: vi.fn() },
       botShip: '~bot',
       channelNest: 'chat/~ten/general',
@@ -1458,6 +1844,8 @@ describe('agent onboarding requests', () => {
           version: 1,
           groupId: '~ten/group',
           isFirstGroup: true,
+          clientTimezone: 'America/Los_Angeles',
+          clientLocale: 'en-US',
         }),
       },
     ];
@@ -1470,6 +1858,17 @@ describe('agent onboarding requests', () => {
     expect(JSON.stringify(parsePostBlob(sent[0].blob))).not.toContain(
       'the cards are only starts'
     );
+    expect(JSON.stringify(sent[0].story)).toContain(
+      'What can I help you with?'
+    );
+    expect(JSON.stringify(parsePostBlob(sent[0].blob))).not.toContain('a2ui');
+    expect(parsePostBlob(sent[0].blob)).toContainEqual(
+      expect.objectContaining({
+        type: 'tlon-agent-post-marker',
+        key: 'task-interview',
+      })
+    );
+
     history.push(
       {
         author: '~bot',
@@ -1484,51 +1883,20 @@ describe('agent onboarding requests', () => {
       }
     );
 
-    await handleAgentOnboardingRequest(
-      { ...base, rawText: 'A daily digest', blob: undefined },
-      { fetchHistory: vi.fn(async () => history), sendPost }
-    );
-    expect(sent).toHaveLength(2);
-    const topicsA2UI = parsePostBlob(sent[1].blob).find(
-      (entry) => entry.type === 'a2ui'
-    );
-    expect(topicsA2UI).toMatchObject({ storyMode: 'fallback' });
-    expect(JSON.stringify(topicsA2UI)).toContain(
-      'What should I keep an eye on?'
-    );
-    expect(JSON.stringify(topicsA2UI)).not.toContain(
-      'tell me here in the chat'
-    );
-    expect(JSON.stringify(topicsA2UI)).toContain('tlon.provisionAgent');
-    history.push(
-      {
-        author: '~bot',
-        content: 'topics',
-        timestamp: 4,
-        blob: sent[1].blob,
-      },
-      {
-        author: '~ten',
-        content: 'Open hardware, Space weather',
-        timestamp: 5,
-      }
-    );
-
-    await handleAgentOnboardingRequest(
-      {
-        ...base,
-        rawText: 'Open hardware, Space weather',
-        blob: undefined,
-      },
-      { fetchHistory: vi.fn(async () => history), sendPost }
-    );
-    // Topic confirmation is a client-owned provision action because only the
-    // client knows the device timezone. A raw-text recovery must never revive
-    // the retired timezone prompt or button.
-    expect(sent).toHaveLength(2);
-    expect(JSON.stringify(sent)).not.toContain('timezone-picker');
-    expect(JSON.stringify(sent)).not.toContain('Use my current timezone');
-    expect(JSON.stringify(sent)).not.toContain('One last detail');
+    await expect(
+      handleAgentOnboardingRequest(
+        {
+          ...base,
+          rawText: 'A daily digest',
+          blob: undefined,
+        },
+        { fetchHistory: vi.fn(async () => history), sendPost }
+      )
+    ).resolves.toBe(false);
+    expect(sent).toHaveLength(1);
+    expect(
+      agentOnboardingClientDateTimeContext('starter-card-test', '~ten/group')
+    ).toEqual({ timezone: 'America/Los_Angeles', locale: 'en-US' });
   });
 
   it('shows thinking and paces the combined onboarding opening', async () => {
@@ -1591,7 +1959,7 @@ describe('agent onboarding requests', () => {
     expect(events[0]).toBe('thinking:start');
     expect(events.at(-1)).toBe('thinking:stop');
     expect(events.filter((e) => e.startsWith('post:'))).toEqual([
-      'post:intro+purpose-picker',
+      'post:intro+task-interview',
     ]);
 
     // Every post is preceded by a pause, and the pause is composed rather than
@@ -1747,7 +2115,7 @@ describe('agent onboarding requests', () => {
     expect(stopThinking).toHaveBeenCalledOnce();
   });
 
-  it('consumes picker replies from production-shaped history before model dispatch', async () => {
+  it('passes model-led starter replies through production-shaped history', async () => {
     const sent: Array<{ story: unknown; blob?: string }> = [];
     const sendPost = vi.fn(async (post: { story: unknown; blob?: string }) => {
       sent.push(post);
@@ -1819,11 +2187,8 @@ describe('agent onboarding requests', () => {
         },
         { sendPost }
       )
-    ).resolves.toBe(true);
-    expect(sent).toHaveLength(2);
-    expect(JSON.stringify(parsePostBlob(sent[1].blob))).toContain(
-      'tlon.provisionAgent'
-    );
+    ).resolves.toBe(false);
+    expect(sent).toHaveLength(1);
   });
 
   it.each([
@@ -1898,6 +2263,23 @@ describe('agent onboarding requests', () => {
     }
   );
 
+  it('ties the services benefit to the task topic when available', () => {
+    expect(
+      agentOnboardingTesting.servicesPitch(
+        'agent-daily-digest',
+        'community garden'
+      )
+    ).toBe(
+      'Connect your docs or notes and I can include details you already track about community garden in future updates.'
+    );
+  });
+
+  it('describes a generic daily task as updates rather than a digest', () => {
+    expect(agentOnboardingTesting.servicesPitch('agent-daily-digest')).toBe(
+      'Connect your docs and notes and these daily updates can use your own material, not just public information.'
+    );
+  });
+
   it('describes the recurring schedule after the forced first entry', () => {
     expect(
       agentOnboardingTesting.scheduleConfirmation({
@@ -1913,6 +2295,11 @@ describe('agent onboarding requests', () => {
         timezone: 'Asia/Tokyo',
       } as never)
     ).toBe('After this first entry, new ones arrive at 12:05 AM.');
+    expect(
+      agentOnboardingTesting.scheduleConfirmation({
+        scheduleDescription: 'the task will run daily at 5:30 PM.',
+      } as never)
+    ).toBe('After this first entry, the task will run daily at 5:30 PM.');
   });
 });
 
@@ -2140,6 +2527,54 @@ describe('primary onboarding cron slot', () => {
     expect(prompt).not.toContain('tlon notes');
     expect(prompt).toContain('order items by urgency');
     expect(prompt).toContain('concise and scannable');
+  });
+
+  it('uses the model-authored task and ordinary cron schedule when present', async () => {
+    const interviewPlan = {
+      ...provision,
+      taskPrompt:
+        'Track material battery research from primary sources. Include only results published in the last seven days and explain practical implications.',
+      scheduleExpression: '30 8 * * 1-5',
+      scheduleDescription: 'every weekday at 8:30 AM',
+    };
+    const prompt = agentOnboardingTesting.buildRecurringPrompt(interviewPlan);
+    expect(prompt).toContain(interviewPlan.taskPrompt);
+    expect(prompt).toContain('Use the current run date and time');
+    expect(prompt).toContain('render it in America/New_York');
+    expect(prompt).toContain('ordinary 12-hour AM/PM wording');
+    expect(prompt).toContain('Never expose UTC');
+    expect(prompt).toContain('one self-contained Markdown note');
+
+    const harness = cronHarness();
+    await agentOnboardingTesting.upsertPrimaryJob(
+      harness.cron,
+      interviewPlan,
+      'chat/~ten/group/general'
+    );
+    expect(harness.getJobs()[0]).toMatchObject({
+      schedule: {
+        kind: 'cron',
+        expr: '30 8 * * 1-5',
+        tz: 'America/New_York',
+      },
+      payload: { message: expect.stringContaining(interviewPlan.taskPrompt) },
+    });
+    expect(agentOnboardingTesting.scheduleConfirmation(interviewPlan)).toBe(
+      'After this first entry, the task will run every weekday at 8:30 AM.'
+    );
+    const acknowledgement =
+      agentOnboardingTesting.buildProvisionAcknowledgement(
+        {
+          ...interviewPlan,
+          purpose:
+            'Keep material battery research visible without a large system.',
+        },
+        'Updates'
+      );
+    expect(acknowledgement).toContain(
+      'I’ll publish the first tailored update about AI and Climate in Updates'
+    );
+    expect(acknowledgement).not.toContain('I’ll publish keep');
   });
 
   it('keeps research updates narrow, sourced, and honest about freshness', () => {
@@ -2678,13 +3113,14 @@ describe('provision coordinator ordering', () => {
 
   it('reports submitted topics before cron provisioning starts', async () => {
     const trackStep = vi.fn();
+    const sendPost = vi.fn();
 
     await expect(
       handleAgentOnboardingRequest(requestContext({ trackStep }), {
         fetchHistory: vi.fn(async () => []),
         getGroup: vi.fn(async () => provisionedGroup()),
         getCron: () => undefined as never,
-        sendPost: vi.fn(),
+        sendPost,
       })
     ).rejects.toThrow(
       `agent onboarding provision ${provision.provisionId} failed: cron service is not available`
@@ -2699,6 +3135,10 @@ describe('provision coordinator ordering', () => {
       timezone: provision.timezone,
       notebookNest: provision.notebookNest,
     });
+    expect(sendPost).toHaveBeenCalledOnce();
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).toContain(
+      "couldn't finish setting up the daily task yet"
+    );
   });
 
   it('retries a valid provision while notebook membership converges', async () => {
@@ -2934,7 +3374,16 @@ describe('provision coordinator ordering', () => {
     await expect(store.lookup(storedRunKey())).resolves.toMatchObject({
       status: 'enqueued',
     });
-    expect(history).toHaveLength(2);
+    expect(history).toHaveLength(3);
+    expect(
+      history.filter((post) =>
+        parsePostBlob(post.blob ?? '').some(
+          (entry) =>
+            entry.type === 'tlon-agent-post-marker' &&
+            entry.key === 'provision-retrying:provision-1'
+        )
+      )
+    ).toHaveLength(1);
   });
 
   it('does not enqueue twice when acknowledgement fails after enqueue', async () => {
@@ -2979,7 +3428,16 @@ describe('provision coordinator ordering', () => {
       status: 'enqueued',
       runId: 'run-1',
     });
-    expect(history).toHaveLength(2);
+    expect(history).toHaveLength(3);
+    expect(
+      history.filter((post) =>
+        parsePostBlob(post.blob ?? '').some(
+          (entry) =>
+            entry.type === 'tlon-agent-post-marker' &&
+            entry.key === 'provision-retrying:provision-1'
+        )
+      )
+    ).toHaveLength(1);
   });
 
   it('finishes a completed first run discovered after plugin restart', async () => {

@@ -17,8 +17,13 @@ import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { useConversationScrollEndAnchor } from '../../contexts/scroll';
 import { ActionSheet } from '../ActionSheet';
+import { resolveAgentProvisionButtonLabel } from '../ChatMessage/agentProvision';
 import { TextInput } from '../Form';
 import { A2UIMenuRow } from './A2UIMenuRow';
+import {
+  AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID,
+  shouldAttemptAutomaticProvision,
+} from './autoProvision';
 import { McpConnectControl } from './McpConnectControl';
 import { useContentContext } from './contentUtils';
 import { useOneShotAction } from './useOneShotAction';
@@ -101,6 +106,8 @@ function buildActionSelection(
 }
 
 function SmallChoiceRow({
+  accessibilityRole,
+  accessibilityValue,
   disabled,
   isLast,
   isSelected,
@@ -109,6 +116,8 @@ function SmallChoiceRow({
   shortcut,
   testID,
 }: {
+  accessibilityRole?: ComponentProps<typeof A2UIMenuRow>['accessibilityRole'];
+  accessibilityValue?: ComponentProps<typeof A2UIMenuRow>['accessibilityValue'];
   disabled: boolean;
   isLast: boolean;
   isSelected: boolean;
@@ -125,13 +134,16 @@ function SmallChoiceRow({
     <A2UIMenuRow
       testID={testID}
       accessibilityLabel={label}
+      accessibilityRole={accessibilityRole}
       accessibilityState={{ disabled, selected: isSelected }}
+      accessibilityValue={accessibilityValue}
       disabled={disabled}
       onPress={onPress}
       dividerAfter={!isLast}
       dividerOutside
       dimmed={disabled && !isSelected}
       label={label}
+      labelCanWrap
       paddingVertical="$m"
       leading={
         <View
@@ -158,9 +170,9 @@ function SmallChoiceRow({
 }
 
 /**
- * A compact questionnaire for selecting several short answers. Selection is
- * local until submit — no per-tap posting — so it lives in a child component
- * with its own state rather than in the render callback.
+ * A compact questionnaire for selecting one or several short answers.
+ * Selection is local until submit — no per-tap posting — so it lives in a
+ * child component with its own state rather than in the render callback.
  */
 function SmallChoiceControl({
   component,
@@ -190,6 +202,7 @@ function SmallChoiceControl({
   const customInputOpenRef = useRef(false);
   const conversationScrollEndAnchor = useConversationScrollEndAnchor();
   const oneShot = useOneShotAction(Boolean(consumedSelection));
+  const isSingleSelect = component.selectionMode === 'single';
 
   const setCustomInputVisibility = useCallback(
     (open: boolean) => {
@@ -219,9 +232,21 @@ function SmallChoiceControl({
     []
   );
 
+  useEffect(() => {
+    // A choice is the next interaction after an owner message. Keep the
+    // composer's keyboard from covering half the newly arrived options while
+    // still allowing the first tap on a row to select it.
+    void KeyboardController.dismiss();
+  }, []);
+
   const toggle = useCallback(
     (id: string) => {
       if (oneShot.isLocked()) {
+        return;
+      }
+      if (isSingleSelect) {
+        setCustomTopics([]);
+        setSelectedIds((previous) => (previous.includes(id) ? [] : [id]));
         return;
       }
       setSelectedIds((previous) => {
@@ -237,7 +262,7 @@ function SmallChoiceControl({
         return [...previous, id];
       });
     },
-    [customTopics.length, oneShot]
+    [customTopics.length, isSingleSelect, oneShot]
   );
 
   const messageForSelection = useMemo(
@@ -365,6 +390,12 @@ function SmallChoiceControl({
       (option) => option.label.toLocaleLowerCase() === topic.toLocaleLowerCase()
     );
     if (matchingOption) {
+      if (isSingleSelect) {
+        setCustomTopics([]);
+        setSelectedIds([matchingOption.id]);
+        setCustomInputOpen(false);
+        return;
+      }
       setSelectedIds((previous) =>
         previous.includes(matchingOption.id) ||
         previous.length + customTopics.length >=
@@ -373,6 +404,12 @@ function SmallChoiceControl({
           : [...previous, matchingOption.id]
       );
     } else {
+      if (isSingleSelect) {
+        setSelectedIds([]);
+        setCustomTopics([topic]);
+        setCustomInputOpen(false);
+        return;
+      }
       setCustomTopics((previous) => {
         if (
           selectedIds.length + previous.length >=
@@ -394,6 +431,7 @@ function SmallChoiceControl({
     component.options,
     customDraft,
     customTopics.length,
+    isSingleSelect,
     oneShot,
     selectedIds.length,
   ]);
@@ -437,6 +475,12 @@ function SmallChoiceControl({
                 testID={`A2UISmallChoice-${option.id}`}
                 label={option.label}
                 shortcut={smallChoiceShortcut(index)}
+                accessibilityRole={isSingleSelect ? 'radio' : undefined}
+                accessibilityValue={
+                  isSingleSelect
+                    ? { text: isSelected ? 'Selected' : 'Not selected' }
+                    : undefined
+                }
                 isSelected={isSelected}
                 isLast={isLast}
                 disabled={disabled}
@@ -463,6 +507,7 @@ function SmallChoiceControl({
                 ? displayedCustomTopicSummary
                 : customChoiceLabel
             }
+            labelCanWrap
             labelColor={
               displayedCustomTopics.length ? '$primaryText' : '$secondaryText'
             }
@@ -752,7 +797,11 @@ export function A2UIBlock({
   const [locallyConsumedChoices, setLocallyConsumedChoices] = useState<
     Record<string, string>
   >({});
+  const [pendingButtonIds, setPendingButtonIds] = useState<string[]>([]);
+  const [failedAutoProvisionSurfaceIds, setFailedAutoProvisionSurfaceIds] =
+    useState<string[]>([]);
   const buttonPressLocksRef = useRef(new Set<string>());
+  const autoProvisionAttemptsRef = useRef(new Set<string>());
   const choicePressLocksRef = useRef(new Set<string>());
   const smallChoiceSubmitLocksRef = useRef(new Set<string>());
   const update = A2UI.getUpdateMessage(block.a2ui);
@@ -776,11 +825,14 @@ export function A2UIBlock({
         (component.action.event.name === A2UI.action.sendMessage &&
           !component.action.event.context.text.trim())
       ) {
-        return;
+        return false;
       }
 
       const consumeAction = isConsumableA2UIAction(component.action);
       buttonPressLocksRef.current.add(component.id);
+      setPendingButtonIds((previous) =>
+        previous.includes(component.id) ? previous : [...previous, component.id]
+      );
       try {
         await onA2UIAction?.(
           component.action,
@@ -800,9 +852,14 @@ export function A2UIBlock({
               : [...previous, component.id]
           );
         }
+        return true;
       } catch {
         buttonPressLocksRef.current.delete(component.id);
+        return false;
       } finally {
+        setPendingButtonIds((previous) =>
+          previous.filter((componentId) => componentId !== component.id)
+        );
         if (!consumeAction) {
           buttonPressLocksRef.current.delete(component.id);
         }
@@ -810,6 +867,51 @@ export function A2UIBlock({
     },
     [a2uiSourcePostId, onA2UIAction, surfaceId]
   );
+
+  useEffect(() => {
+    const component = components.get(
+      AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID
+    );
+    if (!component || component.component !== 'Button' || !onA2UIAction) {
+      return;
+    }
+    if (
+      !shouldAttemptAutomaticProvision({
+        componentId: component.id,
+        actionName: component.action.event.name,
+        selectionsPending: Boolean(areA2UISelectionsPending),
+        actionAvailable: isA2UIActionAvailable?.(component.action) !== false,
+        consumed: Boolean(
+          getConsumedA2UISelection?.(surfaceId, component.id) ||
+          isA2UIActionConsumed?.(component.action) === true
+        ),
+        attemptedThisMount: autoProvisionAttemptsRef.current.has(surfaceId),
+      })
+    ) {
+      return;
+    }
+
+    // This is the automatic handoff from a completed model interview to the
+    // existing owner-authenticated provision coordinator. One mount makes one
+    // attempt; durable selection/provision receipts suppress remount retries.
+    autoProvisionAttemptsRef.current.add(surfaceId);
+    void handleButtonPress(component).then((succeeded) => {
+      if (!succeeded) {
+        setFailedAutoProvisionSurfaceIds((previous) =>
+          previous.includes(surfaceId) ? previous : [...previous, surfaceId]
+        );
+      }
+    });
+  }, [
+    areA2UISelectionsPending,
+    components,
+    getConsumedA2UISelection,
+    handleButtonPress,
+    isA2UIActionAvailable,
+    isA2UIActionConsumed,
+    onA2UIAction,
+    surfaceId,
+  ]);
 
   const handleChoicePress = useCallback(
     async (
@@ -1042,6 +1144,7 @@ export function A2UIBlock({
               isA2UIActionConsumed?.(component.action) === true);
           const disabled =
             actionConsumed ||
+            pendingButtonIds.includes(component.id) ||
             consumptionPending ||
             component.disabled ||
             !onA2UIAction ||
@@ -1051,6 +1154,14 @@ export function A2UIBlock({
             components
           );
           const treatment = getButtonTreatment(component);
+          const visibleLabel =
+            component.action.event.name === A2UI.action.provisionAgent
+              ? resolveAgentProvisionButtonLabel(
+                  label,
+                  pendingButtonIds.includes(component.id),
+                  actionConsumed
+                )
+              : label;
           return (
             <Button.Frame
               key={component.id}
@@ -1074,11 +1185,14 @@ export function A2UIBlock({
               importantForAccessibility="auto"
               disabled={disabled}
               dimmed={disabled}
+              accessibilityRole="button"
+              accessibilityLabel={visibleLabel}
+              testID={`A2UIButton-${component.id}`}
               onPress={
                 disabled ? undefined : () => handleButtonPress(component)
               }
             >
-              <Button.Text size="medium">{label}</Button.Text>
+              <Button.Text size="medium">{visibleLabel}</Button.Text>
             </Button.Frame>
           );
         }
@@ -1352,6 +1466,7 @@ export function A2UIBlock({
       locallyConsumedComponentIds,
       locallyConsumedChoices,
       onA2UIAction,
+      pendingButtonIds,
       provisionedAgentTopics,
       surfaceId,
     ]
@@ -1361,9 +1476,47 @@ export function A2UIBlock({
     return null;
   }
 
+  const failedAutoProvision = failedAutoProvisionSurfaceIds.includes(surfaceId)
+    ? components.get(AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID)
+    : undefined;
+
   return (
     <YStack gap="$s" maxWidth={560} {...props}>
       {renderComponent(root)}
+      {failedAutoProvision?.component === 'Button' ? (
+        <YStack gap="$s" marginTop="$m">
+          <Text size="$body" color="$secondaryText">
+            Setup couldn’t start. You can try again.
+          </Text>
+          <Button.Frame
+            size="medium"
+            fill="outline"
+            intent="secondary"
+            alignSelf="flex-start"
+            accessibilityRole="button"
+            accessibilityLabel="Retry setup"
+            testID="A2UIAutoProvisionRetry"
+            onPress={() => {
+              autoProvisionAttemptsRef.current.delete(surfaceId);
+              setFailedAutoProvisionSurfaceIds((previous) =>
+                previous.filter((id) => id !== surfaceId)
+              );
+              autoProvisionAttemptsRef.current.add(surfaceId);
+              void handleButtonPress(failedAutoProvision).then((succeeded) => {
+                if (!succeeded) {
+                  setFailedAutoProvisionSurfaceIds((previous) =>
+                    previous.includes(surfaceId)
+                      ? previous
+                      : [...previous, surfaceId]
+                  );
+                }
+              });
+            }}
+          >
+            <Button.Text size="medium">Retry setup</Button.Text>
+          </Button.Frame>
+        </YStack>
+      ) : null}
     </YStack>
   );
 }

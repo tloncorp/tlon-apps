@@ -730,6 +730,13 @@ export const PostBlobDataEntryAgentIntroRequestSchema =
   definePostBlobDataEntrySchema('tlon-agent-intro-request', 1, {
     groupId: z.string().min(1).max(512),
     isFirstGroup: z.boolean().optional(),
+    /** Hidden device context for local-time planning; never rendered as copy. */
+    clientTimezone: agentProtocolString(
+      AGENT_PROTOCOL_LIMITS.timezoneLength
+    ).optional(),
+    clientLocale: agentProtocolString(
+      AGENT_PROTOCOL_LIMITS.localeLength
+    ).optional(),
   });
 
 export type PostBlobDataEntryAgentIntroRequest = z.infer<

@@ -247,6 +247,7 @@ const smallChoiceSchema = z.object({
     .max(LIMITS.maxSmallChoiceOptions)
     .refine((options) => uniqueBy(options, (option) => option.id))
     .refine((options) => uniqueBy(options, (option) => option.label)),
+  selectionMode: z.enum(['single', 'multiple']).optional(),
   submitLabel: nonEmptyString(LIMITS.maxPillLabelLength),
   freeTextPlaceholder: nonEmptyString(LIMITS.maxPillLabelLength).optional(),
   action: smallChoiceActionSchema,

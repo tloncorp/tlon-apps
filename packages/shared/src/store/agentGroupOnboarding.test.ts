@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { appendToPostBlob } from '../logic';
 import {
   agentGroupOnboardingTesting,
   buildAgentGroupTitle,
@@ -12,7 +13,7 @@ describe('buildAgentGroupTitle', () => {
         purposeId: 'agent-daily-digest',
         topics: ['Peptides'],
       })
-    ).toBe('Peptides Digest');
+    ).toBe('Peptides Updates');
     expect(
       buildAgentGroupTitle({
         purposeId: 'agent-learning',
@@ -54,13 +55,28 @@ describe('buildAgentGroupTitle', () => {
           'CTA delays and service changes',
         ],
       })
-    ).toBe('Chicago weather and school clos… + 1 more Digest');
+    ).toBe('Chicago weather + 1 more Updates');
     expect(
       buildAgentGroupTitle({
         purposeId: 'agent-research',
         topics: ['Private equity ownership of Pennsylvania nursing homes'],
       })
-    ).toBe('Private equity ownership of Pennsylvan… Research');
+    ).toBe('Private equity Research');
+    expect(
+      buildAgentGroupTitle({
+        purposeId: 'agent-daily-digest',
+        topics: ['Community garden unfinished items'],
+      })
+    ).toBe('Community garden Updates');
+  });
+
+  it('uses the concrete topic even when the purpose is generic', () => {
+    expect(
+      buildAgentGroupTitle({
+        purposeId: 'agent-daily-digest',
+        topics: ['nervous rescue dog'],
+      })
+    ).toBe('nervous rescue dog Updates');
   });
 });
 
@@ -98,6 +114,32 @@ describe('onboarding group title replacement', () => {
 });
 
 describe('agent group furnishing retry', () => {
+  it('recognizes a completed pending group from its durable intro request', () => {
+    const intro = {
+      authorId: '~zod',
+      blob: appendToPostBlob(undefined, {
+        type: 'tlon-agent-intro-request',
+        version: 1,
+        groupId: '~zod/completed',
+      }),
+    } as never;
+
+    expect(
+      agentGroupOnboardingTesting.historyHasAgentIntroRequest(
+        [intro],
+        '~zod',
+        '~zod/completed'
+      )
+    ).toBe(true);
+    expect(
+      agentGroupOnboardingTesting.historyHasAgentIntroRequest(
+        [intro],
+        '~zod',
+        '~zod/still-pending'
+      )
+    ).toBe(false);
+  });
+
   it('deletes only this client’s proven-new notebook when it loses the race', () => {
     const first = { id: 'notes/~zod/zeta', title: 'Updates' } as never;
     const second = { id: 'notes/~zod/alpha', title: 'Updates' } as never;

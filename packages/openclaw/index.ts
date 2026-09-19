@@ -37,6 +37,16 @@ import {
 } from './src/diagnostic-subscriptions.js';
 import { notifyDiaryMigrationDiscovery } from './src/diary-migration-discovery.js';
 import { suppressTlonFallbackNotice } from './src/fallback-notice-delivery.js';
+import {
+  recordSuccessfulAgentTaskPlan,
+  suppressReplyAfterSuccessfulAgentTaskPlan,
+} from './src/agent-task-plan-reply-delivery.js';
+import {
+  clearTlonSessionRunSurface,
+  getTlonSessionRunSurface,
+  getTlonSessionSurface,
+  onboardingToolBlockReason,
+} from './src/onboarding-tool-boundary.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
 import { registerRestartCatchupHooks } from './src/restart-catchup.js';
 import { createMigrateCommandHandler } from './src/migrate-command.js';
@@ -1046,10 +1056,18 @@ export default defineBundledChannelEntry({
               event.params,
               allowedProviderIds
             )));
-      const isBlocked = blocksNonOwner || blocksOnboardingMcp;
+      const onboardingBoundaryReason = onboardingToolBlockReason(
+        event.toolName,
+        event.params,
+        getTlonSessionSurface(ctx.sessionKey),
+        getTlonSessionRunSurface(ctx.runId)
+      );
+      const blocksOnboardingBoundary = Boolean(onboardingBoundaryReason);
+      const isBlocked =
+        blocksNonOwner || blocksOnboardingMcp || blocksOnboardingBoundary;
       const blockReason = blocksOnboardingMcp
         ? 'This scheduled onboarding update may inspect and call only selected-provider MCP tools explicitly described as read-only.'
-        : ownerOnlyDecision.reason;
+        : (onboardingBoundaryReason ?? ownerOnlyDecision.reason);
       if (contextLensEnabled) {
         // Capture tool activity even when no conversation run owns this
         // session (cron wakes — including jobs that reuse the main session
@@ -1109,7 +1127,11 @@ export default defineBundledChannelEntry({
         );
       }
 
-      if (!isOwnerOnlyTool && !blocksOnboardingMcp) {
+      if (
+        !isOwnerOnlyTool &&
+        !blocksOnboardingMcp &&
+        !blocksOnboardingBoundary
+      ) {
         return undefined;
       }
 
@@ -1118,7 +1140,7 @@ export default defineBundledChannelEntry({
       // Only block when role is explicitly "user" (non-owner DM).
       if (isBlocked) {
         api.logger.warn(
-          `[tlon] Blocked ${event.toolName} tool for non-owner. Session: ${ctx.sessionKey}, Role: ${role}`
+          `[tlon] Blocked ${event.toolName} tool. Session: ${ctx.sessionKey}, Role: ${role}, Reason: ${blockReason}`
         );
         if (contextLensEnabled) {
           const blockedLens = recordContextLensToolResultForSession(
@@ -1158,6 +1180,7 @@ export default defineBundledChannelEntry({
     });
 
     api.on('after_tool_call', async (event, ctx) => {
+      recordSuccessfulAgentTaskPlan(event, ctx);
       const toolCallId = readToolCallId(event);
       const tlonCommandContext =
         event.toolName === 'tlon' && typeof event.params.command === 'string'
@@ -1365,6 +1388,7 @@ export default defineBundledChannelEntry({
     // answer. Terminal provider failures are not marked as fallback notices
     // and continue through the normal delivery path.
     api.on('reply_payload_sending', suppressTlonFallbackNotice);
+    api.on('reply_payload_sending', suppressReplyAfterSuccessfulAgentTaskPlan);
 
     // ── Route diagnostics ───────────────────────────────────────────────
     // Fires for every outbound send OpenClaw routes — the primary streamed
@@ -1535,6 +1559,7 @@ export default defineBundledChannelEntry({
     // deliver the reply (stamped + recorded via the outbound send path).
     api.on('agent_end', (_event, ctx) => {
       clearCronJobForSession(ctx.sessionKey, ctx.jobId);
+      clearTlonSessionRunSurface(ctx.runId);
       if (!contextLensEnabled) {
         return;
       }

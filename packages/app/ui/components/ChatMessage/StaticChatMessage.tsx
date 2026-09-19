@@ -26,6 +26,7 @@ import { A2UIBlock } from '../PostContent/A2UIBlock';
 import { DefaultRendererProps } from '../PostContent/BlockRenderer';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import { isA2UISendMessageActionConsumed } from '../PostContent/a2uiActionConsumption';
+import { isPendingProvisionSuperseded } from './a2uiActionCompletion';
 import {
   hasRenderableA2UIStoryFallback,
   isA2UIBlockRenderable,
@@ -40,6 +41,13 @@ import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
+import {
+  hasAnsweredApproachChoice,
+  hasNewerOwnerPost,
+  findConsumedProvisionSelection,
+  resolveAgentProvisionId,
+  resolveAgentProvisionTimezone,
+} from './agentProvision';
 
 function receiptFollowsPost(
   receipt:
@@ -71,9 +79,13 @@ function provisionMatchesPlan(
     provision.groupId === plan.groupId &&
     provision.purposeId === plan.purposeId &&
     provision.purpose === plan.purpose &&
+    provision.approach === plan.approach &&
     provision.timezone === plan.timezone &&
     provision.scheduleHour === plan.scheduleHour &&
     provision.scheduleMinute === plan.scheduleMinute &&
+    provision.taskPrompt === plan.taskPrompt &&
+    provision.scheduleExpression === plan.scheduleExpression &&
+    provision.scheduleDescription === plan.scheduleDescription &&
     provision.notebookNest === notebookNest &&
     provision.notebookTitle === notebookTitle &&
     provision.topics.length === plan.topics.length &&
@@ -220,6 +232,45 @@ export function StaticChatMessage({
       }
       const notebookTitle = notebooks[0].title ?? 'Updates';
 
+      if (selection?.componentId === 'auto-provision') {
+        const selections = await db.getA2UISelections({
+          channelId: post.channelId,
+          authorId: currentUserId,
+        });
+        const sourcePostIds = [
+          ...new Set(
+            selections
+              .map((candidate) => candidate.sourcePostId)
+              .filter((id): id is string => Boolean(id))
+          ),
+        ];
+        const sourcePosts = await Promise.all(
+          sourcePostIds.map((postId) => db.getPost({ postId }))
+        );
+        if (
+          !hasAnsweredApproachChoice({
+            approach: plan.approach,
+            selections,
+            sourcePosts,
+            planPost: post,
+            botAuthorId: post.authorId,
+          })
+        ) {
+          throw new Error(
+            'Choose how this task should gather or develop its answer first'
+          );
+        }
+        if (
+          hasNewerOwnerPost({
+            planPost: post,
+            channelPosts: await db.getChanPosts({ channelId: post.channelId }),
+            ownerId: currentUserId,
+          })
+        ) {
+          throw new Error('This plan was replaced by a newer answer');
+        }
+      }
+
       const locks = await db.agentGroupOnboardingLocks.getValue();
       const existingLock = locks[groupId];
       // Reuse an id only for an exact retry of the same unacknowledged plan.
@@ -234,18 +285,38 @@ export function StaticChatMessage({
         )
           ? existingLock?.provision?.provisionId
           : undefined;
+      const fallbackProvisionId = `${getRandomId()}-${Date.now().toString(36)}`;
       const request = {
         type: 'tlon-agent-provision',
         version: 1,
         provisionId:
-          provisionId ?? `${getRandomId()}-${Date.now().toString(36)}`,
+          provisionId ??
+          resolveAgentProvisionId(
+            selection?.sourcePostId ?? post.id,
+            selection?.componentId,
+            fallbackProvisionId,
+            JSON.stringify({
+              ...plan,
+              groupId,
+              notebookNest: notebooks[0].id,
+              notebookTitle,
+            })
+          ),
         groupId,
         purposeId: plan.purposeId,
         purpose: plan.purpose,
+        ...(plan.approach ? { approach: plan.approach } : {}),
         topics: plan.topics,
         timezone: plan.timezone,
         scheduleHour: plan.scheduleHour,
         scheduleMinute: plan.scheduleMinute,
+        ...(plan.taskPrompt ? { taskPrompt: plan.taskPrompt } : {}),
+        ...(plan.scheduleExpression
+          ? { scheduleExpression: plan.scheduleExpression }
+          : {}),
+        ...(plan.scheduleDescription
+          ? { scheduleDescription: plan.scheduleDescription }
+          : {}),
         notebookNest: notebooks[0].id,
         notebookTitle,
       } satisfies PostBlobDataEntryAgentProvision;
@@ -262,24 +333,28 @@ export function StaticChatMessage({
           provision: request,
         },
       }));
-      // A definitive failure leaves a retryable timeline row. Treat that row
-      // as the sole retry path and keep the source control consumed.
-      await draftInput.sendPostFromDraft({
-        channelId: draftInput.channel.id,
-        content: [plan.topics.join(', ')],
-        attachments: [],
-        blob,
-        channelType: draftInput.channel.type,
-        replyToPostId: null,
-        isEdit: false,
-      });
+      // Surface definitive failures on the source plan card. The typed
+      // transport remains hidden so synthetic plan fields never look like a
+      // message the owner composed.
+      await draftInput.sendPostFromDraft(
+        {
+          channelId: draftInput.channel.id,
+          content: [plan.topics.join(', ')],
+          attachments: [],
+          blob,
+          channelType: draftInput.channel.type,
+          replyToPostId: null,
+          isEdit: false,
+        },
+        { rejectOnDefinitiveFailure: true }
+      );
       await renameAgentGroupFromOnboarding({
         groupId,
         purposeId: plan.purposeId,
         topics: plan.topics,
       });
     },
-    [resolveActionGroup]
+    [currentUserId, post, resolveActionGroup]
   );
 
   const configureAgentProviders = useCallback(
@@ -332,8 +407,10 @@ export function StaticChatMessage({
       }
 
       if (action.event.name === A2UI.action.provisionAgent) {
-        const timezone =
-          Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+        const timezone = resolveAgentProvisionTimezone(
+          action.event.context.timezoneOverride,
+          Intl.DateTimeFormat().resolvedOptions().timeZone
+        );
         await sendAgentProvision(
           { ...action.event.context, timezone },
           selection
@@ -409,6 +486,7 @@ export function StaticChatMessage({
         // denormalized channel relation catches up; submission validates the
         // canonical channel table above.
         return Boolean(
+          !isPendingProvisionSuperseded(a2uiActionCompletion) &&
           draftInputContext &&
           draftInputContext.canStartDraft !== false &&
           groupId &&
@@ -432,7 +510,13 @@ export function StaticChatMessage({
 
       return false;
     },
-    [canUseAgentProviderControls, draftInputContext, group, post.groupId]
+    [
+      a2uiActionCompletion,
+      canUseAgentProviderControls,
+      draftInputContext,
+      group,
+      post.groupId,
+    ]
   );
 
   // `useGroup()` can briefly clear its query result while a live post is
@@ -516,13 +600,16 @@ export function StaticChatMessage({
   );
   const getConsumedA2UISelection = useCallback(
     (surfaceId: string, componentId: string) =>
-      a2uiSelections.data?.find(
-        (entry) =>
-          entry.sourcePostId === post.id &&
-          entry.surfaceId === surfaceId &&
-          entry.componentId === componentId
-      ),
-    [a2uiSelections.data, post.id]
+      findConsumedProvisionSelection({
+        sourcePostId: post.id,
+        surfaceId,
+        componentId,
+        selections: a2uiSelections.data,
+        successfulProvisionSelections: provisionReceipts?.flatMap((receipt) =>
+          receipt.selection ? [receipt.selection] : []
+        ),
+      }),
+    [a2uiSelections.data, post.id, provisionReceipts]
   );
   const lastEditPostContent = usePostLastEditContent(post);
   const blobContent = useMemo(
