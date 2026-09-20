@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildDrawerChannelRoute,
   carriedConversationParams,
   drawerOwnsEdge,
   isDrawerDestinationRoute,
@@ -221,5 +222,47 @@ describe('carriedConversationParams', () => {
     expect(carriedConversationParams({ isDrawerDestination: false })).toEqual(
       {}
     );
+  });
+});
+
+describe('buildDrawerChannelRoute', () => {
+  it('names a direct message by its channel id', () => {
+    expect(buildDrawerChannelRoute({ id: 'chat/~zod/dm--~nec' })).toMatchObject(
+      {
+        name: 'Channel',
+      }
+    );
+    expect(buildDrawerChannelRoute({ id: '~nec' })).toMatchObject({
+      name: 'DM',
+    });
+  });
+
+  // Every route it builds has to satisfy the question the drawer asks of the
+  // screen it lands on, or that screen shows a caret to nothing.
+  it('builds a route that reads as a drawer destination', () => {
+    const route = buildDrawerChannelRoute({
+      id: 'chat/~zod/general',
+      groupId: '~zod/tlon',
+    });
+
+    expect(route.params.isDrawerDestination).toBe(true);
+    expect(isDrawerDestinationRoute(route)).toBe(true);
+  });
+
+  it('carries the group a channel belongs to, and nothing when it has none', () => {
+    expect(
+      buildDrawerChannelRoute({ id: 'chat/~zod/general', groupId: '~zod/tlon' })
+        .params
+    ).toEqual({
+      channelId: 'chat/~zod/general',
+      groupId: '~zod/tlon',
+      isDrawerDestination: true,
+    });
+    expect(
+      buildDrawerChannelRoute({ id: '~nec', groupId: null }).params
+    ).toEqual({
+      channelId: '~nec',
+      isDrawerDestination: true,
+    });
   });
 });

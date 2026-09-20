@@ -1,3 +1,5 @@
+import { screenNameFromChannelId } from './routeHelpers';
+
 type RouteLike = {
   name?: string;
   params?: { isDrawerDestination?: boolean } | object;
@@ -36,6 +38,36 @@ export function isDrawerDestinationRoute(
     !!(route.params as { isDrawerDestination?: boolean } | undefined)
       ?.isDrawerDestination
   );
+}
+
+/**
+ * The route the drawer opens a channel through.
+ *
+ * Built here beside `isDrawerDestinationRoute`, which is the thing it has to
+ * satisfy: a conversation picked out of the panel stands on its own, with the
+ * section it was chosen from behind it and nothing else, so its header carries
+ * the drawer button rather than a caret. A `DM` or `GroupDM` says that by its
+ * route name; a channel of a group has to say it in a param.
+ */
+export function buildDrawerChannelRoute(channel: {
+  id: string;
+  groupId?: string | null;
+}): {
+  name: 'DM' | 'GroupDM' | 'Channel';
+  params: {
+    channelId: string;
+    groupId?: string;
+    isDrawerDestination: true;
+  };
+} {
+  return {
+    name: screenNameFromChannelId(channel.id) as 'DM' | 'GroupDM' | 'Channel',
+    params: {
+      channelId: channel.id,
+      ...(channel.groupId ? { groupId: channel.groupId } : {}),
+      isDrawerDestination: true,
+    },
+  };
 }
 
 type ChatLike =

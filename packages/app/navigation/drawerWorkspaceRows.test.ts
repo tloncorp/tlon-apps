@@ -3,19 +3,40 @@ import { describe, expect, it } from 'vitest';
 
 import {
   channelRecency,
+  channelRowHasUnread,
   getDrawerRows,
   getUnfurlableChannels,
   toggleUnfurled,
+  unfurls,
 } from './drawerWorkspaceRows';
 
 function channel(
   id: string,
-  { lastPostAt = 0, updatedAt = 0 }: { lastPostAt?: number; updatedAt?: number }
+  {
+    lastPostAt = 0,
+    updatedAt = 0,
+    currentUserIsMember = true,
+    count = 0,
+    notify = false,
+    volume,
+  }: {
+    lastPostAt?: number;
+    updatedAt?: number;
+    currentUserIsMember?: boolean | null;
+    count?: number;
+    notify?: boolean;
+    volume?: db.VolumeSettings['level'];
+  } = {}
 ): db.Channel {
   return {
     id,
     lastPostAt,
-    unread: updatedAt ? ({ updatedAt } as db.ChannelUnread) : null,
+    currentUserIsMember,
+    unread:
+      updatedAt || count || notify
+        ? ({ updatedAt, count, notify } as db.ChannelUnread)
+        : null,
+    volumeSettings: volume ? ({ level: volume } as db.VolumeSettings) : null,
   } as db.Channel;
 }
 
@@ -111,6 +132,83 @@ describe('getUnfurlableChannels', () => {
       getUnfurlableChannels(workspace('solo', [channel('only', {})]))
     ).toBeNull();
     expect(getUnfurlableChannels(workspace('empty', []))).toBeNull();
+  });
+});
+
+describe('getUnfurlableChannels, on channels the user cannot read', () => {
+  // `currentUserIsMember` is set from read permission, so a role-gated channel
+  // of a group the user belongs to is in the chat list with the flag false.
+  const gated = workspace('group', [
+    channel('open', { lastPostAt: 20 }),
+    channel('gated', { lastPostAt: 30, currentUserIsMember: false }),
+  ]);
+
+  it('leaves them out of what a workspace unfurls', () => {
+    expect(getUnfurlableChannels(gated)).toBeNull();
+    expect(unfurls(gated)).toBe(false);
+  });
+
+  it('does not let them make a one-channel workspace look like a many', () => {
+    const rows = getDrawerRows([gated], new Set(['group']));
+
+    expect(rows.map((row) => row.key)).toEqual(['group']);
+  });
+
+  it('keeps a workspace that has two the user can read', () => {
+    const mixed = workspace('group', [
+      channel('open', { lastPostAt: 20 }),
+      channel('also-open', { lastPostAt: 10 }),
+      channel('gated', { lastPostAt: 30, currentUserIsMember: false }),
+    ]);
+
+    expect(getUnfurlableChannels(mixed)?.map((c) => c.id)).toEqual([
+      'open',
+      'also-open',
+    ]);
+  });
+
+  // The flag is unset until the group syncs; `getGroup` counts only a true, so
+  // counting anything else here would disagree with the screen behind.
+  it('treats an unset flag as not readable, as the group query does', () => {
+    const unsynced = workspace('group', [
+      channel('one', { lastPostAt: 2, currentUserIsMember: null }),
+      channel('two', { lastPostAt: 1, currentUserIsMember: null }),
+    ]);
+
+    expect(unfurls(unsynced)).toBe(false);
+  });
+});
+
+describe('channelRowHasUnread', () => {
+  it('lights for a count, and for a notification without one', () => {
+    expect(channelRowHasUnread(channel('a', { count: 3 }), false)).toBe(true);
+    expect(channelRowHasUnread(channel('b', { notify: true }), false)).toBe(
+      true
+    );
+  });
+
+  it('stays dark with nothing unread', () => {
+    expect(channelRowHasUnread(channel('c'), false)).toBe(false);
+  });
+
+  it('stays dark for a hushed channel', () => {
+    expect(
+      channelRowHasUnread(channel('d', { count: 3, volume: 'hush' }), false)
+    ).toBe(false);
+  });
+
+  // `soft` mutes a group but not a channel, which is `isMuted`'s own split.
+  it('still lights for a channel set to soft', () => {
+    expect(
+      channelRowHasUnread(channel('e', { count: 3, volume: 'soft' }), false)
+    ).toBe(true);
+  });
+
+  it('stays dark for every channel of a muted workspace', () => {
+    expect(channelRowHasUnread(channel('f', { count: 3 }), true)).toBe(false);
+    expect(channelRowHasUnread(channel('g', { notify: true }), true)).toBe(
+      false
+    );
   });
 });
 

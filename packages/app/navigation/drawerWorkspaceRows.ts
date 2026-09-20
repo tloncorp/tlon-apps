@@ -49,23 +49,72 @@ export function channelRecency(channel: db.Channel): number {
 }
 
 /**
- * The channels a chat row unfurls, or `null` for a row that does not unfurl.
+ * The channels of a workspace that are this user's to open.
+ *
+ * The chat list loads every channel row it holds for a group, which is not the
+ * same as every channel this user can read: `currentUserIsMember` is set from
+ * read permission, so a role-gated channel of a group they are in is in that
+ * list with the flag false. `getGroup` filters on exactly this, which is what
+ * the workspace's own channel list shows and what `getMainGroupRoute` counts,
+ * so the panel has to filter the same way or it will offer a conversation the
+ * user cannot open and disagree with the screen behind it about how many a
+ * workspace has.
+ */
+function readableChannels(group: db.Group): db.Channel[] {
+  return (group.channels ?? []).filter(
+    (channel) => channel.currentUserIsMember === true
+  );
+}
+
+/**
+ * Whether a chat row unfurls rather than navigating.
  *
  * Three kinds of row do not. A direct message is not a workspace. An invite is
  * acted on through its preview sheet, and its channels are not the user's to
- * open until they have joined. And a workspace holding one channel is already
- * opened *as* that channel — there is nothing to choose between, so unfurling
- * it would put the same conversation on two rows and ask the user which.
+ * open until they have joined. And a workspace holding one readable channel is
+ * already opened *as* that channel — there is nothing to choose between, so
+ * unfurling it would put the same conversation on two rows and ask the user
+ * which.
+ */
+export function unfurls(chat: db.Chat): boolean {
+  if (chat.type !== 'group' || chat.isPending) {
+    return false;
+  }
+  return readableChannels(chat.group).length > 1;
+}
+
+/**
+ * The channels a chat row unfurls, newest first, or `null` for a row that does
+ * not unfurl.
  */
 export function getUnfurlableChannels(chat: db.Chat): db.Channel[] | null {
-  if (chat.type !== 'group' || chat.isPending) {
+  if (!unfurls(chat) || chat.type !== 'group') {
     return null;
   }
-  const channels = chat.group.channels ?? [];
-  if (channels.length < 2) {
-    return null;
+  return readableChannels(chat.group).sort(
+    (a, b) => channelRecency(b) - channelRecency(a)
+  );
+}
+
+/**
+ * Whether a channel's row lights its unread dot.
+ *
+ * The same contract the chat rows keep: a chat the user asked not to be drawn
+ * back to keeps its count on the workspace list, where counts are read
+ * deliberately, and lights nothing in the panel. Muting the workspace answers
+ * for every channel in it, which is what muting a workspace means.
+ */
+export function channelRowHasUnread(
+  channel: db.Channel,
+  groupMuted: boolean
+): boolean {
+  const notified = channel.unread?.notify ?? false;
+  if ((channel.unread?.count ?? 0) <= 0 && !notified) {
+    return false;
   }
-  return [...channels].sort((a, b) => channelRecency(b) - channelRecency(a));
+  return (
+    !groupMuted && !logic.isMuted(channel.volumeSettings?.level, 'channel')
+  );
 }
 
 /**
@@ -83,16 +132,19 @@ export function getDrawerRows(
 ): DrawerRow[] {
   const rows: DrawerRow[] = [];
   for (const chat of chats) {
-    const channels = getUnfurlableChannels(chat);
-    const unfurled = channels != null && unfurledGroupIds.has(chat.id);
+    // Asked of every row on every chat-list change, so it stays a count. Only
+    // a row that is actually open pays to copy and order its channels.
+    const rowUnfurls = unfurls(chat);
+    const unfurled = rowUnfurls && unfurledGroupIds.has(chat.id);
     rows.push({
       kind: 'chat',
       key: chat.id,
       chat,
-      unfurls: channels != null,
+      unfurls: rowUnfurls,
       unfurled,
     });
-    if (!unfurled || !channels) {
+    const channels = unfurled ? getUnfurlableChannels(chat) : null;
+    if (!channels) {
       continue;
     }
     const groupMuted =

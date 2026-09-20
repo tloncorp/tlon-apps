@@ -37,10 +37,15 @@ import { getDrawerChats } from './drawerChats';
 import {
   DrawerRow,
   channelRecency,
+  channelRowHasUnread,
   getDrawerRows,
   toggleUnfurled,
 } from './drawerWorkspaceRows';
-import { drawerOwnsEdge, routeShowsChat } from './drawerDestination';
+import {
+  buildDrawerChannelRoute,
+  drawerOwnsEdge,
+  routeShowsChat,
+} from './drawerDestination';
 import { announceTopLevelSectionReselected } from './topLevelSectionReselect';
 import type { RouteSnapshot } from './topLevelTabs';
 import {
@@ -53,11 +58,7 @@ import {
   isTabPressBlockedByOnboardingLock,
   trackTopLevelTabSelection,
 } from './topLevelTabs';
-import {
-  getMainGroupRoute,
-  screenNameFromChannelId,
-  useTypedReset,
-} from './utils';
+import { getMainGroupRoute, useTypedReset } from './utils';
 
 const logger = createDevLogger('TopLevelDrawerContent', false);
 
@@ -69,10 +70,15 @@ const CHAT_ROW_MIN_HEIGHT = 40;
 // An unfurled workspace and its channels are one block, so they share one
 // fill and the rows between its ends carry no corners of their own.
 const UNFURLED_FILL = '$secondaryBackground' as const;
-// A row inside that block that is pressed, or is the conversation on screen,
-// takes the panel's next grey up. `$secondaryBackground` is what says both of
-// those things everywhere else here, and the block has already spent it.
-const UNFURLED_EMPHASIS = '$activeBorder' as const;
+// A row inside that block that is pressed, or is the conversation on screen.
+// `$secondaryBackground` is what says both of those things everywhere else
+// here, and the block has already spent it, so this has to be the next surface
+// along. `$secondaryBorder` is the only one that is: `$border` and
+// `$activeBorder` are each equal to `$secondaryBackground` in some of the
+// themes on offer — `$activeBorder` in six of the nine — which would leave the
+// conversation you are in indistinguishable from its siblings and a press with
+// no feedback at all.
+const UNFURLED_EMPHASIS = '$secondaryBorder' as const;
 // How far a row's own background is held off the panel's edge, and then how
 // far its content is held off that. Everything the eye reads down the left —
 // a section's icon, a chat's name, the `Chat` button — starts at their sum.
@@ -307,14 +313,7 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
 }) {
   const handlePress = useCallback(() => onPress(channel), [channel, onPress]);
   const notified = channel.unread?.notify ?? false;
-  // The same contract the chat rows keep: a chat the user asked not to be
-  // drawn back to keeps its count on the workspace list, where counts are read
-  // deliberately, and lights nothing here. Muting the workspace answers for
-  // every channel in it, which is what muting a workspace means.
-  const hasUnread =
-    ((channel.unread?.count ?? 0) > 0 || notified) &&
-    !groupMuted &&
-    !logic.isMuted(channel.volumeSettings?.level, 'channel');
+  const hasUnread = channelRowHasUnread(channel, groupMuted);
   const unreadColor = getUnreadColors(notified).foreground;
 
   return (
@@ -672,21 +671,7 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
       });
       const stackState = state.routes[state.index]?.state;
       const sectionRoute = getStandingTopLevelTabRoute(stackState, 'ChatList');
-      const channelRoute = {
-        name: screenNameFromChannelId(channel.id) as
-          | 'DM'
-          | 'GroupDM'
-          | 'Channel',
-        params: {
-          channelId: channel.id,
-          ...(channel.groupId ? { groupId: channel.groupId } : {}),
-          // Picked straight out of the drawer, so it stands on its own like
-          // every other row here — nothing is pushed behind it for a caret to
-          // lead back to. A DM says this by its route name; a channel of a
-          // group has to say it in a param.
-          isDrawerDestination: true,
-        },
-      };
+      const channelRoute = buildDrawerChannelRoute(channel);
       if (!showsFocusedRoute(channelRoute)) {
         reset([sectionRoute, channelRoute]);
       }
@@ -825,6 +810,11 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
       if (chatsLocked) {
         return;
       }
+      // Opening a workspace is a request to stay in the panel, so it supersedes
+      // anything still resolving its route — a one-channel workspace tapped a
+      // moment ago would otherwise come back, reset the stack and close the
+      // panel out from under the channels just unfurled.
+      navigationRequestRef.current += 1;
       setUnfurledGroupIds((current) => toggleUnfurled(current, chat.id));
     },
     [chatsLocked]
