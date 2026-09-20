@@ -2,7 +2,11 @@ import {
   DrawerContentComponentProps,
   useDrawerStatus,
 } from '@react-navigation/drawer';
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  configurationFromChannel,
+  createDevLogger,
+} from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -28,9 +32,20 @@ import {
   supportsLiquidGlass,
 } from '../ui/components/GlassSurface';
 import { useCalm } from '../ui/contexts/appDataContext';
-import { getChatTitle } from '../ui/utils/channelUtils';
+import { getChannelTitle, getChatTitle } from '../ui/utils/channelUtils';
 import { getDrawerChats } from './drawerChats';
-import { drawerOwnsEdge, routeShowsChat } from './drawerDestination';
+import {
+  DrawerRow,
+  channelRecency,
+  channelRowHasUnread,
+  getDrawerRows,
+  toggleUnfurled,
+} from './drawerWorkspaceRows';
+import {
+  buildDrawerChannelRoute,
+  drawerOwnsEdge,
+  routeShowsChat,
+} from './drawerDestination';
 import { announceTopLevelSectionReselected } from './topLevelSectionReselect';
 import type { RouteSnapshot } from './topLevelTabs';
 import {
@@ -43,11 +58,7 @@ import {
   isTabPressBlockedByOnboardingLock,
   trackTopLevelTabSelection,
 } from './topLevelTabs';
-import {
-  getMainGroupRoute,
-  screenNameFromChannelId,
-  useTypedReset,
-} from './utils';
+import { getMainGroupRoute, useTypedReset } from './utils';
 
 const logger = createDevLogger('TopLevelDrawerContent', false);
 
@@ -56,6 +67,14 @@ const SECTION_ROW_MIN_HEIGHT = 48;
 // Shorter than a section row: these carry one line of text and there are many
 // of them, so the list stays scannable rather than becoming a stack of slabs.
 const CHAT_ROW_MIN_HEIGHT = 40;
+// An unfurled workspace and its channels are one block, so they share one
+// fill and the rows between its ends carry no corners of their own.
+const UNFURLED_FILL = '$secondaryBackground' as const;
+// A row inside that block that is pressed, or is the conversation on screen.
+// `$secondaryBackground` says both of those things everywhere else here and
+// the block has already spent it; a border token because it is the only
+// surface that differs from that fill in every theme on offer.
+const UNFURLED_EMPHASIS = '$secondaryBorder' as const;
 // How far a row's own background is held off the panel's edge, and then how
 // far its content is held off that. Everything the eye reads down the left —
 // a section's icon, a chat's name, the `Chat` button — starts at their sum.
@@ -168,12 +187,17 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
   title,
   selected,
   disabled,
+  unfurls,
+  unfurled,
   onPress,
 }: {
   chat: db.Chat;
   title: string;
   selected: boolean;
   disabled: boolean;
+  /** Whether pressing this row opens its channels below it. */
+  unfurls: boolean;
+  unfurled: boolean;
   onPress: (chat: db.Chat) => void;
 }) {
   const handlePress = useCallback(() => onPress(chat), [chat, onPress]);
@@ -207,16 +231,38 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
           ? `${title}, ${notified ? 'unread, notified' : 'unread'}`
           : title
       }
-      accessibilityState={{ disabled, selected }}
+      // A screen reader is told this row opens and closes, and which it is,
+      // by the state rather than the label: the panel says it in words for
+      // nothing else, and a row that merely opens a chat has no such state.
+      accessibilityState={{
+        disabled,
+        selected,
+        ...(unfurls ? { expanded: unfurled } : {}),
+      }}
       testID={`TopLevelDrawerChat-${chat.id}`}
-      borderRadius="$l"
+      borderTopLeftRadius="$l"
+      borderTopRightRadius="$l"
+      // Unfurled, this row is the top of its block rather than a row of its
+      // own, so its lower corners are squared off against the channels below.
+      borderBottomLeftRadius={unfurled ? 0 : '$l'}
+      borderBottomRightRadius={unfurled ? 0 : '$l'}
       paddingHorizontal={CONTENT_INSET}
       justifyContent="center"
       minHeight={CHAT_ROW_MIN_HEIGHT}
       opacity={disabled ? 0.4 : 1}
-      backgroundColor={selected ? '$secondaryBackground' : 'transparent'}
-      pressStyle={{ backgroundColor: '$secondaryBackground' }}
-      hoverStyle={{ backgroundColor: '$secondaryBackground' }}
+      backgroundColor={
+        unfurled
+          ? UNFURLED_FILL
+          : selected
+            ? '$secondaryBackground'
+            : 'transparent'
+      }
+      pressStyle={{
+        backgroundColor: unfurled ? UNFURLED_EMPHASIS : '$secondaryBackground',
+      }}
+      hoverStyle={{
+        backgroundColor: unfurled ? UNFURLED_EMPHASIS : '$secondaryBackground',
+      }}
     >
       <XStack alignItems="center" gap="$m">
         <Text
@@ -229,6 +275,83 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
           {title}
         </Text>
         <ListItem.Time time={chat.timestamp} paddingBottom={0} />
+        {hasUnread ? <Circle size="$s" backgroundColor={unreadColor} /> : null}
+      </XStack>
+    </Pressable>
+  );
+});
+
+/**
+ * One channel of an unfurled workspace.
+ *
+ * It is the chat row above it with the workspace's fill already under it, so
+ * everything a row says — its name, when it last saw anything, whether it is
+ * holding unread — it says in the same places and the same greys.
+ */
+const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
+  channel,
+  title,
+  selected,
+  disabled,
+  groupMuted,
+  last,
+  onPress,
+}: {
+  channel: db.Channel;
+  title: string;
+  selected: boolean;
+  disabled: boolean;
+  /** Muted at the workspace, which silences every channel that has not been
+      turned back up on its own. */
+  groupMuted: boolean;
+  /** Last of its workspace's channels, so the block's fill ends here. */
+  last: boolean;
+  onPress: (channel: db.Channel) => void;
+}) {
+  const handlePress = useCallback(() => onPress(channel), [channel, onPress]);
+  const notified = channel.unread?.notify ?? false;
+  const hasUnread = channelRowHasUnread(channel, groupMuted);
+  const unreadColor = getUnreadColors(notified).foreground;
+
+  return (
+    <Pressable
+      onPress={disabled ? undefined : handlePress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={
+        hasUnread
+          ? `${title}, ${notified ? 'unread, notified' : 'unread'}`
+          : title
+      }
+      accessibilityState={{ disabled, selected }}
+      testID={`TopLevelDrawerWorkspaceChannel-${channel.id}`}
+      paddingHorizontal={CONTENT_INSET}
+      justifyContent="center"
+      minHeight={CHAT_ROW_MIN_HEIGHT}
+      // Only the bottom of the block is rounded, and only the last row can be
+      // it; the rows above square off against each other so the fill reads as
+      // one surface rather than a stack of them.
+      borderBottomLeftRadius={last ? '$l' : 0}
+      borderBottomRightRadius={last ? '$l' : 0}
+      marginBottom={last ? '$xs' : 0}
+      opacity={disabled ? 0.4 : 1}
+      backgroundColor={selected ? UNFURLED_EMPHASIS : UNFURLED_FILL}
+      pressStyle={{ backgroundColor: UNFURLED_EMPHASIS }}
+      hoverStyle={{ backgroundColor: UNFURLED_EMPHASIS }}
+    >
+      <XStack alignItems="center" gap="$m">
+        <Text
+          flex={1}
+          numberOfLines={1}
+          size="$label/l"
+          fontWeight={hasUnread ? '600' : undefined}
+          color="$primaryText"
+        >
+          {title}
+        </Text>
+        {/* The value the channels are ordered by, so what a row says and where
+            it sits cannot disagree. */}
+        <ListItem.Time time={channelRecency(channel)} paddingBottom={0} />
         {hasUnread ? <Circle size="$s" backgroundColor={unreadColor} /> : null}
       </XStack>
     </Pressable>
@@ -500,13 +623,76 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
     'ChatList'
   );
 
+  // Whether the app is already showing the route a row would build.
+  //
+  // What "already there" means has to be the route, not the chat it came from.
+  // A group and a channel pinned out of that group are two rows here, and both
+  // routes carry the same `groupId`, so comparing ids would make either one
+  // answer for the other.
+  const showsFocusedRoute = useCallback(
+    (route: { name: string; params?: object }) => {
+      if (route.name !== focusedStackRoute?.name) {
+        return false;
+      }
+      const focusedParams = focusedStackRoute?.params as
+        | { channelId?: string; groupId?: string }
+        | undefined;
+      const params = route.params as
+        | { channelId?: string; groupId?: string }
+        | undefined;
+      return route.name === 'GroupChannels'
+        ? params?.groupId === focusedParams?.groupId
+        : params?.channelId === focusedParams?.channelId;
+    },
+    [focusedStackRoute]
+  );
+
+  /**
+   * Open a channel: a chat row's own, or one chosen out of the workspace
+   * unfurled above it.
+   *
+   * A channel's route is known without a read, so its swap lands in this same
+   * tick — nothing can move underneath it — and the close follows it.
+   */
+  const openChannel = useCallback(
+    (channel: db.Channel, source: 'drawer' | 'drawer_workspace' = 'drawer') => {
+      if (chatsLocked) {
+        return;
+      }
+      // Supersede anything still resolving its route, the same as any other
+      // way of leaving the panel.
+      navigationRequestRef.current += 1;
+      logger.trackEvent(AnalyticsEvent.ActionTappedChat, {
+        ...logic.getModelAnalytics({ channel }),
+        source,
+      });
+      const stackState = state.routes[state.index]?.state;
+      const sectionRoute = getStandingTopLevelTabRoute(stackState, 'ChatList');
+      const channelRoute = buildDrawerChannelRoute(channel);
+      if (!showsFocusedRoute(channelRoute)) {
+        reset([sectionRoute, channelRoute]);
+      }
+      navigation.closeDrawer();
+    },
+    [chatsLocked, navigation, reset, showsFocusedRoute, state]
+  );
+
+  const openWorkspaceChannel = useCallback(
+    (channel: db.Channel) => openChannel(channel, 'drawer_workspace'),
+    [openChannel]
+  );
+
   const openChat = useCallback(
     (chat: db.Chat) => {
       if (chatsLocked) {
         return;
       }
+      if (chat.type === 'channel') {
+        openChannel(chat.channel);
+        return;
+      }
       const request = ++navigationRequestRef.current;
-      if (chat.type === 'group' && chat.isPending) {
+      if (chat.isPending) {
         // An invite is acted on through the preview sheet, which belongs to
         // the workspace list — so this lands there with the sheet open rather
         // than opening a group the user has not joined. No `ActionTappedChat`
@@ -519,11 +705,7 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
         return;
       }
       logger.trackEvent(AnalyticsEvent.ActionTappedChat, {
-        ...logic.getModelAnalytics(
-          chat.type === 'group'
-            ? { group: chat.group }
-            : { channel: chat.channel }
-        ),
+        ...logic.getModelAnalytics({ group: chat.group }),
         source: 'drawer',
       });
       // The sections are left exactly as they stand. A chat picked here is not
@@ -541,107 +723,65 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
       // newly keyed one, remounting the conversation and throwing away the
       // scroll position of whoever is reading it — so a row for where we
       // already are only closes the drawer.
-      //
-      // What "already there" means has to be the route this would build, not
-      // the chat it came from. A group and a channel pinned out of that group
-      // are two rows here, and both routes carry the same `groupId`, so
-      // comparing ids would make either one answer for the other.
-      const stackState = state.routes[state.index]?.state;
-      const focused = focusedStackRoute;
-      const focusedParams = focused?.params as
-        | { channelId?: string; groupId?: string }
-        | undefined;
-      const showsRoute = (route: { name: string; params?: object }) => {
-        if (route.name !== focused?.name) {
-          return false;
-        }
-        const params = route.params as
-          | { channelId?: string; groupId?: string }
-          | undefined;
-        return route.name === 'GroupChannels'
-          ? params?.groupId === focusedParams?.groupId
-          : params?.channelId === focusedParams?.channelId;
-      };
-
-      if (chat.type === 'group') {
-        getMainGroupRoute(chat.group.id, true)
-          .then((groupRoute) => {
-            // The generation covers anything chosen from this panel. It cannot
-            // see the app itself: whoever is on the screen behind the panel may
-            // have gone somewhere before this read came back, so the stack has
-            // to be where this left it too.
-            const liveState = navigation.getState() as unknown as {
-              index: number;
-              routes: ReadonlyArray<RouteSnapshot>;
-            };
-            const liveStack = liveState.routes[liveState.index]?.state;
-            const liveFocused = liveStack?.routes?.[liveStack.index ?? 0];
-            if (
-              navigationRequestRef.current !== request ||
-              liveFocused?.key !== focusedStackRoute?.key ||
-              showsRoute(groupRoute)
-            ) {
-              return;
-            }
-            // Read after the wait, not before it. The sections are carried
-            // through this reset whole, so a snapshot taken before the group
-            // was read would put back the tab that was showing then — and the
-            // check above cannot notice, because a tab change inside
-            // `MainTabs` leaves the route it looks at with the same key. The
-            // cold-start claim of the bot section is one such change, and
-            // undoing it would also spend its one shot.
-            reset([
-              getStandingTopLevelTabRoute(liveStack, 'ChatList'),
-              groupRoute,
-            ]);
-          })
-          .catch((err) => {
-            logger.trackError('Failed to open chat from drawer', err);
-          })
-          // Closing waits for the swap, and closing at all does not wait for
-          // it to have succeeded. The panel covers the screen the swap happens
-          // on, so closing first plays it in the open: the panel slides away
-          // onto the chat being left, and only then does the new one push in
-          // over it. Closing after, the panel slides away onto the chat asked
-          // for, already there.
-          //
-          // Only the request still current closes, for the same reason only it
-          // navigates. A superseded one has had its closing done for it by
-          // whatever superseded it, and closing again could shut a panel the
-          // user has since reopened.
-          .finally(() => {
-            if (navigationRequestRef.current === request) {
-              navigation.closeDrawer();
-            }
-          });
-        return;
-      }
-
-      // A channel's route is known without a read, so its swap lands in this
-      // same tick — nothing can move underneath it — and the close below
-      // already follows it.
-      const sectionRoute = getStandingTopLevelTabRoute(stackState, 'ChatList');
-      const channelRoute = {
-        name: screenNameFromChannelId(chat.channel.id) as
-          | 'DM'
-          | 'GroupDM'
-          | 'Channel',
-        params: {
-          channelId: chat.channel.id,
-          ...(chat.channel.groupId ? { groupId: chat.channel.groupId } : {}),
-          // Picked straight out of the drawer, so it stands on its own like
-          // every other row here — nothing is pushed behind it for a caret
-          // to lead back to. A DM says this by its route name; a channel
-          // pinned out of a group has to say it in a param.
-          isDrawerDestination: true,
-        },
-      };
-      if (!showsRoute(channelRoute)) {
-        reset([sectionRoute, channelRoute]);
-      }
-      navigation.closeDrawer();
+      getMainGroupRoute(chat.group.id, true)
+        .then((groupRoute) => {
+          // The generation covers anything chosen from this panel. It cannot
+          // see the app itself: whoever is on the screen behind the panel may
+          // have gone somewhere before this read came back, so the stack has
+          // to be where this left it too.
+          const liveState = navigation.getState() as unknown as {
+            index: number;
+            routes: ReadonlyArray<RouteSnapshot>;
+          };
+          const liveStack = liveState.routes[liveState.index]?.state;
+          const liveFocused = liveStack?.routes?.[liveStack.index ?? 0];
+          if (
+            navigationRequestRef.current !== request ||
+            liveFocused?.key !== focusedStackRoute?.key ||
+            showsFocusedRoute(groupRoute)
+          ) {
+            return;
+          }
+          // Read after the wait, not before it. The sections are carried
+          // through this reset whole, so a snapshot taken before the group
+          // was read would put back the tab that was showing then — and the
+          // check above cannot notice, because a tab change inside
+          // `MainTabs` leaves the route it looks at with the same key. The
+          // cold-start claim of the bot section is one such change, and
+          // undoing it would also spend its one shot.
+          reset([
+            getStandingTopLevelTabRoute(liveStack, 'ChatList'),
+            groupRoute,
+          ]);
+        })
+        .catch((err) => {
+          logger.trackError('Failed to open chat from drawer', err);
+        })
+        // Closing waits for the swap, and closing at all does not wait for
+        // it to have succeeded. The panel covers the screen the swap happens
+        // on, so closing first plays it in the open: the panel slides away
+        // onto the chat being left, and only then does the new one push in
+        // over it. Closing after, the panel slides away onto the chat asked
+        // for, already there.
+        //
+        // Only the request still current closes, for the same reason only it
+        // navigates. A superseded one has had its closing done for it by
+        // whatever superseded it, and closing again could shut a panel the
+        // user has since reopened.
+        .finally(() => {
+          if (navigationRequestRef.current === request) {
+            navigation.closeDrawer();
+          }
+        });
     },
-    [chatsLocked, focusedStackRoute, navigation, reset, state]
+    [
+      chatsLocked,
+      focusedStackRoute,
+      navigation,
+      openChannel,
+      reset,
+      showsFocusedRoute,
+    ]
   );
 
   const hasUnread: Partial<Record<TopLevelTabName, boolean>> = {
@@ -655,15 +795,82 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
     () => getDrawerChats(chats, botDm.enabled ? botDm.channelId : undefined),
     [chats, botDm]
   );
+  // Which workspace is showing its channels, if any. Kept here rather than
+  // persisted: the panel's content is mounted for as long as the navigator is,
+  // so what the user opened is still open the next time they pull it out, and
+  // a fresh launch starts from the list itself.
+  const [unfurledGroupId, setUnfurledGroupId] = useState<string | null>(null);
+  const toggleWorkspace = useCallback(
+    (chat: db.Chat) => {
+      if (chatsLocked) {
+        return;
+      }
+      // Opening a workspace is a request to stay in the panel, so it supersedes
+      // anything still resolving its route — a one-channel workspace tapped a
+      // moment ago would otherwise come back, reset the stack and close the
+      // panel out from under the channels just unfurled.
+      navigationRequestRef.current += 1;
+      setUnfurledGroupId((current) => toggleUnfurled(current, chat.id));
+    },
+    [chatsLocked]
+  );
+
+  const rows = useMemo(
+    () => getDrawerRows(drawerChats, unfurledGroupId),
+    [drawerChats, unfurledGroupId]
+  );
   const titles = useMemo(
     () =>
       new Map(
-        drawerChats.map((chat) => [
-          chat.id,
-          getChatTitle(chat, disableNicknames),
+        rows.map((row) => [
+          row.key,
+          row.kind === 'chat'
+            ? getChatTitle(row.chat, disableNicknames)
+            : getChannelTitle({
+                ...configurationFromChannel(row.channel),
+                channelTitle: row.channel.title,
+                members: row.channel.members,
+                disableNicknames,
+              }),
         ])
       ),
-    [drawerChats, disableNicknames]
+    [rows, disableNicknames]
+  );
+
+  const renderRow = useCallback(
+    ({ item }: { item: DrawerRow }) =>
+      item.kind === 'chat' ? (
+        <DrawerChatRow
+          chat={item.chat}
+          title={titles.get(item.key) ?? ''}
+          selected={routeShowsChat(item.chat, focusedStackRoute)}
+          disabled={chatsLocked}
+          unfurls={item.unfurls}
+          unfurled={item.unfurled}
+          onPress={item.unfurls ? toggleWorkspace : openChat}
+        />
+      ) : (
+        <DrawerChannelRow
+          channel={item.channel}
+          title={titles.get(item.key) ?? ''}
+          selected={routeShowsChat(
+            { type: 'channel', channel: item.channel },
+            focusedStackRoute
+          )}
+          disabled={chatsLocked}
+          groupMuted={item.groupMuted}
+          last={item.last}
+          onPress={openWorkspaceChannel}
+        />
+      ),
+    [
+      chatsLocked,
+      focusedStackRoute,
+      openChat,
+      openWorkspaceChannel,
+      titles,
+      toggleWorkspace,
+    ]
   );
 
   const sectionRows = (
@@ -706,17 +913,12 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
       paddingRight={insets.right + panelInset}
     >
       <FlashList
-        data={drawerChats}
-        keyExtractor={(chat) => chat.id}
-        renderItem={({ item }) => (
-          <DrawerChatRow
-            chat={item}
-            title={titles.get(item.id) ?? ''}
-            selected={routeShowsChat(item, focusedStackRoute)}
-            disabled={chatsLocked}
-            onPress={openChat}
-          />
-        )}
+        data={rows}
+        keyExtractor={(row) => row.key}
+        // Two shapes of row in one list, so the recycler is told which is
+        // which rather than handing a channel's view to a chat.
+        getItemType={(row) => row.kind}
+        renderItem={renderRow}
         ListHeaderComponent={sectionRows}
         contentContainerStyle={{ paddingBottom: footerHeight }}
         testID="TopLevelDrawerChats"
