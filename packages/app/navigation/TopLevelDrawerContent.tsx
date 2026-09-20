@@ -71,13 +71,9 @@ const CHAT_ROW_MIN_HEIGHT = 40;
 // fill and the rows between its ends carry no corners of their own.
 const UNFURLED_FILL = '$secondaryBackground' as const;
 // A row inside that block that is pressed, or is the conversation on screen.
-// `$secondaryBackground` is what says both of those things everywhere else
-// here, and the block has already spent it, so this has to be the next surface
-// along. `$secondaryBorder` is the only one that is: `$border` and
-// `$activeBorder` are each equal to `$secondaryBackground` in some of the
-// themes on offer — `$activeBorder` in six of the nine — which would leave the
-// conversation you are in indistinguishable from its siblings and a press with
-// no feedback at all.
+// `$secondaryBackground` says both of those things everywhere else here and
+// the block has already spent it; a border token because it is the only
+// surface that differs from that fill in every theme on offer.
 const UNFURLED_EMPHASIS = '$secondaryBorder' as const;
 // How far a row's own background is held off the panel's edge, and then how
 // far its content is held off that. Everything the eye reads down the left —
