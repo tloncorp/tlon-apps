@@ -795,13 +795,11 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
     () => getDrawerChats(chats, botDm.enabled ? botDm.channelId : undefined),
     [chats, botDm]
   );
-  // Which workspaces are showing their channels. Kept here rather than
+  // Which workspace is showing its channels, if any. Kept here rather than
   // persisted: the panel's content is mounted for as long as the navigator is,
   // so what the user opened is still open the next time they pull it out, and
   // a fresh launch starts from the list itself.
-  const [unfurledGroupIds, setUnfurledGroupIds] = useState<ReadonlySet<string>>(
-    () => new Set<string>()
-  );
+  const [unfurledGroupId, setUnfurledGroupId] = useState<string | null>(null);
   const toggleWorkspace = useCallback(
     (chat: db.Chat) => {
       if (chatsLocked) {
@@ -812,14 +810,14 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
       // moment ago would otherwise come back, reset the stack and close the
       // panel out from under the channels just unfurled.
       navigationRequestRef.current += 1;
-      setUnfurledGroupIds((current) => toggleUnfurled(current, chat.id));
+      setUnfurledGroupId((current) => toggleUnfurled(current, chat.id));
     },
     [chatsLocked]
   );
 
   const rows = useMemo(
-    () => getDrawerRows(drawerChats, unfurledGroupIds),
-    [drawerChats, unfurledGroupIds]
+    () => getDrawerRows(drawerChats, unfurledGroupId),
+    [drawerChats, unfurledGroupId]
   );
   const titles = useMemo(
     () =>

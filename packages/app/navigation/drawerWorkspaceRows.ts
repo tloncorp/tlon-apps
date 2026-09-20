@@ -126,7 +126,7 @@ export function channelRowHasUnread(
 }
 
 /**
- * The drawer's chats, with the channels of every unfurled workspace laid out
+ * The drawer's chats, with the channels of the unfurled workspace laid out
  * beneath it.
  *
  * A channel's key is qualified by its workspace rather than being the channel's
@@ -136,14 +136,14 @@ export function channelRowHasUnread(
  */
 export function getDrawerRows(
   chats: db.Chat[],
-  unfurledGroupIds: ReadonlySet<string>
+  unfurledGroupId: string | null
 ): DrawerRow[] {
   const rows: DrawerRow[] = [];
   for (const chat of chats) {
     // Asked of every row on every chat-list change, so it stays a count. Only
     // a row that is actually open pays to copy and order its channels.
     const rowUnfurls = unfurls(chat);
-    const unfurled = rowUnfurls && unfurledGroupIds.has(chat.id);
+    const unfurled = rowUnfurls && chat.id === unfurledGroupId;
     rows.push({
       kind: 'chat',
       key: chat.id,
@@ -173,20 +173,17 @@ export function getDrawerRows(
 }
 
 /**
- * The set with this workspace's state flipped.
+ * Which workspace is open after this one is pressed.
  *
- * Several may be open at once. Closing whichever was open to open another is
- * the other reading of "accordion", and it takes something away the user did
- * not ask to have taken: two workspaces they are moving between is the case the
- * panel is worth opening for.
+ * One at a time: opening a workspace closes whichever was open. The panel is a
+ * list of every conversation the user has, and an accordion that let them all
+ * stand open would push that list off the bottom of the screen a workspace at
+ * a time. Carried as the one id rather than a set of them so that two open at
+ * once is not a state this can reach.
  */
 export function toggleUnfurled(
-  unfurledGroupIds: ReadonlySet<string>,
+  unfurledGroupId: string | null,
   groupId: string
-): ReadonlySet<string> {
-  const next = new Set(unfurledGroupIds);
-  if (!next.delete(groupId)) {
-    next.add(groupId);
-  }
-  return next;
+): string | null {
+  return unfurledGroupId === groupId ? null : groupId;
 }

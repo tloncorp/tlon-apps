@@ -149,7 +149,7 @@ describe('getUnfurlableChannels, on channels the user cannot read', () => {
   });
 
   it('does not let them make a one-channel workspace look like a many', () => {
-    const rows = getDrawerRows([gated], new Set(['group']));
+    const rows = getDrawerRows([gated], 'group');
 
     expect(rows.map((row) => row.key)).toEqual(['group']);
   });
@@ -237,7 +237,7 @@ describe('getDrawerRows', () => {
   ]);
 
   it('lists chats alone while nothing is unfurled', () => {
-    const rows = getDrawerRows([many, dm('a-dm')], new Set());
+    const rows = getDrawerRows([many, dm('a-dm')], null);
 
     expect(rows.map((row) => row.key)).toEqual(['group', 'a-dm']);
     expect(rows[0]).toMatchObject({ unfurls: true, unfurled: false });
@@ -245,7 +245,7 @@ describe('getDrawerRows', () => {
   });
 
   it('lays an unfurled workspace’s channels directly beneath it', () => {
-    const rows = getDrawerRows([many, dm('a-dm')], new Set(['group']));
+    const rows = getDrawerRows([many, dm('a-dm')], 'group');
 
     expect(rows.map((row) => row.key)).toEqual([
       'group',
@@ -275,7 +275,7 @@ describe('getDrawerRows', () => {
       type: 'channel',
       channel: { id: 'newest', type: 'chat' } as db.Channel,
     };
-    const rows = getDrawerRows([many, pinnedOut], new Set(['group']));
+    const rows = getDrawerRows([many, pinnedOut], 'group');
 
     expect(rows.map((row) => row.key)).toEqual([
       'group',
@@ -297,14 +297,14 @@ describe('getDrawerRows', () => {
           }
         ),
       ],
-      new Set(['group'])
+      'group'
     );
 
     expect(first).toMatchObject({ kind: 'channel', groupMuted: true });
   });
 
   it('ignores an unfurled id belonging to a row that does not unfurl', () => {
-    const rows = getDrawerRows([dm('a-dm')], new Set(['a-dm']));
+    const rows = getDrawerRows([dm('a-dm')], 'a-dm');
 
     expect(rows.map((row) => row.key)).toEqual(['a-dm']);
   });
@@ -312,21 +312,42 @@ describe('getDrawerRows', () => {
 
 describe('toggleUnfurled', () => {
   it('opens a closed workspace and closes an open one', () => {
-    const opened = toggleUnfurled(new Set(), 'group');
-    expect([...opened]).toEqual(['group']);
-    expect([...toggleUnfurled(opened, 'group')]).toEqual([]);
+    expect(toggleUnfurled(null, 'group')).toBe('group');
+    expect(toggleUnfurled('group', 'group')).toBeNull();
   });
 
-  it('leaves the others open', () => {
-    const both = toggleUnfurled(toggleUnfurled(new Set(), 'a'), 'b');
+  it('closes whichever was open to open another', () => {
+    expect(toggleUnfurled('a', 'b')).toBe('b');
+  });
+});
 
-    expect([...toggleUnfurled(both, 'a')]).toEqual(['b']);
+describe('getDrawerRows, with one workspace open at a time', () => {
+  const first = workspace('first', [
+    channel('first-a', { lastPostAt: 2 }),
+    channel('first-b', { lastPostAt: 1 }),
+  ]);
+  const second = workspace('second', [
+    channel('second-a', { lastPostAt: 2 }),
+    channel('second-b', { lastPostAt: 1 }),
+  ]);
+
+  it('lays out the channels of the open one and no other', () => {
+    expect(getDrawerRows([first, second], 'second').map((r) => r.key)).toEqual([
+      'first',
+      'second',
+      'second:second-a',
+      'second:second-b',
+    ]);
   });
 
-  it('does not mutate the set it was given', () => {
-    const before = new Set(['a']);
-    toggleUnfurled(before, 'b');
+  it('closes the one that was open when another is pressed', () => {
+    const open = toggleUnfurled('first', 'second');
 
-    expect([...before]).toEqual(['a']);
+    expect(getDrawerRows([first, second], open).map((r) => r.key)).toEqual([
+      'first',
+      'second',
+      'second:second-a',
+      'second:second-b',
+    ]);
   });
 });
