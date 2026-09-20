@@ -26,9 +26,10 @@ export type DrawerRow =
       channel: db.Channel;
       groupId: string;
       /**
-       * Muted at the workspace, which is the whole block's answer: the user
-       * asked not to be drawn back to any of this, and the workspace row above
-       * is already keeping its own dot off.
+       * Muted at the workspace, which answers for every channel in it that has
+       * not been turned back up on its own: the user asked not to be drawn back
+       * to any of this, and the workspace row above is already keeping its own
+       * dot off.
        */
       groupMuted: boolean;
       /** Last channel of its workspace, where the block's fill ends. */
@@ -101,8 +102,13 @@ export function getUnfurlableChannels(chat: db.Chat): db.Channel[] | null {
  *
  * The same contract the chat rows keep: a chat the user asked not to be drawn
  * back to keeps its count on the workspace list, where counts are read
- * deliberately, and lights nothing in the panel. Muting the workspace answers
- * for every channel in it, which is what muting a workspace means.
+ * deliberately, and lights nothing in the panel.
+ *
+ * A channel's own setting is an override rather than something the workspace's
+ * is read alongside — `getChannelVolumeSetting` returns it and stops, and only
+ * a channel that has none falls back to what encloses it. So a workspace set to
+ * `hush` with one channel turned back up is a workspace the user still hears
+ * that one channel from, and its row has to say so.
  */
 export function channelRowHasUnread(
   channel: db.Channel,
@@ -112,9 +118,11 @@ export function channelRowHasUnread(
   if ((channel.unread?.count ?? 0) <= 0 && !notified) {
     return false;
   }
-  return (
-    !groupMuted && !logic.isMuted(channel.volumeSettings?.level, 'channel')
-  );
+  const ownLevel = channel.volumeSettings?.level;
+  if (ownLevel) {
+    return !logic.isMuted(ownLevel, 'channel');
+  }
+  return !groupMuted;
 }
 
 /**

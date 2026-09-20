@@ -204,11 +204,29 @@ describe('channelRowHasUnread', () => {
     ).toBe(true);
   });
 
-  it('stays dark for every channel of a muted workspace', () => {
+  it('stays dark for a channel of a muted workspace that has no setting', () => {
     expect(channelRowHasUnread(channel('f', { count: 3 }), true)).toBe(false);
     expect(channelRowHasUnread(channel('g', { notify: true }), true)).toBe(
       false
     );
+  });
+
+  // A channel's own setting replaces what encloses it rather than being read
+  // alongside it, so a channel turned back up inside a muted workspace is one
+  // the user still hears.
+  it('lights for a channel turned back up inside a muted workspace', () => {
+    expect(
+      channelRowHasUnread(channel('h', { count: 3, volume: 'loud' }), true)
+    ).toBe(true);
+    expect(
+      channelRowHasUnread(channel('i', { count: 3, volume: 'medium' }), true)
+    ).toBe(true);
+  });
+
+  it('stays dark for a channel hushed inside an unmuted workspace', () => {
+    expect(
+      channelRowHasUnread(channel('j', { count: 3, volume: 'hush' }), false)
+    ).toBe(false);
   });
 });
 

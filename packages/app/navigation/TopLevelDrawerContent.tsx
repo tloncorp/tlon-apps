@@ -301,7 +301,8 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
   title: string;
   selected: boolean;
   disabled: boolean;
-  /** Muted at the workspace, which silences the whole block. */
+  /** Muted at the workspace, which silences every channel that has not been
+      turned back up on its own. */
   groupMuted: boolean;
   /** Last of its workspace's channels, so the block's fill ends here. */
   last: boolean;
