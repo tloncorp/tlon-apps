@@ -1832,6 +1832,9 @@ export const getChats = createReadQuery(
           with: {
             lastPost: true,
             unread: true,
+            // The drawer unfurls these channels as rows of its own, and a row
+            // there answers for its own mute the way every other row does.
+            volumeSettings: true,
           },
         },
         // Just need the first 4 members for avatar display
