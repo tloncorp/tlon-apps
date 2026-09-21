@@ -76,6 +76,7 @@ import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import { setTlonRuntime } from './src/runtime.js';
 import { resolveOwnerOnlyToolBlock } from './src/owner-only-tools.js';
 import { getSessionRole } from './src/session-roles.js';
+import { registerStewardAutomationReconciliationHooks } from './src/steward-automation-reconciliation.js';
 import { parseTlonTarget } from './src/targets.js';
 import {
   type TlonDiagnosticLogAttributes,
@@ -1402,6 +1403,11 @@ export default defineBundledChannelEntry({
           `[tlon] Agent onboarding observer failed (cron_changed:${event.action}): ${String(error)}`
         );
       }
+    });
+
+    registerStewardAutomationReconciliationHooks(api, {
+      logger: { warn: (message) => api.logger.warn(message) },
+      getConfig: () => api.runtime.config.loadConfig(),
     });
 
     if (shouldInstallTlonDiagnosticSubscriptions(api.registrationMode)) {
