@@ -97,10 +97,10 @@ export function evaluateCampaign(
   if (!facts.enabled) return { kind: 'defer', reason: 'disabled' };
   const feedbackPhase = facts.hasTask || state.status === 'feedback';
   const resultAt = facts.task?.failedAt ?? facts.task?.deliveredAt;
-  const feedbackDue =
-    feedbackPhase &&
-    resultAt !== undefined &&
-    !state.sent.some((s) => s.step === 'task-feedback');
+  const feedbackSent = state.sent.some((s) => s.step === 'task-feedback');
+  if (feedbackPhase && !feedbackSent && resultAt === undefined)
+    return { kind: 'defer', reason: 'task-pending' };
+  const feedbackDue = feedbackPhase && resultAt !== undefined && !feedbackSent;
   const step = feedbackDue
     ? { id: 'task-feedback' as const, start: DAY, end: 7 * DAY }
     : STEPS.find(

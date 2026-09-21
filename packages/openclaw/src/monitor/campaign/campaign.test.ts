@@ -153,7 +153,7 @@ describe('campaign evaluator', () => {
   it('stops on any user task, expiry, opt-out, or kill switch', () => {
     expect(
       evaluateCampaign(state(), { ...facts, hasTask: true }, enrolledAt + DAY)
-    ).toEqual({ kind: 'defer' });
+    ).toEqual({ kind: 'defer', reason: 'task-pending' });
     expect(evaluateCampaign(state(), facts, enrolledAt + 7 * DAY)).toEqual({
       kind: 'finish',
       status: 'completed',
@@ -166,6 +166,35 @@ describe('campaign evaluator', () => {
       evaluateCampaign(state(), { ...facts, enabled: false }, enrolledAt + DAY)
         .kind
     ).toBe('defer');
+  });
+  it('reserves the closing window for pending task feedback', () => {
+    const pending = state({ status: 'feedback' });
+    expect(
+      evaluateCampaign(
+        pending,
+        { ...facts, hasTask: true },
+        enrolledAt + 6 * DAY
+      )
+    ).toEqual({ kind: 'defer', reason: 'task-pending' });
+
+    const afterClosing = state({
+      status: 'feedback',
+      sent: [{ step: 'closing', at: enrolledAt + 6 * DAY }],
+    });
+    expect(
+      evaluateCampaign(
+        afterClosing,
+        { ...facts, hasTask: true },
+        enrolledAt + 6 * DAY + MINUTE
+      )
+    ).toEqual({ kind: 'defer', reason: 'task-pending' });
+    expect(
+      evaluateCampaign(
+        afterClosing,
+        { ...facts, hasTask: true },
+        enrolledAt + 7 * DAY
+      )
+    ).toEqual({ kind: 'finish', status: 'completed' });
   });
 });
 
@@ -568,6 +597,24 @@ it('keeps feedback pending through recent messages and busy runs', async () => {
   await h.campaign.check();
   expect(h.read().sent.at(-1)?.step).toBe('task-feedback');
 });
+it('sends task feedback after a pending task finishes during the closing window', async () => {
+  const task = {
+    id: 'task',
+    name: 'Digest',
+    enabled: true,
+    deliveredAt: undefined as number | undefined,
+  };
+  const h = harness(state(), { task: async () => task });
+  h.setTime(enrolledAt + 6 * DAY);
+  await h.campaign.check();
+  expect(h.deps.send).not.toHaveBeenCalled();
+  expect(h.read().status).toBe('feedback');
+
+  task.deliveredAt = enrolledAt + 6 * DAY + MINUTE;
+  h.advance(MINUTE);
+  await h.campaign.check();
+  expect(h.read().sent.at(-1)?.step).toBe('task-feedback');
+});
 it('prioritizes a newly failed task at closing even after earlier feedback', () => {
   const current = state({
     status: 'feedback',
@@ -642,14 +689,20 @@ it('records a verified group reply even when optional context cannot load', asyn
   await h.campaign.inboundInConversation('unrelated', 'chat/~mug/public');
   expect(h.read().lastReplyAt).toBe(enrolledAt + DAY);
 });
-it('ignores an owner DM while the campaign is routed to a group', async () => {
+it('records non-personal activity for an owner DM outside the campaign route', async () => {
   const h = harness(state(), {
     destination: async () => 'chat/~zod/setup',
   });
   expect(await h.campaign.replyContext('~ten')).toBeUndefined();
   await h.campaign.inboundInConversation('unrelated DM', '~ten');
+  expect(h.read().lastActivityAt).toBe(enrolledAt + DAY);
   expect(h.read().lastReplyAt).toBeUndefined();
   expect(h.read().lastOwnerText).toBeUndefined();
+  await h.campaign.check();
+  expect(h.deps.send).not.toHaveBeenCalled();
+  expect(h.deps.report).toHaveBeenCalledWith(
+    expect.objectContaining({ action: 'deferred', reason: 'recent-message' })
+  );
 });
 
 it('applies closing copy after successful task feedback', () => {

@@ -370,9 +370,11 @@ export function createCampaign(deps: CampaignDeps) {
     if (!deps.config().enabled) return false;
     try {
       const state = await getStore()?.lookup(deps.owner);
-      if (!state || destination !== (await currentDestination(state)))
-        return false;
-      return await inbound(text, true);
+      if (!state) return false;
+      return await inbound(
+        text,
+        destination === (await currentDestination(state))
+      );
     } catch (error) {
       deps.error(error);
       return false;
