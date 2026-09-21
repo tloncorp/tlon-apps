@@ -807,9 +807,13 @@ describe('agent onboarding requests', () => {
           type: 'tlon-agent-intro-request',
           version: 1,
           groupId: '~ten/group',
+          campaignVersion: 2,
         })
       )
-    ).toMatchObject({ type: 'tlon-agent-intro-request' });
+    ).toMatchObject({
+      type: 'tlon-agent-intro-request',
+      campaignVersion: 2,
+    });
     expect(
       parseAgentOnboardingRequest(appendToPostBlob(undefined, provision))
     ).toEqual(provision);

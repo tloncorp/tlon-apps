@@ -732,7 +732,7 @@ export const PostBlobDataEntryAgentIntroRequestSchema =
     isFirstGroup: z.boolean().optional(),
     timezone: z.string().min(1).max(128).optional(),
     /** Present only on new clients' initial onboarding requests. */
-    campaignVersion: z.literal(1).optional(),
+    campaignVersion: z.number().int().min(1).max(65_535).optional(),
   });
 
 export type PostBlobDataEntryAgentIntroRequest = z.infer<
