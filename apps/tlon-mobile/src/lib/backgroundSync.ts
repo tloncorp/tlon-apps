@@ -13,22 +13,27 @@ import * as BackgroundTask from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
 import { v4 as uuidv4 } from 'uuid';
 
+import { refreshHostingAuth } from './hostingAuth';
+
 const logger = createDevLogger('backgroundSync', true);
 
-async function performSync() {
+async function performSync(): Promise<BackgroundTask.BackgroundTaskResult> {
   await ensureDbReady();
   const taskExecutionId = uuidv4();
   logger.trackEvent('Initiating background sync', { taskExecutionId });
   const timings: Record<string, number> = {
     start: Date.now(),
   };
-  const shipInfo = await storage.shipInfo.getValue();
+  const [shipInfo, hostingAuthToken] = await Promise.all([
+    storage.shipInfo.getValue(true),
+    storage.hostingAuthToken.getValue(true),
+  ]);
   if (shipInfo == null) {
     logger.trackEvent('Skipping background sync', {
       context: 'no ship info',
       taskExecutionId,
     });
-    return;
+    return BackgroundTask.BackgroundTaskResult.Success;
   }
 
   if (
@@ -40,30 +45,58 @@ async function performSync() {
       context: 'incomplete auth',
       taskExecutionId,
     });
-    return;
+    return BackgroundTask.BackgroundTaskResult.Success;
   }
 
-  logger.trackEvent('Configuring urbit client...');
-  configureUrbitClient({
-    ship: shipInfo.ship,
-    shipUrl: shipInfo.shipUrl,
-    authType: shipInfo.authType,
-  });
-
-  let didSucceed = false;
+  let result: 'success' | 'error' | 'skipped' = 'error';
 
   try {
-    // TODO: re-enable when confirmed not causing hangs on Android
-    // // use the background task as an opportunity to refresh hosting auth
-    // const authPromise = refreshHostingAuth().catch((err) =>
-    //   logger.trackError('Background task: failed to refresh hosting auth', {
-    //     error: err,
-    //   })
-    // );
+    const authStart = Date.now();
+    const hostingAuth = await refreshHostingAuth({
+      authType: shipInfo.authType,
+    });
+    timings.authDuration = Date.now() - authStart;
+
+    if (hostingAuth === 'expired') {
+      logger.trackEvent('Skipping background sync', {
+        context: 'hosting auth expired',
+        taskExecutionId,
+      });
+      result = 'skipped';
+      return BackgroundTask.BackgroundTaskResult.Success;
+    }
+
+    // The heartbeat can outlive logout or an account switch. Wait for pending
+    // storage writes before deciding whether this task still owns the session.
+    const [currentShipInfo, currentHostingAuthToken] = await Promise.all([
+      storage.shipInfo.getValue(true),
+      storage.hostingAuthToken.getValue(true),
+    ]);
+    if (
+      currentShipInfo?.ship !== shipInfo.ship ||
+      currentShipInfo?.shipUrl !== shipInfo.shipUrl ||
+      currentShipInfo?.authType !== shipInfo.authType ||
+      currentShipInfo?.authCookie !== shipInfo.authCookie ||
+      currentHostingAuthToken !== hostingAuthToken
+    ) {
+      logger.trackEvent('Skipping background sync', {
+        context: 'session changed during hosting auth check',
+        taskExecutionId,
+      });
+      result = 'skipped';
+      return BackgroundTask.BackgroundTaskResult.Success;
+    }
+
+    logger.trackEvent('Configuring urbit client...');
+    configureUrbitClient({
+      ship: shipInfo.ship,
+      shipUrl: shipInfo.shipUrl,
+      authType: shipInfo.authType,
+    });
 
     const changesStart = Date.now();
-    await syncSince({
-      callCtx: { cause: 'background-sync' },
+    const syncResult = await syncSince({
+      callCtx: { cause: 'background-sync', taskExecutionId },
       syncCtx: {
         priority: SyncPriority.High,
       },
@@ -73,32 +106,42 @@ async function performSync() {
     // Run lanyard contact discovery as part of the bg cycle so new
     // matches surface even if the user hasn't opened the app recently.
     const discoveryStart = Date.now();
-    const { newMatchCount } = await discoverContactsAndNotify({
-      context: { taskExecutionId },
-    });
+    const { newMatchCount, didSucceed: discoverySucceeded } =
+      await discoverContactsAndNotify({
+        context: { taskExecutionId },
+      });
     timings.discoveryDuration = Date.now() - discoveryStart;
-    if (newMatchCount > 0) {
+    if (newMatchCount > 0 && discoverySucceeded) {
       logger.trackEvent('New matches notification', {
         count: newMatchCount,
         taskExecutionId,
       });
     }
 
-    logger.trackEvent('Background sync complete', { taskExecutionId });
-    didSucceed = true;
-
-    // await authPromise;
+    const didSucceed = syncResult === 'success' && discoverySucceeded;
+    result = didSucceed ? 'success' : 'error';
+    logger.trackEvent(
+      didSucceed ? 'Background sync complete' : 'Background sync failed',
+      { taskExecutionId, syncResult, discoverySucceeded }
+    );
+    return didSucceed
+      ? BackgroundTask.BackgroundTaskResult.Success
+      : BackgroundTask.BackgroundTaskResult.Failed;
   } catch (err) {
     logger.trackError('Background sync failed', {
       error: err instanceof Error ? err : undefined,
       taskExecutionId,
     });
+    return BackgroundTask.BackgroundTaskResult.Failed;
   } finally {
     logger.trackEvent('Background sync timing', {
       duration: Date.now() - timings.start,
+      authDuration: timings.authDuration,
       changesDuration: timings.changesDuration,
+      discoveryDuration: timings.discoveryDuration,
       taskExecutionId,
-      didSucceed,
+      didSucceed: result === 'success',
+      result,
     });
     // flush telemetry so events are sent now, not deferred until next foreground
     await Promise.race([
@@ -145,8 +188,7 @@ export function initializeBackgroundSync() {
       }
 
       try {
-        await performSync();
-        return BackgroundTask.BackgroundTaskResult.Success;
+        return await performSync();
       } catch (err) {
         logger.trackError('Failed background task', {
           error: err instanceof Error ? err : undefined,
