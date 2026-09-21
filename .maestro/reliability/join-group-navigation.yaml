@@ -1,5 +1,6 @@
 appId: ${MAESTRO_APP_ID}
 name: Join-group navigation
+tags: [regression]
 env:
   JOURNEY: join-group-navigation
 ---
