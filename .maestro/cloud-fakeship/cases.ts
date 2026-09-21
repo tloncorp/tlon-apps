@@ -43,11 +43,19 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
     timeout = 180_000
   ) {
     const end = Date.now() + timeout;
+    let lastError: unknown;
     while (Date.now() < end) {
-      if (await check()) return;
+      try {
+        if (await check()) return;
+        lastError = undefined;
+      } catch (error) {
+        lastError = error;
+      }
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
-    throw Error(`Timed out: ${label}`);
+    throw Error(
+      `Timed out: ${label}${lastError ? `; last error: ${String(lastError)}` : ''}`
+    );
   }
   const posts = (channelId: string) => ten.state.channelPosts(channelId);
   const received = (channelId: string, text: string, timeout?: number) =>
