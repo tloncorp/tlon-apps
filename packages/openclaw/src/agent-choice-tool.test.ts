@@ -64,7 +64,7 @@ describe('agent choice tool', () => {
     );
   });
 
-  it('durably marks an approach question for later owner-answer verification', () => {
+  it('durably marks every question for later owner-answer verification', () => {
     expect(
       buildAgentChoiceBlob(
         {
@@ -83,6 +83,12 @@ describe('agent choice tool', () => {
     expect(buildAgentChoiceBlob(validChoice)).not.toContainEqual(
       expect.objectContaining({ key: 'agent-choice-dimension:approach' })
     );
+    expect(buildAgentChoiceBlob(validChoice, validEvidence)).toContainEqual({
+      type: 'tlon-agent-post-marker',
+      version: 1,
+      key: 'agent-choice-dimension:focus',
+      interviewStartMessageId: '~owner/interview-start',
+    });
   });
 
   it('posts the question as fallback text and the choice as a blob', async () => {
@@ -96,7 +102,7 @@ describe('agent choice tool', () => {
     expect(postChoice).toHaveBeenCalledWith({
       target: validChoice.target,
       fallbackQuestion: validChoice.question,
-      blob: JSON.stringify(buildAgentChoiceBlob(validChoice)),
+      blob: JSON.stringify(buildAgentChoiceBlob(validChoice, validEvidence)),
     });
   });
 

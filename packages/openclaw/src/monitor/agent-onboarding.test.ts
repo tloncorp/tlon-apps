@@ -851,12 +851,17 @@ describe('agent onboarding requests', () => {
     expect(parseAgentOnboardingRequest('not-json')).toBeNull();
   });
 
-  it('requires a matching durable approach answer for automatic plans', () => {
+  it('binds every automatic plan field to durable owner answers', () => {
     const automaticProvision = {
       ...provision,
       interviewStartMessageId: '100',
       interviewMessageId: '200',
       approach: 'Compare expert perspectives',
+      answerEvidence: {
+        focus: 'AI and Climate',
+        time: '8:30 AM',
+        approach: 'Compare expert perspectives',
+      },
       taskPrompt: 'Track the most useful current developments.',
     };
     const interviewStart = {
@@ -877,19 +882,63 @@ describe('agent onboarding requests', () => {
         interviewStartMessageId: '100',
       }),
     };
+    const focusQuestion = {
+      author: '~bot',
+      id: '170141184508164136620680233968906111111',
+      content: 'What should I focus on?',
+      timestamp: 0.75,
+      blob: appendToPostBlob(undefined, {
+        type: 'tlon-agent-post-marker',
+        version: 1,
+        key: 'agent-choice-dimension:focus',
+        interviewStartMessageId: '100',
+      }),
+    };
+    const timeQuestion = {
+      author: '~bot',
+      id: '170141184508164136620680233968906222222',
+      content: 'When should it arrive?',
+      timestamp: 0.9,
+      blob: appendToPostBlob(undefined, {
+        type: 'tlon-agent-post-marker',
+        version: 1,
+        key: 'agent-choice-dimension:time',
+        interviewStartMessageId: '100',
+      }),
+    };
     const approachAnswer = {
       author: '~ten',
       id: '200',
       content: 'Compare expert perspectives',
       timestamp: 2,
-      blob: appendToPostBlob(undefined, {
-        type: 'tlon-a2ui-selection',
-        version: 1,
-        sourcePostId: '170.141.184.508.164.136.620.680.233.968.906.272.768',
-        surfaceId: 'agent-choice-approach-1',
-        componentId: 'choices',
-        values: ['Compare expert perspectives'],
-      }),
+      blob: appendToPostBlob(
+        appendToPostBlob(
+          appendToPostBlob(undefined, {
+            type: 'tlon-a2ui-selection',
+            version: 1,
+            sourcePostId: '170.141.184.508.164.136.620.680.233.968.906.111.111',
+            surfaceId: 'agent-choice-focus-1',
+            componentId: 'choices',
+            values: ['AI and Climate'],
+          }),
+          {
+            type: 'tlon-a2ui-selection',
+            version: 1,
+            sourcePostId: '170.141.184.508.164.136.620.680.233.968.906.222.222',
+            surfaceId: 'agent-choice-time-1',
+            componentId: 'choices',
+            values: ['8:30 AM'],
+          }
+        ),
+        {
+          type: 'tlon-a2ui-selection',
+          version: 1,
+          sourcePostId: '170.141.184.508.164.136.620.680.233.968.906.272.768',
+          surfaceId: 'agent-choice-approach-1',
+          componentId: 'choices',
+          values: ['Compare expert perspectives'],
+        }
+      ),
     };
     const planPost = {
       author: '~bot',
@@ -913,6 +962,8 @@ describe('agent onboarding requests', () => {
     };
     const history = [
       interviewStart,
+      focusQuestion,
+      timeQuestion,
       approachQuestion,
       approachAnswer,
       planPost,
@@ -927,6 +978,41 @@ describe('agent onboarding requests', () => {
         automaticProvision
       )
     ).toBeNull();
+    expect(
+      agentOnboardingTesting.canonicalizeAutomaticPlanRequest(
+        automaticProvision
+      )
+    ).toMatchObject({
+      topics: ['AI and Climate'],
+      approach: 'Compare expert perspectives',
+      scheduleHour: 8,
+      scheduleMinute: 30,
+      scheduleExpression: '30 8 * * *',
+      taskPrompt:
+        'Focus: AI and Climate. Approach: Compare expert perspectives.',
+    });
+    expect(
+      agentOnboardingTesting.validateAutomaticPlanEvidence(
+        history,
+        '~ten',
+        '~bot',
+        {
+          ...automaticProvision,
+          answerEvidence: {
+            ...automaticProvision.answerEvidence,
+            focus: 'Robotics',
+          },
+        }
+      )
+    ).toContain('focus');
+    expect(
+      agentOnboardingTesting.validateAutomaticPlanEvidence(
+        history,
+        '~ten',
+        '~bot',
+        { ...automaticProvision, scheduleHour: 20 }
+      )
+    ).toContain('schedule');
     expect(
       agentOnboardingTesting.validateAutomaticPlanEvidence(
         history.slice(0, -1),
@@ -955,7 +1041,7 @@ describe('agent onboarding requests', () => {
         '~bot',
         { ...automaticProvision, interviewMessageId: interviewStart.id }
       )
-    ).toContain('approach');
+    ).toContain('question');
     for (const invalidSourcePostId of [
       '~other/170.141.184.508.164.136.620.680.233.968.906.272.768',
       '17.014.118.450.816.413.662.068.023.396.890.627.276.8',
@@ -964,21 +1050,21 @@ describe('agent onboarding requests', () => {
     ]) {
       const invalidAnswer = {
         ...approachAnswer,
-        blob: JSON.stringify([
-          {
-            type: 'tlon-a2ui-selection',
-            version: 1,
-            sourcePostId: invalidSourcePostId,
-            surfaceId: 'agent-choice-approach-1',
-            componentId: 'choices',
-            values: ['Compare expert perspectives'],
-          },
-        ]),
+        blob: JSON.stringify(
+          parsePostBlob(approachAnswer.blob).map((entry) =>
+            entry.type === 'tlon-a2ui-selection' &&
+            entry.surfaceId === 'agent-choice-approach-1'
+              ? { ...entry, sourcePostId: invalidSourcePostId }
+              : entry
+          )
+        ),
       };
       expect(
         agentOnboardingTesting.validateAutomaticPlanEvidence(
           [
             interviewStart,
+            focusQuestion,
+            timeQuestion,
             approachQuestion,
             invalidAnswer,
             planPost,
@@ -1011,6 +1097,8 @@ describe('agent onboarding requests', () => {
       agentOnboardingTesting.validateAutomaticPlanEvidence(
         [
           interviewStart,
+          focusQuestion,
+          timeQuestion,
           approachQuestion,
           approachAnswer,
           {
@@ -1037,6 +1125,8 @@ describe('agent onboarding requests', () => {
       agentOnboardingTesting.validateAutomaticPlanEvidence(
         [
           interviewStart,
+          focusQuestion,
+          timeQuestion,
           approachQuestion,
           approachAnswer,
           contextAnswer,

@@ -262,7 +262,7 @@ export const tlonPlugin = createChatChannelPlugin({
           promptSnippet:
             '`tlon_agent_task_plan`: automatically provision the finished daily recurring task during first-run onboarding',
           promptGuidelines: [
-            'During first-run recurring-task onboarding, use `tlon_agent_task_plan` only after the owner supplied a concrete focus, daily clock time, and topic-specific approach; never invent those required values and do not call `cron` directly; after it posts successfully, return NO_REPLY because the deterministic coordinator owns all activation and result status.',
+            'During first-run recurring-task onboarding, use `tlon_agent_task_plan` only after the owner supplied a concrete focus, daily clock time, and topic-specific approach; copy every typed choice verbatim into answerEvidence, never invent those required values, and do not call `cron` directly; after it posts successfully, return NO_REPLY because the deterministic coordinator owns all activation and result status.',
           ],
           parameters: agentTaskPlanToolParameters,
           execute: (id, params) =>

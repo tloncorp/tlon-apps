@@ -1,6 +1,5 @@
 import {
   A2UI,
-  AGENT_ONBOARDING_APPROACH_CHOICE_MARKER,
   AGENT_ONBOARDING_FIRST_ENTRY_FAILED_MARKER,
   AGENT_ONBOARDING_FIRST_ENTRY_MARKER,
   type AgentOnboardingPurposeId,
@@ -695,7 +694,13 @@ async function handleAgentOnboardingRequestInternal(
     return true;
   }
   try {
-    await provision(context, history, effectiveRequest, deps, presentation);
+    await provision(
+      context,
+      history,
+      canonicalizeAutomaticPlanRequest(effectiveRequest),
+      deps,
+      presentation
+    );
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     try {
@@ -2746,6 +2751,67 @@ function findNewestProvisionRequest(
   return request?.type === 'tlon-agent-provision' ? request : null;
 }
 
+const PLAN_ANSWER_DIMENSIONS = [
+  'focus',
+  'time',
+  'approach',
+  'context',
+  'priority',
+  'output',
+] as const;
+
+function normalizedAnswer(value: string) {
+  return value.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+}
+
+function parseOwnerTime(value: string) {
+  const twelveHour = value.match(
+    /\b(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*(am|pm)\b/i
+  );
+  if (twelveHour) {
+    const clockHour = Number(twelveHour[1]);
+    const minute = Number(twelveHour[2] ?? 0);
+    const hour =
+      (clockHour % 12) + (twelveHour[3]!.toLocaleLowerCase() === 'pm' ? 12 : 0);
+    return { hour, minute };
+  }
+  const twentyFourHour = value.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
+  return twentyFourHour
+    ? { hour: Number(twentyFourHour[1]), minute: Number(twentyFourHour[2]) }
+    : null;
+}
+
+function canonicalizeAutomaticPlanRequest(
+  request: PostBlobDataEntryAgentProvision
+): PostBlobDataEntryAgentProvision {
+  const answers = request.answerEvidence;
+  if (!answers) return request;
+  const time = parseOwnerTime(answers.time);
+  if (!time) return request;
+  const promptParts = [
+    `Focus: ${answers.focus.trim()}.`,
+    `Approach: ${answers.approach.trim()}.`,
+    answers.context ? `Context: ${answers.context.trim()}.` : '',
+    answers.priority ? `Priority: ${answers.priority.trim()}.` : '',
+    answers.output ? `Output: ${answers.output.trim()}.` : '',
+  ].filter(Boolean);
+  const displayHour = time.hour % 12 || 12;
+  const displayMinute = time.minute
+    ? `:${String(time.minute).padStart(2, '0')}`
+    : '';
+  const meridiem = time.hour < 12 ? 'AM' : 'PM';
+  return {
+    ...request,
+    approach: answers.approach.trim(),
+    topics: [answers.focus.trim()],
+    scheduleHour: time.hour,
+    scheduleMinute: time.minute,
+    scheduleExpression: `${time.minute} ${time.hour} * * *`,
+    scheduleDescription: `daily at ${displayHour}${displayMinute} ${meridiem}`,
+    taskPrompt: promptParts.join(' '),
+  };
+}
+
 function validateAutomaticPlanEvidence(
   history: TlonHistoryEntry[],
   ownerShip: string,
@@ -2799,49 +2865,90 @@ function validateAutomaticPlanEvidence(
   if (interviewStartPost.timestamp > interviewPost.timestamp) {
     return 'the bound owner interview is out of order';
   }
-  const normalizedApproach = request.approach.trim().toLocaleLowerCase();
-  const hasApproachAnswer = history.some((answerPost) => {
+  if (!request.answerEvidence) {
+    return 'the plan did not preserve its exact owner answer evidence';
+  }
+  const answersByDimension = new Map<string, string[]>();
+  for (const answerPost of [...history].sort(
+    (left, right) => left.timestamp - right.timestamp
+  )) {
     if (
       answerPost.author !== ownerShip ||
       answerPost.timestamp < interviewStartPost.timestamp ||
       answerPost.timestamp > interviewPost.timestamp ||
       !answerPost.blob
     ) {
-      return false;
+      continue;
     }
-    return parsePostBlob(answerPost.blob).some((entry) => {
-      if (
-        entry.type !== 'tlon-a2ui-selection' ||
-        !entry.sourcePostId ||
-        !entry.values.some(
-          (value) => value.trim().toLocaleLowerCase() === normalizedApproach
-        )
-      ) {
-        return false;
+    for (const entry of parsePostBlob(answerPost.blob)) {
+      if (entry.type !== 'tlon-a2ui-selection' || !entry.sourcePostId) {
+        continue;
       }
       const questionPost = history.find(
         (candidate) =>
           sameEvidencePostId(candidate.id, entry.sourcePostId) &&
           candidate.author === botShip
       );
-      return Boolean(
-        questionPost?.blob &&
-        questionPost.timestamp >= interviewStartPost.timestamp &&
-        questionPost.timestamp <= answerPost.timestamp &&
-        parsePostBlob(questionPost.blob).some(
-          (questionEntry) =>
-            questionEntry.type === 'tlon-agent-post-marker' &&
-            questionEntry.key === AGENT_ONBOARDING_APPROACH_CHOICE_MARKER &&
-            sameEvidencePostId(
-              questionEntry.interviewStartMessageId,
-              request.interviewStartMessageId
-            )
-        )
+      const marker = questionPost?.blob
+        ? parsePostBlob(questionPost.blob).find(
+            (questionEntry) =>
+              questionEntry.type === 'tlon-agent-post-marker' &&
+              questionEntry.key.startsWith('agent-choice-dimension:') &&
+              sameEvidencePostId(
+                questionEntry.interviewStartMessageId,
+                request.interviewStartMessageId
+              )
+          )
+        : undefined;
+      if (
+        !questionPost ||
+        questionPost.timestamp < interviewStartPost.timestamp ||
+        questionPost.timestamp > answerPost.timestamp ||
+        marker?.type !== 'tlon-agent-post-marker'
+      ) {
+        continue;
+      }
+      const dimension = marker.key.slice('agent-choice-dimension:'.length);
+      answersByDimension.set(
+        dimension,
+        entry.values.map((value) => value.trim()).filter(Boolean)
       );
-    });
-  });
-  if (!hasApproachAnswer) {
-    return 'no matching answered approach question was found';
+    }
+  }
+  const answerEvidence = request.answerEvidence;
+  for (const dimension of PLAN_ANSWER_DIMENSIONS) {
+    const claimed = answerEvidence[dimension];
+    const durable = answersByDimension.get(dimension);
+    if (!claimed && durable?.length) {
+      return `the plan omitted the answered ${dimension} choice`;
+    }
+    if (
+      claimed &&
+      !durable?.some(
+        (value) => normalizedAnswer(value) === normalizedAnswer(claimed)
+      )
+    ) {
+      return `no matching answered ${dimension} question was found`;
+    }
+  }
+  for (const requiredDimension of ['focus', 'time', 'approach'] as const) {
+    if (!answersByDimension.get(requiredDimension)?.length) {
+      return `no answered ${requiredDimension} question was found`;
+    }
+  }
+  if (
+    normalizedAnswer(request.approach) !==
+    normalizedAnswer(answerEvidence.approach)
+  ) {
+    return 'the plan approach did not match the owner answer';
+  }
+  const ownerTime = parseOwnerTime(answerEvidence.time);
+  if (
+    !ownerTime ||
+    ownerTime.hour !== request.scheduleHour ||
+    ownerTime.minute !== request.scheduleMinute
+  ) {
+    return 'the plan schedule did not match the owner answer';
   }
 
   const planPost = automaticSelection.sourcePostId
@@ -3457,6 +3564,7 @@ export const agentOnboardingTesting = {
   buildTourChoiceSurface,
   buildRecurringPrompt,
   buildServicesSurface,
+  canonicalizeAutomaticPlanRequest,
   ensureFirstRunEnqueued,
   fetchOnboardingGroup,
   findFirstRunCorrelation,

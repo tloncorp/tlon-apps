@@ -49,7 +49,9 @@ import {
 } from '../gateway-status.js';
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
 import {
+  getTlonSessionSurface,
   rememberTlonSessionRunSurface,
+  resolveTlonSessionOwnerMessageId,
   resolveTlonSessionThreadParentId,
   setTlonSessionSurface,
 } from '../onboarding-tool-boundary.js';
@@ -3106,12 +3108,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       );
       for (const sessionKey of lensSessionKeys) {
         setSessionRole(sessionKey, senderRole);
+        const previousMessageId = getTlonSessionSurface(sessionKey)?.messageId;
+        const ownerMessageId = resolveTlonSessionOwnerMessageId(
+          senderRole,
+          String(messageId),
+          previousMessageId
+        );
         setTlonSessionSurface(sessionKey, {
           kind: isGroup ? 'group' : 'direct',
           ...(isGroup && channelNest ? { channelNest } : {}),
           ...(threadParentId ? { threadParentId } : {}),
           bootstrapComplete: currentSettings.bootstrapComplete === true,
-          messageId: String(messageId),
+          ...(ownerMessageId ? { messageId: ownerMessageId } : {}),
         });
       }
       runtime.log?.(

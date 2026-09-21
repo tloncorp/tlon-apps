@@ -22,7 +22,9 @@ const COMPLETED_PLAN_TTL_MS = 5 * 60 * 1000;
 export const TLON_TASK_PLAN_REPLY_SUPPRESSION_REASON =
   'tlon_task_plan_coordinator_owns_status';
 
-const completedPlanRuns = new Map<string, number>();
+type CompletedPlanMarker = { completedAt: number; keys: string[] };
+
+const completedPlanRuns = new Map<string, CompletedPlanMarker>();
 
 function correlationKey(input: {
   runId?: string;
@@ -61,8 +63,8 @@ function toolResultFailed(event: AfterToolCallEvent): boolean {
 }
 
 function pruneCompletedPlanRuns(now = Date.now()) {
-  for (const [key, completedAt] of completedPlanRuns) {
-    if (now - completedAt > COMPLETED_PLAN_TTL_MS) {
+  for (const [key, marker] of completedPlanRuns) {
+    if (now - marker.completedAt > COMPLETED_PLAN_TTL_MS) {
       completedPlanRuns.delete(key);
     }
   }
@@ -83,7 +85,9 @@ export function recordSuccessfulAgentTaskPlan(
     return;
   }
   pruneCompletedPlanRuns();
-  completedPlanRuns.set(key, Date.now());
+  const keys = [key, ...(ctx.sessionKey ? [`session:${ctx.sessionKey}`] : [])];
+  const marker = { completedAt: Date.now(), keys };
+  for (const markerKey of keys) completedPlanRuns.set(markerKey, marker);
 }
 
 /**
@@ -106,8 +110,20 @@ export function suppressReplyAfterSuccessfulAgentTaskPlan(
     return undefined;
   }
   pruneCompletedPlanRuns();
-  if (!completedPlanRuns.delete(key)) {
+  const sessionKey = event.sessionKey ?? ctx.sessionKey;
+  const lookupKey = event.runId
+    ? key
+    : sessionKey
+      ? `session:${sessionKey}`
+      : undefined;
+  const marker = lookupKey ? completedPlanRuns.get(lookupKey) : undefined;
+  if (!marker) {
     return undefined;
+  }
+  for (const markerKey of marker.keys) {
+    if (completedPlanRuns.get(markerKey) === marker) {
+      completedPlanRuns.delete(markerKey);
+    }
   }
   return {
     cancel: true,

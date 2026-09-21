@@ -120,17 +120,20 @@ export function buildAgentChoiceBlob(
 ) {
   const params = parseParams(input);
   const interviewStartMessageId = evidence?.interviewStartMessageId?.trim();
-  if (params.dimension === 'approach' && !interviewStartMessageId) {
-    throw new Error('approach choice requires a trusted interview start');
+  if (!interviewStartMessageId && evidence) {
+    throw new Error('agent choice requires a trusted interview start');
   }
   return [
-    ...(params.dimension === 'approach'
+    ...(interviewStartMessageId
       ? [
           {
             type: 'tlon-agent-post-marker' as const,
             version: 1 as const,
-            key: AGENT_ONBOARDING_APPROACH_CHOICE_MARKER,
-            ...(interviewStartMessageId ? { interviewStartMessageId } : {}),
+            key:
+              params.dimension === 'approach'
+                ? AGENT_ONBOARDING_APPROACH_CHOICE_MARKER
+                : `agent-choice-dimension:${params.dimension}`,
+            interviewStartMessageId,
           },
         ]
       : []),

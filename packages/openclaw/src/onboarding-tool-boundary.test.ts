@@ -14,11 +14,21 @@ import {
   rememberTlonSessionRunSurface,
   rememberTlonInterviewStart,
   resolveTlonSessionThreadParentId,
+  resolveTlonSessionOwnerMessageId,
   setTlonSessionSurface,
 } from './onboarding-tool-boundary.js';
 
 describe('onboarding tool boundary', () => {
   beforeEach(() => _testing.clearAll());
+
+  it('updates onboarding freshness only from owner messages', () => {
+    expect(
+      resolveTlonSessionOwnerMessageId('user', '~guest/200', '~owner/100')
+    ).toBe('~owner/100');
+    expect(
+      resolveTlonSessionOwnerMessageId('owner', '~owner/101', '~owner/100')
+    ).toBe('~owner/101');
+  });
 
   it('blocks typed onboarding tools in a direct message', () => {
     const surface = {

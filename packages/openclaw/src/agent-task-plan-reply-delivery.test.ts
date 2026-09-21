@@ -66,6 +66,31 @@ describe('agent task plan reply delivery', () => {
     ).toBeUndefined();
   });
 
+  it('suppresses by session when the final reply omits its run id', () => {
+    recordSuccessfulAgentTaskPlan(
+      {
+        toolName: 'tlon_agent_task_plan',
+        result: { content: [{ type: 'text', text: '✓ Message sent' }] },
+      },
+      toolContext
+    );
+
+    expect(
+      suppressReplyAfterSuccessfulAgentTaskPlan(
+        {
+          payload: { text: 'Setup is complete.' },
+          kind: 'final',
+          channel: 'tlon',
+          sessionKey: toolContext.sessionKey,
+        },
+        { channelId: 'tlon', sessionKey: toolContext.sessionKey }
+      )
+    ).toEqual({
+      cancel: true,
+      reason: TLON_TASK_PLAN_REPLY_SUPPRESSION_REASON,
+    });
+  });
+
   it('preserves recovery prose when the plan tool failed', () => {
     recordSuccessfulAgentTaskPlan(
       {
@@ -124,5 +149,46 @@ describe('agent task plan reply delivery', () => {
         toolContext
       )
     ).toBeUndefined();
+  });
+
+  it('keeps the newest session alias when runs overlap', () => {
+    recordSuccessfulAgentTaskPlan(
+      {
+        toolName: 'tlon_agent_task_plan',
+        result: { content: [{ type: 'text', text: '✓ First plan sent' }] },
+      },
+      toolContext
+    );
+    const secondContext = { ...toolContext, runId: 'run-2' };
+    recordSuccessfulAgentTaskPlan(
+      {
+        toolName: 'tlon_agent_task_plan',
+        result: { content: [{ type: 'text', text: '✓ Second plan sent' }] },
+      },
+      secondContext
+    );
+
+    expect(
+      suppressReplyAfterSuccessfulAgentTaskPlan(
+        {
+          payload: { text: 'First' },
+          kind: 'final',
+          channel: 'tlon',
+          runId: 'run-1',
+        },
+        toolContext
+      )
+    ).toBeDefined();
+    expect(
+      suppressReplyAfterSuccessfulAgentTaskPlan(
+        {
+          payload: { text: 'Second' },
+          kind: 'final',
+          channel: 'tlon',
+          sessionKey: toolContext.sessionKey,
+        },
+        { channelId: 'tlon', sessionKey: toolContext.sessionKey }
+      )
+    ).toBeDefined();
   });
 });

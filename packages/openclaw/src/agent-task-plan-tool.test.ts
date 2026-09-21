@@ -17,6 +17,11 @@ const validPlan: AgentTaskPlanToolParams = {
   purposeId: 'agent-research',
   purpose: 'Agent tools research',
   approach: 'Compare primary releases with independent expert analysis',
+  answerEvidence: {
+    focus: 'AI agents and product design',
+    time: '8:30 AM',
+    approach: 'Compare primary releases with independent expert analysis',
+  },
   topics: ['AI agents', 'Product design'],
   scheduleHour: 8,
   scheduleMinute: 30,
@@ -236,6 +241,10 @@ describe('agent task plan tool', () => {
         scheduleExpression: '0 15 * * *',
         scheduleDescription: 'daily at 3 PM Tokyo time',
         timezoneOverride: 'Asia/Tokyo',
+        answerEvidence: {
+          ...validPlan.answerEvidence,
+          time: '3 PM Tokyo time',
+        },
       },
       validEvidence
     );
@@ -308,6 +317,12 @@ describe('agent task plan tool', () => {
       summary: 'Track agent tools daily at 8:30 AM, Sydney time.',
       scheduleDescription: 'daily at 8:30 AM, Sydney time',
     });
+    const timezoneBeforeClock = await execute('call-zone-before-clock', {
+      ...validPlan,
+      fallbackSummary: 'Tokyo time, daily at 8:30 AM.',
+      summary: 'Tokyo time, track agent tools daily at 8:30 AM.',
+      scheduleDescription: 'Tokyo time, daily at 8:30 AM',
+    });
 
     expect(invalidOverride.details).toEqual({ error: true });
     expect(leakedIdentifier.details).toEqual({ error: true });
@@ -315,6 +330,7 @@ describe('agent task plan tool', () => {
     expect(hiddenOverride.details).toEqual({ error: true });
     expect(mismatchedOverride.details).toEqual({ error: true });
     expect(unlistedReadableZone.details).toEqual({ error: true });
+    expect(timezoneBeforeClock.details).toEqual({ error: true });
     expect(postPlan).not.toHaveBeenCalled();
   });
 
@@ -331,6 +347,30 @@ describe('agent task plan tool', () => {
     });
 
     expect(result.details).toEqual({ error: true });
+    expect(postPlan).not.toHaveBeenCalled();
+  });
+
+  it('rejects plan fields that contradict the copied owner answers', async () => {
+    const postPlan = vi.fn(async () => 'unexpected');
+    const execute = createAgentTaskPlanToolExecutor({
+      postPlan,
+      ...executionBoundary(),
+    });
+
+    const wrongTime = await execute('call-wrong-answer-time', {
+      ...validPlan,
+      answerEvidence: { ...validPlan.answerEvidence, time: '8 PM' },
+    });
+    const wrongApproach = await execute('call-wrong-answer-approach', {
+      ...validPlan,
+      answerEvidence: {
+        ...validPlan.answerEvidence,
+        approach: 'Summarize press releases',
+      },
+    });
+
+    expect(wrongTime.details).toEqual({ error: true });
+    expect(wrongApproach.details).toEqual({ error: true });
     expect(postPlan).not.toHaveBeenCalled();
   });
 
@@ -372,6 +412,7 @@ describe('agent task plan tool', () => {
           scheduleMinute: 0,
           scheduleExpression: '0 8 * * *',
           scheduleDescription: 'every day at 8:00 AM',
+          answerEvidence: { ...validPlan.answerEvidence, time: '8 AM' },
         },
         validEvidence
       )

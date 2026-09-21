@@ -50,6 +50,21 @@ export const agentProtocolString = (maxLength: number) =>
     .max(maxLength)
     .refine((value) => value.trim().length > 0);
 
+export const AgentTaskPlanAnswerEvidenceSchema = z.object({
+  focus: agentProtocolString(AGENT_PROTOCOL_LIMITS.taskPromptLength),
+  time: agentProtocolString(AGENT_PROTOCOL_LIMITS.scheduleDescriptionLength),
+  approach: agentProtocolString(AGENT_PROTOCOL_LIMITS.approachLength),
+  context: agentProtocolString(
+    AGENT_PROTOCOL_LIMITS.taskPromptLength
+  ).optional(),
+  priority: agentProtocolString(
+    AGENT_PROTOCOL_LIMITS.taskPromptLength
+  ).optional(),
+  output: agentProtocolString(
+    AGENT_PROTOCOL_LIMITS.taskPromptLength
+  ).optional(),
+});
+
 export const AgentProvisionActionContextSchema = z.object({
   groupId: agentProtocolString(AGENT_PROTOCOL_LIMITS.groupIdLength),
   /**
@@ -73,6 +88,8 @@ export const AgentProvisionActionContextSchema = z.object({
   approach: agentProtocolString(
     AGENT_PROTOCOL_LIMITS.approachLength
   ).optional(),
+  /** Exact owner selections used to derive an automatically provisioned task. */
+  answerEvidence: AgentTaskPlanAnswerEvidenceSchema.optional(),
   topics: z
     .array(agentProtocolString(AGENT_PROTOCOL_LIMITS.topicLength))
     .min(1)

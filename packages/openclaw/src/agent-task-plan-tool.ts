@@ -15,6 +15,14 @@ export type AgentTaskPlanToolParams = {
   purposeId: string;
   purpose: string;
   approach: string;
+  answerEvidence: {
+    focus: string;
+    time: string;
+    approach: string;
+    context?: string;
+    priority?: string;
+    output?: string;
+  };
   topics: string[];
   scheduleHour: number;
   scheduleMinute: number;
@@ -45,6 +53,25 @@ function copyHasDailyTime(copy: string, acceptedDisplayTimes: string[]) {
   );
 }
 
+function parseAnswerTime(value: string) {
+  const twelveHour = value.match(
+    /\b(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*(am|pm)\b/i
+  );
+  if (twelveHour) {
+    const clockHour = Number(twelveHour[1]);
+    return {
+      hour:
+        (clockHour % 12) +
+        (twelveHour[3]!.toLocaleLowerCase() === 'pm' ? 12 : 0),
+      minute: Number(twelveHour[2] ?? 0),
+    };
+  }
+  const twentyFourHour = value.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
+  return twentyFourHour
+    ? { hour: Number(twentyFourHour[1]), minute: Number(twentyFourHour[2]) }
+    : null;
+}
+
 const READABLE_TIMEZONE_AFTER_CLOCK =
   /\b(?:AM|PM)(?:\s*[,;:()\-–—]\s*|\s+)(?:in\s+)?[A-Za-z]+(?:\s+[A-Za-z]+){0,2}\s+time\b/i;
 
@@ -58,6 +85,14 @@ const TIMEZONE_READABLE_ALIASES: Record<string, string[]> = {
   'Asia/Tokyo': ['Tokyo', 'Japan'],
   'Australia/Sydney': ['Sydney', 'Australian Eastern'],
 };
+
+const READABLE_TIMEZONE_LABEL = new RegExp(
+  `\\b(?:${Object.values(TIMEZONE_READABLE_ALIASES)
+    .flat()
+    .map((label) => label.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&'))
+    .join('|')})\\s+time\\b`,
+  'i'
+);
 
 export const agentTaskPlanToolParameters = {
   type: 'object',
@@ -91,6 +126,21 @@ export const agentTaskPlanToolParameters = {
       type: 'string',
       description:
         'The owner’s exact selected answer to the required topic-specific approach question.',
+    },
+    answerEvidence: {
+      type: 'object',
+      description:
+        'Exact owner-selected answers from the typed onboarding choices. Copy them verbatim.',
+      properties: {
+        focus: { type: 'string' },
+        time: { type: 'string' },
+        approach: { type: 'string' },
+        context: { type: 'string' },
+        priority: { type: 'string' },
+        output: { type: 'string' },
+      },
+      required: ['focus', 'time', 'approach'],
+      additionalProperties: false,
     },
     topics: {
       type: 'array',
@@ -130,6 +180,7 @@ export const agentTaskPlanToolParameters = {
     'purposeId',
     'purpose',
     'approach',
+    'answerEvidence',
     'topics',
     'scheduleHour',
     'scheduleMinute',
@@ -194,6 +245,20 @@ function parseParams(params: AgentTaskPlanToolParams): AgentTaskPlanToolParams {
     throw new Error('summary must be 1-1000 characters');
   }
   const timezoneOverride = params.timezoneOverride?.trim() || undefined;
+  if (
+    params.approach.trim().toLocaleLowerCase() !==
+    params.answerEvidence.approach.trim().toLocaleLowerCase()
+  ) {
+    throw new Error('approach must exactly match answerEvidence.approach');
+  }
+  const answeredTime = parseAnswerTime(params.answerEvidence.time);
+  if (
+    !answeredTime ||
+    answeredTime.hour !== params.scheduleHour ||
+    answeredTime.minute !== params.scheduleMinute
+  ) {
+    throw new Error('schedule must exactly match answerEvidence.time');
+  }
   if (timezoneOverride) {
     try {
       new Intl.DateTimeFormat('en', {
@@ -251,7 +316,8 @@ function parseParams(params: AgentTaskPlanToolParams): AgentTaskPlanToolParams {
   }
   if (
     !timezoneOverride &&
-    READABLE_TIMEZONE_AFTER_CLOCK.test(userFacingScheduleCopy)
+    (READABLE_TIMEZONE_AFTER_CLOCK.test(userFacingScheduleCopy) ||
+      READABLE_TIMEZONE_LABEL.test(userFacingScheduleCopy))
   ) {
     throw new Error(
       'timezone-specific copy requires the matching explicit timezoneOverride'
@@ -296,6 +362,7 @@ function parseParams(params: AgentTaskPlanToolParams): AgentTaskPlanToolParams {
     purposeId: params.purposeId,
     purpose: params.purpose,
     approach: params.approach,
+    answerEvidence: params.answerEvidence,
     topics: params.topics,
     scheduleHour: params.scheduleHour,
     scheduleMinute: params.scheduleMinute,
@@ -369,6 +436,7 @@ export function buildAgentTaskPlanBlob(
                       purposeId: params.purposeId,
                       purpose: params.purpose,
                       approach: params.approach,
+                      answerEvidence: params.answerEvidence,
                       topics: params.topics,
                       scheduleHour: params.scheduleHour,
                       scheduleMinute: params.scheduleMinute,

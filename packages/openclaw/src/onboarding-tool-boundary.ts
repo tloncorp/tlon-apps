@@ -60,6 +60,14 @@ export function resolveTlonSessionThreadParentId(
   return isThreadReply && normalized ? normalized : undefined;
 }
 
+export function resolveTlonSessionOwnerMessageId(
+  senderRole: 'owner' | 'user',
+  messageId: string,
+  previousMessageId?: string
+): string | undefined {
+  return senderRole === 'owner' ? messageId : previousMessageId;
+}
+
 function pruneExpiredSurfaces(now = Date.now()): void {
   for (const [key, entry] of sessionSurfaces) {
     if (now - entry.timestamp > SURFACE_TTL_MS) {
