@@ -87,3 +87,16 @@ appId: ${MAESTRO_APP_ID}
       - extendedWaitUntil:
           visible: '^(Workspaces|Bot)$'
           timeout: 60000
+# The password-manager sheet can arrive a moment *after* the tab navigator
+# mounts, so both checks above can pass before it exists and the one-shot
+# dismissal misses it -- leaving it to swallow the first tab selection. Give it
+# a window here rather than treating the tab bar as proof the prompts are done.
+- extendedWaitUntil:
+    visible: '^Save Password\?$'
+    timeout: 5000
+    optional: true
+- runFlow:
+    when:
+      visible: '^Save Password\?$'
+    commands:
+      - tapOn: '^Not Now$'

@@ -3,7 +3,10 @@ appId: ${MAESTRO_APP_ID}
 # Contacts left the bottom bar for the root stack; Settings is how a journey
 # reaches it without a deep link or a notification.
 - runFlow: settings-tab.yaml
-- tapOn: '^Contacts$'
+- runFlow:
+    file: settings-row.yaml
+    env:
+      ROW: '^Contacts$'
 - assertVisible: '^Contacts$'
 # The list is populated from contact data, which lands well after the header
 # on a cold start, so callers that go straight for a row would race it.

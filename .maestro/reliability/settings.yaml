@@ -7,12 +7,18 @@ env:
 - runScript: data.js
 - runFlow: subflows/begin.yaml
 - runFlow: subflows/settings-tab.yaml
-- tapOn: '^App info$'
+- runFlow:
+    file: subflows/settings-row.yaml
+    env:
+      ROW: '^App info$'
 - assertVisible: '^Build version$'
 - assertVisible: '^Desk version$'
 - assertNotVisible: '^Cannot load app info settings$'
 - tapOn: '^Back$'
-- tapOn: '^Appearance$'
+- runFlow:
+    file: subflows/settings-row.yaml
+    env:
+      ROW: '^Appearance$'
 - assertVisible: '^Appearance$'
 # iOS exposes radio state as an accessibility value, not a checked flag.
 - runFlow:
@@ -63,7 +69,10 @@ env:
     env:
       THEME_ID: ThemeOption-dark
 - tapOn: '^Back$'
-- tapOn: '^Appearance$'
+- runFlow:
+    file: subflows/settings-row.yaml
+    env:
+      ROW: '^Appearance$'
 - runFlow:
     file: subflows/assert-theme.yaml
     env:
@@ -92,12 +101,16 @@ env:
     env:
       THEME_ID: ${output.reliability.originalTheme}
 - tapOn: '^Back$'
-- tapOn: '^Blocked users$'
+- runFlow:
+    file: subflows/settings-row.yaml
+    env:
+      ROW: '^Blocked users$'
 - assertVisible: '^Blocked users$'
 - tapOn: '^Back$'
-- tapOn: '^Notifications$'
+- runFlow:
+    file: subflows/settings-row.yaml
+    env:
+      ROW: '^Notifications$'
 - assertVisible: '^Notifications$'
 - tapOn: '^Back$'
-- assertVisible:
-    id: SettingsProfileRow
 - runFlow: subflows/workspaces-tab.yaml

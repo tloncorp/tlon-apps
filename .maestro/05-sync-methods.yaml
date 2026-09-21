@@ -2,7 +2,10 @@ appId: io.tlon.groups
 ---
 - runFlow: subflows/launch.yaml
 - runFlow: subflows/login-e2e-node.yaml
-- assertVisible: 'Workspaces'
+# This is a hosted login, so the landing tab depends on whether the account has
+# an agent: with one the app opens on the Bot tab, not the chat list. Select
+# the tab rather than asserting the app guessed right.
+- runFlow: subflows/workspaces-tab.yaml
 - openLink: 'io.tlon.groups://e2e/sync'
 - extendedWaitUntil:
     visible: 'Open'

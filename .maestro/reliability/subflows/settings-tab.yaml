@@ -21,6 +21,18 @@ appId: ${MAESTRO_APP_ID}
           text: '^Settings$'
           rightOf: '^Activity.*$'
 # Settings draws its title into the native navigation bar rather than a
-# ScreenHeaderTitle, so verify the destination by a row only it has.
-- assertVisible:
-    id: SettingsProfileRow
+# ScreenHeaderTitle, so verify the destination by a row only it has. The row is
+# not necessarily on screen: an account whose agent has inline bot settings
+# renders those above the App section this row starts. Scrolling up first is
+# allowed to fail, which only means the row is below -- see settings-row.yaml.
+- scrollUntilVisible:
+    element:
+      id: SettingsProfileRow
+    direction: UP
+    timeout: 5000
+    optional: true
+- scrollUntilVisible:
+    element:
+      id: SettingsProfileRow
+    direction: DOWN
+    timeout: 15000
