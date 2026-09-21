@@ -11,7 +11,13 @@ env:
     timeout: 5000
 - tapOn: ${'Cloud-' + MAESTRO_RUN_TAG}
 # Depending on retained navigation state, a one-channel group can open either
-# the conversation or its channel list. Enter General when the list appears.
+# the conversation or its channel list. First allow the direct conversation to
+# finish navigating; if it never appears, enter General from the channel list.
+- extendedWaitUntil:
+    visible:
+      id: MessageInput
+    timeout: 15000
+    optional: true
 - runFlow:
     when:
       notVisible:
