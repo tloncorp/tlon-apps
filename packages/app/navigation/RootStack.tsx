@@ -123,9 +123,15 @@ export function RootStack() {
       <Root.Screen
         name="Channel"
         component={ChannelScreen}
-        options={({ route }) => ({
-          animation: route.params.disableTransition ? 'none' : 'default',
-        })}
+        options={({ route }) => {
+          const params = route.params;
+          const disableTransition =
+            params && 'disableTransition' in params && params.disableTransition;
+
+          return {
+            animation: disableTransition ? 'none' : 'default',
+          };
+        }}
       />
       <Root.Screen name="DM" component={ChannelScreen} />
       <Root.Screen name="GroupDM" component={ChannelScreen} />
