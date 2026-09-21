@@ -9,6 +9,23 @@ export function claimAutomaticProvisionRetry(
   return true;
 }
 
+export function trackAutomaticProvisionReceipt(input: {
+  observedReceipts: Set<string>;
+  activeAttempts: Set<string>;
+  surfaceId: string;
+  consumed: boolean;
+}) {
+  if (input.consumed) {
+    input.observedReceipts.add(input.surfaceId);
+    return 'confirmed' as const;
+  }
+  if (input.observedReceipts.delete(input.surfaceId)) {
+    input.activeAttempts.delete(input.surfaceId);
+    return 'failed' as const;
+  }
+  return undefined;
+}
+
 export function shouldAttemptAutomaticProvision(input: {
   componentId: string;
   actionName: string;

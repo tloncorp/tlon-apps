@@ -100,7 +100,7 @@ const READABLE_TIMEZONE_LABEL = new RegExp(
   'i'
 );
 
-function answerTimeMatchesTimezone(value: string, timezone: string) {
+function copyUsesOnlyTimezone(value: string, timezone: string) {
   const timezoneParts = timezone.split('/');
   const readableCity = timezoneParts[timezoneParts.length - 1]?.replace(
     /_/g,
@@ -110,9 +110,24 @@ function answerTimeMatchesTimezone(value: string, timezone: string) {
     ...(TIMEZONE_READABLE_ALIASES[timezone] ?? []),
     ...(readableCity ? [readableCity] : []),
   ];
-  const normalized = value.toLocaleLowerCase();
-  return labels.some((label) =>
-    normalized.includes(`${label.toLocaleLowerCase()} time`)
+  let unmatchedCopy = value;
+  let foundMatchingLabel = false;
+  for (const label of labels) {
+    const pattern = new RegExp(
+      `\\b${label.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\s+time\\b`,
+      'gi'
+    );
+    const remainingCopy = unmatchedCopy.replace(pattern, '');
+    if (remainingCopy !== unmatchedCopy) {
+      foundMatchingLabel = true;
+      unmatchedCopy = remainingCopy;
+    }
+  }
+  return (
+    foundMatchingLabel &&
+    !READABLE_TIMEZONE_AFTER_CLOCK.test(unmatchedCopy) &&
+    !READABLE_TIMEZONE_LABEL.test(unmatchedCopy) &&
+    !/\bUTC\s+time\b/i.test(unmatchedCopy)
   );
 }
 
@@ -299,9 +314,7 @@ function parseParams(params: AgentTaskPlanToolParams): AgentTaskPlanToolParams {
     } catch {
       throw new Error('timezoneOverride must be a valid IANA timezone');
     }
-    if (
-      !answerTimeMatchesTimezone(params.answerEvidence.time, timezoneOverride)
-    ) {
+    if (!copyUsesOnlyTimezone(params.answerEvidence.time, timezoneOverride)) {
       throw new Error(
         'timezoneOverride must exactly match the timezone in answerEvidence.time'
       );
@@ -371,23 +384,13 @@ function parseParams(params: AgentTaskPlanToolParams): AgentTaskPlanToolParams {
     );
   }
   if (timezoneOverride) {
-    const timezoneParts = timezoneOverride.split('/');
-    const readableCity = timezoneParts[timezoneParts.length - 1]?.replace(
-      /_/g,
-      ' '
-    );
-    const acceptableLabels = [
-      ...(TIMEZONE_READABLE_ALIASES[timezoneOverride] ?? []),
-      ...(readableCity ? [readableCity] : []),
-    ];
-    const description = params.scheduleDescription.toLocaleLowerCase();
     if (
-      !acceptableLabels.some((label) =>
-        description.includes(`${label.toLocaleLowerCase()} time`)
+      !scheduleCopies.every((copy) =>
+        copyUsesOnlyTimezone(copy, timezoneOverride)
       )
     ) {
       throw new Error(
-        'an explicit timezoneOverride requires a matching readable timezone in scheduleDescription'
+        'an explicit timezoneOverride requires the same readable timezone in all user-facing plan copy'
       );
     }
   }

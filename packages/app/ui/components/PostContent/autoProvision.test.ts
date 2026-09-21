@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   claimAutomaticProvisionRetry,
   shouldAttemptAutomaticProvision,
+  trackAutomaticProvisionReceipt,
 } from './autoProvision';
 
 const ready = {
@@ -51,5 +52,44 @@ describe('automatic task-plan provisioning', () => {
     expect(
       shouldAttemptAutomaticProvision({ ...ready, actionAvailable: false })
     ).toBe(false);
+  });
+
+  it('surfaces a retry when a confirmed optimistic receipt later fails', () => {
+    const observedReceipts = new Set<string>();
+    const activeAttempts = new Set(['surface-1']);
+    expect(
+      trackAutomaticProvisionReceipt({
+        observedReceipts,
+        activeAttempts,
+        surfaceId: 'surface-1',
+        consumed: false,
+      })
+    ).toBeUndefined();
+    expect(
+      trackAutomaticProvisionReceipt({
+        observedReceipts,
+        activeAttempts,
+        surfaceId: 'surface-1',
+        consumed: true,
+      })
+    ).toBe('confirmed');
+    activeAttempts.clear();
+    expect(
+      trackAutomaticProvisionReceipt({
+        observedReceipts,
+        activeAttempts,
+        surfaceId: 'surface-1',
+        consumed: false,
+      })
+    ).toBe('failed');
+    expect(activeAttempts.has('surface-1')).toBe(false);
+    expect(
+      trackAutomaticProvisionReceipt({
+        observedReceipts,
+        activeAttempts,
+        surfaceId: 'surface-1',
+        consumed: false,
+      })
+    ).toBeUndefined();
   });
 });

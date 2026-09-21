@@ -331,6 +331,28 @@ describe('agent task plan tool', () => {
         time: '8:30 AM London time',
       },
     });
+    const summaryMismatch = await execute('call-summary-timezone-mismatch', {
+      ...validPlan,
+      fallbackSummary: 'Daily research brief at 8:30 AM Tokyo time.',
+      summary: 'Track agent tools daily at 8:30 AM London time.',
+      scheduleDescription: 'daily at 8:30 AM Tokyo time',
+      timezoneOverride: 'Asia/Tokyo',
+      answerEvidence: {
+        ...validPlan.answerEvidence,
+        time: '8:30 AM Tokyo time',
+      },
+    });
+    const fallbackMismatch = await execute('call-fallback-timezone-mismatch', {
+      ...validPlan,
+      fallbackSummary: 'Daily research brief at 8:30 AM London time.',
+      summary: 'Track agent tools daily at 8:30 AM Tokyo time.',
+      scheduleDescription: 'daily at 8:30 AM Tokyo time',
+      timezoneOverride: 'Asia/Tokyo',
+      answerEvidence: {
+        ...validPlan.answerEvidence,
+        time: '8:30 AM Tokyo time',
+      },
+    });
     const unlistedReadableZone = await execute('call-unlisted-zone', {
       ...validPlan,
       fallbackSummary: 'Daily research brief at 8:30 AM, Sydney time.',
@@ -350,6 +372,8 @@ describe('agent task plan tool', () => {
     expect(hiddenOverride.details).toEqual({ error: true });
     expect(mismatchedOverride.details).toEqual({ error: true });
     expect(answerMismatch.details).toEqual({ error: true });
+    expect(summaryMismatch.details).toEqual({ error: true });
+    expect(fallbackMismatch.details).toEqual({ error: true });
     expect(unlistedReadableZone.details).toEqual({ error: true });
     expect(timezoneBeforeClock.details).toEqual({ error: true });
     expect(postPlan).not.toHaveBeenCalled();

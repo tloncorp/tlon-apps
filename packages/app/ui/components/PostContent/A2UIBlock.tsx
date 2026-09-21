@@ -24,6 +24,7 @@ import {
   AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID,
   claimAutomaticProvisionRetry,
   shouldAttemptAutomaticProvision,
+  trackAutomaticProvisionReceipt,
 } from './autoProvision';
 import { McpConnectControl } from './McpConnectControl';
 import { useContentContext } from './contentUtils';
@@ -803,6 +804,7 @@ export function A2UIBlock({
     useState<string[]>([]);
   const buttonPressLocksRef = useRef(new Set<string>());
   const autoProvisionAttemptsRef = useRef(new Set<string>());
+  const observedAutoProvisionReceiptsRef = useRef(new Set<string>());
   const autoProvisionRetryLocksRef = useRef(new Set<string>());
   const choicePressLocksRef = useRef(new Set<string>());
   const smallChoiceSubmitLocksRef = useRef(new Set<string>());
@@ -887,7 +889,10 @@ export function A2UIBlock({
           getConsumedA2UISelection?.(surfaceId, component.id) ||
           isA2UIActionConsumed?.(component.action) === true
         ),
-        attemptedThisMount: autoProvisionAttemptsRef.current.has(surfaceId),
+        attemptedThisMount:
+          autoProvisionAttemptsRef.current.has(surfaceId) ||
+          observedAutoProvisionReceiptsRef.current.has(surfaceId) ||
+          failedAutoProvisionSurfaceIds.includes(surfaceId),
       })
     ) {
       return;
@@ -907,6 +912,7 @@ export function A2UIBlock({
   }, [
     areA2UISelectionsPending,
     components,
+    failedAutoProvisionSurfaceIds,
     getConsumedA2UISelection,
     handleButtonPress,
     isA2UIActionAvailable,
@@ -914,6 +920,31 @@ export function A2UIBlock({
     onA2UIAction,
     surfaceId,
   ]);
+
+  useEffect(() => {
+    const component = components.get(
+      AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID
+    );
+    if (!component || component.component !== 'Button') {
+      return;
+    }
+    const consumed = Boolean(
+      getConsumedA2UISelection?.(surfaceId, component.id) ||
+      isA2UIActionConsumed?.(component.action) === true
+    );
+    const transition = trackAutomaticProvisionReceipt({
+      observedReceipts: observedAutoProvisionReceiptsRef.current,
+      activeAttempts: autoProvisionAttemptsRef.current,
+      surfaceId,
+      consumed,
+    });
+    if (transition === 'failed') {
+      buttonPressLocksRef.current.delete(component.id);
+      setFailedAutoProvisionSurfaceIds((previous) =>
+        previous.includes(surfaceId) ? previous : [...previous, surfaceId]
+      );
+    }
+  }, [components, getConsumedA2UISelection, isA2UIActionConsumed, surfaceId]);
 
   const handleChoicePress = useCallback(
     async (
