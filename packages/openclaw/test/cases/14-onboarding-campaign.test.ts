@@ -67,6 +67,13 @@ async function reloadConfig(patch: Record<string, unknown>) {
       : undefined;
   }, 30_000);
 }
+async function sendCampaignMessage(text: string) {
+  if (!fixtures.group) throw new Error('Fixture group required');
+  await fixtures.userState.sendPost({
+    channelId: fixtures.group.chatChannel,
+    content: [{ inline: [text] }],
+  });
+}
 beforeAll(async () => {
   const project = process.env.TEST_COMPOSE_PROJECT_NAME;
   if (!project)
@@ -194,8 +201,12 @@ test('enrolls a live initial request, sends one marked private-channel tip, crea
         'Here is a useful answer with sources. Would this be useful every week?',
     },
   ]);
-  expect((await fixtures.client.prompt(`yes ${tag}`)).success).toBe(true);
-  expect(JSON.stringify(await fakeModel.received('campaign-yes'))).toContain(
+  await sendCampaignMessage(`yes ${tag}`);
+  const yesCalls = await waitFor(async () => {
+    const calls = await fakeModel.received('campaign-yes');
+    return calls.length ? calls : undefined;
+  }, 20_000);
+  expect(JSON.stringify(yesCalls)).toContain(
     'Your most recent onboarding tip in this conversation'
   );
   await waitFor(
@@ -229,13 +240,9 @@ test('enrolls a live initial request, sends one marked private-channel tip, crea
     },
     { kind: 'text', content: 'Your Friday digest is scheduled.' },
   ]);
-  expect(
-    (
-      await fixtures.client.prompt(
-        `Yes, send an architecture digest every Friday at 12:00 UTC in this DM. ${createTag}`
-      )
-    ).success
-  ).toBe(true);
+  await sendCampaignMessage(
+    `Yes, send an architecture digest every Friday at 12:00 UTC in this channel. ${createTag}`
+  );
   const readTask = () =>
     JSON.parse(
       inBot(
@@ -255,9 +262,7 @@ test('enrolls a live initial request, sends one marked private-channel tip, crea
     },
     { kind: 'text', content: 'Running the first example now.' },
   ]);
-  expect(
-    (await fixtures.client.prompt(`Run that task once now. ${runTag}`)).success
-  ).toBe(true);
+  await sendCampaignMessage(`Run that task once now. ${runTag}`);
   await waitFor(
     async () => (readTask()?.state?.lastDelivered === true ? true : undefined),
     60_000
