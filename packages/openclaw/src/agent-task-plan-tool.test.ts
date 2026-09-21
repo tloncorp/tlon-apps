@@ -26,7 +26,10 @@ const validPlan: AgentTaskPlanToolParams = {
     'Track newly released AI-agent tools for product designers and summarize useful evidence with source links.',
 };
 
-const validEvidence = { interviewMessageId: '~owner/interview-1' };
+const validEvidence = {
+  interviewStartMessageId: '~owner/interview-start',
+  interviewMessageId: '~owner/interview-1',
+};
 
 function executionBoundary() {
   return {

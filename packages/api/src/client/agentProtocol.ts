@@ -53,6 +53,11 @@ export const agentProtocolString = (maxLength: number) =>
 export const AgentProvisionActionContextSchema = z.object({
   groupId: agentProtocolString(AGENT_PROTOCOL_LIMITS.groupIdLength),
   /**
+   * Owner-authored post that started the current typed onboarding interview.
+   * Automatic plans use it to bound durable choice evidence to this interview.
+   */
+  interviewStartMessageId: agentProtocolString(512).optional(),
+  /**
    * Owner-authored post that started the turn which produced an automatic
    * onboarding plan. Optional for retained manual and pre-interview actions;
    * automatic plans require it before provisioning.

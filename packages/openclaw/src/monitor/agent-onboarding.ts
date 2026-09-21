@@ -2770,9 +2770,35 @@ function validateAutomaticPlanEvidence(
   if (!request.approach?.trim()) {
     return 'the plan did not preserve the selected approach';
   }
+  if (!request.interviewStartMessageId || !request.interviewMessageId) {
+    return 'the plan did not preserve its owner interview boundary';
+  }
+  const interviewStartPost = history.find(
+    (candidate) =>
+      sameEvidencePostId(candidate.id, request.interviewStartMessageId) &&
+      candidate.author === ownerShip
+  );
+  const interviewPost = history.find(
+    (candidate) =>
+      sameEvidencePostId(candidate.id, request.interviewMessageId) &&
+      candidate.author === ownerShip
+  );
+  if (!interviewStartPost || !interviewPost) {
+    return 'the bound owner interview is unavailable';
+  }
+  if (interviewStartPost.timestamp > interviewPost.timestamp) {
+    return 'the bound owner interview is out of order';
+  }
   const normalizedApproach = request.approach.trim().toLocaleLowerCase();
   const hasApproachAnswer = history.some((answerPost) => {
-    if (answerPost.author !== ownerShip || !answerPost.blob) return false;
+    if (
+      answerPost.author !== ownerShip ||
+      answerPost.timestamp < interviewStartPost.timestamp ||
+      answerPost.timestamp > interviewPost.timestamp ||
+      !answerPost.blob
+    ) {
+      return false;
+    }
     return parsePostBlob(answerPost.blob).some((entry) => {
       if (
         entry.type !== 'tlon-a2ui-selection' ||
@@ -2790,6 +2816,8 @@ function validateAutomaticPlanEvidence(
       );
       return Boolean(
         questionPost?.blob &&
+        questionPost.timestamp >= interviewStartPost.timestamp &&
+        questionPost.timestamp <= answerPost.timestamp &&
         parsePostBlob(questionPost.blob).some(
           (questionEntry) =>
             questionEntry.type === 'tlon-agent-post-marker' &&
@@ -2810,11 +2838,14 @@ function validateAutomaticPlanEvidence(
       )
     : undefined;
   if (!planPost) return 'the source plan is unavailable';
+  if (planPost.timestamp < interviewPost.timestamp) {
+    return 'the source plan predates its bound owner interview';
+  }
   const hasNewerOwnerAnswer = history.some((candidate) => {
     if (
       candidate.author !== ownerShip ||
       candidate.id === requestPost?.id ||
-      candidate.timestamp < planPost.timestamp ||
+      candidate.timestamp <= interviewPost.timestamp ||
       (requestPost && candidate.timestamp > requestPost.timestamp)
     ) {
       return false;

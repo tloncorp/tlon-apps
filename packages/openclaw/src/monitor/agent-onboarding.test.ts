@@ -822,8 +822,16 @@ describe('agent onboarding requests', () => {
   it('requires a matching durable approach answer for automatic plans', () => {
     const automaticProvision = {
       ...provision,
+      interviewStartMessageId: '100',
+      interviewMessageId: '200',
       approach: 'Compare expert perspectives',
       taskPrompt: 'Track the most useful current developments.',
+    };
+    const interviewStart = {
+      author: '~ten',
+      id: '100',
+      content: 'Help me set up a research task.',
+      timestamp: 0.5,
     };
     const approachQuestion = {
       author: '~bot',
@@ -838,7 +846,7 @@ describe('agent onboarding requests', () => {
     };
     const approachAnswer = {
       author: '~ten',
-      id: 'approach-answer',
+      id: '200',
       content: 'Compare expert perspectives',
       timestamp: 2,
       blob: appendToPostBlob(undefined, {
@@ -870,7 +878,13 @@ describe('agent onboarding requests', () => {
         values: ['AI, Climate'],
       }),
     };
-    const history = [approachQuestion, approachAnswer, planPost, provisionPost];
+    const history = [
+      interviewStart,
+      approachQuestion,
+      approachAnswer,
+      planPost,
+      provisionPost,
+    ];
 
     expect(
       agentOnboardingTesting.validateAutomaticPlanEvidence(
@@ -903,10 +917,10 @@ describe('agent onboarding requests', () => {
     ).toBeNull();
     expect(
       agentOnboardingTesting.validateAutomaticPlanEvidence(
-        history.filter((post) => post.id !== 'approach-answer'),
+        history.filter((post) => post.id !== approachAnswer.id),
         '~ten',
         '~bot',
-        automaticProvision
+        { ...automaticProvision, interviewMessageId: interviewStart.id }
       )
     ).toContain('approach');
     for (const invalidSourcePostId of [
@@ -930,7 +944,13 @@ describe('agent onboarding requests', () => {
       };
       expect(
         agentOnboardingTesting.validateAutomaticPlanEvidence(
-          [approachQuestion, invalidAnswer, planPost, provisionPost],
+          [
+            interviewStart,
+            approachQuestion,
+            invalidAnswer,
+            planPost,
+            provisionPost,
+          ],
           '~ten',
           '~bot',
           automaticProvision
@@ -954,6 +974,55 @@ describe('agent onboarding requests', () => {
         automaticProvision
       )
     ).toContain('superseded');
+    expect(
+      agentOnboardingTesting.validateAutomaticPlanEvidence(
+        [
+          interviewStart,
+          approachQuestion,
+          approachAnswer,
+          {
+            author: '~ten',
+            id: 'correction-during-publication',
+            content: 'Actually, use 9 AM.',
+            timestamp: 2.5,
+          },
+          planPost,
+          provisionPost,
+        ],
+        '~ten',
+        '~bot',
+        automaticProvision
+      )
+    ).toContain('superseded');
+    const contextAnswer = {
+      author: '~ten',
+      id: '250',
+      content: 'Keep the update concise.',
+      timestamp: 2.5,
+    };
+    expect(
+      agentOnboardingTesting.validateAutomaticPlanEvidence(
+        [
+          interviewStart,
+          approachQuestion,
+          approachAnswer,
+          contextAnswer,
+          planPost,
+          provisionPost,
+        ],
+        '~ten',
+        '~bot',
+        { ...automaticProvision, interviewMessageId: contextAnswer.id }
+      )
+    ).toBeNull();
+    expect(
+      agentOnboardingTesting.validateAutomaticPlanEvidence(
+        history,
+        '~ten',
+        '~bot',
+        { ...automaticProvision, interviewMessageId: 'missing-owner-post' }
+      )
+    ).toContain('unavailable');
     const prefixedDuplicate = {
       author: '~ten',
       id: 'not-the-provision',

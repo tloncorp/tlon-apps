@@ -10,6 +10,7 @@ import {
   getTlonTaskPlanEvidence,
   onboardingToolBlockReason,
   rememberTlonSessionRunSurface,
+  rememberTlonInterviewStart,
   setTlonSessionSurface,
 } from './onboarding-tool-boundary.js';
 
@@ -202,6 +203,7 @@ describe('onboarding tool boundary', () => {
       messageId: '~owner/100',
     });
     rememberTlonSessionRunSurface('run-1', sessionKey);
+    rememberTlonInterviewStart('run-1', sessionKey);
 
     expect(
       claimTlonTaskPlanCall({
@@ -218,6 +220,7 @@ describe('onboarding tool boundary', () => {
       })
     ).toContain('Only one task plan');
     expect(getTlonTaskPlanEvidence('call-1')).toEqual({
+      interviewStartMessageId: '~owner/100',
       interviewMessageId: '~owner/100',
     });
 
@@ -231,6 +234,58 @@ describe('onboarding tool boundary', () => {
     ).toBeUndefined();
   });
 
+  it('binds a multi-turn plan to the first typed choice and final owner turn', () => {
+    const sessionKey = 'agent:dev:tlon:group:chat/~zod/home';
+    setTlonSessionSurface(sessionKey, {
+      kind: 'group',
+      channelNest: 'chat/~zod/home',
+      bootstrapComplete: false,
+      messageId: '~owner/100',
+    });
+    rememberTlonSessionRunSurface('run-1', sessionKey);
+    rememberTlonInterviewStart('run-1', sessionKey);
+
+    setTlonSessionSurface(sessionKey, {
+      kind: 'group',
+      channelNest: 'chat/~zod/home',
+      bootstrapComplete: false,
+      messageId: '~owner/200',
+    });
+    rememberTlonSessionRunSurface('run-2', sessionKey);
+    rememberTlonInterviewStart('run-2', sessionKey);
+    expect(
+      claimTlonTaskPlanCall({
+        toolCallId: 'call-2',
+        runId: 'run-2',
+        sessionKey,
+      })
+    ).toBeUndefined();
+    expect(getTlonTaskPlanEvidence('call-2')).toEqual({
+      interviewStartMessageId: '~owner/100',
+      interviewMessageId: '~owner/200',
+    });
+
+    finishTlonTaskPlanCall('call-2', true);
+    setTlonSessionSurface(sessionKey, {
+      kind: 'group',
+      channelNest: 'chat/~zod/home',
+      bootstrapComplete: false,
+      messageId: '~owner/300',
+    });
+    rememberTlonSessionRunSurface('run-3', sessionKey);
+    rememberTlonInterviewStart('run-3', sessionKey);
+    expect(
+      claimTlonTaskPlanCall({
+        toolCallId: 'call-3',
+        runId: 'run-3',
+        sessionKey,
+      })
+    ).toBeUndefined();
+    expect(getTlonTaskPlanEvidence('call-3')).toMatchObject({
+      interviewStartMessageId: '~owner/300',
+    });
+  });
+
   it('rechecks owner intent immediately before task-plan publication', () => {
     const sessionKey = 'agent:dev:tlon:group:chat/~zod/home';
     setTlonSessionSurface(sessionKey, {
@@ -240,6 +295,7 @@ describe('onboarding tool boundary', () => {
       messageId: '~owner/100',
     });
     rememberTlonSessionRunSurface('run-1', sessionKey);
+    rememberTlonInterviewStart('run-1', sessionKey);
     expect(
       claimTlonTaskPlanCall({
         toolCallId: 'call-1',

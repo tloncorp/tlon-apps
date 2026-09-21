@@ -47,6 +47,7 @@ import {
   getTlonSessionRunSurface,
   getTlonSessionSurface,
   onboardingToolBlockReason,
+  rememberTlonInterviewStart,
 } from './src/onboarding-tool-boundary.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
 import { registerRestartCatchupHooks } from './src/restart-catchup.js';
@@ -1063,6 +1064,14 @@ export default defineBundledChannelEntry({
         getTlonSessionSurface(ctx.sessionKey),
         getTlonSessionRunSurface(ctx.runId)
       );
+      if (
+        !blocksNonOwner &&
+        !blocksOnboardingMcp &&
+        !onboardingBoundaryReason &&
+        event.toolName === 'tlon_agent_choice'
+      ) {
+        rememberTlonInterviewStart(ctx.runId, ctx.sessionKey);
+      }
       const taskPlanClaimReason =
         !blocksNonOwner &&
         !blocksOnboardingMcp &&

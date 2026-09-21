@@ -69,6 +69,20 @@ describe('automatic provision evidence', () => {
     sequenceNum: 1,
     blob: approachMarkerBlob,
   };
+  const interviewStart = {
+    id: 'interview-start',
+    authorId: 'owner',
+    channelId: 'chat',
+    receivedAt: 50,
+    sequenceNum: 1,
+  };
+  const approachAnswer = {
+    id: 'approach-answer',
+    authorId: 'owner',
+    channelId: 'chat',
+    receivedAt: 200,
+    sequenceNum: 2,
+  };
   const selection = {
     type: 'tlon-a2ui-selection' as const,
     version: 1 as const,
@@ -82,30 +96,94 @@ describe('automatic provision evidence', () => {
     expect(
       hasAnsweredApproachChoice({
         approach: 'Compare expert perspectives',
-        selections: [selection],
-        sourcePosts: [approachPost],
+        interviewStartMessageId: interviewStart.id,
+        interviewMessageId: approachAnswer.id,
+        channelPosts: [
+          interviewStart,
+          approachPost,
+          {
+            ...approachAnswer,
+            blob: JSON.stringify([selection]),
+          },
+        ],
         planPost,
         botAuthorId: 'bot',
+        ownerId: 'owner',
       })
     ).toBe(true);
     expect(
       hasAnsweredApproachChoice({
         approach: 'Broad curated scan',
-        selections: [selection],
-        sourcePosts: [approachPost],
+        interviewStartMessageId: interviewStart.id,
+        interviewMessageId: approachAnswer.id,
+        channelPosts: [
+          interviewStart,
+          approachPost,
+          {
+            ...approachAnswer,
+            blob: JSON.stringify([selection]),
+          },
+        ],
         planPost,
         botAuthorId: 'bot',
+        ownerId: 'owner',
       })
     ).toBe(false);
     expect(
       hasAnsweredApproachChoice({
         approach: 'Compare expert perspectives',
-        selections: [selection],
-        sourcePosts: [{ ...approachPost, authorId: 'owner' }],
+        interviewStartMessageId: interviewStart.id,
+        interviewMessageId: approachAnswer.id,
+        channelPosts: [
+          interviewStart,
+          { ...approachPost, authorId: 'owner' },
+          {
+            ...approachAnswer,
+            blob: JSON.stringify([selection]),
+          },
+        ],
         planPost,
         botAuthorId: 'bot',
+        ownerId: 'owner',
       })
     ).toBe(false);
+  });
+
+  it('accepts an approach answer before the final interview answer', () => {
+    const finalAnswer = {
+      id: 'context-answer',
+      authorId: 'owner',
+      channelId: 'chat',
+      receivedAt: 250,
+      sequenceNum: 3,
+    };
+    const laterPlan = { ...planPost, receivedAt: 300, sequenceNum: 4 };
+    const channelPosts = [
+      interviewStart,
+      approachPost,
+      { ...approachAnswer, blob: JSON.stringify([selection]) },
+      finalAnswer,
+    ];
+    expect(
+      isCurrentOwnerInterview({
+        interviewStartMessageId: interviewStart.id,
+        interviewMessageId: finalAnswer.id,
+        planPost: laterPlan,
+        ownerId: 'owner',
+        channelPosts,
+      })
+    ).toBe(true);
+    expect(
+      hasAnsweredApproachChoice({
+        approach: 'Compare expert perspectives',
+        interviewStartMessageId: interviewStart.id,
+        interviewMessageId: finalAnswer.id,
+        channelPosts,
+        planPost: laterPlan,
+        botAuthorId: 'bot',
+        ownerId: 'owner',
+      })
+    ).toBe(true);
   });
 
   it('detects a correction posted after the plan', () => {
@@ -144,6 +222,7 @@ describe('automatic provision evidence', () => {
     };
     expect(
       isCurrentOwnerInterview({
+        interviewStartMessageId: interviewPost.id,
         interviewMessageId: interviewPost.id,
         planPost,
         ownerId: 'owner',
@@ -152,6 +231,7 @@ describe('automatic provision evidence', () => {
     ).toBe(true);
     expect(
       isCurrentOwnerInterview({
+        interviewStartMessageId: interviewPost.id,
         interviewMessageId: interviewPost.id,
         planPost,
         ownerId: 'owner',

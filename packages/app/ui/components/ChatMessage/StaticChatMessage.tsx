@@ -1,7 +1,6 @@
 import {
   appendToPostBlob,
   getBotUserIdForUser,
-  parsePostBlob,
   type PostBlobDataEntryA2UISelection,
   type PostBlobDataEntryAgentProvision,
 } from '@tloncorp/api';
@@ -239,6 +238,7 @@ export function StaticChatMessage({
         });
         if (
           !isCurrentOwnerInterview({
+            interviewStartMessageId: plan.interviewStartMessageId,
             interviewMessageId: plan.interviewMessageId,
             planPost: post,
             channelPosts,
@@ -247,30 +247,15 @@ export function StaticChatMessage({
         ) {
           throw new Error('This plan was replaced by a newer answer');
         }
-        const interviewPost = channelPosts.find(
-          (candidate) => candidate.id === plan.interviewMessageId
-        );
-        const selections = parsePostBlob(interviewPost?.blob ?? '').filter(
-          (entry): entry is PostBlobDataEntryA2UISelection =>
-            entry.type === 'tlon-a2ui-selection'
-        );
-        const sourcePostIds = [
-          ...new Set(
-            selections
-              .map((candidate) => candidate.sourcePostId)
-              .filter((id): id is string => Boolean(id))
-          ),
-        ];
-        const sourcePosts = await Promise.all(
-          sourcePostIds.map((postId) => db.getPost({ postId }))
-        );
         if (
           !hasAnsweredApproachChoice({
             approach: plan.approach,
-            selections,
-            sourcePosts,
+            interviewStartMessageId: plan.interviewStartMessageId,
+            interviewMessageId: plan.interviewMessageId,
+            channelPosts,
             planPost: post,
             botAuthorId: post.authorId,
+            ownerId: currentUserId,
           })
         ) {
           throw new Error(
@@ -311,6 +296,9 @@ export function StaticChatMessage({
             })
           ),
         groupId,
+        ...(plan.interviewStartMessageId
+          ? { interviewStartMessageId: plan.interviewStartMessageId }
+          : {}),
         ...(plan.interviewMessageId
           ? { interviewMessageId: plan.interviewMessageId }
           : {}),

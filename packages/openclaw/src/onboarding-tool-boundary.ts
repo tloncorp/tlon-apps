@@ -15,7 +15,13 @@ export type TlonSessionRunSurface = TlonSessionSurface & {
 type TlonTaskPlanCall = {
   runId: string;
   sessionKey: string;
+  interviewStartMessageId: string;
   interviewMessageId: string;
+  timestamp: number;
+};
+
+type TlonInterviewStart = {
+  messageId: string;
   timestamp: number;
 };
 
@@ -31,7 +37,15 @@ const taskPlanRunClaims = sharedMap<string, string>(
 const taskPlanCalls = sharedMap<string, TlonTaskPlanCall>(
   'onboarding-task-plan-calls'
 );
+const interviewStarts = sharedMap<string, TlonInterviewStart>(
+  'onboarding-interview-starts'
+);
 const SURFACE_TTL_MS = 60 * 60 * 1000;
+
+function baseSessionKey(sessionKey: string): string {
+  const threadIndex = sessionKey.indexOf(':thread:');
+  return threadIndex > 0 ? sessionKey.slice(0, threadIndex) : sessionKey;
+}
 
 function pruneExpiredSurfaces(now = Date.now()): void {
   for (const [key, entry] of sessionSurfaces) {
@@ -50,6 +64,11 @@ function pruneExpiredSurfaces(now = Date.now()): void {
       if (taskPlanRunClaims.get(entry.runId) === callId) {
         taskPlanRunClaims.delete(entry.runId);
       }
+    }
+  }
+  for (const [key, entry] of interviewStarts) {
+    if (now - entry.timestamp > SURFACE_TTL_MS) {
+      interviewStarts.delete(key);
     }
   }
 }
@@ -120,6 +139,23 @@ export function clearTlonSessionRunSurface(
   taskPlanRunClaims.delete(key);
 }
 
+export function rememberTlonInterviewStart(
+  runId: string | null | undefined,
+  sessionKey: string | null | undefined
+): void {
+  const key = sessionKey?.trim();
+  const runSurface = getTlonSessionRunSurface(runId);
+  if (!key || !runSurface?.messageId || runSurface.sessionKey !== key) return;
+  pruneExpiredSurfaces();
+  const interviewKey = baseSessionKey(key);
+  if (!interviewStarts.has(interviewKey)) {
+    interviewStarts.set(interviewKey, {
+      messageId: runSurface.messageId,
+      timestamp: Date.now(),
+    });
+  }
+}
+
 export function claimTlonTaskPlanCall(input: {
   toolCallId?: string;
   runId?: string;
@@ -144,11 +180,16 @@ export function claimTlonTaskPlanCall(input: {
   if (!runSurface?.messageId || runSurface.sessionKey !== sessionKey) {
     return 'The task-plan coordinator could not identify the owner message that started this turn.';
   }
+  const interviewStart = interviewStarts.get(baseSessionKey(sessionKey));
+  if (!interviewStart?.messageId) {
+    return 'The task-plan coordinator could not identify the current typed interview.';
+  }
 
   taskPlanRunClaims.set(runId, toolCallId);
   taskPlanCalls.set(toolCallId, {
     runId,
     sessionKey,
+    interviewStartMessageId: interviewStart.messageId,
     interviewMessageId: runSurface.messageId,
     timestamp: Date.now(),
   });
@@ -156,6 +197,7 @@ export function claimTlonTaskPlanCall(input: {
 }
 
 export function getTlonTaskPlanEvidence(toolCallId: string): {
+  interviewStartMessageId: string;
   interviewMessageId: string;
 } {
   pruneExpiredSurfaces();
@@ -163,7 +205,10 @@ export function getTlonTaskPlanEvidence(toolCallId: string): {
   if (!call) {
     throw new Error('task plan is not bound to the current owner turn');
   }
-  return { interviewMessageId: call.interviewMessageId };
+  return {
+    interviewStartMessageId: call.interviewStartMessageId,
+    interviewMessageId: call.interviewMessageId,
+  };
 }
 
 export function assertTlonTaskPlanCallCurrent(toolCallId: string): void {
@@ -185,7 +230,10 @@ export function finishTlonTaskPlanCall(
 ): void {
   const call = taskPlanCalls.get(toolCallId);
   if (!call) return;
-  if (succeeded) return;
+  if (succeeded) {
+    interviewStarts.delete(baseSessionKey(call.sessionKey));
+    return;
+  }
   taskPlanCalls.delete(toolCallId);
   if (taskPlanRunClaims.get(call.runId) === toolCallId) {
     taskPlanRunClaims.delete(call.runId);
@@ -244,5 +292,6 @@ export const _testing = {
     sessionRunSurfaces.clear();
     taskPlanRunClaims.clear();
     taskPlanCalls.clear();
+    interviewStarts.clear();
   },
 };
