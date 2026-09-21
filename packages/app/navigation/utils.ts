@@ -15,10 +15,6 @@ import { Platform } from 'react-native';
 
 import { openExternalBotSettings } from '../utils/botSettings';
 
-import type {
-  DesktopBasePathStackParamList,
-  MobileBasePathStackParamList,
-} from './BasePathNavigator';
 import {
   TOP_LEVEL_DRAWER_ROUTES,
   getActiveTopLevelDrawerRouteName,
@@ -30,7 +26,12 @@ import {
   screenNameFromChannelId,
 } from './routeHelpers';
 import { getTopLevelTabRoute } from './topLevelTabs';
-import { CombinedParamList, RootStackParamList } from './types';
+import {
+  CombinedParamList,
+  DesktopBasePathStackParamList,
+  MobileBasePathStackParamList,
+  RootStackParamList,
+} from './types';
 
 export { screenNameFromChannelId } from './routeHelpers';
 export { getTopLevelTabRoute } from './topLevelTabs';
@@ -525,6 +526,15 @@ export function useRootNavigation() {
     [navigationRef]
   );
 
+  const navigateToBrowserCredentialHandoff = useCallback(
+    (handoffId: string) => {
+      navigationRef.current.navigate('BrowserCredentialHandoff', {
+        handoffId,
+      });
+    },
+    [navigationRef]
+  );
+
   const resetToChannel = useResetToChannel();
   const navigateToChannel = useNavigateToChannel();
   const navigateToChatDetails = useNavigateToChatDetails();
@@ -553,6 +563,7 @@ export function useRootNavigation() {
       navigateBack,
       navigateToBotSettings,
       navigateToBotMcpSettings,
+      navigateToBrowserCredentialHandoff,
     }),
     [
       navigation,
@@ -562,6 +573,7 @@ export function useRootNavigation() {
       navigateToChatVolume,
       navigateToBotSettings,
       navigateToBotMcpSettings,
+      navigateToBrowserCredentialHandoff,
       navigateBackFromPost,
       navigateToGroup,
       navigateToPost,
