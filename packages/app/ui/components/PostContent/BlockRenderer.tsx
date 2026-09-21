@@ -31,9 +31,12 @@ import React, {
 } from 'react';
 import {
   ActivityIndicator,
+  type LayoutChangeEvent,
   Linking,
   Platform,
   View as RNView,
+  StyleSheet,
+  useWindowDimensions,
 } from 'react-native';
 import {
   ScrollView as GHScrollView,
@@ -55,6 +58,7 @@ import { VideoPreview } from '../VideoPreview';
 import { A2UIBlock } from './A2UIBlock';
 import { BlockquoteSideBorder } from './BlockquoteSideBorder';
 import { InlineRenderer } from './InlineRenderer';
+import { resolveImageFit, resolveImageMaxHeight } from './imageSizing';
 import { ContentContext, useContentContext } from './contentUtils';
 
 export const IsInsideReferenceContext = createContext(false);
@@ -628,10 +632,20 @@ export function VideoBlock({
 export function ImageBlock({
   block,
   imageProps,
+  maxWindowHeightFraction,
   ...props
 }: {
   block: cn.ImageBlockData;
   imageProps?: ComponentProps<typeof ContentImage>;
+  /**
+   * Share of the window height this image may occupy, so a very tall image
+   * cannot claim an unbounded amount of vertical space. Callers that scroll
+   * their content (conversations) set this; full-bleed surfaces leave it unset
+   * and render at the natural ratio however tall that is. An image over the cap
+   * is narrowed until it fits, keeping its proportions and all of its content,
+   * and opens at full size in the image viewer.
+   */
+  maxWindowHeightFraction?: number;
 } & ComponentProps<typeof View>) {
   const { getImageViewerId, onPressImage, onLongPress } = useContentContext();
   const [dimensions, setDimensions] = useState({
@@ -657,6 +671,33 @@ export function ImageBlock({
 
   const shouldUseAspectRatio = imageProps?.aspectRatio !== 'unset';
   const viewerId = getImageViewerId?.(block.src);
+
+  // Fit the image to the column it is actually in rather than capping its
+  // height in isolation: the height a block takes is its rendered width over
+  // its ratio, so the column has to be measured before the cap can be applied
+  // without either cropping the picture or letterboxing it.
+  const { height: windowHeight } = useWindowDimensions();
+  const maxHeight = resolveImageMaxHeight({
+    windowHeight,
+    maxWindowHeightFraction,
+  });
+  const [availableWidth, setAvailableWidth] = useState<number | null>(null);
+  const handleAvailableWidthLayout = useCallback((e: LayoutChangeEvent) => {
+    const { width } = e.nativeEvent.layout;
+    setAvailableWidth((current) =>
+      current != null && Math.abs(current - width) < 1 ? current : width
+    );
+  }, []);
+  const fittedSize = useMemo(
+    () =>
+      resolveImageFit({
+        availableWidth,
+        maxHeight,
+        naturalAspectRatio: dimensions.aspect,
+        naturalPixelWidth: dimensions.width,
+      }),
+    [availableWidth, maxHeight, dimensions.aspect, dimensions.width]
+  );
 
   // Calculate constrained dimensions that respect both maxWidth and maxHeight
   // while maintaining the natural aspect ratio (similar to VideoPreview logic).
@@ -696,16 +737,29 @@ export function ImageBlock({
             height: constrainedSize.height,
             maxWidth: '100%',
           }
-        : dimensions.width
-          ? { maxWidth: dimensions.width }
-          : {})}
+        : fittedSize
+          ? {
+              alignSelf: 'flex-start' as const,
+              width: fittedSize.width,
+              height: fittedSize.height,
+            }
+          : {
+              ...(dimensions.width ? { maxWidth: dimensions.width } : {}),
+              // Holds the row's height for the frame before the column reports
+              // its width -- the same height `fittedSize` then resolves to, so
+              // nothing reflows. Kept invisible because the width is not known
+              // yet, and rows remount as the list recycles them.
+              ...(maxHeight != null ? { maxHeight, opacity: 0 } : {}),
+            })}
     >
       <ContentImage
         source={{
           uri: block.src,
         }}
-        {...(constrainedSize ? { width: '100%', height: '100%' } : {})}
-        {...(shouldUseAspectRatio && !constrainedSize
+        {...(constrainedSize || fittedSize
+          ? { width: '100%', height: '100%' }
+          : {})}
+        {...(shouldUseAspectRatio && !constrainedSize && !fittedSize
           ? { aspectRatio: dimensions.aspect || 1 }
           : {})}
         {...(isInsideReference
@@ -723,12 +777,36 @@ export function ImageBlock({
     </Pressable>
   );
 
-  if (!viewerId) {
-    return imagePressable;
+  // The viewer transitions from the pressable itself, so the trigger stays
+  // wrapped tightly around it and the width probe goes outside.
+  const triggered = viewerId ? (
+    <GestureTrigger id={viewerId}>{imagePressable}</GestureTrigger>
+  ) : (
+    imagePressable
+  );
+
+  if (maxHeight == null) {
+    return triggered;
   }
 
-  return <GestureTrigger id={viewerId}>{imagePressable}</GestureTrigger>;
+  // Full-width probe for the column's width; the image sizes itself to what
+  // this reports rather than assuming the window is the column.
+  return (
+    <RNView
+      style={styles.measureAvailableWidth}
+      onLayout={handleAvailableWidthLayout}
+    >
+      {triggered}
+    </RNView>
+  );
 }
+
+const styles = StyleSheet.create({
+  // Full width so the layout reports the column, and flex-start so the trigger
+  // node inside shrink-wraps the image -- the viewer zooms from that node, and
+  // a stretched one hands it a rect wider than the picture being tapped.
+  measureAvailableWidth: { width: '100%', alignItems: 'flex-start' },
+});
 
 const ContentImage = styled(Image, {
   name: 'ContentImage',
