@@ -1,3 +1,4 @@
+import { isBotDmChannel } from '@tloncorp/api/client/utils';
 import {
   isChatChannel,
   useConnectionStatus,
@@ -145,6 +146,7 @@ export function ChannelHeader({
   onPressLogout,
   preferProvidedTitle = false,
   post,
+  isTopLevelTab = false,
 }: {
   title: string;
   titleIcon?: React.ReactNode;
@@ -168,6 +170,8 @@ export function ChannelHeader({
   onPressLogout?: () => void;
   preferProvidedTitle?: boolean;
   post?: db.Post;
+  /** Rendered as the Bot tab's root, rather than pushed onto the stack. */
+  isTopLevelTab?: boolean;
 }) {
   const connectionStatus = useConnectionStatus();
   const chatTitle = useChatTitle(channel, group);
@@ -187,6 +191,19 @@ export function ChannelHeader({
   );
   const registeredLoadingSubtitle = context?.loadingSubtitle ?? null;
   const isWindowNarrow = useIsWindowNarrow();
+  // The bot's DM backs the first bottom tab, where the header is the bot's
+  // avatar and the caret alone. The DM path below already supplies that avatar
+  // and sends the caret to the bot's profile, so this only drops the title and
+  // subtitle. Only as that tab: the same DM pushed from a notification or a
+  // thread, and another user's bot, keep their titles. Narrow layouts only —
+  // the desktop header keeps its own.
+  const isBotDm = useMemo(() => {
+    if (!isWindowNarrow || !isTopLevelTab || channel.type !== 'dm') {
+      return false;
+    }
+
+    return isBotDmChannel({ channel });
+  }, [channel, isTopLevelTab, isWindowNarrow]);
 
   const channelHost = useMemo(() => {
     return getChannelHost(channel, currentUserId);
@@ -376,7 +393,7 @@ export function ChannelHeader({
   }, [channel.type, goToProfile, goToChatDetails]);
 
   const headerProps = {
-    title: headerTitle,
+    title: isBotDm ? '' : headerTitle,
     titleIcon: hideIdentity ? null : (
       <>
         {avatarElement || titleIcon}
@@ -385,9 +402,9 @@ export function ChannelHeader({
         )}
       </>
     ),
-    subtitle: hideIdentity ? undefined : displaySubtitle,
+    subtitle: hideIdentity || isBotDm ? undefined : displaySubtitle,
     testID: 'ChannelHeaderTitle',
-    showSubtitle: !hideIdentity,
+    showSubtitle: !hideIdentity && !isBotDm,
     borderBottom: true,
     loadingSubtitle:
       hideIdentity && !registeredLoadingSubtitle ? null : headerLoadingSubtitle,

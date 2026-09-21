@@ -24,6 +24,15 @@ export function normalizeShip(raw: string): string {
   return trimmed.startsWith('~') ? trimmed : `~${trimmed}`;
 }
 
+/**
+ * A DM is addressed by the partner's ship alone, with no `kind/host/slug`
+ * nest. Callers that accept both conversation kinds branch on this: DM
+ * history and posts live in %chat, everything else in %channels.
+ */
+export function isDmNest(nest: string): boolean {
+  return nest.startsWith('~') && !nest.includes('/');
+}
+
 export function parseNest(
   raw: string,
   expectedPrefix?: NestPrefix

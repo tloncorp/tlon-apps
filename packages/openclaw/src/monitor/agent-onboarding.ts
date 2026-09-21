@@ -17,9 +17,13 @@ import type {
 
 import { type TlonCronService, getTlonCronService } from '../cron-telemetry.js';
 import { MCP_READ_TOOL_NAMES } from '../mcp-readonly-policy.js';
-import { noteIdFromDeliveryMessageId } from '../notes-delivery-state.js';
+import {
+  noteIdFromDeliveryMessageId,
+  notesDeliveryMessageId,
+} from '../notes-delivery-state.js';
 import { sharedMap } from '../shared-state.js';
 import { type Sleeper, defaultSleep } from '../sleep.js';
+import { isDmNest, normalizeShip } from '../targets.js';
 import type {
   TlonOnboardingAnswer,
   TlonOnboardingCompletionPath,
@@ -93,9 +97,23 @@ type AgentOnboardingContext = {
    * identity and timing.
    */
   trackStep?: (report: OnboardingStepReport) => void;
+  /**
+   * Onboarding in this conversation has finished — this request posted the
+   * completing marker, or found one already in history — so the caller can
+   * stop consulting the control plane for reply-shaped messages here.
+   */
+  onConversationComplete?: () => void;
   presentation?: {
     startThinking: () => void | Promise<void>;
     stopThinking: () => void | Promise<void>;
+    /**
+     * A second presence run, keyed separately, for work that outlives this
+     * request. The request's own run is stopped when its handler returns, and
+     * the tracker tombstones that id — so the first entry, which is written
+     * afterwards by cron, cannot borrow it.
+     */
+    startBackgroundThinking?: (key: string) => void | Promise<void>;
+    stopBackgroundThinking?: (key: string) => void | Promise<void>;
     minResponseDelayMs?: number;
     minInterMessageDelayMs?: number;
   };
@@ -105,6 +123,7 @@ type AgentOnboardingDeps = {
   fetchHistory?: typeof fetchChannelHistoryOrThrow;
   getCron?: typeof getTlonCronService;
   getGroup?: (groupId: string) => Promise<OnboardingGroup>;
+  listNotes?: typeof notes.listNotes;
   now?: () => number;
   /** Injectable so pacing jitter is deterministic under test. */
   random?: () => number;
@@ -114,11 +133,10 @@ type AgentOnboardingDeps = {
 
 type AgentOnboardingCronDeps = Pick<
   AgentOnboardingDeps,
-  'fetchHistory' | 'sendPost' | 'sleep'
+  'fetchHistory' | 'listNotes' | 'sendPost' | 'sleep'
 > & {
   /** Internal recursion guard after re-entering the captured client scope. */
   inApiScope?: boolean;
-  listNotes?: typeof notes.listNotes;
 };
 
 type OnboardingGroup = {
@@ -172,12 +190,11 @@ const READ_MS_PER_CHARACTER = 10;
 const READ_DELAY_CAP_MS = 1_500;
 const JITTER_RATIO = 0.2;
 const LEGACY_GROUP_INTRO_PREFIX = "I'm your Tlonbot.";
-const TLAWN_HOME_GROUP_WELCOME_MESSAGE =
-  'Welcome! This is your private group with me, your Tlonbot. You can @ me ' +
-  'here anytime and I will respond. Invite some friends, and they can @ me ' +
-  'too—we can all chat together.';
-const AGENT_ONBOARDING_GROUP_INTRO =
-  `${TLAWN_HOME_GROUP_WELCOME_MESSAGE}\n\n` +
+const TLONBOT_DM_WELCOME_MESSAGE =
+  'Welcome! This is your private chat with me, your Tlonbot. Ask me ' +
+  'anything here anytime.';
+const AGENT_ONBOARDING_INTRO =
+  `${TLONBOT_DM_WELCOME_MESSAGE}\n\n` +
   'I can keep you informed, help you learn, or follow a ' +
   'question over time.';
 const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What can I help you with?';
@@ -191,7 +208,7 @@ const AGENT_ONBOARDING_APP_TOUR_EXPLANATION =
 const AGENT_ONBOARDING_BOT_TOUR_PROMPT =
   'Want me to tell you more about what Tlonbot can do for you?';
 const AGENT_ONBOARDING_BOT_TOUR_EXPLANATION =
-  'I can research questions, change what this group follows, publish ' +
+  'I can research questions, change what your workspace follows, publish ' +
   'scheduled updates, help in other groups, and use connected services you ' +
   'authorize. Try asking me to adjust tomorrow’s update or investigate ' +
   'something now.';
@@ -374,6 +391,15 @@ export function createAgentOnboardingReconciliationPresence({
       activeRunId = null;
       stopRun({ conversationId, runId });
     },
+    // A first run restored by this scan holds presence past it through these.
+    // They key their own run, as the firehose sites do, so the request-scoped
+    // run above can stop without taking the hold with it.
+    startBackgroundThinking: (key: string) => {
+      refreshRun({ conversationId, runId: `onboarding-background:${key}` });
+    },
+    stopBackgroundThinking: (key: string) => {
+      stopRun({ conversationId, runId: `onboarding-background:${key}` });
+    },
   };
 }
 
@@ -391,6 +417,8 @@ type FirstRunCorrelation = {
   presentationReady: boolean;
   /** Re-enters the configured API scope when lifecycle hooks fire later. */
   runInApiScope?: TlonApiScopeRunner;
+  /** Stops the thinking presence held while the entry is being written. */
+  releaseThinking?: () => Promise<void>;
 };
 
 function correlationFunnelFields(correlation: FirstRunCorrelation) {
@@ -487,6 +515,54 @@ export async function agentOnboardingCronChannelNest(
     ?.channelNest;
   if (channelNest) primaryJobChannelNests.set(jobId, channelNest);
   return channelNest;
+}
+
+export { isDmNest };
+
+/**
+ * The group a DM's onboarding belongs to.
+ *
+ * A group channel's nest names its group; a DM's does not. The app posts its
+ * intro request — which names the workspace it just furnished — into the bot
+ * DM, so the newest one the owner authored is the authoritative answer. Absent
+ * until furnishing finishes, so callers retry rather than treating it as final.
+ */
+export async function findOnboardingGroupIdInChannel(
+  context: Pick<
+    AgentOnboardingScanContext,
+    'api' | 'abortSignal' | 'channelNest' | 'ownerShip'
+  >,
+  deps: Pick<AgentOnboardingDeps, 'fetchHistory'> = {}
+): Promise<string | undefined> {
+  if (!context.ownerShip) return undefined;
+  const history = await fetchOnboardingHistory(context, deps);
+
+  return history
+    .filter((entry) => entry.author === context.ownerShip && entry.blob)
+    .map((entry) => ({
+      timestamp: entry.timestamp,
+      request: parseAgentOnboardingRequest(entry.blob),
+    }))
+    .filter(
+      (
+        candidate
+      ): candidate is {
+        timestamp: number;
+        request: Extract<AgentRequest, { type: 'tlon-agent-intro-request' }>;
+      } => candidate.request?.type === 'tlon-agent-intro-request'
+    )
+    .sort((a, b) => b.timestamp - a.timestamp)[0]?.request.groupId;
+}
+
+/**
+ * Whether plain text is a picker choice typed by hand — a purpose, or an
+ * orientation answer — and so worth resolving the onboarding group for.
+ * Ordinary conversation is not, and must not pay for a history read.
+ */
+export function isAgentOnboardingReply(text: string | null | undefined) {
+  const reply = text?.trim();
+  if (!reply) return false;
+  return purposeForReply(reply) != null || isOrientationReply(reply);
 }
 
 export function parseAgentOnboardingRequest(
@@ -789,6 +865,7 @@ async function postIntro(
         step: 'onboarding_completed',
         completionPath: 'additional_group_completed',
       });
+      context.onConversationComplete?.();
     }
     return;
   }
@@ -801,7 +878,7 @@ async function postIntro(
     'purpose-picker',
     async () => {
       const prompt = needsIntro
-        ? `${AGENT_ONBOARDING_GROUP_INTRO}\n\n${AGENT_ONBOARDING_PURPOSE_PROMPT}`
+        ? `${AGENT_ONBOARDING_INTRO}\n\n${AGENT_ONBOARDING_PURPOSE_PROMPT}`
         : AGENT_ONBOARDING_PURPOSE_PROMPT;
       return {
         text: purposePickerFallbackText(prompt),
@@ -931,6 +1008,7 @@ async function advanceOrientationConversation(
     hasPostMarker(history, context.botShip, 'orientation-complete') ||
     hasPostMarker(history, context.botShip, AGENT_GROUP_SETUP_COMPLETE_MARKER)
   ) {
+    context.onConversationComplete?.();
     return false;
   }
 
@@ -965,6 +1043,7 @@ async function advanceOrientationConversation(
         completionPath:
           decision === 'yes' ? 'bot_tour_completed' : 'bot_tour_declined',
       });
+      context.onConversationComplete?.();
     }
     return true;
   }
@@ -1028,6 +1107,7 @@ async function advanceOrientationConversation(
         step: 'onboarding_completed',
         completionPath: 'app_tour_declined',
       });
+      context.onConversationComplete?.();
     }
     return true;
   }
@@ -1553,6 +1633,25 @@ async function failFirstRunCorrelation(
       })
     );
   }
+  await correlation.releaseThinking?.();
+  const recoveredNoteId = await recoverDeliveredFirstRunNote(
+    correlation,
+    deps.listNotes ?? notes.listNotes
+  );
+  if (recoveredNoteId !== undefined) {
+    correlation.context.log?.(
+      `[tlon] first-run delivery reported failure but note ${recoveredNoteId} ` +
+        `landed in ${correlation.notebookNest}; completing instead`
+    );
+    // Hand it down the ordinary success path by the id it would have carried
+    // had delivery reported one.
+    return completeFirstRunCorrelation(
+      correlationRunId,
+      correlation,
+      notesDeliveryMessageId(correlation.context.botShip, recoveredNoteId),
+      deps
+    );
+  }
   if (await retireSupersededFirstRun(correlationRunId, correlation, 'failed')) {
     return;
   }
@@ -1569,7 +1668,7 @@ async function failFirstRunCorrelation(
     async () => ({
       text:
         `I couldn’t publish the first entry to ${correlation.notebookName}. ` +
-        'You can keep using this group; I’ll try again at the next scheduled time.',
+        'Your workspace still works; I’ll try again at the next scheduled time.',
     }),
     runDeps
   );
@@ -1751,6 +1850,7 @@ async function completeFirstRunCorrelation(
       )
     );
   }
+  await correlation.releaseThinking?.();
   if (
     await retireSupersededFirstRun(correlationRunId, correlation, 'completed')
   ) {
@@ -1783,12 +1883,12 @@ async function completeFirstRunCorrelation(
         // card be a bonus rather than the whole message.
         const title = newest?.title?.trim();
         const message = title
-          ? `Your first entry is ready: “${title}” in ${notebookName}, this ` +
-            'group’s notebook. That notebook is where everything I write ' +
-            'for you lands; this chat is for talking to me.'
-          : `Your first entry is ready in ${notebookName}, this group’s ` +
-            'notebook. That notebook is where everything I write for you ' +
-            'lands; this chat is for talking to me.';
+          ? `Your first entry is ready: “${title}” in ${notebookName}, the ` +
+            'notebook in your workspace. That notebook is where everything ' +
+            'I write for you lands; this chat is for talking to me.'
+          : `Your first entry is ready in ${notebookName}, the notebook in ` +
+            'your workspace. That notebook is where everything I write for ' +
+            'you lands; this chat is for talking to me.';
         const story = markdownToStory(message);
         if (newest) {
           story.push({
@@ -1867,6 +1967,39 @@ async function postFirstRunServices(
       ...correlationFunnelFields(correlation),
     });
   }
+}
+
+// %notes answers a write it has accepted but not yet applied with `pending`,
+// and nothing resolves that — the write path throws on the spot. A slow host,
+// which a freshly provisioned ship reliably is, therefore reports a published
+// entry as a failed delivery. Look before telling the owner we could not
+// publish: an entry created no earlier than this run was enqueued is ours.
+const FIRST_RUN_NOTE_CLOCK_SLACK_MS = 5_000;
+
+async function recoverDeliveredFirstRunNote(
+  correlation: FirstRunCorrelation,
+  listNotes: typeof notes.listNotes
+): Promise<number | undefined> {
+  const listed = await listNotes(correlation.notebookNest, {
+    signal: correlation.context.abortSignal,
+  }).catch(() => []);
+  const earliest = correlation.enqueuedAt - FIRST_RUN_NOTE_CLOCK_SLACK_MS;
+
+  // Creation time alone is not evidence: a delayed write from an earlier
+  // provision, or another author in the notebook, can land in the window.
+  // Require the bot's own authorship as well; an entry missing either cannot
+  // be attributed to this run, and claiming one that is not ours would report
+  // the wrong note as the owner's first. Those stay a failure.
+  const botShip = normalizeShip(correlation.context.botShip);
+  return listed
+    .filter(
+      (note) =>
+        note.createdAt != null &&
+        note.createdAt >= earliest &&
+        note.createdBy != null &&
+        normalizeShip(note.createdBy) === botShip
+    )
+    .sort((left, right) => right.noteId - left.noteId)[0]?.noteId;
 }
 
 async function findDeliveredRunNote(
@@ -2132,6 +2265,56 @@ async function restoreFirstRunFromDurable(
   return record;
 }
 
+// The entry is written by cron after the request handler has returned, so
+// nothing refreshes the thinking presence while the user waits on "I'll be
+// back in a few seconds". Hold it open here: the tracker publishes only when
+// something calls in, and the ship ages an active entry out after 90s.
+const FIRST_RUN_PRESENCE_REFRESH_MS = 20_000;
+// A run that never resolves must not leave the indicator spinning forever.
+const FIRST_RUN_PRESENCE_MAX_MS = 5 * 60_000;
+
+function holdFirstRunThinking(
+  context: AgentOnboardingScanContext,
+  key: string
+): () => Promise<void> {
+  const config = context.presentation;
+  if (!config?.startBackgroundThinking) return async () => {};
+
+  let released = false;
+  let failsafe: ReturnType<typeof setTimeout> | undefined;
+
+  const beat = () => {
+    if (released) return;
+    void Promise.resolve(config.startBackgroundThinking?.(key)).catch((error) =>
+      context.log?.(
+        `[tlon] failed to hold first-run thinking presence: ${String(error)}`
+      )
+    );
+  };
+
+  const release = async () => {
+    if (released) return;
+    released = true;
+    clearInterval(ticker);
+    if (failsafe) clearTimeout(failsafe);
+    try {
+      await config.stopBackgroundThinking?.(key);
+    } catch (error) {
+      context.log?.(
+        `[tlon] failed to stop first-run thinking presence: ${String(error)}`
+      );
+    }
+  };
+
+  beat();
+  const ticker = setInterval(beat, FIRST_RUN_PRESENCE_REFRESH_MS);
+  ticker.unref?.();
+  failsafe = setTimeout(() => void release(), FIRST_RUN_PRESENCE_MAX_MS);
+  failsafe.unref?.();
+
+  return release;
+}
+
 async function activateFirstRunPresentation(
   cron: TlonCronService,
   context: AgentOnboardingScanContext,
@@ -2145,17 +2328,28 @@ async function activateFirstRunPresentation(
     request.provisionId
   );
   if (!record || record.status !== 'enqueued') return;
-  const correlation = findFirstRunCorrelation(
-    record.runId,
-    record.notebookNest,
-    record.jobId,
-    true,
-    context.accountId
-  );
+  const lookup = () =>
+    findFirstRunCorrelation(
+      record.runId,
+      record.notebookNest,
+      record.jobId,
+      true,
+      context.accountId
+    );
+  let correlation = lookup();
+  if (!correlation) {
+    // A monitor restart between enqueue and completion left no in-memory
+    // correlation; restore it, then treat it exactly like a live one — the
+    // run is still writing, so it needs the presence hold as much as any.
+    await restoreFirstRunFromDurable(context, request, notebookName, jobId);
+    correlation = lookup();
+  }
   if (correlation) {
     correlation[1].presentationReady = true;
-  } else {
-    await restoreFirstRunFromDurable(context, request, notebookName, jobId);
+    correlation[1].releaseThinking ??= holdFirstRunThinking(
+      context,
+      request.provisionId
+    );
   }
   await reconcileRestoredFirstRun(cron, record, deps);
 }
@@ -2171,6 +2365,9 @@ async function reconcileRestoredFirstRun(
     fetchHistory: deps.fetchHistory,
     sendPost: deps.sendPost,
     sleep: deps.sleep,
+    // Both outcomes read the notebook — the success path to name the entry,
+    // the failure path to check whether one landed anyway.
+    listNotes: deps.listNotes,
   };
   if (outcome.status === 'ok' && outcome.delivered) {
     await completeFirstRun(
@@ -2212,6 +2409,8 @@ export function clearAgentOnboardingRuntime(
     .map(([key]) => key);
   for (const key of ownedKeys) {
     firstRunCompletionFlights.delete(key);
+    // A correlation that is forgotten must not keep beating its presence.
+    void firstRunCorrelations.get(key)?.releaseThinking?.();
     firstRunCorrelations.delete(key);
   }
 }
@@ -2219,12 +2418,18 @@ export function clearAgentOnboardingRuntime(
 export async function drainAgentOnboardingRuntime(
   api: AgentOnboardingScanContext['api']
 ): Promise<void> {
-  const ownedKeys = [...firstRunCorrelations]
-    .filter(([, correlation]) => correlation.context.api === api)
-    .map(([key]) => key);
+  const owned = [...firstRunCorrelations].filter(
+    ([, correlation]) => correlation.context.api === api
+  );
+  const ownedKeys = owned.map(([key]) => key);
   // Stop lifecycle hooks from installing a new completion flight after the
   // drain snapshot. Already-running flights retain their captured correlation.
   for (const key of ownedKeys) firstRunCorrelations.delete(key);
+  // The hold would otherwise outlive the monitor by its failsafe, beating
+  // through an API about to close; release it while that API is still up.
+  await Promise.allSettled(
+    owned.map(([, correlation]) => correlation.releaseThinking?.())
+  );
   await Promise.allSettled(
     ownedKeys
       .map((key) => firstRunCompletionFlights.get(key))
@@ -2917,18 +3122,18 @@ function provisionCadence(
   switch (purposeId) {
     case 'agent-learning':
       return (
-        `Every morning I’ll write one useful idea in ${notebookName}, this ` +
-        'group’s notebook, rotating through your topics.'
+        `Every morning I’ll write one useful idea in ${notebookName}, the ` +
+        'notebook in your workspace, rotating through your topics.'
       );
     case 'agent-research':
       return (
         `Every morning I’ll check for new work and write a source-backed ` +
-        `update in ${notebookName}, this group’s notebook.`
+        `update in ${notebookName}, the notebook in your workspace.`
       );
     case 'agent-daily-digest':
       return (
-        `Every morning I’ll write a fresh digest in ${notebookName}, this ` +
-        'group’s notebook.'
+        `Every morning I’ll write a fresh digest in ${notebookName}, the ` +
+        'notebook in your workspace.'
       );
   }
 }
@@ -3029,7 +3234,7 @@ function buildServicesSurface(
         component: 'McpConnect',
         maxVisible: 4,
         seeAllLabel: 'See all connectors',
-        submitLabel: 'Use for this group',
+        submitLabel: 'Use for this workspace',
         action: {
           event: {
             name: A2UI.action.navigate,

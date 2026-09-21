@@ -740,6 +740,32 @@ describe('agent onboarding catch-up', () => {
       toolNames: [],
     });
   });
+
+  it('holds a background run for a restored first run, keyed apart from the request', () => {
+    const refreshRun = vi.fn();
+    const stopRun = vi.fn();
+    const presentation = createAgentOnboardingReconciliationPresence({
+      conversationId: '~ten',
+      createRunId: () => 'reconcile-1',
+      refreshRun,
+      stopRun,
+    });
+
+    presentation.startBackgroundThinking('provision-1');
+    // Ending the request's own run leaves the hold in place.
+    presentation.stopThinking();
+    expect(refreshRun).toHaveBeenCalledWith({
+      conversationId: '~ten',
+      runId: 'onboarding-background:provision-1',
+    });
+    expect(stopRun).not.toHaveBeenCalled();
+
+    presentation.stopBackgroundThinking('provision-1');
+    expect(stopRun).toHaveBeenCalledWith({
+      conversationId: '~ten',
+      runId: 'onboarding-background:provision-1',
+    });
+  });
 });
 
 describe('agent onboarding requests', () => {
@@ -843,7 +869,7 @@ describe('agent onboarding requests', () => {
       component: 'McpConnect',
       maxVisible: 4,
       seeAllLabel: 'See all connectors',
-      submitLabel: 'Use for this group',
+      submitLabel: 'Use for this workspace',
       completionLabel: 'Done',
       completionAction: {
         event: { name: A2UI.action.sendMessage, context: { text: 'Done' } },
@@ -1093,6 +1119,26 @@ describe('agent onboarding requests', () => {
     ]);
   });
 
+  it('reports a conversation already finished in history, and does nothing else', async () => {
+    const onConversationComplete = vi.fn();
+    const sendPost = vi.fn();
+    await expect(
+      handleAgentOnboardingRequest(
+        replyContext('yes', { onConversationComplete }),
+        {
+          fetchHistory: vi.fn(async () => [
+            firstGroupIntro(),
+            provisionAck(),
+            botMarker('orientation-complete', 2),
+          ]),
+          sendPost,
+        }
+      )
+    ).resolves.toBe(false);
+    expect(onConversationComplete).toHaveBeenCalledOnce();
+    expect(sendPost).not.toHaveBeenCalled();
+  });
+
   it('runs the post-setup tours in order and only after each Yes', async () => {
     const sent: Array<{ story: unknown; blob?: string }> = [];
     const sendPost = vi.fn(async (post: { story: unknown; blob?: string }) => {
@@ -1106,7 +1152,8 @@ describe('agent onboarding requests', () => {
       botMarker('onboarding-follow-up', 2),
       { author: '~ten', content: 'Yes', timestamp: 3 },
     ];
-    const context = replyContext('Yes', { trackStep });
+    const onConversationComplete = vi.fn();
+    const context = replyContext('Yes', { trackStep, onConversationComplete });
 
     await expect(
       handleAgentOnboardingRequest(context, {
@@ -1129,6 +1176,7 @@ describe('agent onboarding requests', () => {
       step: 'app_tour_answered',
       answer: 'yes',
     });
+    expect(onConversationComplete).not.toHaveBeenCalled();
     trackStep.mockClear();
 
     history.push(
@@ -1165,6 +1213,7 @@ describe('agent onboarding requests', () => {
         },
       ],
     ]);
+    expect(onConversationComplete).toHaveBeenCalledOnce();
   });
 
   it('ends the optional tour cleanly after No', async () => {
@@ -1309,7 +1358,7 @@ describe('agent onboarding requests', () => {
     expect(sendPost).toHaveBeenCalledOnce();
   });
 
-  it('describes only the provisioned home group as the first group', async () => {
+  it('introduces itself only for the first workspace', async () => {
     const promptFor = async (isFirstGroup?: boolean) => {
       clearAgentOnboardingRuntime();
       const sent: Array<{ blob?: string; story?: unknown }> = [];
@@ -1353,7 +1402,7 @@ describe('agent onboarding requests', () => {
     const firstGroup = await promptFor(true);
     expect(firstGroup).toHaveLength(1);
     expect(JSON.stringify(firstGroup[0]?.story)).toContain(
-      'Welcome! This is your private group with me, your Tlonbot.'
+      'Welcome! This is your private chat with me, your Tlonbot.'
     );
     expect(JSON.stringify(firstGroup[0]?.story)).toContain(
       'I can keep you informed, help you learn, or follow a question over time.'
@@ -1850,7 +1899,7 @@ describe('agent onboarding requests', () => {
     ['agent-learning', 'write one useful idea in Field notes'],
     [
       'agent-research',
-      'write a source-backed update in Field notes, this group’s notebook',
+      'write a source-backed update in Field notes, the notebook in your workspace',
     ],
   ])('explains the ongoing cadence for %s', (purposeId, expectation) => {
     // Every variant has to name the notebook it writes into. "Publish", and
@@ -2864,6 +2913,78 @@ describe('provision coordinator ordering', () => {
     );
   });
 
+  it('keeps thinking presence up while the first entry is written', async () => {
+    // The entry is written by cron after this handler returns, so the run the
+    // handler stops cannot be the one covering that wait.
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    const { cron } = provisionCronHarness();
+    const stopThinking = vi.fn();
+    const startBackgroundThinking = vi.fn();
+    const stopBackgroundThinking = vi.fn();
+
+    await expect(
+      handleAgentOnboardingRequest(
+        requestContext({
+          presentation: {
+            startThinking: vi.fn(),
+            stopThinking,
+            startBackgroundThinking,
+            stopBackgroundThinking,
+            minResponseDelayMs: 0,
+          },
+        }),
+        provisionDeps(cron)
+      )
+    ).resolves.toBe(true);
+
+    expect(startBackgroundThinking).toHaveBeenCalledWith(provision.provisionId);
+    // The request is done; the wait it promised is not.
+    expect(stopThinking).toHaveBeenCalled();
+    expect(stopBackgroundThinking).not.toHaveBeenCalled();
+  });
+
+  it('releases the thinking hold when the runtime drains or is cleared', async () => {
+    type Api = { scry: ReturnType<typeof vi.fn> };
+    for (const retire of [
+      (api: Api) => drainAgentOnboardingRuntime(api),
+      (api: Api) => clearAgentOnboardingRuntime(api),
+    ]) {
+      clearAgentOnboardingRuntime();
+      const store = memoryRunStore();
+      setAgentOnboardingRunStore(store);
+      const { cron } = provisionCronHarness();
+      const api: Api = { scry: vi.fn() };
+      const stopBackgroundThinking = vi.fn();
+      await expect(
+        handleAgentOnboardingRequest(
+          requestContext({
+            api,
+            presentation: {
+              startThinking: vi.fn(),
+              stopThinking: vi.fn(),
+              startBackgroundThinking: vi.fn(),
+              stopBackgroundThinking,
+              minResponseDelayMs: 0,
+            },
+          }),
+          provisionDeps(cron)
+        )
+      ).resolves.toBe(true);
+      expect(stopBackgroundThinking).not.toHaveBeenCalled();
+
+      await retire(api);
+
+      // Whether the monitor drains or the runtime is cleared, the hold ends
+      // with the correlation; nothing keeps beating presence for a retired run.
+      await vi.waitFor(() =>
+        expect(stopBackgroundThinking).toHaveBeenCalledWith(
+          provision.provisionId
+        )
+      );
+    }
+  });
+
   it('releases a durable claim when enqueue rejects', async () => {
     const store = memoryRunStore();
     setAgentOnboardingRunStore(store);
@@ -3106,6 +3227,127 @@ describe('provision coordinator ordering', () => {
         fetchHistory: vi.fn(async () => []),
         sendPost,
         sleep: vi.fn(async () => {}),
+      }
+    );
+
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0].story)).toContain(
+      'couldn’t publish the first entry'
+    );
+  });
+
+  it('completes when the entry landed despite a failed delivery', async () => {
+    // %notes answers an unsettled write with `pending` and the write path
+    // throws, so a slow host reports a published entry as a failed delivery.
+    const context = scanContext();
+    rememberFirstRun('run-pending-write', {
+      context,
+      notebookName: 'Updates',
+      jobId: 'job-1',
+      enqueuedAt: 1_700_000_000_000,
+    });
+    const sendPost = successfulSendPost();
+    const cron = {
+      list: vi.fn(async () => [
+        {
+          id: 'job-1',
+          state: {
+            lastRunAtMs: 200,
+            lastRunStatus: 'ok',
+            lastDelivered: false,
+          },
+        },
+      ]),
+    } as unknown as TlonCronService;
+
+    await agentOnboardingTesting.reconcileRestoredFirstRun(
+      cron,
+      storedRunRecord({
+        runId: 'run-pending-write',
+        channelNest: context.channelNest,
+        notebookName: 'Updates',
+        claimedAt: 100,
+        enqueuedAt: 100,
+        outcome: { status: 'error', delivered: false, observedAt: 200 },
+      }),
+      {
+        fetchHistory: vi.fn(async () => []),
+        sendPost,
+        sleep: vi.fn(async () => {}),
+        listNotes: vi.fn(async () => [
+          {
+            noteId: 7,
+            title: 'Open Hardware Daily Digest',
+            createdAt: 1_700_000_050_000,
+            createdBy: context.botShip,
+          },
+        ]),
+      }
+    );
+
+    const story = JSON.stringify(sendPost.mock.calls[0]?.[0].story);
+    expect(story).toContain('Your first entry is ready');
+    expect(story).not.toContain('couldn’t publish the first entry');
+  });
+
+  it('still fails when the notebook holds nothing this run could have written', async () => {
+    const context = scanContext();
+    rememberFirstRun('run-genuinely-failed', {
+      context,
+      notebookName: 'Updates',
+      jobId: 'job-1',
+      enqueuedAt: 1_700_000_000_000,
+    });
+    const sendPost = successfulSendPost();
+    const cron = {
+      list: vi.fn(async () => [
+        {
+          id: 'job-1',
+          state: {
+            lastRunAtMs: 200,
+            lastRunStatus: 'ok',
+            lastDelivered: false,
+          },
+        },
+      ]),
+    } as unknown as TlonCronService;
+
+    await agentOnboardingTesting.reconcileRestoredFirstRun(
+      cron,
+      storedRunRecord({
+        runId: 'run-genuinely-failed',
+        channelNest: context.channelNest,
+        notebookName: 'Updates',
+        claimedAt: 100,
+        enqueuedAt: 100,
+        outcome: { status: 'error', delivered: false, observedAt: 200 },
+      }),
+      {
+        fetchHistory: vi.fn(async () => []),
+        sendPost,
+        sleep: vi.fn(async () => {}),
+        listNotes: vi.fn(async () => [
+          // Well before the run, and so outside the clock-skew window.
+          {
+            noteId: 2,
+            title: 'Older entry',
+            createdAt: 1_699_999_000_000,
+            createdBy: context.botShip,
+          },
+          // No creation time, so it cannot be attributed to this run.
+          {
+            noteId: 3,
+            title: 'Undated entry',
+            createdAt: null,
+            createdBy: context.botShip,
+          },
+          // In the window, but somebody else wrote it.
+          {
+            noteId: 4,
+            title: 'Someone else',
+            createdAt: 1_700_000_050_000,
+            createdBy: '~sampel-palnet',
+          },
+        ]),
       }
     );
 

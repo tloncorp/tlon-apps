@@ -457,7 +457,16 @@ Send `--image` takes a **direct https** png/jpeg/gif/webp URL — normally the U
 
 `posts edit` edits message text only. The former notebook-only `--title`/`--image`/`--content` edit flags are removed (they refuse with an explanatory error). Deprecated diary channels are unmanaged by the CLI except through the owner-run `tlon notes migrate-plan <diary-nest>` and `tlon notes migrate-apply <diary-nest> --yes` paths.
 
-Message text supports Markdown lists, task lists, blockquotes, code, links, and ship mentions; raw HTML blocks and reference-style links are not supported. Never use LaTeX math delimiters ($...$, $$...$$, \(...\), \[...\]) — Tlon renders no math; write math as plain text/Unicode or in code blocks.
+Message text supports Markdown lists, task lists, blockquotes, code, links, and ship mentions; raw HTML blocks and reference-style links are not supported.
+
+**Referencing a group, channel or post.** Put its reference path in the message text and it renders as a card, the same as pasting one into the app:
+
+```bash
+tlon posts send ~sampel "Carry on over here: /1/group/~host/slug"
+tlon posts send ~sampel "/1/chan/chat/~host/slug"          # a channel
+```
+
+Paths are `/1/group/<host>/<slug>`, `/1/chan/<nest>`, `/1/desk/<flag>`. A group's path is just `/1/group/` followed by the group id from `tlon groups list`. The card replaces the path in the message, so write the sentence introducing it and let the card follow; anything that is not a valid reference path is left as literal text. Never use LaTeX math delimiters ($...$, $$...$$, \(...\), \[...\]) — Tlon renders no math; write math as plain text/Unicode or in code blocks.
 
 ### Notes
 
