@@ -5,9 +5,11 @@ import { DAY, type CampaignState } from './model.js';
 import {
   createLiveCampaign,
   isUserRecurringTask,
+  notifyCampaignReply,
   notifyCampaignCronChanged,
 } from './live.js';
 import { type CampaignStore, setCampaignStore } from './store.js';
+import { RECURRING_OFFER } from './templates.js';
 
 const mock = vi.hoisted(() => ({
   posts: vi.fn(),
@@ -119,6 +121,24 @@ it('sends a marked DM to the owner through the captured account scope', async ()
   });
   expect(mock.scoped).toHaveBeenCalled();
 });
+it.each(['~TEN', 'tlon:dm/~TEN', 'dm:~TEN'])(
+  'canonicalizes the campaign reply target %s',
+  async (target) => {
+    campaign.start();
+    await notifyCampaignReply('default', RECURRING_OFFER, target);
+    expect(row.offeredAt).toBe(now);
+  }
+);
+it.each(['chat/~ZOD/setup', 'tlon:group:chat/~ZOD/setup'])(
+  'canonicalizes the campaign channel target %s',
+  async (target) => {
+    row.groupId = '~zod/setup';
+    row.channelId = 'chat/~zod/setup';
+    campaign.start();
+    await notifyCampaignReply('default', RECURRING_OFFER, target);
+    expect(row.offeredAt).toBe(now);
+  }
+);
 it('recovers only a marker authored by the bot in the owner DM', async () => {
   const blob = appendToPostBlob(undefined, {
     type: 'tlon-agent-post-marker',

@@ -11,6 +11,7 @@ import type {
 } from 'openclaw/plugin-sdk/types';
 import { getTlonCronService } from '../../cron-telemetry.js';
 import { sharedMap } from '../../shared-state.js';
+import { parseTlonTarget } from '../../targets.js';
 import type { TlonTelemetryClient } from '../../telemetry.js';
 import { listRunnableTlonAccountIds } from '../../types.js';
 import { captureTlonApiScope } from '../../urbit/api-client.js';
@@ -33,10 +34,11 @@ export async function notifyCampaignReply(
   text: string,
   destination: string
 ) {
-  await replyObservers.get(accountId)?.(
-    text,
-    destination.replace(/^tlon:/, '')
-  );
+  const target = parseTlonTarget(destination);
+  const canonicalDestination =
+    target?.kind === 'dm' ? target.ship : target?.nest;
+  if (!canonicalDestination) return;
+  await replyObservers.get(accountId)?.(text, canonicalDestination);
 }
 
 const observers = sharedMap<
