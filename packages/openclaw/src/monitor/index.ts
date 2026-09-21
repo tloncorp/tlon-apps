@@ -3125,7 +3125,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           senderRole,
           ...(isGroup && channelNest ? { channelNest } : {}),
           ...(threadParentId ? { threadParentId } : {}),
-          bootstrapComplete: currentSettings.bootstrapComplete === true,
+          ...(typeof currentSettings.bootstrapComplete === 'boolean'
+            ? { bootstrapComplete: currentSettings.bootstrapComplete }
+            : {}),
           ...(ownerMessageId ? { messageId: ownerMessageId } : {}),
         });
       }

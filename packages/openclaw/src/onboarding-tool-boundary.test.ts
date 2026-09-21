@@ -138,6 +138,16 @@ describe('onboarding tool boundary', () => {
         }
       )
     ).toBeUndefined();
+    expect(
+      onboardingToolBlockReason(
+        'cron',
+        {},
+        {
+          kind: 'direct',
+          timestamp: Date.now(),
+        }
+      )
+    ).toBeUndefined();
   });
 
   it('shares the surface with thread session keys', () => {

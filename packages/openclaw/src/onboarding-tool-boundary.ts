@@ -5,7 +5,7 @@ export type TlonSessionSurface = {
   senderRole?: 'owner' | 'user';
   channelNest?: string;
   threadParentId?: string;
-  bootstrapComplete: boolean;
+  bootstrapComplete?: boolean;
   messageId?: string;
   timestamp: number;
 };
@@ -337,7 +337,7 @@ export function onboardingToolBlockReason(
     }
   }
 
-  if (toolName === 'cron' && surface && !surface.bootstrapComplete) {
+  if (toolName === 'cron' && surface?.bootstrapComplete === false) {
     return surface.kind === 'direct'
       ? 'First-run recurring-task provisioning is owned by the group coordinator. Tell the owner to choose +, then New Tlonbot group, and stop.'
       : 'Recurring-task onboarding provisioning is owned by the typed task-plan coordinator. Post a current tlon_agent_task_plan for the owner to confirm, and do not call cron directly.';

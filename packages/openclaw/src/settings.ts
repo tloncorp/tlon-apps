@@ -41,7 +41,7 @@ export type PendingApproval = {
 };
 
 export type TlonSettingsStore = {
-  /** First-run onboarding is complete; absent and false both mean incomplete. */
+  /** First-run onboarding state; absent preserves legacy cron behavior. */
   bootstrapComplete?: boolean;
   groupChannels?: string[];
   dmAllowlist?: string[];

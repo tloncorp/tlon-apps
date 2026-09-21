@@ -100,6 +100,22 @@ const READABLE_TIMEZONE_LABEL = new RegExp(
   'i'
 );
 
+function answerTimeMatchesTimezone(value: string, timezone: string) {
+  const timezoneParts = timezone.split('/');
+  const readableCity = timezoneParts[timezoneParts.length - 1]?.replace(
+    /_/g,
+    ' '
+  );
+  const labels = [
+    ...(TIMEZONE_READABLE_ALIASES[timezone] ?? []),
+    ...(readableCity ? [readableCity] : []),
+  ];
+  const normalized = value.toLocaleLowerCase();
+  return labels.some((label) =>
+    normalized.includes(`${label.toLocaleLowerCase()} time`)
+  );
+}
+
 export const agentTaskPlanToolParameters = {
   type: 'object',
   properties: {
@@ -283,6 +299,21 @@ function parseParams(params: AgentTaskPlanToolParams): AgentTaskPlanToolParams {
     } catch {
       throw new Error('timezoneOverride must be a valid IANA timezone');
     }
+    if (
+      !answerTimeMatchesTimezone(params.answerEvidence.time, timezoneOverride)
+    ) {
+      throw new Error(
+        'timezoneOverride must exactly match the timezone in answerEvidence.time'
+      );
+    }
+  } else if (
+    READABLE_TIMEZONE_AFTER_CLOCK.test(params.answerEvidence.time) ||
+    READABLE_TIMEZONE_LABEL.test(params.answerEvidence.time) ||
+    /\bUTC\s+time\b/i.test(params.answerEvidence.time)
+  ) {
+    throw new Error(
+      'answerEvidence.time names a timezone but timezoneOverride is missing'
+    );
   }
   const expectedDailyExpression = `${params.scheduleMinute} ${params.scheduleHour} * * *`;
   if (params.scheduleExpression.trim() !== expectedDailyExpression) {

@@ -262,6 +262,10 @@ describe('agent task plan tool', () => {
         summary: 'Track robotics releases daily at 8:30 AM UTC time.',
         scheduleDescription: 'daily at 8:30 AM UTC time',
         timezoneOverride: 'UTC',
+        answerEvidence: {
+          ...validPlan.answerEvidence,
+          time: '8:30 AM UTC time',
+        },
       },
       validEvidence
     );
@@ -311,6 +315,21 @@ describe('agent task plan tool', () => {
       summary: 'Track agent tools daily at 8:30 AM Tokyo time.',
       scheduleDescription: 'daily at 8:30 AM Tokyo time',
       timezoneOverride: 'Europe/London',
+      answerEvidence: {
+        ...validPlan.answerEvidence,
+        time: '8:30 AM Tokyo time',
+      },
+    });
+    const answerMismatch = await execute('call-answer-timezone-mismatch', {
+      ...validPlan,
+      fallbackSummary: 'Daily research brief at 8:30 AM New York time.',
+      summary: 'Track agent tools daily at 8:30 AM New York time.',
+      scheduleDescription: 'daily at 8:30 AM New York time',
+      timezoneOverride: 'America/New_York',
+      answerEvidence: {
+        ...validPlan.answerEvidence,
+        time: '8:30 AM London time',
+      },
     });
     const unlistedReadableZone = await execute('call-unlisted-zone', {
       ...validPlan,
@@ -330,6 +349,7 @@ describe('agent task plan tool', () => {
     expect(omittedOverride.details).toEqual({ error: true });
     expect(hiddenOverride.details).toEqual({ error: true });
     expect(mismatchedOverride.details).toEqual({ error: true });
+    expect(answerMismatch.details).toEqual({ error: true });
     expect(unlistedReadableZone.details).toEqual({ error: true });
     expect(timezoneBeforeClock.details).toEqual({ error: true });
     expect(postPlan).not.toHaveBeenCalled();

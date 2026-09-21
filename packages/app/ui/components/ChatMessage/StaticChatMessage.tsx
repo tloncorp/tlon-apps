@@ -99,6 +99,8 @@ function provisionMatchesPlan(
     provision.scheduleDescription === plan.scheduleDescription &&
     provision.notebookNest === notebookNest &&
     provision.notebookTitle === notebookTitle &&
+    provision.interviewStartMessageId === plan.interviewStartMessageId &&
+    provision.interviewMessageId === plan.interviewMessageId &&
     agentPlanAnswerEvidenceMatches(
       provision.answerEvidence,
       plan.answerEvidence
