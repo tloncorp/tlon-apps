@@ -38,5 +38,5 @@ export function tasksForShip(
   snapshot: StewardAutomationSnapshot | undefined,
   ship: string
 ) {
-  return snapshot?.tasks[ship] ?? {};
+  return snapshot?.tasks[ship];
 }

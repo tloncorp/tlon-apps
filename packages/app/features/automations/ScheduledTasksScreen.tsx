@@ -25,7 +25,7 @@ export function ScheduledTasksScreen({ navigation, route }: Props) {
   );
   const tasks = useMemo<IdentifiedAutomationTask[]>(
     () =>
-      Object.entries(tasksForShip(query.data, route.params.botShip)).map(
+      Object.entries(tasksForShip(query.data, route.params.botShip) ?? {}).map(
         ([id, task]) => ({ id, task })
       ),
     [query.data, route.params.botShip]
@@ -34,6 +34,7 @@ export function ScheduledTasksScreen({ navigation, route }: Props) {
   return (
     <ScheduledTasksScreenView
       available={query.data?.available ?? false}
+      synced={tasksForShip(query.data, route.params.botShip) !== undefined}
       error={query.isError && !query.data?.available}
       loading={query.isLoading}
       tasks={tasks}

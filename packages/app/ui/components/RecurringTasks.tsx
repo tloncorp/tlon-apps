@@ -33,6 +33,7 @@ export interface RecurringTaskDraft {
 
 export function ScheduledTasksScreenView({
   available,
+  synced = true,
   error,
   loading,
   tasks,
@@ -43,6 +44,7 @@ export function ScheduledTasksScreenView({
   onRetry,
 }: {
   available: boolean;
+  synced?: boolean;
   error?: boolean;
   loading?: boolean;
   tasks: IdentifiedAutomationTask[];
@@ -86,6 +88,12 @@ export function ScheduledTasksScreenView({
         <ScheduledTasksNotice
           title="Scheduled tasks unavailable"
           body="This ship does not expose Steward's automation mirror yet."
+        />
+      ) : !synced ? (
+        <ScheduledTasksNotice
+          title="Scheduled tasks not synced"
+          body="This bot has not mirrored its task definitions yet."
+          action={onRetry ? { label: 'Refresh', onPress: onRetry } : undefined}
         />
       ) : tasks.length === 0 ? (
         <ScheduledTasksNotice

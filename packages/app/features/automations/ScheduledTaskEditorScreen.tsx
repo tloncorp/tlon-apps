@@ -34,7 +34,7 @@ export function ScheduledTaskEditorScreen({ navigation, route }: Props) {
     }, [query.refetch])
   );
   const task = route.params.taskId
-    ? tasksForShip(query.data, route.params.botShip)[route.params.taskId]
+    ? tasksForShip(query.data, route.params.botShip)?.[route.params.taskId]
     : undefined;
   const initialDraft = useMemo<RecurringTaskDraft>(
     () =>
@@ -80,6 +80,17 @@ export function ScheduledTaskEditorScreen({ navigation, route }: Props) {
       <ScheduledTasksNotice
         title="Scheduled tasks unavailable"
         body="This ship does not expose Steward's automation mirror yet."
+        onBack={navigation.goBack}
+      />
+    );
+  }
+
+  if (tasksForShip(query.data, route.params.botShip) === undefined) {
+    return (
+      <ScheduledTasksNotice
+        title="Scheduled tasks not synced"
+        body="This bot has not mirrored its task definitions yet."
+        action={{ label: 'Refresh', onPress: () => void query.refetch() }}
         onBack={navigation.goBack}
       />
     );

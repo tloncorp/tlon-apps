@@ -213,7 +213,9 @@ export function UserProfileScreen({ route, navigation }: Props) {
                   ? handlePressScheduledTasks
                   : undefined
               }
-              scheduledTaskCount={Object.keys(scheduledTasks).length}
+              scheduledTaskCount={
+                scheduledTasks ? Object.keys(scheduledTasks).length : undefined
+              }
               onPressGroup={handlePressGroup}
             />
           </View>
