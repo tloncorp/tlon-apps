@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import * as api from '@tloncorp/api';
-import type { StewardAutomationTasks } from '@tloncorp/api/urbit';
+import type { StewardAutomationShipTasks } from '@tloncorp/api/urbit';
 
 export interface StewardAutomationSnapshot {
   available: boolean;
-  tasks: StewardAutomationTasks;
+  tasks: StewardAutomationShipTasks;
 }
 
 export const stewardAutomationQueryKey = ['stewardAutomationTasks'] as const;
@@ -16,7 +16,7 @@ export function useStewardAutomationTasks(enabled = true) {
       try {
         return {
           available: true,
-          tasks: await api.getStewardAutomationTasks(),
+          tasks: await api.scryAutomations(),
         };
       } catch (error) {
         if (error instanceof api.BadResponseError && error.status === 404) {

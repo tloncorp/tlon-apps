@@ -35,7 +35,7 @@ import {
   createContextLensRegistry,
   unbindContextLensFromSession,
 } from '../context-lens.js';
-import { scheduleCronSnapshot } from '../cron-telemetry.js';
+import { getTlonCronService, scheduleCronSnapshot } from '../cron-telemetry.js';
 import type { RestartCatchupConnection } from '../restart-catchup.js';
 import {
   getEffectiveOwnerShip,
@@ -74,6 +74,12 @@ import {
   resolveTurnTerminalLensStatus,
   rewriteGenericTerminalErrorReply,
 } from '../silent-failure-notice.js';
+import {
+  STEWARD_AUTOMATION_HARNESS_PATH,
+  STEWARD_AUTOMATION_FINALIZE_PATH,
+  StewardAutomationEditProcessor,
+} from '../steward-automation-edit.js';
+import { isStewardAutomationProjectionEligible } from '../steward-automation-reconciliation.js';
 import {
   canonicalizeNest,
   normalizeShip,
@@ -5173,6 +5179,66 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           // working.
           runtime.log?.(
             `[tlon] Steward lens subscription unavailable: ${error?.message ?? String(error)}`
+          );
+        }
+      }
+
+      // Subscribe to the bot ship's %steward automation harness feed: the
+      // owner's edit commands (create/update/delete a cron job) arrive here
+      // as dispatch facts, get applied to the gateway cron service, and are
+      // answered over HTTP, whose reply is the acknowledgement a channel poke
+      // never gives. Outstanding commands are replayed on
+      // (re)subscribe, so a restart resumes in-flight edits. Gated like the
+      // projection: the cron service is process-global, so edits are only
+      // accepted when exactly one Tlon account is runnable.
+      if (isStewardAutomationProjectionEligible(cfg)) {
+        const editProcessor = new StewardAutomationEditProcessor({
+          finalize: (response) =>
+            api!.requestJson(
+              STEWARD_AUTOMATION_FINALIZE_PATH,
+              'POST',
+              response
+            ),
+          getCron: () => getTlonCronService(),
+          logger: {
+            log: (message) => runtime.log?.(message),
+            warn: (message) => runtime.error?.(message),
+          },
+          ...(opts.abortSignal ? { signal: opts.abortSignal } : {}),
+        });
+        try {
+          await api.subscribe({
+            app: 'steward',
+            path: STEWARD_AUTOMATION_HARNESS_PATH,
+            event: (data) => {
+              void editProcessor.handle(data);
+            },
+            err: (error) => {
+              capturePluginError('steward_subscription', error);
+              runtime.error?.(
+                `[tlon] Steward automation harness subscription error: ${String(error)}`
+              );
+            },
+            quit: () => {
+              capturePluginError(
+                'steward_subscription',
+                'steward automation harness quit received; resubscribing',
+                { errorKind: 'quit' }
+              );
+              runtime.log?.(
+                '[tlon] Steward automation harness quit received, SSE client will resubscribe'
+              );
+            },
+          });
+          runtime.log?.(
+            `[tlon] Subscribed to steward automation harness feed (${STEWARD_AUTOMATION_HARNESS_PATH})`
+          );
+        } catch (error: any) {
+          // Ships without the edit loop nack the subscribe; owner edits then
+          // fail fast on the bot as harness-offline while everything else
+          // keeps working.
+          runtime.log?.(
+            `[tlon] Steward automation harness subscription unavailable: ${error?.message ?? String(error)}`
           );
         }
       }
