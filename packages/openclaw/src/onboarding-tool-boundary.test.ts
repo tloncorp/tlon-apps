@@ -222,7 +222,6 @@ describe('onboarding tool boundary', () => {
       })
     ).toContain('Only one task plan');
     expect(getTlonTaskPlanEvidence('call-1')).toEqual({
-      interviewStartMessageId: '~owner/100',
       interviewMessageId: '~owner/100',
     });
 
@@ -296,7 +295,7 @@ describe('onboarding tool boundary', () => {
     });
   });
 
-  it('binds a multi-turn plan to the first typed choice and final owner turn', () => {
+  it('binds a multi-turn plan to the final owner turn', () => {
     const sessionKey = 'agent:dev:tlon:group:chat/~zod/home';
     setTlonSessionSurface(sessionKey, {
       kind: 'group',
@@ -323,7 +322,6 @@ describe('onboarding tool boundary', () => {
       })
     ).toBeUndefined();
     expect(getTlonTaskPlanEvidence('call-2')).toEqual({
-      interviewStartMessageId: '~owner/100',
       interviewMessageId: '~owner/200',
     });
 
@@ -343,8 +341,44 @@ describe('onboarding tool boundary', () => {
         sessionKey,
       })
     ).toBeUndefined();
-    expect(getTlonTaskPlanEvidence('call-3')).toMatchObject({
-      interviewStartMessageId: '~owner/300',
+    expect(getTlonTaskPlanEvidence('call-3')).toEqual({
+      interviewMessageId: '~owner/300',
+    });
+  });
+
+  it('does not replace the durable interview start after a restart', () => {
+    const sessionKey = 'agent:dev:tlon:group:chat/~zod/home';
+    setTlonSessionSurface(sessionKey, {
+      kind: 'group',
+      channelNest: 'chat/~zod/home',
+      bootstrapComplete: false,
+      messageId: '~owner/200',
+    });
+    rememberTlonSessionRunSurface('run-2', sessionKey);
+    expect(
+      claimTlonChoiceCall({
+        toolCallId: 'choice-after-restart',
+        runId: 'run-2',
+        sessionKey,
+      })
+    ).toBeUndefined();
+
+    setTlonSessionSurface(sessionKey, {
+      kind: 'group',
+      channelNest: 'chat/~zod/home',
+      bootstrapComplete: false,
+      messageId: '~owner/300',
+    });
+    rememberTlonSessionRunSurface('run-3', sessionKey);
+    expect(
+      claimTlonTaskPlanCall({
+        toolCallId: 'plan-after-restart',
+        runId: 'run-3',
+        sessionKey,
+      })
+    ).toBeUndefined();
+    expect(getTlonTaskPlanEvidence('plan-after-restart')).toEqual({
+      interviewMessageId: '~owner/300',
     });
   });
 

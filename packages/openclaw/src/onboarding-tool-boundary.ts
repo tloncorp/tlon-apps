@@ -15,7 +15,6 @@ export type TlonSessionRunSurface = TlonSessionSurface & {
 type TlonTaskPlanCall = {
   runId: string;
   sessionKey: string;
-  interviewStartMessageId?: string;
   interviewMessageId: string;
   timestamp: number;
 };
@@ -223,15 +222,10 @@ export function claimTlonTaskPlanCall(input: {
   if (!runSurface?.messageId || runSurface.sessionKey !== sessionKey) {
     return 'The task-plan coordinator could not identify the owner message that started this turn.';
   }
-  const interviewStart = interviewStarts.get(baseSessionKey(sessionKey));
-
   taskPlanRunClaims.set(runId, toolCallId);
   taskPlanCalls.set(toolCallId, {
     runId,
     sessionKey,
-    ...(interviewStart?.messageId
-      ? { interviewStartMessageId: interviewStart.messageId }
-      : {}),
     interviewMessageId: runSurface.messageId,
     timestamp: Date.now(),
   });
@@ -248,9 +242,6 @@ export function getTlonTaskPlanEvidence(toolCallId: string): {
     throw new Error('task plan is not bound to the current owner turn');
   }
   return {
-    ...(call.interviewStartMessageId
-      ? { interviewStartMessageId: call.interviewStartMessageId }
-      : {}),
     interviewMessageId: call.interviewMessageId,
   };
 }
