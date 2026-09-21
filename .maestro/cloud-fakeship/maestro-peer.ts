@@ -13,7 +13,7 @@ const actor = (name: string) =>
   new TlonActorClient({
     shipName: name,
     shipUrl:
-      name === '~zod' ? process.env.PROOF_PUBLIC_URL! : manifest[name].url,
+      name === '~zod' ? process.env.PROOF_CONTROLLER_URL! : manifest[name].url,
     code: manifest[name].code,
   });
 const zod = actor('~zod');
@@ -44,13 +44,13 @@ async function until(
 }
 async function main() {
   await zod.state.connect();
-  // A poke completes only after its ack arrives over the public event stream.
+  // A poke completes only after its ack arrives over the controller stream.
   await zod.state.poke({
     app: 'hood',
     mark: 'helm-hi',
     json: 'Cloud stream preflight',
   });
-  const publicStreamMs = Date.now() - started;
+  const controllerStreamMs = Date.now() - started;
   await ten.state.connect();
   const snapshotPath = '.proof-snapshot/peer-result.json';
   const snapshot = existsSync(snapshotPath)
@@ -97,7 +97,7 @@ async function main() {
     source: process.env.GITHUB_SHA,
     snapshotSource: snapshot?.source,
     previousFixtureCleared: snapshot ? true : null,
-    publicStreamMs,
+    controllerStreamMs,
     deskHashes: hashes,
     group,
     setupMs: Date.now() - started,
