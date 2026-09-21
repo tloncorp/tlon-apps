@@ -51,6 +51,11 @@ test('every reliability journey gets short, searchable, retry-safe fixtures', ()
         first.profileStatus.endsWith(runTag.slice(-8) + ' status'),
         journey
       );
+      assert.ok(first.profileBio.length <= 300, journey);
+      assert.ok(
+        first.profileBio.endsWith(runTag.slice(-8) + ' biography'),
+        journey
+      );
       assert.notEqual(first.group, retry.group, journey);
       assert.notEqual(first.groupQuery, retry.groupQuery, journey);
       assert.notEqual(first.channel, retry.channel, journey);

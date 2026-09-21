@@ -97,12 +97,12 @@ onFlowComplete:
     above: '^Pinned groups$'
     point: '95%,15%'
 - eraseText: 300
-- inputText: ${MAESTRO_RUN_TAG + ' biography'}
+- inputText: ${output.reliability.profileBio}
 - hideKeyboard
 - tapOn: '^Save$'
 - assertVisible: '^Profile$'
 - assertVisible: ${output.reliability.profileStatus}
-- assertVisible: ${MAESTRO_RUN_TAG + ' biography'}
+- assertVisible: ${output.reliability.profileBio}
 - stopApp
 - launchApp
 - extendedWaitUntil:
@@ -118,4 +118,4 @@ onFlowComplete:
     direction: DOWN
     timeout: 5000
 - assertVisible: ${output.reliability.profileStatus}
-- assertVisible: ${MAESTRO_RUN_TAG + ' biography'}
+- assertVisible: ${output.reliability.profileBio}

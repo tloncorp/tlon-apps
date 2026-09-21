@@ -48,6 +48,7 @@ output.reliability = {
   body: MAESTRO_RUN_TAG + ' body',
   contactNickname: boundedTaggedValue('contact', 30),
   profileStatus: boundedTaggedValue('status', 50),
+  profileBio: boundedTaggedValue('biography', 300),
   linkUrl: 'https://tlon.io',
   // ContactName exposes a spoken label (zod / sampel - palnet) on native.
   // Accept that exact identity or its literal display, never a partial match.
