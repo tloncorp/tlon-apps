@@ -349,7 +349,13 @@ export function RecurringTaskEditorView({
             >
               <XStack justifyContent="space-between" alignItems="center">
                 <Text size="$label/l">Schedule</Text>
-                <Text size="$label/l" color="$secondaryText">
+                <Text
+                  size="$label/l"
+                  color="$secondaryText"
+                  flex={1}
+                  flexShrink={1}
+                  textAlign="right"
+                >
                   {draft.scheduleLabel ??
                     `${draft.repeat} at ${draft.timeLabel}`}
                 </Text>
