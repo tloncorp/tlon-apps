@@ -508,6 +508,8 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
       const targetedReadChecks = [
         selected('group-mark-read') ? 'group-mark-read-state' : null,
         selected('channel-mark-read') ? 'channel-mark-read-state' : null,
+        selected('group-swipe-read') ? 'group-swipe-read-state' : null,
+        selected('dm-swipe-read') ? 'dm-swipe-read-state' : null,
       ].filter((name): name is string => name !== null);
       if (targetedReadChecks.length) {
         await until(
@@ -667,9 +669,18 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
         };
         return soft.mention !== undefined && soft.reply !== undefined;
       });
+      const ordinaryObservationEnd = Date.now() + 15_000;
+      while (
+        soft.ordinary === undefined &&
+        Date.now() < ordinaryObservationEnd
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        soft.ordinary = await eventNotified(softMarkers.ordinary);
+      }
       record('global-notification-soft', {
         level: 'soft',
         ordinaryInActivity: soft.ordinary !== undefined,
+        ordinaryAbsenceObservedMs: 15_000,
         mentionNotified: soft.mention,
         replyNotified: soft.reply,
       });

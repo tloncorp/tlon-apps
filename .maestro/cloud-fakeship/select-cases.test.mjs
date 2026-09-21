@@ -19,17 +19,18 @@ for (const name of [
 }
 for (const name of [
   'dm-block',
+  'dm-unblock',
   'blocked-group-invite',
   'blocked-group-content',
 ]) {
   test(`${name} cannot contaminate peer-content cases`, () => {
     assert.throws(
       () => selectCases(`${name},group-changes`),
-      /blocking cases separately/
+      /relationship-state cases separately/
     );
     assert.throws(
       () => selectCases(`reactions,${name}`),
-      /blocking cases separately/
+      /relationship-state cases separately/
     );
     assert.deepEqual(selectCases(name), [name]);
   });

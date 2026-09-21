@@ -80,12 +80,15 @@ export function selectCases(selection) {
   if (
     selected.length > 1 &&
     selected.some((name) =>
-      ['dm-block', 'blocked-group-invite', 'blocked-group-content'].includes(
-        name
-      )
+      [
+        'dm-block',
+        'dm-unblock',
+        'blocked-group-invite',
+        'blocked-group-content',
+      ].includes(name)
     )
   )
-    throw Error('Run persistent blocking cases separately');
+    throw Error('Run relationship-state cases separately');
   if (
     selected.includes('activity-filters') &&
     selected.includes('activity-pagination')

@@ -14,7 +14,7 @@ concurrency:
 jobs:
   proof:
     runs-on: blacksmith-16vcpu-ubuntu-2204
-    timeout-minutes: 55
+    timeout-minutes: 70
     env:
       PROOF_CASES: ${{ inputs.cases || 'all' }}
       PROOF_OUTPUT: ${{ github.workspace }}/proof-output
