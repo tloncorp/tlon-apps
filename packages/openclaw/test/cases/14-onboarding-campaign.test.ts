@@ -276,13 +276,18 @@ test('enrolls a live initial request, sends one marked private-channel tip, crea
     fixtures.thirdPartyShip,
   ]);
   await fixtures.thirdPartyState.joinGroup(fixtures.group.id);
-  await waitFor(
-    async () =>
-      (await fixtures.thirdPartyState.isMemberOfGroup(fixtures.group.id))
-        ? true
-        : undefined,
-    30_000
-  );
+  await waitFor(async () => {
+    const group = (await fixtures.botState.group(fixtures.group.id)) as {
+      members?: { contactId?: string; status?: string }[];
+    } | null;
+    return group?.members?.some(
+      (member) =>
+        member.contactId === fixtures.thirdPartyShip &&
+        member.status === 'joined'
+    )
+      ? true
+      : undefined;
+  }, 30_000);
   // Advance the disposable fixture past spacing/recent activity, then exercise
   // the ordinary startup check. No client presence or conversation-open event.
   inBot(
@@ -302,9 +307,11 @@ test('enrolls a live initial request, sends one marked private-channel tip, crea
         : undefined,
     30_000
   );
-  expect(
-    campaignState()?.sent.find((s) => s.step === 'task-feedback')?.text
-  ).toContain('tlon-campaign-e2e-digest');
+  const feedback = campaignState()?.sent.find(
+    (sent) => sent.step === 'task-feedback'
+  );
+  expect(feedback?.text).toContain('tlon-campaign-e2e-digest');
+  expect(feedback?.destination).toBe(fixtures.userShip);
   await fixtures.client.sendDm('/stop-tips');
   await waitFor(
     async () => (campaignState()?.status === 'opted-out' ? true : undefined),
