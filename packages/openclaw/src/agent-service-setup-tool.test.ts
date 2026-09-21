@@ -29,6 +29,7 @@ describe('agent service setup tool', () => {
     expect(JSON.stringify(entry)).toContain('Open Connected Services');
     expect(entry).toEqual(
       expect.objectContaining({
+        version: 1,
         storyMode: 'fallback',
         messages: expect.arrayContaining([
           expect.objectContaining({

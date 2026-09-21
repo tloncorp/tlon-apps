@@ -39,6 +39,7 @@ describe('agent choice tool', () => {
     expect(A2UI.validateBlobEntry(entry)).toBe(true);
     expect(entry).toEqual(
       expect.objectContaining({
+        version: 1,
         storyMode: 'fallback',
         messages: expect.arrayContaining([
           expect.objectContaining({

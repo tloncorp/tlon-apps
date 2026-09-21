@@ -13,6 +13,7 @@ import {
   onboardingToolBlockReason,
   rememberTlonSessionRunSurface,
   rememberTlonInterviewStart,
+  resolveTlonSessionThreadParentId,
   setTlonSessionSurface,
 } from './onboarding-tool-boundary.js';
 
@@ -139,6 +140,55 @@ describe('onboarding tool boundary', () => {
       getTlonSessionSurface('agent:dev:tlon:group:chat/~zod/home:thread:170.1')
         ?.channelNest
     ).toBe('chat/~zod/home');
+  });
+
+  it('records a thread parent only for actual thread replies', () => {
+    expect(resolveTlonSessionThreadParentId(true, '~parent/100')).toBe(
+      '~parent/100'
+    );
+    expect(
+      resolveTlonSessionThreadParentId(false, '~parent/100')
+    ).toBeUndefined();
+    expect(resolveTlonSessionThreadParentId(true, null)).toBeUndefined();
+  });
+
+  it('keeps typed onboarding tools out of threaded runs', () => {
+    const sessionKey = 'agent:dev:tlon:group:chat/~zod/home';
+    setTlonSessionSurface(sessionKey, {
+      kind: 'group',
+      channelNest: 'chat/~zod/home',
+      threadParentId: '~parent/100',
+      bootstrapComplete: false,
+      messageId: '~owner/100',
+    });
+    rememberTlonSessionRunSurface('run-thread', sessionKey);
+
+    setTlonSessionSurface(sessionKey, {
+      kind: 'group',
+      channelNest: 'chat/~zod/home',
+      bootstrapComplete: false,
+      messageId: '~owner/101',
+    });
+
+    const current = getTlonSessionSurface(sessionKey);
+    const threadRun = getTlonSessionRunSurface('run-thread');
+    for (const toolName of [
+      'tlon_agent_choice',
+      'tlon_agent_task_plan',
+      'tlon_agent_service_setup',
+    ]) {
+      expect(
+        onboardingToolBlockReason(
+          toolName,
+          { target: 'chat/~zod/home' },
+          current,
+          threadRun
+        )
+      ).toContain('main group conversation');
+    }
+    expect(
+      onboardingToolBlockReason('unrelated_tool', {}, current, threadRun)
+    ).toBeUndefined();
   });
 
   it('blocks a typed card from a run superseded by newer owner input', () => {

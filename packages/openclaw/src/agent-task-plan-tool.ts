@@ -323,7 +323,7 @@ export function buildAgentTaskPlanBlob(
   return [
     {
       type: 'a2ui',
-      version: 1,
+      version: 2,
       storyMode: 'fallback',
       messages: [
         {

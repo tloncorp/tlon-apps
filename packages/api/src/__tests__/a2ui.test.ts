@@ -51,6 +51,17 @@ describe('a2ui blob entries', () => {
     expect(A2UI.validateBlobEntry(a2uiBlobEntry)).toBe(true);
   });
 
+  test('accepts v1 and v2 blob entries but rejects newer versions', () => {
+    expect(A2UI.validateBlobEntry({ ...a2uiBlobEntry, version: 1 })).toBe(true);
+    expect(A2UI.validateBlobEntry({ ...a2uiBlobEntry, version: 2 })).toBe(true);
+    expect(
+      A2UI.validateBlobEntry({
+        ...a2uiBlobEntry,
+        version: 3,
+      } as unknown as A2UI.BlobEntry)
+    ).toBe(false);
+  });
+
   test('finds the create message past unrelated primitive messages', () => {
     const entry = {
       ...a2uiBlobEntry,

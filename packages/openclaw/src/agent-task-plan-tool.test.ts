@@ -68,6 +68,8 @@ describe('agent task plan tool', () => {
     expect(buildAgentTaskPlanBlob(validPlan, validEvidence)).toEqual([
       expect.objectContaining({
         type: 'a2ui',
+        version: 2,
+        storyMode: 'fallback',
         messages: expect.arrayContaining([
           expect.objectContaining({
             updateComponents: expect.objectContaining({
@@ -130,9 +132,20 @@ describe('agent task plan tool', () => {
     expect(postPlan).toHaveBeenCalledOnce();
     const posted = postPlan.mock.calls[0]?.[0];
     expect(posted?.target).toBe(validPlan.target);
+    expect(posted?.fallbackSummary).toBe(validPlan.fallbackSummary);
     expect(JSON.parse(posted?.blob ?? '')).toEqual(
       buildAgentTaskPlanBlob(validPlan, validEvidence)
     );
+  });
+
+  it('keeps the fallback available to clients that support only v1', () => {
+    const [entry] = buildAgentTaskPlanBlob(validPlan, validEvidence);
+    const legacyEntry = entry as unknown as { version?: unknown };
+    const legacyClientAccepts = legacyEntry.version === 1;
+
+    expect(legacyClientAccepts).toBe(false);
+    expect(entry).toEqual(expect.objectContaining({ storyMode: 'fallback' }));
+    expect(validPlan.fallbackSummary).toBeTruthy();
   });
 
   it('rechecks the owner turn after group resolution and before posting', async () => {

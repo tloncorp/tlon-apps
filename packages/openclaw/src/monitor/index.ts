@@ -50,6 +50,7 @@ import {
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
 import {
   rememberTlonSessionRunSurface,
+  resolveTlonSessionThreadParentId,
   setTlonSessionSurface,
 } from '../onboarding-tool-boundary.js';
 import {
@@ -3099,11 +3100,16 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         });
       }
       // Store role for before_tool_call hook (tool access control)
+      const threadParentId = resolveTlonSessionThreadParentId(
+        isThreadReply,
+        parentId
+      );
       for (const sessionKey of lensSessionKeys) {
         setSessionRole(sessionKey, senderRole);
         setTlonSessionSurface(sessionKey, {
           kind: isGroup ? 'group' : 'direct',
           ...(isGroup && channelNest ? { channelNest } : {}),
+          ...(threadParentId ? { threadParentId } : {}),
           bootstrapComplete: currentSettings.bootstrapComplete === true,
           messageId: String(messageId),
         });

@@ -3,6 +3,7 @@ import { sharedMap } from './shared-state.js';
 export type TlonSessionSurface = {
   kind: 'direct' | 'group';
   channelNest?: string;
+  threadParentId?: string;
   bootstrapComplete: boolean;
   messageId?: string;
   timestamp: number;
@@ -49,6 +50,14 @@ const SURFACE_TTL_MS = 60 * 60 * 1000;
 function baseSessionKey(sessionKey: string): string {
   const threadIndex = sessionKey.indexOf(':thread:');
   return threadIndex > 0 ? sessionKey.slice(0, threadIndex) : sessionKey;
+}
+
+export function resolveTlonSessionThreadParentId(
+  isThreadReply: boolean | undefined,
+  parentId: string | null | undefined
+): string | undefined {
+  const normalized = parentId?.trim();
+  return isThreadReply && normalized ? normalized : undefined;
 }
 
 function pruneExpiredSurfaces(now = Date.now()): void {
@@ -291,6 +300,12 @@ export function onboardingToolBlockReason(
       return (
         'Recurring-task onboarding is available only in the active Tlonbot ' +
         'group. Tell the owner to choose +, then New Tlonbot group, and stop.'
+      );
+    }
+    if (runSurface?.threadParentId ?? surface.threadParentId) {
+      return (
+        'Recurring-task onboarding actions are not supported from a thread. ' +
+        'Continue in the main group conversation, then try again.'
       );
     }
     const target =
