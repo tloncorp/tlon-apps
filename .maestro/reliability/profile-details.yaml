@@ -79,7 +79,7 @@ onFlowComplete:
     below: '^Status$'
     above: '^Bio$'
 - eraseText: 100
-- inputText: ${MAESTRO_RUN_TAG + ' status'}
+- inputText: ${output.reliability.profileStatus}
 - hideKeyboard
 - scrollUntilVisible:
     element:
@@ -101,7 +101,7 @@ onFlowComplete:
 - hideKeyboard
 - tapOn: '^Save$'
 - assertVisible: '^Profile$'
-- assertVisible: ${MAESTRO_RUN_TAG + ' status'}
+- assertVisible: ${output.reliability.profileStatus}
 - assertVisible: ${MAESTRO_RUN_TAG + ' biography'}
 - stopApp
 - launchApp
@@ -117,5 +117,5 @@ onFlowComplete:
       text: '^Bio$'
     direction: DOWN
     timeout: 5000
-- assertVisible: ${MAESTRO_RUN_TAG + ' status'}
+- assertVisible: ${output.reliability.profileStatus}
 - assertVisible: ${MAESTRO_RUN_TAG + ' biography'}

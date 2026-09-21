@@ -22,9 +22,18 @@ onFlowComplete:
             when:
               notVisible: '^Remove Contact$'
             commands:
-              - tapOn: ${MAESTRO_CONTACT_SHIP}
-        - tapOn: '^Remove Contact$'
-        - assertVisible: '^Add Contact$'
+              - runFlow:
+                  when:
+                    visible: ${MAESTRO_CONTACT_SHIP}
+                  commands:
+                    - tapOn: ${MAESTRO_CONTACT_SHIP}
+        - runFlow:
+            when:
+              visible: '^Remove Contact$'
+            commands:
+              - tapOn: '^Remove Contact$'
+              - evalScript: ${output.contactAdded = false}
+              - assertVisible: '^Add Contact$'
 ---
 # Use an explicit disposable contact fixture; it need not run a UI or reply.
 - assertTrue: ${typeof MAESTRO_CONTACT_SHIP !== 'undefined' && MAESTRO_CONTACT_SHIP !== MAESTRO_TEST_SHIP}
@@ -58,8 +67,8 @@ onFlowComplete:
 - tapOn: ${MAESTRO_RUN_TAG + ' contact'}
 - assertVisible: ${MAESTRO_CONTACT_SHIP}
 - tapOn: '^Remove Contact$'
-- assertVisible: '^Add Contact$'
 - evalScript: ${output.contactAdded = false}
+- assertVisible: '^Add Contact$'
 - assertNotVisible: ${MAESTRO_RUN_TAG + ' contact'}
 
 # Add the foreign ship directly from its profile and verify the Contacts return.
@@ -72,8 +81,8 @@ onFlowComplete:
 # Restore the disposable fixture so repeated runs remain independent.
 - tapOn: ${MAESTRO_CONTACT_SHIP}
 - tapOn: '^Remove Contact$'
-- assertVisible: '^Add Contact$'
 - evalScript: ${output.contactAdded = false}
+- assertVisible: '^Add Contact$'
 - tapOn: '^Back$'
 - assertNotVisible: ${MAESTRO_CONTACT_SHIP}
 - runFlow: subflows/home-tab.yaml

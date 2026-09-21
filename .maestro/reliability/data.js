@@ -1,6 +1,13 @@
 function exact(value) {
   return '^' + value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$';
 }
+function boundedTaggedValue(suffix, maxLength) {
+  const value = MAESTRO_RUN_TAG + ' ' + suffix;
+  if (value.length <= maxLength) return value;
+  const tail = MAESTRO_RUN_TAG.slice(-8);
+  const headLength = maxLength - suffix.length - tail.length - 2;
+  return MAESTRO_RUN_TAG.slice(0, headLength) + '-' + tail + ' ' + suffix;
+}
 if (!/^~[a-z]+(?:-[a-z]+)*$/.test(MAESTRO_TEST_SHIP))
   throw new Error('Expected test ship is required');
 if (!/^[A-Za-z0-9-]+$/.test(MAESTRO_RUN_TAG))
@@ -39,6 +46,7 @@ output.reliability = {
   sibling: MAESTRO_RUN_TAG + ' sibling',
   title: MAESTRO_RUN_TAG + ' note',
   body: MAESTRO_RUN_TAG + ' body',
+  profileStatus: boundedTaggedValue('status', 50),
   linkUrl: 'https://tlon.io',
   // ContactName exposes a spoken label (zod / sampel - palnet) on native.
   // Accept that exact identity or its literal display, never a partial match.
