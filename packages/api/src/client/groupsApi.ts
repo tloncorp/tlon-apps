@@ -1342,6 +1342,22 @@ export const subscribeGroups = async (
   );
 };
 
+const readRoleIds = (
+  payload: { roles: string[] },
+  field: string
+): string[] | null => {
+  if (Array.isArray(payload?.roles)) {
+    return payload.roles;
+  }
+  // shape only: no ids, no ship names
+  logger.trackError('unexpected role list in group update', {
+    field,
+    payloadType: typeof payload,
+    rolesType: typeof payload?.roles,
+  });
+  return null;
+};
+
 export const toGroupsUpdate = (
   rawEvent: ub.GroupResponse
 ): GroupUpdate | null => {
@@ -1442,19 +1458,27 @@ export const toGroupsUpdate = (
     }
 
     if ('add-roles' in rSeat) {
+      const roles = readRoleIds(rSeat['add-roles'], 'r-seat.add-roles');
+      if (!roles) {
+        return null;
+      }
       return {
         type: 'addGroupMembersToRole',
         ships,
-        roles: rSeat['add-roles'],
+        roles,
         groupId,
       };
     }
 
     if ('del-roles' in rSeat) {
+      const roles = readRoleIds(rSeat['del-roles'], 'r-seat.del-roles');
+      if (!roles) {
+        return null;
+      }
       return {
         type: 'removeGroupMembersFromRole',
         ships,
-        roles: rSeat['del-roles'],
+        roles,
         groupId,
       };
     }
