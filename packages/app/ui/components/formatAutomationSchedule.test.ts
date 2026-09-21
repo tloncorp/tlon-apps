@@ -37,6 +37,16 @@ describe('formatAutomationSchedule', () => {
         schedule: { kind: 'every', everyMs: 4 * 60 * 60 * 1000 },
       })
     ).toBe('Every 4 hours');
+    expect(
+      formatAutomationSchedule({
+        schedule: { kind: 'every', everyMs: 90 * 1000 },
+      })
+    ).toBe('Every 90 seconds');
+    expect(
+      formatAutomationSchedule({
+        schedule: { kind: 'every', everyMs: 10 * 1000 },
+      })
+    ).toBe('Every 10 seconds');
   });
 
   it('keeps cron timezone context in task summaries', () => {

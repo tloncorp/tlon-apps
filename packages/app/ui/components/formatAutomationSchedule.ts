@@ -181,8 +181,15 @@ function formatEverySchedule(schedule: StewardAutomationSchedule) {
   if (Number.isInteger(hours) && hours >= 1) {
     return `Every ${hours} ${hours === 1 ? 'hour' : 'hours'}`;
   }
-  const minutes = Math.round(schedule.everyMs / (60 * 1000));
-  return `Every ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+  const minutes = schedule.everyMs / (60 * 1000);
+  if (Number.isInteger(minutes) && minutes >= 1) {
+    return `Every ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+  }
+  const seconds = schedule.everyMs / 1000;
+  if (Number.isInteger(seconds) && seconds >= 1) {
+    return `Every ${seconds} ${seconds === 1 ? 'second' : 'seconds'}`;
+  }
+  return `Every ${schedule.everyMs} ms`;
 }
 
 export function formatAutomationSchedule(task: StewardAutomationTask) {

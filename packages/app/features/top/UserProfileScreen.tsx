@@ -201,7 +201,7 @@ export function UserProfileScreen({ route, navigation }: Props) {
               onPressScheduledTasks={
                 scheduledTasksEnabled &&
                 isOwnBotProfile &&
-                automationQuery.data?.available
+                (automationQuery.data?.available || automationQuery.isError)
                   ? handlePressScheduledTasks
                   : undefined
               }

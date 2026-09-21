@@ -33,20 +33,24 @@ export interface RecurringTaskDraft {
 
 export function ScheduledTasksScreenView({
   available,
+  error,
   loading,
   tasks,
   canMutate,
   onAddTask,
   onBack,
   onPressTask,
+  onRetry,
 }: {
   available: boolean;
+  error?: boolean;
   loading?: boolean;
   tasks: IdentifiedAutomationTask[];
   canMutate: boolean;
   onAddTask?: () => void;
   onBack: () => void;
   onPressTask?: (task: IdentifiedAutomationTask) => void;
+  onRetry?: () => void;
 }) {
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
@@ -69,6 +73,14 @@ export function ScheduledTasksScreenView({
         <ScheduledTasksNotice
           title="Loading scheduled tasks"
           body="Reading the latest definitions mirrored to Steward."
+        />
+      ) : error ? (
+        <ScheduledTasksNotice
+          title="Could not load scheduled tasks"
+          body="Check your connection and try again."
+          action={
+            onRetry ? { label: 'Try again', onPress: onRetry } : undefined
+          }
         />
       ) : !available ? (
         <ScheduledTasksNotice
@@ -114,41 +126,53 @@ export function ScheduledTasksScreenView({
   );
 }
 
-function ScheduledTasksNotice({
+export function ScheduledTasksNotice({
   title,
   body,
   action,
+  onBack,
 }: {
   title: string;
   body: string;
   action?: { label: string; onPress: () => void };
+  onBack?: () => void;
 }) {
   return (
-    <YStack
-      flex={1}
-      alignItems="center"
-      justifyContent="center"
-      gap="$2xl"
-      paddingHorizontal="$4xl"
-      paddingBottom={96}
-    >
-      <Icon type="Clock" customSize={[32, 32]} color="$secondaryText" />
-      <YStack alignItems="center" gap="$2xl" maxWidth={350}>
-        <Text size="$label/2xl" fontWeight="600" textAlign="center">
-          {title}
-        </Text>
-        <Text size="$label/l" color="$secondaryText" textAlign="center">
-          {body}
-        </Text>
-      </YStack>
-      {action ? (
-        <Button
-          preset="primary"
-          label={action.label}
-          onPress={action.onPress}
+    <View flex={1} backgroundColor="$secondaryBackground">
+      {onBack ? (
+        <ScreenHeader
+          backgroundColor="$secondaryBackground"
+          backAction={onBack}
+          title="Scheduled"
+          placement="navigation"
         />
       ) : null}
-    </YStack>
+      <YStack
+        flex={1}
+        alignItems="center"
+        justifyContent="center"
+        gap="$2xl"
+        paddingHorizontal="$4xl"
+        paddingBottom={96}
+      >
+        <Icon type="Clock" customSize={[32, 32]} color="$secondaryText" />
+        <YStack alignItems="center" gap="$2xl" maxWidth={350}>
+          <Text size="$label/2xl" fontWeight="600" textAlign="center">
+            {title}
+          </Text>
+          <Text size="$label/l" color="$secondaryText" textAlign="center">
+            {body}
+          </Text>
+        </YStack>
+        {action ? (
+          <Button
+            preset="primary"
+            label={action.label}
+            onPress={action.onPress}
+          />
+        ) : null}
+      </YStack>
+    </View>
   );
 }
 

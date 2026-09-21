@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useMemo } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useMemo } from 'react';
 
 import type { RootStackParamList } from '../../navigation/types';
 import {
@@ -17,6 +18,11 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ScheduledTasks'>;
 export function ScheduledTasksScreen({ navigation, route }: Props) {
   const isWindowNarrow = useIsWindowNarrow();
   const query = useStewardAutomationTasks();
+  useFocusEffect(
+    useCallback(() => {
+      void query.refetch();
+    }, [query.refetch])
+  );
   const tasks = useMemo<IdentifiedAutomationTask[]>(
     () =>
       Object.entries(tasksForShip(query.data, route.params.botShip)).map(
@@ -28,10 +34,12 @@ export function ScheduledTasksScreen({ navigation, route }: Props) {
   return (
     <ScheduledTasksScreenView
       available={query.data?.available ?? false}
+      error={query.isError}
       loading={query.isLoading}
       tasks={tasks}
       canMutate={false}
       onBack={navigation.goBack}
+      onRetry={() => void query.refetch()}
       onPressTask={({ id }) => {
         const params = {
           botShip: route.params.botShip,
