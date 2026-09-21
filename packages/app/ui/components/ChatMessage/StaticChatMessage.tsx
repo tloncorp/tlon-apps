@@ -16,7 +16,10 @@ import { Text } from '@tloncorp/ui';
 import { ComponentProps, ReactNode, useCallback, useMemo } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
-import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
+import {
+  CHAT_IMAGE_MAX_WINDOW_HEIGHT_FRACTION,
+  CHAT_REF_LIKE_MAX_WIDTH,
+} from '../../../constants';
 import { useA2UINavigation } from '../../../hooks/useA2UINavigation';
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
 import { getPostImageViewerId } from '../../../utils/mediaViewer';
@@ -803,6 +806,13 @@ const WebChatImageRenderer: DefaultRendererProps['image'] = {
   },
 };
 
+// Native cannot reuse the fixed pixel caps above, which assume a column narrower
+// than the ones it renders at. Bound the height against the window instead and
+// let the image fit itself to whatever column it lands in.
+const NativeChatImageRenderer: DefaultRendererProps['image'] = {
+  maxWindowHeightFraction: CHAT_IMAGE_MAX_WINDOW_HEIGHT_FRACTION,
+};
+
 const WebChatVideoRenderer: DefaultRendererProps['video'] = {
   alignItems: 'flex-start',
   maxWidth: 600,
@@ -826,7 +836,7 @@ const ChatContentRenderer = createContentRenderer({
       contentSize: '$l',
       maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
     },
-    image: isWeb ? WebChatImageRenderer : undefined,
+    image: isWeb ? WebChatImageRenderer : NativeChatImageRenderer,
     video: isWeb ? WebChatVideoRenderer : undefined,
     link: {
       renderDescription: true,
