@@ -34,7 +34,7 @@ export function ScheduledTasksScreen({ navigation, route }: Props) {
   return (
     <ScheduledTasksScreenView
       available={query.data?.available ?? false}
-      error={query.isError && !query.data}
+      error={query.isError && !query.data?.available}
       loading={query.isLoading}
       tasks={tasks}
       canMutate={false}

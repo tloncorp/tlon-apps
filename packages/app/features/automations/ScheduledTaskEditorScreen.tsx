@@ -64,7 +64,7 @@ export function ScheduledTaskEditorScreen({ navigation, route }: Props) {
     );
   }
 
-  if (query.isError && !query.data) {
+  if (query.isError && !query.data?.available) {
     return (
       <ScheduledTasksNotice
         title="Could not load scheduled task"
