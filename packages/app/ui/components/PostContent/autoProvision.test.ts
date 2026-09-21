@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { shouldAttemptAutomaticProvision } from './autoProvision';
+import {
+  claimAutomaticProvisionRetry,
+  shouldAttemptAutomaticProvision,
+} from './autoProvision';
 
 const ready = {
   componentId: 'auto-provision',
@@ -12,6 +15,14 @@ const ready = {
 };
 
 describe('automatic task-plan provisioning', () => {
+  it('locks retries synchronously until the active attempt releases', () => {
+    const locks = new Set<string>();
+    expect(claimAutomaticProvisionRetry(locks, 'surface-1')).toBe(true);
+    expect(claimAutomaticProvisionRetry(locks, 'surface-1')).toBe(false);
+    locks.delete('surface-1');
+    expect(claimAutomaticProvisionRetry(locks, 'surface-1')).toBe(true);
+  });
+
   it('attempts once per mount and stops after a durable receipt', () => {
     expect(shouldAttemptAutomaticProvision(ready)).toBe(true);
     expect(

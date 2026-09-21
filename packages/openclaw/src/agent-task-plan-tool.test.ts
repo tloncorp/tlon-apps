@@ -350,6 +350,47 @@ describe('agent task plan tool', () => {
     expect(postPlan).not.toHaveBeenCalled();
   });
 
+  it('matches visible clock copy on exact token boundaries', async () => {
+    const postPlan = vi.fn(async () => 'unexpected');
+    const execute = createAgentTaskPlanToolExecutor({
+      postPlan,
+      ...executionBoundary(),
+    });
+
+    for (const summary of [
+      'Track agent tools daily at 18 AM.',
+      'Track agent tools daily at 11 AM.',
+    ]) {
+      const result = await execute('call-clock-boundary', {
+        ...validPlan,
+        scheduleHour: 8,
+        scheduleMinute: 0,
+        scheduleExpression: '0 8 * * *',
+        scheduleDescription: 'daily at 8 AM',
+        fallbackSummary: summary,
+        summary,
+        answerEvidence: { ...validPlan.answerEvidence, time: '8 AM' },
+      });
+      expect(result.details).toEqual({ error: true });
+    }
+    expect(postPlan).not.toHaveBeenCalled();
+  });
+
+  it('retains the one-plan claim after an ambiguous send failure', async () => {
+    const boundary = executionBoundary();
+    const execute = createAgentTaskPlanToolExecutor({
+      postPlan: vi.fn(async () => {
+        throw new Error('response lost after send');
+      }),
+      ...boundary,
+    });
+
+    const result = await execute('call-ambiguous-send', validPlan);
+
+    expect(result.details).toEqual({ error: true });
+    expect(boundary.finish).toHaveBeenCalledWith('call-ambiguous-send', true);
+  });
+
   it('rejects plan fields that contradict the copied owner answers', async () => {
     const postPlan = vi.fn(async () => 'unexpected');
     const execute = createAgentTaskPlanToolExecutor({

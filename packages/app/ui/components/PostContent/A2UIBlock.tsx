@@ -22,6 +22,7 @@ import { TextInput } from '../Form';
 import { A2UIMenuRow } from './A2UIMenuRow';
 import {
   AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID,
+  claimAutomaticProvisionRetry,
   shouldAttemptAutomaticProvision,
 } from './autoProvision';
 import { McpConnectControl } from './McpConnectControl';
@@ -393,7 +394,7 @@ function SmallChoiceControl({
       if (isSingleSelect) {
         setCustomTopics([]);
         setSelectedIds([matchingOption.id]);
-        setCustomInputOpen(false);
+        closeSavedCustomInput();
         return;
       }
       setSelectedIds((previous) =>
@@ -407,7 +408,7 @@ function SmallChoiceControl({
       if (isSingleSelect) {
         setSelectedIds([]);
         setCustomTopics([topic]);
-        setCustomInputOpen(false);
+        closeSavedCustomInput();
         return;
       }
       setCustomTopics((previous) => {
@@ -802,6 +803,7 @@ export function A2UIBlock({
     useState<string[]>([]);
   const buttonPressLocksRef = useRef(new Set<string>());
   const autoProvisionAttemptsRef = useRef(new Set<string>());
+  const autoProvisionRetryLocksRef = useRef(new Set<string>());
   const choicePressLocksRef = useRef(new Set<string>());
   const smallChoiceSubmitLocksRef = useRef(new Set<string>());
   const update = A2UI.getUpdateMessage(block.a2ui);
@@ -1496,21 +1498,34 @@ export function A2UIBlock({
             accessibilityRole="button"
             accessibilityLabel="Retry setup"
             testID="A2UIAutoProvisionRetry"
+            disabled={pendingButtonIds.includes(failedAutoProvision.id)}
             onPress={() => {
+              if (
+                !claimAutomaticProvisionRetry(
+                  autoProvisionRetryLocksRef.current,
+                  surfaceId
+                )
+              ) {
+                return;
+              }
               autoProvisionAttemptsRef.current.delete(surfaceId);
               setFailedAutoProvisionSurfaceIds((previous) =>
                 previous.filter((id) => id !== surfaceId)
               );
               autoProvisionAttemptsRef.current.add(surfaceId);
-              void handleButtonPress(failedAutoProvision).then((succeeded) => {
-                if (!succeeded) {
-                  setFailedAutoProvisionSurfaceIds((previous) =>
-                    previous.includes(surfaceId)
-                      ? previous
-                      : [...previous, surfaceId]
-                  );
-                }
-              });
+              void handleButtonPress(failedAutoProvision)
+                .then((succeeded) => {
+                  if (!succeeded) {
+                    setFailedAutoProvisionSurfaceIds((previous) =>
+                      previous.includes(surfaceId)
+                        ? previous
+                        : [...previous, surfaceId]
+                    );
+                  }
+                })
+                .finally(() => {
+                  autoProvisionRetryLocksRef.current.delete(surfaceId);
+                });
             }}
           >
             <Button.Text size="medium">Retry setup</Button.Text>

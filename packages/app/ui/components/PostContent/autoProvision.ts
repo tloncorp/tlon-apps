@@ -1,5 +1,14 @@
 export const AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID = 'auto-provision';
 
+export function claimAutomaticProvisionRetry(
+  locks: Set<string>,
+  surfaceId: string
+) {
+  if (locks.has(surfaceId)) return false;
+  locks.add(surfaceId);
+  return true;
+}
+
 export function shouldAttemptAutomaticProvision(input: {
   componentId: string;
   actionName: string;

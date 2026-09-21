@@ -278,11 +278,11 @@ export function assertTlonTaskPlanCallCurrent(toolCallId: string): void {
 
 export function finishTlonTaskPlanCall(
   toolCallId: string,
-  succeeded: boolean
+  retainClaim: boolean
 ): void {
   const call = taskPlanCalls.get(toolCallId);
   if (!call) return;
-  if (succeeded) {
+  if (retainClaim) {
     interviewStarts.delete(baseSessionKey(call.sessionKey));
     return;
   }

@@ -691,6 +691,16 @@ async function handleAgentOnboardingRequestInternal(
     context.log?.(
       `[tlon] rejected automatic agent provision: ${automaticPlanError}`
     );
+    await postOnce(
+      context,
+      history,
+      `provision-rejected:${effectiveRequest.provisionId}`,
+      async () => ({
+        text: "I couldn't verify that task plan against your latest answers, so I didn't create it. Please answer the latest question again so I can make a current plan.",
+      }),
+      deps,
+      presentation
+    );
     return true;
   }
   try {

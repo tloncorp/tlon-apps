@@ -46,10 +46,14 @@ function formatDailyTime(hour: number, minute: number): string {
 }
 
 function copyHasDailyTime(copy: string, acceptedDisplayTimes: string[]) {
-  const upper = copy.toUpperCase();
   return (
     /\b(?:daily|every day)\b/i.test(copy) &&
-    acceptedDisplayTimes.some((time) => upper.includes(time))
+    acceptedDisplayTimes.some((time) =>
+      new RegExp(
+        `\\b${time.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\b`,
+        'i'
+      ).test(copy)
+    )
   );
 }
 
@@ -472,9 +476,10 @@ export function createAgentTaskPlanToolExecutor(deps: {
   resolveGroupId?: (target: string) => Promise<string>;
   getEvidence: (toolCallId: string) => AgentTaskPlanEvidence;
   assertCurrent: (toolCallId: string) => void;
-  finish: (toolCallId: string, succeeded: boolean) => void;
+  finish: (toolCallId: string, retainClaim: boolean) => void;
 }) {
   return async function execute(id: string, params: AgentTaskPlanToolParams) {
+    let publicationAttempted = false;
     try {
       // The model describes the plan, but it does not authorize its target.
       // Resolve the active channel's group from Tlon so a mistyped or truncated
@@ -487,6 +492,7 @@ export function createAgentTaskPlanToolExecutor(deps: {
       // Group resolution can perform network I/O. Recheck immediately before
       // publication so a newer owner message cannot race that await.
       deps.assertCurrent(id);
+      publicationAttempted = true;
       const output = await deps.postPlan({
         target: parsed.target,
         fallbackSummary: parsed.fallbackSummary,
@@ -503,7 +509,10 @@ export function createAgentTaskPlanToolExecutor(deps: {
         details: undefined,
       };
     } catch (error) {
-      deps.finish(id, false);
+      // A transport error after publication starts is ambiguous: the ship may
+      // have accepted the post before the CLI lost its response. Retain the
+      // one-plan claim so this run cannot publish a second automatic card.
+      deps.finish(id, publicationAttempted);
       const message = error instanceof Error ? error.message : String(error);
       return {
         content: [{ type: 'text' as const, text: `Error: ${message}` }],

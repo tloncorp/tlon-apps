@@ -1173,6 +1173,59 @@ describe('agent onboarding requests', () => {
     ).toContain('superseded');
   });
 
+  it('posts a durable recovery message when automatic evidence is rejected', async () => {
+    const automaticProvision = {
+      ...provision,
+      approach: 'Compare sources',
+      interviewStartMessageId: 'owner-start',
+      interviewMessageId: 'owner-start',
+    };
+    const requestBlob = appendToPostBlob(
+      appendToPostBlob(undefined, automaticProvision),
+      {
+        type: 'tlon-a2ui-selection',
+        version: 1,
+        sourcePostId: 'plan-post',
+        surfaceId: 'agent-task-plan-rejected',
+        componentId: 'auto-provision',
+        values: ['Research'],
+      }
+    );
+    const history = [
+      {
+        author: '~ten',
+        id: 'owner-start',
+        content: 'Set up a task.',
+        timestamp: 1,
+      },
+      {
+        author: '~ten',
+        id: 'request-post',
+        content: '',
+        timestamp: 2,
+        blob: requestBlob,
+      },
+    ];
+    const sendPost = vi.fn(async () => ({
+      channel: 'tlon' as const,
+      messageId: 'rejection-post',
+      sentAt: 0,
+    }));
+
+    await handleAgentOnboardingRequest(requestContext({ blob: requestBlob }), {
+      fetchHistory: vi.fn(async () => history),
+      sendPost,
+    });
+
+    expect(sendPost).toHaveBeenCalledOnce();
+    const posted = JSON.stringify(sendPost.mock.calls[0]?.[0]);
+    expect(posted).toContain("couldn't verify that task plan");
+    expect(posted).toContain('answer the latest question again');
+    expect(posted).toContain(
+      `provision-rejected:${automaticProvision.provisionId}`
+    );
+  });
+
   it('keeps the services follow-up action flat', () => {
     const services = agentOnboardingTesting.buildServicesSurface(
       'pitch',
