@@ -27,6 +27,8 @@ export interface RecurringTaskDraft {
   selectedDays: number[];
   timeLabel: string;
   destinationLabel: string;
+  scheduleLabel?: string;
+  enabled?: boolean;
 }
 
 export function ScheduledTasksScreenView({
@@ -171,6 +173,7 @@ function ScheduledTaskListItem({
         </Text>
       ) : null}
       <Text size="$label/xl" color="$tertiaryText">
+        {task.enabled === false ? 'Paused · ' : ''}
         {formatAutomationSchedule(task)}
       </Text>
     </YStack>
@@ -284,7 +287,6 @@ export function RecurringTaskEditorView({
       submitLabel: (channelTitle) => `Post to ${channelTitle}`,
       submittingLabel: 'Selecting...',
     });
-  const timeDisabled = readOnly;
   const destinationDisabled = readOnly;
 
   return (
@@ -292,7 +294,7 @@ export function RecurringTaskEditorView({
       <ScreenHeader
         backgroundColor="$secondaryBackground"
         backAction={onBack}
-        title="Recurring task"
+        title="Scheduled task"
         placement="navigation"
       />
       <SettingsContentScrollView
@@ -338,74 +340,96 @@ export function RecurringTaskEditorView({
               backgroundColor: '$background',
             }}
           />
-          <YStack
-            backgroundColor="$background"
-            borderRadius="$2xl"
-            padding="$2xl"
-            gap="$2xl"
-            overflow="hidden"
-          >
-            <XStack justifyContent="space-between" alignItems="center">
-              <Text size="$label/l">Repeat</Text>
-              <Text size="$label/l" color="$secondaryText">
-                {draft.repeat}
-              </Text>
-            </XStack>
-            <XStack gap="$s">
-              {DAY_LABELS.map((label, day) => {
-                const selected = draft.selectedDays.includes(day);
-                return (
-                  <Pressable
-                    key={`${label}-${day}`}
-                    flex={1}
-                    aspectRatio={1}
-                    borderRadius="$4xl"
-                    alignItems="center"
-                    justifyContent="center"
-                    backgroundColor={
-                      selected ? '$primaryText' : '$secondaryBackground'
-                    }
-                    disabled={readOnly}
-                    onPress={() => toggleDay(day)}
-                  >
-                    <Text
-                      size="$label/m"
-                      color={selected ? '$background' : '$tertiaryText'}
-                    >
-                      {label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </XStack>
-          </YStack>
-          <Pressable
-            accessibilityLabel="Time"
-            accessibilityRole="button"
-            accessibilityState={{ disabled: timeDisabled }}
-            disabled={timeDisabled}
-            onPress={() => setTimeSheetOpen(true)}
-            pressStyle={{ opacity: 0.72 }}
-          >
-            <XStack
-              minHeight={64}
+          {readOnly ? (
+            <YStack
               backgroundColor="$background"
               borderRadius="$2xl"
-              paddingHorizontal="$2xl"
-              alignItems="center"
-              justifyContent="space-between"
+              padding="$2xl"
+              gap="$2xl"
             >
-              <Text size="$label/l">Time</Text>
+              <XStack justifyContent="space-between" alignItems="center">
+                <Text size="$label/l">Schedule</Text>
+                <Text size="$label/l" color="$secondaryText">
+                  {draft.scheduleLabel ??
+                    `${draft.repeat} at ${draft.timeLabel}`}
+                </Text>
+              </XStack>
+              <XStack justifyContent="space-between" alignItems="center">
+                <Text size="$label/l">Status</Text>
+                <Text size="$label/l" color="$secondaryText">
+                  {draft.enabled === false ? 'Paused' : 'Active'}
+                </Text>
+              </XStack>
+            </YStack>
+          ) : (
+            <>
               <YStack
-                backgroundColor="$secondaryBackground"
-                borderRadius="$4xl"
-                paddingHorizontal="$xl"
-                paddingVertical="$m"
+                backgroundColor="$background"
+                borderRadius="$2xl"
+                padding="$2xl"
+                gap="$2xl"
+                overflow="hidden"
               >
-                <Text size="$label/l">{draft.timeLabel}</Text>
+                <XStack justifyContent="space-between" alignItems="center">
+                  <Text size="$label/l">Repeat</Text>
+                  <Text size="$label/l" color="$secondaryText">
+                    {draft.repeat}
+                  </Text>
+                </XStack>
+                <XStack gap="$s">
+                  {DAY_LABELS.map((label, day) => {
+                    const selected = draft.selectedDays.includes(day);
+                    return (
+                      <Pressable
+                        key={`${label}-${day}`}
+                        flex={1}
+                        aspectRatio={1}
+                        borderRadius="$4xl"
+                        alignItems="center"
+                        justifyContent="center"
+                        backgroundColor={
+                          selected ? '$primaryText' : '$secondaryBackground'
+                        }
+                        onPress={() => toggleDay(day)}
+                      >
+                        <Text
+                          size="$label/m"
+                          color={selected ? '$background' : '$tertiaryText'}
+                        >
+                          {label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </XStack>
               </YStack>
-            </XStack>
-          </Pressable>
+              <Pressable
+                accessibilityLabel="Time"
+                accessibilityRole="button"
+                onPress={() => setTimeSheetOpen(true)}
+                pressStyle={{ opacity: 0.72 }}
+              >
+                <XStack
+                  minHeight={64}
+                  backgroundColor="$background"
+                  borderRadius="$2xl"
+                  paddingHorizontal="$2xl"
+                  alignItems="center"
+                  justifyContent="space-between"
+                >
+                  <Text size="$label/l">Time</Text>
+                  <YStack
+                    backgroundColor="$secondaryBackground"
+                    borderRadius="$4xl"
+                    paddingHorizontal="$xl"
+                    paddingVertical="$m"
+                  >
+                    <Text size="$label/l">{draft.timeLabel}</Text>
+                  </YStack>
+                </XStack>
+              </Pressable>
+            </>
+          )}
           <Pressable
             accessibilityLabel="Posts to"
             accessibilityRole="button"

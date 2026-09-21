@@ -22,6 +22,12 @@ describe('formatCronSchedule', () => {
     expect(formatCronSchedule('0 9 L * *')).toBe('Custom schedule');
     expect(formatCronSchedule('not a cron expression')).toBe('Custom schedule');
   });
+
+  it('shows the timezone used to evaluate cron times', () => {
+    expect(formatCronSchedule('0 2 * * *', 'UTC')).toBe(
+      'Daily at 2:00 AM (UTC)'
+    );
+  });
 });
 
 describe('formatAutomationSchedule', () => {
@@ -31,5 +37,13 @@ describe('formatAutomationSchedule', () => {
         schedule: { kind: 'every', everyMs: 4 * 60 * 60 * 1000 },
       })
     ).toBe('Every 4 hours');
+  });
+
+  it('keeps cron timezone context in task summaries', () => {
+    expect(
+      formatAutomationSchedule({
+        schedule: { kind: 'cron', expr: '0 2 * * *', tz: 'Europe/London' },
+      })
+    ).toBe('Daily at 2:00 AM (Europe/London)');
   });
 });

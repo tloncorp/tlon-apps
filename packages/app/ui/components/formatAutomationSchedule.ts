@@ -74,8 +74,11 @@ function parseDaysOfWeek(field: string) {
   return `${names.slice(0, -1).join(', ')} and ${names.at(-1)}s`;
 }
 
-export function formatCronSchedule(expression?: string) {
+export function formatCronSchedule(expression?: string, timezone?: string) {
   if (!expression) return 'Custom schedule';
+
+  const withTimezone = (value: string) =>
+    timezone ? `${value} (${timezone})` : value;
 
   const fields = expression.trim().split(/\s+/);
   if (fields.length !== 5) return 'Custom schedule';
@@ -93,21 +96,25 @@ export function formatCronSchedule(expression?: string) {
   ) {
     const time = formatTime(hour, minute);
     if (dayOfWeekField === '*') {
-      return `Daily at ${time}`;
+      return withTimezone(`Daily at ${time}`);
     }
     const days = parseDaysOfWeek(dayOfWeekField);
-    if (days) return `${days} at ${time}`;
+    if (days) return withTimezone(`${days} at ${time}`);
   }
 
   if (minute !== undefined && hour !== undefined && dayOfWeekField === '*') {
     const dayOfMonth = numberInRange(dayOfMonthField, 1, 31);
     if (dayOfMonth !== undefined && monthField === '*') {
-      return `Monthly on the ${ordinal(dayOfMonth)} at ${formatTime(hour, minute)}`;
+      return withTimezone(
+        `Monthly on the ${ordinal(dayOfMonth)} at ${formatTime(hour, minute)}`
+      );
     }
 
     const month = numberInRange(monthField, 1, 12);
     if (dayOfMonth !== undefined && month !== undefined) {
-      return `Yearly on ${MONTH_NAMES[month - 1]} ${ordinal(dayOfMonth)} at ${formatTime(hour, minute)}`;
+      return withTimezone(
+        `Yearly on ${MONTH_NAMES[month - 1]} ${ordinal(dayOfMonth)} at ${formatTime(hour, minute)}`
+      );
     }
   }
 
@@ -118,7 +125,7 @@ export function formatCronSchedule(expression?: string) {
     monthField === '*' &&
     dayOfWeekField === '*'
   ) {
-    return 'Every minute';
+    return withTimezone('Every minute');
   }
 
   const minuteInterval = /^\*\/(\d+)$/.exec(minuteField)?.[1];
@@ -131,7 +138,9 @@ export function formatCronSchedule(expression?: string) {
   ) {
     const interval = numberInRange(minuteInterval, 1, 59);
     if (interval) {
-      return `Every ${interval} ${interval === 1 ? 'minute' : 'minutes'}`;
+      return withTimezone(
+        `Every ${interval} ${interval === 1 ? 'minute' : 'minutes'}`
+      );
     }
   }
 
@@ -142,7 +151,7 @@ export function formatCronSchedule(expression?: string) {
     monthField === '*' &&
     dayOfWeekField === '*'
   ) {
-    return `Every hour at :${String(minute).padStart(2, '0')}`;
+    return withTimezone(`Every hour at :${String(minute).padStart(2, '0')}`);
   }
 
   const hourInterval = /^\*\/(\d+)$/.exec(hourField)?.[1];
@@ -155,7 +164,9 @@ export function formatCronSchedule(expression?: string) {
   ) {
     const interval = numberInRange(hourInterval, 1, 23);
     if (interval) {
-      return `Every ${interval} ${interval === 1 ? 'hour' : 'hours'} at :${String(minute).padStart(2, '0')}`;
+      return withTimezone(
+        `Every ${interval} ${interval === 1 ? 'hour' : 'hours'} at :${String(minute).padStart(2, '0')}`
+      );
     }
   }
 
@@ -178,7 +189,7 @@ export function formatAutomationSchedule(task: StewardAutomationTask) {
   const schedule = task.schedule;
   if (!schedule) return 'Schedule unavailable';
   if (schedule.kind === 'cron') {
-    return formatCronSchedule(schedule.expr);
+    return formatCronSchedule(schedule.expr, schedule.tz);
   }
   if (schedule.kind === 'at') {
     return schedule.at

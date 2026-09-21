@@ -6,6 +6,7 @@ import {
   type RecurringTaskDraft,
   RecurringTaskEditorView,
 } from '../../ui/components/RecurringTasks';
+import { formatAutomationSchedule } from '../../ui/components/formatAutomationSchedule';
 import {
   tasksForShip,
   useStewardAutomationTasks,
@@ -20,6 +21,7 @@ const emptyDraft: RecurringTaskDraft = {
   selectedDays: [1, 2, 3, 4, 5],
   timeLabel: '7:00 AM',
   destinationLabel: 'Not available',
+  enabled: true,
 };
 
 export function ScheduledTaskEditorScreen({ navigation, route }: Props) {
@@ -34,6 +36,8 @@ export function ScheduledTaskEditorScreen({ navigation, route }: Props) {
             ...emptyDraft,
             name: task.name || task.description || 'Untitled task',
             prompt: task.payload?.message || task.description || '',
+            scheduleLabel: formatAutomationSchedule(task),
+            enabled: task.enabled !== false,
           }
         : emptyDraft,
     [task]

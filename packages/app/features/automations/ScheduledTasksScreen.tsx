@@ -6,6 +6,7 @@ import {
   type IdentifiedAutomationTask,
   ScheduledTasksScreenView,
 } from '../../ui/components/RecurringTasks';
+import { useIsWindowNarrow } from '../../ui';
 import {
   tasksForShip,
   useStewardAutomationTasks,
@@ -14,6 +15,7 @@ import {
 type Props = NativeStackScreenProps<RootStackParamList, 'ScheduledTasks'>;
 
 export function ScheduledTasksScreen({ navigation, route }: Props) {
+  const isWindowNarrow = useIsWindowNarrow();
   const query = useStewardAutomationTasks();
   const tasks = useMemo<IdentifiedAutomationTask[]>(
     () =>
@@ -30,12 +32,17 @@ export function ScheduledTasksScreen({ navigation, route }: Props) {
       tasks={tasks}
       canMutate={false}
       onBack={navigation.goBack}
-      onPressTask={({ id }) =>
-        navigation.push('ScheduledTaskEditor', {
+      onPressTask={({ id }) => {
+        const params = {
           botShip: route.params.botShip,
           taskId: id,
-        })
-      }
+        };
+        if (isWindowNarrow) {
+          navigation.push('ScheduledTaskEditor', params);
+          return;
+        }
+        navigation.navigate('ScheduledTaskEditor', params);
+      }}
     />
   );
 }
