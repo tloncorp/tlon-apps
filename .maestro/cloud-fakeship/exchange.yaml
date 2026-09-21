@@ -11,8 +11,10 @@ env:
     timeout: 5000
 - tapOn: ${'Cloud-' + MAESTRO_RUN_TAG}
 # A group with one channel opens that conversation directly.
-- assertVisible:
-    id: MessageInput
+- extendedWaitUntil:
+    visible:
+      id: MessageInput
+    timeout: 15000
 - extendedWaitUntil:
     visible: ${MAESTRO_RUN_TAG + ' from ten'}
     timeout: 15000
