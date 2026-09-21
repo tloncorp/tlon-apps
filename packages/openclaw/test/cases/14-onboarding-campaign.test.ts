@@ -7,6 +7,7 @@ import { DAY } from '../../src/monitor/campaign/model.js';
 import {
   getFixtures,
   registerEngagingTurn,
+  requireThirdParty,
   waitFor,
   type TestFixtures,
 } from '../lib/index.js';
@@ -233,7 +234,7 @@ test('enrolls a live initial request, sends one marked private-channel tip, crea
           delivery: {
             mode: 'announce',
             channel: 'tlon',
-            to: fixtures.userShip,
+            to: fixtures.group.chatChannel,
           },
         },
       },
@@ -250,6 +251,7 @@ test('enrolls a live initial request, sends one marked private-channel tip, crea
       )
     );
   const task = await waitFor(async () => readTask() ?? undefined, 20_000);
+  expect(task.delivery?.to).toBe(fixtures.group.chatChannel);
   await waitFor(
     async () => (campaignState()?.status === 'feedback' ? true : undefined),
     20_000
@@ -267,12 +269,26 @@ test('enrolls a live initial request, sends one marked private-channel tip, crea
     async () => (readTask()?.state?.lastDelivered === true ? true : undefined),
     60_000
   );
+  // Adding a third member makes the onboarding channel unsafe for personal
+  // follow-ups, so the ordinary startup check must fall back to the owner DM.
+  requireThirdParty(fixtures);
+  await fixtures.botState.inviteToGroup(fixtures.group.id, [
+    fixtures.thirdPartyShip,
+  ]);
+  await fixtures.thirdPartyState.joinGroup(fixtures.group.id);
+  await waitFor(
+    async () =>
+      (await fixtures.thirdPartyState.isMemberOfGroup(fixtures.group.id))
+        ? true
+        : undefined,
+    30_000
+  );
   // Advance the disposable fixture past spacing/recent activity, then exercise
   // the ordinary startup check. No client presence or conversation-open event.
   inBot(
     `import {DatabaseSync} from 'node:sqlite';
     const db=new DatabaseSync('/root/.openclaw/tlon/onboarding-campaign.sqlite');
-    db.prepare('UPDATE campaign_owner SET lastActivityAt=0, destination=? WHERE owner=?').run(process.argv[1],process.argv[1]);
+    db.prepare('UPDATE campaign_owner SET lastActivityAt=0 WHERE owner=?').run(process.argv[1]);
     db.prepare('UPDATE campaign_sent SET at=? WHERE owner=?').run(Date.now()-Number(process.argv[2])-60000,process.argv[1]);
     db.close();`,
     fixtures.userShip,
