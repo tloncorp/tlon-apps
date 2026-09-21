@@ -859,6 +859,7 @@ describe('agent onboarding requests', () => {
       approach: 'Compare expert perspectives',
       answerEvidence: {
         focus: 'AI and Climate',
+        recurrence: 'Yes, make it daily',
         time: '8:30 AM',
         approach: 'Compare expert perspectives',
       },
@@ -906,6 +907,18 @@ describe('agent onboarding requests', () => {
         interviewStartMessageId: '100',
       }),
     };
+    const recurrenceQuestion = {
+      author: '~bot',
+      id: '170141184508164136620680233968906333333',
+      content: 'Should I make this a daily task?',
+      timestamp: 0.8,
+      blob: appendToPostBlob(undefined, {
+        type: 'tlon-agent-post-marker',
+        version: 1,
+        key: 'agent-choice-dimension:recurrence',
+        interviewStartMessageId: '100',
+      }),
+    };
     const approachAnswer = {
       author: '~ten',
       id: '200',
@@ -913,14 +926,26 @@ describe('agent onboarding requests', () => {
       timestamp: 2,
       blob: appendToPostBlob(
         appendToPostBlob(
-          appendToPostBlob(undefined, {
-            type: 'tlon-a2ui-selection',
-            version: 1,
-            sourcePostId: '170.141.184.508.164.136.620.680.233.968.906.111.111',
-            surfaceId: 'agent-choice-focus-1',
-            componentId: 'choices',
-            values: ['AI and Climate'],
-          }),
+          appendToPostBlob(
+            appendToPostBlob(undefined, {
+              type: 'tlon-a2ui-selection',
+              version: 1,
+              sourcePostId:
+                '170.141.184.508.164.136.620.680.233.968.906.111.111',
+              surfaceId: 'agent-choice-focus-1',
+              componentId: 'choices',
+              values: ['AI and Climate'],
+            }),
+            {
+              type: 'tlon-a2ui-selection',
+              version: 1,
+              sourcePostId:
+                '170.141.184.508.164.136.620.680.233.968.906.333.333',
+              surfaceId: 'agent-choice-recurrence-1',
+              componentId: 'choices',
+              values: ['Yes, make it daily'],
+            }
+          ),
           {
             type: 'tlon-a2ui-selection',
             version: 1,
@@ -963,6 +988,7 @@ describe('agent onboarding requests', () => {
     const history = [
       interviewStart,
       focusQuestion,
+      recurrenceQuestion,
       timeQuestion,
       approachQuestion,
       approachAnswer,
@@ -1005,6 +1031,20 @@ describe('agent onboarding requests', () => {
         }
       )
     ).toContain('focus');
+    expect(
+      agentOnboardingTesting.validateAutomaticPlanEvidence(
+        history,
+        '~ten',
+        '~bot',
+        {
+          ...automaticProvision,
+          answerEvidence: {
+            ...automaticProvision.answerEvidence,
+            recurrence: 'No, just once',
+          },
+        }
+      )
+    ).toContain('explicitly consent');
     expect(
       agentOnboardingTesting.validateAutomaticPlanEvidence(
         history,
@@ -1064,6 +1104,7 @@ describe('agent onboarding requests', () => {
           [
             interviewStart,
             focusQuestion,
+            recurrenceQuestion,
             timeQuestion,
             approachQuestion,
             invalidAnswer,
@@ -1098,6 +1139,7 @@ describe('agent onboarding requests', () => {
         [
           interviewStart,
           focusQuestion,
+          recurrenceQuestion,
           timeQuestion,
           approachQuestion,
           approachAnswer,
@@ -1126,6 +1168,7 @@ describe('agent onboarding requests', () => {
         [
           interviewStart,
           focusQuestion,
+          recurrenceQuestion,
           timeQuestion,
           approachQuestion,
           approachAnswer,

@@ -19,6 +19,7 @@ const validPlan: AgentTaskPlanToolParams = {
   approach: 'Compare primary releases with independent expert analysis',
   answerEvidence: {
     focus: 'AI agents and product design',
+    recurrence: 'Yes, make it daily',
     time: '8:30 AM',
     approach: 'Compare primary releases with independent expert analysis',
   },
@@ -409,9 +410,18 @@ describe('agent task plan tool', () => {
         approach: 'Summarize press releases',
       },
     });
+    const declinedRecurrence = await execute('call-declined-recurrence', {
+      ...validPlan,
+      answerEvidence: {
+        ...validPlan.answerEvidence,
+        recurrence: 'No, just once',
+      },
+    });
 
     expect(wrongTime.details).toEqual({ error: true });
     expect(wrongApproach.details).toEqual({ error: true });
+    expect(declinedRecurrence.details).toEqual({ error: true });
+    expect(declinedRecurrence.content[0]?.text).toContain('explicit owner');
     expect(postPlan).not.toHaveBeenCalled();
   });
 

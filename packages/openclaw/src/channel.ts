@@ -243,11 +243,11 @@ export const tlonPlugin = createChatChannelPlugin({
           name: 'tlon_agent_choice',
           label: 'Tlon Agent Choice',
           description:
-            'Ask the owner one question using a Tlon A2UI choice control with model-authored options and a free-form answer path. Use it for a low-effort topic-specific discovery question before recurrence consent, or to establish a concrete focus, daily delivery time, topic-specific approach, or another material task detail after consent.',
+            'Ask the owner one question using a Tlon A2UI choice control with model-authored options and a free-form answer path. Use it for a low-effort topic-specific discovery question, explicit daily recurrence consent, or to establish a concrete focus, daily delivery time, topic-specific approach, or another material task detail after consent.',
           promptSnippet:
             '`tlon_agent_choice`: ask one concise question with selectable answers and a write-your-own option',
           promptGuidelines: [
-            'For a concrete topic with a vague goal, one topic-specific discovery choice may learn the owner’s context, experience, or useful outcome without implying recurrence. During first-run recurring-task onboarding, ask each narrowing question with `tlon_agent_choice`; never invent a missing topic, daily time, approach, or material preference; include one topic-specific approach question before planning; after any choice posts successfully, return NO_REPLY and wait for the owner.',
+            'For a concrete topic with a vague goal, one topic-specific discovery choice may learn the owner’s context, experience, or useful outcome without implying recurrence. Before asking for schedule details, ask a dedicated `recurrence` choice with exactly “Yes, make it daily” and “No, just once”; stop recurring-task setup unless the owner chooses yes. During first-run recurring-task onboarding, ask each narrowing question with `tlon_agent_choice`; never invent a missing topic, consent, daily time, approach, or material preference; include one topic-specific approach question before planning; after any choice posts successfully, return NO_REPLY and wait for the owner.',
           ],
           parameters: agentChoiceToolParameters,
           execute: (id, params) =>
@@ -258,11 +258,11 @@ export const tlonPlugin = createChatChannelPlugin({
           label: 'Tlon Agent Task Plan',
           description:
             'Post one automatically provisioned daily recurring-task plan during first-run onboarding. ' +
-            'Call only after the owner supplied a concrete focus, daily clock time, and topic-specific approach. The trusted client and coordinator create it without a confirmation gate. Use this instead of hand-authoring A2UI or calling cron directly.',
+            'Call only after the owner explicitly consented to a daily recurring task and supplied a concrete focus, daily clock time, and topic-specific approach. The trusted client and coordinator create it without another confirmation gate. Use this instead of hand-authoring A2UI or calling cron directly.',
           promptSnippet:
             '`tlon_agent_task_plan`: automatically provision the finished daily recurring task during first-run onboarding',
           promptGuidelines: [
-            'During first-run recurring-task onboarding, use `tlon_agent_task_plan` only after the owner supplied a concrete focus, daily clock time, and topic-specific approach; copy every typed choice verbatim into answerEvidence, never invent those required values, and do not call `cron` directly; after it posts successfully, return NO_REPLY because the deterministic coordinator owns all activation and result status.',
+            'During first-run recurring-task onboarding, use `tlon_agent_task_plan` only after the owner selected “Yes, make it daily” in a dedicated recurrence choice and supplied a concrete focus, daily clock time, and topic-specific approach; copy every typed choice verbatim into answerEvidence, never invent those required values, and do not call `cron` directly; after it posts successfully, return NO_REPLY because the deterministic coordinator owns all activation and result status.',
           ],
           parameters: agentTaskPlanToolParameters,
           execute: (id, params) =>

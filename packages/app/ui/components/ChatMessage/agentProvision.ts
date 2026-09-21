@@ -1,5 +1,6 @@
 import {
   AGENT_ONBOARDING_APPROACH_CHOICE_MARKER,
+  getCanonicalPostId,
   parsePostBlob,
   type PostBlobDataEntryA2UISelection,
   type PostBlobDataEntryAgentProvision,
@@ -7,6 +8,7 @@ import {
 
 const ANSWER_EVIDENCE_DIMENSIONS = [
   'focus',
+  'recurrence',
   'time',
   'approach',
   'context',
@@ -34,6 +36,12 @@ type EvidencePost = {
   isDeleted?: boolean | null;
   deliveryStatus?: string | null;
 };
+
+function samePostId(left: string | undefined, right: string | undefined) {
+  return Boolean(
+    left && right && getCanonicalPostId(left) === getCanonicalPostId(right)
+  );
+}
 
 function isAutomaticProvisionTransport(post: EvidencePost) {
   if (!post.blob) return false;
@@ -72,7 +80,7 @@ export function findAnsweredApproachChoiceStart(input: {
 }) {
   const expected = input.approach?.trim().toLocaleLowerCase();
   const interviewEnd = input.channelPosts.find(
-    (post) => post.id === input.interviewMessageId
+    (post) => samePostId(post.id, input.interviewMessageId)
   );
   if (!expected || !interviewEnd || interviewEnd.authorId !== input.ownerId) {
     return undefined;
@@ -81,7 +89,7 @@ export function findAnsweredApproachChoiceStart(input: {
     if (
       answerPost.authorId !== input.ownerId ||
       answerPost.isDeleted ||
-      (answerPost.id !== interviewEnd.id &&
+      (!samePostId(answerPost.id, interviewEnd.id) &&
         follows(answerPost, interviewEnd)) ||
       !answerPost.blob
     ) {
@@ -98,7 +106,7 @@ export function findAnsweredApproachChoiceStart(input: {
         continue;
       }
       const sourcePost = input.channelPosts.find(
-        (post) => post.id === selection.sourcePostId
+        (post) => samePostId(post.id, selection.sourcePostId)
       );
       const marker = sourcePost?.blob
         ? parsePostBlob(sourcePost.blob).find(
@@ -114,11 +122,11 @@ export function findAnsweredApproachChoiceStart(input: {
       const interviewStartMessageId =
         input.interviewStartMessageId ?? markerStartId;
       const interviewStart = input.channelPosts.find(
-        (post) => post.id === interviewStartMessageId
+        (post) => samePostId(post.id, interviewStartMessageId)
       );
       if (
         !markerStartId ||
-        markerStartId !== interviewStartMessageId ||
+        !samePostId(markerStartId, interviewStartMessageId) ||
         !interviewStart ||
         interviewStart.authorId !== input.ownerId ||
         interviewStart.channelId !== input.planPost.channelId ||
@@ -154,7 +162,7 @@ export function hasNewerOwnerPost(input: {
     (candidate) =>
       candidate.authorId === input.ownerId &&
       !candidate.isDeleted &&
-      candidate.id !== input.planPost.id &&
+      !samePostId(candidate.id, input.planPost.id) &&
       follows(candidate, input.planPost)
   );
 }
@@ -169,11 +177,12 @@ export function isCurrentOwnerInterview(input: {
   if (!input.interviewMessageId) return false;
   const interviewStart = input.interviewStartMessageId
     ? input.channelPosts.find(
-        (candidate) => candidate.id === input.interviewStartMessageId
+        (candidate) =>
+          samePostId(candidate.id, input.interviewStartMessageId)
       )
     : undefined;
   const interviewPost = input.channelPosts.find(
-    (candidate) => candidate.id === input.interviewMessageId
+    (candidate) => samePostId(candidate.id, input.interviewMessageId)
   );
   if (
     !interviewPost ||
@@ -198,7 +207,7 @@ export function isCurrentOwnerInterview(input: {
   return !input.channelPosts.some(
     (candidate) =>
       candidate.authorId === input.ownerId &&
-      candidate.id !== interviewPost.id &&
+      !samePostId(candidate.id, interviewPost.id) &&
       !candidate.isDeleted &&
       !isAutomaticProvisionTransport(candidate) &&
       follows(candidate, interviewPost)

@@ -117,6 +117,39 @@ describe('isVisibleChannelPost', () => {
     ).toBe(true);
   });
 
+  it('hides owner provision transports from other group members', () => {
+    const provisionBlob = appendToPostBlob(undefined, {
+      type: 'tlon-agent-provision',
+      version: 1,
+      provisionId: 'shared-group-plan',
+      groupId: '~ten/group',
+      purposeId: 'agent-learning',
+      purpose: 'Learning',
+      topics: ['Balcony gardening'],
+      scheduleHour: 18,
+      scheduleMinute: 0,
+      timezone: 'Europe/Paris',
+      notebookNest: 'notes/~ten/updates',
+    });
+
+    expect(
+      isVisibleChannelPost(
+        { authorId: '~ten', blob: provisionBlob },
+        '~nec',
+        'chat/~ten/general',
+        '~ten'
+      )
+    ).toBe(false);
+    expect(
+      isVisibleChannelPost(
+        { authorId: '~malicious', blob: provisionBlob },
+        '~nec',
+        'chat/~ten/general',
+        '~ten'
+      )
+    ).toBe(true);
+  });
+
   it('keeps onboarding intro requests from other authors visible', () => {
     expect(
       isVisibleChannelPost(

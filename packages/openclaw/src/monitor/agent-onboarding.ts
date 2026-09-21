@@ -2,6 +2,7 @@ import {
   A2UI,
   AGENT_ONBOARDING_FIRST_ENTRY_FAILED_MARKER,
   AGENT_ONBOARDING_FIRST_ENTRY_MARKER,
+  AGENT_RECURRENCE_CONSENT_OPTION,
   type AgentOnboardingPurposeId,
   type PostBlobDataEntryAgentIntroRequest,
   type PostBlobDataEntryAgentProviderConfig,
@@ -2763,6 +2764,7 @@ function findNewestProvisionRequest(
 
 const PLAN_ANSWER_DIMENSIONS = [
   'focus',
+  'recurrence',
   'time',
   'approach',
   'context',
@@ -2892,6 +2894,12 @@ function validateAutomaticPlanEvidence(
   if (!request.answerEvidence) {
     return 'the plan did not preserve its exact owner answer evidence';
   }
+  if (
+    normalizedAnswer(request.answerEvidence.recurrence) !==
+    normalizedAnswer(AGENT_RECURRENCE_CONSENT_OPTION)
+  ) {
+    return 'the owner did not explicitly consent to a daily recurring task';
+  }
   const answersByDimension = new Map<string, string[]>();
   for (const answerPost of [...history].sort(compareHistoryOrder)) {
     if (
@@ -2953,7 +2961,12 @@ function validateAutomaticPlanEvidence(
       return `no matching answered ${dimension} question was found`;
     }
   }
-  for (const requiredDimension of ['focus', 'time', 'approach'] as const) {
+  for (const requiredDimension of [
+    'focus',
+    'recurrence',
+    'time',
+    'approach',
+  ] as const) {
     if (!answersByDimension.get(requiredDimension)?.length) {
       return `no answered ${requiredDimension} question was found`;
     }

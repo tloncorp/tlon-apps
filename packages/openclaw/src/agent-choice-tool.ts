@@ -1,5 +1,7 @@
 import {
   AGENT_ONBOARDING_APPROACH_CHOICE_MARKER,
+  AGENT_RECURRENCE_CONSENT_OPTION,
+  AGENT_RECURRENCE_DECLINE_OPTION,
   TLON_A2UI_CATALOG_ID,
 } from '@tloncorp/api';
 
@@ -14,7 +16,14 @@ const RESERVED_FREEFORM_OPTION =
 export type AgentChoiceToolParams = {
   target: string;
   surfaceId: string;
-  dimension: 'focus' | 'time' | 'approach' | 'context' | 'priority' | 'output';
+  dimension:
+    | 'focus'
+    | 'recurrence'
+    | 'time'
+    | 'approach'
+    | 'context'
+    | 'priority'
+    | 'output';
   question: string;
   options: string[];
 };
@@ -37,9 +46,17 @@ export const agentChoiceToolParameters = {
     },
     dimension: {
       type: 'string',
-      enum: ['focus', 'time', 'approach', 'context', 'priority', 'output'],
+      enum: [
+        'focus',
+        'recurrence',
+        'time',
+        'approach',
+        'context',
+        'priority',
+        'output',
+      ],
       description:
-        'The single decision this question resolves. Every onboarding interview must include an approach question before the task plan.',
+        'The single decision this question resolves. Every onboarding interview must include recurrence consent and an approach question before the task plan.',
     },
     question: {
       type: 'string',
@@ -72,9 +89,15 @@ function parseParams(params: AgentChoiceToolParams): AgentChoiceToolParams {
     );
   }
   if (
-    !['focus', 'time', 'approach', 'context', 'priority', 'output'].includes(
-      params.dimension
-    )
+    ![
+      'focus',
+      'recurrence',
+      'time',
+      'approach',
+      'context',
+      'priority',
+      'output',
+    ].includes(params.dimension)
   ) {
     throw new Error('dimension must identify one supported interview decision');
   }
@@ -108,6 +131,16 @@ function parseParams(params: AgentChoiceToolParams): AgentChoiceToolParams {
   if (options.some((option) => RESERVED_FREEFORM_OPTION.test(option))) {
     throw new Error(
       'options must not duplicate the built-in freeform answer (Other, Custom, Something else, or Write your own)'
+    );
+  }
+  if (
+    params.dimension === 'recurrence' &&
+    (options.length !== 2 ||
+      options[0] !== AGENT_RECURRENCE_CONSENT_OPTION ||
+      options[1] !== AGENT_RECURRENCE_DECLINE_OPTION)
+  ) {
+    throw new Error(
+      `recurrence options must be “${AGENT_RECURRENCE_CONSENT_OPTION}” and “${AGENT_RECURRENCE_DECLINE_OPTION}”`
     );
   }
 

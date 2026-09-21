@@ -24,7 +24,8 @@ export function isVisibleChannelPost(
     deliveryStatus?: db.Post['deliveryStatus'];
   },
   currentUserId: string,
-  channelId?: string
+  channelId?: string,
+  groupHostUserId?: string | null
 ): boolean {
   if (
     channelId &&
@@ -35,7 +36,6 @@ export function isVisibleChannelPost(
     return false;
   }
   if (!post.blob) return true;
-  if (post.authorId !== currentUserId) return true;
   const isProvisionTransport = postHasBlobEntry(
     post.blob,
     'tlon-agent-provision'
@@ -43,7 +43,10 @@ export function isVisibleChannelPost(
   // Automatic provision failures are recovered from the source plan card,
   // which now receives definitive send failures. Never flash its synthetic
   // topic payload as if the owner had written it.
-  if (isProvisionTransport) {
+  if (
+    isProvisionTransport &&
+    (post.authorId === currentUserId || post.authorId === groupHostUserId)
+  ) {
     const isAutomatic = parsePostBlob(post.blob).some(
       (entry) =>
         entry.type === 'tlon-a2ui-selection' &&
@@ -52,6 +55,7 @@ export function isVisibleChannelPost(
     if (isAutomatic || post.deliveryStatus !== 'failed') return false;
     return true;
   }
+  if (post.authorId !== currentUserId) return true;
   if (post.deliveryStatus === 'failed') return true;
 
   return !postHasBlobEntry(post.blob, 'tlon-agent-intro-request');

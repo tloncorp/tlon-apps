@@ -31,6 +31,8 @@ export const AGENT_ONBOARDING_FIRST_ENTRY_MARKER = 'first-entry-ping';
 export const AGENT_ONBOARDING_FIRST_ENTRY_FAILED_MARKER = 'first-entry-failed';
 export const AGENT_ONBOARDING_APPROACH_CHOICE_MARKER =
   'agent-choice-dimension:approach';
+export const AGENT_RECURRENCE_CONSENT_OPTION = 'Yes, make it daily';
+export const AGENT_RECURRENCE_DECLINE_OPTION = 'No, just once';
 
 export const AGENT_ONBOARDING_PURPOSE_IDS = [
   'agent-daily-digest',
@@ -52,6 +54,9 @@ export const agentProtocolString = (maxLength: number) =>
 
 export const AgentTaskPlanAnswerEvidenceSchema = z.object({
   focus: agentProtocolString(AGENT_PROTOCOL_LIMITS.taskPromptLength),
+  recurrence: agentProtocolString(
+    AGENT_PROTOCOL_LIMITS.scheduleDescriptionLength
+  ),
   time: agentProtocolString(AGENT_PROTOCOL_LIMITS.scheduleDescriptionLength),
   approach: agentProtocolString(AGENT_PROTOCOL_LIMITS.approachLength),
   context: agentProtocolString(

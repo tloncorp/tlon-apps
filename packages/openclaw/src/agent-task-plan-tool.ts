@@ -1,5 +1,6 @@
 import {
   AGENT_PROTOCOL_LIMITS,
+  AGENT_RECURRENCE_CONSENT_OPTION,
   AgentProvisionActionContextSchema,
   TLON_A2UI_CATALOG_ID,
 } from '@tloncorp/api';
@@ -17,6 +18,7 @@ export type AgentTaskPlanToolParams = {
   approach: string;
   answerEvidence: {
     focus: string;
+    recurrence: string;
     time: string;
     approach: string;
     context?: string;
@@ -137,13 +139,17 @@ export const agentTaskPlanToolParameters = {
         'Exact owner-selected answers from the typed onboarding choices. Copy them verbatim.',
       properties: {
         focus: { type: 'string' },
+        recurrence: {
+          type: 'string',
+          description: `Exact owner selection: “${AGENT_RECURRENCE_CONSENT_OPTION}”.`,
+        },
         time: { type: 'string' },
         approach: { type: 'string' },
         context: { type: 'string' },
         priority: { type: 'string' },
         output: { type: 'string' },
       },
-      required: ['focus', 'time', 'approach'],
+      required: ['focus', 'recurrence', 'time', 'approach'],
       additionalProperties: false,
     },
     topics: {
@@ -249,6 +255,12 @@ function parseParams(params: AgentTaskPlanToolParams): AgentTaskPlanToolParams {
     throw new Error('summary must be 1-1000 characters');
   }
   const timezoneOverride = params.timezoneOverride?.trim() || undefined;
+  if (
+    params.answerEvidence.recurrence.trim().toLocaleLowerCase() !==
+    AGENT_RECURRENCE_CONSENT_OPTION.toLocaleLowerCase()
+  ) {
+    throw new Error('task plan requires explicit owner consent to recur daily');
+  }
   if (
     params.approach.trim().toLocaleLowerCase() !==
     params.answerEvidence.approach.trim().toLocaleLowerCase()

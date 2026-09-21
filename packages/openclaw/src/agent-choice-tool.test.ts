@@ -145,6 +145,26 @@ describe('agent choice tool', () => {
     expect(postChoice).toHaveBeenCalledOnce();
   });
 
+  it('uses fixed options for explicit recurrence consent', async () => {
+    const postChoice = vi.fn(async () => '{"ok":true}');
+    const execute = createAgentChoiceToolExecutor(choiceDeps(postChoice));
+
+    const accepted = await execute('call-recurrence', {
+      ...validChoice,
+      dimension: 'recurrence',
+      options: ['Yes, make it daily', 'No, just once'],
+    });
+    const rejected = await execute('call-vague-recurrence', {
+      ...validChoice,
+      dimension: 'recurrence',
+      options: ['Sure', 'Maybe later'],
+    });
+
+    expect(accepted.details).toBeUndefined();
+    expect(rejected.details).toEqual({ error: true });
+    expect(rejected.content[0]?.text).toContain('recurrence options');
+  });
+
   it('rejects options that duplicate the built-in freeform answer', async () => {
     const postChoice = vi.fn(async () => 'unexpected');
     const execute = createAgentChoiceToolExecutor(choiceDeps(postChoice));

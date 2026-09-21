@@ -14,6 +14,7 @@ import {
 describe('agentPlanAnswerEvidenceMatches', () => {
   const evidence = {
     focus: 'Robotics',
+    recurrence: 'Yes, make it daily',
     time: '8 AM',
     approach: 'Compare expert perspectives',
   };
@@ -270,6 +271,29 @@ describe('automatic provision evidence', () => {
         ],
       })
     ).toBe(false);
+  });
+
+  it('matches raw and canonical Urbit post ids', () => {
+    const rawId = '170141184508164136620680233968906272768';
+    const canonicalId =
+      '170.141.184.508.164.136.620.680.233.968.906.272.768';
+    const interviewPost = {
+      id: canonicalId,
+      authorId: 'owner',
+      channelId: 'chat',
+      receivedAt: 200,
+      sequenceNum: 2,
+    };
+
+    expect(
+      isCurrentOwnerInterview({
+        interviewStartMessageId: rawId,
+        interviewMessageId: rawId,
+        planPost,
+        ownerId: 'owner',
+        channelPosts: [interviewPost],
+      })
+    ).toBe(true);
   });
 
   it('ignores a failed automatic provision transport when retrying the plan', () => {
