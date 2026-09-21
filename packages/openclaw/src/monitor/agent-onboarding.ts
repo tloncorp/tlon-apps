@@ -2821,7 +2821,11 @@ function validateAutomaticPlanEvidence(
         parsePostBlob(questionPost.blob).some(
           (questionEntry) =>
             questionEntry.type === 'tlon-agent-post-marker' &&
-            questionEntry.key === AGENT_ONBOARDING_APPROACH_CHOICE_MARKER
+            questionEntry.key === AGENT_ONBOARDING_APPROACH_CHOICE_MARKER &&
+            sameEvidencePostId(
+              questionEntry.interviewStartMessageId,
+              request.interviewStartMessageId
+            )
         )
       );
     });

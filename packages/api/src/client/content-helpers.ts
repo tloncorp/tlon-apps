@@ -782,6 +782,7 @@ export type PostBlobDataEntryAgentProvisionAck = z.infer<
 export const PostBlobDataEntryAgentPostMarkerSchema =
   definePostBlobDataEntrySchema('tlon-agent-post-marker', 1, {
     key: z.string().min(1).max(256),
+    interviewStartMessageId: z.string().min(1).max(512).optional(),
   });
 
 export type PostBlobDataEntryAgentPostMarker = z.infer<

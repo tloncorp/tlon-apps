@@ -50,6 +50,7 @@ const approachMarkerBlob = JSON.stringify([
     type: 'tlon-agent-post-marker',
     version: 1,
     key: 'agent-choice-dimension:approach',
+    interviewStartMessageId: 'interview-start',
   },
 ]);
 
@@ -96,7 +97,7 @@ describe('automatic provision evidence', () => {
     expect(
       hasAnsweredApproachChoice({
         approach: 'Compare expert perspectives',
-        interviewStartMessageId: interviewStart.id,
+        interviewStartMessageId: undefined,
         interviewMessageId: approachAnswer.id,
         channelPosts: [
           interviewStart,

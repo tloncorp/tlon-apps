@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   _testing,
   assertTlonTaskPlanCallCurrent,
+  claimTlonChoiceCall,
   claimTlonTaskPlanCall,
   finishTlonTaskPlanCall,
   getTlonSessionSurface,
   getTlonSessionRunSurface,
+  getTlonChoiceEvidence,
   getTlonTaskPlanEvidence,
   onboardingToolBlockReason,
   rememberTlonSessionRunSurface,
@@ -232,6 +234,66 @@ describe('onboarding tool boundary', () => {
         sessionKey,
       })
     ).toBeUndefined();
+  });
+
+  it('binds each typed choice to the durable interview start', () => {
+    const sessionKey = 'agent:dev:tlon:group:chat/~zod/home';
+    setTlonSessionSurface(sessionKey, {
+      kind: 'group',
+      channelNest: 'chat/~zod/home',
+      bootstrapComplete: false,
+      messageId: '~owner/100',
+    });
+    rememberTlonSessionRunSurface('run-1', sessionKey);
+    expect(
+      claimTlonChoiceCall({
+        toolCallId: 'choice-1',
+        runId: 'run-1',
+        sessionKey,
+      })
+    ).toBeUndefined();
+    expect(getTlonChoiceEvidence('choice-1')).toEqual({
+      interviewStartMessageId: '~owner/100',
+    });
+
+    setTlonSessionSurface(sessionKey, {
+      kind: 'group',
+      channelNest: 'chat/~zod/home',
+      bootstrapComplete: false,
+      messageId: '~owner/200',
+    });
+    rememberTlonSessionRunSurface('run-2', sessionKey);
+    expect(
+      claimTlonChoiceCall({
+        toolCallId: 'choice-2',
+        runId: 'run-2',
+        sessionKey,
+      })
+    ).toBeUndefined();
+    expect(getTlonChoiceEvidence('choice-2')).toEqual({
+      interviewStartMessageId: '~owner/100',
+    });
+  });
+
+  it('allows a plan to recover its start from durable history after restart', () => {
+    const sessionKey = 'agent:dev:tlon:group:chat/~zod/home';
+    setTlonSessionSurface(sessionKey, {
+      kind: 'group',
+      channelNest: 'chat/~zod/home',
+      bootstrapComplete: false,
+      messageId: '~owner/200',
+    });
+    rememberTlonSessionRunSurface('run-2', sessionKey);
+    expect(
+      claimTlonTaskPlanCall({
+        toolCallId: 'call-2',
+        runId: 'run-2',
+        sessionKey,
+      })
+    ).toBeUndefined();
+    expect(getTlonTaskPlanEvidence('call-2')).toEqual({
+      interviewMessageId: '~owner/200',
+    });
   });
 
   it('binds a multi-turn plan to the first typed choice and final owner turn', () => {

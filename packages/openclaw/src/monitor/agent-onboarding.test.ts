@@ -842,6 +842,7 @@ describe('agent onboarding requests', () => {
         type: 'tlon-agent-post-marker',
         version: 1,
         key: 'agent-choice-dimension:approach',
+        interviewStartMessageId: '100',
       }),
     };
     const approachAnswer = {

@@ -15,6 +15,13 @@ const validChoice: AgentChoiceToolParams = {
   question: 'Which part of AI agent tooling should I follow?',
   options: ['New products', 'Design patterns', 'Research papers'],
 };
+const validEvidence = { interviewStartMessageId: '~owner/interview-start' };
+const choiceDeps = (
+  postChoice: Parameters<typeof createAgentChoiceToolExecutor>[0]['postChoice']
+) => ({
+  postChoice,
+  getEvidence: vi.fn(() => validEvidence),
+});
 
 describe('agent choice tool', () => {
   it('advertises the mobile-safe label limit to the model', () => {
@@ -58,15 +65,19 @@ describe('agent choice tool', () => {
 
   it('durably marks an approach question for later owner-answer verification', () => {
     expect(
-      buildAgentChoiceBlob({
-        ...validChoice,
-        dimension: 'approach',
-        surfaceId: 'agent-choice-approach-1',
-      })
+      buildAgentChoiceBlob(
+        {
+          ...validChoice,
+          dimension: 'approach',
+          surfaceId: 'agent-choice-approach-1',
+        },
+        validEvidence
+      )
     ).toContainEqual({
       type: 'tlon-agent-post-marker',
       version: 1,
       key: 'agent-choice-dimension:approach',
+      interviewStartMessageId: '~owner/interview-start',
     });
     expect(buildAgentChoiceBlob(validChoice)).not.toContainEqual(
       expect.objectContaining({ key: 'agent-choice-dimension:approach' })
@@ -75,7 +86,7 @@ describe('agent choice tool', () => {
 
   it('posts the question as fallback text and the choice as a blob', async () => {
     const postChoice = vi.fn(async () => '{"ok":true}');
-    const execute = createAgentChoiceToolExecutor({ postChoice });
+    const execute = createAgentChoiceToolExecutor(choiceDeps(postChoice));
 
     const result = await execute('call-1', validChoice);
 
@@ -90,7 +101,7 @@ describe('agent choice tool', () => {
 
   it('rejects duplicate, empty, and overlong options before posting', async () => {
     const postChoice = vi.fn(async () => 'unexpected');
-    const execute = createAgentChoiceToolExecutor({ postChoice });
+    const execute = createAgentChoiceToolExecutor(choiceDeps(postChoice));
 
     for (const options of [
       ['News', ' news '],
@@ -108,7 +119,7 @@ describe('agent choice tool', () => {
 
   it('keeps approach labels concise while retaining the general option limit', async () => {
     const postChoice = vi.fn(async () => '{"ok":true}');
-    const execute = createAgentChoiceToolExecutor({ postChoice });
+    const execute = createAgentChoiceToolExecutor(choiceDeps(postChoice));
     const longLabel = 'A'.repeat(37);
 
     const approachResult = await execute('call-long-approach', {
@@ -129,7 +140,7 @@ describe('agent choice tool', () => {
 
   it('rejects options that duplicate the built-in freeform answer', async () => {
     const postChoice = vi.fn(async () => 'unexpected');
-    const execute = createAgentChoiceToolExecutor({ postChoice });
+    const execute = createAgentChoiceToolExecutor(choiceDeps(postChoice));
 
     for (const duplicate of [
       'Other',
@@ -149,7 +160,7 @@ describe('agent choice tool', () => {
 
   it('requires a bounded choice surface id and current chat target', async () => {
     const postChoice = vi.fn(async () => 'unexpected');
-    const execute = createAgentChoiceToolExecutor({ postChoice });
+    const execute = createAgentChoiceToolExecutor(choiceDeps(postChoice));
 
     expect(
       (

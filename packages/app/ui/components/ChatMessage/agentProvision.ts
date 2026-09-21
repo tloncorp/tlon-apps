@@ -27,7 +27,7 @@ function follows(candidate: EvidencePost, reference: EvidencePost) {
   return candidate.receivedAt > reference.receivedAt;
 }
 
-export function hasAnsweredApproachChoice(input: {
+export function findAnsweredApproachChoiceStart(input: {
   approach: string | undefined;
   interviewStartMessageId: string | undefined;
   interviewMessageId: string | undefined;
@@ -37,34 +37,23 @@ export function hasAnsweredApproachChoice(input: {
   ownerId: string;
 }) {
   const expected = input.approach?.trim().toLocaleLowerCase();
-  const interviewStart = input.channelPosts.find(
-    (post) => post.id === input.interviewStartMessageId
-  );
   const interviewEnd = input.channelPosts.find(
     (post) => post.id === input.interviewMessageId
   );
-  if (
-    !expected ||
-    !interviewStart ||
-    !interviewEnd ||
-    interviewStart.authorId !== input.ownerId ||
-    interviewEnd.authorId !== input.ownerId
-  ) {
-    return false;
+  if (!expected || !interviewEnd || interviewEnd.authorId !== input.ownerId) {
+    return undefined;
   }
-  return input.channelPosts.some((answerPost) => {
+  for (const answerPost of input.channelPosts) {
     if (
       answerPost.authorId !== input.ownerId ||
       answerPost.isDeleted ||
-      (answerPost.id !== interviewStart.id &&
-        !follows(answerPost, interviewStart)) ||
       (answerPost.id !== interviewEnd.id &&
         follows(answerPost, interviewEnd)) ||
       !answerPost.blob
     ) {
-      return false;
+      continue;
     }
-    return parsePostBlob(answerPost.blob).some((selection) => {
+    for (const selection of parsePostBlob(answerPost.blob)) {
       if (
         selection.type !== 'tlon-a2ui-selection' ||
         !selection.sourcePostId ||
@@ -72,28 +61,54 @@ export function hasAnsweredApproachChoice(input: {
           (value) => value.trim().toLocaleLowerCase() === expected
         )
       ) {
-        return false;
+        continue;
       }
       const sourcePost = input.channelPosts.find(
         (post) => post.id === selection.sourcePostId
       );
-      return Boolean(
-        sourcePost &&
-        sourcePost.authorId === input.botAuthorId &&
-        sourcePost.channelId === input.planPost.channelId &&
-        !sourcePost.isDeleted &&
-        follows(sourcePost, interviewStart) &&
-        follows(answerPost, sourcePost) &&
-        follows(input.planPost, sourcePost) &&
-        sourcePost.blob &&
-        parsePostBlob(sourcePost.blob).some(
-          (entry) =>
-            entry.type === 'tlon-agent-post-marker' &&
-            entry.key === AGENT_ONBOARDING_APPROACH_CHOICE_MARKER
-        )
+      const marker = sourcePost?.blob
+        ? parsePostBlob(sourcePost.blob).find(
+            (entry) =>
+              entry.type === 'tlon-agent-post-marker' &&
+              entry.key === AGENT_ONBOARDING_APPROACH_CHOICE_MARKER
+          )
+        : undefined;
+      const markerStartId =
+        marker?.type === 'tlon-agent-post-marker'
+          ? marker.interviewStartMessageId
+          : undefined;
+      const interviewStartMessageId =
+        input.interviewStartMessageId ?? markerStartId;
+      const interviewStart = input.channelPosts.find(
+        (post) => post.id === interviewStartMessageId
       );
-    });
-  });
+      if (
+        !markerStartId ||
+        markerStartId !== interviewStartMessageId ||
+        !interviewStart ||
+        interviewStart.authorId !== input.ownerId ||
+        interviewStart.channelId !== input.planPost.channelId ||
+        interviewStart.isDeleted ||
+        !sourcePost ||
+        sourcePost.authorId !== input.botAuthorId ||
+        sourcePost.channelId !== input.planPost.channelId ||
+        sourcePost.isDeleted ||
+        !follows(sourcePost, interviewStart) ||
+        !follows(answerPost, sourcePost) ||
+        !follows(input.planPost, sourcePost)
+      ) {
+        continue;
+      }
+      return interviewStartMessageId;
+    }
+  }
+  return undefined;
+}
+
+export function hasAnsweredApproachChoice(
+  input: Parameters<typeof findAnsweredApproachChoiceStart>[0]
+) {
+  return Boolean(findAnsweredApproachChoiceStart(input));
 }
 
 export function hasNewerOwnerPost(input: {
@@ -118,24 +133,31 @@ export function isCurrentOwnerInterview(input: {
   ownerId: string;
 }) {
   if (!input.interviewMessageId) return false;
-  const interviewStart = input.channelPosts.find(
-    (candidate) => candidate.id === input.interviewStartMessageId
-  );
+  const interviewStart = input.interviewStartMessageId
+    ? input.channelPosts.find(
+        (candidate) => candidate.id === input.interviewStartMessageId
+      )
+    : undefined;
   const interviewPost = input.channelPosts.find(
     (candidate) => candidate.id === input.interviewMessageId
   );
   if (
-    !interviewStart ||
     !interviewPost ||
-    interviewStart.authorId !== input.ownerId ||
-    interviewStart.channelId !== input.planPost.channelId ||
-    interviewStart.isDeleted ||
     interviewPost.authorId !== input.ownerId ||
     interviewPost.channelId !== input.planPost.channelId ||
     interviewPost.isDeleted ||
-    !follows(input.planPost, interviewPost) ||
-    (interviewPost.id !== interviewStart.id &&
-      !follows(interviewPost, interviewStart))
+    !follows(input.planPost, interviewPost)
+  ) {
+    return false;
+  }
+  if (
+    input.interviewStartMessageId &&
+    (!interviewStart ||
+      interviewStart.authorId !== input.ownerId ||
+      interviewStart.channelId !== input.planPost.channelId ||
+      interviewStart.isDeleted ||
+      (interviewPost.id !== interviewStart.id &&
+        !follows(interviewPost, interviewStart)))
   ) {
     return false;
   }

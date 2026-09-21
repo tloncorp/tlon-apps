@@ -42,12 +42,12 @@ import {
   suppressReplyAfterSuccessfulAgentTaskPlan,
 } from './src/agent-task-plan-reply-delivery.js';
 import {
+  claimTlonChoiceCall,
   claimTlonTaskPlanCall,
   clearTlonSessionRunSurface,
   getTlonSessionRunSurface,
   getTlonSessionSurface,
   onboardingToolBlockReason,
-  rememberTlonInterviewStart,
 } from './src/onboarding-tool-boundary.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
 import { registerRestartCatchupHooks } from './src/restart-catchup.js';
@@ -1064,14 +1064,17 @@ export default defineBundledChannelEntry({
         getTlonSessionSurface(ctx.sessionKey),
         getTlonSessionRunSurface(ctx.runId)
       );
-      if (
+      const choiceClaimReason =
         !blocksNonOwner &&
         !blocksOnboardingMcp &&
         !onboardingBoundaryReason &&
         event.toolName === 'tlon_agent_choice'
-      ) {
-        rememberTlonInterviewStart(ctx.runId, ctx.sessionKey);
-      }
+          ? claimTlonChoiceCall({
+              toolCallId,
+              runId: ctx.runId,
+              sessionKey: ctx.sessionKey,
+            })
+          : undefined;
       const taskPlanClaimReason =
         !blocksNonOwner &&
         !blocksOnboardingMcp &&
@@ -1084,7 +1087,7 @@ export default defineBundledChannelEntry({
             })
           : undefined;
       const effectiveOnboardingBoundaryReason =
-        onboardingBoundaryReason ?? taskPlanClaimReason;
+        onboardingBoundaryReason ?? choiceClaimReason ?? taskPlanClaimReason;
       const blocksOnboardingBoundary = Boolean(
         effectiveOnboardingBoundaryReason
       );

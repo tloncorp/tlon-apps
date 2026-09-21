@@ -19,6 +19,10 @@ export type AgentChoiceToolParams = {
   options: string[];
 };
 
+export type AgentChoiceEvidence = {
+  interviewStartMessageId: string;
+};
+
 export const agentChoiceToolParameters = {
   type: 'object',
   properties: {
@@ -110,8 +114,15 @@ function parseParams(params: AgentChoiceToolParams): AgentChoiceToolParams {
   return { ...params, question, options };
 }
 
-export function buildAgentChoiceBlob(input: AgentChoiceToolParams) {
+export function buildAgentChoiceBlob(
+  input: AgentChoiceToolParams,
+  evidence?: AgentChoiceEvidence
+) {
   const params = parseParams(input);
+  const interviewStartMessageId = evidence?.interviewStartMessageId?.trim();
+  if (params.dimension === 'approach' && !interviewStartMessageId) {
+    throw new Error('approach choice requires a trusted interview start');
+  }
   return [
     ...(params.dimension === 'approach'
       ? [
@@ -119,6 +130,7 @@ export function buildAgentChoiceBlob(input: AgentChoiceToolParams) {
             type: 'tlon-agent-post-marker' as const,
             version: 1 as const,
             key: AGENT_ONBOARDING_APPROACH_CHOICE_MARKER,
+            ...(interviewStartMessageId ? { interviewStartMessageId } : {}),
           },
         ]
       : []),
@@ -181,14 +193,16 @@ export function createAgentChoiceToolExecutor(deps: {
     fallbackQuestion: string;
     blob: string;
   }) => Promise<string>;
+  getEvidence: (toolCallId: string) => AgentChoiceEvidence;
 }) {
-  return async function execute(_id: string, params: AgentChoiceToolParams) {
+  return async function execute(id: string, params: AgentChoiceToolParams) {
     try {
       const parsed = parseParams(params);
+      const evidence = deps.getEvidence(id);
       const output = await deps.postChoice({
         target: parsed.target,
         fallbackQuestion: parsed.question,
-        blob: JSON.stringify(buildAgentChoiceBlob(parsed)),
+        blob: JSON.stringify(buildAgentChoiceBlob(parsed, evidence)),
       });
       return {
         content: [{ type: 'text' as const, text: output }],

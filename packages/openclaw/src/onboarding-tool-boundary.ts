@@ -15,7 +15,7 @@ export type TlonSessionRunSurface = TlonSessionSurface & {
 type TlonTaskPlanCall = {
   runId: string;
   sessionKey: string;
-  interviewStartMessageId: string;
+  interviewStartMessageId?: string;
   interviewMessageId: string;
   timestamp: number;
 };
@@ -24,6 +24,8 @@ type TlonInterviewStart = {
   messageId: string;
   timestamp: number;
 };
+
+type TlonChoiceCall = TlonInterviewStart;
 
 const sessionSurfaces = sharedMap<string, TlonSessionSurface>(
   'onboarding-session-surfaces'
@@ -39,6 +41,9 @@ const taskPlanCalls = sharedMap<string, TlonTaskPlanCall>(
 );
 const interviewStarts = sharedMap<string, TlonInterviewStart>(
   'onboarding-interview-starts'
+);
+const choiceCalls = sharedMap<string, TlonChoiceCall>(
+  'onboarding-choice-calls'
 );
 const SURFACE_TTL_MS = 60 * 60 * 1000;
 
@@ -69,6 +74,11 @@ function pruneExpiredSurfaces(now = Date.now()): void {
   for (const [key, entry] of interviewStarts) {
     if (now - entry.timestamp > SURFACE_TTL_MS) {
       interviewStarts.delete(key);
+    }
+  }
+  for (const [key, entry] of choiceCalls) {
+    if (now - entry.timestamp > SURFACE_TTL_MS) {
+      choiceCalls.delete(key);
     }
   }
 }
@@ -156,6 +166,39 @@ export function rememberTlonInterviewStart(
   }
 }
 
+export function claimTlonChoiceCall(input: {
+  toolCallId?: string;
+  runId?: string;
+  sessionKey?: string;
+}): string | undefined {
+  const toolCallId = input.toolCallId?.trim();
+  const runId = input.runId?.trim();
+  const sessionKey = input.sessionKey?.trim();
+  if (!toolCallId || !runId || !sessionKey) {
+    return 'The interview coordinator could not bind this choice to the current owner turn.';
+  }
+  const runSurface = getTlonSessionRunSurface(runId);
+  if (!runSurface?.messageId || runSurface.sessionKey !== sessionKey) {
+    return 'The interview coordinator could not identify the owner message that started this turn.';
+  }
+  rememberTlonInterviewStart(runId, sessionKey);
+  const interviewStart = interviewStarts.get(baseSessionKey(sessionKey));
+  if (!interviewStart) {
+    return 'The interview coordinator could not identify the current interview.';
+  }
+  choiceCalls.set(toolCallId, { ...interviewStart, timestamp: Date.now() });
+  return undefined;
+}
+
+export function getTlonChoiceEvidence(toolCallId: string): {
+  interviewStartMessageId: string;
+} {
+  pruneExpiredSurfaces();
+  const call = choiceCalls.get(toolCallId);
+  if (!call) throw new Error('choice is not bound to the current interview');
+  return { interviewStartMessageId: call.messageId };
+}
+
 export function claimTlonTaskPlanCall(input: {
   toolCallId?: string;
   runId?: string;
@@ -181,15 +224,14 @@ export function claimTlonTaskPlanCall(input: {
     return 'The task-plan coordinator could not identify the owner message that started this turn.';
   }
   const interviewStart = interviewStarts.get(baseSessionKey(sessionKey));
-  if (!interviewStart?.messageId) {
-    return 'The task-plan coordinator could not identify the current typed interview.';
-  }
 
   taskPlanRunClaims.set(runId, toolCallId);
   taskPlanCalls.set(toolCallId, {
     runId,
     sessionKey,
-    interviewStartMessageId: interviewStart.messageId,
+    ...(interviewStart?.messageId
+      ? { interviewStartMessageId: interviewStart.messageId }
+      : {}),
     interviewMessageId: runSurface.messageId,
     timestamp: Date.now(),
   });
@@ -197,7 +239,7 @@ export function claimTlonTaskPlanCall(input: {
 }
 
 export function getTlonTaskPlanEvidence(toolCallId: string): {
-  interviewStartMessageId: string;
+  interviewStartMessageId?: string;
   interviewMessageId: string;
 } {
   pruneExpiredSurfaces();
@@ -206,7 +248,9 @@ export function getTlonTaskPlanEvidence(toolCallId: string): {
     throw new Error('task plan is not bound to the current owner turn');
   }
   return {
-    interviewStartMessageId: call.interviewStartMessageId,
+    ...(call.interviewStartMessageId
+      ? { interviewStartMessageId: call.interviewStartMessageId }
+      : {}),
     interviewMessageId: call.interviewMessageId,
   };
 }
@@ -293,5 +337,6 @@ export const _testing = {
     taskPlanRunClaims.clear();
     taskPlanCalls.clear();
     interviewStarts.clear();
+    choiceCalls.clear();
   },
 };

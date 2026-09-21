@@ -42,7 +42,7 @@ import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
 import {
-  hasAnsweredApproachChoice,
+  findAnsweredApproachChoiceStart,
   findConsumedProvisionSelection,
   isCurrentOwnerInterview,
   resolveAgentProvisionId,
@@ -231,6 +231,7 @@ export function StaticChatMessage({
         throw new Error('The onboarding group needs exactly one notebook');
       }
       const notebookTitle = notebooks[0].title ?? 'Updates';
+      let interviewStartMessageId = plan.interviewStartMessageId;
 
       if (selection?.componentId === 'auto-provision') {
         const channelPosts = await db.getChanPosts({
@@ -247,17 +248,16 @@ export function StaticChatMessage({
         ) {
           throw new Error('This plan was replaced by a newer answer');
         }
-        if (
-          !hasAnsweredApproachChoice({
-            approach: plan.approach,
-            interviewStartMessageId: plan.interviewStartMessageId,
-            interviewMessageId: plan.interviewMessageId,
-            channelPosts,
-            planPost: post,
-            botAuthorId: post.authorId,
-            ownerId: currentUserId,
-          })
-        ) {
+        interviewStartMessageId = findAnsweredApproachChoiceStart({
+          approach: plan.approach,
+          interviewStartMessageId: plan.interviewStartMessageId,
+          interviewMessageId: plan.interviewMessageId,
+          channelPosts,
+          planPost: post,
+          botAuthorId: post.authorId,
+          ownerId: currentUserId,
+        });
+        if (!interviewStartMessageId) {
           throw new Error(
             'Choose how this task should gather or develop its answer first'
           );
@@ -296,9 +296,7 @@ export function StaticChatMessage({
             })
           ),
         groupId,
-        ...(plan.interviewStartMessageId
-          ? { interviewStartMessageId: plan.interviewStartMessageId }
-          : {}),
+        ...(interviewStartMessageId ? { interviewStartMessageId } : {}),
         ...(plan.interviewMessageId
           ? { interviewMessageId: plan.interviewMessageId }
           : {}),

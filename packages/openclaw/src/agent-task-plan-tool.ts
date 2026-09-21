@@ -25,7 +25,7 @@ export type AgentTaskPlanToolParams = {
 };
 
 export type AgentTaskPlanEvidence = {
-  interviewStartMessageId: string;
+  interviewStartMessageId?: string;
   interviewMessageId: string;
 };
 
@@ -317,7 +317,7 @@ export function buildAgentTaskPlanBlob(
   const params = parseParams(input);
   const interviewStartMessageId = evidence.interviewStartMessageId?.trim();
   const interviewMessageId = evidence.interviewMessageId?.trim();
-  if (!interviewStartMessageId || !interviewMessageId) {
+  if (!interviewMessageId) {
     throw new Error('task plan requires a trusted owner interview message');
   }
   return [
@@ -362,7 +362,9 @@ export function buildAgentTaskPlanBlob(
                     name: 'tlon.provisionAgent',
                     context: {
                       groupId: params.groupId,
-                      interviewStartMessageId,
+                      ...(interviewStartMessageId
+                        ? { interviewStartMessageId }
+                        : {}),
                       interviewMessageId,
                       purposeId: params.purposeId,
                       purpose: params.purpose,

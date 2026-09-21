@@ -37,6 +37,7 @@ import { tlonChannelConfigSchema } from './config-schema.js';
 import {
   assertTlonTaskPlanCallCurrent,
   finishTlonTaskPlanCall,
+  getTlonChoiceEvidence,
   getTlonTaskPlanEvidence,
 } from './onboarding-tool-boundary.js';
 import { resolveTlonOutboundSessionRoute } from './session-route.js';
@@ -207,6 +208,7 @@ export const tlonPlugin = createChatChannelPlugin({
           { timeoutMs }
         );
       const executeChoice = createAgentChoiceToolExecutor({
+        getEvidence: getTlonChoiceEvidence,
         postChoice: ({ target, fallbackQuestion, blob }) =>
           postSurface(target, fallbackQuestion, blob),
       });

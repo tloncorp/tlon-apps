@@ -107,6 +107,16 @@ describe('agent task plan tool', () => {
     ).toBe(true);
   });
 
+  it('allows the durable approach marker to recover an expired interview start', () => {
+    const serialized = JSON.stringify(
+      buildAgentTaskPlanBlob(validPlan, {
+        interviewMessageId: '~owner/interview-final',
+      })
+    );
+    expect(serialized).toContain('~owner/interview-final');
+    expect(serialized).not.toContain('interviewStartMessageId');
+  });
+
   it('serializes and posts one valid blob without model-authored shell quoting', async () => {
     const postPlan = vi.fn(async () => '{"ok":true}');
     const execute = createAgentTaskPlanToolExecutor({
