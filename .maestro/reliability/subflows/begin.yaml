@@ -17,9 +17,11 @@ appId: ${MAESTRO_APP_ID}
 # The app is past its splash and on a tab. Which tab varies -- a hosted account
 # with an agent opens on the Bot tab, whose header title is blank -- so accept
 # the iOS tab-bar container or, on Android, any tab label.
+# Startup may reopen the database, so this is a launch wait rather than an
+# interaction one -- the budget is larger than the 5 seconds a tap gets.
 - extendedWaitUntil:
     visible: '^(Tab Bar|Workspaces|Activity|Settings|Bot)$'
-    timeout: 5000
+    timeout: 15000
 # Confirm the ship before anything writes to it. Settings reaches the user's
 # own profile in one step, and the profile is where the ship name is shown.
 - runFlow: settings-tab.yaml
