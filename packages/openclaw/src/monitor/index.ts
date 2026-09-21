@@ -4956,8 +4956,17 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           senderShip === effectiveOwnerShip
         ) {
           try {
+            if (
+              isStopTips(rawText) &&
+              (await campaign?.inboundInConversation(rawText, senderShip))
+            ) {
+              return;
+            }
             campaignContext = await campaign?.replyContext(senderShip);
-            if (await campaign?.inboundInConversation(rawText, senderShip))
+            if (
+              !isStopTips(rawText) &&
+              (await campaign?.inboundInConversation(rawText, senderShip))
+            )
               return;
           } catch (error) {
             runtime.error?.(`[tlon] campaign reply: ${String(error)}`);
