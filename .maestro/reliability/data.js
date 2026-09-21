@@ -5,7 +5,9 @@ if (!/^~[a-z]+(?:-[a-z]+)*$/.test(MAESTRO_TEST_SHIP))
   throw new Error('Expected test ship is required');
 if (!/^[A-Za-z0-9-]+$/.test(MAESTRO_RUN_TAG))
   throw new Error('A unique run tag is required');
-var groupSuffix = '-' + JOURNEY + '-' + Date.now().toString(36);
+var groupAttempt = Date.now().toString(36).slice(-6);
+var groupJourney = JOURNEY.slice(0, 6);
+var groupSuffix = '-' + groupJourney + '-' + groupAttempt;
 var renamedGroupSuffix = ' renamed';
 var maxGroupRunTagLength = Math.max(
   1,
@@ -17,7 +19,7 @@ output.reliability = {
   session: typeof MAESTRO_SESSION === 'undefined' ? 'fresh' : MAESTRO_SESSION,
   // Cloud retries reuse env values; each attempt still needs its own fixture.
   group: 'QA-' + MAESTRO_RUN_TAG.slice(0, maxGroupRunTagLength) + groupSuffix,
-  groupQuery: MAESTRO_RUN_TAG.slice(0, maxGroupRunTagLength),
+  groupQuery: groupAttempt,
   text: MAESTRO_RUN_TAG + ' message',
   editedText: MAESTRO_RUN_TAG + ' edited',
   reply: MAESTRO_RUN_TAG + ' reply',
@@ -34,25 +36,6 @@ output.reliability = {
     MAESTRO_TEST_SHIP.slice(1).replace(/-/g, ' - ') +
     ')$',
 };
-// Native group titles are capped at 24 characters. This lifecycle creates and
-// deletes its own exact fixture, so a short run-tagged name remains isolated.
-if (
-  JOURNEY === 'notebookchannel' ||
-  JOURNEY === 'notebookcontents' ||
-  JOURNEY === 'notebookpreview' ||
-  JOURNEY === 'notebooktitles'
-) {
-  output.reliability.group =
-    'QA-' +
-    MAESTRO_RUN_TAG +
-    (JOURNEY === 'notebookchannel'
-      ? '-notebook'
-      : JOURNEY === 'notebookcontents'
-        ? '-contents'
-        : JOURNEY === 'notebookpreview'
-          ? '-preview'
-          : '-titles');
-}
 output.reliability.groupPattern = exact(output.reliability.group);
 output.reliability.editedTextPattern = exact(
   output.reliability.editedText
