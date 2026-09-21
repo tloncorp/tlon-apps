@@ -675,7 +675,20 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
         Date.now() < ordinaryObservationEnd
       ) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
-        soft.ordinary = await eventNotified(softMarkers.ordinary);
+        try {
+          soft.ordinary = await eventNotified(softMarkers.ordinary);
+        } catch {
+          // Fake-ship reads can fail briefly while subscriptions catch up.
+        }
+      }
+      if (soft.ordinary === undefined) {
+        await until(
+          'ordinary Activity absence observation completes',
+          async () => {
+            soft.ordinary = await eventNotified(softMarkers.ordinary);
+            return true;
+          }
+        );
       }
       record('global-notification-soft', {
         level: 'soft',
