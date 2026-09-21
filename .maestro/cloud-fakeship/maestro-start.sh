@@ -103,9 +103,18 @@ done
 cat "$PROOF_OUTPUT/peer-ready.json"
 code=$(jq -r '."~zod".code' apps/tlon-web/e2e/shipManifest.json)
 echo "::add-mask::$code"
-# Verify authentication over the same public HTTPS route the device will use.
-curl -fsS -c "$RUNNER_TEMP/proof-cookie" --data-urlencode "password=$code" "$url/~/login" >/dev/null
-curl -fsS -b "$RUNNER_TEMP/proof-cookie" "$url/~/scry/groups/groups/light.json" | jq -e 'type == "object"' >/dev/null
+# Verify that the public tunnel answers, then authenticate through the same
+# proxy locally. Runner egress can differ from the address reported by
+# api.ipify.org, while Maestro Cloud uses the fixed allowlisted addresses.
+curl -sS --connect-timeout 10 --max-time 20 -o /dev/null "$url"
+curl -fsS -c "$RUNNER_TEMP/proof-cookie" \
+  -H "X-Forwarded-For: $runner_ip" \
+  --data-urlencode "password=$code" \
+  http://127.0.0.1:49379/~/login >/dev/null
+curl -fsS -b "$RUNNER_TEMP/proof-cookie" \
+  -H "X-Forwarded-For: $runner_ip" \
+  http://127.0.0.1:49379/~/scry/groups/groups/light.json \
+  | jq -e 'type == "object"' >/dev/null
 rm "$RUNNER_TEMP/proof-cookie"
 echo "url=$url" >> "$GITHUB_OUTPUT"
 echo "code=$code" >> "$GITHUB_OUTPUT"
