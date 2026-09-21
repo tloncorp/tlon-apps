@@ -680,11 +680,12 @@ async function handleAgentOnboardingRequestInternal(
     context.log?.('[tlon] rejected agent provision: request was superseded');
     return true;
   }
+  const effectiveRequest = historyRequest ?? request;
   const automaticPlanError = validateAutomaticPlanEvidence(
     history,
     context.ownerShip,
     context.botShip,
-    request,
+    effectiveRequest,
     context.blob
   );
   if (automaticPlanError) {
@@ -694,14 +695,14 @@ async function handleAgentOnboardingRequestInternal(
     return true;
   }
   try {
-    await provision(context, history, request, deps, presentation);
+    await provision(context, history, effectiveRequest, deps, presentation);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     try {
       await postOnce(
         context,
         history,
-        `provision-retrying:${request.provisionId}`,
+        `provision-retrying:${effectiveRequest.provisionId}`,
         async () => ({
           text: "I couldn't finish setting up the daily task yet. I'll keep retrying safely, and I won't create a duplicate.",
         }),
@@ -713,7 +714,7 @@ async function handleAgentOnboardingRequestInternal(
       // the best-effort status post cannot be delivered either.
     }
     throw new Error(
-      `agent onboarding provision ${request.provisionId} failed: ${detail}`,
+      `agent onboarding provision ${effectiveRequest.provisionId} failed: ${detail}`,
       { cause: error }
     );
   }
@@ -2715,7 +2716,10 @@ function findProvisionRequest(
   groupId: string,
   provisionId: string
 ) {
-  const request = blobEntriesByAuthor(history, ownerShip, true).find(
+  // A stable provision id can be posted by more than one client. Keep the
+  // first accepted request authoritative so a later device cannot change its
+  // timezone or schedule while the same plan is being reconciled.
+  const request = blobEntriesByAuthor(history, ownerShip).find(
     ({ entry }) =>
       entry.type === 'tlon-agent-provision' &&
       entry.groupId === groupId &&
@@ -3451,6 +3455,7 @@ export const agentOnboardingTesting = {
   fetchOnboardingGroup,
   findFirstRunCorrelation,
   findDeliveredRunNote,
+  findProvisionRequest,
   hasPostMarker,
   notebookDisplayName,
   purposePickerFallbackText,

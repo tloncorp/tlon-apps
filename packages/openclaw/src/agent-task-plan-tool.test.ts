@@ -231,6 +231,21 @@ describe('agent task plan tool', () => {
     expect(JSON.stringify(blob)).toContain('Tokyo time');
   });
 
+  it('accepts an explicit UTC schedule described as UTC time', () => {
+    const blob = buildAgentTaskPlanBlob(
+      {
+        ...validPlan,
+        fallbackSummary: 'Daily robotics brief at 8:30 AM UTC time.',
+        summary: 'Track robotics releases daily at 8:30 AM UTC time.',
+        scheduleDescription: 'daily at 8:30 AM UTC time',
+        timezoneOverride: 'UTC',
+      },
+      validEvidence
+    );
+
+    expect(JSON.stringify(blob)).toContain('"timezoneOverride":"UTC"');
+  });
+
   it('normalizes a blank timezone override to the device-local path', () => {
     const serialized = JSON.stringify(
       buildAgentTaskPlanBlob(

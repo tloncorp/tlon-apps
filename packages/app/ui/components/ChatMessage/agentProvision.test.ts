@@ -249,6 +249,57 @@ describe('automatic provision evidence', () => {
       })
     ).toBe(false);
   });
+
+  it('ignores a failed automatic provision transport when retrying the plan', () => {
+    const interviewPost = {
+      id: 'owner-interview',
+      authorId: 'owner',
+      channelId: 'chat',
+      receivedAt: 200,
+      sequenceNum: 2,
+    };
+    const automaticTransport = {
+      id: 'auto-transport',
+      authorId: 'owner',
+      channelId: 'chat',
+      receivedAt: 400,
+      sequenceNum: 4,
+      deliveryStatus: 'failed',
+      blob: JSON.stringify([
+        {
+          type: 'tlon-agent-provision',
+          version: 1,
+          provisionId: 'auto-plan',
+          groupId: 'group',
+          purposeId: 'agent-research',
+          purpose: 'Research',
+          topics: ['Robotics'],
+          timezone: 'UTC',
+          scheduleHour: 8,
+          scheduleMinute: 30,
+          notebookNest: 'notes/group/updates',
+        },
+        {
+          type: 'tlon-a2ui-selection',
+          version: 1,
+          sourcePostId: planPost.id,
+          surfaceId: 'agent-task-plan',
+          componentId: 'auto-provision',
+          values: ['Robotics'],
+        },
+      ]),
+    };
+
+    expect(
+      isCurrentOwnerInterview({
+        interviewStartMessageId: interviewPost.id,
+        interviewMessageId: interviewPost.id,
+        planPost,
+        ownerId: 'owner',
+        channelPosts: [interviewPost, automaticTransport],
+      })
+    ).toBe(true);
+  });
 });
 
 describe('resolveAgentProvisionId', () => {

@@ -469,6 +469,11 @@ function updateActiveTurn(update: (state: TlonAgentTurnState) => void): void {
   update(state);
 }
 
+export function getActiveTlonTurnAccountId(): string | null {
+  const state = turnStorage.getStore();
+  return state && !state.finalized ? state.accountId : null;
+}
+
 export function recordActiveTlonTurnSourceReply(reply?: {
   isError?: boolean;
   kind: 'tool' | 'block' | 'final';

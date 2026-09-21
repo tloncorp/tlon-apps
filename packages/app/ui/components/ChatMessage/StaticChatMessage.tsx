@@ -221,7 +221,8 @@ export function StaticChatMessage({
   const sendAgentProvision = useCallback(
     async (
       plan: A2UI.ProvisionAgentEvent['context'] & { timezone: string },
-      selection?: PostBlobDataEntryA2UISelection
+      selection?: PostBlobDataEntryA2UISelection,
+      payloadIdentity = ''
     ) => {
       const { groupId, draftInput } = resolveActionGroup(plan.groupId);
       // Channel creation is persisted separately from the group's embedded
@@ -291,12 +292,7 @@ export function StaticChatMessage({
             selection?.sourcePostId ?? post.id,
             selection?.componentId,
             fallbackProvisionId,
-            JSON.stringify({
-              ...plan,
-              groupId,
-              notebookNest: notebooks[0].id,
-              notebookTitle,
-            })
+            payloadIdentity
           ),
         groupId,
         ...(interviewStartMessageId ? { interviewStartMessageId } : {}),
@@ -413,7 +409,8 @@ export function StaticChatMessage({
         );
         await sendAgentProvision(
           { ...action.event.context, timezone },
-          selection
+          selection,
+          JSON.stringify(action.event.context)
         );
         return;
       }

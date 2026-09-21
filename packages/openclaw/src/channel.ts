@@ -53,6 +53,7 @@ import {
   DEFAULT_TLON_CLI_TIMEOUT_MS,
   runTlonCommand,
 } from './tlon-command-runner.js';
+import { getActiveTlonTurnAccountId } from './turn-recorder.js';
 import { listTlonAccountIds, resolveTlonAccount } from './types.js';
 
 const TLON_CHANNEL_ID = 'tlon' as const;
@@ -181,32 +182,40 @@ export const tlonPlugin = createChatChannelPlugin({
     // for the existing `tlon` CLI tool and keeps them available in every Tlon
     // owner turn.
     agentTools: ({ cfg }) => {
-      const account = resolveTlonAccount(cfg ?? {});
-      const credentials =
-        account.configured && account.url && account.ship && account.code
-          ? {
-              url: account.url,
-              ship: account.ship,
-              code: account.code,
-            }
-          : undefined;
-      const timeoutMs =
-        account.lifecycle.toolTimeoutMs ?? DEFAULT_TLON_CLI_TIMEOUT_MS;
       const tlonBinary = resolveTlonBinary({
         moduleDir: packageDir,
         resolveModule: require.resolve,
       });
+      const runForActiveAccount = (args: string[]) => {
+        const account = resolveTlonAccount(
+          cfg ?? {},
+          getActiveTlonTurnAccountId() ?? undefined
+        );
+        const credentials =
+          account.configured && account.url && account.ship && account.code
+            ? {
+                url: account.url,
+                ship: account.ship,
+                code: account.code,
+              }
+            : undefined;
+        const timeoutMs =
+          account.lifecycle.toolTimeoutMs ?? DEFAULT_TLON_CLI_TIMEOUT_MS;
+        return runTlonCommand(tlonBinary, args, credentials, { timeoutMs });
+      };
       const postSurface = (
         target: string,
         fallbackText: string,
         blob: string
       ) =>
-        runTlonCommand(
-          tlonBinary,
-          ['posts', 'send', target, fallbackText, '--blob', blob],
-          credentials,
-          { timeoutMs }
-        );
+        runForActiveAccount([
+          'posts',
+          'send',
+          target,
+          fallbackText,
+          '--blob',
+          blob,
+        ]);
       const executeChoice = createAgentChoiceToolExecutor({
         getEvidence: getTlonChoiceEvidence,
         postChoice: ({ target, fallbackQuestion, blob }) =>
@@ -222,12 +231,7 @@ export const tlonPlugin = createChatChannelPlugin({
         finish: finishTlonTaskPlanCall,
         resolveGroupId: async (target) =>
           resolveTaskPlanGroupId(
-            await runTlonCommand(
-              tlonBinary,
-              ['channels', 'groups'],
-              credentials,
-              { timeoutMs }
-            ),
+            await runForActiveAccount(['channels', 'groups']),
             target
           ),
         postPlan: ({ target, fallbackSummary, blob }) =>

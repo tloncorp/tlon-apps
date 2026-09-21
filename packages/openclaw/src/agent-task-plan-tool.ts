@@ -239,7 +239,7 @@ function parseParams(params: AgentTaskPlanToolParams): AgentTaskPlanToolParams {
     /\b(?:Africa|America|Antarctica|Arctic|Asia|Atlantic|Australia|Europe|Indian|Pacific)\/[A-Za-z_+-]+(?:\/[A-Za-z_+-]+)?\b/.test(
       userFacingScheduleCopy
     ) ||
-    /\bUTC\b/.test(userFacingScheduleCopy) ||
+    (timezoneOverride !== 'UTC' && /\bUTC\b/.test(userFacingScheduleCopy)) ||
     userFacingScheduleCopy.includes(params.scheduleExpression) ||
     /\b(?:[01]?\d|2[0-3]):[0-5]\d(?!\s*(?:AM|PM))\b/i.test(
       userFacingScheduleCopy

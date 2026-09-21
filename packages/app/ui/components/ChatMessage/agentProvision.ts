@@ -12,7 +12,21 @@ type EvidencePost = {
   sequenceNum?: number | null;
   blob?: string | null;
   isDeleted?: boolean | null;
+  deliveryStatus?: string | null;
 };
+
+function isAutomaticProvisionTransport(post: EvidencePost) {
+  if (!post.blob) return false;
+  const entries = parsePostBlob(post.blob);
+  return (
+    entries.some((entry) => entry.type === 'tlon-agent-provision') &&
+    entries.some(
+      (entry) =>
+        entry.type === 'tlon-a2ui-selection' &&
+        entry.componentId === 'auto-provision'
+    )
+  );
+}
 
 function follows(candidate: EvidencePost, reference: EvidencePost) {
   if (
@@ -166,6 +180,7 @@ export function isCurrentOwnerInterview(input: {
       candidate.authorId === input.ownerId &&
       candidate.id !== interviewPost.id &&
       !candidate.isDeleted &&
+      !isAutomaticProvisionTransport(candidate) &&
       follows(candidate, interviewPost)
   );
 }
