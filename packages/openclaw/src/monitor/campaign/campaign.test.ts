@@ -704,6 +704,15 @@ it('records non-personal activity for an owner DM outside the campaign route', a
     expect.objectContaining({ action: 'deferred', reason: 'recent-message' })
   );
 });
+it('accepts an explicit owner opt-out outside the campaign route', async () => {
+  const h = harness(state(), {
+    destination: async () => 'chat/~zod/setup',
+  });
+  expect(await h.campaign.inboundInConversation('/stop-tips', '~ten')).toBe(
+    true
+  );
+  expect(h.read().status).toBe('opted-out');
+});
 
 it('applies closing copy after successful task feedback', () => {
   const current = state({

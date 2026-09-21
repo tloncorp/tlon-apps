@@ -373,7 +373,7 @@ export function createCampaign(deps: CampaignDeps) {
       if (!state) return false;
       return await inbound(
         text,
-        destination === (await currentDestination(state))
+        isStopTips(text) || destination === (await currentDestination(state))
       );
     } catch (error) {
       deps.error(error);
