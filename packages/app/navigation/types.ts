@@ -211,7 +211,11 @@ export type ProfileDrawerParamList = Pick<TopLevelTabParamList, 'Contacts'> &
 
 export type ActivityDrawerParamList = Pick<
   RootStackParamList,
-  'GroupSettings' | 'UserProfile' | 'EditProfile'
+  | 'GroupSettings'
+  | 'UserProfile'
+  | 'ScheduledTasks'
+  | 'ScheduledTaskEditor'
+  | 'EditProfile'
 > & {
   // Drawer-only placeholder shown before an activity item is selected.
   ActivityEmpty: undefined;

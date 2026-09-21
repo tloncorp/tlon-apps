@@ -46,4 +46,20 @@ describe('formatAutomationSchedule', () => {
       })
     ).toBe('Daily at 2:00 AM (Europe/London)');
   });
+
+  it('formats one-time ISO timestamps', () => {
+    expect(
+      formatAutomationSchedule({
+        schedule: { kind: 'at', at: '2026-09-22T12:30:00.000Z' },
+      })
+    ).toContain('Once ·');
+  });
+
+  it('describes event-driven schedules without calling them repeating', () => {
+    expect(
+      formatAutomationSchedule({
+        schedule: { kind: 'on-exit', command: 'build-app' },
+      })
+    ).toBe('When a command exits');
+  });
 });

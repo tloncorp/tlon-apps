@@ -7,12 +7,17 @@ export type StewardAutomationSchedule =
     }
   | {
       kind: 'at';
-      at?: number;
+      at?: string;
     }
   | {
       kind: 'every';
       everyMs?: number;
       anchorMs?: number;
+    }
+  | {
+      kind: 'on-exit';
+      command?: string;
+      cwd?: string;
     };
 
 export interface StewardAutomationTask {

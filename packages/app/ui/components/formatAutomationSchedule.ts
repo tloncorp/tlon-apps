@@ -175,7 +175,7 @@ export function formatCronSchedule(expression?: string, timezone?: string) {
 
 function formatEverySchedule(schedule: StewardAutomationSchedule) {
   if (schedule.kind !== 'every' || !schedule.everyMs) {
-    return 'Repeating schedule';
+    return 'Custom schedule';
   }
   const hours = schedule.everyMs / (60 * 60 * 1000);
   if (Number.isInteger(hours) && hours >= 1) {
@@ -196,5 +196,11 @@ export function formatAutomationSchedule(task: StewardAutomationTask) {
       ? `Once · ${new Date(schedule.at).toLocaleString()}`
       : 'One-time schedule';
   }
-  return formatEverySchedule(schedule);
+  if (schedule.kind === 'every') {
+    return formatEverySchedule(schedule);
+  }
+  if (schedule.kind === 'on-exit') {
+    return 'When a command exits';
+  }
+  return 'Custom schedule';
 }
