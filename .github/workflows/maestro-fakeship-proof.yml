@@ -38,7 +38,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .proof-snapshot
-          key: rube-prepared-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('desk/**', '!desk/commit.txt', 'peru.yaml', 'apps/tlon-web/e2e/shipManifest.json') }}
+          key: rube-prepared-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('desk/**', '!desk/commit.txt', 'peru.yaml', 'scripts/assemble-desk.sh', 'scripts/sync-deps.sh', 'apps/tlon-web/rube/**', 'apps/tlon-web/e2e/shipManifest.json') }}
       - name: Install ship and tunnel tools
         timeout-minutes: 5
         run: |
@@ -49,6 +49,7 @@ jobs:
           echo /tmp >> "$GITHUB_PATH"
           pnpm install --frozen-lockfile --ignore-scripts
           pnpm --filter tlon-web rube:compile
+          pnpm --filter @tloncorp/tlon-bot-e2e exec tsx --test "$GITHUB_WORKSPACE/.maestro/cloud-fakeship/observe-absence.test.ts"
       - name: Start matching ships and restricted tunnel
         id: ships
         env:

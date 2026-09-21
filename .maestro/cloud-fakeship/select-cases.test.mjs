@@ -50,3 +50,13 @@ test('Activity filters and pagination keep independent feed fixtures', () => {
   assert.deepEqual(selectCases('activity-filters'), ['activity-filters']);
   assert.deepEqual(selectCases('activity-pagination'), ['activity-pagination']);
 });
+
+for (const selection of [
+  'exchange,exchange',
+  'group-mark-read,group-mark-read',
+  'direct-messages,direct-messages',
+]) {
+  test(`rejects duplicate selection ${selection}`, () => {
+    assert.throws(() => selectCases(selection), /Duplicate proof case/);
+  });
+}

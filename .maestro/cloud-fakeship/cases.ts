@@ -11,6 +11,7 @@ const {
   updateCurrentUserProfile,
 } = actorApi;
 import type { TlonActorClient } from '../../packages/tlon-bot-e2e/src/tlon/actor';
+import { observeNoTrue } from './observe-absence';
 
 // Each flow owns a group. Only DM cases write DMs; profile changes keep the
 // peer's name stable. Cloud devices can therefore exercise the same ships safely.
@@ -715,16 +716,21 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
         async () => (await baseLevel()) === 'medium',
         30 * 60_000
       );
-      const hush = {
-        ordinary: await eventNotified(hushMarkers.ordinary),
-        mention: await eventNotified(hushMarkers.mention),
-        reply: await eventNotified(hushMarkers.reply),
-      };
+      const hush = await observeNoTrue({
+        markers: {
+          ordinary: hushMarkers.ordinary,
+          mention: hushMarkers.mention,
+          reply: hushMarkers.reply,
+        },
+        read: eventNotified,
+        observationMs: 15_000,
+      });
       record('global-notification-hush', {
         level: 'hush',
         ordinaryNotified: hush.ordinary ?? null,
         mentionNotified: hush.mention ?? null,
         replyNotified: hush.reply ?? null,
+        absenceObservedMs: 15_000,
         deliveredMarker: hushMarkers.delivered,
       });
       if (Object.values(hush).some((value) => value === true)) {

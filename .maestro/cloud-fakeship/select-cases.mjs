@@ -39,6 +39,8 @@ export function selectCases(selection) {
     requested.some((name) => ![...names, ...optionalNames].includes(name))
   )
     throw Error('Unknown proof case');
+  if (new Set(requested).size !== requested.length)
+    throw Error('Duplicate proof case');
   const readCaseOrder = [
     'group-swipe-read',
     'group-mark-read',
