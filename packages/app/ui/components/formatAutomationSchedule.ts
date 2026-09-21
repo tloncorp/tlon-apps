@@ -199,8 +199,5 @@ export function formatAutomationSchedule(task: StewardAutomationTask) {
   if (schedule.kind === 'every') {
     return formatEverySchedule(schedule);
   }
-  if (schedule.kind === 'on-exit') {
-    return 'When a command exits';
-  }
   return 'Custom schedule';
 }
