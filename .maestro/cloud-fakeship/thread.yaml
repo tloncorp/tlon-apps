@@ -17,6 +17,7 @@ appId: ${MAESTRO_APP_ID}
       MESSAGE: ${MAESTRO_RUN_TAG + ' thread from mobile'}
       MESSAGE_PATTERN: ${MAESTRO_RUN_TAG + ' thread from mobile ?'}
       EMPTY_INPUT: '^Reply$'
+      SKIP_VISIBLE_DUPLICATE_CHECK: 'true'
 - hideKeyboard
 - extendedWaitUntil:
     visible: ${MAESTRO_RUN_TAG + ' thread from ten'}

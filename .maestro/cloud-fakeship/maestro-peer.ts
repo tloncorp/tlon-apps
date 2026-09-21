@@ -177,10 +177,12 @@ async function main() {
   };
   await until(
     'native thread reply reaches ten',
-    async () =>
-      (await ten.state.postWithReplies(thread)).replies.some(
+    async () => {
+      const replies = (await ten.state.postWithReplies(thread)).replies.filter(
         (p) => p.author === '~zod' && p.text === `${tag} thread from mobile`
-      ),
+      );
+      return replies.length === 1;
+    },
     180_000
   );
   await ten.replyToPost({
@@ -192,9 +194,9 @@ async function main() {
   await until('both replies reach zod', async () => {
     const { replies } = await zod.state.postWithReplies(thread);
     return (
-      replies.some(
+      replies.filter(
         (p) => p.author === '~zod' && p.text === `${tag} thread from mobile`
-      ) &&
+      ).length === 1 &&
       replies.some(
         (p) => p.author === '~ten' && p.text === `${tag} thread from ten`
       )
