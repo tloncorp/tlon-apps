@@ -3,6 +3,7 @@ import { appendToPostBlob } from '@tloncorp/shared/logic';
 import { describe, expect, it } from 'vitest';
 
 import {
+  getAgentOnboardingFirstEntryPendingAt,
   hasAgentOnboardingFirstEntry,
   hasAgentOnboardingFirstEntryFailed,
   isAgentOnboardingFirstEntryNote,
@@ -13,6 +14,7 @@ function markerPost(key: string, authorId = '~bot'): db.Post {
   return {
     id: key,
     authorId,
+    receivedAt: 100,
     blob: appendToPostBlob(undefined, {
       type: 'tlon-agent-post-marker',
       version: 1,
@@ -64,17 +66,41 @@ describe('hasAgentOnboardingFirstEntry', () => {
     ).toBe(false);
   });
 
+  it('uses the bot pending marker as the start of the first-entry wait', () => {
+    expect(
+      getAgentOnboardingFirstEntryPendingAt(
+        [
+          markerPost('first-entry-pending', '~other'),
+          {
+            ...markerPost('first-entry-pending'),
+            receivedAt: 200,
+          },
+        ],
+        '~bot'
+      )
+    ).toBe(200);
+    expect(
+      getAgentOnboardingFirstEntryPendingAt(
+        [markerPost('first-entry-ping')],
+        '~bot'
+      )
+    ).toBeUndefined();
+  });
+
   it('matches only the note cited by the first-entry reveal', () => {
     const reveal = {
       ...markerPost('first-entry-ping'),
-      content: [
+      // This is the representation stored in the posts table. The renderer
+      // deserializes it before displaying the reference card, and telemetry
+      // must do the same before trying to match the opened note.
+      content: JSON.stringify([
         {
           type: 'reference',
           referenceType: 'note',
           channelId: 'notes/~ten/updates',
           noteId: '7',
         },
-      ],
+      ]),
     } as db.Post;
 
     expect(
@@ -89,5 +115,33 @@ describe('hasAgentOnboardingFirstEntry', () => {
     expect(
       matchAgentOnboardingFirstEntryNote([], '~bot', '~ten/updates', 8)
     ).toBe('absent');
+  });
+
+  it('continues past malformed reveal content', () => {
+    const malformedReveal = {
+      ...markerPost('first-entry-ping'),
+      content: '{',
+    } as db.Post;
+    const validReveal = {
+      ...markerPost('first-entry-ping'),
+      id: 'valid-reveal',
+      content: JSON.stringify([
+        {
+          type: 'reference',
+          referenceType: 'note',
+          channelId: 'notes/~ten/updates',
+          noteId: '7',
+        },
+      ]),
+    } as db.Post;
+
+    expect(
+      matchAgentOnboardingFirstEntryNote(
+        [malformedReveal, validReveal],
+        '~bot',
+        '~ten/updates',
+        7
+      )
+    ).toBe('match');
   });
 });

@@ -282,4 +282,91 @@ describe('agent group furnishing retry', () => {
     ).rejects.toBe(finalError);
     expect(operation).toHaveBeenCalledTimes(3);
   });
+
+  it('reveals after membership and an accepted admin grant without waiting for read-back', async () => {
+    let finishVerification!: (group: unknown) => void;
+    const verification = new Promise((resolve) => {
+      finishVerification = resolve;
+    });
+    const joinedGroup = {
+      id: '~zod/group',
+      members: [{ contactId: '~bot', status: 'joined', roles: [] }],
+    } as never;
+    const adminGroup = {
+      id: '~zod/group',
+      members: [{ contactId: '~bot', status: 'joined', roles: ['admin'] }],
+    } as never;
+    const getGroup = vi
+      .fn()
+      .mockResolvedValueOnce(joinedGroup)
+      .mockReturnValueOnce(verification);
+    const addMembersToRole = vi.fn().mockResolvedValue(undefined);
+    const onReadyToReveal = vi.fn();
+
+    const reconciliation = agentGroupOnboardingTesting.reconcileAgentStanding({
+      groupId: '~zod/group',
+      agentShipId: '~bot',
+      hostedShipId: 'zod',
+      onReadyToReveal,
+      deps: { getGroup, addMembersToRole },
+    });
+
+    await vi.waitFor(() => expect(onReadyToReveal).toHaveBeenCalledOnce());
+    expect(addMembersToRole).toHaveBeenCalledWith({
+      groupId: '~zod/group',
+      roleId: 'admin',
+      ships: ['~bot'],
+    });
+
+    let verificationFinished = false;
+    void reconciliation.then(() => {
+      verificationFinished = true;
+    });
+    await Promise.resolve();
+    expect(verificationFinished).toBe(false);
+
+    finishVerification(adminGroup);
+    await expect(reconciliation).resolves.toBeUndefined();
+  });
+
+  it('does not reveal before the bot joins and the admin grant is accepted', async () => {
+    const absentGroup = {
+      id: '~zod/group',
+      members: [],
+    } as never;
+    const joinedGroup = {
+      id: '~zod/group',
+      members: [{ contactId: '~bot', status: 'joined', roles: [] }],
+    } as never;
+    const adminGroup = {
+      id: '~zod/group',
+      members: [{ contactId: '~bot', status: 'joined', roles: ['admin'] }],
+    } as never;
+    const getGroup = vi
+      .fn()
+      .mockResolvedValueOnce(absentGroup)
+      .mockResolvedValueOnce(joinedGroup)
+      .mockResolvedValueOnce(adminGroup);
+    const addCordonThenJoin = vi.fn().mockResolvedValue(undefined);
+    const addMembersToRole = vi.fn().mockResolvedValue(undefined);
+    const onReadyToReveal = vi.fn();
+
+    await expect(
+      agentGroupOnboardingTesting.reconcileAgentStanding({
+        groupId: '~zod/group',
+        agentShipId: '~bot',
+        hostedShipId: 'zod',
+        onReadyToReveal,
+        deps: { getGroup, addCordonThenJoin, addMembersToRole },
+      })
+    ).resolves.toBeUndefined();
+
+    expect(addCordonThenJoin.mock.invocationCallOrder[0]).toBeLessThan(
+      addMembersToRole.mock.invocationCallOrder[0]!
+    );
+    expect(addMembersToRole.mock.invocationCallOrder[0]).toBeLessThan(
+      onReadyToReveal.mock.invocationCallOrder[0]!
+    );
+    expect(onReadyToReveal).toHaveBeenCalledOnce();
+  });
 });

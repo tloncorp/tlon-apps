@@ -17,7 +17,12 @@ const MAX_GENERATED_GROUP_TITLE_LENGTH = 48;
 const PENDING_GROUP_ADOPTION_ATTEMPTS = 8;
 const PENDING_GROUP_ADOPTION_DELAY_MS = 500;
 const notesChannelFlights = new Map<string, Promise<db.Channel>>();
-const agentStandingFlights = new Map<string, Promise<void>>();
+type AgentStandingFlight = {
+  readyToReveal: Promise<void>;
+  complete: Promise<void>;
+};
+
+const agentStandingFlights = new Map<string, AgentStandingFlight>();
 const agentGroupFurnishingFlights = new Map<
   string,
   Promise<AgentGroupFurnishingStart>
@@ -26,8 +31,9 @@ const agentGroupFurnishingFlights = new Map<
 export type AgentGroupFurnishing = {
   group: db.Group;
   chatChannelId: string;
-  notebookNest: string;
   agentShipId: string;
+  /** Membership is visible and the admin grant request has been accepted. */
+  readyToReveal: Promise<void>;
   /** Seating and admin verification deliberately overlap the intro wait. */
   tail: Promise<void>;
 };
@@ -36,7 +42,7 @@ export type AgentGroupFurnishingStart = {
   group: db.Group;
   chatChannel: db.Channel;
   agentShipId: string;
-  /** Notebook setup and the durable intro request continue after chat opens. */
+  /** First-run setup, or the later group's greeting, continues after chat opens. */
   complete: Promise<AgentGroupFurnishing>;
 };
 
@@ -53,9 +59,8 @@ type FurnishParams = {
 };
 
 /**
- * Establish the owner-authenticated half of agent onboarding. The group,
- * chat, and exactly-one notes channel are blocking; seating/admin repair is
- * returned as a concurrent tail.
+ * Establish an agent group. First-run onboarding also gets exactly one notes
+ * channel; later groups open directly into ordinary chat.
  */
 export async function ensureAgentGroupFurnished(
   params: FurnishParams = {}
@@ -65,8 +70,8 @@ export async function ensureAgentGroupFurnished(
 }
 
 /**
- * Establish enough of an agent group to open its chat, then finish the
- * notebook and intro request without keeping later group creation blocked.
+ * Establish enough of an agent group to open its chat, then finish its
+ * first-run setup or later-group greeting without blocking navigation.
  */
 export async function startAgentGroupFurnishing(
   params: FurnishParams = {}
@@ -130,21 +135,24 @@ async function startAgentGroupFurnishingOnce(
         title: params.title ?? DEFAULT_AGENT_GROUP_TITLE,
       });
   const chatChannel = await ensureChatChannel(group);
-  const initialGroupTitle = group.title ?? null;
-  const currentUserContact = await db.getContact({
-    id: api.getCurrentUserId(),
-  });
-  const canRenameGroup = params.groupId
-    ? group.id.endsWith(`/${BotHomeGroupSlugs.slug}`) &&
-      logic.botHomeGroupHasDefaultTitle(group, currentUserContact?.peerNickname)
-    : params.title == null || params.title === DEFAULT_AGENT_GROUP_TITLE;
+  await db.agentGroupAgents.setValue((current) => ({
+    ...current,
+    [group.id]: resolved.agentShipId!,
+  }));
+  if (params.isFirstGroup) {
+    const initialGroupTitle = group.title ?? null;
+    const currentUserContact = await db.getContact({
+      id: api.getCurrentUserId(),
+    });
+    const canRenameGroup = params.groupId
+      ? group.id.endsWith(`/${BotHomeGroupSlugs.slug}`) &&
+        logic.botHomeGroupHasDefaultTitle(
+          group,
+          currentUserContact?.peerNickname
+        )
+      : params.title == null || params.title === DEFAULT_AGENT_GROUP_TITLE;
 
-  await Promise.all([
-    db.agentGroupAgents.setValue((current) => ({
-      ...current,
-      [group.id]: resolved.agentShipId!,
-    })),
-    db.agentGroupOnboardingLocks.setValue((current) => ({
+    await db.agentGroupOnboardingLocks.setValue((current) => ({
       ...current,
       [group.id]: {
         ...current[group.id],
@@ -152,15 +160,13 @@ async function startAgentGroupFurnishingOnce(
         createdAt: current[group.id]?.createdAt ?? Date.now(),
         navigationLockExpiresAt:
           current[group.id]?.navigationLockExpiresAt ??
-          (params.isFirstGroup
-            ? Date.now() + db.AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS
-            : undefined),
+          Date.now() + db.AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS,
         initialGroupTitle:
           current[group.id]?.initialGroupTitle ?? initialGroupTitle,
         canRenameGroup: current[group.id]?.canRenameGroup ?? canRenameGroup,
       },
-    })),
-  ]);
+    }));
+  }
   const complete = finishAgentGroupFurnishing({
     group,
     chatChannel,
@@ -308,11 +314,15 @@ async function finishAgentGroupFurnishingOnce({
   hostedShipId: string | null;
   isFirstGroup: boolean;
 }): Promise<AgentGroupFurnishing> {
-  const notebook = await ensureSingleNotesChannel(initialGroup.id);
-  const group = (await db.getGroup({ id: initialGroup.id })) ?? {
-    ...initialGroup,
-    channels: [...(initialGroup.channels ?? []), notebook],
-  };
+  const notebook = isFirstGroup
+    ? await ensureSingleNotesChannel(initialGroup.id)
+    : null;
+  const group = notebook
+    ? ((await db.getGroup({ id: initialGroup.id })) ?? {
+        ...initialGroup,
+        channels: [...(initialGroup.channels ?? []), notebook],
+      })
+    : initialGroup;
 
   await ensureIntroRequest(group.id, chatChannel.id, isFirstGroup);
   await db.pendingAgentGroupCreation.setValue((current) =>
@@ -324,14 +334,15 @@ async function finishAgentGroupFurnishingOnce({
   logger.trackEvent('Agent Group Furnish Core Completed', {
     groupId: group.id,
     chatChannelId: chatChannel.id,
-    notebookNest: notebook.id,
+    notebookNest: notebook?.id ?? null,
   });
 
-  const tail = reconcileAgentStandingUntilReady({
+  const standing = reconcileAgentStandingUntilReady({
     groupId: group.id,
     agentShipId,
     hostedShipId,
-  }).catch((error) => {
+  });
+  const tail = standing.complete.catch((error) => {
     logger.trackError('Agent Group Furnish Tail Failed', {
       error,
       groupId: group.id,
@@ -342,8 +353,8 @@ async function finishAgentGroupFurnishingOnce({
   return {
     group,
     chatChannelId: chatChannel.id,
-    notebookNest: notebook.id,
     agentShipId,
+    readyToReveal: standing.readyToReveal,
     tail,
   };
 }
@@ -707,33 +718,49 @@ async function reconcileAgentStanding({
   groupId,
   agentShipId,
   hostedShipId,
+  onReadyToReveal,
+  deps = {},
 }: {
   groupId: string;
   agentShipId: string;
   hostedShipId: string | null;
+  onReadyToReveal: () => void;
+  deps?: {
+    getGroup?: typeof api.getGroup;
+    addMembersToRole?: typeof api.addMembersToRole;
+    addCordonThenJoin?: typeof addCordonThenJoin;
+  };
 }) {
+  const getGroup = deps.getGroup ?? api.getGroup;
+  const addMembersToRole = deps.addMembersToRole ?? api.addMembersToRole;
+  const cordonThenJoin = deps.addCordonThenJoin ?? addCordonThenJoin;
   let lastError: unknown;
   for (const delay of [0, 1_000, 2_000, 5_000, 10_000]) {
     if (delay) await wait(delay);
     try {
-      let group = await api.getGroup(groupId);
+      let group = await getGroup(groupId);
       if (agentHasAdmin(group, agentShipId)) {
+        onReadyToReveal();
         logger.trackEvent('Agent Group Furnish Tail Verified', { groupId });
         return;
       }
       if (hostedShipId && !agentHasJoined(group, agentShipId)) {
         const moon = desig(agentShipId);
-        await addCordonThenJoin(hostedShipId, groupId, moon);
-        group = await api.getGroup(groupId);
+        await cordonThenJoin(hostedShipId, groupId, moon);
+        group = await getGroup(groupId);
       }
       if (agentHasJoined(group, agentShipId)) {
-        await api.addMembersToRole({
+        await addMembersToRole({
           groupId,
           roleId: 'admin',
           ships: [agentShipId],
         });
+        // The bot can consume the intro request as soon as it is joined. Keep
+        // verifying the admin grant in the background, but do not hide the
+        // already-mounted conversation while that read-back propagates.
+        onReadyToReveal();
       }
-      group = await api.getGroup(groupId);
+      group = await getGroup(groupId);
       if (agentHasAdmin(group, agentShipId)) {
         logger.trackEvent('Agent Group Furnish Tail Verified', { groupId });
         return;
@@ -754,10 +781,40 @@ function reconcileAgentStandingUntilReady(params: {
 }) {
   const existing = agentStandingFlights.get(params.groupId);
   if (existing) return existing;
-  const flight = retryAgentStanding(
-    () => reconcileAgentStanding(params),
+  let resolveReadyToReveal!: () => void;
+  let rejectReadyToReveal!: (error: unknown) => void;
+  let revealSettled = false;
+  const readyToReveal = new Promise<void>((resolve, reject) => {
+    resolveReadyToReveal = () => {
+      if (revealSettled) return;
+      revealSettled = true;
+      resolve();
+    };
+    rejectReadyToReveal = (error) => {
+      if (revealSettled) return;
+      revealSettled = true;
+      reject(error);
+    };
+  });
+  // Some furnishing callers only need the completion tail. Keep a rejected
+  // reveal milestone from becoming an unhandled promise in those paths.
+  void readyToReveal.catch(() => undefined);
+
+  const complete = retryAgentStanding(
+    () =>
+      reconcileAgentStanding({
+        ...params,
+        onReadyToReveal: resolveReadyToReveal,
+      }),
     params.groupId
-  ).finally(() => agentStandingFlights.delete(params.groupId));
+  )
+    .then(() => resolveReadyToReveal())
+    .catch((error) => {
+      rejectReadyToReveal(error);
+      throw error;
+    })
+    .finally(() => agentStandingFlights.delete(params.groupId));
+  const flight = { readyToReveal, complete };
   agentStandingFlights.set(params.groupId, flight);
   return flight;
 }
@@ -843,6 +900,7 @@ export const agentGroupOnboardingTesting = {
   isAgentGroupTitleRenameEligible,
   chooseCreatedNotebookResolution,
   retryAgentStanding,
+  reconcileAgentStanding,
   startAgentGroupFurnishingFlight,
   waitForPendingGroupWithChat,
 };

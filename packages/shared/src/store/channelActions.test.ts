@@ -577,3 +577,27 @@ test('markChannelRead decrements group count and notify count for notifying mess
     updatedAt: 100,
   });
 });
+
+test('createChannel refuses a channel type that is no longer creatable', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  await insertGroup();
+
+  await expect(
+    createChannel({
+      groupId,
+      title: 'Legacy bulletin',
+      channelType: 'notebook',
+    })
+  ).rejects.toThrow('Cannot create a channel of type notebook');
+
+  // The guard runs ahead of the optimistic insert, so there is nothing to roll
+  // back and nothing reaches the backend.
+  expect(vi.mocked(poke)).not.toHaveBeenCalled();
+  await expect(
+    client.query.channels.findMany({
+      where: $.eq(schema.channels.groupId, groupId),
+    })
+  ).resolves.toEqual([]);
+});

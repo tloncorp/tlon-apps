@@ -135,7 +135,7 @@ function toPostReference(said: ub.Said) {
   } else if ('post' in said.reference) {
     return toPostData(channelId, said.reference.post);
   } else {
-    throw new Error('invalid response' + JSON.stringify(said, null, 2));
+    throw new Error('invalid reference response for ' + said.nest);
   }
 }
 
@@ -611,9 +611,11 @@ export type GetLatestPostsResponse = PostWithUpdateTime[];
 export const getLatestPosts = async ({
   afterCursor,
   count,
+  throwOnError = false,
 }: {
   afterCursor?: Cursor;
   count?: number;
+  throwOnError?: boolean;
 }): Promise<GetLatestPostsResponse> => {
   try {
     const { channels, dms } = await scry<ub.CombinedHeads>({
@@ -636,9 +638,9 @@ export const getLatestPosts = async ({
     });
   } catch (e) {
     logger.trackError('failed to sync heads', {
-      errorMessage: e.message,
-      errorStack: e.stack,
+      error: e,
     });
+    if (throwOnError) throw e;
     return [];
   }
 };

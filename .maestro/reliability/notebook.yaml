@@ -1,0 +1,131 @@
+appId: ${MAESTRO_APP_ID}
+name: Native Notebook publish, edit and persist
+tags: [regression, notebook]
+env:
+  JOURNEY: n
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/create-group.yaml
+- tapOn: '^Notebook$'
+- tapOn:
+    text: '^New$'
+    retryTapIfNoChange: true
+- extendedWaitUntil:
+    visible: '^New note$'
+    timeout: 15000
+- tapOn:
+    point: '50%,60%'
+- extendedWaitUntil:
+    visible:
+      id: NotesTitleInput
+    timeout: 15000
+- tapOn:
+    id: NotesBodyInput
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          id: NotesTitleInput
+      - eraseText: 100
+      - runFlow:
+          file: subflows/input.yaml
+          env:
+            INPUT_TEXT: ${output.reliability.title}
+- tapOn:
+    id: NotesBodyInput
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.body}
+- hideKeyboard
+- extendedWaitUntil:
+    visible: '^Synced$'
+    timeout: 30000
+- tapOn: '^Preview$'
+- assertVisible: '^Edit$'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible: ${output.reliability.title}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible: '^Untitled$'
+- assertVisible: ${output.reliability.body}
+- tapOn: '^Edit$'
+- runFlow: subflows/focus-notebook-body.yaml
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          id: NotesTitleInput
+      - eraseText: 100
+      - runFlow:
+          file: subflows/input.yaml
+          env:
+            INPUT_TEXT: ${MAESTRO_RUN_TAG + ' edited note'}
+- runFlow: subflows/focus-notebook-body.yaml
+- eraseText: 100
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${MAESTRO_RUN_TAG + ' edited body'}
+- hideKeyboard
+- extendedWaitUntil:
+    visible: '^Synced$'
+    timeout: 30000
+- tapOn: '^Preview$'
+- assertVisible: '^Edit$'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible: ${MAESTRO_RUN_TAG + ' edited note'}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible: '^Untitled$'
+- assertVisible: ${MAESTRO_RUN_TAG + ' edited body'}
+- tapOn: '^Back$'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible: ${MAESTRO_RUN_TAG + ' edited note'}
+      - tapOn: ${MAESTRO_RUN_TAG + ' edited note'}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible: '^Untitled$'
+      - tapOn: '^Untitled$'
+- assertVisible: ${MAESTRO_RUN_TAG + ' edited body'}
+- stopApp
+- launchApp
+- assertVisible: '^Home$'
+- tapOn: ${output.reliability.groupPattern}
+- tapOn: '^Notebook$'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn: ${MAESTRO_RUN_TAG + ' edited note'}
+      - assertVisible: ${MAESTRO_RUN_TAG + ' edited note'}
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn: '^Untitled$'
+      - assertVisible: '^Untitled$'
+- assertVisible: ${MAESTRO_RUN_TAG + ' edited body'}
+- tapOn: '^Back$'
+- tapOn: '^Back$'
+- assertVisible: ${output.reliability.groupPattern}
+- tapOn: '^Back$'
+- assertVisible: '^Home$'

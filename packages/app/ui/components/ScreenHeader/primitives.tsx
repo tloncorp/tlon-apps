@@ -66,6 +66,8 @@ export const HeaderBackButton = ({
 }) => {
   return (
     <HeaderIconButton
+      accessible
+      accessibilityLabel="Back"
       accessibilityRole="button"
       accessibilityState={{ disabled }}
       color={disabled ? '$tertiaryText' : '$primaryText'}
@@ -183,6 +185,7 @@ function HeaderItemMenu({ action }: { action: ScreenHeaderMenuAction }) {
               key={item.id}
               action={{
                 title: item.label,
+                accent: item.destructive ? 'negative' : undefined,
                 action: () => {
                   setOpen(false);
                   item.onPress();

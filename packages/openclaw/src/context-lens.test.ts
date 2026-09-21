@@ -617,6 +617,56 @@ describe('context lens registry', () => {
     expect(recordContextLensToolStartForSession(sessionKey, 'cron')).toBeNull();
   });
 
+  it('attributes onboarding cron runs to their setup channel', () => {
+    const sessionKey = 'session-background-onboarding-cron';
+    const background = ensureBackgroundContextLensForSession(sessionKey, {
+      chatType: 'channel',
+      conversationId: 'chat/~ten/group/general',
+      runKind: 'cron',
+      trigger: 'cron',
+    });
+
+    try {
+      expect(background?.lens).toMatchObject({
+        chatType: 'channel',
+        runKind: 'cron',
+        triggerDetails: {
+          conversationId: 'chat/~ten/group/general',
+          conversationKind: 'channel',
+        },
+      });
+    } finally {
+      finalizeBackgroundContextLensForSession(sessionKey);
+    }
+  });
+
+  it('upgrades a cron lens when channel attribution arrives after creation', () => {
+    const sessionKey = 'session-background-late-onboarding-channel';
+    ensureBackgroundContextLensForSession(sessionKey, {
+      runKind: 'cron',
+      trigger: 'cron',
+    });
+    const attributed = ensureBackgroundContextLensForSession(sessionKey, {
+      chatType: 'channel',
+      conversationId: 'chat/~ten/group/general',
+      runKind: 'cron',
+      trigger: 'cron',
+    });
+
+    try {
+      expect(attributed?.created).toBe(false);
+      expect(attributed?.lens).toMatchObject({
+        chatType: 'channel',
+        triggerDetails: {
+          conversationId: 'chat/~ten/group/general',
+          conversationKind: 'channel',
+        },
+      });
+    } finally {
+      finalizeBackgroundContextLensForSession(sessionKey);
+    }
+  });
+
   it('groups background tool calls until the session is idle', async () => {
     const sessionKey = 'session-background-debounce';
     const finalized: Array<{

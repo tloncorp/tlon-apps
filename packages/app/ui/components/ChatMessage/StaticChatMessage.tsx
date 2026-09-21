@@ -22,7 +22,6 @@ import { useCurrentUserId } from '../../../hooks/useCurrentUser';
 import { getPostImageViewerId } from '../../../utils/mediaViewer';
 import type { A2UIActionCompletion } from '../../contexts/componentsKits';
 import AuthorRow from '../AuthorRow';
-import { ContextLensBadge } from '../Channel/ContextLens/ContextLensBadge';
 import { A2UIBlock } from '../PostContent/A2UIBlock';
 import { DefaultRendererProps } from '../PostContent/BlockRenderer';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
@@ -94,7 +93,6 @@ export function StaticChatMessage({
   hideSentAtTimestamp,
   isHighlighted,
   onLongPress,
-  onPressBotRun,
   onPressImage,
   onPressReplies,
   onPressRetry,
@@ -112,7 +110,6 @@ export function StaticChatMessage({
   hideSentAtTimestamp?: boolean;
   isHighlighted?: boolean;
   onLongPress?: (post: db.Post) => void;
-  onPressBotRun?: (post: db.Post) => void;
   onPressDelete?: (post: db.Post) => void;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   onPressReplies?: (post: db.Post) => void;
@@ -122,7 +119,7 @@ export function StaticChatMessage({
   setViewReactionsPost?: (post: db.Post) => void;
   showAuthor?: boolean;
   showReplies?: boolean;
-  feedbackRow?: ReactNode;
+  feedbackRow?: (opts: { inline: boolean }) => ReactNode;
 }) {
   const isNotice = post.type === 'notice';
   const draftInputContext = useDraftInputContext();
@@ -572,6 +569,18 @@ export function StaticChatMessage({
 
   const shouldRenderReplySummary =
     shouldRenderReplies || (!showAuthor && post.isEdited);
+  const hasReactions = Boolean(post.reactions && post.reactions.length > 0);
+  const hasLowerAuxiliaryRow = Boolean(
+    shouldRenderReplySummary || deliveryFailed
+  );
+
+  // On web the feedback controls share a row with reactions or the reply
+  // summary when one exists, right-aligned in the remaining space.
+  const inlineFeedbackRow = feedbackRow ? (
+    <XStack flex={1} justifyContent="flex-end" paddingRight="$l">
+      {feedbackRow({ inline: true })}
+    </XStack>
+  ) : null;
 
   return (
     <YStack key={post.id}>
@@ -665,23 +674,23 @@ export function StaticChatMessage({
             searchQuery={searchQuery}
           />
         )}
+        {isWeb && !hasReactions && !hasLowerAuxiliaryRow && feedbackRow && (
+          <View marginBottom="$xs">{feedbackRow({ inline: false })}</View>
+        )}
       </View>
 
-      <ContextLensBadge post={post} onPress={onPressBotRun} />
-
-      {post.reactions && post.reactions.length > 0 && (
-        <View paddingBottom="$l" paddingLeft="$4xl">
+      {hasReactions && (
+        <XStack alignItems="center" paddingBottom="$l" paddingLeft="$4xl">
           <ReactionsDisplay
             post={post}
             onViewPostReactions={setViewReactionsPost}
           />
-        </View>
+          {isWeb && !hasLowerAuxiliaryRow && inlineFeedbackRow}
+        </XStack>
       )}
 
-      {feedbackRow}
-
-      {shouldRenderReplySummary || deliveryFailed ? (
-        <XStack paddingLeft={'$4xl'} paddingRight="$l" paddingBottom="$l">
+      {hasLowerAuxiliaryRow ? (
+        <XStack alignItems="center" paddingLeft="$4xl" paddingBottom="$l">
           <ChatMessageReplySummary
             post={post}
             onPress={shouldRenderReplies ? handleRepliesPressed : undefined}
@@ -689,8 +698,15 @@ export function StaticChatMessage({
             deliveryFailed={deliveryFailed}
             onPressRetry={handleRetryPressed}
           />
+          {isWeb && inlineFeedbackRow}
         </XStack>
       ) : null}
+
+      {!isWeb && feedbackRow && (
+        <View paddingLeft={!isNotice ? '$4xl' : undefined}>
+          {feedbackRow({ inline: false })}
+        </View>
+      )}
     </YStack>
   );
 }

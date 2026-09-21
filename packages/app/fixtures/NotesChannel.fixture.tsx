@@ -11,7 +11,7 @@ import {
   useRegisterChannelHeaderItem,
   useRegisterChannelHeaderLoadingSubtitle,
 } from '../ui';
-import { NotesHeaderActions } from '../ui/components/NotesChannel/NotesHeaderActions';
+import { createNotesHeaderActions } from '../ui/components/NotesChannel/NotesHeaderActions';
 import { NotesNoteDetail } from '../ui/components/NotesChannel/NotesNoteDetail';
 import { NotesTreePane } from '../ui/components/NotesChannel/NotesTreePane';
 import {
@@ -82,6 +82,12 @@ const notes = [
     1,
     'Meeting notes',
     'A second root note so the list has mixed root and nested content.'
+  ),
+  makeNote(
+    8,
+    1,
+    'A long note title that should wrap onto the next line instead of getting cut off on narrow screens',
+    'Long note title fixture body.'
   ),
 ];
 const emptyFolders = [folders[0]];
@@ -308,6 +314,7 @@ function NotebookContentsListFixture() {
             getPublishedNoteUrl={(note) =>
               `https://test.tlon.app/notes/native-notes-fixture/${note.noteId}`
             }
+            hasPublishedUpdate={(noteId) => noteId === 5}
             isDeletingFolder={false}
             isNotePublished={(noteId) => publishedNoteIds.has(noteId)}
             layout={usePhoneViewport ? 'stack' : 'takeover'}
@@ -336,13 +343,7 @@ function NotebookContentsListFixture() {
 
 function FixtureNotesHeaderActions({ canEdit }: { canEdit: boolean }) {
   const headerActions = useMemo(
-    () => (
-      <NotesHeaderActions
-        canEdit={canEdit}
-        onNew={() => {}}
-        primaryActionVariant="text"
-      />
-    ),
+    () => createNotesHeaderActions({ canEdit, onNew: () => {} }),
     [canEdit]
   );
   useRegisterChannelHeaderItem(headerActions);
@@ -374,6 +375,7 @@ function NotesTreeFixture() {
         >
           <NotesTreePane
             canEdit
+            hasPublishedUpdate={() => false}
             isNotePublished={() => false}
             isDeletingFolder={false}
             layout="takeover"
@@ -443,6 +445,7 @@ export default {
   'Contents List': <NotebookContentsListFixture />,
   'Folder Contents': <NotesTreeFixture />,
   'Editor Header': <NotesEditorFixture />,
+  'Long Title': <NotesEditorFixture noteId={8} />,
   'Table Preview': <NotesEditorFixture noteId={5} />,
   'Saving Header': <NotesEditorFixture saving />,
 };

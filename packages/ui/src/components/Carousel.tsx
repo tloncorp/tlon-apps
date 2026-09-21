@@ -42,7 +42,7 @@ const _Carousel = React.forwardRef<
       initialVisibleIndex?: number;
       disableCarouselInteraction?: boolean;
       flatListProps?: Partial<
-        React.ComponentPropsWithoutRef<typeof FlatList<React.ReactElement>>
+        React.ComponentPropsWithoutRef<typeof FlatList<React.ReactNode>>
       >;
     }
   >
@@ -59,7 +59,7 @@ const _Carousel = React.forwardRef<
   },
   forwardedRef
 ) {
-  const scrollRef = React.useRef<FlatList>(null);
+  const scrollRef = React.useRef<FlatList<React.ReactNode>>(null);
   const [visibleIndex, setVisibleIndex] = React.useState(
     initialVisibleIndex ?? 0
   );
@@ -132,7 +132,9 @@ const _Carousel = React.forwardRef<
   );
 
   const getItemLayout = React.useMemo<
-    React.ComponentPropsWithoutRef<typeof FlatList>['getItemLayout']
+    React.ComponentPropsWithoutRef<
+      typeof FlatList<React.ReactNode>
+    >['getItemLayout']
   >(
     () =>
       rect == null

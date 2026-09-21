@@ -201,8 +201,21 @@ export type HomeDrawerParamList = Pick<TopLevelTabParamList, 'ChatList'> &
 export type ProfileDrawerParamList = Pick<TopLevelTabParamList, 'Contacts'> &
   Pick<
     RootStackParamList,
-    'AddContacts' | 'UserProfile' | 'ScheduledTasks' | 'ScheduledTaskEditor'
+    | 'AddContacts'
+    | 'UserProfile'
+    | 'ScheduledTasks'
+    | 'ScheduledTaskEditor'
+    | 'EditProfile'
+    | 'Attestation'
   >;
+
+export type ActivityDrawerParamList = Pick<
+  RootStackParamList,
+  'GroupSettings' | 'UserProfile' | 'EditProfile'
+> & {
+  // Drawer-only placeholder shown before an activity item is selected.
+  ActivityEmpty: undefined;
+};
 
 export type SettingsDrawerParamList = Pick<
   RootStackParamList,
@@ -223,7 +236,19 @@ export type SettingsDrawerParamList = Pick<
   | 'PushNotificationSettings'
   | 'WompWomp'
   | 'PrivacySettings'
->;
+> & {
+  // Drawer-only placeholder shown before a settings section is selected.
+  SettingsEmpty: undefined;
+};
+
+// ChannelScreen is registered under several route names: the root stack's
+// Channel/DM/GroupDM and the desktop channel stack's ChannelRoot.
+export type ChannelScreenParamList = {
+  Channel: RootStackParamList['Channel'];
+  DM: RootStackParamList['Channel'];
+  GroupDM: RootStackParamList['Channel'];
+  ChannelRoot: RootStackParamList['Channel'];
+};
 
 export type ChannelStackParamList = {
   ChannelRoot: RootStackParamList['Channel'];
@@ -271,7 +296,7 @@ export type RoleSelectionReturn =
       returnParams: {
         groupId: string;
         channelTitle: string;
-        channelType: 'chat' | 'notebook' | 'gallery' | 'notes';
+        channelType: 'chat' | 'gallery' | 'notes';
       };
     }
   | {
@@ -352,7 +377,7 @@ export type GroupSettingsStackParamList = {
   CreateChannelPermissions: {
     groupId: string;
     channelTitle: string;
-    channelType: 'chat' | 'notebook' | 'gallery' | 'notes';
+    channelType: 'chat' | 'gallery' | 'notes';
     createdRoleId?: string;
     selectedRoleIds?: string[];
   };

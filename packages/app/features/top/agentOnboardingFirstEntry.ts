@@ -4,6 +4,9 @@ import {
   findPostBlobEntry,
 } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
+import { convertContent } from '@tloncorp/shared/logic';
+
+const AGENT_ONBOARDING_FIRST_ENTRY_PENDING_MARKER = 'first-entry-pending';
 
 function hasMarker(
   posts: db.Post[] | null | undefined,
@@ -40,6 +43,28 @@ export function hasAgentOnboardingFirstEntryFailed(
   );
 }
 
+/** The pending post is transcript proof that the bot started the first run. */
+export function getAgentOnboardingFirstEntryPendingAt(
+  posts: db.Post[] | null | undefined,
+  agentShipId: string | null | undefined
+): number | undefined {
+  if (!agentShipId) return undefined;
+
+  let latest: number | undefined;
+  for (const post of posts ?? []) {
+    if (
+      post.authorId !== agentShipId ||
+      findPostBlobEntry(post.blob, 'tlon-agent-post-marker')?.key !==
+        AGENT_ONBOARDING_FIRST_ENTRY_PENDING_MARKER
+    ) {
+      continue;
+    }
+    latest =
+      latest == null ? post.receivedAt : Math.max(latest, post.receivedAt);
+  }
+  return latest;
+}
+
 /** Match the opened note to the cite carried by the authenticated reveal. */
 export function matchAgentOnboardingFirstEntryNote(
   posts: db.Post[] | null | undefined,
@@ -57,7 +82,17 @@ export function matchAgentOnboardingFirstEntryNote(
     ) {
       continue;
     }
-    const content = Array.isArray(post.content) ? post.content : [];
+    // Posts persist their normalized story as JSON text. Renderers deserialize
+    // it through convertContent, but this telemetry path used to inspect only
+    // an already-decoded array. Consequently every real reveal looked like it
+    // had no note reference and Agent Entry First Opened never fired.
+    let content;
+    try {
+      content = convertContent(post.content, post.blob);
+    } catch {
+      // A malformed post must not prevent a later valid reveal from matching.
+      continue;
+    }
     for (const entry of content) {
       const isNoteReference =
         entry &&

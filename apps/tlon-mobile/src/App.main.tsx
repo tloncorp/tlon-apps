@@ -23,11 +23,12 @@ import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
 import {
   AgentOnboardingSequence,
+  EmailSupportLink,
   LoadingSpinner,
   SplashSequence,
   Text,
   View,
-  ZStack,
+  YStack,
   usePreloadedEmojis,
 } from '@tloncorp/app/ui';
 import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
@@ -126,7 +127,7 @@ const MainApp = () => {
     connected && !isLoading && !showSplashSequence && showAuthenticatedApp;
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
-  const handleSplashLogout = useCallback(async () => {
+  const handleSessionLogout = useCallback(async () => {
     await db.clearSessionStorageItems();
     await handleLogout();
   }, [handleLogout]);
@@ -151,60 +152,74 @@ const MainApp = () => {
       inviteSystemContacts={inviteSystemContacts}
       hostingBotEnabled={hostingBotEnabled}
       splashSequenceMode={activeSplashSequenceMode}
-      onLogout={handleSplashLogout}
+      onLogout={handleSessionLogout}
     />
   );
+  const offline = (
+    <YStack
+      height="100%"
+      padding="$l"
+      gap="$3xl"
+      justifyContent="center"
+      alignItems="center"
+    >
+      <Text textAlign="center" fontSize="$xl" color="$primaryText">
+        You are offline. Please connect to the internet and try again.
+      </Text>
+      <EmailSupportLink
+        size="$label/l"
+        prompt="Back online and still stuck? Email"
+        subject="Help! I can't connect to Tlon."
+      />
+    </YStack>
+  );
+  const splashReplacesAuthenticatedApp =
+    showSplashSequence &&
+    (forcedSplash || activeSplashSequenceMode === 'tlonbotRevival');
+  const authenticatedContent = !connected ? (
+    offline
+  ) : splashReplacesAuthenticatedApp ? (
+    <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
+      {splash}
+    </AppDataProvider>
+  ) : undefined;
+  const authenticatedOverlay =
+    connected && showSplashSequence && !splashReplacesAuthenticatedApp ? (
+      <View
+        position="absolute"
+        top={0}
+        right={0}
+        bottom={0}
+        left={0}
+        zIndex={1}
+        backgroundColor="$background"
+      >
+        <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
+          <AgentOnboardingSequence
+            onCompleted={handleClearSplash}
+            fallback={splash}
+          />
+        </AppDataProvider>
+      </View>
+    ) : undefined;
 
   return (
     <View height={'100%'} width={'100%'} backgroundColor="$background">
-      {connected ? (
-        isLoading ? (
-          <View flex={1} alignItems="center" justifyContent="center">
-            <LoadingSpinner />
-          </View>
-        ) : showAuthenticatedApp ? (
-          showSplashSequence &&
-          (forcedSplash || activeSplashSequenceMode === 'tlonbotRevival') ? (
-            <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
-              {splash}
-            </AppDataProvider>
-          ) : (
-            <ZStack flex={1}>
-              <AuthenticatedApp />
-              {showSplashSequence && (
-                <View
-                  position="absolute"
-                  top={0}
-                  right={0}
-                  bottom={0}
-                  left={0}
-                  zIndex={1}
-                  backgroundColor="$background"
-                >
-                  <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
-                    <AgentOnboardingSequence
-                      onCompleted={handleClearSplash}
-                      fallback={splash}
-                    />
-                  </AppDataProvider>
-                </View>
-              )}
-            </ZStack>
-          )
-        ) : (
-          <OnboardingStack />
-        )
-      ) : (
-        <View
-          height="100%"
-          padding="$l"
-          justifyContent="center"
-          alignItems="center"
-        >
-          <Text textAlign="center" fontSize="$xl" color="$primaryText">
-            You are offline. Please connect to the internet and try again.
-          </Text>
+      {isLoading ? (
+        <View flex={1} alignItems="center" justifyContent="center">
+          <LoadingSpinner />
         </View>
+      ) : showAuthenticatedApp ? (
+        <AuthenticatedApp
+          connected={connected}
+          onLogout={handleSessionLogout}
+          authenticatedContent={authenticatedContent}
+          authenticatedOverlay={authenticatedOverlay}
+        />
+      ) : connected ? (
+        <OnboardingStack />
+      ) : (
+        offline
       )}
       <StatusBar
         backgroundColor={isDarkMode ? 'black' : 'white'}

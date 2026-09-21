@@ -1,9 +1,18 @@
 import * as db from '@tloncorp/shared/db';
+import { isMoonOfUser } from '@tloncorp/api/client/apiUtils';
+import { isBotHomeGroupChatChannel } from '@tloncorp/api/client/wayfinding';
 import {
   findPostBlobEntry,
   parsePostBlob,
   postHasBlobEntry,
 } from '@tloncorp/api';
+
+// Provisioned by ylem before the conversational onboarding begins. Keep the
+// exact full copy here so a later bot message that builds on it remains visible.
+export const TLAWN_HOME_GROUP_WELCOME_MESSAGE =
+  'Welcome! This is your private group with me, your Tlonbot. You can @ me ' +
+  'here anytime and I will respond. Invite some friends, and they can @ me ' +
+  'too—we can all chat together.';
 
 /**
  * Typed coordinator requests are durable transport receipts, not chat copy.
@@ -11,11 +20,20 @@ import {
  * from the presented timeline.
  */
 export function isVisibleChannelPost(
-  post: Pick<db.Post, 'blob' | 'authorId'> & {
+  post: Pick<db.Post, 'blob' | 'authorId' | 'isBot' | 'textContent'> & {
     deliveryStatus?: db.Post['deliveryStatus'];
   },
-  currentUserId: string
+  currentUserId: string,
+  channelId?: string
 ): boolean {
+  if (
+    channelId &&
+    isBotHomeGroupChatChannel(currentUserId, channelId) &&
+    (post.isBot === true || isMoonOfUser(post.authorId, currentUserId)) &&
+    post.textContent?.trim() === TLAWN_HOME_GROUP_WELCOME_MESSAGE
+  ) {
+    return false;
+  }
   if (!post.blob) return true;
   if (post.authorId !== currentUserId) return true;
   if (post.deliveryStatus === 'failed') return true;
