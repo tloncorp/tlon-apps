@@ -86,5 +86,10 @@ export function selectCases(selection) {
     )
   )
     throw Error('Run persistent blocking cases separately');
+  if (
+    selected.includes('activity-filters') &&
+    selected.includes('activity-pagination')
+  )
+    throw Error('Run Activity filters and pagination separately');
   return selected;
 }

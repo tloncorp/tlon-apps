@@ -1383,7 +1383,9 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
       });
       await until(
         'native gallery fixture is removed',
-        async () => !(await zod.state.isMemberOfGroup(g.groupId)),
+        async () =>
+          !(await zod.state.isMemberOfGroup(g.groupId)) &&
+          !(await ten.state.isMemberOfGroup(g.groupId)),
         180_000
       );
       record('gallery-cleanup', { groupId: g.groupId, removed: true });

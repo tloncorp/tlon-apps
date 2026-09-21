@@ -74,7 +74,20 @@ jobs:
             MAESTRO_LOGIN_CODE=${{ steps.ships.outputs.code }}
             MAESTRO_RUN_TAG=${{ env.MAESTRO_RUN_TAG }}
       - name: Verify peer evidence
-        run: test -f "$PROOF_OUTPUT/peer-result.json" && cat "$PROOF_OUTPUT/peer-result.json"
+        run: |
+          deadline=$((SECONDS + 180))
+          until test -f "$PROOF_OUTPUT/peer-result.json"; do
+            if ! kill -0 "$(cat "$PROOF_OUTPUT/peer.pid")" 2>/dev/null; then
+              cat "$PROOF_OUTPUT/peer.log"
+              exit 1
+            fi
+            if ((SECONDS > deadline)); then
+              cat "$PROOF_OUTPUT/peer.log"
+              exit 1
+            fi
+            sleep 1
+          done
+          cat "$PROOF_OUTPUT/peer-result.json"
       # A failed UI assertion must not discard successfully prepared backends.
       - name: Snapshot prepared ships after clean shutdown
         id: prepared

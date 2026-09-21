@@ -40,3 +40,12 @@ test('default batch and focused retries remain usable', () => {
   assert.throws(() => selectCases('dm-deny,dm-unblock'), /DM cases separately/);
   assert.throws(() => selectCases('unknown'), /Unknown proof case/);
 });
+
+test('Activity filters and pagination keep independent feed fixtures', () => {
+  assert.throws(
+    () => selectCases('activity-filters,activity-pagination'),
+    /filters and pagination separately/
+  );
+  assert.deepEqual(selectCases('activity-filters'), ['activity-filters']);
+  assert.deepEqual(selectCases('activity-pagination'), ['activity-pagination']);
+});
