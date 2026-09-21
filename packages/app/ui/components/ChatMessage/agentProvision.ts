@@ -79,8 +79,8 @@ export function findAnsweredApproachChoiceStart(input: {
   ownerId: string;
 }) {
   const expected = input.approach?.trim().toLocaleLowerCase();
-  const interviewEnd = input.channelPosts.find(
-    (post) => samePostId(post.id, input.interviewMessageId)
+  const interviewEnd = input.channelPosts.find((post) =>
+    samePostId(post.id, input.interviewMessageId)
   );
   if (!expected || !interviewEnd || interviewEnd.authorId !== input.ownerId) {
     return undefined;
@@ -105,8 +105,8 @@ export function findAnsweredApproachChoiceStart(input: {
       ) {
         continue;
       }
-      const sourcePost = input.channelPosts.find(
-        (post) => samePostId(post.id, selection.sourcePostId)
+      const sourcePost = input.channelPosts.find((post) =>
+        samePostId(post.id, selection.sourcePostId)
       );
       const marker = sourcePost?.blob
         ? parsePostBlob(sourcePost.blob).find(
@@ -121,8 +121,8 @@ export function findAnsweredApproachChoiceStart(input: {
           : undefined;
       const interviewStartMessageId =
         input.interviewStartMessageId ?? markerStartId;
-      const interviewStart = input.channelPosts.find(
-        (post) => samePostId(post.id, interviewStartMessageId)
+      const interviewStart = input.channelPosts.find((post) =>
+        samePostId(post.id, interviewStartMessageId)
       );
       if (
         !markerStartId ||
@@ -176,13 +176,12 @@ export function isCurrentOwnerInterview(input: {
 }) {
   if (!input.interviewMessageId) return false;
   const interviewStart = input.interviewStartMessageId
-    ? input.channelPosts.find(
-        (candidate) =>
-          samePostId(candidate.id, input.interviewStartMessageId)
+    ? input.channelPosts.find((candidate) =>
+        samePostId(candidate.id, input.interviewStartMessageId)
       )
     : undefined;
-  const interviewPost = input.channelPosts.find(
-    (candidate) => samePostId(candidate.id, input.interviewMessageId)
+  const interviewPost = input.channelPosts.find((candidate) =>
+    samePostId(candidate.id, input.interviewMessageId)
   );
   if (
     !interviewPost ||

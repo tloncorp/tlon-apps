@@ -275,8 +275,7 @@ describe('automatic provision evidence', () => {
 
   it('matches raw and canonical Urbit post ids', () => {
     const rawId = '170141184508164136620680233968906272768';
-    const canonicalId =
-      '170.141.184.508.164.136.620.680.233.968.906.272.768';
+    const canonicalId = '170.141.184.508.164.136.620.680.233.968.906.272.768';
     const interviewPost = {
       id: canonicalId,
       authorId: 'owner',

@@ -96,9 +96,7 @@ export function recordSuccessfulAgentTaskPlan(
   }
   const runId = event.runId ?? ctx.runId;
   const runKey = runId ? `run:${runId}` : undefined;
-  const sessionKey = ctx.sessionKey
-    ? `session:${ctx.sessionKey}`
-    : undefined;
+  const sessionKey = ctx.sessionKey ? `session:${ctx.sessionKey}` : undefined;
   if (!runKey && !sessionKey) {
     return;
   }

@@ -351,9 +351,7 @@ export function StaticChatMessage({
         purposeId: plan.purposeId,
         purpose: plan.purpose,
         ...(plan.approach ? { approach: plan.approach } : {}),
-        ...(plan.answerEvidence
-          ? { answerEvidence: plan.answerEvidence }
-          : {}),
+        ...(plan.answerEvidence ? { answerEvidence: plan.answerEvidence } : {}),
         topics: plan.topics,
         timezone: plan.timezone,
         scheduleHour: plan.scheduleHour,
