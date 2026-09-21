@@ -1,3 +1,4 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/api';
 import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
@@ -114,6 +115,13 @@ export function UserProfileScreen({ route, navigation }: Props) {
   const [scheduledTasksEnabled] = useFeatureFlag('scheduledTasks');
   const automationQuery = useStewardAutomationTasks(
     scheduledTasksEnabled && isOwnBotProfile
+  );
+  useFocusEffect(
+    useCallback(() => {
+      if (scheduledTasksEnabled && isOwnBotProfile) {
+        void automationQuery.refetch();
+      }
+    }, [automationQuery.refetch, isOwnBotProfile, scheduledTasksEnabled])
   );
   const scheduledTasks = tasksForShip(automationQuery.data, userId);
 
