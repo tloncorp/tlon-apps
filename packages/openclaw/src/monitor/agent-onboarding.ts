@@ -2719,12 +2719,18 @@ function findProvisionRequest(
   // A stable provision id can be posted by more than one client. Keep the
   // first accepted request authoritative so a later device cannot change its
   // timezone or schedule while the same plan is being reconciled.
-  const request = blobEntriesByAuthor(history, ownerShip).find(
-    ({ entry }) =>
-      entry.type === 'tlon-agent-provision' &&
-      entry.groupId === groupId &&
-      entry.provisionId === provisionId
-  )?.entry;
+  const request = blobEntriesByAuthor(history, ownerShip)
+    .filter(
+      ({ entry }) =>
+        entry.type === 'tlon-agent-provision' &&
+        entry.groupId === groupId &&
+        entry.provisionId === provisionId
+    )
+    .sort(
+      (left, right) =>
+        left.post.timestamp - right.post.timestamp ||
+        (left.post.id ?? '').localeCompare(right.post.id ?? '')
+    )[0]?.entry;
   return request?.type === 'tlon-agent-provision' ? request : null;
 }
 

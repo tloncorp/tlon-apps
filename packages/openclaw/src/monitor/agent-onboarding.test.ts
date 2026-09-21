@@ -49,31 +49,37 @@ const provision = {
   notebookTitle: 'Updates',
 };
 
-it('keeps the first request authoritative for a stable provision id', () => {
-  const first = { ...provision, timezone: 'America/New_York' };
-  const later = { ...provision, timezone: 'Europe/London' };
-  expect(
-    agentOnboardingTesting.findProvisionRequest(
-      [
-        {
-          author: '~ten',
-          content: '',
-          timestamp: 1,
-          blob: appendToPostBlob(undefined, first),
-        },
-        {
-          author: '~ten',
-          content: '',
-          timestamp: 2,
-          blob: appendToPostBlob(undefined, later),
-        },
-      ],
-      '~ten',
-      provision.groupId,
-      provision.provisionId
-    )
-  ).toMatchObject({ timezone: 'America/New_York' });
-});
+it.each([false, true])(
+  'keeps the first request authoritative for a stable provision id when history is reversed: %s',
+  (reversed) => {
+    const first = { ...provision, timezone: 'America/New_York' };
+    const later = { ...provision, timezone: 'Europe/London' };
+    const history = [
+      {
+        id: 'first',
+        author: '~ten',
+        content: '',
+        timestamp: 1,
+        blob: appendToPostBlob(undefined, first),
+      },
+      {
+        id: 'later',
+        author: '~ten',
+        content: '',
+        timestamp: 2,
+        blob: appendToPostBlob(undefined, later),
+      },
+    ];
+    expect(
+      agentOnboardingTesting.findProvisionRequest(
+        reversed ? history.reverse() : history,
+        '~ten',
+        provision.groupId,
+        provision.provisionId
+      )
+    ).toMatchObject({ timezone: 'America/New_York' });
+  }
+);
 
 type RequestContext = Parameters<typeof handleAgentOnboardingRequest>[0];
 type RequestDeps = Parameters<typeof handleAgentOnboardingRequest>[1];
