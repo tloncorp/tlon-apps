@@ -18,9 +18,11 @@ env:
         id: MessageInput
     commands:
       - extendedWaitUntil:
-          visible: '^General$'
+          visible:
+            id: ChannelListItem-General
           timeout: 15000
-      - tapOn: '^General$'
+      - tapOn:
+          id: ChannelListItem-General
 - extendedWaitUntil:
     visible:
       id: MessageInput
