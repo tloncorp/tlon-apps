@@ -642,6 +642,15 @@ it('records a verified group reply even when optional context cannot load', asyn
   await h.campaign.inboundInConversation('unrelated', 'chat/~mug/public');
   expect(h.read().lastReplyAt).toBe(enrolledAt + DAY);
 });
+it('ignores an owner DM while the campaign is routed to a group', async () => {
+  const h = harness(state(), {
+    destination: async () => 'chat/~zod/setup',
+  });
+  expect(await h.campaign.replyContext('~ten')).toBeUndefined();
+  await h.campaign.inboundInConversation('unrelated DM', '~ten');
+  expect(h.read().lastReplyAt).toBeUndefined();
+  expect(h.read().lastOwnerText).toBeUndefined();
+});
 
 it('applies closing copy after successful task feedback', () => {
   const current = state({

@@ -4943,8 +4943,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           senderShip === effectiveOwnerShip
         ) {
           try {
-            campaignContext = await campaign?.replyContext();
-            if (await campaign?.inbound(rawText, true)) return;
+            campaignContext = await campaign?.replyContext(senderShip);
+            if (await campaign?.inboundInConversation(rawText, senderShip))
+              return;
           } catch (error) {
             runtime.error?.(`[tlon] campaign reply: ${String(error)}`);
           }

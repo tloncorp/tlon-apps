@@ -370,7 +370,7 @@ export function createCampaign(deps: CampaignDeps) {
     if (!deps.config().enabled) return false;
     try {
       const state = await getStore()?.lookup(deps.owner);
-      if (!state || destination !== (await deps.destination?.(state)))
+      if (!state || destination !== (await currentDestination(state)))
         return false;
       return await inbound(text, true);
     } catch (error) {
@@ -386,6 +386,9 @@ export function createCampaign(deps: CampaignDeps) {
         await saveCampaign(store, { ...state, status: 'feedback' });
     });
   }
+  async function currentDestination(state: CampaignState) {
+    return (await deps.destination?.(state)) ?? state.destination ?? deps.owner;
+  }
   async function observeReply(text: string, destination: string) {
     if (!text.includes(RECURRING_OFFER)) return;
     await locked(async (store) => {
@@ -393,9 +396,7 @@ export function createCampaign(deps: CampaignDeps) {
       if (
         state &&
         !state.offeredAt &&
-        (destination === deps.owner ||
-          destination ===
-            ((await deps.destination?.(state)) ?? state.destination))
+        destination === (await currentDestination(state))
       )
         await saveCampaign(store, { ...state, offeredAt: now() });
     });
@@ -413,11 +414,7 @@ export function createCampaign(deps: CampaignDeps) {
         !deps.config().enabled
       )
         return;
-      if (
-        destination !== deps.owner &&
-        destination !== (await deps.destination?.(state))
-      )
-        return;
+      if (destination !== (await currentDestination(state))) return;
       const task = lastTask;
       if (!state.topic || !state.purpose) {
         await locked(async (store) => {
