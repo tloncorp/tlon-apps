@@ -504,8 +504,8 @@ describe('ticket conversation flow', () => {
   });
   it('offers recurring work in the useful reply and suppresses the later duplicate prompt', async () => {
     const h = harness();
-    expect(await h.campaign.replyContext()).toContain(RECURRING_OFFER);
     await h.campaign.check();
+    expect(await h.campaign.replyContext()).toContain(RECURRING_OFFER);
     await h.campaign.observeReply(
       `Here is the answer. ${RECURRING_OFFER}`,
       '~ten'
@@ -713,6 +713,22 @@ it('accepts an explicit owner opt-out outside the campaign route', async () => {
   );
   expect(h.read().status).toBe('opted-out');
 });
+it('honors an opt-out while the store is temporarily unavailable', async () => {
+  const memory = memoryStore(state());
+  let available = true;
+  const h = harness(state(), {
+    store: () => (available ? memory.store : null),
+  });
+  await h.campaign.check();
+  available = false;
+
+  expect(await h.campaign.inboundInConversation('/stop-tips', '~ten')).toBe(
+    true
+  );
+  expect(h.deps.send).toHaveBeenLastCalledWith(
+    expect.stringContaining('couldn’t save that preference')
+  );
+});
 
 it('applies closing copy after successful task feedback', () => {
   const current = state({
@@ -774,6 +790,15 @@ it('caches setup choices and task facts across replies and persists choices', as
   expect(task).not.toHaveBeenCalled();
   await createCampaign(h.deps).replyContext();
   expect(context).toHaveBeenCalledTimes(1);
+});
+it('withholds recurring offers until task facts load successfully', async () => {
+  const h = harness();
+  const pending = await h.campaign.replyContext();
+  expect(pending).toContain('Recurring task status is still loading');
+  expect(pending).not.toContain(RECURRING_OFFER);
+
+  await h.campaign.check();
+  expect(await h.campaign.replyContext()).toContain(RECURRING_OFFER);
 });
 it('records an offer only once across both successful-send observers', async () => {
   const h = harness();

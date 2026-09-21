@@ -151,7 +151,9 @@ export function createLiveCampaign(deps: {
         name: job.name ?? 'Recurring task',
         enabled: job.enabled !== false,
         ...(job.state?.lastRunStatus === 'error' ||
-        job.state?.lastDeliveryStatus === 'not-delivered'
+        job.state?.lastDeliveryStatus === 'not-delivered' ||
+        (job.state?.lastRunAtMs !== undefined &&
+          job.state?.lastDelivered === false)
           ? {
               failedAt:
                 job.state.lastRunAtMs === undefined

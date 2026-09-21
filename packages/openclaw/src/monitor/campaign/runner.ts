@@ -61,6 +61,7 @@ export function createCampaign(deps: CampaignDeps) {
   const getStore = deps.store ?? getCampaignStore;
   let started = false;
   let lastTask: CampaignTask | undefined;
+  let taskFactsLoaded = false;
   let contextCheckedAt: number | undefined;
   let stopped = false;
   let flight: Promise<void> | undefined;
@@ -137,6 +138,7 @@ export function createCampaign(deps: CampaignDeps) {
       }
       const task = await deps.task?.();
       const hasTask = converted || Boolean(task) || (await deps.hasTask());
+      taskFactsLoaded = true;
       if (hasTask && state.status === 'active') {
         state.status = 'feedback';
         await saveCampaign(store, state);
@@ -368,6 +370,7 @@ export function createCampaign(deps: CampaignDeps) {
     destination: string
   ): Promise<boolean> {
     if (!deps.config().enabled) return false;
+    if (isStopTips(text)) return inbound(text, true);
     try {
       const state = await getStore()?.lookup(deps.owner);
       if (!state) return false;
@@ -438,7 +441,7 @@ export function createCampaign(deps: CampaignDeps) {
           task,
           priorOwnerMessage: state.lastOwnerText,
         }
-      )}\nTreat setup choices as background; the latest owner request takes precedence if their interests changed. Continue normal conversation; reuse actual choices and do not restart the onboarding menu. Verify results and saved notes before claiming they exist. ${task || state.status === 'feedback' ? 'Do not pitch another recurring task. Ask about the actual result; address failed work first.' : state.offeredAt ? 'You already offered recurring work. Do not repeat that offer without new user interest.' : `After providing a useful answer or a verified saved note, immediately ask exactly: “${RECURRING_OFFER}” Include a link only if the note actually exists. Do not ask after a clarification or failed result.`} Create recurring work only after agreement and resolving job, cadence, clock time, timezone, and destination. To stop tips, honor explicit stop requests and suggest /stop-tips if needed.`;
+      )}\nTreat setup choices as background; the latest owner request takes precedence if their interests changed. Continue normal conversation; reuse actual choices and do not restart the onboarding menu. Verify results and saved notes before claiming they exist. ${!taskFactsLoaded ? 'Recurring task status is still loading. Do not pitch or create another recurring task until it is known.' : task || state.status === 'feedback' ? 'Do not pitch another recurring task. Ask about the actual result; address failed work first.' : state.offeredAt ? 'You already offered recurring work. Do not repeat that offer without new user interest.' : `After providing a useful answer or a verified saved note, immediately ask exactly: “${RECURRING_OFFER}” Include a link only if the note actually exists. Do not ask after a clarification or failed result.`} Create recurring work only after agreement and resolving job, cadence, clock time, timezone, and destination. To stop tips, honor explicit stop requests and suggest /stop-tips if needed.`;
     } catch (error) {
       deps.error(error);
       return;

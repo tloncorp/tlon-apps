@@ -279,6 +279,29 @@ it('sends verified-result feedback on a regular check without presence', async (
   expect(mock.send).toHaveBeenCalledTimes(1);
 });
 
+it('reports a legacy not-delivered result after a completed run', async () => {
+  mock.list.mockResolvedValue([
+    {
+      id: 'task',
+      name: 'Digest',
+      enabled: true,
+      schedule: { kind: 'cron', expr: '0 8 * * *' },
+      state: {
+        lastRunStatus: 'ok',
+        lastDelivered: false,
+        lastRunAtMs: now - 1000,
+      },
+    },
+  ]);
+
+  await campaign.check();
+
+  expect(row.sent.at(-1)?.step).toBe('task-feedback');
+  expect(mock.send).toHaveBeenCalledWith(
+    expect.objectContaining({ text: expect.stringContaining('failed') })
+  );
+});
+
 it.each(['history', 'privacy', 'send', 'cron'])(
   'stops promptly when aborted during %s I/O',
   async (operation) => {

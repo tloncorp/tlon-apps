@@ -235,6 +235,7 @@ import {
   isSummarizationRequest,
   parseBlockedShips,
   prepareInboundText,
+  resolveCommandBody,
   sanitizeMessageText,
   shouldEngageInGroup,
   stripBotMentionOutsidePlaceholders,
@@ -2457,6 +2458,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       messageId: string;
       senderShip: string;
       messageText: string;
+      /** Original owner text used for slash-command detection. */
+      commandText?: string;
       citedContent?: string;
       /** Cite-free rendering used only for message-level gates. */
       gateText?: string;
@@ -3141,9 +3144,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // annotations, which hide the leading slash — the gate would then skip
       // authorization while CommandBody still carries the command, and the
       // gateway silently drops it as unauthorized.
-      const commandBody = isGroup
-        ? stripBotMentionOutsidePlaceholders(rawMessageText, botShipName)
-        : rawMessageText;
+      const commandBody = resolveCommandBody({
+        messageText: params.messageText,
+        commandText: params.commandText,
+        isGroup,
+        botShipName,
+      });
       const shouldComputeAuth =
         core.channel.commands.shouldComputeCommandAuthorized(commandBody, cfg);
       let commandAuthorized = false;
@@ -4610,6 +4616,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           messageText: campaignContext
             ? `${campaignContext}\n\n[Current owner message]\n${rawText}`
             : rawText,
+          commandText: rawText,
           ...(citedContent ? { citedContent } : {}),
           gateText: engagementText,
           trigger,
@@ -4957,6 +4964,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           messageText: campaignContext
             ? `${campaignContext}\n\n[Current owner message]\n${rawText}`
             : rawText,
+          commandText: rawText,
           ...(citedContent ? { citedContent } : {}),
           gateText: engagementText,
           trigger: 'dm',
