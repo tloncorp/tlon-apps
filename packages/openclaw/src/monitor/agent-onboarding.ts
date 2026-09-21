@@ -2774,6 +2774,20 @@ function normalizedAnswer(value: string) {
   return value.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
 }
 
+function compareHistoryOrder(
+  left: TlonHistoryEntry,
+  right: TlonHistoryEntry
+): number {
+  if (
+    left.sequenceNum != null &&
+    right.sequenceNum != null &&
+    left.sequenceNum !== right.sequenceNum
+  ) {
+    return left.sequenceNum - right.sequenceNum;
+  }
+  return left.timestamp - right.timestamp;
+}
+
 function parseOwnerTime(value: string) {
   const twelveHour = value.match(
     /\b(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*(am|pm)\b/i
@@ -2872,20 +2886,18 @@ function validateAutomaticPlanEvidence(
   if (!interviewStartPost || !interviewPost) {
     return 'the bound owner interview is unavailable';
   }
-  if (interviewStartPost.timestamp > interviewPost.timestamp) {
+  if (compareHistoryOrder(interviewStartPost, interviewPost) > 0) {
     return 'the bound owner interview is out of order';
   }
   if (!request.answerEvidence) {
     return 'the plan did not preserve its exact owner answer evidence';
   }
   const answersByDimension = new Map<string, string[]>();
-  for (const answerPost of [...history].sort(
-    (left, right) => left.timestamp - right.timestamp
-  )) {
+  for (const answerPost of [...history].sort(compareHistoryOrder)) {
     if (
       answerPost.author !== ownerShip ||
-      answerPost.timestamp < interviewStartPost.timestamp ||
-      answerPost.timestamp > interviewPost.timestamp ||
+      compareHistoryOrder(answerPost, interviewStartPost) < 0 ||
+      compareHistoryOrder(answerPost, interviewPost) > 0 ||
       !answerPost.blob
     ) {
       continue;
@@ -2912,8 +2924,8 @@ function validateAutomaticPlanEvidence(
         : undefined;
       if (
         !questionPost ||
-        questionPost.timestamp < interviewStartPost.timestamp ||
-        questionPost.timestamp > answerPost.timestamp ||
+        compareHistoryOrder(questionPost, interviewStartPost) < 0 ||
+        compareHistoryOrder(questionPost, answerPost) > 0 ||
         marker?.type !== 'tlon-agent-post-marker'
       ) {
         continue;
@@ -2969,15 +2981,15 @@ function validateAutomaticPlanEvidence(
       )
     : undefined;
   if (!planPost) return 'the source plan is unavailable';
-  if (planPost.timestamp < interviewPost.timestamp) {
+  if (compareHistoryOrder(planPost, interviewPost) < 0) {
     return 'the source plan predates its bound owner interview';
   }
   const hasNewerOwnerAnswer = history.some((candidate) => {
     if (
       candidate.author !== ownerShip ||
       candidate.id === requestPost?.id ||
-      candidate.timestamp <= interviewPost.timestamp ||
-      (requestPost && candidate.timestamp > requestPost.timestamp)
+      compareHistoryOrder(candidate, interviewPost) <= 0 ||
+      (requestPost && compareHistoryOrder(candidate, requestPost) > 0)
     ) {
       return false;
     }

@@ -22,22 +22,14 @@ const COMPLETED_PLAN_TTL_MS = 5 * 60 * 1000;
 export const TLON_TASK_PLAN_REPLY_SUPPRESSION_REASON =
   'tlon_task_plan_coordinator_owns_status';
 
-type CompletedPlanMarker = { completedAt: number; keys: string[] };
+type CompletedPlanMarker = {
+  completedAt: number;
+  runKey?: string;
+  sessionKey?: string;
+};
 
 const completedPlanRuns = new Map<string, CompletedPlanMarker>();
-
-function correlationKey(input: {
-  runId?: string;
-  sessionKey?: string;
-}): string | undefined {
-  if (input.runId) {
-    return `run:${input.runId}`;
-  }
-  if (input.sessionKey) {
-    return `session:${input.sessionKey}`;
-  }
-  return undefined;
-}
+const completedPlanSessions = new Map<string, CompletedPlanMarker[]>();
 
 function toolResultFailed(event: AfterToolCallEvent): boolean {
   if (event.error?.trim()) {
@@ -68,6 +60,31 @@ function pruneCompletedPlanRuns(now = Date.now()) {
       completedPlanRuns.delete(key);
     }
   }
+  for (const [key, queue] of completedPlanSessions) {
+    const active = queue.filter(
+      (marker) => now - marker.completedAt <= COMPLETED_PLAN_TTL_MS
+    );
+    if (active.length > 0) {
+      completedPlanSessions.set(key, active);
+    } else {
+      completedPlanSessions.delete(key);
+    }
+  }
+}
+
+function consumeMarker(marker: CompletedPlanMarker): void {
+  if (marker.runKey && completedPlanRuns.get(marker.runKey) === marker) {
+    completedPlanRuns.delete(marker.runKey);
+  }
+  if (!marker.sessionKey) return;
+  const queue = completedPlanSessions.get(marker.sessionKey);
+  if (!queue) return;
+  const remaining = queue.filter((candidate) => candidate !== marker);
+  if (remaining.length > 0) {
+    completedPlanSessions.set(marker.sessionKey, remaining);
+  } else {
+    completedPlanSessions.delete(marker.sessionKey);
+  }
 }
 
 export function recordSuccessfulAgentTaskPlan(
@@ -77,17 +94,26 @@ export function recordSuccessfulAgentTaskPlan(
   if (event.toolName !== TASK_PLAN_TOOL_NAME || toolResultFailed(event)) {
     return;
   }
-  const key = correlationKey({
-    runId: event.runId ?? ctx.runId,
-    sessionKey: ctx.sessionKey,
-  });
-  if (!key) {
+  const runId = event.runId ?? ctx.runId;
+  const runKey = runId ? `run:${runId}` : undefined;
+  const sessionKey = ctx.sessionKey
+    ? `session:${ctx.sessionKey}`
+    : undefined;
+  if (!runKey && !sessionKey) {
     return;
   }
   pruneCompletedPlanRuns();
-  const keys = [key, ...(ctx.sessionKey ? [`session:${ctx.sessionKey}`] : [])];
-  const marker = { completedAt: Date.now(), keys };
-  for (const markerKey of keys) completedPlanRuns.set(markerKey, marker);
+  const marker = { completedAt: Date.now(), runKey, sessionKey };
+  if (runKey) {
+    const existing = completedPlanRuns.get(runKey);
+    if (existing) consumeMarker(existing);
+    completedPlanRuns.set(runKey, marker);
+  }
+  if (sessionKey) {
+    const queue = completedPlanSessions.get(sessionKey) ?? [];
+    queue.push(marker);
+    completedPlanSessions.set(sessionKey, queue);
+  }
 }
 
 /**
@@ -102,29 +128,17 @@ export function suppressReplyAfterSuccessfulAgentTaskPlan(
   if ((event.channel ?? ctx.channelId) !== 'tlon' || event.kind !== 'final') {
     return undefined;
   }
-  const key = correlationKey({
-    runId: event.runId,
-    sessionKey: event.sessionKey ?? ctx.sessionKey,
-  });
-  if (!key) {
-    return undefined;
-  }
   pruneCompletedPlanRuns();
   const sessionKey = event.sessionKey ?? ctx.sessionKey;
-  const lookupKey = event.runId
-    ? key
+  const marker = event.runId
+    ? completedPlanRuns.get(`run:${event.runId}`)
     : sessionKey
-      ? `session:${sessionKey}`
+      ? completedPlanSessions.get(`session:${sessionKey}`)?.[0]
       : undefined;
-  const marker = lookupKey ? completedPlanRuns.get(lookupKey) : undefined;
   if (!marker) {
     return undefined;
   }
-  for (const markerKey of marker.keys) {
-    if (completedPlanRuns.get(markerKey) === marker) {
-      completedPlanRuns.delete(markerKey);
-    }
-  }
+  consumeMarker(marker);
   return {
     cancel: true,
     reason: TLON_TASK_PLAN_REPLY_SUPPRESSION_REASON,
@@ -133,4 +147,5 @@ export function suppressReplyAfterSuccessfulAgentTaskPlan(
 
 export function resetAgentTaskPlanReplyDeliveryForTests(): void {
   completedPlanRuns.clear();
+  completedPlanSessions.clear();
 }

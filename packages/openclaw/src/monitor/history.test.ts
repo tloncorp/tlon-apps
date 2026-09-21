@@ -209,7 +209,7 @@ describe('fetchChannelHistory', () => {
     const scry = vi.fn(async () => ({
       posts: {
         '1': {
-          seal: { id: '1' },
+          seal: { id: '1', seq: 41 },
           essay: {
             author: {
               ship: '~bot',
@@ -221,7 +221,7 @@ describe('fetchChannelHistory', () => {
           },
         },
         '2': {
-          seal: { id: '2' },
+          seal: { id: '2', seq: 42 },
           essay: {
             author: '~ten',
             sent: 2,
@@ -234,8 +234,8 @@ describe('fetchChannelHistory', () => {
     await expect(
       fetchChannelHistory({ scry }, 'chat/~ten/general')
     ).resolves.toEqual([
-      expect.objectContaining({ author: '~bot', id: '1' }),
-      expect.objectContaining({ author: '~ten', id: '2' }),
+      expect.objectContaining({ author: '~bot', id: '1', sequenceNum: 41 }),
+      expect.objectContaining({ author: '~ten', id: '2', sequenceNum: 42 }),
     ]);
   });
 
@@ -695,6 +695,15 @@ describe('parsePostPayload', () => {
         blob: null,
       },
     });
+  });
+
+  it('preserves the channel sequence for control-plane ordering', () => {
+    expect(
+      parsePostPayload({
+        seal: { id: '1', seq: 12 },
+        essay: { author: '~nec', sent: 100, content: [] },
+      })?.entry
+    ).toMatchObject({ id: '1', sequenceNum: 12 });
   });
 
   it('uses unknown only for history entry author when source author is absent', () => {

@@ -2,6 +2,7 @@ import { sharedMap } from './shared-state.js';
 
 export type TlonSessionSurface = {
   kind: 'direct' | 'group';
+  senderRole?: 'owner' | 'user';
   channelNest?: string;
   threadParentId?: string;
   bootstrapComplete: boolean;
@@ -132,12 +133,13 @@ export function getTlonSessionSurface(
 
 export function rememberTlonSessionRunSurface(
   runId: string,
-  sessionKey: string
+  sessionKey: string,
+  runContext?: Pick<TlonSessionSurface, 'senderRole'>
 ): void {
   const surface = getTlonSessionSurface(sessionKey);
   if (!surface) return;
   pruneExpiredSurfaces();
-  sessionRunSurfaces.set(runId, { ...surface, sessionKey });
+  sessionRunSurfaces.set(runId, { ...surface, ...runContext, sessionKey });
 }
 
 export function getTlonSessionRunSurface(

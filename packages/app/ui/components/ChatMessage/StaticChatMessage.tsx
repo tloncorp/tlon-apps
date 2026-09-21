@@ -9,11 +9,18 @@ import * as db from '@tloncorp/shared/db';
 import { A2UI, convertContent, getRandomId } from '@tloncorp/shared/logic';
 import {
   renameAgentGroupFromOnboarding,
+  resolveGroupChannelBotShipId,
   useGroup,
 } from '@tloncorp/shared/store';
 import * as store from '@tloncorp/shared/store';
 import { Text } from '@tloncorp/ui';
-import { ComponentProps, ReactNode, useCallback, useMemo } from 'react';
+import {
+  ComponentProps,
+  ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+} from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import {
@@ -45,6 +52,7 @@ import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
 import {
+  agentPlanAnswerEvidenceMatches,
   findAnsweredApproachChoiceStart,
   findConsumedProvisionSelection,
   isCurrentOwnerInterview,
@@ -91,6 +99,10 @@ function provisionMatchesPlan(
     provision.scheduleDescription === plan.scheduleDescription &&
     provision.notebookNest === notebookNest &&
     provision.notebookTitle === notebookTitle &&
+    agentPlanAnswerEvidenceMatches(
+      provision.answerEvidence,
+      plan.answerEvidence
+    ) &&
     provision.topics.length === plan.topics.length &&
     provision.topics.every((topic, index) => topic === plan.topics[index])
   );
@@ -149,16 +161,53 @@ export function StaticChatMessage({
     (draftInputContext?.channel.id === post.channelId
       ? draftInputContext.channel.groupId
       : undefined);
-  const knownAgent = resolvedPostGroupId
-    ? groupAgents[resolvedPostGroupId]
-    : undefined;
   const currentGroup = group ?? draftInputContext?.group;
+  const structuralAgent = useMemo(
+    () =>
+      resolveGroupChannelBotShipId({
+        channel:
+          draftInputContext?.channel.id === post.channelId
+            ? draftInputContext.channel
+            : undefined,
+        groupMembers: currentGroup?.members,
+        currentUserId,
+      }),
+    [
+      currentGroup?.members,
+      currentUserId,
+      draftInputContext?.channel,
+      post.channelId,
+    ]
+  );
+  const knownAgent =
+    structuralAgent ??
+    (resolvedPostGroupId ? groupAgents[resolvedPostGroupId] : undefined);
   const currentUserHostsPostGroup = Boolean(
     resolvedPostGroupId &&
     currentGroup?.currentUserIsHost &&
     currentGroup.id === resolvedPostGroupId &&
     currentGroup.hostUserId === currentUserId
   );
+  useEffect(() => {
+    if (
+      !resolvedPostGroupId ||
+      !currentUserHostsPostGroup ||
+      !structuralAgent ||
+      groupAgents[resolvedPostGroupId] === structuralAgent
+    ) {
+      return;
+    }
+    void db.agentGroupAgents.setValue((current) =>
+      current[resolvedPostGroupId] === structuralAgent
+        ? current
+        : { ...current, [resolvedPostGroupId]: structuralAgent }
+    );
+  }, [
+    currentUserHostsPostGroup,
+    groupAgents,
+    resolvedPostGroupId,
+    structuralAgent,
+  ]);
   const canUseAgentProviderControls =
     post.authorId === getBotUserIdForUser(currentUserId) ||
     Boolean(
@@ -302,6 +351,9 @@ export function StaticChatMessage({
         purposeId: plan.purposeId,
         purpose: plan.purpose,
         ...(plan.approach ? { approach: plan.approach } : {}),
+        ...(plan.answerEvidence
+          ? { answerEvidence: plan.answerEvidence }
+          : {}),
         topics: plan.topics,
         timezone: plan.timezone,
         scheduleHour: plan.scheduleHour,

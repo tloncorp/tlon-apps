@@ -1027,7 +1027,9 @@ export default defineBundledChannelEntry({
 
     api.on('before_tool_call', async (event, ctx) => {
       const toolCallId = readToolCallId(event);
-      const role = getSessionRole(ctx.sessionKey ?? '');
+      const runSurface = getTlonSessionRunSurface(ctx.runId);
+      const role =
+        runSurface?.senderRole ?? getSessionRole(ctx.sessionKey ?? '');
       const ownerOnlyDecision = resolveOwnerOnlyToolBlock(event.toolName, role);
       const isOwnerOnlyTool = ownerOnlyDecision.ownerOnly;
       const blocksNonOwner = ownerOnlyDecision.blocked;
@@ -1063,7 +1065,7 @@ export default defineBundledChannelEntry({
         event.toolName,
         event.params,
         getTlonSessionSurface(ctx.sessionKey),
-        getTlonSessionRunSurface(ctx.runId)
+        runSurface
       );
       const choiceClaimReason =
         !blocksNonOwner &&

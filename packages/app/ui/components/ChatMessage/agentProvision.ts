@@ -2,7 +2,27 @@ import {
   AGENT_ONBOARDING_APPROACH_CHOICE_MARKER,
   parsePostBlob,
   type PostBlobDataEntryA2UISelection,
+  type PostBlobDataEntryAgentProvision,
 } from '@tloncorp/api';
+
+const ANSWER_EVIDENCE_DIMENSIONS = [
+  'focus',
+  'time',
+  'approach',
+  'context',
+  'priority',
+  'output',
+] as const;
+
+export function agentPlanAnswerEvidenceMatches(
+  left: PostBlobDataEntryAgentProvision['answerEvidence'],
+  right: PostBlobDataEntryAgentProvision['answerEvidence']
+) {
+  if (!left || !right) return left === right;
+  return ANSWER_EVIDENCE_DIMENSIONS.every(
+    (dimension) => left[dimension] === right[dimension]
+  );
+}
 
 type EvidencePost = {
   id: string;

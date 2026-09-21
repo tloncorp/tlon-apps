@@ -201,6 +201,30 @@ describe('onboarding tool boundary', () => {
     ).toBeUndefined();
   });
 
+  it('snapshots the sender role for each run', () => {
+    const sessionKey = 'agent:dev:tlon:group:chat/~zod/home';
+    setTlonSessionSurface(sessionKey, {
+      kind: 'group',
+      senderRole: 'owner',
+      channelNest: 'chat/~zod/home',
+      bootstrapComplete: true,
+      messageId: '~owner/100',
+    });
+    setTlonSessionSurface(sessionKey, {
+      kind: 'group',
+      senderRole: 'user',
+      channelNest: 'chat/~zod/home',
+      bootstrapComplete: true,
+      messageId: '~owner/100',
+    });
+    rememberTlonSessionRunSurface('run-owner', sessionKey, {
+      senderRole: 'owner',
+    });
+
+    expect(getTlonSessionRunSurface('run-owner')?.senderRole).toBe('owner');
+    expect(getTlonSessionSurface(sessionKey)?.senderRole).toBe('user');
+  });
+
   it('blocks a typed card from a run superseded by newer owner input', () => {
     const sessionKey = 'agent:dev:tlon:group:chat/~zod/home';
     setTlonSessionSurface(sessionKey, {

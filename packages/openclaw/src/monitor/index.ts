@@ -3122,6 +3122,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         );
         setTlonSessionSurface(sessionKey, {
           kind: isGroup ? 'group' : 'direct',
+          senderRole,
           ...(isGroup && channelNest ? { channelNest } : {}),
           ...(threadParentId ? { threadParentId } : {}),
           bootstrapComplete: currentSettings.bootstrapComplete === true,
@@ -3302,7 +3303,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       const compactionObservationTimeoutMs =
         resolveCompactionObservationTimeoutMs(cfg);
       const runId = randomUUID();
-      rememberTlonSessionRunSurface(runId, route.sessionKey);
+      rememberTlonSessionRunSurface(runId, route.sessionKey, { senderRole });
       const turnRecorder = startTlonAgentTurn({
         accountId: account.accountId,
         agentId: route.agentId,

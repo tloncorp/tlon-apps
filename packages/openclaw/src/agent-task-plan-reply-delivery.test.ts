@@ -151,7 +151,7 @@ describe('agent task plan reply delivery', () => {
     ).toBeUndefined();
   });
 
-  it('keeps the newest session alias when runs overlap', () => {
+  it('queues session fallbacks when successful runs overlap', () => {
     recordSuccessfulAgentTaskPlan(
       {
         toolName: 'tlon_agent_task_plan',
@@ -174,9 +174,9 @@ describe('agent task plan reply delivery', () => {
           payload: { text: 'First' },
           kind: 'final',
           channel: 'tlon',
-          runId: 'run-1',
+          sessionKey: toolContext.sessionKey,
         },
-        toolContext
+        { channelId: 'tlon', sessionKey: toolContext.sessionKey }
       )
     ).toBeDefined();
     expect(
@@ -190,5 +190,16 @@ describe('agent task plan reply delivery', () => {
         { channelId: 'tlon', sessionKey: toolContext.sessionKey }
       )
     ).toBeDefined();
+    expect(
+      suppressReplyAfterSuccessfulAgentTaskPlan(
+        {
+          payload: { text: 'Third' },
+          kind: 'final',
+          channel: 'tlon',
+          sessionKey: toolContext.sessionKey,
+        },
+        { channelId: 'tlon', sessionKey: toolContext.sessionKey }
+      )
+    ).toBeUndefined();
   });
 });

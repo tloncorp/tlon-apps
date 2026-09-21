@@ -13,6 +13,7 @@ export type TlonHistoryEntry = {
   author: string;
   content: string;
   timestamp: number;
+  sequenceNum?: number;
   id?: string;
   blob?: string | null;
   parsedBlobData?: ClientPostBlobData | null;
@@ -43,6 +44,13 @@ function parsePostAuthor(author: unknown): string | null {
   return null;
 }
 
+function parseSequenceNum(value: unknown): number | undefined {
+  const sequenceNum = typeof value === 'number' ? value : Number(value);
+  return Number.isSafeInteger(sequenceNum) && sequenceNum > 0
+    ? sequenceNum
+    : undefined;
+}
+
 /** Parse the supported single-post and single-reply scry payload shapes. */
 export function parsePostPayload(
   payload: unknown,
@@ -56,6 +64,9 @@ export function parsePostPayload(
     const post = payload as unknown as PostDataResponse;
     const sourceAuthor = parsePostAuthor(post.essay.author);
     const id = post.seal?.id ?? fallbackId;
+    const sequenceNum = parseSequenceNum(
+      (post.seal as { seq?: unknown } | undefined)?.seq
+    );
     const blob = typeof post.essay.blob === 'string' ? post.essay.blob : null;
 
     return {
@@ -67,6 +78,7 @@ export function parsePostPayload(
             ? post.essay.sent
             : Date.now(),
         ...(id ? { id } : {}),
+        ...(sequenceNum ? { sequenceNum } : {}),
         blob,
       },
       sourceAuthor,
@@ -320,6 +332,7 @@ export async function fetchChannelHistoryOrThrow(
     .map((item) => {
       const essay = item.essay || item['r-post']?.set?.essay;
       const seal = item.seal || item['r-post']?.set?.seal;
+      const sequenceNum = parseSequenceNum(seal?.seq);
 
       return {
         // v8 channel history returns bot authors as profile objects while
@@ -329,6 +342,7 @@ export async function fetchChannelHistoryOrThrow(
         content: extractMessageText(essay?.content || []),
         timestamp: essay?.sent || Date.now(),
         id: seal?.id,
+        ...(sequenceNum ? { sequenceNum } : {}),
         blob: essay?.blob ?? null,
       } as TlonHistoryEntry;
     })

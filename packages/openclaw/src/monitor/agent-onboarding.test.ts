@@ -1171,6 +1171,20 @@ describe('agent onboarding requests', () => {
         automaticProvision
       )
     ).toContain('superseded');
+
+    const clockSkewedHistory = history.map((post, index) => ({
+      ...post,
+      sequenceNum: index + 1,
+      timestamp: history.length - index,
+    }));
+    expect(
+      agentOnboardingTesting.validateAutomaticPlanEvidence(
+        clockSkewedHistory,
+        '~ten',
+        '~bot',
+        automaticProvision
+      )
+    ).toBeNull();
   });
 
   it('posts a durable recovery message when automatic evidence is rejected', async () => {

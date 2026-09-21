@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  agentPlanAnswerEvidenceMatches,
   findConsumedProvisionSelection,
   hasAnsweredApproachChoice,
   hasNewerOwnerPost,
@@ -9,6 +10,27 @@ import {
   resolveAgentProvisionButtonLabel,
   resolveAgentProvisionTimezone,
 } from './agentProvision';
+
+describe('agentPlanAnswerEvidenceMatches', () => {
+  const evidence = {
+    focus: 'Robotics',
+    time: '8 AM',
+    approach: 'Compare expert perspectives',
+  };
+
+  it('keeps automatic retries bound to the same owner answers', () => {
+    expect(agentPlanAnswerEvidenceMatches(evidence, { ...evidence })).toBe(
+      true
+    );
+    expect(
+      agentPlanAnswerEvidenceMatches(evidence, {
+        ...evidence,
+        time: '9 AM',
+      })
+    ).toBe(false);
+    expect(agentPlanAnswerEvidenceMatches(evidence, undefined)).toBe(false);
+  });
+});
 
 describe('findConsumedProvisionSelection', () => {
   const failedSelection = {
