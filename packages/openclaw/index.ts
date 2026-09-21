@@ -42,6 +42,7 @@ import {
   suppressReplyAfterSuccessfulAgentTaskPlan,
 } from './src/agent-task-plan-reply-delivery.js';
 import {
+  claimTlonTaskPlanCall,
   clearTlonSessionRunSurface,
   getTlonSessionRunSurface,
   getTlonSessionSurface,
@@ -1062,12 +1063,27 @@ export default defineBundledChannelEntry({
         getTlonSessionSurface(ctx.sessionKey),
         getTlonSessionRunSurface(ctx.runId)
       );
-      const blocksOnboardingBoundary = Boolean(onboardingBoundaryReason);
+      const taskPlanClaimReason =
+        !blocksNonOwner &&
+        !blocksOnboardingMcp &&
+        !onboardingBoundaryReason &&
+        event.toolName === 'tlon_agent_task_plan'
+          ? claimTlonTaskPlanCall({
+              toolCallId,
+              runId: ctx.runId,
+              sessionKey: ctx.sessionKey,
+            })
+          : undefined;
+      const effectiveOnboardingBoundaryReason =
+        onboardingBoundaryReason ?? taskPlanClaimReason;
+      const blocksOnboardingBoundary = Boolean(
+        effectiveOnboardingBoundaryReason
+      );
       const isBlocked =
         blocksNonOwner || blocksOnboardingMcp || blocksOnboardingBoundary;
       const blockReason = blocksOnboardingMcp
         ? 'This scheduled onboarding update may inspect and call only selected-provider MCP tools explicitly described as read-only.'
-        : (onboardingBoundaryReason ?? ownerOnlyDecision.reason);
+        : (effectiveOnboardingBoundaryReason ?? ownerOnlyDecision.reason);
       if (contextLensEnabled) {
         // Capture tool activity even when no conversation run owns this
         // session (cron wakes — including jobs that reuse the main session

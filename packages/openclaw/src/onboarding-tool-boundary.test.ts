@@ -2,8 +2,12 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   _testing,
+  assertTlonTaskPlanCallCurrent,
+  claimTlonTaskPlanCall,
+  finishTlonTaskPlanCall,
   getTlonSessionSurface,
   getTlonSessionRunSurface,
+  getTlonTaskPlanEvidence,
   onboardingToolBlockReason,
   rememberTlonSessionRunSurface,
   setTlonSessionSurface,
@@ -187,5 +191,71 @@ describe('onboarding tool boundary', () => {
         getTlonSessionRunSurface('run-current')
       )
     ).toBeUndefined();
+  });
+
+  it('allows only one task-plan call per run, including parallel calls', () => {
+    const sessionKey = 'agent:dev:tlon:group:chat/~zod/home';
+    setTlonSessionSurface(sessionKey, {
+      kind: 'group',
+      channelNest: 'chat/~zod/home',
+      bootstrapComplete: false,
+      messageId: '~owner/100',
+    });
+    rememberTlonSessionRunSurface('run-1', sessionKey);
+
+    expect(
+      claimTlonTaskPlanCall({
+        toolCallId: 'call-1',
+        runId: 'run-1',
+        sessionKey,
+      })
+    ).toBeUndefined();
+    expect(
+      claimTlonTaskPlanCall({
+        toolCallId: 'call-2',
+        runId: 'run-1',
+        sessionKey,
+      })
+    ).toContain('Only one task plan');
+    expect(getTlonTaskPlanEvidence('call-1')).toEqual({
+      interviewMessageId: '~owner/100',
+    });
+
+    finishTlonTaskPlanCall('call-1', false);
+    expect(
+      claimTlonTaskPlanCall({
+        toolCallId: 'call-2',
+        runId: 'run-1',
+        sessionKey,
+      })
+    ).toBeUndefined();
+  });
+
+  it('rechecks owner intent immediately before task-plan publication', () => {
+    const sessionKey = 'agent:dev:tlon:group:chat/~zod/home';
+    setTlonSessionSurface(sessionKey, {
+      kind: 'group',
+      channelNest: 'chat/~zod/home',
+      bootstrapComplete: false,
+      messageId: '~owner/100',
+    });
+    rememberTlonSessionRunSurface('run-1', sessionKey);
+    expect(
+      claimTlonTaskPlanCall({
+        toolCallId: 'call-1',
+        runId: 'run-1',
+        sessionKey,
+      })
+    ).toBeUndefined();
+
+    setTlonSessionSurface(sessionKey, {
+      kind: 'group',
+      channelNest: 'chat/~zod/home',
+      bootstrapComplete: false,
+      messageId: '~owner/101',
+    });
+    expect(() => assertTlonTaskPlanCallCurrent('call-1')).toThrow(
+      'newer owner message'
+    );
   });
 });

@@ -12,11 +12,24 @@ export type TlonSessionRunSurface = TlonSessionSurface & {
   sessionKey: string;
 };
 
+type TlonTaskPlanCall = {
+  runId: string;
+  sessionKey: string;
+  interviewMessageId: string;
+  timestamp: number;
+};
+
 const sessionSurfaces = sharedMap<string, TlonSessionSurface>(
   'onboarding-session-surfaces'
 );
 const sessionRunSurfaces = sharedMap<string, TlonSessionRunSurface>(
   'onboarding-session-run-surfaces'
+);
+const taskPlanRunClaims = sharedMap<string, string>(
+  'onboarding-task-plan-run-claims'
+);
+const taskPlanCalls = sharedMap<string, TlonTaskPlanCall>(
+  'onboarding-task-plan-calls'
 );
 const SURFACE_TTL_MS = 60 * 60 * 1000;
 
@@ -29,6 +42,14 @@ function pruneExpiredSurfaces(now = Date.now()): void {
   for (const [key, entry] of sessionRunSurfaces) {
     if (now - entry.timestamp > SURFACE_TTL_MS) {
       sessionRunSurfaces.delete(key);
+    }
+  }
+  for (const [callId, entry] of taskPlanCalls) {
+    if (now - entry.timestamp > SURFACE_TTL_MS) {
+      taskPlanCalls.delete(callId);
+      if (taskPlanRunClaims.get(entry.runId) === callId) {
+        taskPlanRunClaims.delete(entry.runId);
+      }
     }
   }
 }
@@ -92,7 +113,83 @@ export function clearTlonSessionRunSurface(
   runId: string | null | undefined
 ): void {
   const key = runId?.trim();
-  if (key) sessionRunSurfaces.delete(key);
+  if (!key) return;
+  sessionRunSurfaces.delete(key);
+  const callId = taskPlanRunClaims.get(key);
+  if (callId) taskPlanCalls.delete(callId);
+  taskPlanRunClaims.delete(key);
+}
+
+export function claimTlonTaskPlanCall(input: {
+  toolCallId?: string;
+  runId?: string;
+  sessionKey?: string;
+}): string | undefined {
+  const toolCallId = input.toolCallId?.trim();
+  const runId = input.runId?.trim();
+  const sessionKey = input.sessionKey?.trim();
+  if (!toolCallId || !runId || !sessionKey) {
+    return 'The task-plan coordinator could not bind this call to the current owner turn.';
+  }
+
+  pruneExpiredSurfaces();
+  const existingCallId = taskPlanRunClaims.get(runId);
+  if (existingCallId) {
+    return existingCallId === toolCallId
+      ? undefined
+      : 'Only one task plan may be posted from an owner turn.';
+  }
+
+  const runSurface = getTlonSessionRunSurface(runId);
+  if (!runSurface?.messageId || runSurface.sessionKey !== sessionKey) {
+    return 'The task-plan coordinator could not identify the owner message that started this turn.';
+  }
+
+  taskPlanRunClaims.set(runId, toolCallId);
+  taskPlanCalls.set(toolCallId, {
+    runId,
+    sessionKey,
+    interviewMessageId: runSurface.messageId,
+    timestamp: Date.now(),
+  });
+  return undefined;
+}
+
+export function getTlonTaskPlanEvidence(toolCallId: string): {
+  interviewMessageId: string;
+} {
+  pruneExpiredSurfaces();
+  const call = taskPlanCalls.get(toolCallId);
+  if (!call) {
+    throw new Error('task plan is not bound to the current owner turn');
+  }
+  return { interviewMessageId: call.interviewMessageId };
+}
+
+export function assertTlonTaskPlanCallCurrent(toolCallId: string): void {
+  const call = taskPlanCalls.get(toolCallId);
+  if (!call) {
+    throw new Error('task plan is not bound to the current owner turn');
+  }
+  const current = getTlonSessionSurface(call.sessionKey);
+  if (current?.messageId !== call.interviewMessageId) {
+    throw new Error(
+      'A newer owner message arrived during this response. The stale task plan was not posted.'
+    );
+  }
+}
+
+export function finishTlonTaskPlanCall(
+  toolCallId: string,
+  succeeded: boolean
+): void {
+  const call = taskPlanCalls.get(toolCallId);
+  if (!call) return;
+  if (succeeded) return;
+  taskPlanCalls.delete(toolCallId);
+  if (taskPlanRunClaims.get(call.runId) === toolCallId) {
+    taskPlanRunClaims.delete(call.runId);
+  }
 }
 
 export function onboardingToolBlockReason(
@@ -145,5 +242,7 @@ export const _testing = {
   clearAll: () => {
     sessionSurfaces.clear();
     sessionRunSurfaces.clear();
+    taskPlanRunClaims.clear();
+    taskPlanCalls.clear();
   },
 };

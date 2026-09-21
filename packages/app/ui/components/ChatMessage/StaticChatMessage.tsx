@@ -1,6 +1,7 @@
 import {
   appendToPostBlob,
   getBotUserIdForUser,
+  parsePostBlob,
   type PostBlobDataEntryA2UISelection,
   type PostBlobDataEntryAgentProvision,
 } from '@tloncorp/api';
@@ -43,8 +44,8 @@ import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
 import {
   hasAnsweredApproachChoice,
-  hasNewerOwnerPost,
   findConsumedProvisionSelection,
+  isCurrentOwnerInterview,
   resolveAgentProvisionId,
   resolveAgentProvisionTimezone,
 } from './agentProvision';
@@ -233,10 +234,26 @@ export function StaticChatMessage({
       const notebookTitle = notebooks[0].title ?? 'Updates';
 
       if (selection?.componentId === 'auto-provision') {
-        const selections = await db.getA2UISelections({
+        const channelPosts = await db.getChanPosts({
           channelId: post.channelId,
-          authorId: currentUserId,
         });
+        if (
+          !isCurrentOwnerInterview({
+            interviewMessageId: plan.interviewMessageId,
+            planPost: post,
+            channelPosts,
+            ownerId: currentUserId,
+          })
+        ) {
+          throw new Error('This plan was replaced by a newer answer');
+        }
+        const interviewPost = channelPosts.find(
+          (candidate) => candidate.id === plan.interviewMessageId
+        );
+        const selections = parsePostBlob(interviewPost?.blob ?? '').filter(
+          (entry): entry is PostBlobDataEntryA2UISelection =>
+            entry.type === 'tlon-a2ui-selection'
+        );
         const sourcePostIds = [
           ...new Set(
             selections
@@ -259,15 +276,6 @@ export function StaticChatMessage({
           throw new Error(
             'Choose how this task should gather or develop its answer first'
           );
-        }
-        if (
-          hasNewerOwnerPost({
-            planPost: post,
-            channelPosts: await db.getChanPosts({ channelId: post.channelId }),
-            ownerId: currentUserId,
-          })
-        ) {
-          throw new Error('This plan was replaced by a newer answer');
         }
       }
 
@@ -303,6 +311,9 @@ export function StaticChatMessage({
             })
           ),
         groupId,
+        ...(plan.interviewMessageId
+          ? { interviewMessageId: plan.interviewMessageId }
+          : {}),
         purposeId: plan.purposeId,
         purpose: plan.purpose,
         ...(plan.approach ? { approach: plan.approach } : {}),

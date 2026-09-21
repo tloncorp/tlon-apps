@@ -81,6 +81,34 @@ export function hasNewerOwnerPost(input: {
   );
 }
 
+export function isCurrentOwnerInterview(input: {
+  interviewMessageId: string | undefined;
+  planPost: EvidencePost;
+  channelPosts: EvidencePost[];
+  ownerId: string;
+}) {
+  if (!input.interviewMessageId) return false;
+  const interviewPost = input.channelPosts.find(
+    (candidate) => candidate.id === input.interviewMessageId
+  );
+  if (
+    !interviewPost ||
+    interviewPost.authorId !== input.ownerId ||
+    interviewPost.channelId !== input.planPost.channelId ||
+    interviewPost.isDeleted ||
+    !follows(input.planPost, interviewPost)
+  ) {
+    return false;
+  }
+  return !input.channelPosts.some(
+    (candidate) =>
+      candidate.authorId === input.ownerId &&
+      candidate.id !== interviewPost.id &&
+      !candidate.isDeleted &&
+      follows(candidate, interviewPost)
+  );
+}
+
 export function findConsumedProvisionSelection(input: {
   sourcePostId: string;
   surfaceId: string;

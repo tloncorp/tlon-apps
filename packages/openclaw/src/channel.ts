@@ -34,6 +34,11 @@ import {
   resolveTaskPlanGroupId,
 } from './agent-task-plan-tool.js';
 import { tlonChannelConfigSchema } from './config-schema.js';
+import {
+  assertTlonTaskPlanCallCurrent,
+  finishTlonTaskPlanCall,
+  getTlonTaskPlanEvidence,
+} from './onboarding-tool-boundary.js';
 import { resolveTlonOutboundSessionRoute } from './session-route.js';
 import {
   applyTlonSetupConfig,
@@ -210,6 +215,9 @@ export const tlonPlugin = createChatChannelPlugin({
           postSurface(target, fallbackMessage, blob),
       });
       const executeTaskPlan = createAgentTaskPlanToolExecutor({
+        getEvidence: getTlonTaskPlanEvidence,
+        assertCurrent: assertTlonTaskPlanCallCurrent,
+        finish: finishTlonTaskPlanCall,
         resolveGroupId: async (target) =>
           resolveTaskPlanGroupId(
             await runTlonCommand(

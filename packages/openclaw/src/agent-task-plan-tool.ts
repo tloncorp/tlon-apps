@@ -24,6 +24,10 @@ export type AgentTaskPlanToolParams = {
   taskPrompt: string;
 };
 
+export type AgentTaskPlanEvidence = {
+  interviewMessageId: string;
+};
+
 function formatDailyTime(hour: number, minute: number): string {
   const displayHour = hour % 12 === 0 ? 12 : hour % 12;
   const meridiem = hour < 12 ? 'AM' : 'PM';
@@ -68,10 +72,12 @@ export const agentTaskPlanToolParameters = {
     },
     surfaceId: {
       type: 'string',
+      maxLength: 512,
       description: 'Unique A2UI surface ID beginning with agent-task-plan-.',
     },
     summary: {
       type: 'string',
+      maxLength: 1000,
       description: 'Plain-language focus, schedule, and output summary.',
     },
     groupId: { type: 'string' },
@@ -172,14 +178,19 @@ function parseParams(params: AgentTaskPlanToolParams): AgentTaskPlanToolParams {
   if (!/^chat\/~[a-z0-9-]+\/[a-z0-9-]+$/i.test(params.target)) {
     throw new Error('target must be a chat channel nest');
   }
-  if (!params.surfaceId.startsWith('agent-task-plan-')) {
-    throw new Error('surfaceId must begin with agent-task-plan-');
+  if (
+    !params.surfaceId.startsWith('agent-task-plan-') ||
+    params.surfaceId.length > 512
+  ) {
+    throw new Error(
+      'surfaceId must begin with agent-task-plan- and be at most 512 characters'
+    );
   }
   if (!params.fallbackSummary.trim() || params.fallbackSummary.length > 1000) {
     throw new Error('fallbackSummary must be 1-1000 characters');
   }
-  if (!params.summary.trim() || params.summary.length > 2000) {
-    throw new Error('summary must be 1-2000 characters');
+  if (!params.summary.trim() || params.summary.length > 1000) {
+    throw new Error('summary must be 1-1000 characters');
   }
   const timezoneOverride = params.timezoneOverride?.trim() || undefined;
   if (timezoneOverride) {
@@ -298,8 +309,17 @@ function parseParams(params: AgentTaskPlanToolParams): AgentTaskPlanToolParams {
   return { ...params, ...context.data, timezoneOverride };
 }
 
-export function buildAgentTaskPlanBlob(input: AgentTaskPlanToolParams) {
+export function buildAgentTaskPlanBlob(
+  input: AgentTaskPlanToolParams,
+  evidence: AgentTaskPlanEvidence
+) {
   const params = parseParams(input);
+  const evidenceContext = AgentProvisionActionContextSchema.pick({
+    interviewMessageId: true,
+  }).safeParse(evidence);
+  if (!evidenceContext.success || !evidenceContext.data.interviewMessageId) {
+    throw new Error('task plan requires a trusted owner interview message');
+  }
   return [
     {
       type: 'a2ui',
@@ -342,6 +362,8 @@ export function buildAgentTaskPlanBlob(input: AgentTaskPlanToolParams) {
                     name: 'tlon.provisionAgent',
                     context: {
                       groupId: params.groupId,
+                      interviewMessageId:
+                        evidenceContext.data.interviewMessageId,
                       purposeId: params.purposeId,
                       purpose: params.purpose,
                       approach: params.approach,
@@ -378,8 +400,11 @@ export function createAgentTaskPlanToolExecutor(deps: {
     blob: string;
   }) => Promise<string>;
   resolveGroupId?: (target: string) => Promise<string>;
+  getEvidence: (toolCallId: string) => AgentTaskPlanEvidence;
+  assertCurrent: (toolCallId: string) => void;
+  finish: (toolCallId: string, succeeded: boolean) => void;
 }) {
-  return async function execute(_id: string, params: AgentTaskPlanToolParams) {
+  return async function execute(id: string, params: AgentTaskPlanToolParams) {
     try {
       // The model describes the plan, but it does not authorize its target.
       // Resolve the active channel's group from Tlon so a mistyped or truncated
@@ -388,11 +413,16 @@ export function createAgentTaskPlanToolExecutor(deps: {
         ? await deps.resolveGroupId(params.target)
         : params.groupId;
       const parsed = parseParams({ ...params, groupId });
+      const evidence = deps.getEvidence(id);
+      // Group resolution can perform network I/O. Recheck immediately before
+      // publication so a newer owner message cannot race that await.
+      deps.assertCurrent(id);
       const output = await deps.postPlan({
         target: parsed.target,
         fallbackSummary: parsed.fallbackSummary,
-        blob: JSON.stringify(buildAgentTaskPlanBlob(parsed)),
+        blob: JSON.stringify(buildAgentTaskPlanBlob(parsed, evidence)),
       });
+      deps.finish(id, true);
       return {
         content: [
           {
@@ -403,6 +433,7 @@ export function createAgentTaskPlanToolExecutor(deps: {
         details: undefined,
       };
     } catch (error) {
+      deps.finish(id, false);
       const message = error instanceof Error ? error.message : String(error);
       return {
         content: [{ type: 'text' as const, text: `Error: ${message}` }],

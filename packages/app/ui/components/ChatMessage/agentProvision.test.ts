@@ -4,6 +4,7 @@ import {
   findConsumedProvisionSelection,
   hasAnsweredApproachChoice,
   hasNewerOwnerPost,
+  isCurrentOwnerInterview,
   resolveAgentProvisionId,
   resolveAgentProvisionButtonLabel,
   resolveAgentProvisionTimezone,
@@ -129,6 +130,41 @@ describe('automatic provision evidence', () => {
         planPost,
         ownerId: 'owner',
         channelPosts: [{ ...approachPost, authorId: 'owner' }],
+      })
+    ).toBe(false);
+  });
+
+  it('requires the plan to come from the latest owner interview post', () => {
+    const interviewPost = {
+      id: 'owner-interview',
+      authorId: 'owner',
+      channelId: 'chat',
+      receivedAt: 200,
+      sequenceNum: 2,
+    };
+    expect(
+      isCurrentOwnerInterview({
+        interviewMessageId: interviewPost.id,
+        planPost,
+        ownerId: 'owner',
+        channelPosts: [interviewPost],
+      })
+    ).toBe(true);
+    expect(
+      isCurrentOwnerInterview({
+        interviewMessageId: interviewPost.id,
+        planPost,
+        ownerId: 'owner',
+        channelPosts: [
+          interviewPost,
+          {
+            id: 'owner-correction-before-plan',
+            authorId: 'owner',
+            channelId: 'chat',
+            receivedAt: 250,
+            sequenceNum: 3,
+          },
+        ],
       })
     ).toBe(false);
   });

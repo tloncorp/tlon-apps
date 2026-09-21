@@ -26,6 +26,16 @@ const validPlan: AgentTaskPlanToolParams = {
     'Track newly released AI-agent tools for product designers and summarize useful evidence with source links.',
 };
 
+const validEvidence = { interviewMessageId: '~owner/interview-1' };
+
+function executionBoundary() {
+  return {
+    getEvidence: vi.fn(() => validEvidence),
+    assertCurrent: vi.fn(),
+    finish: vi.fn(),
+  };
+}
+
 describe('agent task plan tool', () => {
   it('resolves the exact current group from the target channel', () => {
     expect(
@@ -52,7 +62,7 @@ describe('agent task plan tool', () => {
   });
 
   it('builds an automatic A2UI action without a confirmation control', () => {
-    expect(buildAgentTaskPlanBlob(validPlan)).toEqual([
+    expect(buildAgentTaskPlanBlob(validPlan, validEvidence)).toEqual([
       expect.objectContaining({
         type: 'a2ui',
         messages: expect.arrayContaining([
@@ -79,20 +89,27 @@ describe('agent task plan tool', () => {
         ]),
       }),
     ]);
-    expect(JSON.stringify(buildAgentTaskPlanBlob(validPlan))).toContain(
-      validPlan.summary
+    expect(
+      JSON.stringify(buildAgentTaskPlanBlob(validPlan, validEvidence))
+    ).toContain(validPlan.summary);
+    const serialized = JSON.stringify(
+      buildAgentTaskPlanBlob(validPlan, validEvidence)
     );
-    const serialized = JSON.stringify(buildAgentTaskPlanBlob(validPlan));
     expect(serialized).not.toContain('Create this task');
     expect(serialized).toContain('"children":["summary"]');
-    expect(A2UI.validateBlobEntry(buildAgentTaskPlanBlob(validPlan)[0])).toBe(
-      true
-    );
+    expect(
+      A2UI.validateBlobEntry(
+        buildAgentTaskPlanBlob(validPlan, validEvidence)[0]
+      )
+    ).toBe(true);
   });
 
   it('serializes and posts one valid blob without model-authored shell quoting', async () => {
     const postPlan = vi.fn(async () => '{"ok":true}');
-    const execute = createAgentTaskPlanToolExecutor({ postPlan });
+    const execute = createAgentTaskPlanToolExecutor({
+      postPlan,
+      ...executionBoundary(),
+    });
 
     const result = await execute('call-1', validPlan);
 
@@ -101,8 +118,42 @@ describe('agent task plan tool', () => {
     const posted = postPlan.mock.calls[0]?.[0];
     expect(posted?.target).toBe(validPlan.target);
     expect(JSON.parse(posted?.blob ?? '')).toEqual(
-      buildAgentTaskPlanBlob(validPlan)
+      buildAgentTaskPlanBlob(validPlan, validEvidence)
     );
+  });
+
+  it('rechecks the owner turn after group resolution and before posting', async () => {
+    const postPlan = vi.fn(async () => '{"ok":true}');
+    const boundary = executionBoundary();
+    boundary.assertCurrent.mockImplementation(() => {
+      throw new Error('newer owner message');
+    });
+    const execute = createAgentTaskPlanToolExecutor({
+      postPlan,
+      resolveGroupId: vi.fn(async () => validPlan.groupId),
+      ...boundary,
+    });
+
+    const result = await execute('call-stale', validPlan);
+
+    expect(result.details).toEqual({ error: true });
+    expect(postPlan).not.toHaveBeenCalled();
+    expect(boundary.finish).toHaveBeenCalledWith('call-stale', false);
+  });
+
+  it('keeps A2UI surface and text lengths within the shared validator limits', () => {
+    expect(() =>
+      buildAgentTaskPlanBlob(
+        { ...validPlan, surfaceId: `agent-task-plan-${'x'.repeat(497)}` },
+        validEvidence
+      )
+    ).toThrow('at most 512 characters');
+    expect(() =>
+      buildAgentTaskPlanBlob(
+        { ...validPlan, summary: 'x'.repeat(1001) },
+        validEvidence
+      )
+    ).toThrow('1-1000 characters');
   });
 
   it('replaces a mistyped model group with the deterministic channel group', async () => {
@@ -111,6 +162,7 @@ describe('agent task plan tool', () => {
     const execute = createAgentTaskPlanToolExecutor({
       postPlan,
       resolveGroupId,
+      ...executionBoundary(),
     });
 
     await execute('call-resolved-group', {
@@ -121,16 +173,22 @@ describe('agent task plan tool', () => {
     expect(resolveGroupId).toHaveBeenCalledWith(validPlan.target);
     const posted = postPlan.mock.calls[0]?.[0];
     expect(JSON.parse(posted?.blob ?? '')).toEqual(
-      buildAgentTaskPlanBlob({
-        ...validPlan,
-        groupId: '~zod/home-group-full',
-      })
+      buildAgentTaskPlanBlob(
+        {
+          ...validPlan,
+          groupId: '~zod/home-group-full',
+        },
+        validEvidence
+      )
     );
   });
 
   it('rejects malformed schedules before posting', async () => {
     const postPlan = vi.fn(async () => 'unexpected');
-    const execute = createAgentTaskPlanToolExecutor({ postPlan });
+    const execute = createAgentTaskPlanToolExecutor({
+      postPlan,
+      ...executionBoundary(),
+    });
 
     const result = await execute('call-2', {
       ...validPlan,
@@ -142,16 +200,19 @@ describe('agent task plan tool', () => {
   });
 
   it('keeps an explicit timezone override internal to the action', () => {
-    const blob = buildAgentTaskPlanBlob({
-      ...validPlan,
-      fallbackSummary: 'Daily robotics brief at 3 PM Tokyo time.',
-      summary: 'Japanese robotics releases daily at 3 PM Tokyo time.',
-      scheduleHour: 15,
-      scheduleMinute: 0,
-      scheduleExpression: '0 15 * * *',
-      scheduleDescription: 'daily at 3 PM Tokyo time',
-      timezoneOverride: 'Asia/Tokyo',
-    });
+    const blob = buildAgentTaskPlanBlob(
+      {
+        ...validPlan,
+        fallbackSummary: 'Daily robotics brief at 3 PM Tokyo time.',
+        summary: 'Japanese robotics releases daily at 3 PM Tokyo time.',
+        scheduleHour: 15,
+        scheduleMinute: 0,
+        scheduleExpression: '0 15 * * *',
+        scheduleDescription: 'daily at 3 PM Tokyo time',
+        timezoneOverride: 'Asia/Tokyo',
+      },
+      validEvidence
+    );
 
     expect(JSON.stringify(blob)).toContain('"timezoneOverride":"Asia/Tokyo"');
     expect(JSON.stringify(blob)).toContain('Tokyo time');
@@ -159,7 +220,10 @@ describe('agent task plan tool', () => {
 
   it('normalizes a blank timezone override to the device-local path', () => {
     const serialized = JSON.stringify(
-      buildAgentTaskPlanBlob({ ...validPlan, timezoneOverride: '' })
+      buildAgentTaskPlanBlob(
+        { ...validPlan, timezoneOverride: '' },
+        validEvidence
+      )
     );
 
     expect(serialized).not.toContain('timezoneOverride');
@@ -167,7 +231,10 @@ describe('agent task plan tool', () => {
 
   it('rejects invalid overrides and technical timezone copy', async () => {
     const postPlan = vi.fn(async () => 'unexpected');
-    const execute = createAgentTaskPlanToolExecutor({ postPlan });
+    const execute = createAgentTaskPlanToolExecutor({
+      postPlan,
+      ...executionBoundary(),
+    });
 
     const invalidOverride = await execute('call-invalid-timezone', {
       ...validPlan,
@@ -212,7 +279,10 @@ describe('agent task plan tool', () => {
 
   it('rejects a visible summary that contradicts the actual daily time', async () => {
     const postPlan = vi.fn(async () => 'unexpected');
-    const execute = createAgentTaskPlanToolExecutor({ postPlan });
+    const execute = createAgentTaskPlanToolExecutor({
+      postPlan,
+      ...executionBoundary(),
+    });
 
     const result = await execute('call-contradictory-copy', {
       ...validPlan,
@@ -225,7 +295,10 @@ describe('agent task plan tool', () => {
 
   it('rejects non-daily schedules and 24-hour display copy', async () => {
     const postPlan = vi.fn(async () => 'unexpected');
-    const execute = createAgentTaskPlanToolExecutor({ postPlan });
+    const execute = createAgentTaskPlanToolExecutor({
+      postPlan,
+      ...executionBoundary(),
+    });
 
     const weekly = await execute('call-weekly', {
       ...validPlan,
@@ -249,21 +322,27 @@ describe('agent task plan tool', () => {
 
   it('accepts readable :00 copy and cadence words that belong to the topic', () => {
     expect(() =>
-      buildAgentTaskPlanBlob({
-        ...validPlan,
-        fallbackSummary: 'Daily weekly-meal-planning advice at 8:00 AM.',
-        summary:
-          'Improve a weekly meal plan with one focused update daily at 8:00 AM.',
-        scheduleMinute: 0,
-        scheduleExpression: '0 8 * * *',
-        scheduleDescription: 'every day at 8:00 AM',
-      })
+      buildAgentTaskPlanBlob(
+        {
+          ...validPlan,
+          fallbackSummary: 'Daily weekly-meal-planning advice at 8:00 AM.',
+          summary:
+            'Improve a weekly meal plan with one focused update daily at 8:00 AM.',
+          scheduleMinute: 0,
+          scheduleExpression: '0 8 * * *',
+          scheduleDescription: 'every day at 8:00 AM',
+        },
+        validEvidence
+      )
     ).not.toThrow();
   });
 
   it('rejects contradictory result-count instructions before posting', async () => {
     const postPlan = vi.fn(async () => 'unexpected');
-    const execute = createAgentTaskPlanToolExecutor({ postPlan });
+    const execute = createAgentTaskPlanToolExecutor({
+      postPlan,
+      ...executionBoundary(),
+    });
 
     const result = await execute('call-3', {
       ...validPlan,

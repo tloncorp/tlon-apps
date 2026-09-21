@@ -52,6 +52,12 @@ export const agentProtocolString = (maxLength: number) =>
 
 export const AgentProvisionActionContextSchema = z.object({
   groupId: agentProtocolString(AGENT_PROTOCOL_LIMITS.groupIdLength),
+  /**
+   * Owner-authored post that started the turn which produced an automatic
+   * onboarding plan. Optional for retained manual and pre-interview actions;
+   * automatic plans require it before provisioning.
+   */
+  interviewMessageId: agentProtocolString(512).optional(),
   purposeId: AgentOnboardingPurposeIdSchema,
   purpose: agentProtocolString(AGENT_PROTOCOL_LIMITS.purposeLength),
   /**
