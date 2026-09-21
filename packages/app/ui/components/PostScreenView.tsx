@@ -389,6 +389,7 @@ export function PostScreenView({
                 <YStack flex={1} backgroundColor={'$background'}>
                   <ConnectedHeader
                     channel={channel}
+                    group={group}
                     goBack={handleGoBack}
                     showEditButton={showEdit}
                     goToEdit={handleEditPress}
@@ -514,15 +515,18 @@ export function PostScreenView({
 
 function ConnectedHeader({
   channel,
+  group,
   ...passedProps
 }: ForwardingProps<
   typeof ChannelHeader,
   {
     channel: db.Channel;
+    group: db.Group | null;
   },
   'channel' | 'group' | 'title' | 'description' | 'showSearchButton' | 'post'
 >) {
   const isChatChannel = getIsChatChannel(channel);
+  const chatTitle = utils.useChatTitle(channel, group);
 
   const { focusedPost: parentPost } = useContext(FocusedPostContext);
 
@@ -530,7 +534,7 @@ function ConnectedHeader({
     ? makePrettyDayAndTime(new Date(parentPost.receivedAt)).asString
     : '';
   const headerTitle = isChatChannel
-    ? `Thread: ${channel?.title || prettyTime}`
+    ? `Thread: ${chatTitle || prettyTime}`
     : parentPost?.title && parentPost.title !== ''
       ? parentPost.title
       : 'Post';
@@ -538,8 +542,9 @@ function ConnectedHeader({
   return (
     <ChannelHeader
       channel={channel}
-      group={channel.group}
+      group={group}
       title={headerTitle}
+      preferProvidedTitle={isChatChannel}
       description={''}
       showSearchButton={false}
       post={parentPost ?? undefined}
