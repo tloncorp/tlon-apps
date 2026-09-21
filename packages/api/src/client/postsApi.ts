@@ -611,9 +611,11 @@ export type GetLatestPostsResponse = PostWithUpdateTime[];
 export const getLatestPosts = async ({
   afterCursor,
   count,
+  throwOnError = false,
 }: {
   afterCursor?: Cursor;
   count?: number;
+  throwOnError?: boolean;
 }): Promise<GetLatestPostsResponse> => {
   try {
     const { channels, dms } = await scry<ub.CombinedHeads>({
@@ -638,6 +640,7 @@ export const getLatestPosts = async ({
     logger.trackError('failed to sync heads', {
       error: e,
     });
+    if (throwOnError) throw e;
     return [];
   }
 };

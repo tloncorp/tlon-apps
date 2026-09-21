@@ -22,6 +22,7 @@ import {
 } from '../lib/index.js';
 import { getLatestSequenceForAuthor } from '../lib/post-baseline.js';
 import { fakeModel } from '../support/fake-model/client.js';
+import { formatOwnerOnlyToolBlockReason } from '../../src/owner-only-tools.js';
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -164,7 +165,8 @@ describe('security', () => {
 
       // Script the model to try the same tool call as the owner test, only
       // this time from ~mug. The plugin's before_tool_call gate should
-      // reject. Agent will likely emit a text refusal on the next turn.
+      // reject; the gate's block reason is asserted on the follow-up model
+      // call below. Agent will likely emit a text refusal on the next turn.
       const token = `mug-${Date.now().toString(36)}`;
       const key = 'sec-nonowner-tool';
       await fakeModel.script(key, [
@@ -189,6 +191,25 @@ describe('security', () => {
       const afterNickname = extractNickname(afterProfile);
       console.log(`[TEST] Bot nickname after: "${afterNickname}"`);
       expect(afterNickname).not.toBe(token);
+
+      // The block reason is the only thing the model learns about the veto:
+      // core returns it verbatim as the tool result. Find this test's tool
+      // call by its token, then the tool result the follow-up model call
+      // carried for it (the ~mug DM session is long-lived, so scope by id
+      // rather than scanning every tool message in history).
+      const calls = await fakeModel.received(key);
+      const messages = calls.flatMap((call) => call.messages ?? []);
+      const blockedCall = messages
+        .flatMap((message) => message.tool_calls ?? [])
+        .find((toolCall) => toolCall.function?.arguments?.includes(token));
+      expect(blockedCall?.id).toBeDefined();
+      const blockedResult = messages.find(
+        (message) =>
+          message.role === 'tool' && message.tool_call_id === blockedCall?.id
+      );
+      expect(blockedResult?.content?.text).toBe(
+        formatOwnerOnlyToolBlockReason('tlon')
+      );
     });
   });
 
