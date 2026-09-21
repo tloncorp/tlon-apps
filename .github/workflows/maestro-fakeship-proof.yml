@@ -26,6 +26,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.22.0'
+      - name: Verify case selection
+        run: node --test .maestro/cloud-fakeship/select-cases.test.mjs
       - uses: pnpm/action-setup@v3
       - uses: actions/setup-java@v4
         with:
@@ -51,7 +53,7 @@ jobs:
         id: ships
         env:
           NGROK_AUTHTOKEN: ${{ secrets.MAESTRO_FAKE_SHIP_NGROK_TOKEN }}
-        run: bash .maestro/cloud-fakeship/start.sh
+        run: bash .maestro/cloud-fakeship/maestro-start.sh
       - name: Run existing Android binary on API 33
         id: maestro
         uses: mobile-dev-inc/action-maestro-cloud@854f4005c1ef637d20b7007d428d23afe17c9665

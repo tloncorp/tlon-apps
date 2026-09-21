@@ -26,7 +26,8 @@ mkdir -p .proof-snapshot
 mv "$dist/zod" "$dist/ten" .proof-snapshot/
 cp -a "$dist/urbit_extracted/urbit" .proof-snapshot/urbit
 mv .peru/cache .proof-snapshot/peru-cache
-# The ready receipt identifies the fixture even if a later UI check failed.
+# A UI failure must not discard an already validated backend. The next restore
+# uses only this fixture's group ID to prove that nuke/revive cleared its state.
 receipt="$PROOF_OUTPUT/peer-result.json"
 [ -f "$receipt" ] || receipt="$PROOF_OUTPUT/peer-ready.json"
 cp "$receipt" .proof-snapshot/peer-result.json
