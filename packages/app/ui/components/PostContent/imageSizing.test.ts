@@ -1,189 +1,144 @@
 import { describe, expect, test } from 'vitest';
 
 import { CHAT_IMAGE_MAX_WINDOW_HEIGHT_FRACTION } from '../../../constants';
-import { resolveImageFit, resolveImageMaxHeight } from './imageSizing';
+import {
+  resolveConstrainedImageSize,
+  resolveImageMaxHeight,
+  shouldMeasureColumn,
+} from './imageSizing';
 
-const chatCap = (windowHeight: number) =>
+const PHONE = { windowWidth: 402, windowHeight: 874, column: 330 };
+const TABLET = { windowWidth: 1024, windowHeight: 1024, column: 1000 };
+
+const PHOTO = { width: 4032, height: 3024 }; // landscape, short
+const SCREENSHOT = { width: 1206, height: 2622 }; // tall, the common case
+const LONG = { width: 1200, height: 9000 }; // what the cap exists for
+const SMALL = { width: 120, height: 400 }; // tall ratio, but short anyway
+
+type Device = typeof PHONE;
+type Image = typeof PHOTO;
+
+const capFor = (windowHeight: number) =>
   resolveImageMaxHeight({
     windowHeight,
     maxWindowHeightFraction: CHAT_IMAGE_MAX_WINDOW_HEIGHT_FRACTION,
   });
 
-// Device shapes the app runs at: window height, and the width of the message
-// column inside it.
-const DEVICES = [
-  { name: 'iPhone SE', windowHeight: 667, column: 320 },
-  { name: 'iPhone 17', windowHeight: 874, column: 330 },
-  { name: 'iPad 12.9 portrait', windowHeight: 1366, column: 750 },
-  { name: 'iPad 12.9 landscape', windowHeight: 1024, column: 1000 },
-];
+const measures = (image: Image, device: Device) =>
+  shouldMeasureColumn({
+    windowWidth: device.windowWidth,
+    maxHeight: capFor(device.windowHeight),
+    naturalAspectRatio: image.width / image.height,
+    naturalPixelWidth: image.width,
+  });
 
-const IMAGES = [
-  { name: 'landscape photo', width: 4032, height: 3024 },
-  { name: 'portrait photo', width: 3024, height: 4032 },
-  { name: 'phone screenshot', width: 1206, height: 2622 },
-  { name: '21:9 screenshot', width: 1080, height: 2520 },
-  { name: 'full-page screenshot', width: 1200, height: 9000 },
-  { name: 'narrow but short', width: 120, height: 400 },
-];
-
-const fitInChat = (
-  image: { width: number; height: number },
-  device: { windowHeight: number; column: number }
-) =>
-  resolveImageFit({
-    availableWidth: device.column,
-    maxHeight: chatCap(device.windowHeight),
+const fit = (image: Image, device: Device) =>
+  resolveConstrainedImageSize({
+    maxWidth: device.column,
+    maxHeight: capFor(device.windowHeight),
     naturalAspectRatio: image.width / image.height,
     naturalPixelWidth: image.width,
   })!;
 
-const cross = DEVICES.flatMap((device) =>
-  IMAGES.map(
-    (image) => [`${image.name} on ${device.name}`, image, device] as const
-  )
-);
-
 describe('resolveImageMaxHeight', () => {
-  test('imposes no cap when the caller sets no fraction', () => {
+  test('no fraction means no cap', () => {
     expect(resolveImageMaxHeight({ windowHeight: 874 })).toBeUndefined();
   });
 
   test.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])(
-    'imposes no cap on a nonsense window height (%p)',
-    (windowHeight) => {
-      expect(chatCap(windowHeight)).toBeUndefined();
-    }
-  );
-
-  test.each([0, -0.5, Number.NaN, Number.POSITIVE_INFINITY])(
-    'imposes no cap on a nonsense fraction (%p)',
-    (maxWindowHeightFraction) => {
+    'nonsense input (%p) means no cap',
+    (n) => {
+      expect(capFor(n)).toBeUndefined();
       expect(
-        resolveImageMaxHeight({ windowHeight: 874, maxWindowHeightFraction })
+        resolveImageMaxHeight({ windowHeight: 874, maxWindowHeightFraction: n })
       ).toBeUndefined();
     }
   );
 });
 
-describe('resolveImageFit', () => {
-  test('declines to size anything until the column has been measured', () => {
-    expect(
-      resolveImageFit({
-        availableWidth: null,
-        maxHeight: 743,
-        naturalAspectRatio: 0.46,
-      })
-    ).toBeNull();
+// This gate keeps the probe, the extra layout pass and the state update off the
+// images that never needed them.
+describe('shouldMeasureColumn', () => {
+  test.each([
+    ['a short image, which no column can stretch past the cap', PHOTO, false],
+    ['a small image, held to its own pixels', SMALL, false],
+    ['the tall image the cap exists for', LONG, true],
+  ])('%s', (_label, image, expected) => {
+    expect(measures(image as Image, PHONE)).toBe(expected);
+    expect(measures(image as Image, TABLET)).toBe(expected);
   });
 
-  test('declines when the caller set no cap, however tall the image', () => {
+  test('nothing is measured with no cap, or before dimensions are known', () => {
+    const tall = { windowWidth: 402, naturalAspectRatio: 1200 / 9000 };
+    expect(shouldMeasureColumn(tall)).toBe(false);
     expect(
-      resolveImageFit({
-        availableWidth: 330,
-        naturalAspectRatio: 1200 / 9000,
-      })
-    ).toBeNull();
+      shouldMeasureColumn({ ...tall, maxHeight: 743, naturalAspectRatio: null })
+    ).toBe(false);
   });
 
-  test.each([null, 0, Number.NaN, Number.POSITIVE_INFINITY, -2])(
-    'declines on a nonsense ratio (%p)',
-    (naturalAspectRatio) => {
-      expect(
-        resolveImageFit({
-          availableWidth: 330,
-          maxHeight: 743,
-          naturalAspectRatio: naturalAspectRatio as number | null,
-        })
-      ).toBeNull();
+  test('never skips an image the fit would have shrunk', () => {
+    // The contract the gate rests on: skipping is only safe when the image fits
+    // at its widest, so anything skipped must be left alone by the fit.
+    for (const device of [PHONE, TABLET]) {
+      for (const image of [PHOTO, SCREENSHOT, LONG, SMALL]) {
+        if (measures(image, device)) continue;
+        expect(fit(image, device).width).toBe(
+          Math.min(device.column, image.width)
+        );
+      }
     }
-  );
+  });
+});
 
-  test.each([0, -10, Number.NaN, Number.POSITIVE_INFINITY])(
-    'declines on a nonsense cap (%p)',
-    (maxHeight) => {
-      expect(
-        resolveImageFit({
-          availableWidth: 330,
-          maxHeight,
-          naturalAspectRatio: 0.46,
-        })
-      ).toBeNull();
-    }
-  );
+describe('resolveConstrainedImageSize', () => {
+  test.each([
+    ['no width limit', { maxHeight: 743, naturalAspectRatio: 0.46 }],
+    ['no height limit', { maxWidth: 330, naturalAspectRatio: 0.46 }],
+    [
+      'no ratio yet',
+      { maxWidth: 330, maxHeight: 743, naturalAspectRatio: null },
+    ],
+    [
+      'a nonsense limit',
+      { maxWidth: 0, maxHeight: 743, naturalAspectRatio: 0.46 },
+    ],
+  ])('declines to size anything with %s', (_label, args) => {
+    expect(resolveConstrainedImageSize(args)).toBeNull();
+  });
 
-  test.each([0, -10, Number.NaN])(
-    'declines on a nonsense column width (%p)',
-    (availableWidth) => {
-      expect(
-        resolveImageFit({
-          availableWidth,
-          maxHeight: 743,
-          naturalAspectRatio: 0.46,
-        })
-      ).toBeNull();
-    }
-  );
-
-  test.each([undefined, null, 0])(
-    'ignores an unknown pixel width (%p) and uses the other limits',
-    (naturalPixelWidth) => {
-      expect(
-        resolveImageFit({
-          availableWidth: 330,
-          maxHeight: 743,
-          naturalAspectRatio: 4 / 3,
-          naturalPixelWidth,
-        })
-      ).toEqual({ width: 330, height: 330 / (4 / 3) });
-    }
-  );
-
-  test('a tiny image is held to its own pixel width, not stretched to the column', () => {
+  test('fixed-cap callers keep their box, and may still scale an image up', () => {
     expect(
-      resolveImageFit({
-        availableWidth: 330,
-        maxHeight: 743,
+      resolveConstrainedImageSize({
+        maxWidth: 600,
+        maxHeight: 400,
         naturalAspectRatio: 1,
-        naturalPixelWidth: 40,
       })
-    ).toEqual({ width: 40, height: 40 });
+    ).toEqual({ width: 400, height: 400 });
   });
 
-  // The whole point of the cap: no image may make a row taller than its window.
-  test.each(cross)('%s is bounded by the window', (_n, image, device) => {
-    expect(fitInChat(image, device).height).toBeLessThanOrEqual(
-      chatCap(device.windowHeight)!
-    );
+  test('the measured path holds an image to its own pixels instead', () => {
+    expect(
+      resolveConstrainedImageSize({
+        maxWidth: 600,
+        maxHeight: 400,
+        naturalAspectRatio: 1,
+        naturalPixelWidth: 100,
+      })
+    ).toEqual({ width: 100, height: 100 });
   });
 
-  // And the cap must do it by fitting, never by cropping or distorting.
-  test.each(cross)('%s keeps its proportions', (_n, image, device) => {
-    const { width, height } = fitInChat(image, device);
-    expect(width / height).toBeCloseTo(image.width / image.height, 5);
+  test('a tall image is narrowed to fit, never cropped or distorted', () => {
+    const { width, height } = fit(LONG, PHONE);
+    expect(height).toBeLessThanOrEqual(capFor(PHONE.windowHeight)!);
+    expect(width).toBeLessThan(PHONE.column);
+    expect(width / height).toBeCloseTo(LONG.width / LONG.height, 5);
   });
 
-  test.each(cross)(
-    '%s is never upscaled past its own pixels',
-    (_n, image, device) => {
-      expect(fitInChat(image, device).width).toBeLessThanOrEqual(image.width);
-    }
-  );
-
-  test.each(cross)('%s never overflows its column', (_n, image, device) => {
-    expect(fitInChat(image, device).width).toBeLessThanOrEqual(device.column);
-  });
-
-  test('uses the full column when the image is not the binding constraint', () => {
-    // A landscape photo on a phone: short enough that only the column limits it.
-    expect(fitInChat(IMAGES[0], DEVICES[1]).width).toBe(330);
-  });
-
-  test('narrows a tall image rather than cropping it', () => {
-    // A portrait photo across a 1000pt tablet column would stand 1333pt tall;
-    // fitting keeps all of it by rendering it narrower instead.
-    const { width, height } = fitInChat(IMAGES[1], DEVICES[3]);
-    expect(height).toBeLessThanOrEqual(chatCap(1024)!);
-    expect(width).toBeLessThan(1000);
+  test('a screenshot fills the column on a phone, and narrows on a wide one', () => {
+    expect(fit(SCREENSHOT, PHONE).width).toBe(PHONE.column);
+    // 1206x2622 across a 1000pt column would otherwise stand 2174pt tall.
+    const onTablet = fit(SCREENSHOT, TABLET);
+    expect(onTablet.height).toBeLessThanOrEqual(capFor(TABLET.windowHeight)!);
+    expect(onTablet.width).toBeLessThan(TABLET.column);
   });
 });

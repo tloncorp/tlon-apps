@@ -1,9 +1,11 @@
+const positive = (n?: number | null): n is number =>
+  n != null && Number.isFinite(n) && n > 0;
+
 /**
  * An image block's dimensions come off the wire, so they are only as
  * trustworthy as whatever authored the post. Surfaces that scroll their content
- * cap how much of the window one image may occupy, so a single block cannot
- * make a row taller than the screen it has to be scrolled through. Surfaces
- * that render an image full-bleed pass no fraction and are left alone.
+ * cap how much of the window one image may take; full-bleed surfaces pass no
+ * fraction and render at the natural ratio however tall that is.
  */
 export function resolveImageMaxHeight({
   windowHeight,
@@ -12,60 +14,77 @@ export function resolveImageMaxHeight({
   windowHeight: number;
   maxWindowHeightFraction?: number;
 }): number | undefined {
-  if (
-    maxWindowHeightFraction == null ||
-    !Number.isFinite(maxWindowHeightFraction) ||
-    maxWindowHeightFraction <= 0
-  ) {
-    return undefined;
-  }
-  if (!Number.isFinite(windowHeight) || windowHeight <= 0) {
+  if (!positive(windowHeight) || !positive(maxWindowHeightFraction)) {
     return undefined;
   }
   return windowHeight * maxWindowHeightFraction;
 }
 
 /**
- * Largest box with the image's own proportions that fits the column it is
- * rendered in and the height cap, and no wider in points than the image is in
- * pixels (inherited from how this has always bounded width -- on a 3x screen
- * that still leaves room to upscale, it just keeps a small image from being
- * blown across the column).
+ * Whether this image can reach the cap at all, and so whether its column is
+ * worth measuring.
  *
- * Fitting rather than cropping is what keeps the cap from eating ordinary
- * content on a wide column: a portrait photo laid out across a 1000pt tablet
- * column stands 1333pt tall, so bounding its height by cropping would take a
- * third of the picture, while narrowing it to 652pt keeps all of it. It is also
- * what the web renderer has always done with its own 600x400 caps.
+ * A column is never wider than the window and an image is never rendered wider
+ * than its own pixels, so `min(window, pixels) / ratio` is the tallest it could
+ * ever be. When even that fits, no column can make it overflow and the block
+ * renders on the plain path -- no probe, no extra layout pass. Only the
+ * unusually tall images the cap exists for pay for it.
  */
-export function resolveImageFit({
-  availableWidth,
+export function shouldMeasureColumn({
+  windowWidth,
   maxHeight,
   naturalAspectRatio,
   naturalPixelWidth,
 }: {
-  availableWidth: number | null;
+  windowWidth: number;
   maxHeight?: number;
+  naturalAspectRatio: number | null;
+  naturalPixelWidth?: number | null;
+}): boolean {
+  if (
+    !positive(windowWidth) ||
+    !positive(maxHeight) ||
+    !positive(naturalAspectRatio)
+  ) {
+    return false;
+  }
+  const widest = positive(naturalPixelWidth)
+    ? Math.min(windowWidth, naturalPixelWidth)
+    : windowWidth;
+  return widest / naturalAspectRatio > maxHeight;
+}
+
+/**
+ * Largest box with the image's own proportions fitting every limit given.
+ *
+ * Both callers want this arithmetic and differ only in where the limits come
+ * from: web chat passes fixed pixel caps, a scrolling native surface passes its
+ * measured column and a window-derived height. `naturalPixelWidth` is the
+ * latter's extra limit -- it keeps a small image from being blown across a wide
+ * column, which the fixed-cap callers have never done.
+ */
+export function resolveConstrainedImageSize({
+  maxWidth,
+  maxHeight,
+  naturalAspectRatio,
+  naturalPixelWidth,
+}: {
+  maxWidth?: number | null;
+  maxHeight?: number | null;
   naturalAspectRatio: number | null;
   naturalPixelWidth?: number | null;
 }): { width: number; height: number } | null {
   if (
-    maxHeight == null ||
-    !Number.isFinite(maxHeight) ||
-    maxHeight <= 0 ||
-    availableWidth == null ||
-    !Number.isFinite(availableWidth) ||
-    availableWidth <= 0 ||
-    naturalAspectRatio == null ||
-    !Number.isFinite(naturalAspectRatio) ||
-    naturalAspectRatio <= 0
+    !positive(maxWidth) ||
+    !positive(maxHeight) ||
+    !positive(naturalAspectRatio)
   ) {
     return null;
   }
-  const widthLimits = [availableWidth, maxHeight * naturalAspectRatio];
-  if (naturalPixelWidth != null && naturalPixelWidth > 0) {
-    widthLimits.push(naturalPixelWidth);
+  const limits = [maxWidth, maxHeight * naturalAspectRatio];
+  if (positive(naturalPixelWidth)) {
+    limits.push(naturalPixelWidth);
   }
-  const width = Math.min(...widthLimits);
+  const width = Math.min(...limits);
   return { width, height: width / naturalAspectRatio };
 }

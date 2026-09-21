@@ -58,7 +58,11 @@ import { VideoPreview } from '../VideoPreview';
 import { A2UIBlock } from './A2UIBlock';
 import { BlockquoteSideBorder } from './BlockquoteSideBorder';
 import { InlineRenderer } from './InlineRenderer';
-import { resolveImageFit, resolveImageMaxHeight } from './imageSizing';
+import {
+  resolveConstrainedImageSize,
+  resolveImageMaxHeight,
+  shouldMeasureColumn,
+} from './imageSizing';
 import { ContentContext, useContentContext } from './contentUtils';
 
 export const IsInsideReferenceContext = createContext(false);
@@ -672,49 +676,51 @@ export function ImageBlock({
   const shouldUseAspectRatio = imageProps?.aspectRatio !== 'unset';
   const viewerId = getImageViewerId?.(block.src);
 
-  // Fit the image to the column it is actually in rather than capping its
-  // height in isolation: the height a block takes is its rendered width over
-  // its ratio, so the column has to be measured before the cap can be applied
+  // Two callers, one calculation. Web chat caps images with fixed pixel
+  // numbers; a scrolling native surface caps the share of the window one may
+  // take, which needs the column it is actually in -- a fixed number tuned to a
+  // phone leaves a tablet column unbounded, and height alone cannot be capped
   // without either cropping the picture or letterboxing it.
-  const { height: windowHeight } = useWindowDimensions();
+  const propMaxWidth = imageProps?.maxWidth;
+  const propMaxHeight = imageProps?.maxHeight;
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const maxHeight = resolveImageMaxHeight({
     windowHeight,
     maxWindowHeightFraction,
   });
-  const [availableWidth, setAvailableWidth] = useState<number | null>(null);
-  const handleAvailableWidthLayout = useCallback((e: LayoutChangeEvent) => {
+  const needsColumnWidth = shouldMeasureColumn({
+    windowWidth,
+    maxHeight,
+    naturalAspectRatio: dimensions.aspect,
+    naturalPixelWidth: dimensions.width,
+  });
+  const [columnWidth, setColumnWidth] = useState<number | null>(null);
+  const handleColumnLayout = useCallback((e: LayoutChangeEvent) => {
     const { width } = e.nativeEvent.layout;
-    setAvailableWidth((current) =>
+    setColumnWidth((current) =>
       current != null && Math.abs(current - width) < 1 ? current : width
     );
   }, []);
-  const fittedSize = useMemo(
+  const constrainedSize = useMemo(
     () =>
-      resolveImageFit({
-        availableWidth,
-        maxHeight,
+      resolveConstrainedImageSize({
+        maxWidth: needsColumnWidth ? columnWidth : numericStyle(propMaxWidth),
+        maxHeight: needsColumnWidth ? maxHeight : numericStyle(propMaxHeight),
         naturalAspectRatio: dimensions.aspect,
-        naturalPixelWidth: dimensions.width,
+        // Only the measured path holds an image to its own pixels; the
+        // fixed-cap callers have always been free to scale one up to their box.
+        naturalPixelWidth: needsColumnWidth ? dimensions.width : null,
       }),
-    [availableWidth, maxHeight, dimensions.aspect, dimensions.width]
+    [
+      needsColumnWidth,
+      columnWidth,
+      maxHeight,
+      propMaxWidth,
+      propMaxHeight,
+      dimensions.aspect,
+      dimensions.width,
+    ]
   );
-
-  // Calculate constrained dimensions that respect both maxWidth and maxHeight
-  // while maintaining the natural aspect ratio (similar to VideoPreview logic).
-  // Dimensions are applied to the Pressable wrapper so ContentImage fills it.
-  const constrainedSize = useMemo(() => {
-    const aspect = dimensions.aspect;
-    if (!aspect) return null;
-    const maxW =
-      typeof imageProps?.maxWidth === 'number' ? imageProps.maxWidth : null;
-    const maxH =
-      typeof imageProps?.maxHeight === 'number' ? imageProps.maxHeight : null;
-    if (maxW != null && maxH != null) {
-      const width = Math.min(maxW, maxH * aspect);
-      return { width, height: width / aspect };
-    }
-    return null;
-  }, [dimensions.aspect, imageProps?.maxWidth, imageProps?.maxHeight]);
 
   // When using constrained sizing, strip maxWidth/maxHeight from imageProps
   // so they don't override responsive sizing on narrow viewports.
@@ -737,29 +743,20 @@ export function ImageBlock({
             height: constrainedSize.height,
             maxWidth: '100%',
           }
-        : fittedSize
-          ? {
-              alignSelf: 'flex-start' as const,
-              width: fittedSize.width,
-              height: fittedSize.height,
-            }
-          : {
-              ...(dimensions.width ? { maxWidth: dimensions.width } : {}),
-              // Holds the row's height for the frame before the column reports
-              // its width -- the same height `fittedSize` then resolves to, so
-              // nothing reflows. Kept invisible because the width is not known
-              // yet, and rows remount as the list recycles them.
-              ...(maxHeight != null ? { maxHeight, opacity: 0 } : {}),
-            })}
+        : {
+            ...(dimensions.width ? { maxWidth: dimensions.width } : {}),
+            // Only reached while a column that needs measuring reports its
+            // width. Holds the row's final height so nothing reflows, and stays
+            // invisible because the width is not known yet.
+            ...(needsColumnWidth ? { maxHeight, opacity: 0 } : {}),
+          })}
     >
       <ContentImage
         source={{
           uri: block.src,
         }}
-        {...(constrainedSize || fittedSize
-          ? { width: '100%', height: '100%' }
-          : {})}
-        {...(shouldUseAspectRatio && !constrainedSize && !fittedSize
+        {...(constrainedSize ? { width: '100%', height: '100%' } : {})}
+        {...(shouldUseAspectRatio && !constrainedSize
           ? { aspectRatio: dimensions.aspect || 1 }
           : {})}
         {...(isInsideReference
@@ -785,27 +782,27 @@ export function ImageBlock({
     imagePressable
   );
 
-  if (maxHeight == null) {
+  if (!needsColumnWidth) {
     return triggered;
   }
 
   // Full-width probe for the column's width; the image sizes itself to what
   // this reports rather than assuming the window is the column.
   return (
-    <RNView
-      style={styles.measureAvailableWidth}
-      onLayout={handleAvailableWidthLayout}
-    >
+    <RNView style={styles.measureColumn} onLayout={handleColumnLayout}>
       {triggered}
     </RNView>
   );
 }
 
+const numericStyle = (value: unknown) =>
+  typeof value === 'number' ? value : null;
+
 const styles = StyleSheet.create({
   // Full width so the layout reports the column, and flex-start so the trigger
   // node inside shrink-wraps the image -- the viewer zooms from that node, and
   // a stretched one hands it a rect wider than the picture being tapped.
-  measureAvailableWidth: { width: '100%', alignItems: 'flex-start' },
+  measureColumn: { width: '100%', alignItems: 'flex-start' },
 });
 
 const ContentImage = styled(Image, {
