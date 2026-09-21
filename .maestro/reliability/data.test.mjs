@@ -41,6 +41,11 @@ test('every reliability journey gets short, searchable, retry-safe fixtures', ()
       assert.ok(first.renamedChannel.includes(first.groupQuery), journey);
       assert.ok(first.channel.length <= 30, journey);
       assert.ok(first.renamedChannel.length <= 30, journey);
+      assert.ok(first.contactNickname.length <= 30, journey);
+      assert.ok(
+        first.contactNickname.endsWith(runTag.slice(-8) + ' contact'),
+        journey
+      );
       assert.ok(first.profileStatus.length <= 50, journey);
       assert.ok(
         first.profileStatus.endsWith(runTag.slice(-8) + ' status'),

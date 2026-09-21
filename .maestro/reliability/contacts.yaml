@@ -15,9 +15,9 @@ onFlowComplete:
         - runFlow: subflows/contacts-tab.yaml
         - runFlow:
             when:
-              visible: ${MAESTRO_RUN_TAG + ' contact'}
+              visible: ${output.reliability.contactNickname}
             commands:
-              - tapOn: ${MAESTRO_RUN_TAG + ' contact'}
+              - tapOn: ${output.reliability.contactNickname}
         - runFlow:
             when:
               notVisible: '^Remove Contact$'
@@ -58,18 +58,18 @@ onFlowComplete:
 - tapOn:
     id: ProfileNicknameInput
 - eraseText: 100
-- inputText: ${MAESTRO_RUN_TAG + ' contact'}
+- inputText: ${output.reliability.contactNickname}
 - tapOn: '^Save$'
-- assertVisible: ${MAESTRO_RUN_TAG + ' contact'}
+- assertVisible: ${output.reliability.contactNickname}
 - stopApp
 - launchApp
 - runFlow: subflows/contacts-tab.yaml
-- tapOn: ${MAESTRO_RUN_TAG + ' contact'}
+- tapOn: ${output.reliability.contactNickname}
 - assertVisible: ${MAESTRO_CONTACT_SHIP}
 - tapOn: '^Remove Contact$'
 - evalScript: ${output.contactAdded = false}
 - assertVisible: '^Add Contact$'
-- assertNotVisible: ${MAESTRO_RUN_TAG + ' contact'}
+- assertNotVisible: ${output.reliability.contactNickname}
 
 # Add the foreign ship directly from its profile and verify the Contacts return.
 - tapOn: '^Add Contact$'

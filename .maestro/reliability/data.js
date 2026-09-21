@@ -46,6 +46,7 @@ output.reliability = {
   sibling: MAESTRO_RUN_TAG + ' sibling',
   title: MAESTRO_RUN_TAG + ' note',
   body: MAESTRO_RUN_TAG + ' body',
+  contactNickname: boundedTaggedValue('contact', 30),
   profileStatus: boundedTaggedValue('status', 50),
   linkUrl: 'https://tlon.io',
   // ContactName exposes a spoken label (zod / sampel - palnet) on native.
