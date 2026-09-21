@@ -42,3 +42,17 @@ test('every reliability journey gets a short, searchable, retry-safe group', () 
     }
   }
 });
+
+test('parallel journeys cannot share a group or search query', () => {
+  const fixtures = journeys.map((journey) =>
+    fixture(journey, 'r123456789abc', 1_800_000_000_000)
+  );
+  assert.equal(
+    new Set(fixtures.map(({ group }) => group)).size,
+    journeys.length
+  );
+  assert.equal(
+    new Set(fixtures.map(({ groupQuery }) => groupQuery)).size,
+    journeys.length
+  );
+});

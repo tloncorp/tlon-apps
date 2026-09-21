@@ -5,8 +5,15 @@ if (!/^~[a-z]+(?:-[a-z]+)*$/.test(MAESTRO_TEST_SHIP))
   throw new Error('Expected test ship is required');
 if (!/^[A-Za-z0-9-]+$/.test(MAESTRO_RUN_TAG))
   throw new Error('A unique run tag is required');
+function shortHash(value) {
+  var hash = 0;
+  for (var index = 0; index < value.length; index++) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+  return hash.toString(36).padStart(6, '0').slice(-6);
+}
 var groupAttempt = Date.now().toString(36).slice(-6);
-var groupJourney = JOURNEY.slice(0, 6);
+var groupJourney = shortHash(JOURNEY);
 var groupSuffix = '-' + groupJourney + '-' + groupAttempt;
 var renamedGroupSuffix = ' renamed';
 var maxGroupRunTagLength = Math.max(
@@ -19,7 +26,7 @@ output.reliability = {
   session: typeof MAESTRO_SESSION === 'undefined' ? 'fresh' : MAESTRO_SESSION,
   // Cloud retries reuse env values; each attempt still needs its own fixture.
   group: 'QA-' + MAESTRO_RUN_TAG.slice(0, maxGroupRunTagLength) + groupSuffix,
-  groupQuery: groupAttempt,
+  groupQuery: groupJourney + '-' + groupAttempt,
   text: MAESTRO_RUN_TAG + ' message',
   editedText: MAESTRO_RUN_TAG + ' edited',
   reply: MAESTRO_RUN_TAG + ' reply',
