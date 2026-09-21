@@ -18,7 +18,7 @@ env:
 - runFlow:
     file: subflows/input.yaml
     env:
-      INPUT_TEXT: ${MAESTRO_RUN_TAG + '-preview'}
+      INPUT_TEXT: ${output.reliability.channel}
 - runFlow:
     when:
       platform: iOS
@@ -32,10 +32,10 @@ env:
       - hideKeyboard
 - tapOn: '^Create channel$'
 - extendedWaitUntil:
-    visible: ${MAESTRO_RUN_TAG + '-preview'}
+    visible: ${output.reliability.channel}
     timeout: 15000
 - tapOn: '^Back$'
-- tapOn: ${MAESTRO_RUN_TAG + '-preview'}
+- tapOn: ${output.reliability.channel}
 - extendedWaitUntil:
     visible: '^No notes or folders$'
     timeout: 15000

@@ -18,7 +18,7 @@ env:
 - runFlow:
     file: subflows/input.yaml
     env:
-      INPUT_TEXT: ${MAESTRO_RUN_TAG + '-titles'}
+      INPUT_TEXT: ${output.reliability.channel}
 - runFlow:
     when:
       platform: iOS
@@ -32,10 +32,10 @@ env:
       - hideKeyboard
 - tapOn: '^Create channel$'
 - extendedWaitUntil:
-    visible: ${MAESTRO_RUN_TAG + '-titles'}
+    visible: ${output.reliability.channel}
     timeout: 15000
 - tapOn: '^Back$'
-- tapOn: ${MAESTRO_RUN_TAG + '-titles'}
+- tapOn: ${output.reliability.channel}
 - extendedWaitUntil:
     visible: '^No notes or folders$'
     timeout: 15000
@@ -83,7 +83,7 @@ env:
     visible: '^Home$'
     timeout: 15000
 - tapOn: ${output.reliability.groupPattern}
-- tapOn: ${MAESTRO_RUN_TAG + '-titles'}
+- tapOn: ${output.reliability.channel}
 - extendedWaitUntil:
     visible: ${output.reliability.noteTrimmedTitle}
     timeout: 15000
@@ -135,7 +135,7 @@ env:
     visible: '^Home$'
     timeout: 15000
 - tapOn: ${output.reliability.groupPattern}
-- tapOn: ${MAESTRO_RUN_TAG + '-titles'}
+- tapOn: ${output.reliability.channel}
 - extendedWaitUntil:
     visible: ${output.reliability.noteLongTitlePattern}
     timeout: 15000

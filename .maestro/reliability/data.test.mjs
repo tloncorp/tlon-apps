@@ -29,7 +29,7 @@ function fixture(journey, runTag, timestamp) {
   return context.output.reliability;
 }
 
-test('every reliability journey gets a short, searchable, retry-safe group', () => {
+test('every reliability journey gets short, searchable, retry-safe fixtures', () => {
   for (const journey of journeys) {
     for (const runTag of ['r123456789abc', 'r123456789abcdefghijklmnop']) {
       const first = fixture(journey, runTag, 1_800_000_000_000);
@@ -37,13 +37,19 @@ test('every reliability journey gets a short, searchable, retry-safe group', () 
 
       assert.ok(first.group.includes(first.groupQuery), journey);
       assert.ok(first.group.length + ' renamed'.length <= 30, journey);
+      assert.ok(first.channel.includes(first.groupQuery), journey);
+      assert.ok(first.renamedChannel.includes(first.groupQuery), journey);
+      assert.ok(first.channel.length <= 30, journey);
+      assert.ok(first.renamedChannel.length <= 30, journey);
       assert.notEqual(first.group, retry.group, journey);
       assert.notEqual(first.groupQuery, retry.groupQuery, journey);
+      assert.notEqual(first.channel, retry.channel, journey);
+      assert.notEqual(first.renamedChannel, retry.renamedChannel, journey);
     }
   }
 });
 
-test('parallel journeys cannot share a group or search query', () => {
+test('parallel journeys cannot share fixture names or search queries', () => {
   const fixtures = journeys.map((journey) =>
     fixture(journey, 'r123456789abc', 1_800_000_000_000)
   );
@@ -53,6 +59,14 @@ test('parallel journeys cannot share a group or search query', () => {
   );
   assert.equal(
     new Set(fixtures.map(({ groupQuery }) => groupQuery)).size,
+    journeys.length
+  );
+  assert.equal(
+    new Set(fixtures.map(({ channel }) => channel)).size,
+    journeys.length
+  );
+  assert.equal(
+    new Set(fixtures.map(({ renamedChannel }) => renamedChannel)).size,
     journeys.length
   );
 });

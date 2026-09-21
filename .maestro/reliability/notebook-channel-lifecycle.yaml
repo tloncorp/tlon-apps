@@ -9,7 +9,7 @@ env:
 - runFlow: subflows/create-group.yaml
 - tapOn: '^Edit channels$'
 - assertVisible: '^Channels$'
-- assertNotVisible: ${MAESTRO_RUN_TAG + ' notebook'}
+- assertNotVisible: ${output.reliability.channel}
 - tapOn: '^New$'
 - tapOn: '^New channel$'
 - assertVisible: '^Create a new channel$'
@@ -21,10 +21,10 @@ env:
 - runFlow:
     file: subflows/input.yaml
     env:
-      INPUT_TEXT: ${MAESTRO_RUN_TAG + ' notebook'}
+      INPUT_TEXT: ${output.reliability.channel}
 - assertVisible:
     id: ChannelTitleInput
-    text: ${MAESTRO_RUN_TAG + ' notebook'}
+    text: ${output.reliability.channel}
 - runFlow:
     when:
       platform: Android
@@ -38,12 +38,12 @@ env:
       - scroll
 - tapOn: '^Create channel$'
 - extendedWaitUntil:
-    visible: ${MAESTRO_RUN_TAG + ' notebook'}
+    visible: ${output.reliability.channel}
     timeout: 15000
 - tapOn: '^Back$'
 - assertVisible: ${output.reliability.groupPattern}
-- assertVisible: ${MAESTRO_RUN_TAG + ' notebook'}
-- tapOn: ${MAESTRO_RUN_TAG + ' notebook'}
+- assertVisible: ${output.reliability.channel}
+- tapOn: ${output.reliability.channel}
 - extendedWaitUntil:
     visible: '^No notes or folders$'
     timeout: 15000
@@ -407,7 +407,7 @@ env:
     visible: '^Home$'
     timeout: 15000
 - runFlow: subflows/open-fixture-group.yaml
-- tapOn: ${MAESTRO_RUN_TAG + ' notebook'}
+- tapOn: ${output.reliability.channel}
 - extendedWaitUntil:
     visible:
       id: ${output.reliability.folderArchiveRowId}
@@ -458,14 +458,14 @@ env:
     visible: '^Home$'
     timeout: 15000
 - runFlow: subflows/open-fixture-group.yaml
-- tapOn: ${MAESTRO_RUN_TAG + ' notebook'}
+- tapOn: ${output.reliability.channel}
 - extendedWaitUntil:
     visible:
       id: NotesRootNewHeaderAction
     timeout: 15000
 
 # Exercise both branches of the destructive confirmation.
-- tapOn: ${MAESTRO_RUN_TAG + ' notebook'}
+- tapOn: ${output.reliability.channel}
 - scrollUntilVisible:
     element:
       id: ChannelLeaveAction-Delete channel
@@ -473,12 +473,12 @@ env:
     timeout: 5000
 - tapOn:
     id: ChannelLeaveAction-Delete channel
-- assertVisible: "^Delete ${MAESTRO_RUN_TAG} notebook[?]$"
+- assertVisible: "^Delete ${output.reliability.channel}[?]$"
 - tapOn: '(?i)^Cancel$'
-- assertVisible: ${MAESTRO_RUN_TAG + ' notebook'}
+- assertVisible: ${output.reliability.channel}
 - tapOn:
     id: ChannelLeaveAction-Delete channel
-- assertVisible: "^Delete ${MAESTRO_RUN_TAG} notebook[?]$"
+- assertVisible: "^Delete ${output.reliability.channel}[?]$"
 - runFlow:
     when:
       platform: iOS
@@ -492,7 +492,7 @@ env:
     commands:
       - tapOn: '(?i)^Delete channel$'
 - extendedWaitUntil:
-    notVisible: ${MAESTRO_RUN_TAG + ' notebook'}
+    notVisible: ${output.reliability.channel}
     timeout: 15000
 
 # Prove the deleted Notebook does not return from the local cache on relaunch.
@@ -502,7 +502,7 @@ env:
     visible: '^Home$'
     timeout: 15000
 - runFlow: subflows/open-fixture-group.yaml
-- assertNotVisible: ${MAESTRO_RUN_TAG + ' notebook'}
+- assertNotVisible: ${output.reliability.channel}
 - assertVisible: '^Chat$'
 - assertVisible: '^Gallery$'
 - assertVisible: '^Notebook$'

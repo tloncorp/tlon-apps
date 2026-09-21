@@ -16,7 +16,7 @@ env:
 - assertVisible: '^Create a new channel$'
 - tapOn:
     id: ChannelTitleInput
-- inputText: ${MAESTRO_RUN_TAG + ' recent channel'}
+- inputText: ${output.reliability.channel}
 - runFlow:
     when:
       platform: Android
@@ -30,10 +30,10 @@ env:
       - scroll
 - tapOn: '^Create channel$'
 - extendedWaitUntil:
-    visible: ${MAESTRO_RUN_TAG + ' recent channel'}
+    visible: ${output.reliability.channel}
     timeout: 5000
 - tapOn: '^Back$'
-- tapOn: ${MAESTRO_RUN_TAG + ' recent channel'}
+- tapOn: ${output.reliability.channel}
 - runFlow:
     file: subflows/send.yaml
     env:
@@ -68,7 +68,7 @@ env:
 - tapOn: ${output.reliability.groupPattern}
 - assertNotVisible: '^Recent Channels$'
 - assertVisible:
-    text: ${MAESTRO_RUN_TAG + ' recent channel'}
+    text: ${output.reliability.channel}
     above: '^Chat$'
 
 # Reopen the dedicated sorting sheet and apply recency sorting.
@@ -82,7 +82,7 @@ env:
 - assertVisible: '^Recent Channels$'
 - assertVisible:
     text: '^Chat$'
-    above: ${MAESTRO_RUN_TAG + ' recent channel'}
+    above: ${output.reliability.channel}
 
 # Restore the arranged preference and prove the original order returns.
 - tapOn: '^Back$'
@@ -93,7 +93,7 @@ env:
 - tapOn: ${output.reliability.groupPattern}
 - assertNotVisible: '^Recent Channels$'
 - assertVisible:
-    text: ${MAESTRO_RUN_TAG + ' recent channel'}
+    text: ${output.reliability.channel}
     above: '^Chat$'
 
 # Delete only this run's fixture group.
