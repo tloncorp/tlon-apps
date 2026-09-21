@@ -49,10 +49,20 @@ export function useBotSystemPrompts(botShip: string) {
  * trusted, so mirror presence is itself the ownership signal.
  */
 export function useIsOwnedBot(botShip: string) {
-  const promptsQuery = useBotSystemPrompts(botShip);
+  // Keep the untransformed snapshot here: an empty projection means the bot
+  // is still owned, even though there are no editable rows to render.
+  const promptsQuery = useQuery({
+    queryKey: promptsQueryKey(botShip),
+    queryFn: api.getStewardPromptFiles,
+  });
   return {
-    isOwnedBot: Boolean(promptsQuery.data?.length),
-    isPending: promptsQuery.isPending || promptsQuery.isFetching,
+    isOwnedBot:
+      promptsQuery.data !== undefined &&
+      Object.prototype.hasOwnProperty.call(promptsQuery.data, botShip),
+    // Failing open would expose Block for an owned bot after a transient
+    // prompt read failure. Wait for a successful ownership read instead.
+    isPending:
+      promptsQuery.isPending || promptsQuery.isFetching || promptsQuery.isError,
   };
 }
 
