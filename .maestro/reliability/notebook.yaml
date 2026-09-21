@@ -108,24 +108,23 @@ env:
 - assertVisible: ${MAESTRO_RUN_TAG + ' edited body'}
 - stopApp
 - launchApp
-- assertVisible: '^Home$'
-- tapOn: ${output.reliability.groupPattern}
-- tapOn: '^Notebook$'
+# The app restores the position it was closed in, so the note comes back
+# open -- which is what this journey is checking survives a cold start.
+- extendedWaitUntil:
+    visible: ${MAESTRO_RUN_TAG + ' edited body'}
+    timeout: 30000
 - runFlow:
     when:
       platform: Android
     commands:
-      - tapOn: ${MAESTRO_RUN_TAG + ' edited note'}
       - assertVisible: ${MAESTRO_RUN_TAG + ' edited note'}
 - runFlow:
     when:
       platform: iOS
     commands:
-      - tapOn: '^Untitled$'
       - assertVisible: '^Untitled$'
-- assertVisible: ${MAESTRO_RUN_TAG + ' edited body'}
 - tapOn: '^Back$'
 - tapOn: '^Back$'
 - assertVisible: ${output.reliability.groupPattern}
 - tapOn: '^Back$'
-- assertVisible: '^Home$'
+- assertVisible: '^Workspaces$'

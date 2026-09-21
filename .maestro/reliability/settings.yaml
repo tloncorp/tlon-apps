@@ -6,9 +6,7 @@ env:
 ---
 - runScript: data.js
 - runFlow: subflows/begin.yaml
-- runFlow: subflows/contacts-tab.yaml
-- tapOn: '^Settings$'
-- assertVisible: '^Settings$'
+- runFlow: subflows/settings-tab.yaml
 - tapOn: '^App info$'
 - assertVisible: '^Build version$'
 - assertVisible: '^Desk version$'
@@ -72,10 +70,12 @@ env:
       THEME_ID: ThemeOption-dark
 - stopApp
 - launchApp
-- assertVisible: '^Home$'
-- runFlow: subflows/contacts-tab.yaml
-- tapOn: '^Settings$'
-- tapOn: '^Appearance$'
+# The app restores the position it was closed in, so it comes back to
+# Appearance rather than to the chat list -- which is a stronger check of the
+# theme surviving a cold start than re-navigating here would be.
+- extendedWaitUntil:
+    visible: '^Appearance$'
+    timeout: 30000
 - runFlow:
     file: subflows/assert-theme.yaml
     env:
@@ -95,9 +95,9 @@ env:
 - tapOn: '^Blocked users$'
 - assertVisible: '^Blocked users$'
 - tapOn: '^Back$'
-- tapOn: '^Notification settings$'
+- tapOn: '^Notifications$'
 - assertVisible: '^Notifications$'
 - tapOn: '^Back$'
-- tapOn: '^Back$'
-- runFlow: subflows/home-tab.yaml
-- assertVisible: '^Home$'
+- assertVisible:
+    id: SettingsProfileRow
+- runFlow: subflows/workspaces-tab.yaml

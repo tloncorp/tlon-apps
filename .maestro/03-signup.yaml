@@ -139,16 +139,18 @@ onFlowComplete:
     visible: No problem. You can ask me anytime.
     timeout: 60000
 
-# Return from the setup conversation to the home screen.
+# Return from the setup conversation to the tab it sits in.
 - tapOn:
     text: Back
 - tapOn:
     text: Back
 
+# A hosted signup finishes in the bot DM, which is a tab of its own and draws
+# a deliberately blank header title, so there is no landing title to wait for.
+# Select Workspaces instead: everything asserted below is on the chat list.
+- runFlow: subflows/workspaces-tab.yaml
+
 # assert we made it through signup and onboarding
-- extendedWaitUntil:
-    visible: Home
-    timeout: 30000
 - extendedWaitUntil:
     visible:
       id: GroupListItem-Open hardware Digest-pinned

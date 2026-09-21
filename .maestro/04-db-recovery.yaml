@@ -2,7 +2,7 @@ appId: io.tlon.groups
 ---
 - runFlow: subflows/launch.yaml
 - runFlow: subflows/login-e2e-node.yaml
-- assertVisible: 'Home'
+- assertVisible: 'Workspaces'
 - openLink: 'io.tlon.groups://e2e/db?op=assert-table-present&table=groups'
 - extendedWaitUntil:
     visible: 'Open'
@@ -63,7 +63,7 @@ appId: io.tlon.groups
           timeout: 600000 # 10 minutes
 
 - assertNotVisible: 'Something went wrong'
-- assertVisible: 'Home'
+- assertVisible: 'Workspaces'
 - openLink: 'io.tlon.groups://e2e/db?op=assert-table-present&table=groups'
 - extendedWaitUntil:
     visible: 'Open'

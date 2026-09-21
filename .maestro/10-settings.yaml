@@ -2,7 +2,7 @@ appId: io.tlon.groups
 ---
 - runFlow: subflows/launch.yaml
 - runFlow: subflows/tlon-login.yaml
-- assertVisible: 'Home'
+- assertVisible: 'Workspaces'
 - tapOn:
     id: 'AvatarNavIcon'
 - assertVisible: 'Contacts'

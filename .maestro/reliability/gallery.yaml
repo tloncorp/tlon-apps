@@ -35,4 +35,4 @@ env:
 - tapOn: '^Back$'
 - assertVisible: ${output.reliability.groupPattern}
 - tapOn: '^Back$'
-- assertVisible: '^Home$'
+- assertVisible: '^Workspaces$'

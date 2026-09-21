@@ -1,0 +1,37 @@
+appId: io.tlon.groups
+---
+# Selects the Workspaces tab. Kept in step with
+# reliability/subflows/workspaces-tab.yaml, which cannot be shared: Maestro
+# Cloud uploads .maestro and .maestro/reliability as separate workspaces, so
+# neither can reference a file outside its own root.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      # The iOS native tab bar exposes only its container to accessibility --
+      # the tab buttons carry no label, because `tabBarLabel: ''` is what hides
+      # them visually and that also empties their accessibility label. So
+      # anchor on the container and tap a point inside it. 34% of the
+      # container's width lands inside Workspaces whether the bar holds three
+      # tabs or four; the reliability copy records the measurements.
+      - extendedWaitUntil:
+          visible: '^Tab Bar$'
+          timeout: 30000
+      - tapOn:
+          text: '^Tab Bar$'
+          point: '34%,37%'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      # Android labels its tab buttons, but the screen header repeats the name,
+      # so anchor against the neighbouring tab.
+      - extendedWaitUntil:
+          visible: '^Activity$'
+          timeout: 30000
+      - tapOn:
+          text: '^Workspaces$'
+          leftOf: '^Activity.*$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Workspaces$'

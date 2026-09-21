@@ -1,5 +1,5 @@
 appId: ${MAESTRO_APP_ID}
-name: Native Home filters and group controls
+name: Native Workspaces filters and group controls
 tags: [regression]
 env:
   JOURNEY: o
@@ -66,7 +66,7 @@ env:
     text: ${MAESTRO_RUN_TAG + ' description'}
 - tapOn: '^Back$'
 - tapOn: '^Back$'
-- assertVisible: '^Home$'
+- assertVisible: '^Workspaces$'
 - tapOn: '^Search$'
 - inputText: ${MAESTRO_RUN_TAG}
 - assertVisible: ${output.reliability.group + ' renamed'}
@@ -101,10 +101,10 @@ env:
     commands:
       - tapOn: '(?i)^Delete group$'
 - extendedWaitUntil:
-    visible: '^Home$'
+    visible: '^Workspaces$'
     timeout: 5000
 - assertVisible: '^${MAESTRO_RUN_TAG}$'
 - assertNotVisible: ${output.reliability.group + ' renamed'}
 - tapOn: '^Clear$'
 - tapOn: '^Close$'
-- assertVisible: '^Home$'
+- assertVisible: '^Workspaces$'

@@ -1,0 +1,47 @@
+appId: ${MAESTRO_APP_ID}
+---
+# Leaves any screen stacked above the tabs so that a tab can be selected.
+# Contacts, a channel and every settings detail are root-stack screens that
+# cover the tab bar, and a journey can arrive at a tab selection from one --
+# most often a cleanup hook running after a failure, but also an ordinary warm
+# launch, which restores the position the last run was closed in.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      # Wait for the app to be up before unwinding. A cold start shows neither
+      # the tab bar nor a back button for a while, and the loop below would
+      # otherwise spend all its runs against a splash screen and give up.
+      - extendedWaitUntil:
+          visible: '^(Tab Bar|Back)$'
+          timeout: 60000
+      - repeat:
+          times: 8
+          while:
+            notVisible: '^Tab Bar$'
+          commands:
+            - runFlow:
+                when:
+                  visible: '^Back$'
+                commands:
+                  - tapOn: '^Back$'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      # Android has no single tab-bar element to test for, so test for the
+      # labels of the tab buttons. The Bot tab's own header title is blank,
+      # but its button carries one.
+      - extendedWaitUntil:
+          visible: '^(Workspaces|Activity|Settings|Bot|Back)$'
+          timeout: 60000
+      - repeat:
+          times: 8
+          while:
+            notVisible: '^(Workspaces|Activity|Settings|Bot)$'
+          commands:
+            - runFlow:
+                when:
+                  visible: '^Back$'
+                commands:
+                  - tapOn: '^Back$'

@@ -1,0 +1,26 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runFlow: to-tab-root.yaml
+# Settings is a bottom tab now, not a row on the old Contacts tab. See
+# workspaces-tab.yaml for why iOS taps a point rather than a selector, and for
+# where these percentages come from.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: '^Tab Bar$'
+          point: '78%,37%'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      # "Settings" also names the screen header and the button on the
+      # notifications notice, so anchor against the neighbouring tab.
+      - tapOn:
+          text: '^Settings$'
+          rightOf: '^Activity.*$'
+# Settings draws its title into the native navigation bar rather than a
+# ScreenHeaderTitle, so verify the destination by a row only it has.
+- assertVisible:
+    id: SettingsProfileRow
