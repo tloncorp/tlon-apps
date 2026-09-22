@@ -599,8 +599,10 @@ const ConversationPostListAttempt = React.forwardRef<
     });
     const followsViewportEnd = React.useRef(false);
     const userNavigationActive = React.useRef(false);
+    // Worklet scroll reports can reach JS after the drag-end callback. Retain
+    // the navigation intent until a send or explicit return-to-end replaces it.
     const isBrowsingHistory = React.useCallback(
-      () => historyNavigationRequested.current && userNavigationActive.current,
+      () => historyNavigationRequested.current,
       []
     );
     const finishUserNavigation = React.useCallback(() => {

@@ -8,6 +8,14 @@ const state = vi.hoisted(() => ({
   platform: 'ios',
   docked: false,
   floating: false,
+  setFloating: vi.fn(),
+  positionHandler: undefined as
+    | undefined
+    | ((position: {
+        offset: number;
+        contentHeight: number;
+        viewportHeight: number;
+      }) => void),
   listProps: {} as Record<string, unknown>,
   geometry: { contentLength: 1200, scroll: 700, scrollLength: 500 },
   resizeScrolls: [] as { animated: boolean }[],
@@ -49,14 +57,19 @@ vi.mock('../../../contexts/scroll', () => ({
   }),
   useConversationScrollEndAnchor: () => null,
   useConversationScrollViewNativeID: () => 'conversation',
-  useScrollDirectionTracker: () => ({ onScroll: () => {}, isAtBottom: true }),
+  useScrollDirectionTracker: (options: {
+    onScrollPositionChange?: typeof state.positionHandler;
+  }) => {
+    state.positionHandler = options.onScrollPositionChange;
+    return { onScroll: () => {}, isAtBottom: true };
+  },
 }));
 vi.mock('../ConversationLayout', () => ({
   useIsConversationDocked: () => state.docked,
   useConversationComposerLayout: () => ({
     floating: state.floating,
     height: 90,
-    setFloating: () => {},
+    setFloating: state.setFloating,
   }),
 }));
 vi.mock('./PostListFlatList', () => ({ PostList: () => null }));
@@ -121,6 +134,8 @@ beforeEach(() => {
   state.platform = 'ios';
   state.docked = false;
   state.floating = false;
+  state.setFloating.mockClear();
+  state.positionHandler = undefined;
   state.listProps = {};
   state.geometry = { contentLength: 1200, scroll: 700, scrollLength: 500 };
   state.resizeScrolls = [];
@@ -321,4 +336,43 @@ describe('floating conversation composer', () => {
     tick();
     expect(state.nativeScrolls).toEqual([]);
   });
+});
+
+it('honors a history scroll delivered from the worklet after the drag ends', async () => {
+  state.docked = true;
+  mount();
+  act(() => (state.listProps.onLoad as () => void)());
+  tick();
+  await act(async () => {
+    tick();
+  });
+  act(() =>
+    state.positionHandler?.({
+      offset: 700,
+      contentHeight: 1200,
+      viewportHeight: 500,
+    })
+  );
+  act(() => (state.listProps.onScrollBeginDrag as () => void)());
+  act(() => (state.listProps.onScrollEndDrag as () => void)());
+  act(() =>
+    state.positionHandler?.({
+      offset: 600,
+      contentHeight: 1200,
+      viewportHeight: 500,
+    })
+  );
+  expect(state.setFloating).toHaveBeenLastCalledWith(true);
+  // A subsequent send replaces the history gesture, including queued events.
+  act(() => state.sendHandler?.begin());
+  act(() =>
+    state.positionHandler?.({
+      offset: 550,
+      contentHeight: 1200,
+      viewportHeight: 500,
+    })
+  );
+  expect(
+    state.setFloating.mock.calls.filter(([floating]) => floating)
+  ).toHaveLength(1);
 });
