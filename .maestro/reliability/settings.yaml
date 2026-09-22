@@ -93,6 +93,33 @@ env:
       THEME_ID: ThemeOption-dark
 - scrollUntilVisible:
     element:
+      id: ThemeOption-auto
+    direction: UP
+    timeout: 5000
+- tapOn:
+    id: ThemeOption-auto
+- runFlow:
+    file: subflows/assert-theme.yaml
+    env:
+      THEME_ID: ThemeOption-auto
+- tapOn: '^Back$'
+- tapOn: '^Appearance$'
+- runFlow:
+    file: subflows/assert-theme.yaml
+    env:
+      THEME_ID: ThemeOption-auto
+- stopApp
+- launchApp
+- assertVisible: '^Home$'
+- runFlow: subflows/contacts-tab.yaml
+- tapOn: '^Settings$'
+- tapOn: '^Appearance$'
+- runFlow:
+    file: subflows/assert-theme.yaml
+    env:
+      THEME_ID: ThemeOption-auto
+- scrollUntilVisible:
+    element:
       id: ${output.reliability.originalTheme}
     direction: DOWN
     timeout: 5000

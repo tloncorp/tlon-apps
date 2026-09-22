@@ -1,0 +1,32 @@
+appId: ${MAESTRO_APP_ID}
+---
+- assertVisible: '^Group info & settings$'
+- assertVisible: ${output.reliability.groupPattern}
+- scrollUntilVisible:
+    element:
+      id: GroupLeaveAction-Delete group
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: GroupLeaveAction-Delete group
+- assertVisible: '^Delete ${output.reliability.group}[?]$'
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: '^Delete group$'
+          rightOf: '^Cancel$'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn: '(?i)^Delete group$'
+- assertVisible: '^Home$'
+- assertNotVisible: ${output.reliability.groupPattern}
+- runFlow:
+    when:
+      visible: '^Clear$'
+    commands:
+      - tapOn: '^Clear$'
+      - tapOn: '^Close$'

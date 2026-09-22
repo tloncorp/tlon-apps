@@ -22,7 +22,15 @@ env:
 - extendedWaitUntil:
     visible: ${output.reliability.textPattern}
     timeout: 5000
-- tapOn: '^0$'
+- longPressOn:
+    text: ${output.reliability.textPattern}
+    point: '10%,50%'
+- assertVisible: '^Comment$'
+- assertVisible: '^Edit post$'
+- assertVisible: '^Copy link to post$'
+- tapOn: '^Comment$'
+- assertVisible:
+    id: GalleryPostContent
 - assertVisible: ${output.reliability.textPattern}
 - runFlow:
     file: subflows/send.yaml
@@ -34,5 +42,5 @@ env:
 - tapOn: '^Back$'
 - tapOn: '^Back$'
 - assertVisible: ${output.reliability.groupPattern}
-- tapOn: '^Back$'
-- assertVisible: '^Workspaces$'
+- tapOn: ${output.reliability.groupPattern}
+- runFlow: subflows/delete-fixture-group.yaml

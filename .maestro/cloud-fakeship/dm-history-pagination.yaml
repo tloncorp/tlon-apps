@@ -1,0 +1,32 @@
+appId: ${MAESTRO_APP_ID}
+name: Load earlier direct-message history
+env:
+  JOURNEY: dm-history-pagination
+---
+- runScript: ../reliability/data.js
+- runFlow: begin.yaml
+- tapOn: '^Messages$'
+- scrollUntilVisible:
+    element:
+      id: 'ChannelListItem-~ten'
+    direction: DOWN
+    timeout: 5000
+    centerElement: true
+- tapOn:
+    id: 'ChannelListItem-~ten'
+- extendedWaitUntil:
+    visible: ${MAESTRO_RUN_TAG + ' dm history newest'}
+    timeout: 15000
+- assertNotVisible: ${MAESTRO_RUN_TAG + ' dm history oldest'}
+- scrollUntilVisible:
+    element: ${MAESTRO_RUN_TAG + ' dm history oldest'}
+    direction: UP
+    timeout: 30000
+    centerElement: true
+- assertNotVisible: ${MAESTRO_RUN_TAG + ' dm history newest'}
+- assertVisible:
+    id: ScrollToBottomButton
+- tapOn: '^Back$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Home$'

@@ -1,0 +1,45 @@
+appId: ${MAESTRO_APP_ID}
+name: Enforce channel permissions for a non-admin member
+env:
+  JOURNEY: permissions
+---
+- runScript: ../reliability/data.js
+- runFlow: begin.yaml
+- scrollUntilVisible:
+    element: ${'Permissions-' + MAESTRO_RUN_TAG}
+    direction: DOWN
+    timeout: 5000
+- tapOn: ${'Permissions-' + MAESTRO_RUN_TAG}
+- assertVisible:
+    id: ChannelListItem-Permission target
+- tapOn:
+    id: ChannelListItem-Permission target
+- extendedWaitUntil:
+    visible: ${MAESTRO_RUN_TAG + ' read-only visible'}
+    timeout: 15000
+- assertNotVisible:
+    id: MessageInput
+- tapOn: '^Back$'
+- assertVisible: ${'Permissions-' + MAESTRO_RUN_TAG}
+- tapOn:
+    id: ChannelListItem-General
+- tapOn:
+    id: MessageInput
+- runFlow:
+    file: ../reliability/subflows/input.yaml
+    env:
+      INPUT_TEXT: ${MAESTRO_RUN_TAG + ' request no-read'}
+- hideKeyboard
+- tapOn:
+    id: MessageInputSendButton
+- extendedWaitUntil:
+    visible: ${MAESTRO_RUN_TAG + ' no-read applied'}
+    timeout: 15000
+- tapOn: '^Back$'
+- assertVisible: ${'Permissions-' + MAESTRO_RUN_TAG}
+- assertNotVisible:
+    id: ChannelListItem-Permission target
+- tapOn: '^Back$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Home$'

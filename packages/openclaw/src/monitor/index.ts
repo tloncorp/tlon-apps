@@ -5031,7 +5031,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             }
           }
         }
-
         const citedContent = await resolveCitedContent(dmContent.content);
         await processMessage({
           messageId: effectiveMessageId ?? '',

@@ -10,7 +10,7 @@ env:
 - tapOn: '^Back$'
 - tapOn: '^Groups$'
 - tapOn: '^Search$'
-- inputText: ${MAESTRO_RUN_TAG}
+- inputText: ${output.reliability.groupQuery}
 - assertVisible: ${output.reliability.groupPattern}
 - tapOn: '^Messages$'
 - assertVisible: '^No results found\.$'
@@ -24,7 +24,7 @@ env:
 - assertVisible: '^No results found\.$'
 - tapOn: '^Clear search$'
 - tapOn: '^Filter by name$'
-- inputText: ${MAESTRO_RUN_TAG}
+- inputText: ${output.reliability.groupQuery}
 - assertVisible: ${output.reliability.groupPattern}
 - pressKey: Enter
 - longPressOn: ${output.reliability.groupPattern}
@@ -68,7 +68,7 @@ env:
 - tapOn: '^Back$'
 - assertVisible: '^Workspaces$'
 - tapOn: '^Search$'
-- inputText: ${MAESTRO_RUN_TAG}
+- inputText: ${output.reliability.groupQuery}
 - assertVisible: ${output.reliability.group + ' renamed'}
 - assertNotVisible: ${output.reliability.groupPattern}
 - pressKey: Enter
@@ -103,7 +103,7 @@ env:
 - extendedWaitUntil:
     visible: '^Workspaces$'
     timeout: 5000
-- assertVisible: '^${MAESTRO_RUN_TAG}$'
+- assertVisible: '^${output.reliability.groupQuery}$'
 - assertNotVisible: ${output.reliability.group + ' renamed'}
 - tapOn: '^Clear$'
 - tapOn: '^Close$'

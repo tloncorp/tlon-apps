@@ -1,0 +1,41 @@
+appId: ${MAESTRO_APP_ID}
+name: Host bans a group member
+env:
+  JOURNEY: member-ban
+---
+- runScript: ../reliability/data.js
+- runFlow: begin.yaml
+- scrollUntilVisible:
+    element: ${'Ban-' + MAESTRO_RUN_TAG}
+    direction: UP
+    timeout: 30000
+- longPressOn: ${'Ban-' + MAESTRO_RUN_TAG}
+- tapOn: '^Group info & settings$'
+- tapOn: '^Manage members$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Members$'
+- tapOn: '^(~ten|ten)$'
+- assertVisible:
+    id: 'ActionSheetAction-Ban User'
+- tapOn:
+    id: 'ActionSheetAction-Ban User'
+- tapOn: '^Bottom sheet backdrop$'
+- extendedWaitUntil:
+    visible: '^Banned Users$'
+    timeout: 60000
+- assertVisible: '^(~ten|ten)$'
+- tapOn:
+    id: HeaderBackButton
+- tapOn: '^Back$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Home$'
+- tapOn: ${'Ban-' + MAESTRO_RUN_TAG}
+- extendedWaitUntil:
+    visible: ${MAESTRO_RUN_TAG + ' ban verified'}
+    timeout: 30000
+- tapOn: '^Back$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Home$'

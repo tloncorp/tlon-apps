@@ -1,0 +1,7 @@
+appId: ${MAESTRO_APP_ID}
+name: Native profile mutation journeys
+tags: [regression]
+---
+- runFlow: profile.yaml
+- runFlow: profile-details.yaml
+- runFlow: profile-groups.yaml
