@@ -1,5 +1,6 @@
+import os from 'node:os';
 import path from 'node:path';
-import { rmSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import {
   root,
   out,
@@ -11,8 +12,8 @@ import {
   text,
 } from './common.mjs';
 import {
-  MAX_INLINE_DIFF_CHARS,
   assessmentDiffContext,
+  readInlineDiff,
 } from './assessment-context.mjs';
 const pr = JSON.parse(process.env.QA_PR_JSON);
 save(path.join(out, 'pr.json'), pr);
@@ -24,18 +25,28 @@ command('git', [
   pr.base.sha,
   pr.head.sha,
 ]);
-const diff = command('git', [
-  'diff',
-  '--no-ext-diff',
-  '--no-textconv',
-  `${pr.base.sha}...${pr.head.sha}`,
-]);
+const diffDir = mkdtempSync(path.join(os.tmpdir(), 'qa-assessment-diff-'));
+let diff;
+try {
+  const diffFile = path.join(diffDir, 'pr.diff');
+  command('git', [
+    'diff',
+    '--no-ext-diff',
+    '--no-textconv',
+    `--output=${diffFile}`,
+    `${pr.base.sha}...${pr.head.sha}`,
+  ]);
+  diff = readInlineDiff(diffFile);
+} finally {
+  rmSync(diffDir, { recursive: true, force: true });
+}
 const stat =
-  diff.length > MAX_INLINE_DIFF_CHARS
+  diff.diff === null
     ? command('git', ['diff', '--stat', `${pr.base.sha}...${pr.head.sha}`])
     : '';
 const diffContext = assessmentDiffContext({
-  diff,
+  diff: diff.diff,
+  diffBytes: diff.bytes,
   stat,
   baseSha: pr.base.sha,
   headSha: pr.head.sha,
