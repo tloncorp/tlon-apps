@@ -3,10 +3,11 @@ import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { ConfirmDialog, useIsWindowNarrow } from '@tloncorp/ui';
+import { ConfirmDialog } from '@tloncorp/ui';
 import { noop } from 'lodash';
 import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 
+import { useIsMobileTree } from '../../../navigation/utils';
 import { ChatOptionsSheet } from '../../components/ChatOptionsSheet';
 import { InviteUsersSheet } from '../../components/InviteUsersSheet';
 import { useChannelTitle } from '../../utils';
@@ -72,7 +73,12 @@ export const ChatOptionsProvider = ({
     id: string;
     type: 'group' | 'channel';
   } | null>(initialChat ?? null);
-  const isWindowNarrow = useIsWindowNarrow();
+  // Which tree is mounted, not how wide the window is. These are the
+  // sheets the mobile tree needs, and it is the only tree built on native
+  // at any width — a tablet-width native window still has no list item
+  // bringing its own. On web the two answers agree: the tree is chosen on
+  // the same 768 threshold.
+  const isMobileTree = useIsMobileTree();
 
   const openSheet = useCallback(
     (chatId: string, chatType: 'group' | 'channel') => {
@@ -410,7 +416,7 @@ export const ChatOptionsProvider = ({
   return (
     <ChatOptionsContext.Provider value={contextValue}>
       {children}
-      {isWindowNarrow && (
+      {isMobileTree && (
         <>
           <ChatOptionsSheet
             open={sheetOpen && (chat?.type === 'channel' ? !!channel : !!group)}
