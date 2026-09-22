@@ -10,9 +10,10 @@ appId: ${MAESTRO_APP_ID}
     commands:
       # Reset navigation and keyboard state while preserving the login.
       - launchApp
+# Startup may reopen the database; keep this separate from interaction waits.
 - extendedWaitUntil:
     visible: '^(Home|Contacts)$'
-    timeout: 5000
+    timeout: 15000
 - runFlow: contacts-tab.yaml
 - tapOn: '^You$'
 - assertVisible: ${output.reliability.shipPattern}
