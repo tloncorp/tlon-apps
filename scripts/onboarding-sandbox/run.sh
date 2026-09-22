@@ -101,6 +101,7 @@ case "${1:-}" in
   status)    shift; "$CONTROL" status "$@" ;;
   set-model) shift; "$CONTROL" set-model "$@" ;;
   set-key)   "$CONTROL" set-key ;;   # key arrives on stdin (kept out of argv)
+  clock)     shift; "$CONTROL" clock "$@" ;;
   down)      "$CONTROL" down ;;
-  *) echo "usage: pnpm onboarding | onboarding:reset | onboarding:logs | onboarding:down" >&2; exit 1 ;;
+  *) echo "usage: pnpm onboarding | onboarding:reset | onboarding:clock <status|reset|advance dayN> | onboarding:logs | onboarding:down" >&2; exit 1 ;;
 esac
