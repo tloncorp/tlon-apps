@@ -80,8 +80,12 @@ function parseAnswerTime(value: string) {
 
 const READABLE_TIMEZONE_AFTER_CLOCK =
   /\b(?:AM|PM)(?:\s*[,;:()\-–—]\s*|\s+)(?:in\s+)?[A-Za-z]+(?:\s+[A-Za-z]+){0,2}\s+time\b/i;
+const READABLE_TIMEZONE_BEFORE_CLOCK =
+  /\b[A-Za-z]+(?:\s+[A-Za-z]+){0,2}\s+time\s*[,;:()\-–—]?\s*(?:daily\s+)?(?:at\s+)?(?:[01]?\d(?::[0-5]\d)?\s*(?:AM|PM)|(?:[01]?\d|2[0-3]):[0-5]\d)\b/i;
 const TIMEZONE_ABBREVIATION =
   /\b(?:[A-Z][SD]T|UTC|GMT|CET|CEST|BST|JST|AEST|AEDT|ACST|ACDT|NZST|NZDT)\b/i;
+const DEVICE_LOCAL_TIME_REFERENCE =
+  /\b(?:(?:my|your|our)\s+local|local|my|your|our|device)\s+time\b/gi;
 
 const TIMEZONE_READABLE_ALIASES: Record<string, string[]> = {
   'America/New_York': ['New York', 'Eastern'],
@@ -101,6 +105,16 @@ const READABLE_TIMEZONE_LABEL = new RegExp(
     .join('|')})\\s+time\\b`,
   'i'
 );
+
+function namesExplicitTimezone(value: string) {
+  const withoutLocalTime = value.replace(DEVICE_LOCAL_TIME_REFERENCE, '');
+  return (
+    READABLE_TIMEZONE_AFTER_CLOCK.test(withoutLocalTime) ||
+    READABLE_TIMEZONE_BEFORE_CLOCK.test(withoutLocalTime) ||
+    READABLE_TIMEZONE_LABEL.test(withoutLocalTime) ||
+    TIMEZONE_ABBREVIATION.test(withoutLocalTime)
+  );
+}
 
 function copyUsesOnlyTimezone(value: string, timezone: string) {
   const timezoneParts = timezone.split('/');
@@ -128,6 +142,7 @@ function copyUsesOnlyTimezone(value: string, timezone: string) {
   return (
     foundMatchingLabel &&
     !READABLE_TIMEZONE_AFTER_CLOCK.test(unmatchedCopy) &&
+    !READABLE_TIMEZONE_BEFORE_CLOCK.test(unmatchedCopy) &&
     !READABLE_TIMEZONE_LABEL.test(unmatchedCopy) &&
     !/\bUTC\s+time\b/i.test(unmatchedCopy)
   );
@@ -321,11 +336,7 @@ function parseParams(params: AgentTaskPlanToolParams): AgentTaskPlanToolParams {
         'timezoneOverride must exactly match the timezone in answerEvidence.time'
       );
     }
-  } else if (
-    READABLE_TIMEZONE_AFTER_CLOCK.test(params.answerEvidence.time) ||
-    READABLE_TIMEZONE_LABEL.test(params.answerEvidence.time) ||
-    TIMEZONE_ABBREVIATION.test(params.answerEvidence.time)
-  ) {
+  } else if (namesExplicitTimezone(params.answerEvidence.time)) {
     throw new Error(
       'answerEvidence.time names a timezone but timezoneOverride is missing'
     );
@@ -376,12 +387,7 @@ function parseParams(params: AgentTaskPlanToolParams): AgentTaskPlanToolParams {
       'user-facing schedule copy must use AM/PM, not 24-hour time, cron, or technical timezone identifiers'
     );
   }
-  if (
-    !timezoneOverride &&
-    (READABLE_TIMEZONE_AFTER_CLOCK.test(userFacingScheduleCopy) ||
-      READABLE_TIMEZONE_LABEL.test(userFacingScheduleCopy) ||
-      TIMEZONE_ABBREVIATION.test(userFacingScheduleCopy))
-  ) {
+  if (!timezoneOverride && namesExplicitTimezone(userFacingScheduleCopy)) {
     throw new Error(
       'timezone-specific copy requires the matching explicit timezoneOverride'
     );

@@ -284,6 +284,24 @@ describe('agent task plan tool', () => {
     expect(serialized).not.toContain('timezoneOverride');
   });
 
+  it('accepts explicit device-local time wording without an override', () => {
+    const blob = buildAgentTaskPlanBlob(
+      {
+        ...validPlan,
+        fallbackSummary: 'Daily research brief at 8:30 AM local time.',
+        summary: 'Track agent tools daily at 8:30 AM my local time.',
+        scheduleDescription: 'daily at 8:30 AM device time',
+        answerEvidence: {
+          ...validPlan.answerEvidence,
+          time: '8:30 AM my time',
+        },
+      },
+      validEvidence
+    );
+
+    expect(JSON.stringify(blob)).not.toContain('timezoneOverride');
+  });
+
   it('rejects invalid overrides and technical timezone copy', async () => {
     const postPlan = vi.fn(async () => 'unexpected');
     const execute = createAgentTaskPlanToolExecutor({
@@ -382,6 +400,19 @@ describe('agent task plan tool', () => {
       summary: 'Tokyo time, track agent tools daily at 8:30 AM.',
       scheduleDescription: 'Tokyo time, daily at 8:30 AM',
     });
+    const unlistedTimezoneBeforeClock = await execute(
+      'call-unlisted-zone-before-clock',
+      {
+        ...validPlan,
+        fallbackSummary: 'India time, daily at 8:30 AM.',
+        summary: 'India time, track agent tools daily at 8:30 AM.',
+        scheduleDescription: 'India time, daily at 8:30 AM',
+        answerEvidence: {
+          ...validPlan.answerEvidence,
+          time: 'India time, daily at 8:30 AM',
+        },
+      }
+    );
 
     expect(invalidOverride.details).toEqual({ error: true });
     expect(leakedIdentifier.details).toEqual({ error: true });
@@ -395,6 +426,7 @@ describe('agent task plan tool', () => {
     expect(fallbackMismatch.details).toEqual({ error: true });
     expect(unlistedReadableZone.details).toEqual({ error: true });
     expect(timezoneBeforeClock.details).toEqual({ error: true });
+    expect(unlistedTimezoneBeforeClock.details).toEqual({ error: true });
     expect(postPlan).not.toHaveBeenCalled();
   });
 
