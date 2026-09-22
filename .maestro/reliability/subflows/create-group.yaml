@@ -1,29 +1,41 @@
 appId: ${MAESTRO_APP_ID}
 ---
+# KNOWN GAP: this stops at "New group" on a phone whose account has an agent.
+# The create sheet drops the bare group action there -- a Workspace is what the
+# flow is for on mobile now -- and a Workspace is not shaped like this template
+# group: it arrives titled "My agent group" with one chat channel called
+# "General", gains a notes channel called "Updates" only when it is the
+# account's first, and never gets a Gallery. Rebuilding the fixture from one is
+# its own piece of work, tracked in TLON-6632; see the reliability README.
 - assertNotVisible: ${output.reliability.groupPattern}
 - tapOn: '^Add a chat$'
-# On a phone whose account has an agent, #6585 drops the bare group action from
-# this sheet -- a Workspace is what the flow is for there -- so the fixture has
-# to be built from one instead. Everywhere else the template path still works.
-#
-# The choice is recorded before either path runs. Two sequential guards on the
-# sheet's contents would not be an if/else: the template path closes the sheet,
-# so a later `notVisible` guard on the same text would also pass and run the
-# Workspace path on top of the group just created.
-- evalScript: ${output.reliability.hasPlainGroupAction = false}
+- tapOn: '^New group$'
+- tapOn: '^Basic group.*$'
+- tapOn: '^Group name$'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible:
+    text: '^Name your group$'
+    label: Group editor stays visible with keyboard open
+- runFlow:
+    file: input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.group}
+- assertVisible:
+    text: ${output.reliability.groupPattern}
+    below: '^Name your group$'
+    above: '^Next$'
 - runFlow:
     when:
-      visible: '^New group$'
+      platform: Android
     commands:
-      - evalScript: ${output.reliability.hasPlainGroupAction = true}
-- runFlow:
-    when:
-      true: ${output.reliability.hasPlainGroupAction}
-    file: create-group-plain.yaml
-- runFlow:
-    when:
-      true: ${!output.reliability.hasPlainGroupAction}
-    file: create-group-workspace.yaml
+      - hideKeyboard
+- tapOn: '^Next$'
+- assertVisible: '^Select contacts to invite$'
+- tapOn: '^Create group$'
+- extendedWaitUntil:
+    visible: ${output.reliability.groupPattern}
+    timeout: 15000
 - assertVisible: '^Chat$'
 - assertVisible: '^Gallery$'
 - assertVisible: '^Notebook$'

@@ -41,6 +41,20 @@ Two things about the current app shape are worth knowing before editing a flow:
   `workspaces-tab.yaml`. Prefer those subflows over a hand-written tap, and
   call `subflows/to-tab-root.yaml` first if a screen may be covering the bar.
 
+**Known gap — the ten group-fixture journeys fail on an account with an
+agent.** `subflows/create-group.yaml` builds its fixture through the create
+sheet's "New group" action, and that action is not offered on a phone whose
+account has an agent: a Workspace is what the flow is for on mobile now. A
+Workspace is also not shaped like the template group these journeys expect --
+it arrives titled "My agent group" with a single chat channel called "General",
+gains a notes channel called "Updates" only when it is the account's first, and
+never gets a Gallery -- so rebuilding the fixture from one means renaming the
+group, renaming its channel and creating the missing ones, against a group
+furnished over the network by the bot. That is tracked in TLON-6632, which
+records the full shape of the problem. Until it lands, chat, channels, gallery, history, links, message-actions,
+notebook, relaunch, search and home-groups are expected to fail on
+`~batbet-litnec`; settings and profile, which create nothing, still pass.
+
 Do not run concurrent profile/settings journeys against the same account. These
 tests create private groups and posts that remain on the ship; only the
 lifecycle tests delete their own fixtures. Profile restores the original
