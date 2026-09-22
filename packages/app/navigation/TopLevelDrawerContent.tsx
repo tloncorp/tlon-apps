@@ -23,9 +23,19 @@ import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Circle, View, XStack, YStack, getTokenValue, useTheme } from 'tamagui';
 
+import {
+  CreateChatSheet,
+  type CreateChatSheetMethods,
+} from '../features/top/CreateChatSheet';
 import { useAnyAgentGroupOnboardingLock } from '../hooks/useAgentGroupOnboardingLock';
 import { useBotDmTab } from '../hooks/useBotDmTab';
-import { ListItem, getUnreadColors } from '../ui';
+import { useChatSettingsNavigation } from '../hooks/useChatSettingsNavigation';
+import {
+  ChatOptionsProvider,
+  ListItem,
+  getUnreadColors,
+  useChatOptions,
+} from '../ui';
 import { floatingChromeMetrics } from '../ui/components/conversationInsets';
 import {
   GlassSurface,
@@ -146,6 +156,7 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
   unfurls,
   unfurled,
   onPress,
+  onLongPress,
 }: {
   chat: db.Chat;
   title: string;
@@ -155,8 +166,14 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
   unfurls: boolean;
   unfurled: boolean;
   onPress: (chat: db.Chat) => void;
+  /** Held down: the chat's own options, or nothing for a row that has none. */
+  onLongPress?: (chat: db.Chat) => void;
 }) {
   const handlePress = useCallback(() => onPress(chat), [chat, onPress]);
+  const handleLongPress = useCallback(
+    () => onLongPress?.(chat),
+    [chat, onLongPress]
+  );
   const notified =
     chat.type === 'group'
       ? (chat.group.unread?.notify ?? false)
@@ -171,6 +188,7 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
   return (
     <Pressable
       onPress={disabled ? undefined : handlePress}
+      onLongPress={disabled || !onLongPress ? undefined : handleLongPress}
       disabled={disabled}
       accessibilityRole="button"
       // The dot is decorative, and its colour carries a distinction a screen
@@ -499,24 +517,44 @@ function BubbleSlot({
  * joined the control that already held the other such destination.
  */
 function DrawerUtilityBubble({
+  createLabel,
+  createDisabled,
   activitySelected,
   activityHasUnread,
   activityDisabled,
   settingsSelected,
   settingsDisabled,
+  onPressCreate,
   onPressActivity,
   onPressSettings,
 }: {
+  /** What this tab's `+` makes, which is the only thing that says so. */
+  createLabel: string;
+  createDisabled: boolean;
   activitySelected: boolean;
   activityHasUnread: boolean;
   activityDisabled: boolean;
   settingsSelected: boolean;
   settingsDisabled: boolean;
+  onPressCreate: () => void;
   onPressActivity: () => void;
   onPressSettings: () => void;
 }) {
   const slots = (
     <XStack alignItems="center">
+      {/* Leading, so the one control that makes something sits apart from the
+          two that go somewhere. It carries no selected state because it is
+          not a place: nothing it opens is a section this panel can be
+          standing in. */}
+      <BubbleSlot
+        icon="Add"
+        label={createLabel}
+        selected={false}
+        disabled={createDisabled}
+        hasUnread={false}
+        testID="TopLevelDrawerCreate"
+        onPress={onPressCreate}
+      />
       <BubbleSlot
         icon={TOP_LEVEL_TABS.Activity.icon}
         label={TOP_LEVEL_TABS.Activity.title}
@@ -561,8 +599,8 @@ const footerStyles = StyleSheet.create({
     overflow: 'hidden',
   },
   utilityBubble: {
-    // Two slots wide, so the glass is exactly the pair of controls it holds.
-    width: FOOTER_CONTROL_SIZE * 2,
+    // As wide as the controls it holds, so the glass is exactly them.
+    width: FOOTER_CONTROL_SIZE * 3,
     height: FOOTER_CONTROL_SIZE,
     borderRadius: FOOTER_CONTROL_RADIUS,
     overflow: 'hidden',
@@ -580,7 +618,7 @@ const footerStyles = StyleSheet.create({
  * nothing here is one of its own routes. Each target dispatches the same route
  * helper every other caller uses, which the stack below picks up.
  */
-export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
+function DrawerPanel(props: DrawerContentComponentProps) {
   const { state, navigation } = props;
   const insets = useSafeAreaInsets();
   const botDm = useBotDmTab();
@@ -910,6 +948,19 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
     [chatsLocked]
   );
 
+  // Held down, a chat row offers what the workspace list offers for the same
+  // chat — the sheet below is that list's own.
+  const { open: openChatOptions } = useChatOptions();
+  const openOptions = useCallback(
+    (chat: db.Chat) => {
+      if (chatsLocked) {
+        return;
+      }
+      openChatOptions(chat.id, chat.type);
+    },
+    [chatsLocked, openChatOptions]
+  );
+
   const rows = useMemo(
     () => getDrawerRows(drawerChats, unfurledGroupId),
     [drawerChats, unfurledGroupId]
@@ -943,6 +994,11 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
           unfurls={item.unfurls}
           unfurled={item.unfurled}
           onPress={item.unfurls ? toggleWorkspace : openChat}
+          // An invite has nothing to offer yet: it is not joined, so none of
+          // the sheet's actions apply to it — the same row the workspace list
+          // withholds the sheet from. Withheld rather than ignored, so holding
+          // one down still reaches its preview the way tapping it does.
+          onLongPress={item.chat.isPending ? undefined : openOptions}
         />
       ) : (
         <DrawerChannelRow
@@ -962,6 +1018,7 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
       chatsLocked,
       focusedStackRoute,
       openChat,
+      openOptions,
       openWorkspaceChannel,
       titles,
       toggleWorkspace,
@@ -974,6 +1031,25 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
   // pill, and the list has to reserve whatever is actually there.
   const [footerHeight, setFooterHeight] = useState(0);
   const panelInset = getTokenValue(PANEL_INSET, 'space');
+
+  // What the footer's `+` makes follows the tab being shown, because that is
+  // the list it would add to. Workspaces opens the menu — a workspace is made
+  // with the bot, or without one, and that choice belongs to the sheet.
+  // Messages has only one answer, so it skips the menu and opens the contact
+  // picker straight away.
+  const createChatSheetRef = useRef<CreateChatSheetMethods | null>(null);
+  const pressCreate = useCallback(() => {
+    if (chatsLocked) {
+      return;
+    }
+    createChatSheetRef.current?.open(filter === 'messages' ? 'dm' : undefined);
+  }, [chatsLocked, filter]);
+  // The sheet covers the panel, so the panel stays put while it is up; the
+  // chat it makes is navigated to underneath, which is when to get out of the
+  // way. A sheet dismissed without making anything leaves the panel as it was.
+  const closeForCreatedChat = useCallback(() => {
+    navigation.closeDrawer();
+  }, [navigation]);
 
   const settingsDisabled = isTabPressBlockedByOnboardingLock(
     onboardingLock.locked,
@@ -1052,15 +1128,64 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
           <View />
         )}
         <DrawerUtilityBubble
+          createLabel={
+            filter === 'messages' ? 'New message' : 'Start a conversation'
+          }
+          createDisabled={chatsLocked}
           activitySelected={selected === 'Activity'}
           activityHasUnread={unseenActivityCount > 0}
           activityDisabled={activityDisabled}
           settingsSelected={selected === 'Settings'}
           settingsDisabled={settingsDisabled}
+          onPressCreate={pressCreate}
           onPressActivity={() => select('Activity')}
           onPressSettings={() => select('Settings')}
         />
       </XStack>
+      <CreateChatSheet
+        ref={createChatSheetRef}
+        onChatCreated={closeForCreatedChat}
+      />
     </YStack>
+  );
+}
+
+/**
+ * The panel, and the chat options sheet a row opens when it is held down.
+ *
+ * The sheet is the workspace list's own — `ChatOptionsProvider` supplies its
+ * actions and renders it — so a workspace or a conversation offers here
+ * exactly what it offers there. The provider is mounted rather than reused:
+ * every other one sits on a screen of the root stack, and this panel is above
+ * that stack, not inside it.
+ *
+ * Its actions navigate, and the panel is covering what they navigate to, so
+ * each one closes the panel on its way out. They dispatch through the drawer's
+ * own navigation object, which the routers carry down into the stack it hosts
+ * — the same path the rows' destinations take.
+ */
+export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
+  const { navigation } = props;
+  const settingsNavigation = useChatSettingsNavigation();
+  const closingSettingsNavigation = useMemo(() => {
+    const entries = Object.entries(settingsNavigation) as [
+      keyof typeof settingsNavigation,
+      (...args: never[]) => unknown,
+    ][];
+    return Object.fromEntries(
+      entries.map(([name, handler]) => [
+        name,
+        (...args: never[]) => {
+          navigation.closeDrawer();
+          return handler(...args);
+        },
+      ])
+    ) as typeof settingsNavigation;
+  }, [navigation, settingsNavigation]);
+
+  return (
+    <ChatOptionsProvider {...closingSettingsNavigation}>
+      <DrawerPanel {...props} />
+    </ChatOptionsProvider>
   );
 }

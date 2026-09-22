@@ -60,7 +60,12 @@ export type CreateChatParams =
     };
 
 export type CreateChatSheetMethods = {
-  open: () => void;
+  /**
+   * Open the flow. Without a type it opens on the menu, as the `+` in a
+   * header does. With one it opens on that type's own step, for a caller
+   * whose control already says which kind of chat it makes.
+   */
+  open: (type?: ChatType) => void;
   close: () => void;
 };
 
@@ -312,9 +317,16 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
   {
     defaultOpen,
     trigger,
+    onChatCreated,
   }: {
     defaultOpen?: boolean;
     trigger?: React.ReactNode;
+    /**
+     * A chat was made and the app is on its way to it. For a caller that is
+     * covering the screen being navigated to — the drawer — this is when to
+     * get out of the way.
+     */
+    onChatCreated?: () => void;
   },
   ref: React.Ref<CreateChatSheetMethods>
 ) {
@@ -336,13 +348,6 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
   const [groupTitle, setGroupTitle] = useState<string | undefined>(undefined);
   const submitInFlightRef = useRef(false);
   const isWindowNarrow = useIsWindowNarrow();
-
-  const open = useCallback(() => {
-    if (step === 'initial') {
-      trackEvent(AnalyticsEvent.CreateMenuOpened);
-      setStep('selectType');
-    }
-  }, [step]);
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
@@ -395,6 +400,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
       try {
         const didCreate = await createChat(params);
         if (didCreate) {
+          onChatCreated?.();
           setStep('initial');
           setSelectedTemplateId(undefined);
           setGroupTitle(undefined);
@@ -406,7 +412,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         submitInFlightRef.current = false;
       }
     },
-    [createChat, isCreatingChat]
+    [createChat, isCreatingChat, onChatCreated]
   );
 
   const handleTypeSelected = useCallback(
@@ -424,6 +430,21 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
       }
     },
     [handleSubmit]
+  );
+
+  const open = useCallback(
+    (type?: ChatType) => {
+      if (step !== 'initial') {
+        return;
+      }
+      if (type) {
+        handleTypeSelected(type);
+        return;
+      }
+      trackEvent(AnalyticsEvent.CreateMenuOpened);
+      setStep('selectType');
+    },
+    [handleTypeSelected, step]
   );
 
   useImperativeHandle(
@@ -464,7 +485,9 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
   const triggerWithOnPress = useMemo(() => {
     if (!trigger || !isValidElement(trigger)) return null;
     return cloneElement(trigger, {
-      onPress: open,
+      // Wrapped, not passed: a press hands its event through as the first
+      // argument, which `open` would read as the type to start on.
+      onPress: () => open(),
       'data-testid': 'CreateChatSheetTrigger',
     } as Partial<{ onPress: () => void; 'data-testid': string }>);
   }, [open, trigger]);
