@@ -267,6 +267,22 @@ describe('docked conversation viewport changes', () => {
     expect(state.resizeScrolls).toEqual([]);
   });
 
+  it('keeps following when scroll events trail resize frames, then releases on a user drag', () => {
+    mount();
+    layout(500);
+    state.geometry.scrollLength = 450;
+    layout(450);
+    // Native has received scrollToEnd, but JS still sees the old offset.
+    state.geometry.scrollLength = 400;
+    layout(400);
+    expect(state.resizeScrolls).toHaveLength(2);
+    act(() => (state.listProps.onScrollBeginDrag as () => void)());
+    // The reported offset is still at the OLD end when dismissal starts.
+    state.geometry.scroll = 800;
+    layout(350);
+    expect(state.resizeScrolls).toHaveLength(2);
+  });
+
   it('lets the send transition own composer contraction', () => {
     mount();
     layout(500);

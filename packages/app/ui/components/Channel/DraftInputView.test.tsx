@@ -18,7 +18,10 @@ const keyboard = vi.hoisted(() => ({
   providerHeight: { value: 0 },
   providerProgress: { value: 0 },
   handlers: {} as Record<string, (event: KeyboardEvent) => void>,
-  style: () => ({ transform: [{ translateY: 0 }] }),
+  style: (() => ({ transform: [{ translateY: 0 }] })) as () => {
+    transform?: { translateY: number }[];
+    paddingBottom?: number;
+  },
 }));
 
 vi.mock('@tloncorp/api', () => ({ DraftInputId: { chat: 'chat' } }));
@@ -38,7 +41,6 @@ vi.mock('react-native-keyboard-controller', async () => ({
       typeof import('react-native-keyboard-controller/src/components/KeyboardStickyView')
     >('react-native-keyboard-controller/src/components/KeyboardStickyView')
   ).default,
-  KeyboardAvoidingView: 'KeyboardAvoidingView',
   KeyboardController: {
     isVisible: () => keyboard.visible,
     state: () => ({ height: keyboard.height }),
@@ -131,7 +133,7 @@ function emit(name: string, height: number) {
   keyboard.handlers[name]?.(event);
 }
 
-const offset = () => keyboard.style().transform[0].translateY;
+const offset = () => keyboard.style().transform![0].translateY;
 
 describe.each(['ios', 'android'] as const)('%s', (platform) => {
   beforeAll(() => {
@@ -149,12 +151,17 @@ describe.each(['ios', 'android'] as const)('%s', (platform) => {
         </ConversationLayout>
       );
     });
-    const avoidingView = renderer!.root.find(
-      (node) => (node.type as unknown) === 'KeyboardAvoidingView'
-    );
-    expect(avoidingView.props.behavior).toBe('padding');
-    expect(avoidingView.props.automaticOffset).toBe(true);
-    expect(avoidingView.props.keyboardVerticalOffset).toBe(-34);
+    expect(keyboard.style()).toEqual({ paddingBottom: 0 });
+    emit('onStart', 300);
+    expect(keyboard.style()).toEqual({ paddingBottom: 0 });
+    emit('onMove', 150);
+    expect(keyboard.style()).toEqual({ paddingBottom: 133 });
+    emit('onEnd', 300);
+    expect(keyboard.style()).toEqual({ paddingBottom: 266 });
+    emit('onInteractive', 150);
+    expect(keyboard.style()).toEqual({ paddingBottom: 133 });
+    emit('onEnd', 0);
+    expect(keyboard.style()).toEqual({ paddingBottom: 0 });
     const composer = renderer!.root.find(
       (node) => (node.type as unknown) === 'View' && node.props.flexShrink === 0
     );
@@ -164,8 +171,20 @@ describe.each(['ios', 'android'] as const)('%s', (platform) => {
       renderer!.root.findAll(
         (node) => (node.type as unknown) === 'AnimatedView'
       )
-    ).toHaveLength(0);
-    expect(keyboard.handlers).toEqual({});
+    ).toHaveLength(1);
+  });
+
+  it('reserves the current keyboard overlap when a docked conversation mounts with it open', () => {
+    keyboard.visible = true;
+    keyboard.height = 300;
+    act(() => {
+      renderer = create(
+        <ConversationLayout enabled>
+          <section />
+        </ConversationLayout>
+      );
+    });
+    expect(keyboard.style()).toEqual({ paddingBottom: 266 });
   });
 
   describe.each([

@@ -1,6 +1,14 @@
 import { createContext, useContext, type PropsWithChildren } from 'react';
 import { Platform, StyleSheet } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import {
+  KeyboardController,
+  useKeyboardHandler,
+  type NativeEvent,
+} from 'react-native-keyboard-controller';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { YStack } from 'tamagui';
 
@@ -16,28 +24,47 @@ export function ConversationLayout({
   enabled,
   bottomInset,
 }: PropsWithChildren<{ enabled: boolean; bottomInset?: number }>) {
-  const insets = useSafeAreaInsets();
   const docked = enabled && Platform.OS !== 'web';
 
   return (
     <DockedConversationContext.Provider value={docked}>
       {docked ? (
-        <KeyboardAvoidingView
-          behavior="padding"
-          automaticOffset
-          // The composer keeps this padding, including while the keyboard is
-          // open. Let it extend below the keyboard edge by the same amount.
-          keyboardVerticalOffset={-insets.bottom}
-          style={styles.container}
-        >
-          {children}
-        </KeyboardAvoidingView>
+        <KeyboardResizingConversation>{children}</KeyboardResizingConversation>
       ) : (
         <YStack flex={1} minWidth={0} paddingBottom={bottomInset}>
           {children}
         </YStack>
       )}
     </DockedConversationContext.Provider>
+  );
+}
+
+function KeyboardResizingConversation({ children }: PropsWithChildren) {
+  const insets = useSafeAreaInsets();
+  const isVisible = KeyboardController.isVisible();
+  const height = useSharedValue(
+    isVisible ? KeyboardController.state().height : 0
+  );
+  const progress = useSharedValue(isVisible ? 1 : 0);
+  const update = (event: NativeEvent) => {
+    'worklet';
+    height.value = event.height;
+    progress.value = event.progress;
+  };
+  useKeyboardHandler(
+    { onMove: update, onInteractive: update, onEnd: update },
+    []
+  );
+  const keyboardStyle = useAnimatedStyle(() => ({
+    // Conversation screens reach the window bottom. The composer already owns
+    // the safe area; reserve only the remaining keyboard overlap here.
+    paddingBottom: Math.max(0, height.value - progress.value * insets.bottom),
+  }));
+
+  return (
+    <Animated.View style={[styles.container, keyboardStyle]}>
+      {children}
+    </Animated.View>
   );
 }
 

@@ -83,7 +83,10 @@ function getPostId({ post }: PostWithNeighbors) {
   return post.id;
 }
 
-function runImperativeScroll(scroll: () => Promise<void> | undefined) {
+function runImperativeScroll(
+  scroll: () => Promise<void> | undefined,
+  onSettled?: () => void
+) {
   const attempt = () => {
     try {
       return scroll() ?? Promise.resolve();
@@ -92,11 +95,13 @@ function runImperativeScroll(scroll: () => Promise<void> | undefined) {
     }
   };
 
-  void attempt().catch(() => {
+  void attempt().then(onSettled, () => {
     // LegendList can reject while data or measurements are changing. Retry
     // once after the next layout opportunity and contain a second failure.
     requestAnimationFrame(() => {
-      void attempt().catch(() => {});
+      void attempt()
+        .catch(() => {})
+        .then(onSettled);
     });
   });
 }
@@ -563,7 +568,14 @@ const ConversationPostListAttempt = React.forwardRef<
       itemCount: postsWithNeighbors.length,
       onInitialScrollCompleted,
     });
+    const followsViewportEnd = React.useRef(false);
+    const userNavigationActive = React.useRef(false);
+    const finishUserNavigation = React.useCallback(() => {
+      userNavigationActive.current = false;
+    }, []);
     const markUserScrolled = React.useCallback(() => {
+      followsViewportEnd.current = false;
+      userNavigationActive.current = true;
       cancelComposerSendFollowing();
       markInitialUserScrolled();
     }, [cancelComposerSendFollowing, markInitialUserScrolled]);
@@ -620,6 +632,7 @@ const ConversationPostListAttempt = React.forwardRef<
           hasNewerPosts ||
           !previousHeight ||
           height === previousHeight ||
+          userNavigationActive.current ||
           isComposerSendActive()
         ) {
           return;
@@ -629,6 +642,11 @@ const ConversationPostListAttempt = React.forwardRef<
         // dimensions by the time it calls us. Resizing should only follow the
         // latest message, not use the wider threshold intended for incoming rows.
         if (state && state.contentLength - state.scroll - previousHeight <= 2) {
+          followsViewportEnd.current = true;
+        }
+        // Native scroll events can trail consecutive layout frames. Retain
+        // the end anchor until the user chooses a different reading position.
+        if (followsViewportEnd.current) {
           const scrollView = listRef.current?.getNativeScrollRef() as
             | ScrollView
             | undefined;
@@ -729,17 +747,20 @@ const ConversationPostListAttempt = React.forwardRef<
       (): PostListMethods => ({
         scrollToStart: (opts) => {
           markUserScrolled();
-          runImperativeScroll(() =>
-            listRef.current?.scrollToOffset({
-              offset: 0,
-              animated: opts.animated,
-            })
+          runImperativeScroll(
+            () =>
+              listRef.current?.scrollToOffset({
+                offset: 0,
+                animated: opts.animated,
+              }),
+            finishUserNavigation
           );
         },
         scrollToEnd: (opts) => {
           markUserScrolled();
-          runImperativeScroll(() =>
-            listRef.current?.scrollToEnd({ animated: opts.animated })
+          runImperativeScroll(
+            () => listRef.current?.scrollToEnd({ animated: opts.animated }),
+            finishUserNavigation
           );
         },
         scrollToPost: ({ postId, animated, viewPosition }) => {
@@ -756,10 +777,10 @@ const ConversationPostListAttempt = React.forwardRef<
               animated,
               viewPosition,
             });
-          });
+          }, finishUserNavigation);
         },
       }),
-      [markUserScrolled]
+      [finishUserNavigation, markUserScrolled]
     );
 
     return (
@@ -832,6 +853,11 @@ const ConversationPostListAttempt = React.forwardRef<
         onContentSizeChange={settleEmptyConversationAtEnd}
         onScroll={handleScroll}
         onScrollBeginDrag={markUserScrolled}
+        onScrollEndDrag={finishUserNavigation}
+        onMomentumScrollBegin={() => {
+          userNavigationActive.current = true;
+        }}
+        onMomentumScrollEnd={finishUserNavigation}
         onStartReached={onStartReached}
         onStartReachedThreshold={onStartReachedThreshold}
         onEndReached={onEndReached}
