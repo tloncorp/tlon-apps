@@ -488,8 +488,9 @@ const ConversationPostListAttempt = React.forwardRef<
     );
     const applyConversationComposerHeight = React.useCallback(
       (height: number) => {
+        // KeyboardAwareLegendList owns inset reporting, including the keyboard
+        // height. This shared value only supplies the composer's contribution.
         composerContentInset.set(height);
-        listRef.current?.reportContentInset({ bottom: height });
       },
       [composerContentInset]
     );
