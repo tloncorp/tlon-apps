@@ -906,6 +906,26 @@
   ;<  caz=(list card)  bind:m  (do-watch harness-path)
   (ex-cards caz ~)
 ::
+::  the harness's verdict on a replay authorized by a previous owner has
+::  to settle that command; otherwise it stays pending and is replayed on
+::  every resubscribe until the sweep, while the HTTP route already told
+::  the harness it was finalized
+::
+++  test-finalize-after-owner-change-settles-captured-requester
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m  (do-watch harness-path)
+  ;<  *  bind:m  ((do-as ~bus) (do-command edit-set))
+  ;<  ~  bind:m  (configure ~zod)
+  =/  denied=outcome:v1:pr  [%error %not-authorized ~]
+  ;<  caz=(list card)  bind:m  (do-finalize denied)
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-bot-response ~bus denied)])
+  ;<  pen=pending:v1:pr  bind:m  got-pending
+  (ex-equal !>((bind (~(get by pen) rid) |=(p=pending-command:v1:pr result.p))) !>(``denied))
+::
 ++  test-expired-request-releases-subscriptions
   %-  eval-mare
   =/  m  (mare ,~)

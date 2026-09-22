@@ -2220,14 +2220,17 @@
         %steward-prompts-response-1  !>(response)
     ==
   ::
-  ::  a finalize for an id no longer pending is ignored
+  ::  a finalize for an id no longer pending is ignored. the response goes
+  ::  to the requester captured on the command, not the current owner: the
+  ::  harness refuses a replay authorized by a previous owner as
+  ::  %not-authorized, and that verdict has to settle the command — the
+  ::  finalize is local, so there is nobody to gate here
   ::
   ++  pr-handle-finalize
     |=  [rid=request-id:v1:sp body=outcome:v1:sp]
     ^+  cor
     ?~  pen=(~(get by pending.prompts.state) rid)  cor
     ?^  result.u.pen  cor
-    ?.  =(`requester.u.pen owner.state)  cor
     =.  pending.prompts.state
       (~(put by pending.prompts.state) rid u.pen(result `body))
     (pr-give-response requester.u.pen [rid body])

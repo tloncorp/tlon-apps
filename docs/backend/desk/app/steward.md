@@ -288,6 +288,8 @@ do. The shared `/steward` binding routes every non-`automation` path to the
 prompts handler, unknown routes included, so that signal has to come from this
 handler too.
 
+A finalize settles the requester captured on the command, whoever the owner is by then: the harness's `%not-authorized` verdict on a replay from a previous owner has to close that command, or it would sit pending and be replayed on every resubscribe until the sweep.
+
 The `dispatch` carries the `requester` that authorized it. The harness compares
 it against its own configured owner and refuses the edit when they differ: this
 watch goes live before the harness's `%configure` lands, so a replay after an
