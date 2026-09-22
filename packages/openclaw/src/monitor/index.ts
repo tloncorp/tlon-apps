@@ -49,6 +49,13 @@ import {
 } from '../gateway-status.js';
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
 import {
+  getTlonSessionSurface,
+  rememberTlonSessionRunSurface,
+  resolveTlonSessionOwnerMessageId,
+  resolveTlonSessionThreadParentId,
+  setTlonSessionSurface,
+} from '../onboarding-tool-boundary.js';
+import {
   type PendingNudge,
   clearPendingNudge,
   getPendingNudge,
@@ -131,6 +138,7 @@ import {
 } from '../version.js';
 import {
   type OnboardingStepReport,
+  agentOnboardingClientDateTimeContext,
   createAgentOnboardingCatchUpScheduler,
   createAgentOnboardingReconciliationPresence,
   drainAgentOnboardingRuntime,
@@ -3100,8 +3108,28 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         });
       }
       // Store role for before_tool_call hook (tool access control)
+      const threadParentId = resolveTlonSessionThreadParentId(
+        isThreadReply,
+        parentId
+      );
       for (const sessionKey of lensSessionKeys) {
         setSessionRole(sessionKey, senderRole);
+        const previousMessageId = getTlonSessionSurface(sessionKey)?.messageId;
+        const ownerMessageId = resolveTlonSessionOwnerMessageId(
+          senderRole,
+          String(messageId),
+          previousMessageId
+        );
+        setTlonSessionSurface(sessionKey, {
+          kind: isGroup ? 'group' : 'direct',
+          senderRole,
+          ...(isGroup && channelNest ? { channelNest } : {}),
+          ...(threadParentId ? { threadParentId } : {}),
+          ...(typeof currentSettings.bootstrapComplete === 'boolean'
+            ? { bootstrapComplete: currentSettings.bootstrapComplete }
+            : {}),
+          ...(ownerMessageId ? { messageId: ownerMessageId } : {}),
+        });
       }
       runtime.log?.(
         `[tlon] Stored session role: sessionKeys=${lensSessionKeys.join(', ')}, role=${senderRole}`
@@ -3166,6 +3194,19 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         const groupFlag = channelToGroup.get(channelNest);
         if (groupFlag) {
           bodyWithAttachments += `\n[Group members available via: tlon groups info ${groupFlag}]`;
+          const clientDateTime = agentOnboardingClientDateTimeContext(
+            route.accountId ?? botShipName,
+            groupFlag
+          );
+          if (clientDateTime) {
+            bodyWithAttachments +=
+              `\n[Client date/time context: device timezone ${clientDateTime.timezone}; ` +
+              `locale ${clientDateTime.locale}. Interpret unqualified schedule times in this ` +
+              'device timezone. Always format visible onboarding times with AM/PM, even when the locale normally uses 24-hour time. Keep cron expressions and ' +
+              'technical timezone identifiers out of user-facing choices and confirmations. ' +
+              'If the owner explicitly names another timezone, preserve that override and ' +
+              'describe it in ordinary language.]';
+          }
           contextLenses.recordContextSource(lens.lensId, {
             kind: 'system',
             label: 'Group member lookup hint',
@@ -3264,6 +3305,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       const compactionObservationTimeoutMs =
         resolveCompactionObservationTimeoutMs(cfg);
       const runId = randomUUID();
+      rememberTlonSessionRunSurface(runId, route.sessionKey, { senderRole });
       const turnRecorder = startTlonAgentTurn({
         accountId: account.accountId,
         agentId: route.agentId,

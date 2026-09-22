@@ -2,6 +2,7 @@ import {
   A2UI,
   AGENT_ONBOARDING_FIRST_ENTRY_FAILED_MARKER,
   AGENT_ONBOARDING_FIRST_ENTRY_MARKER,
+  AGENT_RECURRENCE_CONSENT_OPTION,
   type AgentOnboardingPurposeId,
   type PostBlobDataEntryAgentIntroRequest,
   type PostBlobDataEntryAgentProviderConfig,
@@ -57,6 +58,44 @@ type AgentRequest =
   | PostBlobDataEntryAgentIntroRequest
   | PostBlobDataEntryAgentProviderConfig
   | PostBlobDataEntryAgentProvision;
+
+function typedSelectionReply(blob: string | null | undefined) {
+  if (!blob) return null;
+  const selection = parsePostBlob(blob).find(
+    (entry) => entry.type === 'tlon-a2ui-selection'
+  );
+  if (
+    selection?.type !== 'tlon-a2ui-selection' ||
+    selection.values.length !== 1
+  ) {
+    return null;
+  }
+  return selection;
+}
+
+const AUTO_PROVISION_COMPONENT_ID = 'auto-provision';
+
+function normalizeEvidencePostId(id: string | undefined | null) {
+  if (!id || id !== id.trim()) return null;
+  if (/^(?:0|[1-9]\d*)$/.test(id)) return id;
+  if (!/^[1-9]\d{0,2}(?:\.\d{3})+$/.test(id)) return null;
+  return id.replaceAll('.', '');
+}
+
+function sameEvidencePostId(
+  left: string | undefined | null,
+  right: string | undefined | null
+) {
+  const normalizedLeft = normalizeEvidencePostId(left);
+  return (
+    normalizedLeft !== null && normalizedLeft === normalizeEvidencePostId(right)
+  );
+}
+
+export type AgentOnboardingClientDateTimeContext = {
+  timezone: string;
+  locale: string;
+};
 
 export type OnboardingStepReport = {
   step: TlonOnboardingStep;
@@ -157,6 +196,10 @@ const postOnceFlights = new Map<string, Promise<void>>();
 const completedPostMarkers = sharedMap<string, true>(
   'agentOnboarding.completedPostMarkers'
 );
+const clientDateTimeContexts = sharedMap<
+  string,
+  AgentOnboardingClientDateTimeContext
+>('agentOnboarding.clientDateTimeContexts');
 const ORIENTATION_HISTORY_LIMIT = 500;
 const DEFAULT_MIN_RESPONSE_DELAY_MS = 2_000;
 const DEFAULT_MIN_INTER_MESSAGE_DELAY_MS = 1_750;
@@ -182,6 +225,8 @@ const AGENT_ONBOARDING_GROUP_INTRO =
   'question over time.';
 const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What can I help you with?';
 const AGENT_ONBOARDING_APP_TOUR_PROMPT =
+  'Your results live in Updates, this group’s notebook. Ask me anytime to ' +
+  'change or pause this daily task.\n\n' +
   'Want me to tell you more about what you can do here?';
 const AGENT_ONBOARDING_APP_TOUR_EXPLANATION =
   'Tlon is organized into groups. Each group can have chat channels for ' +
@@ -193,9 +238,10 @@ const AGENT_ONBOARDING_BOT_TOUR_PROMPT =
 const AGENT_ONBOARDING_BOT_TOUR_EXPLANATION =
   'I can research questions, change what this group follows, publish ' +
   'scheduled updates, help in other groups, and use connected services you ' +
-  'authorize. Try asking me to adjust tomorrow’s update or investigate ' +
-  'something now.';
-const AGENT_ONBOARDING_TOUR_DECLINED = 'No problem. You can ask me anytime.';
+  'authorize. Ask me anytime to change or pause this daily task, or to ' +
+  'investigate something now.';
+const AGENT_ONBOARDING_TOUR_DECLINED =
+  'No problem. You can ask me anytime—including to change or pause this daily task.';
 const AGENT_GROUP_SETUP_COMPLETE_MARKER = 'group-setup-complete';
 const AGENT_ONBOARDING_PURPOSE_OPTIONS = [
   {
@@ -427,6 +473,19 @@ function onboardingAccountId(context: AgentOnboardingScanContext) {
   return context.accountId ?? context.botShip;
 }
 
+function clientDateTimeContextKey(accountId: string, groupId: string) {
+  return `${accountId}\u0000${groupId}`;
+}
+
+export function agentOnboardingClientDateTimeContext(
+  accountId: string,
+  groupId: string
+) {
+  return clientDateTimeContexts.get(
+    clientDateTimeContextKey(accountId, groupId)
+  );
+}
+
 function startSingleFlight<Key, Value>(
   flights: Map<Key, Promise<Value>>,
   key: Key,
@@ -528,19 +587,41 @@ async function handleAgentOnboardingRequestInternal(
   const request = parseAgentOnboardingRequest(context.blob);
   if (!request) {
     if (
-      !context.rawText?.trim() ||
       !context.ownerShip ||
       context.senderShip !== context.ownerShip ||
       !context.groupId
     ) {
       return false;
     }
-    const reply = context.rawText.trim();
-    if (!purposeForReply(reply) && !isOrientationReply(reply)) {
+    // Native typed controls can arrive on the firehose as blob-only posts even
+    // though their durable story renders the selected label. Recover that one
+    // typed value so deterministic services/tour replies do not wake the model.
+    // The active durable card is still verified below before anything is
+    // consumed; arbitrary A2UI selections remain ordinary conversation.
+    const rawReply = context.rawText?.trim();
+    const typedSelection = typedSelectionReply(context.blob);
+    const reply = rawReply || typedSelection?.values[0]?.trim();
+    if (!reply) return false;
+    const purpose = purposeForReply(reply);
+    const orientationReply = isOrientationReply(reply);
+    if (!purpose && !orientationReply) {
       return false;
     }
     const history = await fetchOnboardingHistory(context, deps);
-    return advanceDurableConversation(context, history, deps, presentation);
+    if (
+      typedSelection &&
+      !(orientationReply
+        ? matchesActiveOrientationSelection(context, history, typedSelection)
+        : matchesActivePurposeSelection(context, history, typedSelection))
+    ) {
+      return false;
+    }
+    return advanceDurableConversation(
+      { ...context, rawText: reply },
+      history,
+      deps,
+      presentation
+    );
   }
   if (
     !context.ownerShip ||
@@ -552,6 +633,17 @@ async function handleAgentOnboardingRequestInternal(
       '[tlon] rejected agent onboarding request: owner/group mismatch'
     );
     return true;
+  }
+
+  if (
+    request.type === 'tlon-agent-intro-request' &&
+    request.clientTimezone &&
+    request.clientLocale
+  ) {
+    clientDateTimeContexts.set(
+      clientDateTimeContextKey(onboardingAccountId(context), request.groupId),
+      { timezone: request.clientTimezone, locale: request.clientLocale }
+    );
   }
 
   const history = await fetchOnboardingHistory(context, deps);
@@ -588,12 +680,57 @@ async function handleAgentOnboardingRequestInternal(
     context.log?.('[tlon] rejected agent provision: request was superseded');
     return true;
   }
+  const effectiveRequest = historyRequest ?? request;
+  const automaticPlanError = validateAutomaticPlanEvidence(
+    history,
+    context.ownerShip,
+    context.botShip,
+    effectiveRequest,
+    context.blob
+  );
+  if (automaticPlanError) {
+    context.log?.(
+      `[tlon] rejected automatic agent provision: ${automaticPlanError}`
+    );
+    await postOnce(
+      context,
+      history,
+      `provision-rejected:${effectiveRequest.provisionId}`,
+      async () => ({
+        text: "I couldn't verify that task plan against your latest answers, so I didn't create it. Please answer the latest question again so I can make a current plan.",
+      }),
+      deps,
+      presentation
+    );
+    return true;
+  }
   try {
-    await provision(context, history, request, deps, presentation);
+    await provision(
+      context,
+      history,
+      canonicalizeAutomaticPlanRequest(effectiveRequest),
+      deps,
+      presentation
+    );
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
+    try {
+      await postOnce(
+        context,
+        history,
+        `provision-retrying:${effectiveRequest.provisionId}`,
+        async () => ({
+          text: "I couldn't finish setting up the daily task yet. I'll keep retrying safely, and I won't create a duplicate.",
+        }),
+        deps,
+        presentation
+      );
+    } catch {
+      // Preserve the coordinator failure as the actionable error even when
+      // the best-effort status post cannot be delivered either.
+    }
     throw new Error(
-      `agent onboarding provision ${request.provisionId} failed: ${detail}`,
+      `agent onboarding provision ${effectiveRequest.provisionId} failed: ${detail}`,
       { cause: error }
     );
   }
@@ -723,10 +860,7 @@ function pendingDurableReply(
   ownerShip: string
 ) {
   if (hasProvisionAck(history, botShip)) {
-    if (
-      hasPostMarker(history, botShip, 'orientation-complete') ||
-      hasPostMarker(history, botShip, AGENT_GROUP_SETUP_COMPLETE_MARKER)
-    ) {
+    if (hasPostMarker(history, botShip, 'orientation-complete')) {
       return null;
     }
     const active =
@@ -792,38 +926,41 @@ async function postIntro(
     }
     return;
   }
-
   const needsIntro = !hasPostMarker(history, context.botShip, 'intro');
-  const hadPicker = hasPostMarker(history, context.botShip, 'purpose-picker');
-  const pickerPosted = await postOnce(
-    context,
-    history,
-    'purpose-picker',
-    async () => {
-      const prompt = needsIntro
-        ? `${AGENT_ONBOARDING_GROUP_INTRO}\n\n${AGENT_ONBOARDING_PURPOSE_PROMPT}`
-        : AGENT_ONBOARDING_PURPOSE_PROMPT;
-      return {
-        text: purposePickerFallbackText(prompt),
-        blob: appendToPostBlob(
-          undefined,
-          buildPurposePickerSurface(context.groupId!, prompt)
-        ),
-        entries: needsIntro
-          ? [
-              {
-                type: 'tlon-agent-post-marker' as const,
-                version: 1 as const,
-                key: 'intro',
-              },
-            ]
-          : undefined,
-      };
-    },
-    deps,
-    presentation
-  );
-  if (!hadPicker && pickerPosted) {
+  const hadPicker =
+    hasPostMarker(history, context.botShip, 'task-interview') ||
+    // Do not insert the new interview into an in-flight deterministic setup.
+    hasPostMarker(history, context.botShip, 'purpose-picker');
+  const invitationPosted = hadPicker
+    ? false
+    : await postOnce(
+        context,
+        history,
+        // This marker deliberately differs from the compatibility
+        // coordinator's `purpose-picker`. Replies to new interviews continue
+        // to the ordinary agent/model instead of entering a hard-coded chain.
+        'task-interview',
+        async () => {
+          const prompt = needsIntro
+            ? `${AGENT_ONBOARDING_GROUP_INTRO}\n\n${AGENT_ONBOARDING_PURPOSE_PROMPT}`
+            : AGENT_ONBOARDING_PURPOSE_PROMPT;
+          return {
+            text: prompt,
+            entries: needsIntro
+              ? [
+                  {
+                    type: 'tlon-agent-post-marker' as const,
+                    version: 1 as const,
+                    key: 'intro',
+                  },
+                ]
+              : undefined,
+          };
+        },
+        deps,
+        presentation
+      );
+  if (!hadPicker && invitationPosted) {
     if (needsIntro) {
       context.trackStep?.({ step: 'intro_posted' });
     }
@@ -894,10 +1031,82 @@ function newestOwnerReplyAfter(
       (entry) =>
         entry.author === ownerShip &&
         entry.timestamp > timestamp &&
-        entry.content.trim() &&
-        isValid(entry.content)
+        durableReplyText(entry) &&
+        isValid(durableReplyText(entry))
     )
     .sort((a, b) => b.timestamp - a.timestamp)[0];
+}
+
+function durableReplyText(entry: TlonHistoryEntry) {
+  return (
+    entry.content.trim() ||
+    typedSelectionReply(entry.blob)?.values[0]?.trim() ||
+    ''
+  );
+}
+
+function matchesSelectionSource(
+  selection: NonNullable<ReturnType<typeof typedSelectionReply>>,
+  post: TlonHistoryEntry | undefined,
+  surfaceId: string,
+  componentId: string
+) {
+  return Boolean(
+    post?.id &&
+    sameEvidencePostId(selection.sourcePostId, post.id) &&
+    selection.surfaceId === surfaceId &&
+    selection.componentId === componentId
+  );
+}
+
+function matchesActiveOrientationSelection(
+  context: AgentOnboardingContext,
+  history: TlonHistoryEntry[],
+  selection: NonNullable<ReturnType<typeof typedSelectionReply>>
+) {
+  if (!hasProvisionAck(history, context.botShip)) return false;
+  const botTourOffer = markerPost(history, context.botShip, 'bot-tour-offer');
+  if (botTourOffer) {
+    return matchesSelectionSource(
+      selection,
+      botTourOffer,
+      `agent-onboarding-bot-tour:${context.groupId!}`,
+      'choice'
+    );
+  }
+  const appTourOffer = markerPost(
+    history,
+    context.botShip,
+    'onboarding-follow-up'
+  );
+  if (appTourOffer) {
+    return matchesSelectionSource(
+      selection,
+      appTourOffer,
+      `agent-onboarding-app-tour:${context.groupId!}`,
+      'choice'
+    );
+  }
+  return matchesSelectionSource(
+    selection,
+    markerPost(history, context.botShip, 'services-card'),
+    'agent-services',
+    'providers'
+  );
+}
+
+function matchesActivePurposeSelection(
+  context: AgentOnboardingContext,
+  history: TlonHistoryEntry[],
+  selection: NonNullable<ReturnType<typeof typedSelectionReply>>
+) {
+  if (hasProvisionAck(history, context.botShip)) return false;
+  return matchesSelectionSource(
+    selection,
+    markerPost(history, context.botShip, 'purpose-picker'),
+    `agent-onboarding-purpose:${context.groupId!}`,
+    'choices'
+  );
 }
 
 function yesNoDecision(text: string): 'yes' | 'no' | null {
@@ -927,10 +1136,7 @@ async function advanceOrientationConversation(
   deps: AgentOnboardingDeps,
   presentation: OnboardingPresentation
 ): Promise<boolean> {
-  if (
-    hasPostMarker(history, context.botShip, 'orientation-complete') ||
-    hasPostMarker(history, context.botShip, AGENT_GROUP_SETUP_COMPLETE_MARKER)
-  ) {
+  if (hasPostMarker(history, context.botShip, 'orientation-complete')) {
     return false;
   }
 
@@ -942,7 +1148,7 @@ async function advanceOrientationConversation(
       botTourOffer.timestamp,
       (text) => yesNoDecision(text) !== null
     );
-    const decision = reply ? yesNoDecision(reply.content) : null;
+    const decision = reply ? yesNoDecision(durableReplyText(reply)) : null;
     if (!decision) return false;
 
     const posted = await postOnce(
@@ -983,7 +1189,9 @@ async function advanceOrientationConversation(
       servicesCard.timestamp,
       isServicesCompleteReply
     );
-    if (!reply || !isServicesCompleteReply(reply.content)) return false;
+    if (!reply || !isServicesCompleteReply(durableReplyText(reply))) {
+      return false;
+    }
 
     await postOnce(
       context,
@@ -1010,7 +1218,7 @@ async function advanceOrientationConversation(
     appTourOffer.timestamp,
     (text) => yesNoDecision(text) !== null
   );
-  const decision = reply ? yesNoDecision(reply.content) : null;
+  const decision = reply ? yesNoDecision(durableReplyText(reply)) : null;
   if (!decision) return false;
 
   if (decision === 'no') {
@@ -1213,10 +1421,10 @@ async function provision(
       });
     }
 
-    const acknowledgement =
-      `${formatTopicList(request.topics)}—got it. ` +
-      `${provisionCadence(request.purposeId, notebookName)} ` +
-      `${scheduleConfirmation(request)}`;
+    const acknowledgement = buildProvisionAcknowledgement(
+      request,
+      notebookName
+    );
     await postOnce(
       context,
       history,
@@ -1846,7 +2054,10 @@ async function postFirstRunServices(
     history,
     'services-card',
     async () => {
-      const message = `${servicesPitch(correlation.purposeId)}\n\nPick anything you’d like, or tap Done to continue.`;
+      const message = `${servicesPitch(
+        correlation.purposeId,
+        correlation.topics[0]
+      )}\n\nPick anything you’d like, or tap Done to continue.`;
       return {
         text: message,
         blob: appendToPostBlob(
@@ -2521,12 +2732,21 @@ function findProvisionRequest(
   groupId: string,
   provisionId: string
 ) {
-  const request = blobEntriesByAuthor(history, ownerShip, true).find(
-    ({ entry }) =>
-      entry.type === 'tlon-agent-provision' &&
-      entry.groupId === groupId &&
-      entry.provisionId === provisionId
-  )?.entry;
+  // A stable provision id can be posted by more than one client. Keep the
+  // first accepted request authoritative so a later device cannot change its
+  // timezone or schedule while the same plan is being reconciled.
+  const request = blobEntriesByAuthor(history, ownerShip)
+    .filter(
+      ({ entry }) =>
+        entry.type === 'tlon-agent-provision' &&
+        entry.groupId === groupId &&
+        entry.provisionId === provisionId
+    )
+    .sort(
+      (left, right) =>
+        left.post.timestamp - right.post.timestamp ||
+        (left.post.id ?? '').localeCompare(right.post.id ?? '')
+    )[0]?.entry;
   return request?.type === 'tlon-agent-provision' ? request : null;
 }
 
@@ -2540,6 +2760,265 @@ function findNewestProvisionRequest(
       entry.type === 'tlon-agent-provision' && entry.groupId === groupId
   )?.entry;
   return request?.type === 'tlon-agent-provision' ? request : null;
+}
+
+const PLAN_ANSWER_DIMENSIONS = [
+  'focus',
+  'recurrence',
+  'time',
+  'approach',
+  'context',
+  'priority',
+  'output',
+] as const;
+
+function normalizedAnswer(value: string) {
+  return value.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+}
+
+function compareHistoryOrder(
+  left: TlonHistoryEntry,
+  right: TlonHistoryEntry
+): number {
+  if (
+    left.sequenceNum != null &&
+    right.sequenceNum != null &&
+    left.sequenceNum !== right.sequenceNum
+  ) {
+    return left.sequenceNum - right.sequenceNum;
+  }
+  return left.timestamp - right.timestamp;
+}
+
+function parseOwnerTime(value: string) {
+  const twelveHour = value.match(
+    /\b(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*(am|pm)\b/i
+  );
+  if (twelveHour) {
+    const clockHour = Number(twelveHour[1]);
+    const minute = Number(twelveHour[2] ?? 0);
+    const hour =
+      (clockHour % 12) + (twelveHour[3]!.toLocaleLowerCase() === 'pm' ? 12 : 0);
+    return { hour, minute };
+  }
+  const twentyFourHour = value.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
+  return twentyFourHour
+    ? { hour: Number(twentyFourHour[1]), minute: Number(twentyFourHour[2]) }
+    : null;
+}
+
+function canonicalizeAutomaticPlanRequest(
+  request: PostBlobDataEntryAgentProvision
+): PostBlobDataEntryAgentProvision {
+  const answers = request.answerEvidence;
+  if (!answers) return request;
+  const time = parseOwnerTime(answers.time);
+  if (!time) return request;
+  const promptParts = [
+    `Focus: ${answers.focus.trim()}.`,
+    `Approach: ${answers.approach.trim()}.`,
+    answers.context ? `Context: ${answers.context.trim()}.` : '',
+    answers.priority ? `Priority: ${answers.priority.trim()}.` : '',
+    answers.output ? `Output: ${answers.output.trim()}.` : '',
+  ].filter(Boolean);
+  const displayHour = time.hour % 12 || 12;
+  const displayMinute = time.minute
+    ? `:${String(time.minute).padStart(2, '0')}`
+    : '';
+  const meridiem = time.hour < 12 ? 'AM' : 'PM';
+  return {
+    ...request,
+    approach: answers.approach.trim(),
+    topics: [answers.focus.trim()],
+    scheduleHour: time.hour,
+    scheduleMinute: time.minute,
+    scheduleExpression: `${time.minute} ${time.hour} * * *`,
+    scheduleDescription: `daily at ${displayHour}${displayMinute} ${meridiem}`,
+    taskPrompt: promptParts.join(' '),
+  };
+}
+
+function validateAutomaticPlanEvidence(
+  history: TlonHistoryEntry[],
+  ownerShip: string,
+  botShip: string,
+  request: PostBlobDataEntryAgentProvision,
+  inboundBlob?: string | null
+) {
+  const requestPost = history.find(
+    (post) =>
+      post.author === ownerShip &&
+      post.blob &&
+      parsePostBlob(post.blob).some(
+        (entry) =>
+          entry.type === 'tlon-agent-provision' &&
+          entry.provisionId === request.provisionId
+      )
+  );
+  const requestBlob = requestPost?.blob ?? inboundBlob;
+  if (!requestBlob) return null;
+  const automaticSelection = parsePostBlob(requestBlob).find(
+    (entry) =>
+      entry.type === 'tlon-a2ui-selection' &&
+      entry.componentId === AUTO_PROVISION_COMPONENT_ID
+  );
+  if (
+    !automaticSelection ||
+    automaticSelection.type !== 'tlon-a2ui-selection'
+  ) {
+    // Retained manual provisions remain valid and are not migrated.
+    return null;
+  }
+  if (!request.approach?.trim()) {
+    return 'the plan did not preserve the selected approach';
+  }
+  if (!request.interviewStartMessageId || !request.interviewMessageId) {
+    return 'the plan did not preserve its owner interview boundary';
+  }
+  const interviewStartPost = history.find(
+    (candidate) =>
+      sameEvidencePostId(candidate.id, request.interviewStartMessageId) &&
+      candidate.author === ownerShip
+  );
+  const interviewPost = history.find(
+    (candidate) =>
+      sameEvidencePostId(candidate.id, request.interviewMessageId) &&
+      candidate.author === ownerShip
+  );
+  if (!interviewStartPost || !interviewPost) {
+    return 'the bound owner interview is unavailable';
+  }
+  if (compareHistoryOrder(interviewStartPost, interviewPost) > 0) {
+    return 'the bound owner interview is out of order';
+  }
+  if (!request.answerEvidence) {
+    return 'the plan did not preserve its exact owner answer evidence';
+  }
+  if (
+    normalizedAnswer(request.answerEvidence.recurrence) !==
+    normalizedAnswer(AGENT_RECURRENCE_CONSENT_OPTION)
+  ) {
+    return 'the owner did not explicitly consent to a daily recurring task';
+  }
+  const answersByDimension = new Map<string, string[]>();
+  for (const answerPost of [...history].sort(compareHistoryOrder)) {
+    if (
+      answerPost.author !== ownerShip ||
+      compareHistoryOrder(answerPost, interviewStartPost) < 0 ||
+      compareHistoryOrder(answerPost, interviewPost) > 0 ||
+      !answerPost.blob
+    ) {
+      continue;
+    }
+    for (const entry of parsePostBlob(answerPost.blob)) {
+      if (entry.type !== 'tlon-a2ui-selection' || !entry.sourcePostId) {
+        continue;
+      }
+      const questionPost = history.find(
+        (candidate) =>
+          sameEvidencePostId(candidate.id, entry.sourcePostId) &&
+          candidate.author === botShip
+      );
+      const marker = questionPost?.blob
+        ? parsePostBlob(questionPost.blob).find(
+            (questionEntry) =>
+              questionEntry.type === 'tlon-agent-post-marker' &&
+              questionEntry.key.startsWith('agent-choice-dimension:') &&
+              sameEvidencePostId(
+                questionEntry.interviewStartMessageId,
+                request.interviewStartMessageId
+              )
+          )
+        : undefined;
+      if (
+        !questionPost ||
+        compareHistoryOrder(questionPost, interviewStartPost) < 0 ||
+        compareHistoryOrder(questionPost, answerPost) > 0 ||
+        marker?.type !== 'tlon-agent-post-marker'
+      ) {
+        continue;
+      }
+      const dimension = marker.key.slice('agent-choice-dimension:'.length);
+      answersByDimension.set(
+        dimension,
+        entry.values.map((value) => value.trim()).filter(Boolean)
+      );
+    }
+  }
+  const answerEvidence = request.answerEvidence;
+  for (const dimension of PLAN_ANSWER_DIMENSIONS) {
+    const claimed = answerEvidence[dimension];
+    const durable = answersByDimension.get(dimension);
+    if (!claimed && durable?.length) {
+      return `the plan omitted the answered ${dimension} choice`;
+    }
+    if (
+      claimed &&
+      !durable?.some(
+        (value) => normalizedAnswer(value) === normalizedAnswer(claimed)
+      )
+    ) {
+      return `no matching answered ${dimension} question was found`;
+    }
+  }
+  for (const requiredDimension of [
+    'focus',
+    'recurrence',
+    'time',
+    'approach',
+  ] as const) {
+    if (!answersByDimension.get(requiredDimension)?.length) {
+      return `no answered ${requiredDimension} question was found`;
+    }
+  }
+  if (
+    normalizedAnswer(request.approach) !==
+    normalizedAnswer(answerEvidence.approach)
+  ) {
+    return 'the plan approach did not match the owner answer';
+  }
+  const ownerTime = parseOwnerTime(answerEvidence.time);
+  if (
+    !ownerTime ||
+    ownerTime.hour !== request.scheduleHour ||
+    ownerTime.minute !== request.scheduleMinute
+  ) {
+    return 'the plan schedule did not match the owner answer';
+  }
+
+  const planPost = automaticSelection.sourcePostId
+    ? history.find(
+        (candidate) =>
+          sameEvidencePostId(candidate.id, automaticSelection.sourcePostId) &&
+          candidate.author === botShip
+      )
+    : undefined;
+  if (!planPost) return 'the source plan is unavailable';
+  if (compareHistoryOrder(planPost, interviewPost) < 0) {
+    return 'the source plan predates its bound owner interview';
+  }
+  const hasNewerOwnerAnswer = history.some((candidate) => {
+    if (
+      candidate.author !== ownerShip ||
+      candidate.id === requestPost?.id ||
+      compareHistoryOrder(candidate, interviewPost) <= 0 ||
+      (requestPost && compareHistoryOrder(candidate, requestPost) > 0)
+    ) {
+      return false;
+    }
+    const duplicateAutomaticTransport = candidate.blob
+      ? parsePostBlob(candidate.blob).some(
+          (entry) =>
+            entry.type === 'tlon-a2ui-selection' &&
+            entry.componentId === AUTO_PROVISION_COMPONENT_ID &&
+            sameEvidencePostId(entry.sourcePostId, planPost.id)
+        )
+      : false;
+    return !duplicateAutomaticTransport;
+  });
+  return hasNewerOwnerAnswer
+    ? 'a newer owner answer superseded the plan'
+    : null;
 }
 
 function findLatestProviderConfig(
@@ -2595,7 +3074,9 @@ async function upsertPrimaryJobOnce(
     enabled: true,
     schedule: {
       kind: 'cron',
-      expr: `${request.scheduleMinute} ${request.scheduleHour} * * *`,
+      expr:
+        request.scheduleExpression ??
+        `${request.scheduleMinute} ${request.scheduleHour} * * *`,
       tz: request.timezone,
     },
     sessionTarget: 'isolated',
@@ -2812,15 +3293,31 @@ function buildRecurringPrompt(
   providerIds: readonly string[] = []
 ) {
   const providerGuidance = buildProviderGuidance(providerIds);
+  const localTimeGuidance = ` When a date or time appears in the finished note, render it in ${request.timezone} using ordinary 12-hour AM/PM wording. Never expose UTC, an IANA timezone identifier, or a cron expression in the note.`;
+  if (request.taskPrompt) {
+    const approachGuidance = request.approach
+      ? ` Follow the owner's selected approach: ${request.approach.trim()}.`
+      : '';
+    return `Carry out this recurring task: ${request.taskPrompt.trim()}${approachGuidance} Use the current run date and time when deciding what is relevant.${localTimeGuidance} Search the web when the task depends on current or externally verifiable information, and cite useful sources.${providerGuidance} Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note. The coordinator will publish your final response exactly once.`;
+  }
   if (request.purposeId === 'agent-learning') {
-    return `Build one entry in a progressive learning series. The topics are: ${request.topics.join(', ')}. Cover exactly one topic; never combine or force connections between topics. Rotate through the list over time, using the current date to vary the topic. Put that topic in the note title. Explain one useful idea for that topic with concrete examples. Keep it concise, search the web for reliable information, and cite useful sources.${providerGuidance} Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note. The coordinator will publish your final response exactly once.`;
+    return `Build one entry in a progressive learning series. The topics are: ${request.topics.join(', ')}. Cover exactly one topic; never combine or force connections between topics. Rotate through the list over time, using the current date to vary the topic. Put that topic in the note title. Explain one useful idea for that topic with concrete examples.${localTimeGuidance} Keep it concise, search the web for reliable information, and cite useful sources.${providerGuidance} Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note. The coordinator will publish your final response exactly once.`;
   }
 
   const purposeGuidance =
     request.purposeId === 'agent-research'
       ? 'Focus on meaningful recent work. Prioritize primary sources and direct links. Distinguish publication dates from event dates, label uncertainty or conflicting evidence, and stay tightly within the requested scope. If nothing meaningful changed, say that plainly instead of padding the entry.'
       : 'Make the entry self-contained. Lead with the items most likely to matter today. Distinguish new information from background, order items by urgency, and keep the result concise and scannable.';
-  return `Write ${request.purpose.toLowerCase()} about ${request.topics.join(', ')}. ${purposeGuidance} Search the web for current information and cite useful sources.${providerGuidance} Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note. The coordinator will publish your final response exactly once.`;
+  return `Write ${request.purpose.toLowerCase()} about ${request.topics.join(', ')}. ${purposeGuidance}${localTimeGuidance} Search the web for current information and cite useful sources.${providerGuidance} Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note. The coordinator will publish your final response exactly once.`;
+}
+
+function buildProvisionAcknowledgement(
+  request: PostBlobDataEntryAgentProvision,
+  notebookName: string
+) {
+  return request.taskPrompt
+    ? `Got it. I’ll publish the first tailored update about ${formatTopicList(request.topics)} in ${notebookName}, this group’s notebook. ${scheduleConfirmation(request)}`
+    : `${formatTopicList(request.topics)}—got it. ${provisionCadence(request.purposeId, notebookName)} ${scheduleConfirmation(request)}`;
 }
 
 function choiceAction(text: string): A2UI.SendMessageAction {
@@ -2937,6 +3434,13 @@ function provisionCadence(
  * Distinguish the immediate forced entry from the recurring schedule.
  */
 function scheduleConfirmation(request: PostBlobDataEntryAgentProvision) {
+  if (request.scheduleDescription) {
+    const scheduleDescription = request.scheduleDescription
+      .trim()
+      .replace(/^the task will run\s+/i, '')
+      .replace(/[.!?]+$/, '');
+    return `After this first entry, the task will run ${scheduleDescription}.`;
+  }
   const hour = request.scheduleHour % 12 === 0 ? 12 : request.scheduleHour % 12;
   const meridiem = request.scheduleHour < 12 ? 'AM' : 'PM';
   const minute = String(request.scheduleMinute).padStart(2, '0');
@@ -2950,22 +3454,35 @@ function scheduleConfirmation(request: PostBlobDataEntryAgentProvision) {
  * chosen. Name only what the connector catalog actually offers: there is no
  * calendar connector, so the pitch can't promise one.
  */
-function servicesPitch(purposeId: AgentOnboardingPurposeId) {
+function servicesPitch(
+  purposeId: AgentOnboardingPurposeId,
+  primaryTopic?: string
+) {
+  const topic = primaryTopic?.trim();
   switch (purposeId) {
     case 'agent-learning':
+      if (topic) {
+        return `Connect your notes or docs and I can build each ${topic} lesson around material you already have.`;
+      }
       return (
         'Connect your notes or docs and I can build each update on what ' +
         'you’re already reading.'
       );
     case 'agent-research':
+      if (topic) {
+        return `Connect your docs or notes and I can compare new ${topic} findings with what you’ve already saved.`;
+      }
       return (
         'Connect your docs or notes and I can tell what’s genuinely new to ' +
         'you, instead of repeating what you’ve already filed.'
       );
     case 'agent-daily-digest':
+      if (topic) {
+        return `Connect your docs or notes and I can include details you already track about ${topic} in future updates.`;
+      }
       return (
-        'Connect your docs and notes and your morning digest can cover your ' +
-        'own projects, not just the news.'
+        'Connect your docs and notes and these daily updates can use your ' +
+        'own material, not just public information.'
       );
   }
 }
@@ -3077,14 +3594,17 @@ function buildTourChoiceSurface(surfaceId: string, prompt: string) {
 }
 
 export const agentOnboardingTesting = {
+  buildProvisionAcknowledgement,
   buildTopicsPickerSurface,
   buildTourChoiceSurface,
   buildRecurringPrompt,
   buildServicesSurface,
+  canonicalizeAutomaticPlanRequest,
   ensureFirstRunEnqueued,
   fetchOnboardingGroup,
   findFirstRunCorrelation,
   findDeliveredRunNote,
+  findProvisionRequest,
   hasPostMarker,
   notebookDisplayName,
   purposePickerFallbackText,
@@ -3095,4 +3615,5 @@ export const agentOnboardingTesting = {
   scheduleConfirmation,
   servicesPitch,
   upsertPrimaryJob,
+  validateAutomaticPlanEvidence,
 };

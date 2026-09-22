@@ -5,6 +5,7 @@ import {
   type TlonAgentTurnSummary,
   claimActiveTlonTurnOutput,
   createTlonAgentTurnOtelObserver,
+  getActiveTlonTurnAccountId,
   observeActiveTlonTurnDelivery,
   recordActiveTlonTurnDelivery,
   recordActiveTlonTurnSourceReply,
@@ -61,6 +62,17 @@ function recordTurn(params: {
 }
 
 describe('Tlon agent turn output attribution', () => {
+  it('exposes the active account only inside its turn scope', () => {
+    const turn = startTlonAgentTurn(
+      { ...baseTurn, accountId: 'named-account' },
+      { observer: noOpObserver }
+    );
+    expect(getActiveTlonTurnAccountId()).toBeNull();
+    expect(turn.run(() => getActiveTlonTurnAccountId())).toBe('named-account');
+    turn.finalize({ durationMs: 0 });
+    expect(getActiveTlonTurnAccountId()).toBeNull();
+  });
+
   it('assigns the active run id and monotonic output indexes', () => {
     const turn = startTlonAgentTurn(baseTurn, { observer: noOpObserver });
     const outputs = turn.run(() => {

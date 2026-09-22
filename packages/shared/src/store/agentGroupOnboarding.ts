@@ -13,7 +13,7 @@ const logger = createDevLogger('agentGroupOnboarding', false);
 const wait = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 const DEFAULT_AGENT_GROUP_TITLE = 'My agent group';
-const MAX_GENERATED_GROUP_TITLE_LENGTH = 48;
+const MAX_GENERATED_GROUP_TITLE_LENGTH = 32;
 const PENDING_GROUP_ADOPTION_ATTEMPTS = 8;
 const PENDING_GROUP_ADOPTION_DELAY_MS = 500;
 const notesChannelFlights = new Map<string, Promise<db.Channel>>();
@@ -27,6 +27,14 @@ const agentGroupFurnishingFlights = new Map<
   string,
   Promise<AgentGroupFurnishingStart>
 >();
+
+function getClientDateTimeContext() {
+  const resolved = Intl.DateTimeFormat().resolvedOptions();
+  return {
+    timezone: resolved.timeZone?.trim() || 'UTC',
+    locale: resolved.locale?.trim() || 'en-US',
+  };
+}
 
 export type AgentGroupFurnishing = {
   group: db.Group;
@@ -59,8 +67,8 @@ type FurnishParams = {
 };
 
 /**
- * Establish an agent group. First-run onboarding also gets exactly one notes
- * channel; later groups open directly into ordinary chat.
+ * Establish an agent group with the chat and notes destinations its recurring
+ * task onboarding needs.
  */
 export async function ensureAgentGroupFurnished(
   params: FurnishParams = {}
@@ -139,34 +147,36 @@ async function startAgentGroupFurnishingOnce(
     ...current,
     [group.id]: resolved.agentShipId!,
   }));
-  if (params.isFirstGroup) {
-    const initialGroupTitle = group.title ?? null;
-    const currentUserContact = await db.getContact({
-      id: api.getCurrentUserId(),
-    });
-    const canRenameGroup = params.groupId
-      ? group.id.endsWith(`/${BotHomeGroupSlugs.slug}`) &&
-        logic.botHomeGroupHasDefaultTitle(
-          group,
-          currentUserContact?.peerNickname
-        )
-      : params.title == null || params.title === DEFAULT_AGENT_GROUP_TITLE;
+  const initialGroupTitle = group.title ?? null;
+  const currentUserContact = await db.getContact({
+    id: api.getCurrentUserId(),
+  });
+  const canRenameGroup = params.groupId
+    ? group.id.endsWith(`/${BotHomeGroupSlugs.slug}`) &&
+      logic.botHomeGroupHasDefaultTitle(group, currentUserContact?.peerNickname)
+    : params.title == null || params.title === DEFAULT_AGENT_GROUP_TITLE;
 
-    await db.agentGroupOnboardingLocks.setValue((current) => ({
-      ...current,
-      [group.id]: {
-        ...current[group.id],
-        chatChannelId: chatChannel.id,
-        createdAt: current[group.id]?.createdAt ?? Date.now(),
-        navigationLockExpiresAt:
-          current[group.id]?.navigationLockExpiresAt ??
-          Date.now() + db.AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS,
-        initialGroupTitle:
-          current[group.id]?.initialGroupTitle ?? initialGroupTitle,
-        canRenameGroup: current[group.id]?.canRenameGroup ?? canRenameGroup,
-      },
-    }));
-  }
+  // Every newly created agent group starts with the same placeholder title,
+  // even when it is not the hosted first group. Keep rename provenance for all
+  // of them; only the first-run path receives the navigation lock.
+  await db.agentGroupOnboardingLocks.setValue((current) => ({
+    ...current,
+    [group.id]: {
+      ...current[group.id],
+      chatChannelId: chatChannel.id,
+      createdAt: current[group.id]?.createdAt ?? Date.now(),
+      ...(params.isFirstGroup
+        ? {
+            navigationLockExpiresAt:
+              current[group.id]?.navigationLockExpiresAt ??
+              Date.now() + db.AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS,
+          }
+        : {}),
+      initialGroupTitle:
+        current[group.id]?.initialGroupTitle ?? initialGroupTitle,
+      canRenameGroup: current[group.id]?.canRenameGroup ?? canRenameGroup,
+    },
+  }));
   const complete = finishAgentGroupFurnishing({
     group,
     chatChannel,
@@ -201,8 +211,26 @@ async function createOrResumeAgentGroup({
       : `chat/${currentUserId}/${logic.getRandomId()}`;
 
   if (pendingGroupId) {
+    let completedPendingGroup = false;
     try {
-      return await waitForPendingGroupWithChat(() => adoptGroup(groupId));
+      const pendingGroup = await waitForPendingGroupWithChat(() =>
+        adoptGroup(groupId)
+      );
+      const pendingChat = pendingGroup.channels?.find(
+        (channel) => channel.type === 'chat'
+      );
+      if (
+        pendingChat &&
+        (await channelHasAgentIntroRequest(
+          pendingGroup.id,
+          pendingChat.id,
+          currentUserId
+        ))
+      ) {
+        completedPendingGroup = true;
+      } else {
+        return pendingGroup;
+      }
     } catch {
       // Retrying the exact group/channel payload is safe even if an ambiguous
       // earlier request finishes late, and recovers definitive pre-send
@@ -229,6 +257,19 @@ async function createOrResumeAgentGroup({
           throw createError;
         }
       }
+    }
+
+    if (completedPendingGroup) {
+      // The intro request is written only after the notebook exists. If it is
+      // already durable, this marker survived a crash between that post and
+      // the local clear; treating it as unfinished would reopen a completed
+      // onboarding instead of creating the group the user asked for now.
+      await db.pendingAgentGroupCreation.setValue((current) =>
+        (typeof current === 'string' ? current : current?.groupId) === groupId
+          ? null
+          : current
+      );
+      return createOrResumeAgentGroup({ agentShipId, title });
     }
   }
 
@@ -314,9 +355,10 @@ async function finishAgentGroupFurnishingOnce({
   hostedShipId: string | null;
   isFirstGroup: boolean;
 }): Promise<AgentGroupFurnishing> {
-  const notebook = isFirstGroup
-    ? await ensureSingleNotesChannel(initialGroup.id)
-    : null;
+  // Every explicit agent group can receive a typed recurring-task plan, not
+  // only the hosted first group. Provisioning requires exactly one durable
+  // Notes destination, so finish it before the bot can offer confirmation.
+  const notebook = await ensureSingleNotesChannel(initialGroup.id);
   const group = notebook
     ? ((await db.getGroup({ id: initialGroup.id })) ?? {
         ...initialGroup,
@@ -394,7 +436,7 @@ export function buildAgentGroupTitle({
     purposeId === 'agent-learning'
       ? ''
       : purposeId === 'agent-daily-digest'
-        ? ' Digest'
+        ? ' Updates'
         : ' Research';
   const maxPrimaryLength = Math.max(
     1,
@@ -403,10 +445,16 @@ export function buildAgentGroupTitle({
       countSuffix.length -
       suffix.length
   );
-  const clippedPrimary =
-    primaryTopic.length > maxPrimaryLength
-      ? `${primaryTopic.slice(0, maxPrimaryLength - 1).trimEnd()}…`
-      : primaryTopic;
+  const clippedPrimary = (() => {
+    if (primaryTopic.length <= maxPrimaryLength) return primaryTopic;
+
+    const candidate = primaryTopic.slice(0, maxPrimaryLength + 1);
+    const lastWordBoundary = candidate.lastIndexOf(' ');
+    if (lastWordBoundary > 0) {
+      return candidate.slice(0, lastWordBoundary).trimEnd();
+    }
+    return `${primaryTopic.slice(0, maxPrimaryLength - 1).trimEnd()}…`;
+  })();
 
   return `${prefix}${clippedPrimary}${countSuffix}${suffix}`;
 }
@@ -655,24 +703,21 @@ async function ensureIntroRequest(
   isFirstGroup: boolean
 ) {
   const currentUserId = api.getCurrentUserId();
-  const history = await api.getChannelPosts({
+  const alreadyPosted = await channelHasAgentIntroRequest(
+    groupId,
     channelId,
-    mode: 'newest',
-    count: 50,
-  });
-  const alreadyPosted = history.posts.some(
-    (post) =>
-      post.authorId === currentUserId &&
-      logic.findPostBlobEntry(post.blob, 'tlon-agent-intro-request')
-        ?.groupId === groupId
+    currentUserId
   );
   if (alreadyPosted) return;
 
+  const clientDateTime = getClientDateTimeContext();
   const blob = logic.appendToPostBlob(undefined, {
     type: 'tlon-agent-intro-request',
     version: 1,
     groupId,
     ...(isFirstGroup ? { isFirstGroup: true } : {}),
+    clientTimezone: clientDateTime.timezone,
+    clientLocale: clientDateTime.locale,
   });
   await finalizeAndSendPost(
     {
@@ -685,6 +730,32 @@ async function ensureIntroRequest(
       isEdit: false,
     },
     { rejectOnDefinitiveFailure: true }
+  );
+}
+
+async function channelHasAgentIntroRequest(
+  groupId: string,
+  channelId: string,
+  currentUserId: string
+) {
+  const history = await api.getChannelPosts({
+    channelId,
+    mode: 'newest',
+    count: 50,
+  });
+  return historyHasAgentIntroRequest(history.posts, currentUserId, groupId);
+}
+
+function historyHasAgentIntroRequest(
+  posts: Awaited<ReturnType<typeof api.getChannelPosts>>['posts'],
+  currentUserId: string,
+  groupId: string
+) {
+  return posts.some(
+    (post) =>
+      post.authorId === currentUserId &&
+      logic.findPostBlobEntry(post.blob, 'tlon-agent-intro-request')
+        ?.groupId === groupId
   );
 }
 
@@ -897,6 +968,7 @@ export const agentGroupOnboardingTesting = {
   retryAgentGroupFurnishCore,
   agentHasJoined,
   ensureSingleNotesChannel,
+  historyHasAgentIntroRequest,
   isAgentGroupTitleRenameEligible,
   chooseCreatedNotebookResolution,
   retryAgentStanding,

@@ -2,7 +2,10 @@ import * as db from '@tloncorp/shared/db';
 import { appendToPostBlob } from '@tloncorp/shared/logic';
 import { describe, expect, it } from 'vitest';
 
-import { getA2UIActionCompletions } from './a2uiActionCompletion';
+import {
+  getA2UIActionCompletions,
+  isPendingProvisionSuperseded,
+} from './a2uiActionCompletion';
 
 const ownerId = '~owner';
 
@@ -76,5 +79,19 @@ describe('getA2UIActionCompletions', () => {
       { sentMessageText: 'Mycology' },
       { sentMessageText: 'Research' },
     ]);
+  });
+});
+
+describe('isPendingProvisionSuperseded', () => {
+  it('invalidates a plan after an ordinary owner message', () => {
+    expect(
+      isPendingProvisionSuperseded({
+        sentMessageText: 'Actually, make it shorter',
+      })
+    ).toBe(true);
+    expect(isPendingProvisionSuperseded({ sentMessageText: '   ' })).toBe(
+      false
+    );
+    expect(isPendingProvisionSuperseded(undefined)).toBe(false);
   });
 });

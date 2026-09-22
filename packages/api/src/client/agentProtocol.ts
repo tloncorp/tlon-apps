@@ -11,9 +11,14 @@ export const AGENT_PROTOCOL_LIMITS = {
   groupIdLength: 512,
   identifierLength: 128,
   purposeLength: 200,
+  approachLength: 1000,
   topicLength: 200,
   topicCount: 12,
+  taskPromptLength: 4000,
+  scheduleExpressionLength: 200,
+  scheduleDescriptionLength: 200,
   timezoneLength: 100,
+  localeLength: 100,
   notebookNestLength: 512,
   notebookTitleLength: 200,
   providerCount: 12,
@@ -24,6 +29,10 @@ export const AGENT_PROTOCOL_LIMITS = {
 export const TLON_A2UI_CATALOG_ID = 'tlon.a2ui.basic.v2';
 export const AGENT_ONBOARDING_FIRST_ENTRY_MARKER = 'first-entry-ping';
 export const AGENT_ONBOARDING_FIRST_ENTRY_FAILED_MARKER = 'first-entry-failed';
+export const AGENT_ONBOARDING_APPROACH_CHOICE_MARKER =
+  'agent-choice-dimension:approach';
+export const AGENT_RECURRENCE_CONSENT_OPTION = 'Yes, make it daily';
+export const AGENT_RECURRENCE_DECLINE_OPTION = 'No, just once';
 
 export const AGENT_ONBOARDING_PURPOSE_IDS = [
   'agent-daily-digest',
@@ -43,16 +52,86 @@ export const agentProtocolString = (maxLength: number) =>
     .max(maxLength)
     .refine((value) => value.trim().length > 0);
 
+export const AgentTaskPlanAnswerEvidenceSchema = z.object({
+  focus: agentProtocolString(AGENT_PROTOCOL_LIMITS.taskPromptLength),
+  recurrence: agentProtocolString(
+    AGENT_PROTOCOL_LIMITS.scheduleDescriptionLength
+  ),
+  time: agentProtocolString(AGENT_PROTOCOL_LIMITS.scheduleDescriptionLength),
+  approach: agentProtocolString(AGENT_PROTOCOL_LIMITS.approachLength),
+  context: agentProtocolString(
+    AGENT_PROTOCOL_LIMITS.taskPromptLength
+  ).optional(),
+  priority: agentProtocolString(
+    AGENT_PROTOCOL_LIMITS.taskPromptLength
+  ).optional(),
+  output: agentProtocolString(
+    AGENT_PROTOCOL_LIMITS.taskPromptLength
+  ).optional(),
+});
+
 export const AgentProvisionActionContextSchema = z.object({
   groupId: agentProtocolString(AGENT_PROTOCOL_LIMITS.groupIdLength),
+  /**
+   * Owner-authored post that started the current typed onboarding interview.
+   * Automatic plans use it to bound durable choice evidence to this interview.
+   */
+  interviewStartMessageId: agentProtocolString(512).optional(),
+  /**
+   * Owner-authored post that started the turn which produced an automatic
+   * onboarding plan. Optional for retained manual and pre-interview actions;
+   * automatic plans require it before provisioning.
+   */
+  interviewMessageId: agentProtocolString(512).optional(),
   purposeId: AgentOnboardingPurposeIdSchema,
   purpose: agentProtocolString(AGENT_PROTOCOL_LIMITS.purposeLength),
+  /**
+   * The owner's selected information-gathering/development approach. Optional
+   * on the wire so retained pre-interview provision receipts remain valid;
+   * the automatic onboarding plan requires and verifies it separately.
+   */
+  approach: agentProtocolString(
+    AGENT_PROTOCOL_LIMITS.approachLength
+  ).optional(),
+  /** Exact owner selections used to derive an automatically provisioned task. */
+  answerEvidence: AgentTaskPlanAnswerEvidenceSchema.optional(),
   topics: z
     .array(agentProtocolString(AGENT_PROTOCOL_LIMITS.topicLength))
     .min(1)
     .max(AGENT_PROTOCOL_LIMITS.topicCount),
   scheduleHour: z.number().int().min(0).max(23),
   scheduleMinute: z.number().int().min(0).max(59),
+  /**
+   * Model-authored task details for interview-driven onboarding. The legacy
+   * purpose/topic fields remain required so older clients and group naming
+   * continue to work; this prompt is authoritative when present.
+   */
+  taskPrompt: agentProtocolString(
+    AGENT_PROTOCOL_LIMITS.taskPromptLength
+  ).optional(),
+  /** Five-field cron expression for ordinary time-based schedules. */
+  scheduleExpression: agentProtocolString(
+    AGENT_PROTOCOL_LIMITS.scheduleExpressionLength
+  )
+    .refine((value) => {
+      const fields = value.trim().split(/\s+/);
+      return (
+        fields.length === 5 &&
+        fields.every((field) => /^[0-9*/,-]+$/.test(field))
+      );
+    })
+    .optional(),
+  /** Human-readable cadence used in the confirmation message. */
+  scheduleDescription: agentProtocolString(
+    AGENT_PROTOCOL_LIMITS.scheduleDescriptionLength
+  ).optional(),
+  /**
+   * Set only when the owner explicitly names a different timezone. The client
+   * otherwise supplies its current device timezone at confirmation time.
+   */
+  timezoneOverride: agentProtocolString(
+    AGENT_PROTOCOL_LIMITS.timezoneLength
+  ).optional(),
 });
 
 export const AgentProviderIdSchema = agentProtocolString(

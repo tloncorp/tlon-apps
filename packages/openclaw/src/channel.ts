@@ -1,3 +1,6 @@
+import { createRequire } from 'node:module';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describeAccountSnapshot } from 'openclaw/plugin-sdk/account-helpers';
 import { createHybridChannelConfigAdapter } from 'openclaw/plugin-sdk/channel-config-helpers';
 import type { ChannelPlugin } from 'openclaw/plugin-sdk/core';
@@ -14,7 +17,29 @@ import {
 } from 'openclaw/plugin-sdk/status-helpers';
 
 import { tlonMessageActions } from './actions.js';
+import {
+  type AgentChoiceToolParams,
+  agentChoiceToolParameters,
+  createAgentChoiceToolExecutor,
+} from './agent-choice-tool.js';
+import {
+  type AgentServiceSetupToolParams,
+  agentServiceSetupToolParameters,
+  createAgentServiceSetupToolExecutor,
+} from './agent-service-setup-tool.js';
+import {
+  type AgentTaskPlanToolParams,
+  agentTaskPlanToolParameters,
+  createAgentTaskPlanToolExecutor,
+  resolveTaskPlanGroupId,
+} from './agent-task-plan-tool.js';
 import { tlonChannelConfigSchema } from './config-schema.js';
+import {
+  assertTlonTaskPlanCallCurrent,
+  finishTlonTaskPlanCall,
+  getTlonChoiceEvidence,
+  getTlonTaskPlanEvidence,
+} from './onboarding-tool-boundary.js';
 import { resolveTlonOutboundSessionRoute } from './session-route.js';
 import {
   applyTlonSetupConfig,
@@ -23,9 +48,17 @@ import {
   tlonSetupAdapter,
 } from './setup-core.js';
 import { formatTargetHint, normalizeShip, parseTlonTarget } from './targets.js';
+import { resolveTlonBinary } from './tlon-binary.js';
+import {
+  DEFAULT_TLON_CLI_TIMEOUT_MS,
+  runTlonCommand,
+} from './tlon-command-runner.js';
+import { getActiveTlonTurnAccountId } from './turn-recorder.js';
 import { listTlonAccountIds, resolveTlonAccount } from './types.js';
 
 const TLON_CHANNEL_ID = 'tlon' as const;
+const require = createRequire(import.meta.url);
+const packageDir = dirname(dirname(fileURLToPath(import.meta.url)));
 
 const loadTlonChannelRuntime = createLazyRuntimeModule(
   () => import('./channel.runtime.js')
@@ -144,6 +177,113 @@ export const tlonPlugin = createChatChannelPlugin({
         resolveTlonOutboundSessionRoute(params),
     },
     actions: tlonMessageActions,
+    // These tools belong to the Tlon conversation surface. Registering them
+    // as channel tools avoids the host's plugin-id/core-tool name collision
+    // for the existing `tlon` CLI tool and keeps them available in every Tlon
+    // owner turn.
+    agentTools: ({ cfg }) => {
+      const tlonBinary = resolveTlonBinary({
+        moduleDir: packageDir,
+        resolveModule: require.resolve,
+      });
+      const runForActiveAccount = (args: string[]) => {
+        const account = resolveTlonAccount(
+          cfg ?? {},
+          getActiveTlonTurnAccountId() ?? undefined
+        );
+        const credentials =
+          account.configured && account.url && account.ship && account.code
+            ? {
+                url: account.url,
+                ship: account.ship,
+                code: account.code,
+              }
+            : undefined;
+        const timeoutMs =
+          account.lifecycle.toolTimeoutMs ?? DEFAULT_TLON_CLI_TIMEOUT_MS;
+        return runTlonCommand(tlonBinary, args, credentials, { timeoutMs });
+      };
+      const postSurface = (
+        target: string,
+        fallbackText: string,
+        blob: string
+      ) =>
+        runForActiveAccount([
+          'posts',
+          'send',
+          target,
+          fallbackText,
+          '--blob',
+          blob,
+        ]);
+      const executeChoice = createAgentChoiceToolExecutor({
+        getEvidence: getTlonChoiceEvidence,
+        postChoice: ({ target, fallbackQuestion, blob }) =>
+          postSurface(target, fallbackQuestion, blob),
+      });
+      const executeServiceSetup = createAgentServiceSetupToolExecutor({
+        postSetup: ({ target, fallbackMessage, blob }) =>
+          postSurface(target, fallbackMessage, blob),
+      });
+      const executeTaskPlan = createAgentTaskPlanToolExecutor({
+        getEvidence: getTlonTaskPlanEvidence,
+        assertCurrent: assertTlonTaskPlanCallCurrent,
+        finish: finishTlonTaskPlanCall,
+        resolveGroupId: async (target) =>
+          resolveTaskPlanGroupId(
+            await runForActiveAccount(['channels', 'groups']),
+            target
+          ),
+        postPlan: ({ target, fallbackSummary, blob }) =>
+          postSurface(target, fallbackSummary, blob),
+      });
+
+      return [
+        {
+          name: 'tlon_agent_choice',
+          label: 'Tlon Agent Choice',
+          description:
+            'Ask the owner one question using a Tlon A2UI choice control with model-authored options and a free-form answer path. Use it for a low-effort topic-specific discovery question, explicit daily recurrence consent, or to establish a concrete focus, daily delivery time, topic-specific approach, or another material task detail after consent.',
+          promptSnippet:
+            '`tlon_agent_choice`: ask one concise question with selectable answers and a write-your-own option',
+          promptGuidelines: [
+            'For a concrete topic with a vague goal, one topic-specific discovery choice may learn the owner’s context, experience, or useful outcome without implying recurrence. Before asking for schedule details, ask a dedicated `recurrence` choice with exactly “Yes, make it daily” and “No, just once”; stop recurring-task setup unless the owner chooses yes. During first-run recurring-task onboarding, ask each narrowing question with `tlon_agent_choice`; never invent a missing topic, consent, daily time, approach, or material preference; include one topic-specific approach question before planning; after any choice posts successfully, return NO_REPLY and wait for the owner.',
+          ],
+          parameters: agentChoiceToolParameters,
+          execute: (id, params) =>
+            executeChoice(id, params as AgentChoiceToolParams),
+        },
+        {
+          name: 'tlon_agent_task_plan',
+          label: 'Tlon Agent Task Plan',
+          description:
+            'Post one automatically provisioned daily recurring-task plan during first-run onboarding. ' +
+            'Call only after the owner explicitly consented to a daily recurring task and supplied a concrete focus, daily clock time, and topic-specific approach. The trusted client and coordinator create it without another confirmation gate. Use this instead of hand-authoring A2UI or calling cron directly.',
+          promptSnippet:
+            '`tlon_agent_task_plan`: automatically provision the finished daily recurring task during first-run onboarding',
+          promptGuidelines: [
+            'During first-run recurring-task onboarding, use `tlon_agent_task_plan` only after the owner selected “Yes, make it daily” in a dedicated recurrence choice and supplied a concrete focus, daily clock time, and topic-specific approach; copy every typed choice verbatim into answerEvidence, never invent those required values, and do not call `cron` directly; after it posts successfully, return NO_REPLY because the deterministic coordinator owns all activation and result status.',
+          ],
+          parameters: agentTaskPlanToolParameters,
+          execute: (id, params) =>
+            executeTaskPlan(id, params as AgentTaskPlanToolParams),
+        },
+        {
+          name: 'tlon_agent_service_setup',
+          label: 'Tlon Agent Service Setup',
+          description:
+            'Post an actionable Connected Services recovery card when the owner explicitly chooses to connect a private source required before a first-run task can be created. The client opens its existing service-management flow, preserving hosted OAuth and the native unavailable state.',
+          promptSnippet:
+            '`tlon_agent_service_setup`: open Connected Services for an owner-chosen private source that is required before planning',
+          promptGuidelines: [
+            'When first-run onboarding cannot proceed because an explicitly chosen private source is not connected and the owner chooses to connect it, call `tlon_agent_service_setup` instead of ending with prose; after it posts successfully, return NO_REPLY and wait for the owner. Do not call it when the owner chose an immediately executable fallback.',
+          ],
+          parameters: agentServiceSetupToolParameters,
+          execute: (id, params) =>
+            executeServiceSetup(id, params as AgentServiceSetupToolParams),
+        },
+      ];
+    },
     agentPrompt: {
       messageToolHints: ({ cfg, accountId }) => {
         const account = resolveTlonAccount(cfg, accountId ?? undefined);

@@ -29,6 +29,127 @@ describe('isVisibleChannelPost', () => {
     ).toBe(false);
   });
 
+  it('hides successful automatic provision transport posts', () => {
+    expect(
+      isVisibleChannelPost(
+        {
+          authorId: '~ten',
+          blob: appendToPostBlob(undefined, {
+            type: 'tlon-agent-provision',
+            version: 1,
+            provisionId: 'auto-plan-post',
+            groupId: '~ten/group',
+            purposeId: 'agent-learning',
+            purpose: 'Learning',
+            topics: ['Balcony gardening'],
+            scheduleHour: 18,
+            scheduleMinute: 0,
+            scheduleExpression: '0 18 * * *',
+            scheduleDescription: 'daily at 6 PM',
+            taskPrompt: 'Teach one practical balcony-gardening lesson.',
+            timezone: 'Europe/Paris',
+            notebookNest: 'notes/~ten/updates',
+          }),
+        },
+        '~ten'
+      )
+    ).toBe(false);
+  });
+
+  it('keeps a failed automatic provision hidden while its plan card offers retry', () => {
+    const provisionBlob = appendToPostBlob(undefined, {
+      type: 'tlon-agent-provision',
+      version: 1,
+      provisionId: 'auto-plan-post',
+      groupId: '~ten/group',
+      purposeId: 'agent-learning',
+      purpose: 'Learning',
+      topics: ['Balcony gardening'],
+      scheduleHour: 18,
+      scheduleMinute: 0,
+      scheduleExpression: '0 18 * * *',
+      scheduleDescription: 'daily at 6 PM',
+      taskPrompt: 'Teach one practical balcony-gardening lesson.',
+      timezone: 'Europe/Paris',
+      notebookNest: 'notes/~ten/updates',
+    });
+    expect(
+      isVisibleChannelPost(
+        {
+          authorId: '~ten',
+          deliveryStatus: 'failed',
+          blob: appendToPostBlob(provisionBlob, {
+            type: 'tlon-a2ui-selection',
+            version: 1,
+            sourcePostId: '~bot/plan',
+            surfaceId: 'agent-task-plan',
+            componentId: 'auto-provision',
+            values: ['Balcony gardening'],
+          }),
+        },
+        '~ten'
+      )
+    ).toBe(false);
+  });
+
+  it('keeps a failed manual provision visible so the owner can retry it', () => {
+    expect(
+      isVisibleChannelPost(
+        {
+          authorId: '~ten',
+          deliveryStatus: 'failed',
+          blob: appendToPostBlob(undefined, {
+            type: 'tlon-agent-provision',
+            version: 1,
+            provisionId: 'manual-plan-post',
+            groupId: '~ten/group',
+            purposeId: 'agent-learning',
+            purpose: 'Learning',
+            topics: ['Balcony gardening'],
+            scheduleHour: 18,
+            scheduleMinute: 0,
+            timezone: 'Europe/Paris',
+            notebookNest: 'notes/~ten/updates',
+          }),
+        },
+        '~ten'
+      )
+    ).toBe(true);
+  });
+
+  it('hides owner provision transports from other group members', () => {
+    const provisionBlob = appendToPostBlob(undefined, {
+      type: 'tlon-agent-provision',
+      version: 1,
+      provisionId: 'shared-group-plan',
+      groupId: '~ten/group',
+      purposeId: 'agent-learning',
+      purpose: 'Learning',
+      topics: ['Balcony gardening'],
+      scheduleHour: 18,
+      scheduleMinute: 0,
+      timezone: 'Europe/Paris',
+      notebookNest: 'notes/~ten/updates',
+    });
+
+    expect(
+      isVisibleChannelPost(
+        { authorId: '~ten', blob: provisionBlob },
+        '~nec',
+        'chat/~ten/general',
+        '~ten'
+      )
+    ).toBe(false);
+    expect(
+      isVisibleChannelPost(
+        { authorId: '~malicious', blob: provisionBlob },
+        '~nec',
+        'chat/~ten/general',
+        '~ten'
+      )
+    ).toBe(true);
+  });
+
   it('keeps onboarding intro requests from other authors visible', () => {
     expect(
       isVisibleChannelPost(
