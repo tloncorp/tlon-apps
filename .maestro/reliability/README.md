@@ -1,7 +1,8 @@
 # Native reliability tests
 
-Twelve single-ship journeys for chat, message actions, search, history, links,
-groups, channels, notebook, gallery, profile, settings, and relaunch persistence.
+Thirty default single-ship journeys, including attachments, Gallery links,
+profile details, pins, references, privacy, sections, notification preferences,
+roles, replies and App Info clipboard verification.
 These cover a subset of the QA checklist, not the entire workbook.
 
 Use Maestro 2.6.1 and an installed build containing this branch's app changes.
@@ -29,8 +30,95 @@ groups and posts that remain on the ship; only the lifecycle tests delete their
 own fixtures. Profile restores the original nickname in its completion hook;
 settings restores the original theme on success.
 
-Multi-ship delivery, DMs, notifications, media, extended onboarding/recovery, and
-advanced collaborative notebook cases remain outside this suite.
+Three extra flows have prerequisites: `contacts.yaml` requires `MAESTRO_CONTACT_SHIP`
+to name another test ship absent from Contacts; `files.yaml` requires Android and
+network access to the pinned public PDF fixture; and `self-hosted-recovery.yaml`
+requires `MAESTRO_LOGIN_URL` and `MAESTRO_LOGIN_CODE`. They are excluded from the
+default suite. The files flow checks attachment persistence and opening, not PDF
+contents. `channel-sorting.yaml` is also a focused standalone flow.
+
+The default suite runs profile, profile details, and profile groups serially on
+the shared account. Profile details restore the original status/bio. Profile
+groups remove their new pin on completion and delete their fixture group on
+success. Image tests import `fixtures/attachment.png`; media picker selectors
+assume the qualified portrait iOS/Android layouts.
+
+The full default suite has not been rerun together. DMs, push notifications, avatar
+color, iOS documents, offline send/retry, and gallery custom titles remain gaps.
+
+The new role/privacy/section/notification/thread journeys delete their own groups
+on success. Notification checks verify saved preferences; push delivery and
+enforcement on another ship require multiparty tests.
+
+`gallery-link.yaml` validates the three-field Link composer, malformed-URL error,
+and rich metadata preview and prefill. It deletes its uniquely named fixture
+group.
+
+`join-group-navigation.yaml` opens the Join a group sheet from Home, verifies its
+code-entry controls, then closes it and returns to Home without mutating a group.
+
+`channel-sorting.yaml` creates a uniquely named text channel, posts there, then
+posts in Chat so recency and arrangement have different observable orders. It
+asserts the recency section and channel positions, restores arrangement, and
+deletes its fixture group.
+
+`notebook-channel-lifecycle.yaml` creates a public `%notes` Notebook through
+channel management, proves it opens the folder/note interface rather than the
+legacy Bulletin feed, creates a root folder and nested folders through both the
+parent-row and viewed-folder actions, cancels and confirms deletion of both an
+empty folder and a populated subtree, and preserves an unrelated sibling note.
+It moves a note and a full nested folder subtree to a searched destination while
+checking exact actions, success toasts, source absence, destination presence,
+and note content. It also exercises cancel and confirm on note and channel
+deletion and relaunches before proving the deleted Notebook remains absent. It
+deletes its short, run-tagged fixture group on success.
+
+`notebook-folder-contents.yaml` builds a small root/parent/child tree with root,
+direct, and descendant notes. It verifies immediate-only folder contents,
+folder-before-note and newest-note ordering, descendant-inclusive singular and
+plural counts, note creation targeted through both a folder-row action and the
+currently viewed nested folder, and narrow stacked navigation into a nested note.
+The nested-note check asserts its exact folder path, full updated date, title,
+body, and note → folder → Notebook Back path. It deletes its run-tagged fixture
+group.
+
+`notebook-preview.yaml` creates one disposable `%notes` Notebook and note. It
+asserts the empty preview message, contains malformed Markdown without a crash,
+renders every heading/emphasis/list/code/link construct in its deterministic body,
+opens the exact example-link host, returns to the live editor, and verifies the
+original Markdown source is preserved exactly. It deletes its run-tagged group.
+
+`notebook-title-edges.yaml` creates an untitled note and proves its fallback,
+whitespace trimming, and body preservation. It then saves a long title and
+asserts that title in the detail view, Notebook row, and action sheet before and
+after relaunch. It deletes its run-tagged group.
+
+`self-hosted-recovery.yaml` clears local state, rejects a malformed ship URL,
+rejects a well-formed access code that the configured ship does not accept, then
+corrects only the code and verifies the exact configured ship after login. Run it
+standalone when another flow owns the current native session.
+
+`thread-controls.yaml` remains standalone: iOS loses the muted state after
+relaunch. Its mute-persistence assertion remains intact for investigation.
+
+`app-info-copy.yaml` seeds the operating-system clipboard with a unique value,
+copies the visible Build version from App Info, then pastes through the platform
+search UI and asserts the exact result. This intentionally does not use Maestro's
+separate in-memory clipboard as the copy oracle.
+
+`thread-lifecycle.yaml` remains standalone while its immediate reply-count
+assertion has a known iOS failure. It checks reply counts through 1 → 2 → 1 → 0: cancel
+preserves both replies; deleting one preserves its sibling and parent; partial
+and final deletion persist after relaunch. It uses the existing identity gate
+and deletes its uniquely named group on success. A failed run can leave that
+group behind; remove only its exact `QA-<run tag>-replylife-<attempt>` fixture.
+
+Known iOS failure: after deleting one of two replies, the sibling and parent
+remain but the channel badge reports `3 replies` instead of `1 reply`. A cold
+relaunch corrects the badge to `1 reply` and the deleted body stays absent. The
+exact immediate-count assertion remains intact, so the journey stops there and
+does not yet reach its final-reply deletion checks on iOS. Android validation is
+pending.
 
 The GitHub Actions workflow `.github/workflows/mobile-reliability-nightly.yml`
 runs this suite on `develop` nightly at 07:00 UTC and supports manual runs. It
