@@ -1,7 +1,11 @@
 import type * as db from '@tloncorp/shared/db';
 import { describe, expect, it } from 'vitest';
 
-import { chatMatchesDrawerFilter, getDrawerChats } from './drawerChats';
+import {
+  chatMatchesDrawerFilter,
+  getDrawerChats,
+  getUnreadDrawerFilters,
+} from './drawerChats';
 
 function group(id: string, timestamp: number): db.Chat {
   return {
@@ -137,5 +141,90 @@ describe('getDrawerChats', () => {
     getDrawerChats(chats, 'workspaces');
 
     expect(chats.unpinned.map((c) => c.id)).toEqual(['a', 'b']);
+  });
+});
+
+describe('getUnreadDrawerFilters', () => {
+  function unread(chat: db.Chat, count: number): db.Chat {
+    return { ...chat, unreadCount: count };
+  }
+
+  it('names the tab an unread is sitting under', () => {
+    const chats = {
+      pinned: [],
+      unpinned: [unread(group('a-group', 40), 3), channel('a-dm', 30, 'dm')],
+      pending: [],
+    };
+
+    expect(getUnreadDrawerFilters(chats)).toEqual(['workspaces']);
+  });
+
+  it('names both when each half is holding one', () => {
+    const chats = {
+      pinned: [],
+      unpinned: [
+        unread(group('a-group', 40), 1),
+        unread(channel('a-dm', 30, 'dm'), 2),
+      ],
+      pending: [],
+    };
+
+    expect(getUnreadDrawerFilters(chats)).toEqual(['workspaces', 'messages']);
+  });
+
+  it('counts a chat notified with no unread count, as the rows do', () => {
+    const notified: db.Chat = {
+      id: 'a-dm',
+      timestamp: 30,
+      pin: null,
+      volumeSettings: null,
+      isPending: false,
+      unreadCount: 0,
+      type: 'channel',
+      channel: {
+        id: 'a-dm',
+        type: 'dm',
+        unread: { notify: true },
+      } as db.Channel,
+    };
+
+    expect(
+      getUnreadDrawerFilters({
+        pinned: [],
+        unpinned: [notified],
+        pending: [],
+      })
+    ).toEqual(['messages']);
+  });
+
+  it('stays quiet for a chat the user muted', () => {
+    const muted: db.Chat = {
+      ...unread(channel('a-dm', 30, 'dm'), 5),
+      volumeSettings: { level: 'hush' } as db.VolumeSettings,
+    };
+
+    expect(
+      getUnreadDrawerFilters({
+        pinned: [],
+        unpinned: [muted],
+        pending: [],
+      })
+    ).toEqual([]);
+  });
+
+  it('ignores the conversation the footer carries, as the list does', () => {
+    const chats = {
+      pinned: [],
+      unpinned: [unread(channel('bot-dm', 30, 'dm'), 4)],
+      pending: [],
+    };
+
+    expect(getUnreadDrawerFilters(chats)).toEqual(['messages']);
+    expect(getUnreadDrawerFilters(chats, 'bot-dm')).toEqual([]);
+  });
+
+  it('is empty before the chats have loaded', () => {
+    expect(getUnreadDrawerFilters(undefined)).toEqual([]);
+    expect(getUnreadDrawerFilters(null)).toEqual([]);
   });
 });

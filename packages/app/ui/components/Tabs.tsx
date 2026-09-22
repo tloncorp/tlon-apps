@@ -47,12 +47,14 @@ const TabComponent = <T extends string>({
   name,
   activeTab,
   testID,
+  accessibilityLabel,
 }: {
   onTabPress: (name: T) => void;
   children: ReactNode;
   name: T;
   activeTab: string;
   testID?: string;
+  accessibilityLabel?: string;
 }) => {
   const handlePress = useBoundHandler(name, onTabPress);
   return (
@@ -61,6 +63,7 @@ const TabComponent = <T extends string>({
       onPress={handlePress}
       testID={testID}
       accessibilityRole="tab"
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={{ selected: activeTab === name }}
     >
       {children}

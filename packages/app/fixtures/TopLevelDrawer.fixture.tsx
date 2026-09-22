@@ -72,6 +72,18 @@ function useSeededDrawerChats() {
         ],
       });
       await db.insertChannels(fixtureDms);
+      // One unread on the Messages side, so the Workspaces tab shows what an
+      // unread in the half that is not being drawn looks like.
+      await db.insertChannelUnreads([
+        {
+          channelId: fixtureDms[0].id,
+          type: 'channel',
+          count: 3,
+          countWithoutThreads: 3,
+          notify: false,
+          updatedAt: Date.now() - DAY,
+        } as db.ChannelUnread,
+      ]);
       await queryClient.invalidateQueries();
       if (!cancelled) {
         setSeeded(true);

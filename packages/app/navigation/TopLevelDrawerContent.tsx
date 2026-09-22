@@ -34,12 +34,17 @@ import {
 import { useCalm } from '../ui/contexts/appDataContext';
 import { getChannelTitle, getChatTitle } from '../ui/utils/channelUtils';
 import { DrawerFilterTabs } from './DrawerFilterTabs';
-import { type DrawerFilter, getDrawerChats } from './drawerChats';
+import {
+  type DrawerFilter,
+  getDrawerChats,
+  getUnreadDrawerFilters,
+} from './drawerChats';
 import { getDrawerChannelIcon, getDrawerChatIcon } from './drawerRowIcons';
 import {
   DrawerRow,
   channelRecency,
   channelRowHasUnread,
+  chatRowHasUnread,
   getDrawerRows,
   toggleUnfurled,
 } from './drawerWorkspaceRows';
@@ -152,18 +157,11 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
   onPress: (chat: db.Chat) => void;
 }) {
   const handlePress = useCallback(() => onPress(chat), [chat, onPress]);
-  // A reaction, mention or thread reply can leave a row notified with a count
-  // of zero, which the workspace rows read as unread and so does this.
   const notified =
     chat.type === 'group'
       ? (chat.group.unread?.notify ?? false)
       : (chat.channel.unread?.notify ?? false);
-  // A muted chat is one the user asked not to be drawn back to, so it keeps
-  // its unread count on the workspace list — where counts are read
-  // deliberately — without lighting a dot here.
-  const hasUnread =
-    (chat.unreadCount > 0 || notified) &&
-    !logic.isMuted(chat.volumeSettings?.level, chat.type);
+  const hasUnread = chatRowHasUnread(chat);
   // The same accent/grey split the workspace list's count badge makes, in the
   // form this row has room for: the dot is the badge with the number taken
   // out, so it reads the colours from the same place rather than picking its
@@ -849,6 +847,16 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
   // chosen the next time they pull the panel out, and a fresh launch starts on
   // Workspaces.
   const [filter, setFilter] = useState<DrawerFilter>('workspaces');
+  const selectFilter = useCallback((next: DrawerFilter) => {
+    // Changing tabs is a request to stay in the panel, the same as unfurling a
+    // workspace, so it supersedes anything still resolving its route. A
+    // one-channel workspace tapped a moment ago is still reading its group,
+    // and nothing else here would stop it: the app behind the panel has not
+    // moved, so its own staleness checks pass and it would reset the stack and
+    // close the panel out from under the tab just chosen.
+    navigationRequestRef.current += 1;
+    setFilter(next);
+  }, []);
 
   // Not gated on the drawer being open: the list is virtualised, so what is
   // mounted is what is on screen, and discarding it on close only made the
@@ -861,6 +869,16 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
         botDm.enabled ? botDm.channelId : undefined
       ),
     [chats, filter, botDm]
+  );
+  // Read across the whole list rather than the half being shown, so the tab
+  // that is not showing can say it has something in it.
+  const unreadFilters = useMemo(
+    () =>
+      getUnreadDrawerFilters(
+        chats,
+        botDm.enabled ? botDm.channelId : undefined
+      ),
+    [chats, botDm]
   );
   // Which workspace is showing its channels, if any. Kept here rather than
   // persisted: the panel's content is mounted for as long as the navigator is,
@@ -967,7 +985,11 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
           says which list this is, so they have to stay on screen while it is
           scrolled. */}
       <YStack paddingBottom="$m">
-        <DrawerFilterTabs activeFilter={filter} onPressFilter={setFilter} />
+        <DrawerFilterTabs
+          activeFilter={filter}
+          unreadFilters={unreadFilters}
+          onPressFilter={selectFilter}
+        />
       </YStack>
       <FlashList
         data={rows}
