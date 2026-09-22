@@ -575,9 +575,19 @@ export default function ChannelScreen(props: Props) {
       ({
         type: 'channel',
         id: currentChannelId,
-        groupId: routeGroupId ?? channel?.groupId ?? undefined,
+        // `routeGroupId` is the fallback for a channel whose row has not
+        // caught up yet, right after its group is created. The bot DM is the
+        // one route that carries a group it does not belong to -- onboarding
+        // puts the workspace there so the lock can find it -- so the fallback
+        // has to skip it. Otherwise ChatOptionsProvider loads that group and
+        // gives the DM channel and group settings, and keeps them after
+        // onboarding ends, because the tab route holds on to its params.
+        groupId:
+          (isTabRoot ? undefined : routeGroupId) ??
+          channel?.groupId ??
+          undefined,
       }) as const,
-    [currentChannelId, routeGroupId, channel?.groupId]
+    [currentChannelId, isTabRoot, routeGroupId, channel?.groupId]
   );
 
   if (

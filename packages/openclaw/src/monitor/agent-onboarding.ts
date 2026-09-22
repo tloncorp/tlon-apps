@@ -1980,6 +1980,10 @@ async function recoverDeliveredFirstRunNote(
   correlation: FirstRunCorrelation,
   listNotes: typeof notes.listNotes
 ): Promise<number | undefined> {
+  // Close the window before listing, so an entry written while this call is
+  // in flight cannot be taken for the one this run enqueued. Both ends carry
+  // the same slack: `createdAt` is the host's clock, not ours.
+  const latest = Date.now() + FIRST_RUN_NOTE_CLOCK_SLACK_MS;
   const listed = await listNotes(correlation.notebookNest, {
     signal: correlation.context.abortSignal,
   }).catch(() => []);
@@ -1991,15 +1995,21 @@ async function recoverDeliveredFirstRunNote(
   // be attributed to this run, and claiming one that is not ours would report
   // the wrong note as the owner's first. Those stay a failure.
   const botShip = normalizeShip(correlation.context.botShip);
-  return listed
-    .filter(
-      (note) =>
-        note.createdAt != null &&
-        note.createdAt >= earliest &&
-        note.createdBy != null &&
-        normalizeShip(note.createdBy) === botShip
-    )
-    .sort((left, right) => right.noteId - left.noteId)[0]?.noteId;
+  return (
+    listed
+      .filter(
+        (note) =>
+          note.createdAt != null &&
+          note.createdAt >= earliest &&
+          note.createdAt <= latest &&
+          note.createdBy != null &&
+          normalizeShip(note.createdBy) === botShip
+      )
+      // Oldest wins. What this run enqueued is the first thing the bot wrote
+      // after that; anything later in the window belongs to whatever wrote it
+      // next, and taking the newest leaned towards exactly that.
+      .sort((left, right) => left.noteId - right.noteId)[0]?.noteId
+  );
 }
 
 async function findDeliveredRunNote(
