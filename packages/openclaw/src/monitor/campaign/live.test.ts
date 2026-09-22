@@ -77,6 +77,7 @@ beforeEach(() => {
   mock.group.mockResolvedValue({
     privacy: 'private',
     members: [{ contactId: '~ten', status: 'joined' }, { contactId: '~zod' }],
+    channels: [{ id: 'chat/~zod/setup' }],
   });
   mock.posts.mockResolvedValue({ posts: [] });
   mock.send.mockResolvedValue({ messageId: '~zod/123', sentAt: now });
@@ -246,6 +247,19 @@ it('uses the private onboarding conversation, but falls back permanently when so
   vi.setSystemTime(now + 2 * DAY);
   await campaign.check();
   expect(row.destination).toBe('~ten');
+});
+it('falls back permanently when the onboarding channel no longer exists', async () => {
+  row.groupId = '~zod/setup';
+  row.channelId = 'chat/~zod/setup';
+  mock.group.mockResolvedValue({
+    privacy: 'private',
+    members: [{ contactId: '~ten', status: 'joined' }, { contactId: '~zod' }],
+    channels: [{ id: 'chat/~zod/replacement' }],
+  });
+  await campaign.check();
+  expect(row.destination).toBe('~ten');
+  expect(mock.send).toHaveBeenCalledTimes(1);
+  expect(mock.sendChannel).not.toHaveBeenCalled();
 });
 it('fails closed when group privacy cannot be verified', async () => {
   row.groupId = '~zod/setup';

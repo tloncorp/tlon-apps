@@ -120,7 +120,8 @@ export function createLiveCampaign(deps: {
         group.members.some(
           (member) =>
             member.contactId !== deps.owner && member.contactId !== deps.bot
-        )
+        ) ||
+        !group.channels?.some((channel) => channel.id === state.channelId)
       )
         return deps.owner;
       return state.channelId;
