@@ -22,7 +22,12 @@ const logger = createDevLogger('ChannelActions', false);
 // absent because %notes replaced it; existing diary channels keep working.
 // 'buckets' is creatable here but gated in the UI by a feature flag, so this
 // list is about what the type system permits, not about what is on offer.
-const CREATABLE_CHANNEL_TYPES = ['chat', 'gallery', 'notes', 'buckets'] as const;
+const CREATABLE_CHANNEL_TYPES = [
+  'chat',
+  'gallery',
+  'notes',
+  'buckets',
+] as const;
 type CreatableChannelType = (typeof CREATABLE_CHANNEL_TYPES)[number];
 
 const NOTES_CHANNEL_LISTING_ATTEMPTS = 5;
