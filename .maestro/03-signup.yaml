@@ -139,15 +139,12 @@ onFlowComplete:
     visible: No problem. You can ask me anytime.
     timeout: 60000
 
-# Return from the setup conversation to the tab it sits in.
-- tapOn:
-    text: Back
-- tapOn:
-    text: Back
-
-# A hosted signup finishes in the bot DM, which is a tab of its own and draws
-# a deliberately blank header title, so there is no landing title to wait for.
-# Select Workspaces instead: everything asserted below is on the chat list.
+# A hosted signup finishes in the bot DM, which is a top-level tab rather than
+# a pushed screen: Channel passes no `goBack` to its header for one of those on
+# a narrow screen, so there is nothing to unwind and no Back to tap. Its header
+# title is deliberately blank too, so there is no landing title to wait for.
+# Select Workspaces instead -- everything asserted below is on the chat list,
+# and the subflow unwinds first if onboarding did leave a screen on top.
 - runFlow: subflows/workspaces-tab.yaml
 
 # assert we made it through signup and onboarding

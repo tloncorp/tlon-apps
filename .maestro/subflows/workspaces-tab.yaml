@@ -1,22 +1,44 @@
 appId: io.tlon.groups
 ---
-# Selects the Workspaces tab. Kept in step with
-# reliability/subflows/workspaces-tab.yaml, which cannot be shared: Maestro
-# Cloud uploads .maestro and .maestro/reliability as separate workspaces, so
-# neither can reference a file outside its own root.
+# Selects the Workspaces tab from wherever the flow currently is. Kept in step
+# with reliability/subflows/workspaces-tab.yaml and to-tab-root.yaml, which
+# cannot be shared: Maestro Cloud uploads .maestro and .maestro/reliability as
+# separate workspaces, so neither can reference a file outside its own root.
+
+# The notifications notice floats over the bottom of the chat list, covering
+# part of the tab bar, and its button is a second "Settings" on screen.
+- runFlow:
+    when:
+      visible: '^Stay in the loop$'
+    commands:
+      - tapOn: '^Not now$'
 - runFlow:
     when:
       platform: iOS
     commands:
+      # Wait for the app to be up before unwinding: a cold start shows neither
+      # the tab bar nor a back button for a while.
+      - extendedWaitUntil:
+          visible: '^(Tab Bar|Back)$'
+          timeout: 120000
+      # A screen stacked above the tabs hides the bar. A top-level tab root has
+      # no back button of its own, so this is a no-op when already on one.
+      - repeat:
+          times: 8
+          while:
+            notVisible: '^Tab Bar$'
+          commands:
+            - runFlow:
+                when:
+                  visible: '^Back$'
+                commands:
+                  - tapOn: '^Back$'
       # The iOS native tab bar exposes only its container to accessibility --
       # the tab buttons carry no label, because `tabBarLabel: ''` is what hides
       # them visually and that also empties their accessibility label. So
       # anchor on the container and tap a point inside it. 34% of the
       # container's width lands inside Workspaces whether the bar holds three
       # tabs or four; the reliability copy records the measurements.
-      - extendedWaitUntil:
-          visible: '^Tab Bar$'
-          timeout: 30000
       - tapOn:
           text: '^Tab Bar$'
           point: '34%,37%'
@@ -24,14 +46,24 @@ appId: io.tlon.groups
     when:
       platform: Android
     commands:
-      # Android labels its tab buttons, but the screen header repeats the name,
-      # so anchor against the neighbouring tab.
       - extendedWaitUntil:
-          visible: '^Activity$'
-          timeout: 30000
-      - tapOn:
-          text: '^Workspaces$'
-          leftOf: '^Activity.*$'
+          visible: '^(Workspaces|Activity|Settings|Bot|Back)$'
+          timeout: 120000
+      - repeat:
+          times: 8
+          while:
+            notVisible: '^(Workspaces|Activity|Settings|Bot)$'
+          commands:
+            - runFlow:
+                when:
+                  visible: '^Back$'
+                commands:
+                  - tapOn: '^Back$'
+      # Android labels its tab buttons. No neighbouring-tab anchor: it does not
+      # survive the bar carrying the Bot tab as well, and it is not needed --
+      # on any other tab this label is the only "Workspaces" on screen, and on
+      # this one the header repeats it but either match leaves us here.
+      - tapOn: '^Workspaces$'
 - assertVisible:
     id: ScreenHeaderTitle
     text: '^Workspaces$'

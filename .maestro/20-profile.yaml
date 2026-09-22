@@ -1,3 +1,6 @@
+# Note: this flow is not in config.yaml and is not run by CI. It has been
+# broken since before the navigation change -- it drives `AvatarNavIcon`,
+# which exists only in the web e2e helpers, not in the mobile app.
 # Note, this test is currently disabled. It's been replaced by a playwright test.
 appId: io.tlon.groups
 ---
