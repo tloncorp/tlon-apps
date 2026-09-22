@@ -74,6 +74,7 @@ import {
 
 const bareChatInputLogger = createDevLogger('bareChatInput', false);
 const MESSAGE_INPUT_CONTAINER_HEIGHT = 48;
+const MAX_NATIVE_INPUT_LINES = 5;
 
 const AUTOCORRECT_FLUSH_TIMEOUT_MS = 20;
 
@@ -304,7 +305,7 @@ function BareChatInput(
   ref: ForwardedRef<DraftInputHandle>
 ) {
   const { bottom, top } = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
+  const { height, fontScale } = useWindowDimensions();
   const maxInputHeightBasic = useMemo(
     () => height - HEADER_HEIGHT - bottom - top,
     [height, bottom, top]
@@ -369,13 +370,29 @@ function BareChatInput(
     resetSlashCommandMode,
   } = useSlashCommands({ manifest: slashCommandManifest });
   const maxInputHeight = useMaxInputHeight(maxInputHeightBasic);
+  const inputLineHeight = Math.ceil(getFontSize('$m') * 1.2);
+  const inputPadding = getTokenValue('$l', 'space');
   // Android's material input pill is 48dp tall and bottom-anchors its content
   // so multiline composers grow upward. Fill that pill at the single-line
   // height; otherwise the 44dp text input sits 4dp low inside it.
-  const minimumInputHeight =
+  const minimumInputHeight = Math.max(
     Platform.OS === 'android'
       ? Math.max(initialHeight, MESSAGE_INPUT_CONTAINER_HEIGHT)
-      : initialHeight;
+      : initialHeight,
+    isWeb ? 0 : inputLineHeight * fontScale + inputPadding * 2
+  );
+  // Cap the native text viewport, leaving attachment previews their own space.
+  // Extra text scrolls inside the input instead of consuming the conversation.
+  const maximumTextInputHeight = isWeb
+    ? maxInputHeight - getTokenValue('$s', 'space')
+    : Math.max(
+        minimumInputHeight,
+        Math.min(
+          maxInputHeight - getTokenValue('$s', 'space'),
+          MAX_NATIVE_INPUT_LINES * inputLineHeight * fontScale +
+            inputPadding * 2
+        )
+      );
   const inputRef = useRef<TextInput>(null);
   const runSendMessageRef = useRef<((isEdit: boolean) => void) | null>(null);
   const pendingAutocorrectSendRef = useRef<{ isEdit: boolean } | null>(null);
@@ -1231,6 +1248,7 @@ function BareChatInput(
             onKeyPress={handleKeyPress}
             onPasteFiles={isWeb ? undefined : handlePasteFiles}
             multiline
+            scrollEnabled={isWeb ? undefined : true}
             placeholder={placeholder}
             {...(!isWeb ? placeholderTextColor : {})}
             style={{
@@ -1245,11 +1263,13 @@ function BareChatInput(
                 : controlledText === ''
                   ? minimumInputHeight
                   : undefined,
-              maxHeight: maxInputHeight - getTokenValue('$s', 'space'),
-              paddingHorizontal: getTokenValue('$l', 'space'),
-              paddingTop: getTokenValue('$l', 'space'),
-              paddingBottom: getTokenValue('$l', 'space'),
+              maxHeight: maximumTextInputHeight,
+              paddingHorizontal: inputPadding,
+              paddingTop: inputPadding,
+              paddingBottom: inputPadding,
               fontSize: getFontSize('$m'),
+              lineHeight: isWeb ? undefined : inputLineHeight,
+              includeFontPadding: isWeb ? undefined : false,
               verticalAlign: 'middle',
               letterSpacing: -0.032,
               color: inputTextColor,
