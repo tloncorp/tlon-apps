@@ -23,6 +23,7 @@ import { ScrollEdgeElementContainer } from '../ScrollEdgeElementContainer';
 import { floatingScrollControlClearance } from '../conversationScrollChrome';
 import { DraftInputContext } from '../draftInputs';
 import { DraftInputContextProvider } from '../draftInputs/shared';
+import { useIsConversationDocked } from './ConversationLayout';
 
 export function DraftInputView({
   draftInputContext,
@@ -97,7 +98,7 @@ function IOSKeyboardTrackingView({
 const ComposerKeyboardView =
   Platform.OS === 'ios' ? IOSKeyboardTrackingView : KeyboardStickyView;
 
-/** Owns the native floating placement and its matching scroll-content inset. */
+/** Places chat composers in their conversation layout, with a legacy floating fallback. */
 export function ConversationComposerPlacement({
   children,
   enabled,
@@ -113,6 +114,7 @@ export function ConversationComposerPlacement({
   inlineID?: string;
 }>) {
   const insets = useSafeAreaInsets();
+  const docked = useIsConversationDocked();
   const theme = useTheme();
   const scrollToBottomControl = useConversationScrollToBottomControl();
   const { report: reportConversationComposerHeight } =
@@ -124,11 +126,25 @@ export function ConversationComposerPlacement({
   );
 
   useEffect(() => {
-    if (!enabled || !supportsFloatingComposer) {
+    if (docked || !enabled || !supportsFloatingComposer) {
       return;
     }
     return () => reportConversationComposerHeight(0);
-  }, [enabled, reportConversationComposerHeight]);
+  }, [docked, enabled, reportConversationComposerHeight]);
+
+  if (enabled && docked) {
+    return (
+      <View
+        id={inlineID}
+        flexShrink={0}
+        paddingBottom={insets.bottom}
+        backgroundColor="$background"
+        zIndex={10}
+      >
+        {content}
+      </View>
+    );
+  }
 
   if (enabled && supportsFloatingComposer) {
     return (

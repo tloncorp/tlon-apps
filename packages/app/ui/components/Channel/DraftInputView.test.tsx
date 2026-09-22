@@ -38,6 +38,7 @@ vi.mock('react-native-keyboard-controller', async () => ({
       typeof import('react-native-keyboard-controller/src/components/KeyboardStickyView')
     >('react-native-keyboard-controller/src/components/KeyboardStickyView')
   ).default,
+  KeyboardAvoidingView: 'KeyboardAvoidingView',
   KeyboardController: {
     isVisible: () => keyboard.visible,
     state: () => ({ height: keyboard.height }),
@@ -68,6 +69,7 @@ vi.mock('react-native-safe-area-context', () => ({
 }));
 vi.mock('tamagui', () => ({
   View: 'View',
+  YStack: 'YStack',
   useTheme: () => ({ background: '#fff' }),
   getVariableValue: (value: unknown) => value,
 }));
@@ -85,6 +87,7 @@ vi.mock('../conversationScrollChrome', () => ({
 vi.mock('../draftInputs/shared', () => ({}));
 
 let renderer: ReactTestRenderer | undefined;
+let ConversationLayout: typeof import('./ConversationLayout').ConversationLayout;
 let ConversationComposerPlacement: typeof import('./DraftInputView').ConversationComposerPlacement;
 
 beforeEach(async () => {
@@ -97,6 +100,9 @@ beforeEach(async () => {
   keyboard.style = () => ({ transform: [{ translateY: 0 }] });
   // The platform-specific wrapper is selected when the module is loaded.
   vi.resetModules();
+  ({ ConversationLayout } = await vi.importActual<
+    typeof import('./ConversationLayout')
+  >('./ConversationLayout'));
   ({ ConversationComposerPlacement } =
     await vi.importActual<typeof import('./DraftInputView')>(
       './DraftInputView'
@@ -130,6 +136,36 @@ const offset = () => keyboard.style().transform[0].translateY;
 describe.each(['ios', 'android'] as const)('%s', (platform) => {
   beforeAll(() => {
     keyboard.platform = platform;
+  });
+
+  it('gives the list and composer a shared resizing keyboard container', () => {
+    act(() => {
+      renderer = create(
+        <ConversationLayout enabled>
+          <section />
+          <ConversationComposerPlacement enabled>
+            <input />
+          </ConversationComposerPlacement>
+        </ConversationLayout>
+      );
+    });
+    const avoidingView = renderer!.root.find(
+      (node) => (node.type as unknown) === 'KeyboardAvoidingView'
+    );
+    expect(avoidingView.props.behavior).toBe('padding');
+    expect(avoidingView.props.automaticOffset).toBe(true);
+    expect(avoidingView.props.keyboardVerticalOffset).toBe(-34);
+    const composer = renderer!.root.find(
+      (node) => (node.type as unknown) === 'View' && node.props.flexShrink === 0
+    );
+    expect(composer.props.paddingBottom).toBe(34);
+    expect(composer.props.position).toBeUndefined();
+    expect(
+      renderer!.root.findAll(
+        (node) => (node.type as unknown) === 'AnimatedView'
+      )
+    ).toHaveLength(0);
+    expect(keyboard.handlers).toEqual({});
   });
 
   describe.each([

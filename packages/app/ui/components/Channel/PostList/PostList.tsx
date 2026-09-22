@@ -1,8 +1,13 @@
 import { KeyboardAwareLegendList } from '@legendapp/list/keyboard';
 import { type LegendListRef } from '@legendapp/list/react-native';
+import { AnimatedLegendList } from '@legendapp/list/reanimated';
 import { layoutForType } from '@tloncorp/shared';
 import * as React from 'react';
-import { Platform, type ScrollView } from 'react-native';
+import {
+  Platform,
+  type LayoutChangeEvent,
+  type ScrollView,
+} from 'react-native';
 import {
   type SharedValue,
   useReducedMotion,
@@ -16,6 +21,7 @@ import {
   useConversationScrollViewNativeID,
   useScrollDirectionTracker,
 } from '../../../contexts/scroll';
+import { useIsConversationDocked } from '../ConversationLayout';
 import { PostList as PostListFlatList } from './PostListFlatList';
 import { usePostArrivalAnimation } from './usePostArrivalAnimation';
 import { useComposerSendTransition } from './useComposerSendTransition';
@@ -471,6 +477,10 @@ const ConversationPostListAttempt = React.forwardRef<
     forwardedRef
   ) => {
     const listRef = React.useRef<LegendListRef>(null);
+    const docked = useIsConversationDocked();
+    const ConversationList = docked
+      ? AnimatedLegendList
+      : KeyboardAwareLegendList;
     const composerContentInset = useSharedValue(0);
     const conversationKeyboardListProps =
       useConversationKeyboardListProps(composerContentInset);
@@ -504,7 +514,7 @@ const ConversationPostListAttempt = React.forwardRef<
     } = useComposerSendTransition(
       listRef,
       applyConversationComposerHeight,
-      Platform.OS === 'ios' && anchorToEnd && !hasNewerPosts,
+      (docked || Platform.OS === 'ios') && anchorToEnd && !hasNewerPosts,
       !reduceMotion
     );
     React.useLayoutEffect(
@@ -522,13 +532,17 @@ const ConversationPostListAttempt = React.forwardRef<
       ]
     );
     React.useLayoutEffect(() => {
-      if (Platform.OS !== 'ios') {
+      if (docked || Platform.OS !== 'ios') {
         return;
       }
       return registerConversationComposerHeight(
         reportConversationComposerHeight
       );
-    }, [registerConversationComposerHeight, reportConversationComposerHeight]);
+    }, [
+      docked,
+      registerConversationComposerHeight,
+      reportConversationComposerHeight,
+    ]);
     const anchorTarget = useConversationAnchorTarget({
       anchor,
       anchorIndex,
@@ -593,14 +607,63 @@ const ConversationPostListAttempt = React.forwardRef<
         !hasNewerPosts &&
         !reduceMotion,
     });
+    const previousViewportHeight = React.useRef(0);
+    const handleLayout = React.useCallback(
+      (event: LayoutChangeEvent) => {
+        const previousHeight = previousViewportHeight.current;
+        const height = event.nativeEvent.layout.height;
+        previousViewportHeight.current = height;
+        settleEmptyConversationAtEnd();
+        if (
+          !docked ||
+          !anchorToEnd ||
+          hasNewerPosts ||
+          !previousHeight ||
+          height === previousHeight ||
+          isComposerSendActive()
+        ) {
+          return;
+        }
+        const state = listRef.current?.getState();
+        // Compare against the OLD viewport: LegendList has already updated its
+        // dimensions by the time it calls us. Resizing should only follow the
+        // latest message, not use the wider threshold intended for incoming rows.
+        if (state && state.contentLength - state.scroll - previousHeight <= 2) {
+          const scrollView = listRef.current?.getNativeScrollRef() as
+            | ScrollView
+            | undefined;
+          scrollView?.scrollToEnd({ animated: false });
+        }
+      },
+      [
+        anchorToEnd,
+        docked,
+        hasNewerPosts,
+        isComposerSendActive,
+        settleEmptyConversationAtEnd,
+      ]
+    );
     const maintainScrollAtEnd = React.useMemo(
       () =>
         anchorToEnd && !hasNewerPosts && !composerSendActive
-          ? { animated: didFinishInitialScroll && !reduceMotion }
+          ? {
+              animated: didFinishInitialScroll && !reduceMotion,
+              // The keyboard and composer already animate the viewport. Follow
+              // each resize immediately instead of starting another animation.
+              on: docked
+                ? {
+                    dataChange: true,
+                    footerLayout: true,
+                    itemLayout: true,
+                    layout: false,
+                  }
+                : undefined,
+            }
           : false,
       [
         anchorToEnd,
         composerSendActive,
+        docked,
         didFinishInitialScroll,
         hasNewerPosts,
         reduceMotion,
@@ -700,7 +763,7 @@ const ConversationPostListAttempt = React.forwardRef<
     );
 
     return (
-      <KeyboardAwareLegendList<PostWithNeighbors>
+      <ConversationList<PostWithNeighbors>
         ref={listRef}
         dataKey={channel.id}
         data={postsWithNeighbors}
@@ -731,16 +794,23 @@ const ConversationPostListAttempt = React.forwardRef<
         ListHeaderComponent={listHeaderComponent}
         ListFooterComponent={listBottomComponent}
         contentContainerStyle={contentContainerStyle}
-        {...conversationKeyboardListProps}
-        // Preserve older messages while browsing history, but keep the latest
-        // message anchored as the keyboard or composer grows at the end.
-        keyboardLiftBehavior={composerSendActive ? 'never' : 'whenAtEnd'}
-        keyboardOffset={insets.bottom}
-        // KeyboardChatScrollView already adds the keyboard and full composer
-        // height (including the safe area) to the iOS indicator's bottom inset.
+        {...(docked
+          ? {
+              keyboardDismissMode:
+                conversationKeyboardListProps.keyboardDismissMode,
+            }
+          : {
+              ...conversationKeyboardListProps,
+              keyboardLiftBehavior: composerSendActive
+                ? ('never' as const)
+                : ('whenAtEnd' as const),
+              keyboardOffset: insets.bottom,
+            })}
+        // A docked list ends above the composer. The legacy iOS keyboard
+        // wrapper supplies its own indicator clearance.
         scrollIndicatorInsets={{
           top: contentInsets.top,
-          bottom: Platform.OS === 'ios' ? 0 : insets.bottom,
+          bottom: docked || Platform.OS === 'ios' ? 0 : insets.bottom,
         }}
         automaticallyAdjustsScrollIndicatorInsets={false}
         scrollEnabled={scrollEnabled}
@@ -758,7 +828,7 @@ const ConversationPostListAttempt = React.forwardRef<
         // the attachment at low frequency in case Screens replaces the view.
         testID={scrollViewNativeID}
         onLoad={scheduleInitialScroll}
-        onLayout={settleEmptyConversationAtEnd}
+        onLayout={handleLayout}
         onContentSizeChange={settleEmptyConversationAtEnd}
         onScroll={handleScroll}
         onScrollBeginDrag={markUserScrolled}

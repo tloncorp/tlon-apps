@@ -6,6 +6,10 @@ import { PostList } from './PostList';
 
 const state = vi.hoisted(() => ({
   platform: 'ios',
+  docked: false,
+  listProps: {} as Record<string, unknown>,
+  geometry: { contentLength: 1200, scroll: 700, scrollLength: 500 },
+  resizeScrolls: [] as { animated: boolean }[],
   heightHandler: undefined as undefined | ((height: number) => void),
   sendHandler: undefined as
     | undefined
@@ -45,6 +49,9 @@ vi.mock('../../../contexts/scroll', () => ({
   useConversationScrollViewNativeID: () => 'conversation',
   useScrollDirectionTracker: () => ({ onScroll: () => {}, isAtBottom: true }),
 }));
+vi.mock('../ConversationLayout', () => ({
+  useIsConversationDocked: () => state.docked,
+}));
 vi.mock('./PostListFlatList', () => ({ PostList: () => null }));
 vi.mock('./usePostArrivalAnimation', () => ({
   usePostArrivalAnimation: ({ renderItem }: { renderItem: unknown }) =>
@@ -68,9 +75,18 @@ vi.mock('@legendapp/list/keyboard', async () => {
   return {
     KeyboardAwareLegendList: forwardRef(
       (props: { contentInsetEndAdjustment?: { value: number } }, ref) => {
+        state.listProps = props;
         state.composerInset = props.contentInsetEndAdjustment;
         useImperativeHandle(ref, () => ({
-          getState: () => ({ isNearEnd: true, listen: () => () => {} }),
+          getState: () => ({
+            ...state.geometry,
+            isNearEnd: true,
+            listen: () => () => {},
+          }),
+          getNativeScrollRef: () => ({
+            scrollToEnd: (options: { animated: boolean }) =>
+              state.resizeScrolls.push(options),
+          }),
           reportContentInset: ({ bottom }: { bottom: number }) => {
             state.inset = bottom;
           },
@@ -86,11 +102,20 @@ vi.mock('@legendapp/list/keyboard', async () => {
   };
 });
 
+vi.mock('@legendapp/list/reanimated', async () => ({
+  AnimatedLegendList: (await import('@legendapp/list/keyboard'))
+    .KeyboardAwareLegendList,
+}));
+
 let renderer: ReactTestRenderer;
 let frames: Map<number, FrameRequestCallback>;
 
 beforeEach(() => {
   state.platform = 'ios';
+  state.docked = false;
+  state.listProps = {};
+  state.geometry = { contentLength: 1200, scroll: 700, scrollLength: 500 };
+  state.resizeScrolls = [];
   state.heightHandler = undefined;
   state.sendHandler = undefined;
   state.inset = 390;
@@ -180,5 +205,74 @@ describe('conversation composer and keyboard insets', () => {
     tick();
     expect(state.inset).toBe(390);
     expect(state.nativeScrolls).toEqual([]);
+  });
+});
+
+describe.each(['ios', 'android'])('docked %s conversation', (platform) => {
+  it('lets the surrounding layout own keyboard space and coordinates sending without an inset', () => {
+    state.platform = platform;
+    state.docked = true;
+    state.inset = 0;
+    mount();
+    expect(state.heightHandler).toBeUndefined();
+    expect(state.composerInset).toBeUndefined();
+    expect(state.listProps.keyboardLiftBehavior).toBeUndefined();
+    expect(state.listProps.keyboardOffset).toBeUndefined();
+    act(() => state.sendHandler?.begin());
+    state.sendHandler?.finish();
+    tick();
+    tick();
+    expect(state.inset).toBe(0);
+    expect(state.nativeScrolls).toEqual([400]);
+  });
+});
+
+function layout(height: number) {
+  act(() =>
+    (state.listProps.onLayout as (event: unknown) => void)({
+      nativeEvent: { layout: { height } },
+    })
+  );
+}
+
+describe('docked conversation viewport changes', () => {
+  beforeEach(() => {
+    state.docked = true;
+  });
+
+  it('keeps the last message at the composer edge while the viewport shrinks and grows', () => {
+    mount();
+    layout(500);
+    state.geometry.scrollLength = 400;
+    layout(400);
+    expect(state.resizeScrolls).toEqual([{ animated: false }]);
+    state.geometry.scroll = 800;
+    state.geometry.scrollLength = 450;
+    layout(450);
+    expect(state.resizeScrolls).toEqual([
+      { animated: false },
+      { animated: false },
+    ]);
+    expect(state.listProps.maintainScrollAtEnd).toMatchObject({
+      on: { layout: false, dataChange: true },
+    });
+  });
+
+  it('preserves history even when it is inside the incoming-message follow threshold', () => {
+    mount();
+    state.geometry.scroll = 600; // 100 points from the end of a 500-point viewport
+    layout(500);
+    state.geometry.scrollLength = 400;
+    layout(400);
+    expect(state.resizeScrolls).toEqual([]);
+  });
+
+  it('lets the send transition own composer contraction', () => {
+    mount();
+    layout(500);
+    act(() => state.sendHandler?.begin());
+    state.geometry.scrollLength = 600;
+    layout(600);
+    expect(state.resizeScrolls).toEqual([]);
   });
 });
