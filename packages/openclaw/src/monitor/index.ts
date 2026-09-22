@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
 import { isStopTips } from './campaign/templates.js';
 import { createLiveCampaign } from './campaign/live.js';
+import { createOnboardingQaClock } from './campaign/qa-clock.js';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
 import type { OpenClawConfig, ReplyPayload } from 'openclaw/plugin-sdk/core';
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
@@ -1480,6 +1481,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
     let nudgeRunner: ReturnType<typeof createNudgeRunner> | null = null;
     let campaignActiveRuns = 0;
+    const campaignNow = createOnboardingQaClock({
+      mode: process.env.TLONBOT_E2E_MODE,
+      accountUrl,
+      clockFile: process.env.TLON_ONBOARDING_QA_CLOCK_FILE,
+      error: (error) =>
+        runtime.error?.(`[tlon] onboarding QA clock: ${String(error)}`),
+    });
     const campaign = effectiveOwnerShip
       ? createLiveCampaign({
           accountId: account.accountId,
@@ -1489,6 +1497,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           botProfile: getBotProfile,
           busy: () => campaignActiveRuns > 0,
           telemetry,
+          now: campaignNow,
           signal: opts.abortSignal,
           error: (error) =>
             runtime.error?.(`[tlon] campaign: ${String(error)}`),

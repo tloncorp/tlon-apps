@@ -67,6 +67,7 @@ export function createLiveCampaign(deps: {
   busy: () => boolean;
   telemetry?: TlonTelemetryClient | null;
   error: (error: unknown) => void;
+  now?: () => number;
   signal?: AbortSignal;
 }) {
   const capturedScope = captureTlonApiScope();
@@ -276,6 +277,7 @@ export function createLiveCampaign(deps: {
         accountId: deps.accountId,
       }),
     error: deps.error,
+    now: deps.now,
     signal: deps.signal,
   });
   const onCron = (event: PluginHookCronChangedEvent) => {
