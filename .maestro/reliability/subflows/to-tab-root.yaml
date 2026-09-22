@@ -6,12 +6,11 @@ appId: ${MAESTRO_APP_ID}
 # most often a cleanup hook running after a failure, but also an ordinary warm
 # launch, which restores the position the last run was closed in.
 # The notifications notice floats over the bottom of the chat list, covering
-# part of the tab bar, and its button is a second "Settings" on screen.
-- runFlow:
-    when:
-      visible: '^Stay in the loop$'
-    commands:
-      - tapOn: '^Not now$'
+# part of the tab bar, and its primary action is a second exact "Settings" --
+# one that calls `openSettings()` and leaves the app altogether. Dismissed
+# after the unwind, not before: a screen stacked above the tabs hides the
+# notice too, so a check up front would miss it and the unwind would then
+# expose it in front of the tab about to be tapped.
 - runFlow:
     when:
       platform: iOS
@@ -52,3 +51,8 @@ appId: ${MAESTRO_APP_ID}
                   visible: '^Back$'
                 commands:
                   - tapOn: '^Back$'
+- runFlow:
+    when:
+      visible: '^Stay in the loop$'
+    commands:
+      - tapOn: '^Not now$'
