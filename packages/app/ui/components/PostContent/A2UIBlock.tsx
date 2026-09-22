@@ -482,7 +482,7 @@ function SmallChoiceControl({
               >
                 {displayedCustomTopics.length ? (
                   <Text size="$label/s" color="$background" trimmed={false}>
-                    {displayedCustomTopics.length}
+                    {smallChoiceShortcut(component.options.length)}
                   </Text>
                 ) : (
                   <Icon
@@ -516,7 +516,7 @@ function SmallChoiceControl({
           label={component.submitLabel}
           trailing={
             <Icon
-              type="Checkmark"
+              type="ChevronRight"
               color={hasSelection ? '$background' : '$primaryText'}
               customSize={[16, 16]}
             />

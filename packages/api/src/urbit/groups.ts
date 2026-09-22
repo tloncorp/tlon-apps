@@ -402,8 +402,8 @@ export type GroupResponseAsk =
 export type GroupResponseSeat =
   | { add: Seat }
   | { del: null }
-  | { 'add-roles': string[] }
-  | { 'del-roles': string[] };
+  | { 'add-roles': { roles: string[] } }
+  | { 'del-roles': { roles: string[] } };
 
 export type GroupResponseRole =
   | { add: GroupMeta }

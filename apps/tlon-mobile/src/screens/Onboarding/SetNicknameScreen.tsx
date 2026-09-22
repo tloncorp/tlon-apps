@@ -61,12 +61,16 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
   });
 
   const onSubmit = handleSubmit(({ nickname }) => {
+    // iOS autocapitalize/autocomplete readily leaves a trailing space, which
+    // then shows up in derived names like "Sampel 's Group".
+    const trimmedNickname = nickname?.trim();
+
     signupContext.setOnboardingValues({
-      nickname,
+      nickname: trimmedNickname,
       userWasReadyAt: Date.now(),
     });
 
-    db.splashNickname.setValue(nickname ?? '');
+    db.splashNickname.setValue(trimmedNickname ?? '');
 
     if (!isTlonbotRevival) {
       // Once they've decided on a nickname, keep the existing best-effort
@@ -79,12 +83,12 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
             throw new Error('No user ID found during nickname setup');
           }
 
-          if (!nickname) {
+          if (!trimmedNickname) {
             throw new Error('No nickname provided during nickname setup');
           }
 
           await store.updateCurrentUserProfile(
-            { nickname },
+            { nickname: trimmedNickname },
             { shouldThrow: true }
           );
         },
@@ -188,7 +192,10 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
               message: 'Your nickname is limited to 30 characters',
             },
             validate: (value) => {
-              const result = validateNickname(value ?? '', '');
+              if (!value?.trim()) {
+                return 'Please enter a nickname.';
+              }
+              const result = validateNickname(value.trim(), '');
               if (!result.isValid) {
                 return getNicknameErrorMessage(result.errorType);
               }

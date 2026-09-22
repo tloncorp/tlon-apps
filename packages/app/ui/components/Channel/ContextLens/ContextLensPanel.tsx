@@ -2,7 +2,14 @@ import { lensRunMatchesChannel } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { Icon, Pressable } from '@tloncorp/ui';
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, SizableText, View, XStack, YStack } from 'tamagui';
+import {
+  ScrollView,
+  SizableText,
+  View,
+  XStack,
+  YStack,
+  getTokens,
+} from 'tamagui';
 
 import { CopyRawPayloadButton } from './CopyRawPayloadButton';
 import { RecentRunList } from './RecentRunList';
@@ -158,12 +165,14 @@ export function ContextLensPanel({
   selectedMessage,
   onClearSelectedMessage,
   channelId,
+  topInset = 0,
 }: {
   events: ContextLensEvent[];
   streamStatus: LensStreamState['status'];
   selectedMessage?: ContextLensSelectedMessage | null;
   onClearSelectedMessage?: () => void;
   channelId?: string;
+  topInset?: number;
 }) {
   const gatewayConfig = useContextLensGatewayConfig();
   const [selectedRun, setSelectedRun] = useState<ContextLensEvent | null>(null);
@@ -375,6 +384,7 @@ export function ContextLensPanel({
       borderColor="$border"
       backgroundColor="$background"
       padding="$l"
+      paddingTop={getTokens().space.l.val + topInset}
       gap="$l"
     >
       <XStack alignItems="center" justifyContent="space-between">

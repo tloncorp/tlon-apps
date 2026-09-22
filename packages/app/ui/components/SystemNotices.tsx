@@ -534,16 +534,10 @@ export function ConnectedJoinRequestNotice({
   presentation?: SystemNoticePresentation;
 }) {
   // see if we have any pending join requests that haven't been dismissed
-  const hasRelevantJoinRequests = useMemo(() => {
-    if (group && group.joinRequests && group.joinRequests.length > 0) {
-      const dismissedAt = group.pendingMembersDismissedAt ?? 0;
-      return group.joinRequests.some((jr) => {
-        const requestedAt = jr.requestedAt ?? Date.now() - 24 * 60 * 60 * 1000;
-        return requestedAt > dismissedAt;
-      });
-    }
-    return false;
-  }, [group]);
+  const hasJoinRequests = useMemo(
+    () => hasRelevantJoinRequests(group),
+    [group]
+  );
 
   // handler to dismiss join requests
   const handleDismissJoinRequests = useCallback(() => {
@@ -557,12 +551,12 @@ export function ConnectedJoinRequestNotice({
 
   // clear any unread counts for the join requests whenever displayed
   useEffect(() => {
-    if (group && hasRelevantJoinRequests) {
+    if (group && hasJoinRequests) {
       store.markGroupRead(group.id, false);
     }
-  }, [group, hasRelevantJoinRequests]);
+  }, [group, hasJoinRequests]);
 
-  if (!hasRelevantJoinRequests) {
+  if (!hasJoinRequests) {
     return null;
   }
 
@@ -575,6 +569,18 @@ export function ConnectedJoinRequestNotice({
       presentation={presentation}
     />
   );
+}
+
+export function hasRelevantJoinRequests(group?: db.Group | null) {
+  if (!group?.joinRequests?.length) {
+    return false;
+  }
+
+  const dismissedAt = group.pendingMembersDismissedAt ?? 0;
+  return group.joinRequests.some((request) => {
+    const requestedAt = request.requestedAt ?? Date.now() - 24 * 60 * 60 * 1000;
+    return requestedAt > dismissedAt;
+  });
 }
 
 export function NonHostAdminChannelNotice({

@@ -25,6 +25,21 @@ export const floatingPinnedPostBannerClearance =
   floatingPinnedPostBannerHeight + floatingPinnedPostBannerGap;
 export const unobscuredConversationBottomGap = 8;
 
+export function getPostCollectionTopInset({
+  contentTopInset,
+  fixedLeadingContentOwnsInset,
+  sharedTopInset,
+}: {
+  contentTopInset: number;
+  fixedLeadingContentOwnsInset: boolean;
+  sharedTopInset: number;
+}) {
+  return Math.max(
+    0,
+    contentTopInset - (fixedLeadingContentOwnsInset ? sharedTopInset : 0)
+  );
+}
+
 export function getConversationContentInsets({
   platform,
   headerHeight,

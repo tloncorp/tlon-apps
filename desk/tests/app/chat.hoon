@@ -69,6 +69,76 @@
   %+  ex-cards  caz
   :~  (ex-fact ~[/unreads] %chat-unread-update !>([whom unread]))
   ==
+::  a dm we start ourselves (as %grouper does for the reciprocal dm when
+::  a personal invite is redeemed) never touches /dm/invited, so the only
+::  way a /v4 subscriber learns the dm exists is the %chat-dm-status fact.
+::
+++  test-dm-status-facts-for-dm-we-start
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  (do-init dap agent)
+  ;<  *  bind:m  (set-scry-gate scries)
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~dev)))
+  ;<  bw=bowl  bind:m  get-bowl
+  =/  =verse:ch  [%inline ~['hi']]
+  ::  we start the dm: it's %inviting until ~zod accepts
+  =/  =action:dm:c  [~zod (dm-message-from ~dev now.bw verse)]
+  ;<  caz=(list card)  bind:m  (do-poke %chat-dm-action-2 !>(action))
+  ;<  *  bind:m  (ex-dm-status caz [~zod `%inviting] ~)
+  ::  ~zod accepts
+  ;<  *  bind:m  (set-src ~zod)
+  ;<  caz=(list card)  bind:m  (do-poke %chat-dm-rsvp !>([~zod &]))
+  ;<  *  bind:m  (ex-dm-status caz [~zod `%done] ~)
+  ::  a message in an existing dm doesn't re-announce it
+  ;<  *  bind:m  (wait ~s1)
+  ;<  bw=bowl  bind:m  get-bowl
+  =/  =diff:dm:c  (dm-message ~zod now.bw verse)
+  ;<  caz=(list card)  bind:m  (do-poke %chat-dm-diff-2 !>(diff))
+  ;<  *  bind:m  (ex-dm-status caz ~)
+  ::  we archive it
+  ;<  *  bind:m  (set-src ~dev)
+  ;<  caz=(list card)  bind:m  (do-poke %chat-dm-archive !>(~zod))
+  (ex-dm-status caz [~zod `%archive] ~)
+::
+++  test-dm-status-facts-for-dm-we-receive
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  (do-init dap agent)
+  ;<  *  bind:m  (set-scry-gate scries)
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~zod)))
+  ;<  bw=bowl  bind:m  get-bowl
+  =/  =verse:ch  [%inline ~['hi']]
+  ::  ~zod starts a dm with us: it's a pending invite
+  =/  =diff:dm:c  (dm-message ~zod now.bw verse)
+  ;<  caz=(list card)  bind:m  (do-poke %chat-dm-diff-2 !>(diff))
+  ;<  *  bind:m  (ex-dm-status caz [~zod `%invited] ~)
+  ::  we decline: the dm is gone
+  ;<  *  bind:m  (set-src ~dev)
+  ;<  caz=(list card)  bind:m  (do-poke %chat-dm-rsvp !>([~zod |]))
+  ;<  *  bind:m  (ex-dm-status caz [~zod ~] ~)
+  ::  ~zod tries again and this time we accept
+  ;<  *  bind:m  (set-src ~zod)
+  ;<  *  bind:m  (wait ~s1)
+  ;<  bw=bowl  bind:m  get-bowl
+  =/  =diff:dm:c  (dm-message ~zod now.bw verse)
+  ;<  caz=(list card)  bind:m  (do-poke %chat-dm-diff-2 !>(diff))
+  ;<  *  bind:m  (ex-dm-status caz [~zod `%invited] ~)
+  ;<  *  bind:m  (set-src ~dev)
+  ;<  caz=(list card)  bind:m  (do-poke %chat-dm-rsvp !>([~zod &]))
+  (ex-dm-status caz [~zod `%done] ~)
+::  +ex-dm-status: the %chat-dm-status facts in .caz are exactly .exes
+::
+++  ex-dm-status
+  |=  [caz=(list card) exes=(list status:dm:c)]
+  =/  m  (mare ,~)
+  ^-  form:m
+  %+  ex-cards
+    %+  skim  caz
+    |=(=card ?=([%give %fact * %chat-dm-status *] card))
+  %+  turn  exes
+  |=  =status:dm:c
+  (ex-fact ~[/v4] %chat-dm-status !>(status))
+::
 ++  scries
   |=  =path
   ^-  (unit vase)
@@ -86,4 +156,12 @@
   =/  =essay:c
     [[~[verse] ~zod time] chat+/ ~ ~]
   [[author time] %add essay `time]
+::  +dm-message-from: like +dm-message, but .author also writes the essay
+::
+++  dm-message-from
+  |=  [author=ship =time =verse:ch]
+  ^-  diff:dm:c
+  =/  =essay:c
+    [[~[verse] author time] chat+/ ~ ~]
+  [[author time] %add essay ~]
 --

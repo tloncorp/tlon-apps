@@ -103,8 +103,8 @@ export class NativeDb extends BaseDb {
       } catch (e) {
         logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
           context: 'setupDb: error setting up db',
+          error: e,
           errorMessage: e.message,
-          errorStack: e.stack,
           severity: AnalyticsSeverity.Critical,
         });
         throw e;
@@ -169,8 +169,8 @@ export class NativeDb extends BaseDb {
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         context: 'purgeDb: error purging db',
+        error: e,
         errorMessage: e.message,
-        errorStack: e.stack,
         severity: AnalyticsSeverity.Critical,
       });
       throw e;
@@ -258,8 +258,8 @@ export class NativeDb extends BaseDb {
       );
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         context: 'runMigrations: schema health check failed',
+        error,
         errorMessage: error.message,
-        errorStack: error.stack,
         missingTables,
         attemptId: opts?.attemptId,
         elapsedMs: opts?.elapsedMs?.(),
@@ -300,8 +300,8 @@ export class NativeDb extends BaseDb {
       );
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         context: 'runMigrations: setup incomplete before migration',
+        error,
         errorMessage: error.message,
-        errorStack: error.stack,
         severity: AnalyticsSeverity.Critical,
       });
       throw error;
@@ -352,15 +352,22 @@ export class NativeDb extends BaseDb {
       });
       return;
     } catch (e) {
-      logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
-        context:
-          'runMigrations: migration/schema verification failed. Attempting to purge and retry',
+      // The initial attempt failing is recovered by design: the repo keeps a
+      // single regenerated baseline migration, so on every existing install
+      // drizzle replays it against a populated DB and collides, and purging and
+      // re-migrating is the only route that install has to the new schema.
+      // Nothing downstream branches on why this attempt failed -- every error
+      // falls through to the same purge and retry -- and a failure that is not
+      // recovered is reported Critical and rethrown by the purge and retry
+      // catches below. So count this at Low rather than paging on it.
+      logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+        context: 'runMigrations: initial migrate failed. Purging and retrying',
+        error: e,
         errorMessage: e.message,
-        errorStack: e.stack,
         attemptId,
         elapsedMs: getElapsedMs(),
         migrationPhase: 'initial',
-        severity: AnalyticsSeverity.Critical,
+        severity: AnalyticsSeverity.Low,
       });
     }
     logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
@@ -384,8 +391,8 @@ export class NativeDb extends BaseDb {
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         context: 'runMigrations: retry purge failed',
+        error: e,
         errorMessage: e.message,
-        errorStack: e.stack,
         attemptId,
         elapsedMs: getElapsedMs(),
         severity: AnalyticsSeverity.Critical,
@@ -418,8 +425,8 @@ export class NativeDb extends BaseDb {
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         context: 'runMigrations: retry migrate failed',
+        error: e,
         errorMessage: e.message,
-        errorStack: e.stack,
         attemptId,
         elapsedMs: getElapsedMs(),
         migrationPhase: 'retry',

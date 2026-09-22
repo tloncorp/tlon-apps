@@ -18,6 +18,13 @@ import { notesPermissionsCompatActive } from '../logic/notesPermissionsCompat';
 import { syncNotesNotebook } from './notesActions';
 
 const logger = createDevLogger('ChannelActions', false);
+// Channel types a client may still create. 'notebook' — the %diary type — is
+// absent because %notes replaced it; existing diary channels keep working.
+// 'buckets' is creatable here but gated in the UI by a feature flag, so this
+// list is about what the type system permits, not about what is on offer.
+const CREATABLE_CHANNEL_TYPES = ['chat', 'gallery', 'notes', 'buckets'] as const;
+type CreatableChannelType = (typeof CREATABLE_CHANNEL_TYPES)[number];
+
 const NOTES_CHANNEL_LISTING_ATTEMPTS = 5;
 const NOTES_CHANNEL_LISTING_DELAY_MS = 250;
 const BUCKETS_CHANNEL_LISTING_ATTEMPTS = 20;
@@ -100,6 +107,10 @@ export async function createChannel({
 }) {
   const currentUserId = api.getCurrentUserId();
   const channelType = rawChannelType === 'custom' ? 'chat' : rawChannelType;
+
+  if (!CREATABLE_CHANNEL_TYPES.includes(channelType as CreatableChannelType)) {
+    throw new Error(`Cannot create a channel of type ${channelType}`);
+  }
 
   if (channelType === 'notes') {
     return createNotesChannel({

@@ -90,6 +90,7 @@ export interface MessageInputProps {
   goBack?: () => void;
   shouldAutoFocus?: boolean;
   frameless?: boolean;
+  testID?: string;
   ref?: React.RefObject<{
     editor: EditorBridge | null;
   }>;
@@ -301,11 +302,17 @@ MessageInputContainer.displayName = 'MessageInputContainer';
 
 const usesFloatingChrome = Platform.OS !== 'web';
 const usesIOSGlass = supportsLiquidGlass();
+const usesAndroidMaterialChrome = Platform.OS === 'android';
+const materialChromeAlignment = usesAndroidMaterialChrome
+  ? 'flex-end'
+  : 'center';
 
-const materialSurfaceProps = {
-  backgroundColor: '$secondaryBackground',
-  boxShadow: '0 2px 6px rgba(0, 0, 0, 0.24)',
-} as const;
+const materialSurfaceProps = usesAndroidMaterialChrome
+  ? ({ backgroundColor: '$secondaryBackground' } as const)
+  : ({
+      backgroundColor: '$secondaryBackground',
+      boxShadow: '0 2px 6px rgba(0, 0, 0, 0.24)',
+    } as const);
 
 function MessageInputChromeRoot({
   children,
@@ -377,7 +384,7 @@ function MessageInputChromeRow({
     return (
       <XStack
         width="100%"
-        alignItems="center"
+        alignItems={materialChromeAlignment}
         gap={metrics.rowGap}
         paddingHorizontal={metrics.rowPaddingHorizontal}
         paddingVertical={metrics.rowPaddingVertical}
@@ -464,7 +471,7 @@ function MessageInputChromeBody({
           flex={1}
           minHeight={metrics.controlSize}
           borderRadius={metrics.controlRadius}
-          alignItems="center"
+          alignItems={materialChromeAlignment}
           gap={metrics.rowGap}
           backgroundColor={
             isEditing ? '$positiveBackground' : '$secondaryBackground'
@@ -527,7 +534,7 @@ function MessageInputChromeSendAction({ children }: PropsWithChildren) {
   return (
     <View
       top={usesFloatingChrome ? undefined : 2}
-      alignSelf={usesFloatingChrome ? 'center' : undefined}
+      alignSelf={usesFloatingChrome ? materialChromeAlignment : undefined}
     >
       {children}
     </View>

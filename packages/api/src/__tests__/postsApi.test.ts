@@ -3,6 +3,7 @@ import { beforeEach, expect, test, vi } from 'vitest';
 import {
   editPost,
   getChannelPosts,
+  getLatestPosts,
   getPostReference,
   sendPost,
   sendReply,
@@ -523,4 +524,20 @@ test('getChannelPosts skipGapFill: true produces no stubs; default still fills',
     false
   );
   expect(withoutGaps.posts).toHaveLength(2);
+});
+
+test('getLatestPosts can propagate a request failure without mistaking it for an empty response', async () => {
+  const error = new Error('heads request failed');
+  scryMock.mockRejectedValueOnce(error);
+  await expect(getLatestPosts({ throwOnError: true })).rejects.toBe(error);
+});
+
+test('getLatestPosts preserves the default best-effort behavior for existing callers', async () => {
+  scryMock.mockRejectedValueOnce(new Error('heads request failed'));
+  await expect(getLatestPosts({})).resolves.toEqual([]);
+});
+
+test('getLatestPosts accepts an empty successful response in strict mode', async () => {
+  scryMock.mockResolvedValueOnce({ channels: [], dms: [] });
+  await expect(getLatestPosts({ throwOnError: true })).resolves.toEqual([]);
 });

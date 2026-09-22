@@ -168,6 +168,10 @@ export const contacts = sqliteTable(
     // versions), read off its contact profile. Validated at read; see
     // docs/bot-info.md.
     botInfo: text('bot_info'),
+    // Raw JSON of the bot's self-published liveness claim (`bot-liveness`
+    // contact key), read off its contact profile. Validated at read by
+    // `parseBotLiveness`; see docs/bot-liveness.md.
+    botLiveness: text('bot_liveness'),
     isBlocked: boolean('blocked'),
     isContact: boolean('isContact'),
     isContactSuggestion: boolean('isContactSuggestion'),
@@ -411,6 +415,9 @@ export const activityEvents = sqliteTable(
   (table) => {
     return {
       pk: primaryKey({ columns: [table.id, table.bucketId] }),
+      channelTimestampIndex: index(
+        'activity_events_channel_id_timestamp_index'
+      ).on(table.channelId, table.timestamp),
     };
   }
 );
@@ -1358,6 +1365,20 @@ export const notesNotesRelations = relations(notesNotes, ({ one }) => ({
   }),
 }));
 
+// A fetch-completion timestamp cannot prove that a lagging notebook replica
+// causally includes an activity event. Record only deletions that the Notes
+// action path explicitly confirmed against the host-facing API.
+export const notesActivityEventTombstones = sqliteTable(
+  'notes_activity_event_tombstones',
+  {
+    channelId: text('channel_id').notNull(),
+    noteId: text('note_id').notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.channelId, table.noteId] }),
+  })
+);
+
 export const notesMembers = sqliteTable(
   'notes_members',
   {
@@ -1591,7 +1612,7 @@ export const botReplyFeedback = sqliteTable(
 
 // Per-run bot introspection records synced from the %steward agent's lens
 // module. Payload is the gateway's run record as structured JSON (inner
-// schemaVersion); see docs/steward.md.
+// schemaVersion); see docs/backend/desk/app/steward.md.
 export const contextLensRuns = sqliteTable(
   'context_lens_runs',
   {
