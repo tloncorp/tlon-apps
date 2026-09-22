@@ -1,9 +1,11 @@
 appId: ${MAESTRO_APP_ID}
 ---
 - launchApp
-- extendedWaitUntil:
-    visible: '^(Workspaces|Contacts)$'
-    timeout: 15000
+# No landing gate here. Both callers are on the Profile screen when this runs
+# -- the success path has just tapped `You`, and the completion hook can be
+# anywhere a failure left it -- and the relaunch restores that route, so a
+# wait naming a tab root only burns its timeout and leaves the temporary
+# colour applied. `contacts-screen.yaml` unwinds whatever came back.
 - runFlow: contacts-screen.yaml
 - tapOn: '^You$'
 - tapOn:
