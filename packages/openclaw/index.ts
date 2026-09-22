@@ -1,3 +1,11 @@
+import {
+  campaignStoreForDirectory,
+  setCampaignStore,
+} from './src/monitor/campaign/store.js';
+import {
+  notifyCampaignCronChanged,
+  notifyCampaignReply,
+} from './src/monitor/campaign/live.js';
 import { createRequire } from 'node:module';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -888,6 +896,17 @@ export default defineBundledChannelEntry({
       );
     }
 
+    try {
+      setCampaignStore(
+        campaignStoreForDirectory(api.runtime.state.resolveStateDir())
+      );
+    } catch (error) {
+      setCampaignStore(null);
+      api.logger.warn(
+        `[tlon] campaign disabled without durable state: ${String(error)}`
+      );
+    }
+
     // ── Gateway-status liveness integration ───────────────────
     //
     // registerFull is NOT a once-per-process call: OpenClaw invokes it once
@@ -1326,6 +1345,7 @@ export default defineBundledChannelEntry({
     });
 
     api.on('cron_changed', async (event, ctx) => {
+      notifyCampaignCronChanged(event);
       try {
         await handleCronChangedEvent(event, ctx);
       } catch (error) {
@@ -1425,6 +1445,15 @@ export default defineBundledChannelEntry({
     });
 
     api.on('message_sent', (event, ctx) => {
+      // Gateway/tool sends use this hook; direct monitor replies are observed at delivery.
+      if (ctx.channelId === 'tlon' && event.success !== false)
+        void notifyCampaignReply(
+          ctx.accountId ?? 'default',
+          event.content,
+          event.to
+        ).catch((error) =>
+          api.logger.error(`[tlon] campaign offer: ${String(error)}`)
+        );
       void handleAgentOnboardingMessageSent(
         event,
         {},
