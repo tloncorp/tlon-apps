@@ -1,0 +1,101 @@
+appId: ${MAESTRO_APP_ID}
+name: Native message references and pins
+tags: [regression]
+env:
+  JOURNEY: f
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/create-group.yaml
+- tapOn: '^Chat$'
+- runFlow:
+    file: subflows/send.yaml
+    env:
+      MESSAGE: ${output.reliability.text}
+      MESSAGE_PATTERN: ${output.reliability.textPattern}
+      EMPTY_INPUT: '^Message$'
+- hideKeyboard
+- longPressOn: ${output.reliability.textPattern}
+- scrollUntilVisible:
+    element:
+      text: '^Pin post to channel$'
+    direction: DOWN
+    timeout: 5000
+- tapOn: '^Pin post to channel$'
+# Banner includes the author, distinguishing it from the timeline post.
+- assertVisible: "${'.+: ' + output.reliability.text}"
+- tapOn: "${'.+: ' + output.reliability.text}"
+- assertVisible: ${output.reliability.textPattern}
+- runFlow:
+    when:
+      visible:
+        id: MessageInput
+        text: '^Reply$'
+    commands:
+      - tapOn: '^Back$'
+- longPressOn: ${output.reliability.textPattern}
+- scrollUntilVisible:
+    element:
+      text: '^Unpin post$'
+    direction: DOWN
+    timeout: 5000
+- tapOn: '^Unpin post$'
+- assertNotVisible: "${'.+: ' + output.reliability.text}"
+- longPressOn: ${output.reliability.textPattern}
+- tapOn: '^Copy link to message$'
+- runFlow:
+    when:
+      visible:
+        id: com.android.systemui:id/dismiss_button
+    commands:
+      - tapOn:
+          id: com.android.systemui:id/dismiss_button
+# Paste into a second channel in a different group, then follow the reference.
+# Android can still have the message menu or thread open after copying.
+# Stop at the source group instead of assuming a fixed navigation depth.
+- repeat:
+    times: 3
+    while:
+      notVisible: ${output.reliability.groupPattern}
+    commands:
+      - tapOn: '^Back$'
+      - waitForAnimationToEnd:
+          timeout: 5000
+- assertVisible: ${output.reliability.groupPattern}
+- tapOn: '^Back$'
+- runFlow: subflows/home-tab.yaml
+- runScript:
+    file: data.js
+    env:
+      JOURNEY: ft
+- runFlow: subflows/create-group.yaml
+- tapOn: '^Chat$'
+- tapOn:
+    id: MessageInput
+- longPressOn:
+    id: MessageInput
+- tapOn: '(?i)^Paste$'
+- extendedWaitUntil:
+    visible: '^Remove attachment$'
+    timeout: 5000
+- assertVisible: ${output.reliability.textPattern}
+- tapOn:
+    id: MessageInputSendButton
+- extendedWaitUntil:
+    notVisible:
+      id: ChatMessageDeliveryStatus
+    timeout: 10000
+- assertNotVisible: '^Remove attachment$'
+- assertVisible: '^Chat Post$'
+# Otherwise Android consumes the first card tap to dismiss the keyboard.
+- hideKeyboard
+# The header opens the reference; the selectable preview text does not.
+- tapOn: '^Chat Post$'
+- assertVisible: ${output.reliability.textPattern}
+- assertNotVisible: '^Chat Post$'
+- assertVisible: '^Chat$'
+- tapOn: '^Back$'
+# Back preserves the group from which the reference was opened.
+- assertVisible: ${output.reliability.groupPattern}
+- tapOn: '^Back$'
+- assertVisible: '^Home$'
