@@ -46,15 +46,23 @@ const TabComponent = <T extends string>({
   children,
   name,
   activeTab,
+  testID,
 }: {
   onTabPress: (name: T) => void;
   children: ReactNode;
   name: T;
   activeTab: string;
+  testID?: string;
 }) => {
   const handlePress = useBoundHandler(name, onTabPress);
   return (
-    <TabFrame active={activeTab === name} onPress={handlePress}>
+    <TabFrame
+      active={activeTab === name}
+      onPress={handlePress}
+      testID={testID}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: activeTab === name }}
+    >
       {children}
     </TabFrame>
   );

@@ -1,7 +1,7 @@
 import type * as db from '@tloncorp/shared/db';
 import { describe, expect, it } from 'vitest';
 
-import { getDrawerChats } from './drawerChats';
+import { chatMatchesDrawerFilter, getDrawerChats } from './drawerChats';
 
 function group(id: string, timestamp: number): db.Chat {
   return {
@@ -34,13 +34,39 @@ function channel(
   };
 }
 
+describe('chatMatchesDrawerFilter', () => {
+  it('sends direct messages to one tab and everything else to the other', () => {
+    const cases: [db.Chat, 'workspaces' | 'messages'][] = [
+      [group('a-group', 1), 'workspaces'],
+      [channel('a-dm', 1, 'dm'), 'messages'],
+      [channel('a-group-dm', 1, 'groupDm'), 'messages'],
+      [
+        channel('a-pinned-channel', 1, 'chat', { index: 0 } as db.Pin),
+        'workspaces',
+      ],
+    ];
+
+    for (const [chat, tab] of cases) {
+      expect(chatMatchesDrawerFilter(chat, 'workspaces')).toBe(
+        tab === 'workspaces'
+      );
+      expect(chatMatchesDrawerFilter(chat, 'messages')).toBe(
+        tab === 'messages'
+      );
+    }
+  });
+});
+
 describe('getDrawerChats', () => {
   it('flattens the buckets and orders the whole list by recency', () => {
-    const sorted = getDrawerChats({
-      pinned: [group('pinned-old', 10)],
-      unpinned: [group('newest', 30), group('oldest', 5)],
-      pending: [group('invite', 20)],
-    });
+    const sorted = getDrawerChats(
+      {
+        pinned: [group('pinned-old', 10)],
+        unpinned: [group('newest', 30), group('oldest', 5)],
+        pending: [group('invite', 20)],
+      },
+      'workspaces'
+    );
 
     expect(sorted.map((c) => c.id)).toEqual([
       'newest',
@@ -50,8 +76,8 @@ describe('getDrawerChats', () => {
     ]);
   });
 
-  it('lists groups and direct messages, not the channels inside a group', () => {
-    const chats = getDrawerChats({
+  it('lists a tab’s own chats, and not the channels inside a group', () => {
+    const chats = {
       pinned: [],
       unpinned: [
         group('a-group', 40),
@@ -60,24 +86,45 @@ describe('getDrawerChats', () => {
         channel('a-group-channel', 10, 'chat'),
       ],
       pending: [],
-    });
+    };
 
-    expect(chats.map((c) => c.id)).toEqual(['a-group', 'a-dm', 'a-group-dm']);
+    expect(getDrawerChats(chats, 'workspaces').map((c) => c.id)).toEqual([
+      'a-group',
+    ]);
+    expect(getDrawerChats(chats, 'messages').map((c) => c.id)).toEqual([
+      'a-dm',
+      'a-group-dm',
+    ]);
   });
 
-  it('keeps a group channel the user pinned to the top level', () => {
-    const chats = getDrawerChats({
+  it('keeps a group channel the user pinned to the top level, under Workspaces', () => {
+    const chats = {
       pinned: [channel('pinned-channel', 10, 'chat', { index: 0 } as db.Pin)],
       unpinned: [],
       pending: [],
-    });
+    };
 
-    expect(chats.map((c) => c.id)).toEqual(['pinned-channel']);
+    expect(getDrawerChats(chats, 'workspaces').map((c) => c.id)).toEqual([
+      'pinned-channel',
+    ]);
+    expect(getDrawerChats(chats, 'messages')).toEqual([]);
+  });
+
+  it('leaves out the conversation the footer already carries', () => {
+    const chats = {
+      pinned: [],
+      unpinned: [channel('bot-dm', 20, 'dm'), channel('a-dm', 10, 'dm')],
+      pending: [],
+    };
+
+    expect(
+      getDrawerChats(chats, 'messages', 'bot-dm').map((c) => c.id)
+    ).toEqual(['a-dm']);
   });
 
   it('is empty before the chats have loaded', () => {
-    expect(getDrawerChats(undefined)).toEqual([]);
-    expect(getDrawerChats(null)).toEqual([]);
+    expect(getDrawerChats(undefined, 'workspaces')).toEqual([]);
+    expect(getDrawerChats(null, 'messages')).toEqual([]);
   });
 
   it('leaves the query result untouched', () => {
@@ -87,7 +134,7 @@ describe('getDrawerChats', () => {
       pending: [],
     };
 
-    getDrawerChats(chats);
+    getDrawerChats(chats, 'workspaces');
 
     expect(chats.unpinned.map((c) => c.id)).toEqual(['a', 'b']);
   });

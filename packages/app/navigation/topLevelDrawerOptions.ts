@@ -5,10 +5,14 @@ import { useTheme } from 'tamagui';
 
 import { drawerOwnsEdge } from './drawerDestination';
 
-// Wide enough for a section label at a comfortable reading size, narrow enough
-// to leave a strip of the app visible beside it.
-const MAX_DRAWER_WIDTH = 320;
-const DRAWER_WIDTH_FRACTION = 0.82;
+// The panel is the app's navigation, and its rows now carry a caret, a glyph
+// and a timestamp around the name — plus a second indent for the channels of
+// an unfurled workspace — so it takes as much of the screen as it can while
+// still leaving a strip of the app beside it. That strip is what says the app
+// is still there and gives the tap that closes the panel somewhere to land, so
+// the fraction stops short of the whole width rather than at a round number.
+const MAX_DRAWER_WIDTH = 400;
+const DRAWER_WIDTH_FRACTION = 0.88;
 // A wider edge than the default 32, so the swipe is findable without a hunt,
 // but short of the iOS interactive-pop gesture's own reach.
 const DRAWER_SWIPE_EDGE_WIDTH = 44;

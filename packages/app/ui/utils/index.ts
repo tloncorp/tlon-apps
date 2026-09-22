@@ -1,3 +1,4 @@
+export * from './channelTypes';
 export * from './channelUtils';
 export * from './groupUtils';
 export * from './colorUtils';
