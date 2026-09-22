@@ -1,0 +1,71 @@
+appId: ${MAESTRO_APP_ID}
+name: Global notification preferences affect Activity notification delivery
+env:
+  JOURNEY: global-notification-preferences
+---
+- runScript: ../reliability/data.js
+- runFlow: begin.yaml
+- runFlow: ../reliability/subflows/contacts-tab.yaml
+- tapOn: '^Settings$'
+- tapOn: '^Notification settings$'
+- assertVisible: '^Notifications$'
+- assertVisible: '^All DMs and group posts$'
+- assertVisible: '^DMs, mentions, and replies only$'
+- assertVisible: '^Nothing$'
+- tapOn: '^DMs, mentions, and replies only$'
+- tapOn: '^Back$'
+- tapOn: '^Back$'
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: '^Tab Bar$'
+          point: '50%,38%'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn: '^Activity.*$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Activity$'
+- extendedWaitUntil:
+    visible: ${'.*' + MAESTRO_RUN_TAG + ' notification soft mention.*'}
+    timeout: 30000
+- assertVisible: ${'.*' + MAESTRO_RUN_TAG + ' notification soft reply.*'}
+- runFlow: ../reliability/subflows/contacts-tab.yaml
+- tapOn: '^Settings$'
+- tapOn: '^Notification settings$'
+- tapOn: '^Nothing$'
+- tapOn: '^Back$'
+- tapOn: '^Back$'
+- runFlow: ../reliability/subflows/home-tab.yaml
+- extendedWaitUntil:
+    visible: ${'.*' + MAESTRO_RUN_TAG + ' notification hush delivered.*'}
+    timeout: 30000
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: '^Tab Bar$'
+          point: '50%,38%'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn: '^Activity.*$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Activity$'
+- assertVisible: ${'.*' + MAESTRO_RUN_TAG + ' notification hush mention.*'}
+- assertVisible: ${'.*' + MAESTRO_RUN_TAG + ' notification hush reply.*'}
+- runFlow: ../reliability/subflows/contacts-tab.yaml
+- tapOn: '^Settings$'
+- tapOn: '^Notification settings$'
+- tapOn: '^All DMs and group posts$'
+- tapOn: '^Back$'
+- tapOn: '^Back$'
+- runFlow: ../reliability/subflows/home-tab.yaml
+- assertVisible: '^Home$'
