@@ -149,6 +149,19 @@ describe('getUnreadDrawerFilters', () => {
     return { ...chat, unreadCount: count };
   }
 
+  function mutedGroup(channels: db.Channel[], unreadCount: number): db.Chat {
+    return {
+      id: 'a-group',
+      timestamp: 40,
+      pin: null,
+      volumeSettings: { level: 'hush' } as db.VolumeSettings,
+      isPending: false,
+      unreadCount,
+      type: 'group',
+      group: { id: 'a-group', channels } as db.Group,
+    };
+  }
+
   it('names the tab an unread is sitting under', () => {
     const chats = {
       pinned: [],
@@ -221,6 +234,51 @@ describe('getUnreadDrawerFilters', () => {
 
     expect(getUnreadDrawerFilters(chats)).toEqual(['messages']);
     expect(getUnreadDrawerFilters(chats, 'bot-dm')).toEqual([]);
+  });
+
+  it('hears a channel turned back up inside a muted workspace', () => {
+    const channels = [
+      { id: 'quiet', currentUserIsMember: true } as db.Channel,
+      {
+        id: 'loud',
+        currentUserIsMember: true,
+        unread: { count: 2 },
+        volumeSettings: { level: 'loud' },
+      } as db.Channel,
+    ];
+    const mutedWorkspace = mutedGroup(channels, 0);
+
+    expect(
+      getUnreadDrawerFilters({
+        pinned: [],
+        unpinned: [mutedWorkspace],
+        pending: [],
+      })
+    ).toEqual(['workspaces']);
+  });
+
+  it('stays quiet when a muted workspace has no channel of its own to speak', () => {
+    const channels = [
+      {
+        id: 'a',
+        currentUserIsMember: true,
+        unread: { count: 2 },
+      } as db.Channel,
+      {
+        id: 'b',
+        currentUserIsMember: true,
+        unread: { count: 1 },
+      } as db.Channel,
+    ];
+    const mutedWorkspace = mutedGroup(channels, 3);
+
+    expect(
+      getUnreadDrawerFilters({
+        pinned: [],
+        unpinned: [mutedWorkspace],
+        pending: [],
+      })
+    ).toEqual([]);
   });
 
   it('is empty before the chats have loaded', () => {

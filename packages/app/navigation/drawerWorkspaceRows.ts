@@ -149,6 +149,31 @@ export function channelRowHasUnread(
 }
 
 /**
+ * Whether a chat, or any channel it unfurls, holds an unread the panel lights.
+ *
+ * A workspace's own roll-up is not the whole answer. A workspace set to `hush`
+ * with one channel turned back up is one the user still hears that channel
+ * from: its own row stays dark, by the muting contract, while the channel's
+ * row lights. Asked by the tab above them, which has to claim whatever any of
+ * its rows would show.
+ *
+ * Only a workspace that unfurls is asked about its channels. Anything else is
+ * a single row, and that row has already answered for itself.
+ */
+export function chatOrChannelsHaveUnread(chat: db.Chat): boolean {
+  if (chatRowHasUnread(chat)) {
+    return true;
+  }
+  if (chat.type !== 'group' || !unfurls(chat)) {
+    return false;
+  }
+  const groupMuted = logic.isMuted(chat.volumeSettings?.level, 'group');
+  return readableChannels(chat.group).some((channel) =>
+    channelRowHasUnread(channel, groupMuted)
+  );
+}
+
+/**
  * The drawer's chats, with the channels of the unfurled workspace laid out
  * beneath it.
  *
