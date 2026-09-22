@@ -136,6 +136,16 @@ export const syncInitData = async (
       // here as [] would wipe every reader role off the channel.
       for (const snapshot of buckets) {
         const channelId = api.formatBucketsChannelId(snapshot.flag);
+        // The init fetch and the %buckets subscription run concurrently, so a
+        // writer change can already have been reduced from a fact by the time
+        // this delayed init write runs. Writing unconditionally reinstalls the
+        // older set, and with infinite staleness it stays visible until a
+        // reconnect -- long enough for an admin to open permissions and save
+        // the removed role back to the host.
+        const held = await db.getBucket({ channelId }, queryCtx);
+        if (held && held.revision > snapshot.state.revision) {
+          continue;
+        }
         await db.updateChannel(
           {
             id: channelId,

@@ -207,6 +207,12 @@
   ^+  cor
   ?+  mark  ~|(bad-buckets-mark+mark !!)
       %handle-http-request
+    ::  Eyre pokes this from our own ship, and +handle-post then rewrites the
+    ::  actor to us -- a cookie is the host's own capability. Without this
+    ::  guard a remote ship could poke the same mark with authenticated=& set
+    ::  by hand and be promoted to host authority: admin checks pass, and the
+    ::  answer carries whatever it asked for, tokens included.
+    ?>  =(src.bowl our.bowl)
     (serve-http !<([eyre-id=@ta =inbound-request:eyre] vase))
   ::
       %buckets-action-1
@@ -2601,7 +2607,12 @@
   |=  =(pole knot)
   ^+  cor
   ?+  pole  ~|(bad-buckets-watch+pole !!)
-      [%http-response *]  cor
+    ::  Eyre's own subscription, for a request being held open. A remote
+    ::  subscriber naming someone else's eyre-id would be handed that
+    ::  request's answer -- snapshots and minted capabilities alike.
+      [%http-response *]
+    ?>  =(src.bowl our.bowl)
+    cor
   ::
       [%v1 ~]
     ?>  =(src.bowl our.bowl)

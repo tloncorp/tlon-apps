@@ -172,6 +172,83 @@ test('hydrates Bucket writers from a live subscription update', async () => {
 // rows. It has to be kept: a rejected write is swallowed by the subscription
 // handler, and nothing asks again, so the Bucket would read as empty for the
 // rest of the connection.
+// The init fetch and the %buckets subscription race on startup, and init is
+// the slower of the two. Writing its summary unconditionally reinstalls a
+// writer set the subscription has already superseded.
+test('does not let init data overwrite a newer Bucket writer set', async () => {
+  const channelId = 'buckets/~zod/writers';
+  const flag = { host: '~zod', name: 'writers' };
+  const bucket = {
+    id: 1,
+    title: 'Writers',
+    createdBy: '~zod',
+    createdAt: 0,
+    updatedBy: '~zod',
+    updatedAt: 0,
+  };
+
+  await db.insertChannels([{ id: channelId, type: 'buckets' }]);
+
+  // the subscription has already reduced revision 9, dropping %editor
+  await batchEffects('test:newerWriters', (ctx) =>
+    handleBucketsUpdate(
+      {
+        type: 'snapshot',
+        flag,
+        state: {
+          bucket,
+          group: { host: '~zod', name: 'group' },
+          writers: ['admin'],
+          entries: [],
+          revision: 9,
+        },
+      } as unknown as api.BucketsResponse,
+      ctx
+    )
+  );
+
+  // init arrives late, still carrying revision 3 with %editor present
+  const getInitData = vi.spyOn(api, 'getInitData').mockResolvedValue({
+    groups: [],
+    joinedGroups: [],
+    unjoinedGroups: [],
+    channels: [],
+    channelPerms: [],
+    joinedGroupChannels: [],
+    unreads: {
+      baseUnread: null,
+      groupUnreads: [],
+      channelUnreads: [],
+      threadActivity: [],
+    },
+    channelUnreads: [],
+    groupUnreads: [],
+    pins: [],
+    blockedUsers: [],
+    contacts: [],
+    channelOrder: [],
+    buckets: [
+      {
+        flag,
+        state: {
+          bucket,
+          group: { host: '~zod', name: 'group' },
+          writers: ['admin', 'editor'],
+          entries: [],
+          revision: 3,
+        },
+      },
+    ],
+  } as unknown as api.InitData);
+  await syncInitData();
+  getInitData.mockRestore();
+
+  const channel = await db.getChannelWithRelations({ id: channelId });
+  expect(channel?.writerRoles?.map((role) => role.roleId).sort()).toEqual([
+    'admin',
+  ]);
+});
+
 test('keeps a Bucket manifest that arrives before its channel row', async () => {
   const channelId = 'buckets/~zod/early';
 

@@ -197,7 +197,7 @@ export function CreateChannelSheet({
           <ActionSheet.FormBlock>
             <Form.ControlledListItemField
               label="Channel type"
-              options={CHANNEL_TYPES}
+              options={channelTypes}
               control={control}
               name={'channelType'}
             />
