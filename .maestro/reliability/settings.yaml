@@ -11,7 +11,9 @@ env:
     file: subflows/settings-row.yaml
     env:
       ROW: '^App info$'
-- assertVisible: '^Build version$'
+- extendedWaitUntil:
+    visible: '^Build version$'
+    timeout: 15000
 - assertVisible: '^Desk version$'
 - assertNotVisible: '^Cannot load app info settings$'
 - tapOn: '^Back$'

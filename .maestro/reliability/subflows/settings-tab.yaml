@@ -15,11 +15,10 @@ appId: ${MAESTRO_APP_ID}
     when:
       platform: Android
     commands:
-      # "Settings" also names the screen header and the button on the
-      # notifications notice, so anchor against the neighbouring tab.
-      - tapOn:
-          text: '^Settings$'
-          rightOf: '^Activity.*$'
+      # As in workspaces-tab.yaml, no neighbouring-tab anchor: it does not
+      # survive the Bot tab. The notice that carried the other "Settings" is
+      # dismissed in to-tab-root.yaml above.
+      - tapOn: '^Settings$'
 # Settings draws its title into the native navigation bar rather than a
 # ScreenHeaderTitle, so verify the destination by a row only it has. The row is
 # not necessarily on screen: an account whose agent has inline bot settings

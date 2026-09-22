@@ -27,11 +27,12 @@ appId: ${MAESTRO_APP_ID}
     when:
       platform: Android
     commands:
-      # Android labels its tab buttons, but the screen header repeats the name,
-      # so anchor against the neighbouring tab.
-      - tapOn:
-          text: '^Workspaces$'
-          leftOf: '^Activity.*$'
+      # Android labels its tab buttons. Anchoring on the neighbouring tab is
+      # what broke here once the bar carried the Bot tab as well, and it is not
+      # needed: on any other tab this label is the only "Workspaces" on screen,
+      # and on this one the header repeats it but either match leaves us where
+      # we want to be. The assertion below catches a wrong tap.
+      - tapOn: '^Workspaces$'
 - assertVisible:
     id: ScreenHeaderTitle
     text: '^Workspaces$'

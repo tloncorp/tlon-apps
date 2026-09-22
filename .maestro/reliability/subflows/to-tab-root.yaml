@@ -5,6 +5,13 @@ appId: ${MAESTRO_APP_ID}
 # cover the tab bar, and a journey can arrive at a tab selection from one --
 # most often a cleanup hook running after a failure, but also an ordinary warm
 # launch, which restores the position the last run was closed in.
+# The notifications notice floats over the bottom of the chat list, covering
+# part of the tab bar, and its button is a second "Settings" on screen.
+- runFlow:
+    when:
+      visible: '^Stay in the loop$'
+    commands:
+      - tapOn: '^Not now$'
 - runFlow:
     when:
       platform: iOS
