@@ -716,7 +716,14 @@ async function handleAgentOnboardingRequestInternal(
     await provision(
       context,
       history,
-      canonicalizeAutomaticPlanRequest(effectiveRequest),
+      canonicalizeAutomaticPlanRequest(
+        omitUnansweredOptionalPlanEvidence(
+          history,
+          context.ownerShip,
+          context.botShip,
+          effectiveRequest
+        )
+      ),
       deps,
       presentation
     );
@@ -2847,6 +2854,97 @@ function canonicalizeAutomaticPlanRequest(
   };
 }
 
+function collectInterviewAnswersByDimension(
+  history: TlonHistoryEntry[],
+  ownerShip: string,
+  botShip: string,
+  request: PostBlobDataEntryAgentProvision,
+  interviewStartPost: TlonHistoryEntry,
+  interviewPost: TlonHistoryEntry
+) {
+  const answersByDimension = new Map<string, string[]>();
+  for (const answerPost of [...history].sort(compareHistoryOrder)) {
+    if (
+      answerPost.author !== ownerShip ||
+      compareHistoryOrder(answerPost, interviewStartPost) < 0 ||
+      compareHistoryOrder(answerPost, interviewPost) > 0 ||
+      !answerPost.blob
+    ) {
+      continue;
+    }
+    for (const entry of parsePostBlob(answerPost.blob)) {
+      if (entry.type !== 'tlon-a2ui-selection' || !entry.sourcePostId) {
+        continue;
+      }
+      const questionPost = history.find(
+        (candidate) =>
+          sameEvidencePostId(candidate.id, entry.sourcePostId) &&
+          candidate.author === botShip
+      );
+      const marker = questionPost?.blob
+        ? parsePostBlob(questionPost.blob).find(
+            (questionEntry) =>
+              questionEntry.type === 'tlon-agent-post-marker' &&
+              questionEntry.key.startsWith('agent-choice-dimension:') &&
+              sameEvidencePostId(
+                questionEntry.interviewStartMessageId,
+                request.interviewStartMessageId
+              )
+          )
+        : undefined;
+      if (
+        !questionPost ||
+        compareHistoryOrder(questionPost, interviewStartPost) < 0 ||
+        compareHistoryOrder(questionPost, answerPost) > 0 ||
+        marker?.type !== 'tlon-agent-post-marker'
+      ) {
+        continue;
+      }
+      const dimension = marker.key.slice('agent-choice-dimension:'.length);
+      answersByDimension.set(
+        dimension,
+        entry.values.map((value) => value.trim()).filter(Boolean)
+      );
+    }
+  }
+  return answersByDimension;
+}
+
+function omitUnansweredOptionalPlanEvidence(
+  history: TlonHistoryEntry[],
+  ownerShip: string,
+  botShip: string,
+  request: PostBlobDataEntryAgentProvision
+): PostBlobDataEntryAgentProvision {
+  if (!request.answerEvidence) return request;
+  const interviewStartPost = history.find(
+    (candidate) =>
+      sameEvidencePostId(candidate.id, request.interviewStartMessageId) &&
+      candidate.author === ownerShip
+  );
+  const interviewPost = history.find(
+    (candidate) =>
+      sameEvidencePostId(candidate.id, request.interviewMessageId) &&
+      candidate.author === ownerShip
+  );
+  if (!interviewStartPost || !interviewPost) return request;
+  const answersByDimension = collectInterviewAnswersByDimension(
+    history,
+    ownerShip,
+    botShip,
+    request,
+    interviewStartPost,
+    interviewPost
+  );
+  const answerEvidence = { ...request.answerEvidence };
+  for (const dimension of ['context', 'priority', 'output'] as const) {
+    if (!answersByDimension.get(dimension)?.length) {
+      delete answerEvidence[dimension];
+    }
+  }
+  return { ...request, answerEvidence };
+}
+
 function validateAutomaticPlanEvidence(
   history: TlonHistoryEntry[],
   ownerShip: string,
@@ -2909,51 +3007,14 @@ function validateAutomaticPlanEvidence(
   ) {
     return 'the owner did not explicitly consent to a daily recurring task';
   }
-  const answersByDimension = new Map<string, string[]>();
-  for (const answerPost of [...history].sort(compareHistoryOrder)) {
-    if (
-      answerPost.author !== ownerShip ||
-      compareHistoryOrder(answerPost, interviewStartPost) < 0 ||
-      compareHistoryOrder(answerPost, interviewPost) > 0 ||
-      !answerPost.blob
-    ) {
-      continue;
-    }
-    for (const entry of parsePostBlob(answerPost.blob)) {
-      if (entry.type !== 'tlon-a2ui-selection' || !entry.sourcePostId) {
-        continue;
-      }
-      const questionPost = history.find(
-        (candidate) =>
-          sameEvidencePostId(candidate.id, entry.sourcePostId) &&
-          candidate.author === botShip
-      );
-      const marker = questionPost?.blob
-        ? parsePostBlob(questionPost.blob).find(
-            (questionEntry) =>
-              questionEntry.type === 'tlon-agent-post-marker' &&
-              questionEntry.key.startsWith('agent-choice-dimension:') &&
-              sameEvidencePostId(
-                questionEntry.interviewStartMessageId,
-                request.interviewStartMessageId
-              )
-          )
-        : undefined;
-      if (
-        !questionPost ||
-        compareHistoryOrder(questionPost, interviewStartPost) < 0 ||
-        compareHistoryOrder(questionPost, answerPost) > 0 ||
-        marker?.type !== 'tlon-agent-post-marker'
-      ) {
-        continue;
-      }
-      const dimension = marker.key.slice('agent-choice-dimension:'.length);
-      answersByDimension.set(
-        dimension,
-        entry.values.map((value) => value.trim()).filter(Boolean)
-      );
-    }
-  }
+  const answersByDimension = collectInterviewAnswersByDimension(
+    history,
+    ownerShip,
+    botShip,
+    request,
+    interviewStartPost,
+    interviewPost
+  );
   const answerEvidence = request.answerEvidence;
   for (const dimension of PLAN_ANSWER_DIMENSIONS) {
     const claimed = answerEvidence[dimension];
@@ -2963,7 +3024,8 @@ function validateAutomaticPlanEvidence(
     }
     if (
       claimed &&
-      !durable?.some(
+      durable?.length &&
+      !durable.some(
         (value) => normalizedAnswer(value) === normalizedAnswer(claimed)
       )
     ) {
@@ -3616,6 +3678,7 @@ export const agentOnboardingTesting = {
   findProvisionRequest,
   hasPostMarker,
   notebookDisplayName,
+  omitUnansweredOptionalPlanEvidence,
   purposePickerFallbackText,
   purposeForReply,
   provisionCadence,

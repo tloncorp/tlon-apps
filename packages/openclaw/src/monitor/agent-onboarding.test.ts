@@ -1021,6 +1021,37 @@ describe('agent onboarding requests', () => {
       taskPrompt:
         'Focus: AI and Climate. Approach: Compare expert perspectives.',
     });
+    const inventedOptionalEvidence = {
+      ...automaticProvision,
+      answerEvidence: {
+        ...automaticProvision.answerEvidence,
+        context: 'Use public official announcements',
+        priority: 'Cover both topics equally',
+        output: 'A short update with sources',
+      },
+    };
+    expect(
+      agentOnboardingTesting.validateAutomaticPlanEvidence(
+        history,
+        '~ten',
+        '~bot',
+        inventedOptionalEvidence
+      )
+    ).toBeNull();
+    const groundedPlan =
+      agentOnboardingTesting.omitUnansweredOptionalPlanEvidence(
+        history,
+        '~ten',
+        '~bot',
+        inventedOptionalEvidence
+      );
+    expect(groundedPlan.answerEvidence).toEqual(
+      automaticProvision.answerEvidence
+    );
+    expect(
+      agentOnboardingTesting.canonicalizeAutomaticPlanRequest(groundedPlan)
+        .taskPrompt
+    ).toBe('Focus: AI and Climate. Approach: Compare expert perspectives.');
     expect(
       agentOnboardingTesting.validateAutomaticPlanEvidence(
         history,
