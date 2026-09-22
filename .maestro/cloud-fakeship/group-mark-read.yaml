@@ -1,0 +1,25 @@
+appId: ${MAESTRO_APP_ID}
+name: Mark an unread group as read
+env:
+  JOURNEY: group-mark-read
+---
+- runScript: ../reliability/data.js
+- runFlow: begin.yaml
+- scrollUntilVisible:
+    element: ${'Unread-' + MAESTRO_RUN_TAG}
+    direction: DOWN
+    timeout: 5000
+- assertVisible: ${output.reliability.unreadChannelPreviewPattern}
+- longPressOn: ${'Unread-' + MAESTRO_RUN_TAG}
+- assertVisible: '^Mark all as read$'
+- tapOn: '^Mark all as read$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Home$'
+- longPressOn: ${'Unread-' + MAESTRO_RUN_TAG}
+- assertNotVisible: '^Mark all as read$'
+- swipe:
+    direction: DOWN
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Home$'

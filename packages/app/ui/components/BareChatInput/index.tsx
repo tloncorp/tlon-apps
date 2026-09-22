@@ -1204,6 +1204,9 @@ function BareChatInput(
               paddingTop: getTokenValue('$l', 'space'),
               paddingBottom: getTokenValue('$l', 'space'),
               fontSize: getFontSize('$m'),
+              // Match the decoration overlay even when emoji change font metrics.
+              fontFamily: isWeb ? 'inherit' : undefined,
+              lineHeight: isWeb ? getFontSize('$m') * 1.2 : undefined,
               verticalAlign: 'middle',
               letterSpacing: -0.032,
               color: inputTextColor,
@@ -1235,7 +1238,7 @@ function BareChatInput(
               >
                 <RawText
                   paddingHorizontal="$l"
-                  paddingTop={getTokenValue('$m', 'space') + 3}
+                  paddingTop="$l"
                   fontSize="$m"
                   lineHeight={getFontSize('$m') * 1.2}
                   letterSpacing={-0.032}

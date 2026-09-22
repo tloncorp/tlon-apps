@@ -1,0 +1,101 @@
+appId: ${MAESTRO_APP_ID}
+name: Gallery reaction detail and post deletion
+env:
+  JOURNEY: gallery-actions
+---
+- runScript: ../reliability/data.js
+- runFlow:
+    when:
+      true: ${output.reliability.session === 'warm'}
+    commands:
+      - launchApp
+- runFlow: begin.yaml
+- scrollUntilVisible:
+    element: ${'GalleryActions-' + MAESTRO_RUN_TAG}
+    direction: UP
+    timeout: 30000
+- tapOn: ${'GalleryActions-' + MAESTRO_RUN_TAG}
+- runFlow:
+    when:
+      visible: '^Gallery$'
+    commands:
+      - tapOn: '^Gallery$'
+- extendedWaitUntil:
+    visible: ${MAESTRO_RUN_TAG + ' gallery action target'}
+    timeout: 30000
+- runFlow:
+    when:
+      notVisible: '^👍$'
+    commands:
+      - longPressOn:
+          text: ${MAESTRO_RUN_TAG + ' gallery action target'}
+          point: '10%,50%'
+      - runFlow:
+          when:
+            platform: Android
+          commands:
+            - tapOn:
+                id: EmojiToolbarButton-thumb
+      - runFlow:
+          when:
+            platform: iOS
+          commands:
+            - tapOn: '^👍$'
+- assertVisible: '^👍$'
+- extendedWaitUntil:
+    visible: ${MAESTRO_RUN_TAG + ' gallery reaction verified'}
+    timeout: 30000
+- tapOn: ${MAESTRO_RUN_TAG + ' gallery action target'}
+- assertVisible:
+    id: GalleryPostContent
+- assertVisible: ${MAESTRO_RUN_TAG + ' gallery action target'}
+- assertVisible: '^👍$'
+- tapOn: '^Back$'
+- longPressOn:
+    text: ${MAESTRO_RUN_TAG + ' gallery action target'}
+    point: '10%,50%'
+- scrollUntilVisible:
+    element:
+      text: '^Delete post$'
+    direction: DOWN
+    timeout: 5000
+- tapOn: '^Delete post$'
+- assertVisible: '^Delete post[?]$'
+- tapOn:
+    text: '^Delete post$'
+    rightOf: '^Cancel$'
+- assertNotVisible: ${MAESTRO_RUN_TAG + ' gallery action target'}
+- extendedWaitUntil:
+    visible: ${MAESTRO_RUN_TAG + ' gallery delete verified'}
+    timeout: 30000
+- tapOn: '^Back$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Home$'
+- longPressOn: ${'GalleryActions-' + MAESTRO_RUN_TAG}
+- tapOn: '^Group info & settings$'
+- scrollUntilVisible:
+    element:
+      id: GroupLeaveAction-Delete group
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: GroupLeaveAction-Delete group
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: '^Delete group$'
+          rightOf: '^Cancel$'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn: '(?i)^Delete group$'
+- extendedWaitUntil:
+    visible:
+      id: ScreenHeaderTitle
+      text: '^Home$'
+    timeout: 10000
+- assertNotVisible: ${'GalleryActions-' + MAESTRO_RUN_TAG}

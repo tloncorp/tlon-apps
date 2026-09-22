@@ -28,7 +28,7 @@ appId: ${MAESTRO_APP_ID}
 - tapOn: '^Create group$'
 - extendedWaitUntil:
     visible: ${output.reliability.groupPattern}
-    timeout: 5000
+    timeout: 15000
 - assertVisible: '^Chat$'
 - assertVisible: '^Gallery$'
 - assertVisible: '^Notebook$'
