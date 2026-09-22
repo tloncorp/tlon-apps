@@ -263,6 +263,11 @@ test('enrolls a live initial request, sends one marked private-channel tip, crea
       args: { action: 'run', jobId: task.id },
     },
     { kind: 'text', content: 'Running the first example now.' },
+    {
+      kind: 'text',
+      content:
+        'How’s “tlon-campaign-e2e-digest” working for you? We can adjust it.',
+    },
   ]);
   await sendCampaignMessage(`Run that task once now. ${runTag}`);
   await waitFor(
