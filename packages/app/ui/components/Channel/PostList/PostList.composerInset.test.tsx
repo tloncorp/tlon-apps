@@ -7,6 +7,7 @@ import { PostList } from './PostList';
 const state = vi.hoisted(() => ({
   platform: 'ios',
   docked: false,
+  floating: false,
   listProps: {} as Record<string, unknown>,
   geometry: { contentLength: 1200, scroll: 700, scrollLength: 500 },
   resizeScrolls: [] as { animated: boolean }[],
@@ -31,6 +32,7 @@ vi.mock('@tloncorp/shared', () => ({
   layoutForType: () => ({ shouldMaintainVisibleContentPosition: true }),
 }));
 vi.mock('react-native', () => ({
+  StyleSheet: { flatten: (style: unknown) => style },
   Platform: {
     get OS() {
       return state.platform;
@@ -51,6 +53,11 @@ vi.mock('../../../contexts/scroll', () => ({
 }));
 vi.mock('../ConversationLayout', () => ({
   useIsConversationDocked: () => state.docked,
+  useConversationComposerLayout: () => ({
+    floating: state.floating,
+    height: 90,
+    setFloating: () => {},
+  }),
 }));
 vi.mock('./PostListFlatList', () => ({ PostList: () => null }));
 vi.mock('./usePostArrivalAnimation', () => ({
@@ -113,6 +120,7 @@ let frames: Map<number, FrameRequestCallback>;
 beforeEach(() => {
   state.platform = 'ios';
   state.docked = false;
+  state.floating = false;
   state.listProps = {};
   state.geometry = { contentLength: 1200, scroll: 700, scrollLength: 500 };
   state.resizeScrolls = [];
@@ -290,5 +298,27 @@ describe('docked conversation viewport changes', () => {
     state.geometry.scrollLength = 600;
     layout(600);
     expect(state.resizeScrolls).toEqual([]);
+  });
+});
+
+describe('floating conversation composer', () => {
+  it('exchanges the inline space for a footer and stops automatic end following', () => {
+    state.docked = true;
+    state.floating = true;
+    mount();
+    expect(state.listProps.contentContainerStyle).toEqual([
+      undefined,
+      { paddingBottom: 90 },
+    ]);
+    expect(state.listProps.maintainScrollAtEnd).toBe(false);
+    expect(state.listProps.maintainVisibleContentPosition).toBe(true);
+    layout(500);
+    layout(590);
+    expect(state.resizeScrolls).toEqual([]);
+    act(() => state.sendHandler?.begin());
+    state.sendHandler?.finish();
+    tick();
+    tick();
+    expect(state.nativeScrolls).toEqual([]);
   });
 });

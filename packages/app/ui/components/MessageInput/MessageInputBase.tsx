@@ -20,6 +20,7 @@ import {
 import { useAttachmentContext } from '../../contexts/attachment';
 import { useConversationScrollToBottomControl } from '../../contexts/scroll';
 import { MentionOption } from '../BareChatInput/useMentions';
+import { useConversationComposerLayout } from '../Channel/ConversationLayout';
 import {
   type SlashCommandManifest,
   type SlashCommandOption,
@@ -170,6 +171,44 @@ export const MessageInputContainer = memo(
       setMeasuredInputHeight(height);
     };
 
+    const { floating } = useConversationComposerLayout();
+    const separateGlassSend = usesIOSGlass && floating && !floatingActionButton;
+    const sendAction = floatingActionButton ? (
+      <View position="absolute" bottom="$l" right="$l">
+        {disableSend ? null : (
+          <FloatingActionButton
+            onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
+            icon={
+              <Icon
+                color={sendError ? 'red' : undefined}
+                type={sendError ? 'Refresh' : 'ArrowUp'}
+              />
+            }
+          />
+        )}
+      </View>
+    ) : (
+      <MessageInputChromeSendAction>
+        <MessageInputChromeButton
+          preset="secondary"
+          disabled={disableSend}
+          loading={isSending}
+          testID="MessageInputSendButton"
+          onPress={isEditing ? onPressEdit : onPressSend}
+          icon={
+            isEditing ? (
+              'Checkmark'
+            ) : (
+              <Icon
+                color={sendError ? '$negativeActionText' : undefined}
+                type="ArrowUp"
+              />
+            )
+          }
+        />
+      </MessageInputChromeSendAction>
+    );
+
     return (
       <MessageInputChromeRoot
         isEditing={isEditing}
@@ -240,44 +279,9 @@ export const MessageInputContainer = memo(
               >
                 {children}
               </MessageInputContentFrame>
-              {floatingActionButton ? (
-                <View position="absolute" bottom="$l" right="$l">
-                  {disableSend ? null : (
-                    <FloatingActionButton
-                      onPress={
-                        isEditing && onPressEdit ? onPressEdit : onPressSend
-                      }
-                      icon={
-                        <Icon
-                          color={sendError ? 'red' : undefined}
-                          type={sendError ? 'Refresh' : 'ArrowUp'}
-                        />
-                      }
-                    />
-                  )}
-                </View>
-              ) : (
-                <MessageInputChromeSendAction>
-                  <MessageInputChromeButton
-                    preset="secondary"
-                    disabled={disableSend}
-                    loading={isSending}
-                    testID="MessageInputSendButton"
-                    onPress={isEditing ? onPressEdit : onPressSend}
-                    icon={
-                      isEditing ? (
-                        'Checkmark'
-                      ) : (
-                        <Icon
-                          color={sendError ? '$negativeActionText' : undefined}
-                          type="ArrowUp"
-                        />
-                      )
-                    }
-                  />
-                </MessageInputChromeSendAction>
-              )}
+              {!separateGlassSend && sendAction}
             </MessageInputChromeBody>
+            {separateGlassSend && sendAction}
           </MessageInputChromeRow>
         ) : (
           // Note: This **must** be an XStack (not a YStack, View, or Stack), otherwise the WebView in MessageInput will not
@@ -530,6 +534,18 @@ function MessageInputChromeButton(props: ComponentProps<typeof Button>) {
 }
 
 function MessageInputChromeSendAction({ children }: PropsWithChildren) {
+  const { floating } = useConversationComposerLayout();
+  if (usesIOSGlass && floating) {
+    return (
+      <GlassSurface
+        isInteractive
+        glassEffectStyle="regular"
+        style={inputChromeStyles.action}
+      >
+        {children}
+      </GlassSurface>
+    );
+  }
   return (
     <View
       top={usesFloatingChrome ? undefined : 2}

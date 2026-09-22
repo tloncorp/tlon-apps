@@ -23,7 +23,10 @@ import { ScrollEdgeElementContainer } from '../ScrollEdgeElementContainer';
 import { floatingScrollControlClearance } from '../conversationScrollChrome';
 import { DraftInputContext } from '../draftInputs';
 import { DraftInputContextProvider } from '../draftInputs/shared';
-import { useIsConversationDocked } from './ConversationLayout';
+import {
+  useConversationComposerLayout,
+  useIsConversationDocked,
+} from './ConversationLayout';
 
 export function DraftInputView({
   draftInputContext,
@@ -115,6 +118,7 @@ export function ConversationComposerPlacement({
 }>) {
   const insets = useSafeAreaInsets();
   const docked = useIsConversationDocked();
+  const composerLayout = useConversationComposerLayout();
   const theme = useTheme();
   const scrollToBottomControl = useConversationScrollToBottomControl();
   const { report: reportConversationComposerHeight } =
@@ -137,9 +141,18 @@ export function ConversationComposerPlacement({
       <View
         id={inlineID}
         flexShrink={0}
+        position={composerLayout.floating ? 'absolute' : 'relative'}
+        bottom={composerLayout.floating ? 0 : undefined}
+        left={composerLayout.floating ? 0 : undefined}
+        right={composerLayout.floating ? 0 : undefined}
         paddingBottom={insets.bottom}
-        backgroundColor="$background"
+        backgroundColor={
+          composerLayout.floating ? 'transparent' : '$background'
+        }
         zIndex={10}
+        onLayout={(event) =>
+          composerLayout.setHeight(event.nativeEvent.layout.height)
+        }
       >
         {content}
       </View>

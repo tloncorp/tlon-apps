@@ -5,6 +5,7 @@ import { layoutForType } from '@tloncorp/shared';
 import * as React from 'react';
 import {
   Platform,
+  StyleSheet,
   type LayoutChangeEvent,
   type ScrollView,
 } from 'react-native';
@@ -21,7 +22,11 @@ import {
   useConversationScrollViewNativeID,
   useScrollDirectionTracker,
 } from '../../../contexts/scroll';
-import { useIsConversationDocked } from '../ConversationLayout';
+import {
+  useConversationComposerLayout,
+  useIsConversationDocked,
+} from '../ConversationLayout';
+import { useFloatingComposer } from './useFloatingComposer';
 import { PostList as PostListFlatList } from './PostListFlatList';
 import { usePostArrivalAnimation } from './usePostArrivalAnimation';
 import { useComposerSendTransition } from './useComposerSendTransition';
@@ -483,6 +488,23 @@ const ConversationPostListAttempt = React.forwardRef<
   ) => {
     const listRef = React.useRef<LegendListRef>(null);
     const docked = useIsConversationDocked();
+    const composerLayout = useConversationComposerLayout();
+    const floating = docked && composerLayout.floating;
+    const overlayHeight = floating ? composerLayout.height : 0;
+    const listContentStyle = React.useMemo(
+      () =>
+        overlayHeight
+          ? [
+              contentContainerStyle,
+              {
+                paddingBottom:
+                  ((StyleSheet.flatten(contentContainerStyle)
+                    ?.paddingBottom as number) ?? 0) + overlayHeight,
+              },
+            ]
+          : contentContainerStyle,
+      [contentContainerStyle, overlayHeight]
+    );
     const ConversationList = docked
       ? AnimatedLegendList
       : KeyboardAwareLegendList;
@@ -519,7 +541,10 @@ const ConversationPostListAttempt = React.forwardRef<
     } = useComposerSendTransition(
       listRef,
       applyConversationComposerHeight,
-      (docked || Platform.OS === 'ios') && anchorToEnd && !hasNewerPosts,
+      (docked || Platform.OS === 'ios') &&
+        !floating &&
+        anchorToEnd &&
+        !hasNewerPosts,
       !reduceMotion
     );
     React.useLayoutEffect(
@@ -599,10 +624,17 @@ const ConversationPostListAttempt = React.forwardRef<
         | undefined;
       scrollView?.scrollToEnd({ animated: false });
     }, []);
+    const onScrollPositionChange = useFloatingComposer(
+      listRef,
+      docked,
+      didFinishInitialScroll,
+      isComposerSendActive
+    );
     const { onScroll: handleScroll, isAtBottom: isWithinBottomThreshold } =
       useScrollDirectionTracker({
         atBottomThreshold: onScrolledToBottomThreshold,
         bottomAtEnd: true,
+        onScrollPositionChange: docked ? onScrollPositionChange : undefined,
       });
     // LegendList recalculates this when scrolling, content, or row measurements
     // change. React Native onScroll can retain an intermediate value while the
@@ -628,6 +660,7 @@ const ConversationPostListAttempt = React.forwardRef<
         settleEmptyConversationAtEnd();
         if (
           !docked ||
+          floating ||
           !anchorToEnd ||
           hasNewerPosts ||
           !previousHeight ||
@@ -656,6 +689,7 @@ const ConversationPostListAttempt = React.forwardRef<
       [
         anchorToEnd,
         docked,
+        floating,
         hasNewerPosts,
         isComposerSendActive,
         settleEmptyConversationAtEnd,
@@ -663,7 +697,7 @@ const ConversationPostListAttempt = React.forwardRef<
     );
     const maintainScrollAtEnd = React.useMemo(
       () =>
-        anchorToEnd && !hasNewerPosts && !composerSendActive
+        anchorToEnd && !floating && !hasNewerPosts && !composerSendActive
           ? {
               animated: didFinishInitialScroll && !reduceMotion,
               // The keyboard and composer already animate the viewport. Follow
@@ -682,6 +716,7 @@ const ConversationPostListAttempt = React.forwardRef<
         anchorToEnd,
         composerSendActive,
         docked,
+        floating,
         didFinishInitialScroll,
         hasNewerPosts,
         reduceMotion,
@@ -733,7 +768,7 @@ const ConversationPostListAttempt = React.forwardRef<
             !(
               anchorToEnd &&
               !hasNewerPosts &&
-              (isNearEnd || composerSendActive)
+              ((!floating && isNearEnd) || composerSendActive)
             )
           ? true
           : false;
@@ -814,7 +849,7 @@ const ConversationPostListAttempt = React.forwardRef<
         ListEmptyComponent={renderEmptyComponent}
         ListHeaderComponent={listHeaderComponent}
         ListFooterComponent={listBottomComponent}
-        contentContainerStyle={contentContainerStyle}
+        contentContainerStyle={listContentStyle}
         {...(docked
           ? {
               keyboardDismissMode:
@@ -831,7 +866,11 @@ const ConversationPostListAttempt = React.forwardRef<
         // wrapper supplies its own indicator clearance.
         scrollIndicatorInsets={{
           top: contentInsets.top,
-          bottom: docked || Platform.OS === 'ios' ? 0 : insets.bottom,
+          bottom: docked
+            ? overlayHeight
+            : Platform.OS === 'ios'
+              ? 0
+              : insets.bottom,
         }}
         automaticallyAdjustsScrollIndicatorInsets={false}
         scrollEnabled={scrollEnabled}

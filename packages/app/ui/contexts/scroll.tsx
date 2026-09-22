@@ -94,10 +94,16 @@ export const useScrollDirectionTracker = ({
   setIsAtBottom: setIsAtBottomProp,
   atBottomThreshold = 1, // multiple of screen/viewport height
   bottomAtEnd = false,
+  onScrollPositionChange,
 }: {
   setIsAtBottom?: (isAtBottom: boolean) => void;
   atBottomThreshold?: number;
   bottomAtEnd?: boolean;
+  onScrollPositionChange?: (position: {
+    offset: number;
+    contentHeight: number;
+    viewportHeight: number;
+  }) => void;
 } = {}) => {
   const [scrollValue] = useScrollContext();
   const previousScrollValue = useSharedValue(0);
@@ -116,6 +122,13 @@ export const useScrollDirectionTracker = ({
 
   const scrollHandler = useAnimatedScrollHandler((event) => {
     const { y } = event.contentOffset;
+    if (onScrollPositionChange) {
+      runOnJS(onScrollPositionChange)({
+        offset: y,
+        contentHeight: event.contentSize.height,
+        viewportHeight: event.layoutMeasurement.height,
+      });
+    }
     const maxOffset = Math.max(
       0,
       event.contentSize.height -

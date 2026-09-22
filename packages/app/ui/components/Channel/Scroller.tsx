@@ -57,6 +57,7 @@ import { EmojiPickerSheet } from '../Emoji';
 import { supportsLiquidGlass } from '../GlassSurface';
 import { ConversationScrollToBottomButton } from '../conversationScrollChrome';
 import { ChannelDivider } from './ChannelDivider';
+import { useConversationComposerLayout } from './ConversationLayout';
 import { ContextLensRunSheet } from './ContextLens/ContextLensRunSheet';
 import {
   ConversationContentInsets,
@@ -398,6 +399,7 @@ const Scroller = forwardRef(
     const insets = useSafeAreaInsets();
     const rootVerticalPadding = getTokens().space.l.val;
     const composerBottomInset = contentInsets.bottom;
+    const composerLayout = useConversationComposerLayout();
     // iOS conversation lists keep the composer inset native so the list can
     // own keyboard and composer clearance; every other layout pads for it.
     const listOwnsComposerInset =
@@ -413,8 +415,9 @@ const Scroller = forwardRef(
     }, []);
     const standaloneBottomSafeArea =
       composerBottomInset > 0 ? 0 : insets.bottom;
-    const scrollButtonBottom =
-      composerBottomInset > 0
+    const scrollButtonBottom = composerLayout.floating
+      ? composerLayout.height + getTokens().space.s.val
+      : composerBottomInset > 0
         ? composerBottomInset + getTokens().space.s.val
         : getTokens().space.m.val;
     const contentContainerStyle = useStyle(

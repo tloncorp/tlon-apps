@@ -55,17 +55,20 @@ vi.mock('react-native-keyboard-controller/src/hooks', () => ({
     progress: keyboard.providerProgress,
   }),
 }));
-vi.mock('react-native-reanimated', () => ({
-  default: { View: 'AnimatedView' },
-  useSharedValue: <T,>(value: T) => ({ value }),
-  useAnimatedStyle: (style: typeof keyboard.style) => {
-    keyboard.style = style;
-    return style();
-  },
-  interpolate: (value: number, input: number[], output: number[]) =>
-    output[0] +
-    ((value - input[0]) / (input[1] - input[0])) * (output[1] - output[0]),
-}));
+vi.mock('react-native-reanimated', async () => {
+  const { useRef } = await import('react');
+  return {
+    default: { View: 'AnimatedView' },
+    useSharedValue: <T,>(value: T) => useRef({ value }).current,
+    useAnimatedStyle: (style: typeof keyboard.style) => {
+      keyboard.style = style;
+      return style();
+    },
+    interpolate: (value: number, input: number[], output: number[]) =>
+      output[0] +
+      ((value - input[0]) / (input[1] - input[0])) * (output[1] - output[0]),
+  };
+});
 vi.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ bottom: 34 }),
 }));
@@ -90,6 +93,7 @@ vi.mock('../draftInputs/shared', () => ({}));
 
 let renderer: ReactTestRenderer | undefined;
 let ConversationLayout: typeof import('./ConversationLayout').ConversationLayout;
+let useConversationComposerLayout: typeof import('./ConversationLayout').useConversationComposerLayout;
 let ConversationComposerPlacement: typeof import('./DraftInputView').ConversationComposerPlacement;
 
 beforeEach(async () => {
@@ -102,9 +106,10 @@ beforeEach(async () => {
   keyboard.style = () => ({ transform: [{ translateY: 0 }] });
   // The platform-specific wrapper is selected when the module is loaded.
   vi.resetModules();
-  ({ ConversationLayout } = await vi.importActual<
-    typeof import('./ConversationLayout')
-  >('./ConversationLayout'));
+  ({ ConversationLayout, useConversationComposerLayout } =
+    await vi.importActual<typeof import('./ConversationLayout')>(
+      './ConversationLayout'
+    ));
   ({ ConversationComposerPlacement } =
     await vi.importActual<typeof import('./DraftInputView')>(
       './DraftInputView'
@@ -140,6 +145,46 @@ describe.each(['ios', 'android'] as const)('%s', (platform) => {
     keyboard.platform = platform;
   });
 
+  it('preserves the input instance and draft while docking and floating above the keyboard', () => {
+    let layout: ReturnType<typeof useConversationComposerLayout>;
+    let changeDraft: React.Dispatch<React.SetStateAction<string>>;
+    let mounts = 0;
+    function Draft() {
+      layout = useConversationComposerLayout();
+      const [draft, setDraft] = React.useState('');
+      changeDraft = setDraft;
+      React.useEffect(() => {
+        mounts += 1;
+      }, []);
+      return <input value={draft} />;
+    }
+    act(() => {
+      renderer = create(
+        <ConversationLayout enabled>
+          <section />
+          <ConversationComposerPlacement enabled>
+            <Draft />
+          </ConversationComposerPlacement>
+        </ConversationLayout>
+      );
+    });
+    act(() => changeDraft('Keep this draft'));
+    emit('onEnd', 300);
+    act(() => layout.setFloating(true));
+    const floating = renderer!.root
+      .findAllByType('View' as never)
+      .find((node) => node.props.zIndex === 10)!;
+    expect(floating.props.position).toBe('absolute');
+    expect(floating.props.bottom).toBe(0);
+    expect(floating.props.backgroundColor).toBe('transparent');
+    expect(keyboard.style().paddingBottom).toBe(266);
+    act(() => layout.setFloating(false));
+    expect(renderer!.root.findByType('input').props.value).toBe(
+      'Keep this draft'
+    );
+    expect(mounts).toBe(1);
+  });
+
   it('gives the list and composer a shared resizing keyboard container', () => {
     act(() => {
       renderer = create(
@@ -166,7 +211,7 @@ describe.each(['ios', 'android'] as const)('%s', (platform) => {
       (node) => (node.type as unknown) === 'View' && node.props.flexShrink === 0
     );
     expect(composer.props.paddingBottom).toBe(34);
-    expect(composer.props.position).toBeUndefined();
+    expect(composer.props.position).toBe('relative');
     expect(
       renderer!.root.findAll(
         (node) => (node.type as unknown) === 'AnimatedView'

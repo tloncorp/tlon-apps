@@ -1,4 +1,10 @@
-import { createContext, useContext, type PropsWithChildren } from 'react';
+import {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+  type PropsWithChildren,
+} from 'react';
 import { Platform, StyleSheet } from 'react-native';
 import {
   KeyboardController,
@@ -13,8 +19,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { YStack } from 'tamagui';
 
 const DockedConversationContext = createContext(false);
+const ComposerLayoutContext = createContext({
+  floating: false,
+  height: 0,
+  setFloating: (_floating: boolean) => {},
+  setHeight: (_height: number) => {},
+});
+
+export function useConversationComposerLayout() {
+  return useContext(ComposerLayoutContext);
+}
 
 export function useIsConversationDocked() {
+  // Layout ownership stays fixed even while its composer floats over history.
   return useContext(DockedConversationContext);
 }
 
@@ -40,6 +57,12 @@ export function ConversationLayout({
 }
 
 function KeyboardResizingConversation({ children }: PropsWithChildren) {
+  const [floating, setFloating] = useState(false);
+  const [composerHeight, setHeight] = useState(0);
+  const composerLayout = useMemo(
+    () => ({ floating, height: composerHeight, setFloating, setHeight }),
+    [floating, composerHeight]
+  );
   const insets = useSafeAreaInsets();
   const isVisible = KeyboardController.isVisible();
   const height = useSharedValue(
@@ -63,7 +86,13 @@ function KeyboardResizingConversation({ children }: PropsWithChildren) {
 
   return (
     <Animated.View style={[styles.container, keyboardStyle]}>
-      {children}
+      <ComposerLayoutContext.Provider value={composerLayout}>
+        {/* Absolute composers use the keyboard-resized bounds, not the outer
+            view's padding box. Keep this parent and both children mounted. */}
+        <YStack flex={1} minHeight={0} minWidth={0}>
+          {children}
+        </YStack>
+      </ComposerLayoutContext.Provider>
     </Animated.View>
   );
 }
