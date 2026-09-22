@@ -55,6 +55,12 @@ records the full shape of the problem. Until it lands, chat, channels, gallery, 
 notebook, relaunch, search and home-groups are expected to fail on
 `~batbet-litnec`; settings and profile, which create nothing, still pass.
 
+**Known gap — settings and profile also fail on Android.** `profile` cannot
+find `^Workspaces$` when its completion hook selects the tab, and `settings`
+does not reach App info. Both pass on iOS and both are regressions from the
+navigation work; they are tracked in TLON-6633 and need an Android emulator to
+diagnose.
+
 Do not run concurrent profile/settings journeys against the same account. These
 tests create private groups and posts that remain on the ship; only the
 lifecycle tests delete their own fixtures. Profile restores the original
