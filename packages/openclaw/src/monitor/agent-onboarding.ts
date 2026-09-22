@@ -2156,6 +2156,7 @@ function setFirstRunCorrelation(
     purposeId: request.purposeId,
     topics: request.topics,
     enqueuedAt: options.enqueuedAt,
+    baselineNoteId: options.baselineNoteId,
     presentationReady: options.presentationReady ?? true,
     runInApiScope: captureTlonApiScope(),
   });
@@ -2256,6 +2257,16 @@ async function ensureFirstRunEnqueued(
         )
         .catch(() => undefined)
     : undefined;
+  // The listing is best effort, but a teardown that aborted it must not fall
+  // through into starting a cron run: the monitor is going away, and the run
+  // would be left without its lifecycle hooks or in-memory correlation. Drop
+  // the claim on the way out for the same reason a rejected enqueue does --
+  // otherwise the next pass reads it as another live attempt until the grace
+  // window expires.
+  if (context.abortSignal?.aborted) {
+    await forgetAgentOnboardingRunClaim(initial);
+    context.abortSignal.throwIfAborted();
+  }
 
   let disposition: unknown;
   try {

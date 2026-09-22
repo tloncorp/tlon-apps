@@ -2616,11 +2616,9 @@ describe('provision coordinator ordering', () => {
     expect(run).toHaveBeenCalledWith('job-1', 'force');
   });
 
-  it('reads the notebook baseline before enqueueing the run', async () => {
-    // The baseline is only a baseline if nothing the run writes can be in it,
-    // so the listing has to happen before the enqueue -- and the run must
-    // still enqueue when no listing is available, which is the case the test
-    // above covers by omitting it.
+  it('stores the notebook baseline it read before enqueueing', async () => {
+    // The ordering matters as much as the value: read after the enqueue, the
+    // run's own entry could be in the baseline that is supposed to exclude it.
     const order: string[] = [];
     const run = vi.fn(async () => {
       order.push('enqueue');
@@ -2637,8 +2635,14 @@ describe('provision coordinator ordering', () => {
       order.push('list');
       return [
         {
+          noteId: 4,
+          title: 'Older entry',
+          createdAt: 1_699_999_000_000,
+          createdBy: '~bot',
+        },
+        {
           noteId: 9,
-          title: 'Written before this run',
+          title: 'Newest entry before this run',
           createdAt: 1_700_000_000_000,
           createdBy: '~bot',
         },
@@ -2668,6 +2672,54 @@ describe('provision coordinator ordering', () => {
       expect.anything()
     );
     expect(order).toEqual(['list', 'enqueue']);
+    // The highest id present, and actually on the correlation -- carrying it
+    // only as far as the options left the recovery filter reading undefined
+    // and accepting notes that predate the run.
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation(
+        'baseline-run',
+        undefined
+      )?.[1].baselineNoteId
+    ).toBe(9);
+  });
+
+  it('does not enqueue when the baseline listing is aborted', async () => {
+    const run = vi.fn(async () => ({ enqueued: true, runId: 'aborted-run' }));
+    const cron = {
+      list: vi.fn(async () => []),
+      add: vi.fn(),
+      update: vi.fn(),
+      remove: vi.fn(),
+      run,
+    } as unknown as TlonCronService;
+    const controller = new AbortController();
+    const listNotes = vi.fn(async () => {
+      controller.abort();
+      throw new Error('listing aborted');
+    });
+
+    await expect(
+      agentOnboardingTesting.ensureFirstRunEnqueued(
+        cron,
+        'job-1',
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/group/aborted',
+          groupId: provision.groupId,
+          ownerShip: '~ten',
+          abortSignal: controller.signal,
+        },
+        provision,
+        'Updates',
+        100,
+        listNotes
+      )
+    ).rejects.toThrow();
+
+    // A listing failure alone is survivable; a teardown is not something to
+    // start a cron run through.
+    expect(run).not.toHaveBeenCalled();
   });
 
   it('reports each funnel step exactly once, in order', async () => {
