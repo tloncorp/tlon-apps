@@ -331,6 +331,23 @@ describe('agent task plan tool', () => {
         time: '8:30 AM London time',
       },
     });
+    const abbreviatedAnswer = await execute(
+      'call-abbreviated-answer-timezone',
+      {
+        ...validPlan,
+        answerEvidence: {
+          ...validPlan.answerEvidence,
+          time: '8:30 AM EST',
+        },
+      }
+    );
+    const abbreviatedSummary = await execute(
+      'call-abbreviated-summary-timezone',
+      {
+        ...validPlan,
+        summary: 'Track agent tools daily at 8:30 AM PST.',
+      }
+    );
     const summaryMismatch = await execute('call-summary-timezone-mismatch', {
       ...validPlan,
       fallbackSummary: 'Daily research brief at 8:30 AM Tokyo time.',
@@ -372,6 +389,8 @@ describe('agent task plan tool', () => {
     expect(hiddenOverride.details).toEqual({ error: true });
     expect(mismatchedOverride.details).toEqual({ error: true });
     expect(answerMismatch.details).toEqual({ error: true });
+    expect(abbreviatedAnswer.details).toEqual({ error: true });
+    expect(abbreviatedSummary.details).toEqual({ error: true });
     expect(summaryMismatch.details).toEqual({ error: true });
     expect(fallbackMismatch.details).toEqual({ error: true });
     expect(unlistedReadableZone.details).toEqual({ error: true });

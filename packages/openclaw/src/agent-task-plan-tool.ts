@@ -80,6 +80,8 @@ function parseAnswerTime(value: string) {
 
 const READABLE_TIMEZONE_AFTER_CLOCK =
   /\b(?:AM|PM)(?:\s*[,;:()\-–—]\s*|\s+)(?:in\s+)?[A-Za-z]+(?:\s+[A-Za-z]+){0,2}\s+time\b/i;
+const TIMEZONE_ABBREVIATION =
+  /\b(?:[A-Z][SD]T|UTC|GMT|CET|CEST|BST|JST|AEST|AEDT|ACST|ACDT|NZST|NZDT)\b/i;
 
 const TIMEZONE_READABLE_ALIASES: Record<string, string[]> = {
   'America/New_York': ['New York', 'Eastern'],
@@ -322,7 +324,7 @@ function parseParams(params: AgentTaskPlanToolParams): AgentTaskPlanToolParams {
   } else if (
     READABLE_TIMEZONE_AFTER_CLOCK.test(params.answerEvidence.time) ||
     READABLE_TIMEZONE_LABEL.test(params.answerEvidence.time) ||
-    /\bUTC\s+time\b/i.test(params.answerEvidence.time)
+    TIMEZONE_ABBREVIATION.test(params.answerEvidence.time)
   ) {
     throw new Error(
       'answerEvidence.time names a timezone but timezoneOverride is missing'
@@ -377,7 +379,8 @@ function parseParams(params: AgentTaskPlanToolParams): AgentTaskPlanToolParams {
   if (
     !timezoneOverride &&
     (READABLE_TIMEZONE_AFTER_CLOCK.test(userFacingScheduleCopy) ||
-      READABLE_TIMEZONE_LABEL.test(userFacingScheduleCopy))
+      READABLE_TIMEZONE_LABEL.test(userFacingScheduleCopy) ||
+      TIMEZONE_ABBREVIATION.test(userFacingScheduleCopy))
   ) {
     throw new Error(
       'timezone-specific copy requires the matching explicit timezoneOverride'
