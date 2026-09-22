@@ -213,6 +213,13 @@ export function createCampaign(deps: CampaignDeps) {
             deps.error(error);
           }
           const freshTask = await deps.task?.();
+          if (
+            decision.step === 'task-feedback' &&
+            deps.task &&
+            task &&
+            !freshTask
+          )
+            return;
           const freshHasTask =
             converted || Boolean(freshTask) || (await deps.hasTask());
           const freshDecision = evaluateCampaign(

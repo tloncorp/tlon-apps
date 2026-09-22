@@ -965,3 +965,41 @@ it('rechecks owner activity after inference before sending', async () => {
   await Promise.all([check, inbound]);
   expect(h.deps.send).not.toHaveBeenCalled();
 });
+it('abandons task feedback when the selected task disappears during inference', async () => {
+  let release!: (text: string) => void;
+  let entered!: () => void;
+  const started = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  let task:
+    | {
+        id: string;
+        name: string;
+        enabled: boolean;
+        deliveredAt: number;
+      }
+    | undefined = {
+    id: 'task',
+    name: 'Digest',
+    enabled: true,
+    deliveredAt: enrolledAt + DAY - MINUTE,
+  };
+  const h = harness(state(), {
+    task: async () => task,
+    personalize: async () => {
+      entered();
+      return new Promise<string>((resolve) => {
+        release = resolve;
+      });
+    },
+  });
+
+  const check = h.campaign.check();
+  await started;
+  task = undefined;
+  release('How is your recurring task working?');
+  await check;
+
+  expect(h.deps.send).not.toHaveBeenCalled();
+  expect(h.read().sent).toEqual([]);
+});
