@@ -510,17 +510,13 @@ function BareChatInput(
       inputRef.current?.focus();
 
       if (!isWeb) {
-        // Only set the selection here — the input's text on native is driven
-        // by the TextWithMentions children. Setting `text` via setNativeProps
-        // would be *prepended* to the child text by RCTBaseTextInputShadowView,
-        // duplicating the message.
+        // The children own the native text. Move only the caret after they
+        // render the replacement, leaving it after the trailing space.
         requestAnimationFrame(() => {
-          inputRef.current?.setNativeProps({
-            selection: {
-              start: selectionResult.cursorPosition,
-              end: selectionResult.cursorPosition,
-            },
-          });
+          inputRef.current?.setSelection(
+            selectionResult.cursorPosition,
+            selectionResult.cursorPosition
+          );
         });
       }
     },
@@ -566,12 +562,10 @@ function BareChatInput(
         // children. Move only the selection after React has rendered the
         // replacement text so the next character lands after the command.
         requestAnimationFrame(() => {
-          inputRef.current?.setNativeProps({
-            selection: {
-              start: selection.cursorPosition,
-              end: selection.cursorPosition,
-            },
-          });
+          inputRef.current?.setSelection(
+            selection.cursorPosition,
+            selection.cursorPosition
+          );
         });
       }
     },
