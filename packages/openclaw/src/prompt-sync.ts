@@ -17,6 +17,7 @@ import {
 
 import { normalizeShip } from './targets.js';
 import { resolveTlonAccount } from './types.js';
+import { UrbitHttpError } from './urbit/errors.js';
 
 export const PROMPT_FILE_NAMES = [
   'AGENTS.md',
@@ -289,6 +290,12 @@ export function createPromptSync(opts: {
    * retries until the operation lands or `close()` aborts it.
    */
   retry?: { attempts?: number; baseMs?: number; maxMs?: number };
+  /**
+   * Refresh the ship session. A stale cookie fails a request identically on
+   * every attempt, and the only other thing that refreshes it is an SSE
+   * reconnect, which a healthy stream never triggers.
+   */
+  reauthenticate?: () => Promise<void>;
 }): PromptSync {
   const retryAttempts = opts.retry?.attempts ?? Number.POSITIVE_INFINITY;
   const retryBaseMs = opts.retry?.baseMs ?? PROMPT_RETRY_BASE_MS;
@@ -302,8 +309,27 @@ export function createPromptSync(opts: {
   let retryWaiters = new Set<() => void>();
   // Steward suppresses completed commands itself. This cache also makes a
   // duplicate fact on one live SSE channel a terminal-result retry rather
-  // than a second workspace write.
-  const completed = new Map<string, PromptOutcome>();
+  // than a second workspace write. The dispatch rides along because an id
+  // alone is not identity: a client may reuse one after %steward has aged
+  // its record out, and that is a new edit.
+  const completed = new Map<
+    string,
+    {
+      outcome: PromptOutcome;
+      requester: string;
+      action: PromptDispatch['action'];
+    }
+  >();
+  const sameDispatch = (
+    prior: { requester: string; action: PromptDispatch['action'] },
+    next: PromptDispatch
+  ) =>
+    prior.requester === next.requester &&
+    prior.action.set.name === next.action.set.name &&
+    prior.action.set.text === next.action.set.text;
+
+  const isUnauthorized = (error: unknown) =>
+    error instanceof UrbitHttpError && error.status === 401;
 
   const sleep = (ms: number) =>
     new Promise<void>((resolve) => {
@@ -332,6 +358,18 @@ export function createPromptSync(opts: {
       } catch (error) {
         if (closed || attempt >= retryAttempts) {
           throw error;
+        }
+        if (isUnauthorized(error) && opts.reauthenticate) {
+          opts.logger.warn(
+            `[tlon] ${label} was refused (401); refreshing the session before retrying`
+          );
+          try {
+            await opts.reauthenticate();
+          } catch (reauthError) {
+            opts.logger.warn(
+              `[tlon] Session refresh failed: ${errorMessage(reauthError)}`
+            );
+          }
         }
         const wait = Math.min(retryBaseMs * 2 ** (attempt - 1), retryMaxMs);
         opts.logger.warn(
@@ -362,17 +400,21 @@ export function createPromptSync(opts: {
   };
 
   const publish = async (reason: string) => {
+    // The read stays outside the retry on purpose. An oversized or symlinked
+    // file fails the same way every time, and looping on it would hold
+    // startup and every later owner edit behind one bad file. Only the poke
+    // is a network step worth retrying.
+    const prompts = await readWorkspacePrompts(opts.workspaceDir);
     await withRetry(`Prompt projection (${reason})`, async () => {
-      const prompts = await readWorkspacePrompts(opts.workspaceDir);
       await opts.poke({
         app: 'steward',
         mark: 'steward-prompts-action-1',
         json: { project: prompts },
       });
-      opts.logger.log(
-        `[tlon] Projected ${Object.keys(prompts).length} prompt file(s) (${reason})`
-      );
     });
+    opts.logger.log(
+      `[tlon] Projected ${Object.keys(prompts).length} prompt file(s) (${reason})`
+    );
   };
 
   const finalize = async (requestId: string, body: PromptOutcome) => {
@@ -384,9 +426,13 @@ export function createPromptSync(opts: {
     });
   };
 
-  const rememberCompleted = (requestId: string, outcome: PromptOutcome) => {
+  const rememberCompleted = (
+    dispatch: PromptDispatch,
+    outcome: PromptOutcome
+  ) => {
+    const { requestId, requester, action } = dispatch;
     completed.delete(requestId);
-    completed.set(requestId, outcome);
+    completed.set(requestId, { outcome, requester, action });
     while (completed.size > MAX_COMPLETED_REQUESTS) {
       const oldest = completed.keys().next().value;
       if (oldest === undefined) {
@@ -481,9 +527,18 @@ export function createPromptSync(opts: {
         }
         const { requestId, requester, action } = dispatch;
         const prior = completed.get(requestId);
-        if (prior) {
-          await finalize(requestId, prior);
+        if (prior && sameDispatch(prior, dispatch)) {
+          await finalize(requestId, prior.outcome);
           return;
+        }
+        if (prior) {
+          // %steward has aged its own record out and admitted this as a new
+          // command, so reporting the old outcome would skip the write it
+          // actually asked for.
+          opts.logger.warn(
+            `[tlon] Prompt dispatch ${requestId} reuses a completed id with different content; treating it as new`
+          );
+          completed.delete(requestId);
         }
         // %steward authorizes a command against the owner it held when the
         // command arrived, and replays it to whichever harness subscribes.
@@ -497,7 +552,7 @@ export function createPromptSync(opts: {
             errorType: 'not-authorized',
             message: [`requester ${requester} is not the configured owner`],
           };
-          rememberCompleted(requestId, outcome);
+          rememberCompleted(dispatch, outcome);
           opts.logger.warn(
             `[tlon] Refused prompt edit ${requestId}: ${requester} is not the configured owner ${opts.owner}`
           );
@@ -530,7 +585,7 @@ export function createPromptSync(opts: {
         // or not, so a replay after a failed projection or finalize must
         // retry only the terminal response — repeating the write would put
         // this text back over whatever edit landed in between.
-        rememberCompleted(requestId, outcome);
+        rememberCompleted(dispatch, outcome);
         if (outcome.type === 'updated') {
           // The projection lands before %finalize, so every terminal owner
           // response corresponds to the workspace snapshot it requested. A

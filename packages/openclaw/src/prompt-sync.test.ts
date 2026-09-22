@@ -11,6 +11,7 @@ import {
   readWorkspacePrompts,
   shouldRunPromptSync,
 } from './prompt-sync.js';
+import { UrbitHttpError } from './urbit/errors.js';
 
 /** Matches the injected retry budget below, so tests can exhaust it. */
 const RETRY_ATTEMPTS = 3;
@@ -44,6 +45,9 @@ function makeSync(
     /** Attempt cap; pass undefined for the production (uncapped) behavior. */
     retryAttempts?: number;
     retryBaseMs?: number;
+    /** What a failing finalize throws; defaults to a plain Error. */
+    finalizeError?: Error;
+    reauthenticate?: () => Promise<void>;
   } = {}
 ) {
   const pokes: Array<{ app: string; mark: string; json: unknown }> = [];
@@ -78,7 +82,7 @@ function makeSync(
     requestJson: async (path, method, body) => {
       if (finalizeFailuresLeft > 0) {
         finalizeFailuresLeft -= 1;
-        throw new Error('finalize refused');
+        throw opts.finalizeError ?? new Error('finalize refused');
       }
       requests.push({ path, method, body });
     },
@@ -93,6 +97,7 @@ function makeSync(
       baseMs: opts.retryBaseMs ?? 0,
       maxMs: opts.retryBaseMs ?? 0,
     },
+    ...(opts.reauthenticate ? { reauthenticate: opts.reauthenticate } : {}),
   });
   return { sync, pokes, requests, logger, watchListeners, watcherClose };
 }
@@ -417,6 +422,73 @@ describe('prompt workspace projection', () => {
     ).toBe(false);
     expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining('Prompt sync failed')
+    );
+  });
+
+  it('does not retry a projection whose workspace read fails', async () => {
+    // Uncapped retries, so looping on a deterministic file error would hang
+    // here — and would hold startup and every later edit in production.
+    fs.writeFileSync(
+      path.join(workspaceDir, 'SOUL.md'),
+      'x'.repeat(MAX_PROMPT_BYTES + 1)
+    );
+    const { sync, pokes, logger } = makeSync({ retryAttempts: undefined });
+
+    await sync.start();
+
+    expect(pokes.map((poke) => poke.json)).toEqual([
+      { configure: { owner: '~zod' } },
+    ]);
+    expect(logger.warn).not.toHaveBeenCalledWith(
+      expect.stringContaining('retrying')
+    );
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('exceeds')
+    );
+  });
+
+  it('refreshes the session when finalize is refused with 401', async () => {
+    const reauthenticate = vi.fn(async () => {});
+    const { sync, requests } = makeSync({
+      failFinalize: 1,
+      finalizeError: new UrbitHttpError({
+        operation: 'request /steward/~/v1/prompts/finalize',
+        status: 401,
+      }),
+      reauthenticate,
+    });
+
+    await sync.handleDispatch(dispatchFrom('0vc', 'SOUL.md', 'still here'));
+
+    // The stale cookie would fail identically forever; the retry only makes
+    // sense once the session has been refreshed.
+    expect(reauthenticate).toHaveBeenCalledOnce();
+    expect(requests).toEqual([
+      {
+        path: '/steward/~/v1/prompts/finalize',
+        method: 'POST',
+        body: { requestId: '0vc', body: { type: 'updated', name: 'SOUL.md' } },
+      },
+    ]);
+  });
+
+  it('treats a reused request id with different content as a new edit', async () => {
+    const { sync, requests, logger } = makeSync();
+
+    await sync.handleDispatch(dispatchFrom('0vd', 'SOUL.md', 'first'));
+    // %steward ages a completed record out after an hour, after which a
+    // client may legitimately reuse the id for something else.
+    await sync.handleDispatch(dispatchFrom('0vd', 'USER.md', 'second'));
+
+    expect(fs.readFileSync(path.join(workspaceDir, 'USER.md'), 'utf8')).toBe(
+      'second'
+    );
+    expect(requests.map((request) => request.body)).toEqual([
+      { requestId: '0vd', body: { type: 'updated', name: 'SOUL.md' } },
+      { requestId: '0vd', body: { type: 'updated', name: 'USER.md' } },
+    ]);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('reuses a completed id')
     );
   });
 
