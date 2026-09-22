@@ -30,7 +30,7 @@ env:
 - tapOn: '^Back$'
 - assertVisible:
     id: ScreenHeaderTitle
-    text: '^Home$'
+    text: '^Workspaces$'
 - tapOn: ${'Ban-' + MAESTRO_RUN_TAG}
 - extendedWaitUntil:
     visible: ${MAESTRO_RUN_TAG + ' ban verified'}
@@ -38,4 +38,4 @@ env:
 - tapOn: '^Back$'
 - assertVisible:
     id: ScreenHeaderTitle
-    text: '^Home$'
+    text: '^Workspaces$'

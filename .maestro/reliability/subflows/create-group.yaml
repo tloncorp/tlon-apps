@@ -1,5 +1,12 @@
 appId: ${MAESTRO_APP_ID}
 ---
+# KNOWN GAP: this stops at "New group" on a phone whose account has an agent.
+# The create sheet drops the bare group action there -- a Workspace is what the
+# flow is for on mobile now -- and a Workspace is not shaped like this template
+# group: it arrives titled "My agent group" with one chat channel called
+# "General", gains a notes channel called "Updates" only when it is the
+# account's first, and never gets a Gallery. Rebuilding the fixture from one is
+# its own piece of work, tracked in TLON-6632; see the reliability README.
 - assertNotVisible: ${output.reliability.groupPattern}
 - tapOn: '^Add a chat$'
 - tapOn: '^New group$'

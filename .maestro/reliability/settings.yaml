@@ -6,15 +6,21 @@ env:
 ---
 - runScript: data.js
 - runFlow: subflows/begin.yaml
-- runFlow: subflows/contacts-tab.yaml
-- tapOn: '^Settings$'
-- assertVisible: '^Settings$'
-- tapOn: '^App info$'
-- assertVisible: '^Build version$'
+- runFlow: subflows/settings-tab.yaml
+- runFlow:
+    file: subflows/settings-row.yaml
+    env:
+      ROW: '^App info$'
+- extendedWaitUntil:
+    visible: '^Build version$'
+    timeout: 15000
 - assertVisible: '^Desk version$'
 - assertNotVisible: '^Cannot load app info settings$'
 - tapOn: '^Back$'
-- tapOn: '^Appearance$'
+- runFlow:
+    file: subflows/settings-row.yaml
+    env:
+      ROW: '^Appearance$'
 - assertVisible: '^Appearance$'
 # iOS exposes radio state as an accessibility value, not a checked flag.
 - runFlow:
@@ -65,17 +71,22 @@ env:
     env:
       THEME_ID: ThemeOption-dark
 - tapOn: '^Back$'
-- tapOn: '^Appearance$'
+- runFlow:
+    file: subflows/settings-row.yaml
+    env:
+      ROW: '^Appearance$'
 - runFlow:
     file: subflows/assert-theme.yaml
     env:
       THEME_ID: ThemeOption-dark
 - stopApp
 - launchApp
-- assertVisible: '^Home$'
-- runFlow: subflows/contacts-tab.yaml
-- tapOn: '^Settings$'
-- tapOn: '^Appearance$'
+# The app restores the position it was closed in, so it comes back to
+# Appearance rather than to the chat list -- which is a stronger check of the
+# theme surviving a cold start than re-navigating here would be.
+- extendedWaitUntil:
+    visible: '^Appearance$'
+    timeout: 30000
 - runFlow:
     file: subflows/assert-theme.yaml
     env:
@@ -92,17 +103,21 @@ env:
     env:
       THEME_ID: ThemeOption-auto
 - tapOn: '^Back$'
-- tapOn: '^Appearance$'
+- runFlow:
+    file: subflows/settings-row.yaml
+    env:
+      ROW: '^Appearance$'
 - runFlow:
     file: subflows/assert-theme.yaml
     env:
       THEME_ID: ThemeOption-auto
 - stopApp
 - launchApp
-- assertVisible: '^Home$'
-- runFlow: subflows/contacts-tab.yaml
-- tapOn: '^Settings$'
-- tapOn: '^Appearance$'
+# Restores the screen it was closed in, exactly as above, so Appearance comes
+# back on its own -- there is nothing to navigate to.
+- extendedWaitUntil:
+    visible: '^Appearance$'
+    timeout: 30000
 - runFlow:
     file: subflows/assert-theme.yaml
     env:
@@ -119,12 +134,16 @@ env:
     env:
       THEME_ID: ${output.reliability.originalTheme}
 - tapOn: '^Back$'
-- tapOn: '^Blocked users$'
+- runFlow:
+    file: subflows/settings-row.yaml
+    env:
+      ROW: '^Blocked users$'
 - assertVisible: '^Blocked users$'
 - tapOn: '^Back$'
-- tapOn: '^Notification settings$'
+- runFlow:
+    file: subflows/settings-row.yaml
+    env:
+      ROW: '^Notifications$'
 - assertVisible: '^Notifications$'
 - tapOn: '^Back$'
-- tapOn: '^Back$'
-- runFlow: subflows/home-tab.yaml
-- assertVisible: '^Home$'
+- runFlow: subflows/workspaces-tab.yaml

@@ -51,6 +51,6 @@ env:
 - extendedWaitUntil:
     visible:
       id: ScreenHeaderTitle
-      text: '^Home$'
+      text: '^Workspaces$'
     timeout: 10000
 - assertNotVisible: ${'MemberInvite-' + MAESTRO_RUN_TAG}

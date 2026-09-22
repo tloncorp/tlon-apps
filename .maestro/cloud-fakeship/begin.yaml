@@ -16,5 +16,5 @@ appId: ${MAESTRO_APP_ID}
 - extendedWaitUntil:
     visible:
       id: ScreenHeaderTitle
-      text: '^Home$'
+      text: '^Workspaces$'
     timeout: 15000

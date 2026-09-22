@@ -15,11 +15,11 @@ env:
 - tapOn: '^Mark all as read$'
 - assertVisible:
     id: ScreenHeaderTitle
-    text: '^Home$'
+    text: '^Workspaces$'
 - longPressOn: ${'Unread-' + MAESTRO_RUN_TAG}
 - assertNotVisible: '^Mark all as read$'
 - swipe:
     direction: DOWN
 - assertVisible:
     id: ScreenHeaderTitle
-    text: '^Home$'
+    text: '^Workspaces$'

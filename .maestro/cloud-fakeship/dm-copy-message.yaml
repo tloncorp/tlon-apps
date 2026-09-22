@@ -11,7 +11,7 @@ env:
     file: subflows/seed-system-clipboard.yaml
     env:
       CLIPBOARD_SENTINEL: ${'before-' + MAESTRO_RUN_TAG}
-- assertVisible: '^Home$'
+- assertVisible: '^Workspaces$'
 - tapOn: '^Messages$'
 - scrollUntilVisible:
     element:
@@ -35,4 +35,4 @@ env:
 - tapOn: '^Back$'
 - assertVisible:
     id: ScreenHeaderTitle
-    text: '^Home$'
+    text: '^Workspaces$'
