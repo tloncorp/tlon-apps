@@ -432,7 +432,8 @@ async function reauthOnce(sent: SendContext) {
 
 export async function subscribe<T>(
   endpoint: UrbitEndpoint,
-  handler: (update: T, id?: number) => void
+  handler: (update: T, id?: number) => void,
+  options?: { onQuit?: () => void }
 ): Promise<number> {
   let sent = captureSendContext(config.client);
   const doSub = async (err?: (error: any, id: string) => void) => {
@@ -479,6 +480,9 @@ export async function subscribe<T>(
       quit: () => {
         logger.log('subscription quit on', printEndpoint(endpoint));
         config.onQuitOrReset?.('subscriptionQuit', printEndpoint(endpoint));
+        // The client resubscribes, but facts emitted in the gap are gone.
+        // Let stateful callers request their own backfill.
+        options?.onQuit?.();
       },
       err: (error, id) => {
         logger.trackError('subscribe error', {

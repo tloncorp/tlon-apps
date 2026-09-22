@@ -14,7 +14,13 @@ import { ListItem } from './ListItem';
 import { NotebookContentRenderer } from './NotebookPost/NotebookPost';
 import { SettingsDivider, SettingsSection } from './SettingsSection';
 
-const promptsQueryKey = (botShip: string) => ['stewardPrompts', botShip];
+// One key for the whole ship-keyed map, which is what the endpoint returns.
+// Keying per bot made every visited profile fetch and cache another copy of
+// every bot's prompts; observers narrow to their own bot with `select`.
+const promptsQueryKey = () => ['stewardPrompts'];
+// A 404 can mean an old ship or a %steward that is briefly down, so spend the
+// retries before believing either.
+const PROMPTS_QUERY_RETRIES = 3;
 const MAX_PROMPT_BYTES = 65_536;
 
 const promptTextByteLength = (text: string) =>
@@ -37,8 +43,9 @@ const promptFilesForBot = (
  */
 export function useBotSystemPrompts(botShip: string) {
   return useQuery({
-    queryKey: promptsQueryKey(botShip),
+    queryKey: promptsQueryKey(),
     queryFn: api.getStewardPromptFiles,
+    retry: PROMPTS_QUERY_RETRIES,
     select: (files) => promptFilesForBot(files, botShip),
   });
 }
@@ -52,9 +59,14 @@ export function useIsOwnedBot(botShip: string) {
   // Keep the untransformed snapshot here: an empty projection means the bot
   // is still owned, even though there are no editable rows to render.
   const promptsQuery = useQuery({
-    queryKey: promptsQueryKey(botShip),
+    queryKey: promptsQueryKey(),
     queryFn: api.getStewardPromptFiles,
+    retry: PROMPTS_QUERY_RETRIES,
   });
+  // A ship with no prompts endpoint is a settled answer once the retries are
+  // spent: nothing it mirrors can be owned, and holding this pending forever
+  // would strip Block from every profile on that ship.
+  const unsupported = promptsQuery.error instanceof api.PromptsUnsupportedError;
   return {
     isOwnedBot:
       promptsQuery.data !== undefined &&
@@ -62,7 +74,9 @@ export function useIsOwnedBot(botShip: string) {
     // Failing open would expose Block for an owned bot after a transient
     // prompt read failure. Wait for a successful ownership read instead.
     isPending:
-      promptsQuery.isPending || promptsQuery.isFetching || promptsQuery.isError,
+      promptsQuery.isPending ||
+      promptsQuery.isFetching ||
+      (promptsQuery.isError && !unsupported),
   };
 }
 
@@ -110,7 +124,11 @@ const promptOrder = new Map(
 export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
   const queryClient = useQueryClient();
   const promptsQuery = useBotSystemPrompts(botShip);
-  const [editing, setEditing] = useState<BotSystemPrompt | null>(null);
+  // Hold the name, not the row: the feed can change or delete this prompt
+  // while the sheet is open, and a captured row would keep showing (and then
+  // save over) text that is no longer current.
+  const [editingName, setEditingName] = useState<string | null>(null);
+  const [editingBaseText, setEditingBaseText] = useState<string | null>(null);
 
   // The workspace feed is authoritative. A successful edit only confirms
   // the workspace write; an update from this feed supplies its contents.
@@ -118,19 +136,39 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
     let subscriptionId: number | null = null;
     let cancelled = false;
     api
-      .subscribeToStewardPrompts((update) => {
-        if ('files' in update) {
-          queryClient.setQueryData(promptsQueryKey(botShip), update.files);
-        } else if (
-          ('set' in update && update.set.ship === botShip) ||
-          ('del' in update && update.del.ship === botShip) ||
-          ('gone' in update && update.gone.ship === botShip)
-        ) {
-          queryClient.invalidateQueries({
-            queryKey: promptsQueryKey(botShip),
-          });
+      .subscribeToStewardPrompts(
+        (update) => {
+          if ('files' in update) {
+            const files = update.files;
+            // A read started before this fact can still be in flight, and it
+            // would overwrite this newer snapshot on arrival — permanently,
+            // since nothing goes stale on its own and no later fact is promised.
+            void (async () => {
+              await queryClient.cancelQueries({ queryKey: promptsQueryKey() });
+              if (cancelled) {
+                return;
+              }
+              queryClient.setQueryData(promptsQueryKey(), files);
+            })();
+          } else if (
+            ('set' in update && update.set.ship === botShip) ||
+            ('del' in update && update.del.ship === botShip) ||
+            ('gone' in update && update.gone.ship === botShip)
+          ) {
+            queryClient.invalidateQueries({
+              queryKey: promptsQueryKey(),
+            });
+          }
+        },
+        () => {
+          // %steward kicked this watch (a desk restart, say). The client
+          // resubscribes for us, but whatever it emitted meanwhile is lost and
+          // nothing else would ever refresh this cache.
+          if (!cancelled) {
+            queryClient.invalidateQueries({ queryKey: promptsQueryKey() });
+          }
         }
-      })
+      )
       .then((id) => {
         if (id === null) {
           return;
@@ -140,10 +178,14 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
           return;
         }
         subscriptionId = id;
-        queryClient.invalidateQueries({ queryKey: promptsQueryKey(botShip) });
+        queryClient.invalidateQueries({ queryKey: promptsQueryKey() });
       })
       .catch(() => {
-        // No live updates; the scry on mount still shows current state.
+        // No live updates from here on. A projection cached on an earlier
+        // visit is fresh forever, so this mount may have issued no read at
+        // all; refresh explicitly rather than leaving the editor and the
+        // ownership signal on whatever that visit saw.
+        queryClient.invalidateQueries({ queryKey: promptsQueryKey() });
       });
     return () => {
       cancelled = true;
@@ -153,17 +195,26 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
     };
   }, [botShip, queryClient]);
 
-  const handleSaved = useCallback(
-    (name: string, text: string) => {
-      queryClient.invalidateQueries({ queryKey: promptsQueryKey(botShip) });
-    },
-    [botShip, queryClient]
-  );
+  const handleSaved = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: promptsQueryKey() });
+  }, [queryClient]);
+
+  const handleCloseEditor = useCallback(() => {
+    setEditingName(null);
+    setEditingBaseText(null);
+  }, []);
 
   const prompts = promptsQuery.data;
   if (!prompts || prompts.length === 0) {
     return null;
   }
+
+  // Resolved against the live query every render, so an edit or deletion
+  // arriving on the feed reaches the open sheet instead of being saved over.
+  const editing =
+    editingName === null
+      ? null
+      : (prompts.find((prompt) => prompt.name === editingName) ?? null);
 
   const orderedPrompts = [...prompts].sort((a, b) => {
     const aOrder = promptOrder.get(a.name) ?? Number.MAX_SAFE_INTEGER;
@@ -182,7 +233,10 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Edit ${PROMPT_LABELS[prompt.name] ?? prompt.name} prompt`}
-              onPress={() => setEditing(prompt)}
+              onPress={() => {
+                setEditingName(prompt.name);
+                setEditingBaseText(prompt.text);
+              }}
               pressStyle={{ backgroundColor: '$secondaryBackground' }}
             >
               <ListItem
@@ -213,7 +267,15 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
         <BotSystemPromptEditorSheet
           botShip={botShip}
           prompt={editing}
-          onClose={() => setEditing(null)}
+          // Keyed by name only. Keying on the text too remounted the sheet
+          // whenever the projection changed — including on the fact for the
+          // edit being saved — which reset `saving` and reopened the
+          // dismiss/double-submit race the guard exists to prevent.
+          key={editing.name}
+          changedElsewhere={
+            editingBaseText !== null && editingBaseText !== editing.text
+          }
+          onClose={handleCloseEditor}
           onSaved={handleSaved}
         />
       ) : null}
@@ -224,11 +286,13 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
 function BotSystemPromptEditorSheet({
   botShip,
   prompt,
+  changedElsewhere,
   onClose,
   onSaved,
 }: {
   botShip: string;
   prompt: BotSystemPrompt;
+  changedElsewhere: boolean;
   onClose: () => void;
   onSaved: (name: string, text: string) => void;
 }) {
@@ -244,20 +308,39 @@ function BotSystemPromptEditorSheet({
     control,
     getValues,
     handleSubmit,
+    reset,
     formState: { isDirty },
   } = useForm({
     mode: 'onChange',
     defaultValues: { text: prompt.text },
   });
 
+  // Take a new projection into the form in place of remounting. Held back
+  // while a save is in flight (that state must survive) and while the user
+  // has unsaved edits (their draft is theirs to keep) — `changedElsewhere`
+  // tells them the stored text moved on in the meantime.
+  useEffect(() => {
+    if (saving || isDirty) {
+      return;
+    }
+    reset({ text: prompt.text });
+  }, [isDirty, prompt.text, reset, saving]);
+
   const handleOpenChange = useCallback(
     (open: boolean) => {
-      if (!open) {
-        Keyboard.dismiss();
-        onClose();
+      if (open) {
+        return;
       }
+      // The close button, Escape, the overlay and the pan gesture all land
+      // here. Dismissing mid-save would hide a write that still completes,
+      // and reopening could leave two of them racing.
+      if (saving) {
+        return;
+      }
+      Keyboard.dismiss();
+      onClose();
     },
-    [onClose]
+    [onClose, saving]
   );
 
   const handleTogglePreview = useCallback(() => {
@@ -311,7 +394,10 @@ function BotSystemPromptEditorSheet({
           duration: 3000,
         });
         setSaving(false);
-        handleOpenChange(false);
+        // Closes directly rather than through handleOpenChange, whose
+        // mid-save guard still sees `saving` as true in this closure.
+        Keyboard.dismiss();
+        onClose();
       } catch (error) {
         setSaving(false);
         showToast({ message: 'Failed to save prompt.', duration: 3000 });
@@ -319,9 +405,9 @@ function BotSystemPromptEditorSheet({
     })();
   }, [
     botShip,
-    handleOpenChange,
     handleSubmit,
     isDirty,
+    onClose,
     onSaved,
     prompt.name,
     saving,
@@ -332,9 +418,11 @@ function BotSystemPromptEditorSheet({
   const editorHeight = isWindowNarrow ? 200 : 280;
   const statusMessage = saving
     ? 'Saving and restarting your bot…'
-    : isDirty
-      ? 'Unsaved changes'
-      : 'Saving briefly restarts your bot.';
+    : changedElsewhere
+      ? 'This prompt changed elsewhere. Showing the latest version.'
+      : isDirty
+        ? 'Unsaved changes'
+        : 'Saving briefly restarts your bot.';
 
   const saveButton = (
     <Button
