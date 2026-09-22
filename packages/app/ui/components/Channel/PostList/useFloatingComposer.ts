@@ -18,10 +18,38 @@ export function useFloatingComposer(
   listRef: React.RefObject<LegendListRef | null>,
   enabled: boolean,
   ready: boolean,
-  isSending: () => boolean
+  isSending: () => boolean,
+  isBrowsingHistory: () => boolean,
+  hasNewerPosts: boolean
 ) {
   const { floating, setFloating } = useConversationComposerLayout();
+  const floatingRef = useRef(floating);
+  floatingRef.current = floating;
   const previousPosition = useRef<ScrollPosition | undefined>(undefined);
+  const settleFrame = useRef<number | undefined>(undefined);
+  const cancelSettlement = useCallback(() => {
+    if (settleFrame.current !== undefined) {
+      cancelAnimationFrame(settleFrame.current);
+      settleFrame.current = undefined;
+    }
+  }, []);
+  useEffect(() => cancelSettlement, [cancelSettlement, hasNewerPosts]);
+  const settleDocking = useCallback(() => {
+    cancelSettlement();
+    settleFrame.current = requestAnimationFrame(() => {
+      settleFrame.current = requestAnimationFrame(() => {
+        settleFrame.current = undefined;
+        const state = listRef.current?.getState();
+        if (
+          state &&
+          !hasNewerPosts &&
+          state.contentLength - state.scrollLength - state.scroll <= 2
+        ) {
+          setFloating(false);
+        }
+      });
+    });
+  }, [cancelSettlement, listRef, hasNewerPosts, setFloating]);
 
   useEffect(() => {
     if (!enabled || !ready) {
@@ -30,14 +58,15 @@ export function useFloatingComposer(
     const state = listRef.current?.getState();
     if (state) {
       setFloating(
-        getFloatingComposerMode(
-          state.contentLength - state.scrollLength - state.scroll,
-          false
-        )
+        hasNewerPosts ||
+          getFloatingComposerMode(
+            state.contentLength - state.scrollLength - state.scroll,
+            floatingRef.current
+          )
       );
     }
     return () => setFloating(false);
-  }, [enabled, ready, listRef, setFloating]);
+  }, [enabled, ready, hasNewerPosts, listRef, setFloating]);
 
   return useCallback(
     (position: ScrollPosition) => {
@@ -54,16 +83,41 @@ export function useFloatingComposer(
         (Math.abs(previous.viewportHeight - position.viewportHeight) > 1 ||
           Math.abs(previous.contentHeight - position.contentHeight) > 1)
       ) {
+        // A keyboard dismissal or draft contraction can reach the end without
+        // another scroll event. Recheck after the footer and viewport settle.
+        if (floating) {
+          settleDocking();
+        }
         return;
       }
       const distance =
         Math.max(0, position.contentHeight - position.viewportHeight) -
         position.offset;
-      const next = getFloatingComposerMode(distance, floating);
+      const next = hasNewerPosts || getFloatingComposerMode(distance, floating);
+      // Programmatic end following can temporarily lag a new row or a
+      // contracting draft. Only deliberate backward navigation enters overlay.
+      if (
+        next &&
+        !floating &&
+        (!isBrowsingHistory() ||
+          !previous ||
+          position.offset >= previous.offset)
+      ) {
+        return;
+      }
       if (next !== floating) {
         setFloating(next);
       }
     },
-    [enabled, ready, isSending, floating, setFloating]
+    [
+      enabled,
+      ready,
+      isSending,
+      isBrowsingHistory,
+      floating,
+      hasNewerPosts,
+      setFloating,
+      settleDocking,
+    ]
   );
 }

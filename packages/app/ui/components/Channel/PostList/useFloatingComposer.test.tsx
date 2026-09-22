@@ -11,6 +11,8 @@ const state = vi.hoisted(() => ({
   floating: false,
   sending: false,
   distance: 0,
+  navigating: true,
+  hasNewerPosts: false,
 }));
 vi.mock('../ConversationLayout', async () => {
   const { useState } = await import('react');
@@ -32,10 +34,24 @@ const listRef = {
   },
 };
 const isSending = () => state.sending;
+const isBrowsingHistory = () => state.navigating;
 let onScroll: ReturnType<typeof useFloatingComposer>;
 let renderer: ReactTestRenderer;
+let frames: Map<number, FrameRequestCallback>;
+function tick() {
+  const callbacks = [...frames.values()];
+  frames.clear();
+  act(() => callbacks.forEach((callback) => callback(0)));
+}
 function Harness() {
-  onScroll = useFloatingComposer(listRef as never, true, true, isSending);
+  onScroll = useFloatingComposer(
+    listRef as never,
+    true,
+    true,
+    isSending,
+    isBrowsingHistory,
+    state.hasNewerPosts
+  );
   return null;
 }
 function scroll(offset: number, contentHeight = 1200, viewportHeight = 500) {
@@ -45,6 +61,15 @@ beforeEach(() => {
   state.floating = false;
   state.sending = false;
   state.distance = 0;
+  state.navigating = true;
+  state.hasNewerPosts = false;
+  frames = new Map();
+  let id = 0;
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+    frames.set(++id, callback);
+    return id;
+  });
+  vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id));
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
 });
 afterEach(() => {
@@ -74,6 +99,7 @@ it('floats away from the end and stays floating until the actual bottom', () => 
 
 it('ignores the intermediate resize before the footer is measured', () => {
   mount();
+  scroll(700);
   scroll(670);
   expect(state.floating).toBe(true);
   scroll(670, 1200, 590); // viewport expanded, footer not yet reported
@@ -81,6 +107,17 @@ it('ignores the intermediate resize before the footer is measured', () => {
   scroll(670, 1290, 590);
   expect(state.floating).toBe(true);
   scroll(700, 1290, 590);
+  expect(state.floating).toBe(false);
+});
+
+it('keeps the composer docked during programmatic scrolling after send contraction', () => {
+  mount();
+  scroll(700);
+  state.navigating = false;
+  scroll(700, 1250, 550);
+  scroll(630, 1250, 550);
+  expect(state.floating).toBe(false);
+  scroll(700, 1250, 550);
   expect(state.floating).toBe(false);
 });
 
@@ -109,4 +146,41 @@ it('handles short content, bottom bounce, and a dead zone without mode chatter',
   expect(getFloatingComposerMode(10, false)).toBe(false);
   expect(getFloatingComposerMode(10, true)).toBe(true);
   expect(getFloatingComposerMode(2, true)).toBe(false);
+});
+
+it('docks after a keyboard resize reaches the end without another scroll event', () => {
+  state.distance = 50;
+  mount();
+  scroll(650);
+  expect(state.floating).toBe(true);
+  // Native clamps to the end as the keyboard closes; geometry then settles.
+  scroll(500, 1200, 700);
+  state.distance = 0;
+  tick();
+  tick();
+  expect(state.floating).toBe(false);
+});
+
+it('stays floating at the loaded history boundary until newer messages are loaded', () => {
+  state.hasNewerPosts = true;
+  mount();
+  scroll(700);
+  scroll(650, 1200, 550);
+  tick();
+  tick();
+  expect(state.floating).toBe(true);
+  state.hasNewerPosts = false;
+  act(() => renderer.update(<Harness />));
+  expect(state.floating).toBe(false);
+});
+
+it('keeps its exit threshold when the final newer page arrives', () => {
+  state.hasNewerPosts = true;
+  state.distance = 10;
+  mount();
+  state.hasNewerPosts = false;
+  act(() => renderer.update(<Harness />));
+  expect(state.floating).toBe(true);
+  scroll(700);
+  expect(state.floating).toBe(false);
 });

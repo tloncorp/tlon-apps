@@ -490,6 +490,7 @@ const ConversationPostListAttempt = React.forwardRef<
     const docked = useIsConversationDocked();
     const composerLayout = useConversationComposerLayout();
     const floating = docked && composerLayout.floating;
+    const historyNavigationRequested = React.useRef(false);
     const overlayHeight = floating ? composerLayout.height : 0;
     const listContentStyle = React.useMemo(
       () =>
@@ -550,7 +551,10 @@ const ConversationPostListAttempt = React.forwardRef<
     React.useLayoutEffect(
       () =>
         registerComposerSend({
-          begin: beginComposerSend,
+          begin: () => {
+            historyNavigationRequested.current = false;
+            beginComposerSend();
+          },
           finish: finishComposerSend,
           isActive: isComposerSendActive,
         }),
@@ -595,12 +599,17 @@ const ConversationPostListAttempt = React.forwardRef<
     });
     const followsViewportEnd = React.useRef(false);
     const userNavigationActive = React.useRef(false);
+    const isBrowsingHistory = React.useCallback(
+      () => historyNavigationRequested.current && userNavigationActive.current,
+      []
+    );
     const finishUserNavigation = React.useCallback(() => {
       userNavigationActive.current = false;
     }, []);
     const markUserScrolled = React.useCallback(() => {
       followsViewportEnd.current = false;
       userNavigationActive.current = true;
+      historyNavigationRequested.current = true;
       cancelComposerSendFollowing();
       markInitialUserScrolled();
     }, [cancelComposerSendFollowing, markInitialUserScrolled]);
@@ -628,7 +637,9 @@ const ConversationPostListAttempt = React.forwardRef<
       listRef,
       docked,
       didFinishInitialScroll,
-      isComposerSendActive
+      isComposerSendActive,
+      isBrowsingHistory,
+      hasNewerPosts
     );
     const { onScroll: handleScroll, isAtBottom: isWithinBottomThreshold } =
       useScrollDirectionTracker({
@@ -793,6 +804,7 @@ const ConversationPostListAttempt = React.forwardRef<
         },
         scrollToEnd: (opts) => {
           markUserScrolled();
+          historyNavigationRequested.current = false;
           runImperativeScroll(
             () => listRef.current?.scrollToEnd({ animated: opts.animated }),
             finishUserNavigation
