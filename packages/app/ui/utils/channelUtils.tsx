@@ -10,7 +10,6 @@ import {
   useNotesCountsByNotebook,
   useWarmNotesNotebookSnapshot,
 } from '@tloncorp/shared/store';
-import type { IconType } from '@tloncorp/ui';
 import { useMemo } from 'react';
 
 import { useCalm } from '../contexts/appDataContext';
@@ -319,43 +318,6 @@ export function useCanRead(channel: db.Channel, userId: string): boolean {
     [readers, memberRoles]
   );
   return canRead;
-}
-
-export function getChannelTypeIcon(type: db.Channel['type']): IconType {
-  switch (type) {
-    case 'dm':
-      return 'Face';
-    case 'groupDm':
-      return 'Face';
-    case 'chat':
-      return 'ChannelTalk';
-    case 'notebook':
-      return 'Bulletin';
-    case 'notes':
-      return 'ChannelNotebooks';
-    case 'gallery':
-      return 'ChannelGalleries';
-    default:
-      return 'ChannelTalk';
-  }
-}
-
-// Display names for channel types. %diary ('notebook') is the legacy longform
-// type and reads as 'Bulletin'; %notes is the one you can still create, and it
-// owns the 'Notebook' name.
-export function getChannelTypeLabel(type: db.Channel['type']): string {
-  switch (type) {
-    case 'chat':
-      return 'Chat';
-    case 'notebook':
-      return 'Bulletin';
-    case 'notes':
-      return 'Notebook';
-    case 'gallery':
-      return 'Gallery';
-    default:
-      return 'Channel';
-  }
 }
 
 export function hasNickname(contact: db.Contact | null | undefined): boolean {

@@ -18,7 +18,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { FlashList } from '@shopify/flash-list';
+import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Circle, View, XStack, YStack, getTokenValue, useTheme } from 'tamagui';
@@ -33,11 +33,18 @@ import {
 } from '../ui/components/GlassSurface';
 import { useCalm } from '../ui/contexts/appDataContext';
 import { getChannelTitle, getChatTitle } from '../ui/utils/channelUtils';
-import { getDrawerChats } from './drawerChats';
+import { DrawerFilterTabs } from './DrawerFilterTabs';
+import {
+  type DrawerFilter,
+  getDrawerChats,
+  getUnreadDrawerFilters,
+} from './drawerChats';
+import { getDrawerChannelIcon, getDrawerChatIcon } from './drawerRowIcons';
 import {
   DrawerRow,
   channelRecency,
   channelRowHasUnread,
+  chatRowHasUnread,
   getDrawerRows,
   toggleUnfurled,
 } from './drawerWorkspaceRows';
@@ -62,11 +69,29 @@ import { getMainGroupRoute, useTypedReset } from './utils';
 
 const logger = createDevLogger('TopLevelDrawerContent', false);
 
-// The same touch target the bar's icons kept: iOS HIG 44pt, Material 48dp.
-const SECTION_ROW_MIN_HEIGHT = 48;
-// Shorter than a section row: these carry one line of text and there are many
-// of them, so the list stays scannable rather than becoming a stack of slabs.
+// One line of text apiece, and there are many of them, so the list stays
+// scannable rather than becoming a stack of slabs.
 const CHAT_ROW_MIN_HEIGHT = 40;
+// The gap between everything a row lines up left to right.
+const ROW_GAP = '$m' as const;
+// The caret's column, held open on every chat row whether or not that row has
+// one. A workspace that unfurls and a direct message that cannot are the same
+// kind of destination, and letting the caret push one of them along would
+// leave the glyphs beside them zig-zagging down the panel.
+const CARET_SLOT = 14;
+// The glyph that says what a row is, and the gap between it and the caret's
+// column. Tighter than the gap before the name: the caret and the glyph
+// together read as one mark on the row rather than as two columns.
+const ROW_ICON_SIZE = 16;
+const ROW_ICON_GAP = '$xs' as const;
+// A channel of an unfurled workspace starts its glyph where the workspace
+// above it starts its name, which is what makes the block read as nested.
+// Computed rather than written down so it follows the pieces it clears.
+const CHANNEL_INDENT =
+  CARET_SLOT +
+  getTokenValue(ROW_ICON_GAP, 'space') +
+  ROW_ICON_SIZE +
+  getTokenValue(ROW_GAP, 'space');
 // An unfurled workspace and its channels are one block, so they share one
 // fill and the rows between its ends carry no corners of their own.
 const UNFURLED_FILL = '$secondaryBackground' as const;
@@ -77,7 +102,7 @@ const UNFURLED_FILL = '$secondaryBackground' as const;
 const UNFURLED_EMPHASIS = '$secondaryBorder' as const;
 // How far a row's own background is held off the panel's edge, and then how
 // far its content is held off that. Everything the eye reads down the left —
-// a section's icon, a chat's name, the `Chat` button — starts at their sum.
+// a row's caret, its glyph, the bot's pill — starts at their sum.
 const PANEL_INSET = '$l' as const;
 const CONTENT_INSET = '$l' as const;
 // The footer's controls are the composer's controls: the settings button is
@@ -85,6 +110,12 @@ const CONTENT_INSET = '$l' as const;
 // the same source rather than a matching pair of numbers here.
 const FOOTER_CONTROL_SIZE = floatingChromeMetrics.controlSize;
 const FOOTER_CONTROL_RADIUS = floatingChromeMetrics.controlRadius;
+
+// What the footer's primary control is called. The bot's conversation can be
+// renamed — `getDefaultBotName` turns a nickname into "<name>'s Tlonbot 🌱" —
+// but a pill at the foot of the panel has room for the product's name and not
+// for anybody's variation on it.
+const BOT_BUTTON_LABEL = 'Tlonbot';
 
 // The footer controls are Liquid Glass on an OS that has it, and the drawer's
 // own flat surfaces everywhere else.
@@ -107,81 +138,6 @@ const FOOTER_CONTROL_SHADOW = {
   elevation: 2,
 } as const;
 
-/**
- * The sections the drawer lists as rows, in the order it lists them.
- *
- * Bot and Settings are absent on purpose — they are reached from the footer
- * instead, as the `Chat` button and the settings icon.
- */
-const DRAWER_SECTION_ROWS = [
-  'Activity',
-  'ChatList',
-] as const satisfies readonly TopLevelTabName[];
-
-function DrawerSection({
-  icon,
-  label,
-  selected,
-  hasUnread,
-  disabled,
-  onPress,
-  testID,
-}: {
-  icon: IconType;
-  label: string;
-  selected: boolean;
-  hasUnread: boolean;
-  disabled: boolean;
-  onPress: () => void;
-  testID: string;
-}) {
-  return (
-    <Pressable
-      testID={testID}
-      onPress={disabled ? undefined : onPress}
-      disabled={disabled}
-      accessibilityRole="button"
-      // The dot beside the label is decorative, so the unread state has to
-      // reach a screen reader through the label itself. It is always the
-      // accent: Activity is where notifying activity collects, so there is no
-      // quieter kind here to tell it apart from.
-      accessibilityLabel={hasUnread ? `${label}, unread` : label}
-      accessibilityState={{ disabled, selected }}
-      borderRadius="$l"
-      paddingHorizontal={CONTENT_INSET}
-      justifyContent="center"
-      minHeight={SECTION_ROW_MIN_HEIGHT}
-      opacity={disabled ? 0.4 : 1}
-      backgroundColor={selected ? '$secondaryBackground' : 'transparent'}
-      pressStyle={{ backgroundColor: '$secondaryBackground' }}
-      hoverStyle={{ backgroundColor: '$secondaryBackground' }}
-    >
-      <XStack alignItems="center" gap="$l">
-        {/* Frame sized to the glyph: the default leaves 4pt of padding inside
-            it, which would set every icon in from the column the names keep. */}
-        <Icon
-          type={icon}
-          customSize={['$2xl', '$2xl']}
-          color={selected ? '$primaryText' : '$tertiaryText'}
-        />
-        <Text
-          flex={1}
-          size="$label/l"
-          color={selected ? '$primaryText' : '$secondaryText'}
-        >
-          {label}
-        </Text>
-        {hasUnread ? (
-          <Circle
-            size="$s"
-            backgroundColor={getUnreadColors(true).foreground}
-          />
-        ) : null}
-      </XStack>
-    </Pressable>
-  );
-}
-
 const DrawerChatRow = React.memo(function DrawerChatRowComponent({
   chat,
   title,
@@ -201,18 +157,11 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
   onPress: (chat: db.Chat) => void;
 }) {
   const handlePress = useCallback(() => onPress(chat), [chat, onPress]);
-  // A reaction, mention or thread reply can leave a row notified with a count
-  // of zero, which the workspace rows read as unread and so does this.
   const notified =
     chat.type === 'group'
       ? (chat.group.unread?.notify ?? false)
       : (chat.channel.unread?.notify ?? false);
-  // A muted chat is one the user asked not to be drawn back to, so it keeps
-  // its unread count on the workspace list — where counts are read
-  // deliberately — without lighting a dot here.
-  const hasUnread =
-    (chat.unreadCount > 0 || notified) &&
-    !logic.isMuted(chat.volumeSettings?.level, chat.type);
+  const hasUnread = chatRowHasUnread(chat);
   // The same accent/grey split the workspace list's count badge makes, in the
   // form this row has room for: the dot is the badge with the number taken
   // out, so it reads the colours from the same place rather than picking its
@@ -264,7 +213,27 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
         backgroundColor: unfurled ? UNFURLED_EMPHASIS : '$secondaryBackground',
       }}
     >
-      <XStack alignItems="center" gap="$m">
+      <XStack alignItems="center" gap={ROW_GAP}>
+        <XStack alignItems="center" gap={ROW_ICON_GAP}>
+          {/* The column is held open on every row; only a workspace with
+              channels to choose between draws anything in it. */}
+          <View width={CARET_SLOT} alignItems="center">
+            {unfurls ? (
+              <Icon
+                type={unfurled ? 'ChevronDown' : 'ChevronRight'}
+                customSize={[CARET_SLOT, CARET_SLOT]}
+                color="$tertiaryText"
+              />
+            ) : null}
+          </View>
+          {/* Frame sized to the glyph: the default leaves 4pt of padding
+              inside it, which would set every icon in from its column. */}
+          <Icon
+            type={getDrawerChatIcon(chat)}
+            customSize={[ROW_ICON_SIZE, ROW_ICON_SIZE]}
+            color="$tertiaryText"
+          />
+        </XStack>
         <Text
           flex={1}
           numberOfLines={1}
@@ -339,7 +308,12 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
       pressStyle={{ backgroundColor: UNFURLED_EMPHASIS }}
       hoverStyle={{ backgroundColor: UNFURLED_EMPHASIS }}
     >
-      <XStack alignItems="center" gap="$m">
+      <XStack alignItems="center" gap={ROW_GAP} paddingLeft={CHANNEL_INDENT}>
+        <Icon
+          type={getDrawerChannelIcon(channel)}
+          customSize={[ROW_ICON_SIZE, ROW_ICON_SIZE]}
+          color="$tertiaryText"
+        />
         <Text
           flex={1}
           numberOfLines={1}
@@ -377,13 +351,15 @@ function DrawerChatButton({
   const theme = useTheme();
   // The dot beside the button is decorative, so the unread state has to reach
   // a screen reader through the label — as the Bot row's did before it.
-  const accessibilityLabel = hasUnread ? 'Chat, unread' : 'Chat';
+  const accessibilityLabel = hasUnread
+    ? `${BOT_BUTTON_LABEL}, unread`
+    : BOT_BUTTON_LABEL;
 
   if (!usesIOSGlass) {
     return (
       <Button
         preset="primary"
-        label="Chat"
+        label={BOT_BUTTON_LABEL}
         leadingIcon={TOP_LEVEL_TABS.BotChat.icon}
         onPress={onPress}
         accessibilityLabel={accessibilityLabel}
@@ -434,40 +410,56 @@ function DrawerChatButton({
           color="$background"
         />
         <Text size="$label/l" color="$background">
-          Chat
+          {BOT_BUTTON_LABEL}
         </Text>
       </Pressable>
     </View>
   );
 }
 
-function DrawerSettingsButton({
+/**
+ * One place in the footer's bubble.
+ *
+ * Sized and shaped like the control the bubble grew out of, so two of them
+ * side by side fill it exactly and a press lands on a circle inside it rather
+ * than squaring off one of its ends.
+ */
+function BubbleSlot({
+  icon,
+  label,
   selected,
   disabled,
+  hasUnread,
+  testID,
   onPress,
 }: {
+  icon: IconType;
+  label: string;
   selected: boolean;
   disabled: boolean;
+  hasUnread: boolean;
+  testID: string;
   onPress: () => void;
 }) {
-  const control = (
+  return (
     <Pressable
       onPress={disabled ? undefined : onPress}
       disabled={disabled}
       accessibilityRole="button"
-      accessibilityLabel={TOP_LEVEL_TABS.Settings.title}
+      // The dot is decorative, so the unread state has to reach a screen
+      // reader through the label itself.
+      accessibilityLabel={hasUnread ? `${label}, unread` : label}
       accessibilityState={{ disabled, selected }}
-      testID="TopLevelDrawerSection-Settings"
+      testID={testID}
       width={FOOTER_CONTROL_SIZE}
       height={FOOTER_CONTROL_SIZE}
       borderRadius={FOOTER_CONTROL_RADIUS}
       alignItems="center"
       justifyContent="center"
       opacity={disabled ? 0.4 : 1}
-      // Under glass this carries no selected state at all: it is the
+      // Under glass these carry no selected state at all: the bubble is the
       // composer's `+` in another place and reads the same way, and the `+`
-      // has none. Where the section rows are is what marks the open section.
-      // Off glass it keeps the fill, which is the only thing it would have.
+      // has none. Off glass the fill is the only thing they would have.
       backgroundColor={
         !usesIOSGlass && selected ? '$secondaryBackground' : 'transparent'
       }
@@ -480,22 +472,84 @@ function DrawerSettingsButton({
     >
       {/* The composer's `+` glyph colour: this is that button in another
           place, so it reads the same rather than dimming when unselected. */}
-      <Icon type={TOP_LEVEL_TABS.Settings.icon} color="$primaryText" />
+      <Icon type={icon} color="$primaryText" />
+      {hasUnread ? (
+        // Tucked against the glyph's own top-right rather than the slot's, so
+        // it reads as belonging to the bell and not to the bubble — Activity
+        // sits on the inside end, where a corner badge would float in the
+        // middle of the control.
+        <Circle
+          size="$s"
+          backgroundColor={getUnreadColors(true).foreground}
+          position="absolute"
+          top={10}
+          right={9}
+        />
+      ) : null}
     </Pressable>
+  );
+}
+
+/**
+ * The two destinations the panel keeps out of its list, in one bubble at the
+ * foot of it: what has happened, and everything else.
+ *
+ * Activity used to be a row at the top. It is not a chat, and a list that is
+ * nothing but chats reads faster without one thing in it that is not — so it
+ * joined the control that already held the other such destination.
+ */
+function DrawerUtilityBubble({
+  activitySelected,
+  activityHasUnread,
+  activityDisabled,
+  settingsSelected,
+  settingsDisabled,
+  onPressActivity,
+  onPressSettings,
+}: {
+  activitySelected: boolean;
+  activityHasUnread: boolean;
+  activityDisabled: boolean;
+  settingsSelected: boolean;
+  settingsDisabled: boolean;
+  onPressActivity: () => void;
+  onPressSettings: () => void;
+}) {
+  const slots = (
+    <XStack alignItems="center">
+      <BubbleSlot
+        icon={TOP_LEVEL_TABS.Activity.icon}
+        label={TOP_LEVEL_TABS.Activity.title}
+        selected={activitySelected}
+        disabled={activityDisabled}
+        hasUnread={activityHasUnread}
+        testID="TopLevelDrawerSection-Activity"
+        onPress={onPressActivity}
+      />
+      <BubbleSlot
+        icon={TOP_LEVEL_TABS.Settings.icon}
+        label={TOP_LEVEL_TABS.Settings.title}
+        selected={settingsSelected}
+        disabled={settingsDisabled}
+        hasUnread={false}
+        testID="TopLevelDrawerSection-Settings"
+        onPress={onPressSettings}
+      />
+    </XStack>
   );
 
   if (!usesIOSGlass) {
     return (
       <View borderRadius={FOOTER_CONTROL_RADIUS} {...FOOTER_CONTROL_SHADOW}>
-        {control}
+        {slots}
       </View>
     );
   }
 
   return (
     <View borderRadius={FOOTER_CONTROL_RADIUS} {...FOOTER_CONTROL_SHADOW}>
-      <GlassSurface isInteractive style={footerStyles.settingsButton}>
-        {control}
+      <GlassSurface isInteractive style={footerStyles.utilityBubble}>
+        {slots}
       </GlassSurface>
     </View>
   );
@@ -506,19 +560,21 @@ const footerStyles = StyleSheet.create({
     borderRadius: FOOTER_CONTROL_RADIUS,
     overflow: 'hidden',
   },
-  settingsButton: {
-    width: FOOTER_CONTROL_SIZE,
+  utilityBubble: {
+    // Two slots wide, so the glass is exactly the pair of controls it holds.
+    width: FOOTER_CONTROL_SIZE * 2,
     height: FOOTER_CONTROL_SIZE,
     borderRadius: FOOTER_CONTROL_RADIUS,
     overflow: 'hidden',
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
   },
 });
 
 /**
- * The drawer panel: the sections above, every chat below, and the two
- * destinations that earned a control of their own pinned to the bottom.
+ * The drawer panel: two tabs at the top, the chats they cut between below
+ * them, and pinned to the bottom the three destinations that are not chats —
+ * the bot's own conversation, Activity and Settings.
  *
  * The drawer hosts the root stack rather than the sections themselves, so
  * nothing here is one of its own routes. Each target dispatches the same route
@@ -530,8 +586,9 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
   const botDm = useBotDmTab();
   const { disableNicknames } = useCalm();
   const reset = useTypedReset();
-  // What each target marks: the bot DM marks its own control, so one message
-  // never lights both it and Activity.
+  // What each footer control marks: the bot's conversation is the one chat the
+  // list does not carry, and it marks its own pill, so one message from it
+  // never lights both that pill and the bubble's Activity slot.
   const botDmHasUnread = store.useChannelHasUnread(
     botDm.enabled ? botDm.channelId : undefined
   );
@@ -784,15 +841,53 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
     ]
   );
 
-  const hasUnread: Partial<Record<TopLevelTabName, boolean>> = {
-    Activity: unseenActivityCount > 0,
-  };
+  // Which half of the list is showing. Held here rather than persisted, for
+  // the same reason the unfurled workspace is: the panel's content is mounted
+  // for as long as the navigator is, so the tab the user last chose is still
+  // chosen the next time they pull the panel out, and a fresh launch starts on
+  // Workspaces.
+  const [filter, setFilter] = useState<DrawerFilter>('workspaces');
+  const listRef = useRef<FlashListRef<DrawerRow>>(null);
+  const selectFilter = useCallback((next: DrawerFilter) => {
+    // Changing tabs is a request to stay in the panel, the same as unfurling a
+    // workspace, so it supersedes anything still resolving its route. A
+    // one-channel workspace tapped a moment ago is still reading its group,
+    // and nothing else here would stop it: the app behind the panel has not
+    // moved, so its own staleness checks pass and it would reset the stack and
+    // close the panel out from under the tab just chosen.
+    navigationRequestRef.current += 1;
+    setFilter(next);
+    // One list serves both tabs, so a tab change is a change of `data` on a
+    // list that is still mounted and still holding the offset the other half
+    // was scrolled to. Left alone, switching from far down a long Workspaces
+    // list opens Messages partway through its conversations — or, when the
+    // other half is shorter, at its tail with the newest rows above the fold.
+    // Sent before the render that swaps the data, which is safe only because
+    // the target is the top: an offset of zero is the same offset whichever
+    // half the list is still measuring.
+    listRef.current?.scrollToOffset({ offset: 0, animated: false });
+  }, []);
 
   // Not gated on the drawer being open: the list is virtualised, so what is
   // mounted is what is on screen, and discarding it on close only made the
   // next open pay to build it again.
   const drawerChats = useMemo(
-    () => getDrawerChats(chats, botDm.enabled ? botDm.channelId : undefined),
+    () =>
+      getDrawerChats(
+        chats,
+        filter,
+        botDm.enabled ? botDm.channelId : undefined
+      ),
+    [chats, filter, botDm]
+  );
+  // Read across the whole list rather than the half being shown, so the tab
+  // that is not showing can say it has something in it.
+  const unreadFilters = useMemo(
+    () =>
+      getUnreadDrawerFilters(
+        chats,
+        botDm.enabled ? botDm.channelId : undefined
+      ),
     [chats, botDm]
   );
   // Which workspace is showing its channels, if any. Kept here rather than
@@ -873,26 +968,6 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
     ]
   );
 
-  const sectionRows = (
-    <YStack gap="$xs" paddingBottom="$m">
-      {DRAWER_SECTION_ROWS.map((section) => (
-        <DrawerSection
-          key={section}
-          icon={TOP_LEVEL_TABS[section].icon}
-          label={TOP_LEVEL_TABS[section].title}
-          selected={section === selected}
-          hasUnread={hasUnread[section] ?? false}
-          disabled={isTabPressBlockedByOnboardingLock(
-            onboardingLock.locked,
-            section
-          )}
-          onPress={() => select(section)}
-          testID={`TopLevelDrawerSection-${section}`}
-        />
-      ))}
-    </YStack>
-  );
-
   // The footer floats over the list so the chats pass under the glass — that
   // is what gives it something to refract. Its height is measured rather than
   // computed: the non-glass `Chat` button is a different height from the glass
@@ -904,6 +979,10 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
     onboardingLock.locked,
     'Settings'
   );
+  const activityDisabled = isTabPressBlockedByOnboardingLock(
+    onboardingLock.locked,
+    'Activity'
+  );
 
   return (
     <YStack
@@ -912,14 +991,24 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
       paddingLeft={insets.left + panelInset}
       paddingRight={insets.right + panelInset}
     >
+      {/* Above the list rather than inside it as a header: the tabs are what
+          says which list this is, so they have to stay on screen while it is
+          scrolled. */}
+      <YStack paddingBottom="$m">
+        <DrawerFilterTabs
+          activeFilter={filter}
+          unreadFilters={unreadFilters}
+          onPressFilter={selectFilter}
+        />
+      </YStack>
       <FlashList
+        ref={listRef}
         data={rows}
         keyExtractor={(row) => row.key}
         // Two shapes of row in one list, so the recycler is told which is
         // which rather than handing a channel's view to a chat.
         getItemType={(row) => row.kind}
         renderItem={renderRow}
-        ListHeaderComponent={sectionRows}
         contentContainerStyle={{ paddingBottom: footerHeight }}
         testID="TopLevelDrawerChats"
       />
@@ -962,10 +1051,14 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
           // section itself is not registered.
           <View />
         )}
-        <DrawerSettingsButton
-          selected={selected === 'Settings'}
-          disabled={settingsDisabled}
-          onPress={() => select('Settings')}
+        <DrawerUtilityBubble
+          activitySelected={selected === 'Activity'}
+          activityHasUnread={unseenActivityCount > 0}
+          activityDisabled={activityDisabled}
+          settingsSelected={selected === 'Settings'}
+          settingsDisabled={settingsDisabled}
+          onPressActivity={() => select('Activity')}
+          onPressSettings={() => select('Settings')}
         />
       </XStack>
     </YStack>

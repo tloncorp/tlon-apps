@@ -98,6 +98,44 @@ export function getUnfurlableChannels(chat: db.Chat): db.Channel[] | null {
 }
 
 /**
+ * Whether a chat has an unread the panel would light a dot for.
+ *
+ * A reaction, mention or thread reply can leave a chat notified with a count
+ * of zero, which the workspace list reads as unread and so does this. A muted
+ * chat is one the user asked not to be drawn back to, so it keeps its count on
+ * the workspace list — where counts are read deliberately — and lights nothing
+ * in the panel.
+ *
+ * A muted workspace is not simply silent, though. A channel inside it that has
+ * been turned back up is one the user asked to keep hearing, and the workspace
+ * roll-up this reads cannot say so — it is suppressed whole by the mute. So a
+ * muted workspace is asked about the channels it holds, and lights for a
+ * channel that speaks over it. Every workspace, not only the ones that unfurl:
+ * a workspace of one channel is *opened as* that channel, so its row is that
+ * channel's row and there is no second place for the dot to appear.
+ *
+ * Asked by the row itself and by the tab above it, so what a tab claims its
+ * hidden half is holding is what its rows would show.
+ */
+export function chatRowHasUnread(chat: db.Chat): boolean {
+  const notified =
+    chat.type === 'group'
+      ? (chat.group.unread?.notify ?? false)
+      : (chat.channel.unread?.notify ?? false);
+  if (!logic.isMuted(chat.volumeSettings?.level, chat.type)) {
+    return chat.unreadCount > 0 || notified;
+  }
+  // An invite's channels are not the user's to hear until they have joined,
+  // and a direct message has none to ask about.
+  if (chat.type !== 'group' || chat.isPending) {
+    return false;
+  }
+  return readableChannels(chat.group).some((channel) =>
+    channelRowHasUnread(channel, true)
+  );
+}
+
+/**
  * Whether a channel's row lights its unread dot.
  *
  * The same contract the chat rows keep: a chat the user asked not to be drawn

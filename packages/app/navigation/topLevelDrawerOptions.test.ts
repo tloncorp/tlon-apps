@@ -7,12 +7,13 @@ import {
 
 describe('getTopLevelDrawerWidth', () => {
   it('leaves a strip of the screen behind it on a phone', () => {
-    expect(getTopLevelDrawerWidth(390)).toBe(320);
-    expect(getTopLevelDrawerWidth(320)).toBe(262);
+    expect(getTopLevelDrawerWidth(390)).toBe(343);
+    expect(getTopLevelDrawerWidth(430)).toBe(378);
+    expect(getTopLevelDrawerWidth(320)).toBe(282);
   });
 
-  it('stops widening on a tablet, where 82% would be most of the screen', () => {
-    expect(getTopLevelDrawerWidth(1024)).toBe(320);
+  it('stops widening on a tablet, where the fraction would be most of the screen', () => {
+    expect(getTopLevelDrawerWidth(1024)).toBe(400);
   });
 });
 

@@ -13,7 +13,12 @@ export const CHAT_LIST_FILTERS = Object.keys(
   CHAT_LIST_FILTER_LABELS
 ) as ChatListFilter[];
 
-function isDirectMessage(chat: db.Chat) {
+/**
+ * Whether a chat is a conversation with people rather than a place: a direct
+ * message or a group DM. The complement of what the drawer and the workspace
+ * list both call a workspace, so both read it from here.
+ */
+export function isDirectMessage(chat: db.Chat) {
   return (
     chat.type === 'channel' &&
     (chat.channel.type === 'dm' || chat.channel.type === 'groupDm')

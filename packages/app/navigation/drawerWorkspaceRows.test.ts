@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   channelRecency,
   channelRowHasUnread,
+  chatRowHasUnread,
   getDrawerRows,
   getUnfurlableChannels,
   toggleUnfurled,
@@ -72,6 +73,99 @@ function dm(id: string): db.Chat {
     channel: { id, type: 'dm' } as db.Channel,
   };
 }
+
+const hush = { level: 'hush' } as db.VolumeSettings;
+
+describe('chatRowHasUnread', () => {
+  it('lights an unheard chat, and a notified one with no count', () => {
+    expect(chatRowHasUnread({ ...dm('a'), unreadCount: 2 })).toBe(true);
+    const notifiedDm: db.Chat = {
+      id: 'a',
+      timestamp: 0,
+      pin: null,
+      volumeSettings: null,
+      isPending: false,
+      unreadCount: 0,
+      type: 'channel',
+      channel: { id: 'a', type: 'dm', unread: { notify: true } } as db.Channel,
+    };
+    expect(chatRowHasUnread(notifiedDm)).toBe(true);
+    expect(chatRowHasUnread(dm('a'))).toBe(false);
+  });
+
+  it('keeps a muted chat dark', () => {
+    expect(
+      chatRowHasUnread({ ...dm('a'), unreadCount: 9, volumeSettings: hush })
+    ).toBe(false);
+  });
+
+  it('lights a muted workspace for a channel turned back up', () => {
+    const muted = workspace(
+      'w',
+      [
+        channel('quiet', { count: 4 }),
+        channel('loud', { count: 1, volume: 'loud' }),
+      ],
+      { volume: hush }
+    );
+
+    expect(chatRowHasUnread({ ...muted, unreadCount: 5 })).toBe(true);
+  });
+
+  // The row of a one-channel workspace *is* that channel's row: entering the
+  // workspace opens the channel, so there is nowhere else for the dot to go.
+  it('lights a muted workspace of one channel turned back up', () => {
+    const muted = workspace(
+      'w',
+      [channel('only', { count: 1, volume: 'loud' })],
+      { volume: hush }
+    );
+
+    expect(chatRowHasUnread({ ...muted, unreadCount: 1 })).toBe(true);
+  });
+
+  it('stays dark when a muted workspace has no channel of its own to speak', () => {
+    const muted = workspace(
+      'w',
+      [channel('a', { count: 4 }), channel('b', { count: 2 })],
+      { volume: hush }
+    );
+
+    expect(chatRowHasUnread({ ...muted, unreadCount: 6 })).toBe(false);
+  });
+
+  it('stays dark for a channel the user cannot read, and for one muted itself', () => {
+    const unreadable = workspace(
+      'w',
+      [
+        channel('gated', {
+          count: 3,
+          volume: 'loud',
+          currentUserIsMember: false,
+        }),
+      ],
+      { volume: hush }
+    );
+    const alsoMuted = workspace(
+      'w',
+      [channel('quieter', { count: 3, volume: 'hush' })],
+      { volume: hush }
+    );
+
+    expect(chatRowHasUnread({ ...unreadable, unreadCount: 3 })).toBe(false);
+    expect(chatRowHasUnread({ ...alsoMuted, unreadCount: 3 })).toBe(false);
+  });
+
+  it("stays dark for an invite, whose channels are not the user's to hear yet", () => {
+    const invite = workspace(
+      'w',
+      [channel('only', { count: 1, volume: 'loud' })],
+      { isPending: true, volume: hush }
+    );
+
+    expect(chatRowHasUnread({ ...invite, unreadCount: 1 })).toBe(false);
+  });
+});
 
 describe('channelRecency', () => {
   it('takes whichever of the last post and the activity summary is newer', () => {
