@@ -6,8 +6,8 @@ appId: ${MAESTRO_APP_ID}
 # A Workspace is not shaped like the template group the journeys expect. It is
 # furnished over the network by the bot, arrives titled "My agent group" with a
 # single chat channel called "General", and gains a notes channel called
-# "Updates" only when it is the account's first one. So the fixture is built
-# the rest of the way here: renamed, its chat channel renamed, and the missing
+# "Updates" only when it is the account's first. So the fixture is built the
+# rest of the way here: renamed, its chat channel renamed, and the missing
 # channels created, until it matches what create-group-plain.yaml produces.
 #
 # Starts with the create sheet already open.
@@ -15,17 +15,18 @@ appId: ${MAESTRO_APP_ID}
 # Furnishing is a round trip to the bot, and the quick start opens the new
 # group's chat as soon as it exists rather than waiting for the rest.
 - extendedWaitUntil:
-    visible: '^Message$'
+    visible: '^General$'
     timeout: 120000
-- tapOn: '^Back$'
-- runFlow: workspaces-tab.yaml
-# The bot renames the group itself while the title is still the one it was
-# created under, so take the name first: an explicit rename settles it.
-- extendedWaitUntil:
-    visible: '^My agent group$'
-    timeout: 120000
-- longPressOn: '^My agent group$'
-- tapOn: '^Group info & settings$'
+# Rename the group from inside its own chat rather than by finding it on the
+# list. Cloud parallelizes the journeys against one shared account, and every
+# one of them creates a workspace under the same "My agent group" title, so
+# picking it by that name could take another journey's group. The channel the
+# quick start opened belongs to this one, and its options sheet reaches the
+# group directly. Renaming also settles the title before the bot renames it
+# itself, which it does only while the title is the one it was created under.
+- tapOn: '^General$'
+- tapOn:
+    id: GroupOptionsGroupInfoButton
 - tapOn: '^Rename$'
 - tapOn:
     id: GroupTitleInput
@@ -39,11 +40,12 @@ appId: ${MAESTRO_APP_ID}
 - extendedWaitUntil:
     visible: ${output.reliability.groupPattern}
     timeout: 15000
-- tapOn: '^Back$'
+# Back out to the chat list and re-enter by the fixture's own name, which is
+# unique to this run, to reach the group's channel list.
 - runFlow: workspaces-tab.yaml
 - tapOn: ${output.reliability.groupPattern}
 - extendedWaitUntil:
-    visible: '^General$'
+    visible: '^Edit channels$'
     timeout: 30000
 - runFlow:
     file: rename-channel.yaml

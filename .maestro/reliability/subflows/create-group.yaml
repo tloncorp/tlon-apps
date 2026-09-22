@@ -5,13 +5,24 @@ appId: ${MAESTRO_APP_ID}
 # On a phone whose account has an agent, #6585 drops the bare group action from
 # this sheet -- a Workspace is what the flow is for there -- so the fixture has
 # to be built from one instead. Everywhere else the template path still works.
+#
+# The choice is recorded before either path runs. Two sequential guards on the
+# sheet's contents would not be an if/else: the template path closes the sheet,
+# so a later `notVisible` guard on the same text would also pass and run the
+# Workspace path on top of the group just created.
+- evalScript: ${output.reliability.hasPlainGroupAction = false}
 - runFlow:
     when:
       visible: '^New group$'
+    commands:
+      - evalScript: ${output.reliability.hasPlainGroupAction = true}
+- runFlow:
+    when:
+      true: ${output.reliability.hasPlainGroupAction}
     file: create-group-plain.yaml
 - runFlow:
     when:
-      notVisible: '^New group$'
+      true: ${!output.reliability.hasPlainGroupAction}
     file: create-group-workspace.yaml
 - assertVisible: '^Chat$'
 - assertVisible: '^Gallery$'

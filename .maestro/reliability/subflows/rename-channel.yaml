@@ -16,4 +16,13 @@ appId: ${MAESTRO_APP_ID}
 - extendedWaitUntil:
     visible: ${CHANNEL_TO}
     timeout: 15000
-- tapOn: '^Back$'
+# Saving lands on channel details, one level below the channel itself, so a
+# single Back stops short of the group. Unwind to the group's channel list
+# rather than counting levels.
+- repeat:
+    times: 4
+    while:
+      notVisible: '^Edit channels$'
+    commands:
+      - tapOn: '^Back$'
+- assertVisible: '^Edit channels$'

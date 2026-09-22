@@ -40,3 +40,4 @@ appId: ${MAESTRO_APP_ID}
     visible: ${CHANNEL_TITLE}
     timeout: 15000
 - tapOn: '^Back$'
+- assertVisible: '^Edit channels$'
