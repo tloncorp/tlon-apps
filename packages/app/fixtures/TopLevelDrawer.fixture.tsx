@@ -50,6 +50,10 @@ function dm(
  * something under both of its tabs: two workspaces of several channels each,
  * and the direct messages the Messages tab is for.
  */
+const filler = Array.from({ length: 24 }, (_, i) =>
+  dm(`~filler-${i}`, 'dm', [`~filler-${i}`], Date.now() - (i + 4) * DAY)
+);
+
 const fixtureDms = [
   dm('~solfer-magfed', 'dm', ['~solfer-magfed'], Date.now() - DAY, 3),
   dm(
@@ -58,6 +62,7 @@ const fixtureDms = [
     ['~ravmel-ropdyl', '~nocsyx-lassul'],
     Date.now() - 3 * DAY
   ),
+  ...filler,
 ];
 
 function useSeededDrawerChats() {

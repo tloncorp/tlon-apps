@@ -106,17 +106,32 @@ export function getUnfurlableChannels(chat: db.Chat): db.Channel[] | null {
  * the workspace list — where counts are read deliberately — and lights nothing
  * in the panel.
  *
+ * A muted workspace is not simply silent, though. A channel inside it that has
+ * been turned back up is one the user asked to keep hearing, and the workspace
+ * roll-up this reads cannot say so — it is suppressed whole by the mute. So a
+ * muted workspace is asked about the channels it holds, and lights for a
+ * channel that speaks over it. Every workspace, not only the ones that unfurl:
+ * a workspace of one channel is *opened as* that channel, so its row is that
+ * channel's row and there is no second place for the dot to appear.
+ *
  * Asked by the row itself and by the tab above it, so what a tab claims its
- * hidden half is holding is the same question its rows would answer.
+ * hidden half is holding is what its rows would show.
  */
 export function chatRowHasUnread(chat: db.Chat): boolean {
   const notified =
     chat.type === 'group'
       ? (chat.group.unread?.notify ?? false)
       : (chat.channel.unread?.notify ?? false);
-  return (
-    (chat.unreadCount > 0 || notified) &&
-    !logic.isMuted(chat.volumeSettings?.level, chat.type)
+  if (!logic.isMuted(chat.volumeSettings?.level, chat.type)) {
+    return chat.unreadCount > 0 || notified;
+  }
+  // An invite's channels are not the user's to hear until they have joined,
+  // and a direct message has none to ask about.
+  if (chat.type !== 'group' || chat.isPending) {
+    return false;
+  }
+  return readableChannels(chat.group).some((channel) =>
+    channelRowHasUnread(channel, true)
   );
 }
 
@@ -146,31 +161,6 @@ export function channelRowHasUnread(
     return !logic.isMuted(ownLevel, 'channel');
   }
   return !groupMuted;
-}
-
-/**
- * Whether a chat, or any channel it unfurls, holds an unread the panel lights.
- *
- * A workspace's own roll-up is not the whole answer. A workspace set to `hush`
- * with one channel turned back up is one the user still hears that channel
- * from: its own row stays dark, by the muting contract, while the channel's
- * row lights. Asked by the tab above them, which has to claim whatever any of
- * its rows would show.
- *
- * Only a workspace that unfurls is asked about its channels. Anything else is
- * a single row, and that row has already answered for itself.
- */
-export function chatOrChannelsHaveUnread(chat: db.Chat): boolean {
-  if (chatRowHasUnread(chat)) {
-    return true;
-  }
-  if (chat.type !== 'group' || !unfurls(chat)) {
-    return false;
-  }
-  const groupMuted = logic.isMuted(chat.volumeSettings?.level, 'group');
-  return readableChannels(chat.group).some((channel) =>
-    channelRowHasUnread(channel, groupMuted)
-  );
 }
 
 /**

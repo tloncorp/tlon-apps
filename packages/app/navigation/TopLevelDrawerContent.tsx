@@ -847,17 +847,7 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
   // chosen the next time they pull the panel out, and a fresh launch starts on
   // Workspaces.
   const [filter, setFilter] = useState<DrawerFilter>('workspaces');
-  // One list serves both tabs, so a tab change is a change of `data` on a list
-  // that is still mounted and still holding the offset the other half was
-  // scrolled to. Left alone, switching from far down a long Workspaces list
-  // opens Messages partway through its conversations — or, when the other half
-  // is shorter, at its tail with the newest rows above the fold. The offset is
-  // put back after the render that swaps the data, not in the press handler,
-  // where the list is still measuring the half being left.
   const listRef = useRef<FlashListRef<DrawerRow>>(null);
-  useEffect(() => {
-    listRef.current?.scrollToOffset({ offset: 0, animated: false });
-  }, [filter]);
   const selectFilter = useCallback((next: DrawerFilter) => {
     // Changing tabs is a request to stay in the panel, the same as unfurling a
     // workspace, so it supersedes anything still resolving its route. A
@@ -867,6 +857,15 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
     // close the panel out from under the tab just chosen.
     navigationRequestRef.current += 1;
     setFilter(next);
+    // One list serves both tabs, so a tab change is a change of `data` on a
+    // list that is still mounted and still holding the offset the other half
+    // was scrolled to. Left alone, switching from far down a long Workspaces
+    // list opens Messages partway through its conversations — or, when the
+    // other half is shorter, at its tail with the newest rows above the fold.
+    // Sent before the render that swaps the data, which is safe only because
+    // the target is the top: an offset of zero is the same offset whichever
+    // half the list is still measuring.
+    listRef.current?.scrollToOffset({ offset: 0, animated: false });
   }, []);
 
   // Not gated on the drawer being open: the list is virtualised, so what is

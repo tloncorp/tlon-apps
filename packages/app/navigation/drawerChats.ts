@@ -1,7 +1,7 @@
 import type * as db from '@tloncorp/shared/db';
 
 import { isDirectMessage, isWorkspaceChat } from '../hooks/chatListFilters';
-import { chatOrChannelsHaveUnread } from './drawerWorkspaceRows';
+import { chatRowHasUnread } from './drawerWorkspaceRows';
 
 /**
  * The two halves the panel's tabs cut its list into.
@@ -65,9 +65,9 @@ function allChats(chats: db.GroupedChats): db.Chat[] {
  * simply a member of badges nothing. The combined list this replaced showed
  * every chat's unread state at once and owes the reader that much.
  *
- * A workspace answers for the channels it unfurls as well as for itself, so a
- * channel turned back up inside a muted workspace — which its own row lights —
- * is not lost the moment the other tab is showing.
+ * Asks each chat exactly what its row asks, `chatRowHasUnread`, so a tab
+ * cannot claim an unread none of its rows would show, or stay dark over one
+ * they would.
  */
 export function getUnreadDrawerFilters(
   chats: db.GroupedChats | null | undefined,
@@ -81,10 +81,7 @@ export function getUnreadDrawerFilters(
     if (unread.size === DRAWER_FILTERS.length) {
       break;
     }
-    if (
-      !isDrawerChat(chat, excludeChannelId) ||
-      !chatOrChannelsHaveUnread(chat)
-    ) {
+    if (!isDrawerChat(chat, excludeChannelId) || !chatRowHasUnread(chat)) {
       continue;
     }
     unread.add(isDirectMessage(chat) ? 'messages' : 'workspaces');
