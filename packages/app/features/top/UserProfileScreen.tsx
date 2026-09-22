@@ -1,3 +1,4 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/api';
 import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
@@ -9,6 +10,7 @@ import { View, isWeb, useTheme } from 'tamagui';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupActions } from '../../hooks/useGroupActions';
+import { useFeatureFlag } from '../../lib/featureFlags';
 import { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
@@ -26,6 +28,10 @@ import {
   useHasExpectedBotDm,
 } from '../../utils/botSettings';
 import { useShipConnectionStatus } from './useShipConnectionStatus';
+import {
+  tasksForShip,
+  useStewardAutomationTasks,
+} from '../automations/useStewardAutomationTasks';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
 
@@ -106,6 +112,27 @@ export function UserProfileScreen({ route, navigation }: Props) {
   const isOwnBotProfile = useMemo(() => {
     return api.isBotUserIdForUser(userId, currentUserId);
   }, [currentUserId, userId]);
+  const [scheduledTasksEnabled] = useFeatureFlag('scheduledTasks');
+  const automationQuery = useStewardAutomationTasks(
+    scheduledTasksEnabled && isOwnBotProfile
+  );
+  useFocusEffect(
+    useCallback(() => {
+      if (scheduledTasksEnabled && isOwnBotProfile) {
+        void automationQuery.refetch();
+      }
+    }, [automationQuery.refetch, isOwnBotProfile, scheduledTasksEnabled])
+  );
+  const scheduledTasks = tasksForShip(automationQuery.data, userId);
+
+  const handlePressScheduledTasks = useCallback(() => {
+    if (isWindowNarrow) {
+      navigation.push('ScheduledTasks', { botShip: userId });
+      return;
+    }
+
+    navigation.navigate('ScheduledTasks', { botShip: userId });
+  }, [isWindowNarrow, navigation, userId]);
 
   const isHostedUser = isWeb ? getCurrentUserIsHostedSafely() : false;
   const hasExpectedBotDm = useHasExpectedBotDm(
@@ -156,22 +183,20 @@ export function UserProfileScreen({ route, navigation }: Props) {
               title="Profile"
               backgroundColor={theme.secondaryBackground.val}
               useHorizontalTitleLayout={!isWindowNarrow && shouldShowBackButton}
-              leftControls={
-                shouldShowBackButton ? (
-                  <ScreenHeader.BackButton
-                    onPress={() => navigation.goBack()}
-                  />
-                ) : null
+              backAction={
+                shouldShowBackButton ? () => navigation.goBack() : undefined
               }
-              rightControls={
-                canEdit ? (
-                  <ScreenHeader.IconButton
-                    onPress={handlePressEdit}
-                    testID="ContactEditButton"
-                    type="Draw"
-                  />
-                ) : null
-              }
+              rightActions={[
+                {
+                  id: 'edit-profile',
+                  icon: 'EditList',
+                  label: 'Edit profile',
+                  testID: 'ContactEditButton',
+                  onPress: handlePressEdit,
+                  visible: Boolean(canEdit),
+                },
+              ]}
+              placement="navigation"
             />
             <UserProfileScreenView
               userId={userId}
@@ -180,6 +205,16 @@ export function UserProfileScreen({ route, navigation }: Props) {
                 shouldShowBotSettingsProfileAction
                   ? handlePressBotSettings
                   : undefined
+              }
+              onPressScheduledTasks={
+                scheduledTasksEnabled &&
+                isOwnBotProfile &&
+                (automationQuery.data?.available || automationQuery.isError)
+                  ? handlePressScheduledTasks
+                  : undefined
+              }
+              scheduledTaskCount={
+                scheduledTasks ? Object.keys(scheduledTasks).length : undefined
               }
               onPressGroup={handlePressGroup}
             />
