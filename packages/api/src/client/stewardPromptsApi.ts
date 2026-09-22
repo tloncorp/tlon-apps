@@ -90,32 +90,65 @@ export async function setStewardPrompt(params: {
 
 /** Pending is returned as data so the caller can continue waiting for a late result. */
 export async function getStewardPromptRequest(
-  requestId: string
+  requestId: string,
+  options: { signal?: AbortSignal } = {}
 ): Promise<StewardPromptResponse> {
   return responseSchema.parse(
     await requestJson(
       `${PATH}/request/${encodeURIComponent(requestId)}`,
       'GET',
       undefined,
-      OPTIONS
+      options.signal ? { ...OPTIONS, signal: options.signal } : OPTIONS
     )
   );
 }
 
+/**
+ * Poll until the request is terminal. The signal stops both the requests
+ * and the waits between them: a caller torn down mid-poll (navigation,
+ * logout, an account switch) must not keep polling — possibly a different
+ * ship — for the rest of the minute.
+ */
 export async function awaitStewardPromptRequest(
   requestId: string,
-  { attempts = 30, intervalMs = 2_000 } = {}
+  {
+    attempts = 30,
+    intervalMs = 2_000,
+    signal,
+  }: { attempts?: number; intervalMs?: number; signal?: AbortSignal } = {}
 ) {
   let status: 'sending' | 'acked' | 'nacked' = 'sending';
   for (let attempt = 0; attempt < attempts; attempt++) {
-    const response = await getStewardPromptRequest(requestId);
+    signal?.throwIfAborted();
+    const response = await getStewardPromptRequest(
+      requestId,
+      signal ? { signal } : {}
+    );
     if (response.body.type !== 'pending') return settle(response);
     status = response.body.status;
     if (attempt + 1 < attempts) {
-      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+      await sleep(intervalMs, signal);
     }
   }
   throw new StewardPromptPendingError(requestId, status);
+}
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason);
+      return;
+    }
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(signal?.reason);
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
 }
 
 export function getStewardPromptFiles(): Promise<StewardPromptFiles> {

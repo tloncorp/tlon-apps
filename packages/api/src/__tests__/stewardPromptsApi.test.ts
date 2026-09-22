@@ -55,6 +55,27 @@ test('polls pending until the terminal answer arrives', async () => {
     awaitStewardPromptRequest(requestId, { intervalMs: 0 })
   ).resolves.toEqual({ requestId, name: 'SOUL.md' });
 });
+test('awaitStewardPromptRequest passes its signal through and stops when aborted', async () => {
+  vi.mocked(requestJson).mockReset();
+  const controller = new AbortController();
+  vi.mocked(requestJson).mockImplementation(async () => {
+    controller.abort();
+    return pending;
+  });
+  await expect(
+    awaitStewardPromptRequest(requestId, {
+      intervalMs: 60_000,
+      signal: controller.signal,
+    })
+  ).rejects.toBeDefined();
+  expect(requestJson).toHaveBeenCalledTimes(1);
+  expect(requestJson).toHaveBeenCalledWith(
+    `/steward/~/v1/prompts/request/${requestId}`,
+    'GET',
+    undefined,
+    { reauthStatuses: [401], signal: controller.signal }
+  );
+});
 test('poll exhaustion remains pending', async () => {
   vi.mocked(requestJson).mockResolvedValue(pending);
   await expect(
