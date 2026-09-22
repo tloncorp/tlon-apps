@@ -191,12 +191,13 @@ export function ChannelHeader({
   );
   const registeredLoadingSubtitle = context?.loadingSubtitle ?? null;
   const isWindowNarrow = useIsWindowNarrow();
-  // The bot's DM backs the first bottom tab, where the header is the bot's
-  // avatar and the caret alone. The DM path below already supplies that avatar
-  // and sends the caret to the bot's profile, so this only drops the title and
-  // subtitle. Only as that tab: the same DM pushed from a notification or a
-  // thread, and another user's bot, keep their titles. Narrow layouts only —
-  // the desktop header keeps its own.
+  // The bot's DM backs the first bottom tab, where the header carries the
+  // bot's name, avatar and caret. The DM path below already supplies that
+  // avatar and sends the caret to the bot's profile, so this only drops the
+  // subtitle: the tab is the conversation's home, and a status line under the
+  // name reads as noise there. Only as that tab: the same DM pushed from a
+  // notification or a thread, and another user's bot, keep their subtitles.
+  // Narrow layouts only — the desktop header keeps its own.
   const isBotDm = useMemo(() => {
     if (!isWindowNarrow || !isTopLevelTab || channel.type !== 'dm') {
       return false;
@@ -393,7 +394,7 @@ export function ChannelHeader({
   }, [channel.type, goToProfile, goToChatDetails]);
 
   const headerProps = {
-    title: isBotDm ? '' : headerTitle,
+    title: headerTitle,
     titleIcon: hideIdentity ? null : (
       <>
         {avatarElement || titleIcon}
