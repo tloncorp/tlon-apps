@@ -1,0 +1,66 @@
+appId: ${MAESTRO_APP_ID}
+name: Restore channel read and write permissions for a non-admin member
+env:
+  JOURNEY: permissions
+---
+- runScript: ../reliability/data.js
+- runFlow: begin.yaml
+- scrollUntilVisible:
+    element: ${'Permissions-' + MAESTRO_RUN_TAG}
+    direction: DOWN
+    timeout: 5000
+- tapOn: ${'Permissions-' + MAESTRO_RUN_TAG}
+- assertVisible:
+    id: ChannelListItem-Permission target
+- tapOn:
+    id: ChannelListItem-General
+- tapOn:
+    id: MessageInput
+- runFlow:
+    file: ../reliability/subflows/input.yaml
+    env:
+      INPUT_TEXT: ${MAESTRO_RUN_TAG + ' request no-read'}
+- hideKeyboard
+- tapOn:
+    id: MessageInputSendButton
+- extendedWaitUntil:
+    visible: ${MAESTRO_RUN_TAG + ' no-read applied'}
+    timeout: 15000
+- tapOn:
+    id: MessageInput
+- runFlow:
+    file: ../reliability/subflows/input.yaml
+    env:
+      INPUT_TEXT: ${MAESTRO_RUN_TAG + ' request restore'}
+- hideKeyboard
+- tapOn:
+    id: MessageInputSendButton
+- tapOn: '^Back$'
+- assertVisible: ${'Permissions-' + MAESTRO_RUN_TAG}
+- extendedWaitUntil:
+    visible:
+      id: ChannelListItem-Permission target
+    timeout: 15000
+- tapOn:
+    id: ChannelListItem-Permission target
+- extendedWaitUntil:
+    visible: ${output.reliability.permissionRestoredNoticePattern}
+    timeout: 15000
+- assertVisible:
+    id: MessageInput
+- tapOn:
+    id: MessageInput
+- runFlow:
+    file: ../reliability/subflows/input.yaml
+    env:
+      INPUT_TEXT: ${MAESTRO_RUN_TAG + ' restored mobile post'}
+- hideKeyboard
+- tapOn:
+    id: MessageInputSendButton
+- assertVisible: ${output.reliability.permissionRestoredPostPattern}
+- tapOn: '^Back$'
+- assertVisible: ${'Permissions-' + MAESTRO_RUN_TAG}
+- tapOn: '^Back$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Home$'
