@@ -22,16 +22,17 @@ appId: ${MAESTRO_APP_ID}
 # Settings draws its title into the native navigation bar rather than a
 # ScreenHeaderTitle, so verify the destination by a row only it has. The row is
 # not necessarily on screen: an account whose agent has inline bot settings
-# renders those above the App section this row starts. Scrolling up first is
-# allowed to fail, which only means the row is below -- see settings-row.yaml.
+# renders those above the App section this row starts, and the tab can come
+# back scrolled where it was left. Same budgets as settings-row.yaml, for the
+# same reason -- see the note there.
 - scrollUntilVisible:
     element:
       id: SettingsProfileRow
     direction: UP
-    timeout: 5000
+    timeout: 25000
     optional: true
 - scrollUntilVisible:
     element:
       id: SettingsProfileRow
     direction: DOWN
-    timeout: 15000
+    timeout: 30000

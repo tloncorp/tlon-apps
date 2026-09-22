@@ -40,6 +40,19 @@ Two things about the current app shape are worth knowing before editing a flow:
   which adds a fourth button and shifts the rest; see the comments in
   `workspaces-tab.yaml`. Prefer those subflows over a hand-written tap, and
   call `subflows/to-tab-root.yaml` first if a screen may be covering the bar.
+- **Android tab labels are content descriptions, and those words also turn up
+  in content.** A contact row carries a "Bot" badge, which satisfied the old
+  tab-bar guard in `subflows/to-tab-root.yaml`: the unwind was skipped on the
+  Contacts screen, the screen stayed over the bar, and the tab selection that
+  followed tapped a tab that was not there. The guard now keys on the native
+  bar's own view ids -- `navigation_bar_item_icon_view` for the bar,
+  `screen-header-back` for a screen above it -- which content cannot imitate.
+  Do not put tab labels back into it.
+- **Settings runs several screens deep.** On an account with an agent the bot's
+  own sections render above the App section, so `subflows/settings-row.yaml`
+  allows 25s up and 30s down and centres what it finds. Top to `App info`
+  measured 17.7s on a Pixel 7a, against the 10s allowed before; and a row left
+  at the bottom edge can hand the tap meant for it to the tab bar behind.
 
 **Known gap — the ten group-fixture journeys fail on an account with an
 agent.** `subflows/create-group.yaml` builds its fixture through the create
@@ -54,12 +67,6 @@ furnished over the network by the bot. That is tracked in TLON-6632, which
 records the full shape of the problem. Until it lands, chat, channels, gallery, history, links, message-actions,
 notebook, relaunch, search and home-groups are expected to fail on
 `~batbet-litnec`; settings and profile, which create nothing, still pass.
-
-**Known gap — settings and profile also fail on Android.** `profile` cannot
-find `^Workspaces$` when its completion hook selects the tab, and `settings`
-does not reach App info. Both pass on iOS and both are regressions from the
-navigation work; they are tracked in TLON-6633 and need an Android emulator to
-diagnose.
 
 Do not run concurrent profile/settings journeys against the same account. These
 tests create private groups and posts that remain on the ship; only the

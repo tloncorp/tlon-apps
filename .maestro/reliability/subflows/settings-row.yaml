@@ -3,18 +3,28 @@ appId: ${MAESTRO_APP_ID}
 # Taps a row in Settings, wherever it has ended up. Two things move these rows:
 # a hosted account with an agent renders the bot's own sections above the App
 # section, pushing every row below the fold, and returning from a detail screen
-# keeps whatever scroll position the previous row needed. So a single-direction
-# scroll cannot reach every row. Scrolling up first is allowed to fail -- that
-# only means the row is further down, which the second scroll then finds.
+# keeps whatever scroll position the previous row needed. So a row can be above
+# or below where this starts, and no single-direction scroll reaches both.
+# Scrolling up first is allowed to fail -- that only means the row is further
+# down, which the second scroll then finds.
+#
+# Both budgets have to be big enough to cross the bot's sections, which is what
+# made `settings` fail on Android: top to `App info` measured 17.7s on a Pixel
+# 7a, and the 10s allowed before ran out with the row about to come into view.
 - scrollUntilVisible:
     element:
       text: ${ROW}
     direction: UP
-    timeout: 5000
+    timeout: 25000
+    centerElement: true
     optional: true
 - scrollUntilVisible:
     element:
       text: ${ROW}
     direction: DOWN
-    timeout: 10000
+    timeout: 30000
+    centerElement: true
+# Centred above, because an uncentred match can settle under the tab bar: a row
+# found at the bottom edge was still moving when the tap resolved, and the tap
+# landed on the bar behind it and switched tabs instead of opening the row.
 - tapOn: ${ROW}
