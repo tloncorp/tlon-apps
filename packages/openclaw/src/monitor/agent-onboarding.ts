@@ -413,6 +413,14 @@ type FirstRunCorrelation = {
   purposeId: AgentOnboardingPurposeId;
   topics: readonly string[];
   enqueuedAt: number;
+  /**
+   * Highest note id in the notebook when this run was claimed, where it could
+   * be read. Anything at or below it predates the run and cannot be its entry.
+   * Absent when a correlation is restored from a persisted record after a
+   * restart, which is not the moment to take a baseline: the run's own note
+   * may already have landed by then.
+   */
+  baselineNoteId?: number;
   /** Completion may be recorded immediately, but not presented before setup copy. */
   presentationReady: boolean;
   /** Re-enters the configured API scope when lifecycle hooks fire later. */
@@ -1270,6 +1278,7 @@ async function provision(
       request,
       notebookName,
       deps.now?.() ?? Date.now(),
+      deps.listNotes ?? notes.listNotes,
       providerConfig?.providerIds ?? []
     );
     // Another reconciliation pass owns a fresh atomic claim. Keep the durable
@@ -2003,7 +2012,11 @@ async function recoverDeliveredFirstRunNote(
           note.createdAt >= earliest &&
           note.createdAt <= latest &&
           note.createdBy != null &&
-          normalizeShip(note.createdBy) === botShip
+          normalizeShip(note.createdBy) === botShip &&
+          // Where a baseline was taken it settles what time and authorship
+          // cannot: an id at or below it existed before this run started.
+          (correlation.baselineNoteId === undefined ||
+            note.noteId > correlation.baselineNoteId)
       )
       // Oldest wins. What this run enqueued is the first thing the bot wrote
       // after that; anything later in the window belongs to whatever wrote it
@@ -2102,7 +2115,8 @@ function rememberFirstRun(
   notebookName?: string,
   jobId?: string,
   enqueuedAt = Date.now(),
-  presentationReady = true
+  presentationReady = true,
+  baselineNoteId?: number
 ): boolean {
   if (!disposition || typeof disposition !== 'object') return false;
   const result = disposition as { enqueued?: unknown; runId?: unknown };
@@ -2112,6 +2126,7 @@ function rememberFirstRun(
     jobId: jobId ?? `unknown:${result.runId}`,
     notebookName,
     enqueuedAt,
+    baselineNoteId,
     presentationReady,
   });
   return true;
@@ -2125,6 +2140,7 @@ function setFirstRunCorrelation(
     jobId: string;
     notebookName?: string;
     enqueuedAt: number;
+    baselineNoteId?: number;
     presentationReady?: boolean;
   }
 ) {
@@ -2178,6 +2194,7 @@ async function ensureFirstRunEnqueued(
   request: PostBlobDataEntryAgentProvision,
   notebookName: string,
   now: number,
+  listNotes: typeof notes.listNotes,
   providerIds: readonly string[] = []
 ): Promise<'enqueued' | 'recovered' | 'owned-by-another-pass'> {
   const enqueueRun = cron.enqueueRun?.bind(cron) ?? cron.run?.bind(cron);
@@ -2217,6 +2234,26 @@ async function ensureFirstRunEnqueued(
     return 'recovered';
   }
 
+  // Read the notebook before the run can write to it, so failure recovery has
+  // something run-specific to test rather than only time and authorship. Taken
+  // after the claim and before the enqueue: a straggler landing in between is
+  // counted as pre-existing, which only costs a recovery we would rather
+  // decline than get wrong. Best effort -- a listing failure must not fail the
+  // provision, it just leaves recovery with the weaker test.
+  const baselineNoteId = await listNotes(request.notebookNest, {
+    signal: context.abortSignal,
+  })
+    .then((entries) =>
+      entries.reduce<number | undefined>(
+        (highest, entry) =>
+          highest === undefined || entry.noteId > highest
+            ? entry.noteId
+            : highest,
+        undefined
+      )
+    )
+    .catch(() => undefined);
+
   let disposition: unknown;
   try {
     disposition = await enqueueRun(jobId, 'force');
@@ -2239,7 +2276,8 @@ async function ensureFirstRunEnqueued(
       notebookName,
       jobId,
       enqueuedAt,
-      false
+      false,
+      baselineNoteId
     )
   ) {
     await forgetAgentOnboardingRunClaim(initial);

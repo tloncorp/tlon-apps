@@ -3,6 +3,7 @@ import create from 'zustand';
 // Type-only, so this module carries no runtime dependency on the hosting API
 // (and through it expo-modules-core) — the draft store is plain state and
 // stays importable on its own.
+import type { BotSettingsPendingFields } from './botSettingsDraftHelpers';
 import type { ChatFormValues, ModelFormValues } from './helpers';
 
 export type BotSettingsDraftValues = {
@@ -50,6 +51,42 @@ export const valuesEqual = (
   right: BotSettingsDraftValues
 ): boolean => stableStringify(left) === stableStringify(right);
 
+/**
+ * The one definition of which fields count as changed. The Apply bar labels
+ * these and the store guards unapplied edits against a background refetch with
+ * them; deriving both from here is what keeps a newly added setting from
+ * protecting a draft the Apply bar calls unchanged, or the reverse.
+ */
+export const getPendingFields = (
+  baseline: BotSettingsDraftValues,
+  draft: BotSettingsDraftValues
+): BotSettingsPendingFields => ({
+  nickname: baseline.nickname !== draft.nickname,
+  modelProvider: baseline.model.provider !== draft.model.provider,
+  model: baseline.model.model !== draft.model.model,
+  zdr: baseline.model.zdr !== draft.model.zdr,
+  fallbacks:
+    stableStringify(baseline.model.fallbacks) !==
+    stableStringify(draft.model.fallbacks),
+  dmAllowlist: baseline.chat.dmAllowlist !== draft.chat.dmAllowlist,
+  defaultAuthorizedShips:
+    baseline.chat.defaultAuthorizedShips !== draft.chat.defaultAuthorizedShips,
+  groupInviteAllowlist:
+    baseline.chat.groupInviteAllowlist !== draft.chat.groupInviteAllowlist,
+  autoAcceptDmInvites:
+    baseline.chat.autoAcceptDmInvites !== draft.chat.autoAcceptDmInvites,
+  autoDiscoverChannels:
+    baseline.chat.autoDiscoverChannels !== draft.chat.autoDiscoverChannels,
+  channelRules:
+    stableStringify(baseline.chat.channelRuleDrafts) !==
+    stableStringify(draft.chat.channelRuleDrafts),
+});
+
+export const hasPendingChanges = (
+  baseline: BotSettingsDraftValues,
+  draft: BotSettingsDraftValues
+): boolean => Object.values(getPendingFields(baseline, draft)).some(Boolean);
+
 interface BotSettingsDraftStore {
   scopeKey: string;
   initialized: boolean;
@@ -87,7 +124,8 @@ export const useBotSettingsDraftStore = create<BotSettingsDraftStore>(
     syncServerValues: (scopeKey, values) => {
       const current = get();
       const hasLocalChanges =
-        current.initialized && !valuesEqual(current.baseline, current.draft);
+        current.initialized &&
+        hasPendingChanges(current.baseline, current.draft);
       // Only adopt fresh server values when the user has no unapplied edits
       // (or when we switched scope); otherwise a background refetch would
       // clobber their draft.

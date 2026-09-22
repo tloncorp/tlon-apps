@@ -755,6 +755,18 @@ async function ensureIntroRequest(
   isFirstGroup: boolean
 ) {
   const currentUserId = api.getCurrentUserId();
+  // Before the early return, not after it. The row has to exist locally
+  // whether or not the request still needs sending: the landing consumer
+  // acknowledges the destination without waiting for sync, and `ChannelScreen`
+  // renders null until the channel is there, so a request that already landed
+  // remotely would otherwise strand the user on an empty screen. On a fresh
+  // account the bot's DM may so far exist only on the ship -- Hosting made it,
+  // sync has not caught up. Starting it from here is the same pending row the
+  // New Message flow uses, and it is an upsert: an already-synced DM comes
+  // back untouched.
+  if (channelType === 'dm') {
+    await upsertDmChannel({ participants: [channelId] });
+  }
   const history = await api.getChannelPosts({
     channelId,
     mode: 'newest',
@@ -774,13 +786,6 @@ async function ensureIntroRequest(
     groupId,
     ...(isFirstGroup ? { isFirstGroup: true } : {}),
   });
-  // Sending needs the channel row locally, and on a fresh account the bot's
-  // DM may so far exist only on the ship — Hosting made it, sync has not
-  // caught up. Starting the DM from here is the same pending row the New
-  // Message flow uses; the first writ lands in the DM the ship already has.
-  if (channelType === 'dm') {
-    await upsertDmChannel({ participants: [channelId] });
-  }
   await finalizeAndSendPost(
     {
       channelId,

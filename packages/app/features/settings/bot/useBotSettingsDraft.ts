@@ -1,10 +1,7 @@
 import * as api from '@tloncorp/api';
 import { useCallback, useEffect, useMemo } from 'react';
 
-import {
-  type BotSettingsPendingFields,
-  getChangeLabels,
-} from './botSettingsDraftHelpers';
+import { getChangeLabels } from './botSettingsDraftHelpers';
 import { BASIC_PROVIDER_ID } from './constants';
 import {
   ChannelRuleDraft,
@@ -30,11 +27,9 @@ import {
 } from './useBotSettingsData';
 import {
   type BotSettingsDraftValues,
-  EMPTY_VALUES,
-  clone,
-  stableStringify,
+  getPendingFields,
+  hasPendingChanges,
   useBotSettingsDraftStore,
-  valuesEqual,
 } from './botSettingsDraftStore';
 
 export {
@@ -43,31 +38,6 @@ export {
 } from './botSettingsDraftStore';
 export type { BotSettingsDraftValues } from './botSettingsDraftStore';
 export type { BotSettingsPendingFields } from './botSettingsDraftHelpers';
-
-const getPendingFields = (
-  baseline: BotSettingsDraftValues,
-  draft: BotSettingsDraftValues
-): BotSettingsPendingFields => ({
-  nickname: baseline.nickname !== draft.nickname,
-  modelProvider: baseline.model.provider !== draft.model.provider,
-  model: baseline.model.model !== draft.model.model,
-  zdr: baseline.model.zdr !== draft.model.zdr,
-  fallbacks:
-    stableStringify(baseline.model.fallbacks) !==
-    stableStringify(draft.model.fallbacks),
-  dmAllowlist: baseline.chat.dmAllowlist !== draft.chat.dmAllowlist,
-  defaultAuthorizedShips:
-    baseline.chat.defaultAuthorizedShips !== draft.chat.defaultAuthorizedShips,
-  groupInviteAllowlist:
-    baseline.chat.groupInviteAllowlist !== draft.chat.groupInviteAllowlist,
-  autoAcceptDmInvites:
-    baseline.chat.autoAcceptDmInvites !== draft.chat.autoAcceptDmInvites,
-  autoDiscoverChannels:
-    baseline.chat.autoDiscoverChannels !== draft.chat.autoDiscoverChannels,
-  channelRules:
-    stableStringify(baseline.chat.channelRuleDrafts) !==
-    stableStringify(draft.chat.channelRuleDrafts),
-});
 
 export function useBotSettingsDraft() {
   const store = useBotSettingsDraftStore();
@@ -114,7 +84,8 @@ export function useSyncBotSettingsDraft(queries: BotSettingsQueries) {
   // would stay stale. Re-run when local edits clear so the latest server values
   // are adopted.
   const hasLocalChanges = useBotSettingsDraftStore(
-    (state) => state.initialized && !valuesEqual(state.baseline, state.draft)
+    (state) =>
+      state.initialized && hasPendingChanges(state.baseline, state.draft)
   );
 
   useEffect(() => {
