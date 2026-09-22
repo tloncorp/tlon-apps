@@ -737,6 +737,9 @@ export const PostBlobDataEntryAgentIntroRequestSchema =
     clientLocale: agentProtocolString(
       AGENT_PROTOCOL_LIMITS.localeLength
     ).optional(),
+    timezone: z.string().min(1).max(128).optional(),
+    /** Present only on new clients' initial onboarding requests. */
+    campaignVersion: z.number().int().min(1).max(65_535).optional(),
   });
 
 export type PostBlobDataEntryAgentIntroRequest = z.infer<

@@ -208,6 +208,8 @@ describe('post blob helpers', () => {
         isFirstGroup: true,
         clientTimezone: 'America/Los_Angeles',
         clientLocale: 'en-US',
+        timezone: 'America/Los_Angeles',
+        campaignVersion: 2,
       },
       {
         type: 'tlon-agent-provision',

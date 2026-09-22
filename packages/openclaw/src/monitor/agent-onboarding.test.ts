@@ -842,9 +842,13 @@ describe('agent onboarding requests', () => {
           type: 'tlon-agent-intro-request',
           version: 1,
           groupId: '~ten/group',
+          campaignVersion: 2,
         })
       )
-    ).toMatchObject({ type: 'tlon-agent-intro-request' });
+    ).toMatchObject({
+      type: 'tlon-agent-intro-request',
+      campaignVersion: 2,
+    });
     expect(
       parseAgentOnboardingRequest(appendToPostBlob(undefined, provision))
     ).toEqual(provision);
@@ -1915,11 +1919,14 @@ describe('agent onboarding requests', () => {
 
   it('catches an intro request that arrived before the channel was watched', async () => {
     const sendPost = successfulSendPost();
+    const onInitialIntro = vi.fn();
     const introBlob = appendToPostBlob(undefined, {
       type: 'tlon-agent-intro-request',
       version: 1,
       groupId: '~ten/group',
       isFirstGroup: true,
+      campaignVersion: 1,
+      timezone: 'Etc/UTC',
     });
 
     await expect(
@@ -1930,6 +1937,7 @@ describe('agent onboarding requests', () => {
           channelNest: 'chat/~ten/general',
           groupId: '~ten/group',
           ownerShip: '~ten',
+          onInitialIntro,
         },
         {
           fetchHistory: vi.fn(async () => [
@@ -1945,6 +1953,10 @@ describe('agent onboarding requests', () => {
       )
     ).resolves.toBe(true);
     expect(sendPost).toHaveBeenCalledOnce();
+    expect(onInitialIntro).toHaveBeenCalledWith(
+      expect.objectContaining({ campaignVersion: 1, timezone: 'Etc/UTC' }),
+      1
+    );
   });
 
   it('shows thinking while a later-group greeting is reconciled', async () => {
@@ -4668,4 +4680,29 @@ describe('provision coordinator ordering', () => {
     expect(getCron).not.toHaveBeenCalled();
     expect(sendPost).not.toHaveBeenCalled();
   });
+});
+
+it('observes a validated initial intro before an unrelated history failure', async () => {
+  const onInitialIntro = vi.fn();
+  const fetchHistory = vi.fn(async () => {
+    throw new Error('history unavailable');
+  });
+  const context = requestContext({
+    blob: firstGroupIntro().blob,
+    requestSentAt: 123,
+    onInitialIntro,
+  });
+  await expect(
+    handleAgentOnboardingRequest(context, { fetchHistory })
+  ).rejects.toThrow('history unavailable');
+  expect(onInitialIntro).toHaveBeenCalledWith(
+    expect.objectContaining({ type: 'tlon-agent-intro-request' }),
+    123
+  );
+  onInitialIntro.mockClear();
+  await handleAgentOnboardingRequest(
+    { ...context, senderShip: '~mug' },
+    { fetchHistory }
+  );
+  expect(onInitialIntro).not.toHaveBeenCalled();
 });
