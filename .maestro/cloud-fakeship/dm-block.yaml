@@ -1,0 +1,20 @@
+appId: ${MAESTRO_APP_ID}
+name: Block an incoming DM requester
+env:
+  JOURNEY: dm-block
+---
+- runScript: ../reliability/data.js
+- runFlow: begin.yaml
+- extendedWaitUntil:
+    visible: '^~ten$'
+    timeout: 15000
+- tapOn: '^~ten$'
+- assertVisible: ${MAESTRO_RUN_TAG + ' block request'}
+- assertVisible: '^Block$'
+- tapOn: '^Block$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Home$'
+- assertNotVisible: ${MAESTRO_RUN_TAG + ' block request'}
+- assertNotVisible: ${MAESTRO_RUN_TAG + ' blocked request'}
+- assertNotVisible: '^~ten$'

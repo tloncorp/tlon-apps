@@ -1,0 +1,51 @@
+appId: ${MAESTRO_APP_ID}
+name: Load Home with unread counts and latest-message previews
+env:
+  JOURNEY: home-unread-preview
+---
+- runScript: ../reliability/data.js
+- runFlow: begin.yaml
+- tapOn: '^All$'
+- scrollUntilVisible:
+    element:
+      id: ${'ChatListItem-HomeUnread-' + MAESTRO_RUN_TAG + '-unpinned'}
+    direction: DOWN
+    timeout: 5000
+    centerElement: true
+- assertVisible: ${output.reliability.homeUnreadGroupPreviewPattern}
+- assertVisible:
+    text: '^1$'
+    below:
+      text: ${output.reliability.homeUnreadGroupTitlePattern}
+    rightOf:
+      text: ${output.reliability.homeUnreadGroupPreviewPattern}
+- tapOn: '^Messages$'
+- scrollUntilVisible:
+    element:
+      id: 'ChannelListItem-~ten'
+    direction: DOWN
+    timeout: 5000
+    centerElement: true
+- assertVisible: ${output.reliability.homeUnreadDmPreviewPattern}
+- assertVisible:
+    id: UnreadCountNumber
+    text: '^1$'
+    rightOf:
+      text: ${output.reliability.homeUnreadDmPreviewPattern}
+- tapOn: '^All$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Home$'
+- tapOn: '^Search$'
+- inputText: '~ten'
+- assertVisible:
+    id: 'ChannelListItem-~ten'
+- assertNotVisible:
+    id: ${'ChatListItem-HomeUnread-' + MAESTRO_RUN_TAG + '-unpinned'}
+- tapOn: '^Clear$'
+- assertVisible:
+    id: ${'ChatListItem-HomeUnread-' + MAESTRO_RUN_TAG + '-unpinned'}
+- tapOn: '^Close$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Home$'

@@ -88,10 +88,12 @@ async function retryLaterAgentGroupFurnishing({
   agentShipId,
   groupId,
   ownerId,
+  campaignEligible,
 }: {
   agentShipId?: string;
   groupId: string;
   ownerId: string;
+  campaignEligible: boolean;
 }) {
   for (const delayMs of [30_000, 60_000]) {
     await wait(delayMs);
@@ -101,6 +103,7 @@ async function retryLaterAgentGroupFurnishing({
         agentShipId,
         groupId,
         isFirstGroup: true,
+        campaignEligible,
       });
       await repaired.tail;
       return;
@@ -117,6 +120,7 @@ async function retryLaterAgentGroupFurnishing({
  */
 export function AgentOnboardingSequence(props: {
   onCompleted: () => void;
+  campaignEligible?: boolean;
   fallback: React.ReactNode;
 }) {
   const [useFallback, setUseFallback] = useState(false);
@@ -176,6 +180,7 @@ export function AgentOnboardingSequence(props: {
             // Hosting pins it. This pass runs before the user sees the app, so
             // no pin of theirs can be removed; the repair pass later must not.
             removeProvisionedPin: true,
+            campaignEligible: props.campaignEligible,
           });
           let furnished: Awaited<typeof furnishing>;
           try {
@@ -270,6 +275,7 @@ export function AgentOnboardingSequence(props: {
               { error, groupId: activeGroupId }
             );
             void retryLaterAgentGroupFurnishing({
+              campaignEligible: props.campaignEligible === true,
               agentShipId: AGENT_SHIP_OVERRIDE || undefined,
               groupId: furnished.group.id,
               ownerId,

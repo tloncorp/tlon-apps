@@ -1,0 +1,31 @@
+appId: ${MAESTRO_APP_ID}
+name: Host revokes an active group invitation
+env:
+  JOURNEY: invite-revocation
+---
+- runScript: ../reliability/data.js
+- runFlow: begin.yaml
+- scrollUntilVisible:
+    element: ${'RevokeInvite-' + MAESTRO_RUN_TAG}
+    direction: DOWN
+    timeout: 30000
+- longPressOn: ${'RevokeInvite-' + MAESTRO_RUN_TAG}
+- tapOn: '^Group info & settings$'
+- tapOn: '^Manage members$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Members$'
+- assertVisible: '^Invited$'
+- tapOn: '^(~ten|ten)$'
+- assertVisible: '^Revoke Invite$'
+- tapOn: '^Revoke Invite$'
+- extendedWaitUntil:
+    notVisible: '^Invited$'
+    timeout: 30000
+- assertNotVisible: '^(~ten|ten)$'
+- tapOn:
+    id: HeaderBackButton
+- tapOn: '^Back$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Home$'

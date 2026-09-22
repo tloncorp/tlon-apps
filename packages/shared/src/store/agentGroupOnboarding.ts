@@ -58,6 +58,8 @@ type FurnishParams = {
   agentShipId?: string;
   /** Lets the bot introduce the provisioned home group as the user's first. */
   isFirstGroup?: boolean;
+  /** Only the new-account signup path opts into campaign enrollment. */
+  campaignEligible?: boolean;
   /** Distinguishes explicit later creations while preserving remount retries. */
   requestId?: string;
   /**
@@ -195,6 +197,7 @@ async function startAgentGroupFurnishingOnce(
     hostedShipId: resolved.hostedShipId,
     isFirstGroup: params.isFirstGroup ?? false,
     removeProvisionedPin: params.removeProvisionedPin ?? false,
+    campaignEligible: params.campaignEligible ?? false,
   });
 
   return {
@@ -304,6 +307,7 @@ async function finishAgentGroupFurnishing({
   hostedShipId,
   isFirstGroup,
   removeProvisionedPin,
+  campaignEligible,
 }: {
   group: db.Group;
   chatChannel: db.Channel;
@@ -311,6 +315,7 @@ async function finishAgentGroupFurnishing({
   hostedShipId: string | null;
   isFirstGroup: boolean;
   removeProvisionedPin: boolean;
+  campaignEligible: boolean;
 }): Promise<AgentGroupFurnishing> {
   return retryAgentGroupFurnishCore(
     () =>
@@ -321,6 +326,7 @@ async function finishAgentGroupFurnishing({
         hostedShipId,
         isFirstGroup,
         removeProvisionedPin,
+        campaignEligible,
       }),
     { groupId: initialGroup.id }
   );
@@ -333,6 +339,7 @@ async function finishAgentGroupFurnishingOnce({
   hostedShipId,
   isFirstGroup,
   removeProvisionedPin,
+  campaignEligible,
 }: {
   initialGroup: db.Group;
   chatChannel: db.Channel;
@@ -340,6 +347,7 @@ async function finishAgentGroupFurnishingOnce({
   hostedShipId: string | null;
   isFirstGroup: boolean;
   removeProvisionedPin: boolean;
+  campaignEligible: boolean;
 }): Promise<AgentGroupFurnishing> {
   if (removeProvisionedPin) await unpinProvisionedGroup(initialGroup.id);
   const notebook = isFirstGroup
@@ -366,7 +374,8 @@ async function finishAgentGroupFurnishingOnce({
     isFirstGroup && hostedShipId
       ? { channelId: agentShipId, channelType: 'dm' }
       : { channelId: chatChannel.id, channelType: 'chat' },
-    isFirstGroup
+    isFirstGroup,
+    campaignEligible
   );
   await db.pendingAgentGroupCreation.setValue((current) =>
     (typeof current === 'string' ? current : current?.groupId) === group.id
@@ -748,11 +757,27 @@ async function unpinProvisionedGroup(groupId: string) {
   }
 }
 
+function buildIntroRequest(
+  groupId: string,
+  isFirstGroup: boolean,
+  campaignEligible: boolean
+): api.PostBlobDataEntryAgentIntroRequest {
+  return {
+    type: 'tlon-agent-intro-request',
+    version: 1,
+    groupId,
+    ...(isFirstGroup ? { isFirstGroup: true } : {}),
+    ...(isFirstGroup && campaignEligible ? { campaignVersion: 1 } : {}),
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || undefined,
+  };
+}
+
 async function ensureIntroRequest(
   groupId: string,
   /** The bot DM (addressed by the bot's id) or the workspace's own chat. */
   { channelId, channelType }: { channelId: string; channelType: 'dm' | 'chat' },
-  isFirstGroup: boolean
+  isFirstGroup: boolean,
+  campaignEligible: boolean
 ) {
   const currentUserId = api.getCurrentUserId();
   const history = await api.getChannelPosts({
@@ -768,12 +793,10 @@ async function ensureIntroRequest(
   );
   if (alreadyPosted) return;
 
-  const blob = logic.appendToPostBlob(undefined, {
-    type: 'tlon-agent-intro-request',
-    version: 1,
-    groupId,
-    ...(isFirstGroup ? { isFirstGroup: true } : {}),
-  });
+  const blob = logic.appendToPostBlob(
+    undefined,
+    buildIntroRequest(groupId, isFirstGroup, campaignEligible)
+  );
   // Sending needs the channel row locally, and on a fresh account the bot's
   // DM may so far exist only on the ship — Hosting made it, sync has not
   // caught up. Starting the DM from here is the same pending row the New
@@ -998,6 +1021,7 @@ function agentHasAdmin(group: db.Group, agentShipId: string) {
 }
 
 export const agentGroupOnboardingTesting = {
+  buildIntroRequest,
   addCordonThenJoin,
   ensureIntroRequest,
   isProvisionedAgentGroupTitle,
