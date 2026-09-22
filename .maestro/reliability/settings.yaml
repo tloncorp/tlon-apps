@@ -103,17 +103,21 @@ env:
     env:
       THEME_ID: ThemeOption-auto
 - tapOn: '^Back$'
-- tapOn: '^Appearance$'
+- runFlow:
+    file: subflows/settings-row.yaml
+    env:
+      ROW: '^Appearance$'
 - runFlow:
     file: subflows/assert-theme.yaml
     env:
       THEME_ID: ThemeOption-auto
 - stopApp
 - launchApp
-- assertVisible: '^Home$'
-- runFlow: subflows/contacts-tab.yaml
-- tapOn: '^Settings$'
-- tapOn: '^Appearance$'
+# Restores the screen it was closed in, exactly as above, so Appearance comes
+# back on its own -- there is nothing to navigate to.
+- extendedWaitUntil:
+    visible: '^Appearance$'
+    timeout: 30000
 - runFlow:
     file: subflows/assert-theme.yaml
     env:

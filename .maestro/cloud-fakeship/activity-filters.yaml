@@ -52,4 +52,4 @@ env:
     id: ScreenHeaderTitle
     text: '^Activity$'
 - assertVisible: ${output.reliability.activityMentionPattern}
-- runFlow: ../reliability/subflows/home-tab.yaml
+- runFlow: ../reliability/subflows/workspaces-tab.yaml

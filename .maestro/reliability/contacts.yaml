@@ -10,9 +10,9 @@ onFlowComplete:
       commands:
         - launchApp
         - extendedWaitUntil:
-            visible: '^Home$'
+            visible: '^Workspaces$'
             timeout: 15000
-        - runFlow: subflows/contacts-tab.yaml
+        - runFlow: subflows/contacts-screen.yaml
         - runFlow:
             when:
               visible: ${output.reliability.contactNickname}
@@ -39,7 +39,7 @@ onFlowComplete:
 - assertTrue: ${typeof MAESTRO_CONTACT_SHIP !== 'undefined' && MAESTRO_CONTACT_SHIP !== MAESTRO_TEST_SHIP}
 - runScript: data.js
 - runFlow: subflows/begin.yaml
-- runFlow: subflows/contacts-tab.yaml
+- runFlow: subflows/contacts-screen.yaml
 - tapOn: '^Add contacts$'
 - tapOn: '^Filter by nickname, @p$'
 - inputText: ${MAESTRO_CONTACT_SHIP}
@@ -63,7 +63,7 @@ onFlowComplete:
 - assertVisible: ${output.reliability.contactNickname}
 - stopApp
 - launchApp
-- runFlow: subflows/contacts-tab.yaml
+- runFlow: subflows/contacts-screen.yaml
 - tapOn: ${output.reliability.contactNickname}
 - assertVisible: ${MAESTRO_CONTACT_SHIP}
 - tapOn: '^Remove Contact$'
@@ -85,4 +85,4 @@ onFlowComplete:
 - assertVisible: '^Add Contact$'
 - tapOn: '^Back$'
 - assertNotVisible: ${MAESTRO_CONTACT_SHIP}
-- runFlow: subflows/home-tab.yaml
+- runFlow: subflows/workspaces-tab.yaml

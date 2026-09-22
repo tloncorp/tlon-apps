@@ -35,7 +35,7 @@ env:
 - tapOn: '^All$'
 - assertVisible:
     id: ScreenHeaderTitle
-    text: '^Home$'
+    text: '^Workspaces$'
 - tapOn: '^Search$'
 - inputText: '~ten'
 - assertVisible:
@@ -48,4 +48,4 @@ env:
 - tapOn: '^Close$'
 - assertVisible:
     id: ScreenHeaderTitle
-    text: '^Home$'
+    text: '^Workspaces$'

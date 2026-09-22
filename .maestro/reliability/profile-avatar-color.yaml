@@ -11,7 +11,7 @@ onFlowComplete:
 ---
 - runScript: data.js
 - runFlow: subflows/begin.yaml
-- runFlow: subflows/contacts-tab.yaml
+- runFlow: subflows/contacts-screen.yaml
 - tapOn: '^You$'
 - assertVisible:
     id: ProfileAvatar
@@ -37,14 +37,14 @@ onFlowComplete:
 - stopApp
 - launchApp
 - extendedWaitUntil:
-    visible: '^Home$'
+    visible: '^Workspaces$'
     timeout: 15000
-- runFlow: subflows/contacts-tab.yaml
+- runFlow: subflows/contacts-screen.yaml
 - tapOn: '^You$'
 - assertVisible:
     id: ProfileAvatar
     text: ${output.profileColor.targetLabel}
 - runFlow: subflows/restore-profile-color.yaml
 - tapOn: '^Back$'
-- runFlow: subflows/home-tab.yaml
-- assertVisible: '^Home$'
+- runFlow: subflows/workspaces-tab.yaml
+- assertVisible: '^Workspaces$'

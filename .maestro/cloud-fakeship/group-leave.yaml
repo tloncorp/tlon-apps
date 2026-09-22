@@ -25,5 +25,5 @@ env:
     rightOf: '^Cancel$'
 - assertVisible:
     id: ScreenHeaderTitle
-    text: '^Home$'
+    text: '^Workspaces$'
 - assertNotVisible: ${'^Leave-' + MAESTRO_RUN_TAG + '$'}

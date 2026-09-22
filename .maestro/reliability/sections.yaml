@@ -50,7 +50,7 @@ env:
 - stopApp
 - launchApp
 - extendedWaitUntil:
-    visible: '^Home$'
+    visible: '^Workspaces$'
     timeout: 15000
 - runFlow: subflows/open-fixture-group.yaml
 - tapOn: '^Edit channels$'
@@ -68,7 +68,7 @@ env:
     when:
       visible:
         id: ScreenHeaderTitle
-        text: '^Home$'
+        text: '^Workspaces$'
     commands:
       - tapOn: ${output.reliability.groupPattern}
 - tapOn: ${output.reliability.groupPattern}

@@ -33,4 +33,4 @@ env:
 - assertVisible:
     id: ScreenHeaderTitle
     text: '^Activity$'
-- runFlow: ../reliability/subflows/home-tab.yaml
+- runFlow: ../reliability/subflows/workspaces-tab.yaml

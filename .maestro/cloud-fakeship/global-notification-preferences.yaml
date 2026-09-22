@@ -5,16 +5,17 @@ env:
 ---
 - runScript: ../reliability/data.js
 - runFlow: begin.yaml
-- runFlow: ../reliability/subflows/contacts-tab.yaml
-- tapOn: '^Settings$'
-- tapOn: '^Notification settings$'
+- runFlow: ../reliability/subflows/settings-tab.yaml
+- runFlow:
+    file: ../reliability/subflows/settings-row.yaml
+    env:
+      ROW: '^Notifications$'
 - assertVisible: '^Notifications$'
 - assertVisible: '^All DMs and group posts$'
 - assertVisible: '^DMs, mentions, and replies only$'
 - assertVisible: '^Nothing$'
 - tapOn: '^DMs, mentions, and replies only$'
-- tapOn: '^Back$'
-- tapOn: '^Back$'
+- runFlow: ../reliability/subflows/to-tab-root.yaml
 - runFlow:
     when:
       platform: iOS
@@ -34,13 +35,13 @@ env:
     visible: ${'.*' + MAESTRO_RUN_TAG + ' notification soft mention.*'}
     timeout: 30000
 - assertVisible: ${'.*' + MAESTRO_RUN_TAG + ' notification soft reply.*'}
-- runFlow: ../reliability/subflows/contacts-tab.yaml
-- tapOn: '^Settings$'
-- tapOn: '^Notification settings$'
+- runFlow: ../reliability/subflows/settings-tab.yaml
+- runFlow:
+    file: ../reliability/subflows/settings-row.yaml
+    env:
+      ROW: '^Notifications$'
 - tapOn: '^Nothing$'
-- tapOn: '^Back$'
-- tapOn: '^Back$'
-- runFlow: ../reliability/subflows/home-tab.yaml
+- runFlow: ../reliability/subflows/workspaces-tab.yaml
 - extendedWaitUntil:
     visible: ${'.*' + MAESTRO_RUN_TAG + ' notification hush delivered.*'}
     timeout: 30000
@@ -61,11 +62,11 @@ env:
     text: '^Activity$'
 - assertVisible: ${'.*' + MAESTRO_RUN_TAG + ' notification hush mention.*'}
 - assertVisible: ${'.*' + MAESTRO_RUN_TAG + ' notification hush reply.*'}
-- runFlow: ../reliability/subflows/contacts-tab.yaml
-- tapOn: '^Settings$'
-- tapOn: '^Notification settings$'
+- runFlow: ../reliability/subflows/settings-tab.yaml
+- runFlow:
+    file: ../reliability/subflows/settings-row.yaml
+    env:
+      ROW: '^Notifications$'
 - tapOn: '^All DMs and group posts$'
-- tapOn: '^Back$'
-- tapOn: '^Back$'
-- runFlow: ../reliability/subflows/home-tab.yaml
-- assertVisible: '^Home$'
+- runFlow: ../reliability/subflows/workspaces-tab.yaml
+- assertVisible: '^Workspaces$'

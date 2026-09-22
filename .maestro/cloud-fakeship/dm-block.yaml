@@ -14,7 +14,7 @@ env:
 - tapOn: '^Block$'
 - assertVisible:
     id: ScreenHeaderTitle
-    text: '^Home$'
+    text: '^Workspaces$'
 - assertNotVisible: ${MAESTRO_RUN_TAG + ' block request'}
 - assertNotVisible: ${MAESTRO_RUN_TAG + ' blocked request'}
 - assertNotVisible: '^~ten$'

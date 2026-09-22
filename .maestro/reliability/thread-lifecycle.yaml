@@ -51,7 +51,7 @@ env:
 - stopApp
 - launchApp
 - extendedWaitUntil:
-    visible: '^Home$'
+    visible: '^Workspaces$'
     timeout: 15000
 - runFlow: subflows/open-fixture-group.yaml
 - tapOn: '^Chat$'
@@ -103,7 +103,7 @@ env:
 - stopApp
 - launchApp
 - extendedWaitUntil:
-    visible: '^Home$'
+    visible: '^Workspaces$'
     timeout: 15000
 - runFlow: subflows/open-fixture-group.yaml
 - tapOn: '^Chat$'
@@ -136,7 +136,7 @@ env:
 - stopApp
 - launchApp
 - extendedWaitUntil:
-    visible: '^Home$'
+    visible: '^Workspaces$'
     timeout: 15000
 - runFlow: subflows/open-fixture-group.yaml
 - tapOn: '^Chat$'

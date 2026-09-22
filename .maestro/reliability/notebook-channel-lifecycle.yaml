@@ -404,7 +404,7 @@ env:
 - stopApp
 - launchApp
 - extendedWaitUntil:
-    visible: '^Home$'
+    visible: '^Workspaces$'
     timeout: 15000
 - runFlow: subflows/open-fixture-group.yaml
 - tapOn: ${output.reliability.channel}
@@ -455,7 +455,7 @@ env:
 - stopApp
 - launchApp
 - extendedWaitUntil:
-    visible: '^Home$'
+    visible: '^Workspaces$'
     timeout: 15000
 - runFlow: subflows/open-fixture-group.yaml
 - tapOn: ${output.reliability.channel}
@@ -499,7 +499,7 @@ env:
 - stopApp
 - launchApp
 - extendedWaitUntil:
-    visible: '^Home$'
+    visible: '^Workspaces$'
     timeout: 15000
 - runFlow: subflows/open-fixture-group.yaml
 - assertNotVisible: ${output.reliability.channel}

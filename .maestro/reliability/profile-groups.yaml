@@ -10,9 +10,9 @@ onFlowComplete:
       commands:
         - launchApp
         - extendedWaitUntil:
-            visible: '^Home$'
+            visible: '^Workspaces$'
             timeout: 15000
-        - runFlow: subflows/contacts-tab.yaml
+        - runFlow: subflows/contacts-screen.yaml
         - tapOn: '^You$'
         - tapOn:
             id: ContactEditButton
@@ -39,7 +39,7 @@ onFlowComplete:
 - assertVisible: '^Private$'
 - tapOn: '^Back$'
 - tapOn: '^Back$'
-- runFlow: subflows/contacts-tab.yaml
+- runFlow: subflows/contacts-screen.yaml
 - tapOn: '^You$'
 - tapOn:
     id: ContactEditButton
@@ -66,9 +66,9 @@ onFlowComplete:
 - stopApp
 - launchApp
 - extendedWaitUntil:
-    visible: '^Home$'
+    visible: '^Workspaces$'
     timeout: 15000
-- runFlow: subflows/contacts-tab.yaml
+- runFlow: subflows/contacts-screen.yaml
 - tapOn: '^You$'
 - assertVisible: ${output.reliability.groupPattern}
 - tapOn:
@@ -88,13 +88,13 @@ onFlowComplete:
 - stopApp
 - launchApp
 - extendedWaitUntil:
-    visible: '^Home$'
+    visible: '^Workspaces$'
     timeout: 15000
-- runFlow: subflows/contacts-tab.yaml
+- runFlow: subflows/contacts-screen.yaml
 - tapOn: '^You$'
 - assertNotVisible: ${output.reliability.groupPattern}
 - tapOn: '^Back$'
-- runFlow: subflows/home-tab.yaml
+- runFlow: subflows/workspaces-tab.yaml
 - tapOn: '^Search$'
 # Keep the query distinct from the result's accessible name.
 - inputText: ${output.reliability.groupQuery}
@@ -122,7 +122,7 @@ onFlowComplete:
       platform: Android
     commands:
       - tapOn: '(?i)^Delete group$'
-- assertVisible: '^Home$'
+- assertVisible: '^Workspaces$'
 - assertNotVisible: ${output.reliability.groupPattern}
 - tapOn: '^Clear$'
 - tapOn: '^Close$'

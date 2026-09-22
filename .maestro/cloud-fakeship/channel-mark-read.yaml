@@ -34,4 +34,4 @@ env:
     point: '10%,8%'
 - assertVisible:
     id: ScreenHeaderTitle
-    text: '^Home$'
+    text: '^Workspaces$'

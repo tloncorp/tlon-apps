@@ -33,8 +33,8 @@ env:
     when:
       notVisible:
         id: ScreenHeaderTitle
-        text: '^Home$'
+        text: '^Workspaces$'
     commands:
       - pressKey: Back
-- assertVisible: '^Home$'
+- assertVisible: '^Workspaces$'
 - assertNotVisible: ${'Kick-' + MAESTRO_RUN_TAG}

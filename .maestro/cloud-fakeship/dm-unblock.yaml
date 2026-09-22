@@ -5,9 +5,11 @@ env:
 ---
 - runScript: ../reliability/data.js
 - runFlow: begin.yaml
-- runFlow: ../reliability/subflows/contacts-tab.yaml
-- tapOn: '^Settings$'
-- tapOn: '^Blocked users$'
+- runFlow: ../reliability/subflows/settings-tab.yaml
+- runFlow:
+    file: ../reliability/subflows/settings-row.yaml
+    env:
+      ROW: '^Blocked users$'
 - assertVisible: '^Blocked users$'
 - assertVisible: '^(~ten|ten)$'
 - assertVisible: '^Unblock$'
@@ -17,6 +19,4 @@ env:
     text: '^Unblock$'
     below: '^Are you sure you want to unblock this user\?$'
 - assertVisible: '^No blocked users$'
-- tapOn: '^Back$'
-- tapOn: '^Back$'
-- runFlow: ../reliability/subflows/home-tab.yaml
+- runFlow: ../reliability/subflows/workspaces-tab.yaml

@@ -21,7 +21,7 @@ env:
     id: '^textInput accessCode$'
 - assertVisible: '^Please enter a valid URL\.$'
 - assertVisible: '^Connect Ship$'
-- assertNotVisible: '^Home$'
+- assertNotVisible: '^Workspaces$'
 
 # A well-formed but incorrect code must reach the ship and fail authentication.
 - tapOn:
@@ -42,7 +42,7 @@ env:
     id: '^textInput shipUrl$'
 - assertVisible:
     id: '^textInput accessCode$'
-- assertNotVisible: '^Home$'
+- assertNotVisible: '^Workspaces$'
 
 # Correct only the code, then prove the same form reaches the configured ship.
 - tapOn:
@@ -69,10 +69,10 @@ env:
     commands:
       - tapOn: '^Next$'
 - extendedWaitUntil:
-    visible: '^Home$'
+    visible: '^Workspaces$'
     timeout: 60000
-- runFlow: subflows/contacts-tab.yaml
+- runFlow: subflows/contacts-screen.yaml
 - tapOn: '^You$'
 - assertVisible: ${output.reliability.shipPattern}
 - tapOn: '^Back$'
-- runFlow: subflows/home-tab.yaml
+- runFlow: subflows/workspaces-tab.yaml
