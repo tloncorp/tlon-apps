@@ -4940,8 +4940,20 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             log: (message) => runtime.log?.(message),
             warn: (message) => runtime.error?.(message),
           },
+          // requestJson never refreshes the cookie itself; only an SSE
+          // reconnect does, and a healthy stream never has one.
+          reauthenticate: async () => {
+            api!.updateCookie(await authenticateWithRetry('re_auth'));
+          },
         });
         const sync = promptSync;
+        // Its retries run until the ship answers or the sync closes, and the
+        // teardown below only reaches close() once the main body settles.
+        // Close on abort directly so a ship outage cannot pin a config
+        // reload or a gateway shutdown.
+        opts.abortSignal?.addEventListener('abort', () => void sync.close(), {
+          once: true,
+        });
         try {
           await api.subscribe({
             app: 'steward',
@@ -5877,7 +5889,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       );
       await api.connect();
       runtime.log?.('[tlon] Connected! Firehose subscriptions active');
-      await promptSync?.start();
+      // Not awaited: the initial projection retries until the ship answers,
+      // and readiness, catch-up and onboarding must not wait on that.
+      void promptSync?.start();
       if (!opts.abortSignal?.aborted && api.isConnected) {
         opts.onReady?.({
           isConnected: () => api.isConnected,
