@@ -4950,10 +4950,17 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         // Its retries run until the ship answers or the sync closes, and the
         // teardown below only reaches close() once the main body settles.
         // Close on abort directly so a ship outage cannot pin a config
-        // reload or a gateway shutdown.
-        opts.abortSignal?.addEventListener('abort', () => void sync.close(), {
-          once: true,
-        });
+        // reload or a gateway shutdown. addEventListener does not replay an
+        // abort that already happened during the bootstrap above, so check
+        // first — a retiring monitor must not install a watcher or start
+        // projecting.
+        if (opts.abortSignal?.aborted) {
+          void sync.close();
+        } else {
+          opts.abortSignal?.addEventListener('abort', () => void sync.close(), {
+            once: true,
+          });
+        }
         try {
           await api.subscribe({
             app: 'steward',
