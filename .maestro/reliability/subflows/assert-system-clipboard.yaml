@@ -1,0 +1,49 @@
+appId: ${MAESTRO_APP_ID}
+---
+# Paste through platform UI to read the real OS clipboard. `pasteText` would
+# read Maestro's separate in-memory clipboard and could not prove the app copy.
+- pressKey: Home
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn: '^Search$'
+      - tapOn:
+          id: input
+      - longPressOn:
+          id: input
+      - tapOn: '^Paste$'
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - pressKey: Home
+      - tapOn: '^Search$'
+      - longPressOn:
+          id: SpotlightSearchField
+      - tapOn: '^Paste$'
+- assertVisible: ${EXPECTED_CONTENTS}
+
+# Leave a known non-app value in the OS clipboard for repeatable later runs.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn: '^Clear search box$'
+      - inputText: clipboard-cleared
+      - longPressOn:
+          id: input
+      - tapOn: '^Select all$'
+      - tapOn: '^Cut$'
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn: '^Clear text$'
+      - inputText: clipboard-cleared
+      - longPressOn:
+          id: SpotlightSearchField
+      - tapOn: '^Select All$'
+      - tapOn: '^Cut$'
+- launchApp:
+    stopApp: false

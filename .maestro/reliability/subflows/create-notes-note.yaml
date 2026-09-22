@@ -1,0 +1,15 @@
+appId: ${MAESTRO_APP_ID}
+---
+- tapOn:
+    id: NotesRootNewHeaderAction
+- tapOn:
+    id: NotesNewNoteAction
+- runFlow:
+    file: fill-open-notes-note.yaml
+    env:
+      NOTE_TITLE: ${NOTE_TITLE}
+      NOTE_BODY: ${NOTE_BODY}
+- tapOn: '^Back$'
+- extendedWaitUntil:
+    visible: ${NOTE_TITLE}
+    timeout: 15000

@@ -1,0 +1,25 @@
+appId: ${MAESTRO_APP_ID}
+---
+- launchApp
+- extendedWaitUntil:
+    visible: '^(Home|Contacts)$'
+    timeout: 15000
+- runFlow: contacts-tab.yaml
+- tapOn: '^You$'
+- tapOn:
+    id: ContactEditButton
+- scrollUntilVisible:
+    element:
+      text: '^Default avatar color$'
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: ${output.profileColor.targetId}
+- assertVisible:
+    id: ProfileAvatarPreview
+    text: ${output.profileColor.originalLabel}
+- tapOn: '^Save$'
+- assertVisible:
+    id: ProfileAvatar
+    text: ${output.profileColor.originalLabel}
+- evalScript: ${output.profileColor.changed = false}
