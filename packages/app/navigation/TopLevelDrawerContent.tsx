@@ -517,6 +517,7 @@ function BubbleSlot({
  * joined the control that already held the other such destination.
  */
 function DrawerUtilityBubble({
+  flexShrink,
   createLabel,
   createDisabled,
   activitySelected,
@@ -528,6 +529,7 @@ function DrawerUtilityBubble({
   onPressActivity,
   onPressSettings,
 }: {
+  flexShrink?: number;
   /** What this tab's `+` makes, which is the only thing that says so. */
   createLabel: string;
   createDisabled: boolean;
@@ -578,14 +580,22 @@ function DrawerUtilityBubble({
 
   if (!usesIOSGlass) {
     return (
-      <View borderRadius={FOOTER_CONTROL_RADIUS} {...FOOTER_CONTROL_SHADOW}>
+      <View
+        flexShrink={flexShrink}
+        borderRadius={FOOTER_CONTROL_RADIUS}
+        {...FOOTER_CONTROL_SHADOW}
+      >
         {slots}
       </View>
     );
   }
 
   return (
-    <View borderRadius={FOOTER_CONTROL_RADIUS} {...FOOTER_CONTROL_SHADOW}>
+    <View
+      flexShrink={flexShrink}
+      borderRadius={FOOTER_CONTROL_RADIUS}
+      {...FOOTER_CONTROL_SHADOW}
+    >
       <GlassSurface isInteractive style={footerStyles.utilityBubble}>
         {slots}
       </GlassSurface>
@@ -956,6 +966,13 @@ function DrawerPanel(props: DrawerContentComponentProps) {
       if (chatsLocked) {
         return;
       }
+      // A request to stay in the panel, so it supersedes anything still
+      // resolving a route, the same as unfurling a workspace or changing tabs.
+      // A one-channel workspace tapped a moment ago is still reading its
+      // group, and nothing else here would stop it: the app behind the panel
+      // has not moved, so its staleness checks pass and it would reset the
+      // stack and close the panel out from under the sheet just opened.
+      navigationRequestRef.current += 1;
       openChatOptions(chat.id, chat.type);
     },
     [chatsLocked, openChatOptions]
@@ -1042,6 +1059,9 @@ function DrawerPanel(props: DrawerContentComponentProps) {
     if (chatsLocked) {
       return;
     }
+    // Supersedes a chat still resolving its route, for the reason every other
+    // control that keeps the user in the panel does.
+    navigationRequestRef.current += 1;
     createChatSheetRef.current?.open(filter === 'messages' ? 'dm' : undefined);
   }, [chatsLocked, filter]);
   // The sheet covers the panel, so the panel stays put while it is up; the
@@ -1106,7 +1126,12 @@ function DrawerPanel(props: DrawerContentComponentProps) {
         onLayout={(event) => setFooterHeight(event.nativeEvent.layout.height)}
       >
         {botDm.enabled ? (
-          <View>
+          // The bubble beside it is three fixed controls wide and the row has
+          // to hold both. At the narrowest width the app runs on there are
+          // about 11pt to spare, which a larger system font size would spend,
+          // so the pill is the piece that gives: it shrinks and its label
+          // truncates rather than pushing Activity and Settings off the panel.
+          <View flexShrink={1} minWidth={0}>
             <DrawerChatButton
               hasUnread={botDmHasUnread}
               selected={selected === 'BotChat'}
@@ -1128,6 +1153,9 @@ function DrawerPanel(props: DrawerContentComponentProps) {
           <View />
         )}
         <DrawerUtilityBubble
+          // Fixed: three controls of a size the composer sets, not a share of
+          // whatever is left.
+          flexShrink={0}
           createLabel={
             filter === 'messages' ? 'New message' : 'Start a conversation'
           }

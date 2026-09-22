@@ -829,7 +829,12 @@ function useCreateChat() {
               title: params.title,
             });
           }
-          navigateToGroup(group.id);
+          // Awaited: the route is not known until the group is read, and a
+          // caller told the chat was made acts on it — the drawer closes onto
+          // the screen it is covering. Left unawaited, it closed onto the
+          // screen being left instead, and a failed lookup still reported
+          // success.
+          await navigateToGroup(group.id);
         }
         return true;
       } catch (e) {
