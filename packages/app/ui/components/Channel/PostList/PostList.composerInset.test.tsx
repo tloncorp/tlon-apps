@@ -80,6 +80,7 @@ vi.mock('./usePostArrivalAnimation', () => ({
 vi.mock('react-native-reanimated', async () => {
   const { useRef } = await import('react');
   return {
+    default: { ScrollView: 'AnimatedScrollView' },
     useReducedMotion: () => false,
     useSharedValue: (initial: number) =>
       useRef({
@@ -159,21 +160,31 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+function renderList() {
+  return (
+    <PostList
+      anchor={null}
+      anchorToEnd
+      channel={{ id: 'chat' } as never}
+      collectionLayoutType="compact-list-bottom-to-top"
+      numColumns={1}
+      postsWithNeighbors={
+        [{ post: { id: 'post' }, previous: null, next: null }] as never
+      }
+      renderItem={() => null}
+    />
+  );
+}
+
 function mount() {
   act(() => {
-    renderer = create(
-      <PostList
-        anchor={null}
-        anchorToEnd
-        channel={{ id: 'chat' } as never}
-        collectionLayoutType="compact-list-bottom-to-top"
-        numColumns={1}
-        postsWithNeighbors={
-          [{ post: { id: 'post' }, previous: null, next: null }] as never
-        }
-        renderItem={() => null}
-      />
-    );
+    renderer = create(renderList());
+  });
+}
+
+function update() {
+  act(() => {
+    renderer.update(renderList());
   });
 }
 
@@ -375,4 +386,65 @@ it('honors a history scroll delivered from the worklet after the drag ends', asy
   expect(
     state.setFloating.mock.calls.filter(([floating]) => floating)
   ).toHaveLength(1);
+});
+
+describe('iOS native history anchoring', () => {
+  it('keeps the native anchor attached while LegendList switches between end-following and history', () => {
+    state.docked = true;
+    mount();
+    const renderScrollView = state.listProps.renderScrollComponent as (
+      props: Record<string, unknown>
+    ) => React.ReactElement<Record<string, unknown>>;
+    const ref = React.createRef();
+    const onScroll = vi.fn();
+    const nativeProps = () =>
+      renderScrollView({
+        ref,
+        onScroll,
+        testID: 'conversation-scroll',
+        maintainVisibleContentPosition: state.listProps
+          .maintainVisibleContentPosition
+          ? { minIndexForVisible: 0 }
+          : undefined,
+      }).props;
+
+    // End-following intentionally disables LegendList's data/size adjustments,
+    // but removing the native anchor here leaves iOS with a stale visible frame.
+    expect(state.listProps.maintainVisibleContentPosition).toBe(false);
+    expect(nativeProps()).toMatchObject({
+      ref,
+      onScroll,
+      testID: 'conversation-scroll',
+      maintainVisibleContentPosition: { minIndexForVisible: 0 },
+    });
+    state.floating = true;
+    update();
+    expect(state.listProps.maintainVisibleContentPosition).toBe(true);
+    expect(state.listProps.maintainScrollAtEnd).toBe(false);
+    expect(state.listProps.renderScrollComponent).toBe(renderScrollView);
+    expect(nativeProps().maintainVisibleContentPosition).toEqual({
+      minIndexForVisible: 0,
+    });
+    state.floating = false;
+    update();
+    act(() => state.sendHandler?.begin());
+    expect(state.listProps.maintainVisibleContentPosition).toBe(false);
+    expect(state.listProps.renderScrollComponent).toBe(renderScrollView);
+    expect(nativeProps().maintainVisibleContentPosition).toEqual({
+      minIndexForVisible: 0,
+    });
+  });
+
+  it.each([
+    ['android', true],
+    ['ios', false],
+  ])(
+    'leaves the %s list with docked=%s on its existing scroll component',
+    (platform, docked) => {
+      state.platform = platform as string;
+      state.docked = docked as boolean;
+      mount();
+      expect(state.listProps.renderScrollComponent).toBeUndefined();
+    }
+  );
 });

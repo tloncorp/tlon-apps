@@ -8,8 +8,9 @@ import {
   StyleSheet,
   type LayoutChangeEvent,
   type ScrollView,
+  type ScrollViewProps,
 } from 'react-native';
-import {
+import Animated, {
   type SharedValue,
   useReducedMotion,
   useSharedValue,
@@ -46,6 +47,20 @@ import {
 
 const ANCHOR_RESOLUTION_TIMEOUT_MS = 2_000;
 const ESTIMATED_ITEM_SIZE = 120;
+
+// Keep the native anchor attached across end-following and history modes.
+// Toggling it during an iOS gesture can reuse a stale native anchor frame and
+// jump to the start. LegendList still decides when data/size changes adjust it.
+function renderConversationScrollView(
+  props: ScrollViewProps & { ref?: React.Ref<ScrollView> }
+) {
+  return (
+    <Animated.ScrollView
+      {...props}
+      maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+    />
+  );
+}
 
 function useConversationKeyboardListProps(
   composerContentInset: SharedValue<number>
@@ -769,7 +784,8 @@ const ConversationPostListAttempt = React.forwardRef<
       !didFinishInitialScroll ||
       (!hasUserScrolled && isNearEnd) ||
       isWithinBottomThreshold;
-    // Disable both data and size anchoring while following the latest posts.
+    // Disable LegendList's data and size corrections while following the latest
+    // posts. The iOS native anchor stays attached via our scroll renderer.
     // `undefined` still enables size anchoring: native MVCP can jump to the
     // new end before the animated scroll runs, particularly on Android.
     // History keeps its visible post anchored; empty lists have no post to
@@ -835,6 +851,11 @@ const ConversationPostListAttempt = React.forwardRef<
     return (
       <ConversationList<PostWithNeighbors>
         ref={listRef}
+        renderScrollComponent={
+          docked && Platform.OS === 'ios'
+            ? renderConversationScrollView
+            : undefined
+        }
         dataKey={channel.id}
         data={postsWithNeighbors}
         keyExtractor={getPostId}
