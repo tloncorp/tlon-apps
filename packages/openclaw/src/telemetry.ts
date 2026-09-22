@@ -1,3 +1,4 @@
+import type { CampaignEvent } from './monitor/campaign/runner.js';
 import { createHash } from 'node:crypto';
 
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
@@ -694,6 +695,13 @@ export type TlonTelemetryErrorEvent = {
 };
 
 export interface TlonTelemetryClient {
+  captureOnboardingCampaign(
+    event: CampaignEvent & {
+      ownerShip: string;
+      botShip: string;
+      accountId: string;
+    }
+  ): void;
   captureGatewayConnected(event: TlonGatewayConnectedEvent): void;
   startReply(params: TlonReplyTelemetryStart): TlonReplyTelemetrySession;
   captureHeartbeatNudge(event: TlonHeartbeatNudgeEvent): void;
@@ -1420,6 +1428,31 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     return Object.fromEntries(
       Object.entries(properties).filter(([, value]) => value != null)
     );
+  }
+
+  captureOnboardingCampaign(
+    event: CampaignEvent & {
+      ownerShip: string;
+      botShip: string;
+      accountId: string;
+    }
+  ): void {
+    if (!this.ensureIdentified(event.ownerShip, event.botShip)) return;
+    this.client.capture({
+      distinctId: event.ownerShip,
+      event: 'TlonBot Onboarding Campaign',
+      properties: this.properties({
+        campaignAction: event.action,
+        campaignVersion: event.version,
+        campaignEnrolledAt: event.enrolledAt,
+        campaignStep: event.step,
+        skipReason: event.reason,
+        campaignReason: event.reason,
+        ownerShip: event.ownerShip,
+        botShip: event.botShip,
+        accountId: event.accountId,
+      }),
+    });
   }
 
   captureGatewayConnected(event: TlonGatewayConnectedEvent): void {
