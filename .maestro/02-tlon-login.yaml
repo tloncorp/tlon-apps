@@ -2,4 +2,7 @@ appId: io.tlon.groups
 ---
 - runFlow: subflows/launch.yaml
 - runFlow: subflows/tlon-login.yaml
-- assertVisible: 'Workspaces'
+# A hosted account with an agent lands on the Bot tab, whose header title is
+# blank, and the iOS tab buttons carry no label -- so there is no "Workspaces"
+# to assert until the tab is selected.
+- runFlow: subflows/workspaces-tab.yaml
