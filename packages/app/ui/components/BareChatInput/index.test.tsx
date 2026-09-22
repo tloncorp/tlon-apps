@@ -111,13 +111,16 @@ async function mount() {
   await act(async () => {
     renderer = create(
       <BareChatInput
-        {...({
-          channelId: 'chat',
-          groupRoles: [],
-          getDraft: async () => null,
-          storeDraft: mocks.noop,
-          setShouldBlur: mocks.noop,
-        } as React.ComponentProps<typeof BareChatInput>)}
+        channelId="chat"
+        channelType="chat"
+        groupMembers={[]}
+        groupRoles={[]}
+        shouldBlur={false}
+        setShouldBlur={mocks.noop}
+        sendPostFromDraft={mocks.noop}
+        getDraft={async () => null}
+        storeDraft={mocks.noop}
+        clearDraft={mocks.noop}
       />,
       { createNodeMock: () => mocks.input }
     );
