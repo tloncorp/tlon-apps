@@ -47,6 +47,8 @@ function makeSync(
     retryBaseMs?: number;
     /** What a failing finalize throws; defaults to a plain Error. */
     finalizeError?: Error;
+    /** What a failing poke throws; defaults to a plain Error. */
+    pokeError?: Error;
     reauthenticate?: () => Promise<void>;
   } = {}
 ) {
@@ -75,7 +77,7 @@ function makeSync(
         Object.hasOwn(poke.json as object, opts.failPokes.key)
       ) {
         pokeFailuresLeft -= 1;
-        throw new Error(`poke ${opts.failPokes.key} refused`);
+        throw opts.pokeError ?? new Error(`poke ${opts.failPokes.key} refused`);
       }
       pokes.push(poke);
     },
@@ -469,6 +471,27 @@ describe('prompt workspace projection', () => {
         method: 'POST',
         body: { requestId: '0vc', body: { type: 'updated', name: 'SOUL.md' } },
       },
+    ]);
+  });
+
+  it('refreshes the session when a projection poke is refused with 401', async () => {
+    // Every projection is a channel poke, so this transport matters more
+    // than finalize: a stale cookie here would stall startup and every
+    // later edit.
+    const reauthenticate = vi.fn(async () => {});
+    const { sync, pokes } = makeSync({
+      failPokes: { key: 'project', times: 1 },
+      pokeError: new UrbitHttpError({ operation: 'Poke', status: 401 }),
+      reauthenticate,
+    });
+    fs.writeFileSync(path.join(workspaceDir, 'SOUL.md'), 'after refresh');
+
+    await sync.start();
+
+    expect(reauthenticate).toHaveBeenCalledOnce();
+    expect(pokes.map((poke) => poke.json)).toEqual([
+      { configure: { owner: '~zod' } },
+      { project: { 'SOUL.md': 'after refresh' } },
     ]);
   });
 
