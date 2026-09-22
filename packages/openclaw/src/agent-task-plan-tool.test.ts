@@ -284,6 +284,27 @@ describe('agent task plan tool', () => {
     expect(serialized).not.toContain('timezoneOverride');
   });
 
+  it('drops blank optional answer evidence instead of rejecting the plan', () => {
+    const serialized = JSON.stringify(
+      buildAgentTaskPlanBlob(
+        {
+          ...validPlan,
+          answerEvidence: {
+            ...validPlan.answerEvidence,
+            context: 'Use official updates',
+            priority: '',
+            output: '   ',
+          },
+        },
+        validEvidence
+      )
+    );
+
+    expect(serialized).toContain('"context":"Use official updates"');
+    expect(serialized).not.toContain('"priority"');
+    expect(serialized).not.toContain('"output"');
+  });
+
   it('accepts explicit device-local time wording without an override', () => {
     const blob = buildAgentTaskPlanBlob(
       {

@@ -302,20 +302,26 @@ function parseParams(params: AgentTaskPlanToolParams): AgentTaskPlanToolParams {
   if (!params.summary.trim() || params.summary.length > 1000) {
     throw new Error('summary must be 1-1000 characters');
   }
+  const answerEvidence = { ...params.answerEvidence };
+  for (const dimension of ['context', 'priority', 'output'] as const) {
+    if (!answerEvidence[dimension]?.trim()) {
+      delete answerEvidence[dimension];
+    }
+  }
   const timezoneOverride = params.timezoneOverride?.trim() || undefined;
   if (
-    params.answerEvidence.recurrence.trim().toLocaleLowerCase() !==
+    answerEvidence.recurrence.trim().toLocaleLowerCase() !==
     AGENT_RECURRENCE_CONSENT_OPTION.toLocaleLowerCase()
   ) {
     throw new Error('task plan requires explicit owner consent to recur daily');
   }
   if (
     params.approach.trim().toLocaleLowerCase() !==
-    params.answerEvidence.approach.trim().toLocaleLowerCase()
+    answerEvidence.approach.trim().toLocaleLowerCase()
   ) {
     throw new Error('approach must exactly match answerEvidence.approach');
   }
-  const answeredTime = parseAnswerTime(params.answerEvidence.time);
+  const answeredTime = parseAnswerTime(answerEvidence.time);
   if (
     !answeredTime ||
     answeredTime.hour !== params.scheduleHour ||
@@ -331,12 +337,12 @@ function parseParams(params: AgentTaskPlanToolParams): AgentTaskPlanToolParams {
     } catch {
       throw new Error('timezoneOverride must be a valid IANA timezone');
     }
-    if (!copyUsesOnlyTimezone(params.answerEvidence.time, timezoneOverride)) {
+    if (!copyUsesOnlyTimezone(answerEvidence.time, timezoneOverride)) {
       throw new Error(
         'timezoneOverride must exactly match the timezone in answerEvidence.time'
       );
     }
-  } else if (namesExplicitTimezone(params.answerEvidence.time)) {
+  } else if (namesExplicitTimezone(answerEvidence.time)) {
     throw new Error(
       'answerEvidence.time names a timezone but timezoneOverride is missing'
     );
@@ -421,7 +427,7 @@ function parseParams(params: AgentTaskPlanToolParams): AgentTaskPlanToolParams {
     purposeId: params.purposeId,
     purpose: params.purpose,
     approach: params.approach,
-    answerEvidence: params.answerEvidence,
+    answerEvidence,
     topics: params.topics,
     scheduleHour: params.scheduleHour,
     scheduleMinute: params.scheduleMinute,
