@@ -2,33 +2,17 @@ appId: ${MAESTRO_APP_ID}
 ---
 - assertNotVisible: ${output.reliability.groupPattern}
 - tapOn: '^Add a chat$'
-- tapOn: '^New group$'
-- tapOn: '^Basic group.*$'
-- tapOn: '^Group name$'
-- waitForAnimationToEnd:
-    timeout: 5000
-- assertVisible:
-    text: '^Name your group$'
-    label: Group editor stays visible with keyboard open
-- runFlow:
-    file: input.yaml
-    env:
-      INPUT_TEXT: ${output.reliability.group}
-- assertVisible:
-    text: ${output.reliability.groupPattern}
-    below: '^Name your group$'
-    above: '^Next$'
+# On a phone whose account has an agent, #6585 drops the bare group action from
+# this sheet -- a Workspace is what the flow is for there -- so the fixture has
+# to be built from one instead. Everywhere else the template path still works.
 - runFlow:
     when:
-      platform: Android
-    commands:
-      - hideKeyboard
-- tapOn: '^Next$'
-- assertVisible: '^Select contacts to invite$'
-- tapOn: '^Create group$'
-- extendedWaitUntil:
-    visible: ${output.reliability.groupPattern}
-    timeout: 15000
+      visible: '^New group$'
+    file: create-group-plain.yaml
+- runFlow:
+    when:
+      notVisible: '^New group$'
+    file: create-group-workspace.yaml
 - assertVisible: '^Chat$'
 - assertVisible: '^Gallery$'
 - assertVisible: '^Notebook$'

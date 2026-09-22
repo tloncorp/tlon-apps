@@ -1,0 +1,42 @@
+appId: ${MAESTRO_APP_ID}
+---
+# Adds a channel to the group whose channel list is open, and returns to it.
+- tapOn: '^Edit channels$'
+- assertVisible: '^Channels$'
+- tapOn: '^New$'
+- tapOn: '^New channel$'
+- assertVisible: '^Create a new channel$'
+- tapOn:
+    id: ChannelTitleInput
+- inputText: ${CHANNEL_TITLE}
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - pressKey: Enter
+# The type rows carry no identifier and their titles repeat as channel names on
+# the list behind the sheet, so match each one's subtitle instead.
+- scrollUntilVisible:
+    element:
+      text: ${CHANNEL_TYPE_SUBTITLE}
+    direction: DOWN
+    timeout: 10000
+- tapOn: ${CHANNEL_TYPE_SUBTITLE}
+- scrollUntilVisible:
+    element:
+      text: '^Create channel$'
+    direction: DOWN
+    timeout: 10000
+- tapOn: '^Create channel$'
+- extendedWaitUntil:
+    notVisible: '^Create a new channel$'
+    timeout: 15000
+- extendedWaitUntil:
+    visible: ${CHANNEL_TITLE}
+    timeout: 15000
+- tapOn: '^Back$'

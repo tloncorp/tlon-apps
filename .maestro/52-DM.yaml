@@ -8,8 +8,8 @@ appId: io.tlon.groups
 - tapOn:
     id: 'CreateGroupButton'
 # Assert that the sheet pops
-- assertVisible: 'Create a new chat with one other person.'
-- tapOn: 'New direct message'
+- assertVisible: 'Create a private chat with one other person'
+- tapOn: 'New Message'
 # Assert that the contacts sheet pops
 - assertVisible: 'Select a contact to chat with'
 # Select a contact and start the DM

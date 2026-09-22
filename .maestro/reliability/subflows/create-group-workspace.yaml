@@ -1,0 +1,80 @@
+appId: ${MAESTRO_APP_ID}
+---
+# The Workspace path, used on a phone whose account has an agent: #6585 drops
+# the bare group action there, so this is the only way left to create a group.
+#
+# A Workspace is not shaped like the template group the journeys expect. It is
+# furnished over the network by the bot, arrives titled "My agent group" with a
+# single chat channel called "General", and gains a notes channel called
+# "Updates" only when it is the account's first one. So the fixture is built
+# the rest of the way here: renamed, its chat channel renamed, and the missing
+# channels created, until it matches what create-group-plain.yaml produces.
+#
+# Starts with the create sheet already open.
+- tapOn: '^New Workspace$'
+# Furnishing is a round trip to the bot, and the quick start opens the new
+# group's chat as soon as it exists rather than waiting for the rest.
+- extendedWaitUntil:
+    visible: '^Message$'
+    timeout: 120000
+- tapOn: '^Back$'
+- runFlow: workspaces-tab.yaml
+# The bot renames the group itself while the title is still the one it was
+# created under, so take the name first: an explicit rename settles it.
+- extendedWaitUntil:
+    visible: '^My agent group$'
+    timeout: 120000
+- longPressOn: '^My agent group$'
+- tapOn: '^Group info & settings$'
+- tapOn: '^Rename$'
+- tapOn:
+    id: GroupTitleInput
+    point: '95%,50%'
+- eraseText: 40
+- inputText: ${output.reliability.group}
+- assertVisible:
+    id: GroupTitleInput
+    text: ${output.reliability.groupPattern}
+- tapOn: '^Save$'
+- extendedWaitUntil:
+    visible: ${output.reliability.groupPattern}
+    timeout: 15000
+- tapOn: '^Back$'
+- runFlow: workspaces-tab.yaml
+- tapOn: ${output.reliability.groupPattern}
+- extendedWaitUntil:
+    visible: '^General$'
+    timeout: 30000
+- runFlow:
+    file: rename-channel.yaml
+    env:
+      CHANNEL_FROM: '^General$'
+      CHANNEL_TO: Chat
+- runFlow:
+    file: create-channel.yaml
+    env:
+      CHANNEL_TITLE: Gallery
+      CHANNEL_TYPE_SUBTITLE: '^Gather and arrange rich media$'
+# "Updates" is only there when this was the account's first Workspace, so the
+# notebook is renamed when it exists and created when it does not.
+- runFlow:
+    when:
+      visible: '^Updates$'
+    commands:
+      - runFlow:
+          file: rename-channel.yaml
+          env:
+            CHANNEL_FROM: '^Updates$'
+            CHANNEL_TO: Notebook
+- runFlow:
+    when:
+      notVisible: '^Notebook$'
+    commands:
+      - runFlow:
+          file: create-channel.yaml
+          env:
+            CHANNEL_TITLE: Notebook
+            CHANNEL_TYPE_SUBTITLE: '^Collaborative markdown notebooks$'
+- extendedWaitUntil:
+    visible: ${output.reliability.groupPattern}
+    timeout: 15000
