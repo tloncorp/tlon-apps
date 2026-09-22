@@ -206,7 +206,6 @@ describe('post blob helpers', () => {
         version: 1,
         groupId: '~zod/test',
         isFirstGroup: true,
-        campaignVersion: 2,
       },
       {
         type: 'tlon-agent-provision',
