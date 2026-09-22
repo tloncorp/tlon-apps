@@ -30,7 +30,12 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Keyboard, Platform, TextInput } from 'react-native';
+import {
+  Keyboard,
+  Platform,
+  TextInput,
+  type TextLayoutEvent,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -372,6 +377,27 @@ function BareChatInput(
   const maxInputHeight = useMaxInputHeight(maxInputHeightBasic);
   const inputLineHeight = Math.ceil(getFontSize('$m') * 1.2);
   const inputPadding = getTokenValue('$l', 'space');
+  const [lineMeasurement, setLineMeasurement] = useState<{
+    fontScale: number;
+    height: number;
+  }>();
+  const scaledLineHeight =
+    lineMeasurement?.fontScale === fontScale
+      ? lineMeasurement.height
+      : inputLineHeight * fontScale;
+  const measureLineHeight = useCallback(
+    ({ nativeEvent: { lines } }: TextLayoutEvent) => {
+      if (lines.length < 2) return;
+      const height = lines[1].y - lines[0].y;
+      if (height <= 0) return;
+      setLineMeasurement((previous) =>
+        previous?.fontScale === fontScale && previous.height === height
+          ? previous
+          : { fontScale, height }
+      );
+    },
+    [fontScale]
+  );
   // Android's material input pill is 48dp tall and bottom-anchors its content
   // so multiline composers grow upward. Fill that pill at the single-line
   // height; otherwise the 44dp text input sits 4dp low inside it.
@@ -379,7 +405,7 @@ function BareChatInput(
     Platform.OS === 'android'
       ? Math.max(initialHeight, MESSAGE_INPUT_CONTAINER_HEIGHT)
       : initialHeight,
-    isWeb ? 0 : inputLineHeight * fontScale + inputPadding * 2
+    isWeb ? 0 : scaledLineHeight + inputPadding * 2
   );
   // Cap the native text viewport, leaving attachment previews their own space.
   // Extra text scrolls inside the input instead of consuming the conversation.
@@ -389,8 +415,7 @@ function BareChatInput(
         minimumInputHeight,
         Math.min(
           maxInputHeight - getTokenValue('$s', 'space'),
-          MAX_NATIVE_INPUT_LINES * inputLineHeight * fontScale +
-            inputPadding * 2
+          MAX_NATIVE_INPUT_LINES * scaledLineHeight + inputPadding * 2
         )
       );
   const inputRef = useRef<TextInput>(null);
@@ -1229,6 +1254,22 @@ function BareChatInput(
         maxHeight={maxInputHeight}
         justifyContent="center"
       >
+        {!isWeb && (
+          // Android scales large text nonlinearly. Measure native line spacing
+          // instead of assuming fontScale is a multiplier for the height cap.
+          <RawText
+            accessible={false}
+            pointerEvents="none"
+            position="absolute"
+            opacity={0}
+            fontSize={getFontSize('$m')}
+            lineHeight={inputLineHeight}
+            includeFontPadding={false}
+            onTextLayout={measureLineHeight}
+          >
+            {'M\nM'}
+          </RawText>
+        )}
         {linkMetaLoading && <LinkPreviewLoading />}
         {showInlineAttachments && <AttachmentPreviewList />}
         <AnimatedInputHeight
