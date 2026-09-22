@@ -2,7 +2,7 @@ appId: ${MAESTRO_APP_ID}
 ---
 - launchApp
 - extendedWaitUntil:
-    visible: '^(Home|Contacts)$'
+    visible: '^(Workspaces|Contacts)$'
     timeout: 15000
 - runFlow: contacts-screen.yaml
 - tapOn: '^You$'

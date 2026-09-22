@@ -9,9 +9,6 @@ onFlowComplete:
         true: ${output.profileGroupAdded === true}
       commands:
         - launchApp
-        - extendedWaitUntil:
-            visible: '^Workspaces$'
-            timeout: 15000
         - runFlow: subflows/contacts-screen.yaml
         - tapOn: '^You$'
         - tapOn:
@@ -65,9 +62,6 @@ onFlowComplete:
 - assertVisible: ${output.reliability.groupPattern}
 - stopApp
 - launchApp
-- extendedWaitUntil:
-    visible: '^Workspaces$'
-    timeout: 15000
 - runFlow: subflows/contacts-screen.yaml
 - tapOn: '^You$'
 - assertVisible: ${output.reliability.groupPattern}
@@ -87,9 +81,6 @@ onFlowComplete:
 - assertNotVisible: ${output.reliability.groupPattern}
 - stopApp
 - launchApp
-- extendedWaitUntil:
-    visible: '^Workspaces$'
-    timeout: 15000
 - runFlow: subflows/contacts-screen.yaml
 - tapOn: '^You$'
 - assertNotVisible: ${output.reliability.groupPattern}

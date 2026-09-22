@@ -31,9 +31,15 @@ Two things about the current app shape are worth knowing before editing a flow:
 
 - **The app restores where it was closed.** `stopApp`/`launchApp` no longer
   returns to the chat list; it comes back to the screen the flow left, for 24
-  hours. The journeys that relaunch (settings, profile, notebook, relaunch)
-  assert the restored position rather than re-navigating to it. A fresh session
-  is unaffected, because `clearState` takes the saved position with it.
+  hours. So a relaunch has no landing to assert unless the flow navigated
+  somewhere known first: `relaunch.yaml` does, and asserts it; `settings`,
+  `profile` and `notebook` assert the restored position instead. Everywhere
+  else the relaunch is followed straight by a tab helper, which unwinds
+  whatever came back before selecting its tab -- do not put a landing
+  assertion in front of it, because the screen it names is not where the app
+  will be. The same goes for an `onFlowComplete` hook, which relaunches after
+  a failure that could have stopped anywhere. A fresh session is unaffected,
+  because `clearState` takes the saved position with it.
 - **iOS tab buttons are invisible to selectors.** The native tab bar exposes
   only its container, so `subflows/workspaces-tab.yaml` and
   `subflows/settings-tab.yaml` tap a point inside it. The percentages are

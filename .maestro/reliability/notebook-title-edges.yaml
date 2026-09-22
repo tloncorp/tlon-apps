@@ -79,9 +79,7 @@ env:
     timeout: 15000
 - stopApp
 - launchApp
-- extendedWaitUntil:
-    visible: '^Workspaces$'
-    timeout: 15000
+- runFlow: subflows/workspaces-tab.yaml
 - tapOn: ${output.reliability.groupPattern}
 - tapOn: ${output.reliability.channel}
 - extendedWaitUntil:
@@ -131,9 +129,7 @@ env:
 # Relaunch once more to prove the long title and original body are durable.
 - stopApp
 - launchApp
-- extendedWaitUntil:
-    visible: '^Workspaces$'
-    timeout: 15000
+- runFlow: subflows/workspaces-tab.yaml
 - tapOn: ${output.reliability.groupPattern}
 - tapOn: ${output.reliability.channel}
 - extendedWaitUntil:

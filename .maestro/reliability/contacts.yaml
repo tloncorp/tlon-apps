@@ -9,9 +9,6 @@ onFlowComplete:
         true: ${output.reliability && output.contactAdded}
       commands:
         - launchApp
-        - extendedWaitUntil:
-            visible: '^Workspaces$'
-            timeout: 15000
         - runFlow: subflows/contacts-screen.yaml
         - runFlow:
             when:

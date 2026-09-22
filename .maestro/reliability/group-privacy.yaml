@@ -15,9 +15,6 @@ env:
 - assertVisible: '^Private group with 1 member$'
 - stopApp
 - launchApp
-- extendedWaitUntil:
-    visible: '^Workspaces$'
-    timeout: 15000
 - runFlow: subflows/open-fixture-group.yaml
 - tapOn: ${output.reliability.groupPattern}
 - assertVisible: '^Private group with 1 member$'
@@ -31,9 +28,6 @@ env:
 - assertVisible: '^Secret group with 1 member$'
 - stopApp
 - launchApp
-- extendedWaitUntil:
-    visible: '^Workspaces$'
-    timeout: 15000
 - runFlow: subflows/open-fixture-group.yaml
 - tapOn: ${output.reliability.groupPattern}
 - assertVisible: '^Secret group with 1 member$'

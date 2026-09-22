@@ -403,9 +403,6 @@ env:
 # item; confirmation removes the subtree and leaves the source control note.
 - stopApp
 - launchApp
-- extendedWaitUntil:
-    visible: '^Workspaces$'
-    timeout: 15000
 - runFlow: subflows/open-fixture-group.yaml
 - tapOn: ${output.reliability.channel}
 - extendedWaitUntil:
@@ -454,9 +451,6 @@ env:
 # check and reset navigation before cleanup.
 - stopApp
 - launchApp
-- extendedWaitUntil:
-    visible: '^Workspaces$'
-    timeout: 15000
 - runFlow: subflows/open-fixture-group.yaml
 - tapOn: ${output.reliability.channel}
 - extendedWaitUntil:
@@ -498,9 +492,6 @@ env:
 # Prove the deleted Notebook does not return from the local cache on relaunch.
 - stopApp
 - launchApp
-- extendedWaitUntil:
-    visible: '^Workspaces$'
-    timeout: 15000
 - runFlow: subflows/open-fixture-group.yaml
 - assertNotVisible: ${output.reliability.channel}
 - assertVisible: '^Chat$'

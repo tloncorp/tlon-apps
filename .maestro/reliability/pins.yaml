@@ -46,9 +46,6 @@ env:
 - assertNotVisible: "${'.+: ' + output.reliability.text}"
 - stopApp
 - launchApp
-- extendedWaitUntil:
-    visible: '^Workspaces$'
-    timeout: 15000
 - runFlow: subflows/workspaces-tab.yaml
 - tapOn: ${output.reliability.groupPattern}
 - tapOn: '^Chat$'
@@ -58,9 +55,6 @@ env:
 - assertNotVisible: "${'.+: ' + output.reliability.reply}"
 - stopApp
 - launchApp
-- extendedWaitUntil:
-    visible: '^Workspaces$'
-    timeout: 15000
 - runFlow: subflows/workspaces-tab.yaml
 - tapOn: ${output.reliability.groupPattern}
 - tapOn: '^Chat$'

@@ -49,9 +49,6 @@ env:
 - assertNotVisible: ${MAESTRO_RUN_TAG + ' section'}
 - stopApp
 - launchApp
-- extendedWaitUntil:
-    visible: '^Workspaces$'
-    timeout: 15000
 - runFlow: subflows/open-fixture-group.yaml
 - tapOn: '^Edit channels$'
 - assertVisible: ${MAESTRO_RUN_TAG + ' renamed section'}

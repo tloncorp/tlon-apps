@@ -96,9 +96,6 @@ env:
     id: ${'GroupRole-' + MAESTRO_RUN_TAG + ' role'}
 - stopApp
 - launchApp
-- extendedWaitUntil:
-    visible: '^Workspaces$'
-    timeout: 15000
 - runFlow: subflows/open-fixture-group.yaml
 - tapOn: ${output.reliability.groupPattern}
 - tapOn: '^Roles$'

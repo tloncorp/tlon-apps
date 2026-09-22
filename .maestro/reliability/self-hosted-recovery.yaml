@@ -53,7 +53,7 @@ env:
     label: Enter configured test ship access code
 - tapOn: '^Connect$'
 - extendedWaitUntil:
-    visible: '^(Home|Usage Statistics|Save Password\?)$'
+    visible: '^(Tab Bar|Workspaces|Usage Statistics|Save Password\?)$'
     timeout: 60000
 - runFlow:
     when:
@@ -61,7 +61,7 @@ env:
     commands:
       - tapOn: '^Not Now$'
 - extendedWaitUntil:
-    visible: '^(Home|Usage Statistics)$'
+    visible: '^(Tab Bar|Workspaces|Usage Statistics)$'
     timeout: 60000
 - runFlow:
     when:

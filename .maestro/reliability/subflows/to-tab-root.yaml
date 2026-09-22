@@ -42,11 +42,17 @@ appId: ${MAESTRO_APP_ID}
       # over the bar, and every later tab selection tapped a tab that was not
       # there -- which is how `profile` failed looking for "Workspaces".
       # The native bar's own view ids cannot be spoofed that way:
-      # `navigation_bar_item_icon_view` exists only in the tab bar, and
-      # `screen-header-back` only on a screen stacked above it.
+      # `navigation_bar_item_icon_view` exists only in the tab bar.
+      #
+      # Both back buttons have to be listed. A navigation-placement header
+      # renders `screen-header-back` (ScreenHeader.tsx) but a custom header
+      # renders `HeaderBackButton` (ScreenHeader.BackButton), and a warm run
+      # can restore either -- User Profile is the second kind. Matching only
+      # the first left those screens unwindable: the bar was covered, so the
+      # readiness wait timed out before the loop could tap anything.
       - extendedWaitUntil:
           visible:
-            id: '.*(navigation_bar_item_icon_view|screen-header-back)'
+            id: '.*(navigation_bar_item_icon_view|screen-header-back|HeaderBackButton)'
           timeout: 60000
       - repeat:
           times: 8
@@ -57,10 +63,10 @@ appId: ${MAESTRO_APP_ID}
             - runFlow:
                 when:
                   visible:
-                    id: '.*screen-header-back'
+                    id: '.*(screen-header-back|HeaderBackButton)'
                 commands:
                   - tapOn:
-                      id: '.*screen-header-back'
+                      id: '.*(screen-header-back|HeaderBackButton)'
 - runFlow:
     when:
       visible: '^Stay in the loop$'

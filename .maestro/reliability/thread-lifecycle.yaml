@@ -50,9 +50,6 @@ env:
     label: Reply count remains one after editing the reply
 - stopApp
 - launchApp
-- extendedWaitUntil:
-    visible: '^Workspaces$'
-    timeout: 15000
 - runFlow: subflows/open-fixture-group.yaml
 - tapOn: '^Chat$'
 - tapOn: '^1 reply$'
@@ -102,9 +99,6 @@ env:
 - assertNotVisible: '^2 replies$'
 - stopApp
 - launchApp
-- extendedWaitUntil:
-    visible: '^Workspaces$'
-    timeout: 15000
 - runFlow: subflows/open-fixture-group.yaml
 - tapOn: '^Chat$'
 - assertVisible: '^1 reply$'
@@ -135,9 +129,6 @@ env:
 - assertVisible: ${output.reliability.textPattern}
 - stopApp
 - launchApp
-- extendedWaitUntil:
-    visible: '^Workspaces$'
-    timeout: 15000
 - runFlow: subflows/open-fixture-group.yaml
 - tapOn: '^Chat$'
 - assertVisible: ${output.reliability.textPattern}

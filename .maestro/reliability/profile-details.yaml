@@ -105,9 +105,6 @@ onFlowComplete:
 - assertVisible: ${output.reliability.profileBio}
 - stopApp
 - launchApp
-- extendedWaitUntil:
-    visible: '^Workspaces$'
-    timeout: 15000
 - runFlow: subflows/contacts-screen.yaml
 - tapOn: '^You$'
 - tapOn:

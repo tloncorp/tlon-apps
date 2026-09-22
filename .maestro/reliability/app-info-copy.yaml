@@ -33,7 +33,5 @@ env:
     env:
       EXPECTED_CONTENTS: ${output.reliability.appInfoValue}
 - assertVisible: '^App info$'
-- tapOn: '^Back$'
-- tapOn: '^Back$'
 - runFlow: subflows/workspaces-tab.yaml
 - assertVisible: '^Workspaces$'

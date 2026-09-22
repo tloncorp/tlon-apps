@@ -36,9 +36,6 @@ onFlowComplete:
     text: ${output.profileColor.targetLabel}
 - stopApp
 - launchApp
-- extendedWaitUntil:
-    visible: '^Workspaces$'
-    timeout: 15000
 - runFlow: subflows/contacts-screen.yaml
 - tapOn: '^You$'
 - assertVisible:
