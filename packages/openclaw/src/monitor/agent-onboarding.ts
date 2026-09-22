@@ -2194,7 +2194,10 @@ async function ensureFirstRunEnqueued(
   request: PostBlobDataEntryAgentProvision,
   notebookName: string,
   now: number,
-  listNotes: typeof notes.listNotes,
+  // Optional so a caller that cannot list -- the direct-call tests, and any
+  // future one -- still enqueues. Recovery then falls back to the time and
+  // authorship test, which is weaker but not wrong.
+  listNotes?: typeof notes.listNotes,
   providerIds: readonly string[] = []
 ): Promise<'enqueued' | 'recovered' | 'owned-by-another-pass'> {
   const enqueueRun = cron.enqueueRun?.bind(cron) ?? cron.run?.bind(cron);
@@ -2240,19 +2243,19 @@ async function ensureFirstRunEnqueued(
   // counted as pre-existing, which only costs a recovery we would rather
   // decline than get wrong. Best effort -- a listing failure must not fail the
   // provision, it just leaves recovery with the weaker test.
-  const baselineNoteId = await listNotes(request.notebookNest, {
-    signal: context.abortSignal,
-  })
-    .then((entries) =>
-      entries.reduce<number | undefined>(
-        (highest, entry) =>
-          highest === undefined || entry.noteId > highest
-            ? entry.noteId
-            : highest,
-        undefined
-      )
-    )
-    .catch(() => undefined);
+  const baselineNoteId = listNotes
+    ? await listNotes(request.notebookNest, { signal: context.abortSignal })
+        .then((entries) =>
+          entries.reduce<number | undefined>(
+            (highest, entry) =>
+              highest === undefined || entry.noteId > highest
+                ? entry.noteId
+                : highest,
+            undefined
+          )
+        )
+        .catch(() => undefined)
+    : undefined;
 
   let disposition: unknown;
   try {

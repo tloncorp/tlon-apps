@@ -2616,6 +2616,60 @@ describe('provision coordinator ordering', () => {
     expect(run).toHaveBeenCalledWith('job-1', 'force');
   });
 
+  it('reads the notebook baseline before enqueueing the run', async () => {
+    // The baseline is only a baseline if nothing the run writes can be in it,
+    // so the listing has to happen before the enqueue -- and the run must
+    // still enqueue when no listing is available, which is the case the test
+    // above covers by omitting it.
+    const order: string[] = [];
+    const run = vi.fn(async () => {
+      order.push('enqueue');
+      return { enqueued: true, runId: 'baseline-run' };
+    });
+    const cron = {
+      list: vi.fn(async () => []),
+      add: vi.fn(),
+      update: vi.fn(),
+      remove: vi.fn(),
+      run,
+    } as unknown as TlonCronService;
+    const listNotes = vi.fn(async () => {
+      order.push('list');
+      return [
+        {
+          noteId: 9,
+          title: 'Written before this run',
+          createdAt: 1_700_000_000_000,
+          createdBy: '~bot',
+        },
+      ];
+    });
+
+    await expect(
+      agentOnboardingTesting.ensureFirstRunEnqueued(
+        cron,
+        'job-1',
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/group/baseline',
+          groupId: provision.groupId,
+          ownerShip: '~ten',
+        },
+        provision,
+        'Updates',
+        100,
+        listNotes
+      )
+    ).resolves.toBe('enqueued');
+
+    expect(listNotes).toHaveBeenCalledWith(
+      provision.notebookNest,
+      expect.anything()
+    );
+    expect(order).toEqual(['list', 'enqueue']);
+  });
+
   it('reports each funnel step exactly once, in order', async () => {
     // An unfired analytics event is invisible, so the funnel's shape is worth
     // pinning: these are the steps a healthy setup must emit, and the order is
