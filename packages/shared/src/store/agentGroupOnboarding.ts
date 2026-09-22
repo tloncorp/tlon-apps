@@ -54,8 +54,6 @@ type FurnishParams = {
   agentShipId?: string;
   /** Lets the bot introduce the provisioned home group as the user's first. */
   isFirstGroup?: boolean;
-  /** Only the new-account signup path opts into campaign enrollment. */
-  campaignEligible?: boolean;
   /** Distinguishes explicit later creations while preserving remount retries. */
   requestId?: string;
 };
@@ -175,7 +173,6 @@ async function startAgentGroupFurnishingOnce(
     agentShipId: resolved.agentShipId,
     hostedShipId: resolved.hostedShipId,
     isFirstGroup: params.isFirstGroup ?? false,
-    campaignEligible: params.campaignEligible ?? false,
   });
 
   return {
@@ -284,14 +281,12 @@ async function finishAgentGroupFurnishing({
   agentShipId,
   hostedShipId,
   isFirstGroup,
-  campaignEligible,
 }: {
   group: db.Group;
   chatChannel: db.Channel;
   agentShipId: string;
   hostedShipId: string | null;
   isFirstGroup: boolean;
-  campaignEligible: boolean;
 }): Promise<AgentGroupFurnishing> {
   return retryAgentGroupFurnishCore(
     () =>
@@ -301,7 +296,6 @@ async function finishAgentGroupFurnishing({
         agentShipId,
         hostedShipId,
         isFirstGroup,
-        campaignEligible,
       }),
     { groupId: initialGroup.id }
   );
@@ -313,14 +307,12 @@ async function finishAgentGroupFurnishingOnce({
   agentShipId,
   hostedShipId,
   isFirstGroup,
-  campaignEligible,
 }: {
   initialGroup: db.Group;
   chatChannel: db.Channel;
   agentShipId: string;
   hostedShipId: string | null;
   isFirstGroup: boolean;
-  campaignEligible: boolean;
 }): Promise<AgentGroupFurnishing> {
   const notebook = isFirstGroup
     ? await ensureSingleNotesChannel(initialGroup.id)
@@ -332,12 +324,7 @@ async function finishAgentGroupFurnishingOnce({
       })
     : initialGroup;
 
-  await ensureIntroRequest(
-    group.id,
-    chatChannel.id,
-    isFirstGroup,
-    campaignEligible
-  );
+  await ensureIntroRequest(group.id, chatChannel.id, isFirstGroup);
   await db.pendingAgentGroupCreation.setValue((current) =>
     (typeof current === 'string' ? current : current?.groupId) === group.id
       ? null
@@ -662,26 +649,10 @@ async function reconcileCreatedOnboardingNotebook(
   throw new Error('Could not reconcile concurrent onboarding notebooks.');
 }
 
-function buildIntroRequest(
-  groupId: string,
-  isFirstGroup: boolean,
-  campaignEligible: boolean
-): api.PostBlobDataEntryAgentIntroRequest {
-  return {
-    type: 'tlon-agent-intro-request',
-    version: 1,
-    groupId,
-    ...(isFirstGroup ? { isFirstGroup: true } : {}),
-    ...(isFirstGroup && campaignEligible ? { campaignVersion: 1 } : {}),
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || undefined,
-  };
-}
-
 async function ensureIntroRequest(
   groupId: string,
   channelId: string,
-  isFirstGroup: boolean,
-  campaignEligible: boolean
+  isFirstGroup: boolean
 ) {
   const currentUserId = api.getCurrentUserId();
   const history = await api.getChannelPosts({
@@ -697,10 +668,12 @@ async function ensureIntroRequest(
   );
   if (alreadyPosted) return;
 
-  const blob = logic.appendToPostBlob(
-    undefined,
-    buildIntroRequest(groupId, isFirstGroup, campaignEligible)
-  );
+  const blob = logic.appendToPostBlob(undefined, {
+    type: 'tlon-agent-intro-request',
+    version: 1,
+    groupId,
+    ...(isFirstGroup ? { isFirstGroup: true } : {}),
+  });
   await finalizeAndSendPost(
     {
       channelId,
@@ -918,7 +891,6 @@ function agentHasAdmin(group: db.Group, agentShipId: string) {
 }
 
 export const agentGroupOnboardingTesting = {
-  buildIntroRequest,
   addCordonThenJoin,
   agentGroupFurnishingFlightKey,
   agentHasAdmin,
