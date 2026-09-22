@@ -949,7 +949,6 @@ export function Channel({
                           group={group}
                           title={title ?? ''}
                           description={''}
-                          isTopLevelTab={isTopLevelTab}
                           backDisabled={disableBackButton}
                           goBack={
                             (isNarrow && !isTopLevelTab) ||
