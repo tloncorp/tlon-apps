@@ -196,7 +196,6 @@ const MainApp = () => {
       >
         <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
           <AgentOnboardingSequence
-            campaignEligible={activeSplashSequenceMode === 'signup'}
             onCompleted={handleClearSplash}
             fallback={splash}
           />

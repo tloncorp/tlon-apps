@@ -7,7 +7,6 @@ import {
   isSummarizationRequest,
   parseChannelWhere,
   prepareInboundText,
-  resolveCommandBody,
   stripBotMentionOutsidePlaceholders,
 } from './utils.js';
 
@@ -207,32 +206,6 @@ describe('stripBotMentionOutsidePlaceholders', () => {
     const text = '> [quoted from ~bot-ship]';
 
     expect(stripBotMentionOutsidePlaceholders(text, '~bot-ship')).toBe(text);
-  });
-});
-
-describe('resolveCommandBody', () => {
-  it('uses the original slash command when agent context is prepended', () => {
-    expect(
-      resolveCommandBody({
-        messageText:
-          '[First-week onboarding context]\n\n[Current owner message]\n/status',
-        commandText: '/status',
-        isGroup: false,
-        botShipName: '~bot-ship',
-      })
-    ).toBe('/status');
-  });
-
-  it('strips the bot mention from an original channel command', () => {
-    expect(
-      resolveCommandBody({
-        messageText:
-          '[First-week onboarding context]\n\n[Current owner message]\n~bot-ship /new',
-        commandText: '~bot-ship /new',
-        isGroup: true,
-        botShipName: '~bot-ship',
-      })
-    ).toBe('/new');
   });
 });
 

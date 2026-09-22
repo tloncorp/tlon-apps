@@ -93,12 +93,6 @@ type AgentOnboardingContext = {
    * identity and timing.
    */
   trackStep?: (report: OnboardingStepReport) => void;
-  requestSentAt?: number;
-  /** Enrollment checks the original post timestamp, including during catch-up. */
-  onInitialIntro?: (
-    request: PostBlobDataEntryAgentIntroRequest,
-    occurredAt: number
-  ) => Promise<void>;
   presentation?: {
     startThinking: () => void | Promise<void>;
     stopThinking: () => void | Promise<void>;
@@ -560,8 +554,6 @@ async function handleAgentOnboardingRequestInternal(
     return true;
   }
 
-  if (request.type === 'tlon-agent-intro-request')
-    await context.onInitialIntro?.(request, context.requestSentAt ?? 0);
   const history = await fetchOnboardingHistory(context, deps);
   if (request.type === 'tlon-agent-intro-request') {
     await postIntro(
@@ -670,7 +662,6 @@ export async function scanAgentOnboardingChannel(
         ...context,
         senderShip: context.ownerShip,
         blob: candidate.entry.blob,
-        requestSentAt: candidate.entry.timestamp,
       },
       deps
     );
