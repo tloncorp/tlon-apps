@@ -172,6 +172,54 @@ test('hydrates Bucket writers from a live subscription update', async () => {
 // rows. It has to be kept: a rejected write is swallowed by the subscription
 // handler, and nothing asks again, so the Bucket would read as empty for the
 // rest of the connection.
+// A writer update carries a revision like any other event. If it is not
+// persisted, the stale-init guard compares against a revision the row never
+// reached and lets the old roles back in.
+test('advances the stored revision on a writers-updated event', async () => {
+  const channelId = 'buckets/~zod/revisions';
+  const flag = { host: '~zod', name: 'revisions' };
+
+  await db.insertChannels([{ id: channelId, type: 'buckets' }]);
+  await batchEffects('test:writerRevision', (ctx) =>
+    handleBucketsUpdate(
+      {
+        type: 'snapshot',
+        flag,
+        state: {
+          bucket: {
+            id: 1,
+            title: 'Revisions',
+            createdBy: '~zod',
+            createdAt: 0,
+            updatedBy: '~zod',
+            updatedAt: 0,
+          },
+          group: { host: '~zod', name: 'group' },
+          writers: ['admin', 'editor'],
+          entries: [],
+          revision: 1,
+        },
+      } as unknown as api.BucketsResponse,
+      ctx
+    )
+  );
+
+  await batchEffects('test:writerRevision2', (ctx) =>
+    handleBucketsUpdate(
+      {
+        type: 'update',
+        flag,
+        revision: 2,
+        update: { type: 'writers-updated', writers: ['admin'] },
+      } as unknown as api.BucketsResponse,
+      ctx
+    )
+  );
+
+  const stored = await db.getBucket({ channelId });
+  expect(stored?.revision).toBe(2);
+});
+
 // The init fetch and the %buckets subscription race on startup, and init is
 // the slower of the two. Writing its summary unconditionally reinstalls a
 // writer set the subscription has already superseded.

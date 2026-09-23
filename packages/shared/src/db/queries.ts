@@ -2513,6 +2513,27 @@ export const replaceBucketEntries = createWriteQuery(
 );
 
 /** Upsert one entry, from a create or an update. */
+/**
+ * Advance a Bucket's revision on its own.
+ *
+ * Entry writes carry the revision with them, but a writers-updated event
+ * changes no entries — and the revision is what tells a late init summary it
+ * is stale, so leaving it behind makes that summary look current.
+ */
+export const setBucketRevision = createWriteQuery(
+  'setBucketRevision',
+  async (
+    { channelId, revision }: { channelId: string; revision: number },
+    ctx: QueryCtx
+  ) => {
+    await ctx.db
+      .insert($buckets)
+      .values({ channelId, revision })
+      .onConflictDoUpdate({ target: $buckets.channelId, set: { revision } });
+  },
+  ['buckets']
+);
+
 export const upsertBucketEntry = createWriteQuery(
   'upsertBucketEntry',
   async (
@@ -2573,9 +2594,16 @@ export const deleteBucket = createWriteQuery(
     await ctx.db
       .delete($bucketEntries)
       .where(eq($bucketEntries.channelId, channelId));
+    // Queued, failed and active transfers go with it. Left behind, a pane
+    // still mounted on the Bucket goes on showing uploads for something the
+    // ship no longer holds, and rejoining in the same process resurrects
+    // those rows over newly published entries.
+    await ctx.db
+      .delete($bucketUploads)
+      .where(eq($bucketUploads.channelId, channelId));
     await ctx.db.delete($buckets).where(eq($buckets.channelId, channelId));
   },
-  ['buckets', 'bucketEntries']
+  ['buckets', 'bucketEntries', 'bucketUploads']
 );
 
 /**

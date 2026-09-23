@@ -1812,7 +1812,12 @@ export const handleBucketsUpdate = async (
       },
       ctx
     );
-    await writeBucketWriters(channelId, response.state.writers, ctx);
+    await writeBucketWriters(
+      channelId,
+      response.state.writers,
+      response.state.revision,
+      ctx
+    );
     return;
   }
 
@@ -1822,7 +1827,7 @@ export const handleBucketsUpdate = async (
       await db.deleteBucket(channelId, ctx);
       return;
     case 'writers-updated':
-      await writeBucketWriters(channelId, update.writers, ctx);
+      await writeBucketWriters(channelId, update.writers, revision, ctx);
       return;
     case 'entry-created':
     case 'entry-updated':
@@ -1853,6 +1858,7 @@ export const handleBucketsUpdate = async (
 async function writeBucketWriters(
   channelId: string,
   writers: string[],
+  revision: number,
   ctx: QueryCtx
 ) {
   await db.updateChannel(
@@ -1862,6 +1868,11 @@ async function writeBucketWriters(
     },
     ctx
   );
+  // Advanced with the writers, not just with entry writes. The init guard
+  // skips summaries older than the stored revision, so a writer update that
+  // left the revision behind made the stale summary look current and let it
+  // reinstall the roles this event just removed.
+  await db.setBucketRevision({ channelId, revision }, ctx);
 }
 
 export const handleChannelsUpdate = async (
