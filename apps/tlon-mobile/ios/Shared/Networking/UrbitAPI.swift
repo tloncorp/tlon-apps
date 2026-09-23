@@ -142,18 +142,23 @@ final class UrbitAPI {
 
     func processDataTask<T>(_ dataTask: DataTask<T>) async throws -> T {
         let response = await dataTask.response
-        if let error = response.error {
-            // A 2xx that still errored is a serialization failure, not an HTTP
-            // one — keep the underlying error, it says what failed to decode.
-            if let statusCode = response.response?.statusCode {
-                switch statusCode {
-                case 403: throw APIError.forbidden
-                case 404: throw APIError.notFound
-                case 200..<300: break
-                default: throw APIError.httpError(statusCode: statusCode)
-                }
-            }
 
+        // Nothing here calls `.validate()`, so a failing status with a body in it
+        // — an urbit login page on a 403, a proxy's 502 page — serializes as
+        // happily as a real one. Judge the status before the serializer gets a
+        // vote, or those come back as success and fail later as a parse error
+        // that says nothing about the status.
+        if let statusCode = response.response?.statusCode, !(200..<300).contains(statusCode) {
+            switch statusCode {
+            case 403: throw APIError.forbidden
+            case 404: throw APIError.notFound
+            default: throw APIError.httpError(statusCode: statusCode)
+            }
+        }
+
+        // A 2xx that still errored is a serialization failure; that error says
+        // what failed to decode, so it is the one worth keeping.
+        if let error = response.error {
             throw error
         }
 
