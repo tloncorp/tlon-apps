@@ -78,8 +78,9 @@ export function TopLevelTabNavigator() {
   const unseenActivityCount = store.useUnreadUnseenActivityCount({
     excludeChannelId: botDm.enabled ? botDm.channelId : undefined,
   });
-  // A native badge is text; a single space is UIKit's empty pill, which reads
-  // as a dot. Undefined removes it.
+  // A blank native badge draws as a small dot beneath the tab's icon — our
+  // react-native-screens patch; iOS before 26 keeps UIKit's corner pill.
+  // Undefined removes it.
   const dot = (lit: boolean) => (lit ? ' ' : undefined);
   // `blue` is a colour token, not a theme key: `useTheme().blue` is undefined
   // and the badge would fall back to the navigator's red. Read the token.
