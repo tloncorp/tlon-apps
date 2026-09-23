@@ -24,10 +24,20 @@ candidate client against a pinned N-1 pier.
 
 **(c) Desk removal is bounded by the support window** — the currently released
 client plus the candidate client. The released desk and web client are the
-latest `vX.Y.Z` release tag: the tag is cut by hand on the release commit and
-dispatched to livenet, so it names what users run. `origin/master`'s tip is not
-that — the same branch also carries the plugin release, which sometimes
-leapfrogs the desk and leaves master ahead of the last deployed desk.
+latest `vX.Y.Z` tag *whose livenet deploy succeeded*: the tag is cut by hand on
+the release commit and dispatched to livenet afterwards, so a tag that has been
+cut but not deployed, or whose deploy failed, is not what users run.
+`origin/master`'s tip is not it either — the same branch also carries the
+plugin release, which sometimes leapfrogs the desk and leaves master ahead of
+the last deployed desk.
+
+Mobile widens that window. Builds are cut separately (`mobile-build.yml`), and
+older binaries stay supported down to each platform's minimum version, which
+lives in the invite service — `useRequiredUpdate` forces an update only below
+that `minVersion`. So removal is bounded by the released web client, the
+candidate, and each mobile platform's builds down to its configured minimum.
+Before removing a desk endpoint that older mobile builds still call, raise
+those minimums past the last build that made the request.
 
 **(d) Negotiation protocols are a hard floor beneath `MIN_GROUPS_VERSION`.**
 Each agent declares a protocol version through `agent:neg`; %groups went
