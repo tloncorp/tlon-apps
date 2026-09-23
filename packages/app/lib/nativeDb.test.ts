@@ -241,6 +241,9 @@ describe('NativeDb', () => {
       name: 'tlon-cosmos.sqlite',
     });
     expect(firstConnection.delete).toHaveBeenCalledTimes(1);
+    // `delete()` closes the connection itself -- closing first would be a
+    // second `sqlite3_close_v2` on a freed handle.
+    expect(firstConnection.close).not.toHaveBeenCalled();
     expect(sharedDbSpies.resetHeadsSyncedAt).not.toHaveBeenCalled();
     expect(sharedDbSpies.resetChangesSyncedAt).not.toHaveBeenCalled();
     expect(sharedDbSpies.resetDidSyncInitialPosts).not.toHaveBeenCalled();
@@ -329,7 +332,7 @@ describe('NativeDb', () => {
     await db.runMigrations();
 
     expect(firstConnection.migrateClient).toHaveBeenCalledTimes(1);
-    expect(firstConnection.close).toHaveBeenCalledTimes(1);
+    expect(firstConnection.close).not.toHaveBeenCalled();
     expect(firstConnection.delete).toHaveBeenCalledTimes(1);
     expect(secondConnection.migrateClient).toHaveBeenCalledTimes(1);
     expect(sharedDbSpies.setClient).toHaveBeenCalledTimes(2);
@@ -867,9 +870,9 @@ describe('NativeDb abandoned initialization', () => {
     expect(lastReset).toBeLessThan(
       firstConnection.delete.mock.invocationCallOrder[0]
     );
-    expect(lastReset).toBeLessThan(
-      firstConnection.close.mock.invocationCallOrder[0]
-    );
+    // `delete()` is the whole destructive step -- it closes the handle itself,
+    // so the purge never calls `close()` separately.
+    expect(firstConnection.close).not.toHaveBeenCalled();
   });
 
   it('does not page for a schema probe that failed because of abandonment', async () => {
