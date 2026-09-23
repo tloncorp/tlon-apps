@@ -1,4 +1,5 @@
 import { createDevLogger } from '../lib/logger';
+import { getInitSupportsBuckets } from './urbit';
 import type * as db from '../types/models';
 import type * as ub from '../urbit';
 import type { BucketsSummary } from '../urbit/buckets';
@@ -40,32 +41,18 @@ export const getInitData = async () => {
   // (notebook/note sources) so a fresh init hydrates pre-existing note
   // unreads, over v11 groups so it also carries blob. Old backends don't
   // serve it.
-  // A ship whose desk predates Buckets serves /v10 but not /v11, and letting
-  // that 404 escape abandons the whole high-priority batch -- the client then
-  // hydrates no groups and no channels at all. That is every user in the
-  // window between updating the app and updating their ship, so fall back
-  // rather than fail. An absent buckets field is simply no buckets, which
-  // +toInitData already accepts.
-  let response: ub.GroupsInit11 | (ub.GroupsInit10 & { buckets?: never });
-  try {
-    response = await scry<ub.GroupsInit11>({
-      app: 'groups-ui',
-      path: '/v11/init',
-    });
-  } catch (v11Error) {
-    logger.crumb('v11 init unavailable, falling back to v10');
-    try {
-      response = await scry<ub.GroupsInit10>({
-        app: 'groups-ui',
-        path: '/v10/init',
-      });
-    } catch (v10Error) {
-      // Both gone means the ship is unreachable or far older, which is a real
-      // failure -- surface the original rather than masking it as a fallback
-      // problem.
-      throw v11Error;
-    }
-  }
+  // Which endpoint exists is decided by the backend's version, resolved by
+  // the capability probe before this runs — not discovered by calling and
+  // catching. A ship whose desk predates Buckets serves /v10 and not /v11,
+  // and letting that 404 escape abandons the whole high-priority batch: the
+  // client then hydrates no groups and no channels at all. /v11 is /v10 plus
+  // Buckets, so the older path degrades to Buckets arriving without their
+  // writer roles until the subscription fills them in.
+  const path = getInitSupportsBuckets() ? '/v11/init' : '/v10/init';
+  const response = await scry<ub.GroupsInit11>({
+    app: 'groups-ui',
+    path,
+  });
 
   logger.crumb('got init data from api');
 

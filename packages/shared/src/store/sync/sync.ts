@@ -16,6 +16,7 @@ import { AnalyticsEvent, AnalyticsSeverity } from '../../domain';
 import {
   MIN_GROUPS_VERSION,
   activityVersionSupportsNotes,
+  initVersionSupportsBuckets,
   activityVersionSupportsReactions,
   classifyDeskVersion,
 } from '../../logic';
@@ -651,6 +652,9 @@ export const syncAppInfo = async (
   api.setActivitySupportsNotes(
     activityVersionSupportsNotes(appInfo?.groupsVersion)
   );
+  api.setInitSupportsBuckets(
+    initVersionSupportsBuckets(appInfo?.groupsVersion)
+  );
   // Awaited so the App Info screen and the notes-search gate see it promptly.
   // The capability flags don't depend on it landing: what protects those is
   // the in-memory version recorded above.
@@ -686,6 +690,7 @@ export const syncReactionSupport = async () => {
     activityVersionSupportsReactions(groupsVersion)
   );
   api.setActivitySupportsNotes(activityVersionSupportsNotes(groupsVersion));
+  api.setInitSupportsBuckets(initVersionSupportsBuckets(groupsVersion));
 };
 
 export const syncVolumeSettings = async (ctx?: SyncCtx) => {

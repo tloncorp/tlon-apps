@@ -5,6 +5,7 @@ export * from './semver';
 export * from './deskCompatibility';
 export * from './reactionSupport';
 export * from './threadUnreads';
+export * from './bucketsInitSupport';
 export * from './notesActivitySupport';
 export * from './notesPublish';
 export * from './notesPermissionsCompat';
