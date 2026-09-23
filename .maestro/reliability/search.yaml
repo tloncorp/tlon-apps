@@ -29,4 +29,4 @@ env:
     id: MessageInput
     text: '^Message$'
 - tapOn: '^Back$'
-- assertVisible: '^Home$'
+- assertVisible: '^Workspaces$'

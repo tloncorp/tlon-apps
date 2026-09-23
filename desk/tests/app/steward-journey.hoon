@@ -109,7 +109,8 @@
   =/  echo=echo:l  ~[`tank`body]
   =/  event=log-event:l  [%tell %info echo]
   =/  data=log-data:l
-    :~  `(pair @t json)`['tlon.message_journey.schema_version' [%n '1']]
+    :~  `(pair @t json)`['src' [%s (scot %p local)]]
+        'tlon.message_journey.schema_version'^[%n '1']
         'tlon.message_journey.event'^s+stage
         'tlon.message_journey.message_id'^s+message-id
         id-key^s+message-id
@@ -129,7 +130,8 @@
   =/  echo=echo:l  ~[`tank`body]
   =/  event=log-event:l  [%tell %info echo]
   =/  data=log-data:l
-    :~  `(pair @t json)`['tlon.message_journey.schema_version' [%n '1']]
+    :~  `(pair @t json)`['src' [%s (scot %p local)]]
+        'tlon.message_journey.schema_version'^[%n '1']
         'tlon.message_journey.event'^s+stage
         'tlon.message_journey.message_id'^s+message-id
         'tlon.message_journey.output_message_id'^s+message-id
@@ -302,6 +304,31 @@
     [%gu @ %contacts @ %$ ~]  `!>(|)
     [%j @ %sein @ @ ~]  `!>(owner)
   ==
+::
+++  scry-without-journey-lookups
+  |=  =path
+  ^-  (unit vase)
+  ?+  path  ~
+    [%gu @ %activity @ %$ ~]  `!>(&)
+  ==
+::
+++  test-unrelated-dm-skips-sponsor-and-contact-scries
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =/  local=ship  ~zod
+  ;<  ~  bind:m  (setup local scry-without-journey-lookups)
+  ;<  caz=(list card)  bind:m
+    (do-agent (make-fact local bot local [local when]))
+  (ex-cards caz ~)
+::
+++  test-unrelated-channel-skips-sponsor-and-contact-scries
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =/  local=ship  ~zod
+  ;<  ~  bind:m  (setup local scry-without-journey-lookups)
+  ;<  caz=(list card)  bind:m
+    (do-agent (make-channel-post-fact local ~bus bot when %chat 0))
+  (ex-cards caz ~)
 ::
 ++  test-unavailable-contacts-does-not-crash-observers
   %-  eval-mare

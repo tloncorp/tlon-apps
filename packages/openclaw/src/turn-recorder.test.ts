@@ -645,6 +645,35 @@ describe('Tlon agent turn async scope', () => {
     );
   });
 
+  it('attributes a cross-account dispatch to the outbound account and ship', async () => {
+    const recordDispatchAttempted = vi.fn();
+    const observer: TlonAgentTurnObserver = {
+      recordDispatchAttempted,
+      recordStarted: () => undefined,
+      recordTerminal: () => undefined,
+    };
+    const turn = startTlonAgentTurn(baseTurn, { observer });
+
+    await turn.run(() =>
+      observeActiveTlonTurnDelivery(
+        async () => ({ messageId: '~marzod/222' }),
+        {
+          accountId: 'secondary',
+          destinationKind: 'group_channel',
+          ship: '~marzod',
+        }
+      )
+    );
+
+    expect(recordDispatchAttempted).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        accountId: 'secondary',
+        destinationKind: 'group_channel',
+        ship: 'marzod',
+      })
+    );
+  });
+
   it('keeps observer failures out of the dispatch path', async () => {
     const observer: TlonAgentTurnObserver = {
       recordStarted: () => {

@@ -7,6 +7,7 @@ import { sendChannelPost } from './urbit/send.js';
 
 vi.mock('./types.js', () => ({
   resolveTlonAccount: () => ({
+    accountId: 'secondary',
     configured: true,
     ship: '~zod',
     url: 'http://localhost:8080',
@@ -43,13 +44,13 @@ describe('message reply action journey', () => {
     };
     const turn = startTlonAgentTurn(
       {
-        accountId: 'hosted',
+        accountId: 'primary',
         agentId: 'main',
         destinationKind: 'dm',
         inputMessageId: '~nec/111',
         runId: 'reply-action',
         sessionKey: 'agent:main:tlon:direct:~nec',
-        ship: '~zod',
+        ship: '~nec',
         trigger: 'dm',
       },
       { observer }
@@ -76,8 +77,10 @@ describe('message reply action journey', () => {
     expect(observer.recordDispatchAttempted).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
         attemptNumber: 1,
+        accountId: 'secondary',
         destinationKind: 'group_channel',
         inputMessageId: '~nec/111',
+        ship: 'zod',
       })
     );
     expect(observer.recordMoonReplyEnqueued).toHaveBeenCalledExactlyOnceWith(

@@ -1,0 +1,37 @@
+appId: ${MAESTRO_APP_ID}
+name: Native App Info clipboard
+tags: [regression]
+env:
+  JOURNEY: app-info-copy
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/settings-tab.yaml
+- runFlow:
+    file: subflows/settings-row.yaml
+    env:
+      ROW: '^App info$'
+- assertVisible: '^App info$'
+- assertVisible: '^Build version$'
+- copyTextFrom:
+    text: '^(iOS|Android) .+$'
+- evalScript: ${output.reliability.appInfoValue = maestro.copiedText}
+- assertTrue:
+    condition: ${output.reliability.appInfoValue.length > 4}
+    label: Capture the exact Build version value before copying it
+
+# Put a different value in the OS clipboard so stale state cannot satisfy the
+# copy assertion, then return to the still-open App Info screen.
+- runFlow:
+    file: subflows/seed-system-clipboard.yaml
+    env:
+      CLIPBOARD_SENTINEL: ${'before-' + MAESTRO_RUN_TAG}
+- assertVisible: '^App info$'
+- tapOn: '^Build version$'
+- runFlow:
+    file: subflows/assert-system-clipboard.yaml
+    env:
+      EXPECTED_CONTENTS: ${output.reliability.appInfoValue}
+- assertVisible: '^App info$'
+- runFlow: subflows/workspaces-tab.yaml
+- assertVisible: '^Workspaces$'

@@ -352,15 +352,22 @@ export class NativeDb extends BaseDb {
       });
       return;
     } catch (e) {
-      logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
-        context:
-          'runMigrations: migration/schema verification failed. Attempting to purge and retry',
+      // The initial attempt failing is recovered by design: the repo keeps a
+      // single regenerated baseline migration, so on every existing install
+      // drizzle replays it against a populated DB and collides, and purging and
+      // re-migrating is the only route that install has to the new schema.
+      // Nothing downstream branches on why this attempt failed -- every error
+      // falls through to the same purge and retry -- and a failure that is not
+      // recovered is reported Critical and rethrown by the purge and retry
+      // catches below. So count this at Low rather than paging on it.
+      logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+        context: 'runMigrations: initial migrate failed. Purging and retrying',
         error: e,
         errorMessage: e.message,
         attemptId,
         elapsedMs: getElapsedMs(),
         migrationPhase: 'initial',
-        severity: AnalyticsSeverity.Critical,
+        severity: AnalyticsSeverity.Low,
       });
     }
     logger.trackEvent(AnalyticsEvent.NativeDbDebug, {

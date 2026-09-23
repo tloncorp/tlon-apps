@@ -2280,8 +2280,8 @@ export async function createDirectMessage(page: Page, contactId: string) {
   await waitForSessionStability(page);
 
   await page.getByTestId('CreateChatSheetTrigger').click();
-  await expect(page.getByText('Create a new chat with one')).toBeVisible();
-  await page.getByText('New direct message').click();
+  await expect(page.getByText('Create a private chat with one')).toBeVisible();
+  await page.getByText('New Message', { exact: true }).click();
 
   await expect(page.getByText('Select a contact to chat with')).toBeVisible();
   await page.getByPlaceholder('Filter by nickname or id').click();

@@ -9,11 +9,13 @@ const { scope, init, withScope, captureException, captureEvent, setUser } =
       setLevel: ReturnType<typeof vi.fn>;
       setTags: ReturnType<typeof vi.fn>;
       setExtras: ReturnType<typeof vi.fn>;
+      setFingerprint: ReturnType<typeof vi.fn>;
     } = {
       addBreadcrumb: vi.fn(),
       setLevel: vi.fn(),
       setTags: vi.fn(),
       setExtras: vi.fn(),
+      setFingerprint: vi.fn(),
     };
     return {
       scope,

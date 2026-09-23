@@ -8,6 +8,7 @@ const getActiveForegroundContextLensForConversation = vi.fn<() => unknown>(
   () => null
 );
 const resolveTlonAccount = vi.fn(() => ({
+  accountId: 'secondary',
   configured: true,
   ship: '~zod',
   url: 'http://localhost:8080',
@@ -122,6 +123,7 @@ describe('sendMedia', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     resolveTlonAccount.mockReturnValue({
+      accountId: 'secondary',
       configured: true,
       ship: '~zod',
       url: 'http://localhost:8080',
@@ -155,7 +157,7 @@ describe('sendMedia', () => {
         inputMessageId: '~nec/111',
         runId: 'media-failure',
         sessionKey: 'agent:main:tlon:direct:~nec',
-        ship: '~zod',
+        ship: 'zod',
         trigger: 'dm',
       },
       {
@@ -189,6 +191,44 @@ describe('sendMedia', () => {
       dispatch: 'not_applicable',
       dispatchAttemptCount: 0,
     });
+  });
+
+  it('attributes sends to the resolved outbound account and ship', async () => {
+    const { startTlonAgentTurn } = await import('./turn-recorder.js');
+    const recordDispatchAttempted = vi.fn();
+    const turn = startTlonAgentTurn(
+      {
+        accountId: 'primary',
+        agentId: 'main',
+        destinationKind: 'dm',
+        inputMessageId: '~nec/111',
+        runId: 'cross-account',
+        sessionKey: 'agent:main:tlon:direct:~nec',
+        ship: '~nec',
+        trigger: 'dm',
+      },
+      {
+        observer: {
+          recordDispatchAttempted,
+          recordStarted: () => undefined,
+          recordTerminal: () => undefined,
+        },
+      }
+    );
+
+    await turn.run(() =>
+      tlonRuntimeOutbound.sendText({
+        ...baseCtx,
+        accountId: 'secondary',
+      })
+    );
+
+    expect(recordDispatchAttempted).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        accountId: 'secondary',
+        ship: 'zod',
+      })
+    );
   });
 
   it('posts exactly once with valid https URL', async () => {
@@ -287,6 +327,7 @@ describe('notes delivery', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     resolveTlonAccount.mockReturnValue({
+      accountId: 'secondary',
       configured: true,
       ship: '~zod',
       url: 'http://localhost:8080',
@@ -446,6 +487,7 @@ describe('notes delivery', () => {
     const recordOutput = vi.fn();
     const recordPersistence = vi.fn();
     resolveTlonAccount.mockReturnValue({
+      accountId: 'secondary',
       configured: true,
       ship: '~zod',
       url: 'http://localhost:8080',
@@ -499,5 +541,73 @@ describe('notes delivery', () => {
         body: 'Tuesday briefing\n\nThe full report.',
       })
     );
+  });
+});
+
+describe('gateway startup catch-up wiring', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('publishes readiness from the provider and cancels immediately on host abort', async () => {
+    const { startTlonGatewayAccount } = await import('./channel.runtime.js');
+    const { monitorTlonProvider } = await import('./monitor/index.js');
+    const { getRestartCatchupCoordinator } =
+      await import('./restart-catchup.js');
+    const connected = vi.fn();
+    const stop = vi.fn();
+    const attach = vi
+      .spyOn(getRestartCatchupCoordinator(), 'attachMonitor')
+      .mockReturnValue({ connected, stop });
+    let finish!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const connection = { isConnected: () => true, readSettings: vi.fn() };
+    vi.mocked(monitorTlonProvider).mockImplementationOnce(async (opts) => {
+      opts?.onReady?.(connection);
+      await pending;
+    });
+    const abort = new AbortController();
+    const cfg = {};
+    const running = startTlonGatewayAccount({
+      cfg,
+      account: { accountId: 'default', ship: '~zod' },
+      abortSignal: abort.signal,
+      setStatus: vi.fn(),
+      runtime: {},
+    } as never);
+    expect(attach).toHaveBeenCalledWith('default', cfg);
+    expect(connected).toHaveBeenCalledWith(connection);
+    abort.abort();
+    expect(stop).toHaveBeenCalledTimes(1);
+    finish();
+    await running;
+    expect(stop).toHaveBeenCalledTimes(2);
+  });
+
+  it('cleans up catch-up eligibility when authentication or provider bootstrap fails', async () => {
+    const { startTlonGatewayAccount } = await import('./channel.runtime.js');
+    const { monitorTlonProvider } = await import('./monitor/index.js');
+    const { getRestartCatchupCoordinator } =
+      await import('./restart-catchup.js');
+    const connected = vi.fn();
+    const stop = vi.fn();
+    vi.spyOn(getRestartCatchupCoordinator(), 'attachMonitor').mockReturnValue({
+      connected,
+      stop,
+    });
+    vi.mocked(monitorTlonProvider).mockRejectedValueOnce(
+      new Error('authentication failed')
+    );
+    await expect(
+      startTlonGatewayAccount({
+        cfg: {},
+        account: { accountId: 'default' },
+        abortSignal: new AbortController().signal,
+        setStatus: vi.fn(),
+        runtime: {},
+      } as never)
+    ).rejects.toThrow('authentication failed');
+    expect(connected).not.toHaveBeenCalled();
+    expect(stop).toHaveBeenCalledTimes(1);
   });
 });

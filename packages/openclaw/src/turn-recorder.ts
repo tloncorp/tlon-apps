@@ -668,8 +668,14 @@ export function recordActiveTlonTurnDelivery(success: boolean): void {
   });
 }
 
+type ActiveTlonTurnDeliveryOptions = {
+  accountId?: string;
+  destinationKind?: TlonMessageJourneyDestinationKind;
+  ship?: string;
+};
+
 function activeDispatchAttempt(
-  destinationKind?: TlonMessageJourneyDestinationKind
+  options?: ActiveTlonTurnDeliveryOptions
 ): TlonAgentTurnDispatchAttempt | null {
   const state = turnStorage.getStore();
   if (!state || state.finalized) {
@@ -677,14 +683,14 @@ function activeDispatchAttempt(
   }
   state.dispatchAttemptCount += 1;
   const event: TlonAgentTurnDispatchAttempt = {
-    accountId: state.accountId,
+    accountId: options?.accountId ?? state.accountId,
     agentId: state.agentId,
     attemptNumber: state.dispatchAttemptCount,
-    destinationKind: destinationKind ?? state.destinationKind,
+    destinationKind: options?.destinationKind ?? state.destinationKind,
     inputMessageId: state.inputMessageId,
     runId: state.runId,
     sessionKey: state.sessionKey,
-    ship: state.ship,
+    ship: options?.ship ? normalizeShip(options.ship) : state.ship,
     trigger: state.trigger,
   };
   safeObserve(() => state.observer.recordDispatchAttempted?.(event));
@@ -760,9 +766,9 @@ export function claimActiveTlonTurnOutput(): {
 
 export async function observeActiveTlonTurnDelivery<T>(
   delivery: () => Promise<T>,
-  options?: { destinationKind?: TlonMessageJourneyDestinationKind }
+  options?: ActiveTlonTurnDeliveryOptions
 ): Promise<T> {
-  const attempt = activeDispatchAttempt(options?.destinationKind);
+  const attempt = activeDispatchAttempt(options);
   try {
     const result = await delivery();
     activeDispatchOutcome({

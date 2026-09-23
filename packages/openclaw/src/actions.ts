@@ -109,7 +109,12 @@ export const tlonMessageActions: ChannelMessageActionAdapter = {
         }
 
         if (action === 'reply') {
-          return await handleReply({ params, fromShip, toolContext });
+          return await handleReply({
+            params,
+            accountId: account.accountId,
+            fromShip,
+            toolContext,
+          });
         }
 
         throw new Error(`Tlon action "${action}" is not supported.`);
@@ -252,10 +257,12 @@ async function handleDelete({
 
 async function handleReply({
   params,
+  accountId,
   fromShip,
   toolContext,
 }: {
   params: Record<string, unknown>;
+  accountId: string;
   fromShip: string;
   toolContext?: { currentChannelId?: string };
 }) {
@@ -306,7 +313,7 @@ async function handleReply({
         story,
         replyToId: messageId,
       }),
-    { destinationKind: 'group_channel' }
+    { accountId, destinationKind: 'group_channel', ship: fromShip }
   );
   return jsonResult({ ok: true, replied: messageId, target: to });
 }

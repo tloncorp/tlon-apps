@@ -10,6 +10,7 @@ const { scope, captureException, captureEvent, withScope } = vi.hoisted(() => {
     setLevel: vi.fn(),
     setTags: vi.fn(),
     setExtras: vi.fn(),
+    setFingerprint: vi.fn(),
   };
   return {
     scope,
@@ -24,6 +25,14 @@ vi.mock('@sentry/react-native', () => ({
   captureException,
   captureEvent,
 }));
+
+const { getConfiguredShipUrl } = vi.hoisted(() => ({
+  getConfiguredShipUrl: vi.fn<[], string | null>(() => null),
+}));
+
+// The real api barrel pulls in native modules; only the ship-url accessor is
+// needed here, to classify where a hostless request failure happened.
+vi.mock('@tloncorp/api', () => ({ getConfiguredShipUrl }));
 
 // Load only the shared modules under test; the shared root index pulls in
 // expo/native modules that cannot load in a node test environment.
@@ -103,4 +112,35 @@ test('no breadcrumbs are added when data.breadcrumbs is absent', () => {
   logger.capture('app_error', { logger: 'test-logger' });
 
   expect(scope.addBreadcrumb).not.toHaveBeenCalled();
+});
+
+test('hostless request failures are classified by the configured ship url', () => {
+  getConfiguredShipUrl.mockReturnValue('https://malnev-pinlug.tlon.network');
+  const logger = createSentryErrorLogger();
+  const error = new Error('HTTP 502: [object Response]');
+  error.name = 'BadResponseError';
+
+  logger.capture('Sync Error', { logger: 'sync', errorObject: error });
+
+  expect(scope.setTags).toHaveBeenCalledWith({
+    logger: 'sync',
+    http_status: '502',
+    request_hosting: 'tlon',
+  });
+  expect(scope.setFingerprint).toHaveBeenCalledWith([
+    '{{ default }}',
+    'http',
+    '502',
+    'tlon',
+  ]);
+});
+
+test('unrelated exceptions get no hosting tag or http fingerprint', () => {
+  getConfiguredShipUrl.mockReturnValue('https://malnev-pinlug.tlon.network');
+  const logger = createSentryErrorLogger();
+
+  logger.capture('Boom', { logger: 'sync', errorObject: new Error('boom') });
+
+  expect(scope.setTags).toHaveBeenCalledWith({ logger: 'sync' });
+  expect(scope.setFingerprint).not.toHaveBeenCalled();
 });

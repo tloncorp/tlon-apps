@@ -68,7 +68,13 @@ env:
     id: MessageInput
     text: '^Message$'
 - tapOn: '^Back$'
-- assertVisible: ${output.reliability.groupPattern}
+- extendedWaitUntil:
+    visible: ${output.reliability.groupPattern}
+    timeout: 15000
 - tapOn: '^Back$'
-- assertVisible: '^Home$'
-- assertVisible: ${output.reliability.groupPattern}
+- extendedWaitUntil:
+    visible: '^Workspaces$'
+    timeout: 15000
+- extendedWaitUntil:
+    visible: ${output.reliability.groupPattern}
+    timeout: 15000
