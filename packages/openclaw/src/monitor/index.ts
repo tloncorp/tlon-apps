@@ -187,9 +187,11 @@ import { dmReactionReplyParentId } from './dm-reactions.js';
 import {
   type GroupChannelJournal,
   type GroupsUiChannelHandlerDeps,
+  applyGroupsUiRoleFact,
   createGroupChannelJournal,
   handleGroupsUiChannelFact,
   parseGroupsUiChannelFact,
+  parseGroupsUiRoleFact,
 } from './group-channels.js';
 import {
   type GroupInviteDeps,
@@ -5817,6 +5819,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         channelToGroup,
         channelNameCache,
         groupNameCache,
+        botShip: botShipName,
         groupRoles: new Map(),
         persist: (nests) => journal.persist(nests),
         scan: (nest) => scanDiscoveredAgentOnboardingNest(nest),
@@ -5904,6 +5907,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               });
               if (fact) {
                 await handleGroupsUiChannelFact(fact, groupsUiChannelDeps);
+              }
+              // Role changes move which restricted channels the bot can read;
+              // keep the per-group roles current for later channel adds.
+              const roleFact = parseGroupsUiRoleFact(event, {
+                botShip: botShipName,
+              });
+              if (roleFact) {
+                applyGroupsUiRoleFact(roleFact, groupsUiChannelDeps.groupRoles);
               }
             } catch (error: any) {
               runtime.error?.(

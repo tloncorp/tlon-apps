@@ -52,20 +52,124 @@ function stringList(value: unknown): string[] {
     : [];
 }
 
+/** The host ship of a group flag (`~host/name`). */
+export function groupHost(flag: string): string {
+  return flag.split('/')[0] ?? flag;
+}
+
 /**
  * Mirror of `go-can-read` (`desk/app/groups.hoon`) for a ship that is already
- * a member: admins read everything, an open channel is readable, otherwise a
- * reader role is needed. Bans cannot apply to a ship that received the fact.
+ * a member: the host and admins read everything, an open channel is readable,
+ * otherwise a reader role is needed. Bans cannot apply to a ship that received
+ * the fact.
  */
 export function canReadChannel(
   readers: readonly string[],
-  roles: { botSects: readonly string[]; bloc: readonly string[] } | undefined
+  roles: { botSects: readonly string[]; bloc: readonly string[] } | undefined,
+  isHost = false
 ): boolean {
-  if (readers.length === 0) return true;
+  if (isHost || readers.length === 0) return true;
   if (!roles) return false;
   const sects = new Set(roles.botSects);
   if (roles.bloc.some((sect) => sects.has(sect))) return true;
   return readers.some((sect) => sects.has(sect));
+}
+
+export type GroupsUiRoleFact = {
+  flag: string;
+  kind:
+    | 'bot-sects-add'
+    | 'bot-sects-del'
+    | 'bot-left'
+    | 'bloc-add'
+    | 'bloc-del';
+  sects: string[];
+};
+
+/**
+ * Narrow a `/groups/ui` fact to the role changes that move channel
+ * readability for the bot: its own roles (`fleet` diffs naming it) and the
+ * admin roles (`bloc` diffs). Everything else is `null`.
+ */
+export function parseGroupsUiRoleFact(
+  event: unknown,
+  opts: { botShip?: string } = {}
+): GroupsUiRoleFact | null {
+  if (!isRecord(event)) return null;
+  const { flag, update } = event;
+  if (typeof flag !== 'string' || !isRecord(update)) return null;
+  const diff = update.diff;
+  if (!isRecord(diff)) return null;
+
+  const fleet = diff.fleet;
+  if (isRecord(fleet)) {
+    const ships = stringList(fleet.ships);
+    if (!opts.botShip || !ships.includes(opts.botShip)) return null;
+    const fleetDiff = fleet.diff;
+    if (!isRecord(fleetDiff)) return null;
+    if ('add-sects' in fleetDiff) {
+      return {
+        flag,
+        kind: 'bot-sects-add',
+        sects: stringList(fleetDiff['add-sects']),
+      };
+    }
+    if ('del-sects' in fleetDiff) {
+      return {
+        flag,
+        kind: 'bot-sects-del',
+        sects: stringList(fleetDiff['del-sects']),
+      };
+    }
+    if ('del' in fleetDiff) {
+      return { flag, kind: 'bot-left', sects: [] };
+    }
+    return null;
+  }
+
+  const bloc = diff.bloc;
+  if (isRecord(bloc)) {
+    if ('add' in bloc)
+      return { flag, kind: 'bloc-add', sects: stringList(bloc.add) };
+    if ('del' in bloc)
+      return { flag, kind: 'bloc-del', sects: stringList(bloc.del) };
+  }
+  return null;
+}
+
+/**
+ * Apply a role fact to the per-group roles remembered from `create` facts.
+ * A group whose create this process never saw stays unknown (conservative:
+ * its restricted channels read as unreadable), so deltas for it are ignored.
+ */
+export function applyGroupsUiRoleFact(
+  fact: GroupsUiRoleFact,
+  groupRoles: Map<string, { botSects: string[]; bloc: string[] }>
+): void {
+  const roles = groupRoles.get(fact.flag);
+  if (!roles) return;
+  const without = (list: string[], gone: string[]) =>
+    list.filter((sect) => !gone.includes(sect));
+  const withAll = (list: string[], added: string[]) => [
+    ...new Set([...list, ...added]),
+  ];
+  switch (fact.kind) {
+    case 'bot-sects-add':
+      roles.botSects = withAll(roles.botSects, fact.sects);
+      break;
+    case 'bot-sects-del':
+      roles.botSects = without(roles.botSects, fact.sects);
+      break;
+    case 'bot-left':
+      groupRoles.delete(fact.flag);
+      break;
+    case 'bloc-add':
+      roles.bloc = withAll(roles.bloc, fact.sects);
+      break;
+    case 'bloc-del':
+      roles.bloc = without(roles.bloc, fact.sects);
+      break;
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -479,7 +583,9 @@ export type GroupsUiChannelHandlerDeps = {
   channelToGroup: Map<string, string>;
   channelNameCache: Map<string, string>;
   groupNameCache: Map<string, string>;
-  /** Per group: the bot's roles and the admin roles, from its create fact. */
+  /** The bot's own ship; the host of a group reads all of its channels. */
+  botShip: string;
+  /** Per group: the bot's roles and the admin roles, from its create fact, kept current by role facts. */
   groupRoles: Map<string, { botSects: string[]; bloc: string[] }>;
   persist: (nests: readonly string[]) => Promise<void>;
   /** scanDiscoveredAgentOnboardingNest */
@@ -514,6 +620,7 @@ export async function handleGroupsUiChannelFact(
     deps.groupRoles.set(fact.flag, fact.roles);
   }
   const roles = deps.groupRoles.get(fact.flag);
+  const isHost = groupHost(fact.flag) === deps.botShip;
 
   const newlyWatched: string[] = [];
   const readable: string[] = [];
@@ -521,7 +628,7 @@ export async function handleGroupsUiChannelFact(
     if (channel.title) {
       deps.channelNameCache.set(channel.nest, channel.title);
     }
-    if (!canReadChannel(channel.readers, roles)) {
+    if (!canReadChannel(channel.readers, roles, isHost)) {
       deps.log?.(
         `[tlon] Skipping channel the bot cannot read (${fact.kind}): ${channel.nest}`
       );

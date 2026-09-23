@@ -10,6 +10,8 @@ import {
   handleGroupsUiChannelFact,
   parseGroupsUiChannelFact,
   canReadChannel,
+  applyGroupsUiRoleFact,
+  parseGroupsUiRoleFact,
 } from './group-channels.js';
 
 // Literal `/groups/ui` facts, in the shape the ship's encoder emits:
@@ -109,6 +111,7 @@ function makeHandlerDeps(
     channelToGroup: new Map<string, string>(),
     channelNameCache: new Map<string, string>(),
     groupNameCache: new Map<string, string>(),
+    botShip: '~bus',
     groupRoles: new Map(),
     persist: vi.fn(async (_nests: readonly string[]) => undefined),
     scan: vi.fn(async (_nest: string) => undefined),
@@ -379,6 +382,125 @@ describe('canReadChannel', () => {
     // Restricted with unknown roles (a channel add for a group whose create
     // fact this process never saw): treated as unreadable.
     expect(canReadChannel(['staff'], undefined)).toBe(false);
+    // The host reads everything, whatever its roles (go-is-admin).
+    expect(canReadChannel(['staff'], undefined, true)).toBe(true);
+    expect(canReadChannel(['staff'], member, true)).toBe(true);
+  });
+});
+
+describe('parseGroupsUiRoleFact / applyGroupsUiRoleFact', () => {
+  const fleet = (ships: string[], diff: Record<string, unknown>) => ({
+    flag: '~zod/test',
+    update: { time: '1', diff: { fleet: { ships, diff } } },
+  });
+  const bloc = (diff: Record<string, unknown>) => ({
+    flag: '~zod/test',
+    update: { time: '1', diff: { bloc: diff } },
+  });
+
+  it('reads role changes for the bot and for the admin roles', () => {
+    const bot = { botShip: '~bus' };
+    expect(
+      parseGroupsUiRoleFact(
+        fleet(['~bus', '~nec'], { 'add-sects': ['staff'] }),
+        bot
+      )
+    ).toEqual({ flag: '~zod/test', kind: 'bot-sects-add', sects: ['staff'] });
+    expect(
+      parseGroupsUiRoleFact(fleet(['~bus'], { 'del-sects': ['staff'] }), bot)
+    ).toEqual({ flag: '~zod/test', kind: 'bot-sects-del', sects: ['staff'] });
+    expect(parseGroupsUiRoleFact(fleet(['~bus'], { del: null }), bot)).toEqual({
+      flag: '~zod/test',
+      kind: 'bot-left',
+      sects: [],
+    });
+    expect(parseGroupsUiRoleFact(bloc({ add: ['mod'] }), bot)).toEqual({
+      flag: '~zod/test',
+      kind: 'bloc-add',
+      sects: ['mod'],
+    });
+    expect(parseGroupsUiRoleFact(bloc({ del: ['mod'] }), bot)).toEqual({
+      flag: '~zod/test',
+      kind: 'bloc-del',
+      sects: ['mod'],
+    });
+  });
+
+  it('ignores fleet facts about other ships, joins, and unrelated tags', () => {
+    const bot = { botShip: '~bus' };
+    expect(
+      parseGroupsUiRoleFact(fleet(['~nec'], { 'add-sects': ['staff'] }), bot)
+    ).toBeNull();
+    expect(
+      parseGroupsUiRoleFact(fleet(['~bus'], { add: null }), bot)
+    ).toBeNull();
+    expect(
+      parseGroupsUiRoleFact(fleet(['~bus'], { 'add-sects': ['x'] }))
+    ).toBeNull();
+    expect(parseGroupsUiRoleFact(CREATE_FACT, bot)).toBeNull();
+    expect(parseGroupsUiRoleFact(CHANNEL_ADD_FACT, bot)).toBeNull();
+  });
+
+  it('applies deltas to remembered roles and drops a group the bot left', () => {
+    const groupRoles = new Map([
+      ['~zod/test', { botSects: ['member'], bloc: ['admin'] }],
+    ]);
+    applyGroupsUiRoleFact(
+      { flag: '~zod/test', kind: 'bot-sects-add', sects: ['staff'] },
+      groupRoles
+    );
+    applyGroupsUiRoleFact(
+      { flag: '~zod/test', kind: 'bloc-add', sects: ['mod'] },
+      groupRoles
+    );
+    expect(groupRoles.get('~zod/test')).toEqual({
+      botSects: ['member', 'staff'],
+      bloc: ['admin', 'mod'],
+    });
+    applyGroupsUiRoleFact(
+      { flag: '~zod/test', kind: 'bot-sects-del', sects: ['staff'] },
+      groupRoles
+    );
+    applyGroupsUiRoleFact(
+      { flag: '~zod/test', kind: 'bloc-del', sects: ['mod'] },
+      groupRoles
+    );
+    expect(groupRoles.get('~zod/test')).toEqual({
+      botSects: ['member'],
+      bloc: ['admin'],
+    });
+    // Unknown group: stays unknown (conservative), nothing is created.
+    applyGroupsUiRoleFact(
+      { flag: '~zod/other', kind: 'bloc-add', sects: ['mod'] },
+      groupRoles
+    );
+    expect(groupRoles.has('~zod/other')).toBe(false);
+    applyGroupsUiRoleFact(
+      { flag: '~zod/test', kind: 'bot-left', sects: [] },
+      groupRoles
+    );
+    expect(groupRoles.has('~zod/test')).toBe(false);
+  });
+
+  it('makes a later restricted channel add follow a lost role', async () => {
+    const deps = makeHandlerDeps({
+      groupRoles: new Map([
+        ['~zod/test', { botSects: ['staff'], bloc: ['admin'] }],
+      ]),
+    });
+    applyGroupsUiRoleFact(
+      { flag: '~zod/test', kind: 'bot-sects-del', sects: ['staff'] },
+      deps.groupRoles
+    );
+    await handleGroupsUiChannelFact(
+      {
+        flag: '~zod/test',
+        kind: 'channel-add',
+        channels: [{ nest: 'chat/~zod/later', readers: ['staff'] }],
+      },
+      deps
+    );
+    expect(deps.watched.has('chat/~zod/later')).toBe(false);
   });
 });
 
@@ -969,6 +1091,15 @@ describe('handleGroupsUiChannelFact readability', () => {
     }
   });
 
+  it('reads every channel of a group the bot hosts, whatever its roles', async () => {
+    const deps = makeHandlerDeps({ botShip: '~zod' });
+    await handleGroupsUiChannelFact(
+      fact(['staff'], { botSects: ['member'], bloc: ['admin'] }),
+      deps
+    );
+    expect([...deps.watched]).toEqual(['chat/~zod/general', 'chat/~zod/staff']);
+  });
+
   it("remembers a group's roles for a later channel add", async () => {
     const deps = makeHandlerDeps();
     await handleGroupsUiChannelFact(
@@ -1148,6 +1279,25 @@ describe('wiring', () => {
     const keyFact = fn.indexOf("snapshotOpts.changedKey === 'groupChannels'");
     expect(observe).toBeGreaterThan(-1);
     expect(keyFact).toBeGreaterThan(observe);
+  });
+
+  it('applies role facts to the remembered group roles in the /groups/ui handler', () => {
+    const handler = monitorSource.indexOf("path: '/groups/ui'");
+    const channelFact = monitorSource.indexOf(
+      'parseGroupsUiChannelFact(event',
+      handler
+    );
+    const roleFact = monitorSource.indexOf(
+      'parseGroupsUiRoleFact(event',
+      handler
+    );
+    const apply = monitorSource.indexOf(
+      'applyGroupsUiRoleFact(roleFact',
+      handler
+    );
+    expect(channelFact).toBeGreaterThan(handler);
+    expect(roleFact).toBeGreaterThan(channelFact);
+    expect(apply).toBeGreaterThan(roleFact);
   });
 
   it('marks the journal untrusted on a stream reconnect', () => {
