@@ -59,7 +59,6 @@ export function useBootSequence() {
     code?: string;
     isReady?: boolean;
     personalInviteToken: string | null;
-    homeGroupInviteToken: string | null;
   } | null>(null);
   const [report, setReport] = useState<BootSequenceReport | null>(null);
 
@@ -92,7 +91,6 @@ export function useBootSequence() {
 
       await store.initializeCachedHostedInviteLinks({
         personalLureToken: reservedNode.personalInviteToken,
-        homeGroupLureToken: reservedNode.homeGroupInviteToken,
         nodeId: reservedNode.id,
         source: 'signup',
       });

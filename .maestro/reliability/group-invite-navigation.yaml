@@ -1,0 +1,17 @@
+appId: ${MAESTRO_APP_ID}
+name: Native group invite navigation
+tags: [regression]
+env:
+  JOURNEY: invite
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/create-group.yaml
+- tapOn: ${output.reliability.groupPattern}
+- assertVisible: '^Group info & settings$'
+- tapOn: '^Invite people$'
+- assertVisible: '^Invite People$'
+- assertVisible: '^Share link$'
+- assertVisible: '^Filter by nickname, @p$'
+- tapOn: '^Back$'
+- runFlow: subflows/delete-fixture-group.yaml

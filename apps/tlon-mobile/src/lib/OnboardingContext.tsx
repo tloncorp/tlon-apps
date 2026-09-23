@@ -12,6 +12,7 @@ interface OnboardingContextValue {
   hostingApi: typeof hostingApi;
   initRecaptcha: typeof initClient;
   execRecaptchaLogin: () => Promise<string>;
+  execRecaptchaRequestOtp: () => Promise<string>;
   getLandscapeAuthCookie: typeof getLandscapeAuthCookie;
   checkPhoneVerify: typeof store.checkPhoneVerify;
   requestPhoneVerify: typeof store.requestPhoneVerify;
@@ -22,6 +23,8 @@ interface OnboardingContextValue {
 export const OnboardingContext = createContext<OnboardingContextValue>({
   initRecaptcha: initClient,
   execRecaptchaLogin: () => execute(RecaptchaAction.LOGIN(), 10_000),
+  execRecaptchaRequestOtp: () =>
+    execute(RecaptchaAction.custom('request_otp'), 10_000),
   getLandscapeAuthCookie,
   hostingApi,
   checkPhoneVerify: store.checkPhoneVerify,
