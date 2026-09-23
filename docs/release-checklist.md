@@ -50,13 +50,16 @@ receive updates, and post against desk release N-1.
          dispatch left on the default builds `develop`.
       2. Raise the mobile minimums in the invite service past the last build
          that made the request.
-      3. Only then deploy the release that removes the endpoint.
+      3. Only then deploy the release that removes the endpoint, and no sooner
+         than one `useRequiredUpdate` polling interval (10 minutes) after the
+         minimum was raised: an app that is already running keeps its cached
+         minimum until its next poll.
 
       Raising the minimum first replaces every installed app with the
-      required-update screen — `useRequiredUpdate` acts as soon as the invite
-      service serves a minimum above the installed version — and leaves it
-      there until the store publishes the replacement. The new application
-      version is what lets the minimum bite at all: `useRequiredUpdate`
+      required-update screen — `useRequiredUpdate` acts when it sees a minimum
+      above the installed version, on launch or at its next 10-minute poll — and
+      leaves it there until the store publishes the replacement. The new
+      application version is what lets the minimum bite at all: `useRequiredUpdate`
       compares the marketing version (`nativeApplicationVersion`), not the
       build number, so a minimum cannot separate two builds that share one.
 
@@ -72,6 +75,11 @@ receive updates, and post against desk release N-1.
       It also fires on a completed run of either polarity, so a failed deploy
       can still move `master`: check the deploy's conclusion, not just that
       master moved.
+      The workflow's conclusion is not proof on its own either: `deploy.sh`'s
+      remote `rsync` and `+hood/commit` run without `set -e` and its `curl`
+      calls omit `--fail`, so a failed commit still exits green. Confirm the
+      live ship's `%groups` desk reports the tagged version before treating the
+      tag as released.
 
 ## After deploying
 
