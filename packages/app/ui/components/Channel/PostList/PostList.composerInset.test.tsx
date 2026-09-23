@@ -95,6 +95,9 @@ vi.mock('react-native-reanimated', async () => {
       }).current,
   };
 });
+vi.mock('react-native-keyboard-controller', () => ({
+  KeyboardChatScrollView: () => null,
+}));
 vi.mock('@legendapp/list/keyboard', async () => {
   const { forwardRef, useImperativeHandle } = await import('react');
   return {
@@ -398,13 +401,16 @@ describe('iOS native history anchoring', () => {
   it('keeps the native anchor attached while LegendList switches between end-following and history', () => {
     state.docked = true;
     mount();
-    const renderScrollView = state.listProps.renderScrollComponent as (
-      props: Record<string, unknown>
-    ) => React.ReactElement<Record<string, unknown>>;
+    // LegendList renders this through a stable component, so a new function
+    // identity re-renders the scroll view without remounting it.
+    const renderScrollView = () =>
+      state.listProps.renderScrollComponent as (
+        props: Record<string, unknown>
+      ) => React.ReactElement<Record<string, unknown>>;
     const ref = React.createRef();
     const onScroll = vi.fn();
     const nativeProps = () =>
-      renderScrollView({
+      renderScrollView()({
         ref,
         onScroll,
         testID: 'conversation-scroll',
@@ -427,7 +433,6 @@ describe('iOS native history anchoring', () => {
     update();
     expect(state.listProps.maintainVisibleContentPosition).toBe(true);
     expect(state.listProps.maintainScrollAtEnd).toBe(false);
-    expect(state.listProps.renderScrollComponent).toBe(renderScrollView);
     expect(nativeProps().maintainVisibleContentPosition).toEqual({
       minIndexForVisible: 0,
     });
@@ -435,7 +440,6 @@ describe('iOS native history anchoring', () => {
     update();
     act(() => state.sendHandler?.begin());
     expect(state.listProps.maintainVisibleContentPosition).toBe(false);
-    expect(state.listProps.renderScrollComponent).toBe(renderScrollView);
     expect(nativeProps().maintainVisibleContentPosition).toEqual({
       minIndexForVisible: 0,
     });

@@ -12,7 +12,9 @@ import {
   type NativeEvent,
 } from 'react-native-keyboard-controller';
 import Animated, {
+  type SharedValue,
   useAnimatedStyle,
+  useDerivedValue,
   useSharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,6 +30,19 @@ const ComposerLayoutContext = createContext({
 
 export function useConversationComposerLayout() {
   return useContext(ComposerLayoutContext);
+}
+
+const KeyboardLiftContext = createContext<SharedValue<number> | null>(null);
+
+/** Moves chrome with the iOS keyboard; the list follows through its insets. */
+export function useConversationKeyboardLiftStyle() {
+  const lift = useContext(KeyboardLiftContext);
+  const fallback = useSharedValue(0);
+  const value = lift ?? fallback;
+  return useAnimatedStyle(
+    () => ({ transform: [{ translateY: -value.value }] }),
+    [value]
+  );
 }
 
 export function useIsConversationDocked() {
@@ -78,24 +93,33 @@ function KeyboardResizingConversation({ children }: PropsWithChildren) {
     { onMove: update, onInteractive: update, onEnd: update },
     []
   );
+  // Conversation screens reach the window bottom. The composer already owns
+  // the safe area; only the remaining keyboard overlap needs clearance.
+  const lift = useDerivedValue(() =>
+    Math.max(0, height.value - progress.value * insets.bottom)
+  );
   const keyboardStyle = useAnimatedStyle(() => ({
-    // Conversation screens reach the window bottom. The composer already owns
-    // the safe area; reserve only the remaining keyboard overlap here.
-    paddingBottom: Math.max(0, height.value - progress.value * insets.bottom),
+    paddingBottom: resizesForKeyboard ? lift.value : 0,
   }));
 
   return (
     <Animated.View style={[styles.container, keyboardStyle]}>
-      <ComposerLayoutContext.Provider value={composerLayout}>
-        {/* Absolute composers use the keyboard-resized bounds, not the outer
-            view's padding box. Keep this parent and both children mounted. */}
-        <YStack flex={1} minHeight={0} minWidth={0}>
-          {children}
-        </YStack>
-      </ComposerLayoutContext.Provider>
+      <KeyboardLiftContext.Provider value={resizesForKeyboard ? null : lift}>
+        <ComposerLayoutContext.Provider value={composerLayout}>
+          {/* Absolute composers use the keyboard-resized bounds, not the outer
+              view's padding box. Keep this parent and both children mounted. */}
+          <YStack flex={1} minHeight={0} minWidth={0}>
+            {children}
+          </YStack>
+        </ComposerLayoutContext.Provider>
+      </KeyboardLiftContext.Provider>
     </Animated.View>
   );
 }
+
+// Resizing re-lays out the whole conversation on every keyboard frame. iOS
+// keeps the frame fixed: chrome translates and the list animates its insets.
+const resizesForKeyboard = Platform.OS !== 'ios';
 
 const styles = StyleSheet.create({
   container: { flex: 1, minWidth: 0, minHeight: 0 },

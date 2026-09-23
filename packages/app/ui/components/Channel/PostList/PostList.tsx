@@ -10,7 +10,11 @@ import {
   type ScrollView,
   type ScrollViewProps,
 } from 'react-native';
-import Animated, {
+import {
+  KeyboardChatScrollView,
+  type KeyboardChatScrollViewProps,
+} from 'react-native-keyboard-controller';
+import {
   type SharedValue,
   useReducedMotion,
   useSharedValue,
@@ -52,14 +56,34 @@ const ESTIMATED_ITEM_SIZE = 120;
 // Keep the native anchor attached across end-following and history modes.
 // Toggling it during an iOS gesture can reuse a stale native anchor frame and
 // jump to the start. LegendList still decides when data/size changes adjust it.
-function renderConversationScrollView(
-  props: ScrollViewProps & { ref?: React.Ref<ScrollView> }
+const conversationMaintainVisibleContentPosition = { minIndexForVisible: 0 };
+
+// The docked iOS viewport keeps its frame while the keyboard moves; the scroll
+// view animates its bottom inset and offset alongside the translated composer.
+function useDockedConversationScrollView(
+  listRef: React.RefObject<LegendListRef | null>,
+  keyboardLiftBehavior: KeyboardChatScrollViewProps['keyboardLiftBehavior'],
+  keyboardOffset: number
 ) {
-  return (
-    <Animated.ScrollView
-      {...props}
-      maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
-    />
+  const onContentInsetChange = React.useCallback(
+    (inset: { top: number; bottom: number; left: number; right: number }) => {
+      listRef.current?.reportContentInset(inset);
+    },
+    [listRef]
+  );
+  return React.useCallback(
+    (props: React.ComponentProps<typeof KeyboardChatScrollView>) => (
+      <KeyboardChatScrollView
+        {...props}
+        maintainVisibleContentPosition={
+          conversationMaintainVisibleContentPosition
+        }
+        keyboardLiftBehavior={keyboardLiftBehavior}
+        offset={keyboardOffset}
+        onContentInsetChange={onContentInsetChange}
+      />
+    ),
+    [keyboardLiftBehavior, keyboardOffset, onContentInsetChange]
   );
 }
 
@@ -568,6 +592,11 @@ const ConversationPostListAttempt = React.forwardRef<
         !hasNewerPosts,
       !reduceMotion
     );
+    const renderDockedConversationScrollView = useDockedConversationScrollView(
+      listRef,
+      composerSendActive ? 'never' : 'whenAtEnd',
+      insets.bottom
+    );
     React.useLayoutEffect(
       () =>
         registerComposerSend({
@@ -859,7 +888,7 @@ const ConversationPostListAttempt = React.forwardRef<
         ref={listRef}
         renderScrollComponent={
           docked && Platform.OS === 'ios'
-            ? renderConversationScrollView
+            ? renderDockedConversationScrollView
             : undefined
         }
         dataKey={channel.id}

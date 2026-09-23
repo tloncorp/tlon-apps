@@ -125,7 +125,9 @@ export const useScrollDirectionTracker = ({
     if (onScrollPositionChange) {
       runOnJS(onScrollPositionChange)({
         offset: y,
-        contentHeight: event.contentSize.height,
+        // The iOS keyboard extends the scroll range through contentInset.
+        contentHeight:
+          event.contentSize.height + (event.contentInset?.bottom ?? 0),
         viewportHeight: event.layoutMeasurement.height,
       });
     }

@@ -25,6 +25,7 @@ import { DraftInputContext } from '../draftInputs';
 import { DraftInputContextProvider } from '../draftInputs/shared';
 import {
   useConversationComposerLayout,
+  useConversationKeyboardLiftStyle,
   useIsConversationDocked,
 } from './ConversationLayout';
 
@@ -119,6 +120,7 @@ export function ConversationComposerPlacement({
   const insets = useSafeAreaInsets();
   const docked = useIsConversationDocked();
   const composerLayout = useConversationComposerLayout();
+  const keyboardLiftStyle = useConversationKeyboardLiftStyle();
   const theme = useTheme();
   const scrollToBottomControl = useConversationScrollToBottomControl();
   const { report: reportConversationComposerHeight } =
@@ -138,24 +140,26 @@ export function ConversationComposerPlacement({
 
   if (enabled && docked) {
     return (
-      <View
-        id={inlineID}
-        flexShrink={0}
-        position={composerLayout.floating ? 'absolute' : 'relative'}
-        bottom={composerLayout.floating ? 0 : undefined}
-        left={composerLayout.floating ? 0 : undefined}
-        right={composerLayout.floating ? 0 : undefined}
-        paddingBottom={insets.bottom}
-        backgroundColor={
-          composerLayout.floating ? 'transparent' : '$background'
-        }
-        zIndex={10}
-        onLayout={(event) =>
-          composerLayout.setHeight(event.nativeEvent.layout.height)
-        }
+      <Animated.View
+        style={[
+          styles.dockedInput,
+          composerLayout.floating && styles.floatingDockedInput,
+          keyboardLiftStyle,
+        ]}
       >
-        {content}
-      </View>
+        <View
+          id={inlineID}
+          paddingBottom={insets.bottom}
+          backgroundColor={
+            composerLayout.floating ? 'transparent' : '$background'
+          }
+          onLayout={(event) =>
+            composerLayout.setHeight(event.nativeEvent.layout.height)
+          }
+        >
+          {content}
+        </View>
+      </Animated.View>
     );
   }
 
@@ -220,6 +224,16 @@ export function ConversationComposerPlacement({
 }
 
 const styles = StyleSheet.create({
+  dockedInput: {
+    flexShrink: 0,
+    zIndex: 10,
+  },
+  floatingDockedInput: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
   floatingInput: {
     position: 'absolute',
     bottom: 0,
