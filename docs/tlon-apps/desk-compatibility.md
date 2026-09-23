@@ -87,10 +87,17 @@ A negotiation protocol bump strands the pier (rule (d)), and nothing predicts
 that ahead of the run: the pair cannot negotiate, the scenarios fail where they
 try, and the job reports it like any other failure.
 
-It runs on pushes to `staging` and on `workflow_dispatch`, never on a PR: it
-needs a pier that only exists once a release has shipped, and the four-shard PR
-suite keeps its runtime. `~bud` is marked `n1` in the manifest, which means
-`N1_SHIP=bud` is the *only* thing that selects it —
+It runs as the first stage of the `Staging` pipeline
+(`.github/workflows/staging.yml`) on every push to `staging`, and on
+`workflow_dispatch`, never on a PR: it needs a pier that only exists once a
+release has shipped, and the four-shard PR suite keeps its runtime. On a
+`staging` push it is a gate: if it fails, the canary deploy
+(`deploy-canary.yml`) and the `develop` sync (`sync-dev.yml`) do not run for
+that push. A newer `staging` push cancels a superseded run's N-1 stage, so
+that run never deploys; deploys and syncs queue instead and are never cancelled
+part-way. Dispatching `deploy-canary.yml` directly remains the manual override.
+`~bud` is marked `n1` in the manifest, which means `N1_SHIP=bud` is the *only*
+thing that selects it —
 `INCLUDE_OPTIONAL_SHIPS=true` deliberately does not, because the archive
 preparation run and the parallel Docker image both set that flag and neither
 carries the N-1 pier.

@@ -1,0 +1,41 @@
+# The Staging pipeline. The canary deploy and the develop sync run only after
+# the N-1 desk E2E passes: a failed N-1 run stops both for that push. `staging`
+# has no required status checks, so the gate has to live in the workflows.
+# Policy: docs/tlon-apps/desk-compatibility.md
+#
+# Each stage keeps `workflow_dispatch` as the manual override; dispatching
+# deploy-canary.yml directly deploys without the gate.
+#
+# Concurrency is per stage. A newer push cancels only a superseded run's test
+# stage, so that run's deploy never starts. Deploys and syncs share one group
+# that queues them instead: none is cancelled part-way, and no two run at once.
+# A deploy that is already running finishes, and it deploys `staging` as it is
+# when it starts. So a push that lands between this run's N-1 stage and its
+# deploy checkout (including any time the deploy waits in the queue) goes out
+# untested by this run, and is then tested and redeployed by its own pipeline.
+name: Staging
+on:
+  push:
+    branches:
+      - "staging"
+jobs:
+  n1-e2e:
+    uses: ./.github/workflows/n1-e2e.yml
+    secrets: inherit
+    concurrency:
+      group: staging-n1
+      cancel-in-progress: true
+  deploy:
+    needs: n1-e2e
+    uses: ./.github/workflows/deploy-canary.yml
+    secrets: inherit
+    concurrency:
+      group: staging-deploy
+      cancel-in-progress: false
+  sync:
+    needs: deploy
+    uses: ./.github/workflows/sync-dev.yml
+    secrets: inherit
+    concurrency:
+      group: staging-deploy
+      cancel-in-progress: false

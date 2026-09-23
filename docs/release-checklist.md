@@ -9,7 +9,7 @@ workflow, that workflow's trigger is the authority for when it runs.
 | version bump | `desk.docket-0`'s `version+[X Y Z]` is rewritten and pushed         | `bump.yml` (the only writer)    |
 | glob         | the web bundle is built and globbed, docket updated                 | `build-and-glob.yml`            |
 | staging      | `develop` is merged to `staging` **by hand** — no workflow does it  | —                               |
-| back-merge   | pushing `staging` merges it back into `develop`                     | `sync-dev.yml`                  |
+| back-merge   | a `staging` push merges into `develop` once N-1 E2E + canary pass   | `staging.yml` → `sync-dev.yml`  |
 | release tag  | a `vX.Y.Z` tag is created **by hand** — no workflow creates one     | —                               |
 | livenet      | the tag is deployed to `~sogryp-dister-dozzod-dozzod`               | `deploy-livenet.yml`            |
 | master sync  | on a completed livenet deploy, `staging` merges into `master`       | `sync.yml` (`workflow_run`)     |
@@ -100,7 +100,8 @@ receive updates, and post against desk release N-1.
          `gsutil acl ch -u AllUsers:R gs://bootstrap.urbit.org/rube-bud<n>.tgz`.
          The job refuses to boot until that object is public.
       4. Dispatch `n1-e2e.yml` to confirm the new pier works before the next
-         staging push depends on it.
+         staging push depends on it: until it passes, a `staging` push gets
+         neither the canary deploy nor the `develop` sync.
 - [ ] Cut mobile builds from the release tag if it includes native changes.
       Dispatch `mobile-build.yml` with `profile=production` and the platforms
       you intend. `profile` offers `preview` and `production`, `platform`

@@ -7,10 +7,12 @@
 # mismatch between the candidate and the pinned desk: it surfaces as the pier
 # failing to negotiate in the spec, which this job reports.
 #
-# Not a PR check by construction: it runs on staging pushes and on demand. The
-# `E2E Tests (Parallel)` job in ci.yml is untouched — ~bud is marked `n1` in
-# shipManifest.json, so `N1_SHIP=bud` is the only thing that selects it, and
-# the rube Docker image does not bake in its archive.
+# Not a PR check by construction: it is the first stage of the Staging
+# pipeline (staging.yml), where a failure stops the canary deploy and the
+# develop sync for that push, and it runs on demand. The `E2E Tests (Parallel)`
+# job in ci.yml is untouched — ~bud is marked `n1` in shipManifest.json, so
+# `N1_SHIP=bud` is the only thing that selects it, and the rube Docker image
+# does not bake in its archive.
 #
 # rube downloads the pier from the manifest's `downloadUrl`, so a rebuilt pier
 # must be uploaded to gs://bootstrap.urbit.org/ before this job can run against
@@ -19,9 +21,7 @@
 # Policy: docs/tlon-apps/desk-compatibility.md
 name: N-1 Desk E2E
 on:
-  push:
-    branches:
-      - "staging"
+  workflow_call:
   workflow_dispatch:
 jobs:
   n1-e2e:
