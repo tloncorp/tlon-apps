@@ -73,7 +73,7 @@ env:
     timeout: 15000
 - tapOn: '^Back$'
 - extendedWaitUntil:
-    visible: '^Home$'
+    visible: '^Workspaces$'
     timeout: 15000
 - extendedWaitUntil:
     visible: ${output.reliability.groupPattern}

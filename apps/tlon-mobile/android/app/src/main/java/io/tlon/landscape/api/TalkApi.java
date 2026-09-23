@@ -79,13 +79,14 @@ public class TalkApi {
         fetchObject(path, 10_000, 3, callback);
     }
 
-    private void putRequest(JSONObject payload) throws JSONException {
+    private void putRequest(JSONObject payload, TalkPokeCallback callback) throws JSONException {
         String shipUrl = SecureStorage.getString(SecureStorage.SHIP_URL_KEY);
         String shipName = SecureStorage.getString(SecureStorage.SHIP_NAME_KEY);
         String authCookie = SecureStorage.getString(SecureStorage.AUTH_COOKIE_KEY);
         String channelUrl = SecureStorage.getString(SecureStorage.CHANNEL_URL);
         if (shipUrl == null || shipName == null || authCookie == null || channelUrl == null) {
             System.out.println("Skipping PUT request");
+            callback.onComplete(false);
             return;
         }
 
@@ -96,8 +97,11 @@ public class TalkApi {
                 Request.Method.PUT,
                 channelUrl,
                 new JSONArray().put(payload),
-                null,
-                System.out::println
+                response -> callback.onComplete(true),
+                error -> {
+                    System.out.println(error);
+                    callback.onComplete(false);
+                }
         ) {
             @Override
             public Map<String, String> getHeaders() {
@@ -121,8 +125,8 @@ public class TalkApi {
         eventId += 1;
     }
 
-    private void poke(String app, String mark, JSONObject json) throws JSONException {
-        putRequest(createPokePayload(app, mark, json));
+    private void poke(String app, String mark, JSONObject json, TalkPokeCallback callback) throws JSONException {
+        putRequest(createPokePayload(app, mark, json), callback);
     }
 
     public void fetchYarn(String uid, TalkObjectCallback callback) {
@@ -204,17 +208,36 @@ public class TalkApi {
         });
     }
 
-    public void pokeChannelReadStatus(String id, boolean read) throws JSONException {
-        JSONObject json = new JSONObject();
-        json.put("whom", id);
-        JSONObject diff = new JSONObject();
-        if (read) {
-            diff.put("read", JSONObject.NULL);
-        } else {
-            diff.put("unread", JSONObject.NULL);
+    // activity-action-2 (v10) is the only mark whose parser accepts notebook and
+    // note sources; activity-action-1 (v9) adds react keys. The agent accepts
+    // every mark, so use the newest one the backend has confirmed it supports.
+    private static String activityActionMark() {
+        if (SecureStorage.getBoolean(SecureStorage.ACTIVITY_SUPPORTS_NOTES_KEY)) {
+            return "activity-action-2";
         }
-        json.put("diff", diff);
-        poke("chat", "chat-remark-action", json);
+        return SecureStorage.getBoolean(SecureStorage.ACTIVITY_SUPPORTS_REACTIONS_KEY)
+                ? "activity-action-1"
+                : "activity-action";
+    }
+
+    /**
+     * Marks everything in an %activity source read, mirroring what the app does
+     * when you open the corresponding conversation, thread or note.
+     *
+     * @param sourceJson serialized $source, as rendered by the notification JS bundle
+     */
+    public void pokeActivityRead(String sourceJson, TalkPokeCallback callback) throws JSONException {
+        JSONObject all = new JSONObject();
+        all.put("time", JSONObject.NULL);
+        // shallow, like the in-app read: the notification is about this source,
+        // not about every thread or note hanging off it
+        all.put("deep", false);
+
+        JSONObject read = new JSONObject();
+        read.put("source", new JSONObject(sourceJson));
+        read.put("action", new JSONObject().put("all", all));
+
+        poke("activity", activityActionMark(), new JSONObject().put("read", read), callback);
     }
 
 }

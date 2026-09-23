@@ -1,0 +1,42 @@
+appId: ${MAESTRO_APP_ID}
+name: Swipe an unread DM to mark it read
+env:
+  JOURNEY: dm-swipe-read
+---
+- runScript: ../reliability/data.js
+- runFlow: begin.yaml
+- tapOn: '^Messages$'
+- scrollUntilVisible:
+    element:
+      id: 'ChannelListItem-~ten'
+    direction: DOWN
+    timeout: 5000
+    centerElement: true
+- assertVisible: ${output.reliability.dmSwipePreviewPattern}
+- assertVisible:
+    id: UnreadCountNumber
+    rightOf:
+      text: ${output.reliability.dmSwipePreviewPattern}
+- swipe:
+    from:
+      id: 'ChannelListItem-~ten'
+    direction: RIGHT
+    duration: 500
+- tapOn:
+    # Fresh activity sorts the fixture first; this point is the center of the
+    # revealed 80pt action in the top row on the native Home layout.
+    point: '10%,27%'
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertVisible:
+    id: 'ChannelListItem-~ten'
+- assertVisible: ${output.reliability.dmSwipePreviewPattern}
+- longPressOn:
+    id: 'ChannelListItem-~ten'
+- assertVisible: '^Chat notifications$'
+- assertNotVisible: '^Mark as read$'
+- swipe:
+    direction: DOWN
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Workspaces$'

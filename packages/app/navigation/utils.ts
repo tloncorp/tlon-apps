@@ -22,6 +22,7 @@ import type {
 import {
   TOP_LEVEL_DRAWER_ROUTES,
   getActiveTopLevelDrawerRouteName,
+  getActivityBackTargetName,
   getDesktopChannelRoute,
   getDesktopGroupEntryRoute,
   getDesktopGroupInviteRoute,
@@ -333,8 +334,11 @@ export function useNavigateBackFromPost() {
         return;
       }
       if (lastScreenWasActivity) {
-        const route = getTopLevelTabRoute('Activity');
-        navigation.navigate(route.name, route.params, { pop: true });
+        navigation.navigate(
+          getActivityBackTargetName(previousRoute),
+          undefined,
+          { pop: true }
+        );
         return;
       }
       if (isWindowNarrow) {

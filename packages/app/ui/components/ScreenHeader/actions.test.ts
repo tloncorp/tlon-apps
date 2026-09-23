@@ -112,6 +112,7 @@ describe('screen header actions', () => {
         icon: 'Add',
         label: 'Add',
         tint: '$accent',
+        badge: 3,
         testID: 'add-button',
       },
       {
