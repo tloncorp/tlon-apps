@@ -15,11 +15,10 @@ workflow, that workflow's trigger is the authority for when it runs.
 | mobile       | EAS builds are cut separately                                       | `mobile-build.yml`              |
 
 `vX.Y.Z` tags are **desk** version tags: the tag matches `desk.docket-0`'s
-`version+[X Y Z]` at that commit. `origin/master`'s tip is the last sync of
-`staging` after a deployment workflow ran — `sync.yml` triggers on
-`types: [completed]`, whatever the conclusion, and merges the staging tip as it
-stands then. Treat it as the standing proxy for the released client, not as a
-verified deployed SHA.
+`version+[X Y Z]` at that commit. The latest such tag is the released desk and
+web client — it is the ref dispatched to livenet. Don't read `origin/master`'s
+tip as that: the same branch also carries the plugin release, which sometimes
+leapfrogs the desk.
 
 ## Before tagging
 

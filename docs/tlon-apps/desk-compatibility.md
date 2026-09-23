@@ -18,18 +18,16 @@ is a *release* action taken once that desk has shipped.
 **(b) A client PR that adds a dependency N-1 lacks is blocked** until the desk
 change has shipped and become N-1, or the PR carries a fallback tested against
 N-1. "Dependency" means a scry path, a subscription path, a poke mark, a
-thread, or a response shape.
+thread, or a response shape. That judgment is made in review — the
+desk-requests comment on the PR — and proven by the E2E job that runs the
+candidate client against a pinned N-1 pier.
 
 **(c) Desk removal is bounded by the support window** — the currently released
-client plus the candidate client. The released client is taken to be
-`origin/master`'s tip. Read that precisely: `sync.yml` merges `staging` into
-`master` when a deployment workflow *completes*, and its trigger is
-`types: [completed]`, which fires whatever the conclusion; it merges the staging
-tip as it stands at that moment. So `master` is the last sync of staging after a
-deployment run, not a verified deployed SHA. It is the best standing proxy we
-have, and it is never force-pushed, but a failed deploy or a staging push landing
-between deploy and sync can move it ahead of what users run. Recording the
-deployed SHA is a follow-up.
+client plus the candidate client. The released desk and web client are the
+latest `vX.Y.Z` release tag: the tag is cut by hand on the release commit and
+dispatched to livenet, so it names what users run. `origin/master`'s tip is not
+that — the same branch also carries the plugin release, which sometimes
+leapfrogs the desk and leaves master ahead of the last deployed desk.
 
 **(d) Negotiation protocols are a hard floor beneath `MIN_GROUPS_VERSION`.**
 Each agent declares a protocol version through `agent:neg`; %groups went
