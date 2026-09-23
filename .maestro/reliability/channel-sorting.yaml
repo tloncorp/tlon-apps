@@ -52,7 +52,7 @@ env:
 - hideKeyboard
 - tapOn: '^Back$'
 - tapOn: '^Back$'
-- assertVisible: '^Home$'
+- assertVisible: '^Workspaces$'
 
 # Establish arrangement explicitly so the account's prior preference cannot leak
 # into the fixture, then prove its observable order.
@@ -64,7 +64,7 @@ env:
 - assertVisible: '^Sort by recency$'
 - assertVisible: '^Sort by arrangement$'
 - tapOn: '^Sort by arrangement$'
-- assertVisible: '^Home$'
+- assertVisible: '^Workspaces$'
 - tapOn: ${output.reliability.groupPattern}
 - assertNotVisible: '^Recent Channels$'
 - assertVisible:
@@ -77,7 +77,7 @@ env:
 - tapOn: '^Sort channels$'
 - assertVisible: ${'Sort channels in ' + output.reliability.groupPattern.slice(1, -1)}
 - tapOn: '^Sort by recency$'
-- assertVisible: '^Home$'
+- assertVisible: '^Workspaces$'
 - tapOn: ${output.reliability.groupPattern}
 - assertVisible: '^Recent Channels$'
 - assertVisible:

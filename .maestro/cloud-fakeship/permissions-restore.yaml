@@ -63,4 +63,4 @@ env:
 - tapOn: '^Back$'
 - assertVisible:
     id: ScreenHeaderTitle
-    text: '^Home$'
+    text: '^Workspaces$'

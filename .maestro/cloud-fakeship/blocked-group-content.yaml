@@ -5,14 +5,14 @@ env:
 ---
 - runScript: ../reliability/data.js
 - runFlow: begin.yaml
-- runFlow: ../reliability/subflows/contacts-tab.yaml
-- tapOn: '^Settings$'
-- tapOn: '^Blocked users$'
+- runFlow: ../reliability/subflows/settings-tab.yaml
+- runFlow:
+    file: ../reliability/subflows/settings-row.yaml
+    env:
+      ROW: '^Blocked users$'
 - assertVisible: '^Blocked users$'
 - assertVisible: '^(~ten|ten)$'
-- tapOn: '^Back$'
-- tapOn: '^Back$'
-- runFlow: ../reliability/subflows/home-tab.yaml
+- runFlow: ../reliability/subflows/workspaces-tab.yaml
 - scrollUntilVisible:
     element: ${'BlockedContent-' + MAESTRO_RUN_TAG}
     direction: UP
@@ -25,4 +25,4 @@ env:
 - tapOn: '^Back$'
 - assertVisible:
     id: ScreenHeaderTitle
-    text: '^Home$'
+    text: '^Workspaces$'

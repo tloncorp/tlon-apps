@@ -49,8 +49,12 @@ appId: ${MAESTRO_APP_ID}
           label: Enter test ship access code
       - tapOn: '^Connect$'
 # Declared login/network phase; outside the 5-second warm interaction budget.
+# An account with an agent lands on the Bot tab rather than the chat list, and
+# neither that tab's header nor the iOS tab buttons carry a title, so accept
+# any signal that the main UI is up: the iOS tab-bar container, or on Android
+# the label of whichever tab was selected.
 - extendedWaitUntil:
-    visible: '^(Home|Usage Statistics|Save Password\?)$'
+    visible: '^(Tab Bar|Workspaces|Bot|Usage Statistics|Save Password\?)$'
     timeout: 60000
 - runFlow:
     when:
@@ -58,13 +62,41 @@ appId: ${MAESTRO_APP_ID}
     commands:
       - tapOn: '^Not Now$'
 - extendedWaitUntil:
-    visible: '^(Home|Usage Statistics)$'
+    visible: '^(Tab Bar|Workspaces|Bot|Usage Statistics)$'
     timeout: 60000
 - runFlow:
     when:
       visible: '^Usage Statistics$'
     commands:
       - tapOn: '^Next$'
+# A fresh ship can still be syncing once the prompts are gone. Where it lands
+# depends on the account: one with an agent opens on the Bot tab, whose header
+# title is deliberately blank, so wait for the bar every tab shares rather than
+# for a title. `begin.yaml` selects the tab the journey needs.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - extendedWaitUntil:
+          visible: '^Tab Bar$'
+          timeout: 60000
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - extendedWaitUntil:
+          visible: '^(Workspaces|Bot)$'
+          timeout: 60000
+# The password-manager sheet can arrive a moment *after* the tab navigator
+# mounts, so both checks above can pass before it exists and the one-shot
+# dismissal misses it -- leaving it to swallow the first tab selection. Give it
+# a window here rather than treating the tab bar as proof the prompts are done.
 - extendedWaitUntil:
-    visible: '^Home$'
-    timeout: 60000
+    visible: '^Save Password\?$'
+    timeout: 5000
+    optional: true
+- runFlow:
+    when:
+      visible: '^Save Password\?$'
+    commands:
+      - tapOn: '^Not Now$'

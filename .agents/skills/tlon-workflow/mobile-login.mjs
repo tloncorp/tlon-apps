@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Signs the app in on a simulator or emulator, so a reproduction starts on
-// Home instead of on the onboarding screens.
+// the Workspaces list instead of on the onboarding screens.
 //
 //   node <worktree>/.agents/skills/tlon-workflow/mobile-login.mjs \
 //     --platform ios --udid <udid> --session ios-1234-1435
@@ -101,8 +101,12 @@ function device_(
 }
 
 const S = ['--session', session, '--no-record'];
-const onScreen = (text) =>
-  device_(['find', `text="${text}"`, ...S], { allowFailure: true }).ok;
+const onScreen = (selector) =>
+  device_(['find', selector, ...S], { allowFailure: true }).ok;
+// The chat list renders "Workspaces" as both a navigation-bar and a text node,
+// and an exact `text=` match on two elements is an AMBIGUOUS_MATCH rather than
+// a hit, so the landing check matches on the label instead.
+const onLanding = () => onScreen('label="Workspaces"');
 
 device_([
   'open',
@@ -115,8 +119,8 @@ device_([
   ...S,
 ]);
 
-// Already signed in: onboarding is gone and Home is up.
-if (onScreen('Home')) {
+// Already signed in: onboarding is gone and the Workspaces list is up.
+if (onLanding()) {
   console.log(`${session}: already signed in`);
   process.exit(0);
 }
@@ -138,7 +142,7 @@ for (const [press, next] of steps) {
   device_(['press', `text="${press}"`, ...S, '--settle']);
   if (press === 'Connect') {
     // Password-manager prompts and skipped analytics vary by build/account.
-    if (onScreen('Save Password?'))
+    if (onScreen('text="Save Password?"'))
       device_([
         'press',
         'role="button" text="Not Now"',
@@ -146,7 +150,7 @@ for (const [press, next] of steps) {
         '--raw',
         '--settle',
       ]);
-    if (onScreen('Home')) break;
+    if (onLanding()) break;
   }
   if (next) device_(['wait', 'text', next, ...S]);
 }
@@ -155,10 +159,13 @@ for (const [press, next] of steps) {
 // after `alert dismiss` would already have run.
 device_(['wait', '3000', ...S], { allowFailure: true });
 device_(['alert', 'dismiss', ...S], { allowFailure: true });
-// The "Stay in the loop" sheet comes later, over Home.
-if (onScreen('Not now')) device_(['press', 'text="Not now"', ...S, '--settle']);
+// The "Stay in the loop" sheet comes later, over the Workspaces list.
+if (onScreen('text="Not now"'))
+  device_(['press', 'text="Not now"', ...S, '--settle']);
 
 // A fresh disposable ship can still be completing its first sync after the
 // prompts are gone. Wait for the destination instead of assuming three seconds.
-device_(['wait', 'text', 'Home', '60000', ...S]);
+// A hosted account with an agent lands on the bot DM tab instead, whose
+// header is deliberately blank; that path is not exercised here.
+device_(['wait', 'text', 'Workspaces', '60000', ...S]);
 console.log(`${session}: signed in`);

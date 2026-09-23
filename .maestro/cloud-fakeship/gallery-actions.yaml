@@ -71,7 +71,7 @@ env:
 - tapOn: '^Back$'
 - assertVisible:
     id: ScreenHeaderTitle
-    text: '^Home$'
+    text: '^Workspaces$'
 - longPressOn: ${'GalleryActions-' + MAESTRO_RUN_TAG}
 - tapOn: '^Group info & settings$'
 - scrollUntilVisible:
@@ -96,6 +96,6 @@ env:
 - extendedWaitUntil:
     visible:
       id: ScreenHeaderTitle
-      text: '^Home$'
+      text: '^Workspaces$'
     timeout: 10000
 - assertNotVisible: ${'GalleryActions-' + MAESTRO_RUN_TAG}

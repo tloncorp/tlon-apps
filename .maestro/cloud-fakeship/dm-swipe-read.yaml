@@ -39,4 +39,4 @@ env:
     direction: DOWN
 - assertVisible:
     id: ScreenHeaderTitle
-    text: '^Home$'
+    text: '^Workspaces$'

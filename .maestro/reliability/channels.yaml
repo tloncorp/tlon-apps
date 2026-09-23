@@ -113,7 +113,7 @@ env:
     when:
       visible:
         id: ScreenHeaderTitle
-        text: '^Home$'
+        text: '^Workspaces$'
     commands:
       - scrollUntilVisible:
           element:
@@ -128,9 +128,17 @@ env:
 - assertVisible: '^Chat$'
 - assertVisible: '^Gallery$'
 - assertVisible: '^Notebook$'
+# Deleting the last channel drops straight to the chat list; deleting one of
+# several leaves the group's channel list, which still needs a Back. Match the
+# header title rather than the bare string, so the guard cannot be satisfied by
+# a chat that happens to be named after the tab.
 - runFlow:
     when:
-      notVisible: '^Home$'
+      notVisible:
+        id: ScreenHeaderTitle
+        text: '^Workspaces$'
     commands:
       - tapOn: '^Back$'
-- assertVisible: '^Home$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Workspaces$'

@@ -3,7 +3,12 @@ import { type LegendListRef } from '@legendapp/list/react-native';
 import { layoutForType } from '@tloncorp/shared';
 import * as React from 'react';
 import { Platform, type ScrollView } from 'react-native';
-import { type SharedValue, useSharedValue } from 'react-native-reanimated';
+import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
+import {
+  type DerivedValue,
+  useDerivedValue,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -31,7 +36,7 @@ const ANCHOR_RESOLUTION_TIMEOUT_MS = 2_000;
 const ESTIMATED_ITEM_SIZE = 120;
 
 function useConversationKeyboardListProps(
-  composerContentInset: SharedValue<number>
+  composerContentInset: DerivedValue<number>
 ) {
   return React.useMemo(() => {
     if (Platform.OS === 'ios') {
@@ -466,8 +471,20 @@ const ConversationPostListAttempt = React.forwardRef<
   ) => {
     const listRef = React.useRef<LegendListRef>(null);
     const composerContentInset = useSharedValue(0);
+    const composerCollapsibleInset = useSharedValue(0);
+    const { progress: keyboardProgress } = useReanimatedKeyboardAnimation();
+    // The composer keeps its bottom-chrome padding in its measured height, but
+    // an open keyboard covers that chrome and the composer slides down over it.
+    // Interpolate that part away on keyboard progress so the list never strands
+    // it as a gap, and so the inset moves with the keyboard instead of snapping
+    // when it settles.
+    const listComposerInset = useDerivedValue(
+      () =>
+        composerContentInset.value -
+        composerCollapsibleInset.value * keyboardProgress.value
+    );
     const conversationKeyboardListProps =
-      useConversationKeyboardListProps(composerContentInset);
+      useConversationKeyboardListProps(listComposerInset);
     const { register: registerConversationComposerHeight } =
       useConversationComposerHeight();
     const postsWithNeighborsRef = React.useRef(postsWithNeighbors);
@@ -478,11 +495,12 @@ const ConversationPostListAttempt = React.forwardRef<
       [collectionLayoutType]
     );
     const reportConversationComposerHeight = React.useCallback(
-      (height: number) => {
+      (height: number, collapsibleInset: number) => {
         composerContentInset.set(height);
+        composerCollapsibleInset.set(collapsibleInset);
         listRef.current?.reportContentInset({ bottom: height });
       },
-      [composerContentInset]
+      [composerContentInset, composerCollapsibleInset]
     );
     React.useLayoutEffect(() => {
       if (Platform.OS !== 'ios') {

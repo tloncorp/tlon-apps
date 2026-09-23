@@ -25,7 +25,7 @@ env:
 # The picker below verifies the file exists; Chrome's download toast is transient.
 - launchApp:
     stopApp: false
-- runFlow: subflows/home-tab.yaml
+- runFlow: subflows/workspaces-tab.yaml
 - runFlow: subflows/create-group.yaml
 - tapOn: '^Chat$'
 - assertVisible:
@@ -58,7 +58,7 @@ env:
 - assertVisible: '^basicapi[.]pdf$'
 - stopApp
 - launchApp
-- runFlow: subflows/home-tab.yaml
+- runFlow: subflows/workspaces-tab.yaml
 - tapOn: ${output.reliability.groupPattern}
 - tapOn: '^Chat$'
 - assertVisible: ${MAESTRO_RUN_TAG + ' document ?'}

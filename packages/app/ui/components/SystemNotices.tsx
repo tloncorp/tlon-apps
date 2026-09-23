@@ -11,7 +11,7 @@ import {
   useMemo,
   useRef,
 } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Alert } from 'react-native';
 import { View, XStack, YStack, isWeb, styled } from 'tamagui';
 
 import { useContactPermissions } from '../../hooks/useContactPermissions';
@@ -290,9 +290,10 @@ export function NotificationsPromptView({
   onPrimaryAction: () => void;
   presentation?: SystemNoticePresentation;
 }) {
-  const tabBarContentInset = useTopLevelTabBarContentInset();
-  const bottomContentInset =
-    Platform.OS === 'ios' ? tabBarContentInset : undefined;
+  // Both platforms' tab bars float over screen content, so the notice has to
+  // clear the bar itself — otherwise its actions land under it and stop
+  // receiving touches. The hook returns plain spacing off the tab screens.
+  const bottomContentInset = useTopLevelTabBarContentInset();
   const presentation = useSystemNoticePresentation(
     presentationOverride,
     'expanded'
