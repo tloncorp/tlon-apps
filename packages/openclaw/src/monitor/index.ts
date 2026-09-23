@@ -5446,7 +5446,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       const applySettingsSnapshot = (
         newSettings: TlonSettingsStore,
         source: 'subscription' | 'refresh',
-        snapshotOpts: { fresh?: boolean; journalObserve?: boolean } = {}
+        snapshotOpts: {
+          fresh?: boolean;
+          journalObserve?: boolean;
+          /** The key a subscription event changed. */
+          changedKey?: string;
+        } = {}
       ) => {
         const prevSettings = currentSettings;
 
@@ -5501,7 +5506,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           (source === 'subscription' || snapshotOpts.journalObserve)
         ) {
           const { added, removed } = groupChannelJournal.observe(
-            newSettings.groupChannels
+            newSettings.groupChannels,
+            {
+              // A fresh load is an observation; a subscription event is one
+              // only when it is a fact about this key.
+              keyFact:
+                source !== 'subscription' ||
+                snapshotOpts.changedKey === 'groupChannels',
+            }
           );
           for (const nest of added) {
             if (!watchedChannels.has(nest)) {
@@ -5715,10 +5727,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   return parsed;
                 }
                 superseded = true;
-                // Hand back the observed array itself, not a copy: the
-                // journal tells a key fact from an unrelated one by array
-                // identity, so a copy here would make the next unrelated fact
-                // look like an observation and re-trust the journal.
+                // Hand back the observed value in place of the stale one.
                 return {
                   ...parsed,
                   groupChannels: groupChannelJournal.lastObserved as
@@ -5808,13 +5817,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         channelToGroup,
         channelNameCache,
         groupNameCache,
+        groupRoles: new Map(),
         persist: (nests) => journal.persist(nests),
         scan: (nest) => scanDiscoveredAgentOnboardingNest(nest),
         log: runtime.log,
       };
 
-      settingsManager.onChange((newSettings) => {
-        applySettingsSnapshot(newSettings, 'subscription');
+      settingsManager.onChange((newSettings, changedKey) => {
+        applySettingsSnapshot(newSettings, 'subscription', { changedKey });
       });
 
       try {
@@ -5889,7 +5899,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               }
 
               if (opts.abortSignal?.aborted) return;
-              const fact = parseGroupsUiChannelFact(event);
+              const fact = parseGroupsUiChannelFact(event, {
+                botShip: botShipName,
+              });
               if (fact) {
                 await handleGroupsUiChannelFact(fact, groupsUiChannelDeps);
               }

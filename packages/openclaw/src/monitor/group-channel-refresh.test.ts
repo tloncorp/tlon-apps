@@ -57,7 +57,7 @@ beforeAll(async () => {
       let settingsRefreshInFlight = null;
       let refreshSettingsNow;
       ${callback('refreshSettingsNow = async (): Promise<void> =>')}
-      settingsManager.onChange((settings) => applySettingsSnapshot(settings, 'subscription'));
+      settingsManager.onChange((settings, changedKey) => applySettingsSnapshot(settings, 'subscription', { changedKey }));
       return {
         refresh: refreshSettingsNow,
         get current() { return currentSettings; },

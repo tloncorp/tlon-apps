@@ -9,6 +9,7 @@ import {
   createGroupChannelJournal,
   handleGroupsUiChannelFact,
   parseGroupsUiChannelFact,
+  canReadChannel,
 } from './group-channels.js';
 
 // Literal `/groups/ui` facts, in the shape the ship's encoder emits:
@@ -108,6 +109,7 @@ function makeHandlerDeps(
     channelToGroup: new Map<string, string>(),
     channelNameCache: new Map<string, string>(),
     groupNameCache: new Map<string, string>(),
+    groupRoles: new Map(),
     persist: vi.fn(async (_nests: readonly string[]) => undefined),
     scan: vi.fn(async (_nest: string) => undefined),
     log: vi.fn(),
@@ -120,11 +122,12 @@ describe('parseGroupsUiChannelFact', () => {
     expect(parseGroupsUiChannelFact(CREATE_FACT)).toEqual({
       flag: '~zod/test',
       kind: 'create',
+      roles: { botSects: [], bloc: [] },
       groupTitle: 'Test',
       channels: [
-        { nest: 'chat/~zod/general', title: 'General' },
-        { nest: 'heap/~zod/pics', title: 'Pics' },
-        { nest: 'diary/~zod/notes', title: 'Notes' },
+        { nest: 'chat/~zod/general', title: 'General', readers: [] },
+        { nest: 'heap/~zod/pics', title: 'Pics', readers: [] },
+        { nest: 'diary/~zod/notes', title: 'Notes', readers: [] },
       ],
     });
   });
@@ -155,6 +158,7 @@ describe('parseGroupsUiChannelFact', () => {
     expect(parseGroupsUiChannelFact(fact)).toEqual({
       flag: '~zod/empty',
       kind: 'create',
+      roles: { botSects: [], bloc: [] },
       groupTitle: 'Empty',
       channels: [],
     });
@@ -172,7 +176,8 @@ describe('parseGroupsUiChannelFact', () => {
     expect(parseGroupsUiChannelFact(fact)).toEqual({
       flag: '~zod/test',
       kind: 'create',
-      channels: [{ nest: 'chat/~zod/general' }],
+      roles: { botSects: [], bloc: [] },
+      channels: [{ nest: 'chat/~zod/general', readers: [] }],
     });
   });
 
@@ -180,7 +185,7 @@ describe('parseGroupsUiChannelFact', () => {
     expect(parseGroupsUiChannelFact(CHANNEL_ADD_FACT)).toEqual({
       flag: '~zod/test',
       kind: 'channel-add',
-      channels: [{ nest: 'chat/~zod/new', title: 'New' }],
+      channels: [{ nest: 'chat/~zod/new', title: 'New', readers: [] }],
     });
   });
 
@@ -196,7 +201,7 @@ describe('parseGroupsUiChannelFact', () => {
     expect(parseGroupsUiChannelFact(fact)).toEqual({
       flag: '~zod/test',
       kind: 'channel-add',
-      channels: [{ nest: 'heap/~zod/pics' }],
+      channels: [{ nest: 'heap/~zod/pics', readers: [] }],
     });
   });
 
@@ -284,9 +289,96 @@ describe('parseGroupsUiChannelFact', () => {
     expect(
       parseGroupsUiChannelFact({
         flag: '~zod/test',
-        update: { time: '1', diff: { channel: { nest: 'chat/~zod/new' } } },
+        update: {
+          time: '1',
+          diff: { channel: { nest: 'chat/~zod/new', readers: [] } },
+        },
       })
     ).toBeNull();
+  });
+});
+
+describe('parseGroupsUiChannelFact readability data', () => {
+  const RESTRICTED_CREATE = {
+    flag: '~zod/test',
+    update: {
+      time: '1',
+      diff: {
+        create: {
+          meta: { title: 'Test' },
+          channels: {
+            'chat/~zod/general': { meta: { title: 'General' }, readers: [] },
+            'chat/~zod/staff': {
+              meta: { title: 'Staff' },
+              readers: ['staff', 'admin'],
+            },
+          },
+          fleet: {
+            '~bus': { sects: ['member'], joined: '1' },
+            '~zod': { sects: ['admin'], joined: '1' },
+          },
+          cabals: {},
+          zones: {},
+          'zone-ord': [],
+          bloc: ['admin'],
+          cordon: { open: { ships: [], ranks: [] } },
+          secret: false,
+          'flagged-content': {},
+        },
+      },
+    },
+  };
+
+  it("extracts each channel's readers and the bot's roles from a create fact", () => {
+    const fact = parseGroupsUiChannelFact(RESTRICTED_CREATE, {
+      botShip: '~bus',
+    })!;
+    expect(fact.roles).toEqual({ botSects: ['member'], bloc: ['admin'] });
+    expect(fact.channels).toEqual([
+      { nest: 'chat/~zod/general', title: 'General', readers: [] },
+      { nest: 'chat/~zod/staff', title: 'Staff', readers: ['staff', 'admin'] },
+    ]);
+    // Unknown bot ship (or absent vessel): no roles, but still a fact.
+    expect(parseGroupsUiChannelFact(RESTRICTED_CREATE)!.roles).toEqual({
+      botSects: [],
+      bloc: ['admin'],
+    });
+  });
+
+  it('extracts the readers of an added channel', () => {
+    const fact = parseGroupsUiChannelFact({
+      flag: '~zod/test',
+      update: {
+        time: '1',
+        diff: {
+          channel: {
+            nest: 'chat/~zod/staff',
+            diff: { add: { meta: { title: 'Staff' }, readers: ['staff'] } },
+          },
+        },
+      },
+    })!;
+    expect(fact.channels).toEqual([
+      { nest: 'chat/~zod/staff', title: 'Staff', readers: ['staff'] },
+    ]);
+  });
+});
+
+describe('canReadChannel', () => {
+  it('mirrors go-can-read for a member', () => {
+    const member = { botSects: ['member'], bloc: ['admin'] };
+    const admin = { botSects: ['admin'], bloc: ['admin'] };
+    const staff = { botSects: ['staff'], bloc: ['admin'] };
+    // Open channel: readable by every member, even with no known roles.
+    expect(canReadChannel([], member)).toBe(true);
+    expect(canReadChannel([], undefined)).toBe(true);
+    // Restricted channel: admins, or a reader role.
+    expect(canReadChannel(['staff'], member)).toBe(false);
+    expect(canReadChannel(['staff'], staff)).toBe(true);
+    expect(canReadChannel(['staff'], admin)).toBe(true);
+    // Restricted with unknown roles (a channel add for a group whose create
+    // fact this process never saw): treated as unreadable.
+    expect(canReadChannel(['staff'], undefined)).toBe(false);
   });
 });
 
@@ -334,9 +426,12 @@ describe('createGroupChannelJournal.observe', () => {
     await journal.persist(['chat/~zod/b']);
     expect(values()).toEqual([['chat/~zod/a', 'chat/~zod/b']]);
 
-    // An unrelated settings fact carries the same array reference: not an
-    // observation at all. `b` has not echoed yet and must survive it.
-    expect(journal.observe(initial)).toEqual({ added: [], removed: [] });
+    // An unrelated settings fact re-presents the value: not an observation
+    // at all. `b` has not echoed yet and must survive it.
+    expect(journal.observe(initial, { keyFact: false })).toEqual({
+      added: [],
+      removed: [],
+    });
     expect(journal.observationSeq).toBe(0);
     // A same-valued key fact is an observation (it supersedes an in-flight
     // scry) but reconciles nothing, and `b` still survives it.
@@ -385,13 +480,13 @@ describe('createGroupChannelJournal.observe', () => {
     expect(values().at(-1)).toEqual(['chat/~zod/b']);
   });
 
-  it('counts every key fact as an observation, but not a re-presented array', () => {
+  it('counts every key fact as an observation, but not a fact about another key', () => {
     const initial = ['chat/~zod/a'];
     const { journal } = makeJournal({ initial });
 
     expect(journal.observationSeq).toBe(0);
-    // An unrelated fact carries the same array reference: not a key fact.
-    journal.observe(initial);
+    // A fact about another key re-presents the value: not a key fact.
+    journal.observe(initial, { keyFact: false });
     expect(journal.observationSeq).toBe(0);
     // A key fact with an unchanged value is still an observation: it must
     // supersede a scry in flight, e.g. an operator restoring the last-seen
@@ -405,6 +500,19 @@ describe('createGroupChannelJournal.observe', () => {
     expect(journal.observationSeq).toBe(2);
     journal.observe(undefined);
     expect(journal.observationSeq).toBe(3);
+  });
+
+  it('counts a deletion of an already-absent key as an observation', () => {
+    const { journal } = makeJournal({ initial: undefined, trusted: false });
+    expect(journal.observationSeq).toBe(0);
+    // A del-entry maps to undefined, the value already seen; it still has to
+    // supersede a scry in flight that captured a pre-deletion list.
+    journal.observe(undefined);
+    expect(journal.observationSeq).toBe(1);
+    expect(journal.trusted).toBe(true);
+    // A fact about another key that re-presents undefined does not.
+    journal.observe(undefined, { keyFact: false });
+    expect(journal.observationSeq).toBe(1);
   });
 
   it('trusts the snapshot after a same-valued key fact', async () => {
@@ -821,6 +929,68 @@ describe('createGroupChannelJournal.persist', () => {
   });
 });
 
+describe('handleGroupsUiChannelFact readability', () => {
+  const fact = (
+    readers: string[],
+    roles?: { botSects: string[]; bloc: string[] }
+  ): GroupsUiChannelFact => ({
+    flag: '~zod/test',
+    kind: 'create',
+    channels: [
+      { nest: 'chat/~zod/general', readers: [] },
+      { nest: 'chat/~zod/staff', readers },
+    ],
+    ...(roles ? { roles } : {}),
+  });
+
+  it('neither watches, journals, nor scans a channel the bot cannot read', async () => {
+    const deps = makeHandlerDeps();
+    await handleGroupsUiChannelFact(
+      fact(['staff'], { botSects: ['member'], bloc: ['admin'] }),
+      deps
+    );
+    expect([...deps.watched]).toEqual(['chat/~zod/general']);
+    expect(deps.persist).toHaveBeenCalledWith(['chat/~zod/general']);
+    expect(deps.scan).toHaveBeenCalledTimes(1);
+    expect(deps.channelToGroup.has('chat/~zod/staff')).toBe(false);
+  });
+
+  it('includes a restricted channel the bot has a reader role or admin role for', async () => {
+    for (const roles of [
+      { botSects: ['staff'], bloc: ['admin'] },
+      { botSects: ['admin'], bloc: ['admin'] },
+    ]) {
+      const deps = makeHandlerDeps();
+      await handleGroupsUiChannelFact(fact(['staff'], roles), deps);
+      expect([...deps.watched]).toEqual([
+        'chat/~zod/general',
+        'chat/~zod/staff',
+      ]);
+    }
+  });
+
+  it("remembers a group's roles for a later channel add", async () => {
+    const deps = makeHandlerDeps();
+    await handleGroupsUiChannelFact(
+      fact([], { botSects: ['staff'], bloc: ['admin'] }),
+      deps
+    );
+    const add: GroupsUiChannelFact = {
+      flag: '~zod/test',
+      kind: 'channel-add',
+      channels: [{ nest: 'chat/~zod/later', readers: ['staff'] }],
+    };
+    await handleGroupsUiChannelFact(add, deps);
+    expect(deps.watched.has('chat/~zod/later')).toBe(true);
+
+    // The same add for a group whose create this process never saw.
+    const cold = makeHandlerDeps();
+    await handleGroupsUiChannelFact(add, cold);
+    expect(cold.watched.has('chat/~zod/later')).toBe(false);
+    expect(cold.persist).toHaveBeenCalledWith([]);
+  });
+});
+
 describe('handleGroupsUiChannelFact', () => {
   it('journals a nest the firehose already auto-watched', async () => {
     const deps = makeHandlerDeps({ watched: new Set(['chat/~zod/general']) });
@@ -967,6 +1137,17 @@ describe('wiring', () => {
     expect(firstRefresh).toBeLessThan(
       monitorSource.indexOf('await groupInviteRunner.catchUp();')
     );
+  });
+
+  it('tells the journal which settings key a subscription event changed', () => {
+    expect(monitorSource).toContain(
+      'settingsManager.onChange((newSettings, changedKey) => {'
+    );
+    const fn = sliceFrom('const applySettingsSnapshot = (');
+    const observe = fn.indexOf('groupChannelJournal.observe(');
+    const keyFact = fn.indexOf("snapshotOpts.changedKey === 'groupChannels'");
+    expect(observe).toBeGreaterThan(-1);
+    expect(keyFact).toBeGreaterThan(observe);
   });
 
   it('marks the journal untrusted on a stream reconnect', () => {

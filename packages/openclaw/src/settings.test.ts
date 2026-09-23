@@ -681,6 +681,43 @@ describe('Settings: createSettingsManager.load', () => {
   });
 });
 
+describe('Settings: createSettingsManager.onChange changedKey', () => {
+  it('passes the key each subscription event changed', async () => {
+    let emit!: (event: unknown) => void;
+    const manager = createSettingsManager({
+      scry: async () => ({}),
+      subscribe: async (params: { event: (event: unknown) => void }) => {
+        emit = params.event;
+      },
+    } as never);
+    const listener = vi.fn();
+    manager.onChange(listener);
+    await manager.startSubscription();
+
+    emit({
+      'put-entry': {
+        desk: 'moltbot',
+        'bucket-key': 'tlon',
+        'entry-key': 'groupChannels',
+        value: ['chat/~zod/a'],
+      },
+    });
+    emit({
+      'del-entry': {
+        desk: 'moltbot',
+        'bucket-key': 'tlon',
+        'entry-key': 'groupChannels',
+      },
+    });
+    expect(listener).toHaveBeenNthCalledWith(
+      1,
+      { groupChannels: ['chat/~zod/a'] },
+      'groupChannels'
+    );
+    expect(listener).toHaveBeenNthCalledWith(2, {}, 'groupChannels');
+  });
+});
+
 describe('Settings: createSettingsManager.startSubscription onGap', () => {
   it('reports a subscription error and a quit as gaps', async () => {
     let handlers:
@@ -772,11 +809,14 @@ describe('Settings: createSettingsManager.applyLocal', () => {
         value: true,
       },
     });
-    expect(listener).toHaveBeenCalledWith({
-      groupChannels: ['chat/~zod/a'],
-      ownerShip: '~zod',
-      showModelSig: true,
-    });
+    expect(listener).toHaveBeenCalledWith(
+      {
+        groupChannels: ['chat/~zod/a'],
+        ownerShip: '~zod',
+        showModelSig: true,
+      },
+      'showModelSig'
+    );
   });
 
   it('does not call reconcile when the scry fails', async () => {
@@ -819,9 +859,12 @@ describe('Settings: createSettingsManager.applyLocal', () => {
     });
 
     expect(listener).toHaveBeenCalledTimes(1);
-    expect(listener).toHaveBeenCalledWith({
-      groupChannels: ['chat/~zod/general'],
-      ownerShip: '~zod',
-    });
+    expect(listener).toHaveBeenCalledWith(
+      {
+        groupChannels: ['chat/~zod/general'],
+        ownerShip: '~zod',
+      },
+      'ownerShip'
+    );
   });
 });

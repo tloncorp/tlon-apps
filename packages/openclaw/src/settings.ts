@@ -697,12 +697,14 @@ export function createSettingsManager(
     loaded: false,
   };
 
-  const listeners = new Set<(settings: TlonSettingsStore) => void>();
+  const listeners = new Set<
+    (settings: TlonSettingsStore, changedKey: string) => void
+  >();
 
-  const notify = () => {
+  const notify = (changedKey: string) => {
     for (const listener of listeners) {
       try {
-        listener(state.current);
+        listener(state.current, changedKey);
       } catch (err) {
         logger?.error?.(`[settings] Listener error: ${String(err)}`);
       }
@@ -796,7 +798,7 @@ export function createSettingsManager(
             update.key,
             update.value
           );
-          notify();
+          notify(update.key);
         },
         err: (error) => {
           logger?.error?.(`[settings] Subscription error: ${String(error)}`);
@@ -811,9 +813,13 @@ export function createSettingsManager(
     },
 
     /**
-     * Register a listener for settings changes.
+     * Register a listener for settings changes. The listener receives the
+     * whole snapshot and the key the event changed, so a consumer can tell a
+     * fact about its own key from an unrelated one without inspecting values.
      */
-    onChange(listener: (settings: TlonSettingsStore) => void): () => void {
+    onChange(
+      listener: (settings: TlonSettingsStore, changedKey: string) => void
+    ): () => void {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },

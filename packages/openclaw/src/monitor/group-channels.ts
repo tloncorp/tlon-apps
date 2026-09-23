@@ -37,9 +37,36 @@ export type GroupsUiChannelFact = {
   flag: string;
   kind: 'create' | 'channel-add';
   groupTitle?: string;
-  /** chat/heap/diary only */
-  channels: Array<{ nest: string; title?: string }>;
+  /** chat/heap/diary only; `readers` empty means open to every member. */
+  channels: Array<{ nest: string; title?: string; readers: string[] }>;
+  /**
+   * From a `create` fact: the bot's roles in the group and the admin roles.
+   * A `channel` add carries neither, so the handler remembers them per group.
+   */
+  roles?: { botSects: string[]; bloc: string[] };
 };
+
+function stringList(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((x): x is string => typeof x === 'string')
+    : [];
+}
+
+/**
+ * Mirror of `go-can-read` (`desk/app/groups.hoon`) for a ship that is already
+ * a member: admins read everything, an open channel is readable, otherwise a
+ * reader role is needed. Bans cannot apply to a ship that received the fact.
+ */
+export function canReadChannel(
+  readers: readonly string[],
+  roles: { botSects: readonly string[]; bloc: readonly string[] } | undefined
+): boolean {
+  if (readers.length === 0) return true;
+  if (!roles) return false;
+  const sects = new Set(roles.botSects);
+  if (roles.bloc.some((sect) => sects.has(sect))) return true;
+  return readers.some((sect) => sects.has(sect));
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -72,7 +99,8 @@ function extractMetaTitle(value: unknown): string | undefined {
  * non-additive channel diffs — carries no channel to journal.
  */
 export function parseGroupsUiChannelFact(
-  event: unknown
+  event: unknown,
+  opts: { botShip?: string } = {}
 ): GroupsUiChannelFact | null {
   if (!isRecord(event)) {
     return null;
@@ -96,9 +124,18 @@ export function parseGroupsUiChannelFact(
           continue;
         }
         const title = extractMetaTitle(channel);
-        channels.push(title ? { nest, title } : { nest });
+        const readers = stringList(isRecord(channel) ? channel.readers : []);
+        channels.push(title ? { nest, title, readers } : { nest, readers });
       }
     }
+    // The bot's own vessel in the fleet carries its roles; `bloc` the admin
+    // roles. Both decide which of these channels the ship actually joined.
+    const fleet = isRecord(create.fleet) ? create.fleet : {};
+    const vessel = opts.botShip ? fleet[opts.botShip] : undefined;
+    const roles = {
+      botSects: stringList(isRecord(vessel) ? vessel.sects : []),
+      bloc: stringList(create.bloc),
+    };
     // A create with no qualifying channels is still a fact: the caller caches
     // the group title from it.
     const groupTitle = extractMetaTitle(create);
@@ -107,6 +144,7 @@ export function parseGroupsUiChannelFact(
       kind: 'create',
       ...(groupTitle ? { groupTitle } : {}),
       channels,
+      roles,
     };
   }
 
@@ -127,10 +165,11 @@ export function parseGroupsUiChannelFact(
       return null;
     }
     const title = extractMetaTitle(add);
+    const readers = stringList(add.readers);
     return {
       flag,
       kind: 'channel-add',
-      channels: [title ? { nest, title } : { nest }],
+      channels: [title ? { nest, title, readers } : { nest, readers }],
     };
   }
 
@@ -184,8 +223,16 @@ export type GroupChannelJournal = {
     list: readonly string[] | undefined,
     candidates: ReadonlySet<string>
   ): string[];
-  /** Reconcile with an observed value of the key. Returns nests to start/stop watching. */
-  observe(list: readonly string[] | undefined): {
+  /**
+   * Reconcile with an observed value of the key. Returns nests to start/stop
+   * watching. `keyFact` says whether this snapshot came from a fact about
+   * the key itself (or a fresh load): only those are observations. A fact
+   * about another key re-presents the last value and is ignored.
+   */
+  observe(
+    list: readonly string[] | undefined,
+    opts?: { keyFact?: boolean }
+  ): {
     added: string[];
     removed: string[];
   };
@@ -258,17 +305,18 @@ export function createGroupChannelJournal(
   };
 
   const observe = (
-    list: readonly string[] | undefined
+    list: readonly string[] | undefined,
+    opts: { keyFact?: boolean } = {}
   ): { added: string[]; removed: string[] } => {
-    // Same reference: an unrelated fact re-presenting the value already
-    // observed; not a key fact, nothing to reconcile or count.
-    if (list === lastSeen) {
+    // A fact about another key re-presents the value already observed: not
+    // an observation, nothing to reconcile or count.
+    if (opts.keyFact === false) {
       return { added: [], removed: [] };
     }
-    // A key fact always arrives as a new array (the manager parses it
-    // afresh), so it is an observation even when the value is unchanged: it
-    // must supersede a scry in flight (an operator restoring the last-seen
-    // value while a stale scry is out), and it makes the snapshot
+    // A key fact is an observation even when the value is unchanged, and even
+    // when it is a deletion of an already-absent key: it must supersede a
+    // scry in flight (an operator restoring the last-seen value, or deleting
+    // the key, while a stale scry is out), and it makes the snapshot
     // trustworthy. Only the watch reconciliation is skipped.
     const changed = !sameList(list, lastSeen);
     lastSeen = list;
@@ -431,6 +479,8 @@ export type GroupsUiChannelHandlerDeps = {
   channelToGroup: Map<string, string>;
   channelNameCache: Map<string, string>;
   groupNameCache: Map<string, string>;
+  /** Per group: the bot's roles and the admin roles, from its create fact. */
+  groupRoles: Map<string, { botSects: string[]; bloc: string[] }>;
   persist: (nests: readonly string[]) => Promise<void>;
   /** scanDiscoveredAgentOnboardingNest */
   scan: (nest: string) => Promise<void>;
@@ -441,10 +491,17 @@ export type GroupsUiChannelHandlerDeps = {
  * Apply one parsed `/groups/ui` fact: cache the names, watch what is new, and
  * journal the fact's channels.
  *
- * Every channel of the fact is persisted, not only the newly watched ones: a
- * nest the firehose already auto-watched has never been journaled. The persist
- * runs before the network-bound onboarding scans so durability does not wait
- * on them.
+ * Only channels the bot can read are watched and journaled: a `create` lists
+ * every channel of the group, but the ship joins only the readable ones, so
+ * an unreadable channel would never carry traffic and its onboarding scan
+ * would fail and retry forever. A `channel` add carries no roles, so the
+ * group's roles are remembered from its create fact; a restricted add for a
+ * group with no remembered roles is treated as unreadable.
+ *
+ * Every readable channel of the fact is persisted, not only the newly
+ * watched ones: a nest the firehose already auto-watched has never been
+ * journaled. The persist runs before the network-bound onboarding scans so
+ * durability does not wait on them.
  */
 export async function handleGroupsUiChannelFact(
   fact: GroupsUiChannelFact,
@@ -453,13 +510,25 @@ export async function handleGroupsUiChannelFact(
   if (fact.groupTitle) {
     deps.groupNameCache.set(fact.flag, fact.groupTitle);
   }
+  if (fact.roles) {
+    deps.groupRoles.set(fact.flag, fact.roles);
+  }
+  const roles = deps.groupRoles.get(fact.flag);
 
   const newlyWatched: string[] = [];
+  const readable: string[] = [];
   for (const channel of fact.channels) {
-    deps.channelToGroup.set(channel.nest, fact.flag);
     if (channel.title) {
       deps.channelNameCache.set(channel.nest, channel.title);
     }
+    if (!canReadChannel(channel.readers, roles)) {
+      deps.log?.(
+        `[tlon] Skipping channel the bot cannot read (${fact.kind}): ${channel.nest}`
+      );
+      continue;
+    }
+    readable.push(channel.nest);
+    deps.channelToGroup.set(channel.nest, fact.flag);
     if (!deps.watched.has(channel.nest)) {
       deps.watched.add(channel.nest);
       deps.log?.(
@@ -469,7 +538,7 @@ export async function handleGroupsUiChannelFact(
     }
   }
 
-  await deps.persist(fact.channels.map((channel) => channel.nest));
+  await deps.persist(readable);
 
   for (const nest of newlyWatched) {
     await deps.scan(nest);
