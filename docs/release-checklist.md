@@ -39,9 +39,21 @@ receive updates, and post against desk release N-1.
 - [ ] The **Desk requests** comment on each PR in this release was reviewed — it
       is advisory, so nothing in CI stopped an N-1 break from landing.
 - [ ] If this release removes a desk endpoint older mobile builds still call,
-      the mobile minimums in the invite service were raised past the last build
-      that made the request — raise them first. That release also has to ship
-      the mobile apps under a new application version: `useRequiredUpdate`
+      do it in this order:
+
+      1. Build and publish the mobile apps under a new application version
+         (`mobile-build.yml`, production profile — the "After deploying" item
+         below, but run ahead of the deploy this time) and confirm they are
+         installable from the stores.
+      2. Raise the mobile minimums in the invite service past the last build
+         that made the request.
+      3. Only then deploy the release that removes the endpoint.
+
+      Raising the minimum first replaces every installed app with the
+      required-update screen — `useRequiredUpdate` acts as soon as the invite
+      service serves a minimum above the installed version — and leaves it
+      there until the store publishes the replacement. The new application
+      version is what lets the minimum bite at all: `useRequiredUpdate`
       compares the marketing version (`nativeApplicationVersion`), not the
       build number, so a minimum cannot separate two builds that share one.
 
@@ -64,3 +76,10 @@ receive updates, and post against desk release N-1.
       has shipped**, and re-pin the `~bus` E2E pier
       (`apps/tlon-web/e2e/shipManifest.json`) in the same change.
 - [ ] Cut mobile builds from the release tag if it includes native changes.
+      Dispatch `mobile-build.yml` with `profile=production` and the platforms
+      you intend. `profile` offers `preview` and `production`, `platform`
+      offers `all`, `android`, and `ios`, and neither declares a default — the
+      dispatch form preselects the first choice, and the workflow itself falls
+      back to `preview` and `all` for an empty input. So a dispatch left alone
+      builds preview apps, and this box can be ticked with no production build
+      made.
