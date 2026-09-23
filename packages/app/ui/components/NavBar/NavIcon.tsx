@@ -7,7 +7,7 @@ import { Platform } from 'react-native';
 import { Circle, ColorTokens, isWeb } from 'tamagui';
 
 import { getAndroidRoundedBackgroundKey } from '../../utils';
-import { ContactAvatar } from '../Avatar';
+import { ContactAvatar, ImageAvatar, SigilAvatar } from '../Avatar';
 
 // Match platform touch-target guidelines (iOS HIG 44pt, Android Material
 // 48dp); the tab's tappable area spans its full flex share of the bar.
@@ -67,6 +67,8 @@ export default function NavIcon({
   testID,
   type,
   activeType,
+  imageUrl,
+  sigilContactId,
   isActive,
   hasUnreads = false,
   onPress,
@@ -77,6 +79,10 @@ export default function NavIcon({
   testID?: string;
   type: IconType;
   activeType?: IconType;
+  /** Shown square in place of the glyph, which remains the fallback. */
+  imageUrl?: string;
+  /** Shown square in place of a missing `imageUrl`, before the glyph. */
+  sigilContactId?: string;
   isActive: boolean;
   hasUnreads?: boolean;
   onPress?: () => void;
@@ -109,9 +115,31 @@ export default function NavIcon({
       {...props}
     >
       <View>
-        <Icon
-          type={resolvedType}
-          color={isActive ? '$primaryText' : '$tertiaryText'}
+        <ImageAvatar
+          imageUrl={imageUrl}
+          size="$2xl"
+          borderRadius={0}
+          // Fills the glyph's 32x24 frame, so the bar and the unread dot stay put.
+          marginHorizontal="$xs"
+          opacity={isActive ? 1 : 0.6}
+          fallback={
+            sigilContactId ? (
+              <SigilAvatar
+                contactId={sigilContactId}
+                size="custom"
+                width={24}
+                height={24}
+                borderRadius={0}
+                marginHorizontal="$xs"
+                opacity={isActive ? 1 : 0.6}
+              />
+            ) : (
+              <Icon
+                type={resolvedType}
+                color={isActive ? '$primaryText' : '$tertiaryText'}
+              />
+            )
+          }
         />
         {shouldShowUnreads ? (
           <View
