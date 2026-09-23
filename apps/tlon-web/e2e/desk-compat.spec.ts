@@ -7,7 +7,10 @@ const zodUrl = `${shipManifest['~zod'].webUrl}/apps/groups/`;
 // The startup probe reads the %groups version out of the docket charge, so
 // rewriting that one response is enough to make a healthy ship look outdated.
 const CHARGES_SCRY = /\/~\/scry\/docket\/charges\.json/;
-const INIT_SCRY = /\/~\/scry\/groups-ui\/v10\/init\.json/;
+// Either init version: which one a healthy ship uses is capability-picked
+// (v11 once the desk ships Buckets, v10 below that), and what this test cares
+// about is whether init ran at all, not which path it took.
+const INIT_SCRY = /\/~\/scry\/groups-ui\/v1[01]\/init\.json/;
 const OUTDATED_VERSION = '0.0.1';
 
 test('blocks startup when the ship reports an outdated %groups desk', async ({
