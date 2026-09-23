@@ -174,6 +174,8 @@ print_info "archive     rube-${SHIP}${ARCHIVE_TAG}.tgz"
 echo ""
 
 cleanup() {
+    # First statement: the kill/rm below would otherwise clobber the status
+    # this trap was entered with.
     local code=$?
     if [ -n "$SHIP_PID" ] && [ "$KEEP_RUNNING" = "false" ]; then
         kill -TERM "$SHIP_PID" 2>/dev/null || true
@@ -191,7 +193,15 @@ cleanup() {
     fi
     exit "$code"
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+# Signals get their own traps rather than sharing cleanup's. Entering cleanup
+# directly as the INT/TERM handler leaves $? at the last *successful* command's
+# status, so an interrupted build exits 0 with no archive -- and cleanup's own
+# `exit` then re-enters it through the EXIT trap, killing and removing twice.
+# Re-raising as an explicit non-zero exit runs the EXIT trap once, with the
+# conventional 128+signo status.
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 # ------------------------------------------------------------------ vere
 # Pinned, and checked even when a binary is already there: rube downloads an

@@ -74,6 +74,8 @@ while [ "$#" -gt 0 ]; do
             echo "Options:"
             echo "  --fresh               Boot fresh fakeships instead of using existing archives"
             echo "  --ship NAME           Archive only this ship instead of the default set"
+            echo "                        (requires --skip-prepare; the prep pass cannot build"
+            echo "                        a hand-built pier -- see build-n1-pier.sh)"
             echo "  --skip-prepare        Skip ship prep/re-extraction; archive piers already in dist/"
             echo "  --verify              Run verify-archives.sh after successful upload"
             echo "  --help                Show this help message"
@@ -123,9 +125,22 @@ fi
 
 # --ship narrows the run to one pier. Both excluded ships are hand-built, so
 # this is how they get archived without touching the routinely-updated three.
+#
+# It therefore requires --skip-prepare. prepare_ships runs rube with only
+# INCLUDE_OPTIONAL_SHIPS=true, which can never select an `n1` ship, so the prep
+# pass leaves $DIST_DIR/<ship> untouched and this script would go on to archive
+# whatever stale pier happened to be there.
 if [ -n "$SHIP_SELECTOR" ]; then
     if ! printf '%s\n' "${VALID_SHIPS[@]}" | grep -qx "$SHIP_SELECTOR"; then
         echo "Invalid ship name: $SHIP_SELECTOR (valid: ${VALID_SHIPS[*]})" >&2
+        exit 1
+    fi
+    if [ "$SKIP_PREPARE" != "true" ]; then
+        echo "--ship requires --skip-prepare." >&2
+        echo "The prep pass drives rube, which never builds a hand-built pier, so this run" >&2
+        echo "would archive whatever stale pier is already at $DIST_DIR/$SHIP_SELECTOR." >&2
+        echo "Build the pier first -- ./build-n1-pier.sh produces ~bud and calls back in here" >&2
+        echo "with --skip-prepare --ship $SHIP_SELECTOR -- then re-run with --skip-prepare." >&2
         exit 1
     fi
     SHIPS_TO_ARCHIVE=("$SHIP_SELECTOR")

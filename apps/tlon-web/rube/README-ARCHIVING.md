@@ -86,6 +86,9 @@ Builds the pinned N-1 desk pier, `~bud`. Boots a fresh fakeship, merges and
 commits the `%groups` desk from the git tag named by the ship's `deskVersion` in
 `shipManifest.json`, verifies the ship reports that version, then hands off to
 `archive-piers.sh --skip-prepare --ship bud` to produce `rube-bud<n>.tgz`.
+`--ship` requires `--skip-prepare`: the prep pass drives rube, which never builds
+a hand-built pier, so without it the archiver would package whatever stale pier is
+already in `dist/`.
 
 It does not upload. Publishing the archive to `gs://bootstrap.urbit.org/` is a
 maintainer step; the script prints the two `gsutil` commands. `n1-e2e.yml`
