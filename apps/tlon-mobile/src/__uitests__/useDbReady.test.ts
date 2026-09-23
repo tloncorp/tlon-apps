@@ -7,13 +7,14 @@ import {
   jest,
 } from '@jest/globals';
 import { renderHook } from '@testing-library/react-native';
-import { ensureDbReady } from '@tloncorp/app/lib/nativeDb';
+import { abandonDbInit, ensureDbReady } from '@tloncorp/app/lib/nativeDb';
 import { createDevLogger } from '@tloncorp/shared';
 import { act } from 'react-test-renderer';
 
 import { DbInitTimeoutError, useDbReady } from '../hooks/useDbReady';
 
 jest.mock('@tloncorp/app/lib/nativeDb', () => ({
+  abandonDbInit: jest.fn(() => true),
   ensureDbReady: jest.fn(),
 }));
 
@@ -35,6 +36,7 @@ jest.mock('@tloncorp/shared', () => {
 });
 
 const ensureDbReadyMock = jest.mocked(ensureDbReady);
+const abandonDbInitMock = jest.mocked(abandonDbInit);
 const logger = createDevLogger('db-ready', false) as unknown as {
   crumb: ReturnType<typeof jest.fn>;
   trackError: ReturnType<typeof jest.fn>;
@@ -74,6 +76,8 @@ describe('useDbReady', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     ensureDbReadyMock.mockReset();
+    abandonDbInitMock.mockReset();
+    abandonDbInitMock.mockReturnValue(true);
     logger.crumb.mockClear();
     logger.trackError.mockClear();
     logger.trackEvent.mockClear();
@@ -173,7 +177,9 @@ describe('useDbReady', () => {
     expect(error.details.lastError).toBeNull();
     expect(error.details.attempt).toBe(1);
     expect(error.cause).toBeUndefined();
-    expect(crumbs()).toContain('deadline fired on attempt 1');
+    expect(crumbs()).toContain(
+      'deadline fired on attempt 1 (abandoned in-flight init: true)'
+    );
 
     pending.resolve();
     await advance(0);
@@ -279,6 +285,110 @@ describe('useDbReady', () => {
     expect(event).toBe('DB Ready Retry Succeeded');
     expect(payload.attempt).toBe(1);
     expect(payload.mount).toBeGreaterThan(1);
+  });
+
+  it('detaches the in-flight initialization when the deadline fires', async () => {
+    const pending = hangingCall();
+
+    const { result } = renderHook(() => useDbReady());
+    await advance(29_999);
+
+    // Nothing is abandoned until the deadline actually fires.
+    expect(abandonDbInitMock).not.toHaveBeenCalled();
+
+    await advance(1);
+
+    expect(abandonDbInitMock).toHaveBeenCalledTimes(1);
+    const error = result.current.dbInitError as DbInitTimeoutError;
+    expect(error.details.abandonedInFlightInit).toBe(true);
+
+    pending.resolve();
+    await advance(0);
+  });
+
+  it('records that nothing was in flight when the deadline races a settled attempt', async () => {
+    abandonDbInitMock.mockReturnValue(false);
+    hangingCall();
+
+    const { result } = renderHook(() => useDbReady());
+    await advance(30_000);
+
+    const error = result.current.dbInitError as DbInitTimeoutError;
+    expect(error.details.abandonedInFlightInit).toBe(false);
+    expect(crumbs()).toContain(
+      'deadline fired on attempt 1 (abandoned in-flight init: false)'
+    );
+  });
+
+  it('stops offering a retry once a retry has itself timed out', async () => {
+    // A mount that succeeds first, so this case does not depend on what any
+    // earlier test left in the module-level timeout flag.
+    ensureDbReadyMock.mockResolvedValueOnce(undefined);
+    const primed = renderHook(() => useDbReady());
+    await advance(0);
+    expect(primed.result.current.isDbReady).toBe(true);
+    primed.unmount();
+
+    const firstPending = hangingCall();
+    const first = renderHook(() => useDbReady());
+    await advance(30_000);
+
+    const firstError = first.result.current.dbInitError as DbInitTimeoutError;
+    expect(firstError.details.canRetry).toBe(true);
+    first.unmount();
+
+    const secondPending = hangingCall();
+    const second = renderHook(() => useDbReady());
+    await advance(30_000);
+
+    const secondError = second.result.current.dbInitError as DbInitTimeoutError;
+    expect(secondError.details.canRetry).toBe(false);
+
+    firstPending.resolve();
+    secondPending.resolve();
+    await advance(0);
+  });
+
+  it('offers a retry again after a mount that threw rather than hung', async () => {
+    // Same priming as above: the timeout flag outlives individual tests.
+    ensureDbReadyMock.mockResolvedValueOnce(undefined);
+    const primed = renderHook(() => useDbReady());
+    await advance(0);
+    primed.unmount();
+
+    const pending = hangingCall();
+    const timedOut = renderHook(() => useDbReady());
+    await advance(30_000);
+    expect(
+      (timedOut.result.current.dbInitError as DbInitTimeoutError).details
+        .canRetry
+    ).toBe(true);
+    timedOut.unmount();
+    pending.resolve();
+
+    // Exhausting the attempts is the throw path: it clears the wedged-init
+    // flag, so a later deadline is a first timeout again.
+    ensureDbReadyMock
+      .mockRejectedValueOnce(new Error('first'))
+      .mockRejectedValueOnce(new Error('second'))
+      .mockRejectedValueOnce(new Error('third'));
+    const threw = renderHook(() => useDbReady());
+    await advance(0);
+    await advance(500);
+    await advance(1000);
+    expect(threw.result.current.dbInitError).toBeInstanceOf(Error);
+    threw.unmount();
+
+    const stillPending = hangingCall();
+    const again = renderHook(() => useDbReady());
+    await advance(30_000);
+
+    expect(
+      (again.result.current.dbInitError as DbInitTimeoutError).details.canRetry
+    ).toBe(true);
+
+    stillPending.resolve();
+    await advance(0);
   });
 
   it('does not report a remount after a successful mount', async () => {

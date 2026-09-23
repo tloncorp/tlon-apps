@@ -1,4 +1,4 @@
-import { ensureDbReady } from '@tloncorp/app/lib/nativeDb';
+import { abandonDbInit, ensureDbReady } from '@tloncorp/app/lib/nativeDb';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { useEffect, useState } from 'react';
 
@@ -16,11 +16,21 @@ let mountCount = 0;
 // apart from any other remount -- the root error boundary also remounts after
 // render crashes that have nothing to do with the database.
 let lastMountFailed = false;
+// Narrower than `lastMountFailed`, which also covers the throw path. A mount
+// that threw is worth retrying; a mount that hit the deadline twice running is
+// wedged somewhere JS can't reach, and the button would only burn another
+// deadline. See TLON-6527.
+let lastMountTimedOut = false;
 
 interface DbInitTimeoutDetails {
   attempt: number;
   elapsedMs: number;
   lastError: string | null;
+  // Whether there was still an in-flight initialization to detach. False means
+  // the deadline raced a settled attempt rather than a hang.
+  abandonedInFlightInit: boolean;
+  // Read by RootErrorBoundary to decide whether to keep offering "Try again".
+  canRetry: boolean;
 }
 
 export class DbInitTimeoutError extends Error {
@@ -58,6 +68,7 @@ export function useDbReady() {
   useEffect(() => {
     const mount = ++mountCount;
     const recoveringFromFailure = lastMountFailed;
+    const recoveringFromTimeout = lastMountTimedOut;
     const startedAt = Date.now();
     const elapsed = () => Date.now() - startedAt;
 
@@ -95,13 +106,21 @@ export function useDbReady() {
     const deadlineTimer = setTimeout(() => {
       timedOut = true;
       lastMountFailed = true;
+      lastMountTimedOut = true;
       clearBackoff();
-      logger.crumb(`deadline fired on attempt ${attempt}`);
+      // Without this the next mount awaits the same promise and spends a whole
+      // second deadline on work that already failed to finish.
+      const abandonedInFlightInit = abandonDbInit();
+      logger.crumb(
+        `deadline fired on attempt ${attempt} (abandoned in-flight init: ${abandonedInFlightInit})`
+      );
       setDbInitError(
         new DbInitTimeoutError({
           attempt,
           elapsedMs: elapsed(),
           lastError: lastErrorText,
+          abandonedInFlightInit,
+          canRetry: !recoveringFromTimeout,
         })
       );
     }, DB_READY_DEADLINE_MS);
@@ -121,6 +140,7 @@ export function useDbReady() {
           }
           clearTimeout(deadlineTimer);
           lastMountFailed = false;
+          lastMountTimedOut = false;
           if (recoveringFromFailure) {
             logger.trackEvent(AnalyticsEvent.DbReadyRetrySucceeded, {
               mount,
@@ -150,6 +170,9 @@ export function useDbReady() {
 
       clearTimeout(deadlineTimer);
       lastMountFailed = true;
+      // Exhausting the attempts is the throw path, not a hang: the next mount
+      // gets a clean slate and the button stays useful.
+      lastMountTimedOut = false;
       setDbInitError(lastError);
     }
 
