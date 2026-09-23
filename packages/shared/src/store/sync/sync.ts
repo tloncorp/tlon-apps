@@ -16,7 +16,7 @@ import { AnalyticsEvent, AnalyticsSeverity } from '../../domain';
 import {
   MIN_GROUPS_VERSION,
   activityVersionSupportsNotes,
-  initVersionSupportsBuckets,
+  deskVersionSupportsBuckets,
   activityVersionSupportsReactions,
   classifyDeskVersion,
 } from '../../logic';
@@ -652,8 +652,8 @@ export const syncAppInfo = async (
   api.setActivitySupportsNotes(
     activityVersionSupportsNotes(appInfo?.groupsVersion)
   );
-  api.setInitSupportsBuckets(
-    initVersionSupportsBuckets(appInfo?.groupsVersion)
+  api.setDeskSupportsBuckets(
+    deskVersionSupportsBuckets(appInfo?.groupsVersion)
   );
   // Awaited so the App Info screen and the notes-search gate see it promptly.
   // The capability flags don't depend on it landing: what protects those is
@@ -690,7 +690,7 @@ export const syncReactionSupport = async () => {
     activityVersionSupportsReactions(groupsVersion)
   );
   api.setActivitySupportsNotes(activityVersionSupportsNotes(groupsVersion));
-  api.setInitSupportsBuckets(initVersionSupportsBuckets(groupsVersion));
+  api.setDeskSupportsBuckets(deskVersionSupportsBuckets(groupsVersion));
 };
 
 export const syncVolumeSettings = async (ctx?: SyncCtx) => {
@@ -3009,7 +3009,15 @@ export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {
   return syncQueue.add('setupHighPrioritySubscriptions', ctx, () => {
     return Promise.all([
       api.subscribeToChannelsUpdates(createHandler(handleChannelsUpdate)),
-      api.subscribeToBuckets(createHandler(handleBucketsUpdate)),
+      // Gated on the same capability that picks the init endpoint. The desk
+      // gate admits anything at or above MIN_GROUPS_VERSION (12.2.0) while
+      // %buckets arrives at 12.3.0, so there is a supported band where the
+      // agent is simply absent: watching it there is nacked, and one
+      // rejection in this Promise.all takes every high-priority subscription
+      // down with it.
+      ...(api.getDeskSupportsBuckets()
+        ? [api.subscribeToBuckets(createHandler(handleBucketsUpdate))]
+        : []),
       api.subscribeToChatUpdates(createHandler(handleChatUpdate)),
       api.subscribeGroups(createHandler(handleGroupUpdate)),
       api.subscribeToPresenceUpdates(handlePresenceEvent),

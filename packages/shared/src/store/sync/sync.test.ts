@@ -196,6 +196,33 @@ test('hydrates Bucket writers from a live subscription update', async () => {
 // rows. It has to be kept: a rejected write is swallowed by the subscription
 // handler, and nothing asks again, so the Bucket would read as empty for the
 // rest of the connection.
+// Codex claimed a writer update landing before insertChannels is lost, on the
+// grounds that updateChannel no-ops without a channel row. It writes perms
+// through insertChannelPerms before it touches $channels, so this pins down
+// what actually survives.
+test('keeps a writer update that arrives before the channel row', async () => {
+  const channelId = 'buckets/~zod/early-writers';
+  const flag = { host: '~zod', name: 'early-writers' };
+
+  await batchEffects('test:earlyWriters', (ctx) =>
+    handleBucketsUpdate(
+      {
+        type: 'update',
+        flag,
+        revision: 2,
+        update: { type: 'writers-updated', writers: ['admin'] },
+      } as unknown as api.BucketsResponse,
+      ctx
+    )
+  );
+
+  // the channel row shows up afterwards, as a cold start would have it
+  await db.insertChannels([{ id: channelId, type: 'buckets' }]);
+
+  const channel = await db.getChannelWithRelations({ id: channelId });
+  expect(channel?.writerRoles?.map((role) => role.roleId)).toEqual(['admin']);
+});
+
 // A writer update carries a revision like any other event. If it is not
 // persisted, the stale-init guard compares against a revision the row never
 // reached and lets the old roles back in.

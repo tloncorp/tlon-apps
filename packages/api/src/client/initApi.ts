@@ -1,5 +1,5 @@
 import { createDevLogger } from '../lib/logger';
-import { getInitSupportsBuckets } from './urbit';
+import { getDeskSupportsBuckets } from './urbit';
 import type * as db from '../types/models';
 import type * as ub from '../urbit';
 import type { BucketsSummary } from '../urbit/buckets';
@@ -48,7 +48,7 @@ export const getInitData = async () => {
   // client then hydrates no groups and no channels at all. /v11 is /v10 plus
   // Buckets, so the older path degrades to Buckets arriving without their
   // writer roles until the subscription fills them in.
-  const path = getInitSupportsBuckets() ? '/v11/init' : '/v10/init';
+  const path = getDeskSupportsBuckets() ? '/v11/init' : '/v10/init';
   const response = await scry<ub.GroupsInit11>({
     app: 'groups-ui',
     path,
