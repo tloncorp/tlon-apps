@@ -49,6 +49,10 @@ Local patches:
 - `patches/@react-navigation__bottom-tabs@7.18.14.patch`
 - `patches/react-native-screens@4.25.2.patch`
 
+The react-native-screens patch carries two independent fixes.
+
+### 1. Full-color Android tab icons
+
 Why:
 Android native tabs tint every image icon with the navigation bar's active or
 inactive color. That is correct for our monochrome Home and Activity assets,
@@ -77,6 +81,40 @@ Validation:
 Removal:
 Remove both patches together once React Navigation and react-native-screens
 ship Android support for untinted native-tab image icons.
+
+### 2. Android header children retained during screen removal
+
+Why:
+During an Android screen removal transition, `startViewTransition` keeps a
+removed header child attached to its toolbar until the matching
+`endViewTransition` call. The existing cleanup walks the current child tree,
+so it misses children already removed from that tree. A concurrent header
+update can then try to add the retained child again and crash with `The
+specified child already has a parent` in `ScreenStackHeaderConfig.onUpdate`.
+
+What it does:
+Records every parent-child transition pair when removal starts and finishes
+those pairs in reverse order, including children no longer present in the
+current view tree. Descendant transitions finish before the fragment root is
+detached. Header rebuilds are also skipped while the owning screen, or an
+ancestor screen, is being removed.
+
+Upstream:
+- issue: [software-mansion/react-native-screens#3249](https://github.com/software-mansion/react-native-screens/issues/3249)
+- candidate fix: [software-mansion/react-native-screens#3777](https://github.com/software-mansion/react-native-screens/pull/3777)
+- Linear: `TLON-6547`
+
+Validation:
+- Build and launch Android `productionDebug` on a physical device.
+- Start a removal transition for a screen with a custom header child, remove
+  that child from the toolbar, and finish the transition. The child's parent
+  must be null and adding it back to the toolbar must not throw.
+- The TLON-6547 device probe reproduced the exception before the patch and
+  passed after it on a Pixel 7a running Android 17.
+
+Removal:
+Drop this hunk once the pinned react-native-screens release includes the
+transition cleanup and removal guard from #3777 or an equivalent upstream fix.
 
 ## @gorhom/bottom-sheet@5.2.14
 

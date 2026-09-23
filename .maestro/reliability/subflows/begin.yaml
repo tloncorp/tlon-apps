@@ -8,13 +8,26 @@ appId: ${MAESTRO_APP_ID}
     when:
       true: ${output.reliability.session === 'warm'}
     commands:
-      # Reset navigation and keyboard state while preserving the login.
+      # Reset keyboard state while preserving the login. The app restores the
+      # position it was last closed in, so a warm run resumes wherever the
+      # previous journey left off -- including on a screen pushed above the
+      # tabs, which hides the tab bar. Unwind to a tab root before starting.
       - launchApp
+      - runFlow: to-tab-root.yaml
+# The app is past its splash and on a tab. Which tab varies -- a hosted account
+# with an agent opens on the Bot tab, whose header title is blank -- so accept
+# the iOS tab-bar container or, on Android, any tab label.
+# Startup may reopen the database, so this is a launch wait rather than an
+# interaction one -- the budget is larger than the 5 seconds a tap gets.
 - extendedWaitUntil:
-    visible: '^(Home|Contacts)$'
-    timeout: 5000
-- runFlow: contacts-tab.yaml
-- tapOn: '^You$'
+    visible: '^(Tab Bar|Workspaces|Activity|Settings|Bot)$'
+    timeout: 15000
+# Confirm the ship before anything writes to it. Settings reaches the user's
+# own profile in one step, and the profile is where the ship name is shown.
+- runFlow: settings-tab.yaml
+- tapOn:
+    id: SettingsProfileRow
 - assertVisible: ${output.reliability.shipPattern}
-- tapOn: '^Back$'
-- runFlow: home-tab.yaml
+- tapOn:
+    id: HeaderBackButton
+- runFlow: workspaces-tab.yaml

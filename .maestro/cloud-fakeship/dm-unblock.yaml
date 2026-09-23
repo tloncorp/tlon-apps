@@ -1,0 +1,22 @@
+appId: ${MAESTRO_APP_ID}
+name: Unblock a user from native settings
+env:
+  JOURNEY: dm-unblock
+---
+- runScript: ../reliability/data.js
+- runFlow: begin.yaml
+- runFlow: ../reliability/subflows/settings-tab.yaml
+- runFlow:
+    file: ../reliability/subflows/settings-row.yaml
+    env:
+      ROW: '^Blocked users$'
+- assertVisible: '^Blocked users$'
+- assertVisible: '^(~ten|ten)$'
+- assertVisible: '^Unblock$'
+- tapOn: '^(~ten|ten)$'
+- assertVisible: '^Are you sure you want to unblock this user\?$'
+- tapOn:
+    text: '^Unblock$'
+    below: '^Are you sure you want to unblock this user\?$'
+- assertVisible: '^No blocked users$'
+- runFlow: ../reliability/subflows/workspaces-tab.yaml
