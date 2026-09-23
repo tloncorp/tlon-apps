@@ -79,7 +79,12 @@ export function TopLevelTabNavigator() {
   const botSigilColors = useSigilColors(botContact?.color);
   // The bot's avatar; its sigil when it has none, or when calm mode hides
   // avatars; the glyph until its contact has synced.
-  const botAvatarUrl = calm.disableAvatars ? null : botContact?.avatarImage;
+  // Skia can't decode SVG, and ImageAvatar skips it too, so an SVG avatar
+  // falls back to the sigil here as it does in Settings and on web.
+  const botAvatarUrl =
+    calm.disableAvatars || botContact?.avatarImage?.endsWith('.svg')
+      ? null
+      : botContact?.avatarImage;
   const botTabIconSpec = useMemo<BotTabIconSpec | null>(
     () =>
       !botContact
