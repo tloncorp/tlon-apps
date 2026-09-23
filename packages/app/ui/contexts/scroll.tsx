@@ -27,7 +27,14 @@ export type ConversationScrollToBottomControl = {
   visible: boolean;
 };
 
-type ConversationComposerHeightHandler = (height: number) => void;
+type ConversationComposerHeightHandler = (
+  height: number,
+  /**
+   * Part of `height` that stops occupying the list once the keyboard covers it
+   * — bottom chrome the composer clears only while the keyboard is down.
+   */
+  collapsibleInset: number
+) => void;
 
 // @ts-expect-error - No other props than value are needed
 const INITIAL_VALUE: ScrollContextTuple = [{ value: 0 }, () => {}];
@@ -59,7 +66,7 @@ const ConversationScrollToBottomContext = createContext<{
 }>({ control: null, setControl: () => {} });
 const ConversationComposerHeightContext = createContext<{
   register: (handler: ConversationComposerHeightHandler) => () => void;
-  report: (height: number) => void;
+  report: (height: number, collapsibleInset?: number) => void;
 }>({ register: () => () => {}, report: () => {} });
 
 export const useScrollContext = () => useContext(ScrollContext);
@@ -166,6 +173,7 @@ export const ScrollContextProvider: React.FC<React.PropsWithChildren> = ({
   const conversationComposerHeightHandler =
     useRef<ConversationComposerHeightHandler | null>(null);
   const lastConversationComposerHeight = useRef<number | null>(null);
+  const lastConversationComposerCollapsibleInset = useRef(0);
   const scrollViewNativeID = `${defaultConversationScrollViewNativeID}-${useId()}`;
   const [scrollToBottomControl, setScrollToBottomControl] =
     useState<ConversationScrollToBottomControl | null>(null);
@@ -208,7 +216,10 @@ export const ScrollContextProvider: React.FC<React.PropsWithChildren> = ({
       register: (handler: ConversationComposerHeightHandler) => {
         conversationComposerHeightHandler.current = handler;
         if (lastConversationComposerHeight.current !== null) {
-          handler(lastConversationComposerHeight.current);
+          handler(
+            lastConversationComposerHeight.current,
+            lastConversationComposerCollapsibleInset.current
+          );
         }
         return () => {
           if (conversationComposerHeightHandler.current === handler) {
@@ -216,9 +227,10 @@ export const ScrollContextProvider: React.FC<React.PropsWithChildren> = ({
           }
         };
       },
-      report: (height: number) => {
+      report: (height: number, collapsibleInset = 0) => {
         lastConversationComposerHeight.current = height;
-        conversationComposerHeightHandler.current?.(height);
+        lastConversationComposerCollapsibleInset.current = collapsibleInset;
+        conversationComposerHeightHandler.current?.(height, collapsibleInset);
       },
     }),
     []

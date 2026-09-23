@@ -215,6 +215,26 @@ export function isActivityBackTarget(route: unknown): boolean {
 }
 
 /**
+ * The route a back press returning to Activity should target.
+ *
+ * Mobile and narrow web keep Activity as a tab, so the target is `MainTabs`
+ * itself: the tab navigator still has Activity focused, and naming the tab
+ * would write `screen: 'Activity'` onto the `MainTabs` route, where it
+ * outlives the trip — it is persisted with the position and, on the next
+ * launch, takes precedence over the tab the position actually saved. Desktop
+ * exposes Activity as a top-level route, so it is its own target.
+ */
+export function getActivityBackTargetName(
+  route: unknown
+): 'MainTabs' | 'Activity' {
+  const name =
+    typeof route === 'object' && route !== null
+      ? (route as NestedRouteLike).name
+      : undefined;
+  return name === 'MainTabs' ? 'MainTabs' : 'Activity';
+}
+
+/**
  * Build a desktop nested route that opens a post's parent thread under the
  * Home/Messages channel stack. Mirrors `getDesktopChannelRoute`: the wrapper
  * route carries `channelId`/`groupId`/`selectedPostId` (read by
