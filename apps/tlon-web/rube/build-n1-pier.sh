@@ -94,7 +94,9 @@ Options:
 
 Environment:
   DIST_DIR             Where piers live (default: $RUBE_DIR/dist)
-  BUILD_ROOT           Where the pier is built before being moved into place
+  BUILD_ROOT           Parent directory to build under (default: /tmp); the
+                       build uses, and only ever deletes, its own
+                       n1-pier-<pid> child, then moves the pier into place
   VERE_VERSION         Pinned vere release (default: $VERE_VERSION)
 EOF
 }
@@ -155,12 +157,14 @@ fi
 # capped at ~104 bytes on macOS: a checkout a few directories deep already
 # overruns it, and click then fails with "AF_UNIX path too long" while still
 # exiting 0, so the merge, mount and commit would be silent no-ops.
-BUILD_ROOT="${BUILD_ROOT:-/tmp/n1-pier-$$}"
-PIER="$BUILD_ROOT/$SHIP"
+# BUILD_ROOT is the caller's; the build only creates and deletes WORK_DIR.
+BUILD_ROOT="${BUILD_ROOT:-/tmp}"
+WORK_DIR="${BUILD_ROOT%/}/n1-pier-$$"
+PIER="$WORK_DIR/$SHIP"
 FINAL_PIER="$DIST_DIR/$SHIP/$SHIP"
 VERE="$DIST_DIR/urbit_extracted/urbit"
 CLICK="$RUBE_DIR/click"
-COOKIES="$BUILD_ROOT/cookies.txt"
+COOKIES="$WORK_DIR/cookies.txt"
 TAG_TREE=""
 SHIP_PID=""
 
@@ -246,10 +250,10 @@ print_status "urbit: $VERE ($("$VERE" --version 2>/dev/null | head -1))"
 
 # ------------------------------------------------------------------ boot
 print_info "Booting a fresh ~$SHIP (this takes a few minutes)..."
-rm -rf "$BUILD_ROOT" "$DIST_DIR/$SHIP"
-mkdir -p "$BUILD_ROOT"
+rm -rf "$WORK_DIR" "$DIST_DIR/${SHIP:?}"
+mkdir -p "$WORK_DIR"
 "$VERE" -F "$SHIP" -c "$PIER" --http-port "$HTTP_PORT" -p "$AMES_PORT" -t \
-    >"$BUILD_ROOT/boot.log" 2>&1 &
+    >"$WORK_DIR/boot.log" 2>&1 &
 SHIP_PID=$!
 
 await_ship() {
@@ -258,10 +262,10 @@ await_ship() {
         if curl -fsS "http://localhost:$HTTP_PORT/~/login" >/dev/null 2>&1; then
             return 0
         fi
-        kill -0 "$SHIP_PID" 2>/dev/null || { print_error "ship died; see $BUILD_ROOT/boot.log"; return 1; }
+        kill -0 "$SHIP_PID" 2>/dev/null || { print_error "ship died; see $WORK_DIR/boot.log"; return 1; }
         sleep 1
     done
-    print_error "ship never answered on port $HTTP_PORT (see $BUILD_ROOT/boot.log)"
+    print_error "ship never answered on port $HTTP_PORT (see $WORK_DIR/boot.log)"
     return 1
 }
 await_ship
@@ -330,7 +334,7 @@ if ! git -C "$PROJECT_ROOT" rev-parse --verify --quiet "$DESK_TAG^{commit}" >/de
     print_info "fetch it: git fetch --no-tags origin refs/tags/$DESK_TAG:refs/tags/$DESK_TAG"
     exit 1
 fi
-TAG_TREE="$BUILD_ROOT/$DESK_TAG"
+TAG_TREE="$WORK_DIR/$DESK_TAG"
 git -C "$PROJECT_ROOT" worktree add --detach --quiet "$TAG_TREE" "$DESK_TAG"
 print_status "$DESK_TAG checked out at $TAG_TREE ($(git -C "$TAG_TREE" rev-parse --short HEAD))"
 
@@ -373,7 +377,7 @@ for _ in $(seq 1 450); do
 done
 if [ "$reported" != "${DESK_TAG#v}" ]; then
     print_error "~$SHIP reports %groups '${reported:-<none>}', expected ${DESK_TAG#v}"
-    tail -40 "$BUILD_ROOT/boot.log" >&2 || true
+    tail -40 "$WORK_DIR/boot.log" >&2 || true
     exit 1
 fi
 print_status "~$SHIP reports %groups $reported"
