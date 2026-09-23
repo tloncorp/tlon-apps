@@ -155,22 +155,23 @@ export function monitorThreadCatchup(
 ) {
   const checkId = threadDiagnosticId();
   const openedAt = Date.now();
-  const expected = new Map<
-    string,
-    {
-      reply: ReplyIdentity;
-      observedAt: number;
-      attemptId: string;
-      source: ThreadEvidence['source'];
-    }
-  >();
+  type ExpectedReply = {
+    reply: ReplyIdentity;
+    observedAt: number;
+    startedAt: number;
+    attemptId: string;
+    source: ThreadEvidence['source'];
+  };
+  const expected = new Map<string, ExpectedReply>();
   const deleted = new Set<string>();
   const missingSince = new Map<string, number>();
+  const missingEvidence = new Map<string, ExpectedReply | undefined>();
   let source: ThreadEvidence | undefined;
   let newestFetchStartedAt = -Infinity;
   let stopped = false;
   let running = false;
   let dirty = false;
+  let diagnosticReadRetries = 0;
   let reportedMismatch = false;
   let reportedMismatchSignature: string | undefined;
   let reportedSuccess = false;
@@ -209,9 +210,14 @@ export function monitorThreadCatchup(
       }
       running = false;
       if (dirty) schedule();
+      else if (diagnosticReadRetries < 1) {
+        diagnosticReadRetries++;
+        schedule(THREAD_CATCHUP_DEADLINE_MS);
+      }
       return;
     }
     running = false;
+    diagnosticReadRetries = 0;
     if (stopped || !isActive()) return;
     const view = getView();
     const missing = compareThreadReplies(
@@ -228,17 +234,38 @@ export function monitorThreadCatchup(
     if (view.queryStatus !== 'success')
       keys.add(`query_status:${view.queryStatus}`);
     const now = Date.now();
-    for (const key of missingSince.keys())
-      if (!keys.has(key)) missingSince.delete(key);
-    for (const key of keys)
-      if (!missingSince.has(key)) missingSince.set(key, now);
+    for (const key of missingSince.keys()) {
+      if (!keys.has(key)) {
+        missingSince.delete(key);
+        missingEvidence.delete(key);
+      }
+    }
+    for (const key of keys) {
+      const evidence = expected.get(key.slice(key.indexOf(':') + 1));
+      if (!missingSince.has(key) || missingEvidence.get(key) !== evidence) {
+        missingSince.set(key, now);
+        missingEvidence.set(key, evidence);
+      }
+    }
     const sustained = [...missingSince].filter(
       ([, since]) => now - since >= THREAD_CATCHUP_DEADLINE_MS
     );
-    const sustainedSignature = sustained
-      .map(([key]) => key)
-      .sort()
-      .join('\n');
+    const sustainedSignature = JSON.stringify(
+      sustained
+        .map(([key]) => {
+          const evidence = missingEvidence.get(key);
+          return [
+            key,
+            evidence?.attemptId ?? null,
+            evidence?.source ?? null,
+            evidence?.startedAt ?? null,
+          ];
+        })
+        .sort(([a], [b]) => String(a).localeCompare(String(b)))
+    );
+    const sustainedEvidence = sustained
+      .map(([key]) => missingEvidence.get(key))
+      .find((entry) => entry !== undefined);
     const props = {
       ...identity,
       checkId,
@@ -265,19 +292,34 @@ export function monitorThreadCatchup(
       missingDatabaseIds: missing.database.slice(0, 5),
       missingDatabaseEvidence: missing.database.slice(0, 5).map((id) => ({
         id,
-        attemptId: expected.get(id)?.attemptId,
-        source: expected.get(id)?.source,
+        attemptId: missingEvidence.get(`database:${id}`)?.attemptId,
+        source: missingEvidence.get(`database:${id}`)?.source,
       })),
       missingQueryCount: missing.query.length,
       missingQueryIds: missing.query.slice(0, 5),
+      missingQueryEvidence: missing.query.slice(0, 5).map((id) => ({
+        id,
+        attemptId: missingEvidence.get(`query:${id}`)?.attemptId,
+        source: missingEvidence.get(`query:${id}`)?.source,
+      })),
       missingListCount: missing.list.length,
       missingListIds: missing.list.slice(0, 5),
+      missingListEvidence: missing.list.slice(0, 5).map((id) => ({
+        id,
+        attemptId: missingEvidence.get(`list:${id}`)?.attemptId,
+        source: missingEvidence.get(`list:${id}`)?.source,
+      })),
     };
     if (sustained.length && sustainedSignature !== reportedMismatchSignature) {
       emit(
         'Thread Catchup Check',
         {
           ...props,
+          attemptId: sustainedEvidence?.attemptId ?? props.attemptId,
+          source: sustainedEvidence?.source ?? props.source,
+          sourceAgeMs: sustainedEvidence
+            ? now - sustainedEvidence.startedAt
+            : props.sourceAgeMs,
           outcome: 'mismatch',
           sustainedStages: [
             ...new Set(sustained.map(([key]) => key.split(':')[0])),
@@ -331,6 +373,7 @@ export function monitorThreadCatchup(
       }
     }
     source = event;
+    reportedSuccess = false;
     for (const reply of event.replies) {
       // A fetch started before a live update cannot overwrite that newer evidence.
       const previous = expected.get(reply.id);
@@ -345,6 +388,7 @@ export function monitorThreadCatchup(
             deliveryStatus: reply.deliveryStatus,
           },
           observedAt: Date.now(),
+          startedAt: event.startedAt,
           attemptId: event.attemptId,
           source: event.source,
         });

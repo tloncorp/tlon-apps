@@ -35,6 +35,8 @@ An unchanged mismatch is reported once. A later source or view update that close
 the gap emits `recovered` with the same `checkId`, even when success sampling would
 normally omit it. Backgrounding, navigation, and unmount stop the check; unfinished
 checks are `interrupted`, not failed. Foregrounding starts a new check.
+Transient diagnostic SQLite read failures are retried once after five seconds;
+further source or view updates can start another attempt.
 
 ## Reading an incident
 
@@ -49,10 +51,13 @@ checks are `interrupted`, not failed. Foregrounding starts a new check.
 | Sustained `query_status` gap | The SQLite query is still pending or has failed, possibly retaining cached data |
 
 Filter by `channelId`, `postId`, `jsContextId`, and build. Join fetches to checks by
-`attemptId`; use `missingDatabaseEvidence` for the origin of individual missing
-IDs when several arrivals overlap. `jsContextId` and `buildInfo` come from the
-shared logger. Missing-ID samples are capped at five per stage; counts describe
-the full observed gap. No message contents or server error bodies are captured.
+`attemptId`; use `missingDatabaseEvidence`, `missingQueryEvidence`, and
+`missingListEvidence` for the origin of individual missing IDs when several
+arrivals overlap. Mismatch-level source fields are attributed to a sustained
+missing identity when one has recorded evidence. `jsContextId` and `buildInfo`
+come from the shared logger. Missing-ID samples are capped at five per stage;
+counts describe the full observed gap. No message contents or server error
+bodies are captured.
 
 `source = local_only` means the check has no server evidence in this activation.
 Even `caught_up` only confirms agreement for observed replies: it cannot establish

@@ -120,6 +120,21 @@ test('allows async invalidation and distinguishes valid empty results', async ()
   await vi.advanceTimersByTimeAsync(5000);
   expect(outcomes('mismatch')).toHaveLength(0);
 });
+test('correlates a successful check after matching evidence arrives', async () => {
+  await vi.advanceTimersByTimeAsync(100);
+  expect(outcomes('caught_up')[0][1]).toMatchObject({
+    source: 'local_only',
+    attemptId: null,
+  });
+
+  receive([]);
+  await vi.advanceTimersByTimeAsync(100);
+  expect(outcomes('caught_up')).toHaveLength(2);
+  expect(outcomes('caught_up')[1][1]).toMatchObject({
+    source: 'thread_fetch',
+    attemptId: 'fetch-1',
+  });
+});
 test('query failure with cached data is reported even when counts match', async () => {
   receive([]);
   view.queryStatus = 'error';
@@ -194,6 +209,47 @@ test('reports a replacement gap after an earlier mismatch clears', async () => {
     missingDatabaseIds: ['later'],
   });
 });
+test('attributes a sustained gap to its reply evidence, not a later arrival', async () => {
+  database = [reply];
+  receive();
+  await vi.advanceTimersByTimeAsync(100);
+
+  const later = { id: 'later' };
+  await vi.advanceTimersByTimeAsync(1000);
+  receive([later], { source: 'subscription', attemptId: 'live' });
+  database = [reply, later];
+  view.queryReplies = [later];
+  view.listReplies = [later];
+  await vi.advanceTimersByTimeAsync(4000);
+
+  expect(outcomes('mismatch')[0][1]).toMatchObject({
+    attemptId: 'fetch-1',
+    source: 'thread_fetch',
+    missingQueryIds: ['reply'],
+    missingQueryEvidence: [
+      { id: 'reply', attemptId: 'fetch-1', source: 'thread_fetch' },
+    ],
+  });
+});
+test('restarts a gap grace period when the same reply gets new evidence', async () => {
+  database = [reply];
+  receive();
+  await vi.advanceTimersByTimeAsync(4100);
+
+  receive([reply], { source: 'subscription', attemptId: 'live' });
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(outcomes('mismatch')).toHaveLength(0);
+
+  await vi.advanceTimersByTimeAsync(5000);
+  expect(outcomes('mismatch')[0][1]).toMatchObject({
+    attemptId: 'live',
+    source: 'subscription',
+    missingQueryIds: ['reply'],
+    missingQueryEvidence: [
+      { id: 'reply', attemptId: 'live', source: 'subscription' },
+    ],
+  });
+});
 test.each(['subscription', 'changes'] as const)(
   'checks incoming %s replies after the initial thread settled',
   async (source) => {
@@ -252,6 +308,32 @@ test('discards late database results after unmount', async () => {
   await vi.advanceTimersByTimeAsync(10000);
   expect(outcomes('mismatch')).toHaveLength(0);
   expect(outcomes('caught_up')).toHaveLength(0);
+});
+test('retries once after a diagnostic database read fails', async () => {
+  monitor.stop();
+  let reads = 0;
+  monitor = monitorThreadCatchup(
+    identity,
+    async () => {
+      reads++;
+      if (reads === 1) throw new Error('temporary read failure');
+      return [];
+    },
+    () => view,
+    () => active,
+    'focus',
+    emit
+  );
+  receive();
+
+  await vi.advanceTimersByTimeAsync(100);
+  expect(outcomes('diagnostic_read_failed')).toHaveLength(1);
+  await vi.advanceTimersByTimeAsync(5000);
+  expect(reads).toBe(2);
+  await vi.advanceTimersByTimeAsync(5000);
+  expect(outcomes('mismatch')[0][1]).toMatchObject({
+    missingDatabaseIds: ['reply'],
+  });
 });
 test('bounds ID samples while retaining total missing counts', async () => {
   receive(Array.from({ length: 30 }, (_, i) => ({ id: `reply-${i}` })));
