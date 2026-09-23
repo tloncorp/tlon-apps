@@ -7,7 +7,7 @@ import { Platform } from 'react-native';
 import { Circle, ColorTokens, isWeb } from 'tamagui';
 
 import { getAndroidRoundedBackgroundKey } from '../../utils';
-import { ContactAvatar } from '../Avatar';
+import { ContactAvatar, ImageAvatar } from '../Avatar';
 
 // Match platform touch-target guidelines (iOS HIG 44pt, Android Material
 // 48dp); the tab's tappable area spans its full flex share of the bar.
@@ -67,6 +67,7 @@ export default function NavIcon({
   testID,
   type,
   activeType,
+  imageUrl,
   isActive,
   hasUnreads = false,
   onPress,
@@ -77,6 +78,8 @@ export default function NavIcon({
   testID?: string;
   type: IconType;
   activeType?: IconType;
+  /** Shown square in place of the glyph, which remains the fallback. */
+  imageUrl?: string;
   isActive: boolean;
   hasUnreads?: boolean;
   onPress?: () => void;
@@ -109,9 +112,19 @@ export default function NavIcon({
       {...props}
     >
       <View>
-        <Icon
-          type={resolvedType}
-          color={isActive ? '$primaryText' : '$tertiaryText'}
+        <ImageAvatar
+          imageUrl={imageUrl}
+          size="$2xl"
+          borderRadius={0}
+          // Fills the same 32pt frame as the glyph, so the unread dot stays put.
+          margin="$xs"
+          opacity={isActive ? 1 : 0.6}
+          fallback={
+            <Icon
+              type={resolvedType}
+              color={isActive ? '$primaryText' : '$tertiaryText'}
+            />
+          }
         />
         {shouldShowUnreads ? (
           <View

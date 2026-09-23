@@ -14,6 +14,7 @@ import * as store from '@tloncorp/shared/store';
 import { useAgentOnboardingLandingConsumer } from '../features/top/useAgentOnboardingLandingConsumer';
 import { useAnyAgentGroupOnboardingLock } from '../hooks/useAgentGroupOnboardingLock';
 import { useBotDmTab } from '../hooks/useBotDmTab';
+import { useCalm, useContact } from '../ui/contexts/appDataContext';
 import {
   didRestoreNavigation,
   getRestoredTopLevelTab,
@@ -27,6 +28,7 @@ import {
   trackTopLevelTabSelection,
 } from './topLevelTabs';
 import type { TopLevelTabParamList } from './types';
+import { useBotTabIcon } from './useBotTabIcon';
 
 const Tabs = createNativeBottomTabNavigator<TopLevelTabParamList>();
 
@@ -70,6 +72,12 @@ export function TopLevelTabNavigator() {
   const onboardingLock = useAnyAgentGroupOnboardingLock();
   const onboardingLockedRef = useRef(onboardingLock.locked);
   onboardingLockedRef.current = onboardingLock.locked;
+  // A DM's channel id is the other party's id, so this is the bot's contact.
+  const botContact = useContact(botDm.enabled ? botDm.channelId : '');
+  const calm = useCalm();
+  const botAvatarIcon = useBotTabIcon(
+    calm.disableAvatars ? null : botContact?.avatarImage
+  );
   const botDmHasUnread = store.useChannelHasUnread(
     botDm.enabled ? botDm.channelId : undefined
   );
@@ -188,7 +196,16 @@ export function TopLevelTabNavigator() {
           initialParams={{ channelId: botDm.channelId }}
           options={{
             title: TOP_LEVEL_TABS.BotChat.title,
-            tabBarIcon: ({ focused }) => tabIcon('bot', focused),
+            tabBarIcon: ({ focused }) =>
+              botAvatarIcon
+                ? {
+                    type: 'image',
+                    source: focused
+                      ? botAvatarIcon.selected
+                      : botAvatarIcon.regular,
+                    tinted: false,
+                  }
+                : tabIcon('bot', focused),
             tabBarBadge: dot(botDmHasUnread),
             tabBarBadgeStyle,
           }}

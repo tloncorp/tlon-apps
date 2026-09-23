@@ -15,6 +15,7 @@ import { useAgentOnboardingLandingConsumer } from '../features/top/useAgentOnboa
 import { useAnyAgentGroupOnboardingLock } from '../hooks/useAgentGroupOnboardingLock';
 import { useBotDmTab } from '../hooks/useBotDmTab';
 import { NavBar, NavIcon } from '../ui/components/NavBar';
+import { useContact } from '../ui/contexts/appDataContext';
 import {
   TopLevelTabName,
   getTopLevelTabRoute,
@@ -38,6 +39,8 @@ function ReactTopLevelTabBar({ state, navigation }: BottomTabBarProps) {
     excludeChannelId: botDm.enabled ? botDm.channelId : undefined,
   });
   const onboardingLock = useAnyAgentGroupOnboardingLock();
+  // A DM's channel id is the other party's id, so this is the bot's contact.
+  const botContact = useContact(botDm.enabled ? botDm.channelId : '');
 
   if (!isWindowNarrow) {
     return null;
@@ -77,6 +80,7 @@ function ReactTopLevelTabBar({ state, navigation }: BottomTabBarProps) {
       {hasBotDmTab && (
         <NavIcon
           type="SmushStar"
+          imageUrl={botContact?.avatarImage ?? undefined}
           isActive={activeRouteName === 'BotChat'}
           hasUnreads={botDmHasUnread}
           onPress={() => pressTab('BotChat')}
