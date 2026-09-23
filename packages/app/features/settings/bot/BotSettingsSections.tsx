@@ -1,8 +1,11 @@
+import { getBotUserIdForUser } from '@tloncorp/api';
 import { ConfirmDialog, Pressable, Text } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { XStack, YStack } from 'tamagui';
 
+import { useCurrentUserId } from '../../../hooks/useCurrentUser';
 import { ListItem } from '../../../ui/components/ListItem';
+import { useContact } from '../../../ui/contexts/appDataContext';
 import {
   ApplyChangesBar,
   BotIdentityHeader,
@@ -71,6 +74,11 @@ export function BotSettingsSections({
   const { queries, settingsReady, draft, pending, commitDraft, applying } = hub;
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const controlsReadOnly = !settingsReady || applying;
+  // The bot's contact is already synced and cached, and it's what the DM tab
+  // and chat list render. The hosting avatar endpoint is often empty or slow
+  // while the gateway starts, which left this header on its fallback icon.
+  const currentUserId = useCurrentUserId();
+  const botContact = useContact(getBotUserIdForUser(currentUserId));
 
   const connectedServicesCount = useMemo(
     () =>
@@ -114,7 +122,7 @@ export function BotSettingsSections({
       <BotIdentityHeader
         title={draft.nickname || 'Tlonbot'}
         subtitle={`Your personal bot · ${queries.moon ?? `~${queries.ship}`}`}
-        avatarUrl={queries.avatarQuery.data ?? undefined}
+        avatarUrl={botContact?.avatarImage ?? undefined}
         ready={queries.botReady}
         restarting={applying}
       />

@@ -104,15 +104,6 @@ export function useBotSettingsQueries() {
       botReady && query.state.data !== undefined ? false : RETRY_INTERVAL_MS,
   });
 
-  const avatarQuery = useQuery({
-    queryKey: ['tlonbot', 'avatar', ship],
-    queryFn: () => api.getTlawnAvatar(ship),
-    enabled: Boolean(ship) && isFocused,
-    retry: false,
-    refetchInterval: (query) =>
-      botReady && query.state.data !== undefined ? false : RETRY_INTERVAL_MS,
-  });
-
   const channelsQuery = useQuery({
     queryKey: ['tlonbot', 'channels', ship],
     queryFn: () => api.getTlawnChannels(ship),
@@ -177,7 +168,6 @@ export function useBotSettingsQueries() {
     providerConfig: providerConfigQuery.data ?? EMPTY_PROVIDER_CONFIG,
     configQuery,
     nicknameQuery,
-    avatarQuery,
     channelsQuery,
     moonQuery,
     moon,
