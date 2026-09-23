@@ -205,6 +205,18 @@ export class NativeDb extends BaseDb {
       return;
     }
     try {
+      // Before the delete, not after. These cursors live in AsyncStorage, so
+      // emptying the database doesn't touch them, and this is the only await in
+      // the purge -- so it is the only point an abandoning deadline can land
+      // mid-purge. Resetting first means the window it opens is an intact
+      // database with reset cursors (the replacement re-syncs more than it
+      // needs to) rather than an empty database with pre-purge cursors, where
+      // the replacement skips the historical and initial-post sync and silently
+      // comes up missing data.
+      if (this.resetSyncStateOnPurge) {
+        await resetDbSyncState();
+      }
+
       this.connection.close();
       this.connection.delete();
       this.connection = null;
@@ -215,11 +227,6 @@ export class NativeDb extends BaseDb {
         context: 'purgeDb: closed the connection, cleared the client',
       });
 
-      if (this.resetSyncStateOnPurge) {
-        // reset values related to tracking db sync state
-        await resetDbSyncState();
-      }
-
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
         context: 'purgeDb: completed purge, recreating',
       });
@@ -228,6 +235,11 @@ export class NativeDb extends BaseDb {
         context: 'purgeDb: post-purge setup complete',
       });
     } catch (e) {
+      // `purgeDb` is public and has no generation of its own, so it recognises
+      // an abandoned initialization unwinding through it by the error type.
+      if (e instanceof DbInitAbandonedError) {
+        throw e;
+      }
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         context: 'purgeDb: error purging db',
         error: e,
@@ -334,11 +346,14 @@ export class NativeDb extends BaseDb {
     }
   }
 
-  private async verifyRequiredTables(opts?: {
-    attemptId?: string;
-    elapsedMs?: () => number;
-    migrationPhase?: 'initial' | 'retry';
-  }) {
+  private async verifyRequiredTables(
+    generation: number,
+    opts?: {
+      attemptId?: string;
+      elapsedMs?: () => number;
+      migrationPhase?: 'initial' | 'retry';
+    }
+  ) {
     if (!this.connection) {
       throw new Error(
         'runMigrations: schema check attempted without connection'
@@ -356,6 +371,11 @@ export class NativeDb extends BaseDb {
     }
 
     if (missingTables.length > 0) {
+      // A probe can fail because the replacement closed or deleted this
+      // connection out from under us. That is abandonment, not a broken schema,
+      // and it must not page.
+      this.throwIfAbandoned(generation, 'runMigrations');
+
       const error = new Error(
         `runMigrations: schema health check failed. Missing required tables: ${missingTables.join(
           ', '
@@ -444,7 +464,7 @@ export class NativeDb extends BaseDb {
       // the app runs on an unmigrated database.
       this.throwIfAbandoned(generation, 'runMigrations');
 
-      await this.verifyRequiredTables({
+      await this.verifyRequiredTables(generation, {
         attemptId,
         elapsedMs: getElapsedMs,
         migrationPhase,
