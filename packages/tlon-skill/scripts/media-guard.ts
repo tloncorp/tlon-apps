@@ -38,7 +38,9 @@
  *
  * All failures collapse to fixed literal errors; caller input never appears
  * in an error message or log (signed-URL query strings and secret-bearing
- * paths must not echo).
+ * paths must not echo). Two additional fixed literals name a throttling
+ * status class (429/503); a status is server-chosen, not caller text, so the
+ * no-echo invariant holds.
  */
 import dns from 'node:dns';
 import { EventEmitter } from 'node:events';
@@ -47,6 +49,7 @@ import https from 'node:https';
 import net from 'node:net';
 
 import { commandError } from './commands/command';
+import { CLI_VERSION } from './version';
 
 export const LOCAL_MEDIA_ERROR =
   'Local file paths are not supported for --image — upload the file first (e.g. `tlon upload <path>`) and pass the returned https URL.';
@@ -57,6 +60,20 @@ export const INVALID_MEDIA_ERROR =
   'Invalid media URL — pass a public https URL. If this is a local file, upload it first (e.g. `tlon upload <path>`) and resend with the returned https URL.';
 export const FETCH_FAILED_ERROR =
   'Could not fetch media from the provided URL.';
+export const FETCH_RATE_LIMITED_ERROR =
+  'The source host answered HTTP 429 (rate limited). Pick an image from a different host instead of retrying this URL.';
+export const FETCH_UNAVAILABLE_ERROR =
+  'The source host answered HTTP 503 (temporarily unavailable). Try a different host, or the same URL later.';
+
+/** Wikimedia-style descriptive UA: <client>/<ver> (<contact>) <lib>/<ver>. */
+export const MEDIA_FETCH_USER_AGENT = `TlonBot/${CLI_VERSION} (https://tlon.io; support@tlon.io) tlon-cli/${CLI_VERSION}`;
+
+/** Wait when Retry-After is absent (Wikimedia: "at least five seconds"). */
+export const THROTTLE_DEFAULT_WAIT_MS = 5_000;
+/** Floor for any computed wait. */
+export const THROTTLE_MIN_WAIT_MS = 1_000;
+/** The most we will wait. A *valid* requested delay above this means no retry. */
+export const THROTTLE_MAX_WAIT_MS = 10_000;
 
 export type ClassifiedMedia =
   | { kind: 'https'; canonical: string }
@@ -168,6 +185,8 @@ export interface GuardedFetchOptions {
    * resolve-once, pin, connect — exactly as it runs in production.
    */
   allowAddress?: (address: string) => boolean;
+  /** Test seam: throttle-retry sleeper. Defaults to a `setTimeout` promise. */
+  sleep?: (ms: number) => Promise<void>;
 }
 
 export interface GuardedFetchResult {
@@ -372,8 +391,49 @@ function fetchFailed(): Error {
   return commandError(FETCH_FAILED_ERROR);
 }
 
+/**
+ * Wait before the single throttle retry, from a `Retry-After` header.
+ * Only a delay we can understand is honored: delta-seconds, or an exact
+ * IMF-fixdate (the form `Date#toUTCString` produces; the round-trip check
+ * also rejects impossible dates and the obsolete RFC 850 / asctime forms).
+ * A present header we cannot understand yields no retry rather than a
+ * guessed delay, since the policy is to respect the server's delay. Only an
+ * absent header gets THROTTLE_DEFAULT_WAIT_MS. An honored delay is floored
+ * at THROTTLE_MIN_WAIT_MS; one above THROTTLE_MAX_WAIT_MS means no retry.
+ */
+export function throttleWaitMs(
+  retryAfter: string | undefined,
+  now: number
+): number | null {
+  const raw = (retryAfter ?? '').trim();
+  if (raw === '') {
+    return THROTTLE_DEFAULT_WAIT_MS;
+  }
+  let requested: number;
+  if (/^\d+$/.test(raw)) {
+    requested = Number(raw) * 1000;
+  } else {
+    const date = Date.parse(raw);
+    if (Number.isNaN(date) || new Date(date).toUTCString() !== raw) {
+      return null;
+    }
+    requested = Math.max(0, date - now);
+  }
+  if (requested > THROTTLE_MAX_WAIT_MS) {
+    return null;
+  }
+  return Math.max(THROTTLE_MIN_WAIT_MS, requested);
+}
+
+function throttledError(status: 429 | 503): Error {
+  return commandError(
+    status === 429 ? FETCH_RATE_LIMITED_ERROR : FETCH_UNAVAILABLE_ERROR
+  );
+}
+
 type HopOutcome =
   | { kind: 'redirect'; location: string }
+  | { kind: 'throttled'; status: 429 | 503; retryAfter: string | undefined }
   | { kind: 'body'; bytes: Uint8Array; contentType: string | undefined };
 
 /**
@@ -518,7 +578,7 @@ function attemptPinnedRequest(
         // Every hop — including same-origin redirects — dials a fresh pinned
         // connection instead of reusing a pooled socket.
         Connection: 'close',
-        'User-Agent': 'tlon-cli',
+        'User-Agent': MEDIA_FETCH_USER_AGENT,
       },
       // Test seam: trust a fixture CA for local TLS servers (never set in
       // prod). Certificate verification otherwise uses the default roots and
@@ -589,6 +649,15 @@ function attemptPinnedRequest(
         succeed({ kind: 'redirect', location: response.headers.location });
         return;
       }
+      if (status === 429 || status === 503) {
+        response.resume();
+        succeed({
+          kind: 'throttled',
+          status,
+          retryAfter: response.headers['retry-after'],
+        });
+        return;
+      }
       if (status < 200 || status >= 300) {
         response.resume();
         fail();
@@ -649,11 +718,17 @@ async function requestPinnedHop(
   throw fetchFailed();
 }
 
+const defaultSleep = (ms: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 /**
- * Fetch a canonical media URL under the SSRF guard. Throws the fixed
- * `FETCH_FAILED_ERROR` command error on any failure; underlying errors are
- * discarded (leak invariant: no caller text or resolved addresses in
- * errors/logs).
+ * Fetch a canonical media URL under the SSRF guard. Throws a fixed command
+ * error on any failure: `FETCH_RATE_LIMITED_ERROR` (429) or
+ * `FETCH_UNAVAILABLE_ERROR` (503) when a hop is throttled and at most one
+ * retry — taken only when the requested delay is understood, at most
+ * THROTTLE_MAX_WAIT_MS, and fits the remaining deadline — did not succeed;
+ * `FETCH_FAILED_ERROR` for everything else. Underlying errors are discarded (leak invariant: no caller
+ * text or resolved addresses in errors/logs).
  */
 export async function fetchGuardedMedia(
   canonicalUrl: string,
@@ -663,11 +738,13 @@ export async function fetchGuardedMedia(
   const requireHttps = options.requireHttps ?? false;
   const resolveHost = options.resolveHost ?? defaultResolveHost;
   const allowAddress = options.allowAddress ?? isAllowedAddress;
+  const sleep = options.sleep ?? defaultSleep;
   const deadlineAt = Date.now() + options.deadlineMs;
   const visited = new Set<string>();
 
   let currentUrl = canonicalUrl;
   let redirects = 0;
+  let retried = false;
 
   for (;;) {
     let target: URL;
@@ -729,6 +806,33 @@ export async function fetchGuardedMedia(
       outcome = await requestPinnedHop(target, addresses, options, deadlineAt);
     } catch {
       throw fetchFailed();
+    }
+
+    if (outcome.kind === 'throttled') {
+      if (retried) {
+        throw throttledError(outcome.status);
+      }
+      const waitMs = throttleWaitMs(outcome.retryAfter, Date.now());
+      // No retry when we will not honor the requested delay or the budget is gone.
+      if (waitMs === null || Date.now() + waitMs >= deadlineAt) {
+        throw throttledError(outcome.status);
+      }
+      await sleep(waitMs);
+      retried = true;
+      // Same validated, pinned addresses: no second resolve.
+      try {
+        outcome = await requestPinnedHop(
+          target,
+          addresses,
+          options,
+          deadlineAt
+        );
+      } catch {
+        throw fetchFailed();
+      }
+      if (outcome.kind === 'throttled') {
+        throw throttledError(outcome.status);
+      }
     }
 
     if (outcome.kind === 'redirect') {
