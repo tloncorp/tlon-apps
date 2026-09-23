@@ -1,4 +1,8 @@
-import { abandonDbInit, ensureDbReady } from '@tloncorp/app/lib/nativeDb';
+import {
+  type AbandonDbInitOutcome,
+  abandonDbInit,
+  ensureDbReady,
+} from '@tloncorp/app/lib/nativeDb';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { useEffect, useState } from 'react';
 
@@ -28,9 +32,10 @@ interface DbInitTimeoutDetails {
   attempt: number;
   elapsedMs: number;
   lastError: string | null;
-  // Whether there was still an in-flight initialization to detach. False means
-  // the deadline raced a settled attempt rather than a hang.
-  abandonedInFlightInit: boolean;
+  // What the deadline was able to detach. 'abandoned' is the hang signature;
+  // 'nothing-in-flight' means it raced a settled attempt; 'setup-owns-connection'
+  // means it couldn't detach without risking a second native connection.
+  abandonOutcome: AbandonDbInitOutcome;
   // Read by RootErrorBoundary to decide whether to keep offering "Try again".
   canRetry: boolean;
 }
@@ -111,21 +116,27 @@ export function useDbReady() {
       clearBackoff();
       // Without this the next mount awaits the same promise and spends a whole
       // second deadline on work that already failed to finish.
-      const abandonedInFlightInit = abandonDbInit();
+      const abandonOutcome = abandonDbInit();
       // A deadline that found nothing running -- it landed in a backoff after a
       // slow rejection -- is the throw path taking too long, not a hang, and
       // retrying recovers that.
-      lastMountHung = abandonedInFlightInit;
+      const hung = abandonOutcome === 'abandoned';
+      lastMountHung = hung;
       logger.crumb(
-        `deadline fired on attempt ${attempt} (abandoned in-flight init: ${abandonedInFlightInit})`
+        `deadline fired on attempt ${attempt} (abandon outcome: ${abandonOutcome})`
       );
       setDbInitError(
         new DbInitTimeoutError({
           attempt,
           elapsedMs: elapsed(),
           lastError: lastErrorText,
-          abandonedInFlightInit,
-          canRetry: !(recoveringFromHang && abandonedInFlightInit),
+          abandonOutcome,
+          // Nothing could be detached because setup still holds an unpublished
+          // native handle, so a retry would await that same handle. Only a
+          // restart gets a fresh one -- don't offer a button that can't help.
+          canRetry:
+            abandonOutcome !== 'setup-owns-connection' &&
+            !(recoveringFromHang && hung),
         })
       );
     }, DB_READY_DEADLINE_MS);

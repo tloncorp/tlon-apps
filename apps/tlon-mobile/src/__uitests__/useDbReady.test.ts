@@ -14,7 +14,7 @@ import { act } from 'react-test-renderer';
 import { DbInitTimeoutError, useDbReady } from '../hooks/useDbReady';
 
 jest.mock('@tloncorp/app/lib/nativeDb', () => ({
-  abandonDbInit: jest.fn(() => true),
+  abandonDbInit: jest.fn(() => 'abandoned'),
   ensureDbReady: jest.fn(),
 }));
 
@@ -77,7 +77,7 @@ describe('useDbReady', () => {
     jest.useFakeTimers();
     ensureDbReadyMock.mockReset();
     abandonDbInitMock.mockReset();
-    abandonDbInitMock.mockReturnValue(true);
+    abandonDbInitMock.mockReturnValue('abandoned');
     logger.crumb.mockClear();
     logger.trackError.mockClear();
     logger.trackEvent.mockClear();
@@ -178,7 +178,7 @@ describe('useDbReady', () => {
     expect(error.details.attempt).toBe(1);
     expect(error.cause).toBeUndefined();
     expect(crumbs()).toContain(
-      'deadline fired on attempt 1 (abandoned in-flight init: true)'
+      'deadline fired on attempt 1 (abandon outcome: abandoned)'
     );
 
     pending.resolve();
@@ -300,32 +300,47 @@ describe('useDbReady', () => {
 
     expect(abandonDbInitMock).toHaveBeenCalledTimes(1);
     const error = result.current.dbInitError as DbInitTimeoutError;
-    expect(error.details.abandonedInFlightInit).toBe(true);
+    expect(error.details.abandonOutcome).toBe('abandoned');
 
     pending.resolve();
     await advance(0);
   });
 
   it('records that nothing was in flight when the deadline races a settled attempt', async () => {
-    abandonDbInitMock.mockReturnValue(false);
+    abandonDbInitMock.mockReturnValue('nothing-in-flight');
     hangingCall();
 
     const { result } = renderHook(() => useDbReady());
     await advance(30_000);
 
     const error = result.current.dbInitError as DbInitTimeoutError;
-    expect(error.details.abandonedInFlightInit).toBe(false);
+    expect(error.details.abandonOutcome).toBe('nothing-in-flight');
     expect(error.details.canRetry).toBe(true);
     expect(crumbs()).toContain(
-      'deadline fired on attempt 1 (abandoned in-flight init: false)'
+      'deadline fired on attempt 1 (abandon outcome: nothing-in-flight)'
     );
+  });
+
+  it('asks for a restart when setup still owns a native connection', async () => {
+    // Nothing could be detached, so a retry would await the very handle that
+    // didn't finish. Only a new process gets a fresh one -- so this drops the
+    // button on the first deadline, without waiting for a second.
+    abandonDbInitMock.mockReturnValue('setup-owns-connection');
+    hangingCall();
+
+    const { result } = renderHook(() => useDbReady());
+    await advance(30_000);
+
+    const error = result.current.dbInitError as DbInitTimeoutError;
+    expect(error.details.abandonOutcome).toBe('setup-owns-connection');
+    expect(error.details.canRetry).toBe(false);
   });
 
   it('keeps offering a retry when the deadlines abandoned nothing', async () => {
     // A deadline landing in a backoff after a slow rejection detaches nothing.
     // Those are ordinary failures the button does recover, however many of them
     // land, so they must not accumulate into the wedged state.
-    abandonDbInitMock.mockReturnValue(false);
+    abandonDbInitMock.mockReturnValue('nothing-in-flight');
 
     hangingCall();
     const first = renderHook(() => useDbReady());

@@ -45,6 +45,22 @@ function closeQuietly(connection: SQLiteConnection | null) {
 }
 
 /**
+ * What `abandonDbInit` was able to do.
+ *
+ * - `abandoned`: the in-flight initialization was detached; the next
+ *   `ensureDbReady` starts fresh.
+ * - `nothing-in-flight`: there was nothing to detach, so the deadline raced a
+ *   settled attempt rather than finding a hang.
+ * - `setup-owns-connection`: a native handle is open but unpublished, so
+ *   detaching would leave the replacement to open a second one on the same
+ *   file. Nothing was detached and only restarting the app can recover.
+ */
+export type AbandonDbInitOutcome =
+  | 'abandoned'
+  | 'nothing-in-flight'
+  | 'setup-owns-connection';
+
+/**
  * Thrown by the remains of an initialization that `abandonDbInit` detached. It
  * is not a database failure -- a replacement initialization owns the state now
  * -- so it exists to stop the abandoned attempt rather than to be recovered
@@ -99,12 +115,10 @@ export class NativeDb extends BaseDb {
       return;
     }
 
-    const generation = this.generation;
-
     const setupPromise = (async () => {
-      // Held locally until the pragmas are through, so a setup that gets
-      // abandoned along the way closes what it opened instead of publishing it
-      // over the connection that replaced it.
+      // Held locally until it is ready to publish, so a setup that fails part
+      // way closes the handle it opened instead of leaving it on the instance
+      // with no client.
       let connection: SQLiteConnection | null = null;
       try {
         if (this.connection && !this.client) {
@@ -127,14 +141,6 @@ export class NativeDb extends BaseDb {
         await connection.execute('PRAGMA journal_mode=DELETE');
         await connection.execute('PRAGMA synchronous=OFF');
 
-        if (generation !== this.generation) {
-          logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
-            context: 'setupDb: abandoned mid-setup, closing opened connection',
-          });
-          closeQuietly(connection);
-          return;
-        }
-
         connection.updateHook(() => this.handleUpdate());
 
         this.connection = connection;
@@ -156,7 +162,6 @@ export class NativeDb extends BaseDb {
         if (connection !== this.connection) {
           closeQuietly(connection);
         }
-        this.throwIfAbandoned(generation, 'setupDb');
         logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
           context: 'setupDb: error setting up db',
           error: e,
@@ -171,11 +176,7 @@ export class NativeDb extends BaseDb {
     try {
       await setupPromise;
     } finally {
-      // A newer generation owns `setupPromise` now; clearing it here would
-      // strand the setup that replaced this one.
-      if (generation === this.generation) {
-        this.setupPromise = null;
-      }
+      this.setupPromise = null;
     }
   }
 
@@ -319,16 +320,31 @@ export class NativeDb extends BaseDb {
    * inert, so it can't publish a connection over its replacement or, worse,
    * reach its purge and delete the database file out from under one.
    *
-   * Returns whether there was anything in flight to abandon.
+   * Setup is the exception and is never abandoned: while `setupPromise` is in
+   * flight the native handle exists only in that call's local, so there is
+   * nothing for a replacement to adopt and nothing safe to close -- the
+   * abandoned call still has statements out on it. Detaching would leave the
+   * replacement to `open()` a second connection on the same file, which is the
+   * race this whole design exists to avoid, so the caller is told to ask for a
+   * restart instead. That is also what keeps the generation stable for the
+   * lifetime of a setup, which is why `setupDb` needs no generation checks.
    */
-  abandonDbInit(): boolean {
-    if (!this.readyPromise && !this.setupPromise) {
-      return false;
+  abandonDbInit(): AbandonDbInitOutcome {
+    if (this.setupPromise) {
+      logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+        context:
+          'abandonDbInit: setup owns an unpublished connection, not detaching',
+        severity: AnalyticsSeverity.Low,
+      });
+      return 'setup-owns-connection';
+    }
+
+    if (!this.readyPromise) {
+      return 'nothing-in-flight';
     }
 
     this.generation += 1;
     this.readyPromise = null;
-    this.setupPromise = null;
 
     logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
       context: 'abandonDbInit: detached in-flight db initialization',
@@ -336,7 +352,7 @@ export class NativeDb extends BaseDb {
       severity: AnalyticsSeverity.Low,
     });
 
-    return true;
+    return 'abandoned';
   }
 
   private throwIfAbandoned(generation: number, context: string) {
