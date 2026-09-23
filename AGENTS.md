@@ -29,7 +29,7 @@ review is the check.
 
 For every **added** and **changed** entry, confirm the N-1 desk serves it. N-1
 is the tag `v<MIN_GROUPS_VERSION>` from
-`packages/shared/src/logic/deskPolicy.ts` (policy:
+`packages/shared/src/logic/deskCompatibility.ts` (policy:
 `docs/tlon-apps/desk-compatibility.md`). Read that tag's
 `desk/app/<agent>.hoon`:
 
