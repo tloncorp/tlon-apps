@@ -45,8 +45,12 @@ desk. `~bud` is a fifth E2E ship carrying the **N-1 desk**: a hand-built
 fakeship pinned to `MIN_GROUPS_VERSION`, recorded as `deskVersion` in
 `apps/tlon-web/e2e/shipManifest.json`. `.github/workflows/n1-e2e.yml` boots it
 next to `~zod` and `~ten` on the candidate desk and runs
-`apps/tlon-web/e2e/n1-desk.spec.ts`: group create and invite across the version
-boundary, a post each way, and a DM each way.
+`apps/tlon-web/e2e/n1-desk.spec.ts`: group create, invite and join across the
+version boundary, then chat posts, threads, reactions, edits, deletes, mentions
+and quote replies each way; notebook and gallery channels with a post and a
+comment each way; group administration by the host and by the N-1 member; DMs
+each way; and the N-1 ship's activity feed. The spec's own header maps every
+step to the agents and request families it exercises.
 
 `~bud` is not `~bus`. `~bus` is deliberately far out of date, for
 protocol-mismatch rendering, and is never re-pinned.

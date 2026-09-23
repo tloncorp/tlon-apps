@@ -51,8 +51,13 @@ async function performCleanup(page: Page, shipName: string) {
       await helpers.cleanupExistingGroup(page, '~ten, ~zod');
       await helpers.cleanupExistingGroup(page, '~bus, ~zod');
       // ~zod hosts the group in the N-1 desk spec, so ~zod is the one that can
-      // delete it; ~bud only leaves.
+      // delete it; ~bud only leaves. That spec renames the group partway
+      // through, so both names have to be swept — a run that fails before the
+      // rename leaves the first, a run that fails after leaves the second.
+      // Deleting the group takes its channels and roles with it, so the
+      // notebook, gallery and renamed channels need no separate cleanup.
       await helpers.cleanupExistingGroup(page, '~bud, ~zod');
+      await helpers.cleanupExistingGroup(page, 'N-1 Interop Group');
       await helpers.cleanupExistingGroup(page);
       await helpers.cleanupExistingGroup(page, 'Invite Test');
       // Template group cleanups
@@ -76,6 +81,7 @@ async function performCleanup(page: Page, shipName: string) {
       }
       await helpers.rejectGroupInvite(page);
       await helpers.leaveGroup(page, '~bud, ~zod');
+      await helpers.leaveGroup(page, 'N-1 Interop Group');
     }
   } catch (error) {
     console.log(

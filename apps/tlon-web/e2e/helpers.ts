@@ -1936,8 +1936,13 @@ export async function quoteReply(
 
   // In DM context, there's no "Chat Post" text, just quoted content in input
   if (!isDM) {
-    await expect(page.getByText('Chat Post')).toBeVisible();
-    await expect(page.getByText(originalMessage).nth(1)).toBeVisible(); // Quote shows original
+    // The composer sits below the message list, so its quote preview is the
+    // last match on screen. Anchoring to it rather than to the whole page
+    // matters once the channel already holds a quote reply: that earlier reply
+    // renders its own "Chat Post" reference in the feed, which used to make
+    // these two locators resolve to several elements and fail strict mode.
+    await expect(page.getByText('Chat Post').last()).toBeVisible();
+    await expect(page.getByText(originalMessage).last()).toBeVisible(); // Quote shows original
   }
 
   const messageInput = page.getByTestId('MessageInput');
