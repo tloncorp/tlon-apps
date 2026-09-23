@@ -1,6 +1,6 @@
 import { createNativeBottomTabNavigator } from '@react-navigation/bottom-tabs/unstable';
 import { useNavigation } from '@react-navigation/native';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Platform } from 'react-native';
 import { LoadingSpinner } from '@tloncorp/ui';
 import { View, getTokenValue, useTheme } from 'tamagui';
@@ -15,6 +15,7 @@ import { useAgentOnboardingLandingConsumer } from '../features/top/useAgentOnboa
 import { useAnyAgentGroupOnboardingLock } from '../hooks/useAgentGroupOnboardingLock';
 import { useBotDmTab } from '../hooks/useBotDmTab';
 import { useCalm, useContact } from '../ui/contexts/appDataContext';
+import { useSigilColors } from '../ui/utils/colorUtils';
 import {
   didRestoreNavigation,
   getRestoredTopLevelTab,
@@ -28,7 +29,7 @@ import {
   trackTopLevelTabSelection,
 } from './topLevelTabs';
 import type { TopLevelTabParamList } from './types';
-import { useBotTabIcon } from './useBotTabIcon';
+import { BotTabIconSpec, useBotTabIcon } from './useBotTabIcon';
 
 const Tabs = createNativeBottomTabNavigator<TopLevelTabParamList>();
 
@@ -75,9 +76,30 @@ export function TopLevelTabNavigator() {
   // A DM's channel id is the other party's id, so this is the bot's contact.
   const botContact = useContact(botDm.enabled ? botDm.channelId : '');
   const calm = useCalm();
-  const botAvatarIcon = useBotTabIcon(
-    calm.disableAvatars ? null : botContact?.avatarImage
+  const botSigilColors = useSigilColors(botContact?.color);
+  // The bot's avatar; its sigil when it has none, or when calm mode hides
+  // avatars; the glyph until its contact has synced.
+  const botAvatarUrl = calm.disableAvatars ? null : botContact?.avatarImage;
+  const botTabIconSpec = useMemo<BotTabIconSpec | null>(
+    () =>
+      !botContact
+        ? null
+        : botAvatarUrl
+          ? { kind: 'image', url: botAvatarUrl }
+          : {
+              kind: 'sigil',
+              id: botContact.id,
+              backgroundColor: botSigilColors.backgroundColor,
+              foregroundColor: botSigilColors.foregroundColor,
+            },
+    [
+      botContact,
+      botAvatarUrl,
+      botSigilColors.backgroundColor,
+      botSigilColors.foregroundColor,
+    ]
   );
+  const botAvatarIcon = useBotTabIcon(botTabIconSpec);
   const botDmHasUnread = store.useChannelHasUnread(
     botDm.enabled ? botDm.channelId : undefined
   );

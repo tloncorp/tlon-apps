@@ -81,6 +81,7 @@ function ReactTopLevelTabBar({ state, navigation }: BottomTabBarProps) {
         <NavIcon
           type="SmushStar"
           imageUrl={botContact?.avatarImage ?? undefined}
+          sigilContactId={botContact?.id}
           isActive={activeRouteName === 'BotChat'}
           hasUnreads={botDmHasUnread}
           onPress={() => pressTab('BotChat')}

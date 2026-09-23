@@ -123,6 +123,7 @@ export function BotSettingsSections({
         title={draft.nickname || 'Tlonbot'}
         subtitle={`Your personal bot · ${queries.moon ?? `~${queries.ship}`}`}
         avatarUrl={botContact?.avatarImage ?? undefined}
+        sigilContactId={botContact?.id}
         ready={queries.botReady}
         restarting={applying}
       />
