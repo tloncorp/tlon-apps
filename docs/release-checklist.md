@@ -44,7 +44,10 @@ receive updates, and post against desk release N-1.
       1. Build and publish the mobile apps under a new application version
          (`mobile-build.yml`, production profile — the "After deploying" item
          below, but run ahead of the deploy this time) and confirm they are
-         installable from the stores.
+         installable from the stores. Dispatch it from `staging` (or cut the
+         release tag first and dispatch from it) — the workflow has no ref
+         input, so it checks out whatever ref it's dispatched from, and a
+         dispatch left on the default builds `develop`.
       2. Raise the mobile minimums in the invite service past the last build
          that made the request.
       3. Only then deploy the release that removes the endpoint.
