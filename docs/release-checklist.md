@@ -38,7 +38,10 @@ receive updates, and post against desk release N-1.
       are cutting.
 - [ ] If this release removes a desk endpoint older mobile builds still call,
       the mobile minimums in the invite service were raised past the last build
-      that made the request — raise them first.
+      that made the request — raise them first. That release also has to ship
+      the mobile apps under a new application version: `useRequiredUpdate`
+      compares the marketing version (`nativeApplicationVersion`), not the
+      build number, so a minimum cannot separate two builds that share one.
 
 ## Tagging and deploying
 
