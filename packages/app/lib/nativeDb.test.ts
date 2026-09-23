@@ -958,6 +958,47 @@ describe('NativeDb abandoned initialization', () => {
     ).toBeUndefined();
   });
 
+  it('does not delete a database the replacement has already adopted', async () => {
+    let releaseReset: (() => void) | undefined;
+    // Matches the spy's own `Promise<undefined>` return type.
+    const resetGate = new Promise<undefined>((resolve) => {
+      releaseReset = () => resolve(undefined);
+    });
+
+    const connection = sqliteRuntime.makeConnection({
+      migrateClient: vi
+        .fn()
+        .mockRejectedValueOnce(new Error('initial migrate failed'))
+        .mockResolvedValue(undefined),
+    });
+    sqliteRuntime.enqueueConnection(connection);
+    sharedDbSpies.resetHeadsSyncedAt.mockImplementationOnce(() => resetGate);
+    const db = new NativeDb();
+
+    const abandoned = db.ensureDbReady();
+    await vi.waitFor(() =>
+      expect(sharedDbSpies.resetHeadsSyncedAt).toHaveBeenCalledTimes(1)
+    );
+
+    expect(db.abandonDbInit()).toBe(true);
+
+    // The purge hasn't reached its close yet, so the connection is still
+    // published and the replacement adopts it rather than opening its own.
+    await db.ensureDbReady();
+    expect(internals(db).didMigrate).toBe(true);
+    expect(sqliteRuntime.constructor).toHaveBeenCalledTimes(1);
+
+    releaseReset?.();
+    await expect(abandoned).rejects.toBeInstanceOf(DbInitAbandonedError);
+
+    // The abandoned purge resuming here would close and delete the database
+    // the replacement just migrated and is now serving the app from.
+    expect(connection.close).not.toHaveBeenCalled();
+    expect(connection.delete).not.toHaveBeenCalled();
+    expect(internals(db).connection).toBe(connection);
+    expect(internals(db).didMigrate).toBe(true);
+  });
+
   it('exposes abandonDbInit on the singleton', () => {
     const abandonSpy = vi
       .spyOn(NativeDb.prototype, 'abandonDbInit')

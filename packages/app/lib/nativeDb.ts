@@ -193,7 +193,10 @@ export class NativeDb extends BaseDb {
     }
   }
 
-  async purgeDb() {
+  // `generation` defaults to the current one for the public callers (the dev
+  // menu, `resetDb`), which have no attempt of their own; `runMigrationsInternal`
+  // passes its own so an abandoned attempt can't finish this purge.
+  async purgeDb(generation: number = this.generation) {
     logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
       context: 'purgeDb: purging db',
     });
@@ -205,17 +208,23 @@ export class NativeDb extends BaseDb {
       return;
     }
     try {
-      // Before the delete, not after. These cursors live in AsyncStorage, so
-      // emptying the database doesn't touch them, and this is the only await in
-      // the purge -- so it is the only point an abandoning deadline can land
-      // mid-purge. Resetting first means the window it opens is an intact
-      // database with reset cursors (the replacement re-syncs more than it
-      // needs to) rather than an empty database with pre-purge cursors, where
-      // the replacement skips the historical and initial-post sync and silently
-      // comes up missing data.
+      // Before the delete, not after: these cursors live in AsyncStorage, so
+      // emptying the database doesn't touch them. Reset last, a purge that
+      // stopped here left an empty database with pre-purge cursors, and the
+      // next session skipped the historical and initial-post sync and came up
+      // silently missing data.
       if (this.resetSyncStateOnPurge) {
         await resetDbSyncState();
       }
+
+      // That reset is this method's only await, so this is the one point an
+      // abandoning deadline can land mid-purge -- and everything past it is
+      // destructive. By now a replacement may have adopted this very connection
+      // (`setupDb` short-circuits while it is still published) and migrated it,
+      // so closing and deleting would take the database out from under a
+      // running app. Stopping here instead leaves an intact database with reset
+      // cursors, which over-syncs rather than under-syncing.
+      this.throwIfAbandoned(generation, 'purgeDb');
 
       this.connection.close();
       this.connection.delete();
@@ -523,7 +532,7 @@ export class NativeDb extends BaseDb {
         attemptId,
         elapsedMs: getElapsedMs(),
       });
-      await this.purgeDb();
+      await this.purgeDb(generation);
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
         context: 'runMigrations: retry purge success',
         attemptId,
