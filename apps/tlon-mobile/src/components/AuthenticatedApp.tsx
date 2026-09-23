@@ -1,5 +1,5 @@
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import NetInfo from '@react-native-community/netinfo';
+import NetInfo, { useNetInfo } from '@react-native-community/netinfo';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import {
   AppStatus,
@@ -58,6 +58,7 @@ import { useSyncAppBadge } from '../hooks/useSyncAppBadge';
 import { useSyncReactionCapability } from '../hooks/useSyncReactionCapability';
 import { useRecaptcha } from '../hooks/useRecaptcha';
 import { inviteSystemContacts } from '../lib/contactsHelpers';
+import { setActiveNotificationRoute } from '../lib/notificationPresentation';
 import {
   clearHostingNativeCookie,
   refreshHostingAuth,
@@ -103,7 +104,10 @@ function useRequireHostingAuth(
   return useCallback(
     async (options = {}) => {
       if (checkInFlight.current) {
-        return checkInFlight.current;
+        const result = await checkInFlight.current;
+        if (!options.force) {
+          return result;
+        }
       }
 
       const check = (async () => {
@@ -126,8 +130,8 @@ function useRequireHostingAuth(
           hostingAuthLogger.trackEvent('Hosting Reconnect Required', {
             authType,
           });
-          await onHostingAuthExpired();
         }
+        await onHostingAuthExpired();
         return false;
       })();
 
@@ -157,7 +161,8 @@ function AuthenticatedApp({
   // explicit 'hosted' login is one Tlon updates on the user's behalf.
   const { contactId, authType } = useShip();
   const checkNodeStopped = useCheckNodeStopped();
-  const { maybeShowPrompt, promptSheet } = useTlonbotRevivalPrompt();
+  const { maybeShowPrompt, promptSheet } =
+    useTlonbotRevivalPrompt(requireHostingAuth);
   const { splashSheet: webAppSplashSheet } = useWebAppSplash();
   useNotificationListener();
   useUpdatePresentedNotifications();
@@ -243,6 +248,8 @@ function AuthenticatedApp({
 
   useAppStatusChange(handleAppStatusChange);
 
+  useEffect(() => () => setActiveNotificationRoute(undefined), []);
+
   // track sync completion for telemetry
   useEffect(() => {
     return observeSyncSinceCompletion((event) => {
@@ -326,27 +333,20 @@ function AuthenticatedApp({
   );
 }
 
-function AuthenticatedAppContent({
-  onLogout,
-  requireHostingAuth,
-}: {
-  onLogout: () => void | Promise<void>;
-  requireHostingAuth: RequireHostingAuth;
-}) {
-  const [clientReady, setClientReady] = useState(false);
+function useInitializeAuthenticatedSession() {
   const configureClient = useConfigureUrbitClient();
-  const deskCompat = store.useDeskCompatibility();
-  // Hold the spinner until the cold-start probe reports, rather than flashing
-  // the app on ahead of the notice. Bounded by the probe's own timeout.
-  const isProbingColdStart = store.isDeskProbePending(deskCompat);
+  const initialization = useRef<Promise<void> | null>(null);
 
-  useEffect(() => {
-    let canceled = false;
-
+  return useCallback(() => {
+    // The gate outlives its content. Reconnecting must reuse the live client's
+    // subscriptions instead of running a second cold sync after the remount.
+    if (initialization.current) {
+      return initialization.current;
+    }
     configureClient();
     // syncInitialPostsIfNeeded checks the once-per-login flag itself; reading
     // it here holds the spinner until storage is readable.
-    db.didSyncInitialPosts.getValue().then(() => {
+    initialization.current = db.didSyncInitialPosts.getValue().then(() => {
       sync
         .syncStart()
         .then((outcome) => {
@@ -359,7 +359,29 @@ function AuthenticatedAppContent({
           return syncInitialPostsIfNeeded();
         })
         .catch(() => {});
+    });
+    return initialization.current;
+  }, [configureClient]);
+}
 
+function AuthenticatedAppContent({
+  onLogout,
+  requireHostingAuth,
+  initializeSession,
+}: {
+  onLogout: () => void | Promise<void>;
+  requireHostingAuth: RequireHostingAuth;
+  initializeSession: () => Promise<void>;
+}) {
+  const [clientReady, setClientReady] = useState(false);
+  const deskCompat = store.useDeskCompatibility();
+  // Hold the spinner until the cold-start probe reports, rather than flashing
+  // the app on ahead of the notice. Bounded by the probe's own timeout.
+  const isProbingColdStart = store.isDeskProbePending(deskCompat);
+
+  useEffect(() => {
+    let canceled = false;
+    initializeSession().then(() => {
       if (!canceled) {
         setClientReady(true);
       }
@@ -368,7 +390,7 @@ function AuthenticatedAppContent({
     return () => {
       canceled = true;
     };
-  }, [configureClient]);
+  }, [initializeSession]);
 
   if (!clientReady || isProbingColdStart) {
     return (
@@ -401,24 +423,34 @@ function AuthenticatedAppContent({
 }
 
 export default function ConnectedAuthenticatedApp({
+  connected,
   onLogout,
   authenticatedContent,
   authenticatedOverlay,
 }: {
+  connected: boolean;
   onLogout: () => void | Promise<void>;
   authenticatedContent?: ReactNode;
   authenticatedOverlay?: ReactNode;
 }) {
+  const { isInternetReachable } = useNetInfo();
   const [hostingAuthState, setHostingAuthState] = useState<
     'checking' | 'valid' | 'expired'
   >('checking');
   const [authAttempt, setAuthAttempt] = useState(0);
+  const [checkedConnection, setCheckedConnection] = useState(false);
+  if (!connected && checkedConnection) {
+    setCheckedConnection(false);
+  }
   const [profile, setProfile] = useState<db.Contact | null>(null);
-  const { contactId } = useShip();
+  const { contactId, authType } = useShip();
   const deskCompat = store.useDeskCompatibility();
-  const { getToken: getRecaptchaToken } = useRecaptcha(
-    hostingAuthState === 'expired'
-  );
+  const hostingAuthExpired = db.hostingAuthExpired.useValue();
+  const needsHostingReconnect =
+    hostingAuthState === 'expired' ||
+    (authType === 'hosted' && hostingAuthExpired);
+  const initializeSession = useInitializeAuthenticatedSession();
+  const { getToken: getRecaptchaToken } = useRecaptcha(needsHostingReconnect);
   const handleHostingAuthExpired = useCallback(() => {
     setHostingAuthState('expired');
   }, []);
@@ -426,9 +458,7 @@ export default function ConnectedAuthenticatedApp({
 
   const handleGateAppStatusChange = useCallback(
     async (status: AppStatus) => {
-      if (status === 'opened') {
-        await requireHostingAuth({ force: true });
-      } else if (status === 'active') {
+      if (status === 'active') {
         await requireHostingAuth();
       }
     },
@@ -479,12 +509,20 @@ export default function ConnectedAuthenticatedApp({
   useEffect(() => {
     let canceled = false;
 
+    if (!connected) {
+      return;
+    }
+
     async function setup() {
-      hostingAuthLogger.log('Starting authenticated app', { authAttempt });
+      hostingAuthLogger.log('Starting authenticated app', {
+        authAttempt,
+        isInternetReachable,
+      });
       if (!(await requireHostingAuth({ force: true })) || canceled) {
         return;
       }
 
+      setCheckedConnection(true);
       setHostingAuthState('valid');
     }
     setup();
@@ -492,9 +530,9 @@ export default function ConnectedAuthenticatedApp({
     return () => {
       canceled = true;
     };
-  }, [authAttempt, requireHostingAuth]);
+  }, [authAttempt, connected, isInternetReachable, requireHostingAuth]);
 
-  if (hostingAuthState === 'expired') {
+  if (needsHostingReconnect) {
     return (
       <HostingAuthReconnectScreen
         profileId={contactId ?? ''}
@@ -506,7 +544,11 @@ export default function ConnectedAuthenticatedApp({
     );
   }
 
-  if (hostingAuthState === 'checking') {
+  if (!connected && authenticatedContent !== undefined) {
+    return authenticatedContent;
+  }
+
+  if (hostingAuthState === 'checking' || !checkedConnection) {
     return (
       <ZStack flex={1} alignItems="center" justifyContent="center">
         <LoadingSpinner />
@@ -523,6 +565,7 @@ export default function ConnectedAuthenticatedApp({
       <AuthenticatedAppContent
         onLogout={onLogout}
         requireHostingAuth={requireHostingAuth}
+        initializeSession={initializeSession}
       />
       {/* Only once the desk is known good. The overlay is opaque and
           full-screen, so it would bury the notice — and the spinner that

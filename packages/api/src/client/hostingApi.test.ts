@@ -1,13 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  HostingError,
   completeTlawnLLMAuth,
   configureHostingSessionStore,
   deleteTlawnProviderKey,
   disconnectTlawnLLMAuth,
   getHostingHeartBeat,
+  getTlawnBotInfo,
   getTlawnLLMAuthFlow,
   getTlawnLLMAuthStatus,
+  getTlawnNickname,
   getTlawnOpenRouterRecommendedModels,
   getTlawnOpenRouterZdrEndpoints,
   startTlawnLLMAuth,
@@ -387,5 +390,154 @@ describe('Hosting auth reconnect', () => {
       'SolarisSession=renewed; HttpOnly;'
     );
     expect(setUserId).toHaveBeenCalledWith('user/1');
+  });
+
+  it.each([60, undefined, 0, -1, '60'])(
+    'preserves only a positive numeric resend interval from a 429 (%s)',
+    async (retryAfter) => {
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockImplementation(() =>
+            respond({ message: 'Code was sent recently', retryAfter }, 429)
+          )
+      );
+      await expect(
+        requestLoginOtpForUser({
+          userId: 'user/1',
+          recaptchaToken: 'recaptcha-token',
+          platform: 'ios',
+        })
+      ).rejects.toMatchObject({
+        details: {
+          status: 429,
+          retryAfter: retryAfter === 60 ? 60 : undefined,
+        },
+      });
+    }
+  );
+
+  it.each([400, 401])(
+    'preserves HTTP %s for empty, text, and JSON verification errors',
+    async (status) => {
+      for (const body of [
+        null,
+        'Unauthorized',
+        'null',
+        '{"message":"Incorrect code"}',
+      ]) {
+        vi.stubGlobal(
+          'fetch',
+          vi.fn().mockResolvedValue(new Response(body, { status }))
+        );
+
+        const result = verifyLoginOtpForUser({
+          userId: 'user/1',
+          otp: '123456',
+        });
+
+        await expect(result).rejects.toBeInstanceOf(HostingError);
+        await expect(result).rejects.toMatchObject({
+          message:
+            body === '{"message":"Incorrect code"}'
+              ? 'Incorrect code'
+              : 'An unknown error has occurred.',
+          details: {
+            status,
+            method: 'POST',
+            path: '/v1/users/user%2F1/verify-login-otp',
+          },
+        });
+        expect(setAuthToken).not.toHaveBeenCalled();
+        expect(setUserId).not.toHaveBeenCalled();
+      }
+    }
+  );
+});
+
+describe('hosting error reporting', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.stubGlobal('window', undefined);
+    vi.stubGlobal('tlonEnv', {
+      API_URL: 'https://hosting.test',
+      API_AUTH_USERNAME: undefined,
+      API_AUTH_PASSWORD: undefined,
+    });
+    configureHostingSessionStore({
+      authToken: {
+        getValue: async () => 'session=abc; HttpOnly;',
+        setValue: async () => undefined,
+      },
+    });
+  });
+
+  it('reports a rejected request by its status, not as a parse failure', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response('', { status: 401, statusText: 'Unauthorized' })
+        )
+    );
+
+    const rejection = await getTlawnBotInfo('~zod').catch((e) => e);
+
+    expect(rejection).toBeInstanceOf(HostingError);
+    expect(rejection.message).toBe('Hosting request failed (401 Unauthorized)');
+    expect(rejection.details).toMatchObject({ status: 401 });
+  });
+
+  it("keeps hosting's own error message when the body carries one", async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ message: 'node is booting' }), {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+    );
+
+    const rejection = await getTlawnBotInfo('~zod').catch((e) => e);
+
+    expect(rejection.message).toBe('node is booting');
+    expect(rejection.details).toMatchObject({ status: 409 });
+  });
+
+  it('still reports an unparseable success body as a parse failure', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response('<html>', { status: 200 }))
+    );
+
+    const rejection = await getTlawnBotInfo('~zod').catch((e) => e);
+
+    expect(rejection.message).toBe('Failed to parse response');
+    expect(rejection.details).toMatchObject({
+      status: 200,
+      responseText: '<html>',
+    });
+  });
+
+  it('carries the status in the nullable-string fallback message', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response('', { status: 404, statusText: 'Not Found' })
+        )
+    );
+
+    const rejection = await getTlawnNickname('~zod').catch((e) => e);
+
+    expect(rejection).toBeInstanceOf(HostingError);
+    expect(rejection.message).toBe(
+      'An unknown error has occurred. (404 Not Found)'
+    );
+    expect(rejection.details).toMatchObject({ status: 404 });
   });
 });

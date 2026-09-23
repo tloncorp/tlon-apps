@@ -1,5 +1,6 @@
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/api';
 import { Story } from '@tloncorp/api/urbit';
 import {
@@ -25,7 +26,10 @@ import { useGroupActions } from '../../hooks/useGroupActions';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { usePushNotifTapTelemetry } from '../../hooks/usePushNotifTapTelemetry';
 import { useResetDb } from '../../hooks/useResetDb';
-import type { RootStackParamList } from '../../navigation/types';
+import type {
+  ChannelScreenParamList,
+  RootStackParamList,
+} from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
   AttachmentProvider,
@@ -35,12 +39,19 @@ import {
   useIsWindowNarrow,
 } from '../../ui';
 import { isAgentGroupSetupActive } from '../../ui/components/Channel/postVisibility';
+import { shouldAutoLoadOlderPosts } from './channelPagination';
 import { useAgentOnboardingChannel } from './useAgentOnboardingChannel';
 import { useAgentOnboardingFirstEntry } from './useAgentOnboardingFirstEntry';
 
 const logger = createDevLogger('ChannelScreen', false);
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Channel'>;
+type Props = {
+  route: RouteProp<
+    ChannelScreenParamList,
+    'Channel' | 'DM' | 'GroupDM' | 'ChannelRoot' | 'BotChat'
+  >;
+  navigation: NativeStackNavigationProp<RootStackParamList, 'Channel'>;
+};
 
 export default function ChannelScreen(props: Props) {
   const {
@@ -64,6 +75,9 @@ export default function ChannelScreen(props: Props) {
     });
     return () => cancelAnimationFrame(frame);
   }, [disableTransition, props.navigation]);
+  // The bot tab renders this screen directly, where there is nothing to go
+  // back to and no stack of its own to push onto.
+  const isTabRoot = props.route.name === 'BotChat';
   const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
 
   useEffect(() => {
@@ -86,6 +100,8 @@ export default function ChannelScreen(props: Props) {
   });
 
   const groupId = channel?.groupId ?? group?.id;
+  // The bot DM belongs to no group; onboarding's group rides on the route.
+  const onboardingGroupId = routeGroupId ?? groupId;
   const {
     agentOnboarding,
     agentShipId,
@@ -361,12 +377,15 @@ export default function ChannelScreen(props: Props) {
     // since adding no visible rows will not retrigger the boundary callback.
     const ENOUGH_POSTS_TO_FILL_SCREEN = 20;
     if (
-      !postsQuery.isFetching &&
-      postsQuery.hasNextPage &&
-      unreadDidInitialize &&
-      (!posts ||
-        posts.length < ENOUGH_POSTS_TO_FILL_SCREEN ||
-        oldestPageHasOnlyDeletedPosts)
+      shouldAutoLoadOlderPosts({
+        isFetching: postsQuery.isFetching,
+        isError: postsQuery.isError,
+        hasNextPage: postsQuery.hasNextPage,
+        unreadDidInitialize,
+        postCount: posts?.length,
+        minimumPostCount: ENOUGH_POSTS_TO_FILL_SCREEN,
+        oldestPageHasOnlyDeletedPosts,
+      })
     ) {
       loadOlder();
     }
@@ -395,7 +414,7 @@ export default function ChannelScreen(props: Props) {
     agentShipId,
     awaitingFirstEntry: agentOnboarding.awaitingFirstEntry,
     channelId: currentChannelId,
-    groupId,
+    groupId: onboardingGroupId,
     isFocused,
     posts: filteredPosts,
     provisionId: agentOnboarding.marker?.provision?.provisionId,
@@ -494,9 +513,13 @@ export default function ChannelScreen(props: Props) {
       const dmChannel = await store.upsertDmChannel({
         participants,
       });
+      if (isTabRoot) {
+        navigation.navigate('DM', { channelId: dmChannel.id });
+        return;
+      }
       navigationRef.current.push('DM', { channelId: dmChannel.id });
     },
-    [navigationRef]
+    [isTabRoot, navigation, navigationRef]
   );
 
   const handleMarkRead = useCallback(async () => {
@@ -552,9 +575,19 @@ export default function ChannelScreen(props: Props) {
       ({
         type: 'channel',
         id: currentChannelId,
-        groupId: routeGroupId ?? channel?.groupId ?? undefined,
+        // `routeGroupId` is the fallback for a channel whose row has not
+        // caught up yet, right after its group is created. The bot DM is the
+        // one route that carries a group it does not belong to -- onboarding
+        // puts the workspace there so the lock can find it -- so the fallback
+        // has to skip it. Otherwise ChatOptionsProvider loads that group and
+        // gives the DM channel and group settings, and keeps them after
+        // onboarding ends, because the tab route holds on to its params.
+        groupId:
+          (isTabRoot ? undefined : routeGroupId) ??
+          channel?.groupId ??
+          undefined,
       }) as const,
-    [currentChannelId, routeGroupId, channel?.groupId]
+    [currentChannelId, isTabRoot, routeGroupId, channel?.groupId]
   );
 
   if (
@@ -590,6 +623,7 @@ export default function ChannelScreen(props: Props) {
             clearedCursor || cursorPostIsHidden ? undefined : selectedPostId
           }
           goBack={navigationRef.current.goBack}
+          isTopLevelTab={isTabRoot}
           disableBackButton={agentOnboardingNavigationLocked}
           onPressLogout={agentOnboarding.locked ? handleLogout : undefined}
           suppressEmptyState={agentGroupSetupActive}

@@ -611,9 +611,11 @@ export type GetLatestPostsResponse = PostWithUpdateTime[];
 export const getLatestPosts = async ({
   afterCursor,
   count,
+  throwOnError = false,
 }: {
   afterCursor?: Cursor;
   count?: number;
+  throwOnError?: boolean;
 }): Promise<GetLatestPostsResponse> => {
   try {
     const { channels, dms } = await scry<ub.CombinedHeads>({
@@ -636,9 +638,9 @@ export const getLatestPosts = async ({
     });
   } catch (e) {
     logger.trackError('failed to sync heads', {
-      errorMessage: e.message,
-      errorStack: e.stack,
+      error: e,
     });
+    if (throwOnError) throw e;
     return [];
   }
 };
@@ -1365,9 +1367,7 @@ export function toPostData(
     ),
     sentAt: post.essay.sent,
     receivedAt: getReceivedAtFromId(id),
-    replyCount: post?.seal.meta.replyCount,
-    replyTime: post?.seal.meta.lastReply,
-    replyContactIds: post?.seal.meta.lastRepliers,
+    ...toReplyMeta(post.seal.meta),
     images: getContentImages(id, post.essay?.content),
     rawReactionCount: Object.keys(rawReacts).length,
     reactions: (() => {
@@ -1438,7 +1438,7 @@ export function toReplyMeta(meta?: ub.ReplyMeta | null): db.ReplyMeta | null {
   return {
     replyCount: meta.replyCount,
     replyTime: meta.lastReply,
-    replyContactIds: meta.lastRepliers,
+    replyContactIds: meta.lastRepliers.map(getAuthorId),
   };
 }
 

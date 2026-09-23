@@ -168,6 +168,10 @@ export const contacts = sqliteTable(
     // versions), read off its contact profile. Validated at read; see
     // docs/bot-info.md.
     botInfo: text('bot_info'),
+    // Raw JSON of the bot's self-published liveness claim (`bot-liveness`
+    // contact key), read off its contact profile. Validated at read by
+    // `parseBotLiveness`; see docs/bot-liveness.md.
+    botLiveness: text('bot_liveness'),
     isBlocked: boolean('blocked'),
     isContact: boolean('isContact'),
     isContactSuggestion: boolean('isContactSuggestion'),
@@ -1476,7 +1480,7 @@ export const botReplyFeedback = sqliteTable(
 
 // Per-run bot introspection records synced from the %steward agent's lens
 // module. Payload is the gateway's run record as structured JSON (inner
-// schemaVersion); see docs/steward.md.
+// schemaVersion); see docs/backend/desk/app/steward.md.
 export const contextLensRuns = sqliteTable(
   'context_lens_runs',
   {

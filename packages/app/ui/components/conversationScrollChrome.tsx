@@ -18,7 +18,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { supportsNativeScrollEdgeChrome } from '../../navigation/nativeHeaderOptions';
+import { useFloatingHeaderHeight } from '../../navigation/useFloatingHeaderHeight';
 import { GlassSurface, supportsLiquidGlass } from './GlassSurface';
 import {
   floatingChromeMetrics,
@@ -33,7 +33,18 @@ export {
   floatingPinnedPostBannerHeight,
   floatingScrollControlClearance,
   getPostCollectionTopInset,
+  unobscuredConversationBottomGap,
 } from './conversationInsets';
+
+/**
+ * Height the native header floats over, or 0 when it is opaque. A scroll view
+ * gets this from contentInsetAdjustmentBehavior. Content rendered outside one,
+ * such as a banner pinned above the list, has to clear it itself.
+ *
+ * Re-exported: the notes screens reach it from here, and the chat list uses
+ * the same hook for its own header clearance from its navigation home.
+ */
+export { useFloatingHeaderHeight } from '../../navigation/useFloatingHeaderHeight';
 
 /** Owns all measured geometry reserved around a conversation list. */
 export function useConversationInsets({
@@ -49,12 +60,11 @@ export function useConversationInsets({
 }) {
   const headerHeight = useContext(HeaderHeightContext) ?? 0;
   const { bottom: bottomSafeArea } = useSafeAreaInsets();
-  const usesTransparentHeader =
-    supportsNativeScrollEdgeChrome(
-      Platform.OS,
-      Platform.Version,
-      supportsLiquidGlass()
-    ) && hasTransparentHeader;
+  const floatingHeaderHeight = useFloatingHeaderHeight(hasTransparentHeader);
+  // getConversationContentInsets reduces this to `hasTransparentHeader ?
+  // headerHeight : 0`, which is the floating height, so the two agree by
+  // construction rather than by two copies of the same condition.
+  const usesTransparentHeader = floatingHeaderHeight > 0;
   const [measuredComposerHeight, setMeasuredComposerHeight] = useState<
     number | null
   >(null);
@@ -87,7 +97,7 @@ export function useConversationInsets({
   return {
     contentInsets,
     navigationHeaderHeight: headerHeight,
-    floatingHeaderHeight: usesTransparentHeader ? headerHeight : 0,
+    floatingHeaderHeight,
     onFloatingHeightChange:
       Platform.OS !== 'web' && hasFloatingComposer
         ? onFloatingHeightChange
@@ -167,7 +177,12 @@ function AnimatedScrollToBottomButton({
       pointerEvents={visible ? 'auto' : 'none'}
       style={animatedStyle}
     >
-      <FloatingActionButton icon={content} onPress={onPress} />
+      <FloatingActionButton
+        icon={content}
+        onPress={onPress}
+        accessibilityLabel="Scroll to bottom"
+        testID="ScrollToBottomButton"
+      />
     </Animated.View>
   );
 }

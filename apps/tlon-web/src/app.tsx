@@ -225,7 +225,7 @@ function AppRoutes() {
   }, []);
 
   const documentTitleFormatterMobile = useCallback(
-    (_options: any, route: Route<string>) => {
+    (_options: any, route: Route<string> | undefined) => {
       if (!route?.name) return 'Tlon';
 
       if (route.name === 'GroupChannels') {
@@ -272,7 +272,7 @@ function AppRoutes() {
   );
 
   const documentTitleFormatterDesktop = useCallback(
-    (_options: any, route: Route<string>) => {
+    (_options: any, route: Route<string> | undefined) => {
       if (!route?.name) return 'Tlon';
 
       // For channel routes
@@ -332,10 +332,16 @@ function AppRoutes() {
     ? handleStateChangeMobile
     : handleStateChangeDesktop;
   const combinedStateChangeHandler = useCallback(
-    (state: NavigationState<CombinedParamList> | undefined) => {
-      platformHandleStateChange(state);
-      onNavigationStateChange(state);
-      navigationLogging.onStateChange(state);
+    (state: NavigationState | undefined) => {
+      // NavigationContainer types onStateChange against ParamListBase, but both
+      // containers here are built from CombinedParamList, so the concrete state
+      // always matches. Narrow once at the boundary.
+      const combinedState = state as
+        | NavigationState<CombinedParamList>
+        | undefined;
+      platformHandleStateChange(combinedState);
+      onNavigationStateChange(combinedState);
+      navigationLogging.onStateChange(combinedState);
     },
     [platformHandleStateChange, onNavigationStateChange, navigationLogging]
   );

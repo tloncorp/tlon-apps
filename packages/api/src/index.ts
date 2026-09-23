@@ -1,3 +1,4 @@
+export { reportBackgroundFailure } from './lib/logger';
 export {
   HostingError,
   awaitNodeTlonbotReady,
@@ -58,10 +59,13 @@ export {
   type PostResponse,
   type ReplyResponse,
   type WritResponse,
+  type DmNet,
+  type DmStatus,
   type WritResponseDelta,
   type WritDelta,
   type WritDiff,
   type StewardGatewayAction,
+  pathToCite,
   type Cite,
   type PostDataResponse,
   type ReplyWithMemo,

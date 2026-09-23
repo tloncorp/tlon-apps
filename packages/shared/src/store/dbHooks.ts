@@ -13,6 +13,7 @@ import { useEffect, useMemo } from 'react';
 import * as db from '../db';
 import { GroupedChats } from '../db/types';
 import * as logic from '../logic';
+import { countUnseenActivity } from './activityBadges';
 import { getBotReplyFeedbackQueryKey } from './botReplyFeedback';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
 import { syncChannelPreivews, syncPostReference } from './sync';
@@ -82,24 +83,6 @@ export const useCurrentChats = (
     },
     queryKey: ['currentChats', useKeyFromQueryDeps(db.getChats)],
     ...queryConfig,
-  });
-};
-
-// Probe %notes once to detect whether the notes desk is installed on the
-// user's ship. Used to gate notes-specific UI (channel-creation option,
-// 'Bulletin' rename, etc.). Defaults to false until the request resolves.
-export const useNotesDeskAvailable = () => {
-  return useQuery({
-    queryKey: ['notesDeskAvailable'],
-    queryFn: async () => {
-      try {
-        await api.notes.listNotebooks();
-        return true;
-      } catch (e) {
-        return false;
-      }
-    },
-    staleTime: 60_000,
   });
 };
 
@@ -317,7 +300,14 @@ export const useActivityIsEmpty = () => {
   });
 };
 
-export const useHaveUnreadUnseenActivity = () => {
+/**
+ * Unseen activity that deserves a badge. Pass `excludeChannelId` for a
+ * surface that already badges that channel on its own, so one message does
+ * not light several indicators at once.
+ */
+export const useUnreadUnseenActivityCount = ({
+  excludeChannelId,
+}: { excludeChannelId?: string | null } = {}) => {
   const depsKey = useKeyFromQueryDeps(db.getUnreadUnseenActivityEvents);
   const { data: seenMarker } = useActivitySeenMarker();
   const { data: meaningfulUnseenActivity } = useQuery({
@@ -326,7 +316,49 @@ export const useHaveUnreadUnseenActivity = () => {
       db.getUnreadUnseenActivityEvents({ seenMarker: seenMarker ?? Infinity }),
   });
 
-  return (meaningfulUnseenActivity?.length ?? 0) > 0;
+  return countUnseenActivity(meaningfulUnseenActivity, { excludeChannelId });
+};
+
+export const useHaveUnreadUnseenActivity = () =>
+  useUnreadUnseenActivityCount() > 0;
+
+const useChannelUnreadRow = (channelId?: string | null) => {
+  const depsKey = useKeyFromQueryDeps(db.getChannelUnread);
+  const { data } = useQuery({
+    enabled: !!channelId,
+    queryKey: ['channelUnread', depsKey, channelId],
+    queryFn: () => db.getChannelUnread({ channelId: channelId ?? '' }),
+  });
+  return data ?? null;
+};
+
+export const useChannelUnreadCount = (channelId?: string | null) =>
+  useChannelUnreadRow(channelId)?.count ?? 0;
+
+/**
+ * Whether a channel should read as unread. New posts raise `count`; a
+ * notification-only event such as a reaction raises `notify` and leaves
+ * `count` alone, and a badge keyed on the count alone would miss it.
+ */
+export const useChannelHasUnread = (channelId?: string | null) => {
+  const row = useChannelUnreadRow(channelId);
+  // A reply or reaction inside a thread is recorded in thread_unreads alone;
+  // the channel row keeps count and notify untouched.
+  const threadDepsKey = useKeyFromQueryDeps(db.getThreadUnreadsByChannel);
+  const { data: threadUnreads } = useQuery({
+    enabled: !!channelId,
+    queryKey: ['channelThreadUnreads', threadDepsKey, channelId],
+    queryFn: () =>
+      db.getThreadUnreadsByChannel({
+        channelId: channelId ?? '',
+        excludeRead: true,
+      }),
+  });
+  return (
+    (row?.count ?? 0) > 0 ||
+    row?.notify === true ||
+    (threadUnreads?.length ?? 0) > 0
+  );
 };
 
 export const useLiveThreadUnread = (unread: db.ThreadUnreadState | null) => {
@@ -867,8 +899,10 @@ export const useShowChatInputWayfinding = (channelId: string) => {
 export const useShowBotMentionWayfinding = (channelId: string) => {
   const wayfindingProgress = db.wayfindingProgress.useValue();
   const currentUserId = api.getCurrentUserId();
+  // The user's own bot only: another user's Tlonbot is a bot-shaped DM too,
+  // and the coach mark speaks of "your Tlonbot".
   const isCorrectChan = useMemo(() => {
-    return logic.isBotHomeGroupChatChannel(currentUserId, channelId);
+    return channelId === api.getBotUserIdForUser(currentUserId);
   }, [channelId, currentUserId]);
 
   return isCorrectChan && !wayfindingProgress.tappedHomeGroupHint;
@@ -895,9 +929,12 @@ export const useShowNotebookAddTooltip = (channelId: string) => {
   return isCorrectChan && !wayfindingProgress.tappedAddNote;
 };
 
-export const useThemeSettings = () => {
+export const useThemeSettings = ({
+  enabled = true,
+}: { enabled?: boolean } = {}) => {
   const deps = useKeyFromQueryDeps(db.getSettings);
   return useQuery({
+    enabled,
     queryKey: ['themeSettings', deps],
     queryFn: async () => {
       const settings = await db.getSettings();

@@ -8,9 +8,23 @@ const logger = createDevLogger('recaptcha', true);
 
 export function useRecaptcha(enabled = true) {
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const isInitializedRef = useRef(false);
+  const initializationRef = useRef<Promise<string> | null>(null);
   const { initRecaptcha, execRecaptchaLogin, execRecaptchaRequestOtp } =
     useOnboardingContext();
+
+  const initialize = useCallback(() => {
+    // A child can request a token before this hook's effect runs.
+    if (!initializationRef.current) {
+      initializationRef.current = initRecaptcha(
+        RECAPTCHA_SITE_KEY,
+        10_000
+      ).catch((error) => {
+        initializationRef.current = null;
+        throw error;
+      });
+    }
+    return initializationRef.current;
+  }, [initRecaptcha]);
 
   // Continuously attempt to initialize reCAPTCHA until success or unmount
   useEffect(() => {
@@ -25,10 +39,9 @@ export function useRecaptcha(enabled = true) {
       if (!isMounted) return;
 
       try {
-        await initRecaptcha(RECAPTCHA_SITE_KEY, 10_000);
+        await initialize();
 
         if (isMounted) {
-          isInitializedRef.current = true;
           logger.trackEvent('reCAPTCHA initialized successfully', {
             siteKey: RECAPTCHA_SITE_KEY,
             retryCount,
@@ -48,7 +61,7 @@ export function useRecaptcha(enabled = true) {
         }
 
         logger.log(
-          `Will retry reCAPTCHA initialization in 2 seconds (attempt ${retryCount})`
+          `Will retry reCAPTCHA initialization in 1 second (attempt ${retryCount})`
         );
 
         // Schedule next attempt after failure
@@ -66,24 +79,14 @@ export function useRecaptcha(enabled = true) {
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [enabled, initRecaptcha]);
+  }, [enabled, initialize]);
 
   const getToken = useCallback(
     async (action: 'login' | 'request_otp' = 'login') => {
-      const startTime = Date.now();
-      while (!isInitializedRef.current && Date.now() - startTime < 4000) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
+      if (!enabled) {
+        throw new Error('reCAPTCHA is disabled');
       }
-
-      if (!isInitializedRef.current) {
-        const err = new Error(
-          'reCAPTCHA initialization timed out after 4 seconds'
-        );
-        logger.trackError('reCAPTCHA initialization timeout', {
-          thrownErrorMessage: err.message,
-        });
-        throw err;
-      }
+      await initialize();
 
       try {
         return await (action === 'request_otp'
@@ -100,7 +103,7 @@ export function useRecaptcha(enabled = true) {
         throw err;
       }
     },
-    [execRecaptchaLogin, execRecaptchaRequestOtp]
+    [enabled, initialize, execRecaptchaLogin, execRecaptchaRequestOtp]
   );
 
   return {

@@ -1,6 +1,6 @@
 import { RouteProp, useIsFocused, useRoute } from '@react-navigation/native';
 import { FlashListRef } from '@shopify/flash-list';
-import { markInvitesRead } from '@tloncorp/api';
+import { markInvitesRead, reportBackgroundFailure } from '@tloncorp/api';
 import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
@@ -12,12 +12,13 @@ import { Text, YStack, isWeb } from 'tamagui';
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatListSettleTelemetry } from '../../hooks/useChatListSettleTelemetry';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import type { ChatListFilter } from '../../hooks/chatListFilters';
 import { useFilteredChats } from '../../hooks/useFilteredChats';
-import { TabName } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { useScrollToTabTop } from '../../hooks/useScrollToTabTop';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
 import { reportChatListFirstPaint } from '../../lib/chatListSettleTelemetry';
+import { useFloatingHeaderHeight } from '../../navigation/useFloatingHeaderHeight';
 import type { TopLevelTabParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
@@ -34,19 +35,23 @@ import {
   useIsWindowNarrow,
 } from '../../ui';
 import SystemNotices from '../../ui/components/SystemNotices';
+import { useScreenScrollProps } from '../../ui/components/useScreenScrollProps';
 import WayfindingNotice from '../../ui/components/Wayfinding/Notices';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { ChatList, ChatListItemData } from '../chat-list/ChatList';
+import { ChatListFilterTabs } from '../chat-list/ChatListFilterTabs';
 import { ChatListSearch } from '../chat-list/ChatListSearch';
-import { ChatListTabs } from '../chat-list/ChatListTabs';
 import { CreateChatSheet, CreateChatSheetMethods } from './CreateChatSheet';
-import { useAgentOnboardingLandingConsumer } from './useAgentOnboardingLandingConsumer';
 import {
   getGroupInviteSheetState,
   isGroupInviteReady,
 } from './groupInvitePreview';
 
 const logger = createDevLogger('ChatListScreen', false);
+
+// Workspaces always shows the combined DM + group list. The filter is kept as
+// a named constant because analytics and `useFilteredChats` still take a tab.
+const COMBINED_CHAT_TAB = 'home' as const;
 
 export default function ChatListScreen() {
   const route = useRoute<RouteProp<TopLevelTabParamList, 'ChatList'>>();
@@ -77,7 +82,6 @@ export function ChatListScreenView({
   const { isOpen, setIsOpen } = useGlobalSearch();
   const chatListRef = useScrollToTabTop<FlashListRef<ChatListItemData>>();
 
-  const [activeTab, setActiveTab] = useState<TabName>('home');
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
     previewGroupId ?? null
   );
@@ -96,7 +100,6 @@ export function ChatListScreenView({
     enabled: isFocused,
   });
 
-  useAgentOnboardingLandingConsumer();
   const { performGroupAction } = useGroupActions();
 
   const handleInviteFriends = useCallback(() => {
@@ -257,18 +260,6 @@ export function ChatListScreenView({
     [navigateToGroup, navigateToChannel, searchQuery]
   );
 
-  const handlePressTab = useCallback(
-    (tab: TabName) => {
-      if (tab !== activeTab) {
-        trackEvent(AnalyticsEvent.HomeFilterSelected, {
-          tab,
-        });
-        setActiveTab(tab);
-      }
-    },
-    [activeTab]
-  );
-
   const handlePressAddChat = useCallback(() => {
     // Close the filter input (and its keyboard) before opening the sheet so
     // the keyboard can't overlap it and trap touches (TLON-6187).
@@ -306,7 +297,10 @@ export function ChatListScreenView({
           'markInvitesRead',
           { priority: store.SyncPriority.Medium },
           async () => {
-            markInvitesRead();
+            // left unawaited so the queue thread isn't held for the backoff
+            markInvitesRead().catch(
+              reportBackgroundFailure(logger, 'mark invites read')
+            );
           }
         );
       }, 1000);
@@ -332,14 +326,14 @@ export function ChatListScreenView({
       }
       if (!showSearchInput) {
         trackEvent(AnalyticsEvent.HomeSearchOpened, {
-          tab: activeTab,
+          tab: COMBINED_CHAT_TAB,
         });
       }
       setShowSearchInput(!showSearchInput);
     } else {
       setIsOpen(!isOpen);
     }
-  }, [activeTab, showSearchInput, isWindowNarrow, isOpen, setIsOpen]);
+  }, [showSearchInput, isWindowNarrow, isOpen, setIsOpen]);
 
   const handleGroupAction = useCallback(
     (action: GroupPreviewAction, group: db.Group) => {
@@ -357,13 +351,6 @@ export function ChatListScreenView({
     setPersonalInviteOpen(true);
   }, []);
 
-  const handlePressTryAll = useCallback(() => {
-    trackEvent(AnalyticsEvent.HomeFilterSelected, {
-      tab: 'home',
-    });
-    setActiveTab('home');
-  }, [setActiveTab]);
-
   const handlePressClear = useCallback(() => {
     setSearchQuery('');
   }, [setSearchQuery]);
@@ -372,10 +359,35 @@ export function ChatListScreenView({
     handleSearchInputToggled();
   }, [handleSearchInputToggled]);
 
+  const [listFilter, setListFilter] = useState<ChatListFilter>('all');
+  // The top-level tabs share one native header, and it stays opaque until a
+  // screen installs the scroll-edge options. Install them here rather than
+  // inheriting whichever tab was focused last: the clearance below is only
+  // the right offset once the header actually floats.
+  useScreenScrollProps();
+  // The native header floats over the screen on iOS 26, and this screen's
+  // content starts at the top of that area. The filter tabs sit above the
+  // list, so the clearance has to be layout on the column rather than a
+  // scroll inset on the list — nothing here scrolls under the header.
+  const headerClearance = useFloatingHeaderHeight();
+  const handlePressFilter = useCallback(
+    (filter: ChatListFilter) => {
+      if (filter === listFilter) return;
+      trackEvent(AnalyticsEvent.HomeFilterSelected, { tab: filter });
+      setListFilter(filter);
+    },
+    [listFilter]
+  );
+  const handlePressTryAll = useCallback(() => {
+    trackEvent(AnalyticsEvent.HomeFilterSelected, { tab: 'all' });
+    setListFilter('all');
+  }, []);
+
   const displayData = useFilteredChats({
     ...resolvedChats,
     searchQuery,
-    activeTab,
+    activeTab: COMBINED_CHAT_TAB,
+    listFilter,
   });
   const handleChatListLoad = useCallback(() => {
     if (chats) {
@@ -390,12 +402,17 @@ export function ChatListScreenView({
         onPressInvite={handlePressInvite}
       >
         <NavigationProvider focusedChannelId={focusedChannelId}>
-          <View userSelect="none" flex={1}>
+          <View userSelect="none" flex={1} paddingTop={headerClearance}>
             {showHomeAddTooltip && (
-              <WayfindingNotice.HomeAddTooltip top={isWeb ? 36 : 8} />
+              // Absolute, so the column's padding does not move it: it has
+              // to clear the floating header itself to sit under the + it
+              // points at.
+              <WayfindingNotice.HomeAddTooltip
+                top={isWeb ? 36 : headerClearance + 8}
+              />
             )}
             <ScreenHeader
-              title="Home"
+              title="Workspaces"
               subtitle={syncSubtitle}
               loadingSubtitle={loadingSubtitle}
               showSubtitle={true}
@@ -434,9 +451,9 @@ export function ChatListScreenView({
               chats.pending.length ||
               chats.pinned.length) ? (
               <>
-                <ChatListTabs
-                  onPressTab={handlePressTab}
-                  activeTab={activeTab}
+                <ChatListFilterTabs
+                  activeFilter={listFilter}
+                  onPressFilter={handlePressFilter}
                 />
                 <ChatListSearch
                   query={searchQuery}
@@ -447,7 +464,7 @@ export function ChatListScreenView({
                 />
                 {searchQuery !== '' && !displayData[0]?.data.length ? (
                   <SearchResultsEmpty
-                    activeTab={activeTab}
+                    activeFilter={listFilter}
                     onPressClear={handlePressClear}
                     onPressTryAll={handlePressTryAll}
                   />
@@ -484,13 +501,13 @@ export function ChatListScreenView({
 }
 
 function SearchResultsEmpty({
-  activeTab,
+  activeFilter,
   onPressClear,
   onPressTryAll,
 }: {
-  activeTab: TabName;
-  onPressTryAll: () => void;
+  activeFilter: ChatListFilter;
   onPressClear: () => void;
+  onPressTryAll: () => void;
 }) {
   return (
     <YStack
@@ -501,7 +518,7 @@ function SearchResultsEmpty({
       paddingVertical="$m"
     >
       <Text>No results found.</Text>
-      {activeTab !== 'home' && (
+      {activeFilter !== 'all' && (
         <Pressable onPress={onPressTryAll}>
           <Text textDecorationLine="underline">Try in All?</Text>
         </Pressable>

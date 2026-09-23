@@ -3,7 +3,7 @@ import { GetChangedPostsOptions } from '@tloncorp/api';
 import { extractClientVolumes } from '@tloncorp/api/client/activity';
 import { fetchChangesSince } from '@tloncorp/api/client/changesApi';
 import { isLanyardMockEnabled } from '@tloncorp/api/dev/lanyardMock';
-import { ChannelStatus } from '@urbit/http-api';
+import { ChannelStatus } from '@tloncorp/api/http-api';
 import { backOff } from 'exponential-backoff';
 import _ from 'lodash';
 
@@ -75,6 +75,9 @@ export const syncInitData = async (
   // resolves a fresh version before it gets here, that probe is allowed to fail
   // — apply the persisted capabilities first so this never runs on the defaults
   await syncReactionSupport();
+  // captured before the fetch: only dms that existed when the snapshot was
+  // requested can be reconciled away by it
+  const dmCandidateIds = await db.getDmChannelIds(queryCtx);
   const initData = await syncQueue.add('init', syncCtx, () =>
     api.getInitData()
   );
@@ -96,6 +99,16 @@ export const syncInitData = async (
     await db
       .insertChannels(initData.channels, queryCtx)
       .then(() => logger.crumb('inserted channels'));
+    // init carries the complete dm set, so anything missing from it is gone
+    await db
+      .deleteAbsentDmChannels(
+        {
+          keepIds: initData.channels.map((c) => c.id),
+          candidateIds: dmCandidateIds,
+        },
+        queryCtx
+      )
+      .then(() => logger.crumb('reconciled dm channels'));
     await persistUnreads({
       unreads: initData.unreads,
       ctx: queryCtx,
@@ -195,6 +208,24 @@ export const syncBlockedUsers = async (ctx?: SyncCtx) => {
   await db.insertBlockedContacts({ blockedIds });
 };
 
+/**
+ * Thrown by `syncLatestChanges` when the fetch it was awaiting outlived the
+ * freshness threshold, whatever held it up -- a slow or wedged request as well
+ * as a suspension, since JS timers freeze while the app is backgrounded and the
+ * elapsed time only says the threshold expired. Either way the data in hand may
+ * no longer be current, and discarding it is the designed behaviour rather than
+ * a failure, so `syncSince` reports this as an event instead of an error.
+ */
+export class StaleSyncDataError extends Error {
+  readonly runningForMs: number;
+
+  constructor(runningForMs: number) {
+    super(`discarded fetched data, had been running for ${runningForMs}ms`);
+    this.name = 'StaleSyncDataError';
+    this.runningForMs = runningForMs;
+  }
+}
+
 export const syncSince = async ({
   queryCtx,
   syncCtx = { priority: SyncPriority.High },
@@ -203,7 +234,7 @@ export const syncSince = async ({
 }: {
   queryCtx?: QueryCtx;
   syncCtx?: SyncCtx;
-  callCtx?: { cause?: string };
+  callCtx?: { cause?: string; taskExecutionId?: string };
   since?: number;
 } = {}) => {
   logger.log(`syncing since...`);
@@ -243,15 +274,27 @@ export const syncSince = async ({
           const latestPostsSyncedAt = await db.headsSyncedAt.getValue();
           if (!latestPostsSyncedAt) {
             neededToSyncLatestPosts = true;
-            await syncLatestPosts();
+            await syncLatestPosts(syncCtx, batchCtx, false, {
+              throwOnError: true,
+            });
           }
         }));
   } catch (e) {
     result = 'error';
-    logger.trackError('sync since failed', {
-      error: e,
-      ...callCtx,
-    });
+    if (e instanceof StaleSyncDataError) {
+      // Expected: the fetch outlived the freshness threshold. Discarding is
+      // the point, so report it as an event rather than an error.
+      logger.trackEvent('sync since discarded stale data', {
+        sync: 'syncLatestChanges',
+        runningForMs: e.runningForMs,
+        ...callCtx,
+      });
+    } else {
+      logger.trackError('sync since failed', {
+        error: e,
+        ...callCtx,
+      });
+    }
   } finally {
     notifySyncSinceCompletion({
       cause: callCtx.cause,
@@ -266,6 +309,7 @@ export const syncSince = async ({
   }
   logger.log(`sync since complete`);
   updateSession({ isSyncing: false });
+  return result;
 };
 
 type SyncSinceCompletion = {
@@ -307,7 +351,7 @@ export const syncLatestChanges = async ({
 }: {
   syncCtx?: SyncCtx;
   queryCtx?: QueryCtx;
-  callCtx?: { cause?: string };
+  callCtx?: { cause?: string; taskExecutionId?: string };
   since?: number;
   yieldWriter?: boolean;
 }): Promise<{
@@ -333,6 +377,7 @@ export const syncLatestChanges = async ({
       await db.changesSyncedAt.setValue(start);
     } catch (e) {
       logger.trackError('Failed latest changes fallback', e);
+      throw e;
     }
     return {
       hadChanges: true,
@@ -379,9 +424,7 @@ export const syncLatestChanges = async ({
   const FRESHNESS_THRESHOLD = 2 * 60 * 1000; // 2 minutes
   const runningForMs = Date.now() - start;
   if (runningForMs > FRESHNESS_THRESHOLD) {
-    throw new Error(
-      `discarded fetched data, had been running for ${runningForMs}ms`
-    );
+    throw new StaleSyncDataError(runningForMs);
   }
 
   await perfTime(
@@ -413,6 +456,9 @@ export const syncLatestChanges = async ({
     duration,
     nodeBusyStatus: result.nodeBusyStatus,
     hints: result.hints,
+    spinOutcome: result.spinOutcome,
+    spinDurationMs: result.spinDurationMs,
+    spinErrorClass: result.spinErrorClass ?? null,
     syncWindow: Date.now() - syncFrom,
     numPosts: result.posts.length,
     numGroups: result.groups.length,
@@ -488,13 +534,15 @@ export const syncCachedChanges = async (input: {
 export const syncLatestPosts = async (
   ctx?: SyncCtx,
   queryCtx?: QueryCtx,
-  yieldWriter?: boolean
+  yieldWriter?: boolean,
+  options?: { throwOnError?: boolean }
 ): Promise<() => Promise<void>> => {
   try {
     const syncedAt = await db.headsSyncedAt.getValue();
     const result = await syncQueue.add('latestPosts', ctx, () =>
       api.getLatestPosts({
         afterCursor: new Date(syncedAt),
+        throwOnError: options?.throwOnError,
       })
     );
     logger.crumb('got latest posts from api');
@@ -513,9 +561,9 @@ export const syncLatestPosts = async (
     }
   } catch (e) {
     logger.trackError('failed to sync latest posts', {
-      errorMessage: e.message,
-      errorStack: e.stack,
+      error: e,
     });
+    if (options?.throwOnError) throw e;
     return () => Promise.resolve();
   }
 };
@@ -648,6 +696,7 @@ export const syncSystemContacts = async (
 };
 
 export type ContactDiscoveryResult = {
+  didSucceed: boolean;
   didDiscover: boolean;
   newMatches: [string, string][];
 };
@@ -659,6 +708,7 @@ export const syncContactDiscovery = async (
   logger.log('syncContactDiscovery: starting');
   const invokeHandler = opts?.invokeHandler !== false;
   const empty: ContactDiscoveryResult = {
+    didSucceed: true,
     didDiscover: false,
     newMatches: [],
   };
@@ -698,6 +748,7 @@ export const syncContactDiscovery = async (
   }
 
   let didDiscover = false;
+  let didSucceed = true;
   try {
     const matches = (
       await syncQueue.add('discoverContacts', ctx, () =>
@@ -713,6 +764,7 @@ export const syncContactDiscovery = async (
     const newMatchIds = newMatches.map(([, id]) => id);
 
     await db.linkSystemContacts({ matches }).catch((e) => {
+      didSucceed = false;
       logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
         context: 'failed to link system contacts',
         severity: AnalyticsSeverity.Critical,
@@ -726,6 +778,7 @@ export const syncContactDiscovery = async (
 
     if (newMatchIds.length > 0) {
       await addContacts(newMatchIds).catch((e) => {
+        didSucceed = false;
         logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
           context: 'failed to add contacts',
           severity: AnalyticsSeverity.Critical,
@@ -740,6 +793,7 @@ export const syncContactDiscovery = async (
           matchedAt: Date.now(),
         })
         .catch((e) => {
+          didSucceed = false;
           logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
             context: 'failed to mark contacts as matched',
             error: e,
@@ -758,6 +812,7 @@ export const syncContactDiscovery = async (
           })
         )
       ).catch((e) => {
+        didSucceed = false;
         logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
           context: 'failed to update contact metadata',
           severity: AnalyticsSeverity.Critical,
@@ -770,7 +825,7 @@ export const syncContactDiscovery = async (
       await invokeContactsMatchedHandler(newMatchIds);
     }
 
-    return { didDiscover, newMatches };
+    return { didDiscover, didSucceed, newMatches };
   } catch (error) {
     logger.error('error discovering contacts', error);
     logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
@@ -778,7 +833,7 @@ export const syncContactDiscovery = async (
       severity: AnalyticsSeverity.Critical,
       error,
     });
-    return { ...empty, didDiscover };
+    return { ...empty, didDiscover, didSucceed: false };
   }
 };
 
@@ -815,6 +870,9 @@ export const syncGroups = async (ctx?: SyncCtx) => {
   await db.insertGroups({ groups: groups });
 };
 
+// insert-only: these three scries aren't a consistent snapshot (a dm can
+// move between lists while they're in flight), so only init, which reads the
+// dm set in one scry, gets to delete what it doesn't list
 export const syncDms = async (ctx?: SyncCtx) => {
   const [dms, groupDms, dmInvites] = await syncQueue.add('dms', ctx, () =>
     Promise.all([api.getDms(), api.getGroupDms(), api.getDmInvites()])
@@ -1893,10 +1951,8 @@ export const handleChatUpdate = async (
         ctx
       );
       break;
-    case 'syncDmInvites':
-      // This event contains the complete list of pending DM invites
-      // We need to sync our local state with this list
-      await handleSyncDmInvites(update.channels, ctx);
+    case 'dmStatus':
+      await handleDmStatus(update.channelId, update.net, ctx);
       break;
     case 'groupDmsUpdate':
       syncDms();
@@ -1904,51 +1960,31 @@ export const handleChatUpdate = async (
   }
 };
 
-async function handleSyncDmInvites(invites: db.Channel[], ctx?: QueryCtx) {
-  const allChannels = await db.getAllChannels(ctx);
-
-  const currentDmInvites = allChannels.filter(
-    (ch) => ch.type === 'dm' && ch.isDmInvite === true
-  );
-  const currentRegularDms = allChannels.filter(
-    (ch) => ch.type === 'dm' && ch.isDmInvite === false
-  );
-
-  const newInviteIds = new Set(invites.map((ch) => ch.id));
-  const currentInviteIds = new Set(currentDmInvites.map((ch) => ch.id));
-
-  const missingInvites = currentDmInvites.filter(
-    (ch) => !newInviteIds.has(ch.id)
-  );
-
-  const backendDms = await api.getDms();
-  const backendDmIds = new Set(backendDms.map((dm) => dm.id));
-
-  for (const invite of missingInvites) {
-    if (backendDmIds.has(invite.id)) {
-      logger.log('dm invite was accepted, updating to regular dm', invite.id);
-      await db.updateChannel({ id: invite.id, isDmInvite: false }, ctx);
-    } else {
-      logger.log('dm invite was declined, deleting', invite.id);
-      await db.deleteChannels([invite.id], ctx);
-    }
-  }
-
-  for (const regularDm of currentRegularDms) {
-    if (!backendDmIds.has(regularDm.id)) {
-      logger.log('regular dm was removed on backend, deleting', regularDm.id);
-      await db.deleteChannels([regularDm.id], ctx);
-    }
-  }
-
-  const toAdd = invites.filter((ch) => !currentInviteIds.has(ch.id));
-
-  if (toAdd.length > 0) {
-    logger.log(
-      'adding new dm invites',
-      toAdd.map((ch) => ch.id)
-    );
-    await db.insertChannels(toAdd, ctx);
+/**
+ * Keep the local channel row in step with the backend's dm set. Without this
+ * a dm we didn't start from this client only ever arrives as posts, and the
+ * chat list (built from the channels table) can't show it until the next
+ * init sync.
+ */
+export async function handleDmStatus(
+  channelId: string,
+  net: api.DmNet | null,
+  ctx?: QueryCtx
+) {
+  switch (net) {
+    case 'inviting':
+    case 'done':
+      await db.insertChannels([api.toClientDm(channelId, false)], ctx);
+      break;
+    case 'invited':
+      await db.insertChannels([api.toClientDm(channelId, true)], ctx);
+      break;
+    case 'archive':
+    case null:
+      // the dm list we sync from (`/dm`) excludes archived dms, so locally
+      // an archived dm and a removed one look the same
+      await db.deleteChannels([channelId], ctx);
+      break;
   }
 }
 
@@ -1974,28 +2010,38 @@ export async function handleAddPost(
       // first check if it's a reply. If it is and we haven't already cached
       // it, we need to add it to the parent post
       if (post.parentId) {
-        const cachedReply = await db.getPostByCacheId({
-          channelId: post.channelId,
-          sentAt: post.sentAt,
-          authorId: post.authorId,
-        });
-        if (!cachedReply) {
-          await perfTime('handleAddPost.addReplyToPost', () =>
-            db.addReplyToPost(
+        // Serialize the cache check with both writes. A snapshot or another
+        // event may otherwise insert the reply after this check but before
+        // the count update, causing the same reply to be counted twice.
+        await batchEffects('handleAddPost.reply', (defaultCtx) =>
+          withTransactionCtx(ctx ?? defaultCtx, async (txCtx) => {
+            const cachedReply = await db.getPostByCacheId(
               {
-                parentId: post.parentId!,
-                replyAuthor: post.authorId,
-                replyTime: post.sentAt,
-                replyMeta,
+                channelId: post.channelId,
+                sentAt: post.sentAt,
+                authorId: post.authorId,
               },
-              ctx
-            )
-          );
-        }
-        await perfTime(
-          'handleAddPost.insertChannelPosts',
-          () => db.insertChannelPosts({ posts: [post] }, ctx),
-          { isReply: 'true' }
+              txCtx
+            );
+            if (!cachedReply) {
+              await perfTime('handleAddPost.addReplyToPost', () =>
+                db.addReplyToPost(
+                  {
+                    parentId: post.parentId!,
+                    replyAuthor: post.authorId,
+                    replyTime: post.sentAt,
+                    replyMeta,
+                  },
+                  txCtx
+                )
+              );
+            }
+            await perfTime(
+              'handleAddPost.insertChannelPosts',
+              () => db.insertChannelPosts({ posts: [post] }, txCtx),
+              { isReply: 'true' }
+            );
+          })
         );
       } else {
         addToChannelPosts(post);

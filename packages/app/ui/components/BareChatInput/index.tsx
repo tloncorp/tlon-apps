@@ -1,4 +1,8 @@
-import { getCurrentUserId, toContentReference } from '@tloncorp/api';
+import {
+  getBotUserIdForUser,
+  getCurrentUserId,
+  toContentReference,
+} from '@tloncorp/api';
 import { JSONContent, Story, pathToCite } from '@tloncorp/api/urbit';
 import {
   Attachment,
@@ -1060,7 +1064,10 @@ function BareChatInput(
         tappedChatInput: true,
       }));
     }
-    if (logic.isBotHomeGroupChatChannel(getCurrentUserId(), channelId)) {
+    // The user's own bot DM only, matching `useShowBotMentionWayfinding`:
+    // focusing another user's Tlonbot must not dismiss a coach mark that has
+    // not been seen.
+    if (channelId === getBotUserIdForUser(getCurrentUserId())) {
       db.wayfindingProgress.setValue((prev) => ({
         ...prev,
         tappedHomeGroupHint: true,
@@ -1204,6 +1211,9 @@ function BareChatInput(
               paddingTop: getTokenValue('$l', 'space'),
               paddingBottom: getTokenValue('$l', 'space'),
               fontSize: getFontSize('$m'),
+              // Match the decoration overlay even when emoji change font metrics.
+              fontFamily: isWeb ? 'inherit' : undefined,
+              lineHeight: isWeb ? getFontSize('$m') * 1.2 : undefined,
               verticalAlign: 'middle',
               letterSpacing: -0.032,
               color: inputTextColor,
@@ -1235,7 +1245,7 @@ function BareChatInput(
               >
                 <RawText
                   paddingHorizontal="$l"
-                  paddingTop={getTokenValue('$m', 'space') + 3}
+                  paddingTop="$l"
                   fontSize="$m"
                   lineHeight={getFontSize('$m') * 1.2}
                   letterSpacing={-0.032}

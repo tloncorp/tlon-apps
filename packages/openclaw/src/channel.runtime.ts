@@ -20,6 +20,7 @@ import {
 } from './context-lens.js';
 import { monitorTlonProvider } from './monitor/index.js';
 import { notesDeliveryMessageId } from './notes-delivery-state.js';
+import { getRestartCatchupCoordinator } from './restart-catchup.js';
 import { tlonSetupWizard } from './setup-surface.js';
 import { formatTargetHint, normalizeShip, parseTlonTarget } from './targets.js';
 import { observeActiveTlonTurnDelivery } from './turn-recorder.js';
@@ -558,12 +559,24 @@ export async function startTlonGatewayAccount(
   ctx.log?.info(
     `[${account.accountId}] starting Tlon provider for ${account.ship ?? 'tlon'}`
   );
-  return monitorTlonProvider({
-    runtime: ctx.runtime,
-    abortSignal: ctx.abortSignal,
-    accountId: account.accountId,
-    cfg: ctx.cfg,
-  });
+  const catchup = getRestartCatchupCoordinator().attachMonitor(
+    account.accountId,
+    ctx.cfg
+  );
+  ctx.abortSignal.addEventListener('abort', catchup.stop, { once: true });
+  try {
+    if (ctx.abortSignal.aborted) return;
+    await monitorTlonProvider({
+      runtime: ctx.runtime,
+      abortSignal: ctx.abortSignal,
+      accountId: account.accountId,
+      cfg: ctx.cfg,
+      onReady: catchup.connected,
+    });
+  } finally {
+    ctx.abortSignal.removeEventListener('abort', catchup.stop);
+    catchup.stop();
+  }
 }
 
 export { tlonSetupWizard };

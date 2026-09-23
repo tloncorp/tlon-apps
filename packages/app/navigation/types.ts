@@ -5,11 +5,26 @@ import type {
 } from '@react-navigation/native';
 
 export type TopLevelTabParamList = {
-  Contacts: undefined;
+  // The bot tab renders a channel directly, so it shares the root stack's
+  // native header the way the other tabs do. Its params are always supplied
+  // through initialParams, so they are not optional.
+  BotChat: ChannelRouteParams;
   ChatList:
     | { previewGroupId: string; previewGroupFromInviteNotification?: boolean }
     | undefined;
   Activity: undefined;
+  Settings: undefined;
+};
+
+// Spelled out rather than read off `RootStackParamList['Channel']`: the root
+// stack reaches this list through MainTabs, and the round trip would make the
+// alias circular.
+export type ChannelRouteParams = {
+  channelId: string;
+  disableTransition?: boolean;
+  groupId?: string;
+  selectedPostId?: string | null;
+  startDraft?: boolean;
 };
 
 export type RootStackParamList = {
@@ -20,7 +35,7 @@ export type RootStackParamList = {
   };
   VerifierStub: undefined;
   Empty: undefined;
-  Settings: undefined;
+  Contacts: undefined;
   DM: {
     channelId: string;
     selectedPostId?: string | null;
@@ -31,13 +46,7 @@ export type RootStackParamList = {
     selectedPostId?: string | null;
     startDraft?: boolean;
   };
-  Channel: {
-    channelId: string;
-    disableTransition?: boolean;
-    groupId?: string;
-    selectedPostId?: string | null;
-    startDraft?: boolean;
-  };
+  Channel: ChannelRouteParams;
   GroupChannels: {
     groupId: string;
   };
@@ -107,6 +116,9 @@ export type RootStackParamList = {
     channelLabel: string;
     groupJoined: boolean;
   };
+  BotPermissionsSettings: undefined;
+  BotIdentitySettings: undefined;
+  BotProviderListSettings: { kind: 'subscriptions' | 'apiKeys' };
   BlockedUsers: undefined;
   PrivacySettings: undefined;
   AppInfo: undefined;
@@ -163,8 +175,8 @@ export type RootStackNavigationProp = NavigationProp<RootStackParamList>;
 export type RootDrawerParamList = {
   Home: NavigatorScreenParams<HomeDrawerParamList>;
   Messages: NavigatorScreenParams<HomeDrawerParamList>;
-} & Pick<TopLevelTabParamList, 'Activity' | 'Contacts'> &
-  Pick<RootStackParamList, 'Settings'>;
+} & Pick<RootStackParamList, 'Contacts'> &
+  Pick<TopLevelTabParamList, 'Activity' | 'Settings'>;
 
 // hack: adding the true contacts types causes lots of tsc failures that need
 // resolving. Added to support navigating deeply within the contacts drawer
@@ -172,8 +184,7 @@ export type ActualRootDrawerParamList = {
   Home: NavigatorScreenParams<HomeDrawerParamList>;
   Messages: NavigatorScreenParams<HomeDrawerParamList>;
   Contacts: NavigatorScreenParams<ProfileDrawerParamList>;
-} & Pick<TopLevelTabParamList, 'Activity'> &
-  Pick<RootStackParamList, 'Settings'>;
+} & Pick<TopLevelTabParamList, 'Activity' | 'Settings'>;
 
 export type CombinedParamList = RootStackParamList & RootDrawerParamList;
 
@@ -191,8 +202,19 @@ export type HomeDrawerParamList = Pick<TopLevelTabParamList, 'ChatList'> &
     ChatVolume: RootStackParamList['ChatVolume'];
   };
 
-export type ProfileDrawerParamList = Pick<TopLevelTabParamList, 'Contacts'> &
-  Pick<RootStackParamList, 'AddContacts' | 'UserProfile'>;
+export type ProfileDrawerParamList = Pick<RootStackParamList, 'Contacts'> &
+  Pick<
+    RootStackParamList,
+    'AddContacts' | 'UserProfile' | 'EditProfile' | 'Attestation'
+  >;
+
+export type ActivityDrawerParamList = Pick<
+  RootStackParamList,
+  'GroupSettings' | 'UserProfile' | 'EditProfile'
+> & {
+  // Drawer-only placeholder shown before an activity item is selected.
+  ActivityEmpty: undefined;
+};
 
 export type SettingsDrawerParamList = Pick<
   RootStackParamList,
@@ -208,12 +230,29 @@ export type SettingsDrawerParamList = Pick<
   | 'BotShipListSettings'
   | 'BotChannelRulesSettings'
   | 'BotChannelRuleSettings'
+  | 'BotPermissionsSettings'
+  | 'BotIdentitySettings'
+  | 'BotProviderListSettings'
   | 'BlockedUsers'
   | 'AppInfo'
   | 'PushNotificationSettings'
   | 'WompWomp'
   | 'PrivacySettings'
->;
+> & {
+  // Drawer-only placeholder shown before a settings section is selected.
+  SettingsEmpty: undefined;
+};
+
+// ChannelScreen is registered under several route names: the root stack's
+// Channel/DM/GroupDM, the desktop channel stack's ChannelRoot, and the bot
+// tab.
+export type ChannelScreenParamList = {
+  Channel: RootStackParamList['Channel'];
+  DM: RootStackParamList['Channel'];
+  GroupDM: RootStackParamList['Channel'];
+  ChannelRoot: RootStackParamList['Channel'];
+  BotChat: RootStackParamList['Channel'];
+};
 
 export type ChannelStackParamList = {
   ChannelRoot: RootStackParamList['Channel'];
@@ -257,7 +296,7 @@ export type RoleSelectionReturn =
       returnParams: {
         groupId: string;
         channelTitle: string;
-        channelType: 'chat' | 'notebook' | 'gallery' | 'notes';
+        channelType: 'chat' | 'gallery' | 'notes';
       };
     }
   | {
@@ -338,7 +377,7 @@ export type GroupSettingsStackParamList = {
   CreateChannelPermissions: {
     groupId: string;
     channelTitle: string;
-    channelType: 'chat' | 'notebook' | 'gallery' | 'notes';
+    channelType: 'chat' | 'gallery' | 'notes';
     createdRoleId?: string;
     selectedRoleIds?: string[];
   };

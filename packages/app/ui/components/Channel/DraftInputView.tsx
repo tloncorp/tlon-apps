@@ -1,7 +1,16 @@
 import { DraftInputId } from '@tloncorp/api';
 import { ComponentProps, PropsWithChildren, useEffect } from 'react';
 import { Platform, StyleSheet } from 'react-native';
-import { KeyboardStickyView } from 'react-native-keyboard-controller';
+import {
+  KeyboardController,
+  KeyboardStickyView,
+  type NativeEvent,
+  useKeyboardHandler,
+} from 'react-native-keyboard-controller';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, getVariableValue, useTheme } from 'tamagui';
 
@@ -12,17 +21,22 @@ import {
   useConversationScrollViewNativeID,
 } from '../../contexts/scroll';
 import { ScrollEdgeElementContainer } from '../ScrollEdgeElementContainer';
-import { floatingScrollControlClearance } from '../conversationScrollChrome';
+import {
+  floatingScrollControlClearance,
+  unobscuredConversationBottomGap,
+} from '../conversationScrollChrome';
 import { DraftInputContext } from '../draftInputs';
 import { DraftInputContextProvider } from '../draftInputs/shared';
 
 export function DraftInputView({
   draftInputContext,
   type,
+  bottomChromeClearance,
   onFloatingHeightChange,
 }: {
   draftInputContext: DraftInputContext;
   type: DraftInputId;
+  bottomChromeClearance?: number;
   onFloatingHeightChange?: (height: number) => void;
 }) {
   const { inputs } = useComponentsKitContext();
@@ -38,6 +52,7 @@ export function DraftInputView({
     return (
       <ConversationComposerPlacement
         enabled={type === DraftInputId.chat}
+        bottomChromeClearance={bottomChromeClearance}
         onFloatingHeightChange={onFloatingHeightChange}
       >
         {input}
@@ -48,22 +63,82 @@ export function DraftInputView({
 
 const supportsFloatingComposer = Platform.OS !== 'web';
 
+// KC's iOS sticky view applies its final position in onStart. Use native frame
+// events instead so the composer does not jump ahead of the keyboard.
+function IOSKeyboardTrackingView({
+  style,
+  offset,
+  enabled = true,
+  ...props
+}: ComponentProps<typeof KeyboardStickyView>) {
+  const isVisible = KeyboardController.isVisible();
+  const height = useSharedValue(
+    isVisible ? KeyboardController.state().height : 0
+  );
+  const progress = useSharedValue(isVisible ? 1 : 0);
+  const closedOffset = offset?.closed ?? 0;
+  const openedOffset = offset?.opened ?? 0;
+  const update = (event: NativeEvent) => {
+    'worklet';
+    height.value = event.height;
+    progress.value = event.progress;
+  };
+  useKeyboardHandler(
+    { onMove: update, onInteractive: update, onEnd: update },
+    []
+  );
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateY: enabled
+          ? -height.value +
+            closedOffset +
+            progress.value * (openedOffset - closedOffset)
+          : closedOffset,
+      },
+    ],
+  }));
+  return <Animated.View {...props} style={[style, animatedStyle]} />;
+}
+
+const ComposerKeyboardView =
+  Platform.OS === 'ios' ? IOSKeyboardTrackingView : KeyboardStickyView;
+
 /** Owns the native floating placement and its matching scroll-content inset. */
 export function ConversationComposerPlacement({
   children,
   enabled,
   avoidKeyboard = false,
+  bottomChromeClearance = 0,
   onFloatingHeightChange,
   contentProps,
   inlineID,
 }: PropsWithChildren<{
   enabled: boolean;
   avoidKeyboard?: boolean;
+  /**
+   * Band occluded by chrome below the composer — the top-level tab bar. Its
+   * band already covers the home indicator, so clear the larger of the two
+   * rather than stacking them.
+   */
+  bottomChromeClearance?: number;
   onFloatingHeightChange?: (height: number) => void;
   contentProps?: ComponentProps<typeof View>;
   inlineID?: string;
 }>) {
   const insets = useSafeAreaInsets();
+  const composerBottomInset = bottomChromeClearance
+    ? Math.max(
+        insets.bottom,
+        bottomChromeClearance + unobscuredConversationBottomGap
+      )
+    : insets.bottom;
+  // Padding and the sticky view's offset have to agree, so both stay constant —
+  // changing them on keyboard visibility jumps the composer mid-animation. The
+  // sticky view cancels this padding to sit on the keyboard's edge, so that much
+  // of the measured height stops occupying the list; the list interpolates it
+  // away on keyboard progress instead.
+  const collapsibleInset = composerBottomInset - insets.bottom;
   const theme = useTheme();
   const scrollViewNativeID = useConversationScrollViewNativeID();
   const scrollToBottomControl = useConversationScrollToBottomControl();
@@ -84,18 +159,17 @@ export function ConversationComposerPlacement({
 
   if (enabled && supportsFloatingComposer) {
     return (
-      <KeyboardStickyView
-        enabled={Platform.OS === 'ios'}
+      <ComposerKeyboardView
         // The container keeps its home-indicator padding while the keyboard is
         // open, so cancel that padding to place the visible input at its edge.
-        offset={{ closed: 0, opened: insets.bottom }}
+        offset={{ closed: 0, opened: composerBottomInset }}
         style={styles.floatingInput}
       >
         <ScrollEdgeElementContainer
           edge="bottom"
           scrollViewNativeID={scrollViewNativeID}
           style={[
-            { paddingBottom: insets.bottom },
+            { paddingBottom: composerBottomInset },
             Platform.OS === 'android'
               ? { backgroundColor: getVariableValue(theme.background) }
               : undefined,
@@ -112,13 +186,13 @@ export function ConversationComposerPlacement({
             // Feed the list's Reanimated content inset before publishing the
             // React geometry used by surrounding controls. The scroll view can
             // then adjust its inset and offset in one native commit.
-            reportConversationComposerHeight(height);
+            reportConversationComposerHeight(height, collapsibleInset);
             onFloatingHeightChange?.(height);
           }}
         >
           {content}
         </ScrollEdgeElementContainer>
-      </KeyboardStickyView>
+      </ComposerKeyboardView>
     );
   }
 
@@ -131,11 +205,11 @@ export function ConversationComposerPlacement({
       children
     );
 
-  if (avoidKeyboard && Platform.OS === 'ios') {
+  if (avoidKeyboard && Platform.OS !== 'web') {
     return (
-      <KeyboardStickyView offset={{ closed: 0, opened: insets.bottom }}>
+      <ComposerKeyboardView offset={{ closed: 0, opened: insets.bottom }}>
         {inlineContent}
-      </KeyboardStickyView>
+      </ComposerKeyboardView>
     );
   }
 

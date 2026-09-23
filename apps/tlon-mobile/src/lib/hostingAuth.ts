@@ -50,7 +50,13 @@ export async function refreshHostingAuth(
 
   logger.log('online and refreshing hosting auth');
   try {
+    const checkedToken = await db.hostingAuthToken.getValue(true);
     const result = await getHostingHeartBeat();
+    // A background request can outlive OTP renewal or logout. Its result
+    // only describes the credential that was current when it started.
+    if ((await db.hostingAuthToken.getValue(true)) !== checkedToken) {
+      return 'unknown';
+    }
     if (result === 'expired') {
       logger.crumb('hosting auth has newly expired');
       logger.trackEvent('Hosting Auth Expired');
@@ -58,12 +64,13 @@ export async function refreshHostingAuth(
     } else if (result === 'ok') {
       logger.trackEvent('Hosting Auth Still Valid');
     }
+    if (result !== 'unknown') {
+      await db.hostingLastAuthCheck.setValue(Date.now());
+    }
     return result;
   } catch (e) {
     logger.error('error checking hosting auth:', e);
     return 'unknown';
-  } finally {
-    await db.hostingLastAuthCheck.setValue(Date.now());
   }
 }
 

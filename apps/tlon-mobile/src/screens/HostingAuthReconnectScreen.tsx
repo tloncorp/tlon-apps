@@ -14,11 +14,13 @@ import ProfileRow from '@tloncorp/app/ui/components/ProfileRow';
 import type * as db from '@tloncorp/shared/db';
 import { Button } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OTPInput } from '../components/OnboardingInputs';
 
 const OTP_LENGTH = 6;
+const FALLBACK_RESEND_WAIT_SECONDS = 30;
 
 type RequestState = 'idle' | 'requesting' | 'sent';
 
@@ -51,16 +53,50 @@ export function HostingAuthReconnectScreen({
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string>();
   const requestStarted = useRef(false);
+  const requestInFlight = useRef(false);
+  const verificationInFlight = useRef(false);
+  const [resendAvailableAt, setResendAvailableAt] = useState(
+    () => Date.now() + (initialOtpInfo?.retryAfter ?? 0) * 1000
+  );
+  const [resendWait, setResendWait] = useState(() =>
+    Math.max(0, Math.ceil(initialOtpInfo?.retryAfter ?? 0))
+  );
   const insets = useSafeAreaInsets();
 
+  const startResendCooldown = useCallback((seconds: number) => {
+    setResendAvailableAt(Date.now() + seconds * 1000);
+    setResendWait(Math.max(0, Math.ceil(seconds)));
+  }, []);
+
+  useEffect(() => {
+    if (resendWait <= 0) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      setResendWait(
+        Math.max(0, Math.ceil((resendAvailableAt - Date.now()) / 1000))
+      );
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [resendAvailableAt, resendWait]);
+
   const requestCode = useCallback(async () => {
+    if (
+      verificationInFlight.current ||
+      requestInFlight.current ||
+      Date.now() < resendAvailableAt
+    ) {
+      return;
+    }
+    requestInFlight.current = true;
     setRequestState('requesting');
     setError(undefined);
-    setOtp([]);
 
     try {
       const info = await onRequestCode();
+      startResendCooldown(info.retryAfter);
       setOtpInfo(info);
+      setOtp([]);
       setRequestState('sent');
     } catch (requestError) {
       if (
@@ -68,15 +104,18 @@ export function HostingAuthReconnectScreen({
         requestError.details.status === 429
       ) {
         // A recent request means the user should already have a usable code.
+        startResendCooldown(
+          requestError.details.retryAfter ?? FALLBACK_RESEND_WAIT_SECONDS
+        );
         setRequestState('sent');
         setError('A code was sent recently. Enter it below or try again soon.');
-        return;
+      } else {
+        setRequestState('idle');
+        setError('We could not send a confirmation code. Please try again.');
       }
-
-      setRequestState('idle');
-      setError('We could not send a confirmation code. Please try again.');
     }
-  }, [onRequestCode]);
+    requestInFlight.current = false;
+  }, [onRequestCode, resendAvailableAt, startResendCooldown]);
 
   useEffect(() => {
     if (!autoRequest || requestStarted.current) {
@@ -89,6 +128,10 @@ export function HostingAuthReconnectScreen({
 
   const verifyCode = useCallback(
     async (code: string) => {
+      if (verificationInFlight.current) {
+        return;
+      }
+      verificationInFlight.current = true;
       setIsVerifying(true);
       setError(undefined);
       try {
@@ -104,19 +147,24 @@ export function HostingAuthReconnectScreen({
         } else {
           setError('We could not reconnect your account. Please try again.');
         }
-        setIsVerifying(false);
-        return;
       }
 
+      verificationInFlight.current = false;
       setIsVerifying(false);
     },
     [onVerifyCode]
   );
 
-  const handleCodeChanged = useCallback((nextCode: string[]) => {
-    setOtp(nextCode);
-    setError(undefined);
-  }, []);
+  const handleCodeChanged = useCallback(
+    (nextCode: string[]) => {
+      setOtp(nextCode);
+      setError(undefined);
+      if (nextCode.length === OTP_LENGTH && nextCode.every(Boolean)) {
+        void verifyCode(nextCode.join(''));
+      }
+    },
+    [verifyCode]
+  );
 
   const isCodeComplete =
     otp.length === OTP_LENGTH && otp.every((digit) => Boolean(digit));
@@ -171,14 +219,22 @@ export function HostingAuthReconnectScreen({
           title="Security check"
           backgroundColor="$background"
           leftControls={
-            <ScreenHeader.TextButton color="$secondaryText" onPress={onLogout}>
+            <ScreenHeader.TextButton
+              color="$secondaryText"
+              onPress={onLogout}
+              disabled={isVerifying}
+            >
               Log out
             </ScreenHeader.TextButton>
           }
         />
         <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={120}>
-          <YStack flex={1}>
-            <YStack paddingTop={29} paddingHorizontal={20}>
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ flexGrow: 1 }}
+            keyboardShouldPersistTaps="handled"
+          >
+            <YStack flexShrink={0} paddingTop={29} paddingHorizontal={20}>
               <ProfileRow
                 contactId={profileId}
                 contact={profile ?? undefined}
@@ -248,7 +304,12 @@ export function HostingAuthReconnectScreen({
                     <Button
                       preset="minimal"
                       size="medium"
-                      label="Request a new code"
+                      label={
+                        resendWait > 0
+                          ? `Request a new code in ${resendWait}s`
+                          : 'Request a new code'
+                      }
+                      disabled={isVerifying || resendWait > 0}
                       onPress={() => void requestCode()}
                       centered
                     />
@@ -266,6 +327,7 @@ export function HostingAuthReconnectScreen({
             </YStack>
 
             <YStack
+              flexShrink={0}
               marginTop="auto"
               paddingHorizontal={20}
               paddingTop="$xl"
@@ -285,7 +347,7 @@ export function HostingAuthReconnectScreen({
                 testID="hosting-auth-reconnect-primary-action"
               />
             </YStack>
-          </YStack>
+          </ScrollView>
         </KeyboardAvoidingView>
       </View>
     </AppDataContextProvider>

@@ -1,8 +1,8 @@
 import { createDevLogger } from '@tloncorp/shared';
 import { themes } from '@tloncorp/ui/config';
 import * as SplashScreen from 'expo-splash-screen';
-import { Component, ErrorInfo, ReactNode } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { Component, ErrorInfo, Fragment, ReactNode } from 'react';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 const logger = createDevLogger('root-error-boundary', false);
 
@@ -21,6 +21,21 @@ interface RootErrorBoundaryProps {
 interface RootErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
+  resetKey: number;
+}
+
+function errorDetails(error: Error | null) {
+  const details = (error as { details?: unknown } | null)?.details;
+
+  if (
+    typeof details !== 'object' ||
+    details === null ||
+    Array.isArray(details)
+  ) {
+    return null;
+  }
+
+  return details as Record<string, unknown>;
 }
 
 export class RootErrorBoundary extends Component<
@@ -29,10 +44,12 @@ export class RootErrorBoundary extends Component<
 > {
   constructor(props: RootErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, resetKey: 0 };
   }
 
-  static getDerivedStateFromError(error: Error): RootErrorBoundaryState {
+  static getDerivedStateFromError(
+    error: Error
+  ): Partial<RootErrorBoundaryState> {
     return { hasError: true, error };
   }
 
@@ -42,8 +59,19 @@ export class RootErrorBoundary extends Component<
     logger.trackError('Root error boundary triggered', {
       error,
       componentStack: errorInfo.componentStack,
+      ...errorDetails(error),
     });
   }
+
+  // Remounts the children so whatever failed (the database gate, most often)
+  // runs again from scratch.
+  handleRetry = () => {
+    this.setState((state) => ({
+      hasError: false,
+      error: null,
+      resetKey: state.resetKey + 1,
+    }));
+  };
 
   render() {
     if (this.state.hasError) {
@@ -54,12 +82,22 @@ export class RootErrorBoundary extends Component<
             <Text style={styles.message}>
               An error report has been submitted.
             </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={this.handleRetry}
+              style={styles.button}
+            >
+              <Text style={styles.buttonLabel}>Try again</Text>
+            </Pressable>
+            <Text style={styles.message}>
+              If this keeps happening, close and reopen Tlon.
+            </Text>
           </View>
         </View>
       );
     }
 
-    return this.props.children;
+    return <Fragment key={this.state.resetKey}>{this.props.children}</Fragment>;
   }
 }
 
@@ -86,6 +124,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: themes.light.secondaryText,
     lineHeight: 21,
+    textAlign: 'center',
+  },
+  button: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: themes.light.background,
+    borderWidth: 1,
+    borderColor: themes.light.border,
+  },
+  buttonLabel: {
+    fontSize: 14,
+    color: themes.light.primaryText,
     textAlign: 'center',
   },
 });
