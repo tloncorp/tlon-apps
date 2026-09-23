@@ -60,6 +60,7 @@ import {
   updateSession,
 } from '../session';
 import { syncQueue } from '../syncQueue';
+import * as threadSyncTelemetry from '../threadSyncTelemetry';
 import {
   clearSyncStartLock,
   ensureDmInviteChannel,
@@ -72,6 +73,7 @@ import {
   syncGroups,
   syncInitData,
   syncInitialPosts,
+  syncCachedChanges,
   syncLatestPosts,
   syncPinnedItems,
   syncPosts,
@@ -228,6 +230,53 @@ test('syncs pins', async () => {
     (a, b) => a.index - b.index
   );
   expect(savedItems).toEqual(outputData);
+});
+
+test('records cached change reply evidence before inserting it', async () => {
+  const reply = {
+    id: 'cached-reply',
+    parentId: 'cached-parent',
+    channelId: 'chat/~zod/cached',
+    type: 'reply',
+    authorId: '~zod',
+    sentAt: 1,
+    receivedAt: 1,
+  } as db.Post;
+  const changes: db.ChangesResult = {
+    groups: [],
+    posts: [reply],
+    contacts: [],
+    deletedChannelIds: [],
+    unreads: {
+      groupUnreads: [],
+      channelUnreads: [],
+      threadActivity: [],
+    },
+  };
+  const calls: string[] = [];
+  const syncedAt = vi
+    .spyOn(db.changesSyncedAt, 'getValue')
+    .mockResolvedValue(100);
+  const evidence = vi
+    .spyOn(threadSyncTelemetry, 'recordThreadPostsReceived')
+    .mockImplementation(() => {
+      calls.push('evidence');
+    });
+  const insert = vi.spyOn(db, 'insertChanges').mockImplementation(async () => {
+    calls.push('insert');
+  });
+
+  try {
+    await expect(
+      syncCachedChanges({ begin: 50, end: 150, changes })
+    ).resolves.toBe(true);
+    expect(evidence).toHaveBeenCalledWith([reply], 'changes');
+    expect(calls).toEqual(['evidence', 'insert']);
+  } finally {
+    syncedAt.mockRestore();
+    evidence.mockRestore();
+    insert.mockRestore();
+  }
 });
 
 // TLON-5606: after a user clears a failed send, `syncChannelWithBackoff`

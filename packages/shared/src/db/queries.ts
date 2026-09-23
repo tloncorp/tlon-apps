@@ -2551,6 +2551,18 @@ export const getChannelHasBotPost = createReadQuery(
   ['posts']
 );
 
+// Content-free, unjoined read for thread sync diagnostics. This reads SQLite
+// directly so it can detect a stale React Query result without refreshing it.
+export const getThreadPostDiagnostics = createReadQuery(
+  'getThreadPostDiagnostics',
+  ({ parentId }: { parentId: string }, ctx: QueryCtx) =>
+    ctx.db.query.posts.findMany({
+      where: eq($posts.parentId, parentId),
+      columns: { id: true, isDeleted: true, deliveryStatus: true },
+    }),
+  ['posts']
+);
+
 export const getThreadPosts = createReadQuery(
   'getThreadPosts',
   ({ parentId }: { parentId: string }, ctx: QueryCtx) => {
