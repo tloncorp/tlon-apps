@@ -8,18 +8,20 @@ workflow, that workflow's trigger is the authority for when it runs.
 | feature      | PRs merge into `develop`; the app suite runs on each                | `ci.yml` (`pull_request`)       |
 | version bump | `desk.docket-0`'s `version+[X Y Z]` is rewritten and pushed         | `bump.yml` (the only writer)    |
 | glob         | the web bundle is built and globbed, docket updated                 | `build-and-glob.yml`            |
-| staging      | `develop` merges to `staging`; pushing it back-merges to `develop`  | `sync-dev.yml`                  |
+| staging      | `develop` is merged to `staging` **by hand** — no workflow does it  | —                               |
+| back-merge   | pushing `staging` merges it back into `develop`                     | `sync-dev.yml`                  |
 | release tag  | a `vX.Y.Z` tag is created **by hand** — no workflow creates one     | —                               |
 | livenet      | the tag is deployed to `~sogryp-dister-dozzod-dozzod`               | `deploy-livenet.yml`            |
 | master sync  | on a completed livenet deploy, `staging` merges into `master`       | `sync.yml` (`workflow_run`)     |
 | mobile       | EAS builds are cut separately                                       | `mobile-build.yml`              |
 
 `vX.Y.Z` tags are **desk** version tags: the tag matches `desk.docket-0`'s
-`version+[X Y Z]` at that commit. `origin/master`'s tip is the last sync of
-`staging` after a deployment workflow ran — `sync.yml` triggers on
-`types: [completed]`, whatever the conclusion, and merges the staging tip as it
-stands then. Treat it as the standing proxy for the released client, not as a
-verified deployed SHA.
+`version+[X Y Z]` at that commit. The latest such tag *whose livenet deploy
+succeeded* is the released desk and web client — the tag is cut before the
+deploy is dispatched, so one that has not been deployed, or whose deploy
+failed, is not yet a release. Don't read `origin/master`'s tip as that either:
+the same branch also carries the plugin release, which sometimes leapfrogs the
+desk.
 
 ## Before tagging
 
@@ -36,6 +38,9 @@ receive updates, and post against desk release N-1.
       are cutting.
 - [ ] The **Desk requests** comment on each PR in this release was reviewed — it
       is advisory, so nothing in CI stopped an N-1 break from landing.
+- [ ] If this release removes a desk endpoint older mobile builds still call,
+      the mobile minimums in the invite service were raised past the last build
+      that made the request — raise them first.
 
 ## Tagging and deploying
 
