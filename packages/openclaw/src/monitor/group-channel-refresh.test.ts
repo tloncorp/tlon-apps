@@ -114,6 +114,69 @@ describe('group-channel refresh single-flight', () => {
   });
 });
 
+describe('group-channel refresh superseded by a same-valued fact', () => {
+  it('does not trust a scry that an operator restore overtook', async () => {
+    const kept = 'chat/~zod/kept';
+    const stale = 'chat/~zod/stale';
+    const joined = 'chat/~zod/joined';
+    const snapshot = (groupChannels: string[]) => ({
+      all: { moltbot: { tlon: { groupChannels } } },
+    });
+    let response:
+      | ReturnType<typeof snapshot>
+      | Promise<ReturnType<typeof snapshot>> = snapshot([kept]);
+    let emit!: (event: unknown) => void;
+    const settingsManager = createSettingsManager({
+      scry: () => Promise.resolve(response),
+      subscribe: async (params: { event: typeof emit }) => {
+        emit = params.event;
+      },
+    } as never);
+    await settingsManager.load();
+    await settingsManager.startSubscription();
+
+    const putEntry = vi.fn(async (_value: string[]) => undefined);
+    const journal = createGroupChannelJournal({
+      initial: settingsManager.current.groupChannels,
+      trusted: true,
+      protectedNests: () => new Set(),
+      putEntry,
+    });
+    const monitor = makeMonitor({
+      groupChannelJournal: journal,
+      settingsManager,
+      applySettingsUpdate,
+      runtime: { log: vi.fn(), error: vi.fn() },
+    });
+
+    // The ship changed to [kept, stale] while no echo could reach us; this
+    // scry captures that, and while it is in flight an operator restores
+    // [kept], the value the journal last observed.
+    let resolve!: (value: ReturnType<typeof snapshot>) => void;
+    response = new Promise((done) => {
+      resolve = done;
+    });
+    const refresh = monitor.refresh();
+    emit({
+      'put-entry': {
+        desk: 'moltbot',
+        'bucket-key': 'tlon',
+        'entry-key': 'groupChannels',
+        value: [kept],
+      },
+    });
+    resolve(snapshot([kept, stale]));
+    await refresh;
+
+    // The same-valued fact superseded the scry: the stale value is neither
+    // installed nor trusted as the write base.
+    expect(settingsManager.current.groupChannels).toEqual([kept]);
+    expect(monitor.current.groupChannels).toEqual([kept]);
+    await journal.persist([joined]);
+    expect(putEntry).toHaveBeenCalledExactlyOnceWith([kept, joined].sort());
+  });
+});
+
 describe('group-channel refresh after a subscription gap', () => {
   const kept = 'chat/~zod/kept';
   const changed = 'chat/~zod/changed';

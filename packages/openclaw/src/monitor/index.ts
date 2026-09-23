@@ -65,7 +65,6 @@ import {
   DM_INVITE_PREVIEW,
   type TlonSettingsStore,
   createSettingsManager,
-  applySettingsUpdate,
 } from '../settings.js';
 import { sharedSlot } from '../shared-state.js';
 import {
@@ -5716,11 +5715,16 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   return parsed;
                 }
                 superseded = true;
-                return applySettingsUpdate(
-                  parsed,
-                  'groupChannels',
-                  groupChannelJournal.lastObserved
-                );
+                // Hand back the observed array itself, not a copy: the
+                // journal tells a key fact from an unrelated one by array
+                // identity, so a copy here would make the next unrelated fact
+                // look like an observation and re-trust the journal.
+                return {
+                  ...parsed,
+                  groupChannels: groupChannelJournal.lastObserved as
+                    | string[]
+                    | undefined,
+                };
               },
             });
             // A gap (subscription error/quit, stream reconnect) reported while
@@ -6270,6 +6274,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // a base to write from, rather than dropping what was accepted.
       if (groupChannelJournal && !groupChannelJournal.trusted) {
         await refreshSettingsNow();
+        // Single-flight may have joined a refresh that began before the gap
+        // and ended untrusted; one more, started now, sees the post-gap ship.
+        if (!groupChannelJournal.trusted) {
+          await refreshSettingsNow();
+        }
       }
       await groupChannelJournal?.close();
       clearShadowsForAccount(account.accountId);

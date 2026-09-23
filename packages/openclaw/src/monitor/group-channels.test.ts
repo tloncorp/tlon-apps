@@ -328,18 +328,23 @@ describe('createGroupChannelJournal.observe', () => {
     });
   });
 
-  it('changes nothing on a deep-equal observation and keeps unconfirmed nests', async () => {
-    const { journal, values } = makeJournal({ initial: ['chat/~zod/a'] });
+  it('changes nothing on a re-presented or same-valued observation and keeps unconfirmed nests', async () => {
+    const initial = ['chat/~zod/a'];
+    const { journal, values } = makeJournal({ initial });
     await journal.persist(['chat/~zod/b']);
     expect(values()).toEqual([['chat/~zod/a', 'chat/~zod/b']]);
 
-    // An unrelated settings fact carries the same array; `b` has not echoed
-    // yet and must survive the no-op.
+    // An unrelated settings fact carries the same array reference: not an
+    // observation at all. `b` has not echoed yet and must survive it.
+    expect(journal.observe(initial)).toEqual({ added: [], removed: [] });
+    expect(journal.observationSeq).toBe(0);
+    // A same-valued key fact is an observation (it supersedes an in-flight
+    // scry) but reconciles nothing, and `b` still survives it.
     expect(journal.observe(['chat/~zod/a'])).toEqual({
       added: [],
       removed: [],
     });
-    expect(journal.observationSeq).toBe(0);
+    expect(journal.observationSeq).toBe(1);
 
     await journal.persist(['chat/~zod/c']);
     expect(values().at(-1)).toEqual([
@@ -380,18 +385,37 @@ describe('createGroupChannelJournal.observe', () => {
     expect(values().at(-1)).toEqual(['chat/~zod/b']);
   });
 
-  it('counts observations only when the value changed', () => {
-    const { journal } = makeJournal({ initial: ['chat/~zod/a'] });
+  it('counts every key fact as an observation, but not a re-presented array', () => {
+    const initial = ['chat/~zod/a'];
+    const { journal } = makeJournal({ initial });
 
     expect(journal.observationSeq).toBe(0);
-    journal.observe(['chat/~zod/a']);
+    // An unrelated fact carries the same array reference: not a key fact.
+    journal.observe(initial);
     expect(journal.observationSeq).toBe(0);
-    journal.observe(['chat/~zod/a', 'chat/~zod/b']);
+    // A key fact with an unchanged value is still an observation: it must
+    // supersede a scry in flight, e.g. an operator restoring the last-seen
+    // value while a stale scry is out.
+    expect(journal.observe(['chat/~zod/a'])).toEqual({
+      added: [],
+      removed: [],
+    });
     expect(journal.observationSeq).toBe(1);
     journal.observe(['chat/~zod/a', 'chat/~zod/b']);
-    expect(journal.observationSeq).toBe(1);
-    journal.observe(undefined);
     expect(journal.observationSeq).toBe(2);
+    journal.observe(undefined);
+    expect(journal.observationSeq).toBe(3);
+  });
+
+  it('trusts the snapshot after a same-valued key fact', async () => {
+    const { journal, values } = makeJournal({
+      initial: ['chat/~zod/a'],
+      trusted: false,
+    });
+    journal.observe(['chat/~zod/a']);
+    expect(journal.trusted).toBe(true);
+    await journal.persist(['chat/~zod/b']);
+    expect(values()).toEqual([['chat/~zod/a', 'chat/~zod/b']]);
   });
 
   it('trusts the snapshot after a changed observation', async () => {
@@ -957,7 +981,7 @@ describe('wiring', () => {
     expect(untrust).toBeLessThan(next);
   });
 
-  it('reconciles an untrusted journal before closing it in teardown', () => {
+  it('reconciles an untrusted journal before closing it in teardown, twice if the first refresh was joined', () => {
     const closeJournal = monitorSource.indexOf('groupChannelJournal?.close()');
     const guard = monitorSource.lastIndexOf(
       'if (groupChannelJournal && !groupChannelJournal.trusted) {',
@@ -967,6 +991,19 @@ describe('wiring', () => {
     const refresh = monitorSource.indexOf('await refreshSettingsNow();', guard);
     expect(refresh).toBeGreaterThan(guard);
     expect(refresh).toBeLessThan(closeJournal);
+    // Single-flight can join a refresh that began before the gap and ends
+    // untrusted; a second, freshly started one sees the post-gap ship.
+    const recheck = monitorSource.indexOf(
+      'if (!groupChannelJournal.trusted) {',
+      refresh
+    );
+    const secondRefresh = monitorSource.indexOf(
+      'await refreshSettingsNow();',
+      recheck
+    );
+    expect(recheck).toBeGreaterThan(refresh);
+    expect(secondRefresh).toBeGreaterThan(recheck);
+    expect(secondRefresh).toBeLessThan(closeJournal);
   });
 
   it('runs refreshes single-flight', () => {

@@ -260,16 +260,23 @@ export function createGroupChannelJournal(
   const observe = (
     list: readonly string[] | undefined
   ): { added: string[]; removed: string[] } => {
-    // An unrelated fact carries the same array, and a byte-identical refresh
-    // never reaches here; either way there is nothing to reconcile.
-    if (sameList(list, lastSeen)) {
+    // Same reference: an unrelated fact re-presenting the value already
+    // observed; not a key fact, nothing to reconcile or count.
+    if (list === lastSeen) {
       return { added: [], removed: [] };
     }
+    // A key fact always arrives as a new array (the manager parses it
+    // afresh), so it is an observation even when the value is unchanged: it
+    // must supersede a scry in flight (an operator restoring the last-seen
+    // value while a stale scry is out), and it makes the snapshot
+    // trustworthy. Only the watch reconciliation is skipped.
+    const changed = !sameList(list, lastSeen);
     lastSeen = list;
     observationSeq += 1;
-    // An echo carries the key's full value and a fresh load is truth by
-    // construction, so either makes the snapshot trustworthy.
     trusted = true;
+    if (!changed) {
+      return { added: [], removed: [] };
+    }
     // undefined = a del-entry or a non-list value; hermes writes empty.
     const next = new Set(list ?? []);
     // An echo can land before the HTTP response: confirm in-flight nests too.
