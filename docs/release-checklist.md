@@ -62,6 +62,9 @@ receive updates, and post against desk release N-1.
       application version is what lets the minimum bite at all: `useRequiredUpdate`
       compares the marketing version (`nativeApplicationVersion`), not the
       build number, so a minimum cannot separate two builds that share one.
+      The ordering is best-effort, not a guarantee: `useRequiredUpdate` fails
+      open, so an app that cannot reach the invite service keeps running against
+      the removed endpoint until it can.
 
 ## Tagging and deploying
 
