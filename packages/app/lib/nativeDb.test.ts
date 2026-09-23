@@ -1,7 +1,9 @@
 import { Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  DbInitAbandonedError,
   NativeDb,
+  abandonDbInit as abandonSingletonDbInit,
   ensureDbReady as ensureSingletonDbReady,
   getDbPath as getSingletonDbPath,
   purgeDb as purgeSingletonDb,
@@ -145,12 +147,15 @@ type NativeDbInternals = {
   connection: MockConnection | null;
   didMigrate: boolean;
   processChanges: () => Promise<void>;
-  runMigrationsInternal: () => Promise<void>;
-  verifyRequiredTables: (opts?: {
-    attemptId?: string;
-    elapsedMs?: () => number;
-    migrationPhase?: 'initial' | 'retry';
-  }) => Promise<void>;
+  runMigrationsInternal: (generation: number) => Promise<void>;
+  verifyRequiredTables: (
+    generation: number,
+    opts?: {
+      attemptId?: string;
+      elapsedMs?: () => number;
+      migrationPhase?: 'initial' | 'retry';
+    }
+  ) => Promise<void>;
 };
 
 function internals(db: NativeDb): NativeDbInternals {
@@ -470,7 +475,7 @@ describe('NativeDb', () => {
 
   it('verifyRequiredTables throws when called without a connection', async () => {
     const db = new NativeDb();
-    await expect(internals(db).verifyRequiredTables()).rejects.toThrow(
+    await expect(internals(db).verifyRequiredTables(0)).rejects.toThrow(
       'runMigrations: schema check attempted without connection'
     );
   });
@@ -629,5 +634,378 @@ describe('NativeDb initial migrate reporting', () => {
       errorMessage: BASELINE_COLLISION_MESSAGE,
       severity: 'Critical',
     });
+  });
+});
+
+describe('NativeDb abandoned initialization', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sqliteRuntime.reset();
+  });
+
+  it('is a no-op when there is no initialization in flight', async () => {
+    const db = new NativeDb();
+
+    expect(db.abandonDbInit()).toBe('nothing-in-flight');
+
+    await db.ensureDbReady();
+
+    expect(db.abandonDbInit()).toBe('nothing-in-flight');
+  });
+
+  it('lets the next ensureDbReady start fresh instead of awaiting the hung one', async () => {
+    let releaseMigration: (() => void) | undefined;
+    const hungMigration = new Promise<void>((resolve) => {
+      releaseMigration = resolve;
+    });
+
+    const connection = sqliteRuntime.makeConnection({
+      migrateClient: vi
+        .fn()
+        .mockImplementationOnce(() => hungMigration)
+        .mockResolvedValue(undefined),
+    });
+    sqliteRuntime.enqueueConnection(connection);
+    const db = new NativeDb();
+
+    const abandoned = db.ensureDbReady();
+    await vi.waitFor(() =>
+      expect(connection.migrateClient).toHaveBeenCalledTimes(1)
+    );
+
+    expect(db.abandonDbInit()).toBe('abandoned');
+
+    await db.ensureDbReady();
+
+    expect(connection.migrateClient).toHaveBeenCalledTimes(2);
+    expect(internals(db).didMigrate).toBe(true);
+    // The replacement reuses the published connection rather than opening a
+    // second one against the same file.
+    expect(sqliteRuntime.constructor).toHaveBeenCalledTimes(1);
+
+    releaseMigration?.();
+    await expect(abandoned).rejects.toBeInstanceOf(DbInitAbandonedError);
+  });
+
+  it('refuses to abandon while setup owns an unpublished connection', async () => {
+    let releasePragma: (() => void) | undefined;
+    const hungPragma = new Promise<void>((resolve) => {
+      releasePragma = resolve;
+    });
+
+    const connection = sqliteRuntime.makeConnection({
+      execute: vi
+        .fn()
+        .mockImplementationOnce(() => hungPragma)
+        .mockResolvedValue(undefined),
+    });
+    sqliteRuntime.enqueueConnection(connection);
+    const db = new NativeDb();
+
+    const pending = db.ensureDbReady();
+    await vi.waitFor(() => expect(connection.execute).toHaveBeenCalledTimes(1));
+
+    // The handle lives only in the setup call's local here, so there is nothing
+    // for a replacement to adopt and nothing safe to close -- this call still
+    // has statements out on it. Detaching would leave the replacement to open a
+    // second native connection on the same file.
+    expect(db.abandonDbInit()).toBe('setup-owns-connection');
+
+    // So the retry joins the initialization that is still attached, rather
+    // than opening a second native connection on the same file.
+    const retried = db.ensureDbReady();
+    sqliteRuntime.enqueueConnection(sqliteRuntime.makeConnection());
+
+    releasePragma?.();
+    await Promise.all([pending, retried]);
+
+    expect(sqliteRuntime.constructor).toHaveBeenCalledTimes(1);
+    expect(internals(db).connection).toBe(connection);
+    expect(internals(db).didMigrate).toBe(true);
+  });
+
+  it('does not purge the database the replacement is already using', async () => {
+    let failMigration: ((error: Error) => void) | undefined;
+    const hungMigration = new Promise<void>((_resolve, reject) => {
+      failMigration = reject;
+    });
+
+    const connection = sqliteRuntime.makeConnection({
+      migrateClient: vi
+        .fn()
+        .mockImplementationOnce(() => hungMigration)
+        .mockResolvedValue(undefined),
+    });
+    sqliteRuntime.enqueueConnection(connection);
+    const db = new NativeDb();
+
+    const abandoned = db.ensureDbReady();
+    await vi.waitFor(() =>
+      expect(connection.migrateClient).toHaveBeenCalledTimes(1)
+    );
+
+    db.abandonDbInit();
+    await db.ensureDbReady();
+    expect(internals(db).didMigrate).toBe(true);
+
+    failMigration?.(new Error('late migrate failure'));
+    await expect(abandoned).rejects.toBeInstanceOf(DbInitAbandonedError);
+
+    // Without the generation check this failure falls through to purgeDb,
+    // which closes the connection and deletes the file the replacement just
+    // migrated.
+    expect(connection.close).not.toHaveBeenCalled();
+    expect(connection.delete).not.toHaveBeenCalled();
+    expect(
+      findPayload(
+        (payload) =>
+          payload.context ===
+          'runMigrations: initial migrate failed. Purging and retrying'
+      )
+    ).toBeUndefined();
+  });
+
+  it('does not declare the replacement ready when abandoned after the migrate', async () => {
+    let releaseProbes: (() => void) | undefined;
+    const probeGate = new Promise<void>((resolve) => {
+      releaseProbes = resolve;
+    });
+
+    const connection = sqliteRuntime.makeConnection({
+      execute: vi.fn((query: string) =>
+        query.startsWith('SELECT 1 FROM') ? probeGate : Promise.resolve()
+      ),
+    });
+    sqliteRuntime.enqueueConnection(connection);
+    const db = new NativeDb();
+
+    const abandoned = db.ensureDbReady();
+    await vi.waitFor(() =>
+      expect(
+        connection.execute.mock.calls.some(([query]: [string]) =>
+          query.startsWith('SELECT 1 FROM')
+        )
+      ).toBe(true)
+    );
+
+    // The deadline lands after the migrate's own generation check has already
+    // passed, while the schema probes are still in flight.
+    expect(db.abandonDbInit()).toBe('abandoned');
+
+    releaseProbes?.();
+    await expect(abandoned).rejects.toBeInstanceOf(DbInitAbandonedError);
+
+    expect(internals(db).didMigrate).toBe(false);
+    expect(connection.execute).not.toHaveBeenCalledWith(TRIGGER_SETUP);
+    expect(
+      findPayload(
+        (payload) =>
+          payload.context ===
+          'runMigrations: initial migrate failed. Purging and retrying'
+      )
+    ).toBeUndefined();
+  });
+
+  it('does not page when the retry attempt is abandoned mid-migrate', async () => {
+    let releaseRetryMigration: (() => void) | undefined;
+    const retryMigration = new Promise<void>((resolve) => {
+      releaseRetryMigration = resolve;
+    });
+
+    const firstConnection = sqliteRuntime.makeConnection({
+      migrateClient: vi
+        .fn()
+        .mockRejectedValue(new Error('initial migrate failed')),
+    });
+    const retryConnection = sqliteRuntime.makeConnection({
+      migrateClient: vi.fn(() => retryMigration),
+    });
+    sqliteRuntime.enqueueConnection(firstConnection);
+    sqliteRuntime.enqueueConnection(retryConnection);
+    const db = new NativeDb();
+
+    const abandoned = db.ensureDbReady();
+    await vi.waitFor(() =>
+      expect(retryConnection.migrateClient).toHaveBeenCalledTimes(1)
+    );
+
+    expect(db.abandonDbInit()).toBe('abandoned');
+
+    releaseRetryMigration?.();
+    await expect(abandoned).rejects.toBeInstanceOf(DbInitAbandonedError);
+
+    expect(internals(db).didMigrate).toBe(false);
+    // Abandonment is intended control flow, so it must not look like a
+    // production migration failure.
+    expect(
+      findEvent(
+        (event, payload) =>
+          event === 'ErrorNativeDb' &&
+          payload.context === 'runMigrations: retry migrate failed'
+      )
+    ).toBeUndefined();
+  });
+
+  it('resets the sync cursors before emptying the database', async () => {
+    const firstConnection = sqliteRuntime.makeConnection({
+      migrateClient: vi
+        .fn()
+        .mockRejectedValue(new Error('initial migrate failed')),
+    });
+    sqliteRuntime.enqueueConnection(firstConnection);
+    sqliteRuntime.enqueueConnection(sqliteRuntime.makeConnection());
+    const db = new NativeDb();
+
+    await db.runMigrations();
+
+    // The reset is the purge's only await, so it is the only point an
+    // abandoning deadline can land mid-purge. Doing it first means that window
+    // is an intact database with reset cursors, not an empty database the
+    // replacement reads with pre-purge cursors.
+    const lastReset =
+      sharedDbSpies.resetUserHasCompletedFirstSync.mock.invocationCallOrder[0];
+    expect(lastReset).toBeLessThan(
+      firstConnection.delete.mock.invocationCallOrder[0]
+    );
+    expect(lastReset).toBeLessThan(
+      firstConnection.close.mock.invocationCallOrder[0]
+    );
+  });
+
+  it('does not page for a schema probe that failed because of abandonment', async () => {
+    let failProbes: ((error: Error) => void) | undefined;
+    const probeGate = new Promise<void>((_resolve, reject) => {
+      failProbes = reject;
+    });
+
+    const connection = sqliteRuntime.makeConnection({
+      execute: vi.fn((query: string) =>
+        query.startsWith('SELECT 1 FROM') ? probeGate : Promise.resolve()
+      ),
+    });
+    sqliteRuntime.enqueueConnection(connection);
+    const db = new NativeDb();
+
+    const abandoned = db.ensureDbReady();
+    await vi.waitFor(() =>
+      expect(
+        connection.execute.mock.calls.some(([query]: [string]) =>
+          query.startsWith('SELECT 1 FROM')
+        )
+      ).toBe(true)
+    );
+
+    expect(db.abandonDbInit()).toBe('abandoned');
+    failProbes?.(new Error('database connection closed'));
+
+    await expect(abandoned).rejects.toBeInstanceOf(DbInitAbandonedError);
+
+    // Every probe reports as missing here, but the tables aren't missing --
+    // the replacement took the connection away.
+    expect(
+      findEvent(
+        (event, payload) =>
+          event === 'ErrorNativeDb' &&
+          payload.context === 'runMigrations: schema health check failed'
+      )
+    ).toBeUndefined();
+  });
+
+  it('does not page when an abandoned attempt unwinds through its purge', async () => {
+    let releaseReset: (() => void) | undefined;
+    const resetGate = new Promise<undefined>((resolve) => {
+      releaseReset = () => resolve(undefined);
+    });
+
+    const connection = sqliteRuntime.makeConnection({
+      migrateClient: vi
+        .fn()
+        .mockRejectedValueOnce(new Error('initial migrate failed'))
+        .mockResolvedValue(undefined),
+    });
+    sqliteRuntime.enqueueConnection(connection);
+    sharedDbSpies.resetHeadsSyncedAt.mockImplementationOnce(() => resetGate);
+    const db = new NativeDb();
+
+    const abandoned = db.ensureDbReady();
+    await vi.waitFor(() =>
+      expect(sharedDbSpies.resetHeadsSyncedAt).toHaveBeenCalledTimes(1)
+    );
+
+    expect(db.abandonDbInit()).toBe('abandoned');
+
+    releaseReset?.();
+    await expect(abandoned).rejects.toBeInstanceOf(DbInitAbandonedError);
+
+    // The purge stopping on its own generation check is intended control flow,
+    // so neither its own catch nor the caller's may report it.
+    expect(
+      findEvent(
+        (event, payload) =>
+          event === 'ErrorNativeDb' &&
+          payload.context === 'purgeDb: error purging db'
+      )
+    ).toBeUndefined();
+    expect(
+      findEvent(
+        (event, payload) =>
+          event === 'ErrorNativeDb' &&
+          payload.context === 'runMigrations: retry purge failed'
+      )
+    ).toBeUndefined();
+  });
+
+  it('does not delete a database the replacement has already adopted', async () => {
+    let releaseReset: (() => void) | undefined;
+    // Matches the spy's own `Promise<undefined>` return type.
+    const resetGate = new Promise<undefined>((resolve) => {
+      releaseReset = () => resolve(undefined);
+    });
+
+    const connection = sqliteRuntime.makeConnection({
+      migrateClient: vi
+        .fn()
+        .mockRejectedValueOnce(new Error('initial migrate failed'))
+        .mockResolvedValue(undefined),
+    });
+    sqliteRuntime.enqueueConnection(connection);
+    sharedDbSpies.resetHeadsSyncedAt.mockImplementationOnce(() => resetGate);
+    const db = new NativeDb();
+
+    const abandoned = db.ensureDbReady();
+    await vi.waitFor(() =>
+      expect(sharedDbSpies.resetHeadsSyncedAt).toHaveBeenCalledTimes(1)
+    );
+
+    expect(db.abandonDbInit()).toBe('abandoned');
+
+    // The purge hasn't reached its close yet, so the connection is still
+    // published and the replacement adopts it rather than opening its own.
+    await db.ensureDbReady();
+    expect(internals(db).didMigrate).toBe(true);
+    expect(sqliteRuntime.constructor).toHaveBeenCalledTimes(1);
+
+    releaseReset?.();
+    await expect(abandoned).rejects.toBeInstanceOf(DbInitAbandonedError);
+
+    // The abandoned purge resuming here would close and delete the database
+    // the replacement just migrated and is now serving the app from.
+    expect(connection.close).not.toHaveBeenCalled();
+    expect(connection.delete).not.toHaveBeenCalled();
+    expect(internals(db).connection).toBe(connection);
+    expect(internals(db).didMigrate).toBe(true);
+  });
+
+  it('exposes abandonDbInit on the singleton', () => {
+    const abandonSpy = vi
+      .spyOn(NativeDb.prototype, 'abandonDbInit')
+      .mockReturnValue('abandoned');
+
+    try {
+      expect(abandonSingletonDbInit()).toBe('abandoned');
+      expect(abandonSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      abandonSpy.mockRestore();
+    }
   });
 });

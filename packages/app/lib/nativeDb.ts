@@ -26,6 +26,53 @@ type NativeDbOptions = {
   resetSyncStateOnPurge?: boolean;
 };
 
+/**
+ * Closing a connection we are already unwinding from is best-effort: the
+ * failure that got us here is the one worth reporting.
+ */
+function closeQuietly(connection: SQLiteConnection | null) {
+  if (!connection) {
+    return;
+  }
+  try {
+    connection.close();
+  } catch (e) {
+    logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+      context: 'closeQuietly: failed to close discarded connection',
+      errorMessage: e.message,
+    });
+  }
+}
+
+/**
+ * What `abandonDbInit` was able to do.
+ *
+ * - `abandoned`: the in-flight initialization was detached; the next
+ *   `ensureDbReady` starts fresh.
+ * - `nothing-in-flight`: there was nothing to detach, so the deadline raced a
+ *   settled attempt rather than finding a hang.
+ * - `setup-owns-connection`: a native handle is open but unpublished, so
+ *   detaching would leave the replacement to open a second one on the same
+ *   file. Nothing was detached and only restarting the app can recover.
+ */
+export type AbandonDbInitOutcome =
+  | 'abandoned'
+  | 'nothing-in-flight'
+  | 'setup-owns-connection';
+
+/**
+ * Thrown by the remains of an initialization that `abandonDbInit` detached. It
+ * is not a database failure -- a replacement initialization owns the state now
+ * -- so it exists to stop the abandoned attempt rather than to be recovered
+ * from.
+ */
+export class DbInitAbandonedError extends Error {
+  constructor(context: string) {
+    super(`${context}: database initialization was abandoned and replaced`);
+    this.name = 'DbInitAbandonedError';
+  }
+}
+
 export class NativeDb extends BaseDb {
   private connection: SQLiteConnection | null = null;
   private isProcessingChanges: boolean = false;
@@ -33,6 +80,10 @@ export class NativeDb extends BaseDb {
   private didMigrate: boolean = false;
   private setupPromise: Promise<void> | null = null;
   private readyPromise: Promise<void> | null = null;
+  // Bumped by `abandonDbInit`. An attempt captures this when it starts and
+  // stops writing shared state once it no longer matches, so an attempt that
+  // was given up on can't clobber the one that replaced it if it settles late.
+  private generation: number = 0;
   private readonly databaseName: string;
   private readonly resetSyncStateOnPurge: boolean;
 
@@ -64,7 +115,11 @@ export class NativeDb extends BaseDb {
       return;
     }
 
-    this.setupPromise = (async () => {
+    const setupPromise = (async () => {
+      // Held locally until it is ready to publish, so a setup that fails part
+      // way closes the handle it opened instead of leaving it on the instance
+      // with no client.
+      let connection: SQLiteConnection | null = null;
       try {
         if (this.connection && !this.client) {
           logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
@@ -75,20 +130,21 @@ export class NativeDb extends BaseDb {
           this.connection = null;
         }
 
-        this.connection = new OPSQLite$SQLiteConnection(
+        connection = new OPSQLite$SQLiteConnection(
           // NB: the iOS code in SQLiteDB.swift relies on this path - if you change
           // this, you should change that too.
           open({ location: 'default', name: this.databaseName })
         );
         // Experimental SQLite settings. May cause crashes. More here:
         // https://ospfranco.notion.site/Configuration-6b8b9564afcc4ac6b6b377fe34475090
-        await this.connection.execute('PRAGMA mmap_size=268435456');
-        await this.connection.execute('PRAGMA journal_mode=DELETE');
-        await this.connection.execute('PRAGMA synchronous=OFF');
+        await connection.execute('PRAGMA mmap_size=268435456');
+        await connection.execute('PRAGMA journal_mode=DELETE');
+        await connection.execute('PRAGMA synchronous=OFF');
 
-        this.connection.updateHook(() => this.handleUpdate());
+        connection.updateHook(() => this.handleUpdate());
 
-        this.client = this.connection.createClient({
+        this.connection = connection;
+        this.client = connection.createClient({
           schema,
           logger: enableLogger
             ? {
@@ -99,8 +155,13 @@ export class NativeDb extends BaseDb {
             : undefined,
         });
         setClient(this.client);
-        logger.log('SQLite database opened at', this.connection.getDbPath());
+        logger.log('SQLite database opened at', connection.getDbPath());
       } catch (e) {
+        // Only ours to close while it is still unpublished; once it is on
+        // `this.connection` the stale-connection reset above owns it.
+        if (connection !== this.connection) {
+          closeQuietly(connection);
+        }
         logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
           context: 'setupDb: error setting up db',
           error: e,
@@ -110,9 +171,10 @@ export class NativeDb extends BaseDb {
         throw e;
       }
     })();
+    this.setupPromise = setupPromise;
 
     try {
-      await this.setupPromise;
+      await setupPromise;
     } finally {
       this.setupPromise = null;
     }
@@ -132,7 +194,10 @@ export class NativeDb extends BaseDb {
     }
   }
 
-  async purgeDb() {
+  // `generation` defaults to the current one for the public callers (the dev
+  // menu, `resetDb`), which have no attempt of their own; `runMigrationsInternal`
+  // passes its own so an abandoned attempt can't finish this purge.
+  async purgeDb(generation: number = this.generation) {
     logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
       context: 'purgeDb: purging db',
     });
@@ -144,6 +209,25 @@ export class NativeDb extends BaseDb {
       return;
     }
     try {
+      // Before the delete, not after: these cursors live in AsyncStorage, so
+      // emptying the database doesn't touch them. Reset last, a purge that
+      // stopped here left an empty database with pre-purge cursors, and the
+      // next session skipped the historical and initial-post sync and came up
+      // silently missing data.
+      if (this.resetSyncStateOnPurge) {
+        await resetDbSyncState();
+      }
+
+      // That reset is the only await before anything destructive, so this is
+      // the last point at which stopping is still free -- and the only one an
+      // abandoning deadline can reach before the close below. By now a
+      // replacement may have adopted this very connection (`setupDb`
+      // short-circuits while it is still published) and migrated it, so
+      // closing and deleting would take the database out from under a running
+      // app. Stopping here leaves an intact database with reset cursors, which
+      // over-syncs rather than under-syncing.
+      this.throwIfAbandoned(generation, 'purgeDb');
+
       this.connection.close();
       this.connection.delete();
       this.connection = null;
@@ -154,11 +238,6 @@ export class NativeDb extends BaseDb {
         context: 'purgeDb: closed the connection, cleared the client',
       });
 
-      if (this.resetSyncStateOnPurge) {
-        // reset values related to tracking db sync state
-        await resetDbSyncState();
-      }
-
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
         context: 'purgeDb: completed purge, recreating',
       });
@@ -167,6 +246,11 @@ export class NativeDb extends BaseDb {
         context: 'purgeDb: post-purge setup complete',
       });
     } catch (e) {
+      // `purgeDb` is public and has no generation of its own, so it recognises
+      // an abandoned initialization unwinding through it by the error type.
+      if (e instanceof DbInitAbandonedError) {
+        throw e;
+      }
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         context: 'purgeDb: error purging db',
         error: e,
@@ -206,18 +290,77 @@ export class NativeDb extends BaseDb {
       return;
     }
 
-    this.readyPromise = (async () => {
+    const generation = this.generation;
+
+    const readyPromise = (async () => {
       await this.setupDb();
+      this.throwIfAbandoned(generation, 'ensureDbReady');
       if (!this.didMigrate) {
-        await this.runMigrationsInternal();
+        await this.runMigrationsInternal(generation);
       }
     })();
+    this.readyPromise = readyPromise;
 
     try {
-      await this.readyPromise;
+      await readyPromise;
     } finally {
-      this.readyPromise = null;
+      // A newer generation owns `readyPromise` now; clearing it here would
+      // strand the initialization that replaced this one.
+      if (generation === this.generation) {
+        this.readyPromise = null;
+      }
     }
+  }
+
+  /**
+   * Detach the in-flight initialization so the next `ensureDbReady` starts a
+   * fresh one rather than awaiting work that may never settle.
+   *
+   * The abandoned attempt keeps running -- nothing here can cancel native work
+   * -- but the generation bump makes every shared-state write it has left
+   * inert, so it can't publish a connection over its replacement or, worse,
+   * reach its purge and delete the database file out from under one.
+   *
+   * Setup is the exception and is never abandoned: while `setupPromise` is in
+   * flight the native handle exists only in that call's local, so there is
+   * nothing for a replacement to adopt and nothing safe to close -- the
+   * abandoned call still has statements out on it. Detaching would leave the
+   * replacement to `open()` a second connection on the same file, which is the
+   * race this whole design exists to avoid, so the caller is told to ask for a
+   * restart instead. That is also what keeps the generation stable for the
+   * lifetime of a setup, which is why `setupDb` needs no generation checks.
+   */
+  abandonDbInit(): AbandonDbInitOutcome {
+    if (this.setupPromise) {
+      logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+        context:
+          'abandonDbInit: setup owns an unpublished connection, not detaching',
+        severity: AnalyticsSeverity.Low,
+      });
+      return 'setup-owns-connection';
+    }
+
+    if (!this.readyPromise) {
+      return 'nothing-in-flight';
+    }
+
+    this.generation += 1;
+    this.readyPromise = null;
+
+    logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+      context: 'abandonDbInit: detached in-flight db initialization',
+      generation: this.generation,
+      severity: AnalyticsSeverity.Low,
+    });
+
+    return 'abandoned';
+  }
+
+  private throwIfAbandoned(generation: number, context: string) {
+    if (generation === this.generation) {
+      return;
+    }
+    throw new DbInitAbandonedError(context);
   }
 
   async runMigrations() {
@@ -229,11 +372,14 @@ export class NativeDb extends BaseDb {
     }
   }
 
-  private async verifyRequiredTables(opts?: {
-    attemptId?: string;
-    elapsedMs?: () => number;
-    migrationPhase?: 'initial' | 'retry';
-  }) {
+  private async verifyRequiredTables(
+    generation: number,
+    opts?: {
+      attemptId?: string;
+      elapsedMs?: () => number;
+      migrationPhase?: 'initial' | 'retry';
+    }
+  ) {
     if (!this.connection) {
       throw new Error(
         'runMigrations: schema check attempted without connection'
@@ -251,6 +397,11 @@ export class NativeDb extends BaseDb {
     }
 
     if (missingTables.length > 0) {
+      // A probe can fail because the replacement closed or deleted this
+      // connection out from under us. That is abandonment, not a broken schema,
+      // and it must not page.
+      this.throwIfAbandoned(generation, 'runMigrations');
+
       const error = new Error(
         `runMigrations: schema health check failed. Missing required tables: ${missingTables.join(
           ', '
@@ -277,7 +428,7 @@ export class NativeDb extends BaseDb {
     });
   }
 
-  private async runMigrationsInternal() {
+  private async runMigrationsInternal(generation: number) {
     if (this.didMigrate) {
       return;
     }
@@ -332,12 +483,23 @@ export class NativeDb extends BaseDb {
         ),
       ]);
 
-      await this.verifyRequiredTables({
+      // Rechecked after every await from here on, not just once: the deadline
+      // can land in any of these gaps, and past this point `this.connection`
+      // may already be the replacement's. Declaring `didMigrate` on its behalf
+      // is the damaging one -- the replacement skips migrations entirely and
+      // the app runs on an unmigrated database.
+      this.throwIfAbandoned(generation, 'runMigrations');
+
+      await this.verifyRequiredTables(generation, {
         attemptId,
         elapsedMs: getElapsedMs,
         migrationPhase,
       });
+      this.throwIfAbandoned(generation, 'runMigrations');
+
       await this.connection.execute(TRIGGER_SETUP);
+      this.throwIfAbandoned(generation, 'runMigrations');
+
       this.didMigrate = true;
     };
 
@@ -352,6 +514,11 @@ export class NativeDb extends BaseDb {
       });
       return;
     } catch (e) {
+      // A replacement initialization owns the database now. Falling through
+      // would purge and delete the file out from under it, so stop here -- and
+      // don't report an abandoned attempt as a migration failure.
+      this.throwIfAbandoned(generation, 'runMigrations');
+
       // The initial attempt failing is recovered by design: the repo keeps a
       // single regenerated baseline migration, so on every existing install
       // drizzle replays it against a populated DB and collides, and purging and
@@ -382,13 +549,15 @@ export class NativeDb extends BaseDb {
         attemptId,
         elapsedMs: getElapsedMs(),
       });
-      await this.purgeDb();
+      await this.purgeDb(generation);
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
         context: 'runMigrations: retry purge success',
         attemptId,
         elapsedMs: getElapsedMs(),
       });
     } catch (e) {
+      this.throwIfAbandoned(generation, 'runMigrations');
+
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         context: 'runMigrations: retry purge failed',
         error: e,
@@ -399,6 +568,8 @@ export class NativeDb extends BaseDb {
       });
       throw e;
     }
+
+    this.throwIfAbandoned(generation, 'runMigrations');
 
     if (!this.client || !this.connection) {
       throw new Error(
@@ -423,6 +594,11 @@ export class NativeDb extends BaseDb {
         migrationPhase: 'retry',
       });
     } catch (e) {
+      // Same as the initial catch: a late settlement after the user pressed
+      // retry is the intended control flow, not a production migration failure
+      // worth paging on.
+      this.throwIfAbandoned(generation, 'runMigrations');
+
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         context: 'runMigrations: retry migrate failed',
         error: e,
@@ -441,6 +617,7 @@ export class NativeDb extends BaseDb {
 const nativeDb = new NativeDb();
 export const setupDb = () => nativeDb.setupDb();
 export const ensureDbReady = () => nativeDb.ensureDbReady();
+export const abandonDbInit = () => nativeDb.abandonDbInit();
 export const purgeDb = () => nativeDb.purgeDb();
 export const getDbPath = () => nativeDb.getDbPath();
 export const exportDb = (destinationPath: string) =>
