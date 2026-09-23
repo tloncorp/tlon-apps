@@ -20,10 +20,6 @@ export function useHandleLogout({ resetDb }: { resetDb: () => void }) {
   const clearTelemetry = useClearTelemetryConfig();
 
   const handleLogout = useCallback(async () => {
-    queryClient.clear();
-    store.removeClient();
-    clearShip();
-    clearLure();
     // A target held while the desk notice was up must not be consumed by the
     // next login (TLON-6531).
     try {
@@ -34,6 +30,10 @@ export function useHandleLogout({ resetDb }: { resetDb: () => void }) {
         error,
       });
     }
+    queryClient.clear();
+    store.removeClient();
+    clearShip();
+    clearLure();
     clearDeepLink();
     trackEvent(AnalyticsEvent.LogoutCompleted);
     clearTelemetry();
