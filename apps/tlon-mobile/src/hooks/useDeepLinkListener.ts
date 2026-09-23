@@ -22,9 +22,13 @@ export const useDeepLinkListener = () => {
     isLoading: agentOnboardingLockLoading,
     runWhenUnlocked,
   } = useAgentGroupOnboardingNavGate();
+  // Hold the lure until the desk verdict is ok, as useNotificationListener
+  // does for notification taps (TLON-6531).
+  const deskOk = store.useDeskCompatibility()?.status === 'ok';
 
   useEffect(() => {
     if (
+      deskOk &&
       ship &&
       lure &&
       !agentOnboardingLocked &&
@@ -96,6 +100,7 @@ export const useDeepLinkListener = () => {
       })();
     }
   }, [
+    deskOk,
     agentOnboardingLocked,
     agentOnboardingLockLoading,
     runWhenUnlocked,
