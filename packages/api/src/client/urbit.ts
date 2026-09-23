@@ -1191,7 +1191,14 @@ export async function scry<T>({
       logger.log('scry failed with 403, authing to try again');
       await reauthOnce(sent);
       const { result, responseSizeInBytes, responseStatus } =
-        await activeClient.scryWithInfo<T>({ app, path });
+        await activeClient.scryWithInfo<T>({
+          app,
+          path,
+          // Same bound as the first attempt: an un-timed retry has nothing to
+          // abort it, so a hung one never settles and holds its caller — and,
+          // for queued work, its sync queue thread — forever.
+          timeout: timeout ?? DEFAULT_SCRY_TIMEOUT,
+        });
       trackDuration('success', { responseSizeInBytes, responseStatus });
       return result;
     }
@@ -1321,7 +1328,12 @@ export async function scryNoun({
       logger.log('scry failed with 403, authing to try again');
       await reauthOnce(sent);
       const { result, responseSizeInBytes, responseStatus } =
-        await session.client.scryNounWithInfo({ app, path });
+        // Bounded like the first attempt, for the reason given on scry above.
+        await session.client.scryNounWithInfo({
+          app,
+          path,
+          timeout: timeout ?? DEFAULT_SCRY_TIMEOUT,
+        });
       trackDuration('success', { responseSizeInBytes, responseStatus });
       return result;
     }
