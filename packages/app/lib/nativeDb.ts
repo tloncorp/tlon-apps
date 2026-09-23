@@ -156,6 +156,7 @@ export class NativeDb extends BaseDb {
         if (connection !== this.connection) {
           closeQuietly(connection);
         }
+        this.throwIfAbandoned(generation, 'setupDb');
         logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
           context: 'setupDb: error setting up db',
           error: e,
@@ -436,7 +437,11 @@ export class NativeDb extends BaseDb {
         ),
       ]);
 
-      // Everything past here mutates state a replacement initialization owns.
+      // Rechecked after every await from here on, not just once: the deadline
+      // can land in any of these gaps, and past this point `this.connection`
+      // may already be the replacement's. Declaring `didMigrate` on its behalf
+      // is the damaging one -- the replacement skips migrations entirely and
+      // the app runs on an unmigrated database.
       this.throwIfAbandoned(generation, 'runMigrations');
 
       await this.verifyRequiredTables({
@@ -444,7 +449,11 @@ export class NativeDb extends BaseDb {
         elapsedMs: getElapsedMs,
         migrationPhase,
       });
+      this.throwIfAbandoned(generation, 'runMigrations');
+
       await this.connection.execute(TRIGGER_SETUP);
+      this.throwIfAbandoned(generation, 'runMigrations');
+
       this.didMigrate = true;
     };
 
@@ -501,6 +510,8 @@ export class NativeDb extends BaseDb {
         elapsedMs: getElapsedMs(),
       });
     } catch (e) {
+      this.throwIfAbandoned(generation, 'runMigrations');
+
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         context: 'runMigrations: retry purge failed',
         error: e,
@@ -537,6 +548,11 @@ export class NativeDb extends BaseDb {
         migrationPhase: 'retry',
       });
     } catch (e) {
+      // Same as the initial catch: a late settlement after the user pressed
+      // retry is the intended control flow, not a production migration failure
+      // worth paging on.
+      this.throwIfAbandoned(generation, 'runMigrations');
+
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         context: 'runMigrations: retry migrate failed',
         error: e,
