@@ -48,7 +48,8 @@ import { test } from './test-fixtures';
  * | gallery (heap) channel         | both ways       | %channels create kind=%heap, post add on a heap channel                           |
  * | Admin given to the N-1 ship    | zod → bud       | %groups fleet sects add; ~bud's own admin-gated UI is the receipt                 |
  * | role read on the N-1 desk      | zod → bud       | %groups cabal carried in the group snapshot; assign/unassign asserted on ~zod     |
- * |                               |                 | only — see the role step for the two cross-ship assertions that did not pass       |
+ * |                               |                 | only — the cross-ship half is blocked on TLON-6645, a client write bug, not on    |
+ * |                               |                 | the version boundary; see the note on the role step                               |
  * | channel rename                 | zod → bud       | %groups channel edit + %channels meta update                                      |
  * | group pin / unpin              | zod (local)     | client-local pin state — deliberately NOT observed on ~bud, it is not group state |
  * | group rename                   | zod → bud       | %groups meta edit                                                                 |
@@ -63,9 +64,11 @@ import { test } from './test-fixtures';
  * step would mean writing that UI flow from scratch, which belongs in a club
  * spec rather than in the version-boundary spec.
  *
- * Also not covered, and for a worse reason: a role created in a group ~bud has
- * already joined, and a custom role assigned to ~bud. Both steps were written
- * and neither passed — see the note on the role step for what was observed.
+ * Also not covered, but for a reason that has nothing to do with this spec: a
+ * role created in a group ~bud has already joined, and a custom role assigned
+ * to ~bud. Both steps were written and neither passed, and the cause is
+ * TLON-6645 — a client bug that reproduces between two current-desk ships.
+ * Re-enable them once it is fixed; see the note on the role step.
  */
 const n1Ship = shipManifest['~bud'];
 const currentShip = shipManifest['~zod'];
@@ -516,9 +519,9 @@ test('current client interoperates with a ship on the N-1 desk', async ({
     });
     await helpers.navigateBack(budPage);
 
-    // Assigning and unassigning it is asserted on ~zod only, and that is a
-    // finding rather than a preference. Two cross-ship assertions were written
-    // here and neither passed against ~bud:
+    // Assigning and unassigning it is asserted on ~zod only, because of a
+    // client bug rather than anything about the version boundary. Two
+    // cross-ship assertions were written here and neither passed against ~bud:
     //
     //   - creating the role *now*, in a group ~bud has already joined: ~zod's
     //     roles screen listed it at once, ~bud's still showed only Admin and
@@ -527,12 +530,13 @@ test('current client interoperates with a ship on the N-1 desk', async ({
     //     under an "N-1 Reviewer" section, ~bud's own members list still
     //     showed only the Admin section 30s later.
     //
-    // The Admin sects change in the step above *did* reach ~bud live, so ~bud
-    // is receiving fleet updates — it is the custom cabal, and sects naming
-    // it, that do not arrive. Whether that is an N-1 gap or a general one is
-    // not settled here: nothing else in this suite adds a role to, or assigns
-    // a non-Admin role in, a group an existing member has already joined, so
-    // there is no same-desk control to compare against.
+    // That is TLON-6645, and it is not an N-1 gap. The same-desk control
+    // (~zod → ~ten, both on the current desk) fails identically, and
+    // desk/app/groups.hoon is byte-identical between v12.2.0 and this branch;
+    // the update arrives and the client drops it on the way to the database,
+    // where db.addRole upserts with an ON CONFLICT target of `id` alone, which
+    // group_roles' composite primary key does not satisfy. Re-enable both
+    // assertions once TLON-6645 is fixed.
     await helpers.navigateBack(zodPage);
     await zodPage.getByTestId('GroupMembers').click();
     await helpers.assignRoleToMember(
