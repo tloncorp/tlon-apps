@@ -218,13 +218,14 @@ export class NativeDb extends BaseDb {
         await resetDbSyncState();
       }
 
-      // That reset is this method's only await, so this is the one point an
-      // abandoning deadline can land mid-purge -- and everything past it is
-      // destructive. By now a replacement may have adopted this very connection
-      // (`setupDb` short-circuits while it is still published) and migrated it,
-      // so closing and deleting would take the database out from under a
-      // running app. Stopping here instead leaves an intact database with reset
-      // cursors, which over-syncs rather than under-syncing.
+      // That reset is the only await before anything destructive, so this is
+      // the last point at which stopping is still free -- and the only one an
+      // abandoning deadline can reach before the close below. By now a
+      // replacement may have adopted this very connection (`setupDb`
+      // short-circuits while it is still published) and migrated it, so
+      // closing and deleting would take the database out from under a running
+      // app. Stopping here leaves an intact database with reset cursors, which
+      // over-syncs rather than under-syncing.
       this.throwIfAbandoned(generation, 'purgeDb');
 
       this.connection.close();
