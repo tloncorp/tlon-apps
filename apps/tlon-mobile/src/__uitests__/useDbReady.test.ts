@@ -315,9 +315,32 @@ describe('useDbReady', () => {
 
     const error = result.current.dbInitError as DbInitTimeoutError;
     expect(error.details.abandonedInFlightInit).toBe(false);
+    expect(error.details.canRetry).toBe(true);
     expect(crumbs()).toContain(
       'deadline fired on attempt 1 (abandoned in-flight init: false)'
     );
+  });
+
+  it('keeps offering a retry when the deadlines abandoned nothing', async () => {
+    // A deadline landing in a backoff after a slow rejection detaches nothing.
+    // Those are ordinary failures the button does recover, however many of them
+    // land, so they must not accumulate into the wedged state.
+    abandonDbInitMock.mockReturnValue(false);
+
+    hangingCall();
+    const first = renderHook(() => useDbReady());
+    await advance(30_000);
+    expect(
+      (first.result.current.dbInitError as DbInitTimeoutError).details.canRetry
+    ).toBe(true);
+    first.unmount();
+
+    hangingCall();
+    const second = renderHook(() => useDbReady());
+    await advance(30_000);
+    expect(
+      (second.result.current.dbInitError as DbInitTimeoutError).details.canRetry
+    ).toBe(true);
   });
 
   it('stops offering a retry once a retry has itself timed out', async () => {

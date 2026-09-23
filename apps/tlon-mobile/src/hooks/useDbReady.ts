@@ -16,11 +16,13 @@ let mountCount = 0;
 // apart from any other remount -- the root error boundary also remounts after
 // render crashes that have nothing to do with the database.
 let lastMountFailed = false;
-// Narrower than `lastMountFailed`, which also covers the throw path. A mount
-// that threw is worth retrying; a mount that hit the deadline twice running is
-// wedged somewhere JS can't reach, and the button would only burn another
-// deadline. See TLON-6527.
-let lastMountTimedOut = false;
+// Narrower than `lastMountFailed`, which also covers the throw path, and
+// narrower than the deadline firing: it means the deadline found work still in
+// flight, which is the hang signature. A mount that threw, or that hit the
+// deadline during a backoff with nothing running, is worth retrying; one that
+// hung twice running is wedged somewhere JS can't reach, and the button would
+// only burn another deadline. See TLON-6527.
+let lastMountHung = false;
 
 interface DbInitTimeoutDetails {
   attempt: number;
@@ -68,7 +70,7 @@ export function useDbReady() {
   useEffect(() => {
     const mount = ++mountCount;
     const recoveringFromFailure = lastMountFailed;
-    const recoveringFromTimeout = lastMountTimedOut;
+    const recoveringFromHang = lastMountHung;
     const startedAt = Date.now();
     const elapsed = () => Date.now() - startedAt;
 
@@ -106,11 +108,14 @@ export function useDbReady() {
     const deadlineTimer = setTimeout(() => {
       timedOut = true;
       lastMountFailed = true;
-      lastMountTimedOut = true;
       clearBackoff();
       // Without this the next mount awaits the same promise and spends a whole
       // second deadline on work that already failed to finish.
       const abandonedInFlightInit = abandonDbInit();
+      // A deadline that found nothing running -- it landed in a backoff after a
+      // slow rejection -- is the throw path taking too long, not a hang, and
+      // retrying recovers that.
+      lastMountHung = abandonedInFlightInit;
       logger.crumb(
         `deadline fired on attempt ${attempt} (abandoned in-flight init: ${abandonedInFlightInit})`
       );
@@ -120,7 +125,7 @@ export function useDbReady() {
           elapsedMs: elapsed(),
           lastError: lastErrorText,
           abandonedInFlightInit,
-          canRetry: !recoveringFromTimeout,
+          canRetry: !(recoveringFromHang && abandonedInFlightInit),
         })
       );
     }, DB_READY_DEADLINE_MS);
@@ -140,7 +145,7 @@ export function useDbReady() {
           }
           clearTimeout(deadlineTimer);
           lastMountFailed = false;
-          lastMountTimedOut = false;
+          lastMountHung = false;
           if (recoveringFromFailure) {
             logger.trackEvent(AnalyticsEvent.DbReadyRetrySucceeded, {
               mount,
@@ -172,7 +177,7 @@ export function useDbReady() {
       lastMountFailed = true;
       // Exhausting the attempts is the throw path, not a hang: the next mount
       // gets a clean slate and the button stays useful.
-      lastMountTimedOut = false;
+      lastMountHung = false;
       setDbInitError(lastError);
     }
 
