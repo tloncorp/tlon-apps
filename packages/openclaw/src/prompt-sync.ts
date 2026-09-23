@@ -509,7 +509,17 @@ export function createPromptSync(opts: {
       enqueue(async () => {
         // Install the watcher first. A local edit made during the initial
         // owner configuration is then queued after this startup projection.
-        await startWatcher();
+        // It is optional, though: if it cannot open (inotify exhausted, a
+        // filesystem that cannot be watched), only local-edit detection is
+        // lost, and that must not take the owner configuration and the
+        // initial projection down with it.
+        try {
+          await startWatcher();
+        } catch (error) {
+          opts.logger.warn(
+            `[tlon] Prompt workspace watcher unavailable; local edits will not be projected until restart: ${errorMessage(error)}`
+          );
+        }
         await configure();
         await publish('startup');
       }),

@@ -40,6 +40,8 @@ function makeSync(
   opts: {
     /** Fail the first `n` pokes carrying this json key, then succeed. */
     failPokes?: { key: string; times: number };
+    /** Make opening the workspace watcher throw. */
+    watchThrows?: boolean;
     /** Fail the first `n` finalize requests, then succeed. */
     failFinalize?: number;
     /** Attempt cap; pass undefined for the production (uncapped) behavior. */
@@ -90,6 +92,11 @@ function makeSync(
     },
     logger,
     watchWorkspace: (_directory, listener) => {
+      if (opts.watchThrows) {
+        throw Object.assign(new Error('ENOSPC: inotify watch limit reached'), {
+          code: 'ENOSPC',
+        });
+      }
       watchListeners.push(listener);
       return watcher;
     },
@@ -167,6 +174,21 @@ describe('prompt workspace projection', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('still configures and projects when the watcher cannot open', async () => {
+    fs.writeFileSync(path.join(workspaceDir, 'SOUL.md'), 'unwatched');
+    const { sync, pokes, logger } = makeSync({ watchThrows: true });
+
+    await sync.start();
+
+    expect(pokes.map((poke) => poke.json)).toEqual([
+      { configure: { owner: '~zod' } },
+      { project: { 'SOUL.md': 'unwatched' } },
+    ]);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('watcher unavailable')
+    );
   });
 
   it('ignores workspace changes outside the prompt allowlist', async () => {
