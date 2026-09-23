@@ -6,13 +6,18 @@
 # Each stage keeps `workflow_dispatch` as the manual override; dispatching
 # deploy-canary.yml directly deploys without the gate.
 #
-# Concurrency is per stage. A newer push cancels only a superseded run's test
-# stage, so that run's deploy never starts. Deploys and syncs share one group
-# that queues them instead: none is cancelled part-way, and no two run at once.
-# A deploy that is already running finishes, and it deploys `staging` as it is
-# when it starts. So a push that lands between this run's N-1 stage and its
-# deploy checkout (including any time the deploy waits in the queue) goes out
-# untested by this run, and is then tested and redeployed by its own pipeline.
+# Concurrency is per stage. A newer push cancels a superseded run's N-1 stage
+# while it's still running. Deploys and syncs share one group that queues them
+# instead: none is cancelled part-way, and no two run at once. A deploy that is
+# already running finishes, and it deploys `staging` as it is when it starts —
+# not necessarily the commit its own N-1 stage tested. So between this run's
+# N-1 stage and its deploy checkout (including any time the deploy waits in
+# the queue), `staging`'s tip can move to a commit this run never tested. The
+# `tested-commit` guard job closes that window: right before deploy, it
+# re-reads the tip and fails the run closed if it no longer matches the commit
+# N-1 tested, so only the tested commit is ever deployed or synced. A
+# superseded run then ends red at the guard, and the newer push's own pipeline
+# carries the deploy and sync through.
 name: Staging
 on:
   push:
@@ -25,8 +30,24 @@ jobs:
     concurrency:
       group: staging-n1
       cancel-in-progress: true
-  deploy:
+  tested-commit:
+    name: Deploy only the tested commit
     needs: n1-e2e
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm staging still points at the tested commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          tip="$(git ls-remote https://github.com/${{ github.repository }}.git refs/heads/staging | cut -f1)"
+          if [ "$tip" = "${{ github.sha }}" ]; then
+            echo "staging tip $tip matches tested commit ${{ github.sha }}"
+            exit 0
+          fi
+          echo "::error::staging moved to $tip after the N-1 stage tested ${{ github.sha }}; that push's own Staging run deploys it"
+          exit 1
+  deploy:
+    needs: tested-commit
     uses: ./.github/workflows/deploy-canary.yml
     secrets: inherit
     concurrency:
