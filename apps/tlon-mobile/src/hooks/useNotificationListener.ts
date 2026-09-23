@@ -291,8 +291,8 @@ export default function useNotificationListener() {
     }
 
     async function goToContacts() {
-      const route = getTopLevelTabRoute('Contacts');
-      navigation.navigate(route.name, route.params, { pop: true });
+      // Contacts is a stack screen now, not a tab.
+      navigation.navigate('Contacts', undefined, { pop: true });
       setNotifToProcess(null);
       return true;
     }

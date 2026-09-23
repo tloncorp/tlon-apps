@@ -17,11 +17,11 @@ env:
 - hideKeyboard
 - tapOn: '^Back$'
 - tapOn: '^Back$'
-- assertVisible: '^Home$'
+- assertVisible: '^Workspaces$'
 - stopApp
 - launchApp
 - extendedWaitUntil:
-    visible: '^Home$'
+    visible: '^Workspaces$'
     timeout: 5000
 - assertNotVisible: '^Have an account\? Log in$'
 - tapOn: ${output.reliability.groupPattern}
@@ -37,4 +37,4 @@ env:
 - hideKeyboard
 - tapOn: '^Back$'
 - tapOn: '^Back$'
-- assertVisible: '^Home$'
+- assertVisible: '^Workspaces$'

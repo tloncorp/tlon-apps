@@ -378,21 +378,21 @@ try {
 | Scenario | Behavior |
 | -------- | -------- |
 | Owner uses restricted tool | ✅ Allowed |
-| Non-owner uses restricted tool | ❌ Blocked with error message |
+| Non-owner uses restricted tool (DM or group) | ❌ Blocked; the tool result tells the model the tool is owner-only and what to say |
 | Non-owner tricks LLM into using tool | ❌ Still blocked (hook-level enforcement) |
-| Internal session (heartbeat, cron) | ✅ Allowed (no role = not a user DM) |
+| Internal session (heartbeat, cron) | ✅ Allowed (no stored role = not a user-initiated turn) |
 
 **Implementation:**
-- `before_tool_call` hook intercepts calls to restricted tools
-- Checks SenderRole from session tracker
-- Only blocks when role is explicitly `"user"` (non-owner DM)
+- `before_tool_call` hook intercepts calls to restricted tools (policy in `src/owner-only-tools.ts`: `OWNER_ONLY_TOOLS`, `resolveOwnerOnlyToolBlock`)
+- Checks SenderRole from session tracker (stored the same way for DM and group senders)
+- Only blocks when role is explicitly `"user"` (a non-owner sender, DM or group)
 - Owner sessions (`"owner"`) and internal sessions (`undefined` role) are allowed
-- Returns `{ block: true }` for non-owner DM sessions
+- Returns `{ block: true, blockReason }`. OpenClaw core (verified on 2026.5.28 through 2026.8.2) hands `blockReason` to the model verbatim as the tool result, so the reason states the owner-only policy and tells the model what to say; the earlier `The X tool is not available.` led bots to invent reloads and outages (TLON-6363)
 
 **Critical Invariant:**
 
 ```
-Non-owner DM senders MUST NOT be able to use any restricted tools.
+Non-owner senders (DM or group) MUST NOT be able to use any restricted tools.
 This check is enforced at the plugin hook level and cannot be bypassed via prompt injection.
 ```
 
@@ -449,3 +449,4 @@ If you discover a security vulnerability:
 | 2026-02-11 | Added agent-initiated blocking via response directive |
 | 2026-02-12 | Added tool access control - tlon skill owner-only |
 | 2026-08-17 | Owner registered slash commands engage bare in any watched chat channel (§4) |
+| 2026-09-04 | Owner-only block reason states the policy so bots explain it correctly (TLON-6363) |

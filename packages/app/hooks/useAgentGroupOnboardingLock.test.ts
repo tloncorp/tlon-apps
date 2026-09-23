@@ -31,6 +31,24 @@ describe('findAgentGroupOnboardingStartupRoute', () => {
     ).toEqual({ groupId: 'first', channelId: 'chat/first' });
   });
 
+  it('restores the recorded landing over the setup chat', () => {
+    const now = 100_000;
+    expect(
+      findAgentGroupOnboardingStartupRoute(
+        {
+          first: {
+            chatChannelId: 'chat/first',
+            landingChannelId: '~pinser-botter-zod',
+            createdAt: now,
+            navigationLockExpiresAt:
+              now + AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS,
+          },
+        },
+        now
+      )
+    ).toEqual({ groupId: 'first', channelId: '~pinser-botter-zod' });
+  });
+
   it('does not restore acknowledged or channel-less locks', () => {
     const now = 100_000;
     const navigationLockExpiresAt =

@@ -84,6 +84,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
   },
   android: {
+    package: appScheme,
     blockedPermissions: [
       'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
     ],

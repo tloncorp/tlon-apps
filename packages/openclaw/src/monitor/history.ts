@@ -6,6 +6,7 @@ import {
 } from '@tloncorp/api';
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 
+import { isDmNest } from '../targets.js';
 import { formatBlobForHistory, parseBlobData } from './media.js';
 import { extractMessageText } from './utils.js';
 
@@ -299,7 +300,11 @@ export async function fetchChannelHistoryOrThrow(
   runtime?: RuntimeEnv,
   signal?: AbortSignal
 ): Promise<TlonHistoryEntry[]> {
-  const scryPath = `/channels/v4/${channelNest}/posts/newest/${count}/outline.json`;
+  // A DM is not a channel: its writs live in %chat and are addressed by the
+  // partner's ship, so %channels cannot serve them at all.
+  const scryPath = isDmNest(channelNest)
+    ? `/chat/v4/dm/${channelNest}/writs/newest/${count}/light.json`
+    : `/channels/v4/${channelNest}/posts/newest/${count}/outline.json`;
   runtime?.log?.(`[tlon] Fetching history: ${scryPath}`);
 
   const data: any = await api.scry(scryPath, { signal });
@@ -312,6 +317,10 @@ export async function fetchChannelHistoryOrThrow(
     posts = data;
   } else if (data.posts && typeof data.posts === 'object') {
     posts = Object.values(data.posts);
+  } else if (data.writs && typeof data.writs === 'object') {
+    // Paged writs wrap the map alongside cursor fields; taking Object.values
+    // of the envelope would yield those cursors as if they were messages.
+    posts = Object.values(data.writs);
   } else if (typeof data === 'object') {
     posts = Object.values(data);
   }

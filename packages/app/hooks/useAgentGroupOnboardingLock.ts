@@ -45,16 +45,22 @@ export async function startAgentGroupNavigationLockFailsafe(
   });
 }
 
+/** Where a locked first run resumes: the recorded landing, else the setup chat. */
+function lockedConversationId(marker: db.AgentGroupOnboardingLock) {
+  return marker.landingChannelId ?? marker.chatChannelId;
+}
+
 export function findAgentGroupOnboardingStartupRoute(
   locks: Record<string, db.AgentGroupOnboardingLock>,
   now = Date.now()
 ) {
   const entry = Object.entries(locks).find(
     ([, marker]) =>
-      isAgentGroupNavigationLocked(marker, now) && Boolean(marker.chatChannelId)
+      isAgentGroupNavigationLocked(marker, now) &&
+      Boolean(lockedConversationId(marker))
   );
   return entry
-    ? { groupId: entry[0], channelId: entry[1].chatChannelId! }
+    ? { groupId: entry[0], channelId: lockedConversationId(entry[1])! }
     : null;
 }
 
