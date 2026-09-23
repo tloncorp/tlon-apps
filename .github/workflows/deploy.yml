@@ -1,9 +1,7 @@
 name: Deploy Groups
 on:
   workflow_run:
-    # sync-dev.yml runs inside the Staging pipeline, and a called workflow's
-    # completion is reported under its caller's name.
-    workflows: ["Sync Develop with Staging", "Staging"]
+    workflows: ["Sync Develop with Staging"]
     types:
       - completed
   workflow_dispatch:
