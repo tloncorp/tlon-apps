@@ -3,7 +3,7 @@ import { createDevLogger } from '@tloncorp/shared';
 import { makeSigil } from '@tloncorp/ui';
 import { Directory, File, Paths } from 'expo-file-system';
 import { useEffect, useState } from 'react';
-import { ImageSourcePropType, PixelRatio } from 'react-native';
+import { AppState, ImageSourcePropType, PixelRatio } from 'react-native';
 
 const logger = createDevLogger('useBotTabIcon', false);
 
@@ -59,13 +59,28 @@ export function useBotTabIcon(spec: BotTabIconSpec | null) {
       return;
     }
     let cancelled = false;
-    loadTabIcon(key, spec).then((loaded) => {
-      if (!cancelled && loaded) {
-        setIcon({ key, icon: loaded });
+    const load = () =>
+      loadTabIcon(key, spec).then((loaded) => {
+        if (!cancelled && loaded) {
+          setIcon((current) =>
+            current?.key === key && current.icon === loaded
+              ? current
+              : { key, icon: loaded }
+          );
+        }
+      });
+    load();
+    // A failed load (offline, say) is retried whenever the app returns to the
+    // foreground, since the navigator holding this hook never remounts. Once
+    // loaded, this is a cache hit.
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        load();
       }
     });
     return () => {
       cancelled = true;
+      subscription.remove();
     };
   }, [key, spec]);
 
@@ -80,7 +95,7 @@ function loadTabIcon(key: string, spec: BotTabIconSpec) {
         kind: spec.kind,
         error: error instanceof Error ? error.message : String(error),
       });
-      // Let a later mount try again rather than caching the failure.
+      // Let a later load try again rather than caching the failure.
       iconCache.delete(key);
       return null;
     });
