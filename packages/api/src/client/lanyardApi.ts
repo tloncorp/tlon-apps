@@ -265,7 +265,7 @@ function nounToClientRecords(noun: Noun, contactId: string): db.Attestation[] {
 
     const id = parseAttestationId({ provider, type, value, contactId });
     const provingTweetId =
-      sign?.signType === 'full' ? sign.proofTweetId ?? null : null;
+      sign?.signType === 'full' ? (sign.proofTweetId ?? null) : null;
 
     const verif: db.Attestation = {
       id,

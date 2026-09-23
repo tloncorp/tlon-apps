@@ -1411,6 +1411,26 @@ class StandaloneDirectiveTests(unittest.TestCase):
         self.assertTrue(skipped["success"])
         self.assertEqual([entry[2] for entry in cli.sent], ["cron result"])
 
+    def test_standalone_send_refuses_media_instead_of_dropping_it(self):
+        # The standalone/cron path is text-only. Delivering the text and
+        # silently discarding the media would report success for a message the
+        # recipient never sees in full.
+        cli = FakeCLI()
+        with patch.object(adapter_mod, "TlonCLI", return_value=cli):
+            result = asyncio.run(
+                adapter_mod._standalone_send(
+                    self.config(),
+                    "~alice",
+                    "here is the chart",
+                    media_files=["/tmp/chart.png"],
+                )
+            )
+
+        self.assertNotIn("success", result)
+        self.assertIn("media attachments are not supported", result["error"])
+        self.assertIn("--image", result["error"])
+        self.assertEqual(cli.sent, [])
+
 
 class RetryableClassificationTests(unittest.TestCase):
     def test_cli_timeout_not_retryable(self):

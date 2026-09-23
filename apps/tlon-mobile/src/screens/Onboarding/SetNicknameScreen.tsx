@@ -9,6 +9,7 @@ import {
   View,
   XStack,
   YStack,
+  isWeb,
   useTheme,
 } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
@@ -19,7 +20,7 @@ import {
   withRetry,
 } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import { useSignupContext } from '../../lib/signupContext';
@@ -43,6 +44,10 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
     ? require('../../../assets/images/faces-dark.png')
     : require('../../../assets/images/faces.png');
 
+  // Bumped when the revival prefill lands so the uncontrolled native input
+  // remounts and picks up the new defaultValue.
+  const [prefillKey, setPrefillKey] = useState(0);
+
   const {
     control,
     handleSubmit,
@@ -51,17 +56,21 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
   } = useForm<FormData>({
     mode: 'onChange',
     defaultValues: {
-      nickname: isRevivalOnboarding ? '' : DEFAULT_ONBOARDING_NICKNAME ?? '',
+      nickname: isRevivalOnboarding ? '' : (DEFAULT_ONBOARDING_NICKNAME ?? ''),
     },
   });
 
   const onSubmit = handleSubmit(({ nickname }) => {
+    // iOS autocapitalize/autocomplete readily leaves a trailing space, which
+    // then shows up in derived names like "Sampel 's Group".
+    const trimmedNickname = nickname?.trim();
+
     signupContext.setOnboardingValues({
-      nickname,
+      nickname: trimmedNickname,
       userWasReadyAt: Date.now(),
     });
 
-    db.splashNickname.setValue(nickname ?? '');
+    db.splashNickname.setValue(trimmedNickname ?? '');
 
     if (!isTlonbotRevival) {
       // Once they've decided on a nickname, keep the existing best-effort
@@ -74,12 +83,12 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
             throw new Error('No user ID found during nickname setup');
           }
 
-          if (!nickname) {
+          if (!trimmedNickname) {
             throw new Error('No nickname provided during nickname setup');
           }
 
           await store.updateCurrentUserProfile(
-            { nickname },
+            { nickname: trimmedNickname },
             { shouldThrow: true }
           );
         },
@@ -137,6 +146,7 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
         currentUser?.peerNickname?.trim() || currentUser?.nickname?.trim();
       if (existingNickname && !cancelled) {
         setValue('nickname', existingNickname, { shouldValidate: true });
+        setPrefillKey((key) => key + 1);
       }
     })().catch((err) => {
       logger.trackError('Failed to prefill revival nickname', {
@@ -182,7 +192,10 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
               message: 'Your nickname is limited to 30 characters',
             },
             validate: (value) => {
-              const result = validateNickname(value ?? '', '');
+              if (!value?.trim()) {
+                return 'Please enter a nickname.';
+              }
+              const result = validateNickname(value.trim(), '');
               if (!result.isValid) {
                 return getNicknameErrorMessage(result.errorType);
               }
@@ -192,7 +205,14 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
           render={({ field: { onChange, onBlur, value } }) => (
             <Field label="Nickname" error={errors.nickname?.message}>
               <TextInput
-                value={value}
+                key={prefillKey}
+                // Echoing a controlled value back mid-IME-composition
+                // duplicates the composed text on Android (stale
+                // mostRecentEventCount), so native stays uncontrolled;
+                // defaultValue seeds the form value, and the key remount
+                // re-seeds it when the async revival prefill lands.
+                value={isWeb ? value : undefined}
+                defaultValue={isWeb ? undefined : value}
                 placeholder="Sampel Palnet"
                 onBlur={onBlur}
                 onChangeText={onChange}

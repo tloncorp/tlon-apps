@@ -47,9 +47,12 @@ export {
 export {
   assertOpenClawContainerRunning,
   getContainerLogsSince,
+  getGatewayRestartPreflight,
   setGatewayStatusRestartConfig,
   startLiveToolTrace,
   toolWasInvoked,
   type ConfigSetResult,
+  type GatewayRestartPreflight,
+  type GatewayRestartPreflightCounts,
   type LiveToolTraceHandle,
 } from './docker-logs.js';

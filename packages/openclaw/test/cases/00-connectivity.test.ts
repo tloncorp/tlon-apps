@@ -10,6 +10,8 @@ import {
   type StateClient,
   createStateClient,
   getTestConfig,
+  registerEngagingTurn,
+  waitFor,
 } from '../lib/index.js';
 
 describe('connectivity', () => {
@@ -118,7 +120,11 @@ describe('connectivity', () => {
     const { markdownToStory } = await import('../../src/urbit/story.js');
 
     const testMessage = `connectivity-test-${Date.now()}`;
-    const story = markdownToStory(testMessage);
+    const ack = `connectivity-ack-${Date.now().toString(36)}`;
+    const tag = await registerEngagingTurn('connectivity-dm', [
+      { kind: 'text', content: ack },
+    ]);
+    const story = markdownToStory(`${tag} ${testMessage}`);
 
     await userState.sendPost({ channelId: botShip, content: story });
     console.log(`✓ Sent DM: "${testMessage}"`);
@@ -135,8 +141,18 @@ describe('connectivity', () => {
     console.log(`✓ Message found in DM channel: ${found}`);
     expect(found).toBe(true);
 
-    // Note: deliberately do NOT wait for the bot to auto-reply here.
-    // Bot behavior under the scripted fake model is verified in later
-    // suites (03-messages, etc.); this suite is for connectivity only.
+    // Wait for the bot's scripted ack to be DELIVERED before the file ends.
+    // An untagged owner DM used to leave a fire-and-forget model call behind:
+    // the fake model 400s untagged calls, and that error path leaks the
+    // reload-gate's activity accounting into later test files (TLON-6287).
+    const posts2 = await waitFor(async () => {
+      const all = await userState.channelPosts(botShip, 10);
+      const hit = (all ?? []).some((post) => {
+        const p = post as { authorId?: string; textContent?: string | null };
+        return p.authorId === botShip && (p.textContent ?? '').includes(ack);
+      });
+      return hit ? true : undefined;
+    }, 30_000);
+    expect(posts2).toBe(true);
   });
 });

@@ -31,7 +31,10 @@ export async function loadCachedContacts(): Promise<boolean> {
       return false;
     }
 
-    await db.insertContacts(contacts);
+    // Fill-only: the snapshot is written at bulk-sync time and never
+    // refreshed by the `/v1/news` facts that update SQLite afterwards, so a
+    // row we already hold is always at least as current as the cached one.
+    await db.insertMissingContacts(contacts);
     return true;
   } catch (e) {
     console.error('Failed to load cached contacts', e);

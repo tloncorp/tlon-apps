@@ -34,6 +34,55 @@ describe('handleChannelReaction', () => {
     );
   });
 
+  it('dispatches a top-level reaction on a bot post anchored to the post', async () => {
+    const log = vi.fn();
+    const dispatchAgent = vi.fn(async () => {});
+    const enqueueSystemEvent = vi.fn();
+
+    await handleChannelReaction({
+      botShip: '~bot',
+      emoji: '👍',
+      formatShip: (ship) => ship,
+      nest: 'heap/~zod/gallery',
+      postId: '170141184507123',
+      reactor: '~nec',
+      target: { author: '~bot', content: 'bot post' },
+      log,
+      dispatchAgent,
+      enqueueSystemEvent,
+    });
+
+    expect(dispatchAgent).toHaveBeenCalledWith(
+      expect.objectContaining({ replyParentId: '170141184507123' })
+    );
+    expect(enqueueSystemEvent).not.toHaveBeenCalled();
+  });
+
+  it('dispatches a reply reaction anchored to the root post', async () => {
+    const log = vi.fn();
+    const dispatchAgent = vi.fn(async () => {});
+    const enqueueSystemEvent = vi.fn();
+
+    await handleChannelReaction({
+      botShip: '~bot',
+      emoji: '👍',
+      formatShip: (ship) => ship,
+      nest: 'heap/~zod/gallery',
+      postId: '170141184507456',
+      rootPostId: '170141184507123',
+      reactor: '~nec',
+      target: { author: '~bot', content: 'bot comment' },
+      log,
+      dispatchAgent,
+      enqueueSystemEvent,
+    });
+
+    expect(dispatchAgent).toHaveBeenCalledWith(
+      expect.objectContaining({ replyParentId: '170141184507123' })
+    );
+    expect(enqueueSystemEvent).not.toHaveBeenCalled();
+  });
+
   it('resolves a target once for two reactors', async () => {
     const target = { author: '~bot', content: 'bot message', timestamp: 1 };
     const resolveTarget = vi.fn(async () => target);

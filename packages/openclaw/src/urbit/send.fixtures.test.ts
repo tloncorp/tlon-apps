@@ -23,18 +23,25 @@ import { formatSentAt } from './send.js';
 // requires landing the same change on the Homestead side as a paired PR.
 const BOT_SHIP = '~botnul-banpex-ravseg-nosduc';
 
-const FIXTURES: Array<{ sentAt: number; expectedMessageId: string }> = [
+const FIXTURES: Array<{
+  kind: 'DM' | 'group channel' | 'thread reply';
+  sentAt: number;
+  expectedMessageId: string;
+}> = [
   {
+    kind: 'DM',
     sentAt: 1700000000000,
     expectedMessageId:
       '~botnul-banpex-ravseg-nosduc/170.141.184.506.511.632.882.809.306.892.730.368.000',
   },
   {
+    kind: 'group channel',
     sentAt: 1700000000123,
     expectedMessageId:
       '~botnul-banpex-ravseg-nosduc/170.141.184.506.511.632.885.078.256.413.796.642.848',
   },
   {
+    kind: 'thread reply',
     sentAt: 1700000000999,
     expectedMessageId:
       '~botnul-banpex-ravseg-nosduc/170.141.184.506.511.632.901.237.604.222.366.210.064',
@@ -43,7 +50,7 @@ const FIXTURES: Array<{ sentAt: number; expectedMessageId: string }> = [
 
 describe('formatSentAt — cross-repo messageId fixture pinning', () => {
   for (const fixture of FIXTURES) {
-    test(`formats sentAt=${fixture.sentAt} into the pinned messageId`, () => {
+    test(`formats the ${fixture.kind} fixture into the pinned full messageId`, () => {
       const messageId = `${BOT_SHIP}/${formatSentAt(fixture.sentAt)}`;
       expect(messageId).toBe(fixture.expectedMessageId);
     });

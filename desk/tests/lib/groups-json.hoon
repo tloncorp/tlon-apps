@@ -6,7 +6,7 @@
 ::    frontend can send through the same `ui-action:dejs:gj` parser the real
 ::    JSON poke hits: group, pinned group channel, DM, and club/group DM.
 ::
-/-  u=ui
+/-  u=ui, gv=groups-ver
 /+  *test, gj=groups-json
 |%
 ::  +parse-set-order: run a real JSON string through the client-facing parser
@@ -45,4 +45,47 @@
   %+  expect-eq
     !>  `action:u`[%pins %set-order ~]
   !>  (parse-set-order '{"pins":{"set-order":[]}}')
+::  +parse-a-groups: run a real JSON string through the parser the
+::  %group-action-5 poke hits
+::
+++  parse-a-groups
+  |=  body=@t
+  ^-  a-groups:v11:gv
+  (a-groups:v11:dejs:gj (need (de:json:html body)))
+::  +test-a-groups-dejs-blob: the group blob parses, and null clears it
+::
+++  test-a-groups-dejs-blob
+  ;:  weld
+    %+  expect-eq
+      !>  `a-groups:v11:gv`[%group [~zod %group] %blob `'opaque-payload']
+    !>  %-  parse-a-groups
+        '{"group":{"flag":"~zod/group","a-group":{"blob":"opaque-payload"}}}'
+  ::
+    %+  expect-eq
+      !>  `a-groups:v11:gv`[%group [~zod %group] %blob ~]
+    !>  (parse-a-groups '{"group":{"flag":"~zod/group","a-group":{"blob":null}}}')
+  ==
+::  +test-a-groups-dejs-non-blob: every action the client used to send at
+::  %group-action-4 still parses now that they all ride %group-action-5
+::
+++  test-a-groups-dejs-non-blob
+  ;:  weld
+    %+  expect-eq
+      !>  `a-groups:v11:gv`[%group [~zod %group] %meta 'T' 'D' 'I' 'C']
+    !>  %-  parse-a-groups
+        '{"group":{"flag":"~zod/group","a-group":{"meta":{"title":"T","description":"D","image":"I","cover":"C"}}}}'
+  ::
+    %+  expect-eq
+      !>  `a-groups:v11:gv`[%group [~zod %group] %delete ~]
+    !>  (parse-a-groups '{"group":{"flag":"~zod/group","a-group":{"delete":null}}}')
+  ::
+    %+  expect-eq
+      !>  `a-groups:v11:gv`[%group [~zod %group] %entry %privacy %public]
+    !>  %-  parse-a-groups
+        '{"group":{"flag":"~zod/group","a-group":{"entry":{"privacy":"public"}}}}'
+  ::
+    %+  expect-eq
+      !>  `a-groups:v11:gv`[%leave [~zod %group]]
+    !>  (parse-a-groups '{"leave":"~zod/group"}')
+  ==
 --

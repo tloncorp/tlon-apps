@@ -157,13 +157,26 @@ class StreamLoopTests(unittest.TestCase):
         async def record_invites():
             calls.append("invites")
 
+        async def record_group_invites():
+            calls.append("group-invites")
+            return True
+
         async def record_profile():
             calls.append("profile")
+
+        async def record_publish(self_contact):
+            calls.append("publish")
 
         return [
             patch.object(adapter, "_load_settings_state", record_settings),
             patch.object(adapter, "_process_pending_dm_invites", record_invites),
+            patch.object(
+                adapter, "_process_pending_group_invites", record_group_invites
+            ),
             patch.object(adapter, "_load_bot_profile", record_profile),
+            patch.object(
+                adapter, "_publish_bot_info", record_publish
+            ),
         ]
 
     def test_transport_error_resumes_same_client(self):
@@ -204,7 +217,7 @@ class StreamLoopTests(unittest.TestCase):
         patches = self._patch_catchups(adapter, calls)
 
         async def run():
-            with patches[0], patches[1], patches[2]:
+            with patches[0], patches[1], patches[2], patches[3], patches[4]:
                 await adapter._run_stream()
 
         with patch("asyncio.sleep", _instant_sleep):
@@ -249,7 +262,7 @@ class StreamLoopTests(unittest.TestCase):
         patches = self._patch_catchups(adapter, calls)
 
         async def run():
-            with patches[0], patches[1], patches[2]:
+            with patches[0], patches[1], patches[2], patches[3], patches[4]:
                 await adapter._run_stream()
 
         with patch("asyncio.sleep", _instant_sleep):
@@ -301,7 +314,7 @@ class StreamLoopTests(unittest.TestCase):
 
         with patch.object(adapter_mod, "TlonSSEClient", FailingConnectSSE):
             async def run():
-                with patches[0], patches[1], patches[2]:
+                with patches[0], patches[1], patches[2], patches[3], patches[4]:
                     await adapter._run_stream()
             with patch("asyncio.sleep", _instant_sleep):
                 asyncio.run(run())
@@ -461,9 +474,22 @@ class StreamLoopTests(unittest.TestCase):
         calls = []
         patches = self._patch_catchups(adapter, calls)
 
-        with patch.object(adapter_mod, "TlonSSEClient", RebuildSSE):
+        # The group catch-up reports failure here: it must be logged as a
+        # warning without masquerading as a stream error and cycling
+        # reconnects (still exactly one rebuild below).
+        async def failed_group_catchup():
+            calls.append("group-invites")
+            return False
+
+        with patch.object(adapter_mod, "TlonSSEClient", RebuildSSE), \
+             self.assertLogs(adapter_mod.logger, level="WARNING") as captured:
             async def run():
-                with patches[0], patches[1], patches[2]:
+                with patches[0], patches[1], patches[3], patches[4], \
+                     patch.object(
+                         adapter,
+                         "_process_pending_group_invites",
+                         failed_group_catchup,
+                     ):
                     await adapter._run_stream()
             with patch("asyncio.sleep", _instant_sleep):
                 asyncio.run(run())
@@ -472,9 +498,88 @@ class StreamLoopTests(unittest.TestCase):
         self.assertEqual(sse_instances[0].close_calls, [False])
         rebuild_events = [e for e in telemetry_events if e.get("mode") == "rebuild"]
         self.assertEqual(len(rebuild_events), 1)
-        self.assertEqual(calls, ["settings", "invites", "profile", "settings", "invites", "profile"])
+        self.assertTrue(
+            any(
+                "group-invite catch-up failed" in message
+                for message in captured.output
+            ),
+            captured.output,
+        )
+        # The bot-info republish is bound to the reconnect catch-up here: drop
+        # the call site in _run_stream and this sequence loses its "publish".
+        self.assertEqual(
+            calls,
+            [
+                "settings",
+                "invites",
+                "group-invites",
+                "profile",
+                "publish",
+                "settings",
+                "invites",
+                "group-invites",
+                "profile",
+                "publish",
+            ],
+        )
+        # Re-read then republish, in that order, on every reconnect.
+        for index, name in enumerate(calls):
+            if name == "profile":
+                self.assertEqual(calls[index + 1], "publish")
         sub_apps = [s[0] for s in sse_instances[1].subscribe_calls]
         self.assertIn("steward", sub_apps)
+
+    def test_stale_settings_skip_the_group_invite_catchup(self):
+        # The catch-up auto-accepts allowlisted invites, so a failed settings
+        # reload must not let it decide from the pre-outage allowlist; the
+        # invites stay in foreigns for the next reconnect.
+        adapter = self.make_adapter()
+        # The retry task would otherwise outlive the loop under fake sleeps.
+        adapter._start_nudge_settings_retry = lambda: None
+
+        class ConnectSSE:
+            def __init__(self, config, *, reap_detection=False):
+                self.last_heard_event_id = -1
+
+            async def authenticate(self):
+                return "cookie"
+
+            async def open(self):
+                pass
+
+            async def subscribe(self, app, path, *, optional=False):
+                return 1
+
+            async def close(self, *, graceful=True):
+                pass
+
+            async def events(self, *, on_open=None):
+                if on_open:
+                    on_open()
+                adapter._running = False
+                if False:
+                    yield None
+
+        adapter._telemetry = types.SimpleNamespace(
+            sse_reconnect=lambda **kw: None,
+            error=lambda *a, **kw: None,
+        )
+        calls = []
+        patches = self._patch_catchups(adapter, calls)
+
+        async def stale_settings():
+            calls.append("settings")
+            return False
+
+        with patch.object(adapter_mod, "TlonSSEClient", ConnectSSE):
+            async def run():
+                with patches[1], patches[2], patches[3], patches[4], \
+                     patch.object(adapter, "_load_settings_state", stale_settings):
+                    await adapter._run_stream()
+            with patch("asyncio.sleep", _instant_sleep):
+                asyncio.run(run())
+
+        self.assertEqual(calls, ["settings", "invites", "profile", "publish"])
 
     def test_idle_resume_resets_backoff(self):
         # Established fires on the first payload, not the bare 200: repeated
@@ -511,7 +616,7 @@ class StreamLoopTests(unittest.TestCase):
         patches = self._patch_catchups(adapter, calls)
 
         async def run():
-            with patches[0], patches[1], patches[2]:
+            with patches[0], patches[1], patches[2], patches[3], patches[4]:
                 await adapter._run_stream()
 
         with patch("asyncio.sleep", _instant_sleep):
@@ -607,7 +712,7 @@ class StreamLoopTests(unittest.TestCase):
 
                 with patch.object(adapter_mod, "TlonSSEClient", AuthSSE):
                     async def run():
-                        with patches[0], patches[1], patches[2]:
+                        with patches[0], patches[1], patches[2], patches[3], patches[4]:
                             await adapter._run_stream()
                     with patch("asyncio.sleep", _instant_sleep):
                         asyncio.run(run())
@@ -645,7 +750,7 @@ class StreamLoopTests(unittest.TestCase):
         patches = self._patch_catchups(adapter, calls)
 
         async def run():
-            with patches[0], patches[1], patches[2]:
+            with patches[0], patches[1], patches[2], patches[3], patches[4]:
                 await adapter._run_stream()
 
         with patch("asyncio.sleep", _instant_sleep):
@@ -768,7 +873,7 @@ class StreamLoopTests(unittest.TestCase):
 
         with patch.object(adapter_mod, "TlonSSEClient", ReapSSE):
             async def run():
-                with patches[0], patches[1], patches[2]:
+                with patches[0], patches[1], patches[2], patches[3], patches[4]:
                     await adapter._run_stream()
             with patch("asyncio.sleep", _instant_sleep):
                 asyncio.run(run())
@@ -833,6 +938,55 @@ class StreamLoopTests(unittest.TestCase):
             result = asyncio.run(adapter.connect())
         self.assertEqual(connect_attempted, [True])
         return adapter, result, errors
+
+    def test_connect_publishes_the_bot_info_once(self):
+        """Binds publication to the connect() lifecycle. Every other publisher
+        test drives _publish_bot_info directly, so deleting the call site would
+        make publication dead code with no failing test."""
+        adapter = self.make_adapter()
+        published = []
+
+        async def anoop(*a, **k):
+            return None
+
+        async def load_profile():
+            return {"nickname": {"type": "text", "value": "Bot"}}
+
+        async def record_publish(self_contact):
+            published.append(self_contact)
+
+        adapter._connect_sse = anoop
+        adapter._load_bot_profile = load_profile
+        adapter._publish_bot_info = record_publish
+        adapter._load_settings_state = anoop
+        adapter._process_pending_dm_invites = anoop
+        adapter._process_pending_group_invites = anoop
+        adapter._start_gateway_status = anoop
+        adapter._start_lens = anoop
+        adapter._start_event_worker = lambda *a, **k: None
+        adapter._start_nudge_settings_retry = lambda *a, **k: None
+        adapter._run_stream = anoop
+        adapter._nudge_scheduler = types.SimpleNamespace(
+            start=lambda *a, **k: None
+        )
+        adapter._telemetry = types.SimpleNamespace(
+            set_common=lambda *a, **kw: None,
+            gateway_connected=lambda *a, **kw: None,
+            error=lambda *a, **kw: None,
+        )
+
+        with (
+            patch.object(adapter_mod, "AIOHTTP_AVAILABLE", True),
+            patch.object(adapter_mod, "_cli_available", return_value=True),
+            patch.object(adapter_mod, "set_active_telemetry", lambda *a: None),
+            patch.object(adapter_mod, "git_source", anoop),
+            patch.object(adapter_mod, "content_fingerprint", lambda *a: "fp1:x"),
+        ):
+            result = asyncio.run(adapter.connect())
+
+        self.assertTrue(result)
+        # Exactly once, against the self contact just read.
+        self.assertEqual(published, [{"nickname": {"type": "text", "value": "Bot"}}])
 
     def test_connect_fixed_cookie_terminal_auth_is_fatal(self):
         # A rejected fixed cookie surfaces at STARTUP via connect()->_connect_sse
@@ -965,7 +1119,7 @@ class StreamLoopTests(unittest.TestCase):
         with patch.object(adapter_mod, "TlonSSEClient", DedupRebuildSSE), \
              patch.object(adapter, "_dispatch_message", record_dispatch):
             async def run():
-                with patches[0], patches[1], patches[2]:
+                with patches[0], patches[1], patches[2], patches[3], patches[4]:
                     await adapter._run_stream()
             with patch("asyncio.sleep", _instant_sleep):
                 asyncio.run(run())
@@ -1006,7 +1160,7 @@ class StreamLoopTests(unittest.TestCase):
         patches = self._patch_catchups(adapter, calls)
 
         async def run():
-            with patches[0], patches[1], patches[2]:
+            with patches[0], patches[1], patches[2], patches[3], patches[4]:
                 await adapter._run_stream()
 
         with patch("asyncio.sleep", _instant_sleep):
@@ -1053,7 +1207,7 @@ class StreamLoopTests(unittest.TestCase):
 
         with patch.object(adapter_mod, "TlonSSEClient", FailingSetupSSE):
             async def run():
-                with patches[0], patches[1], patches[2]:
+                with patches[0], patches[1], patches[2], patches[3], patches[4]:
                     await adapter._run_stream()
             with patch("asyncio.sleep", _instant_sleep):
                 with self.assertLogs(adapter_mod.logger.name, level="WARNING") as cm:
@@ -1081,6 +1235,37 @@ class WatchdogFakeSSE:
 
     def condemn(self, exc):
         self.condemns.append(exc)
+
+
+async def wait_until(
+    predicate, timeout=5.0, message="condition not reached within timeout"
+):
+    """Yield the event loop until `predicate()` holds, bounded by wall-clock.
+
+    A counted run of bare `asyncio.sleep(0)` pins one particular event-loop
+    interleaving and flakes when scheduler timing shifts (TLON-6368); waiting
+    on the observable does not, and the deadline keeps a genuine hang loud.
+    """
+    deadline = time.monotonic() + timeout
+    while not predicate():
+        if time.monotonic() >= deadline:
+            raise AssertionError(message)
+        await asyncio.sleep(0)
+
+
+async def settle_probe(adapter, timeout=5.0):
+    """Wait until no watchdog probe is in flight.
+
+    `done()` is not enough: the adapter clears `_sse_probe_task` in a done
+    callback that runs a loop turn later, and the next tick's launch guard
+    reads that field — so "settled" means the field is None again.
+    """
+    await wait_until(
+        lambda: adapter._sse_probe_task is None,
+        timeout,
+        "watchdog probe did not settle within timeout",
+    )
+
 
 
 class WatchdogTickTests(unittest.TestCase):
@@ -1123,12 +1308,11 @@ class WatchdogTickTests(unittest.TestCase):
 
         async def run():
             adapter._sse_watchdog_tick(100.0, 30.0)
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
+            await settle_probe(adapter)
             # The delivered probe's epoch is valid for this silence: no
             # second probe.
             adapter._sse_watchdog_tick(101.0, 30.0)
-            await asyncio.sleep(0)
+            await settle_probe(adapter)
 
         asyncio.run(run())
         self.assertEqual(len(sse.pokes), 1)
@@ -1142,8 +1326,7 @@ class WatchdogTickTests(unittest.TestCase):
         async def run():
             for now in (100.0, 140.0, 400.0):
                 adapter._sse_watchdog_tick(now, 30.0)
-                await asyncio.sleep(0)
-                await asyncio.sleep(0)
+                await settle_probe(adapter)
 
         asyncio.run(run())
         # A broken outbound path must never condemn a healthy inbound stream;
@@ -1162,8 +1345,7 @@ class WatchdogTickTests(unittest.TestCase):
             # Idle past the threshold with no successful probe for this
             # silence: no condemn — the probe launches instead.
             adapter._sse_watchdog_tick(t0 + 35.0, 30.0)
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
+            await settle_probe(adapter)
             self.assertEqual(sse.condemns, [])
             self.assertEqual(len(sse.pokes), 1)
             # Grace runs from the PUT's completion, not the probe's start.
@@ -1172,8 +1354,11 @@ class WatchdogTickTests(unittest.TestCase):
             # Not yet a full grace interval after the delivered probe.
             adapter._sse_watchdog_tick(delivered + 29.0, 30.0)
             self.assertEqual(sse.condemns, [])
-            # A full grace interval later: condemn.
-            adapter._sse_watchdog_tick(delivered + 30.0, 30.0)
+            # A full grace interval later: condemn. Nudged past the exact
+            # boundary because `delivered + 30.0` can land a fraction under
+            # `delivered + 30` when the addition crosses a binade (TLON-6368);
+            # the guard is `>=`, so the shortfall reads as "grace not elapsed".
+            adapter._sse_watchdog_tick(delivered + 30.5, 30.0)
 
         asyncio.run(run())
         self.assertEqual(len(sse.condemns), 1)
@@ -1187,15 +1372,13 @@ class WatchdogTickTests(unittest.TestCase):
 
         async def run():
             adapter._sse_watchdog_tick(t0 + 35.0, 30.0)
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
+            await settle_probe(adapter)
             epoch = adapter._sse_probe_epoch_at
             # A frame arrives after the probe; the watchdog tick is then
             # delayed far past the threshold.
             sse.last_event_frame_at = epoch + 1.0
             adapter._sse_watchdog_tick(epoch + 200.0, 30.0)
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
+            await settle_probe(adapter)
 
         asyncio.run(run())
         self.assertEqual(sse.condemns, [])
@@ -1227,7 +1410,7 @@ class WatchdogTickTests(unittest.TestCase):
 
         async def run():
             adapter._sse_watchdog_tick(t0 + 35.0, 30.0)
-            await asyncio.sleep(0)
+            await wait_until(lambda: len(sse.pokes) == 1)
             probe = adapter._sse_probe_task
             self.assertIsNotNone(probe)
             await adapter._close_sse(graceful=False)
@@ -1261,13 +1444,11 @@ class WatchdogTickTests(unittest.TestCase):
 
         async def run():
             adapter._sse_watchdog_tick(t0 + 35.0, 30.0)
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
+            await settle_probe(adapter)
             ack_at = sse.last_event_frame_at
             # Deep into a NEW silence: the answered probe must not count.
             adapter._sse_watchdog_tick(ack_at + 200.0, 30.0)
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
+            await settle_probe(adapter)
 
         asyncio.run(run())
         self.assertEqual(sse.condemns, [])
@@ -1288,15 +1469,15 @@ class WatchdogTickTests(unittest.TestCase):
 
         async def run():
             adapter._sse_watchdog_tick(t0 + 35.0, 30.0)
-            await asyncio.sleep(0)
+            await wait_until(lambda: len(old.pokes) == 1)
             old_task = adapter._sse_probe_task
             self.assertIsNotNone(old_task)
             # Rebuild publishes a fresh client.
             new = WatchdogFakeSSE(frame_at=t0 - 100.0)
             adapter._sse = new
             adapter._sse_watchdog_tick(t0 + 40.0, 30.0)
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
+            await settle_probe(adapter)
+            await wait_until(old_task.cancelled)
             return old_task, new
 
         old_task, new = asyncio.run(run())
@@ -1323,12 +1504,13 @@ class WatchdogTickTests(unittest.TestCase):
             self.assertEqual(sse.condemns, [])
             adapter._route_blocked = False
             adapter._sse_watchdog_tick(t0 + 201.0, 30.0)
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
+            await settle_probe(adapter)
             self.assertEqual(sse.condemns, [])
             delivered = adapter._sse_probe_success_at
             self.assertIsNotNone(delivered)
-            adapter._sse_watchdog_tick(delivered + 30.0, 30.0)
+            # See the binade note in
+            # test_condemn_requires_delivered_probe_plus_grace_interval.
+            adapter._sse_watchdog_tick(delivered + 30.5, 30.0)
 
         asyncio.run(run())
         self.assertEqual(len(sse.condemns), 1)
@@ -1370,12 +1552,11 @@ class WatchdogTickTests(unittest.TestCase):
 
         async def run():
             adapter._sse_watchdog_tick(t0 + 35.0, 30.0)
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
+            await settle_probe(adapter)
             epoch = adapter._sse_probe_epoch_at
             self.assertIsNotNone(epoch)
             adapter._sse_watchdog_tick(epoch + 300.0, 30.0)
-            await asyncio.sleep(0)
+            await settle_probe(adapter)
 
         asyncio.run(run())
         self.assertEqual(len(sse.pokes), 1)
@@ -1394,8 +1575,7 @@ class WatchdogTickTests(unittest.TestCase):
 
         async def run():
             task = asyncio.create_task(adapter._run_sse_watchdog())
-            await real_sleep(0)
-            await real_sleep(0)
+            await wait_until(lambda: len(ticks) >= 1)
             task.cancel()
             try:
                 await task
@@ -1441,8 +1621,7 @@ class WatchdogRoutingTests(unittest.TestCase):
             route = asyncio.create_task(
                 adapter._route_stream_event(make_event(app="groups"))
             )
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
+            await wait_until(lambda: adapter._route_blocked)
             states.append(adapter._route_blocked)
             adapter._event_queue.get_nowait()
             await route
@@ -1465,8 +1644,7 @@ class WatchdogRoutingTests(unittest.TestCase):
             await adapter._route_stream_event(make_event(app="groups"))
             self.assertFalse(adapter._route_blocked)
             adapter._sse_watchdog_tick(t0 + 35.0, 30.0)
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
+            await settle_probe(adapter)
 
         asyncio.run(run())
         # A merely non-empty queue is not backpressure: the tick probed.
@@ -1496,12 +1674,19 @@ class DetectorStreamLoopTests(unittest.TestCase):
         async def record_invites():
             calls.append("invites")
 
+        async def record_group_invites():
+            calls.append("group-invites")
+            return True
+
         async def record_profile():
             calls.append("profile")
 
         return [
             patch.object(adapter, "_load_settings_state", record_settings),
             patch.object(adapter, "_process_pending_dm_invites", record_invites),
+            patch.object(
+                adapter, "_process_pending_group_invites", record_group_invites
+            ),
             patch.object(adapter, "_load_bot_profile", record_profile),
         ]
 
@@ -1561,7 +1746,7 @@ class DetectorStreamLoopTests(unittest.TestCase):
 
         with patch.object(adapter_mod, "TlonSSEClient", DetectorSSE):
             async def run():
-                with patches[0], patches[1], patches[2]:
+                with patches[0], patches[1], patches[2], patches[3]:
                     await adapter._run_stream()
             with patch("asyncio.sleep", _instant_sleep):
                 asyncio.run(run())
@@ -1573,7 +1758,17 @@ class DetectorStreamLoopTests(unittest.TestCase):
         rebuild_events = [e for e in telemetry_events if e.get("mode") == "rebuild"]
         self.assertEqual(len(rebuild_events), 1)
         self.assertEqual(
-            calls, ["settings", "invites", "profile", "settings", "invites", "profile"]
+            calls,
+            [
+                "settings",
+                "invites",
+                "group-invites",
+                "profile",
+                "settings",
+                "invites",
+                "group-invites",
+                "profile",
+            ],
         )
 
     def test_stale_error_resumes_same_client_with_watchdog_stale_mode(self):
@@ -1666,6 +1861,7 @@ class DetectorStreamLoopTests(unittest.TestCase):
                 self.closed = False
 
             async def poke(self, app, mark, json_payload):
+                order.append("probe_started")
                 try:
                     await asyncio.Event().wait()
                 except asyncio.CancelledError:
@@ -1686,8 +1882,7 @@ class DetectorStreamLoopTests(unittest.TestCase):
             await asyncio.sleep(0)
             # Force a probe launch directly through the tick.
             adapter._sse_watchdog_tick(time.monotonic(), 30.0)
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
+            await wait_until(lambda: "probe_started" in order)
             probe_task = adapter._sse_probe_task
             assert probe_task is not None
 
@@ -1706,7 +1901,7 @@ class DetectorStreamLoopTests(unittest.TestCase):
         self.assertIsNone(adapter._sse_watchdog_task)
         self.assertIsNone(adapter._sse_probe_task)
         self.assertTrue(sse.closed)
-        self.assertEqual(order, ["probe_cancelled", "close_sse"])
+        self.assertEqual(order, ["probe_started", "probe_cancelled", "close_sse"])
 
 
 if __name__ == "__main__":

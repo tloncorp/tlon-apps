@@ -88,6 +88,8 @@ export interface ContactBookProfile {
   ['lanyard-phone-0-sign']?: AttestationSignature;
   ['lanyard-twitter-0-url']?: AttestationProviderUrl;
   ['lanyard-phone-0-url']?: AttestationProviderUrl;
+  ['bot-info']?: ContactFieldText;
+  ['bot-liveness']?: ContactFieldText;
 }
 
 export interface ContactBookProfileEdit {

@@ -2067,6 +2067,9 @@ class TlonIncomingMessage:
     # Set for a synthetic reaction event so its visible id is the actual
     # reacted post rather than the synthetic event identity.
     reactable_target_id: Optional[str] = None
+    # The inline-typed text only (extract_inline_message_text): no rendered
+    # block placeholders and no heap title. Empty for synthetic events.
+    inline_text: str = ""
 
 
 @dataclass(frozen=True)
@@ -2114,6 +2117,27 @@ def extract_message_text(content: Any) -> str:
                     parts.append(_extract_inline_text(block["inline"]))
                 elif "block" in block and isinstance(block["block"], dict):
                     parts.append(_extract_block_text(block["block"]))
+        return " ".join(part for part in parts if part).strip()
+    return str(content)
+
+
+def extract_inline_message_text(content: Any) -> str:
+    """The inline-typed text only — no rendered block placeholders
+    ("[quoted message]", "[image: …]") and, because callers never prepend
+    the heap title to it, no title either. This is what the sender actually
+    typed, used to recognize slash commands that block rendering placed a
+    prefix in front of."""
+    if not content:
+        return ""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for block in content:
+            if isinstance(block, str):
+                parts.append(block)
+            elif isinstance(block, dict) and "inline" in block:
+                parts.append(_extract_inline_text(block["inline"]))
         return " ".join(part for part in parts if part).strip()
     return str(content)
 
@@ -2456,6 +2480,7 @@ def parse_channel_message(
         blob=blob,
         author_is_bot=author_is_bot_meta(content.get("author")),
         author_id=sender,
+        inline_text=extract_inline_message_text(story_content),
     )
 
 
@@ -2523,6 +2548,7 @@ def parse_dm_message(
         blob=blob,
         author_is_bot=author_is_bot_meta(content.get("author")),
         author_id=sender,
+        inline_text=extract_inline_message_text(story_content),
     )
 
 

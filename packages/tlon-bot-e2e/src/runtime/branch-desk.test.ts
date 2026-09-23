@@ -31,8 +31,8 @@ afterEach(async () => {
 });
 
 describe('branch desk ship set', () => {
-  test('defaults to zod and ten and normalizes configured ships', () => {
-    expect(parseDeskShips()).toEqual(['zod', 'ten']);
+  test('defaults to every running ship and normalizes configured ships', () => {
+    expect(parseDeskShips()).toEqual(['zod', 'ten', 'mug']);
     expect(parseDeskShips(' zod, ~mug,~zod ')).toEqual(['zod', 'mug']);
   });
 
@@ -66,6 +66,20 @@ describe('branch desk manifest', () => {
 
     await writeFile(path.join(root, 'commit.txt'), 'another-commit');
     expect(await createDeskManifest(root)).toBe(manifest);
+    await writeFile(path.join(root, 'z.hoon'), 'changed');
+    expect(await createDeskManifest(root)).not.toBe(manifest);
+  });
+
+  test('ignores glob-bot rewrites of desk.docket-0', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'branch-desk-test-'));
+    tempDirs.push(root);
+    await writeFile(path.join(root, 'z.hoon'), 'z');
+    await writeFile(path.join(root, 'desk.docket-0'), 'glob-0v1.aaaaa');
+
+    const manifest = await createDeskManifest(root);
+    await writeFile(path.join(root, 'desk.docket-0'), 'glob-0v1.bbbbb');
+    expect(await createDeskManifest(root)).toBe(manifest);
+
     await writeFile(path.join(root, 'z.hoon'), 'changed');
     expect(await createDeskManifest(root)).not.toBe(manifest);
   });

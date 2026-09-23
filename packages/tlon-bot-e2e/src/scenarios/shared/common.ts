@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import { expect } from 'vitest';
 
 import type { DriverName, RuntimeContext } from '../../drivers/types.js';
@@ -91,6 +93,47 @@ export const commonScenarios: readonly SharedScenario[] = [
       benignModelCallPredicate(driver)
     );
   }),
+
+  testScenario(
+    'bot-info-publishes-and-replicates',
+    {},
+    async ({ ctx, driver, actors }) => {
+      await actors.bot.state.connect();
+      await actors.owner.state.connect();
+
+      const expected = {
+        harness: driver.name,
+        version: await runtimePackageVersion(ctx),
+      };
+      const firstSelf = await waitForBotInfoClaim(
+        actors.bot,
+        '/v1/self',
+        'bot self-profile',
+        expected
+      );
+      // %contacts holds no record for a peer the ship has never met, so the
+      // per-ship scry below 404s until the owner meets the bot. In the app a
+      // user reaches that state by ordinary means — viewing the bot's profile
+      // pokes %meet, as does adding it as a contact. Poking it here keeps the
+      // scenario faithful to the real read path rather than asserting a state
+      // production never reaches on its own.
+      await actors.owner.state.poke({
+        app: 'contacts',
+        mark: 'contact-action-1',
+        json: { meet: [actors.bot.ship] },
+      });
+
+      const ownerContactPath = `/v1/contact/${actors.bot.ship}`;
+      const firstPeer = await waitForBotInfoClaim(
+        actors.owner,
+        ownerContactPath,
+        `owner contact for ${actors.bot.ship}`,
+        expected
+      );
+      expect(firstPeer.value).toBe(firstSelf.value);
+      logBotInfoProof(driver.name, firstSelf, firstPeer);
+    }
+  ),
 
   testScenario('owner-dm-text-reply', {}, async ({ ctx, driver, actors }) => {
     const key = scenarioKey('owner-text');
@@ -1692,7 +1735,304 @@ export const commonScenarios: readonly SharedScenario[] = [
       }
     }
   ),
+  // ── Outbound media (TLON-6318) ────────────────────────────────────────
+  //
+  // Hermes has no in-process outbound media path: the model's two `tlon`
+  // commands ARE the pipeline, so these lock the CLI contract as the model
+  // actually experiences it.
+  testScenario(
+    'outbound-media-fail-loud',
+    { drivers: ['hermes'] },
+    async ({ ctx, driver, actors }) => {
+      const fixture = await createOwnerHostedChannelFixture(actors);
+      const key = scenarioKey('media-fail-loud');
+      // The marker rides the attempted caption: `channelPostsByBot` drops
+      // textless posts and the actor's post mapping drops the API's `images`
+      // field, so a caption-less image-only post could otherwise slip past
+      // the usual helpers unnoticed. The key is already scenario-prefixed and
+      // unique; keeping the marker short matters because the fake model
+      // records tool-result text capped at 300 chars, and the result's
+      // command echo (which includes the marker) precedes the stderr this
+      // scenario asserts on.
+      const marker = key;
+      const recovery = `Could not attach the image ${key}`;
+      const baseline = await rawBotChannelBaseline(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship
+      );
+
+      const script = driver.model.readOrAdmin(
+        `posts send ${fixture.channelId} ${JSON.stringify(marker)} --image /pier/generated.png`,
+        recovery
+      );
+      const tag = await registerModelScript(ctx.fakeModel, key, script);
+
+      const result = await actors.owner.prompt(
+        `${tag} Post the scripted image to the channel, then reply with the scripted result.`,
+        { timeoutMs: 120_000 }
+      );
+
+      expectPromptSuccess(result, recovery);
+      const calls = await expectModelExpectations(ctx.fakeModel, key, script);
+      // The CLI's fixed error has to reach the model, which is what stops it
+      // from reporting a delivery that never happened. Assert a prefix of the
+      // fixed message: the recorded tool-result text is summary-capped at 300
+      // chars and the command echo before the stderr grows with unrelated
+      // features (a develop-side `--bot` flag once pushed the full phrase
+      // past the cap), so the assertion must not sit at the cap boundary.
+      expect(toolResultText(calls)).toContain(
+        'Local file paths are not supported'
+      );
+      await expectNoMediaPost(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship,
+        marker,
+        baseline
+      );
+    }
+  ),
 ];
+
+// ── Outbound media helpers ────────────────────────────────────────────────
+
+/** Image block sources carried by a post's raw story content. */
+function postImageSources(post: ChannelPost): string[] {
+  // getChannelPosts serializes story content to a JSON string; accept the
+  // already-parsed array too so the helper cannot go vacuously green if that
+  // representation ever changes.
+  let content: unknown = post.content;
+  if (typeof content === 'string') {
+    try {
+      content = JSON.parse(content);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(content)) {
+    return [];
+  }
+  const sources: string[] = [];
+  for (const verse of content) {
+    const src = (verse as { block?: { image?: { src?: unknown } } })?.block
+      ?.image?.src;
+    if (typeof src === 'string') {
+      sources.push(src);
+    }
+  }
+  return sources;
+}
+
+/**
+ * Every post by the bot, including textless ones. `channelPostsByBot` filters
+ * those out, which would hide exactly the image-only post a media assertion
+ * needs to see.
+ */
+async function rawBotChannelPosts(
+  actor: ScenarioActor,
+  channelId: string,
+  botShip: string
+): Promise<ChannelPost[]> {
+  const normalized = normalizeShip(botShip);
+  const posts = await actor.state.channelPosts(channelId, 40);
+  return posts.filter((post) => post.authorId === normalized);
+}
+
+async function rawBotChannelBaseline(
+  actor: ScenarioActor,
+  channelId: string,
+  botShip: string
+): Promise<ChannelBaseline> {
+  const posts = await rawBotChannelPosts(actor, channelId, botShip);
+  return {
+    sequence: posts
+      .map((post) =>
+        typeof post.sequenceNum === 'number' ? post.sequenceNum : -1
+      )
+      .reduce((max, sequence) => Math.max(max, sequence), -1),
+    sentAt: posts
+      .map((post) => (typeof post.sentAt === 'number' ? post.sentAt : 0))
+      .reduce((max, sentAt) => Math.max(max, sentAt), 0),
+  };
+}
+
+/**
+ * Assert the bot posted neither the attempted caption nor any image block.
+ * Media-aware on purpose: a caption-less image post carries no text at all, so
+ * a text-only negative assertion would pass while a broken image block sat in
+ * the channel.
+ */
+async function expectNoMediaPost(
+  actor: ScenarioActor,
+  channelId: string,
+  botShip: string,
+  marker: string,
+  baseline: ChannelBaseline,
+  settleMs = NEGATIVE_SETTLE_MS
+): Promise<void> {
+  const started = Date.now();
+  while (Date.now() - started < settleMs) {
+    await sleep(500);
+    const posts = (await rawBotChannelPosts(actor, channelId, botShip)).filter(
+      (post) => postAfterBaseline(post, baseline)
+    );
+    const withMarker = posts.find((post) => post.text.includes(marker));
+    if (withMarker) {
+      throw new Error(
+        `Expected no post carrying ${JSON.stringify(marker)}, found: ${withMarker.text.slice(0, 200)}`
+      );
+    }
+    const withImage = posts.find((post) => postImageSources(post).length > 0);
+    if (withImage) {
+      throw new Error(
+        `Expected no image block, found src ${postImageSources(withImage).join(', ')}`
+      );
+    }
+  }
+}
+
+/** Text of the tool-result message the runtime fed back to the model. */
+function toolResultText(calls: ReceivedCall[]): string {
+  return calls
+    .flatMap((call) => call.messages ?? [])
+    .filter((message) => message.role === 'tool' || message.role === 'function')
+    .map((message) => message.content?.text ?? '')
+    .join('\n');
+}
+
+interface ExpectedBotInfoClaim {
+  harness: DriverName;
+  version: string;
+}
+
+type BotInfoTextField = { type: 'text'; value: string };
+
+async function runtimePackageVersion(ctx: RuntimeContext): Promise<string> {
+  const packageJsonPath = path.join(ctx.packageDir, 'package.json');
+  let packageJson: unknown;
+  try {
+    packageJson = JSON.parse(await readFile(packageJsonPath, 'utf8'));
+  } catch (error) {
+    throw new Error(
+      `Could not read runtime package version from ${packageJsonPath}: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+  const version =
+    packageJson && typeof packageJson === 'object'
+      ? (packageJson as { version?: unknown }).version
+      : undefined;
+  if (typeof version !== 'string' || version.length === 0) {
+    throw new Error(
+      `Expected ${packageJsonPath} to contain a non-empty string version.`
+    );
+  }
+  return version;
+}
+
+async function waitForBotInfoClaim(
+  actor: ScenarioActor,
+  scryPath: string,
+  description: string,
+  expected: ExpectedBotInfoClaim
+): Promise<BotInfoTextField> {
+  return waitFor(
+    async () => {
+      const profile = await actor.state.scry<unknown>('contacts', scryPath);
+      return parseBotInfoClaim(profile, description, expected);
+    },
+    {
+      timeoutMs: 60_000,
+      intervalMs: 1_000,
+      description: `valid ${expected.harness} bot-info on ${description}`,
+    }
+  );
+}
+
+function parseBotInfoClaim(
+  profile: unknown,
+  description: string,
+  expected: ExpectedBotInfoClaim
+): BotInfoTextField {
+  const field =
+    profile && typeof profile === 'object' && !Array.isArray(profile)
+      ? (profile as Record<string, unknown>)['bot-info']
+      : undefined;
+  if (!field || typeof field !== 'object' || Array.isArray(field)) {
+    throw new Error(
+      `Expected ${description} to contain bot-info as a %text field, got ${JSON.stringify(
+        field
+      )}.`
+    );
+  }
+  const candidate = field as { type?: unknown; value?: unknown };
+  if (candidate.type !== 'text' || typeof candidate.value !== 'string') {
+    throw new Error(
+      `Expected ${description} bot-info to be a %text field with a string value, got ${JSON.stringify(
+        field
+      )}.`
+    );
+  }
+  const value = candidate.value;
+  const withinRawCap = new TextEncoder().encode(value).byteLength <= 512;
+
+  let claim: unknown;
+  try {
+    claim = JSON.parse(value);
+  } catch (error) {
+    throw new Error(
+      `Expected ${description} bot-info to contain JSON, got ${JSON.stringify(
+        value
+      )}: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+  const parsed = (claim ?? {}) as {
+    v?: unknown;
+    harness?: unknown;
+    version?: unknown;
+    harnessVersion?: unknown;
+  };
+  const matchesSchema =
+    withinRawCap &&
+    claim !== null &&
+    typeof claim === 'object' &&
+    !Array.isArray(claim) &&
+    parsed.v === 1 &&
+    parsed.harness === expected.harness &&
+    parsed.version === expected.version &&
+    botInfoString(parsed.harness) &&
+    botInfoString(parsed.version) &&
+    (parsed.harnessVersion === undefined ||
+      botInfoString(parsed.harnessVersion));
+  if (!matchesSchema) {
+    throw new Error(
+      `Expected ${description} bot-info to match v=1, harness=${JSON.stringify(
+        expected.harness
+      )}, and runtime package version=${JSON.stringify(expected.version)} ` +
+        `within the documented size caps, got ${JSON.stringify(claim)}.`
+    );
+  }
+  return { type: 'text', value };
+}
+
+function botInfoString(value: unknown): value is string {
+  return (
+    typeof value === 'string' && value.length > 0 && [...value].length <= 64
+  );
+}
+
+function logBotInfoProof(
+  driverName: DriverName,
+  selfField: BotInfoTextField,
+  peerField: BotInfoTextField
+): void {
+  process.stdout.write(
+    `[tlon-bot-e2e] bot-info proof driver=${driverName} ` +
+      `self=${JSON.stringify(selfField)} owner=${JSON.stringify(peerField)}\n`
+  );
+}
 
 function parsePendingNudge(value: unknown): { stage?: unknown } | undefined {
   if (typeof value === 'string') {

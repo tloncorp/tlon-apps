@@ -1,6 +1,8 @@
+import * as api from '@tloncorp/api';
 import * as store from '@tloncorp/shared';
 import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { getRandomId } from '@tloncorp/shared/logic';
 import {
   cloneElement,
   forwardRef,
@@ -9,6 +11,7 @@ import {
   useEffect,
   useImperativeHandle,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { Alert, Platform } from 'react-native';
@@ -16,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack } from 'tamagui';
 
 import useGroupSearch from '../../hooks/useGroupSearch';
+import { AGENT_SHIP_OVERRIDE } from '../../lib/envVars';
 import { useRootNavigation } from '../../navigation/utils';
 import {
   Action,
@@ -37,7 +41,7 @@ import {
   GroupTypeSelectionSheet,
 } from '../groups/GroupTypeSelectionSheet';
 
-type ChatType = 'dm' | 'group' | 'joinGroup';
+type ChatType = 'dm' | 'group' | 'agent' | 'joinGroup';
 type Step =
   | 'initial'
   | 'selectType'
@@ -47,6 +51,7 @@ type Step =
 
 export type CreateChatParams =
   | { type: 'dm'; contactId: string }
+  | { type: 'agent' }
   | {
       type: 'group';
       contactIds: string[];
@@ -61,35 +66,65 @@ export type CreateChatSheetMethods = {
 
 const logger = createDevLogger('CreateChatSheet', true);
 
-function createTypeActions(onSelectType: (type: ChatType) => void): Action[] {
-  return [
-    {
-      title: CHAT_TYPE_CONFIG.dm.actionTitle,
-      description: CHAT_TYPE_CONFIG.dm.actionDescription,
-      action: () => onSelectType('dm'),
-      startIcon: <ListItem.SystemIcon icon="Send" />,
-    },
-    {
+function createTypeActions(
+  onSelectType: (type: ChatType) => void,
+  hasAgent: boolean,
+  isWindowNarrow: boolean
+): Action[] {
+  // A workspace is what this flow is for on mobile, so it leads, and the bare
+  // group option is dropped there: every group onboarding cares about comes
+  // with the bot in it. Desktop keeps it — this sheet is shared with
+  // HomeSidebar and MessagesSidebar, which this work leaves alone.
+  const actions: Action[] = [];
+
+  if (hasAgent) {
+    actions.push({
+      title: CHAT_TYPE_CONFIG.agent.actionTitle,
+      description: CHAT_TYPE_CONFIG.agent.actionDescription,
+      action: () => onSelectType('agent'),
+      startIcon: <ListItem.SystemIcon icon="SmushStar" />,
+    });
+  }
+
+  actions.push({
+    title: CHAT_TYPE_CONFIG.dm.actionTitle,
+    description: CHAT_TYPE_CONFIG.dm.actionDescription,
+    action: () => onSelectType('dm'),
+    startIcon: <ListItem.SystemIcon icon="Send" />,
+  });
+
+  // Without an agent there is no New Workspace, so the ordinary group action
+  // is the only way to create a group on mobile and has to stay.
+  if (!isWindowNarrow || !hasAgent) {
+    actions.push({
       title: CHAT_TYPE_CONFIG.group.actionTitle,
       description: CHAT_TYPE_CONFIG.group.actionDescription,
       action: () => onSelectType('group'),
       startIcon: <ListItem.SystemIcon icon="Channel" />,
-    },
-  ];
+    });
+  }
+
+  return actions;
 }
 
 const CHAT_TYPE_CONFIG = {
   dm: {
-    title: 'New chat',
+    title: 'New Message',
     subtitle: 'Select a contact to chat with',
-    actionTitle: 'New direct message',
-    actionDescription: 'Create a new chat with one other person',
+    actionTitle: 'New Message',
+    actionDescription: 'Create a private chat with one other person',
   },
   group: {
     title: 'New group',
     subtitle: 'Select contacts to invite',
     actionTitle: 'New group',
     actionDescription: 'Create a customizable group chat',
+  },
+  agent: {
+    title: 'New Workspace',
+    subtitle: '',
+    actionTitle: 'New Workspace',
+    actionDescription: 'Start a new chat with your Tlonbot',
   },
   joinGroup: {
     title: 'Join a group',
@@ -100,7 +135,7 @@ const CHAT_TYPE_CONFIG = {
 } as const;
 
 interface CreateChatFormContentProps {
-  chatType: ChatType;
+  chatType: 'dm' | 'group';
   isCreating: boolean;
   onSelectDmContact: (contactId: string) => void;
   onSelectedChange: (contactIds: string[]) => void;
@@ -299,6 +334,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
     store.GroupTemplateId | undefined
   >(undefined);
   const [groupTitle, setGroupTitle] = useState<string | undefined>(undefined);
+  const submitInFlightRef = useRef(false);
   const isWindowNarrow = useIsWindowNarrow();
 
   const open = useCallback(() => {
@@ -310,6 +346,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
+      if (!open && submitInFlightRef.current) return;
       if (!open) {
         setStep('initial');
         setSelectedTemplateId(undefined);
@@ -321,18 +358,6 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
     },
     [step]
   );
-
-  const handleTypeSelected = useCallback((type: ChatType) => {
-    trackEvent(AnalyticsEvent.CreateOptionSelected, {
-      option: type,
-    });
-    if (type === 'group') {
-      // Navigate to group type selection instead of directly to member selection
-      setStep('selectGroupType');
-    } else {
-      setStep(`create${capitalize(type)}` as Step);
-    }
-  }, []);
 
   const handleGroupTypeSelected = useCallback(
     (groupType: GroupType, templateId?: store.GroupTemplateId) => {
@@ -363,18 +388,42 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
 
   const handleSubmit = useCallback(
     async (params: CreateChatParams) => {
-      if (isCreatingChat) {
+      if (submitInFlightRef.current || isCreatingChat) {
         return;
       }
-      const didCreate = await createChat(params);
-      if (didCreate) {
-        setStep('initial');
-        setSelectedTemplateId(undefined);
-        setGroupTitle(undefined);
-        setSelectedContactIds([]);
+      submitInFlightRef.current = true;
+      try {
+        const didCreate = await createChat(params);
+        if (didCreate) {
+          setStep('initial');
+          setSelectedTemplateId(undefined);
+          setGroupTitle(undefined);
+          setSelectedContactIds([]);
+        } else if (params.type === 'agent') {
+          setStep('selectType');
+        }
+      } finally {
+        submitInFlightRef.current = false;
       }
     },
     [createChat, isCreatingChat]
+  );
+
+  const handleTypeSelected = useCallback(
+    (type: ChatType) => {
+      trackEvent(AnalyticsEvent.CreateOptionSelected, {
+        option: type,
+      });
+      if (type === 'agent') {
+        setStep('createAgent');
+        void handleSubmit({ type: 'agent' });
+      } else if (type === 'group') {
+        setStep('selectGroupType');
+      } else {
+        setStep(`create${capitalize(type)}` as Step);
+      }
+    },
+    [handleSubmit]
   );
 
   useImperativeHandle(
@@ -469,7 +518,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
       >
         <View flex={1} padding="$m">
           <CreateChatFormContent
-            chatType={chatType}
+            chatType={step === 'createDm' ? 'dm' : 'group'}
             isCreating={isCreatingChat}
             onSelectDmContact={handleSelectDmContact}
             onSelectedChange={setSelectedContactIds}
@@ -518,9 +567,11 @@ function TypeSelectionContent({
   onSelectType: (type: ChatType) => void;
 }) {
   const isWindowNarrow = useIsWindowNarrow();
+  const { value: hasAgent } = db.hostingBotEnabled.useStorageItem();
+  const hasAvailableAgent = Boolean(AGENT_SHIP_OVERRIDE) || hasAgent;
   const actions = useMemo(
-    () => createTypeActions(onSelectType),
-    [onSelectType]
+    () => createTypeActions(onSelectType, hasAvailableAgent, isWindowNarrow),
+    [hasAvailableAgent, isWindowNarrow, onSelectType]
   );
   return (
     <>
@@ -534,20 +585,24 @@ function TypeSelectionContent({
           />
         ))}
       </ActionSheet.ActionGroup>
-      <View
-        paddingHorizontal="$2xl"
-        paddingTop="$l"
-        paddingBottom={isWindowNarrow ? undefined : '$l'}
-        alignItems="center"
-      >
-        <Button
-          fill="text"
-          intent="secondary"
-          size="small"
-          onPress={() => onSelectType('joinGroup')}
-          label={CHAT_TYPE_CONFIG.joinGroup.actionTitle}
-        />
-      </View>
+      {/* Held back on mobile for now where the agent flow exists; the desktop
+          sidebars share this sheet, and a user with no agent keeps it. */}
+      {(!isWindowNarrow || !hasAvailableAgent) && (
+        <View
+          paddingHorizontal="$2xl"
+          paddingTop="$l"
+          paddingBottom="$l"
+          alignItems="center"
+        >
+          <Button
+            fill="text"
+            intent="secondary"
+            size="small"
+            onPress={() => onSelectType('joinGroup')}
+            label={CHAT_TYPE_CONFIG.joinGroup.actionTitle}
+          />
+        </View>
+      )}
     </>
   );
 }
@@ -680,6 +735,7 @@ function useCreateChat() {
   const [isCreatingChat, setIsCreatingChat] = useState(false);
   const [createChatError, setCreateChatError] = useState<string | null>(null);
   const { navigateToGroup, navigateToChannel } = useRootNavigation();
+  const agentQuickStartRef = useRef<Promise<void> | null>(null);
   const createChat = useCallback(
     async (params: CreateChatParams) => {
       setIsCreatingChat(true);
@@ -689,6 +745,51 @@ function useCreateChat() {
             participants: [params.contactId],
           });
           navigateToChannel(channel);
+        } else if (params.type === 'agent') {
+          if (!agentQuickStartRef.current) {
+            const requestId = getRandomId();
+            agentQuickStartRef.current = (async () => {
+              const ownerId = api.getCurrentUserId();
+              const furnishing = await store.startAgentGroupFurnishing({
+                agentShipId: AGENT_SHIP_OVERRIDE || undefined,
+                requestId,
+              });
+              navigateToChannel(furnishing.chatChannel);
+              void furnishing.complete
+                .then((completed) => {
+                  completed.tail.catch((error) => {
+                    logger.trackError(
+                      'Agent group standing repair failed; scheduling retry',
+                      error
+                    );
+                    void retryLaterAgentGroupFurnishing({
+                      agentShipId: AGENT_SHIP_OVERRIDE || undefined,
+                      groupId: completed.group.id,
+                      ownerId,
+                    });
+                  });
+                })
+                .catch((error) => {
+                  logger.trackError(
+                    'Agent group setup failed after opening',
+                    error
+                  );
+                  setCreateChatError(
+                    error instanceof Error
+                      ? error.message
+                      : 'The Tlonbot group could not finish setup.'
+                  );
+                  void retryLaterAgentGroupFurnishing({
+                    agentShipId: AGENT_SHIP_OVERRIDE || undefined,
+                    groupId: furnishing.group.id,
+                    ownerId,
+                  });
+                });
+            })().finally(() => {
+              agentQuickStartRef.current = null;
+            });
+          }
+          await agentQuickStartRef.current;
         } else {
           // Check if a template was selected
           let group: db.Group;
@@ -720,4 +821,29 @@ function useCreateChat() {
   );
 
   return { isCreatingChat, createChatError, createChat };
+}
+
+async function retryLaterAgentGroupFurnishing({
+  agentShipId,
+  groupId,
+  ownerId,
+}: {
+  agentShipId?: string;
+  groupId: string;
+  ownerId: string;
+}) {
+  for (const delayMs of [30_000, 60_000]) {
+    await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+    try {
+      if (api.getCurrentUserId() !== ownerId) return;
+      const repaired = await store.ensureAgentGroupFurnished({
+        agentShipId,
+        groupId,
+      });
+      await repaired.tail;
+      return;
+    } catch (error) {
+      logger.trackError('Agent group furnishing retry failed', error);
+    }
+  }
 }

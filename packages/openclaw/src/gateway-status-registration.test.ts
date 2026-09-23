@@ -13,6 +13,7 @@ import {
   getGatewayStatusCoordinator,
   setGatewayStatusCoordinator,
 } from './gateway-status.js';
+import { readGatewayStopReason } from './gateway-stop-reason.js';
 import { sharedSlot } from './shared-state.js';
 
 vi.mock('@tloncorp/api', () => ({
@@ -22,14 +23,19 @@ vi.mock('@tloncorp/api', () => ({
   gatewayStop: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('./gateway-stop-reason.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./gateway-stop-reason.js')>()),
+  readGatewayStopReason: vi.fn(() => null),
+}));
+
 vi.mock('./urbit/api-client.js', () => ({
-  configureTlonApiWithPoke: vi.fn(),
+  withTlonApiPoke: vi.fn(
+    (_poke: SharedApiClientParams['poke'], fn: () => Promise<unknown>) => fn()
+  ),
 }));
 
 const stubApiClientParams: SharedApiClientParams = {
   poke: vi.fn().mockResolvedValue(undefined),
-  shipName: 'test-bot',
-  shipUrl: 'http://localhost:8080',
 };
 
 /** A promise the test can settle on its own schedule. */
@@ -88,6 +94,7 @@ beforeEach(() => {
   vi.mocked(gatewayStart).mockClear().mockResolvedValue(1);
   vi.mocked(gatewayHeartbeat).mockClear().mockResolvedValue(1);
   vi.mocked(gatewayStop).mockClear().mockResolvedValue(1);
+  vi.mocked(readGatewayStopReason).mockReset().mockReturnValue(null);
   sharedSlot<SharedApiClientParams>(API_CLIENT_PARAMS_SLOT).set(
     stubApiClientParams
   );
@@ -233,5 +240,23 @@ describe('registerGatewayStatusHooks', () => {
     pokeSettled.resolve(1);
     await firePromise;
     expect(handlerResolved).toBe(true);
+  });
+
+  it('gateway_stop prefers a fresh marker reason over the core event reason', async () => {
+    const api1 = createFakeHookApi();
+    const coordinator = registerGatewayStatusHooks(api1, { logger: {} });
+    await api1.fire('gateway_start', { port: 80 });
+    coordinator.markActivated(coordinator.currentGeneration);
+
+    vi.mocked(readGatewayStopReason).mockReturnValueOnce('model-change');
+    await api1.fire('gateway_stop', { reason: 'gateway stopping' });
+
+    expect(gatewayStop).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(gatewayStop).mock.calls[0][0]).toMatchObject({
+      reason: 'model-change',
+    });
+    expect(readGatewayStopReason).toHaveBeenCalledWith(
+      expect.objectContaining({ logger: expect.anything() })
+    );
   });
 });

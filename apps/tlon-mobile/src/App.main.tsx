@@ -10,7 +10,10 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
+import { useShip } from '@tloncorp/app/contexts/ship';
 import { RequiredUpdateScreen } from '@tloncorp/app/features/RequiredUpdateScreen';
+import { findAgentGroupOnboardingStartupRoute } from '@tloncorp/app/hooks/useAgentGroupOnboardingLock';
+import { markNavigationRestored } from '@tloncorp/app/navigation/navigationRestore';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useDarkMode';
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
@@ -22,10 +25,13 @@ import { useAppNavigationTheme } from '@tloncorp/app/navigation/useAppNavigation
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
 import {
+  AgentOnboardingSequence,
+  EmailSupportLink,
   LoadingSpinner,
   SplashSequence,
   Text,
   View,
+  YStack,
   usePreloadedEmojis,
 } from '@tloncorp/app/ui';
 import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
@@ -43,9 +49,16 @@ import AuthenticatedApp from './components/AuthenticatedApp';
 import { useTopLevelRouting } from './hooks/useTopLevelRouting';
 import { registerBackgroundSyncTask } from './lib/backgroundSync';
 import { inviteSystemContacts } from './lib/contactsHelpers';
+import {
+  getFocusedTopLevelTab,
+  isRestorableNavigationState,
+  sanitizeNavigationStateForPersistence,
+} from './lib/navigationStatePersistence';
+import { setActiveNotificationRoute } from './lib/notificationPresentation';
 import { SignupProvider } from './lib/signupContext';
 
 const splashscreenLogger = createDevLogger('splashscreen', false);
+const navigationStateLogger = createDevLogger('navigationState', false);
 
 if (Platform.OS === 'ios') {
   SplashScreen.preventAutoHideAsync().catch((err) => {
@@ -114,13 +127,16 @@ const MainApp = () => {
     connected,
     showAuthenticatedApp,
     showSplashSequence,
+    forcedSplash,
     activeSplashSequenceMode,
     hostingBotEnabled,
     handleClearSplash,
   } = useTopLevelRouting();
+  const authenticatedNavigatorVisible =
+    connected && !isLoading && !showSplashSequence && showAuthenticatedApp;
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
-  const handleSplashLogout = useCallback(async () => {
+  const handleSessionLogout = useCallback(async () => {
     await db.clearSessionStorageItems();
     await handleLogout();
   }, [handleLogout]);
@@ -131,39 +147,88 @@ const MainApp = () => {
     registerBackgroundSyncTask();
   }, []);
 
+  useEffect(() => {
+    if (!authenticatedNavigatorVisible) {
+      setActiveNotificationRoute(undefined);
+    }
+  }, [authenticatedNavigatorVisible]);
+
+  useEffect(() => () => setActiveNotificationRoute(undefined), []);
+
+  const splash = (
+    <SplashSequence
+      onCompleted={handleClearSplash}
+      inviteSystemContacts={inviteSystemContacts}
+      hostingBotEnabled={hostingBotEnabled}
+      splashSequenceMode={activeSplashSequenceMode}
+      onLogout={handleSessionLogout}
+    />
+  );
+  const offline = (
+    <YStack
+      height="100%"
+      padding="$l"
+      gap="$3xl"
+      justifyContent="center"
+      alignItems="center"
+    >
+      <Text textAlign="center" fontSize="$xl" color="$primaryText">
+        You are offline. Please connect to the internet and try again.
+      </Text>
+      <EmailSupportLink
+        size="$label/l"
+        prompt="Back online and still stuck? Email"
+        subject="Help! I can't connect to Tlon."
+      />
+    </YStack>
+  );
+  const splashReplacesAuthenticatedApp =
+    showSplashSequence &&
+    (forcedSplash || activeSplashSequenceMode === 'tlonbotRevival');
+  const authenticatedContent = !connected ? (
+    offline
+  ) : splashReplacesAuthenticatedApp ? (
+    <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
+      {splash}
+    </AppDataProvider>
+  ) : undefined;
+  const authenticatedOverlay =
+    connected && showSplashSequence && !splashReplacesAuthenticatedApp ? (
+      <View
+        position="absolute"
+        top={0}
+        right={0}
+        bottom={0}
+        left={0}
+        zIndex={1}
+        backgroundColor="$background"
+      >
+        <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
+          <AgentOnboardingSequence
+            onCompleted={handleClearSplash}
+            fallback={splash}
+          />
+        </AppDataProvider>
+      </View>
+    ) : undefined;
+
   return (
     <View height={'100%'} width={'100%'} backgroundColor="$background">
-      {connected ? (
-        isLoading ? (
-          <View flex={1} alignItems="center" justifyContent="center">
-            <LoadingSpinner />
-          </View>
-        ) : showSplashSequence ? (
-          <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
-            <SplashSequence
-              onCompleted={handleClearSplash}
-              inviteSystemContacts={inviteSystemContacts}
-              hostingBotEnabled={hostingBotEnabled}
-              splashSequenceMode={activeSplashSequenceMode}
-              onLogout={handleSplashLogout}
-            />
-          </AppDataProvider>
-        ) : showAuthenticatedApp ? (
-          <AuthenticatedApp />
-        ) : (
-          <OnboardingStack />
-        )
-      ) : (
-        <View
-          height="100%"
-          padding="$l"
-          justifyContent="center"
-          alignItems="center"
-        >
-          <Text textAlign="center" fontSize="$xl" color="$primaryText">
-            You are offline. Please connect to the internet and try again.
-          </Text>
+      {isLoading ? (
+        <View flex={1} alignItems="center" justifyContent="center">
+          <LoadingSpinner />
         </View>
+      ) : showAuthenticatedApp ? (
+        <AuthenticatedApp
+          connected={connected}
+          onLogout={handleSessionLogout}
+          authenticatedContent={authenticatedContent}
+          authenticatedOverlay={authenticatedOverlay}
+        />
+      ) : connected ? (
+        <OnboardingStack />
+      ) : (
+        offline
       )}
       <StatusBar
         backgroundColor={isDarkMode ? 'black' : 'white'}
@@ -197,13 +262,82 @@ function ConnectedNavigationContent({
   splashIsHidden: boolean;
 }) {
   const navigationTheme = useAppNavigationTheme();
+  const { ship } = useShip();
   const navigationContainerRef = useNavigationContainerRef();
   const routeNameRef = useRef<string>(undefined);
   const navigationLogging = useNavigationLogging();
 
+  // Backgrounded apps get evicted, and the relaunch that follows is a cold
+  // start: without this the navigator rebuilds from `initialRouteName` and the
+  // user loses their place. Resolved once, before the navigator mounts,
+  // because `initialState` is read only on the first render.
+  const [restoredState, setRestoredState] = useState<{
+    ready: boolean;
+    initialState?: NavigationState;
+  }>({ ready: false });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restore() {
+      let initialState: NavigationState | undefined;
+      try {
+        const [saved, locks, shipInfo] = await Promise.all([
+          db.lastNavigationState.getValue(),
+          db.agentGroupOnboardingLocks.getValue(true),
+          // Not `getCurrentUserId()`: this runs before `configureClient`, so
+          // the client has no id yet and would refuse every restore.
+          db.shipInfo.getValue(),
+        ]);
+        // Onboarding owns the root when it has a startup route, and reaches it
+        // through `initialRouteName`; restoring over that would drop the user
+        // out of a flow they have not finished.
+        const onboardingOwnsRoot =
+          findAgentGroupOnboardingStartupRoute(locks) != null;
+        if (
+          !onboardingOwnsRoot &&
+          saved != null &&
+          isRestorableNavigationState(saved, Date.now(), shipInfo?.ship ?? null)
+        ) {
+          initialState = saved.state as NavigationState;
+          markNavigationRestored(getFocusedTopLevelTab(initialState));
+          // The window measures how recently a position was in use, not when
+          // it last changed. Only `onStateChange` writes it otherwise, so a
+          // restored screen the user reads without navigating away keeps the
+          // age it had before the eviction, and a later relaunch refuses it.
+          // Issued before the navigator mounts, and `createStorageItem` chains
+          // writes in order, so it cannot land on top of a newer position.
+          db.lastNavigationState
+            .setValue({ ...saved, savedAt: Date.now() })
+            .catch((err) => {
+              navigationStateLogger.trackError(
+                'Failed to refresh restored navigation state',
+                { errorKind: err instanceof Error ? err.name : typeof err }
+              );
+            });
+        }
+      } catch (err) {
+        // A position is a convenience; failing to read one must not stop the
+        // app from starting.
+        navigationStateLogger.trackError('Failed to restore navigation state', {
+          errorKind: err instanceof Error ? err.name : typeof err,
+        });
+      }
+      if (!cancelled) {
+        setRestoredState({ ready: true, initialState });
+      }
+    }
+
+    restore();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const onReady = () => {
-    routeNameRef.current =
-      navigationContainerRef.current?.getCurrentRoute()?.name;
+    const route = navigationContainerRef.current?.getCurrentRoute();
+    routeNameRef.current = route?.name;
+    setActiveNotificationRoute(route);
 
     const state = navigationContainerRef.current?.getState();
     navigationLogging.onReady(state);
@@ -211,22 +345,51 @@ function ConnectedNavigationContent({
 
   const onStateChange = (state: NavigationState | undefined) => {
     const previousRouteName = routeNameRef.current;
-    const currentRouteName =
-      navigationContainerRef.current?.getCurrentRoute()?.name;
+    const route = navigationContainerRef.current?.getCurrentRoute();
+    const currentRouteName = route?.name;
 
     if (currentRouteName != null && previousRouteName !== currentRouteName) {
       posthog?.screen(currentRouteName);
     }
 
     routeNameRef.current = currentRouteName;
+    setActiveNotificationRoute(route);
 
     navigationLogging.onStateChange(state);
+
+    const position = sanitizeNavigationStateForPersistence(state);
+    if (position) {
+      db.lastNavigationState
+        .setValue({
+          savedAt: Date.now(),
+          userId: ship ?? null,
+          state: position,
+        })
+        .catch((err) => {
+          navigationStateLogger.trackError('Failed to save navigation state', {
+            errorKind: err instanceof Error ? err.name : typeof err,
+          });
+        });
+    }
   };
+
+  // The navigator reads `initialState` once, on mount, so it must not mount
+  // before the saved position has been read back. Matches the spinner
+  // `MigrationCheck` shows just above, so the launch does not flash a blank
+  // screen between the two.
+  if (!restoredState.ready) {
+    return (
+      <View flex={1} alignItems="center" justifyContent="center">
+        <LoadingSpinner />
+      </View>
+    );
+  }
 
   return (
     <NavigationContainer
       theme={navigationTheme}
       ref={navigationContainerRef}
+      initialState={restoredState.initialState}
       onReady={onReady}
       onStateChange={onStateChange}
       navigationInChildEnabled

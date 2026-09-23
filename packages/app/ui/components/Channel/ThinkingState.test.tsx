@@ -1,0 +1,235 @@
+import React from 'react';
+import { ReactTestRenderer, act, create } from 'react-test-renderer';
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
+
+import type { ConversationComputingState } from './useConversationComputingState';
+import { ThinkingState } from './ThinkingState';
+
+const mocks = vi.hoisted(() => ({
+  computing: null as ConversationComputingState | null,
+}));
+
+vi.mock('./useConversationComputingState', () => ({
+  useConversationComputingState: () => mocks.computing,
+}));
+
+vi.mock('../Avatar', () => ({ ContactAvatar: 'ContactAvatar' }));
+vi.mock('@tloncorp/ui', () => ({ Text: 'Text' }));
+vi.mock('tamagui', () => ({
+  AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
+  Spinner: 'Spinner',
+  View: 'View',
+  XStack: 'XStack',
+}));
+
+const computing = (): ConversationComputingState => ({
+  ships: [{ ship: '~bot', label: 'Thinking...', toolCalls: [] }],
+  label: 'Thinking...',
+  toolCalls: [],
+});
+
+describe('ThinkingState', () => {
+  beforeAll(() => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  });
+
+  afterAll(() => {
+    delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
+      .IS_REACT_ACT_ENVIRONMENT;
+  });
+
+  beforeEach(() => {
+    mocks.computing = null;
+  });
+
+  it('does not mount an animated spinner while hidden', async () => {
+    let renderer: ReactTestRenderer;
+    await act(async () => {
+      renderer = create(
+        <ThinkingState conversationId="chat" channelType="chat" />
+      );
+    });
+
+    expect(
+      renderer!.root.findAll((node) => (node.type as unknown) === 'Spinner')
+    ).toHaveLength(0);
+    expect(
+      renderer!.root.find((node) => (node.type as unknown) === 'View').props
+        .height
+    ).toBe(0);
+    act(() => renderer!.unmount());
+  });
+
+  it('collapses when a response arrives before overlapping computing ends', async () => {
+    let renderer: ReactTestRenderer;
+    mocks.computing = computing();
+    await act(async () => {
+      renderer = create(
+        <ThinkingState
+          conversationId="chat"
+          channelType="chat"
+          latestPostId="post-0"
+          latestPostAuthorId="~ten"
+        />
+      );
+    });
+
+    mocks.computing = null;
+    await act(async () => {
+      renderer!.update(
+        <ThinkingState
+          conversationId="chat"
+          channelType="chat"
+          latestPostId="post-0"
+          latestPostAuthorId="~ten"
+        />
+      );
+    });
+
+    mocks.computing = computing();
+    await act(async () => {
+      renderer!.update(
+        <ThinkingState
+          conversationId="chat"
+          channelType="chat"
+          latestPostId="post-0"
+          latestPostAuthorId="~ten"
+        />
+      );
+    });
+
+    // The response can land before presence clears; it still completes the
+    // active cycle and must not leave the footer held for its timeout.
+    await act(async () => {
+      renderer!.update(
+        <ThinkingState
+          conversationId="chat"
+          channelType="chat"
+          latestPostId="post-1"
+          latestPostAuthorId="~bot"
+        />
+      );
+    });
+    mocks.computing = null;
+    await act(async () => {
+      renderer!.update(
+        <ThinkingState
+          conversationId="chat"
+          channelType="chat"
+          latestPostId="post-1"
+          latestPostAuthorId="~bot"
+        />
+      );
+    });
+
+    expect(
+      renderer!.root.find((node) => (node.type as unknown) === 'View').props
+        .height
+    ).toBe(0);
+    act(() => renderer!.unmount());
+  });
+
+  it('uses the preceding idle post when thinking and its response render together', async () => {
+    let renderer: ReactTestRenderer;
+    await act(async () => {
+      renderer = create(
+        <ThinkingState
+          conversationId="chat"
+          channelType="chat"
+          latestPostId="post-0"
+          latestPostAuthorId="~ten"
+        />
+      );
+    });
+
+    mocks.computing = computing();
+    await act(async () => {
+      renderer!.update(
+        <ThinkingState
+          conversationId="chat"
+          channelType="chat"
+          latestPostId="post-1"
+          latestPostAuthorId="~bot"
+        />
+      );
+    });
+    mocks.computing = null;
+    await act(async () => {
+      renderer!.update(
+        <ThinkingState
+          conversationId="chat"
+          channelType="chat"
+          latestPostId="post-1"
+          latestPostAuthorId="~bot"
+        />
+      );
+    });
+
+    expect(
+      renderer!.root.find((node) => (node.type as unknown) === 'View').props
+        .height
+    ).toBe(0);
+    act(() => renderer!.unmount());
+  });
+
+  it('remembers a response when a later member post becomes latest', async () => {
+    let renderer: ReactTestRenderer;
+    mocks.computing = computing();
+    await act(async () => {
+      renderer = create(
+        <ThinkingState
+          conversationId="chat"
+          channelType="chat"
+          latestPostId="post-0"
+          latestPostAuthorId="~ten"
+        />
+      );
+    });
+
+    await act(async () => {
+      renderer!.update(
+        <ThinkingState
+          conversationId="chat"
+          channelType="chat"
+          latestPostId="post-1"
+          latestPostAuthorId="~bot"
+        />
+      );
+    });
+    await act(async () => {
+      renderer!.update(
+        <ThinkingState
+          conversationId="chat"
+          channelType="chat"
+          latestPostId="post-2"
+          latestPostAuthorId="~other"
+        />
+      );
+    });
+    mocks.computing = null;
+    await act(async () => {
+      renderer!.update(
+        <ThinkingState
+          conversationId="chat"
+          channelType="chat"
+          latestPostId="post-2"
+          latestPostAuthorId="~other"
+        />
+      );
+    });
+
+    expect(
+      renderer!.root.find((node) => (node.type as unknown) === 'View').props
+        .height
+    ).toBe(0);
+    act(() => renderer!.unmount());
+  });
+});

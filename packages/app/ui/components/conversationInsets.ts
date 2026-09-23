@@ -23,6 +23,22 @@ export const floatingPinnedPostBannerHeight = 44;
 export const floatingPinnedPostBannerGap = 8;
 export const floatingPinnedPostBannerClearance =
   floatingPinnedPostBannerHeight + floatingPinnedPostBannerGap;
+export const unobscuredConversationBottomGap = 8;
+
+export function getPostCollectionTopInset({
+  contentTopInset,
+  fixedLeadingContentOwnsInset,
+  sharedTopInset,
+}: {
+  contentTopInset: number;
+  fixedLeadingContentOwnsInset: boolean;
+  sharedTopInset: number;
+}) {
+  return Math.max(
+    0,
+    contentTopInset - (fixedLeadingContentOwnsInset ? sharedTopInset : 0)
+  );
+}
 
 export function getConversationContentInsets({
   platform,
@@ -30,6 +46,7 @@ export function getConversationContentInsets({
   bottomSafeArea,
   measuredComposerHeight,
   hasFloatingComposer,
+  hasBottomSafeAreaClearance,
   hasTransparentHeader,
   hasFloatingPinnedPostBanner,
 }: {
@@ -38,6 +55,7 @@ export function getConversationContentInsets({
   bottomSafeArea: number;
   measuredComposerHeight: number | null;
   hasFloatingComposer: boolean;
+  hasBottomSafeAreaClearance: boolean;
   hasTransparentHeader: boolean;
   hasFloatingPinnedPostBanner: boolean;
 }): ConversationContentInsets {
@@ -51,8 +69,10 @@ export function getConversationContentInsets({
       : 0,
     bottom:
       usesNativeFloatingChrome && hasFloatingComposer
-        ? measuredComposerHeight ??
-          floatingComposerEstimatedHeight + bottomSafeArea
-        : 0,
+        ? (measuredComposerHeight ??
+          floatingComposerEstimatedHeight + bottomSafeArea)
+        : usesNativeFloatingChrome && hasBottomSafeAreaClearance
+          ? bottomSafeArea + unobscuredConversationBottomGap
+          : 0,
   };
 }

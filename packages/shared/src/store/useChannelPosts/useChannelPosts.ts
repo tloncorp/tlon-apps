@@ -4,6 +4,7 @@ import {
   useInfiniteQuery,
 } from '@tanstack/react-query';
 import { getChannelIdType } from '@tloncorp/api';
+import * as ub from '@tloncorp/api/urbit';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import * as db from '../../db';
@@ -16,7 +17,12 @@ import * as sync from '../sync';
 import { SyncPriority } from '../syncQueue';
 import { useDetectSequenceRegression } from '../useDetectSequenceRegression';
 import { mergePendingPosts } from '../useMergePendingPosts';
-import { getLatestChannelPostsInitialPage, queryKeyPrefix } from './queries';
+import {
+  getLatestChannelPostsInitialPage,
+  getOlderPageParam,
+  queryKeyPrefix,
+} from './queries';
+import { refreshStaleChannelPosts } from './refresh';
 import { useDeletedPosts, useNewPostListener } from './subscriptions';
 
 const postsLogger = createDevLogger('useChannelPosts', false);
@@ -141,25 +147,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
       _allPages,
       _lastPageParam
     ): UseChannelPostsPageParams | undefined => {
-      const oldestPost = lastPage.posts.at(-1);
-      const lastPageIsEmpty = !oldestPost?.id;
-
-      // corner case: if somehow we don't have any posts, we can't load more
-      if (lastPageIsEmpty) {
-        return undefined;
-      }
-
-      // main check: if we're at the beginning of the sequence, we're done
-      if (oldestPost && oldestPost.sequenceNum === 1) {
-        return undefined;
-      }
-
-      return {
-        channelId: options.channelId,
-        count: options.count ?? 50,
-        mode: 'older',
-        cursorSequenceNum: oldestPost.sequenceNum!,
-      };
+      return getOlderPageParam(lastPage.posts, options);
     },
     getPreviousPageParam: (
       firstPage,
@@ -372,7 +360,16 @@ async function getLocalFirstPosts(options: UseChannelPostsPageParams) {
  * over the sub) make their way into the result set via our post listeners.
  * These run outside the context of the infinite query.
  */
-async function hasNewerPosts(channelId: string, posts: db.Post[]) {
+export async function hasNewerPosts(channelId: string, posts: db.Post[]) {
+  // Third-party channels (e.g. %notes) are served by their backing agent, not
+  // %channels: `getChannelPosts` short-circuits them with
+  // `newestSequenceNum: null`, and their posts live outside `$posts`, so
+  // `last_post_sequence_num` is never written. There is nothing to page
+  // toward, and without this the invariant below fires on every notebook open.
+  if (ub.isThirdPartyChannel(channelId)) {
+    return false;
+  }
+
   const latestSequenceNum = await db.getLatestChannelSequenceNum({
     channelId,
   });
@@ -380,8 +377,14 @@ async function hasNewerPosts(channelId: string, posts: db.Post[]) {
   // Even for empty channels, we should have a value here. If somehow we don't,
   // assume there's more to load and assume the next load will rectify sequence state.
   if (latestSequenceNum === null) {
+    // `getLatestChannelSequenceNum` returns null both when the channel row is
+    // missing and when the row's sequence number is unset, so say which. Only
+    // on this invariant-violation path, so the extra read is not in the hot
+    // path.
+    const channel = await db.getChannel({ id: channelId });
     postsLogger.trackError(
-      'invariant violation: channel missing latest sequence number'
+      'invariant violation: channel missing latest sequence number',
+      { channelId, hasChannelRow: !!channel }
     );
     return true;
   }
@@ -509,41 +512,17 @@ function useRefreshPosts(channelId: string, posts: db.Post[] | null) {
 
   const pendingStalePosts = useRef(new Set<string>());
   useEffect(() => {
-    const toSync =
-      posts?.filter(
-        (post) =>
-          session &&
-          (post.syncedAt == null ||
-            post.syncedAt < (session?.startTime ?? 0)) &&
-          !pendingStalePosts.current.has(post.id)
-      ) || [];
-
-    postsLogger.log('stale posts to sync', toSync.length);
-
-    const chunked = [];
-    const chunkSize = 50;
-    for (let i = 0; i < toSync.length; i += chunkSize) {
-      chunked.push(toSync.slice(i, i + chunkSize));
-    }
-
-    postsLogger.log('chunked', chunked.length);
-    chunked.forEach((chunk, i) => {
-      const startCursor = chunk[chunk.length - 1].id;
-      const endCursor = chunk[0].id;
-      postsLogger.log('syncing chunk', startCursor, 'through', endCursor);
-      sync.syncUpdatedPosts(
-        {
-          channelId,
-          startCursor,
-          endCursor,
-          afterTime: new Date(session?.startTime ?? 0),
-        },
-        { priority: 4 }
-      );
-      pendingStalePosts.current = new Set<string>([
-        ...chunk.map((p) => p.id),
-        ...pendingStalePosts.current,
-      ]);
+    refreshStaleChannelPosts({
+      channelId,
+      posts,
+      session,
+      pendingPostIds: pendingStalePosts.current,
+      refreshPosts: sync.syncUpdatedPosts,
+      onError: (error) =>
+        postsLogger.trackError(
+          'failed to refresh stale posts',
+          error instanceof Error ? error : { error }
+        ),
     });
   }, [channelId, posts, session]);
 }

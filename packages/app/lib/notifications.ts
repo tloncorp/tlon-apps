@@ -19,15 +19,35 @@ import { connectNotifyProvider } from './notificationsApi';
 
 const logger = createDevLogger('notifications', true);
 
-export function initializeNotifications() {
+export function initializeNotifications(
+  shouldSuppressNotification?: (
+    notification: Notifications.Notification
+  ) => boolean
+) {
   if (Platform.OS !== 'web') {
     Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowBanner: true,
-        shouldShowList: true,
-        shouldPlaySound: false,
-        shouldSetBadge: true,
-      }),
+      handleNotification: async (notification) => {
+        let shouldSuppress = false;
+        try {
+          shouldSuppress = shouldSuppressNotification?.(notification) ?? false;
+        } catch (error) {
+          // A malformed or future payload must fail open. Losing a notification
+          // is worse than showing one while its channel cannot be identified.
+          logger.trackError(
+            'Failed to apply notification presentation policy',
+            {
+              error,
+            }
+          );
+        }
+
+        return {
+          shouldShowBanner: !shouldSuppress,
+          shouldShowList: !shouldSuppress,
+          shouldPlaySound: false,
+          shouldSetBadge: !shouldSuppress,
+        };
+      },
     });
   }
 }
@@ -167,8 +187,7 @@ export const connectNotifications = async () => {
     if (err instanceof Error) {
       logger.trackError('Notifications Debug', {
         contxt: 'Error requesting push notifications token',
-        errorMessage: err.message,
-        stack: err.stack,
+        error: err,
       });
     }
   }
@@ -185,10 +204,8 @@ export const connectNotifications = async () => {
     if (err instanceof Error) {
       logger.trackError('Notifications Debug', {
         contxt: 'Error connecting push notifications provider',
-        errorMessage: err.message,
-        stack: err.stack,
+        error: err,
       });
-      logger;
     }
     return false;
   }
@@ -393,12 +410,12 @@ export async function notifyAboutMatchedContacts(contactIds: string[]) {
 // Bg-task entry point: run lanyard discovery with the registered-handler
 // path disabled (there's no React tree in a bg task) and surface any new
 // matches as local notifications directly. Returns the count of new
-// matches so the caller can record telemetry.
+// matches and the outcome so the caller can record telemetry.
 export async function discoverContactsAndNotify({
   context,
 }: {
   context?: Record<string, unknown>;
-} = {}): Promise<{ newMatchCount: number }> {
+} = {}): Promise<{ newMatchCount: number; didSucceed: boolean }> {
   const result = await syncContactDiscovery(undefined, {
     invokeHandler: false,
   }).catch((err) => {
@@ -411,10 +428,12 @@ export async function discoverContactsAndNotify({
     return null;
   });
   if (!result || result.newMatches.length === 0) {
-    return { newMatchCount: 0 };
+    return { newMatchCount: 0, didSucceed: result?.didSucceed ?? false };
   }
   const ids = result.newMatches.map(([, contactId]) => contactId);
+  let didSucceed = result.didSucceed;
   await notifyAboutMatchedContacts(ids).catch((err) => {
+    didSucceed = false;
     logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
       severity: AnalyticsSeverity.Critical,
       context: 'bg-task: discoverContactsAndNotify failed in notification',
@@ -422,5 +441,5 @@ export async function discoverContactsAndNotify({
       ...context,
     });
   });
-  return { newMatchCount: ids.length };
+  return { newMatchCount: ids.length, didSucceed };
 }

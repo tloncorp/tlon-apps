@@ -1,3 +1,4 @@
+export { reportBackgroundFailure } from './lib/logger';
 export {
   HostingError,
   awaitNodeTlonbotReady,
@@ -11,12 +12,18 @@ export {
   logInHostingUser,
   markUserTlonbotEnabled,
   requestLoginOtp,
+  requestLoginOtpForUser,
   requestPhoneVerify,
   setShipRevivalStatus,
   startTlawnOAuth,
   setUserTlonbotEnabled,
   signUpHostingUser,
+  verifyLoginOtpForUser,
   checkNodeIsTlonbotReady,
+} from './client/hostingApi';
+export type {
+  HostingLoginOtpInfo,
+  HostingRecaptchaPlatform,
 } from './client/hostingApi';
 export { getLandscapeAuthCookie } from './client/landscapeApi';
 export {
@@ -52,10 +59,13 @@ export {
   type PostResponse,
   type ReplyResponse,
   type WritResponse,
+  type DmNet,
+  type DmStatus,
   type WritResponseDelta,
   type WritDelta,
   type WritDiff,
   type StewardGatewayAction,
+  pathToCite,
   type Cite,
   type PostDataResponse,
   type ReplyWithMemo,
@@ -65,12 +75,20 @@ export {
   appendToPostBlob,
   appendVideoToPostBlob,
   contentToTextAndMentions,
+  findPostBlobEntry,
   parsePostBlob,
+  postHasBlobEntry,
   textAndMentionsToContent,
   toPostData as toContentHelpersPostData,
   type ClientPostBlobData,
   type Mention,
   type PostBlobDataEntry,
+  type PostBlobDataEntryAgentIntroRequest,
+  type PostBlobDataEntryAgentProvision,
+  type PostBlobDataEntryAgentProviderConfig,
+  type PostBlobDataEntryAgentProvisionAck,
+  type PostBlobDataEntryAgentPostMarker,
+  type PostBlobDataEntryA2UISelection,
 } from './client/content-helpers';
 export { getTextContent } from './client/postContent';
 export { preSig } from './lib/urbit';

@@ -30,7 +30,7 @@ export function NotebookPostHeader({
           source={{
             uri:
               post.editStatus === 'failed' || post.editStatus === 'pending'
-                ? post.lastEditImage ?? undefined
+                ? (post.lastEditImage ?? undefined)
                 : post.image,
           }}
         />
@@ -38,8 +38,8 @@ export function NotebookPostHeader({
 
       <NotebookPostTitle>
         {post.editStatus === 'failed' || post.editStatus === 'pending'
-          ? post.lastEditTitle ?? 'Untitled Post'
-          : post.title ?? 'Untitled Post'}
+          ? (post.lastEditTitle ?? 'Untitled Post')
+          : (post.title ?? 'Untitled Post')}
       </NotebookPostTitle>
 
       {showDate && (

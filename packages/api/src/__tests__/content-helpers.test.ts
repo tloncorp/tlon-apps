@@ -5,7 +5,9 @@ import {
   appendToPostBlob,
   appendVideoToPostBlob,
   contentToTextAndMentions,
+  findPostBlobEntry,
   parsePostBlob,
+  postHasBlobEntry,
   textAndMentionsToContent,
   toPostData,
 } from '../client/content-helpers';
@@ -76,7 +78,272 @@ describe('contentToTextAndMentions / textAndMentionsToContent round-trip', () =>
   });
 });
 
+describe('textAndMentionsToContent closing fences', () => {
+  test('keeps prose typed directly onto the closing fence', () => {
+    expect(
+      textAndMentionsToContent('```\nconst x = 42;\n```after', [])
+    ).toEqual({
+      type: 'doc',
+      content: [
+        {
+          type: 'codeBlock',
+          content: [{ type: 'text', text: 'const x = 42;' }],
+          attrs: { language: 'plaintext' },
+        },
+        { type: 'paragraph', content: [{ type: 'text', text: 'after ' }] },
+      ],
+    });
+  });
+
+  test.each([
+    ['flush against the fence', '```~zod'],
+    ['separated by a space', '``` ~zod'],
+    ['separated by several spaces', '```   ~zod'],
+  ])('keeps a mention %s', (_label, closingLine) => {
+    const text = `\`\`\`\nconst x = 42;\n${closingLine}`;
+    const result = textAndMentionsToContent(text, [
+      {
+        id: '~zod',
+        display: '~zod',
+        start: text.indexOf('~zod'),
+        end: text.length,
+      },
+    ]);
+
+    // No stray text node before the mention: the gap between the fence and
+    // the mention must not shift the mention's offsets.
+    expect(result.content?.[1]).toEqual({
+      type: 'paragraph',
+      content: [{ type: 'mention', attrs: { id: '~zod' } }],
+    });
+  });
+
+  test('keeps prose separated from the closing fence by a space', () => {
+    expect(
+      textAndMentionsToContent('```\nconst x = 42;\n``` after', []).content?.[1]
+    ).toEqual({
+      type: 'paragraph',
+      content: [{ type: 'text', text: 'after ' }],
+    });
+  });
+
+  test('drops a bare closing fence with only trailing whitespace', () => {
+    expect(textAndMentionsToContent('```\nconst x = 42;\n```   ', [])).toEqual({
+      type: 'doc',
+      content: [
+        {
+          type: 'codeBlock',
+          content: [{ type: 'text', text: 'const x = 42;' }],
+          attrs: { language: 'plaintext' },
+        },
+      ],
+    });
+  });
+});
+
+describe('contentToTextAndMentions block separators', () => {
+  const paragraph = (text: string) => ({
+    type: 'paragraph',
+    content: [{ type: 'text', text }],
+  });
+
+  test('separates a code block from the paragraphs around it', () => {
+    const result = contentToTextAndMentions({
+      type: 'doc',
+      content: [
+        paragraph('before'),
+        {
+          type: 'codeBlock',
+          content: [{ type: 'text', text: 'const x = 42;' }],
+        },
+        paragraph('after'),
+      ],
+    });
+
+    expect(result.text).toBe('before\n```\nconst x = 42;\n```\nafter');
+  });
+
+  test('separates a blockquote from the paragraph before it', () => {
+    const result = contentToTextAndMentions({
+      type: 'doc',
+      content: [
+        paragraph('before'),
+        { type: 'blockquote', content: [paragraph('quoted')] },
+        paragraph('after'),
+      ],
+    });
+
+    expect(result.text).toBe('before\n> quoted\nafter');
+  });
+
+  test('keeps mention offsets aligned across blocks', () => {
+    const result = contentToTextAndMentions({
+      type: 'doc',
+      content: [
+        {
+          type: 'codeBlock',
+          content: [{ type: 'text', text: 'const x = 42;' }],
+        },
+        {
+          type: 'paragraph',
+          content: [{ type: 'mention', attrs: { id: '~zod' } }],
+        },
+      ],
+    });
+
+    expect(result.mentions).toHaveLength(1);
+    expect(
+      result.text.slice(result.mentions[0].start, result.mentions[0].end)
+    ).toBe('~zod');
+  });
+});
+
 describe('post blob helpers', () => {
+  test('parses the complete agent onboarding protocol', () => {
+    const entries = [
+      {
+        type: 'tlon-agent-intro-request',
+        version: 1,
+        groupId: '~zod/test',
+        isFirstGroup: true,
+      },
+      {
+        type: 'tlon-agent-provision',
+        version: 1,
+        provisionId: 'provision-1',
+        groupId: '~zod/test',
+        purposeId: 'agent-daily-digest',
+        purpose: 'Daily briefing',
+        topics: ['Urbit', 'AI'],
+        timezone: 'America/New_York',
+        scheduleHour: 9,
+        scheduleMinute: 30,
+        notebookNest: 'notes/~zod/test-updates',
+        notebookTitle: 'Updates',
+      },
+      {
+        type: 'tlon-agent-provision-ack',
+        version: 1,
+        provisionId: 'provision-1',
+        cronJobId: 'cron-1',
+      },
+      {
+        type: 'tlon-agent-provider-config',
+        version: 1,
+        provisionId: 'provision-1',
+        groupId: '~zod/test',
+        providerIds: ['gmail', 'google-calendar'],
+      },
+      {
+        type: 'tlon-a2ui-selection',
+        version: 1,
+        sourcePostId: 'topics-post',
+        surfaceId: 'agent-topics',
+        componentId: 'topics',
+        values: ['Urbit', 'Research, development'],
+      },
+      {
+        type: 'tlon-agent-post-marker',
+        version: 1,
+        key: 'provision-1:closing',
+      },
+    ] as const;
+
+    expect(parsePostBlob(JSON.stringify(entries))).toEqual(entries);
+  });
+
+  test('rejects malformed agent provisioning payloads', () => {
+    expect(
+      parsePostBlob(
+        JSON.stringify([
+          {
+            type: 'tlon-agent-provision',
+            version: 1,
+            provisionId: 'provision-1',
+            groupId: '~zod/test',
+            purposeId: 'agent-daily-digest',
+            purpose: 'Daily briefing',
+            topics: [],
+            timezone: 'America/New_York',
+            scheduleHour: 25,
+            scheduleMinute: 0,
+            notebookNest: 'notes/~zod/test-updates',
+          },
+        ])
+      )
+    ).toEqual([{ type: 'unknown' }]);
+    expect(
+      parsePostBlob(
+        JSON.stringify([
+          {
+            type: 'tlon-agent-provider-config',
+            version: 1,
+            provisionId: 'provision-1',
+            groupId: '~zod/test',
+            providerIds: ['gmail', 'gmail'],
+          },
+        ])
+      )
+    ).toEqual([{ type: 'unknown' }]);
+    expect(
+      parsePostBlob(
+        JSON.stringify([
+          {
+            type: 'tlon-a2ui-selection',
+            version: 1,
+            surfaceId: 'agent-topics',
+            componentId: 'topics',
+            values: ['   '],
+          },
+        ])
+      )
+    ).toEqual([{ type: 'unknown' }]);
+  });
+
+  test('appends a durable A2UI selection without encoding it as prose', () => {
+    const entry = {
+      type: 'tlon-a2ui-selection' as const,
+      version: 1 as const,
+      surfaceId: 'agent-topics',
+      componentId: 'topics',
+      values: ['Groups', 'Research, development'],
+    };
+
+    expect(parsePostBlob(appendToPostBlob(undefined, entry))).toEqual([entry]);
+  });
+
+  test('finds registered blob entries by type', () => {
+    const blob = appendToPostBlob(undefined, {
+      type: 'tlon-agent-post-marker',
+      version: 1,
+      key: 'first-entry-ping',
+    });
+
+    expect(findPostBlobEntry(blob, 'tlon-agent-post-marker')?.key).toBe(
+      'first-entry-ping'
+    );
+    expect(postHasBlobEntry(blob, 'tlon-agent-post-marker')).toBe(true);
+    expect(postHasBlobEntry(blob, 'file')).toBe(false);
+  });
+
+  test('an A2UI selection can name the tapped option and hold message text', () => {
+    const entry = {
+      type: 'tlon-a2ui-selection' as const,
+      version: 1 as const,
+      surfaceId: 'agent-purpose',
+      componentId: 'purpose-choice',
+      optionId: 'daily-digest',
+      // A one-shot Button records the full message it posted, which may
+      // exceed topicLength.
+      values: ['x'.repeat(1000)],
+    };
+
+    expect(parsePostBlob(appendToPostBlob(undefined, entry))).toEqual([entry]);
+    expect(
+      parsePostBlob(JSON.stringify([{ ...entry, values: ['x'.repeat(1001)] }]))
+    ).toEqual([{ type: 'unknown' }]);
+  });
+
   test('parsePostBlob parses context lens metadata entries', () => {
     const blob = appendToPostBlob(undefined, {
       type: 'tlon-context-lens',
@@ -346,6 +613,45 @@ describe('post blob helpers', () => {
         height: 360,
         duration: 12.5,
         posterUri: 'file:///tmp/movie-poster.jpg',
+      },
+    ]);
+  });
+
+  test('toPostData preserves a typed draft blob while adding attachments', () => {
+    const initialBlob = appendToPostBlob(undefined, {
+      type: 'tlon-agent-intro-request',
+      version: 1,
+      groupId: '~zod/test',
+    });
+    const attachment: FinalizedAttachment = {
+      type: 'file',
+      localFile: '/tmp/report.pdf',
+      size: 123,
+      uploadState: {
+        status: 'success',
+        remoteUri: 'https://files.example/report.pdf',
+      },
+    };
+
+    const result = toPostData({
+      content: ['hello'],
+      attachments: [attachment],
+      channelType: 'chat',
+      blob: initialBlob,
+    });
+
+    expect(parsePostBlob(result.blob!)).toEqual([
+      {
+        type: 'tlon-agent-intro-request',
+        version: 1,
+        groupId: '~zod/test',
+      },
+      {
+        type: 'file',
+        version: 1,
+        fileUri: 'https://files.example/report.pdf',
+        name: 'report.pdf',
+        size: 123,
       },
     ]);
   });

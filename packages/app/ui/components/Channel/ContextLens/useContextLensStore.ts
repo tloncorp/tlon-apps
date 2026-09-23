@@ -153,11 +153,10 @@ function releaseContextLensConnection() {
 }
 
 export function useContextLensGatewayConfig(): ContextLensGatewayConfig | null {
-  const { data: flagEnabled } = store.useContextLensEnabled();
   const url = db.contextLensGatewayUrl.useValue();
   const token = db.contextLensGatewayToken.useValue();
   return useMemo(() => {
-    if (Platform.OS !== 'web' || !flagEnabled) {
+    if (Platform.OS !== 'web') {
       return null;
     }
     const baseUrl = url?.trim();
@@ -166,30 +165,25 @@ export function useContextLensGatewayConfig(): ContextLensGatewayConfig | null {
       return null;
     }
     return { baseUrl, token: trimmedToken };
-  }, [flagEnabled, url, token]);
+  }, [url, token]);
 }
 
-// Availability is flag-gated everywhere; when a channel is provided it is
-// additionally scoped to where the bot actually is: a known bot ship (from
-// synced lens runs) must be the DM counterpart or hold a seat in the
-// channel's group. Without a channel it stays flag-only, for surfaces that
-// already have direct evidence (a lens-stamped post).
+// When a channel is provided, availability is scoped to where the bot actually
+// is: a known bot ship (from synced lens runs) must be the DM counterpart or
+// hold a seat in the channel's group. Without a channel, direct evidence such
+// as a lens-stamped post determines whether a surface is shown.
 export function useContextLensAvailable(channel?: db.Channel | null) {
-  const { data: flagEnabled } = store.useContextLensEnabled();
   const isDm = channel?.type === 'dm';
   const chatId = !channel
     ? null
     : channel.type === 'groupDm'
       ? channel.id
-      : channel.groupId ?? null;
+      : (channel.groupId ?? null);
   const { data: botShips } = store.useContextLensBotShips();
   const { data: botsInChat } = store.useContextLensBotsInChat({
-    chatId: flagEnabled ? chatId : null,
+    chatId,
   });
 
-  if (!flagEnabled) {
-    return false;
-  }
   if (!channel) {
     return true;
   }

@@ -93,6 +93,12 @@ export interface Contact extends WithId {
   systemContactId?: string | null;
   pinnedGroups?: ContactPinnedGroups | null;
   attestations?: any[] | null;
+  // Raw JSON of the bot's self-published identity claim (harness and
+  // versions), as published in its contact profile. Validated at read.
+  botInfo?: string | null;
+  // Raw JSON of the bot's self-published liveness claim (`bot-liveness`
+  // contact key); validated at read by @tloncorp/shared `parseBotLiveness`.
+  botLiveness?: string | null;
 }
 
 export type ContactPinnedGroups = any[];
@@ -159,6 +165,7 @@ export interface Group extends WithId {
   iconImageColor?: string | null;
   coverImage?: string | null;
   coverImageColor?: string | null;
+  blob?: string | null;
   privacy?: GroupPrivacy | null;
   haveInvite?: boolean | null;
   haveRequestedInvite?: boolean | null;
@@ -322,6 +329,7 @@ export interface Settings {
   webAppSplashDismissed?: boolean;
   mobileAppPromoDismissed?: boolean;
   contextLensEnabled?: boolean;
+  showDeleteMarkers?: boolean;
 }
 
 export interface VolumeSettings {

@@ -66,7 +66,7 @@ const MESSAGES_COMMAND_HELP: Record<string, string> = {
 
 function getMessagesHelp(command?: string): string {
   return command
-    ? MESSAGES_COMMAND_HELP[command] ?? MESSAGES_HELP
+    ? (MESSAGES_COMMAND_HELP[command] ?? MESSAGES_HELP)
     : MESSAGES_HELP;
 }
 

@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Awaitable, Callable, Mapping, Optional, Sequence
 
 from .approval import build_migrate_card
+from .commands import MIGRATE_USAGE, command_detection_regex
 from .owner_listen import canonicalize_nest, canonicalize_notes_nest
 from .tlon_api import (
     TlonDeadlineCallback,
@@ -34,16 +35,13 @@ MIGRATION_DROP_WARNING = (
     "The source channel stays intact, remains writable, and is renamed with an "
     "`-ARCHIVE` suffix."
 )
-MIGRATE_USAGE = (
-    "Usage: /migrate <diary-nest> [--allow-write-widening] | "
-    "/migrate cleanup <notes-nest>"
-)
 CREATE_FAILURE_MARKER = "Notebook creation may or may not have landed."
 UNMARKED_NOTES_REFUSAL_MARKER = "without a tlon-migrate provenance footer"
 # Deliberately only the shared prefix: the CLI emits two variants that diverge
 # after the nest ("still present" vs "could not be checked").
 PARTIAL_CLEANUP_MARKER = "Notebook deleted; group cleanup unconfirmed"
-_MIGRATE_COMMAND_RE = re.compile(r"^/migrate(?:\s|$)", re.IGNORECASE)
+# Detection lives in the command registry (commands.py).
+_MIGRATE_COMMAND_RE = command_detection_regex("migrate")
 _TARGET_CREATED_RE = re.compile(
     r"^Target notebook created: "
     r"(notes/~[a-z-]+/[a-zA-Z0-9-]+)[ \t]*\r?$",

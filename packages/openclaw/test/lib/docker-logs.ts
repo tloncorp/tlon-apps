@@ -132,6 +132,89 @@ export function setGatewayStatusRestartConfig(
   };
 }
 
+export interface GatewayRestartPreflightCounts {
+  queueSize: number;
+  pendingReplies: number;
+  embeddedRuns: number;
+  activeTasks: number;
+  totalActive: number;
+}
+
+export interface GatewayRestartPreflight {
+  safe: boolean;
+  counts: GatewayRestartPreflightCounts;
+  summary: string;
+}
+
+/**
+ * Side-effect-free probe of the gateway's restart/reload gate counters via
+ * the `gateway.restart.preflight` RPC (present in OpenClaw core 2026.5.28+).
+ * These are exactly the counters `waitForActiveWorkBeforeChannelReload`
+ * evaluates before honoring a config-driven channel reload, so
+ * `counts.totalActive === 0` means a config mutation will reload promptly
+ * instead of deferring (TLON-6287). The CLI resolves the gateway URL and
+ * auth token from the container's own openclaw.json.
+ */
+export function getGatewayRestartPreflight(
+  composeFile: string,
+  timeoutMs: number
+): GatewayRestartPreflight {
+  // command: docker compose <fileArgs> exec -T openclaw \
+  //   openclaw gateway call gateway.restart.preflight --json
+  const composeFiles = resolveComposeFiles(composeFile);
+  const result = spawnSync(
+    'docker',
+    [
+      'compose',
+      ...composeFileArgs(composeFiles),
+      'exec',
+      '-T',
+      'openclaw',
+      'openclaw',
+      'gateway',
+      'call',
+      'gateway.restart.preflight',
+      '--json',
+    ],
+    {
+      encoding: 'utf-8',
+      timeout: timeoutMs,
+      maxBuffer: 2 * 1024 * 1024,
+      cwd: process.cwd(),
+      env: composeEnv(),
+    }
+  );
+  const stdout = result.stdout ?? '';
+  const stderr = result.stderr ?? '';
+  const detail =
+    `exit=${result.status} stdout=${stdout.trim() || '<empty>'} ` +
+    `stderr=${stderr.trim() || '<empty>'}`;
+  if (result.error) {
+    throw new Error(
+      `gateway.restart.preflight probe failed to spawn: ` +
+        `${result.error.message} (${detail})`
+    );
+  }
+  if (result.status !== 0 || !stdout.trim()) {
+    throw new Error(`gateway.restart.preflight probe failed: ${detail}`);
+  }
+  let parsed: GatewayRestartPreflight;
+  try {
+    parsed = JSON.parse(stdout.trim()) as GatewayRestartPreflight;
+  } catch (err) {
+    throw new Error(
+      `gateway.restart.preflight probe returned invalid JSON: ${detail} ` +
+        `(${String(err)})`
+    );
+  }
+  if (typeof parsed?.counts?.totalActive !== 'number') {
+    throw new Error(
+      `gateway.restart.preflight probe returned unexpected shape: ${detail}`
+    );
+  }
+  return parsed;
+}
+
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

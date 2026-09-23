@@ -25,6 +25,7 @@ import type {
   TlawnOAuthStartRequest,
   TlawnOAuthStartResponse,
   TlawnOAuthStatus,
+  TlawnOpenRouterZdrEndpoint,
   TlawnPrimaryModelUpdate,
   TlawnProviderConfigInfo,
   TlawnProviderModel,
@@ -54,11 +55,25 @@ export type {
   TlawnOAuthStartResponse,
   TlawnOAuthStatus,
   TlawnOAuthUpstream,
+  TlawnOpenRouterZdrEndpoint,
   TlawnPrimaryModelUpdate,
   TlawnProviderConfigInfo,
   TlawnProviderModel,
   TlawnSubscriptionModel,
 } from '../types/hosting';
+
+export type HostingRecaptchaPlatform =
+  | 'ios'
+  | 'android'
+  | 'web'
+  | 'ios_test'
+  | 'android_test';
+
+export type HostingLoginOtpInfo = {
+  retryAfter: number;
+  maskedEmail?: string;
+  maskedPhoneNumber?: string;
+};
 
 const logger = createDevLogger('hostingApi', false);
 interface StoredValue<T> {
@@ -112,6 +127,7 @@ interface HostingResponseErrorDetails {
   method: string;
   path: string;
   responseText?: string;
+  retryAfter?: number;
 }
 export class HostingError extends Error {
   details: HostingResponseErrorDetails;
@@ -135,6 +151,19 @@ const RATE_LIMITED = 429;
 const EXPECTED_ERRORS = [ALREADY_IN_USE, CANNOT_BOOT, RATE_LIMITED];
 
 const MANUAL_UPDATE_REQUIRED_MESSAGE = 'manual update has been requested';
+
+// `401`, or `401 Unauthorized` when the server sent a reason phrase. Used in
+// error messages so a rejected session reads differently from a hosting
+// outage. This is for diagnosis only -- Sentry groups on the stack first, so
+// it is not a guarantee that different statuses land in different issues.
+function statusLabel(response: {
+  status: number;
+  statusText?: string;
+}): string {
+  return response.statusText
+    ? `${response.status} ${response.statusText}`
+    : String(response.status);
+}
 
 const hostingFetchResponse = async (
   path: string,
@@ -204,10 +233,57 @@ const hostingFetch = async <T extends object>(
   const stopTime = performance.now();
   const responseText = await response.text();
 
+  // Parse before checking `ok`, but only to recover hosting's own error
+  // `message`: a rejected request is reported as the status it is. Hosting
+  // answers an expired session with a 401 and an empty body, which the old
+  // parse-first order reported as `Failed to parse response`.
   let result: { message: string } | T = { message: 'Empty response' };
+  let parsed = true;
   try {
     result = JSON.parse(responseText) as { message: string } | T;
-  } catch (e) {
+  } catch {
+    parsed = false;
+  }
+
+  if (!response.ok) {
+    const bodyMessage =
+      parsed &&
+      typeof result === 'object' &&
+      result !== null &&
+      'message' in result
+        ? String(result.message)
+        : null;
+    const err = new HostingError(
+      bodyMessage ?? `Hosting request failed (${statusLabel(response)})`,
+      {
+        method: init?.method ?? 'GET',
+        path,
+        status: response.status,
+        retryAfter:
+          response.status === 429 &&
+          parsed &&
+          typeof result === 'object' &&
+          result !== null &&
+          'retryAfter' in result &&
+          typeof result.retryAfter === 'number' &&
+          Number.isFinite(result.retryAfter) &&
+          result.retryAfter > 0
+            ? result.retryAfter
+            : undefined,
+      }
+    );
+    const eventId = EXPECTED_ERRORS.includes(err.details.status ?? 0)
+      ? AnalyticsEvent.ExpectedHostingError
+      : AnalyticsEvent.UnexpectedHostingError;
+    logger.trackEvent(eventId, {
+      details: err.details,
+      errorMessage: err.message,
+      errorStack: err.stack,
+    });
+    throw err;
+  }
+
+  if (!parsed) {
     const hostingErr = new HostingError('Failed to parse response', {
       method: init?.method ?? 'GET',
       path,
@@ -220,26 +296,6 @@ const hostingFetch = async <T extends object>(
       errorStack: hostingErr.stack,
     });
     throw hostingErr;
-  }
-
-  if (!response.ok) {
-    const err = new HostingError(
-      'message' in result ? result.message : 'An unknown error has occurred.',
-      {
-        method: init?.method ?? 'GET',
-        path,
-        status: response.status,
-      }
-    );
-    const eventId = EXPECTED_ERRORS.includes(err.details.status ?? 0)
-      ? AnalyticsEvent.ExpectedHostingError
-      : AnalyticsEvent.UnexpectedHostingError;
-    logger.trackEvent(eventId, {
-      details: err.details,
-      errorMessage: err.message,
-      errorStack: err.stack,
-    });
-    throw err;
   }
 
   try {
@@ -305,7 +361,9 @@ const parseTlawnLLMAuthFlowResponse = (
   if (
     !flow ||
     typeof flow.id !== 'string' ||
-    (flow.provider !== 'openai' && flow.provider !== 'anthropic') ||
+    !['openai', 'anthropic', 'xai'].includes(
+      typeof flow.provider === 'string' ? flow.provider : ''
+    ) ||
     ![
       'awaiting_browser',
       'awaiting_token',
@@ -361,7 +419,7 @@ const parseTlawnLLMAuthStatus = (value: unknown): TlawnLLMAuthStatus => {
   const validModels =
     modelGroups === undefined ||
     (isJsonObject(modelGroups) &&
-      (['openai', 'anthropic'] as const).every((provider) => {
+      (['openai', 'anthropic', 'xai'] as const).every((provider) => {
         const models = modelGroups[provider];
         return (
           models === undefined ||
@@ -450,6 +508,18 @@ export async function getTlawnLLMAuthFlow(
   return parseTlawnLLMAuthFlowResponse(response);
 }
 
+export async function completeTlawnLLMAuth(
+  ship: string,
+  flowId: string,
+  token: string
+): Promise<TlawnLLMAuthFlowResponse> {
+  const response = await hostingFetch<Record<string, unknown>>(
+    `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/llm-auth/complete`,
+    jsonInit('POST', { flowId, token })
+  );
+  return parseTlawnLLMAuthFlowResponse(response);
+}
+
 export async function disconnectTlawnLLMAuth(
   ship: string,
   provider: TlawnLLMAuthProvider
@@ -481,6 +551,22 @@ export async function getTlawnProviderModels(
 ): Promise<{ data: TlawnProviderModel[] }> {
   return hostingFetch<{ data: TlawnProviderModel[] }>(
     `/v1/tlawn/users/${userId}/provider-models?provider=${encodeURIComponent(provider)}`
+  );
+}
+
+export async function getTlawnOpenRouterRecommendedModels(
+  userId: string
+): Promise<string[]> {
+  return hostingFetch<string[]>(
+    `/v1/tlawn/users/${userId}/openrouter/recommended-models`
+  );
+}
+
+export async function getTlawnOpenRouterZdrEndpoints(
+  userId: string
+): Promise<TlawnOpenRouterZdrEndpoint[]> {
+  return hostingFetch<TlawnOpenRouterZdrEndpoint[]>(
+    `/v1/tlawn/users/${userId}/openrouter/zdr-endpoints`
   );
 }
 
@@ -572,7 +658,7 @@ async function fetchNullableString(
     const message =
       parsed && typeof parsed === 'object' && 'message' in parsed
         ? String((parsed as { message: unknown }).message)
-        : 'An unknown error has occurred.';
+        : `An unknown error has occurred. (${statusLabel(response)})`;
     const err = new HostingError(message, {
       method: init?.method ?? 'GET',
       path,
@@ -814,6 +900,16 @@ export const getHostingHeartBeat = async (): Promise<HostingHeartBeatCode> => {
   const userId = await sessionStore.userId.getValue();
   const response = await rawHostingFetch(`/v1/users/${userId}`);
 
+  // A heartbeat must still report expiration when Hosting returns an empty or
+  // non-JSON 401 body.
+  if (response.status === 401) {
+    return 'expired';
+  }
+
+  if (response.status < 200 || response.status >= 300) {
+    return 'unknown';
+  }
+
   try {
     const body = (await response.json()) as User;
 
@@ -831,22 +927,11 @@ export const getHostingHeartBeat = async (): Promise<HostingHeartBeatCode> => {
       'Failed to read bot enabled status from hosting heartbeat',
       {
         errorMessage: e.toString(),
-        responseText: await response.text(),
       }
     );
   }
 
-  // 401 indicates that the authentication token is expired.
-  if (response.status === 401) {
-    return 'expired';
-  }
-
-  // if we get a response in the 2xx range, we know it's definitely still valid
-  if (response.status >= 200 && response.status < 300) {
-    return 'ok';
-  }
-
-  return 'unknown';
+  return 'ok';
 };
 
 export const getHostingAvailability = async (params: {
@@ -884,6 +969,28 @@ export const addUserToWaitlist = async ({
       },
     }
   );
+
+async function persistHostingSession(response: Response, user: User) {
+  const setCookie = response.headers.get('Set-Cookie');
+  if (setCookie) {
+    await sessionStore.authToken.setValue(setCookie);
+  }
+
+  if (!user.id) {
+    return;
+  }
+
+  await sessionStore.userId.setValue(user.id);
+  if (user.botEnabled !== null && user.botEnabled !== undefined) {
+    logger.trackEvent('Bot status set', {
+      enabled: user.botEnabled,
+      $set: {
+        botEnabled: user.botEnabled,
+      },
+    });
+    await sessionStore.botEnabled.setValue(user.botEnabled);
+  }
+}
 
 export const signUpHostingUser = async (params: {
   phoneNumber?: string;
@@ -926,26 +1033,9 @@ export const signUpHostingUser = async (params: {
 
   const result = (await response.json()) as HostingError | User;
 
-  const setCookie = response.headers.get('Set-Cookie');
-  if (setCookie) {
-    sessionStore.authToken.setValue(setCookie);
-  }
-
-  const userId = 'id' in result && (result as User).id;
-  if (userId) {
-    sessionStore.userId.setValue(userId);
-    if (result.botEnabled !== null && result.botEnabled !== undefined) {
-      logger.trackEvent('Bot status set', {
-        enabled: result.botEnabled,
-        $set: {
-          botEnabled: result.botEnabled,
-        },
-      });
-      await sessionStore.botEnabled.setValue(result.botEnabled);
-    }
-  }
-
-  return result as User;
+  const user = result as User;
+  await persistHostingSession(response, user);
+  return user;
 };
 
 export const logInHostingUser = async (params: {
@@ -970,26 +1060,65 @@ export const logInHostingUser = async (params: {
     );
   }
 
-  const setCookie = response.headers.get('Set-Cookie');
-  const user = 'id' in result && (result as User).id;
-  if (setCookie) {
-    sessionStore.authToken.setValue(setCookie);
-  }
+  const user = result as User;
+  await persistHostingSession(response, user);
+  return user;
+};
 
-  if (user) {
-    sessionStore.userId.setValue(user);
-    if (result.botEnabled !== null && result.botEnabled !== undefined) {
-      logger.trackEvent('Bot status set', {
-        enabled: result.botEnabled,
-        $set: {
-          botEnabled: result.botEnabled,
+export const requestLoginOtpForUser = async ({
+  userId,
+  recaptchaToken,
+  platform,
+}: {
+  userId: string;
+  recaptchaToken: string;
+  platform: HostingRecaptchaPlatform;
+}) =>
+  hostingFetch<HostingLoginOtpInfo>(
+    `/v1/users/${encodeURIComponent(userId)}/request-login-otp`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        recaptcha: {
+          recaptchaToken: { token: recaptchaToken },
+          recaptchaPlatform: platform,
         },
-      });
-      await sessionStore.botEnabled.setValue(result.botEnabled);
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
     }
+  );
+
+export const verifyLoginOtpForUser = async ({
+  userId,
+  otp,
+}: {
+  userId: string;
+  otp: string;
+}) => {
+  const path = `/v1/users/${encodeURIComponent(userId)}/verify-login-otp`;
+  const response = await hostingFetchResponse(path, {
+    method: 'POST',
+    body: JSON.stringify({ otp }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const result: unknown = await response.json().catch(() => null);
+    throw new HostingError(
+      isJsonObject(result) && typeof result.message === 'string'
+        ? result.message
+        : 'An unknown error has occurred.',
+      { status: response.status, method: 'POST', path }
+    );
   }
 
-  return result as User;
+  const user = (await response.json()) as User;
+  await persistHostingSession(response, user);
+  return user;
 };
 
 export const getHostingUser = async (userId: string) => {
@@ -1133,13 +1262,12 @@ export const assignShipToUser = async (userId: string) => {
   const isReady = response.ship.status.phase === 'Ready';
   const code = response.code;
   const personalInviteToken = response.personalLureToken || null;
-  const homeGroupInviteToken = response.homeGroupLureToken || null;
 
   if (!nodeId) {
     throw new Error('Invalid ship assignment response');
   }
 
-  return { nodeId, isReady, code, personalInviteToken, homeGroupInviteToken };
+  return { nodeId, isReady, code, personalInviteToken };
 };
 
 export const getReservableShips = async (user: string) =>
@@ -1218,10 +1346,20 @@ export const getNodeStatus = async (
   try {
     result = await getShip(nodeId);
   } catch (e) {
-    throw new Error('Hosting API call failed');
+    // Carry the status in the message so an expired hosting session (401)
+    // can be told apart from a hosting outage (5xx) in the issue title and
+    // the latest event. This is for diagnosis only -- Sentry groups on the
+    // stack first, so it is not a guarantee of separate issues. Deliberately
+    // no `cause`: the linked-error integration appends the cause as the last
+    // exception and the ignore filter inspects that one, which would silently
+    // drop wrapped hosting timeouts.
+    const status = e instanceof HostingError ? e.details.status : null;
+    throw new Error(
+      `Hosting API call failed${status === null ? '' : ` (${status})`}`
+    );
   }
 
-  const nodeStatus = result.status ? result.status.phase ?? 'Unknown' : null;
+  const nodeStatus = result.status ? (result.status.phase ?? 'Unknown') : null;
   const isBooting = result.ship?.booting;
   const manualUpdateNeeded = result.ship?.manualUpdateNeeded;
   const showWayfinding = result.ship?.showWayfinding ?? false;

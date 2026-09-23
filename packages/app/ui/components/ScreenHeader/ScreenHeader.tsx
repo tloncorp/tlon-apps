@@ -1,11 +1,21 @@
+import { NavigationContext } from '@react-navigation/native';
 import { useDebouncedValue } from '@tloncorp/shared';
 import { Icon, Text, View } from '@tloncorp/ui';
-import { Children, ReactNode, useEffect, useRef, useState } from 'react';
+import {
+  Children,
+  ReactNode,
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
   Platform,
   Pressable,
   ViewStyle,
+  useWindowDimensions,
 } from 'react-native';
 import Animated, {
   Easing,
@@ -16,7 +26,10 @@ import Animated, {
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  useSafeAreaFrame,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import {
   XStack,
   getVariableValue,
@@ -35,6 +48,7 @@ import {
   ScreenHeaderItemElements,
 } from './primitives';
 import { useNativeHeader } from './useNativeHeader';
+import { getNativeTitleMaxWidth } from './titleLayout';
 
 interface SharedScreenHeaderProps {
   title?: string | ReactNode;
@@ -69,6 +83,11 @@ type ScreenHeaderProps = SharedScreenHeaderProps &
       }
   );
 
+const InlineScreenHeaderContext = createContext(false);
+const androidNativeTitleHeight = 56;
+
+export const InlineScreenHeaderProvider = InlineScreenHeaderContext.Provider;
+
 export const ScreenHeaderComponent = ({
   children,
   title,
@@ -89,12 +108,29 @@ export const ScreenHeaderComponent = ({
   testID,
   placement = 'content',
 }: ScreenHeaderProps) => {
-  const { top } = useSafeAreaInsets();
+  const forceInline = useContext(InlineScreenHeaderContext);
+  const navigation = useContext(NavigationContext);
+  const { top, left: leftInset, right: rightInset } = useSafeAreaInsets();
+  const { width: screenWidth } = useSafeAreaFrame();
+  const { fontScale } = useWindowDimensions();
+  const isNativeNavigationHeader =
+    placement === 'navigation' &&
+    !forceInline &&
+    Platform.OS !== 'web' &&
+    navigation != null;
   const [headerWidth, setHeaderWidth] = useState(0);
   const [leftControlsWidth, setLeftControlsWidth] = useState(0);
   const [rightControlsWidth, setRightControlsWidth] = useState(0);
 
   const shouldUseAnimatedTitleLayout = typeof title === 'string';
+  const nativeTitleHeight =
+    Platform.OS === 'android' &&
+    placement === 'navigation' &&
+    !forceInline &&
+    loadingSubtitle !== undefined &&
+    shouldUseAnimatedTitleLayout
+      ? androidNativeTitleHeight
+      : undefined;
   const activeLoadingText = loadingSubtitle ?? undefined;
   const isLoadingActive = !!activeLoadingText;
   const lastLoadingTextRef = useRef('');
@@ -138,7 +174,7 @@ export const ScreenHeaderComponent = ({
   const horizontalTitleMaxWidth =
     useHorizontalTitleLayout && headerWidth
       ? Math.max(
-          80,
+          0,
           headerWidth - horizontalTitleLeftOffset - horizontalTitleRightOffset
         )
       : undefined;
@@ -147,11 +183,32 @@ export const ScreenHeaderComponent = ({
     horizontalTitleRightOffset
   );
   const centeredTitleMaxWidth = headerWidth
-    ? Math.max(80, Math.min(185, headerWidth - centeredTitleSideOffset * 2))
+    ? Math.max(0, Math.min(185, headerWidth - centeredTitleSideOffset * 2))
     : 185;
-  const titleMaxWidth = useHorizontalTitleLayout
-    ? horizontalTitleMaxWidth
-    : centeredTitleMaxWidth;
+  const navigationLeftActions: ScreenHeaderAction[] = [
+    ...(backAction
+      ? [
+          {
+            id: 'screen-header-back',
+            icon: 'ChevronLeft' as const,
+            label: 'Back',
+            onPress: backAction,
+            disabled: backDisabled,
+          },
+        ]
+      : []),
+    ...(leftActions ?? []),
+  ];
+  const titleMaxWidth = isNativeNavigationHeader
+    ? getNativeTitleMaxWidth({
+        width: screenWidth - leftInset - rightInset,
+        fontScale,
+        left: navigationLeftActions,
+        right: rightActions ?? [],
+      })
+    : useHorizontalTitleLayout
+      ? horizontalTitleMaxWidth
+      : centeredTitleMaxWidth;
   const loadingTextMaxWidth = useHorizontalTitleLayout ? 360 : 240;
 
   // Fallback for non-string titles: swap to loading subtitle while loading.
@@ -197,7 +254,16 @@ export const ScreenHeaderComponent = ({
     );
 
   const titleCluster = (
-    <XStack alignItems="center" justifyContent="center" gap="$s" height="$4xl">
+    <XStack
+      alignItems="center"
+      alignSelf={useHorizontalTitleLayout ? 'flex-start' : 'center'}
+      justifyContent="center"
+      gap="$s"
+      height={nativeTitleHeight ?? '$4xl'}
+      maxWidth={titleMaxWidth}
+      minWidth={0}
+      flexShrink={1}
+    >
       {titleIcon}
       {shouldUseAnimatedTitleLayout ? (
         <HeaderAnimatedTitle
@@ -205,15 +271,17 @@ export const ScreenHeaderComponent = ({
           isLoading={isLoadingActive}
           loadingText={displayLoadingText}
           leftAlignLoadingText={useHorizontalTitleLayout}
-          titleMaxWidth={titleMaxWidth}
           loadingTextMaxWidth={loadingTextMaxWidth}
+          titleHeight={nativeTitleHeight}
         />
       ) : (
         <Text
           size="$label/2xl"
           color="$primaryText"
           numberOfLines={1}
-          maxWidth={titleMaxWidth}
+          ellipsizeMode="tail"
+          minWidth={0}
+          flexShrink={1}
           testID="ScreenHeaderTitle"
         >
           {displayTitle}
@@ -239,8 +307,13 @@ export const ScreenHeaderComponent = ({
   const interactiveTitleContent = onTitlePress ? (
     <Pressable
       onPress={onTitlePress}
+      accessibilityRole="button"
+      accessibilityLabel={typeof title === 'string' ? title : undefined}
       style={{
         alignSelf: useHorizontalTitleLayout ? 'flex-start' : 'center',
+        maxWidth: titleMaxWidth,
+        minWidth: 0,
+        flexShrink: 1,
       }}
     >
       {titleContent}
@@ -249,20 +322,6 @@ export const ScreenHeaderComponent = ({
     titleContent
   );
 
-  const navigationLeftActions: ScreenHeaderAction[] = [
-    ...(backAction
-      ? [
-          {
-            id: 'screen-header-back',
-            icon: 'ChevronLeft' as const,
-            label: 'Back',
-            onPress: backAction,
-            disabled: backDisabled,
-          },
-        ]
-      : []),
-    ...(leftActions ?? []),
-  ];
   // Ordinary subtitles belong to the content/desktop layout. Native custom
   // titles are reserved for elements the native string title cannot express.
   const usesCustomNativeTitle =
@@ -270,21 +329,10 @@ export const ScreenHeaderComponent = ({
     titleIcon != null ||
     onTitlePress != null ||
     loadingSubtitle !== undefined;
-  const titlePresentationKey = JSON.stringify({
-    title: typeof title === 'string' ? title : null,
-    hasTitleIcon: titleIcon != null,
-    subtitle: resolvedSubtitle,
-    loadingText: displayLoadingText,
-    isLoadingActive,
-    showSubtitle,
-    useHorizontalTitleLayout,
-    isInteractive: onTitlePress != null,
-  });
   const shouldUseNativeHeader = useNativeHeader({
-    enabled: placement === 'navigation',
+    enabled: placement === 'navigation' && !forceInline,
     title: typeof title === 'string' ? title : '',
     titleElement: interactiveTitleContent,
-    titlePresentationKey,
     usesCustomTitle: usesCustomNativeTitle,
     backgroundColor,
     left: navigationLeftActions,
@@ -428,7 +476,10 @@ function HeaderAnimatedCluster({
       onLayout={(event) => {
         clusterWidth.value = event.nativeEvent.layout.width;
       }}
-      style={animatedClusterStyle}
+      style={[
+        { maxWidth: '100%', minWidth: 0, flexShrink: 1 },
+        animatedClusterStyle,
+      ]}
     >
       {children}
     </Animated.View>
@@ -440,15 +491,15 @@ function HeaderAnimatedTitle({
   isLoading,
   loadingText,
   leftAlignLoadingText = false,
-  titleMaxWidth,
   loadingTextMaxWidth = 240,
+  titleHeight,
 }: {
   title: string;
   isLoading: boolean;
   loadingText: string;
   leftAlignLoadingText?: boolean;
-  titleMaxWidth?: number | 'unset';
   loadingTextMaxWidth?: number;
+  titleHeight?: number;
 }) {
   const theme = useTheme();
   const loadingOpacity = useSharedValue(0);
@@ -458,7 +509,10 @@ function HeaderAnimatedTitle({
   const spinnerSize = isAndroid ? 10 : 8;
   const spinnerBorderWidth = 1;
   const spinnerGap = 6;
-  const loadingRowWidth = loadingTextMaxWidth + spinnerSize + spinnerGap;
+  const loadingAccessoryWidth = spinnerSize + spinnerGap;
+  const loadingRowWidth =
+    loadingTextMaxWidth +
+    loadingAccessoryWidth * (leftAlignLoadingText ? 1 : 2);
 
   useEffect(() => {
     if (isLoading) {
@@ -502,7 +556,9 @@ function HeaderAnimatedTitle({
       transform: [
         {
           translateX:
-            !leftAlignLoadingText && loadingRowWidth ? -loadingRowWidth / 2 : 0,
+            !isAndroid && !leftAlignLoadingText && loadingRowWidth
+              ? -loadingRowWidth / 2
+              : 0,
         },
         { translateY: loadingTranslateY.value },
       ],
@@ -523,16 +579,47 @@ function HeaderAnimatedTitle({
 
   return (
     <View
-      height="$4xl"
+      height={titleHeight ?? '$4xl'}
       alignItems="center"
       justifyContent="center"
       overflow="visible"
+      minWidth={0}
+      flexShrink={1}
     >
+      {isAndroid ? (
+        // Android's native title host clips overflow to the measured child
+        // width, so reserve the loading row's intrinsic width in layout.
+        <View
+          aria-hidden
+          height={0}
+          maxWidth={loadingRowWidth}
+          flexDirection="row"
+          opacity={0}
+          overflow="hidden"
+          pointerEvents="none"
+        >
+          <View width={spinnerSize} marginRight={spinnerGap} />
+          <Text
+            size="$label/s"
+            trimmed={false}
+            numberOfLines={1}
+            maxWidth={loadingTextMaxWidth}
+            minWidth={0}
+            flexShrink={1}
+          >
+            {loadingText}
+          </Text>
+          {!leftAlignLoadingText ? (
+            <View width={loadingAccessoryWidth} />
+          ) : null}
+        </View>
+      ) : null}
       <Text
         size="$label/2xl"
         color="$primaryText"
         numberOfLines={1}
-        maxWidth={titleMaxWidth}
+        ellipsizeMode="tail"
+        maxWidth="100%"
         testID="ScreenHeaderTitle"
       >
         {title}
@@ -542,8 +629,9 @@ function HeaderAnimatedTitle({
           {
             position: 'absolute',
             top: 36,
-            left: leftAlignLoadingText ? 0 : '50%',
-            width: loadingRowWidth,
+            left: isAndroid || leftAlignLoadingText ? 0 : '50%',
+            right: isAndroid ? 0 : undefined,
+            width: isAndroid ? undefined : loadingRowWidth,
             height: 16,
             flexDirection: 'row',
             alignItems: 'center',
@@ -584,10 +672,17 @@ function HeaderAnimatedTitle({
           trimmed={false}
           numberOfLines={1}
           maxWidth={loadingTextMaxWidth}
+          minWidth={0}
+          flexShrink={1}
           testID="ScreenHeaderLoadingText"
         >
           {loadingText}
         </Text>
+        {!leftAlignLoadingText ? (
+          // Mirror the leading spinner and gap so the text itself, rather
+          // than the spinner-and-text group, stays horizontally centered.
+          <View width={loadingAccessoryWidth} />
+        ) : null}
       </Animated.View>
     </View>
   );

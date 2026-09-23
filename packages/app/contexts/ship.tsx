@@ -56,9 +56,15 @@ const emptyShip: ShipInfo = {
   needsSplashSequence: false,
 };
 
-export const ShipProvider = ({ children }: { children: ReactNode }) => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [shipInfo, setShipInfo] = useState(emptyShip);
+export const ShipProvider = ({
+  children,
+  initialShipInfo,
+}: {
+  children: ReactNode;
+  initialShipInfo?: ShipInfo;
+}) => {
+  const [isLoading, setIsLoading] = useState(!initialShipInfo);
+  const [shipInfo, setShipInfo] = useState(initialShipInfo ?? emptyShip);
 
   const setShip = useCallback(
     ({
@@ -151,6 +157,10 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
   );
 
   useEffect(() => {
+    if (initialShipInfo) {
+      return;
+    }
+
     const loadConnection = async () => {
       try {
         const storedShipInfo = await storage.shipInfo.getValue();
@@ -168,7 +178,7 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
     };
 
     loadConnection();
-  }, [setShip]);
+  }, [initialShipInfo, setShip]);
 
   const clearShip = useCallback(() => {
     setShipInfo(emptyShip);

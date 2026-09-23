@@ -4,9 +4,9 @@ import { toInitData } from '../client/initApi';
 import type * as ub from '../urbit';
 import rawGroupsInit6 from './fixtures/groupsInit5.json';
 
-const groupsInit6 = rawGroupsInit6 as unknown as ub.GroupsInit6;
+const groupsInit6 = rawGroupsInit6 as unknown as ub.GroupsInit10;
 const currentUserId = '~solfer-magfed';
-const toTestInitData = (response: ub.GroupsInit7) =>
+const toTestInitData = (response: ub.GroupsInit10) =>
   toInitData(response, { currentUserId });
 
 describe('toInitData', () => {

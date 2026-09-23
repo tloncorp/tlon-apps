@@ -3,7 +3,7 @@ const { build } = require('./package.json');
 
 exports.default = async function notarizing(context) {
   const { electronPlatformName, appOutDir } = context;
-  
+
   // Only notarize macOS builds
   if (electronPlatformName !== 'darwin') {
     return;

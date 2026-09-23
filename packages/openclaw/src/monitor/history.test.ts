@@ -4,6 +4,8 @@ import {
   type TlonHistoryEntry,
   buildThreadContextMessage,
   cacheMessage,
+  fetchChannelHistory,
+  fetchChannelHistoryOrThrow,
   fetchParentPostAuthor,
   fetchParentPostHistoryEntry,
   getChannelHistory,
@@ -199,6 +201,117 @@ describe('renderHistoryContent', () => {
     };
     const result = renderHistoryContent(entry);
     expect(result).toBe('[📎 a.pdf]\n[📎 b.txt]\nHere are the files');
+  });
+});
+
+describe('fetchChannelHistory', () => {
+  it('normalizes production-shaped bot profiles to ship ids', async () => {
+    const scry = vi.fn(async () => ({
+      posts: {
+        '1': {
+          seal: { id: '1' },
+          essay: {
+            author: {
+              ship: '~bot',
+              nickname: "Napdet's Tlonbot",
+              avatar: 'https://example.com/avatar.png',
+            },
+            sent: 1,
+            content: [{ inline: ['What should this group do?'] }],
+          },
+        },
+        '2': {
+          seal: { id: '2' },
+          essay: {
+            author: '~ten',
+            sent: 2,
+            content: [{ inline: ['A daily digest'] }],
+          },
+        },
+      },
+    }));
+
+    await expect(
+      fetchChannelHistory({ scry }, 'chat/~ten/general')
+    ).resolves.toEqual([
+      expect.objectContaining({ author: '~bot', id: '1' }),
+      expect.objectContaining({ author: '~ten', id: '2' }),
+    ]);
+  });
+
+  it('lets control-plane callers distinguish a failed scry from empty history', async () => {
+    const scry = vi.fn().mockRejectedValue(new Error('ship unavailable'));
+
+    await expect(
+      fetchChannelHistoryOrThrow({ scry }, 'chat/~ten/general')
+    ).rejects.toThrow('ship unavailable');
+    await expect(
+      fetchChannelHistory({ scry }, 'chat/~ten/general')
+    ).resolves.toEqual([]);
+  });
+
+  it('reads a DM from %chat rather than %channels', async () => {
+    // A DM has no kind/host/slug nest, so the %channels scry cannot serve it
+    // at all — onboarding in the bot DM depends on this branch.
+    const scry = vi.fn(async () => ({
+      writs: {
+        '170.141.184.507.123': {
+          seal: { id: '~ten/170.141.184.507.123' },
+          essay: {
+            author: '~ten',
+            content: [{ inline: ["Let's get set up."] }],
+            sent: 7,
+            blob: '[{"type":"tlon-agent-intro-request"}]',
+          },
+        },
+      },
+      newer: null,
+      older: null,
+      total: 1,
+      newest: 7,
+    }));
+
+    await expect(
+      fetchChannelHistoryOrThrow({ scry }, '~ten', 50)
+    ).resolves.toEqual([
+      expect.objectContaining({
+        author: '~ten',
+        id: '~ten/170.141.184.507.123',
+        blob: '[{"type":"tlon-agent-intro-request"}]',
+      }),
+    ]);
+    expect(scry).toHaveBeenCalledWith(
+      '/chat/v4/dm/~ten/writs/newest/50/light.json',
+      expect.anything()
+    );
+  });
+
+  it('keeps reading group channels from %channels', async () => {
+    const scry = vi.fn(async () => ({ posts: {} }));
+
+    await fetchChannelHistoryOrThrow({ scry }, 'chat/~ten/general', 50);
+
+    expect(scry).toHaveBeenCalledWith(
+      '/channels/v4/chat/~ten/general/posts/newest/50/outline.json',
+      expect.anything()
+    );
+  });
+
+  it('forwards cancellation to the history scry', async () => {
+    const controller = new AbortController();
+    const scry = vi.fn(async () => []);
+
+    await fetchChannelHistoryOrThrow(
+      { scry },
+      'chat/~ten/general',
+      50,
+      undefined,
+      controller.signal
+    );
+
+    expect(scry).toHaveBeenCalledWith(expect.any(String), {
+      signal: controller.signal,
+    });
   });
 });
 

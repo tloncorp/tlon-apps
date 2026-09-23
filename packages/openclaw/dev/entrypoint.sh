@@ -47,9 +47,13 @@ minimumReleaseAge: 0
 verifyDepsBeforeRun: false
 PNPM_EOF
 pnpm install
-pnpm build
+# Override registry deps with local builds BEFORE compiling: the plugin may
+# use @tloncorp/api exports that exist only in the local checkout, so tsc
+# must see the overridden package. Both overrides need only the installed
+# node_modules, not the plugin build.
 ./dev/build-local-api-override.sh
 ./dev/build-local-skill-override.sh
+pnpm build
 
 # Expose tlon CLI to PATH
 TLON_BIN_DIR="/workspace/tlon/node_modules/.bin"

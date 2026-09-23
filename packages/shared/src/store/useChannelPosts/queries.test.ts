@@ -1,7 +1,12 @@
+import { InfiniteQueryObserver } from '@tanstack/react-query';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import * as db from '../../db';
-import { getLatestChannelPostsInitialPage, queryKeyPrefix } from './queries';
+import {
+  getLatestChannelPostsInitialPage,
+  getOlderPageParam,
+  queryKeyPrefix,
+} from './queries';
 
 type TestPageParam = { mode: string; cursorPostId?: string; count?: number };
 
@@ -14,6 +19,53 @@ const data = (...entries: [string, TestPageParam, number?][]) => ({
 });
 
 const newest = { mode: 'newest' };
+
+describe('getOlderPageParam', () => {
+  it.each([undefined, null, 0])(
+    'does not paginate from an unsequenced post (%s)',
+    (sequenceNum) => {
+      expect(
+        getOlderPageParam([{ sequenceNum }], {
+          channelId: 'channel',
+          count: 30,
+        })
+      ).toBeUndefined();
+    }
+  );
+
+  it('uses a positive server sequence as the older-page cursor', () => {
+    expect(
+      getOlderPageParam([{ sequenceNum: 10 }, { sequenceNum: 9 }], {
+        channelId: 'channel',
+        count: 30,
+      })
+    ).toEqual({
+      channelId: 'channel',
+      count: 30,
+      mode: 'older',
+      cursorSequenceNum: 9,
+    });
+  });
+
+  it('makes an unsequenced loaded page terminal to the infinite query', async () => {
+    const observer = new InfiniteQueryObserver(db.queryClient, {
+      queryKey: ['channelPosts', 'unsequenced-regression'],
+      initialPageParam: { channelId: 'channel', mode: 'newest' as const },
+      queryFn: async () => ({
+        posts: [{ sequenceNum: 0 }],
+      }),
+      getNextPageParam: (lastPage) =>
+        getOlderPageParam(lastPage.posts, {
+          channelId: 'channel',
+          count: 30,
+        }),
+    });
+
+    await observer.refetch();
+
+    expect(observer.getCurrentResult().hasNextPage).toBe(false);
+  });
+});
 
 describe('getLatestChannelPostsInitialPage', () => {
   afterEach(() => {

@@ -40,11 +40,9 @@ export type NudgeRunnerStartDecision =
  *  1. `channels.tlon.reengagement.enabled` must be explicitly `true`. The
  *     feature is default-off so self-hosted installs that configure
  *     `ownerShip` for approval DMs do not automatically get owner nudges.
- *  2. Exactly one Tlon account must be configured. The runner sends DMs
- *     through the global `@tloncorp/api` client configured by
- *     `configureTlonApiWithPoke`, and the last-started monitor wins that
- *     singleton — so multi-account mode is not safe until a per-account
- *     send path lands.
+ *  2. Exactly one Tlon account must be configured. Keep the existing product
+ *     constraint until multi-account reengagement behavior is validated; the
+ *     transport itself is now scoped per account.
  *
  * Pure helper; does not read process state.
  */
@@ -63,8 +61,7 @@ export function shouldStartNudgeRunner(
   }
   // Count *runnable* accounts (enabled + fully configured). Disabled or
   // half-configured stub entries should not trip the multi-account guard,
-  // since they would never start a monitor and so cannot race the global
-  // `@tloncorp/api` singleton with the active account.
+  // since they would never start a monitor.
   const accountIds = listRunnableTlonAccountIds(cfg);
   if (accountIds.length !== 1) {
     return {

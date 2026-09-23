@@ -134,6 +134,14 @@ suspend fun processNotification(context: Context, uid: String, id: String) {
         throw PreviewEmpty(uid, activityEventJSON)
     }
 
+    if (NotificationPresentationState.shouldSuppress(preview.groupingKey)) {
+        Log.d(
+            NOTIFICATION_MANAGER,
+            "Suppressing foreground notification for active channel: ${preview.groupingKey}"
+        )
+        return
+    }
+
     try {
         // Proceed with rich notification
         val extras = Bundle()
@@ -156,12 +164,7 @@ private fun showRichNotification(context: Context, uid: String, preview: Activit
             Manifest.permission.POST_NOTIFICATIONS
         ) != PackageManager.PERMISSION_GRANTED
     ) {
-        NotificationLogger.logError(
-            NotificationException(
-                uid,
-                "Lacking notification permissions"
-            )
-        )
+        NotificationLogger.logError(NotificationPermissionMissing(uid))
         Log.w(NOTIFICATION_MANAGER, "Cannot show notification - no permission")
         return
     }
@@ -233,12 +236,7 @@ fun showGenericNotification(
             Manifest.permission.POST_NOTIFICATIONS
         ) != PackageManager.PERMISSION_GRANTED
     ) {
-        NotificationLogger.logError(
-            NotificationException(
-                message = "Lacking notification permissions",
-                uid = identifier
-            )
-        )
+        NotificationLogger.logError(NotificationPermissionMissing(identifier))
         Log.w(NOTIFICATION_MANAGER, "Cannot show notification - no permission")
         return
     }
@@ -310,7 +308,13 @@ fun NotificationCompat.Builder.buildMessagingTappable(context: Context, id: Int,
 fun processNotificationBlocking(context: Context, uid: String, id: String) =
     runBlocking { processNotification(context, uid, id) }
 
-open class NotificationException(
+/**
+ * Constructed only through the subclasses below: `message` and `uid` are both
+ * strings, and passing them the wrong way round silently reports a uid-shaped
+ * `message` and a message-shaped `uid` to PostHog, which is invisible in any
+ * query grouped by `message`.
+ */
+open class NotificationException protected constructor(
     message: String,
     val uid: String,
     val activityEvent: String? = null,
@@ -343,3 +347,17 @@ class RichNotificationDisplayFailed(
     activityEvent: String,
     cause: Throwable? = null
 ): NotificationException("Notification display failed", uid, activityEvent, cause)
+
+class FallbackNotificationDisplayFailed(
+    uid: String,
+    cause: Throwable? = null
+): NotificationException("Failed to display fallback notification", uid, null, cause)
+
+class NotificationPermissionMissing(
+    uid: String
+): NotificationException("Lacking notification permissions", uid)
+
+class DismissSourceMissing(
+    uid: String,
+    cause: Throwable? = null
+): NotificationException("Dismiss source missing", uid, null, cause)

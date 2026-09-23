@@ -3,6 +3,7 @@ node_modules
 .DS_Store
 /packages/hermes-tlon-adapter/.env
 /packages/tlon-bot-e2e/.env
+packages/tlon-bot-e2e/diagnostics/
 __pycache__/
 *.py[cod]
 # onboarding sandbox: editable copies of private tlonbot prompts/intro — never commit
@@ -28,6 +29,7 @@ packages/tlon-skill/bin/tlon
 *.xst
 zod*
 bud
+/backend/.cookie-*
 vere-*
 *.pill
 /rube/zod/
@@ -53,5 +55,11 @@ clurd
 .obsidian
 .pi
 
+tmuxp.yaml
+
 # Local Superpowers planning artifacts
 /docs/superpowers/
+
+# Worktrees created by the tlon-workflow skill, at any depth.
+.worktrees/
+.evidence/

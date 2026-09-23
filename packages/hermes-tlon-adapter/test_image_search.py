@@ -128,6 +128,11 @@ class ImageSearchTests(unittest.TestCase):
         )
         self.assertIn("tlon upload", payload["usage"])
         self.assertIn("source_url", payload["usage"])
+        # The storage-less recovery path has to read the same way here as in
+        # the tool description and prompts: do not retry the upload, use the
+        # https image_url directly.
+        self.assertIn("cannot store uploads", payload["usage"])
+        self.assertIn("without an upload", payload["usage"])
 
     def test_http_error_is_reported(self):
         async def fetch_json(url, params, headers):

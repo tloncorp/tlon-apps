@@ -43,6 +43,7 @@ function isSectionHeader(item: ChannelListData): item is SectionHeaderData {
 }
 
 type GroupChannelsScreenViewProps = {
+  disabled?: boolean;
   group: db.Group | null;
   focusedChannelId?: string;
   unjoinedChannels?: db.Channel[];
@@ -56,6 +57,7 @@ type GroupChannelsScreenViewProps = {
 export const GroupChannelsScreenView = React.memo(
   function GroupChannelsScreenViewComponent({
     group,
+    disabled = false,
     focusedChannelId,
     unjoinedChannels = [],
     onChannelPressed,
@@ -79,10 +81,10 @@ export const GroupChannelsScreenView = React.memo(
     const { navigateToChatDetails } = useRootNavigation();
 
     const handleTitlePress = useCallback(() => {
-      if (group) {
+      if (group && !disabled) {
         navigateToChatDetails({ type: 'group', id: group.id });
       }
-    }, [group, navigateToChatDetails]);
+    }, [disabled, group, navigateToChatDetails]);
 
     const isPersonalGroup = useMemo(() => {
       return logic.isPersonalGroup(group, userId);
@@ -260,11 +262,14 @@ export const GroupChannelsScreenView = React.memo(
           <ChannelListItem
             key={item.id}
             model={item}
+            disabled={disabled}
             onPress={isUnjoined ? onJoinChannel : handleChannelPress}
-            onLongPress={!isUnjoined ? handleOpenChannelOptions : undefined}
+            onLongPress={
+              !isUnjoined && !disabled ? handleOpenChannelOptions : undefined
+            }
             useTypeIcon={true}
-            dimmed={isUnjoined}
-            disableOptions={isUnjoined}
+            dimmed={isUnjoined || disabled}
+            disableOptions={isUnjoined || disabled}
             EndContent={
               isUnjoined ? (
                 <View justifyContent="center">
@@ -277,6 +282,7 @@ export const GroupChannelsScreenView = React.memo(
       },
       [
         unjoinedChannels,
+        disabled,
         onJoinChannel,
         handleChannelPress,
         handleOpenChannelOptions,
@@ -319,8 +325,8 @@ export const GroupChannelsScreenView = React.memo(
           subtitle={subtitle}
           showSubtitle={isWindowNarrow}
           borderBottom={isWindowNarrow}
-          backAction={onBackPressed}
-          onTitlePress={handleTitlePress}
+          backAction={disabled ? undefined : onBackPressed}
+          onTitlePress={disabled ? undefined : handleTitlePress}
           rightActions={[
             {
               id: 'edit-channels',
@@ -329,7 +335,7 @@ export const GroupChannelsScreenView = React.memo(
               onPress: group
                 ? () => onPressManageChannels(group.id, false)
                 : undefined,
-              disabled: !canEdit,
+              disabled: disabled || !canEdit,
               visible: !!group && isGroupAdmin,
             },
           ]}
@@ -354,16 +360,22 @@ export const GroupChannelsScreenView = React.memo(
               getItemType={getItemType}
               {...screenScrollProps}
               ListHeaderComponent={
-                <>
+                <YStack width="100%" minWidth="100%" alignSelf="stretch">
                   {isPersonalGroup ? (
                     <WayfindingNotice.GroupChannels group={group} />
                   ) : null}
                   <SystemNotices.ConnectedJoinRequestNotice
                     group={group}
                     onViewRequests={onGoToGroupMembers}
+                    horizontalInset={false}
                   />
-                </>
+                </YStack>
               }
+              ListHeaderComponentStyle={{
+                width: '100%',
+                minWidth: '100%',
+                alignSelf: 'stretch',
+              }}
               contentContainerStyle={{
                 paddingTop: getTokenValue('$l'),
                 paddingHorizontal: getTokenValue('$l'),

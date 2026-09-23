@@ -1,5 +1,6 @@
 import { makePrettyShortDate } from '@tloncorp/api/lib/utils';
 import * as db from '@tloncorp/shared/db';
+import { noteTimestampMs } from '@tloncorp/shared/logic';
 
 export type FolderRow = { folder: db.NotesFolder; path: string };
 export type FolderDestinationRow = {
@@ -286,7 +287,7 @@ export function getNextNoteIdAfterDelete(
   const deletedIndex = noteIds.indexOf(deletedNoteId);
   return deletedIndex === -1
     ? null
-    : noteIds[deletedIndex + 1] ?? noteIds[deletedIndex - 1] ?? null;
+    : (noteIds[deletedIndex + 1] ?? noteIds[deletedIndex - 1] ?? null);
 }
 
 export function getNextNoteIdAfterFolderDelete({
@@ -447,12 +448,6 @@ export function makeNotesFolderPathLabeler({
 
 export function normalizeSearchText(value: string | null | undefined) {
   return (value ?? '').trim().toLowerCase();
-}
-
-// Note timestamps may arrive in seconds or milliseconds depending on source.
-export function noteTimestampMs(timestamp: number | null | undefined) {
-  if (!timestamp) return null;
-  return timestamp < 10_000_000_000 ? timestamp * 1000 : timestamp;
 }
 
 export function formatNoteDate(timestamp: number | null | undefined) {

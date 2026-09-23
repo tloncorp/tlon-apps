@@ -617,6 +617,56 @@ describe('context lens registry', () => {
     expect(recordContextLensToolStartForSession(sessionKey, 'cron')).toBeNull();
   });
 
+  it('attributes onboarding cron runs to their setup channel', () => {
+    const sessionKey = 'session-background-onboarding-cron';
+    const background = ensureBackgroundContextLensForSession(sessionKey, {
+      chatType: 'channel',
+      conversationId: 'chat/~ten/group/general',
+      runKind: 'cron',
+      trigger: 'cron',
+    });
+
+    try {
+      expect(background?.lens).toMatchObject({
+        chatType: 'channel',
+        runKind: 'cron',
+        triggerDetails: {
+          conversationId: 'chat/~ten/group/general',
+          conversationKind: 'channel',
+        },
+      });
+    } finally {
+      finalizeBackgroundContextLensForSession(sessionKey);
+    }
+  });
+
+  it('upgrades a cron lens when channel attribution arrives after creation', () => {
+    const sessionKey = 'session-background-late-onboarding-channel';
+    ensureBackgroundContextLensForSession(sessionKey, {
+      runKind: 'cron',
+      trigger: 'cron',
+    });
+    const attributed = ensureBackgroundContextLensForSession(sessionKey, {
+      chatType: 'channel',
+      conversationId: 'chat/~ten/group/general',
+      runKind: 'cron',
+      trigger: 'cron',
+    });
+
+    try {
+      expect(attributed?.created).toBe(false);
+      expect(attributed?.lens).toMatchObject({
+        chatType: 'channel',
+        triggerDetails: {
+          conversationId: 'chat/~ten/group/general',
+          conversationKind: 'channel',
+        },
+      });
+    } finally {
+      finalizeBackgroundContextLensForSession(sessionKey);
+    }
+  });
+
   it('groups background tool calls until the session is idle', async () => {
     const sessionKey = 'session-background-debounce';
     const finalized: Array<{
@@ -903,6 +953,37 @@ describe('retry seed and dispatch', () => {
       expect(result.dispatch.messageText).toBe('truncated preview');
       expect(result.dispatch.degraded).toBe(true);
       expect(result.dispatch.isGroup).toBe(false);
+    }
+  });
+
+  it('keeps degraded provenance across retry chains', () => {
+    // A retry of a degraded run seeds a new lens; its threading metadata is
+    // still untrustworthy, so a second retry must stay degraded.
+    const registry = createContextLensRegistry();
+    const lens = registry.create({
+      messageId: 'react-170.141-~nec-1',
+      chatType: 'channel',
+      trigger: 'retry',
+      sessionKey: 'session-retry-5',
+      senderShip: '~ten',
+      conversationId: 'heap/~ten/gallery',
+      preview: 'preview text',
+      retrySeed: {
+        messageText: 'full original text',
+        blobField: null,
+        parentId: null,
+        isThreadReply: false,
+        replyParentId: null,
+        cachesHistory: true,
+        degraded: true,
+      },
+    });
+    const failed = registry.setStatus(lens.lensId, 'error', new Error('boom'));
+
+    const result = buildRetryDispatch(failed!);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.dispatch.degraded).toBe(true);
     }
   });
 

@@ -6,6 +6,7 @@ import { ListItemProps } from 'tamagui';
 import { View, XStack } from 'tamagui';
 
 import { triggerHaptic } from '../utils';
+import { BotBadge } from './BotBadge';
 import { ContactName } from './ContactNameV2';
 import { ListItem } from './ListItem';
 
@@ -52,10 +53,13 @@ function ContactRowItemRaw({
     >
       <ListItem {...rest}>
         <ListItem.ContactIcon contactId={contact.id} />
-        <ListItem.MainContent>
-          <ListItem.Title>
-            <ContactName contactId={contact.id} mode="auto" />
-          </ListItem.Title>
+        <ListItem.MainContent minWidth={0}>
+          <XStack alignItems="center" gap="$s">
+            <ListItem.Title flex={1} minWidth={0}>
+              <ContactName contactId={contact.id} mode="auto" />
+            </ListItem.Title>
+            <BotBadge contactId={contact.id} />
+          </XStack>
           {disabled && disabledReason ? (
             <ListItem.Subtitle color="$negativeActionText">
               {disabledReason}

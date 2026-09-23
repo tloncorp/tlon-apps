@@ -5,7 +5,6 @@ import {
   scry,
   subscribeOnce,
 } from '@tloncorp/api';
-// @ts-expect-error -- subpath export not resolvable under moduleResolution:Node
 import { extractNormalizedInviteLink } from '@tloncorp/api/client/deeplinks';
 
 import { ensureClient, getCredentialResolution } from './api-client';

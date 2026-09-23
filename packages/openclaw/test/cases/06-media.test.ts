@@ -28,9 +28,9 @@ const storageEnv = {
 
 const hasStorageEnv = Boolean(
   storageEnv.endpoint &&
-    storageEnv.bucket &&
-    storageEnv.accessKey &&
-    storageEnv.secretKey
+  storageEnv.bucket &&
+  storageEnv.accessKey &&
+  storageEnv.secretKey
 );
 
 describe('media', () => {

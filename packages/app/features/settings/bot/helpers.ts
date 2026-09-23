@@ -12,9 +12,10 @@ import {
   BASIC_DEFAULT_MODEL,
   BASIC_PROVIDER_ID,
   PROVIDER_OPTIONS,
+  isSubscriptionProvider,
 } from './constants';
 import {
-  getOpenAIAuthStatus,
+  getLLMAuthProviderStatus,
   isLLMAuthProviderConnected,
 } from './openAiSubscription';
 
@@ -43,6 +44,7 @@ export type ChatFormValues = {
 export type ModelFormValues = {
   provider: string;
   model: string;
+  zdr: boolean;
   fallbacks: { provider: string; model: string }[];
 };
 
@@ -184,8 +186,10 @@ export const hasProviderCredential = (
   providerId === BASIC_PROVIDER_ID
     ? Boolean(config?.defaultKeys?.[BASIC_PROVIDER_ID])
     : Boolean(config?.keys?.[providerId]) ||
-      (providerId === 'openai' &&
-        isLLMAuthProviderConnected(getOpenAIAuthStatus(llmAuthStatus)?.status));
+      (isSubscriptionProvider(providerId) &&
+        isLLMAuthProviderConnected(
+          getLLMAuthProviderStatus(llmAuthStatus, providerId)?.status
+        ));
 
 export const getAvailableProviderIds = (
   config: TlawnProviderConfigInfo | undefined,
@@ -249,12 +253,14 @@ export const getModelFormValues = (
       model: hasProviderCredential(config, BASIC_PROVIDER_ID)
         ? BASIC_DEFAULT_MODEL
         : '',
+      zdr: false,
       fallbacks: [],
     };
   }
   return {
     provider: toDisplayProviderId(config, primary.provider, primary.model),
     model: primary.model,
+    zdr: primary.zdr === true,
     fallbacks: nonChannelModels
       .filter((model) => model !== primary)
       .map((model) => ({

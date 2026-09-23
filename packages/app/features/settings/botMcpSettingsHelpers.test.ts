@@ -2,6 +2,10 @@ import type { TlawnOAuthProvider } from '@tloncorp/api';
 import { describe, expect, it } from 'vitest';
 import { vi } from 'vitest';
 
+import {
+  prioritizeMcpMenuProviders,
+  selectMcpMenuProviders,
+} from '../../lib/mcpProviders';
 import { buildProviderRows } from './botMcpSettingsHelpers';
 
 vi.mock('@tloncorp/shared', () => ({
@@ -38,5 +42,48 @@ describe('buildProviderRows', () => {
         status: 'not-connected',
       },
     ]);
+  });
+
+  it('puts connected providers first and keeps Gmail in the default menu', () => {
+    expect(
+      prioritizeMcpMenuProviders([
+        { displayName: 'A', id: 'a', status: 'not-connected' },
+        { displayName: 'B', id: 'b', status: 'connected' },
+        { displayName: 'Gmail', id: 'gmail', status: 'not-connected' },
+        { displayName: 'D', id: 'd', status: 'connected' },
+      ]).map((provider) => provider.id)
+    ).toEqual(['b', 'd', 'gmail', 'a']);
+  });
+
+  it('prioritizes the four common preview providers', () => {
+    expect(
+      prioritizeMcpMenuProviders([
+        { displayName: 'Linear', id: 'linear', status: 'not-connected' },
+        { displayName: 'GitHub', id: 'github', status: 'not-connected' },
+        { displayName: 'Notion', id: 'notion', status: 'not-connected' },
+        {
+          displayName: 'Google Calendar',
+          id: 'google-calendar',
+          status: 'not-connected',
+        },
+        { displayName: 'Gmail', id: 'gmail', status: 'not-connected' },
+      ]).map((provider) => provider.id)
+    ).toEqual(['gmail', 'google-calendar', 'notion', 'github', 'linear']);
+  });
+
+  it('keeps every connected provider available in the bounded menu', () => {
+    expect(
+      selectMcpMenuProviders(
+        [
+          { displayName: 'A', id: 'a', status: 'connected' },
+          { displayName: 'B', id: 'b', status: 'connected' },
+          { displayName: 'C', id: 'c', status: 'connected' },
+          { displayName: 'D', id: 'd', status: 'connected' },
+          { displayName: 'E', id: 'e', status: 'connected' },
+          { displayName: 'F', id: 'f', status: 'not-connected' },
+        ],
+        4
+      ).map((provider) => provider.id)
+    ).toEqual(['a', 'b', 'c', 'd', 'e']);
   });
 });

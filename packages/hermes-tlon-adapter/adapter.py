@@ -11,6 +11,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import math
 import os
 import re
 import shutil
@@ -47,6 +48,7 @@ from .approval import (
     build_approval_card,
     build_pending_approvals_response,
     create_pending_approval,
+    error_progress_flags,
     find_approval,
     find_duplicate,
     format_approval_request,
@@ -76,6 +78,14 @@ from .channel_access import (
     parse_channel_rules,
 )
 from .cite import resolve_cites
+from .bot_info import (
+    BOT_INFO_CONTACT_MARK,
+    build_bot_info_json,
+    build_bot_info_poke,
+    extract_bot_info_value,
+    resolve_harness_version,
+)
+from .commands import command_detection_regex, is_adapter_command, is_core_command
 from .history import (
     MessageCache,
     build_channel_context,
@@ -190,6 +200,7 @@ from .tlon_api import (
     TlonStreamStaleError,
     ChannelReactsSnapshot,
     TlonTerminalActionError,
+    extract_inline_message_text,
     format_post_id,
     normalize_ship,
     parse_channel_reacts_snapshot,
@@ -220,6 +231,7 @@ from .tlon_tool import (
     check_tlon_tool_requirements,
     diary_target_blocked_message,
     handle_tlon_tool,
+    resolve_tlon_product_guide_path,
     resolve_tlon_skill_path,
     set_diary_migration_notification_sender,
     split_tlon_command,
@@ -230,6 +242,14 @@ from .tlon_tool import (
 logger = logging.getLogger(__name__)
 
 RECONNECT_BACKOFF_SECONDS = (2, 5, 10, 30, 60)
+# A transient poke failure would otherwise leave a healthy long-lived bot
+# unidentified until an unrelated reconnect or a restart, so the write is
+# retried in place. Reads are never retried: a failed read skips entirely.
+BOT_INFO_PUBLISH_ATTEMPTS = 3
+BOT_INFO_PUBLISH_BACKOFF_SECONDS = (2, 8)
+# Distinguishes "not resolved yet" from a resolved-but-absent host version, so
+# a missing version is looked up once rather than on every publish.
+_UNSET_HARNESS_VERSION = object()
 CITE_RESOLUTION_BUDGET_SECONDS = 5.0
 RENOTIFY_COOLDOWN_MS = 10 * 60 * 1000
 # Window in which a repeated retry request for the same lensId is a no-op
@@ -341,7 +361,8 @@ def _is_dm_chat_id(chat_id: str) -> bool:
 
 # `/tlon ...` debug namespace. Does not match `/tlon-version` (legacy alias)
 # because "-" is neither whitespace nor end-of-string after "tlon".
-_TLON_COMMAND_RE = re.compile(r"^/tlon(?:\s|$)", re.IGNORECASE)
+# Detection lives in the command registry (commands.py).
+_TLON_COMMAND_RE = command_detection_regex("tlon")
 _HOSTED_URL_SUFFIXES = ("tlon.network", ".test.tlon.systems")
 
 
@@ -559,11 +580,15 @@ def format_storage_status(
     hosting_forced: bool,
     service: str,
     has_s3_creds: bool,
+    current_bucket: str,
     genuine_reachable: bool,
+    config_known: bool = True,
 ) -> str:
     """Diagnostic for image uploads — mirrors the decision in
     @tloncorp/api uploadFile so an operator can see why a push would route
-    where it does."""
+    where it does. ``config_known=False`` means the configuration scry
+    failed: bucket/service facts are indeterminate, and the diagnostic must
+    say so rather than render a confident false verdict."""
     is_hosted = hosting_forced or url_hosted
     use_memex = is_hosted and (service == "presigned-url" or not has_s3_creds)
     if use_memex:
@@ -572,8 +597,15 @@ def format_storage_status(
             if genuine_reachable
             else "memex — would FAIL: no %genuine token"
         )
-    elif has_s3_creds:
+    elif has_s3_creds and current_bucket:
         path = "S3 (custom credentials)"
+    elif has_s3_creds and not config_known:
+        path = "unknown — storage configuration scry failed"
+    elif has_s3_creds:
+        # uploadFile does not check the bucket itself — it lets the S3 PUT
+        # fail. The CLI pre-flight is deliberately stricter, so the diagnostic
+        # names the missing bucket rather than promising a working upload.
+        path = "would FAIL: no storage bucket selected"
     else:
         path = "would FAIL: no storage credentials configured"
     rows = [
@@ -582,6 +614,7 @@ def format_storage_status(
         ("TLON_HOSTING", "set" if hosting_forced else "unset"),
         ("Storage service", service or "unknown"),
         ("Custom S3 creds", "yes" if has_s3_creds else "no"),
+        ("Current bucket", current_bucket or ("unknown" if not config_known else "none")),
         ("%genuine token", "reachable" if genuine_reachable else "unavailable"),
         ("Upload path", path),
     ]
@@ -615,6 +648,10 @@ _LENS_TRIGGER_MAP = {
     "reaction": "reaction",
     "mention": "mention",
     "owner-listen": "owner-listen",
+    # Owner-initiated no-mention engagement, same class as owner-listen; the
+    # shared taxonomy has no dedicated trigger for it (OpenClaw maps its
+    # 'owner-command' engagement reason onto 'owner-listen' the same way).
+    "owner-command": "owner-listen",
     "owner-blob": "owner-blob",
     "participated-thread": "thread",
     "retry": "retry",
@@ -634,7 +671,7 @@ def _lens_trigger(dispatch_reason: str, *, is_dm: bool) -> str:
 
 
 def _lens_run_kind(dispatch_reason: str) -> str:
-    if dispatch_reason in ("owner-listen", "owner-blob"):
+    if dispatch_reason in ("owner-listen", "owner-command", "owner-blob"):
         return "owner_listen"
     return "conversation"
 
@@ -987,6 +1024,7 @@ class TlonAdapter(BasePlatformAdapter):
         self._mention_matcher = self._build_mention_matcher()
         self._bot_nickname: str = ""
         self._bot_avatar: str = ""
+        self._harness_version_cache: Any = _UNSET_HARNESS_VERSION
         self._participated_threads: set[str] = set()
         self._known_bot_ships: set[str] = set()
         self._known_bot_consecutive_by_channel: dict[str, int] = {}
@@ -1003,8 +1041,8 @@ class TlonAdapter(BasePlatformAdapter):
         self._settings_loaded = False
         self._pending_approvals: list[dict[str, Any]] = []
         self._settings_dm_allowlist: set[str] = set()
-        self._settings_group_invite_allowlist: set[str] = set(
-            self.tlon_config.group_invite_allowlist
+        self._settings_group_invite_allowlist: set[str] = (
+            self._env_group_invite_allowlist()
         )
         self._channel_rules: dict[str, dict[str, Any]] = {}
         self._processed_dm_invites: set[str] = set()
@@ -1059,6 +1097,7 @@ class TlonAdapter(BasePlatformAdapter):
                     source=source,
                     fingerprint=fingerprint,
                     cli_version=cli_version,
+                    harness_version=self._harness_version(),
                     markdown=False,
                 ).replace("\n", " | "),
             )
@@ -1066,7 +1105,11 @@ class TlonAdapter(BasePlatformAdapter):
                 {"adapterVersion": adapter_version, "adapterFingerprint": fingerprint}
             )
             set_active_telemetry(self._telemetry)
-            await self._load_bot_profile()
+            self_contact = await self._load_bot_profile()
+            # Publish the bot's identity claim now that the SSE client is live
+            # and the current self-contact is in hand (enables
+            # compare-before-poke idempotence).
+            await self._publish_bot_info(self_contact)
             settings_loaded = await self._load_settings_state()
             self._nudge_settings_ready = settings_loaded
             if not settings_loaded:
@@ -1226,6 +1269,22 @@ class TlonAdapter(BasePlatformAdapter):
             default_all=self.tlon_config.owner_listen_default == "all",
         )
 
+    def _env_group_invite_allowlist(self) -> set[str]:
+        return set(self.tlon_config.group_invite_allowlist)
+
+    def _resolve_group_invite_allowlist(self, value: Any) -> set[str]:
+        """Resolve a %settings groupInviteAllowlist value to the live set.
+
+        A list — including an empty one — is an owner-authored override, parsed
+        strictly so malformed entries cannot broaden authorization. Anything
+        else (key absent, deleted, or malformed) is not an override and reverts
+        to the env default, matching openclaw's
+        ``settings.groupInviteAllowlist ?? account.groupInviteAllowlist``.
+        """
+        if not isinstance(value, list):
+            return self._env_group_invite_allowlist()
+        return parse_ship_list(value)
+
     def _is_owner(self, ship: str) -> bool:
         owner = self.tlon_config.owner_ship
         return bool(owner) and normalize_ship(ship) == owner
@@ -1334,10 +1393,11 @@ class TlonAdapter(BasePlatformAdapter):
             self._settings_dm_allowlist = parse_dm_allowlist(
                 bucket.get(SETTINGS_KEY_DM_ALLOWLIST)
             )
-            if SETTINGS_KEY_GROUP_INVITE_ALLOWLIST in bucket:
-                self._settings_group_invite_allowlist = parse_dm_allowlist(
+            self._settings_group_invite_allowlist = (
+                self._resolve_group_invite_allowlist(
                     bucket.get(SETTINGS_KEY_GROUP_INVITE_ALLOWLIST)
                 )
+            )
             self._channel_rules = parse_channel_rules(bucket.get(SETTINGS_KEY_CHANNEL_RULES))
             self._settings_default_authorized_ships = parse_ship_list(
                 bucket.get(SETTINGS_KEY_DEFAULT_AUTHORIZED_SHIPS)
@@ -1541,7 +1601,9 @@ class TlonAdapter(BasePlatformAdapter):
             self._settings_dm_allowlist = parse_dm_allowlist(event.value)
             return
         if event.key == SETTINGS_KEY_GROUP_INVITE_ALLOWLIST:
-            self._settings_group_invite_allowlist = parse_dm_allowlist(event.value)
+            self._settings_group_invite_allowlist = (
+                self._resolve_group_invite_allowlist(event.value)
+            )
             return
         if event.key == SETTINGS_KEY_CHANNEL_RULES:
             self._channel_rules = parse_channel_rules(event.value)
@@ -1791,6 +1853,43 @@ class TlonAdapter(BasePlatformAdapter):
             await self._load_settings_state()
         now_ms = time.time() * 1000.0
         self._pending_approvals = prune_expired(self._pending_approvals, now_ms)
+        # Groups dedup on the flag alone, so the no-op exits can be taken from a
+        # direct lookup — no candidate needed. DM/channel dedup needs the built
+        # candidate and so stays behind the scry.
+        existing = (
+            find_duplicate(
+                self._pending_approvals,
+                {"type": "group", "groupFlag": group_flag},
+            )
+            if approval_kind == "group"
+            else None
+        )
+        if existing is not None:
+            # Delivered => never re-DM while the record lives; undelivered
+            # (including legacy lastNotifiedAt-only records) re-notifies
+            # under the cooldown until a send lands. Persisted JSON can
+            # carry a junk marker, so only a real stamp suppresses.
+            delivered = existing.get("notificationDeliveredAt")
+            if (
+                isinstance(delivered, (int, float))
+                and not isinstance(delivered, bool)
+                and math.isfinite(delivered)
+            ):
+                return
+            try:
+                last_notified = float(existing.get("lastNotifiedAt"))
+            except (TypeError, ValueError):
+                last_notified = 0.0
+            if not math.isfinite(last_notified):
+                # An inf stamp reads as "attempted in the future" and would
+                # suppress every retry for the record's whole life.
+                last_notified = 0.0
+            if now_ms - last_notified < RENOTIFY_COOLDOWN_MS:
+                return
+        # Every path past here sends the owner a DM or creates a record, so the
+        # blocked-list scry runs only when an action is imminent — a no-op
+        # re-observation of a suppressed group approval must not cost a 30s-
+        # worst-case scry per observation.
         if await self._is_ship_blocked(requesting_ship):
             logger.info(
                 "[tlon] ignoring request from blocked ship %s", requesting_ship
@@ -1807,8 +1906,21 @@ class TlonAdapter(BasePlatformAdapter):
             message_preview=message_preview,
             original_message=original_message,
         )
-        existing = find_duplicate(self._pending_approvals, candidate)
+        if approval_kind != "group":
+            existing = find_duplicate(self._pending_approvals, candidate)
         if existing is not None:
+            if approval_kind == "group":
+                updated = dict(existing)
+                updated["lastNotifiedAt"] = int(now_ms)
+                if await self._notify_owner_approval(updated):
+                    updated["notificationDeliveredAt"] = int(now_ms)
+                    self._telemetry.approval_event("renotified", approval_kind)
+                self._pending_approvals = [
+                    updated if approval_id(item) == approval_id(existing) else item
+                    for item in self._pending_approvals
+                ]
+                await self._persist_pending_approvals()
+                return
             new_preview = str(candidate.get("messagePreview") or "")
             old_preview = str(existing.get("messagePreview") or "")
             if (
@@ -1831,7 +1943,8 @@ class TlonAdapter(BasePlatformAdapter):
                 last_notified = 0.0
             if now_ms - last_notified >= RENOTIFY_COOLDOWN_MS:
                 updated["lastNotifiedAt"] = int(now_ms)
-                await self._notify_owner_approval(updated)
+                if await self._notify_owner_approval(updated):
+                    updated["notificationDeliveredAt"] = int(now_ms)
                 self._telemetry.approval_event("renotified", approval_kind)
             self._pending_approvals = [
                 updated if approval_id(item) == approval_id(existing) else item
@@ -1841,7 +1954,8 @@ class TlonAdapter(BasePlatformAdapter):
             return
         candidate["lastNotifiedAt"] = int(now_ms)
         self._pending_approvals.append(candidate)
-        await self._notify_owner_approval(candidate)
+        if await self._notify_owner_approval(candidate):
+            candidate["notificationDeliveredAt"] = int(now_ms)
         await self._persist_pending_approvals()
         self._telemetry.approval_event("queued", approval_kind)
         logger.info(
@@ -1851,10 +1965,11 @@ class TlonAdapter(BasePlatformAdapter):
             normalize_ship(requesting_ship),
         )
 
-    async def _notify_owner_approval(self, approval: dict[str, Any]) -> None:
+    async def _notify_owner_approval(self, approval: dict[str, Any]) -> bool:
+        """Send the owner DM for a pending approval; True when delivered."""
         owner = self.tlon_config.owner_ship
         if not owner:
-            return
+            return False
         text = format_approval_request(approval)[:MAX_MESSAGE_LENGTH]
         # The text notification is self-sufficient, so a card that cannot be
         # built or does not validate costs the owner the buttons, never the
@@ -1896,6 +2011,8 @@ class TlonAdapter(BasePlatformAdapter):
                 result.error or "notification send failed",
                 requestType=approval_type(approval),
             )
+            return False
+        return True
 
     async def _notify_owner(
         self, target: str, reason: str, *, block_succeeded: bool = True
@@ -1973,6 +2090,18 @@ class TlonAdapter(BasePlatformAdapter):
             await self._persist_pending_approvals()
         return removed
 
+    async def _drop_pending_group_approval(self, flag: str) -> int:
+        remaining = [
+            item
+            for item in self._pending_approvals
+            if approval_type(item) != "group" or approval_group_flag(item) != flag
+        ]
+        removed = len(self._pending_approvals) - len(remaining)
+        if removed:
+            self._pending_approvals = remaining
+            await self._persist_pending_approvals()
+        return removed
+
     async def _persist_channel_rules(self) -> bool:
         return await self._persist_settings_entry(
             SETTINGS_KEY_CHANNEL_RULES, json.dumps(self._channel_rules)
@@ -1983,15 +2112,24 @@ class TlonAdapter(BasePlatformAdapter):
         return normalize_ship(ship) in blocked
 
     async def _blocked_ships_list(self) -> set[str]:
+        blocked = await self._scry_blocked_ships()
+        return blocked if blocked is not None else set()
+
+    async def _scry_blocked_ships(self) -> Optional[set[str]]:
+        """Blocked ships, or None when the list could not be read.
+
+        SECURITY: auto-accept gates must treat None as unknown and never
+        accept on it; fail-open conveniences use _blocked_ships_list.
+        """
         if self._sse is None:
-            return set()
+            return None
         try:
             blocked = await self._sse.scry("/chat/blocked")
         except Exception as exc:
             logger.debug("[tlon] blocked-ships scry failed: %s", exc)
-            return set()
+            return None
         if not isinstance(blocked, list):
-            return set()
+            return None
         return {
             normalize_ship(str(ship or ""))
             for ship in blocked
@@ -2031,14 +2169,22 @@ class TlonAdapter(BasePlatformAdapter):
             SETTINGS_KEY_DM_ALLOWLIST, sorted(self._settings_dm_allowlist)
         )
 
-    async def _remove_from_dm_allowlist(self, ship: str) -> None:
+    async def _remove_from_dm_allowlist(self, ship: str) -> bool:
+        """Revoke the DM grant; False when the settings write failed."""
         ship = normalize_ship(ship)
         if ship not in self._settings_dm_allowlist:
-            return
+            return True
         self._settings_dm_allowlist.discard(ship)
-        await self._persist_settings_entry(
+        persisted = await self._persist_settings_entry(
             SETTINGS_KEY_DM_ALLOWLIST, sorted(self._settings_dm_allowlist)
         )
+        if not persisted:
+            # Memory must not claim a revocation the store still grants:
+            # restoring the entry keeps a retried /ban re-attempting the write
+            # instead of early-returning on the absent ship.
+            self._settings_dm_allowlist.add(ship)
+            return False
+        return True
 
     async def _handle_approval_command(
         self,
@@ -2134,8 +2280,54 @@ class TlonAdapter(BasePlatformAdapter):
                         "Request stays pending."
                     )
         elif action == "ban":
-            await self._block_ship(ship)
-            await self._remove_from_dm_allowlist(ship)
+            # %chat nacks the block poke for an already-blocked ship, but pokes
+            # are fire-and-forget: the nack lands later on the stream and is
+            # only logged, so _block_ship still reports success. This pre-check
+            # only saves the redundant re-poke — a /ban retried after a failed
+            # decline reaches the decline with or without it, including while
+            # the (fail-open) blocked-list scry is down.
+            blocked = normalize_ship(ship) in await self._blocked_ships_list()
+            if not blocked:
+                blocked = await self._block_ship(ship)
+            if not blocked and approval_type(approval) == "group":
+                # The record is the invite's suppression, so dropping it after a
+                # failed block re-queues and re-DMs on the next observation.
+                return (
+                    f"Could not block {ship}: block failed. "
+                    "Request stays pending."
+                )
+            # Ahead of the decline: a block-OK/decline-failed partial ban keeps
+            # the record for a retry, and until that retry lands the DM grant
+            # would be a live authorization the owner believes is gone.
+            revoked = await self._remove_from_dm_allowlist(ship)
+            if not revoked and approval_type(approval) == "group":
+                # Completing anyway would drop the only record through which a
+                # retry can re-attempt the failed revocation write; dm/channel
+                # bans stay best-effort like their block leg.
+                return (
+                    f"Blocked {ship}, but could not revoke DM access. "
+                    "Request stays pending."
+                )
+            if approval_type(approval) == "group":
+                # A ban must also decline the invite: the inviter may have been
+                # allowlisted since the request queued, and auto-accept does not
+                # consult the block list — the still-pending invite would be
+                # accepted on the next observation.
+                flag = approval_group_flag(approval)
+                if flag and not await self._reject_group_invite(flag):
+                    return (
+                        f"Blocked {ship}, but could not decline the invite. "
+                        "Request stays pending."
+                    )
+        elif action == "reject" and approval_type(approval) == "group":
+            # Reject must decline on the ship, or the next observation of the
+            # still-pending invite would re-queue it.
+            flag = approval_group_flag(approval)
+            if flag and not await self._reject_group_invite(flag):
+                return (
+                    f"Could not decline {flag}: invite decline failed. "
+                    "Request stays pending."
+                )
 
         self._pending_approvals = remove_approval(
             self._pending_approvals, approval_id(approval)
@@ -2197,6 +2389,10 @@ class TlonAdapter(BasePlatformAdapter):
             content=original.get("messageContent"),
             blob=blob,
             author_is_bot=bool(original.get("authorIsBot")),
+            # Approval replays are always non-owner messages, so the command
+            # override can never fire for them; set the field anyway so the
+            # reconstruction stays faithful to a fresh parse.
+            inline_text=extract_inline_message_text(original.get("messageContent")),
         )
         retry_seed = self._build_retry_seed(message, text)
         if is_dm:
@@ -2356,6 +2552,7 @@ class TlonAdapter(BasePlatformAdapter):
             source=await git_source(),
             fingerprint=content_fingerprint(),
             cli_version=await self._cli_version(),
+            harness_version=self._harness_version(),
         )
 
     async def _cli_version(self) -> str:
@@ -2421,8 +2618,10 @@ class TlonAdapter(BasePlatformAdapter):
 
     async def _storage_status_reply(self) -> str:
         service = "unknown"
+        current_bucket = ""
         has_s3_creds = False
         genuine_reachable = False
+        config_known = False
         if self._sse is not None:
             try:
                 config = await self._sse.scry("/storage/configuration")
@@ -2430,6 +2629,8 @@ class TlonAdapter(BasePlatformAdapter):
                 configuration = update.get("configuration") if isinstance(update, dict) else None
                 if isinstance(configuration, dict):
                     service = str(configuration.get("service") or "unknown")
+                    current_bucket = str(configuration.get("currentBucket") or "")
+                    config_known = True
             except Exception as exc:
                 logger.debug("[tlon] storage configuration scry failed: %s", exc)
             try:
@@ -2455,8 +2656,60 @@ class TlonAdapter(BasePlatformAdapter):
             hosting_forced=self.tlon_config.hosting,
             service=service,
             has_s3_creds=has_s3_creds,
+            current_bucket=current_bucket,
             genuine_reachable=genuine_reachable,
+            config_known=config_known,
         )
+
+    def _inline_command(
+        self, message: TlonIncomingMessage
+    ) -> Optional[str]:
+        """The bare command the owner typed inline, or None.
+
+        The parser renders story blocks ahead of the typed text — "[quoted
+        message]", "[image: …]" — and heap parsing prepends the title, any of
+        which would hide a command from every downstream verbatim guard
+        (which all key on a leading slash). So the command is re-derived from
+        the parser's inline-only rendering. Matches core commands AND the
+        adapter's own registry commands: when this fires for a registry
+        command, the control-command dispatcher (same detection regexes) is
+        guaranteed to consume it, so a quoted /pending works like a quoted
+        /help. Owner-gated: for anyone else the decorated text is the
+        message, unchanged.
+        """
+        if not self._is_owner(message.user_id):
+            return None
+        inline = self._typed_inline_text(message)
+        if not inline:
+            return None
+        if is_core_command(inline) or is_adapter_command(inline):
+            return inline
+        return None
+
+    def _typed_inline_text(self, message: TlonIncomingMessage) -> str:
+        """The mention-stripped inline-only rendering: what the sender
+        actually typed, with a leading bot mention removed. Empty for
+        synthetic events."""
+        inline = (message.inline_text or "").strip()
+        if inline and self._mention_matcher.mentioned(inline):
+            inline = self._mention_matcher.strip_leading(inline)
+        return inline
+
+    def _command_dispatch_override(
+        self, message: TlonIncomingMessage
+    ) -> Optional[str]:
+        """The authoritative command fact for a dispatch, or None.
+
+        Slash commands are a chat-channel and DM surface only (mirroring the
+        OpenClaw plugin's chat/ constraint): heap and diary channels stay
+        conversational, so a heap title or header block whose rendered text
+        begins with "/help" must never be classified as a command. Everything
+        downstream consumes this fact — it is never re-derived from rendered
+        text, which block rendering can forge in either direction.
+        """
+        if message.chat_type != "dm" and not message.chat_id.startswith("chat/"):
+            return None
+        return self._inline_command(message)
 
     async def _maybe_handle_control_command(
         self,
@@ -2569,17 +2822,84 @@ class TlonAdapter(BasePlatformAdapter):
         if not result.success:
             logger.warning("[tlon] control command reply failed: %s", result.error)
 
-    async def _load_bot_profile(self) -> None:
+    async def _load_bot_profile(self) -> Optional[dict[str, Any]]:
+        """Fetch and apply the self contact; return the raw map so callers
+        can compare the published bot-info value before poking.
+
+        Returns None when the read did not produce a contact map — callers
+        must treat that as "current value unknown", never as "key absent"."""
         if self._sse is None:
-            return
+            return None
         try:
             profile = await self._sse.scry("/contacts/v1/self.json")
         except Exception as exc:
             logger.debug("[tlon] could not fetch self profile: %s", exc)
-            return
+            return None
         if not isinstance(profile, dict):
-            return
+            return None
         self._apply_self_contact(profile)
+        return profile
+
+    async def _publish_bot_info(
+        self, self_contact: Optional[Mapping[str, Any]]
+    ) -> None:
+        """Publish the bot's identity claim in its own contact profile:
+        compare the current ``bot-info`` value against the computed claim and
+        poke only on difference. Non-fatal — the client falls back to treating
+        the bot as unidentified until the next successful publish."""
+        if self._sse is None:
+            return
+        if self_contact is None:
+            # The self-contact read failed: the current value is unknown, so
+            # there is nothing to compare against. Poking blind here would
+            # defeat compare-then-poke exactly when the ship is unhealthy.
+            logger.debug("[tlon] skipping bot info publish: self contact unread")
+            return
+        try:
+            desired = build_bot_info_json(
+                plugin_version(), self._harness_version()
+            )
+            if extract_bot_info_value(self_contact) == desired:
+                return
+            payload = build_bot_info_poke(desired)
+            for attempt in range(1, BOT_INFO_PUBLISH_ATTEMPTS + 1):
+                try:
+                    await self._sse.poke("contacts", BOT_INFO_CONTACT_MARK, payload)
+                    logger.info("[tlon] published bot info")
+                    return
+                except Exception as exc:
+                    if attempt >= BOT_INFO_PUBLISH_ATTEMPTS:
+                        raise
+                    logger.debug(
+                        "[tlon] bot info publish attempt %d failed: %s",
+                        attempt,
+                        exc,
+                    )
+                    await asyncio.sleep(
+                        BOT_INFO_PUBLISH_BACKOFF_SECONDS[
+                            min(
+                                attempt - 1,
+                                len(BOT_INFO_PUBLISH_BACKOFF_SECONDS) - 1,
+                            )
+                        ]
+                    )
+        except Exception as exc:
+            logger.warning("[tlon] could not publish bot info: %s", exc)
+
+    def _harness_version(self) -> Optional[str]:
+        """Resolved once per process: a function-local import reads Python's
+        already-cached module, so deferring the read buys no freshness — an
+        edit to the host's constants needs a restart either way."""
+        if self._harness_version_cache is _UNSET_HARNESS_VERSION:
+            self._harness_version_cache = resolve_harness_version()
+        return self._harness_version_cache
+
+    async def _clear_bot_info(self) -> None:
+        """Clear the published claim (rollback/retirement procedure): contact
+        keys die only by explicit null."""
+        if self._sse is None:
+            return
+        await self._sse.poke("contacts", BOT_INFO_CONTACT_MARK, build_bot_info_poke(None))
 
     def _apply_self_contact(self, contact: Any) -> None:
         """Reconcile bot nickname/avatar state from a self contact map.
@@ -2750,9 +3070,31 @@ class TlonAdapter(BasePlatformAdapter):
                             logger.warning(
                                 "[tlon] reconnect invite catch-up failed: %s", exc
                             )
+                        # Group invites have the same gap: the foreigns
+                        # subscription gets no snapshot on resubscribe, so
+                        # anything that arrived during the outage is only seen
+                        # here (or by a later live fact). Same guard as the DM
+                        # catch-up — a failure must not cycle reconnects.
+                        # Gated on a fresh settings read: auto-accept must not
+                        # act on a possibly-stale allowlist, and the invites keep
+                        # until the next reconnect.
+                        if loaded:
+                            try:
+                                if not await self._process_pending_group_invites():
+                                    logger.warning(
+                                        "[tlon] reconnect group-invite catch-up failed"
+                                    )
+                            except Exception as exc:
+                                logger.warning(
+                                    "[tlon] reconnect group-invite catch-up failed: %s",
+                                    exc,
+                                )
                         # Contacts facts do not replay either; catch up on renames
-                        # (or clears) missed while disconnected.
-                        await self._load_bot_profile()
+                        # (or clears) missed while disconnected, and re-check the
+                        # published identity claim (e.g. a version bump that has
+                        # not been published yet).
+                        self_contact = await self._load_bot_profile()
+                        await self._publish_bot_info(self_contact)
                     except BaseException:
                         await self._close_sse(graceful=False)
                         raise
@@ -3405,6 +3747,9 @@ class TlonAdapter(BasePlatformAdapter):
             if is_mentioned
             else message.text.strip()
         )
+        inline_command = self._command_dispatch_override(message)
+        if inline_command is not None:
+            clean_text = inline_command
 
         if await self._maybe_handle_control_command(
             message, clean_text, ctx_nest=message.chat_id
@@ -3415,6 +3760,15 @@ class TlonAdapter(BasePlatformAdapter):
         is_authorized = self._user_authorized(
             message.user_id, is_dm=False, nest=message.chat_id
         )
+        # Core commands (/help /status /new ...) are dispatched by the Hermes
+        # gateway, not the adapter's pre-gate registry dispatcher, so without
+        # this fact a bare owner core command dies at the attention gate in
+        # any channel owner-listen does not cover — the same silent-ignore
+        # trap the registry commands escape via _maybe_handle_control_command.
+        # The fact comes from the inline-derived override, never from the
+        # rendered text: a heap title or header block rendering as "/help"
+        # must not gain command reach.
+        is_owner_command = inline_command is not None
         is_owner_listen = self._is_owner(message.user_id) and owner_listen_active(
             self._owner_listen,
             message.chat_id,
@@ -3430,6 +3784,7 @@ class TlonAdapter(BasePlatformAdapter):
                 is_authorized=is_authorized,
                 has_text=bool(clean_text or message.blob),
                 is_mentioned=is_mentioned,
+                is_owner_command=is_owner_command,
                 is_owner_listen=is_owner_listen,
                 is_owner_blob=is_owner_blob,
                 is_free_response=is_free_response,
@@ -3447,11 +3802,12 @@ class TlonAdapter(BasePlatformAdapter):
             return
         if not self._passes_group_loop_safety(message):
             return
+        is_command = inline_command is not None
         dispatch_text, prepared_media = await self._prepare_dispatch_payload(
-            message, clean_text
+            message, clean_text, is_command=is_command
         )
         dispatch_text = await self._with_group_context(
-            message, dispatch_text, decision.reason
+            message, dispatch_text, decision.reason, is_command=is_command
         )
         await self._dispatch_message(
             replace(message, text=dispatch_text),
@@ -3461,6 +3817,7 @@ class TlonAdapter(BasePlatformAdapter):
             prepared_media=prepared_media,
             pending_nudge=nudge_hook.inject_context,
             retry_seed=self._build_retry_seed(message, sanitized_text),
+            is_command_dispatch=is_command,
         )
 
     async def _handle_dm_event(
@@ -3494,11 +3851,13 @@ class TlonAdapter(BasePlatformAdapter):
         )
         if message.author_id == normalize_ship(self.tlon_config.ship_name):
             return
+        inline_command = self._command_dispatch_override(message)
+        dm_text = inline_command if inline_command is not None else message.text
         if await self._maybe_handle_control_command(
-            message, message.text.strip(), ctx_nest=None
+            message, dm_text.strip(), ctx_nest=None
         ):
             return
-        sanitized_text = strip_block_directives(message.text)
+        sanitized_text = strip_block_directives(dm_text)
         if not self._user_authorized(message.user_id, is_dm=True):
             if _is_patp(message.user_id):
                 await self._queue_dm_approval(message, sanitized_text)
@@ -3511,10 +3870,19 @@ class TlonAdapter(BasePlatformAdapter):
             logger.info("[tlon] ignoring DM from blocked ship")
             return
         retry_seed = self._build_retry_seed(message, sanitized_text)
+        is_command = inline_command is not None
         dispatch_text, prepared_media = await self._prepare_dispatch_payload(
-            message, message.text
+            message, dm_text, is_command=is_command
         )
-        if nudge_hook.inject_context and nudge_hook.pending is not None:
+        if (
+            nudge_hook.inject_context
+            and nudge_hook.pending is not None
+            # A core command must reach the gateway verbatim (see
+            # _dispatch_message). The nudge accounting already happened in
+            # _observe_nudge_owner_message, and the context only matters for
+            # a model turn, which a command dispatch never starts.
+            and not is_command
+        ):
             dispatch_text = _nudge_reply_context(nudge_hook.pending, dispatch_text)
         await self._dispatch_message(
             replace(message, text=dispatch_text),
@@ -3522,6 +3890,7 @@ class TlonAdapter(BasePlatformAdapter):
             prepared_media=prepared_media,
             pending_nudge=nudge_hook.inject_context,
             retry_seed=retry_seed,
+            is_command_dispatch=is_command,
         )
 
     async def _handle_dm_invites(self, ships: list) -> None:
@@ -3631,19 +4000,47 @@ class TlonAdapter(BasePlatformAdapter):
             flag = invite["groupFlag"]
             if flag in self._processed_group_invites:
                 continue
-            self._processed_group_invites.add(flag)
             await self._handle_group_invite(
                 flag, inviter=invite["from"], title=invite["title"]
             )
 
     async def _handle_group_invite(self, flag: str, *, inviter: str, title: str) -> None:
-        if self._group_invite_authorized(inviter):
+        ship = normalize_ship(inviter)
+        owner = self.tlon_config.owner_ship
+        accept = False
+        if owner and ship == owner:
+            # Owner invites accept without consulting the block list.
+            accept = True
+        elif self._group_invite_authorized(inviter):
+            # SECURITY: auto-accept requires a positive "not blocked"
+            # confirmation (openclaw parity). A failed lookup is unknown and
+            # falls through to the queue path — it must never auto-accept.
+            blocked = await self._scry_blocked_ships()
+            if blocked is None:
+                pass
+            elif ship in blocked:
+                # Confirmed blocked: silent ignore, no card.
+                logger.info(
+                    "[tlon] ignoring group invite %s from blocked %s", flag, inviter
+                )
+                self._processed_group_invites.add(flag)
+                return
+            else:
+                accept = True
+        if accept:
             if await self._accept_group_invite(flag):
+                # Mark processed only on success; a failed accept retries.
+                self._processed_group_invites.add(flag)
+                # A card queued before the inviter was allowlisted now points
+                # at an invite that is gone.
+                await self._drop_pending_group_approval(flag)
                 logger.info("[tlon] auto-accepted group invite %s from %s", flag, inviter)
             return
         if not self.tlon_config.owner_ship:
+            # Unprocessed so a later owner/allowlist change can pick it up.
             logger.info("[tlon] ignoring group invite %s from unauthorized %s", flag, inviter)
             return
+        # Queue path never marks — suppression/retry live in the approval record.
         await self._queue_approval(
             approval_kind="group",
             requesting_ship=inviter,
@@ -3661,6 +4058,18 @@ class TlonAdapter(BasePlatformAdapter):
             )
             return False
         await self._adopt_group_channels(flag)
+        return True
+
+    async def _reject_group_invite(self, flag: str) -> bool:
+        """Decline the invite on the ship so it leaves foreigns for good."""
+        with cli_context("invite_rsvp"):
+            result = await self._cli.run_command(("groups", "reject-invite", flag))
+        if not result.success:
+            logger.warning("[tlon] failed to decline group invite %s: %s", flag, result.error)
+            self._telemetry.error(
+                "approval", result.error or "group decline failed", operation="group_decline"
+            )
+            return False
         return True
 
     async def _fetch_group_channels(self, flag: str) -> Optional[set[str]]:
@@ -3841,24 +4250,50 @@ class TlonAdapter(BasePlatformAdapter):
         )
         logger.info("[tlon] monitoring %d channel(s) from joined group %s", len(new_channels), flag)
 
-    async def _process_pending_group_invites(self) -> None:
-        """Catch group invites that arrived while the gateway was down."""
+    async def _process_pending_group_invites(self) -> bool:
+        """Catch group invites that arrived while the gateway was down.
+
+        Returns False when the catch-up did not actually read a snapshot —
+        scry failure or a response without a usable `foreigns` map. An empty
+        map is a real answer (no pending invites) and counts as success.
+        Callers surface the result; boot keeps ignoring it, reconnect logs a
+        warning.
+        """
         if self._sse is None:
-            return
+            return False
         try:
             init = await self._sse.scry("/groups-ui/v7/init")
         except Exception as exc:
             logger.debug("[tlon] could not scry pending group invites: %s", exc)
-            return
+            return False
         foreigns = init.get("foreigns") if isinstance(init, dict) else None
-        if foreigns is not None:
-            await self._handle_foreigns(foreigns)
+        if not isinstance(foreigns, dict):
+            logger.debug("[tlon] group-invite catch-up returned no foreigns map")
+            return False
+        for flag in error_progress_flags(foreigns):
+            # A join that acked but errored on the backend becomes actionable
+            # again — but only on the catch-up sweep, never on live facts: a
+            # persistently-failing join emits a fresh error fact per attempt,
+            # so a live-path discard would retry at %groups' error-emission
+            # rate. Sweep-only clearing bounds retries to one per (re)connect.
+            self._processed_group_invites.discard(flag)
+        await self._handle_foreigns(foreigns)
+        return True
 
     async def _prepare_dispatch_payload(
         self,
         message: TlonIncomingMessage,
         text: str,
+        *,
+        is_command: bool = False,
     ) -> tuple[str, PreparedMedia]:
+        # A core command must reach the gateway verbatim: a cite or media
+        # prefix would displace the leading slash the gateway's command
+        # classifier looks for. The fact is threaded from the handler's
+        # inline-derived override — never re-derived from rendered text,
+        # which block rendering can forge.
+        if is_command:
+            return text, PreparedMedia()
         cite_block = ""
         if self._sse is not None and message.content:
             partial: list[str] = []
@@ -3904,8 +4339,17 @@ class TlonAdapter(BasePlatformAdapter):
         message: TlonIncomingMessage,
         clean_text: str,
         reason: str,
+        *,
+        is_command: bool = False,
     ) -> str:
         """Prepend recent channel or thread history so group replies have context."""
+        # Never wrap a core command: the gateway classifies commands with
+        # MessageEvent.text.startswith("/") (pinned core's is_command), so
+        # prepended history would silently turn /new, /stop, etc. into an
+        # ordinary model prompt. A command needs no conversational context.
+        # The fact is threaded from the handler's inline-derived override.
+        if is_command:
+            return clean_text
         limit = self.tlon_config.context_messages
         if limit <= 0 or self._sse is None:
             return clean_text
@@ -3996,6 +4440,11 @@ class TlonAdapter(BasePlatformAdapter):
         retry_seed: dict[str, Any] | None = None,
         retry_of: str | None = None,
         skip_authorization: bool = False,
+        # Threaded from the handler's inline-derived override (see
+        # _command_dispatch_override); defaults False so callers that never
+        # carry commands (synthetic reactions, approval replays of non-owner
+        # messages) get ordinary decoration.
+        is_command_dispatch: bool = False,
     ) -> None:
         # Owner-requested retries re-run a message from an already-authorized
         # sender, so they skip the inbound authorization gate (the owner vetted
@@ -4028,7 +4477,19 @@ class TlonAdapter(BasePlatformAdapter):
                 self._reaction_reply_targets.popitem(last=False)
 
         notes_key = self._reaction_conversation_key(message.chat_type, message.chat_id)
-        pending_notes = tuple(self._pending_reaction_notes.get(notes_key, ()))
+        # A core command must reach the gateway verbatim: its command
+        # classifier is text.startswith("/") and its args parser takes
+        # everything after the token, so a reaction-note prefix would hide
+        # the command and an id-marker suffix would pollute its arguments.
+        # Notes are not peeked for a command, so they stay queued for the
+        # next conversational dispatch. The fact arrives as a parameter —
+        # re-deriving it from message.text here would let a heap title or
+        # header block that renders as "/help" skip decoration.
+        pending_notes = (
+            ()
+            if is_command_dispatch
+            else tuple(self._pending_reaction_notes.get(notes_key, ()))
+        )
         dispatch_text = message.text
         if pending_notes:
             dispatch_text = (
@@ -4037,7 +4498,10 @@ class TlonAdapter(BasePlatformAdapter):
                 + "\n\n"
                 + dispatch_text
             )
-        if self.tlon_config.reaction_level in {"minimal", "extensive"}:
+        if not is_command_dispatch and self.tlon_config.reaction_level in {
+            "minimal",
+            "extensive",
+        }:
             target_id = message.reactable_target_id or message.message_id
             marker = (
                 "reacted message id"
@@ -4047,6 +4511,23 @@ class TlonAdapter(BasePlatformAdapter):
             dispatch_text += f"\n\n[{marker}: {target_id}]"
             if message.reply_to_message_id:
                 dispatch_text += f"\n[thread root: {message.reply_to_message_id}]"
+
+        # Final boundary, anti-forgery only: the gateway's command classifier
+        # is text.startswith("/"), and a heap title or header block can forge
+        # that position — so a slash-leading dispatch is defused with a
+        # leading newline (invisible to the model) unless the sender genuinely
+        # TYPED leading slash text, in a channel type where commands belong
+        # (chat/DM). A typed command outside the popup's six — including the
+        # ~40 unsuggested core commands, from any sender — passes through
+        # untouched: hermes core's slash-access policy remains the
+        # authorization ceiling, exactly as before this change.
+        if not is_command_dispatch and dispatch_text.startswith("/"):
+            typed_slash = self._typed_inline_text(message).startswith("/")
+            in_scope = message.chat_type == "dm" or message.chat_id.startswith(
+                "chat/"
+            )
+            if not (typed_slash and in_scope):
+                dispatch_text = "\n" + dispatch_text
 
         self._telemetry.start_reply(
             message.chat_id,
@@ -4292,15 +4773,22 @@ class TlonAdapter(BasePlatformAdapter):
             raw={"lensRetry": retry_of},
             content=dispatch.message_content,
             blob=dispatch.blob_field,
+            # Recomputed from the carried story so the command fact survives
+            # retry reconstruction (a /new <tail> turn can retry).
+            inline_text=extract_inline_message_text(dispatch.message_content),
         )
         # Re-run media/context prep exactly like a fresh inbound message; the
         # seed carried clean (pre-enrichment) text so this doesn't double-wrap.
         retry_seed = self._build_retry_seed(message, dispatch.message_text)
+        inline_command = self._command_dispatch_override(message)
+        is_command = inline_command is not None
         dispatch_text, prepared_media = await self._prepare_dispatch_payload(
-            message, dispatch.message_text
+            message, dispatch.message_text, is_command=is_command
         )
         if not is_dm:
-            dispatch_text = await self._with_group_context(message, dispatch_text, "retry")
+            dispatch_text = await self._with_group_context(
+                message, dispatch_text, "retry", is_command=is_command
+            )
         await self._dispatch_message(
             replace(message, text=dispatch_text),
             is_dm=is_dm,
@@ -4309,6 +4797,7 @@ class TlonAdapter(BasePlatformAdapter):
             prepared_media=prepared_media,
             retry_seed=retry_seed,
             retry_of=retry_of,
+            is_command_dispatch=is_command,
             skip_authorization=True,
         )
 
@@ -4985,7 +5474,19 @@ async def _standalone_send(
     media_files: Optional[list[str]] = None,
     force_document: bool = False,
 ) -> Dict[str, Any]:
-    del media_files, force_document
+    del force_document
+    if media_files:
+        # The standalone/cron send path is text-only (TlonCLI.send_message takes
+        # no image argument). Dropping the media and delivering the text alone
+        # would report success for a message the recipient never sees in full —
+        # the exact fabricated-delivery failure this path must not have.
+        return {
+            "error": (
+                "tlon standalone send: media attachments are not supported on "
+                "this path — upload the image with `tlon upload` and send it "
+                "with `tlon posts send <target> [caption] --image <url>`"
+            )
+        }
     extra = getattr(pconfig, "extra", {}) or {}
     tlon = TlonConfig.from_env(extra)
     if not tlon.is_complete():
@@ -5078,6 +5579,35 @@ def register(ctx) -> None:
             description="Tlon CLI command guide for the Hermes tlon tool.",
         )
 
+    # Registered separately from the CLI skill above, not merged into it: this
+    # one carries no commands and answers "what is Tlon Messenger / how does
+    # this feature work", so it has to be selectable on its own. It ships in
+    # the OpenClaw plugin tree, which a Hermes deployment may not have — hence
+    # the None check rather than a hard requirement.
+    product_guide_path = resolve_tlon_product_guide_path()
+    if product_guide_path is not None:
+        ctx.register_skill(
+            "tlon-product-guide",
+            product_guide_path,
+            description=(
+                "Tlon Messenger product guide: what Tlon, Urbit, Tlon Messenger "
+                "and Tlonbot are, how features work, and how to walk a user "
+                "through a task in the app."
+            ),
+        )
+
+    # Derived from the registration above rather than written into the hint
+    # unconditionally: a deployment without the plugin tree registers no such
+    # skill, and pointing the model at a skill_view that cannot resolve turns
+    # every product question into a failed tool call.
+    product_guide_hint = (
+        "When the user asks what Tlon Messenger is or how one of its features "
+        "works, rather than asking you to do something, load "
+        'skill_view("tlon-platform:tlon-product-guide") and answer from it. '
+        if product_guide_path is not None
+        else ""
+    )
+
     ctx.register_platform(
         name="tlon",
         label="Tlon",
@@ -5114,7 +5644,8 @@ def register(ctx) -> None:
             "For Tlon reads and administration, use the tlon tool; if unsure, "
             "load skill_view(\"tlon-platform:tlon\") or run a tlon subcommand "
             "with --help. "
-            "When a user asks you to create a Tlon group for them, use "
+            + product_guide_hint
+            + "When a user asks you to create a Tlon group for them, use "
             "groups create-owned with --owner set to that user's ship so they "
             "are invited and made admin. "
             "To reply to the current conversation, just write your reply and "
@@ -5132,6 +5663,11 @@ def register(ctx) -> None:
             "<post-id>. To send an image anywhere — including the "
             "current conversation — first 'tlon upload <direct-image-url>', then "
             "'tlon posts send <target> [caption] --image <uploaded-url>'. "
+            "--image takes only a public https URL (upload itself also accepts "
+            "local paths and http sources); never claim an image was posted "
+            "unless every command returned success — if upload reports the ship "
+            "cannot store uploads, pass the direct https image URL to --image "
+            "instead. "
             "The platform adapter directly handles owner chat commands for "
             "access and configuration: /owner-listen (no-mention listening), "
             "/channel-access (per-channel open access), /pending, /allow, "

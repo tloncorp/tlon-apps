@@ -22,6 +22,7 @@ import re
 import uuid
 from typing import Any, Iterable, Mapping, Optional
 
+from .commands import command_detection_regex
 from .tlon_api import normalize_ship
 
 SETTINGS_KEY_PENDING_APPROVALS = "pendingApprovals"
@@ -61,12 +62,14 @@ MIGRATION_CARD_WARNING = (
     "dates, and ordering are not preserved."
 )
 
-_ALLOW_RE = re.compile(r"^/allow(?:\s+(?P<arg>\S+))?\s*$", re.IGNORECASE)
-_REJECT_RE = re.compile(r"^/reject(?:\s+(?P<arg>\S+))?\s*$", re.IGNORECASE)
-_BAN_RE = re.compile(r"^/ban(?:\s+(?P<arg>\S+))?\s*$", re.IGNORECASE)
-_UNBAN_RE = re.compile(r"^/unban(?:\s+(?P<arg>\S+))?\s*$", re.IGNORECASE)
-_PENDING_RE = re.compile(r"^/pending\s*$", re.IGNORECASE)
-_BANNED_RE = re.compile(r"^/banned\s*$", re.IGNORECASE)
+# Detection shapes live in the command registry (commands.py): allow/reject/
+# ban/unban are anchored-optional-arg; pending/banned are strict-no-arg.
+_ALLOW_RE = command_detection_regex("allow")
+_REJECT_RE = command_detection_regex("reject")
+_BAN_RE = command_detection_regex("ban")
+_UNBAN_RE = command_detection_regex("unban")
+_PENDING_RE = command_detection_regex("pending")
+_BANNED_RE = command_detection_regex("banned")
 
 
 def truncate(text: str, max_chars: int = PREVIEW_MAX_CHARS) -> str:
@@ -235,6 +238,13 @@ def parse_foreigns(payload: Any) -> list[dict[str, str]]:
     for flag, foreign in payload.items():
         if not isinstance(foreign, Mapping):
             continue
+        # A join already in flight (or a leave) is not a pending decision:
+        # the post-/allow foreigns fact still carries the valid invite, and
+        # reprocessing it would card the owner again. "ask" (a pending entry
+        # request — an invite can arrive alongside it) and "error" keep the
+        # invite actionable.
+        if foreign.get("progress") in ("join", "watch", "done", "leave"):
+            continue
         raw_invites = foreign.get("invites")
         if not isinstance(raw_invites, list):
             continue
@@ -259,6 +269,22 @@ def parse_foreigns(payload: Any) -> list[dict[str, str]]:
             {"groupFlag": str(flag), "from": inviter, "title": title}
         )
     return invites
+
+
+def error_progress_flags(payload: Any) -> list[str]:
+    """Group flags in a %groups foreigns map whose join ended in an error.
+
+    Kept separate from ``parse_foreigns`` because a foreign whose invite list
+    is empty or invalid yields nothing there, and the errored flag still has to
+    become actionable again.
+    """
+    if not isinstance(payload, Mapping):
+        return []
+    return [
+        str(flag)
+        for flag, foreign in payload.items()
+        if isinstance(foreign, Mapping) and foreign.get("progress") == "error"
+    ]
 
 
 def parse_dm_allowlist(value: Any) -> set[str]:
@@ -335,7 +361,18 @@ def _approval_descriptor(approval: Mapping[str, Any]) -> str:
 
 
 def _group_label(approval: Mapping[str, Any]) -> str:
-    return str(approval.get("groupTitle") or "") or approval_group_flag(approval)
+    """Bounded "title (flag)" composer: title and flag are truncated
+    separately before composition so an oversized title can never push the
+    host flag out of the label (or blow the a2ui per-node text cap)."""
+    title = _bounded_display_text(
+        approval.get("groupTitle"), _MAX_DISPLAY_TITLE_CHARS
+    )
+    flag = _bounded_display_text(
+        approval_group_flag(approval), _MAX_DISPLAY_GROUP_CHARS
+    )
+    if title and flag and title != flag:
+        return f"{title} ({flag})"
+    return title or flag
 
 
 def format_approval_request(approval: Mapping[str, Any]) -> str:
@@ -407,9 +444,7 @@ def _pending_display_group_flag(approval: Mapping[str, Any]) -> str:
 
 
 def _pending_group_label(approval: Mapping[str, Any]) -> str:
-    return _bounded_display_text(
-        approval.get("groupTitle"), _MAX_DISPLAY_TITLE_CHARS
-    ) or _pending_display_group_flag(approval) or "[unknown group]"
+    return _group_label(approval) or "[unknown group]"
 
 
 def _pending_display_preview(approval: Mapping[str, Any]) -> str:
@@ -753,7 +788,12 @@ def _approval_card_title(approval: Mapping[str, Any]) -> str:
     if kind == "channel":
         return f"Let the bot reply to {ship} in {_pending_display_nest(approval) or 'this channel'}?"
     if kind == "group":
-        return f"Let the bot join {truncate(_pending_group_label(approval), 60)}?"
+        # Title-only on purpose: the host flag rides the Group context line,
+        # and the title budget is the card's, not the composer's.
+        label = _bounded_display_text(
+            approval.get("groupTitle"), _MAX_DISPLAY_TITLE_CHARS
+        ) or _pending_display_group_flag(approval)
+        return f"Let the bot join {truncate(label, 60)}?"
     return f"Allow {ship} to DM the bot?"
 
 

@@ -147,7 +147,7 @@ class SlowAuthenticateSSE:
     async def open(self):
         assert self.ready
 
-    async def subscribe(self, _app, _path):
+    async def subscribe(self, _app, _path, *, optional=False):
         assert self.ready
 
     async def poke(self, app, mark, payload):

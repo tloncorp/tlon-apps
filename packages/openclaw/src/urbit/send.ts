@@ -7,6 +7,8 @@ import {
 } from '@tloncorp/api';
 import { da, scot } from '@urbit/aura';
 
+import { reportReplyOutput } from '../telemetry.js';
+import { claimActiveTlonTurnOutput } from '../turn-recorder.js';
 import { type Story, createImageBlock, markdownToStory } from './story.js';
 
 // --- Helpers ---
@@ -37,6 +39,36 @@ function parseWritId(id: string): { author: string; bareId: string } {
     return { author: id.slice(0, idx), bareId: id.slice(idx + 1) };
   }
   return { author: '', bareId: id };
+}
+
+function reportSuccessfulSend<T extends { messageId: string; sentAt: number }>(
+  result: T,
+  chatType: 'dm' | 'groupChannel',
+  isThreadReply: boolean
+): T {
+  try {
+    const turn = claimActiveTlonTurnOutput();
+    reportReplyOutput({
+      messageId: result.messageId,
+      sentAt: result.sentAt,
+      runId: turn.runId,
+      traceId: turn.traceId,
+      outputIndex: turn.outputIndex,
+      chatType,
+      isThreadReply,
+    });
+  } catch {
+    // Telemetry must never change delivery behavior.
+  }
+  return result;
+}
+
+function reportSuccessfulChannelSend<
+  T extends { messageId: string; sentAt: number },
+>(result: T, nest: string, isThreadReply: boolean): T {
+  return nest.startsWith('chat/')
+    ? reportSuccessfulSend(result, 'groupChannel', isThreadReply)
+    : result;
 }
 
 /**
@@ -111,7 +143,11 @@ export async function sendDmWithStory({
       blob,
       botProfile,
     });
-    return { channel: 'tlon' as const, messageId, sentAt };
+    return reportSuccessfulSend(
+      { channel: 'tlon' as const, messageId, sentAt },
+      'dm',
+      true
+    );
   }
 
   await apiSendPost({
@@ -122,7 +158,11 @@ export async function sendDmWithStory({
     blob,
     botProfile,
   });
-  return { channel: 'tlon' as const, messageId, sentAt };
+  return reportSuccessfulSend(
+    { channel: 'tlon' as const, messageId, sentAt },
+    'dm',
+    false
+  );
 }
 
 // --- Channel posts (chat, heap, diary) ---
@@ -167,10 +207,15 @@ export async function sendChannelPost({
       blob,
       botProfile,
     });
-    return {
-      channel: 'tlon',
-      messageId: `${fromShip}/${formatSentAt(sentAt)}`,
-    };
+    return reportSuccessfulChannelSend(
+      {
+        channel: 'tlon',
+        messageId: `${fromShip}/${formatSentAt(sentAt)}`,
+        sentAt,
+      },
+      nest,
+      true
+    );
   }
 
   await apiSendPost({
@@ -182,10 +227,15 @@ export async function sendChannelPost({
     blob,
     botProfile,
   });
-  return {
-    channel: 'tlon',
-    messageId: `${fromShip}/${formatSentAt(sentAt)}`,
-  };
+  return reportSuccessfulChannelSend(
+    {
+      channel: 'tlon',
+      messageId: `${fromShip}/${formatSentAt(sentAt)}`,
+      sentAt,
+    },
+    nest,
+    false
+  );
 }
 
 // --- Utilities ---
