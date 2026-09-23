@@ -137,7 +137,9 @@ TLON_TOOL_DESCRIPTION = (
     "the upload (when used) and the send both returned success. If upload "
     "reports that the ship cannot store uploads (self-hosted moons have no "
     "storage), do not retry it — pass the direct https image URL to --image, "
-    "which posts without uploading."
+    "which posts without uploading. If upload or --image fails with HTTP 429 "
+    "(rate limited), the source host is throttling fetches: pick an image "
+    "from a different host instead of retrying the same URL."
 )
 
 TLON_TOOL_SCHEMA = {

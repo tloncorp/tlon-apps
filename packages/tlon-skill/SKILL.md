@@ -28,7 +28,11 @@ upload` (when used) and the `posts send`/`dms send` that carries `--image`. Both
 fail loudly; neither degrades to a plain link. If `upload` reports that the ship
 cannot store uploads (self-hosted moons have no storage), you do not need it:
 pass the direct **https** image URL straight to `--image`, which posts without
-uploading.
+uploading. If `upload` or `--image` fails with `HTTP 429 (rate limited)`, the
+*source host* is throttling automated fetches (Wikimedia does this): choose an
+image from a different host. Retrying the same URL, passing it to `--image`, or
+using the owner config all fetch from that same host. If the task names a
+specific image, report the failure instead of substituting another.
 
 ## OpenClaw
 
@@ -545,7 +549,14 @@ is used.
 Remote (URL) uploads go through the same SSRF guard as `--image`, with
 general-file limits: `http` and `https` sources are both accepted, URLs with
 embedded credentials are refused, private-network targets are blocked, and the
-download is bounded by a 120s deadline and a 100 MiB cap. Local-path and stdin
+download is bounded by a 120s deadline and a 100 MiB cap. Requests identify
+themselves as `TlonBot/<version> (https://tlon.io; support@tlon.io)
+tlon-cli/<version>`. A `429` or `503` from the source host is retried at most
+once, after its `Retry-After` delay (5s when the header is absent) and only
+when that delay is understood (delta-seconds or an IMF-fixdate), at most 10s,
+and fits the remaining deadline; otherwise, or on a second refusal, the command
+fails with `HTTP 429 (rate limited)` or `HTTP 503 (temporarily unavailable)`,
+naming the host's answer so you can choose another source. Local-path and stdin
 uploads are unaffected.
 
 ### Settings (OpenClaw)
