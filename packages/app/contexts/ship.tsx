@@ -34,6 +34,9 @@ type State = ShipInfo & {
 type ContextValue = State & {
   setShip: (shipInfo: ShipInfo) => void;
   clearShip: () => void;
+  startSplashSequence: (
+    mode: NonNullable<ShipInfo['splashSequenceMode']>
+  ) => boolean;
   clearNeedsSplashSequence: () => void;
 };
 
@@ -210,6 +213,52 @@ export const ShipProvider = ({
     storage.shipInfo.resetValue();
   }, [applyShipInfo]);
 
+  const startSplashSequence = useCallback(
+    (mode: NonNullable<ShipInfo['splashSequenceMode']>) => {
+      // The caller can be delayed until after a sheet closes. Its callback
+      // belongs to the session from the render that created it, so do not let
+      // it revive a logged-out account or replace a newer one.
+      if (sessionIdRef.current !== sessionId) {
+        return false;
+      }
+
+      const current = shipInfoRef.current;
+      if (!current.ship || !current.shipUrl) {
+        return false;
+      }
+
+      // This is not a login: update only the splash fields in both copies.
+      // In particular, do not pass the provider's authCookie back through
+      // setShip. That snapshot is intentionally not refreshed on reauth and
+      // could overwrite the newer persisted and native cookie.
+      applyShipInfo({
+        ...current,
+        needsSplashSequence: true,
+        splashSequenceMode: mode,
+      });
+      storage.shipInfo.setValue((stored) => {
+        // The updater can sit behind another write. Recheck the session when
+        // it actually runs, then merge into that current record so a cookie
+        // refreshed while this update was queued is preserved.
+        if (
+          sessionIdRef.current !== sessionId ||
+          !stored ||
+          stored.ship !== current.ship ||
+          stored.shipUrl !== current.shipUrl
+        ) {
+          return stored;
+        }
+        return {
+          ...stored,
+          needsSplashSequence: true,
+          splashSequenceMode: mode,
+        };
+      });
+      return true;
+    },
+    [applyShipInfo, sessionId]
+  );
+
   const clearNeedsSplashSequence = useCallback(() => {
     // SplashSequence awaits up to seven seconds before calling onCompleted, so
     // a completion can arrive through a callback still holding the session the
@@ -274,6 +323,7 @@ export const ShipProvider = ({
         contactId: shipInfo.ship ? preSig(shipInfo.ship) : undefined,
         setShip,
         clearShip,
+        startSplashSequence,
         clearNeedsSplashSequence,
         ...shipInfo,
       }}

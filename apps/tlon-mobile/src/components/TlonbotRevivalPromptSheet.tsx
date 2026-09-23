@@ -19,7 +19,7 @@ const logger = createDevLogger('TlonbotRevivalPromptSheet', true);
 export function useTlonbotRevivalPrompt(
   requireHostingAuth: (options?: { force?: boolean }) => Promise<boolean>
 ) {
-  const { authCookie, authType, setShip, ship, shipUrl } = useShip();
+  const { ship, shipUrl, startSplashSequence } = useShip();
   const { closeAfterAnimation } = useSheetCloseAfterAnimation();
   const [open, setOpen] = useState(false);
   const [snoozed, setSnoozed] = useState(false);
@@ -69,74 +69,34 @@ export function useTlonbotRevivalPrompt(
       severity: AnalyticsSeverity.High,
     });
 
-    // Scheduled synchronously, and the stored session is read inside the
-    // delayed callback rather than before it. Reading first would both leave a
-    // window for the close animation to carry a snapshot across (a reauth
-    // landing in those 300ms would be overwritten) and put an await ahead of
-    // the scheduling, which is what let a close action outlive its tree.
+    // Schedule synchronously so unmount can cancel the action. The provider
+    // callback is scoped to this render's session and updates only splash
+    // fields, so it neither revives a replaced session nor replays the stale
+    // auth-cookie snapshot held by useShip().
     closeAfterAnimation(() => {
-      void (async () => {
-        // useShip()'s snapshot is captured at login and is not refreshed when
-        // the client reauths mid-session, so replaying its cookie would push an
-        // expired one back into persisted and native storage and re-break push
-        // previews (TLON-6516). waitForLock because the reauth handler persists
-        // fire-and-forget, and an unlocked read can land ahead of a refresh
-        // still queued.
-        let storedSession: db.ShipInfo | null = null;
-        try {
-          storedSession = await db.storage.shipInfo.getValue(true);
-        } catch (e) {
-          // We cannot confirm which session we are in, and setShip with the
-          // wrong one corrupts it. Losing this prompt is recoverable; revival
-          // can be started again from settings.
+      if (!startSplashSequence('tlonbotRevival')) {
+        logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
+          context: 'session changed before revival could start',
+          severity: AnalyticsSeverity.High,
+        });
+        return;
+      }
+
+      store
+        .clearShipRevivalStatus()
+        .then(() => {
+          logger.trackEvent('Toggled Hosting Revival Status');
+        })
+        .catch((e) => {
           logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
             error: e,
-            context: 'could not confirm the stored session before revival',
+            context:
+              'failed to clear revival status after authenticated prompt',
             severity: AnalyticsSeverity.High,
           });
-          return;
-        }
-
-        // A logout or account switch can land during that read. Falling back to
-        // the captured snapshot would have setShip restore the logged-out
-        // account or overwrite the new one, so abort instead.
-        if (
-          !storedSession ||
-          storedSession.ship !== ship ||
-          storedSession.shipUrl !== shipUrl
-        ) {
-          logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
-            context: 'stored session changed before revival could start',
-            severity: AnalyticsSeverity.High,
-          });
-          return;
-        }
-
-        setShip({
-          authCookie: storedSession.authCookie ?? authCookie,
-          authType: storedSession.authType ?? authType ?? 'hosted',
-          needsSplashSequence: true,
-          ship,
-          shipUrl,
-          splashSequenceMode: 'tlonbotRevival',
         });
-
-        store
-          .clearShipRevivalStatus()
-          .then(() => {
-            logger.trackEvent('Toggled Hosting Revival Status');
-          })
-          .catch((e) => {
-            logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
-              error: e,
-              context:
-                'failed to clear revival status after authenticated prompt',
-              severity: AnalyticsSeverity.High,
-            });
-          });
-      })();
     });
-  }, [authCookie, authType, closeAfterAnimation, setShip, ship, shipUrl]);
+  }, [closeAfterAnimation, ship, shipUrl, startSplashSequence]);
 
   const promptSheet = (
     <TlonbotRevivalPromptSheet
