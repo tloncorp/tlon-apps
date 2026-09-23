@@ -26,12 +26,14 @@ export function useHandleLogout({ resetDb }: { resetDb: () => void }) {
     clearLure();
     // A target held while the desk notice was up must not be consumed by the
     // next login (TLON-6531).
-    void clearLastNotificationResponseAsync().catch((error) => {
+    try {
+      await clearLastNotificationResponseAsync();
+    } catch (error) {
       logger.trackError(AnalyticsEvent.ErrorNotificationService, {
         context: 'Failed to clear last notification response on logout',
         error,
       });
-    });
+    }
     clearDeepLink();
     trackEvent(AnalyticsEvent.LogoutCompleted);
     clearTelemetry();
