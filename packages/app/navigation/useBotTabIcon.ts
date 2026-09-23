@@ -10,6 +10,7 @@ const logger = createDevLogger('useBotTabIcon', false);
 const TAB_ICON_POINTS = 24;
 // Matches the unfocused avatar in the web nav bar.
 const UNFOCUSED_OPACITY = 0.6;
+const FETCH_TIMEOUT_MS = 15_000;
 
 export type BotTabIcon = {
   regular: ImageSourcePropType;
@@ -87,18 +88,44 @@ async function renderTabIcon(url: string): Promise<BotTabIcon> {
 
   if (!selected.exists || !regular.exists) {
     const avatar = Skia.Image.MakeImageFromEncoded(
-      await Skia.Data.fromURI(url)
+      Skia.Data.fromBytes(await fetchBytes(url))
     );
     if (!avatar) {
       throw new Error('avatar could not be decoded');
     }
-    selected.write(drawSquare(avatar, pixels, 1), { encoding: 'base64' });
-    regular.write(drawSquare(avatar, pixels, UNFOCUSED_OPACITY), {
-      encoding: 'base64',
-    });
+    writeAtomically(directory, selected, drawSquare(avatar, pixels, 1));
+    writeAtomically(
+      directory,
+      regular,
+      drawSquare(avatar, pixels, UNFOCUSED_OPACITY)
+    );
   }
 
   return { regular: source(regular), selected: source(selected) };
+}
+
+// Not Skia.Data.fromURI: on Android it swallows fetch errors and never
+// settles, so a 404 or an offline launch would hang the icon for the session.
+async function fetchBytes(url: string) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(`avatar fetch failed (${response.status})`);
+    }
+    return new Uint8Array(await response.arrayBuffer());
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+// The cache trusts any file that exists, so a write cut short must not leave
+// one behind under the final name.
+function writeAtomically(directory: Directory, file: File, base64: string) {
+  const temp = new File(directory, `${file.name}.tmp`);
+  temp.write(base64, { encoding: 'base64' });
+  temp.moveSync(file, { overwrite: true });
 }
 
 /** Center-crops the image to a square, scaled to fill; returns a base64 PNG. */
