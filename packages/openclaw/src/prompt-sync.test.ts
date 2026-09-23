@@ -517,6 +517,29 @@ describe('prompt workspace projection', () => {
     ]);
   });
 
+  it('does not retry a finalize the ship rejects as a client error', async () => {
+    // A 404 is what a plugin newer than its desk gets from a missing route;
+    // retrying it forever would block every later edit and projection.
+    const { sync, requests, logger } = makeSync({
+      failFinalize: 1,
+      finalizeError: new UrbitHttpError({
+        operation: 'request /steward/~/v1/prompts/finalize',
+        status: 404,
+      }),
+      retryAttempts: undefined,
+    });
+
+    await sync.handleDispatch(dispatchFrom('0ve', 'SOUL.md', 'skewed'));
+    await sync.handleDispatch(dispatchFrom('0vf', 'USER.md', 'next edit'));
+
+    expect(logger.warn).not.toHaveBeenCalledWith(
+      expect.stringContaining('Prompt finalize 0ve failed (attempt')
+    );
+    expect(requests.map((request) => request.body)).toEqual([
+      { requestId: '0vf', body: { type: 'updated', name: 'USER.md' } },
+    ]);
+  });
+
   it('treats a reused request id with different content as a new edit', async () => {
     const { sync, requests, logger } = makeSync();
 

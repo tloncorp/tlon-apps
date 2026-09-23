@@ -330,6 +330,15 @@ export function createPromptSync(opts: {
 
   const isUnauthorized = (error: unknown) =>
     error instanceof UrbitHttpError && error.status === 401;
+  // A client error other than an expired session (401), a timeout (408) or
+  // a rate limit (429) means the request itself is wrong — a route missing
+  // after plugin/desk version skew, a body the ship rejects. It fails the
+  // same way every time, so retrying would only hold the serialized queue.
+  const isPermanent = (error: unknown) =>
+    error instanceof UrbitHttpError &&
+    error.status >= 400 &&
+    error.status < 500 &&
+    ![401, 408, 429].includes(error.status);
 
   const sleep = (ms: number) =>
     new Promise<void>((resolve) => {
@@ -356,7 +365,7 @@ export function createPromptSync(opts: {
         await work();
         return;
       } catch (error) {
-        if (closed || attempt >= retryAttempts) {
+        if (closed || attempt >= retryAttempts || isPermanent(error)) {
           throw error;
         }
         if (isUnauthorized(error) && opts.reauthenticate) {
