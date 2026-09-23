@@ -615,8 +615,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   // Whether the settings subscription can currently echo owner edits. A scry
   // issued while it is down must not re-trust the groupChannels journal: an
   // edit landing after that scry goes unseen until the resubscribe, and the
-  // next full-list put would write over it. Set by the subscription's gap
-  // hook, cleared when the SSE client reports the subscription re-established.
+  // next full-list put would write over it. Set when the subscription quits,
+  // cleared when the SSE client reports it re-established. A stream-level
+  // error does not set it: that fan-out can arrive after the reconnect, with
+  // no recovery event to clear it, and onReconnect covers the stream path.
   let settingsFeedDown = false;
   let cookie: string;
   // Set by the boot self-contact scry; reconnect publishes re-read instead.
@@ -4024,6 +4026,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       if (opts.abortSignal?.aborted) return;
       const nestIsDm = isDmNest(nest);
       if (!nest.startsWith('chat/') && !nestIsDm) return;
+      // A settings removal unwatches a nest while a catch-up or retry for it
+      // may still be pending; those must not query, or post into, a channel
+      // the owner took away. The bot DM is never in the watched set.
+      if (!nestIsDm && !watchedChannels.has(nest)) return;
       let groupId = channelToGroup.get(nest);
       if (!groupId && nestIsDm) {
         // A DM names no group. The app's intro request, posted into this DM,
@@ -5858,11 +5864,15 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
       try {
         await settingsManager.startSubscription({
-          // Echoes may have been missed, and none can arrive until the client
-          // resubscribes: the journal's write base is stale until a fresh
-          // refresh taken with the feed live re-trusts it.
-          onGap: () => {
-            settingsFeedDown = true;
+          // Echoes may have been missed: the journal's write base is stale
+          // until a fresh refresh re-trusts it. Only a quit marks the feed
+          // down: no fact can arrive until the client resubscribes, and its
+          // recovery event clears the flag. An error is stream-level (the
+          // client fans stream failures out to every subscription, in one
+          // path only after it has already reconnected), so no recovery
+          // event would follow; the stream path is covered by onReconnect.
+          onGap: (kind) => {
+            if (kind === 'quit') settingsFeedDown = true;
             groupChannelJournal?.markUntrusted();
           },
         });

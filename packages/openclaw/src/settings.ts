@@ -773,10 +773,13 @@ export function createSettingsManager(
     /**
      * Subscribe to settings changes. `onGap` fires when the subscription
      * errors or ends: echoes may have been missed, so any state derived from
-     * them is stale until the next fresh load.
+     * them is stale until the next fresh load. The kind tells a `quit`, after
+     * which no fact arrives until the client resubscribes, from an `err`,
+     * which the client also fans out for stream-level failures, in one path
+     * only after it has already reconnected.
      */
     async startSubscription(
-      options: { onGap?: () => void } = {}
+      options: { onGap?: (kind: 'err' | 'quit') => void } = {}
     ): Promise<void> {
       await api.subscribe({
         app: 'settings',
@@ -802,11 +805,11 @@ export function createSettingsManager(
         },
         err: (error) => {
           logger?.error?.(`[settings] Subscription error: ${String(error)}`);
-          options.onGap?.();
+          options.onGap?.('err');
         },
         quit: () => {
           logger?.log?.('[settings] Subscription ended');
-          options.onGap?.();
+          options.onGap?.('quit');
         },
       });
       logger?.log?.('[settings] Subscribed to settings updates');

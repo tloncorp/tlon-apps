@@ -738,8 +738,10 @@ describe('Settings: createSettingsManager.startSubscription onGap', () => {
 
     handlers?.err(new Error('stream broke'));
     expect(onGap).toHaveBeenCalledTimes(1);
+    expect(onGap).toHaveBeenNthCalledWith(1, 'err');
     handlers?.quit();
     expect(onGap).toHaveBeenCalledTimes(2);
+    expect(onGap).toHaveBeenNthCalledWith(2, 'quit');
   });
 });
 

@@ -1249,7 +1249,7 @@ describe('wiring', () => {
     const subscribe = monitorSource.indexOf(
       'settingsManager.startSubscription({'
     );
-    const gap = monitorSource.indexOf('onGap: () => {');
+    const gap = monitorSource.indexOf('onGap: (kind) => {');
     expect(subscribe).toBeGreaterThan(-1);
     expect(gap).toBeGreaterThan(subscribe);
 
@@ -1407,10 +1407,16 @@ describe('wiring', () => {
     );
 
     // The gap hook marks the feed down alongside the journal.
-    const gap = monitorSource.indexOf('onGap: () => {');
+    const gap = monitorSource.indexOf('onGap: (kind) => {');
     expect(gap).toBeGreaterThan(-1);
     const gapBody = monitorSource.slice(gap, monitorSource.indexOf('},', gap));
-    expect(gapBody).toContain('settingsFeedDown = true');
+    // Only a quit marks the feed down: an error is stream-level and can be
+    // fanned out after the reconnect, with no recovery event to clear it.
+    const quitGuard = gapBody.indexOf("kind === 'quit'");
+    expect(quitGuard).toBeGreaterThan(-1);
+    expect(gapBody.indexOf('settingsFeedDown = true')).toBeGreaterThan(
+      quitGuard
+    );
     expect(gapBody).toContain('markUntrusted()');
 
     // Recovery of the settings subscription clears it, then takes a fresh
@@ -1467,5 +1473,21 @@ describe('wiring', () => {
       monitorSource.indexOf('};', deps)
     );
     expect(depsBody).toMatch(/\n\s+groupRoles,\n/);
+  });
+
+  it('skips onboarding scans for a group nest that is no longer watched', () => {
+    const start = monitorSource.indexOf(
+      'const scanAgentOnboardingNest = async'
+    );
+    expect(start).toBeGreaterThan(-1);
+    const fn = monitorSource.slice(
+      start,
+      monitorSource.indexOf('\n    };', start)
+    );
+    const guard = fn.indexOf('!nestIsDm && !watchedChannels.has(nest)');
+    expect(guard).toBeGreaterThan(-1);
+    // Before any await: a pending catch-up or retry for a removed channel
+    // must not reach its history read.
+    expect(guard).toBeLessThan(fn.indexOf('await '));
   });
 });
