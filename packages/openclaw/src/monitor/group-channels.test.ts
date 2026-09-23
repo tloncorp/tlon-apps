@@ -1473,6 +1473,17 @@ describe('wiring', () => {
       monitorSource.indexOf('};', deps)
     );
     expect(depsBody).toMatch(/\n\s+groupRoles,\n/);
+
+    // The fetch is unconditional: a bot in any group needs its roles, and
+    // the snapshot is the only way to know it is in one.
+    const rationale = monitorSource.indexOf('no config gates the fetch');
+    expect(rationale).toBeGreaterThan(-1);
+    const fetchCall = monitorSource.indexOf(
+      'const initData = await fetchInitData(',
+      rationale
+    );
+    expect(fetchCall).toBeGreaterThan(rationale);
+    expect(monitorSource.slice(rationale, fetchCall)).not.toMatch(/\bif\s*\(/);
   });
 
   it('skips onboarding scans for a group nest that is no longer watched', () => {

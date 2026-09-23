@@ -1584,46 +1584,40 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       },
     });
 
-    // Fetch group metadata AFTER settings are loaded so approval cards can display
-    // friendly group names for both auto-discovered and manually configured channels.
-    const shouldFetchGroupMetadata =
-      effectiveAutoDiscoverChannels ||
-      account.groupChannels.length > 0 ||
-      Boolean(currentSettings.groupChannels?.length) ||
-      effectiveAutoAcceptGroupInvites ||
-      Boolean(effectiveOwnerShip) ||
-      effectiveGroupInviteAllowlist.length > 0;
-    if (shouldFetchGroupMetadata) {
-      try {
-        const initData = await fetchInitData(api, runtime, {
-          signal: opts.abortSignal,
-          botShip: botShipName,
-        });
-        if (effectiveAutoDiscoverChannels && initData.channels.length > 0) {
-          groupChannels = initData.channels;
-          for (const channelNest of initData.channels) {
-            discoveredNests.add(channelNest);
-          }
+    // Fetch the group snapshot after settings are loaded: approval cards
+    // display friendly group names, and the /groups/ui readability filter
+    // needs the bot's roles in every group it already belongs to. The
+    // snapshot is the only way to know which groups those are, so
+    // no config gates the fetch.
+    try {
+      const initData = await fetchInitData(api, runtime, {
+        signal: opts.abortSignal,
+        botShip: botShipName,
+      });
+      if (effectiveAutoDiscoverChannels && initData.channels.length > 0) {
+        groupChannels = initData.channels;
+        for (const channelNest of initData.channels) {
+          discoveredNests.add(channelNest);
         }
-        // Populate channel-to-group mapping for member hint injection
-        for (const [nest, groupFlag] of initData.channelToGroup) {
-          channelToGroup.set(nest, groupFlag);
-        }
-        for (const [nest, title] of initData.channelNames) {
-          channelNameCache.set(nest, title);
-        }
-        // Populate group name cache for human-readable display
-        for (const [flag, title] of initData.groupNames) {
-          groupNameCache.set(flag, title);
-        }
-        for (const [flag, roles] of initData.groupRoles) {
-          groupRoles.set(flag, roles);
-        }
-      } catch (error: any) {
-        runtime.error?.(
-          `[tlon] Auto-discovery failed: ${error?.message ?? String(error)}`
-        );
       }
+      // Populate channel-to-group mapping for member hint injection
+      for (const [nest, groupFlag] of initData.channelToGroup) {
+        channelToGroup.set(nest, groupFlag);
+      }
+      for (const [nest, title] of initData.channelNames) {
+        channelNameCache.set(nest, title);
+      }
+      // Populate group name cache for human-readable display
+      for (const [flag, title] of initData.groupNames) {
+        groupNameCache.set(flag, title);
+      }
+      for (const [flag, roles] of initData.groupRoles) {
+        groupRoles.set(flag, roles);
+      }
+    } catch (error: any) {
+      runtime.error?.(
+        `[tlon] Auto-discovery failed: ${error?.message ?? String(error)}`
+      );
     }
 
     // Merge manual config with auto-discovered channels.
