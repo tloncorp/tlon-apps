@@ -528,6 +528,7 @@ export const syncCachedChanges = async (input: {
   const syncedAt = await db.changesSyncedAt.getValue();
   if (syncedAt && input.begin <= syncedAt && input.end > syncedAt) {
     // cached changes are valid, insert them
+    recordThreadPostsReceived(input.changes.posts, 'changes');
     await db.insertChanges(input.changes);
     notifyChannelPostListenersFromLatestChanges(input.changes.posts);
     await db.changesSyncedAt.setValue(input.end);

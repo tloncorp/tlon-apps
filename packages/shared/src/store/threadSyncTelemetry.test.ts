@@ -169,6 +169,31 @@ test('late replies get their own grace period', async () => {
   await vi.advanceTimersByTimeAsync(5000);
   expect(outcomes('mismatch')[0][1].missingDatabaseIds).toEqual(['later']);
 });
+test('reports a replacement gap after an earlier mismatch clears', async () => {
+  receive();
+  await vi.advanceTimersByTimeAsync(5100);
+  expect(outcomes('mismatch')).toHaveLength(1);
+
+  receive([{ id: 'later' }], {
+    source: 'subscription',
+    attemptId: 'live',
+  });
+  await vi.advanceTimersByTimeAsync(100);
+  database = [reply];
+  view.queryReplies = [reply];
+  view.listReplies = [reply];
+  monitor.update();
+  await vi.advanceTimersByTimeAsync(100);
+
+  expect(outcomes('mismatch')).toHaveLength(1);
+  expect(outcomes('recovered')).toHaveLength(0);
+  await vi.advanceTimersByTimeAsync(5000);
+  expect(outcomes('mismatch')).toHaveLength(2);
+  expect(outcomes('mismatch')[1][1]).toMatchObject({
+    source: 'subscription',
+    missingDatabaseIds: ['later'],
+  });
+});
 test.each(['subscription', 'changes'] as const)(
   'checks incoming %s replies after the initial thread settled',
   async (source) => {

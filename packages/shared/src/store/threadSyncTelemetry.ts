@@ -172,6 +172,7 @@ export function monitorThreadCatchup(
   let running = false;
   let dirty = false;
   let reportedMismatch = false;
+  let reportedMismatchSignature: string | undefined;
   let reportedSuccess = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -234,6 +235,10 @@ export function monitorThreadCatchup(
     const sustained = [...missingSince].filter(
       ([, since]) => now - since >= THREAD_CATCHUP_DEADLINE_MS
     );
+    const sustainedSignature = sustained
+      .map(([key]) => key)
+      .sort()
+      .join('\n');
     const props = {
       ...identity,
       checkId,
@@ -268,7 +273,7 @@ export function monitorThreadCatchup(
       missingListCount: missing.list.length,
       missingListIds: missing.list.slice(0, 5),
     };
-    if (sustained.length && !reportedMismatch) {
+    if (sustained.length && sustainedSignature !== reportedMismatchSignature) {
       emit(
         'Thread Catchup Check',
         {
@@ -281,6 +286,7 @@ export function monitorThreadCatchup(
         true
       );
       reportedMismatch = true;
+      reportedMismatchSignature = sustainedSignature;
     } else if (!keys.size && (!reportedSuccess || reportedMismatch)) {
       emit(
         'Thread Catchup Check',
@@ -288,11 +294,16 @@ export function monitorThreadCatchup(
         reportedMismatch
       );
       reportedMismatch = false;
+      reportedMismatchSignature = undefined;
       reportedSuccess = true;
     }
-    // Stop repeated reports for an unchanged failure. A later source/UI update
-    // checks again and records recovery; navigation/background is interruption.
-    if (keys.size && !reportedMismatch) schedule(THREAD_CATCHUP_DEADLINE_MS);
+    // Stop repeated reports for an unchanged failure, but keep a deadline for
+    // newly observed gaps so a changing mismatch cannot silence the monitor.
+    const hasPendingGap = [...missingSince.values()].some(
+      (since) => now - since < THREAD_CATCHUP_DEADLINE_MS
+    );
+    if (keys.size && (!reportedMismatch || hasPendingGap))
+      schedule(THREAD_CATCHUP_DEADLINE_MS);
     else if (dirty) schedule();
   };
 
