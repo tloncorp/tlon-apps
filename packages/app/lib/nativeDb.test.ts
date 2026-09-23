@@ -236,6 +236,9 @@ describe('NativeDb', () => {
       name: 'tlon-cosmos.sqlite',
     });
     expect(firstConnection.delete).toHaveBeenCalledTimes(1);
+    // `delete()` closes the connection itself -- closing first would be a
+    // second `sqlite3_close_v2` on a freed handle.
+    expect(firstConnection.close).not.toHaveBeenCalled();
     expect(sharedDbSpies.resetHeadsSyncedAt).not.toHaveBeenCalled();
     expect(sharedDbSpies.resetChangesSyncedAt).not.toHaveBeenCalled();
     expect(sharedDbSpies.resetDidSyncInitialPosts).not.toHaveBeenCalled();
@@ -324,7 +327,7 @@ describe('NativeDb', () => {
     await db.runMigrations();
 
     expect(firstConnection.migrateClient).toHaveBeenCalledTimes(1);
-    expect(firstConnection.close).toHaveBeenCalledTimes(1);
+    expect(firstConnection.close).not.toHaveBeenCalled();
     expect(firstConnection.delete).toHaveBeenCalledTimes(1);
     expect(secondConnection.migrateClient).toHaveBeenCalledTimes(1);
     expect(sharedDbSpies.setClient).toHaveBeenCalledTimes(2);

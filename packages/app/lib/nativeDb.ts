@@ -144,7 +144,8 @@ export class NativeDb extends BaseDb {
       return;
     }
     try {
-      this.connection.close();
+      // `delete()` closes the connection itself; closing first would hand
+      // op-sqlite a freed `sqlite3*` to close a second time.
       this.connection.delete();
       this.connection = null;
       this.client = null;
