@@ -2,6 +2,7 @@ import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ConversationViewport } from '../ConversationViewport';
 import { PostList } from './PostList';
 
 const state = vi.hoisted(() => ({
@@ -71,6 +72,9 @@ vi.mock('../ConversationLayout', () => ({
     height: 90,
     setFloating: state.setFloating,
   }),
+}));
+vi.mock('../ConversationViewport', () => ({
+  ConversationViewport: 'ConversationViewport',
 }));
 vi.mock('./PostListFlatList', () => ({ PostList: () => null }));
 vi.mock('./usePostArrivalAnimation', () => ({
@@ -269,9 +273,10 @@ function layout(height: number) {
   );
 }
 
-describe('docked conversation viewport changes', () => {
+describe('Android docked conversation viewport changes', () => {
   beforeEach(() => {
     state.docked = true;
+    state.platform = 'android';
   });
 
   it('keeps the last message at the composer edge while the viewport shrinks and grows', () => {
@@ -334,6 +339,7 @@ describe('floating conversation composer', () => {
     mount();
     expect(state.listProps.contentContainerStyle).toEqual([
       undefined,
+      { minHeight: '100%' },
       { paddingBottom: 90 },
     ]);
     expect(state.listProps.maintainScrollAtEnd).toBe(false);
@@ -447,4 +453,42 @@ describe('iOS native history anchoring', () => {
       expect(state.listProps.renderScrollComponent).toBeUndefined();
     }
   );
+});
+
+describe('iOS native resize anchoring', () => {
+  beforeEach(() => {
+    state.docked = true;
+  });
+
+  function nativeAnchoringEnabled() {
+    return renderer.root.findByType(ConversationViewport).props.anchorToEnd;
+  }
+
+  it('delegates consecutive viewport changes to native without JS scroll commands', () => {
+    mount();
+    expect(nativeAnchoringEnabled()).toBe(true);
+    layout(500);
+    layout(450);
+    layout(400);
+    layout(500);
+    expect(state.resizeScrolls).toEqual([]);
+  });
+
+  it('releases the native anchor while browsing history and during send contraction', () => {
+    mount();
+    state.floating = true;
+    update();
+    expect(nativeAnchoringEnabled()).toBe(false);
+    state.floating = false;
+    update();
+    expect(nativeAnchoringEnabled()).toBe(true);
+    act(() => state.sendHandler?.begin());
+    expect(nativeAnchoringEnabled()).toBe(false);
+    layout(600);
+    expect(state.resizeScrolls).toEqual([]);
+    state.sendHandler?.finish();
+    tick();
+    tick();
+    expect(state.nativeScrolls).toHaveLength(1);
+  });
 });

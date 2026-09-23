@@ -5,6 +5,12 @@ public final class TlonScrollEdgeEffectModule: Module {
     public func definition() -> ModuleDefinition {
         Name("TlonScrollEdgeEffect")
 
+        View(ConversationViewport.self) {
+            Prop("anchorToEnd") { (view: ConversationViewport, enabled: Bool) in
+                view.anchorToEnd = enabled
+            }
+        }
+
         View(ScrollEdgeElementContainer.self) {
             Prop("edge") { (view: ScrollEdgeElementContainer, edge: String?) in
                 view.setEdge(edge)
@@ -14,6 +20,89 @@ public final class TlonScrollEdgeEffectModule: Module {
                 view.setScrollViewNativeID(nativeID)
             }
         }
+    }
+}
+
+/// Keeps a docked conversation at its end in the same native layout pass that
+/// resizes the scroll view. A JS onLayout -> scrollToEnd round trip trails the
+/// keyboard's frames and makes messages catch up in visible steps.
+public final class ConversationViewport: ExpoView {
+    var anchorToEnd = false
+    private weak var scrollView: UIScrollView?
+    private var frameObservation: NSKeyValueObservation?
+    private var boundsBeforeResize: CGRect?
+
+    override public func layoutSubviews() {
+        super.layoutSubviews()
+        if let scrollView, scrollView.isDescendant(of: self) {
+            return
+        }
+        frameObservation = nil
+        scrollView = findScrollView(in: self)
+        frameObservation = scrollView?.observe(\.frame, options: [.prior]) { [weak self] scrollView, change in
+            guard let self else {
+                return
+            }
+            // Observe frame rather than bounds: UIKit resizes bounds internally
+            // in setFrame. Capture the offset before that setter can clamp it.
+            if change.isPrior {
+                self.boundsBeforeResize = scrollView.bounds
+                return
+            }
+            let newBounds = scrollView.bounds
+            let oldBounds = self.boundsBeforeResize
+            self.boundsBeforeResize = nil
+            guard self.anchorToEnd,
+                  !scrollView.isTracking,
+                  !scrollView.isDragging,
+                  !scrollView.isDecelerating,
+                  let oldBounds,
+                  oldBounds.height > 0,
+                  newBounds.height > 0,
+                  oldBounds.height != newBounds.height
+            else {
+                return
+            }
+
+            let insets = scrollView.adjustedContentInset
+            let oldEnd = max(
+                -insets.top,
+                scrollView.contentSize.height + insets.bottom - oldBounds.height
+            )
+            // Use the pre-resize offset: UIKit may already have clamped it when
+            // the viewport grows. History within the arrival-follow threshold
+            // must stay put, so only follow from the actual end.
+            guard abs(oldEnd - oldBounds.origin.y) <= 2 else {
+                return
+            }
+            let newEnd = max(
+                -insets.top,
+                scrollView.contentSize.height + insets.bottom - newBounds.height
+            )
+            scrollView.setContentOffset(CGPoint(x: newBounds.origin.x, y: newEnd), animated: false)
+        }
+    }
+
+    override public func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window == nil {
+            frameObservation = nil
+            scrollView = nil
+        } else {
+            setNeedsLayout()
+        }
+    }
+
+    private func findScrollView(in view: UIView) -> UIScrollView? {
+        for child in view.subviews {
+            if let scrollView = child as? UIScrollView {
+                return scrollView
+            }
+            if let scrollView = findScrollView(in: child) {
+                return scrollView
+            }
+        }
+        return nil
     }
 }
 

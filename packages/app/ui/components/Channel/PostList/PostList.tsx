@@ -27,6 +27,7 @@ import {
   useConversationComposerLayout,
   useIsConversationDocked,
 } from '../ConversationLayout';
+import { ConversationViewport } from '../ConversationViewport';
 import { useFloatingComposer } from './useFloatingComposer';
 import { PostList as PostListFlatList } from './PostListFlatList';
 import { usePostArrivalAnimation } from './usePostArrivalAnimation';
@@ -508,18 +509,22 @@ const ConversationPostListAttempt = React.forwardRef<
     const historyNavigationRequested = React.useRef(false);
     const overlayHeight = floating ? composerLayout.height : 0;
     const listContentStyle = React.useMemo(
-      () =>
+      () => [
+        contentContainerStyle,
+        // Let native layout bottom-align short conversations. LegendList's
+        // default top spacer waits for JS onLayout on every keyboard frame.
+        docked && anchorToEnd && Platform.OS === 'ios'
+          ? { minHeight: '100%' as const }
+          : undefined,
         overlayHeight
-          ? [
-              contentContainerStyle,
-              {
-                paddingBottom:
-                  ((StyleSheet.flatten(contentContainerStyle)
-                    ?.paddingBottom as number) ?? 0) + overlayHeight,
-              },
-            ]
-          : contentContainerStyle,
-      [contentContainerStyle, overlayHeight]
+          ? {
+              paddingBottom:
+                ((StyleSheet.flatten(contentContainerStyle)
+                  ?.paddingBottom as number) ?? 0) + overlayHeight,
+            }
+          : undefined,
+      ],
+      [anchorToEnd, contentContainerStyle, docked, overlayHeight]
     );
     const ConversationList = docked
       ? AnimatedLegendList
@@ -688,6 +693,7 @@ const ConversationPostListAttempt = React.forwardRef<
         settleEmptyConversationAtEnd();
         if (
           !docked ||
+          Platform.OS === 'ios' ||
           floating ||
           !anchorToEnd ||
           hasNewerPosts ||
@@ -848,7 +854,7 @@ const ConversationPostListAttempt = React.forwardRef<
       [finishUserNavigation, markUserScrolled]
     );
 
-    return (
+    const list = (
       <ConversationList<PostWithNeighbors>
         ref={listRef}
         renderScrollComponent={
@@ -937,6 +943,20 @@ const ConversationPostListAttempt = React.forwardRef<
         onEndReached={onEndReached}
         onEndReachedThreshold={onEndReachedThreshold}
       />
+    );
+
+    return (
+      <ConversationViewport
+        anchorToEnd={
+          docked &&
+          anchorToEnd &&
+          !floating &&
+          !hasNewerPosts &&
+          !composerSendActive
+        }
+      >
+        {list}
+      </ConversationViewport>
     );
   }
 );
