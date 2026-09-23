@@ -37,7 +37,9 @@ lives in the invite service — `useRequiredUpdate` forces an update only below
 that `minVersion`. So removal is bounded by the released web client, the
 candidate, and each mobile platform's builds down to its configured minimum.
 Before removing a desk endpoint that older mobile builds still call, raise
-those minimums past the last build that made the request.
+those minimums past the last build that made the request — and ship that
+release under a new application version, since the check reads the marketing
+version, not the build number.
 
 **(d) Negotiation protocols are a hard floor beneath `MIN_GROUPS_VERSION`.**
 Each agent declares a protocol version through `agent:neg`; %groups went
@@ -47,6 +49,12 @@ channels render the mismatch notice — so no amount of path-and-mark
 compatibility rescues it. A protocol bump must ship one release ahead of the
 client that needs it, exactly like a new path. This is also why v12.1.0 is
 unusable as a pinned N-1 pier and v12.2.0 is.
+
+A bump is a ship-to-ship break for that whole release regardless of what the
+client does: a ship on the old protocol and a ship on the new one will not talk
+until both have updated. That is by design, and the fleet upgrade resolves it.
+It does strand the pinned N-1 pier for that release, which the N-1 E2E job
+reports rather than predicts.
 
 ## The desk requests comment
 
