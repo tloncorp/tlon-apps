@@ -23,6 +23,7 @@ type Monitor = {
   refresh(): Promise<void>;
   readonly current: TlonSettingsStore;
   readonly watched: Set<string>;
+  feedDown: boolean;
 };
 let makeMonitor: (deps: MonitorDeps) => Monitor;
 
@@ -54,6 +55,7 @@ beforeAll(async () => {
       const scanDiscoveredAgentOnboardingNest = async () => {};
       const capturePluginError = () => {};
       ${callback('const applySettingsSnapshot = (')}
+      let settingsFeedDown = false;
       let settingsRefreshInFlight = null;
       let refreshSettingsNow;
       ${callback('refreshSettingsNow = async (): Promise<void> =>')}
@@ -62,6 +64,7 @@ beforeAll(async () => {
         refresh: refreshSettingsNow,
         get current() { return currentSettings; },
         get watched() { return watchedChannels; },
+        set feedDown(value) { settingsFeedDown = value; },
       };
     }
     `,
@@ -304,4 +307,51 @@ describe('group-channel refresh after a subscription gap', () => {
       );
     }
   );
+});
+
+describe('group-channel refresh while the settings subscription is down', () => {
+  it('does not re-trust the journal until the feed is live again', async () => {
+    const kept = 'chat/~zod/kept';
+    const joined = 'chat/~zod/joined';
+    const snapshot = (groupChannels: string[]) => ({
+      all: { moltbot: { tlon: { groupChannels } } },
+    });
+    const settingsManager = createSettingsManager({
+      scry: () => Promise.resolve(snapshot([kept])),
+    } as never);
+    await settingsManager.load();
+
+    const putEntry = vi.fn(async (_value: string[]) => undefined);
+    const journal = createGroupChannelJournal({
+      initial: [kept],
+      trusted: true,
+      protectedNests: () => new Set(),
+      putEntry,
+    });
+    const runtime = { log: vi.fn(), error: vi.fn() };
+    const monitor = makeMonitor({
+      groupChannelJournal: journal,
+      settingsManager,
+      applySettingsUpdate,
+      runtime,
+    });
+
+    // The settings subscription quit: no echo can arrive until the client
+    // resubscribes, however many periodic scries land in between.
+    monitor.feedDown = true;
+    journal.markUntrusted();
+    await monitor.refresh();
+    expect(journal.trusted).toBe(false);
+    await journal.persist([joined]);
+    expect(putEntry).not.toHaveBeenCalled();
+
+    // The subscription recovered; the load the recovery hook takes re-trusts
+    // and drains what was deferred.
+    monitor.feedDown = false;
+    await monitor.refresh();
+    await journal.flush();
+    expect(runtime.error).not.toHaveBeenCalled();
+    expect(journal.trusted).toBe(true);
+    expect(putEntry).toHaveBeenCalledExactlyOnceWith([kept, joined].sort());
+  });
 });

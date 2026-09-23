@@ -46,7 +46,7 @@ export type GroupsUiChannelFact = {
   roles?: { botSects: string[]; bloc: string[] };
 };
 
-function stringList(value: unknown): string[] {
+export function stringList(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((x): x is string => typeof x === 'string')
     : [];
@@ -585,7 +585,7 @@ export type GroupsUiChannelHandlerDeps = {
   groupNameCache: Map<string, string>;
   /** The bot's own ship; the host of a group reads all of its channels. */
   botShip: string;
-  /** Per group: the bot's roles and the admin roles, from its create fact, kept current by role facts. */
+  /** Per group: the bot's roles and the admin roles, from its create fact or the startup snapshot, kept current by role facts. */
   groupRoles: Map<string, { botSects: string[]; bloc: string[] }>;
   persist: (nests: readonly string[]) => Promise<void>;
   /** scanDiscoveredAgentOnboardingNest */
@@ -601,7 +601,8 @@ export type GroupsUiChannelHandlerDeps = {
  * every channel of the group, but the ship joins only the readable ones, so
  * an unreadable channel would never carry traffic and its onboarding scan
  * would fail and retry forever. A `channel` add carries no roles, so the
- * group's roles are remembered from its create fact; a restricted add for a
+ * group's roles are remembered from its create fact, or seeded from the
+ * startup snapshot for a group joined before boot; a restricted add for a
  * group with no remembered roles is treated as unreadable.
  *
  * Every readable channel of the fact is persisted, not only the newly

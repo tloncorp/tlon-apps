@@ -612,6 +612,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   // (precedent: clearAgentOnboardingRetries).
   let groupChannelJournal: GroupChannelJournal | undefined;
   let refreshSettingsNow: () => Promise<void> = async () => {};
+  // Whether the settings subscription can currently echo owner edits. A scry
+  // issued while it is down must not re-trust the groupChannels journal: an
+  // edit landing after that scry goes unseen until the resubscribe, and the
+  // next full-list put would write over it. Set by the subscription's gap
+  // hook, cleared when the SSE client reports the subscription re-established.
+  let settingsFeedDown = false;
   let cookie: string;
   // Set by the boot self-contact scry; reconnect publishes re-read instead.
   let bootSelfContactRead: SelfContactRead | undefined;
@@ -707,6 +713,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             });
           }
           return;
+        }
+        if (event.app === 'settings') {
+          // The feed is live again: a load taken now is a base no edit can
+          // have slipped past (later ones arrive as echoes), so it re-trusts.
+          settingsFeedDown = false;
+          void refreshSettingsNow();
         }
         runtime.log?.(
           `[tlon] Subscription ${event.app}${event.path} ${event.phase} after ${event.attempt} failed attempt(s), down ${event.downMs}ms`
@@ -1174,6 +1186,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // Group name cache for human-readable display (flag -> title)
     const groupNameCache = new Map<string, string>();
     const channelNameCache = new Map<string, string>();
+    // Per group: the bot's roles and the admin roles, for the /groups/ui
+    // readability filter. Seeded from the startup snapshot (a group joined
+    // before boot gets no create fact), kept current by create and role facts.
+    const groupRoles = new Map<
+      string,
+      { botSects: string[]; bloc: string[] }
+    >();
 
     // Build display context for approval formatting
     function buildDisplayContext(): DisplayContext {
@@ -1576,6 +1595,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       try {
         const initData = await fetchInitData(api, runtime, {
           signal: opts.abortSignal,
+          botShip: botShipName,
         });
         if (effectiveAutoDiscoverChannels && initData.channels.length > 0) {
           groupChannels = initData.channels;
@@ -1593,6 +1613,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         // Populate group name cache for human-readable display
         for (const [flag, title] of initData.groupNames) {
           groupNameCache.set(flag, title);
+        }
+        for (const [flag, roles] of initData.groupRoles) {
+          groupRoles.set(flag, roles);
         }
       } catch (error: any) {
         runtime.error?.(
@@ -5713,6 +5736,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           const seqBefore = groupChannelJournal?.observationSeq;
           const gapBefore = groupChannelJournal?.gapSeq;
           const unconfirmedBefore = groupChannelJournal?.unconfirmedSnapshot();
+          const feedDownBefore = settingsFeedDown;
           let superseded = false;
           try {
             const refreshResult = await settingsManager.load({
@@ -5739,12 +5763,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               },
             });
             // A gap (subscription error/quit, stream reconnect) reported while
-            // the scry was in flight means this result predates edits whose
-            // echoes were missed: it must not re-trust the journal, nor judge
-            // its unconfirmed nests. The next refresh starts clean.
+            // the scry was in flight, or a settings feed already down when it
+            // began, means this result may predate edits whose echoes were or
+            // will be missed: it must not re-trust the journal, nor judge its
+            // unconfirmed nests. The next refresh taken with the feed live
+            // starts clean; the recovery hook takes one.
             const gapped =
               groupChannelJournal !== undefined &&
-              groupChannelJournal.gapSeq !== gapBefore;
+              (groupChannelJournal.gapSeq !== gapBefore || feedDownBefore);
             if (refreshResult.fresh && !gapped) {
               // Before the snapshot: a byte-identical refresh short-circuits
               // inside applySettingsSnapshot, which would otherwise leave the
@@ -5820,7 +5846,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         channelNameCache,
         groupNameCache,
         botShip: botShipName,
-        groupRoles: new Map(),
+        groupRoles,
         persist: (nests) => journal.persist(nests),
         scan: (nest) => scanDiscoveredAgentOnboardingNest(nest),
         log: runtime.log,
@@ -5832,9 +5858,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
       try {
         await settingsManager.startSubscription({
-          // Echoes may have been missed: the journal's write base is stale
-          // until the next fresh refresh re-trusts it.
-          onGap: () => groupChannelJournal?.markUntrusted(),
+          // Echoes may have been missed, and none can arrive until the client
+          // resubscribes: the journal's write base is stale until a fresh
+          // refresh taken with the feed live re-trusts it.
+          onGap: () => {
+            settingsFeedDown = true;
+            groupChannelJournal?.markUntrusted();
+          },
         });
       } catch (err) {
         // Settings subscription is optional - don't fail if it doesn't work
@@ -6295,6 +6325,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // later pokes; accepted nests would otherwise be lost. A gap may have
       // left it untrusted with no refresh since: take one now so close() has
       // a base to write from, rather than dropping what was accepted.
+      // The feed is going away with the process, so the final scry is the
+      // last word: a subscription still down must not keep these refreshes
+      // from re-trusting, or accepted nests would be dropped instead of written.
+      settingsFeedDown = false;
       if (groupChannelJournal && !groupChannelJournal.trusted) {
         await refreshSettingsNow();
         // Single-flight may have joined a refresh that began before the gap

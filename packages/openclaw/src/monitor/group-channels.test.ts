@@ -1249,9 +1249,7 @@ describe('wiring', () => {
     const subscribe = monitorSource.indexOf(
       'settingsManager.startSubscription({'
     );
-    const gap = monitorSource.indexOf(
-      'onGap: () => groupChannelJournal?.markUntrusted()'
-    );
+    const gap = monitorSource.indexOf('onGap: () => {');
     expect(subscribe).toBeGreaterThan(-1);
     expect(gap).toBeGreaterThan(subscribe);
 
@@ -1392,5 +1390,82 @@ describe('wiring', () => {
     // api.close() rejects later pokes, so an unwritten nest would be lost.
     expect(closeJournal).toBeGreaterThan(flushOwnerReplies);
     expect(closeApi).toBeGreaterThan(closeJournal);
+  });
+
+  it('keeps the journal untrusted while the settings subscription is down', () => {
+    const fn = sliceFrom('refreshSettingsNow = async');
+    // Read when the scry begins, not after: a feed that comes back during
+    // the scry still missed the edits made before it did.
+    const captured = fn.indexOf('const feedDownBefore = settingsFeedDown');
+    expect(captured).toBeGreaterThan(-1);
+    expect(captured).toBeLessThan(fn.indexOf('settingsManager.load('));
+    expect(fn.indexOf('|| feedDownBefore')).toBeGreaterThan(
+      fn.indexOf('settingsManager.load(')
+    );
+    expect(fn.indexOf('|| feedDownBefore')).toBeLessThan(
+      fn.indexOf('markTrusted()')
+    );
+
+    // The gap hook marks the feed down alongside the journal.
+    const gap = monitorSource.indexOf('onGap: () => {');
+    expect(gap).toBeGreaterThan(-1);
+    const gapBody = monitorSource.slice(gap, monitorSource.indexOf('},', gap));
+    expect(gapBody).toContain('settingsFeedDown = true');
+    expect(gapBody).toContain('markUntrusted()');
+
+    // Recovery of the settings subscription clears it, then takes a fresh
+    // load so the journal is re-trusted from a post-recovery base.
+    const recovery = monitorSource.indexOf(
+      'onSubscriptionRecovery: (event) => {'
+    );
+    expect(recovery).toBeGreaterThan(-1);
+    const recoveryBody = monitorSource.slice(
+      recovery,
+      monitorSource.indexOf('onStreamRecovery:', recovery)
+    );
+    const settingsBranch = recoveryBody.indexOf("event.app === 'settings'");
+    expect(settingsBranch).toBeGreaterThan(-1);
+    const cleared = recoveryBody.indexOf(
+      'settingsFeedDown = false',
+      settingsBranch
+    );
+    expect(cleared).toBeGreaterThan(-1);
+    expect(
+      recoveryBody.indexOf('refreshSettingsNow()', settingsBranch)
+    ).toBeGreaterThan(cleared);
+  });
+
+  it('lets the teardown refreshes re-trust with the feed gone', () => {
+    const teardown = monitorSource.indexOf(
+      'await pendingNudgePersistence.flush()'
+    );
+    const closeJournal = monitorSource.indexOf('groupChannelJournal?.close()');
+    expect(teardown).toBeGreaterThan(-1);
+    expect(teardown).toBeLessThan(closeJournal);
+    const cleared = monitorSource.indexOf('settingsFeedDown = false', teardown);
+    const firstRefresh = monitorSource.indexOf(
+      'await refreshSettingsNow()',
+      teardown
+    );
+    // The final scry is the last word: the clear precedes the refreshes
+    // that give close() its base.
+    expect(cleared).toBeGreaterThan(-1);
+    expect(cleared).toBeLessThan(firstRefresh);
+    expect(firstRefresh).toBeLessThan(closeJournal);
+  });
+
+  it('seeds the role cache from the startup snapshot before the handler deps are built', () => {
+    const fetchWithShip = monitorSource.indexOf('botShip: botShipName');
+    const seed = monitorSource.indexOf('initData.groupRoles');
+    const deps = monitorSource.indexOf('const groupsUiChannelDeps');
+    expect(fetchWithShip).toBeGreaterThan(-1);
+    expect(seed).toBeGreaterThan(fetchWithShip);
+    expect(seed).toBeLessThan(deps);
+    // The deps share the seeded map rather than starting an empty one.
+    const depsBody = monitorSource.slice(
+      deps,
+      monitorSource.indexOf('};', deps)
+    );
+    expect(depsBody).toMatch(/\n\s+groupRoles,\n/);
   });
 });
