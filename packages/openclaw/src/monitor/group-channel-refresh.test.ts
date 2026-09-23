@@ -54,6 +54,7 @@ beforeAll(async () => {
       const scanDiscoveredAgentOnboardingNest = async () => {};
       const capturePluginError = () => {};
       ${callback('const applySettingsSnapshot = (')}
+      let settingsRefreshInFlight = null;
       let refreshSettingsNow;
       ${callback('refreshSettingsNow = async (): Promise<void> =>')}
       settingsManager.onChange((settings) => applySettingsSnapshot(settings, 'subscription'));
@@ -70,6 +71,47 @@ beforeAll(async () => {
   makeMonitor = compileFunction(`${code}\nreturn createMonitor(deps);`, [
     'deps',
   ]) as typeof makeMonitor;
+});
+
+describe('group-channel refresh single-flight', () => {
+  it('serves concurrent refresh callers with one scry', async () => {
+    let release!: () => void;
+    const held = new Promise<unknown>((resolve) => {
+      release = () =>
+        resolve({ all: { moltbot: { tlon: { groupChannels: [] } } } });
+    });
+    const scry = vi.fn(() => held);
+    const settingsManager = createSettingsManager({
+      scry,
+      subscribe: async () => {},
+    } as never);
+    const journal = createGroupChannelJournal({
+      initial: [],
+      trusted: true,
+      protectedNests: () => new Set(),
+      putEntry: async () => undefined,
+    });
+    const monitor = makeMonitor({
+      groupChannelJournal: journal,
+      settingsManager,
+      applySettingsUpdate,
+      runtime: { log: vi.fn(), error: vi.fn() },
+    });
+
+    // The discovery poll and the settings timer coinciding: both callers
+    // must share the in-flight scry, or the older result could supersede
+    // the newer one.
+    const first = monitor.refresh();
+    const second = monitor.refresh();
+    expect(scry).toHaveBeenCalledTimes(1);
+    release();
+    await Promise.all([first, second]);
+    expect(scry).toHaveBeenCalledTimes(1);
+
+    // A later caller starts a new scry.
+    await monitor.refresh();
+    expect(scry).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe('group-channel refresh after a subscription gap', () => {

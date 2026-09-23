@@ -5686,71 +5686,85 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // subscription can silently die (SSE quit without reconnect), leaving
       // both authorization state and heartbeat telemetry mirrors stale.
       // Never rejects — callers treat a refresh failure as non-fatal.
+      let settingsRefreshInFlight: Promise<void> | null = null;
       refreshSettingsNow = async (): Promise<void> => {
-        const seqBefore = groupChannelJournal?.observationSeq;
-        const gapBefore = groupChannelJournal?.gapSeq;
-        const unconfirmedBefore = groupChannelJournal?.unconfirmedSnapshot();
-        let superseded = false;
-        try {
-          const refreshResult = await settingsManager.load({
-            logSnapshot: false,
-            // An echo or gap can invalidate this scry. Preserve the last
-            // observation before the manager installs it, or an unrelated
-            // settings fact could re-trust the journal from a pre-gap value.
-            reconcile: (parsed) => {
-              if (
-                !groupChannelJournal ||
-                (groupChannelJournal.observationSeq === seqBefore &&
-                  groupChannelJournal.gapSeq === gapBefore)
-              ) {
-                return parsed;
-              }
-              superseded = true;
-              return applySettingsUpdate(
-                parsed,
-                'groupChannels',
-                groupChannelJournal.lastObserved
-              );
-            },
-          });
-          // A gap (subscription error/quit, stream reconnect) reported while
-          // the scry was in flight means this result predates edits whose
-          // echoes were missed: it must not re-trust the journal, nor judge
-          // its unconfirmed nests. The next refresh starts clean.
-          const gapped =
-            groupChannelJournal !== undefined &&
-            groupChannelJournal.gapSeq !== gapBefore;
-          if (refreshResult.fresh && !gapped) {
-            // Before the snapshot: a byte-identical refresh short-circuits
-            // inside applySettingsSnapshot, which would otherwise leave the
-            // journal untrusted (and its pending nests unwritten) after a
-            // failed boot load followed by a successful unchanged one.
-            groupChannelJournal?.markTrusted();
-            if (!superseded && unconfirmedBefore) {
-              // This scry is authoritative for nests already unconfirmed when
-              // it began: an absent one was lost or removed by another writer
-              // (its echo missed), and must not ride along on the next put.
-              const dropped = groupChannelJournal?.pruneUnconfirmed(
-                refreshResult.settings.groupChannels,
-                unconfirmedBefore
-              );
-              if (dropped?.length) {
-                runtime.log?.(
-                  `[tlon] groupChannels: dropped ${dropped.length} unconfirmed nest(s) absent from a fresh load: ${dropped.join(', ')}`
+        // Single-flight. The discovery poll and the settings timer can
+        // coincide, and two overlapping scries would let the older result
+        // win: whichever lands first counts as an observation, so the newer
+        // one reads as superseded and is discarded. One scry serves every
+        // concurrent caller.
+        if (settingsRefreshInFlight) {
+          return settingsRefreshInFlight;
+        }
+        settingsRefreshInFlight = (async () => {
+          const seqBefore = groupChannelJournal?.observationSeq;
+          const gapBefore = groupChannelJournal?.gapSeq;
+          const unconfirmedBefore = groupChannelJournal?.unconfirmedSnapshot();
+          let superseded = false;
+          try {
+            const refreshResult = await settingsManager.load({
+              logSnapshot: false,
+              // An echo or gap can invalidate this scry. Preserve the last
+              // observation before the manager installs it, or an unrelated
+              // settings fact could re-trust the journal from a pre-gap value.
+              reconcile: (parsed) => {
+                if (
+                  !groupChannelJournal ||
+                  (groupChannelJournal.observationSeq === seqBefore &&
+                    groupChannelJournal.gapSeq === gapBefore)
+                ) {
+                  return parsed;
+                }
+                superseded = true;
+                return applySettingsUpdate(
+                  parsed,
+                  'groupChannels',
+                  groupChannelJournal.lastObserved
                 );
+              },
+            });
+            // A gap (subscription error/quit, stream reconnect) reported while
+            // the scry was in flight means this result predates edits whose
+            // echoes were missed: it must not re-trust the journal, nor judge
+            // its unconfirmed nests. The next refresh starts clean.
+            const gapped =
+              groupChannelJournal !== undefined &&
+              groupChannelJournal.gapSeq !== gapBefore;
+            if (refreshResult.fresh && !gapped) {
+              // Before the snapshot: a byte-identical refresh short-circuits
+              // inside applySettingsSnapshot, which would otherwise leave the
+              // journal untrusted (and its pending nests unwritten) after a
+              // failed boot load followed by a successful unchanged one.
+              groupChannelJournal?.markTrusted();
+              if (!superseded && unconfirmedBefore) {
+                // This scry is authoritative for nests already unconfirmed when
+                // it began: an absent one was lost or removed by another writer
+                // (its echo missed), and must not ride along on the next put.
+                const dropped = groupChannelJournal?.pruneUnconfirmed(
+                  refreshResult.settings.groupChannels,
+                  unconfirmedBefore
+                );
+                if (dropped?.length) {
+                  runtime.log?.(
+                    `[tlon] groupChannels: dropped ${dropped.length} unconfirmed nest(s) absent from a fresh load: ${dropped.join(', ')}`
+                  );
+                }
               }
             }
+            applySettingsSnapshot(refreshResult.settings, 'refresh', {
+              fresh: refreshResult.fresh,
+              journalObserve: refreshResult.fresh && !superseded && !gapped,
+            });
+            // Opportunistic drain of anything deferred while untrusted.
+            if (refreshResult.fresh) void groupChannelJournal?.flush();
+          } catch (err) {
+            capturePluginError('settings_refresh', err);
+            runtime.error?.(`[tlon] Settings refresh failed: ${String(err)}`);
           }
-          applySettingsSnapshot(refreshResult.settings, 'refresh', {
-            fresh: refreshResult.fresh,
-            journalObserve: refreshResult.fresh && !superseded && !gapped,
-          });
-          // Opportunistic drain of anything deferred while untrusted.
-          if (refreshResult.fresh) void groupChannelJournal?.flush();
-        } catch (err) {
-          capturePluginError('settings_refresh', err);
-          runtime.error?.(`[tlon] Settings refresh failed: ${String(err)}`);
-        }
+        })().finally(() => {
+          settingsRefreshInFlight = null;
+        });
+        return settingsRefreshInFlight;
       };
 
       // Append-only journal of the channels of joined groups, persisted to the

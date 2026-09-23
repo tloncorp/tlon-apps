@@ -969,6 +969,14 @@ describe('wiring', () => {
     expect(refresh).toBeLessThan(closeJournal);
   });
 
+  it('runs refreshes single-flight', () => {
+    const fn = sliceFrom('refreshSettingsNow = async');
+    const guard = fn.indexOf('if (settingsRefreshInFlight) {');
+    expect(guard).toBeGreaterThan(-1);
+    expect(guard).toBeLessThan(fn.indexOf('settingsManager.load('));
+    expect(fn).toContain('settingsRefreshInFlight = null;');
+  });
+
   it('does not trust, observe, or prune from a scry that a gap overtook', () => {
     const fn = sliceFrom('refreshSettingsNow = async');
     const gapBefore = fn.indexOf('groupChannelJournal?.gapSeq');
