@@ -22,11 +22,19 @@ const at = (s: SiteRecord) => `${s.file}:${s.line}`;
 /** The agent a request is addressed to. */
 const agentOf = (d: Dependency) => (d.app ? `%${d.app}` : '(no agent)');
 
+/**
+ * The shape a path is reported under. The root is spelled `''`, whose shape is
+ * the empty string: a label that renders as nothing in text and as an empty
+ * code span in markdown, so it reads as `/` instead. Display only — the
+ * request's identity remains the extractor's key.
+ */
+const shapeOf = (p: Dependency['path']) => (p?.shape === '' ? '/' : p?.shape);
+
 /** What the request asks for, in the shape the surface makes readable. */
 export const target = (d: Dependency) =>
   d.surface === 'thread'
     ? `${d.thread ?? '?'} <- ${d.mark ?? '?'}`
-    : (d.mark ?? d.path?.shape ?? d.path?.text ?? '?');
+    : (d.mark ?? shapeOf(d.path) ?? d.path?.text ?? '?');
 
 /** One request, with every call site that makes it. */
 export interface Request {

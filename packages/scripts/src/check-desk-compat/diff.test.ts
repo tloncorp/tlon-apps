@@ -30,6 +30,7 @@ const POKE_CHAT_2 =
   "export const g = () => poke({ app: 'chat', mark: 'chat-action-2', json: {} });";
 const SUBSCRIBE_UNREADS =
   "export const h = () => subscribe({ app: 'channels', path: '/v1/unreads' }, () => {});";
+const SCRY_ROOT = "export const i = () => scry({ app: 'groups', path: '' });";
 
 describe('an unchanged inventory', () => {
   it('is the summary line and nothing else', () => {
@@ -54,6 +55,24 @@ it('reports a request the branch adds', () => {
   expect(sitesOf(result.added[0])).toEqual([`${FILE}:3`]);
   expect(result.changed).toEqual([]);
   expect(result.removed).toEqual([]);
+});
+
+it('spells a root-path request as / in both reports', () => {
+  const result = diff(SCRY_V2, `${SCRY_V2}\n${SCRY_ROOT}`);
+  expect(result.added.map((r) => r.key)).toEqual(['scry groups /']);
+  expect(renderText(result, refs)).toBe(
+    [
+      'Desk requests: base -> head',
+      '',
+      '1 added, 0 changed, 0 removed',
+      '',
+      'added',
+      '  scry %groups',
+      '    /',
+      `      ${FILE}:3`,
+    ].join('\n')
+  );
+  expect(renderMarkdown(result, refs)).toContain(`- \`/\` — \`${FILE}:3\``);
 });
 
 it('reports a request the branch drops', () => {
