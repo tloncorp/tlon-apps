@@ -204,7 +204,7 @@ index 60059b4c4ad08987b51f34ce77f79af48642d29b..36f011e06b808dddc98a78cc5b45d236
          view: TabsScreen,
          value: ReadableMap?,
 diff --git a/ios/tabs/RNSTabBarAppearanceCoordinator.mm b/ios/tabs/RNSTabBarAppearanceCoordinator.mm
-index ae5873c18ea764f819676c1743fba16759f0948f..401cb0f0ff7102f71933b1538e93694021fc798c 100644
+index ae5873c18ea764f819676c1743fba16759f0948f..6b7dfe9c8b4f5d11da80d25f831f08fefb237636 100644
 --- a/ios/tabs/RNSTabBarAppearanceCoordinator.mm
 +++ b/ios/tabs/RNSTabBarAppearanceCoordinator.mm
 @@ -1,6 +1,7 @@
@@ -215,7 +215,7 @@ index ae5873c18ea764f819676c1743fba16759f0948f..401cb0f0ff7102f71933b1538e936940
  #import "RCTConvert+RNSTabs.h"
  #import "RNSConversions.h"
  #import "RNSImageLoadingHelper.h"
-@@ -40,6 +41,71 @@ - (void)updateAppearanceOfTabBar:(nullable UITabBar *)tabBar
+@@ -40,6 +41,86 @@ - (void)updateAppearanceOfTabBar:(nullable UITabBar *)tabBar
  
      [self configureTabBarItemForTabScreenController:tabScreenCtrl imageLoader:imageLoader];
    }
@@ -232,6 +232,30 @@ index ae5873c18ea764f819676c1743fba16759f0948f..401cb0f0ff7102f71933b1538e936940
 +// is measured on iOS 26.5, where UIKit moves the badge towards the icon for a positive horizontal value.
 +- (void)configureDotBadgesForTabScreenControllers:(nonnull NSArray<RNSTabsScreenViewController *> *)tabScreenCtrls
 +{
++  BOOL drawsDots = [RNSTabBarAppearanceCoordinator shouldDrawDotBadgesForTabScreenControllers:tabScreenCtrls];
++  for (RNSTabsScreenViewController *tabScreenCtrl in tabScreenCtrls) {
++    UITabBarItem *tabBarItem = tabScreenCtrl.tabBarItem;
++    NSString *badgeValue = tabScreenCtrl.tabScreenComponentView.badgeValue;
++    if (drawsDots) {
++      tabBarItem.standardAppearance =
++          [RNSTabBarAppearanceCoordinator dotBadgeAppearanceFrom:tabBarItem.standardAppearance];
++      if (tabBarItem.scrollEdgeAppearance != nil) {
++        tabBarItem.scrollEdgeAppearance =
++            [RNSTabBarAppearanceCoordinator dotBadgeAppearanceFrom:tabBarItem.scrollEdgeAppearance];
++      }
++      if (badgeValue != nil) {
++        badgeValue = @"\u25CF";
++      }
++    }
++    // Set it either way, so a glyph from an earlier dot pass never outlives the dots.
++    if (![tabBarItem.badgeValue isEqualToString:badgeValue]) {
++      tabBarItem.badgeValue = badgeValue;
++    }
++  }
++}
++
+++ (BOOL)shouldDrawDotBadgesForTabScreenControllers:(nonnull NSArray<RNSTabsScreenViewController *> *)tabScreenCtrls
++{
 +  if (@available(iOS 26.0, *)) {
 +    BOOL hasDotBadge = NO;
 +    for (RNSTabsScreenViewController *tabScreenCtrl in tabScreenCtrls) {
@@ -240,27 +264,13 @@ index ae5873c18ea764f819676c1743fba16759f0948f..401cb0f0ff7102f71933b1538e936940
 +        continue;
 +      }
 +      if (![NSString rnscreens_isBlankOrNull:badgeValue]) {
-+        return;
++        return NO;
 +      }
 +      hasDotBadge = YES;
 +    }
-+    if (!hasDotBadge) {
-+      return;
-+    }
-+
-+    for (RNSTabsScreenViewController *tabScreenCtrl in tabScreenCtrls) {
-+      UITabBarItem *tabBarItem = tabScreenCtrl.tabBarItem;
-+      tabBarItem.standardAppearance =
-+          [RNSTabBarAppearanceCoordinator dotBadgeAppearanceFrom:tabBarItem.standardAppearance];
-+      if (tabBarItem.scrollEdgeAppearance != nil) {
-+        tabBarItem.scrollEdgeAppearance =
-+            [RNSTabBarAppearanceCoordinator dotBadgeAppearanceFrom:tabBarItem.scrollEdgeAppearance];
-+      }
-+      if (tabScreenCtrl.tabScreenComponentView.badgeValue != nil) {
-+        tabBarItem.badgeValue = @"\u25CF";
-+      }
-+    }
++    return hasDotBadge;
 +  }
++  return NO;
 +}
 +
 ++ (nonnull UITabBarAppearance *)dotBadgeAppearanceFrom:(nonnull UITabBarAppearance *)appearance
@@ -271,13 +281,18 @@ index ae5873c18ea764f819676c1743fba16759f0948f..401cb0f0ff7102f71933b1538e936940
 +         dotAppearance.inlineLayoutAppearance,
 +         dotAppearance.compactInlineLayoutAppearance
 +       ]) {
-+    UIColor *normalBadgeColor = itemAppearance.normal.badgeBackgroundColor;
-+    for (UITabBarItemStateAppearance *stateAppearance in
-+         @[ itemAppearance.normal, itemAppearance.selected, itemAppearance.focused, itemAppearance.disabled ]) {
++    NSArray<UITabBarItemStateAppearance *> *stateAppearances =
++        @[ itemAppearance.normal, itemAppearance.selected, itemAppearance.focused, itemAppearance.disabled ];
++    // Read every colour before clearing any: an unset state reports the normal state's colour.
++    NSMutableArray<UIColor *> *badgeColors = [NSMutableArray arrayWithCapacity:stateAppearances.count];
++    for (UITabBarItemStateAppearance *stateAppearance in stateAppearances) {
++      [badgeColors addObject:stateAppearance.badgeBackgroundColor ?: UIColor.systemRedColor];
++    }
++    for (NSUInteger i = 0; i < stateAppearances.count; i++) {
++      UITabBarItemStateAppearance *stateAppearance = stateAppearances[i];
 +      stateAppearance.badgeTextAttributes = @{
 +        NSFontAttributeName : [UIFont systemFontOfSize:8],
-+        NSForegroundColorAttributeName : stateAppearance.badgeBackgroundColor ?: normalBadgeColor
-+            ?: UIColor.systemRedColor,
++        NSForegroundColorAttributeName : badgeColors[i],
 +      };
 +      stateAppearance.badgeBackgroundColor = UIColor.clearColor;
 +      stateAppearance.badgePositionAdjustment = UIOffsetMake(14.67, 35.17);
