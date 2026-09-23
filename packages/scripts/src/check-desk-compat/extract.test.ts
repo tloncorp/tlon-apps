@@ -598,6 +598,16 @@ describe('argument forms', () => {
     );
     expect(computed.key).toBe('subscribe groups /*');
     expect(computed.unresolved).toContain('path could not be resolved');
+    // A ternary path is two branches, not one unconditional request, and each
+    // must carry the condition that reaches it — as the object form does.
+    const guarded = extract(
+      "import api from '@/api';\nexport const f = (supportsNew: boolean) => api.subscribeOnce('groups', supportsNew ? '/v99' : '/v1', 5000);",
+      web
+    );
+    expect(guarded.map((d) => `${d.path?.text} ${d.guard}`).sort()).toEqual([
+      "'/v1' ! (supportsNew)",
+      "'/v99' supportsNew ? …",
+    ]);
     expect(
       keys(
         "import api from '@/api';\nexport const f = () => api.poke({ app: 'groups-ui', mark: 'ui-vita-toggle', json: true });",

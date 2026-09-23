@@ -1149,6 +1149,7 @@ function readCall(
           surface: 'subscribe',
           app,
           path: path.value,
+          guard: path.guard,
           // The same check `readEndpointObject` makes: a path with no known
           // prefix is a request this reader could not read, not one it read
           // as the root.
