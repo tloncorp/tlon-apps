@@ -5,7 +5,10 @@
 const path = require('path');
 
 const STACK_COMPONENTS = /^(Stack|XStack|YStack|View|ListItem)$/;
-const TOP_TAB_ROUTES = /^(ChatList|Activity|Contacts|Settings)$/;
+// Bot / Workspaces (ChatList) / Settings are the mobile tabs; Activity and
+// Contacts are drawer destinations on desktop and repeat targets on mobile,
+// where a pop-less navigate mounts a duplicate just the same.
+const TOP_TAB_ROUTES = /^(BotChat|ChatList|Activity|Contacts|Settings)$/;
 const NAVIGATE_MESSAGE =
   "navigate() to a top-level tab route must pass { pop: true } as the third argument. React Navigation 7's navigate() pushes a new screen by default — without pop:true this causes duplicate screen mounts and perceived input delay on Android. See TLON-5598.";
 

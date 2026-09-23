@@ -131,7 +131,6 @@ import {
   GroupJoinRequest,
   GroupNavSection,
   GroupNotesActivity,
-  GroupRole,
   GroupUnread,
   NotesFolder,
   NotesMember,
@@ -2833,49 +2832,6 @@ export const deleteGroupRankBans = createWriteQuery(
   ['groupRankBans']
 );
 
-export const addRole = createWriteQuery(
-  'addRole',
-  async (role: GroupRole, ctx: QueryCtx) => {
-    return ctx.db
-      .insert($groupRoles)
-      .values(role)
-      .onConflictDoUpdate({
-        target: $groupRoles.id,
-        set: conflictUpdateSetAll($groupRoles),
-      });
-  },
-  ['groupRoles']
-);
-
-export const deleteRole = createWriteQuery(
-  'deleteRole',
-  async (
-    { roleId, groupId }: { roleId: string; groupId: string },
-    ctx: QueryCtx
-  ) => {
-    return ctx.db
-      .delete($groupRoles)
-      .where(and(eq($groupRoles.id, roleId), eq($groupRoles.groupId, groupId)));
-  },
-  ['groupRoles']
-);
-
-export const updateRole = createWriteQuery(
-  'updateRole',
-  async (
-    role: Partial<GroupRole> & { id: string; groupId: string },
-    ctx: QueryCtx
-  ) => {
-    return ctx.db
-      .update($groupRoles)
-      .set(role)
-      .where(
-        and(eq($groupRoles.groupId, role.groupId), eq($groupRoles.id, role.id))
-      );
-  },
-  ['groupRoles']
-);
-
 export const addChatMembersToRoles = createWriteQuery(
   'addChatMembersToRoles',
   async (
@@ -4090,6 +4046,7 @@ export const getSequencedChannelPosts = createReadQuery(
         where: and(
           eq($posts.channelId, options.channelId),
           not(eq($posts.type, 'reply')),
+          gt($posts.sequenceNum, 0),
           isNull($posts.deliveryStatus)
         ),
         with: {
@@ -4134,6 +4091,7 @@ export const getSequencedChannelPosts = createReadQuery(
         where: and(
           eq($posts.channelId, options.channelId),
           not(eq($posts.type, 'reply')),
+          gt($posts.sequenceNum, 0),
           lt($posts.sequenceNum, options.cursorSequenceNum),
           isNull($posts.deliveryStatus)
         ),
@@ -4252,6 +4210,7 @@ export const getSequencedChannelPosts = createReadQuery(
         where: and(
           eq($posts.channelId, options.channelId),
           not(eq($posts.type, 'reply')),
+          gt($posts.sequenceNum, 0),
           gte($posts.sequenceNum, lowerBound),
           lte($posts.sequenceNum, upperBound),
           isNull($posts.deliveryStatus)
@@ -4550,8 +4509,15 @@ export const insertLatestPosts = createWriteQuery(
 const insertPostsBatchSize = 300;
 
 async function insertPosts(posts: Post[], ctx: QueryCtx) {
-  for (let i = 0; i < posts.length; i += insertPostsBatchSize) {
-    const batch = posts.slice(i, i + insertPostsBatchSize);
+  // Snapshots can include nested replies already reflected in the parent's
+  // replyCount. Persist both in the same transaction so later reply events
+  // recognize those rows instead of incrementing the count a second time.
+  const postsWithReplies = posts.flatMap((post) => [
+    post,
+    ...(post.replies ?? []),
+  ]);
+  for (let i = 0; i < postsWithReplies.length; i += insertPostsBatchSize) {
+    const batch = postsWithReplies.slice(i, i + insertPostsBatchSize);
     await insertPostsBatch(batch, ctx);
   }
 }
@@ -7110,10 +7076,29 @@ export const addGroupRole = createWriteQuery(
     }: { groupId: string; roleId: string; meta?: ClientMeta },
     ctx: QueryCtx
   ) => {
-    return ctx.db
+    const insert = ctx.db
       .insert($groupRoles)
-      .values({ groupId, id: roleId, ...meta })
-      .onConflictDoNothing();
+      .values({ groupId, id: roleId, ...meta });
+
+    // A role add can legitimately arrive for an id we already hold carrying
+    // newer metadata (the desk only rejects a batch whose ids *all* exist, and
+    // a client that missed a deletion keeps the stale row through a recreate),
+    // so the insert has to upsert on the composite key rather than do nothing.
+    // Overwrite only the fields the caller actually supplied: a set-all would
+    // null out an existing row for the metadata-free callers.
+    const columns = getTableColumns($groupRoles);
+    const providedColumns = Object.entries(meta ?? {})
+      .filter(([key, value]) => value !== undefined && key in columns)
+      .map(([key]) => columns[key as keyof typeof columns]);
+
+    if (providedColumns.length === 0) {
+      return insert.onConflictDoNothing();
+    }
+
+    return insert.onConflictDoUpdate({
+      target: [$groupRoles.groupId, $groupRoles.id],
+      set: conflictUpdateSet(...providedColumns),
+    });
   },
   ['groupRoles']
 );

@@ -38,6 +38,7 @@ import { useNotebookSidebarRegistration } from '../../contexts/notebookSidebar';
 import { ActionSheet } from '../ActionSheet';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import type { ScreenHeaderAction } from '../ScreenHeader';
+import { useFloatingHeaderHeight } from '../conversationScrollChrome';
 import { NotesActionGroupList } from './NotesActions';
 import { NotebookGateMessage, useNotebookData } from './NotesData';
 import { useEntityDialog } from './NotesDialogPrimitives';
@@ -53,6 +54,7 @@ import {
 } from './NotesFeedback';
 import {
   NotesHeaderActions,
+  createNotesHeaderActions,
   createNotesNewFolderAction,
   createNotesNewNoteAction,
 } from './NotesHeaderActions';
@@ -1154,24 +1156,24 @@ export function NotesNativeChannel({
       : []),
   ];
 
-  const headerActions = useMemo(() => {
-    if (!notebookFlag || gate === 'unjoinable') return null;
-    return (
-      <NotesHeaderActions
-        canEdit={canEdit}
-        onNew={() => setNewActionSheetOpen(true)}
-        onSearch={searchSupported ? openSearch : undefined}
-        primaryActionVariant={useDesktopSplit ? 'icon' : 'text'}
-      />
-    );
-  }, [
-    canEdit,
-    gate,
-    notebookFlag,
-    openSearch,
-    searchSupported,
-    useDesktopSplit,
-  ]);
+  const headerActionOptions = useMemo(
+    () => ({
+      canEdit,
+      onNew: () => setNewActionSheetOpen(true),
+      onSearch: searchSupported ? openSearch : undefined,
+      primaryActionVariant: useDesktopSplit
+        ? ('icon' as const)
+        : ('text' as const),
+    }),
+    [canEdit, openSearch, searchSupported, useDesktopSplit]
+  );
+  const headerActions = useMemo(
+    () =>
+      !notebookFlag || gate === 'unjoinable'
+        ? null
+        : createNotesHeaderActions(headerActionOptions),
+    [gate, notebookFlag, headerActionOptions]
+  );
 
   const sidebarHeaderActions = useMemo<ScreenHeaderAction[]>(() => {
     if (!notebookFlag || gate === 'unjoinable' || !canEdit) {
@@ -1223,7 +1225,9 @@ export function NotesNativeChannel({
     useDesktopSplit && isFocused && !gate
       ? {
           channelId,
-          actions: headerActions,
+          actions: headerActions ? (
+            <NotesHeaderActions {...headerActionOptions} />
+          ) : null,
           backAction: sidebarIsNested ? handleSidebarBack : undefined,
           content: notesTreePane,
           groupId,
@@ -1235,6 +1239,12 @@ export function NotesNativeChannel({
       : null,
     notebookSidebarSourceId
   );
+
+  // NotesTreePane only mounts the scroll view that installs the transparent
+  // header once it has rows; its empty state leaves the header opaque, and
+  // padding the banner then would open a second header-height gap. The desktop
+  // split is web-only, so the tree pane is the only path that matters here.
+  const floatingHeaderHeight = useFloatingHeaderHeight(treeRows.length > 0);
 
   if (gate) {
     return (
@@ -1279,8 +1289,14 @@ export function NotesNativeChannel({
       position="relative"
       {...dropImportProps}
     >
-      {error ? <NotesBanner message={error} tone="negative" /> : null}
-      {importNotice ? <NotesBanner message={importNotice} /> : null}
+      {error || importNotice ? (
+        // These sit outside the tree pane's scroll view, so nothing insets
+        // them below a transparent header; the group clears it once.
+        <YStack paddingTop={floatingHeaderHeight}>
+          {error ? <NotesBanner message={error} tone="negative" /> : null}
+          {importNotice ? <NotesBanner message={importNotice} /> : null}
+        </YStack>
+      ) : null}
 
       {useDesktopSplit ? noteDetailPane : notesTreePane}
       {isDragImportActive ? (
