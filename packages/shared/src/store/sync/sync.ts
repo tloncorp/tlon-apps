@@ -1299,28 +1299,28 @@ export async function handleGroupUpdate(
       break;
     }
     case 'addRole':
-      await db.addRole(
+      await db.addGroupRole(
         {
-          id: update.roleId,
           groupId: update.groupId,
-          ...update.meta,
+          roleId: update.roleId,
+          meta: update.meta,
         },
         ctx
       );
       break;
     case 'editRole':
-      await db.updateRole(
+      await db.updateGroupRole(
         {
-          id: update.roleId,
           groupId: update.groupId,
-          ...update.meta,
+          roleId: update.roleId,
+          meta: update.meta,
         },
         ctx
       );
       break;
     case 'deleteRole':
-      await db.deleteRole(
-        { roleId: update.roleId, groupId: update.groupId },
+      await db.deleteGroupRole(
+        { groupId: update.groupId, roleId: update.roleId },
         ctx
       );
       break;
