@@ -47,7 +47,7 @@ export type TlonSettingsStore = {
   showModelSig?: boolean;
   autoAcceptDmInvites?: boolean;
   autoDiscoverChannels?: boolean;
-  /** No longer governs group-invite authorization or channel persistence; its only remaining effect is one term of the startup metadata-fetch predicate. Retained for config back-compat pending retirement. */
+  /** No longer governs group-invite authorization or channel persistence; it has no remaining runtime effect and is only parsed, migrated, and logged. Retained for config back-compat pending retirement. */
   autoAcceptGroupInvites?: boolean;
   /** Ships allowed to invite us to groups (allowlist membership is sufficient for auto-accept) */
   groupInviteAllowlist?: string[];

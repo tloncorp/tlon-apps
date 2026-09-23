@@ -65,7 +65,7 @@ channels:
 
         # Auto-accept settings
         autoAcceptDmInvites: true # Accept DMs from ships in dmAllowlist
-        autoAcceptGroupInvites: false # Legacy: no longer governs group-invite authorization or channel persistence; its only remaining effect is one term of the startup metadata-fetch predicate. Retained for config back-compat pending retirement.
+        autoAcceptGroupInvites: false # Legacy: no longer governs group-invite authorization or channel persistence; it has no remaining runtime effect and is only parsed, migrated, and logged. Retained for config back-compat pending retirement.
 
         # Ships allowed to invite the bot to groups (auto-accepted unless blocked)
         groupInviteAllowlist:

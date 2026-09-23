@@ -115,7 +115,7 @@ export const TlonAccountSchema = z.object({
   showModelSignature: z.boolean().optional(),
   // Auto-accept settings
   autoAcceptDmInvites: z.boolean().optional(), // Auto-accept DMs from ships in dmAllowlist
-  autoAcceptGroupInvites: z.boolean().optional(), // No longer governs group-invite authorization or channel persistence; its only remaining effect is one term of the startup metadata-fetch predicate. Retained for config back-compat pending retirement.
+  autoAcceptGroupInvites: z.boolean().optional(), // No longer governs group-invite authorization or channel persistence; it has no remaining runtime effect and is only parsed, migrated, and logged. Retained for config back-compat pending retirement.
   // Owner ship for approval system
   ownerShip: ShipSchema.optional(), // Ship that receives approval requests and can approve/deny
   // Reaction level: off (no reactions), ack (notify only), minimal (react sparingly), extensive (react freely)
@@ -153,7 +153,7 @@ export const TlonConfigSchema = z.object({
   accounts: z.record(z.string(), TlonAccountSchema).optional(),
   // Auto-accept settings
   autoAcceptDmInvites: z.boolean().optional(), // Auto-accept DMs from ships in dmAllowlist
-  autoAcceptGroupInvites: z.boolean().optional(), // No longer governs group-invite authorization or channel persistence; its only remaining effect is one term of the startup metadata-fetch predicate. Retained for config back-compat pending retirement.
+  autoAcceptGroupInvites: z.boolean().optional(), // No longer governs group-invite authorization or channel persistence; it has no remaining runtime effect and is only parsed, migrated, and logged. Retained for config back-compat pending retirement.
   // Owner ship for approval system
   ownerShip: ShipSchema.optional(), // Ship that receives approval requests and can approve/deny
   // Reaction level: off (no reactions), ack (notify only), minimal (react sparingly), extensive (react freely)
