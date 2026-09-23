@@ -1,4 +1,4 @@
-import { MIN_GROUPS_VERSION } from '@tloncorp/shared/logic/deskPolicy';
+import { MIN_GROUPS_VERSION } from '@tloncorp/shared/logic/deskCompatibility';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import shipManifest from '../e2e/shipManifest.json';

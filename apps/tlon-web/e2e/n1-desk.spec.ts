@@ -1,5 +1,5 @@
 import { Page, expect } from '@playwright/test';
-import { MIN_GROUPS_VERSION } from '@tloncorp/shared/logic/deskPolicy';
+import { MIN_GROUPS_VERSION } from '@tloncorp/shared/logic/deskCompatibility';
 
 import { shouldIncludeShip } from '../rube/shipSelection';
 import * as helpers from './helpers';

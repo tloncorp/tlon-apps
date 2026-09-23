@@ -64,7 +64,7 @@ jobs:
       - name: The pinned pier matches the policy floor
         run: |
           set -euo pipefail
-          MIN=$(node -p "require('fs').readFileSync('packages/shared/src/logic/deskPolicy.ts','utf8').match(/MIN_GROUPS_VERSION = '([^']+)'/)[1]")
+          MIN=$(node -p "require('fs').readFileSync('packages/shared/src/logic/deskCompatibility.ts','utf8').match(/MIN_GROUPS_VERSION = '([^']+)'/)[1]")
           PIN=$(node -p "require('./apps/tlon-web/e2e/shipManifest.json')['~${N1_SHIP}'].deskVersion")
           echo "MIN_GROUPS_VERSION=$MIN" >> "$GITHUB_ENV"
           {

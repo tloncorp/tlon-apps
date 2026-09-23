@@ -111,7 +111,7 @@ not `-B <pill>`. If a future vere bundles a pill on a different kelvin from
 deliberately.
 
 Re-run it whenever `MIN_GROUPS_VERSION`
-(`packages/shared/src/logic/deskPolicy.ts`) moves — the `N-1 Desk E2E` workflow
+(`packages/shared/src/logic/deskCompatibility.ts`) moves — the `N-1 Desk E2E` workflow
 fails fast when the pin and the constant disagree. See
 `docs/tlon-apps/desk-compatibility.md`.
 
