@@ -116,8 +116,8 @@ export default function NavIcon({
           imageUrl={imageUrl}
           size="$2xl"
           borderRadius={0}
-          // Fills the same 32pt frame as the glyph, so the unread dot stays put.
-          margin="$xs"
+          // Fills the glyph's 32x24 frame, so the bar and the unread dot stay put.
+          marginHorizontal="$xs"
           opacity={isActive ? 1 : 0.6}
           fallback={
             <Icon
