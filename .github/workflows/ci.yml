@@ -53,14 +53,15 @@ jobs:
               - 'packages/hermes-tlon-adapter/**'
               - 'packages/tlon-bot-e2e/**'
               - 'packages/tlon-skill/**'
-            # Where the app's ship requests are written. Not every call site
-            # is here — the extractor also scans packages/app and the two app
-            # roots, which hold about 7% of them — so a PR that adds a request
-            # only in apps/tlon-web gets no report. The report is advisory, and
-            # this keeps it off PRs that cannot have moved the inventory.
+            # Where the app's ship requests are written — mirrors CLIENT_ROOTS
+            # in packages/scripts/src/check-desk-compat/extract.ts. Keep this
+            # list in step with that one if the extractor's scan roots change.
             client:
-              - 'packages/api/**'
-              - 'packages/shared/**'
+              - 'packages/api/src/**'
+              - 'packages/shared/src/**'
+              - 'packages/app/**'
+              - 'apps/tlon-web/src/**'
+              - 'apps/tlon-mobile/src/**'
 
   # The app-wide suite. Skipped only when the filter positively reported
   # app == 'false' (bot-/docs-only PRs). Written `!= 'false'` rather than
@@ -128,9 +129,9 @@ jobs:
   #
   # It runs on every PR, not only the ones that touch the client, so a report an
   # earlier push posted is replaced rather than left standing once the branch
-  # moves off `packages/api` / `packages/shared`. Only the work — checkout,
-  # install, extraction — is gated on that filter; the comment is always brought
-  # up to date.
+  # moves off the paths matched by the `client` filter. Only the work —
+  # checkout, install, extraction — is gated on that filter; the comment is
+  # always brought up to date.
   desk-requests:
     needs: changes
     if: ${{ !cancelled() }}
@@ -204,7 +205,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$CLIENT" = "false" ]; then
-            printf '## Desk requests\n\nNo changes under `packages/api` or `packages/shared` in this PR.\n' > desk-requests.md
+            printf '## Desk requests\n\nNo changes under the paths matched by the `client` filter in this PR.\n' > desk-requests.md
           elif [ ! -s desk-requests.md ]; then
             printf '## Desk requests\n\nThe report could not be produced for this push; see the job log.\n' > desk-requests.md
           fi

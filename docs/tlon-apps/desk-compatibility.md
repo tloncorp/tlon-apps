@@ -58,7 +58,8 @@ reports rather than predicts.
 
 ## The desk requests comment
 
-A PR touching `packages/api` or `packages/shared` gets one sticky comment
+A PR touching `packages/api/src`, `packages/shared/src`, `packages/app`,
+`apps/tlon-web/src`, or `apps/tlon-mobile/src` gets one sticky comment
 headed "Desk requests" — an inventory diff between the PR's merge base and its
 head, listing the scries, subscriptions, pokes and threads the branch adds,
 changes or drops, grouped by kind and agent with their call sites. A request is
@@ -70,7 +71,7 @@ asks for at two refs and compares the two inventories. It reads no desk.
 
 The job runs on every PR, but only does the work when the filter matches, so a
 comment an earlier push left behind is replaced rather than left standing when
-the branch later moves off those two packages.
+the branch later moves off those roots.
 
 So the comment is a worklist, not a verdict: nothing in it fails CI, and rule
 (b) is enforced by a person. For each added or changed entry a reviewer

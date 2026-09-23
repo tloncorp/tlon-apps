@@ -11,7 +11,8 @@ defaults and should not be inferred from memory.
 
 ## Reviewing the desk requests comment
 
-A PR touching `packages/api` or `packages/shared` gets one sticky comment headed
+A PR touching `packages/api/src`, `packages/shared/src`, `packages/app`,
+`apps/tlon-web/src`, or `apps/tlon-mobile/src` gets one sticky comment headed
 "Desk requests". It is an inventory diff: the scries, subscriptions, pokes and
 threads this branch **adds, changes or drops**, grouped by kind and agent, each
 with its call sites. A request counts as changed when its path or mark moved,
