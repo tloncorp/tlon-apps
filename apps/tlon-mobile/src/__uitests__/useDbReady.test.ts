@@ -321,19 +321,38 @@ describe('useDbReady', () => {
     );
   });
 
-  it('asks for a restart when setup still owns a native connection', async () => {
-    // Nothing could be detached, so a retry would await the very handle that
-    // didn't finish. Only a new process gets a fresh one -- so this drops the
-    // button on the first deadline, without waiting for a second.
-    abandonDbInitMock.mockReturnValue('setup-owns-connection');
-    hangingCall();
+  it('still offers one retry when setup owns a native connection', async () => {
+    // Nothing was detached, so the retry rejoins the attached setup and
+    // finishes the moment it settles. Forcing a restart on the first deadline
+    // would throw away an initialization that was about to succeed.
+    ensureDbReadyMock.mockResolvedValueOnce(undefined);
+    const primed = renderHook(() => useDbReady());
+    await advance(0);
+    primed.unmount();
 
-    const { result } = renderHook(() => useDbReady());
+    abandonDbInitMock.mockReturnValue('setup-owns-connection');
+
+    const firstPending = hangingCall();
+    const first = renderHook(() => useDbReady());
     await advance(30_000);
 
-    const error = result.current.dbInitError as DbInitTimeoutError;
-    expect(error.details.abandonOutcome).toBe('setup-owns-connection');
-    expect(error.details.canRetry).toBe(false);
+    const firstError = first.result.current.dbInitError as DbInitTimeoutError;
+    expect(firstError.details.abandonOutcome).toBe('setup-owns-connection');
+    expect(firstError.details.canRetry).toBe(true);
+    first.unmount();
+
+    // A setup hang that survives the retry is the one worth a restart.
+    const secondPending = hangingCall();
+    const second = renderHook(() => useDbReady());
+    await advance(30_000);
+
+    expect(
+      (second.result.current.dbInitError as DbInitTimeoutError).details.canRetry
+    ).toBe(false);
+
+    firstPending.resolve();
+    secondPending.resolve();
+    await advance(0);
   });
 
   it('keeps offering a retry when the deadlines abandoned nothing', async () => {

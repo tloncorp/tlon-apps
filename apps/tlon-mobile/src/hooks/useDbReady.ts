@@ -117,10 +117,11 @@ export function useDbReady() {
       // Without this the next mount awaits the same promise and spends a whole
       // second deadline on work that already failed to finish.
       const abandonOutcome = abandonDbInit();
-      // A deadline that found nothing running -- it landed in a backoff after a
-      // slow rejection -- is the throw path taking too long, not a hang, and
-      // retrying recovers that.
-      const hung = abandonOutcome === 'abandoned';
+      // Both 'abandoned' and 'setup-owns-connection' mean the deadline found
+      // work still in flight, which is the hang signature. Only
+      // 'nothing-in-flight' says it landed in a backoff after a slow rejection,
+      // which is the throw path running long and which retrying recovers.
+      const hung = abandonOutcome !== 'nothing-in-flight';
       lastMountHung = hung;
       logger.crumb(
         `deadline fired on attempt ${attempt} (abandon outcome: ${abandonOutcome})`
@@ -131,12 +132,12 @@ export function useDbReady() {
           elapsedMs: elapsed(),
           lastError: lastErrorText,
           abandonOutcome,
-          // Nothing could be detached because setup still holds an unpublished
-          // native handle, so a retry would await that same handle. Only a
-          // restart gets a fresh one -- don't offer a button that can't help.
-          canRetry:
-            abandonOutcome !== 'setup-owns-connection' &&
-            !(recoveringFromHang && hung),
+          // One retry for either kind of hang. 'setup-owns-connection' detached
+          // nothing, so the retry rejoins the attached work and finishes the
+          // moment it settles -- forcing a restart there would throw away an
+          // initialization that was about to succeed. Only a hang that survives
+          // a retry is worth a restart.
+          canRetry: !(recoveringFromHang && hung),
         })
       );
     }, DB_READY_DEADLINE_MS);
