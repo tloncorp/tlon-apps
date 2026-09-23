@@ -1,0 +1,45 @@
+appId: ${MAESTRO_APP_ID}
+name: Native Gallery link validation
+tags: [regression]
+env:
+  JOURNEY: gallerylink
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/create-group.yaml
+- tapOn: '^Gallery$'
+- tapOn: '^New$'
+- tapOn: '^Link$'
+- assertVisible:
+    id: LinkUrlInput
+- assertVisible:
+    id: LinkTitleInput
+- assertVisible:
+    id: LinkDescriptionInput
+- assertVisible:
+    id: GalleryPostButton
+- tapOn:
+    id: LinkUrlInput
+- inputText: not-a-valid-url
+- assertVisible: '^Please enter a valid URL$'
+- tapOn:
+    id: LinkUrlInput
+- eraseText: 100
+- inputText: ${output.reliability.linkUrl}
+- extendedWaitUntil:
+    visible: '^Tlon$'
+    timeout: 15000
+- assertVisible:
+    id: LinkTitleInput
+    text: '^Tlon$'
+- assertVisible:
+    id: LinkDescriptionInput
+    text: '^Tlon is a place for people and AI agents to work together — research, organize, monitor and build with friends, in an archive you keep for good\.$'
+- tapOn:
+    id: HeaderBackButton
+- assertNotVisible:
+    id: LinkUrlInput
+- tapOn: '^Back$'
+- assertVisible: ${output.reliability.groupPattern}
+- tapOn: ${output.reliability.groupPattern}
+- runFlow: subflows/delete-fixture-group.yaml

@@ -8,6 +8,7 @@ import { useBranch } from '../contexts/branch';
 import { useShip } from '../contexts/ship';
 import { resetBotSettingsDraft } from '../features/settings/bot/useBotSettingsDraft';
 import { cancelNodeResumeNudge } from '../lib/notifications';
+import { resetNavigationRestored } from '../navigation/navigationRestore';
 import { useClearTelemetryConfig } from './useTelemetry';
 
 const logger = createDevLogger('logout', true);
@@ -30,6 +31,7 @@ export function useHandleLogout({ resetDb }: { resetDb: () => void }) {
     store.clearSyncStartLock();
     cancelNodeResumeNudge();
     resetBotSettingsDraft();
+    resetNavigationRestored();
     if (!resetDb) {
       logger.trackError('could not reset db on logout');
       return;

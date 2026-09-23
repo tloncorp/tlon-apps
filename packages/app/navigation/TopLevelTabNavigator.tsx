@@ -2,29 +2,53 @@ import {
   BottomTabBarProps,
   createBottomTabNavigator,
 } from '@react-navigation/bottom-tabs';
+import { useNavigation } from '@react-navigation/native';
+import * as store from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
+import { useEffect, useRef } from 'react';
 
+import SettingsScreen from '../features/settings/SettingsScreen';
 import { ActivityScreen } from '../features/top/ActivityScreen';
+import ChannelScreen from '../features/top/ChannelScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
-import ContactsScreen from '../features/top/ContactsScreen';
-import { useTopLevelTabController } from '../hooks/useTopLevelTabController';
-import { AvatarNavIcon, NavBar, NavIcon } from '../ui/components/NavBar';
-import ProfileStatusSheet from '../ui/components/ProfileStatusSheet';
-import { TopLevelTabName, trackTopLevelTabSelection } from './topLevelTabs';
+import { useAgentOnboardingLandingConsumer } from '../features/top/useAgentOnboardingLandingConsumer';
+import { useAnyAgentGroupOnboardingLock } from '../hooks/useAgentGroupOnboardingLock';
+import { useBotDmTab } from '../hooks/useBotDmTab';
+import { NavBar, NavIcon } from '../ui/components/NavBar';
+import {
+  TopLevelTabName,
+  getTopLevelTabRoute,
+  isAtColdStartPosition,
+  isTabPressBlockedByOnboardingLock,
+  trackTopLevelTabSelection,
+} from './topLevelTabs';
 import type { TopLevelTabParamList } from './types';
 
 const Tabs = createBottomTabNavigator<TopLevelTabParamList>();
 
 function ReactTopLevelTabBar({ state, navigation }: BottomTabBarProps) {
   const isWindowNarrow = useIsWindowNarrow();
-  const { currentUserId, haveUnreadActivity, statusSheet } =
-    useTopLevelTabController();
+  // Hooks stay above the early return below. The bot DM badges its own tab;
+  // Activity badges what is happening everywhere else.
+  const botDm = useBotDmTab();
+  const botDmHasUnread = store.useChannelHasUnread(
+    botDm.enabled ? botDm.channelId : undefined
+  );
+  const unseenActivityCount = store.useUnreadUnseenActivityCount({
+    excludeChannelId: botDm.enabled ? botDm.channelId : undefined,
+  });
+  const onboardingLock = useAnyAgentGroupOnboardingLock();
 
   if (!isWindowNarrow) {
     return null;
   }
 
+  const activeRouteName = state.routes[state.index]?.name;
+
   const pressTab = (name: TopLevelTabName) => {
+    if (isTabPressBlockedByOnboardingLock(onboardingLock.locked, name)) {
+      return;
+    }
     const index = state.routes.findIndex((route) => route.name === name);
     const route = state.routes[index];
     if (!route) {
@@ -46,65 +70,89 @@ function ReactTopLevelTabBar({ state, navigation }: BottomTabBarProps) {
     }
   };
 
-  const longPressProfile = () => {
-    const route = state.routes.find(
-      (candidate) => candidate.name === 'Contacts'
-    );
-    if (route) {
-      navigation.emit({
-        type: 'tabLongPress',
-        target: route.key,
-      });
-    }
-    statusSheet.openSheet();
-  };
+  const hasBotDmTab = state.routes.some((route) => route.name === 'BotChat');
 
   return (
-    <>
-      <NavBar>
+    <NavBar>
+      {hasBotDmTab && (
         <NavIcon
-          type="Home"
-          activeType="HomeFilled"
-          isActive={state.routes[state.index]?.name === 'ChatList'}
-          hasUnreads={false}
-          onPress={() => pressTab('ChatList')}
-        />
-        <NavIcon
-          type="Notifications"
-          activeType="NotificationsFilled"
-          hasUnreads={haveUnreadActivity}
-          isActive={state.routes[state.index]?.name === 'Activity'}
-          onPress={() => pressTab('Activity')}
-        />
-        <AvatarNavIcon
-          id={currentUserId}
-          focused={state.routes[state.index]?.name === 'Contacts'}
-          onPress={() => pressTab('Contacts')}
-          onLongPress={longPressProfile}
-        />
-      </NavBar>
-      {statusSheet.open && (
-        <ProfileStatusSheet
-          open
-          onOpenChange={statusSheet.closeSheet}
-          onUpdateStatus={statusSheet.updateStatus}
+          type="SmushStar"
+          isActive={activeRouteName === 'BotChat'}
+          hasUnreads={botDmHasUnread}
+          onPress={() => pressTab('BotChat')}
         />
       )}
-    </>
+      <NavIcon
+        type="Channel"
+        isActive={activeRouteName === 'ChatList'}
+        onPress={() => pressTab('ChatList')}
+      />
+      <NavIcon
+        type="Notifications"
+        isActive={activeRouteName === 'Activity'}
+        hasUnreads={unseenActivityCount > 0}
+        onPress={() => pressTab('Activity')}
+        testID="ActivityNavIcon"
+      />
+      <NavIcon
+        type="Settings"
+        isActive={activeRouteName === 'Settings'}
+        hasUnreads={false}
+        onPress={() => pressTab('Settings')}
+      />
+    </NavBar>
   );
 }
 
 export function TopLevelTabNavigator() {
+  const botDm = useBotDmTab();
+  // Above the lazy tabs, as on native: BotChat is the initial tab, so the
+  // Workspaces screen — the consumer's old home — never mounts on a fresh account.
+  useAgentOnboardingLandingConsumer();
+  const navigation = useNavigation();
+  const focusedBotTab = useRef(false);
+
+  // `initialRouteName` is read once, and on a cold start the bot DM has not
+  // synced yet — so the tab is absent, ChatList wins, and focus stays there
+  // once the tab appears. Claim it the first time it becomes available.
+  useEffect(() => {
+    if (!botDm.enabled || focusedBotTab.current) {
+      return;
+    }
+    // Claim only while the user is still where the cold start left them —
+    // MainTabs with the initial ChatList tab showing and nothing asked of it.
+    // If the DM syncs after they have opened Settings or another root screen,
+    // or a deep link sent them to Workspaces with an invite to preview, leave
+    // them there.
+    if (!isAtColdStartPosition(navigation.getState())) {
+      focusedBotTab.current = true;
+      return;
+    }
+    focusedBotTab.current = true;
+    const route = getTopLevelTabRoute('BotChat');
+    (navigation.navigate as (...args: unknown[]) => void)(
+      route.name,
+      route.params
+    );
+  }, [botDm.enabled, navigation]);
+
   return (
     <Tabs.Navigator
-      initialRouteName="ChatList"
+      initialRouteName={botDm.enabled ? 'BotChat' : 'ChatList'}
       backBehavior="history"
       screenOptions={{ headerShown: false }}
       tabBar={(props) => <ReactTopLevelTabBar {...props} />}
     >
+      {botDm.enabled ? (
+        <Tabs.Screen
+          name="BotChat"
+          component={ChannelScreen}
+          initialParams={{ channelId: botDm.channelId }}
+        />
+      ) : null}
       <Tabs.Screen name="ChatList" component={ChatListScreen} />
       <Tabs.Screen name="Activity" component={ActivityScreen} />
-      <Tabs.Screen name="Contacts" component={ContactsScreen} />
+      <Tabs.Screen name="Settings" component={SettingsScreen} />
     </Tabs.Navigator>
   );
 }

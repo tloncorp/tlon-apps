@@ -698,6 +698,9 @@ export function BigInput({
               frameless={true}
               bigInput={true}
               shouldAutoFocus={true}
+              testID={
+                channelType === 'notebook' ? 'NotebookBodyInput' : undefined
+              }
               showInlineAttachments={channelType === 'gallery'}
               onEditorContentChange={handleEditorContentChanged}
               onEditorStateChange={handleEditorStateChange}

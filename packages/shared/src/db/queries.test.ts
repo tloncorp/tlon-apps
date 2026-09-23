@@ -50,6 +50,69 @@ test('inserts a group', async () => {
   await queries.insertGroups({ groups: [groupData] });
 });
 
+// `group_roles` is keyed on the composite `(group_id, id)`, with only a
+// non-unique index on `group_id`. An upsert targeting `id` alone is rejected
+// outright by SQLite, so the insert must conflict on the composite key (or not
+// declare a target at all).
+test('addGroupRole inserts a role into an already-joined group', async () => {
+  const groupId = '~bus/test-group';
+  const otherGroupId = '~bus/other-group';
+  const client = getClient();
+  if (!client) throw new Error('test db client not initialized');
+
+  await client.insert(schema.groups).values([
+    {
+      id: groupId,
+      currentUserIsMember: true,
+      currentUserIsHost: false,
+      hostUserId: '~bus',
+    },
+    {
+      id: otherGroupId,
+      currentUserIsMember: true,
+      currentUserIsHost: false,
+      hostUserId: '~bus',
+    },
+  ]);
+  // Same role id in a different group: the insert must not collide with it.
+  await client
+    .insert(schema.groupRoles)
+    .values({ id: 'moderator', groupId: otherGroupId, title: 'Elsewhere' });
+
+  await queries.addGroupRole({
+    groupId,
+    roleId: 'moderator',
+    meta: { title: 'Moderator', description: 'Keeps the peace' },
+  });
+
+  const roles = await queries.getGroupRoles({ groupId });
+  expect(roles.map((r) => r.id)).toEqual(['moderator']);
+  expect(roles[0]?.title).toBe('Moderator');
+
+  // The row in the other group is untouched.
+  const otherRoles = await queries.getGroupRoles({ groupId: otherGroupId });
+  expect(otherRoles.map((r) => r.title)).toEqual(['Elsewhere']);
+
+  // A second add for the same (groupId, id) carrying newer metadata wins.
+  await queries.addGroupRole({
+    groupId,
+    roleId: 'moderator',
+    meta: { title: 'Steward', description: 'Now keeps the peace politely' },
+  });
+
+  const updatedRoles = await queries.getGroupRoles({ groupId });
+  expect(updatedRoles).toHaveLength(1);
+  expect(updatedRoles[0]?.title).toBe('Steward');
+  expect(updatedRoles[0]?.description).toBe('Now keeps the peace politely');
+
+  // ...but an add that supplies no metadata must not blank the stored row.
+  await queries.addGroupRole({ groupId, roleId: 'moderator' });
+
+  const preservedRoles = await queries.getGroupRoles({ groupId });
+  expect(preservedRoles[0]?.title).toBe('Steward');
+  expect(preservedRoles[0]?.description).toBe('Now keeps the peace politely');
+});
+
 test('inserts all groups', async () => {
   await queries.insertGroups({ groups: groupsData });
   const groups = await queries.getGroups({});
@@ -1443,6 +1506,77 @@ test('sequenced posts: gets newest posts', async () => {
   expect(newestPosts.length).toEqual(5);
   expect(newestPosts[0].sequenceNum).toEqual(19);
   expect(newestPosts[4].sequenceNum).toEqual(15);
+});
+
+test('sequenced posts: ignores posts without a positive server sequence', async () => {
+  const channelId = 'unsequenced';
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+  await queries.insertChannelPosts({
+    posts: [
+      {
+        id: 'optimistic',
+        type: 'chat',
+        channelId,
+        receivedAt: refDate,
+        sentAt: refDate,
+        sequenceNum: 0,
+        authorId: 'test',
+        syncedAt: 0,
+      },
+      {
+        id: 'unsequenced',
+        type: 'chat',
+        channelId,
+        receivedAt: refDate + 1,
+        sentAt: refDate + 1,
+        sequenceNum: null,
+        authorId: 'test',
+        syncedAt: 0,
+      },
+    ],
+  });
+
+  await expect(
+    queries.getSequencedChannelPosts({
+      mode: 'newest',
+      channelId,
+      count: 5,
+    })
+  ).resolves.toEqual([]);
+});
+
+test('sequenced posts: older mode stops at sequence one', async () => {
+  const channelId = 'older-with-optimistic';
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+  await queries.insertChannelPosts({
+    posts: getRangedPosts(channelId, 0, 2),
+  });
+
+  const posts = await queries.getSequencedChannelPosts({
+    mode: 'older',
+    channelId,
+    cursorSequenceNum: 2,
+    count: 5,
+  });
+
+  expect(posts.map((post) => post.sequenceNum)).toEqual([1]);
+});
+
+test('sequenced posts: around mode excludes sequence zero', async () => {
+  const channelId = 'around-with-optimistic';
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+  await queries.insertChannelPosts({
+    posts: getRangedPosts(channelId, 0, 2),
+  });
+
+  const posts = await queries.getSequencedChannelPosts({
+    mode: 'around',
+    channelId,
+    cursorSequenceNum: 1,
+    count: 5,
+  });
+
+  expect(posts.map((post) => post.sequenceNum)).toEqual([1]);
 });
 
 test('sequenced posts: gets newer posts', async () => {

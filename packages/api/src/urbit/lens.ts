@@ -1,6 +1,6 @@
 /**
  * Wire types for the %steward agent's lens module (per-run bot introspection).
- * See desk/sur/steward/lens.hoon and docs/steward.md.
+ * See desk/sur/steward/lens.hoon and docs/backend/desk/app/steward.md.
  */
 
 export interface LensRunEntry {

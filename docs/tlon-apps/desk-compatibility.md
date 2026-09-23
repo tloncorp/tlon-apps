@@ -11,7 +11,7 @@ than none.
 ## Rules
 
 **(a) `MIN_GROUPS_VERSION` records the floor; it does not set it.**
-`packages/shared/src/logic/deskPolicy.ts` holds the oldest %groups desk
+`packages/shared/src/logic/deskCompatibility.ts` holds the oldest %groups desk
 this client supports; by policy it equals the previous desk release. Raising it
 is a *release* action taken once that desk has shipped.
 

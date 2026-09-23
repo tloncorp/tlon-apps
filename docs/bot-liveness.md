@@ -23,7 +23,7 @@ Client caps at parse time (`parseBotLiveness`, `packages/shared/src/domain/botLi
 
 ## Semantics
 
-Steward's gateway module already tracks the harness with `%gateway-start` / heartbeats / `%gateway-stop` and a 90 s lease (see [steward.md](steward.md)). It publishes:
+Steward's gateway module already tracks the harness with `%gateway-start` / heartbeats / `%gateway-stop` and a 90 s lease (see [steward.md](backend/desk/app/steward.md)). It publishes:
 
 - `offline` on every transition to `%down` — a graceful `%gateway-stop`, or the lease-check timer expiring without a heartbeat (so detection lags a crash by up to ~90 s).
 - `online` on every transition to `%up` — `%gateway-start`, or a heartbeat that revives an expired lease.
