@@ -573,8 +573,8 @@ tlon settings allow-dm ~ship                             # Add to DM allowlist
 tlon settings remove-dm ~ship                            # Remove from allowlist
 
 # Channel controls
-tlon settings allow-channel chat/~host/slug              # Add to watch list
-tlon settings remove-channel chat/~host/slug             # Remove from watch list
+tlon settings allow-channel chat/~host/slug              # Add an entry to the persisted groupChannels settings list
+tlon settings remove-channel chat/~host/slug             # Remove an entry from that list (on openclaw this only un-watches settings-managed channels; traffic re-adds member channels)
 tlon settings open-channel chat/~host/slug               # Set channel to open
 tlon settings restrict-channel chat/~host/slug [~ship1]  # Set restricted
 
