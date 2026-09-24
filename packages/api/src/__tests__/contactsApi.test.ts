@@ -1,5 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
 
+import { parseChanges } from '../client/changesApi';
 import {
   type ContactsUpdate,
   contactSelfFieldPoke,
@@ -10,6 +11,7 @@ import {
   v1PeerToClientProfile,
 } from '../client/contactsApi';
 import { subscribe } from '../client/urbit';
+import type { ChangesV11 } from '../urbit';
 import type { ContactBookProfile } from '../urbit/contact';
 
 vi.mock('../client/urbit', async () => {
@@ -335,5 +337,36 @@ describe('bot-info sync carrier', () => {
       type: 'upsertContact',
       contact: { id: '~bot', botInfo: null, botLiveness: null },
     });
+  });
+});
+
+// REACT-NATIVE-45: a book entry with no base contact (`[null, overrides]`).
+describe('book entry with a null base contact', () => {
+  test('keeps overrides and empties peer fields', () => {
+    const contact = contactToClientProfile('~bot', [
+      null,
+      { nickname: { type: 'text', value: 'Buddy' } },
+    ]);
+    expect(contact.customNickname).toBe('Buddy');
+    expect(contact.peerNickname).toBeNull();
+    expect(contact.isContact).toBe(true);
+  });
+
+  test('parseChanges still yields the other contacts in the batch', () => {
+    const input = {
+      groups: {},
+      channels: {},
+      chat: {},
+      activity: {},
+      contacts: {
+        '~bot': [null, { nickname: { type: 'text', value: 'Buddy' } }],
+        '~other': [{ nickname: { type: 'text', value: 'Other' } }, null],
+      },
+    } as unknown as ChangesV11;
+    expect(
+      parseChanges(input)
+        .contacts.map((c) => c.id)
+        .sort()
+    ).toEqual(['~bot', '~other']);
   });
 });
