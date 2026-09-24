@@ -114,6 +114,28 @@ async function reportedDeskVersion(
 }
 
 /**
+ * The %groups desk hash a ship's kiln reports, through its own web origin.
+ *
+ * The docket version label can legitimately match between two ships right
+ * after a release (the checklist raises MIN_GROUPS_VERSION and rebuilds
+ * ~bud, but develop's desk/desk.docket-0 keeps that same version until the
+ * next bump). The hash cannot: it changes with the candidate desk's actual
+ * contents, so it is the only proof the two ships are running different
+ * desks. See rube/index.ts's waitForGroupsDeskInKiln for the same field.
+ */
+async function reportedDeskHash(
+  page: Page,
+  ship: { webUrl: string }
+): Promise<string> {
+  const response = await page.request.get(
+    `${ship.webUrl}/~/scry/hood/kiln/pikes.json`
+  );
+  expect(response.ok()).toBe(true);
+  const pikes = await response.json();
+  return pikes.groups.hash;
+}
+
+/**
  * Opens a channel from the group's channel list, waiting out the auto-join a
  * newly created channel goes through on the ship that did not create it.
  */
@@ -207,11 +229,19 @@ test('current client interoperates with a ship on the N-1 desk', async ({
 
   await test.step('the version boundary is real', async () => {
     // Without this the whole spec could pass against two identical ships and
-    // prove nothing. The manifest's label cannot show it; the ship must.
+    // prove nothing. The docket version label proves ~bud carries the floor
+    // desk, but the label alone cannot prove the two ships differ: right
+    // after a release the checklist raises MIN_GROUPS_VERSION and rebuilds
+    // ~bud, while develop's desk/desk.docket-0 keeps that same version until
+    // the next bump, so both ships can legitimately report the same label.
+    // The desk hash cannot coincide unless the candidate desk is byte-
+    // identical to the tag, so that is what proves the boundary is real.
     const budVersion = await reportedDeskVersion(budPage, n1Ship);
-    const zodVersion = await reportedDeskVersion(zodPage, currentShip);
     expect(budVersion).toBe(MIN_GROUPS_VERSION);
-    expect(budVersion).not.toBe(zodVersion);
+
+    const budHash = await reportedDeskHash(budPage, n1Ship);
+    const zodHash = await reportedDeskHash(zodPage, currentShip);
+    expect(budHash).not.toBe(zodHash);
   });
 
   await test.step('group: the current desk hosts, the N-1 desk joins', async () => {
