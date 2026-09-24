@@ -15,6 +15,12 @@ RUBE_DIR="$SCRIPT_DIR"
 # check that enforces this is after the flags are parsed.
 DIST_DIR_OVERRIDE="${DIST_DIR:-}"
 DIST_DIR="${DIST_DIR:-$RUBE_DIR/dist}"
+# Resolve to an absolute path now: archive_pier later cds into the pier's
+# parent before tarring to "$DIST_DIR/<archive>", so a relative override
+# (e.g. `DIST_DIR=out ./build-n1-pier.sh`) would otherwise point at the wrong
+# place once that cd happens.
+mkdir -p "$DIST_DIR"
+DIST_DIR="$(cd "$DIST_DIR" && pwd)"
 # Binary used for sync/pack/meld/roll/chop. Normally downloaded by rube during
 # prepare_ships; with --skip-prepare you must supply one that runs on THIS host
 # and matches the piers' kelvin. Override with URBIT_BINARY=/path/to/urbit.
