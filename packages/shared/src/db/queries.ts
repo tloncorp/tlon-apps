@@ -131,7 +131,6 @@ import {
   GroupJoinRequest,
   GroupNavSection,
   GroupNotesActivity,
-  GroupRole,
   GroupUnread,
   NotesFolder,
   NotesMember,
@@ -2552,6 +2551,18 @@ export const getChannelHasBotPost = createReadQuery(
   ['posts']
 );
 
+// Content-free, unjoined read for thread sync diagnostics. This reads SQLite
+// directly so it can detect a stale React Query result without refreshing it.
+export const getThreadPostDiagnostics = createReadQuery(
+  'getThreadPostDiagnostics',
+  ({ parentId }: { parentId: string }, ctx: QueryCtx) =>
+    ctx.db.query.posts.findMany({
+      where: eq($posts.parentId, parentId),
+      columns: { id: true, isDeleted: true, deliveryStatus: true },
+    }),
+  ['posts']
+);
+
 export const getThreadPosts = createReadQuery(
   'getThreadPosts',
   ({ parentId }: { parentId: string }, ctx: QueryCtx) => {
@@ -2831,49 +2842,6 @@ export const deleteGroupRankBans = createWriteQuery(
       );
   },
   ['groupRankBans']
-);
-
-export const addRole = createWriteQuery(
-  'addRole',
-  async (role: GroupRole, ctx: QueryCtx) => {
-    return ctx.db
-      .insert($groupRoles)
-      .values(role)
-      .onConflictDoUpdate({
-        target: $groupRoles.id,
-        set: conflictUpdateSetAll($groupRoles),
-      });
-  },
-  ['groupRoles']
-);
-
-export const deleteRole = createWriteQuery(
-  'deleteRole',
-  async (
-    { roleId, groupId }: { roleId: string; groupId: string },
-    ctx: QueryCtx
-  ) => {
-    return ctx.db
-      .delete($groupRoles)
-      .where(and(eq($groupRoles.id, roleId), eq($groupRoles.groupId, groupId)));
-  },
-  ['groupRoles']
-);
-
-export const updateRole = createWriteQuery(
-  'updateRole',
-  async (
-    role: Partial<GroupRole> & { id: string; groupId: string },
-    ctx: QueryCtx
-  ) => {
-    return ctx.db
-      .update($groupRoles)
-      .set(role)
-      .where(
-        and(eq($groupRoles.groupId, role.groupId), eq($groupRoles.id, role.id))
-      );
-  },
-  ['groupRoles']
 );
 
 export const addChatMembersToRoles = createWriteQuery(
@@ -7120,10 +7088,29 @@ export const addGroupRole = createWriteQuery(
     }: { groupId: string; roleId: string; meta?: ClientMeta },
     ctx: QueryCtx
   ) => {
-    return ctx.db
+    const insert = ctx.db
       .insert($groupRoles)
-      .values({ groupId, id: roleId, ...meta })
-      .onConflictDoNothing();
+      .values({ groupId, id: roleId, ...meta });
+
+    // A role add can legitimately arrive for an id we already hold carrying
+    // newer metadata (the desk only rejects a batch whose ids *all* exist, and
+    // a client that missed a deletion keeps the stale row through a recreate),
+    // so the insert has to upsert on the composite key rather than do nothing.
+    // Overwrite only the fields the caller actually supplied: a set-all would
+    // null out an existing row for the metadata-free callers.
+    const columns = getTableColumns($groupRoles);
+    const providedColumns = Object.entries(meta ?? {})
+      .filter(([key, value]) => value !== undefined && key in columns)
+      .map(([key]) => columns[key as keyof typeof columns]);
+
+    if (providedColumns.length === 0) {
+      return insert.onConflictDoNothing();
+    }
+
+    return insert.onConflictDoUpdate({
+      target: [$groupRoles.groupId, $groupRoles.id],
+      set: conflictUpdateSet(...providedColumns),
+    });
   },
   ['groupRoles']
 );

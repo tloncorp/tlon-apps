@@ -167,9 +167,13 @@ export const requestNotificationToken = async () => {
     return undefined;
   }
 
+  // Automated-test builds have no real APNs/FCM registration. Handing a
+  // placeholder to the notify provider makes Twilio reject the binding (error
+  // 82005: an apn address must be a nonempty, even-length hex string), once per
+  // app launch across the whole nightly suite. Skip registration instead.
   if (env.AUTOMATED_TEST) {
-    logger.trackEvent('Returned fake notif token for dev env');
-    return 'stub';
+    logger.trackEvent('Skipped notif token registration for automated test');
+    return undefined;
   }
 
   // Get device push token

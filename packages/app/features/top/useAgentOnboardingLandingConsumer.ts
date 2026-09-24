@@ -1,9 +1,11 @@
+import { isBotDmChannel } from '@tloncorp/api/client/utils';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useEffect, useRef } from 'react';
 
 import { startAgentGroupNavigationLockFailsafe } from '../../hooks/useAgentGroupOnboardingLock';
-import { useRootNavigation } from '../../navigation/utils';
+import { getTopLevelTabRoute } from '../../navigation/topLevelTabs';
+import { useRootNavigation, useTypedReset } from '../../navigation/utils';
 import {
   canClaimAgentOnboardingLanding,
   claimAgentOnboardingLanding,
@@ -12,16 +14,21 @@ import {
 const logger = createDevLogger('useAgentOnboardingLandingConsumer', false);
 
 /**
- * ChatListScreen's half of the onboarding handoff: wait for the furnished
- * setup chat to exist locally, claim the durable landing exactly once, then
- * reset navigation into it with the failsafe clock started at the handoff.
+ * The tab navigator's half of the onboarding handoff: wait for a group-chat
+ * landing to exist locally (a DM landing needs no row), claim the durable
+ * landing exactly once, then reset navigation into it with the failsafe clock
+ * started at the handoff. It lives above the tabs because they mount lazily
+ * and the Bot tab is the initial one.
  */
 export function useAgentOnboardingLandingConsumer() {
   const { resetToChannel } = useRootNavigation();
+  const reset = useTypedReset();
   const onboardingLanding = db.agentOnboardingLanding.useValue();
   const consumedOnboardingLanding = useRef(false);
   const resetToChannelRef = useRef(resetToChannel);
   resetToChannelRef.current = resetToChannel;
+  const resetRef = useRef(reset);
+  resetRef.current = reset;
   useEffect(() => {
     if (
       !canClaimAgentOnboardingLanding(onboardingLanding) ||
@@ -31,13 +38,20 @@ export function useAgentOnboardingLandingConsumer() {
     }
     let active = true;
 
+    // The bot DM is rendered by id — the BotChat tab does so without waiting
+    // for its row — so a DM landing has nothing to wait for. Only a group
+    // chat needs the channel record before navigation can target it.
+    const landsInBotDm = isBotDmChannel({
+      channel: { id: onboardingLanding.channelId },
+    });
+
     void (async () => {
       while (active && !consumedOnboardingLanding.current) {
         try {
-          const channel = await db.getChannel({
-            id: onboardingLanding.channelId,
-          });
-          if (channel) {
+          const channel = landsInBotDm
+            ? null
+            : await db.getChannel({ id: onboardingLanding.channelId });
+          if (landsInBotDm || channel) {
             // Furnishing may have taken much longer than the lock failsafe.
             // Start its clock at the actual handoff so the setup chat gets the
             // full bounded lock window once it becomes visible.
@@ -51,11 +65,26 @@ export function useAgentOnboardingLandingConsumer() {
               claimAgentOnboardingLanding(onboardingLanding)
             );
             consumedOnboardingLanding.current = true;
-            resetToChannelRef.current(onboardingLanding.channelId, {
-              backToGroupIndex: true,
-              disableTransition: true,
-              groupId: onboardingLanding.groupId,
-            });
+            if (landsInBotDm) {
+              // The bot DM is a tab, not a pushed screen. Landing on the tab
+              // leaves the user where onboarding continues, rather than one
+              // back-press above Workspaces. The group rides along: a DM has
+              // no groupId of its own, and the channel's onboarding hook needs
+              // it for the navigation lock, the agent, and clearing the
+              // durable marker once the first entry lands.
+              resetRef.current([
+                getTopLevelTabRoute('BotChat', {
+                  channelId: onboardingLanding.channelId,
+                  groupId: onboardingLanding.groupId,
+                }),
+              ]);
+            } else {
+              resetToChannelRef.current(onboardingLanding.channelId, {
+                backToGroupIndex: true,
+                disableTransition: true,
+                groupId: onboardingLanding.groupId,
+              });
+            }
             return;
           }
         } catch (error) {

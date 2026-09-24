@@ -184,8 +184,8 @@ export function HomeAddTooltip({ top = 36 }: { top?: number }) {
         >
           <Text size="$label/l" color="$white">
             {botEnabled
-              ? 'Tap here to create a new group and invite your Tlonbot.'
-              : 'Tap here to create a new group.'}
+              ? 'Tap here to create a new workspace with your Tlonbot.'
+              : 'Tap here to create a new workspace.'}
           </Text>
           <View position="absolute" top={8} right={8} padding={4}>
             <Icon
@@ -297,8 +297,9 @@ export function BotMentionTooltip() {
           testID="BotMentionWayfindingTooltip"
         >
           <Text size="$label/l" color="$white">
-            Since you own this group, your Tlonbot will automatically respond to
-            your messages. Others can @-mention your bot to interact with it.
+            This is your private chat with your Tlonbot: it answers everything
+            you say here, no @-mention needed. In a group, @-mention it to bring
+            it into the conversation.
           </Text>
           <View position="absolute" top={8} right={8} padding={4}>
             <Icon

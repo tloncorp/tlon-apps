@@ -137,4 +137,4 @@ env:
 - assertVisible: ${output.reliability.editedTextPattern}
 - tapOn: '^Back$'
 - tapOn: '^Back$'
-- assertVisible: '^Home$'
+- assertVisible: '^Workspaces$'
