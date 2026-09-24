@@ -15,6 +15,7 @@ import {
 } from '../urbit';
 import { activity } from './activity';
 import { base } from './base';
+import { buckets } from './buckets';
 import { channels } from './channels';
 import { chat } from './chat';
 import { contacts } from './contacts';
@@ -33,6 +34,7 @@ export type * from './types';
 export {
   activity,
   base,
+  buckets,
   channels,
   chat,
   contacts,
@@ -60,6 +62,7 @@ export const REGISTRY = {
   steward,
   reel,
   base,
+  buckets,
 } as const;
 
 type Values<T> = T[keyof T];

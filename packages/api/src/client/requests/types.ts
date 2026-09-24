@@ -6,11 +6,21 @@ export type DeskVersion = `${number}.${number}.${number}`;
 // registry check decides whether a label is honest (it owns the agent map).
 export type ExternalDesk = 'base' | 'landscape';
 
+// Runtime capabilities a guarded entry may name, each mapped to the predicate
+// in client/urbit.ts that its call sites must check (reviewed, not asserted).
+export const GUARDS = {
+  deskSupportsBuckets: 'getDeskSupportsBuckets',
+} as const satisfies Record<string, keyof typeof import('../urbit')>;
+export type GuardName = keyof typeof GUARDS;
+
 interface BaseEntry {
   readonly agent: string;
   // Oldest %groups desk release that serves this request.
   readonly since: DeskVersion;
   readonly desk?: ExternalDesk;
+  // Lets `since` exceed the floor: every call site checks this capability
+  // first (docs/tlon-apps/desk-compatibility.md, "Guarded requests").
+  readonly guardedBy?: GuardName;
 }
 
 export interface ScryEntry extends BaseEntry {

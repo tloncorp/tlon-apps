@@ -9,6 +9,14 @@ with a global `staleTime: Infinity` and refreshes only through explicit
 table-dependency invalidation, so its cache behavior does not match React Query
 defaults and should not be inferred from memory.
 
+Every desk request in the scope of `oxlint/desk-request-scope.json` (bot
+automation is excluded by design) is an entry in
+`packages/api/src/client/requests/`, called through its helper. Adding or
+changing a request means adding or updating its entry (`since`). A non-exempt
+entry that only the current desk serves also needs `guardedBy`, with guarded
+call sites; entries labelled with an external `desk` already bypass the version
+comparison. See `docs/tlon-apps/desk-compatibility.md`.
+
 Before running the mobile app on a simulator or emulator, use the
 `tlon-workflow` skill (`.agents/skills/tlon-workflow/SKILL.md`). It takes a
 task from a fresh worktree to a merged pull request: the sign-in that needs no

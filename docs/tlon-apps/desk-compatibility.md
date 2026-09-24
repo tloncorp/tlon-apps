@@ -11,16 +11,34 @@ than none.
 ## Rules
 
 **(a) `MIN_GROUPS_VERSION` records the floor; it does not set it.**
-`packages/shared/src/logic/deskCompatibility.ts` holds the oldest %groups desk
+`packages/api/src/lib/deskVersion.ts` holds the oldest %groups desk
 this client supports; by policy it equals the previous desk release. Raising it
 is a *release* action taken once that desk has shipped.
 
 **(b) A client PR that adds a dependency N-1 lacks is blocked** until the desk
 change has shipped and become N-1, or the PR carries a fallback tested against
 N-1. "Dependency" means a scry path, a subscription path, a poke mark, a
-thread, or a response shape. That judgment is made in review — the
-desk-requests comment on the PR — and proven by the E2E job that runs the
-candidate client against a pinned N-1 pier.
+thread, or a response shape. The judgment is recorded as the registry entry's
+`since` (`packages/api/src/client/requests`), which the floor check holds to
+`MIN_GROUPS_VERSION`. A current-desk request carries `guardedBy` in addition.
+The E2E job that runs the candidate client against a pinned N-1 pier proves the
+result.
+
+**Guarded requests.** `guardedBy` names a capability predicate (today
+`deskSupportsBuckets`, which is `getDeskSupportsBuckets`). It is a declaration:
+the floor check credits it without inspecting callers. Reviewers verify that
+every call site meets one of three preconditions:
+
+- It checks the named guard directly, as init and the buckets subscription do.
+- The request is itself the capability probe (`/v1/ready` via the readiness
+  hook in `dbHooks.ts`), or is issued only after that probe succeeded (bucket
+  creation from `CreateChannelSheet.tsx` → `channelActions.ts`).
+- It is reachable only from a channel whose parsed id is a buckets channel
+  (`channelActions.ts`, `useLiveBucket`), which the desk could have served only
+  with the agent present.
+
+This is the same review that holds `since` honest. Once the floor reaches
+`since`, the check fails until the guard is removed.
 
 **(c) Desk removal is bounded by the support window** — the currently released
 client plus the candidate client. The released desk and web client are the

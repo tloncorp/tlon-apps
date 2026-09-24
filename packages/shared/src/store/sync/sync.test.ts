@@ -1564,7 +1564,7 @@ describe('desk compatibility gate', () => {
               : { groups: { version: reportedDeskVersion } },
         };
       }
-      if (app === 'groups-ui' && path === '/v10/init') {
+      if (app === 'groups-ui' && /^\/v1[01]\/init$/.test(path)) {
         return groupsInitData;
       }
       if (app === 'groups-ui' && path.startsWith('/v4/heads')) {
@@ -1725,6 +1725,17 @@ describe('desk compatibility gate', () => {
       // flags had been re-derived from a value that wasn't written yet.
       expect(didScry('/v5/feed/init/')).toBe(false);
       expect(didScry('/v7/feed/init/')).toBe(true);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a desk that serves Buckets gets /v11/init',
+    async () => {
+      reportedDeskVersion = '12.3.0';
+      await syncStart();
+      expect(didScry('/v11/init')).toBe(true);
+      expect(didScry('/v10/init')).toBe(false);
     },
     FULL_SYNC_TIMEOUT
   );

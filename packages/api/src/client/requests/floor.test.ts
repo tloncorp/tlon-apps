@@ -9,10 +9,11 @@ import {
   parseVersion,
 } from '../../lib/deskVersion';
 import { REGISTRY } from './index';
-import type { Entry } from './types';
+import { GUARDS, type Entry } from './types';
 
 // The N-1 check. Every declared request must be served by the oldest %groups
-// desk the client supports; nothing is credited for a fallback.
+// desk the client supports; nothing is credited for a fallback except a
+// declared guard.
 
 const REPO_ROOT = fileURLToPath(new URL('../../../../../', import.meta.url));
 
@@ -134,7 +135,21 @@ export function checkRegistry(
         failures.push(`${label}: ${entry.agent} lives in %${owner}; say so`);
       }
 
-      if (!exempt && isVersionBelow(floor, entry.since)) {
+      const guard = entry.guardedBy;
+      const guarded = guard !== undefined;
+      if (guarded && !Object.hasOwn(GUARDS, guard)) {
+        failures.push(`${label}: guardedBy ${guard} names no guard`);
+      } else if (guarded && exempt) {
+        failures.push(
+          `${label}: guardedBy ${guard} on a %${entry.desk} entry; external desks take no guard`
+        );
+      } else if (guarded && !isVersionBelow(floor, entry.since)) {
+        failures.push(
+          `${label}: guardedBy ${guard}, but the N-1 desk serves it; drop the guard`
+        );
+      }
+
+      if (!exempt && !guarded && isVersionBelow(floor, entry.since)) {
         failures.push(
           `${label}: since is above MIN_GROUPS_VERSION ${floor}, so the N-1 desk does not serve it`
         );
@@ -212,6 +227,21 @@ describe('the check fails closed', () => {
       'since is above MIN_GROUPS_VERSION',
     ],
     [
+      'a guard on a request N-1 serves',
+      scry('/x', { guardedBy: 'deskSupportsBuckets' }),
+      'the N-1 desk serves it',
+    ],
+    [
+      'a guard on a request below the floor',
+      scry('/x', { since: '12.1.0', guardedBy: 'deskSupportsBuckets' }),
+      'the N-1 desk serves it',
+    ],
+    [
+      'a guard that names no guard',
+      scry('/x', { since: '12.3.0', guardedBy: 'nope' }),
+      'names no guard',
+    ],
+    [
       'a malformed since',
       scry('/x', { since: '13.0.1e0' }),
       'since is not a version',
@@ -243,6 +273,11 @@ describe('the check fails closed', () => {
     ],
   ])('%s', (_name, entry, message) => {
     expect(fails(entry)).toEqual([expect.stringContaining(message)]);
+  });
+
+  test('a guarded request above the floor passes', () => {
+    const e = scry('/x', { since: '12.3.0', guardedBy: 'deskSupportsBuckets' });
+    expect(fails(e)).toEqual([]);
   });
 
   test('a malformed floor, and an excluded module that no longer exists', () => {

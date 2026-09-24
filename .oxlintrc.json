@@ -239,15 +239,6 @@
       "rules": {
         "react-hooks/rules-of-hooks": "off"
       }
-    },
-    {
-      "files": [
-        "packages/api/src/client/bucketsApi.ts",
-        "packages/api/src/client/initApi.ts"
-      ],
-      "rules": {
-        "tlon/no-raw-desk-request": "off"
-      }
     }
   ]
 }
