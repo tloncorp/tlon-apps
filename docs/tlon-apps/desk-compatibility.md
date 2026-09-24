@@ -55,3 +55,70 @@ client does: a ship on the old protocol and a ship on the new one will not talk
 until both have updated. That is by design, and the fleet upgrade resolves it.
 It does strand the pinned N-1 pier for that release, which the N-1 E2E job
 reports rather than predicts.
+
+## The pinned N-1 pier
+
+The pier is the only part of this policy that runs real code against a real N-1
+desk. `~bud` is a fifth E2E ship carrying the **N-1 desk**: a hand-built
+fakeship pinned to `MIN_GROUPS_VERSION`, recorded as `deskVersion` in
+`apps/tlon-web/e2e/shipManifest.json`. `.github/workflows/n1-e2e.yml` boots it
+next to `~zod` and `~ten` on the candidate desk and runs
+`apps/tlon-web/e2e/n1-desk.spec.ts`: group create, invite and join across the
+version boundary, then chat posts, threads, reactions, edits, deletes, mentions
+and quote replies each way; notebook and gallery channels with a post and a
+comment each way; group administration by the host and by the N-1 member; DMs
+each way; and the N-1 ship's activity feed. The spec's own header maps every
+step to the agents and request families it exercises.
+
+`~bud` is not `~bus`. `~bus` is deliberately far out of date, for
+protocol-mismatch rendering, and is never re-pinned.
+
+Three things keep the pier honest:
+
+- It is `skipCommit: true`, so rube never builds a desk on it. Everything on it
+  came from `rube/build-n1-pier.sh`.
+- The job refuses to run when `deskVersion` and `MIN_GROUPS_VERSION` disagree,
+  because every scenario would then be measuring the wrong boundary.
+- The spec reads each ship's reported `%groups` version at runtime and asserts
+  they differ. The manifest's label cannot prove the job crossed a boundary;
+  the ships can.
+
+A negotiation protocol bump strands the pier (rule (d)), and nothing predicts
+that ahead of the run: the pair cannot negotiate, the scenarios fail where they
+try, and the job reports it like any other failure.
+
+It runs as the first stage of the `Staging` pipeline
+(`.github/workflows/staging.yml`) on every push to `staging`, and on
+`workflow_dispatch`, never on a PR: it needs a pier that only exists once a
+release has shipped, and the four-shard PR suite keeps its runtime. On a
+`staging` push it is a gate: if it fails, the canary deploy
+(`deploy-canary.yml`) and the `develop` sync (`sync-dev.yml`) do not run for
+that push. A newer `staging` push cancels a superseded run's N-1 stage while
+it's still running; deploys and syncs queue instead and are never cancelled
+part-way. A `tested-commit` guard job runs right before deploy and stops the
+run when a newer push has landed on `staging` since N-1 tested this run's
+commit, so only the commit the N-1 stage tested is ever deployed and synced —
+a superseded run ends red at the guard, and the newer push's own pipeline
+carries the deploy and sync through. Dispatching `deploy-canary.yml` directly
+remains the manual override.
+
+Accepted limit: the guard and the per-stage concurrency protect the normal
+case, not every case. A `staging` push that lands inside a running pipeline's
+deploy window — after the guard passes, before deploy's own checkout, or
+while a deploy or sync is already running or queued behind one — is deployed
+to the canary untested, and that run's sync merges it into `develop`; the new
+push's own pipeline still runs and reports the N-1 result red, just after the
+fact. Making this airtight would need the tested SHA pinned all the way
+through deploy's checkout and sync, or a single fused deploy-and-sync unit —
+both rejected as not worth it for the canary.
+
+`~bud` is marked `n1` in the manifest, which means `N1_SHIP=bud` is the *only*
+thing that selects it —
+`INCLUDE_OPTIONAL_SHIPS=true` deliberately does not, because the archive
+preparation run and the parallel Docker image both set that flag and neither
+carries the N-1 pier.
+
+**Rebuilding it** is part of raising `MIN_GROUPS_VERSION`
+(`docs/release-checklist.md`): set the new `deskVersion` and the next
+`rube-bud<n>.tgz` in the manifest, run `apps/tlon-web/rube/build-n1-pier.sh`,
+upload the archive it leaves in `rube/dist/`, then dispatch `n1-e2e.yml`.

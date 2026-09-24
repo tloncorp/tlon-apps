@@ -7,7 +7,20 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 RUBE_DIR="$SCRIPT_DIR"
-DIST_DIR="$RUBE_DIR/dist"
+# Where extracted piers live. Overridable, matching construct-desk.sh, so a
+# caller that built a pier elsewhere (build-n1-pier.sh) can point this at it.
+# ONLY under --skip-prepare: prepare_ships drives rube, whose workspace is its
+# own RUBE_WORKSPACE, and the binary lookup below has its own default, so an
+# override would prepare piers in one directory and archive from another. The
+# check that enforces this is after the flags are parsed.
+DIST_DIR_OVERRIDE="${DIST_DIR:-}"
+DIST_DIR="${DIST_DIR:-$RUBE_DIR/dist}"
+# Resolve to an absolute path now: archive_pier later cds into the pier's
+# parent before tarring to "$DIST_DIR/<archive>", so a relative override
+# (e.g. `DIST_DIR=out ./build-n1-pier.sh`) would otherwise point at the wrong
+# place once that cd happens.
+mkdir -p "$DIST_DIR"
+DIST_DIR="$(cd "$DIST_DIR" && pwd)"
 # Binary used for sync/pack/meld/roll/chop. Normally downloaded by rube during
 # prepare_ships; with --skip-prepare you must supply one that runs on THIS host
 # and matches the piers' kelvin. Override with URBIT_BINARY=/path/to/urbit.
@@ -29,12 +42,28 @@ VERIFY_AFTER_UPLOAD=${VERIFY_AFTER_UPLOAD:-false}
 FRESH_BOOT=${FRESH_BOOT:-false}
 SKIP_PREPARE=${SKIP_PREPARE:-false}
 ARCHIVE_TAG=${ARCHIVE_TAG:-}
+SHIP_SELECTOR=""
+
+# Whether this run started the ship fleet (prepare_ships), and the PIDs it
+# spawned. The EXIT cleanup below sweeps every e2e port with kill -9, which is
+# indiscriminate -- it takes down ships another checkout booted -- so it may
+# only run when this script is the one that started them.
+STARTED_FLEET=false
+SPAWNED_PIDS=()
 
 # Parse command line arguments
-for arg in "$@"; do
-    case $arg in
+while [ "$#" -gt 0 ]; do
+    case $1 in
         --fresh)
             FRESH_BOOT=true
+            shift
+            ;;
+        --ship)
+            SHIP_SELECTOR="${2:?--ship requires a ship name}"
+            shift 2
+            ;;
+        --ship=*)
+            SHIP_SELECTOR="${1#*=}"
             shift
             ;;
         --verify)
@@ -50,6 +79,9 @@ for arg in "$@"; do
             echo ""
             echo "Options:"
             echo "  --fresh               Boot fresh fakeships instead of using existing archives"
+            echo "  --ship NAME           Archive only this ship instead of the default set"
+            echo "                        (requires --skip-prepare; the prep pass cannot build"
+            echo "                        a hand-built pier -- see build-n1-pier.sh)"
             echo "  --skip-prepare        Skip ship prep/re-extraction; archive piers already in dist/"
             echo "  --verify              Run verify-archives.sh after successful upload"
             echo "  --help                Show this help message"
@@ -67,6 +99,7 @@ for arg in "$@"; do
             ;;
         *)
             # Unknown option
+            shift
             ;;
     esac
 done
@@ -78,11 +111,46 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Ships to archive (bus is intentionally excluded as it's kept outdated)
+# Ships to archive by default. Two ships are deliberately left out:
+#   ~bus  kept outdated on purpose, for protocol-mismatch testing
+#   ~bud  the pinned N-1 pier; rebuilt by build-n1-pier.sh at every N-1 change,
+#         which then calls back in here with --ship bud
 SHIPS_TO_ARCHIVE=("zod" "ten" "mug")
 
 # Valid ships for input validation
-VALID_SHIPS=("zod" "ten" "mug" "bus")
+VALID_SHIPS=("zod" "ten" "mug" "bus" "bud")
+
+# DIST_DIR only redirects where prepared piers are READ from; it does not
+# reach rube. Preparing and archiving in different places would archive stale
+# piers, or none, so refuse the combination rather than half-honour it.
+if [ -n "$DIST_DIR_OVERRIDE" ] && [ "$SKIP_PREPARE" != "true" ]; then
+    echo "DIST_DIR is only honoured with --skip-prepare (it does not reach rube's own workspace)." >&2
+    echo "Either drop DIST_DIR, or prepare the piers yourself and pass --skip-prepare." >&2
+    exit 1
+fi
+
+# --ship narrows the run to one pier. Both excluded ships are hand-built, so
+# this is how they get archived without touching the routinely-updated three.
+#
+# It therefore requires --skip-prepare. prepare_ships runs rube with only
+# INCLUDE_OPTIONAL_SHIPS=true, which can never select an `n1` ship, so the prep
+# pass leaves $DIST_DIR/<ship> untouched and this script would go on to archive
+# whatever stale pier happened to be there.
+if [ -n "$SHIP_SELECTOR" ]; then
+    if ! printf '%s\n' "${VALID_SHIPS[@]}" | grep -qx "$SHIP_SELECTOR"; then
+        echo "Invalid ship name: $SHIP_SELECTOR (valid: ${VALID_SHIPS[*]})" >&2
+        exit 1
+    fi
+    if [ "$SKIP_PREPARE" != "true" ]; then
+        echo "--ship requires --skip-prepare." >&2
+        echo "The prep pass drives rube, which never builds a hand-built pier, so this run" >&2
+        echo "would archive whatever stale pier is already at $DIST_DIR/$SHIP_SELECTOR." >&2
+        echo "Build the pier first -- ./build-n1-pier.sh produces ~bud and calls back in here" >&2
+        echo "with --skip-prepare --ship $SHIP_SELECTOR -- then re-run with --skip-prepare." >&2
+        exit 1
+    fi
+    SHIPS_TO_ARCHIVE=("$SHIP_SELECTOR")
+fi
 
 # Function to print colored output
 print_status() {
@@ -144,6 +212,20 @@ get_next_version() {
     echo $((current_version + 1))
 }
 
+# Ports for the ships prepare_ships actually starts. prepare_ships always
+# passes INCLUDE_OPTIONAL_SHIPS=true and explicitly clears N1_SHIP, so per
+# shipSelection.ts's shouldIncludeShip() it boots every manifest ship except
+# the N-1 ship (~bud, the only entry with "n1": true) -- regardless of
+# SHIPS_TO_ARCHIVE, which only narrows what gets archived afterward. Deriving
+# this from the manifest, rather than a hard-coded list, keeps a routine
+# zod/ten/mug/bus run from sweeping ~bud's ports (3004, 41493) out from under
+# a concurrent N-1 build or run. Callers must only invoke this once jq's
+# presence has been confirmed (check_prerequisites, called at the top of
+# main() before prepare_ships/cleanup can reach STARTED_FLEET=true).
+prepared_ship_ports() {
+    jq -r 'to_entries[] | select(.value.n1 != true) | .value.httpPort, (.value.webUrl | ltrimstr("http://localhost:"))' "$MANIFEST_FILE"
+}
+
 # Cleanup function
 cleanup() {
     local exit_code=$?
@@ -151,28 +233,53 @@ cleanup() {
     if [ $exit_code -ne 0 ]; then
         print_error "Script failed with exit code $exit_code"
 
-        # On failure, restore manifest from backup if it exists
+        # On failure, restore manifest from backup if it exists. The `cp` is
+        # wrapped in an `if` rather than left bare: this runs under `set -e`,
+        # so an unwritable manifest would abort the trap and skip every
+        # cleanup step below it.
         if [ -n "${manifest_backup:-}" ] && [ -f "$manifest_backup" ]; then
             print_info "Restoring manifest from backup due to failure..."
-            cp "$manifest_backup" "$MANIFEST_FILE"
-            rm -f "$manifest_backup"
-            print_status "Manifest restored"
+            if cp "$manifest_backup" "$MANIFEST_FILE"; then
+                rm -f "$manifest_backup" || true
+                print_status "Manifest restored"
+            else
+                print_error "Could not restore $MANIFEST_FILE from $manifest_backup; restore it by hand"
+            fi
         fi
     fi
 
-    # Stop any running playwright-dev processes
-    if [ -f "$PROJECT_ROOT/apps/tlon-web/.playwright-dev.pid" ]; then
-        print_info "Stopping playwright-dev environment..."
-        "$PROJECT_ROOT/stop-playwright-dev.sh" >/dev/null 2>&1 || true
+    # The background children this script started. (sync_ship_snapshots and
+    # roll_and_chop_piers also boot a ship, but in the FOREGROUND and bounded by
+    # `timeout`, so they are gone before this runs -- and a Ctrl-C reaches them
+    # through the process group. Only a signal sent to this script alone could
+    # outlive one.)
+    if [ "${#SPAWNED_PIDS[@]}" -gt 0 ]; then
+        for pid in "${SPAWNED_PIDS[@]}"; do
+            kill -TERM "$pid" 2>/dev/null || true
+        done
     fi
 
-    # Additional cleanup of e2e ports if needed
-    for port in 3000 3001 3002 3003 35453 36963 38473 39983; do
-        pids=$(lsof -ti:$port 2>/dev/null || true)
-        if [ -n "$pids" ]; then
-            echo "$pids" | xargs kill -9 2>/dev/null || true
+    # The rest only applies when this run started the fleet. A --skip-prepare
+    # run -- how the hand-built piers (~bus, ~bud) are archived -- starts no
+    # long-lived ships of its own, so it must not stop a playwright-dev someone
+    # else is using, and must not run the port sweep: `lsof -ti:<port> | xargs
+    # kill -9` hits every process on those ports, including ships booted from
+    # another checkout, and it runs on success as well as on failure.
+    if [ "$STARTED_FLEET" = "true" ]; then
+        # Stop any running playwright-dev processes
+        if [ -f "$PROJECT_ROOT/apps/tlon-web/.playwright-dev.pid" ]; then
+            print_info "Stopping playwright-dev environment..."
+            "$PROJECT_ROOT/stop-playwright-dev.sh" >/dev/null 2>&1 || true
         fi
-    done
+
+        # Additional cleanup of e2e ports if needed
+        for port in $(prepared_ship_ports); do
+            pids=$(lsof -ti:$port 2>/dev/null || true)
+            if [ -n "$pids" ]; then
+                echo "$pids" | xargs kill -9 2>/dev/null || true
+            fi
+        done
+    fi
 
     # Clean up the playwright-dev log file
     if [ -f "$PROJECT_ROOT/apps/tlon-web/playwright-dev-archive.log" ]; then
@@ -193,12 +300,19 @@ check_prerequisites() {
         missing_tools+=("jq")
     fi
 
-    if ! command -v gsutil &> /dev/null; then
-        missing_tools+=("gsutil")
-    fi
+    # The cloud tools are only needed to upload. SKIP_UPLOAD exists so an
+    # archive can be produced locally and handed to whoever does have bucket
+    # access -- which is how the N-1 pier is built (build-n1-pier.sh) -- so
+    # demanding a gcloud login for a run that writes nothing to GCS would stop
+    # that flow for no gain.
+    if [ "$SKIP_UPLOAD" = "false" ]; then
+        if ! command -v gsutil &> /dev/null; then
+            missing_tools+=("gsutil")
+        fi
 
-    if ! command -v gcloud &> /dev/null; then
-        missing_tools+=("gcloud")
+        if ! command -v gcloud &> /dev/null; then
+            missing_tools+=("gcloud")
+        fi
     fi
 
     if ! command -v pnpm &> /dev/null; then
@@ -209,6 +323,11 @@ check_prerequisites() {
         print_error "Missing required tools: ${missing_tools[*]}"
         print_info "Please install missing tools and try again"
         exit 1
+    fi
+
+    if [ "$SKIP_UPLOAD" = "true" ]; then
+        print_status "Prerequisites check passed (SKIP_UPLOAD: no GCS access needed)"
+        return 0
     fi
 
     # Check GCP authentication
@@ -263,6 +382,10 @@ check_prerequisites() {
 prepare_ships() {
     print_info "Starting ships with latest desk code..."
 
+    # From here on this run owns the e2e ports, so the EXIT cleanup may sweep
+    # them.
+    STARTED_FLEET=true
+
     cd "$PROJECT_ROOT/apps/tlon-web"
 
     # The playwright-dev script runs rube which:
@@ -285,7 +408,7 @@ prepare_ships() {
         if [ $retry_count -gt 0 ]; then
             print_warning "Retrying... (attempt $((retry_count + 1))/$max_retries)"
             # Clean up any existing processes first
-            for port in 3000 3001 3002 3003 35453 36963 38473 39983; do
+            for port in $(prepared_ship_ports); do
                 pids=$(lsof -ti:$port 2>/dev/null || true)
                 if [ -n "$pids" ]; then
                     echo "$pids" | xargs kill -9 2>/dev/null || true
@@ -303,8 +426,9 @@ prepare_ships() {
 
         # Start playwright-dev in background so we can monitor and kill it when ships are ready
         cd "$PROJECT_ROOT/apps/tlon-web"
-        FORCE_EXTRACTION=true INCLUDE_OPTIONAL_SHIPS=true FRESH_BOOT=$FRESH_BOOT pnpm e2e:playwright-dev > "$PROJECT_ROOT/apps/tlon-web/playwright-dev-archive.log" 2>&1 &
+        FORCE_EXTRACTION=true INCLUDE_OPTIONAL_SHIPS=true FRESH_BOOT=$FRESH_BOOT N1_SHIP= pnpm e2e:playwright-dev > "$PROJECT_ROOT/apps/tlon-web/playwright-dev-archive.log" 2>&1 &
         local playwright_pid=$!
+        SPAWNED_PIDS+=("$playwright_pid")
 
         # Monitor for SHIP_SETUP_COMPLETE signal which indicates ships are fully ready
         local wait_counter=0
@@ -1063,7 +1187,17 @@ main() {
         archived_files+=("$archive_path")
 
         # Upload to GCS with transaction tracking
-        if upload_archive "$archive_path"; then
+        if [ "$SKIP_UPLOAD" = "true" ]; then
+            # upload_archive is a no-op under SKIP_UPLOAD=true (it prints a
+            # warning and returns success), so the manifest and Dockerfile
+            # updates below must be skipped too -- otherwise they'd point
+            # ~$ship's downloadUrl at an object that was never uploaded.
+            upload_archive "$archive_path"
+            print_warning "SKIP_UPLOAD is set: not updating manifest or Dockerfile for $ship"
+            print_info "After uploading $(basename "$archive_path"), set these by hand in $MANIFEST_FILE:"
+            echo "  - ~$ship.deskVersion"
+            echo "  - ~$ship.downloadUrl -> https://bootstrap.urbit.org/rube-${ship}${next_version}.tgz"
+        elif upload_archive "$archive_path"; then
             uploaded_ships+=("$ship:rube-${ship}${next_version}.tgz")
 
             # Update manifest with rollback on failure

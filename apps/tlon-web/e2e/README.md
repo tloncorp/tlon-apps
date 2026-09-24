@@ -66,7 +66,7 @@ Our e2e testing infrastructure provides:
 
 2. **Ship Manifest** (`shipManifest.json`)
 
-    - Defines available test ships (zod, bus, and ten for now)
+    - Defines available test ships (zod, bus, ten, mug, bud)
     - Contains ship URLs, ports, and authentication codes
     - Maps ship instances to web application URLs
 
@@ -84,7 +84,7 @@ Our e2e testing infrastructure provides:
 
 ## Available Test Ships
 
-The testing environment uses four pre-configured Urbit ships:
+The testing environment uses five pre-configured Urbit ships:
 
 | Ship | Web URL               | HTTP Port | Auth File        | Purpose                                                                        |
 | ---- | --------------------- | --------- | ---------------- | ------------------------------------------------------------------------------ |
@@ -92,6 +92,13 @@ The testing environment uses four pre-configured Urbit ships:
 | ~bus | http://localhost:3001 | 36963     | `.auth/bus.json` | Secondary ship for protocol mismatch tests (purposefully not kept up to date) |
 | ~ten | http://localhost:3002 | 38473     | `.auth/ten.json` | Third ship for cross-ship testing                                              |
 | ~mug | http://localhost:3003 | 39983     | `.auth/mug.json` | Invite service provider (optional, started with `INCLUDE_OPTIONAL_SHIPS=true`) |
+| ~bud | http://localhost:3004 | 41493     | `.auth/bud.json` | Pinned N-1 desk, for `n1-desk.spec.ts` (started only by `N1_SHIP=bud`, never by `INCLUDE_OPTIONAL_SHIPS`) |
+
+`~bud` carries the *previous* %groups release, named by `deskVersion` in the
+manifest and kept equal to `MIN_GROUPS_VERSION`; rebuild it with
+`../rube/build-n1-pier.sh`. See `docs/tlon-apps/desk-compatibility.md`. It is
+not `~bus`, which is deliberately far out of date for protocol-mismatch
+rendering and is never re-pinned.
 
 ## Test Categories
 
@@ -128,7 +135,7 @@ The testing environment uses four pre-configured Urbit ships:
 
 -   Node.js and pnpm installed
 -   Sufficient disk space for ship downloads (~500MB-1GB compressed per ship, 1.3-3.2GB extracted)
--   Available ports: 3000-3003 (web), 35453, 36963, 38473, 39983 (ships)
+-   Available ports: 3000-3004 (web), 35453, 36963, 38473, 39983, 41493 (ships)
 
 ### Basic Commands
 
@@ -368,6 +375,7 @@ claude mcp add playwright npx @playwright/mcp@latest
     -   ~zod: `lidlut-tabwed-pillex-ridrup`
     -   ~ten: `lapseg-nolmel-riswen-hopryc`
     -   ~bus: `riddec-bicrym-ridlev-pocsef`
+    -   ~bud: `lathus-worsem-bortem-padmel`
 -   When you navigate to any ship URL, enter the appropriate auth code on the login page
 
 **Cross-Ship Testing:** Open multiple browser tabs and navigate to different ship URLs:
@@ -375,6 +383,7 @@ claude mcp add playwright npx @playwright/mcp@latest
 -   ~zod: `http://localhost:3000/apps/groups/`
 -   ~ten: `http://localhost:3002/apps/groups/`
 -   ~bus: `http://localhost:3001/apps/groups/`
+-   ~bud: `http://localhost:3004/apps/groups/`
 
 ### Adding New Tests
 
@@ -406,7 +415,7 @@ The Rube system automatically:
 
 ### Common Issues
 
-1. **Port conflicts**: Ensure ports 3000-3003, 35453, 36963, 38473, 39983 are available
+1. **Port conflicts**: Ensure ports 3000-3004, 35453, 36963, 38473, 39983, 41493 are available
 2. **Ship download failures**: Check internet connection and bootstrap.urbit.org availability
 3. **Authentication failures**: Delete `.auth/` directory and re-run tests
 4. **Timeout errors**: Increase timeout in configuration or check ship readiness

@@ -311,6 +311,7 @@ When using Claude Code with the Playwright MCP server for e2e testing:
     -   ~zod: `lidlut-tabwed-pillex-ridrup`
     -   ~ten: `lapseg-nolmel-riswen-hopryc`
     -   ~bus: `riddec-bicrym-ridlev-pocsef`
+    -   ~bud: `lathus-worsem-bortem-padmel`
 -   **Process**: When you navigate to any ship URL, you may see a login page - enter the auth code for that ship
 -   **Environment setup**: Use `pnpm e2e:playwright-dev` to start ships + web servers for MCP testing
 -   **IMPORTANT**: Always stop the `pnpm e2e:playwright-dev` script before running `pnpm e2e:test` or other e2e commands to avoid port conflicts
@@ -335,6 +336,7 @@ When using Claude Code with the Playwright MCP server for e2e testing:
     -   ~zod: `http://localhost:3000/apps/groups/`
     -   ~ten: `http://localhost:3002/apps/groups/`
     -   ~bus: `http://localhost:3001/apps/groups/`
+    -   ~bud: `http://localhost:3004/apps/groups/`
     -   Authenticate each ship manually when prompted, then switch between tabs during testing
 
 ### E2E Test Patterns and Gotchas
@@ -471,7 +473,12 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   Archives are referenced in `apps/tlon-web/e2e/shipManifest.json`
 -   To update pier archives: `./apps/tlon-web/rube/archive-piers.sh`
 -   To verify archives: `./apps/tlon-web/rube/verify-archives.sh`
--   ~bus is intentionally kept outdated for protocol mismatch testing
+-   Two ships are hand-built and excluded from the routine archive run:
+    -   ~bus is intentionally kept outdated for protocol mismatch testing
+    -   ~bud is the pinned N-1 desk pier (`deskVersion` in the manifest, kept
+        equal to `MIN_GROUPS_VERSION`). Rebuild it with
+        `./apps/tlon-web/rube/build-n1-pier.sh` whenever that constant moves —
+        see `docs/tlon-apps/desk-compatibility.md`.
 -   Archive naming convention: `rube-{ship}{version}.tgz` (e.g., `rube-zod15.tgz`)
 
 **Important Scripts:**
