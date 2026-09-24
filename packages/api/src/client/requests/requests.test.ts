@@ -60,7 +60,7 @@ describe('helpers forward to the wrappers unchanged', () => {
   });
 
   test('subscribeOnce keeps the positional arity of the call', async () => {
-    await subscribeOnceRequest(groups.chanPreview)({ channelId: 'c' });
+    await subscribeOnceRequest(groups.gangPreview)({ groupId: '~zod/g' });
     await subscribeOnceRequest(groups.gangIndex)({ ship: '~zod' }, 30_000);
     await subscribeOnceRequest(groups.gangPreview)(
       { groupId: '~zod/g' },
@@ -69,7 +69,7 @@ describe('helpers forward to the wrappers unchanged', () => {
       { tag: 't' }
     );
     expect(calls(subscribeOnce)).toEqual([
-      [{ app: 'groups', path: '/chan/c' }],
+      [{ app: 'groups', path: '/gangs/~zod/g/preview' }],
       [{ app: 'groups', path: '/gangs/index/~zod' }, 30_000],
       [
         { app: 'groups', path: '/gangs/~zod/g/preview' },
@@ -196,7 +196,7 @@ export function typeProbes(flag: boolean) {
   scryRequest(ui)<G>({ groupId: '~zod/g' });
   scryRequest(ui)<G>({ groupId: 1 }, { timeout: 5 });
   scryRequest(groups.groups)<G>({});
-  subscribeOnceRequest(groups.chanPreview)<G>({ channelId: 'c' });
+  subscribeOnceRequest(groups.gangIndex)<G>({ ship: '~zod' });
   trackedPokeRequest(groups.action, groups.updates)<{ flag: string }>(
     {},
     {},
