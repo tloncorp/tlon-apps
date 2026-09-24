@@ -919,7 +919,7 @@ condition) and `lib/module/` (resolved by Vite and vitest) are patched.
 
 Upstream:
 - repo: [AppAndFlow/react-native-transformer-text-input](https://github.com/AppAndFlow/react-native-transformer-text-input)
-- no upstream issue or PR filed yet
+- fix submitted: [AppAndFlow/react-native-transformer-text-input#17](https://github.com/AppAndFlow/react-native-transformer-text-input/pull/17)
 
 Validation:
 - `cd packages/app && pnpm test ui/components/Form/__tests__/phoneNumberTransformer.test.ts`
@@ -927,5 +927,6 @@ Validation:
   digits and format as `+1 (310) 270-5123`.
 
 Removal:
-Remove once a release of `react-native-transformer-text-input` selects formats
-by length as well as leading digits.
+Remove once [AppAndFlow/react-native-transformer-text-input#17](https://github.com/AppAndFlow/react-native-transformer-text-input/pull/17)
+(or an equivalent length-aware `selectFormat`) ships in a released
+`react-native-transformer-text-input`, and bump to that release.
