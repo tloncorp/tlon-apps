@@ -79,9 +79,9 @@ export default function NavIcon({
   testID?: string;
   type: IconType;
   activeType?: IconType;
-  /** Shown square in place of the glyph, which remains the fallback. */
+  /** Shown in place of the glyph, which remains the fallback. */
   imageUrl?: string;
-  /** Shown square in place of a missing `imageUrl`, before the glyph. */
+  /** Shown in place of a missing `imageUrl`, before the glyph. */
   sigilContactId?: string;
   isActive: boolean;
   hasUnreads?: boolean;
@@ -114,27 +114,30 @@ export default function NavIcon({
       backgroundColor={backgroundColor}
       {...props}
     >
-      <View>
+      {/* The glyph's frame (Icon at $l), with an avatar centred in it at the
+          glyph's own size, so the bar and the unread dot stay put. */}
+      <View
+        width="$3xl"
+        height="$3xl"
+        alignItems="center"
+        justifyContent="center"
+      >
         <ImageAvatar
           imageUrl={imageUrl}
           size="$2xl"
-          borderRadius={0}
-          // Fills the glyph's 32x24 frame, so the bar and the unread dot stay put.
-          marginHorizontal="$xs"
+          borderRadius="$xs"
           opacity={isActive ? 1 : 0.6}
           fallback={
             sigilContactId ? (
               <SigilAvatar
                 contactId={sigilContactId}
-                size="custom"
-                width={24}
-                height={24}
-                borderRadius={0}
-                marginHorizontal="$xs"
+                size="$2xl"
+                borderRadius="$xs"
                 opacity={isActive ? 1 : 0.6}
               />
             ) : (
               <Icon
+                size="$l"
                 type={resolvedType}
                 color={isActive ? '$primaryText' : '$tertiaryText'}
               />

@@ -345,6 +345,9 @@ importers:
       expo-video:
         specifier: ~57.0.1
         version: 57.0.1(expo@57.0.7(ce190d4e93323ec8c151615fd878b5e9))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+      expo-web-browser:
+        specifier: ~57.0.3
+        version: 57.0.3(expo@57.0.7(ce190d4e93323ec8c151615fd878b5e9))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))
       immer:
         specifier: ^9.0.12
         version: 9.0.21
@@ -8595,6 +8598,12 @@ packages:
     peerDependencies:
       expo: '*'
       react: 19.2.3
+      react-native: 0.86.3
+
+  expo-web-browser@57.0.3:
+    resolution: {integrity: sha512-+ecvhyS/PdWkpv4ai6FF1Trd6Y/4kn/eQ3O86mie2ecU3w+I8bKZh13kppY/jw1uSL7yikt03L5W/iiHojrFwQ==}
+    peerDependencies:
+      expo: '*'
       react-native: 0.86.3
 
   expo@57.0.7:
@@ -22544,6 +22553,11 @@ snapshots:
     dependencies:
       expo: 57.0.7(ce190d4e93323ec8c151615fd878b5e9)
       react: 19.2.3
+      react-native: 0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3)
+
+  expo-web-browser@57.0.3(expo@57.0.7(ce190d4e93323ec8c151615fd878b5e9))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3)):
+    dependencies:
+      expo: 57.0.7(ce190d4e93323ec8c151615fd878b5e9)
       react-native: 0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3)
 
   expo@57.0.7(ce190d4e93323ec8c151615fd878b5e9):

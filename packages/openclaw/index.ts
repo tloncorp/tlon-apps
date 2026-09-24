@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -65,7 +66,7 @@ import { setTlonRuntime } from './src/runtime.js';
 import { resolveOwnerOnlyToolBlock } from './src/owner-only-tools.js';
 import { getSessionRole } from './src/session-roles.js';
 import { registerStewardAutomationReconciliationHooks } from './src/steward-automation-reconciliation.js';
-import { parseTlonTarget } from './src/targets.js';
+import { normalizeShip, parseTlonTarget } from './src/targets.js';
 import {
   type TlonDiagnosticLogAttributes,
   type TlonSessionDiagnosticReportInput,
@@ -979,6 +980,11 @@ export default defineBundledChannelEntry({
       notifyDiaryMigrationDiscovery: (nest) =>
         notifyDiaryMigrationDiscovery(nest, api.config),
       logError: (message) => api.logger.warn(`[tlon] ${message}`),
+      // Lets the executor run `groups invite-link` as the owner, so invites
+      // attribute to the owner rather than the bot.
+      ownerShip: normalizeShip(account.ownerShip ?? '') || undefined,
+      env: process.env,
+      fileExists: (path) => existsSync(path),
     });
 
     api.registerTool({
