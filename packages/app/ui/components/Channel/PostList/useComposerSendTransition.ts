@@ -7,7 +7,8 @@ export function useComposerSendTransition(
   listRef: React.RefObject<LegendListRef | null>,
   applyHeight: (height: number) => void,
   enabled: boolean,
-  animated: boolean
+  animated: boolean,
+  scrollsToEnd = true
 ) {
   const [active, setActive] = useState(false);
   const activeRef = useRef(false);
@@ -62,14 +63,14 @@ export function useComposerSendTransition(
         activeRef.current = false;
         committingInset.current = false;
         setActive(false);
-        if (following.current) {
+        if (following.current && scrollsToEnd) {
           void listRef.current?.scrollToEnd({ animated }).catch(() => {
             // Navigation can unmount the list before the scroll completes.
           });
         }
       });
     });
-  }, [animated, applyHeight, listRef]);
+  }, [animated, applyHeight, listRef, scrollsToEnd]);
 
   const cancelFollowing = useCallback(() => {
     following.current = false;

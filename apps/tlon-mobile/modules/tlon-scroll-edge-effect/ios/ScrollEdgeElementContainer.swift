@@ -26,18 +26,43 @@ public final class TlonScrollEdgeEffectModule: Module {
 /// Keeps a docked conversation at its end in the same native layout pass that
 /// resizes the scroll view. A JS onLayout -> scrollToEnd round trip trails the
 /// keyboard's frames and makes messages catch up in visible steps.
+///
+/// It also owns following the end when content grows. LegendList first sizes a
+/// new row from its estimate and corrects it once measured; each JS
+/// scrollToEnd restarts UIKit's fixed-duration animation toward a stale end.
+/// A spring retargeted every frame absorbs those corrections in one motion.
 public final class ConversationViewport: ExpoView {
-    var anchorToEnd = false
+    var anchorToEnd = false {
+        didSet {
+            guard anchorToEnd, !oldValue, let scrollView else {
+                if !anchorToEnd {
+                    stopFollowing()
+                }
+                return
+            }
+            // A send or return-to-end resumed following; settle rows that
+            // arrived while it was suspended.
+            if endOffset(of: scrollView) - scrollView.contentOffset.y <= scrollView.bounds.height {
+                followEnd()
+            }
+        }
+    }
     private weak var scrollView: UIScrollView?
     private var frameObservation: NSKeyValueObservation?
+    private var contentSizeObservation: NSKeyValueObservation?
     private var boundsBeforeResize: CGRect?
+    private var displayLink: CADisplayLink?
+    private var velocity: CGFloat = 0
+    private var lastTimestamp: CFTimeInterval = 0
 
     override public func layoutSubviews() {
         super.layoutSubviews()
         if let scrollView, scrollView.isDescendant(of: self) {
             return
         }
+        stopFollowing()
         frameObservation = nil
+        contentSizeObservation = nil
         scrollView = findScrollView(in: self)
         frameObservation = scrollView?.observe(\.frame, options: [.prior]) { [weak self] scrollView, change in
             guard let self else {
@@ -53,9 +78,7 @@ public final class ConversationViewport: ExpoView {
             let oldBounds = self.boundsBeforeResize
             self.boundsBeforeResize = nil
             guard self.anchorToEnd,
-                  !scrollView.isTracking,
-                  !scrollView.isDragging,
-                  !scrollView.isDecelerating,
+                  !Self.isUserScrolling(scrollView),
                   let oldBounds,
                   oldBounds.height > 0,
                   newBounds.height > 0,
@@ -75,22 +98,107 @@ public final class ConversationViewport: ExpoView {
             guard abs(oldEnd - oldBounds.origin.y) <= 2 else {
                 return
             }
-            let newEnd = max(
-                -insets.top,
-                scrollView.contentSize.height + insets.bottom - newBounds.height
+            scrollView.setContentOffset(
+                CGPoint(x: newBounds.origin.x, y: self.endOffset(of: scrollView)),
+                animated: false
             )
-            scrollView.setContentOffset(CGPoint(x: newBounds.origin.x, y: newEnd), animated: false)
+        }
+        contentSizeObservation = scrollView?.observe(\.contentSize, options: [.old, .new]) { [weak self] scrollView, change in
+            guard let self,
+                  self.anchorToEnd,
+                  !Self.isUserScrolling(scrollView),
+                  let oldSize = change.oldValue,
+                  let newSize = change.newValue,
+                  oldSize.height != newSize.height
+            else {
+                return
+            }
+            let insets = scrollView.adjustedContentInset
+            let oldEnd = max(
+                -insets.top,
+                oldSize.height + insets.bottom - scrollView.bounds.height
+            )
+            // Keep following through consecutive corrections, but never pull
+            // a reader who is away from the end.
+            guard self.displayLink != nil || abs(oldEnd - scrollView.contentOffset.y) <= 2 else {
+                return
+            }
+            self.followEnd()
         }
     }
 
     override public func didMoveToWindow() {
         super.didMoveToWindow()
         if window == nil {
+            stopFollowing()
             frameObservation = nil
+            contentSizeObservation = nil
             scrollView = nil
         } else {
             setNeedsLayout()
         }
+    }
+
+    private func endOffset(of scrollView: UIScrollView) -> CGFloat {
+        let insets = scrollView.adjustedContentInset
+        return max(
+            -insets.top,
+            scrollView.contentSize.height + insets.bottom - scrollView.bounds.height
+        )
+    }
+
+    private static func isUserScrolling(_ scrollView: UIScrollView) -> Bool {
+        scrollView.isTracking || scrollView.isDragging || scrollView.isDecelerating
+    }
+
+    private func followEnd() {
+        guard let scrollView else {
+            return
+        }
+        if UIAccessibility.isReduceMotionEnabled {
+            stopFollowing()
+            scrollView.setContentOffset(
+                CGPoint(x: scrollView.contentOffset.x, y: endOffset(of: scrollView)),
+                animated: false
+            )
+            return
+        }
+        guard displayLink == nil else {
+            return
+        }
+        velocity = 0
+        lastTimestamp = 0
+        let link = CADisplayLink(target: DisplayLinkTarget(self), selector: #selector(DisplayLinkTarget.step(_:)))
+        link.add(to: .main, forMode: .common)
+        displayLink = link
+    }
+
+    private func stopFollowing() {
+        displayLink?.invalidate()
+        displayLink = nil
+    }
+
+    fileprivate func step(_ link: CADisplayLink) {
+        guard let scrollView, anchorToEnd, !Self.isUserScrolling(scrollView) else {
+            stopFollowing()
+            return
+        }
+        let dt = lastTimestamp == 0
+            ? link.targetTimestamp - link.timestamp
+            : min(link.timestamp - lastTimestamp, 1.0 / 30.0)
+        lastTimestamp = link.timestamp
+        // Critically damped spring toward the current end, read each frame so
+        // row measurements and external offset changes retarget it smoothly.
+        let target = endOffset(of: scrollView)
+        let current = scrollView.contentOffset.y
+        let omega: CGFloat = 22
+        velocity += (-2 * omega * velocity - omega * omega * (current - target)) * dt
+        var next = current + velocity * dt
+        if abs(next - target) < 0.5 && abs(velocity) < 20 {
+            next = target
+            stopFollowing()
+        }
+        scrollView.contentOffset = CGPoint(x: scrollView.contentOffset.x, y: next)
     }
 
     private func findScrollView(in view: UIView) -> UIScrollView? {
@@ -103,6 +211,23 @@ public final class ConversationViewport: ExpoView {
             }
         }
         return nil
+    }
+}
+
+/// CADisplayLink retains its target; this breaks the cycle with the view.
+private final class DisplayLinkTarget {
+    private weak var owner: ConversationViewport?
+
+    init(_ owner: ConversationViewport) {
+        self.owner = owner
+    }
+
+    @objc func step(_ link: CADisplayLink) {
+        guard let owner else {
+            link.invalidate()
+            return
+        }
+        owner.step(link)
     }
 }
 

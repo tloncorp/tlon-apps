@@ -8,7 +8,6 @@ import {
   StyleSheet,
   type LayoutChangeEvent,
   type ScrollView,
-  type ScrollViewProps,
 } from 'react-native';
 import {
   KeyboardChatScrollView,
@@ -528,6 +527,9 @@ const ConversationPostListAttempt = React.forwardRef<
   ) => {
     const listRef = React.useRef<LegendListRef>(null);
     const docked = useIsConversationDocked();
+    // ConversationViewport follows content growth natively on iOS; a second
+    // JS scrollToEnd would restart the motion toward a stale end.
+    const nativeFollowsEnd = docked && Platform.OS === 'ios';
     const composerLayout = useConversationComposerLayout();
     const floating = docked && composerLayout.floating;
     const historyNavigationRequested = React.useRef(false);
@@ -590,7 +592,8 @@ const ConversationPostListAttempt = React.forwardRef<
         !floating &&
         anchorToEnd &&
         !hasNewerPosts,
-      !reduceMotion
+      !reduceMotion,
+      !nativeFollowsEnd
     );
     const renderDockedConversationScrollView = useDockedConversationScrollView(
       listRef,
@@ -760,7 +763,11 @@ const ConversationPostListAttempt = React.forwardRef<
     );
     const maintainScrollAtEnd = React.useMemo(
       () =>
-        anchorToEnd && !floating && !hasNewerPosts && !composerSendActive
+        !nativeFollowsEnd &&
+        anchorToEnd &&
+        !floating &&
+        !hasNewerPosts &&
+        !composerSendActive
           ? {
               animated: didFinishInitialScroll && !reduceMotion,
               // The keyboard and composer already animate the viewport. Follow
@@ -780,6 +787,7 @@ const ConversationPostListAttempt = React.forwardRef<
         composerSendActive,
         docked,
         floating,
+        nativeFollowsEnd,
         didFinishInitialScroll,
         hasNewerPosts,
         reduceMotion,

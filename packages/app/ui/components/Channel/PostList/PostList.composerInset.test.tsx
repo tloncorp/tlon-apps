@@ -264,7 +264,11 @@ describe.each(['ios', 'android'])('docked %s conversation', (platform) => {
     tick();
     tick();
     expect(state.inset).toBe(0);
-    expect(state.nativeScrolls).toEqual([400]);
+    // iOS resumes the native end follower instead of a JS scroll.
+    expect(state.nativeScrolls).toEqual(platform === 'ios' ? [] : [400]);
+    expect(state.listProps.maintainScrollAtEnd === false).toBe(
+      platform === 'ios'
+    );
   });
 });
 
@@ -493,6 +497,8 @@ describe('iOS native resize anchoring', () => {
     state.sendHandler?.finish();
     tick();
     tick();
-    expect(state.nativeScrolls).toHaveLength(1);
+    // Re-enabling the anchor hands the new row to the native follower.
+    expect(nativeAnchoringEnabled()).toBe(true);
+    expect(state.nativeScrolls).toEqual([]);
   });
 });
