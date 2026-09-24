@@ -242,7 +242,6 @@
     },
     {
       "files": [
-        "apps/tlon-mobile/src/lib/OnboardingContext.tsx",
         "packages/api/src/client/bucketsApi.ts",
         "packages/api/src/client/initApi.ts"
       ],
