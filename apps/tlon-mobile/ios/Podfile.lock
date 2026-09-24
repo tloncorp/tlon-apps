@@ -2,7 +2,7 @@ PODS:
   - BranchSDK (2.2.1)
   - EXApplication (57.0.2):
     - ExpoModulesCore
-  - EXConstants (57.0.6):
+  - EXConstants (57.0.19):
     - ExpoModulesCore
   - EXJSONUtils (57.0.1)
   - EXManifests (57.0.1):
@@ -176,7 +176,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - ExpoAsset (57.0.6):
+  - ExpoAsset (57.0.18):
     - ExpoModulesCore
   - ExpoAudio (57.0.2):
     - ExpoModulesCore
@@ -201,7 +201,7 @@ PODS:
     - ExpoModulesCore
   - ExpoDomWebView (57.0.1):
     - ExpoModulesCore
-  - ExpoFileSystem (57.0.1):
+  - ExpoFileSystem (57.0.7):
     - ExpoModulesCore
   - ExpoFont (57.0.4):
     - ExpoModulesCore
@@ -3408,7 +3408,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   BranchSDK: cb046c2714b03e573484ce9e349e2ddbad7016e8
   EXApplication: bbd517d50878ca1d121fb3843392beb210181e28
-  EXConstants: 8641fb5fcb789b2bfc9d01c9206a6826ca9d49e6
+  EXConstants: 2dc4473aff5574eccaccb9f3eefe6d95247e5d38
   EXJSONUtils: 7a1683cfa2cbe6d11fca97097d51a496755b0287
   EXManifests: f9888c0bf5aaa6ddb7e3d4b224d6d54ac4ca84a4
   Expo: 3f3bc8b86a54558c2eac9cb377296f4e2f451ae7
@@ -3416,7 +3416,7 @@ SPEC CHECKSUMS:
   expo-dev-launcher: a58c813a480ae2431df3164b1121aee5beded496
   expo-dev-menu: 09af008b25f5291629844eecd3ea5a4acca2ec8b
   expo-dev-menu-interface: 7a59e803916fbfd1b96c75ff91ea8dddac7e722f
-  ExpoAsset: c270900c121a250ceabbf692dfecc2f1564ec82f
+  ExpoAsset: a917b756b2e4fe12cef1ac3bca5fd849ddb2b919
   ExpoAudio: c306e13ec127338d78b85899d5c22af875921eb7
   ExpoBackgroundFetch: 00d36a5d52ab75ca9a178e4db14b9db0a96f51a6
   ExpoBackgroundTask: 166278b3b9558303e2101adcee1cf04611aa587c
@@ -3428,7 +3428,7 @@ SPEC CHECKSUMS:
   ExpoDevice: 93a72d7c2bd656a4f0c0d580523e390e9ee7fba5
   ExpoDocumentPicker: 6fb67a6f39ba9beb53a4b4a3f2949e0b5e9bc3bf
   ExpoDomWebView: beaec034e51bd028428b98bb1f2633ab79c6d095
-  ExpoFileSystem: e441dae0ae671fc451640517550973d9e024fdf0
+  ExpoFileSystem: 28778f942725170102f7c6cf4dee05a526ddacd0
   ExpoFont: f8198a952ba2ff53c9b393b5269ea435f232cfc3
   ExpoGlassEffect: 4b62afb489e6b84357701737ce002137c9d5fdbc
   ExpoHaptics: 4503d2da51ff7109712ccdfe0e4939f66818183e
