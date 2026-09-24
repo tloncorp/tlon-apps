@@ -7,6 +7,12 @@ import UrbitBase, {
   UrbitHttpApiEventMap,
   UrbitHttpApiEventType,
 } from '@tloncorp/api/http-api';
+import {
+  type One,
+  type Params,
+  type RegistryEntry,
+  entryPath,
+} from '@tloncorp/api/client/requests';
 import type UrbitMock from '@tloncorp/mock-http-api';
 import _ from 'lodash';
 
@@ -22,6 +28,11 @@ const URL = (import.meta.env.VITE_MOCK_URL ||
   import.meta.env.VITE_VERCEL_URL) as string;
 
 type Hook = (event: any, mark: string) => boolean;
+
+export type Registered<K extends RegistryEntry['kind']> = Extract<
+  RegistryEntry,
+  { kind: K }
+>;
 
 interface Watcher {
   id: string;
@@ -184,6 +195,47 @@ class API {
       useLocalState.setState((state) => ({ errorCount: state.errorCount + 1 }));
       throw e;
     }
+  }
+
+  // Registry-entry forms of the request methods below: each fills the
+  // entry's path and forwards to the method itself, so dedup, watchers,
+  // scheduling and error handling are unchanged.
+  scryEntry<E extends Registered<'scry'>>(entry: One<E>) {
+    return <T>(params: Params<E['path']>) =>
+      this.scry<T>({ app: entry.agent, path: entryPath(entry, params) });
+  }
+
+  pokeEntry<E extends Registered<'poke'>>(entry: One<E>) {
+    return <T>(json: T) =>
+      this.poke<T>({ app: entry.agent, mark: entry.mark, json });
+  }
+
+  trackedPokeEntry<
+    E extends Registered<'poke'>,
+    S extends Registered<'subscribe'>,
+  >(entry: One<E>, watch: One<S>) {
+    return <T, R = T>(
+      json: T,
+      watchParams: Params<S['path']>,
+      ...validator: [validator?: (event: R) => boolean]
+    ) =>
+      this.trackedPoke<T, R>(
+        { app: entry.agent, mark: entry.mark, json },
+        { app: watch.agent, path: entryPath(watch, watchParams) },
+        ...validator
+      );
+  }
+
+  subscribeEntry<E extends Registered<'subscribe'>>(entry: One<E>) {
+    return (
+      params: Params<E['path']>,
+      request: Omit<SubscriptionRequestInterface, 'app' | 'path'>,
+      ...priority: [priority?: number]
+    ) =>
+      this.subscribe(
+        { app: entry.agent, path: entryPath(entry, params), ...request },
+        ...priority
+      );
   }
 
   async scry<T>(params: Scry) {

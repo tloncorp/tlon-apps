@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { base, groupsUi } from '@tloncorp/api/client/requests';
 import { DisplayMode, SortMode } from '@tloncorp/api/urbit/channel';
 import { DelBucket, DelEntry, PutBucket, Value } from '@urbit/api';
 import cookies from 'browser-cookies';
@@ -117,10 +118,10 @@ export interface SettingsState {
 
 export const useLandscapeSettings = () => {
   const { data, isLoading } = useReactQuerySubscription({
-    scry: `/desk/${lsDesk}`,
-    scryApp: 'settings',
-    app: 'settings',
-    path: `/desk/${lsDesk}`,
+    scry: base.settingsDesk,
+    scryParams: { desk: lsDesk },
+    watch: base.settingsDeskUpdates,
+    watchParams: { desk: lsDesk },
     queryKey: ['settings', lsDesk],
   });
 
@@ -137,10 +138,10 @@ export const useLandscapeSettings = () => {
 
 export const useSettings = () => {
   const { data, isLoading } = useReactQuerySubscription({
-    scry: `/desk/${window.desk}`,
-    scryApp: 'settings',
-    app: 'settings',
-    path: `/desk/${window.desk}`,
+    scry: base.settingsDesk,
+    scryParams: { desk: window.desk },
+    watch: base.settingsDeskUpdates,
+    watchParams: { desk: window.desk },
     queryKey: ['settings', window.desk],
   });
 
@@ -250,23 +251,19 @@ export function usePutEntryMutation({
   const queryClient = useQueryClient();
   const mutationFn = async (variables: { val: Value }) => {
     const { val } = variables;
-    await api.trackedPoke<PutEntry, SettingsEvent>(
+    await api.trackedPokeEntry(base.settingsEvent, base.settingsDeskUpdates)<
+      PutEntry,
+      SettingsEvent
+    >(
       {
-        app: 'settings',
-        mark: 'settings-event',
-        json: {
-          'put-entry': {
-            desk: window.desk,
-            'bucket-key': bucket,
-            'entry-key': key,
-            value: val,
-          },
+        'put-entry': {
+          desk: window.desk,
+          'bucket-key': bucket,
+          'entry-key': key,
+          value: val,
         },
       },
-      {
-        app: 'settings',
-        path: `/desk/${window.desk}`,
-      },
+      { desk: window.desk },
       (event) => {
         // default validator was not working
         const { 'settings-event': data } = event;
@@ -373,11 +370,7 @@ export function useLogActivityMutation() {
   // also wrap vita toggling
   return {
     mutate: (val: boolean) => {
-      api.poke({
-        app: 'groups-ui',
-        mark: 'ui-vita-toggle',
-        json: val,
-      });
+      api.pokeEntry(groupsUi.vitaToggle)(val);
       return mutate({ val });
     },
     status,

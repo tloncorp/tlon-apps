@@ -243,12 +243,6 @@
     {
       "files": [
         "apps/tlon-mobile/src/lib/OnboardingContext.tsx",
-        "apps/tlon-web/src/logic/useReactQueryScry.ts",
-        "apps/tlon-web/src/logic/useReactQuerySubscribeOnce.tsx",
-        "apps/tlon-web/src/logic/useReactQuerySubscription.tsx",
-        "apps/tlon-web/src/state/base.ts",
-        "apps/tlon-web/src/state/kiln.ts",
-        "apps/tlon-web/src/state/settings.ts",
         "packages/api/src/client/bucketsApi.ts",
         "packages/api/src/client/initApi.ts"
       ],
