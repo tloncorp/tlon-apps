@@ -29,11 +29,14 @@ import {
   ChannelRuleDraft,
   formatChannelHost,
   getErrorMessage,
+  getGroupChannelRuleKeys,
   groupChannelEntries,
-  hasGroupMembership,
   resolveGroupFull,
 } from './bot/helpers';
-import { useBotSettingsQueries } from './bot/useBotSettingsData';
+import {
+  useBotGroupMembership,
+  useBotSettingsQueries,
+} from './bot/useBotSettingsData';
 import {
   useBotSettingsDraft,
   useSyncBotSettingsDraft,
@@ -48,8 +51,8 @@ const logger = createDevLogger('BotChannelRulesScreen', false);
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Group joins are eventually consistent; poll the moon's channel listing after
-// a join until the group shows up (~15s worst case) before giving up.
+// Group joins are eventually consistent; poll membership after a join until the
+// group shows up (~15s worst case) before giving up.
 const JOIN_MEMBERSHIP_POLL_ATTEMPTS = 8;
 const JOIN_MEMBERSHIP_POLL_INTERVAL_MS = 2000;
 
@@ -62,6 +65,7 @@ const ruleChanged = (
 export function BotChannelRulesScreen(props: Props) {
   const isWindowNarrow = useIsWindowNarrow();
   const queries = useBotSettingsQueries();
+  const { getMembership, refreshMembership } = useBotGroupMembership(queries);
   // Sync the draft from the server before editing so reaching this screen
   // directly (cold launch / deep link) doesn't start from an empty draft and
   // wipe existing chat settings on save. Gate edits on `initialized`.
@@ -89,25 +93,11 @@ export function BotChannelRulesScreen(props: Props) {
   const baselineDrafts = draft.baseline.chat.channelRuleDrafts;
   const channelsData = queries.channelsQuery.data;
   const rawGroups = useMemo(() => channelsData ?? {}, [channelsData]);
-  const moonChannels = queries.moonChannelsQuery.data ?? {};
-  // Until the moon's channel listing has loaded we can't tell which groups the
-  // bot is already in; treat membership as unknown rather than "not a member"
-  // so we don't offer a redundant Join for a group it may already belong to.
-  const membershipsLoaded = queries.moonChannelsQuery.data !== undefined;
 
   const groups = useMemo(
     () => groupChannelEntries(rawGroups, drafts),
     [rawGroups, drafts]
   );
-  // Membership must be inferred from a group's FULL channel set, not the
-  // search/enabled-filtered view — a saved rule on a hidden channel still proves
-  // the bot is in the group. Look the unfiltered group up by key when rendering
-  // the (filtered) rows.
-  const groupsByKey = useMemo(() => {
-    const map = new Map<string, (typeof groups)[number]>();
-    groups.forEach((group) => map.set(`${group.host}/${group.group}`, group));
-    return map;
-  }, [groups]);
 
   const filteredGroups = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -167,6 +157,27 @@ export function BotChannelRulesScreen(props: Props) {
     [draft, ready]
   );
 
+  // Clearing a departed group's rules is a draft edit like any other, so the
+  // user can still undo it (restoring the saved rules) until they apply.
+  const handleClearGroupRulesToggle = useCallback(
+    (host: string, group: string) => {
+      const draftKeys = getGroupChannelRuleKeys(rawGroups, host, group, drafts);
+      if (draftKeys.length > 0) {
+        const channelRuleDrafts = { ...drafts };
+        draftKeys.forEach((key) => delete channelRuleDrafts[key]);
+        replaceDrafts(channelRuleDrafts);
+        return;
+      }
+      const savedRules = Object.fromEntries(
+        getGroupChannelRuleKeys(rawGroups, host, group, baselineDrafts).map(
+          (key) => [key, baselineDrafts[key]]
+        )
+      );
+      replaceDrafts({ ...drafts, ...savedRules });
+    },
+    [rawGroups, drafts, baselineDrafts, replaceDrafts]
+  );
+
   const handleDisableEverywhereToggle = useCallback(() => {
     if (canUndoDisableEverywhere && disableEverywhereSnapshot) {
       replaceDrafts(disableEverywhereSnapshot);
@@ -211,18 +222,18 @@ export function BotChannelRulesScreen(props: Props) {
         }
         await sleep(1500);
         await api.joinTlawnGroup(queries.ship, groupFull, queries.moon);
-        // The join is eventually consistent: the moon often doesn't list the
-        // new group in its first post-join fetch. moonChannelsQuery stops
-        // polling once it has data, so a single refetch here would frequently
-        // race ahead and leave the row stuck on "Join". Poll until membership
-        // registers (or we give up), keeping the "Joining…" state meanwhile.
+        // The join is eventually consistent: neither the group roster nor the
+        // moon's listing is guaranteed to show the new group on the first
+        // read, and moonChannelsQuery stops polling once it has data. Poll the
+        // same membership check the rows use until it registers (or we give
+        // up), keeping the "Joining…" state meanwhile.
         for (
           let attempt = 0;
           attempt < JOIN_MEMBERSHIP_POLL_ATTEMPTS;
           attempt++
         ) {
-          const { data } = await queries.moonChannelsQuery.refetch();
-          if (data && hasGroupMembership(data, groupHost, groupName)) {
+          const membership = await refreshMembership();
+          if (membership(groupHost, groupName, false) === 'member') {
             break;
           }
           await sleep(JOIN_MEMBERSHIP_POLL_INTERVAL_MS);
@@ -233,7 +244,7 @@ export function BotChannelRulesScreen(props: Props) {
         setJoiningGroups((prev) => ({ ...prev, [groupKey]: false }));
       }
     },
-    [queries, rawGroups]
+    [queries, rawGroups, refreshMembership]
   );
 
   // Gate only on the initial load: channelsQuery polls while the bot is
@@ -362,21 +373,24 @@ export function BotChannelRulesScreen(props: Props) {
             ) : (
               filteredGroups.map((group) => {
                 const groupKey = `${group.host}/${group.group}`;
-                // The moon's live channel listing lags/omits groups it's a
-                // member of (sync, perms), so also treat a group as joined when
-                // the bot already has saved rules for channels in it — it can't
-                // be configured for a group it isn't in.
-                const isConfiguredMember = (
-                  groupsByKey.get(groupKey)?.channels ?? group.channels
-                ).some((channel) => Boolean(baselineDrafts[channel.key]));
-                const isGroupMember =
-                  group.group !== 'unknown' &&
-                  (hasGroupMembership(moonChannels, group.host, group.group) ||
-                    isConfiguredMember);
+                const isUnknownGroup = group.group === 'unknown';
+                // Check the group's full rule set, not the search/enabled
+                // filtered rows: a saved rule on a hidden channel still counts.
+                const hasSavedRules =
+                  getGroupChannelRuleKeys(
+                    rawGroups,
+                    group.host,
+                    group.group,
+                    baselineDrafts
+                  ).length > 0;
+                const membership = isUnknownGroup
+                  ? 'not-member'
+                  : getMembership(group.host, group.group, hasSavedRules);
+                const isGroupMember = membership === 'member';
+                const isDeparted = membership === 'departed';
                 const canJoinGroup =
-                  membershipsLoaded &&
-                  !isGroupMember &&
-                  group.group !== 'unknown' &&
+                  (membership === 'not-member' || isDeparted) &&
+                  !isUnknownGroup &&
                   Boolean(queries.ship) &&
                   Boolean(queries.moon);
                 const isJoining = Boolean(joiningGroups[groupKey]);
@@ -384,6 +398,14 @@ export function BotChannelRulesScreen(props: Props) {
                 const enabledCount = group.channels.filter((channel) =>
                   Boolean(drafts[channel.key])
                 ).length;
+                const hasDraftRules =
+                  isDeparted &&
+                  getGroupChannelRuleKeys(
+                    rawGroups,
+                    group.host,
+                    group.group,
+                    drafts
+                  ).length > 0;
 
                 return (
                   <YStack key={groupKey} gap="$m">
@@ -432,6 +454,44 @@ export function BotChannelRulesScreen(props: Props) {
                       )}
                     </XStack>
                     <BotSettingsSection>
+                      {isDeparted ? (
+                        <>
+                          <XStack
+                            minHeight={56}
+                            alignItems="center"
+                            gap="$l"
+                            paddingHorizontal="$l"
+                            paddingVertical="$m"
+                          >
+                            <YStack flex={1} minWidth={0} gap="$l">
+                              <Text size="$label/l" color="$primaryText">
+                                Tlonbot is no longer in this group
+                              </Text>
+                              <Text size="$label/s" color="$secondaryText">
+                                {hasDraftRules
+                                  ? 'Its rules here are paused. Join again to resume them.'
+                                  : 'Its rules here will be removed when you apply.'}
+                              </Text>
+                            </YStack>
+                            <Button
+                              preset={
+                                hasDraftRules
+                                  ? 'destructive'
+                                  : 'secondaryOutline'
+                              }
+                              size="small"
+                              label={hasDraftRules ? 'Clear rules' : 'Undo'}
+                              onPress={() =>
+                                handleClearGroupRulesToggle(
+                                  group.host,
+                                  group.group
+                                )
+                              }
+                            />
+                          </XStack>
+                          <BotSettingsDivider />
+                        </>
+                      ) : null}
                       {group.channels.map((channel, index) => {
                         const rule = drafts[channel.key];
                         const pending = ruleChanged(
@@ -453,22 +513,20 @@ export function BotChannelRulesScreen(props: Props) {
                               label={channel.label}
                               description={channel.key}
                               value={
-                                isEnabled
-                                  ? modelLabel === 'Default'
-                                    ? accessLabel
-                                    : `${accessLabel} · ${modelLabel}`
-                                  : 'Off'
+                                !isEnabled
+                                  ? 'Off'
+                                  : isDeparted
+                                    ? 'Paused'
+                                    : modelLabel === 'Default'
+                                      ? accessLabel
+                                      : `${accessLabel} · ${modelLabel}`
                               }
                               pending={pending}
                               // Only block navigation when membership is truly
-                              // unknown. A group we already treat as a member
-                              // (via moon listing or saved config) stays
-                              // editable even while the moon listing loads/errors.
-                              disabled={
-                                !isGroupMember &&
-                                !membershipsLoaded &&
-                                group.group !== 'unknown'
-                              }
+                              // unknown. A group already resolved as a member
+                              // stays editable even while the moon listing
+                              // loads/errors.
+                              disabled={membership === 'unknown'}
                               onPress={() =>
                                 props.navigation.navigate(
                                   'BotChannelRuleSettings',
@@ -476,8 +534,7 @@ export function BotChannelRulesScreen(props: Props) {
                                     channelKey: channel.key,
                                     channelLabel: channel.label,
                                     groupJoined:
-                                      group.group === 'unknown' ||
-                                      isGroupMember,
+                                      isUnknownGroup || isGroupMember,
                                   }
                                 )
                               }

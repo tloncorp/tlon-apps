@@ -6,8 +6,9 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import * as api from '@tloncorp/api';
-import { desig } from '@tloncorp/api/lib/urbit';
+import { desig, preSig } from '@tloncorp/api/lib/urbit';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { useCallback, useMemo } from 'react';
 
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
@@ -22,6 +23,7 @@ import {
 } from './constants';
 import {
   ModelFormValues,
+  buildBotGroupMembershipResolver,
   getAvailableProviderIds,
   hasProviderCredential,
   normalizeMoonName,
@@ -179,6 +181,52 @@ export function useBotSettingsQueries() {
 }
 
 export type BotSettingsQueries = ReturnType<typeof useBotSettingsQueries>;
+
+/**
+ * Whether the bot moon is in a given group, from the user's local copy of the
+ * group roster and the moon's own channel listing (see
+ * buildBotGroupMembershipResolver). `refreshMembership` re-reads both, for
+ * polling after a join.
+ */
+export function useBotGroupMembership(queries: BotSettingsQueries) {
+  const currentUserId = preSig(useCurrentUserId());
+  const { moon } = queries;
+  const contactIds = useMemo(
+    () => (moon ? [currentUserId, moon] : []),
+    [currentUserId, moon]
+  );
+  const { data: seats } = store.useJoinedGroupSeats(contactIds);
+  const moonChannels = queries.moonChannelsQuery.data;
+  const refetchMoonChannels = queries.moonChannelsQuery.refetch;
+
+  const getMembership = useMemo(
+    () =>
+      buildBotGroupMembershipResolver({
+        seats,
+        currentUserId,
+        moon,
+        moonChannels,
+      }),
+    [seats, currentUserId, moon, moonChannels]
+  );
+
+  const refreshMembership = useCallback(async () => {
+    // Without a moon, the listing's query would fetch the ship's own channels.
+    if (!moon) return getMembership;
+    const [{ data: freshMoonChannels }, freshSeats] = await Promise.all([
+      refetchMoonChannels(),
+      db.getJoinedGroupSeats({ contactIds }),
+    ]);
+    return buildBotGroupMembershipResolver({
+      seats: freshSeats,
+      currentUserId,
+      moon,
+      moonChannels: freshMoonChannels,
+    });
+  }, [refetchMoonChannels, contactIds, currentUserId, moon, getMembership]);
+
+  return { getMembership, refreshMembership };
+}
 
 /**
  * Model lists for every provider the user has a credential for. The Basic

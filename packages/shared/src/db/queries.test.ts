@@ -1947,6 +1947,47 @@ test('getAgentA2UIProtocolReceipts: returns the latest live owner receipts', asy
   ]);
 });
 
+test('getJoinedGroupSeats: returns joined group seats for the given contacts', async () => {
+  const user = '~zod';
+  const moon = '~doznec-dozzod-zod';
+  await queries.addChatMembers({
+    chatId: '~zod/shared',
+    contactIds: [user, moon, '~bus'],
+    type: 'group',
+    joinStatus: 'joined',
+  });
+  await queries.addChatMembers({
+    chatId: '~zod/pending',
+    contactIds: [moon],
+    type: 'group',
+    joinStatus: 'invited',
+  });
+  await queries.addChatMembers({
+    chatId: 'chat/~zod/general',
+    contactIds: [moon],
+    type: 'channel',
+    joinStatus: 'joined',
+  });
+
+  const bySeat = (a: { contactId: string }, b: { contactId: string }) =>
+    a.contactId.localeCompare(b.contactId);
+  const seats = await queries.getJoinedGroupSeats({
+    contactIds: [user, moon],
+  });
+  expect(seats.sort(bySeat)).toEqual([
+    { groupId: '~zod/shared', contactId: moon },
+    { groupId: '~zod/shared', contactId: user },
+  ]);
+
+  // A kick arrives as a seat removal.
+  await queries.removeChatMembers({
+    chatId: '~zod/shared',
+    contactIds: [moon],
+  });
+  expect(await queries.getJoinedGroupSeats({ contactIds: [moon] })).toEqual([]);
+  expect(await queries.getJoinedGroupSeats({ contactIds: [] })).toEqual([]);
+});
+
 test('getMentionCandidates: returns candidates in priority order', async () => {
   // Setup
   setScryOutputs([initResponse]);

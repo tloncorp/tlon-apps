@@ -2634,6 +2634,27 @@ export const getChatMember = createReadQuery(
   ['chatMembers', 'chatMemberGroupRoles']
 );
 
+export const getJoinedGroupSeats = createReadQuery(
+  'getJoinedGroupSeats',
+  async ({ contactIds }: { contactIds: string[] }, ctx: QueryCtx) => {
+    if (contactIds.length === 0) return [];
+    return ctx.db
+      .select({
+        groupId: $chatMembers.chatId,
+        contactId: $chatMembers.contactId,
+      })
+      .from($chatMembers)
+      .where(
+        and(
+          eq($chatMembers.membershipType, 'group'),
+          eq($chatMembers.status, 'joined'),
+          inArray($chatMembers.contactId, contactIds)
+        )
+      );
+  },
+  ['chatMembers']
+);
+
 export const addChatMembers = createWriteQuery(
   'addChatMembers',
   async (

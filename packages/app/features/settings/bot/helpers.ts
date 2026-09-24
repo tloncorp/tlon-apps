@@ -107,6 +107,77 @@ export const hasGroupMembership = (
   return Object.prototype.hasOwnProperty.call(hostGroups, group);
 };
 
+// `departed`: the bot was in the group (it has saved rules there) but has been
+// kicked or has left. `unknown`: nothing has loaded that can say either way.
+export type BotGroupMembership =
+  | 'member'
+  | 'departed'
+  | 'not-member'
+  | 'unknown';
+
+export type BotGroupMembershipResolver = (
+  host: string,
+  group: string,
+  hasSavedRules: boolean
+) => BotGroupMembership;
+
+// Combines the two membership signals. The user's local copy of a group's
+// roster comes from the group host, so a kick or leave drops the moon from it
+// at once, and a join adds it before the moon's own channel listing catches up.
+// The roster is only complete for groups the user has joined (proven by their
+// own seat), so it decides whenever it can. Otherwise fall back to the moon's
+// listing, which lags joins and omits groups whose channels the moon can't
+// read — so there, saved rules also count as membership.
+export const buildBotGroupMembershipResolver = ({
+  seats,
+  currentUserId,
+  moon,
+  moonChannels,
+}: {
+  seats: { groupId: string | null; contactId: string }[] | undefined;
+  currentUserId: string;
+  moon: string | null;
+  moonChannels: TlawnChannelGroups | undefined;
+}): BotGroupMembershipResolver => {
+  const userGroups = new Set<string>();
+  const moonGroups = new Set<string>();
+  seats?.forEach(({ groupId, contactId }) => {
+    if (!groupId) return;
+    if (contactId === currentUserId) userGroups.add(groupId);
+    if (contactId === moon) moonGroups.add(groupId);
+  });
+
+  return (host, group, hasSavedRules) => {
+    const groupId = `${formatChannelHost(host)}/${group}`;
+    if (moon && userGroups.has(groupId)) {
+      if (moonGroups.has(groupId)) return 'member';
+      return hasSavedRules ? 'departed' : 'not-member';
+    }
+    if (moonChannels && hasGroupMembership(moonChannels, host, group)) {
+      return 'member';
+    }
+    if (hasSavedRules) return 'member';
+    return moonChannels ? 'not-member' : 'unknown';
+  };
+};
+
+// The keys in `drafts` whose channel is in this group, placing each rule the
+// same way groupChannelEntries does.
+export const getGroupChannelRuleKeys = (
+  groups: TlawnChannelGroups,
+  host: string,
+  group: string,
+  drafts: Record<string, ChannelRuleDraft>
+): string[] =>
+  Object.keys(drafts).filter((key) => {
+    const parsed = parseChannelRuleKey(key);
+    return (
+      parsed !== null &&
+      formatChannelHost(parsed.host) === formatChannelHost(host) &&
+      resolveGroupForChannel(groups, parsed.host, parsed.channelId) === group
+    );
+  });
+
 export const normalizeChannelRuleKey = (key: string): string => {
   const parsed = parseChannelRuleKey(key);
   if (!parsed) return key;
