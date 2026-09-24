@@ -9,7 +9,7 @@ import * as api from '@tloncorp/api';
 import { desig, preSig } from '@tloncorp/api/lib/urbit';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
 import { mcpProviderQueryKeys } from '../../../lib/mcpProviders';
@@ -185,10 +185,14 @@ export type BotSettingsQueries = ReturnType<typeof useBotSettingsQueries>;
 /**
  * Whether the bot moon is in a given group, from the user's local copy of the
  * group roster and the moon's own channel listing (see
- * buildBotGroupMembershipResolver). `refreshMembership` re-reads both, for
- * polling after a join.
+ * buildBotGroupMembershipResolver). Fetches the full roster of each group in
+ * `verifyGroupIds` (once per session) so a departure there can be confirmed.
+ * `refreshMembership` re-reads both sources, for polling after a join.
  */
-export function useBotGroupMembership(queries: BotSettingsQueries) {
+export function useBotGroupMembership(
+  queries: BotSettingsQueries,
+  verifyGroupIds: string[] = []
+) {
   const currentUserId = preSig(useCurrentUserId());
   const { moon } = queries;
   const contactIds = useMemo(
@@ -196,8 +200,22 @@ export function useBotGroupMembership(queries: BotSettingsQueries) {
     [currentUserId, moon]
   );
   const { data: seats } = store.useJoinedGroupSeats(contactIds);
+  const sessionStartTime = store.useCurrentSession()?.startTime;
   const moonChannels = queries.moonChannelsQuery.data;
   const refetchMoonChannels = queries.moonChannelsQuery.refetch;
+
+  const verifyKey = verifyGroupIds.join('\n');
+  useEffect(() => {
+    if (!verifyKey || sessionStartTime === undefined) return;
+    verifyKey.split('\n').forEach((groupId) => {
+      // syncGroup skips groups already fetched this session.
+      store
+        .syncGroup(groupId, { priority: store.SyncPriority.Low })
+        .catch((error) =>
+          console.error('bot settings: group sync failed', groupId, error)
+        );
+    });
+  }, [verifyKey, sessionStartTime]);
 
   const getMembership = useMemo(
     () =>
@@ -206,8 +224,9 @@ export function useBotGroupMembership(queries: BotSettingsQueries) {
         currentUserId,
         moon,
         moonChannels,
+        sessionStartTime,
       }),
-    [seats, currentUserId, moon, moonChannels]
+    [seats, currentUserId, moon, moonChannels, sessionStartTime]
   );
 
   const refreshMembership = useCallback(async () => {
@@ -222,6 +241,7 @@ export function useBotGroupMembership(queries: BotSettingsQueries) {
       currentUserId,
       moon,
       moonChannels: freshMoonChannels,
+      sessionStartTime: store.getSession()?.startTime,
     });
   }, [refetchMoonChannels, contactIds, currentUserId, moon, getMembership]);
 

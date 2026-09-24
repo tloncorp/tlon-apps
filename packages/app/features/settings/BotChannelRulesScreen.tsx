@@ -65,7 +65,6 @@ const ruleChanged = (
 export function BotChannelRulesScreen(props: Props) {
   const isWindowNarrow = useIsWindowNarrow();
   const queries = useBotSettingsQueries();
-  const { getMembership, refreshMembership } = useBotGroupMembership(queries);
   // Sync the draft from the server before editing so reaching this screen
   // directly (cold launch / deep link) doesn't start from an empty draft and
   // wipe existing chat settings on save. Gate edits on `initialized`.
@@ -97,6 +96,28 @@ export function BotChannelRulesScreen(props: Props) {
   const groups = useMemo(
     () => groupChannelEntries(rawGroups, drafts),
     [rawGroups, drafts]
+  );
+  // Saved rules are what would go stale if the bot left, so confirm those
+  // groups' membership against their full rosters.
+  const groupIdsWithSavedRules = useMemo(
+    () =>
+      groups
+        .filter(
+          (group) =>
+            group.group !== 'unknown' &&
+            getGroupChannelRuleKeys(
+              rawGroups,
+              group.host,
+              group.group,
+              baselineDrafts
+            ).length > 0
+        )
+        .map((group) => `${formatChannelHost(group.host)}/${group.group}`),
+    [groups, rawGroups, baselineDrafts]
+  );
+  const { getMembership, refreshMembership } = useBotGroupMembership(
+    queries,
+    groupIdsWithSavedRules
   );
 
   const filteredGroups = useMemo(() => {

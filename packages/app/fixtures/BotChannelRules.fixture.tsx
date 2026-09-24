@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { TlawnChannelGroups } from '@tloncorp/api';
 import { queryClient } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { PropsWithChildren, useEffect, useState } from 'react';
 import { useFixtureSelect } from 'react-cosmos/client';
 import { View, useWindowDimensions } from 'react-native';
@@ -75,7 +76,23 @@ function seedBotQueries() {
   });
 }
 
+const GROUP_IDS = ['~zod/lounge', '~zod/garden', '~zod/studio'];
+const SESSION_START = Date.now();
+
 async function seedRoster(kicked: boolean) {
+  // Mark each group's full roster as fetched this session, so a missing seat
+  // counts as a departure (and syncGroup skips the refetch).
+  await db.insertGroups({
+    groups: GROUP_IDS.map((id) => ({
+      id,
+      currentUserIsMember: true,
+      currentUserIsHost: true,
+      hostUserId: USER,
+    })),
+  });
+  for (const id of GROUP_IDS) {
+    await db.updateGroup({ id, syncedAt: SESSION_START + 1 });
+  }
   await db.addChatMembers({
     chatId: '~zod/lounge',
     contactIds: [USER, MOON],
@@ -114,11 +131,18 @@ function SeededBot({
 
   useEffect(() => {
     const previousCurrentUserId = window.our;
+    const previousSession = store.getSession();
     window.our = USER;
+    store.updateSession({ startTime: SESSION_START });
     seedBotQueries();
     seedRoster(kicked).then(() => setReady(true));
     return () => {
       window.our = previousCurrentUserId;
+      if (previousSession) {
+        store.setSession(previousSession);
+      } else {
+        store.updateSession(null);
+      }
     };
   }, [kicked]);
 

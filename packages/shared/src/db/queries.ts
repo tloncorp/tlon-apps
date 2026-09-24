@@ -2642,8 +2642,11 @@ export const getJoinedGroupSeats = createReadQuery(
       .select({
         groupId: $chatMembers.chatId,
         contactId: $chatMembers.contactId,
+        // When the group's full roster was last fetched (see syncGroup).
+        syncedAt: $groups.syncedAt,
       })
       .from($chatMembers)
+      .leftJoin($groups, eq($groups.id, $chatMembers.chatId))
       .where(
         and(
           eq($chatMembers.membershipType, 'group'),
@@ -2654,7 +2657,7 @@ export const getJoinedGroupSeats = createReadQuery(
         )
       );
   },
-  ['chatMembers']
+  ['chatMembers', 'groups']
 );
 
 export const addChatMembers = createWriteQuery(
@@ -2942,43 +2945,34 @@ export const removeChatMembers = createWriteQuery(
 );
 
 // insertGroups only upserts members, so a seat removed while this client
-// wasn't listening (a kick or leave during a long offline stretch) would never
-// be deleted. A full group snapshot (init, changes) lists every member, so
-// drop stored seats it doesn't include. A snapshot with no joined members
-// can't be a joined group's full roster, so leave those groups alone.
+// wasn't listening (a kick or leave during a long offline stretch) is never
+// deleted. Given a group's full roster (`keepIds`), drop the stored seats it
+// omits. Only `candidateIds` — seats stored before the roster was requested —
+// can go, so a seat added by a live event in the meantime survives. Init and
+// changes truncate large groups' seats, so only pass a full per-group fetch.
 export const deleteAbsentGroupMembers = createWriteQuery(
   'deleteAbsentGroupMembers',
   async (
-    { groups }: { groups: Pick<Group, 'id' | 'members'>[] },
+    {
+      groupId,
+      keepIds,
+      candidateIds,
+    }: { groupId: string; keepIds: string[]; candidateIds: string[] },
     ctx: QueryCtx
   ) => {
+    const keep = new Set(keepIds);
+    const absent = candidateIds.filter((contactId) => !keep.has(contactId));
     const batchSize = 200;
-    for (const group of groups) {
-      const members = group.members ?? [];
-      if (!members.some((member) => member.status === 'joined')) continue;
-      const keep = new Set(members.map((member) => member.contactId));
-      const stored = await ctx.db
-        .select({ contactId: $chatMembers.contactId })
-        .from($chatMembers)
+    for (let i = 0; i < absent.length; i += batchSize) {
+      await ctx.db
+        .delete($chatMembers)
         .where(
           and(
-            eq($chatMembers.chatId, group.id),
-            eq($chatMembers.membershipType, 'group')
+            eq($chatMembers.chatId, groupId),
+            eq($chatMembers.membershipType, 'group'),
+            inArray($chatMembers.contactId, absent.slice(i, i + batchSize))
           )
         );
-      const absent = stored
-        .map((row) => row.contactId)
-        .filter((contactId) => !keep.has(contactId));
-      for (let i = 0; i < absent.length; i += batchSize) {
-        await ctx.db
-          .delete($chatMembers)
-          .where(
-            and(
-              eq($chatMembers.chatId, group.id),
-              inArray($chatMembers.contactId, absent.slice(i, i + batchSize))
-            )
-          );
-      }
     }
   },
   ['chatMembers', 'groups']
@@ -4497,11 +4491,6 @@ export const insertChanges = createWriteQuery(
             await perfTime(
               'insertChanges.groups',
               () => insertGroups({ groups: input.groups }, txCtx),
-              { count: input.groups.length }
-            );
-            await perfTime(
-              'insertChanges.deleteAbsentGroupMembers',
-              () => deleteAbsentGroupMembers({ groups: input.groups }, txCtx),
               { count: input.groups.length }
             );
             await perfTime(

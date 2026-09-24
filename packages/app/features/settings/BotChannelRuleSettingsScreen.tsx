@@ -31,6 +31,7 @@ import {
 } from './bot/constants';
 import {
   ChannelRuleDraft,
+  formatChannelHost,
   formatShipList,
   getErrorMessage,
   getGroupChannelRuleKeys,
@@ -76,7 +77,6 @@ export function BotChannelRuleSettingsScreen(props: Props) {
   } = props.route.params;
   const isWindowNarrow = useIsWindowNarrow();
   const queries = useBotSettingsQueries();
-  const { getMembership } = useBotGroupMembership(queries);
   // Sync the draft from the server before editing: a restored stack / deep link
   // can mount this per-channel screen without the list having initialized the
   // store, and enabling this channel from an empty draft would drop the rest of
@@ -146,16 +146,16 @@ export function BotChannelRuleSettingsScreen(props: Props) {
   // Membership can change while this screen is open (a Join completing on the
   // rules screen, a kick), so derive it live, the same way the rules screen
   // does for the whole group.
-  const membership = useMemo(() => {
+  const channelGroup = useMemo(() => {
     const parsed = parseChannelRuleKey(channelKey);
     const channels = queries.channelsQuery.data;
-    if (!parsed || !channels) return 'unknown';
+    if (!parsed || !channels) return null;
     const group = resolveGroupForChannel(
       channels,
       parsed.host,
       parsed.channelId
     );
-    if (!group) return 'unknown';
+    if (!group) return null;
     const hasSavedRules =
       getGroupChannelRuleKeys(
         channels,
@@ -163,13 +163,29 @@ export function BotChannelRuleSettingsScreen(props: Props) {
         group,
         draft.baseline.chat.channelRuleDrafts
       ).length > 0;
-    return getMembership(parsed.host, group, hasSavedRules);
+    return {
+      host: parsed.host,
+      group,
+      id: `${formatChannelHost(parsed.host)}/${group}`,
+      hasSavedRules,
+    };
   }, [
     channelKey,
     draft.baseline.chat.channelRuleDrafts,
     queries.channelsQuery.data,
-    getMembership,
   ]);
+  const verifyGroupIds = useMemo(
+    () => (channelGroup?.hasSavedRules ? [channelGroup.id] : []),
+    [channelGroup]
+  );
+  const { getMembership } = useBotGroupMembership(queries, verifyGroupIds);
+  const membership = channelGroup
+    ? getMembership(
+        channelGroup.host,
+        channelGroup.group,
+        channelGroup.hasSavedRules
+      )
+    : 'unknown';
   // Until membership resolves (or for a channel no listed group contains), keep
   // the value captured at navigation time rather than flipping a joined
   // channel to read-only.

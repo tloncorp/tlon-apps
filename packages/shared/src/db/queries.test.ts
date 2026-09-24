@@ -9,7 +9,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import * as schema from '../db/schema';
 import { useDebugStore } from '../debug';
 import { AnalyticsEvent } from '../domain';
-import { syncContacts, syncInitData } from '../store/sync';
+import { syncContacts, syncGroup, syncInitData } from '../store/sync';
 import { keyFromQueryDeps } from '../store/useKeyFromQueryDeps';
 import contactBookResponse from '../test/contactBook.json';
 import contactsDirectoryResponse from '../test/contactsDirectory.json';
@@ -1986,9 +1986,9 @@ test('getJoinedGroupSeats: returns joined group seats for the given contacts', a
     contactIds: [user, moon],
   });
   expect(seats.sort(bySeat)).toEqual([
-    { groupId: '~zod/legacy', contactId: moon },
-    { groupId: '~zod/shared', contactId: moon },
-    { groupId: '~zod/shared', contactId: user },
+    { groupId: '~zod/legacy', contactId: moon, syncedAt: null },
+    { groupId: '~zod/shared', contactId: moon, syncedAt: null },
+    { groupId: '~zod/shared', contactId: user, syncedAt: null },
   ]);
 
   // A kick arrives as a seat removal.
@@ -1997,30 +1997,17 @@ test('getJoinedGroupSeats: returns joined group seats for the given contacts', a
     contactIds: [moon],
   });
   expect(await queries.getJoinedGroupSeats({ contactIds: [moon] })).toEqual([
-    { groupId: '~zod/legacy', contactId: moon },
+    { groupId: '~zod/legacy', contactId: moon, syncedAt: null },
   ]);
   expect(await queries.getJoinedGroupSeats({ contactIds: [] })).toEqual([]);
 });
 
-test('deleteAbsentGroupMembers: drops seats missing from a full group snapshot', async () => {
+test('deleteAbsentGroupMembers: drops only candidate seats the roster omits', async () => {
   const user = '~zod';
   const moon = '~doznec-dozzod-zod';
-  const seat = (chatId: string, contactId: string) => ({
-    chatId,
-    contactId,
-    membershipType: 'group' as const,
-    status: 'joined' as const,
-    joinedAt: null,
-  });
   await queries.addChatMembers({
     chatId: '~zod/kicked',
-    contactIds: [user, moon],
-    type: 'group',
-    joinStatus: 'joined',
-  });
-  await queries.addChatMembers({
-    chatId: '~zod/partial',
-    contactIds: [user, moon],
+    contactIds: [user, moon, '~bus'],
     type: 'group',
     joinStatus: 'joined',
   });
@@ -2031,67 +2018,57 @@ test('deleteAbsentGroupMembers: drops seats missing from a full group snapshot',
     joinStatus: 'joined',
   });
 
+  // ~bus joined after the roster was requested, so it isn't a candidate.
   await queries.deleteAbsentGroupMembers({
-    groups: [
-      // The bot was kicked while this client was offline.
-      { id: '~zod/kicked', members: [seat('~zod/kicked', user)] },
-      // No joined seats: not a full roster, so nothing is reconciled.
-      {
-        id: '~zod/partial',
-        members: [{ ...seat('~zod/partial', user), status: 'invited' }],
-      },
-    ],
+    groupId: '~zod/kicked',
+    keepIds: [user],
+    candidateIds: [user, moon],
   });
 
-  const moonRows = await queries.getJoinedGroupSeats({ contactIds: [moon] });
-  expect(moonRows.map((row) => row.groupId)).toEqual(['~zod/partial']);
   const client = getClient();
   if (!client) throw new Error('test db client not initialized');
-  const remaining = await client.query.chatMembers.findMany({
-    where: $.eq(schema.chatMembers.contactId, moon),
-  });
+  const remaining = await client.query.chatMembers.findMany();
   expect(
-    remaining.map((row) => `${row.chatId} ${row.membershipType}`).sort()
-  ).toEqual(['chat/~zod/general channel', '~zod/partial group']);
-  expect(
-    await queries.getJoinedGroupSeats({ contactIds: [user] })
-  ).toHaveLength(2);
+    remaining.map((row) => `${row.chatId} ${row.contactId}`).sort()
+  ).toEqual([
+    'chat/~zod/general ~doznec-dozzod-zod',
+    '~zod/kicked ~bus',
+    '~zod/kicked ~zod',
+  ]);
 });
 
-test('insertChanges: reconciles the roster of each changed group', async () => {
+test('syncGroup: clears seats the full roster no longer lists', async () => {
+  const groupId = '~fabled-faster/new-york';
+  const member = '~solfer-magfed';
   const moon = '~doznec-dozzod-zod';
+  const client = getClient();
+  if (!client) throw new Error('test db client not initialized');
+  await client.insert(schema.groups).values({
+    id: groupId,
+    currentUserIsMember: true,
+    currentUserIsHost: false,
+    hostUserId: '~fabled-faster',
+  });
+  // The stored roster predates the bot's kick.
   await queries.addChatMembers({
-    chatId: '~zod/changed',
-    contactIds: ['~zod', moon],
+    chatId: groupId,
+    contactIds: [member, moon],
     type: 'group',
     joinStatus: 'joined',
   });
 
-  await queries.insertChanges({
-    groups: [
-      {
-        id: '~zod/changed',
-        currentUserIsMember: true,
-        currentUserIsHost: true,
-        hostUserId: '~zod',
-        members: [
-          {
-            chatId: '~zod/changed',
-            contactId: '~zod',
-            membershipType: 'group',
-            status: 'joined',
-            joinedAt: null,
-          },
-        ],
-      },
-    ],
-    posts: [],
-    contacts: [],
-    unreads: { groupUnreads: [], channelUnreads: [], threadActivity: [] },
-    deletedChannelIds: [],
-  });
+  const response = (groupsResponse as unknown as Record<string, ub.GroupV11>)[
+    groupId
+  ];
+  setScryOutputs([
+    { ...response, seats: { [member]: { roles: [], joined: 1 } } },
+  ]);
+  await syncGroup(groupId, undefined, { force: true });
 
   expect(await queries.getJoinedGroupSeats({ contactIds: [moon] })).toEqual([]);
+  const [seat] = await queries.getJoinedGroupSeats({ contactIds: [member] });
+  expect(seat.groupId).toBe(groupId);
+  expect(seat.syncedAt).not.toBeNull();
 });
 
 test('getMentionCandidates: returns candidates in priority order', async () => {

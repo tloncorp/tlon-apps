@@ -34,6 +34,20 @@ export async function syncGroup(
     );
     await batchEffects('syncGroup', async (ctx) => {
       await db.insertGroups({ groups: [response] }, ctx);
+      // Unlike init and changes, this fetch carries the group's full roster,
+      // so it can clear out seats removed while we weren't listening.
+      const members = response.members ?? [];
+      if (members.some((member) => member.status === 'joined')) {
+        await db.deleteAbsentGroupMembers(
+          {
+            groupId: id,
+            keepIds: members.map((member) => member.contactId),
+            candidateIds:
+              group?.members?.map((member) => member.contactId) ?? [],
+          },
+          ctx
+        );
+      }
       await db.updateGroup({ id, syncedAt: Date.now() }, ctx);
       updateLastActivityTime();
     });

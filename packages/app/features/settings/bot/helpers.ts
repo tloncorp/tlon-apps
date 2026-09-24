@@ -122,28 +122,45 @@ export type BotGroupMembershipResolver = (
 ) => BotGroupMembership;
 
 // Combines the two membership signals. The user's local copy of a group's
-// roster comes from the group host, so a kick or leave drops the moon from it
-// at once, and a join adds it before the moon's own channel listing catches up.
-// The roster is only complete for groups the user has joined (proven by their
-// own seat), so it decides whenever it can. Otherwise fall back to the moon's
-// listing, which lags joins and omits groups whose channels the moon can't
-// read — so there, saved rules also count as membership.
+// roster comes from the group host: a join adds the moon's seat before the
+// moon's own channel listing catches up, and a kick or leave removes it. A
+// stored moon seat (alongside the user's own) therefore means member. Its
+// absence only means departed once the group's full roster has been fetched
+// this session (`syncedAt` after `sessionStartTime`) — init and changes carry
+// just 15 seats for large groups, and a kick missed while offline is only
+// cleared by that fetch. Otherwise fall back to the moon's listing, which lags
+// joins and omits groups whose channels the moon can't read, so there saved
+// rules also count as membership.
 export const buildBotGroupMembershipResolver = ({
   seats,
   currentUserId,
   moon,
   moonChannels,
+  sessionStartTime,
 }: {
-  seats: { groupId: string | null; contactId: string }[] | undefined;
+  seats:
+    | { groupId: string | null; contactId: string; syncedAt: number | null }[]
+    | undefined;
   currentUserId: string;
   moon: string | null;
   moonChannels: TlawnChannelGroups | undefined;
+  sessionStartTime: number | undefined;
 }): BotGroupMembershipResolver => {
   const userGroups = new Set<string>();
+  const freshGroups = new Set<string>();
   const moonGroups = new Set<string>();
-  seats?.forEach(({ groupId, contactId }) => {
+  seats?.forEach(({ groupId, contactId, syncedAt }) => {
     if (!groupId) return;
-    if (contactId === currentUserId) userGroups.add(groupId);
+    if (contactId === currentUserId) {
+      userGroups.add(groupId);
+      if (
+        sessionStartTime !== undefined &&
+        syncedAt !== null &&
+        syncedAt > sessionStartTime
+      ) {
+        freshGroups.add(groupId);
+      }
+    }
     if (contactId === moon) moonGroups.add(groupId);
   });
 
@@ -151,7 +168,9 @@ export const buildBotGroupMembershipResolver = ({
     const groupId = `${formatChannelHost(host)}/${group}`;
     if (moon && userGroups.has(groupId)) {
       if (moonGroups.has(groupId)) return 'member';
-      return hasSavedRules ? 'departed' : 'not-member';
+      if (freshGroups.has(groupId)) {
+        return hasSavedRules ? 'departed' : 'not-member';
+      }
     }
     if (moonChannels && hasGroupMembership(moonChannels, host, group)) {
       return 'member';
