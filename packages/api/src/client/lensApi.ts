@@ -2,7 +2,13 @@ import { da, parse } from '@urbit/aura';
 
 import { createDevLogger } from '../lib/logger';
 import * as ub from '../urbit';
-import { BadResponseError, poke, scry, subscribe } from './urbit';
+import {
+  pokeRequest,
+  scryRequest,
+  steward,
+  subscribeRequest,
+} from './requests';
+import { BadResponseError } from './urbit';
 
 const logger = createDevLogger('lensApi', false);
 
@@ -29,9 +35,10 @@ export const toLensRun = (entry: ub.LensRunEntry): LensRun => {
 };
 
 export const getRecentLensRuns = async (count?: number): Promise<LensRun[]> => {
-  const path =
-    count && count > 0 ? `/v1/lens/recent/${count}` : '/v1/lens/recent';
-  const response = await scry<ub.LensRecentScry>({ app: 'steward', path });
+  const response =
+    count && count > 0
+      ? await scryRequest(steward.lensRecentN)<ub.LensRecentScry>({ count })
+      : await scryRequest(steward.lensRecent)<ub.LensRecentScry>({});
 
   return response.recent.map(toLensRun);
 };
@@ -39,9 +46,8 @@ export const getRecentLensRuns = async (count?: number): Promise<LensRun[]> => {
 // Paginate run history backwards: pass the oldest receivedAt (@da string)
 // from the last page to fetch everything at or after that cutoff.
 export const getLensRunsSince = async (cutoff: string): Promise<LensRun[]> => {
-  const response = await scry<ub.LensRecentScry>({
-    app: 'steward',
-    path: `/v1/lens/since/${cutoff}`,
+  const response = await scryRequest(steward.lensSince)<ub.LensRecentScry>({
+    time: cutoff,
   });
 
   return response.recent.map(toLensRun);
@@ -52,10 +58,9 @@ export const getLensRun = async (
   lensId: string
 ): Promise<LensRun | null> => {
   try {
-    const response = await scry<{ entry: ub.LensRunEntry }>({
-      app: 'steward',
-      path: `/v1/lens/run/${botShip}/${lensId}`,
-    });
+    const response = await scryRequest(steward.lensRun)<{
+      entry: ub.LensRunEntry;
+    }>({ bot: botShip, lens: lensId });
 
     return toLensRun(response.entry);
   } catch (error) {
@@ -78,12 +83,7 @@ export const retryLensRun = ({
 }: {
   botShip: string;
   lensId: string;
-}) =>
-  poke({
-    app: 'steward',
-    mark: 'steward-lens-action-1',
-    json: { retry: { bot: botShip, id: lensId } },
-  });
+}) => pokeRequest(steward.lensAction)({ retry: { bot: botShip, id: lensId } });
 
 export const subscribeToLensUpdates = async (
   handler: (runs: LensRun[]) => void
@@ -91,10 +91,7 @@ export const subscribeToLensUpdates = async (
   // Older ships don't have the %steward agent; probe with a scry so a missing
   // agent skips the subscription instead of wedging sync.
   try {
-    await scry<ub.LensRecentScry>({
-      app: 'steward',
-      path: '/v1/lens/recent',
-    });
+    await scryRequest(steward.lensRecent)<ub.LensRecentScry>({});
   } catch (error) {
     if (error instanceof BadResponseError && error.status === 404) {
       logger.trackEvent('%steward agent missing');
@@ -105,20 +102,14 @@ export const subscribeToLensUpdates = async (
     throw error;
   }
 
-  return subscribe<ub.LensUpdate>(
-    {
-      app: 'steward',
-      path: '/v1/lens',
-    },
-    (event) => {
-      logger.log('raw lens event', event);
-      // /v1/lens carries %entry (a stored run, for us) and %retry-requested
-      // (for the bot's own gateway); only the former concerns the client.
-      if ('entry' in event) {
-        handler([toLensRun(event.entry)]);
-      }
+  return subscribeRequest(steward.lensFeed)<ub.LensUpdate>({}, (event) => {
+    logger.log('raw lens event', event);
+    // /v1/lens carries %entry (a stored run, for us) and %retry-requested
+    // (for the bot's own gateway); only the former concerns the client.
+    if ('entry' in event) {
+      handler([toLensRun(event.entry)]);
     }
-  );
+  });
 };
 
 function parseReceived(received: string): number {
