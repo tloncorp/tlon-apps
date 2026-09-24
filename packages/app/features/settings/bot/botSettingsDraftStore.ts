@@ -4,11 +4,7 @@ import create from 'zustand';
 // (and through it expo-modules-core) — the draft store is plain state and
 // stays importable on its own.
 import type { BotSettingsPendingFields } from './botSettingsDraftHelpers';
-import type {
-  ChannelRuleDraft,
-  ChatFormValues,
-  ModelFormValues,
-} from './helpers';
+import type { ChatFormValues, ModelFormValues } from './helpers';
 
 export type BotSettingsDraftValues = {
   nickname: string;
@@ -27,13 +23,6 @@ export const EMPTY_VALUES: BotSettingsDraftValues = {
     autoDiscoverChannels: false,
     channelRuleDrafts: {},
   },
-};
-
-// A departed group's draft rules as they were before Clear rules, and its
-// saved rules (by value) at the time, so Undo can restore unapplied edits.
-export type ClearedGroupRules = {
-  rules: Record<string, ChannelRuleDraft>;
-  saved: string;
 };
 
 export const clone = (values: BotSettingsDraftValues): BotSettingsDraftValues =>
@@ -109,15 +98,6 @@ interface BotSettingsDraftStore {
   // start a concurrent apply and restart the gateway twice.
   applying: boolean;
   applyError: string | null;
-  // Keyed by group (~host/name). Kept with the draft rather than in the
-  // Channel rules screen, which unmounts on mobile Back, and reset whenever
-  // the draft is.
-  clearedGroupRules: Record<string, ClearedGroupRules>;
-  setClearedGroupRules: (
-    updater: (
-      current: Record<string, ClearedGroupRules>
-    ) => Record<string, ClearedGroupRules>
-  ) => void;
   setApplying: (applying: boolean) => void;
   setApplyError: (error: string | null) => void;
   syncServerValues: (scopeKey: string, values: BotSettingsDraftValues) => void;
@@ -139,12 +119,6 @@ export const useBotSettingsDraftStore = create<BotSettingsDraftStore>(
     draft: EMPTY_VALUES,
     applying: false,
     applyError: null,
-    clearedGroupRules: {},
-    setClearedGroupRules: (updater) => {
-      const current = get().clearedGroupRules;
-      const next = updater(current);
-      if (next !== current) set({ clearedGroupRules: next });
-    },
     setApplying: (applying) => set({ applying }),
     setApplyError: (applyError) => set({ applyError }),
     syncServerValues: (scopeKey, values) => {
@@ -170,7 +144,6 @@ export const useBotSettingsDraftStore = create<BotSettingsDraftStore>(
         initialized: true,
         baseline: clone(values),
         draft: clone(values),
-        clearedGroupRules: {},
       });
     },
     commitDraft: (updater) => {
@@ -181,7 +154,7 @@ export const useBotSettingsDraftStore = create<BotSettingsDraftStore>(
     },
     discardChanges: () => {
       const current = get();
-      set({ draft: clone(current.baseline), clearedGroupRules: {} });
+      set({ draft: clone(current.baseline) });
     },
     // Advance the baseline for a section that just saved, and normalize that
     // section of the draft to match (e.g. a trimmed nickname). Only the patched
@@ -207,6 +180,5 @@ export function resetBotSettingsDraft() {
     draft: EMPTY_VALUES,
     applying: false,
     applyError: null,
-    clearedGroupRules: {},
   });
 }
