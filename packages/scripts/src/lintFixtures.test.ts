@@ -18,7 +18,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 // plugin decides scope and import zones from a file's repo-relative path, so
 // the fixtures are laid out as the tree they stand for (packages/app/...,
 // apps/tlon-web/src/...) and copied, with the plugin, into a scratch root.
-// Each fixture's first line names the rule it must trip, or `none`.
+// Each fixture's first line names the rules it must trip, or `none`.
 
 const REPO_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -38,11 +38,11 @@ function listFiles(dir: string): string[] {
 
 function expectation(file: string) {
   const first = readFileSync(file, 'utf8').split('\n', 1)[0];
-  const match = /^\/\/ expect: (\S+)$/.exec(first);
+  const match = /^\/\/ expect: (\S+(?:, \S+)*)$/.exec(first);
   if (!match) {
-    throw new Error(`${file} does not start with // expect: <rule|none>`);
+    throw new Error(`${file} does not start with // expect: <rules|none>`);
   }
-  return match[1];
+  return match[1].split(', ').sort().join(', ');
 }
 
 // `tlon(no-raw-desk-request)` -> `tlon/no-raw-desk-request`
@@ -101,7 +101,7 @@ const fixtures = listFiles(FIXTURES).map((file) => ({
 
 describe('no-raw-desk-request fixtures', () => {
   test('the suite covers both rules and clean files', () => {
-    const kinds = new Set(fixtures.map((f) => f.expected));
+    const kinds = new Set(fixtures.flatMap((f) => f.expected.split(', ')));
     expect([...kinds].sort()).toEqual(['none', ...RULES].sort());
   });
 
@@ -111,7 +111,7 @@ describe('no-raw-desk-request fixtures', () => {
       expect(reported).toEqual([]);
     } else {
       expect(reported.length).toBeGreaterThan(0);
-      expect(new Set(reported)).toEqual(new Set([expected]));
+      expect([...new Set(reported)].sort().join(', ')).toEqual(expected);
     }
   });
 });

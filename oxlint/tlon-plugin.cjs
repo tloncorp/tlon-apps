@@ -69,11 +69,16 @@ const BOUNDARY_ZONES = [
   ['packages/shared/src/db', 'packages/shared/src/store'],
 ];
 
-// The desk request registry covers the app roots only. Bot-facing modules
-// listed in desk-request-scope.json keep their raw requests and must stay
+// The desk request registry covers app code only (desk-request-scope.json).
+// Bot-facing modules listed there keep their raw requests and must stay
 // unreachable from app code, directly or through packages/openclaw.
 const DESK_REQUEST_SCOPE = require('./desk-request-scope.json');
-const APP_ROOTS = DESK_REQUEST_SCOPE.appRoots;
+// The app roots plus every workspace package they consume: code in any of
+// them ends up in the app, so none may reach a raw request or a bot module.
+const APP_ROOTS = [
+  ...DESK_REQUEST_SCOPE.appRoots,
+  ...DESK_REQUEST_SCOPE.consumedPackages,
+];
 const EXCLUDED_MODULES = DESK_REQUEST_SCOPE.excludedModules;
 
 const RESTRICTED_ZONES = [
@@ -116,7 +121,15 @@ function toPosix(p) {
 // `import('x')` may carry a no-substitution template literal, which has no
 // `.value`; read the single quasi so that form is checked too.
 function specifierOf(node) {
-  const src = node.source;
+  let src = node.source;
+  // `require('x' as const)` and `import(('x'))` name the same module.
+  while (
+    src &&
+    (TS_EXPRESSION_WRAPPERS.has(src.type) ||
+      src.type === 'ParenthesizedExpression')
+  ) {
+    src = src.expression;
+  }
   if (!src) {
     return undefined;
   }
@@ -411,11 +424,15 @@ function createNoRawDeskRequest(context) {
     },
     CallExpression(node) {
       if (
-        node.callee.type === 'Identifier' &&
-        node.callee.name === 'require' &&
-        node.arguments.length === 1 &&
-        wrapperOf(specifierOf({ source: node.arguments[0] }))
+        node.callee.type !== 'Identifier' ||
+        node.callee.name !== 'require' ||
+        node.arguments.length !== 1
       ) {
+        return;
+      }
+      const source = specifierOf({ source: node.arguments[0] });
+      // As with import(): a target we cannot read could be a wrapper.
+      if (source === undefined || wrapperOf(source)) {
         report(node);
       }
     },
