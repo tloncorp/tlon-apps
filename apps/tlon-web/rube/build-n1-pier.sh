@@ -397,20 +397,16 @@ for _ in $(seq 1 450); do
 done
 print_info "desk hash after:  ${hash_after:-<none>}"
 
-# A same-tag rebuild against a pier that already carries that tag is a
-# legitimate same-hash outcome: assemble-desk.sh is deterministic per tag
-# (commit.txt stamps only the tag's own commit sha; desk-deps/ and desk/ are
-# pinned by that tag's peru.yaml), so re-assembling an already-committed tag
-# yields byte-identical content, and %cz -- a pure content hash -- matches.
-# (The -F pill's pre-baked %groups desk comes from a different build
-# pipeline and is not expected to ever match byte-for-byte, so this is about
-# re-running this script, not about the pill.) When the hash didn't move,
-# fall back to kiln's own report of commit completion below instead of
-# failing outright.
-hash_moved=true
+# Every invocation removes the previous pier and boots a fresh one with -F
+# (see the boot step above), so there is no prior commit of this tag for a
+# rebuild to legitimately match: an unchanged hash can only mean the
+# kiln-commit poke never landed. Accepting it here would go on to archive the
+# -F pill's pre-baked %groups desk as the N-1 pier instead of the tag's, so
+# fail loudly rather than falling back to the version-label check below.
 if [ -z "$hash_after" ] || [ "$hash_before" = "$hash_after" ]; then
-    hash_moved=false
-    print_warning "desk hash did not change; falling back to kiln's commit-completion report"
+    print_error "%groups desk hash did not change from $hash_before; the commit never landed"
+    print_info "see $WORK_DIR/boot.log"
+    exit 1
 fi
 
 # The committed docket version is what this pier exists to carry.
@@ -428,10 +424,6 @@ if [ "$reported" != "${DESK_TAG#v}" ]; then
     exit 1
 fi
 print_status "~$SHIP reports %groups $reported"
-
-if [ "$hash_moved" = "false" ]; then
-    print_warning "desk hash unchanged but ~$SHIP reports %groups $reported; treating as a same-content recommit"
-fi
 
 # kiln has to be running the desk, not merely holding it: a desk that failed
 # to build sits there with zest %dead and the ship serves nothing.
