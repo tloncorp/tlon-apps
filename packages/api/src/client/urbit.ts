@@ -36,9 +36,11 @@ const DEFAULT_THREAD_TIMEOUT = 90 * 1000; // 90 seconds
 // rather than acting on whatever account is installed now.
 interface Session {
   client: Urbit;
+  shipName: string;
   shipUrl: string;
   getCode: ClientParams['getCode'];
   handleAuthFailure: ClientParams['handleAuthFailure'];
+  onAuthCookieChange: ClientParams['onAuthCookieChange'];
   // the login in flight, if any; every caller that fails while it runs
   // shares it
   pendingAuth: Promise<string | void> | null;
@@ -52,6 +54,11 @@ interface Session {
 
 interface Config extends Pick<ClientParams, 'onQuitOrReset'> {
   session: Session | null;
+  // Session identity as a number, for consumers outside this module. The
+  // Session object is what everything in here compares, but a callback handed
+  // to the app cannot hold it, so it gets this instead. Bumped whenever
+  // `session` is replaced -- not when the same account is reconfigured.
+  sessionGeneration: number;
   // derived from `session`: the verbs only need the client, and most of
   // them never touch the rest
   readonly client: Urbit | null;
@@ -125,6 +132,19 @@ export interface ClientParams {
   fetchFn?: typeof fetch;
   getCode?: () => Promise<string>;
   handleAuthFailure?: (params: { mustLogout: boolean }) => void;
+  // Called with every cookie a successful reauth installs, so a platform that
+  // keeps its own copy (Android's notification service reads one out of
+  // SharedPreferences) can refresh it. The identity reported is the session's
+  // own, and `clientGeneration` is what a handler compares against
+  // getClientGeneration() after its own awaits -- this callback fires inside
+  // performReauth, but a handler's writes land later, by which time the
+  // session may have been replaced.
+  onAuthCookieChange?: (params: {
+    shipName: string;
+    shipUrl: string;
+    authCookie: string;
+    clientGeneration: number;
+  }) => void;
   onQuitOrReset?: (
     cause: 'subscriptionQuit' | 'reset',
     relevantSubscription?: string
@@ -135,6 +155,7 @@ export interface ClientParams {
 
 const config: Config = {
   session: null,
+  sessionGeneration: 0,
   get client() {
     return this.session?.client ?? null;
   },
@@ -206,6 +227,13 @@ export const setActivitySupportsReactions = (value: boolean) => {
   }
 };
 
+// The generation of the currently configured session. Read this immediately
+// before acting on something a reauth produced -- with no await in between --
+// to tell whether the session it belongs to is still the live one.
+export const getClientGeneration = (): number => {
+  return config.sessionGeneration;
+};
+
 export const getActivitySupportsReactions = (): boolean => {
   return config.activitySupportsReactions;
 };
@@ -272,6 +300,7 @@ export function internalConfigureClient({
   fetchFn,
   getCode,
   handleAuthFailure,
+  onAuthCookieChange,
   onQuitOrReset,
   onChannelStatusChange,
   client: injectedClient,
@@ -286,21 +315,28 @@ export function internalConfigureClient({
     // Only a different client or ship is a switch, so a login in flight for
     // this one keeps going; and a forced logout under the previous
     // configuration must not leave reauth disabled for this one.
+    // hooks are refreshed; identity is not. client, shipName and shipUrl are
+    // what make this session the session it is, and the branch above has
+    // already established they match
     current.getCode = getCode;
     current.handleAuthFailure = handleAuthFailure;
+    current.onAuthCookieChange = onAuthCookieChange;
     current.loggingOut = false;
   } else {
     // a different account. The new object is what tells a login or retry
     // still running for the old one that it has been swapped out.
     config.session = {
       client,
+      shipName,
       shipUrl,
       getCode,
       handleAuthFailure,
+      onAuthCookieChange,
       pendingAuth: null,
       authEpoch: 0,
       loggingOut: false,
     };
+    config.sessionGeneration += 1;
   }
   config.onQuitOrReset = onQuitOrReset;
   config.subWatchers = {};
@@ -378,6 +414,7 @@ export function internalRemoveClient() {
   // a login or retry still holding this session sees that it is no longer
   // the configured one and stops; see reauth and performReauth
   config.session = null;
+  config.sessionGeneration += 1;
   config.subWatchers = {};
   // backend capabilities belong to the ship we were connected to; reset
   // so an account switch to an older backend doesn't request newer
@@ -1521,6 +1558,12 @@ async function performReauth(session: Session): Promise<string | void> {
 
     if (authCookie) {
       session.authEpoch += 1;
+      session.onAuthCookieChange?.({
+        shipName: session.shipName,
+        shipUrl: session.shipUrl,
+        authCookie,
+        clientGeneration: config.sessionGeneration,
+      });
       session.client.cookie = authCookie;
       // logging in moved us to a new session. any channel we opened under
       // the old one is either gone (eyre closed the old session's channels)
