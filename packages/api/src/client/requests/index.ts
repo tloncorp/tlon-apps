@@ -15,6 +15,7 @@ import {
 } from '../urbit';
 import { activity } from './activity';
 import { base } from './base';
+import { buckets } from './buckets';
 import { channels } from './channels';
 import { chat } from './chat';
 import { contacts } from './contacts';
@@ -33,6 +34,7 @@ export type * from './types';
 export {
   activity,
   base,
+  buckets,
   channels,
   chat,
   contacts,
@@ -60,6 +62,7 @@ export const REGISTRY = {
   steward,
   reel,
   base,
+  buckets,
 } as const;
 
 type Values<T> = T[keyof T];
@@ -191,12 +194,19 @@ export function scryNounRequest<E extends ScryReg>(entry: One<E>) {
     });
 }
 
+type SubscribeRest = [onRejected?: (error: unknown) => void];
+
 export function subscribeRequest<E extends SubscribeReg>(entry: One<E>) {
   return <T = unknown>(
     params: Params<E['path']>,
-    handler: (update: T, id?: number) => void
+    handler: (update: T, id?: number) => void,
+    ...rest: SubscribeRest
   ) =>
-    subscribe<T>({ app: entry.agent, path: fillPath(entry, params) }, handler);
+    subscribe<T>(
+      { app: entry.agent, path: fillPath(entry, params) },
+      handler,
+      ...rest
+    );
 }
 
 type SubscribeOnceRest = [

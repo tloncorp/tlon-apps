@@ -35,6 +35,6 @@ export function isVersionBelow(current: string, minimum: string): boolean {
 // become N-1, or carries a fallback tested against N-1. Raise it only as
 // part of a release, once the desk release it names has shipped and the
 // N-1 E2E job passes against it. The registry check
-// (client/requests/floor.test.ts) fails any declared desk request whose
-// `since` is above it.
+// (client/requests/floor.test.ts) fails any non-exempt declared desk request
+// whose `since` is above it unless it names a guard.
 export const MIN_GROUPS_VERSION = '12.2.0';
