@@ -1,4 +1,5 @@
 import { createDevLogger } from '../lib/logger';
+import { getDeskSupportsBuckets } from './urbit';
 import type * as db from '../types/models';
 import type * as ub from '../urbit';
 import type { BucketsSummary } from '../urbit/buckets';
@@ -40,9 +41,17 @@ export const getInitData = async () => {
   // (notebook/note sources) so a fresh init hydrates pre-existing note
   // unreads, over v11 groups so it also carries blob. Old backends don't
   // serve it.
+  // Which endpoint exists is decided by the backend's version, resolved by
+  // the capability probe before this runs — not discovered by calling and
+  // catching. A ship whose desk predates Buckets serves /v10 and not /v11,
+  // and letting that 404 escape abandons the whole high-priority batch: the
+  // client then hydrates no groups and no channels at all. /v11 is /v10 plus
+  // Buckets, so the older path degrades to Buckets arriving without their
+  // writer roles until the subscription fills them in.
+  const path = getDeskSupportsBuckets() ? '/v11/init' : '/v10/init';
   const response = await scry<ub.GroupsInit11>({
     app: 'groups-ui',
-    path: '/v11/init',
+    path,
   });
 
   logger.crumb('got init data from api');

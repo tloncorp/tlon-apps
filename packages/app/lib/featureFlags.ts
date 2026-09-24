@@ -11,15 +11,15 @@ export const featureMeta = {
     label: 'Enable collecting and reporting performance data',
     onlyTlon: false,
   },
-  contactsTab: {
-    default: false,
-    label: 'Enable contacts tab',
-    onlyTlon: false,
-  },
   markdownNotebooks: {
     default: false,
     label: 'Enable Markdown mode for notebook posts',
     onlyTlon: true,
+  },
+  buckets: {
+    default: false,
+    label: 'Enable Buckets channels',
+    onlyTlon: false,
   },
 } satisfies Record<
   string,

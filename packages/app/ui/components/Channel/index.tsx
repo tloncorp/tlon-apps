@@ -27,11 +27,13 @@ import {
   View,
   XStack,
   YStack,
+  getTokens,
   getVariableValue,
   useTheme,
 } from 'tamagui';
 
 import { useIsUserActive } from '../../../hooks/useUserActivity';
+import { useTopLevelTabBarClearance } from '../../../navigation/useTopLevelTabBarContentInset';
 import type { ChannelShareIntent } from '../../../types/shareIntent';
 import { normalizeUploadIntent } from '../../../utils/filepicker';
 import { useCurrentUserId } from '../../contexts/appDataContext';
@@ -48,10 +50,11 @@ import { FileDrop } from '../FileDrop';
 import { supportsLiquidGlass } from '../GlassSurface';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { PostCollectionView } from '../PostCollectionView';
-import SystemNotices from '../SystemNotices';
+import SystemNotices, { hasRelevantJoinRequests } from '../SystemNotices';
 import { AgentOnboardingBackTooltip } from '../Wayfinding/Notices';
 import {
   floatingPinnedPostBannerClearance,
+  getPostCollectionTopInset,
   useConversationInsets,
 } from '../conversationScrollChrome';
 import { DraftInputContext } from '../draftInputs';
@@ -273,7 +276,13 @@ interface ChannelProps {
   group: db.Group | null;
   groupIsLoading?: boolean;
   goBack: () => void;
+  /**
+   * The channel is a top-level tab's own screen: it has nothing to go back to,
+   * and the floating tab bar would otherwise cover its message input.
+   */
+  isTopLevelTab?: boolean;
   disableBackButton?: boolean;
+  onPressLogout?: () => void;
   suppressEmptyState?: boolean;
   suppressAnimatedSendScroll?: boolean;
   pendingThinkingLabel?: string;
@@ -319,7 +328,9 @@ export function Channel({
   group,
   groupIsLoading,
   goBack,
+  isTopLevelTab,
   disableBackButton,
+  onPressLogout,
   suppressEmptyState,
   suppressAnimatedSendScroll,
   pendingThinkingLabel,
@@ -372,6 +383,7 @@ export function Channel({
   const canWrite = utils.useCanWrite(channel, currentUserId);
   const canRead = utils.useCanRead(channel, currentUserId);
   const isNarrow = useIsWindowNarrow();
+  const tabBarClearance = useTopLevelTabBarClearance();
   const inView = useIsFocused();
   const collectionRef = useRef<PostCollectionHandle>(null);
   const orientationCompletePostId = useMemo(
@@ -398,6 +410,9 @@ export function Channel({
   useEffect(() => {
     if (
       disableBackButton ||
+      // The hint points at the back control. A tab root has none, so the
+      // one-shot waits for a pushed conversation that does.
+      isTopLevelTab ||
       !inView ||
       !isNarrow ||
       shownOnboardingBackTooltipsLoading ||
@@ -416,6 +431,7 @@ export function Channel({
     hasFirstGroupOnboardingRequest,
     inView,
     isNarrow,
+    isTopLevelTab,
     orientationCompletePostId,
     shownOnboardingBackTooltips,
     shownOnboardingBackTooltipsLoading,
@@ -880,14 +896,20 @@ export function Channel({
     (shouldReservePinnedPostBannerSpace
       ? floatingPinnedPostBannerClearance
       : 0);
+  const shouldRenderJoinRequestNotice =
+    !!includeJoinRequestNotice && hasRelevantJoinRequests(group);
   const postCollectionInsets = useMemo(
     () => ({
       ...contentInsets,
-      // The channel container clears floating top chrome so notices and side
-      // panels share the list's visible content boundary.
-      top: Math.max(0, contentInsets.top - sharedTopInset),
+      // Keep the scroll view beneath transparent chrome so iOS can render its
+      // top edge effect. A visible fixed notice owns that clearance instead.
+      top: getPostCollectionTopInset({
+        contentTopInset: contentInsets.top,
+        fixedLeadingContentOwnsInset: shouldRenderJoinRequestNotice,
+        sharedTopInset,
+      }),
     }),
-    [contentInsets, sharedTopInset]
+    [contentInsets, sharedTopInset, shouldRenderJoinRequestNotice]
   );
 
   return (
@@ -930,7 +952,7 @@ export function Channel({
                           description={''}
                           backDisabled={disableBackButton}
                           goBack={
-                            isNarrow ||
+                            (isNarrow && !isTopLevelTab) ||
                             draftInputPresentationMode === 'fullscreen'
                               ? handleGoBack
                               : undefined
@@ -957,6 +979,7 @@ export function Channel({
                           contextLensActive={contextLensActive}
                           showSpinner={showHeaderLoading}
                           showSearchButton={isChatChannel && !disableBackButton}
+                          onPressLogout={onPressLogout}
                         />
                         {showOnboardingBackTooltip &&
                         inView &&
@@ -993,15 +1016,21 @@ export function Channel({
                           <XStack
                             alignItems="stretch"
                             flex={1}
-                            paddingTop={sharedTopInset || undefined}
+                            paddingTop={
+                              draftInputPresentationMode === 'fullscreen'
+                                ? sharedTopInset || undefined
+                                : undefined
+                            }
                             position="relative"
                           >
                             <YStack alignItems="stretch" flex={1} minWidth={0}>
-                              {includeJoinRequestNotice && (
+                              {shouldRenderJoinRequestNotice && (
                                 <SystemNotices.ConnectedJoinRequestNotice
                                   group={group}
                                   onViewRequests={goToGroupSettings}
-                                  marginTop="$l"
+                                  marginTop={
+                                    sharedTopInset + getTokens().space.l.val
+                                  }
                                 />
                               )}
                               <AnimatePresence>
@@ -1076,6 +1105,9 @@ export function Channel({
                                 <DraftInputView
                                   draftInputContext={draftInputContext}
                                   type={draftInputType}
+                                  bottomChromeClearance={
+                                    isTopLevelTab ? tabBarClearance : 0
+                                  }
                                   onFloatingHeightChange={
                                     onFloatingHeightChange
                                   }
@@ -1100,6 +1132,7 @@ export function Channel({
                                     clearSelectedContextLensMessage
                                   }
                                   channelId={channel.id}
+                                  topInset={sharedTopInset}
                                 />
                               )}
                           </XStack>

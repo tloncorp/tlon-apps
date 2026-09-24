@@ -17,9 +17,13 @@ import type {
 
 import { type TlonCronService, getTlonCronService } from '../cron-telemetry.js';
 import { MCP_READ_TOOL_NAMES } from '../mcp-readonly-policy.js';
-import { noteIdFromDeliveryMessageId } from '../notes-delivery-state.js';
+import {
+  noteIdFromDeliveryMessageId,
+  notesDeliveryMessageId,
+} from '../notes-delivery-state.js';
 import { sharedMap } from '../shared-state.js';
 import { type Sleeper, defaultSleep } from '../sleep.js';
+import { isDmNest, normalizeShip } from '../targets.js';
 import type {
   TlonOnboardingAnswer,
   TlonOnboardingCompletionPath,
@@ -61,6 +65,7 @@ type AgentRequest =
 export type OnboardingStepReport = {
   step: TlonOnboardingStep;
   outcome?: 'ok' | 'failed';
+  provisionId?: string | null;
   purposeId?: string | null;
   topicCount?: number | null;
   timezone?: string | null;
@@ -92,9 +97,23 @@ type AgentOnboardingContext = {
    * identity and timing.
    */
   trackStep?: (report: OnboardingStepReport) => void;
+  /**
+   * Onboarding in this conversation has finished — this request posted the
+   * completing marker, or found one already in history — so the caller can
+   * stop consulting the control plane for reply-shaped messages here.
+   */
+  onConversationComplete?: () => void;
   presentation?: {
     startThinking: () => void | Promise<void>;
     stopThinking: () => void | Promise<void>;
+    /**
+     * A second presence run, keyed separately, for work that outlives this
+     * request. The request's own run is stopped when its handler returns, and
+     * the tracker tombstones that id — so the first entry, which is written
+     * afterwards by cron, cannot borrow it.
+     */
+    startBackgroundThinking?: (key: string) => void | Promise<void>;
+    stopBackgroundThinking?: (key: string) => void | Promise<void>;
     minResponseDelayMs?: number;
     minInterMessageDelayMs?: number;
   };
@@ -104,6 +123,7 @@ type AgentOnboardingDeps = {
   fetchHistory?: typeof fetchChannelHistoryOrThrow;
   getCron?: typeof getTlonCronService;
   getGroup?: (groupId: string) => Promise<OnboardingGroup>;
+  listNotes?: typeof notes.listNotes;
   now?: () => number;
   /** Injectable so pacing jitter is deterministic under test. */
   random?: () => number;
@@ -113,11 +133,10 @@ type AgentOnboardingDeps = {
 
 type AgentOnboardingCronDeps = Pick<
   AgentOnboardingDeps,
-  'fetchHistory' | 'sendPost' | 'sleep'
+  'fetchHistory' | 'listNotes' | 'sendPost' | 'sleep'
 > & {
   /** Internal recursion guard after re-entering the captured client scope. */
   inApiScope?: boolean;
-  listNotes?: typeof notes.listNotes;
 };
 
 type OnboardingGroup = {
@@ -162,6 +181,7 @@ const DEFAULT_MIN_INTER_MESSAGE_DELAY_MS = 1_750;
 const FIRST_ENTRY_TO_SERVICES_DELAY_MS = 5_500;
 const RUN_OUTCOME_WRITE_RETRY_DELAYS_MS = [100, 250, 500, 1_000] as const;
 const ADMIN_MEMBERSHIP_RETRY_DELAYS_MS = [250, 500, 1_000, 2_000] as const;
+const EMPTY_SCAN_RETRY_DELAYS_MS = [500, 1_500, 3_000] as const;
 const COMPOSE_MS_PER_CHARACTER = 14;
 const MIN_COMPOSE_DELAY_MS = 800;
 const MAX_COMPOSE_DELAY_MS = 3_500;
@@ -170,12 +190,11 @@ const READ_MS_PER_CHARACTER = 10;
 const READ_DELAY_CAP_MS = 1_500;
 const JITTER_RATIO = 0.2;
 const LEGACY_GROUP_INTRO_PREFIX = "I'm your Tlonbot.";
-const TLAWN_HOME_GROUP_WELCOME_MESSAGE =
-  'Welcome! This is your private group with me, your Tlonbot. You can @ me ' +
-  'here anytime and I will respond. Invite some friends, and they can @ me ' +
-  'too—we can all chat together.';
-const AGENT_ONBOARDING_GROUP_INTRO =
-  `${TLAWN_HOME_GROUP_WELCOME_MESSAGE}\n\n` +
+const TLONBOT_DM_WELCOME_MESSAGE =
+  'Welcome! This is your private chat with me, your Tlonbot. Ask me ' +
+  'anything here anytime.';
+const AGENT_ONBOARDING_INTRO =
+  `${TLONBOT_DM_WELCOME_MESSAGE}\n\n` +
   'I can keep you informed, help you learn, or follow a ' +
   'question over time.';
 const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What can I help you with?';
@@ -189,14 +208,11 @@ const AGENT_ONBOARDING_APP_TOUR_EXPLANATION =
 const AGENT_ONBOARDING_BOT_TOUR_PROMPT =
   'Want me to tell you more about what Tlonbot can do for you?';
 const AGENT_ONBOARDING_BOT_TOUR_EXPLANATION =
-  'I can research questions, change what this group follows, publish ' +
+  'I can research questions, change what your workspace follows, publish ' +
   'scheduled updates, help in other groups, and use connected services you ' +
   'authorize. Try asking me to adjust tomorrow’s update or investigate ' +
   'something now.';
 const AGENT_ONBOARDING_TOUR_DECLINED = 'No problem. You can ask me anytime.';
-const AGENT_GROUP_SETUP_COMPLETE =
-  'All set. Ask me here anytime if you want to change what I do, adjust the ' +
-  'schedule, or work on something else.';
 const AGENT_GROUP_SETUP_COMPLETE_MARKER = 'group-setup-complete';
 const AGENT_ONBOARDING_PURPOSE_OPTIONS = [
   {
@@ -265,6 +281,128 @@ const AGENT_ONBOARDING_PURPOSE_OPTIONS = [
   topics: readonly string[];
 }[];
 
+/**
+ * Give a newly discovered chat a short, bounded window for its durable intro
+ * request to become visible. Group membership and channel posts arrive over
+ * separate subscriptions, so the first history read can legitimately be
+ * empty. Ordinary groups exhaust this window without leaving a polling loop.
+ */
+export function createAgentOnboardingCatchUpScheduler({
+  scan,
+  abortSignal,
+  retryDelaysMs = EMPTY_SCAN_RETRY_DELAYS_MS,
+}: {
+  scan: (channelNest: string) => Promise<boolean | undefined>;
+  abortSignal?: AbortSignal;
+  retryDelaysMs?: readonly number[];
+}) {
+  const timers = new Map<string, ReturnType<typeof setTimeout>>();
+  const attempts = new Map<string, number>();
+  const flights = new Set<Promise<void>>();
+  let stopped = false;
+
+  const complete = (channelNest: string) => {
+    const timer = timers.get(channelNest);
+    if (timer) clearTimeout(timer);
+    timers.delete(channelNest);
+    attempts.delete(channelNest);
+  };
+
+  const schedule = (channelNest: string): boolean => {
+    if (stopped || abortSignal?.aborted || timers.has(channelNest))
+      return false;
+    const attempt = attempts.get(channelNest) ?? 0;
+    const delayMs = retryDelaysMs[attempt];
+    if (delayMs === undefined) {
+      attempts.delete(channelNest);
+      return false;
+    }
+    attempts.set(channelNest, attempt + 1);
+    const timer = setTimeout(() => {
+      timers.delete(channelNest);
+      if (stopped || abortSignal?.aborted) return;
+      const flight = (async () => {
+        const result = await scan(channelNest);
+        if (result === false) schedule(channelNest);
+        else complete(channelNest);
+      })();
+      flights.add(flight);
+      void flight.then(
+        () => flights.delete(flight),
+        () => {
+          flights.delete(flight);
+          complete(channelNest);
+        }
+      );
+    }, delayMs);
+    timer.unref?.();
+    timers.set(channelNest, timer);
+    return true;
+  };
+
+  const stop = () => {
+    stopped = true;
+    for (const timer of timers.values()) clearTimeout(timer);
+    timers.clear();
+    attempts.clear();
+  };
+
+  const reconcile = async (
+    channelNest: string
+  ): Promise<boolean | undefined> => {
+    if (stopped || abortSignal?.aborted) return undefined;
+    const result = await scan(channelNest);
+    if (result === false) schedule(channelNest);
+    else complete(channelNest);
+    return result;
+  };
+
+  const drain = async () => {
+    while (flights.size > 0) {
+      await Promise.allSettled([...flights]);
+    }
+  };
+
+  return { reconcile, schedule, stop, drain };
+}
+
+export function createAgentOnboardingReconciliationPresence({
+  conversationId,
+  createRunId,
+  refreshRun,
+  stopRun,
+}: {
+  conversationId: string;
+  createRunId: () => string;
+  refreshRun: (params: { conversationId: string; runId: string }) => void;
+  stopRun: (params: { conversationId: string; runId: string }) => void;
+}) {
+  let activeRunId: string | null = null;
+
+  return {
+    startThinking: () => {
+      if (activeRunId) return;
+      activeRunId = createRunId();
+      refreshRun({ conversationId, runId: activeRunId });
+    },
+    stopThinking: () => {
+      if (!activeRunId) return;
+      const runId = activeRunId;
+      activeRunId = null;
+      stopRun({ conversationId, runId });
+    },
+    // A first run restored by this scan holds presence past it through these.
+    // They key their own run, as the firehose sites do, so the request-scoped
+    // run above can stop without taking the hold with it.
+    startBackgroundThinking: (key: string) => {
+      refreshRun({ conversationId, runId: `onboarding-background:${key}` });
+    },
+    stopBackgroundThinking: (key: string) => {
+      stopRun({ conversationId, runId: `onboarding-background:${key}` });
+    },
+  };
+}
+
 type FirstRunCorrelation = {
   runId: string;
   context: AgentOnboardingScanContext;
@@ -275,14 +413,25 @@ type FirstRunCorrelation = {
   purposeId: AgentOnboardingPurposeId;
   topics: readonly string[];
   enqueuedAt: number;
+  /**
+   * Highest note id in the notebook when this run was claimed, where it could
+   * be read. Anything at or below it predates the run and cannot be its entry.
+   * Absent when a correlation is restored from a persisted record after a
+   * restart, which is not the moment to take a baseline: the run's own note
+   * may already have landed by then.
+   */
+  baselineNoteId?: number;
   /** Completion may be recorded immediately, but not presented before setup copy. */
   presentationReady: boolean;
   /** Re-enters the configured API scope when lifecycle hooks fire later. */
   runInApiScope?: TlonApiScopeRunner;
+  /** Stops the thinking presence held while the entry is being written. */
+  releaseThinking?: () => Promise<void>;
 };
 
 function correlationFunnelFields(correlation: FirstRunCorrelation) {
   return {
+    provisionId: correlation.provisionId,
     purposeId: correlation.purposeId,
     topicCount: correlation.topics.length,
     notebookNest: correlation.notebookNest,
@@ -305,6 +454,9 @@ const providerConfigFlights = sharedMap<string, Promise<void>>(
 const primaryJobIds = sharedMap<string, true>('agentOnboarding.primaryJobIds');
 const primaryJobProviderIds = sharedMap<string, string[]>(
   'agentOnboarding.primaryJobProviderIds'
+);
+const primaryJobChannelNests = sharedMap<string, string>(
+  'agentOnboarding.primaryJobChannelNests'
 );
 
 function onboardingAccountId(context: AgentOnboardingScanContext) {
@@ -335,6 +487,7 @@ export async function isAgentOnboardingCronJob(jobId: string | undefined) {
   if (durable) {
     primaryJobIds.set(jobId, true);
     primaryJobProviderIds.set(jobId, [...(durable.providerIds ?? [])]);
+    primaryJobChannelNests.set(jobId, durable.channelNest);
     return true;
   }
   const cron = getTlonCronService();
@@ -358,6 +511,66 @@ export async function agentOnboardingCronProviderIds(
     (await lookupAgentOnboardingRunByJobId(jobId))?.providerIds ?? [];
   primaryJobProviderIds.set(jobId, [...providerIds]);
   return providerIds;
+}
+
+export async function agentOnboardingCronChannelNest(
+  jobId: string | undefined
+) {
+  if (!jobId) return undefined;
+  const cached = primaryJobChannelNests.get(jobId);
+  if (cached) return cached;
+  const channelNest = (await lookupAgentOnboardingRunByJobId(jobId))
+    ?.channelNest;
+  if (channelNest) primaryJobChannelNests.set(jobId, channelNest);
+  return channelNest;
+}
+
+export { isDmNest };
+
+/**
+ * The group a DM's onboarding belongs to.
+ *
+ * A group channel's nest names its group; a DM's does not. The app posts its
+ * intro request — which names the workspace it just furnished — into the bot
+ * DM, so the newest one the owner authored is the authoritative answer. Absent
+ * until furnishing finishes, so callers retry rather than treating it as final.
+ */
+export async function findOnboardingGroupIdInChannel(
+  context: Pick<
+    AgentOnboardingScanContext,
+    'api' | 'abortSignal' | 'channelNest' | 'ownerShip'
+  >,
+  deps: Pick<AgentOnboardingDeps, 'fetchHistory'> = {}
+): Promise<string | undefined> {
+  if (!context.ownerShip) return undefined;
+  const history = await fetchOnboardingHistory(context, deps);
+
+  return history
+    .filter((entry) => entry.author === context.ownerShip && entry.blob)
+    .map((entry) => ({
+      timestamp: entry.timestamp,
+      request: parseAgentOnboardingRequest(entry.blob),
+    }))
+    .filter(
+      (
+        candidate
+      ): candidate is {
+        timestamp: number;
+        request: Extract<AgentRequest, { type: 'tlon-agent-intro-request' }>;
+      } => candidate.request?.type === 'tlon-agent-intro-request'
+    )
+    .sort((a, b) => b.timestamp - a.timestamp)[0]?.request.groupId;
+}
+
+/**
+ * Whether plain text is a picker choice typed by hand — a purpose, or an
+ * orientation answer — and so worth resolving the onboarding group for.
+ * Ordinary conversation is not, and must not pay for a history read.
+ */
+export function isAgentOnboardingReply(text: string | null | undefined) {
+  const reply = text?.trim();
+  if (!reply) return false;
+  return purposeForReply(reply) != null || isOrientationReply(reply);
 }
 
 export function parseAgentOnboardingRequest(
@@ -459,7 +672,15 @@ async function handleAgentOnboardingRequestInternal(
     context.log?.('[tlon] rejected agent provision: request was superseded');
     return true;
   }
-  await provision(context, history, request, deps, presentation);
+  try {
+    await provision(context, history, request, deps, presentation);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `agent onboarding provision ${request.provisionId} failed: ${detail}`,
+      { cause: error }
+    );
+  }
   return true;
 }
 
@@ -637,8 +858,27 @@ async function postIntro(
   presentation: OnboardingPresentation,
   isFirstGroup: boolean
 ) {
-  const needsIntro =
-    isFirstGroup && !hasPostMarker(history, context.botShip, 'intro');
+  if (!isFirstGroup) {
+    const posted = await postOnce(
+      context,
+      history,
+      AGENT_GROUP_SETUP_COMPLETE_MARKER,
+      async () => ({ text: AGENT_ONBOARDING_PURPOSE_PROMPT }),
+      deps,
+      presentation
+    );
+    if (posted) {
+      context.trackStep?.({ step: 'intro_posted' });
+      context.trackStep?.({
+        step: 'onboarding_completed',
+        completionPath: 'additional_group_completed',
+      });
+      context.onConversationComplete?.();
+    }
+    return;
+  }
+
+  const needsIntro = !hasPostMarker(history, context.botShip, 'intro');
   const hadPicker = hasPostMarker(history, context.botShip, 'purpose-picker');
   const pickerPosted = await postOnce(
     context,
@@ -646,7 +886,7 @@ async function postIntro(
     'purpose-picker',
     async () => {
       const prompt = needsIntro
-        ? `${AGENT_ONBOARDING_GROUP_INTRO}\n\n${AGENT_ONBOARDING_PURPOSE_PROMPT}`
+        ? `${AGENT_ONBOARDING_INTRO}\n\n${AGENT_ONBOARDING_PURPOSE_PROMPT}`
         : AGENT_ONBOARDING_PURPOSE_PROMPT;
       return {
         text: purposePickerFallbackText(prompt),
@@ -669,10 +909,7 @@ async function postIntro(
     presentation
   );
   if (!hadPicker && pickerPosted) {
-    if (needsIntro || !isFirstGroup) {
-      // Additional groups share the same ordered funnel vocabulary; their
-      // purpose picker is the first setup surface even though no welcome copy
-      // is needed. First groups carry both markers on the combined opening.
+    if (needsIntro) {
       context.trackStep?.({ step: 'intro_posted' });
     }
     context.trackStep?.({ step: 'purpose_picker_posted' });
@@ -779,35 +1016,8 @@ async function advanceOrientationConversation(
     hasPostMarker(history, context.botShip, 'orientation-complete') ||
     hasPostMarker(history, context.botShip, AGENT_GROUP_SETUP_COMPLETE_MARKER)
   ) {
+    context.onConversationComplete?.();
     return false;
-  }
-
-  if (!isFirstGroupSetup(history, context.ownerShip!, context.groupId!)) {
-    const servicesCard = markerPost(history, context.botShip, 'services-card');
-    if (!servicesCard) return false;
-    const completedServices = history.some(
-      (entry) =>
-        entry.author === context.ownerShip &&
-        entry.timestamp > servicesCard.timestamp &&
-        isServicesCompleteReply(entry.content)
-    );
-    if (!completedServices) return false;
-
-    const posted = await postOnce(
-      context,
-      history,
-      AGENT_GROUP_SETUP_COMPLETE_MARKER,
-      async () => ({ text: AGENT_GROUP_SETUP_COMPLETE }),
-      deps,
-      presentation
-    );
-    if (posted) {
-      context.trackStep?.({
-        step: 'onboarding_completed',
-        completionPath: 'additional_group_completed',
-      });
-    }
-    return true;
   }
 
   const botTourOffer = markerPost(history, context.botShip, 'bot-tour-offer');
@@ -841,6 +1051,7 @@ async function advanceOrientationConversation(
         completionPath:
           decision === 'yes' ? 'bot_tour_completed' : 'bot_tour_declined',
       });
+      context.onConversationComplete?.();
     }
     return true;
   }
@@ -904,6 +1115,7 @@ async function advanceOrientationConversation(
         step: 'onboarding_completed',
         completionPath: 'app_tour_declined',
       });
+      context.onConversationComplete?.();
     }
     return true;
   }
@@ -960,6 +1172,7 @@ async function provision(
   // toward the response floor instead of adding an artificial delay later.
   await presentation.start();
   const stepFacts = {
+    provisionId: request.provisionId,
     purposeId: request.purposeId,
     topicCount: request.topics.length,
     timezone: request.timezone,
@@ -1038,9 +1251,13 @@ async function provision(
       ?.title ?? request.notebookTitle
   );
   if (!existingAck) {
+    // The authenticated durable provision is proof that the owner completed
+    // the topics picker. Emit this before any cron work so a provisioning
+    // failure appears as drop-off after topic submission.
+    context.trackStep?.({ step: 'topics_submitted', ...stepFacts });
+
     // Validation succeeded and this provision has not already been
-    // acknowledged. Reconciliation can replay the same durable request, so
-    // emit the successful funnel step only on the first pass.
+    // acknowledged. Reconciliation can replay the same durable request.
     if (!cron) throw new Error('cron service is not available');
     const providerConfig = findLatestProviderConfig(
       history,
@@ -1061,6 +1278,7 @@ async function provision(
       request,
       notebookName,
       deps.now?.() ?? Date.now(),
+      deps.listNotes ?? notes.listNotes,
       providerConfig?.providerIds ?? []
     );
     // Another reconciliation pass owns a fresh atomic claim. Keep the durable
@@ -1424,6 +1642,25 @@ async function failFirstRunCorrelation(
       })
     );
   }
+  await correlation.releaseThinking?.();
+  const recoveredNoteId = await recoverDeliveredFirstRunNote(
+    correlation,
+    deps.listNotes ?? notes.listNotes
+  );
+  if (recoveredNoteId !== undefined) {
+    correlation.context.log?.(
+      `[tlon] first-run delivery reported failure but note ${recoveredNoteId} ` +
+        `landed in ${correlation.notebookNest}; completing instead`
+    );
+    // Hand it down the ordinary success path by the id it would have carried
+    // had delivery reported one.
+    return completeFirstRunCorrelation(
+      correlationRunId,
+      correlation,
+      notesDeliveryMessageId(correlation.context.botShip, recoveredNoteId),
+      deps
+    );
+  }
   if (await retireSupersededFirstRun(correlationRunId, correlation, 'failed')) {
     return;
   }
@@ -1440,7 +1677,7 @@ async function failFirstRunCorrelation(
     async () => ({
       text:
         `I couldn’t publish the first entry to ${correlation.notebookName}. ` +
-        'You can keep using this group; I’ll try again at the next scheduled time.',
+        'Your workspace still works; I’ll try again at the next scheduled time.',
     }),
     runDeps
   );
@@ -1622,6 +1859,7 @@ async function completeFirstRunCorrelation(
       )
     );
   }
+  await correlation.releaseThinking?.();
   if (
     await retireSupersededFirstRun(correlationRunId, correlation, 'completed')
   ) {
@@ -1654,12 +1892,12 @@ async function completeFirstRunCorrelation(
         // card be a bonus rather than the whole message.
         const title = newest?.title?.trim();
         const message = title
-          ? `Your first entry is ready: “${title}” in ${notebookName}, this ` +
-            'group’s notebook. That notebook is where everything I write ' +
-            'for you lands; this chat is for talking to me.'
-          : `Your first entry is ready in ${notebookName}, this group’s ` +
-            'notebook. That notebook is where everything I write for you ' +
-            'lands; this chat is for talking to me.';
+          ? `Your first entry is ready: “${title}” in ${notebookName}, the ` +
+            'notebook in your workspace. That notebook is where everything ' +
+            'I write for you lands; this chat is for talking to me.'
+          : `Your first entry is ready in ${notebookName}, the notebook in ` +
+            'your workspace. That notebook is where everything I write for ' +
+            'you lands; this chat is for talking to me.';
         const story = markdownToStory(message);
         if (newest) {
           story.push({
@@ -1717,7 +1955,7 @@ async function postFirstRunServices(
     history,
     'services-card',
     async () => {
-      const message = `${servicesPitch(correlation.purposeId)}\n\nConnect anything you’d like, or tap Done to continue.`;
+      const message = `${servicesPitch(correlation.purposeId)}\n\nPick anything you’d like, or tap Done to continue.`;
       return {
         text: message,
         blob: appendToPostBlob(
@@ -1738,6 +1976,53 @@ async function postFirstRunServices(
       ...correlationFunnelFields(correlation),
     });
   }
+}
+
+// %notes answers a write it has accepted but not yet applied with `pending`,
+// and nothing resolves that — the write path throws on the spot. A slow host,
+// which a freshly provisioned ship reliably is, therefore reports a published
+// entry as a failed delivery. Look before telling the owner we could not
+// publish: an entry created no earlier than this run was enqueued is ours.
+const FIRST_RUN_NOTE_CLOCK_SLACK_MS = 5_000;
+
+async function recoverDeliveredFirstRunNote(
+  correlation: FirstRunCorrelation,
+  listNotes: typeof notes.listNotes
+): Promise<number | undefined> {
+  // Close the window before listing, so an entry written while this call is
+  // in flight cannot be taken for the one this run enqueued. Both ends carry
+  // the same slack: `createdAt` is the host's clock, not ours.
+  const latest = Date.now() + FIRST_RUN_NOTE_CLOCK_SLACK_MS;
+  const listed = await listNotes(correlation.notebookNest, {
+    signal: correlation.context.abortSignal,
+  }).catch(() => []);
+  const earliest = correlation.enqueuedAt - FIRST_RUN_NOTE_CLOCK_SLACK_MS;
+
+  // Creation time alone is not evidence: a delayed write from an earlier
+  // provision, or another author in the notebook, can land in the window.
+  // Require the bot's own authorship as well; an entry missing either cannot
+  // be attributed to this run, and claiming one that is not ours would report
+  // the wrong note as the owner's first. Those stay a failure.
+  const botShip = normalizeShip(correlation.context.botShip);
+  return (
+    listed
+      .filter(
+        (note) =>
+          note.createdAt != null &&
+          note.createdAt >= earliest &&
+          note.createdAt <= latest &&
+          note.createdBy != null &&
+          normalizeShip(note.createdBy) === botShip &&
+          // Where a baseline was taken it settles what time and authorship
+          // cannot: an id at or below it existed before this run started.
+          (correlation.baselineNoteId === undefined ||
+            note.noteId > correlation.baselineNoteId)
+      )
+      // Oldest wins. What this run enqueued is the first thing the bot wrote
+      // after that; anything later in the window belongs to whatever wrote it
+      // next, and taking the newest leaned towards exactly that.
+      .sort((left, right) => left.noteId - right.noteId)[0]?.noteId
+  );
 }
 
 async function findDeliveredRunNote(
@@ -1830,7 +2115,8 @@ function rememberFirstRun(
   notebookName?: string,
   jobId?: string,
   enqueuedAt = Date.now(),
-  presentationReady = true
+  presentationReady = true,
+  baselineNoteId?: number
 ): boolean {
   if (!disposition || typeof disposition !== 'object') return false;
   const result = disposition as { enqueued?: unknown; runId?: unknown };
@@ -1840,6 +2126,7 @@ function rememberFirstRun(
     jobId: jobId ?? `unknown:${result.runId}`,
     notebookName,
     enqueuedAt,
+    baselineNoteId,
     presentationReady,
   });
   return true;
@@ -1853,6 +2140,7 @@ function setFirstRunCorrelation(
     jobId: string;
     notebookName?: string;
     enqueuedAt: number;
+    baselineNoteId?: number;
     presentationReady?: boolean;
   }
 ) {
@@ -1868,6 +2156,7 @@ function setFirstRunCorrelation(
     purposeId: request.purposeId,
     topics: request.topics,
     enqueuedAt: options.enqueuedAt,
+    baselineNoteId: options.baselineNoteId,
     presentationReady: options.presentationReady ?? true,
     runInApiScope: captureTlonApiScope(),
   });
@@ -1906,6 +2195,10 @@ async function ensureFirstRunEnqueued(
   request: PostBlobDataEntryAgentProvision,
   notebookName: string,
   now: number,
+  // Optional so a caller that cannot list -- the direct-call tests, and any
+  // future one -- still enqueues. Recovery then falls back to the time and
+  // authorship test, which is weaker but not wrong.
+  listNotes?: typeof notes.listNotes,
   providerIds: readonly string[] = []
 ): Promise<'enqueued' | 'recovered' | 'owned-by-another-pass'> {
   const enqueueRun = cron.enqueueRun?.bind(cron) ?? cron.run?.bind(cron);
@@ -1945,6 +2238,36 @@ async function ensureFirstRunEnqueued(
     return 'recovered';
   }
 
+  // Read the notebook before the run can write to it, so failure recovery has
+  // something run-specific to test rather than only time and authorship. Taken
+  // after the claim and before the enqueue: a straggler landing in between is
+  // counted as pre-existing, which only costs a recovery we would rather
+  // decline than get wrong. Best effort -- a listing failure must not fail the
+  // provision, it just leaves recovery with the weaker test.
+  const baselineNoteId = listNotes
+    ? await listNotes(request.notebookNest, { signal: context.abortSignal })
+        .then((entries) =>
+          entries.reduce<number | undefined>(
+            (highest, entry) =>
+              highest === undefined || entry.noteId > highest
+                ? entry.noteId
+                : highest,
+            undefined
+          )
+        )
+        .catch(() => undefined)
+    : undefined;
+  // The listing is best effort, but a teardown that aborted it must not fall
+  // through into starting a cron run: the monitor is going away, and the run
+  // would be left without its lifecycle hooks or in-memory correlation. Drop
+  // the claim on the way out for the same reason a rejected enqueue does --
+  // otherwise the next pass reads it as another live attempt until the grace
+  // window expires.
+  if (context.abortSignal?.aborted) {
+    await forgetAgentOnboardingRunClaim(initial);
+    context.abortSignal.throwIfAborted();
+  }
+
   let disposition: unknown;
   try {
     disposition = await enqueueRun(jobId, 'force');
@@ -1967,7 +2290,8 @@ async function ensureFirstRunEnqueued(
       notebookName,
       jobId,
       enqueuedAt,
-      false
+      false,
+      baselineNoteId
     )
   ) {
     await forgetAgentOnboardingRunClaim(initial);
@@ -2003,6 +2327,56 @@ async function restoreFirstRunFromDurable(
   return record;
 }
 
+// The entry is written by cron after the request handler has returned, so
+// nothing refreshes the thinking presence while the user waits on "I'll be
+// back in a few seconds". Hold it open here: the tracker publishes only when
+// something calls in, and the ship ages an active entry out after 90s.
+const FIRST_RUN_PRESENCE_REFRESH_MS = 20_000;
+// A run that never resolves must not leave the indicator spinning forever.
+const FIRST_RUN_PRESENCE_MAX_MS = 5 * 60_000;
+
+function holdFirstRunThinking(
+  context: AgentOnboardingScanContext,
+  key: string
+): () => Promise<void> {
+  const config = context.presentation;
+  if (!config?.startBackgroundThinking) return async () => {};
+
+  let released = false;
+  let failsafe: ReturnType<typeof setTimeout> | undefined;
+
+  const beat = () => {
+    if (released) return;
+    void Promise.resolve(config.startBackgroundThinking?.(key)).catch((error) =>
+      context.log?.(
+        `[tlon] failed to hold first-run thinking presence: ${String(error)}`
+      )
+    );
+  };
+
+  const release = async () => {
+    if (released) return;
+    released = true;
+    clearInterval(ticker);
+    if (failsafe) clearTimeout(failsafe);
+    try {
+      await config.stopBackgroundThinking?.(key);
+    } catch (error) {
+      context.log?.(
+        `[tlon] failed to stop first-run thinking presence: ${String(error)}`
+      );
+    }
+  };
+
+  beat();
+  const ticker = setInterval(beat, FIRST_RUN_PRESENCE_REFRESH_MS);
+  ticker.unref?.();
+  failsafe = setTimeout(() => void release(), FIRST_RUN_PRESENCE_MAX_MS);
+  failsafe.unref?.();
+
+  return release;
+}
+
 async function activateFirstRunPresentation(
   cron: TlonCronService,
   context: AgentOnboardingScanContext,
@@ -2016,17 +2390,28 @@ async function activateFirstRunPresentation(
     request.provisionId
   );
   if (!record || record.status !== 'enqueued') return;
-  const correlation = findFirstRunCorrelation(
-    record.runId,
-    record.notebookNest,
-    record.jobId,
-    true,
-    context.accountId
-  );
+  const lookup = () =>
+    findFirstRunCorrelation(
+      record.runId,
+      record.notebookNest,
+      record.jobId,
+      true,
+      context.accountId
+    );
+  let correlation = lookup();
+  if (!correlation) {
+    // A monitor restart between enqueue and completion left no in-memory
+    // correlation; restore it, then treat it exactly like a live one — the
+    // run is still writing, so it needs the presence hold as much as any.
+    await restoreFirstRunFromDurable(context, request, notebookName, jobId);
+    correlation = lookup();
+  }
   if (correlation) {
     correlation[1].presentationReady = true;
-  } else {
-    await restoreFirstRunFromDurable(context, request, notebookName, jobId);
+    correlation[1].releaseThinking ??= holdFirstRunThinking(
+      context,
+      request.provisionId
+    );
   }
   await reconcileRestoredFirstRun(cron, record, deps);
 }
@@ -2042,6 +2427,9 @@ async function reconcileRestoredFirstRun(
     fetchHistory: deps.fetchHistory,
     sendPost: deps.sendPost,
     sleep: deps.sleep,
+    // Both outcomes read the notebook — the success path to name the entry,
+    // the failure path to check whether one landed anyway.
+    listNotes: deps.listNotes,
   };
   if (outcome.status === 'ok' && outcome.delivered) {
     await completeFirstRun(
@@ -2083,6 +2471,8 @@ export function clearAgentOnboardingRuntime(
     .map(([key]) => key);
   for (const key of ownedKeys) {
     firstRunCompletionFlights.delete(key);
+    // A correlation that is forgotten must not keep beating its presence.
+    void firstRunCorrelations.get(key)?.releaseThinking?.();
     firstRunCorrelations.delete(key);
   }
 }
@@ -2090,12 +2480,18 @@ export function clearAgentOnboardingRuntime(
 export async function drainAgentOnboardingRuntime(
   api: AgentOnboardingScanContext['api']
 ): Promise<void> {
-  const ownedKeys = [...firstRunCorrelations]
-    .filter(([, correlation]) => correlation.context.api === api)
-    .map(([key]) => key);
+  const owned = [...firstRunCorrelations].filter(
+    ([, correlation]) => correlation.context.api === api
+  );
+  const ownedKeys = owned.map(([key]) => key);
   // Stop lifecycle hooks from installing a new completion flight after the
   // drain snapshot. Already-running flights retain their captured correlation.
   for (const key of ownedKeys) firstRunCorrelations.delete(key);
+  // The hold would otherwise outlive the monitor by its failsafe, beating
+  // through an API about to close; release it while that API is still up.
+  await Promise.allSettled(
+    owned.map(([, correlation]) => correlation.releaseThinking?.())
+  );
   await Promise.allSettled(
     ownedKeys
       .map((key) => firstRunCompletionFlights.get(key))
@@ -2366,23 +2762,6 @@ function blobEntriesByAuthor(
   );
 }
 
-function isFirstGroupSetup(
-  history: TlonHistoryEntry[],
-  ownerShip: string,
-  groupId: string
-) {
-  const intro = blobEntriesByAuthor(history, ownerShip, true).find(
-    ({ entry }) =>
-      entry.type === 'tlon-agent-intro-request' && entry.groupId === groupId
-  )?.entry;
-  if (intro?.type === 'tlon-agent-intro-request') {
-    return intro.isFirstGroup === true;
-  }
-  // Preserve first-run behavior for setup conversations created before the
-  // explicit flag was introduced.
-  return groupId.endsWith('/home-group');
-}
-
 /** True once any provision has been acknowledged in this channel. */
 function hasProvisionAck(history: TlonHistoryEntry[], botShip: string) {
   return blobEntriesByAuthor(history, botShip).some(
@@ -2527,6 +2906,7 @@ async function upsertPrimaryJobOnce(
   }
   primaryJobIds.set(job.id, true);
   primaryJobProviderIds.set(job.id, [...providerIds]);
+  primaryJobChannelNests.set(job.id, failureChatNest);
   return job.id;
 }
 
@@ -2804,18 +3184,18 @@ function provisionCadence(
   switch (purposeId) {
     case 'agent-learning':
       return (
-        `Every morning I’ll write one useful idea in ${notebookName}, this ` +
-        'group’s notebook, rotating through your topics.'
+        `Every morning I’ll write one useful idea in ${notebookName}, the ` +
+        'notebook in your workspace, rotating through your topics.'
       );
     case 'agent-research':
       return (
         `Every morning I’ll check for new work and write a source-backed ` +
-        `update in ${notebookName}, this group’s notebook.`
+        `update in ${notebookName}, the notebook in your workspace.`
       );
     case 'agent-daily-digest':
       return (
-        `Every morning I’ll write a fresh digest in ${notebookName}, this ` +
-        'group’s notebook.'
+        `Every morning I’ll write a fresh digest in ${notebookName}, the ` +
+        'notebook in your workspace.'
       );
   }
 }
@@ -2834,14 +3214,15 @@ function scheduleConfirmation(request: PostBlobDataEntryAgentProvision) {
  * The services pitch, in terms of what the owner just built. The old copy
  * ("Connect calendars, docs, or notes to give me more to work with") named
  * the mechanism and no benefit, and read identically whichever purpose was
- * chosen.
+ * chosen. Name only what the connector catalog actually offers: there is no
+ * calendar connector, so the pitch can't promise one.
  */
 function servicesPitch(purposeId: AgentOnboardingPurposeId) {
   switch (purposeId) {
     case 'agent-learning':
       return (
-        'Connect your calendar or notes and I can fit each update around ' +
-        'your day and build on what you’re already reading.'
+        'Connect your notes or docs and I can build each update on what ' +
+        'you’re already reading.'
       );
     case 'agent-research':
       return (
@@ -2850,8 +3231,8 @@ function servicesPitch(purposeId: AgentOnboardingPurposeId) {
       );
     case 'agent-daily-digest':
       return (
-        'Connect your calendar and docs and your morning digest can cover ' +
-        'your own day — meetings, deadlines, notes — not just the news.'
+        'Connect your docs and notes and your morning digest can cover your ' +
+        'own projects, not just the news.'
       );
   }
 }
@@ -2874,7 +3255,7 @@ function buildTopicsPickerSurface(
         id: 'topics',
         component: 'SmallChoice',
         options: topics.map((label) => ({ id: label.toLowerCase(), label })),
-        submitLabel: 'That’s it',
+        submitLabel: 'Done',
         freeTextPlaceholder: 'Add your own…',
         action: {
           event: {
@@ -2915,7 +3296,7 @@ function buildServicesSurface(
         component: 'McpConnect',
         maxVisible: 4,
         seeAllLabel: 'See all connectors',
-        submitLabel: 'Use for this group',
+        submitLabel: 'Use for this workspace',
         action: {
           event: {
             name: A2UI.action.navigate,
@@ -2963,6 +3344,7 @@ function buildTourChoiceSurface(surfaceId: string, prompt: string) {
 }
 
 export const agentOnboardingTesting = {
+  buildTopicsPickerSurface,
   buildTourChoiceSurface,
   buildRecurringPrompt,
   buildServicesSurface,

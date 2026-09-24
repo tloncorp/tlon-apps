@@ -68,22 +68,14 @@ const logger = createDevLogger('CreateChatSheet', true);
 
 function createTypeActions(
   onSelectType: (type: ChatType) => void,
-  hasAgent: boolean
+  hasAgent: boolean,
+  isWindowNarrow: boolean
 ): Action[] {
-  const actions: Action[] = [
-    {
-      title: CHAT_TYPE_CONFIG.dm.actionTitle,
-      description: CHAT_TYPE_CONFIG.dm.actionDescription,
-      action: () => onSelectType('dm'),
-      startIcon: <ListItem.SystemIcon icon="Send" />,
-    },
-    {
-      title: CHAT_TYPE_CONFIG.group.actionTitle,
-      description: CHAT_TYPE_CONFIG.group.actionDescription,
-      action: () => onSelectType('group'),
-      startIcon: <ListItem.SystemIcon icon="Channel" />,
-    },
-  ];
+  // A workspace is what this flow is for on mobile, so it leads, and the bare
+  // group option is dropped there: every group onboarding cares about comes
+  // with the bot in it. Desktop keeps it — this sheet is shared with
+  // HomeSidebar and MessagesSidebar, which this work leaves alone.
+  const actions: Action[] = [];
 
   if (hasAgent) {
     actions.push({
@@ -94,15 +86,33 @@ function createTypeActions(
     });
   }
 
+  actions.push({
+    title: CHAT_TYPE_CONFIG.dm.actionTitle,
+    description: CHAT_TYPE_CONFIG.dm.actionDescription,
+    action: () => onSelectType('dm'),
+    startIcon: <ListItem.SystemIcon icon="Send" />,
+  });
+
+  // Without an agent there is no New Workspace, so the ordinary group action
+  // is the only way to create a group on mobile and has to stay.
+  if (!isWindowNarrow || !hasAgent) {
+    actions.push({
+      title: CHAT_TYPE_CONFIG.group.actionTitle,
+      description: CHAT_TYPE_CONFIG.group.actionDescription,
+      action: () => onSelectType('group'),
+      startIcon: <ListItem.SystemIcon icon="Channel" />,
+    });
+  }
+
   return actions;
 }
 
 const CHAT_TYPE_CONFIG = {
   dm: {
-    title: 'New chat',
+    title: 'New Message',
     subtitle: 'Select a contact to chat with',
-    actionTitle: 'New direct message',
-    actionDescription: 'Create a new chat with one other person',
+    actionTitle: 'New Message',
+    actionDescription: 'Create a private chat with one other person',
   },
   group: {
     title: 'New group',
@@ -111,10 +121,10 @@ const CHAT_TYPE_CONFIG = {
     actionDescription: 'Create a customizable group chat',
   },
   agent: {
-    title: 'New Tlonbot group',
+    title: 'New Workspace',
     subtitle: '',
-    actionTitle: 'New Tlonbot group',
-    actionDescription: 'Start a group with your Tlonbot',
+    actionTitle: 'New Workspace',
+    actionDescription: 'Start a new chat with your Tlonbot',
   },
   joinGroup: {
     title: 'Join a group',
@@ -560,8 +570,8 @@ function TypeSelectionContent({
   const { value: hasAgent } = db.hostingBotEnabled.useStorageItem();
   const hasAvailableAgent = Boolean(AGENT_SHIP_OVERRIDE) || hasAgent;
   const actions = useMemo(
-    () => createTypeActions(onSelectType, hasAvailableAgent),
-    [hasAvailableAgent, onSelectType]
+    () => createTypeActions(onSelectType, hasAvailableAgent, isWindowNarrow),
+    [hasAvailableAgent, isWindowNarrow, onSelectType]
   );
   return (
     <>
@@ -575,20 +585,24 @@ function TypeSelectionContent({
           />
         ))}
       </ActionSheet.ActionGroup>
-      <View
-        paddingHorizontal="$2xl"
-        paddingTop="$l"
-        paddingBottom={isWindowNarrow ? undefined : '$l'}
-        alignItems="center"
-      >
-        <Button
-          fill="text"
-          intent="secondary"
-          size="small"
-          onPress={() => onSelectType('joinGroup')}
-          label={CHAT_TYPE_CONFIG.joinGroup.actionTitle}
-        />
-      </View>
+      {/* Held back on mobile for now where the agent flow exists; the desktop
+          sidebars share this sheet, and a user with no agent keeps it. */}
+      {(!isWindowNarrow || !hasAvailableAgent) && (
+        <View
+          paddingHorizontal="$2xl"
+          paddingTop="$l"
+          paddingBottom="$l"
+          alignItems="center"
+        >
+          <Button
+            fill="text"
+            intent="secondary"
+            size="small"
+            onPress={() => onSelectType('joinGroup')}
+            label={CHAT_TYPE_CONFIG.joinGroup.actionTitle}
+          />
+        </View>
+      )}
     </>
   );
 }
@@ -760,15 +774,6 @@ function useCreateChat() {
                     'Agent group setup failed after opening',
                     error
                   );
-                  // Durable intro/provision posts take over once present. If
-                  // furnishing failed earlier, clear its provisional marker.
-                  void db.agentGroupOnboardingLocks.setValue((current) => {
-                    const lock = current[furnishing.group.id];
-                    if (!lock || lock.provision) return current;
-                    const remaining = { ...current };
-                    delete remaining[furnishing.group.id];
-                    return remaining;
-                  });
                   setCreateChatError(
                     error instanceof Error
                       ? error.message

@@ -2,6 +2,7 @@ import * as api from '@tloncorp/api';
 import {
   StructuredChannelDescriptionPayload,
   scry,
+  subscribe,
   toClientGroup,
 } from '@tloncorp/api';
 import '@tloncorp/api';
@@ -23,11 +24,22 @@ import {
 import { GroupV11 as UrbitGroup } from '@tloncorp/api/urbit/groups';
 import * as $ from 'drizzle-orm';
 import { pick } from 'lodash';
-import { expect, test, vi } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  test,
+  vi,
+} from 'vitest';
+import type { MockInstance } from 'vitest';
 
 import rawChannelPostWithRepliesData from '../../../../api/src/__tests__/fixtures/channelPostWithReplies.json';
 import rawChannelPostsData from '../../../../api/src/__tests__/fixtures/channelPosts.json';
 import * as db from '../../db';
+import { MIN_GROUPS_VERSION } from '../../logic';
 import rawNewestPostData from '../../test/channelNewestPost.json';
 import rawAfterNewestPostData from '../../test/channelPostsAfterNewest.json';
 import rawContactsData from '../../test/contactsDirectory.json';
@@ -43,17 +55,35 @@ import {
 import { batchEffects } from '../../db/query';
 import rawGroupsInit2 from '../../test/init.json';
 import {
+  DeskCompatibility,
+  getSession,
+  subscribeToSession,
+  updateInitializedClient,
+  updateSession,
+} from '../session';
+import { syncQueue } from '../syncQueue';
+import * as threadSyncTelemetry from '../threadSyncTelemetry';
+import {
+  clearSyncStartLock,
   ensureDmInviteChannel,
   syncChannelThreadUnreads,
+  handleAddPost,
+  handleDiscontinuity,
+  handleDmStatus,
+  retryDeskCompatibility,
   syncChannelWithBackoff,
   syncDms,
   syncGroups,
   handleBucketsUpdate,
   syncInitData,
+  syncInitialPosts,
+  syncCachedChanges,
   syncLatestPosts,
   syncPinnedItems,
   syncPosts,
+  syncStart,
   syncThreadPosts,
+  syncUpdatedPosts,
 } from './sync';
 import { syncContacts } from './syncContacts';
 
@@ -168,6 +198,158 @@ test('hydrates Bucket writers from a live subscription update', async () => {
 // rows. It has to be kept: a rejected write is swallowed by the subscription
 // handler, and nothing asks again, so the Bucket would read as empty for the
 // rest of the connection.
+// Codex claimed a writer update landing before insertChannels is lost, on the
+// grounds that updateChannel no-ops without a channel row. It writes perms
+// through insertChannelPerms before it touches $channels, so this pins down
+// what actually survives.
+test('keeps a writer update that arrives before the channel row', async () => {
+  const channelId = 'buckets/~zod/early-writers';
+  const flag = { host: '~zod', name: 'early-writers' };
+
+  await batchEffects('test:earlyWriters', (ctx) =>
+    handleBucketsUpdate(
+      {
+        type: 'update',
+        flag,
+        revision: 2,
+        update: { type: 'writers-updated', writers: ['admin'] },
+      } as unknown as api.BucketsResponse,
+      ctx
+    )
+  );
+
+  // the channel row shows up afterwards, as a cold start would have it
+  await db.insertChannels([{ id: channelId, type: 'buckets' }]);
+
+  const channel = await db.getChannelWithRelations({ id: channelId });
+  expect(channel?.writerRoles?.map((role) => role.roleId)).toEqual(['admin']);
+});
+
+// A writer update carries a revision like any other event. If it is not
+// persisted, the stale-init guard compares against a revision the row never
+// reached and lets the old roles back in.
+test('advances the stored revision on a writers-updated event', async () => {
+  const channelId = 'buckets/~zod/revisions';
+  const flag = { host: '~zod', name: 'revisions' };
+
+  await db.insertChannels([{ id: channelId, type: 'buckets' }]);
+  await batchEffects('test:writerRevision', (ctx) =>
+    handleBucketsUpdate(
+      {
+        type: 'snapshot',
+        flag,
+        state: {
+          bucket: {
+            id: 1,
+            title: 'Revisions',
+            createdBy: '~zod',
+            createdAt: 0,
+            updatedBy: '~zod',
+            updatedAt: 0,
+          },
+          group: { host: '~zod', name: 'group' },
+          writers: ['admin', 'editor'],
+          entries: [],
+          revision: 1,
+        },
+      } as unknown as api.BucketsResponse,
+      ctx
+    )
+  );
+
+  await batchEffects('test:writerRevision2', (ctx) =>
+    handleBucketsUpdate(
+      {
+        type: 'update',
+        flag,
+        revision: 2,
+        update: { type: 'writers-updated', writers: ['admin'] },
+      } as unknown as api.BucketsResponse,
+      ctx
+    )
+  );
+
+  const stored = await db.getBucket({ channelId });
+  expect(stored?.revision).toBe(2);
+});
+
+// The init fetch and the %buckets subscription race on startup, and init is
+// the slower of the two. Writing its summary unconditionally reinstalls a
+// writer set the subscription has already superseded.
+test('does not let init data overwrite a newer Bucket writer set', async () => {
+  const channelId = 'buckets/~zod/writers';
+  const flag = { host: '~zod', name: 'writers' };
+  const bucket = {
+    id: 1,
+    title: 'Writers',
+    createdBy: '~zod',
+    createdAt: 0,
+    updatedBy: '~zod',
+    updatedAt: 0,
+  };
+
+  await db.insertChannels([{ id: channelId, type: 'buckets' }]);
+
+  // the subscription has already reduced revision 9, dropping %editor
+  await batchEffects('test:newerWriters', (ctx) =>
+    handleBucketsUpdate(
+      {
+        type: 'snapshot',
+        flag,
+        state: {
+          bucket,
+          group: { host: '~zod', name: 'group' },
+          writers: ['admin'],
+          entries: [],
+          revision: 9,
+        },
+      } as unknown as api.BucketsResponse,
+      ctx
+    )
+  );
+
+  // init arrives late, still carrying revision 3 with %editor present
+  const getInitData = vi.spyOn(api, 'getInitData').mockResolvedValue({
+    groups: [],
+    joinedGroups: [],
+    unjoinedGroups: [],
+    channels: [],
+    channelPerms: [],
+    joinedGroupChannels: [],
+    unreads: {
+      baseUnread: null,
+      groupUnreads: [],
+      channelUnreads: [],
+      threadActivity: [],
+    },
+    channelUnreads: [],
+    groupUnreads: [],
+    pins: [],
+    blockedUsers: [],
+    contacts: [],
+    channelOrder: [],
+    buckets: [
+      {
+        flag,
+        state: {
+          bucket,
+          group: { host: '~zod', name: 'group' },
+          writers: ['admin', 'editor'],
+          entries: [],
+          revision: 3,
+        },
+      },
+    ],
+  } as unknown as api.InitData);
+  await syncInitData();
+  getInitData.mockRestore();
+
+  const channel = await db.getChannelWithRelations({ id: channelId });
+  expect(channel?.writerRoles?.map((role) => role.roleId).sort()).toEqual([
+    'admin',
+  ]);
+});
+
 test('keeps a Bucket manifest that arrives before its channel row', async () => {
   const channelId = 'buckets/~zod/early';
 
@@ -316,6 +498,67 @@ test('reduces a Bucket manifest into the database', async () => {
   });
   expect(await db.getBucket({ channelId })).toBeNull();
 });
+test.each(['before', 'concurrently with'] as const)(
+  'does not double-count a reply when the snapshot arrives %s the event',
+  async (order) => {
+    const channelId = 'chat/~zod/reply-snapshot';
+    await db.insertChannels([{ id: channelId, type: 'chat' }]);
+    const parent = {
+      id: 'snapshot-parent',
+      channelId,
+      type: 'chat',
+      authorId: '~zod',
+      sentAt: 1000,
+      receivedAt: 1000,
+      sequenceNum: 1,
+      content: JSON.stringify([{ inline: ['parent'] }]),
+      replyCount: 3,
+      replyTime: 4000,
+      replyContactIds: ['~ten', '~zod'],
+    } as db.Post;
+    const replies = [2000, 3000, 4000].map(
+      (sentAt) =>
+        ({
+          id: `snapshot-reply-${sentAt}`,
+          parentId: parent.id,
+          channelId,
+          type: 'reply',
+          authorId: '~zod',
+          sentAt,
+          receivedAt: sentAt,
+          sequenceNum: 0,
+          content: JSON.stringify([{ inline: [`reply ${sentAt}`] }]),
+        }) as db.Post
+    );
+
+    // /init-posts includes both the server count and nested reply rows.
+    const snapshot = db.insertChannelPosts({ posts: [{ ...parent, replies }] });
+    if (order === 'before') {
+      await snapshot;
+      await handleAddPost(replies[2]);
+    } else {
+      await Promise.all([snapshot, handleAddPost(replies[2])]);
+    }
+
+    expect((await db.getPost({ postId: parent.id }))?.replyCount).toBe(3);
+    for (const reply of replies) {
+      expect(await db.getPost({ postId: reply.id })).toMatchObject({
+        id: reply.id,
+        parentId: parent.id,
+      });
+    }
+
+    const nextReply = {
+      ...replies[2],
+      id: 'next-reply',
+      sentAt: 5000,
+      receivedAt: 5000,
+    };
+    await handleAddPost(nextReply);
+    await handleAddPost(nextReply);
+    expect((await db.getPost({ postId: parent.id }))?.replyCount).toBe(4);
+  }
+);
 
 const inputData = [
   '0v4.00000.qd4mk.d4htu.er4b8.eao21',
@@ -330,6 +573,27 @@ vi.mock('../lure', () => ({
     }),
   },
 }));
+
+const DEFAULT_USER_ID = '~solfer-magfed';
+// Mutable so a test can switch ships mid-flight; hoisted because vi.mock's
+// factory runs before the module body.
+const urbitMockState = vi.hoisted(() => ({ currentUserId: '~solfer-magfed' }));
+
+// Extends the shared mock in test/setup.ts: the sync start lifecycle tests
+// below need to see whether subscriptions were established.
+vi.mock('../../../../api/src/client/urbit', async (importOriginal) => {
+  const mod = (await importOriginal()) as Record<string, unknown>;
+
+  return {
+    ...mod,
+    scry: vi.fn(),
+    poke: vi.fn(),
+    trackedPoke: vi.fn(),
+    subscribe: vi.fn(),
+    subscribeOnce: vi.fn(),
+    getCurrentUserId: () => urbitMockState.currentUserId,
+  };
+});
 
 const outputData = [
   {
@@ -366,6 +630,53 @@ test('syncs pins', async () => {
     (a, b) => a.index - b.index
   );
   expect(savedItems).toEqual(outputData);
+});
+
+test('records cached change reply evidence before inserting it', async () => {
+  const reply = {
+    id: 'cached-reply',
+    parentId: 'cached-parent',
+    channelId: 'chat/~zod/cached',
+    type: 'reply',
+    authorId: '~zod',
+    sentAt: 1,
+    receivedAt: 1,
+  } as db.Post;
+  const changes: db.ChangesResult = {
+    groups: [],
+    posts: [reply],
+    contacts: [],
+    deletedChannelIds: [],
+    unreads: {
+      groupUnreads: [],
+      channelUnreads: [],
+      threadActivity: [],
+    },
+  };
+  const calls: string[] = [];
+  const syncedAt = vi
+    .spyOn(db.changesSyncedAt, 'getValue')
+    .mockResolvedValue(100);
+  const evidence = vi
+    .spyOn(threadSyncTelemetry, 'recordThreadPostsReceived')
+    .mockImplementation(() => {
+      calls.push('evidence');
+    });
+  const insert = vi.spyOn(db, 'insertChanges').mockImplementation(async () => {
+    calls.push('insert');
+  });
+
+  try {
+    await expect(
+      syncCachedChanges({ begin: 50, end: 150, changes })
+    ).resolves.toBe(true);
+    expect(evidence).toHaveBeenCalledWith([reply], 'changes');
+    expect(calls).toEqual(['evidence', 'insert']);
+  } finally {
+    syncedAt.mockRestore();
+    evidence.mockRestore();
+    insert.mockRestore();
+  }
 });
 
 // TLON-5606: after a user clears a failed send, `syncChannelWithBackoff`
@@ -742,6 +1053,173 @@ test('ensureDmInviteChannel returns missing without deleting a non-invite local 
   expect(channel?.isDmInvite).toBe(false);
 });
 
+// the %chat-dm-status fact is the only live signal for a dm this client
+// didn't start (e.g. the reciprocal dm %grouper creates when someone redeems
+// our personal invite): posts alone never create the channel row
+test('handleDmStatus keeps the channel row in step with the backend dm set', async () => {
+  // on the wire the writ fact precedes the status fact, so the post is
+  // already in the db when the row gets created
+  await db.insertChannelPosts({
+    posts: [
+      {
+        id: 'first-post',
+        type: 'chat',
+        channelId: '~sampel-palnet',
+        authorId: '~sampel-palnet',
+        sentAt: 1700000000000,
+        receivedAt: 1700000000000,
+        sequenceNum: 1,
+        content: JSON.stringify([{ inline: ['hi'] }]),
+        syncedAt: 1700000000000,
+      } as unknown as db.Post,
+    ],
+  });
+  expect(await db.getChannel({ id: '~sampel-palnet' })).toBeNull();
+
+  // a dm we started, not yet accepted, is a regular dm on our side
+  await handleDmStatus('~sampel-palnet', 'inviting');
+  let channel = await db.getChannel({ id: '~sampel-palnet' });
+  expect(channel?.type).toBe('dm');
+  expect(channel?.isDmInvite).toBe(false);
+  expect(channel?.contactId).toBe('~sampel-palnet');
+  // and the chat list has something to sort and preview
+  expect(channel?.lastPostId).toBe('first-post');
+  expect(channel?.lastPostAt).toBe(1700000000000);
+
+  // a pending invite to us shows as an invite until we accept
+  await handleDmStatus('~wicdev-wisryt', 'invited');
+  channel = await db.getChannel({ id: '~wicdev-wisryt' });
+  expect(channel?.isDmInvite).toBe(true);
+  await handleDmStatus('~wicdev-wisryt', 'done');
+  channel = await db.getChannel({ id: '~wicdev-wisryt' });
+  expect(channel?.isDmInvite).toBe(false);
+
+  // accepting elsewhere must not wipe what we already know about the dm
+  await db.insertChannelPosts({
+    posts: [
+      {
+        id: 'kept-post',
+        type: 'chat',
+        channelId: '~wicdev-wisryt',
+        authorId: '~wicdev-wisryt',
+        sentAt: 1700000000000,
+        receivedAt: 1700000000000,
+        sequenceNum: 1,
+        content: JSON.stringify([{ inline: ['hi'] }]),
+        syncedAt: 1700000000000,
+      } as unknown as db.Post,
+    ],
+  });
+  await handleDmStatus('~wicdev-wisryt', 'done');
+  channel = await db.getChannel({ id: '~wicdev-wisryt' });
+  expect(channel?.lastPostId).toBe('kept-post');
+
+  // gone (declined or left) and archived both drop out of the dm list
+  await handleDmStatus('~sampel-palnet', null);
+  expect(await db.getChannel({ id: '~sampel-palnet' })).toBeNull();
+  await handleDmStatus('~wicdev-wisryt', 'archive');
+  expect(await db.getChannel({ id: '~wicdev-wisryt' })).toBeNull();
+});
+
+// the backend's dm list is authoritative: a dm left, declined, or archived
+// from another client while this one had no live channel is only ever
+// noticed by the next full snapshot
+test('syncInitData drops dms the backend no longer lists', async () => {
+  await db.insertChannels([
+    dmChannel('~stale-dm', false),
+    dmChannel('~draft-dm', false),
+  ]);
+  // a dm we just started locally isn't on the backend until its first
+  // message lands, so an unsent post keeps the row
+  await db.insertChannelPosts({
+    posts: [
+      {
+        id: 'draft',
+        type: 'chat',
+        channelId: '~draft-dm',
+        authorId: '~zod',
+        sentAt: Date.now(),
+        receivedAt: Date.now(),
+        sequenceNum: 0,
+        content: JSON.stringify([{ inline: ['first message'] }]),
+        deliveryStatus: 'pending',
+        syncedAt: Date.now(),
+      } as unknown as db.Post,
+    ],
+  });
+
+  setScryOutput(rawGroupsInitData);
+  await syncInitData();
+
+  expect(await db.getChannel({ id: '~stale-dm' })).toBeNull();
+  expect((await db.getChannel({ id: '~draft-dm' }))?.type).toBe('dm');
+  const kept = await getClient()
+    ?.select({ count: $.count() })
+    .from(db.schema.channels)
+    .where($.eq(db.schema.channels.type, 'dm'));
+  expect(kept?.[0].count).toEqual(groupsInitData.chat.dms.length + 1);
+});
+
+// the two ways a row can look absent from a snapshot without being gone on
+// the backend: it was created locally and not sent yet, or a live fact
+// inserted it while the snapshot fetch was in flight
+test('deleteAbsentDmChannels leaves unconfirmed and newly arrived dms alone', async () => {
+  await db.insertChannels([
+    dmChannel('~stale-dm', false),
+    { ...dmChannel('~pending-dm', false), isPendingChannel: true },
+  ]);
+  // the pending row is never a candidate: the server has never seen it
+  const candidateIds = await db.getDmChannelIds();
+  expect(candidateIds).toEqual(['~stale-dm']);
+  // ...and while the snapshot is in flight its first message goes out, so by
+  // the time we reconcile it looks like any other confirmed dm
+  await db.updateChannel({ id: '~pending-dm', isPendingChannel: false });
+  await db.insertChannelPosts({
+    posts: [
+      {
+        id: 'first-sent',
+        type: 'chat',
+        channelId: '~pending-dm',
+        authorId: '~zod',
+        sentAt: Date.now(),
+        receivedAt: Date.now(),
+        sequenceNum: 1,
+        content: JSON.stringify([{ inline: ['hello'] }]),
+        deliveryStatus: 'sent',
+        syncedAt: Date.now(),
+      } as unknown as db.Post,
+    ],
+  });
+  // arrives (via a status fact) after the snapshot was requested
+  await db.insertChannels([dmChannel('~arrived-dm', false)]);
+
+  const deleted = await db.deleteAbsentDmChannels({
+    keepIds: [],
+    candidateIds,
+  });
+
+  expect(deleted).toEqual(['~stale-dm']);
+  expect(await db.getChannel({ id: '~stale-dm' })).toBeNull();
+  expect((await db.getChannel({ id: '~pending-dm' }))?.type).toBe('dm');
+  expect((await db.getChannel({ id: '~arrived-dm' }))?.type).toBe('dm');
+});
+
+// syncDms composes three scries that aren't a consistent snapshot, so it must
+// never delete: a dm accepted between `/dm` and `/dm/invited` returning would
+// be in neither list
+test('syncDms is insert-only', async () => {
+  await db.insertChannels([
+    dmChannel('~sampel-palnet', false),
+    dmChannel('~stale-dm', true),
+  ]);
+  setScryOutputs([['~sampel-palnet'], {}, []]);
+
+  await syncDms();
+
+  expect((await db.getChannel({ id: '~stale-dm' }))?.type).toBe('dm');
+  expect((await db.getChannel({ id: '~sampel-palnet' }))?.type).toBe('dm');
+});
+
 const groupId = '~solfer-magfed/test-group';
 const channelId = 'chat/~solfer-magfed/test-channel';
 
@@ -895,6 +1373,61 @@ test('syncs thread posts', async () => {
   );
 });
 
+test.each([
+  ['DM', '~pinser-botter-podfyl-parseb'],
+  ['group DM', '0v4.00000.qd4mk.d4htu.er4b8.eao21'],
+])('syncUpdatedPosts skips %s before queueing', async (_label, channelId) => {
+  const enqueue = vi.spyOn(syncQueue, 'add');
+  vi.mocked(scry).mockClear();
+  try {
+    await expect(
+      syncUpdatedPosts(
+        {
+          channelId,
+          startCursor: '1',
+          endCursor: '2',
+          afterTime: new Date(0),
+        },
+        { priority: 4 }
+      )
+    ).resolves.toBeUndefined();
+
+    expect(enqueue).not.toHaveBeenCalled();
+    expect(scry).not.toHaveBeenCalled();
+    expect(await db.getPosts()).toEqual([]);
+  } finally {
+    enqueue.mockRestore();
+  }
+});
+
+test('syncUpdatedPosts fetches and persists changed group-channel posts', async () => {
+  await db.insertChannels([{ id: channelId, type: 'chat' }]);
+  vi.mocked(scry).mockClear();
+  setScryOutput(rawChannelPostsData);
+
+  const response = await syncUpdatedPosts({
+    channelId,
+    startCursor: '1',
+    endCursor: '2',
+    afterTime: new Date(0),
+  });
+
+  expect(scry).toHaveBeenCalledOnce();
+  expect(scry).toHaveBeenCalledWith({
+    app: 'channels',
+    path: `/v4/${channelId}/posts/changes/1/2/~1970.1.1`,
+  });
+  expect(response?.posts.length).toBeGreaterThan(0);
+  const savedPosts = await db.getPosts();
+  expect(savedPosts.map((post) => post.id).sort()).toEqual(
+    response?.posts
+      .flatMap((post) => [post, ...(post.replies ?? [])])
+      .map((post) => post.id)
+      .sort()
+  );
+  expect(savedPosts.every((post) => post.channelId === channelId)).toBe(true);
+});
+
 test('syncs groups, decoding structured description payloads', async () => {
   const groupId = '~fabled-faster/new-york';
   const groupWithScdp = pick(groupsData, groupId);
@@ -920,5 +1453,1141 @@ test('syncs groups, decoding structured description payloads', async () => {
   expect(channelFromDb!.description).toEqual(descriptionText);
   expect(channelFromDb!.contentConfiguration).toMatchObject(
     channelContentConfiguration
+  );
+});
+
+// Desk compatibility gate: startup probes the ship's %groups version before it
+// touches any path an old desk can't serve.
+describe('desk compatibility gate', () => {
+  // Anything that gets past the gate runs the whole of sync start, including
+  // the init-data writes, which take longer than the default per-test budget.
+  // The gated cases are fast, but they get the same budget so a regression
+  // that lets sync through fails on an assertion rather than on the clock.
+  const FULL_SYNC_TIMEOUT = 30_000;
+  const PROBE_TIMEOUT = 10 * 1000;
+  const pikesData = { groups: { hash: '0v1.abc', sync: { ship: '~zod' } } };
+
+  let reportedDeskVersion: string | null = MIN_GROUPS_VERSION;
+  let probeError: Error | null = null;
+  let pikesError: Error | null = null;
+  let pikesHangs = false;
+  let heldProbe: { wait: Promise<void>; release: () => void } | null = null;
+  let scryCalls: { app: string; path: string; timeout?: number }[] = [];
+  type SetValueSpy<
+    T extends { setValue: (...args: never[]) => Promise<void> },
+  > = MockInstance<Parameters<T['setValue']>, Promise<void>>;
+  let setAppInfo: SetValueSpy<typeof db.appInfo>;
+  let setDidSyncInitialPosts: SetValueSpy<typeof db.didSyncInitialPosts>;
+  let setUserHasCompletedFirstSync: SetValueSpy<
+    typeof db.userHasCompletedFirstSync
+  >;
+
+  const scryPaths = () => scryCalls.map(({ app, path }) => `${app}${path}`);
+  const didScry = (fragment: string) =>
+    scryPaths().some((path) => path.includes(fragment));
+  const probeCount = () =>
+    scryCalls.filter(({ path }) => path === '/kiln/pikes').length;
+
+  // Lets a test keep the probe in flight while it does something else (log out,
+  // let the timeout fire) and then decide what a late answer does.
+  const holdProbe = () => {
+    let release = () => {};
+    const wait = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const gate = { wait, release };
+    heldProbe = gate;
+    return () => {
+      if (heldProbe === gate) {
+        heldProbe = null;
+      }
+      release();
+    };
+  };
+
+  // What useHandleLogout does: drops the client, clears the session, releases
+  // the sync lock. updateInitializedClient is the lifecycle call underneath
+  // clientActions' configureClient/removeClient.
+  const logOut = () => {
+    updateInitializedClient(false);
+    updateSession(null);
+    clearSyncStartLock();
+  };
+  const logIn = (userId = DEFAULT_USER_ID) => {
+    urbitMockState.currentUserId = userId;
+    updateInitializedClient(true);
+  };
+
+  const installScryMock = () => {
+    vi.mocked(scry).mockImplementation((async (args: {
+      app: string;
+      path: string;
+      timeout?: number;
+    }) => {
+      scryCalls.push(args);
+      const { app, path } = args;
+      const isProbePath =
+        (app === 'hood' && path === '/kiln/pikes') ||
+        (app === 'docket' && path === '/charges');
+      if (isProbePath) {
+        // Captured synchronously: a second probe gets its own gate, and this
+        // one keeps waiting on the gate it was issued under.
+        const gate = heldProbe;
+        if (gate) {
+          await gate.wait;
+        }
+        if (probeError) {
+          throw probeError;
+        }
+        if (app === 'hood' && pikesError) {
+          throw pikesError;
+        }
+        if (app === 'hood' && pikesHangs) {
+          // Mirrors the client: the timeout it was given is the only thing
+          // that ends a hung scry.
+          return new Promise((_resolve, reject) => {
+            if (args.timeout != null) {
+              setTimeout(
+                () => reject(new Error('pikes timed out')),
+                args.timeout
+              );
+            }
+          });
+        }
+        if (app === 'hood') {
+          return pikesData;
+        }
+        return {
+          initial:
+            reportedDeskVersion === null
+              ? {}
+              : { groups: { version: reportedDeskVersion } },
+        };
+      }
+      if (app === 'groups-ui' && path === '/v10/init') {
+        return groupsInitData;
+      }
+      if (app === 'groups-ui' && path.startsWith('/v4/heads')) {
+        return headsData;
+      }
+      if (app === 'groups-ui' && path.startsWith('/v6/init-posts/')) {
+        return { channels: {}, chat: {} };
+      }
+      // The remaining paths are incidental to the gate, but the ones whose
+      // sync contexts set retry: true cost seconds of backoff if they throw,
+      // so hand them an empty-but-valid response.
+      if (app === 'contacts') {
+        return {};
+      }
+      if (app === 'groups-ui' && path === '/suggested-contacts') {
+        return [];
+      }
+      if (app === 'activity' && path.includes('/feed/init/')) {
+        return { all: [], mentions: [], replies: [], summaries: {} };
+      }
+      return undefined;
+    }) as unknown as typeof scry);
+  };
+
+  beforeAll(() => {
+    // Skips the 1s spacer syncStart leaves for syncSince to queue.
+    (globalThis as any).TLON_IS_E2E = true;
+  });
+
+  afterAll(() => {
+    delete (globalThis as any).TLON_IS_E2E;
+    updateSession(null);
+    clearSyncStartLock();
+  });
+
+  beforeEach(() => {
+    reportedDeskVersion = MIN_GROUPS_VERSION;
+    probeError = null;
+    pikesError = null;
+    pikesHangs = false;
+    heldProbe = null;
+    scryCalls = [];
+    updateSession(null);
+    clearSyncStartLock();
+    // Without a live client the lifetime token never changes, and the guards
+    // that depend on it would go untested.
+    logIn();
+    vi.mocked(subscribe).mockClear();
+    // The shared storage mock discards writes, so reads always come back as
+    // the default: assert on the writes instead.
+    setAppInfo = vi.spyOn(db.appInfo, 'setValue');
+    setDidSyncInitialPosts = vi.spyOn(db.didSyncInitialPosts, 'setValue');
+    setUserHasCompletedFirstSync = vi.spyOn(
+      db.userHasCompletedFirstSync,
+      'setValue'
+    );
+    installScryMock();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  test(
+    'gates startup when the ship reports an outdated desk',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+
+      // Reported, not left for the caller to reconstruct from the session.
+      await expect(syncStart()).resolves.toBe('gated');
+
+      expect(getSession()?.deskCompat).toEqual({
+        status: 'incompatible',
+        current: '12.1.0',
+        minimum: MIN_GROUPS_VERSION,
+        subscribed: false,
+      });
+      // Nothing an old desk would reject was attempted.
+      expect(didScry('/v10/init')).toBe(false);
+      expect(vi.mocked(subscribe)).not.toHaveBeenCalled();
+      expect(setDidSyncInitialPosts).not.toHaveBeenCalled();
+      expect(setUserHasCompletedFirstSync).not.toHaveBeenCalled();
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a failing pikes scry does not fail the gate open',
+    async () => {
+      // The pike is only diagnostics; the charge carries the version the gate
+      // reads, so losing the pike must not discard a definitive verdict.
+      reportedDeskVersion = '12.1.0';
+      pikesError = new Error('pikes unavailable');
+
+      await syncStart();
+
+      expect(getSession()?.deskCompat).toMatchObject({
+        status: 'incompatible',
+        current: '12.1.0',
+      });
+      expect(didScry('/v10/init')).toBe(false);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'gates on the charge even when the pike scry hangs',
+    async () => {
+      // The pike is bounded well inside the probe's own deadline, so a hung
+      // one can't hold the version past the point where startup gives up and
+      // fails open.
+      reportedDeskVersion = '12.1.0';
+      pikesHangs = true;
+      vi.useFakeTimers();
+      try {
+        const started = syncStart();
+        let finished = false;
+        void started.then(() => {
+          finished = true;
+        });
+
+        await vi.advanceTimersByTimeAsync(PROBE_TIMEOUT / 2);
+
+        expect(getSession()?.deskCompat).toMatchObject({
+          status: 'incompatible',
+          current: '12.1.0',
+        });
+        expect(finished).toBe(true);
+        expect(didScry('/v10/init')).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'leaves the fetched version driving the activity endpoints',
+    async () => {
+      // The shared storage mock discards writes, so give this case working
+      // storage: what's under test is that the write lands before
+      // syncReactionSupport re-derives the same flags from it.
+      let persisted: Awaited<ReturnType<typeof db.appInfo.getValue>> = null;
+      setAppInfo.mockImplementation(async (value) => {
+        // Real storage settles on a later tick; an instant stub would hide
+        // whether the write is actually awaited.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        persisted = value as typeof persisted;
+      });
+      vi.spyOn(db.appInfo, 'getValue').mockImplementation(
+        async () => persisted
+      );
+
+      await syncStart();
+
+      expect(persisted).toMatchObject({ groupsVersion: MIN_GROUPS_VERSION });
+      // v5 is the pre-reaction feed: asking for it would mean the capability
+      // flags had been re-derived from a value that wasn't written yet.
+      expect(didScry('/v5/feed/init/')).toBe(false);
+      expect(didScry('/v7/feed/init/')).toBe(true);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'an unwritable version still drives the activity endpoints',
+    async () => {
+      // Storage is broken and what's already there is older than the ship, so
+      // re-deriving the flags from it would drop us to legacy endpoints.
+      setAppInfo.mockRejectedValue(new Error('storage unavailable'));
+      vi.spyOn(db.appInfo, 'getValue').mockImplementation(async () => ({
+        groupsVersion: '11.0.0',
+        groupsHash: 'n/a',
+        groupsSyncNode: 'n/a',
+      }));
+
+      await syncStart();
+
+      expect(didScry('/v5/feed/init/')).toBe(false);
+      expect(didScry('/v7/feed/init/')).toBe(true);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'gates on a version it could not persist',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+      setAppInfo.mockRejectedValue(new Error('storage unavailable'));
+
+      await syncStart();
+
+      // The write is best effort; the version it carried still decides.
+      expect(setAppInfo).toHaveBeenCalled();
+      expect(getSession()?.deskCompat).toMatchObject({
+        status: 'incompatible',
+        current: '12.1.0',
+      });
+      expect(didScry('/v10/init')).toBe(false);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'has no verdict before the probe reports, and a clean one after',
+    async () => {
+      // 'undefined' is "not probed yet", which the shells must not read as
+      // compatible: the overlay they mount talks to the desk immediately.
+      expect(getSession()?.deskCompat).toBeUndefined();
+
+      const release = holdProbe();
+      const started = syncStart();
+      await vi.waitFor(() => expect(probeCount()).toBe(1));
+      expect(getSession()?.deskCompat).toEqual({
+        status: 'probing',
+        current: null,
+        minimum: MIN_GROUPS_VERSION,
+        subscribed: false,
+      });
+
+      release();
+      await expect(started).resolves.toBe('ok');
+
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a retry whose probe fails keeps the notice',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+      await syncStart();
+      const gated = getSession()?.deskCompat;
+
+      probeError = new Error('network down');
+      const onRecovered = vi.fn();
+      await retryDeskCompatibility({ onRecovered });
+
+      // Nothing was learned, so the version we did observe still stands —
+      // failing open here would swap a useful notice for a broken app.
+      expect(getSession()?.deskCompat).toEqual(gated);
+      expect(didScry('/v10/init')).toBe(false);
+      expect(onRecovered).not.toHaveBeenCalled();
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a retry whose probe times out keeps the notice',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+      await syncStart();
+      const gated = getSession()?.deskCompat;
+
+      const release = holdProbe();
+      vi.useFakeTimers();
+      try {
+        const onRecovered = vi.fn();
+        const retrying = retryDeskCompatibility({ onRecovered });
+        let finished = false;
+        void retrying.then(() => {
+          finished = true;
+        });
+
+        await vi.advanceTimersByTimeAsync(PROBE_TIMEOUT + 1);
+        for (let i = 0; i < 30 && !finished; i++) {
+          await vi.advanceTimersByTimeAsync(1000);
+        }
+        expect(finished).toBe(true);
+
+        expect(getSession()?.deskCompat).toEqual(gated);
+        expect(didScry('/v10/init')).toBe(false);
+        expect(onRecovered).not.toHaveBeenCalled();
+
+        release();
+        await vi.advanceTimersByTimeAsync(1000);
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'probes with a bounded timeout and no retries',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+
+      await syncStart();
+
+      const probeCalls = scryCalls.filter(
+        ({ app }) => app === 'hood' || app === 'docket'
+      );
+      expect(probeCalls).toHaveLength(2);
+      // The charge carries the version the gate reads, so it gets the whole
+      // budget; the pike is diagnostics and gets a much shorter one, so it
+      // can't hold the pair past the gate's own deadline.
+      const charges = probeCalls.find(({ app }) => app === 'docket');
+      const pikes = probeCalls.find(({ app }) => app === 'hood');
+      expect(charges?.timeout).toBe(PROBE_TIMEOUT);
+      expect(pikes?.timeout).toBeLessThan(PROBE_TIMEOUT);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'releases the sync lock, so a later start probes again',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+
+      await syncStart();
+      expect(probeCount()).toBe(1);
+
+      await syncStart();
+      expect(probeCount()).toBe(2);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'concurrent cold starts share one probe',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+
+      const [first, second] = await Promise.all([syncStart(), syncStart()]);
+
+      expect(probeCount()).toBe(1);
+      // The second call took the lock's word for it and did nothing — which is
+      // not the same thing as finding the desk outdated itself.
+      expect(first).toBe('gated');
+      expect(second).toBe('busy');
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a second cold start in the same login does not re-subscribe',
+    async () => {
+      // What a remount looks like: the previous mount's subscriptions are
+      // still live, and a second set on top of them doubles every event.
+      // Note the lens backfill fails under this mock (no %steward fixture),
+      // which must not count as a failed subscribe.
+      await syncStart();
+      const afterFirst = vi.mocked(subscribe).mock.calls.length;
+      expect(afterFirst).toBeGreaterThan(0);
+
+      await syncStart();
+
+      expect(vi.mocked(subscribe).mock.calls.length).toBe(afterFirst);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a failed high-priority subscribe leaves the next start to retry',
+    async () => {
+      vi.mocked(subscribe).mockImplementation((async (endpoint: {
+        app: string;
+      }) => {
+        // Presence is the high-priority subscribe whose rejection actually
+        // propagates; the others are fire-and-forget by design.
+        if (endpoint.app === 'presence') {
+          throw new Error('subscribe failed');
+        }
+        return 1;
+      }) as unknown as typeof subscribe);
+
+      await syncStart();
+      const afterFirst = vi.mocked(subscribe).mock.calls.length;
+
+      // The set that failed has to be registered again rather than being
+      // treated as live for the rest of the session.
+      await syncStart();
+
+      expect(vi.mocked(subscribe).mock.calls.length).toBeGreaterThan(
+        afterFirst
+      );
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a failed write does not cost the next start its live subscriptions',
+    async () => {
+      // The high-priority subscriptions go up early in the batch, but the
+      // writers that follow can throw into the batch's catch long afterwards.
+      // What matters is whether the set is live, not whether everything else in
+      // the batch finished — otherwise a remount in the same login registers a
+      // second set on top of the one still running and doubles every event.
+      const insertGroups = vi
+        .spyOn(db, 'insertGroups')
+        .mockRejectedValueOnce(new Error('db gone'));
+
+      await syncStart();
+      expect(insertGroups).toHaveBeenCalled();
+      const afterFirst = vi.mocked(subscribe).mock.calls.length;
+      expect(afterFirst).toBeGreaterThan(0);
+
+      await syncStart();
+
+      expect(vi.mocked(subscribe).mock.calls.length).toBe(afterFirst);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a failed low-priority subscribe leaves the next start to retry',
+    async () => {
+      vi.mocked(subscribe).mockImplementation((async (endpoint: {
+        app: string;
+      }) => {
+        if (endpoint.app === 'activity') {
+          throw new Error('subscribe failed');
+        }
+        return 1;
+      }) as unknown as typeof subscribe);
+
+      await syncStart();
+      const afterFirst = vi.mocked(subscribe).mock.calls.length;
+
+      await syncStart();
+
+      expect(vi.mocked(subscribe).mock.calls.length).toBeGreaterThan(
+        afterFirst
+      );
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a new login subscribes again',
+    async () => {
+      await syncStart();
+      const afterFirst = vi.mocked(subscribe).mock.calls.length;
+
+      logOut();
+      logIn();
+      await syncStart();
+
+      expect(vi.mocked(subscribe).mock.calls.length).toBeGreaterThan(
+        afterFirst
+      );
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a gated start subscribes once it recovers, and not again',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+      await syncStart();
+      // Nothing was registered while the gate was up, so the marker must not
+      // claim otherwise.
+      expect(vi.mocked(subscribe)).not.toHaveBeenCalled();
+
+      reportedDeskVersion = MIN_GROUPS_VERSION;
+      await retryDeskCompatibility();
+      const afterRetry = vi.mocked(subscribe).mock.calls.length;
+      expect(afterRetry).toBeGreaterThan(0);
+
+      await syncStart();
+
+      expect(vi.mocked(subscribe).mock.calls.length).toBe(afterRetry);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'recovers in place once the ship is updated, without a reload',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+      await syncStart();
+      expect(getSession()?.deskCompat?.status).toBe('incompatible');
+
+      reportedDeskVersion = MIN_GROUPS_VERSION;
+      const onRecovered = vi.fn();
+      await retryDeskCompatibility({ onRecovered });
+
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
+      expect(didScry('/v10/init')).toBe(true);
+      expect(vi.mocked(subscribe)).toHaveBeenCalled();
+      expect(getSession()?.phase).toBe('ready');
+      // The shells' post-start work ran as a no-op while gated, so the retry has
+      // to run it again.
+      expect(onRecovered).toHaveBeenCalledTimes(1);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a retry that stays outdated keeps the notice and skips the follow-up',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+      await syncStart();
+
+      const onRecovered = vi.fn();
+      await retryDeskCompatibility({ onRecovered });
+
+      expect(getSession()?.deskCompat).toMatchObject({
+        status: 'incompatible',
+        current: '12.1.0',
+      });
+      expect(onRecovered).not.toHaveBeenCalled();
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a gated retry leaves its own verdict standing, not the one it started from',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+      await syncStart();
+
+      // A different outdated version, so the two ways the notice can end up
+      // saying 'incompatible' are told apart: the probe's fresh verdict, or the
+      // retry putting back the gate it was showing before. A retry that reached
+      // the probe must never do the latter.
+      reportedDeskVersion = '12.0.0';
+      const onRecovered = vi.fn();
+      await retryDeskCompatibility({ onRecovered });
+
+      expect(getSession()?.deskCompat).toMatchObject({
+        status: 'incompatible',
+        current: '12.0.0',
+      });
+      expect(onRecovered).not.toHaveBeenCalled();
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a retry blocked by a sync already in flight restores the notice',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+      await syncStart();
+
+      // Another sync start holds the lock, so the retry's own start bails before
+      // it can re-probe. The notice has to come back rather than stay disabled.
+      const release = holdProbe();
+      const inFlight = syncStart();
+      const onRecovered = vi.fn();
+      await retryDeskCompatibility({ onRecovered });
+
+      expect(getSession()?.deskCompat).toMatchObject({
+        status: 'incompatible',
+        current: '12.1.0',
+      });
+      expect(onRecovered).not.toHaveBeenCalled();
+
+      release();
+      await inFlight;
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a gate during recovery retries as a recovery',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+
+      await syncStart(true);
+
+      expect(getSession()?.deskCompat).toMatchObject({
+        status: 'incompatible',
+        subscribed: true,
+      });
+
+      reportedDeskVersion = MIN_GROUPS_VERSION;
+      await retryDeskCompatibility();
+
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
+      expect(didScry('/v10/init')).toBe(true);
+      // alreadySubscribed was preserved, so the live subscriptions weren't
+      // established on top of themselves.
+      expect(vi.mocked(subscribe)).not.toHaveBeenCalled();
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a retry keeps the version it is showing while it re-probes',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+      await syncStart();
+
+      const release = holdProbe();
+      const retrying = retryDeskCompatibility();
+      await vi.waitFor(() =>
+        expect(getSession()?.deskCompat?.status).toBe('probing')
+      );
+
+      // Not reset to a bare cold-start probe: the shell keeps the notice up
+      // (its `current` is what tells it apart from a first-run probe).
+      expect(getSession()?.deskCompat).toMatchObject({
+        status: 'probing',
+        current: '12.1.0',
+        subscribed: false,
+      });
+
+      release();
+      await retrying;
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'fails open when the probe itself fails',
+    async () => {
+      probeError = new Error('network down');
+
+      await syncStart();
+
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
+      expect(didScry('/v10/init')).toBe(true);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'fails open when the ship reports no version at all',
+    async () => {
+      // A missing docket charge is reported as 'n/a' by getAppInfo.
+      reportedDeskVersion = null;
+
+      await syncStart();
+
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
+      expect(didScry('/v10/init')).toBe(true);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'gives up on a hanging probe and lets a late answer change nothing',
+    async () => {
+      const release = holdProbe();
+      vi.useFakeTimers();
+      try {
+        const started = syncStart();
+        let finished = false;
+        void started.then(() => {
+          finished = true;
+        });
+
+        // The per-scry timeout lives inside the client; this is the ceiling on
+        // the whole probe, reauth round trips included.
+        await vi.advanceTimersByTimeAsync(PROBE_TIMEOUT + 1);
+        expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
+
+        // Let the rest of a failed-open startup run to completion.
+        for (let i = 0; i < 30 && !finished; i++) {
+          await vi.advanceTimersByTimeAsync(1000);
+        }
+        expect(finished).toBe(true);
+        expect(didScry('/v10/init')).toBe(true);
+        expect(setAppInfo).not.toHaveBeenCalled();
+
+        // The ship finally answers, with a version that would have gated. Too
+        // late: startup already went ahead without it.
+        reportedDeskVersion = '12.1.0';
+        release();
+        await vi.advanceTimersByTimeAsync(1000);
+
+        expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
+        expect(setAppInfo).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'releases the queue thread a hanging probe held, once it settles',
+    async () => {
+      const release = holdProbe();
+      vi.useFakeTimers();
+      try {
+        const started = syncStart();
+        let finished = false;
+        void started.then(() => {
+          finished = true;
+        });
+
+        await vi.advanceTimersByTimeAsync(PROBE_TIMEOUT + 1);
+        for (let i = 0; i < 30 && !finished; i++) {
+          await vi.advanceTimersByTimeAsync(1000);
+        }
+        expect(finished).toBe(true);
+
+        // Startup gave up on it, but the probe is still running inside the
+        // queue: Promise.race doesn't cancel the loser, so it keeps its worker
+        // thread until the request itself settles.
+        expect(syncQueue.activeThreads).toBeGreaterThan(0);
+
+        release();
+        await vi.advanceTimersByTimeAsync(1000);
+
+        // Settling is what hands the thread back — which is why every scry,
+        // including the one a 403 retries, has to be bounded.
+        expect(syncQueue.activeThreads).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'drops a probe answer that arrives after logout',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+      const release = holdProbe();
+      const started = syncStart();
+      await vi.waitFor(() => expect(probeCount()).toBe(1));
+
+      logOut();
+      release();
+      // Reported as abandoned rather than as a clean or gated start: there is
+      // no verdict to act on, because there is no longer anyone to act for.
+      await expect(started).resolves.toBe('abandoned');
+
+      // Not just "no gate": startup must not resurrect the session it was
+      // running for, either.
+      expect(getSession()).toBeNull();
+      // Suppressed at the same point as the capability flags, inside
+      // syncAppInfo.
+      expect(setAppInfo).not.toHaveBeenCalled();
+      // Startup stopped rather than syncing on behalf of a logged-out session.
+      expect(didScry('/v10/init')).toBe(false);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a probe answering after a re-login to the same ship changes nothing',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+      const releaseFirst = holdProbe();
+      const first = syncStart();
+      await vi.waitFor(() => expect(probeCount()).toBe(1));
+
+      // Same ship, same session shape — only the client's lifetime differs.
+      logOut();
+      logIn();
+      const releaseSecond = holdProbe();
+      const second = syncStart();
+      await vi.waitFor(() => expect(probeCount()).toBe(2));
+
+      // The previous login's answer lands last, carrying a version that would
+      // have gated this one.
+      releaseFirst();
+      await first;
+
+      expect(setAppInfo).not.toHaveBeenCalled();
+      expect(getSession()?.deskCompat).toEqual({
+        status: 'probing',
+        current: null,
+        minimum: MIN_GROUPS_VERSION,
+        subscribed: false,
+      });
+
+      // The live login's own probe is still the one that decides.
+      reportedDeskVersion = MIN_GROUPS_VERSION;
+      releaseSecond();
+      await second;
+
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a probe answering after a switch to another ship changes nothing',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+      const releaseFirst = holdProbe();
+      const first = syncStart();
+      await vi.waitFor(() => expect(probeCount()).toBe(1));
+
+      logOut();
+      logIn('~nibset-napwyn');
+      const releaseSecond = holdProbe();
+      const second = syncStart();
+      await vi.waitFor(() => expect(probeCount()).toBe(2));
+
+      releaseFirst();
+      await first;
+
+      expect(setAppInfo).not.toHaveBeenCalled();
+      expect(getSession()?.deskCompat).toEqual({
+        status: 'probing',
+        current: null,
+        minimum: MIN_GROUPS_VERSION,
+        subscribed: false,
+      });
+
+      reportedDeskVersion = MIN_GROUPS_VERSION;
+      releaseSecond();
+      await second;
+
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a retry interrupted by logout neither restores the notice nor prefetches',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+      await syncStart();
+
+      // The gated start above already persisted the version it read; only the
+      // retry's own answer is under test here.
+      setAppInfo.mockClear();
+      const release = holdProbe();
+      const onRecovered = vi.fn();
+      const retrying = retryDeskCompatibility({ onRecovered });
+      await vi.waitFor(() => expect(probeCount()).toBe(2));
+
+      logOut();
+      release();
+      await retrying;
+
+      // There is no notice to restore and no one to prefetch for.
+      expect(getSession()).toBeNull();
+      expect(onRecovered).not.toHaveBeenCalled();
+      expect(setAppInfo).not.toHaveBeenCalled();
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a retry finishing after a new login leaves that login alone',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+      await syncStart();
+
+      setAppInfo.mockClear();
+      const releaseRetry = holdProbe();
+      const onRecovered = vi.fn();
+      const retrying = retryDeskCompatibility({ onRecovered });
+      await vi.waitFor(() => expect(probeCount()).toBe(2));
+
+      // Logged out and back in while Retry was still waiting; the new login is
+      // part-way through its own cold probe.
+      logOut();
+      logIn();
+      const releaseNew = holdProbe();
+      const newStart = syncStart();
+      await vi.waitFor(() => expect(probeCount()).toBe(3));
+
+      releaseRetry();
+      await retrying;
+
+      // The new login is still deciding for itself: the old retry must not
+      // stamp its verdict, or its version, onto it.
+      expect(getSession()?.deskCompat).toEqual({
+        status: 'probing',
+        current: null,
+        minimum: MIN_GROUPS_VERSION,
+        subscribed: false,
+      });
+      expect(onRecovered).not.toHaveBeenCalled();
+      expect(setAppInfo).not.toHaveBeenCalled();
+
+      // Nor may it hand the sync lock to a third start while the new login is
+      // still using it.
+      const probesBefore = probeCount();
+      await syncStart();
+      expect(probeCount()).toBe(probesBefore);
+
+      reportedDeskVersion = MIN_GROUPS_VERSION;
+      releaseNew();
+      await newStart;
+
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a retry that fails after a clean verdict leaves the desk marked ok',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+      await syncStart();
+
+      reportedDeskVersion = MIN_GROUPS_VERSION;
+      vi.spyOn(db, 'getEnqueuedPosts').mockRejectedValueOnce(
+        new Error('db gone')
+      );
+      const onRecovered = vi.fn();
+
+      await expect(retryDeskCompatibility({ onRecovered })).rejects.toThrow(
+        'db gone'
+      );
+
+      // The desk turned out to be fine; the failure was somewhere else, so the
+      // verdict stands and the notice must not come back and claim otherwise.
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
+      expect(onRecovered).not.toHaveBeenCalled();
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'keeps the gate across a discontinuity',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+      await syncStart(true);
+
+      const seen: (DeskCompatibility | undefined)[] = [];
+      const unsubscribe = subscribeToSession((session) =>
+        seen.push(session?.deskCompat)
+      );
+      await handleDiscontinuity({ context: 'test' });
+      unsubscribe();
+
+      // The notice must not blink off while the session is reset and re-probed.
+      expect(seen.length).toBeGreaterThan(0);
+      expect(seen.every((deskCompat) => deskCompat != null)).toBe(true);
+      expect(getSession()?.deskCompat?.status).toBe('incompatible');
+      expect(setDidSyncInitialPosts).not.toHaveBeenCalled();
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a discontinuity in a clean session keeps the ok verdict throughout',
+    async () => {
+      await syncStart();
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
+
+      const seen: (DeskCompatibility | undefined)[] = [];
+      const unsubscribe = subscribeToSession((session) =>
+        seen.push(session?.deskCompat)
+      );
+      await handleDiscontinuity({ context: 'test' });
+      unsubscribe();
+
+      // Never absent and never back to probing: the shells read either as
+      // "not usable yet" and tear down what they only show on a good desk.
+      expect(seen.length).toBeGreaterThan(0);
+      expect(seen.every((deskCompat) => deskCompat?.status === 'ok')).toBe(
+        true
+      );
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a discontinuity whose reprobe finds an outdated desk still gates',
+    async () => {
+      await syncStart();
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
+
+      reportedDeskVersion = '12.1.0';
+      await handleDiscontinuity({ context: 'test' });
+
+      expect(getSession()?.deskCompat).toMatchObject({
+        status: 'incompatible',
+        current: '12.1.0',
+      });
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a cold-gated session recovers through a discontinuity as a cold start',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+      await syncStart();
+      expect(getSession()?.deskCompat).toMatchObject({
+        status: 'incompatible',
+        subscribed: false,
+      });
+      expect(vi.mocked(subscribe)).not.toHaveBeenCalled();
+
+      reportedDeskVersion = MIN_GROUPS_VERSION;
+      await handleDiscontinuity({ context: 'test' });
+
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
+      // It never subscribed while gated, so recovery has to do it now.
+      expect(vi.mocked(subscribe)).toHaveBeenCalled();
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'recovers the initial-post prefetch a gate skipped',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+      await syncStart();
+      // The shells' post-start call already ran, as a no-op.
+      expect(setDidSyncInitialPosts).not.toHaveBeenCalled();
+
+      reportedDeskVersion = MIN_GROUPS_VERSION;
+      await handleDiscontinuity({ context: 'test' });
+
+      // Nothing re-invokes the shells here, so the recovery owes them the
+      // prefetch they lost.
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
+      await vi.waitFor(() =>
+        expect(setDidSyncInitialPosts).toHaveBeenCalledWith(true)
+      );
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'syncInitialPosts is a no-op while gated',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+      await syncStart();
+      const callsBefore = scryCalls.length;
+
+      await syncInitialPosts({ syncSize: 'light' });
+
+      expect(scryCalls.length).toBe(callsBefore);
+      expect(setDidSyncInitialPosts).not.toHaveBeenCalled();
+    },
+    FULL_SYNC_TIMEOUT
   );
 });

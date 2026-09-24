@@ -35,7 +35,8 @@ import {
   createContextLensRegistry,
   unbindContextLensFromSession,
 } from '../context-lens.js';
-import { scheduleCronSnapshot } from '../cron-telemetry.js';
+import { getTlonCronService, scheduleCronSnapshot } from '../cron-telemetry.js';
+import type { RestartCatchupConnection } from '../restart-catchup.js';
 import {
   getEffectiveOwnerShip,
   setEffectiveOwnerShip,
@@ -58,6 +59,7 @@ import {
 } from '../pending-nudge.js';
 import { emitTlonPluginErrorTelemetry } from '../plugin-error-observability.js';
 import { getTlonRuntime } from '../runtime.js';
+import { OWNER_ONLY_TOOLS } from '../owner-only-tools.js';
 import { setSessionRole } from '../session-roles.js';
 import {
   DM_INVITE_PREVIEW,
@@ -72,6 +74,12 @@ import {
   resolveTurnTerminalLensStatus,
   rewriteGenericTerminalErrorReply,
 } from '../silent-failure-notice.js';
+import {
+  STEWARD_AUTOMATION_HARNESS_PATH,
+  STEWARD_AUTOMATION_FINALIZE_PATH,
+  StewardAutomationEditProcessor,
+} from '../steward-automation-edit.js';
+import { isStewardAutomationProjectionEligible } from '../steward-automation-reconciliation.js';
 import {
   canonicalizeNest,
   normalizeShip,
@@ -123,13 +131,22 @@ import {
 } from '../version.js';
 import {
   type OnboardingStepReport,
+  createAgentOnboardingCatchUpScheduler,
+  createAgentOnboardingReconciliationPresence,
   drainAgentOnboardingRuntime,
+  findOnboardingGroupIdInChannel,
+  isAgentOnboardingReply,
+  parseAgentOnboardingRequest,
   handleAgentOnboardingRequest,
+  isDmNest,
   scanAgentOnboardingChannel,
 } from './agent-onboarding.js';
+import { OnboardingDmState } from './onboarding-dm-state.js';
 import {
+  type ApprovalRequestOutcome,
   type DisplayContext,
   type PendingApproval,
+  applyApprovalRequest,
   buildApprovalA2UIBlob,
   buildPendingApprovalsResponse,
   createPendingApproval,
@@ -138,10 +155,14 @@ import {
   formatApprovalConfirmation,
   formatApprovalRequestNotification,
   formatBlockedList,
+  formatChannelApprovalAck,
   isExpired,
+  isNotificationDelivered,
+  mergeApprovalDeliveryState,
   normalizeNotificationId,
   pruneExpired,
   removePendingApproval,
+  runBanAction,
 } from './approval.js';
 import {
   handleChannelReaction,
@@ -163,6 +184,22 @@ import {
   resolveDispatchTimeoutMs,
 } from './dispatch-timeouts.js';
 import { dmReactionReplyParentId } from './dm-reactions.js';
+import {
+  type GroupChannelJournal,
+  type GroupsUiChannelHandlerDeps,
+  applyGroupsUiRoleFact,
+  createGroupChannelJournal,
+  handleGroupsUiChannelFact,
+  parseGroupsUiChannelFact,
+  parseGroupsUiRoleFact,
+} from './group-channels.js';
+import {
+  type GroupInviteDeps,
+  createCatchUpRunner,
+  clearErroredMarkers,
+  parseForeignsSnapshot,
+  processPendingForeigns,
+} from './group-invites.js';
 import {
   buildThreadContextMessage,
   cacheMessage,
@@ -216,7 +253,6 @@ import {
   isSummarizationRequest,
   parseBlockedShips,
   prepareInboundText,
-  resolveGroupInviteAction,
   sanitizeMessageText,
   shouldEngageInGroup,
   stripBotMentionOutsidePlaceholders,
@@ -288,6 +324,7 @@ export type MonitorTlonOpts = {
   runtime?: RuntimeEnv;
   abortSignal?: AbortSignal;
   accountId?: string | null;
+  onReady?: (connection: RestartCatchupConnection) => void;
   /**
    * Channel-start config snapshot (the gateway adapter's `ctx.cfg`), used
    * instead of an independent `core.config.loadConfig()` call so
@@ -569,6 +606,20 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
   let api: UrbitSSEClient | null = null;
   let clearAgentOnboardingRetries: (() => void) | null = null;
+  // The groupChannels journal and the settings refresh it depends on live at
+  // function scope: the SSE client's reconnect hook (built in the first try
+  // below), the subscription setup, and the teardown finally all reach them
+  // (precedent: clearAgentOnboardingRetries).
+  let groupChannelJournal: GroupChannelJournal | undefined;
+  let refreshSettingsNow: () => Promise<void> = async () => {};
+  // Whether the settings subscription can currently echo owner edits. A scry
+  // issued while it is down must not re-trust the groupChannels journal: an
+  // edit landing after that scry goes unseen until the resubscribe, and the
+  // next full-list put would write over it. Set when the subscription quits,
+  // cleared when the SSE client reports it re-established. A stream-level
+  // error does not set it: that fan-out can arrive after the reconnect, with
+  // no recovery event to clear it, and onReconnect covers the stream path.
+  let settingsFeedDown = false;
   let cookie: string;
   // Set by the boot self-contact scry; reconnect publishes re-read instead.
   let bootSelfContactRead: SelfContactRead | undefined;
@@ -640,6 +691,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       },
       // Re-authenticate on reconnect in case the session expired
       onReconnect: async (client) => {
+        // Settings echoes were missed while the stream was down: the
+        // groupChannels journal's write base is stale until the next fresh
+        // refresh re-trusts it.
+        groupChannelJournal?.markUntrusted();
         runtime.log?.('[tlon] Re-authenticating on SSE reconnect...');
         const newCookie = await authenticateWithRetry('re_auth');
         client.updateCookie(newCookie);
@@ -660,6 +715,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             });
           }
           return;
+        }
+        if (event.app === 'settings') {
+          // The feed is live again: a load taken now is a base no edit can
+          // have slipped past (later ones arrive as echoes), so it re-trusts.
+          settingsFeedDown = false;
+          void refreshSettingsNow();
         }
         runtime.log?.(
           `[tlon] Subscription ${event.app}${event.path} ${event.phase} after ${event.attempt} failed attempt(s), down ${event.downMs}ms`
@@ -854,6 +915,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     const processedTracker = createProcessedMessageTracker(2000);
     let groupChannels: string[] = [];
     const channelToGroup = new Map<string, string>();
+    // Every nest discovery has reported, recorded outside any "not already
+    // watched" guard so a nest the firehose watched first is still protected.
+    // Config-sourced nests are immune to settings-key removal; see the
+    // ownership rule in group-channels.ts.
+    const discoveredNests = new Set<string>();
+    // Where onboarding stands in each DM: the group its last request named,
+    // or that it has finished (or holds no request) and replies are just talk.
+    const onboardingDmState = new OnboardingDmState();
     let botNickname: string | null = null;
     let botAvatar: string | null = null;
 
@@ -1116,23 +1185,16 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       );
     }
 
-    // Store init foreigns for processing after settings are loaded
-    let initForeigns: Foreigns | null = null;
-
     // Group name cache for human-readable display (flag -> title)
     const groupNameCache = new Map<string, string>();
     const channelNameCache = new Map<string, string>();
-
-    function extractMetadataTitle(value: unknown): string | undefined {
-      if (!value || typeof value !== 'object') {
-        return undefined;
-      }
-      const metadata = value as { meta?: { title?: unknown }; title?: unknown };
-      const title = metadata.meta?.title ?? metadata.title;
-      return typeof title === 'string' && title.trim()
-        ? title.trim()
-        : undefined;
-    }
+    // Per group: the bot's roles and the admin roles, for the /groups/ui
+    // readability filter. Seeded from the startup snapshot (a group joined
+    // before boot gets no create fact), kept current by create and role facts.
+    const groupRoles = new Map<
+      string,
+      { botSects: string[]; bloc: string[] }
+    >();
 
     // Build display context for approval formatting
     function buildDisplayContext(): DisplayContext {
@@ -1267,6 +1329,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             runtime.log?.(
               `[tlon] Migrated ${key} from config to settings store`
             );
+            // The settings subscription starts after the migration and does
+            // not replay it, so fold the write into the runtime snapshot and
+            // the manager's baseline. Otherwise the first unrelated fact
+            // would present the pre-migration value as a key change.
+            currentSettings = settingsManager.applyLocal(key, fileValue);
           } catch (err) {
             runtime.log?.(`[tlon] Failed to migrate ${key}: ${String(err)}`);
           }
@@ -1517,43 +1584,54 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       },
     });
 
-    // Fetch group metadata AFTER settings are loaded so approval cards can display
-    // friendly group names for both auto-discovered and manually configured channels.
-    const shouldFetchGroupMetadata =
-      effectiveAutoDiscoverChannels ||
-      account.groupChannels.length > 0 ||
-      Boolean(currentSettings.groupChannels?.length) ||
-      effectiveAutoAcceptGroupInvites ||
-      Boolean(effectiveOwnerShip) ||
-      effectiveGroupInviteAllowlist.length > 0;
-    if (shouldFetchGroupMetadata) {
-      try {
-        const initData = await fetchInitData(api, runtime, {
-          signal: opts.abortSignal,
-        });
-        if (effectiveAutoDiscoverChannels && initData.channels.length > 0) {
-          groupChannels = initData.channels;
+    // Fetch the group snapshot after settings are loaded: approval cards
+    // display friendly group names, and the /groups/ui readability filter
+    // needs the bot's roles in every group it already belongs to. The
+    // snapshot is the only way to know which groups those are, so
+    // no config gates the fetch.
+    try {
+      const initData = await fetchInitData(api, runtime, {
+        signal: opts.abortSignal,
+        botShip: botShipName,
+      });
+      if (effectiveAutoDiscoverChannels && initData.channels.length > 0) {
+        groupChannels = initData.channels;
+        for (const channelNest of initData.channels) {
+          discoveredNests.add(channelNest);
         }
-        // Populate channel-to-group mapping for member hint injection
-        for (const [nest, groupFlag] of initData.channelToGroup) {
-          channelToGroup.set(nest, groupFlag);
-        }
-        for (const [nest, title] of initData.channelNames) {
-          channelNameCache.set(nest, title);
-        }
-        // Populate group name cache for human-readable display
-        for (const [flag, title] of initData.groupNames) {
-          groupNameCache.set(flag, title);
-        }
-        initForeigns = initData.foreigns;
-      } catch (error: any) {
-        runtime.error?.(
-          `[tlon] Auto-discovery failed: ${error?.message ?? String(error)}`
-        );
       }
+      // Populate channel-to-group mapping for member hint injection
+      for (const [nest, groupFlag] of initData.channelToGroup) {
+        channelToGroup.set(nest, groupFlag);
+      }
+      for (const [nest, title] of initData.channelNames) {
+        channelNameCache.set(nest, title);
+      }
+      // Populate group name cache for human-readable display
+      for (const [flag, title] of initData.groupNames) {
+        groupNameCache.set(flag, title);
+      }
+      for (const [flag, roles] of initData.groupRoles) {
+        groupRoles.set(flag, roles);
+      }
+    } catch (error: any) {
+      runtime.error?.(
+        `[tlon] Auto-discovery failed: ${error?.message ?? String(error)}`
+      );
     }
 
-    // Merge manual config with auto-discovered channels
+    // Merge manual config with auto-discovered channels.
+    //
+    // Ownership rule for the boot known-set (the persisted key's rule is in
+    // group-channels.ts): discovery (while `autoDiscoverChannels` is on) and
+    // the file list (`openclaw.json` `groupChannels`, env-seeded on hosted
+    // bots) are config sources — unioned here, and immune to a settings-key
+    // removal. `%settings` `groupChannels` is the third source, written by
+    // solaris (the whole list = the `channelRules` keys, on every hosted
+    // save), by the `tlon settings add-channel`/`remove-channel` CLI, and by
+    // this plugin's append-only journal of joined-group channels. Conflict
+    // rule on that key: last write wins; the plugin never removes from it, and
+    // re-journals a group's channels whenever the host re-sends its state.
     if (account.groupChannels.length > 0) {
       for (const ch of account.groupChannels) {
         if (!groupChannels.includes(ch)) {
@@ -1643,15 +1721,17 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
     }
 
-    // Helper to remove ship from dmAllowlist in both memory and settings store
-    async function removeFromDmAllowlist(ship: string): Promise<void> {
+    // Helper to remove ship from dmAllowlist in both memory and settings store.
+    // Returns false when the settings write failed (the in-memory entry is
+    // restored so a retry re-attempts the write).
+    async function removeFromDmAllowlist(ship: string): Promise<boolean> {
       const normalizedShip = normalizeShip(ship);
       const before = effectiveDmAllowlist.length;
       effectiveDmAllowlist = effectiveDmAllowlist.filter(
         (s) => s !== normalizedShip
       );
       if (effectiveDmAllowlist.length === before) {
-        return; // Ship wasn't on the list
+        return true; // Ship wasn't on the list — nothing to revoke
       }
       try {
         await api!.poke({
@@ -1668,8 +1748,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         });
         runtime.log?.(`[tlon] Removed ${normalizedShip} from dmAllowlist`);
       } catch (err) {
+        // Memory must not claim a revocation the store still grants: restoring
+        // the entry keeps a retried /ban re-attempting the write instead of
+        // early-returning on the absent ship.
+        effectiveDmAllowlist = [...effectiveDmAllowlist, normalizedShip];
         runtime.error?.(`[tlon] Failed to update dmAllowlist: ${String(err)}`);
+        return false;
       }
+      return true;
     }
 
     // Helper to update channelRules in settings store
@@ -1718,8 +1804,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
     }
 
-    // Helper to block a ship using Tlon's native blocking
-    async function blockShip(ship: string): Promise<void> {
+    // Helper to block a ship using Tlon's native blocking. Returns false when
+    // the poke failed, so callers that treat the block as the suppression can
+    // keep their state instead of dropping it.
+    async function blockShip(ship: string): Promise<boolean> {
       const normalizedShip = normalizeShip(ship);
       try {
         await api!.poke({
@@ -1728,10 +1816,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           json: { ship: normalizedShip },
         });
         runtime.log?.(`[tlon] Blocked ship ${normalizedShip}`);
+        return true;
       } catch (err) {
         runtime.error?.(
           `[tlon] Failed to block ship ${normalizedShip}: ${String(err)}`
         );
+        return false;
       }
     }
 
@@ -1761,16 +1851,21 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       return parseBlockedShips(blocked);
     }
 
-    // Check if a ship is blocked using Tlon's native block list
-    async function isShipBlocked(ship: string): Promise<boolean> {
+    // Check if a ship is blocked using Tlon's native block list.
+    // null = the lookup itself failed, so block status is unknown.
+    async function checkShipBlocked(ship: string): Promise<boolean | null> {
       const normalizedShip = normalizeShip(ship);
       try {
         const blocked = await scryBlockedShips();
         return blocked.some((s) => normalizeShip(s) === normalizedShip);
       } catch (err) {
         runtime.log?.(`[tlon] Failed to check blocked list: ${String(err)}`);
-        return false;
+        return null;
       }
+    }
+
+    async function isShipBlocked(ship: string): Promise<boolean> {
+      return (await checkShipBlocked(ship)) === true;
     }
 
     // Get all blocked ships
@@ -1833,6 +1928,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         );
         return result.messageId;
       } catch (err) {
+        capturePluginError('approval_notification', err, {
+          errorKind: 'owner_notify_failed',
+        });
         runtime.error?.(
           `[tlon] Failed to send notification to owner: ${String(err)}`
         );
@@ -1931,72 +2029,48 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       return text.replace(blockDirectiveRegex, '').trim();
     }
 
-    // Queue a new approval request and notify the owner
-    async function queueApprovalRequest(
-      approval: PendingApproval
-    ): Promise<void> {
-      pendingApprovals = pruneExpired(pendingApprovals);
-
-      // Check if ship is blocked - silently ignore
-      if (await isShipBlocked(approval.requestingShip)) {
-        runtime.log?.(
-          `[tlon] Ignoring request from blocked ship ${approval.requestingShip}`
-        );
-        return;
-      }
-
-      // Check for duplicate - if found, update it with new content and re-notify
-      const existingIndex = pendingApprovals.findIndex(
-        (a) =>
-          a.type === approval.type &&
-          a.requestingShip === approval.requestingShip &&
-          (approval.type !== 'channel' ||
-            a.channelNest === approval.channelNest) &&
-          (approval.type !== 'group' || a.groupFlag === approval.groupFlag)
-      );
-
-      if (existingIndex !== -1) {
-        // Update existing approval with new content (preserves the original ID)
-        const existing = pendingApprovals[existingIndex];
-        if (approval.originalMessage) {
-          existing.originalMessage = approval.originalMessage;
-          existing.messagePreview = approval.messagePreview;
-        }
-        runtime.log?.(
-          `[tlon] Updated existing approval for ${approval.requestingShip} (${approval.type}) - re-sending notification`
-        );
-        // Send notification first, then save once with the notification ID.
-        // Saving before sendOwnerNotification causes a race: the settings subscription
-        // event replaces pendingApprovals in-memory, so the notificationMessageId
-        // set on the old object reference is lost.
-        const displayContext = buildDisplayContext();
-        const existNotifId = await sendOwnerNotification(
-          formatApprovalRequestNotification(existing, displayContext),
-          buildApprovalBlobField(existing, displayContext)
-        );
-        if (existNotifId) {
-          existing.notificationMessageId =
-            normalizeNotificationId(existNotifId);
-        }
-        await savePendingApprovals();
-        return;
-      }
-
-      // Send notification before saving so notificationMessageId is included
-      // in the single save. See comment above about the settings subscription race.
-      const displayContext = buildDisplayContext();
-      const notifId = await sendOwnerNotification(
-        formatApprovalRequestNotification(approval, displayContext),
-        buildApprovalBlobField(approval, displayContext)
-      );
-      if (notifId) {
-        approval.notificationMessageId = normalizeNotificationId(notifId);
-      }
-      pendingApprovals.push(approval);
-      await savePendingApprovals();
-      runtime.log?.(
-        `[tlon] Queued approval request: ${approval.id} (${approval.type} from ${approval.requestingShip})`
-      );
+    // Queue an approval request and notify the owner (idempotent — see
+    // applyApprovalRequest). Alongside the outcome, reports whether the
+    // owner DM actually went out and whether the block-list lookup failed —
+    // the in-channel status (TLON-6451) must not claim the request was sent
+    // when it wasn't, and must stay silent when a sender's block status
+    // couldn't be confirmed.
+    async function queueApprovalRequest(approval: PendingApproval): Promise<{
+      outcome: ApprovalRequestOutcome;
+      ownerNotified: boolean;
+      blockCheckUnknown: boolean;
+    }> {
+      let ownerNotified = false;
+      let blockCheckUnknown = false;
+      const outcome = await applyApprovalRequest(approval, {
+        getPending: () => pendingApprovals,
+        setPending: (next) => {
+          pendingApprovals = next;
+        },
+        isShipBlocked: async (ship) => {
+          const blocked = await checkShipBlocked(ship);
+          if (blocked === null) {
+            blockCheckUnknown = true;
+            // Unknown must not drop the request: queue + owner notify still
+            // beat silently losing a legitimate mention.
+            return false;
+          }
+          return blocked;
+        },
+        notify: async (a) => {
+          const displayContext = buildDisplayContext();
+          const notifId = await sendOwnerNotification(
+            formatApprovalRequestNotification(a, displayContext),
+            buildApprovalBlobField(a, displayContext)
+          );
+          ownerNotified = notifId !== undefined;
+          return notifId;
+        },
+        persist: savePendingApprovals,
+        now: () => Date.now(),
+        log: runtime.log,
+      });
+      return { outcome, ownerNotified, blockCheckUnknown };
     }
 
     // ── Approval action execution ─────────────────────────────────────
@@ -2104,6 +2178,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                     );
                     let newCount = 0;
                     for (const channelNest of discoveredChannels) {
+                      discoveredNests.add(channelNest);
                       if (!watchedChannels.has(channelNest)) {
                         watchedChannels.add(channelNest);
                         newCount++;
@@ -2124,15 +2199,74 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 runtime.error?.(
                   `[tlon] Failed to join group ${approval.groupFlag}: ${String(err)}`
                 );
+                // Keep the approval pending so the owner can retry — removing
+                // it would strand the still-pending invite with no surface.
+                return `Could not join ${approval.groupFlag}: invite accept failed. Request stays pending, try again.`;
               }
             }
             break;
         }
       } else if (action === 'block') {
-        await blockShip(approval.requestingShip);
-        await removeFromDmAllowlist(approval.requestingShip);
+        const result = await runBanAction(approval, {
+          blockShip,
+          removeFromDmAllowlist,
+          declineInvite: async (groupFlag) => {
+            await api!.poke({
+              app: 'groups',
+              mark: 'invite-decline',
+              json: groupFlag,
+            });
+            runtime.log?.(
+              `[tlon] Declined group invite ${groupFlag} after ban`
+            );
+          },
+        });
+        if (result.outcome === 'block-failed') {
+          // The record is the invite's suppression, so dropping it after a
+          // failed block re-queues and re-DMs on the next observation.
+          return `Could not block ${approval.requestingShip}: block failed. Request stays pending, try again.`;
+        }
+        if (result.outcome === 'revoke-failed') {
+          // The in-memory entry was restored by the helper; the retained
+          // record is what lets a retry re-attempt the settings write.
+          return `Blocked ${approval.requestingShip}, but could not revoke its DM access. Request stays pending, try again.`;
+        }
+        if (result.outcome === 'decline-failed') {
+          capturePluginError('group_invite_decline', result.error, {
+            errorKind: 'ban_decline_failed',
+          });
+          runtime.error?.(
+            `[tlon] Failed to decline group invite ${approval.groupFlag} after ban: ${String(result.error)}`
+          );
+          // The ban landed but the invite is still on the ship; keep the
+          // record so the owner can retry the decline.
+          return `Blocked ${approval.requestingShip}, but could not submit the decline for ${approval.groupFlag}. Request stays pending, try again.`;
+        }
+      } else if (
+        action === 'deny' &&
+        approval.type === 'group' &&
+        approval.groupFlag
+      ) {
+        // Deny must decline on the ship — the approval record is the
+        // suppression, so dropping it alone would re-queue on the next tick.
+        try {
+          await api!.poke({
+            app: 'groups',
+            mark: 'invite-decline',
+            json: approval.groupFlag,
+          });
+          runtime.log?.(
+            `[tlon] Declined group invite ${approval.groupFlag} after rejection`
+          );
+        } catch (err) {
+          runtime.error?.(
+            `[tlon] Failed to decline group invite ${approval.groupFlag}: ${String(err)}`
+          );
+          // Keep the approval pending rather than strand the invite.
+          return `Could not decline ${approval.groupFlag}: invite decline failed. Request stays pending, try again.`;
+        }
       }
-      // "deny" — no side effects beyond removing from pending
+      // "deny" for dm/channel — no side effects beyond removing from pending
 
       pendingApprovals = removePendingApproval(pendingApprovals, approval.id);
       await savePendingApprovals();
@@ -3017,7 +3151,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         const currentLens = contextLenses.get(lens.lensId);
         contextLenses.update(lens.lensId, {
           tools: {
-            ownerOnlyAvailable: ['tlon', 'cron', 'read'],
+            ownerOnlyAvailable: [...OWNER_ONLY_TOOLS],
             called: currentLens?.tools.called ?? [],
             callCount: currentLens?.tools.callCount ?? 0,
             lastStartedAt: currentLens?.tools.lastStartedAt ?? null,
@@ -3778,6 +3912,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       for (const [flag, title] of initData.groupNames) {
         groupNameCache.set(flag, title);
       }
+      // Every discovery result is a config-sourced nest while discovery is
+      // on, whether or not it is already watched; see discoveredNests.
+      for (const nest of initData.channels) {
+        discoveredNests.add(nest);
+      }
       return initData.channels;
     };
 
@@ -3805,6 +3944,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             outcome: report.outcome ?? 'ok',
             nest,
             groupFlag: report.groupFlag ?? groupId ?? null,
+            provisionId: report.provisionId ?? null,
             purposeId: report.purposeId ?? null,
             topicCount: report.topicCount ?? null,
             timezone: report.timezone ?? null,
@@ -3830,12 +3970,16 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     const onboardingRetryFlights = new Set<Promise<void>>();
     let drainingAgentOnboarding = false;
     const onboardingRetryAttempts = new Map<string, number>();
+    let onboardingCatchUp: ReturnType<
+      typeof createAgentOnboardingCatchUpScheduler
+    > | null = null;
     clearAgentOnboardingRetries = () => {
       for (const timer of onboardingRetryTimers.values()) {
         clearTimeout(timer);
       }
       onboardingRetryTimers.clear();
       onboardingRetryAttempts.clear();
+      onboardingCatchUp?.stop();
     };
     const scheduleAgentOnboardingRetry = (nest: string) => {
       if (
@@ -3850,7 +3994,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       const timer = setTimeout(() => {
         onboardingRetryTimers.delete(nest);
         if (!opts.abortSignal?.aborted) {
-          const flight = scanAgentOnboardingNest(nest);
+          const flight = scanAgentOnboardingNest(nest).then((reconciled) => {
+            if (reconciled === false) onboardingCatchUp?.schedule(nest);
+          });
           onboardingRetryFlights.add(flight);
           void flight.then(
             () => onboardingRetryFlights.delete(flight),
@@ -3868,11 +4014,45 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       onboardingRetryAttempts.delete(nest);
     };
 
-    const scanAgentOnboardingNest = async (nest: string) => {
+    const scanAgentOnboardingNest = async (
+      nest: string
+    ): Promise<boolean | undefined> => {
       if (opts.abortSignal?.aborted) return;
-      if (!nest.startsWith('chat/')) return;
+      const nestIsDm = isDmNest(nest);
+      if (!nest.startsWith('chat/') && !nestIsDm) return;
+      // A settings removal unwatches a nest while a catch-up or retry for it
+      // may still be pending; those must not query, or post into, a channel
+      // the owner took away. The bot DM is never in the watched set.
+      if (!nestIsDm && !watchedChannels.has(nest)) return;
       let groupId = channelToGroup.get(nest);
-      if (!groupId) {
+      if (!groupId && nestIsDm) {
+        // A DM names no group. The app's intro request, posted into this DM,
+        // names the workspace it furnished; until it lands there is nothing to
+        // reconcile, so fall through to the retry below.
+        try {
+          groupId = await findOnboardingGroupIdInChannel({
+            api,
+            abortSignal: opts.abortSignal,
+            channelNest: nest,
+            ownerShip: effectiveOwnerShip,
+          });
+        } catch (error) {
+          runtime.error?.(
+            `[tlon] Failed to resolve onboarding group from ${nest}: ${error instanceof Error ? error.message : String(error)}`
+          );
+          scheduleAgentOnboardingRetry(nest);
+          return;
+        }
+      }
+      if (!groupId && nestIsDm) {
+        // The owner's DM read fine and holds no intro request. That is the
+        // normal state of every DM whose owner onboarded before this flow, or
+        // never did — not a transient failure. Hand it the same bounded
+        // catch-up window a newly discovered chat gets, rather than the
+        // unbounded retry, which would scry the DM's history forever.
+        return false;
+      }
+      if (!groupId && !nestIsDm) {
         try {
           await mergeDiscoveredChannels();
           if (opts.abortSignal?.aborted) return;
@@ -3890,7 +4070,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         return;
       }
       try {
-        await scanAgentOnboardingChannel({
+        const presentation = createAgentOnboardingReconciliationPresence({
+          conversationId: nest,
+          createRunId: () => `onboarding-reconcile:${randomUUID()}`,
+          refreshRun: (params) => computingPresence.refreshRun(params),
+          stopRun: (params) => computingPresence.stopRun(params),
+        });
+        const reconciled = await scanAgentOnboardingChannel({
           accountId: account.accountId,
           api,
           abortSignal: opts.abortSignal,
@@ -3901,9 +4087,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           ownerShip: effectiveOwnerShip,
           log: (message) => runtime.log?.(message),
           trackStep: trackOnboardingStep(nest, groupId),
+          presentation,
         });
         if (opts.abortSignal?.aborted) return;
         clearAgentOnboardingRetry(nest);
+        return reconciled;
       } catch (error) {
         if (opts.abortSignal?.aborted) return;
         runtime.error?.(
@@ -3915,14 +4103,20 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         // stops. The per-nest timer deduplicates overlapping firehose/boot
         // attempts.
         scheduleAgentOnboardingRetry(nest);
+        return undefined;
       }
     };
 
-    const onboardingDiscoveryFlights = new Set<Promise<void>>();
+    onboardingCatchUp = createAgentOnboardingCatchUpScheduler({
+      scan: scanAgentOnboardingNest,
+      abortSignal: opts.abortSignal,
+    });
+
+    const onboardingDiscoveryFlights = new Set<Promise<boolean | undefined>>();
     let drainingOnboardingDiscovery = false;
     const scanDiscoveredAgentOnboardingNest = async (nest: string) => {
       if (drainingOnboardingDiscovery || opts.abortSignal?.aborted) return;
-      const flight = scanAgentOnboardingNest(nest);
+      const flight = onboardingCatchUp.reconcile(nest);
       onboardingDiscoveryFlights.add(flight);
       try {
         await flight;
@@ -3956,7 +4150,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         ) {
           watchedChannels.add(nest);
           runtime.log?.(`[tlon] Auto-watching channel from firehose: ${nest}`);
-          await scanAgentOnboardingNest(nest);
+          await onboardingCatchUp.reconcile(nest);
         }
 
         // Only process channels we're watching
@@ -4127,6 +4321,23 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         }
 
         let handledOnboardingRequest = false;
+        // Same gap as the reconciliation scan: a DM nest names no group, so
+        // read the workspace out of the app's intro request in this DM.
+        let onboardingGroupId = channelToGroup.get(nest);
+        if (!onboardingGroupId && isDmNest(nest)) {
+          try {
+            onboardingGroupId = await findOnboardingGroupIdInChannel({
+              api,
+              abortSignal: opts.abortSignal,
+              channelNest: nest,
+              ownerShip: effectiveOwnerShip,
+            });
+          } catch (error) {
+            runtime.error?.(
+              `[tlon] Failed to resolve onboarding group from ${nest}: ${error instanceof Error ? error.message : String(error)}`
+            );
+          }
+        }
         try {
           handledOnboardingRequest = await handleAgentOnboardingRequest({
             accountId: account.accountId,
@@ -4135,13 +4346,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             botShip: botShipName,
             botProfile: getBotProfile(),
             channelNest: nest,
-            groupId: channelToGroup.get(nest),
+            groupId: onboardingGroupId,
             ownerShip: effectiveOwnerShip,
             senderShip,
             rawText,
             blob: content.blob,
             log: (message) => runtime.log?.(message),
-            trackStep: trackOnboardingStep(nest, channelToGroup.get(nest)),
+            trackStep: trackOnboardingStep(nest, onboardingGroupId),
             presentation: {
               startThinking: () => {
                 computingPresence.refreshRun({
@@ -4153,6 +4364,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 computingPresence.stopRun({
                   conversationId: nest,
                   runId: `onboarding:${String(messageId)}`,
+                });
+              },
+              startBackgroundThinking: (key) => {
+                computingPresence.refreshRun({
+                  conversationId: nest,
+                  runId: `onboarding-background:${key}`,
+                });
+              },
+              stopBackgroundThinking: (key) => {
+                computingPresence.stopRun({
+                  conversationId: nest,
+                  runId: `onboarding-background:${key}`,
                 });
               },
             },
@@ -4350,7 +4573,84 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   },
                   pendingApprovals.map((a) => a.id)
                 );
-                await queueApprovalRequest(approval);
+                const priorApproval = pendingApprovals.find(
+                  (a) =>
+                    a.type === 'channel' &&
+                    a.requestingShip === senderShip &&
+                    a.channelNest === nest
+                );
+                const priorOwnerNotified =
+                  priorApproval !== undefined &&
+                  isNotificationDelivered(priorApproval);
+                const { outcome, ownerNotified, blockCheckUnknown } =
+                  await queueApprovalRequest(approval);
+                // Acknowledge the mention in-channel while the approval is
+                // pending — silence here reads as a broken bot (TLON-6451).
+                // A newly-queued approval is acknowledged; an 'updated' one
+                // only when this retry finally delivered a previously-failed
+                // owner DM (the failure ack asks the sender to mention
+                // again, so the retry that works must confirm). Both fire at
+                // most once per record, which statelessly bounds mutual-ack
+                // loops between two unauthorized bots that mention each
+                // other: each side acks once, and the counter-ack dedups
+                // into the existing record on the other side. Bot detection
+                // can't do this (a profileless bot sends a bare-string
+                // author and looks human), and maxBotResponses doesn't fire
+                // when configured to 0. Known bots get no ack at all — the
+                // reassurance is for humans, and a bot's owner still gets
+                // the DM approval card.
+                // A blocked ship keeps getting silence so blocking stays
+                // unobservable to the blocked party; that also means no ack
+                // when the block-list lookup failed, and none when the owner
+                // actioned the request during the queueing await (the record
+                // is gone from the live pending list by then).
+                const approvalStillPending = pendingApprovals.some(
+                  (a) =>
+                    a.type === 'channel' &&
+                    a.requestingShip === senderShip &&
+                    a.channelNest === nest
+                );
+                const notifyRecovered =
+                  outcome === 'updated' && !priorOwnerNotified && ownerNotified;
+                if (
+                  (outcome === 'queued' || notifyRecovered) &&
+                  !blockCheckUnknown &&
+                  !isKnownBot &&
+                  approvalStillPending
+                ) {
+                  const ackParentId = resolveDeliverParentId({
+                    isGroup: true,
+                    channelNest: nest,
+                    messageId: messageId ?? '',
+                    parentId,
+                    isThreadReply,
+                  });
+                  try {
+                    await sendChannelPost({
+                      botProfile: getBotProfile(),
+                      fromShip: botShipName,
+                      nest,
+                      story: markdownToStory(
+                        formatChannelApprovalAck(
+                          senderShip,
+                          effectiveOwnerShip,
+                          buildDisplayContext(),
+                          { ownerNotified }
+                        )
+                      ),
+                      replyToId: ackParentId ?? undefined,
+                    });
+                  } catch (err) {
+                    // Likely cause: the bot lacks write permission in this
+                    // channel. The approval itself is already queued.
+                    capturePluginError('approval_notification', err, {
+                      errorKind: 'channel_ack_failed',
+                    });
+                    runtime.error?.(
+                      `[tlon] Failed to post approval status in ${nest}: ${String(err)}`
+                    );
+                  }
+                }
               } else {
                 runtime.log?.(
                   `[tlon] Access denied: ${senderShip} in ${nest} (allowed: ${allowedShips.join(', ')})`
@@ -4694,6 +4994,104 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           return;
         }
 
+        // Onboarding now runs in the bot DM, and a DM writ never reaches the
+        // channels firehose — so the control-plane check has to happen here
+        // too, before the message wakes the model as ordinary conversation.
+        if (isDmNest(whom)) {
+          // Onboarding is a sliver of DM traffic, so ordinary messages must not
+          // pay a 500-writ history read. A typed request names its own group.
+          // A picker choice typed as text needs the group the last request
+          // named, cached per DM after one lookup — and once onboarding here
+          // has finished, or a lookup found no request to act on, a "yes" or
+          // "done" is ordinary conversation again. Anything else skips the
+          // control plane.
+          const request = parseAgentOnboardingRequest(dmContent.blob);
+          const fromOwner =
+            !!effectiveOwnerShip && senderShip === effectiveOwnerShip;
+          let onboardingGroupId: string | undefined = request?.groupId;
+          if (onboardingGroupId && fromOwner) {
+            onboardingDmState.noteRequest(whom, onboardingGroupId);
+          }
+          onboardingGroupId ??= onboardingDmState.groupFor(whom);
+          const isReply =
+            !request &&
+            fromOwner &&
+            !onboardingDmState.isInactive(whom) &&
+            isAgentOnboardingReply(rawText);
+          if (!onboardingGroupId && isReply) {
+            try {
+              onboardingGroupId = await findOnboardingGroupIdInChannel({
+                api,
+                abortSignal: opts.abortSignal,
+                channelNest: whom,
+                ownerShip: effectiveOwnerShip,
+              });
+              onboardingDmState.noteLookup(whom, onboardingGroupId);
+            } catch (error) {
+              runtime.error?.(
+                `[tlon] Failed to resolve onboarding group from ${whom}: ${error instanceof Error ? error.message : String(error)}`
+              );
+            }
+          }
+          if (request || (isReply && onboardingGroupId)) {
+            let handledOnboardingRequest = false;
+            try {
+              handledOnboardingRequest = await handleAgentOnboardingRequest({
+                accountId: account.accountId,
+                api,
+                abortSignal: opts.abortSignal,
+                botShip: botShipName,
+                botProfile: getBotProfile(),
+                channelNest: whom,
+                groupId: onboardingGroupId,
+                ownerShip: effectiveOwnerShip,
+                senderShip,
+                rawText,
+                blob: dmContent.blob,
+                log: (message) => runtime.log?.(message),
+                trackStep: trackOnboardingStep(whom, onboardingGroupId),
+                onConversationComplete: () =>
+                  onboardingDmState.noteComplete(whom),
+                presentation: {
+                  startThinking: () => {
+                    computingPresence.refreshRun({
+                      conversationId: whom,
+                      runId: `onboarding:${String(effectiveMessageId)}`,
+                    });
+                  },
+                  stopThinking: () => {
+                    computingPresence.stopRun({
+                      conversationId: whom,
+                      runId: `onboarding:${String(effectiveMessageId)}`,
+                    });
+                  },
+                  startBackgroundThinking: (key) => {
+                    computingPresence.refreshRun({
+                      conversationId: whom,
+                      runId: `onboarding-background:${key}`,
+                    });
+                  },
+                  stopBackgroundThinking: (key) => {
+                    computingPresence.stopRun({
+                      conversationId: whom,
+                      runId: `onboarding-background:${key}`,
+                    });
+                  },
+                },
+              });
+            } catch (error) {
+              // This writ is already in the processed-message tracker, so no
+              // duplicate event will retry it. Reconcile from durable history.
+              scheduleAgentOnboardingRetry(whom);
+              throw error;
+            }
+            if (handledOnboardingRequest) {
+              // Control-plane traffic: its visible text stays in the transcript
+              // but must not wake the model.
+              return;
+            }
+          }
+        }
         const citedContent = await resolveCitedContent(dmContent.content);
         await processMessage({
           messageId: effectiveMessageId ?? '',
@@ -5009,11 +5407,76 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         }
       }
 
+      // Subscribe to the bot ship's %steward automation harness feed: the
+      // owner's edit commands (create/update/delete a cron job) arrive here
+      // as dispatch facts, get applied to the gateway cron service, and are
+      // answered over HTTP, whose reply is the acknowledgement a channel poke
+      // never gives. Outstanding commands are replayed on
+      // (re)subscribe, so a restart resumes in-flight edits. Gated like the
+      // projection: the cron service is process-global, so edits are only
+      // accepted when exactly one Tlon account is runnable.
+      if (isStewardAutomationProjectionEligible(cfg)) {
+        const editProcessor = new StewardAutomationEditProcessor({
+          finalize: (response) =>
+            api!.requestJson(
+              STEWARD_AUTOMATION_FINALIZE_PATH,
+              'POST',
+              response
+            ),
+          getCron: () => getTlonCronService(),
+          logger: {
+            log: (message) => runtime.log?.(message),
+            warn: (message) => runtime.error?.(message),
+          },
+          ...(opts.abortSignal ? { signal: opts.abortSignal } : {}),
+        });
+        try {
+          await api.subscribe({
+            app: 'steward',
+            path: STEWARD_AUTOMATION_HARNESS_PATH,
+            event: (data) => {
+              void editProcessor.handle(data);
+            },
+            err: (error) => {
+              capturePluginError('steward_subscription', error);
+              runtime.error?.(
+                `[tlon] Steward automation harness subscription error: ${String(error)}`
+              );
+            },
+            quit: () => {
+              capturePluginError(
+                'steward_subscription',
+                'steward automation harness quit received; resubscribing',
+                { errorKind: 'quit' }
+              );
+              runtime.log?.(
+                '[tlon] Steward automation harness quit received, SSE client will resubscribe'
+              );
+            },
+          });
+          runtime.log?.(
+            `[tlon] Subscribed to steward automation harness feed (${STEWARD_AUTOMATION_HARNESS_PATH})`
+          );
+        } catch (error: any) {
+          // Ships without the edit loop nack the subscribe; owner edits then
+          // fail fast on the bot as harness-offline while everything else
+          // keeps working.
+          runtime.log?.(
+            `[tlon] Steward automation harness subscription unavailable: ${error?.message ?? String(error)}`
+          );
+        }
+      }
+
       // Subscribe to settings store for hot-reloading config
       const applySettingsSnapshot = (
         newSettings: TlonSettingsStore,
         source: 'subscription' | 'refresh',
-        snapshotOpts: { fresh?: boolean } = {}
+        snapshotOpts: {
+          fresh?: boolean;
+          journalObserve?: boolean;
+          /** The key a subscription event changed. */
+          changedKey?: string;
+        } = {}
       ) => {
         const prevSettings = currentSettings;
 
@@ -5043,26 +5506,64 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           ...newSettings,
           pendingNudge: effectivePendingNudge,
         };
+        // Update auto-discover channels
+        if (newSettings.autoDiscoverChannels !== undefined) {
+          effectiveAutoDiscoverChannels = newSettings.autoDiscoverChannels;
+          runtime.log?.(
+            `[tlon] Settings: autoDiscoverChannels = ${effectiveAutoDiscoverChannels}`
+          );
+        }
+
+        // Reconcile the known-set with an observed value of the persisted
+        // `groupChannels` key. Placed after the discovery-flag update so
+        // `protectedNests()` sees the incoming flag. Subscription events are
+        // always observations; a refresh is one only when it scried fresh and
+        // no echo overtook its scry (`journalObserve`), so a stale refresh
+        // never reaches the journal.
+        //
+        // Removal only affects the known-set — the boot onboarding scan,
+        // approval display names, and telemetry counts. It does not gate
+        // handling: the /v4 firehose re-adds any member channel on its next
+        // event, and the discovery poll re-adds discovered channels while
+        // discovery is on. Authorization is `channelRules`.
+        if (
+          groupChannelJournal &&
+          (source === 'subscription' || snapshotOpts.journalObserve)
+        ) {
+          const { added, removed } = groupChannelJournal.observe(
+            newSettings.groupChannels,
+            {
+              // A fresh load is an observation; a subscription event is one
+              // only when it is a fact about this key.
+              keyFact:
+                source !== 'subscription' ||
+                snapshotOpts.changedKey === 'groupChannels',
+            }
+          );
+          for (const nest of added) {
+            if (!watchedChannels.has(nest)) {
+              watchedChannels.add(nest);
+              runtime.log?.(`[tlon] Settings: now watching channel ${nest}`);
+              void scanDiscoveredAgentOnboardingNest(nest);
+            }
+          }
+          for (const nest of removed) {
+            watchedChannels.delete(nest);
+            runtime.log?.(
+              `[tlon] Settings: no longer watching channel ${nest}`
+            );
+          }
+        }
+
+        // A gapped refresh can update the runtime snapshot without observing
+        // the journal. Reconcile above even when the next fresh snapshot is
+        // identical, so trusting it cannot leave an older journal write base.
         if (
           source === 'refresh' &&
           JSON.stringify(prevSettings) === JSON.stringify(nextRuntimeSettings)
         ) {
           currentSettings = nextRuntimeSettings;
           return;
-        }
-
-        // Update watched channels if settings changed
-        if (newSettings.groupChannels?.length) {
-          const newChannels = newSettings.groupChannels;
-          for (const ch of newChannels) {
-            if (!watchedChannels.has(ch)) {
-              watchedChannels.add(ch);
-              runtime.log?.(`[tlon] Settings: now watching channel ${ch}`);
-              void scanDiscoveredAgentOnboardingNest(ch);
-            }
-          }
-          // Note: we don't remove channels from watchedChannels to avoid missing messages
-          // during transitions. The authorization check handles access control.
         }
 
         // Update DM allowlist — respect empty lists (don't fall back to file config)
@@ -5124,14 +5625,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         if (newSettings.defaultAuthorizedShips !== undefined) {
           runtime.log?.(
             `[tlon] Settings: defaultAuthorizedShips updated to ${(newSettings.defaultAuthorizedShips || []).join(', ')}`
-          );
-        }
-
-        // Update auto-discover channels
-        if (newSettings.autoDiscoverChannels !== undefined) {
-          effectiveAutoDiscoverChannels = newSettings.autoDiscoverChannels;
-          runtime.log?.(
-            `[tlon] Settings: autoDiscoverChannels = ${effectiveAutoDiscoverChannels}`
           );
         }
 
@@ -5211,9 +5704,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           );
         }
 
-        // Update pending approvals
+        // The snapshot owns which records exist; delivery state already sent
+        // by this process is carried forward (see mergeApprovalDeliveryState).
         if (newSettings.pendingApprovals !== undefined) {
-          pendingApprovals = newSettings.pendingApprovals;
+          pendingApprovals = mergeApprovalDeliveryState(
+            newSettings.pendingApprovals,
+            pendingApprovals
+          );
           runtime.log?.(
             `[tlon] Settings: pendingApprovals updated (${pendingApprovals.length} items)`
           );
@@ -5221,12 +5718,158 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         currentSettings = nextRuntimeSettings;
       };
 
-      settingsManager.onChange((newSettings) => {
-        applySettingsSnapshot(newSettings, 'subscription');
+      // Re-scry settings as a fallback for stale subscriptions: the settings
+      // subscription can silently die (SSE quit without reconnect), leaving
+      // both authorization state and heartbeat telemetry mirrors stale.
+      // Never rejects — callers treat a refresh failure as non-fatal.
+      let settingsRefreshInFlight: Promise<void> | null = null;
+      refreshSettingsNow = async (): Promise<void> => {
+        // Single-flight. The discovery poll and the settings timer can
+        // coincide, and two overlapping scries would let the older result
+        // win: whichever lands first counts as an observation, so the newer
+        // one reads as superseded and is discarded. One scry serves every
+        // concurrent caller.
+        if (settingsRefreshInFlight) {
+          return settingsRefreshInFlight;
+        }
+        settingsRefreshInFlight = (async () => {
+          const seqBefore = groupChannelJournal?.observationSeq;
+          const gapBefore = groupChannelJournal?.gapSeq;
+          const unconfirmedBefore = groupChannelJournal?.unconfirmedSnapshot();
+          const feedDownBefore = settingsFeedDown;
+          let superseded = false;
+          try {
+            const refreshResult = await settingsManager.load({
+              logSnapshot: false,
+              // An echo or gap can invalidate this scry. Preserve the last
+              // observation before the manager installs it, or an unrelated
+              // settings fact could re-trust the journal from a pre-gap value.
+              reconcile: (parsed) => {
+                if (
+                  !groupChannelJournal ||
+                  (groupChannelJournal.observationSeq === seqBefore &&
+                    groupChannelJournal.gapSeq === gapBefore)
+                ) {
+                  return parsed;
+                }
+                superseded = true;
+                // Hand back the observed value in place of the stale one.
+                return {
+                  ...parsed,
+                  groupChannels: groupChannelJournal.lastObserved as
+                    | string[]
+                    | undefined,
+                };
+              },
+            });
+            // A gap (subscription error/quit, stream reconnect) reported while
+            // the scry was in flight, or a settings feed already down when it
+            // began, means this result may predate edits whose echoes were or
+            // will be missed: it must not re-trust the journal, nor judge its
+            // unconfirmed nests. The next refresh taken with the feed live
+            // starts clean; the recovery hook takes one.
+            const gapped =
+              groupChannelJournal !== undefined &&
+              (groupChannelJournal.gapSeq !== gapBefore || feedDownBefore);
+            if (refreshResult.fresh && !gapped) {
+              // Before the snapshot: a byte-identical refresh short-circuits
+              // inside applySettingsSnapshot, which would otherwise leave the
+              // journal untrusted (and its pending nests unwritten) after a
+              // failed boot load followed by a successful unchanged one.
+              groupChannelJournal?.markTrusted();
+              if (!superseded && unconfirmedBefore) {
+                // This scry is authoritative for nests already unconfirmed when
+                // it began: an absent one was lost or removed by another writer
+                // (its echo missed), and must not ride along on the next put.
+                const dropped = groupChannelJournal?.pruneUnconfirmed(
+                  refreshResult.settings.groupChannels,
+                  unconfirmedBefore
+                );
+                if (dropped?.length) {
+                  runtime.log?.(
+                    `[tlon] groupChannels: dropped ${dropped.length} unconfirmed nest(s) absent from a fresh load: ${dropped.join(', ')}`
+                  );
+                }
+              }
+            }
+            applySettingsSnapshot(refreshResult.settings, 'refresh', {
+              fresh: refreshResult.fresh,
+              journalObserve: refreshResult.fresh && !superseded && !gapped,
+            });
+            // Opportunistic drain of anything deferred while untrusted.
+            if (refreshResult.fresh) void groupChannelJournal?.flush();
+          } catch (err) {
+            capturePluginError('settings_refresh', err);
+            runtime.error?.(`[tlon] Settings refresh failed: ${String(err)}`);
+          }
+        })().finally(() => {
+          settingsRefreshInFlight = null;
+        });
+        return settingsRefreshInFlight;
+      };
+
+      // Append-only journal of the channels of joined groups, persisted to the
+      // shared `groupChannels` settings key. See group-channels.ts for the
+      // key's ownership and conflict rules.
+      groupChannelJournal = createGroupChannelJournal({
+        initial: currentSettings.groupChannels,
+        // Trusted only by a fresh load taken after the settings subscription
+        // is live (below): the startup scry predates it, and a change landing
+        // in between would otherwise be overwritten by the first journal put.
+        trusted: false,
+        protectedNests: () =>
+          new Set([
+            ...account.groupChannels,
+            ...(effectiveAutoDiscoverChannels ? discoveredNests : []),
+          ]),
+        putEntry: (value) =>
+          api.poke({
+            app: 'settings',
+            mark: 'settings-event',
+            json: {
+              'put-entry': {
+                desk: 'moltbot',
+                'bucket-key': 'tlon',
+                'entry-key': 'groupChannels',
+                value,
+              },
+            },
+          }),
+        log: runtime.log,
+        error: runtime.error,
+      });
+      const journal = groupChannelJournal; // non-optional binding for the callbacks below
+
+      const groupsUiChannelDeps: GroupsUiChannelHandlerDeps = {
+        watched: watchedChannels,
+        channelToGroup,
+        channelNameCache,
+        groupNameCache,
+        botShip: botShipName,
+        groupRoles,
+        persist: (nests) => journal.persist(nests),
+        scan: (nest) => scanDiscoveredAgentOnboardingNest(nest),
+        log: runtime.log,
+      };
+
+      settingsManager.onChange((newSettings, changedKey) => {
+        applySettingsSnapshot(newSettings, 'subscription', { changedKey });
       });
 
       try {
-        await settingsManager.startSubscription();
+        await settingsManager.startSubscription({
+          // Echoes may have been missed: the journal's write base is stale
+          // until a fresh refresh re-trusts it. Only a quit marks the feed
+          // down: no fact can arrive until the client resubscribes, and its
+          // recovery event clears the flag. An error is stream-level (the
+          // client fans stream failures out to every subscription, in one
+          // path only after it has already reconnected), so no recovery
+          // event would follow; the stream path is covered by onReconnect.
+          onGap: (kind) => {
+            if (kind === 'quit') settingsFeedDown = true;
+            groupChannelJournal?.markUntrusted();
+          },
+        });
       } catch (err) {
         // Settings subscription is optional - don't fail if it doesn't work
         runtime.log?.(
@@ -5242,6 +5885,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           event: async (event: any) => {
             try {
               // Handle fleet (member) changes - inject system message for joins
+              //
+              // Known-dead: the `group-action-3` mark emits
+              // `update.diff.fleet.{ships, diff}`, not `update.fleet`, so this
+              // branch has never matched a real fact. Reviving it enables a
+              // model-visible system turn per member join, which is a product
+              // decision tracked in the TLON-6297 follow-up issue.
               if (event?.flag && event?.update?.fleet) {
                 const groupFlag = event.flag as string;
                 const fleet = event.update.fleet;
@@ -5286,132 +5935,20 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 }
               }
 
-              // Handle group/channel join events
-              // Event structure: { group: { flag: "~host/group-name", ... }, channels: { ... } }
-              if (event && typeof event === 'object') {
-                // Check for new channels being added to groups
-                if (event.channels && typeof event.channels === 'object') {
-                  const channels = event.channels as Record<string, any>;
-                  for (const [channelNest, _channelData] of Object.entries(
-                    channels
-                  )) {
-                    // Only monitor chat, heap, and diary channels
-                    if (
-                      !channelNest.startsWith('chat/') &&
-                      !channelNest.startsWith('heap/') &&
-                      !channelNest.startsWith('diary/')
-                    ) {
-                      continue;
-                    }
-
-                    const channelTitle = extractMetadataTitle(_channelData);
-                    if (channelTitle) {
-                      channelNameCache.set(channelNest, channelTitle);
-                    }
-
-                    // If this is a new channel we're not watching yet, add it
-                    if (!watchedChannels.has(channelNest)) {
-                      watchedChannels.add(channelNest);
-                      runtime.log?.(
-                        `[tlon] Auto-detected new channel (invite accepted): ${channelNest}`
-                      );
-                      await scanDiscoveredAgentOnboardingNest(channelNest);
-
-                      // Persist to settings store so it survives restarts
-                      if (effectiveAutoAcceptGroupInvites) {
-                        try {
-                          const currentChannels =
-                            currentSettings.groupChannels || [];
-                          if (!currentChannels.includes(channelNest)) {
-                            const updatedChannels = [
-                              ...currentChannels,
-                              channelNest,
-                            ];
-                            // Poke settings store to persist
-                            await api.poke({
-                              app: 'settings',
-                              mark: 'settings-event',
-                              json: {
-                                'put-entry': {
-                                  'bucket-key': 'tlon',
-                                  'entry-key': 'groupChannels',
-                                  value: updatedChannels,
-                                  desk: 'moltbot',
-                                },
-                              },
-                            });
-                            runtime.log?.(
-                              `[tlon] Persisted ${channelNest} to settings store`
-                            );
-                          }
-                        } catch (err) {
-                          runtime.error?.(
-                            `[tlon] Failed to persist channel to settings: ${String(err)}`
-                          );
-                        }
-                      }
-                    }
-                  }
-                }
-
-                // Also check for the "join" event structure
-                if (event.join && typeof event.join === 'object') {
-                  const join = event.join as {
-                    group?: string;
-                    channels?: string[];
-                  };
-                  if (join.channels) {
-                    for (const channelNest of join.channels) {
-                      if (
-                        !channelNest.startsWith('chat/') &&
-                        !channelNest.startsWith('heap/') &&
-                        !channelNest.startsWith('diary/')
-                      ) {
-                        continue;
-                      }
-                      if (!watchedChannels.has(channelNest)) {
-                        watchedChannels.add(channelNest);
-                        runtime.log?.(
-                          `[tlon] Auto-detected joined channel: ${channelNest}`
-                        );
-                        await scanDiscoveredAgentOnboardingNest(channelNest);
-
-                        // Persist to settings store
-                        if (effectiveAutoAcceptGroupInvites) {
-                          try {
-                            const currentChannels =
-                              currentSettings.groupChannels || [];
-                            if (!currentChannels.includes(channelNest)) {
-                              const updatedChannels = [
-                                ...currentChannels,
-                                channelNest,
-                              ];
-                              await api.poke({
-                                app: 'settings',
-                                mark: 'settings-event',
-                                json: {
-                                  'put-entry': {
-                                    'bucket-key': 'tlon',
-                                    'entry-key': 'groupChannels',
-                                    value: updatedChannels,
-                                    desk: 'moltbot',
-                                  },
-                                },
-                              });
-                              runtime.log?.(
-                                `[tlon] Persisted ${channelNest} to settings store`
-                              );
-                            }
-                          } catch (err) {
-                            runtime.error?.(
-                              `[tlon] Failed to persist channel to settings: ${String(err)}`
-                            );
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
+              if (opts.abortSignal?.aborted) return;
+              const fact = parseGroupsUiChannelFact(event, {
+                botShip: botShipName,
+              });
+              if (fact) {
+                await handleGroupsUiChannelFact(fact, groupsUiChannelDeps);
+              }
+              // Role changes move which restricted channels the bot can read;
+              // keep the per-group roles current for later channel adds.
+              const roleFact = parseGroupsUiRoleFact(event, {
+                botShip: botShipName,
+              });
+              if (roleFact) {
+                applyGroupsUiRoleFact(roleFact, groupsUiChannelDeps.groupRoles);
               }
             } catch (error: any) {
               runtime.error?.(
@@ -5444,132 +5981,82 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
       // Subscribe to foreigns for auto-accepting group invites
       // Always subscribe so we can hot-reload the setting via settings store
+      let groupInviteRunner: ReturnType<typeof createCatchUpRunner>;
       {
         const processedGroupInvites = new Set<string>();
 
-        // Helper to process pending invites
-        const processPendingInvites = async (foreigns: Foreigns) => {
-          if (!foreigns || typeof foreigns !== 'object') {
-            return;
-          }
-
-          // One block-list scry per batch, shared by every invite in it and
-          // fetched lazily so a batch with no allowlisted inviter costs none.
-          // Without this a startup backlog of N allowlisted invites would issue
-          // N sequential scries — up to 15s each — before the foreigns
-          // subscription is even established.
-          let blockedShipsOnce: Promise<string[]> | null = null;
-          const fetchBlockedShips = () =>
-            (blockedShipsOnce ??= scryBlockedShips());
-
-          for (const [groupFlag, foreign] of Object.entries(foreigns)) {
-            if (processedGroupInvites.has(groupFlag)) {
-              continue;
-            }
-            if (!foreign.invites || foreign.invites.length === 0) {
-              continue;
-            }
-
-            const validInvite = foreign.invites.find((inv) => inv.valid);
-            if (!validInvite) {
-              continue;
-            }
-
-            const inviterShip = validInvite.from;
-
-            const decision = await resolveGroupInviteAction(
-              {
-                inviterShip,
-                ownerShip: effectiveOwnerShip,
-                allowlist: effectiveGroupInviteAllowlist,
+        const groupInviteDeps: GroupInviteDeps = {
+          processedGroupInvites,
+          ownerShip: effectiveOwnerShip,
+          allowlist: () => effectiveGroupInviteAllowlist,
+          // SECURITY: scryBlockedShips rejects on failure or a malformed
+          // payload — resolveGroupInviteAction treats a rejection as
+          // "unknown" and never auto-accepts (see group-invites.ts).
+          fetchBlockedShips: scryBlockedShips,
+          acceptInvite: async (groupFlag) => {
+            await api.poke({
+              app: 'groups',
+              mark: 'group-join',
+              json: {
+                flag: groupFlag,
+                'join-all': true,
               },
-              {
-                // SECURITY: pass the scryBlockedShips-backed fetcher (rejects
-                // on failure or a malformed payload), NOT isShipBlocked (which
-                // swallows errors to "not blocked"). A rejection means
-                // "unknown" and must never auto-accept — see
-                // resolveGroupInviteAction.
-                fetchBlockedShips,
-              }
+            });
+            // A queued card for this flag now points at an invite that is
+            // gone (the inviter was allowlisted after it was queued).
+            const remaining = pendingApprovals.filter(
+              (a) => !(a.type === 'group' && a.groupFlag === groupFlag)
             );
-
-            if (decision.action === 'accept') {
-              try {
-                await api.poke({
-                  app: 'groups',
-                  mark: 'group-join',
-                  json: {
-                    flag: groupFlag,
-                    'join-all': true,
-                  },
-                });
-                // Mark processed only on success — failure retries on the
-                // next foreigns event.
-                processedGroupInvites.add(groupFlag);
-                runtime.log?.(
-                  `[tlon] Auto-accepted group invite (${decision.reason}): ${groupFlag} (from ${inviterShip})`
-                );
-              } catch (err) {
-                runtime.error?.(
-                  `[tlon] Failed to accept group invite (${decision.reason}) ${groupFlag}: ${String(err)}`
-                );
-              }
-              continue;
+            if (remaining.length !== pendingApprovals.length) {
+              pendingApprovals = remaining;
+              await savePendingApprovals();
             }
-
-            if (decision.action === 'queue') {
-              const approval = createPendingApproval(
-                {
-                  type: 'group',
-                  requestingShip: inviterShip,
-                  groupFlag,
-                  groupTitle: validInvite.preview?.meta?.title,
-                },
-                pendingApprovals.map((a) => a.id)
-              );
-              await queueApprovalRequest(approval);
-              processedGroupInvites.add(groupFlag);
-              continue;
-            }
-
-            if (decision.reason === 'blocked') {
-              // Confirmed blocked: silent ignore, no approval card. Routing
-              // this through queueApprovalRequest would re-ask the fail-open
-              // isShipBlocked and could card a ship known to be blocked.
-              runtime.log?.(
-                `[tlon] Ignoring group invite from blocked ship ${inviterShip}: ${groupFlag}`
-              );
-              processedGroupInvites.add(groupFlag);
-              continue;
-            }
-
-            // ignore/no-owner: log but leave unprocessed so a later allowlist
-            // edit can pick the invite up on the next foreigns event.
-            runtime.log?.(
-              `[tlon] Ignoring group invite from ${inviterShip} (not in groupInviteAllowlist, no owner configured): ${groupFlag}`
+          },
+          queueApproval: async (input) => {
+            const approval = createPendingApproval(
+              { type: 'group', ...input },
+              pendingApprovals.map((a) => a.id)
             );
+            await queueApprovalRequest(approval);
+          },
+          log: runtime.log,
+          error: runtime.error,
+        };
+
+        // Scry the full foreigns snapshot (same JSON shape as the facts) and
+        // run the processor. Never throws — failures report telemetry.
+        const catchUpGroupInvites = async (): Promise<void> => {
+          try {
+            const foreigns = parseForeignsSnapshot(
+              await api.scry('/groups/v1/foreigns.json')
+            );
+            // Sweep-only: clearing errored markers on live facts would retry
+            // a persistently-failing join at %groups' error-emission rate.
+            clearErroredMarkers(foreigns, processedGroupInvites);
+            await processPendingForeigns(foreigns, groupInviteDeps);
+          } catch (err) {
+            runtime.error?.(
+              `[tlon] Group-invite catch-up failed: ${String(err)}`
+            );
+            capturePluginError('foreigns_subscription', err, {
+              errorKind: 'catchup_failed',
+            });
           }
         };
 
-        // Process existing pending invites from init data
-        if (initForeigns) {
-          await processPendingInvites(initForeigns);
-        }
+        groupInviteRunner = createCatchUpRunner(catchUpGroupInvites, {
+          abortSignal: opts.abortSignal,
+          error: runtime.error,
+        });
 
         try {
           await api.subscribe({
             app: 'groups',
             path: '/v1/foreigns',
             event: (data: unknown) => {
-              void (async () => {
-                try {
-                  await processPendingInvites(data as Foreigns);
-                } catch (error: any) {
-                  runtime.error?.(
-                    `[tlon] Error handling foreigns event: ${error?.message ?? String(error)}`
-                  );
-                }
-              })();
+              void groupInviteRunner.enqueue(() =>
+                processPendingForeigns(data as Foreigns, groupInviteDeps)
+              );
             },
             err: (error) => {
               capturePluginError('foreigns_subscription', error);
@@ -5596,6 +6083,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       if (effectiveAutoDiscoverChannels) {
         const discoveredChannels = await fetchAllChannels(api, runtime);
         for (const channelNest of discoveredChannels) {
+          discoveredNests.add(channelNest);
           watchedChannels.add(channelNest);
         }
         runtime.log?.(`[tlon] Watching ${watchedChannels.size} channel(s)`);
@@ -5611,7 +6099,31 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       );
       await api.connect();
       runtime.log?.('[tlon] Connected! Firehose subscriptions active');
-      const startupOnboardingNests = [...watchedChannels];
+      if (!opts.abortSignal?.aborted && api.isConnected) {
+        opts.onReady?.({
+          isConnected: () => api.isConnected,
+          readSettings: (signal) => api.scry('/settings/all.json', { signal }),
+        });
+      }
+      // The groupChannels journal's first trusted base: a fresh load taken
+      // now that the settings subscription is live (subscribe() only queues
+      // until connect()), so an edit landing after the startup scry is either
+      // in this load or delivered as an echo. If it fails, the periodic
+      // refresh re-trusts later. Before the invite catch-up, whose joins are
+      // the first facts the journal will persist.
+      await refreshSettingsNow();
+      // The foreigns subscription gets no snapshot on watch; catch up now
+      // that the channel is live so the boot gap cannot lose an invite.
+      await groupInviteRunner.catchUp();
+      // watchedChannels holds group channels only; the bot DM is never added
+      // to it, and the firehose auto-watch admits only kind/host/slug nests.
+      // Without seeding it here an intro request posted while the bot was
+      // down — or running older code — would never be reconciled, since the
+      // app posts one per group and will not post another.
+      const startupOnboardingNests = [
+        ...watchedChannels,
+        ...(effectiveOwnerShip ? [effectiveOwnerShip] : []),
+      ];
       let nextOnboardingNest = 0;
       const scanNextOnboardingNest = async () => {
         while (
@@ -5692,29 +6204,26 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 `[tlon] Channel refresh error: ${error?.message ?? String(error)}`
               );
             }
+            // Refresh authorization first so a dead settings subscription
+            // cannot make the catch-up auto-accept on a stale allowlist. A
+            // failed refresh still falls through: queue decisions are safe on
+            // stale state, and skipping the catch-up would re-create the
+            // silently-pending invites this loop exists to prevent.
+            await refreshSettingsNow();
+            // Recovery loop for missed invites and failed owner
+            // notifications; runs after the gated channel refresh above and
+            // never rejects (the runner observes failures).
+            await groupInviteRunner.catchUp();
           }
         },
         2 * 60 * 1000
       );
 
-      // Periodically re-scry settings as a fallback for stale subscriptions.
-      // The settings subscription can silently die (SSE quit without reconnect),
-      // leaving both authorization state and heartbeat telemetry mirrors stale.
       const settingsRefreshInterval = setInterval(async () => {
         if (opts.abortSignal?.aborted) {
           return;
         }
-        try {
-          const refreshResult = await settingsManager.load({
-            logSnapshot: false,
-          });
-          applySettingsSnapshot(refreshResult.settings, 'refresh', {
-            fresh: refreshResult.fresh,
-          });
-        } catch (err) {
-          capturePluginError('settings_refresh', err);
-          runtime.error?.(`[tlon] Settings refresh failed: ${String(err)}`);
-        }
+        await refreshSettingsNow();
       }, SETTINGS_REFRESH_INTERVAL_MS);
 
       // Plugin-owned re-engagement nudge scheduler. Owns tick lifecycle and
@@ -5802,6 +6311,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       clearAgentOnboardingRetries = null;
       removeBridge(accountKey, commandBridge);
       await Promise.allSettled([...onboardingRetryFlights]);
+      await onboardingCatchUp?.drain();
       drainingOnboardingDiscovery = true;
       await Promise.allSettled([...onboardingDiscoveryFlights]);
       drainingChannelFirehose = true;
@@ -5815,6 +6325,23 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       await nudgeRunner?.stop();
       await ownerReplyPersistence.flush();
       await pendingNudgePersistence.flush();
+      // Drain the groupChannels journal before api.close(), which rejects
+      // later pokes; accepted nests would otherwise be lost. A gap may have
+      // left it untrusted with no refresh since: take one now so close() has
+      // a base to write from, rather than dropping what was accepted.
+      // The feed is going away with the process, so the final scry is the
+      // last word: a subscription still down must not keep these refreshes
+      // from re-trusting, or accepted nests would be dropped instead of written.
+      settingsFeedDown = false;
+      if (groupChannelJournal && !groupChannelJournal.trusted) {
+        await refreshSettingsNow();
+        // Single-flight may have joined a refresh that began before the gap
+        // and ended untrusted; one more, started now, sees the post-gap ship.
+        if (!groupChannelJournal.trusted) {
+          await refreshSettingsNow();
+        }
+      }
+      await groupChannelJournal?.close();
       clearShadowsForAccount(account.accountId);
       setOutboundRouteReporter(null);
       setReplyOutputReporter(null);

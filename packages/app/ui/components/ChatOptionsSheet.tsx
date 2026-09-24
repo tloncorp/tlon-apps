@@ -647,10 +647,11 @@ export function ChannelOptionsSheetContent({
 
   const groupTitle = utils.useGroupTitle(group) ?? 'group';
   const isSingleChannelGroup = group?.channels?.length === 1;
-  // third-party channels (e.g. notes) have no %channels/%activity unreads, so
-  // mark-read doesn't apply
+  // A Bucket has no unread row at all, so the bare `!== 0` test read
+  // `undefined` as unread and offered the action; +readChannel then retries
+  // an %activity operation that cannot succeed for this channel type.
   const canMarkRead =
-    !(channel.unread?.count === 0) && !ub.isThirdPartyChannel(channel.id);
+    utils.channelSupportsNotifications(channel) && channel.unread?.count !== 0;
   const baseVolumeLevel = store.useBaseVolumeLevel();
 
   const handlePressGroupDetails = useCallback(() => {
@@ -732,15 +733,18 @@ export function ChannelOptionsSheetContent({
           },
         ],
 
-        hooksPreview && [
-          'neutral',
-          {
-            title: 'Use channel as template',
-            description: 'Create a new channel based on this one',
-            endIcon: 'Copy',
-            action: wrappedAction.bind(null, onPressChannelTemplate),
-          },
-        ],
+        // Templating copies the source channel's type, and a bulletin
+        // ('notebook', the %diary type) can no longer be created.
+        hooksPreview &&
+          channel.type !== 'notebook' && [
+            'neutral',
+            {
+              title: 'Use channel as template',
+              description: 'Create a new channel based on this one',
+              endIcon: 'Copy',
+              action: wrappedAction.bind(null, onPressChannelTemplate),
+            },
+          ],
         currentUserIsChannelHost && [
           'negative',
           {

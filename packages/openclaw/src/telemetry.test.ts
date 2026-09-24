@@ -135,6 +135,7 @@ describe('telemetry tool tracking', () => {
       outcome: 'ok',
       nest: 'chat/~zod/general',
       groupFlag: '~zod/home-group',
+      provisionId: 'provision-1',
       purposeId: 'agent-research',
       topicCount: 2,
       timezone: 'America/New_York',
@@ -154,6 +155,7 @@ describe('telemetry tool tracking', () => {
       outcome: 'ok',
       nest: 'chat/~zod/general',
       groupFlag: '~zod/home-group',
+      provisionId: 'provision-1',
       purposeId: 'agent-research',
       topicCount: 2,
       timezone: 'America/New_York',
@@ -168,19 +170,59 @@ describe('telemetry tool tracking', () => {
     expect(postHogMocks.capture).toHaveBeenNthCalledWith(1, {
       distinctId: '~zod',
       event: 'TlonBot Onboarding Step',
+      uuid: expect.stringMatching(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+      ),
       properties: expect.objectContaining({
         step: 'app_tour_answered',
         answer: 'yes',
+        provisionId: 'provision-1',
       }),
     });
     expect(postHogMocks.capture).toHaveBeenNthCalledWith(2, {
       distinctId: '~zod',
       event: 'TlonBot Onboarding Step',
+      uuid: expect.any(String),
       properties: expect.objectContaining({
         step: 'onboarding_completed',
         completionPath: 'bot_tour_completed',
       }),
     });
+
+    await telemetry?.close();
+  });
+
+  it('uses stable distinct UUIDs for onboarding step retries', async () => {
+    const telemetry = createEnabledTelemetry();
+    const event = {
+      accountId: 'default',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      step: 'topics_submitted' as const,
+      outcome: 'ok' as const,
+      nest: 'chat/~zod/general',
+      groupFlag: '~zod/home-group',
+      provisionId: 'provision-1',
+      purposeId: 'agent-research',
+      topicCount: 2,
+      timezone: 'America/New_York',
+      cronJobId: null,
+      notebookNest: 'notes/~zod/updates',
+      answer: null,
+      completionPath: null,
+      elapsedMsSinceIntro: 12_000,
+      errorText: null,
+    };
+
+    telemetry?.captureOnboardingStep(event);
+    telemetry?.captureOnboardingStep(event);
+    telemetry?.captureOnboardingStep({ ...event, step: 'cron_created' });
+
+    const uuids = postHogMocks.capture.mock.calls.map(([capture]) =>
+      String(capture.uuid)
+    );
+    expect(uuids[0]).toBe(uuids[1]);
+    expect(uuids[2]).not.toBe(uuids[0]);
 
     await telemetry?.close();
   });

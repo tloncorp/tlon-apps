@@ -1,5 +1,5 @@
 import { useIsFocused } from '@react-navigation/native';
-import { markInvitesRead } from '@tloncorp/api';
+import { markInvitesRead, reportBackgroundFailure } from '@tloncorp/api';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
@@ -193,7 +193,10 @@ export const HomeSidebar = memo(
             'markInvitesRead',
             { priority: store.SyncPriority.Medium },
             async () => {
-              markInvitesRead();
+              // left unawaited so the queue thread isn't held for the backoff
+              markInvitesRead().catch(
+                reportBackgroundFailure(logger, 'mark invites read')
+              );
             }
           );
         }, 1000);

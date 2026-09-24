@@ -872,3 +872,27 @@ test('deleteChannel restores a Bucket manifest and its uploads when the host ref
   const uploads = await db.getBucketUploads({ channelId: bucketChannelId });
   expect(uploads.map((upload) => upload.sessionId)).toEqual(['0vsession']);
 });
+
+test('createChannel refuses a channel type that is no longer creatable', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  await insertGroup();
+
+  await expect(
+    createChannel({
+      groupId,
+      title: 'Legacy bulletin',
+      channelType: 'notebook',
+    })
+  ).rejects.toThrow('Cannot create a channel of type notebook');
+
+  // The guard runs ahead of the optimistic insert, so there is nothing to roll
+  // back and nothing reaches the backend.
+  expect(vi.mocked(poke)).not.toHaveBeenCalled();
+  await expect(
+    client.query.channels.findMany({
+      where: $.eq(schema.channels.groupId, groupId),
+    })
+  ).resolves.toEqual([]);
+});

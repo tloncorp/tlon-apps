@@ -182,6 +182,14 @@ function resolutionFromTopLevelConfig(
       'Invalid config: must have ship (or cookie with ship in name)'
     );
   }
+  if (forcedShip && cookie) {
+    const cookieShip = parseShipFromCookie(cookie);
+    if (!cookieShip || normalizeShipName(cookieShip) !== ship) {
+      throw new Error(
+        `Invalid config: ship ${withSig(cookieShip ?? 'unknown')} does not match requested ship ${withSig(forcedShip)}`
+      );
+    }
+  }
 
   const config = {
     url: data.url,
@@ -448,6 +456,16 @@ function parseCacheFile(
   if (expected?.ship && storedShip !== normalizeShipName(expected.ship)) {
     throw cacheError(
       `${filePath} stored ship ${withSig(storedShip)} does not match requested ship ${withSig(expected.ship)}`
+    );
+  }
+
+  // The cookie itself names the ship it authenticates as. Without this, a
+  // cache file could serve another ship's cookie under this ship's name — the
+  // read-side counterpart to the write-side identity check in api-client.
+  const cookieShip = parseShipFromCookie(data.cookie);
+  if (!cookieShip || normalizeShipName(cookieShip) !== storedShip) {
+    throw cacheError(
+      `${filePath} cookie ship ${withSig(cookieShip ?? 'unknown')} does not match stored ship ${withSig(storedShip)}`
     );
   }
 

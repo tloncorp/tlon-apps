@@ -51,7 +51,7 @@ import * as fixture46 from './../../packages/app/fixtures/MessageInput.fixture';
 import * as fixture47 from './../../packages/app/fixtures/MetaEditorScreen.fixture';
 import * as fixture48 from './../../packages/app/fixtures/NotebookPost.fixture';
 import * as fixture49 from './../../packages/app/fixtures/Onboarding.fixture';
-import * as fixture50 from './../../packages/app/fixtures/ParentAgnosticKeyboardAvoidingView.fixture';
+import * as fixture50 from './../../packages/app/fixtures/KeyboardAvoidingView.fixture';
 import * as fixture51 from './../../packages/app/fixtures/PostErrorMessage.fixture';
 import * as fixture52 from './../../packages/app/fixtures/PostReference.fixture';
 import * as fixture53 from './../../packages/app/fixtures/PostScreen.fixture';
@@ -80,6 +80,8 @@ import * as fixture75 from './src/App.fixture';
 import * as fixture76 from './src/fixtures/InputToolbar.fixture';
 import * as fixture77 from './src/fixtures/Onboarding.fixture';
 import * as fixture78 from './src/fixtures/SetNicknameScreen.fixture';
+import * as fixture79 from './src/fixtures/HostingAuthReconnectScreen.fixture';
+import * as fixture80 from './src/fixtures/DeskOutdatedScreen.fixture';
 import * as decorator1 from './src/fixtures/cosmos.decorator';
 
 export const rendererConfig: RendererConfig = {
@@ -202,8 +204,9 @@ const fixtures = {
   },
   '../../packages/app/fixtures/NotebookPost.fixture.tsx': { module: fixture48 },
   '../../packages/app/fixtures/Onboarding.fixture.tsx': { module: fixture49 },
-  '../../packages/app/fixtures/ParentAgnosticKeyboardAvoidingView.fixture.tsx':
-    { module: fixture50 },
+  '../../packages/app/fixtures/KeyboardAvoidingView.fixture.tsx': {
+    module: fixture50,
+  },
   '../../packages/app/fixtures/PostErrorMessage.fixture.tsx': {
     module: fixture51,
   },
@@ -252,6 +255,8 @@ const fixtures = {
     module: fixture74,
   },
   'src/App.fixture.tsx': { module: fixture75 },
+  'src/fixtures/DeskOutdatedScreen.fixture.tsx': { module: fixture80 },
+  'src/fixtures/HostingAuthReconnectScreen.fixture.tsx': { module: fixture79 },
   'src/fixtures/InputToolbar.fixture.tsx': { module: fixture76 },
   'src/fixtures/Onboarding.fixture.tsx': { module: fixture77 },
   'src/fixtures/SetNicknameScreen.fixture.tsx': { module: fixture78 },

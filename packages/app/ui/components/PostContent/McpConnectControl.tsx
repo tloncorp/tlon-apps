@@ -502,6 +502,7 @@ export function McpConnectMenu({
     >
       <YStack
         width="100%"
+        minHeight={loading ? (component.maxVisible + 1) * 56 : undefined}
         borderWidth={1}
         borderColor="$border"
         borderRadius="$m"

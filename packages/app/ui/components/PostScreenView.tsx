@@ -1,3 +1,4 @@
+import { useIsFocused } from '@react-navigation/native';
 import { ChannelContentConfiguration } from '@tloncorp/api';
 import * as urbit from '@tloncorp/api/urbit';
 import { JSONContent } from '@tloncorp/api/urbit';
@@ -14,6 +15,8 @@ import type * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import { Carousel, ForwardingProps } from '@tloncorp/ui';
 import {
+  Dispatch,
+  SetStateAction,
   createContext,
   memo,
   useCallback,
@@ -24,10 +27,11 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, XStack, YStack } from 'tamagui';
 
+import useAppStatus from '../../hooks/useAppStatus';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useIsUserActive } from '../../hooks/useUserActivity';
 import { useCurrentUserId } from '../contexts/appDataContext';
@@ -59,11 +63,13 @@ import { DraftInputContext } from './draftInputs';
 import {
   DraftInputContextProvider,
   DraftInputHandle,
+  GalleryDraftType,
 } from './draftInputs/shared';
 
 const noop = async () => {};
 
 const HIGHLIGHT_DURATION_MS = 5000;
+const isAppForeground = () => AppState.currentState === 'active';
 
 interface ChatThreadHandle {
   posts: db.Post[];
@@ -103,13 +109,16 @@ interface ChannelContext {
 interface GalleryDraftInputProps {
   channel: db.Channel;
   editingPost?: db.Post;
-  getDraft: (draftType?: string) => Promise<JSONContent | null>;
+  getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent | null>;
   group: db.Group | null;
-  clearDraft: (draftType?: string) => Promise<void>;
+  clearDraft: (draftType?: GalleryDraftType) => Promise<void>;
   setEditingPost?: (post: db.Post | undefined) => void;
-  setShouldBlur: (shouldBlur: boolean) => void;
+  setShouldBlur: Dispatch<SetStateAction<boolean>>;
   shouldBlur: boolean;
-  storeDraft: (content: JSONContent, draftType?: string) => Promise<void>;
+  storeDraft: (
+    content: JSONContent,
+    draftType?: GalleryDraftType
+  ) => Promise<void>;
 }
 
 const GalleryDraftInput = memo(function GalleryDraftInput({
@@ -383,6 +392,7 @@ export function PostScreenView({
                 <YStack flex={1} backgroundColor={'$background'}>
                   <ConnectedHeader
                     channel={channel}
+                    group={group}
                     goBack={handleGoBack}
                     showEditButton={showEdit}
                     goToEdit={handleEditPress}
@@ -508,15 +518,18 @@ export function PostScreenView({
 
 function ConnectedHeader({
   channel,
+  group,
   ...passedProps
 }: ForwardingProps<
   typeof ChannelHeader,
   {
     channel: db.Channel;
+    group: db.Group | null;
   },
   'channel' | 'group' | 'title' | 'description' | 'showSearchButton' | 'post'
 >) {
   const isChatChannel = getIsChatChannel(channel);
+  const chatTitle = utils.useChatTitle(channel, group);
 
   const { focusedPost: parentPost } = useContext(FocusedPostContext);
 
@@ -524,7 +537,7 @@ function ConnectedHeader({
     ? makePrettyDayAndTime(new Date(parentPost.receivedAt)).asString
     : '';
   const headerTitle = isChatChannel
-    ? `Thread: ${channel?.title || prettyTime}`
+    ? `Thread: ${chatTitle || prettyTime}`
     : parentPost?.title && parentPost.title !== ''
       ? parentPost.title
       : 'Post';
@@ -532,8 +545,9 @@ function ConnectedHeader({
   return (
     <ChannelHeader
       channel={channel}
-      group={channel.group}
+      group={group}
       title={headerTitle}
+      preferProvidedTitle={isChatChannel}
       description={''}
       showSearchButton={false}
       post={parentPost ?? undefined}
@@ -664,12 +678,12 @@ function SinglePostView({
   );
   const hasThreadUnreadActivity = hasUnreadActivity(liveThreadUnread);
 
-  const { data: threadPosts, isLoading: isLoadingThreadPosts } =
-    store.useThreadPosts({
-      postId: parentPost.id,
-      authorId: parentPost.authorId,
-      channelId: channel.id,
-    });
+  const threadQuery = store.useThreadPosts({
+    postId: parentPost.id,
+    authorId: parentPost.authorId,
+    channelId: channel.id,
+  });
+  const { data: threadPosts, isLoading: isLoadingThreadPosts } = threadQuery;
 
   const { data: showDeleteMarkers = false } = store.useShowDeleteMarkers();
   const includeDeletedPosts =
@@ -690,6 +704,38 @@ function SinglePostView({
   const posts = useMemo(() => {
     return parentPost ? [...(visibleThreadPosts ?? []), parentPost] : null;
   }, [parentPost, visibleThreadPosts]);
+
+  const screenIsFocused = useIsFocused();
+  const appStatus = useAppStatus();
+  const threadTelemetryView = useMemo(
+    () => ({
+      queryReplies: threadPosts,
+      listReplies: visibleThreadPosts ?? [],
+      includeDeleted: includeDeletedPosts,
+      queryStatus: threadQuery.status,
+      fetchStatus: threadQuery.fetchStatus,
+      dataUpdatedAt: threadQuery.dataUpdatedAt,
+      errorUpdatedAt: threadQuery.errorUpdatedAt,
+      parentReplyCount: parentPost.replyCount,
+    }),
+    [
+      threadPosts,
+      visibleThreadPosts,
+      includeDeletedPosts,
+      threadQuery.status,
+      threadQuery.fetchStatus,
+      threadQuery.dataUpdatedAt,
+      threadQuery.errorUpdatedAt,
+      parentPost.replyCount,
+    ]
+  );
+  store.useThreadCatchupTelemetry({
+    postId: parentPost.id,
+    channelId: channel.id,
+    active: screenIsFocused && isFocusedPost && appStatus === 'active',
+    isForeground: isAppForeground,
+    view: threadTelemetryView,
+  });
 
   const currentUserId = useCurrentUserId();
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
@@ -830,15 +876,16 @@ function SinglePostView({
       isEditingParent &&
       (channel.type === 'notebook' || channel.type === 'gallery')
     );
+  const hasFloatingReplyInput = canRenderReplyInput && isChatChannel;
   const { bottom } = useSafeAreaInsets();
   const { contentInsets, onFloatingHeightChange } = useConversationInsets({
-    hasFloatingComposer: canRenderReplyInput,
+    hasFloatingComposer: hasFloatingReplyInput,
     hasTransparentHeader: isChatChannel,
   });
   // Native floating composers include the home-indicator inset. Web composers
   // stay inline, so the screen still owns its bottom safe-area clearance.
   const screenBottomInset =
-    canRenderReplyInput && Platform.OS !== 'web' ? undefined : bottom;
+    hasFloatingReplyInput && Platform.OS !== 'web' ? undefined : bottom;
 
   const threadComposerContext = useMemo(
     (): DraftInputContext => ({
@@ -922,7 +969,8 @@ function SinglePostView({
 
         {replyInput && (
           <ConversationComposerPlacement
-            enabled
+            enabled={hasFloatingReplyInput}
+            avoidKeyboard={!hasFloatingReplyInput}
             contentProps={containingProperties}
             inlineID="reply-container"
             onFloatingHeightChange={onFloatingHeightChange}

@@ -48,8 +48,10 @@ The outer type carries identity, the inner one carries only the verb: `%create` 
 | `%set-title`         | Update the Bucket's authoritative title; group metadata is updated separately through `%groups`       |
 | `%set-writers`       | Replace the group-role writer set                                                                     |
 | `%create-folder`     | Add a folder beneath an existing folder or the root                                                   |
-| `%begin-upload`      | Validate the request, reserve an entry id and object key, and answer with a host-minted upload token  |
-| `%cancel-upload`       | Withdraw from the requester's own pending upload; the broker still decides whether the bytes landed   |
+| `%begin-upload`      | Validate the request, reserve an entry id and object key, and answer with a signed PUT URL            |
+| `%finish-upload`     | Settle the reservation with the broker, verify the receipt, and publish the entry                    |
+| `%retry-upload`      | Ask the broker for another URL against the same reservation                                          |
+| `%cancel-upload`     | Give up on the requester's own session, releasing the reservation at the broker as well as locally    |
 | `%issue-bucket-read` | Answer with a read token covering every ready object in the Bucket, for the requesting ship           |
 | `%issue-delete`      | Answer with a short-lived delete token bound to one ready file                                        |
 | `%entry`             | `%rename`, `%move` (cycle-checked), or `%delete` (recursive for a folder tree) one entry              |
@@ -62,7 +64,7 @@ Subscriber agents forward actions to the host with the noun-only `%buckets-comma
 
 The group host always creates and hosts the Bucket, but any current group admin may initiate creation. A non-host admin's local `%buckets` agent first checks its group replica, then forwards the request to the group host. The host checks the actor against its authoritative `%groups` state before allocating the Bucket or registering its channel. Consequently the channel nest, object storage, quota, and eventual billing all remain attached to the group host rather than the initiating admin. Repeating an identical create request is idempotent and re-attempts channel registration; a conflicting request for an existing Bucket name is rejected.
 
-The Gall delete action removes the manifest and `%groups` registration, but storage-wide object cleanup is not atomic yet. The client intentionally withholds Bucket deletion until Memex exposes a host-authorized bulk cleanup operation.
+The Gall delete action removes the manifest and the `%groups` registration, and the client does offer it — deleting a Bucket channel deletes its contents, which is the behaviour the team settled on. What it does not yet do is remove the objects: there is no host-authorized bulk cleanup at the broker, so a deleted Bucket's bytes are left for the orphan sweep rather than cleared in the same breath. Tracked as TLON-6399, with an archive export in TLON-6398.
 
 ## HTTP surface
 
@@ -75,23 +77,29 @@ Eyre is bound at `/buckets`. A session cookie is the host's own capability, so a
 | `GET /buckets/~/v1/buckets/<host>/<n>` | One local snapshot                                                    |
 | `GET /buckets/~/v1/request/<id>`       | The state of a submitted request, for a client that lost its response |
 
-Because the POST is held open across the terminal answer, a client needs no correlation machinery: `requestId` is optional and one is minted if absent. The poll route exists to recover an answer after a dropped connection, within the grace period a settled request is retained for. A `@uv` id carries dots, and the request-line parser mistakes its trailing dot-group for a file extension, so that segment is reassembled before parsing.
+Because the POST is held open across the terminal answer, a client needs no correlation machinery: `requestId` is optional and one is minted if absent. The poll route exists to recover an answer after a dropped connection, within the grace period a settled request is retained for. Re-submitting a settled id replays the answer already given rather than running the action again, which is what makes an ambiguous transport failure safe to re-ask -- a second `%create-folder` or `%begin-upload` would otherwise duplicate state and answer a connection that is already gone. The corollary is that an id whose answer was a refusal keeps replaying that refusal, so a client re-asking after fixing whatever caused it has to mint a new one. A `@uv` id carries dots, and the request-line parser mistakes its trailing dot-group for a file extension, so that segment is reassembled before parsing.
 
 ## Scries and subscriptions
 
-| Path                                     | Mark                      | Description                                           |
-| ---------------------------------------- | ------------------------- | ----------------------------------------------------- |
-| `/x/v1/buckets`                          | `%buckets-snapshots-1`    | All locally available Bucket snapshots                |
-| `/x/v1/buckets/<host>/<name>`            | `%buckets-response-1`     | One local Bucket snapshot                             |
-| `/x/v1/buckets/<host>/<name>/read-token` | `%buckets-read-token-1`   | The read token this ship currently holds, if any      |
-| `/u/joined/<host>/<name>`                | `%loob`                   | Whether the local agent has the Bucket                |
-| `/v1`                                    | `%buckets-response-1`     | Initial snapshots and all local replica updates       |
-| `/v1/requests`                           | `%buckets-req-response-1` | Answers to actions submitted by this ship's clients   |
-| `/v1/buckets/<host>/<name>/updates`      | `%buckets-response-1`     | Host-authorized snapshot followed by manifest updates |
+| Path                                      | Mark                      | Description                                           |
+| ----------------------------------------- | ------------------------- | ----------------------------------------------------- |
+| `/x/v1/buckets`                           | `%buckets-summaries-1`    | Every local Bucket without its entries                |
+| `/x/v1/buckets/full`                      | `%buckets-snapshots-1`    | The same Buckets with their entries                   |
+| `/x/v1/buckets/<host>/<name>`             | `%buckets-response-1`     | One local Bucket snapshot                             |
+| `/x/v1/buckets/<host>/<name>/read-token`  | `%buckets-read-token-1`   | The read token this ship currently holds, if any      |
+| `/x/v1/ready`                             | `%json`                   | A constant, answering only that the desk is installed |
+| `/x/v1/broker/base`                       | `%json`                   | Which broker this host is pointed at                  |
+| `/x/v1/broker/<read\|delete>/<cap>/<obj>` | `%json`                   | The verdict on one object capability, for Pioneer     |
+| `/u/joined/<host>/<name>`                 | `%loob`                   | Whether the local agent has the Bucket                |
+| `/v1`                                     | `%buckets-response-1`     | Initial snapshots and all local replica updates       |
+| `/v1/requests`                            | `%buckets-req-response-1` | Answers to actions submitted by this ship's clients   |
+| `/v1/buckets/<host>/<name>/updates`       | `%buckets-response-1`     | Host-authorized snapshot followed by manifest updates |
 
 Every scry answers a mark that grows to `json`, because clients read them over Eyre; `%noun` does not, and a peek returning it answers 500.
 
 Direct scries are self-only. Remote consumers subscribe to the host's update path, where the host can apply the live group authorization check. Subscriber agents report joined/left state to local `%groups` using `%group-channel-active`.
+
+A fact is only applied to the Bucket whose subscription carried it. The wire says which Bucket the subscription is for and the fact carries its own flag saying which Bucket it is about, and nothing checked that the two agreed -- so any host we subscribe to could publish about a Bucket it does not host but we hold a replica of. An empty writer set is the payload that matters: clients mirror writers onto the channel row, and an admin later saving that Bucket's settings would send the emptiness on to its real host, opening it to every reader. A mismatch is logged and dropped.
 
 Bucket snapshots are replica observations, not command acknowledgements: an action's answer is its `$response-body`, not the appearance of anything in a snapshot. An in-flight upload never appears in a snapshot at all. Bucket channels must never be sent through `%activity` post/thread scries because they do not contain posts or threads.
 
@@ -106,6 +114,8 @@ The Bucket's host is the only party that talks to Memex about an upload. It alre
 5. The client sends `%finish-upload`. The host calls Memex's completion endpoint, Memex HEAD-verifies the object, and the receipt is the answer to that call. The host publishes the entry and emits a revisioned update in the same event.
 
 `%retry-upload` asks Memex for another URL against the same reservation, which is what its retry budget is for; opening a fresh session instead would strand the first reservation holding quota. `%cancel-upload` cancels at Memex as well as locally, because quota is reserved before the first byte moves and would otherwise stay held until the reservation lapsed. Both are the uploader's to send and neither is the client's to make directly.
+
+A grant that arrives without a reservation is refused rather than handed on. Finish and cancel both call storage against the reservation, so passing that URL to the client would take the bytes with no way left to settle or release them -- the entry could never publish and the quota would sit until it lapsed. The check is made against the session after binding, so a retry answering against the reservation already held need not repeat it.
 
 The headers must reach the PUT exactly as given. They are part of what the URL is signed over, so a dropped one -- or the same one under different capitalisation -- fails as a signature mismatch rather than as anything legible.
 
@@ -142,6 +152,8 @@ Consequences worth knowing:
 
 `%channels-server` owns its channels' writers the same way and settles the shape: react to a `%role %del` when it arrives, and reconcile the whole set against the group's roles whenever the group arrives whole. Neither half suffices alone — a fact we miss is repaired by the sweep, and the sweep only happens on a full read.
 
+For the same reason, Bucket summaries ride in the `%groups-ui` init payload at `/v11/init`, exactly as `%channels`' writers do. They used to come from a separate scry running alongside init, and a Bucket that appeared afterwards through the `%groups` `addChannel` update got no writers at all with nothing to backfill them -- so an admin opening its settings saw an empty set and could save it back as one.
+
 The `%groups` subscription is what drives all of this: its facts are the only caller of the recheck that issues revocations, so a refused watch is retried rather than logged — losing it silently would leave a reader who lost access holding a working token until it expired. Revocation is still driven by the stored records rather than the subscription list, so a reader that took a token and then unsubscribed is covered, and losing one Bucket does not revoke tokens for others. Expiry remains a backstop for a host that dies, not the mechanism.
 
 The credential goes in `X-Landscape-Token`. Neither it nor a bearer read token ever appears in a path or query string, where it would land in access logs.
@@ -174,7 +186,7 @@ It reaches the bundle only because `apps/tlon-web/vite.config.mts` substitutes i
 
 **Reads are scoped to what the caller needs.** `/v1/buckets` lists buckets without their entries, `/v1/buckets/full` includes them, and `/v1/buckets/<host>/<name>` reads one — the split `%channels` uses for posts, for the same reason. Entries are the only unbounded field, and everything that lists rather than opens wants the metadata alone. `/v1/ready` answers whether the agent is here at all; asking `/v1/buckets` that question made a yes/no scale with everything stored.
 
-Deletes stay per-object, because they are destructive: `%issue-delete` binds a short-lived token to one ready file, exchanged through `%pioneer-buckets-authorize-delete` before the manifest entry is removed. Recursive client deletion commits each file's manifest removal immediately after Memex confirms its object deletion, and treats already-deleted as idempotent success. A host-authorized server-side bulk delete remains the durable atomic implementation.
+Deletes stay per-object, because they are destructive: `%issue-delete` binds a short-lived token to one ready file, exchanged through `%pioneer-buckets-authorize-delete` before the manifest entry is removed. Recursive client deletion commits each file's manifest removal immediately after Memex confirms its object deletion, and treats already-deleted as idempotent success at both steps -- an object the broker says is gone, and a manifest entry the host says is not there. Two collaborators deleting the same file both get a grant, so one of them loses each race, and losing is the outcome it wanted. A host-authorized server-side bulk delete remains the durable atomic implementation.
 
 ## Pioneer thread contract
 
@@ -224,6 +236,10 @@ Authorization failures return `{result: "denied"}` and expired tokens return `{r
 
 -   A forwarded request surviving the host's `%pending` and settling on the real answer
 -   The HTTP surface: authentication, malformed bodies, and an action answered inline
+-   Every session verb surviving the JSON decoder, not just the typed dispatcher
+-   A host's fact about a Bucket it does not host being dropped rather than applied
+-   The broker base being settable, and only over `https`
+-   Readiness answering a constant, and listing Buckets leaving their entries behind
 -   Rejection of a remote write when the live `%groups` gate denies access, and acceptance with a writer role
 -   Group-hosted creation by an authorized remote admin; rejection for a non-admin; idempotent retries
 -   A Moon being refused Bucket storage even when it hosts the group

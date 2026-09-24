@@ -8,13 +8,16 @@ import {
   useNavigationContainerRef,
 } from '@react-navigation/native';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
+import { DeskOutdatedScreen } from '@tloncorp/app/features/DeskOutdatedScreen';
 import useBrowserNotifications from '@tloncorp/app/hooks/useBrowserNotifications';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import useDesktopNotifications from '@tloncorp/app/hooks/useDesktopNotifications';
 import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
+import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useRenderCount } from '@tloncorp/app/hooks/useRenderCount';
+import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
 import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
 import {
   SplashScreenTask,
@@ -46,6 +49,7 @@ import {
 import {
   AnalyticsEvent,
   AnalyticsSeverity,
+  createDevLogger,
   getAuthInfo,
 } from '@tloncorp/shared';
 import { sync } from '@tloncorp/shared';
@@ -74,6 +78,8 @@ import { useTheme } from '@/state/settings';
 
 import { DesktopLoginScreen } from './components/DesktopLoginScreen';
 import { isElectron } from './electron-bridge';
+
+const logger = createDevLogger('app', false);
 
 // Conditionally import the appropriate database functions
 const { checkDb, useMigrations } = isElectron()
@@ -219,7 +225,7 @@ function AppRoutes() {
   }, []);
 
   const documentTitleFormatterMobile = useCallback(
-    (_options: any, route: Route<string>) => {
+    (_options: any, route: Route<string> | undefined) => {
       if (!route?.name) return 'Tlon';
 
       if (route.name === 'GroupChannels') {
@@ -266,7 +272,7 @@ function AppRoutes() {
   );
 
   const documentTitleFormatterDesktop = useCallback(
-    (_options: any, route: Route<string>) => {
+    (_options: any, route: Route<string> | undefined) => {
       if (!route?.name) return 'Tlon';
 
       // For channel routes
@@ -326,10 +332,16 @@ function AppRoutes() {
     ? handleStateChangeMobile
     : handleStateChangeDesktop;
   const combinedStateChangeHandler = useCallback(
-    (state: NavigationState<CombinedParamList> | undefined) => {
-      platformHandleStateChange(state);
-      onNavigationStateChange(state);
-      navigationLogging.onStateChange(state);
+    (state: NavigationState | undefined) => {
+      // NavigationContainer types onStateChange against ParamListBase, but both
+      // containers here are built from CombinedParamList, so the concrete state
+      // always matches. Narrow once at the boundary.
+      const combinedState = state as
+        | NavigationState<CombinedParamList>
+        | undefined;
+      platformHandleStateChange(combinedState);
+      onNavigationStateChange(combinedState);
+      navigationLogging.onStateChange(combinedState);
     },
     [platformHandleStateChange, onNavigationStateChange, navigationLogging]
   );
@@ -387,6 +399,41 @@ function AppRoutes() {
   );
 }
 
+// This client can be pointed at any ship — a dev server, Electron, or a cached
+// build that outlived the ship's desk — so the notice belongs on web too. It
+// takes precedence over the loading states below: a gated start never sets
+// session.startTime, so the splash screen would otherwise wait forever.
+function DeskOutdatedNotice({
+  deskCompat,
+  shipName,
+  onLogout,
+}: {
+  deskCompat: store.DeskGate;
+  shipName?: string;
+  onLogout?: () => void | Promise<void>;
+}) {
+  const handleRetry = useCallback(() => {
+    sync
+      .retryDeskCompatibility({
+        // The single syncStart below already resolved as a gated no-op, so its
+        // post-start work has to be run again on a successful retry.
+        onRecovered: () => sync.syncInitialPosts({ syncSize: 'light' }),
+      })
+      .catch(() => {});
+  }, []);
+
+  return (
+    <DeskOutdatedScreen
+      currentVersion={deskCompat.current}
+      minimumVersion={deskCompat.minimum}
+      shipName={shipName}
+      isProbing={deskCompat.status === 'probing'}
+      onRetry={handleRetry}
+      onLogout={onLogout}
+    />
+  );
+}
+
 function ConnectedDesktopApp({
   ship,
   shipUrl,
@@ -398,7 +445,13 @@ function ConnectedDesktopApp({
 }) {
   const [clientReady, setClientReady] = useState(false);
   const configureClient = useConfigureUrbitClient();
+  const deskCompat = store.useDeskCompatibility();
   const hasSyncedRef = React.useRef(false);
+  // Same handler the desktop settings navigator uses: it clears the stored
+  // Electron credentials and reloads back to the login screen, which is the
+  // only way off a ship whose desk this build can't talk to.
+  const resetDb = useResetDb();
+  const handleLogout = useHandleLogout({ resetDb });
   useDesktopNotifications(clientReady);
 
   useEffect(() => {
@@ -433,6 +486,19 @@ function ConnectedDesktopApp({
     initializeClient();
   }, [configureClient, ship, shipUrl, authCookie]);
 
+  // Rendered outside AppRoutes, so there is no NavigationContainer above it.
+  // Depends on TLON-6529 (dropping link support from ui/Pressable, which calls
+  // useLinkProps unconditionally) landing first; this branch rebases onto it.
+  if (store.shouldShowDeskNotice(deskCompat)) {
+    return (
+      <DeskOutdatedNotice
+        deskCompat={deskCompat}
+        shipName={ship}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
   if (!clientReady) {
     return (
       <View
@@ -464,12 +530,18 @@ function ConnectedDesktopApp({
   return <AppRoutes />;
 }
 
+// The web db is rebuilt on every load, so the splash screen waits for it to
+// report a nonzero size before handing over to the app.
+const DB_LOAD_ATTEMPTS = 10;
+
 function ConnectedWebApp() {
   const currentUserId = useCurrentUserId();
   const [dbIsLoaded, setDbIsLoaded] = useState(false);
   const configureClient = useConfigureUrbitClient();
   const session = store.useCurrentSession();
+  const deskCompat = store.useDeskCompatibility();
   const hasSyncedRef = React.useRef(false);
+  const dbLoadFailureReportedRef = React.useRef(false);
   const telemetry = useTelemetry();
 
   const isNewSignup = useMemo(() => {
@@ -489,7 +561,16 @@ function ConnectedWebApp() {
       if (!hasSyncedRef.current) {
         sync
           .syncStart(false)
-          .then(() => sync.syncInitialPosts({ syncSize: 'light' }));
+          .then((outcome) => {
+            // A gated start stopped before the paths this prefetch needs, and
+            // an abandoned one belongs to a login that's already gone. 'busy'
+            // is another start holding the lock, which is no reason to skip.
+            if (outcome === 'gated' || outcome === 'abandoned') {
+              return;
+            }
+            return sync.syncInitialPosts({ syncSize: 'light' });
+          })
+          .catch(() => {});
         hasSyncedRef.current = true;
         telemetry.captureAppActive('web');
       }
@@ -503,9 +584,9 @@ function ConnectedWebApp() {
       // this is necessary because we load a fresh db on every load and we
       // can't be sure of when data has been loaded
 
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < DB_LOAD_ATTEMPTS; i++) {
         if (dbIsLoaded) {
-          break;
+          return;
         }
 
         const { databaseSizeBytes } = (await checkDb()) || {
@@ -515,10 +596,22 @@ function ConnectedWebApp() {
         if (databaseSizeBytes && databaseSizeBytes > 0) {
           setDbIsLoaded(true);
           splashScreenProgress.complete(SplashScreenTask.startDatabase);
-          break;
+          return;
         }
 
         await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+
+      // Every attempt came back empty, so the splash screen is still up with no
+      // database behind it and nothing retries from here. Without this the only
+      // trace is whatever query happens to fail next.
+      if (!dbLoadFailureReportedRef.current) {
+        dbLoadFailureReportedRef.current = true;
+        logger.trackEvent(AnalyticsEvent.ErrorWebDb, {
+          context: 'ConnectedWebApp: database never became readable',
+          attempts: DB_LOAD_ATTEMPTS,
+          severity: AnalyticsSeverity.Critical,
+        });
       }
     };
 
@@ -540,6 +633,18 @@ function ConnectedWebApp() {
     useCallback(() => true, []),
     splashScreenProgress.finished
   );
+
+  // Rendered outside AppRoutes, so there is no NavigationContainer above it.
+  // Depends on TLON-6529 (dropping link support from ui/Pressable, which calls
+  // useLinkProps unconditionally) landing first; this branch rebases onto it.
+  // No onLogout: the app offers no logout on plain web either (Log out is
+  // hidden when isWeb, ui/components/SettingsScreenView.tsx), and there the
+  // handler would only clear local state and reload into the same cookie.
+  if (store.shouldShowDeskNotice(deskCompat)) {
+    return (
+      <DeskOutdatedNotice deskCompat={deskCompat} shipName={currentUserId} />
+    );
+  }
 
   if (!hideSplashScreen) {
     return (

@@ -1,0 +1,144 @@
+appId: ${MAESTRO_APP_ID}
+name: Native channel lifecycle
+tags: [regression]
+env:
+  JOURNEY: m
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/create-group.yaml
+- tapOn: '^Edit channels$'
+- assertVisible: '^Channels$'
+- tapOn: '^New$'
+- tapOn: '^New channel$'
+- assertVisible: '^Create a new channel$'
+- tapOn:
+    id: ChannelTitleInput
+- inputText: ${output.reliability.channel}
+- assertVisible:
+    id: ChannelTitleInput
+    text: ${output.reliability.channel}
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - pressKey: Enter
+      - scroll
+- tapOn: '^Create channel$'
+- extendedWaitUntil:
+    notVisible: '^Create a new channel$'
+    timeout: 5000
+- extendedWaitUntil:
+    visible: ${output.reliability.channel}
+    timeout: 5000
+- tapOn: '^Back$'
+- extendedWaitUntil:
+    visible: ${output.reliability.groupPattern}
+    timeout: 15000
+- tapOn: ${output.reliability.channel}
+- runFlow:
+    file: subflows/send.yaml
+    env:
+      MESSAGE: ${output.reliability.text}
+      MESSAGE_PATTERN: ${output.reliability.textPattern}
+      EMPTY_INPUT: '^Message$'
+- hideKeyboard
+- tapOn: '^Back$'
+- extendedWaitUntil:
+    visible: ${output.reliability.groupPattern}
+    timeout: 15000
+- tapOn: ${output.reliability.channel}
+- assertVisible: ${output.reliability.textPattern}
+- tapOn: ${output.reliability.channel}
+- tapOn: '^(Rename|Edit)$'
+- tapOn:
+    id: ChannelTitleInput
+    point: '95%,50%'
+- eraseText: 30
+- inputText: ${output.reliability.renamedChannel}
+- assertVisible:
+    id: ChannelTitleInput
+    text: ${output.reliability.renamedChannel}
+- tapOn:
+    id: ChannelDescriptionInput
+- inputText: ${MAESTRO_RUN_TAG + ' description'}
+- tapOn: '^Save$'
+- assertVisible: ${output.reliability.renamedChannel}
+- tapOn: '^(Rename|Edit)$'
+- assertVisible:
+    id: ChannelTitleInput
+    text: ${output.reliability.renamedChannel}
+- assertVisible:
+    id: ChannelDescriptionInput
+    text: ${MAESTRO_RUN_TAG + ' description'}
+- tapOn: '^Back$'
+- tapOn: '^Back$'
+- assertVisible: ${output.reliability.textPattern}
+- tapOn: ${output.reliability.renamedChannel}
+- scrollUntilVisible:
+    element:
+      id: ChannelLeaveAction-Delete channel
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: ChannelLeaveAction-Delete channel
+- assertVisible: "^Delete ${output.reliability.renamedChannel}[?]$"
+- tapOn: '(?i)^Cancel$'
+- assertVisible: ${output.reliability.renamedChannel}
+- tapOn:
+    id: ChannelLeaveAction-Delete channel
+- assertVisible: "^Delete ${output.reliability.renamedChannel}[?]$"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: '^Delete channel$'
+          above: '^Cancel$'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn: '(?i)^Delete channel$'
+- extendedWaitUntil:
+    notVisible: ${output.reliability.renamedChannel}
+    timeout: 5000
+- tapOn: '^Back$'
+- runFlow:
+    when:
+      visible:
+        id: ScreenHeaderTitle
+        text: '^Workspaces$'
+    commands:
+      - scrollUntilVisible:
+          element:
+            text: ${output.reliability.groupPattern}
+          direction: DOWN
+          timeout: 5000
+      - tapOn: ${output.reliability.groupPattern}
+- extendedWaitUntil:
+    visible: ${output.reliability.groupPattern}
+    timeout: 15000
+- assertNotVisible: ${output.reliability.renamedChannel}
+- assertVisible: '^Chat$'
+- assertVisible: '^Gallery$'
+- assertVisible: '^Notebook$'
+# Deleting the last channel drops straight to the chat list; deleting one of
+# several leaves the group's channel list, which still needs a Back. Match the
+# header title rather than the bare string, so the guard cannot be satisfied by
+# a chat that happens to be named after the tab.
+- runFlow:
+    when:
+      notVisible:
+        id: ScreenHeaderTitle
+        text: '^Workspaces$'
+    commands:
+      - tapOn: '^Back$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Workspaces$'

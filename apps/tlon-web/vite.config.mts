@@ -182,7 +182,6 @@ export default ({ mode }: { mode: string }) => {
         lodash: ['lodash'],
         'lodash/fp': ['lodash/fp'],
         'urbit/api': ['@urbit/api'],
-        'urbit/http-api': ['@urbit/http-api'],
         'urbit/sigil-js': ['@urbit/sigil-js'],
         'any-ascii': ['any-ascii'],
         'tiptap/core': ['@tiptap/core'],

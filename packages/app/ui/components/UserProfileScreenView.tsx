@@ -423,11 +423,15 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
 
   return (
     <XStack alignItems="center" padding="$l" gap="$xl" width={'100%'}>
-      <Pressable onPress={handleAvatarPress}>
+      <Pressable
+        onPress={handleAvatarPress}
+        accessibilityLabel={`Profile avatar color ${contact?.color ?? 'default'}`}
+        testID="ProfileAvatar"
+      >
         <ContactAvatar contactId={props.userId} size="$5xl" />
       </Pressable>
       <Pressable flex={1} minWidth={0} onPress={handleCopy}>
-        <YStack flex={1} justifyContent="center">
+        <YStack justifyContent="center">
           <XStack alignItems="center" gap="$s">
             <ContactName
               contactId={props.userId}

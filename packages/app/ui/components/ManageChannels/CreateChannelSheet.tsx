@@ -4,7 +4,6 @@ import {
   canGroupHostBuckets,
   createChannel,
   useBucketsDeskAvailable,
-  useNotesDeskAvailable,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Button, useToast } from '@tloncorp/ui';
@@ -13,6 +12,7 @@ import { FormProvider, useForm, useWatch } from 'react-hook-form';
 import { YStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
+import { useFeatureFlag } from '../../../lib/featureFlags';
 import { GroupSettingsStackParamList } from '../../../navigation/types';
 import { useIsAdmin } from '../../utils/channelUtils';
 import { ActionSheet } from '../ActionSheet';
@@ -20,55 +20,39 @@ import * as Form from '../Form';
 import SystemNotices from '../SystemNotices';
 import { PrivateChannelToggle } from './ChannelPermissions';
 
-export type ChannelTypeName =
-  | 'chat'
-  | 'notebook'
-  | 'gallery'
-  | 'notes'
-  | 'buckets';
+// The legacy %diary type ('notebook', shown as 'Bulletin') is deliberately
+// absent: %notes replaced it and no new diary channels may be created.
+export type ChannelTypeName = 'chat' | 'gallery' | 'notes' | 'buckets';
 
-// When the notes desk is installed, we offer 'Notebook' as the new
-// %notes-backed type and rename the legacy diary type to 'Bulletin'.
-// Without the notes desk, the legacy diary type keeps its 'Notebook' label.
-function buildChannelTypes(
-  notesAvailable: boolean,
-  bucketsAvailable: boolean
-): Form.ListItemInputOption<ChannelTypeName>[] {
-  const chat: Form.ListItemInputOption<ChannelTypeName> = {
+const CHANNEL_TYPES: Form.ListItemInputOption<ChannelTypeName>[] = [
+  {
     title: 'Chat',
     subtitle: 'A simple, standard text chat',
     value: 'chat',
     icon: 'ChannelTalk',
-  };
-  const notes: Form.ListItemInputOption<ChannelTypeName> = {
+  },
+  {
     title: 'Notebook',
     subtitle: 'Collaborative markdown notebooks',
     value: 'notes',
     icon: 'ChannelNotebooks',
-  };
-  const diary: Form.ListItemInputOption<ChannelTypeName> = {
-    title: notesAvailable ? 'Bulletin' : 'Notebook',
-    subtitle: 'Longform publishing and discussion',
-    value: 'notebook',
-    icon: 'Bulletin',
-  };
-  const gallery: Form.ListItemInputOption<ChannelTypeName> = {
+  },
+  {
     title: 'Gallery',
-    subtitle: 'Gather, connect, and arrange rich media',
+    subtitle: 'Gather and arrange rich media',
     value: 'gallery',
     icon: 'ChannelGalleries',
-  };
-  const buckets: Form.ListItemInputOption<ChannelTypeName> = {
-    title: 'Buckets',
-    subtitle: 'Shared files for members and agents',
-    value: 'buckets',
-    icon: 'Folder',
-  };
-  const channelTypes = notesAvailable
-    ? [chat, notes, diary, gallery]
-    : [chat, diary, gallery];
-  return bucketsAvailable ? [...channelTypes, buckets] : channelTypes;
-}
+  },
+];
+
+// Appended rather than listed above, because it is offered only when the
+// flag, the desk and the group's host all allow it.
+const BUCKETS_CHANNEL_TYPE: Form.ListItemInputOption<ChannelTypeName> = {
+  title: 'Buckets',
+  subtitle: 'Shared files for members and agents',
+  value: 'buckets',
+  icon: 'Folder',
+};
 
 interface CreateChannelFormSchema {
   title: string;
@@ -112,14 +96,20 @@ export function CreateChannelSheet({
   const [isCreating, setIsCreating] = useState(false);
   const isGroupAdmin = useIsAdmin(group.id, currentUserId);
   const isNonHostAdmin = isGroupAdmin && !group.currentUserIsHost;
-  const { data: notesAvailable = false } = useNotesDeskAvailable();
+  const [bucketsEnabled] = useFeatureFlag('buckets');
   const { data: bucketsDeskAvailable = false } = useBucketsDeskAvailable();
   const bucketsHostSupported = canGroupHostBuckets(group.hostUserId);
-  const bucketsAvailable =
-    bucketsDeskAvailable && isGroupAdmin && bucketsHostSupported;
+  // Buckets are still behind a flag. This gates the offer, not the channel
+  // type: a bucket someone already made keeps working and the host keeps
+  // serving it -- only the route to making a new one is closed.
+  const bucketsOffered = bucketsEnabled && bucketsDeskAvailable && isGroupAdmin;
+  const bucketsAvailable = bucketsOffered && bucketsHostSupported;
   const channelTypes = useMemo(
-    () => buildChannelTypes(notesAvailable, bucketsAvailable),
-    [bucketsAvailable, notesAvailable]
+    () =>
+      bucketsAvailable
+        ? [...CHANNEL_TYPES, BUCKETS_CHANNEL_TYPE]
+        : CHANNEL_TYPES,
+    [bucketsAvailable]
   );
 
   const isPrivate = useWatch({ control, name: 'isPrivate' });
@@ -178,7 +168,7 @@ export function CreateChannelSheet({
     <FormProvider {...form}>
       <ActionSheet open onOpenChange={onOpenChange} {...sheetProps}>
         <ActionSheet.SimpleHeader title="Create a new channel" />
-        <ActionSheet.Content>
+        <ActionSheet.ScrollableContent keyboardShouldPersistTaps="handled">
           <ActionSheet.FormBlock>
             <Form.ControlledTextField
               control={control}
@@ -212,7 +202,7 @@ export function CreateChannelSheet({
               name={'channelType'}
             />
           </ActionSheet.FormBlock>
-          {bucketsDeskAvailable && isGroupAdmin && !bucketsHostSupported && (
+          {bucketsOffered && !bucketsHostSupported && (
             <ActionSheet.FormBlock>
               <SystemNotices.NoticeFrame>
                 <SystemNotices.NoticeBody>
@@ -240,7 +230,7 @@ export function CreateChannelSheet({
               centered
             />
           </ActionSheet.FormBlock>
-        </ActionSheet.Content>
+        </ActionSheet.ScrollableContent>
       </ActionSheet>
     </FormProvider>
   );

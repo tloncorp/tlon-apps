@@ -1,5 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { TlawnProviderModel } from '@tloncorp/api';
 import {
   Button,
   Icon,
@@ -13,10 +14,12 @@ import { View, XStack, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
 import { ScreenHeader, SettingsContentScrollView, TextInput } from '../../ui';
+import { Badge } from '../../ui/components/Badge';
 import {
   BotSettingsDivider,
   BotSettingsErrorText,
   BotSettingsSection,
+  BotSwitchRow,
   EmptyRowText,
   SelectableRow,
 } from './bot/BotSettingsUI';
@@ -31,6 +34,7 @@ import { getErrorMessage, getModelDisplayName } from './bot/helpers';
 import {
   useAllProviderModels,
   useBotSettingsQueries,
+  useOpenRouterModelMetadata,
 } from './bot/useBotSettingsData';
 import {
   useBotSettingsDraft,
@@ -41,6 +45,45 @@ type Props = NativeStackScreenProps<RootStackParamList, 'BotModelSettings'>;
 
 const fallbackKey = (selection: { provider: string; model: string }) =>
   `${selection.provider}:${selection.model}`;
+
+const parseTokenPrice = (value?: string) => {
+  if (!value?.trim()) return null;
+  const price = Number(value);
+  return Number.isFinite(price) && price >= 0 ? price : null;
+};
+
+const blendedPricePerMillion = (
+  promptPrice?: string,
+  completionPrice?: string
+) => {
+  const input = parseTokenPrice(promptPrice);
+  const output = parseTokenPrice(completionPrice);
+  if (input === null || output === null) return null;
+  return 1_000_000 * (0.8 * input + 0.2 * output);
+};
+
+const formatBlendedPrice = (price: number | null, zdr: boolean) => {
+  if (price === null) return null;
+  if (price === 0) return 'free';
+  const formatted = new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: price < 1 ? 2 : 0,
+    maximumFractionDigits: price < 0.01 ? 4 : 2,
+  }).format(price);
+  return `${zdr ? 'from ' : '~'}$${formatted} / 1m`;
+};
+
+const prioritizeModels = (
+  models: TlawnProviderModel[],
+  recommendedRank: Map<string, number>
+) =>
+  [...models].sort((left, right) => {
+    const leftRank = recommendedRank.get(left.id);
+    const rightRank = recommendedRank.get(right.id);
+    if (leftRank === undefined && rightRank === undefined) return 0;
+    if (leftRank === undefined) return 1;
+    if (rightRank === undefined) return -1;
+    return leftRank - rightRank;
+  });
 
 export function BotModelSettingsScreen(props: Props) {
   const { mode } = props.route.params;
@@ -58,12 +101,16 @@ export function BotModelSettingsScreen(props: Props) {
     queries.providerConfig,
     queries.llmAuthStatusQuery.data
   );
+  const openRouterMetadata = useOpenRouterModelMetadata(
+    allProviderModels.providers.includes('openrouter')
+  );
   const [search, setSearch] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
   const [defaultStep, setDefaultStep] = useState<'provider' | 'model'>(
     'provider'
   );
   const [selectedProvider, setSelectedProvider] = useState('');
+  const [zdrOnly, setZdrOnly] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -71,6 +118,7 @@ export function BotModelSettingsScreen(props: Props) {
       setValidationError(null);
       setDefaultStep('provider');
       setSelectedProvider('');
+      setZdrOnly(false);
     }, [])
   );
 
@@ -82,6 +130,7 @@ export function BotModelSettingsScreen(props: Props) {
     setValidationError(null);
     setDefaultStep('provider');
     setSelectedProvider('');
+    setZdrOnly(false);
   }, [mode]);
 
   const modelValues = draft.draft.model;
@@ -127,12 +176,19 @@ export function BotModelSettingsScreen(props: Props) {
   }, [mode, modelValues.model, modelValues.provider, props.navigation]);
 
   const setModel = useCallback(
-    (provider: string, model: string) => {
+    (provider: string, model: string, zdr = false) => {
       if (!ready) return;
       setValidationError(null);
       draft.commitDraft((current) => ({
         ...current,
-        model: { ...current.model, provider, model },
+        model: {
+          ...current.model,
+          provider,
+          model,
+          zdr:
+            (provider === 'openrouter' || provider === BASIC_PROVIDER_ID) &&
+            zdr,
+        },
       }));
     },
     [draft, ready]
@@ -141,24 +197,38 @@ export function BotModelSettingsScreen(props: Props) {
   const selectProvider = useCallback(
     (provider: string) => {
       if (provider === BASIC_PROVIDER_ID) {
-        setModel(BASIC_PROVIDER_ID, BASIC_DEFAULT_MODEL);
+        setModel(
+          BASIC_PROVIDER_ID,
+          BASIC_DEFAULT_MODEL,
+          modelValues.provider === BASIC_PROVIDER_ID && modelValues.zdr
+        );
         setSelectedProvider('');
         props.navigation.goBack();
         return;
       }
       setSelectedProvider(provider);
+      setZdrOnly(
+        provider === 'openrouter' &&
+          modelValues.provider === 'openrouter' &&
+          modelValues.zdr
+      );
       setSearch('');
       setValidationError(null);
     },
-    [props.navigation, setModel]
+    [modelValues.provider, modelValues.zdr, props.navigation, setModel]
   );
 
   const chooseModel = useCallback(() => {
     if (!selectedProvider || selectedProvider === BASIC_PROVIDER_ID) return;
+    setZdrOnly(
+      selectedProvider === 'openrouter' &&
+        modelValues.provider === 'openrouter' &&
+        modelValues.zdr
+    );
     setSearch('');
     setValidationError(null);
     setDefaultStep('model');
-  }, [selectedProvider]);
+  }, [modelValues.provider, modelValues.zdr, selectedProvider]);
 
   const toggleFallback = useCallback(
     (selection: { provider: string; model: string }) => {
@@ -199,27 +269,99 @@ export function BotModelSettingsScreen(props: Props) {
 
   const modelListProvider =
     mode === 'default' ? selectedProvider : modelValues.provider;
-  const providerModelsLoading = Boolean(
-    allProviderModels.loading[modelListProvider]
+  const isOpenRouterModelList = modelListProvider === 'openrouter';
+  const recommendedModelRank = useMemo(
+    () =>
+      new Map(
+        openRouterMetadata.recommendedModelIds.map((modelId, index) => [
+          modelId,
+          index,
+        ])
+      ),
+    [openRouterMetadata.recommendedModelIds]
   );
-  const providerModelsError = allProviderModels.errors[modelListProvider];
+  const zdrModelIds = useMemo(
+    () =>
+      new Set(
+        openRouterMetadata.zdrEndpoints.map((endpoint) => endpoint.modelId)
+      ),
+    [openRouterMetadata.zdrEndpoints]
+  );
+  const zdrPrices = useMemo(() => {
+    const prices = new Map<string, number>();
+    openRouterMetadata.zdrEndpoints.forEach((endpoint) => {
+      const price = blendedPricePerMillion(
+        endpoint.promptPrice,
+        endpoint.completionPrice
+      );
+      if (price === null) return;
+      const current = prices.get(endpoint.modelId);
+      if (current === undefined || price < current) {
+        prices.set(endpoint.modelId, price);
+      }
+    });
+    return prices;
+  }, [openRouterMetadata.zdrEndpoints]);
+  const providerModelsLoading = Boolean(
+    allProviderModels.loading[modelListProvider] ||
+    (isOpenRouterModelList && zdrOnly && openRouterMetadata.loading)
+  );
+  const providerModelsError =
+    allProviderModels.errors[modelListProvider] ||
+    (isOpenRouterModelList && zdrOnly ? openRouterMetadata.error : null);
+
+  const toggleZdr = useCallback(
+    (enabled: boolean) => {
+      setZdrOnly(enabled);
+      if (modelValues.provider !== 'openrouter') return;
+      draft.commitDraft((current) => ({
+        ...current,
+        model: {
+          ...current.model,
+          zdr: enabled,
+          model:
+            enabled &&
+            current.model.model &&
+            !zdrModelIds.has(current.model.model)
+              ? ''
+              : current.model.model,
+        },
+      }));
+    },
+    [draft, modelValues.provider, zdrModelIds]
+  );
 
   const normalizedSearch = search.trim().toLowerCase();
   const { visible: filteredProviderModels, hidden: hiddenProviderModelCount } =
     useMemo(() => {
       const providerModels = allProviderModels.models[modelListProvider] ?? [];
+      const eligibleModels =
+        isOpenRouterModelList && zdrOnly
+          ? providerModels.filter((model) => zdrModelIds.has(model.id))
+          : providerModels;
+      const prioritizedModels = isOpenRouterModelList
+        ? prioritizeModels(eligibleModels, recommendedModelRank)
+        : eligibleModels;
       const matches = normalizedSearch
-        ? providerModels.filter((model) =>
+        ? prioritizedModels.filter((model) =>
             [getModelDisplayName(model), model.id].some((value) =>
               value.toLowerCase().includes(normalizedSearch)
             )
           )
-        : providerModels;
+        : prioritizedModels;
       return {
         visible: matches.slice(0, MAX_VISIBLE_MODELS),
         hidden: Math.max(0, matches.length - MAX_VISIBLE_MODELS),
       };
-    }, [allProviderModels.models, modelListProvider, normalizedSearch]);
+    }, [
+      allProviderModels.models,
+      isOpenRouterModelList,
+      modelListProvider,
+      normalizedSearch,
+      recommendedModelRank,
+      zdrModelIds,
+      zdrOnly,
+    ]);
 
   // For fallback mode we search across every provider with a credential.
   const allSelectableModels = useMemo(
@@ -316,6 +458,25 @@ export function BotModelSettingsScreen(props: Props) {
                   <BotSettingsSection
                     title={`${providerLabel(selectedProvider)} models`}
                   >
+                    {selectedProvider === 'openrouter' ? (
+                      <>
+                        <BotSwitchRow
+                          label="Zero data retention"
+                          description={
+                            zdrOnly
+                              ? 'Showing only models with eligible ZDR endpoints.'
+                              : 'Only use endpoints that retain no data.'
+                          }
+                          checked={zdrOnly}
+                          disabled={
+                            openRouterMetadata.loading ||
+                            (!zdrOnly && zdrModelIds.size === 0)
+                          }
+                          onCheckedChange={toggleZdr}
+                        />
+                        <BotSettingsDivider />
+                      </>
+                    ) : null}
                     <View padding="$l">
                       <TextInput
                         value={search}
@@ -335,24 +496,61 @@ export function BotModelSettingsScreen(props: Props) {
                       <EmptyRowText>No models found.</EmptyRowText>
                     ) : (
                       <>
-                        {filteredProviderModels.map((model, index) => (
-                          <YStack key={model.id}>
-                            <SelectableRow
-                              label={getModelDisplayName(model)}
-                              description={model.id}
-                              selected={
-                                modelValues.provider === selectedProvider &&
-                                modelValues.model === model.id
-                              }
-                              onPress={() =>
-                                setModel(selectedProvider, model.id)
-                              }
-                            />
-                            {index < filteredProviderModels.length - 1 ? (
-                              <BotSettingsDivider />
-                            ) : null}
-                          </YStack>
-                        ))}
+                        {filteredProviderModels.map((model, index) => {
+                          const recommended = recommendedModelRank.has(
+                            model.id
+                          );
+                          const zdrEligible = zdrModelIds.has(model.id);
+                          const price = formatBlendedPrice(
+                            zdrOnly
+                              ? (zdrPrices.get(model.id) ?? null)
+                              : blendedPricePerMillion(
+                                  model.pricing?.prompt,
+                                  model.pricing?.completion
+                                ),
+                            zdrOnly
+                          );
+                          return (
+                            <YStack key={model.id}>
+                              <SelectableRow
+                                label={getModelDisplayName(model)}
+                                description={[model.id, price]
+                                  .filter(Boolean)
+                                  .join(' · ')}
+                                endContent={
+                                  recommended || (zdrOnly && zdrEligible) ? (
+                                    <XStack gap="$xs">
+                                      {recommended ? (
+                                        <Badge
+                                          text="Recommended"
+                                          type="neutral"
+                                          size="micro"
+                                        />
+                                      ) : null}
+                                      {zdrOnly && zdrEligible ? (
+                                        <Badge
+                                          text="ZDR"
+                                          type="positive"
+                                          size="micro"
+                                        />
+                                      ) : null}
+                                    </XStack>
+                                  ) : undefined
+                                }
+                                selected={
+                                  modelValues.provider === selectedProvider &&
+                                  modelValues.model === model.id
+                                }
+                                onPress={() =>
+                                  setModel(selectedProvider, model.id, zdrOnly)
+                                }
+                              />
+                              {index < filteredProviderModels.length - 1 ? (
+                                <BotSettingsDivider />
+                              ) : null}
+                            </YStack>
+                          );
+                        })}
                         {hiddenProviderModelCount > 0 ? (
                           <EmptyRowText>
                             {hiddenProviderModelCount} more — refine your search

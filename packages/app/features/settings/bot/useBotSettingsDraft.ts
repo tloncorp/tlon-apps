@@ -1,11 +1,7 @@
 import * as api from '@tloncorp/api';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import create from 'zustand';
+import { useCallback, useEffect, useMemo } from 'react';
 
-import {
-  type BotSettingsPendingFields,
-  getChangeLabels,
-} from './botSettingsDraftHelpers';
+import { getChangeLabels } from './botSettingsDraftHelpers';
 import { BASIC_PROVIDER_ID } from './constants';
 import {
   ChannelRuleDraft,
@@ -17,168 +13,31 @@ import {
   getModelFormValues,
   haveChannelModelEntriesChanged,
   mergeChannelRules,
+  normalizeShipList,
   normalizeChannelRuleKey,
   normalizeProviderConfig,
   normalizeTlonbotConfig,
   runApplySteps,
   toChatFormValues,
 } from './helpers';
+import { trackTlonbotSettingUpdated } from './botSettingsTelemetry';
 import {
   BotSettingsQueries,
   useBotSettingsMutations,
 } from './useBotSettingsData';
+import {
+  type BotSettingsDraftValues,
+  getPendingFields,
+  hasPendingChanges,
+  useBotSettingsDraftStore,
+} from './botSettingsDraftStore';
 
-export type BotSettingsDraftValues = {
-  nickname: string;
-  model: ModelFormValues;
-  chat: ChatFormValues;
-};
-
+export {
+  useBotSettingsDraftStore,
+  resetBotSettingsDraft,
+} from './botSettingsDraftStore';
+export type { BotSettingsDraftValues } from './botSettingsDraftStore';
 export type { BotSettingsPendingFields } from './botSettingsDraftHelpers';
-
-const EMPTY_VALUES: BotSettingsDraftValues = {
-  nickname: '',
-  model: { provider: '', model: '', fallbacks: [] },
-  chat: {
-    dmAllowlist: '',
-    defaultAuthorizedShips: '',
-    groupInviteAllowlist: '',
-    autoAcceptDmInvites: false,
-    autoDiscoverChannels: false,
-    channelRuleDrafts: {},
-  },
-};
-
-const clone = (values: BotSettingsDraftValues): BotSettingsDraftValues =>
-  JSON.parse(JSON.stringify(values));
-
-// Key-order-insensitive serialization: channelRuleDrafts is a Record whose
-// insertion order varies between server syncs and user edits, and plain
-// JSON.stringify would report phantom changes for identical content. Arrays
-// (e.g. the fallback chain) stay ordered.
-const stableStringify = (value: unknown): string => {
-  if (Array.isArray(value)) {
-    return `[${value.map(stableStringify).join(',')}]`;
-  }
-  if (value && typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .filter(([, v]) => v !== undefined)
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-      .map(([k, v]) => `${JSON.stringify(k)}:${stableStringify(v)}`);
-    return `{${entries.join(',')}}`;
-  }
-  return JSON.stringify(value) ?? 'null';
-};
-
-const valuesEqual = (
-  left: BotSettingsDraftValues,
-  right: BotSettingsDraftValues
-): boolean => stableStringify(left) === stableStringify(right);
-
-interface BotSettingsDraftStore {
-  scopeKey: string;
-  initialized: boolean;
-  baseline: BotSettingsDraftValues;
-  draft: BotSettingsDraftValues;
-  syncServerValues: (scopeKey: string, values: BotSettingsDraftValues) => void;
-  commitDraft: (
-    updater: (draft: BotSettingsDraftValues) => BotSettingsDraftValues
-  ) => void;
-  discardChanges: () => void;
-  commitSection: (patch: Partial<BotSettingsDraftValues>) => void;
-}
-
-// Draft state lives in a module-level store because the bot settings flow
-// spans several navigator screens that must all see (and mutate) the same
-// unapplied changes.
-export const useBotSettingsDraftStore = create<BotSettingsDraftStore>(
-  (set, get) => ({
-    scopeKey: '',
-    initialized: false,
-    baseline: EMPTY_VALUES,
-    draft: EMPTY_VALUES,
-    syncServerValues: (scopeKey, values) => {
-      const current = get();
-      const hasLocalChanges =
-        current.initialized && !valuesEqual(current.baseline, current.draft);
-      // Only adopt fresh server values when the user has no unapplied edits
-      // (or when we switched scope); otherwise a background refetch would
-      // clobber their draft.
-      if (current.scopeKey === scopeKey && hasLocalChanges) {
-        return;
-      }
-      if (
-        current.scopeKey === scopeKey &&
-        current.initialized &&
-        valuesEqual(current.baseline, values)
-      ) {
-        return;
-      }
-      set({
-        scopeKey,
-        initialized: true,
-        baseline: clone(values),
-        draft: clone(values),
-      });
-    },
-    commitDraft: (updater) => {
-      const current = get();
-      // Updaters return fresh objects; the input clone protects the shared
-      // baseline references from accidental in-place mutation.
-      set({ draft: updater(clone(current.draft)) });
-    },
-    discardChanges: () => {
-      const current = get();
-      set({ draft: clone(current.baseline) });
-    },
-    // Advance the baseline for a section that just saved, and normalize that
-    // section of the draft to match (e.g. a trimmed nickname). Only the patched
-    // section is touched — a partial apply where a later section fails leaves
-    // the still-unsaved sections' edits in the draft so the user can retry.
-    commitSection: (patch) => {
-      const current = get();
-      set({
-        baseline: clone({ ...current.baseline, ...patch }),
-        draft: clone({ ...current.draft, ...patch }),
-      });
-    },
-  })
-);
-
-/** Drop all draft state. Called from the logout flow so the next account
- * never sees the previous account's unapplied edits. */
-export function resetBotSettingsDraft() {
-  useBotSettingsDraftStore.setState({
-    scopeKey: '',
-    initialized: false,
-    baseline: EMPTY_VALUES,
-    draft: EMPTY_VALUES,
-  });
-}
-
-const getPendingFields = (
-  baseline: BotSettingsDraftValues,
-  draft: BotSettingsDraftValues
-): BotSettingsPendingFields => ({
-  nickname: baseline.nickname !== draft.nickname,
-  modelProvider: baseline.model.provider !== draft.model.provider,
-  model: baseline.model.model !== draft.model.model,
-  fallbacks:
-    stableStringify(baseline.model.fallbacks) !==
-    stableStringify(draft.model.fallbacks),
-  dmAllowlist: baseline.chat.dmAllowlist !== draft.chat.dmAllowlist,
-  defaultAuthorizedShips:
-    baseline.chat.defaultAuthorizedShips !== draft.chat.defaultAuthorizedShips,
-  groupInviteAllowlist:
-    baseline.chat.groupInviteAllowlist !== draft.chat.groupInviteAllowlist,
-  autoAcceptDmInvites:
-    baseline.chat.autoAcceptDmInvites !== draft.chat.autoAcceptDmInvites,
-  autoDiscoverChannels:
-    baseline.chat.autoDiscoverChannels !== draft.chat.autoDiscoverChannels,
-  channelRules:
-    stableStringify(baseline.chat.channelRuleDrafts) !==
-    stableStringify(draft.chat.channelRuleDrafts),
-});
 
 export function useBotSettingsDraft() {
   const store = useBotSettingsDraftStore();
@@ -225,7 +84,8 @@ export function useSyncBotSettingsDraft(queries: BotSettingsQueries) {
   // would stay stale. Re-run when local edits clear so the latest server values
   // are adopted.
   const hasLocalChanges = useBotSettingsDraftStore(
-    (state) => state.initialized && !valuesEqual(state.baseline, state.draft)
+    (state) =>
+      state.initialized && hasPendingChanges(state.baseline, state.draft)
   );
 
   useEffect(() => {
@@ -256,8 +116,12 @@ export function useSyncBotSettingsDraft(queries: BotSettingsQueries) {
 export function useApplyBotSettings(queries: BotSettingsQueries) {
   const draft = useBotSettingsDraft();
   const mutations = useBotSettingsMutations();
-  const [applying, setApplying] = useState(false);
-  const [applyError, setApplyError] = useState<string | null>(null);
+  const applying = useBotSettingsDraftStore((state) => state.applying);
+  const applyError = useBotSettingsDraftStore((state) => state.applyError);
+  const setApplying = useBotSettingsDraftStore((state) => state.setApplying);
+  const setApplyError = useBotSettingsDraftStore(
+    (state) => state.setApplyError
+  );
 
   const applyChanges = useCallback(async () => {
     // Never apply a draft scoped to a different ship: the module-level store can
@@ -277,7 +141,11 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
     // broken config. The primary model needs a provider, and a non-basic
     // provider also needs a concrete model. Only validate the primary when it's
     // actually dirty — a fallbacks-only change sends the server's primary.
-    if (draft.pending.modelProvider || draft.pending.model) {
+    if (
+      draft.pending.modelProvider ||
+      draft.pending.model ||
+      draft.pending.zdr
+    ) {
       if (!nextValues.model.provider) {
         setApplyError(
           'Select a provider for the default model before applying.'
@@ -350,6 +218,7 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
       if (
         draft.pending.modelProvider ||
         draft.pending.model ||
+        draft.pending.zdr ||
         draft.pending.fallbacks
       ) {
         steps.push({
@@ -361,17 +230,44 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
               await getFreshProviderConfig()
             );
             const primaryDirty =
-              draft.pending.modelProvider || draft.pending.model;
+              draft.pending.modelProvider ||
+              draft.pending.model ||
+              draft.pending.zdr;
             const saved = await mutations.savePrimaryModel.mutateAsync({
               provider: primaryDirty
                 ? nextValues.model.provider
                 : serverModel.provider,
               model: primaryDirty ? nextValues.model.model : serverModel.model,
+              zdr: primaryDirty ? nextValues.model.zdr : serverModel.zdr,
               fallbacks: draft.pending.fallbacks
                 ? nextValues.model.fallbacks
                 : serverModel.fallbacks,
             });
             const savedProviderConfig = normalizeProviderConfig(saved);
+            const savedModel = getModelFormValues(savedProviderConfig);
+            if (draft.pending.modelProvider || draft.pending.model) {
+              trackTlonbotSettingUpdated({
+                setting: 'primary_model',
+                action: 'updated',
+                provider: savedModel.provider,
+                model: savedModel.model,
+              });
+            }
+            if (draft.pending.zdr) {
+              trackTlonbotSettingUpdated({
+                setting: 'zero_data_retention',
+                action: 'updated',
+                enabled: savedModel.zdr,
+                provider: savedModel.provider,
+              });
+            }
+            if (draft.pending.fallbacks) {
+              trackTlonbotSettingUpdated({
+                setting: 'fallback_models',
+                action: 'updated',
+                count: savedModel.fallbacks.length,
+              });
+            }
             // The save returns the full post-save provider config; adopt it as
             // the cached fresh config so the later channelModels merge (in the
             // chat step of this same apply) works from the newest snapshot —
@@ -381,7 +277,7 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
             // Basic pinned to its default) rather than the draft snapshot, so a
             // later failing step doesn't leave a stale model shown.
             return {
-              model: getModelFormValues(savedProviderConfig),
+              model: savedModel,
             };
           },
           commit: { model: nextValues.model },
@@ -545,6 +441,49 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
         const savedProviderConfig = normalizeProviderConfig(
           result.providerConfig
         );
+        const savedChat = toChatFormValues(savedConfig, savedProviderConfig);
+        if (draft.pending.dmAllowlist) {
+          trackTlonbotSettingUpdated({
+            setting: 'dm_allowlist',
+            action: 'updated',
+            count: normalizeShipList(savedChat.dmAllowlist).length,
+          });
+        }
+        if (draft.pending.defaultAuthorizedShips) {
+          trackTlonbotSettingUpdated({
+            setting: 'default_authorized_ships',
+            action: 'updated',
+            count: normalizeShipList(savedChat.defaultAuthorizedShips).length,
+          });
+        }
+        if (draft.pending.groupInviteAllowlist) {
+          trackTlonbotSettingUpdated({
+            setting: 'group_invite_allowlist',
+            action: 'updated',
+            count: normalizeShipList(savedChat.groupInviteAllowlist).length,
+          });
+        }
+        if (draft.pending.autoAcceptDmInvites) {
+          trackTlonbotSettingUpdated({
+            setting: 'auto_accept_dm_invites',
+            action: 'updated',
+            enabled: savedChat.autoAcceptDmInvites,
+          });
+        }
+        if (draft.pending.autoDiscoverChannels) {
+          trackTlonbotSettingUpdated({
+            setting: 'auto_discover_channels',
+            action: 'updated',
+            enabled: savedChat.autoDiscoverChannels,
+          });
+        }
+        if (draft.pending.channelRules) {
+          trackTlonbotSettingUpdated({
+            setting: 'channel_rules',
+            action: 'updated',
+            count: Object.keys(savedChat.channelRuleDrafts).length,
+          });
+        }
         mutations.queryClient.setQueryData(
           ['tlonbot', 'settings', queries.ship],
           savedConfig
@@ -554,7 +493,7 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
         // another client added and the merge preserved) rather than the draft
         // snapshot, so those aren't hidden until the next remount/refetch.
         return {
-          chat: toChatFormValues(savedConfig, savedProviderConfig),
+          chat: savedChat,
         };
       };
       if (chatConfigDirty) {

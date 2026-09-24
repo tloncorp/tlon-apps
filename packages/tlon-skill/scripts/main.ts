@@ -33,13 +33,10 @@ import { createNotesDeps } from './notes-runtime';
 import { createPostsDeps } from './posts-runtime';
 import { isTopLevelCommand } from './top-level-commands';
 import { createUploadDeps } from './upload-runtime';
-
-// Version is injected at build time via --define
-declare const __VERSION__: string;
-const VERSION = typeof __VERSION__ !== 'undefined' ? __VERSION__ : 'dev';
+import { CLI_VERSION } from './version';
 
 function printHelp() {
-  console.log(`tlon v${VERSION} - Tlon/Urbit CLI
+  console.log(`tlon v${CLI_VERSION} - Tlon/Urbit CLI
 
 Usage:
   tlon [options] <command> <subcommand> [args...]
@@ -135,7 +132,7 @@ async function main() {
   }
 
   if (command === '--version' || command === '-v') {
-    console.log(VERSION);
+    console.log(CLI_VERSION);
     process.exit(0);
   }
 

@@ -48,6 +48,7 @@ import {
   Share,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardAvoidingView as KeyboardControllerAvoidingView } from 'react-native-keyboard-controller';
 import {
   View,
   XStack,
@@ -99,8 +100,8 @@ import {
   initializeOpenAISubscriptionModels,
   resolveInitialProviderModel,
 } from './providerModelDefaults';
-import { useHomeGroupInviteLink } from './useHomeGroupInviteLink';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
+import { resolvePersonalInviteLinkState } from './personalInviteLinkState';
 
 /**
  * Splash sequence panes.
@@ -1655,7 +1656,11 @@ export function BotApiKeyPane(props: {
   }, [onApiKeyChange, providerLabel]);
 
   return (
-    <KeyboardAvoidingView keyboardVerticalOffset={0}>
+    <KeyboardControllerAvoidingView
+      behavior="height"
+      automaticOffset
+      style={{ flex: 1 }}
+    >
       <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
         <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
           <View paddingHorizontal="$xl">
@@ -1714,7 +1719,7 @@ export function BotApiKeyPane(props: {
           marginTop="$xl"
         />
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardControllerAvoidingView>
   );
 }
 
@@ -2032,32 +2037,38 @@ export function GroupsPane(props: {
 }) {
   const insets = useSafeAreaInsets();
   const isDark = useIsDarkMode();
-  const { inviteUrl: homeGroupInviteUrl, state: homeGroupInviteState } =
-    useHomeGroupInviteLink({
-      enabled: !!props.hostingBotEnabled,
-    });
-  const groupInviteIsLoading = homeGroupInviteState === 'loading';
-  const groupInviteIsReady = homeGroupInviteState === 'ready';
-  const groupInviteHasError = homeGroupInviteState === 'unavailable';
-  const { doCopy: copyHomeGroupInvite, didCopy: didCopyHomeGroupInvite } =
-    useCopy(homeGroupInviteUrl ?? '');
-  const shareHomeGroupInvite = useCallback(async () => {
-    if (!homeGroupInviteUrl) return;
+  // Invites connect people to the user rather than into one stable group:
+  // onboarding creates groups through the bot DM, so there is no fixed group
+  // to hand out. Verification runs in the background; an absent link is
+  // loading until that records a failure.
+  const inviteUrl = db.personalInviteLink.useValue();
+  const inviteUnavailable = db.personalInviteLinkUnavailable.useValue();
+  const inviteState = resolvePersonalInviteLinkState({
+    inviteUrl,
+    unavailable: inviteUnavailable,
+  });
+  const inviteIsLoading = inviteState === 'loading';
+  const inviteIsReady = inviteState === 'ready';
+  const { doCopy: copyInvite, didCopy: didCopyInvite } = useCopy(
+    inviteUrl ?? ''
+  );
+  const shareInvite = useCallback(async () => {
+    if (!inviteUrl) return;
 
     try {
       if (isWeb) {
         if (typeof navigator.share === 'function') {
-          await navigator.share({ url: homeGroupInviteUrl });
+          await navigator.share({ url: inviteUrl });
         } else {
-          await copyHomeGroupInvite();
+          await copyInvite();
         }
       } else {
-        await Share.share({ message: homeGroupInviteUrl });
+        await Share.share({ message: inviteUrl });
       }
     } catch (e) {
       console.error('Failed to share invite link:', e);
     }
-  }, [copyHomeGroupInvite, homeGroupInviteUrl]);
+  }, [copyInvite, inviteUrl]);
   const [resolvedBotShipId, setResolvedBotShipId] = useState(
     props.botShipId ?? null
   );
@@ -2132,7 +2143,7 @@ export function GroupsPane(props: {
         <SplashTitle>
           {props.hostingBotEnabled ? (
             <>
-              Your <Text color="$positiveActionText">group</Text> is ready.
+              Your <Text color="$positiveActionText">Tlonbot</Text> is ready.
             </>
           ) : (
             <>
@@ -2148,15 +2159,13 @@ export function GroupsPane(props: {
           {props.hostingBotEnabled ? (
             <>
               <SplashParagraph>
-                We made you a group on your server, and{' '}
-                {props.didConfigureBot ? props.botName : 'your Tlonbot'} is
-                already there.{' '}
-                {props.didConfigureBot ? props.botName : 'Your Tlonbot'} loves
-                conversation, reading along with the group and chiming in to
-                help.
+                {props.didConfigureBot ? props.botName : 'Your Tlonbot'} is
+                waiting for you in a private chat, with a workspace ready on
+                your server. It reads along and chimes in to help.
               </SplashParagraph>
               <SplashParagraph>
-                Share the link below to bring your friends in.
+                Share the link below and friends can find you and message you
+                directly.
               </SplashParagraph>
             </>
           ) : (
@@ -2172,53 +2181,47 @@ export function GroupsPane(props: {
           <YStack width="100%" gap="$s">
             <XStack width="100%">
               <TextInput
-                value={groupInviteIsReady ? (homeGroupInviteUrl ?? '') : ''}
+                value={inviteIsReady ? (inviteUrl ?? '') : ''}
                 placeholder={
-                  groupInviteIsLoading
+                  inviteIsLoading
                     ? 'Preparing invite link'
                     : 'Invite link unavailable'
                 }
-                accent={groupInviteHasError ? 'negative' : 'positive'}
+                accent="positive"
                 editable={false}
-                selectTextOnFocus={groupInviteIsReady}
+                selectTextOnFocus={inviteIsReady}
                 frameStyle={{
                   flex: 1,
                   height: 44,
-                  ...(groupInviteHasError
-                    ? {}
-                    : {
-                        borderTopRightRadius: 0,
-                        borderBottomRightRadius: 0,
-                        borderRightWidth: 0,
-                      }),
+                  borderTopRightRadius: 0,
+                  borderBottomRightRadius: 0,
+                  borderRightWidth: 0,
                 }}
               />
-              {!groupInviteHasError && (
-                <Button
-                  onPress={groupInviteIsReady ? copyHomeGroupInvite : undefined}
-                  icon={didCopyHomeGroupInvite ? 'Checkmark' : 'Copy'}
-                  accessibilityLabel={
-                    didCopyHomeGroupInvite ? 'Copied' : 'Copy invite link'
-                  }
-                  intent="positive"
-                  size="small"
-                  width={44}
-                  borderTopLeftRadius={0}
-                  borderBottomLeftRadius={0}
-                  loading={groupInviteIsLoading}
-                  disabled={!groupInviteIsReady}
-                  glow={groupInviteIsReady}
-                />
-              )}
+              <Button
+                onPress={inviteIsReady ? copyInvite : undefined}
+                icon={didCopyInvite ? 'Checkmark' : 'Copy'}
+                accessibilityLabel={
+                  didCopyInvite ? 'Copied' : 'Copy invite link'
+                }
+                intent="positive"
+                size="small"
+                width={44}
+                borderTopLeftRadius={0}
+                borderBottomLeftRadius={0}
+                loading={inviteIsLoading}
+                disabled={!inviteIsReady}
+                glow={inviteIsReady}
+              />
             </XStack>
             <Button
-              onPress={groupInviteIsReady ? shareHomeGroupInvite : undefined}
+              onPress={inviteIsReady ? shareInvite : undefined}
               label="Share link"
-              intent={groupInviteHasError ? 'negative' : 'positive'}
+              intent="positive"
               fill="outline"
               size="small"
               leadingIcon="Send"
-              disabled={!groupInviteIsReady}
+              disabled={!inviteIsReady}
             />
           </YStack>
         ) : null}
