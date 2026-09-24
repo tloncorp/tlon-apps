@@ -41,23 +41,40 @@ function describeEntry(name: string, e: Entry) {
       ? e.mark
       : e.kind === 'thread'
         ? `${e.name} ${e.inputMark}->${e.outputMark}`
-        : e.kind === 'http'
+        : e.kind === 'http' || e.kind === 'raw'
           ? `${e.method} ${e.path}`
           : e.path;
   return `${name} (${e.agent} ${e.kind} ${target} since ${e.since})`;
 }
 
+// Hole names are labels, not routing: /{flag} and /{groupId} are one path.
+const shape = (path: string) => path.replace(/\{[^}]*\}/g, '{}');
+
 function identity(e: Entry) {
   switch (e.kind) {
     case 'http':
-      return `http ${e.method} ${e.path}`;
+    case 'raw':
+      // Both transports reach the same eyre route.
+      return `route ${e.method} ${shape(e.path)}`;
     case 'thread':
       return `thread ${e.agent} ${e.name} ${e.inputMark} ${e.outputMark} ${e.desk ?? ''}`;
     case 'poke':
       return `poke ${e.agent} ${e.mark}`;
     default:
-      return `${e.kind} ${e.agent} ${e.path}`;
+      return `${e.kind} ${e.agent} ${shape(e.path)}`;
   }
+}
+
+// A path can reach a protected prefix if it starts with it, or if a hole
+// appears before the prefix's last character, since the hole could be
+// filled to match the rest.
+function mayReach(path: string, prefix: string) {
+  const hole = path.indexOf('{');
+  if (hole === -1) {
+    return path === prefix || path.startsWith(`${prefix}/`);
+  }
+  const literal = path.slice(0, hole);
+  return literal.startsWith(prefix) || prefix.startsWith(literal);
 }
 
 function moduleExists(modulePath: string) {
@@ -93,7 +110,7 @@ export function checkRegistry(
       const owner = EXTERNAL_AGENTS[entry.agent];
       let exempt = false;
       if (entry.desk !== undefined) {
-        if (entry.kind === 'http') {
+        if (entry.kind === 'http' || entry.kind === 'raw') {
           failures.push(
             `${label}: an http route cannot carry a desk exemption`
           );
@@ -104,7 +121,11 @@ export function checkRegistry(
         } else {
           exempt = true;
         }
-      } else if (owner !== undefined && entry.kind !== 'http') {
+      } else if (
+        owner !== undefined &&
+        entry.kind !== 'http' &&
+        entry.kind !== 'raw'
+      ) {
         failures.push(`${label}: ${entry.agent} lives in %${owner}; say so`);
       }
 
@@ -123,20 +144,22 @@ export function checkRegistry(
       }
 
       if (
-        entry.kind === 'http' &&
-        scope.excludedHttpPrefixes.some((p) => entry.path.startsWith(p))
+        (entry.kind === 'http' || entry.kind === 'raw') &&
+        scope.excludedHttpPrefixes.some((p) => mayReach(entry.path, p))
       ) {
-        failures.push(`${label}: route is excluded by desk-request-scope.json`);
+        failures.push(
+          `${label}: route can reach a prefix excluded by desk-request-scope.json`
+        );
       }
       if (
-        entry.kind !== 'http' &&
-        entry.kind !== 'poke' &&
-        entry.kind !== 'thread' &&
+        (entry.kind === 'scry' || entry.kind === 'subscribe') &&
         scope.excludedAgentPaths.some(
-          (x) => x.agent === entry.agent && entry.path.startsWith(x.prefix)
+          (x) => x.agent === entry.agent && mayReach(entry.path, x.prefix)
         )
       ) {
-        failures.push(`${label}: path is excluded by desk-request-scope.json`);
+        failures.push(
+          `${label}: path can reach a prefix excluded by desk-request-scope.json`
+        );
       }
     }
   }
@@ -326,8 +349,88 @@ describe('the check fails closed', () => {
         }),
       })
     ).toEqual([
-      't.a (steward http GET /steward/~/v1/automation/tasks since 12.2.0): route is excluded by desk-request-scope.json',
-      't.b (steward subscribe /v1/automation/tasks since 12.2.0): path is excluded by desk-request-scope.json',
+      't.a (steward http GET /steward/~/v1/automation/tasks since 12.2.0): route can reach a prefix excluded by desk-request-scope.json',
+      't.b (steward subscribe /v1/automation/tasks since 12.2.0): path can reach a prefix excluded by desk-request-scope.json',
+    ]);
+  });
+
+  test('a hole that could be filled to reach a bot-only route', () => {
+    expect(
+      run({
+        a: entry({
+          kind: 'scry',
+          agent: 'steward',
+          path: '/v1/{module}/tasks',
+          since: '12.2.0',
+        }),
+        b: entry({
+          kind: 'subscribe',
+          agent: 'steward',
+          path: '/v1/auto{rest}',
+          since: '12.2.0',
+        }),
+        c: entry({
+          kind: 'http',
+          agent: 'notes',
+          method: 'GET',
+          path: '/{app}/~/v1/automation',
+          since: '12.2.0',
+        }),
+        d: entry({
+          kind: 'raw',
+          agent: 'steward',
+          method: 'GET',
+          path: '/steward/~/v1/{area}',
+          since: '12.2.0',
+        }),
+        ok: entry({
+          kind: 'scry',
+          agent: 'steward',
+          path: '/v1/lens/run/{bot}/{lens}',
+          since: '12.2.0',
+        }),
+      })
+    ).toEqual([
+      't.a (steward scry /v1/{module}/tasks since 12.2.0): path can reach a prefix excluded by desk-request-scope.json',
+      't.b (steward subscribe /v1/auto{rest} since 12.2.0): path can reach a prefix excluded by desk-request-scope.json',
+      't.c (notes http GET /{app}/~/v1/automation since 12.2.0): route can reach a prefix excluded by desk-request-scope.json',
+      't.d (steward raw GET /steward/~/v1/{area} since 12.2.0): route can reach a prefix excluded by desk-request-scope.json',
+    ]);
+  });
+
+  test('renamed holes do not hide a duplicate', () => {
+    expect(
+      run({
+        a: entry({
+          kind: 'scry',
+          agent: 'groups',
+          path: '/v3/ui/groups/{groupId}',
+          since: '12.2.0',
+        }),
+        b: entry({
+          kind: 'scry',
+          agent: 'groups',
+          path: '/v3/ui/groups/{flag}',
+          since: '12.2.0',
+        }),
+        c: entry({
+          kind: 'raw',
+          agent: 'metagrab',
+          method: 'GET',
+          path: '/m/{x}',
+          since: '12.2.0',
+        }),
+        d: entry({
+          kind: 'http',
+          agent: 'metagrab',
+          method: 'GET',
+          path: '/m/{y}',
+          since: '12.2.0',
+        }),
+      })
+    ).toEqual([
+      't.b (groups scry /v3/ui/groups/{flag} since 12.2.0): same request as t.a',
+      't.d (metagrab http GET /m/{y} since 12.2.0): same request as t.c',
     ]);
   });
 
