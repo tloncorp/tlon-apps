@@ -233,7 +233,7 @@ class API {
       ...priority: [priority?: number]
     ) =>
       this.subscribe(
-        { app: entry.agent, path: entryPath(entry, params), ...request },
+        { ...request, app: entry.agent, path: entryPath(entry, params) },
         ...priority
       );
   }
