@@ -245,6 +245,15 @@ describe('the check fails closed', () => {
     expect(fails(entry)).toEqual([expect.stringContaining(message)]);
   });
 
+  test('a malformed floor, and an excluded module that no longer exists', () => {
+    expect(checkRegistry({}, '12.2.0.1', scope)).toEqual([
+      'MIN_GROUPS_VERSION 12.2.0.1 is not a version',
+    ]);
+    expect(
+      checkRegistry({}, '12.2.0', { ...scope, excludedModules: ['gone'] })
+    ).toEqual(['excluded module gone does not exist']);
+  });
+
   test('duplicates, exact or with renamed holes', () => {
     const e = (path: string) =>
       ({ kind: 'scry', agent: 'groups', path, since: '12.2.0' }) as Entry;

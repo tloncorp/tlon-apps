@@ -1,14 +1,16 @@
 import { type Mock, beforeEach, expect, test, vi } from 'vitest';
 
-import { request, scry, thread } from '../urbit';
+import { request, requestJson, scry, scryNoun, thread } from '../urbit';
 import {
   base,
   channels,
   groups,
   httpRequest,
+  lanyard,
   notes,
   pokeRequest,
   rawRequest,
+  scryNounRequest,
   scryRequest,
   steward,
   subscribeOnceRequest,
@@ -18,7 +20,14 @@ import {
 
 vi.mock('../urbit', async () => {
   const actual = await vi.importActual<typeof import('../urbit')>('../urbit');
-  return { ...actual, request: vi.fn(), scry: vi.fn(), thread: vi.fn() };
+  return {
+    ...actual,
+    request: vi.fn(),
+    requestJson: vi.fn(),
+    scry: vi.fn(),
+    scryNoun: vi.fn(),
+    thread: vi.fn(),
+  };
 });
 
 const calls = (fn: unknown) => (fn as Mock).mock.calls;
@@ -30,13 +39,23 @@ beforeEach(() => {
 test('caller options cannot change the declared request', async () => {
   const hostile = {
     timeout: 5,
+    app: 'steward',
+    path: '/v1/automation/tasks',
     desk: 'x',
     threadName: 'x',
     inputMark: 'x',
     outputMark: 'x',
     body: 'x',
   } as never;
+  await scryRequest(groups.groups)({}, hostile);
+  await scryNounRequest(lanyard.records)({}, hostile);
   await threadRequest(groups.create)({ b: 1 }, hostile);
+  expect(calls(scry)).toEqual([
+    [{ app: 'groups', path: '/v3/groups', timeout: 5 }],
+  ]);
+  expect(calls(scryNoun)).toEqual([
+    [{ app: 'lanyard', path: '/v1/records', timeout: 5 }],
+  ]);
   expect(calls(thread)).toEqual([
     [
       {
@@ -59,6 +78,30 @@ test('rawRequest sends the entry method whatever the init says', async () => {
   expect(calls(request)).toEqual([
     ['/apps/groups/~/metagrab/u', { mode: 'cors', method: 'GET' }],
   ]);
+});
+
+test('httpRequest encodes the query and forwards method, body and options', async () => {
+  const options = { reauthStatuses: [401] };
+  const flag = { host: '~zod', name: 'nb' };
+  await httpRequest(notes.search)(flag, {
+    query: { tries: 3, needle: 'a b&c' },
+    body: { x: 1 },
+    options,
+  });
+  expect(calls(requestJson)).toEqual([
+    [
+      '/notes/~/v1/notebooks/~zod/nb/search/bounded/text?needle=a%20b%26c&tries=3',
+      'GET',
+      { x: 1 },
+      options,
+    ],
+  ]);
+});
+
+test.each(['x?y', 'x#y', 'x\\y', '%2e%2E'])('a hole rejects %j', (count) => {
+  expect(() => scryRequest(steward.lensRecentN)({ count })).toThrow(
+    /^steward\.lensRecentN: path parameter count /
+  );
 });
 
 test('hole values cannot reroute the request', async () => {
