@@ -249,7 +249,6 @@
         "apps/tlon-web/src/state/base.ts",
         "apps/tlon-web/src/state/kiln.ts",
         "apps/tlon-web/src/state/settings.ts",
-        "packages/api/src/client/activityApi.ts",
         "packages/api/src/client/bucketsApi.ts",
         "packages/api/src/client/changesApi.ts",
         "packages/api/src/client/contactsApi.ts",

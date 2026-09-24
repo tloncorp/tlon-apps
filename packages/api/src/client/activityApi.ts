@@ -14,23 +14,25 @@ import {
   udToDate,
 } from './apiUtils';
 import {
+  activity as activityRequests,
+  pokeRequest,
+  scryRequest,
+  subscribeRequest,
+} from './requests';
+import {
   getActivitySupportsNotes,
   getActivitySupportsReactions,
-  poke,
-  scry,
-  subscribe,
 } from './urbit';
 import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('activityApi', false);
 
 export async function getGroupAndChannelUnreads() {
-  const activity = await scry<ub.Activity>({
-    app: 'activity',
-    // v6 is the v10-native summary (carries notebook/note sources); v4
-    // down-converts and drops them. Old backends don't serve v6.
-    path: getActivitySupportsNotes() ? '/v6/activity' : '/v4/activity',
-  });
+  // v6 is the v10-native summary (carries notebook/note sources); v4
+  // down-converts and drops them. Old backends don't serve v6.
+  const activity = getActivitySupportsNotes()
+    ? await scryRequest(activityRequests.fullV6)<ub.Activity>({})
+    : await scryRequest(activityRequests.fullV4)<ub.Activity>({});
   const deserialized = toClientUnreads(activity);
   return deserialized;
 }
@@ -54,34 +56,27 @@ export async function getThreadUnreadsByChannel(
       return null;
     }
     const { host, name } = parseGroupChannelId(channel.id);
-    const activity = await scry<ub.Activity>({
-      app: 'activity',
-      path: `/v6/activity/notes/${host}/${name}`,
-    });
+    const activity = await scryRequest(
+      activityRequests.noteThreads
+    )<ub.Activity>({ host, name });
     return toClientUnreads(activity).threadActivity;
   }
-  let scryPath = '';
+  let activity: ub.Activity;
   if (getChannelIdType(channel.id) === 'channel' && channel.groupId) {
     const groupParts = parseGroupId(channel.groupId);
     const channelParts = parseGroupChannelId(channel.id);
-    const pathParts = [
-      'v4',
-      'activity',
-      'threads',
-      groupParts.host,
-      groupParts.name,
-      channelParts.kind,
-      channelParts.host,
-      channelParts.name,
-    ].join('/');
-    scryPath = `/${pathParts}`;
+    activity = await scryRequest(activityRequests.channelThreads)<ub.Activity>({
+      groupHost: groupParts.host,
+      groupName: groupParts.name,
+      kind: channelParts.kind,
+      channelHost: channelParts.host,
+      channelName: channelParts.name,
+    });
   } else {
-    scryPath = `/v4/activity/dm-threads/${channel.id}`;
+    activity = await scryRequest(activityRequests.dmThreads)<ub.Activity>({
+      id: channel.id,
+    });
   }
-  const activity = await scry<ub.Activity>({
-    app: 'activity',
-    path: scryPath,
-  });
 
   const deserialized = toClientUnreads(activity);
   return deserialized.threadActivity;
@@ -89,12 +84,11 @@ export async function getThreadUnreadsByChannel(
 export async function getVolumeSettings(): Promise<ub.VolumeSettings> {
   // the bare path serves v4-converted settings, which drop %notebook
   // sources — request the v10-native path when the backend has it
-  const settings = await scry<ub.VolumeSettings>({
-    app: 'activity',
-    path: getActivitySupportsNotes()
-      ? '/v6/volume-settings'
-      : '/volume-settings',
-  });
+  const settings = getActivitySupportsNotes()
+    ? await scryRequest(activityRequests.volumeSettingsV6)<ub.VolumeSettings>(
+        {}
+      )
+    : await scryRequest(activityRequests.volumeSettings)<ub.VolumeSettings>({});
   return settings;
 }
 
@@ -110,11 +104,38 @@ function feedVersion(): 'v7' | 'v6' | 'v5' {
   return getActivitySupportsReactions() ? 'v6' : 'v5';
 }
 
+function scryInitFeed() {
+  const params = { count: ACTIVITY_SOURCE_PAGESIZE };
+  switch (feedVersion()) {
+    case 'v7':
+      return scryRequest(activityRequests.feedInitV7)<ub.InitActivityFeeds>(
+        params
+      );
+    case 'v6':
+      return scryRequest(activityRequests.feedInitV6)<ub.InitActivityFeeds>(
+        params
+      );
+    case 'v5':
+      return scryRequest(activityRequests.feedInitV5)<ub.InitActivityFeeds>(
+        params
+      );
+  }
+}
+
+function scryFeedPage(bucket: db.ActivityBucket, cursor: string) {
+  const params = { bucket, count: ACTIVITY_SOURCE_PAGESIZE, cursor };
+  switch (feedVersion()) {
+    case 'v7':
+      return scryRequest(activityRequests.feedV7)<ub.ActivityFeed>(params);
+    case 'v6':
+      return scryRequest(activityRequests.feedV6)<ub.ActivityFeed>(params);
+    case 'v5':
+      return scryRequest(activityRequests.feedV5)<ub.ActivityFeed>(params);
+  }
+}
+
 export async function getInitialActivity() {
-  const response = await scry<ub.InitActivityFeeds>({
-    app: 'activity',
-    path: `/${feedVersion()}/feed/init/${ACTIVITY_SOURCE_PAGESIZE}`,
-  });
+  const response = await scryInitFeed();
 
   const events = fromInitFeedToBucketedActivityEvents(response);
   const relevantUnreads = toClientUnreads(response.summaries);
@@ -152,11 +173,7 @@ export async function getPagedActivityByBucket({
     cursor
   );
   const urbitCursor = formatUd(da.fromUnix(cursor).toString());
-  const path = `/${feedVersion()}/feed/${bucket}/${ACTIVITY_SOURCE_PAGESIZE}/${urbitCursor}`;
-  const { feed, summaries } = await scry<ub.ActivityFeed>({
-    app: 'activity',
-    path,
-  });
+  const { feed, summaries } = await scryFeedPage(bucket, urbitCursor);
 
   const events = fromFeedToActivityEvents(feed, bucket);
   const relevantUnreads = toClientUnreads(summaries);
@@ -541,273 +558,273 @@ export function subscribeToActivity(
   handler: (event: ActivityEvent) => void,
   options?: { includeInvites?: boolean }
 ): Promise<number> {
-  return subscribe<ub.ActivityUpdate>(
-    // v6 is the v10-native update stream (notes), v5 the v9-native one
-    // (reacts), v4 the oldest. Fall back by backend capability.
-    {
-      app: 'activity',
-      path: getActivitySupportsNotes()
-        ? '/v6'
-        : getActivitySupportsReactions()
-          ? '/v5'
-          : '/v4',
-    },
-    async (update: ub.ActivityUpdate) => {
-      logger.log(
-        'activity update',
-        runIfDev(() => JSON.stringify(update))
-      );
-      // handle unreads
-      if ('activity' in update) {
-        Object.entries(update.activity).forEach((activityEntry) => {
-          const [sourceId, summary] = activityEntry;
-          const source = sourceIdToSource(sourceId);
+  const onUpdate = async (update: ub.ActivityUpdate) => {
+    logger.log(
+      'activity update',
+      runIfDev(() => JSON.stringify(update))
+    );
+    // handle unreads
+    if ('activity' in update) {
+      Object.entries(update.activity).forEach((activityEntry) => {
+        const [sourceId, summary] = activityEntry;
+        const source = sourceIdToSource(sourceId);
 
-          switch (source.type) {
-            case 'base':
-              handler({
-                type: 'updateBaseUnread',
-                unread: {
-                  id: BASE_UNREADS_SINGLETON_KEY,
-                  count: summary.count,
-                  notify: summary.notify,
-                  notifyCount: summary['notify-count'],
-                  updatedAt: summary.recency,
-                  notifTimestamp: summary['recency-uv'],
-                },
-              });
-              break;
-            case 'group':
-              handler({
-                type: 'updateGroupUnread',
-                unread: toGroupUnread(source.groupId, summary),
-              });
-              break;
-            case 'channel':
-              handler({
-                type: 'updateChannelUnread',
-                activity: toChannelUnread(source.channelId, summary, 'dm'),
-              });
-              break;
-            case 'thread':
-              handler({
-                type: 'updateThreadUnread',
-                activity: toThreadUnread(
-                  source.channelId,
-                  source.threadId,
-                  summary,
-                  source.channelType
-                ),
-              });
-              break;
-            case 'note':
-              handler({
-                type: 'updateThreadUnread',
-                activity: toNoteUnread(
-                  source.channelId,
-                  source.noteId,
-                  summary
-                ),
-              });
-              break;
-          }
+        switch (source.type) {
+          case 'base':
+            handler({
+              type: 'updateBaseUnread',
+              unread: {
+                id: BASE_UNREADS_SINGLETON_KEY,
+                count: summary.count,
+                notify: summary.notify,
+                notifyCount: summary['notify-count'],
+                updatedAt: summary.recency,
+                notifTimestamp: summary['recency-uv'],
+              },
+            });
+            break;
+          case 'group':
+            handler({
+              type: 'updateGroupUnread',
+              unread: toGroupUnread(source.groupId, summary),
+            });
+            break;
+          case 'channel':
+            handler({
+              type: 'updateChannelUnread',
+              activity: toChannelUnread(source.channelId, summary, 'dm'),
+            });
+            break;
+          case 'thread':
+            handler({
+              type: 'updateThreadUnread',
+              activity: toThreadUnread(
+                source.channelId,
+                source.threadId,
+                summary,
+                source.channelType
+              ),
+            });
+            break;
+          case 'note':
+            handler({
+              type: 'updateThreadUnread',
+              activity: toNoteUnread(source.channelId, source.noteId, summary),
+            });
+            break;
+        }
+      });
+    }
+
+    // handle volume settings
+    if ('adjust' in update) {
+      const { source, volume } = update.adjust;
+      const sourceId = ub.sourceToString(source);
+
+      if (sourceId === 'base') {
+        const level: ub.NotificationLevel = volume
+          ? ub.getLevelFromVolumeMap(volume)
+          : 'default';
+        return handler({
+          type: 'updateItemVolume',
+          volumeUpdate: {
+            itemId: 'base',
+            itemType: 'base',
+            level,
+          },
         });
       }
 
-      // handle volume settings
-      if ('adjust' in update) {
-        const { source, volume } = update.adjust;
-        const sourceId = ub.sourceToString(source);
-
-        if (sourceId === 'base') {
-          const level: ub.NotificationLevel = volume
-            ? ub.getLevelFromVolumeMap(volume)
-            : 'default';
+      if ('group' in source) {
+        if (volume) {
           return handler({
             type: 'updateItemVolume',
             volumeUpdate: {
-              itemId: 'base',
-              itemType: 'base',
-              level,
-            },
-          });
-        }
-
-        if ('group' in source) {
-          if (volume) {
-            return handler({
-              type: 'updateItemVolume',
-              volumeUpdate: {
-                itemId: source.group,
-                itemType: 'group',
-                level: ub.getLevelFromVolumeMap(volume),
-              },
-            });
-          } else {
-            return handler({
-              type: 'removeItemVolume',
               itemId: source.group,
               itemType: 'group',
-            });
-          }
+              level: ub.getLevelFromVolumeMap(volume),
+            },
+          });
+        } else {
+          return handler({
+            type: 'removeItemVolume',
+            itemId: source.group,
+            itemType: 'group',
+          });
         }
+      }
 
-        if ('notebook' in source) {
-          // notebook sources ride the corresponding notes channel's volume
-          // row, same as the read path in extractClientVolumes
-          const channelId = `notes/${source.notebook.flag}`;
-          if (volume) {
-            return handler({
-              type: 'updateItemVolume',
-              volumeUpdate: {
-                itemId: channelId,
-                itemType: 'channel',
-                level: ub.getLevelFromVolumeMap(volume),
-              },
-            });
-          } else {
-            return handler({
-              type: 'removeItemVolume',
+      if ('notebook' in source) {
+        // notebook sources ride the corresponding notes channel's volume
+        // row, same as the read path in extractClientVolumes
+        const channelId = `notes/${source.notebook.flag}`;
+        if (volume) {
+          return handler({
+            type: 'updateItemVolume',
+            volumeUpdate: {
               itemId: channelId,
               itemType: 'channel',
-            });
-          }
+              level: ub.getLevelFromVolumeMap(volume),
+            },
+          });
+        } else {
+          return handler({
+            type: 'removeItemVolume',
+            itemId: channelId,
+            itemType: 'channel',
+          });
         }
+      }
 
-        if ('channel' in source || 'dm' in source) {
-          const channelId =
-            'channel' in source
-              ? source.channel.nest
-              : 'ship' in source.dm
-                ? source.dm.ship
-                : source.dm.club;
-          if (volume) {
-            return handler({
-              type: 'updateItemVolume',
-              volumeUpdate: {
-                itemId: channelId,
-                itemType: 'channel',
-                level: ub.getLevelFromVolumeMap(volume),
-              },
-            });
-          } else {
-            return handler({
-              type: 'removeItemVolume',
+      if ('channel' in source || 'dm' in source) {
+        const channelId =
+          'channel' in source
+            ? source.channel.nest
+            : 'ship' in source.dm
+              ? source.dm.ship
+              : source.dm.club;
+        if (volume) {
+          return handler({
+            type: 'updateItemVolume',
+            volumeUpdate: {
               itemId: channelId,
               itemType: 'channel',
-            });
-          }
+              level: ub.getLevelFromVolumeMap(volume),
+            },
+          });
+        } else {
+          return handler({
+            type: 'removeItemVolume',
+            itemId: channelId,
+            itemType: 'channel',
+          });
         }
+      }
 
-        if ('thread' in source || 'dm-thread' in source) {
-          const postId = getPostIdFromSource(source);
-          if (volume) {
-            return handler({
-              type: 'updateItemVolume',
-              volumeUpdate: {
-                itemId: postId,
-                itemType: 'thread',
-                level: ub.getLevelFromVolumeMap(volume),
-              },
-            });
-          } else {
-            return handler({
-              type: 'removeItemVolume',
+      if ('thread' in source || 'dm-thread' in source) {
+        const postId = getPostIdFromSource(source);
+        if (volume) {
+          return handler({
+            type: 'updateItemVolume',
+            volumeUpdate: {
               itemId: postId,
               itemType: 'thread',
-            });
-          }
-        }
-      }
-
-      // handle deleted sources: the summary push accompanying a delete
-      // fixes the rollups, but it's upsert-only — the removed source's
-      // own rows must be cleared explicitly or their dots outlive it
-      if ('del' in update) {
-        const source = update.del;
-        if ('note' in source) {
-          return handler({
-            type: 'updateThreadUnread',
-            activity: {
-              channelId: `notes/${source.note.notebook}`,
-              threadId: source.note.id.replace(/\./g, ''),
-              updatedAt: 0,
-              count: 0,
-              notify: false,
-              firstUnreadPostId: null,
-              firstUnreadPostReceivedAt: null,
+              level: ub.getLevelFromVolumeMap(volume),
             },
           });
-        }
-        if ('notebook' in source) {
-          const channelId = `notes/${source.notebook.flag}`;
-          handler({ type: 'clearChannelThreadUnreads', channelId });
+        } else {
           return handler({
-            type: 'updateChannelUnread',
-            activity: {
-              channelId,
-              type: 'channel',
-              updatedAt: 0,
-              count: 0,
-              notify: false,
-              countWithoutThreads: 0,
-              firstUnreadPostId: null,
-              firstUnreadPostReceivedAt: null,
-            },
+            type: 'removeItemVolume',
+            itemId: postId,
+            itemType: 'thread',
           });
-        }
-        // other source kinds keep their pre-existing behavior (their
-        // deletion flows remove the backing models entirely)
-        return;
-      }
-
-      // handle push notification settings
-      if ('allow-notifications' in update) {
-        const notifsAllowed = update['allow-notifications'];
-
-        return handler({
-          type: 'updatePushNotificationsSetting',
-          value: notifsAllowed,
-        });
-      }
-
-      // handle new activity events
-      if ('add' in update) {
-        const id = update.add.time;
-        const sourceId = update.add['source-key'];
-        const rawEvent = update.add.event;
-
-        const activityEvent = toActivityEvent({
-          id,
-          sourceId,
-          bucketId: 'all',
-          event: rawEvent,
-          includeInvites: options?.includeInvites,
-        });
-
-        const events = [];
-        if (activityEvent) {
-          events.push(activityEvent);
-          if (activityEvent?.isMention) {
-            events.push({
-              ...activityEvent,
-              bucketId: 'mentions' as db.ActivityBucket,
-            });
-          }
-          if (activityEvent?.type === 'reply') {
-            events.push({
-              ...activityEvent,
-              bucketId: 'replies' as db.ActivityBucket,
-            });
-          }
-        }
-
-        if (events.length > 0) {
-          return handler({ type: 'addActivityEvent', events });
         }
       }
     }
-  );
+
+    // handle deleted sources: the summary push accompanying a delete
+    // fixes the rollups, but it's upsert-only — the removed source's
+    // own rows must be cleared explicitly or their dots outlive it
+    if ('del' in update) {
+      const source = update.del;
+      if ('note' in source) {
+        return handler({
+          type: 'updateThreadUnread',
+          activity: {
+            channelId: `notes/${source.note.notebook}`,
+            threadId: source.note.id.replace(/\./g, ''),
+            updatedAt: 0,
+            count: 0,
+            notify: false,
+            firstUnreadPostId: null,
+            firstUnreadPostReceivedAt: null,
+          },
+        });
+      }
+      if ('notebook' in source) {
+        const channelId = `notes/${source.notebook.flag}`;
+        handler({ type: 'clearChannelThreadUnreads', channelId });
+        return handler({
+          type: 'updateChannelUnread',
+          activity: {
+            channelId,
+            type: 'channel',
+            updatedAt: 0,
+            count: 0,
+            notify: false,
+            countWithoutThreads: 0,
+            firstUnreadPostId: null,
+            firstUnreadPostReceivedAt: null,
+          },
+        });
+      }
+      // other source kinds keep their pre-existing behavior (their
+      // deletion flows remove the backing models entirely)
+      return;
+    }
+
+    // handle push notification settings
+    if ('allow-notifications' in update) {
+      const notifsAllowed = update['allow-notifications'];
+
+      return handler({
+        type: 'updatePushNotificationsSetting',
+        value: notifsAllowed,
+      });
+    }
+
+    // handle new activity events
+    if ('add' in update) {
+      const id = update.add.time;
+      const sourceId = update.add['source-key'];
+      const rawEvent = update.add.event;
+
+      const activityEvent = toActivityEvent({
+        id,
+        sourceId,
+        bucketId: 'all',
+        event: rawEvent,
+        includeInvites: options?.includeInvites,
+      });
+
+      const events = [];
+      if (activityEvent) {
+        events.push(activityEvent);
+        if (activityEvent?.isMention) {
+          events.push({
+            ...activityEvent,
+            bucketId: 'mentions' as db.ActivityBucket,
+          });
+        }
+        if (activityEvent?.type === 'reply') {
+          events.push({
+            ...activityEvent,
+            bucketId: 'replies' as db.ActivityBucket,
+          });
+        }
+      }
+
+      if (events.length > 0) {
+        return handler({ type: 'addActivityEvent', events });
+      }
+    }
+  };
+  // v6 is the v10-native update stream (notes), v5 the v9-native one
+  // (reacts), v4 the oldest. Fall back by backend capability.
+  return getActivitySupportsNotes()
+    ? subscribeRequest(activityRequests.updatesV6)<ub.ActivityUpdate>(
+        {},
+        onUpdate
+      )
+    : getActivitySupportsReactions()
+      ? subscribeRequest(activityRequests.updatesV5)<ub.ActivityUpdate>(
+          {},
+          onUpdate
+        )
+      : subscribeRequest(activityRequests.updatesV4)<ub.ActivityUpdate>(
+          {},
+          onUpdate
+        );
 }
 
 // The v8 activity-action mark's dejs perks over the v8 event-type set and
@@ -844,22 +861,37 @@ export function activityAction(action: ub.ActivityAction) {
   // strip reacts.
   if (getActivitySupportsNotes()) {
     return {
-      app: 'activity',
-      mark: 'activity-action-2',
+      app: activityRequests.action2.agent,
+      mark: activityRequests.action2.mark,
       json: action,
     };
   }
   const supportsReactions = getActivitySupportsReactions();
   const stripped = stripNoteVolumeKeys(action);
   return {
-    app: 'activity',
-    mark: supportsReactions ? 'activity-action-1' : 'activity-action',
+    app: activityRequests.action1.agent,
+    mark: supportsReactions
+      ? activityRequests.action1.mark
+      : activityRequests.action0.mark,
     json: supportsReactions ? stripped : stripReactVolumeKeys(stripped),
   };
 }
 
+// Binds the entry for the mark activityAction picks, reading the capability
+// flags in the same order at the same moment, so a retry resends the same
+// request.
+function activityPoke(payload: ub.ActivityAction) {
+  const action = activityAction(payload);
+  const send = getActivitySupportsNotes()
+    ? pokeRequest(activityRequests.action2)
+    : getActivitySupportsReactions()
+      ? pokeRequest(activityRequests.action1)
+      : pokeRequest(activityRequests.action0);
+  return { action, send: () => send(action.json) };
+}
+
 export const readAll = async () => {
-  const action = activityAction({
+  const { action, send } = activityPoke({
     read: {
       source: { base: null },
       action: { all: { time: null, deep: true } },
@@ -867,7 +899,7 @@ export const readAll = async () => {
   });
   logger.log(`reading all activity`, action);
 
-  return backOff(() => poke(action), {
+  return backOff(() => send(), {
     delayFirstAttempt: false,
     startingDelay: 2000,
     numOfAttempts: 4,
@@ -876,12 +908,12 @@ export const readAll = async () => {
 
 export const readGroup = async (group: db.Group, deep: boolean = false) => {
   const source: ub.Source = { group: group.id };
-  const action = activityAction({
+  const { action, send } = activityPoke({
     read: { source, action: { all: { time: null, deep } } },
   });
   logger.log(`reading group ${group.id}`, action);
 
-  return backOff(() => poke(action), {
+  return backOff(() => send(), {
     delayFirstAttempt: false,
     startingDelay: 2000,
     numOfAttempts: 4,
@@ -915,13 +947,13 @@ export const readChannel = async ({
     source = { channel: { nest: channelId, group: groupId! } };
   }
 
-  const action = activityAction({
+  const { action, send } = activityPoke({
     read: { source, action: { all: { time: null, deep: !!deep } } },
   });
   logger.log(`reading channel ${channelId}`, action);
 
   // simple retry logic to avoid failed read leading to lingering unread state
-  return backOff(() => poke(action), {
+  return backOff(() => send(), {
     delayFirstAttempt: false,
     startingDelay: 2000,
     numOfAttempts: 4,
@@ -988,12 +1020,12 @@ export const readThread = async ({
     };
   }
 
-  const action = activityAction({
+  const { send } = activityPoke({
     read: { source, action: { all: { time: null, deep: false } } },
   });
 
   // simple retry logic to avoid failed read leading to lingering unread state
-  return backOff(() => poke(action), {
+  return backOff(() => send(), {
     delayFirstAttempt: false,
     startingDelay: 2000,
     numOfAttempts: 4,
@@ -1022,13 +1054,13 @@ export const readNote = async ({
       group: groupId ?? null,
     },
   };
-  const action = activityAction({
+  const { action, send } = activityPoke({
     read: { source, action: { all: { time: null, deep: false } } },
   });
   logger.log(`reading note ${noteId} in ${channelId}`, action);
 
   // simple retry logic to avoid failed read leading to lingering unread state
-  return backOff(() => poke(action), {
+  return backOff(() => send(), {
     delayFirstAttempt: false,
     startingDelay: 2000,
     numOfAttempts: 4,
@@ -1038,11 +1070,9 @@ export const readNote = async ({
 export function markInvitesRead() {
   return backOff(
     () =>
-      poke(
-        activityAction({
-          'clear-group-invites': null,
-        })
-      ),
+      activityPoke({
+        'clear-group-invites': null,
+      }).send(),
     {
       delayFirstAttempt: false,
       startingDelay: 2000,
@@ -1304,8 +1334,7 @@ export async function adjustVolumeSetting(
   source: ub.Source,
   volume: ub.VolumeMap | null
 ) {
-  const action = activityAction({ adjust: { source, volume } });
-  return poke(action);
+  return activityPoke({ adjust: { source, volume } }).send();
 }
 
 // This is a global, top level filter for which kinds of activity events are allowed to send
@@ -1314,15 +1343,13 @@ export async function adjustVolumeSetting(
 export async function setPushNotificationsSetting(
   allow: ub.PushNotificationsSetting
 ) {
-  const action = activityAction({ 'allow-notifications': allow });
-  return poke(action);
+  return activityPoke({ 'allow-notifications': allow }).send();
 }
 
 export async function getPushNotificationsSetting(): Promise<ub.PushNotificationsSetting> {
-  return scry<ub.PushNotificationsSetting>({
-    app: 'activity',
-    path: '/notifications-allowed',
-  });
+  return scryRequest(
+    activityRequests.notificationsAllowed
+  )<ub.PushNotificationsSetting>({});
 }
 
 export type ActivityUpdateQueue = {
