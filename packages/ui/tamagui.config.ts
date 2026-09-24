@@ -450,10 +450,17 @@ export const fonts = {
   // ===
 };
 
-export const media = createMedia({
-  sm: { maxWidth: 768 },
-  gtSm: { minWidth: 768 + 1 },
-});
+export const media = createMedia(
+  Platform.OS === 'web'
+    ? {
+        sm: { maxWidth: 768 },
+        gtSm: { minWidth: 768 + 1 },
+      }
+    : {
+        sm: { minWidth: 0 },
+        gtSm: { minWidth: Number.MAX_SAFE_INTEGER },
+      }
+);
 
 const desktopRawMeasures = {
   '2xs': 2,
