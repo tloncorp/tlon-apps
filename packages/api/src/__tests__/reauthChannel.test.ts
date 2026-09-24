@@ -5,6 +5,7 @@ import {
   getLandscapeAuthCookie,
 } from '../client/landscapeApi';
 import {
+  getClientGeneration,
   internalConfigureClient,
   internalRemoveClient,
   poke,
@@ -537,6 +538,164 @@ describe('reauth', () => {
     });
     expect(loginFetch).toHaveBeenCalledTimes(1);
     expect(nextClient.cookie).toBe('urbauth=other-account');
+  });
+
+  test('reports the refreshed cookie so native copies can be updated', async () => {
+    const onAuthCookieChange = vi.fn();
+    const client = fakeClient({
+      poke: vi
+        .fn()
+        .mockRejectedValueOnce(new AuthError('invalid session'))
+        .mockResolvedValue(1),
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(loginResponse()));
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      onAuthCookieChange,
+      client: client as any,
+    });
+
+    await expect(poke({ app: 'a', mark: 'm', json: {} })).resolves.toBe(1);
+    expect(onAuthCookieChange).toHaveBeenCalledTimes(1);
+    expect(onAuthCookieChange).toHaveBeenCalledWith({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      authCookie: 'urbauth=refreshed',
+      clientGeneration: expect.any(Number),
+    });
+  });
+
+  // develop's abandonIfSwapped now aborts a reauth whose client was swapped,
+  // so the cookie callback must not fire at all for one -- a stale cookie is
+  // never offered to a handler in the first place, rather than offered and
+  // rejected. This pins that seam between the two.
+  test('does not report a cookie for a reauth whose client was swapped', async () => {
+    const onAuthCookieChange = vi.fn();
+    const client = fakeClient({
+      poke: vi
+        .fn()
+        .mockRejectedValueOnce(new AuthError('invalid session'))
+        .mockResolvedValue(1),
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => {
+        // swap ships while the login request is in flight
+        internalConfigureClient({
+          shipName: '~bus',
+          shipUrl: 'http://ship-b.test',
+          getCode: vi.fn(async () => 'code'),
+          onAuthCookieChange,
+          client: fakeClient() as any,
+        });
+        return new Promise<Response>((resolve) =>
+          setTimeout(() => resolve(loginResponse()))
+        );
+      })
+    );
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://ship-a.test',
+      getCode: vi.fn(async () => 'code'),
+      onAuthCookieChange,
+      client: client as any,
+    });
+
+    await expect(poke({ app: 'a', mark: 'm', json: {} })).rejects.toThrow(
+      /client changed/
+    );
+    expect(onAuthCookieChange).not.toHaveBeenCalled();
+  });
+
+  // A url is not an identity: the same self-hosted endpoint can end up serving
+  // a different ship, so a url-only check would let a late cookie from the
+  // previous ship through.
+  test('reports the originating ship even when the url is unchanged', async () => {
+    const onAuthCookieChange = vi.fn();
+    const client = fakeClient({
+      poke: vi
+        .fn()
+        .mockRejectedValueOnce(new AuthError('invalid session'))
+        .mockResolvedValue(1),
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => {
+        internalConfigureClient({
+          shipName: '~bus',
+          shipUrl: 'http://same-endpoint.test',
+          getCode: vi.fn(async () => 'code'),
+          onAuthCookieChange,
+          client: client as any,
+        });
+        return new Promise<Response>((resolve) =>
+          setTimeout(() => resolve(loginResponse()))
+        );
+      })
+    );
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://same-endpoint.test',
+      getCode: vi.fn(async () => 'code'),
+      onAuthCookieChange,
+      client: client as any,
+    });
+
+    await expect(poke({ app: 'a', mark: 'm', json: {} })).resolves.toBe(1);
+
+    expect(onAuthCookieChange).toHaveBeenCalledWith({
+      shipName: '~zod',
+      shipUrl: 'http://same-endpoint.test',
+      authCookie: 'urbauth=refreshed',
+      clientGeneration: expect.any(Number),
+    });
+  });
+
+  // A logout and log back in to the same ship is still a new session, even
+  // though ship and url are unchanged -- develop's Session object is what
+  // distinguishes them, and a reauth holding the old one abandons rather than
+  // reporting a cookie the new session would have to reject.
+  test('abandons rather than reporting when the same ship is reconfigured mid-login', async () => {
+    const onAuthCookieChange = vi.fn();
+    const client = fakeClient({
+      poke: vi
+        .fn()
+        .mockRejectedValueOnce(new AuthError('invalid session'))
+        .mockResolvedValue(1),
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => {
+        internalRemoveClient();
+        internalConfigureClient({
+          shipName: '~zod',
+          shipUrl: 'http://example.test',
+          getCode: vi.fn(async () => 'code'),
+          onAuthCookieChange,
+          client: fakeClient() as any,
+        });
+        return new Promise<Response>((resolve) =>
+          setTimeout(() => resolve(loginResponse()))
+        );
+      })
+    );
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      onAuthCookieChange,
+      client: client as any,
+    });
+    const staleGeneration = getClientGeneration();
+
+    await expect(poke({ app: 'a', mark: 'm', json: {} })).rejects.toThrow(
+      /client changed/
+    );
+
+    expect(onAuthCookieChange).not.toHaveBeenCalled();
+    expect(getClientGeneration()).not.toBe(staleGeneration);
   });
 
   test('a rejected access code logs out instead of retrying', async () => {
