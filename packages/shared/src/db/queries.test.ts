@@ -2173,6 +2173,50 @@ test("syncGroup: a new client doesn't wait on the previous client's sync", async
   await first;
 });
 
+test('syncGroup: keeps a pending invite the roster predates', async () => {
+  const groupId = '~fabled-faster/new-york';
+  const member = '~solfer-magfed';
+  const moon = '~doznec-dozzod-zod';
+  const invitee = '~bus';
+  const client = getClient();
+  if (!client) throw new Error('test db client not initialized');
+  await client.insert(schema.groups).values({
+    id: groupId,
+    currentUserIsMember: true,
+    currentUserIsHost: false,
+    hostUserId: '~fabled-faster',
+  });
+  await queries.addChatMembers({
+    chatId: groupId,
+    contactIds: [member, moon],
+    type: 'group',
+    joinStatus: 'joined',
+  });
+  // An optimistic invite whose request is still in flight.
+  await queries.addChatMembers({
+    chatId: groupId,
+    contactIds: [invitee],
+    type: 'group',
+    joinStatus: 'invited',
+  });
+
+  const response = (groupsResponse as unknown as Record<string, ub.GroupV11>)[
+    groupId
+  ];
+  setScryOutputs([
+    { ...response, seats: { [member]: { roles: [], joined: 1 } } },
+  ]);
+  await syncGroup(groupId, undefined, { force: true });
+
+  const rows = await client.query.chatMembers.findMany({
+    where: $.eq(schema.chatMembers.chatId, groupId),
+  });
+  expect(rows.map((row) => `${row.contactId} ${row.status}`).sort()).toEqual([
+    `${invitee} invited`,
+    `${member} joined`,
+  ]);
+});
+
 test('getMentionCandidates: returns candidates in priority order', async () => {
   // Setup
   setScryOutputs([initResponse]);

@@ -42,8 +42,12 @@ export async function syncGroup(
     const clientChanged = () => getClientGeneration() !== generation;
     if (clientChanged()) return;
     await batchEffects('syncGroup', async (ctx) => {
+      // Only joined seats are reconciled: an invite row may be an optimistic
+      // write whose request this roster predates.
       const candidateIds =
-        group?.members?.map((member) => member.contactId) ?? [];
+        group?.members
+          ?.filter((member) => member.status !== 'invited')
+          .map((member) => member.contactId) ?? [];
       // Seats a live removal event cleared while the fetch was in flight: the
       // older snapshot must not bring them back.
       const stored = new Set(await db.getGroupMemberIds({ groupId: id }, ctx));
