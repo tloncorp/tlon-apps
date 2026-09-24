@@ -1,4 +1,8 @@
-import type { BucketsEntry, BucketsFlag, BucketsSummary } from '@tloncorp/api';
+import type {
+  BucketsFileEntry,
+  BucketsFlag,
+  BucketsSummary,
+} from '@tloncorp/api';
 import { p } from '@urbit/aura';
 
 import {
@@ -64,6 +68,24 @@ const HELP_BY_COMMAND: Record<string, string> = {
     'Usage: tlon buckets set-writers <buckets/~host/name> <role ...>\n       tlon buckets set-writers <buckets/~host/name> --clear\n\nAt least one role, or --clear to let every reader write.',
 };
 
+// What `files` prints for an entry: its identity and what is in it, without
+// the storage key or creation attribution, which are the host's business.
+// Named so the operation's signature says what callers actually get -- it
+// used to claim full entries, behind a cast.
+type EntryListingBase = {
+  id: number;
+  name: string;
+  parentId: number | null;
+  updatedAt: number;
+  updatedBy: string;
+};
+export type BucketsEntryListing =
+  | (EntryListingBase & { kind: 'folder' })
+  | (EntryListingBase & { kind: 'file' } & Pick<
+        BucketsFileEntry['file'],
+        'mime' | 'size' | 'status'
+      >);
+
 export type BucketTarget = {
   flag: BucketsFlag;
   nest: string;
@@ -74,7 +96,10 @@ export interface BucketsOperations {
   // A summary, not the manifest: entries are unbounded and `files` pages
   // through them. `show` answers what the Bucket is, plus how much is in it.
   show(target: BucketTarget): Promise<BucketsSummary & { entryCount: number }>;
-  files(target: BucketTarget, parentId: number | null): Promise<BucketsEntry[]>;
+  files(
+    target: BucketTarget,
+    parentId: number | null
+  ): Promise<BucketsEntryListing[]>;
   search(target: BucketTarget, query: string): Promise<unknown[]>;
   create(input: {
     group: BucketsFlag;

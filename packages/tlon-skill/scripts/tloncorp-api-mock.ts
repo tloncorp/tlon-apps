@@ -24,6 +24,10 @@
  * enableGroup, BadResponseError).
  */
 import type { NotesV1Api } from '@tloncorp/api';
+// The real broker client, by subpath, which the root mock below does not
+// intercept. It has no dependencies but fetch, so tests keep exercising the
+// real request and error mapping against a stubbed fetch.
+import * as realBucketsBroker from '@tloncorp/api/client/bucketsBroker';
 import { mock } from 'bun:test';
 
 export const NOTES_V1_OPS = [
@@ -191,6 +195,9 @@ export class MockUrbit {
 }
 
 mock.module('@tloncorp/api', () => ({
+  // buckets-runtime.ts: the shared broker client, unmocked
+  BucketsBrokerError: realBucketsBroker.BucketsBrokerError,
+  grantBucketRead: realBucketsBroker.grantBucketRead,
   // api-client.ts value imports
   Urbit: MockUrbit,
   client: { cookie: '', url: 'http://localhost', fetchFn: fetch },

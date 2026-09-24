@@ -12,6 +12,7 @@ import {
   writeHelp,
   writeLine,
 } from './command';
+import { MIME_TYPES } from '../mime-types';
 
 export const DEFAULT_CONTENT_TYPE = 'application/octet-stream';
 
@@ -67,42 +68,6 @@ Examples:
   tlon upload ./mystery-file -t image/webp
   cat image.png | tlon upload --stdin -t image/png
   curl -s https://example.com/img.jpg | tlon upload --stdin -t image/jpeg`;
-
-const MIME_TYPES: Record<string, string> = {
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif',
-  '.webp': 'image/webp',
-  '.svg': 'image/svg+xml',
-  '.bmp': 'image/bmp',
-  '.ico': 'image/x-icon',
-  '.tif': 'image/tiff',
-  '.tiff': 'image/tiff',
-  '.avif': 'image/avif',
-  '.heic': 'image/heic',
-  '.heif': 'image/heif',
-  '.mp4': 'video/mp4',
-  '.webm': 'video/webm',
-  '.mov': 'video/quicktime',
-  '.avi': 'video/x-msvideo',
-  '.mkv': 'video/x-matroska',
-  '.mp3': 'audio/mpeg',
-  '.wav': 'audio/wav',
-  '.ogg': 'audio/ogg',
-  '.flac': 'audio/flac',
-  '.m4a': 'audio/mp4',
-  '.pdf': 'application/pdf',
-  '.json': 'application/json',
-  '.txt': 'text/plain',
-  '.html': 'text/html',
-  '.css': 'text/css',
-  '.js': 'application/javascript',
-  '.wasm': 'application/wasm',
-  '.zip': 'application/zip',
-  '.gz': 'application/gzip',
-  '.tar': 'application/x-tar',
-};
 
 export interface UploadBlobLike {
   type?: string;

@@ -5,7 +5,7 @@ import {
   canFallBackFromBucketsBroker,
   grantBucketRead,
   isBucketObjectAlreadyDeleted,
-} from './bucketsBroker';
+} from '../client/bucketsBroker';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -13,6 +13,25 @@ afterEach(() => {
 });
 
 describe('Buckets broker client', () => {
+  // The CLI names the whole broker path; it wins over TLON_MEMEX_URL, which
+  // the app's build substitutes and the CLI's shell may also carry.
+  test('prefers an explicit BUCKETS_BROKER_URL over TLON_MEMEX_URL', async () => {
+    vi.stubEnv('TLON_MEMEX_URL', 'https://memex.test.tlon.systems');
+    vi.stubEnv('BUCKETS_BROKER_URL', 'https://broker.test/v2/buckets/');
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ readUrl: 'https://storage.test/get' }), {
+        status: 200,
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await grantBucketRead('token', '~zod', 'object-1');
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      'https://broker.test/v2/buckets/objects/object-1/read-grant'
+    );
+  });
+
   // The host is pointed at a broker by poke and the client by this variable;
   // they have to move together, so the override has to exist on both sides.
   test('honours TLON_MEMEX_URL, trailing slash and all', async () => {

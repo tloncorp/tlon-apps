@@ -14,54 +14,28 @@ import {
   requestBucketsGrant,
   requestBucketsUpload,
   sendBucketsAction,
+  BucketsBrokerError,
+  grantBucketRead,
 } from '@tloncorp/api';
 import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-import { ensureClient } from './api-client';
+import { ensureClient, normalizeShip } from './api-client';
+import { MIME_TYPES } from './mime-types';
+import { createProcessCommandDeps, sleep } from './runtime-deps';
 import type {
   BucketTarget,
   BucketsDeps,
   BucketsOperations,
+  BucketsEntryListing,
 } from './commands/buckets';
 import { commandError, errorMessage } from './commands/command';
 
-const DEFAULT_BROKER_URL = 'https://memex.tlon.network/v2/buckets';
 const STATE_ATTEMPTS = 40;
 const POLL_DELAY_MS = 250;
 const MAX_TEXT_READ_BYTES = 2 * 1024 * 1024;
 const BROKER_AUTH_FAILURE_STATUSES = new Set([401, 403]);
-
-const MIME_BY_EXTENSION: Record<string, string> = {
-  '.avif': 'image/avif',
-  '.csv': 'text/csv',
-  '.gif': 'image/gif',
-  '.heic': 'image/heic',
-  '.html': 'text/html',
-  '.jpeg': 'image/jpeg',
-  '.jpg': 'image/jpeg',
-  '.json': 'application/json',
-  '.md': 'text/markdown',
-  '.mov': 'video/quicktime',
-  '.mp3': 'audio/mpeg',
-  '.mp4': 'video/mp4',
-  '.pdf': 'application/pdf',
-  '.png': 'image/png',
-  '.svg': 'image/svg+xml',
-  '.txt': 'text/plain',
-  '.wav': 'audio/wav',
-  '.webm': 'video/webm',
-  '.webp': 'image/webp',
-  '.xml': 'application/xml',
-  '.zip': 'application/zip',
-};
-
-type BrokerErrorBody = {
-  code?: string;
-  message?: string;
-  retryable?: boolean;
-};
 
 type BucketUploadGrant = {
   reservationId: string;
@@ -69,47 +43,6 @@ type BucketUploadGrant = {
   uploadUrl: string;
   requiredHeaders: [string, string][];
 };
-
-type BucketReadGrant = {
-  objectId: string;
-  readUrl: string;
-};
-
-class BucketsBrokerError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-    readonly code?: string,
-    readonly retryable = false
-  ) {
-    super(message);
-    this.name = 'BucketsBrokerError';
-  }
-}
-
-function createProcessCommandDeps() {
-  return {
-    stdout: (text: string) => process.stdout.write(text),
-    stderr: (text: string) => process.stderr.write(text),
-  };
-}
-
-/**
- * Where the storage broker lives, for the read grants this still exchanges.
- *
- * TLON_MEMEX_URL is the documented way to move Buckets to another broker and
- * is what the app client reads, so honouring only BUCKETS_BROKER_URL meant a
- * host pushing read tokens to a test broker while the bot exchanged them
- * against production -- an authorization failure with no obvious cause.
- * BUCKETS_BROKER_URL stays as an explicit override of the full path.
- */
-function brokerBaseUrl() {
-  const explicit = process.env.BUCKETS_BROKER_URL?.trim();
-  if (explicit) return explicit.replace(/\/$/, '');
-  const memex = process.env.TLON_MEMEX_URL?.trim();
-  if (memex) return `${memex.replace(/\/+$/, '')}/v2/buckets`;
-  return DEFAULT_BROKER_URL;
-}
 
 /**
  * Refuse role names the group does not have.
@@ -121,7 +54,7 @@ function brokerBaseUrl() {
  */
 async function assertGroupRoles(group: BucketsFlag, roles: string[]) {
   if (roles.length === 0) return;
-  const groupId = `${normalizeHost(group.host)}/${group.name}`;
+  const groupId = `${normalizeShip(group.host)}/${group.name}`;
   const found = await getGroup(groupId).catch(() => null);
   if (!found) {
     throw commandError(`Could not read roles for group ${groupId}`);
@@ -135,41 +68,28 @@ async function assertGroupRoles(group: BucketsFlag, roles: string[]) {
   }
 }
 
-function hostName(host: string) {
-  return host.replace(/^~/, '');
-}
-
-function delay(milliseconds: number) {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}
-
-function normalizeHost(host: string) {
-  const normalized = host.toLowerCase();
-  return normalized.startsWith('~') ? normalized : `~${normalized}`;
-}
-
 function flagsMatch(left: BucketsFlag, right: BucketsFlag) {
   return (
-    normalizeHost(left.host) === normalizeHost(right.host) &&
+    normalizeShip(left.host) === normalizeShip(right.host) &&
     left.name === right.name
   );
 }
 
 function bucketNest(flag: BucketsFlag) {
-  return `buckets/${normalizeHost(flag.host)}/${flag.name}`;
+  return `buckets/${normalizeShip(flag.host)}/${flag.name}`;
 }
 
 function serializeSnapshot(snapshot: BucketsSummary) {
   return {
     nest: bucketNest(snapshot.flag),
     title: snapshot.state.bucket.title,
-    group: `${normalizeHost(snapshot.state.group.host)}/${snapshot.state.group.name}`,
+    group: `${normalizeShip(snapshot.state.group.host)}/${snapshot.state.group.name}`,
     writers: snapshot.state.writers,
     revision: snapshot.state.revision,
   };
 }
 
-function serializeEntry(entry: BucketsEntry) {
+function serializeEntry(entry: BucketsEntry): BucketsEntryListing {
   return entry.kind === 'folder'
     ? {
         id: entry.id,
@@ -243,45 +163,6 @@ function validateDisplayName(name: string, label: string) {
   return trimmed;
 }
 
-async function brokerRequest<T>(
-  relativePath: string,
-  init: RequestInit
-): Promise<T> {
-  const response = await fetch(`${brokerBaseUrl()}${relativePath}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...init.headers,
-    },
-  });
-  if (!response.ok) {
-    const body = (await response
-      .json()
-      .catch(() => null)) as BrokerErrorBody | null;
-    throw new BucketsBrokerError(
-      body?.message ??
-        (response.status === 404
-          ? 'Buckets storage has no such file. It may have been deleted, or storage may not be reachable from this ship.'
-          : `Buckets storage returned ${response.status}`),
-      response.status,
-      body?.code,
-      body?.retryable ?? false
-    );
-  }
-  return (await response.json()) as T;
-}
-
-function grantRead(capability: string, host: string, objectId: string) {
-  return brokerRequest<BucketReadGrant>(
-    `/objects/${encodeURIComponent(objectId)}/read-grant`,
-    {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${capability}` },
-      body: JSON.stringify({ host: hostName(host) }),
-    }
-  );
-}
-
 // Wait, briefly and without failing, for the local replica to show a change
 // the host has already confirmed.
 //
@@ -318,7 +199,7 @@ async function awaitReplica<T>(
       const selected = select(snapshot);
       if (selected !== undefined) return selected;
     }
-    await delay(replicaWait.delayMs);
+    await sleep(replicaWait.delayMs);
   }
   return undefined;
 }
@@ -371,7 +252,7 @@ async function readBoundedText(response: Response, fileId: number) {
 // call to storage, so the entry is published before %finish-upload returns.
 function mimeFromPath(filePath: string) {
   return (
-    MIME_BY_EXTENSION[path.extname(filePath).toLowerCase()] ||
+    MIME_TYPES[path.extname(filePath).toLowerCase()] ||
     'application/octet-stream'
   );
 }
@@ -451,10 +332,22 @@ async function privateReadUrl(target: BucketTarget, entry: BucketsFileEntry) {
     (await getBucketReadToken(target.flag)) ??
     (await requestBucketReadToken(target.flag));
   const open = (token: string) =>
-    grantRead(token, target.flag.host, entry.file.objectKey);
+    grantBucketRead(token, target.flag.host, entry.file.objectKey);
   try {
     return (await open(readToken.token)).readUrl;
   } catch (cause) {
+    // A bare 404 -- no body, so no code -- is storage not having the object,
+    // which the shared client can only report as a status. Said plainly here,
+    // where it is known to be a read.
+    if (
+      cause instanceof BucketsBrokerError &&
+      cause.status === 404 &&
+      cause.code === undefined
+    ) {
+      throw commandError(
+        'Buckets storage has no such file. It may have been deleted, or storage may not be reachable from this ship.'
+      );
+    }
     // A host rotation can invalidate the locally held token between the scry
     // and broker request. Mint once more before treating it as a real failure.
     if (
@@ -495,7 +388,7 @@ function createBucketsOperations(): BucketsOperations {
           if (left.kind !== right.kind) return left.kind === 'folder' ? -1 : 1;
           return left.name.localeCompare(right.name);
         })
-        .map(serializeEntry) as unknown as BucketsEntry[];
+        .map(serializeEntry);
     },
 
     async search(target, query) {
@@ -522,7 +415,7 @@ function createBucketsOperations(): BucketsOperations {
       const bucketName = validateBucketName(name ?? defaultBucketName());
       const bucketTitle = title.trim();
       const normalizedGroup = {
-        host: normalizeHost(group.host),
+        host: normalizeShip(group.host),
         name: group.name,
       };
       const flag = { host: normalizedGroup.host, name: bucketName };
@@ -563,7 +456,7 @@ function createBucketsOperations(): BucketsOperations {
         ) {
           return { nest };
         }
-        await delay(POLL_DELAY_MS);
+        await sleep(POLL_DELAY_MS);
       }
       return { nest, note: REPLICA_LAGGING };
     },

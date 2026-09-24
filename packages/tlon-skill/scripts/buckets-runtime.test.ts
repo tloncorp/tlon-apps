@@ -225,7 +225,7 @@ describe('Buckets runtime hardening', () => {
     };
 
     await expect(
-      createBucketsDeps().buckets.delete(TARGET, 3, false)
+      createBucketsDeps().buckets.delete(TARGET, 3)
     ).rejects.toThrow('Folder 3 is not empty; it holds 1 entry');
     expect(actions).toEqual([]);
   });
