@@ -101,7 +101,11 @@ export function BotChannelRuleSettingsScreen(props: Props) {
   // canceling off→on toggle restores the exact settings (allowlist, mode, model
   // override) the user had — including unsaved edits — instead of resetting to
   // the default allowlist. Reset when the channel param or ship changes (below).
-  const disabledRuleRef = useRef<ChannelRuleDraft | undefined>(undefined);
+  // `baseline` is the saved rule it was stashed against (see stashedRule).
+  const [disabledRule, setDisabledRule] = useState<{
+    rule: ChannelRuleDraft;
+    baseline: ChannelRuleDraft | undefined;
+  } | null>(null);
 
   const [routeGroupJoined, setRouteGroupJoined] = useState(initialGroupJoined);
   const shipRef = useRef(queries.ship);
@@ -110,7 +114,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
       setRouteGroupJoined(false);
       // The pre-disable snapshot belongs to the previous ship; drop it so
       // re-enabling on the new ship doesn't copy the old ship's rule.
-      disabledRuleRef.current = undefined;
+      setDisabledRule(null);
     }
     shipRef.current = queries.ship;
   }, [queries.ship]);
@@ -125,18 +129,19 @@ export function BotChannelRuleSettingsScreen(props: Props) {
     setPendingShip('');
     setModelSearch('');
     setValidationError(null);
-    disabledRuleRef.current = undefined;
+    setDisabledRule(null);
     setRouteGroupJoined(initialGroupJoined);
   }, [channelKey, initialGroupJoined]);
 
   const rule = draft.draft.chat.channelRuleDrafts[channelKey];
   const baselineRule = draft.baseline.chat.channelRuleDrafts[channelKey];
-  // Once a disable is applied (the channel leaves the saved baseline), forget
-  // the pre-disable snapshot — otherwise re-enabling later (screen still mounted
-  // in the drawer) would restore the stale rule instead of the current default.
-  useEffect(() => {
-    if (!baselineRule) disabledRuleRef.current = undefined;
-  }, [baselineRule]);
+  // Once a disable is applied (the channel's saved rule changes), forget the
+  // pre-disable snapshot — otherwise re-enabling later (screen still mounted in
+  // the drawer) would restore the stale rule instead of the current default.
+  const stashedRule =
+    disabledRule && disabledRule.baseline === baselineRule
+      ? disabledRule.rule
+      : undefined;
 
   const currentRule: ChannelRuleDraft = useMemo(
     () => rule ?? { mode: 'open', allowedShips: '' },
@@ -181,11 +186,13 @@ export function BotChannelRuleSettingsScreen(props: Props) {
     [channelGroup]
   );
   const { getMembership } = useBotGroupMembership(queries, verifyGroupIds);
+  // A rule just switched off here still counts, so a group whose only rule was
+  // pending stays departed and the switch can restore it.
   const membership = channelGroup
     ? getMembership(
         channelGroup.host,
         channelGroup.group,
-        channelGroup.hasRules
+        channelGroup.hasRules || Boolean(stashedRule)
       )
     : 'unknown';
   // Until membership resolves (or for a channel no listed group contains), keep
@@ -203,7 +210,8 @@ export function BotChannelRuleSettingsScreen(props: Props) {
   // A paused rule in a group the bot has left can still be switched off (and
   // back on to its saved state before applying), but never newly created.
   const switchDisabled =
-    readOnly && !(groupDeparted && Boolean(rule ?? baselineRule));
+    readOnly &&
+    !(groupDeparted && Boolean(rule ?? stashedRule ?? baselineRule));
 
   const availableProviders = useMemo(
     () =>
@@ -359,7 +367,9 @@ export function BotChannelRuleSettingsScreen(props: Props) {
                   if (!checked) {
                     // Stash the current settings so re-enabling can restore them
                     // rather than discarding an allowlist/override on a cancel.
-                    disabledRuleRef.current = rule;
+                    setDisabledRule(
+                      rule ? { rule, baseline: baselineRule } : null
+                    );
                     setRule(undefined);
                     return;
                   }
@@ -369,7 +379,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
                   // default authorized ships (editable from there).
                   setRule(
                     rule ??
-                      disabledRuleRef.current ??
+                      stashedRule ??
                       baselineRule ?? {
                         mode: 'allowlist',
                         allowedShips: draft.draft.chat.defaultAuthorizedShips,

@@ -33,9 +33,11 @@ export async function syncGroup(
     const response = await syncQueue.add('syncGroup', ctx, () =>
       api.getGroup(id)
     );
-    // The account changed (logout, ship switch) while the fetch was in flight;
-    // this group belongs to the previous client.
-    if (getClientGeneration() !== generation) return;
+    // If the account changed (logout, ship switch) since we started, this group
+    // belongs to the previous client: check before every write, since the
+    // database follows the current client.
+    const clientChanged = () => getClientGeneration() !== generation;
+    if (clientChanged()) return;
     await batchEffects('syncGroup', async (ctx) => {
       const candidateIds =
         group?.members?.map((member) => member.contactId) ?? [];
@@ -45,6 +47,7 @@ export async function syncGroup(
       const removed = new Set(
         candidateIds.filter((contactId) => !stored.has(contactId))
       );
+      if (clientChanged()) return;
       await db.insertGroups({ groups: [response] }, ctx);
       // Unlike init and changes, this fetch carries the group's full roster,
       // so it can also clear out seats removed while we weren't listening.
@@ -52,6 +55,7 @@ export async function syncGroup(
       const keepIds = members.some((member) => member.status === 'joined')
         ? members.map((member) => member.contactId)
         : candidateIds;
+      if (clientChanged()) return;
       await db.deleteAbsentGroupMembers(
         {
           groupId: id,
@@ -60,6 +64,7 @@ export async function syncGroup(
         },
         ctx
       );
+      if (clientChanged()) return;
       await db.updateGroup({ id, syncedAt: Date.now() }, ctx);
       updateLastActivityTime();
     });

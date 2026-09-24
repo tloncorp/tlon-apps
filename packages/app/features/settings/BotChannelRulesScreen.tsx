@@ -104,12 +104,15 @@ export function BotChannelRulesScreen(props: Props) {
   );
   // Rules, saved or pending, are what a departure would leave stale. Check a
   // group's full rule set, not the search/enabled filtered rows: a rule on a
-  // hidden channel still counts.
+  // hidden channel still counts. So do rules just cleared from a departed
+  // group, which keeps its banner (and Undo) in place.
   const groupHasRules = useCallback(
     (host: string, group: string) =>
+      Boolean(clearedGroupSnapshots[`${host}/${group}`]) ||
       getGroupChannelRuleKeys(rawGroups, host, group, baselineDrafts).length >
-        0 || getGroupChannelRuleKeys(rawGroups, host, group, drafts).length > 0,
-    [rawGroups, baselineDrafts, drafts]
+        0 ||
+      getGroupChannelRuleKeys(rawGroups, host, group, drafts).length > 0,
+    [rawGroups, baselineDrafts, drafts, clearedGroupSnapshots]
   );
   // Confirm those groups' membership against their full rosters.
   const groupIdsWithRules = useMemo(
@@ -133,7 +136,12 @@ export function BotChannelRulesScreen(props: Props) {
       .map((group) => ({
         ...group,
         channels: group.channels.filter((channel) => {
-          if (enabledOnly && !drafts[channel.key]) {
+          // Keep just-cleared channels on the Enabled tab so Undo stays in reach.
+          const cleared =
+            clearedGroupSnapshots[`${group.host}/${group.group}`]?.[
+              channel.key
+            ];
+          if (enabledOnly && !drafts[channel.key] && !cleared) {
             return false;
           }
           if (!normalizedSearch) return true;
@@ -147,7 +155,7 @@ export function BotChannelRulesScreen(props: Props) {
         }),
       }))
       .filter((group) => group.channels.length > 0);
-  }, [groups, drafts, search, enabledOnly]);
+  }, [groups, drafts, search, enabledOnly, clearedGroupSnapshots]);
 
   const enabledChannelCount = Object.keys(drafts).length;
   const allChannelsDisabled = enabledChannelCount === 0;
@@ -463,6 +471,14 @@ export function BotChannelRulesScreen(props: Props) {
                     group.group,
                     drafts
                   ).length > 0;
+                const hasSavedRules =
+                  isDeparted &&
+                  getGroupChannelRuleKeys(
+                    rawGroups,
+                    group.host,
+                    group.group,
+                    baselineDrafts
+                  ).length > 0;
 
                 return (
                   <YStack key={groupKey} gap="$m">
@@ -527,7 +543,9 @@ export function BotChannelRulesScreen(props: Props) {
                               <Text size="$label/s" color="$secondaryText">
                                 {hasDraftRules
                                   ? 'Its rules here are paused. Join again to resume them.'
-                                  : 'Its rules here will be removed when you apply.'}
+                                  : hasSavedRules
+                                    ? 'Its rules here will be removed when you apply.'
+                                    : 'Its unsaved rules here were cleared.'}
                               </Text>
                             </YStack>
                             <Button
