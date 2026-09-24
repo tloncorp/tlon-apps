@@ -1533,9 +1533,11 @@ const cleanupSpawnedProcesses = () => {
   if (!process.env.IN_CONTAINER) {
     console.log('Cleaning up ports...');
     try {
-      // Every ship in the manifest, not just the ones this run selected: a
-      // previous run may have left another ship's ports held.
-      const ports = Object.values(shipManifest).flatMap((ship: any) => [
+      // Only the ships this run selected — `ships` is already filtered by
+      // shouldIncludeShip. Killing every port in the manifest would also hit
+      // ships this run never booted (e.g. ~bud when N1_SHIP is unset), and
+      // can SIGKILL a concurrent pier build or N-1 run in another worktree.
+      const ports = Object.values(ships).flatMap((ship) => [
         ship.httpPort,
         ship.webUrl.match(/:(\d+)/)?.[1],
       ]);
