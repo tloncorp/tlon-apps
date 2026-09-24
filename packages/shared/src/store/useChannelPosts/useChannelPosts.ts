@@ -370,9 +370,31 @@ export async function hasNewerPosts(channelId: string, posts: db.Post[]) {
     return false;
   }
 
-  const latestSequenceNum = await db.getLatestChannelSequenceNum({
+  let latestSequenceNum = await db.getLatestChannelSequenceNum({
     channelId,
   });
+
+  // Channel rows are created without a watermark; only a posts scry that
+  // returns a head (or a sequenced insert) sets it, so ask for the head before
+  // calling it an invariant violation. A failed sync must not fail the page.
+  if (latestSequenceNum === null) {
+    const repair = sync
+      .syncPosts(
+        { channelId, mode: 'newest', count: 1 },
+        { priority: SyncPriority.High }
+      )
+      .catch((e) => postsLogger.log('hasNewerPosts: watermark sync failed', e));
+    if (posts.length > 0) {
+      // Seed the watermark in the background: awaiting it would hold these
+      // local posts behind a scry that can take 60 s offline. Returning true
+      // lets the next page fetch see the seeded value.
+      return true;
+    }
+    // getLocalFirstPosts already ran a remote sync that could have seeded it,
+    // so this is a second attempt before reporting.
+    await repair;
+    latestSequenceNum = await db.getLatestChannelSequenceNum({ channelId });
+  }
 
   // Even for empty channels, we should have a value here. If somehow we don't,
   // assume there's more to load and assume the next load will rectify sequence state.
@@ -384,7 +406,7 @@ export async function hasNewerPosts(channelId: string, posts: db.Post[]) {
     const channel = await db.getChannel({ id: channelId });
     postsLogger.trackError(
       'invariant violation: channel missing latest sequence number',
-      { channelId, hasChannelRow: !!channel }
+      { channelId, hasChannelRow: !!channel, localPostCount: posts.length }
     );
     return true;
   }
