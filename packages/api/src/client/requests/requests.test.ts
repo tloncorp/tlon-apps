@@ -275,6 +275,19 @@ describe('hole values cannot reroute the request', () => {
     }
   });
 
+  test('control characters are rejected, so tabs cannot hide dot segments', () => {
+    const nest = '~zod/' + '.\t./'.repeat(5) + 'steward/v1/automation/tasks';
+    expect(() => scryRequest(channels.post)({ nest, id: 1 })).toThrow(
+      'channels.post: path parameter nest contains a control character'
+    );
+    for (const count of ['1\n', '\r1', '1\u0000', '1\u007f']) {
+      expect(() => scryRequest(steward.lensRecentN)({ count })).toThrow(
+        'steward.lensRecentN: path parameter count contains a control character'
+      );
+    }
+    expect(calls(scry)).toEqual([]);
+  });
+
   test('dots inside a segment are ordinary text (@da, @ud)', async () => {
     const after = '~2026.9.24..16.26.49..370a.3d70.a3d7.0a3d';
     await scryRequest(channels.postsChanges)({

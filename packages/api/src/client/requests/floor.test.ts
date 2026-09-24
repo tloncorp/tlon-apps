@@ -72,7 +72,8 @@ function identity(e: Entry) {
 function mayReach(template: string, prefix: string) {
   // Compare the pathname the URL parser will route: no query or fragment,
   // dot segments resolved.
-  const path = posix.normalize(template.split(/[?#]/)[0]);
+  // %2e is a dot to the URL parser, so decode it before resolving segments.
+  const path = posix.normalize(template.split(/[?#]/)[0].replace(/%2e/gi, '.'));
   const hole = path.indexOf('{');
   if (hole === -1) {
     return path === prefix || path.startsWith(`${prefix}/`);
@@ -425,11 +426,19 @@ describe('the check fails closed', () => {
           path: '/v1/lens/./../automation/tasks',
           since: '12.2.0',
         }),
+        d: entry({
+          kind: 'http',
+          agent: 'steward',
+          method: 'GET',
+          path: '/steward/~/v1/lens/%2e%2E/automation/tasks',
+          since: '12.2.0',
+        }),
       })
     ).toEqual([
       't.a (steward http GET /steward/~/v1/lens/../automation/tasks since 12.2.0): route can reach a prefix excluded by desk-request-scope.json',
       't.b (steward raw GET /steward/~/v1/automation?limit=1 since 12.2.0): route can reach a prefix excluded by desk-request-scope.json',
       't.c (steward scry /v1/lens/./../automation/tasks since 12.2.0): path can reach a prefix excluded by desk-request-scope.json',
+      't.d (steward http GET /steward/~/v1/lens/%2e%2E/automation/tasks since 12.2.0): route can reach a prefix excluded by desk-request-scope.json',
     ]);
   });
 

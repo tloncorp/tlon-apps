@@ -91,6 +91,11 @@ function holeProblem(value: string, composite: boolean) {
   if (/[?#\\]/.test(value)) {
     return 'contains ?, # or \\';
   }
+  // The URL parser drops tab, CR and LF before it resolves dot segments.
+  // oxlint-disable-next-line no-control-regex
+  if (/[\u0000-\u001f\u007f]/.test(value)) {
+    return 'contains a control character';
+  }
   if (!composite && value.includes('/')) {
     return 'contains / but is not a composite hole';
   }
