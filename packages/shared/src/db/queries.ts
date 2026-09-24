@@ -2944,6 +2944,23 @@ export const removeChatMembers = createWriteQuery(
   ['chatMembers', 'groups']
 );
 
+export const getGroupMemberIds = createReadQuery(
+  'getGroupMemberIds',
+  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
+    const rows = await ctx.db
+      .select({ contactId: $chatMembers.contactId })
+      .from($chatMembers)
+      .where(
+        and(
+          eq($chatMembers.chatId, groupId),
+          eq($chatMembers.membershipType, 'group')
+        )
+      );
+    return rows.map((row) => row.contactId);
+  },
+  ['chatMembers']
+);
+
 // insertGroups only upserts members, so a seat removed while this client
 // wasn't listening (a kick or leave during a long offline stretch) is never
 // deleted. Given a group's full roster (`keepIds`), drop the stored seats it

@@ -33,21 +33,29 @@ export async function syncGroup(
       api.getGroup(id)
     );
     await batchEffects('syncGroup', async (ctx) => {
+      const candidateIds =
+        group?.members?.map((member) => member.contactId) ?? [];
+      // Seats a live removal event cleared while the fetch was in flight: the
+      // older snapshot must not bring them back.
+      const stored = new Set(await db.getGroupMemberIds({ groupId: id }, ctx));
+      const removed = new Set(
+        candidateIds.filter((contactId) => !stored.has(contactId))
+      );
       await db.insertGroups({ groups: [response] }, ctx);
       // Unlike init and changes, this fetch carries the group's full roster,
-      // so it can clear out seats removed while we weren't listening.
+      // so it can also clear out seats removed while we weren't listening.
       const members = response.members ?? [];
-      if (members.some((member) => member.status === 'joined')) {
-        await db.deleteAbsentGroupMembers(
-          {
-            groupId: id,
-            keepIds: members.map((member) => member.contactId),
-            candidateIds:
-              group?.members?.map((member) => member.contactId) ?? [],
-          },
-          ctx
-        );
-      }
+      const keepIds = members.some((member) => member.status === 'joined')
+        ? members.map((member) => member.contactId)
+        : candidateIds;
+      await db.deleteAbsentGroupMembers(
+        {
+          groupId: id,
+          keepIds: keepIds.filter((contactId) => !removed.has(contactId)),
+          candidateIds,
+        },
+        ctx
+      );
       await db.updateGroup({ id, syncedAt: Date.now() }, ctx);
       updateLastActivityTime();
     });

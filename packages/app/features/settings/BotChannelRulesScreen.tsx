@@ -87,6 +87,11 @@ export function BotChannelRulesScreen(props: Props) {
   } | null>(null);
   const [disableEverywhereSnapshot, setDisableEverywhereSnapshot] =
     useState<Record<string, ChannelRuleDraft> | null>(null);
+  // Each departed group's draft rules as they were before Clear rules, so Undo
+  // restores unapplied edits rather than just the saved rules.
+  const [clearedGroupSnapshots, setClearedGroupSnapshots] = useState<
+    Record<string, Record<string, ChannelRuleDraft>>
+  >({});
 
   const drafts = draft.draft.chat.channelRuleDrafts;
   const baselineDrafts = draft.baseline.chat.channelRuleDrafts;
@@ -162,6 +167,7 @@ export function BotChannelRulesScreen(props: Props) {
   // switch would join that group from the new account.
   useEffect(() => {
     setDisableEverywhereSnapshot(null);
+    setClearedGroupSnapshots({});
     setJoinTarget(null);
     setJoinError(null);
     setJoiningGroups({});
@@ -179,24 +185,40 @@ export function BotChannelRulesScreen(props: Props) {
   );
 
   // Clearing a departed group's rules is a draft edit like any other, so the
-  // user can still undo it (restoring the saved rules) until they apply.
+  // user can still undo it until they apply.
   const handleClearGroupRulesToggle = useCallback(
     (host: string, group: string) => {
+      const groupKey = `${host}/${group}`;
       const draftKeys = getGroupChannelRuleKeys(rawGroups, host, group, drafts);
       if (draftKeys.length > 0) {
         const channelRuleDrafts = { ...drafts };
         draftKeys.forEach((key) => delete channelRuleDrafts[key]);
+        setClearedGroupSnapshots((prev) => ({
+          ...prev,
+          [groupKey]: Object.fromEntries(
+            draftKeys.map((key) => [key, drafts[key]])
+          ),
+        }));
         replaceDrafts(channelRuleDrafts);
         return;
       }
-      const savedRules = Object.fromEntries(
-        getGroupChannelRuleKeys(rawGroups, host, group, baselineDrafts).map(
-          (key) => [key, baselineDrafts[key]]
-        )
-      );
-      replaceDrafts({ ...drafts, ...savedRules });
+      // Without a snapshot (the rules were switched off one by one), fall back
+      // to the saved rules.
+      const restored =
+        clearedGroupSnapshots[groupKey] ??
+        Object.fromEntries(
+          getGroupChannelRuleKeys(rawGroups, host, group, baselineDrafts).map(
+            (key) => [key, baselineDrafts[key]]
+          )
+        );
+      setClearedGroupSnapshots((prev) => {
+        const next = { ...prev };
+        delete next[groupKey];
+        return next;
+      });
+      replaceDrafts({ ...drafts, ...restored });
     },
-    [rawGroups, drafts, baselineDrafts, replaceDrafts]
+    [rawGroups, drafts, baselineDrafts, clearedGroupSnapshots, replaceDrafts]
   );
 
   const handleDisableEverywhereToggle = useCallback(() => {

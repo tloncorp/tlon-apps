@@ -210,7 +210,7 @@ export function useBotGroupMembership(
     verifyKey.split('\n').forEach((groupId) => {
       // syncGroup skips groups already fetched this session.
       store
-        .syncGroup(groupId, { priority: store.SyncPriority.Low })
+        .syncGroup(groupId, { priority: store.SyncPriority.Low, retry: true })
         .catch((error) =>
           console.error('bot settings: group sync failed', groupId, error)
         );

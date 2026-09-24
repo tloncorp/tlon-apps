@@ -1,6 +1,6 @@
 import { QueryObserver } from '@tanstack/react-query';
 import { directoryToClientProfiles } from '@tloncorp/api';
-import { toClientGroups } from '@tloncorp/api';
+import { scry, toClientGroups } from '@tloncorp/api';
 import type { ContactsDirectoryScryResult1 } from '@tloncorp/api/urbit/contact';
 import type * as ub from '@tloncorp/api/urbit/groups';
 import * as $ from 'drizzle-orm';
@@ -2069,6 +2069,47 @@ test('syncGroup: clears seats the full roster no longer lists', async () => {
   const [seat] = await queries.getJoinedGroupSeats({ contactIds: [member] });
   expect(seat.groupId).toBe(groupId);
   expect(seat.syncedAt).not.toBeNull();
+});
+
+test('syncGroup: does not restore a seat removed while the fetch was in flight', async () => {
+  const groupId = '~fabled-faster/new-york';
+  const member = '~solfer-magfed';
+  const moon = '~doznec-dozzod-zod';
+  const client = getClient();
+  if (!client) throw new Error('test db client not initialized');
+  await client.insert(schema.groups).values({
+    id: groupId,
+    currentUserIsMember: true,
+    currentUserIsHost: false,
+    hostUserId: '~fabled-faster',
+  });
+  await queries.addChatMembers({
+    chatId: groupId,
+    contactIds: [member, moon],
+    type: 'group',
+    joinStatus: 'joined',
+  });
+
+  const response = (groupsResponse as unknown as Record<string, ub.GroupV11>)[
+    groupId
+  ];
+  vi.mocked(scry).mockImplementationOnce(async () => {
+    // The kick event lands after the server built its snapshot.
+    await queries.removeChatMembers({ chatId: groupId, contactIds: [moon] });
+    return {
+      ...response,
+      seats: {
+        [member]: { roles: [], joined: 1 },
+        [moon]: { roles: [], joined: 1 },
+      },
+    };
+  });
+  await syncGroup(groupId, undefined, { force: true });
+
+  expect(await queries.getJoinedGroupSeats({ contactIds: [moon] })).toEqual([]);
+  expect(
+    await queries.getJoinedGroupSeats({ contactIds: [member] })
+  ).toHaveLength(1);
 });
 
 test('getMentionCandidates: returns candidates in priority order', async () => {
