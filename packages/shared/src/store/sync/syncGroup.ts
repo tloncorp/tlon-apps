@@ -55,16 +55,26 @@ export async function syncGroup(
       const keepIds = members.some((member) => member.status === 'joined')
         ? members.map((member) => member.contactId)
         : candidateIds;
+      const rosterIds = keepIds.filter((contactId) => !removed.has(contactId));
       if (clientChanged()) return;
       await db.deleteAbsentGroupMembers(
-        {
-          groupId: id,
-          keepIds: keepIds.filter((contactId) => !removed.has(contactId)),
-          candidateIds,
-        },
+        { groupId: id, keepIds: rosterIds, candidateIds },
         ctx
       );
       if (clientChanged()) return;
+      // syncedAt marks the stored roster as complete (see
+      // buildBotGroupMembershipResolver), and insertMembers logs failed
+      // batches rather than throwing, so only claim it once every seat landed.
+      const storedIds = new Set(
+        await db.getGroupMemberIds({ groupId: id }, ctx)
+      );
+      if (!rosterIds.every((contactId) => storedIds.has(contactId))) {
+        logger.trackError('group sync stored an incomplete roster', {
+          missing: rosterIds.filter((contactId) => !storedIds.has(contactId))
+            .length,
+        });
+        return;
+      }
       await db.updateGroup({ id, syncedAt: Date.now() }, ctx);
       updateLastActivityTime();
     });

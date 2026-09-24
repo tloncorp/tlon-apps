@@ -88,11 +88,12 @@ export function BotChannelRulesScreen(props: Props) {
   const [disableEverywhereSnapshot, setDisableEverywhereSnapshot] =
     useState<Record<string, ChannelRuleDraft> | null>(null);
   // Each departed group's draft rules as they were before Clear rules, so Undo
-  // restores unapplied edits rather than just the saved rules. `saved` records
-  // the group's saved rules the clear was made against (see clearedGroupRules).
-  const [clearedGroupSnapshots, setClearedGroupSnapshots] = useState<
-    Record<string, { rules: Record<string, ChannelRuleDraft>; saved: string }>
-  >({});
+  // restores unapplied edits rather than just the saved rules (see
+  // clearedGroupRules below).
+  const {
+    clearedGroupRules: clearedGroupSnapshots,
+    setClearedGroupRules: setClearedGroupSnapshots,
+  } = draft;
 
   const drafts = draft.draft.chat.channelRuleDrafts;
   const baselineDrafts = draft.baseline.chat.channelRuleDrafts;
@@ -209,7 +210,7 @@ export function BotChannelRulesScreen(props: Props) {
       stale.forEach((groupKey) => delete next[groupKey]);
       return next;
     });
-  }, [rawGroups, drafts]);
+  }, [rawGroups, drafts, setClearedGroupSnapshots]);
 
   // Clear ship-scoped local state when the ship changes (desktop drawer keeps
   // this screen mounted across account switches): the disable-everywhere
@@ -218,7 +219,6 @@ export function BotChannelRulesScreen(props: Props) {
   // switch would join that group from the new account.
   useEffect(() => {
     setDisableEverywhereSnapshot(null);
-    setClearedGroupSnapshots({});
     setJoinTarget(null);
     setJoinError(null);
     setJoiningGroups({});
@@ -278,6 +278,7 @@ export function BotChannelRulesScreen(props: Props) {
       baselineDrafts,
       clearedGroupRules,
       savedGroupRules,
+      setClearedGroupSnapshots,
       replaceDrafts,
     ]
   );
