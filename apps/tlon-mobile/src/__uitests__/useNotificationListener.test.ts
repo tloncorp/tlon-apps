@@ -1,6 +1,8 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { drawerOwnsEdge } from '@tloncorp/app/navigation/drawerDestination';
 
 import {
+  channelNotificationRouteStack,
   getMissingNotificationTargetRecovery,
   getNotificationRouteCategory,
   groupInvitePreviewRouteStack,
@@ -27,16 +29,10 @@ jest.mock('@tloncorp/app/lib/pushNotifTapTelemetry', () => ({
 
 jest.mock('@tloncorp/app/navigation/utils', () => ({
   createTypedReset: jest.fn(),
-  getMainGroupRoute: jest.fn(),
   getTopLevelTabRoute: jest.fn((screen: string, params?: object) => ({
     name: 'MainTabs',
     params: { screen, ...(params === undefined ? {} : { params }) },
   })),
-  screenNameFromChannelId: jest.fn(),
-}));
-
-jest.mock('@tloncorp/app/ui', () => ({
-  useIsWindowNarrow: jest.fn(),
 }));
 
 jest.mock('@tloncorp/shared', () => ({
@@ -400,6 +396,106 @@ describe('notification routing decisions', () => {
         },
       },
     ]);
+  });
+
+  describe('channel notification route stack', () => {
+    const standingSections = {
+      key: 'MainTabs-standing',
+      name: 'MainTabs',
+      state: {
+        index: 1,
+        routes: [
+          { key: 'ChatList-1', name: 'ChatList' },
+          { key: 'Activity-1', name: 'Activity' },
+        ],
+      },
+    };
+    const stackState = {
+      index: 1,
+      routes: [
+        standingSections,
+        {
+          key: 'DM-1',
+          name: 'DM',
+          params: { channelId: '~sampel-palnet', isDrawerDestination: true },
+        },
+      ],
+    };
+    const groupChannel = {
+      id: 'chat/~sampel-palnet/test',
+      groupId: '~sampel-palnet/group',
+    };
+
+    it('stands the channel directly on the sections, with no channel list between', () => {
+      const routes = channelNotificationRouteStack(stackState, groupChannel);
+
+      expect(routes).toEqual([
+        standingSections,
+        {
+          name: 'Channel',
+          params: {
+            channelId: 'chat/~sampel-palnet/test',
+            groupId: '~sampel-palnet/group',
+            isDrawerDestination: true,
+          },
+        },
+      ]);
+      // What that shape buys: the left edge opens the drawer rather than
+      // popping to whatever sits behind the channel.
+      expect(drawerOwnsEdge({ index: 1, routes })).toBe(true);
+    });
+
+    it('opens a DM the same way', () => {
+      expect(
+        channelNotificationRouteStack(stackState, {
+          id: '~zod',
+          groupId: null,
+        })[1]
+      ).toEqual({
+        name: 'DM',
+        params: { channelId: '~zod', isDrawerDestination: true },
+      });
+    });
+
+    it('carries the note to open for a notebook channel', () => {
+      expect(
+        channelNotificationRouteStack(
+          stackState,
+          { id: 'notes/~sampel-palnet/notebook', groupId: '~sampel-palnet/g' },
+          { selectedPostId: '170141184507' }
+        )[1].params
+      ).toMatchObject({ selectedPostId: '170141184507' });
+    });
+
+    it('puts the thread above the channel for a reply', () => {
+      const routes = channelNotificationRouteStack(stackState, groupChannel, {
+        post: {
+          id: '170141184507',
+          authorId: '~sampel-palnet',
+          channelId: 'chat/~sampel-palnet/test',
+        },
+      });
+
+      expect(routes.map((route) => route.name)).toEqual([
+        'MainTabs',
+        'Channel',
+        'Post',
+      ]);
+      expect(routes[2].params).toEqual({
+        postId: '170141184507',
+        authorId: '~sampel-palnet',
+        channelId: 'chat/~sampel-palnet/test',
+      });
+    });
+
+    it('starts on Workspaces when the stack has no sections yet', () => {
+      expect(channelNotificationRouteStack(undefined, groupChannel)[0]).toEqual(
+        {
+          name: 'MainTabs',
+          params: { screen: 'ChatList' },
+        }
+      );
+    });
   });
 
   it('classifies a group invite as a non-channel notification needing no recovery', () => {

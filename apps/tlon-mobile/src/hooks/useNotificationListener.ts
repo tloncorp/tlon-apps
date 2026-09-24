@@ -12,14 +12,16 @@ import {
 } from '@tloncorp/app/lib/notifications';
 import { useAgentGroupOnboardingNavGate } from '@tloncorp/app/hooks/useAgentGroupOnboardingLock';
 import { startPushNotifTapMeasurement } from '@tloncorp/app/lib/pushNotifTapTelemetry';
+import { buildDrawerChannelRoute } from '@tloncorp/app/navigation/drawerDestination';
+import {
+  type RouteSnapshot,
+  getStandingTopLevelTabRoute,
+} from '@tloncorp/app/navigation/topLevelTabs';
 import { RootStackParamList } from '@tloncorp/app/navigation/types';
 import {
   createTypedReset,
-  getMainGroupRoute,
   getTopLevelTabRoute,
-  screenNameFromChannelId,
 } from '@tloncorp/app/navigation/utils';
-import { useIsWindowNarrow } from '@tloncorp/app/ui';
 import {
   AnalyticsEvent,
   SyncPriority,
@@ -72,6 +74,50 @@ export function groupInvitePreviewRouteStack(groupId: string): RouteStack {
       previewGroupFromInviteNotification: true,
     }),
   ];
+}
+
+// Route stack for a channel notification tap: the channel opened the way the
+// drawer opens it, standing directly on the sections as they already are, with
+// the thread above it when the notification is for a reply.
+//
+// Nothing sits between the sections and the channel. A group's channel list
+// there was what a back swipe landed on, and rebuilding the sections threw away
+// whichever one the user was in. As a drawer destination on the sections, the
+// channel's left edge opens the drawer, and Android's back returns to the
+// section the user left.
+export function channelNotificationRouteStack(
+  stackState: RouteSnapshot['state'],
+  channel: { id: string; groupId?: string | null },
+  {
+    selectedPostId,
+    post,
+  }: {
+    selectedPostId?: string;
+    post?: { id: string; authorId: string; channelId: string } | null;
+  } = {}
+): RouteStack {
+  const channelRoute = buildDrawerChannelRoute(channel);
+  const routeStack: RouteStack = [
+    getStandingTopLevelTabRoute(stackState, 'ChatList'),
+    {
+      name: channelRoute.name,
+      params: {
+        ...channelRoute.params,
+        ...(selectedPostId ? { selectedPostId } : {}),
+      },
+    },
+  ];
+  if (post) {
+    routeStack.push({
+      name: 'Post',
+      params: {
+        postId: post.id,
+        authorId: post.authorId,
+        channelId: post.channelId,
+      },
+    });
+  }
+  return routeStack;
 }
 
 function payloadFromNotification(
@@ -271,8 +317,6 @@ export default function useNotificationListener() {
     }
   }, [notificationResponse]);
 
-  const isDesktop = useIsWindowNarrow();
-
   // If notification tapped, navigate
   useEffect(() => {
     async function goToGroupMembers(groupId: string) {
@@ -316,55 +360,26 @@ export default function useNotificationListener() {
         return false;
       }
 
-      const routeStack: RouteStack = [getTopLevelTabRoute('ChatList')];
-      if (channel.groupId) {
-        const mainGroupRoute = await getMainGroupRoute(
-          channel.groupId,
-          isDesktop
-        );
-        // @ts-expect-error - we know we're on mobile and we can't get a "Home" route
-        routeStack.push(mainGroupRoute);
-      }
-      // Only push the channel if it wasn't already handled by the main group stack
-      if (routeStack[routeStack.length - 1].name !== 'Channel') {
-        const screenName = screenNameFromChannelId(channelId);
-        routeStack.push({
-          name: screenName,
-          params: { channelId: channel.id, selectedPostId },
-        });
-      } else if (selectedPostId) {
-        const channelRoute = routeStack[routeStack.length - 1] as {
-          name: 'Channel';
-          params: { channelId: string; selectedPostId?: string | null };
-        };
-        channelRoute.params = { ...channelRoute.params, selectedPostId };
-      }
-
       // if we have a post id, try to navigate to the thread
+      let post: { id: string; authorId: string; channelId: string } | null =
+        null;
       if (postInfo) {
-        let postToNavigateTo: {
-          id: string;
-          authorId: string;
-          channelId: string;
-        } | null = null;
-
-        const post = await db.getPost({ postId: postInfo.id });
-
-        if (post) {
-          postToNavigateTo = post;
-        } else {
-          postToNavigateTo = { ...postInfo, channelId };
-        }
-
-        routeStack.push({
-          name: 'Post',
-          params: {
-            postId: postToNavigateTo.id,
-            authorId: postToNavigateTo.authorId,
-            channelId: postToNavigateTo.channelId,
-          },
-        });
+        post = (await db.getPost({ postId: postInfo.id })) ?? {
+          ...postInfo,
+          channelId,
+        };
       }
+
+      // Read after the waits above, as the drawer does: the sections carried
+      // through the reset are the ones standing now. The listener sits outside
+      // every navigator, so this is the container's root — the drawer, whose
+      // one route holds the root stack.
+      const rootState = navigation.getState();
+      const routeStack = channelNotificationRouteStack(
+        rootState?.routes[rootState.index]?.state,
+        channel,
+        { selectedPostId, post }
+      );
 
       const typedReset = createTypedReset(navigation);
 
@@ -376,7 +391,7 @@ export default function useNotificationListener() {
         channelId: channel.id,
         initialLastPostId: channel.lastPostId ?? null,
       });
-      typedReset(routeStack, 1);
+      typedReset(routeStack);
       setNotifToProcess(null);
       return true;
     }
@@ -507,6 +522,5 @@ export default function useNotificationListener() {
     notifToProcess,
     navigation,
     isTlonEmployee,
-    isDesktop,
   ]);
 }
