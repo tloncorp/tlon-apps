@@ -179,7 +179,11 @@ function resolveSpecifier(filename, source) {
   } else {
     rel = aliasToSourcePath(source);
   }
-  return rel === undefined ? undefined : normalizeModule(rel);
+  // Aliases are joined as text, so `@/state/../api` still carries its dot
+  // segments; resolve them before comparing against module paths.
+  return rel === undefined
+    ? undefined
+    : normalizeModule(path.posix.normalize(rel));
 }
 
 function checkRestrictedPath(context, node, reportNode = node) {
@@ -273,6 +277,9 @@ const TS_VALUE_WRAPPERS = new Set([
   'TSInstantiationExpression',
 ]);
 const TS_VALUE_CONTAINERS = new Set([
+  // `constructor(public x = scry())`: the initializer runs; its annotation
+  // still sits under a TSTypeAnnotation.
+  'TSParameterProperty',
   'TSExportAssignment',
   'TSEnumDeclaration',
   'TSEnumBody',
