@@ -111,7 +111,7 @@ export const notes = {
     agent: 'notes',
     method: 'GET',
     path: '/notes/~/v1/notebooks/{host}/{name}/search/bounded/text',
-    query: ['needle', 'from', 'tries'],
+    query: ['needle', 'from?', 'tries?'],
     since: '12.2.0',
   },
   foldersGet: {

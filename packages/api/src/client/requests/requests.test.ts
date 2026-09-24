@@ -170,12 +170,65 @@ describe('http and noun transports', () => {
     ]);
   });
 
+  test('caller options cannot change the declared request', async () => {
+    const hostile = {
+      timeout: 5,
+      app: 'steward',
+      path: '/v1/automation/tasks',
+      desk: 'x',
+      threadName: 'x',
+      inputMark: 'x',
+      outputMark: 'x',
+      body: 'x',
+    } as never;
+    await scryRequest(groups.groups)({}, hostile);
+    await scryNounRequest(lanyard.records)({}, hostile);
+    await threadRequest(groups.create)({ b: 1 }, hostile);
+    expect(calls(scry)).toEqual([
+      [{ app: 'groups', path: '/v3/groups', timeout: 5 }],
+    ]);
+    expect(calls(scryNoun)).toEqual([
+      [{ app: 'lanyard', path: '/v1/records', timeout: 5 }],
+    ]);
+    expect(calls(thread)).toEqual([
+      [
+        {
+          desk: 'groups',
+          inputMark: 'group-create-thread',
+          threadName: 'group-create-1',
+          outputMark: 'group-ui-2',
+          body: { b: 1 },
+          timeout: 5,
+        },
+      ],
+    ]);
+  });
+
+  test('rawRequest sends the entry method whatever the init says', async () => {
+    await rawRequest(base.metagrab)({ url: 'u' }, {
+      method: 'PUT',
+      mode: 'cors',
+    } as never);
+    // a non-raw entry forced through by a cast still sends its own method
+    await rawRequest(notes.noteDelete as never)(
+      { host: '~zod', name: 'nb', id: 1 } as never,
+      { method: 'PUT' } as never
+    );
+    expect(calls(request)).toEqual([
+      ['/apps/groups/~/metagrab/u', { mode: 'cors', method: 'GET' }],
+      ['/notes/~/v1/notebooks/~zod/nb/notes/1', { method: 'DELETE' }],
+    ]);
+  });
+
   test('rawRequest and scryNounRequest', async () => {
-    const init = { method: 'GET', mode: 'cors' } as const;
-    await rawRequest(base.metagrab)({ url: '0wabc' }, init, 10_000);
+    await rawRequest(base.metagrab)({ url: '0wabc' }, { mode: 'cors' }, 10_000);
     await scryNounRequest(lanyard.records)({});
     expect(calls(request)).toEqual([
-      ['/apps/groups/~/metagrab/0wabc', init, 10_000],
+      [
+        '/apps/groups/~/metagrab/0wabc',
+        { mode: 'cors', method: 'GET' },
+        10_000,
+      ],
     ]);
     expect(calls(scryNoun)).toEqual([
       [{ app: 'lanyard', path: '/v1/records' }],
@@ -259,7 +312,27 @@ export function typeProbes(flag: boolean) {
   const nb = { host: '~zod', name: 'nb' };
   // compiles
   httpRequest(notes.search)(nb, { query: { needle: 'x', tries: 1 } });
+  httpRequest(notes.folderDelete)(
+    { ...nb, folderId: 1 },
+    { query: { recursive: true } }
+  );
+  httpRequest(notes.notesGet)(nb);
+  rawRequest(base.metagrab)({ url: 'u' }, { mode: 'cors' }, 10_000);
+  // a required query key is missing, or the whole init is
+  // @ts-expect-error
+  httpRequest(notes.search)(nb);
+  // @ts-expect-error
+  httpRequest(notes.search)(nb, { query: { from: 1 } });
+  // @ts-expect-error
   httpRequest(notes.folderDelete)({ ...nb, folderId: 1 });
+  // rawRequest takes raw routes only, and never a method
+  // @ts-expect-error
+  rawRequest(notes.noteDelete);
+  // @ts-expect-error
+  rawRequest(base.metagrab)({ url: 'u' }, { method: 'PUT' });
+  // httpRequest takes no raw route
+  // @ts-expect-error
+  httpRequest(base.metagrab);
   // misnamed query key
   // @ts-expect-error
   httpRequest(notes.search)(nb, { query: { text: 'x' } });

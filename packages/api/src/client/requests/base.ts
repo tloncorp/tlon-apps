@@ -106,9 +106,8 @@ export const base = {
     mark: 'notify-client-action',
     since: '12.2.0',
   },
-  // Unauthenticated fetch: use rawRequest.
   metagrab: {
-    kind: 'http',
+    kind: 'raw',
     agent: 'metagrab',
     method: 'GET',
     path: '/apps/groups/~/metagrab/{url}',

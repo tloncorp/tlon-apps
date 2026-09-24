@@ -1,7 +1,6 @@
 import type { Noun } from '@urbit/nockjs';
 
 import {
-  type RequestJsonOptions,
   poke,
   pokeNoun,
   request,
@@ -26,7 +25,7 @@ import { notes } from './notes';
 import { presence } from './presence';
 import { reel } from './reel';
 import { steward } from './steward';
-import type { HttpEntry, One, Params, QueryParams } from './types';
+import type { HttpEntry, HttpInitArgs, One, Params, RawEntry } from './types';
 
 export type * from './types';
 export {
@@ -70,6 +69,7 @@ type SubscribeReg = Extract<RegistryEntry, { kind: 'subscribe' }>;
 type PokeReg = Extract<RegistryEntry, { kind: 'poke' }>;
 type ThreadReg = Extract<RegistryEntry, { kind: 'thread' }>;
 type HttpReg = Extract<RegistryEntry, { kind: 'http' }>;
+type RawReg = Extract<RegistryEntry, { kind: 'raw' }>;
 
 const HOLE = /\{([^}]+)\}/g;
 
@@ -85,18 +85,29 @@ function fillPath(path: string, params: Record<string, string | number>) {
 
 function withQuery(
   path: string,
-  names: readonly string[] | undefined,
-  query: Record<string, string | number | boolean | undefined> | undefined
+  keys: readonly string[] | undefined,
+  query: Record<string, QueryValue | undefined> | undefined
 ) {
-  if (!names || !query) {
+  if (!keys || !query) {
     return path;
   }
-  const parts = names.flatMap((name) =>
-    query[name] === undefined
+  const parts = keys.flatMap((key) => {
+    const name = key.replace(/\?$/, '');
+    const value = query[name];
+    return value === undefined
       ? []
-      : [`${name}=${encodeURIComponent(String(query[name]))}`]
-  );
+      : [`${name}=${encodeURIComponent(String(value))}`];
+  });
   return parts.length ? `${path}?${parts.join('&')}` : path;
+}
+
+type QueryValue = string | number | boolean;
+
+// Caller options never reach the request identity: only these fields are
+// forwarded, and only when the caller set them, so the wrapper sees the
+// same object a direct call would.
+function timeoutOf(opts: { timeout?: number } | undefined) {
+  return opts && 'timeout' in opts ? { timeout: opts.timeout } : {};
 }
 
 // Each helper is curried: the entry is inferred from the registry member in
@@ -108,7 +119,11 @@ export function scryRequest<E extends ScryReg>(entry: One<E>) {
     params: Params<E['path']>,
     opts?: { timeout?: number }
   ): Promise<T> =>
-    scry<T>({ app: entry.agent, path: fillPath(entry.path, params), ...opts });
+    scry<T>({
+      app: entry.agent,
+      path: fillPath(entry.path, params),
+      ...timeoutOf(opts),
+    });
 }
 
 export function scryNounRequest<E extends ScryReg>(entry: One<E>) {
@@ -119,7 +134,7 @@ export function scryNounRequest<E extends ScryReg>(entry: One<E>) {
     scryNoun({
       app: entry.agent,
       path: fillPath(entry.path, params),
-      ...opts,
+      ...timeoutOf(opts),
     });
 }
 
@@ -204,14 +219,8 @@ export function threadRequest<E extends ThreadReg>(entry: One<E>) {
       threadName: entry.name,
       outputMark: entry.outputMark,
       body,
-      ...opts,
+      ...timeoutOf(opts),
     });
-}
-
-export interface HttpInit<E> {
-  query?: QueryParams<E>;
-  body?: unknown;
-  options?: RequestJsonOptions;
 }
 
 // Forwards only the arguments given, so requestJson sees the same arity a
@@ -219,29 +228,35 @@ export interface HttpInit<E> {
 export function httpRequest<E extends HttpReg>(entry: One<E>) {
   return <T = any>(
     params: Params<E['path']>,
-    init: HttpInit<E> = {}
+    ...[init = {}]: HttpInitArgs<E>
   ): Promise<T> => {
-    const path = withQuery(
-      fillPath(entry.path, params),
-      (entry as HttpEntry).query,
-      init.query
-    );
-    if (init.options) {
-      return requestJson<T>(path, entry.method, init.body, init.options);
+    const { method, query: keys } = entry as HttpEntry;
+    const { body, options } = init;
+    const query = 'query' in init ? init.query : undefined;
+    const path = withQuery(fillPath(entry.path, params), keys, query);
+    if (options) {
+      return requestJson<T>(path, method, body, options);
     }
     if ('body' in init) {
-      return requestJson<T>(path, entry.method, init.body);
+      return requestJson<T>(path, method, body);
     }
-    return requestJson<T>(path, entry.method);
+    return requestJson<T>(path, method);
   };
 }
 
-// The unauthenticated-JSON transport (`request`), for routes that are not
-// eyre JSON endpoints of an agent.
-export function rawRequest<E extends HttpReg>(entry: One<E>) {
+// The plain `request` transport, for routes declared `kind: 'raw'`. The
+// method is the entry's; the caller supplies the rest of the fetch init.
+export function rawRequest<E extends RawReg>(entry: One<E>) {
   return <T = unknown>(
     params: Params<E['path']>,
-    ...rest: [options?: RequestInit, timeout?: number]
-  ): Promise<T> =>
-    request<T>(fillPath(entry.path, params), ...rest) as Promise<T>;
+    init: Omit<RequestInit, 'method'> = {},
+    ...timeout: [timeout?: number]
+  ): Promise<T> => {
+    const { method } = entry as RawEntry;
+    return request<T>(
+      fillPath(entry.path, params),
+      { ...init, method },
+      ...timeout
+    ) as Promise<T>;
+  };
 }
