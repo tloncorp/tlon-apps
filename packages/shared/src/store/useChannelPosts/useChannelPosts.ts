@@ -375,16 +375,24 @@ export async function hasNewerPosts(channelId: string, posts: db.Post[]) {
   });
 
   // Channel rows are created without a watermark; only a posts scry that
-  // returns a head (or a sequenced insert) sets it. Ask for the head once
-  // before calling it an invariant violation. A failed sync must not fail the
-  // page, or an offline open would lose its local posts.
+  // returns a head (or a sequenced insert) sets it, so ask for the head before
+  // calling it an invariant violation. A failed sync must not fail the page.
   if (latestSequenceNum === null) {
-    await sync
+    const repair = sync
       .syncPosts(
         { channelId, mode: 'newest', count: 1 },
         { priority: SyncPriority.High }
       )
       .catch((e) => postsLogger.log('hasNewerPosts: watermark sync failed', e));
+    if (posts.length > 0) {
+      // Seed the watermark in the background: awaiting it would hold these
+      // local posts behind a scry that can take 60 s offline. Returning true
+      // lets the next page fetch see the seeded value.
+      return true;
+    }
+    // getLocalFirstPosts already ran a remote sync that could have seeded it,
+    // so this is a second attempt before reporting.
+    await repair;
     latestSequenceNum = await db.getLatestChannelSequenceNum({ channelId });
   }
 

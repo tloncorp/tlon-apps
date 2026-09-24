@@ -14,6 +14,7 @@ vi.mock('../../db', async (importOriginal) => ({
 
 vi.mock('../sync', () => ({ syncPosts }));
 
+import type { Post } from '../../db';
 import { useDebugStore } from '../../debug';
 import { hasNewerPosts } from './useChannelPosts';
 
@@ -89,6 +90,18 @@ describe('hasNewerPosts', () => {
       { channelId: '~solfer-magfed', mode: 'newest', count: 1 },
       expect.anything()
     );
+    expect(capture).not.toHaveBeenCalled();
+  });
+
+  it('does not hold local posts behind the watermark repair', async () => {
+    const capture = vi.fn();
+    useDebugStore.getState().initializeErrorLogger({ capture });
+    dbMocks.getLatestChannelSequenceNum.mockResolvedValue(null);
+    syncPosts.mockReturnValueOnce(new Promise(() => {}));
+    const posts = [{ id: 'p1', sequenceNum: 5 } as Post];
+
+    await expect(hasNewerPosts('~solfer-magfed', posts)).resolves.toBe(true);
+    expect(syncPosts).toHaveBeenCalledTimes(1);
     expect(capture).not.toHaveBeenCalled();
   });
 
