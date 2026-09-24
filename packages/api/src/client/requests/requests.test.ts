@@ -2,15 +2,24 @@ import { type Mock, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import {
   poke,
+  request,
+  requestJson,
   scry,
+  scryNoun,
   subscribe,
   subscribeOnce,
   thread,
   trackedPoke,
 } from '../urbit';
 import {
+  base,
   groups,
+  httpRequest,
+  lanyard,
+  notes,
   pokeRequest,
+  rawRequest,
+  scryNounRequest,
   scryRequest,
   subscribeOnceRequest,
   subscribeRequest,
@@ -23,7 +32,10 @@ vi.mock('../urbit', async () => {
   return {
     ...actual,
     poke: vi.fn(),
+    request: vi.fn(),
+    requestJson: vi.fn(),
     scry: vi.fn(),
+    scryNoun: vi.fn(),
     subscribe: vi.fn(),
     subscribeOnce: vi.fn(),
     thread: vi.fn(),
@@ -118,6 +130,59 @@ describe('helpers forward to the wrappers unchanged', () => {
   });
 });
 
+describe('http and noun transports', () => {
+  test('requestJson gets the arity the caller supplied', async () => {
+    const flag = { host: '~zod', name: 'nb' };
+    const options = { reauthStatuses: [401, 403] };
+    await httpRequest(notes.notebooksGet)({});
+    await httpRequest(notes.notebooksPost)({}, { body: { title: 't' } });
+    await httpRequest(notes.notesGet)(flag, { body: undefined, options });
+    await httpRequest(notes.root)({}, { body: { a: 1 }, options });
+    expect(calls(requestJson)).toEqual([
+      ['/notes/~/v1/notebooks', 'GET'],
+      ['/notes/~/v1/notebooks', 'POST', { title: 't' }],
+      ['/notes/~/v1/notebooks/~zod/nb/notes', 'GET', undefined, options],
+      ['/notes/~/v1', 'POST', { a: 1 }, options],
+    ]);
+    expect(calls(requestJson).map((c) => c.length)).toEqual([2, 3, 4, 4]);
+  });
+
+  test('query parameters are encoded, ordered as declared, and optional', async () => {
+    const flag = { host: '~zod', name: 'nb' };
+    await httpRequest(notes.search)(flag, {
+      query: { tries: 3, needle: 'a b.c&d' },
+    });
+    await httpRequest(notes.search)(flag, { query: { needle: 'x', from: 7 } });
+    await httpRequest(notes.folderDelete)(
+      { ...flag, folderId: 4 },
+      { query: { recursive: false } }
+    );
+    expect(calls(requestJson)).toEqual([
+      [
+        '/notes/~/v1/notebooks/~zod/nb/search/bounded/text?needle=a%20b.c%26d&tries=3',
+        'GET',
+      ],
+      [
+        '/notes/~/v1/notebooks/~zod/nb/search/bounded/text?needle=x&from=7',
+        'GET',
+      ],
+      ['/notes/~/v1/notebooks/~zod/nb/folders/4?recursive=false', 'DELETE'],
+    ]);
+  });
+
+  test('rawRequest and scryNounRequest', async () => {
+    const init = { method: 'GET', mode: 'cors' } as const;
+    await rawRequest(base.metagrab)({ url: '0wabc' }, init, 10_000);
+    await scryNounRequest(lanyard.records)({});
+    expect(calls(request)).toEqual([
+      ['/apps/groups/~/metagrab/0wabc', init, 10_000],
+    ]);
+    expect(calls(scryNoun)).toEqual([
+      [{ app: 'lanyard', path: '/v1/records' }],
+    ]);
+  });
+});
+
 // Compile-time probes, checked by `tsc --noEmit` (CI: `pnpm -r tsc`). Each
 // `@ts-expect-error` line is a one-fault variant of a line that compiles; an
 // unused directive fails the build (TS2578). Never called.
@@ -190,4 +255,21 @@ export function typeProbes(flag: boolean) {
   // a widened E cannot admit a missing hole
   // @ts-expect-error
   scryRequest<Either>(groups.groups)<G>({});
+
+  const nb = { host: '~zod', name: 'nb' };
+  // compiles
+  httpRequest(notes.search)(nb, { query: { needle: 'x', tries: 1 } });
+  httpRequest(notes.folderDelete)({ ...nb, folderId: 1 });
+  // misnamed query key
+  // @ts-expect-error
+  httpRequest(notes.search)(nb, { query: { text: 'x' } });
+  // query on a route that declares none
+  // @ts-expect-error
+  httpRequest(notes.notesGet)(nb, { query: { needle: 'x' } });
+  // an http route is not a scry
+  // @ts-expect-error
+  scryRequest(notes.notesGet);
+  // missing hole on an http route
+  // @ts-expect-error
+  httpRequest(notes.noteGet)(nb);
 }

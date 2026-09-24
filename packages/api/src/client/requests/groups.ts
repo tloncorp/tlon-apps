@@ -31,6 +31,9 @@ export const groups = {
     path: '/v1/foreigns',
     since: '12.2.0',
   },
+  // NOT served by v12.2.0 or develop: groups.hoon watches channel previews at
+  // /v1/channels/{kind}/{ship}/{name}/preview; /chan/... is only a stale
+  // wire. Declared as the client sends it today; the fix is its own change.
   chanPreview: {
     kind: 'subscribe',
     agent: 'groups',

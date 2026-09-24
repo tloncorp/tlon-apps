@@ -14,18 +14,51 @@ import {
   trackedPoke,
   trackedPokeNoun,
 } from '../urbit';
+import { activity } from './activity';
+import { base } from './base';
+import { channels } from './channels';
+import { chat } from './chat';
+import { contacts } from './contacts';
 import { groups } from './groups';
 import { groupsUi } from './groups-ui';
+import { lanyard } from './lanyard';
+import { notes } from './notes';
+import { presence } from './presence';
+import { reel } from './reel';
+import { steward } from './steward';
 import type { HttpEntry, One, Params, QueryParams } from './types';
 
 export type * from './types';
-export { groups, groupsUi };
+export {
+  activity,
+  base,
+  channels,
+  chat,
+  contacts,
+  groups,
+  groupsUi,
+  lanyard,
+  notes,
+  presence,
+  reel,
+  steward,
+};
 
 // Every request the client makes of a desk. The registry check enumerates
 // this object; the helpers below accept only its members.
 export const REGISTRY = {
   groups,
   groupsUi,
+  channels,
+  chat,
+  activity,
+  contacts,
+  lanyard,
+  notes,
+  presence,
+  steward,
+  reel,
+  base,
 } as const;
 
 type Values<T> = T[keyof T];
@@ -188,15 +221,18 @@ export function httpRequest<E extends HttpReg>(entry: One<E>) {
     params: Params<E['path']>,
     init: HttpInit<E> = {}
   ): Promise<T> => {
-    const e = entry as unknown as HttpEntry;
-    const path = withQuery(fillPath(e.path, params), e.query, init.query);
+    const path = withQuery(
+      fillPath(entry.path, params),
+      (entry as HttpEntry).query,
+      init.query
+    );
     if (init.options) {
-      return requestJson<T>(path, e.method, init.body, init.options);
+      return requestJson<T>(path, entry.method, init.body, init.options);
     }
     if ('body' in init) {
-      return requestJson<T>(path, e.method, init.body);
+      return requestJson<T>(path, entry.method, init.body);
     }
-    return requestJson<T>(path, e.method);
+    return requestJson<T>(path, entry.method);
   };
 }
 
@@ -207,8 +243,5 @@ export function rawRequest<E extends HttpReg>(entry: One<E>) {
     params: Params<E['path']>,
     ...rest: [options?: RequestInit, timeout?: number]
   ): Promise<T> =>
-    request<T>(
-      fillPath((entry as unknown as HttpEntry).path, params),
-      ...rest
-    ) as Promise<T>;
+    request<T>(fillPath(entry.path, params), ...rest) as Promise<T>;
 }
