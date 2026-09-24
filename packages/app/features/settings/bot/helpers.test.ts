@@ -700,7 +700,7 @@ describe('bot group membership', () => {
     expect(getMembership('~zod', 'listed', false)).toBe('member');
   });
 
-  it('falls back to saved rules when only the listing is available', () => {
+  it("falls back to the group's rules when only the listing is available", () => {
     const getMembership = resolve(undefined);
     expect(getMembership('~bus', 'omitted', true)).toBe('member');
     expect(getMembership('~bus', 'omitted', false)).toBe('not-member');

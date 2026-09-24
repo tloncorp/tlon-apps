@@ -102,27 +102,29 @@ export function BotChannelRulesScreen(props: Props) {
     () => groupChannelEntries(rawGroups, drafts),
     [rawGroups, drafts]
   );
-  // Saved rules are what would go stale if the bot left, so confirm those
-  // groups' membership against their full rosters.
-  const groupIdsWithSavedRules = useMemo(
+  // Rules, saved or pending, are what a departure would leave stale. Check a
+  // group's full rule set, not the search/enabled filtered rows: a rule on a
+  // hidden channel still counts.
+  const groupHasRules = useCallback(
+    (host: string, group: string) =>
+      getGroupChannelRuleKeys(rawGroups, host, group, baselineDrafts).length >
+        0 || getGroupChannelRuleKeys(rawGroups, host, group, drafts).length > 0,
+    [rawGroups, baselineDrafts, drafts]
+  );
+  // Confirm those groups' membership against their full rosters.
+  const groupIdsWithRules = useMemo(
     () =>
       groups
         .filter(
           (group) =>
-            group.group !== 'unknown' &&
-            getGroupChannelRuleKeys(
-              rawGroups,
-              group.host,
-              group.group,
-              baselineDrafts
-            ).length > 0
+            group.group !== 'unknown' && groupHasRules(group.host, group.group)
         )
         .map((group) => `${formatChannelHost(group.host)}/${group.group}`),
-    [groups, rawGroups, baselineDrafts]
+    [groups, groupHasRules]
   );
   const { getMembership, refreshMembership } = useBotGroupMembership(
     queries,
-    groupIdsWithSavedRules
+    groupIdsWithRules
   );
 
   const filteredGroups = useMemo(() => {
@@ -159,6 +161,23 @@ export function BotChannelRulesScreen(props: Props) {
   useEffect(() => {
     if (!allChannelsDisabled) setDisableEverywhereSnapshot(null);
   }, [allChannelsDisabled]);
+
+  // A group with draft rules again (restored or re-added) no longer has a
+  // clear to undo; dropping its snapshot keeps a later Undo from restoring it.
+  useEffect(() => {
+    setClearedGroupSnapshots((prev) => {
+      const stale = Object.keys(prev).filter((groupKey) => {
+        const [host, group] = groupKey.split('/');
+        return (
+          getGroupChannelRuleKeys(rawGroups, host, group, drafts).length > 0
+        );
+      });
+      if (stale.length === 0) return prev;
+      const next = { ...prev };
+      stale.forEach((groupKey) => delete next[groupKey]);
+      return next;
+    });
+  }, [rawGroups, drafts]);
 
   // Clear ship-scoped local state when the ship changes (desktop drawer keeps
   // this screen mounted across account switches): the disable-everywhere
@@ -275,7 +294,7 @@ export function BotChannelRulesScreen(props: Props) {
           attempt < JOIN_MEMBERSHIP_POLL_ATTEMPTS;
           attempt++
         ) {
-          const membership = await refreshMembership();
+          const membership = await refreshMembership(groupFull);
           if (membership(groupHost, groupName, false) === 'member') {
             break;
           }
@@ -417,18 +436,13 @@ export function BotChannelRulesScreen(props: Props) {
               filteredGroups.map((group) => {
                 const groupKey = `${group.host}/${group.group}`;
                 const isUnknownGroup = group.group === 'unknown';
-                // Check the group's full rule set, not the search/enabled
-                // filtered rows: a saved rule on a hidden channel still counts.
-                const hasSavedRules =
-                  getGroupChannelRuleKeys(
-                    rawGroups,
-                    group.host,
-                    group.group,
-                    baselineDrafts
-                  ).length > 0;
                 const membership = isUnknownGroup
                   ? 'not-member'
-                  : getMembership(group.host, group.group, hasSavedRules);
+                  : getMembership(
+                      group.host,
+                      group.group,
+                      groupHasRules(group.host, group.group)
+                    );
                 const isGroupMember = membership === 'member';
                 const isDeparted = membership === 'departed';
                 const canJoinGroup =

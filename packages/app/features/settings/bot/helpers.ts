@@ -107,7 +107,7 @@ export const hasGroupMembership = (
   return Object.prototype.hasOwnProperty.call(hostGroups, group);
 };
 
-// `departed`: the bot was in the group (it has saved rules there) but has been
+// `departed`: the bot has rules in the group (saved or pending) but has been
 // kicked or has left. `unknown`: nothing has loaded that can say either way.
 export type BotGroupMembership =
   | 'member'
@@ -118,7 +118,7 @@ export type BotGroupMembership =
 export type BotGroupMembershipResolver = (
   host: string,
   group: string,
-  hasSavedRules: boolean
+  hasRules: boolean
 ) => BotGroupMembership;
 
 // Combines the two membership signals. The user's local copy of a group's
@@ -129,8 +129,8 @@ export type BotGroupMembershipResolver = (
 // this session (`syncedAt` after `sessionStartTime`) — init and changes carry
 // just 15 seats for large groups, and a kick missed while offline is only
 // cleared by that fetch. Otherwise fall back to the moon's listing, which lags
-// joins and omits groups whose channels the moon can't read, so there saved
-// rules also count as membership.
+// joins and omits groups whose channels the moon can't read, so there rules
+// also count as membership.
 export const buildBotGroupMembershipResolver = ({
   seats,
   currentUserId,
@@ -164,18 +164,18 @@ export const buildBotGroupMembershipResolver = ({
     if (contactId === moon) moonGroups.add(groupId);
   });
 
-  return (host, group, hasSavedRules) => {
+  return (host, group, hasRules) => {
     const groupId = `${formatChannelHost(host)}/${group}`;
     if (moon && userGroups.has(groupId)) {
       if (moonGroups.has(groupId)) return 'member';
       if (freshGroups.has(groupId)) {
-        return hasSavedRules ? 'departed' : 'not-member';
+        return hasRules ? 'departed' : 'not-member';
       }
     }
     if (moonChannels && hasGroupMembership(moonChannels, host, group)) {
       return 'member';
     }
-    if (hasSavedRules) return 'member';
+    if (hasRules) return 'member';
     return moonChannels ? 'not-member' : 'unknown';
   };
 };

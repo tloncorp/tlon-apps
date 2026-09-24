@@ -10,6 +10,10 @@ import * as schema from '../db/schema';
 import { useDebugStore } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import { syncContacts, syncGroup, syncInitData } from '../store/sync';
+import {
+  getInitializedClient,
+  updateInitializedClient,
+} from '../store/session';
 import { keyFromQueryDeps } from '../store/useKeyFromQueryDeps';
 import contactBookResponse from '../test/contactBook.json';
 import contactsDirectoryResponse from '../test/contactsDirectory.json';
@@ -2110,6 +2114,40 @@ test('syncGroup: does not restore a seat removed while the fetch was in flight',
   expect(
     await queries.getJoinedGroupSeats({ contactIds: [member] })
   ).toHaveLength(1);
+});
+
+test('syncGroup: drops a response that arrives after the client changed', async () => {
+  const groupId = '~fabled-faster/new-york';
+  const member = '~solfer-magfed';
+  const moon = '~doznec-dozzod-zod';
+  const client = getClient();
+  if (!client) throw new Error('test db client not initialized');
+  await client.insert(schema.groups).values({
+    id: groupId,
+    currentUserIsMember: true,
+    currentUserIsHost: false,
+    hostUserId: '~fabled-faster',
+  });
+  await queries.addChatMembers({
+    chatId: groupId,
+    contactIds: [member, moon],
+    type: 'group',
+    joinStatus: 'joined',
+  });
+
+  const response = (groupsResponse as unknown as Record<string, ub.GroupV11>)[
+    groupId
+  ];
+  vi.mocked(scry).mockImplementationOnce(async () => {
+    // A logout or account switch lands mid-fetch.
+    updateInitializedClient(getInitializedClient());
+    return { ...response, seats: { [member]: { roles: [], joined: 1 } } };
+  });
+  await syncGroup(groupId, undefined, { force: true });
+
+  const [moonSeat] = await queries.getJoinedGroupSeats({ contactIds: [moon] });
+  expect(moonSeat.groupId).toBe(groupId);
+  expect(moonSeat.syncedAt).toBeNull();
 });
 
 test('getMentionCandidates: returns candidates in priority order', async () => {

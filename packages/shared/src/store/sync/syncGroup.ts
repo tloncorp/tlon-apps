@@ -2,7 +2,7 @@ import * as api from '@tloncorp/api';
 
 import * as db from '../../db';
 import { batchEffects } from '../../db/query';
-import { getSession } from '../session';
+import { getClientGeneration, getSession } from '../session';
 import { SyncCtx, syncQueue } from '../syncQueue';
 import { logger } from './logger';
 import { updateLastActivityTime } from './updateLastActivityTime';
@@ -19,6 +19,7 @@ export async function syncGroup(
   }
   groupSyncsInProgress.add(id);
   try {
+    const generation = getClientGeneration();
     const group = await db.getGroup({ id });
     const session = getSession();
     if (
@@ -32,6 +33,9 @@ export async function syncGroup(
     const response = await syncQueue.add('syncGroup', ctx, () =>
       api.getGroup(id)
     );
+    // The account changed (logout, ship switch) while the fetch was in flight;
+    // this group belongs to the previous client.
+    if (getClientGeneration() !== generation) return;
     await batchEffects('syncGroup', async (ctx) => {
       const candidateIds =
         group?.members?.map((member) => member.contactId) ?? [];

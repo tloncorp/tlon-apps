@@ -187,7 +187,8 @@ export type BotSettingsQueries = ReturnType<typeof useBotSettingsQueries>;
  * group roster and the moon's own channel listing (see
  * buildBotGroupMembershipResolver). Fetches the full roster of each group in
  * `verifyGroupIds` (once per session) so a departure there can be confirmed.
- * `refreshMembership` re-reads both sources, for polling after a join.
+ * `refreshMembership` re-reads both sources, refetching the given group's full
+ * roster, for polling after a join.
  */
 export function useBotGroupMembership(
   queries: BotSettingsQueries,
@@ -207,14 +208,23 @@ export function useBotGroupMembership(
   const verifyKey = verifyGroupIds.join('\n');
   useEffect(() => {
     if (!verifyKey || sessionStartTime === undefined) return;
+    // Cancel queued fetches when the groups, session, or account change.
+    const controller = new AbortController();
     verifyKey.split('\n').forEach((groupId) => {
       // syncGroup skips groups already fetched this session.
       store
-        .syncGroup(groupId, { priority: store.SyncPriority.Low, retry: true })
-        .catch((error) =>
-          console.error('bot settings: group sync failed', groupId, error)
-        );
+        .syncGroup(groupId, {
+          priority: store.SyncPriority.Low,
+          retry: true,
+          abortSignal: controller.signal,
+        })
+        .catch((error) => {
+          if (!controller.signal.aborted) {
+            console.error('bot settings: group sync failed', groupId, error);
+          }
+        });
     });
+    return () => controller.abort();
   }, [verifyKey, sessionStartTime]);
 
   const getMembership = useMemo(
@@ -229,21 +239,35 @@ export function useBotGroupMembership(
     [seats, currentUserId, moon, moonChannels, sessionStartTime]
   );
 
-  const refreshMembership = useCallback(async () => {
-    // Without a moon, the listing's query would fetch the ship's own channels.
-    if (!moon) return getMembership;
-    const [{ data: freshMoonChannels }, freshSeats] = await Promise.all([
-      refetchMoonChannels(),
-      db.getJoinedGroupSeats({ contactIds }),
-    ]);
-    return buildBotGroupMembershipResolver({
-      seats: freshSeats,
-      currentUserId,
-      moon,
-      moonChannels: freshMoonChannels,
-      sessionStartTime: store.getSession()?.startTime,
-    });
-  }, [refetchMoonChannels, contactIds, currentUserId, moon, getMembership]);
+  const refreshMembership = useCallback(
+    async (groupId: string) => {
+      // Without a moon, the listing's query would fetch the ship's own channels.
+      if (!moon) return getMembership;
+      const [{ data: freshMoonChannels }] = await Promise.all([
+        refetchMoonChannels(),
+        // A group already confirmed departed stays that way until its full
+        // roster shows the bot's seat, so don't wait on the live event alone.
+        store
+          .syncGroup(
+            groupId,
+            { priority: store.SyncPriority.High },
+            { force: true }
+          )
+          .catch((error) =>
+            console.error('bot settings: group sync failed', groupId, error)
+          ),
+      ]);
+      const freshSeats = await db.getJoinedGroupSeats({ contactIds });
+      return buildBotGroupMembershipResolver({
+        seats: freshSeats,
+        currentUserId,
+        moon,
+        moonChannels: freshMoonChannels,
+        sessionStartTime: store.getSession()?.startTime,
+      });
+    },
+    [refetchMoonChannels, contactIds, currentUserId, moon, getMembership]
+  );
 
   return { getMembership, refreshMembership };
 }

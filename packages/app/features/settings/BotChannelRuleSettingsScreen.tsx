@@ -156,26 +156,28 @@ export function BotChannelRuleSettingsScreen(props: Props) {
       parsed.channelId
     );
     if (!group) return null;
-    const hasSavedRules =
-      getGroupChannelRuleKeys(
-        channels,
-        parsed.host,
-        group,
-        draft.baseline.chat.channelRuleDrafts
-      ).length > 0;
+    // Rules saved or pending anywhere in the group, as on the rules screen.
+    const hasRules = [
+      draft.baseline.chat.channelRuleDrafts,
+      draft.draft.chat.channelRuleDrafts,
+    ].some(
+      (rules) =>
+        getGroupChannelRuleKeys(channels, parsed.host, group, rules).length > 0
+    );
     return {
       host: parsed.host,
       group,
       id: `${formatChannelHost(parsed.host)}/${group}`,
-      hasSavedRules,
+      hasRules,
     };
   }, [
     channelKey,
     draft.baseline.chat.channelRuleDrafts,
+    draft.draft.chat.channelRuleDrafts,
     queries.channelsQuery.data,
   ]);
   const verifyGroupIds = useMemo(
-    () => (channelGroup?.hasSavedRules ? [channelGroup.id] : []),
+    () => (channelGroup?.hasRules ? [channelGroup.id] : []),
     [channelGroup]
   );
   const { getMembership } = useBotGroupMembership(queries, verifyGroupIds);
@@ -183,7 +185,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
     ? getMembership(
         channelGroup.host,
         channelGroup.group,
-        channelGroup.hasSavedRules
+        channelGroup.hasRules
       )
     : 'unknown';
   // Until membership resolves (or for a channel no listed group contains), keep
