@@ -18,6 +18,8 @@ function fallbackRendererIdForChannelType(
   switch (type) {
     case 'notes':
       return CollectionRendererId.notes;
+    case 'buckets':
+      return CollectionRendererId.buckets;
     default:
       return null;
   }

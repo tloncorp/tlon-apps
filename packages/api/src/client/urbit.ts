@@ -67,6 +67,7 @@ interface Config extends Pick<ClientParams, 'onQuitOrReset'> {
   lastStatus: string;
   activitySupportsReactions: boolean;
   activitySupportsNotes: boolean;
+  deskSupportsBuckets: boolean;
 }
 
 type Predicate = (event: any, mark: string) => boolean;
@@ -171,6 +172,10 @@ const config: Config = {
   // Off until the app confirms the backend's groups version ships notes
   // activity (v10 %activity endpoints).
   activitySupportsNotes: false,
+  // Off until the app confirms the backend's groups version serves /v11/init.
+  // Defaults false so a ship whose version we cannot read is asked for /v10,
+  // which every backend has — a 404 here costs the whole init.
+  deskSupportsBuckets: false,
 };
 
 type ClientResolver = () => Urbit | null | undefined;
@@ -251,6 +256,17 @@ export const setActivitySupportsNotes = (value: boolean) => {
 
 export const getActivitySupportsNotes = (): boolean => {
   return config.activitySupportsNotes;
+};
+
+// Whether the connected backend serves /v11/init (Buckets and their writer
+// roles). No capabilities epoch to bump: this picks one path at init time
+// rather than steering live subscriptions.
+export const setDeskSupportsBuckets = (value: boolean) => {
+  config.deskSupportsBuckets = value;
+};
+
+export const getDeskSupportsBuckets = (): boolean => {
+  return config.deskSupportsBuckets;
 };
 
 export const client = new Proxy(
