@@ -195,6 +195,23 @@ cleanup() {
         git -C "$PROJECT_ROOT" worktree remove --force "$TAG_TREE" 2>/dev/null || rm -rf "$TAG_TREE"
         git -C "$PROJECT_ROOT" worktree prune 2>/dev/null || true
     fi
+    # $WORK_DIR is this script's own scratch directory (the n1-pier-$$ child of
+    # the caller's BUILD_ROOT -- never BUILD_ROOT itself). On success the pier
+    # was already mv'd out to FINAL_PIER; on a failure or interrupt it can
+    # still hold a full, multi-gigabyte pier. Only remove it once the ship is
+    # confirmed stopped (the block above) -- with --keep-running the pier
+    # under $WORK_DIR is still live and must survive. boot.log is the only
+    # record of why a boot failed, so save it before the directory goes.
+    if [ "$KEEP_RUNNING" = "false" ] && [ -n "$WORK_DIR" ] && [ -d "$WORK_DIR" ]; then
+        if [ -f "$WORK_DIR/boot.log" ]; then
+            if [ -d "$DIST_DIR" ]; then
+                cp "$WORK_DIR/boot.log" "$DIST_DIR/$SHIP-boot.log" 2>/dev/null || true
+            else
+                tail -40 "$WORK_DIR/boot.log" >&2 || true
+            fi
+        fi
+        rm -rf "$WORK_DIR"
+    fi
     exit "$code"
 }
 trap cleanup EXIT
