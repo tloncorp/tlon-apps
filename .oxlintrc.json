@@ -250,11 +250,7 @@
         "apps/tlon-web/src/state/kiln.ts",
         "apps/tlon-web/src/state/settings.ts",
         "packages/api/src/client/bucketsApi.ts",
-        "packages/api/src/client/initApi.ts",
-        "packages/app/lib/notificationsApi.ts",
-        "packages/shared/src/store/lure.ts",
-        "packages/shared/src/store/storage/storageUtils.ts",
-        "packages/shared/src/store/useNegotiation.ts"
+        "packages/api/src/client/initApi.ts"
       ],
       "rules": {
         "tlon/no-raw-desk-request": "off"

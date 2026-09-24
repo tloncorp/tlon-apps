@@ -1,5 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { getCurrentUserId, scry, subscribeOnce } from '@tloncorp/api';
+import { getCurrentUserId } from '@tloncorp/api';
+import {
+  reel,
+  scryRequest,
+  subscribeOnceRequest,
+} from '@tloncorp/api/client/requests';
 import { DeepLinkMetadata, createDeepLink } from '@tloncorp/api/client/branch';
 import { asyncWithDefault } from '@tloncorp/api/lib/utils';
 import produce from 'immer';
@@ -52,10 +57,7 @@ export const useLureState = create<LureState>((set, get) => ({
   lures: {},
   start: async () => {
     try {
-      const bait = await scry<Bait>({
-        app: 'reel',
-        path: '/bait',
-      });
+      const bait = await scryRequest(reel.bait)<Bait>({});
 
       set(
         produce((draft: LureState) => {
@@ -75,10 +77,7 @@ export const useLureState = create<LureState>((set, get) => ({
     lureLogger.crumb('fetching', flag, 'prevLure', prevLure);
     lureLogger.crumb(performance.now(), 'fetching url with scry', flag);
     // url (includes the token as last element of the path)
-    const localUrl = await scry<string>({
-      app: 'reel',
-      path: `/v1/id-url/${flag}`,
-    })
+    const localUrl = await scryRequest(reel.idUrl)<string>({ id: flag })
       .then((u) => {
         lureLogger.crumb(performance.now(), 'url fetched', u, flag);
         return u;
@@ -98,8 +97,8 @@ export const useLureState = create<LureState>((set, get) => ({
       // listen for the result
       url = await asyncWithDefault<string | undefined>(async () => {
         lureLogger.crumb(performance.now(), 'fetching url with sub', flag);
-        return subscribeOnce<string>(
-          { app: 'reel', path: `/v1/id-link/${flag}` },
+        return subscribeOnceRequest(reel.idLink)<string>(
+          { id: flag },
           LURE_REQUEST_TIMEOUT,
           undefined,
           { tag: 'lureFetcher' }
