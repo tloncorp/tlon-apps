@@ -21,14 +21,14 @@ Commands:
   show <buckets/~host/name>
   files <buckets/~host/name> [--parent <id|root>]
   search <buckets/~host/name> <query>
-  create <~host/group> <title> [--name <slug>]
+  create <~host/group> <title> [--name <slug>] [--readers <role,...>] [--writers <role,...>]
   mkdir <buckets/~host/name> <folder-name> [--parent <id|root>]
   upload <buckets/~host/name> <local-file> [--parent <id|root>] [--name <filename>] [-t <mime>]
   read <buckets/~host/name> <file-id>
   rename <buckets/~host/name> <entry-id> <new-name>
   move <buckets/~host/name> <entry-id> <parent-id|root>
-  delete <buckets/~host/name> <entry-id> [--recursive]
-  set-writers <buckets/~host/name> [role ...]
+  delete <buckets/~host/name> <entry-id>
+  set-writers <buckets/~host/name> <role ...> | --clear
 
 Examples:
   tlon buckets list
@@ -36,8 +36,13 @@ Examples:
   tlon buckets upload buckets/~host/project-files ./plan.md -t text/markdown
   tlon buckets read buckets/~host/project-files 12
 
-During the preview, delete supports empty folders only. File and recursive
-deletion remain disabled until object storage and metadata deletion are atomic.`;
+A Bucket with no reader roles is readable by every group member, and one with
+no writer roles is writable by every reader. Pass --readers and --writers to
+create to restrict it from the start: creating it open and narrowing it after
+leaves it open in between.
+
+During the preview, delete supports empty folders only. File deletion remains
+disabled until object storage and metadata deletion are atomic.`;
 
 const HELP_BY_COMMAND: Record<string, string> = {
   list: 'Usage: tlon buckets list',
@@ -54,10 +59,9 @@ const HELP_BY_COMMAND: Record<string, string> = {
   rename:
     'Usage: tlon buckets rename <buckets/~host/name> <entry-id> <new-name>',
   move: 'Usage: tlon buckets move <buckets/~host/name> <entry-id> <parent-id|root>',
-  delete:
-    'Usage: tlon buckets delete <buckets/~host/name> <entry-id> [--recursive]',
+  delete: 'Usage: tlon buckets delete <buckets/~host/name> <entry-id>',
   'set-writers':
-    'Usage: tlon buckets set-writers <buckets/~host/name> [role ...]',
+    'Usage: tlon buckets set-writers <buckets/~host/name> <role ...>\n       tlon buckets set-writers <buckets/~host/name> --clear\n\nAt least one role, or --clear to let every reader write.',
 };
 
 export type BucketTarget = {
@@ -98,11 +102,7 @@ export interface BucketsOperations {
     id: number,
     parentId: number | null
   ): Promise<unknown>;
-  delete(
-    target: BucketTarget,
-    id: number,
-    recursive: boolean
-  ): Promise<unknown>;
+  delete(target: BucketTarget, id: number): Promise<unknown>;
   setWriters(target: BucketTarget, writers: string[]): Promise<unknown>;
 }
 
@@ -151,7 +151,6 @@ type ParsedArgs =
       kind: 'delete';
       target: BucketTarget;
       id: number;
-      recursive: boolean;
     }
   | { kind: 'set-writers'; target: BucketTarget; writers: string[] };
 
@@ -417,24 +416,33 @@ function parseArgs(args: string[]): ParsedArgs {
         id: parseId(args[2], 'entry id', help),
         parentId: parseParent(args[3], help),
       };
-    case 'delete': {
-      if (!args[1] || !args[2]) throw usageError(help);
-      const options = parseOptions(
-        args,
-        3,
-        [{ key: 'recursive', names: ['--recursive'], takesValue: false }],
-        help
-      );
+    case 'delete':
+      if (!args[1] || !args[2] || args.length > 3) throw usageError(help);
       return {
         kind: 'delete',
         target: parseBucketNest(args[1], help),
         id: parseId(args[2], 'entry id', help),
-        recursive: options.has('recursive'),
       };
-    }
-    case 'set-writers':
+    case 'set-writers': {
       if (!args[1]) throw usageError(help);
-      for (const writer of args.slice(2)) {
+      // An empty writer set means every reader may write, so reaching it by
+      // omission -- a forgotten argument, or asking to see the current writers
+      // -- widened access to the whole group. It takes --clear now, alone.
+      const rest = args.slice(2);
+      if (rest.length === 1 && rest[0] === '--clear') {
+        return {
+          kind: 'set-writers',
+          target: parseBucketNest(args[1], help),
+          writers: [],
+        };
+      }
+      if (rest.length === 0) {
+        throw usageError(
+          'Name at least one writer role, or pass --clear to let every reader write',
+          help
+        );
+      }
+      for (const writer of rest) {
         if (writer.startsWith('-')) {
           throw usageError(`Unexpected argument: ${writer}`, help);
         }
@@ -442,8 +450,9 @@ function parseArgs(args: string[]): ParsedArgs {
       return {
         kind: 'set-writers',
         target: parseBucketNest(args[1], help),
-        writers: args.slice(2),
+        writers: rest,
       };
+    }
     default:
       throw usageError(BUCKETS_HELP);
   }
@@ -530,13 +539,7 @@ export async function run(args: string[], deps: BucketsDeps): Promise<number> {
       case 'delete':
         writeLine(
           deps.stdout,
-          json(
-            await deps.buckets.delete(
-              parsed.target,
-              parsed.id,
-              parsed.recursive
-            )
-          )
+          json(await deps.buckets.delete(parsed.target, parsed.id))
         );
         break;
       case 'set-writers':

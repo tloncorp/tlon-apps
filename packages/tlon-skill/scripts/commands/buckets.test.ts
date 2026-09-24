@@ -9,6 +9,7 @@ function makeDeps() {
     authenticate: 0,
     create: [] as unknown[],
     files: [] as unknown[],
+    setWriters: [] as unknown[],
     upload: [] as unknown[],
   };
   const deps: BucketsDeps = {
@@ -38,7 +39,10 @@ function makeDeps() {
       rename: async () => ({}),
       move: async () => ({}),
       delete: async () => ({}),
-      setWriters: async () => ({}),
+      setWriters: async (...args) => {
+        calls.setWriters.push(args);
+        return {};
+      },
     },
   };
   return {
@@ -54,6 +58,48 @@ describe('buckets command', () => {
     const context = makeDeps();
     expect(await run(['--help'], context.deps)).toBe(0);
     expect(context.stdout()).toBe(`${BUCKETS_HELP}\n`);
+    expect(context.calls.authenticate).toBe(0);
+  });
+
+  // An empty writer set means every reader may write, so reaching it by
+  // leaving the roles off would widen access to the whole group.
+  it('refuses set-writers with no roles', async () => {
+    const context = makeDeps();
+    expect(
+      await run(['set-writers', 'buckets/~zod/project-files'], context.deps)
+    ).toBe(1);
+    expect(context.stderr()).toContain('--clear');
+    expect(context.calls.setWriters).toEqual([]);
+    expect(context.calls.authenticate).toBe(0);
+  });
+
+  it('opens writing only when asked with --clear', async () => {
+    const context = makeDeps();
+    expect(
+      await run(
+        ['set-writers', 'buckets/~zod/project-files', '--clear'],
+        context.deps
+      )
+    ).toBe(0);
+    expect(context.calls.setWriters).toEqual([
+      [
+        {
+          flag: { host: '~zod', name: 'project-files' },
+          nest: 'buckets/~zod/project-files',
+        },
+        [],
+      ],
+    ]);
+  });
+
+  it('no longer accepts --recursive on delete', async () => {
+    const context = makeDeps();
+    expect(
+      await run(
+        ['delete', 'buckets/~zod/project-files', '7', '--recursive'],
+        context.deps
+      )
+    ).toBe(1);
     expect(context.calls.authenticate).toBe(0);
   });
 

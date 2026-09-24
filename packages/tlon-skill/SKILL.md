@@ -242,7 +242,8 @@ tlon buckets show buckets/~host/project-files             # Show Bucket metadata
 tlon buckets files buckets/~host/project-files             # List the root folder
 tlon buckets files buckets/~host/project-files --parent 7  # List folder 7
 tlon buckets search buckets/~host/project-files "launch"   # Search file/folder metadata
-tlon buckets create ~host/group "Project Files"            # Create as a group admin
+tlon buckets create ~host/group "Project Files" --readers member --writers admin
+                                                          # Create as a group admin
 tlon buckets mkdir buckets/~host/project-files "Drafts"    # Create a root folder
 tlon buckets upload buckets/~host/project-files ./plan.md -t text/markdown
 tlon buckets read buckets/~host/project-files 12           # Read a text file
@@ -250,13 +251,18 @@ tlon buckets rename buckets/~host/project-files 12 "final-plan.md"
 tlon buckets move buckets/~host/project-files 12 7          # Move entry 12 into folder 7
 tlon buckets delete buckets/~host/project-files 7            # Delete an empty folder
 tlon buckets set-writers buckets/~host/project-files admin bots
+tlon buckets set-writers buckets/~host/project-files --clear   # Let every reader write
 ```
 
 Bucket authorization is based on the current ship's group membership and reader/writer roles. The current ship asks `%buckets` for a short-lived, single-operation storage capability; the command never needs the group host's login, the owner's login, or object-storage credentials. If the current ship lacks access, report that role/permission failure rather than asking for storage credentials.
 
 Bucket creation currently requires a planet-hosted group. A Moon may invoke `buckets create` as an authorized group admin, but the group host—and therefore the resulting Bucket host—must be a planet. If the group host is a Moon, report that Bucket creation is unsupported. Never substitute the Moon's owner planet or another member's planet.
 
-During the preview, `buckets delete` only removes empty folders. File deletion and recursive folder deletion are disabled until the host and broker can coordinate them atomically.
+Empty role lists mean open, not closed: a Bucket with no reader roles is readable by every group member, and one with no writer roles is writable by every reader. Always pass `--readers` and `--writers` to `buckets create` when access should be restricted — creating a Bucket open and narrowing it afterwards leaves it open in between. `set-writers` requires at least one role; `--clear` is the explicit way to open writing to every reader, so only use it when that is what was asked for.
+
+A command's JSON result may include a `note` saying the host confirmed the change but this ship has not received the update yet. The change did happen: do not retry it, which would create a duplicate. A command run immediately afterwards may not see it yet; wait a moment or list again.
+
+During the preview, `buckets delete` only removes empty folders. File deletion is disabled until the host and broker can coordinate it atomically.
 
 `buckets read` intentionally returns only text-like files up to 2 MiB. The regular upload command below is for message/profile media and other standalone URLs, not for placing files in a Bucket.
 

@@ -9,7 +9,8 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { createBucketsDeps } from './buckets-runtime';
+import { createBucketsDeps, setReplicaWaitForTests } from './buckets-runtime';
+import { CommandError } from './commands/command';
 import {
   mockedGetBucket,
   mockedGetBuckets,
@@ -18,7 +19,7 @@ import {
   mockedRequestBucketsUpload,
   mockedGetGroup,
   mockedSendBucketsAction,
-  mockedSubmitBucketsAction,
+  MockBucketsActionFailed,
 } from './tloncorp-api-mock';
 
 const TARGET = {
@@ -86,10 +87,6 @@ beforeEach(() => {
   mockedRequestBucketsGrant.impl = async () => undefined;
   mockedRequestBucketsUpload.impl = async () => undefined;
   mockedSendBucketsAction.impl = async () => undefined;
-  mockedSubmitBucketsAction.impl = async () => ({
-    requestId: '0vtest',
-    body: { ok: null },
-  });
 });
 
 afterEach(() => {
@@ -268,20 +265,103 @@ describe('Buckets runtime hardening', () => {
     expect(reads).toBeGreaterThan(2);
   });
 
+  // The client throws on a refusal; it never returns an error body. This
+  // used to mock `{ body: { error } }`, a shape the real client cannot
+  // produce, and passed against a branch that could never run.
   it('refuses a folder the host rejected rather than adopting another one', async () => {
     mockedGetBucket.impl = async () => snapshot();
-    mockedSubmitBucketsAction.impl = async () => ({
-      requestId: '0vtest',
-      body: { error: { type: 'not-authorized', message: 'not a writer' } },
-    });
+    mockedSendBucketsAction.impl = async () => {
+      throw new MockBucketsActionFailed('not-authorized', 'not a writer');
+    };
 
-    await expect(
-      createBucketsDeps().buckets.createFolder({
+    const attempt = createBucketsDeps().buckets.createFolder({
+      target: TARGET,
+      parentId: null,
+      name: 'plans',
+    });
+    await expect(attempt).rejects.toThrow(
+      'The Bucket host refused this: not a writer'
+    );
+  });
+
+  it('turns every host refusal into a command error, not just the folder one', async () => {
+    mockedGetBucket.impl = async () =>
+      snapshot({ entries: [pendingFile(12, 'object-mine')] });
+    mockedSendBucketsAction.impl = async () => {
+      throw new MockBucketsActionFailed('not-authorized', 'not a writer');
+    };
+    const attempt = createBucketsDeps().buckets.rename(TARGET, 12, 'final.md');
+    await expect(attempt).rejects.toBeInstanceOf(CommandError);
+    await expect(attempt).rejects.toThrow(
+      'The Bucket host refused this: not a writer'
+    );
+  });
+
+  // A Bucket hosted on another ship answers on one subscription and updates
+  // the local replica on another, and ames does not order the two. The %ok
+  // is the confirmation: a replica that has not caught up must not turn a
+  // landed file into a reported failure, and must not be cancelled.
+  it('reports a finished upload as done when the replica has not caught up', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'tlon-buckets-upload-'));
+    const filePath = path.join(directory, 'plan.md');
+    const contents = '# Project\n';
+    writeFileSync(filePath, contents);
+    setReplicaWaitForTests(2, 1);
+
+    const ours = pendingFile(11, 'object-mine');
+    // the replica only ever shows the entry as pending
+    mockedGetBucket.impl = async () =>
+      snapshot({ entries: [ours], revision: 2 });
+    mockedRequestBucketsUpload.impl = async () => ({
+      session: 'upload-session',
+      entryId: 11,
+      url: 'https://upload.test/object-mine',
+      headers: [['Content-Type', 'text/markdown']],
+      expiresAt: '~2026.1.1',
+    });
+    const sent: string[] = [];
+    mockedSendBucketsAction.impl = async (action: unknown) => {
+      sent.push((action as BucketsAction).type);
+    };
+    globalThis.fetch = (async () =>
+      new Response('', { status: 200 })) as unknown as typeof fetch;
+
+    try {
+      const result = await createBucketsDeps().buckets.upload({
+        target: TARGET,
+        filePath,
+        parentId: null,
+      });
+      expect(result).toMatchObject({
+        id: 11,
+        name: 'plan.md',
+        size: Buffer.byteLength(contents),
+        status: 'ready',
+      });
+      expect(result).toHaveProperty('note');
+      expect(sent).toEqual(['finish-upload']);
+    } finally {
+      setReplicaWaitForTests(40, 250);
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('reports a created folder as created when the replica has not caught up', async () => {
+    setReplicaWaitForTests(2, 1);
+    mockedGetBucket.impl = async () => snapshot();
+    mockedSendBucketsAction.impl = async () => ({ ok: null });
+
+    try {
+      const result = await createBucketsDeps().buckets.createFolder({
         target: TARGET,
         parentId: null,
         name: 'plans',
-      })
-    ).rejects.toThrow('not a writer');
+      });
+      expect(result).toMatchObject({ created: 'plans', id: null });
+      expect(result).toHaveProperty('note');
+    } finally {
+      setReplicaWaitForTests(40, 250);
+    }
   });
 
   it('uses the host-minted upload grant and streams the file', async () => {

@@ -14,7 +14,6 @@ import {
   requestBucketsGrant,
   requestBucketsUpload,
   sendBucketsAction,
-  submitBucketsAction,
 } from '@tloncorp/api';
 import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs';
@@ -262,7 +261,7 @@ async function brokerRequest<T>(
     throw new BucketsBrokerError(
       body?.message ??
         (response.status === 404
-          ? 'The private Buckets broker is not deployed on this host. Bot uploads require the private broker and cannot fall back to owner storage credentials.'
+          ? 'Buckets storage has no such file. It may have been deleted, or storage may not be reachable from this ship.'
           : `Buckets storage returned ${response.status}`),
       response.status,
       body?.code,
@@ -283,27 +282,51 @@ function grantRead(capability: string, host: string, objectId: string) {
   );
 }
 
-async function waitForBucketUpdate<T>(
+// Wait, briefly and without failing, for the local replica to show a change
+// the host has already confirmed.
+//
+// The host answers an action only once it has committed it, and a refusal
+// comes back as a thrown BucketsActionFailed -- so by the time an action
+// resolves, the answer is the authority on whether it happened, and every
+// caller builds its result from that. This wait is for the command after:
+// every command starts by reading the local replica, and for a Bucket hosted
+// on another ship the answer and the replica's update arrive on two different
+// subscriptions, which ames does not order against each other. Returning
+// before the replica catches up would leave the next command reading a
+// folder that is not there yet.
+//
+// Which is why it never throws. It used to, and a success whose replica
+// update was merely late became a reported failure -- one the model then
+// retried into a duplicate folder or a duplicate upload. A failed read is
+// likewise just a spent attempt.
+let replicaWait = { attempts: STATE_ATTEMPTS, delayMs: POLL_DELAY_MS };
+
+// Test-only. The wait is ten seconds by design, which a test of the case
+// where the replica never catches up would spend in full.
+export function setReplicaWaitForTests(attempts: number, delayMs: number) {
+  replicaWait = { attempts, delayMs };
+}
+
+async function awaitReplica<T>(
   target: BucketTarget,
   priorRevision: number,
-  operation: string,
   select: (snapshot: BucketsSnapshot) => T | undefined
-): Promise<T> {
-  for (let attempt = 0; attempt < STATE_ATTEMPTS; attempt += 1) {
-    // A failed read is a failed attempt, not a failed operation. The action
-    // has already been sent and the host may well have applied it, so
-    // abandoning the loop on one transient scry reports a failure the caller
-    // may retry -- duplicating a folder, since the host permits same-named
-    // ones. Spend the budget instead and let the deadline decide.
+): Promise<T | undefined> {
+  for (let attempt = 0; attempt < replicaWait.attempts; attempt += 1) {
     const snapshot = await getSnapshot(target).catch(() => null);
     if (snapshot && snapshot.state.revision > priorRevision) {
       const selected = select(snapshot);
       if (selected !== undefined) return selected;
     }
-    await delay(POLL_DELAY_MS);
+    await delay(replicaWait.delayMs);
   }
-  throw commandError(`The Bucket host did not confirm ${operation} in time`);
+  return undefined;
 }
+
+// Said when the host has confirmed a change the local replica does not show
+// yet. The change happened; this is only so the next command is not surprised.
+const REPLICA_LAGGING =
+  'The host confirmed this, but this ship has not received the update yet; a command run immediately may not see it.';
 
 function sameStrings(left: string[], right: string[]) {
   const normalize = (values: string[]) => [...new Set(values)].sort();
@@ -346,19 +369,6 @@ async function readBoundedText(response: Response, fileId: number) {
 
 // Read once rather than poll. Completion is the answer to the host's own
 // call to storage, so the entry is published before %finish-upload returns.
-async function readyFile(target: BucketTarget, id: number) {
-  const snapshot = await getSnapshot(target);
-  const entry = snapshot.state.entries.find(
-    (candidate): candidate is BucketsFileEntry =>
-      candidate.kind === 'file' && candidate.id === id
-  );
-  if (entry?.file.status === 'ready') return entry;
-  if (entry?.file.status === 'failed') {
-    throw commandError(`The Bucket host marked file ${id} failed`);
-  }
-  throw commandError(`The Bucket host did not publish file ${id}`);
-}
-
 function mimeFromPath(filePath: string) {
   return (
     MIME_BY_EXTENSION[path.extname(filePath).toLowerCase()] ||
@@ -538,8 +548,14 @@ function createBucketsOperations(): BucketsOperations {
         title: bucketTitle,
         writers: writers ?? [],
       });
+      // Resolving means the host created it. What follows is only waiting
+      // for this ship to hold a replica, which for a group hosted elsewhere
+      // needs %groups to hand it the channel first -- so a failed read is a
+      // spent attempt, and running out of attempts is not a failure. It used
+      // to be both, and the model's retry of a Bucket that did exist met
+      // "already exists".
       for (let attempt = 0; attempt < STATE_ATTEMPTS; attempt += 1) {
-        const found = await getBucket(flag);
+        const found = await getBucket(flag).catch(() => null);
         if (
           found &&
           flagsMatch(found.state.group, normalizedGroup) &&
@@ -549,9 +565,7 @@ function createBucketsOperations(): BucketsOperations {
         }
         await delay(POLL_DELAY_MS);
       }
-      throw commandError(
-        `The host accepted the create request but ${nest} did not appear in time`
-      );
+      return { nest, note: REPLICA_LAGGING };
     },
 
     async createFolder({ target, parentId, name }) {
@@ -559,30 +573,22 @@ function createBucketsOperations(): BucketsOperations {
       const current = await getSnapshot(target);
       requireFolder(current, parentId, 'Parent');
       const priorIds = new Set(current.state.entries.map((entry) => entry.id));
-      // Our own request id, so the confirmation is ours. Two clients creating
-      // the same name under the same parent from the same snapshot share a
-      // priorIds, and both polls would otherwise settle on whichever folder
-      // appeared first -- the second reporting success with the first's id,
-      // even if its own request was refused.
-      const requestId = mintRequestId();
-      const answer = await submitBucketsAction(
-        {
-          type: 'create-folder',
-          flag: target.flag,
-          name: folderName,
-          parentId,
-        },
-        requestId
-      );
-      if ('error' in answer.body) {
-        throw commandError(
-          `Bucket host refused the folder: ${answer.body.error.message}`
-        );
-      }
-      const created = await waitForBucketUpdate(
+      // A refusal throws. Resolving means the folder exists; what the answer
+      // does not carry is its id, so that is the one thing read back.
+      //
+      // The id is found by name and parent among entries that were not there
+      // before, which is not a correlation: two clients creating the same name
+      // under the same parent from the same snapshot can each find the
+      // other's. The host would have to return the new id for that to close.
+      await sendBucketsAction({
+        type: 'create-folder',
+        flag: target.flag,
+        name: folderName,
+        parentId,
+      });
+      const created = await awaitReplica(
         target,
         current.state.revision,
-        `folder creation for ${folderName}`,
         (snapshot) =>
           snapshot.state.entries.find(
             (entry) =>
@@ -592,6 +598,15 @@ function createBucketsOperations(): BucketsOperations {
               entry.parentId === parentId
           )
       );
+      if (!created) {
+        return {
+          created: folderName,
+          id: null,
+          nest: target.nest,
+          parentId,
+          note: `${REPLICA_LAGGING} List the folder to find its id.`,
+        };
+      }
       return {
         created: created.name,
         id: created.id,
@@ -664,23 +679,44 @@ function createBucketsOperations(): BucketsOperations {
           );
         }
         completionAttempted = true;
-        // The host settles with storage and publishes the entry in the same
-        // step, so by the time this returns the manifest already has it --
-        // this used to poll for the entry to appear.
+        // The answer is the confirmation. The host answers %ok only after the
+        // receipt verifies and the entry is published as ready; every other
+        // outcome answers an error, which throws. The entry is built from
+        // exactly what was sent, so there is nothing left to read back.
+        //
+        // It used to be read back, once, from the local replica -- which on a
+        // Bucket hosted elsewhere is fed by a different subscription than the
+        // answer, so it could still lack the entry. That reported a landed
+        // file as failed, skipped the cancel because completion had been
+        // attempted, and left the model to retry into a duplicate.
+        const before = await getSnapshot(target).catch(() => null);
         await sendBucketsAction({
           type: 'finish-upload',
           flag: target.flag,
           sessionId: grant.session,
         });
-        const ready = await readyFile(target, grant.entryId);
+        const visible = await awaitReplica(
+          target,
+          before?.state.revision ?? -1,
+          (snapshot) =>
+            snapshot.state.entries.some(
+              (entry) =>
+                entry.kind === 'file' &&
+                entry.id === grant!.entryId &&
+                entry.file.status === 'ready'
+            )
+              ? true
+              : undefined
+        );
         return {
-          id: ready.id,
-          mime: ready.file.mime,
-          name: ready.name,
+          id: grant.entryId,
+          mime: contentType,
+          name: displayName,
           nest: target.nest,
-          parentId: ready.parentId,
-          size: ready.file.size,
-          status: ready.file.status,
+          parentId,
+          size: stat.size,
+          status: 'ready' as const,
+          ...(visible ? {} : { note: REPLICA_LAGGING }),
         };
       } catch (error) {
         // One cancel: the host releases the storage reservation as part of
@@ -742,16 +778,20 @@ function createBucketsOperations(): BucketsOperations {
         id,
         name: displayName,
       });
-      await waitForBucketUpdate(
+      const visible = await awaitReplica(
         target,
         current.state.revision,
-        `rename of entry ${id}`,
         (snapshot) =>
           snapshot.state.entries.find(
             (candidate) => candidate.id === id && candidate.name === displayName
           )
       );
-      return { id, name: displayName, nest: target.nest };
+      return {
+        id,
+        name: displayName,
+        nest: target.nest,
+        ...(visible ? {} : { note: REPLICA_LAGGING }),
+      };
     },
 
     async move(target, id, parentId) {
@@ -767,25 +807,29 @@ function createBucketsOperations(): BucketsOperations {
         id,
         parentId,
       });
-      await waitForBucketUpdate(
+      const visible = await awaitReplica(
         target,
         current.state.revision,
-        `move of entry ${id}`,
         (snapshot) =>
           snapshot.state.entries.find(
             (candidate) =>
               candidate.id === id && candidate.parentId === parentId
           )
       );
-      return { id, nest: target.nest, parentId };
+      return {
+        id,
+        nest: target.nest,
+        parentId,
+        ...(visible ? {} : { note: REPLICA_LAGGING }),
+      };
     },
 
-    async delete(target, id, recursive) {
+    async delete(target, id) {
       const snapshot = await getSnapshot(target);
       const root = requireEntry(snapshot, id);
-      if (root.kind === 'file' || recursive) {
+      if (root.kind === 'file') {
         throw commandError(
-          'Bot deletion of Bucket files and recursive folders is temporarily disabled until object storage and metadata can be deleted atomically.'
+          'Bot deletion of Bucket files is temporarily disabled until object storage and metadata can be deleted atomically.'
         );
       }
       // The host refuses a non-recursive delete of a folder with children, so
@@ -804,18 +848,21 @@ function createBucketsOperations(): BucketsOperations {
         type: 'delete-entry',
         flag: target.flag,
         id,
-        recursive,
+        recursive: false,
       });
-      await waitForBucketUpdate(
+      const visible = await awaitReplica(
         target,
         snapshot.state.revision,
-        `deletion of folder ${id}`,
         (updated) =>
           updated.state.entries.some((entry) => entry.id === id)
             ? undefined
             : true
       );
-      return { deleted: id, nest: target.nest, recursive };
+      return {
+        deleted: id,
+        nest: target.nest,
+        ...(visible ? {} : { note: REPLICA_LAGGING }),
+      };
     },
 
     async setWriters(target, writers) {
@@ -832,14 +879,17 @@ function createBucketsOperations(): BucketsOperations {
         flag: target.flag,
         writers,
       });
-      await waitForBucketUpdate(
+      const visible = await awaitReplica(
         target,
         current.state.revision,
-        'writer update',
         (snapshot) =>
           sameStrings(snapshot.state.writers, writers) ? true : undefined
       );
-      return { nest: target.nest, writers };
+      return {
+        nest: target.nest,
+        writers,
+        ...(visible ? {} : { note: REPLICA_LAGGING }),
+      };
     },
   };
 }
@@ -852,6 +902,35 @@ export function createBucketsDeps(): BucketsDeps {
       // object store are authorized later with one-operation capabilities.
       await ensureClient();
     },
-    buckets: createBucketsOperations(),
+    buckets: withRefusalsAsCommandErrors(createBucketsOperations()),
   };
+}
+
+// Every refusal from the host arrives as a BucketsActionFailed, thrown by
+// sendBucketsAction -- the client never hands back an error body. This is the
+// one place a refusal becomes a command error. The call sites used to test
+// each answer for an error body instead, which could not happen, so a refusal
+// escaped every operation as an unexpected error.
+//
+// Here rather than in the command, which may not import API values: the
+// runtime is the only layer that talks to the API.
+function withRefusalsAsCommandErrors(
+  operations: BucketsOperations
+): BucketsOperations {
+  const wrapped = {} as Record<string, unknown>;
+  for (const [name, operation] of Object.entries(operations)) {
+    wrapped[name] = async (...args: unknown[]) => {
+      try {
+        return await (operation as (...a: unknown[]) => Promise<unknown>)(
+          ...args
+        );
+      } catch (error) {
+        if (error instanceof BucketsActionFailed) {
+          throw commandError(`The Bucket host refused this: ${error.message}`);
+        }
+        throw error;
+      }
+    };
+  }
+  return wrapped as unknown as BucketsOperations;
 }
