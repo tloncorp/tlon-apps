@@ -213,7 +213,7 @@ get_next_version() {
 }
 
 # Ports for the ships prepare_ships actually starts. prepare_ships always
-# passes INCLUDE_OPTIONAL_SHIPS=true and never sets N1_SHIP, so per
+# passes INCLUDE_OPTIONAL_SHIPS=true and explicitly clears N1_SHIP, so per
 # shipSelection.ts's shouldIncludeShip() it boots every manifest ship except
 # the N-1 ship (~bud, the only entry with "n1": true) -- regardless of
 # SHIPS_TO_ARCHIVE, which only narrows what gets archived afterward. Deriving
@@ -426,7 +426,7 @@ prepare_ships() {
 
         # Start playwright-dev in background so we can monitor and kill it when ships are ready
         cd "$PROJECT_ROOT/apps/tlon-web"
-        FORCE_EXTRACTION=true INCLUDE_OPTIONAL_SHIPS=true FRESH_BOOT=$FRESH_BOOT pnpm e2e:playwright-dev > "$PROJECT_ROOT/apps/tlon-web/playwright-dev-archive.log" 2>&1 &
+        FORCE_EXTRACTION=true INCLUDE_OPTIONAL_SHIPS=true FRESH_BOOT=$FRESH_BOOT N1_SHIP= pnpm e2e:playwright-dev > "$PROJECT_ROOT/apps/tlon-web/playwright-dev-archive.log" 2>&1 &
         local playwright_pid=$!
         SPAWNED_PIDS+=("$playwright_pid")
 
