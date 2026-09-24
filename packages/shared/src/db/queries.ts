@@ -2647,7 +2647,9 @@ export const getJoinedGroupSeats = createReadQuery(
       .where(
         and(
           eq($chatMembers.membershipType, 'group'),
-          eq($chatMembers.status, 'joined'),
+          // status is only set for invite flows; anything but 'invited' is a
+          // joined seat (see getContextLensBotsInChat).
+          or(isNull($chatMembers.status), ne($chatMembers.status, 'invited')),
           inArray($chatMembers.contactId, contactIds)
         )
       );

@@ -1950,6 +1950,15 @@ test('getAgentA2UIProtocolReceipts: returns the latest live owner receipts', asy
 test('getJoinedGroupSeats: returns joined group seats for the given contacts', async () => {
   const user = '~zod';
   const moon = '~doznec-dozzod-zod';
+  const client = getClient();
+  if (!client) throw new Error('test db client not initialized');
+  // Rows written outside invite flows can leave status unset; they're joined.
+  await client.insert(schema.chatMembers).values({
+    chatId: '~zod/legacy',
+    contactId: moon,
+    membershipType: 'group',
+    status: null,
+  });
   await queries.addChatMembers({
     chatId: '~zod/shared',
     contactIds: [user, moon, '~bus'],
@@ -1969,12 +1978,15 @@ test('getJoinedGroupSeats: returns joined group seats for the given contacts', a
     joinStatus: 'joined',
   });
 
-  const bySeat = (a: { contactId: string }, b: { contactId: string }) =>
-    a.contactId.localeCompare(b.contactId);
+  type Seat = { groupId: string | null; contactId: string };
+  const bySeat = (a: Seat, b: Seat) =>
+    a.contactId.localeCompare(b.contactId) ||
+    (a.groupId ?? '').localeCompare(b.groupId ?? '');
   const seats = await queries.getJoinedGroupSeats({
     contactIds: [user, moon],
   });
   expect(seats.sort(bySeat)).toEqual([
+    { groupId: '~zod/legacy', contactId: moon },
     { groupId: '~zod/shared', contactId: moon },
     { groupId: '~zod/shared', contactId: user },
   ]);
@@ -1984,7 +1996,9 @@ test('getJoinedGroupSeats: returns joined group seats for the given contacts', a
     chatId: '~zod/shared',
     contactIds: [moon],
   });
-  expect(await queries.getJoinedGroupSeats({ contactIds: [moon] })).toEqual([]);
+  expect(await queries.getJoinedGroupSeats({ contactIds: [moon] })).toEqual([
+    { groupId: '~zod/legacy', contactId: moon },
+  ]);
   expect(await queries.getJoinedGroupSeats({ contactIds: [] })).toEqual([]);
 });
 
