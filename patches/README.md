@@ -891,3 +891,41 @@ exception when the extractor declares a compatible runtime dependency or no
 longer needs the legacy compiler API. Validate with `pnpm build:web`: the config
 must load and extraction must finish without `fileExists` or `Must provide
 components` errors.
+
+## react-native-transformer-text-input@0.4.1
+
+Local patch:
+`patches/react-native-transformer-text-input@0.4.1.patch`
+
+Why:
+The signup phone input (`packages/app/ui/components/Form/PhoneNumberInput.tsx`)
+uses the library's `PhoneNumberTransformer` in international mode. Its NANP
+country data lists Canada's 7-digit `310-XXXX` service-number format ahead of
+the 10-digit `(XXX) XXX-XXXX` format for every +1 country, and `selectFormat`
+picks the first format whose leading digits match without considering length.
+`applyFormat` then clamps the input to that format's 7-digit capacity, so any
++1 number with area code 310 (Los Angeles) silently drops every digit after the
+seventh and can never be entered (TLON-6686).
+
+What it does:
+`selectFormat` now passes over a leading-digits match whose pattern cannot hold
+every digit typed so far and continues to the next match, falling back to the
+widest match (which still clamps overlong input). This mirrors libphonenumber's
+as-you-type behaviour: `310-2705` becomes `(310) 270-51` once the eighth digit
+arrives. `selectFormat` moves below `getFormatMaxDigits`, which it now calls,
+so the worklet plugin's closure capture never sees a `const` in its temporal
+dead zone. Both `src/` (resolved by Metro through the `source` export
+condition) and `lib/module/` (resolved by Vite and vitest) are patched.
+
+Upstream:
+- repo: [AppAndFlow/react-native-transformer-text-input](https://github.com/AppAndFlow/react-native-transformer-text-input)
+- no upstream issue or PR filed yet
+
+Validation:
+- `cd packages/app && pnpm test ui/components/Form/__tests__/phoneNumberTransformer.test.ts`
+- On a device: sign up with a +1 310 number; the input must accept all ten
+  digits and format as `+1 (310) 270-5123`.
+
+Removal:
+Remove once a release of `react-native-transformer-text-input` selects formats
+by length as well as leading digits.
