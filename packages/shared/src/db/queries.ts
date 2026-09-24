@@ -2941,6 +2941,49 @@ export const removeChatMembers = createWriteQuery(
   ['chatMembers', 'groups']
 );
 
+// insertGroups only upserts members, so a seat removed while this client
+// wasn't listening (a kick or leave during a long offline stretch) would never
+// be deleted. A full group snapshot (init, changes) lists every member, so
+// drop stored seats it doesn't include. A snapshot with no joined members
+// can't be a joined group's full roster, so leave those groups alone.
+export const deleteAbsentGroupMembers = createWriteQuery(
+  'deleteAbsentGroupMembers',
+  async (
+    { groups }: { groups: Pick<Group, 'id' | 'members'>[] },
+    ctx: QueryCtx
+  ) => {
+    const batchSize = 200;
+    for (const group of groups) {
+      const members = group.members ?? [];
+      if (!members.some((member) => member.status === 'joined')) continue;
+      const keep = new Set(members.map((member) => member.contactId));
+      const stored = await ctx.db
+        .select({ contactId: $chatMembers.contactId })
+        .from($chatMembers)
+        .where(
+          and(
+            eq($chatMembers.chatId, group.id),
+            eq($chatMembers.membershipType, 'group')
+          )
+        );
+      const absent = stored
+        .map((row) => row.contactId)
+        .filter((contactId) => !keep.has(contactId));
+      for (let i = 0; i < absent.length; i += batchSize) {
+        await ctx.db
+          .delete($chatMembers)
+          .where(
+            and(
+              eq($chatMembers.chatId, group.id),
+              inArray($chatMembers.contactId, absent.slice(i, i + batchSize))
+            )
+          );
+      }
+    }
+  },
+  ['chatMembers', 'groups']
+);
+
 export const getNotifyingUnreadSourceCount = createReadQuery(
   'getNotifyingUnreadSourceCount',
   async (ctx: QueryCtx) => {
@@ -4454,6 +4497,11 @@ export const insertChanges = createWriteQuery(
             await perfTime(
               'insertChanges.groups',
               () => insertGroups({ groups: input.groups }, txCtx),
+              { count: input.groups.length }
+            );
+            await perfTime(
+              'insertChanges.deleteAbsentGroupMembers',
+              () => deleteAbsentGroupMembers({ groups: input.groups }, txCtx),
               { count: input.groups.length }
             );
             await perfTime(

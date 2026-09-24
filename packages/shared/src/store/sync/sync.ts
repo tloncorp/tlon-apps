@@ -93,6 +93,11 @@ export const syncInitData = async (
     await db
       .insertGroups({ groups: initData.groups }, queryCtx)
       .then(() => logger.crumb('inserted groups'));
+    // init carries each joined group's full roster, so seats missing from it
+    // were removed while we weren't listening
+    await db
+      .deleteAbsentGroupMembers({ groups: initData.groups }, queryCtx)
+      .then(() => logger.crumb('reconciled group members'));
     await db
       .setLeftGroups({ joinedGroupIds: initData.joinedGroups }, queryCtx)
       .then(() => logger.crumb('set left groups'));

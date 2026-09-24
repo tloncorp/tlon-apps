@@ -2002,6 +2002,98 @@ test('getJoinedGroupSeats: returns joined group seats for the given contacts', a
   expect(await queries.getJoinedGroupSeats({ contactIds: [] })).toEqual([]);
 });
 
+test('deleteAbsentGroupMembers: drops seats missing from a full group snapshot', async () => {
+  const user = '~zod';
+  const moon = '~doznec-dozzod-zod';
+  const seat = (chatId: string, contactId: string) => ({
+    chatId,
+    contactId,
+    membershipType: 'group' as const,
+    status: 'joined' as const,
+    joinedAt: null,
+  });
+  await queries.addChatMembers({
+    chatId: '~zod/kicked',
+    contactIds: [user, moon],
+    type: 'group',
+    joinStatus: 'joined',
+  });
+  await queries.addChatMembers({
+    chatId: '~zod/partial',
+    contactIds: [user, moon],
+    type: 'group',
+    joinStatus: 'joined',
+  });
+  await queries.addChatMembers({
+    chatId: 'chat/~zod/general',
+    contactIds: [moon],
+    type: 'channel',
+    joinStatus: 'joined',
+  });
+
+  await queries.deleteAbsentGroupMembers({
+    groups: [
+      // The bot was kicked while this client was offline.
+      { id: '~zod/kicked', members: [seat('~zod/kicked', user)] },
+      // No joined seats: not a full roster, so nothing is reconciled.
+      {
+        id: '~zod/partial',
+        members: [{ ...seat('~zod/partial', user), status: 'invited' }],
+      },
+    ],
+  });
+
+  const moonRows = await queries.getJoinedGroupSeats({ contactIds: [moon] });
+  expect(moonRows.map((row) => row.groupId)).toEqual(['~zod/partial']);
+  const client = getClient();
+  if (!client) throw new Error('test db client not initialized');
+  const remaining = await client.query.chatMembers.findMany({
+    where: $.eq(schema.chatMembers.contactId, moon),
+  });
+  expect(
+    remaining.map((row) => `${row.chatId} ${row.membershipType}`).sort()
+  ).toEqual(['chat/~zod/general channel', '~zod/partial group']);
+  expect(
+    await queries.getJoinedGroupSeats({ contactIds: [user] })
+  ).toHaveLength(2);
+});
+
+test('insertChanges: reconciles the roster of each changed group', async () => {
+  const moon = '~doznec-dozzod-zod';
+  await queries.addChatMembers({
+    chatId: '~zod/changed',
+    contactIds: ['~zod', moon],
+    type: 'group',
+    joinStatus: 'joined',
+  });
+
+  await queries.insertChanges({
+    groups: [
+      {
+        id: '~zod/changed',
+        currentUserIsMember: true,
+        currentUserIsHost: true,
+        hostUserId: '~zod',
+        members: [
+          {
+            chatId: '~zod/changed',
+            contactId: '~zod',
+            membershipType: 'group',
+            status: 'joined',
+            joinedAt: null,
+          },
+        ],
+      },
+    ],
+    posts: [],
+    contacts: [],
+    unreads: { groupUnreads: [], channelUnreads: [], threadActivity: [] },
+    deletedChannelIds: [],
+  });
+
+  expect(await queries.getJoinedGroupSeats({ contactIds: [moon] })).toEqual([]);
+});
+
 test('getMentionCandidates: returns candidates in priority order', async () => {
   // Setup
   setScryOutputs([initResponse]);
