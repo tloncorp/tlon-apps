@@ -76,26 +76,30 @@ export function groupInvitePreviewRouteStack(groupId: string): RouteStack {
   ];
 }
 
+type ThreadTarget = { id: string; authorId: string; channelId: string };
+
 // Route stack for a channel notification tap: the channel opened the way the
 // drawer opens it, standing directly on the sections as they already are, with
 // the thread above it when the notification is for a reply.
 //
-// Nothing sits between the sections and the channel. A group's channel list
-// there was what a back swipe landed on, and rebuilding the sections threw away
-// whichever one the user was in. As a drawer destination on the sections, the
-// channel's left edge opens the drawer, and Android's back returns to the
-// section the user left.
+// As a drawer destination sitting on the sections, the channel's left edge
+// opens the drawer rather than popping to a channel list, and Android's back
+// returns to whichever section the user was in when the push arrived.
+//
+// Takes the container's root state, which is the drawer's: its one route holds
+// the root stack the sections are read from.
 export function channelNotificationRouteStack(
-  stackState: RouteSnapshot['state'],
+  rootState: RouteSnapshot['state'],
   channel: { id: string; groupId?: string | null },
   {
     selectedPostId,
     post,
   }: {
     selectedPostId?: string;
-    post?: { id: string; authorId: string; channelId: string } | null;
+    post?: ThreadTarget | null;
   } = {}
 ): RouteStack {
+  const stackState = rootState?.routes?.[rootState.index ?? 0]?.state;
   const channelRoute = buildDrawerChannelRoute(channel);
   const routeStack: RouteStack = [
     getStandingTopLevelTabRoute(stackState, 'ChatList'),
@@ -361,8 +365,7 @@ export default function useNotificationListener() {
       }
 
       // if we have a post id, try to navigate to the thread
-      let post: { id: string; authorId: string; channelId: string } | null =
-        null;
+      let post: ThreadTarget | null = null;
       if (postInfo) {
         post = (await db.getPost({ postId: postInfo.id })) ?? {
           ...postInfo,
@@ -372,11 +375,9 @@ export default function useNotificationListener() {
 
       // Read after the waits above, as the drawer does: the sections carried
       // through the reset are the ones standing now. The listener sits outside
-      // every navigator, so this is the container's root — the drawer, whose
-      // one route holds the root stack.
-      const rootState = navigation.getState();
+      // every navigator, so this is the container's root state.
       const routeStack = channelNotificationRouteStack(
-        rootState?.routes[rootState.index]?.state,
+        navigation.getState(),
         channel,
         { selectedPostId, post }
       );

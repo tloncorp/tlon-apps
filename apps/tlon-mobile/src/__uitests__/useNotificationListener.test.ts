@@ -410,14 +410,27 @@ describe('notification routing decisions', () => {
         ],
       },
     };
-    const stackState = {
-      index: 1,
+    // The container's root is the drawer; its one route holds the root stack.
+    const rootState = {
+      index: 0,
       routes: [
-        standingSections,
         {
-          key: 'DM-1',
-          name: 'DM',
-          params: { channelId: '~sampel-palnet', isDrawerDestination: true },
+          key: 'Main-1',
+          name: 'Main',
+          state: {
+            index: 1,
+            routes: [
+              standingSections,
+              {
+                key: 'DM-1',
+                name: 'DM',
+                params: {
+                  channelId: '~sampel-palnet',
+                  isDrawerDestination: true,
+                },
+              },
+            ],
+          },
         },
       ],
     };
@@ -427,7 +440,7 @@ describe('notification routing decisions', () => {
     };
 
     it('stands the channel directly on the sections, with no channel list between', () => {
-      const routes = channelNotificationRouteStack(stackState, groupChannel);
+      const routes = channelNotificationRouteStack(rootState, groupChannel);
 
       expect(routes).toEqual([
         standingSections,
@@ -447,7 +460,7 @@ describe('notification routing decisions', () => {
 
     it('opens a DM the same way', () => {
       expect(
-        channelNotificationRouteStack(stackState, {
+        channelNotificationRouteStack(rootState, {
           id: '~zod',
           groupId: null,
         })[1]
@@ -460,7 +473,7 @@ describe('notification routing decisions', () => {
     it('carries the note to open for a notebook channel', () => {
       expect(
         channelNotificationRouteStack(
-          stackState,
+          rootState,
           { id: 'notes/~sampel-palnet/notebook', groupId: '~sampel-palnet/g' },
           { selectedPostId: '170141184507' }
         )[1].params
@@ -468,7 +481,7 @@ describe('notification routing decisions', () => {
     });
 
     it('puts the thread above the channel for a reply', () => {
-      const routes = channelNotificationRouteStack(stackState, groupChannel, {
+      const routes = channelNotificationRouteStack(rootState, groupChannel, {
         post: {
           id: '170141184507',
           authorId: '~sampel-palnet',
@@ -489,12 +502,29 @@ describe('notification routing decisions', () => {
     });
 
     it('starts on Workspaces when the stack has no sections yet', () => {
+      const freshWorkspaces = {
+        name: 'MainTabs',
+        params: { screen: 'ChatList' },
+      };
       expect(channelNotificationRouteStack(undefined, groupChannel)[0]).toEqual(
-        {
-          name: 'MainTabs',
-          params: { screen: 'ChatList' },
-        }
+        freshWorkspaces
       );
+      // Sections that have not reported their state yet are showing only the
+      // route they initialise to, so there is nothing of theirs to carry.
+      expect(
+        channelNotificationRouteStack(
+          {
+            index: 0,
+            routes: [
+              {
+                name: 'Main',
+                state: { index: 0, routes: [{ name: 'MainTabs' }] },
+              },
+            ],
+          },
+          groupChannel
+        )[0]
+      ).toEqual(freshWorkspaces);
     });
   });
 
