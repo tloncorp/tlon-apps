@@ -11,7 +11,8 @@
   "ignorePatterns": [
     "dist",
     "node_modules",
-    "*.md"
+    "*.md",
+    "oxlint/fixtures"
   ],
   "rules": {
     "no-useless-escape": "warn",
@@ -70,6 +71,7 @@
     "tlon/no-common-actions-reset": "error",
     "tlon/navigate-requires-pop": "error",
     "tlon/restricted-paths": "error",
+    "tlon/no-raw-desk-request": "error",
     "react/error-boundaries": "warn",
     "react/globals": "warn",
     "react/immutability": "warn",
@@ -236,6 +238,43 @@
       ],
       "rules": {
         "react-hooks/rules-of-hooks": "off"
+      }
+    },
+    {
+      "files": [
+        "apps/tlon-mobile/src/lib/OnboardingContext.tsx",
+        "apps/tlon-web/src/logic/useReactQueryScry.ts",
+        "apps/tlon-web/src/logic/useReactQuerySubscribeOnce.tsx",
+        "apps/tlon-web/src/logic/useReactQuerySubscription.tsx",
+        "apps/tlon-web/src/state/base.ts",
+        "apps/tlon-web/src/state/kiln.ts",
+        "apps/tlon-web/src/state/settings.ts",
+        "packages/api/src/client/activityApi.ts",
+        "packages/api/src/client/bucketsApi.ts",
+        "packages/api/src/client/changesApi.ts",
+        "packages/api/src/client/channelsApi.ts",
+        "packages/api/src/client/chatApi.ts",
+        "packages/api/src/client/contactsApi.ts",
+        "packages/api/src/client/groupsApi.ts",
+        "packages/api/src/client/initApi.ts",
+        "packages/api/src/client/inviteApi.ts",
+        "packages/api/src/client/lanyardApi.ts",
+        "packages/api/src/client/lensApi.ts",
+        "packages/api/src/client/metagrabApi.ts",
+        "packages/api/src/client/notesApi.ts",
+        "packages/api/src/client/postsApi.ts",
+        "packages/api/src/client/presenceApi.ts",
+        "packages/api/src/client/settingsApi.ts",
+        "packages/api/src/client/stewardGatewayApi.ts",
+        "packages/api/src/client/storageApi.ts",
+        "packages/api/src/client/vitalsApi.ts",
+        "packages/app/lib/notificationsApi.ts",
+        "packages/shared/src/store/lure.ts",
+        "packages/shared/src/store/storage/storageUtils.ts",
+        "packages/shared/src/store/useNegotiation.ts"
+      ],
+      "rules": {
+        "tlon/no-raw-desk-request": "off"
       }
     }
   ]
