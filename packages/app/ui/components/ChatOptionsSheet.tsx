@@ -647,7 +647,11 @@ export function ChannelOptionsSheetContent({
 
   const groupTitle = utils.useGroupTitle(group) ?? 'group';
   const isSingleChannelGroup = group?.channels?.length === 1;
-  const canMarkRead = channel.unread?.count !== 0;
+  // A Bucket has no unread row at all, so the bare `!== 0` test read
+  // `undefined` as unread and offered the action; +readChannel then retries
+  // an %activity operation that cannot succeed for this channel type.
+  const canMarkRead =
+    utils.channelSupportsNotifications(channel) && channel.unread?.count !== 0;
   const baseVolumeLevel = store.useBaseVolumeLevel();
 
   const handlePressGroupDetails = useCallback(() => {
@@ -683,7 +687,7 @@ export function ChannelOptionsSheetContent({
       createActionGroups(
         [
           'neutral',
-          {
+          utils.channelSupportsNotifications(channel) && {
             title: group ? 'Channel notifications' : 'Chat notifications',
             description: notificationTitle,
             endIcon: 'ChevronRight',

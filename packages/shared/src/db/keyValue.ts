@@ -170,8 +170,14 @@ export const tlonbotRevivalDeferredConfig =
 export const AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS = 30_000;
 
 export type AgentGroupOnboardingLock = {
-  /** Setup chat restored on launch while first-run navigation is locked. */
+  /** The furnished setup chat; the launch restore when no landing is recorded. */
   chatChannelId?: string;
+  /**
+   * Where first-run onboarding actually landed — the bot DM for a hosted first
+   * run, the setup chat otherwise. Restored on launch while navigation is
+   * locked, so a restart reopens the conversation that holds the pickers.
+   */
+  landingChannelId?: string;
   provision?: PostBlobDataEntryAgentProvision;
   /** The bot accepted the plan; navigation is unlocked while its first entry runs. */
   provisionAcknowledgedAt?: number;
@@ -299,9 +305,14 @@ export const personalInviteLink = createStorageItem<string | null>({
   defaultValue: null,
 });
 
-export const homeGroupInviteLink = createStorageItem<string | null>({
-  key: 'homeGroupInviteLink',
-  defaultValue: null,
+/**
+ * The last attempt to verify or create the personal invite link failed, and
+ * nothing retries from there. Screens waiting on the link show it unavailable
+ * instead of loading forever. Cleared whenever an attempt begins.
+ */
+export const personalInviteLinkUnavailable = createStorageItem<boolean>({
+  key: 'personalInviteLinkUnavailable',
+  defaultValue: false,
 });
 
 export const hasViewedPersonalInvite = createStorageItem<boolean>({
@@ -325,6 +336,30 @@ export const lastVisitedChannelId = (groupId: string) => {
     defaultValue: null,
   });
 };
+
+/**
+ * The navigator state as of the last time the user moved, so a relaunch can
+ * put them back where they were. `state` is the root navigator's serialized
+ * state, kept opaque here because this package does not depend on React
+ * Navigation; `savedAt` lets the reader refuse a position too old to be what
+ * the user still means to return to, and `userId` stops one account's position
+ * being served to the next if a force-quit beats the logout that clears this.
+ */
+export type PersistedNavigationState = {
+  savedAt: number;
+  userId: string | null;
+  state: unknown;
+};
+
+/**
+ * Deliberately not `persistAfterLogout`: the next account must not land on the
+ * previous one's screen.
+ */
+export const lastNavigationState =
+  createStorageItem<PersistedNavigationState | null>({
+    key: 'lastNavigationState',
+    defaultValue: null,
+  });
 
 export const themeSettings = createStorageItem<AppThemeName | null>({
   key: '@user_theme',

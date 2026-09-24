@@ -62,6 +62,10 @@ export const allCollectionRenderers = {
     displayName: 'Notes',
     enumTag: 'notes',
   },
+  'tlon.r0.collection.buckets': {
+    displayName: 'Buckets',
+    enumTag: 'buckets',
+  },
 } as const satisfies Record<string, ComponentSpec>;
 
 export const allDraftInputs = {
@@ -80,6 +84,10 @@ export const allDraftInputs = {
   'tlon.r0.input.notes': {
     displayName: 'Notes',
     enumTag: 'notes',
+  },
+  'tlon.r0.input.buckets': {
+    displayName: 'Buckets',
+    enumTag: 'buckets',
   },
 } as const satisfies Record<string, ComponentSpec>;
 
@@ -119,6 +127,10 @@ export const allContentRenderers = {
   'tlon.r0.content.notes': {
     displayName: 'Notes',
     enumTag: 'notes',
+  },
+  'tlon.r0.content.buckets': {
+    displayName: 'Buckets',
+    enumTag: 'buckets',
   },
 } as const satisfies Record<string, ComponentSpec>;
 

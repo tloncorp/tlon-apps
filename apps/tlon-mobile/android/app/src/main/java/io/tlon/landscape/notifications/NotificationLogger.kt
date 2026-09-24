@@ -1,6 +1,7 @@
 package io.tlon.landscape.notifications
 
 import android.util.Log
+import com.android.volley.VolleyError
 import com.posthog.PostHog
 
 private const val NOTIFICATION_SERVICE_ERROR = "Notification Service Error"
@@ -31,13 +32,23 @@ object NotificationLogger {
     }
 }
 
-fun getLogPayload(uid: String, message: String, e: Exception? = null): Map<String, String> {
-    val payload = mutableMapOf("uid" to uid, "message" to message);
+fun getLogPayload(uid: String, message: String, e: Exception? = null): Map<String, Any> {
+    val payload = mutableMapOf<String, Any>("uid" to uid, "message" to message)
     if (e != null) {
-        payload["errorMessage"] = e.message.orEmpty()
-        payload["errorStack"] = e.stackTrace.toString()
-        payload["errorType"] = e.cause.toString()
+        // `message` already names the stage that failed, so `e.message` only ever
+        // repeated it. What explains a failure is the cause, which used to reach
+        // PostHog under `errorType` — a field named for the type but holding the
+        // cause. Report the cause as the message and its class as the type.
+        val cause = e.cause ?: e
+        payload["errorMessage"] = cause.toString()
+        payload["errorType"] = cause.javaClass.name
+        payload["errorStack"] = Log.getStackTraceString(e)
+        cause.httpStatusCode()?.let { payload["httpStatus"] = it }
     }
 
-    return payload;
+    return payload
 }
+
+/** HTTP status behind this error, when it came from a response. */
+private fun Throwable.httpStatusCode(): Int? =
+    (this as? VolleyError)?.networkResponse?.statusCode

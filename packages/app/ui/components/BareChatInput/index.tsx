@@ -1,4 +1,8 @@
-import { getCurrentUserId, toContentReference } from '@tloncorp/api';
+import {
+  getBotUserIdForUser,
+  getCurrentUserId,
+  toContentReference,
+} from '@tloncorp/api';
 import { JSONContent, Story, pathToCite } from '@tloncorp/api/urbit';
 import {
   Attachment,
@@ -571,17 +575,13 @@ function BareChatInput(
       inputRef.current?.focus();
 
       if (!isWeb) {
-        // Only set the selection here — the input's text on native is driven
-        // by the TextWithMentions children. Setting `text` via setNativeProps
-        // would be *prepended* to the child text by RCTBaseTextInputShadowView,
-        // duplicating the message.
+        // The children own the native text. Move only the caret after they
+        // render the replacement, leaving it after the trailing space.
         requestAnimationFrame(() => {
-          inputRef.current?.setNativeProps({
-            selection: {
-              start: selectionResult.cursorPosition,
-              end: selectionResult.cursorPosition,
-            },
-          });
+          inputRef.current?.setSelection(
+            selectionResult.cursorPosition,
+            selectionResult.cursorPosition
+          );
         });
       }
     },
@@ -627,12 +627,10 @@ function BareChatInput(
         // children. Move only the selection after React has rendered the
         // replacement text so the next character lands after the command.
         requestAnimationFrame(() => {
-          inputRef.current?.setNativeProps({
-            selection: {
-              start: selection.cursorPosition,
-              end: selection.cursorPosition,
-            },
-          });
+          inputRef.current?.setSelection(
+            selection.cursorPosition,
+            selection.cursorPosition
+          );
         });
       }
     },
@@ -1144,7 +1142,10 @@ function BareChatInput(
         tappedChatInput: true,
       }));
     }
-    if (logic.isBotHomeGroupChatChannel(getCurrentUserId(), channelId)) {
+    // The user's own bot DM only, matching `useShowBotMentionWayfinding`:
+    // focusing another user's Tlonbot must not dismiss a coach mark that has
+    // not been seen.
+    if (channelId === getBotUserIdForUser(getCurrentUserId())) {
       db.wayfindingProgress.setValue((prev) => ({
         ...prev,
         tappedHomeGroupHint: true,
@@ -1309,7 +1310,9 @@ function BareChatInput(
               paddingTop: inputPadding,
               paddingBottom: inputPadding,
               fontSize: getFontSize('$m'),
-              lineHeight: isWeb ? undefined : inputLineHeight,
+              // Match the decoration overlay even when emoji change font metrics.
+              fontFamily: isWeb ? 'inherit' : undefined,
+              lineHeight: isWeb ? getFontSize('$m') * 1.2 : inputLineHeight,
               includeFontPadding: isWeb ? undefined : false,
               verticalAlign: 'middle',
               letterSpacing: -0.032,
@@ -1342,7 +1345,7 @@ function BareChatInput(
               >
                 <RawText
                   paddingHorizontal="$l"
-                  paddingTop={getTokenValue('$m', 'space') + 3}
+                  paddingTop="$l"
                   fontSize="$m"
                   lineHeight={getFontSize('$m') * 1.2}
                   letterSpacing={-0.032}

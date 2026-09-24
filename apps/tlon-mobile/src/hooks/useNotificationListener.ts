@@ -31,6 +31,7 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import {
   Notification,
   clearLastNotificationResponseAsync,
@@ -168,6 +169,9 @@ export default function useNotificationListener() {
 
   const [notifToProcess, setNotifToProcess] =
     useState<ProcessableNotificationData | null>(null);
+  // Hold launch targets until the desk verdict is ok: while the desk notice
+  // replaces the navigator a consumed target would be lost (TLON-6531).
+  const deskOk = store.useDeskCompatibility()?.status === 'ok';
 
   // Start notifications prompt
   useEffect(() => {
@@ -191,7 +195,7 @@ export default function useNotificationListener() {
 
   const notificationResponse = useLastNotificationResponse();
   useEffect(() => {
-    if (notificationResponse != null) {
+    if (deskOk && notificationResponse != null) {
       try {
         const data = payloadFromNotification(notificationResponse.notification);
 
@@ -241,7 +245,7 @@ export default function useNotificationListener() {
         });
       }
     }
-  }, [notificationResponse]);
+  }, [deskOk, notificationResponse]);
 
   // Emit DM-tap telemetry (TLON-5728) in its own effect, decoupled from the
   // routing effect above so it cannot cause routing/navigation to re-run.
@@ -291,8 +295,8 @@ export default function useNotificationListener() {
     }
 
     async function goToContacts() {
-      const route = getTopLevelTabRoute('Contacts');
-      navigation.navigate(route.name, route.params, { pop: true });
+      // Contacts is a stack screen now, not a tab.
+      navigation.navigate('Contacts', undefined, { pop: true });
       setNotifToProcess(null);
       return true;
     }
@@ -410,7 +414,9 @@ export default function useNotificationListener() {
       }
     }
 
+    // See deskOk above.
     if (
+      deskOk &&
       notifToProcess &&
       !agentOnboardingLockLoading &&
       !agentOnboardingLocked
@@ -501,6 +507,7 @@ export default function useNotificationListener() {
       })();
     }
   }, [
+    deskOk,
     agentOnboardingLocked,
     agentOnboardingLockLoading,
     runWhenUnlocked,

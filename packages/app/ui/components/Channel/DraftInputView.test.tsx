@@ -28,6 +28,10 @@ const keyboard = vi.hoisted(() => ({
   })[],
 }));
 
+const composer = vi.hoisted(() => ({
+  reports: [] as Array<[number, number]>,
+}));
+
 vi.mock('@tloncorp/api', () => ({ DraftInputId: { chat: 'chat' } }));
 vi.mock('react-native', () => ({
   Platform: {
@@ -52,6 +56,8 @@ vi.mock('react-native-keyboard-controller', async () => ({
   useKeyboardHandler: (handlers: typeof keyboard.handlers) => {
     keyboard.handlers = handlers;
   },
+  useKeyboardState: <T,>(selector: (state: { isVisible: boolean }) => T) =>
+    selector({ isVisible: keyboard.visible }),
 }));
 vi.mock('react-native-keyboard-controller/src/hooks', () => ({
   useReanimatedKeyboardAnimation: () => ({
@@ -91,13 +97,18 @@ vi.mock('tamagui', () => ({
 vi.mock('../../contexts/componentsKits', () => ({}));
 vi.mock('../../contexts/scroll', () => ({
   useConversationScrollToBottomControl: () => undefined,
-  useConversationComposerHeight: () => ({ report: () => {} }),
+  useConversationComposerHeight: () => ({
+    report: (height: number, collapsibleInset: number) => {
+      composer.reports.push([height, collapsibleInset]);
+    },
+  }),
 }));
 vi.mock('../ScrollEdgeElementContainer', () => ({
   ScrollEdgeElementContainer: 'ScrollEdgeElementContainer',
 }));
 vi.mock('../conversationScrollChrome', () => ({
   floatingScrollControlClearance: 0,
+  unobscuredConversationBottomGap: 8,
 }));
 vi.mock('../draftInputs/shared', () => ({}));
 
@@ -258,6 +269,44 @@ describe.each(['ios', 'android'] as const)('%s', (platform) => {
     expectKeyboardClearance(266);
   });
 
+  it('clears a tab bar in docked and floating modes without leaving a keyboard gap', () => {
+    let layout: ReturnType<typeof useConversationComposerLayout>;
+    function Draft() {
+      layout = useConversationComposerLayout();
+      return <input />;
+    }
+    act(() => {
+      renderer = create(
+        <ConversationLayout enabled bottomChromeClearance={84}>
+          <section />
+          <ConversationComposerPlacement enabled>
+            <Draft />
+          </ConversationComposerPlacement>
+        </ConversationLayout>
+      );
+    });
+    const padding = () =>
+      findComposer().findByType('View' as never).props.paddingBottom;
+    expect(padding()).toBe(92);
+    expectKeyboardClearance(0);
+    emit('onStart', 300);
+    expectKeyboardClearance(0);
+    emit('onMove', 150);
+    expectKeyboardClearance(104);
+    emit('onEnd', 300);
+    expectKeyboardClearance(208);
+    act(() => layout.setFloating(true));
+    expect(composerStyle().position).toBe('absolute');
+    expect(padding()).toBe(92);
+    expectKeyboardClearance(208);
+    emit('onInteractive', 150);
+    expectKeyboardClearance(104);
+    emit('onEnd', 0);
+    expectKeyboardClearance(0);
+    act(() => layout.setFloating(false));
+    expect(padding()).toBe(92);
+  });
+
   describe.each([
     ['inline notebook/gallery reply', false],
     ['floating chat composer', true],
@@ -336,5 +385,72 @@ describe('web inline replies', () => {
       )
     ).toHaveLength(0);
     expect(keyboard.handlers).toEqual({});
+  });
+});
+
+describe('floating composer bottom clearance', () => {
+  beforeAll(() => {
+    keyboard.platform = 'ios';
+  });
+
+  function paddingBottomFor(bottomChromeClearance?: number) {
+    act(() => {
+      renderer = create(
+        <ConversationComposerPlacement
+          enabled
+          bottomChromeClearance={bottomChromeClearance}
+        >
+          <input />
+        </ConversationComposerPlacement>
+      );
+    });
+    const style = renderer!.root.findByType(
+      'ScrollEdgeElementContainer' as never
+    ).props.style as { paddingBottom: number }[];
+    return style[0].paddingBottom;
+  }
+
+  it('clears only the home indicator when no chrome sits below', () => {
+    expect(paddingBottomFor()).toBe(34);
+  });
+
+  it('clears the tab bar and its gap when one does', () => {
+    expect(paddingBottomFor(84)).toBe(92);
+  });
+
+  it('keeps its padding while the keyboard is open', () => {
+    // Padding and the sticky view's offset must agree, so neither may change on
+    // keyboard visibility — doing so jumps the composer mid-animation.
+    keyboard.visible = true;
+    try {
+      expect(paddingBottomFor(84)).toBe(92);
+    } finally {
+      keyboard.visible = false;
+    }
+  });
+
+  it('reports the part of its height the keyboard collapses', () => {
+    composer.reports.length = 0;
+    act(() => {
+      renderer = create(
+        <ConversationComposerPlacement enabled bottomChromeClearance={84}>
+          <input />
+        </ConversationComposerPlacement>
+      );
+    });
+    act(() => {
+      renderer!.root
+        .findByType('ScrollEdgeElementContainer' as never)
+        .props.onLayout({ nativeEvent: { layout: { height: 140 } } });
+    });
+
+    // 92pt of padding, of which the 34pt home indicator still counts.
+    expect(composer.reports.at(-1)).toEqual([140, 58]);
+  });
+
+  it('does not stack the safe area on top of the clearance', () => {
+    // The tab bar's band already covers the home indicator, so a bar shorter
+    // than the safe area must not push the composer past it.
+    expect(paddingBottomFor(10)).toBe(34);
   });
 });

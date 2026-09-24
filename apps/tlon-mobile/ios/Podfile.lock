@@ -310,6 +310,8 @@ PODS:
     - UMAppLoader
   - ExpoVideo (57.0.1):
     - ExpoModulesCore
+  - ExpoWebBrowser (57.0.3):
+    - ExpoModulesCore
   - EXUpdatesInterface (57.0.1):
     - ExpoModulesCore
   - FBLazyVector (0.86.3)
@@ -2967,6 +2969,7 @@ DEPENDENCIES:
   - ExpoSplashScreen (from `../../../node_modules/expo-splash-screen/ios`)
   - ExpoTaskManager (from `../../../node_modules/expo-task-manager/ios`)
   - ExpoVideo (from `../../../node_modules/expo-video/ios`)
+  - ExpoWebBrowser (from `../../../node_modules/expo-web-browser/ios`)
   - EXUpdatesInterface (from `../../../node_modules/expo-updates-interface/ios`)
   - FBLazyVector (from `../../../node_modules/react-native/Libraries/FBLazyVector`)
   - hermes-engine (from `../../../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
@@ -3210,6 +3213,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-task-manager/ios"
   ExpoVideo:
     :path: "../../../node_modules/expo-video/ios"
+  ExpoWebBrowser:
+    :path: "../../../node_modules/expo-web-browser/ios"
   EXUpdatesInterface:
     :path: "../../../node_modules/expo-updates-interface/ios"
   FBLazyVector:
@@ -3475,6 +3480,7 @@ SPEC CHECKSUMS:
   ExpoSplashScreen: a0e6d83ad9642f133aa11e83c880064f57c32d59
   ExpoTaskManager: fed019ee76e17650f4240f4f0790534d7bb770f0
   ExpoVideo: 50bc4d4739c754ce05d551a96bd39a2ca0a73a9d
+  ExpoWebBrowser: a4d7c382116fbe33c1ec7f60293f02b7e97042e4
   EXUpdatesInterface: 92d2aa5194b6fb93ca8ab749db75665cb28b2e60
   FBLazyVector: 94a9e5b949d0f65bbc1a741f8a7c72499da32567
   Firebase: 99f203d3a114c6ba591f3b32263a9626e450af65

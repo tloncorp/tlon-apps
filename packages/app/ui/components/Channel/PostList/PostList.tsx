@@ -12,13 +12,14 @@ import {
 import {
   KeyboardChatScrollView,
   type KeyboardChatScrollViewProps,
+  useReanimatedKeyboardAnimation,
 } from 'react-native-keyboard-controller';
 import {
-  type SharedValue,
+  type DerivedValue,
+  useDerivedValue,
   useReducedMotion,
   useSharedValue,
 } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   useConversationComposerHeight,
@@ -27,6 +28,7 @@ import {
   useScrollDirectionTracker,
 } from '../../../contexts/scroll';
 import {
+  useConversationBottomInset,
   useConversationComposerLayout,
   useIsConversationDocked,
 } from '../ConversationLayout';
@@ -87,7 +89,7 @@ function useDockedConversationScrollView(
 }
 
 function useConversationKeyboardListProps(
-  composerContentInset: SharedValue<number>
+  composerContentInset: DerivedValue<number>
 ) {
   return React.useMemo(() => {
     if (Platform.OS === 'ios') {
@@ -556,34 +558,48 @@ const ConversationPostListAttempt = React.forwardRef<
       ? AnimatedLegendList
       : KeyboardAwareLegendList;
     const composerContentInset = useSharedValue(0);
+    const composerCollapsibleInset = useSharedValue(0);
+    const { progress: keyboardProgress } = useReanimatedKeyboardAnimation();
+    // The composer keeps its bottom-chrome padding in its measured height, but
+    // an open keyboard covers that chrome and the composer slides down over it.
+    // Interpolate that part away on keyboard progress so the list never strands
+    // it as a gap, and so the inset moves with the keyboard instead of snapping
+    // when it settles.
+    const listComposerInset = useDerivedValue(
+      () =>
+        composerContentInset.value -
+        composerCollapsibleInset.value * keyboardProgress.value
+    );
     const conversationKeyboardListProps =
-      useConversationKeyboardListProps(composerContentInset);
+      useConversationKeyboardListProps(listComposerInset);
     const {
       register: registerConversationComposerHeight,
       registerSend: registerComposerSend,
     } = useConversationComposerHeight();
     const postsWithNeighborsRef = React.useRef(postsWithNeighbors);
     const scrollViewNativeID = useConversationScrollViewNativeID();
-    const insets = useSafeAreaInsets();
+    const bottomInset = useConversationBottomInset();
     const reduceMotion = useReducedMotion();
     const collectionLayout = React.useMemo(
       () => layoutForType(collectionLayoutType),
       [collectionLayoutType]
     );
+    const pendingComposerCollapsibleInset = React.useRef(0);
     const applyConversationComposerHeight = React.useCallback(
       (height: number) => {
         // KeyboardAwareLegendList owns inset reporting, including the keyboard
         // height. This shared value only supplies the composer's contribution.
         composerContentInset.set(height);
+        composerCollapsibleInset.set(pendingComposerCollapsibleInset.current);
       },
-      [composerContentInset]
+      [composerContentInset, composerCollapsibleInset]
     );
     const {
       active: composerSendActive,
       begin: beginComposerSend,
       finish: finishComposerSend,
       isActive: isComposerSendActive,
-      reportHeight: reportConversationComposerHeight,
+      reportHeight: reportComposerSendHeight,
       cancelFollowing: cancelComposerSendFollowing,
     } = useComposerSendTransition(
       listRef,
@@ -595,10 +611,17 @@ const ConversationPostListAttempt = React.forwardRef<
       !reduceMotion,
       !nativeFollowsEnd
     );
+    const reportConversationComposerHeight = React.useCallback(
+      (height: number, collapsibleInset = 0) => {
+        pendingComposerCollapsibleInset.current = collapsibleInset;
+        reportComposerSendHeight(height);
+      },
+      [reportComposerSendHeight]
+    );
     const renderDockedConversationScrollView = useDockedConversationScrollView(
       listRef,
       composerSendActive ? 'never' : 'whenAtEnd',
-      insets.bottom
+      bottomInset
     );
     React.useLayoutEffect(
       () =>
@@ -938,7 +961,7 @@ const ConversationPostListAttempt = React.forwardRef<
               keyboardLiftBehavior: composerSendActive
                 ? ('never' as const)
                 : ('whenAtEnd' as const),
-              keyboardOffset: insets.bottom,
+              keyboardOffset: bottomInset,
             })}
         // A docked list ends above the composer. The legacy iOS keyboard
         // wrapper supplies its own indicator clearance.
@@ -948,7 +971,7 @@ const ConversationPostListAttempt = React.forwardRef<
             ? overlayHeight
             : Platform.OS === 'ios'
               ? 0
-              : insets.bottom,
+              : bottomInset,
         }}
         automaticallyAdjustsScrollIndicatorInsets={false}
         scrollEnabled={scrollEnabled}

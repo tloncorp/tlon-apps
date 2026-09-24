@@ -1,5 +1,6 @@
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import NetInfo from '@react-native-community/netinfo';
+import NetInfo, { useNetInfo } from '@react-native-community/netinfo';
+import { useShip } from '@tloncorp/app/contexts/ship';
 import {
   AppStatus,
   useAppStatusChange,
@@ -20,21 +21,31 @@ import {
   markPushNotifTapSyncSinceComplete,
 } from '@tloncorp/app/lib/pushNotifTapTelemetry';
 import { recoverTlonbotRevivalDeferredConfig } from '@tloncorp/app/lib/tlonbotRevivalDeferredConfig';
+import { DeskOutdatedScreen } from '@tloncorp/app/features/DeskOutdatedScreen';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import {
   ForwardPostSheetProvider,
+  LoadingSpinner,
   ZStack,
   useWebAppSplash,
 } from '@tloncorp/app/ui';
 import {
+  createDevLogger,
   observeSyncSinceCompletion,
   sync,
   syncSince,
   updateSession,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { useCallback, useEffect, useState } from 'react';
+import * as store from '@tloncorp/shared/store';
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 
 import { checkAnalyticsDigest, useCheckAppUpdated } from '../hooks/analytics';
 import { useAutomatedTestDbCommands } from '../hooks/useAutomatedTestDbCommands';
@@ -45,18 +56,113 @@ import useNotificationListener from '../hooks/useNotificationListener';
 import { usePoorUxShakeReport } from '../hooks/usePoorUxShakeReport';
 import { useSyncAppBadge } from '../hooks/useSyncAppBadge';
 import { useSyncReactionCapability } from '../hooks/useSyncReactionCapability';
+import { useRecaptcha } from '../hooks/useRecaptcha';
 import { inviteSystemContacts } from '../lib/contactsHelpers';
-import { refreshHostingAuth } from '../lib/hostingAuth';
+import { setActiveNotificationRoute } from '../lib/notificationPresentation';
+import {
+  clearHostingNativeCookie,
+  refreshHostingAuth,
+  selectRecaptchaPlatform,
+} from '../lib/hostingAuth';
+import { HostingAuthReconnectScreen } from '../screens/HostingAuthReconnectScreen';
 import { AutomatedTestSyncScreen } from '../screens/e2e/AutomatedTestSyncScreen';
 import { ShareIntentForwardSheetProvider } from './ShareIntentForwardSheetProvider';
 import { useTlonbotRevivalPrompt } from './TlonbotRevivalPromptSheet';
 
 const ABANDONED_FLUSH_TIMEOUT_MS = 300;
+const hostingAuthLogger = createDevLogger('hosting auth guard', true);
 
-function AuthenticatedApp() {
+// Prefetch posts for the chat list, once per login. Runs after sync start —
+// including a sync start that only succeeded on a desk-compatibility retry,
+// where the first attempt returned as a gated no-op. The sync size depends on
+// the connection, which is why this lives here rather than in shared sync.
+async function syncInitialPostsIfNeeded() {
+  if (await db.didSyncInitialPosts.getValue()) {
+    return;
+  }
+
+  const net = await NetInfo.fetch();
+  const syncSize =
+    net.isConnected &&
+    (net.type === 'wifi' ||
+      (net.type === 'cellular' &&
+        ['4g', '5g'].includes(net.details.cellularGeneration ?? '')))
+      ? 'heavy'
+      : 'light';
+  sync.syncInitialPosts({ syncSize });
+}
+
+type RequireHostingAuth = (options?: { force?: boolean }) => Promise<boolean>;
+
+function useRequireHostingAuth(
+  onHostingAuthExpired: () => void | Promise<void>
+): RequireHostingAuth {
+  const { authType } = useShip();
+  const expirationReported = useRef(false);
+  const checkInFlight = useRef<Promise<boolean> | null>(null);
+
+  return useCallback(
+    async (options = {}) => {
+      if (checkInFlight.current) {
+        const result = await checkInFlight.current;
+        if (!options.force) {
+          return result;
+        }
+      }
+
+      const check = (async () => {
+        const result = await refreshHostingAuth({
+          ...options,
+          authType,
+        }).catch((error) => {
+          hostingAuthLogger.trackError('Failed to check hosting auth', {
+            error,
+          });
+          return 'unknown' as const;
+        });
+        if (result !== 'expired') {
+          expirationReported.current = false;
+          return true;
+        }
+
+        if (!expirationReported.current) {
+          expirationReported.current = true;
+          hostingAuthLogger.trackEvent('Hosting Reconnect Required', {
+            authType,
+          });
+        }
+        await onHostingAuthExpired();
+        return false;
+      })();
+
+      checkInFlight.current = check;
+      try {
+        return await check;
+      } finally {
+        if (checkInFlight.current === check) {
+          checkInFlight.current = null;
+        }
+      }
+    },
+    [authType, onHostingAuthExpired]
+  );
+}
+
+function AuthenticatedApp({
+  onLogout,
+  requireHostingAuth,
+}: {
+  onLogout: () => void | Promise<void>;
+  requireHostingAuth: RequireHostingAuth;
+}) {
   const telemetry = useTelemetry();
+  const deskCompat = store.useDeskCompatibility();
+  // Same field refreshHostingAuth keys off, and the same reading of it: only an
+  // explicit 'hosted' login is one Tlon updates on the user's behalf.
+  const { contactId, authType } = useShip();
   const checkNodeStopped = useCheckNodeStopped();
-  const { maybeShowPrompt, promptSheet } = useTlonbotRevivalPrompt();
+  const { maybeShowPrompt, promptSheet } =
+    useTlonbotRevivalPrompt(requireHostingAuth);
   const { splashSheet: webAppSplashSheet } = useWebAppSplash();
   useNotificationListener();
   useUpdatePresentedNotifications();
@@ -72,6 +178,7 @@ function AuthenticatedApp() {
 
   const handleAppStatusChange = useCallback(
     async (status: AppStatus) => {
+      let gated = false;
       if (status === 'inactive' || status === 'background') {
         const didAbandonChatList = markChatListMeasurementAbandoned(status);
         const didAbandonPushNotif =
@@ -92,18 +199,36 @@ function AuthenticatedApp() {
 
       // app opened or returned from background
       if (status === 'opened' || status === 'active') {
+        if (!(await requireHostingAuth())) {
+          return;
+        }
+
+        // Read live rather than from render state, so a gate that arrives
+        // mid-session is respected. Everything that would talk to the desk is
+        // skipped while it's up — including on 'opened', which fires as soon as
+        // the notice mounts. Node status still has to be checked: a paused or
+        // suspended host has to kick back to onboarding from here.
+        gated = store.isDeskGated(store.getSession()?.deskCompat);
+
         startChatListSettleMeasurement(status);
-        recoverTlonbotRevivalDeferredConfig(status).catch(() => {});
+        if (!gated) {
+          // Furnishes a group and pushes profile/bot config to the host.
+          recoverTlonbotRevivalDeferredConfig(status).catch(() => {});
+        }
+        // Local only: reads the native background cache into the db.
         await checkForCachedChanges();
         telemetry.captureAppActive();
         const nodeCheck = await checkNodeStopped();
         await maybeShowPrompt(nodeCheck);
-        refreshHostingAuth();
         checkAnalyticsDigest();
       }
 
       // app returned from background
       if (status === 'active') {
+        if (gated) {
+          // syncSince would fail the same way startup did.
+          return;
+        }
         updateSession({ isSyncing: true });
         syncSince({ callCtx: { cause: 'app-foregrounded' } })
           .catch(() => {})
@@ -112,10 +237,18 @@ function AuthenticatedApp() {
           });
       }
     },
-    [checkForCachedChanges, checkNodeStopped, maybeShowPrompt, telemetry]
+    [
+      checkForCachedChanges,
+      checkNodeStopped,
+      maybeShowPrompt,
+      requireHostingAuth,
+      telemetry,
+    ]
   );
 
   useAppStatusChange(handleAppStatusChange);
+
+  useEffect(() => () => setActiveNotificationRoute(undefined), []);
 
   // track sync completion for telemetry
   useEffect(() => {
@@ -146,48 +279,126 @@ function AuthenticatedApp() {
     db.nodeStoppedWhileLoggedIn.setValue(false);
   }, []);
 
+  // The desk gate skips the desk-dependent half of the 'opened' callback, and
+  // clearing it — by Try again or by an automatic recovery — raises no
+  // app-status event of its own, so deferred config would sit unapplied until
+  // the next foreground.
+  const wasDeskGated = useRef(false);
+  useEffect(() => {
+    if (store.isDeskGated(deskCompat)) {
+      wasDeskGated.current = true;
+      return;
+    }
+    if (deskCompat?.status === 'ok' && wasDeskGated.current) {
+      wasDeskGated.current = false;
+      recoverTlonbotRevivalDeferredConfig('desk_gate_cleared').catch(() => {});
+    }
+  }, [deskCompat]);
+
+  const handleRetryDeskCompatibility = useCallback(() => {
+    sync
+      .retryDeskCompatibility({ onRecovered: syncInitialPostsIfNeeded })
+      .catch(() => {});
+  }, []);
+
   return (
     <ZStack flex={1}>
-      <RootStack />
+      {store.shouldShowDeskNotice(deskCompat) ? (
+        // In place of the navigator rather than around it, so the node-stopped
+        // and app-status handling above stays mounted: a paused or suspended
+        // hosted node still kicks back to onboarding while this is up.
+        <DeskOutdatedScreen
+          currentVersion={deskCompat.current}
+          minimumVersion={deskCompat.minimum}
+          shipName={contactId ?? undefined}
+          isProbing={deskCompat.status === 'probing'}
+          isHosted={authType === 'hosted'}
+          onRetry={handleRetryDeskCompatibility}
+          onLogout={onLogout}
+        />
+      ) : (
+        <RootStack />
+      )}
       {AUTOMATED_TEST && <AutomatedTestSyncScreen />}
+      {/* Shake-triggered, so it can't cover the notice on its own; someone who
+          shakes the phone at a broken-looking screen wants the bug reporter. */}
       {poorUxReportModal}
-      {promptSheet}
-      {webAppSplashSheet}
+      {/* Both open themselves — the revival prompt from the app-status
+          callback, the web-app splash from its own mount effect — so they'd
+          cover the notice, and the prompt leads into an onboarding flow this
+          desk can't serve. Same gate as the onboarding overlay below. */}
+      {deskCompat?.status === 'ok' ? promptSheet : null}
+      {deskCompat?.status === 'ok' ? webAppSplashSheet : null}
     </ZStack>
   );
 }
 
-export default function ConnectedAuthenticatedApp() {
-  const [clientReady, setClientReady] = useState(false);
+function useInitializeAuthenticatedSession() {
   const configureClient = useConfigureUrbitClient();
+  const initialization = useRef<Promise<void> | null>(null);
 
-  useEffect(() => {
-    async function setup() {
-      configureClient();
-      // we store a flag to ensure this runs only once per login, not anytime
-      // the app is opened
-      const didSyncInitialPosts = await db.didSyncInitialPosts.getValue();
+  return useCallback(() => {
+    // The gate outlives its content. Reconnecting must reuse the live client's
+    // subscriptions instead of running a second cold sync after the remount.
+    if (initialization.current) {
+      return initialization.current;
+    }
+    configureClient();
+    // syncInitialPostsIfNeeded checks the once-per-login flag itself; reading
+    // it here holds the spinner until storage is readable.
+    initialization.current = db.didSyncInitialPosts.getValue().then(() => {
       sync
         .syncStart()
-        .then(async () => {
-          if (!didSyncInitialPosts) {
-            const net = await NetInfo.fetch();
-            const syncSize =
-              net.isConnected &&
-              (net.type === 'wifi' ||
-                (net.type === 'cellular' &&
-                  ['4g', '5g'].includes(net.details.cellularGeneration ?? '')))
-                ? 'heavy'
-                : 'light';
-            sync.syncInitialPosts({ syncSize });
+        .then((outcome) => {
+          // A gated start stopped before the paths this prefetch needs, and an
+          // abandoned one belongs to a login that's already gone. 'busy' is
+          // another start holding the lock, which is no reason to skip.
+          if (outcome === 'gated' || outcome === 'abandoned') {
+            return;
           }
+          return syncInitialPostsIfNeeded();
         })
         .catch(() => {});
-
-      setClientReady(true);
-    }
-    setup();
+    });
+    return initialization.current;
   }, [configureClient]);
+}
+
+function AuthenticatedAppContent({
+  onLogout,
+  requireHostingAuth,
+  initializeSession,
+}: {
+  onLogout: () => void | Promise<void>;
+  requireHostingAuth: RequireHostingAuth;
+  initializeSession: () => Promise<void>;
+}) {
+  const [clientReady, setClientReady] = useState(false);
+  const deskCompat = store.useDeskCompatibility();
+  // Hold the spinner until the cold-start probe reports, rather than flashing
+  // the app on ahead of the notice. Bounded by the probe's own timeout.
+  const isProbingColdStart = store.isDeskProbePending(deskCompat);
+
+  useEffect(() => {
+    let canceled = false;
+    initializeSession().then(() => {
+      if (!canceled) {
+        setClientReady(true);
+      }
+    });
+
+    return () => {
+      canceled = true;
+    };
+  }, [initializeSession]);
+
+  if (!clientReady || isProbingColdStart) {
+    return (
+      <ZStack flex={1} alignItems="center" justifyContent="center">
+        <LoadingSpinner />
+      </ZStack>
+    );
+  }
 
   return (
     <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
@@ -199,11 +410,168 @@ export default function ConnectedAuthenticatedApp() {
       */}
       <BottomSheetModalProvider>
         <ForwardPostSheetProvider>
-          <ShareIntentForwardSheetProvider enabled={clientReady}>
-            {clientReady && <AuthenticatedApp />}
+          <ShareIntentForwardSheetProvider enabled>
+            <AuthenticatedApp
+              onLogout={onLogout}
+              requireHostingAuth={requireHostingAuth}
+            />
           </ShareIntentForwardSheetProvider>
         </ForwardPostSheetProvider>
       </BottomSheetModalProvider>
     </AppDataProvider>
+  );
+}
+
+export default function ConnectedAuthenticatedApp({
+  connected,
+  onLogout,
+  authenticatedContent,
+  authenticatedOverlay,
+}: {
+  connected: boolean;
+  onLogout: () => void | Promise<void>;
+  authenticatedContent?: ReactNode;
+  authenticatedOverlay?: ReactNode;
+}) {
+  const { isInternetReachable } = useNetInfo();
+  const [hostingAuthState, setHostingAuthState] = useState<
+    'checking' | 'valid' | 'expired'
+  >('checking');
+  const [authAttempt, setAuthAttempt] = useState(0);
+  const [checkedConnection, setCheckedConnection] = useState(false);
+  if (!connected && checkedConnection) {
+    setCheckedConnection(false);
+  }
+  const [profile, setProfile] = useState<db.Contact | null>(null);
+  const { contactId, authType } = useShip();
+  const deskCompat = store.useDeskCompatibility();
+  const hostingAuthExpired = db.hostingAuthExpired.useValue();
+  const needsHostingReconnect =
+    hostingAuthState === 'expired' ||
+    (authType === 'hosted' && hostingAuthExpired);
+  const initializeSession = useInitializeAuthenticatedSession();
+  const { getToken: getRecaptchaToken } = useRecaptcha(needsHostingReconnect);
+  const handleHostingAuthExpired = useCallback(() => {
+    setHostingAuthState('expired');
+  }, []);
+  const requireHostingAuth = useRequireHostingAuth(handleHostingAuthExpired);
+
+  const handleGateAppStatusChange = useCallback(
+    async (status: AppStatus) => {
+      if (status === 'active') {
+        await requireHostingAuth();
+      }
+    },
+    [requireHostingAuth]
+  );
+  useAppStatusChange(handleGateAppStatusChange);
+
+  useEffect(() => {
+    let canceled = false;
+    if (!contactId) {
+      return;
+    }
+
+    db.getContact({ id: contactId })
+      .then((contact) => {
+        if (!canceled) {
+          setProfile(contact);
+        }
+      })
+      .catch((error) => {
+        hostingAuthLogger.trackError(
+          'Failed to load profile for Hosting reconnect',
+          { error }
+        );
+      });
+
+    return () => {
+      canceled = true;
+    };
+  }, [contactId]);
+
+  const requestReconnectCode = useCallback(async () => {
+    const recaptchaToken = await getRecaptchaToken('request_otp');
+    return store.requestHostingAuthReconnectCode({
+      recaptchaToken,
+      platform: selectRecaptchaPlatform(),
+    });
+  }, [getRecaptchaToken]);
+
+  const verifyReconnectCode = useCallback(async (otp: string) => {
+    await store.confirmHostingAuthReconnectCode(otp);
+    await clearHostingNativeCookie();
+    hostingAuthLogger.trackEvent('Hosting Reconnect Succeeded');
+    setHostingAuthState('checking');
+    setAuthAttempt((attempt) => attempt + 1);
+  }, []);
+
+  useEffect(() => {
+    let canceled = false;
+
+    if (!connected) {
+      return;
+    }
+
+    async function setup() {
+      hostingAuthLogger.log('Starting authenticated app', {
+        authAttempt,
+        isInternetReachable,
+      });
+      if (!(await requireHostingAuth({ force: true })) || canceled) {
+        return;
+      }
+
+      setCheckedConnection(true);
+      setHostingAuthState('valid');
+    }
+    setup();
+
+    return () => {
+      canceled = true;
+    };
+  }, [authAttempt, connected, isInternetReachable, requireHostingAuth]);
+
+  if (needsHostingReconnect) {
+    return (
+      <HostingAuthReconnectScreen
+        profileId={contactId ?? ''}
+        profile={profile}
+        onRequestCode={requestReconnectCode}
+        onVerifyCode={verifyReconnectCode}
+        onLogout={onLogout}
+      />
+    );
+  }
+
+  if (!connected && authenticatedContent !== undefined) {
+    return authenticatedContent;
+  }
+
+  if (hostingAuthState === 'checking' || !checkedConnection) {
+    return (
+      <ZStack flex={1} alignItems="center" justifyContent="center">
+        <LoadingSpinner />
+      </ZStack>
+    );
+  }
+
+  if (authenticatedContent !== undefined) {
+    return authenticatedContent;
+  }
+
+  return (
+    <ZStack flex={1}>
+      <AuthenticatedAppContent
+        onLogout={onLogout}
+        requireHostingAuth={requireHostingAuth}
+        initializeSession={initializeSession}
+      />
+      {/* Only once the desk is known good. The overlay is opaque and
+          full-screen, so it would bury the notice — and the spinner that
+          precedes it — and its onboarding sequence starts furnishing a group
+          straight away, which an incompatible desk can't serve. */}
+      {deskCompat?.status === 'ok' ? authenticatedOverlay : null}
+    </ZStack>
   );
 }

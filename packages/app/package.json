@@ -46,6 +46,7 @@
     "expo-modules-core": "*",
     "expo-notifications": "*",
     "expo-splash-screen": "*",
+    "expo-web-browser": "*",
     "lodash": "^4.17.21",
     "@simform_solutions/react-native-audio-waveform": "*",
     "react-native-device-info": "*",

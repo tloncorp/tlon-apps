@@ -4,7 +4,9 @@ import * as fs from 'fs';
 import fetch from 'node-fetch';
 import * as path from 'path';
 
+import { loadEnvTest } from './envTest';
 import { Ship } from './index';
+import { shouldIncludeShip } from './shipSelection';
 
 interface WebServer {
   ship: string;
@@ -18,6 +20,11 @@ let rubeProcess: childProcess.ChildProcess | null = null;
 let webServers: WebServer[] = [];
 let isShuttingDown = false;
 
+// The rube child this harness spawns loads .env.test and decides its ship
+// selection from it. Load the same file here, or the two disagree and the
+// harness waits forever on a dev server for a ship rube never booted.
+loadEnvTest(__dirname);
+
 // Load ship manifest
 const manifestPath = path.join(
   __dirname,
@@ -29,6 +36,20 @@ const manifestPath = path.join(
 const shipManifest: Record<string, Ship> = JSON.parse(
   fs.readFileSync(manifestPath, 'utf8')
 );
+
+// Only the ships this run selects — same predicate index.ts's getShips()
+// filters through. Sweeping every manifest ship's ports would also hit ships
+// this run never boots (e.g. ~bud when N1_SHIP is unset).
+const selectedShips = Object.values(shipManifest).filter(shouldIncludeShip);
+
+// rube always runs compiled (see rube/compile-rube.sh + rube-runner.sh:
+// `node ./rube/dist/index.js`), never via tsx against the source in rube/, so
+// __dirname is this checkout's rube/dist directory at runtime, same as in
+// index.ts. Every worktree's pier path contains the same "rube/dist"
+// substring, so process cleanup below matches on this absolute path (with a
+// trailing slash) instead of that bare substring, to avoid killing a pier
+// build or run in another worktree.
+const rubeDistDir = __dirname;
 
 // Handle cleanup on exit - make synchronous for reliability
 process.on('SIGINT', () => {
@@ -90,8 +111,9 @@ function cleanup() {
   // CRITICAL: Use pattern-based killing to clean up all Urbit processes
   // This is necessary because Urbit spawns serf sub-processes that aren't tracked
   try {
-    // Kill all Urbit processes matching our rube pattern
-    const killUrbitCmd = `ps aux | grep urbit | grep "rube/dist" | grep -v grep | awk '{print $2}' | while read pid; do kill -9 $pid 2>/dev/null; done`;
+    // Kill all Urbit processes matching our rube pattern, scoped to this
+    // workspace's rube/dist (see the comment on `rubeDistDir` above).
+    const killUrbitCmd = `ps aux | grep urbit | grep -F "${rubeDistDir}/" | grep -v grep | awk '{print $2}' | while read pid; do kill -9 $pid 2>/dev/null; done`;
     childProcess.execSync(killUrbitCmd, { stdio: 'ignore' });
 
     // Also kill any Vite dev server processes
@@ -103,7 +125,7 @@ function cleanup() {
 
   // Additional cleanup - kill any remaining processes on our ports (synchronous)
   const ports: string[] = [];
-  Object.values(shipManifest).forEach((ship: Ship) => {
+  selectedShips.forEach((ship: Ship) => {
     ports.push(ship.httpPort);
     const webUrlMatch = ship.webUrl.match(/:(\d+)$/);
     if (webUrlMatch) {
@@ -204,7 +226,7 @@ async function startWebServers(): Promise<void> {
 
   // Create web server configurations from ship manifest
   webServers = Object.entries(shipManifest)
-    .filter(([, ship]: [string, Ship]) => !ship.skipSetup)
+    .filter(([, ship]: [string, Ship]) => shouldIncludeShip(ship))
     .map(([key, ship]: [string, Ship]) => ({
       ship: key,
       port: extractPortFromWebUrl(ship.webUrl),

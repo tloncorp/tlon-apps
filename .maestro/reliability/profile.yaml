@@ -18,7 +18,7 @@ onFlowComplete:
                     notVisible:
                       id: ContactEditButton
                   commands:
-                    - runFlow: subflows/contacts-tab.yaml
+                    - runFlow: subflows/contacts-screen.yaml
                     - tapOn: '^You$'
               - tapOn:
                   id: ContactEditButton
@@ -37,11 +37,11 @@ onFlowComplete:
         - tapOn: '^Save$'
         - tapOn: '^Back$'
         - assertNotVisible: ${MAESTRO_RUN_TAG + ' profile'}
-        - runFlow: subflows/home-tab.yaml
+        - runFlow: subflows/workspaces-tab.yaml
 ---
 - runScript: data.js
 - runFlow: subflows/begin.yaml
-- runFlow: subflows/contacts-tab.yaml
+- runFlow: subflows/contacts-screen.yaml
 - tapOn: '^You$'
 - tapOn:
     id: ContactEditButton
@@ -65,15 +65,17 @@ onFlowComplete:
     leftOf: '^You$'
 - stopApp
 - launchApp
+# The app restores the position it was closed in, so Contacts comes back
+# directly rather than the chat list. Its header is up long before the rows
+# are, which arrive with the contact data, so wait for the row itself.
+- extendedWaitUntil:
+    visible: '^Contacts$'
+    timeout: 30000
 - extendedWaitUntil:
     visible:
-      id: ScreenHeaderTitle
-      text: '^Home$'
-    timeout: 5000
-- runFlow: subflows/contacts-tab.yaml
-- assertVisible:
-    text: ${MAESTRO_RUN_TAG + ' profile'}
-    leftOf: '^You$'
+      text: ${MAESTRO_RUN_TAG + ' profile'}
+      leftOf: '^You$'
+    timeout: 60000
 - tapOn: '^You$'
 - tapOn:
     id: ContactEditButton

@@ -49,6 +49,10 @@ Local patches:
 - `patches/@react-navigation__bottom-tabs@7.18.14.patch`
 - `patches/react-native-screens@4.25.2.patch`
 
+The react-native-screens patch carries three independent fixes.
+
+### 1. Full-color Android tab icons
+
 Why:
 Android native tabs tint every image icon with the navigation bar's active or
 inactive color. That is correct for our monochrome Home and Activity assets,
@@ -77,6 +81,86 @@ Validation:
 Removal:
 Remove both patches together once React Navigation and react-native-screens
 ship Android support for untinted native-tab image icons.
+
+### 2. Android header children retained during screen removal
+
+Why:
+During an Android screen removal transition, `startViewTransition` keeps a
+removed header child attached to its toolbar until the matching
+`endViewTransition` call. The existing cleanup walks the current child tree,
+so it misses children already removed from that tree. A concurrent header
+update can then try to add the retained child again and crash with `The
+specified child already has a parent` in `ScreenStackHeaderConfig.onUpdate`.
+
+What it does:
+Records every parent-child transition pair when removal starts and finishes
+those pairs in reverse order, including children no longer present in the
+current view tree. Descendant transitions finish before the fragment root is
+detached. Header rebuilds are also skipped while the owning screen, or an
+ancestor screen, is being removed.
+
+Upstream:
+- issue: [software-mansion/react-native-screens#3249](https://github.com/software-mansion/react-native-screens/issues/3249)
+- candidate fix: [software-mansion/react-native-screens#3777](https://github.com/software-mansion/react-native-screens/pull/3777)
+- Linear: `TLON-6547`
+
+Validation:
+- Build and launch Android `productionDebug` on a physical device.
+- Start a removal transition for a screen with a custom header child, remove
+  that child from the toolbar, and finish the transition. The child's parent
+  must be null and adding it back to the toolbar must not throw.
+- The TLON-6547 device probe reproduced the exception before the patch and
+  passed after it on a Pixel 7a running Android 17.
+
+Removal:
+Drop this hunk once the pinned react-native-screens release includes the
+transition cleanup and removal guard from #3777 or an equivalent upstream fix.
+
+### 3. Tab bar badges as a dot beneath the icon
+
+Why:
+The Bot and Activity tabs mark unread with a blank badge (`tabBarBadge: ' '`).
+Natively that is a large pill over the icon's top-end corner: UIKit's empty
+badge on iOS, a Material text badge on Android. The design is a small round
+dot beneath the icon, like the web nav bar's, without moving the icons.
+
+What it does:
+- Android: a blank badge becomes Material's text-less dot (`m3_badge_size`,
+  6dp), offset to sit centred 2dp beneath the icon. The offsets come from the
+  bar's `itemIconSize`, so the icon view is untouched.
+- iOS 26 and later: UIKit pads a badge's text by a fixed amount, so the badge
+  cannot shrink below about 8pt. A blank badge instead draws a U+25CF glyph
+  in the badge colour, at 8pt on a clear badge. That gives a 6pt dot, and a
+  `badgePositionAdjustment` centres it 2pt beneath the 24pt icon. The tab bar
+  draws every badge with the selected item's appearance, so the style goes on
+  every item. It applies only while every badge on the bar is blank: a bar
+  that also shows a text or number badge keeps UIKit's pills throughout.
+- iOS before 26 is unchanged, because its badge anchoring differs and it could
+  not be verified here.
+
+The iOS offset was measured on iOS 26.5, where a positive horizontal
+adjustment moves the badge towards the icon. It assumes the 24pt icons in
+`packages/app/navigation/assets`. In the bar's minimised state, UIKit anchors
+the badge to a shorter button, so the dot sits about 3pt lower there.
+
+Upstream:
+- react-native-screens 4.25.2 has no badge size, shape or position options
+  for native tabs.
+- Linear: `TLON-6649`
+
+Validation:
+- Rebuild iOS and Android so the native patch is compiled in.
+- Light both badges (an unread bot DM, unseen activity) and select a third
+  tab. Each dot should be blue, round, about 6pt/dp, and centred beneath its
+  icon. Select a badged tab: its dot keeps the same colour and position.
+- The icons must not move: compare the tab bar against a build without the
+  patch.
+- Give one tab a numeric badge. On iOS 26 every badge on the bar returns to
+  UIKit's pill.
+
+Removal:
+Drop these hunks if react-native-screens gains native badge styling that can
+draw a small dot beneath the icon, or if the tab bar stops using blank badges.
 
 ## @gorhom/bottom-sheet@5.2.14
 

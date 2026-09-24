@@ -33,7 +33,16 @@ export default function PostScreen(props: Props) {
   useEffect(() => {
     // if we don't already have the post in the DB, make sure we sync it
     if (!post && !isLoading) {
-      store.syncThreadPosts({ postId, authorId, channelId });
+      store
+        .syncThreadPosts({
+          postId,
+          authorId,
+          channelId,
+          trigger: 'missing_parent',
+        })
+        .catch(() => {
+          // The fetch records its outcome even when the parent never reaches the DB.
+        });
     }
   }, [post, isLoading, postId, authorId, channelId]);
 

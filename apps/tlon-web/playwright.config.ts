@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 import shipManifest from './e2e/shipManifest.json';
+import { shouldIncludeShip } from './rube/shipSelection';
 
 /**
  * @see https://playwright.dev/docs/test-configuration
@@ -10,16 +11,8 @@ const shard = process.env.SHARD ? parseInt(process.env.SHARD, 10) : undefined;
 const totalShards = process.env.TOTAL_SHARDS
   ? parseInt(process.env.TOTAL_SHARDS, 10)
   : undefined;
-const INCLUDE_OPTIONAL_SHIPS = process.env.INCLUDE_OPTIONAL_SHIPS === 'true';
-
 const webServers = Object.entries(shipManifest)
-  .filter(([, ship]: [string, any]) => {
-    // Skip if marked as skipSetup
-    if (ship.skipSetup) return false;
-    // Skip optional ships unless explicitly included
-    if (ship.optional && !INCLUDE_OPTIONAL_SHIPS) return false;
-    return true;
-  })
+  .filter(([, ship]: [string, any]) => shouldIncludeShip(ship))
   .map(([key, ship]: [string, any]) => {
     const port = parseInt(ship.webUrl.match(/:(\d+)/)?.[1] || '3000', 10);
     return {

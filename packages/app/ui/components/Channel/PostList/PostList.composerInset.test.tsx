@@ -9,6 +9,8 @@ const state = vi.hoisted(() => ({
   platform: 'ios',
   docked: false,
   floating: false,
+  bottomInset: 34,
+  keyboardProgress: { value: 0 },
   setFloating: vi.fn(),
   positionHandler: undefined as
     | undefined
@@ -20,14 +22,16 @@ const state = vi.hoisted(() => ({
   listProps: {} as Record<string, unknown>,
   geometry: { contentLength: 1200, scroll: 700, scrollLength: 500 },
   resizeScrolls: [] as { animated: boolean }[],
-  heightHandler: undefined as undefined | ((height: number) => void),
+  heightHandler: undefined as
+    | undefined
+    | ((height: number, collapsibleInset?: number) => void),
   sendHandler: undefined as
     | undefined
     | { begin: () => void; finish: () => void },
   inset: 390,
   composerInset: undefined as undefined | { value: number },
   nativeScrolls: [] as number[],
-  register: (handler: (height: number) => void) => {
+  register: (handler: (height: number, collapsibleInset?: number) => void) => {
     state.heightHandler = handler;
     return () => {};
   },
@@ -66,6 +70,7 @@ vi.mock('../../../contexts/scroll', () => ({
   },
 }));
 vi.mock('../ConversationLayout', () => ({
+  useConversationBottomInset: () => state.bottomInset,
   useIsConversationDocked: () => state.docked,
   useConversationComposerLayout: () => ({
     floating: state.floating,
@@ -86,6 +91,11 @@ vi.mock('react-native-reanimated', async () => {
   return {
     default: { ScrollView: 'AnimatedScrollView' },
     useReducedMotion: () => false,
+    useDerivedValue: (compute: () => number) => ({
+      get value() {
+        return compute();
+      },
+    }),
     useSharedValue: (initial: number) =>
       useRef({
         value: initial,
@@ -97,6 +107,7 @@ vi.mock('react-native-reanimated', async () => {
 });
 vi.mock('react-native-keyboard-controller', () => ({
   KeyboardChatScrollView: () => null,
+  useReanimatedKeyboardAnimation: () => ({ progress: state.keyboardProgress }),
 }));
 vi.mock('@legendapp/list/keyboard', async () => {
   const { forwardRef, useImperativeHandle } = await import('react');
@@ -142,6 +153,8 @@ beforeEach(() => {
   state.platform = 'ios';
   state.docked = false;
   state.floating = false;
+  state.bottomInset = 34;
+  state.keyboardProgress.value = 0;
   state.setFloating.mockClear();
   state.positionHandler = undefined;
   state.listProps = {};
@@ -202,6 +215,37 @@ function tick() {
 }
 
 describe('conversation composer and keyboard insets', () => {
+  it('collapses tab clearance with the keyboard and preserves it across a send', () => {
+    mount();
+    act(() => state.heightHandler?.(180, 58));
+    expect(state.composerInset?.value).toBe(180);
+    state.keyboardProgress.value = 0.5;
+    expect(state.composerInset?.value).toBe(151);
+    state.keyboardProgress.value = 1;
+    expect(state.composerInset?.value).toBe(122);
+    act(() => state.sendHandler?.begin());
+    act(() => state.heightHandler?.(140, 58));
+    expect(state.composerInset?.value).toBe(122);
+    state.sendHandler?.finish();
+    tick();
+    expect(state.composerInset?.value).toBe(82);
+    state.inset = 300 + 82;
+    tick();
+    expect(state.nativeScrolls).toEqual([782]);
+    state.keyboardProgress.value = 0;
+    expect(state.composerInset?.value).toBe(140);
+  });
+
+  it('shares the docked tab clearance with the native iOS keyboard scroll view', () => {
+    state.docked = true;
+    state.bottomInset = 92;
+    mount();
+    const renderScrollComponent = state.listProps.renderScrollComponent as (
+      props: Record<string, unknown>
+    ) => React.ReactElement<{ offset: number }>;
+    expect(renderScrollComponent({}).props.offset).toBe(92);
+  });
+
   it('keeps the keyboard in the end target when a single-line send retains the same height', () => {
     mount();
     act(() => state.heightHandler?.(90));
