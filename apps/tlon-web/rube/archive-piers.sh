@@ -1187,7 +1187,17 @@ main() {
         archived_files+=("$archive_path")
 
         # Upload to GCS with transaction tracking
-        if upload_archive "$archive_path"; then
+        if [ "$SKIP_UPLOAD" = "true" ]; then
+            # upload_archive is a no-op under SKIP_UPLOAD=true (it prints a
+            # warning and returns success), so the manifest and Dockerfile
+            # updates below must be skipped too -- otherwise they'd point
+            # ~$ship's downloadUrl at an object that was never uploaded.
+            upload_archive "$archive_path"
+            print_warning "SKIP_UPLOAD is set: not updating manifest or Dockerfile for $ship"
+            print_info "After uploading $(basename "$archive_path"), set these by hand in $MANIFEST_FILE:"
+            echo "  - ~$ship.deskVersion"
+            echo "  - ~$ship.downloadUrl -> https://bootstrap.urbit.org/rube-${ship}${next_version}.tgz"
+        elif upload_archive "$archive_path"; then
             uploaded_ships+=("$ship:rube-${ship}${next_version}.tgz")
 
             # Update manifest with rollback on failure
