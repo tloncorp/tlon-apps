@@ -253,7 +253,6 @@
         "packages/api/src/client/changesApi.ts",
         "packages/api/src/client/initApi.ts",
         "packages/api/src/client/inviteApi.ts",
-        "packages/api/src/client/lanyardApi.ts",
         "packages/api/src/client/lensApi.ts",
         "packages/api/src/client/metagrabApi.ts",
         "packages/api/src/client/presenceApi.ts",
