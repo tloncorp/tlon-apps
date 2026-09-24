@@ -9,7 +9,11 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { createBucketsDeps, setReplicaWaitForTests } from './buckets-runtime';
+import {
+  createBucketsDeps,
+  setReplicaWaitForTests,
+  setUploadDestinationPolicyForTests,
+} from './buckets-runtime';
 import { CommandError } from './commands/command';
 import {
   mockedGetBucket,
@@ -79,7 +83,14 @@ function pendingFile(id: number, objectKey: string): BucketsFileEntry {
   };
 }
 
+// The test hostnames do not resolve. Answer them with a public address and
+// keep the real address policy, so the destination check still runs.
+const PUBLIC_ADDRESS = '93.184.216.34';
+
 beforeEach(() => {
+  setUploadDestinationPolicyForTests({
+    resolveHost: async () => [PUBLIC_ADDRESS],
+  });
   process.env.BUCKETS_BROKER_URL = 'https://broker.test/v2/buckets';
   mockedGetBuckets.impl = async () => [];
   mockedGetBucket.impl = async () => null;
@@ -224,9 +235,9 @@ describe('Buckets runtime hardening', () => {
       actions.push(action as BucketsAction);
     };
 
-    await expect(
-      createBucketsDeps().buckets.delete(TARGET, 3)
-    ).rejects.toThrow('Folder 3 is not empty; it holds 1 entry');
+    await expect(createBucketsDeps().buckets.delete(TARGET, 3)).rejects.toThrow(
+      'Folder 3 is not empty; it holds 1 entry'
+    );
     expect(actions).toEqual([]);
   });
 
@@ -411,6 +422,8 @@ describe('Buckets runtime hardening', () => {
     globalThis.fetch = (async (input, init) => {
       const url = String(input);
       if (url === 'https://upload.test/object-mine') {
+        // a redirect would be a second destination nobody checked
+        expect(init?.redirect).toBe('error');
         expect(init?.body).toBeInstanceOf(Blob);
         expect(await (init?.body as Blob).text()).toBe(contents);
         return new Response('', { status: 200 });
@@ -457,6 +470,116 @@ describe('Buckets runtime hardening', () => {
       ).rejects.toThrow(
         'Bucket host did not authorize plan.md: The Bucket host rejected this actor'
       );
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  // The PUT URL comes from the Bucket's host, which is not trusted: a hosted
+  // bot must not be pointed at its own network. A refused destination is a
+  // failure after the grant, so the session is cancelled like any other.
+  describe('refuses an upload destination the host should not choose', () => {
+    const cases: Array<[string, string, string[] | null, string]> = [
+      [
+        'a private address',
+        'https://upload.test/x',
+        ['10.0.0.5'],
+        'private or internal network',
+      ],
+      [
+        'one private address among public ones',
+        'https://upload.test/x',
+        [PUBLIC_ADDRESS, '169.254.169.254'],
+        'private or internal network',
+      ],
+      ['plain http', 'http://upload.test/x', null, 'non-https'],
+      [
+        'credentials in the URL',
+        'https://user:pass@upload.test/x',
+        null,
+        'with credentials',
+      ],
+      [
+        'an internal hostname',
+        'https://metadata.google.internal/x',
+        null,
+        'local upload URL',
+      ],
+      [
+        'a name that does not resolve',
+        'https://upload.test/x',
+        [],
+        'does not resolve',
+      ],
+    ];
+    for (const [label, url, addresses, message] of cases) {
+      it(label, async () => {
+        const directory = mkdtempSync(
+          path.join(tmpdir(), 'tlon-buckets-upload-')
+        );
+        const filePath = path.join(directory, 'plan.md');
+        writeFileSync(filePath, '# Project\n');
+        if (addresses) {
+          setUploadDestinationPolicyForTests({
+            resolveHost: async () => addresses,
+          });
+        }
+        const actions: BucketsAction[] = [];
+        mockedGetBucket.impl = async () => snapshot();
+        mockedRequestBucketsUpload.impl = async () => ({
+          session: 'upload-session',
+          entryId: 12,
+          url,
+          headers: [],
+          expiresAt: '~2026.1.1',
+        });
+        mockedSendBucketsAction.impl = async (action: unknown) => {
+          actions.push(action as BucketsAction);
+        };
+        let putAttempted = false;
+        globalThis.fetch = (async () => {
+          putAttempted = true;
+          return new Response('', { status: 200 });
+        }) as unknown as typeof fetch;
+
+        try {
+          await expect(
+            createBucketsDeps().buckets.upload({
+              target: TARGET,
+              filePath,
+              parentId: null,
+            })
+          ).rejects.toThrow(message);
+          expect(putAttempted).toBe(false);
+          expect(actions.map((action) => action.type)).toEqual([
+            'cancel-upload',
+          ]);
+        } finally {
+          rmSync(directory, { recursive: true, force: true });
+        }
+      });
+    }
+  });
+
+  it('refuses a bad --parent as an argument error, before opening a session', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'tlon-buckets-upload-'));
+    const filePath = path.join(directory, 'plan.md');
+    writeFileSync(filePath, '# Project\n');
+    mockedGetBucket.impl = async () => snapshot();
+    let opened = false;
+    mockedRequestBucketsUpload.impl = async () => {
+      opened = true;
+      return undefined;
+    };
+    try {
+      await expect(
+        createBucketsDeps().buckets.upload({
+          target: TARGET,
+          filePath,
+          parentId: 7,
+        })
+      ).rejects.toThrow('Parent 7 does not exist');
+      expect(opened).toBe(false);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

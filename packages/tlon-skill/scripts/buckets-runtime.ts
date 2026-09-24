@@ -18,10 +18,12 @@ import {
   grantBucketRead,
 } from '@tloncorp/api';
 import { randomBytes } from 'node:crypto';
+import { lookup } from 'node:dns/promises';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 import { ensureClient, normalizeShip } from './api-client';
+import { isAllowedAddress, isDeniedHostname } from './media-guard';
 import { MIME_TYPES } from './mime-types';
 import { createProcessCommandDeps, sleep } from './runtime-deps';
 import type {
@@ -161,6 +163,74 @@ function validateDisplayName(name: string, label: string) {
     throw commandError(`${label} must be a non-empty name without slashes`);
   }
   return trimmed;
+}
+
+// Refuse an upload destination this ship should not be sending a file to.
+//
+// The PUT URL and its headers come back from the Bucket's host, which is any
+// ship with a Bucket this bot can write to -- so it is not trusted. Without
+// this, a host can point a hosted bot, running inside our own network, at an
+// internal service and have it deliver a PUT there. The file itself is not the
+// exposure: the host was going to receive it anyway. Reaching what only the
+// bot's network can reach is.
+//
+// Same policy as media-guard's fetches: https only, no credentials in the URL,
+// no local or internal hostnames, and every address the name resolves to must
+// be public. Redirects are refused at the fetch, since a redirect is a second
+// destination nobody checked.
+//
+// Not closed: DNS rebinding. The name is resolved here and again by fetch, and
+// a host controlling its own DNS can answer the two differently. media-guard
+// closes that for GETs by pinning the connection to the checked address; doing
+// the same for a streamed PUT body is a larger change to its transport.
+let uploadDestinationPolicy = {
+  resolveHost: async (hostname: string) =>
+    (await lookup(hostname, { all: true })).map((entry) => entry.address),
+  allowAddress: isAllowedAddress,
+};
+
+// Test-only: tests PUT to hostnames that do not resolve.
+export function setUploadDestinationPolicyForTests(
+  policy: Partial<typeof uploadDestinationPolicy>
+) {
+  uploadDestinationPolicy = { ...uploadDestinationPolicy, ...policy };
+}
+
+async function assertUploadDestination(raw: string) {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw commandError('The Bucket host returned an invalid upload URL');
+  }
+  if (url.protocol !== 'https:') {
+    throw commandError('The Bucket host returned a non-https upload URL');
+  }
+  if (url.username || url.password) {
+    throw commandError(
+      'The Bucket host returned an upload URL with credentials'
+    );
+  }
+  // URL keeps the brackets on an IPv6 literal.
+  const hostname = url.hostname.replace(/^\[|\]$/g, '');
+  if (isDeniedHostname(hostname)) {
+    throw commandError('The Bucket host returned a local upload URL');
+  }
+  const addresses = await uploadDestinationPolicy
+    .resolveHost(hostname)
+    .catch(() => [] as string[]);
+  if (addresses.length === 0) {
+    throw commandError(
+      'The Bucket host returned an upload URL that does not resolve'
+    );
+  }
+  if (
+    !addresses.every((address) => uploadDestinationPolicy.allowAddress(address))
+  ) {
+    throw commandError(
+      'The Bucket host returned an upload URL on a private or internal network'
+    );
+  }
 }
 
 // Wait, briefly and without failing, for the local replica to show a change
@@ -522,8 +592,12 @@ function createBucketsOperations(): BucketsOperations {
       const contentType = mime ?? mimeFromPath(resolvedPath);
       let completionAttempted = false;
       let grant: Awaited<ReturnType<typeof requestBucketsUpload>> | undefined;
+      // Checked before the try, not left to the host: a missing or file
+      // parent would otherwise come back as a refused session, and the catch
+      // below reports anything before a grant as the host not authorizing the
+      // upload rather than as a bad --parent.
+      requireFolder(await getSnapshot(target), parentId, 'Parent');
       try {
-        await getSnapshot(target);
         // The host calls storage as itself and answers with the signed URL,
         // so there is nothing to exchange from here. The request id is minted
         // here and kept, though: the host holds this request open across its
@@ -551,8 +625,10 @@ function createBucketsOperations(): BucketsOperations {
           if (cause instanceof BucketsActionFailed) throw cause;
           return openUpload();
         });
+        await assertUploadDestination(grant.url);
         const uploadResponse = await fetch(grant.url, {
           method: 'PUT',
+          redirect: 'error',
           // These headers are part of the GCS signature. Do not add a second
           // Content-Type with different casing: Fetch coalesces duplicate
           // header names and invalidates the signed canonical request.

@@ -238,7 +238,7 @@ Work with shared `%buckets` file channels. A Bucket is a group filesystem, not a
 
 ```bash
 tlon buckets list                                         # List readable Buckets
-tlon buckets show buckets/~host/project-files             # Show Bucket metadata and manifest
+tlon buckets show buckets/~host/project-files             # Show Bucket metadata and an entry count
 tlon buckets files buckets/~host/project-files             # List the root folder
 tlon buckets files buckets/~host/project-files --parent 7  # List folder 7
 tlon buckets search buckets/~host/project-files "launch"   # Search file/folder metadata
