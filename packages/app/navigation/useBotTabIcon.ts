@@ -1,4 +1,4 @@
-import { SkCanvas, SkImage, Skia } from '@shopify/react-native-skia';
+import { ClipOp, SkCanvas, SkImage, Skia } from '@shopify/react-native-skia';
 import { createDevLogger } from '@tloncorp/shared';
 import { makeSigil } from '@tloncorp/ui';
 import { Directory, File, Paths } from 'expo-file-system';
@@ -9,6 +9,8 @@ const logger = createDevLogger('useBotTabIcon', false);
 
 // Matches the bundled tab-*.png glyphs.
 const TAB_ICON_POINTS = 24;
+// Matches the 24pt avatar beside a chat message's author.
+const CORNER_RADIUS_POINTS = 4;
 // Matches the unfocused avatar in the web nav bar.
 const UNFOCUSED_OPACITY = 0.6;
 const FETCH_TIMEOUT_MS = 15_000;
@@ -44,9 +46,10 @@ function specKey(spec: BotTabIconSpec) {
  *
  * Native tabs take an image source, not a component, and iOS loads a remote
  * source at its natural size, clipped rather than scaled — a full-size avatar
- * would show as a patch of its center. So the icon is drawn square at exactly
- * the tab's size before the tab bar sees it. It is shown untinted, so the
- * unfocused state is a dimmed copy rather than a tint color.
+ * would show as a patch of its center. So the icon is drawn at exactly the
+ * tab's size, with the chat avatar's rounded corners, before the tab bar sees
+ * it. It is shown untinted, so the unfocused state is a dimmed copy rather than
+ * a tint color.
  */
 export function useBotTabIcon(spec: BotTabIconSpec | null) {
   const key = spec ? specKey(spec) : null;
@@ -120,8 +123,10 @@ async function renderTabIcon(
   const directory = new Directory(Paths.cache, 'bot-tab-icon');
   directory.create({ intermediates: true, idempotent: true });
   // Avatar URLs change when the image does, and a sigil is fixed by its id and
-  // colors, so a rendered icon stays valid for as long as its key does.
-  const name = `icon-${hashString(key)}-${pixels}`;
+  // colors, so a rendered icon stays valid for as long as its key does. The
+  // corner radius is in the name too, so changing it redraws icons already on
+  // disk.
+  const name = `icon-${hashString(key)}-${pixels}-r${CORNER_RADIUS_POINTS}`;
   const selected = new File(directory, `${name}.png`);
   const regular = new File(directory, `${name}-dim.png`);
 
@@ -219,13 +224,22 @@ function drawSigil(
   };
 }
 
-/** Runs the drawing at the given opacity; returns a base64 PNG. */
+/**
+ * Runs the drawing at the given opacity, clipped to rounded corners; returns a
+ * base64 PNG.
+ */
 function renderSquare(draw: Draw, pixels: number, opacity: number) {
   const surface = Skia.Surface.Make(pixels, pixels);
   if (!surface) {
     throw new Error('could not create a drawing surface');
   }
   const canvas = surface.getCanvas();
+  const radius = (CORNER_RADIUS_POINTS * pixels) / TAB_ICON_POINTS;
+  canvas.clipRRect(
+    Skia.RRectXY(Skia.XYWHRect(0, 0, pixels, pixels), radius, radius),
+    ClipOp.Intersect,
+    true
+  );
   const layer = Skia.Paint();
   layer.setAlphaf(opacity);
   canvas.saveLayer(layer);
