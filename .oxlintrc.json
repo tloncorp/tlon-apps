@@ -255,7 +255,6 @@
         "packages/api/src/client/channelsApi.ts",
         "packages/api/src/client/chatApi.ts",
         "packages/api/src/client/contactsApi.ts",
-        "packages/api/src/client/groupsApi.ts",
         "packages/api/src/client/initApi.ts",
         "packages/api/src/client/inviteApi.ts",
         "packages/api/src/client/lanyardApi.ts",
