@@ -541,24 +541,24 @@ export const contactToClientProfile = (
 
   return {
     id: userId,
-    peerNickname: base.nickname?.value ?? null,
+    peerNickname: base?.nickname?.value ?? null,
     customNickname: overrides?.nickname?.value,
-    peerAvatarImage: base.avatar?.value ?? null,
+    peerAvatarImage: base?.avatar?.value ?? null,
     customAvatarImage: overrides?.avatar?.value,
-    status: base.status?.value ?? null,
-    bio: base.bio?.value ?? null,
-    coverImage: base.cover?.value ?? null,
-    color: base.color ? normalizeUrbitColor(base.color.value) : null,
+    status: base?.status?.value ?? null,
+    bio: base?.bio?.value ?? null,
+    coverImage: base?.cover?.value ?? null,
+    color: base?.color ? normalizeUrbitColor(base.color.value) : null,
     pinnedGroups:
-      base.groups?.value.map((group) => ({
+      base?.groups?.value.map((group) => ({
         groupId: group.value,
         contactId: userId,
       })) ?? [],
     attestations: parseContactAttestations(userId, base),
     // The claim is the bot's own published property: read it from the
     // peer-published base contact only, never the user's `mod` overlay.
-    botInfo: extractTextClaimValue(base['bot-info']),
-    botLiveness: extractTextClaimValue(base['bot-liveness']),
+    botInfo: extractTextClaimValue(base?.['bot-info']),
+    botLiveness: extractTextClaimValue(base?.['bot-liveness']),
     isContact: !!overrides,
     isContactSuggestion: false,
   };
