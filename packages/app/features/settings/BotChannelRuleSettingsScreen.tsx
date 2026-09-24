@@ -138,8 +138,11 @@ export function BotChannelRuleSettingsScreen(props: Props) {
   // Once a disable is applied (the channel's saved rule changes), forget the
   // pre-disable snapshot — otherwise re-enabling later (screen still mounted in
   // the drawer) would restore the stale rule instead of the current default.
+  // Compared by value: partial applies clone the whole baseline.
   const stashedRule =
-    disabledRule && disabledRule.baseline === baselineRule
+    disabledRule &&
+    JSON.stringify(disabledRule.baseline ?? null) ===
+      JSON.stringify(baselineRule ?? null)
       ? disabledRule.rule
       : undefined;
 

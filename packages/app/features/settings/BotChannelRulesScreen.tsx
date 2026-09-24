@@ -88,33 +88,41 @@ export function BotChannelRulesScreen(props: Props) {
   const [disableEverywhereSnapshot, setDisableEverywhereSnapshot] =
     useState<Record<string, ChannelRuleDraft> | null>(null);
   // Each departed group's draft rules as they were before Clear rules, so Undo
-  // restores unapplied edits rather than just the saved rules. `baseline` is
-  // the saved rules the clear was made against (see clearedGroupRules).
+  // restores unapplied edits rather than just the saved rules. `saved` records
+  // the group's saved rules the clear was made against (see clearedGroupRules).
   const [clearedGroupSnapshots, setClearedGroupSnapshots] = useState<
-    Record<
-      string,
-      {
-        rules: Record<string, ChannelRuleDraft>;
-        baseline: Record<string, ChannelRuleDraft>;
-      }
-    >
+    Record<string, { rules: Record<string, ChannelRuleDraft>; saved: string }>
   >({});
 
   const drafts = draft.draft.chat.channelRuleDrafts;
   const baselineDrafts = draft.baseline.chat.channelRuleDrafts;
-  // Once the saved rules change (the clear was applied), a snapshot would
-  // resurrect rules already deleted on the server, so it no longer counts.
+  const channelsData = queries.channelsQuery.data;
+  const rawGroups = useMemo(() => channelsData ?? {}, [channelsData]);
+  // A group's saved rules, by value: partial applies clone the whole baseline,
+  // so object identity changes even when these rules don't.
+  const savedGroupRules = useCallback(
+    (host: string, group: string) =>
+      JSON.stringify(
+        getGroupChannelRuleKeys(rawGroups, host, group, baselineDrafts)
+          .sort()
+          .map((key) => [key, baselineDrafts[key]])
+      ),
+    [rawGroups, baselineDrafts]
+  );
+  // Once a group's saved rules change (the clear was applied), its snapshot
+  // would resurrect rules already deleted on the server, so it no longer counts.
   const clearedGroupRules = useMemo(
     () =>
       Object.fromEntries(
         Object.entries(clearedGroupSnapshots)
-          .filter(([, snapshot]) => snapshot.baseline === baselineDrafts)
+          .filter(([groupKey, snapshot]) => {
+            const [host, group] = groupKey.split('/');
+            return snapshot.saved === savedGroupRules(host, group);
+          })
           .map(([groupKey, snapshot]) => [groupKey, snapshot.rules])
       ),
-    [clearedGroupSnapshots, baselineDrafts]
+    [clearedGroupSnapshots, savedGroupRules]
   );
-  const channelsData = queries.channelsQuery.data;
-  const rawGroups = useMemo(() => channelsData ?? {}, [channelsData]);
 
   const groups = useMemo(
     () => groupChannelEntries(rawGroups, drafts),
@@ -242,7 +250,7 @@ export function BotChannelRulesScreen(props: Props) {
             rules: Object.fromEntries(
               draftKeys.map((key) => [key, drafts[key]])
             ),
-            baseline: baselineDrafts,
+            saved: savedGroupRules(host, group),
           },
         }));
         replaceDrafts(channelRuleDrafts);
@@ -264,7 +272,14 @@ export function BotChannelRulesScreen(props: Props) {
       });
       replaceDrafts({ ...drafts, ...restored });
     },
-    [rawGroups, drafts, baselineDrafts, clearedGroupRules, replaceDrafts]
+    [
+      rawGroups,
+      drafts,
+      baselineDrafts,
+      clearedGroupRules,
+      savedGroupRules,
+      replaceDrafts,
+    ]
   );
 
   const handleDisableEverywhereToggle = useCallback(() => {
