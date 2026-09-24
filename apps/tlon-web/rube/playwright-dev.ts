@@ -37,6 +37,20 @@ const shipManifest: Record<string, Ship> = JSON.parse(
   fs.readFileSync(manifestPath, 'utf8')
 );
 
+// Only the ships this run selects — same predicate index.ts's getShips()
+// filters through. Sweeping every manifest ship's ports would also hit ships
+// this run never boots (e.g. ~bud when N1_SHIP is unset).
+const selectedShips = Object.values(shipManifest).filter(shouldIncludeShip);
+
+// rube always runs compiled (see rube/compile-rube.sh + rube-runner.sh:
+// `node ./rube/dist/index.js`), never via tsx against the source in rube/, so
+// __dirname is this checkout's rube/dist directory at runtime, same as in
+// index.ts. Every worktree's pier path contains the same "rube/dist"
+// substring, so process cleanup below matches on this absolute path (with a
+// trailing slash) instead of that bare substring, to avoid killing a pier
+// build or run in another worktree.
+const rubeDistDir = __dirname;
+
 // Handle cleanup on exit - make synchronous for reliability
 process.on('SIGINT', () => {
   cleanup();
@@ -97,8 +111,9 @@ function cleanup() {
   // CRITICAL: Use pattern-based killing to clean up all Urbit processes
   // This is necessary because Urbit spawns serf sub-processes that aren't tracked
   try {
-    // Kill all Urbit processes matching our rube pattern
-    const killUrbitCmd = `ps aux | grep urbit | grep "rube/dist" | grep -v grep | awk '{print $2}' | while read pid; do kill -9 $pid 2>/dev/null; done`;
+    // Kill all Urbit processes matching our rube pattern, scoped to this
+    // workspace's rube/dist (see the comment on `rubeDistDir` above).
+    const killUrbitCmd = `ps aux | grep urbit | grep -F "${rubeDistDir}/" | grep -v grep | awk '{print $2}' | while read pid; do kill -9 $pid 2>/dev/null; done`;
     childProcess.execSync(killUrbitCmd, { stdio: 'ignore' });
 
     // Also kill any Vite dev server processes
@@ -110,7 +125,7 @@ function cleanup() {
 
   // Additional cleanup - kill any remaining processes on our ports (synchronous)
   const ports: string[] = [];
-  Object.values(shipManifest).forEach((ship: Ship) => {
+  selectedShips.forEach((ship: Ship) => {
     ports.push(ship.httpPort);
     const webUrlMatch = ship.webUrl.match(/:(\d+)$/);
     if (webUrlMatch) {

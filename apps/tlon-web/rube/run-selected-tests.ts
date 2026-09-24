@@ -12,6 +12,15 @@ import { shouldIncludeShip } from './shipSelection';
 // selection from this file and must read it identically.
 loadEnvTest(__dirname);
 
+// rube always runs compiled (see rube/compile-rube.sh + rube-runner.sh:
+// `node ./rube/dist/index.js`), never via tsx against the source in rube/, so
+// __dirname is this checkout's rube/dist directory at runtime, same as in
+// index.ts. Every worktree's pier path contains the same "rube/dist"
+// substring, so process cleanup below matches on this absolute path (with a
+// trailing slash) instead of that bare substring, to avoid killing a pier
+// build or run in another worktree.
+const rubeDistDir = __dirname;
+
 // Parse command line arguments
 const args = process.argv.slice(2);
 const testFiles = args.filter((arg) => arg.endsWith('.spec.ts'));
@@ -112,10 +121,11 @@ function cleanup() {
   // CRITICAL: Use pattern-based killing to clean up all Urbit processes
   // This is necessary because Urbit spawns serf sub-processes that aren't tracked
   try {
-    // Kill all Urbit processes matching our rube pattern
+    // Kill all Urbit processes matching our rube pattern, scoped to this
+    // workspace's rube/dist (see the comment on `rubeDistDir` above).
     console.log('Killing Urbit processes...');
     // Use a subshell to handle empty output gracefully on macOS
-    const killUrbitCmd = `pids=$(ps aux | grep urbit | grep "rube/dist" | grep -v grep | awk '{print $2}'); [ -n "$pids" ] && echo "$pids" | xargs kill -9 2>/dev/null || true`;
+    const killUrbitCmd = `pids=$(ps aux | grep urbit | grep -F "${rubeDistDir}/" | grep -v grep | awk '{print $2}'); [ -n "$pids" ] && echo "$pids" | xargs kill -9 2>/dev/null || true`;
     childProcess.execSync(killUrbitCmd, { stdio: 'ignore' });
 
     // Also kill any node processes running rube
@@ -133,9 +143,14 @@ function cleanup() {
     }
   }
 
-  // Additional cleanup - kill any remaining processes on our test ports
+  // Additional cleanup - kill any remaining processes on our test ports.
+  // Only the ships this run selects — same predicate index.ts's getShips()
+  // filters through. Sweeping every manifest ship's ports would also hit
+  // ships this run never boots (e.g. ~bud when N1_SHIP is unset).
   const shipManifest = require('../../e2e/shipManifest.json');
-  const ships = Object.values(shipManifest) as Ship[];
+  const ships = (Object.values(shipManifest) as Ship[]).filter(
+    shouldIncludeShip
+  );
   const ports: string[] = [];
 
   // Collect all ports used by ships
@@ -190,7 +205,7 @@ function cleanup() {
   try {
     const remainingUrbit = childProcess
       .execSync(
-        `ps aux | grep urbit | grep "rube/dist" | grep -v grep | wc -l`,
+        `ps aux | grep urbit | grep -F "${rubeDistDir}/" | grep -v grep | wc -l`,
         { encoding: 'utf8' }
       )
       .trim();

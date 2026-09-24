@@ -27,6 +27,13 @@ loadEnvTest(__dirname);
 
 const spawnedProcesses: childProcess.ChildProcess[] = [];
 const startHashes: { [ship: string]: { [desk: string]: string } } = {};
+// rube always runs compiled (see rube/compile-rube.sh + rube-runner.sh:
+// `node ./rube/dist/index.js`), never via tsx against the source in rube/, so
+// __dirname is this checkout's rube/dist directory at runtime. Every
+// worktree's pier path contains the same "rube/dist" substring, so process
+// cleanup below matches on this absolute path (with a trailing slash)
+// instead of that bare substring, to avoid killing a pier build or run in
+// another worktree.
 const rubeDir = __dirname;
 const pidFile = path.join(rubeDir, '.rube.pid');
 const childrenFile = path.join(rubeDir, '.rube-children.json');
@@ -1511,8 +1518,9 @@ const cleanupSpawnedProcesses = () => {
   // CRITICAL: Use pattern-based killing to clean up all Urbit processes
   // This is necessary because Urbit spawns serf sub-processes that aren't tracked
   try {
-    // Kill all Urbit processes matching our rube pattern
-    const killUrbitCmd = `ps aux | grep urbit | grep "rube/dist" | grep -v grep | awk '{print $2}' | while read pid; do kill -9 $pid 2>/dev/null; done`;
+    // Kill all Urbit processes matching our rube pattern, scoped to this
+    // workspace's rube/dist (see the comment on `rubeDir` above).
+    const killUrbitCmd = `ps aux | grep urbit | grep -F "${rubeDir}/" | grep -v grep | awk '{print $2}' | while read pid; do kill -9 $pid 2>/dev/null; done`;
     childProcess.execSync(killUrbitCmd, { stdio: 'ignore', timeout: 5000 });
 
     // Also use our existing commands as additional cleanup
@@ -1567,7 +1575,7 @@ const cleanupSpawnedProcesses = () => {
   try {
     const remainingUrbit = childProcess
       .execSync(
-        `ps aux | grep urbit | grep "rube/dist" | grep -v grep | wc -l`,
+        `ps aux | grep urbit | grep -F "${rubeDir}/" | grep -v grep | wc -l`,
         { encoding: 'utf8' }
       )
       .trim();
