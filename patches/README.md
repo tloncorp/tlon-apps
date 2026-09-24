@@ -9,14 +9,14 @@ When adding a patch, document:
 - how to validate it
 - when it can be removed
 
-## expo-notifications@57.0.6
+## expo-notifications@57.0.21
 
 Local patch:
-`patches/expo-notifications@57.0.6.patch`
+`patches/expo-notifications@57.0.21.patch`
 
 Why:
 On Android cold starts, expo-notifications queues the notification response
-until its native emitter is registered. Version 57.0.6 delivers that queued
+until its native emitter is registered. Version 57.0.21 still delivers that queued
 response but does not remove it. If the native module is recreated while the
 app process remains alive, the same notification tap is emitted again and the
 app routes back to the original channel. Killing the process clears the queue.
