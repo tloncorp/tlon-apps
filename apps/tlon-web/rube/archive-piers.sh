@@ -212,6 +212,20 @@ get_next_version() {
     echo $((current_version + 1))
 }
 
+# Ports for the ships prepare_ships actually starts. prepare_ships always
+# passes INCLUDE_OPTIONAL_SHIPS=true and never sets N1_SHIP, so per
+# shipSelection.ts's shouldIncludeShip() it boots every manifest ship except
+# the N-1 ship (~bud, the only entry with "n1": true) -- regardless of
+# SHIPS_TO_ARCHIVE, which only narrows what gets archived afterward. Deriving
+# this from the manifest, rather than a hard-coded list, keeps a routine
+# zod/ten/mug/bus run from sweeping ~bud's ports (3004, 41493) out from under
+# a concurrent N-1 build or run. Callers must only invoke this once jq's
+# presence has been confirmed (check_prerequisites, called at the top of
+# main() before prepare_ships/cleanup can reach STARTED_FLEET=true).
+prepared_ship_ports() {
+    jq -r 'to_entries[] | select(.value.n1 != true) | .value.httpPort, (.value.webUrl | ltrimstr("http://localhost:"))' "$MANIFEST_FILE"
+}
+
 # Cleanup function
 cleanup() {
     local exit_code=$?
@@ -259,7 +273,7 @@ cleanup() {
         fi
 
         # Additional cleanup of e2e ports if needed
-        for port in 3000 3001 3002 3003 3004 35453 36963 38473 39983 41493; do
+        for port in $(prepared_ship_ports); do
             pids=$(lsof -ti:$port 2>/dev/null || true)
             if [ -n "$pids" ]; then
                 echo "$pids" | xargs kill -9 2>/dev/null || true
@@ -394,7 +408,7 @@ prepare_ships() {
         if [ $retry_count -gt 0 ]; then
             print_warning "Retrying... (attempt $((retry_count + 1))/$max_retries)"
             # Clean up any existing processes first
-            for port in 3000 3001 3002 3003 3004 35453 36963 38473 39983 41493; do
+            for port in $(prepared_ship_ports); do
                 pids=$(lsof -ti:$port 2>/dev/null || true)
                 if [ -n "$pids" ]; then
                     echo "$pids" | xargs kill -9 2>/dev/null || true
