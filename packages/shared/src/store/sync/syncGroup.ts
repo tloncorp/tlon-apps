@@ -7,6 +7,8 @@ import { SyncCtx, syncQueue } from '../syncQueue';
 import { logger } from './logger';
 import { updateLastActivityTime } from './updateLastActivityTime';
 
+// Keyed by client generation too: a previous account's sync of the same group
+// is abandoned once the client changes, so it mustn't swallow the new one.
 const groupSyncsInProgress = new Set<string>();
 
 export async function syncGroup(
@@ -14,12 +16,13 @@ export async function syncGroup(
   ctx?: SyncCtx,
   config?: { force?: boolean }
 ) {
-  if (groupSyncsInProgress.has(id)) {
+  const generation = getClientGeneration();
+  const syncKey = `${generation}:${id}`;
+  if (groupSyncsInProgress.has(syncKey)) {
     return;
   }
-  groupSyncsInProgress.add(id);
+  groupSyncsInProgress.add(syncKey);
   try {
-    const generation = getClientGeneration();
     const group = await db.getGroup({ id });
     const session = getSession();
     if (
@@ -83,6 +86,6 @@ export async function syncGroup(
     console.error(e);
     throw e;
   } finally {
-    groupSyncsInProgress.delete(id);
+    groupSyncsInProgress.delete(syncKey);
   }
 }

@@ -2150,6 +2150,29 @@ test('syncGroup: drops a response that arrives after the client changed', async 
   expect(moonSeat.syncedAt).toBeNull();
 });
 
+test("syncGroup: a new client doesn't wait on the previous client's sync", async () => {
+  const groupId = '~fabled-faster/new-york';
+  const response = (groupsResponse as unknown as Record<string, ub.GroupV11>)[
+    groupId
+  ];
+  let releaseFirst: (value: unknown) => void = () => {};
+  vi.mocked(scry).mockClear();
+  vi.mocked(scry).mockImplementationOnce(
+    () => new Promise((resolve) => (releaseFirst = resolve))
+  );
+  const first = syncGroup(groupId, undefined, { force: true });
+  await vi.waitFor(() => expect(vi.mocked(scry)).toHaveBeenCalledTimes(1));
+
+  // The account switches while the first fetch is still in flight.
+  updateInitializedClient(getInitializedClient());
+  vi.mocked(scry).mockImplementationOnce(async () => response);
+  await syncGroup(groupId, undefined, { force: true });
+  expect(vi.mocked(scry)).toHaveBeenCalledTimes(2);
+
+  releaseFirst(response);
+  await first;
+});
+
 test('getMentionCandidates: returns candidates in priority order', async () => {
   // Setup
   setScryOutputs([initResponse]);
