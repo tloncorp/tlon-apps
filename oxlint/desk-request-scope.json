@@ -1,0 +1,5 @@
+{
+  "excludedModules": ["packages/api/src/client/stewardAutomationApi"],
+  "excludedHttpPrefixes": ["/steward/~/v1/automation"],
+  "excludedAgentPaths": [{ "agent": "steward", "prefix": "/v1/automation" }]
+}
