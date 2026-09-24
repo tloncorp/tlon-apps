@@ -79,6 +79,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     bundleIdentifier: ['demo', 'e2e'].includes(process.env.EAS_BUILD_PROFILE!)
       ? 'io.tlon.groups'
       : undefined,
+    supportsTablet: true,
     config: {
       usesNonExemptEncryption: false,
     },
