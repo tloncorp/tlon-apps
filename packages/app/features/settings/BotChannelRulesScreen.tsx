@@ -88,13 +88,31 @@ export function BotChannelRulesScreen(props: Props) {
   const [disableEverywhereSnapshot, setDisableEverywhereSnapshot] =
     useState<Record<string, ChannelRuleDraft> | null>(null);
   // Each departed group's draft rules as they were before Clear rules, so Undo
-  // restores unapplied edits rather than just the saved rules.
+  // restores unapplied edits rather than just the saved rules. `baseline` is
+  // the saved rules the clear was made against (see clearedGroupRules).
   const [clearedGroupSnapshots, setClearedGroupSnapshots] = useState<
-    Record<string, Record<string, ChannelRuleDraft>>
+    Record<
+      string,
+      {
+        rules: Record<string, ChannelRuleDraft>;
+        baseline: Record<string, ChannelRuleDraft>;
+      }
+    >
   >({});
 
   const drafts = draft.draft.chat.channelRuleDrafts;
   const baselineDrafts = draft.baseline.chat.channelRuleDrafts;
+  // Once the saved rules change (the clear was applied), a snapshot would
+  // resurrect rules already deleted on the server, so it no longer counts.
+  const clearedGroupRules = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(clearedGroupSnapshots)
+          .filter(([, snapshot]) => snapshot.baseline === baselineDrafts)
+          .map(([groupKey, snapshot]) => [groupKey, snapshot.rules])
+      ),
+    [clearedGroupSnapshots, baselineDrafts]
+  );
   const channelsData = queries.channelsQuery.data;
   const rawGroups = useMemo(() => channelsData ?? {}, [channelsData]);
 
@@ -108,11 +126,11 @@ export function BotChannelRulesScreen(props: Props) {
   // group, which keeps its banner (and Undo) in place.
   const groupHasRules = useCallback(
     (host: string, group: string) =>
-      Boolean(clearedGroupSnapshots[`${host}/${group}`]) ||
+      Boolean(clearedGroupRules[`${host}/${group}`]) ||
       getGroupChannelRuleKeys(rawGroups, host, group, baselineDrafts).length >
         0 ||
       getGroupChannelRuleKeys(rawGroups, host, group, drafts).length > 0,
-    [rawGroups, baselineDrafts, drafts, clearedGroupSnapshots]
+    [rawGroups, baselineDrafts, drafts, clearedGroupRules]
   );
   // Confirm those groups' membership against their full rosters.
   const groupIdsWithRules = useMemo(
@@ -138,9 +156,7 @@ export function BotChannelRulesScreen(props: Props) {
         channels: group.channels.filter((channel) => {
           // Keep just-cleared channels on the Enabled tab so Undo stays in reach.
           const cleared =
-            clearedGroupSnapshots[`${group.host}/${group.group}`]?.[
-              channel.key
-            ];
+            clearedGroupRules[`${group.host}/${group.group}`]?.[channel.key];
           if (enabledOnly && !drafts[channel.key] && !cleared) {
             return false;
           }
@@ -155,7 +171,7 @@ export function BotChannelRulesScreen(props: Props) {
         }),
       }))
       .filter((group) => group.channels.length > 0);
-  }, [groups, drafts, search, enabledOnly, clearedGroupSnapshots]);
+  }, [groups, drafts, search, enabledOnly, clearedGroupRules]);
 
   const enabledChannelCount = Object.keys(drafts).length;
   const allChannelsDisabled = enabledChannelCount === 0;
@@ -222,9 +238,12 @@ export function BotChannelRulesScreen(props: Props) {
         draftKeys.forEach((key) => delete channelRuleDrafts[key]);
         setClearedGroupSnapshots((prev) => ({
           ...prev,
-          [groupKey]: Object.fromEntries(
-            draftKeys.map((key) => [key, drafts[key]])
-          ),
+          [groupKey]: {
+            rules: Object.fromEntries(
+              draftKeys.map((key) => [key, drafts[key]])
+            ),
+            baseline: baselineDrafts,
+          },
         }));
         replaceDrafts(channelRuleDrafts);
         return;
@@ -232,7 +251,7 @@ export function BotChannelRulesScreen(props: Props) {
       // Without a snapshot (the rules were switched off one by one), fall back
       // to the saved rules.
       const restored =
-        clearedGroupSnapshots[groupKey] ??
+        clearedGroupRules[groupKey] ??
         Object.fromEntries(
           getGroupChannelRuleKeys(rawGroups, host, group, baselineDrafts).map(
             (key) => [key, baselineDrafts[key]]
@@ -245,7 +264,7 @@ export function BotChannelRulesScreen(props: Props) {
       });
       replaceDrafts({ ...drafts, ...restored });
     },
-    [rawGroups, drafts, baselineDrafts, clearedGroupSnapshots, replaceDrafts]
+    [rawGroups, drafts, baselineDrafts, clearedGroupRules, replaceDrafts]
   );
 
   const handleDisableEverywhereToggle = useCallback(() => {
