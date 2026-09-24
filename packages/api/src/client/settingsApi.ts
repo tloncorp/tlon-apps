@@ -1,6 +1,6 @@
 import type * as db from '../types/models';
 import * as ub from '../urbit';
-import { poke, scry, subscribe } from './urbit';
+import { base, pokeRequest, scryRequest, subscribeRequest } from './requests';
 
 const PENDING_MEMBER_DISMISSAL_PREFIX = 'pendingMemberDismissal:';
 export function getPendingMemberDismissalKey(groupId: string) {
@@ -75,9 +75,8 @@ export function parseBotReplyFeedback(
 export async function getBotReplyFeedback(
   messageId: string
 ): Promise<BotReplyFeedbackEntry | null> {
-  const settings = await scry<ub.GroupsDeskSettings>({
-    app: 'settings',
-    path: '/desk/groups',
+  const settings = await scryRequest(base.settingsDesk)<ub.GroupsDeskSettings>({
+    desk: 'groups',
   });
   return parseBotReplyFeedbackValue(
     settings.desk.botReplyFeedback?.[messageId]
@@ -88,18 +87,14 @@ export async function setBotReplyFeedback(
   messageId: string,
   entry: BotReplyFeedbackEntry
 ) {
-  return poke({
-    app: 'settings',
-    mark: 'settings-event',
-    json: {
-      'put-entry': {
-        desk: 'groups',
-        'bucket-key': BOT_REPLY_FEEDBACK_BUCKET,
-        'entry-key': messageId,
-        // The settings wire type supports scalar values, so encode the
-        // structured entry as JSON within this dedicated bucket.
-        value: JSON.stringify(entry),
-      },
+  return pokeRequest(base.settingsEvent)({
+    'put-entry': {
+      desk: 'groups',
+      'bucket-key': BOT_REPLY_FEEDBACK_BUCKET,
+      'entry-key': messageId,
+      // The settings wire type supports scalar values, so encode the
+      // structured entry as JSON within this dedicated bucket.
+      value: JSON.stringify(entry),
     },
   });
 }
@@ -161,16 +156,12 @@ function getBucket(key: string): string {
 }
 
 export const setSetting = async (key: string, val: any) => {
-  return poke({
-    app: 'settings',
-    mark: 'settings-event',
-    json: {
-      'put-entry': {
-        desk: 'groups',
-        'bucket-key': getBucket(key),
-        'entry-key': key,
-        value: val,
-      },
+  return pokeRequest(base.settingsEvent)({
+    'put-entry': {
+      desk: 'groups',
+      'bucket-key': getBucket(key),
+      'entry-key': key,
+      value: val,
     },
   });
 };
@@ -181,9 +172,8 @@ export const getSettings = async (): Promise<{
   dismissedPinnedPostBannerIds: string[];
   botReplyFeedback: BotReplyFeedbackSetting[];
 }> => {
-  const results = await scry<ub.GroupsDeskSettings>({
-    app: 'settings',
-    path: '/desk/groups',
+  const results = await scryRequest(base.settingsDesk)<ub.GroupsDeskSettings>({
+    desk: 'groups',
   });
 
   const settings = toClientSettings(results);
@@ -207,9 +197,8 @@ export const getSettings = async (): Promise<{
 export const getContextLensEnabledRaw = async (): Promise<
   boolean | undefined
 > => {
-  const results = await scry<ub.GroupsDeskSettings>({
-    app: 'settings',
-    path: '/desk/groups',
+  const results = await scryRequest(base.settingsDesk)<ub.GroupsDeskSettings>({
+    desk: 'groups',
   });
   return results.desk.groups?.contextLensEnabled;
 };
@@ -397,16 +386,15 @@ export async function getAppInfo({
     // from the charge, which is the answer the startup gate is waiting for —
     // and it has to give up well inside the gate's own deadline, or a hung
     // pike would hold this Promise.all past it and lose the version anyway.
-    scry<Pikes>({
-      app: 'hood',
-      path: '/kiln/pikes',
-      timeout: Math.min(timeout ?? DIAGNOSTICS_TIMEOUT, DIAGNOSTICS_TIMEOUT),
-    }).catch(() => null),
-    scry<ChargeUpdateInitial>({
-      app: 'docket',
-      path: '/charges',
-      timeout,
-    }).then((update) => update?.initial),
+    scryRequest(base.kilnPikes)<Pikes>(
+      {},
+      {
+        timeout: Math.min(timeout ?? DIAGNOSTICS_TIMEOUT, DIAGNOSTICS_TIMEOUT),
+      }
+    ).catch(() => null),
+    scryRequest(base.charges)<ChargeUpdateInitial>({}, { timeout }).then(
+      (update) => update?.initial
+    ),
   ]);
 
   const groupsPike = pikes?.['groups'];
@@ -436,11 +424,8 @@ export type SettingsUpdate =
     };
 
 export function subscribeToSettings(handler: (update: SettingsUpdate) => void) {
-  subscribe<ub.SettingsEvent>(
-    {
-      app: 'settings',
-      path: '/desk/groups',
-    },
+  subscribeRequest(base.settingsDeskUpdates)<ub.SettingsEvent>(
+    { desk: 'groups' },
     (update) => {
       if (!('settings-event' in update)) {
         return;
