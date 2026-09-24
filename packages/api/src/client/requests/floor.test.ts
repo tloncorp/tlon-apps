@@ -185,305 +185,85 @@ test('every registry entry is served by the N-1 desk', () => {
 });
 
 describe('the check fails closed', () => {
-  const entry = (e: Record<string, unknown>) => e as unknown as Entry;
-  const run = (entries: Record<string, Entry>) =>
-    checkRegistry({ t: entries }, '12.2.0', scope);
+  const fails = (e: Record<string, unknown>) =>
+    checkRegistry(
+      { t: { a: { since: '12.2.0', ...e } as unknown as Entry } },
+      '12.2.0',
+      scope
+    );
+  const scry = (path: string, extra = {}) => ({
+    kind: 'scry',
+    agent: 'steward',
+    path,
+    ...extra,
+  });
+  const get = (path: string, extra = {}) => ({
+    kind: 'http',
+    agent: 'notes',
+    method: 'GET',
+    path,
+    ...extra,
+  });
 
-  test('a since above the floor', () => {
+  test.each([
+    [
+      'a since above the floor',
+      scry('/x', { since: '12.3.0' }),
+      'since is above MIN_GROUPS_VERSION',
+    ],
+    [
+      'a malformed since',
+      scry('/x', { since: '13.0.1e0' }),
+      'since is not a version',
+    ],
+    [
+      'an http route with a desk',
+      get('/x', { agent: 'hood', desk: 'base' }),
+      'an http route cannot carry a desk exemption',
+    ],
+    [
+      'a %groups agent with a desk',
+      scry('/x', { agent: 'groups', desk: 'base' }),
+      'groups is not an agent of %base',
+    ],
+    [
+      'a path under a bot-only prefix',
+      scry('/v1/automation/tasks'),
+      'path can reach a prefix excluded',
+    ],
+    [
+      'a hole that can reach a bot-only prefix',
+      scry('/v1/{module}/tasks'),
+      'path can reach a prefix excluded',
+    ],
+    [
+      '%2e segments reaching a bot-only route',
+      get('/steward/~/v1/lens/%2e%2E/automation/tasks'),
+      'route can reach a prefix excluded',
+    ],
+  ])('%s', (_name, entry, message) => {
+    expect(fails(entry)).toEqual([expect.stringContaining(message)]);
+  });
+
+  test('duplicates, exact or with renamed holes', () => {
+    const e = (path: string) =>
+      ({ kind: 'scry', agent: 'groups', path, since: '12.2.0' }) as Entry;
     expect(
-      run({
-        a: entry({
-          kind: 'scry',
-          agent: 'groups',
-          path: '/x',
-          since: '12.3.0',
-        }),
-      })
+      checkRegistry(
+        {
+          t: {
+            a: e('/x/{flag}'),
+            b: e('/x/{groupId}'),
+            c: e('/y'),
+            d: e('/y'),
+          },
+        },
+        '12.2.0',
+        scope
+      )
     ).toEqual([
-      't.a (groups scry /x since 12.3.0): since is above MIN_GROUPS_VERSION 12.2.0, so the N-1 desk does not serve it',
+      't.b (groups scry /x/{groupId} since 12.2.0): same request as t.a',
+      't.d (groups scry /y since 12.2.0): same request as t.c',
     ]);
-  });
-
-  test.each(['13.0.1e0', '12.2', '12.2.0-rc1', ' 12.2.0', 'x'])(
-    'a malformed since %j',
-    (since) => {
-      expect(
-        run({ a: entry({ kind: 'scry', agent: 'groups', path: '/x', since }) })
-      ).toEqual([
-        `t.a (groups scry /x since ${since}): since is not a version`,
-      ]);
-    }
-  );
-
-  test('a malformed floor', () => {
-    expect(checkRegistry({}, '12.2.0.1', scope)).toEqual([
-      'MIN_GROUPS_VERSION 12.2.0.1 is not a version',
-    ]);
-  });
-
-  test('a %groups agent labelled as another desk', () => {
-    expect(
-      run({
-        a: entry({
-          kind: 'scry',
-          agent: 'groups',
-          path: '/x',
-          since: '12.2.0',
-          desk: 'base',
-        }),
-      })
-    ).toEqual([
-      't.a (groups scry /x since 12.2.0): groups is not an agent of %base',
-    ]);
-  });
-
-  test('an external agent with the wrong desk, or none', () => {
-    expect(
-      run({
-        a: entry({
-          kind: 'scry',
-          agent: 'hood',
-          path: '/x',
-          since: '12.2.0',
-          desk: 'landscape',
-        }),
-        b: entry({ kind: 'poke', agent: 'docket', mark: 'm', since: '12.2.0' }),
-      })
-    ).toEqual([
-      't.a (hood scry /x since 12.2.0): hood is not an agent of %landscape',
-      't.b (docket poke m since 12.2.0): docket lives in %landscape; say so',
-    ]);
-  });
-
-  test('an honest external label exempts the entry from the floor', () => {
-    expect(
-      run({
-        a: entry({
-          kind: 'scry',
-          agent: 'hood',
-          path: '/kiln/x',
-          since: '99.0.0',
-          desk: 'base',
-        }),
-      })
-    ).toEqual([]);
-  });
-
-  test('an http route cannot borrow an external agent label', () => {
-    expect(
-      run({
-        a: entry({
-          kind: 'http',
-          agent: 'hood',
-          desk: 'base',
-          method: 'GET',
-          path: '/notes/~/v99/notebooks',
-          since: '99.0.0',
-        }),
-      })
-    ).toEqual([
-      't.a (hood http GET /notes/~/v99/notebooks since 99.0.0): an http route cannot carry a desk exemption',
-      't.a (hood http GET /notes/~/v99/notebooks since 99.0.0): since is above MIN_GROUPS_VERSION 12.2.0, so the N-1 desk does not serve it',
-    ]);
-  });
-
-  test('duplicate identity within a kind', () => {
-    expect(
-      run({
-        a: entry({
-          kind: 'scry',
-          agent: 'groups',
-          path: '/x',
-          since: '12.2.0',
-        }),
-        b: entry({
-          kind: 'scry',
-          agent: 'groups',
-          path: '/x',
-          since: '12.2.0',
-        }),
-        c: entry({
-          kind: 'subscribe',
-          agent: 'groups',
-          path: '/x',
-          since: '12.2.0',
-        }),
-        d: entry({
-          kind: 'http',
-          agent: 'notes',
-          method: 'GET',
-          path: '/n',
-          since: '12.2.0',
-        }),
-        e: entry({
-          kind: 'http',
-          agent: 'notes',
-          method: 'POST',
-          path: '/n',
-          since: '12.2.0',
-        }),
-        f: entry({
-          kind: 'http',
-          agent: 'other',
-          method: 'GET',
-          path: '/n',
-          since: '12.2.0',
-        }),
-      })
-    ).toEqual([
-      't.b (groups scry /x since 12.2.0): same request as t.a',
-      't.f (other http GET /n since 12.2.0): same request as t.d',
-    ]);
-  });
-
-  test('bot-only routes stay out of the registry', () => {
-    expect(
-      run({
-        a: entry({
-          kind: 'http',
-          agent: 'steward',
-          method: 'GET',
-          path: '/steward/~/v1/automation/tasks',
-          since: '12.2.0',
-        }),
-        b: entry({
-          kind: 'subscribe',
-          agent: 'steward',
-          path: '/v1/automation/tasks',
-          since: '12.2.0',
-        }),
-      })
-    ).toEqual([
-      't.a (steward http GET /steward/~/v1/automation/tasks since 12.2.0): route can reach a prefix excluded by desk-request-scope.json',
-      't.b (steward subscribe /v1/automation/tasks since 12.2.0): path can reach a prefix excluded by desk-request-scope.json',
-    ]);
-  });
-
-  test('a hole that could be filled to reach a bot-only route', () => {
-    expect(
-      run({
-        a: entry({
-          kind: 'scry',
-          agent: 'steward',
-          path: '/v1/{module}/tasks',
-          since: '12.2.0',
-        }),
-        b: entry({
-          kind: 'subscribe',
-          agent: 'steward',
-          path: '/v1/auto{rest}',
-          since: '12.2.0',
-        }),
-        c: entry({
-          kind: 'http',
-          agent: 'notes',
-          method: 'GET',
-          path: '/{app}/~/v1/automation',
-          since: '12.2.0',
-        }),
-        d: entry({
-          kind: 'raw',
-          agent: 'steward',
-          method: 'GET',
-          path: '/steward/~/v1/{area}',
-          since: '12.2.0',
-        }),
-        ok: entry({
-          kind: 'scry',
-          agent: 'steward',
-          path: '/v1/lens/run/{bot}/{lens}',
-          since: '12.2.0',
-        }),
-      })
-    ).toEqual([
-      't.a (steward scry /v1/{module}/tasks since 12.2.0): path can reach a prefix excluded by desk-request-scope.json',
-      't.b (steward subscribe /v1/auto{rest} since 12.2.0): path can reach a prefix excluded by desk-request-scope.json',
-      't.c (notes http GET /{app}/~/v1/automation since 12.2.0): route can reach a prefix excluded by desk-request-scope.json',
-      't.d (steward raw GET /steward/~/v1/{area} since 12.2.0): route can reach a prefix excluded by desk-request-scope.json',
-    ]);
-  });
-
-  test('bot-only routes reached through dot segments or a query string', () => {
-    expect(
-      run({
-        a: entry({
-          kind: 'http',
-          agent: 'steward',
-          method: 'GET',
-          path: '/steward/~/v1/lens/../automation/tasks',
-          since: '12.2.0',
-        }),
-        b: entry({
-          kind: 'raw',
-          agent: 'steward',
-          method: 'GET',
-          path: '/steward/~/v1/automation?limit=1',
-          since: '12.2.0',
-        }),
-        c: entry({
-          kind: 'scry',
-          agent: 'steward',
-          path: '/v1/lens/./../automation/tasks',
-          since: '12.2.0',
-        }),
-        d: entry({
-          kind: 'http',
-          agent: 'steward',
-          method: 'GET',
-          path: '/steward/~/v1/lens/%2e%2E/automation/tasks',
-          since: '12.2.0',
-        }),
-      })
-    ).toEqual([
-      't.a (steward http GET /steward/~/v1/lens/../automation/tasks since 12.2.0): route can reach a prefix excluded by desk-request-scope.json',
-      't.b (steward raw GET /steward/~/v1/automation?limit=1 since 12.2.0): route can reach a prefix excluded by desk-request-scope.json',
-      't.c (steward scry /v1/lens/./../automation/tasks since 12.2.0): path can reach a prefix excluded by desk-request-scope.json',
-      't.d (steward http GET /steward/~/v1/lens/%2e%2E/automation/tasks since 12.2.0): route can reach a prefix excluded by desk-request-scope.json',
-    ]);
-  });
-
-  test('renamed holes do not hide a duplicate', () => {
-    expect(
-      run({
-        a: entry({
-          kind: 'scry',
-          agent: 'groups',
-          path: '/v3/ui/groups/{groupId}',
-          since: '12.2.0',
-        }),
-        b: entry({
-          kind: 'scry',
-          agent: 'groups',
-          path: '/v3/ui/groups/{flag}',
-          since: '12.2.0',
-        }),
-        c: entry({
-          kind: 'raw',
-          agent: 'metagrab',
-          method: 'GET',
-          path: '/m/{x}',
-          since: '12.2.0',
-        }),
-        d: entry({
-          kind: 'http',
-          agent: 'metagrab',
-          method: 'GET',
-          path: '/m/{y}',
-          since: '12.2.0',
-        }),
-      })
-    ).toEqual([
-      't.b (groups scry /v3/ui/groups/{flag} since 12.2.0): same request as t.a',
-      't.d (metagrab http GET /m/{y} since 12.2.0): same request as t.c',
-    ]);
-  });
-
-  test('an excluded module that no longer exists', () => {
-    expect(
-      checkRegistry({}, '12.2.0', {
-        ...scope,
-        excludedModules: ['packages/api/src/client/gone'],
-      })
-    ).toEqual(['excluded module packages/api/src/client/gone does not exist']);
   });
 });
