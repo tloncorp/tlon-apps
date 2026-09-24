@@ -28,7 +28,6 @@ import {
 import {
   type AuthorProfile,
   formatDateParam,
-  formatScryPath,
   formatUd,
   getCanonicalPostId,
   getChannelIdType,
@@ -52,7 +51,7 @@ import {
   pokeRequest,
   scryRequest,
 } from './requests';
-import { scry, subscribeOnce } from './urbit';
+import { subscribeOnce } from './urbit';
 
 const logger = createDevLogger('postsApi', false);
 
@@ -461,39 +460,6 @@ function scryPostsRange(
 
 type PageMode = 'older' | 'newer' | 'around' | 'newest';
 
-// A falsy count (the CLI's `--limit 0`, or a limit that parses to NaN) has
-// always been left out of the page path. No desk arm serves a page without a
-// count, so there is no registry entry for it; the request goes out as the
-// builder always sent it.
-function scryCountlessPage(
-  channelId: string,
-  mode: PageMode,
-  cursor: string | null,
-  includeReplies: boolean
-) {
-  const type = getChannelIdType(channelId);
-  const path = formatScryPath(
-    ...[
-      type === 'dm' ? 'v4/dm' : null,
-      type === 'club' ? 'v4/club' : null,
-      type === 'channel' ? 'v5' : null,
-    ],
-    channelId,
-    type === 'channel' ? 'posts' : 'writs',
-    mode,
-    cursor,
-    ...[
-      type === 'channel' ? (includeReplies ? 'post' : 'outline') : null,
-      type !== 'channel' ? (includeReplies ? 'heavy' : 'light') : null,
-    ]
-  );
-  // oxlint-disable-next-line tlon/no-raw-desk-request -- unserved count-less page path, sent unchanged
-  return scry<PagedPostsResponse>({
-    app: type === 'channel' ? 'channels' : 'chat',
-    path,
-  });
-}
-
 // The newest page is the only one served without a cursor, and it takes
 // none.
 function scryPostsPage(
@@ -503,8 +469,11 @@ function scryPostsPage(
   count: number,
   includeReplies: boolean
 ) {
+  // No desk arm serves a page without a count.
   if (!count) {
-    return scryCountlessPage(channelId, mode, cursor, includeReplies);
+    throw new Error(
+      `getChannelPosts: no desk request serves a page without a count (got ${count})`
+    );
   }
   if ((mode === 'newest') === !!cursor) {
     throw new Error(
