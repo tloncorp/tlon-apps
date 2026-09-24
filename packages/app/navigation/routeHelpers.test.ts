@@ -4,6 +4,7 @@ import {
   NavigationChainNode,
   getActiveNestedGroupId,
   getActiveTopLevelDrawerRouteName,
+  getActivityBackTargetName,
   getDesktopGroupEntryRoute,
   getDesktopGroupInvitePreviewProps,
   getDesktopGroupInviteRoute,
@@ -345,6 +346,32 @@ describe('isActivityBackTarget', () => {
   test('rejects unrelated routes and malformed state', () => {
     expect(isActivityBackTarget({ name: 'Channel' })).toBe(false);
     expect(isActivityBackTarget(null)).toBe(false);
+  });
+});
+
+describe('getActivityBackTargetName', () => {
+  test('targets MainTabs itself when Activity is the tab beneath', () => {
+    // Not `{ screen: 'Activity' }`: that param would stay on the MainTabs
+    // route after the trip, get persisted with the position, and outrank the
+    // saved tab on the next launch.
+    expect(
+      getActivityBackTargetName({
+        name: 'MainTabs',
+        state: {
+          index: 1,
+          routes: [{ name: 'ChatList' }, { name: 'Activity' }],
+        },
+      })
+    ).toBe('MainTabs');
+  });
+
+  test('targets the top-level Activity route the desktop drawer exposes', () => {
+    expect(getActivityBackTargetName({ name: 'Activity' })).toBe('Activity');
+  });
+
+  test('falls back to the top-level route for a malformed previous route', () => {
+    expect(getActivityBackTargetName(undefined)).toBe('Activity');
+    expect(getActivityBackTargetName(null)).toBe('Activity');
   });
 });
 

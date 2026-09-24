@@ -144,7 +144,6 @@ function seedFixtureData({
   );
   queryClient.setQueryData(['tlonbot', 'settings', fixtureShip], botConfig);
   queryClient.setQueryData(['tlonbot', 'nickname', fixtureShip], 'Cosmos Bot');
-  queryClient.setQueryData(['tlonbot', 'avatar', fixtureShip], null);
   queryClient.setQueryData(['tlonbot', 'channels', fixtureShip], []);
   queryClient.setQueryData(['tlonbot', 'moon', fixtureShip], null);
   queryClient.setQueryData(['tlonbot', 'oauth-status', fixtureShip], {

@@ -1,0 +1,38 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runFlow: to-tab-root.yaml
+# The iOS native tab bar exposes only its container to accessibility: the tab
+# buttons carry no label or identifier, because `tabBarLabel: ''` is what hides
+# them visually and that also empties their accessibility label. So anchor on
+# the container and tap a point inside it.
+#
+# The bar holds three tabs (Workspaces, Activity, Settings) for an account
+# without an agent and four with the Bot tab in front, which moves every tab.
+# These percentages sit inside the target in both layouts -- measured from the
+# accessibility frames of each, with roughly 20pt of clearance either side:
+#
+#   tabs   Workspaces   Activity   Settings
+#   3      x=115        x=201      x=287
+#   4      x=158        x=243      x=328
+#
+# Container width 402, so 34% = 137 and 78% = 314 both land in the overlap.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: '^Tab Bar$'
+          point: '34%,37%'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      # Android labels its tab buttons. Anchoring on the neighbouring tab is
+      # what broke here once the bar carried the Bot tab as well, and it is not
+      # needed: on any other tab this label is the only "Workspaces" on screen,
+      # and on this one the header repeats it but either match leaves us where
+      # we want to be. The assertion below catches a wrong tap.
+      - tapOn: '^Workspaces$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Workspaces$'

@@ -38,6 +38,12 @@ function errorDetails(error: Error | null) {
   return details as Record<string, unknown>;
 }
 
+// Opt-out rather than opt-in: only an error that knows retrying can't help says
+// so, and everything else keeps the button.
+function canRetry(error: Error | null) {
+  return errorDetails(error)?.canRetry !== false;
+}
+
 export class RootErrorBoundary extends Component<
   RootErrorBoundaryProps,
   RootErrorBoundaryState
@@ -82,16 +88,24 @@ export class RootErrorBoundary extends Component<
             <Text style={styles.message}>
               An error report has been submitted.
             </Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={this.handleRetry}
-              style={styles.button}
-            >
-              <Text style={styles.buttonLabel}>Try again</Text>
-            </Pressable>
-            <Text style={styles.message}>
-              If this keeps happening, close and reopen Tlon.
-            </Text>
+            {canRetry(this.state.error) ? (
+              <Fragment>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={this.handleRetry}
+                  style={styles.button}
+                >
+                  <Text style={styles.buttonLabel}>Try again</Text>
+                </Pressable>
+                <Text style={styles.message}>
+                  If this keeps happening, close and reopen Tlon.
+                </Text>
+              </Fragment>
+            ) : (
+              <Text style={styles.message}>
+                Close and reopen Tlon to continue.
+              </Text>
+            )}
           </View>
         </View>
       );

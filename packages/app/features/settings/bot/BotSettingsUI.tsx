@@ -11,7 +11,8 @@ import { Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, XStack, YStack } from 'tamagui';
 
-import { ImageAvatar } from '../../../ui/components/Avatar';
+import { useTopLevelTabBarClearance } from '../../../navigation/useTopLevelTabBarContentInset';
+import { ImageAvatar, SigilAvatar } from '../../../ui/components/Avatar';
 import { Badge } from '../../../ui/components/Badge';
 import { ListItem } from '../../../ui/components/ListItem';
 import {
@@ -196,12 +197,15 @@ export function BotIdentityHeader({
   title,
   subtitle,
   avatarUrl,
+  sigilContactId,
   ready,
   restarting,
 }: {
   title: string;
   subtitle: string;
   avatarUrl?: string;
+  /** Shown in place of a missing avatar; the face icon stands in without it. */
+  sigilContactId?: string;
   ready: boolean;
   restarting?: boolean;
 }) {
@@ -219,16 +223,26 @@ export function BotIdentityHeader({
         height={56}
         borderRadius="$l"
         fallback={
-          <View
-            width={56}
-            height={56}
-            alignItems="center"
-            justifyContent="center"
-            borderRadius="$l"
-            backgroundColor="$background"
-          >
-            <Icon type="Face" size="$l" color="$secondaryText" />
-          </View>
+          sigilContactId ? (
+            <SigilAvatar
+              contactId={sigilContactId}
+              size="custom"
+              width={56}
+              height={56}
+              borderRadius="$l"
+            />
+          ) : (
+            <View
+              width={56}
+              height={56}
+              alignItems="center"
+              justifyContent="center"
+              borderRadius="$l"
+              backgroundColor="$background"
+            >
+              <Icon type="Face" size="$l" color="$secondaryText" />
+            </View>
+          )
         }
       />
       <YStack flex={1} minWidth={0} gap="$2xs">
@@ -264,6 +278,10 @@ export function ApplyChangesBar({
   onApply: () => void;
 }) {
   const insets = useSafeAreaInsets();
+  // On the Settings tab the native tab bar floats over the bottom of the
+  // screen, so the bar has to clear it rather than the home indicator alone.
+  // Off the tab screens the clearance is 0 and the safe area applies as before.
+  const tabBarClearance = useTopLevelTabBarClearance();
 
   if (changeCount === 0 && !error && !applying) {
     return null;
@@ -276,7 +294,7 @@ export function ApplyChangesBar({
       backgroundColor="$background"
       paddingHorizontal="$l"
       paddingTop="$m"
-      paddingBottom={insets.bottom}
+      paddingBottom={tabBarClearance || insets.bottom}
       gap="$m"
     >
       {/* Surface apply errors right here, above the buttons — otherwise they're
