@@ -65,11 +65,14 @@ export type Entry =
   | HttpEntry
   | RawEntry;
 
+type HoleName<K extends string> = K extends `${infer N}*` ? N : K;
 type HoleNames<P extends string> = P extends `${string}{${infer K}}${infer R}`
-  ? K | HoleNames<R>
+  ? HoleName<K> | HoleNames<R>
   : never;
 
-// Holes are `{name}` path segments. A path without holes takes `{}` and
+// Holes are `{name}` path segments. `{name*}` is a composite hole whose value
+// spans several segments (a nest kind/host/name, a flag host/name); any other
+// hole's value may not contain `/`. A path without holes takes `{}` and
 // nothing else.
 export type Params<P extends string> = [HoleNames<P>] extends [never]
   ? Record<string, never>

@@ -5,13 +5,13 @@ export const reel = {
   idUrl: {
     kind: 'scry',
     agent: 'reel',
-    path: '/v1/id-url/{id}',
+    path: '/v1/id-url/{id*}',
     since: '12.2.0',
   },
   idLink: {
     kind: 'subscribe',
     agent: 'reel',
-    path: '/v1/id-link/{id}',
+    path: '/v1/id-link/{id*}',
     since: '12.2.0',
   },
   describe: {

@@ -73,13 +73,50 @@ type RawReg = Extract<RegistryEntry, { kind: 'raw' }>;
 
 const HOLE = /\{([^}]+)\}/g;
 
-function fillPath(path: string, params: Record<string, string | number>) {
-  return path.replace(HOLE, (_, name: string) => {
+let entryNames: Map<unknown, string> | undefined;
+function nameOf(entry: { agent: string; path: string }) {
+  entryNames ??= new Map(
+    Object.entries(REGISTRY).flatMap(([group, entries]) =>
+      Object.entries(entries).map(([key, e]) => [e, `${group}.${key}`])
+    )
+  );
+  return entryNames.get(entry) ?? `${entry.agent} ${entry.path}`;
+}
+
+const DOT_SEGMENT = /^(?:\.|%2e){1,2}$/i;
+
+// A value that adds delimiters or dot segments would route the request
+// somewhere other than the declared path once the URL is parsed.
+function holeProblem(value: string, composite: boolean) {
+  if (/[?#\\]/.test(value)) {
+    return 'contains ?, # or \\';
+  }
+  if (!composite && value.includes('/')) {
+    return 'contains / but is not a composite hole';
+  }
+  if (value.split('/').some((segment) => DOT_SEGMENT.test(segment))) {
+    return 'contains a . or .. segment';
+  }
+  return undefined;
+}
+
+function fillPath(
+  entry: { agent: string; path: string },
+  params: Record<string, string | number>
+) {
+  return entry.path.replace(HOLE, (_, hole: string) => {
+    const composite = hole.endsWith('*');
+    const name = composite ? hole.slice(0, -1) : hole;
     const value = params[name];
     if (value === undefined) {
-      throw new Error(`missing path parameter ${name} for ${path}`);
+      throw new Error(`${nameOf(entry)}: missing path parameter ${name}`);
     }
-    return String(value);
+    const text = String(value);
+    const problem = holeProblem(text, composite);
+    if (problem) {
+      throw new Error(`${nameOf(entry)}: path parameter ${name} ${problem}`);
+    }
+    return text;
   });
 }
 
@@ -121,7 +158,7 @@ export function scryRequest<E extends ScryReg>(entry: One<E>) {
   ): Promise<T> =>
     scry<T>({
       app: entry.agent,
-      path: fillPath(entry.path, params),
+      path: fillPath(entry, params),
       ...timeoutOf(opts),
     });
 }
@@ -133,7 +170,7 @@ export function scryNounRequest<E extends ScryReg>(entry: One<E>) {
   ): Promise<Noun> =>
     scryNoun({
       app: entry.agent,
-      path: fillPath(entry.path, params),
+      path: fillPath(entry, params),
       ...timeoutOf(opts),
     });
 }
@@ -143,10 +180,7 @@ export function subscribeRequest<E extends SubscribeReg>(entry: One<E>) {
     params: Params<E['path']>,
     handler: (update: T, id?: number) => void
   ) =>
-    subscribe<T>(
-      { app: entry.agent, path: fillPath(entry.path, params) },
-      handler
-    );
+    subscribe<T>({ app: entry.agent, path: fillPath(entry, params) }, handler);
 }
 
 type SubscribeOnceRest = [
@@ -161,7 +195,7 @@ export function subscribeOnceRequest<E extends SubscribeReg>(entry: One<E>) {
     ...rest: SubscribeOnceRest
   ): Promise<T> =>
     subscribeOnce<T>(
-      { app: entry.agent, path: fillPath(entry.path, params) },
+      { app: entry.agent, path: fillPath(entry, params) },
       ...rest
     );
 }
@@ -187,7 +221,7 @@ export function trackedPokeRequest<E extends PokeReg, S extends SubscribeReg>(
   ) =>
     trackedPoke<T, R>(
       { app: entry.agent, mark: entry.mark, json },
-      { app: watch.agent, path: fillPath(watch.path, watchParams) },
+      { app: watch.agent, path: fillPath(watch, watchParams) },
       predicate,
       ...config
     );
@@ -205,7 +239,7 @@ export function trackedPokeNounRequest<
   ) =>
     trackedPokeNoun<T, R>(
       { app: entry.agent, mark: entry.mark, noun },
-      { app: watch.agent, path: fillPath(watch.path, watchParams) },
+      { app: watch.agent, path: fillPath(watch, watchParams) },
       predicate,
       ...config
     );
@@ -233,7 +267,7 @@ export function httpRequest<E extends HttpReg>(entry: One<E>) {
     const { method, query: keys } = entry as HttpEntry;
     const { body, options } = init;
     const query = 'query' in init ? init.query : undefined;
-    const path = withQuery(fillPath(entry.path, params), keys, query);
+    const path = withQuery(fillPath(entry, params), keys, query);
     if (options) {
       return requestJson<T>(path, method, body, options);
     }
@@ -254,7 +288,7 @@ export function rawRequest<E extends RawReg>(entry: One<E>) {
   ): Promise<T> => {
     const { method } = entry as RawEntry;
     return request<T>(
-      fillPath(entry.path, params),
+      fillPath(entry, params),
       { ...init, method },
       ...timeout
     ) as Promise<T>;

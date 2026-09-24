@@ -13,6 +13,7 @@ import {
 } from '../urbit';
 import {
   base,
+  channels,
   groups,
   httpRequest,
   lanyard,
@@ -21,6 +22,7 @@ import {
   rawRequest,
   scryNounRequest,
   scryRequest,
+  steward,
   subscribeOnceRequest,
   subscribeRequest,
   threadRequest,
@@ -232,6 +234,62 @@ describe('http and noun transports', () => {
     ]);
     expect(calls(scryNoun)).toEqual([
       [{ app: 'lanyard', path: '/v1/records' }],
+    ]);
+  });
+});
+
+describe('hole values cannot reroute the request', () => {
+  test('a plain hole rejects /, dot segments, ?, # and \\', () => {
+    const bad = ['a/b', '..', '.', '%2E%2e', 'x?y=1', 'x#y', 'a\\b'];
+    for (const count of bad) {
+      expect(() => scryRequest(steward.lensRecentN)({ count })).toThrow(
+        /^steward\.lensRecentN: path parameter count /
+      );
+    }
+    expect(() =>
+      scryRequest(steward.lensRecentN)({ count: '../../automation/tasks' })
+    ).toThrow('steward.lensRecentN: path parameter count contains / but');
+    expect(() =>
+      rawRequest(base.metagrab)({
+        url: '../../../../steward/~/v1/automation/tasks',
+      })
+    ).toThrow('base.metagrab: path parameter url contains / but');
+    expect(calls(scry)).toEqual([]);
+    expect(calls(request)).toEqual([]);
+  });
+
+  test('a composite hole allows / but not dot segments, ? or #', async () => {
+    await scryRequest(channels.post)({ nest: 'chat/~zod/c', id: 1 });
+    expect(calls(scry)).toEqual([
+      [{ app: 'channels', path: '/v5/chat/~zod/c/posts/post/1' }],
+    ]);
+    for (const nest of [
+      'chat/../../x',
+      'chat/~zod/.',
+      'chat/~zod/c?x',
+      'c#x',
+    ]) {
+      expect(() => scryRequest(channels.post)({ nest, id: 1 })).toThrow(
+        /^channels\.post: path parameter nest /
+      );
+    }
+  });
+
+  test('dots inside a segment are ordinary text (@da, @ud)', async () => {
+    const after = '~2026.9.24..16.26.49..370a.3d70.a3d7.0a3d';
+    await scryRequest(channels.postsChanges)({
+      nest: 'chat/~zod/c',
+      start: '1.234',
+      end: '2.345',
+      after,
+    });
+    expect(calls(scry)).toEqual([
+      [
+        {
+          app: 'channels',
+          path: `/v4/chat/~zod/c/posts/changes/1.234/2.345/${after}`,
+        },
+      ],
     ]);
   });
 });

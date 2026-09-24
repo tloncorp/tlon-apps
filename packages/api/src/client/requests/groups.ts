@@ -10,7 +10,7 @@ export const groups = {
   uiGroup: {
     kind: 'scry',
     agent: 'groups',
-    path: '/v3/ui/groups/{groupId}',
+    path: '/v3/ui/groups/{groupId*}',
     since: '12.2.0',
   },
   negotiateStatus: {
@@ -34,7 +34,7 @@ export const groups = {
   gangPreview: {
     kind: 'subscribe',
     agent: 'groups',
-    path: '/gangs/{groupId}/preview',
+    path: '/gangs/{groupId*}/preview',
     since: '12.2.0',
   },
   gangIndex: {

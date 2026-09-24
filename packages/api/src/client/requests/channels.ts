@@ -5,49 +5,49 @@ export const channels = {
   postsRange: {
     kind: 'scry',
     agent: 'channels',
-    path: '/v5/{nest}/posts/range/{start}/{end}/{mode}',
+    path: '/v5/{nest*}/posts/range/{start}/{end}/{mode}',
     since: '12.2.0',
   },
   postsNewest: {
     kind: 'scry',
     agent: 'channels',
-    path: '/v5/{nest}/posts/newest/{count}/{mode}',
+    path: '/v5/{nest*}/posts/newest/{count}/{mode}',
     since: '12.2.0',
   },
   postsOlder: {
     kind: 'scry',
     agent: 'channels',
-    path: '/v5/{nest}/posts/older/{cursor}/{count}/{mode}',
+    path: '/v5/{nest*}/posts/older/{cursor}/{count}/{mode}',
     since: '12.2.0',
   },
   postsNewer: {
     kind: 'scry',
     agent: 'channels',
-    path: '/v5/{nest}/posts/newer/{cursor}/{count}/{mode}',
+    path: '/v5/{nest*}/posts/newer/{cursor}/{count}/{mode}',
     since: '12.2.0',
   },
   postsAround: {
     kind: 'scry',
     agent: 'channels',
-    path: '/v5/{nest}/posts/around/{cursor}/{count}/{mode}',
+    path: '/v5/{nest*}/posts/around/{cursor}/{count}/{mode}',
     since: '12.2.0',
   },
   postsChanges: {
     kind: 'scry',
     agent: 'channels',
-    path: '/v4/{nest}/posts/changes/{start}/{end}/{after}',
+    path: '/v4/{nest*}/posts/changes/{start}/{end}/{after}',
     since: '12.2.0',
   },
   post: {
     kind: 'scry',
     agent: 'channels',
-    path: '/v5/{nest}/posts/post/{id}',
+    path: '/v5/{nest*}/posts/post/{id}',
     since: '12.2.0',
   },
   search: {
     kind: 'scry',
     agent: 'channels',
-    path: '/v5/{nest}/search/bounded/text/{cursor}/{depth}/{query}',
+    path: '/v5/{nest*}/search/bounded/text/{cursor}/{depth}/{query}',
     since: '12.2.0',
   },
   hiddenPosts: {
@@ -71,20 +71,20 @@ export const channels = {
   hookPreview: {
     kind: 'subscribe',
     agent: 'channels',
-    path: '/v1/hooks/preview/{nest}',
+    path: '/v1/hooks/preview/{nest*}',
     since: '12.2.0',
   },
   // {ask} is mandatory at the tag (channels.hoon v3-v5 %said arm).
   said: {
     kind: 'subscribe',
     agent: 'channels',
-    path: '/v5/said/{ask}/{nest}/post/{id}',
+    path: '/v5/said/{ask}/{nest*}/post/{id}',
     since: '12.2.0',
   },
   saidReply: {
     kind: 'subscribe',
     agent: 'channels',
-    path: '/v5/said/{ask}/{nest}/post/{id}/{reply}',
+    path: '/v5/said/{ask}/{nest*}/post/{id}/{reply}',
     since: '12.2.0',
   },
   negotiateNotify: {

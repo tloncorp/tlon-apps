@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
+import { posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 
@@ -68,7 +69,10 @@ function identity(e: Entry) {
 // A path can reach a protected prefix if it starts with it, or if a hole
 // appears before the prefix's last character, since the hole could be
 // filled to match the rest.
-function mayReach(path: string, prefix: string) {
+function mayReach(template: string, prefix: string) {
+  // Compare the pathname the URL parser will route: no query or fragment,
+  // dot segments resolved.
+  const path = posix.normalize(template.split(/[?#]/)[0]);
   const hole = path.indexOf('{');
   if (hole === -1) {
     return path === prefix || path.startsWith(`${prefix}/`);
@@ -395,6 +399,37 @@ describe('the check fails closed', () => {
       't.b (steward subscribe /v1/auto{rest} since 12.2.0): path can reach a prefix excluded by desk-request-scope.json',
       't.c (notes http GET /{app}/~/v1/automation since 12.2.0): route can reach a prefix excluded by desk-request-scope.json',
       't.d (steward raw GET /steward/~/v1/{area} since 12.2.0): route can reach a prefix excluded by desk-request-scope.json',
+    ]);
+  });
+
+  test('bot-only routes reached through dot segments or a query string', () => {
+    expect(
+      run({
+        a: entry({
+          kind: 'http',
+          agent: 'steward',
+          method: 'GET',
+          path: '/steward/~/v1/lens/../automation/tasks',
+          since: '12.2.0',
+        }),
+        b: entry({
+          kind: 'raw',
+          agent: 'steward',
+          method: 'GET',
+          path: '/steward/~/v1/automation?limit=1',
+          since: '12.2.0',
+        }),
+        c: entry({
+          kind: 'scry',
+          agent: 'steward',
+          path: '/v1/lens/./../automation/tasks',
+          since: '12.2.0',
+        }),
+      })
+    ).toEqual([
+      't.a (steward http GET /steward/~/v1/lens/../automation/tasks since 12.2.0): route can reach a prefix excluded by desk-request-scope.json',
+      't.b (steward raw GET /steward/~/v1/automation?limit=1 since 12.2.0): route can reach a prefix excluded by desk-request-scope.json',
+      't.c (steward scry /v1/lens/./../automation/tasks since 12.2.0): path can reach a prefix excluded by desk-request-scope.json',
     ]);
   });
 
