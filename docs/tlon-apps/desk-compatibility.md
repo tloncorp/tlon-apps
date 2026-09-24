@@ -101,6 +101,17 @@ commit, so only the commit the N-1 stage tested is ever deployed and synced —
 a superseded run ends red at the guard, and the newer push's own pipeline
 carries the deploy and sync through. Dispatching `deploy-canary.yml` directly
 remains the manual override.
+
+Accepted limit: the guard and the per-stage concurrency protect the normal
+case, not every case. A `staging` push that lands inside a running pipeline's
+deploy window — after the guard passes, before deploy's own checkout, or
+while a deploy or sync is already running or queued behind one — is deployed
+to the canary untested, and that run's sync merges it into `develop`; the new
+push's own pipeline still runs and reports the N-1 result red, just after the
+fact. Making this airtight would need the tested SHA pinned all the way
+through deploy's checkout and sync, or a single fused deploy-and-sync unit —
+both rejected as not worth it for the canary.
+
 `~bud` is marked `n1` in the manifest, which means `N1_SHIP=bud` is the *only*
 thing that selects it —
 `INCLUDE_OPTIONAL_SHIPS=true` deliberately does not, because the archive

@@ -18,6 +18,16 @@
 # N-1 tested, so only the tested commit is ever deployed or synced. A
 # superseded run then ends red at the guard, and the newer push's own pipeline
 # carries the deploy and sync through.
+#
+# Accepted limit: the guard only covers the window up to its own check. A
+# `staging` push that lands after the guard passes -- during deploy's own
+# checkout, or while a deploy or sync is already running or queued behind it
+# -- is deployed to the canary untested and merged into `develop` by that
+# run's sync; the new push's own pipeline still runs and reports the N-1
+# result red, just after the fact. Closing that gap would need the guard's
+# SHA pinned all the way through deploy's checkout and sync, or a single
+# fused deploy-and-sync unit -- both rejected as more machinery than the
+# canary is worth.
 name: Staging
 on:
   push:
