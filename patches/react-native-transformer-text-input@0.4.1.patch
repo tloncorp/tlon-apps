@@ -1,0 +1,162 @@
+diff --git a/lib/module/formatters/phone-number.js b/lib/module/formatters/phone-number.js
+index 406b8f0b49fe8ea56ec72adefce32ddfb6a6f291..6193fb4542b4ee8f3f25cc0d7a97d8bff977fab6 100644
+--- a/lib/module/formatters/phone-number.js
++++ b/lib/module/formatters/phone-number.js
+@@ -51,31 +51,6 @@ const countDigitsBefore = (text, pos) => {
+   return count;
+ };
+ 
+-// Select the best format for a given national number based on leading digits.
+-// Iterates formats and tests the leadingDigits regex against the start of digits.
+-// Returns the first match, or the last format as fallback.
+-const selectFormat = (nationalDigits, formats) => {
+-  'worklet';
+-
+-  if (formats.length === 0) return null;
+-  if (nationalDigits.length === 0) return formats[formats.length - 1];
+-  for (const format of formats) {
+-    if (!format.leadingDigits) {
+-      // No leading digits constraint — matches everything
+-      return format;
+-    }
+-    // Test leading digits regex against the national digits.
+-    // The regex should match from the start of the digits.
+-    const re = new RegExp('^(?:' + format.leadingDigits + ')');
+-    if (re.test(nationalDigits)) {
+-      return format;
+-    }
+-  }
+-
+-  // Fallback to last format
+-  return formats[formats.length - 1];
+-};
+-
+ // Count the max digits the format pattern can consume by counting \d occurrences
+ // in the capture groups.
+ const getFormatMaxDigits = pattern => {
+@@ -116,6 +91,41 @@ const getFormatMaxDigits = pattern => {
+   return count;
+ };
+ 
++// Select the best format for a given national number based on leading digits.
++// Iterates formats and tests the leadingDigits regex against the start of digits.
++// A format whose pattern can't hold every digit typed so far is passed over for
++// the next match, so a short format that shares a prefix with a longer one
++// (NANP lists the 7-digit "310-XXXX" service numbers ahead of the 10-digit
++// "(310) XXX-XXXX") never truncates the longer number. Returns the first match
++// that fits, else the widest match, else the last format as fallback.
++const selectFormat = (nationalDigits, formats) => {
++  'worklet';
++
++  if (formats.length === 0) return null;
++  if (nationalDigits.length === 0) return formats[formats.length - 1];
++  let widest = null;
++  let widestMax = -1;
++  for (const format of formats) {
++    // Test leading digits regex against the national digits.
++    // The regex should match from the start of the digits.
++    if (format.leadingDigits) {
++      const re = new RegExp('^(?:' + format.leadingDigits + ')');
++      if (!re.test(nationalDigits)) continue;
++    }
++    const maxDigits = getFormatMaxDigits(format.pattern);
++    if (nationalDigits.length <= maxDigits) {
++      return format;
++    }
++    if (maxDigits > widestMax) {
++      widest = format;
++      widestMax = maxDigits;
++    }
++  }
++
++  // Every matching format overflowed: the widest one clamps the input.
++  return widest !== null ? widest : formats[formats.length - 1];
++};
++
+ // Build a partial format for when we don't have enough digits to match the full pattern.
+ // We expand digit groups one at a time and fill what we can.
+ const buildPartialFormat = (digits, format) => {
+diff --git a/src/formatters/phone-number.ts b/src/formatters/phone-number.ts
+index 0a95cd62a610213a16c92c8af7a2fe0c564fb6d8..02f13b18d3ebda9a2217f10e56f4455d51b01e3d 100644
+--- a/src/formatters/phone-number.ts
++++ b/src/formatters/phone-number.ts
+@@ -82,34 +82,6 @@ const countDigitsBefore = (text: string, pos: number): number => {
+   return count;
+ };
+ 
+-// Select the best format for a given national number based on leading digits.
+-// Iterates formats and tests the leadingDigits regex against the start of digits.
+-// Returns the first match, or the last format as fallback.
+-const selectFormat = (
+-  nationalDigits: string,
+-  formats: PhoneFormat[],
+-): PhoneFormat | null => {
+-  'worklet';
+-  if (formats.length === 0) return null;
+-  if (nationalDigits.length === 0) return formats[formats.length - 1]!;
+-
+-  for (const format of formats) {
+-    if (!format.leadingDigits) {
+-      // No leading digits constraint — matches everything
+-      return format;
+-    }
+-    // Test leading digits regex against the national digits.
+-    // The regex should match from the start of the digits.
+-    const re = new RegExp('^(?:' + format.leadingDigits + ')');
+-    if (re.test(nationalDigits)) {
+-      return format;
+-    }
+-  }
+-
+-  // Fallback to last format
+-  return formats[formats.length - 1]!;
+-};
+-
+ // Count the max digits the format pattern can consume by counting \d occurrences
+ // in the capture groups.
+ const getFormatMaxDigits = (pattern: string): number => {
+@@ -153,6 +125,44 @@ const getFormatMaxDigits = (pattern: string): number => {
+   return count;
+ };
+ 
++// Select the best format for a given national number based on leading digits.
++// Iterates formats and tests the leadingDigits regex against the start of digits.
++// A format whose pattern can't hold every digit typed so far is passed over for
++// the next match, so a short format that shares a prefix with a longer one
++// (NANP lists the 7-digit "310-XXXX" service numbers ahead of the 10-digit
++// "(310) XXX-XXXX") never truncates the longer number. Returns the first match
++// that fits, else the widest match, else the last format as fallback.
++const selectFormat = (
++  nationalDigits: string,
++  formats: PhoneFormat[],
++): PhoneFormat | null => {
++  'worklet';
++  if (formats.length === 0) return null;
++  if (nationalDigits.length === 0) return formats[formats.length - 1]!;
++
++  let widest: PhoneFormat | null = null;
++  let widestMax = -1;
++  for (const format of formats) {
++    // Test leading digits regex against the national digits.
++    // The regex should match from the start of the digits.
++    if (format.leadingDigits) {
++      const re = new RegExp('^(?:' + format.leadingDigits + ')');
++      if (!re.test(nationalDigits)) continue;
++    }
++    const maxDigits = getFormatMaxDigits(format.pattern);
++    if (nationalDigits.length <= maxDigits) {
++      return format;
++    }
++    if (maxDigits > widestMax) {
++      widest = format;
++      widestMax = maxDigits;
++    }
++  }
++
++  // Every matching format overflowed: the widest one clamps the input.
++  return widest !== null ? widest : formats[formats.length - 1]!;
++};
++
+ // Build a partial format for when we don't have enough digits to match the full pattern.
+ // We expand digit groups one at a time and fill what we can.
+ const buildPartialFormat = (digits: string, format: PhoneFormat): string => {
