@@ -18,6 +18,11 @@
       }
     }
   },
+  "reanimated": {
+    "staticFeatureFlags": {
+      "IOS_SYNCHRONOUSLY_UPDATE_UI_PROPS": true
+    }
+  },
   "scripts": {
     "android": "expo run:android --variant=productionDebug",
     "android:preview": "cross-env APP_VARIANT=preview expo run:android --variant=previewDebug",
