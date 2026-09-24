@@ -2,6 +2,7 @@
 // Runs agent-device against this worktree's EAS Simulator session: the one
 // `stim ios --remote eas` or `stim android --remote eas` created and connected.
 //
+//   node <worktree>/.agents/skills/tlon-workflow/eas-device.mjs keepalive
 //   node <worktree>/.agents/skills/tlon-workflow/eas-device.mjs snapshot -i
 //   node <worktree>/.agents/skills/tlon-workflow/eas-device.mjs press 'text="Next"' --settle
 //
@@ -11,8 +12,14 @@
 // beside Stim's connection profile, and runs agent-device with it in the
 // environment, so the token never appears on a command line. It also adds the
 // connection's --session when the arguments name none.
-import { spawnSync } from 'node:child_process';
+//
+// A remote lease lapses after about a minute without a command, and the next
+// command then takes a new lease that the session refuses for good. Every call,
+// and `keepalive` on its own, makes sure a detached process is pinging the
+// device for as long as Stim records the session.
+import { spawn, spawnSync } from 'node:child_process';
 import {
+  appendFileSync,
   existsSync,
   readFileSync,
   readdirSync,
@@ -30,6 +37,11 @@ const AGENT_DEVICE_STATE =
   process.env.AGENT_DEVICE_STATE_DIR || join(homedir(), '.agent-device');
 const PROFILE_FILE = 'agent-device.remote.json';
 const TOKEN_FILE = 'agent-device.remote.token.json';
+const KEEPALIVE_FILE = 'agent-device.remote.keepalive.json';
+const KEEPALIVE_LOG = 'agent-device.remote.keepalive.log';
+const KEEPALIVE_LOOP = '--keepalive-loop';
+const KEEPALIVE_MS = 15_000;
+const KEEPALIVE_MAX_FAILURES = 4;
 
 function fail(message) {
   console.error(`eas-device: ${message}`);
@@ -58,9 +70,64 @@ function workspaceDir(appRoot) {
   return dir;
 }
 
+function running(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return err.code === 'EPERM';
+  }
+}
+
+// One pinger per session: a newer one replaces an older one, and it stops
+// once Stim no longer records the session it was started for.
+function ensureKeepalive(dir, sessionId, appRoot) {
+  const path = join(dir, KEEPALIVE_FILE);
+  const current = readJson(path);
+  if (current?.sessionId === sessionId && running(current.pid)) return;
+  const child = spawn(
+    process.execPath,
+    [fileURLToPath(import.meta.url), KEEPALIVE_LOOP, appRoot, sessionId],
+    { detached: true, stdio: 'ignore' }
+  );
+  child.unref();
+  writeFileSync(path, `${JSON.stringify({ pid: child.pid, sessionId })}\n`);
+}
+
+async function keepalive(appRoot, sessionId) {
+  const dir = workspaceDir(appRoot);
+  let failures = 0;
+  for (;;) {
+    await new Promise((done) => setTimeout(done, KEEPALIVE_MS));
+    if (readJson(join(dir, KEEPALIVE_FILE))?.pid !== process.pid) return;
+    // Exits here once `stim stop` clears the session.
+    const device = easDevice(appRoot, { keepalive: false });
+    if (device.sessionId !== sessionId) return;
+    const r = spawnSync(
+      'agent-device',
+      ['appstate', '--session', device.session],
+      {
+        env: device.env,
+        encoding: 'utf8',
+        timeout: 60_000,
+      }
+    );
+    if (r.status === 0) {
+      failures = 0;
+      continue;
+    }
+    const out = `${r.stdout ?? ''}${r.stderr ?? ''}`.trim().split('\n')[0];
+    appendFileSync(
+      join(dir, KEEPALIVE_LOG),
+      `${new Date().toISOString()} ${sessionId} appstate failed: ${out}\n`
+    );
+    if (++failures >= KEEPALIVE_MAX_FAILURES) return;
+  }
+}
+
 // Returns the agent-device session and environment for this worktree's
-// EAS Simulator session.
-export function easDevice(appRoot = APP) {
+// EAS Simulator session, and keeps its lease alive unless told not to.
+export function easDevice(appRoot = APP, { keepalive = true } = {}) {
   const dir = workspaceDir(appRoot);
   const sessionId = readJson(join(dir, 'state.json'))?.remoteDevice?.sessionId;
   if (!sessionId)
@@ -106,6 +173,7 @@ export function easDevice(appRoot = APP) {
     token = { sessionId, token: value };
     writeFileSync(tokenPath, `${JSON.stringify(token)}\n`, { mode: 0o600 });
   }
+  if (keepalive) ensureKeepalive(dir, sessionId, appRoot);
   return {
     session: profile.session,
     sessionId,
@@ -118,11 +186,19 @@ if (
   realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
   const args = process.argv.slice(2);
+  if (args[0] === KEEPALIVE_LOOP) {
+    await keepalive(args[1], args[2]);
+    process.exit(0);
+  }
   if (args.length === 0)
     fail(
-      'usage: node <worktree>/.agents/skills/tlon-workflow/eas-device.mjs <agent-device command> [args]'
+      'usage: node <worktree>/.agents/skills/tlon-workflow/eas-device.mjs <keepalive | agent-device command> [args]'
     );
   const { session, env } = easDevice();
+  if (args[0] === 'keepalive') {
+    console.log(`${session}: keepalive running`);
+    process.exit(0);
+  }
   const withSession = args.includes('--session')
     ? args
     : [...args, '--session', session];

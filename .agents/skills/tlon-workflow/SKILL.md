@@ -50,7 +50,7 @@ Stim builds the app on this machine, installs it on an EAS Simulator session, an
 ```bash
 eas sim:availability                      # "available" for the tlon account
 stim start --remote
-stim ios --remote eas                     # or: stim android --remote eas
+stim ios --remote eas && node <worktree>/.agents/skills/tlon-workflow/eas-device.mjs keepalive
 stim logs --errors                        # exit 0 and "No matching log records" on stderr is the pass
 ```
 
@@ -61,6 +61,8 @@ Every `stim ios` and `stim android` in this skill takes `--remote eas`; without 
 **A session bills from creation until it stops,** including while the local build runs and while you are thinking. Stim creates it before building, so a fingerprint miss (`fingerprint ... miss -- 1 source changed: ...`) compiles on the clock; `apps/tlon-mobile/.gitignore` is one of those sources. `stim stop` ends it (step 10) as soon as the platform's captures are done; do not leave one open across the review.
 
 From the output keep the session ID (`device  EAS Simulator (<id>)`, or `udid` under `--json`) and the `Watch this device: <url>` line. Give the URL to the user: it is the only way to see the device. It carries a token, so it never goes in a pull request, ticket or comment.
+
+For Android, the same line with `stim android --remote eas`. Keep the `&& ... keepalive` on every run, backgrounded or not: it has to start the moment Stim returns (see below).
 
 A cold `stim ios` outlasts most tool timeouts: run it in the background or with the longest timeout you have, and rerun the same command if a call times out. A rerun reuses the session. So does `stim ios --remote eas` after a native change.
 
@@ -74,7 +76,7 @@ APP_VARIANT=preview stim ios --remote eas --scheme Landscape-preview
 APP_VARIANT=preview stim android --remote eas --variant previewDebug
 ```
 
-Every line needs `APP_VARIANT=preview`: the Gradle variant alone leaves the app configured as production.
+Every line needs `APP_VARIANT=preview`: the Gradle variant alone leaves the app configured as production. The two device lines take the same `&& ... keepalive` as above.
 
 Use `stim logs --errors`, not `--since 5m --level error`: it filters the `hiddenapi ... AccessibilityNodeInfo` noise agent-device's snapshots generate on Android.
 
@@ -87,7 +89,9 @@ node <worktree>/.agents/skills/tlon-workflow/eas-device.mjs snapshot -i
 node <worktree>/.agents/skills/tlon-workflow/eas-device.mjs press 'text="Next"' --settle
 ```
 
-Bare `agent-device` fails with `requires daemon authentication`: Stim keeps the connection but not the token. Never give a command room to run past agent-device's 90-second request limit: the timeout replaces the lease, and from then on every call fails with `UNAUTHORIZED: Lease does not match session owner (leaseId)` and nothing re-attaches, including `stim ios --remote eas`. Recover with `stim stop`, then this step and the sign-in again. The one command known to hit the limit is `record stop` without `--hide-touches` (step 4).
+Bare `agent-device` fails with `requires daemon authentication`: Stim keeps the connection but not the token.
+
+**Nothing may leave the device idle for a minute.** An EAS device's lease lapses after about a minute without a command, and the next command then takes a new lease that the session refuses: from then on every call fails with `UNAUTHORIZED: Lease does not match session owner (leaseId)`, and nothing re-attaches, including `stim ios --remote eas`. A pause to think is enough to lose it. `eas-device.mjs` keeps a detached process pinging the device every 15 seconds for as long as Stim records the session: `keepalive` starts it, every other call restarts it if it died, and it stops by itself after `stim stop`. It cannot save a device that was already idle for a minute before it started, which is why it is chained onto `stim ios`. Pings that fail are logged to `agent-device.remote.keepalive.log` in the Stim workspace directory (`~/.stim/workspaces/<name>/`); a failure or two during a `stim ios` rerun or a long request is expected. If the session is lost anyway, `stim stop`, then this step and the sign-in again.
 
 Stim gives every worktree's session the same agent-device name, `stim-tlon-mobile`, and agent-device keeps one connection per name. Run one worktree on EAS at a time: a second worktree's `stim ios --remote eas` takes the connection over, and `eas-device.mjs` in the first refuses rather than drive the other's device.
 
@@ -179,7 +183,7 @@ node <worktree>/.agents/skills/tlon-workflow/eas-device.mjs wait 5000
 node <worktree>/.agents/skills/tlon-workflow/eas-device.mjs record stop
 ```
 
-`--hide-touches` is not optional on EAS: with the touch overlay `record stop` ran past agent-device's 90-second limit, and that timeout cost the session (step 2). Without the overlay it returns in seconds, and the clip is written to the local path you gave. Wait for the result's text, then `wait 5000` before `record stop`: the remote recording runs about two seconds behind, so a stop right after the text produced a clip that ended before it, and 3 seconds left the result in the last frame only. The recorder also writes a frame only when the screen changes, so even a good clip ends the moment the result settles and shows it for an instant; hold it before attaching (step 8). Check that `record start` succeeded and, after `record stop`, that the file exists (on Android a second recording in the same session has produced nothing without an error) and its duration and last frame are right. Evidence goes in `.evidence/` at the root of your worktree (gitignored, removed with the worktree in step 10), as an absolute path: `$TMPDIR` differs between sandboxed and unsandboxed shells.
+`--hide-touches` is not optional on EAS: with the touch overlay the remote export outlasts agent-device's 90-second request limit, and `record stop` fails with `Daemon request timed out` and no clip. Without the overlay it returns in seconds, and the clip is written to the local path you gave. Wait for the result's text, then `wait 5000` before `record stop`: the remote recording runs about two seconds behind, so a stop right after the text produced a clip that ended before it, and 3 seconds left the result in the last frame only. The recorder also writes a frame only when the screen changes, so even a good clip ends the moment the result settles and shows it for an instant; hold it before attaching (step 8). Check that `record start` succeeded and, after `record stop`, that the file exists (on Android a second recording in the same session has produced nothing without an error) and its duration and last frame are right. Evidence goes in `.evidence/` at the root of your worktree (gitignored, removed with the worktree in step 10), as an absolute path: `$TMPDIR` differs between sandboxed and unsandboxed shells.
 
 EAS also records the whole session and attaches it once the session stops (`eas sim:get --id <session id> --json`, the `screen-recording` artifact). It is a backup to check a clip against, not a clip source: its timeline drifts from the wall clock, so a cut by timestamp lands on the wrong moment.
 
@@ -331,7 +335,7 @@ Delete the throwaway group on the ship first, while the app is still up and sign
 ```bash
 cd <worktree>/apps/tlon-mobile
 stim ports stop                            # kills web and Cosmos on this worktree's ports and releases them; leaves Metro alone
-stim stop                                  # ends the EAS session: look for "stopped remote session <id>"
+stim stop                                  # ends the EAS session (look for "stopped remote session <id>") and, within 15 seconds, its keepalive
 eas sim:list --status new --status in-progress   # nothing of this run's left billing
 cd <source checkout>/apps/tlon-mobile
 stim worktree remove <source checkout>/.worktrees/<name>   # the path step 1 created; then, if the branch should go too:
