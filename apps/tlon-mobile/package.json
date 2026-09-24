@@ -93,7 +93,7 @@
     "classnames": "^2.3.2",
     "dotenv-expand": "^11.0.6",
     "drizzle-orm": "0.39.3",
-    "expo": "~57.0.7",
+    "expo": "~57.0.24",
     "expo-application": "~57.0.2",
     "expo-asset": "~57.0.6",
     "expo-audio": "~57.0.2",
