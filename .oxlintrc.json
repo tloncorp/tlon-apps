@@ -251,7 +251,6 @@
         "apps/tlon-web/src/state/settings.ts",
         "packages/api/src/client/bucketsApi.ts",
         "packages/api/src/client/changesApi.ts",
-        "packages/api/src/client/contactsApi.ts",
         "packages/api/src/client/initApi.ts",
         "packages/api/src/client/inviteApi.ts",
         "packages/api/src/client/lanyardApi.ts",
