@@ -311,7 +311,7 @@ export const setPinnedItemOrder = async (itemIds: string[]) => {
 export const getChannelPreview = async (
   channelId: string
 ): Promise<db.Channel | null> => {
-  // oxlint-disable-next-line tlon/no-raw-desk-request -- dead request, see TLON-XXXX
+  // oxlint-disable-next-line tlon/no-raw-desk-request -- dead request, see TLON-6538
   const channelPreview = await subscribeOnce<ub.ChannelPreview>(
     {
       app: 'groups',
