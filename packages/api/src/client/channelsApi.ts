@@ -14,13 +14,15 @@ import {
 } from './apiUtils';
 import { toPostData, toPostReplyData, toReactionsData } from './postsApi';
 import {
-  poke,
-  scry,
-  subscribe,
-  subscribeOnce,
-  thread,
-  trackedPoke,
-} from './urbit';
+  channels,
+  chat,
+  pokeRequest,
+  scryRequest,
+  subscribeOnceRequest,
+  subscribeRequest,
+  threadRequest,
+  trackedPokeRequest,
+} from './requests';
 
 const logger = createDevLogger('channelsApi', false);
 
@@ -92,15 +94,14 @@ export const createChannel = async ({
   id,
   ...channelPayload
 }: ub.Create & { id: string }) => {
-  return trackedPoke<ub.ChannelsResponse>(
+  return trackedPokeRequest(
+    channels.action,
+    channels.updates
+  )<ub.ChannelsResponse>(
     {
-      app: 'channels',
-      mark: 'channel-action-2',
-      json: {
-        create: channelPayload,
-      },
+      create: channelPayload,
     },
-    { app: 'channels', path: '/v4' },
+    {},
     (event) => {
       return 'create' in event.response && event.nest === id;
     },
@@ -112,20 +113,19 @@ export async function updateChannelMeta(
   channelId: string,
   metaPayload: Stringified<ub.ChannelMetadataSchemaV1> | null
 ) {
-  return trackedPoke<ub.ChannelsResponse>(
+  return trackedPokeRequest(
+    channels.action,
+    channels.updates
+  )<ub.ChannelsResponse>(
     {
-      app: 'channels',
-      mark: 'channel-action-2',
-      json: {
-        channel: {
-          nest: channelId,
-          action: {
-            meta: metaPayload,
-          },
+      channel: {
+        nest: channelId,
+        action: {
+          meta: metaPayload,
         },
       },
     },
-    { app: 'channels', path: '/v4' },
+    {},
     (event) => {
       return 'meta' in event.response;
     }
@@ -136,23 +136,17 @@ export const setupChannelFromTemplate = async (
   exampleChannelId: string,
   targetChannelId: string
 ) => {
-  return thread({
-    desk: 'groups',
-    inputMark: 'hook-setup-template-args',
-    outputMark: 'json',
-    threadName: 'channel-setup-from-template',
-    body: {
-      example: exampleChannelId,
-      target: targetChannelId,
-    },
+  return threadRequest(channels.setupFromTemplate)({
+    example: exampleChannelId,
+    target: targetChannelId,
   });
 };
 
 export const subscribeToChannelsUpdates = async (
   eventHandler: (update: ChannelsUpdate) => void
 ) => {
-  subscribe(
-    { app: 'channels', path: '/v4' },
+  subscribeRequest(channels.updates)(
+    {},
     (rawEvent: ub.ChannelsSubscribeResponse) => {
       logger.log('channels received event', rawEvent);
       eventHandler(toChannelsUpdate(rawEvent));
@@ -394,15 +388,14 @@ export const createNewGroupDefaultChannel = async ({
     writers: [],
   };
 
-  return trackedPoke<ub.ChannelsResponse>(
+  return trackedPokeRequest(
+    channels.action,
+    channels.updates
+  )<ub.ChannelsResponse>(
     {
-      app: 'channels',
-      mark: 'channel-action-2',
-      json: {
-        create: channelPayload,
-      },
+      create: channelPayload,
     },
-    { app: 'channels', path: '/v4' },
+    {},
     (event) => {
       const { response, nest } = event;
       return (
@@ -427,21 +420,24 @@ export const searchChannel = async (params: {
   let response;
   if (isGroupChannel) {
     // channels agent
-    response = await scry<ub.ChannelScam>({
-      app: 'channels',
-      path: `/v5/${params.channelId}/search/bounded/text/${
-        params.cursor ? render('ud', BigInt(params.cursor ?? 0)) : ''
-      }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
+    response = await scryRequest(channels.search)<ub.ChannelScam>({
+      nest: params.channelId,
+      cursor: params.cursor ? render('ud', BigInt(params.cursor ?? 0)) : '',
+      depth: SINGLE_PAGE_SEARCH_DEPTH,
+      query: encodedQuery,
     });
   } else {
     // chat agent
-    const type = getChannelIdType(params.channelId) === 'dm' ? 'dm' : 'club';
-    response = await scry<ub.ChatScam>({
-      app: 'chat',
-      path: `/${type}/${params.channelId}/search/bounded/text/${
-        params.cursor ? render('ud', BigInt(params.cursor ?? 0)) : ''
-      }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
-    });
+    const searchParams = {
+      id: params.channelId,
+      cursor: params.cursor ? render('ud', BigInt(params.cursor ?? 0)) : '',
+      depth: SINGLE_PAGE_SEARCH_DEPTH,
+      query: encodedQuery,
+    };
+    response =
+      getChannelIdType(params.channelId) === 'dm'
+        ? await scryRequest(chat.dmSearch)<ub.ChatScam>(searchParams)
+        : await scryRequest(chat.clubSearch)<ub.ChatScam>(searchParams);
   }
 
   // note: we avoid incurring the cost of sorting here since the main consumer (useChannelSearch)
@@ -477,35 +473,30 @@ export const setOrder = async (
   channelId: string,
   arrangedPostIds: string[]
 ) => {
-  await poke({
-    app: 'channels',
-    mark: 'channel-action-2',
-    json: {
-      channel: {
-        nest: channelId,
-        action: {
-          order: arrangedPostIds,
-        },
+  await pokeRequest(channels.action)({
+    channel: {
+      nest: channelId,
+      action: {
+        order: arrangedPostIds,
       },
     },
   });
 };
 
 export const leaveChannel = async (channelId: string) => {
-  return trackedPoke<ub.ChannelsResponse>(
+  return trackedPokeRequest(
+    channels.action,
+    channels.updates
+  )<ub.ChannelsResponse>(
     {
-      app: 'channels',
-      mark: 'channel-action-2',
-      json: {
-        channel: {
-          nest: channelId,
-          action: {
-            leave: null,
-          },
+      channel: {
+        nest: channelId,
+        action: {
+          leave: null,
         },
       },
     },
-    { app: 'channels', path: '/v4' },
+    {},
     (event) => {
       return 'leave' in event.response && event.response.leave === channelId;
     },
@@ -514,20 +505,19 @@ export const leaveChannel = async (channelId: string) => {
 };
 
 export const joinChannel = async (channelId: string, groupId: string) => {
-  return trackedPoke<ub.ChannelsResponse>(
+  return trackedPokeRequest(
+    channels.action,
+    channels.updates
+  )<ub.ChannelsResponse>(
     {
-      app: 'channels',
-      mark: 'channel-action-2',
-      json: {
-        channel: {
-          nest: channelId,
-          action: {
-            join: groupId,
-          },
+      channel: {
+        nest: channelId,
+        action: {
+          join: groupId,
         },
       },
     },
-    { app: 'channels', path: '/v4' },
+    {},
     (event) => {
       return 'join' in event.response && event.nest === channelId;
     },
@@ -536,11 +526,8 @@ export const joinChannel = async (channelId: string, groupId: string) => {
 };
 
 export async function getChannelHooksPreview(channelId: string) {
-  return subscribeOnce<ub.ChannelHooksPreview>(
-    {
-      app: 'channels',
-      path: `/v1/hooks/preview/${channelId}`,
-    },
+  return subscribeOnceRequest(channels.hookPreview)<ub.ChannelHooksPreview>(
+    { nest: channelId },
     10_000
   );
 }
@@ -552,7 +539,9 @@ export async function addChannelWriters({
   channelId: string;
   writers: string[];
 }) {
-  return poke(ub.channelAction(channelId, { 'add-writers': writers }));
+  return pokeRequest(channels.action)(
+    ub.channelAction(channelId, { 'add-writers': writers }).json
+  );
 }
 
 export async function removeChannelWriters({
@@ -562,5 +551,7 @@ export async function removeChannelWriters({
   channelId: string;
   writers: string[];
 }) {
-  return poke(ub.channelAction(channelId, { 'del-writers': writers }));
+  return pokeRequest(channels.action)(
+    ub.channelAction(channelId, { 'del-writers': writers }).json
+  );
 }
