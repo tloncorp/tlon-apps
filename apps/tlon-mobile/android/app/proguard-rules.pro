@@ -21,4 +21,8 @@
 # remove this keep once on a release that includes it.
 -keep class expo.modules.adapters.react.** { *; }
 
+# Notification telemetry reports exception class names; keep Volley's readable
+# for any error NotificationLogger does not name by hand.
+-keepnames class com.android.volley.*Error
+
 # Add any project specific keep options here:

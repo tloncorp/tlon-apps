@@ -42,6 +42,7 @@ import { isAgentGroupSetupActive } from '../../ui/components/Channel/postVisibil
 import { shouldAutoLoadOlderPosts } from './channelPagination';
 import { useAgentOnboardingChannel } from './useAgentOnboardingChannel';
 import { useAgentOnboardingFirstEntry } from './useAgentOnboardingFirstEntry';
+import { useRecoverCursorJump } from './useRecoverCursorJump';
 
 const logger = createDevLogger('ChannelScreen', false);
 
@@ -349,6 +350,17 @@ export default function ChannelScreen(props: Props) {
           mode: 'newest',
           firstPageCount: 50,
         }),
+  });
+
+  useRecoverCursorJump({
+    channelId: currentChannelId,
+    selectedPostId,
+    clearedCursor,
+    isFocused,
+    isLoading: isLoadingPosts,
+    isFetching: postsQuery.isFetching,
+    error: postsQuery.error,
+    onRecover: handleScrollToBottom,
   });
 
   const oldestPage = postsQuery.data?.pages.at(-1);

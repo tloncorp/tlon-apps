@@ -49,6 +49,7 @@ patchedDependencies:
   react-native-keyboard-controller@1.22.0: 1e349aaef532818775c64a2901eb74dba36a1a97402e75199a452212058c8d31
   react-native-reanimated: dca1e6927879993905550e8e56f8fa98423ff51ce87750ea4478bd40a4341f7f
   react-native-screens@4.25.2: 3de189f15fb8d14cb52fdf8b0b0009f6fbc4cf78b7252b5d4b0cec4fe879623e
+  react-native-transformer-text-input@0.4.1: 59b2f399a7dcef714fa84a97b03013427dcff2d9058643292fc244db8a5e0e88
   react-native-worklets@0.10.3: 493073c3d3dffc3a19003c8bb99960497eb1d81f29e6dc25068c4b85a86c312e
   react-native@0.86.3: f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16
 
@@ -416,7 +417,7 @@ importers:
         version: 1.1.10(react-dom@19.2.3(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       react-native-transformer-text-input:
         specifier: ^0.4.1
-        version: 0.4.1(react-native-worklets@0.10.3(patch_hash=493073c3d3dffc3a19003c8bb99960497eb1d81f29e6dc25068c4b85a86c312e)(@babel/core@7.29.0)(@react-native/metro-config@0.86.3)(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+        version: 0.4.1(patch_hash=59b2f399a7dcef714fa84a97b03013427dcff2d9058643292fc244db8a5e0e88)(react-native-worklets@0.10.3(patch_hash=493073c3d3dffc3a19003c8bb99960497eb1d81f29e6dc25068c4b85a86c312e)(@babel/core@7.29.0)(@react-native/metro-config@0.86.3)(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       react-native-url-polyfill:
         specifier: ^2.0.0
         version: 2.0.0(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))
@@ -26412,7 +26413,7 @@ snapshots:
       react-dom: 19.2.3(react@19.2.3)
       react-native: 0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3)
 
-  react-native-transformer-text-input@0.4.1(react-native-worklets@0.10.3(patch_hash=493073c3d3dffc3a19003c8bb99960497eb1d81f29e6dc25068c4b85a86c312e)(@babel/core@7.29.0)(@react-native/metro-config@0.86.3)(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3):
+  react-native-transformer-text-input@0.4.1(patch_hash=59b2f399a7dcef714fa84a97b03013427dcff2d9058643292fc244db8a5e0e88)(react-native-worklets@0.10.3(patch_hash=493073c3d3dffc3a19003c8bb99960497eb1d81f29e6dc25068c4b85a86c312e)(@babel/core@7.29.0)(@react-native/metro-config@0.86.3)(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3):
     dependencies:
       react: 19.2.3
       react-native: 0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3)
