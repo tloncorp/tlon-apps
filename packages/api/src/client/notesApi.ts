@@ -68,7 +68,7 @@ type NotesNotebookScopedAction = {
   action: NotesNotebookAction;
 };
 
-type NotesAction =
+export type NotesAction =
   | NotesJoinAction
   | NotesLeaveAction
   | NotesNotebookScopedAction;

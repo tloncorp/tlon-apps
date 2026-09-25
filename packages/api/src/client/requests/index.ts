@@ -24,9 +24,11 @@ import { lanyard } from './lanyard';
 import { notes } from './notes';
 import { presence } from './presence';
 import { reel } from './reel';
+import type { PayloadOf } from './payloads';
 import { steward } from './steward';
 import type { HttpEntry, HttpInitArgs, One, Params, RawEntry } from './types';
 
+export type * from './payloads';
 export type * from './types';
 export {
   activity,
@@ -206,7 +208,8 @@ export function subscribeOnceRequest<E extends SubscribeReg>(entry: One<E>) {
 }
 
 export function pokeRequest<E extends PokeReg>(entry: One<E>) {
-  return (json: unknown) => poke({ app: entry.agent, mark: entry.mark, json });
+  return (json: PayloadOf<E>) =>
+    poke({ app: entry.agent, mark: entry.mark, json });
 }
 
 export function pokeNounRequest<E extends PokeReg>(entry: One<E>) {
@@ -219,7 +222,7 @@ export function trackedPokeRequest<E extends PokeReg, S extends SubscribeReg>(
   watch: One<S>
 ) {
   return <T = unknown, R = T>(
-    json: unknown,
+    json: PayloadOf<E>,
     watchParams: Params<S['path']>,
     predicate: (event: R) => boolean,
     ...config: [requestConfig?: { tag?: string; timeout?: number }]

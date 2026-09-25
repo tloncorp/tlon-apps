@@ -1,6 +1,6 @@
 import { type Mock, beforeEach, expect, test, vi } from 'vitest';
 
-import { request, requestJson, scry, scryNoun, thread } from '../urbit';
+import { poke, request, requestJson, scry, scryNoun, thread } from '../urbit';
 import {
   base,
   channels,
@@ -22,6 +22,7 @@ vi.mock('../urbit', async () => {
   const actual = await vi.importActual<typeof import('../urbit')>('../urbit');
   return {
     ...actual,
+    poke: vi.fn(),
     request: vi.fn(),
     requestJson: vi.fn(),
     scry: vi.fn(),
@@ -65,6 +66,19 @@ test('caller options cannot change the declared request', async () => {
         outputMark: 'group-ui-2',
         body: { b: 1 },
         timeout: 5,
+      },
+    ],
+  ]);
+});
+
+test('a typed poke sends its payload unchanged', async () => {
+  await pokeRequest(groups.join)({ flag: '~zod/g', 'join-all': true });
+  expect(calls(poke)).toEqual([
+    [
+      {
+        app: 'groups',
+        mark: 'group-join',
+        json: { flag: '~zod/g', 'join-all': true },
       },
     ],
   ]);
@@ -135,7 +149,7 @@ export function typeProbes(flag: boolean) {
   scryRequest(groups.groups)<G>({});
   subscribeOnceRequest(groups.gangIndex)<G>({ ship: '~zod' });
   trackedPokeRequest(groups.action, groups.updates)<{ flag: string }>(
-    {},
+    { leave: '~zod/g' },
     {},
     pred,
     { tag: 't' }
@@ -177,6 +191,11 @@ export function typeProbes(flag: boolean) {
   pokeRequest(groups.updates);
   // @ts-expect-error
   threadRequest(groups.action);
+  // a payload of the wrong shape for its mark
+  // @ts-expect-error
+  pokeRequest(groups.join)({ flag: '~zod/g' });
+  // @ts-expect-error
+  trackedPokeRequest(groups.action, groups.updates)({}, {}, pred);
   // a scry is not a watch lane
   // @ts-expect-error
   trackedPokeRequest(groups.action, groups.groups);
