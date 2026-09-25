@@ -14,7 +14,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Keyboard } from 'react-native';
+import { Keyboard, Platform } from 'react-native';
 import { useTheme } from 'tamagui';
 
 import {
@@ -47,6 +47,7 @@ export const BottomSheetWrapper = forwardRef<
       snapPoints,
       showHandle = true,
       enablePanDownToClose = true,
+      enableContentPanningGesture = true,
       enableDynamicSizing,
       frameStyle,
       footerComponent,
@@ -72,6 +73,12 @@ export const BottomSheetWrapper = forwardRef<
 
     const resolvedEnableDynamicSizing =
       enableDynamicSizing ?? snapPointsMode !== 'percent';
+    // Compose cannot separate content-originated sheet pans from handle pans.
+    // When nested content owns vertical gestures, hide the disabled handle and
+    // keep standard back/scrim dismissal available instead of showing inert UI.
+    const resolvedShowHandle =
+      showHandle &&
+      (Platform.OS !== 'android' || enableContentPanningGesture !== false);
 
     const handleChange = useCallback(
       (index: number) => {
@@ -148,7 +155,8 @@ export const BottomSheetWrapper = forwardRef<
         snapPoints={transformedSnapPoints}
         enableDynamicSizing={resolvedEnableDynamicSizing}
         enablePanDownToClose={enablePanDownToClose}
-        handleComponent={showHandle ? BottomSheetHandle : null}
+        enableContentPanningGesture={enableContentPanningGesture}
+        handleComponent={resolvedShowHandle ? BottomSheetHandle : null}
         backgroundStyle={{ backgroundColor: theme.background.val }}
         style={frameStyle}
         onChange={handleChange}

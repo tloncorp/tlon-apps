@@ -54,46 +54,84 @@ export function ExpoSwiftUISheet({
   const theme = useTheme();
   const sheetRef = useRef<ModalBottomSheetRef>(null);
   const [mounted, setMounted] = useState(open);
+  const [mountKey, setMountKey] = useState(0);
   const openRef = useRef(open);
+  const mountedRef = useRef(open);
+  const hidingRef = useRef(false);
+  const operationRef = useRef(0);
+  const mountKeyRef = useRef(0);
+  const onDismissRef = useRef(onDismiss);
+  const onOpenChangeRef = useRef(onOpenChange);
+  onDismissRef.current = onDismiss;
+  onOpenChangeRef.current = onOpenChange;
 
   useEffect(() => {
+    const operation = ++operationRef.current;
     openRef.current = open;
+
     if (open) {
-      setMounted(true);
+      if (hidingRef.current) {
+        hidingRef.current = false;
+        const nextKey = mountKeyRef.current + 1;
+        mountKeyRef.current = nextKey;
+        setMountKey(nextKey);
+      }
+      if (!mountedRef.current) {
+        mountedRef.current = true;
+        setMounted(true);
+      }
       triggerHaptic('sheetOpen');
-      return;
+      return () => {
+        if (operationRef.current === operation) {
+          operationRef.current += 1;
+        }
+      };
     }
 
-    if (mounted) {
-      let cancelled = false;
+    if (mountedRef.current) {
+      hidingRef.current = true;
       const dismiss = async () => {
         await sheetRef.current?.hide();
-        if (!cancelled) {
+        if (
+          operationRef.current === operation &&
+          !openRef.current &&
+          hidingRef.current
+        ) {
+          hidingRef.current = false;
+          mountedRef.current = false;
           setMounted(false);
-          onDismiss?.();
+          onDismissRef.current?.();
         }
       };
       void dismiss();
-      return () => {
-        cancelled = true;
-      };
     }
-  }, [mounted, onDismiss, open]);
 
-  const handleDismissRequest = useCallback(() => {
+    return () => {
+      if (operationRef.current === operation) {
+        operationRef.current += 1;
+      }
+    };
+  }, [open]);
+
+  const handleDismissRequest = useCallback((dismissedKey: number) => {
+    if (dismissedKey !== mountKeyRef.current) return;
+    operationRef.current += 1;
+    hidingRef.current = false;
+    mountedRef.current = false;
     setMounted(false);
     if (openRef.current) {
-      onOpenChange(false);
+      onOpenChangeRef.current(false);
     }
-    onDismiss?.();
-  }, [onDismiss, onOpenChange]);
+    onDismissRef.current?.();
+  }, []);
 
   return (
     <Host matchContents style={{ position: 'absolute' }}>
       {mounted ? (
         <ModalBottomSheet
+          key={mountKey}
           ref={sheetRef}
-          onDismissRequest={handleDismissRequest}
+          onDismissRequest={() => handleDismissRequest(mountKey)}
           containerColor={theme.background.val}
           contentColor={theme.primaryText.val}
           initialFullyExpanded

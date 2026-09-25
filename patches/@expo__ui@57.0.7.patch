@@ -458,6 +458,14 @@ index f60ae61bf0c9023d41c55cdca2d9af0de7291a92..a7092b918dceab914450db3653abce3d
  /**
   * Android implementation of `BottomSheet` using Material3 ModalBottomSheet.
   *
+@@ -60,6 +77,7 @@ export function BottomSheet(props: BottomSheetProps) {
+     onClose,
+     onDismiss,
+     enablePanDownToClose = false,
++    enableContentPanningGesture = true,
+     enableDynamicSizing = true,
+     handleComponent,
+     backgroundStyle,
 @@ -66,10 +83,13 @@ export function BottomSheet(props: BottomSheetProps) {
      backgroundStyle,
      children,
@@ -473,7 +481,14 @@ index f60ae61bf0c9023d41c55cdca2d9af0de7291a92..a7092b918dceab914450db3653abce3d
    const skipPartially = fitToContents || !hasMultipleSnapPoints;
    const maxIndex = snapPointsProp ? snapPointsProp.length - 1 : 0;
    const containerColor = extractBackgroundColor(backgroundStyle);
-@@ -199,10 +219,17 @@ export function BottomSheet(props: BottomSheetProps) {
+@@ -193,16 +213,23 @@ export function BottomSheet(props: BottomSheetProps) {
+             skipPartiallyExpanded={skipPartially}
+             initialFullyExpanded={hasMultipleSnapPoints && pendingIndexRef.current === maxIndex}
+             showDragHandle={handleComponent !== null}
+-            sheetGesturesEnabled={enablePanDownToClose}
++            sheetGesturesEnabled={enablePanDownToClose && enableContentPanningGesture}
+             containerColor={containerColor}
+             properties={{
                shouldDismissOnBackPress: enablePanDownToClose,
                shouldDismissOnClickOutside: enablePanDownToClose,
              }}>
@@ -493,6 +508,19 @@ index f60ae61bf0c9023d41c55cdca2d9af0de7291a92..a7092b918dceab914450db3653abce3d
                  <SheetScrollContextReset>{children}</SheetScrollContextReset>
                </View>
              </RNHostView>
+diff --git a/src/community/bottom-sheet/README.md b/src/community/bottom-sheet/README.md
+index bb05f5dc557133066e64a281dc855196b46093b4..1a6121ee0d030a2d22b710f10de30acf2c65d713 100644
+--- a/src/community/bottom-sheet/README.md
++++ b/src/community/bottom-sheet/README.md
+@@ -108,7 +108,7 @@ This package ships a cross-platform bottom sheet API modeled after `@gorhom/bot
+ | `style` | Partial | Passed through where possible |
+ | `children` | Yes | |
+ | `animateOnMount` | No | Accepted, no effect. |
+-| `enableContentPanningGesture` | No | Accepted, no effect. |
++| `enableContentPanningGesture` | Partial | Android: `false` disables sheet gestures so nested content owns vertical pans; callers should hide the inactive handle. iOS/web: accepted, no effect. |
+ | `enableHandlePanningGesture` | No | Accepted, no effect. |
+ | `enableOverDrag` | No | Accepted, no effect. |
+ | `overDragResistanceFactor` | No | Accepted, no effect. |
 diff --git a/src/community/bottom-sheet/BottomSheet.ios.tsx b/src/community/bottom-sheet/BottomSheet.ios.tsx
 index 9908630d50d9a405688ae60c88f5e6638948420d..4dbe3244f77c8f8f0250bfa66e1364c52d3e64d3 100644
 --- a/src/community/bottom-sheet/BottomSheet.ios.tsx

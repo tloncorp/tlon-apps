@@ -28,8 +28,8 @@ export function ShipPickerSheet({
 }) {
   const isWindowNarrow = useIsWindowNarrow();
   const [scrolling, setScrolling] = useState(false);
-  // Let the drag handle (not the list) own the pan gesture on Android so the
-  // nested ContactBook can scroll.
+  // Disable sheet gestures on Android so the nested ContactBook owns vertical
+  // pans. The shared wrapper hides the inactive handle; back/scrim still dismiss.
   const enableContentPanningGesture = useMemo(
     () => (Platform.OS === 'android' ? false : undefined),
     []

@@ -669,8 +669,8 @@ export function CreateChatInviteSheet({
     });
   }, [onSubmit, selectedContactIds, templateId, title]);
 
-  // hack: ensure the nested ContactBook will scroll properly within the sheet
-  // by disabling drag within the main content (drag handle only)
+  // Ensure the nested ContactBook owns vertical pans on Android. The shared
+  // wrapper hides the inactive handle; back/scrim still dismiss.
   const enableContentPanningGesture = useMemo(() => {
     return Platform.OS === 'android' ? false : undefined;
   }, []);
