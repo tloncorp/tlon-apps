@@ -24,6 +24,7 @@ import {
   isWeb,
   useInviteSystemContacts,
 } from '../../ui';
+import SystemNotices from '../../ui/components/SystemNotices';
 import { ProfileDrawerParamList } from '../types';
 import {
   ListPaneSafeArea,
@@ -102,6 +103,14 @@ function DrawerContent(props: DrawerContentComponentProps) {
           />
         }
       />
+      {!isWeb && (
+        <SystemNotices.ContactBookPrompt
+          status="undetermined"
+          onDismiss={() => {}}
+          onRequestAccess={() => {}}
+          onOpenSettings={() => {}}
+        />
+      )}
       <ContactsScreenView
         contacts={userContacts ?? []}
         suggestions={suggestions ?? []}
