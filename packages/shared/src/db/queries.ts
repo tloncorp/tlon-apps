@@ -2858,15 +2858,25 @@ export const addChatMembersToRoles = createWriteQuery(
     },
     ctx: QueryCtx
   ) => {
-    return ctx.db.insert($chatMemberGroupRoles).values(
-      contactIds.flatMap((contactId) =>
-        roleIds.map((roleId) => ({
-          groupId,
-          contactId,
-          roleId,
-        }))
+    if (contactIds.length === 0 || roleIds.length === 0) return;
+    return ctx.db
+      .insert($chatMemberGroupRoles)
+      .values(
+        contactIds.flatMap((contactId) =>
+          roleIds.map((roleId) => ({
+            groupId,
+            contactId,
+            roleId,
+          }))
+        )
       )
-    );
+      .onConflictDoNothing({
+        target: [
+          $chatMemberGroupRoles.groupId,
+          $chatMemberGroupRoles.contactId,
+          $chatMemberGroupRoles.roleId,
+        ],
+      });
   },
   ['chatMembers', 'chatMemberGroupRoles']
 );
