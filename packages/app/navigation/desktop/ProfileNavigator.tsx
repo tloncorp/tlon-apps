@@ -7,13 +7,14 @@ import { View, getVariableValue, useTheme } from '@tamagui/core';
 import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
 
 import { AddContactsScreen } from '../../features/contacts/AddContactsScreen';
 import { AttestationScreen } from '../../features/profile/AttestationScreen';
 import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
+import { useInviteSystemContactHandler } from '../../hooks/useInviteSystemContactHandler';
 import { useMarkMatchesSeen } from '../../hooks/useMarkMatchesSeen';
 import {
   ContactsScreenView,
@@ -21,6 +22,7 @@ import {
   ScreenHeader,
   getDisplayName,
   isWeb,
+  useInviteSystemContacts,
 } from '../../ui';
 import { ProfileDrawerParamList } from '../types';
 import {
@@ -37,6 +39,17 @@ function DrawerContent(props: DrawerContentComponentProps) {
 
   const { data: userContacts } = store.useUserContacts();
   const { data: suggestions } = store.useSuggestedContacts();
+  const { data: systemContacts } = store.useSystemContacts();
+  const systemContactsWithoutContactId = useMemo(
+    () => systemContacts?.filter((contact) => !contact.contactId),
+    [systemContacts]
+  );
+  const inviteSystemContacts = useInviteSystemContacts();
+  const inviteLink = db.personalInviteLink.useValue();
+  const handleInviteSystemContact = useInviteSystemContactHandler(
+    inviteSystemContacts,
+    inviteLink
+  );
 
   useMarkMatchesSeen();
 
@@ -100,8 +113,8 @@ function DrawerContent(props: DrawerContentComponentProps) {
         onContactPress={onContactPress}
         onAddContact={onAddContact}
         onContactLongPress={onContactLongPress}
-        systemContacts={[]}
-        onInviteSystemContact={() => {}}
+        systemContacts={systemContactsWithoutContactId ?? []}
+        onInviteSystemContact={handleInviteSystemContact}
       />
     </View>
   );
