@@ -10,6 +10,7 @@ import {
   getActiveTopLevelTab,
   getTopLevelTabNavigateAction,
   getInitialTopLevelTab,
+  getLeftChatTopLevelTab,
   getStandingTopLevelTabRoute,
   isTabPressBlockedByOnboardingLock,
 } from './topLevelTabs';
@@ -180,6 +181,19 @@ describe('getInitialTopLevelTab', () => {
   test('starts on the bot when the account has one, the list otherwise', () => {
     expect(getInitialTopLevelTab(true)).toBe('BotChat');
     expect(getInitialTopLevelTab(false)).toBe('ChatList');
+  });
+});
+
+describe('getLeftChatTopLevelTab', () => {
+  test('goes to the bot when the account has one, Activity otherwise', () => {
+    expect(getLeftChatTopLevelTab('~bot')).toBe('BotChat');
+    expect(getLeftChatTopLevelTab('~bot', '~friend')).toBe('BotChat');
+    expect(getLeftChatTopLevelTab(null)).toBe('Activity');
+    expect(getLeftChatTopLevelTab(null, '~friend')).toBe('Activity');
+  });
+
+  test('goes to Activity when the chat left is the bot conversation', () => {
+    expect(getLeftChatTopLevelTab('~bot', '~bot')).toBe('Activity');
   });
 });
 

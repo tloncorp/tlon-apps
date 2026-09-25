@@ -35,7 +35,7 @@ type ChatOptionsProviderProps = {
     id: string;
     groupId?: string;
   }) => void;
-  onLeaveGroup?: () => void;
+  onLeaveGroup?: (leftChannelId?: string) => void;
   onLeaveChannel?: (groupId: string, channelId: string) => void;
   initialChat?: {
     id: string;
@@ -221,12 +221,11 @@ export const ChatOptionsProvider = ({
       leaveChannelData.type === 'dm' || leaveChannelData.type === 'groupDm';
 
     if (isDm) {
-      // Leaving a DM - navigate to Messages tab
       store.respondToDMInvite({
         channel: leaveChannelData,
         accept: false,
       });
-      navigateOnLeave?.();
+      navigateOnLeave?.(leaveChannelData.id);
     } else if (leaveChannelData.groupId) {
       // Leaving a channel in a group - navigate to the first available channel
       store.leaveGroupChannel(leaveChannelData.id);

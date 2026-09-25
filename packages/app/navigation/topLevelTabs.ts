@@ -163,6 +163,21 @@ export function getInitialTopLevelTab(botEnabled: boolean): TopLevelTabName {
 }
 
 /**
+ * Where the app goes once a chat the user was in is gone — left, or deleted:
+ * the bot's own conversation when the account has one, Activity otherwise.
+ * Leaving the bot's conversation itself goes to Activity too, since its
+ * section would open on the conversation just left.
+ */
+export function getLeftChatTopLevelTab(
+  botChannelId: string | null,
+  leftChannelId?: string
+): TopLevelTabName {
+  return botChannelId && botChannelId !== leftChannelId
+    ? 'BotChat'
+    : 'Activity';
+}
+
+/**
  * The section a position in the root stack is inside, or null when the stack
  * has not built `MainTabs` yet. Whatever is pushed above MainTabs does not
  * change the answer: a channel opened from Workspaces is still a position
