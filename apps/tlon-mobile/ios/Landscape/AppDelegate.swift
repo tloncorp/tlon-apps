@@ -7,7 +7,7 @@ import RNBranch
 import react_native_paste_input
 
 @main
-class AppDelegate: ExpoAppDelegate {
+class AppDelegate: ExpoAppDelegate, ExpoReactNativeFactoryProvider {
   var window: UIWindow?
     
   var reactNativeDelegate: ReactNativeDelegate?
@@ -45,16 +45,6 @@ class AppDelegate: ExpoAppDelegate {
     reactNativeDelegate = delegate
     reactNativeFactory = factory
 
-    window = UIWindow(frame: UIScreen.main.bounds)
-
-    factory.startReactNative(
-      withModuleName: "main",
-      in: window,
-      launchOptions: launchOptions
-    )
-
-    // Must run after startReactNative, which is what populates the factory's
-    // rootViewFactory host that the paste module hooks into.
     PasteInputModule.setup(factory.rootViewFactory)
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
