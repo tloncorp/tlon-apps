@@ -2899,6 +2899,32 @@ export const getChatMember = createReadQuery(
   ['chatMembers', 'chatMemberGroupRoles']
 );
 
+export const getJoinedGroupSeats = createReadQuery(
+  'getJoinedGroupSeats',
+  async ({ contactIds }: { contactIds: string[] }, ctx: QueryCtx) => {
+    if (contactIds.length === 0) return [];
+    return ctx.db
+      .select({
+        groupId: $chatMembers.chatId,
+        contactId: $chatMembers.contactId,
+        // When the group's full roster was last fetched (see syncGroup).
+        syncedAt: $groups.syncedAt,
+      })
+      .from($chatMembers)
+      .leftJoin($groups, eq($groups.id, $chatMembers.chatId))
+      .where(
+        and(
+          eq($chatMembers.membershipType, 'group'),
+          // status is only set for invite flows; anything but 'invited' is a
+          // joined seat (see getContextLensBotsInChat).
+          or(isNull($chatMembers.status), ne($chatMembers.status, 'invited')),
+          inArray($chatMembers.contactId, contactIds)
+        )
+      );
+  },
+  ['chatMembers', 'groups']
+);
+
 export const addChatMembers = createWriteQuery(
   'addChatMembers',
   async (
@@ -3179,6 +3205,57 @@ export const removeChatMembers = createWriteQuery(
           inArray($chatMembers.contactId, contactIds)
         )
       );
+  },
+  ['chatMembers', 'groups']
+);
+
+export const getGroupMemberIds = createReadQuery(
+  'getGroupMemberIds',
+  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
+    const rows = await ctx.db
+      .select({ contactId: $chatMembers.contactId })
+      .from($chatMembers)
+      .where(
+        and(
+          eq($chatMembers.chatId, groupId),
+          eq($chatMembers.membershipType, 'group')
+        )
+      );
+    return rows.map((row) => row.contactId);
+  },
+  ['chatMembers']
+);
+
+// insertGroups only upserts members, so a seat removed while this client
+// wasn't listening (a kick or leave during a long offline stretch) is never
+// deleted. Given a group's full roster (`keepIds`), drop the stored seats it
+// omits. Only `candidateIds` — seats stored before the roster was requested —
+// can go, so a seat added by a live event in the meantime survives. Init and
+// changes truncate large groups' seats, so only pass a full per-group fetch.
+export const deleteAbsentGroupMembers = createWriteQuery(
+  'deleteAbsentGroupMembers',
+  async (
+    {
+      groupId,
+      keepIds,
+      candidateIds,
+    }: { groupId: string; keepIds: string[]; candidateIds: string[] },
+    ctx: QueryCtx
+  ) => {
+    const keep = new Set(keepIds);
+    const absent = candidateIds.filter((contactId) => !keep.has(contactId));
+    const batchSize = 200;
+    for (let i = 0; i < absent.length; i += batchSize) {
+      await ctx.db
+        .delete($chatMembers)
+        .where(
+          and(
+            eq($chatMembers.chatId, groupId),
+            eq($chatMembers.membershipType, 'group'),
+            inArray($chatMembers.contactId, absent.slice(i, i + batchSize))
+          )
+        );
+    }
   },
   ['chatMembers', 'groups']
 );

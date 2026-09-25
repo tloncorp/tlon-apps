@@ -6,9 +6,10 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import * as api from '@tloncorp/api';
-import { desig } from '@tloncorp/api/lib/urbit';
+import { desig, preSig } from '@tloncorp/api/lib/urbit';
 import * as db from '@tloncorp/shared/db';
-import { useCallback, useMemo } from 'react';
+import * as store from '@tloncorp/shared/store';
+import { useCallback, useEffect, useMemo } from 'react';
 
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
 import { mcpProviderQueryKeys } from '../../../lib/mcpProviders';
@@ -22,6 +23,7 @@ import {
 } from './constants';
 import {
   ModelFormValues,
+  buildBotGroupMembershipResolver,
   getAvailableProviderIds,
   hasProviderCredential,
   normalizeMoonName,
@@ -179,6 +181,96 @@ export function useBotSettingsQueries() {
 }
 
 export type BotSettingsQueries = ReturnType<typeof useBotSettingsQueries>;
+
+/**
+ * Whether the bot moon is in a given group, from the user's local copy of the
+ * group roster and the moon's own channel listing (see
+ * buildBotGroupMembershipResolver). Fetches the full roster of each group in
+ * `verifyGroupIds` (once per session) so a departure there can be confirmed.
+ * `refreshMembership` re-reads both sources, refetching the given group's full
+ * roster, for polling after a join.
+ */
+export function useBotGroupMembership(
+  queries: BotSettingsQueries,
+  verifyGroupIds: string[] = []
+) {
+  const currentUserId = preSig(useCurrentUserId());
+  const { moon } = queries;
+  const contactIds = useMemo(
+    () => (moon ? [currentUserId, moon] : []),
+    [currentUserId, moon]
+  );
+  const { data: seats } = store.useJoinedGroupSeats(contactIds);
+  const sessionStartTime = store.useCurrentSession()?.startTime;
+  const moonChannels = queries.moonChannelsQuery.data;
+  const refetchMoonChannels = queries.moonChannelsQuery.refetch;
+
+  const verifyKey = verifyGroupIds.join('\n');
+  useEffect(() => {
+    if (!verifyKey || sessionStartTime === undefined) return;
+    // Cancel queued fetches when the groups, session, or account change.
+    const controller = new AbortController();
+    verifyKey.split('\n').forEach((groupId) => {
+      // syncGroup skips groups already fetched this session.
+      store
+        .syncGroup(groupId, {
+          priority: store.SyncPriority.Low,
+          retry: true,
+          abortSignal: controller.signal,
+        })
+        .catch((error) => {
+          if (!controller.signal.aborted) {
+            console.error('bot settings: group sync failed', groupId, error);
+          }
+        });
+    });
+    return () => controller.abort();
+  }, [verifyKey, sessionStartTime]);
+
+  const getMembership = useMemo(
+    () =>
+      buildBotGroupMembershipResolver({
+        seats,
+        currentUserId,
+        moon,
+        moonChannels,
+        sessionStartTime,
+      }),
+    [seats, currentUserId, moon, moonChannels, sessionStartTime]
+  );
+
+  const refreshMembership = useCallback(
+    async (groupId: string) => {
+      // Without a moon, the listing's query would fetch the ship's own channels.
+      if (!moon) return getMembership;
+      const [{ data: freshMoonChannels }] = await Promise.all([
+        refetchMoonChannels(),
+        // A group already confirmed departed stays that way until its full
+        // roster shows the bot's seat, so don't wait on the live event alone.
+        store
+          .syncGroup(
+            groupId,
+            { priority: store.SyncPriority.High },
+            { force: true }
+          )
+          .catch((error) =>
+            console.error('bot settings: group sync failed', groupId, error)
+          ),
+      ]);
+      const freshSeats = await db.getJoinedGroupSeats({ contactIds });
+      return buildBotGroupMembershipResolver({
+        seats: freshSeats,
+        currentUserId,
+        moon,
+        moonChannels: freshMoonChannels,
+        sessionStartTime: store.getSession()?.startTime,
+      });
+    },
+    [refetchMoonChannels, contactIds, currentUserId, moon, getMembership]
+  );
+
+  return { getMembership, refreshMembership };
+}
 
 /**
  * Model lists for every provider the user has a credential for. The Basic

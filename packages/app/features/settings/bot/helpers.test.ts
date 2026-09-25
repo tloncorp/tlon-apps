@@ -1,12 +1,15 @@
+import type { TlawnChannelGroups } from '@tloncorp/api';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  buildBotGroupMembershipResolver,
   buildChannelModelEntries,
   buildChannelRuleDrafts,
   buildConfigFromChatValues,
   buildMergedChannelModelEntries,
   formatShipList,
   getAvailableProviderIds,
+  getGroupChannelRuleKeys,
   getModelFormValues,
   groupChannelEntries,
   hasGroupMembership,
@@ -616,6 +619,126 @@ describe('channel grouping', () => {
   it('checks group membership by host and group name', () => {
     expect(hasGroupMembership(groups, 'zod', 'my-group')).toBe(true);
     expect(hasGroupMembership(groups, '~zod', 'other')).toBe(false);
+  });
+
+  it('finds the rules that belong to a group', () => {
+    const rule = { mode: 'open' as const, allowedShips: '' };
+    const drafts = {
+      'chat/~zod/general': rule,
+      'heap/~zod/random': rule,
+      'chat/~zod/elsewhere': rule,
+      'chat/~bus/general': rule,
+    };
+    expect(getGroupChannelRuleKeys(groups, 'zod', 'my-group', drafts)).toEqual([
+      'chat/~zod/general',
+      'heap/~zod/random',
+    ]);
+    expect(getGroupChannelRuleKeys(groups, '~zod', 'other', drafts)).toEqual(
+      []
+    );
+  });
+});
+
+describe('bot group membership', () => {
+  const user = '~zod';
+  const moon = '~doznec-dozzod-zod';
+  const sessionStartTime = 1_000;
+  const fresh = sessionStartTime + 1;
+  const moonChannels: TlawnChannelGroups = {
+    '~zod': { listed: { channels: { general: 'General' } } },
+  };
+  type Seat = { groupId: string; contactId: string; syncedAt: number | null };
+  const resolve = (
+    seats: Seat[] | undefined,
+    listing: TlawnChannelGroups = moonChannels
+  ) =>
+    buildBotGroupMembershipResolver({
+      seats,
+      currentUserId: user,
+      moon,
+      moonChannels: listing,
+      sessionStartTime,
+    });
+
+  it('treats the moon as departed once a fresh full roster drops it', () => {
+    // A stale moon listing and saved rules no longer count.
+    const getMembership = resolve([
+      { groupId: '~zod/listed', contactId: user, syncedAt: fresh },
+    ]);
+    expect(getMembership('~zod', 'listed', true)).toBe('departed');
+    expect(getMembership('zod', 'listed', false)).toBe('not-member');
+  });
+
+  it("doesn't trust a missing seat until the full roster is fetched", () => {
+    // Init and changes truncate large groups' seats, and a roster fetched in an
+    // earlier session may predate a kick.
+    const stale = resolve([
+      { groupId: '~zod/listed', contactId: user, syncedAt: null },
+      { groupId: '~zod/big', contactId: user, syncedAt: sessionStartTime - 1 },
+    ]);
+    expect(stale('~zod', 'listed', true)).toBe('member');
+    expect(stale('~zod', 'big', true)).toBe('member');
+    expect(stale('~zod', 'big', false)).toBe('not-member');
+  });
+
+  it('trusts a stored moon seat the moon listing has not caught up with', () => {
+    const getMembership = resolve(
+      [
+        { groupId: '~zod/fresh', contactId: user, syncedAt: null },
+        { groupId: '~zod/fresh', contactId: moon, syncedAt: null },
+      ],
+      {}
+    );
+    expect(getMembership('~zod', 'fresh', false)).toBe('member');
+  });
+
+  it('ignores the roster for groups the user has not joined', () => {
+    const getMembership = resolve([
+      { groupId: '~bus/theirs', contactId: moon, syncedAt: fresh },
+    ]);
+    expect(getMembership('~bus', 'theirs', false)).toBe('not-member');
+    expect(getMembership('~zod', 'listed', false)).toBe('member');
+  });
+
+  it("falls back to the group's rules when only the listing is available", () => {
+    const getMembership = resolve(undefined);
+    expect(getMembership('~bus', 'omitted', true)).toBe('member');
+    expect(getMembership('~bus', 'omitted', false)).toBe('not-member');
+  });
+
+  it('reports unknown until something has loaded', () => {
+    const getMembership = buildBotGroupMembershipResolver({
+      seats: undefined,
+      currentUserId: user,
+      moon,
+      moonChannels: undefined,
+      sessionStartTime: undefined,
+    });
+    expect(getMembership('~zod', 'listed', false)).toBe('unknown');
+    expect(getMembership('~zod', 'listed', true)).toBe('member');
+  });
+
+  it('ignores the roster until the moon and session are known', () => {
+    const seats = [
+      { groupId: '~zod/listed', contactId: user, syncedAt: fresh },
+    ];
+    const noMoon = buildBotGroupMembershipResolver({
+      seats,
+      currentUserId: user,
+      moon: null,
+      moonChannels: undefined,
+      sessionStartTime,
+    });
+    expect(noMoon('~zod', 'listed', true)).toBe('member');
+    expect(noMoon('~zod', 'listed', false)).toBe('unknown');
+    const noSession = buildBotGroupMembershipResolver({
+      seats,
+      currentUserId: user,
+      moon,
+      moonChannels: undefined,
+      sessionStartTime: undefined,
+    });
+    expect(noSession('~zod', 'listed', true)).toBe('member');
   });
 });
 
