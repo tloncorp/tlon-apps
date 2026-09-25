@@ -163,6 +163,15 @@ export function getInitialTopLevelTab(botEnabled: boolean): TopLevelTabName {
 }
 
 /**
+ * Where the app goes once the chat the user was in is gone — left, or
+ * deleted: the bot's own conversation when the account has one, Activity
+ * otherwise. Not the workspace list, which the drawer never opens to.
+ */
+export function getLeftChatTopLevelTab(botEnabled: boolean): TopLevelTabName {
+  return botEnabled ? 'BotChat' : 'Activity';
+}
+
+/**
  * The section a position in the root stack is inside, or null when the stack
  * has not built `MainTabs` yet. Whatever is pushed above MainTabs does not
  * change the answer: a channel opened from Workspaces is still a position

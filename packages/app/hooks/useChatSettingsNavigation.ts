@@ -5,7 +5,10 @@ import * as db from '@tloncorp/shared/db';
 import { useCallback } from 'react';
 import { Platform } from 'react-native';
 
-import { getTopLevelTabRoute } from '../navigation/topLevelTabs';
+import {
+  getLeftChatTopLevelTab,
+  getTopLevelTabRoute,
+} from '../navigation/topLevelTabs';
 import type { RootStackParamList } from '../navigation/types';
 import { GroupSettingsStackParamList } from '../navigation/types';
 import { useRootNavigation, useTypedReset } from '../navigation/utils';
@@ -217,10 +220,7 @@ export const useChatSettingsNavigation = () => {
 
   const onLeaveGroup = useCallback(() => {
     if (Platform.OS !== 'web' || isWindowNarrow) {
-      // Workspaces is not a place the drawer sends anyone, so it is no place
-      // to be left once the chat is gone: the bot's conversation is, and
-      // Activity for an account without one.
-      const route = getTopLevelTabRoute(botDm.enabled ? 'BotChat' : 'Activity');
+      const route = getTopLevelTabRoute(getLeftChatTopLevelTab(botDm.enabled));
       navigationRef.current.navigate(route.name, route.params, { pop: true });
     } else {
       // Desktop: Reset navigation stack to clean Home state

@@ -10,6 +10,7 @@ import {
   getActiveTopLevelTab,
   getTopLevelTabNavigateAction,
   getInitialTopLevelTab,
+  getLeftChatTopLevelTab,
   getStandingTopLevelTabRoute,
   isTabPressBlockedByOnboardingLock,
 } from './topLevelTabs';
@@ -180,6 +181,13 @@ describe('getInitialTopLevelTab', () => {
   test('starts on the bot when the account has one, the list otherwise', () => {
     expect(getInitialTopLevelTab(true)).toBe('BotChat');
     expect(getInitialTopLevelTab(false)).toBe('ChatList');
+  });
+});
+
+describe('getLeftChatTopLevelTab', () => {
+  test('goes to the bot when the account has one, Activity otherwise', () => {
+    expect(getLeftChatTopLevelTab(true)).toBe('BotChat');
+    expect(getLeftChatTopLevelTab(false)).toBe('Activity');
   });
 });
 
