@@ -698,6 +698,15 @@ function DrawerPanel(props: DrawerContentComponentProps) {
       searchInputRef.current?.blur();
     }
   }, [drawerOpen]);
+  // What is kept is a search, not an open field. One closed over with nothing
+  // typed into it holds nothing to come back to, and kept open it would only
+  // leave the panel without its tabs and on whichever half was last showing.
+  useEffect(() => {
+    if (!drawerOpen && searchOpen && searchQuery.trim() === '') {
+      setSearchQuery('');
+      setSearchOpen(false);
+    }
+  }, [drawerOpen, searchOpen, searchQuery]);
 
   // The drawer's own state holds one route — the root stack — so everything
   // about where the app is standing is read out of that stack's state.
@@ -954,10 +963,12 @@ function DrawerPanel(props: DrawerContentComponentProps) {
     navigationRequestRef.current += 1;
     setSearchOpen(true);
   }, [chatsLocked]);
-  // Each query is a new list, and it starts at its top for the reason a tab
-  // change does: the list is still holding whatever offset the last one was
-  // scrolled to.
+  // Typing is staying in the panel too, and supersedes the same way. Each
+  // query is a new list, and it starts at its top for the reason a tab change
+  // does: the list is still holding whatever offset the last one was scrolled
+  // to.
   const changeSearchQuery = useCallback((query: string) => {
+    navigationRequestRef.current += 1;
     setSearchQuery(query);
     listRef.current?.scrollToOffset({ offset: 0, animated: false });
   }, []);
@@ -982,16 +993,13 @@ function DrawerPanel(props: DrawerContentComponentProps) {
   );
   // Gated on the field, unlike the list: the search indexes every chat it is
   // handed, and the chat list changes with every unread that arrives, so an
-  // index kept for a search nobody has opened is rebuilt for nothing.
+  // index kept for a search nobody has opened is rebuilt for nothing. Keyed on
+  // the bot's channel rather than `botDm`, which is a new object every render
+  // and would rebuild the index on each one.
+  const botChannelId = botDm.enabled ? botDm.channelId : undefined;
   const searchChats = useMemo(
-    () =>
-      searchOpen
-        ? getDrawerSearchChats(
-            chats,
-            botDm.enabled ? botDm.channelId : undefined
-          )
-        : [],
-    [chats, botDm, searchOpen]
+    () => (searchOpen ? getDrawerSearchChats(chats, botChannelId) : []),
+    [chats, botChannelId, searchOpen]
   );
   // The workspace list's own filter, so a name found there is found here.
   // Undebounced: the panel holds one user's chats, and a result that trails
@@ -1204,12 +1212,12 @@ function DrawerPanel(props: DrawerContentComponentProps) {
       <FlashList
         ref={listRef}
         // Results are a list of their own rather than new data for the tab's.
-        // The list holds the row at the top of what it is showing in place
-        // across a change of data, and results share rows with the tab: a
-        // chat found a row below the Workspaces heading came back, when the
-        // search closed, a row below the top of the tab's list with a blank
-        // band above it. A list mounted fresh has no row to hold, and the
-        // results, which change with every letter, are told not to hold one.
+        // The list holds its top visible row in place across a change of
+        // data, and results share rows with the tab: held across the swap, a
+        // chat found a row below the Workspaces heading would come back a row
+        // below the top of the tab's list, with a blank band above it. A list
+        // mounted fresh has no row to hold, and the results, which change with
+        // every letter, are told not to hold one.
         key={isSearching ? 'search' : 'chats'}
         maintainVisibleContentPosition={
           isSearching ? { disabled: true } : undefined

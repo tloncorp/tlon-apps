@@ -79,7 +79,13 @@ export const DrawerSearchHeader = forwardRef<
 
   const progress = useSharedValue(open ? 1 : 0);
   useEffect(() => {
-    progress.value = interactionWithTiming(open ? 1 : 0, {
+    const target = open ? 1 : 0;
+    // Already there on mount, and an animation to where it stands would only
+    // hold off the app's other interactions while it ran.
+    if (progress.value === target) {
+      return;
+    }
+    progress.value = interactionWithTiming(target, {
       duration: OPEN_DURATION,
       easing: Easing.inOut(Easing.quad),
     });
@@ -128,8 +134,7 @@ export const DrawerSearchHeader = forwardRef<
         // Faded is not gone: without this they would still take a tap through
         // the field's glass, and a screen reader would still offer them.
         pointerEvents={open ? 'none' : 'auto'}
-        accessibilityElementsHidden={open}
-        importantForAccessibility={open ? 'no-hide-descendants' : 'auto'}
+        aria-hidden={open}
       >
         <View paddingRight={TABS_CLEARANCE}>{children}</View>
       </Animated.View>

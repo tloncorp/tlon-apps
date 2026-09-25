@@ -376,6 +376,20 @@ describe('getDrawerSearchRows', () => {
     expect(getDrawerSearchRows([], null)).toEqual([]);
   });
 
+  it('files a pinned group channel and an invite under Workspaces', () => {
+    const invite: db.Chat = { ...group('invite', 1), isPending: true };
+    const results = [
+      channel('pinned-channel', 1, 'chat', { index: 0 } as db.Pin),
+      invite,
+    ];
+
+    expect(keys(getDrawerSearchRows(results, null))).toEqual([
+      'heading:workspaces',
+      'pinned-channel',
+      'invite',
+    ]);
+  });
+
   it('lays out the unfurled workspace’s channels under it', () => {
     const rows = getDrawerSearchRows(
       [workspace('a-group', ['one', 'two'])],
