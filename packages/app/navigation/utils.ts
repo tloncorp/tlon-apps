@@ -35,8 +35,8 @@ import {
   isActivityBackTarget,
   screenNameFromChannelId,
 } from './routeHelpers';
-import { navigateRoot } from './navigateRoot';
-import { getLayoutState } from './splitLayoutState';
+import { type ContainerRef, navigateRoot } from './navigateRoot';
+import { type LayoutPosition, getLayoutState } from './splitLayoutState';
 import { getTopLevelTabRoute } from './topLevelTabs';
 import { CombinedParamList, RootStackParamList } from './types';
 
@@ -90,11 +90,26 @@ export function useTypedReset() {
  * one since, as folding or rotating the device can do while an async lookup is
  * pending. Its navigation object and layout flag are then stale.
  */
-function didSwapNavigatorTree(isWindowNarrowWhenRendered: boolean) {
+export function didSwapNavigatorTree(isWindowNarrowWhenRendered: boolean) {
   return (
     Platform.OS !== 'web' &&
     isNativeSplitLayoutMounted() === isWindowNarrowWhenRendered
   );
+}
+
+/**
+ * Shows `position` in the navigator tree mounted now, for navigation that was
+ * started in a tree that has since been swapped out.
+ */
+export function showInMountedTree(
+  container: ContainerRef | undefined,
+  position: LayoutPosition
+) {
+  if (isNativeSplitLayoutMounted()) {
+    navigateRoot(container, getLayoutState(position, 'split').routes[0]);
+  } else {
+    container?.resetRoot(getLayoutState(position, 'phone'));
+  }
 }
 
 function useResetToChannel() {
@@ -102,6 +117,7 @@ function useResetToChannel() {
   const navigationRef = logic.useMutableRef(navigation);
   const reset = useTypedReset();
   const isWindowNarrow = useIsWindowNarrow();
+  const container = useContext(NavigationContainerRefContext);
   const { lastOpenTab } = useGlobalSearch();
 
   return useCallback(
@@ -115,6 +131,15 @@ function useResetToChannel() {
         startDraft?: boolean;
       }
     ) {
+      if (didSwapNavigatorTree(isWindowNarrow)) {
+        showInMountedTree(container, {
+          kind: 'channel',
+          channelId,
+          groupId: options?.groupId,
+        });
+        return;
+      }
+
       const screenName = screenNameFromChannelId(channelId);
 
       if (isWindowNarrow) {
@@ -149,7 +174,7 @@ function useResetToChannel() {
         reset([channelRoute]);
       }
     },
-    [isWindowNarrow, lastOpenTab, navigationRef, reset]
+    [container, isWindowNarrow, lastOpenTab, navigationRef, reset]
   );
 }
 
@@ -196,19 +221,11 @@ function useResetToDm() {
         participants: [contactId],
       });
       if (didSwapNavigatorTree(isWindowNarrow)) {
-        if (isNativeSplitLayoutMounted()) {
-          navigateRoot(
-            container,
-            getDesktopChannelRoute(lastOpenTab, dmChannel.id)
-          );
-        } else {
-          container?.resetRoot(
-            getLayoutState(
-              { kind: 'channel', channelId: dmChannel.id },
-              'phone'
-            )
-          );
-        }
+        showInMountedTree(container, {
+          kind: 'channel',
+          channelId: dmChannel.id,
+          section: lastOpenTab === 'Messages' ? 'Messages' : undefined,
+        });
         return;
       }
       resetToChannel(dmChannel.id);
@@ -221,13 +238,16 @@ function useResetToDm() {
 function useResetToGroup() {
   const reset = useTypedReset();
   const isWindowNarrow = useIsWindowNarrow();
+  const container = useContext(NavigationContainerRefContext);
 
   return async function resetToGroup(groupId: string) {
     if (isWindowNarrow) {
-      reset([
-        getTopLevelTabRoute('ChatList'),
-        await getMainGroupRoute(groupId, true),
-      ]);
+      const groupRoute = await getMainGroupRoute(groupId, true);
+      if (didSwapNavigatorTree(isWindowNarrow)) {
+        showInMountedTree(container, { kind: 'group', groupId });
+        return;
+      }
+      reset([getTopLevelTabRoute('ChatList'), groupRoute]);
     } else {
       reset([
         {
@@ -267,10 +287,19 @@ function useResetToGroupInvite() {
 function useNavigateToChannel() {
   const isWindowNarrow = useIsWindowNarrow();
   const navigation = useNavigation();
+  const container = useContext(NavigationContainerRefContext);
   const { lastOpenTab } = useGlobalSearch();
 
   return useCallback(
     (channel: db.Channel, selectedPostId?: string) => {
+      if (didSwapNavigatorTree(isWindowNarrow)) {
+        showInMountedTree(container, {
+          kind: 'channel',
+          channelId: channel.id,
+          groupId: channel.groupId ?? undefined,
+        });
+        return;
+      }
       if (isWindowNarrow) {
         const screenName = screenNameFromChannelId(channel.id);
         navigation.navigate(
@@ -300,7 +329,7 @@ function useNavigateToChannel() {
         navigation.navigate(channelRoute);
       }
     },
-    [isWindowNarrow, navigation, lastOpenTab]
+    [container, isWindowNarrow, navigation, lastOpenTab]
   );
 }
 
