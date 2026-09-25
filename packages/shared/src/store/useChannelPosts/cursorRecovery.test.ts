@@ -87,7 +87,7 @@ async function advance(ms: number) {
 }
 beforeEach(() => {
   vi.useFakeTimers();
-  vi.clearAllMocks();
+  vi.resetAllMocks();
   mocks.read.mockResolvedValue(null);
   mocks.sync.mockResolvedValue({ posts: [], deletedPosts: [] });
   mocks.posts.mockResolvedValue([
@@ -139,6 +139,16 @@ test('reports one exhausted missing-anchor load, then can load newest successful
     AnalyticsEvent.ChannelLoadComplete,
     expect.anything()
   );
+
+  // Revisiting the same anchor uses the cached failed query. It must retry
+  // rather than remain stuck on that error or inherit the newest-page result.
+  await act(async () => {
+    renderer.update(tree('anchor'));
+  });
+  await advance(2500);
+  expect(result.query.error).toBeInstanceOf(CursorNormalizationError);
+  expect(mocks.error).toHaveBeenCalledTimes(2);
+  expect(mocks.sync).toHaveBeenCalledTimes(10);
 });
 
 test('a temporarily unavailable anchor can recover during retries without a terminal report', async () => {
@@ -160,3 +170,25 @@ test('a temporarily unavailable anchor can recover during retries without a term
     })
   );
 });
+
+test.each(['network', 'database'])(
+  'exhausted %s failures retain the original error',
+  async (stage) => {
+    const error = new Error(stage);
+    if (stage === 'network') mocks.sync.mockRejectedValue(error);
+    else mocks.read.mockRejectedValue(error);
+    await act(async () => {
+      renderer = create(tree());
+    });
+    await advance(2500);
+    expect(result.query.isError).toBe(true);
+    expect(result.query.error).toBe(error);
+    expect(result.isLoading).toBe(false);
+    expect(mocks.posts).not.toHaveBeenCalled();
+    expect(mocks.error).toHaveBeenCalledWith('failed to load posts', error);
+    expect(mocks.event).not.toHaveBeenCalledWith(
+      AnalyticsEvent.ChannelLoadComplete,
+      expect.anything()
+    );
+  }
+);

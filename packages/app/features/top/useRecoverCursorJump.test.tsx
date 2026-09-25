@@ -135,3 +135,21 @@ test('clearing the selection cannot resurrect the unread cursor', () => {
   ).toBe('newest');
   expect(mocks.toast).toHaveBeenCalledOnce();
 });
+
+test('a repeated jump to the same anchor can recover after regaining focus', () => {
+  const first = props();
+  render(first);
+  expect(mocks.recover).toHaveBeenCalledOnce();
+  update({
+    ...first,
+    selectedPostId: undefined,
+    clearedCursor: true,
+    error: null,
+  });
+  const repeated = props({ error: cursorError(), isFocused: false });
+  update(repeated);
+  expect(mocks.recover).toHaveBeenCalledOnce();
+  update({ ...repeated, isFocused: true });
+  expect(mocks.recover).toHaveBeenCalledTimes(2);
+  expect(mocks.toast).toHaveBeenCalledTimes(2);
+});
