@@ -502,7 +502,6 @@ function useAudioRecorderController({
     mount: () => (
       <AudioRecorderSheet
         open={isSheetOpen}
-        disableDrag
         snapPointsMode="fit"
         audioRecorderProps={{
           startInRecordingMode: true,

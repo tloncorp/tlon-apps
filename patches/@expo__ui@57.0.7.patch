@@ -60,7 +60,7 @@ index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..286f066e32c928ae391b58249a12c949
    var onIsPresentedChange = EventDispatcher()
    var onDismiss = EventDispatcher()
  }
-@@ -58,6 +63,255 @@ private struct BottomSheetSizeReader<Content: View>: View {
+@@ -58,6 +63,241 @@ private struct BottomSheetSizeReader<Content: View>: View {
    }
  }
  
@@ -208,8 +208,19 @@ index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..286f066e32c928ae391b58249a12c949
 +    }
 +
 +    private func apply(height: CGFloat) {
++      guard let presentationController else {
++        return
++      }
 +      let height = quantizedBottomSheetHeight(height)
-+      presentationController?.selectedDetentIdentifier = bottomSheetHeightIdentifier(height)
++      let identifier = bottomSheetHeightIdentifier(height)
++      let detent = UISheetPresentationController.Detent.custom(identifier: identifier) { context in
++        min(height, context.maximumDetentValue)
++      }
++      // Expose only the frame currently being rendered. Keeping the entire
++      // animation ladder installed would make every intermediate height a
++      // user-selectable resting point and can violate UIKit's detent ordering.
++      presentationController.detents = [detent]
++      presentationController.selectedDetentIdentifier = identifier
 +      currentHeight = height
 +    }
 +
@@ -248,31 +259,6 @@ index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..286f066e32c928ae391b58249a12c949
 +      }
 +
 +      presentationController.prefersGrabberVisible = false
-+
-+      let firstHeight = CGFloat(240)
-+      let firstIdentifier = bottomSheetHeightIdentifier(firstHeight)
-+      let alreadyConfigured = presentationController.detents.contains {
-+        $0.identifier == firstIdentifier
-+      }
-+      if !alreadyConfigured {
-+        var detents = stride(from: 240, through: 800, by: 4).map { value in
-+          let height = CGFloat(value)
-+          return UISheetPresentationController.Detent.custom(
-+            identifier: bottomSheetHeightIdentifier(height)
-+          ) { _ in
-+            height
-+          }
-+        }
-+        detents.append(.large())
-+        presentationController.detents = detents
-+        context.coordinator.select(
-+          height: selectedHeight,
-+          in: presentationController,
-+          animated: false,
-+          duration: animationDuration
-+        )
-+        return
-+      }
 +
 +      context.coordinator.select(
 +        height: selectedHeight,
