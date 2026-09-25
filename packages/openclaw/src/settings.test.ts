@@ -726,6 +726,18 @@ describe('Settings: createSettingsManager.load replays in-flight facts', () => {
     scries[1](snapshot(true));
     expect((await second).settings.ownerListenEnabled).toBe(true);
   });
+
+  it('does not install a load over a later-issued one that resolved first', async () => {
+    const { manager, scries, emit } = await setup();
+    const first = manager.load({ logSnapshot: false });
+    emit(fact(false));
+    const second = manager.load({ logSnapshot: false });
+    scries[1](snapshot(true));
+    await second;
+    scries[0](snapshot(true));
+    await first;
+    expect(manager.current.ownerListenEnabled).toBe(true);
+  });
 });
 
 describe('Settings: createSettingsManager.onChange changedKey', () => {

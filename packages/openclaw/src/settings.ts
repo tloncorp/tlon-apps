@@ -708,6 +708,10 @@ export function createSettingsManager(
   let factSeq = 0;
   let loadsInFlight = 0;
   let inFlightFacts: { seq: number; key: string; value: unknown }[] = [];
+  // A load that resolves after a later-issued one installed holds an older
+  // snapshot, and its replay would regress keys the newer scry already saw.
+  let loadSeq = 0;
+  let lastInstalledLoad = 0;
 
   const applyLocal = (key: string, value: unknown): TlonSettingsStore => {
     factSeq += 1;
@@ -748,9 +752,13 @@ export function createSettingsManager(
       options: SettingsLoadOptions = {}
     ): Promise<{ settings: TlonSettingsStore; fresh: boolean }> {
       const since = factSeq;
+      const loadId = ++loadSeq;
       loadsInFlight += 1;
       try {
         const raw = await api.scry('/settings/all.json');
+        if (loadId < lastInstalledLoad) {
+          return { settings: state.current, fresh: false };
+        }
         // Response shape: { all: { [desk]: { [bucket]: { [key]: value } } } }
         const allData = raw as {
           all?: Record<string, Record<string, unknown>>;
@@ -764,6 +772,7 @@ export function createSettingsManager(
           }
         }
         state.current = next;
+        lastInstalledLoad = loadId;
         state.loaded = true;
         if (options.logSnapshot !== false) {
           logger?.log?.(
