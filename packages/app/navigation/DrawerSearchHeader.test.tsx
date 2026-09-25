@@ -61,7 +61,9 @@ function render(overrides: Partial<Props> = {}) {
     tabs: () =>
       root.find(
         (node) =>
-          node.type === 'AnimatedView' &&
+          // The mocks render host components by name, which the renderer's
+          // `ElementType` does not know about.
+          (node.type as unknown) === 'AnimatedView' &&
           node.props['aria-hidden'] !== undefined
       ),
     input: () => root.findAllByProps({ testID: 'TopLevelDrawerSearchInput' }),
