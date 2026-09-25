@@ -1,6 +1,9 @@
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { APP_SCHEME } from '@tloncorp/app/constants';
-import { useNavigateRoot } from '@tloncorp/app/navigation/navigateRoot';
+import {
+  useNavigateRoot,
+  useRootNavigatorMount,
+} from '@tloncorp/app/navigation/navigateRoot';
 import { getDesktopChannelRoute } from '@tloncorp/app/navigation/routeHelpers';
 import { RootStackParamList } from '@tloncorp/app/navigation/types';
 import { screenNameFromChannelId } from '@tloncorp/app/navigation/utils';
@@ -11,7 +14,7 @@ import { ChannelShareIntentProvider } from '@tloncorp/app/ui/contexts/shareInten
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useMutableRef } from '@tloncorp/shared/logic';
-import { useIsWindowNarrow } from '@tloncorp/app/ui';
+import { isNativeSplitLayoutMounted } from '@tloncorp/app/ui';
 import { useShareIntent } from 'expo-share-intent';
 import {
   PropsWithChildren,
@@ -38,9 +41,8 @@ export function ShareIntentForwardSheetProvider({
   enabled = true,
 }: ShareIntentForwardSheetProviderProps) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-  // False while the split layout's desktop navigators are mounted.
-  const isWindowNarrow = useIsWindowNarrow();
   const navigateRoot = useNavigateRoot();
+  const rootNavigator = useRootNavigatorMount();
   const [isOpen, setIsOpen] = useState(false);
   const [pendingShare, setPendingShare] = useState<ChannelShareIntent | null>(
     null
@@ -121,8 +123,12 @@ export function ShareIntentForwardSheetProvider({
   }, []);
 
   const navigateToChannelTarget = useCallback(
-    (channel: db.Channel) => {
-      if (!isWindowNarrow) {
+    function navigateToChannelTarget(channel: db.Channel) {
+      if (!rootNavigator.isMounted()) {
+        rootNavigator.whenMounted(() => navigateToChannelTarget(channel));
+        return;
+      }
+      if (isNativeSplitLayoutMounted()) {
         navigateRoot(
           getDesktopChannelRoute(
             'Home',
@@ -148,7 +154,7 @@ export function ShareIntentForwardSheetProvider({
         });
       }
     },
-    [isWindowNarrow, navigateRoot, navigation]
+    [navigateRoot, navigation, rootNavigator]
   );
 
   const popShareIntent = useCallback((channelId: string) => {
