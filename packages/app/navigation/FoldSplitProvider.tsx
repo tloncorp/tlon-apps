@@ -83,34 +83,31 @@ function FoldSplitWidths({ children }: { children: ReactNode }) {
   );
 }
 
-// The iPhone Duo reserves a side band of the window, as a safe-area inset,
-// below the status cluster that UIKit reports as an occlusion at the top of
-// that edge. UIKit places its own bar items in that band.
+// The iPhone Duo reserves a band along the right edge of the window, as a
+// safe-area inset, below the status cluster that UIKit reports as an
+// occlusion at the top of that band. UIKit places its own bar items there.
 function getRailStrip(
   regions: readonly ReservedRegion[],
   insets: EdgeInsets,
   windowWidth: number
 ): RailStrip | null {
-  if (Platform.OS !== 'ios') {
+  if (Platform.OS !== 'ios' || insets.right === 0) {
     return null;
   }
-  for (const region of regions) {
-    if (region.kind !== 'occlusion') {
-      continue;
-    }
-    const { x, y, width, height } = region.frame;
-    if (insets.right > 0 && x + width >= windowWidth - 1) {
-      return {
-        x: windowWidth - insets.right,
-        top: y + height,
+  const stripX = windowWidth - insets.right;
+  const cluster = regions.find(
+    (region) =>
+      region.kind === 'occlusion' &&
+      region.frame.x >= stripX - 1 &&
+      region.frame.x + region.frame.width >= windowWidth - 1
+  );
+  return cluster
+    ? {
+        x: stripX,
+        top: cluster.frame.y + cluster.frame.height,
         width: insets.right,
-      };
-    }
-    if (insets.left > 0 && x <= 1) {
-      return { x: 0, top: y + height, width: insets.left };
-    }
-  }
-  return null;
+      }
+    : null;
 }
 
 const styles = StyleSheet.create({
