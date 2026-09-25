@@ -20,7 +20,6 @@ import {
 import { useAttachmentContext } from '../../contexts/attachment';
 import { useConversationScrollToBottomControl } from '../../contexts/scroll';
 import { MentionOption } from '../BareChatInput/useMentions';
-import { useConversationComposerLayout } from '../Channel/ConversationLayout';
 import {
   type SlashCommandManifest,
   type SlashCommandOption,
@@ -171,8 +170,7 @@ export const MessageInputContainer = memo(
       setMeasuredInputHeight(height);
     };
 
-    const { floating } = useConversationComposerLayout();
-    const separateGlassSend = usesIOSGlass && floating && !floatingActionButton;
+    const separateGlassSend = usesIOSGlass && !floatingActionButton;
     const sendAction = floatingActionButton ? (
       <View position="absolute" bottom="$l" right="$l">
         {disableSend ? null : (
@@ -534,8 +532,7 @@ function MessageInputChromeButton(props: ComponentProps<typeof Button>) {
 }
 
 function MessageInputChromeSendAction({ children }: PropsWithChildren) {
-  const { floating } = useConversationComposerLayout();
-  if (usesIOSGlass && floating) {
+  if (usesIOSGlass) {
     return (
       <GlassSurface
         isInteractive
