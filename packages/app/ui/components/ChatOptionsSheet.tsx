@@ -146,7 +146,7 @@ export function GroupOptionsSheetLoader({
     'initial' | 'notifications' | 'sort' | 'edit'
   >('initial');
   const chatOptions = useChatOptions();
-  const { group } = chatOptions;
+  const { group, setChat } = chatOptions;
   const nativeExpoUIPilot = Platform.OS !== 'web';
 
   const handlePressNotifications = useCallback(() => {
@@ -160,6 +160,11 @@ export function GroupOptionsSheetLoader({
   const resetPane = useCallback(() => {
     setPane('initial');
   }, [setPane]);
+
+  const handleNativeDismissed = useCallback(() => {
+    resetPane();
+    setChat(null);
+  }, [resetPane, setChat]);
 
   useEffect(() => {
     if (!open && !nativeExpoUIPilot) {
@@ -232,7 +237,7 @@ export function GroupOptionsSheetLoader({
       onOpenChange={onOpenChange}
       modal
       nativeExpoUI
-      onNativeDismissed={resetPane}
+      onNativeDismissed={handleNativeDismissed}
     >
       <ChatOptionsContext.Provider value={chatOptions}>
         {nativeExpoUIPilot &&
@@ -564,6 +569,7 @@ const ChannelOptionsSheetLoader = memo(
   }) => {
     const [pane, setPane] = useState<ChannelPanes>('initial');
     const chatOptions = useChatOptions();
+    const { setChat } = chatOptions;
     const nativeExpoUIPilot = Platform.OS !== 'web';
     const channelQuery = store.useChannel({
       id: channelId,
@@ -590,6 +596,11 @@ const ChannelOptionsSheetLoader = memo(
     const resetPane = useCallback(() => {
       setPane('initial');
     }, [setPane]);
+
+    const handleNativeDismissed = useCallback(() => {
+      resetPane();
+      setChat(null);
+    }, [resetPane, setChat]);
 
     useEffect(() => {
       if (!open && !nativeExpoUIPilot) {
@@ -643,7 +654,7 @@ const ChannelOptionsSheetLoader = memo(
         onOpenChange={onOpenChange}
         modal
         nativeExpoUI
-        onNativeDismissed={resetPane}
+        onNativeDismissed={handleNativeDismissed}
       >
         <ChatOptionsContext.Provider value={chatOptions}>
           {nativeExpoUIPilot ? (
