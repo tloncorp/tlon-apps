@@ -160,6 +160,9 @@ export function RootStack() {
       <Root.Screen
         name="MediaViewer"
         component={MediaViewerScreen}
+        // react-native-gesture-image-viewer sizes itself to the full window,
+        // so the viewer insets only its controls.
+        layout={({ children }) => children}
         options={mediaViewerScreenOptions}
       />
       <Root.Screen
