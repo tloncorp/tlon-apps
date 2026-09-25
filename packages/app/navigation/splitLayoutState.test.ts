@@ -377,6 +377,7 @@ describe('getLayoutState', () => {
     },
     { kind: 'profile', userId: dmId },
     { kind: 'editProfile', userId: dmId },
+    { kind: 'attestation', attestationType: 'phone' },
     {
       kind: 'chatDetails',
       screen: 'ChatDetails',

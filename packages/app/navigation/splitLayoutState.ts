@@ -68,6 +68,7 @@ export type LayoutPosition =
   | { kind: 'contacts' }
   | { kind: 'profile'; userId: string }
   | { kind: 'editProfile'; userId: string }
+  | { kind: 'attestation'; attestationType: 'twitter' | 'phone' }
   | {
       kind: 'chatDetails';
       screen: 'ChatDetails' | 'ChatVolume';
@@ -227,6 +228,12 @@ function positionFromRoute(route: RouteLike): LayoutPosition | null {
       const userId = stringParam(route.params, 'userId');
       return userId ? { kind: 'editProfile', userId } : null;
     }
+    case 'Attestation': {
+      const attestationType = stringParam(route.params, 'attestationType');
+      return attestationType === 'twitter' || attestationType === 'phone'
+        ? { kind: 'attestation', attestationType }
+        : null;
+    }
     case 'ChatDetails':
     case 'ChatVolume': {
       const chatId = stringParam(route.params, 'chatId');
@@ -370,6 +377,14 @@ function phoneRoutes(position: LayoutPosition): ResetRoute[] {
         { name: 'UserProfile', params: { userId: position.userId } },
         { name: 'EditProfile', params: { userId: position.userId } },
       ];
+    case 'attestation':
+      return [
+        chatList,
+        {
+          name: 'Attestation',
+          params: { attestationType: position.attestationType },
+        },
+      ];
     case 'chatDetails': {
       const { chatType, chatId, groupId } = position;
       return [
@@ -472,6 +487,16 @@ function splitRoutes(position: LayoutPosition): ResetRoute[] {
           params: {
             screen: 'EditProfile',
             params: { userId: position.userId },
+          },
+        },
+      ];
+    case 'attestation':
+      return [
+        {
+          name: 'Contacts',
+          params: {
+            screen: 'Attestation',
+            params: { attestationType: position.attestationType },
           },
         },
       ];
