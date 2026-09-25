@@ -6,7 +6,7 @@ import {
 
 import { followsByChannelOrder } from './postOrdering';
 
-type EvidencePost = {
+export type EvidencePost = {
   id: string;
   authorId: string;
   channelId: string;
@@ -23,6 +23,34 @@ function samePostId(left: string | undefined, right: string | undefined) {
   return Boolean(
     left && right && getCanonicalPostId(left) === getCanonicalPostId(right)
   );
+}
+
+export async function loadReferencedInterviewPosts(input: {
+  interviewStartMessageId: string | undefined;
+  interviewMessageId: string | undefined;
+  channelPosts: EvidencePost[];
+  loadAround: (postId: string) => Promise<EvidencePost[]>;
+}) {
+  const referencedIds = [
+    input.interviewStartMessageId,
+    input.interviewMessageId,
+  ].filter((id): id is string => Boolean(id));
+  const missingIds = referencedIds.filter(
+    (id) =>
+      !input.channelPosts.some((candidate) => samePostId(candidate.id, id))
+  );
+  if (missingIds.length === 0) return input.channelPosts;
+
+  const remotePosts = (
+    await Promise.all(missingIds.map(input.loadAround))
+  ).flat();
+  const merged = [...input.channelPosts];
+  for (const candidate of remotePosts) {
+    if (!merged.some((post) => samePostId(post.id, candidate.id))) {
+      merged.push(candidate);
+    }
+  }
+  return merged;
 }
 
 function isAutomaticProvisionTransport(post: EvidencePost) {

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   claimAutomaticProvisionRetry,
   clearFailedAutomaticProvision,
+  isComponentReachableFromRoot,
   shouldAttemptAutomaticProvision,
   trackAutomaticProvisionReceipt,
 } from './autoProvision';
@@ -10,6 +11,7 @@ import {
 const ready = {
   componentId: 'auto-provision',
   actionName: 'tlon.provisionAgent',
+  componentReachable: true,
   componentDisabled: false,
   selectionsPending: false,
   actionAvailable: true,
@@ -57,6 +59,28 @@ describe('automatic task-plan provisioning', () => {
     expect(
       shouldAttemptAutomaticProvision({ ...ready, componentDisabled: true })
     ).toBe(false);
+    expect(
+      shouldAttemptAutomaticProvision({ ...ready, componentReachable: false })
+    ).toBe(false);
+  });
+
+  it('requires the automatic button to be reachable from the rendered root', () => {
+    const components = new Map([
+      ['root', { component: 'Column', children: ['visible'] }],
+      ['visible', { component: 'Text' }],
+      ['auto-provision', { component: 'Button', child: 'label' }],
+      ['label', { component: 'Text' }],
+    ]);
+    expect(
+      isComponentReachableFromRoot('root', 'auto-provision', components)
+    ).toBe(false);
+    components.set('root', {
+      component: 'Column',
+      children: ['visible', 'auto-provision'],
+    });
+    expect(
+      isComponentReachableFromRoot('root', 'auto-provision', components)
+    ).toBe(true);
   });
 
   it('clears a stale failure after a successful direct retry', () => {

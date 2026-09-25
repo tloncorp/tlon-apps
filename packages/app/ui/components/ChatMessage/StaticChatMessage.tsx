@@ -1,5 +1,6 @@
 import {
   appendToPostBlob,
+  getChannelPosts,
   getBotUserIdForUser,
   type PostBlobDataEntryA2UISelection,
   type PostBlobDataEntryAgentProvision,
@@ -58,6 +59,7 @@ import { ReactionsDisplay } from './ReactionsDisplay';
 import {
   findConsumedProvisionSelection,
   isCurrentOwnerInterview,
+  loadReferencedInterviewPosts,
   resolveAgentProvisionId,
   resolveAgentProvisionTimezone,
 } from './agentProvision';
@@ -286,8 +288,23 @@ export function StaticChatMessage({
       const resolvedTimezone = plan.timezone;
 
       if (selection?.componentId === 'auto-provision') {
-        const channelPosts = await db.getChanPosts({
+        const localChannelPosts = await db.getChanPosts({
           channelId: post.channelId,
+        });
+        const channelPosts = await loadReferencedInterviewPosts({
+          interviewStartMessageId: plan.interviewStartMessageId,
+          interviewMessageId: plan.interviewMessageId,
+          channelPosts: localChannelPosts,
+          loadAround: async (postId) =>
+            (
+              await getChannelPosts({
+                channelId: post.channelId,
+                cursor: postId,
+                mode: 'around',
+                count: 3,
+                skipGapFill: true,
+              })
+            ).posts,
         });
         if (
           !isCurrentOwnerInterview({

@@ -1,5 +1,32 @@
 export const AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID = 'auto-provision';
 
+type ComponentReference = {
+  component: string;
+  child?: string;
+  children?: string[];
+};
+
+export function isComponentReachableFromRoot(
+  rootId: string | null,
+  targetId: string,
+  components: ReadonlyMap<string, ComponentReference>
+) {
+  if (!rootId) return false;
+  const pending = [rootId];
+  const visited = new Set<string>();
+  while (pending.length > 0) {
+    const id = pending.pop();
+    if (!id || visited.has(id)) continue;
+    if (id === targetId) return true;
+    visited.add(id);
+    const component = components.get(id);
+    if (!component) continue;
+    if (component.child) pending.push(component.child);
+    if (component.children) pending.push(...component.children);
+  }
+  return false;
+}
+
 export function claimAutomaticProvisionRetry(
   locks: Set<string>,
   surfaceId: string
@@ -29,6 +56,7 @@ export function trackAutomaticProvisionReceipt(input: {
 export function shouldAttemptAutomaticProvision(input: {
   componentId: string;
   actionName: string;
+  componentReachable: boolean;
   componentDisabled: boolean;
   selectionsPending: boolean;
   actionAvailable: boolean;
@@ -38,6 +66,7 @@ export function shouldAttemptAutomaticProvision(input: {
   return (
     input.componentId === AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID &&
     input.actionName === 'tlon.provisionAgent' &&
+    input.componentReachable &&
     !input.componentDisabled &&
     !input.selectionsPending &&
     input.actionAvailable &&

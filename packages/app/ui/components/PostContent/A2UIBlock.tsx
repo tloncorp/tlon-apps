@@ -25,6 +25,7 @@ import {
   AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID,
   claimAutomaticProvisionRetry,
   clearFailedAutomaticProvision,
+  isComponentReachableFromRoot,
   shouldAttemptAutomaticProvision,
   trackAutomaticProvisionReceipt,
 } from './autoProvision';
@@ -895,6 +896,11 @@ export function A2UIBlock({
       !shouldAttemptAutomaticProvision({
         componentId: component.id,
         actionName: component.action.event.name,
+        componentReachable: isComponentReachableFromRoot(
+          root,
+          component.id,
+          components
+        ),
         componentDisabled: component.disabled === true,
         selectionsPending: Boolean(areA2UISelectionsPending),
         actionAvailable: isA2UIActionAvailable?.(component.action) !== false,
@@ -931,6 +937,7 @@ export function A2UIBlock({
     isA2UIActionAvailable,
     isA2UIActionConsumed,
     onA2UIAction,
+    root,
     surfaceId,
   ]);
 
@@ -1525,6 +1532,29 @@ export function A2UIBlock({
   const failedAutoProvision = failedAutoProvisionSurfaceIds.includes(surfaceId)
     ? components.get(AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID)
     : undefined;
+  const failedAutoProvisionCanRetry =
+    failedAutoProvision?.component === 'Button' &&
+    Boolean(onA2UIAction) &&
+    shouldAttemptAutomaticProvision({
+      componentId: failedAutoProvision.id,
+      actionName: failedAutoProvision.action.event.name,
+      componentReachable: isComponentReachableFromRoot(
+        root,
+        failedAutoProvision.id,
+        components
+      ),
+      componentDisabled: failedAutoProvision.disabled === true,
+      selectionsPending:
+        Boolean(areA2UISelectionsPending) ||
+        pendingButtonIds.includes(failedAutoProvision.id),
+      actionAvailable:
+        isA2UIActionAvailable?.(failedAutoProvision.action) !== false,
+      consumed: Boolean(
+        getConsumedA2UISelection?.(surfaceId, failedAutoProvision.id) ||
+        isA2UIActionConsumed?.(failedAutoProvision.action) === true
+      ),
+      attemptedThisMount: false,
+    });
 
   return (
     <YStack gap="$s" maxWidth={560} {...props}>
@@ -1542,9 +1572,10 @@ export function A2UIBlock({
             accessibilityRole="button"
             accessibilityLabel="Retry setup"
             testID="A2UIAutoProvisionRetry"
-            disabled={pendingButtonIds.includes(failedAutoProvision.id)}
+            disabled={!failedAutoProvisionCanRetry}
             onPress={() => {
               if (
+                !failedAutoProvisionCanRetry ||
                 !claimAutomaticProvisionRetry(
                   autoProvisionRetryLocksRef.current,
                   surfaceId
