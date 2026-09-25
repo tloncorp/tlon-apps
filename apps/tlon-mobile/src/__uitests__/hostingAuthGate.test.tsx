@@ -59,6 +59,9 @@ jest.mock('@tloncorp/app/navigation/RootStack', () => {
   const { Text } = require('react-native');
   return { RootStack: () => <Text>Authenticated content</Text> };
 });
+jest.mock('@tloncorp/app/navigation/SideInsetScreenLayout', () => ({
+  SideInsetView: require('react-native').View,
+}));
 jest.mock('@tloncorp/app/provider/AppDataProvider', () => ({
   AppDataProvider: require('react-native').View,
 }));
