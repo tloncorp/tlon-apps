@@ -67,6 +67,14 @@ export type LayoutPosition =
   | { kind: 'settingsScreen'; screen: string; params?: object }
   | { kind: 'contacts' }
   | { kind: 'profile'; userId: string }
+  | { kind: 'editProfile'; userId: string }
+  | {
+      kind: 'chatDetails';
+      screen: 'ChatDetails' | 'ChatVolume';
+      chatType: 'group' | 'channel';
+      chatId: string;
+      groupId?: string;
+    }
   | { kind: 'group'; groupId: string }
   | {
       kind: 'groupSettings';
@@ -212,6 +220,18 @@ function positionFromRoute(route: RouteLike): LayoutPosition | null {
       const userId = stringParam(route.params, 'userId');
       return userId ? { kind: 'profile', userId } : null;
     }
+    case 'EditProfile': {
+      const userId = stringParam(route.params, 'userId');
+      return userId ? { kind: 'editProfile', userId } : null;
+    }
+    case 'ChatDetails':
+    case 'ChatVolume': {
+      const chatId = stringParam(route.params, 'chatId');
+      const chatType = stringParam(route.params, 'chatType');
+      return chatId && (chatType === 'group' || chatType === 'channel')
+        ? { kind: 'chatDetails', screen: route.name, chatType, chatId, groupId }
+        : null;
+    }
     case 'Activity':
       return { kind: 'activity' };
     case 'InviteSystemContacts':
@@ -339,6 +359,25 @@ function phoneRoutes(position: LayoutPosition): ResetRoute[] {
         chatList,
         { name: 'UserProfile', params: { userId: position.userId } },
       ];
+    case 'editProfile':
+      return [
+        chatList,
+        { name: 'UserProfile', params: { userId: position.userId } },
+        { name: 'EditProfile', params: { userId: position.userId } },
+      ];
+    case 'chatDetails': {
+      const { chatType, chatId, groupId } = position;
+      return [
+        chatList,
+        chatType === 'group'
+          ? { name: 'GroupChannels', params: { groupId: chatId } }
+          : {
+              name: screenNameFromChannelId(chatId),
+              params: { channelId: chatId, ...(groupId ? { groupId } : {}) },
+            },
+        { name: position.screen, params: { chatType, chatId, groupId } },
+      ];
+    }
     case 'group':
       return [
         chatList,
@@ -418,6 +457,30 @@ function splitRoutes(position: LayoutPosition): ResetRoute[] {
           params: {
             screen: 'UserProfile',
             params: { userId: position.userId },
+          },
+        },
+      ];
+    case 'editProfile':
+      return [
+        {
+          name: 'Contacts',
+          params: {
+            screen: 'EditProfile',
+            params: { userId: position.userId },
+          },
+        },
+      ];
+    case 'chatDetails':
+      return [
+        {
+          name: 'Home',
+          params: {
+            screen: position.screen,
+            params: {
+              chatType: position.chatType,
+              chatId: position.chatId,
+              groupId: position.groupId,
+            },
           },
         },
       ];

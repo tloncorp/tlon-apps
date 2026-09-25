@@ -376,6 +376,21 @@ describe('getLayoutState', () => {
       section: 'Messages',
     },
     { kind: 'profile', userId: dmId },
+    { kind: 'editProfile', userId: dmId },
+    {
+      kind: 'chatDetails',
+      screen: 'ChatDetails',
+      chatType: 'channel',
+      chatId: channelId,
+      groupId,
+    },
+    {
+      kind: 'chatDetails',
+      screen: 'ChatVolume',
+      chatType: 'group',
+      chatId: groupId,
+      groupId,
+    },
     {
       kind: 'settingsScreen',
       screen: 'BotModelSettings',
