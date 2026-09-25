@@ -70,6 +70,7 @@ export const useChatSettingsNavigation = () => {
   const reset = useTypedReset();
   const isWindowNarrow = useIsWindowNarrow();
   const botDm = useBotDmTab();
+  const botChannelId = botDm.enabled ? botDm.channelId : null;
 
   const navigateToGroupSettings = useCallback(
     async <T extends keyof GroupSettingsStackParamList>(
@@ -218,15 +219,22 @@ export const useChatSettingsNavigation = () => {
     [navigateToGroupSettings]
   );
 
-  const onLeaveGroup = useCallback(() => {
-    if (Platform.OS !== 'web' || isWindowNarrow) {
-      const route = getTopLevelTabRoute(getLeftChatTopLevelTab(botDm.enabled));
-      navigationRef.current.navigate(route.name, route.params, { pop: true });
-    } else {
-      // Desktop: Reset navigation stack to clean Home state
-      reset([{ name: 'Home' }]);
-    }
-  }, [navigationRef, isWindowNarrow, reset, botDm.enabled]);
+  const onLeaveGroup = useCallback(
+    (leftChannelId?: string) => {
+      if (Platform.OS !== 'web' || isWindowNarrow) {
+        const route = getTopLevelTabRoute(
+          getLeftChatTopLevelTab(botChannelId, leftChannelId)
+        );
+        navigationRef.current.navigate(route.name, route.params, {
+          pop: true,
+        });
+      } else {
+        // Desktop: Reset navigation stack to clean Home state
+        reset([{ name: 'Home' }]);
+      }
+    },
+    [navigationRef, isWindowNarrow, reset, botChannelId]
+  );
 
   const onLeaveChannel = useCallback(
     async (groupId: string, leavingChannelId: string) => {

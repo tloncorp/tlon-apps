@@ -186,8 +186,14 @@ describe('getInitialTopLevelTab', () => {
 
 describe('getLeftChatTopLevelTab', () => {
   test('goes to the bot when the account has one, Activity otherwise', () => {
-    expect(getLeftChatTopLevelTab(true)).toBe('BotChat');
-    expect(getLeftChatTopLevelTab(false)).toBe('Activity');
+    expect(getLeftChatTopLevelTab('~bot')).toBe('BotChat');
+    expect(getLeftChatTopLevelTab('~bot', '~friend')).toBe('BotChat');
+    expect(getLeftChatTopLevelTab(null)).toBe('Activity');
+    expect(getLeftChatTopLevelTab(null, '~friend')).toBe('Activity');
+  });
+
+  test('goes to Activity when the chat left is the bot conversation', () => {
+    expect(getLeftChatTopLevelTab('~bot', '~bot')).toBe('Activity');
   });
 });
 
