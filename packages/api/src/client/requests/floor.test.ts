@@ -147,6 +147,10 @@ export function checkRegistry(
         failures.push(
           `${label}: guardedBy ${guard}, but the N-1 desk serves it; drop the guard`
         );
+      } else if (guarded && entry.since !== GUARDS[guard].since) {
+        failures.push(
+          `${label}: since ${entry.since} differs from ${guard} since ${GUARDS[guard].since}`
+        );
       }
 
       if (!exempt && !guarded && isVersionBelow(floor, entry.since)) {
@@ -235,6 +239,11 @@ describe('the check fails closed', () => {
       'a guard on a request below the floor',
       scry('/x', { since: '12.1.0', guardedBy: 'deskSupportsBuckets' }),
       'the N-1 desk serves it',
+    ],
+    [
+      'a guarded request whose since is not its guard version',
+      scry('/x', { since: '12.4.0', guardedBy: 'deskSupportsBuckets' }),
+      'since 12.4.0 differs from deskSupportsBuckets since 12.3.0',
     ],
     [
       'a guard that names no guard',

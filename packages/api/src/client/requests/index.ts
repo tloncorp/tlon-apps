@@ -1,6 +1,8 @@
 import type { Noun } from '@urbit/nockjs';
 
 import {
+  DeskUnsupportedError,
+  getDeskSupportsBuckets,
   poke,
   pokeNoun,
   request,
@@ -27,7 +29,15 @@ import { presence } from './presence';
 import { reel } from './reel';
 import type { PayloadOf } from './payloads';
 import { steward } from './steward';
-import type { HttpEntry, HttpInitArgs, One, Params, RawEntry } from './types';
+import {
+  GUARDS,
+  type GuardName,
+  type HttpEntry,
+  type HttpInitArgs,
+  type One,
+  type Params,
+  type RawEntry,
+} from './types';
 
 export type * from './payloads';
 export type * from './types';
@@ -79,13 +89,32 @@ type RawReg = Extract<RegistryEntry, { kind: 'raw' }>;
 const HOLE = /\{([^}]+)\}/g;
 
 let entryNames: Map<unknown, string> | undefined;
-function nameOf(entry: { agent: string; path: string }) {
+function nameOf(entry: { agent: string; path?: string }) {
   entryNames ??= new Map(
     Object.entries(REGISTRY).flatMap(([group, entries]) =>
       Object.entries(entries).map(([key, e]) => [e, `${group}.${key}`])
     )
   );
-  return entryNames.get(entry) ?? `${entry.agent} ${entry.path}`;
+  return entryNames.get(entry) ?? `${entry.agent} ${entry.path ?? ''}`;
+}
+
+// Read at call time, not when this module loads: a helper can be bound
+// before the capability is known, and tests mock '../urbit' partially.
+const GUARD_FNS: Record<GuardName, () => boolean> = {
+  deskSupportsBuckets: () => getDeskSupportsBuckets(),
+};
+
+// Refuses a guarded request before anything is sent. Throws synchronously,
+// as fillPath does.
+export function assertGuard(entry: {
+  agent: string;
+  path?: string;
+  guardedBy?: GuardName;
+}) {
+  const guard = entry.guardedBy;
+  if (guard && !GUARD_FNS[guard]()) {
+    throw new DeskUnsupportedError(nameOf(entry), GUARDS[guard].since, guard);
+  }
 }
 
 const DOT_SEGMENT = /^(?:\.|%2e){1,2}$/i;
@@ -174,32 +203,41 @@ export function scryRequest<E extends ScryReg>(entry: One<E>) {
   return <T = unknown>(
     params: Params<E['path']>,
     opts?: { timeout?: number }
-  ): Promise<T> =>
-    scry<T>({
+  ): Promise<T> => {
+    assertGuard(entry);
+    return scry<T>({
       app: entry.agent,
       path: fillPath(entry, params),
       ...timeoutOf(opts),
     });
+  };
 }
 
 export function scryNounRequest<E extends ScryReg>(entry: One<E>) {
   return (
     params: Params<E['path']>,
     opts?: { timeout?: number }
-  ): Promise<Noun> =>
-    scryNoun({
+  ): Promise<Noun> => {
+    assertGuard(entry);
+    return scryNoun({
       app: entry.agent,
       path: fillPath(entry, params),
       ...timeoutOf(opts),
     });
+  };
 }
 
 export function subscribeRequest<E extends SubscribeReg>(entry: One<E>) {
   return <T = unknown>(
     params: Params<E['path']>,
     handler: (update: T, id?: number) => void
-  ) =>
-    subscribe<T>({ app: entry.agent, path: fillPath(entry, params) }, handler);
+  ) => {
+    assertGuard(entry);
+    return subscribe<T>(
+      { app: entry.agent, path: fillPath(entry, params) },
+      handler
+    );
+  };
 }
 
 type SubscribeOnceRest = [
@@ -212,20 +250,27 @@ export function subscribeOnceRequest<E extends SubscribeReg>(entry: One<E>) {
   return <T = unknown>(
     params: Params<E['path']>,
     ...rest: SubscribeOnceRest
-  ): Promise<T> =>
-    subscribeOnce<T>(
+  ): Promise<T> => {
+    assertGuard(entry);
+    return subscribeOnce<T>(
       { app: entry.agent, path: fillPath(entry, params) },
       ...rest
     );
+  };
 }
 
 export function pokeRequest<E extends PokeReg>(entry: One<E>) {
-  return (json: PayloadOf<E>) =>
-    poke({ app: entry.agent, mark: entry.mark, json });
+  return (json: PayloadOf<E>) => {
+    assertGuard(entry);
+    return poke({ app: entry.agent, mark: entry.mark, json });
+  };
 }
 
 export function pokeNounRequest<E extends PokeReg>(entry: One<E>) {
-  return (noun: Noun) => pokeNoun({ app: entry.agent, mark: entry.mark, noun });
+  return (noun: Noun) => {
+    assertGuard(entry);
+    return pokeNoun({ app: entry.agent, mark: entry.mark, noun });
+  };
 }
 
 // T mirrors trackedPoke's own first type argument, which only defaults R.
@@ -238,13 +283,16 @@ export function trackedPokeRequest<E extends PokeReg, S extends SubscribeReg>(
     watchParams: Params<S['path']>,
     predicate: (event: R) => boolean,
     ...config: [requestConfig?: { tag?: string; timeout?: number }]
-  ) =>
-    trackedPoke<T, R>(
+  ) => {
+    assertGuard(entry);
+    assertGuard(watch);
+    return trackedPoke<T, R>(
       { app: entry.agent, mark: entry.mark, json },
       { app: watch.agent, path: fillPath(watch, watchParams) },
       predicate,
       ...config
     );
+  };
 }
 
 export function trackedPokeNounRequest<
@@ -256,18 +304,22 @@ export function trackedPokeNounRequest<
     watchParams: Params<S['path']>,
     predicate: (event: R) => boolean,
     ...config: [requestConfig?: { tag: string; timeout?: number }]
-  ) =>
-    trackedPokeNoun<T, R>(
+  ) => {
+    assertGuard(entry);
+    assertGuard(watch);
+    return trackedPokeNoun<T, R>(
       { app: entry.agent, mark: entry.mark, noun },
       { app: watch.agent, path: fillPath(watch, watchParams) },
       predicate,
       ...config
     );
+  };
 }
 
 export function threadRequest<E extends ThreadReg>(entry: One<E>) {
-  return <T, R = any>(body: T, opts?: { timeout?: number }): Promise<R> =>
-    thread<T, R>({
+  return <T, R = any>(body: T, opts?: { timeout?: number }): Promise<R> => {
+    assertGuard(entry);
+    return thread<T, R>({
       desk: entry.agent,
       inputMark: entry.inputMark,
       threadName: entry.name,
@@ -275,6 +327,7 @@ export function threadRequest<E extends ThreadReg>(entry: One<E>) {
       body,
       ...timeoutOf(opts),
     });
+  };
 }
 
 // Forwards only the arguments given, so requestJson sees the same arity a
@@ -284,6 +337,7 @@ export function httpRequest<E extends HttpReg>(entry: One<E>) {
     params: Params<E['path']>,
     ...[init = {}]: HttpInitArgs<E>
   ): Promise<T> => {
+    assertGuard(entry);
     const { method, query: keys } = entry as HttpEntry;
     const { body, options } = init;
     const query = 'query' in init ? init.query : undefined;
@@ -306,6 +360,7 @@ export function rawRequest<E extends RawReg>(entry: One<E>) {
     init: Omit<RequestInit, 'method'> = {},
     ...timeout: [timeout?: number]
   ): Promise<T> => {
+    assertGuard(entry);
     const { method } = entry as RawEntry;
     return request<T>(
       fillPath(entry, params),
