@@ -20,7 +20,6 @@ import {
 } from '../../hooks/useAgentGroupOnboardingLock';
 import {
   AvatarNavIcon,
-  DESKTOP_TOPLEVEL_SIDEBAR_WIDTH,
   GlobalSearchProvider,
   NavIcon,
   YStack,
@@ -32,6 +31,7 @@ import { RootDrawerParamList } from '../types';
 import { getActiveNestedGroupId } from '../routeHelpers';
 import { useRootNavigation } from '../utils';
 import { PaneSafeAreaProvider } from './PaneSafeAreaProvider';
+import { useSplitPaneWidths } from './splitPaneWidths';
 import { ActivityNavigator } from './ActivityNavigator';
 import { HomeNavigator } from './HomeNavigator';
 import { MessagesNavigator } from './MessagesNavigator';
@@ -42,6 +42,7 @@ const Drawer = createDrawerNavigator<RootDrawerParamList>();
 
 const DrawerContent = (props: DrawerContentComponentProps) => {
   const insets = useSafeAreaInsets();
+  const { railStrip } = useSplitPaneWidths();
   const userId = useCurrentUserId();
   // const { data: baseUnread } = store.useBaseUnread();
   const haveUnreadUnseenActivity = store.useHaveUnreadUnseenActivity();
@@ -123,11 +124,17 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
 
   return (
     <YStack
-      flex={1}
       paddingVertical="$l"
-      marginTop={insets.top}
       marginBottom={insets.bottom}
-      marginLeft={insets.left}
+      {...(railStrip
+        ? {
+            position: 'absolute',
+            top: railStrip.top,
+            bottom: 0,
+            left: railStrip.x,
+            width: railStrip.width,
+          }
+        : { flex: 1, marginTop: insets.top, marginLeft: insets.left })}
     >
       <YStack
         gap="$xl"
@@ -261,7 +268,7 @@ const TopLevelDrawerInner = () => {
     locked: agentOnboardingLocked,
     isLoading: agentOnboardingLockLoading,
   } = useAnyAgentGroupOnboardingLock();
-  const { left: leftInset } = useSafeAreaInsets();
+  const { railColumnWidth, railStrip } = useSplitPaneWidths();
 
   return (
     <>
@@ -286,9 +293,10 @@ const TopLevelDrawerInner = () => {
           drawerType: 'permanent',
           headerShown: false,
           drawerStyle: {
-            width: DESKTOP_TOPLEVEL_SIDEBAR_WIDTH + leftInset,
+            width: railColumnWidth,
             backgroundColor: getVariableValue(useTheme().background),
             borderRightColor: getVariableValue(useTheme().border),
+            ...(railStrip ? { borderRightWidth: 0 } : null),
           },
         }}
       >

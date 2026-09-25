@@ -1,13 +1,24 @@
-import { DESKTOP_TOPLEVEL_SIDEBAR_WIDTH } from '@tloncorp/ui';
-import { type ReactNode, useMemo } from 'react';
-import { StyleSheet } from 'react-native';
 import {
+  DESKTOP_SIDEBAR_WIDTH,
+  DESKTOP_TOPLEVEL_SIDEBAR_WIDTH,
+} from '@tloncorp/ui';
+import { type ReactNode, useMemo } from 'react';
+import { Platform, StyleSheet, useWindowDimensions } from 'react-native';
+import {
+  type ReservedRegion,
   ReservedRegionsProvider,
   useReservedRegions,
 } from 'react-native-reserved-regions';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  type EdgeInsets,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 
-import { SplitPaneWidthsContext } from './desktop/splitPaneWidths';
+import {
+  type RailStrip,
+  type SplitPaneWidths,
+  SplitPaneWidthsContext,
+} from './desktop/splitPaneWidths';
 
 /**
  * Lines the split layout up with a vertical fold: the list pane ends where the
@@ -19,6 +30,9 @@ import { SplitPaneWidthsContext } from './desktop/splitPaneWidths';
  * The fold is assumed to sit near the middle of a full-screen window, as on
  * the Duo; a window that meets a fold near one of its edges would get a very
  * narrow list or detail pane.
+ *
+ * Where the system reserves a side strip below its status cluster, as on the
+ * Duo, the icon rail moves into that strip instead of taking its own column.
  */
 export function FoldSplitProvider({ children }: { children: ReactNode }) {
   return (
@@ -30,31 +44,73 @@ export function FoldSplitProvider({ children }: { children: ReactNode }) {
 
 function FoldSplitWidths({ children }: { children: ReactNode }) {
   const regions = useReservedRegions();
-  const { left: leftInset } = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
   const divisions = regions.filter((region) => region.kind === 'division');
   const fold =
     divisions.length === 1 &&
     divisions[0].frame.height > divisions[0].frame.width
       ? divisions[0].frame
       : null;
+  const strip = getRailStrip(regions, insets, windowWidth);
   const foldStart = fold?.x;
   const foldWidth = fold?.width;
-  const widths = useMemo(
-    () =>
-      foldStart === undefined || foldWidth === undefined
+  const stripX = strip?.x;
+  const stripTop = strip?.top;
+  const stripWidth = strip?.width;
+  const widths = useMemo((): SplitPaneWidths => {
+    const railStrip =
+      stripX === undefined || stripTop === undefined || stripWidth === undefined
         ? null
-        : {
-            listPaneWidth:
-              foldStart - DESKTOP_TOPLEVEL_SIDEBAR_WIDTH - leftInset,
-            foldGap: foldWidth,
-          },
-    [foldStart, foldWidth, leftInset]
-  );
+        : { x: stripX, top: stripTop, width: stripWidth };
+    const railColumnWidth = railStrip
+      ? 0
+      : DESKTOP_TOPLEVEL_SIDEBAR_WIDTH + insets.left;
+    return {
+      railColumnWidth,
+      railStrip,
+      listPaneWidth:
+        foldStart === undefined
+          ? DESKTOP_SIDEBAR_WIDTH
+          : foldStart - railColumnWidth,
+      foldGap: foldWidth ?? 0,
+    };
+  }, [foldStart, foldWidth, stripX, stripTop, stripWidth, insets.left]);
   return (
     <SplitPaneWidthsContext.Provider value={widths}>
       {children}
     </SplitPaneWidthsContext.Provider>
   );
+}
+
+// The iPhone Duo reserves a side band of the window, as a safe-area inset,
+// below the status cluster that UIKit reports as an occlusion at the top of
+// that edge. UIKit places its own bar items in that band.
+function getRailStrip(
+  regions: readonly ReservedRegion[],
+  insets: EdgeInsets,
+  windowWidth: number
+): RailStrip | null {
+  if (Platform.OS !== 'ios') {
+    return null;
+  }
+  for (const region of regions) {
+    if (region.kind !== 'occlusion') {
+      continue;
+    }
+    const { x, y, width, height } = region.frame;
+    if (insets.right > 0 && x + width >= windowWidth - 1) {
+      return {
+        x: windowWidth - insets.right,
+        top: y + height,
+        width: insets.right,
+      };
+    }
+    if (insets.left > 0 && x <= 1) {
+      return { x: 0, top: y + height, width: insets.left };
+    }
+  }
+  return null;
 }
 
 const styles = StyleSheet.create({

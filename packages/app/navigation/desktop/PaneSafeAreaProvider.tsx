@@ -55,10 +55,17 @@ export function PaneSafeAreaProvider({
   );
 }
 
-/** `drawerContent` wrapper for a sidebar list pane, between rail and detail. */
+/**
+ * `drawerContent` wrapper for a sidebar list pane, between the rail (or the
+ * window's leading edge) and the detail pane.
+ */
 export function ListPaneSafeArea({ children }: { children: ReactNode }) {
+  const { railColumnWidth } = useSplitPaneWidths();
   return (
-    <PaneSafeAreaProvider touchesLeft={false} touchesRight={false}>
+    <PaneSafeAreaProvider
+      touchesLeft={railColumnWidth === 0}
+      touchesRight={false}
+    >
       {children}
     </PaneSafeAreaProvider>
   );
