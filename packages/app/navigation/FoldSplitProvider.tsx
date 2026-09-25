@@ -11,10 +11,14 @@ import { SplitPaneWidthsContext } from './desktop/splitPaneWidths';
 
 /**
  * Lines the split layout up with a vertical fold: the list pane ends where the
- * fold starts and the detail pane starts where it ends. UIKit and Android
- * WindowManager report the fold as a division only while the device is
- * partially folded, so a flat or fully open device keeps the default widths.
- * A horizontal fold, as in a tabletop posture, also keeps them.
+ * fold starts and the detail pane starts where it ends. On the iPhone Duo,
+ * UIKit reports the fold as a division only while the device is partially
+ * folded, so a fully open device keeps the default widths. A horizontal fold,
+ * as in a tabletop posture, also keeps them.
+ *
+ * The fold is assumed to sit near the middle of a full-screen window, as on
+ * the Duo; a window that meets a fold near one of its edges would get a very
+ * narrow list or detail pane.
  */
 export function FoldSplitProvider({ children }: { children: ReactNode }) {
   return (
