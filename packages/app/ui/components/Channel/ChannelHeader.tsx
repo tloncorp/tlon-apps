@@ -13,6 +13,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
 } from 'react';
@@ -42,6 +43,8 @@ type ChannelHeaderItem = ReactElement | ScreenHeaderAction[];
 
 interface ChannelHeaderItemsContextValue {
   registerItem: (item: ChannelHeaderItem) => () => void;
+  registerHeaderHider: () => () => void;
+  headerHidden: boolean;
   setLoadingSubtitle: (subtitle: string | null) => void;
   items: readonly ChannelHeaderItem[];
   loadingSubtitle: string | null;
@@ -66,6 +69,7 @@ export function ChannelHeaderItemsProvider({
   children: ReactElement;
 }) {
   const [items, setItems] = useState<ChannelHeaderItem[]>([]);
+  const [headerHiderCount, setHeaderHiderCount] = useState(0);
   const [loadingSubtitle, setLoadingSubtitle] = useState<string | null>(null);
   const registerItem = useCallback((item: ChannelHeaderItem) => {
     setItems((prev) => [...prev, item]);
@@ -73,10 +77,21 @@ export function ChannelHeaderItemsProvider({
       setItems((prev) => prev.filter((registered) => registered !== item));
     };
   }, []);
+  const registerHeaderHider = useCallback(() => {
+    let removed = false;
+    setHeaderHiderCount((count) => count + 1);
+    return () => {
+      if (removed) return;
+      removed = true;
+      setHeaderHiderCount((count) => Math.max(0, count - 1));
+    };
+  }, []);
   return (
     <ChannelHeaderItemsContext.Provider
       value={{
+        registerHeaderHider,
         registerItem,
+        headerHidden: headerHiderCount > 0,
         setLoadingSubtitle,
         items,
         loadingSubtitle,
@@ -85,6 +100,17 @@ export function ChannelHeaderItemsProvider({
       {children}
     </ChannelHeaderItemsContext.Provider>
   );
+}
+
+export function useHideChannelHeader(hidden: boolean) {
+  const registerHeaderHider = useContext(
+    ChannelHeaderItemsContext
+  )?.registerHeaderHider;
+
+  useLayoutEffect(() => {
+    if (!hidden || !registerHeaderHider) return;
+    return registerHeaderHider();
+  }, [hidden, registerHeaderHider]);
 }
 
 export function useRegisterChannelHeaderItem(
@@ -290,7 +316,8 @@ export function ChannelHeader({
       channel.type === 'chat' ||
       channel.type === 'notebook' ||
       channel.type === 'notes' ||
-      channel.type === 'gallery'
+      channel.type === 'gallery' ||
+      channel.type === 'buckets'
     ) {
       const channelType = getChannelTypeName(channel.type);
       return channelType;
@@ -379,7 +406,8 @@ export function ChannelHeader({
         channel.type === 'chat' ||
         channel.type === 'notebook' ||
         channel.type === 'notes' ||
-        channel.type === 'gallery') &&
+        channel.type === 'gallery' ||
+        channel.type === 'buckets') &&
       goToChatDetails
     ) {
       return goToChatDetails;
@@ -465,6 +493,11 @@ export function ChannelHeader({
     enabled: isChatChannel(channel),
     bottomEdgeEffect: 'soft',
   });
+
+  if (context?.headerHidden) {
+    return null;
+  }
+
   if (usesNavigationHeader) {
     // Native navigation headers accept declarative actions only. Element-style
     // registrations are reserved for inline bulletin and gallery headers.

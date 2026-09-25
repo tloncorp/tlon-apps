@@ -1,5 +1,8 @@
 {
   "android": {
     "variant": "productionDebug"
+  },
+  "metro": {
+    "tunnel": "expo"
   }
 }

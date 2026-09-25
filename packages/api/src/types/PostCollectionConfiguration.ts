@@ -38,6 +38,9 @@ export function layoutTypeFromChannel(
       case CollectionRendererId.gallery:
         return 'grid';
 
+      case CollectionRendererId.buckets:
+        return 'comfy-list-top-to-bottom';
+
       default:
         // fallthrough to legacy logic
         break;
@@ -64,6 +67,9 @@ export function layoutTypeFromChannel(
       return 'grid';
 
     case 'notes':
+      return 'comfy-list-top-to-bottom';
+
+    case 'buckets':
       return 'comfy-list-top-to-bottom';
   }
 }
@@ -198,6 +204,7 @@ export function configurationFromChannel(
       };
 
     case 'notes':
+    case 'buckets':
       return {
         includeDeletedPosts: false,
         postActionIds: [],

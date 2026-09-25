@@ -21,6 +21,7 @@ import {
   markPushNotifTapSyncSinceComplete,
 } from '@tloncorp/app/lib/pushNotifTapTelemetry';
 import { recoverTlonbotRevivalDeferredConfig } from '@tloncorp/app/lib/tlonbotRevivalDeferredConfig';
+import { DeskOutdatedScreen } from '@tloncorp/app/features/DeskOutdatedScreen';
 import { AppDrawer } from '@tloncorp/app/navigation/AppDrawer';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import {
@@ -70,6 +71,26 @@ import { useTlonbotRevivalPrompt } from './TlonbotRevivalPromptSheet';
 
 const ABANDONED_FLUSH_TIMEOUT_MS = 300;
 const hostingAuthLogger = createDevLogger('hosting auth guard', true);
+
+// Prefetch posts for the chat list, once per login. Runs after sync start —
+// including a sync start that only succeeded on a desk-compatibility retry,
+// where the first attempt returned as a gated no-op. The sync size depends on
+// the connection, which is why this lives here rather than in shared sync.
+async function syncInitialPostsIfNeeded() {
+  if (await db.didSyncInitialPosts.getValue()) {
+    return;
+  }
+
+  const net = await NetInfo.fetch();
+  const syncSize =
+    net.isConnected &&
+    (net.type === 'wifi' ||
+      (net.type === 'cellular' &&
+        ['4g', '5g'].includes(net.details.cellularGeneration ?? '')))
+      ? 'heavy'
+      : 'light';
+  sync.syncInitialPosts({ syncSize });
+}
 
 type RequireHostingAuth = (options?: { force?: boolean }) => Promise<boolean>;
 
@@ -128,11 +149,17 @@ function useRequireHostingAuth(
 }
 
 function AuthenticatedApp({
+  onLogout,
   requireHostingAuth,
 }: {
+  onLogout: () => void | Promise<void>;
   requireHostingAuth: RequireHostingAuth;
 }) {
   const telemetry = useTelemetry();
+  const deskCompat = store.useDeskCompatibility();
+  // Same field refreshHostingAuth keys off, and the same reading of it: only an
+  // explicit 'hosted' login is one Tlon updates on the user's behalf.
+  const { contactId, authType } = useShip();
   const checkNodeStopped = useCheckNodeStopped();
   const { maybeShowPrompt, promptSheet } =
     useTlonbotRevivalPrompt(requireHostingAuth);
@@ -151,6 +178,7 @@ function AuthenticatedApp({
 
   const handleAppStatusChange = useCallback(
     async (status: AppStatus) => {
+      let gated = false;
       if (status === 'inactive' || status === 'background') {
         const didAbandonChatList = markChatListMeasurementAbandoned(status);
         const didAbandonPushNotif =
@@ -174,8 +202,20 @@ function AuthenticatedApp({
         if (!(await requireHostingAuth())) {
           return;
         }
+
+        // Read live rather than from render state, so a gate that arrives
+        // mid-session is respected. Everything that would talk to the desk is
+        // skipped while it's up — including on 'opened', which fires as soon as
+        // the notice mounts. Node status still has to be checked: a paused or
+        // suspended host has to kick back to onboarding from here.
+        gated = store.isDeskGated(store.getSession()?.deskCompat);
+
         startChatListSettleMeasurement(status);
-        recoverTlonbotRevivalDeferredConfig(status).catch(() => {});
+        if (!gated) {
+          // Furnishes a group and pushes profile/bot config to the host.
+          recoverTlonbotRevivalDeferredConfig(status).catch(() => {});
+        }
+        // Local only: reads the native background cache into the db.
         await checkForCachedChanges();
         telemetry.captureAppActive();
         const nodeCheck = await checkNodeStopped();
@@ -185,6 +225,10 @@ function AuthenticatedApp({
 
       // app returned from background
       if (status === 'active') {
+        if (gated) {
+          // syncSince would fail the same way startup did.
+          return;
+        }
         updateSession({ isSyncing: true });
         syncSince({ callCtx: { cause: 'app-foregrounded' } })
           .catch(() => {})
@@ -235,13 +279,56 @@ function AuthenticatedApp({
     db.nodeStoppedWhileLoggedIn.setValue(false);
   }, []);
 
+  // The desk gate skips the desk-dependent half of the 'opened' callback, and
+  // clearing it — by Try again or by an automatic recovery — raises no
+  // app-status event of its own, so deferred config would sit unapplied until
+  // the next foreground.
+  const wasDeskGated = useRef(false);
+  useEffect(() => {
+    if (store.isDeskGated(deskCompat)) {
+      wasDeskGated.current = true;
+      return;
+    }
+    if (deskCompat?.status === 'ok' && wasDeskGated.current) {
+      wasDeskGated.current = false;
+      recoverTlonbotRevivalDeferredConfig('desk_gate_cleared').catch(() => {});
+    }
+  }, [deskCompat]);
+
+  const handleRetryDeskCompatibility = useCallback(() => {
+    sync
+      .retryDeskCompatibility({ onRecovered: syncInitialPostsIfNeeded })
+      .catch(() => {});
+  }, []);
+
   return (
     <ZStack flex={1}>
-      <AppDrawer />
+      {store.shouldShowDeskNotice(deskCompat) ? (
+        // In place of the navigator rather than around it, so the node-stopped
+        // and app-status handling above stays mounted: a paused or suspended
+        // hosted node still kicks back to onboarding while this is up.
+        <DeskOutdatedScreen
+          currentVersion={deskCompat.current}
+          minimumVersion={deskCompat.minimum}
+          shipName={contactId ?? undefined}
+          isProbing={deskCompat.status === 'probing'}
+          isHosted={authType === 'hosted'}
+          onRetry={handleRetryDeskCompatibility}
+          onLogout={onLogout}
+        />
+      ) : (
+        <AppDrawer />
+      )}
       {AUTOMATED_TEST && <AutomatedTestSyncScreen />}
+      {/* Shake-triggered, so it can't cover the notice on its own; someone who
+          shakes the phone at a broken-looking screen wants the bug reporter. */}
       {poorUxReportModal}
-      {promptSheet}
-      {webAppSplashSheet}
+      {/* Both open themselves — the revival prompt from the app-status
+          callback, the web-app splash from its own mount effect — so they'd
+          cover the notice, and the prompt leads into an onboarding flow this
+          desk can't serve. Same gate as the onboarding overlay below. */}
+      {deskCompat?.status === 'ok' ? promptSheet : null}
+      {deskCompat?.status === 'ok' ? webAppSplashSheet : null}
     </ZStack>
   );
 }
@@ -257,40 +344,40 @@ function useInitializeAuthenticatedSession() {
       return initialization.current;
     }
     configureClient();
-    initialization.current = db.didSyncInitialPosts
-      .getValue()
-      .then((didSyncInitialPosts) => {
-        sync
-          .syncStart()
-          .then(async () => {
-            if (!didSyncInitialPosts) {
-              const net = await NetInfo.fetch();
-              const syncSize =
-                net.isConnected &&
-                (net.type === 'wifi' ||
-                  (net.type === 'cellular' &&
-                    ['4g', '5g'].includes(
-                      net.details.cellularGeneration ?? ''
-                    )))
-                  ? 'heavy'
-                  : 'light';
-              sync.syncInitialPosts({ syncSize });
-            }
-          })
-          .catch(() => {});
-      });
+    // syncInitialPostsIfNeeded checks the once-per-login flag itself; reading
+    // it here holds the spinner until storage is readable.
+    initialization.current = db.didSyncInitialPosts.getValue().then(() => {
+      sync
+        .syncStart()
+        .then((outcome) => {
+          // A gated start stopped before the paths this prefetch needs, and an
+          // abandoned one belongs to a login that's already gone. 'busy' is
+          // another start holding the lock, which is no reason to skip.
+          if (outcome === 'gated' || outcome === 'abandoned') {
+            return;
+          }
+          return syncInitialPostsIfNeeded();
+        })
+        .catch(() => {});
+    });
     return initialization.current;
   }, [configureClient]);
 }
 
 function AuthenticatedAppContent({
+  onLogout,
   requireHostingAuth,
   initializeSession,
 }: {
+  onLogout: () => void | Promise<void>;
   requireHostingAuth: RequireHostingAuth;
   initializeSession: () => Promise<void>;
 }) {
   const [clientReady, setClientReady] = useState(false);
+  const deskCompat = store.useDeskCompatibility();
+  // Hold the spinner until the cold-start probe reports, rather than flashing
+  // the app on ahead of the notice. Bounded by the probe's own timeout.
+  const isProbingColdStart = store.isDeskProbePending(deskCompat);
 
   useEffect(() => {
     let canceled = false;
@@ -305,7 +392,7 @@ function AuthenticatedAppContent({
     };
   }, [initializeSession]);
 
-  if (!clientReady) {
+  if (!clientReady || isProbingColdStart) {
     return (
       <ZStack flex={1} alignItems="center" justifyContent="center">
         <LoadingSpinner />
@@ -324,7 +411,10 @@ function AuthenticatedAppContent({
       <BottomSheetModalProvider>
         <ForwardPostSheetProvider>
           <ShareIntentForwardSheetProvider enabled>
-            <AuthenticatedApp requireHostingAuth={requireHostingAuth} />
+            <AuthenticatedApp
+              onLogout={onLogout}
+              requireHostingAuth={requireHostingAuth}
+            />
           </ShareIntentForwardSheetProvider>
         </ForwardPostSheetProvider>
       </BottomSheetModalProvider>
@@ -354,6 +444,7 @@ export default function ConnectedAuthenticatedApp({
   }
   const [profile, setProfile] = useState<db.Contact | null>(null);
   const { contactId, authType } = useShip();
+  const deskCompat = store.useDeskCompatibility();
   const hostingAuthExpired = db.hostingAuthExpired.useValue();
   const needsHostingReconnect =
     hostingAuthState === 'expired' ||
@@ -472,10 +563,15 @@ export default function ConnectedAuthenticatedApp({
   return (
     <ZStack flex={1}>
       <AuthenticatedAppContent
+        onLogout={onLogout}
         requireHostingAuth={requireHostingAuth}
         initializeSession={initializeSession}
       />
-      {authenticatedOverlay}
+      {/* Only once the desk is known good. The overlay is opaque and
+          full-screen, so it would bury the notice — and the spinner that
+          precedes it — and its onboarding sequence starts furnishing a group
+          straight away, which an incompatible desk can't serve. */}
+      {deskCompat?.status === 'ok' ? authenticatedOverlay : null}
     </ZStack>
   );
 }

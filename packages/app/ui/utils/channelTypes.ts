@@ -21,6 +21,8 @@ export function getChannelTypeIcon(type: db.Channel['type']): IconType {
       return 'ChannelNotebooks';
     case 'gallery':
       return 'ChannelGalleries';
+    case 'buckets':
+      return 'Folder';
     default:
       return 'ChannelTalk';
   }
@@ -39,6 +41,8 @@ export function getChannelTypeLabel(type: db.Channel['type']): string {
       return 'Notebook';
     case 'gallery':
       return 'Gallery';
+    case 'buckets':
+      return 'Bucket';
     default:
       return 'Channel';
   }

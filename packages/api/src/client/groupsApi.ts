@@ -1412,7 +1412,7 @@ export const toGroupsUpdate = (
       return {
         type: 'addRole',
         roleId,
-        meta: rRole.add,
+        meta: toClientMeta(rRole.add),
         groupId,
       };
     }
@@ -1429,7 +1429,7 @@ export const toGroupsUpdate = (
       return {
         type: 'editRole',
         roleId,
-        meta: rRole.edit,
+        meta: toClientMeta(rRole.edit),
         groupId,
       };
     }

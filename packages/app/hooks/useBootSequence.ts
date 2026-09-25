@@ -1,6 +1,11 @@
 import * as api from '@tloncorp/api';
 import { preSig } from '@tloncorp/api/lib/urbit';
-import { AnalyticsEvent, createDevLogger, withRetry } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  type RetryConfig,
+  createDevLogger,
+  withRetry,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import {
   AnalyticsSeverity,
@@ -28,6 +33,41 @@ const TLONBOT_GENERAL_GROUP_ID = '~ramlud-bintun/v1l3qcoq';
 const logger = createDevLogger('boot sequence', true);
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Attempts are far apart because a node provisioned seconds ago may still be
+// finishing its own %groups update.
+const SYNC_START_RETRY: RetryConfig = {
+  numOfAttempts: 3,
+  startingDelay: 30000,
+};
+
+/**
+ * Sync start for a freshly provisioned node, retried while the desk gates it.
+ *
+ * `withRetry` only retries on a throw, but a desk-gated sync start *resolves*.
+ * A node mid-update clears the gate once its update lands, so turn that one
+ * outcome into a throw: the backoff re-attempts it after 30 s and again after
+ * 60 s, three attempts in all. Every other outcome resolves as it did before —
+ * `'ok'` ran, `'busy'` means another start owns the work, and `'abandoned'`
+ * means the login is already gone. Retrying helps none of them.
+ *
+ * This is best-effort, not what the sequence waits on. CONNECTING opens the
+ * channel itself (`syncGroupPreviews` subscribes, which starts the event
+ * source), so the boot advances even while gated, the invite phases time out,
+ * and the authenticated shell then shows the desk notice with its own retry.
+ */
+export function retryUntilSyncStarts(
+  runSyncStart: () => Promise<store.SyncStartOutcome> = store.syncStart,
+  config: RetryConfig = SYNC_START_RETRY
+) {
+  return withRetry(async () => {
+    const outcome = await runSyncStart();
+    if (outcome === 'gated') {
+      throw new Error(`sync start did not run: ${outcome}`);
+    }
+    return outcome;
+  }, config);
+}
 
 type BootSequenceReport = {
   startedAt?: number;
@@ -59,7 +99,6 @@ export function useBootSequence() {
     code?: string;
     isReady?: boolean;
     personalInviteToken: string | null;
-    homeGroupInviteToken: string | null;
   } | null>(null);
   const [report, setReport] = useState<BootSequenceReport | null>(null);
 
@@ -92,7 +131,6 @@ export function useBootSequence() {
 
       await store.initializeCachedHostedInviteLinks({
         personalLureToken: reservedNode.personalInviteToken,
-        homeGroupLureToken: reservedNode.homeGroupInviteToken,
         nodeId: reservedNode.id,
         source: 'signup',
       });
@@ -156,9 +194,10 @@ export function useBootSequence() {
           shipName: shipInfo.ship,
           shipUrl: shipInfo.shipUrl,
         });
-        withRetry(() => store.syncStart(), {
-          numOfAttempts: 3,
-          startingDelay: 30000,
+        // Fire-and-forget, as before: the sequence moves on to CONNECTING and
+        // waits on the connection status rather than on this.
+        retryUntilSyncStarts().catch((err) => {
+          logger.crumb('sync start never ran for this node', err);
         });
 
         logger.crumb(`authenticated with node`);

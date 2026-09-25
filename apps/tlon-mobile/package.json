@@ -129,6 +129,7 @@
     "expo-status-bar": "~57.0.1",
     "expo-task-manager": "~57.0.5",
     "expo-video": "~57.0.1",
+    "expo-web-browser": "~57.0.3",
     "immer": "^9.0.12",
     "libphonenumber-js": "^1.11.18",
     "lodash": "^4.17.21",

@@ -26,31 +26,20 @@ const logger = createDevLogger('inviteActions', false);
 
 export async function initializeCachedHostedInviteLinks({
   personalLureToken,
-  homeGroupLureToken,
   nodeId,
   source,
 }: {
   personalLureToken?: HostedShipInfo['personalLureToken'] | null;
-  homeGroupLureToken?: HostedShipInfo['homeGroupLureToken'] | null;
   nodeId?: string | null;
   source: string;
 }) {
-  await Promise.all([
-    initializeCachedHostedInviteLink({
-      token: personalLureToken,
-      storageItem: db.personalInviteLink,
-      label: 'personal',
-      nodeId,
-      source,
-    }),
-    initializeCachedHostedInviteLink({
-      token: homeGroupLureToken,
-      storageItem: db.homeGroupInviteLink,
-      label: 'homeGroup',
-      nodeId,
-      source,
-    }),
-  ]);
+  await initializeCachedHostedInviteLink({
+    token: personalLureToken,
+    storageItem: db.personalInviteLink,
+    label: 'personal',
+    nodeId,
+    source,
+  });
 }
 
 async function initializeCachedHostedInviteLink({
@@ -62,7 +51,7 @@ async function initializeCachedHostedInviteLink({
 }: {
   token?: string | null;
   storageItem: typeof db.personalInviteLink;
-  label: 'personal' | 'homeGroup';
+  label: 'personal';
   nodeId?: string | null;
   source: string;
 }) {

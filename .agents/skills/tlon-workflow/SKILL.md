@@ -5,7 +5,7 @@ description: Use when taking a Tlon Messenger task from a fresh worktree to a me
 
 # Tlon workflow
 
-One task, one worktree, one pull request, across three platforms: iOS, Android and web. Read Stim's guide once per session:
+One task, one worktree, one pull request, across three platforms: iOS, Android and web. The iOS and Android devices are EAS Simulator sessions, not simulators or emulators on this machine. Read Stim's guide once per session:
 
 ```bash
 stim guide agent
@@ -45,33 +45,55 @@ The default branch is `develop`; every branch starts there and every PR targets 
 
 ### 2. Run the app
 
-Build both native platforms at once.
+Stim builds the app on this machine, installs it on an EAS Simulator session, and serves it JavaScript from this worktree's Metro through an Expo tunnel (`metro.tunnel` in `apps/tlon-mobile/.stim.json`). Nothing boots locally.
 
 ```bash
-stim start
-stim ios &
-stim android
-wait
+eas sim:availability                      # "available" for the tlon account
+stim start --remote
+stim ios --remote eas && node <worktree>/.agents/skills/tlon-workflow/eas-device.mjs keepalive
 stim logs --errors                        # exit 0 and "No matching log records" on stderr is the pass
 ```
 
-If Gradle fails with `java.lang.OutOfMemoryError: Java heap space`, run `stim android` again by itself once iOS is done. The knob is `org.gradle.jvmargs=-Xmx2048m` in `android/gradle.properties`.
+Every `stim ios` and `stim android` in this skill takes `--remote eas`; without it Stim boots a local simulator or emulator. Plain `stim start` has no tunnel, and a running one cannot gain it (`STIM_REMOTE_START_REQUIRED`): `stim stop`, then `stim start --remote`.
 
-A cold `stim ios` outlasts most tool timeouts: run it in the background or with the longest timeout you have, and rerun the same command if a call times out.
+**One platform at a time.** A worktree holds one EAS session, so `stim android --remote eas` beside a live iOS session refuses with `STIM_REMOTE_PLATFORM_MISMATCH`. Finish a platform, `stim stop`, then `stim start --remote` and the other one. Step 4 orders the captures to fit.
 
-Android defaults to **`productionDebug`** (`io.tlon.groups`), committed as `android.variant` in `apps/tlon-mobile/.stim.json`, so plain `stim android` is right. For the preview flavor (`io.tlon.groups.preview`, which is what you then open with agent-device):
+**A session bills from creation until it stops,** including while the local build runs and while you are thinking. Stim creates it before building, so a fingerprint miss (`fingerprint ... miss -- 1 source changed: ...`) compiles on the clock; `apps/tlon-mobile/.gitignore` is one of those sources. `stim stop` ends it (step 10) as soon as the platform's captures are done; do not leave one open across the review.
+
+From the output keep the session ID (`device  EAS Simulator (<id>)`, or `udid` under `--json`) and the `Watch this device: <url>` line. Give the URL to the user: it is the only way to see the device. It carries a token, so it never goes in a pull request, ticket or comment.
+
+For Android, the same line with `stim android --remote eas`. Keep the `&& ... keepalive` on every run, backgrounded or not: it has to start the moment Stim returns (see below).
+
+A cold `stim ios` outlasts most tool timeouts: run it in the background or with the longest timeout you have, and rerun the same command if a call times out. A rerun reuses the session. So does `stim ios --remote eas` after a native change.
+
+Android on EAS Simulator is marked in development by eas-cli, and this workflow has not been run against it: expect gaps and report them. The APK still builds here, so it needs the Android SDK. If Gradle fails with `java.lang.OutOfMemoryError: Java heap space`, the knob is `org.gradle.jvmargs=-Xmx2048m` in `android/gradle.properties`.
+
+Android defaults to **`productionDebug`** (`io.tlon.groups`), committed as `android.variant` in `apps/tlon-mobile/.stim.json`, so plain `stim android --remote eas` is right. For the preview flavor (`io.tlon.groups.preview`, which you then pass to `--app` and `open`):
 
 ```bash
-APP_VARIANT=preview stim start
-APP_VARIANT=preview stim ios --scheme Landscape-preview
-APP_VARIANT=preview stim android --variant previewDebug
+APP_VARIANT=preview stim start --remote
+APP_VARIANT=preview stim ios --remote eas --scheme Landscape-preview
+APP_VARIANT=preview stim android --remote eas --variant previewDebug
 ```
 
-All three lines need `APP_VARIANT=preview`: the Gradle variant alone leaves the app configured as production.
+Every line needs `APP_VARIANT=preview`: the Gradle variant alone leaves the app configured as production. The two device lines take the same `&& ... keepalive` as above.
 
 Use `stim logs --errors`, not `--since 5m --level error`: it filters the `hiddenapi ... AccessibilityNodeInfo` noise agent-device's snapshots generate on Android.
 
 `ready` describes the process, not the screen: allow roughly another minute for the first screen.
+
+**Drive the device through `eas-device.mjs`.** It is agent-device with this session's token and agent-device session added, so every agent-device command in this skill and its references goes through it:
+
+```bash
+node <worktree>/.agents/skills/tlon-workflow/eas-device.mjs snapshot -i
+node <worktree>/.agents/skills/tlon-workflow/eas-device.mjs press 'text="Next"' --settle
+```
+
+Bare `agent-device` fails with `requires daemon authentication`: Stim keeps the connection but not the token.
+
+**Nothing may leave the device idle for a minute.** An EAS device's lease lapses after about a minute without a command, and the next command then takes a new lease that the session refuses: from then on every call fails with `UNAUTHORIZED: Lease does not match session owner (leaseId)`, and nothing re-attaches, including `stim ios --remote eas`. A pause to think is enough to lose it. `eas-device.mjs` keeps a detached process pinging the device every 15 seconds for as long as Stim records the session: `keepalive` starts it, every other call restarts it if it died, and it stops by itself after `stim stop`. It cannot save a device that was already idle for a minute before it started, which is why it is chained onto `stim ios`. Pings that fail are logged to `agent-device.remote.keepalive.log` in the Stim workspace directory (`~/.stim/workspaces/<name>/`); a failure or two during a `stim ios` rerun or a long request is expected. If the session is lost anyway, `stim stop`, then this step and the sign-in again.
+
+Stim gives every worktree's session the same agent-device name, `stim-tlon-mobile`, and agent-device keeps one connection per name. Run one worktree on EAS at a time: a second worktree's `stim ios --remote eas` takes the connection over, and `eas-device.mjs` in the first refuses rather than drive the other's device.
 
 **Web** is a Vite server, no build. Take its port from stim:
 
@@ -103,23 +125,18 @@ DEFAULT_SHIP_LOGIN_URL=https://your-ship.tlon.network
 DEFAULT_SHIP_LOGIN_ACCESS_CODE=xxxxxx-xxxxxx-xxxxxx-xxxxxx
 ```
 
-They are read at build time by `app.config.ts`, and `warm` copies the file only when the worktree has none. Set them before step 1. If you are setting them now, copy the file into this worktree's `apps/tlon-mobile/` as well, then rebuild; a rebuild alone does not fetch it.
+They are read by `app.config.ts`, which the Metro that `stim start --remote` launched serves to the app, and `warm` copies the file only when the worktree has none. Set them before step 1. If you are setting them now, copy the file into this worktree's `apps/tlon-mobile/` as well, then `stim stop` and step 2 again: a running Metro keeps the environment it started with.
 
-Sign in with the script, once per platform. It opens the agent-device session, runs the sequence, and leaves the session open for the rest of the run:
+Sign in with the script, once per EAS session (a new session is a fresh device). It opens the app under the agent-device session Stim connected, runs the sequence, and leaves it open for the rest of the run:
 
 ```bash
-stim status                                # this worktree's simulator udid and emulator serial
-node <worktree>/.agents/skills/tlon-workflow/mobile-login.mjs \
-  --platform ios --udid <udid> --session ios-<ticket>-<hhmm>
-node <worktree>/.agents/skills/tlon-workflow/mobile-login.mjs \
-  --platform android --serial <serial> --session and-<ticket>-<hhmm>
+node <worktree>/.agents/skills/tlon-workflow/mobile-login.mjs --platform ios --eas
+node <worktree>/.agents/skills/tlon-workflow/mobile-login.mjs --platform android --eas
 ```
 
-It prints `signed in`, or `already signed in` when Home is already up. On failure it says which step failed and leaves the session open to snapshot. Empty login fields mean the build predates the variables above: rebuild.
+It prints `signed in`, or `already signed in` when Home is already up. On failure it says which step failed and leaves the session open to snapshot. Empty login fields mean Metro started without the variables above.
 
-Name sessions for this run (`ios-<ticket>-<hhmm>`), and `agent-device close` them when you stop their devices.
-
-Run these one at a time, so a failed step is seen rather than skipped.
+The agent-device session is always Stim's (`stim-tlon-mobile`): a name of your own does not reach the remote device, so there is no session to name or close per run. The script's `--udid` / `--serial` form is for a simulator on this machine; hosted QA uses it on its own Mac worker.
 
 What this app does that the sequence above does not show:
 
@@ -145,7 +162,7 @@ This yields an `authType: 'self'` session; it does not exercise the hosting-acco
 
 For a bug or a change to existing behavior, record what the app does now, before touching code. A screen recording is the default; a screenshot only when the state is static and one frame shows it.
 
-**Which platforms.** Three exist: iOS, Android and web (which the desktop app wraps). Decide before touching code: a "before" on a platform you skipped is not recoverable once the fix is in.
+**Which platforms.** Three exist: iOS, Android and web (which the desktop app wraps). Decide before touching code: once the fix is in, a "before" on a platform you skipped takes the file swap at the end of this step.
 
 - **One platform, the one the ticket names**, when the change is logic only, or UI built from components that behave the same everywhere (`View`, `Text`, layout, styling). No named platform: iOS.
 - **Both iOS and Android**, before and after, when the change touches anything with native quirks: `TextInput`, `Switch`, `ScrollView` and list behavior, keyboard, gestures, the WebView editor, permissions, notifications, a native module, `Platform.select`, or a `.ios.tsx` / `.android.tsx` file; or when the ticket reports a symptom on one platform only.
@@ -154,16 +171,21 @@ For a bug or a change to existing behavior, record what the app does now, before
 
 When unsure, more platforms rather than fewer.
 
-Record the behavior, not the journey: navigate to the screen first, start recording, do the one action that triggers it, stop as soon as the result is on screen. Under 30 seconds. Prove the repro first, then record it.
+With one EAS session at a time (step 2), take both native platforms in turn rather than side by side: all of iOS (before, fix, after), `stim stop`, then Android, capturing its "before" with the file swap at the end of this step and its "after" on the branch.
+
+Record the behavior, not the journey: navigate to the screen first, start recording, do the one action that triggers it, stop once the result is on screen. Under 30 seconds. Prove the repro first, then record it.
 
 ```bash
-agent-device record start <worktree>/.evidence/before-ios.mp4 --quality high --session <name>
-agent-device press 'text="<label>"' --session <name> --settle
-agent-device longpress '@<ref>' --session <name> --settle
-agent-device record stop --session <name>
+node <worktree>/.agents/skills/tlon-workflow/eas-device.mjs record start <worktree>/.evidence/before-ios.mp4 --quality high --hide-touches
+node <worktree>/.agents/skills/tlon-workflow/eas-device.mjs press 'text="<label>"' --settle
+node <worktree>/.agents/skills/tlon-workflow/eas-device.mjs longpress '@<ref>' --settle
+node <worktree>/.agents/skills/tlon-workflow/eas-device.mjs wait 5000
+node <worktree>/.agents/skills/tlon-workflow/eas-device.mjs record stop
 ```
 
-Use the sessions from step 3. Wait for the result's text before `record stop`; check that `record start` succeeded and, after `record stop`, that the file exists (on Android a second recording in the same session has produced nothing without an error) and its duration and last frame are right. Evidence goes in `.evidence/` at the root of your worktree (gitignored, removed with the worktree in step 10), as an absolute path: `$TMPDIR` differs between sandboxed and unsandboxed shells.
+`--hide-touches` is not optional on EAS: with the touch overlay the remote export outlasts agent-device's 90-second request limit, and `record stop` fails with `Daemon request timed out` and no clip. Without the overlay it returns in seconds, and the clip is written to the local path you gave. Wait for the result's text, then `wait 5000` before `record stop`: the remote recording runs about two seconds behind, so a stop right after the text produced a clip that ended before it, and 3 seconds left the result in the last frame only. The recorder also writes a frame only when the screen changes, so even a good clip ends the moment the result settles and shows it for an instant; hold it before attaching (step 8). Check that `record start` succeeded and, after `record stop`, that the file exists (on Android a second recording in the same session has produced nothing without an error) and its duration and last frame are right. Evidence goes in `.evidence/` at the root of your worktree (gitignored, removed with the worktree in step 10), as an absolute path: `$TMPDIR` differs between sandboxed and unsandboxed shells.
+
+EAS also records the whole session and attaches it once the session stops (`eas sim:get --id <session id> --json`, the `screen-recording` artifact). It is a backup to check a clip against, not a clip source: its timeline drifts from the wall clock, so a cut by timestamp lands on the wrong moment.
 
 **Web** is driven by whatever browser automation you have (this repository sets up the Playwright MCP server, see `CLAUDE.md`; a browser pane works too). Same names: `before-web.png` for a static state, a recording for motion. Use the desktop window size a person would, not a phone-width viewport, which shows the mobile navigation you already tested.
 
@@ -175,11 +197,19 @@ Read `references/driving-the-app.md` before the first capture on a device: recor
 
 If the steps do not reproduce as written, vary them before concluding anything: leave the channel and re-enter it, act from the other platform's client, background and foreground the app. Then check whether the fix already landed: `git log -S '<suspect expression>' --oneline -- <path>` on the code the ticket points at, and the merged pull requests since it was filed. If it did, check the other platform before stopping: a fix for the reported platform may have left the other one broken. If both are fixed, stop: comment on the ticket naming the pull request that fixed it and the platforms you checked (text and links; the clips stay on disk), report the same to the user, and still do step 10.
 
+To capture a "before" after the fix is already committed (the second platform, or a reviewer asks for another case), swap the file, not the branch: `git checkout origin/develop -- <path>`, wait for Fast Refresh to show the old behavior (relaunch if it does not, step 5), record, then `git checkout HEAD -- <path>` and check that the fix is back on screen. A swapped native file needs `stim ios --remote eas` / `stim android --remote eas` instead of a relaunch.
+
 ### 5. Fix
 
 The ticket's diagnosis is a lead, not the cause: confirm the mechanism in code before changing it, and say so in the pull request when the two differ. Then the smallest change that fixes it -- no refactor, no cleanup of what sits next to it.
 
-An edit to application JavaScript or TypeScript needs no rebuild; Fast Refresh applies it, and `stim logs --errors` shows what it broke. After `babel.config.js`, `metro.config.js`, or `app.config.ts` changes, `stim stop` and `stim start`; after a native input changes, `stim ios` or `stim android` again. Format with `pnpm format` at the repository root (oxfmt); prettier over a file rewrites it wholesale.
+An edit to application JavaScript or TypeScript needs no rebuild; Fast Refresh applies it through the tunnel in a couple of seconds, and `stim logs --errors` shows what it broke. When you need a full reload, or an edit does not show up, relaunch the app, which fetches a fresh bundle from Metro in about 10 seconds, returns it to its first screen, and keeps the sign-in:
+
+```bash
+node <worktree>/.agents/skills/tlon-workflow/eas-device.mjs open io.tlon.groups --relaunch   # .preview on a preview build
+```
+
+`stim reload` refuses on a remote device (`STIM_RELOAD_STOPPED`), and `agent-device metro reload` either fails on the tunnel's socket or, pointed at local Metro, reports success without reaching the device; use the relaunch. After `babel.config.js`, `metro.config.js`, or `app.config.ts` changes, Metro has to restart, and `stim stop` also ends the session: `stim stop`, step 2, sign in again. After a native input changes, `stim ios --remote eas` or `stim android --remote eas` again, which keeps the session. Format with `pnpm format` at the repository root (oxfmt); prettier over a file rewrites it wholesale.
 
 Before running `packages/shared` tests, `npm rebuild better-sqlite3` from the worktree root.
 
@@ -189,7 +219,7 @@ Commit as you go: steps 7 and 8 read the branch, not the working tree. Never for
 
 Repeat step 4 into `after-<platform>.mp4` on the platform(s) you recorded before, then `stim logs --errors` again. Evidence is the repro you already recorded, not a new scenario. Say in the pull request which platform(s) you tested and why one was enough, when it was.
 
-**Re-snapshot first.** Fast Refresh and `stim reload` remount the tree with no agent-device action, so the refs stay live and a `press` replays the old coordinates onto whatever is there now: it reports `Tapped` and drives the wrong element, silently. After any edit that reaches the running app, snapshot again before touching anything. An edit under `packages/` may be a full reload: navigation resets to Home and the sign-in prompts return on both platforms (`alert dismiss`, `Not now`). After any `packages/` edit, `stim reload ios` and `stim reload android` before capturing, and confirm `stim logs --errors` is clean: an export added in one module and imported in another leaves both apps throwing `ReferenceError: Property '<name>' doesn't exist` until reloaded. On iOS the reload itself can crash the app natively (`EXC_BAD_ACCESS` in `EXPermissionsService registerRequesters`, expo/expo#45314): `stim ios` relaunches from cache in seconds.
+**Re-snapshot first.** Fast Refresh and a relaunch remount the tree with no agent-device action, so the refs stay live and a `press` replays the old coordinates onto whatever is there now: it reports `Tapped` and drives the wrong element, silently. After any edit that reaches the running app, snapshot again before touching anything. An edit under `packages/` may be a full reload: navigation resets to Home and the sign-in prompts return (`alert dismiss`, `Not now`). After any `packages/` edit, relaunch (step 5) before capturing, and confirm `stim logs --errors` is clean: an export added in one module and imported in another leaves the app throwing `ReferenceError: Property '<name>' doesn't exist` until the bundle is fresh. If the app dies on launch instead (on iOS, `EXC_BAD_ACCESS` in `EXPermissionsService registerRequesters`, expo/expo#45314), `stim ios --remote eas` reinstalls from cache in under a minute.
 
 Keep `stim logs --since` windows short.
 
@@ -237,7 +267,20 @@ A clip longer than about 30 seconds, or one that opens on sign-in or navigation,
 ffmpeg -v error -i <clip> -ss <start> -to <end> -c:v libx264 -preset veryfast -crf 23 -an <clip>.trimmed.mp4
 ```
 
+A clip from an EAS device ends the moment its result settles (step 4). Hold the last frame for two seconds so a reviewer can read it, after any trim:
+
+```bash
+ffmpeg -v error -i <clip> -vf tpad=stop_mode=clone:stop_duration=2 -c:v libx264 -preset veryfast -crf 23 -an <clip>.held.mp4
+```
+
 Mark it ready once the evidence is in: the Codex reviewer only reviews ready pull requests.
+
+### Optional: hosted PR QA
+
+For an independent cloud test after the PR is ready, use
+[hosted QA](references/hosted-qa.md). It explores the implemented PR using
+[reviewer guidance](references/pr-reviewer.md), a disposable backend, and one PR
+comment with findings and video. It does not fix, push, request reviewers, or merge. It does not require base recordings or all-platform acceptance coverage.
 
 ### 9. Follow the review
 
@@ -249,7 +292,18 @@ Unsandboxed (sandboxed it stops at once with `gh cannot reach this repository`),
 
 It blocks until the pull request gets a review, review comment, or comment from the Codex reviewer (`chatgpt-codex-connector[bot]`) or someone with write access, keeps collecting until the round is complete (Codex's status for the head commit, then its CI result, up to twenty minutes later), prints each item as one JSON line (`kind`, `author`, `path`, `line`, `url`, `body`), and exits. Other lines: `{"kind":"codex-status","headSha":...,"findings":<n>}` once, when Codex's review completes, `findings` counting its inline comments on that commit; `{"kind":"ci","status":"failure","failed":[{name,url}]}` as soon as a check fails, or `{"kind":"ci","status":"success"}` once every check on the head commit has passed; `{"kind":"closed","merged":true}`, at which go to step 10; `{"kind":"timeout"}`, when nothing has happened on the pull request, by anyone, for `--timeout` seconds (default 1800; pass a shorter one for a quick run) -- any commit, comment, or review restarts that budget.
 
-One run is one round. A failed check is an item like any other: `gh run view --job <job id> --log-failed` (the job id is the last path segment of its url), fix, and it re-runs on the push. For every item: fix what is real, reply in that thread with what changed (`kind: review_comment` → `gh api repos/{owner}/{repo}/pulls/<number>/comments/<root>/replies -f body=...`, where `<root>` is the watcher's `replyTo` when set and its numeric `commentId` otherwise, since GitHub only accepts replies to a thread's first comment; `kind: comment` or `review` → `gh pr comment`), and push back, with reasons, on what is not. End every reply and comment you post with the line `<!-- tlon-workflow:agent -->`; it is how the watcher tells your replies from a reviewer's. Push once for the whole round, re-capture evidence if the visible behavior changed, then run the watcher again. Codex reviews each push.
+One run is one round. A failed check is an item like any other: `gh run view --job <job id> --log-failed` (the job id is the last path segment of its url), fix, and it re-runs on the push. A `qa-result` is an advisory hosted test report for its `headSha`, not a request
+to restart the review loop. Read it once, check that it matches the current PR
+commit, and address verified findings as part of the current round. Do not rerun
+QA merely because it posted or edited its comment. Rerun only after a relevant
+fix or at the user's request; incomplete platform coverage is not a code defect.
+If you explicitly dispatched hosted QA, pass `--qa-run <EAS workflow UUID>` to
+the same watcher before the human handoff. It waits for that run on the current
+head within `--timeout`, or reports that the head changed. Without this option,
+it only surfaces results already published. A completed review can contain
+findings or unexplored paths; neither starts another run automatically.
+
+For every review item: fix what is real, reply in that thread with what changed (`kind: review_comment` → `gh api repos/{owner}/{repo}/pulls/<number>/comments/<root>/replies -f body=...`, where `<root>` is the watcher's `replyTo` when set and its numeric `commentId` otherwise, since GitHub only accepts replies to a thread's first comment; `kind: comment` or `review` → `gh pr comment`), and push back, with reasons, on what is not. End every reply and comment you post with the line `<!-- tlon-workflow:agent -->`; it is how the watcher tells your replies from a reviewer's. Push once for the whole round, re-capture evidence if the visible behavior changed, then run the watcher again. Codex reviews each push.
 
 Codex reports only what is new on each push, so `findings: 0` means nothing new, not clean. Keep your own list of every thread the watcher has printed and what you did with it. Stop when every thread on that list has a reply from you (a fix or a reasoned push-back), the head commit has `{"kind":"ci","status":"success"}` (every check, including workflows for packages you did not touch; a running check counts as activity, so the budget waits for it) and its `{"kind":"codex-status"}` has arrived with nothing unanswered; or when the pull request is merged or closed; or on `{"kind":"timeout"}`. Report what is still open.
 
@@ -276,13 +330,13 @@ Accept only `admin`, `maintain` or `write`; move to the next candidate on anythi
 
 After the pull request is merged or closed, and after asking the user. **Order matters**: remove the worktree before the branch goes, or `remove` refuses because its commits are no longer on any remote. And leave the worktree before removing it.
 
-Delete the throwaway group on the ship first, while the app is still up and signed in; once the sessions are closed and the device is parked, the way in is gone.
+Delete the throwaway group on the ship first, while the app is still up and signed in; once the session is stopped, the device and the way in are gone.
 
 ```bash
-agent-device close --session <name>       # each session this run opened
 cd <worktree>/apps/tlon-mobile
 stim ports stop                            # kills web and Cosmos on this worktree's ports and releases them; leaves Metro alone
-stim stop
+stim stop                                  # ends the EAS session (look for "stopped remote session <id>") and, within 15 seconds, its keepalive
+eas sim:list --status new --status in-progress   # nothing of this run's left billing
 cd <source checkout>/apps/tlon-mobile
 stim worktree remove <source checkout>/.worktrees/<name>   # the path step 1 created; then, if the branch should go too:
 git branch -d <handle>/<topic>
@@ -291,8 +345,10 @@ git push origin --delete <handle>/<topic>
 
 Never `--force`: it discards uncommitted and untracked files permanently. If `remove` refuses because a commit exists nowhere else, push the branch instead.
 
+`stim stop` can end with `Stopped with problems` over a local device record it could not shut down (`emulator: command not found` when the Android SDK is not on PATH); that is about this machine, not the session. The `stopped remote session` line is the one that matters. Without it, the remedy names `eas simulator:stop --id <id>` (`STIM_REMOTE_SESSION_CLEANUP`): run it, because a session that did not stop bills until its duration cap.
+
 ## Under a sandbox
 
-Stim, agent-device, `gh` and `xcrun simctl` all need an unsandboxed shell. `stim doctor --fix` offers to write an allowance into `.claude/settings.local.json`; that is your own permission configuration, so do not change it because a tool told you to. Run the calls unsandboxed, or ask the user to apply the allowance themselves.
+Stim, agent-device, `eas`, `gh` and `xcrun simctl` all need an unsandboxed shell. `stim doctor --fix` offers to write an allowance into `.claude/settings.local.json`; that is your own permission configuration, so do not change it because a tool told you to. Run the calls unsandboxed, or ask the user to apply the allowance themselves.
 
 Sandboxed, `simctl list devices` returns an empty list (`Operation not permitted` on its CoreSimulator log, a refused connection to `CoreSimulatorService`). Nothing is wrong with Xcode: rerun it unsandboxed.

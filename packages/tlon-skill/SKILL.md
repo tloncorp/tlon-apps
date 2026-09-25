@@ -28,7 +28,11 @@ upload` (when used) and the `posts send`/`dms send` that carries `--image`. Both
 fail loudly; neither degrades to a plain link. If `upload` reports that the ship
 cannot store uploads (self-hosted moons have no storage), you do not need it:
 pass the direct **https** image URL straight to `--image`, which posts without
-uploading.
+uploading. If `upload` or `--image` fails with `HTTP 429 (rate limited)`, the
+*source host* is throttling automated fetches (Wikimedia does this): choose an
+image from a different host. Retrying the same URL, passing it to `--image`, or
+using the owner config all fetch from that same host. If the task names a
+specific image, report the failure instead of substituting another.
 
 ## OpenClaw
 
@@ -264,6 +268,10 @@ tlon groups leave ~host/slug                             # Leave a group
 tlon groups delete ~host/slug                            # Delete (host only)
 tlon groups update ~host/slug --title "..." [--description "..."]
 
+# Invite links (Lure)
+tlon groups invite-link ~host/slug                       # Retrieve the group's invite link (under a bot harness: the owner's)
+tlon groups invite-link ~host/slug --self                # Use the current credentials instead of the owner's
+
 # Members (shown with nicknames when available)
 tlon groups invite ~host/slug ~ship1 ~ship2              # Invite members
 tlon groups revoke-invite ~host/slug ~ship1              # Revoke pending member invite
@@ -319,6 +327,14 @@ Join behavior:
 - Invited groups and public groups use the backend join action.
 - Private groups without an invite use the invite-request action.
 - Secret groups require an invite.
+
+Invite link behavior (`invite-link`):
+
+-   Prints the canonical Lure URL (`https://invite.tlon.io/<token>`), minting one through the invite service if the group has none yet. Never compose or guess invite URLs — always retrieve them with this command.
+-   The link belongs to whichever ship the command runs as: that ship becomes the inviter of record, and the recipient's onboarding attributes the invite to it.
+-   Under a bot harness (the OpenClaw plugin or the Hermes adapter) the bare command runs as the **owner**, so invites attribute to the owner rather than the bot. `--self` opts back out and uses the current credentials; explicit credential flags (`--config`, `--url`, ...) do the same. A harness with no owner credentials provisioned fails loudly instead of quietly returning a bot-attributed link.
+-   Run directly (a terminal, a self-hosted setup) it uses the current credentials like every other command — there is no owner to resolve.
+-   For private/secret groups the acting ship must be the host or an admin — the command refuses otherwise, because a non-admin's link would not deliver the group invite on redemption.
 
 ### Hooks
 
@@ -472,13 +488,7 @@ Paths are `/1/group/<host>/<slug>`, `/1/chan/<nest>`, `/1/desk/<flag>`. A group'
 
 Manage %notes notebooks (Markdown-first). Notebooks are nests of the form `notes/~host/name`; note bodies are plain Markdown (not Tlon Story).
 
-Do not use LaTeX math delimiters (`$...$`, `$$...$$`, `\(...\)`, `\[...\]`) in
-note bodies or message text. No Tlon surface renders math: the delimiters
-display literally or get mangled (Markdown emphasis, mentions, and escaping can
-corrupt the text inside and around them), and in a note body the backslashes in
-`\(` and `\[` are silently eaten by Markdown escaping, so those delimiters
-vanish. Write math as plain text/Unicode (`x²`, `E = mc²`, `θ ∈ [0, 2π)`) and
-use code blocks or inline code for complex formulas.
+Do not use LaTeX math delimiters (`$...$`, `$$...$$`, `\(...\)`, `\[...\]`) in note bodies or message text. No Tlon surface renders math: the delimiters display literally or get mangled (Markdown emphasis, mentions, and escaping can corrupt the text inside and around them), and in a note body the backslashes in `\(` and `\[` are silently eaten by Markdown escaping, so those delimiters vanish. Write math as plain text/Unicode (`x²`, `E = mc²`, `θ ∈ [0, 2π)`) and use code blocks or inline code for complex formulas.
 
 ```bash
 tlon notes status                                        # Check %notes reachability
@@ -545,7 +555,14 @@ is used.
 Remote (URL) uploads go through the same SSRF guard as `--image`, with
 general-file limits: `http` and `https` sources are both accepted, URLs with
 embedded credentials are refused, private-network targets are blocked, and the
-download is bounded by a 120s deadline and a 100 MiB cap. Local-path and stdin
+download is bounded by a 120s deadline and a 100 MiB cap. Requests identify
+themselves as `TlonBot/<version> (https://tlon.io; support@tlon.io)
+tlon-cli/<version>`. A `429` or `503` from the source host is retried at most
+once, after its `Retry-After` delay (5s when the header is absent) and only
+when that delay is understood (delta-seconds or an IMF-fixdate), at most 10s,
+and fits the remaining deadline; otherwise, or on a second refusal, the command
+fails with `HTTP 429 (rate limited)` or `HTTP 503 (temporarily unavailable)`,
+naming the host's answer so you can choose another source. Local-path and stdin
 uploads are unaffected.
 
 ### Settings (OpenClaw)
@@ -562,8 +579,8 @@ tlon settings allow-dm ~ship                             # Add to DM allowlist
 tlon settings remove-dm ~ship                            # Remove from allowlist
 
 # Channel controls
-tlon settings allow-channel chat/~host/slug              # Add to watch list
-tlon settings remove-channel chat/~host/slug             # Remove from watch list
+tlon settings allow-channel chat/~host/slug              # Add an entry to the persisted groupChannels settings list
+tlon settings remove-channel chat/~host/slug             # Remove an entry from that list (on openclaw this only un-watches settings-managed channels; traffic re-adds member channels)
 tlon settings open-channel chat/~host/slug               # Set channel to open
 tlon settings restrict-channel chat/~host/slug [~ship1]  # Set restricted
 

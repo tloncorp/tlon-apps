@@ -413,6 +413,14 @@ type FirstRunCorrelation = {
   purposeId: AgentOnboardingPurposeId;
   topics: readonly string[];
   enqueuedAt: number;
+  /**
+   * Highest note id in the notebook when this run was claimed, where it could
+   * be read. Anything at or below it predates the run and cannot be its entry.
+   * Absent when a correlation is restored from a persisted record after a
+   * restart, which is not the moment to take a baseline: the run's own note
+   * may already have landed by then.
+   */
+  baselineNoteId?: number;
   /** Completion may be recorded immediately, but not presented before setup copy. */
   presentationReady: boolean;
   /** Re-enters the configured API scope when lifecycle hooks fire later. */
@@ -1270,6 +1278,7 @@ async function provision(
       request,
       notebookName,
       deps.now?.() ?? Date.now(),
+      deps.listNotes ?? notes.listNotes,
       providerConfig?.providerIds ?? []
     );
     // Another reconciliation pass owns a fresh atomic claim. Keep the durable
@@ -1980,6 +1989,10 @@ async function recoverDeliveredFirstRunNote(
   correlation: FirstRunCorrelation,
   listNotes: typeof notes.listNotes
 ): Promise<number | undefined> {
+  // Close the window before listing, so an entry written while this call is
+  // in flight cannot be taken for the one this run enqueued. Both ends carry
+  // the same slack: `createdAt` is the host's clock, not ours.
+  const latest = Date.now() + FIRST_RUN_NOTE_CLOCK_SLACK_MS;
   const listed = await listNotes(correlation.notebookNest, {
     signal: correlation.context.abortSignal,
   }).catch(() => []);
@@ -1991,15 +2004,25 @@ async function recoverDeliveredFirstRunNote(
   // be attributed to this run, and claiming one that is not ours would report
   // the wrong note as the owner's first. Those stay a failure.
   const botShip = normalizeShip(correlation.context.botShip);
-  return listed
-    .filter(
-      (note) =>
-        note.createdAt != null &&
-        note.createdAt >= earliest &&
-        note.createdBy != null &&
-        normalizeShip(note.createdBy) === botShip
-    )
-    .sort((left, right) => right.noteId - left.noteId)[0]?.noteId;
+  return (
+    listed
+      .filter(
+        (note) =>
+          note.createdAt != null &&
+          note.createdAt >= earliest &&
+          note.createdAt <= latest &&
+          note.createdBy != null &&
+          normalizeShip(note.createdBy) === botShip &&
+          // Where a baseline was taken it settles what time and authorship
+          // cannot: an id at or below it existed before this run started.
+          (correlation.baselineNoteId === undefined ||
+            note.noteId > correlation.baselineNoteId)
+      )
+      // Oldest wins. What this run enqueued is the first thing the bot wrote
+      // after that; anything later in the window belongs to whatever wrote it
+      // next, and taking the newest leaned towards exactly that.
+      .sort((left, right) => left.noteId - right.noteId)[0]?.noteId
+  );
 }
 
 async function findDeliveredRunNote(
@@ -2092,7 +2115,8 @@ function rememberFirstRun(
   notebookName?: string,
   jobId?: string,
   enqueuedAt = Date.now(),
-  presentationReady = true
+  presentationReady = true,
+  baselineNoteId?: number
 ): boolean {
   if (!disposition || typeof disposition !== 'object') return false;
   const result = disposition as { enqueued?: unknown; runId?: unknown };
@@ -2102,6 +2126,7 @@ function rememberFirstRun(
     jobId: jobId ?? `unknown:${result.runId}`,
     notebookName,
     enqueuedAt,
+    baselineNoteId,
     presentationReady,
   });
   return true;
@@ -2115,6 +2140,7 @@ function setFirstRunCorrelation(
     jobId: string;
     notebookName?: string;
     enqueuedAt: number;
+    baselineNoteId?: number;
     presentationReady?: boolean;
   }
 ) {
@@ -2130,6 +2156,7 @@ function setFirstRunCorrelation(
     purposeId: request.purposeId,
     topics: request.topics,
     enqueuedAt: options.enqueuedAt,
+    baselineNoteId: options.baselineNoteId,
     presentationReady: options.presentationReady ?? true,
     runInApiScope: captureTlonApiScope(),
   });
@@ -2168,6 +2195,10 @@ async function ensureFirstRunEnqueued(
   request: PostBlobDataEntryAgentProvision,
   notebookName: string,
   now: number,
+  // Optional so a caller that cannot list -- the direct-call tests, and any
+  // future one -- still enqueues. Recovery then falls back to the time and
+  // authorship test, which is weaker but not wrong.
+  listNotes?: typeof notes.listNotes,
   providerIds: readonly string[] = []
 ): Promise<'enqueued' | 'recovered' | 'owned-by-another-pass'> {
   const enqueueRun = cron.enqueueRun?.bind(cron) ?? cron.run?.bind(cron);
@@ -2207,6 +2238,36 @@ async function ensureFirstRunEnqueued(
     return 'recovered';
   }
 
+  // Read the notebook before the run can write to it, so failure recovery has
+  // something run-specific to test rather than only time and authorship. Taken
+  // after the claim and before the enqueue: a straggler landing in between is
+  // counted as pre-existing, which only costs a recovery we would rather
+  // decline than get wrong. Best effort -- a listing failure must not fail the
+  // provision, it just leaves recovery with the weaker test.
+  const baselineNoteId = listNotes
+    ? await listNotes(request.notebookNest, { signal: context.abortSignal })
+        .then((entries) =>
+          entries.reduce<number | undefined>(
+            (highest, entry) =>
+              highest === undefined || entry.noteId > highest
+                ? entry.noteId
+                : highest,
+            undefined
+          )
+        )
+        .catch(() => undefined)
+    : undefined;
+  // The listing is best effort, but a teardown that aborted it must not fall
+  // through into starting a cron run: the monitor is going away, and the run
+  // would be left without its lifecycle hooks or in-memory correlation. Drop
+  // the claim on the way out for the same reason a rejected enqueue does --
+  // otherwise the next pass reads it as another live attempt until the grace
+  // window expires.
+  if (context.abortSignal?.aborted) {
+    await forgetAgentOnboardingRunClaim(initial);
+    context.abortSignal.throwIfAborted();
+  }
+
   let disposition: unknown;
   try {
     disposition = await enqueueRun(jobId, 'force');
@@ -2229,7 +2290,8 @@ async function ensureFirstRunEnqueued(
       notebookName,
       jobId,
       enqueuedAt,
-      false
+      false,
+      baselineNoteId
     )
   ) {
     await forgetAgentOnboardingRunClaim(initial);

@@ -84,7 +84,7 @@ jest.mock('@tloncorp/shared', () => ({
     trackError: jest.fn(),
   }),
   observeSyncSinceCompletion: jest.fn(),
-  sync: { syncStart: jest.fn<() => Promise<void>>() },
+  sync: { syncStart: jest.fn<() => Promise<sync.SyncStartOutcome>>() },
 }));
 jest.mock('@tloncorp/shared/db', () => {
   const { useSyncExternalStore } = require('react');
@@ -110,6 +110,13 @@ jest.mock('@tloncorp/shared/store', () => ({
   confirmHostingAuthReconnectCode: async () => {
     await require('@tloncorp/shared/db').hostingAuthExpired.setValue(false);
   },
+  // These tests exercise the hosting-auth gate, not the desk gate, so the desk
+  // reads as compatible throughout — which is what every predicate below
+  // returns for a session whose deskCompat is `{ status: 'ok' }`.
+  useDeskCompatibility: () => ({ status: 'ok' }),
+  isDeskGated: () => false,
+  isDeskProbePending: () => false,
+  shouldShowDeskNotice: () => false,
 }));
 jest.mock('../hooks/analytics', () => ({ useCheckAppUpdated: jest.fn() }));
 jest.mock('../hooks/useAutomatedTestDbCommands', () => ({
@@ -174,7 +181,7 @@ describe('Hosting auth gate', () => {
     } as ReturnType<typeof useNetInfo>);
     await db.hostingAuthExpired.setValue(false);
     jest.mocked(refreshHostingAuth).mockReset().mockResolvedValue('ok');
-    jest.mocked(sync.syncStart).mockReset().mockResolvedValue();
+    jest.mocked(sync.syncStart).mockReset().mockResolvedValue('ok');
     jest.mocked(useConfigureUrbitClient()).mockClear();
   });
   afterEach(cleanup);
