@@ -1,5 +1,5 @@
 diff --git a/build/swift-ui/BottomSheet/index.d.ts b/build/swift-ui/BottomSheet/index.d.ts
-index 52504c12fb31b4aa89da0914cd67405d1b34b867..0922d76eab38971db82355b5fe40bd357859bd73 100644
+index 52504c12fb31b4aa89da0914cd67405d1b34b867..4b29bdefb171e598a0d67f62029185b881d49517 100644
 --- a/build/swift-ui/BottomSheet/index.d.ts
 +++ b/build/swift-ui/BottomSheet/index.d.ts
 @@ -1,3 +1,4 @@
@@ -7,7 +7,7 @@ index 52504c12fb31b4aa89da0914cd67405d1b34b867..0922d76eab38971db82355b5fe40bd35
  import { type CommonViewModifierProps } from '../types';
  export interface BottomSheetProps extends CommonViewModifierProps {
      /**
-@@ -25,6 +26,14 @@ export interface BottomSheetProps extends CommonViewModifierProps {
+@@ -25,6 +26,16 @@ export interface BottomSheetProps extends CommonViewModifierProps {
       * @default false
       */
      fitToContents?: boolean;
@@ -19,11 +19,13 @@ index 52504c12fb31b4aa89da0914cd67405d1b34b867..0922d76eab38971db82355b5fe40bd35
 +    animateSelectedDetentChanges?: boolean;
 +    /** Duration, in seconds, for native selected-detent height changes. */
 +    detentAnimationDuration?: number;
++    /** Reserve the system close control's header area above generic content. */
++    reserveCloseButtonSpace?: boolean;
  }
  /**
   * `BottomSheet` presents content from the bottom of the screen.
 diff --git a/build/swift-ui/modifiers/presentationModifiers.d.ts b/build/swift-ui/modifiers/presentationModifiers.d.ts
-index 9936c0209b487ec6d59e4ffd7adcf8b4b96cd144..9642dfe2bbce4f3b37aa8f7775417e44ea8f02b0 100644
+index 9936c0209b487ec6d59e4ffd7adcf8b4b96cd144..c007ec0bb4dc533797e253434189ed79cd0667e2 100644
 --- a/build/swift-ui/modifiers/presentationModifiers.d.ts
 +++ b/build/swift-ui/modifiers/presentationModifiers.d.ts
 @@ -17,6 +17,7 @@ export type PresentationDetent = 'medium' | 'large' | {
@@ -43,10 +45,10 @@ index 9936c0209b487ec6d59e4ffd7adcf8b4b96cd144..9642dfe2bbce4f3b37aa8f7775417e44
  /**
   * Controls the visibility of the drag indicator on a sheet.
 diff --git a/ios/BottomSheetView.swift b/ios/BottomSheetView.swift
-index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..3ef9701291bfa6f4640f3dba50bd215604855d9c 100644
+index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..05d707b927478d294eb6793ffe32f169ed5fc49c 100644
 --- a/ios/BottomSheetView.swift
 +++ b/ios/BottomSheetView.swift
-@@ -6,6 +6,10 @@ import ExpoModulesCore
+@@ -6,6 +6,11 @@ import ExpoModulesCore
  final class BottomSheetProps: UIBaseViewProps {
    @Field var isPresented: Bool = false
    @Field var fitToContents: Bool = false
@@ -54,10 +56,11 @@ index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..3ef9701291bfa6f4640f3dba50bd2156
 +  @Field var selectedDetent: Either<PresentationDetentPreset, PresentationDetentItem>?
 +  @Field var animateSelectedDetentChanges: Bool = false
 +  @Field var detentAnimationDuration: Double = 0.4
++  @Field var reserveCloseButtonSpace: Bool = false
    var onIsPresentedChange = EventDispatcher()
    var onDismiss = EventDispatcher()
  }
-@@ -58,6 +62,252 @@ private struct BottomSheetSizeReader<Content: View>: View {
+@@ -58,6 +63,255 @@ private struct BottomSheetSizeReader<Content: View>: View {
    }
  }
  
@@ -66,10 +69,13 @@ index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..3ef9701291bfa6f4640f3dba50bd2156
 +private struct BottomSheetChromeContent<Content: View>: View {
 +  @Environment(\.dismiss) private var dismiss
 +  let content: Content
++  let reserveCloseButtonSpace: Bool
 +
 +  var body: some View {
 +    ZStack(alignment: .topTrailing) {
-+      content
++      // Keep generic React content below the system-style close control so
++      // full-width inputs and headers do not sit beneath its hit target.
++      content.padding(.top, reserveCloseButtonSpace ? 78 : 0)
 +      SwiftUI.Button(action: { dismiss() }) {
 +        SwiftUI.Image(systemName: "xmark.circle.fill")
 +          .font(.system(size: 28))
@@ -310,7 +316,7 @@ index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..3ef9701291bfa6f4640f3dba50bd2156
  struct BottomSheetView: ExpoSwiftUI.View {
    @ObservedObject var props: BottomSheetProps
    @State private var isPresented: Bool = false
-@@ -81,7 +331,15 @@ struct BottomSheetView: ExpoSwiftUI.View {
+@@ -81,7 +335,15 @@ struct BottomSheetView: ExpoSwiftUI.View {
          content
        }
      } else {
@@ -326,13 +332,16 @@ index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..3ef9701291bfa6f4640f3dba50bd2156
      }
    }
  
-@@ -90,7 +348,15 @@ struct BottomSheetView: ExpoSwiftUI.View {
+@@ -90,7 +352,18 @@ struct BottomSheetView: ExpoSwiftUI.View {
        .sheet(isPresented: $isPresented, onDismiss: {
          props.onDismiss()
        }) {
 +        #if os(iOS)
 +        if #available(iOS 16.0, *) {
-+          BottomSheetChromeContent(content: sheetContent)
++          BottomSheetChromeContent(
++            content: sheetContent,
++            reserveCloseButtonSpace: props.reserveCloseButtonSpace
++          )
 +        } else {
 +          sheetContent
 +        }
@@ -343,7 +352,7 @@ index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..3ef9701291bfa6f4640f3dba50bd2156
        .onChange(of: isPresented, perform: { newIsPresented in
          if props.isPresented == newIsPresented {
 diff --git a/ios/Modifiers/PresentationModifiers.swift b/ios/Modifiers/PresentationModifiers.swift
-index 8718921d38c951a0606a2954ea4c1cdc721cbe6a..761511afacdfe985229e41953174f6d00c63d6e4 100644
+index 8718921d38c951a0606a2954ea4c1cdc721cbe6a..245e6ccd97430f1c0e7eab17e86e6c12c51ba429 100644
 --- a/ios/Modifiers/PresentationModifiers.swift
 +++ b/ios/Modifiers/PresentationModifiers.swift
 @@ -16,7 +16,7 @@ internal struct PresentationDetentItem: Record {
@@ -435,8 +444,79 @@ index 8718921d38c951a0606a2954ea4c1cdc721cbe6a..761511afacdfe985229e41953174f6d0
        }
    }
  }
+diff --git a/src/community/bottom-sheet/BottomSheet.android.tsx b/src/community/bottom-sheet/BottomSheet.android.tsx
+index f60ae61bf0c9023d41c55cdca2d9af0de7291a92..8788a8d22aa9db7e169fda65e49a5a790db04bc8 100644
+--- a/src/community/bottom-sheet/BottomSheet.android.tsx
++++ b/src/community/bottom-sheet/BottomSheet.android.tsx
+@@ -46,6 +46,17 @@ function findNearestSnapPointIndex(
+   return typeof position === 'number' ? snapPoints.length - 1 : 0;
+ }
+ 
++function getSingleSnapPointHeight(
++  snapPoints: BottomSheetProps['snapPoints'],
++  containerHeight: number
++): number | undefined {
++  if (!snapPoints || snapPoints.length !== 1) return undefined;
++
++  const parsed = parseSnapPoint(snapPoints[0]);
++  const height = parsed.type === 'fraction' ? parsed.value * containerHeight : parsed.value;
++  return Math.min(containerHeight, Math.max(1, height));
++}
++
+ /**
+  * Android implementation of `BottomSheet` using Material3 ModalBottomSheet.
+  *
+@@ -66,10 +77,13 @@ export function BottomSheet(props: BottomSheetProps) {
+     backgroundStyle,
+     children,
+   } = props;
+-  const { width } = useWindowDimensions();
++  const { width, height } = useWindowDimensions();
+ 
+   const hasMultipleSnapPoints = snapPointsProp != null && snapPointsProp.length > 1;
+   const fitToContents = enableDynamicSizing && (!snapPointsProp || snapPointsProp.length === 0);
++  const singleSnapPointHeight = enableDynamicSizing
++    ? undefined
++    : getSingleSnapPointHeight(snapPointsProp, height);
+   const skipPartially = fitToContents || !hasMultipleSnapPoints;
+   const maxIndex = snapPointsProp ? snapPointsProp.length - 1 : 0;
+   const containerColor = extractBackgroundColor(backgroundStyle);
+@@ -199,10 +213,17 @@ export function BottomSheet(props: BottomSheetProps) {
+               shouldDismissOnBackPress: enablePanDownToClose,
+               shouldDismissOnClickOutside: enablePanDownToClose,
+             }}>
+-            <RNHostView matchContents={fitToContents}>
++            <RNHostView matchContents={fitToContents || singleSnapPointHeight != null}>
+               {/* flexGrow:1 + height:0 (flex-basis 0) fills RNHostView's measured height without
+                   inheriting the scrollable child's content height, which would block scrolling to the end. */}
+-              <View style={fitToContents ? undefined : { flexGrow: 1, height: 0 }}>
++              <View
++                style={
++                  singleSnapPointHeight != null
++                    ? { height: singleSnapPointHeight }
++                    : fitToContents
++                      ? undefined
++                      : { flexGrow: 1, height: 0 }
++                }>
+                 <SheetScrollContextReset>{children}</SheetScrollContextReset>
+               </View>
+             </RNHostView>
+diff --git a/src/community/bottom-sheet/BottomSheet.ios.tsx b/src/community/bottom-sheet/BottomSheet.ios.tsx
+index 9908630d50d9a405688ae60c88f5e6638948420d..3808bdf2327cb2c240589caf0f64443ea848d344 100644
+--- a/src/community/bottom-sheet/BottomSheet.ios.tsx
++++ b/src/community/bottom-sheet/BottomSheet.ios.tsx
+@@ -235,7 +235,8 @@ export function BottomSheet(props: BottomSheetProps) {
+           <NativeBottomSheet
+             isPresented={isPresented}
+             onIsPresentedChange={handlePresentedChange}
+-            fitToContents={fitToContents}>
++            fitToContents={fitToContents}
++            reserveCloseButtonSpace>
+             <Group modifiers={modifiers}>
+               <RNHostView matchContents={fitToContents}>
+                 {/* paddingTop compensates for tighter spacing between native drag indicator and content
 diff --git a/src/swift-ui/BottomSheet/index.tsx b/src/swift-ui/BottomSheet/index.tsx
-index cd8bad40beefa33e008f0bef895e894d48d72cdd..6ce5252aa2818c85bee9701e4b951a57743751d8 100644
+index cd8bad40beefa33e008f0bef895e894d48d72cdd..cdcbec460ee179cb409a0747e2b1d0a3c7e509ed 100644
 --- a/src/swift-ui/BottomSheet/index.tsx
 +++ b/src/swift-ui/BottomSheet/index.tsx
 @@ -3,6 +3,7 @@ import { useState, type ComponentType } from 'react';
@@ -447,7 +527,7 @@ index cd8bad40beefa33e008f0bef895e894d48d72cdd..6ce5252aa2818c85bee9701e4b951a57
  import { type CommonViewModifierProps } from '../types';
  
  export interface BottomSheetProps extends CommonViewModifierProps {
-@@ -31,6 +32,14 @@ export interface BottomSheetProps extends CommonViewModifierProps {
+@@ -31,6 +32,16 @@ export interface BottomSheetProps extends CommonViewModifierProps {
     * @default false
     */
    fitToContents?: boolean;
@@ -459,6 +539,8 @@ index cd8bad40beefa33e008f0bef895e894d48d72cdd..6ce5252aa2818c85bee9701e4b951a57
 +  animateSelectedDetentChanges?: boolean;
 +  /** Duration, in seconds, for native selected-detent height changes. */
 +  detentAnimationDuration?: number;
++  /** Reserve the system close control's header area above generic content. */
++  reserveCloseButtonSpace?: boolean;
  }
  
  type NativeBottomSheetProps = Omit<BottomSheetProps, 'onIsPresentedChange' | 'onDismiss'> & {
