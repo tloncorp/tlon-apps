@@ -294,10 +294,9 @@ describe('markdownToStory', () => {
       ]);
     });
 
-    it('parses a --joined comet-shaped name as one mention', () => {
-      // Documented delta: the old scanner split this into ~zod plus text.
+    it('keeps a --joined comet-shaped name with invalid syllables as text', () => {
       expect(markdownToStory('~zod--wordly')).toEqual([
-        { inline: [{ ship: '~zod--wordly' }] },
+        { inline: ['~zod--wordly'] },
       ]);
     });
 
@@ -313,6 +312,35 @@ describe('markdownToStory', () => {
       const once = storyToMarkdown(story);
       expect(markdownToStory(once)).toEqual(story);
       expect(storyToMarkdown(markdownToStory(once))).toBe(once);
+    });
+  });
+
+  describe('@p syllable validation', () => {
+    it.each(['~word', '~thanks', '~hello', '~sampel-palnat'])(
+      'keeps %s as plain text',
+      (name) => {
+        expect(markdownToStory(`hi ${name} bye`)).toEqual([
+          { inline: [`hi ${name} bye`] },
+        ]);
+      }
+    );
+
+    it.each([
+      '~zod',
+      '~marzod',
+      '~sampel-palnet',
+      '~dozzod-dozzod-sampel-palnet',
+      '~sampel-palnet-sampel-palnet-sampel-palnet-sampel-palnet',
+    ])('parses %s as a mention', (name) => {
+      expect(markdownToStory(`hi ${name} bye`)).toEqual([
+        { inline: ['hi ', { ship: name }, ' bye'] },
+      ]);
+    });
+
+    it('keeps an invalid name inside bold as bold text', () => {
+      expect(markdownToStory('**~word**')).toEqual([
+        { inline: [{ bold: ['~word'] }] },
+      ]);
     });
   });
 
