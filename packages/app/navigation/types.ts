@@ -210,7 +210,11 @@ export type ProfileDrawerParamList = Pick<RootStackParamList, 'Contacts'> &
 
 export type ActivityDrawerParamList = Pick<
   RootStackParamList,
-  'GroupSettings' | 'UserProfile' | 'EditProfile' | 'InviteSystemContacts'
+  | 'GroupSettings'
+  | 'UserProfile'
+  | 'EditProfile'
+  | 'Attestation'
+  | 'InviteSystemContacts'
 > & {
   // Drawer-only placeholder shown before an activity item is selected.
   ActivityEmpty: undefined;
@@ -284,6 +288,7 @@ export type DesktopChannelStackParamList = Pick<
   | 'ChannelMeta'
   | 'ChannelTemplate'
   | 'InviteUsers'
+  | 'Attestation'
 > & { ChannelRoot: RootStackParamList['Channel'] };
 
 /**

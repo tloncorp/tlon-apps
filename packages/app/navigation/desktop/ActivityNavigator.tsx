@@ -10,6 +10,7 @@ import { useCallback, useMemo } from 'react';
 import { Platform } from 'react-native';
 
 import { InviteSystemContactsScreen } from '../../features/contacts/InviteSystemContactsScreen';
+import { AttestationScreen } from '../../features/profile/AttestationScreen';
 import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
 import { ActivityEmptyState } from '../../features/top/DesktopEmptyStates';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
@@ -132,6 +133,7 @@ export const ActivityNavigator = () => {
       />
       <ActivityDrawer.Screen name="UserProfile" component={UserProfileScreen} />
       <ActivityDrawer.Screen name="EditProfile" component={EditProfileScreen} />
+      <ActivityDrawer.Screen name="Attestation" component={AttestationScreen} />
       {/* The activity list's invite action reads the device address book. */}
       {Platform.OS !== 'web' ? (
         <ActivityDrawer.Screen

@@ -12,6 +12,7 @@ import { getVariableValue, useTheme } from 'tamagui';
 import { ChannelMembersScreen } from '../../features/channels/ChannelMembersScreen';
 import { ChannelMetaScreen } from '../../features/channels/ChannelMetaScreen';
 import { ChannelTemplateScreen } from '../../features/channels/ChannelTemplateScreen';
+import { AttestationScreen } from '../../features/profile/AttestationScreen';
 import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
 import ChannelScreen from '../../features/top/ChannelScreen';
 import ChannelSearchScreen from '../../features/top/ChannelSearchScreen';
@@ -198,6 +199,10 @@ function ChannelStack(
         <ChannelStackNavigator.Screen
           name="EditProfile"
           component={EditProfileScreen}
+        />
+        <ChannelStackNavigator.Screen
+          name="Attestation"
+          component={AttestationScreen}
         />
         <ChannelStackNavigator.Screen
           name="ChannelMembers"
