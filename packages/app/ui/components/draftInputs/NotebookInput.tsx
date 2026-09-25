@@ -91,7 +91,7 @@ export function NotebookInput({
         // We don't want to add padding insets when showing the FAB, since that
         // would add blank space below the scroll.
         // (We set layout `bottom` on the FAB below instead.)
-        showBigInput ? ['right', 'left', 'bottom'] : []
+        showBigInput ? ['bottom'] : []
       }
     >
       <DraftInputConnectedBigInput

@@ -13,6 +13,7 @@ import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { RequiredUpdateScreen } from '@tloncorp/app/features/RequiredUpdateScreen';
 import { findAgentGroupOnboardingStartupRoute } from '@tloncorp/app/hooks/useAgentGroupOnboardingLock';
+import { SideInsetView } from '@tloncorp/app/navigation/SideInsetScreenLayout';
 import { markNavigationRestored } from '@tloncorp/app/navigation/navigationRestore';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useDarkMode';
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
@@ -109,7 +110,9 @@ const App = () => {
   if (updateRequired) {
     return (
       <View height={'100%'} width={'100%'} backgroundColor="$background">
-        <RequiredUpdateScreen />
+        <SideInsetView>
+          <RequiredUpdateScreen />
+        </SideInsetView>
         <StatusBar
           backgroundColor={isDarkMode ? 'black' : 'white'}
           barStyle={isDarkMode ? 'light-content' : 'dark-content'}
@@ -166,22 +169,24 @@ const MainApp = () => {
     />
   );
   const offline = (
-    <YStack
-      height="100%"
-      padding="$l"
-      gap="$3xl"
-      justifyContent="center"
-      alignItems="center"
-    >
-      <Text textAlign="center" fontSize="$xl" color="$primaryText">
-        You are offline. Please connect to the internet and try again.
-      </Text>
-      <EmailSupportLink
-        size="$label/l"
-        prompt="Back online and still stuck? Email"
-        subject="Help! I can't connect to Tlon."
-      />
-    </YStack>
+    <SideInsetView>
+      <YStack
+        height="100%"
+        padding="$l"
+        gap="$3xl"
+        justifyContent="center"
+        alignItems="center"
+      >
+        <Text textAlign="center" fontSize="$xl" color="$primaryText">
+          You are offline. Please connect to the internet and try again.
+        </Text>
+        <EmailSupportLink
+          size="$label/l"
+          prompt="Back online and still stuck? Email"
+          subject="Help! I can't connect to Tlon."
+        />
+      </YStack>
+    </SideInsetView>
   );
   const splashReplacesAuthenticatedApp =
     showSplashSequence &&
@@ -196,7 +201,7 @@ const MainApp = () => {
     offline
   ) : splashReplacesAuthenticatedApp && deskCompat?.status === 'ok' ? (
     <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
-      {splash}
+      <SideInsetView>{splash}</SideInsetView>
     </AppDataProvider>
   ) : undefined;
   const authenticatedOverlay =
@@ -211,10 +216,12 @@ const MainApp = () => {
         backgroundColor="$background"
       >
         <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
-          <AgentOnboardingSequence
-            onCompleted={handleClearSplash}
-            fallback={splash}
-          />
+          <SideInsetView>
+            <AgentOnboardingSequence
+              onCompleted={handleClearSplash}
+              fallback={splash}
+            />
+          </SideInsetView>
         </AppDataProvider>
       </View>
     ) : undefined;

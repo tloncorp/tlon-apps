@@ -168,6 +168,7 @@ const Scroller = forwardRef(
       [channel]
     );
     const { width } = useWindowDimensions();
+    const insets = useSafeAreaInsets();
     const isWindowNarrow = useIsWindowNarrow();
     const setScrollToBottomControl = useSetConversationScrollToBottomControl();
     const availableSpace = useMemo(() => {
@@ -175,9 +176,13 @@ const Scroller = forwardRef(
         ? 0
         : DESKTOP_TOPLEVEL_SIDEBAR_WIDTH + DESKTOP_SIDEBAR_WIDTH;
       return Math.floor(
-        width - sidebarsTotalWidth - 2 * getTokens().space.m.val
+        width -
+          insets.left -
+          insets.right -
+          sidebarsTotalWidth -
+          2 * getTokens().space.m.val
       );
-    }, [width]);
+    }, [width, insets.left, insets.right]);
 
     const columns = useMemo(() => {
       const gap = getTokens().space.l.val;
@@ -395,7 +400,6 @@ const Scroller = forwardRef(
       ]
     );
 
-    const insets = useSafeAreaInsets();
     const rootVerticalPadding = getTokens().space.l.val;
     const composerBottomInset = contentInsets.bottom;
     // iOS conversation lists keep the composer inset native so the list can

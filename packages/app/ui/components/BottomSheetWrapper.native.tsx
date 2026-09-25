@@ -18,6 +18,7 @@ import React, {
   useState,
 } from 'react';
 import { BackHandler, Keyboard } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from 'tamagui';
 
 import {
@@ -177,6 +178,7 @@ export const BottomSheetWrapper = forwardRef<
     const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const prevOpenRef = useRef<boolean>(open);
     const theme = useTheme();
+    const { left: leftInset, right: rightInset } = useSafeAreaInsets();
 
     const clearCloseTimer = useCallback(() => {
       if (closeTimerRef.current) {
@@ -510,6 +512,13 @@ export const BottomSheetWrapper = forwardRef<
       [commonOverrides, commonProps, open]
     );
 
+    // Modal sheets render in the root BottomSheetModalProvider, outside the
+    // navigator screen layout that insets everything else from side chrome.
+    const modalFrameStyle = useMemo(
+      () => [frameStyle, { marginLeft: leftInset, marginRight: rightInset }],
+      [frameStyle, leftInset, rightInset]
+    );
+
     const isNested = useContext(ActionSheetContext).isInsideSheet;
 
     const useBottomSheetViewForModal = !(
@@ -536,6 +545,7 @@ export const BottomSheetWrapper = forwardRef<
           onDismiss={handleModalDismiss}
           {...commonProps}
           {...commonOverrides}
+          style={modalFrameStyle}
         >
           {/* BottomSheetView is only for simple static content. Use plain View for:
               - footerComponent: BottomSheetView interferes with gorhom's footer layout system

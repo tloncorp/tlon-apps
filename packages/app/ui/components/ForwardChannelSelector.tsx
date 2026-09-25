@@ -3,6 +3,7 @@ import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, XStack, getTokenValue } from 'tamagui';
 
 import { useFilteredChannelChats } from '../../hooks/useFilteredChannelChats';
@@ -36,6 +37,7 @@ export function ForwardChannelSelector({
   channelFilter,
 }: ForwardChannelSelectorProps) {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const { left: leftInset, right: rightInset } = useSafeAreaInsets();
   const [query, setQuery] = useState('');
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(
     null
@@ -98,10 +100,10 @@ export function ForwardChannelSelector({
 
   const estimatedListSize = useMemo(
     () => ({
-      width: screenWidth,
+      width: screenWidth - leftInset - rightInset,
       height: Math.floor(screenHeight * LIST_HEIGHT_RATIO),
     }),
-    [screenWidth, screenHeight]
+    [screenWidth, screenHeight, leftInset, rightInset]
   );
 
   return (

@@ -35,7 +35,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Spinner, View, XStack, YStack, isWeb } from 'tamagui';
+import { Spinner, View, XStack, YStack, getTokenValue, isWeb } from 'tamagui';
 
 import type { RootStackParamList } from '../../navigation/types';
 import * as MediaLibrary from './mediaLibrary';
@@ -305,7 +305,7 @@ function VideoViewer({
   viewerId?: string;
   goBack: () => void;
 }) {
-  const { top } = useSafeAreaInsets();
+  const { top, right } = useSafeAreaInsets();
   const [showOverlay, setShowOverlay] = useState(true);
   const [isBuffering, setIsBuffering] = useState(true);
   const [isReady, setIsReady] = useState(!posterUri);
@@ -597,7 +597,7 @@ function VideoViewer({
               <XStack
                 position="absolute"
                 top={top}
-                right="$xl"
+                right={getTokenValue('$xl', 'space') + right}
                 gap="$m"
                 alignItems="center"
               >
@@ -625,7 +625,7 @@ function ImageViewer(props: {
   goBack: () => void;
 }) {
   const [showOverlay, setShowOverlay] = useState(true);
-  const { top } = useSafeAreaInsets();
+  const { top, left, right } = useSafeAreaInsets();
   const toggleOverlay = useCallback(() => {
     setShowOverlay((previous) => !previous);
   }, []);
@@ -678,6 +678,8 @@ function ImageViewer(props: {
                 width="100%"
                 padding="$xl"
                 paddingTop={isWeb ? 16 : top}
+                paddingLeft={getTokenValue('$xl', 'space') + left}
+                paddingRight={getTokenValue('$xl', 'space') + right}
               >
                 <XStack
                   justifyContent={isWeb ? 'flex-end' : 'space-between'}

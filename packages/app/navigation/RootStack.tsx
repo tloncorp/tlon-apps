@@ -48,6 +48,7 @@ import { useAgentGroupOnboardingStartupRoute } from '../hooks/useAgentGroupOnboa
 import { useTheme } from '../ui';
 import { GroupSettingsStack } from './GroupSettingsStack';
 import { OnboardingStartupScreen } from './OnboardingStartupScreen';
+import { sideInsetScreenLayout } from './SideInsetScreenLayout';
 import { TopLevelTabNavigator } from './TopLevelTabNavigator';
 import { nativeHeaderPresentationOptions } from './nativeHeaderOptions';
 import type { RootStackParamList } from './types';
@@ -87,6 +88,7 @@ export function RootStack() {
         headerShown: false,
         contentStyle: { backgroundColor: theme.background?.val },
       }}
+      screenLayout={sideInsetScreenLayout}
     >
       {onboardingStartup.route ? (
         <Root.Screen
@@ -100,6 +102,9 @@ export function RootStack() {
       <Root.Screen
         name="MainTabs"
         component={TopLevelTabNavigator}
+        // UIKit lays the tab bar out in the insets itself; each tab screen
+        // gets the inset layout from TopLevelTabNavigator instead.
+        layout={({ children }) => children}
         options={{
           ...nativeHeaderScreenOptions,
           animation: 'none',
@@ -155,6 +160,9 @@ export function RootStack() {
       <Root.Screen
         name="MediaViewer"
         component={MediaViewerScreen}
+        // react-native-gesture-image-viewer sizes itself to the full window,
+        // so the viewer insets only its controls.
+        layout={({ children }) => children}
         options={mediaViewerScreenOptions}
       />
       <Root.Screen

@@ -194,11 +194,10 @@ function ToastView({
   return (
     <View
       style={{
-        width: '100%',
         position: 'absolute',
         bottom: 0,
-        left: 0,
-        right: 0,
+        left: insets.left,
+        right: insets.right,
         alignItems: 'center',
         pointerEvents: 'box-none',
       }}

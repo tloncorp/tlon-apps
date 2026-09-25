@@ -28,6 +28,7 @@ import {
   isTabPressBlockedByOnboardingLock,
   trackTopLevelTabSelection,
 } from './topLevelTabs';
+import { sideInsetScreenLayout } from './SideInsetScreenLayout';
 import type { TopLevelTabParamList } from './types';
 import { BotTabIconSpec, useBotTabIcon } from './useBotTabIcon';
 
@@ -184,6 +185,7 @@ export function TopLevelTabNavigator() {
     <Tabs.Navigator
       initialRouteName={botDm.enabled ? 'BotChat' : 'ChatList'}
       backBehavior="history"
+      screenLayout={sideInsetScreenLayout}
       screenListeners={({ navigation, route }) => ({
         tabPress: () => {
           // Selection is disabled below while locked; the press still fires,
