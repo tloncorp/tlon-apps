@@ -6,7 +6,11 @@ import * as React from 'react';
 import { EaseView, type TimingTransition } from 'react-native-ease';
 
 import { getAppendedPostIds } from './postArrivals';
-import type { PostListComponentProps, PostWithNeighbors } from './shared';
+import {
+  getPostListKey,
+  type PostListComponentProps,
+  type PostWithNeighbors,
+} from './shared';
 
 const messageFadeIn: TimingTransition = {
   type: 'timing',
@@ -98,7 +102,7 @@ export function usePostArrivalAnimation({
   return React.useCallback(
     (props) => (
       <PostArrival
-        key={props.item.post.id}
+        key={getPostListKey(props.item)}
         postId={props.item.post.id}
         content={props.item.post.content}
         animate={arrivals.has(props.item.post.id)}

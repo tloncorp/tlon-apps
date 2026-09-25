@@ -47,6 +47,7 @@ import {
   PostListComponentProps,
   PostListMethods,
   PostWithNeighbors,
+  getPostListKey,
   usePostListBottomCallbacks,
   usesConversationPostList,
 } from './shared';
@@ -123,10 +124,6 @@ function useLegendListIsNearEnd(
   );
 
   return React.useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-}
-
-function getPostId({ post }: PostWithNeighbors) {
-  return post.id;
 }
 
 function runImperativeScroll(
@@ -924,7 +921,7 @@ const ConversationPostListAttempt = React.forwardRef<
         }
         dataKey={channel.id}
         data={postsWithNeighbors}
-        keyExtractor={getPostId}
+        keyExtractor={getPostListKey}
         renderItem={renderAnimatedItem}
         getItemType={({ post }) => post.type}
         estimatedItemSize={ESTIMATED_ITEM_SIZE}

@@ -17,8 +17,10 @@ vi.mock('react-native-ease', () => ({
 import type { PostWithNeighbors } from './shared';
 import { usePostArrivalAnimation } from './usePostArrivalAnimation';
 
-const posts = (...ids: string[]) =>
-  ids.map((id) => ({ post: { id } }) as PostWithNeighbors);
+const sentPost = (id: string, sentAt: string = id) =>
+  ({ post: { id, authorId: '~zod', sentAt } }) as unknown as PostWithNeighbors;
+
+const posts = (...ids: string[]) => ids.map((id) => sentPost(id));
 
 function List({
   data,
@@ -75,7 +77,9 @@ function initialOpacity(id: string) {
 }
 
 function message(id: string, content: unknown): PostWithNeighbors {
-  return { post: { id, content } } as PostWithNeighbors;
+  return {
+    post: { id, content, authorId: '~zod', sentAt: id },
+  } as unknown as PostWithNeighbors;
 }
 
 describe('message entry animations', () => {
@@ -192,5 +196,13 @@ describe('message entry animations', () => {
     expect(initialOpacity('b')).toBeUndefined();
     expect(row('b').props.animate.opacity).toBe(1);
     expect(row('b').props.onLayout).toBeUndefined();
+  });
+
+  it('keeps a sent message mounted when the host confirms it under a new id', () => {
+    render({ data: posts('a') });
+    update({ data: [...posts('a'), sentPost('pending', 'b')] });
+    const arrival = row('pending');
+    update({ data: [...posts('a'), sentPost('confirmed', 'b')] });
+    expect(row('confirmed')).toBe(arrival);
   });
 });
