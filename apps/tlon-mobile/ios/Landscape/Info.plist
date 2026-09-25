@@ -84,7 +84,7 @@
 					<key>UISceneConfigurationName</key>
 					<string>Default Configuration</string>
 					<key>UISceneDelegateClassName</key>
-					<string>EXExpoAppSceneDelegate</string>
+					<string>TlonSceneDelegate</string>
 				</dict>
 			</array>
 		</dict>
