@@ -179,8 +179,9 @@ What it does:
 - Keeps the selected height synchronized with `UISheetPresentationController`
   so pane changes animate instead of jumping.
 - Adds the native close control, hides the drag indicator and uses the system
-  material for the outer sheet canvas. Generic content reserves the close
-  control's header area so inputs cannot sit beneath its hit target.
+  material for the outer sheet canvas. Dismissible generic content reserves the
+  close control's header area inside its measured height so inputs cannot sit
+  beneath its hit target; non-dismissible sheets omit the close control.
 - Sizes a single Android percentage or point snap to its requested height while
   keeping Material's native presentation and dismissal behavior.
 
