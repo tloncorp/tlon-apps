@@ -5,14 +5,14 @@ import { createDevLogger } from '../lib/logger';
 import type * as models from '../types/models';
 import { formatUd } from './apiUtils';
 import {
-  type RequestJsonOptions,
-  poke,
-  requestJson,
-  scry,
-  subscribe,
-  subscribeOnce,
-  unsubscribe,
-} from './urbit';
+  httpRequest,
+  notes as notesRequests,
+  pokeRequest,
+  scryRequest,
+  subscribeOnceRequest,
+  subscribeRequest,
+} from './requests';
+import { type RequestJsonOptions, unsubscribe } from './urbit';
 
 const logger = createDevLogger('notesApi', false);
 
@@ -126,12 +126,11 @@ export async function getNoteReference({
   if (!flag) {
     throw new Error(`invalid notes channel id: ${channelId}`);
   }
-  const data = await subscribeOnce<NotesSaidPreview | null>(
-    {
-      app: 'notes',
-      // the agent parses the id with +slav %ud, so dot-group it (1.234)
-      path: `/v0/said/${flag.host}/${flag.name}/note/${formatUd(noteId)}`,
-    },
+  const data = await subscribeOnceRequest(
+    notesRequests.said
+  )<NotesSaidPreview | null>(
+    // the agent parses the id with +slav %ud, so dot-group it (1.234)
+    { host: flag.host, name: flag.name, id: formatUd(noteId) },
     3000,
     undefined,
     { tag: 'getNoteReference' }
@@ -171,11 +170,7 @@ export function normalizeNotesTarget(target: NotesTarget): NotesFlag {
 }
 
 async function notesAction(action: NotesAction) {
-  return poke({
-    app: 'notes',
-    mark: 'notes-action',
-    json: action,
-  });
+  return pokeRequest(notesRequests.action)(action);
 }
 
 function notebookAction(target: NotesTarget, action: NotesNotebookAction) {
@@ -222,11 +217,8 @@ export async function subscribeToNotesNotebook(
   handler: (event: NotesStreamEvent) => void
 ) {
   const flag = normalizeNotesTarget(target);
-  return subscribe<NotesStreamEvent>(
-    {
-      app: 'notes',
-      path: `/v0/notes/${flag.host}/${flag.name}/stream`,
-    },
+  return subscribeRequest(notesRequests.stream)<NotesStreamEvent>(
+    { host: flag.host, name: flag.name },
     handler
   );
 }
@@ -476,50 +468,7 @@ export class NotesV1PendingWriteError extends Error {
   }
 }
 
-const NOTES_V1_PATH = '/notes/~/v1';
-const NOTEBOOKS_V1_PATH = '/notes/~/v1/notebooks';
-const REQUESTS_V1_PATH = '/notes/~/v1/request';
 const NOTES_AUTH_FAILURE_STATUSES = [401, 403] as const;
-
-function notebookV1Path(flag: NotesFlag): string {
-  return `${NOTEBOOKS_V1_PATH}/${flag.host}/${flag.name}`;
-}
-function notesV1Path(flag: NotesFlag): string {
-  return `${notebookV1Path(flag)}/notes`;
-}
-function noteV1Path(flag: NotesFlag, noteId: number): string {
-  return `${notesV1Path(flag)}/${noteId}`;
-}
-function noteHistoryV1Path(flag: NotesFlag, noteId: number): string {
-  return `${noteV1Path(flag, noteId)}/history`;
-}
-function foldersV1Path(flag: NotesFlag): string {
-  return `${notebookV1Path(flag)}/folders`;
-}
-function folderV1Path(flag: NotesFlag, folderId: number): string {
-  return `${foldersV1Path(flag)}/${folderId}`;
-}
-function membersV1Path(flag: NotesFlag): string {
-  return `${notebookV1Path(flag)}/members`;
-}
-
-// Search params ride in the query string rather than the path: the URL parser
-// splits a trailing dot-group off the last path segment as a file extension,
-// which would search a truncated needle. encodeURIComponent's escapes (and its
-// unreserved set) are exactly what the backend's query parser accepts.
-function searchV1Path(
-  flag: NotesFlag,
-  { needle, from, tries }: { needle: string; from?: number; tries?: number }
-): string {
-  const params = [`needle=${encodeURIComponent(needle)}`];
-  if (from !== undefined) {
-    params.push(`from=${from}`);
-  }
-  if (tries !== undefined) {
-    params.push(`tries=${tries}`);
-  }
-  return `${notebookV1Path(flag)}/search/bounded/text?${params.join('&')}`;
-}
 
 // --- response normalization ------------------------------------------------
 
@@ -906,18 +855,16 @@ function assertWriteOk(
   }
 }
 async function getRequestV1(requestId: string): Promise<NotesV1RequestStatus> {
-  const encoded = encodeURIComponent(requestId);
-  const res = await requestJson<unknown>(
-    `${REQUESTS_V1_PATH}/${encoded}`,
-    'GET'
-  );
+  const res = await httpRequest(notesRequests.request)<unknown>({
+    requestId: encodeURIComponent(requestId),
+  });
   return normalizeRequestStatusV1(res);
 }
 
 // --- notebook helpers ------------------------------------------------------
 
 async function listNotebooksV1(): Promise<NotesV1NotebookSummary[]> {
-  const res = await requestJson<unknown>(NOTEBOOKS_V1_PATH, 'GET');
+  const res = await httpRequest(notesRequests.notebooksGet)<unknown>({});
   return parseNotesResponseList(notesV1NotebookSummarySchema, res);
 }
 
@@ -925,7 +872,7 @@ async function getNotebookV1(
   target: NotesTarget
 ): Promise<NotesV1NotebookDetailSummary> {
   const flag = normalizeNotesTarget(target);
-  const res = await requestJson<unknown>(notebookV1Path(flag), 'GET');
+  const res = await httpRequest(notesRequests.notebookGet)<unknown>(flag);
   return normalizeNotebookDetailSummaryV1(res);
 }
 
@@ -934,7 +881,10 @@ async function createNotebookV1({
 }: {
   title: string;
 }): Promise<NotesV1NotebookSummary> {
-  const res = await requestJson<unknown>(NOTEBOOKS_V1_PATH, 'POST', { title });
+  const res = await httpRequest(notesRequests.notebooksPost)<unknown>(
+    {},
+    { body: { title } }
+  );
   return unwrapNotebookEnvelope(res, notebookWriteChecks());
 }
 
@@ -947,11 +897,16 @@ async function createGroupNotebookV1({
   group: NotesV1GroupRef;
   readers?: string[];
 }): Promise<NotesV1NotebookSummary> {
-  const res = await requestJson<unknown>(NOTEBOOKS_V1_PATH, 'POST', {
-    title,
-    group,
-    readers,
-  });
+  const res = await httpRequest(notesRequests.notebooksPost)<unknown>(
+    {},
+    {
+      body: {
+        title,
+        group,
+        readers,
+      },
+    }
+  );
   return unwrapNotebookEnvelope(res, notebookWriteChecks());
 }
 
@@ -962,12 +917,10 @@ async function listNotesV1(
   options?: RequestJsonOptions
 ): Promise<NotesV1Note[]> {
   const flag = normalizeNotesTarget(target);
-  const res = await requestJson<unknown>(
-    notesV1Path(flag),
-    'GET',
-    undefined,
-    options
-  );
+  const res = await httpRequest(notesRequests.notesGet)<unknown>(flag, {
+    body: undefined,
+    options,
+  });
   return parseNotesResponseList(notesV1NoteSchema, res, 'note');
 }
 
@@ -983,10 +936,12 @@ async function searchNotesV1({
   tries?: number;
 }): Promise<NotesV1SearchPage> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson<unknown>(
-    searchV1Path(normalized, { needle, from, tries }),
-    'GET'
-  );
+  // Search params ride in the query string rather than the path: the URL
+  // parser splits a trailing dot-group off the last path segment as a file
+  // extension, which would search a truncated needle.
+  const res = await httpRequest(notesRequests.search)<unknown>(normalized, {
+    query: { needle, from, tries },
+  });
   return normalizeSearchPageV1(res);
 }
 
@@ -998,7 +953,10 @@ async function getNoteV1({
   noteId: number;
 }): Promise<NotesV1Note> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson<unknown>(noteV1Path(normalized, noteId), 'GET');
+  const res = await httpRequest(notesRequests.noteGet)<unknown>({
+    ...normalized,
+    id: noteId,
+  });
   return normalizeNoteV1(res);
 }
 
@@ -1014,10 +972,12 @@ async function createNoteV1({
   body: string;
 }): Promise<NotesV1Note | null> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson<unknown>(notesV1Path(normalized), 'POST', {
-    folder,
-    title,
-    body,
+  const res = await httpRequest(notesRequests.notesPost)<unknown>(normalized, {
+    body: {
+      folder,
+      title,
+      body,
+    },
   });
   const envelope = assertWriteOk(
     res,
@@ -1084,10 +1044,9 @@ async function updateNoteBodyV1({
   if (expectedRevision !== undefined) {
     payload.expectedRevision = expectedRevision;
   }
-  const res = await requestJson<unknown>(
-    noteV1Path(normalized, noteId),
-    'PUT',
-    payload
+  const res = await httpRequest(notesRequests.notePut)<unknown>(
+    { ...normalized, id: noteId },
+    { body: payload }
   );
   const envelope = assertWriteOk(
     res,
@@ -1109,11 +1068,12 @@ async function renameNoteV1({
   title: string;
 }): Promise<NotesV1Note | null> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson<unknown>(
-    noteV1Path(normalized, noteId),
-    'PUT',
+  const res = await httpRequest(notesRequests.notePut)<unknown>(
+    { ...normalized, id: noteId },
     {
-      title,
+      body: {
+        title,
+      },
     }
   );
   const envelope = assertWriteOk(
@@ -1133,10 +1093,9 @@ async function moveNoteV1({
   folder: number;
 }): Promise<void> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson<unknown>(
-    noteV1Path(normalized, noteId),
-    'PUT',
-    { folder }
+  const res = await httpRequest(notesRequests.notePut)<unknown>(
+    { ...normalized, id: noteId },
+    { body: { folder } }
   );
   assertWriteOk(res, noteChecks(notesChannelId(normalized), noteId));
 }
@@ -1149,10 +1108,10 @@ async function deleteNoteV1({
   noteId: number;
 }): Promise<void> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson<unknown>(
-    noteV1Path(normalized, noteId),
-    'DELETE'
-  );
+  const res = await httpRequest(notesRequests.noteDelete)<unknown>({
+    ...normalized,
+    id: noteId,
+  });
   assertWriteOk(res, noteChecks(notesChannelId(normalized), noteId));
 }
 
@@ -1164,10 +1123,10 @@ async function listNoteHistoryV1({
   noteId: number;
 }): Promise<NotesV1NoteRevision[]> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson<unknown>(
-    noteHistoryV1Path(normalized, noteId),
-    'GET'
-  );
+  const res = await httpRequest(notesRequests.noteHistory)<unknown>({
+    ...normalized,
+    id: noteId,
+  });
   return parseNotesResponseList(notesV1NoteRevisionSchema, res, 'revision');
 }
 
@@ -1178,12 +1137,10 @@ async function listFoldersV1(
   options?: RequestJsonOptions
 ): Promise<NotesV1Folder[]> {
   const flag = normalizeNotesTarget(target);
-  const res = await requestJson<unknown>(
-    foldersV1Path(flag),
-    'GET',
-    undefined,
-    options
-  );
+  const res = await httpRequest(notesRequests.foldersGet)<unknown>(flag, {
+    body: undefined,
+    options,
+  });
   return parseNotesResponseList(notesV1FolderSchema, res, 'folder');
 }
 
@@ -1195,10 +1152,10 @@ async function getFolderV1({
   folderId: number;
 }): Promise<NotesV1Folder> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson<unknown>(
-    folderV1Path(normalized, folderId),
-    'GET'
-  );
+  const res = await httpRequest(notesRequests.folderGet)<unknown>({
+    ...normalized,
+    folderId,
+  });
   return normalizeFolderV1(res);
 }
 
@@ -1216,10 +1173,9 @@ async function createFolderV1({
   if (parent !== undefined) {
     payload.parent = parent;
   }
-  const res = await requestJson<unknown>(
-    foldersV1Path(normalized),
-    'POST',
-    payload
+  const res = await httpRequest(notesRequests.foldersPost)<unknown>(
+    normalized,
+    { body: payload }
   );
   assertWriteOk(res, folderCreateChecks(notesChannelId(normalized)));
 }
@@ -1234,10 +1190,9 @@ async function renameFolderV1({
   name: string;
 }): Promise<void> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson<unknown>(
-    folderV1Path(normalized, folderId),
-    'PUT',
-    { folderName: name }
+  const res = await httpRequest(notesRequests.folderPut)<unknown>(
+    { ...normalized, folderId },
+    { body: { folderName: name } }
   );
   assertWriteOk(res, folderChecks(notesChannelId(normalized), folderId));
 }
@@ -1252,10 +1207,9 @@ async function moveFolderV1({
   parent: number;
 }): Promise<void> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson<unknown>(
-    folderV1Path(normalized, folderId),
-    'PUT',
-    { parent }
+  const res = await httpRequest(notesRequests.folderPut)<unknown>(
+    { ...normalized, folderId },
+    { body: { parent } }
   );
   assertWriteOk(res, folderChecks(notesChannelId(normalized), folderId));
 }
@@ -1270,9 +1224,9 @@ async function deleteFolderV1({
   recursive: boolean;
 }): Promise<void> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson<unknown>(
-    `${folderV1Path(normalized, folderId)}?recursive=${recursive ? 'true' : 'false'}`,
-    'DELETE'
+  const res = await httpRequest(notesRequests.folderDelete)<unknown>(
+    { ...normalized, folderId },
+    { query: { recursive: recursive ? 'true' : 'false' } }
   );
   assertWriteOk(res, folderChecks(notesChannelId(normalized), folderId));
 }
@@ -1283,7 +1237,7 @@ async function listMembersV1(
   target: NotesTarget
 ): Promise<NotesV1MemberRecord[]> {
   const flag = normalizeNotesTarget(target);
-  const res = await requestJson<unknown>(membersV1Path(flag), 'GET');
+  const res = await httpRequest(notesRequests.members)<unknown>(flag);
   return parseNotesResponseList(notesV1MemberSchema, res, 'member');
 }
 
@@ -1452,9 +1406,15 @@ export async function batchImportNotesV1({
     },
   };
 
-  const res = await requestJson<unknown>(NOTES_V1_PATH, 'POST', body, {
-    reauthStatuses: NOTES_AUTH_FAILURE_STATUSES,
-  });
+  const res = await httpRequest(notesRequests.root)<unknown>(
+    {},
+    {
+      body,
+      options: {
+        reauthStatuses: NOTES_AUTH_FAILURE_STATUSES,
+      },
+    }
+  );
 
   const envelope = assertWriteOk(
     res,
@@ -1469,10 +1429,7 @@ export async function batchImportNotesV1({
 }
 
 async function listPublished(): Promise<NotesPublishedRecord[]> {
-  const rawPublished = await scry({
-    app: 'notes',
-    path: '/v0/published',
-  });
+  const rawPublished = await scryRequest(notesRequests.published)({});
   return parseNotesResponseList(
     notesPublishedRecordSchema,
     rawPublished,

@@ -154,6 +154,15 @@ function timeoutOf(opts: { timeout?: number } | undefined) {
   return opts && 'timeout' in opts ? { timeout: opts.timeout } : {};
 }
 
+// The filled path of a scry or subscribe entry, for a client that sends the
+// request through its own transport (the web app's api instance).
+export function entryPath<E extends ScryReg | SubscribeReg>(
+  entry: One<E>,
+  params: Params<E['path']>
+) {
+  return fillPath(entry, params);
+}
+
 // Each helper is curried: the entry is inferred from the registry member in
 // the outer call, the response type is given explicitly to the inner call
 // (TypeScript cannot infer one type argument while taking another).

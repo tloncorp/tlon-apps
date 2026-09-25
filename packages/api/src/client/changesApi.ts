@@ -6,7 +6,8 @@ import { toClientUnreads } from './activityApi';
 import { contactToClientProfile } from './contactsApi';
 import { toClientGroups } from './groupsApi';
 import { toPostsData } from './postsApi';
-import { type SpinErrorClass, scry, startSpinHintCheck } from './urbit';
+import { groupsUi, scryRequest } from './requests';
+import { type SpinErrorClass, startSpinHintCheck } from './urbit';
 
 export const SPIN_HINT_GRACE_MS = 500;
 
@@ -24,9 +25,8 @@ export async function fetchChangesSince(timestamp: number): Promise<
     const encodedTimestamp = render('da', da.fromUnix(timestamp));
     // /v11/changes is /v10 plus the group blob: v10-native activity (notebook/
     // note sources, which the v4 conversion drops) over v11 groups.
-    const response = await scry<ub.ChangesV11>({
-      app: 'groups-ui',
-      path: `/v11/changes/${encodedTimestamp}`,
+    const response = await scryRequest(groupsUi.changes)<ub.ChangesV11>({
+      since: encodedTimestamp,
     });
     const spinResult = await spin.settleWithin(SPIN_HINT_GRACE_MS);
 

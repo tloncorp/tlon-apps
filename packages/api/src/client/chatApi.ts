@@ -13,18 +13,21 @@ import {
   StructuredChannelDescriptionPayload,
 } from './channelContentConfig';
 import { toPostData, toPostReplyData, toReplyMeta } from './postsApi';
-import { getCurrentUserId, poke, scry, subscribe, trackedPoke } from './urbit';
+import {
+  chat,
+  pokeRequest,
+  scryRequest,
+  subscribeRequest,
+  trackedPokeRequest,
+} from './requests';
+import { getCurrentUserId } from './urbit';
 
 const logger = createDevLogger('chatApi', false);
 
 export const markChatRead = (whom: string) =>
-  poke({
-    app: 'chat',
-    mark: 'chat-remark-action',
-    json: {
-      whom,
-      diff: { read: null },
-    },
+  pokeRequest(chat.remark)({
+    whom,
+    diff: { read: null },
   });
 
 export const createGroupDm = ({
@@ -34,13 +37,9 @@ export const createGroupDm = ({
   id: string;
   members: string[];
 }) => {
-  return poke({
-    app: 'chat',
-    mark: 'chat-club-create',
-    json: {
-      id,
-      hive: [...members],
-    },
+  return pokeRequest(chat.clubCreate)({
+    id,
+    hive: [...members],
   });
 };
 
@@ -54,20 +53,16 @@ export const respondToDMInvite = ({
   const currentUserId = getCurrentUserId();
 
   if (channel.type === 'dm') {
-    return poke({
-      app: 'chat',
-      mark: 'chat-dm-rsvp',
-      json: {
-        ship: channel.id,
-        ok: accept,
-      },
+    return pokeRequest(chat.dmRsvp)({
+      ship: channel.id,
+      ok: accept,
     });
   }
 
   const action = ub.multiDmAction(channel.id, {
     team: { ship: currentUserId, ok: accept },
   });
-  return poke(action);
+  return pokeRequest(chat.clubAction)(action.json);
 };
 
 export const updateDMMeta = async ({
@@ -77,9 +72,11 @@ export const updateDMMeta = async ({
   channelId: string;
   meta: db.ClientMeta;
 }) => {
-  return await trackedPoke<ub.WritResponse | ub.ClubAction | string[]>(
-    ub.multiDmAction(channelId, { meta: fromClientMeta(meta) }),
-    { app: 'chat', path: '/v4' },
+  return await trackedPokeRequest(chat.clubAction, chat.updates)<
+    ub.WritResponse | ub.ClubAction | string[]
+  >(
+    ub.multiDmAction(channelId, { meta: fromClientMeta(meta) }).json,
+    {},
     (event) => {
       if (!('diff' in event)) {
         return false;
@@ -105,11 +102,8 @@ export type ChatEvent =
 export function subscribeToChatUpdates(
   eventHandler: (event: ChatEvent) => void
 ) {
-  subscribe(
-    {
-      app: 'chat',
-      path: '/v4',
-    },
+  subscribeRequest(chat.updates)(
+    {},
     (event: ub.WritResponse | ub.ClubAction | ub.DmStatus) => {
       logger.log('raw chat sub event', event);
 
@@ -269,37 +263,26 @@ export function subscribeToChatUpdates(
 }
 
 export function getBlockedUsers() {
-  return scry<ub.BlockedShips>({ app: 'chat', path: '/blocked' });
+  return scryRequest(chat.blocked)<ub.BlockedShips>({});
 }
 
 export function blockUser(userId: string) {
-  return poke({
-    app: 'chat',
-    mark: 'chat-block-ship',
-    json: { ship: userId },
-  });
+  return pokeRequest(chat.blockShip)({ ship: userId });
 }
 
 export function unblockUser(userId: string) {
-  return poke({
-    app: 'chat',
-    mark: 'chat-unblock-ship',
-    json: { ship: userId },
-  });
+  return pokeRequest(chat.unblockShip)({ ship: userId });
 }
 
 export type GetDmsResponse = db.Channel[];
 
 export const getDms = async (): Promise<GetDmsResponse> => {
-  const result = (await scry({ app: 'chat', path: '/dm' })) as string[];
+  const result = (await scryRequest(chat.dms)({})) as string[];
   return toClientDms(result);
 };
 
 export const getDmInvites = async (): Promise<GetDmsResponse> => {
-  const result = (await scry({
-    app: 'chat',
-    path: '/dm/invited',
-  })) as string[];
+  const result = (await scryRequest(chat.dmInvited)({})) as string[];
   return toClientDms(result, true);
 };
 
@@ -323,7 +306,7 @@ export const toClientDm = (id: string, isInvite?: boolean): db.Channel => {
 };
 
 export const getGroupDms = async (): Promise<GetDmsResponse> => {
-  const result = (await scry({ app: 'chat', path: '/clubs' })) as ub.Clubs;
+  const result = (await scryRequest(chat.clubs)({})) as ub.Clubs;
   return toClientGroupDms(result);
 };
 

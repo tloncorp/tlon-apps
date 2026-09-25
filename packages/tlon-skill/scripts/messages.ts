@@ -26,6 +26,7 @@ import type { ClientPostBlobData, ContentReference, Post } from '@tloncorp/api';
 
 import { ensureClient, normalizeShip } from './api-client';
 import {
+  formatPostId,
   isHelpArg,
   printErrorAndExit,
   printHelpAndExit,
@@ -344,6 +345,7 @@ async function fetchContext(
   limit: number = 10,
   resolve: boolean = false
 ): Promise<void> {
+  postId = formatPostId(postId);
   console.log(`Fetching context around post ${postId} in ${channelId}`);
   console.log(
     `Limit: ${limit} messages each direction${resolve ? ' (resolving quotes)' : ''}\n`
@@ -394,6 +396,7 @@ async function fetchPost(
   authorId?: string,
   resolve: boolean = false
 ): Promise<void> {
+  postId = formatPostId(postId);
   console.log(`Fetching post ${postId} from ${channelId}\n`);
 
   try {
