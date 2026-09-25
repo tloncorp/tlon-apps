@@ -4,14 +4,11 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   type AgentChoiceToolParams,
   agentChoiceToolParameters,
-  buildAgentChoiceBlob,
   createAgentChoiceToolExecutor,
 } from './agent-choice-tool.js';
 
 const validChoice: AgentChoiceToolParams = {
   target: 'chat/~zod/home-group-chat',
-  surfaceId: 'agent-choice-focus-1',
-  dimension: 'focus',
   question: 'Which part of AI agent tooling should I follow?',
   options: ['New products', 'Design patterns', 'Research papers'],
 };
@@ -23,23 +20,74 @@ const choiceDeps = (
   finish: vi.fn(),
 });
 
+function choiceHarness() {
+  const postChoice = vi.fn(async () => '{}');
+  const deps = choiceDeps(postChoice);
+  return {
+    deps,
+    postChoice,
+    execute: createAgentChoiceToolExecutor(deps),
+  };
+}
+
+const invalidChoices: Array<{
+  name: string;
+  params: AgentChoiceToolParams;
+  message?: string;
+}> = [
+  {
+    name: 'duplicate options',
+    params: { ...validChoice, options: ['News', ' news '] },
+  },
+  {
+    name: 'empty options',
+    params: { ...validChoice, options: ['News', ''] },
+  },
+  {
+    name: '37-character labels',
+    params: { ...validChoice, options: ['News', 'x'.repeat(37)] },
+  },
+  ...[
+    'Other',
+    'Custom: describe it',
+    'Something else (write it in)',
+    'Write your own',
+  ].map((option) => ({
+    name: `reserved freeform option "${option}"`,
+    params: { ...validChoice, options: ['News', option] },
+    message: 'built-in freeform',
+  })),
+  {
+    name: 'non-chat target',
+    params: { ...validChoice, target: 'dm/~zod' },
+  },
+];
+
 describe('agent choice tool', () => {
-  it('builds a choice for the furnished first-run bot DM', () => {
-    expect(() =>
-      buildAgentChoiceBlob({ ...validChoice, target: '~ten' })
-    ).not.toThrow();
+  it('builds a choice for the furnished first-run bot DM', async () => {
+    const { execute } = choiceHarness();
+    expect(
+      (await execute('dm-choice', { ...validChoice, target: '~ten' })).details
+    ).toBeUndefined();
   });
   it('advertises the mobile-safe label limit to the model', () => {
     expect(agentChoiceToolParameters.properties.options.items).toEqual({
       type: 'string',
       maxLength: 36,
     });
+    expect(agentChoiceToolParameters.properties).not.toHaveProperty(
+      'surfaceId'
+    );
+    expect(agentChoiceToolParameters.properties).not.toHaveProperty(
+      'dimension'
+    );
   });
 
-  it('builds a valid A2UI SmallChoice with model-authored options', () => {
-    const entry = buildAgentChoiceBlob(validChoice).find(
-      (candidate) => candidate.type === 'a2ui'
-    );
+  it('builds a valid A2UI SmallChoice with model-authored options', async () => {
+    const { execute, postChoice } = choiceHarness();
+    await execute('valid-choice', validChoice);
+    const entries = JSON.parse(postChoice.mock.calls[0]![0].blob);
+    const entry = entries.find((candidate) => candidate.type === 'a2ui');
 
     expect(A2UI.validateBlobEntry(entry)).toBe(true);
     expect(entry).toEqual(
@@ -70,8 +118,7 @@ describe('agent choice tool', () => {
   });
 
   it('posts the question as fallback text and the choice as a blob', async () => {
-    const postChoice = vi.fn(async () => '{"ok":true}');
-    const execute = createAgentChoiceToolExecutor(choiceDeps(postChoice));
+    const { execute, postChoice } = choiceHarness();
 
     const result = await execute('call-1', validChoice);
 
@@ -80,7 +127,7 @@ describe('agent choice tool', () => {
     expect(postChoice).toHaveBeenCalledWith({
       target: validChoice.target,
       fallbackQuestion: validChoice.question,
-      blob: JSON.stringify(buildAgentChoiceBlob(validChoice)),
+      blob: expect.stringContaining('agent-choice-call-1'),
     });
     expect(result.content).toEqual([
       {
@@ -91,125 +138,26 @@ describe('agent choice tool', () => {
   });
 
   it('does not post a choice after its owner turn is superseded', async () => {
-    const postChoice = vi.fn(async () => '{"ok":true}');
-    const deps = choiceDeps(postChoice);
+    const { deps, execute, postChoice } = choiceHarness();
     deps.assertCurrent.mockImplementation(() => {
       throw new Error('A newer owner message arrived');
     });
 
-    const result = await createAgentChoiceToolExecutor(deps)(
-      'stale-choice',
-      validChoice
-    );
+    const result = await execute('stale-choice', validChoice);
 
     expect(result.details).toEqual({ error: true });
     expect(result.content[0]?.text).toContain('A newer owner message arrived');
     expect(postChoice).not.toHaveBeenCalled();
   });
 
-  it('rejects duplicate, empty, and overlong options before posting', async () => {
-    const postChoice = vi.fn(async () => 'unexpected');
-    const execute = createAgentChoiceToolExecutor(choiceDeps(postChoice));
-
-    for (const options of [
-      ['News', ' news '],
-      ['News', ''],
-      ['News', 'x'.repeat(65)],
-    ]) {
-      const result = await execute('call-invalid', {
-        ...validChoice,
-        options,
-      });
+  it.each(invalidChoices)(
+    'rejects $name before posting',
+    async ({ params, message }) => {
+      const { execute, postChoice } = choiceHarness();
+      const result = await execute('invalid-choice', params);
       expect(result.details).toEqual({ error: true });
+      if (message) expect(result.content[0]?.text).toContain(message);
+      expect(postChoice).not.toHaveBeenCalled();
     }
-    expect(postChoice).not.toHaveBeenCalled();
-  });
-
-  it('keeps approach labels concise while retaining the general option limit', async () => {
-    const postChoice = vi.fn(async () => '{"ok":true}');
-    const execute = createAgentChoiceToolExecutor(choiceDeps(postChoice));
-    const longLabel = 'A'.repeat(37);
-
-    const approachResult = await execute('call-long-approach', {
-      ...validChoice,
-      dimension: 'approach',
-      options: ['Use primary research', longLabel],
-    });
-    const focusResult = await execute('call-long-focus', {
-      ...validChoice,
-      options: ['New products', longLabel],
-    });
-
-    expect(approachResult.details).toEqual({ error: true });
-    expect(approachResult.content[0]?.text).toContain('approach option');
-    expect(focusResult.details).toBeUndefined();
-    expect(postChoice).toHaveBeenCalledOnce();
-  });
-
-  it('does not expose recurrence as an onboarding choice', async () => {
-    const postChoice = vi.fn(async () => '{"ok":true}');
-    const execute = createAgentChoiceToolExecutor(choiceDeps(postChoice));
-
-    const result = await execute('call-recurrence', {
-      ...validChoice,
-      dimension: 'recurrence' as never,
-      question: 'Should this repeat?',
-      options: ['Daily', 'One time'],
-    });
-
-    expect(result.details).toEqual({ error: true });
-    expect(result.content[0]?.text).toContain('supported interview decision');
-    expect(postChoice).not.toHaveBeenCalled();
-  });
-
-  it('rejects options that duplicate the built-in freeform answer', async () => {
-    const postChoice = vi.fn(async () => 'unexpected');
-    const execute = createAgentChoiceToolExecutor(choiceDeps(postChoice));
-
-    for (const duplicate of [
-      'Other',
-      'Custom: describe it',
-      'Something else (write it in)',
-      'Write your own',
-    ]) {
-      const result = await execute('call-redundant-freeform', {
-        ...validChoice,
-        options: ['New products', duplicate],
-      });
-      expect(result.details).toEqual({ error: true });
-      expect(result.content[0]?.text).toContain('built-in freeform');
-    }
-    expect(postChoice).not.toHaveBeenCalled();
-  });
-
-  it('requires a bounded choice surface id and current chat target', async () => {
-    const postChoice = vi.fn(async () => 'unexpected');
-    const execute = createAgentChoiceToolExecutor(choiceDeps(postChoice));
-
-    expect(
-      (
-        await execute('call-bad-surface', {
-          ...validChoice,
-          surfaceId: 'question-1',
-        })
-      ).details
-    ).toEqual({ error: true });
-    expect(
-      (
-        await execute('call-long-surface', {
-          ...validChoice,
-          surfaceId: `agent-choice-${'x'.repeat(512)}`,
-        })
-      ).details
-    ).toEqual({ error: true });
-    expect(
-      (
-        await execute('call-bad-target', {
-          ...validChoice,
-          target: 'dm/~zod',
-        })
-      ).details
-    ).toEqual({ error: true });
-    expect(postChoice).not.toHaveBeenCalled();
-  });
+  );
 });

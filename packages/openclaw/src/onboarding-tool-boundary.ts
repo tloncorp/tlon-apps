@@ -1,20 +1,18 @@
 import { sharedMap } from './shared-state.js';
 
-export type TlonSessionSurface = {
+type TlonSessionSurface = {
   kind: 'direct' | 'group';
   senderRole?: 'owner' | 'user';
   channelNest?: string;
-  /** Group named by the owner's durable intro request in this bot DM. */
-  onboardingGroupId?: string;
+  requestedOnboardingGroupId?: string;
   threadParentId?: string;
   bootstrapComplete?: boolean;
   messageId?: string;
-  /** Timezone supplied by the owner's onboarding device, not the viewing client. */
-  interviewTimezone?: string;
+  onboardingDeviceTimezone?: string;
   timestamp: number;
 };
 
-export type TlonSessionRunSurface = TlonSessionSurface & {
+type TlonSessionRunSurface = TlonSessionSurface & {
   sessionKey: string;
 };
 
@@ -22,7 +20,7 @@ type TlonTaskPlanCall = {
   runId: string;
   sessionKey: string;
   interviewMessageId: string;
-  interviewTimezone?: string;
+  onboardingDeviceTimezone?: string;
   timestamp: number;
 };
 
@@ -184,7 +182,7 @@ export function clearTlonSessionRunSurface(
   taskPlanRunClaims.delete(key);
 }
 
-export function rememberTlonInterviewStart(
+export function bindTlonInterviewStartToCurrentOwnerTurn(
   runId: string | null | undefined,
   sessionKey: string | null | undefined
 ): void {
@@ -223,7 +221,7 @@ export function claimTlonChoiceCall(input: {
   if (!runSurface?.messageId || runSurface.sessionKey !== sessionKey) {
     return 'The interview coordinator could not identify the owner message that started this turn.';
   }
-  rememberTlonInterviewStart(runId, sessionKey);
+  bindTlonInterviewStartToCurrentOwnerTurn(runId, sessionKey);
   choiceCalls.set(toolCallId, {
     runId,
     sessionKey,
@@ -288,17 +286,14 @@ export function claimTlonTaskPlanCall(input: {
   if (!runSurface?.messageId || runSurface.sessionKey !== sessionKey) {
     return 'The task-plan coordinator could not identify the owner message that started this turn.';
   }
-  // A plan may be the first typed action when the owner's message already
-  // supplies consent, purpose, and time. Bind that owner turn as the interview
-  // start instead of requiring a throwaway choice solely to create evidence.
-  rememberTlonInterviewStart(runId, sessionKey);
+  bindTlonInterviewStartToCurrentOwnerTurn(runId, sessionKey);
   taskPlanRunClaims.set(runId, toolCallId);
   taskPlanCalls.set(toolCallId, {
     runId,
     sessionKey,
     interviewMessageId: runSurface.messageId,
-    ...(runSurface.interviewTimezone
-      ? { interviewTimezone: runSurface.interviewTimezone }
+    ...(runSurface.onboardingDeviceTimezone
+      ? { onboardingDeviceTimezone: runSurface.onboardingDeviceTimezone }
       : {}),
     timestamp: Date.now(),
   });
@@ -324,12 +319,12 @@ export function getTlonTaskPlanEvidence(toolCallId: string): {
       ? { interviewStartMessageId: interviewStart.messageId }
       : {}),
     interviewMessageId: call.interviewMessageId,
-    ...(call.interviewTimezone
-      ? { interviewTimezone: call.interviewTimezone }
+    ...(call.onboardingDeviceTimezone
+      ? { interviewTimezone: call.onboardingDeviceTimezone }
       : {}),
-    ...(runSurface?.kind === 'direct' && runSurface.onboardingGroupId
+    ...(runSurface?.kind === 'direct' && runSurface.requestedOnboardingGroupId
       ? {
-          onboardingGroupId: runSurface.onboardingGroupId,
+          onboardingGroupId: runSurface.requestedOnboardingGroupId,
           onboardingTarget: runSurface.channelNest,
         }
       : {}),
@@ -380,7 +375,7 @@ export function onboardingToolBlockReason(
     if (
       !surface?.channelNest ||
       (surface.kind !== 'group' &&
-        !(surface.kind === 'direct' && surface.onboardingGroupId))
+        !(surface.kind === 'direct' && surface.requestedOnboardingGroupId))
     ) {
       return (
         'Recurring-task onboarding is available only in the active Tlonbot ' +
@@ -413,7 +408,7 @@ export function onboardingToolBlockReason(
   }
 
   if (toolName === 'cron' && surface?.bootstrapComplete === false) {
-    return surface.kind === 'direct' && !surface.onboardingGroupId
+    return surface.kind === 'direct' && !surface.requestedOnboardingGroupId
       ? 'First-run recurring-task provisioning is owned by the group coordinator. Tell the owner to choose +, then New Tlonbot group, and stop.'
       : 'Recurring-task onboarding provisioning is owned by the typed task-plan coordinator. Post a current tlon_agent_task_plan to activate the agreed task, and do not call cron directly.';
   }

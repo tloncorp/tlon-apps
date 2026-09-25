@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
-  TLON_ONBOARDING_SURFACE_REPLY_SUPPRESSION_REASON,
   recordSuccessfulAgentOnboardingSurface,
   resetAgentOnboardingSurfaceReplyDeliveryForTests,
   suppressReplyAfterSuccessfulAgentOnboardingSurface,
@@ -14,105 +13,83 @@ const toolContext = {
   toolName: 'tlon_agent_task_plan',
 };
 
+function recordSuccess(
+  toolName = 'tlon_agent_task_plan',
+  context = toolContext
+) {
+  recordSuccessfulAgentOnboardingSurface(
+    {
+      toolName,
+      result: { content: [{ type: 'text', text: 'Surface posted.' }] },
+    },
+    context
+  );
+}
+
+function finalEvent(
+  overrides: Partial<
+    Parameters<typeof suppressReplyAfterSuccessfulAgentOnboardingSurface>[0]
+  > = {}
+) {
+  return {
+    payload: { text: 'Extra prose' },
+    kind: 'final' as const,
+    channel: 'tlon',
+    runId: 'run-1',
+    ...overrides,
+  };
+}
+
+function suppress(
+  overrides: Parameters<typeof finalEvent>[0] = {},
+  context: Parameters<
+    typeof suppressReplyAfterSuccessfulAgentOnboardingSurface
+  >[1] = toolContext
+) {
+  return suppressReplyAfterSuccessfulAgentOnboardingSurface(
+    finalEvent(overrides),
+    context
+  );
+}
+
 describe('agent task plan reply delivery', () => {
   beforeEach(() => resetAgentOnboardingSurfaceReplyDeliveryForTests());
 
   it('suppresses final model prose after a successful plan post', () => {
-    recordSuccessfulAgentOnboardingSurface(
-      {
-        toolName: 'tlon_agent_task_plan',
-        params: {},
-        result: { content: [{ type: 'text', text: '✓ Message sent' }] },
-      },
-      toolContext
-    );
+    recordSuccess();
 
-    expect(
-      suppressReplyAfterSuccessfulAgentOnboardingSurface(
-        {
-          payload: { text: 'Setup is not verified yet.' },
-          kind: 'final',
-          channel: 'tlon',
-          runId: 'run-1',
-        },
-        toolContext
-      )
-    ).toEqual({
+    expect(suppress()).toEqual({
       cancel: true,
-      reason: TLON_ONBOARDING_SURFACE_REPLY_SUPPRESSION_REASON,
+      reason: 'tlon_onboarding_surface_owns_reply',
     });
   });
 
   it('suppresses final model prose after a successful choice post', () => {
-    recordSuccessfulAgentOnboardingSurface(
-      {
-        toolName: 'tlon_agent_choice',
-        result: { content: [{ type: 'text', text: 'Choice posted.' }] },
-      },
-      toolContext
-    );
+    recordSuccess('tlon_agent_choice');
 
-    expect(
-      suppressReplyAfterSuccessfulAgentOnboardingSurface(
-        {
-          payload: { text: 'Checking your setup.' },
-          kind: 'final',
-          channel: 'tlon',
-          runId: 'run-1',
-        },
-        toolContext
-      )
-    ).toEqual({
+    expect(suppress()).toEqual({
       cancel: true,
-      reason: TLON_ONBOARDING_SURFACE_REPLY_SUPPRESSION_REASON,
+      reason: 'tlon_onboarding_surface_owns_reply',
     });
   });
 
   it('consumes the marker once', () => {
-    recordSuccessfulAgentOnboardingSurface(
-      {
-        toolName: 'tlon_agent_task_plan',
-        params: {},
-        result: { content: [{ type: 'text', text: '✓ Message sent' }] },
-      },
-      toolContext
-    );
-    const event = {
-      payload: { text: 'Extra prose' },
-      kind: 'final' as const,
-      channel: 'tlon',
-      runId: 'run-1',
-    };
-    expect(
-      suppressReplyAfterSuccessfulAgentOnboardingSurface(event, toolContext)
-    ).toBeDefined();
-    expect(
-      suppressReplyAfterSuccessfulAgentOnboardingSurface(event, toolContext)
-    ).toBeUndefined();
+    recordSuccess();
+    expect(suppress()).toBeDefined();
+    expect(suppress()).toBeUndefined();
   });
 
   it('suppresses by session when the final reply omits its run id', () => {
-    recordSuccessfulAgentOnboardingSurface(
-      {
-        toolName: 'tlon_agent_task_plan',
-        result: { content: [{ type: 'text', text: '✓ Message sent' }] },
-      },
-      toolContext
-    );
+    recordSuccess();
 
     expect(
-      suppressReplyAfterSuccessfulAgentOnboardingSurface(
-        {
-          payload: { text: 'Setup is complete.' },
-          kind: 'final',
-          channel: 'tlon',
-          sessionKey: toolContext.sessionKey,
-        },
+      suppress(
+        { runId: undefined, sessionKey: toolContext.sessionKey },
         { channelId: 'tlon', sessionKey: toolContext.sessionKey }
       )
     ).toEqual({
       cancel: true,
-      reason: TLON_ONBOARDING_SURFACE_REPLY_SUPPRESSION_REASON,
+      reason: 'tlon_onboarding_surface_owns_reply',
     });
   });
 
@@ -143,88 +120,26 @@ describe('agent task plan reply delivery', () => {
   });
 
   it('does not suppress another run or channel', () => {
-    recordSuccessfulAgentOnboardingSurface(
-      {
-        toolName: 'tlon_agent_task_plan',
-        params: {},
-        result: { content: [{ type: 'text', text: '✓ Message sent' }] },
-      },
-      toolContext
-    );
+    recordSuccess();
 
-    expect(
-      suppressReplyAfterSuccessfulAgentOnboardingSurface(
-        {
-          payload: { text: 'Another answer' },
-          kind: 'final',
-          channel: 'tlon',
-          runId: 'run-2',
-        },
-        toolContext
-      )
-    ).toBeUndefined();
-    expect(
-      suppressReplyAfterSuccessfulAgentOnboardingSurface(
-        {
-          payload: { text: 'Web answer' },
-          kind: 'final',
-          channel: 'webchat',
-          runId: 'run-1',
-        },
-        toolContext
-      )
-    ).toBeUndefined();
+    expect(suppress({ runId: 'run-2' })).toBeUndefined();
+    expect(suppress({ channel: 'webchat' })).toBeUndefined();
   });
 
   it('queues session fallbacks when successful runs overlap', () => {
-    recordSuccessfulAgentOnboardingSurface(
-      {
-        toolName: 'tlon_agent_task_plan',
-        result: { content: [{ type: 'text', text: '✓ First plan sent' }] },
-      },
-      toolContext
-    );
+    recordSuccess();
     const secondContext = { ...toolContext, runId: 'run-2' };
-    recordSuccessfulAgentOnboardingSurface(
-      {
-        toolName: 'tlon_agent_task_plan',
-        result: { content: [{ type: 'text', text: '✓ Second plan sent' }] },
-      },
-      secondContext
-    );
-
-    expect(
-      suppressReplyAfterSuccessfulAgentOnboardingSurface(
-        {
-          payload: { text: 'First' },
-          kind: 'final',
-          channel: 'tlon',
-          sessionKey: toolContext.sessionKey,
-        },
-        { channelId: 'tlon', sessionKey: toolContext.sessionKey }
-      )
-    ).toBeDefined();
-    expect(
-      suppressReplyAfterSuccessfulAgentOnboardingSurface(
-        {
-          payload: { text: 'Second' },
-          kind: 'final',
-          channel: 'tlon',
-          sessionKey: toolContext.sessionKey,
-        },
-        { channelId: 'tlon', sessionKey: toolContext.sessionKey }
-      )
-    ).toBeDefined();
-    expect(
-      suppressReplyAfterSuccessfulAgentOnboardingSurface(
-        {
-          payload: { text: 'Third' },
-          kind: 'final',
-          channel: 'tlon',
-          sessionKey: toolContext.sessionKey,
-        },
-        { channelId: 'tlon', sessionKey: toolContext.sessionKey }
-      )
-    ).toBeUndefined();
+    recordSuccess('tlon_agent_task_plan', secondContext);
+    const sessionEvent = {
+      runId: undefined,
+      sessionKey: toolContext.sessionKey,
+    };
+    const sessionContext = {
+      channelId: 'tlon',
+      sessionKey: toolContext.sessionKey,
+    };
+    expect(suppress(sessionEvent, sessionContext)).toBeDefined();
+    expect(suppress(sessionEvent, sessionContext)).toBeDefined();
+    expect(suppress(sessionEvent, sessionContext)).toBeUndefined();
   });
 });

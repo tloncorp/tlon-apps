@@ -4,30 +4,39 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   type AgentServiceSetupToolParams,
   agentServiceSetupToolParameters,
-  buildAgentServiceSetupBlob,
   createAgentServiceSetupToolExecutor,
 } from './agent-service-setup-tool.js';
 
 const validSetup: AgentServiceSetupToolParams = {
   target: 'chat/~zod/home-group-chat',
-  surfaceId: 'agent-service-setup-drive-1',
   providerId: 'google-drive',
 };
 
 describe('agent service setup tool', () => {
-  it('builds a recovery card for the furnished first-run bot DM', () => {
-    expect(() =>
-      buildAgentServiceSetupBlob({ ...validSetup, target: '~ten' })
-    ).not.toThrow();
+  it('builds a recovery card for the furnished first-run bot DM', async () => {
+    const execute = createAgentServiceSetupToolExecutor({
+      postSetup: vi.fn(async () => '{}'),
+    });
+    expect(
+      (await execute('dm-setup', { ...validSetup, target: '~ten' })).details
+    ).toBeUndefined();
   });
   it('advertises a bounded provider identity', () => {
     expect(agentServiceSetupToolParameters.properties.providerId).toEqual(
       expect.objectContaining({ type: 'string', maxLength: 500 })
     );
+    expect(agentServiceSetupToolParameters.properties).not.toHaveProperty(
+      'surfaceId'
+    );
   });
 
-  it('builds a valid recovery card that opens existing connected services', () => {
-    const entry = buildAgentServiceSetupBlob(validSetup)[0];
+  it('builds a valid recovery card that opens existing connected services', async () => {
+    const postSetup = vi.fn(async () => '{}');
+    await createAgentServiceSetupToolExecutor({ postSetup })(
+      'setup',
+      validSetup
+    );
+    const entry = JSON.parse(postSetup.mock.calls[0]![0].blob)[0];
 
     expect(A2UI.validateBlobEntry(entry)).toBe(true);
     expect(JSON.stringify(entry)).toContain('google-drive');
@@ -91,17 +100,16 @@ describe('agent service setup tool', () => {
       target: validSetup.target,
       fallbackMessage:
         'Open Connected Services to connect the source you chose. When you return, tap Continue setup or send me a message so I can check the connection and resume. If this account does not support hosted connections, choose another source you can share here.',
-      blob: JSON.stringify(buildAgentServiceSetupBlob(validSetup)),
+      blob: expect.stringContaining('agent-service-setup-call-1'),
     });
   });
 
-  it('rejects an invalid target, surface id, or provider id', async () => {
+  it('rejects an invalid target or provider id', async () => {
     const postSetup = vi.fn(async () => 'unexpected');
     const execute = createAgentServiceSetupToolExecutor({ postSetup });
 
     for (const params of [
       { ...validSetup, target: 'dm/~zod' },
-      { ...validSetup, surfaceId: 'service-setup-drive' },
       { ...validSetup, providerId: '   ' },
     ]) {
       const result = await execute('call-invalid', params);

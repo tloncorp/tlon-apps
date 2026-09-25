@@ -1,12 +1,14 @@
 import { TLON_A2UI_CATALOG_ID } from '@tloncorp/api';
 
-const MAX_SURFACE_ID_LENGTH = 512;
 const MAX_PROVIDER_ID_LENGTH = 500;
 
 export type AgentServiceSetupToolParams = {
   target: string;
-  surfaceId: string;
   providerId: string;
+};
+
+type ResolvedAgentServiceSetupToolParams = AgentServiceSetupToolParams & {
+  surfaceId: string;
 };
 
 export const agentServiceSetupToolParameters = {
@@ -16,11 +18,6 @@ export const agentServiceSetupToolParameters = {
       type: 'string',
       description: 'Current Tlon chat nest or first-run bot DM target.',
     },
-    surfaceId: {
-      type: 'string',
-      description:
-        'Unique A2UI surface ID beginning with agent-service-setup-.',
-    },
     providerId: {
       type: 'string',
       maxLength: MAX_PROVIDER_ID_LENGTH,
@@ -28,23 +25,15 @@ export const agentServiceSetupToolParameters = {
         'Stable connected-service provider ID matching the owner-chosen service, such as google-drive.',
     },
   },
-  required: ['target', 'surfaceId', 'providerId'],
+  required: ['target', 'providerId'],
   additionalProperties: false,
 } as const;
 
 function parseParams(
-  params: AgentServiceSetupToolParams
-): AgentServiceSetupToolParams {
+  params: ResolvedAgentServiceSetupToolParams
+): ResolvedAgentServiceSetupToolParams {
   if (!/^(?:chat\/~[a-z0-9-]+\/[a-z0-9-]+|~[a-z-]+)$/i.test(params.target)) {
     throw new Error('target must be a chat channel nest or bot DM');
-  }
-  if (
-    !params.surfaceId.startsWith('agent-service-setup-') ||
-    params.surfaceId.length > MAX_SURFACE_ID_LENGTH
-  ) {
-    throw new Error(
-      `surfaceId must begin with agent-service-setup- and be at most ${MAX_SURFACE_ID_LENGTH} characters`
-    );
   }
   const providerId = params.providerId.trim();
   if (!providerId || providerId.length > MAX_PROVIDER_ID_LENGTH) {
@@ -63,7 +52,9 @@ function recoveryCopy() {
   );
 }
 
-export function buildAgentServiceSetupBlob(input: AgentServiceSetupToolParams) {
+function buildAgentServiceSetupBlob(
+  input: ResolvedAgentServiceSetupToolParams
+) {
   const params = parseParams(input);
   const message = recoveryCopy();
   return [
@@ -149,11 +140,14 @@ export function createAgentServiceSetupToolExecutor(deps: {
   }) => Promise<string>;
 }) {
   return async function execute(
-    _id: string,
+    id: string,
     params: AgentServiceSetupToolParams
   ) {
     try {
-      const blob = buildAgentServiceSetupBlob(params);
+      const blob = buildAgentServiceSetupBlob({
+        ...params,
+        surfaceId: `agent-service-setup-${id}`,
+      });
       const output = await deps.postSetup({
         target: params.target,
         fallbackMessage: recoveryCopy(),

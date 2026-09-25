@@ -216,7 +216,7 @@ describe('resolveCommandBody', () => {
       resolveCommandBody({
         messageText:
           '[First-week onboarding context]\n\n[Current owner message]\n/status',
-        commandText: '/status',
+        originalCommandText: '/status',
         isGroup: false,
         botShipName: '~bot-ship',
       })
@@ -228,7 +228,7 @@ describe('resolveCommandBody', () => {
       resolveCommandBody({
         messageText:
           '[First-week onboarding context]\n\n[Current owner message]\n~bot-ship /new',
-        commandText: '~bot-ship /new',
+        originalCommandText: '~bot-ship /new',
         isGroup: true,
         botShipName: '~bot-ship',
       })

@@ -714,11 +714,13 @@ export function sanitizeMessageText(text: string): string {
 
 export function resolveCommandBody(input: {
   messageText: string;
-  commandText?: string;
+  originalCommandText?: string;
   isGroup: boolean;
   botShipName: string;
 }): string {
-  const text = sanitizeMessageText(input.commandText ?? input.messageText);
+  const text = sanitizeMessageText(
+    input.originalCommandText ?? input.messageText
+  );
   return input.isGroup
     ? stripBotMentionOutsidePlaceholders(text, input.botShipName)
     : text;

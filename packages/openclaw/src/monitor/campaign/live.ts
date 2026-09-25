@@ -67,11 +67,62 @@ export function notifyCampaignCronChanged(event: PluginHookCronChangedEvent) {
 }
 
 export function isUserRecurringTask(job: PluginHookGatewayCronJob): boolean {
-  // Campaigns create no cron jobs. One-shot forced onboarding runs are not recurring work.
   return (
     (job.schedule?.kind === 'cron' || job.schedule?.kind === 'every') &&
     job.payload?.kind !== 'heartbeat' &&
     !job.description?.startsWith('tlon-internal:')
+  );
+}
+
+function isPrivateOwnerBotConversation(
+  group: Awaited<ReturnType<typeof getGroup>>,
+  channelId: string,
+  owner: string,
+  bot: string
+): boolean {
+  return (
+    (group.privacy === 'private' || group.privacy === 'secret') &&
+    Boolean(
+      group.members?.some(
+        (member) => member.contactId === owner && member.status === 'joined'
+      )
+    ) &&
+    !group.members?.some(
+      (member) => member.contactId !== owner && member.contactId !== bot
+    ) &&
+    Boolean(group.channels?.some((channel) => channel.id === channelId))
+  );
+}
+
+function toCampaignTask(job: PluginHookGatewayCronJob): CampaignTask {
+  const completedAt =
+    job.state?.lastRunAtMs === undefined
+      ? undefined
+      : job.state.lastRunAtMs + (job.state.lastDurationMs ?? 0);
+  const failed =
+    job.state?.lastRunStatus === 'error' ||
+    job.state?.lastDeliveryStatus === 'not-delivered' ||
+    (job.state?.lastRunAtMs !== undefined &&
+      job.state?.lastDelivered === false);
+  const delivered =
+    job.state?.lastDelivered === true ||
+    job.state?.lastDeliveryStatus === 'delivered';
+  return {
+    id: job.id,
+    name: job.name ?? 'Recurring task',
+    enabled: job.enabled !== false,
+    ...(failed
+      ? { failedAt: completedAt }
+      : delivered
+        ? { deliveredAt: completedAt }
+        : {}),
+  };
+}
+
+function compareCampaignTaskPriority(a: CampaignTask, b: CampaignTask): number {
+  return (
+    Number(Boolean(b.failedAt)) - Number(Boolean(a.failedAt)) ||
+    (b.failedAt ?? b.deliveredAt ?? 0) - (a.failedAt ?? a.deliveredAt ?? 0)
   );
 }
 
@@ -128,109 +179,70 @@ export function createLiveCampaign(deps: {
       )
         return deps.owner;
       const group = await getGroup(state.groupId);
-      // Invitations count too: a third person must never receive personal tips.
-      if (
-        (group.privacy !== 'private' && group.privacy !== 'secret') ||
-        !group.members?.some(
-          (member) =>
-            member.contactId === deps.owner && member.status === 'joined'
-        ) ||
-        group.members.some(
-          (member) =>
-            member.contactId !== deps.owner && member.contactId !== deps.bot
-        ) ||
-        !group.channels?.some((channel) => channel.id === state.channelId)
+      return isPrivateOwnerBotConversation(
+        group,
+        state.channelId,
+        deps.owner,
+        deps.bot
       )
-        return deps.owner;
-      return state.channelId;
+        ? state.channelId
+        : deps.owner;
+    });
+  const readAuthenticatedOnboardingChoices = (state: CampaignState) =>
+    scope(async () => {
+      if (!state.channelId) return {};
+      const { posts } = await getChannelPosts({
+        channelId: state.channelId,
+        mode: 'newest',
+        count: 100,
+      });
+      const choices: Pick<CampaignState, 'topic' | 'purpose'> = {};
+      for (const post of [...posts].sort(
+        (a, b) => Number(b.sentAt) - Number(a.sentAt)
+      )) {
+        if (post.authorId !== deps.owner || !post.blob) continue;
+        for (const entry of parsePostBlob(post.blob) ?? []) {
+          if (entry.type === 'tlon-agent-provision') {
+            choices.topic ??= entry.topics.join(', ');
+          }
+          if (entry.type !== 'tlon-a2ui-selection' || !entry.sourcePostId)
+            continue;
+          const source = posts.find(
+            (p) => p.id === entry.sourcePostId && p.authorId === deps.bot
+          );
+          if (
+            source?.blob &&
+            (parsePostBlob(source.blob) ?? []).some(
+              (e) =>
+                e.type === 'tlon-agent-post-marker' && e.key === 'topics-picker'
+            )
+          )
+            choices.topic ??= entry.values.join(', ');
+          if (
+            source?.blob &&
+            (parsePostBlob(source.blob) ?? []).some(
+              (e) =>
+                e.type === 'tlon-agent-post-marker' &&
+                e.key === 'purpose-picker'
+            )
+          )
+            choices.purpose ??= entry.values.join(', ');
+        }
+      }
+      return choices;
     });
   const campaign = createCampaign({
     owner: deps.owner,
     config: () => resolveCampaignConfig(deps.config()),
     busy: () => deps.busy() || runningJobs.size > 0,
-    task: async () => {
-      // Failed work takes precedence over another task's successful result.
-      const tasks: CampaignTask[] = (await jobs()).map((job) => ({
-        id: job.id,
-        name: job.name ?? 'Recurring task',
-        enabled: job.enabled !== false,
-        ...(job.state?.lastRunStatus === 'error' ||
-        job.state?.lastDeliveryStatus === 'not-delivered' ||
-        (job.state?.lastRunAtMs !== undefined &&
-          job.state?.lastDelivered === false)
-          ? {
-              failedAt:
-                job.state.lastRunAtMs === undefined
-                  ? undefined
-                  : job.state.lastRunAtMs + (job.state.lastDurationMs ?? 0),
-            }
-          : job.state?.lastDelivered === true ||
-              job.state?.lastDeliveryStatus === 'delivered'
-            ? {
-                deliveredAt:
-                  job.state.lastRunAtMs === undefined
-                    ? undefined
-                    : job.state.lastRunAtMs + (job.state.lastDurationMs ?? 0),
-              }
-            : {}),
-      }));
-      return tasks.sort(
-        (a, b) =>
-          Number(Boolean(b.failedAt)) - Number(Boolean(a.failedAt)) ||
-          (b.failedAt ?? b.deliveredAt ?? 0) -
-            (a.failedAt ?? a.deliveredAt ?? 0)
-      )[0];
-    },
+    task: async () =>
+      (await jobs()).map(toCampaignTask).sort(compareCampaignTaskPriority)[0],
     destination,
     personalize: (draft) =>
       io(() =>
         personalizeTip(draft, deps.config(), deps.accountId, deps.signal)
       ),
-    context: (state) =>
-      scope(async () => {
-        if (!state.channelId) return {};
-        const { posts } = await getChannelPosts({
-          channelId: state.channelId,
-          mode: 'newest',
-          count: 100,
-        });
-        const choices: Pick<CampaignState, 'topic' | 'purpose'> = {};
-        // Topics come from authenticated, structured onboarding choices, not generated summaries.
-        for (const post of [...posts].sort(
-          (a, b) => Number(b.sentAt) - Number(a.sentAt)
-        )) {
-          if (post.authorId !== deps.owner || !post.blob) continue;
-          for (const entry of parsePostBlob(post.blob) ?? []) {
-            if (entry.type === 'tlon-agent-provision') {
-              choices.topic ??= entry.topics.join(', ');
-            }
-            if (entry.type !== 'tlon-a2ui-selection' || !entry.sourcePostId)
-              continue;
-            const source = posts.find(
-              (p) => p.id === entry.sourcePostId && p.authorId === deps.bot
-            );
-            if (
-              source?.blob &&
-              (parsePostBlob(source.blob) ?? []).some(
-                (e) =>
-                  e.type === 'tlon-agent-post-marker' &&
-                  e.key === 'topics-picker'
-              )
-            )
-              choices.topic ??= entry.values.join(', ');
-            if (
-              source?.blob &&
-              (parsePostBlob(source.blob) ?? []).some(
-                (e) =>
-                  e.type === 'tlon-agent-post-marker' &&
-                  e.key === 'purpose-picker'
-              )
-            )
-              choices.purpose ??= entry.values.join(', ');
-          }
-        }
-        return choices;
-      }),
+    context: readAuthenticatedOnboardingChoices,
     readMarker: (key, conversation = deps.owner) =>
       scope(async () => {
         const { posts } = await getChannelPosts({

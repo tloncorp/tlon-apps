@@ -1,12 +1,6 @@
-import type {
-  CampaignConfig,
-  CampaignState,
-  CampaignTask,
-  StepId,
-} from './model.js';
+import type { CampaignState, CampaignTask, StepId } from './model.js';
 
-// Useful-first sequence with one archive/ownership message. Rollout is default-off.
-export const TEMPLATES: Record<StepId, string> = {
+const TEMPLATES: Record<StepId, string> = {
   'useful-request':
     'What’s one thing you keep looking up? News about a topic, something you’re learning, or a question you’re researching? Give me one and I’ll put together a short answer with sources.\n\nYou can tell me to stop these tips anytime, or send /stop-tips.',
   'recurring-help':
@@ -24,7 +18,6 @@ export const TEMPLATES: Record<StepId, string> = {
 export function renderTip(
   step: StepId,
   state: CampaignState,
-  config: CampaignConfig,
   task?: CampaignTask
 ): string {
   const topic = state.lastReplyAt ? undefined : state.topic;
@@ -50,11 +43,6 @@ export function renderTip(
     text =
       'I’ll leave you to explore after today. Whenever something comes up, send it my way.';
   }
-  const override = config.copy?.[step];
-  if (override)
-    text = override
-      .replaceAll('{topic}', topic ?? 'your interests')
-      .replaceAll('{task}', task?.name ?? 'your task');
   return withOptOut(text, state);
 }
 

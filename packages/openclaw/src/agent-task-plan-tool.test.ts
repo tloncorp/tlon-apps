@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   type AgentTaskPlanToolParams,
   agentTaskPlanToolParameters,
-  buildAgentTaskPlanBlob,
   createAgentTaskPlanToolExecutor,
   resolveOnboardingDmGroupId,
   resolveTaskPlanGroupId,
@@ -12,8 +11,6 @@ import {
 
 const validPlan: AgentTaskPlanToolParams = {
   target: 'chat/~zod/home-group-chat',
-  fallbackSummary: 'A short design research brief every morning.',
-  surfaceId: 'agent-task-plan-test-1',
   summary: 'I’ll share a useful design research brief every morning.',
   purposeId: 'agent-research',
   purpose: 'Design research',
@@ -25,11 +22,7 @@ const validPlan: AgentTaskPlanToolParams = {
   taskPrompt:
     'Find a useful new AI-agent tool for product designers and explain the evidence with source links.',
 };
-const resolvedPlan = {
-  ...validPlan,
-  groupId: '~zod/home-group',
-  scheduleExpression: '30 8 * * *',
-};
+const validGroupId = '~zod/home-group';
 
 const validEvidence = {
   interviewStartMessageId: '~owner/interview-start',
@@ -40,7 +33,7 @@ const validEvidence = {
 function executionBoundary() {
   return {
     getEvidence: vi.fn(() => validEvidence),
-    resolveGroupId: vi.fn(async () => resolvedPlan.groupId),
+    resolveGroupId: vi.fn(async () => validGroupId),
     assertCurrent: vi.fn(),
     finish: vi.fn(),
   };
@@ -53,6 +46,12 @@ describe('agent task plan tool', () => {
     );
     expect(agentTaskPlanToolParameters.properties).not.toHaveProperty(
       'scheduleExpression'
+    );
+    expect(agentTaskPlanToolParameters.properties).not.toHaveProperty(
+      'surfaceId'
+    );
+    expect(agentTaskPlanToolParameters.properties).not.toHaveProperty(
+      'fallbackSummary'
     );
   });
 
@@ -93,8 +92,13 @@ describe('agent task plan tool', () => {
     );
   });
 
-  it('builds one valid automatic action with fuzzy visible timing', () => {
-    const blob = buildAgentTaskPlanBlob(resolvedPlan, validEvidence);
+  it('builds one valid automatic action with fuzzy visible timing', async () => {
+    const postPlan = vi.fn(async () => '{}');
+    await createAgentTaskPlanToolExecutor({
+      postPlan,
+      ...executionBoundary(),
+    })('plan', validPlan);
+    const blob = JSON.parse(postPlan.mock.calls[0]![0].blob);
     expect(A2UI.validateBlobEntry(blob[0])).toBe(true);
     const serialized = JSON.stringify(blob);
     expect(serialized).toContain('every morning');
@@ -119,11 +123,11 @@ describe('agent task plan tool', () => {
           event: {
             name: 'tlon.provisionAgent',
             context: expect.objectContaining({
-              groupId: resolvedPlan.groupId,
+              groupId: validGroupId,
               interviewStartMessageId: validEvidence.interviewStartMessageId,
               interviewMessageId: validEvidence.interviewMessageId,
               interviewTimezone: validEvidence.interviewTimezone,
-              scheduleExpression: resolvedPlan.scheduleExpression,
+              scheduleExpression: '30 8 * * *',
               taskPrompt: validPlan.taskPrompt,
             }),
           },
@@ -132,69 +136,68 @@ describe('agent task plan tool', () => {
     );
   });
 
-  it('accepts model-authored prose without a hardcoded phrase classifier', () => {
-    expect(() =>
-      buildAgentTaskPlanBlob(
-        {
-          ...resolvedPlan,
-          fallbackSummary: 'A gentle nudge after dinner-ish.',
-          summary: 'I’ll send a gentle nudge after dinner-ish.',
-          scheduleHour: 19,
-          scheduleMinute: 30,
-          scheduleExpression: '30 19 * * *',
-          scheduleDescription: 'after dinner-ish',
-        },
-        validEvidence
-      )
-    ).not.toThrow();
+  it('accepts model-authored prose without a hardcoded phrase classifier', async () => {
+    const execute = createAgentTaskPlanToolExecutor({
+      postPlan: vi.fn(async () => '{}'),
+      ...executionBoundary(),
+    });
+    const result = await execute('fuzzy-plan', {
+      ...validPlan,
+      summary: 'I’ll send a gentle nudge after dinner-ish.',
+      scheduleHour: 19,
+      scheduleMinute: 30,
+      scheduleDescription: 'after dinner-ish',
+    });
+    expect(result.details).toBeUndefined();
   });
 
-  it('keeps daily schedule fields structurally consistent', () => {
-    expect(() =>
-      buildAgentTaskPlanBlob(
-        { ...resolvedPlan, scheduleExpression: '0 9 * * 1' },
-        validEvidence
-      )
-    ).toThrow('onboarding schedules must be daily');
+  it('validates explicit and trusted timezones structurally', async () => {
+    const postPlan = vi.fn(async () => '{}');
+    const execute = createAgentTaskPlanToolExecutor({
+      postPlan,
+      ...executionBoundary(),
+    });
+    expect(
+      (
+        await execute('bad-zone', {
+          ...validPlan,
+          timezoneOverride: 'not/a-zone',
+        })
+      ).content[0]?.text
+    ).toContain('timezoneOverride');
+    const boundary = executionBoundary();
+    boundary.getEvidence.mockReturnValue({
+      ...validEvidence,
+      interviewTimezone: 'not/a-zone',
+    });
+    const trustedResult = await createAgentTaskPlanToolExecutor({
+      postPlan,
+      ...boundary,
+    })('bad-trusted-zone', validPlan);
+    expect(trustedResult.content[0]?.text).toContain(
+      'trusted interview timezone'
+    );
+    expect(postPlan).not.toHaveBeenCalled();
   });
 
-  it('validates explicit and trusted timezones structurally', () => {
-    expect(() =>
-      buildAgentTaskPlanBlob(
-        { ...resolvedPlan, timezoneOverride: 'not/a-zone' },
-        validEvidence
-      )
-    ).toThrow('timezoneOverride');
-    expect(() =>
-      buildAgentTaskPlanBlob(resolvedPlan, {
-        ...validEvidence,
-        interviewTimezone: 'not/a-zone',
-      })
-    ).toThrow('trusted interview timezone');
-  });
-
-  it('requires a trusted owner message and protocol-bounded fields', () => {
-    expect(() =>
-      buildAgentTaskPlanBlob(resolvedPlan, {
-        ...validEvidence,
-        interviewMessageId: ' ',
-      })
-    ).toThrow('trusted owner interview');
-    expect(() =>
-      buildAgentTaskPlanBlob(
-        {
-          ...resolvedPlan,
-          surfaceId: `agent-task-plan-${'x'.repeat(497)}`,
-        },
-        validEvidence
-      )
-    ).toThrow('at most 512 characters');
-    expect(() =>
-      buildAgentTaskPlanBlob(
-        { ...resolvedPlan, summary: 'x'.repeat(1001) },
-        validEvidence
-      )
-    ).toThrow('1-1000 characters');
+  it('requires a trusted owner message and protocol-bounded fields', async () => {
+    const postPlan = vi.fn(async () => '{}');
+    const boundary = executionBoundary();
+    boundary.getEvidence.mockReturnValue({
+      ...validEvidence,
+      interviewMessageId: ' ',
+    });
+    const trustedResult = await createAgentTaskPlanToolExecutor({
+      postPlan,
+      ...boundary,
+    })('missing-owner', validPlan);
+    expect(trustedResult.content[0]?.text).toContain('trusted owner interview');
+    const longResult = await createAgentTaskPlanToolExecutor({
+      postPlan,
+      ...executionBoundary(),
+    })('long-summary', { ...validPlan, summary: 'x'.repeat(1001) });
+    expect(longResult.content[0]?.text).toContain('1-1000 characters');
+    expect(postPlan).not.toHaveBeenCalled();
   });
 
   it('serializes and posts one plan, then hands status to the coordinator', async () => {
@@ -210,9 +213,7 @@ describe('agent task plan tool', () => {
     expect(result.details).toBeUndefined();
     expect(postPlan).toHaveBeenCalledOnce();
     expect(postPlan.mock.calls[0]?.[0].target).toBe(validPlan.target);
-    expect(postPlan.mock.calls[0]?.[0].fallbackSummary).toBe(
-      validPlan.fallbackSummary
-    );
+    expect(postPlan.mock.calls[0]?.[0].fallbackSummary).toBe(validPlan.summary);
     expect(result.content[0]?.text).toContain('Return NO_REPLY');
     expect(boundary.finish).toHaveBeenCalledWith('call-1', true);
   });
@@ -243,7 +244,7 @@ describe('agent task plan tool', () => {
     });
     const execute = createAgentTaskPlanToolExecutor({
       postPlan,
-      resolveGroupId: vi.fn(async () => resolvedPlan.groupId),
+      resolveGroupId: vi.fn(async () => validGroupId),
       ...boundary,
     });
 

@@ -239,7 +239,7 @@ describe('enrollment eligibility', () => {
   const request = {
     isFirstGroup: true,
     campaignVersion: 1,
-    occurredAt: enrolledAt,
+    introPostedAt: enrolledAt,
   };
   it('accepts only fresh initial events from the new protocol after the rollout boundary', () => {
     expect(eligibleEnrollment(request, config, enrolledAt)).toBe(true);
@@ -286,7 +286,7 @@ describe('campaign runner', () => {
       isFirstGroup: true,
       campaignVersion: 1,
       timezone: 'Etc/UTC',
-      occurredAt: enrolledAt,
+      introPostedAt: enrolledAt,
     });
     expect(memory.read()).toBeUndefined();
     available = true;
@@ -297,7 +297,7 @@ describe('campaign runner', () => {
     await h.campaign.enroll({
       isFirstGroup: true,
       campaignVersion: 1,
-      occurredAt: enrolledAt + MINUTE,
+      introPostedAt: enrolledAt + MINUTE,
     });
     expect(memory.read().enrolledAt).toBe(enrolledAt);
     expect(h.deps.send).not.toHaveBeenCalled();
@@ -402,10 +402,10 @@ describe('campaign runner', () => {
     await createCampaign(h.deps).enroll({
       isFirstGroup: true,
       campaignVersion: 1,
-      occurredAt: enrolledAt + 2 * DAY,
+      introPostedAt: enrolledAt + 2 * DAY,
     });
     await createCampaign(h.deps).check();
-    expect(h.deps.send).toHaveBeenCalledTimes(2); // One tip and the stop acknowledgement.
+    expect(h.deps.send).toHaveBeenCalledTimes(2);
   });
   it('consumes opt-out for a known enrollee even when context lookup, persistence, and acknowledgment fail', async () => {
     const h = harness();
@@ -537,9 +537,7 @@ describe('ticket conversation flow', () => {
     expect(await h.campaign.replyContext()).toContain(
       'latest owner request takes precedence'
     );
-    expect(renderTip('useful-request', h.read(), {})).not.toContain(
-      'architecture'
-    );
+    expect(renderTip('useful-request', h.read())).not.toContain('architecture');
   });
   it('does not append a generic recurring pitch to a useful reply', async () => {
     const h = harness();
@@ -645,17 +643,12 @@ it('prioritizes a newly failed task at closing even after earlier feedback', () 
     sent: [{ step: 'task-feedback', at: enrolledAt + DAY }],
   });
   expect(
-    renderTip(
-      'closing',
-      current,
-      {},
-      {
-        id: 'task',
-        name: 'Digest',
-        enabled: true,
-        failedAt: enrolledAt + 5 * DAY,
-      }
-    )
+    renderTip('closing', current, {
+      id: 'task',
+      name: 'Digest',
+      enabled: true,
+      failedAt: enrolledAt + 5 * DAY,
+    })
   ).toContain('failed');
 });
 
@@ -667,7 +660,7 @@ it('accepts bounded clock skew but rejects stale or far-future intros', () => {
         {
           isFirstGroup: true,
           campaignVersion: 1,
-          occurredAt: enrolledAt + delta,
+          introPostedAt: enrolledAt + delta,
         },
         config,
         enrolledAt
@@ -680,7 +673,7 @@ it('accepts bounded clock skew but rejects stale or far-future intros', () => {
         {
           isFirstGroup: true,
           campaignVersion: 1,
-          occurredAt: enrolledAt + delta,
+          introPostedAt: enrolledAt + delta,
         },
         config,
         enrolledAt
@@ -764,15 +757,7 @@ it('applies closing copy after successful task feedback', () => {
     enabled: true,
     deliveredAt: enrolledAt + DAY,
   };
-  expect(
-    renderTip(
-      'closing',
-      current,
-      { copy: { closing: 'Adjust {task} anytime.' } },
-      task
-    )
-  ).toBe('Adjust Digest anytime.');
-  expect(renderTip('closing', current, {}, task)).toContain(
+  expect(renderTip('closing', current, task)).toContain(
     'adjust your existing tasks'
   );
 });
@@ -824,13 +809,6 @@ it('withholds recurring setup while task facts are loading', async () => {
   expect(await h.campaign.replyContext()).toContain(
     'Do not append a generic recurring-task pitch'
   );
-});
-it('uses copy overrides within the single campaign direction', () => {
-  expect(
-    renderTip('useful-request', state({ topic: 'gardens' }), {
-      copy: { 'useful-request': 'What about {topic}?' },
-    })
-  ).toContain('What about gardens?');
 });
 it('applies spacing and quiet hours to scheduled feedback', () => {
   const task = {
@@ -891,7 +869,6 @@ it('allows a late-evening enrollee to receive the first tip before its window ex
     timezone: 'Etc/UTC',
     enrolledAt: Date.parse('2026-09-17T20:50:00Z'),
   });
-  // The previous day's final check was still less than 24 hours after enrollment.
   expect(
     evaluateCampaign(current, facts, Date.parse('2026-09-19T20:45:00Z'))
   ).toEqual({ kind: 'send', step: 'useful-request' });

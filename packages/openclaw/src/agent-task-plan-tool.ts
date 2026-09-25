@@ -5,12 +5,8 @@ import {
 } from '@tloncorp/api';
 
 const AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID = 'auto-provision';
-const MAX_FALLBACK_SUMMARY_LENGTH = 1000;
-
 export type AgentTaskPlanToolParams = {
   target: string;
-  fallbackSummary: string;
-  surfaceId: string;
   summary: string;
   purposeId: string;
   purpose: string;
@@ -26,9 +22,10 @@ export type AgentTaskPlanToolParams = {
 type ResolvedAgentTaskPlanToolParams = AgentTaskPlanToolParams & {
   groupId: string;
   scheduleExpression: string;
+  surfaceId: string;
 };
 
-export type AgentTaskPlanEvidence = {
+type AgentTaskPlanEvidence = {
   interviewStartMessageId?: string;
   interviewMessageId: string;
   interviewTimezone?: string;
@@ -43,16 +40,6 @@ export const agentTaskPlanToolParameters = {
       type: 'string',
       description:
         'Exact active Tlon conversation target from context: the owner target in a DM, or the current group chat nest in a group. Never redirect a group plan to the owner DM.',
-    },
-    fallbackSummary: {
-      type: 'string',
-      maxLength: MAX_FALLBACK_SUMMARY_LENGTH,
-      description: 'Short plain-text fallback shown when A2UI is unavailable.',
-    },
-    surfaceId: {
-      type: 'string',
-      maxLength: 512,
-      description: 'Unique A2UI surface ID beginning with agent-task-plan-.',
     },
     summary: {
       type: 'string',
@@ -98,8 +85,6 @@ export const agentTaskPlanToolParameters = {
   },
   required: [
     'target',
-    'fallbackSummary',
-    'surfaceId',
     'summary',
     'purposeId',
     'purpose',
@@ -163,22 +148,6 @@ function parseParams(
   if (!/^(?:chat\/~[a-z0-9-]+\/[a-z0-9-]+|~[a-z-]+)$/i.test(params.target)) {
     throw new Error('target must be a chat channel nest or bot DM');
   }
-  if (
-    !params.surfaceId.startsWith('agent-task-plan-') ||
-    params.surfaceId.length > 512
-  ) {
-    throw new Error(
-      'surfaceId must begin with agent-task-plan- and be at most 512 characters'
-    );
-  }
-  if (
-    !params.fallbackSummary.trim() ||
-    params.fallbackSummary.length > MAX_FALLBACK_SUMMARY_LENGTH
-  ) {
-    throw new Error(
-      `fallbackSummary must be 1-${MAX_FALLBACK_SUMMARY_LENGTH} characters`
-    );
-  }
   if (!params.summary.trim() || params.summary.length > 1000) {
     throw new Error('summary must be 1-1000 characters');
   }
@@ -217,7 +186,7 @@ function parseParams(
   return { ...params, ...context.data, timezoneOverride };
 }
 
-export function buildAgentTaskPlanBlob(
+function buildAgentTaskPlanBlob(
   input: ResolvedAgentTaskPlanToolParams,
   evidence: AgentTaskPlanEvidence
 ) {
@@ -340,15 +309,14 @@ export function createAgentTaskPlanToolExecutor(deps: {
         ...params,
         groupId,
         scheduleExpression: `${params.scheduleMinute} ${params.scheduleHour} * * *`,
+        surfaceId: `agent-task-plan-${id}`,
       };
       const blob = buildAgentTaskPlanBlob(resolved, evidence);
-      // Group resolution can perform network I/O. Recheck immediately before
-      // publication so a newer owner message cannot race that await.
       deps.assertCurrent(id);
       publicationAttempted = true;
       const output = await deps.postPlan({
         target: params.target,
-        fallbackSummary: params.fallbackSummary.trim(),
+        fallbackSummary: params.summary.trim(),
         blob: JSON.stringify(blob),
       });
       deps.finish(id, true);

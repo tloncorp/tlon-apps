@@ -10,7 +10,6 @@ export type CampaignStore = {
 };
 
 // Local plugins cannot use OpenClaw's bundled-plugin keyed store.
-// Owner writes are serialized by withCampaignLock; sent steps have a durable key.
 export function openCampaignStore(stateDir: string) {
   const directory = path.join(stateDir, 'tlon');
   mkdirSync(directory, { recursive: true, mode: 0o700 });

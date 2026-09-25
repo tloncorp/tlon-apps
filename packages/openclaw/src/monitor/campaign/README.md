@@ -14,17 +14,13 @@ Default off. Review the single set of templates before enabling a cohort under
 {
   "onboardingCampaign": {
     "enabled": true,
-    "enrollAfter": "2026-10-01T00:00:00Z",
-    "copy": {
-      "own-material": "Send me a note or link about a project. I can help you work out what to do next."
-    }
+    "enrollAfter": "2026-10-01T00:00:00Z"
   }
 }
 ```
 
-Use the actual rollout boundary. Optional per-step copy overrides support
-`{topic}` and `{task}`; keep them truthful about whether notes or results exist.
-The first tip always includes opt-out instructions.
+Use the actual rollout boundary. The first tip always includes opt-out
+instructions.
 
 One runnable Tlon account per gateway is required because cron state is shared.
 The first signup intro carries timezone and `campaignVersion: 1`; returning

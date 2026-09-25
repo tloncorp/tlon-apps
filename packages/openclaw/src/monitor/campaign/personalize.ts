@@ -13,7 +13,6 @@ export type TipDraft = {
   text: string;
 };
 
-/** Generate wording only. The campaign runner owns eligibility and delivery. */
 export async function personalizeTip(
   draft: TipDraft,
   config: OpenClawConfig,

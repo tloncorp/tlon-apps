@@ -13,11 +13,52 @@ import {
   getTlonTaskPlanEvidence,
   onboardingToolBlockReason,
   rememberTlonSessionRunSurface,
-  rememberTlonInterviewStart,
+  bindTlonInterviewStartToCurrentOwnerTurn,
   resolveTlonSessionThreadParentId,
   resolveTlonSessionOwnerMessageId,
   setTlonSessionSurface,
 } from './onboarding-tool-boundary.js';
+
+const groupSessionKey = 'agent:dev:tlon:group:chat/~zod/home';
+const groupTarget = 'chat/~zod/home';
+
+function setGroupTurn(
+  messageId: string,
+  overrides: Partial<Parameters<typeof setTlonSessionSurface>[1]> = {}
+) {
+  setTlonSessionSurface(groupSessionKey, {
+    kind: 'group',
+    channelNest: groupTarget,
+    bootstrapComplete: false,
+    messageId,
+    ...overrides,
+  });
+}
+
+function rememberGroupRun(
+  runId: string,
+  messageId: string,
+  overrides: Partial<Parameters<typeof setTlonSessionSurface>[1]> = {}
+) {
+  setGroupTurn(messageId, overrides);
+  rememberTlonSessionRunSurface(runId, groupSessionKey);
+}
+
+function claimChoice(toolCallId: string, runId: string) {
+  return claimTlonChoiceCall({
+    toolCallId,
+    runId,
+    sessionKey: groupSessionKey,
+  });
+}
+
+function claimPlan(toolCallId: string, runId: string) {
+  return claimTlonTaskPlanCall({
+    toolCallId,
+    runId,
+    sessionKey: groupSessionKey,
+  });
+}
 
 describe('onboarding tool boundary', () => {
   beforeEach(() => _testing.clearAll());
@@ -57,7 +98,7 @@ describe('onboarding tool boundary', () => {
       kind: 'direct',
       senderRole: 'owner',
       channelNest: '~ten',
-      onboardingGroupId: '~ten/workspace',
+      requestedOnboardingGroupId: '~ten/workspace',
       bootstrapComplete: false,
       messageId: '~ten/100',
     });
@@ -214,24 +255,14 @@ describe('onboarding tool boundary', () => {
   });
 
   it('keeps typed onboarding tools out of threaded runs', () => {
-    const sessionKey = 'agent:dev:tlon:group:chat/~zod/home';
-    setTlonSessionSurface(sessionKey, {
-      kind: 'group',
-      channelNest: 'chat/~zod/home',
+    setGroupTurn('~owner/100', {
       threadParentId: '~parent/100',
-      bootstrapComplete: false,
-      messageId: '~owner/100',
     });
-    rememberTlonSessionRunSurface('run-thread', sessionKey);
+    rememberTlonSessionRunSurface('run-thread', groupSessionKey);
 
-    setTlonSessionSurface(sessionKey, {
-      kind: 'group',
-      channelNest: 'chat/~zod/home',
-      bootstrapComplete: false,
-      messageId: '~owner/101',
-    });
+    setGroupTurn('~owner/101');
 
-    const current = getTlonSessionSurface(sessionKey);
+    const current = getTlonSessionSurface(groupSessionKey);
     const threadRun = getTlonSessionRunSurface('run-thread');
     for (const toolName of [
       'tlon_agent_choice',
@@ -277,23 +308,10 @@ describe('onboarding tool boundary', () => {
   });
 
   it('blocks a typed card from a run superseded by newer owner input', () => {
-    const sessionKey = 'agent:dev:tlon:group:chat/~zod/home';
-    setTlonSessionSurface(sessionKey, {
-      kind: 'group',
-      channelNest: 'chat/~zod/home',
-      bootstrapComplete: false,
-      messageId: '~owner/100',
-    });
-    rememberTlonSessionRunSurface('run-old', sessionKey);
+    rememberGroupRun('run-old', '~owner/100');
+    setGroupTurn('~owner/101');
 
-    setTlonSessionSurface(sessionKey, {
-      kind: 'group',
-      channelNest: 'chat/~zod/home',
-      bootstrapComplete: false,
-      messageId: '~owner/101',
-    });
-
-    const current = getTlonSessionSurface(sessionKey);
+    const current = getTlonSessionSurface(groupSessionKey);
     const oldRun = getTlonSessionRunSurface('run-old');
     expect(
       onboardingToolBlockReason(
@@ -320,7 +338,7 @@ describe('onboarding tool boundary', () => {
       )
     ).toContain('newer owner message');
 
-    rememberTlonSessionRunSurface('run-current', sessionKey);
+    rememberTlonSessionRunSurface('run-current', groupSessionKey);
     expect(
       onboardingToolBlockReason(
         'tlon_agent_task_plan',
@@ -332,31 +350,13 @@ describe('onboarding tool boundary', () => {
   });
 
   it('allows only one task-plan call per run, including parallel calls', () => {
-    const sessionKey = 'agent:dev:tlon:group:chat/~zod/home';
-    setTlonSessionSurface(sessionKey, {
-      kind: 'group',
-      channelNest: 'chat/~zod/home',
-      bootstrapComplete: false,
-      messageId: '~owner/100',
-      interviewTimezone: 'America/New_York',
+    rememberGroupRun('run-1', '~owner/100', {
+      onboardingDeviceTimezone: 'America/New_York',
     });
-    rememberTlonSessionRunSurface('run-1', sessionKey);
-    rememberTlonInterviewStart('run-1', sessionKey);
+    bindTlonInterviewStartToCurrentOwnerTurn('run-1', groupSessionKey);
 
-    expect(
-      claimTlonTaskPlanCall({
-        toolCallId: 'call-1',
-        runId: 'run-1',
-        sessionKey,
-      })
-    ).toBeUndefined();
-    expect(
-      claimTlonTaskPlanCall({
-        toolCallId: 'call-2',
-        runId: 'run-1',
-        sessionKey,
-      })
-    ).toContain('Only one task plan');
+    expect(claimPlan('call-1', 'run-1')).toBeUndefined();
+    expect(claimPlan('call-2', 'run-1')).toContain('Only one task plan');
     expect(getTlonTaskPlanEvidence('call-1')).toEqual({
       interviewStartMessageId: '~owner/100',
       interviewMessageId: '~owner/100',
@@ -364,138 +364,46 @@ describe('onboarding tool boundary', () => {
     });
 
     finishTlonTaskPlanCall('call-1', false);
-    expect(
-      claimTlonTaskPlanCall({
-        toolCallId: 'call-2',
-        runId: 'run-1',
-        sessionKey,
-      })
-    ).toBeUndefined();
+    expect(claimPlan('call-2', 'run-1')).toBeUndefined();
   });
 
   it('does not let a question turn also post a task plan', () => {
-    const sessionKey = 'agent:dev:tlon:group:chat/~zod/home';
-    setTlonSessionSurface(sessionKey, {
-      kind: 'group',
-      channelNest: 'chat/~zod/home',
-      bootstrapComplete: false,
-      messageId: '~owner/100',
-    });
-    rememberTlonSessionRunSurface('run-1', sessionKey);
+    rememberGroupRun('run-1', '~owner/100');
 
-    expect(
-      claimTlonChoiceCall({
-        toolCallId: 'choice-1',
-        runId: 'run-1',
-        sessionKey,
-      })
-    ).toBeUndefined();
-    expect(
-      claimTlonChoiceCall({
-        toolCallId: 'choice-2',
-        runId: 'run-1',
-        sessionKey,
-      })
-    ).toContain('choice was already posted');
-    expect(
-      claimTlonTaskPlanCall({
-        toolCallId: 'plan-1',
-        runId: 'run-1',
-        sessionKey,
-      })
-    ).toContain('choice was already posted');
+    expect(claimChoice('choice-1', 'run-1')).toBeUndefined();
+    expect(claimChoice('choice-2', 'run-1')).toContain(
+      'choice was already posted'
+    );
+    expect(claimPlan('plan-1', 'run-1')).toContain('choice was already posted');
 
-    rememberTlonSessionRunSurface('run-2', sessionKey);
-    expect(
-      claimTlonTaskPlanCall({
-        toolCallId: 'plan-2',
-        runId: 'run-2',
-        sessionKey,
-      })
-    ).toBeUndefined();
+    rememberTlonSessionRunSurface('run-2', groupSessionKey);
+    expect(claimPlan('plan-2', 'run-2')).toBeUndefined();
   });
 
   it('allows a corrected choice after pre-publication validation fails', () => {
-    const sessionKey = 'agent:dev:tlon:group:chat/~zod/home';
-    setTlonSessionSurface(sessionKey, {
-      kind: 'group',
-      channelNest: 'chat/~zod/home',
-      bootstrapComplete: false,
-      messageId: '~owner/100',
-    });
-    rememberTlonSessionRunSurface('run-1', sessionKey);
+    rememberGroupRun('run-1', '~owner/100');
 
-    expect(
-      claimTlonChoiceCall({
-        toolCallId: 'invalid-choice',
-        runId: 'run-1',
-        sessionKey,
-      })
-    ).toBeUndefined();
+    expect(claimChoice('invalid-choice', 'run-1')).toBeUndefined();
     finishTlonChoiceCall('invalid-choice', false);
-    expect(
-      claimTlonChoiceCall({
-        toolCallId: 'corrected-choice',
-        runId: 'run-1',
-        sessionKey,
-      })
-    ).toBeUndefined();
+    expect(claimChoice('corrected-choice', 'run-1')).toBeUndefined();
   });
 
   it('keeps choices current while preserving the durable start for the plan', () => {
-    const sessionKey = 'agent:dev:tlon:group:chat/~zod/home';
-    setTlonSessionSurface(sessionKey, {
-      kind: 'group',
-      channelNest: 'chat/~zod/home',
-      bootstrapComplete: false,
-      messageId: '~owner/100',
-    });
-    rememberTlonSessionRunSurface('run-1', sessionKey);
-    expect(
-      claimTlonChoiceCall({
-        toolCallId: 'choice-1',
-        runId: 'run-1',
-        sessionKey,
-      })
-    ).toBeUndefined();
+    rememberGroupRun('run-1', '~owner/100');
+    expect(claimChoice('choice-1', 'run-1')).toBeUndefined();
     expect(() => assertTlonChoiceCallCurrent('choice-1')).not.toThrow();
 
-    setTlonSessionSurface(sessionKey, {
-      kind: 'group',
-      channelNest: 'chat/~zod/home',
-      bootstrapComplete: false,
-      messageId: '~owner/200',
-    });
-    rememberTlonSessionRunSurface('run-2', sessionKey);
+    rememberGroupRun('run-2', '~owner/200');
     expect(() => assertTlonChoiceCallCurrent('choice-1')).toThrow(
       'The stale choice was not posted'
     );
-    expect(
-      claimTlonChoiceCall({
-        toolCallId: 'choice-2',
-        runId: 'run-2',
-        sessionKey,
-      })
-    ).toBeUndefined();
+    expect(claimChoice('choice-2', 'run-2')).toBeUndefined();
     expect(() => assertTlonChoiceCallCurrent('choice-2')).not.toThrow();
   });
 
   it('allows a plan to recover its start from durable history after restart', () => {
-    const sessionKey = 'agent:dev:tlon:group:chat/~zod/home';
-    setTlonSessionSurface(sessionKey, {
-      kind: 'group',
-      channelNest: 'chat/~zod/home',
-      bootstrapComplete: false,
-      messageId: '~owner/200',
-    });
-    rememberTlonSessionRunSurface('run-2', sessionKey);
-    expect(
-      claimTlonTaskPlanCall({
-        toolCallId: 'call-2',
-        runId: 'run-2',
-        sessionKey,
-      })
-    ).toBeUndefined();
+    rememberGroupRun('run-2', '~owner/200');
+    expect(claimPlan('call-2', 'run-2')).toBeUndefined();
     expect(getTlonTaskPlanEvidence('call-2')).toEqual({
       interviewStartMessageId: '~owner/200',
       interviewMessageId: '~owner/200',
@@ -503,52 +411,21 @@ describe('onboarding tool boundary', () => {
   });
 
   it('binds a multi-turn plan to the final owner turn', () => {
-    const sessionKey = 'agent:dev:tlon:group:chat/~zod/home';
-    setTlonSessionSurface(sessionKey, {
-      kind: 'group',
-      channelNest: 'chat/~zod/home',
-      bootstrapComplete: false,
-      messageId: '~owner/100',
-    });
-    rememberTlonSessionRunSurface('run-1', sessionKey);
-    rememberTlonInterviewStart('run-1', sessionKey);
+    rememberGroupRun('run-1', '~owner/100');
+    bindTlonInterviewStartToCurrentOwnerTurn('run-1', groupSessionKey);
 
-    setTlonSessionSurface(sessionKey, {
-      kind: 'group',
-      channelNest: 'chat/~zod/home',
-      bootstrapComplete: false,
-      messageId: '~owner/200',
-    });
-    rememberTlonSessionRunSurface('run-2', sessionKey);
-    rememberTlonInterviewStart('run-2', sessionKey);
-    expect(
-      claimTlonTaskPlanCall({
-        toolCallId: 'call-2',
-        runId: 'run-2',
-        sessionKey,
-      })
-    ).toBeUndefined();
+    rememberGroupRun('run-2', '~owner/200');
+    bindTlonInterviewStartToCurrentOwnerTurn('run-2', groupSessionKey);
+    expect(claimPlan('call-2', 'run-2')).toBeUndefined();
     expect(getTlonTaskPlanEvidence('call-2')).toEqual({
       interviewStartMessageId: '~owner/100',
       interviewMessageId: '~owner/200',
     });
 
     finishTlonTaskPlanCall('call-2', true);
-    setTlonSessionSurface(sessionKey, {
-      kind: 'group',
-      channelNest: 'chat/~zod/home',
-      bootstrapComplete: false,
-      messageId: '~owner/300',
-    });
-    rememberTlonSessionRunSurface('run-3', sessionKey);
-    rememberTlonInterviewStart('run-3', sessionKey);
-    expect(
-      claimTlonTaskPlanCall({
-        toolCallId: 'call-3',
-        runId: 'run-3',
-        sessionKey,
-      })
-    ).toBeUndefined();
+    rememberGroupRun('run-3', '~owner/300');
+    bindTlonInterviewStartToCurrentOwnerTurn('run-3', groupSessionKey);
+    expect(claimPlan('call-3', 'run-3')).toBeUndefined();
     expect(getTlonTaskPlanEvidence('call-3')).toEqual({
       interviewStartMessageId: '~owner/300',
       interviewMessageId: '~owner/300',
@@ -556,36 +433,11 @@ describe('onboarding tool boundary', () => {
   });
 
   it('does not replace the durable interview start after a restart', () => {
-    const sessionKey = 'agent:dev:tlon:group:chat/~zod/home';
-    setTlonSessionSurface(sessionKey, {
-      kind: 'group',
-      channelNest: 'chat/~zod/home',
-      bootstrapComplete: false,
-      messageId: '~owner/200',
-    });
-    rememberTlonSessionRunSurface('run-2', sessionKey);
-    expect(
-      claimTlonChoiceCall({
-        toolCallId: 'choice-after-restart',
-        runId: 'run-2',
-        sessionKey,
-      })
-    ).toBeUndefined();
+    rememberGroupRun('run-2', '~owner/200');
+    expect(claimChoice('choice-after-restart', 'run-2')).toBeUndefined();
 
-    setTlonSessionSurface(sessionKey, {
-      kind: 'group',
-      channelNest: 'chat/~zod/home',
-      bootstrapComplete: false,
-      messageId: '~owner/300',
-    });
-    rememberTlonSessionRunSurface('run-3', sessionKey);
-    expect(
-      claimTlonTaskPlanCall({
-        toolCallId: 'plan-after-restart',
-        runId: 'run-3',
-        sessionKey,
-      })
-    ).toBeUndefined();
+    rememberGroupRun('run-3', '~owner/300');
+    expect(claimPlan('plan-after-restart', 'run-3')).toBeUndefined();
     expect(getTlonTaskPlanEvidence('plan-after-restart')).toEqual({
       interviewStartMessageId: '~owner/200',
       interviewMessageId: '~owner/300',
@@ -593,29 +445,11 @@ describe('onboarding tool boundary', () => {
   });
 
   it('rechecks owner intent immediately before task-plan publication', () => {
-    const sessionKey = 'agent:dev:tlon:group:chat/~zod/home';
-    setTlonSessionSurface(sessionKey, {
-      kind: 'group',
-      channelNest: 'chat/~zod/home',
-      bootstrapComplete: false,
-      messageId: '~owner/100',
-    });
-    rememberTlonSessionRunSurface('run-1', sessionKey);
-    rememberTlonInterviewStart('run-1', sessionKey);
-    expect(
-      claimTlonTaskPlanCall({
-        toolCallId: 'call-1',
-        runId: 'run-1',
-        sessionKey,
-      })
-    ).toBeUndefined();
+    rememberGroupRun('run-1', '~owner/100');
+    bindTlonInterviewStartToCurrentOwnerTurn('run-1', groupSessionKey);
+    expect(claimPlan('call-1', 'run-1')).toBeUndefined();
 
-    setTlonSessionSurface(sessionKey, {
-      kind: 'group',
-      channelNest: 'chat/~zod/home',
-      bootstrapComplete: false,
-      messageId: '~owner/101',
-    });
+    setGroupTurn('~owner/101');
     expect(() => assertTlonTaskPlanCallCurrent('call-1')).toThrow(
       'newer owner message'
     );
