@@ -60,6 +60,8 @@ Every `stim ios` and `stim android` in this skill takes `--remote eas`; without 
 
 **A session bills from creation until it stops,** including while the local build runs and while you are thinking. Stim creates it before building, so a fingerprint miss (`fingerprint ... miss -- 1 source changed: ...`) compiles on the clock; `apps/tlon-mobile/.gitignore` is one of those sources. `stim stop` ends it (step 10) as soon as the platform's captures are done; do not leave one open across the review.
 
+**Local work over five minutes loses the device.** The EAS device's agent-device daemon exits five minutes after its last request while no agent-device session is open, and Stim sends it nothing between connecting and installing ([appandflow/stim#1212](https://github.com/appandflow/stim/issues/1212)). A fingerprint miss is enough, and so is a `pod install` on a cache hit: the install fails with `Remote daemon is unavailable`, and a rerun fails the same way. `stim stop`, `stim start --remote`, then this step again; the build is cached by then, so the new session installs within a couple of minutes.
+
 From the output keep the session ID (`device  EAS Simulator (<id>)`, or `udid` under `--json`) and the `Watch this device: <url>` line. Give the URL to the user: it is the only way to see the device. It carries a token, so it never goes in a pull request, ticket or comment.
 
 For Android, the same line with `stim android --remote eas`. Keep the `&& ... keepalive` on every run, backgrounded or not: it has to start the moment Stim returns (see below).
@@ -93,7 +95,7 @@ Bare `agent-device` fails with `requires daemon authentication`: Stim keeps the 
 
 **Nothing may leave the device idle for a minute.** An EAS device's lease lapses after about a minute without a command, and the next command then takes a new lease that the session refuses: from then on every call fails with `UNAUTHORIZED: Lease does not match session owner (leaseId)`, and nothing re-attaches, including `stim ios --remote eas`. A pause to think is enough to lose it. `eas-device.mjs` keeps a detached process pinging the device every 15 seconds for as long as Stim records the session: `keepalive` starts it, every other call restarts it if it died, and it stops by itself after `stim stop`. It cannot save a device that was already idle for a minute before it started, which is why it is chained onto `stim ios`. Pings that fail are logged to `agent-device.remote.keepalive.log` in the Stim workspace directory (`~/.stim/workspaces/<name>/`); a failure or two during a `stim ios` rerun or a long request is expected. If the session is lost anyway, `stim stop`, then this step and the sign-in again.
 
-Stim gives every worktree's session the same agent-device name, `stim-tlon-mobile`, and agent-device keeps one connection per name. Run one worktree on EAS at a time: a second worktree's `stim ios --remote eas` takes the connection over, and `eas-device.mjs` in the first refuses rather than drive the other's device.
+Stim names each worktree's session after it (`stim-<worktree>-tlon-mobile-<id>`), and agent-device keeps one connection per name, so worktrees can run on EAS side by side. Start them one at a time: Stim boots one EAS device at a time on the machine, whichever agent's worktree it belongs to, and a `stim ios --remote eas` that waits more than four minutes for another boot gives up, then still runs its whole build before reporting it ([appandflow/stim#1213](https://github.com/appandflow/stim/issues/1213)). Wait for one worktree's `Watch this device` line before starting the next. `eas-device.mjs` drives the session of the worktree it sits in, whatever directory it runs from: call it by this worktree's absolute path, never another's.
 
 **Web** is a Vite server, no build. Take its port from stim:
 
@@ -136,7 +138,7 @@ node <worktree>/.agents/skills/tlon-workflow/mobile-login.mjs --platform android
 
 It prints `signed in`, or `already signed in` when Home is already up. On failure it says which step failed and leaves the session open to snapshot. Empty login fields mean Metro started without the variables above.
 
-The agent-device session is always Stim's (`stim-tlon-mobile`): a name of your own does not reach the remote device, so there is no session to name or close per run. The script's `--udid` / `--serial` form is for a simulator on this machine; hosted QA uses it on its own Mac worker.
+The agent-device session is always the one Stim named for this worktree (step 2): a name of your own does not reach the remote device, so there is no session to name or close per run. The script's `--udid` / `--serial` form is for a simulator on this machine; hosted QA uses it on its own Mac worker.
 
 What this app does that the sequence above does not show:
 
