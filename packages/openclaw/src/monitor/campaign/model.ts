@@ -31,7 +31,6 @@ export type CampaignState = {
   topic?: string;
   purpose?: string;
   lastOwnerText?: string;
-  offeredAt?: number;
   activityMinute?: number;
   sent: { step: StepId; at: number; text?: string; destination?: string }[];
   skipped: { step: StepId; reason: string }[];
@@ -69,11 +68,7 @@ export type Decision =
   | {
       kind: 'skip';
       step: StepId;
-      reason:
-        | 'expired-slot'
-        | 'unanswered'
-        | 'already-offered'
-        | 'context-changed';
+      reason: 'expired-slot' | 'unanswered' | 'context-changed';
     }
   | { kind: 'finish'; status: 'completed' }
   | { kind: 'defer'; reason?: string };
@@ -159,8 +154,6 @@ export function evaluateCampaign(
   if (now < state.enrolledAt + step.start) return { kind: 'defer' };
   if (step.id === 'useful-request' && state.lastReplyAt)
     return { kind: 'skip', step: step.id, reason: 'context-changed' };
-  if (step.id === 'recurring-help' && state.offeredAt)
-    return { kind: 'skip', step: step.id, reason: 'already-offered' };
   const unanswered = state.sent.filter(
     (s) => s.at > (state.lastReplyAt ?? 0)
   ).length;

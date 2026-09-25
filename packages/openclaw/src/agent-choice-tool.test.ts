@@ -15,12 +15,10 @@ const validChoice: AgentChoiceToolParams = {
   question: 'Which part of AI agent tooling should I follow?',
   options: ['New products', 'Design patterns', 'Research papers'],
 };
-const validEvidence = { interviewStartMessageId: '~owner/interview-start' };
 const choiceDeps = (
   postChoice: Parameters<typeof createAgentChoiceToolExecutor>[0]['postChoice']
 ) => ({
   postChoice,
-  getEvidence: vi.fn(() => validEvidence),
   assertCurrent: vi.fn(),
   finish: vi.fn(),
 });
@@ -28,7 +26,7 @@ const choiceDeps = (
 describe('agent choice tool', () => {
   it('builds a choice for the furnished first-run bot DM', () => {
     expect(() =>
-      buildAgentChoiceBlob({ ...validChoice, target: '~ten' }, validEvidence)
+      buildAgentChoiceBlob({ ...validChoice, target: '~ten' })
     ).not.toThrow();
   });
   it('advertises the mobile-safe label limit to the model', () => {
@@ -71,33 +69,6 @@ describe('agent choice tool', () => {
     );
   });
 
-  it('durably marks every question for later owner-answer verification', () => {
-    expect(
-      buildAgentChoiceBlob(
-        {
-          ...validChoice,
-          dimension: 'approach',
-          surfaceId: 'agent-choice-approach-1',
-        },
-        validEvidence
-      )
-    ).toContainEqual({
-      type: 'tlon-agent-post-marker',
-      version: 1,
-      key: 'agent-choice-dimension:approach',
-      interviewStartMessageId: '~owner/interview-start',
-    });
-    expect(buildAgentChoiceBlob(validChoice)).not.toContainEqual(
-      expect.objectContaining({ key: 'agent-choice-dimension:approach' })
-    );
-    expect(buildAgentChoiceBlob(validChoice, validEvidence)).toContainEqual({
-      type: 'tlon-agent-post-marker',
-      version: 1,
-      key: 'agent-choice-dimension:focus',
-      interviewStartMessageId: '~owner/interview-start',
-    });
-  });
-
   it('posts the question as fallback text and the choice as a blob', async () => {
     const postChoice = vi.fn(async () => '{"ok":true}');
     const execute = createAgentChoiceToolExecutor(choiceDeps(postChoice));
@@ -109,7 +80,7 @@ describe('agent choice tool', () => {
     expect(postChoice).toHaveBeenCalledWith({
       target: validChoice.target,
       fallbackQuestion: validChoice.question,
-      blob: JSON.stringify(buildAgentChoiceBlob(validChoice, validEvidence)),
+      blob: JSON.stringify(buildAgentChoiceBlob(validChoice)),
     });
     expect(result.content).toEqual([
       {

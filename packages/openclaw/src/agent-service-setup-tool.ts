@@ -153,11 +153,11 @@ export function createAgentServiceSetupToolExecutor(deps: {
     params: AgentServiceSetupToolParams
   ) {
     try {
-      const parsed = parseParams(params);
+      const blob = buildAgentServiceSetupBlob(params);
       const output = await deps.postSetup({
-        target: parsed.target,
+        target: params.target,
         fallbackMessage: recoveryCopy(),
-        blob: JSON.stringify(buildAgentServiceSetupBlob(parsed)),
+        blob: JSON.stringify(blob),
       });
       return {
         content: [{ type: 'text' as const, text: output }],

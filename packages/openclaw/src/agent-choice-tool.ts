@@ -16,10 +16,6 @@ export type AgentChoiceToolParams = {
   options: string[];
 };
 
-export type AgentChoiceEvidence = {
-  interviewStartMessageId: string;
-};
-
 export const agentChoiceToolParameters = {
   type: 'object',
   properties: {
@@ -109,26 +105,9 @@ function parseParams(params: AgentChoiceToolParams): AgentChoiceToolParams {
   return { ...params, question, options };
 }
 
-export function buildAgentChoiceBlob(
-  input: AgentChoiceToolParams,
-  evidence?: AgentChoiceEvidence
-) {
+export function buildAgentChoiceBlob(input: AgentChoiceToolParams) {
   const params = parseParams(input);
-  const interviewStartMessageId = evidence?.interviewStartMessageId?.trim();
-  if (!interviewStartMessageId && evidence) {
-    throw new Error('agent choice requires a trusted interview start');
-  }
   return [
-    ...(interviewStartMessageId
-      ? [
-          {
-            type: 'tlon-agent-post-marker' as const,
-            version: 1 as const,
-            key: `agent-choice-dimension:${params.dimension}`,
-            interviewStartMessageId,
-          },
-        ]
-      : []),
     {
       type: 'a2ui',
       version: 1,
@@ -188,21 +167,19 @@ export function createAgentChoiceToolExecutor(deps: {
     fallbackQuestion: string;
     blob: string;
   }) => Promise<string>;
-  getEvidence: (toolCallId: string) => AgentChoiceEvidence;
   assertCurrent: (toolCallId: string) => void;
   finish: (toolCallId: string, retainClaim: boolean) => void;
 }) {
   return async function execute(id: string, params: AgentChoiceToolParams) {
     let publicationAttempted = false;
     try {
-      const parsed = parseParams(params);
-      const evidence = deps.getEvidence(id);
+      const blob = buildAgentChoiceBlob(params);
       deps.assertCurrent(id);
       publicationAttempted = true;
       await deps.postChoice({
-        target: parsed.target,
-        fallbackQuestion: parsed.question,
-        blob: JSON.stringify(buildAgentChoiceBlob(parsed, evidence)),
+        target: params.target,
+        fallbackQuestion: params.question.trim(),
+        blob: JSON.stringify(blob),
       });
       deps.finish(id, true);
       return {

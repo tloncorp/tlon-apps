@@ -40,7 +40,6 @@ import {
   finishTlonChoiceCall,
   assertTlonTaskPlanCallCurrent,
   finishTlonTaskPlanCall,
-  getTlonChoiceEvidence,
   getTlonTaskPlanEvidence,
 } from './onboarding-tool-boundary.js';
 import { resolveTlonOutboundSessionRoute } from './session-route.js';
@@ -225,7 +224,6 @@ export const tlonPlugin = createChatChannelPlugin({
           ])
         );
       const executeChoice = createAgentChoiceToolExecutor({
-        getEvidence: getTlonChoiceEvidence,
         assertCurrent: assertTlonChoiceCallCurrent,
         finish: finishTlonChoiceCall,
         postChoice: ({ target, fallbackQuestion, blob }) =>

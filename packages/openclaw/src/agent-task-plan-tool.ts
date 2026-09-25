@@ -12,17 +12,20 @@ export type AgentTaskPlanToolParams = {
   fallbackSummary: string;
   surfaceId: string;
   summary: string;
-  groupId: string;
   purposeId: string;
   purpose: string;
   approach?: string;
   topics: string[];
   scheduleHour: number;
   scheduleMinute: number;
-  scheduleExpression: string;
   scheduleDescription: string;
   timezoneOverride?: string;
   taskPrompt: string;
+};
+
+type ResolvedAgentTaskPlanToolParams = AgentTaskPlanToolParams & {
+  groupId: string;
+  scheduleExpression: string;
 };
 
 export type AgentTaskPlanEvidence = {
@@ -56,7 +59,6 @@ export const agentTaskPlanToolParameters = {
       maxLength: 1000,
       description: 'Plain-language focus, schedule, and output summary.',
     },
-    groupId: { type: 'string' },
     purposeId: {
       type: 'string',
       enum: ['agent-daily-digest', 'agent-learning', 'agent-research'],
@@ -77,11 +79,6 @@ export const agentTaskPlanToolParameters = {
     },
     scheduleHour: { type: 'integer', minimum: 0, maximum: 23 },
     scheduleMinute: { type: 'integer', minimum: 0, maximum: 59 },
-    scheduleExpression: {
-      type: 'string',
-      description:
-        'Daily five-field cron expression matching scheduleHour and scheduleMinute: “minute hour * * *”.',
-    },
     scheduleDescription: {
       type: 'string',
       description:
@@ -104,13 +101,11 @@ export const agentTaskPlanToolParameters = {
     'fallbackSummary',
     'surfaceId',
     'summary',
-    'groupId',
     'purposeId',
     'purpose',
     'topics',
     'scheduleHour',
     'scheduleMinute',
-    'scheduleExpression',
     'scheduleDescription',
     'taskPrompt',
   ],
@@ -162,7 +157,9 @@ export function resolveOnboardingDmGroupId(
   return evidence.onboardingGroupId;
 }
 
-function parseParams(params: AgentTaskPlanToolParams): AgentTaskPlanToolParams {
+function parseParams(
+  params: ResolvedAgentTaskPlanToolParams
+): ResolvedAgentTaskPlanToolParams {
   if (!/^(?:chat\/~[a-z0-9-]+\/[a-z0-9-]+|~[a-z-]+)$/i.test(params.target)) {
     throw new Error('target must be a chat channel nest or bot DM');
   }
@@ -221,7 +218,7 @@ function parseParams(params: AgentTaskPlanToolParams): AgentTaskPlanToolParams {
 }
 
 export function buildAgentTaskPlanBlob(
-  input: AgentTaskPlanToolParams,
+  input: ResolvedAgentTaskPlanToolParams,
   evidence: AgentTaskPlanEvidence
 ) {
   const params = parseParams(input);
@@ -326,7 +323,7 @@ export function createAgentTaskPlanToolExecutor(deps: {
     fallbackSummary: string;
     blob: string;
   }) => Promise<string>;
-  resolveGroupId?: (
+  resolveGroupId: (
     target: string,
     evidence: AgentTaskPlanEvidence
   ) => Promise<string>;
@@ -337,22 +334,22 @@ export function createAgentTaskPlanToolExecutor(deps: {
   return async function execute(id: string, params: AgentTaskPlanToolParams) {
     let publicationAttempted = false;
     try {
-      // The model describes the plan, but it does not authorize its target.
-      // Resolve the active channel's group from Tlon so a mistyped or truncated
-      // model-authored flag cannot leave a valid plan permanently disabled.
       const evidence = deps.getEvidence(id);
-      const groupId = deps.resolveGroupId
-        ? await deps.resolveGroupId(params.target, evidence)
-        : params.groupId;
-      const parsed = parseParams({ ...params, groupId });
+      const groupId = await deps.resolveGroupId(params.target, evidence);
+      const resolved = {
+        ...params,
+        groupId,
+        scheduleExpression: `${params.scheduleMinute} ${params.scheduleHour} * * *`,
+      };
+      const blob = buildAgentTaskPlanBlob(resolved, evidence);
       // Group resolution can perform network I/O. Recheck immediately before
       // publication so a newer owner message cannot race that await.
       deps.assertCurrent(id);
       publicationAttempted = true;
       const output = await deps.postPlan({
-        target: parsed.target,
-        fallbackSummary: parsed.fallbackSummary,
-        blob: JSON.stringify(buildAgentTaskPlanBlob(parsed, evidence)),
+        target: params.target,
+        fallbackSummary: params.fallbackSummary.trim(),
+        blob: JSON.stringify(blob),
       });
       deps.finish(id, true);
       return {

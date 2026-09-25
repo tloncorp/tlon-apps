@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   type AgentTaskPlanToolParams,
+  agentTaskPlanToolParameters,
   buildAgentTaskPlanBlob,
   createAgentTaskPlanToolExecutor,
   resolveOnboardingDmGroupId,
@@ -14,17 +15,20 @@ const validPlan: AgentTaskPlanToolParams = {
   fallbackSummary: 'A short design research brief every morning.',
   surfaceId: 'agent-task-plan-test-1',
   summary: 'I’ll share a useful design research brief every morning.',
-  groupId: '~zod/home-group',
   purposeId: 'agent-research',
   purpose: 'Design research',
   approach: 'Compare primary releases with independent analysis',
   topics: ['AI agents', 'Product design'],
   scheduleHour: 8,
   scheduleMinute: 30,
-  scheduleExpression: '30 8 * * *',
   scheduleDescription: 'every morning',
   taskPrompt:
     'Find a useful new AI-agent tool for product designers and explain the evidence with source links.',
+};
+const resolvedPlan = {
+  ...validPlan,
+  groupId: '~zod/home-group',
+  scheduleExpression: '30 8 * * *',
 };
 
 const validEvidence = {
@@ -36,12 +40,22 @@ const validEvidence = {
 function executionBoundary() {
   return {
     getEvidence: vi.fn(() => validEvidence),
+    resolveGroupId: vi.fn(async () => resolvedPlan.groupId),
     assertCurrent: vi.fn(),
     finish: vi.fn(),
   };
 }
 
 describe('agent task plan tool', () => {
+  it('keeps trusted and derived fields out of the model schema', () => {
+    expect(agentTaskPlanToolParameters.properties).not.toHaveProperty(
+      'groupId'
+    );
+    expect(agentTaskPlanToolParameters.properties).not.toHaveProperty(
+      'scheduleExpression'
+    );
+  });
+
   it('accepts the furnished bot DM only with its trusted group binding', () => {
     expect(
       resolveOnboardingDmGroupId('~ten', {
@@ -80,7 +94,7 @@ describe('agent task plan tool', () => {
   });
 
   it('builds one valid automatic action with fuzzy visible timing', () => {
-    const blob = buildAgentTaskPlanBlob(validPlan, validEvidence);
+    const blob = buildAgentTaskPlanBlob(resolvedPlan, validEvidence);
     expect(A2UI.validateBlobEntry(blob[0])).toBe(true);
     const serialized = JSON.stringify(blob);
     expect(serialized).toContain('every morning');
@@ -105,11 +119,11 @@ describe('agent task plan tool', () => {
           event: {
             name: 'tlon.provisionAgent',
             context: expect.objectContaining({
-              groupId: validPlan.groupId,
+              groupId: resolvedPlan.groupId,
               interviewStartMessageId: validEvidence.interviewStartMessageId,
               interviewMessageId: validEvidence.interviewMessageId,
               interviewTimezone: validEvidence.interviewTimezone,
-              scheduleExpression: validPlan.scheduleExpression,
+              scheduleExpression: resolvedPlan.scheduleExpression,
               taskPrompt: validPlan.taskPrompt,
             }),
           },
@@ -122,7 +136,7 @@ describe('agent task plan tool', () => {
     expect(() =>
       buildAgentTaskPlanBlob(
         {
-          ...validPlan,
+          ...resolvedPlan,
           fallbackSummary: 'A gentle nudge after dinner-ish.',
           summary: 'I’ll send a gentle nudge after dinner-ish.',
           scheduleHour: 19,
@@ -138,7 +152,7 @@ describe('agent task plan tool', () => {
   it('keeps daily schedule fields structurally consistent', () => {
     expect(() =>
       buildAgentTaskPlanBlob(
-        { ...validPlan, scheduleExpression: '0 9 * * 1' },
+        { ...resolvedPlan, scheduleExpression: '0 9 * * 1' },
         validEvidence
       )
     ).toThrow('onboarding schedules must be daily');
@@ -147,12 +161,12 @@ describe('agent task plan tool', () => {
   it('validates explicit and trusted timezones structurally', () => {
     expect(() =>
       buildAgentTaskPlanBlob(
-        { ...validPlan, timezoneOverride: 'not/a-zone' },
+        { ...resolvedPlan, timezoneOverride: 'not/a-zone' },
         validEvidence
       )
     ).toThrow('timezoneOverride');
     expect(() =>
-      buildAgentTaskPlanBlob(validPlan, {
+      buildAgentTaskPlanBlob(resolvedPlan, {
         ...validEvidence,
         interviewTimezone: 'not/a-zone',
       })
@@ -161,20 +175,23 @@ describe('agent task plan tool', () => {
 
   it('requires a trusted owner message and protocol-bounded fields', () => {
     expect(() =>
-      buildAgentTaskPlanBlob(validPlan, {
+      buildAgentTaskPlanBlob(resolvedPlan, {
         ...validEvidence,
         interviewMessageId: ' ',
       })
     ).toThrow('trusted owner interview');
     expect(() =>
       buildAgentTaskPlanBlob(
-        { ...validPlan, surfaceId: `agent-task-plan-${'x'.repeat(497)}` },
+        {
+          ...resolvedPlan,
+          surfaceId: `agent-task-plan-${'x'.repeat(497)}`,
+        },
         validEvidence
       )
     ).toThrow('at most 512 characters');
     expect(() =>
       buildAgentTaskPlanBlob(
-        { ...validPlan, summary: 'x'.repeat(1001) },
+        { ...resolvedPlan, summary: 'x'.repeat(1001) },
         validEvidence
       )
     ).toThrow('1-1000 characters');
@@ -200,19 +217,16 @@ describe('agent task plan tool', () => {
     expect(boundary.finish).toHaveBeenCalledWith('call-1', true);
   });
 
-  it('uses the deterministic group resolver instead of the model group id', async () => {
+  it('uses the deterministic group resolver', async () => {
     const postPlan = vi.fn(async () => '{"ok":true}');
     const resolveGroupId = vi.fn(async () => '~zod/resolved-group');
     const execute = createAgentTaskPlanToolExecutor({
       postPlan,
-      resolveGroupId,
       ...executionBoundary(),
+      resolveGroupId,
     });
 
-    await execute('call-resolved', {
-      ...validPlan,
-      groupId: '~zod/mistyped-group',
-    });
+    await execute('call-resolved', validPlan);
 
     expect(resolveGroupId).toHaveBeenCalledWith(
       validPlan.target,
@@ -229,7 +243,7 @@ describe('agent task plan tool', () => {
     });
     const execute = createAgentTaskPlanToolExecutor({
       postPlan,
-      resolveGroupId: vi.fn(async () => validPlan.groupId),
+      resolveGroupId: vi.fn(async () => resolvedPlan.groupId),
       ...boundary,
     });
 

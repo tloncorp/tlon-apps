@@ -31,10 +31,11 @@ type TlonInterviewStart = {
   timestamp: number;
 };
 
-type TlonChoiceCall = TlonInterviewStart & {
+type TlonChoiceCall = {
   runId: string;
   sessionKey: string;
   ownerMessageId: string;
+  timestamp: number;
 };
 
 const sessionSurfaces = sharedMap<string, TlonSessionSurface>(
@@ -223,12 +224,7 @@ export function claimTlonChoiceCall(input: {
     return 'The interview coordinator could not identify the owner message that started this turn.';
   }
   rememberTlonInterviewStart(runId, sessionKey);
-  const interviewStart = interviewStarts.get(baseSessionKey(sessionKey));
-  if (!interviewStart) {
-    return 'The interview coordinator could not identify the current interview.';
-  }
   choiceCalls.set(toolCallId, {
-    ...interviewStart,
     runId,
     sessionKey,
     ownerMessageId: runSurface.messageId,
@@ -236,15 +232,6 @@ export function claimTlonChoiceCall(input: {
   });
   choiceRunClaims.set(runId, toolCallId);
   return undefined;
-}
-
-export function getTlonChoiceEvidence(toolCallId: string): {
-  interviewStartMessageId: string;
-} {
-  pruneExpiredSurfaces();
-  const call = choiceCalls.get(toolCallId);
-  if (!call) throw new Error('choice is not bound to the current interview');
-  return { interviewStartMessageId: call.messageId };
 }
 
 export function assertTlonChoiceCallCurrent(toolCallId: string): void {
@@ -428,7 +415,7 @@ export function onboardingToolBlockReason(
   if (toolName === 'cron' && surface?.bootstrapComplete === false) {
     return surface.kind === 'direct' && !surface.onboardingGroupId
       ? 'First-run recurring-task provisioning is owned by the group coordinator. Tell the owner to choose +, then New Tlonbot group, and stop.'
-      : 'Recurring-task onboarding provisioning is owned by the typed task-plan coordinator. Post a current tlon_agent_task_plan for the owner to confirm, and do not call cron directly.';
+      : 'Recurring-task onboarding provisioning is owned by the typed task-plan coordinator. Post a current tlon_agent_task_plan to activate the agreed task, and do not call cron directly.';
   }
 
   return undefined;

@@ -14,7 +14,6 @@ import {
 import {
   type CampaignStore,
   getCampaignStore,
-  saveCampaign,
   withCampaignLock,
 } from './store.js';
 import type { TipDraft } from './personalize.js';
@@ -31,8 +30,7 @@ export type CampaignDeps = {
   owner: string;
   config: () => CampaignConfig;
   store?: () => CampaignStore | null;
-  hasTask: () => Promise<boolean>;
-  task?: () => Promise<CampaignTask | undefined>;
+  task: () => Promise<CampaignTask | undefined>;
   context?: (
     state: CampaignState
   ) => Promise<Partial<Pick<CampaignState, 'topic' | 'purpose'>>>;
@@ -99,14 +97,14 @@ export function createCampaign(deps: CampaignDeps) {
     const context = await deps.context(state);
     state.topic ??= context.topic;
     state.purpose ??= context.purpose;
-    await saveCampaign(store, state);
+    await store.save(state);
   }
   async function tick() {
     if (stopped || deps.signal?.aborted) return;
     await locked(async (store) => {
       let state = await store.lookup(deps.owner);
       if (!state && pendingEnrollment) {
-        await saveCampaign(store, pendingEnrollment);
+        await store.save(pendingEnrollment);
         report(pendingEnrollment, 'enrolled');
         state = pendingEnrollment;
       }
@@ -116,7 +114,7 @@ export function createCampaign(deps: CampaignDeps) {
       }
       if (optedOut) {
         if (state && state.status !== 'opted-out')
-          await saveCampaign(store, { ...state, status: 'opted-out' });
+          await store.save({ ...state, status: 'opted-out' });
         return;
       }
       if (
@@ -132,22 +130,22 @@ export function createCampaign(deps: CampaignDeps) {
         now() >= state.enrolledAt + timing.duration ||
         state.sent.length >= timing.steps.length
       ) {
-        await saveCampaign(store, { ...state, status: 'completed' });
+        await store.save({ ...state, status: 'completed' });
         return;
       }
-      const task = await deps.task?.();
-      const hasTask = converted || Boolean(task) || (await deps.hasTask());
+      const task = await deps.task();
+      const hasTask = converted || Boolean(task);
       taskFactsLoaded = true;
       if (hasTask && state.status === 'active') {
         state.status = 'feedback';
-        await saveCampaign(store, state);
+        await store.save(state);
       }
       lastTask = task;
       const resolveDestination = async () => {
         const destination = (await deps.destination?.(state!)) ?? deps.owner;
         if (state!.destination !== destination) {
           state!.destination = destination;
-          await saveCampaign(store, state!);
+          await store.save(state!);
         }
         return destination;
       };
@@ -169,7 +167,7 @@ export function createCampaign(deps: CampaignDeps) {
         }
         lastDeferral = undefined;
         if (decision.kind === 'finish') {
-          await saveCampaign(store, { ...state, status: decision.status });
+          await store.save({ ...state, status: decision.status });
           return;
         }
         const key = `campaign-v${state.version}-${decision.step}`;
@@ -180,12 +178,12 @@ export function createCampaign(deps: CampaignDeps) {
               : undefined;
           if (recoveredAt !== undefined) {
             state.sent.push({ step: decision.step, at: recoveredAt });
-            await saveCampaign(store, state);
+            await store.save(state);
             report(state, 'sent', { step: decision.step });
             continue;
           }
           state.skipped.push({ step: decision.step, reason: decision.reason });
-          await saveCampaign(store, state);
+          await store.save(state);
           report(state, 'skipped', {
             step: decision.step,
             reason: decision.reason,
@@ -211,16 +209,9 @@ export function createCampaign(deps: CampaignDeps) {
             // Wording is optional; a provider outage must not block a due tip.
             deps.error(error);
           }
-          const freshTask = await deps.task?.();
-          if (
-            decision.step === 'task-feedback' &&
-            deps.task &&
-            task &&
-            !freshTask
-          )
-            return;
-          const freshHasTask =
-            converted || Boolean(freshTask) || (await deps.hasTask());
+          const freshTask = await deps.task();
+          if (decision.step === 'task-feedback' && task && !freshTask) return;
+          const freshHasTask = converted || Boolean(freshTask);
           const freshConfig = deps.config();
           const freshDecision = evaluateCampaign(
             state,
@@ -262,7 +253,7 @@ export function createCampaign(deps: CampaignDeps) {
           }
         }
         state.sent.push({ step: decision.step, at: sentAt, text, destination });
-        await saveCampaign(store, state);
+        await store.save(state);
         report(state, 'sent', { step: decision.step });
         return;
       }
@@ -329,7 +320,7 @@ export function createCampaign(deps: CampaignDeps) {
               sent: [],
               skipped: [],
             };
-            await saveCampaign(store, {
+            await store.save({
               ...state,
               status: 'opted-out',
               lastActivityAt,
@@ -361,7 +352,7 @@ export function createCampaign(deps: CampaignDeps) {
         now() >= state.enrolledAt + timing.duration
       )
         return;
-      await saveCampaign(store, {
+      await store.save({
         ...state,
         lastActivityAt,
         ...(personal
@@ -401,7 +392,7 @@ export function createCampaign(deps: CampaignDeps) {
     await locked(async (store) => {
       const state = await store.lookup(deps.owner);
       if (state?.status === 'active')
-        await saveCampaign(store, { ...state, status: 'feedback' });
+        await store.save({ ...state, status: 'feedback' });
     });
   }
   async function currentDestination(state: CampaignState) {

@@ -148,7 +148,6 @@ export function createLiveCampaign(deps: {
     owner: deps.owner,
     config: () => resolveCampaignConfig(deps.config()),
     busy: () => deps.busy() || runningJobs.size > 0,
-    hasTask: async () => (await jobs()).length > 0,
     task: async () => {
       // Failed work takes precedence over another task's successful result.
       const tasks: CampaignTask[] = (await jobs()).map((job) => ({
