@@ -86,6 +86,48 @@ describe('channel discovery logging', () => {
     expect(runtime.error).not.toHaveBeenCalled();
   });
 
+  it('seeds the bot roles per group from its seat and the admin roles', async () => {
+    const runtime = createRuntime();
+    // Literal v9 `group-ui` shape: desk/lib/groups-json.hoon `++ group-ui`
+    // (seats, admins) and `++ seat` (roles, joined).
+    const api = {
+      scry: vi.fn().mockResolvedValue({
+        groups: {
+          '~zod/test': {
+            meta: { title: 'Test' },
+            seats: {
+              '~zod': { roles: ['admin'], joined: 0 },
+              '~bus': { roles: ['member', 'mod'], joined: 0 },
+            },
+            admins: ['admin'],
+            channels: {
+              'chat/~zod/general': { meta: { title: 'General' }, readers: [] },
+            },
+          },
+          '~nec/other': {
+            meta: { title: 'Other' },
+            seats: { '~nec': { roles: [], joined: 0 } },
+            admins: ['admin'],
+            channels: {},
+          },
+        },
+        foreigns: {},
+      }),
+    };
+
+    const seeded = await fetchInitData(api, runtime, { botShip: '~bus' });
+    expect(seeded.groupRoles.get('~zod/test')).toEqual({
+      botSects: ['member', 'mod'],
+      bloc: ['admin'],
+    });
+    // No seat in the group: roles stay unknown rather than empty.
+    expect(seeded.groupRoles.has('~nec/other')).toBe(false);
+
+    const unseeded = await fetchInitData(api, runtime);
+    expect(unseeded.groupRoles.size).toBe(0);
+    expect(runtime.error).not.toHaveBeenCalled();
+  });
+
   it('does not log successful incremental discovery but retains failures', async () => {
     const runtime = createRuntime();
     const api = { scry: vi.fn().mockResolvedValue({ changes: [] }) };

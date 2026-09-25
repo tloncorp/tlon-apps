@@ -50,6 +50,69 @@ test('inserts a group', async () => {
   await queries.insertGroups({ groups: [groupData] });
 });
 
+// `group_roles` is keyed on the composite `(group_id, id)`, with only a
+// non-unique index on `group_id`. An upsert targeting `id` alone is rejected
+// outright by SQLite, so the insert must conflict on the composite key (or not
+// declare a target at all).
+test('addGroupRole inserts a role into an already-joined group', async () => {
+  const groupId = '~bus/test-group';
+  const otherGroupId = '~bus/other-group';
+  const client = getClient();
+  if (!client) throw new Error('test db client not initialized');
+
+  await client.insert(schema.groups).values([
+    {
+      id: groupId,
+      currentUserIsMember: true,
+      currentUserIsHost: false,
+      hostUserId: '~bus',
+    },
+    {
+      id: otherGroupId,
+      currentUserIsMember: true,
+      currentUserIsHost: false,
+      hostUserId: '~bus',
+    },
+  ]);
+  // Same role id in a different group: the insert must not collide with it.
+  await client
+    .insert(schema.groupRoles)
+    .values({ id: 'moderator', groupId: otherGroupId, title: 'Elsewhere' });
+
+  await queries.addGroupRole({
+    groupId,
+    roleId: 'moderator',
+    meta: { title: 'Moderator', description: 'Keeps the peace' },
+  });
+
+  const roles = await queries.getGroupRoles({ groupId });
+  expect(roles.map((r) => r.id)).toEqual(['moderator']);
+  expect(roles[0]?.title).toBe('Moderator');
+
+  // The row in the other group is untouched.
+  const otherRoles = await queries.getGroupRoles({ groupId: otherGroupId });
+  expect(otherRoles.map((r) => r.title)).toEqual(['Elsewhere']);
+
+  // A second add for the same (groupId, id) carrying newer metadata wins.
+  await queries.addGroupRole({
+    groupId,
+    roleId: 'moderator',
+    meta: { title: 'Steward', description: 'Now keeps the peace politely' },
+  });
+
+  const updatedRoles = await queries.getGroupRoles({ groupId });
+  expect(updatedRoles).toHaveLength(1);
+  expect(updatedRoles[0]?.title).toBe('Steward');
+  expect(updatedRoles[0]?.description).toBe('Now keeps the peace politely');
+
+  // ...but an add that supplies no metadata must not blank the stored row.
+  await queries.addGroupRole({ groupId, roleId: 'moderator' });
+
+  const preservedRoles = await queries.getGroupRoles({ groupId });
+  expect(preservedRoles[0]?.title).toBe('Steward');
+  expect(preservedRoles[0]?.description).toBe('Now keeps the peace politely');
+});
+
 test('inserts all groups', async () => {
   await queries.insertGroups({ groups: groupsData });
   const groups = await queries.getGroups({});
@@ -175,6 +238,15 @@ test('full group payload reconciles stale duplicate nav-section memberships', as
     channelId,
     channelIndex: 5,
   });
+});
+
+test('updateNavSectionOrder skips a missing section list', async () => {
+  await expect(
+    queries.updateNavSectionOrder({
+      groupId: '~zod/test',
+      sectionIds: undefined as unknown as string[],
+    })
+  ).resolves.toBeUndefined();
 });
 
 test('uses init data to get chat list', async () => {

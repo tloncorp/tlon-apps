@@ -204,6 +204,13 @@ export class WebDb extends BaseDb {
         errorMessage: e.message,
         severity: AnalyticsSeverity.Critical,
       });
+      // An instance without a registered client is useless, and leaving it set
+      // would make runMigrations' retry hit the re-entry guard above.
+      if (!clientRegistered) {
+        await this.sqlocal?.destroy().catch(() => undefined);
+        this.sqlocal = null;
+        this.client = null;
+      }
     }
   }
 
@@ -349,15 +356,20 @@ export class WebDb extends BaseDb {
 
   async runMigrations() {
     if (!this.client || !this.sqlocal) {
-      // Migrating is skipped here, but the app carries on regardless — so this
-      // is the signal that a session is running without a database behind it.
+      // A failed setup leaves both unset, so setupDb's re-entry guard lets this
+      // retry through.
+      await this.setupDb();
+    }
+    if (!this.client || !this.sqlocal) {
       logger.trackEvent(AnalyticsEvent.ErrorWebDb, {
         context: 'runMigrations: called without a database',
         hasClient: this.client != null,
         hasSqlocal: this.sqlocal != null,
         severity: AnalyticsSeverity.Critical,
       });
-      return;
+      // Throwing fails MigrationCheck into the root error boundary; returning
+      // would let sync and subscriptions start against a missing database.
+      throw new Error('runMigrations: no database after retrying setupDb');
     }
 
     try {

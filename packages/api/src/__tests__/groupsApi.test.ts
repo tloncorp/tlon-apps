@@ -28,6 +28,43 @@ const seatDel = {
   'r-group': { seat: { ships, 'r-seat': { del: null } } },
 } satisfies ub.GroupResponse;
 
+// The wire `$meta` names images `image`/`cover`; the client names them
+// `iconImage*`/`coverImage*`. Handing the wire shape straight through leaves
+// the client fields unset and leaks unknown keys into the db layer.
+const roleAdd = {
+  flag,
+  'r-group': {
+    role: {
+      roles: ['mod'],
+      'r-role': {
+        add: {
+          title: 'Mod',
+          description: 'Keeps the peace',
+          image: 'https://example.com/icon.png',
+          cover: '#ff0000',
+        },
+      },
+    },
+  },
+} satisfies ub.GroupResponse;
+
+const roleEdit = {
+  flag,
+  'r-group': {
+    role: {
+      roles: ['mod'],
+      'r-role': {
+        edit: {
+          title: 'Steward',
+          description: 'Still keeps the peace',
+          image: '',
+          cover: '',
+        },
+      },
+    },
+  },
+} satisfies ub.GroupResponse;
+
 describe('toGroupsUpdate seat responses', () => {
   test('reads the role list an add-roles response nests', () => {
     expect(toGroupsUpdate(addRoles)).toEqual({
@@ -73,6 +110,57 @@ describe('toGroupsUpdate seat responses', () => {
       type: 'addGroupMembers',
       ships,
       groupId: flag,
+    });
+  });
+});
+
+describe('toGroupsUpdate role responses', () => {
+  test('converts an add-role response to client metadata field names', () => {
+    expect(toGroupsUpdate(roleAdd)).toEqual({
+      type: 'addRole',
+      roleId: 'mod',
+      groupId: flag,
+      meta: {
+        title: 'Mod',
+        description: 'Keeps the peace',
+        iconImage: 'https://example.com/icon.png',
+        iconImageColor: null,
+        coverImage: null,
+        coverImageColor: '#ff0000',
+      },
+    });
+  });
+
+  test('converts an edit-role response and nulls out empty images', () => {
+    expect(toGroupsUpdate(roleEdit)).toEqual({
+      type: 'editRole',
+      roleId: 'mod',
+      groupId: flag,
+      meta: {
+        title: 'Steward',
+        description: 'Still keeps the peace',
+        iconImage: null,
+        iconImageColor: null,
+        coverImage: null,
+        coverImageColor: null,
+      },
+    });
+  });
+});
+
+describe('toGroupsUpdate section-order responses', () => {
+  // groups-json.hoon's `++r-group` wraps every delta in `frond -.r-group`, and
+  // the %section-order arm adds its own `frond 'section-order'`, so the list
+  // arrives one level deeper than the snapshot's bare array.
+  test('reads the section ids from the nested section-order envelope', () => {
+    const sectionOrder = {
+      flag,
+      'r-group': { 'section-order': { 'section-order': ['sec-a', 'sec-b'] } },
+    } satisfies ub.GroupResponse;
+    expect(toGroupsUpdate(sectionOrder)).toEqual({
+      type: 'updateSectionOrder',
+      groupId: flag,
+      sectionIds: ['sec-a', 'sec-b'],
     });
   });
 });

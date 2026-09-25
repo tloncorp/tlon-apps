@@ -214,7 +214,10 @@ async def execute_image_search_tool(
                 "Do not use result.source_url for Tlon upload or profile fields. "
                 "If tlon upload reports that the ship cannot store uploads, "
                 "use the https image_url directly — posts send --image and "
-                "profile fields accept it without an upload."
+                "profile fields accept it without an upload. "
+                "If tlon upload fails with HTTP 429 (rate limited), the source "
+                "host is throttling fetches: pick a result from a different "
+                "host instead of retrying the same URL."
             ),
         }
     )

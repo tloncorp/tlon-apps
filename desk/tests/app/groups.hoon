@@ -290,6 +290,34 @@
     [%fact group-log+!>(init-log)]
   (pure:m caz)
 ::
+::  +test-can-write-resolves-for-a-non-member: a ship holding no seat must
+::  make this scry resolve to ~, not to no-such-path.
+::
+::  Both readers of it use .^ and then ?~ on a unit -- lib/channel-utils
+::  +can-write, and %buckets +group-can-write. A scry that resolves to nothing
+::  does not hand them ~, it crashes the event. So answering [~ ~] here meant
+::  a stranger or an ex-member writing to any channel took the event down
+::  instead of being denied.
+::
+++  test-can-write-resolves-for-a-non-member
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  do-groups-init
+  ;<  *  bind:m  do-join-group
+  ::  the group's only seat is ~zod, so ~fun holds none
+  ;<  stranger=cage  bind:m
+    (got-peek /x/v2/groups/~zod/my-test-group/channels/chat/~zod/general/can-write/~fun)
+  ;<  seated=cage  bind:m
+    (got-peek /x/v2/groups/~zod/my-test-group/channels/chat/~zod/general/can-write/~zod)
+  =/  perms
+    |=  caz=cage
+    ^-  (unit [admin=? roles=(set role-id:v7:gv)])
+    !<((unit [admin=? roles=(set role-id:v7:gv)]) q.caz)
+  =/  absent  (perms stranger)
+  =/  present  (perms seated)
+  (ex-equal !>([absent ?~(present | admin.u.present)]) !>([~ &]))
+::
 ++  test-join-group
   %-  eval-mare
   =/  m  (mare ,~)

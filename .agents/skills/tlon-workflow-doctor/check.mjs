@@ -31,6 +31,9 @@ function envHas(dir, key) {
   const value = quoted ? quoted[2] : raw.replace(/\s+#.*$/, '');
   return value.trim() !== '';
 }
+// The pair the EAS Simulator loop was verified on (see the stim remote check).
+const REMOTE_STIM = '1.8.0';
+const REMOTE_AGENT_DEVICE = '0.21.13';
 const SKILL_DIRS = [
   join(homedir(), '.agents', 'skills'),
   join(REPO, '.agents', 'skills'),
@@ -149,6 +152,72 @@ const checks = [
     },
   },
   {
+    name: 'stim remote',
+    test() {
+      if (!which('stim')) return { note: 'skipped; stim is not installed' };
+      // A capability probe like `stim ports`: the loop's devices are EAS
+      // Simulator sessions, which `stim ios --remote eas` creates.
+      const r = run('stim', ['ios', '--help'], { cwd: APP });
+      const v = version('stim');
+      if (!/--remote\b/.test(r.stdout))
+        return {
+          fix: `stim ${v} has no \`ios --remote\`; the loop runs its devices on EAS Simulator through it`,
+          how: 'npm install -g stim@latest',
+          cmd: ['npm', ['install', '-g', 'stim@latest']],
+        };
+      // The EAS loop was verified on stim 1.8.0 with agent-device 0.21.13. On
+      // 1.4.0 with 0.21.6, Fast Refresh never reached the device and a
+      // --remote-config call broke the session's lease.
+      if (!atLeast(v, REMOTE_STIM))
+        return {
+          fix: `stim ${v} predates ${REMOTE_STIM}, the release the EAS loop was verified on`,
+          how: 'npm install -g stim@latest',
+          cmd: ['npm', ['install', '-g', 'stim@latest']],
+        };
+      return { ok: 'available' };
+    },
+  },
+  {
+    name: 'eas',
+    test() {
+      const path = which('eas');
+      if (!path)
+        return {
+          fix: 'eas-cli is not installed',
+          how: 'npm install -g eas-cli',
+          cmd: ['npm', ['install', '-g', 'eas-cli']],
+        };
+      const v = version('eas');
+      const who = run('eas', ['whoami'], { cwd: APP });
+      if (!who.ok)
+        return { fix: `eas-cli ${v} is not logged in`, how: 'eas login' };
+      // The gate is per account: an account without it gets a waitlist link.
+      const gate = run(
+        'eas',
+        ['simulator:availability', '--json', '--non-interactive'],
+        { cwd: APP }
+      );
+      let available;
+      try {
+        available = JSON.parse(gate.stdout).available;
+      } catch {
+        return {
+          fix: `eas simulator:availability did not return JSON (eas-cli ${v} may predate it)`,
+          how: 'npm install -g eas-cli@latest',
+          cmd: ['npm', ['install', '-g', 'eas-cli@latest']],
+        };
+      }
+      if (!available)
+        return {
+          fix: 'EAS Simulator is not enabled for this project account',
+          how: `cd apps/tlon-mobile && eas simulator:availability`,
+        };
+      return {
+        ok: `eas-cli ${v}, ${who.stdout.split('\n')[0].trim()}, EAS Simulator available`,
+      };
+    },
+  },
+  {
     name: 'stim skill',
     test() {
       if (hasSkill('stim'))
@@ -179,6 +248,12 @@ const checks = [
           fix: `agent-device at ${path} does not report a version, so it cannot run`,
           how: 'npm install -g agent-device',
           cmd: ['npm', ['install', '-g', 'agent-device']],
+        };
+      if (!atLeast(v, REMOTE_AGENT_DEVICE))
+        return {
+          fix: `agent-device ${v} predates ${REMOTE_AGENT_DEVICE}, the release the EAS loop was verified on`,
+          how: 'npm install -g agent-device@latest',
+          cmd: ['npm', ['install', '-g', 'agent-device@latest']],
         };
       return upToDate('agent-device', v, path);
     },

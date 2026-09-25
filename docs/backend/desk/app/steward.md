@@ -29,10 +29,10 @@ The app helper core keeps each module's logic in its own sub-core: `le-core` for
 
 ## state model
 
-State is versioned (`state-3` today), defined in the app file; `on-load` migrates older shapes forward one version per step. Cross-cutting config is top level; each module owns its own slice, typed from its own sur file:
+State is versioned (`state-4` today), defined in the app file; `on-load` migrates older shapes forward one version per step. Cross-cutting config is top level; each module owns its own slice, typed from its own sur file:
 
 ```
-state-3 (%3, current)
+state-4 (%4, current)
   owner       (unit ship)        shared owner config; ~ = inert
   bots        (set ship)         owner-side trusted lens bots
   lens        state:v1:lens      stored lens run records
@@ -48,7 +48,8 @@ Migrations so far:
 
 - `%0 → %1`: the gateway slice gained two leading fields — `notify-on-start=?` (an owner-initiated stop is pending) and `last-interaction=@da` (when anyone last engaged the bot). They lead so the migration is a one-line cons, `[| *@da gateway.old]`. A migrated bot whose gateway is already `%up` or `%down` also seeds its `bot-liveness` claim (see the gateway module).
 - `%1 → %2`: the automation module arrives with an empty slice. The app keeps the pre-%2 shapes (`state-1`, `state-0`, `gateway-0`) only for `on-load`.
-- `%2 → %3`: the prompts module arrives with an empty slice. `state-2` remains only for `on-load`.
+- `%2 → %3`: the gateway slice gained a leading `status-messages-enabled` toggle, on by default (`[& gateway.old]`).
+- `%3 → %4`: the prompts module arrives with an empty slice, and the migration subscribes to every bot already in the trusted set. `state-3` and `state-2` remain only for `on-load`.
 
 The automation `tasks` map holds one entry per ship: the **local projection** lives under `our`, written only by accepted `%project` actions, and each **mirrored remote bot** lives under its own ship, written only by facts from the subscription to that bot. The writers are disjoint by key, so the two never collide. Every entry follows the same presence rule: absent until its first projection or snapshot arrives, present (possibly empty) afterward — an empty entry means "synced, zero tasks", an absent one means "never synced". `state-1` is unreleased, so this shape replaced the earlier flat task map in place with no extra state version; `state-0-to-1` is unchanged (it initializes automation from the bunt, which yields an empty map).
 
@@ -299,7 +300,7 @@ Trust changes drive the prompts mirror the way they drive automation's:
 `%trust-bot` subscribes to the bot's `/v1/prompts/files` (idempotent, guarded on
 `wex.bowl`), `%untrust-bot` leaves and deletes that bot's entry, and `%configure`
 with a new owner kicks the replaced owner off the feed. A ship upgrading into
-`%3` subscribes the bots it already trusts, since nothing else would. A **nacked**
+`%4` subscribes the bots it already trusts, since nothing else would. A **nacked**
 watch keeps the last good projection rather than wiping it — a nack schedules no
 retry, so dropping the mirror would strand it until someone re-pokes `%trust-bot`.
 
@@ -449,8 +450,8 @@ With no entries at all the exact JSON shape is `{}`. Task values use the support
 
 ## lifecycle and invariants
 
-- `on-init` creates `state-3`, subscribes to `%activity /v5` for the gateway module, seeds the default lens retention cap, and leaves automation and prompts empty. There is no lens prune timer (retention is count-only, enforced on insert/configure).
-- `on-load` delegates to `load`, which migrates one version per step (`state-0-to-1`, `state-1-to-2`, `state-2-to-3`) in the same shape as `%activity`'s `load`. Its only migration card is the `bot-liveness` seed for a `%0` bot whose gateway is already `%up` or `%down` (owner configured): heartbeats advertise only on an up transition, so an already-up gateway would otherwise stay unknown until its next restart. Every load re-emits the Eyre binding for `/steward`; each module's sweep chain is armed with its migration and then re-arms itself. Decode or migration failure is visible and never resets to bunt. `on-save` writes `state-3`.
+- `on-init` creates `state-4`, subscribes to `%activity /v5` for the gateway module, seeds the default lens retention cap, and leaves automation and prompts empty. There is no lens prune timer (retention is count-only, enforced on insert/configure).
+- `on-load` delegates to `load`, which migrates one version per step (`state-0-to-1`, `state-1-to-2`, `state-2-to-3`, `state-3-to-4`) in the same shape as `%activity`'s `load`. Its only migration card is the `bot-liveness` seed for a `%0` bot whose gateway is already `%up` or `%down` (owner configured): heartbeats advertise only on an up transition, so an already-up gateway would otherwise stay unknown until its next restart. Every load re-emits the Eyre binding for `/steward`; each module's sweep chain is armed with its migration and then re-arms itself. Decode or migration failure is visible and never resets to bunt. `on-save` writes `state-4`.
 - Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`, liveness publication to `%contacts` on `/gateway/liveness`, and the owner-side automation watches on `/automation/tasks/[bot-p]` — everything arriving on an automation wire is applied only for the ship in the wire (facts naming other ships are ignored). The `%activity` subscription is re-watched on `%kick`; an automation watch is re-watched on `%kick` iff its bot is still trusted. Poke/DM nacks are logged and ignored (Ames retries); a nacked automation watch is slogged and left for a `%trust-bot` re-poke to repair.
 - `on-watch` auth is per-path: lens and gateway paths require `=(src our)`; `/v1/automation/tasks` also admits the configured owner. Rejection is a crash (watch nack). Dotket `on-peek` calls execute locally against current state without caller-source authorization. Core, gateway, and automation pokes are local only; lens applies its per-action source rules to admit trusted bot runs and owner relays.
 

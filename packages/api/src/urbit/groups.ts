@@ -354,7 +354,7 @@ export type GroupResponseData =
   | { role: { roles: string[]; 'r-role': GroupResponseRole } }
   | { channel: { nest: string; 'r-channel': GroupResponseChannel } }
   | { section: { 'section-id': string; 'r-section': GroupResponseSection } }
-  | { 'section-order': { order: string[] } }
+  | { 'section-order': { 'section-order': string[] } }
   | { 'active-channel': { nest: string; joined: boolean } }
   | {
       'flag-content': {
@@ -651,13 +651,8 @@ export type GroupAction =
   | { channel: { nest: string; 'a-channel': GroupChannelAction } }
   | { section: { 'section-id': string; 'a-section': GroupSectionAction } }
   | { navigation: GroupNavigationAction }
-  | {
-      'flag-content': {
-        nest: string;
-        plan: [number, number | null]; // [post-time, reply-time?]
-        src: string; // ship
-      };
-    }
+  // The desk's dejs reads post-key here, not plan (groups-json ++flag-content).
+  | FlagContentDiff
   | { delete: null };
 
 export type GroupEntryAction =

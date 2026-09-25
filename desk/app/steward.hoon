@@ -23,8 +23,8 @@
 ::            pokes cross-ship. explicit and ship-class-agnostic; an empty
 ::            set means only local pokes are accepted.
 ::
-+$  state-3
-  $:  %3
++$  state-4
+  $:  %4
       owner=(unit ship)
       bots=(set ship)
       lens=state:v1:sl
@@ -32,28 +32,34 @@
       automation=state:v1:sa
       prompts=state:v1:sp
   ==
-+$  versioned-state  $%(state-0 state-1 state-2 state-3)
-::  pre-%3 shapes are retained for +on-load. state-2 contains the cron
-::  projection; state-3 appends the prompt-file projection.
++$  versioned-state  $%(state-0 state-1 state-2 state-3 state-4)
+::  Persisted shapes used only by +on-load migrations. state-3 is the shape
+::  before the prompt-file projection; gateway-1 has the notification latch
+::  and interaction timestamp, and gateway-0 omits them.
 ::
-+$  state-2
-  $:  %2
++$  state-3
+  $:  %3
       owner=(unit ship)
       bots=(set ship)
       lens=state:v1:sl
       gateway=state:v1:sg
       automation=state:v1:sa
   ==
-::  state-1 is the released shape before the automation slice; gateway-0 is
-::  the gateway slice before
-::  .notify-on-start was prepended (see sur/steward/gateway.hoon).
++$  state-2
+  $:  %2
+      owner=(unit ship)
+      bots=(set ship)
+      lens=state:v1:sl
+      gateway=gateway-1
+      automation=state:v1:sa
+  ==
 ::
 +$  state-1
   $:  %1
       owner=(unit ship)
       bots=(set ship)
       lens=state:v1:sl
-      gateway=state:v1:sg
+      gateway=gateway-1
   ==
 +$  state-0
   $:  %0
@@ -62,6 +68,8 @@
       lens=state:v1:sl
       gateway=gateway-0
   ==
++$  gateway-1
+  [notify-on-start=? last-interaction=@da gateway-0]
 +$  gateway-0
   $:  last-owner-msg=@da
       last-owner-msg-id=(unit message-key:a)
@@ -84,7 +92,7 @@
 ::
 ++  default-max-runs-per-bot  3.000
 --
-=|  state-3
+=|  state-4
 =*  state  -
 %-  agent:dbug
 %^  verb  |  %warn
@@ -174,9 +182,10 @@
   ::
   =/  new-automation  ?=(%1 -.old)
   =?  old  ?=(%1 -.old)  (state-1-to-2 old)
-  =/  new-prompts  ?=(%2 -.old)
   =?  old  ?=(%2 -.old)  (state-2-to-3 old)
-  ?>  ?=(%3 -.old)
+  =/  new-prompts  ?=(%3 -.old)
+  =?  old  ?=(%3 -.old)  (state-3-to-4 old)
+  ?>  ?=(%4 -.old)
   =.  state  old
   ::  re-establish the eyre binding on every load; re-connecting a bound
   ::  path is harmless
@@ -196,11 +205,17 @@
   |=  old=state-1
   ^-  state-2
   [%2 owner.old bots.old lens.old gateway.old *state:v1:sa]
-::  %2 → %3: the prompts module arrives with an empty slice
+::  %2 → %3: the gateway slice gained a leading presence-messages toggle,
+::  on by default
 ++  state-2-to-3
   |=  old=state-2
   ^-  state-3
-  [%3 owner.old bots.old lens.old gateway.old automation.old *state:v1:sp]
+  [%3 owner.old bots.old lens.old [& gateway.old] automation.old]
+::  %3 → %4: the prompts module arrives with an empty slice
+++  state-3-to-4
+  |=  old=state-3
+  ^-  state-4
+  [%4 owner.old bots.old lens.old gateway.old automation.old *state:v1:sp]
 ::  a %0 bot's gateway registered before the liveness claim existed, and
 ::  heartbeats only advertise on an up transition: seed the claim from the
 ::  migrated status, or an already-up gateway stays unknown until its next
@@ -844,6 +859,7 @@
   ++  ga-send-dm
     |=  [target=ship text=@t]
     ^+  cor
+    ?.  status-messages-enabled.gateway.state  cor
     =/  content=story:st  ~[[%inline ~[text]]]
     =/  =essay:v7:cv  [[content our.bowl now.bowl] chat+/ ~ ~]
     =/  =diff:dm:v7:cv  [[our.bowl now.bowl] %add essay `now.bowl]
@@ -882,6 +898,7 @@
     ?>  =(src.bowl our.bowl)
     ?-  -.action
       %configure          (ga-handle-configure active-window.action reply-cooldown.action)
+      %status-messages    (ga-handle-status-messages enabled.action)
       %gateway-start      (ga-handle-start boot-id.action lease-until.action)
       %gateway-heartbeat  (ga-handle-heartbeat boot-id.action lease-until.action)
       %gateway-stop       (ga-handle-stop boot-id.action reason.action)
@@ -899,8 +916,16 @@
     ^-  (unit (unit cage))
     ?+  path  [~ ~]
         [%v1 %status ~]          ``noun+!>([status.gateway.state lease-until.gateway.state])
+        [%v1 %status-messages ~]  ``noun+!>(status-messages-enabled.gateway.state)
         [%v1 %owner-activity ~]  ``noun+!>(last-owner-msg.gateway.state)
     ==
+  ::
+  ++  ga-handle-status-messages
+    |=  enabled=?
+    ^+  cor
+    =.  status-messages-enabled.gateway.state  enabled
+    =?  notify-on-start.gateway.state  !enabled  |
+    cor
   ::
   ++  ga-handle-configure
     |=  [win=@dr orc=@dr]
@@ -960,7 +985,9 @@
     =.  last-stop.gateway.state  `now.bowl
     =.  pending-restart.gateway.state  &
     =/  owner-notice  (ga-owner-notice reason)
-    =?  notify-on-start.gateway.state  ?=(^ owner-notice)  &
+    =?  notify-on-start.gateway.state
+      &(status-messages-enabled.gateway.state ?=(^ owner-notice))
+      &
     =/  notice=(unit @t)
       ?^  owner-notice  owner-notice
       ?.  (ga-is-recently-active now.bowl)  ~
@@ -992,6 +1019,7 @@
   ++  ga-should-auto-reply
     |=  current-key=message-key:a
     ^-  ?
+    ?.  status-messages-enabled.gateway.state  |
     ?:  ga-is-gateway-live  |
     ?:  ?&  ?=(^ last-auto-reply-to.gateway.state)
             =(u.last-auto-reply-to.gateway.state current-key)
@@ -1973,7 +2001,7 @@
   ++  pr-init-cards
     ^-  (list card)
     ~[[%pass /prompts/cleanup %arvo %b %wait (add now.bowl ~m5)]]
-  ::  a ship upgrading into %3 already has its trusted set. prompt
+  ::  a ship upgrading into %4 already has its trusted set. prompt
   ::  watches are otherwise only created by %trust-bot, so subscribe the
   ::  preserved bots here or their projections never arrive
   ::

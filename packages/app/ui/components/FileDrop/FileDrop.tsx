@@ -8,6 +8,7 @@ import { getVideoPreviewData } from '../../utils/videoPreviewData';
 import { FileDropComponent } from './types';
 
 export const FileDrop: FileDropComponent = ({
+  dropEnabled = true,
   onAssetsDropped,
   children,
   ...props
@@ -48,6 +49,7 @@ export const FileDrop: FileDropComponent = ({
   const { getInputProps, getRootProps } = useDropzone({
     onDrop: handleDrop,
     noClick: true,
+    noDrag: !dropEnabled,
   });
 
   return (

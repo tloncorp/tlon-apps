@@ -1,4 +1,5 @@
 export * from './useChannelPosts';
+export { CursorNormalizationError } from './cursorError';
 export {
   addToChannelPosts,
   deleteFromChannelPosts,

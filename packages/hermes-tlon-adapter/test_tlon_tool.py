@@ -1568,6 +1568,243 @@ class TlonToolExecutionTests(unittest.TestCase):
         self.assertIn("Could not parse", payload["error"])
 
 
+OWNER_SHIP = "~owner"
+OWNER_URL = "https://owner.tlon.network"
+OWNER_CODE = "lapseg-nolmel-riswen-hopryc"
+BOT_CODE = "sampel-ticlyt-migfun-falmel"
+BOT_COOKIE = "urbauth-~bot=0v-bot-session"
+OWNER_ENV = {
+    "TLON_OWNER_SHIP": OWNER_SHIP,
+    "TLON_OWNER_URL": OWNER_URL,
+    "TLON_PLANET_CODE": OWNER_CODE,
+}
+
+
+def _bot_config(**overrides):
+    env = {
+        "TLON_NODE_URL": "https://bot.tlon.network",
+        "TLON_NODE_ID": "~bot",
+        "TLON_ACCESS_CODE": BOT_CODE,
+        "TLON_OWNER_SHIP": OWNER_SHIP,
+        "TLON_CLI": "tlon-test",
+    }
+    env.update(overrides)
+    return tlon_api.TlonConfig.from_env(env=env)
+
+
+class OwnerInviteLinkPredicateTests(unittest.TestCase):
+    """The normative injection truth table, shared with the OpenClaw plugin."""
+
+    def _args(self, command):
+        args, error = tlon_tool.split_tlon_command(command)
+        self.assertIsNone(error)
+        return tlon_tool.normalize_global_command_args(args)
+
+    def test_injects_for_a_bare_invite_link(self):
+        for command in (
+            "groups invite-link ~host/book-club",
+            "groups INVITE-LINK ~host/book-club",
+        ):
+            with self.subTest(command=command):
+                self.assertTrue(
+                    tlon_tool.should_inject_owner_credentials(self._args(command))
+                )
+
+    def test_skips_self_help_and_credential_flags_in_both_value_forms(self):
+        commands = [
+            "groups invite-link ~host/book-club --self",
+            "groups invite-link --self",
+            "groups invite-link -h",
+            "groups invite-link --help",
+            "groups invite-link ~host/book-club --help",
+            "--config /tmp/owner.json groups invite-link ~host/book-club",
+            "--config=/tmp/owner.json groups invite-link ~host/book-club",
+            "--ship ~other groups invite-link ~host/book-club",
+            "--ship=~other groups invite-link ~host/book-club",
+            "--url https://other groups invite-link ~host/book-club",
+            "--url=https://other groups invite-link ~host/book-club",
+            f"--code {BOT_CODE} groups invite-link ~host/book-club",
+            f"--code={BOT_CODE} groups invite-link ~host/book-club",
+            f"--cookie {BOT_COOKIE} groups invite-link ~host/book-club",
+            f"--cookie={BOT_COOKIE} groups invite-link ~host/book-club",
+        ]
+        for command in commands:
+            with self.subTest(command=command):
+                self.assertFalse(
+                    tlon_tool.should_inject_owner_credentials(self._args(command))
+                )
+
+    def test_skips_other_subcommands(self):
+        commands = [
+            "groups info ~host/book-club",
+            "groups list",
+            "groups invite ~host/book-club ~mug",
+            "contacts self",
+            "notes list",
+            "--help",
+        ]
+        for command in commands:
+            with self.subTest(command=command):
+                self.assertFalse(
+                    tlon_tool.should_inject_owner_credentials(self._args(command))
+                )
+
+
+class OwnerInviteLinkInjectionTests(unittest.TestCase):
+    def _run(self, command, cfg, env=None):
+        calls = []
+
+        async def runner(argv, run_env, timeout, _on_deadline):
+            calls.append((tuple(argv), dict(run_env)))
+            return tlon_api.TlonProcessResult(
+                returncode=0, stdout="https://invite.tlon.io/0vabc\n"
+            )
+
+        async def run():
+            return await tlon_tool.execute_tlon_tool(
+                {"command": command}, config=cfg, runner=runner
+            )
+
+        with patch.dict(os.environ, env or {}, clear=False):
+            payload = json.loads(asyncio.run(run()))
+        return payload, calls
+
+    def test_replaces_bot_credentials_with_the_owner_triple_in_the_subprocess_env(self):
+        # A replacement, never an overlay: an inherited bot cookie would
+        # otherwise win over the owner triple in the CLI's resolver.
+        cfg = _bot_config(TLON_COOKIE=BOT_COOKIE)
+        self.assertEqual(cfg.cookie, BOT_COOKIE)
+
+        payload, calls = self._run(
+            "groups invite-link ~host/book-club", cfg, OWNER_ENV
+        )
+
+        self.assertTrue(payload["success"])
+        argv, run_env = calls[0]
+        self.assertEqual(
+            argv, ("tlon-test", "groups", "invite-link", "~host/book-club")
+        )
+        for key in ("TLON_URL", "URBIT_URL", "TLON_NODE_URL", "TLON_SHIP_URL"):
+            self.assertEqual(run_env[key], OWNER_URL)
+        for key in ("TLON_SHIP", "URBIT_SHIP", "TLON_NODE_ID", "TLON_SHIP_NAME"):
+            self.assertEqual(run_env[key], OWNER_SHIP)
+        for key in ("TLON_CODE", "URBIT_CODE", "TLON_ACCESS_CODE", "TLON_SHIP_CODE"):
+            self.assertEqual(run_env[key], OWNER_CODE)
+        self.assertNotIn("TLON_COOKIE", run_env)
+        self.assertNotIn("URBIT_COOKIE", run_env)
+        self.assertNotIn("TLON_CONFIG_FILE", run_env)
+        self.assertNotIn(BOT_COOKIE, run_env.values())
+        self.assertNotIn(BOT_CODE, run_env.values())
+
+    def test_leaves_the_adapter_config_untouched(self):
+        cfg = _bot_config(TLON_COOKIE=BOT_COOKIE)
+
+        self._run("groups invite-link ~host/book-club", cfg, OWNER_ENV)
+
+        self.assertEqual(cfg.ship_name, "~bot")
+        self.assertEqual(cfg.ship_url, "https://bot.tlon.network")
+        self.assertEqual(cfg.ship_code, BOT_CODE)
+        self.assertEqual(cfg.cookie, BOT_COOKIE)
+
+    def test_keeps_credentials_out_of_the_tool_output(self):
+        cfg = _bot_config(TLON_COOKIE=BOT_COOKIE)
+
+        success, _ = self._run(
+            "groups invite-link ~host/book-club", cfg, OWNER_ENV
+        )
+
+        self.assertNotIn(OWNER_CODE, json.dumps(success))
+        self.assertNotIn(BOT_CODE, json.dumps(success))
+        self.assertNotIn(BOT_COOKIE, json.dumps(success))
+        self.assertEqual(
+            success["command"],
+            "tlon-test groups invite-link '~host/book-club'",
+        )
+
+        async def failing_runner(argv, run_env, timeout, _on_deadline):
+            return tlon_api.TlonProcessResult(
+                returncode=1, stdout="", stderr="~owner is not a member\n"
+            )
+
+        async def run():
+            return await tlon_tool.execute_tlon_tool(
+                {"command": "groups invite-link ~host/book-club"},
+                config=cfg,
+                runner=failing_runner,
+            )
+
+        with patch.dict(os.environ, OWNER_ENV, clear=False):
+            failure = json.loads(asyncio.run(run()))
+
+        self.assertFalse(failure["success"])
+        self.assertNotIn(OWNER_CODE, json.dumps(failure))
+        self.assertNotIn(BOT_CODE, json.dumps(failure))
+        self.assertNotIn(BOT_COOKIE, json.dumps(failure))
+
+    def test_fails_closed_on_a_missing_or_partial_owner_triple(self):
+        cfg = _bot_config()
+        partials = [
+            {},
+            {"TLON_OWNER_URL": OWNER_URL},
+            {"TLON_OWNER_SHIP": OWNER_SHIP, "TLON_PLANET_CODE": OWNER_CODE},
+            {"TLON_OWNER_URL": OWNER_URL, "TLON_OWNER_SHIP": OWNER_SHIP},
+        ]
+        for partial in partials:
+            with self.subTest(env=sorted(partial)):
+                env = {key: "" for key in OWNER_ENV}
+                env.update(partial)
+                payload, calls = self._run(
+                    "groups invite-link ~host/book-club", cfg, env
+                )
+
+                self.assertEqual(calls, [])
+                self.assertIn("TLON_OWNER_URL", payload["error"])
+                self.assertIn("--self", payload["error"])
+                self.assertNotIn("invite.tlon.io", json.dumps(payload))
+
+    def test_fails_closed_when_a_valid_bot_cookie_meets_a_mismatched_owner_triple(self):
+        # The regression an overlay would hide: usable bot credentials plus an
+        # owner triple naming a different ship must error, not quietly mint a
+        # bot-attributed link.
+        cfg = _bot_config(TLON_COOKIE=BOT_COOKIE)
+        env = dict(OWNER_ENV, TLON_OWNER_SHIP="~stale-owner")
+
+        payload, calls = self._run(
+            "groups invite-link ~host/book-club", cfg, env
+        )
+
+        self.assertEqual(calls, [])
+        self.assertIn(OWNER_SHIP, payload["error"])
+        self.assertIn("--self", payload["error"])
+        self.assertNotIn("invite.tlon.io", json.dumps(payload))
+
+    def test_fails_closed_without_a_configured_owner_ship(self):
+        cfg = _bot_config(TLON_OWNER_SHIP="")
+
+        payload, calls = self._run(
+            "groups invite-link ~host/book-club", cfg, OWNER_ENV
+        )
+
+        self.assertEqual(calls, [])
+        self.assertIn("owner ship", payload["error"])
+        self.assertIn("--self", payload["error"])
+
+    def test_leaves_self_and_other_subcommands_on_bot_credentials(self):
+        cfg = _bot_config()
+
+        for command in (
+            "groups invite-link ~host/book-club --self",
+            "groups info ~host/book-club",
+        ):
+            with self.subTest(command=command):
+                payload, calls = self._run(command, cfg, OWNER_ENV)
+
+                self.assertTrue(payload["success"])
+                _argv, run_env = calls[0]
+                self.assertEqual(run_env["TLON_SHIP"], "~bot")
+                self.assertEqual(run_env["TLON_CODE"], BOT_CODE)
+
+
 class TlonSkillPathTests(unittest.TestCase):
     def test_resolve_tlon_skill_path_uses_explicit_file(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -3,11 +3,72 @@ import * as $ from 'drizzle-orm';
 import { expect, test, vi } from 'vitest';
 
 import { batchEffects } from '../../db/query';
+import * as queries from '../../db/queries';
 import * as schema from '../../db/schema';
 import { getClient, setupDatabaseTestSuite } from '../../test/helpers';
 import { handleGroupUpdate } from './sync';
 
 setupDatabaseTestSuite();
+
+test('duplicate role assignments still refresh the group and unreads', async () => {
+  const groupId = '~bus/role-echo';
+  const membership = { groupId, contactId: '~zod', roleId: 'moderator' };
+  const group = {
+    id: groupId,
+    currentUserIsMember: true,
+    currentUserIsHost: false,
+    hostUserId: '~bus',
+  };
+  await queries.insertGroups({ groups: [group] });
+  await queries.addMembersToRole({
+    groupId,
+    roleId: membership.roleId,
+    contactIds: [membership.contactId],
+  });
+  const getGroup = vi.spyOn(api, 'getGroup').mockResolvedValue({
+    ...group,
+    title: 'Refreshed group',
+  });
+  const getUnreads = vi
+    .spyOn(api, 'getGroupAndChannelUnreads')
+    .mockResolvedValue({
+      groupUnreads: [],
+      channelUnreads: [],
+      threadActivity: [],
+    });
+
+  try {
+    for (let i = 0; i < 2; i++) {
+      await batchEffects('test:role-assignment-echo', (ctx) =>
+        handleGroupUpdate(
+          {
+            type: 'addGroupMembersToRole',
+            groupId,
+            ships: [membership.contactId, '~nec'],
+            roles: [membership.roleId],
+          },
+          ctx
+        )
+      );
+    }
+
+    expect(getGroup).toHaveBeenCalledTimes(2);
+    expect(getGroup).toHaveBeenCalledWith(groupId);
+    expect(getUnreads).toHaveBeenCalledTimes(2);
+    expect((await queries.getGroup({ id: groupId }))?.title).toBe(
+      'Refreshed group'
+    );
+    expect(await getClient()!.query.chatMemberGroupRoles.findMany()).toEqual(
+      expect.arrayContaining([membership, { ...membership, contactId: '~nec' }])
+    );
+    expect(
+      await getClient()!.query.chatMemberGroupRoles.findMany()
+    ).toHaveLength(2);
+  } finally {
+    getGroup.mockRestore();
+    getUnreads.mockRestore();
+  }
+});
 
 // `addChannelToNavSection` events carry both a bare backend zone id
 // (`sectionId`) and a prefixed local DB id (`navSectionId =
@@ -365,4 +426,92 @@ test('addGroup preserves the blob on blob-less upserts and clears on null', asyn
     where: $.eq(schema.groups.id, groupId),
   });
   expect(group?.blob).toBeNull();
+});
+
+// A role created after a member has already joined only ever reaches that
+// member as an `addRole` subscription event — it is not in the group snapshot
+// they synced at join time. If the insert throws, the role stays invisible to
+// every existing member.
+test('addRole lands a group_roles row for a group the user already joined', async () => {
+  const groupId = '~bus/late-role-group';
+
+  const client = getClient();
+  if (!client) throw new Error('test db client not initialized');
+
+  await client.insert(schema.groups).values({
+    id: groupId,
+    currentUserIsMember: true,
+    currentUserIsHost: false,
+    hostUserId: '~bus',
+  });
+
+  await batchEffects('test:addRole', async (ctx) => {
+    await handleGroupUpdate(
+      {
+        type: 'addRole',
+        groupId,
+        roleId: 'moderator',
+        meta: {
+          title: 'Moderator',
+          description: 'Keeps the peace',
+          iconImage: 'https://example.com/icon.png',
+          iconImageColor: null,
+          coverImage: null,
+          coverImageColor: '#ff0000',
+        },
+      },
+      ctx
+    );
+  });
+
+  const roles = await client.query.groupRoles.findMany({
+    where: $.eq(schema.groupRoles.groupId, groupId),
+  });
+  expect(roles.map((r) => r.id)).toEqual(['moderator']);
+  expect(roles[0]?.title).toBe('Moderator');
+  // Images land under the client column names, not the wire's image/cover.
+  expect(roles[0]?.iconImage).toBe('https://example.com/icon.png');
+  expect(roles[0]?.coverImageColor).toBe('#ff0000');
+
+  // `editRole` on the same role updates it in place rather than duplicating,
+  // and an edit that clears the images clears the stored columns.
+  await batchEffects('test:editRole', async (ctx) => {
+    await handleGroupUpdate(
+      {
+        type: 'editRole',
+        groupId,
+        roleId: 'moderator',
+        meta: {
+          title: 'Mod',
+          description: 'Still keeps the peace',
+          iconImage: null,
+          iconImageColor: null,
+          coverImage: null,
+          coverImageColor: null,
+        },
+      },
+      ctx
+    );
+  });
+
+  const editedRoles = await client.query.groupRoles.findMany({
+    where: $.eq(schema.groupRoles.groupId, groupId),
+  });
+  expect(editedRoles).toHaveLength(1);
+  expect(editedRoles[0]?.title).toBe('Mod');
+  expect(editedRoles[0]?.description).toBe('Still keeps the peace');
+  expect(editedRoles[0]?.iconImage).toBeNull();
+  expect(editedRoles[0]?.coverImageColor).toBeNull();
+
+  await batchEffects('test:deleteRole', async (ctx) => {
+    await handleGroupUpdate(
+      { type: 'deleteRole', groupId, roleId: 'moderator' },
+      ctx
+    );
+  });
+
+  const remainingRoles = await client.query.groupRoles.findMany({
+    where: $.eq(schema.groupRoles.groupId, groupId),
+  });
+  expect(remainingRoles).toEqual([]);
 });

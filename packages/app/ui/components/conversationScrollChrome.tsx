@@ -18,7 +18,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { supportsNativeScrollEdgeChrome } from '../../navigation/nativeHeaderOptions';
+import { useFloatingHeaderHeight } from '../../navigation/useFloatingHeaderHeight';
 import { GlassSurface, supportsLiquidGlass } from './GlassSurface';
 import {
   floatingChromeMetrics,
@@ -33,23 +33,18 @@ export {
   floatingPinnedPostBannerHeight,
   floatingScrollControlClearance,
   getPostCollectionTopInset,
+  unobscuredConversationBottomGap,
 } from './conversationInsets';
 
 /**
  * Height the native header floats over, or 0 when it is opaque. A scroll view
  * gets this from contentInsetAdjustmentBehavior. Content rendered outside one,
  * such as a banner pinned above the list, has to clear it itself.
+ *
+ * Re-exported: the notes screens reach it from here, and the chat list uses
+ * the same hook for its own header clearance from its navigation home.
  */
-export function useFloatingHeaderHeight(hasTransparentHeader: boolean) {
-  const headerHeight = useContext(HeaderHeightContext) ?? 0;
-  const usesTransparentHeader =
-    supportsNativeScrollEdgeChrome(
-      Platform.OS,
-      Platform.Version,
-      supportsLiquidGlass()
-    ) && hasTransparentHeader;
-  return usesTransparentHeader ? headerHeight : 0;
-}
+export { useFloatingHeaderHeight } from '../../navigation/useFloatingHeaderHeight';
 
 /** Owns all measured geometry reserved around a conversation list. */
 export function useConversationInsets({

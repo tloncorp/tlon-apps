@@ -22,6 +22,8 @@ import {
   getOlderPageParam,
   queryKeyPrefix,
 } from './queries';
+import { normalizeCursor } from './normalizeCursor';
+import { CursorNormalizationError } from './cursorError';
 import { refreshStaleChannelPosts } from './refresh';
 import { useDeletedPosts, useNewPostListener } from './subscriptions';
 
@@ -116,11 +118,22 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     placeholderData,
     refetchOnMount: false,
     retry(failureCount, error) {
-      postsLogger.trackError('failed to load posts', error);
-      if (failureCount > maxFailureCount) {
-        return false;
+      const shouldRetry = failureCount <= maxFailureCount;
+      if (error instanceof CursorNormalizationError) {
+        // A retry burst is one failed load. Preserve its exception and the
+        // final attempt's diagnostics without reporting every retry as a bug.
+        if (!shouldRetry) {
+          postsLogger.trackError('failed to load posts', {
+            error,
+            ...error.diagnostics,
+            channelType: getChannelIdType(error.channelId),
+            retryCount: failureCount,
+          });
+        }
+      } else {
+        postsLogger.trackError('failed to load posts', error);
       }
-      return true;
+      return shouldRetry;
     },
     retryDelay: () => 500,
     queryFn: async (ctx): Promise<PostQueryPage> => {
@@ -260,55 +273,6 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
   );
 };
 
-/*
-  We want to operate on sequence numbers, but our unread markers are keyed by postId.
-  This encapsulate the logic for obtaining a sequence based cursor.
-*/
-async function normalizeCursor(options: PageParam): Promise<PageParam> {
-  // only attempt to transform if we have a postId shaped cursor
-  if (!options.cursorPostId) {
-    return options;
-  }
-
-  // first check locally to see if we already have the post
-  const cursorPost = await db.getPost({
-    postId: options.cursorPostId,
-  });
-  if (cursorPost && cursorPost.sequenceNum) {
-    return {
-      ...options,
-      cursorPostId: null,
-      cursorSequenceNum: cursorPost.sequenceNum,
-    };
-  }
-
-  // if not, grab it from the API. Proactively snag surrounding posts while we're there
-  await sync.syncPosts(
-    {
-      channelId: options.channelId,
-      cursor: options.cursorPostId,
-      mode: 'around',
-      count: options.count,
-    },
-    { priority: SyncPriority.High }
-  );
-
-  const syncedCursorPost = await db.getPost({
-    postId: options.cursorPostId,
-  });
-
-  if (syncedCursorPost && syncedCursorPost.sequenceNum) {
-    return {
-      ...options,
-      cursorPostId: null,
-      cursorSequenceNum: syncedCursorPost.sequenceNum,
-    };
-  }
-
-  // should always have it after fetching, if we don't it's an error
-  throw new Error('Failed to normalize cursor');
-}
-
 async function getLocalFirstPosts(options: UseChannelPostsPageParams) {
   postsLogger.log(`localFirstPosts: running`, options);
   const posts = await db.getSequencedChannelPosts(options);
@@ -370,9 +334,31 @@ export async function hasNewerPosts(channelId: string, posts: db.Post[]) {
     return false;
   }
 
-  const latestSequenceNum = await db.getLatestChannelSequenceNum({
+  let latestSequenceNum = await db.getLatestChannelSequenceNum({
     channelId,
   });
+
+  // Channel rows are created without a watermark; only a posts scry that
+  // returns a head (or a sequenced insert) sets it, so ask for the head before
+  // calling it an invariant violation. A failed sync must not fail the page.
+  if (latestSequenceNum === null) {
+    const repair = sync
+      .syncPosts(
+        { channelId, mode: 'newest', count: 1 },
+        { priority: SyncPriority.High }
+      )
+      .catch((e) => postsLogger.log('hasNewerPosts: watermark sync failed', e));
+    if (posts.length > 0) {
+      // Seed the watermark in the background: awaiting it would hold these
+      // local posts behind a scry that can take 60 s offline. Returning true
+      // lets the next page fetch see the seeded value.
+      return true;
+    }
+    // getLocalFirstPosts already ran a remote sync that could have seeded it,
+    // so this is a second attempt before reporting.
+    await repair;
+    latestSequenceNum = await db.getLatestChannelSequenceNum({ channelId });
+  }
 
   // Even for empty channels, we should have a value here. If somehow we don't,
   // assume there's more to load and assume the next load will rectify sequence state.
@@ -384,7 +370,7 @@ export async function hasNewerPosts(channelId: string, posts: db.Post[]) {
     const channel = await db.getChannel({ id: channelId });
     postsLogger.trackError(
       'invariant violation: channel missing latest sequence number',
-      { channelId, hasChannelRow: !!channel }
+      { channelId, hasChannelRow: !!channel, localPostCount: posts.length }
     );
     return true;
   }
@@ -418,7 +404,7 @@ function useTrackReady(
   const hasEnoughPosts = postsLength > 30;
   const isLoading = query.isLoading || query.isPending;
   const canLoadMore = query.hasNextPage || query.hasPreviousPage;
-  const hasResolvedCurrentQuery = !query.isPlaceholderData;
+  const hasResolvedCurrentQuery = query.isSuccess && !query.isPlaceholderData;
 
   useEffect(() => {
     if (
