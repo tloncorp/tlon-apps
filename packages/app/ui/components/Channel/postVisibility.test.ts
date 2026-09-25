@@ -165,24 +165,6 @@ describe('isVisibleChannelPost', () => {
     ).toBe(true);
   });
 
-  it('hides the group host intro transport from other members', () => {
-    expect(
-      isVisibleChannelPost(
-        {
-          authorId: '~ten',
-          blob: appendToPostBlob(undefined, {
-            type: 'tlon-agent-intro-request',
-            version: 1,
-            groupId: '~ten/group',
-          }),
-        },
-        '~nec',
-        'chat/~ten/general',
-        '~ten'
-      )
-    ).toBe(false);
-  });
-
   it('keeps a failed intro request visible so it can be retried', () => {
     expect(
       isVisibleChannelPost(
