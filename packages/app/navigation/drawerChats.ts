@@ -1,7 +1,11 @@
 import type * as db from '@tloncorp/shared/db';
 
 import { isDirectMessage, isWorkspaceChat } from '../hooks/chatListFilters';
-import { chatRowHasUnread } from './drawerWorkspaceRows';
+import {
+  type DrawerRow,
+  chatRowHasUnread,
+  getDrawerRows,
+} from './drawerWorkspaceRows';
 
 /**
  * The two halves the panel's tabs cut its list into.
@@ -115,4 +119,61 @@ export function getDrawerChats(
         chatMatchesDrawerFilter(chat, filter)
     )
     .sort((a, b) => b.timestamp - a.timestamp);
+}
+
+/**
+ * Every chat the panel lists under either tab, newest first: what its search
+ * looks through.
+ *
+ * Both halves at once, because the tabs are put away while the field is open.
+ * A search is how the user gets somewhere they cannot see from here, and
+ * making them first guess which half it is in would be asking the question the
+ * search exists to spare them.
+ */
+export function getDrawerSearchChats(
+  chats: db.GroupedChats | null | undefined,
+  excludeChannelId?: string
+): db.Chat[] {
+  if (!chats) {
+    return [];
+  }
+  return allChats(chats)
+    .filter((chat) => isDrawerChat(chat, excludeChannelId))
+    .sort((a, b) => b.timestamp - a.timestamp);
+}
+
+/**
+ * A line of the panel's list: one of its rows, or the heading a search result
+ * gives each half of the list.
+ */
+export type DrawerListRow =
+  | DrawerRow
+  | { kind: 'heading'; key: string; filter: DrawerFilter };
+
+/**
+ * A search's results, cut back into the two halves the tabs would have shown
+ * them in and headed with those tabs' names.
+ *
+ * The tabs are hidden, but the difference they draw is not gone: a workspace
+ * and a direct message are still different enough kinds of destination that
+ * a list mixing them reads as a pile. So each half keeps the order the search
+ * ranked it in, under its own heading, and a half with nothing in it has no
+ * heading either.
+ */
+export function getDrawerSearchRows(
+  results: db.Chat[],
+  unfurledGroupId: string | null
+): DrawerListRow[] {
+  return DRAWER_FILTERS.flatMap((filter): DrawerListRow[] => {
+    const matches = results.filter((chat) =>
+      chatMatchesDrawerFilter(chat, filter)
+    );
+    if (!matches.length) {
+      return [];
+    }
+    return [
+      { kind: 'heading', key: `heading:${filter}`, filter },
+      ...getDrawerRows(matches, unfurledGroupId),
+    ];
+  });
 }
