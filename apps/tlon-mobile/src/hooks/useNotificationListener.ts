@@ -94,8 +94,8 @@ function getNotificationType(data: ProcessableNotificationData) {
 }
 
 // Shape-only description of a notification we failed to parse: which delivery
-// path it came in on, and which keys the payload carried. Key names only --
-// the values hold message content.
+// path it came in on, which keys the payload carried, and which activity event
+// kind it wrapped. Key names only -- the values hold message content.
 function describeNotificationShape(notification: Notification) {
   const { trigger } = notification.request;
   const triggerType =
@@ -105,9 +105,17 @@ function describeNotificationShape(notification: Notification) {
     typeof trigger.type === 'string'
       ? trigger.type
       : 'none';
+  const payload = readRawPayload(notification);
+  const event = safeParseActivityEvent(payload);
   return {
     notificationTrigger: triggerType,
-    payloadKeys: Object.keys(readRawPayload(notification)).sort().join(','),
+    payloadKeys: Object.keys(payload).sort().join(','),
+    activityEventKind:
+      event == null
+        ? 'none'
+        : Object.keys(event)
+            .filter((key) => key !== 'notified')
+            .join(','),
   };
 }
 
@@ -288,6 +296,12 @@ export default function useNotificationListener() {
       return true;
     }
 
+    async function goToChatList() {
+      createTypedReset(navigation)([getTopLevelTabRoute('ChatList')]);
+      setNotifToProcess(null);
+      return true;
+    }
+
     async function goToUserProfile(userId: string) {
       navigation.navigate('UserProfile', { userId });
       setNotifToProcess(null);
@@ -426,6 +440,12 @@ export default function useNotificationListener() {
         switch (notificationData.type) {
           case 'groupJoinRequest':
             return () => goToGroupMembers(notificationData.groupId);
+          case 'groupMembers':
+            // we were kicked: the group and its members screen are gone
+            return () =>
+              notificationData.ship === getCurrentUserId()
+                ? goToChatList()
+                : goToGroupMembers(notificationData.groupId);
           case 'groupInvite':
             return () => goToGroupInvite(notificationData.groupId);
           case 'contactMatched':
