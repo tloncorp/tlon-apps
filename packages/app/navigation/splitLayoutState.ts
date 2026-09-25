@@ -74,6 +74,7 @@ export type LayoutPosition =
       chatType: 'group' | 'channel';
       chatId: string;
       groupId?: string;
+      section?: SplitSection;
     }
   | { kind: 'group'; groupId: string }
   | {
@@ -157,6 +158,8 @@ function withSection(
       return isDmChannel(position.channelId)
         ? { ...position, section }
         : position;
+    case 'chatDetails':
+      return { ...position, section };
     default:
       return position;
   }
@@ -319,7 +322,9 @@ export function getLayoutPosition(
   // tree, so it only places conversations, which the Messages sidebar lists.
   return position &&
     section &&
-    (position.kind === 'channel' || position.kind === 'post')
+    (position.kind === 'channel' ||
+      position.kind === 'post' ||
+      position.kind === 'chatDetails')
     ? withSection(position, section)
     : position;
 }
@@ -368,7 +373,7 @@ function phoneRoutes(position: LayoutPosition): ResetRoute[] {
     case 'chatDetails': {
       const { chatType, chatId, groupId } = position;
       return [
-        chatList,
+        tabs,
         chatType === 'group'
           ? { name: 'GroupChannels', params: { groupId: chatId } }
           : {
@@ -473,7 +478,7 @@ function splitRoutes(position: LayoutPosition): ResetRoute[] {
     case 'chatDetails':
       return [
         {
-          name: 'Home',
+          name: position.section ?? 'Home',
           params: {
             screen: position.screen,
             params: {

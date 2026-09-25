@@ -386,6 +386,14 @@ describe('getLayoutState', () => {
     },
     {
       kind: 'chatDetails',
+      screen: 'ChatDetails',
+      chatType: 'channel',
+      chatId: dmId,
+      groupId: undefined,
+      section: 'Messages',
+    },
+    {
+      kind: 'chatDetails',
       screen: 'ChatVolume',
       chatType: 'group',
       chatId: groupId,
