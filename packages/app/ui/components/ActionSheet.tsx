@@ -531,9 +531,9 @@ ActionSheetScrollableContent.displayName = 'ActionSheetScrollableContent';
 
 const useContentStyle = () => {
   const insets = useSafeAreaInsets();
-  const isWindowNarrow = useIsWindowNarrow();
+  const usesSheet = useIsWindowNarrow() || Platform.OS !== 'web';
   return {
-    paddingBottom: isWindowNarrow
+    paddingBottom: usesSheet
       ? insets.bottom + getTokenValue('$2xl', 'size')
       : getTokenValue('$xl', 'size'),
   };

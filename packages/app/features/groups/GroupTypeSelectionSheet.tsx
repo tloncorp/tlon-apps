@@ -1,7 +1,7 @@
 import { GroupTemplateId, groupTemplates } from '@tloncorp/shared';
 import { IconType, Text } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
-import { Pressable } from 'react-native';
+import { Platform, Pressable } from 'react-native';
 import Animated, {
   interpolateColor,
   useAnimatedStyle,
@@ -324,7 +324,7 @@ export function GroupTypeSelectionSheet({
   onSelectGroupType: (type: GroupType, templateId?: GroupTemplateId) => void;
 }) {
   const { bottom } = useSafeAreaInsets();
-  const isWindowNarrow = useIsWindowNarrow();
+  const usesSheet = useIsWindowNarrow() || Platform.OS !== 'web';
 
   const content = (
     <YStack flex={1} gap="$l" paddingBottom={bottom}>
@@ -352,7 +352,7 @@ export function GroupTypeSelectionSheet({
     </YStack>
   );
 
-  if (!isWindowNarrow) {
+  if (!usesSheet) {
     return (
       <ActionSheet
         open={open}
