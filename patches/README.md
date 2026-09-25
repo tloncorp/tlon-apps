@@ -168,10 +168,10 @@ Local patch:
 `patches/@expo__ui@57.0.7.patch`
 
 Why:
-Tlon's native action sheets need a controlled custom-height detent that can
-animate as the user moves between panes. Expo UI 57 exposes fixed sheet
-presentation, but not controlled detent selection or a dismissal control that
-matches the app's action-sheet chrome.
+Tlon's native action sheets need controlled custom-height detents. Expo UI 57
+does not expose controlled iOS detent selection, and its Android community
+adapter expands every single snap point to full height instead of preserving
+the requested percentage.
 
 What it does:
 - Exposes native detents, selected-detent control and animation duration on
@@ -179,7 +179,10 @@ What it does:
 - Keeps the selected height synchronized with `UISheetPresentationController`
   so pane changes animate instead of jumping.
 - Adds the native close control, hides the drag indicator and uses the system
-  material for the outer sheet canvas.
+  material for the outer sheet canvas. Generic content reserves the close
+  control's header area so inputs cannot sit beneath its hit target.
+- Sizes a single Android percentage or point snap to its requested height while
+  keeping Material's native presentation and dismissal behavior.
 
 Validation:
 - Build the iOS preview app from source.
@@ -187,10 +190,13 @@ Validation:
   confirm the sheet height animates in both directions.
 - Confirm the close control aligns with the header and the sheet can be
   dismissed and reopened repeatedly in light and dark mode.
+- Build the Android preview app, open sheets with 60%, 70%, 80%, 85% and 90%
+  snap points, and confirm each opens at the requested height rather than full
+  screen.
 
 Removal:
-Drop the patch once Expo UI exposes equivalent controlled-detent animation and
-sheet chrome configuration upstream.
+Drop the patch once Expo UI exposes equivalent controlled-detent animation,
+sheet chrome configuration and single-snap Android sizing upstream.
 
 ## @10play/tentap-editor@0.5.21
 
