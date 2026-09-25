@@ -1,3 +1,4 @@
+import { CommonActions } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
@@ -39,7 +40,9 @@ export function GroupMetaScreen(props: Props) {
       const route = getTopLevelTabRoute('ChatList');
       navigation.getParent()?.navigate(route.name, route.params, { pop: true });
     } else {
-      navigation.getParent()?.navigate('ChatList', undefined, { pop: true });
+      navigation.dispatch(
+        CommonActions.navigate('Home', { screen: 'ChatList' }, { pop: true })
+      );
     }
   }, [isWindowNarrow, navigation]);
 
