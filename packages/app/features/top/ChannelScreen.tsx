@@ -440,6 +440,7 @@ export default function ChannelScreen(props: Props) {
     channelId: currentChannelId,
     groupId: onboardingGroupId,
     isFocused,
+    notebookNest: agentOnboarding.marker?.provision?.notebookNest,
     posts: filteredPosts,
     provisionId: agentOnboarding.marker?.provision?.provisionId,
     provisionAcknowledgedAt: agentOnboarding.marker?.provisionAcknowledgedAt,

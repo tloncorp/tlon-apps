@@ -67,7 +67,7 @@ export function BotSettingsScreenView({
             onPress: onRefresh,
           },
         ]}
-        title="Connect MCP"
+        title="Connect services"
         placement="navigation"
       />
       {initialLoading ? (
@@ -82,7 +82,7 @@ export function BotSettingsScreenView({
         >
           <YStack gap="$m">
             {showUnavailableNotice ? (
-              <NoticeBanner message="OAuth setup is unavailable for this ship." />
+              <NoticeBanner message="Service connections are unavailable for this account." />
             ) : null}
             <YStack gap="$l">
               {activeProviders.length > 0 ? (

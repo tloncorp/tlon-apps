@@ -730,6 +730,16 @@ export const PostBlobDataEntryAgentIntroRequestSchema =
   definePostBlobDataEntrySchema('tlon-agent-intro-request', 1, {
     groupId: z.string().min(1).max(512),
     isFirstGroup: z.boolean().optional(),
+    /** Hidden device context for local-time planning; never rendered as copy. */
+    clientTimezone: agentProtocolString(
+      AGENT_PROTOCOL_LIMITS.timezoneLength
+    ).optional(),
+    clientLocale: agentProtocolString(
+      AGENT_PROTOCOL_LIMITS.localeLength
+    ).optional(),
+    timezone: z.string().min(1).max(128).optional(),
+    /** Present only on new clients' initial onboarding requests. */
+    campaignVersion: z.number().int().min(1).max(65_535).optional(),
   });
 
 export type PostBlobDataEntryAgentIntroRequest = z.infer<
@@ -775,6 +785,7 @@ export type PostBlobDataEntryAgentProvisionAck = z.infer<
 export const PostBlobDataEntryAgentPostMarkerSchema =
   definePostBlobDataEntrySchema('tlon-agent-post-marker', 1, {
     key: z.string().min(1).max(256),
+    interviewStartMessageId: z.string().min(1).max(512).optional(),
   });
 
 export type PostBlobDataEntryAgentPostMarker = z.infer<
@@ -795,6 +806,10 @@ export const PostBlobDataEntryA2UISelectionSchema =
     sourcePostId: agentProtocolString(512).optional(),
     /** For a Choice, the id of the tapped option, so restore can mark it. */
     optionId: agentProtocolString(512).optional(),
+    /** Timezone of the device that submitted this owner answer. */
+    clientTimezone: agentProtocolString(
+      AGENT_PROTOCOL_LIMITS.timezoneLength
+    ).optional(),
     // Entries are bounded by the A2UI send-message limit, not topicLength: a
     // one-shot Button records the full message text it posted.
     values: z
