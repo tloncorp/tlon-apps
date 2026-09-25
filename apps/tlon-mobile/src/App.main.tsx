@@ -394,7 +394,9 @@ function ConnectedNavigationContent({
       ? getLayoutPosition(state)
       : null;
     const position = sanitizeNavigationStateForPersistence(
-      splitPosition ? getLayoutState(splitPosition, 'phone') : state
+      splitPosition
+        ? { ...getLayoutState(splitPosition, 'phone'), type: 'stack' }
+        : state
     );
     if (position) {
       db.lastNavigationState
