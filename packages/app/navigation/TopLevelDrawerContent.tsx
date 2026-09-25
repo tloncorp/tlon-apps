@@ -29,10 +29,12 @@ import {
 } from '../features/top/CreateChatSheet';
 import { useAnyAgentGroupOnboardingLock } from '../hooks/useAgentGroupOnboardingLock';
 import { useBotDmTab } from '../hooks/useBotDmTab';
+import { useChatSearch } from '../hooks/useChatSearch';
 import { useChatSettingsNavigation } from '../hooks/useChatSettingsNavigation';
 import {
   ChatOptionsProvider,
   ListItem,
+  type TextInputRef,
   getUnreadColors,
   useChatOptions,
 } from '../ui';
@@ -44,14 +46,19 @@ import {
 import { useCalm } from '../ui/contexts/appDataContext';
 import { getChannelTitle, getChatTitle } from '../ui/utils/channelUtils';
 import { DrawerFilterTabs } from './DrawerFilterTabs';
+import { DrawerSearchHeader } from './DrawerSearchHeader';
+import { DRAWER_CONTROL_SHADOW } from './drawerControlShadow';
 import {
+  DRAWER_FILTER_LABELS,
   type DrawerFilter,
+  type DrawerListRow,
   getDrawerChats,
+  getDrawerSearchChats,
+  getDrawerSearchRows,
   getUnreadDrawerFilters,
 } from './drawerChats';
 import { getDrawerChannelIcon, getDrawerChatIcon } from './drawerRowIcons';
 import {
-  DrawerRow,
   channelRecency,
   channelRowHasUnread,
   chatRowHasUnread,
@@ -130,23 +137,6 @@ const BOT_BUTTON_LABEL = 'Tlonbot';
 // The footer controls are Liquid Glass on an OS that has it, and the drawer's
 // own flat surfaces everywhere else.
 const usesIOSGlass = supportsLiquidGlass();
-
-// Both controls float over the list, so they get the lift the app's other
-// floating chrome has — the composer's own value, written the way a shadow is
-// written in a native style rather than as a `boxShadow` string. It sits on a
-// wrapper rather than on the glass itself: the glass clips to its bounds, and
-// a view that clips does not cast.
-const FOOTER_CONTROL_SHADOW = {
-  // The strength lives in `shadowOpacity`, never in the colour's alpha: on
-  // iOS the opacity replaces it rather than multiplying with it, so an alpha
-  // written into the colour beside `shadowOpacity: 1` is simply discarded and
-  // the shadow comes out full-strength black.
-  shadowColor: '#000000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.06,
-  shadowRadius: 12,
-  elevation: 2,
-} as const;
 
 const DrawerChatRow = React.memo(function DrawerChatRowComponent({
   chat,
@@ -351,6 +341,27 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
 });
 
 /**
+ * The name of the tab a run of search results would have been found under.
+ *
+ * On the same column as the rows' own content, and in the grey their times
+ * are in: it labels them, and should not read as one of them.
+ */
+function DrawerSearchHeading({ filter }: { filter: DrawerFilter }) {
+  return (
+    <Text
+      size="$label/s"
+      color="$tertiaryText"
+      accessibilityRole="header"
+      paddingHorizontal={CONTENT_INSET}
+      paddingTop="$l"
+      paddingBottom="$xs"
+    >
+      {DRAWER_FILTER_LABELS[filter]}
+    </Text>
+  );
+}
+
+/**
  * The button that opens the bot's own conversation.
  *
  * Liquid Glass is the chrome where the OS has it, so the control picks up the
@@ -383,7 +394,7 @@ function DrawerChatButton({
         accessibilityLabel={accessibilityLabel}
         accessibilityState={{ selected }}
         testID="TopLevelDrawerChatButton"
-        {...FOOTER_CONTROL_SHADOW}
+        {...DRAWER_CONTROL_SHADOW}
       />
     );
   }
@@ -397,7 +408,7 @@ function DrawerChatButton({
     <View
       alignSelf="flex-start"
       borderRadius={FOOTER_CONTROL_RADIUS}
-      {...FOOTER_CONTROL_SHADOW}
+      {...DRAWER_CONTROL_SHADOW}
     >
       {/* Tinted rather than clear: this is the drawer's primary action, and
           clear glass over a pale panel leaves the label competing with the
@@ -583,7 +594,7 @@ function DrawerUtilityBubble({
       <View
         flexShrink={flexShrink}
         borderRadius={FOOTER_CONTROL_RADIUS}
-        {...FOOTER_CONTROL_SHADOW}
+        {...DRAWER_CONTROL_SHADOW}
       >
         {slots}
       </View>
@@ -594,7 +605,7 @@ function DrawerUtilityBubble({
     <View
       flexShrink={flexShrink}
       borderRadius={FOOTER_CONTROL_RADIUS}
-      {...FOOTER_CONTROL_SHADOW}
+      {...DRAWER_CONTROL_SHADOW}
     >
       <GlassSurface isInteractive style={footerStyles.utilityBubble}>
         {slots}
@@ -620,9 +631,9 @@ const footerStyles = StyleSheet.create({
 });
 
 /**
- * The drawer panel: two tabs at the top, the chats they cut between below
- * them, and pinned to the bottom the three destinations that are not chats —
- * the bot's own conversation, Activity and Settings.
+ * The drawer panel: two tabs at the top with a search beside them, the chats
+ * they cut between below them, and pinned to the bottom the three destinations
+ * that are not chats — the bot's own conversation, Activity and Settings.
  *
  * The drawer hosts the root stack rather than the sections themselves, so
  * nothing here is one of its own routes. Each target dispatches the same route
@@ -668,11 +679,34 @@ function DrawerPanel(props: DrawerContentComponentProps) {
   // from. A closing the panel did itself, having navigated, is counted too:
   // by then the reset has already gone out.
   const drawerOpen = useDrawerStatus() === 'open';
+  // The search field, which a closing panel leaves open but lets go of: the
+  // navigator only puts the keyboard away when a swipe starts, so a row that
+  // navigates and closes the panel would otherwise leave it up over the
+  // conversation it opened.
+  const searchInputRef = useRef<TextInputRef>(null);
+  // Held here for the same reason the tab is: the panel's content is mounted
+  // for as long as the navigator is, so a search the user left to go and look
+  // at one of its results is still there when they pull the panel back out.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  // A chat reached through the search is told apart from one picked off the
+  // list, as the workspace list's own filter tells its taps apart.
+  const chatSource = searchQuery.trim() ? 'drawer_search' : 'drawer';
   useEffect(() => {
     if (!drawerOpen) {
       navigationRequestRef.current += 1;
+      searchInputRef.current?.blur();
     }
   }, [drawerOpen]);
+  // What is kept is a search, not an open field. One closed over with nothing
+  // typed into it holds nothing to come back to, and kept open it would only
+  // leave the panel without its tabs and on whichever half was last showing.
+  useEffect(() => {
+    if (!drawerOpen && searchOpen && searchQuery.trim() === '') {
+      setSearchQuery('');
+      setSearchOpen(false);
+    }
+  }, [drawerOpen, searchOpen, searchQuery]);
 
   // The drawer's own state holds one route — the root stack — so everything
   // about where the app is standing is read out of that stack's state.
@@ -760,7 +794,10 @@ function DrawerPanel(props: DrawerContentComponentProps) {
    * tick — nothing can move underneath it — and the close follows it.
    */
   const openChannel = useCallback(
-    (channel: db.Channel, source: 'drawer' | 'drawer_workspace' = 'drawer') => {
+    (
+      channel: db.Channel,
+      source: 'drawer' | 'drawer_search' | 'drawer_workspace'
+    ) => {
       if (chatsLocked) {
         return;
       }
@@ -793,7 +830,7 @@ function DrawerPanel(props: DrawerContentComponentProps) {
         return;
       }
       if (chat.type === 'channel') {
-        openChannel(chat.channel);
+        openChannel(chat.channel, chatSource);
         return;
       }
       const request = ++navigationRequestRef.current;
@@ -811,7 +848,7 @@ function DrawerPanel(props: DrawerContentComponentProps) {
       }
       logger.trackEvent(AnalyticsEvent.ActionTappedChat, {
         ...logic.getModelAnalytics({ group: chat.group }),
-        source: 'drawer',
+        source: chatSource,
       });
       // The sections are left exactly as they stand. A chat picked here is not
       // a position inside any of them — the row below marks itself — and a
@@ -880,6 +917,7 @@ function DrawerPanel(props: DrawerContentComponentProps) {
         });
     },
     [
+      chatSource,
       chatsLocked,
       focusedStackRoute,
       navigation,
@@ -895,7 +933,7 @@ function DrawerPanel(props: DrawerContentComponentProps) {
   // chosen the next time they pull the panel out, and a fresh launch starts on
   // Workspaces.
   const [filter, setFilter] = useState<DrawerFilter>('workspaces');
-  const listRef = useRef<FlashListRef<DrawerRow>>(null);
+  const listRef = useRef<FlashListRef<DrawerListRow>>(null);
   const selectFilter = useCallback((next: DrawerFilter) => {
     // Changing tabs is a request to stay in the panel, the same as unfurling a
     // workspace, so it supersedes anything still resolving its route. A
@@ -916,6 +954,31 @@ function DrawerPanel(props: DrawerContentComponentProps) {
     listRef.current?.scrollToOffset({ offset: 0, animated: false });
   }, []);
 
+  // Opening the search is a request to stay in the panel, so it supersedes
+  // anything still resolving its route, as changing tabs does.
+  const openSearch = useCallback(() => {
+    if (chatsLocked) {
+      return;
+    }
+    navigationRequestRef.current += 1;
+    setSearchOpen(true);
+  }, [chatsLocked]);
+  // Typing is staying in the panel too, and supersedes the same way. Each
+  // query is a new list, and it starts at its top for the reason a tab change
+  // does: the list is still holding whatever offset the last one was scrolled
+  // to.
+  const changeSearchQuery = useCallback((query: string) => {
+    navigationRequestRef.current += 1;
+    setSearchQuery(query);
+    listRef.current?.scrollToOffset({ offset: 0, animated: false });
+  }, []);
+  const closeSearch = useCallback(() => {
+    navigationRequestRef.current += 1;
+    searchInputRef.current?.blur();
+    setSearchQuery('');
+    setSearchOpen(false);
+  }, []);
+
   // Not gated on the drawer being open: the list is virtualised, so what is
   // mounted is what is on screen, and discarding it on close only made the
   // next open pay to build it again.
@@ -928,6 +991,25 @@ function DrawerPanel(props: DrawerContentComponentProps) {
       ),
     [chats, filter, botDm]
   );
+  // Gated on the field, unlike the list: the search indexes every chat it is
+  // handed, and the chat list changes with every unread that arrives, so an
+  // index kept for a search nobody has opened is rebuilt for nothing. Keyed on
+  // the bot's channel rather than `botDm`, which is a new object every render
+  // and would rebuild the index on each one.
+  const botChannelId = botDm.enabled ? botDm.channelId : undefined;
+  const searchChats = useMemo(
+    () => (searchOpen ? getDrawerSearchChats(chats, botChannelId) : []),
+    [chats, botChannelId, searchOpen]
+  );
+  // The workspace list's own filter, so a name found there is found here.
+  // Undebounced: the panel holds one user's chats, and a result that trails
+  // the typing reads as the search not having heard it.
+  const { isSearching, results: searchResults } = useChatSearch({
+    chats: searchChats,
+    searchQuery,
+    debounceMs: 0,
+    disableNicknames,
+  });
   // Read across the whole list rather than the half being shown, so the tab
   // that is not showing can say it has something in it.
   const unreadFilters = useMemo(
@@ -973,36 +1055,54 @@ function DrawerPanel(props: DrawerContentComponentProps) {
       // has not moved, so its staleness checks pass and it would reset the
       // stack and close the panel out from under the sheet just opened.
       navigationRequestRef.current += 1;
+      // The sheet comes up from the bottom, where the keyboard is, and one
+      // left up over a sheet traps the touches meant for it (TLON-6187).
+      searchInputRef.current?.blur();
       openChatOptions(chat.id, chat.type);
     },
     [chatsLocked, openChatOptions]
   );
 
-  const rows = useMemo(
-    () => getDrawerRows(drawerChats, unfurledGroupId),
-    [drawerChats, unfurledGroupId]
+  // A field opened but not yet typed into leaves the tab's own list showing:
+  // nothing has been asked of it yet, and swapping the list out under the
+  // user's finger for one they did not ask for would only move what they were
+  // about to press.
+  const rows = useMemo<DrawerListRow[]>(
+    () =>
+      isSearching
+        ? getDrawerSearchRows(searchResults, unfurledGroupId)
+        : getDrawerRows(drawerChats, unfurledGroupId),
+    [drawerChats, isSearching, searchResults, unfurledGroupId]
   );
   const titles = useMemo(
     () =>
       new Map(
-        rows.map((row) => [
-          row.key,
-          row.kind === 'chat'
-            ? getChatTitle(row.chat, disableNicknames)
-            : getChannelTitle({
-                ...configurationFromChannel(row.channel),
-                channelTitle: row.channel.title,
-                members: row.channel.members,
-                disableNicknames,
-              }),
-        ])
+        rows.flatMap((row): [string, string][] =>
+          row.kind === 'heading'
+            ? []
+            : [
+                [
+                  row.key,
+                  row.kind === 'chat'
+                    ? getChatTitle(row.chat, disableNicknames)
+                    : getChannelTitle({
+                        ...configurationFromChannel(row.channel),
+                        channelTitle: row.channel.title,
+                        members: row.channel.members,
+                        disableNicknames,
+                      }),
+                ],
+              ]
+        )
       ),
     [rows, disableNicknames]
   );
 
   const renderRow = useCallback(
-    ({ item }: { item: DrawerRow }) =>
-      item.kind === 'chat' ? (
+    ({ item }: { item: DrawerListRow }) =>
+      item.kind === 'heading' ? (
+        <DrawerSearchHeading filter={item.filter} />
+      ) : item.kind === 'chat' ? (
         <DrawerChatRow
           chat={item.chat}
           title={titles.get(item.key) ?? ''}
@@ -1062,6 +1162,8 @@ function DrawerPanel(props: DrawerContentComponentProps) {
     // Supersedes a chat still resolving its route, for the reason every other
     // control that keeps the user in the panel does.
     navigationRequestRef.current += 1;
+    // Out of the sheet's way, as for the chat options above.
+    searchInputRef.current?.blur();
     createChatSheetRef.current?.open(filter === 'messages' ? 'dm' : undefined);
   }, [chatsLocked, filter]);
   // The sheet covers the panel, so the panel stays put while it is up; the
@@ -1088,24 +1190,63 @@ function DrawerPanel(props: DrawerContentComponentProps) {
       paddingRight={insets.right + panelInset}
     >
       {/* Above the list rather than inside it as a header: the tabs are what
-          says which list this is, so they have to stay on screen while it is
-          scrolled. */}
+          says which list this is, and the field what it has been narrowed
+          to, so they have to stay on screen while it is scrolled. */}
       <YStack paddingBottom="$m">
-        <DrawerFilterTabs
-          activeFilter={filter}
-          unreadFilters={unreadFilters}
-          onPressFilter={selectFilter}
-        />
+        <DrawerSearchHeader
+          ref={searchInputRef}
+          open={searchOpen}
+          query={searchQuery}
+          disabled={chatsLocked}
+          onOpen={openSearch}
+          onChangeQuery={changeSearchQuery}
+          onClose={closeSearch}
+        >
+          <DrawerFilterTabs
+            activeFilter={filter}
+            unreadFilters={unreadFilters}
+            onPressFilter={selectFilter}
+          />
+        </DrawerSearchHeader>
       </YStack>
       <FlashList
         ref={listRef}
+        // Results are a list of their own rather than new data for the tab's.
+        // The list holds its top visible row in place across a change of
+        // data, and results share rows with the tab: held across the swap, a
+        // chat found a row below the Workspaces heading would come back a row
+        // below the top of the tab's list, with a blank band above it. A list
+        // mounted fresh has no row to hold, and the results, which change with
+        // every letter, are told not to hold one.
+        key={isSearching ? 'search' : 'chats'}
+        maintainVisibleContentPosition={
+          isSearching ? { disabled: true } : undefined
+        }
         data={rows}
         keyExtractor={(row) => row.key}
-        // Two shapes of row in one list, so the recycler is told which is
+        // Three shapes of row in one list, so the recycler is told which is
         // which rather than handing a channel's view to a chat.
         getItemType={(row) => row.kind}
         renderItem={renderRow}
         contentContainerStyle={{ paddingBottom: footerHeight }}
+        // A result is pressed with the keyboard still up, and the list's
+        // default spends that first press putting the keyboard away.
+        keyboardShouldPersistTaps="handled"
+        // And the keyboard covers the foot of the panel, so scrolling for a
+        // result further down puts it away rather than scrolling under it.
+        keyboardDismissMode="on-drag"
+        ListEmptyComponent={
+          isSearching ? (
+            <Text
+              size="$label/m"
+              color="$tertiaryText"
+              paddingHorizontal={CONTENT_INSET}
+              paddingTop="$l"
+            >
+              No results found
+            </Text>
+          ) : null
+        }
         testID="TopLevelDrawerChats"
       />
       <XStack

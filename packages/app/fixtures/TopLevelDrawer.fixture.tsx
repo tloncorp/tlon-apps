@@ -2,6 +2,7 @@ import { createDrawerNavigator } from '@react-navigation/drawer';
 import { queryClient } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useEffect, useState } from 'react';
+import { useWindowDimensions } from 'react-native';
 import { View } from 'tamagui';
 
 import { TopLevelDrawerContent } from '../navigation/TopLevelDrawerContent';
@@ -121,16 +122,22 @@ function TopLevelDrawerFixture() {
   // permanent on top of them so it is simply on screen rather than something
   // to be swiped out before it can be looked at.
   const screenOptions = useTopLevelDrawerScreenOptions();
+  // The bare renderer gives the page no height, so a navigator sized to its
+  // parent collapses to its first few rows. Sized to the window instead, the
+  // panel is as tall as it is on a phone, with room for a search's results.
+  const { height: windowHeight } = useWindowDimensions();
   if (!seeded) {
     return null;
   }
   return (
-    <Drawer.Navigator
-      drawerContent={(props) => <TopLevelDrawerContent {...props} />}
-      screenOptions={{ ...screenOptions, drawerType: 'permanent' }}
-    >
-      <Drawer.Screen name="Main" component={Blank} />
-    </Drawer.Navigator>
+    <View height={windowHeight}>
+      <Drawer.Navigator
+        drawerContent={(props) => <TopLevelDrawerContent {...props} />}
+        screenOptions={{ ...screenOptions, drawerType: 'permanent' }}
+      >
+        <Drawer.Screen name="Main" component={Blank} />
+      </Drawer.Navigator>
+    </View>
   );
 }
 
