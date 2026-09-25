@@ -7,10 +7,13 @@ import {
   RadialGradient,
   vec,
 } from '@shopify/react-native-skia';
-import { Dimensions } from 'react-native';
+import { useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export const PrivacyThumbprint = () => {
   const size = 480;
+  const { width } = useWindowDimensions();
+  const { left, right } = useSafeAreaInsets();
   return (
     <Canvas
       style={{
@@ -19,16 +22,17 @@ export const PrivacyThumbprint = () => {
         backgroundColor: 'transparent',
       }}
     >
-      <Mask mask={<RadialOpacityGradient />}>
+      <Mask
+        mask={<RadialOpacityGradient xOffset={(width - left - right) / 2} />}
+      >
         <SkiaSquiggles />
       </Mask>
     </Canvas>
   );
 };
 
-const RadialOpacityGradient = () => {
+const RadialOpacityGradient = ({ xOffset }: { xOffset: number }) => {
   const radius = 792 / 2; // figma
-  const xOffset = Dimensions.get('window').width / 2;
   const yOffset = 240;
 
   return (
