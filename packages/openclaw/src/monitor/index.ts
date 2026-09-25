@@ -5737,31 +5737,26 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           const gapBefore = groupChannelJournal?.gapSeq;
           const unconfirmedBefore = groupChannelJournal?.unconfirmedSnapshot();
           const feedDownBefore = settingsFeedDown;
-          let superseded = false;
           try {
             const refreshResult = await settingsManager.load({
               logSnapshot: false,
-              // An echo or gap can invalidate this scry. Preserve the last
-              // observation before the manager installs it, or an unrelated
-              // settings fact could re-trust the journal from a pre-gap value.
-              reconcile: (parsed) => {
-                if (
-                  !groupChannelJournal ||
-                  (groupChannelJournal.observationSeq === seqBefore &&
-                    groupChannelJournal.gapSeq === gapBefore)
-                ) {
-                  return parsed;
-                }
-                superseded = true;
-                // Hand back the observed value in place of the stale one.
-                return {
-                  ...parsed,
-                  groupChannels: groupChannelJournal.lastObserved as
-                    | string[]
-                    | undefined,
-                };
-              },
+              // The manager replays echoes that overtook this scry, but a gap
+              // is not a fact. Keep the last observation over a pre-gap value,
+              // or an unrelated settings fact could re-trust the journal from it.
+              reconcile: (parsed) =>
+                !groupChannelJournal || groupChannelJournal.gapSeq === gapBefore
+                  ? parsed
+                  : {
+                      ...parsed,
+                      groupChannels: groupChannelJournal.lastObserved as
+                        | string[]
+                        | undefined,
+                    },
             });
+            const superseded =
+              groupChannelJournal !== undefined &&
+              (groupChannelJournal.observationSeq !== seqBefore ||
+                groupChannelJournal.gapSeq !== gapBefore);
             // A gap (subscription error/quit, stream reconnect) reported while
             // the scry was in flight, or a settings feed already down when it
             // began, means this result may predate edits whose echoes were or
