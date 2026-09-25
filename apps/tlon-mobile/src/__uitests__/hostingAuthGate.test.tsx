@@ -55,9 +55,9 @@ jest.mock('@tloncorp/app/lib/notifications', () => ({
 }));
 jest.mock('@tloncorp/app/lib/pushNotifTapTelemetry', () => ({}));
 jest.mock('@tloncorp/app/lib/tlonbotRevivalDeferredConfig', () => ({}));
-jest.mock('@tloncorp/app/navigation/RootStack', () => {
+jest.mock('@tloncorp/app/navigation/NativeRootNavigator', () => {
   const { Text } = require('react-native');
-  return { RootStack: () => <Text>Authenticated content</Text> };
+  return { NativeRootNavigator: () => <Text>Authenticated content</Text> };
 });
 jest.mock('@tloncorp/app/navigation/SideInsetScreenLayout', () => ({
   SideInsetView: require('react-native').View,

@@ -6,7 +6,11 @@ import BottomSheet, {
   BottomSheetView,
   BottomSheetScrollView as GorhomBottomSheetScrollView,
 } from '@gorhom/bottom-sheet';
-import { ActionSheetContext, View } from '@tloncorp/ui';
+import {
+  ActionSheetContext,
+  View,
+  useWindowSafeAreaInsets,
+} from '@tloncorp/ui';
 import React, {
   PropsWithChildren,
   forwardRef,
@@ -18,7 +22,6 @@ import React, {
   useState,
 } from 'react';
 import { BackHandler, Keyboard } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from 'tamagui';
 
 import {
@@ -178,7 +181,7 @@ export const BottomSheetWrapper = forwardRef<
     const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const prevOpenRef = useRef<boolean>(open);
     const theme = useTheme();
-    const { left: leftInset, right: rightInset } = useSafeAreaInsets();
+    const { left: leftInset, right: rightInset } = useWindowSafeAreaInsets();
 
     const clearCloseTimer = useCallback(() => {
       if (closeTimerRef.current) {

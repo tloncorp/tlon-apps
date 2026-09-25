@@ -7,7 +7,10 @@ import { getVariableValue, useTheme } from '@tamagui/core';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useMemo } from 'react';
+import { Platform } from 'react-native';
 
+import { InviteSystemContactsScreen } from '../../features/contacts/InviteSystemContactsScreen';
+import { AttestationScreen } from '../../features/profile/AttestationScreen';
 import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
 import { ActivityEmptyState } from '../../features/top/DesktopEmptyStates';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
@@ -16,6 +19,10 @@ import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
 import { ActivityScreenView, DESKTOP_SIDEBAR_WIDTH } from '../../ui';
 import { useRootNavigation } from '../utils';
 import { ActivityDrawerParamList } from '../types';
+import {
+  ListPaneSafeArea,
+  detailPaneScreenLayout,
+} from './PaneSafeAreaProvider';
 
 const ActivityDrawer = createDrawerNavigator<ActivityDrawerParamList>();
 
@@ -99,7 +106,12 @@ export const ActivityNavigator = () => {
   return (
     <ActivityDrawer.Navigator
       initialRouteName="ActivityEmpty"
-      drawerContent={DrawerContent}
+      drawerContent={(props) => (
+        <ListPaneSafeArea>
+          <DrawerContent {...props} />
+        </ListPaneSafeArea>
+      )}
+      screenLayout={detailPaneScreenLayout}
       backBehavior="history"
       screenOptions={{
         headerShown: false,
@@ -121,6 +133,14 @@ export const ActivityNavigator = () => {
       />
       <ActivityDrawer.Screen name="UserProfile" component={UserProfileScreen} />
       <ActivityDrawer.Screen name="EditProfile" component={EditProfileScreen} />
+      <ActivityDrawer.Screen name="Attestation" component={AttestationScreen} />
+      {/* The activity list's invite action reads the device address book. */}
+      {Platform.OS !== 'web' ? (
+        <ActivityDrawer.Screen
+          name="InviteSystemContacts"
+          component={InviteSystemContactsScreen}
+        />
+      ) : null}
     </ActivityDrawer.Navigator>
   );
 };

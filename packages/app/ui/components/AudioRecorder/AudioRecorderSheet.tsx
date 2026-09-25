@@ -1,4 +1,4 @@
-import { ForwardingProps, Sheet } from '@tloncorp/ui';
+import { ForwardingProps, Sheet, useWindowSafeAreaInsets } from '@tloncorp/ui';
 import {
   ComponentProps,
   ComponentRef,
@@ -6,7 +6,6 @@ import {
   useEffect,
   useRef,
 } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AudioRecorder } from './AudioRecorder';
 
@@ -20,7 +19,7 @@ export function AudioRecorderSheet({
     audioRecorderProps: ComponentProps<typeof AudioRecorder>;
   }
 >) {
-  const safeAreaInsets = useSafeAreaInsets();
+  const safeAreaInsets = useWindowSafeAreaInsets();
   const audioRecorderRef = useRef<ComponentRef<typeof AudioRecorder> | null>(
     null
   );

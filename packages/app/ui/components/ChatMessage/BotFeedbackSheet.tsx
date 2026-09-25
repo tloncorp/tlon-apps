@@ -1,6 +1,7 @@
 import type { BotReplyFeedbackRating } from '@tloncorp/api';
 import { Button, Icon, Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 import { XStack, YStack } from 'tamagui';
 
 import { ActionSheet } from '../ActionSheet';
@@ -81,7 +82,8 @@ export function BotFeedbackSheet({
   onRatingChange: (rating: BotReplyFeedbackRating) => Promise<void>;
   onSubmit: (categories: string[], details: string) => Promise<void>;
 }) {
-  const isWindowNarrow = useIsWindowNarrow();
+  // ActionSheet stays a bottom sheet on native at any width.
+  const usesSheet = useIsWindowNarrow() || Platform.OS !== 'web';
   const [categories, setCategories] = useState<string[]>([]);
   const [details, setDetails] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -134,8 +136,8 @@ export function BotFeedbackSheet({
     <Text
       size="$label/s"
       color="$tertiaryText"
-      textAlign={isWindowNarrow ? 'center' : 'left'}
-      flex={isWindowNarrow ? undefined : 1}
+      textAlign={usesSheet ? 'center' : 'left'}
+      flex={usesSheet ? undefined : 1}
     >
       Your feedback and this thread are shared with Tlon.
     </Text>
@@ -144,11 +146,11 @@ export function BotFeedbackSheet({
   const submitButton = (
     <Button
       preset="primary"
-      size={isWindowNarrow ? 'medium' : 'small'}
+      size={usesSheet ? 'medium' : 'small'}
       label="Send feedback"
       centered
-      width={isWindowNarrow ? '100%' : 'auto'}
-      minWidth={isWindowNarrow ? undefined : 128}
+      width={usesSheet ? '100%' : 'auto'}
+      minWidth={usesSheet ? undefined : 128}
       disabled={submitting}
       onPress={handleSubmit}
       testID="BotFeedbackDone"
@@ -170,17 +172,17 @@ export function BotFeedbackSheet({
         keyboardShouldPersistTaps="handled"
         // Native BottomSheetScrollView does not apply this prop to its content
         // container, so narrow-layout gutters live on the inner stack below.
-        paddingHorizontal={isWindowNarrow ? 0 : '$3xl'}
+        paddingHorizontal={usesSheet ? 0 : '$3xl'}
       >
         <YStack
-          paddingTop={isWindowNarrow ? '$xl' : '$3xl'}
-          paddingHorizontal={isWindowNarrow ? '$2xl' : 0}
-          paddingBottom={isWindowNarrow ? 0 : '$m'}
-          gap={isWindowNarrow ? '$xl' : '$2xl'}
+          paddingTop={usesSheet ? '$xl' : '$3xl'}
+          paddingHorizontal={usesSheet ? '$2xl' : 0}
+          paddingBottom={usesSheet ? 0 : '$m'}
+          gap={usesSheet ? '$xl' : '$2xl'}
         >
           <YStack
-            gap={isWindowNarrow ? '$xs' : '$s'}
-            paddingRight={isWindowNarrow ? 0 : '$4xl'}
+            gap={usesSheet ? '$xs' : '$s'}
+            paddingRight={usesSheet ? 0 : '$4xl'}
           >
             <Text size="$label/xl" fontWeight="600" color="$primaryText">
               Share feedback
@@ -202,7 +204,7 @@ export function BotFeedbackSheet({
             flexWrap="wrap"
             gap="$s"
             alignContent="flex-start"
-            minHeight={isWindowNarrow ? 152 : undefined}
+            minHeight={usesSheet ? 152 : undefined}
           >
             {CATEGORIES[rating].map((category) => {
               const selected = categories.includes(category);
@@ -266,7 +268,7 @@ export function BotFeedbackSheet({
             maxLength={4_000}
             placeholder="Share details (optional)"
             frameStyle={{
-              minHeight: isWindowNarrow ? 88 : 96,
+              minHeight: usesSheet ? 88 : 96,
               alignItems: 'flex-start',
               paddingHorizontal: '$l',
             }}
@@ -279,7 +281,7 @@ export function BotFeedbackSheet({
             </Text>
           ) : null}
 
-          {isWindowNarrow ? (
+          {usesSheet ? (
             <YStack gap="$l">
               {submitButton}
               {disclosure}

@@ -1,3 +1,4 @@
+import { useWindowSafeAreaInsets } from '@tloncorp/ui';
 import * as store from '@tloncorp/shared/store';
 import React, { useEffect, useState } from 'react';
 import { Dimensions, LayoutChangeEvent } from 'react-native';
@@ -7,7 +8,6 @@ import Animated, {
   withDelay,
   withSpring,
 } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Popover, View, XStack, YStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../../contexts/appDataContext';
@@ -44,7 +44,7 @@ export function ChatMessageActions({
   const currentUserId = useCurrentUserId();
   const channel = store.useChannel({ id: post.channelId });
   const canWrite = useCanWrite(channel.data, currentUserId);
-  const insets = useSafeAreaInsets();
+  const insets = useWindowSafeAreaInsets();
   const PADDING_THRESHOLD = 40;
 
   const [actionLayout, setActionLayout] = useState<LayoutStruct | null>(null);

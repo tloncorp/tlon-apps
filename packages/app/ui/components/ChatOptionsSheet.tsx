@@ -447,7 +447,8 @@ function EditGroupSheetContent({
   onPressBack: () => void;
   onOpenChange: (open: boolean, clearChat?: boolean) => void;
 }) {
-  const isWindowNarrow = useIsWindowNarrow();
+  // ActionSheet stays a bottom sheet on native at any width.
+  const usesSheet = useIsWindowNarrow() || !isWeb;
   const { onPressGroupMeta, onPressManageChannels, onPressGroupPrivacy } =
     useChatOptions();
 
@@ -482,7 +483,7 @@ function EditGroupSheetContent({
           action: wrappedAction.bind(null, onPressGroupPrivacy, false),
           endIcon: 'ChevronRight',
         },
-        !isWindowNarrow && {
+        !usesSheet && {
           title: 'Back',
           action: onPressBack,
           startIcon: 'ChevronLeft',
@@ -493,7 +494,7 @@ function EditGroupSheetContent({
       onPressGroupPrivacy,
       onPressManageChannels,
       onPressBack,
-      isWindowNarrow,
+      usesSheet,
       wrappedAction,
     ]
   );
@@ -828,10 +829,12 @@ export function ChatOptionsSheetContent({
 }) {
   const isWindowNarrow = useIsWindowNarrow();
   const isDesktopFlyout = isWeb && !isWindowNarrow;
+  // ActionSheet stays a bottom sheet on native at any width.
+  const usesSheet = isWindowNarrow || !isWeb;
 
   return (
     <>
-      {isWindowNarrow && (
+      {usesSheet && (
         <ActionSheet.Header>
           {icon}
           <ActionSheet.ActionContent>
@@ -844,11 +847,7 @@ export function ChatOptionsSheetContent({
       )}
       <ActionSheet.Content
         width={
-          isDesktopFlyout
-            ? DESKTOP_FLYOUT_MIN_WIDTH
-            : isWindowNarrow
-              ? '100%'
-              : 240
+          isDesktopFlyout ? DESKTOP_FLYOUT_MIN_WIDTH : usesSheet ? '100%' : 240
         }
       >
         <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />

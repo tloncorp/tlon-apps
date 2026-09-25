@@ -5,6 +5,7 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { ConfirmDialog, useIsWindowNarrow } from '@tloncorp/ui';
 import { noop } from 'lodash';
+import { Platform } from 'react-native';
 import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { ChatOptionsSheet } from '../../components/ChatOptionsSheet';
@@ -410,7 +411,9 @@ export const ChatOptionsProvider = ({
   return (
     <ChatOptionsContext.Provider value={contextValue}>
       {children}
-      {isWindowNarrow && (
+      {/* Native keeps sheets in the split layout too; web desktop opens
+          these options from each row's hover menu instead. */}
+      {(isWindowNarrow || Platform.OS !== 'web') && (
         <>
           <ChatOptionsSheet
             open={sheetOpen && (chat?.type === 'channel' ? !!channel : !!group)}

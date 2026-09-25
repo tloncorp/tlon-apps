@@ -5,6 +5,7 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Text } from '@tloncorp/ui';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { ChatList } from '../../features/chat-list/ChatList';
@@ -38,6 +39,7 @@ import {
 import { SplashModal } from '../../ui/components/Wayfinding/SplashModal';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { useRootNavigation } from '../utils';
+import { useSidebarSearch } from './useSidebarSearch';
 
 const logger = createDevLogger('HomeSidebar', false);
 
@@ -258,9 +260,10 @@ export const HomeSidebar = memo(
       [performGroupAction]
     );
 
-    const handleSearch = useCallback(() => {
+    const openGlobalSearch = useCallback(() => {
       setIsOpen(true);
     }, [setIsOpen]);
+    const search = useSidebarSearch(openGlobalSearch);
 
     const handlePressInvite = useCallback((groupId: string) => {
       setInviteSheetGroup(groupId);
@@ -268,7 +271,7 @@ export const HomeSidebar = memo(
 
     const displayData = useFilteredChats({
       ...resolvedChats,
-      searchQuery: '',
+      searchQuery: search.query,
       activeTab: 'home',
     });
 
@@ -293,15 +296,23 @@ export const HomeSidebar = memo(
                 <>
                   <ScreenHeader.IconButton
                     type="Search"
-                    onPress={handleSearch}
+                    onPress={search.toggle}
                   />
-                  <CreateChatSheet
-                    ref={createChatSheetRef}
-                    trigger={<ScreenHeader.IconButton type="Add" />}
-                  />
+                  {Platform.OS === 'web' ? (
+                    <CreateChatSheet
+                      ref={createChatSheetRef}
+                      trigger={<ScreenHeader.IconButton type="Add" />}
+                    />
+                  ) : (
+                    <ScreenHeader.IconButton
+                      type="Add"
+                      onPress={() => createChatSheetRef.current?.open()}
+                    />
+                  )}
                 </>
               }
             />
+            {search.searchInput}
             <View flex={1}>
               {chats && noChats ? (
                 <View
@@ -350,6 +361,9 @@ export const HomeSidebar = memo(
             <SplashModal open={showSplash} setOpen={() => {}} />
           </View>
         </NavigationProvider>
+        {Platform.OS === 'web' ? null : (
+          <CreateChatSheet ref={createChatSheetRef} />
+        )}
       </ChatOptionsProvider>
     );
   }

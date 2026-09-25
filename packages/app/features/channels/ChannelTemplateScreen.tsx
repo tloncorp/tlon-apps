@@ -3,8 +3,8 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
-import { getTopLevelTabRoute } from '../../navigation/topLevelTabs';
 import { RootStackParamList } from '../../navigation/types';
+import { useRootNavigation } from '../../navigation/utils';
 import { ChannelFromTemplateView, GroupsProvider } from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChannelTemplate'>;
@@ -14,23 +14,13 @@ export function ChannelTemplateScreen(props: Props) {
   const channelQuery = store.useChannel({ id: channelId });
   const { data: groups } = store.useGroups({});
 
+  const { resetToChannel } = useRootNavigation();
+
   const handleGoToChannel = useCallback(
     (channel: db.Channel) => {
-      props.navigation.reset({
-        index: 1,
-        routes: [
-          getTopLevelTabRoute('ChatList'),
-          {
-            name: 'Channel',
-            params: {
-              channelId: channel.id,
-              groupId: channel.groupId ?? undefined,
-            },
-          },
-        ],
-      });
+      resetToChannel(channel.id, { groupId: channel.groupId ?? undefined });
     },
-    [props.navigation]
+    [resetToChannel]
   );
 
   return (

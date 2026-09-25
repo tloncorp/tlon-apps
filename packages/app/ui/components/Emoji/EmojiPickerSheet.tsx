@@ -8,10 +8,10 @@ import {
   getNativeEmoji,
   searchEmojis,
   usePreloadedEmojis,
+  useWindowSafeAreaInsets,
 } from '@tloncorp/ui';
 import React, { ComponentProps, useCallback, useMemo, useState } from 'react';
 import { Platform, useWindowDimensions } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getTokenValue } from 'tamagui';
 
 import { ActionSheet } from '../ActionSheet';
@@ -51,7 +51,7 @@ export function EmojiPickerSheet(
   const { onEmojiSelect, ...rest } = props;
   const ALL_EMOJIS = usePreloadedEmojis();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const { left: leftInset, right: rightInset } = useSafeAreaInsets();
+  const { left: leftInset, right: rightInset } = useWindowSafeAreaInsets();
 
   // Estimate list container size to enable immediate rendering (native only)
   // Sheet is ~60% height (from snapPoints), minus search bar + handle + padding (~100px)

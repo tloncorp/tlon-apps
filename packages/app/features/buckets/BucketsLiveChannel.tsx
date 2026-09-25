@@ -15,7 +15,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Linking, useWindowDimensions } from 'react-native';
+import { Linking, Platform, useWindowDimensions } from 'react-native';
 
 import {
   BucketFileViewer,
@@ -133,7 +133,8 @@ export function BucketsLiveChannel({
 }) {
   const { height: windowHeight } = useWindowDimensions();
   const isWindowNarrow = useIsWindowNarrow();
-  const isMobileLayout = viewport === 'mobile' || isWindowNarrow;
+  const isMobileLayout =
+    viewport === 'mobile' || isWindowNarrow || Platform.OS !== 'web';
   const live = useLiveBucket(flag);
   const [activeFolderId, setActiveFolderId] = useState<number | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);

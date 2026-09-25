@@ -11,6 +11,8 @@ import { getVariableValue, useTheme } from 'tamagui';
 
 import { ChannelMembersScreen } from '../../features/channels/ChannelMembersScreen';
 import { ChannelMetaScreen } from '../../features/channels/ChannelMetaScreen';
+import { ChannelTemplateScreen } from '../../features/channels/ChannelTemplateScreen';
+import { AttestationScreen } from '../../features/profile/AttestationScreen';
 import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
 import ChannelScreen from '../../features/top/ChannelScreen';
 import ChannelSearchScreen from '../../features/top/ChannelSearchScreen';
@@ -31,6 +33,10 @@ import { getDesktopGroupInvitePreviewProps } from '../routeHelpers';
 import { DesktopChannelStackParamList, HomeDrawerParamList } from '../types';
 import { mediaViewerScreenOptions } from '../utils';
 import { HomeSidebar } from './HomeSidebar';
+import {
+  ListPaneSafeArea,
+  detailPaneScreenLayout,
+} from './PaneSafeAreaProvider';
 
 const HomeDrawer = createDrawerNavigator<HomeDrawerParamList>();
 
@@ -47,7 +53,12 @@ export const HomeNavigator = () => {
   return (
     <NotebookSidebarProvider>
       <HomeDrawer.Navigator
-        drawerContent={(props) => <DrawerContent {...props} />}
+        drawerContent={(props) => (
+          <ListPaneSafeArea>
+            <DrawerContent {...props} />
+          </ListPaneSafeArea>
+        )}
+        screenLayout={detailPaneScreenLayout}
         initialRouteName="ChatList"
         screenOptions={() => {
           return {
@@ -254,12 +265,20 @@ function ChannelStack(
           component={EditProfileScreen}
         />
         <ChannelStackNavigator.Screen
+          name="Attestation"
+          component={AttestationScreen}
+        />
+        <ChannelStackNavigator.Screen
           name="ChannelMembers"
           component={ChannelMembersScreen}
         />
         <ChannelStackNavigator.Screen
           name="ChannelMeta"
           component={ChannelMetaScreen}
+        />
+        <ChannelStackNavigator.Screen
+          name="ChannelTemplate"
+          component={ChannelTemplateScreen}
         />
       </ChannelStackNavigator.Group>
     </ChannelStackNavigator.Navigator>

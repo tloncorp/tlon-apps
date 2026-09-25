@@ -1,7 +1,6 @@
-import { TlonText } from '@tloncorp/ui';
+import { TlonText, useWindowSafeAreaInsets } from '@tloncorp/ui';
 import { useState } from 'react';
 import { Modal, Pressable } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack } from 'tamagui';
 
 interface LongPressDisclosureProps {
@@ -15,7 +14,7 @@ export function LongPressDisclosure({
   children,
 }: LongPressDisclosureProps) {
   const [showFullText, setShowFullText] = useState(false);
-  const { left, right } = useSafeAreaInsets();
+  const { left, right } = useWindowSafeAreaInsets();
 
   return (
     <>

@@ -14,7 +14,8 @@ interface NotificationUrbitModule extends TurboModule {
   setActiveNotificationChannel(channelId: string | null): void;
 }
 
-const chatRoutes = new Set(['Channel', 'DM', 'GroupDM', 'Post']);
+// ChannelRoot is the channel screen inside the split layout's detail pane.
+const chatRoutes = new Set(['Channel', 'DM', 'GroupDM', 'ChannelRoot', 'Post']);
 let activeChannelId: string | null = null;
 
 export function notificationChannelIdFromRoute(

@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack, getTokenValue } from 'tamagui';
 
@@ -16,7 +17,7 @@ export function GroupTitleInputSheet({
   onSubmitTitle,
 }: GroupTitleInputSheetProps) {
   const { bottom } = useSafeAreaInsets();
-  const isWindowNarrow = useIsWindowNarrow();
+  const usesSheet = useIsWindowNarrow() || Platform.OS !== 'web';
   const [title, setTitle] = useState('');
 
   const handleNext = useCallback(() => {
@@ -48,7 +49,7 @@ export function GroupTitleInputSheet({
       placeholder="Group name"
       value={title}
       onChangeText={setTitle}
-      autoFocus={!isWindowNarrow}
+      autoFocus={!usesSheet}
       onSubmitEditing={handleNext}
       returnKeyType="next"
     />
@@ -64,7 +65,7 @@ export function GroupTitleInputSheet({
     />
   );
 
-  const content = isWindowNarrow ? (
+  const content = usesSheet ? (
     <YStack gap="$l">
       {header}
       <YStack paddingHorizontal="$xl">{input}</YStack>
@@ -88,7 +89,7 @@ export function GroupTitleInputSheet({
     </YStack>
   );
 
-  const actionSheetProps = isWindowNarrow
+  const actionSheetProps = usesSheet
     ? { modal: true }
     : {
         mode: 'dialog' as const,
@@ -102,7 +103,7 @@ export function GroupTitleInputSheet({
       onOpenChange={handleOpenChange}
       {...actionSheetProps}
     >
-      {isWindowNarrow ? content : <View padding="$m">{content}</View>}
+      {usesSheet ? content : <View padding="$m">{content}</View>}
     </ActionSheet>
   );
 }

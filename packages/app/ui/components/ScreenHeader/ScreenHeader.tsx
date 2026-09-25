@@ -1,6 +1,6 @@
 import { NavigationContext } from '@react-navigation/native';
 import { useDebouncedValue } from '@tloncorp/shared';
-import { Icon, Text, View } from '@tloncorp/ui';
+import { Icon, Text, View, useIsWindowNarrow } from '@tloncorp/ui';
 import {
   Children,
   ReactNode,
@@ -115,10 +115,13 @@ export const ScreenHeaderComponent = ({
   const { top, left: leftInset, right: rightInset } = useSafeAreaInsets();
   const { width: screenWidth } = useSafeAreaFrame();
   const { fontScale } = useWindowDimensions();
+  // The split layout's navigators draw headers inline.
+  const isWindowNarrow = useIsWindowNarrow();
   const isNativeNavigationHeader =
     placement === 'navigation' &&
     !forceInline &&
     Platform.OS !== 'web' &&
+    isWindowNarrow &&
     navigation != null;
   const [headerWidth, setHeaderWidth] = useState(0);
   const [leftControlsWidth, setLeftControlsWidth] = useState(0);

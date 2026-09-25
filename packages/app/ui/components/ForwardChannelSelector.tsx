@@ -1,9 +1,9 @@
+import { useWindowSafeAreaInsets } from '@tloncorp/ui';
 import { BottomSheetFlashList } from '@gorhom/bottom-sheet';
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform, useWindowDimensions } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, XStack, getTokenValue } from 'tamagui';
 
 import { useFilteredChannelChats } from '../../hooks/useFilteredChannelChats';
@@ -37,7 +37,7 @@ export function ForwardChannelSelector({
   channelFilter,
 }: ForwardChannelSelectorProps) {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const { left: leftInset, right: rightInset } = useSafeAreaInsets();
+  const { left: leftInset, right: rightInset } = useWindowSafeAreaInsets();
   const [query, setQuery] = useState('');
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(
     null

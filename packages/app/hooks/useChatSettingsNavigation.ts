@@ -1,14 +1,22 @@
-import { NavigatorScreenParams, useNavigation } from '@react-navigation/native';
+import {
+  NavigationContainerRefContext,
+  NavigatorScreenParams,
+  useNavigation,
+} from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useMutableRef } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { useCallback } from 'react';
-import { Platform } from 'react-native';
+import { useCallback, useContext } from 'react';
 
 import { getTopLevelTabRoute } from '../navigation/topLevelTabs';
 import type { RootStackParamList } from '../navigation/types';
 import { GroupSettingsStackParamList } from '../navigation/types';
-import { useRootNavigation, useTypedReset } from '../navigation/utils';
+import {
+  didSwapNavigatorTree,
+  showInMountedTree,
+  useRootNavigation,
+  useTypedReset,
+} from '../navigation/utils';
 import { useIsWindowNarrow } from '../ui';
 
 export const useHandleGoBack = (
@@ -65,6 +73,7 @@ export const useChatSettingsNavigation = () => {
   } = useRootNavigation();
   const reset = useTypedReset();
   const isWindowNarrow = useIsWindowNarrow();
+  const container = useContext(NavigationContainerRefContext);
 
   const navigateToGroupSettings = useCallback(
     async <T extends keyof GroupSettingsStackParamList>(
@@ -80,6 +89,16 @@ export const useChatSettingsNavigation = () => {
         const group = await db.getGroup({ id: params.groupId });
         const channelId =
           group?.channels?.[0]?.id ?? params.groupId.replace('group/', 'chat/');
+        if (didSwapNavigatorTree(isWindowNarrow)) {
+          showInMountedTree(container, {
+            kind: 'groupSettings',
+            groupId: params.groupId,
+            channelId,
+            screen,
+            params,
+          });
+          return;
+        }
         navigation.navigate('Channel' as any, {
           channelId,
           groupId: params.groupId,
@@ -102,7 +121,7 @@ export const useChatSettingsNavigation = () => {
         },
       } as NavigatorScreenParams<GroupSettingsStackParamList>);
     },
-    [navigation, isWindowNarrow]
+    [container, navigation, isWindowNarrow]
   );
 
   const onPressGroupMeta = useCallback(
@@ -214,14 +233,18 @@ export const useChatSettingsNavigation = () => {
   );
 
   const onLeaveGroup = useCallback(() => {
-    if (Platform.OS !== 'web' || isWindowNarrow) {
+    if (didSwapNavigatorTree(isWindowNarrow)) {
+      showInMountedTree(container, { kind: 'home' });
+      return;
+    }
+    if (isWindowNarrow) {
       const route = getTopLevelTabRoute('ChatList');
       navigationRef.current.navigate(route.name, route.params, { pop: true });
     } else {
       // Desktop: Reset navigation stack to clean Home state
       reset([{ name: 'Home' }]);
     }
-  }, [navigationRef, isWindowNarrow, reset]);
+  }, [container, navigationRef, isWindowNarrow, reset]);
 
   const onLeaveChannel = useCallback(
     async (groupId: string, leavingChannelId: string) => {

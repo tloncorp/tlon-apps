@@ -1,8 +1,8 @@
+import { CommonActions } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
 import { useCallback, useState } from 'react';
-import { Platform } from 'react-native';
 
 import {
   useChatSettingsNavigation,
@@ -36,11 +36,13 @@ export function GroupMetaScreen(props: Props) {
   const isWindowNarrow = useIsWindowNarrow();
 
   const navigateToHome = useCallback(() => {
-    if (Platform.OS !== 'web' || isWindowNarrow) {
+    if (isWindowNarrow) {
       const route = getTopLevelTabRoute('ChatList');
       navigation.getParent()?.navigate(route.name, route.params, { pop: true });
     } else {
-      navigation.getParent()?.navigate('ChatList', undefined, { pop: true });
+      navigation.dispatch(
+        CommonActions.navigate('Home', { screen: 'ChatList' }, { pop: true })
+      );
     }
   }, [isWindowNarrow, navigation]);
 

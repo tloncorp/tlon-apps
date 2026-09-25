@@ -14,7 +14,15 @@ import { useShip } from '@tloncorp/app/contexts/ship';
 import { RequiredUpdateScreen } from '@tloncorp/app/features/RequiredUpdateScreen';
 import { findAgentGroupOnboardingStartupRoute } from '@tloncorp/app/hooks/useAgentGroupOnboardingLock';
 import { SideInsetView } from '@tloncorp/app/navigation/SideInsetScreenLayout';
-import { markNavigationRestored } from '@tloncorp/app/navigation/navigationRestore';
+import {
+  markNavigationRestored,
+  setRestoredNavigationLayout,
+} from '@tloncorp/app/navigation/navigationRestore';
+import {
+  getLayoutPosition,
+  getLayoutState,
+  isSplitLayoutWidth,
+} from '@tloncorp/app/navigation/splitLayoutState';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useDarkMode';
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
@@ -30,6 +38,7 @@ import {
   EmailSupportLink,
   LoadingSpinner,
   SplashSequence,
+  isNativeSplitLayoutMounted,
   Text,
   View,
   YStack,
@@ -43,7 +52,7 @@ import { withRetry } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import * as SplashScreen from 'expo-splash-screen';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform, StatusBar } from 'react-native';
+import { Dimensions, Platform, StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { OnboardingStack } from './OnboardingStack';
@@ -315,6 +324,16 @@ function ConnectedNavigationContent({
         ) {
           initialState = saved.state as NavigationState;
           markNavigationRestored(getFocusedTopLevelTab(initialState));
+          // Positions are saved in the phone tree's shape. A wide window
+          // mounts the split layout's tree first, so hand it the same place
+          // in its own route names.
+          const position = isSplitLayoutWidth(Dimensions.get('window').width)
+            ? getLayoutPosition(initialState)
+            : null;
+          if (position) {
+            initialState = getLayoutState(position, 'split') as NavigationState;
+          }
+          setRestoredNavigationLayout(position ? 'split' : 'phone');
           // The window measures how recently a position was in use, not when
           // it last changed. Only `onStateChange` writes it otherwise, so a
           // restored screen the user reads without navigating away keeps the
@@ -371,7 +390,14 @@ function ConnectedNavigationContent({
 
     navigationLogging.onStateChange(state);
 
-    const position = sanitizeNavigationStateForPersistence(state);
+    const splitPosition = isNativeSplitLayoutMounted()
+      ? getLayoutPosition(state)
+      : null;
+    const position = sanitizeNavigationStateForPersistence(
+      splitPosition
+        ? { ...getLayoutState(splitPosition, 'phone'), type: 'stack' }
+        : state
+    );
     if (position) {
       db.lastNavigationState
         .setValue({

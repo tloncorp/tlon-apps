@@ -8,7 +8,8 @@ import { ContactBook } from './ContactBook';
 
 // A ship picker sheet mirroring the DM contact picker: a searchable ContactBook
 // that also accepts any typed @p (ContactBook synthesizes a fallback contact
-// for a valid patp). Bottom sheet on narrow, dialog on wide, like CreateChat.
+// for a valid patp). Bottom sheet on narrow and native, dialog on wide web,
+// like CreateChat.
 export function ShipPickerSheet({
   open,
   onOpenChange,
@@ -26,7 +27,7 @@ export function ShipPickerSheet({
   disabledReason?: string;
   onSelect: (shipId: string) => void;
 }) {
-  const isWindowNarrow = useIsWindowNarrow();
+  const usesSheet = useIsWindowNarrow() || Platform.OS !== 'web';
   const [scrolling, setScrolling] = useState(false);
   // Let the drag handle (not the list) own the pan gesture on Android so the
   // nested ContactBook can scroll.
@@ -40,18 +41,18 @@ export function ShipPickerSheet({
       <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
       <ContactBook
         searchable
-        autoFocus={!isWindowNarrow}
+        autoFocus={!usesSheet}
         searchPlaceholder="Filter by nickname or @p"
         onSelect={onSelect}
         onScrollChange={setScrolling}
         disabledIds={disabledIds}
         disabledReason={disabledReason}
-        maxHeight={isWindowNarrow ? undefined : 500}
+        maxHeight={usesSheet ? undefined : 500}
       />
     </YStack>
   );
 
-  if (isWindowNarrow) {
+  if (usesSheet) {
     return (
       <ActionSheet
         open={open}

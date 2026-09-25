@@ -271,7 +271,7 @@ const CreateChatFormContent = ({
 }: CreateChatFormContentProps) => {
   const { title, subtitle } = CHAT_TYPE_CONFIG[chatType];
   const { bottom } = useSafeAreaInsets();
-  const isWindowNarrow = useIsWindowNarrow();
+  const usesSheet = useIsWindowNarrow() || Platform.OS !== 'web';
   const isGroup = chatType === 'group';
   const disabledIds = store.useGroupsNegotiationClashes({ enabled: isGroup });
 
@@ -283,13 +283,13 @@ const CreateChatFormContent = ({
           searchable
           multiSelect={chatType === 'group'}
           searchPlaceholder="Filter by nickname or id"
-          autoFocus={!isWindowNarrow}
+          autoFocus={!usesSheet}
           onSelect={onSelectDmContact}
           onSelectedChange={onSelectedChange}
           onScrollChange={(scrolling) => {
             onScrollChange?.(scrolling);
           }}
-          maxHeight={isWindowNarrow ? undefined : 500}
+          maxHeight={usesSheet ? undefined : 500}
           disabledIds={isGroup ? disabledIds : undefined}
           disabledReason="App version mismatch"
         />
@@ -469,7 +469,9 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
     } as Partial<{ onPress: () => void; 'data-testid': string }>);
   }, [open, trigger]);
 
-  return !isWindowNarrow ? (
+  // Native keeps the phone sheets at any width: ActionSheet has no dialog
+  // there.
+  return !isWindowNarrow && Platform.OS === 'web' ? (
     <>
       {triggerWithOnPress}
       <ActionSheet

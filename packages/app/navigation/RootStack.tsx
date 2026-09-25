@@ -61,7 +61,12 @@ const nativeHeaderScreenOptions = {
   headerShown: Platform.OS !== 'web',
 } as const;
 
-export function RootStack() {
+export function RootStack({
+  initialMainTabsParams,
+}: {
+  /** Opens the tabs on a given tab, for a tree mounted to show a known place. */
+  initialMainTabsParams?: RootStackParamList['MainTabs'];
+} = {}) {
   const isDarkMode = useIsDarkMode();
 
   // Android status bar has a solid color by default, so we clear it
@@ -102,6 +107,7 @@ export function RootStack() {
       <Root.Screen
         name="MainTabs"
         component={TopLevelTabNavigator}
+        initialParams={initialMainTabsParams}
         // UIKit lays the tab bar out in the insets itself; each tab screen
         // gets the inset layout from TopLevelTabNavigator instead.
         layout={({ children }) => children}

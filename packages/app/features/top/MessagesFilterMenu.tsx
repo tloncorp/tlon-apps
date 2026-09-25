@@ -74,7 +74,7 @@ export function MessagesFilterMenu({ children }: PropsWithChildren) {
         width={
           isDesktopFlyout
             ? DESKTOP_FLYOUT_MIN_WIDTH
-            : isWindowNarrow
+            : isWindowNarrow || !isWeb
               ? '100%'
               : 240
         }
