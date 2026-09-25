@@ -262,7 +262,10 @@ export function buildAgentTaskPlanBlob(
               {
                 id: 'root',
                 component: 'Column',
-                children: ['summary'],
+                children: [
+                  'summary',
+                  AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID,
+                ],
               },
               {
                 id: 'summary',
@@ -270,9 +273,10 @@ export function buildAgentTaskPlanBlob(
                 text: params.summary,
               },
               {
-                // This trusted orphan action is intentionally not rendered.
-                // The client submits it once when the plan arrives, keeping
-                // authorization and idempotency in the existing coordinator.
+                // This trusted action is part of the declared surface so the
+                // client can verify its provenance. The client keeps this
+                // reserved control hidden and submits it once when the plan
+                // arrives.
                 id: AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID,
                 component: 'Button',
                 child: 'auto-provision-label',
