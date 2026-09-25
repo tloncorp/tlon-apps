@@ -445,28 +445,34 @@ index 8718921d38c951a0606a2954ea4c1cdc721cbe6a..245e6ccd97430f1c0e7eab17e86e6c12
    }
  }
 diff --git a/src/community/bottom-sheet/BottomSheet.android.tsx b/src/community/bottom-sheet/BottomSheet.android.tsx
-index f60ae61bf0c9023d41c55cdca2d9af0de7291a92..8788a8d22aa9db7e169fda65e49a5a790db04bc8 100644
+index f60ae61bf0c9023d41c55cdca2d9af0de7291a92..a7092b918dceab914450db3653abce3d092649a1 100644
 --- a/src/community/bottom-sheet/BottomSheet.android.tsx
 +++ b/src/community/bottom-sheet/BottomSheet.android.tsx
-@@ -46,6 +46,17 @@ function findNearestSnapPointIndex(
+@@ -46,6 +46,23 @@ function findNearestSnapPointIndex(
    return typeof position === 'number' ? snapPoints.length - 1 : 0;
  }
  
 +function getSingleSnapPointHeight(
 +  snapPoints: BottomSheetProps['snapPoints'],
-+  containerHeight: number
++  containerHeight: number,
++  showDragHandle: boolean
 +): number | undefined {
 +  if (!snapPoints || snapPoints.length !== 1) return undefined;
 +
 +  const parsed = parseSnapPoint(snapPoints[0]);
-+  const height = parsed.type === 'fraction' ? parsed.value * containerHeight : parsed.value;
-+  return Math.min(containerHeight, Math.max(1, height));
++  const requestedHeight =
++    parsed.type === 'fraction' ? parsed.value * containerHeight : parsed.value;
++  // Material3's default handle occupies 48dp outside the React Native child:
++  // a 4dp handle plus 22dp of vertical padding on each side. Subtract it so
++  // the complete native sheet, rather than only its content, matches the snap point.
++  const nativeHandleHeight = showDragHandle ? 48 : 0;
++  return Math.min(containerHeight, Math.max(1, requestedHeight - nativeHandleHeight));
 +}
 +
  /**
   * Android implementation of `BottomSheet` using Material3 ModalBottomSheet.
   *
-@@ -66,10 +77,13 @@ export function BottomSheet(props: BottomSheetProps) {
+@@ -66,10 +83,13 @@ export function BottomSheet(props: BottomSheetProps) {
      backgroundStyle,
      children,
    } = props;
@@ -477,11 +483,11 @@ index f60ae61bf0c9023d41c55cdca2d9af0de7291a92..8788a8d22aa9db7e169fda65e49a5a79
    const fitToContents = enableDynamicSizing && (!snapPointsProp || snapPointsProp.length === 0);
 +  const singleSnapPointHeight = enableDynamicSizing
 +    ? undefined
-+    : getSingleSnapPointHeight(snapPointsProp, height);
++    : getSingleSnapPointHeight(snapPointsProp, height, handleComponent !== null);
    const skipPartially = fitToContents || !hasMultipleSnapPoints;
    const maxIndex = snapPointsProp ? snapPointsProp.length - 1 : 0;
    const containerColor = extractBackgroundColor(backgroundStyle);
-@@ -199,10 +213,17 @@ export function BottomSheet(props: BottomSheetProps) {
+@@ -199,10 +219,17 @@ export function BottomSheet(props: BottomSheetProps) {
                shouldDismissOnBackPress: enablePanDownToClose,
                shouldDismissOnClickOutside: enablePanDownToClose,
              }}>
