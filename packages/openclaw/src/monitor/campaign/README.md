@@ -32,8 +32,8 @@ accounts and later groups omit the version. Only authenticated owner intros
 newer than the cutoff and within five minutes of the gateway clock can enroll.
 The first server observation starts the week once per owner. No old-user backfill.
 
-The Frankenpool QA deployment is temporarily coupled through
-`TLON_CONFIG=frankenpool`: it enables the campaign for fresh version-1
+The Onboarding QA deployment is temporarily coupled through
+`TLON_CONFIG=onboarding-qa-stack`: it enables the campaign for fresh version-1
 enrollments and replaces the day windows with consecutive one-hour windows.
 It also ignores the local-time delivery window so a test can finish in one
 session. All other deployments retain the explicit config above and production
@@ -92,7 +92,7 @@ Each check evaluates local state and reads in-process cron state; history and
 privacy reads wait until delivery or missed-slot marker reconciliation is due.
 A failed/blocked check can retry on the next 15-minute monitor check.
 
-In the Frankenpool profile, “hourly” means eligible on the hour after enrollment
+In the Onboarding QA profile, “hourly” means eligible on the hour after enrollment
 and delivered on the next monitor check (normally within 15 minutes). Active
 conversation, recent-message, task-state, silence, privacy, and deduplication
 rules still apply.

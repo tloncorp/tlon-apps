@@ -28,8 +28,8 @@ const observers = sharedMap<
   string,
   (event: PluginHookCronChangedEvent) => void
 >('onboardingCampaign.cronObservers');
-const FRANKENPOOL_CONFIG = 'frankenpool';
-const FRANKENPOOL_ENROLL_AFTER = '2026-09-25T00:00:00Z';
+const ONBOARDING_QA_CONFIG = 'onboarding-qa-stack';
+const ONBOARDING_QA_ENROLL_AFTER = '2026-09-25T00:00:00Z';
 
 export function resolveCampaignConfig(
   config: OpenClawConfig,
@@ -42,11 +42,11 @@ export function resolveCampaignConfig(
         | undefined
     )?.onboardingCampaign ?? {};
   const campaign =
-    deploymentConfig === FRANKENPOOL_CONFIG
+    deploymentConfig === ONBOARDING_QA_CONFIG
       ? {
           ...configured,
           enabled: true,
-          enrollAfter: configured.enrollAfter ?? FRANKENPOOL_ENROLL_AFTER,
+          enrollAfter: configured.enrollAfter ?? ONBOARDING_QA_ENROLL_AFTER,
           testing: {
             ...configured.testing,
             intervalMinutes: 60,
