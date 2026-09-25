@@ -66,6 +66,7 @@ export type LayoutPosition =
   | { kind: 'settings' }
   | { kind: 'settingsScreen'; screen: string; params?: object }
   | { kind: 'contacts' }
+  | { kind: 'addContacts' }
   | { kind: 'profile'; userId: string }
   | { kind: 'editProfile'; userId: string }
   | { kind: 'attestation'; attestationType: 'twitter' | 'phone' }
@@ -135,12 +136,23 @@ function childFromParams(route: RouteLike): RouteLike | undefined {
   return { name: screen, params };
 }
 
-function focusedChild(route: RouteLike): RouteLike | undefined {
-  if (route.state) {
-    const { routes, index } = route.state;
-    return routes[index ?? routes.length - 1];
+function hasFunctionParam(route: RouteLike) {
+  return Object.values(route.params ?? {}).some(
+    (value) => typeof value === 'function'
+  );
+}
+
+function groupSettingsChild(route: RouteLike): RouteLike | undefined {
+  if (!route.state) {
+    return childFromParams(route);
   }
-  return childFromParams(route);
+  const { routes, index } = route.state;
+  for (let i = index ?? routes.length - 1; i >= 0; i--) {
+    if (!hasFunctionParam(routes[i])) {
+      return routes[i];
+    }
+  }
+  return undefined;
 }
 
 function isDmChannel(channelId: string) {
@@ -209,7 +221,7 @@ function positionFromRoute(route: RouteLike): LayoutPosition | null {
     case 'GroupChannels':
       return groupId ? { kind: 'group', groupId } : null;
     case 'GroupSettings': {
-      const child = focusedChild(route);
+      const child = groupSettingsChild(route);
       const settingsGroupId = stringParam(child?.params, 'groupId');
       return child?.params && settingsGroupId
         ? {
@@ -250,6 +262,8 @@ function positionFromRoute(route: RouteLike): LayoutPosition | null {
       return { kind: 'settings' };
     case 'Contacts':
       return { kind: 'contacts' };
+    case 'AddContacts':
+      return { kind: 'addContacts' };
     case 'MainTabs':
     case 'ChatList':
     case 'Home':
@@ -366,6 +380,8 @@ function phoneRoutes(position: LayoutPosition): ResetRoute[] {
       ];
     case 'contacts':
       return [chatList, { name: 'Contacts' }];
+    case 'addContacts':
+      return [chatList, { name: 'Contacts' }, { name: 'AddContacts' }];
     case 'profile':
       return [
         chatList,
@@ -470,6 +486,8 @@ function splitRoutes(position: LayoutPosition): ResetRoute[] {
       ];
     case 'contacts':
       return [{ name: 'Contacts' }];
+    case 'addContacts':
+      return [{ name: 'Contacts', params: { screen: 'AddContacts' } }];
     case 'profile':
       return [
         {

@@ -116,6 +116,32 @@ describe('getLayoutPosition', () => {
     ).toEqual({ kind: 'channel', channelId: dmId, groupId: undefined });
   });
 
+  test('opens role member selection from the role form it returns to', () => {
+    expect(
+      getLayoutPosition(
+        phoneStack({ name: 'MainTabs' }, {
+          name: 'GroupSettings',
+          state: {
+            type: 'stack',
+            index: 1,
+            routes: [
+              { name: 'AddRole', params: { groupId } },
+              {
+                name: 'SelectRoleMembers',
+                params: { groupId, selectedMembers: [], onSave: () => {} },
+              },
+            ],
+          },
+        } as never)
+      )
+    ).toEqual({
+      kind: 'groupSettings',
+      groupId,
+      screen: 'AddRole',
+      params: { groupId },
+    });
+  });
+
   test('reads the system contacts invite screen in both trees', () => {
     expect(
       getLayoutPosition({
@@ -357,6 +383,7 @@ describe('getLayoutState', () => {
     { kind: 'inviteSystemContacts' },
     { kind: 'settings' },
     { kind: 'contacts' },
+    { kind: 'addContacts' },
     { kind: 'group', groupId },
     { kind: 'channel', channelId, groupId },
     { kind: 'channel', channelId: dmId, groupId: undefined },
