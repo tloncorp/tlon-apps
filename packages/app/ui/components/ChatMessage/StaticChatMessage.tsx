@@ -61,6 +61,7 @@ import { resolveAgentActionGroupId } from './agentActionGroup';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
+import { followsByChannelOrder } from './postOrdering';
 import { ReactionsDisplay } from './ReactionsDisplay';
 import {
   findConsumedProvisionSelection,
@@ -76,19 +77,7 @@ function receiptFollowsPost(
   post: db.Post
 ) {
   if (!receipt || receipt.postId === post.id) return false;
-  if (receipt.receivedAt !== post.receivedAt) {
-    return receipt.receivedAt > post.receivedAt;
-  }
-  if (
-    receipt.sequenceNum != null &&
-    receipt.sequenceNum > 0 &&
-    post.sequenceNum != null &&
-    post.sequenceNum > 0 &&
-    receipt.sequenceNum !== post.sequenceNum
-  ) {
-    return receipt.sequenceNum > post.sequenceNum;
-  }
-  return false;
+  return followsByChannelOrder(receipt, post);
 }
 
 function provisionMatchesPlan(

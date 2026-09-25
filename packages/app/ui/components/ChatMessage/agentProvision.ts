@@ -4,6 +4,8 @@ import {
   type PostBlobDataEntryA2UISelection,
 } from '@tloncorp/api';
 
+import { followsByChannelOrder } from './postOrdering';
+
 type EvidencePost = {
   id: string;
   authorId: string;
@@ -34,22 +36,6 @@ function isAutomaticProvisionTransport(post: EvidencePost) {
   );
 }
 
-function follows(candidate: EvidencePost, reference: EvidencePost) {
-  if (candidate.receivedAt !== reference.receivedAt) {
-    return candidate.receivedAt > reference.receivedAt;
-  }
-  if (
-    candidate.sequenceNum != null &&
-    candidate.sequenceNum > 0 &&
-    reference.sequenceNum != null &&
-    reference.sequenceNum > 0 &&
-    candidate.sequenceNum !== reference.sequenceNum
-  ) {
-    return candidate.sequenceNum > reference.sequenceNum;
-  }
-  return false;
-}
-
 export function isCurrentOwnerInterview(input: {
   interviewStartMessageId: string | undefined;
   interviewMessageId: string | undefined;
@@ -71,7 +57,7 @@ export function isCurrentOwnerInterview(input: {
     interviewPost.authorId !== input.ownerId ||
     interviewPost.channelId !== input.planPost.channelId ||
     interviewPost.isDeleted ||
-    !follows(input.planPost, interviewPost)
+    !followsByChannelOrder(input.planPost, interviewPost)
   ) {
     return false;
   }
@@ -82,7 +68,7 @@ export function isCurrentOwnerInterview(input: {
       interviewStart.channelId !== input.planPost.channelId ||
       interviewStart.isDeleted ||
       (interviewPost.id !== interviewStart.id &&
-        !follows(interviewPost, interviewStart)))
+        !followsByChannelOrder(interviewPost, interviewStart)))
   ) {
     return false;
   }
@@ -91,8 +77,9 @@ export function isCurrentOwnerInterview(input: {
       candidate.authorId === input.ownerId &&
       !samePostId(candidate.id, interviewPost.id) &&
       !candidate.isDeleted &&
+      candidate.deliveryStatus !== 'failed' &&
       !isAutomaticProvisionTransport(candidate) &&
-      follows(candidate, interviewPost)
+      followsByChannelOrder(candidate, interviewPost)
   );
 }
 
