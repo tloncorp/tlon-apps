@@ -1909,7 +1909,7 @@ describe('primary onboarding cron slot', () => {
             'Keep material battery research visible without a large system.',
         },
         'Updates'
-    );
+      );
     expect(acknowledgement).toContain(
       'I’ll publish the first tailored update in Updates'
     );
