@@ -29,6 +29,7 @@ export function trackAutomaticProvisionReceipt(input: {
 export function shouldAttemptAutomaticProvision(input: {
   componentId: string;
   actionName: string;
+  componentDisabled: boolean;
   selectionsPending: boolean;
   actionAvailable: boolean;
   consumed: boolean;
@@ -37,9 +38,17 @@ export function shouldAttemptAutomaticProvision(input: {
   return (
     input.componentId === AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID &&
     input.actionName === 'tlon.provisionAgent' &&
+    !input.componentDisabled &&
     !input.selectionsPending &&
     input.actionAvailable &&
     !input.consumed &&
     !input.attemptedThisMount
   );
+}
+
+export function clearFailedAutomaticProvision(
+  failedSurfaceIds: string[],
+  surfaceId: string
+) {
+  return failedSurfaceIds.filter((candidate) => candidate !== surfaceId);
 }

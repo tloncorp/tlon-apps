@@ -12,6 +12,8 @@ type EvidencePost = {
   channelId: string;
   receivedAt: number;
   sequenceNum?: number | null;
+  type?: string | null;
+  parentId?: string | null;
   blob?: string | null;
   isDeleted?: boolean | null;
   deliveryStatus?: string | null;
@@ -34,6 +36,10 @@ function isAutomaticProvisionTransport(post: EvidencePost) {
         entry.componentId === 'auto-provision'
     )
   );
+}
+
+function isRootConversationPost(post: EvidencePost) {
+  return post.type !== 'reply' && !post.parentId;
 }
 
 export function isCurrentOwnerInterview(input: {
@@ -78,6 +84,7 @@ export function isCurrentOwnerInterview(input: {
       !samePostId(candidate.id, interviewPost.id) &&
       !candidate.isDeleted &&
       candidate.deliveryStatus !== 'failed' &&
+      isRootConversationPost(candidate) &&
       !isAutomaticProvisionTransport(candidate) &&
       followsByChannelOrder(candidate, interviewPost)
   );

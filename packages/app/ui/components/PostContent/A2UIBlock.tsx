@@ -24,6 +24,7 @@ import { shouldDismissKeyboardForChoice } from './a2uiActionConsumption';
 import {
   AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID,
   claimAutomaticProvisionRetry,
+  clearFailedAutomaticProvision,
   shouldAttemptAutomaticProvision,
   trackAutomaticProvisionReceipt,
 } from './autoProvision';
@@ -861,6 +862,11 @@ export function A2UIBlock({
               : [...previous, component.id]
           );
         }
+        if (component.id === AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID) {
+          setFailedAutoProvisionSurfaceIds((previous) =>
+            clearFailedAutomaticProvision(previous, surfaceId)
+          );
+        }
         return true;
       } catch (error) {
         console.error('A2UI button action failed', error);
@@ -889,6 +895,7 @@ export function A2UIBlock({
       !shouldAttemptAutomaticProvision({
         componentId: component.id,
         actionName: component.action.event.name,
+        componentDisabled: component.disabled === true,
         selectionsPending: Boolean(areA2UISelectionsPending),
         actionAvailable: isA2UIActionAvailable?.(component.action) !== false,
         consumed: Boolean(
