@@ -95,10 +95,11 @@ export function chatAction(
   return action;
 }
 
-// Picks the entry by the same test chatAction uses to pick the mark.
+// chatAction builds a DmAction (keyed by ship) exactly when it picks the DM
+// mark, so the payload's shape picks the entry.
 function pokeChatAction(whom: string, id: string, delta: WritDelta) {
   const { json } = chatAction(whom, id, delta);
-  return whomIsDm(whom)
+  return 'ship' in json
     ? pokeRequest(chat.dmAction)(json)
     : pokeRequest(chat.clubAction)(json);
 }
