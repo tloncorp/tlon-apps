@@ -12,15 +12,13 @@ import type {
   BucketsSummary,
 } from '../urbit/buckets';
 import {
-  BadResponseError,
-  requestJson,
-  scry,
-  subscribe,
-  unsubscribe,
-} from './urbit';
+  buckets,
+  httpRequest,
+  scryRequest,
+  subscribeRequest,
+} from './requests';
+import { BadResponseError } from './urbit';
 
-const BUCKETS_APP = 'buckets';
-const BUCKETS_V1_PATH = '/buckets/~/v1';
 // The agent answers an unauthenticated request with 401, as %notes does, but
 // requestJson only reauths on 403 by default. Without both, an expired Eyre
 // cookie fails every Bucket action outright instead of refreshing once.
@@ -65,14 +63,11 @@ export function parseBucketsChannelId(channelId: string): BucketsFlag | null {
  * one bucket's contents, or getBucketsFull for all of them at once.
  */
 export async function getBuckets() {
-  return scry<BucketsSummary[]>({ app: BUCKETS_APP, path: '/v1/buckets' });
+  return scryRequest(buckets.list)<BucketsSummary[]>({});
 }
 
 export async function getBucketsFull() {
-  return scry<BucketsSnapshot[]>({
-    app: BUCKETS_APP,
-    path: '/v1/buckets/full',
-  });
+  return scryRequest(buckets.full)<BucketsSnapshot[]>({});
 }
 
 /**
@@ -88,10 +83,7 @@ export async function getBucket(
   flag: BucketsFlag
 ): Promise<BucketsSnapshot | null> {
   try {
-    const response = await scry<BucketsResponse>({
-      app: BUCKETS_APP,
-      path: `/v1/buckets/${flag.host}/${flag.name}`,
-    });
+    const response = await scryRequest(buckets.bucket)<BucketsResponse>(flag);
     return response.type === 'snapshot'
       ? { flag: response.flag, state: response.state }
       : null;
@@ -99,17 +91,6 @@ export async function getBucket(
     if (e instanceof BadResponseError && e.status === 404) return null;
     throw e;
   }
-}
-
-/**
- * Whether %buckets is installed and running on this ship.
- *
- * A constant-size read. Asking /v1/buckets for this instead serialises every
- * bucket's whole manifest -- entries, names, sizes, checksums -- to answer a
- * yes/no, and so got slower the more anyone stored.
- */
-export async function getBucketsReady() {
-  return scry<boolean>({ app: BUCKETS_APP, path: '/v1/ready' });
 }
 
 /**
@@ -174,11 +155,12 @@ export async function sendBucketsAction(
   action: BucketsAction,
   requestId: string = mintRequestId()
 ): Promise<BucketsResponseBody> {
-  const res = await requestJson<BucketsRequestResponse>(
-    BUCKETS_V1_PATH,
-    'POST',
-    { action, requestId },
-    { reauthStatuses: BUCKETS_AUTH_FAILURE_STATUSES }
+  const res = await httpRequest(buckets.action)<BucketsRequestResponse>(
+    {},
+    {
+      body: { action, requestId },
+      options: { reauthStatuses: BUCKETS_AUTH_FAILURE_STATUSES },
+    }
   );
   const body = res?.body;
   if (!body) {
@@ -237,10 +219,12 @@ export async function requestBucketsGrant(
 export async function getBucketReadToken(
   flag: BucketsFlag
 ): Promise<BucketsReadToken | null> {
-  return scry<BucketsReadToken | null>({
-    app: BUCKETS_APP,
-    path: `/v1/buckets/${flag.host}/${flag.name}/read-token`,
-  }).catch(() => null);
+  try {
+    // fillPath throws synchronously, so a .catch on the promise would miss it.
+    return await scryRequest(buckets.readToken)<BucketsReadToken | null>(flag);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -297,5 +281,5 @@ export async function requestBucketReadToken(
 export function subscribeToBuckets(
   handler: (response: BucketsResponse) => void
 ) {
-  return subscribe<BucketsResponse>({ app: BUCKETS_APP, path: '/v1' }, handler);
+  return subscribeRequest(buckets.updates)<BucketsResponse>({}, handler);
 }

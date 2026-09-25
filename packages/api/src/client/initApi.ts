@@ -1,5 +1,4 @@
 import { createDevLogger } from '../lib/logger';
-import { getDeskSupportsBuckets } from './urbit';
 import type * as db from '../types/models';
 import type * as ub from '../urbit';
 import type { BucketsSummary } from '../urbit/buckets';
@@ -12,7 +11,8 @@ import {
   toClientPinnedItems,
 } from './groupsApi';
 import { toClientHiddenPosts } from './postsApi';
-import { getCurrentUserId, scry } from './urbit';
+import { groupsUi, scryRequest } from './requests';
+import { getCurrentUserId, getDeskSupportsBuckets } from './urbit';
 
 const logger = createDevLogger('initApi', false);
 
@@ -48,11 +48,10 @@ export const getInitData = async () => {
   // client then hydrates no groups and no channels at all. /v11 is /v10 plus
   // Buckets, so the older path degrades to Buckets arriving without their
   // writer roles until the subscription fills them in.
-  const path = getDeskSupportsBuckets() ? '/v11/init' : '/v10/init';
-  const response = await scry<ub.GroupsInit11>({
-    app: 'groups-ui',
-    path,
-  });
+  // Two bound calls: the helpers refuse an entry typed as a union.
+  const response = getDeskSupportsBuckets()
+    ? await scryRequest(groupsUi.initBuckets)<ub.GroupsInit11>({})
+    : await scryRequest(groupsUi.init)<ub.GroupsInit11>({});
 
   logger.crumb('got init data from api');
 

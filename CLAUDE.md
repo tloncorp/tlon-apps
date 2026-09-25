@@ -537,6 +537,13 @@ The frontend communicates with Urbit backend through:
 -   HTTP API via `@tloncorp/api/http-api`
 -   Server-sent events for real-time updates
 -   Custom API layer in `packages/shared/src/api/`
+-   Every desk request in the scope of `oxlint/desk-request-scope.json` (bot
+    automation is excluded by design) is an entry in
+    `packages/api/src/client/requests/`, called through its helper. Adding or
+    changing a request means adding or updating its entry (`since`). A
+    non-exempt entry that only the current desk serves also needs `guardedBy`;
+    the helpers refuse the request while the guard is off. Entries labelled
+    with an external `desk` already bypass the version comparison. See `docs/tlon-apps/desk-compatibility.md`.
 
 ## Database Schema
 
