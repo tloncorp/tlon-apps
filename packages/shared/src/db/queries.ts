@@ -3652,6 +3652,14 @@ export const updateNavSectionOrder = createWriteQuery(
     { groupId, sectionIds }: { groupId: string; sectionIds: string[] },
     ctx: QueryCtx
   ) => {
+    // A desk/client fact-shape drift (TLON-6696) should skip the reorder, not abort the group update.
+    if (!Array.isArray(sectionIds)) {
+      logger.trackError('updateNavSectionOrder: sectionIds is not an array', {
+        groupId,
+        type: typeof sectionIds,
+      });
+      return;
+    }
     // Update each section's index based on position in array
     for (let i = 0; i < sectionIds.length; i++) {
       const navSectionId = `${groupId}-${sectionIds[i]}`;
