@@ -8,7 +8,6 @@ import * as db from '@tloncorp/shared/db';
 import { isSameDay } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import {
-  DESKTOP_TOPLEVEL_SIDEBAR_WIDTH,
   LoadingSpinner,
   Modal,
   useIsWindowNarrow,
@@ -170,24 +169,28 @@ const Scroller = forwardRef(
     );
     const { width } = useWindowDimensions();
     const insets = useSafeAreaInsets();
-    // The window width below spans the split layout's rail and sidebar, and
-    // the rail's width includes the window's left inset.
+    // In the split layout the rail column, list pane and fold sit left of
+    // the detail pane; the rail column includes the window's left inset.
     const windowInsets = useWindowSafeAreaInsets();
     const isWindowNarrow = useIsWindowNarrow();
-    const { listPaneWidth, foldGap } = useSplitPaneWidths();
+    const { railColumnWidth, listPaneWidth, foldGap } = useSplitPaneWidths();
     const setScrollToBottomControl = useSetConversationScrollToBottomControl();
     const availableSpace = useMemo(() => {
-      const sidebarsTotalWidth = isWindowNarrow
-        ? 0
-        : DESKTOP_TOPLEVEL_SIDEBAR_WIDTH + listPaneWidth + foldGap;
+      const leadingWidth = isWindowNarrow
+        ? windowInsets.left
+        : railColumnWidth + listPaneWidth + foldGap;
       return Math.floor(
-        width -
-          windowInsets.left -
-          windowInsets.right -
-          sidebarsTotalWidth -
-          2 * getTokens().space.m.val
+        width - windowInsets.right - leadingWidth - 2 * getTokens().space.m.val
       );
-    }, [width, windowInsets.left, windowInsets.right, listPaneWidth, foldGap]);
+    }, [
+      width,
+      windowInsets.left,
+      windowInsets.right,
+      isWindowNarrow,
+      railColumnWidth,
+      listPaneWidth,
+      foldGap,
+    ]);
 
     const columns = useMemo(() => {
       const gap = getTokens().space.l.val;
