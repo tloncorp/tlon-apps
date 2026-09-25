@@ -240,6 +240,15 @@ test('full group payload reconciles stale duplicate nav-section memberships', as
   });
 });
 
+test('updateNavSectionOrder skips a missing section list', async () => {
+  await expect(
+    queries.updateNavSectionOrder({
+      groupId: '~zod/test',
+      sectionIds: undefined as unknown as string[],
+    })
+  ).resolves.toBeUndefined();
+});
+
 test('uses init data to get chat list', async () => {
   setScryOutputs([initResponse]);
   await syncInitData();
