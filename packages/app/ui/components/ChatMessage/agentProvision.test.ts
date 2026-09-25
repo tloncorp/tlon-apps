@@ -172,6 +172,29 @@ describe('isCurrentOwnerInterview', () => {
       })
     ).toBe(true);
   });
+
+  it('ignores failed owner corrections that the bot never received', () => {
+    expect(
+      isCurrentOwnerInterview({
+        interviewStartMessageId: interviewStart.id,
+        interviewMessageId: interviewEnd.id,
+        planPost,
+        channelPosts: [
+          interviewStart,
+          interviewEnd,
+          {
+            id: 'failed-correction',
+            authorId: 'owner',
+            channelId: 'chat',
+            receivedAt: 400,
+            sequenceNum: 4,
+            deliveryStatus: 'failed',
+          },
+        ],
+        ownerId: 'owner',
+      })
+    ).toBe(true);
+  });
 });
 
 describe('provision helpers', () => {

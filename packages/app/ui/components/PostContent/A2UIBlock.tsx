@@ -20,6 +20,7 @@ import { ActionSheet } from '../ActionSheet';
 import { resolveAgentProvisionButtonLabel } from '../ChatMessage/agentProvision';
 import { TextInput } from '../Form';
 import { A2UIMenuRow } from './A2UIMenuRow';
+import { shouldDismissKeyboardForChoice } from './a2uiActionConsumption';
 import {
   AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID,
   claimAutomaticProvisionRetry,
@@ -235,11 +236,14 @@ function SmallChoiceControl({
   );
 
   useEffect(() => {
+    if (!shouldDismissKeyboardForChoice(canSend, Boolean(consumedSelection))) {
+      return;
+    }
     // A choice is the next interaction after an owner message. Keep the
     // composer's keyboard from covering half the newly arrived options while
     // still allowing the first tap on a row to select it.
     void KeyboardController.dismiss();
-  }, []);
+  }, [canSend, consumedSelection]);
 
   const toggle = useCallback(
     (id: string) => {
