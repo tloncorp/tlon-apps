@@ -5,7 +5,14 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { ConfirmDialog, useIsWindowNarrow } from '@tloncorp/ui';
 import { noop } from 'lodash';
-import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import { ChatOptionsSheet } from '../../components/ChatOptionsSheet';
 import { InviteUsersSheet } from '../../components/InviteUsersSheet';
@@ -60,6 +67,11 @@ export const ChatOptionsProvider = ({
   onLeaveChannel: navigateToGroupOnLeave,
 }: ChatOptionsProviderProps) => {
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetMountGeneration, setSheetMountGeneration] = useState<
+    number | null
+  >(null);
+  const sheetGenerationRef = useRef(0);
+  const sheetOpenRef = useRef(false);
   const [inviteSheetOpen, setInviteSheetOpen] = useState(false);
   const [leaveChannelDialogOpen, setLeaveChannelDialogOpen] = useState(false);
   const [leaveChannelTitle, setLeaveChannelTitle] = useState<string | null>(
@@ -77,10 +89,14 @@ export const ChatOptionsProvider = ({
   const openSheet = useCallback(
     (chatId: string, chatType: 'group' | 'channel') => {
       trackEvent(AnalyticsEvent.ChatOptionsOpened, { type: chatType });
+      const generation = sheetGenerationRef.current + 1;
+      sheetGenerationRef.current = generation;
       setChat({
         id: chatId,
         type: chatType,
       });
+      setSheetMountGeneration(generation);
+      sheetOpenRef.current = true;
       setSheetOpen(true);
     },
     []
@@ -91,8 +107,23 @@ export const ChatOptionsProvider = ({
   }, []);
 
   const closeSheet = useCallback(() => {
+    sheetOpenRef.current = false;
     setSheetOpen(false);
     return true;
+  }, []);
+
+  const handleSheetOpenChange = useCallback((open: boolean) => {
+    sheetOpenRef.current = open;
+    setSheetOpen(open);
+  }, []);
+
+  const handleSheetDismissed = useCallback((generation: number) => {
+    if (sheetGenerationRef.current !== generation || sheetOpenRef.current) {
+      return;
+    }
+
+    setChat(null);
+    setSheetMountGeneration(null);
   }, []);
 
   const updateChat = useCallback(
@@ -113,6 +144,14 @@ export const ChatOptionsProvider = ({
       setChat(initialChat);
     }
   }, [chat, initialChat]);
+
+  useEffect(() => {
+    if (!isWindowNarrow) {
+      sheetOpenRef.current = false;
+      setSheetOpen(false);
+      setSheetMountGeneration(null);
+    }
+  }, [isWindowNarrow]);
 
   const isChannel = chat?.type === 'channel';
   const isGroup = chat?.type === 'group';
@@ -412,11 +451,19 @@ export const ChatOptionsProvider = ({
       {children}
       {isWindowNarrow && (
         <>
-          <ChatOptionsSheet
-            open={sheetOpen && (chat?.type === 'channel' ? !!channel : !!group)}
-            onOpenChange={setSheetOpen}
-            chat={chat}
-          />
+          {sheetMountGeneration !== null && (
+            <ChatOptionsSheet
+              key={sheetMountGeneration}
+              open={
+                sheetOpen && (chat?.type === 'channel' ? !!channel : !!group)
+              }
+              onOpenChange={handleSheetOpenChange}
+              onNativeDismissed={() =>
+                handleSheetDismissed(sheetMountGeneration)
+              }
+              chat={chat}
+            />
+          )}
           <InviteUsersSheet
             open={inviteSheetOpen}
             onOpenChange={closeInviteSheet}

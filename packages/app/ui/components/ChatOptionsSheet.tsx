@@ -60,6 +60,7 @@ type ChatOptionsSheetProps = {
     id: string;
   } | null;
   trigger?: React.ReactNode;
+  onNativeDismissed?: () => void;
 };
 
 export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
@@ -67,14 +68,13 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
   open: propOpen,
   onOpenChange: propOnOpenChange,
   trigger,
+  onNativeDismissed,
 }: ChatOptionsSheetProps) {
   const { open: contextOpen, setChat, group } = useChatOptions();
+  // Use props for explicit control (popovers). The provider owns native sheets.
+  const isOpen = propOpen ?? false;
   const isWindowNarrow = useIsWindowNarrow();
   const preserveChatOnDismiss = Platform.OS !== 'web' && isWindowNarrow;
-
-  // Use props for explicit control (popovers)
-  // For sheets, this will be false and context.open will handle state
-  const isOpen = propOpen ?? false;
 
   // Handle open state changes
   const handleOpenChange = useCallback(
@@ -97,7 +97,7 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
     [chat, contextOpen, setChat, propOnOpenChange, preserveChatOnDismiss]
   );
 
-  // Keep the native host mounted across closes so dismissal can finish.
+  // The provider owns native host lifetime through dismissal completion.
   if (!chat || (!isOpen && !trigger && !preserveChatOnDismiss)) {
     return null;
   }
@@ -108,6 +108,7 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
         groupId={chat.id}
         open={isOpen}
         onOpenChange={handleOpenChange}
+        onNativeDismissed={onNativeDismissed}
         trigger={trigger}
       />
     );
@@ -117,6 +118,7 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
         groupId={group.id}
         open={isOpen}
         onOpenChange={handleOpenChange}
+        onNativeDismissed={onNativeDismissed}
         trigger={trigger}
       />
     );
@@ -127,6 +129,7 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
       channelId={chat.id}
       open={isOpen}
       onOpenChange={handleOpenChange}
+      onNativeDismissed={onNativeDismissed}
       trigger={trigger}
     />
   );
@@ -136,18 +139,20 @@ export function GroupOptionsSheetLoader({
   groupId,
   open,
   onOpenChange,
+  onNativeDismissed,
   trigger,
 }: {
   groupId: string;
   open: boolean;
   onOpenChange: (open: boolean, clearChat?: boolean) => void;
+  onNativeDismissed?: () => void;
   trigger?: React.ReactNode;
 }) {
   const [pane, setPane] = useState<
     'initial' | 'notifications' | 'sort' | 'edit'
   >('initial');
   const chatOptions = useChatOptions();
-  const { group, setChat } = chatOptions;
+  const { group } = chatOptions;
   const isWindowNarrow = useIsWindowNarrow();
   const nativeExpoUIPilot = Platform.OS !== 'web' && isWindowNarrow;
 
@@ -165,8 +170,8 @@ export function GroupOptionsSheetLoader({
 
   const handleNativeDismissed = useCallback(() => {
     resetPane();
-    setChat(null);
-  }, [resetPane, setChat]);
+    onNativeDismissed?.();
+  }, [onNativeDismissed, resetPane]);
 
   useEffect(() => {
     if (!open && !nativeExpoUIPilot) {
@@ -560,16 +565,17 @@ const ChannelOptionsSheetLoader = memo(
     channelId,
     open,
     onOpenChange,
+    onNativeDismissed,
     trigger,
   }: {
     channelId: string;
     open: boolean;
     onOpenChange: (open: boolean, clearChat?: boolean) => void;
+    onNativeDismissed?: () => void;
     trigger?: React.ReactNode;
   }) => {
     const [pane, setPane] = useState<ChannelPanes>('initial');
     const chatOptions = useChatOptions();
-    const { setChat } = chatOptions;
     const isWindowNarrow = useIsWindowNarrow();
     const nativeExpoUIPilot = Platform.OS !== 'web' && isWindowNarrow;
     const channelQuery = store.useChannel({
@@ -598,8 +604,8 @@ const ChannelOptionsSheetLoader = memo(
 
     const handleNativeDismissed = useCallback(() => {
       resetPane();
-      setChat(null);
-    }, [resetPane, setChat]);
+      onNativeDismissed?.();
+    }, [onNativeDismissed, resetPane]);
 
     useEffect(() => {
       if (!open && !nativeExpoUIPilot) {
