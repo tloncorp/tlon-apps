@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   claimAutomaticProvisionRetry,
   clearFailedAutomaticProvision,
+  isAutomaticProvisionControl,
   isComponentReachableFromRoot,
   shouldAttemptAutomaticProvision,
   trackAutomaticProvisionReceipt,
@@ -20,6 +21,19 @@ const ready = {
 };
 
 describe('automatic task-plan provisioning', () => {
+  it('recognizes only the reserved automatic provisioning control', () => {
+    expect(isAutomaticProvisionControl(ready)).toBe(true);
+    expect(
+      isAutomaticProvisionControl({
+        ...ready,
+        componentId: 'visible-provision-button',
+      })
+    ).toBe(false);
+    expect(
+      isAutomaticProvisionControl({ ...ready, actionName: 'tlon.openAgent' })
+    ).toBe(false);
+  });
+
   it('locks retries synchronously until the active attempt releases', () => {
     const locks = new Set<string>();
     expect(claimAutomaticProvisionRetry(locks, 'surface-1')).toBe(true);

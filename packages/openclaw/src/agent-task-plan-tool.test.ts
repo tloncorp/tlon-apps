@@ -86,7 +86,15 @@ describe('agent task plan tool', () => {
     expect(serialized).toContain('every morning');
     expect(serialized).not.toContain('8:30 AM');
     expect(serialized).not.toContain('Create this task');
-    expect(serialized).toContain('"children":["summary"]');
+
+    const root = blob[0].messages[1]?.updateComponents?.components.find(
+      (component) => component.id === 'root'
+    );
+    expect(root).toEqual(
+      expect.objectContaining({
+        children: ['summary', 'auto-provision'],
+      })
+    );
 
     const action = blob[0].messages[1]?.updateComponents?.components.find(
       (component) => component.id === 'auto-provision'
