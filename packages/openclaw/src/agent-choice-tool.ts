@@ -11,13 +11,7 @@ const RESERVED_FREEFORM_OPTION =
 export type AgentChoiceToolParams = {
   target: string;
   surfaceId: string;
-  dimension:
-    | 'focus'
-    | 'time'
-    | 'approach'
-    | 'context'
-    | 'priority'
-    | 'output';
+  dimension: 'focus' | 'time' | 'approach' | 'context' | 'priority' | 'output';
   question: string;
   options: string[];
 };
@@ -39,14 +33,7 @@ export const agentChoiceToolParameters = {
     },
     dimension: {
       type: 'string',
-      enum: [
-        'focus',
-        'time',
-        'approach',
-        'context',
-        'priority',
-        'output',
-      ],
+      enum: ['focus', 'time', 'approach', 'context', 'priority', 'output'],
       description:
         'The single decision this question resolves. Ask only when this unanswered decision materially changes the task.',
     },
@@ -81,14 +68,9 @@ function parseParams(params: AgentChoiceToolParams): AgentChoiceToolParams {
     );
   }
   if (
-    ![
-      'focus',
-      'time',
-      'approach',
-      'context',
-      'priority',
-      'output',
-    ].includes(params.dimension)
+    !['focus', 'time', 'approach', 'context', 'priority', 'output'].includes(
+      params.dimension
+    )
   ) {
     throw new Error('dimension must identify one supported interview decision');
   }
