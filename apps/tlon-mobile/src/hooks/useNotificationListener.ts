@@ -12,6 +12,15 @@ import {
 } from '@tloncorp/app/lib/notifications';
 import { useAgentGroupOnboardingNavGate } from '@tloncorp/app/hooks/useAgentGroupOnboardingLock';
 import { startPushNotifTapMeasurement } from '@tloncorp/app/lib/pushNotifTapTelemetry';
+import {
+  useNavigateRoot,
+  useRootNavigatorMount,
+} from '@tloncorp/app/navigation/navigateRoot';
+import {
+  getDesktopChannelRoute,
+  getDesktopGroupInviteRoute,
+  getDesktopPostRoute,
+} from '@tloncorp/app/navigation/routeHelpers';
 import { RootStackParamList } from '@tloncorp/app/navigation/types';
 import {
   createTypedReset,
@@ -19,7 +28,7 @@ import {
   getTopLevelTabRoute,
   screenNameFromChannelId,
 } from '@tloncorp/app/navigation/utils';
-import { useIsWindowNarrow } from '@tloncorp/app/ui';
+import { isNativeSplitLayoutMounted } from '@tloncorp/app/ui';
 import {
   AnalyticsEvent,
   SyncPriority,
@@ -52,6 +61,8 @@ import {
 } from '../lib/notificationPayload';
 
 const logger = createDevLogger('useNotificationListener', false);
+
+const NAVIGATOR_NOT_MOUNTED = 'navigatorNotMounted';
 
 const notificationSyncCtx = {
   priority: SyncPriority.High + 1,
@@ -275,37 +286,91 @@ export default function useNotificationListener() {
     }
   }, [notificationResponse]);
 
-  const isDesktop = useIsWindowNarrow();
+  const navigateRoot = useNavigateRoot();
+  const rootNavigator = useRootNavigatorMount();
+  // Bumped to re-run the routing effect for a notification that arrived while
+  // the navigator trees were being swapped.
+  const [navigatorMountedCount, setNavigatorMountedCount] = useState(0);
 
-  // If notification tapped, navigate
+  // If notification tapped, navigate. Each target reads the layout when it
+  // dispatches, since a fold or resize can swap the navigator trees while the
+  // handler awaits sync; the split layout names these destinations
+  // differently from the phone RootStack.
   useEffect(() => {
+    function retryWhenNavigatorMounts() {
+      rootNavigator.whenMounted(() =>
+        setNavigatorMountedCount((count) => count + 1)
+      );
+    }
+
     async function goToGroupMembers(groupId: string) {
-      navigation.navigate('GroupSettings', {
-        screen: 'GroupMembers',
-        params: { groupId },
-      });
+      if (!rootNavigator.isMounted()) {
+        return NAVIGATOR_NOT_MOUNTED;
+      }
+      if (!isNativeSplitLayoutMounted()) {
+        navigation.navigate('GroupSettings', {
+          screen: 'GroupMembers',
+          params: { groupId },
+        });
+      } else if (
+        !navigateRoot({
+          name: 'Activity',
+          params: {
+            screen: 'GroupSettings',
+            params: { screen: 'GroupMembers', params: { groupId } },
+          },
+        })
+      ) {
+        return NAVIGATOR_NOT_MOUNTED;
+      }
       setNotifToProcess(null);
       return true;
     }
 
     async function goToUserProfile(userId: string) {
-      navigation.navigate('UserProfile', { userId });
+      if (!rootNavigator.isMounted()) {
+        return NAVIGATOR_NOT_MOUNTED;
+      }
+      if (!isNativeSplitLayoutMounted()) {
+        navigation.navigate('UserProfile', { userId });
+      } else if (
+        !navigateRoot({
+          name: 'Contacts',
+          params: { screen: 'UserProfile', params: { userId } },
+        })
+      ) {
+        return NAVIGATOR_NOT_MOUNTED;
+      }
       setNotifToProcess(null);
       return true;
     }
 
     async function goToContacts() {
-      // Contacts is a stack screen now, not a tab.
-      navigation.navigate('Contacts', undefined, { pop: true });
+      if (!rootNavigator.isMounted()) {
+        return NAVIGATOR_NOT_MOUNTED;
+      }
+      if (!isNativeSplitLayoutMounted()) {
+        // Contacts is a stack screen now, not a tab.
+        navigation.navigate('Contacts', undefined, { pop: true });
+      } else if (!navigateRoot({ name: 'Contacts' })) {
+        return NAVIGATOR_NOT_MOUNTED;
+      }
       setNotifToProcess(null);
       return true;
     }
 
     async function goToGroupInvite(groupId: string) {
-      // Reset (not navigate) so the destination is deterministic regardless of the current
-      // stack (cold start, on a channel/post/settings screen, or already on ChatList).
-      const typedReset = createTypedReset(navigation);
-      typedReset(groupInvitePreviewRouteStack(groupId));
+      if (!rootNavigator.isMounted()) {
+        return NAVIGATOR_NOT_MOUNTED;
+      }
+      if (!isNativeSplitLayoutMounted()) {
+        // Reset (not navigate) so the destination is deterministic regardless of the current
+        // stack (cold start, on a channel/post/settings screen, or already on ChatList).
+        const typedReset = createTypedReset(navigation);
+        typedReset(groupInvitePreviewRouteStack(groupId));
+      } else if (!navigateRoot(getDesktopGroupInviteRoute(groupId))) {
+        return NAVIGATOR_NOT_MOUNTED;
+      }
       setNotifToProcess(null);
       return true;
     }
@@ -322,10 +387,7 @@ export default function useNotificationListener() {
 
       const routeStack: RouteStack = [getTopLevelTabRoute('ChatList')];
       if (channel.groupId) {
-        const mainGroupRoute = await getMainGroupRoute(
-          channel.groupId,
-          isDesktop
-        );
+        const mainGroupRoute = await getMainGroupRoute(channel.groupId, true);
         // @ts-expect-error - we know we're on mobile and we can't get a "Home" route
         routeStack.push(mainGroupRoute);
       }
@@ -345,6 +407,7 @@ export default function useNotificationListener() {
       }
 
       // if we have a post id, try to navigate to the thread
+      let threadParams: RootStackParamList['Post'] | null = null;
       if (postInfo) {
         let postToNavigateTo: {
           id: string;
@@ -360,16 +423,17 @@ export default function useNotificationListener() {
           postToNavigateTo = { ...postInfo, channelId };
         }
 
-        routeStack.push({
-          name: 'Post',
-          params: {
-            postId: postToNavigateTo.id,
-            authorId: postToNavigateTo.authorId,
-            channelId: postToNavigateTo.channelId,
-          },
-        });
+        threadParams = {
+          postId: postToNavigateTo.id,
+          authorId: postToNavigateTo.authorId,
+          channelId: postToNavigateTo.channelId,
+        };
+        routeStack.push({ name: 'Post', params: threadParams });
       }
 
+      if (!rootNavigator.isMounted()) {
+        return NAVIGATOR_NOT_MOUNTED;
+      }
       const typedReset = createTypedReset(navigation);
 
       logger.trackEvent(
@@ -380,7 +444,24 @@ export default function useNotificationListener() {
         channelId: channel.id,
         initialLastPostId: channel.lastPostId ?? null,
       });
-      typedReset(routeStack, 1);
+      if (!isNativeSplitLayoutMounted()) {
+        typedReset(routeStack, 1);
+      } else {
+        const groupId = channel.groupId ?? undefined;
+        const navigated = navigateRoot(
+          threadParams
+            ? getDesktopPostRoute('Home', { ...threadParams, groupId })
+            : getDesktopChannelRoute(
+                'Home',
+                channel.id,
+                groupId,
+                selectedPostId
+              )
+        );
+        if (!navigated) {
+          return NAVIGATOR_NOT_MOUNTED;
+        }
+      }
       setNotifToProcess(null);
       return true;
     }
@@ -471,6 +552,10 @@ export default function useNotificationListener() {
               // the onboarding lock clears.
               return;
             }
+            if (attempt.result === NAVIGATOR_NOT_MOUNTED) {
+              retryWhenNavigatorMounts();
+              return;
+            }
             navigated = attempt.result === true;
           }
           if (!navigated) {
@@ -481,6 +566,10 @@ export default function useNotificationListener() {
             if (recovered) {
               const retry = await runWhenUnlocked(handleNavigate);
               if (!retry.ran) return;
+              if (retry.result === NAVIGATOR_NOT_MOUNTED) {
+                retryWhenNavigatorMounts();
+                return;
+              }
               navigated = retry.result === true;
             }
 
@@ -514,6 +603,8 @@ export default function useNotificationListener() {
     notifToProcess,
     navigation,
     isTlonEmployee,
-    isDesktop,
+    navigateRoot,
+    rootNavigator,
+    navigatorMountedCount,
   ]);
 }

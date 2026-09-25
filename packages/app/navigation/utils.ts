@@ -1,5 +1,6 @@
 import {
   CommonActions,
+  NavigationContainerRefContext,
   NavigationProp,
   StackActions,
   useNavigation as useReactNavigation,
@@ -9,8 +10,12 @@ import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { useGlobalSearch, useIsWindowNarrow } from '@tloncorp/ui';
-import { useCallback, useMemo } from 'react';
+import {
+  isNativeSplitLayoutMounted,
+  useGlobalSearch,
+  useIsWindowNarrow,
+} from '@tloncorp/ui';
+import { useCallback, useContext, useMemo } from 'react';
 import { Platform } from 'react-native';
 
 import { openExternalBotSettings } from '../utils/botSettings';
@@ -30,6 +35,8 @@ import {
   isActivityBackTarget,
   screenNameFromChannelId,
 } from './routeHelpers';
+import { navigateRoot } from './navigateRoot';
+import { getLayoutState } from './splitLayoutState';
 import { getTopLevelTabRoute } from './topLevelTabs';
 import { CombinedParamList, RootStackParamList } from './types';
 
@@ -76,6 +83,18 @@ export function createTypedReset<T extends Record<string, any>>(
 export function useTypedReset() {
   const navigation = useNavigation();
   return createTypedReset(navigation);
+}
+
+/**
+ * Whether the navigator tree a hook rendered in has been swapped for the other
+ * one since, as folding or rotating the device can do while an async lookup is
+ * pending. Its navigation object and layout flag are then stale.
+ */
+function didSwapNavigatorTree(isWindowNarrowWhenRendered: boolean) {
+  return (
+    Platform.OS !== 'web' &&
+    isNativeSplitLayoutMounted() === isWindowNarrowWhenRendered
+  );
 }
 
 function useResetToChannel() {
@@ -167,12 +186,31 @@ function useResetToPost() {
 
 function useResetToDm() {
   const resetToChannel = useResetToChannel();
+  const isWindowNarrow = useIsWindowNarrow();
+  const container = useContext(NavigationContainerRefContext);
+  const { lastOpenTab } = useGlobalSearch();
 
   return async function resetToDm(contactId: string) {
     try {
       const dmChannel = await store.upsertDmChannel({
         participants: [contactId],
       });
+      if (didSwapNavigatorTree(isWindowNarrow)) {
+        if (isNativeSplitLayoutMounted()) {
+          navigateRoot(
+            container,
+            getDesktopChannelRoute(lastOpenTab, dmChannel.id)
+          );
+        } else {
+          container?.resetRoot(
+            getLayoutState(
+              { kind: 'channel', channelId: dmChannel.id },
+              'phone'
+            )
+          );
+        }
+        return;
+      }
       resetToChannel(dmChannel.id);
     } catch (error) {
       console.error('Error creating DM channel:', error);
@@ -417,13 +455,20 @@ export function useRootNavigation() {
   const isWindowNarrow = useIsWindowNarrow();
   const navigation = useNavigation();
   const navigationRef = logic.useMutableRef(navigation);
+  const container = useContext(NavigationContainerRefContext);
   const navigateToGroup = useCallback(
     async (groupId: string) => {
-      navigationRef.current.navigate(
-        await getMainGroupRoute(groupId, isWindowNarrow)
-      );
+      const route = await getMainGroupRoute(groupId, isWindowNarrow);
+      if (didSwapNavigatorTree(isWindowNarrow)) {
+        navigateRoot(
+          container,
+          await getMainGroupRoute(groupId, !isNativeSplitLayoutMounted())
+        );
+        return;
+      }
+      navigationRef.current.navigate(route);
     },
-    [navigationRef, isWindowNarrow]
+    [container, navigationRef, isWindowNarrow]
   );
 
   const useNavigateToChatDetails = () => {
@@ -524,9 +569,20 @@ export function useRootNavigation() {
         return;
       }
       const params = providerId ? { providerId } : undefined;
-      navigationRef.current.navigate('BotMcpSettings', params);
+      if (isWindowNarrow) {
+        navigationRef.current.navigate('BotMcpSettings', params);
+        return;
+      }
+      const navigateToNestedSettings = navigationRef.current.navigate as (
+        screen: 'Settings',
+        params: { screen: 'BotMcpSettings'; params?: { providerId: string } }
+      ) => void;
+      navigateToNestedSettings('Settings', {
+        screen: 'BotMcpSettings',
+        params,
+      });
     },
-    [navigationRef]
+    [isWindowNarrow, navigationRef]
   );
 
   const resetToChannel = useResetToChannel();

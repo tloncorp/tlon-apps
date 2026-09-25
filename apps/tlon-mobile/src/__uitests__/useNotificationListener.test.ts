@@ -1,10 +1,26 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from '@jest/globals';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { useBranch } from '@tloncorp/app/contexts/branch';
 import {
+  useNavigateRoot,
+  useRootNavigatorMount,
+} from '@tloncorp/app/navigation/navigateRoot';
+import {
   createTypedReset,
+  getMainGroupRoute,
   useTypedReset,
 } from '@tloncorp/app/navigation/utils';
+import {
+  isNativeSplitLayoutMounted,
+  useIsWindowNarrow,
+} from '@tloncorp/app/ui';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as notifications from 'expo-notifications';
@@ -75,8 +91,21 @@ jest.mock('@tloncorp/app/navigation/utils', () => ({
   })(),
 }));
 
+jest.mock('@tloncorp/app/navigation/navigateRoot', () => {
+  const navigateRoot = jest.fn(() => true);
+  const rootNavigator = {
+    isMounted: jest.fn(() => true),
+    whenMounted: jest.fn(),
+  };
+  return {
+    useNavigateRoot: () => navigateRoot,
+    useRootNavigatorMount: () => rootNavigator,
+  };
+});
+
 jest.mock('@tloncorp/app/ui', () => ({
-  useIsWindowNarrow: jest.fn(),
+  isNativeSplitLayoutMounted: jest.fn(() => false),
+  useIsWindowNarrow: jest.fn(() => true),
 }));
 
 jest.mock('@tloncorp/shared', () => ({
@@ -525,7 +554,7 @@ describe('notification routing decisions', () => {
 
 describe('foreground notification presentation', () => {
   it('derives the viewed channel only from chat routes', () => {
-    for (const name of ['Channel', 'DM', 'GroupDM', 'Post']) {
+    for (const name of ['Channel', 'DM', 'GroupDM', 'ChannelRoot', 'Post']) {
       expect(
         notificationChannelIdFromRoute({
           name,
@@ -658,5 +687,135 @@ describe('launch targets while the desk verdict is not ok (TLON-6531)', () => {
       notifications.clearLastNotificationResponseAsync
     ).not.toHaveBeenCalled();
     expect(typedReset).not.toHaveBeenCalled();
+  });
+});
+
+describe('launch targets in the split layout', () => {
+  const typedReset = jest.fn();
+  let nativeResponse: unknown;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.mocked(useIsWindowNarrow).mockReturnValue(false);
+    jest.mocked(isNativeSplitLayoutMounted).mockReturnValue(true);
+    store.updateSession({ deskCompat: { status: 'ok' } });
+    jest.mocked(createTypedReset).mockReturnValue(typedReset as never);
+    jest
+      .mocked(notifications.useLastNotificationResponse)
+      .mockImplementation(() => nativeResponse as never);
+    jest
+      .mocked(notifications.clearLastNotificationResponseAsync)
+      .mockImplementation(() => {
+        nativeResponse = null;
+        return Promise.resolve();
+      });
+  });
+
+  afterEach(() => {
+    jest.mocked(useIsWindowNarrow).mockReturnValue(true);
+    jest.mocked(isNativeSplitLayoutMounted).mockReturnValue(false);
+  });
+
+  it('opens a tapped channel notification in the Home detail pane', async () => {
+    nativeResponse = {
+      notification: {
+        request: {
+          trigger: null,
+          content: {
+            data: payloadFor({
+              post: {
+                key: childKey,
+                group: '~sampel-palnet/test',
+                channel: 'chat/~sampel-palnet/test',
+                content: [],
+                mention: false,
+              },
+            }),
+          },
+        },
+      },
+    };
+    jest.mocked(db.getChannelWithRelations).mockResolvedValue({
+      id: 'chat/~sampel-palnet/test',
+      groupId: '~sampel-palnet/test',
+    } as never);
+    jest.mocked(getMainGroupRoute).mockResolvedValue({
+      name: 'GroupChannels',
+      params: { groupId: '~sampel-palnet/test' },
+      pop: true,
+    } as never);
+
+    renderHook(() => useNotificationListener());
+    const navigateRoot = useNavigateRoot();
+    await waitFor(() => expect(navigateRoot).toHaveBeenCalledTimes(1));
+    expect(typedReset).not.toHaveBeenCalled();
+    expect(navigateRoot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Home',
+        params: expect.objectContaining({
+          screen: 'Channel',
+          params: expect.objectContaining({
+            channelId: 'chat/~sampel-palnet/test',
+            groupId: '~sampel-palnet/test',
+            screen: 'ChannelRoot',
+          }),
+        }),
+      })
+    );
+    expect(getMainGroupRoute).toHaveBeenCalledWith('~sampel-palnet/test', true);
+  });
+
+  it('keeps a tap pending until a swapped-in root navigator mounts', async () => {
+    nativeResponse = {
+      notification: {
+        request: {
+          trigger: null,
+          content: {
+            data: payloadFor({
+              post: {
+                key: childKey,
+                group: '~sampel-palnet/test',
+                channel: 'chat/~sampel-palnet/test',
+                content: [],
+                mention: false,
+              },
+            }),
+          },
+        },
+      },
+    };
+    jest.mocked(db.getChannelWithRelations).mockResolvedValue({
+      id: 'chat/~sampel-palnet/test',
+      groupId: '~sampel-palnet/test',
+    } as never);
+    jest.mocked(getMainGroupRoute).mockResolvedValue({
+      name: 'GroupChannels',
+      params: { groupId: '~sampel-palnet/test' },
+      pop: true,
+    } as never);
+    const navigateRoot = jest.mocked(useNavigateRoot());
+    const rootNavigator = jest.mocked(useRootNavigatorMount());
+    rootNavigator.isMounted.mockReturnValueOnce(false);
+
+    renderHook(() => useNotificationListener());
+    await waitFor(() =>
+      expect(rootNavigator.whenMounted).toHaveBeenCalledTimes(1)
+    );
+    expect(navigateRoot).not.toHaveBeenCalled();
+
+    act(() => rootNavigator.whenMounted.mock.calls[0][0]());
+    await waitFor(() => expect(navigateRoot).toHaveBeenCalledTimes(1));
+    expect(rootNavigator.whenMounted).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens an invited group preview in the Home sidebar from a deep link', async () => {
+    renderHook(() => useDeepLinkListener());
+    const navigateRoot = useNavigateRoot();
+    await waitFor(() => expect(navigateRoot).toHaveBeenCalledTimes(1));
+    expect(useTypedReset()).not.toHaveBeenCalled();
+    expect(navigateRoot).toHaveBeenCalledWith({
+      name: 'Home',
+      params: { screen: 'ChatList', params: { previewGroupId: '~zod/g' } },
+    });
   });
 });

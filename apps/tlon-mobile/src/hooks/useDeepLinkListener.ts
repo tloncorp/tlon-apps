@@ -1,10 +1,12 @@
 import { useBranch, useSignupParams } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { useAgentGroupOnboardingNavGate } from '@tloncorp/app/hooks/useAgentGroupOnboardingLock';
+import { useNavigateRoot } from '@tloncorp/app/navigation/navigateRoot';
 import {
   getTopLevelTabRoute,
   useTypedReset,
 } from '@tloncorp/app/navigation/utils';
+import { isNativeSplitLayoutMounted } from '@tloncorp/app/ui';
 import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
 import { useEffect, useRef } from 'react';
@@ -17,6 +19,7 @@ export const useDeepLinkListener = () => {
   const signupParams = useSignupParams();
   const { clearLure, lure } = useBranch();
   const reset = useTypedReset();
+  const navigateRoot = useNavigateRoot();
   const {
     locked: agentOnboardingLocked,
     isLoading: agentOnboardingLockLoading,
@@ -58,6 +61,16 @@ export const useDeepLinkListener = () => {
               const inviter = lure.inviterUserId;
               if (inviter) {
                 logger.log(`handling deep link to user`, inviter);
+                if (isNativeSplitLayoutMounted()) {
+                  navigateRoot({
+                    name: 'Contacts',
+                    params: {
+                      screen: 'UserProfile',
+                      params: { userId: inviter },
+                    },
+                  });
+                  return;
+                }
                 // Contacts is a stack screen now, not a tab, so seat it over
                 // the Workspaces tab: back from the profile still lands on
                 // Contacts, and back from there on the list.
@@ -83,7 +96,12 @@ export const useDeepLinkListener = () => {
                 logger.error('Failed to redeem invite', lure, e);
               });
               const previewGroupId = lure.invitedGroupId || lure.group;
-              if (previewGroupId) {
+              if (previewGroupId && isNativeSplitLayoutMounted()) {
+                navigateRoot({
+                  name: 'Home',
+                  params: { screen: 'ChatList', params: { previewGroupId } },
+                });
+              } else if (previewGroupId) {
                 reset([getTopLevelTabRoute('ChatList', { previewGroupId })]);
               }
             }
@@ -109,5 +127,6 @@ export const useDeepLinkListener = () => {
     clearLure,
     lure,
     reset,
+    navigateRoot,
   ]);
 };
