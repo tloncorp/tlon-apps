@@ -69,7 +69,8 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
   trigger,
 }: ChatOptionsSheetProps) {
   const { open: contextOpen, setChat, group } = useChatOptions();
-  const preserveChatOnDismiss = Platform.OS !== 'web';
+  const isWindowNarrow = useIsWindowNarrow();
+  const preserveChatOnDismiss = Platform.OS !== 'web' && isWindowNarrow;
 
   // Use props for explicit control (popovers)
   // For sheets, this will be false and context.open will handle state
@@ -147,7 +148,8 @@ export function GroupOptionsSheetLoader({
   >('initial');
   const chatOptions = useChatOptions();
   const { group, setChat } = chatOptions;
-  const nativeExpoUIPilot = Platform.OS !== 'web';
+  const isWindowNarrow = useIsWindowNarrow();
+  const nativeExpoUIPilot = Platform.OS !== 'web' && isWindowNarrow;
 
   const handlePressNotifications = useCallback(() => {
     setPane('notifications');
@@ -178,8 +180,6 @@ export function GroupOptionsSheetLoader({
   const { data: groupUnread, isFetched: groupUnreadIsFetched } =
     store.useGroupUnread({ groupId });
   const { data: groupData } = store.useGroup({ id: groupId });
-  const isWindowNarrow = useIsWindowNarrow();
-
   if ((!group && !groupData) || !groupUnreadIsFetched) {
     return null;
   }
@@ -570,7 +570,8 @@ const ChannelOptionsSheetLoader = memo(
     const [pane, setPane] = useState<ChannelPanes>('initial');
     const chatOptions = useChatOptions();
     const { setChat } = chatOptions;
-    const nativeExpoUIPilot = Platform.OS !== 'web';
+    const isWindowNarrow = useIsWindowNarrow();
+    const nativeExpoUIPilot = Platform.OS !== 'web' && isWindowNarrow;
     const channelQuery = store.useChannel({
       id: channelId,
     });
@@ -587,8 +588,6 @@ const ChannelOptionsSheetLoader = memo(
       utils.useChannelTitle(channelQuery.data ?? null) ?? 'channel';
     const isSingleChannelGroup = group?.channels.length === 1;
     const chatTitle = isSingleChannelGroup ? groupTitle : channelTitle;
-    const isWindowNarrow = useIsWindowNarrow();
-
     const handlePressNotifications = useCallback(() => {
       setPane('notifications');
     }, [setPane]);
