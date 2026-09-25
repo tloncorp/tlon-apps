@@ -116,6 +116,35 @@ describe('getLayoutPosition', () => {
     ).toEqual({ kind: 'channel', channelId: dmId, groupId: undefined });
   });
 
+  test('reads the system contacts invite screen in both trees', () => {
+    expect(
+      getLayoutPosition({
+        type: 'drawer',
+        index: 2,
+        routes: [
+          { name: 'Home' },
+          { name: 'Messages' },
+          {
+            name: 'Activity',
+            state: {
+              type: 'drawer',
+              index: 1,
+              routes: [
+                { name: 'ActivityEmpty' },
+                { name: 'InviteSystemContacts' },
+              ],
+            },
+          },
+        ],
+      } as never)
+    ).toEqual({ kind: 'inviteSystemContacts' });
+    expect(
+      getLayoutPosition(
+        phoneStack({ name: 'MainTabs' }, { name: 'InviteSystemContacts' })
+      )
+    ).toEqual({ kind: 'inviteSystemContacts' });
+  });
+
   test('reads a thread in the split tree', () => {
     expect(
       getLayoutPosition(
@@ -325,6 +354,7 @@ describe('getLayoutState', () => {
   const positions: LayoutPosition[] = [
     { kind: 'home' },
     { kind: 'activity' },
+    { kind: 'inviteSystemContacts' },
     { kind: 'settings' },
     { kind: 'contacts' },
     { kind: 'group', groupId },

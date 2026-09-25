@@ -62,6 +62,7 @@ const SPLIT_SECTION_PARAM = 'splitSection';
 export type LayoutPosition =
   | { kind: 'home'; section?: SplitSection }
   | { kind: 'activity' }
+  | { kind: 'inviteSystemContacts' }
   | { kind: 'settings' }
   | { kind: 'settingsScreen'; screen: string; params?: object }
   | { kind: 'contacts' }
@@ -213,6 +214,8 @@ function positionFromRoute(route: RouteLike): LayoutPosition | null {
     }
     case 'Activity':
       return { kind: 'activity' };
+    case 'InviteSystemContacts':
+      return { kind: 'inviteSystemContacts' };
     case 'Settings':
       return { kind: 'settings' };
     case 'Contacts':
@@ -315,6 +318,11 @@ function phoneRoutes(position: LayoutPosition): ResetRoute[] {
       return [{ name: 'MainTabs' }];
     case 'activity':
       return [getTopLevelTabRoute('Activity')];
+    case 'inviteSystemContacts':
+      return [
+        getTopLevelTabRoute('Activity'),
+        { name: 'InviteSystemContacts' },
+      ];
     case 'settings':
       return [getTopLevelTabRoute('Settings')];
     case 'settingsScreen':
@@ -388,6 +396,8 @@ function splitRoutes(position: LayoutPosition): ResetRoute[] {
       return [{ name: position.section ?? 'Home' }];
     case 'activity':
       return [{ name: 'Activity' }];
+    case 'inviteSystemContacts':
+      return [{ name: 'Activity', params: { screen: 'InviteSystemContacts' } }];
     case 'settings':
       return [{ name: 'Settings' }];
     case 'settingsScreen':
