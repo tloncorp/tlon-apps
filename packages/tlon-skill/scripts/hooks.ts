@@ -33,6 +33,7 @@ import {
   printHelpAndExit,
   printUsageAndExit,
 } from './cli-utils';
+import { sleep } from './runtime-deps';
 
 // Helper to create a cord (UTF-8 string as little-endian atom) from a JS string
 // Atom.fromCord doesnt handle multi-byte UTF-8 (like emojis) correctly
@@ -66,10 +67,6 @@ interface Hooks {
   hooks: Record<string, Hook>;
   order: Record<string, string[]>;
   crons: Record<string, Record<string, Job>>;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 const HOOK_TEMPLATE_TYPES = ['on-post', 'cron', 'moderation', 'bare'] as const;

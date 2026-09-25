@@ -8,6 +8,7 @@
  *
  * Commands:
  *   activity     Activity/notifications (mentions, replies, all, unreads)
+ *   buckets      Shared %buckets file channels
  *   channels     Channel listing and management
  *   contacts     Contact/profile management
  *   dms          Direct message operations
@@ -19,8 +20,10 @@
  */
 import { createActivityDeps } from './activity-runtime';
 import { setCliCredentialOverrides } from './api-client';
+import { createBucketsDeps } from './buckets-runtime';
 import { DIARY_REMOVED } from './cli-utils';
 import { run as runActivityCommand } from './commands/activity';
+import { run as runBucketsCommand } from './commands/buckets';
 import { formatUnexpectedError } from './commands/command';
 import { run as runNotesCommand } from './commands/notes';
 import { run as runPostsCommand } from './commands/posts';
@@ -40,6 +43,7 @@ Usage:
 
 Commands:
   activity     Activity/notifications (mentions, replies, all, unreads)
+  buckets      Shared file channels (list, files, upload, read, mkdir, move, delete)
   channels     Channel listing and management (dms, groups, info, update, delete, add/del-writers, add/del-readers)
   contacts     Contact/profile management (list, get, self, sync, add, remove, update-profile)
   dms          Direct message operations (send, reply, react, unreact, delete, accept, decline)
@@ -155,6 +159,14 @@ async function main() {
         const exitCode = await runActivityCommand(
           scriptArgs,
           createActivityDeps()
+        );
+        process.exit(exitCode);
+        break;
+      }
+      case 'buckets': {
+        const exitCode = await runBucketsCommand(
+          scriptArgs,
+          createBucketsDeps()
         );
         process.exit(exitCode);
         break;
