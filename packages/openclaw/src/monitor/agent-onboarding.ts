@@ -1,5 +1,4 @@
 import {
-  A2UI,
   AGENT_ONBOARDING_FIRST_ENTRY_FAILED_MARKER,
   AGENT_ONBOARDING_FIRST_ENTRY_MARKER,
   type AgentOnboardingPurposeId,
@@ -29,7 +28,6 @@ import type {
   TlonOnboardingCompletionPath,
   TlonOnboardingStep,
 } from '../telemetry.js';
-import { makeA2UIBlob } from '../urbit/blob.js';
 import {
   captureTlonApiScope,
   type TlonApiScopeRunner,
@@ -61,6 +59,41 @@ type AgentRequest =
   | PostBlobDataEntryAgentIntroRequest
   | PostBlobDataEntryAgentProviderConfig
   | PostBlobDataEntryAgentProvision;
+
+const AUTO_PROVISION_COMPONENT_ID = 'auto-provision';
+
+function normalizeEvidencePostId(
+  id: string | undefined | null,
+  expectedAuthor?: string
+) {
+  if (!id || id !== id.trim()) return null;
+  const separatorIndex = id.indexOf('/');
+  const author = id.slice(0, separatorIndex);
+  const hasAuthorPrefix = separatorIndex > 0 && /^~[a-z0-9-]+$/i.test(author);
+  if (hasAuthorPrefix && author !== expectedAuthor) return null;
+  const bareId = hasAuthorPrefix ? id.slice(separatorIndex + 1) : id;
+  if (/^(?:0|[1-9]\d*)$/.test(bareId)) return bareId;
+  if (!/^[1-9]\d{0,2}(?:\.\d{3})+$/.test(bareId)) return null;
+  return bareId.replaceAll('.', '');
+}
+
+function sameEvidencePostId(
+  left: string | undefined | null,
+  right: string | undefined | null,
+  expectedAuthor?: string
+) {
+  if (left && right && left === right && left === left.trim()) return true;
+  const normalizedLeft = normalizeEvidencePostId(left, expectedAuthor);
+  return (
+    normalizedLeft !== null &&
+    normalizedLeft === normalizeEvidencePostId(right, expectedAuthor)
+  );
+}
+
+type AgentOnboardingClientDateTimeContext = {
+  timezone: string;
+  locale: string;
+};
 
 export type OnboardingStepReport = {
   step: TlonOnboardingStep;
@@ -102,7 +135,12 @@ type AgentOnboardingContext = {
    * completing marker, or found one already in history — so the caller can
    * stop consulting the control plane for reply-shaped messages here.
    */
-  onConversationComplete?: () => void;
+  onConversationComplete?: () => void | Promise<void>;
+  requestSentAt?: number;
+  onInitialIntro?: (
+    request: PostBlobDataEntryAgentIntroRequest,
+    introPostedAt: number
+  ) => Promise<void>;
   presentation?: {
     startThinking: () => void | Promise<void>;
     stopThinking: () => void | Promise<void>;
@@ -160,7 +198,7 @@ function fetchOnboardingHistory(
     'api' | 'abortSignal' | 'channelNest'
   >,
   deps: Pick<AgentOnboardingDeps, 'fetchHistory'>,
-  count = ORIENTATION_HISTORY_LIMIT
+  count = ONBOARDING_HISTORY_LIMIT
 ) {
   return (deps.fetchHistory ?? fetchChannelHistoryOrThrow)(
     context.api,
@@ -175,10 +213,13 @@ const postOnceFlights = new Map<string, Promise<void>>();
 const completedPostMarkers = sharedMap<string, true>(
   'agentOnboarding.completedPostMarkers'
 );
-const ORIENTATION_HISTORY_LIMIT = 500;
+const clientDateTimeContexts = sharedMap<
+  string,
+  AgentOnboardingClientDateTimeContext
+>('agentOnboarding.clientDateTimeContexts');
+const ONBOARDING_HISTORY_LIMIT = 500;
 const DEFAULT_MIN_RESPONSE_DELAY_MS = 2_000;
 const DEFAULT_MIN_INTER_MESSAGE_DELAY_MS = 1_750;
-const FIRST_ENTRY_TO_SERVICES_DELAY_MS = 5_500;
 const RUN_OUTCOME_WRITE_RETRY_DELAYS_MS = [100, 250, 500, 1_000] as const;
 const ADMIN_MEMBERSHIP_RETRY_DELAYS_MS = [250, 500, 1_000, 2_000] as const;
 const EMPTY_SCAN_RETRY_DELAYS_MS = [500, 1_500, 3_000] as const;
@@ -198,89 +239,7 @@ const AGENT_ONBOARDING_INTRO =
   'I can keep you informed, help you learn, or follow a ' +
   'question over time.';
 const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What can I help you with?';
-const AGENT_ONBOARDING_APP_TOUR_PROMPT =
-  'Want me to tell you more about what you can do here?';
-const AGENT_ONBOARDING_APP_TOUR_EXPLANATION =
-  'Tlon is organized into groups. Each group can have chat channels for ' +
-  'conversation and notebook channels for longer posts—like the update I ' +
-  'just made for you. You can make more groups for different people or ' +
-  'projects and bring me into the ones where you want help.';
-const AGENT_ONBOARDING_BOT_TOUR_PROMPT =
-  'Want me to tell you more about what Tlonbot can do for you?';
-const AGENT_ONBOARDING_BOT_TOUR_EXPLANATION =
-  'I can research questions, change what your workspace follows, publish ' +
-  'scheduled updates, help in other groups, and use connected services you ' +
-  'authorize. Try asking me to adjust tomorrow’s update or investigate ' +
-  'something now.';
-const AGENT_ONBOARDING_TOUR_DECLINED = 'No problem. You can ask me anytime.';
 const AGENT_GROUP_SETUP_COMPLETE_MARKER = 'group-setup-complete';
-const AGENT_ONBOARDING_PURPOSE_OPTIONS = [
-  {
-    id: 'agent-daily-digest',
-    label: 'A daily digest',
-    description:
-      'A short summary of anything you care about, posted every morning.',
-    icon: 'ChannelNotebooks',
-    accent: 'blue',
-    scheduleHour: 8,
-    topicsPrompt:
-      'A daily digest—great. What should I keep an eye on? Pick any that fit.',
-    topics: [
-      'Nootropics',
-      'Longevity',
-      'Psychedelics',
-      'Open hardware',
-      'Gene editing',
-      'Space weather',
-    ],
-  },
-  {
-    id: 'agent-learning',
-    label: 'Learn something',
-    description: 'One idea each morning, taking your topics in turn.',
-    icon: 'Clock',
-    accent: 'green',
-    scheduleHour: 9,
-    topicsPrompt:
-      'Great. What would you like to understand better? Pick any that fit—I’ll take them one at a time.',
-    topics: [
-      'Music theory',
-      'Genetics',
-      'Astronomy',
-      'Philosophy',
-      'Architecture',
-      'Economics',
-    ],
-  },
-  {
-    id: 'agent-research',
-    label: 'Research',
-    description: 'A source-backed briefing that follows meaningful new work.',
-    icon: 'Search',
-    accent: 'indigo',
-    scheduleHour: 9,
-    topicsPrompt:
-      'Got it. What question or field should I follow closely? Pick any that fit.',
-    topics: [
-      'Peptides',
-      'Installation art',
-      'Electronic music',
-      'Mycology',
-      'Longevity',
-      'Synthesizers',
-    ],
-  },
-] as const satisfies readonly {
-  id: AgentOnboardingPurposeId;
-  label: string;
-  description: string;
-  icon: A2UI.ChoiceIcon;
-  accent: A2UI.ChoiceAccent;
-  scheduleHour: number;
-  topicsPrompt: string;
-  topics: readonly string[];
-}[];
-
 /**
  * Give a newly discovered chat a short, bounded window for its durable intro
  * request to become visible. Group membership and channel posts arrive over
@@ -463,6 +422,19 @@ function onboardingAccountId(context: AgentOnboardingScanContext) {
   return context.accountId ?? context.botShip;
 }
 
+function clientDateTimeContextKey(accountId: string, groupId: string) {
+  return `${accountId}\u0000${groupId}`;
+}
+
+export function agentOnboardingClientDateTimeContext(
+  accountId: string,
+  groupId: string
+) {
+  return clientDateTimeContexts.get(
+    clientDateTimeContextKey(accountId, groupId)
+  );
+}
+
 function startSingleFlight<Key, Value>(
   flights: Map<Key, Promise<Value>>,
   key: Key,
@@ -562,17 +534,6 @@ export async function findOnboardingGroupIdInChannel(
     .sort((a, b) => b.timestamp - a.timestamp)[0]?.request.groupId;
 }
 
-/**
- * Whether plain text is a picker choice typed by hand — a purpose, or an
- * orientation answer — and so worth resolving the onboarding group for.
- * Ordinary conversation is not, and must not pay for a history read.
- */
-export function isAgentOnboardingReply(text: string | null | undefined) {
-  const reply = text?.trim();
-  if (!reply) return false;
-  return purposeForReply(reply) != null || isOrientationReply(reply);
-}
-
 export function parseAgentOnboardingRequest(
   blob: string | null | undefined
 ): AgentRequest | null {
@@ -610,22 +571,7 @@ async function handleAgentOnboardingRequestInternal(
   presentation: OnboardingPresentation
 ): Promise<boolean> {
   const request = parseAgentOnboardingRequest(context.blob);
-  if (!request) {
-    if (
-      !context.rawText?.trim() ||
-      !context.ownerShip ||
-      context.senderShip !== context.ownerShip ||
-      !context.groupId
-    ) {
-      return false;
-    }
-    const reply = context.rawText.trim();
-    if (!purposeForReply(reply) && !isOrientationReply(reply)) {
-      return false;
-    }
-    const history = await fetchOnboardingHistory(context, deps);
-    return advanceDurableConversation(context, history, deps, presentation);
-  }
+  if (!request) return false;
   if (
     !context.ownerShip ||
     context.senderShip !== context.ownerShip ||
@@ -638,6 +584,18 @@ async function handleAgentOnboardingRequestInternal(
     return true;
   }
 
+  if (
+    request.type === 'tlon-agent-intro-request' &&
+    request.clientTimezone &&
+    request.clientLocale
+  ) {
+    clientDateTimeContexts.set(
+      clientDateTimeContextKey(onboardingAccountId(context), request.groupId),
+      { timezone: request.clientTimezone, locale: request.clientLocale }
+    );
+  }
+  if (request.type === 'tlon-agent-intro-request')
+    await context.onInitialIntro?.(request, context.requestSentAt ?? 0);
   const history = await fetchOnboardingHistory(context, deps);
   if (request.type === 'tlon-agent-intro-request') {
     await postIntro(
@@ -653,7 +611,7 @@ async function handleAgentOnboardingRequestInternal(
     await configureProviders(context, history, request, deps);
     return true;
   }
-  const historyRequest = findProvisionRequest(
+  const historyRequest = findFirstProvisionRequest(
     history,
     context.ownerShip,
     request.groupId,
@@ -672,15 +630,68 @@ async function handleAgentOnboardingRequestInternal(
     context.log?.('[tlon] rejected agent provision: request was superseded');
     return true;
   }
+  const effectiveRequest = historyRequest ?? request;
+  if (
+    await rejectUnverifiableAutomaticPlan(
+      context,
+      history,
+      effectiveRequest,
+      deps,
+      presentation
+    )
+  ) {
+    return true;
+  }
   try {
-    await provision(context, history, request, deps, presentation);
+    await provision(context, history, effectiveRequest, deps, presentation);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
+    await postOnce(
+      context,
+      history,
+      `provision-retrying:${effectiveRequest.provisionId}`,
+      async () => ({
+        text: "I couldn't finish setting up the task yet. I'll keep retrying safely, and I won't create a duplicate.",
+      }),
+      deps,
+      presentation
+    ).catch(() => {});
     throw new Error(
-      `agent onboarding provision ${request.provisionId} failed: ${detail}`,
+      `agent onboarding provision ${effectiveRequest.provisionId} failed: ${detail}`,
       { cause: error }
     );
   }
+  return true;
+}
+
+async function rejectUnverifiableAutomaticPlan(
+  context: AgentOnboardingContext,
+  history: TlonHistoryEntry[],
+  request: PostBlobDataEntryAgentProvision,
+  deps: AgentOnboardingDeps,
+  presentation: OnboardingPresentation,
+  includePostRequestAnswers = false
+): Promise<boolean> {
+  const reason = validateAutomaticPlanEvidence(
+    history,
+    context.ownerShip!,
+    context.botShip,
+    request,
+    context.blob,
+    includePostRequestAnswers
+  );
+  if (!reason) return false;
+  context.log?.(`[tlon] rejected automatic agent provision: ${reason}`);
+  await postOnce(
+    context,
+    history,
+    `provision-rejected:${request.provisionId}`,
+    async () => ({
+      text: "I couldn't verify that this plan reflects your latest message, so I didn't create it. Tell me what you want changed and I'll make a fresh plan.",
+    }),
+    deps,
+    presentation
+  );
   return true;
 }
 
@@ -746,6 +757,7 @@ export async function scanAgentOnboardingChannel(
         ...context,
         senderShip: context.ownerShip,
         blob: candidate.entry.blob,
+        requestSentAt: candidate.entry.timestamp,
       },
       deps
     );
@@ -778,77 +790,10 @@ export async function scanAgentOnboardingChannel(
       }
     }
   }
-  const pendingReply = pendingDurableReply(
-    history,
-    context.botShip,
-    context.ownerShip
-  );
-  if (pendingReply) {
-    await handleAgentOnboardingRequest(
-      {
-        ...context,
-        senderShip: context.ownerShip,
-        rawText: pendingReply.content,
-        blob: pendingReply.blob,
-      },
-      { ...deps, fetchHistory: async () => history }
-    );
-  }
   context.log?.(
-    `[tlon] reconciled ${requests.length} agent onboarding request(s)` +
-      `${pendingReply ? ' and one picker reply' : ''} in ${context.channelNest}`
+    `[tlon] reconciled ${requests.length} agent onboarding request(s) in ${context.channelNest}`
   );
-  return requests.length > 0 || Boolean(pendingReply) || restoredDurableRun;
-}
-
-function pendingDurableReply(
-  history: TlonHistoryEntry[],
-  botShip: string,
-  ownerShip: string
-) {
-  if (hasProvisionAck(history, botShip)) {
-    if (
-      hasPostMarker(history, botShip, 'orientation-complete') ||
-      hasPostMarker(history, botShip, AGENT_GROUP_SETUP_COMPLETE_MARKER)
-    ) {
-      return null;
-    }
-    const active =
-      markerPost(history, botShip, 'bot-tour-offer') ??
-      markerPost(history, botShip, 'onboarding-follow-up');
-    if (active) {
-      return newestOwnerReplyAfter(
-        history,
-        ownerShip,
-        active.timestamp,
-        (text) => yesNoDecision(text) !== null
-      );
-    }
-    const servicesCard = markerPost(history, botShip, 'services-card');
-    if (!servicesCard) return null;
-    return newestOwnerReplyAfter(
-      history,
-      ownerShip,
-      servicesCard.timestamp,
-      isServicesCompleteReply
-    );
-  }
-  // Purpose replies can be recovered from durable text. Topic confirmation
-  // cannot: the owner client must attach its local timezone to the provision
-  // event, so never fall back to a second, user-visible timezone step.
-  if (hasPostMarker(history, botShip, 'topics-picker')) return null;
-  const active = markerPost(history, botShip, 'purpose-picker');
-  if (!active) return null;
-  return (
-    history
-      .filter(
-        (entry) =>
-          entry.author === ownerShip &&
-          entry.timestamp > active.timestamp &&
-          purposeForReply(entry.content) !== null
-      )
-      .sort((a, b) => b.timestamp - a.timestamp)[0] ?? null
-  );
+  return requests.length > 0 || restoredDurableRun;
 }
 
 async function postIntro(
@@ -873,285 +818,46 @@ async function postIntro(
         step: 'onboarding_completed',
         completionPath: 'additional_group_completed',
       });
-      context.onConversationComplete?.();
+      await context.onConversationComplete?.();
     }
     return;
   }
-
   const needsIntro = !hasPostMarker(history, context.botShip, 'intro');
-  const hadPicker = hasPostMarker(history, context.botShip, 'purpose-picker');
-  const pickerPosted = await postOnce(
-    context,
-    history,
-    'purpose-picker',
-    async () => {
-      const prompt = needsIntro
-        ? `${AGENT_ONBOARDING_INTRO}\n\n${AGENT_ONBOARDING_PURPOSE_PROMPT}`
-        : AGENT_ONBOARDING_PURPOSE_PROMPT;
-      return {
-        text: purposePickerFallbackText(prompt),
-        blob: appendToPostBlob(
-          undefined,
-          buildPurposePickerSurface(context.groupId!, prompt)
-        ),
-        entries: needsIntro
-          ? [
-              {
-                type: 'tlon-agent-post-marker' as const,
-                version: 1 as const,
-                key: 'intro',
-              },
-            ]
-          : undefined,
-      };
-    },
-    deps,
-    presentation
-  );
-  if (!hadPicker && pickerPosted) {
+  const hadPicker =
+    hasPostMarker(history, context.botShip, 'task-interview') ||
+    hasProvisionAck(history, context.botShip);
+  const invitationPosted = hadPicker
+    ? false
+    : await postOnce(
+        context,
+        history,
+        'task-interview',
+        async () => {
+          const prompt = needsIntro
+            ? `${AGENT_ONBOARDING_INTRO}\n\n${AGENT_ONBOARDING_PURPOSE_PROMPT}`
+            : AGENT_ONBOARDING_PURPOSE_PROMPT;
+          return {
+            text: prompt,
+            entries: needsIntro
+              ? [
+                  {
+                    type: 'tlon-agent-post-marker' as const,
+                    version: 1 as const,
+                    key: 'intro',
+                  },
+                ]
+              : undefined,
+          };
+        },
+        deps,
+        presentation
+      );
+  if (!hadPicker && invitationPosted) {
     if (needsIntro) {
       context.trackStep?.({ step: 'intro_posted' });
     }
     context.trackStep?.({ step: 'purpose_picker_posted' });
   }
-}
-
-async function advanceDurableConversation(
-  context: AgentOnboardingContext,
-  history: TlonHistoryEntry[],
-  deps: AgentOnboardingDeps,
-  presentation: OnboardingPresentation
-): Promise<boolean> {
-  // The post-setup tour is the one bounded exception to handing the channel
-  // back to ordinary chat after provision. It consumes the services card's
-  // exact completion reply and exact Yes/No replies while the two durable tour
-  // prompts are active; every other message is left to ordinary conversation.
-  if (hasProvisionAck(history, context.botShip)) {
-    return advanceOrientationConversation(context, history, deps, presentation);
-  }
-
-  const text = context.rawText!.trim();
-  if (!hasPostMarker(history, context.botShip, 'purpose-picker')) {
-    return false;
-  }
-
-  if (!hasPostMarker(history, context.botShip, 'topics-picker')) {
-    const purpose = purposeForReply(text);
-    if (!purpose) return false;
-    const posted = await postOnce(
-      context,
-      history,
-      'topics-picker',
-      async () => {
-        const surface = buildTopicsPickerSurface(
-          context.groupId!,
-          purpose,
-          purpose.topics
-        );
-        return {
-          text: topicsPickerFallbackText(purpose, purpose.topics),
-          ...(surface ? { blob: appendToPostBlob(undefined, surface) } : {}),
-        };
-      },
-      deps,
-      presentation
-    );
-    if (posted) {
-      context.trackStep?.({ step: 'purpose_chosen', purposeId: purpose.id });
-      context.trackStep?.({
-        step: 'topics_picker_posted',
-        purposeId: purpose.id,
-      });
-    }
-    return true;
-  }
-  return false;
-}
-
-function newestOwnerReplyAfter(
-  history: TlonHistoryEntry[],
-  ownerShip: string,
-  timestamp: number,
-  isValid: (text: string) => boolean = () => true
-) {
-  return [...history]
-    .filter(
-      (entry) =>
-        entry.author === ownerShip &&
-        entry.timestamp > timestamp &&
-        entry.content.trim() &&
-        isValid(entry.content)
-    )
-    .sort((a, b) => b.timestamp - a.timestamp)[0];
-}
-
-function yesNoDecision(text: string): 'yes' | 'no' | null {
-  const normalized = text.trim().toLocaleLowerCase();
-  if (normalized === 'yes') return 'yes';
-  if (normalized === 'no') return 'no';
-  return null;
-}
-
-function isServicesCompleteReply(text: string): boolean {
-  const normalized = text.trim().toLocaleLowerCase();
-  return (
-    normalized === 'done' ||
-    normalized === 'skip' ||
-    normalized === 'skip for now'
-  );
-}
-
-function isOrientationReply(text: string | null | undefined): boolean {
-  if (!text) return false;
-  return yesNoDecision(text) !== null || isServicesCompleteReply(text);
-}
-
-async function advanceOrientationConversation(
-  context: AgentOnboardingContext,
-  history: TlonHistoryEntry[],
-  deps: AgentOnboardingDeps,
-  presentation: OnboardingPresentation
-): Promise<boolean> {
-  if (
-    hasPostMarker(history, context.botShip, 'orientation-complete') ||
-    hasPostMarker(history, context.botShip, AGENT_GROUP_SETUP_COMPLETE_MARKER)
-  ) {
-    context.onConversationComplete?.();
-    return false;
-  }
-
-  const botTourOffer = markerPost(history, context.botShip, 'bot-tour-offer');
-  if (botTourOffer) {
-    const reply = newestOwnerReplyAfter(
-      history,
-      context.ownerShip!,
-      botTourOffer.timestamp,
-      (text) => yesNoDecision(text) !== null
-    );
-    const decision = reply ? yesNoDecision(reply.content) : null;
-    if (!decision) return false;
-
-    const posted = await postOnce(
-      context,
-      history,
-      'orientation-complete',
-      async () => ({
-        text:
-          decision === 'yes'
-            ? AGENT_ONBOARDING_BOT_TOUR_EXPLANATION
-            : AGENT_ONBOARDING_TOUR_DECLINED,
-      }),
-      deps,
-      presentation
-    );
-    if (posted) {
-      context.trackStep?.({ step: 'bot_tour_answered', answer: decision });
-      context.trackStep?.({
-        step: 'onboarding_completed',
-        completionPath:
-          decision === 'yes' ? 'bot_tour_completed' : 'bot_tour_declined',
-      });
-      context.onConversationComplete?.();
-    }
-    return true;
-  }
-
-  const appTourOffer = markerPost(
-    history,
-    context.botShip,
-    'onboarding-follow-up'
-  );
-  if (!appTourOffer) {
-    const servicesCard = markerPost(history, context.botShip, 'services-card');
-    if (!servicesCard) return false;
-    const reply = newestOwnerReplyAfter(
-      history,
-      context.ownerShip!,
-      servicesCard.timestamp,
-      isServicesCompleteReply
-    );
-    if (!reply || !isServicesCompleteReply(reply.content)) return false;
-
-    await postOnce(
-      context,
-      history,
-      'onboarding-follow-up',
-      async () => ({
-        text: AGENT_ONBOARDING_APP_TOUR_PROMPT,
-        blob: appendToPostBlob(
-          undefined,
-          buildTourChoiceSurface(
-            `agent-onboarding-app-tour:${context.groupId!}`,
-            AGENT_ONBOARDING_APP_TOUR_PROMPT
-          )
-        ),
-      }),
-      deps,
-      presentation
-    );
-    return true;
-  }
-  const reply = newestOwnerReplyAfter(
-    history,
-    context.ownerShip!,
-    appTourOffer.timestamp,
-    (text) => yesNoDecision(text) !== null
-  );
-  const decision = reply ? yesNoDecision(reply.content) : null;
-  if (!decision) return false;
-
-  if (decision === 'no') {
-    const posted = await postOnce(
-      context,
-      history,
-      'orientation-complete',
-      async () => ({ text: AGENT_ONBOARDING_TOUR_DECLINED }),
-      deps,
-      presentation
-    );
-    if (posted) {
-      context.trackStep?.({ step: 'app_tour_answered', answer: decision });
-      context.trackStep?.({
-        step: 'onboarding_completed',
-        completionPath: 'app_tour_declined',
-      });
-      context.onConversationComplete?.();
-    }
-    return true;
-  }
-
-  const message = `${AGENT_ONBOARDING_APP_TOUR_EXPLANATION}\n\n${AGENT_ONBOARDING_BOT_TOUR_PROMPT}`;
-  const posted = await postOnce(
-    context,
-    history,
-    'bot-tour-offer',
-    async () => ({
-      text: message,
-      blob: appendToPostBlob(
-        undefined,
-        buildTourChoiceSurface(
-          `agent-onboarding-bot-tour:${context.groupId!}`,
-          message
-        )
-      ),
-    }),
-    deps,
-    presentation
-  );
-  if (posted) {
-    context.trackStep?.({ step: 'app_tour_answered', answer: decision });
-  }
-  return true;
-}
-
-type Purpose = (typeof AGENT_ONBOARDING_PURPOSE_OPTIONS)[number];
-
-function purposeForReply(text: string): Purpose | null {
-  return (
-    AGENT_ONBOARDING_PURPOSE_OPTIONS.find(
-      (option) => option.label.toLowerCase() === text.trim().toLowerCase()
-    ) ?? null
-  );
 }
 
 function markerPost(history: TlonHistoryEntry[], botShip: string, key: string) {
@@ -1244,13 +950,24 @@ async function provision(
   let jobId: string | null = existingAck
     ? findAckJobId(history, context.botShip, request.provisionId)
     : null;
-  const cron = (deps.getCron ?? getTlonCronService)();
   const notebookName = notebookDisplayName(
     request.notebookNest,
     group.channels?.find((channel) => channel.id === request.notebookNest)
       ?.title ?? request.notebookTitle
   );
   if (!existingAck) {
+    if (
+      await rejectUnverifiableAutomaticPlan(
+        context,
+        history,
+        request,
+        deps,
+        presentation,
+        true
+      )
+    ) {
+      return;
+    }
     // The authenticated durable provision is proof that the owner completed
     // the topics picker. Emit this before any cron work so a provisioning
     // failure appears as drop-off after topic submission.
@@ -1258,6 +975,7 @@ async function provision(
 
     // Validation succeeded and this provision has not already been
     // acknowledged. Reconciliation can replay the same durable request.
+    const cron = (deps.getCron ?? getTlonCronService)();
     if (!cron) throw new Error('cron service is not available');
     const providerConfig = findLatestProviderConfig(
       history,
@@ -1302,10 +1020,10 @@ async function provision(
       });
     }
 
-    const acknowledgement =
-      `${formatTopicList(request.topics)}—got it. ` +
-      `${provisionCadence(request.purposeId, notebookName)} ` +
-      `${scheduleConfirmation(request)}`;
+    const acknowledgement = buildProvisionAcknowledgement(
+      request,
+      notebookName
+    );
     await postOnce(
       context,
       history,
@@ -1353,6 +1071,7 @@ async function provision(
       deps
     );
   } else if (jobId) {
+    const cron = (deps.getCron ?? getTlonCronService)();
     if (!cron) {
       throw new Error('cron service is not available while restoring setup');
     }
@@ -1444,7 +1163,7 @@ async function configureProvidersOnce(
       ? record.provision
       : null;
   const provisionRequest =
-    findProvisionRequest(
+    findFirstProvisionRequest(
       history,
       context.ownerShip!,
       config.groupId,
@@ -1689,7 +1408,6 @@ async function failFirstRunCorrelation(
       errorText: failureDescription,
     });
   }
-  await postFirstRunServices(correlation, history, runDeps);
   await markAgentOnboardingRunTerminal(
     onboardingAccountId(correlation.context),
     correlation.provisionId,
@@ -1872,7 +1590,6 @@ async function completeFirstRunCorrelation(
 
   try {
     const history = await fetchOnboardingHistory(correlation.context, runDeps);
-    const notebookName = correlation.notebookName;
     // Keyed on the channel, not the provision. Re-provisioning mints a new
     // provisionId, and the old per-provision key let the same reveal post
     // three times in one setup.
@@ -1887,17 +1604,13 @@ async function completeFirstRunCorrelation(
           runDeps.listNotes!
         );
         // The cite renders as "Content not available" whenever the client
-        // hasn't synced the notes channel yet, so the sentence has to carry
-        // the entry on its own: name the note and where it lives, and let the
-        // card be a bonus rather than the whole message.
+        // hasn't synced the notes channel yet, so name the entry in text. Keep
+        // completion focused on the delivered result; explain workspace
+        // concepts later only when the owner asks.
         const title = newest?.title?.trim();
         const message = title
-          ? `Your first entry is ready: “${title}” in ${notebookName}, the ` +
-            'notebook in your workspace. That notebook is where everything ' +
-            'I write for you lands; this chat is for talking to me.'
-          : `Your first entry is ready in ${notebookName}, the notebook in ` +
-            'your workspace. That notebook is where everything I write for ' +
-            'you lands; this chat is for talking to me.';
+          ? `Your first entry is ready: “${title}”. Your daily task is active.`
+          : 'Your first entry is ready. Your daily task is active.';
         const story = markdownToStory(message);
         if (newest) {
           story.push({
@@ -1926,7 +1639,20 @@ async function completeFirstRunCorrelation(
         ...correlationFunnelFields(correlation),
       });
     }
-    await postFirstRunServices(correlation, history, runDeps);
+    if (
+      revealed ||
+      hasPostMarker(
+        history,
+        correlation.context.botShip,
+        AGENT_ONBOARDING_FIRST_ENTRY_MARKER
+      )
+    ) {
+      correlation.context.trackStep?.({
+        step: 'onboarding_completed',
+        completionPath: 'first_entry_published',
+      });
+      await correlation.context.onConversationComplete?.();
+    }
     await markAgentOnboardingRunTerminal(
       onboardingAccountId(correlation.context),
       correlation.provisionId,
@@ -1938,43 +1664,6 @@ async function completeFirstRunCorrelation(
       `[tlon] first-run completion will retry: ${String(error)}`
     );
     throw error;
-  }
-}
-
-async function postFirstRunServices(
-  correlation: FirstRunCorrelation,
-  history: TlonHistoryEntry[],
-  deps: AgentOnboardingCronDeps
-) {
-  await (deps.sleep ?? defaultSleep)(
-    FIRST_ENTRY_TO_SERVICES_DELAY_MS,
-    correlation.context.abortSignal
-  );
-  const servicesPosted = await postOnce(
-    correlation.context,
-    history,
-    'services-card',
-    async () => {
-      const message = `${servicesPitch(correlation.purposeId)}\n\nPick anything you’d like, or tap Done to continue.`;
-      return {
-        text: message,
-        blob: appendToPostBlob(
-          undefined,
-          buildServicesSurface(
-            message,
-            correlation.context.groupId!,
-            correlation.provisionId
-          )
-        ),
-      };
-    },
-    deps
-  );
-  if (servicesPosted) {
-    correlation.context.trackStep?.({
-      step: 'services_offered',
-      ...correlationFunnelFields(correlation),
-    });
   }
 }
 
@@ -2782,18 +2471,24 @@ function findAckJobId(
   return ack?.type === 'tlon-agent-provision-ack' ? ack.cronJobId : null;
 }
 
-function findProvisionRequest(
+function findFirstProvisionRequest(
   history: TlonHistoryEntry[],
   ownerShip: string,
   groupId: string,
   provisionId: string
 ) {
-  const request = blobEntriesByAuthor(history, ownerShip, true).find(
-    ({ entry }) =>
-      entry.type === 'tlon-agent-provision' &&
-      entry.groupId === groupId &&
-      entry.provisionId === provisionId
-  )?.entry;
+  const request = blobEntriesByAuthor(history, ownerShip)
+    .filter(
+      ({ entry }) =>
+        entry.type === 'tlon-agent-provision' &&
+        entry.groupId === groupId &&
+        entry.provisionId === provisionId
+    )
+    .sort(
+      (left, right) =>
+        left.post.timestamp - right.post.timestamp ||
+        (left.post.id ?? '').localeCompare(right.post.id ?? '')
+    )[0]?.entry;
   return request?.type === 'tlon-agent-provision' ? request : null;
 }
 
@@ -2807,6 +2502,117 @@ function findNewestProvisionRequest(
       entry.type === 'tlon-agent-provision' && entry.groupId === groupId
   )?.entry;
   return request?.type === 'tlon-agent-provision' ? request : null;
+}
+
+function compareHistoryOrder(
+  left: TlonHistoryEntry,
+  right: TlonHistoryEntry
+): number {
+  if (left.timestamp !== right.timestamp) {
+    return left.timestamp - right.timestamp;
+  }
+  if (
+    left.sequenceNum != null &&
+    right.sequenceNum != null &&
+    left.sequenceNum !== right.sequenceNum
+  ) {
+    return left.sequenceNum - right.sequenceNum;
+  }
+  return 0;
+}
+
+function validateAutomaticPlanEvidence(
+  history: TlonHistoryEntry[],
+  ownerShip: string,
+  botShip: string,
+  request: PostBlobDataEntryAgentProvision,
+  inboundBlob?: string | null,
+  includePostRequestAnswers = false
+) {
+  const requestPost = history.find(
+    (post) =>
+      post.author === ownerShip &&
+      post.blob &&
+      parsePostBlob(post.blob).some(
+        (entry) =>
+          entry.type === 'tlon-agent-provision' &&
+          entry.provisionId === request.provisionId
+      )
+  );
+  const requestBlob = requestPost?.blob ?? inboundBlob;
+  if (!requestBlob) return null;
+  const automaticSelection = parsePostBlob(requestBlob).find(
+    (entry) =>
+      entry.type === 'tlon-a2ui-selection' &&
+      entry.componentId === AUTO_PROVISION_COMPONENT_ID
+  );
+  if (
+    !automaticSelection ||
+    automaticSelection.type !== 'tlon-a2ui-selection'
+  ) {
+    // Retained manual provisions remain valid and are not migrated.
+    return null;
+  }
+  if (!request.interviewStartMessageId || !request.interviewMessageId) {
+    return 'the plan did not preserve its owner interview boundary';
+  }
+  const interviewStartPost = history.find(
+    (candidate) =>
+      sameEvidencePostId(
+        candidate.id,
+        request.interviewStartMessageId,
+        ownerShip
+      ) && candidate.author === ownerShip
+  );
+  const interviewPost = history.find(
+    (candidate) =>
+      sameEvidencePostId(candidate.id, request.interviewMessageId, ownerShip) &&
+      candidate.author === ownerShip
+  );
+  if (!interviewStartPost || !interviewPost) {
+    return 'the bound owner interview is unavailable';
+  }
+  if (compareHistoryOrder(interviewStartPost, interviewPost) > 0) {
+    return 'the bound owner interview is out of order';
+  }
+  const planPost = automaticSelection.sourcePostId
+    ? history.find(
+        (candidate) =>
+          sameEvidencePostId(
+            candidate.id,
+            automaticSelection.sourcePostId,
+            botShip
+          ) && candidate.author === botShip
+      )
+    : undefined;
+  if (!planPost) return 'the source plan is unavailable';
+  if (compareHistoryOrder(planPost, interviewPost) < 0) {
+    return 'the source plan predates its bound owner interview';
+  }
+  const hasNewerOwnerAnswer = history.some((candidate) => {
+    if (
+      candidate.author !== ownerShip ||
+      candidate.id === requestPost?.id ||
+      compareHistoryOrder(candidate, interviewPost) <= 0 ||
+      (requestPost &&
+        !includePostRequestAnswers &&
+        compareHistoryOrder(candidate, requestPost) > 0)
+    ) {
+      return false;
+    }
+    const duplicateAutomaticTransport = candidate.blob
+      ? parsePostBlob(candidate.blob).some(
+          (entry) =>
+            entry.type === 'tlon-a2ui-selection' &&
+            entry.componentId === AUTO_PROVISION_COMPONENT_ID &&
+            sameEvidencePostId(entry.sourcePostId, planPost.id, botShip)
+        )
+      : false;
+    return !duplicateAutomaticTransport;
+  });
+  return hasNewerOwnerAnswer
+    ? 'a newer owner answer superseded the plan'
+    : null;
 }
 
 function findLatestProviderConfig(
@@ -2862,7 +2668,9 @@ async function upsertPrimaryJobOnce(
     enabled: true,
     schedule: {
       kind: 'cron',
-      expr: `${request.scheduleMinute} ${request.scheduleHour} * * *`,
+      expr:
+        request.scheduleExpression ??
+        `${request.scheduleMinute} ${request.scheduleHour} * * *`,
       tz: request.timezone,
     },
     sessionTarget: 'isolated',
@@ -3079,74 +2887,23 @@ function buildRecurringPrompt(
   providerIds: readonly string[] = []
 ) {
   const providerGuidance = buildProviderGuidance(providerIds);
-  if (request.purposeId === 'agent-learning') {
-    return `Build one entry in a progressive learning series. The topics are: ${request.topics.join(', ')}. Cover exactly one topic; never combine or force connections between topics. Rotate through the list over time, using the current date to vary the topic. Put that topic in the note title. Explain one useful idea for that topic with concrete examples. Keep it concise, search the web for reliable information, and cite useful sources.${providerGuidance} Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note. The coordinator will publish your final response exactly once.`;
+  const localTimeGuidance = ` When a date or time appears in the finished note, render it in ${request.timezone} using ordinary 12-hour AM/PM wording. Never expose UTC, an IANA timezone identifier, or a cron expression in the note.`;
+  const webSearchGuidance =
+    ' Search the web when the task depends on current or externally verifiable information, and cite useful sources. In each web search, use either a freshness window or explicit date bounds, never both.';
+  if (request.taskPrompt) {
+    const approachGuidance = request.approach
+      ? ` Follow the owner's selected approach: ${request.approach.trim()}.`
+      : '';
+    return `Carry out this recurring task: ${request.taskPrompt.trim()}${approachGuidance} Use the current run date and time when deciding what is relevant.${localTimeGuidance}${webSearchGuidance}${providerGuidance} Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note. The coordinator will publish your final response exactly once.`;
   }
-
-  const purposeGuidance =
-    request.purposeId === 'agent-research'
-      ? 'Focus on meaningful recent work. Prioritize primary sources and direct links. Distinguish publication dates from event dates, label uncertainty or conflicting evidence, and stay tightly within the requested scope. If nothing meaningful changed, say that plainly instead of padding the entry.'
-      : 'Make the entry self-contained. Lead with the items most likely to matter today. Distinguish new information from background, order items by urgency, and keep the result concise and scannable.';
-  return `Write ${request.purpose.toLowerCase()} about ${request.topics.join(', ')}. ${purposeGuidance} Search the web for current information and cite useful sources.${providerGuidance} Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note. The coordinator will publish your final response exactly once.`;
+  return `Carry out the recurring task the owner described as “${request.purpose.trim()}” about ${request.topics.join(', ')}. Use the current run date and time when deciding what is relevant.${localTimeGuidance}${webSearchGuidance}${providerGuidance} Produce one useful, self-contained Markdown note with a concise title as its first heading. Return only the finished note. The coordinator will publish your final response exactly once.`;
 }
 
-function choiceAction(text: string): A2UI.SendMessageAction {
-  return {
-    event: { name: A2UI.action.sendMessage, context: { text } },
-  };
-}
-
-function withFallbackStory(blob: A2UI.BlobEntry): A2UI.BlobEntry {
-  return { ...blob, storyMode: 'fallback' };
-}
-
-function purposePickerFallbackText(prompt: string) {
-  const labels = AGENT_ONBOARDING_PURPOSE_OPTIONS.map(
-    (option) => `“${option.label}”`
-  ).join(', ');
-  return `${prompt} Reply ${labels}.`;
-}
-
-function buildPurposePickerSurface(
-  groupId: string,
-  prompt: string
-): A2UI.BlobEntry {
-  return withFallbackStory(
-    makeA2UIBlob(`agent-onboarding-purpose:${groupId}`, 'root', [
-      {
-        id: 'root',
-        component: 'Column',
-        children: ['prompt', 'choices'],
-      },
-      { id: 'prompt', component: 'Text', text: prompt },
-      {
-        id: 'choices',
-        component: 'Choice',
-        options: AGENT_ONBOARDING_PURPOSE_OPTIONS.map((option) => ({
-          id: option.id,
-          label: option.label,
-          description: option.description,
-          icon: option.icon,
-          accent: option.accent,
-          action: choiceAction(option.label),
-        })),
-      },
-    ])
-  );
-}
-
-function topicsPickerFallbackText(
-  purpose: Pick<Purpose, 'topicsPrompt'>,
-  topics: readonly string[]
+function buildProvisionAcknowledgement(
+  request: PostBlobDataEntryAgentProvision,
+  notebookName: string
 ) {
-  if (!topics.length) return purpose.topicsPrompt;
-  return `${purpose.topicsPrompt} ${topics.join(', ')}.`;
-}
-
-function formatTopicList(topics: readonly string[]): string {
-  if (topics.length <= 1) return topics[0] ?? '';
-  if (topics.length === 2) return `${topics[0]} and ${topics[1]}`;
-  return `${topics.slice(0, -1).join(', ')}, and ${topics[topics.length - 1]}`;
+  return `Got it. I’ll publish the first tailored update in ${notebookName}, this group’s notebook. ${scheduleConfirmation(request)}`;
 }
 
 /**
@@ -3172,194 +2929,35 @@ function notebookDisplayName(
 }
 
 /**
- * What the schedule does and — the part the old copy left out — where the
- * result lands. "Publish" on its own, or worse "publish here", read as chat:
- * an owner watched a notebook appear in the sidebar without ever being told
- * it existed or what it was for.
- */
-function provisionCadence(
-  purposeId: AgentOnboardingPurposeId,
-  notebookName: string
-) {
-  switch (purposeId) {
-    case 'agent-learning':
-      return (
-        `Every morning I’ll write one useful idea in ${notebookName}, the ` +
-        'notebook in your workspace, rotating through your topics.'
-      );
-    case 'agent-research':
-      return (
-        `Every morning I’ll check for new work and write a source-backed ` +
-        `update in ${notebookName}, the notebook in your workspace.`
-      );
-    case 'agent-daily-digest':
-      return (
-        `Every morning I’ll write a fresh digest in ${notebookName}, the ` +
-        'notebook in your workspace.'
-      );
-  }
-}
-
-/**
  * Distinguish the immediate forced entry from the recurring schedule.
  */
 function scheduleConfirmation(request: PostBlobDataEntryAgentProvision) {
+  if (request.scheduleDescription) {
+    const scheduleDescription = request.scheduleDescription
+      .trim()
+      .replace(/^the task will run\s+/i, '')
+      .replace(/[.!?]+$/, '');
+    return `After this first entry, the task will run ${scheduleDescription}.`;
+  }
   const hour = request.scheduleHour % 12 === 0 ? 12 : request.scheduleHour % 12;
   const meridiem = request.scheduleHour < 12 ? 'AM' : 'PM';
   const minute = String(request.scheduleMinute).padStart(2, '0');
   return `After this first entry, new ones arrive at ${hour}:${minute} ${meridiem}.`;
 }
 
-/**
- * The services pitch, in terms of what the owner just built. The old copy
- * ("Connect calendars, docs, or notes to give me more to work with") named
- * the mechanism and no benefit, and read identically whichever purpose was
- * chosen. Name only what the connector catalog actually offers: there is no
- * calendar connector, so the pitch can't promise one.
- */
-function servicesPitch(purposeId: AgentOnboardingPurposeId) {
-  switch (purposeId) {
-    case 'agent-learning':
-      return (
-        'Connect your notes or docs and I can build each update on what ' +
-        'you’re already reading.'
-      );
-    case 'agent-research':
-      return (
-        'Connect your docs or notes and I can tell what’s genuinely new to ' +
-        'you, instead of repeating what you’ve already filed.'
-      );
-    case 'agent-daily-digest':
-      return (
-        'Connect your docs and notes and your morning digest can cover your ' +
-        'own projects, not just the news.'
-      );
-  }
-}
-
-function buildTopicsPickerSurface(
-  groupId: string,
-  purpose: Pick<Purpose, 'id' | 'label' | 'scheduleHour' | 'topicsPrompt'>,
-  topics: readonly string[]
-): A2UI.BlobEntry | null {
-  if (!topics.length) return null;
-  return withFallbackStory(
-    makeA2UIBlob(`agent-onboarding-topics:${groupId}`, 'root', [
-      {
-        id: 'root',
-        component: 'Column',
-        children: ['prompt', 'topics'],
-      },
-      { id: 'prompt', component: 'Text', text: purpose.topicsPrompt },
-      {
-        id: 'topics',
-        component: 'SmallChoice',
-        options: topics.map((label) => ({ id: label.toLowerCase(), label })),
-        submitLabel: 'Done',
-        freeTextPlaceholder: 'Add your own…',
-        action: {
-          event: {
-            name: A2UI.action.provisionAgent,
-            context: {
-              groupId,
-              purposeId: purpose.id,
-              purpose: purpose.label,
-              // The client replaces these representative topics with the
-              // user's actual selection before posting the provision event.
-              topics: [...topics],
-              scheduleHour: purpose.scheduleHour,
-              scheduleMinute: 0,
-            },
-          },
-        },
-      },
-    ])
-  );
-}
-
-/** The client fills this surface with its live Hosting MCP provider state. */
-function buildServicesSurface(
-  pitch: string,
-  groupId: string,
-  provisionId: string
-) {
-  return withFallbackStory(
-    makeA2UIBlob('agent-services', 'root', [
-      {
-        id: 'root',
-        component: 'Column',
-        children: ['pitch', 'providers'],
-      },
-      { id: 'pitch', component: 'Text', text: pitch },
-      {
-        id: 'providers',
-        component: 'McpConnect',
-        maxVisible: 4,
-        seeAllLabel: 'See all connectors',
-        submitLabel: 'Use for this workspace',
-        action: {
-          event: {
-            name: A2UI.action.navigate,
-            context: {
-              target: { type: 'screen', screen: 'botMcpSettings' },
-            },
-          },
-        },
-        configureAction: {
-          event: {
-            name: A2UI.action.configureAgentProviders,
-            context: { groupId, provisionId, providerIds: [] },
-          },
-        },
-        completionLabel: 'Done',
-        completionAction: choiceAction('Done'),
-      },
-    ])
-  );
-}
-
-function buildTourChoiceSurface(surfaceId: string, prompt: string) {
-  return withFallbackStory(
-    makeA2UIBlob(surfaceId, 'root', [
-      {
-        id: 'root',
-        component: 'Column',
-        children: ['prompt', 'choice'],
-      },
-      {
-        id: 'prompt',
-        component: 'Text',
-        text: prompt,
-      },
-      {
-        id: 'choice',
-        component: 'Choice',
-        options: [
-          { id: 'yes', label: 'Yes', action: choiceAction('Yes') },
-          { id: 'no', label: 'No', action: choiceAction('No') },
-        ],
-      },
-    ])
-  );
-}
-
 export const agentOnboardingTesting = {
-  buildTopicsPickerSurface,
-  buildTourChoiceSurface,
+  buildProvisionAcknowledgement,
   buildRecurringPrompt,
-  buildServicesSurface,
   ensureFirstRunEnqueued,
   fetchOnboardingGroup,
   findFirstRunCorrelation,
   findDeliveredRunNote,
+  findFirstProvisionRequest,
   hasPostMarker,
   notebookDisplayName,
-  purposePickerFallbackText,
-  purposeForReply,
-  provisionCadence,
   reconcileRestoredFirstRun,
   rememberFirstRun,
   scheduleConfirmation,
-  servicesPitch,
   upsertPrimaryJob,
+  validateAutomaticPlanEvidence,
 };

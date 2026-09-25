@@ -2,7 +2,7 @@ import { metrics } from '@opentelemetry/api';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createSubsystemLogger } from 'openclaw/plugin-sdk/runtime-env';
 
-import { sharedMap } from './shared-state.js';
+import { sharedMap, sharedSlot } from './shared-state.js';
 
 export type TlonAgentTurnExecution =
   | 'completed'
@@ -147,7 +147,12 @@ type TurnInstruments = {
   terminal: CounterLike;
 };
 
-const turnStorage = new AsyncLocalStorage<TlonAgentTurnState>();
+const turnStorageSlot = sharedSlot<AsyncLocalStorage<TlonAgentTurnState>>(
+  'turnRecorder.turnStorage'
+);
+const turnStorage =
+  turnStorageSlot.get() ?? new AsyncLocalStorage<TlonAgentTurnState>();
+turnStorageSlot.set(turnStorage);
 const traceIdsByRunId = sharedMap<string, string>(
   'turnRecorder.traceIdsByRunId'
 );
@@ -467,6 +472,11 @@ function updateActiveTurn(update: (state: TlonAgentTurnState) => void): void {
     return;
   }
   update(state);
+}
+
+export function getActiveTlonTurnAccountId(): string | null {
+  const state = turnStorage.getStore();
+  return state && !state.finalized ? state.accountId : null;
 }
 
 export function recordActiveTlonTurnSourceReply(reply?: {

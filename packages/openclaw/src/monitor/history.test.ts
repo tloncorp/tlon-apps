@@ -209,7 +209,7 @@ describe('fetchChannelHistory', () => {
     const scry = vi.fn(async () => ({
       posts: {
         '1': {
-          seal: { id: '1' },
+          seal: { id: '1', seq: 41 },
           essay: {
             author: {
               ship: '~bot',
@@ -221,7 +221,7 @@ describe('fetchChannelHistory', () => {
           },
         },
         '2': {
-          seal: { id: '2' },
+          seal: { id: '2', seq: 42 },
           essay: {
             author: '~ten',
             sent: 2,
@@ -234,8 +234,8 @@ describe('fetchChannelHistory', () => {
     await expect(
       fetchChannelHistory({ scry }, 'chat/~ten/general')
     ).resolves.toEqual([
-      expect.objectContaining({ author: '~bot', id: '1' }),
-      expect.objectContaining({ author: '~ten', id: '2' }),
+      expect.objectContaining({ author: '~bot', id: '1', sequenceNum: 41 }),
+      expect.objectContaining({ author: '~ten', id: '2', sequenceNum: 42 }),
     ]);
   });
 
@@ -742,6 +742,61 @@ describe('parsePostPayload', () => {
         blob: null,
       },
     });
+  });
+
+  it('preserves the channel sequence for control-plane ordering', () => {
+    expect(
+      parsePostPayload({
+        seal: { id: '1', seq: 12 },
+        essay: { author: '~nec', sent: 100, content: [] },
+      })?.entry
+    ).toMatchObject({ id: '1', sequenceNum: 12 });
+  });
+
+  it('normalizes an @da DM history timestamp for reconciliation', async () => {
+    const sentAt = 1_790_277_296_731;
+    const daTime = '170141184508176955071272399819876960567';
+    const api = {
+      scry: async () => ({
+        writs: {
+          [daTime]: {
+            seal: { id: `~nec/${daTime}` },
+            essay: {
+              author: '~nec',
+              sent: daTime,
+              content: [{ inline: ['hello'] }],
+            },
+          },
+        },
+      }),
+    };
+
+    await expect(fetchChannelHistoryOrThrow(api, '~nec', 50)).resolves.toEqual([
+      expect.objectContaining({ author: '~nec', timestamp: sentAt }),
+    ]);
+  });
+
+  it('uses the exact seal id when an @da JSON number lost precision', async () => {
+    const sentAt = 1_790_277_296_731;
+    const daTime = '170141184508176955071272399819876960567';
+    const api = {
+      scry: async () => ({
+        writs: {
+          [daTime]: {
+            seal: { id: daTime },
+            essay: {
+              author: '~nec',
+              sent: Number(daTime),
+              content: [{ inline: ['hello'] }],
+            },
+          },
+        },
+      }),
+    };
+
+    await expect(fetchChannelHistoryOrThrow(api, '~nec', 50)).resolves.toEqual([
+      expect.objectContaining({ author: '~nec', timestamp: sentAt }),
+    ]);
   });
 
   it('uses unknown only for history entry author when source author is absent', () => {

@@ -181,6 +181,28 @@ describe('Tlon config schema', () => {
     expect(parsed.reengagement).toBeUndefined();
   });
 
+  it('accepts bounded onboarding campaign test timing', () => {
+    const parsed = TlonConfigSchema.parse({
+      onboardingCampaign: {
+        enabled: true,
+        enrollAfter: '2026-09-25T00:00:00Z',
+        testing: {
+          intervalMinutes: 60,
+          ignoreLocalDeliveryWindow: true,
+        },
+      },
+    });
+    expect(parsed.onboardingCampaign?.testing).toEqual({
+      intervalMinutes: 60,
+      ignoreLocalDeliveryWindow: true,
+    });
+    expect(() =>
+      TlonConfigSchema.parse({
+        onboardingCampaign: { testing: { intervalMinutes: 5 } },
+      })
+    ).toThrow();
+  });
+
   it('accepts reengagement.enabled = false explicitly', () => {
     const parsed = TlonConfigSchema.parse({
       ship: '~zod',

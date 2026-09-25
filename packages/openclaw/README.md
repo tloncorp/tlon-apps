@@ -188,7 +188,7 @@ The registry in `src/commands-registry.ts` is the single source of truth for reg
 
 ## Bundled Skills
 
-The plugin ships two skills, both declared in `skills` in `openclaw.plugin.json` (paths relative to the plugin root).
+The plugin ships three skills, declared in `skills` in `openclaw.plugin.json` (paths relative to the plugin root).
 
 ### `tlon` — the CLI skill
 
@@ -212,6 +212,13 @@ The skill is automatically available to your agent. For standalone usage, see th
 Keep it a product reference, not an operating manual: anything that reads or mutates a node belongs in the `tlon` CLI skill. Edit `SKILL.md` directly to update the guide; the `description` frontmatter is what OpenClaw puts in the system prompt, so trigger coverage lives there.
 
 The guide makes claims about product behavior, so it goes stale the way code comments do — a renamed screen or a changed command turns it into confidently wrong support copy. When you change a slash command, a channel type, or a permissions rule, grep this file. `packages/openclaw/skills/**` is on `bot-harness-deploy.yml`'s path filter, so a content-only fix does reach bots on its own — but only the internal fleet. The push trigger hardcodes `TAG="tlon-internal"`; Hermes and external ships restart only via `workflow_dispatch` with the matching selector. A guide correction that needs to reach them is a manual dispatch, plus a package publish for anyone running the npm build.
+
+### `tlon-agent-onboarding` — the first-task conversation skill
+
+`skills/tlon-agent-onboarding/SKILL.md` guides the first recurring-task
+conversation in the owner's bot DM. It keeps question semantics and fuzzy-time
+interpretation model-driven while the plugin retains consent, ownership,
+provisioning, scheduling, retry, and delivery checks.
 
 ## Documentation
 
