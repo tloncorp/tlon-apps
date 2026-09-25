@@ -1,5 +1,5 @@
 diff --git a/build/swift-ui/BottomSheet/index.d.ts b/build/swift-ui/BottomSheet/index.d.ts
-index 52504c12fb31b4aa89da0914cd67405d1b34b867..4b29bdefb171e598a0d67f62029185b881d49517 100644
+index 52504c12fb31b4aa89da0914cd67405d1b34b867..2876001f9d59e427cd5936ad9dcb768688142971 100644
 --- a/build/swift-ui/BottomSheet/index.d.ts
 +++ b/build/swift-ui/BottomSheet/index.d.ts
 @@ -1,3 +1,4 @@
@@ -19,8 +19,8 @@ index 52504c12fb31b4aa89da0914cd67405d1b34b867..4b29bdefb171e598a0d67f62029185b8
 +    animateSelectedDetentChanges?: boolean;
 +    /** Duration, in seconds, for native selected-detent height changes. */
 +    detentAnimationDuration?: number;
-+    /** Reserve the system close control's header area above generic content. */
-+    reserveCloseButtonSpace?: boolean;
++    /** Whether to show the native close control. */
++    showCloseButton?: boolean;
  }
  /**
   * `BottomSheet` presents content from the bottom of the screen.
@@ -45,7 +45,7 @@ index 9936c0209b487ec6d59e4ffd7adcf8b4b96cd144..c007ec0bb4dc533797e253434189ed79
  /**
   * Controls the visibility of the drag indicator on a sheet.
 diff --git a/ios/BottomSheetView.swift b/ios/BottomSheetView.swift
-index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..05d707b927478d294eb6793ffe32f169ed5fc49c 100644
+index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..286f066e32c928ae391b58249a12c949306b0508 100644
 --- a/ios/BottomSheetView.swift
 +++ b/ios/BottomSheetView.swift
 @@ -6,6 +6,11 @@ import ExpoModulesCore
@@ -56,7 +56,7 @@ index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..05d707b927478d294eb6793ffe32f169
 +  @Field var selectedDetent: Either<PresentationDetentPreset, PresentationDetentItem>?
 +  @Field var animateSelectedDetentChanges: Bool = false
 +  @Field var detentAnimationDuration: Double = 0.4
-+  @Field var reserveCloseButtonSpace: Bool = false
++  @Field var showCloseButton: Bool = true
    var onIsPresentedChange = EventDispatcher()
    var onDismiss = EventDispatcher()
  }
@@ -69,25 +69,25 @@ index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..05d707b927478d294eb6793ffe32f169
 +private struct BottomSheetChromeContent<Content: View>: View {
 +  @Environment(\.dismiss) private var dismiss
 +  let content: Content
-+  let reserveCloseButtonSpace: Bool
++  let showCloseButton: Bool
 +
 +  var body: some View {
 +    ZStack(alignment: .topTrailing) {
-+      // Keep generic React content below the system-style close control so
-+      // full-width inputs and headers do not sit beneath its hit target.
-+      content.padding(.top, reserveCloseButtonSpace ? 78 : 0)
-+      SwiftUI.Button(action: { dismiss() }) {
-+        SwiftUI.Image(systemName: "xmark.circle.fill")
-+          .font(.system(size: 28))
-+          .foregroundColor(Color(uiColor: .tertiaryLabel))
++      content
++      if showCloseButton {
++        SwiftUI.Button(action: { dismiss() }) {
++          SwiftUI.Image(systemName: "xmark.circle.fill")
++            .font(.system(size: 28))
++            .foregroundColor(Color(uiColor: .tertiaryLabel))
++        }
++        .buttonStyle(.plain)
++        .frame(width: 44, height: 44)
++        // Align the close control with the 40-point sheet header row, whose
++        // content begins 36 points below the sheet edge.
++        .padding(.top, 34)
++        .padding(.trailing, 8)
++        .accessibilityIdentifier("SheetCloseButton")
 +      }
-+      .buttonStyle(.plain)
-+      .frame(width: 44, height: 44)
-+      // Align the close control with the 40-point sheet header row, whose
-+      // content begins 36 points below the sheet edge.
-+      .padding(.top, 34)
-+      .padding(.trailing, 8)
-+      .accessibilityIdentifier("SheetCloseButton")
 +    }
 +    .presentationDragIndicator(.hidden)
 +    .modifier(BottomSheetMaterialBackground())
@@ -340,7 +340,7 @@ index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..05d707b927478d294eb6793ffe32f169
 +        if #available(iOS 16.0, *) {
 +          BottomSheetChromeContent(
 +            content: sheetContent,
-+            reserveCloseButtonSpace: props.reserveCloseButtonSpace
++            showCloseButton: props.showCloseButton
 +          )
 +        } else {
 +          sheetContent
@@ -502,21 +502,41 @@ index f60ae61bf0c9023d41c55cdca2d9af0de7291a92..8788a8d22aa9db7e169fda65e49a5a79
                </View>
              </RNHostView>
 diff --git a/src/community/bottom-sheet/BottomSheet.ios.tsx b/src/community/bottom-sheet/BottomSheet.ios.tsx
-index 9908630d50d9a405688ae60c88f5e6638948420d..3808bdf2327cb2c240589caf0f64443ea848d344 100644
+index 9908630d50d9a405688ae60c88f5e6638948420d..4dbe3244f77c8f8f0250bfa66e1364c52d3e64d3 100644
 --- a/src/community/bottom-sheet/BottomSheet.ios.tsx
 +++ b/src/community/bottom-sheet/BottomSheet.ios.tsx
-@@ -235,7 +235,8 @@ export function BottomSheet(props: BottomSheetProps) {
+@@ -117,6 +117,8 @@ export function BottomSheet(props: BottomSheetProps) {
+ 
+   const selectedDetent = detents[currentIndex] ?? detents[0];
+   const fitToContents = enableDynamicSizing && (!snapPointsProp || snapPointsProp.length === 0);
++  const contentTopPadding =
++    (handleComponent !== null ? 16 : 0) + (enablePanDownToClose ? 78 : 0);
+   const internalContextValue = useMemo(() => ({ fitToContents }), [fitToContents]);
+ 
+   const fireCloseCallbacks = useCallback(() => {
+@@ -235,7 +237,8 @@ export function BottomSheet(props: BottomSheetProps) {
            <NativeBottomSheet
              isPresented={isPresented}
              onIsPresentedChange={handlePresentedChange}
 -            fitToContents={fitToContents}>
 +            fitToContents={fitToContents}
-+            reserveCloseButtonSpace>
++            showCloseButton={enablePanDownToClose}>
              <Group modifiers={modifiers}>
                <RNHostView matchContents={fitToContents}>
                  {/* paddingTop compensates for tighter spacing between native drag indicator and content
+@@ -245,8 +248,8 @@ export function BottomSheet(props: BottomSheetProps) {
+                 <View
+                   style={
+                     fitToContents
+-                      ? { paddingTop: handleComponent !== null ? 16 : 0 }
+-                      : { flexGrow: 1, height: 0, paddingTop: handleComponent !== null ? 16 : 0 }
++                      ? { paddingTop: contentTopPadding }
++                      : { flexGrow: 1, height: 0, paddingTop: contentTopPadding }
+                   }>
+                   <SheetScrollContextReset>{children}</SheetScrollContextReset>
+                 </View>
 diff --git a/src/swift-ui/BottomSheet/index.tsx b/src/swift-ui/BottomSheet/index.tsx
-index cd8bad40beefa33e008f0bef895e894d48d72cdd..cdcbec460ee179cb409a0747e2b1d0a3c7e509ed 100644
+index cd8bad40beefa33e008f0bef895e894d48d72cdd..68346ae8a206c27a894a0e19943cb26ece56197c 100644
 --- a/src/swift-ui/BottomSheet/index.tsx
 +++ b/src/swift-ui/BottomSheet/index.tsx
 @@ -3,6 +3,7 @@ import { useState, type ComponentType } from 'react';
@@ -539,8 +559,8 @@ index cd8bad40beefa33e008f0bef895e894d48d72cdd..cdcbec460ee179cb409a0747e2b1d0a3
 +  animateSelectedDetentChanges?: boolean;
 +  /** Duration, in seconds, for native selected-detent height changes. */
 +  detentAnimationDuration?: number;
-+  /** Reserve the system close control's header area above generic content. */
-+  reserveCloseButtonSpace?: boolean;
++  /** Whether to show the native close control. */
++  showCloseButton?: boolean;
  }
  
  type NativeBottomSheetProps = Omit<BottomSheetProps, 'onIsPresentedChange' | 'onDismiss'> & {

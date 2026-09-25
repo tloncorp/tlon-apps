@@ -62,7 +62,8 @@ const platformColor = PlatformColor;
 const contentTopInset = 36;
 const contentHorizontalInset = 8;
 const headerLeadingInset = 24;
-const headerTrailingInset = 10;
+// Keep long titles clear of the native 44-point close control and its trailing gap.
+const headerTrailingInset = 64;
 const headerActionGap = 36;
 const groupGap = 32;
 const rowContentHeight = 48;
