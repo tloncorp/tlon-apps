@@ -182,8 +182,9 @@ What it does:
   material for the outer sheet canvas. Dismissible generic content reserves the
   close control's header area inside its measured height so inputs cannot sit
   beneath its hit target; non-dismissible sheets omit the close control.
-- Sizes a single Android percentage or point snap to its requested height while
-  keeping Material's native presentation and dismissal behavior.
+- Sizes a single Android percentage or point snap to its requested total height,
+  including Material's native drag-handle area, while keeping native presentation
+  and dismissal behavior.
 
 Validation:
 - Build the iOS preview app from source.
