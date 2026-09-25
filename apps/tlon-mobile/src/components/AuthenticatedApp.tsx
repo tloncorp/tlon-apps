@@ -23,6 +23,7 @@ import {
 import { recoverTlonbotRevivalDeferredConfig } from '@tloncorp/app/lib/tlonbotRevivalDeferredConfig';
 import { DeskOutdatedScreen } from '@tloncorp/app/features/DeskOutdatedScreen';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
+import { SideInsetView } from '@tloncorp/app/navigation/SideInsetScreenLayout';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import {
   ForwardPostSheetProvider,
@@ -307,15 +308,17 @@ function AuthenticatedApp({
         // In place of the navigator rather than around it, so the node-stopped
         // and app-status handling above stays mounted: a paused or suspended
         // hosted node still kicks back to onboarding while this is up.
-        <DeskOutdatedScreen
-          currentVersion={deskCompat.current}
-          minimumVersion={deskCompat.minimum}
-          shipName={contactId ?? undefined}
-          isProbing={deskCompat.status === 'probing'}
-          isHosted={authType === 'hosted'}
-          onRetry={handleRetryDeskCompatibility}
-          onLogout={onLogout}
-        />
+        <SideInsetView>
+          <DeskOutdatedScreen
+            currentVersion={deskCompat.current}
+            minimumVersion={deskCompat.minimum}
+            shipName={contactId ?? undefined}
+            isProbing={deskCompat.status === 'probing'}
+            isHosted={authType === 'hosted'}
+            onRetry={handleRetryDeskCompatibility}
+            onLogout={onLogout}
+          />
+        </SideInsetView>
       ) : (
         <RootStack />
       )}
@@ -534,13 +537,15 @@ export default function ConnectedAuthenticatedApp({
 
   if (needsHostingReconnect) {
     return (
-      <HostingAuthReconnectScreen
-        profileId={contactId ?? ''}
-        profile={profile}
-        onRequestCode={requestReconnectCode}
-        onVerifyCode={verifyReconnectCode}
-        onLogout={onLogout}
-      />
+      <SideInsetView>
+        <HostingAuthReconnectScreen
+          profileId={contactId ?? ''}
+          profile={profile}
+          onRequestCode={requestReconnectCode}
+          onVerifyCode={verifyReconnectCode}
+          onLogout={onLogout}
+        />
+      </SideInsetView>
     );
   }
 

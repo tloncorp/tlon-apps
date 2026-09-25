@@ -32,9 +32,7 @@ export function ChatInput({
 
   return (
     // ConversationComposerPlacement owns the native bottom safe-area inset.
-    <SafeAreaView
-      edges={isWeb ? ['right', 'left', 'bottom'] : ['right', 'left']}
-    >
+    <SafeAreaView edges={isWeb ? ['right', 'left', 'bottom'] : []}>
       <BareChatInput
         ref={draftInputRef}
         shouldBlur={shouldBlur}

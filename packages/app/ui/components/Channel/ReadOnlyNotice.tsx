@@ -61,7 +61,7 @@ export function ReadOnlyNotice({
     );
 
   return (
-    <SafeAreaView edges={['right', 'left', 'bottom']}>
+    <SafeAreaView edges={['bottom']}>
       <YStack
         padding="$l"
         alignItems="center"

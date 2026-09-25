@@ -138,7 +138,7 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
         backgroundColor="$secondaryBackground"
         backAction={() => navigation.goBack()}
       />
-      <SafeAreaView style={{ flex: 1 }}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
         <Pressable
           flex={1}
           pressStyle={{ opacity: 1 }}

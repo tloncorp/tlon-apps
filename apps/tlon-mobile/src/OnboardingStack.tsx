@@ -1,5 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useScreenOptions } from '@tloncorp/app/hooks/useScreenOptions';
+import { SideInsetView } from '@tloncorp/app/navigation/SideInsetScreenLayout';
+import type { ReactNode } from 'react';
 
 import { AllowNotificationsScreen } from './screens/Onboarding/AllowNotificationsScreen';
 import { CheckOTPScreen } from './screens/Onboarding/CheckOTPScreen';
@@ -24,6 +26,14 @@ import { UnderMaintenanceScreen } from './screens/Onboarding/UnderMaintenance';
 import { WelcomeScreen } from './screens/Onboarding/WelcomeScreen';
 import type { OnboardingStackParamList } from './types';
 
+function onboardingScreenLayout({ children }: { children: ReactNode }) {
+  return (
+    <SideInsetView backgroundColor="$secondaryBackground">
+      {children}
+    </SideInsetView>
+  );
+}
+
 export const OnboardingStackNavigator =
   createNativeStackNavigator<OnboardingStackParamList>();
 
@@ -39,6 +49,7 @@ export function OnboardingStack() {
     <OnboardingStackNavigator.Navigator
       initialRouteName="InitialStateCheck"
       screenOptions={onboardingScreenOptions}
+      screenLayout={onboardingScreenLayout}
     >
       <OnboardingStackNavigator.Screen
         name="InitialStateCheck"
