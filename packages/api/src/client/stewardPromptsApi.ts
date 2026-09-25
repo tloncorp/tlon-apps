@@ -120,13 +120,28 @@ export async function awaitStewardPromptRequest(
   let status: 'sending' | 'acked' | 'nacked' = 'sending';
   for (let attempt = 0; attempt < attempts; attempt++) {
     signal?.throwIfAborted();
-    const response = await getStewardPromptRequest(
-      requestId,
-      signal ? { signal } : {}
-    );
+    const last = attempt + 1 >= attempts;
+    let response: StewardPromptResponse;
+    try {
+      response = await getStewardPromptRequest(
+        requestId,
+        signal ? { signal } : {}
+      );
+    } catch (error) {
+      // A failed poll says nothing about the command, which remains live on
+      // the backend. Keep polling so a transient failure cannot invite a
+      // second, competing edit while the first one lands.
+      if (last) {
+        throw error;
+      }
+      await sleep(intervalMs, signal);
+      continue;
+    }
+    // A terminal result still throws from here: that is the command's own
+    // answer, not a failure to ask.
     if (response.body.type !== 'pending') return settle(response);
     status = response.body.status;
-    if (attempt + 1 < attempts) {
+    if (!last) {
       await sleep(intervalMs, signal);
     }
   }
@@ -151,8 +166,27 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-export function getStewardPromptFiles(): Promise<StewardPromptFiles> {
-  return requestJson(`${PATH}/files`, 'GET', undefined, OPTIONS);
+/**
+ * A missing prompts route can mean either an older ship or a temporarily
+ * unavailable %steward. Callers retry this typed error before treating it as
+ * a settled "no prompt support" result.
+ */
+export class PromptsUnsupportedError extends Error {
+  constructor() {
+    super('Steward prompts endpoint is unavailable');
+    this.name = 'PromptsUnsupportedError';
+  }
+}
+
+export async function getStewardPromptFiles(): Promise<StewardPromptFiles> {
+  try {
+    return await requestJson(`${PATH}/files`, 'GET', undefined, OPTIONS);
+  } catch (error) {
+    if ((error as { status?: number } | null)?.status === 404) {
+      throw new PromptsUnsupportedError();
+    }
+    throw error;
+  }
 }
 
 export function scryStewardPromptFiles(): Promise<StewardPromptFiles> {
@@ -160,7 +194,10 @@ export function scryStewardPromptFiles(): Promise<StewardPromptFiles> {
 }
 
 export function subscribeToStewardPrompts(
-  handler: (update: StewardPromptUpdate) => void
+  handler: (update: StewardPromptUpdate) => void,
+  onQuit?: () => void
 ) {
-  return subscribe({ app: 'steward', path: '/v1/prompts/files' }, handler);
+  return subscribe({ app: 'steward', path: '/v1/prompts/files' }, handler, {
+    onQuit,
+  });
 }
