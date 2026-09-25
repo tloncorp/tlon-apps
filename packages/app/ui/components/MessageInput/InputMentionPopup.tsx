@@ -1,4 +1,3 @@
-import { useWindowSafeAreaInsets } from '@tloncorp/ui';
 import { PropsWithRef } from 'react';
 import React from 'react';
 import { Platform, Pressable } from 'react-native';
@@ -8,6 +7,7 @@ import { MentionOption } from '../BareChatInput/useMentions';
 import { useIsWindowNarrow } from '../Emoji';
 import MentionPopup, { MentionController } from '../MentionPopup';
 import { useInputPopupBottomOffset } from './useInputPopupBottomOffset';
+import { useInputPopupSideOffsets } from './useInputPopupSideOffsets';
 
 function InputMentionPopupInternal(
   {
@@ -33,7 +33,7 @@ function InputMentionPopupInternal(
   ref: React.ForwardedRef<MentionController>
 ) {
   const isNarrow = useIsWindowNarrow();
-  const { left: leftInset, right: rightInset } = useWindowSafeAreaInsets();
+  const { left: leftInset, right: rightInset } = useInputPopupSideOffsets();
   const { bottomOffset, backdropBottom } = useInputPopupBottomOffset(
     containerHeight,
     inputBarHeight
