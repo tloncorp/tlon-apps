@@ -10,6 +10,7 @@ import type { RootStackParamList } from '../navigation/types';
 import { GroupSettingsStackParamList } from '../navigation/types';
 import { useRootNavigation, useTypedReset } from '../navigation/utils';
 import { useIsWindowNarrow } from '../ui';
+import { useBotDmTab } from './useBotDmTab';
 
 export const useHandleGoBack = (
   navigation: NativeStackNavigationProp<
@@ -65,6 +66,7 @@ export const useChatSettingsNavigation = () => {
   } = useRootNavigation();
   const reset = useTypedReset();
   const isWindowNarrow = useIsWindowNarrow();
+  const botDm = useBotDmTab();
 
   const navigateToGroupSettings = useCallback(
     async <T extends keyof GroupSettingsStackParamList>(
@@ -215,13 +217,16 @@ export const useChatSettingsNavigation = () => {
 
   const onLeaveGroup = useCallback(() => {
     if (Platform.OS !== 'web' || isWindowNarrow) {
-      const route = getTopLevelTabRoute('ChatList');
+      // Workspaces is not a place the drawer sends anyone, so it is no place
+      // to be left once the chat is gone: the bot's conversation is, and
+      // Activity for an account without one.
+      const route = getTopLevelTabRoute(botDm.enabled ? 'BotChat' : 'Activity');
       navigationRef.current.navigate(route.name, route.params, { pop: true });
     } else {
       // Desktop: Reset navigation stack to clean Home state
       reset([{ name: 'Home' }]);
     }
-  }, [navigationRef, isWindowNarrow, reset]);
+  }, [navigationRef, isWindowNarrow, reset, botDm.enabled]);
 
   const onLeaveChannel = useCallback(
     async (groupId: string, leavingChannelId: string) => {
