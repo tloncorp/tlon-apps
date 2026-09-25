@@ -9,9 +9,12 @@ import type {
   Effects,
   Extension,
   State,
+  TokenizeContext,
 } from 'micromark-util-types';
 import type { Processor } from 'unified';
 import type { Literal } from 'unist';
+
+import { hasValidPatpSyllables } from './patpSyllables';
 
 declare module 'micromark-util-types' {
   interface TokenTypeMap {
@@ -149,13 +152,20 @@ function tokenizeEmailLocalPart(
 // references are still visible (the core escape/reference constructs consume
 // them before this hook fires), and where a trailing boundary can reject
 // candidates that run into word-like text (~zod2, ~foo-bar) instead of
-// half-mentioning a different, real ship. Deliberately syntactic-only:
-// @urbit/aura phonemic validation rejects test moons real users have.
+// half-mentioning a different, real ship. A grammatical match is then
+// rejected unless every syllable is a real @p syllable, so ~hello or ~thanks
+// stay prose.
 const shipMentionConstruct: Construct = {
   tokenize: tokenizeShipMention,
 };
 
-function tokenizeShipMention(effects: Effects, ok: State, nok: State): State {
+function tokenizeShipMention(
+  this: TokenizeContext,
+  effects: Effects,
+  ok: State,
+  nok: State
+): State {
+  const sliceSerialize = this.sliceSerialize.bind(this);
   let count = 0;
   let cometConsumed = false;
 
@@ -208,8 +218,8 @@ function tokenizeShipMention(effects: Effects, ok: State, nok: State): State {
   }
 
   function accept(code: Code): State | undefined {
-    effects.exit('shipMention');
-    return ok(code);
+    const token = effects.exit('shipMention');
+    return hasValidPatpSyllables(sliceSerialize(token)) ? ok(code) : nok(code);
   }
 }
 
