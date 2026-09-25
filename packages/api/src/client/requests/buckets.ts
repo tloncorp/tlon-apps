@@ -29,13 +29,6 @@ export const buckets = {
     since: '12.3.0',
     guardedBy: 'deskSupportsBuckets',
   },
-  ready: {
-    kind: 'scry',
-    agent: 'buckets',
-    path: '/v1/ready',
-    since: '12.3.0',
-    guardedBy: 'deskSupportsBuckets',
-  },
   updates: {
     kind: 'subscribe',
     agent: 'buckets',

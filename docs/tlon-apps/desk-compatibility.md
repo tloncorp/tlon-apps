@@ -24,21 +24,12 @@ thread, or a response shape. The judgment is recorded as the registry entry's
 The E2E job that runs the candidate client against a pinned N-1 pier proves the
 result.
 
-**Guarded requests.** `guardedBy` names a capability predicate (today
-`deskSupportsBuckets`, which is `getDeskSupportsBuckets`). It is a declaration:
-the floor check credits it without inspecting callers. Reviewers verify that
-every call site meets one of three preconditions:
-
-- It checks the named guard directly, as init and the buckets subscription do.
-- The request is itself the capability probe (`/v1/ready` via the readiness
-  hook in `dbHooks.ts`), or is issued only after that probe succeeded (bucket
-  creation from `CreateChannelSheet.tsx` → `channelActions.ts`).
-- It is reachable only from a channel whose parsed id is a buckets channel
-  (`channelActions.ts`, `useLiveBucket`), which the desk could have served only
-  with the agent present.
-
-This is the same review that holds `since` honest. Once the floor reaches
-`since`, the check fails until the guard is removed.
+**Guarded requests.** `guardedBy` names a capability (today
+`deskSupportsBuckets`, read by `getDeskSupportsBuckets`). The request helpers
+assert it at call time and throw `DeskUnsupportedError` before any network
+call while it is off. A guarded entry's `since` must equal its guard's version
+(floor check). Once the floor reaches that version, the check fails until the
+guard is removed.
 
 **(c) Desk removal is bounded by the support window** — the currently released
 client plus the candidate client. The released desk and web client are the

@@ -104,6 +104,19 @@ export class BadResponseError extends Error {
   }
 }
 
+// A registry request refused before it was sent, because the connected desk
+// predates the capability the request is guarded by.
+export class DeskUnsupportedError extends Error {
+  constructor(
+    public request: string,
+    public since: string,
+    public guard: string
+  ) {
+    super(`${request} needs desk ${since} (${guard} is off)`);
+    this.name = 'DeskUnsupportedError';
+  }
+}
+
 export class TimeoutError extends Error {
   connectionStatus: string;
   timeoutDuration: number | null;

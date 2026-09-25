@@ -1,8 +1,19 @@
 import { type Mock, beforeEach, expect, test, vi } from 'vitest';
 
-import { poke, request, requestJson, scry, scryNoun, thread } from '../urbit';
+import {
+  DeskUnsupportedError,
+  getDeskSupportsBuckets,
+  poke,
+  request,
+  requestJson,
+  scry,
+  scryNoun,
+  subscribe,
+  thread,
+} from '../urbit';
 import {
   base,
+  buckets,
   channels,
   groups,
   httpRequest,
@@ -14,6 +25,7 @@ import {
   scryRequest,
   steward,
   subscribeOnceRequest,
+  subscribeRequest,
   threadRequest,
   trackedPokeRequest,
 } from './index';
@@ -22,11 +34,13 @@ vi.mock('../urbit', async () => {
   const actual = await vi.importActual<typeof import('../urbit')>('../urbit');
   return {
     ...actual,
+    getDeskSupportsBuckets: vi.fn(),
     poke: vi.fn(),
     request: vi.fn(),
     requestJson: vi.fn(),
     scry: vi.fn(),
     scryNoun: vi.fn(),
+    subscribe: vi.fn(),
     thread: vi.fn(),
   };
 });
@@ -110,6 +124,26 @@ test('httpRequest encodes the query and forwards method, body and options', asyn
       options,
     ],
   ]);
+});
+
+test('a guarded request is refused unsent while its guard is off', async () => {
+  vi.mocked(getDeskSupportsBuckets).mockReturnValue(false);
+  expect(() => scryRequest(buckets.list)({})).toThrow(DeskUnsupportedError);
+  expect(() => subscribeRequest(buckets.updates)({}, vi.fn())).toThrow(
+    DeskUnsupportedError
+  );
+  expect(() => httpRequest(buckets.action)({})).toThrow(
+    'buckets.action needs desk 12.3.0 (deskSupportsBuckets is off)'
+  );
+  expect([calls(scry), calls(subscribe), calls(requestJson)]).toEqual([
+    [],
+    [],
+    [],
+  ]);
+
+  vi.mocked(getDeskSupportsBuckets).mockReturnValue(true);
+  await scryRequest(buckets.list)({});
+  expect(calls(scry)).toEqual([[{ app: 'buckets', path: '/v1/buckets' }]]);
 });
 
 test.each(['x?y', 'x#y', 'x\\y', '%2e%2E'])('a hole rejects %j', (count) => {
