@@ -23,7 +23,7 @@ export function openCampaignStore(stateDir: string) {
     CREATE TABLE IF NOT EXISTS campaign_owner (
       owner TEXT PRIMARY KEY, version INTEGER NOT NULL, enrolledAt INTEGER NOT NULL,
       status TEXT NOT NULL, timezone TEXT, groupId TEXT, channelId TEXT, destination TEXT,
-      topic TEXT, purpose TEXT, lastOwnerText TEXT, offeredAt INTEGER, activityMinute INTEGER,
+      topic TEXT, purpose TEXT, lastOwnerText TEXT, activityMinute INTEGER,
       lastReplyAt INTEGER, lastActivityAt INTEGER
     );
     CREATE TABLE IF NOT EXISTS campaign_sent (
@@ -46,7 +46,6 @@ export function openCampaignStore(stateDir: string) {
     'topic',
     'purpose',
     'lastOwnerText',
-    'offeredAt',
     'activityMinute',
     'lastReplyAt',
     'lastActivityAt',
@@ -137,8 +136,4 @@ export async function withCampaignLock<T>(
   } finally {
     if (writes.get(owner) === current) writes.delete(owner);
   }
-}
-
-export async function saveCampaign(store: CampaignStore, state: CampaignState) {
-  await store.save(state);
 }

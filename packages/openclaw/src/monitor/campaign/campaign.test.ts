@@ -44,7 +44,7 @@ function harness(initial = state(), overrides: Partial<CampaignDeps> = {}) {
     owner: '~ten',
     config: () => ({ enabled: true, enrollAfter: '2026-09-17T00:00:00Z' }),
     store: () => memory.store,
-    hasTask: vi.fn(async () => false),
+    task: vi.fn(async () => undefined),
     busy: () => false,
     readMarker: vi.fn(async () => undefined),
     send: vi.fn(async () => {}),
@@ -370,11 +370,13 @@ describe('campaign runner', () => {
     expect(h.read().status).toBe('completed');
   });
   it('stops permanently when a task was created outside onboarding', async () => {
-    const h = harness(state(), { hasTask: async () => true });
+    const h = harness(state(), {
+      task: async () => ({ id: 'task', name: 'Digest', enabled: true }),
+    });
     await h.campaign.check();
     expect(h.read().status).toBe('feedback');
     expect(h.deps.send).not.toHaveBeenCalled();
-    await createCampaign({ ...h.deps, hasTask: async () => false }).check();
+    await createCampaign({ ...h.deps, task: async () => undefined }).check();
     expect(h.deps.send).not.toHaveBeenCalled();
   });
   it('fails closed when the store or scheduler is unavailable', async () => {
@@ -382,7 +384,7 @@ describe('campaign runner', () => {
     await h.campaign.check();
     expect(h.deps.send).not.toHaveBeenCalled();
     const unavailable = harness(state(), {
-      hasTask: async () => {
+      task: async () => {
         throw new Error('offline');
       },
     });
@@ -457,11 +459,11 @@ describe('campaign runner', () => {
     expect(h.read().lastReplyAt ?? 0).toBe(0);
   });
   it('rechecks task creation and opt-out after reading history', async () => {
-    const hasTask = vi
+    const task = vi
       .fn()
-      .mockResolvedValueOnce(false)
-      .mockResolvedValueOnce(true);
-    const h = harness(state(), { hasTask });
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce({ id: 'task', name: 'Digest', enabled: true });
+    const h = harness(state(), { task });
     await h.campaign.check();
     expect(h.deps.send).not.toHaveBeenCalled();
     let release!: () => void;

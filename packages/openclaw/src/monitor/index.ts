@@ -1,4 +1,4 @@
-import type { Story } from '@tloncorp/api';
+import type { PostBlobDataEntryAgentIntroRequest, Story } from '@tloncorp/api';
 import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
 import { isStopTips } from './campaign/templates.js';
@@ -1566,6 +1566,17 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             runtime.error?.(`[tlon] campaign: ${String(error)}`),
         })
       : null;
+    const enrollCampaign = async (
+      request: PostBlobDataEntryAgentIntroRequest,
+      occurredAt: number,
+      channelId: string
+    ) => {
+      await campaign
+        ?.enroll({ ...request, occurredAt, channelId })
+        .catch((error) =>
+          runtime.error?.(`[tlon] campaign enrollment: ${String(error)}`)
+        );
+    };
 
     // Clear expired pending nudge on startup (after persist callback is registered so del-entry fires).
     const rehydratedNudge = getPendingNudge(account.accountId);
@@ -3330,11 +3341,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         bodyWithAttachments = mediaLines + '\n' + messageText;
       }
 
-      // Furnish the trusted onboarding group to the model. Group turns can
-      // resolve it from the channel, but first-run onboarding now continues in
-      // the owner DM, where the visible target is the owner ship instead of a
-      // chat nest. The typed tools still validate this binding independently;
-      // this context only gives the model the values its schemas require.
       if (onboardingGroupId) {
         if (isGroup && channelNest) {
           bodyWithAttachments += `\n[Group members available via: tlon groups info ${onboardingGroupId}]`;
@@ -3348,7 +3354,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         } else if (params.onboardingDmTarget) {
           bodyWithAttachments +=
             `\n[First-run onboarding DM context: use target ${params.onboardingDmTarget} ` +
-            `for typed onboarding tools and groupId ${onboardingGroupId} for the task plan. ` +
+            'for typed onboarding tools. ' +
             'Before responding, read and follow ~/.openclaw/plugin-skills/tlon-agent-onboarding/SKILL.md. ' +
             'This DM is already bound to that onboarding group; continue setup here and do not redirect the owner to create or open another group.]';
           contextLenses.recordContextSource(lens.lensId, {
@@ -4225,13 +4231,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           log: (message) => runtime.log?.(message),
           trackStep: trackOnboardingStep(nest, groupId),
           onConversationComplete: markBootstrapComplete,
-          onInitialIntro: async (request, occurredAt) => {
-            await campaign
-              ?.enroll({ ...request, occurredAt, channelId: nest })
-              .catch((error) =>
-                runtime.error?.(`[tlon] campaign enrollment: ${String(error)}`)
-              );
-          },
+          onInitialIntro: (request, occurredAt) =>
+            enrollCampaign(request, occurredAt, nest),
           presentation,
         });
         if (opts.abortSignal?.aborted) return;
@@ -4510,15 +4511,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             trackStep: trackOnboardingStep(nest, onboardingGroupId),
             onConversationComplete: markBootstrapComplete,
             requestSentAt: content.sent,
-            onInitialIntro: async (request, occurredAt) => {
-              await campaign
-                ?.enroll({ ...request, occurredAt, channelId: nest })
-                .catch((error) =>
-                  runtime.error?.(
-                    `[tlon] campaign enrollment: ${String(error)}`
-                  )
-                );
-            },
+            onInitialIntro: (request, occurredAt) =>
+              enrollCampaign(request, occurredAt, nest),
             presentation: {
               startThinking: () => {
                 computingPresence.refreshRun({
@@ -5228,19 +5222,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 log: (message) => runtime.log?.(message),
                 trackStep: trackOnboardingStep(whom, onboardingGroupId),
                 requestSentAt: dmContent.sent,
-                onInitialIntro: async (introRequest, occurredAt) => {
-                  await campaign
-                    ?.enroll({
-                      ...introRequest,
-                      occurredAt,
-                      channelId: whom,
-                    })
-                    .catch((error) =>
-                      runtime.error?.(
-                        `[tlon] campaign enrollment: ${String(error)}`
-                      )
-                    );
-                },
+                onInitialIntro: (introRequest, occurredAt) =>
+                  enrollCampaign(introRequest, occurredAt, whom),
                 onConversationComplete: async () => {
                   onboardingDmState.noteComplete(whom);
                   await markBootstrapComplete();

@@ -284,8 +284,7 @@ export type BlockedTlonOperation = {
     | 'migration_operation'
     | 'send_operation'
     | 'reserved_automatic_provision'
-    | 'reserved_provider_configuration'
-    | 'reserved_agent_choice_marker';
+    | 'reserved_provider_configuration';
   diaryNest?: string;
 };
 
@@ -321,20 +320,6 @@ function containsProviderConfigurationAction(value: unknown): boolean {
     return true;
   }
   return Object.values(record).some(containsProviderConfigurationAction);
-}
-
-function containsAgentChoiceMarker(value: unknown): boolean {
-  if (Array.isArray(value)) return value.some(containsAgentChoiceMarker);
-  if (!value || typeof value !== 'object') return false;
-  const record = value as Record<string, unknown>;
-  if (
-    record.type === 'tlon-agent-post-marker' &&
-    typeof record.key === 'string' &&
-    record.key.startsWith('agent-choice-dimension:')
-  ) {
-    return true;
-  }
-  return Object.values(record).some(containsAgentChoiceMarker);
 }
 
 function hasReservedBlobContent(
@@ -381,13 +366,6 @@ export function checkBlockedTlonOperation(
       message:
         'Blocked: provider access may be configured only by the verified onboarding coordinator.',
       reason: 'reserved_provider_configuration',
-    };
-  }
-  if (hasReservedBlobContent(commandArgs, containsAgentChoiceMarker)) {
-    return {
-      message:
-        'Blocked: agent choice evidence may be posted only by the typed tlon_agent_choice tool.',
-      reason: 'reserved_agent_choice_marker',
     };
   }
   const migration = checkBlockedMigrationOperation(commandArgs);

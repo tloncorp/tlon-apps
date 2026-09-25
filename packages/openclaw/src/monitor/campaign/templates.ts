@@ -50,9 +50,6 @@ export function renderTip(
     text =
       'I’ll leave you to explore after today. Whenever something comes up, send it my way.';
   }
-  if (step === 'closing' && !task && state.offeredAt)
-    text =
-      'I’ll leave you to explore after today. Whenever something comes up, send it my way.';
   const override = config.copy?.[step];
   if (override)
     text = override

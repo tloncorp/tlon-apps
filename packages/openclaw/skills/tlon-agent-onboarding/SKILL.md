@@ -149,10 +149,9 @@ the required source.
 ## Plan and complete the task
 
 Use `tlon_agent_task_plan` exactly once when the task is ready. Copy the active
-target and furnished group ID from trusted Tlon context; never guess, redirect
-the conversation, create a group or notebook, hand-author A2UI, or call `cron`
-during onboarding. The plan starts setup automatically without another
-confirmation.
+target from trusted Tlon context; never guess, redirect the conversation,
+create a group or notebook, hand-author A2UI, or call `cron` during onboarding.
+The plan starts setup automatically without another confirmation.
 
 Write a self-contained task prompt because scheduled runs do not remember the
 interview. Preserve material owner facts, criteria, and chosen methods. The
@@ -170,8 +169,7 @@ Use the trusted device-local timezone unless the owner explicitly requests a
 different scheduling timezone. When their time is fuzzy, keep `summary`,
 `fallbackSummary`, and `scheduleDescription` fuzzy: these fields must contain
 only the owner's fuzzy window and must never reveal or approximate the
-interpreted clock. Put that clock only in `scheduleHour`, `scheduleMinute`, and
-`scheduleExpression`. Use
+interpreted clock. Put that clock only in `scheduleHour` and `scheduleMinute`. Use
 `timezoneOverride` only for that explicit request, never merely because a task
 mentions a place. Keep cron syntax and timezone identifiers out of visible
 copy.

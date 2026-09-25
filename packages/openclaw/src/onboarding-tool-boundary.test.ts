@@ -10,7 +10,6 @@ import {
   finishTlonTaskPlanCall,
   getTlonSessionSurface,
   getTlonSessionRunSurface,
-  getTlonChoiceEvidence,
   getTlonTaskPlanEvidence,
   onboardingToolBlockReason,
   rememberTlonSessionRunSurface,
@@ -443,7 +442,7 @@ describe('onboarding tool boundary', () => {
     ).toBeUndefined();
   });
 
-  it('binds each typed choice to the durable interview start', () => {
+  it('keeps choices current while preserving the durable start for the plan', () => {
     const sessionKey = 'agent:dev:tlon:group:chat/~zod/home';
     setTlonSessionSurface(sessionKey, {
       kind: 'group',
@@ -459,9 +458,6 @@ describe('onboarding tool boundary', () => {
         sessionKey,
       })
     ).toBeUndefined();
-    expect(getTlonChoiceEvidence('choice-1')).toEqual({
-      interviewStartMessageId: '~owner/100',
-    });
     expect(() => assertTlonChoiceCallCurrent('choice-1')).not.toThrow();
 
     setTlonSessionSurface(sessionKey, {
@@ -481,9 +477,6 @@ describe('onboarding tool boundary', () => {
         sessionKey,
       })
     ).toBeUndefined();
-    expect(getTlonChoiceEvidence('choice-2')).toEqual({
-      interviewStartMessageId: '~owner/100',
-    });
     expect(() => assertTlonChoiceCallCurrent('choice-2')).not.toThrow();
   });
 
