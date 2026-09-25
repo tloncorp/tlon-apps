@@ -19,6 +19,9 @@
           ['offline-reply-cooldown' s+(scot %dr reply-cooldown.action)]
       ==
     ::
+        %status-messages
+      (frond 'status-messages' (frond 'enabled' b+enabled.action))
+    ::
         %gateway-start
       %-  frond  :-  'gateway-start'
       (pairs ~[['boot-id' s+boot-id.action] ['lease-until' s+(scot %da lease-until.action)]])
@@ -39,6 +42,7 @@
     =,  dejs:format
     %-  of
     :~  [%configure (ot ~[active-window+(se %dr) offline-reply-cooldown+(se %dr)])]
+        [%status-messages (ot ~[enabled+bo])]
         [%gateway-start (ot ~[boot-id+so lease-until+(se %da)])]
         [%gateway-heartbeat (ot ~[boot-id+so lease-until+(se %da)])]
         [%gateway-stop (ot ~[boot-id+so reason+so])]
