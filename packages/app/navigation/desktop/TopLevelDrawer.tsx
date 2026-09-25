@@ -2,7 +2,7 @@ import {
   DrawerContentComponentProps,
   createDrawerNavigator,
 } from '@react-navigation/drawer';
-import { DrawerNavigationState } from '@react-navigation/native';
+import { CommonActions, DrawerNavigationState } from '@react-navigation/native';
 import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
@@ -108,6 +108,18 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
     db.hasViewedPersonalInvite.setValue(true);
     setPersonalInviteOpen(true);
   }, []);
+
+  const handleInviteFriends = useCallback(() => {
+    setPersonalInviteOpen(false);
+    saveHomeState();
+    props.navigation.dispatch(
+      CommonActions.navigate(
+        'Activity',
+        { screen: 'InviteSystemContacts' },
+        { pop: true }
+      )
+    );
+  }, [props.navigation, saveHomeState]);
 
   return (
     <YStack
@@ -234,7 +246,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
       <PersonalInviteSheet
         open={personalInviteOpen}
         onOpenChange={() => setPersonalInviteOpen(false)}
-        onPressInviteFriends={handlePersonalInvitePress}
+        onPressInviteFriends={handleInviteFriends}
       />
     </YStack>
   );
