@@ -1,6 +1,7 @@
 import * as api from '@tloncorp/api';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { appendToPostBlob } from '../logic';
 import {
   agentGroupOnboardingTesting,
   buildAgentGroupTitle,
@@ -36,14 +37,19 @@ describe('ensureIntroRequest', () => {
     await agentGroupOnboardingTesting.ensureIntroRequest(
       '~zod/home',
       { channelId: '~bot', channelType: 'dm' },
-      true
+      true,
+      false
     );
     expect(upsertDmChannel).toHaveBeenCalledWith({ participants: ['~bot'] });
     expect(vi.mocked(upsertDmChannel).mock.invocationCallOrder[0]).toBeLessThan(
       vi.mocked(finalizeAndSendPost).mock.invocationCallOrder[0]
     );
     expect(finalizeAndSendPost).toHaveBeenCalledWith(
-      expect.objectContaining({ channelId: '~bot', channelType: 'dm' }),
+      expect.objectContaining({
+        channelId: '~bot',
+        channelType: 'dm',
+        content: [''],
+      }),
       { rejectOnDefinitiveFailure: true }
     );
   });
@@ -52,6 +58,7 @@ describe('ensureIntroRequest', () => {
     await agentGroupOnboardingTesting.ensureIntroRequest(
       '~zod/home',
       { channelId: 'chat/~zod/general', channelType: 'chat' },
+      false,
       false
     );
     expect(upsertDmChannel).not.toHaveBeenCalled();
@@ -66,7 +73,7 @@ describe('buildAgentGroupTitle', () => {
         purposeId: 'agent-daily-digest',
         topics: ['Peptides'],
       })
-    ).toBe('Peptides Digest');
+    ).toBe('Peptides Updates');
     expect(
       buildAgentGroupTitle({
         purposeId: 'agent-learning',
@@ -108,13 +115,45 @@ describe('buildAgentGroupTitle', () => {
           'CTA delays and service changes',
         ],
       })
-    ).toBe('Chicago weather and school clos… + 1 more Digest');
+    ).toBe('Chicago weather + 1 more Updates');
     expect(
       buildAgentGroupTitle({
         purposeId: 'agent-research',
         topics: ['Private equity ownership of Pennsylvania nursing homes'],
       })
-    ).toBe('Private equity ownership of Pennsylvan… Research');
+    ).toBe('Private equity Research');
+    expect(
+      buildAgentGroupTitle({
+        purposeId: 'agent-daily-digest',
+        topics: ['Community garden unfinished items'],
+      })
+    ).toBe('Community garden Updates');
+  });
+
+  it('uses the concrete topic even when the purpose is generic', () => {
+    expect(
+      buildAgentGroupTitle({
+        purposeId: 'agent-daily-digest',
+        topics: ['nervous rescue dog'],
+      })
+    ).toBe('nervous rescue dog Updates');
+  });
+});
+
+describe('agent intro request', () => {
+  it('keeps device scheduling context without enrolling a campaign', () => {
+    const resolved = Intl.DateTimeFormat().resolvedOptions();
+    expect(
+      agentGroupOnboardingTesting.buildIntroRequest('~zod/group', true, false)
+    ).toEqual({
+      type: 'tlon-agent-intro-request',
+      version: 1,
+      groupId: '~zod/group',
+      isFirstGroup: true,
+      clientTimezone: resolved.timeZone?.trim() || 'UTC',
+      clientLocale: resolved.locale?.trim() || 'en-US',
+      timezone: resolved.timeZone?.trim() || 'UTC',
+    });
   });
 });
 
@@ -152,6 +191,32 @@ describe('onboarding group title replacement', () => {
 });
 
 describe('agent group furnishing retry', () => {
+  it('recognizes a completed pending group from its durable intro request', () => {
+    const intro = {
+      authorId: '~zod',
+      blob: appendToPostBlob(undefined, {
+        type: 'tlon-agent-intro-request',
+        version: 1,
+        groupId: '~zod/completed',
+      }),
+    } as never;
+
+    expect(
+      agentGroupOnboardingTesting.historyHasAgentIntroRequest(
+        [intro],
+        '~zod',
+        '~zod/completed'
+      )
+    ).toBe(true);
+    expect(
+      agentGroupOnboardingTesting.historyHasAgentIntroRequest(
+        [intro],
+        '~zod',
+        '~zod/still-pending'
+      )
+    ).toBe(false);
+  });
+
   it('deletes only this client’s proven-new notebook when it loses the race', () => {
     const first = { id: 'notes/~zod/zeta', title: 'Updates' } as never;
     const second = { id: 'notes/~zod/alpha', title: 'Updates' } as never;
@@ -476,5 +541,36 @@ describe('isProvisionedAgentGroupTitle', () => {
         agentGroupOnboardingTesting.isProvisionedAgentGroupTitle(title, owner)
       ).toBe(false);
     }
+  });
+});
+
+describe('initial onboarding campaign metadata', () => {
+  it('includes timezone before a task has been provisioned', () => {
+    const request = agentGroupOnboardingTesting.buildIntroRequest(
+      '~zod/home',
+      true,
+      true
+    );
+    expect(request).toMatchObject({
+      type: 'tlon-agent-intro-request',
+      version: 1,
+      groupId: '~zod/home',
+      isFirstGroup: true,
+      campaignVersion: 1,
+    });
+    expect(request.timezone).toBe(
+      Intl.DateTimeFormat().resolvedOptions().timeZone
+    );
+    expect(request.timezone).toBeTruthy();
+  });
+  it('does not enroll returning accounts or later group creations', () => {
+    expect(
+      agentGroupOnboardingTesting.buildIntroRequest('~zod/home', true, false)
+        .campaignVersion
+    ).toBeUndefined();
+    expect(
+      agentGroupOnboardingTesting.buildIntroRequest('~zod/later', false, true)
+        .campaignVersion
+    ).toBeUndefined();
   });
 });

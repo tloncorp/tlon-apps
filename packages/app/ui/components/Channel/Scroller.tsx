@@ -163,6 +163,7 @@ const Scroller = forwardRef(
       [collectionLayoutType]
     );
     const currentUserId = useCurrentUserId();
+    const { data: group } = store.useGroup({ id: channel.groupId ?? '' });
     const collectionConfig = useMemo(
       () => configurationFromChannel(channel),
       [channel]
@@ -259,9 +260,14 @@ const Scroller = forwardRef(
     const visiblePosts = useMemo(
       () =>
         posts?.filter((post) =>
-          isVisibleChannelPost(post, currentUserId, channel.id)
+          isVisibleChannelPost(
+            post,
+            currentUserId,
+            channel.id,
+            group?.hostUserId
+          )
         ),
-      [channel.id, currentUserId, posts]
+      [channel.id, currentUserId, group?.hostUserId, posts]
     );
 
     const postsWithNeighbors: PostWithNeighbors[] | undefined = useMemo(

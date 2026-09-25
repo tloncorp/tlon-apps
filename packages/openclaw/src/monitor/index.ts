@@ -1,6 +1,8 @@
 import type { Story } from '@tloncorp/api';
 import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
+import { isStopTips } from './campaign/templates.js';
+import { createLiveCampaign } from './campaign/live.js';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
 import type { OpenClawConfig, ReplyPayload } from 'openclaw/plugin-sdk/core';
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
@@ -48,6 +50,13 @@ import {
   getGatewayStatusCoordinator,
 } from '../gateway-status.js';
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
+import {
+  getTlonSessionSurface,
+  rememberTlonSessionRunSurface,
+  resolveTlonSessionOwnerMessageId,
+  resolveTlonSessionThreadParentId,
+  setTlonSessionSurface,
+} from '../onboarding-tool-boundary.js';
 import {
   type PendingNudge,
   clearPendingNudge,
@@ -131,11 +140,11 @@ import {
 } from '../version.js';
 import {
   type OnboardingStepReport,
+  agentOnboardingClientDateTimeContext,
   createAgentOnboardingCatchUpScheduler,
   createAgentOnboardingReconciliationPresence,
   drainAgentOnboardingRuntime,
   findOnboardingGroupIdInChannel,
-  isAgentOnboardingReply,
   parseAgentOnboardingRequest,
   handleAgentOnboardingRequest,
   isDmNest,
@@ -253,6 +262,7 @@ import {
   isSummarizationRequest,
   parseBlockedShips,
   prepareInboundText,
+  resolveCommandBody,
   sanitizeMessageText,
   shouldEngageInGroup,
   stripBotMentionOutsidePlaceholders,
@@ -787,7 +797,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     api.poke.bind(api),
     botShipName,
     account.url,
-    ({ app, path }) => api.scry(`/~/scry/${app}${path}.json`),
+    ({ app, path }) => api.scry(`/${app}${path}.json`),
     (path, method, body, options) =>
       api.requestJson(path, method, body, options)
   );
@@ -967,6 +977,31 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     );
     let pendingApprovals: PendingApproval[] = [];
     let currentSettings: TlonSettingsStore = {};
+    let bootstrapCompleteFlight: Promise<void> | undefined;
+    const markBootstrapComplete = () => {
+      if (currentSettings.bootstrapComplete === true) return Promise.resolve();
+      if (bootstrapCompleteFlight) return bootstrapCompleteFlight;
+      bootstrapCompleteFlight = api
+        .poke({
+          app: 'settings',
+          mark: 'settings-event',
+          json: {
+            'put-entry': {
+              'bucket-key': 'tlon',
+              'entry-key': 'bootstrapComplete',
+              value: true,
+              desk: 'moltbot',
+            },
+          },
+        })
+        .then(() => {
+          currentSettings = { ...currentSettings, bootstrapComplete: true };
+        })
+        .finally(() => {
+          bootstrapCompleteFlight = undefined;
+        });
+      return bootstrapCompleteFlight;
+    };
     // Tracks whether pendingNudge has been successfully rehydrated from the settings
     // store (or locally set/cleared). While false, refresh is allowed to recover a
     // persisted pendingNudge that was missed due to a transient startup scry failure.
@@ -1515,6 +1550,22 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     });
 
     let nudgeRunner: ReturnType<typeof createNudgeRunner> | null = null;
+    let campaignActiveRuns = 0;
+    const campaign = effectiveOwnerShip
+      ? createLiveCampaign({
+          accountId: account.accountId,
+          owner: effectiveOwnerShip,
+          bot: botShipName,
+          config: () => core.config.loadConfig(),
+          botProfile: getBotProfile,
+          busy: () => campaignActiveRuns > 0,
+          telemetry,
+          signal: opts.abortSignal,
+          log: (message) => runtime.log?.(message),
+          error: (error) =>
+            runtime.error?.(`[tlon] campaign: ${String(error)}`),
+        })
+      : null;
 
     // Clear expired pending nudge on startup (after persist callback is registered so del-entry fires).
     const rehydratedNudge = getPendingNudge(account.accountId);
@@ -2491,10 +2542,23 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       return /^~?[a-z-]+$/i.test(normalized) ? normalized : '';
     }
 
-    const processMessage = async (params: {
+    const processMessage = async (
+      params: Parameters<typeof processMessageInternal>[0]
+    ) => {
+      campaignActiveRuns++;
+      try {
+        return await processMessageInternal(params);
+      } finally {
+        campaignActiveRuns--;
+      }
+    };
+
+    const processMessageInternal = async (params: {
       messageId: string;
       senderShip: string;
       messageText: string;
+      /** Original owner text used for slash-command detection. */
+      commandText?: string;
       citedContent?: string;
       /** Cite-free rendering used only for message-level gates. */
       gateText?: string;
@@ -2504,6 +2568,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       blobField?: string | null; // Raw blob JSON from post/reply
       isGroup: boolean;
       channelNest?: string;
+      onboardingDmTarget?: string;
+      onboardingDmGroupId?: string;
       hostShip?: string;
       channelName?: string;
       timestamp: number;
@@ -3160,8 +3226,48 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         });
       }
       // Store role for before_tool_call hook (tool access control)
+      const threadParentId = resolveTlonSessionThreadParentId(
+        isThreadReply,
+        parentId
+      );
+      const onboardingGroupId = isGroup
+        ? channelNest
+          ? channelToGroup.get(channelNest)
+          : undefined
+        : params.onboardingDmGroupId;
+      const onboardingClientDateTime = onboardingGroupId
+        ? agentOnboardingClientDateTimeContext(
+            route.accountId ?? botShipName,
+            onboardingGroupId
+          )
+        : undefined;
       for (const sessionKey of lensSessionKeys) {
         setSessionRole(sessionKey, senderRole);
+        const previousMessageId = getTlonSessionSurface(sessionKey)?.messageId;
+        const ownerMessageId = resolveTlonSessionOwnerMessageId(
+          senderRole,
+          String(messageId),
+          previousMessageId
+        );
+        setTlonSessionSurface(sessionKey, {
+          kind: isGroup ? 'group' : 'direct',
+          senderRole,
+          ...(isGroup && channelNest ? { channelNest } : {}),
+          ...(params.onboardingDmTarget && onboardingGroupId
+            ? {
+                channelNest: params.onboardingDmTarget,
+                onboardingGroupId,
+              }
+            : {}),
+          ...(threadParentId ? { threadParentId } : {}),
+          ...(typeof currentSettings.bootstrapComplete === 'boolean'
+            ? { bootstrapComplete: currentSettings.bootstrapComplete }
+            : {}),
+          ...(ownerMessageId ? { messageId: ownerMessageId } : {}),
+          ...(onboardingClientDateTime
+            ? { interviewTimezone: onboardingClientDateTime.timezone }
+            : {}),
+        });
       }
       runtime.log?.(
         `[tlon] Stored session role: sessionKeys=${lensSessionKeys.join(', ')}, role=${senderRole}`
@@ -3179,9 +3285,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // annotations, which hide the leading slash — the gate would then skip
       // authorization while CommandBody still carries the command, and the
       // gateway silently drops it as unauthorized.
-      const commandBody = isGroup
-        ? stripBotMentionOutsidePlaceholders(rawMessageText, botShipName)
-        : rawMessageText;
+      const commandBody = resolveCommandBody({
+        messageText: params.messageText,
+        commandText: params.commandText,
+        isGroup,
+        botShipName,
+      });
       const shouldComputeAuth =
         core.channel.commands.shouldComputeCommandAuthorized(commandBody, cfg);
       let commandAuthorized = false;
@@ -3221,18 +3330,45 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         bodyWithAttachments = mediaLines + '\n' + messageText;
       }
 
-      // For group messages, add a hint about how to query members (avoids injecting full list)
-      if (isGroup && channelNest) {
-        const groupFlag = channelToGroup.get(channelNest);
-        if (groupFlag) {
-          bodyWithAttachments += `\n[Group members available via: tlon groups info ${groupFlag}]`;
+      // Furnish the trusted onboarding group to the model. Group turns can
+      // resolve it from the channel, but first-run onboarding now continues in
+      // the owner DM, where the visible target is the owner ship instead of a
+      // chat nest. The typed tools still validate this binding independently;
+      // this context only gives the model the values its schemas require.
+      if (onboardingGroupId) {
+        if (isGroup && channelNest) {
+          bodyWithAttachments += `\n[Group members available via: tlon groups info ${onboardingGroupId}]`;
           contextLenses.recordContextSource(lens.lensId, {
             kind: 'system',
             label: 'Group member lookup hint',
-            sourceId: groupFlag,
+            sourceId: onboardingGroupId,
             included: true,
             reason: 'member list available through tlon tool, not injected raw',
           });
+        } else if (params.onboardingDmTarget) {
+          bodyWithAttachments +=
+            `\n[First-run onboarding DM context: use target ${params.onboardingDmTarget} ` +
+            `for typed onboarding tools and groupId ${onboardingGroupId} for the task plan. ` +
+            'Before responding, read and follow ~/.openclaw/plugin-skills/tlon-agent-onboarding/SKILL.md. ' +
+            'This DM is already bound to that onboarding group; continue setup here and do not redirect the owner to create or open another group.]';
+          contextLenses.recordContextSource(lens.lensId, {
+            kind: 'system',
+            label: 'Onboarding DM group binding',
+            sourceId: onboardingGroupId,
+            included: true,
+            reason:
+              'trusted first-run DM binding supplied to typed onboarding tools',
+          });
+        }
+        const clientDateTime = onboardingClientDateTime;
+        if (clientDateTime) {
+          bodyWithAttachments +=
+            `\n[Client date/time context: device timezone ${clientDateTime.timezone}; ` +
+            `locale ${clientDateTime.locale}. Interpret unqualified schedule times in this ` +
+            'device timezone. Always format visible onboarding times with AM/PM, even when the locale normally uses 24-hour time. Keep cron expressions and ' +
+            'technical timezone identifiers out of user-facing choices and confirmations. ' +
+            'If the owner explicitly names another timezone, preserve that override and ' +
+            'describe it in ordinary language.]';
         }
       }
 
@@ -3324,6 +3460,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       const compactionObservationTimeoutMs =
         resolveCompactionObservationTimeoutMs(cfg);
       const runId = randomUUID();
+      rememberTlonSessionRunSurface(runId, route.sessionKey, { senderRole });
       const turnRecorder = startTlonAgentTurn({
         accountId: account.accountId,
         agentId: route.agentId,
@@ -4087,6 +4224,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           ownerShip: effectiveOwnerShip,
           log: (message) => runtime.log?.(message),
           trackStep: trackOnboardingStep(nest, groupId),
+          onConversationComplete: markBootstrapComplete,
+          onInitialIntro: async (request, occurredAt) => {
+            await campaign
+              ?.enroll({ ...request, occurredAt, channelId: nest })
+              .catch((error) =>
+                runtime.error?.(`[tlon] campaign enrollment: ${String(error)}`)
+              );
+          },
           presentation,
         });
         if (opts.abortSignal?.aborted) return;
@@ -4320,6 +4465,16 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           return;
         }
 
+        if (senderShip === effectiveOwnerShip) {
+          if (
+            await campaign
+              ?.inbound(rawText, isStopTips(rawText))
+              .catch((error) =>
+                runtime.error?.(`[tlon] campaign activity: ${String(error)}`)
+              )
+          )
+            return;
+        }
         let handledOnboardingRequest = false;
         // Same gap as the reconciliation scan: a DM nest names no group, so
         // read the workspace out of the app's intro request in this DM.
@@ -4353,6 +4508,17 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             blob: content.blob,
             log: (message) => runtime.log?.(message),
             trackStep: trackOnboardingStep(nest, onboardingGroupId),
+            onConversationComplete: markBootstrapComplete,
+            requestSentAt: content.sent,
+            onInitialIntro: async (request, occurredAt) => {
+              await campaign
+                ?.enroll({ ...request, occurredAt, channelId: nest })
+                .catch((error) =>
+                  runtime.error?.(
+                    `[tlon] campaign enrollment: ${String(error)}`
+                  )
+                );
+            },
             presentation: {
               startThinking: () => {
                 computingPresence.refreshRun({
@@ -4661,12 +4827,20 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           }
         }
 
+        let campaignContext: string | undefined;
+        if (senderShip === effectiveOwnerShip) {
+          campaignContext = await campaign?.replyContext(nest);
+          if (await campaign?.inboundInConversation(rawText, nest)) return;
+        }
         const parsed = parseChannelNest(nest);
         const citedContent = await resolveCitedContent(content.content);
         await processMessage({
           messageId: messageId ?? '',
           senderShip,
-          messageText: rawText,
+          messageText: campaignContext
+            ? `${campaignContext}\n\n[Current owner message]\n${rawText}`
+            : rawText,
+          commandText: rawText,
           ...(citedContent ? { citedContent } : {}),
           gateText: engagementText,
           trigger,
@@ -4994,9 +5168,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           return;
         }
 
+        let campaignContext: string | undefined;
         // Onboarding now runs in the bot DM, and a DM writ never reaches the
         // channels firehose — so the control-plane check has to happen here
         // too, before the message wakes the model as ordinary conversation.
+        let dmOnboardingGroupId: string | undefined;
         if (isDmNest(whom)) {
           // Onboarding is a sliver of DM traffic, so ordinary messages must not
           // pay a 500-writ history read. A typed request names its own group.
@@ -5013,12 +5189,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             onboardingDmState.noteRequest(whom, onboardingGroupId);
           }
           onboardingGroupId ??= onboardingDmState.groupFor(whom);
-          const isReply =
-            !request &&
+          if (
+            !onboardingGroupId &&
             fromOwner &&
-            !onboardingDmState.isInactive(whom) &&
-            isAgentOnboardingReply(rawText);
-          if (!onboardingGroupId && isReply) {
+            currentSettings.bootstrapComplete !== true &&
+            !onboardingDmState.isInactive(whom)
+          ) {
             try {
               onboardingGroupId = await findOnboardingGroupIdInChannel({
                 api,
@@ -5029,11 +5205,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               onboardingDmState.noteLookup(whom, onboardingGroupId);
             } catch (error) {
               runtime.error?.(
-                `[tlon] Failed to resolve onboarding group from ${whom}: ${error instanceof Error ? error.message : String(error)}`
+                `[tlon] Failed to bind onboarding DM ${whom}: ${error instanceof Error ? error.message : String(error)}`
               );
             }
           }
-          if (request || (isReply && onboardingGroupId)) {
+          dmOnboardingGroupId = fromOwner ? onboardingGroupId : undefined;
+          if (request) {
             let handledOnboardingRequest = false;
             try {
               handledOnboardingRequest = await handleAgentOnboardingRequest({
@@ -5050,8 +5227,24 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 blob: dmContent.blob,
                 log: (message) => runtime.log?.(message),
                 trackStep: trackOnboardingStep(whom, onboardingGroupId),
-                onConversationComplete: () =>
-                  onboardingDmState.noteComplete(whom),
+                requestSentAt: dmContent.sent,
+                onInitialIntro: async (introRequest, occurredAt) => {
+                  await campaign
+                    ?.enroll({
+                      ...introRequest,
+                      occurredAt,
+                      channelId: whom,
+                    })
+                    .catch((error) =>
+                      runtime.error?.(
+                        `[tlon] campaign enrollment: ${String(error)}`
+                      )
+                    );
+                },
+                onConversationComplete: async () => {
+                  onboardingDmState.noteComplete(whom);
+                  await markBootstrapComplete();
+                },
                 presentation: {
                   startThinking: () => {
                     computingPresence.refreshRun({
@@ -5092,11 +5285,35 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             }
           }
         }
+        if (
+          authorShip === effectiveOwnerShip &&
+          senderShip === effectiveOwnerShip
+        ) {
+          try {
+            if (
+              isStopTips(rawText) &&
+              (await campaign?.inboundInConversation(rawText, senderShip))
+            ) {
+              return;
+            }
+            campaignContext = await campaign?.replyContext(senderShip);
+            if (
+              !isStopTips(rawText) &&
+              (await campaign?.inboundInConversation(rawText, senderShip))
+            )
+              return;
+          } catch (error) {
+            runtime.error?.(`[tlon] campaign reply: ${String(error)}`);
+          }
+        }
         const citedContent = await resolveCitedContent(dmContent.content);
         await processMessage({
           messageId: effectiveMessageId ?? '',
           senderShip,
-          messageText: rawText,
+          messageText: campaignContext
+            ? `${campaignContext}\n\n[Current owner message]\n${rawText}`
+            : rawText,
+          commandText: rawText,
           ...(citedContent ? { citedContent } : {}),
           gateText: engagementText,
           trigger: 'dm',
@@ -5104,6 +5321,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           messageContent: dmContent.content, // Pass raw content for media extraction
           blobField: dmContent.blob,
           isGroup: false,
+          ...(dmOnboardingGroupId
+            ? {
+                onboardingDmTarget: whom,
+                onboardingDmGroupId: dmOnboardingGroupId,
+              }
+            : {}),
           timestamp: dmContent.sent || Date.now(),
           parentId: dmReplyParentId,
           isThreadReply: isDmThreadReply,
@@ -6182,6 +6405,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           runtime.error?.(`[tlon] Cron snapshot failed: ${String(error)}`),
       });
 
+      campaign?.start();
       // Periodically refresh channel discovery
       const pollInterval = setInterval(
         async () => {
@@ -6219,11 +6443,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         2 * 60 * 1000
       );
 
+      let campaignRefreshTicks = 0;
       const settingsRefreshInterval = setInterval(async () => {
         if (opts.abortSignal?.aborted) {
           return;
         }
         await refreshSettingsNow();
+        // Reuse the five-minute monitor interval for a local campaign check
+        // every fifteen minutes. History/privacy are fetched only when due.
+        if (++campaignRefreshTicks === 3) {
+          campaignRefreshTicks = 0;
+          await campaign?.check();
+        }
       }, SETTINGS_REFRESH_INTERVAL_MS);
 
       // Plugin-owned re-engagement nudge scheduler. Owns tick lifecycle and
@@ -6322,6 +6553,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // `setLocalPendingNudge` / `enqueueStageClear` / etc. writes land
       // inside the queues we flush below, rather than leaking into a
       // half-closed api after cleanup.
+      await campaign?.stop();
       await nudgeRunner?.stop();
       await ownerReplyPersistence.flush();
       await pendingNudgePersistence.flush();
