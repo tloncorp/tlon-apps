@@ -450,6 +450,7 @@ export function internalRemoveClient() {
   // endpoints until app-info sync resolves the new ship's version
   setActivitySupportsReactions(false);
   setActivitySupportsNotes(false);
+  setDeskSupportsBuckets(false);
 }
 
 function printEndpoint(endpoint: UrbitEndpoint) {
