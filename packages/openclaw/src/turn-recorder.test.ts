@@ -7,6 +7,7 @@ import {
   recordTlonTurnSilenceOutput,
   claimActiveTlonTurnOutput,
   createTlonAgentTurnOtelObserver,
+  getActiveTlonTurnAccountId,
   observeActiveTlonTurnDelivery,
   recordActiveTlonTurnDelivery,
   recordActiveTlonTurnSourceReply,
@@ -64,6 +65,34 @@ function recordTurn(params: {
 }
 
 describe('Tlon agent turn output attribution', () => {
+  it('exposes the active account only inside its turn scope', () => {
+    const turn = startTlonAgentTurn(
+      { ...baseTurn, accountId: 'named-account' },
+      { observer: noOpObserver }
+    );
+    expect(getActiveTlonTurnAccountId()).toBeNull();
+    expect(turn.run(() => getActiveTlonTurnAccountId())).toBe('named-account');
+    turn.finalize({ durationMs: 0 });
+    expect(getActiveTlonTurnAccountId()).toBeNull();
+  });
+
+  it('shares the active account across isolated module contexts', async () => {
+    const runtimeContext = await import('./turn-recorder.js');
+    vi.resetModules();
+    const entryContext = await import('./turn-recorder.js');
+    const turn = runtimeContext.startTlonAgentTurn(
+      { ...baseTurn, accountId: 'named-account' },
+      { observer: noOpObserver }
+    );
+
+    expect(entryContext.getActiveTlonTurnAccountId()).toBeNull();
+    expect(turn.run(() => entryContext.getActiveTlonTurnAccountId())).toBe(
+      'named-account'
+    );
+    turn.finalize({ durationMs: 0 });
+    expect(entryContext.getActiveTlonTurnAccountId()).toBeNull();
+  });
+
   it('assigns the active run id and monotonic output indexes', () => {
     const turn = startTlonAgentTurn(baseTurn, { observer: noOpObserver });
     const outputs = turn.run(() => {
