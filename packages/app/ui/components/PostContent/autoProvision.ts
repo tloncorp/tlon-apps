@@ -1,5 +1,4 @@
 export const AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID = 'auto-provision';
-const AGENT_TASK_PLAN_AUTO_PROVISION_ACTION = 'tlon.provisionAgent';
 
 type ComponentReference = {
   component: string;
@@ -37,16 +36,6 @@ export function claimAutomaticProvisionRetry(
   return true;
 }
 
-export function isAutomaticProvisionControl(input: {
-  componentId: string;
-  actionName: string;
-}) {
-  return (
-    input.componentId === AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID &&
-    input.actionName === AGENT_TASK_PLAN_AUTO_PROVISION_ACTION
-  );
-}
-
 export function trackAutomaticProvisionReceipt(input: {
   observedReceipts: Set<string>;
   activeAttempts: Set<string>;
@@ -75,7 +64,8 @@ export function shouldAttemptAutomaticProvision(input: {
   attemptedThisMount: boolean;
 }) {
   return (
-    isAutomaticProvisionControl(input) &&
+    input.componentId === AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID &&
+    input.actionName === 'tlon.provisionAgent' &&
     input.componentReachable &&
     !input.componentDisabled &&
     !input.selectionsPending &&
