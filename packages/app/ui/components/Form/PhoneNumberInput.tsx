@@ -1,3 +1,4 @@
+import { useWindowSafeAreaInsets } from '@tloncorp/ui';
 import { getLocales } from 'expo-localization';
 import { isValidPhoneNumber } from 'libphonenumber-js';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -9,7 +10,6 @@ import {
   type TransformerTextInputInstance,
 } from 'react-native-transformer-text-input';
 import { PhoneNumberTransformer } from 'react-native-transformer-text-input/formatters/phone-number';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from 'tamagui';
 
 import { Field } from './Field';
@@ -36,7 +36,7 @@ export function PhoneNumberInput({ form, shouldFocus = true }: Props) {
   const [country, setCountry] = useState(defaultCountry);
   const inputRef = useRef<TransformerTextInputInstance>(null);
   const theme = useTheme();
-  const { left: leftInset, right: rightInset } = useSafeAreaInsets();
+  const { left: leftInset, right: rightInset } = useWindowSafeAreaInsets();
   const { errors } = useFormState({ control: form.control });
 
   // One international transformer: the calling code is part of the editable

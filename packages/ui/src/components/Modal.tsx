@@ -1,13 +1,13 @@
 import { ComponentProps } from 'react';
 import { Modal as RNModal } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View } from 'tamagui';
 
+import { useWindowSafeAreaInsets } from '../hooks/useWindowSafeAreaInsets';
 import { Overlay } from './Overlay';
 import { ZStack } from './ZStack';
 
 export function Modal(props: ComponentProps<typeof RNModal>) {
-  const { left, right } = useSafeAreaInsets();
+  const { left, right } = useWindowSafeAreaInsets();
   const onDismiss = () => {
     if (props.onDismiss) {
       props.onDismiss();

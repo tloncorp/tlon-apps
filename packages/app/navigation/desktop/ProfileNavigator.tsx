@@ -23,6 +23,10 @@ import {
   isWeb,
 } from '../../ui';
 import { ProfileDrawerParamList } from '../types';
+import {
+  ListPaneSafeArea,
+  detailPaneScreenLayout,
+} from './PaneSafeAreaProvider';
 
 const ProfileDrawer = createDrawerNavigator<ProfileDrawerParamList>();
 
@@ -107,7 +111,12 @@ export const ProfileNavigator = () => {
   return (
     <ProfileDrawer.Navigator
       initialRouteName="UserProfile"
-      drawerContent={DrawerContent}
+      drawerContent={(props) => (
+        <ListPaneSafeArea>
+          <DrawerContent {...props} />
+        </ListPaneSafeArea>
+      )}
+      screenLayout={detailPaneScreenLayout}
       screenOptions={{
         headerShown: false,
         drawerType: 'permanent',

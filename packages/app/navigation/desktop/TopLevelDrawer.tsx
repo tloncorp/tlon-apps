@@ -7,6 +7,8 @@ import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useRef, useState } from 'react';
+import { Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getVariableValue, useTheme } from 'tamagui';
 
 import { GlobalSearch } from '../../features/chat-list/GlobalSearch';
@@ -29,6 +31,7 @@ import { PersonalInviteSheet } from '../../ui/components/PersonalInviteSheet';
 import { RootDrawerParamList } from '../types';
 import { getActiveNestedGroupId } from '../routeHelpers';
 import { useRootNavigation } from '../utils';
+import { PaneSafeAreaProvider } from './PaneSafeAreaProvider';
 import { ActivityNavigator } from './ActivityNavigator';
 import { HomeNavigator } from './HomeNavigator';
 import { MessagesNavigator } from './MessagesNavigator';
@@ -38,6 +41,7 @@ import { SettingsNavigator } from './SettingsNavigator';
 const Drawer = createDrawerNavigator<RootDrawerParamList>();
 
 const DrawerContent = (props: DrawerContentComponentProps) => {
+  const insets = useSafeAreaInsets();
   const userId = useCurrentUserId();
   // const { data: baseUnread } = store.useBaseUnread();
   const haveUnreadUnseenActivity = store.useHaveUnreadUnseenActivity();
@@ -106,7 +110,13 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
   }, []);
 
   return (
-    <YStack flex={1} paddingVertical="$l">
+    <YStack
+      flex={1}
+      paddingVertical="$l"
+      marginTop={insets.top}
+      marginBottom={insets.bottom}
+      marginLeft={insets.left}
+    >
       <YStack
         gap="$xl"
         alignItems="center"
@@ -211,13 +221,15 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
             });
           }}
         />
-        <NavIcon
-          type="Command"
-          isActive={isOpen}
-          shouldShowUnreads={false}
-          disabled={navigationDisabled}
-          onPress={() => setIsOpen(!isOpen)}
-        />
+        {Platform.OS === 'web' ? (
+          <NavIcon
+            type="Command"
+            isActive={isOpen}
+            shouldShowUnreads={false}
+            disabled={navigationDisabled}
+            onPress={() => setIsOpen(!isOpen)}
+          />
+        ) : null}
       </YStack>
       <PersonalInviteSheet
         open={personalInviteOpen}
@@ -237,24 +249,32 @@ const TopLevelDrawerInner = () => {
     locked: agentOnboardingLocked,
     isLoading: agentOnboardingLockLoading,
   } = useAnyAgentGroupOnboardingLock();
+  const { left: leftInset } = useSafeAreaInsets();
 
   return (
     <>
-      <GlobalSearch
-        navigateToGroup={navigateToGroup}
-        navigateToChannel={navigateToChannel}
-        disabled={agentOnboardingLocked || agentOnboardingLockLoading}
-      />
+      {/* Keyboard-driven and DOM-positioned; native has no Cmd-K. */}
+      {Platform.OS === 'web' ? (
+        <GlobalSearch
+          navigateToGroup={navigateToGroup}
+          navigateToChannel={navigateToChannel}
+          disabled={agentOnboardingLocked || agentOnboardingLockLoading}
+        />
+      ) : null}
       <Drawer.Navigator
         drawerContent={(props: DrawerContentComponentProps) => {
-          return <DrawerContent {...props} />;
+          return (
+            <PaneSafeAreaProvider touchesLeft touchesRight={false}>
+              <DrawerContent {...props} />
+            </PaneSafeAreaProvider>
+          );
         }}
         initialRouteName="Home"
         screenOptions={{
           drawerType: 'permanent',
           headerShown: false,
           drawerStyle: {
-            width: DESKTOP_TOPLEVEL_SIDEBAR_WIDTH,
+            width: DESKTOP_TOPLEVEL_SIDEBAR_WIDTH + leftInset,
             backgroundColor: getVariableValue(useTheme().background),
             borderRightColor: getVariableValue(useTheme().border),
           },

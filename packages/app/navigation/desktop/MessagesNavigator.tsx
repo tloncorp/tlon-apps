@@ -28,6 +28,10 @@ import { GroupSettingsStack } from '../GroupSettingsStack';
 import { DesktopChannelStackParamList, HomeDrawerParamList } from '../types';
 import { mediaViewerScreenOptions } from '../utils';
 import { MessagesSidebar } from './MessagesSidebar';
+import {
+  ListPaneSafeArea,
+  detailPaneScreenLayout,
+} from './PaneSafeAreaProvider';
 
 const MessagesDrawer = createDrawerNavigator<HomeDrawerParamList>();
 
@@ -43,7 +47,12 @@ export const MessagesNavigator = () => {
 
   return (
     <MessagesDrawer.Navigator
-      drawerContent={(props) => <DrawerContent {...props} />}
+      drawerContent={(props) => (
+        <ListPaneSafeArea>
+          <DrawerContent {...props} />
+        </ListPaneSafeArea>
+      )}
+      screenLayout={detailPaneScreenLayout}
       initialRouteName="ChatList"
       screenOptions={() => {
         return {

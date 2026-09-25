@@ -13,6 +13,7 @@ import {
   LoadingSpinner,
   Modal,
   useIsWindowNarrow,
+  useWindowSafeAreaInsets,
 } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import React, {
@@ -169,6 +170,9 @@ const Scroller = forwardRef(
     );
     const { width } = useWindowDimensions();
     const insets = useSafeAreaInsets();
+    // The window width below spans the split layout's rail and sidebar, and
+    // the rail's width includes the window's left inset.
+    const windowInsets = useWindowSafeAreaInsets();
     const isWindowNarrow = useIsWindowNarrow();
     const setScrollToBottomControl = useSetConversationScrollToBottomControl();
     const availableSpace = useMemo(() => {
@@ -177,12 +181,12 @@ const Scroller = forwardRef(
         : DESKTOP_TOPLEVEL_SIDEBAR_WIDTH + DESKTOP_SIDEBAR_WIDTH;
       return Math.floor(
         width -
-          insets.left -
-          insets.right -
+          windowInsets.left -
+          windowInsets.right -
           sidebarsTotalWidth -
           2 * getTokens().space.m.val
       );
-    }, [width, insets.left, insets.right]);
+    }, [width, windowInsets.left, windowInsets.right]);
 
     const columns = useMemo(() => {
       const gap = getTokens().space.l.val;
@@ -717,9 +721,11 @@ const Scroller = forwardRef(
           <Modal
             visible={activeMessage !== null && !emojiPickerOpen}
             onDismiss={
-              isWindowNarrow ? () => setActiveMessage(null) : undefined
+              Platform.OS !== 'web' || isWindowNarrow
+                ? () => setActiveMessage(null)
+                : undefined
             }
-            // We don't pass an onDismiss function on desktop because
+            // We don't pass an onDismiss function on web desktop because
             // a) the modal is dismissed by the actions in the
             // ChatMessageActions component.
             // b) Including it here will cause the modal to close before the

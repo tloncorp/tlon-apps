@@ -38,6 +38,10 @@ import {
   openExternalBotSettings,
   useHasExpectedBotDm,
 } from '../../utils/botSettings';
+import {
+  ListPaneSafeArea,
+  detailPaneScreenLayout,
+} from './PaneSafeAreaProvider';
 
 const SettingsDrawer = createDrawerNavigator<SettingsDrawerParamList>();
 
@@ -131,7 +135,12 @@ export const SettingsNavigator = () => {
       // The default 'firstRoute' would strand pending bot edits after
       // BotSettings -> BotModelSettings -> Done.
       backBehavior="history"
-      drawerContent={DrawerContent}
+      drawerContent={(props) => (
+        <ListPaneSafeArea>
+          <DrawerContent {...props} />
+        </ListPaneSafeArea>
+      )}
+      screenLayout={detailPaneScreenLayout}
       screenOptions={{
         headerShown: false,
         drawerType: 'permanent',

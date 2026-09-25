@@ -1,7 +1,7 @@
+import { useWindowSafeAreaInsets } from '@tloncorp/ui';
 import type { SlashCommandOption } from '@tloncorp/shared/domain';
 import React, { PropsWithRef } from 'react';
 import { Platform, Pressable } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Portal, View, YStack } from 'tamagui';
 
 import { useIsWindowNarrow } from '../Emoji';
@@ -32,7 +32,7 @@ function InputSlashCommandPopupInternal(
   ref: React.ForwardedRef<SlashCommandController>
 ) {
   const isNarrow = useIsWindowNarrow();
-  const { left: leftInset, right: rightInset } = useSafeAreaInsets();
+  const { left: leftInset, right: rightInset } = useWindowSafeAreaInsets();
   const { bottomOffset, backdropBottom } = useInputPopupBottomOffset(
     containerHeight,
     inputBarHeight

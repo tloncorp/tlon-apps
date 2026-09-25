@@ -31,6 +31,10 @@ import { getDesktopGroupInvitePreviewProps } from '../routeHelpers';
 import { DesktopChannelStackParamList, HomeDrawerParamList } from '../types';
 import { mediaViewerScreenOptions } from '../utils';
 import { HomeSidebar } from './HomeSidebar';
+import {
+  ListPaneSafeArea,
+  detailPaneScreenLayout,
+} from './PaneSafeAreaProvider';
 
 const HomeDrawer = createDrawerNavigator<HomeDrawerParamList>();
 
@@ -47,7 +51,12 @@ export const HomeNavigator = () => {
   return (
     <NotebookSidebarProvider>
       <HomeDrawer.Navigator
-        drawerContent={(props) => <DrawerContent {...props} />}
+        drawerContent={(props) => (
+          <ListPaneSafeArea>
+            <DrawerContent {...props} />
+          </ListPaneSafeArea>
+        )}
+        screenLayout={detailPaneScreenLayout}
         initialRouteName="ChatList"
         screenOptions={() => {
           return {

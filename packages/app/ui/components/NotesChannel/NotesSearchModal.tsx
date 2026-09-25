@@ -1,10 +1,9 @@
 import { useNotesSearch } from '@tloncorp/shared';
 import { noteSearchQueryIsCurrent } from '@tloncorp/shared/logic';
-import { Pressable, TlonText } from '@tloncorp/ui';
+import { Pressable, TlonText, useWindowSafeAreaInsets } from '@tloncorp/ui';
 import { debounce } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NativeSyntheticEvent, TextInputKeyPressEventData } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Portal, View, XStack, YStack } from 'tamagui';
 
 import { TextInput } from '../Form';
@@ -39,7 +38,7 @@ export function NotesSearchModal({
   // The input's live text and the debounced term driving the search are tracked
   // separately: Enter has to know whether what's on screen has been searched
   // yet, which it can't ask a search field that owns its own value.
-  const { left: leftInset, right: rightInset } = useSafeAreaInsets();
+  const { left: leftInset, right: rightInset } = useWindowSafeAreaInsets();
   const [inputValue, setInputValue] = useState('');
   const [query, setQuery] = useState('');
   const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);

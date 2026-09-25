@@ -1,7 +1,7 @@
+import { useWindowSafeAreaInsets } from '@tloncorp/ui';
 import { PropsWithRef } from 'react';
 import React from 'react';
 import { Platform, Pressable } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Portal, View, YStack } from 'tamagui';
 
 import { MentionOption } from '../BareChatInput/useMentions';
@@ -33,7 +33,7 @@ function InputMentionPopupInternal(
   ref: React.ForwardedRef<MentionController>
 ) {
   const isNarrow = useIsWindowNarrow();
-  const { left: leftInset, right: rightInset } = useSafeAreaInsets();
+  const { left: leftInset, right: rightInset } = useWindowSafeAreaInsets();
   const { bottomOffset, backdropBottom } = useInputPopupBottomOffset(
     containerHeight,
     inputBarHeight
