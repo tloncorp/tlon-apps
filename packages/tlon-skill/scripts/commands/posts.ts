@@ -7,6 +7,7 @@ import {
 import {
   DIARY_REMOVED,
   NOTES_CHANNEL_CONTENT_UNSUPPORTED,
+  formatPostId,
   isDiaryNest,
   isNotesNest,
 } from '../cli-utils';
@@ -229,24 +230,6 @@ type ParsedPostsArgs =
   | { kind: 'unreact'; channelId: string; postId: string; parentId?: string }
   | { kind: 'delete'; channelId: string; postId: string }
   | { kind: 'edit'; channelId: string; postId: string; message: string };
-
-function extractNumericId(id: string): string {
-  const slash = id.indexOf('/');
-  return slash >= 0 ? id.slice(slash + 1) : id;
-}
-
-function formatUd(id: string): string {
-  const clean = id.replace(/\./g, '');
-  const parts: string[] = [];
-  for (let i = clean.length; i > 0; i -= 3) {
-    parts.unshift(clean.slice(Math.max(0, i - 3), i));
-  }
-  return parts.join('.');
-}
-
-function formatPostId(postId: string): string {
-  return formatUd(extractNumericId(postId));
-}
 
 function optionalReactionParent(
   args: string[],

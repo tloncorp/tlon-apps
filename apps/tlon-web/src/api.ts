@@ -205,27 +205,6 @@ class API {
       this.scry<T>({ app: entry.agent, path: entryPath(entry, params) });
   }
 
-  pokeEntry<E extends Registered<'poke'>>(entry: One<E>) {
-    return <T>(json: T) =>
-      this.poke<T>({ app: entry.agent, mark: entry.mark, json });
-  }
-
-  trackedPokeEntry<
-    E extends Registered<'poke'>,
-    S extends Registered<'subscribe'>,
-  >(entry: One<E>, watch: One<S>) {
-    return <T, R = T>(
-      json: T,
-      watchParams: Params<S['path']>,
-      ...validator: [validator?: (event: R) => boolean]
-    ) =>
-      this.trackedPoke<T, R>(
-        { app: entry.agent, mark: entry.mark, json },
-        { app: watch.agent, path: entryPath(watch, watchParams) },
-        ...validator
-      );
-  }
-
   subscribeEntry<E extends Registered<'subscribe'>>(entry: One<E>) {
     return (
       params: Params<E['path']>,
