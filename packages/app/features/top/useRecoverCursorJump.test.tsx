@@ -63,8 +63,14 @@ afterEach(() => {
   renderer = undefined;
 });
 
-test('recovers an exhausted jump with one short notice', () => {
-  const p = props();
+test.each([
+  'chat/~zod/test',
+  'diary/~zod/test',
+  'heap/~zod/test',
+  '~zod',
+  '0v1',
+])('recovers an exhausted jump in %s with one short notice', (channelId) => {
+  const p = props({ channelId, error: cursorError('anchor', channelId) });
   render(p);
   expect(mocks.toast).toHaveBeenCalledWith({
     message: "Couldn't jump to this message",
@@ -75,6 +81,19 @@ test('recovers an exhausted jump with one short notice', () => {
   expect(mocks.toast).toHaveBeenCalledOnce();
   expect(mocks.recover).toHaveBeenCalledOnce();
 });
+
+test.each(['notes/~zod/book', 'custom/~zod/channel'])(
+  'preserves independently handled targets in %s after cursor retries finish',
+  (channelId) => {
+    const p = props({ channelId, error: cursorError('anchor', channelId) });
+    render({ ...p, isFetching: true });
+    update(p);
+    // The recovery callback clears selectedPostId in ChannelScreen, which
+    // would discard Notes' initialNoteId before its late-sync effect can open it.
+    expect(mocks.recover).not.toHaveBeenCalled();
+    expect(mocks.toast).not.toHaveBeenCalled();
+  }
+);
 
 test.each([
   { isLoading: true },

@@ -1,3 +1,4 @@
+import { isThirdPartyChannel } from '@tloncorp/api/urbit';
 import { CursorNormalizationError } from '@tloncorp/shared/store';
 import { useToast } from '@tloncorp/ui';
 import { useEffect, useRef } from 'react';
@@ -25,6 +26,11 @@ export function useRecoverCursorJump({
   const recoveredError = useRef<Error | null>(null);
 
   useEffect(() => {
+    // Third-party channels resolve their own targets (e.g. Notes waits for
+    // the selected note to sync). A post-cursor failure must not clear them.
+    if (isThirdPartyChannel(channelId)) {
+      return;
+    }
     if (
       !isFocused ||
       isLoading ||
