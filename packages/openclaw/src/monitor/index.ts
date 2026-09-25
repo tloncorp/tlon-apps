@@ -5898,7 +5898,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                     flag === join.groupId && watchedChannels.has(nest)
                 );
               const ships = watchesGroup
-                ? await filterJoinedShips(join, (path) => api.scry(path))
+                ? await filterJoinedShips(join, (path) =>
+                    api.scry(path, { signal: opts.abortSignal })
+                  )
                 : [];
               if (join && ships.length > 0) {
                 const { groupId } = join;
@@ -5911,6 +5913,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                     peer: { kind: 'group', id: nest },
                   });
                   if (!route?.sessionKey) continue;
+                  if (opts.abortSignal?.aborted) break;
                   core.system.enqueueSystemEvent(
                     `[${ships.join(', ')} joined group ${groupId}]`,
                     {
