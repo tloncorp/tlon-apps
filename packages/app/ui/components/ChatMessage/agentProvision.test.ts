@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   findConsumedProvisionSelection,
   isCurrentOwnerInterview,
+  loadReferencedInterviewPosts,
   resolveAgentProvisionButtonLabel,
   resolveAgentProvisionId,
   resolveAgentProvisionTimezone,
@@ -218,6 +219,42 @@ describe('isCurrentOwnerInterview', () => {
         ownerId: 'owner',
       })
     ).toBe(true);
+  });
+});
+
+describe('loadReferencedInterviewPosts', () => {
+  it('loads referenced interview posts missing from the local page', async () => {
+    const loaded: string[] = [];
+    const posts = await loadReferencedInterviewPosts({
+      interviewStartMessageId: 'interview-start',
+      interviewMessageId: 'interview-end',
+      channelPosts: [
+        {
+          id: 'plan',
+          authorId: 'bot',
+          channelId: 'chat',
+          receivedAt: 300,
+        },
+      ],
+      loadAround: async (postId) => {
+        loaded.push(postId);
+        return [
+          {
+            id: postId,
+            authorId: 'owner',
+            channelId: 'chat',
+            receivedAt: postId === 'interview-start' ? 100 : 200,
+          },
+        ];
+      },
+    });
+
+    expect(loaded).toEqual(['interview-start', 'interview-end']);
+    expect(posts.map((post) => post.id)).toEqual([
+      'plan',
+      'interview-start',
+      'interview-end',
+    ]);
   });
 });
 
