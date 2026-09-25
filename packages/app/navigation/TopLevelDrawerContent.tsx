@@ -10,7 +10,14 @@ import {
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { Button, Icon, IconType, Pressable, Text } from '@tloncorp/ui';
+import {
+  Button,
+  Icon,
+  IconType,
+  Pressable,
+  Text,
+  triggerHaptic,
+} from '@tloncorp/ui';
 import React, {
   useCallback,
   useEffect,
@@ -21,7 +28,7 @@ import React, {
 import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Circle, View, XStack, YStack, getTokenValue, useTheme } from 'tamagui';
+import { Circle, View, XStack, YStack, getTokenValue } from 'tamagui';
 
 import {
   CreateChatSheet,
@@ -38,12 +45,13 @@ import {
   getUnreadColors,
   useChatOptions,
 } from '../ui';
+import { ImageAvatar, SigilAvatar } from '../ui/components/Avatar';
 import { floatingChromeMetrics } from '../ui/components/conversationInsets';
 import {
   GlassSurface,
   supportsLiquidGlass,
 } from '../ui/components/GlassSurface';
-import { useCalm } from '../ui/contexts/appDataContext';
+import { useCalm, useContact } from '../ui/contexts/appDataContext';
 import { getChannelTitle, getChatTitle } from '../ui/utils/channelUtils';
 import { DrawerFilterTabs } from './DrawerFilterTabs';
 import { DrawerSearchHeader } from './DrawerSearchHeader';
@@ -133,6 +141,15 @@ const FOOTER_CONTROL_RADIUS = floatingChromeMetrics.controlRadius;
 // but a pill at the foot of the panel has room for the product's name and not
 // for anybody's variation on it.
 const BOT_BUTTON_LABEL = 'Tlonbot';
+// The one control in the panel that carries a colour, so it is the first
+// thing the eye finds there. The same blue in every theme, so the same white
+// on it in every theme.
+const BOT_BUTTON_FILL = '$blue' as const;
+const BOT_BUTTON_FOREGROUND = '$white' as const;
+// The bot's avatar at the size and corners its bottom tab showed it with —
+// the avatar beside a chat message's author.
+const BOT_AVATAR_SIZE = '$2xl' as const;
+const UNREAD_DOT_RING = 2;
 
 // The footer controls are Liquid Glass on an OS that has it, and the drawer's
 // own flat surfaces everywhere else.
@@ -341,6 +358,45 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
 });
 
 /**
+ * The bot's face on its button, as its bottom tab showed it: its avatar, its
+ * sigil when it has none or calm mode hides avatars, and the glyph until its
+ * contact has synced.
+ *
+ * Read from the bot's contact, which is synced and cached like every other,
+ * rather than from the hosting service's copy of the bot's avatar, which is
+ * often empty or slow while the bot's gateway starts.
+ */
+function DrawerBotAvatar({ botId }: { botId: string }) {
+  const botContact = useContact(botId);
+  return (
+    <ImageAvatar
+      imageUrl={botContact?.avatarImage ?? undefined}
+      size={BOT_AVATAR_SIZE}
+      fallback={
+        botContact ? (
+          <SigilAvatar contactId={botContact.id} size={BOT_AVATAR_SIZE} />
+        ) : (
+          // In the avatar's frame, so the pill does not change width when the
+          // contact arrives.
+          <View
+            width={BOT_AVATAR_SIZE}
+            height={BOT_AVATAR_SIZE}
+            alignItems="center"
+            justifyContent="center"
+          >
+            <Icon
+              type={TOP_LEVEL_TABS.BotChat.icon}
+              customSize={[20, 20]}
+              color={BOT_BUTTON_FOREGROUND}
+            />
+          </View>
+        )
+      }
+    />
+  );
+}
+
+/**
  * The name of the tab a run of search results would have been found under.
  *
  * On the same column as the rows' own content, and in the grey their times
@@ -366,18 +422,20 @@ function DrawerSearchHeading({ filter }: { filter: DrawerFilter }) {
  *
  * Liquid Glass is the chrome where the OS has it, so the control picks up the
  * list scrolling under it the way the composer's do. Everywhere else it is the
- * app's ordinary primary button, which brings its own fill.
+ * app's ordinary button, filled with the same blue.
  */
-function DrawerChatButton({
+export function DrawerChatButton({
+  botId,
   hasUnread,
   selected,
   onPress,
 }: {
+  /** The bot's user id, which is also its conversation's channel id. */
+  botId: string;
   hasUnread: boolean;
   selected: boolean;
   onPress: () => void;
 }) {
-  const theme = useTheme();
   // The dot beside the button is decorative, so the unread state has to reach
   // a screen reader through the label — as the Bot row's did before it.
   const accessibilityLabel = hasUnread
@@ -385,17 +443,30 @@ function DrawerChatButton({
     : BOT_BUTTON_LABEL;
 
   if (!usesIOSGlass) {
+    // The frame and text rather than `Button` itself, whose label takes the
+    // primary intent's colour — the panel's own background, which is dark
+    // on the blue in a dark theme.
     return (
-      <Button
-        preset="primary"
-        label={BOT_BUTTON_LABEL}
-        leadingIcon={TOP_LEVEL_TABS.BotChat.icon}
-        onPress={onPress}
+      <Button.Frame
+        intent="primary"
+        fill="solid"
+        backgroundColor={BOT_BUTTON_FILL}
+        borderColor={BOT_BUTTON_FILL}
+        onPress={() => {
+          triggerHaptic('baseButtonClick');
+          onPress();
+        }}
+        accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
         accessibilityState={{ selected }}
         testID="TopLevelDrawerChatButton"
         {...DRAWER_CONTROL_SHADOW}
-      />
+      >
+        <DrawerBotAvatar botId={botId} />
+        <Button.Text color={BOT_BUTTON_FOREGROUND}>
+          {BOT_BUTTON_LABEL}
+        </Button.Text>
+      </Button.Frame>
     );
   }
 
@@ -412,11 +483,11 @@ function DrawerChatButton({
     >
       {/* Tinted rather than clear: this is the drawer's primary action, and
           clear glass over a pale panel leaves the label competing with the
-          chat titles behind it. The tint is the fill the primary button
-          carries everywhere else, so both treatments read as one control. */}
+          chat titles behind it. The tint is the fill the button carries
+          everywhere else, so both treatments read as one control. */}
       <GlassSurface
         glassEffectStyle="regular"
-        tintColor={theme.primaryText?.val}
+        tintColor={getTokenValue(BOT_BUTTON_FILL, 'color')}
         pointerEvents="none"
         style={[StyleSheet.absoluteFill, footerStyles.chatPill]}
       />
@@ -431,14 +502,15 @@ function DrawerChatButton({
         alignItems="center"
         justifyContent="center"
         gap="$m"
-        paddingHorizontal="$xl"
+        // The avatar sits at the centre of the pill's rounded end, so its
+        // inset is whatever the pill's height leaves around it.
+        paddingLeft={
+          (FOOTER_CONTROL_SIZE - getTokenValue(BOT_AVATAR_SIZE, 'size')) / 2
+        }
+        paddingRight="$xl"
       >
-        <Icon
-          type={TOP_LEVEL_TABS.BotChat.icon}
-          customSize={[20, 20]}
-          color="$background"
-        />
-        <Text size="$label/l" color="$background">
+        <DrawerBotAvatar botId={botId} />
+        <Text size="$label/l" color={BOT_BUTTON_FOREGROUND}>
           {BOT_BUTTON_LABEL}
         </Text>
       </Pressable>
@@ -1274,18 +1346,25 @@ function DrawerPanel(props: DrawerContentComponentProps) {
           // truncates rather than pushing Activity and Settings off the panel.
           <View flexShrink={1} minWidth={0}>
             <DrawerChatButton
+              botId={botDm.channelId}
               hasUnread={botDmHasUnread}
               selected={selected === 'BotChat'}
               onPress={() => select('BotChat')}
             />
             {botDmHasUnread ? (
+              // The pill is the same blue, so the dot sits on a disc of the
+              // panel's colour to stay a dot rather than a nub on its corner.
+              // A disc, not a border: a view's background runs under its
+              // border and shows at its edge.
               <Circle
-                size="$s"
-                backgroundColor="$blue"
+                size={getTokenValue('$s', 'size') + 2 * UNREAD_DOT_RING}
+                backgroundColor="$background"
                 position="absolute"
-                top={-2}
-                right={-2}
-              />
+                top={-2 - UNREAD_DOT_RING}
+                right={-2 - UNREAD_DOT_RING}
+              >
+                <Circle size="$s" backgroundColor="$blue" />
+              </Circle>
             ) : null}
           </View>
         ) : (
