@@ -17,6 +17,7 @@ import {
   ChatMessage,
   ScrollView,
   View,
+  XStack,
 } from '../ui';
 import { PostBlockSeparator } from '../ui/components/Channel/Scroller';
 import { ChannelProvider } from '../ui/contexts/channel';
@@ -339,6 +340,102 @@ const PostSpecimen = ({
   );
 };
 
+// `contentHelpers.randomImage` points at loremflickr, which no longer serves
+// images, and a broken image is not evidence of what covers one.
+const seededImage = (seed: string) =>
+  content.block.image({
+    width: 400,
+    height: 400,
+    alt: seed,
+    src: `https://picsum.photos/seed/${seed}/400/400`,
+  });
+
+const groupedImageRun: PostGroup[] = [
+  {
+    divider: 'none',
+    posts: [
+      makePost(exampleContacts.mark, [seededImage('tlon5430a')], {
+        replyCount: 0,
+      }),
+      makePost(exampleContacts.mark, [seededImage('tlon5430b')], {
+        replyCount: 0,
+        deliveryStatus: 'pending',
+      }),
+    ],
+  },
+];
+
+const postWithLinkPreview = makePost(
+  exampleContacts.ed,
+  [
+    {
+      block: {
+        link: {
+          url: 'https://tlon.io',
+          meta: {
+            title: 'Tlon',
+            description: 'A peer-to-peer network you actually own.',
+            siteName: 'tlon.io',
+          },
+        },
+      },
+    },
+    content.verse.inline('Worth a read'),
+  ],
+  { replyCount: 0 }
+);
+
+const groupedFirstBlockPosts: [string, db.Post][] = [
+  [
+    'Image',
+    makePost(exampleContacts.mark, [seededImage('tlon5430c')], {
+      replyCount: 0,
+    }),
+  ],
+  ['Video', postWithVideo],
+  ['Link preview', postWithLinkPreview],
+  ['Code', postWithCode],
+  ['File', postWithFileUpload],
+  ['Voice memo', postWithVoiceMemo],
+  ['Paragraph (unchanged)', postWithText],
+];
+
+/**
+ * Each row renders the same grouped post twice, with a delivery status and
+ * without one. The two halves must line up: the space the indicator needs is a
+ * property of the post's shape, so a post may not shift when its status clears
+ * on the server echo.
+ */
+const GroupedDeliveryStatusFixture = () => {
+  return (
+    <ChatMessageFixtureWrapper backgroundColor="$secondaryBackground">
+      <ChannelProvider value={{ channel: tlonLocalIntros }}>
+        <View padding="$m" gap="$m">
+          {groupedFirstBlockPosts.map(([label, post]) => (
+            <View key={label} gap="$s">
+              <Text size="$label/s">{label}</Text>
+              <XStack gap="$m" alignItems="flex-start">
+                <View flex={1} backgroundColor="$background" borderRadius="$l">
+                  <ChatMessage
+                    post={{ ...post, deliveryStatus: 'pending' }}
+                    showAuthor={false}
+                  />
+                </View>
+                <View flex={1} backgroundColor="$background" borderRadius="$l">
+                  <ChatMessage
+                    post={{ ...post, deliveryStatus: null }}
+                    showAuthor={false}
+                  />
+                </View>
+              </XStack>
+            </View>
+          ))}
+        </View>
+      </ChannelProvider>
+    </ChatMessageFixtureWrapper>
+  );
+};
+
 const SearchHighlightFixture = () => {
   const searchPost = makePost(
     exampleContacts.mark,
@@ -433,6 +530,8 @@ export default {
     />
   ),
   MessageStates: <PostVariantsFixture post={postWithText} />,
+  GroupedDeliveryStatus: <GroupedDeliveryStatusFixture />,
+  GroupedImageRun: <ScrollFixture postGroups={groupedImageRun} />,
   SearchHighlight: <SearchHighlightFixture />,
   File: <FileUploadFixture />,
   Image: <SinglePostFixture post={postWithImage} />,

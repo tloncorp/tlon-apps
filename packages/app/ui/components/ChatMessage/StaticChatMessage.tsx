@@ -6,7 +6,12 @@ import {
 } from '@tloncorp/api';
 import { isDmChannelId } from '@tloncorp/api/client';
 import * as db from '@tloncorp/shared/db';
-import { A2UI, convertContent, getRandomId } from '@tloncorp/shared/logic';
+import {
+  A2UI,
+  type BlockData,
+  convertContent,
+  getRandomId,
+} from '@tloncorp/shared/logic';
 import {
   renameAgentGroupFromOnboarding,
   useGroup,
@@ -83,6 +88,24 @@ function provisionMatchesPlan(
     provision.topics.length === plan.topics.length &&
     provision.topics.every((topic, index) => topic === plan.topics[index])
   );
+}
+
+/**
+ * Blocks that render as a run of text. Every other block is drawn as full-width
+ * media or a card, so its top right corner is where the delivery status
+ * indicator lands.
+ */
+const TEXT_BLOCK_TYPES: ReadonlySet<BlockData['type']> = new Set([
+  'paragraph',
+  'header',
+  'list',
+  'blockquote',
+  'bigEmoji',
+]);
+
+function startsWithFullWidthBlock(content: BlockData[]) {
+  const first = content[0];
+  return first != null && !TEXT_BLOCK_TYPES.has(first.type);
 }
 
 /**
@@ -586,6 +609,17 @@ export function StaticChatMessage({
   const contentIsOnlyA2UI =
     content.length > 0 && content.every((block) => block.type === 'a2ui');
 
+  const renderedContent =
+    post.editStatus === 'failed' ? lastEditContent : content;
+
+  // The delivery status indicator is absolutely positioned at the top right of
+  // the post, where a grouped post has no author row to keep it clear of the
+  // content. Reserve that space from the post's shape and not from
+  // `post.deliveryStatus`, which clears on the server echo: keying it to the
+  // status would make the post jump as it lands.
+  const reservesDeliveryStatusSpace =
+    !showAuthor && startsWithFullWidthBlock(renderedContent);
+
   const shouldRenderReplies =
     showReplies && post.replyCount && post.replyTime && post.replyContactIds;
 
@@ -645,7 +679,12 @@ export function StaticChatMessage({
         </View>
       ) : null}
 
-      <View paddingLeft={!isNotice ? '$4xl' : undefined}>
+      <View
+        paddingLeft={!isNotice ? '$4xl' : undefined}
+        // `$2xl` plus the block's own top padding clears the indicator, which
+        // is 24 tall and inset 8 from the top of the post.
+        paddingTop={reservesDeliveryStatusSpace ? '$2xl' : undefined}
+      >
         {displayDebugMode ? (
           <Text color="$green" size="$body" padding="$xl">
             {JSON.stringify(
@@ -664,7 +703,7 @@ export function StaticChatMessage({
           </Text>
         ) : (
           <ChatContentRenderer
-            content={post.editStatus === 'failed' ? lastEditContent : content}
+            content={renderedContent}
             paddingBottom={contentIsOnlyA2UI ? '$l' : undefined}
             isNotice={post.type === 'notice'}
             onPressImage={handleImagePressed}
