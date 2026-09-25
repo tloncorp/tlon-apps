@@ -48,8 +48,7 @@ export function useScreenScrollProps({
   );
 
   return {
-    contentInsetAdjustmentBehavior: installsNativeOptions
-      ? 'automatic'
-      : undefined,
+    contentInsetAdjustmentBehavior:
+      enabled && Platform.OS === 'ios' ? 'automatic' : undefined,
   };
 }
