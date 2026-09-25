@@ -3,7 +3,7 @@ import {
   useWindowSafeAreaInsets,
 } from '@tloncorp/ui';
 import { type ReactElement, type ReactNode, useMemo } from 'react';
-import { Platform } from 'react-native';
+import { Platform, View } from 'react-native';
 import {
   SafeAreaInsetsContext,
   SafeAreaProvider,
@@ -12,6 +12,7 @@ import {
 } from 'react-native-safe-area-context';
 
 import { SideInsetView } from '../SideInsetScreenLayout';
+import { useSplitPaneWidths } from './splitPaneWidths';
 
 /**
  * Gives one pane of the split layout its own safe-area insets. A nested
@@ -88,11 +89,18 @@ export function detailPaneScreenLayout({
   if (Platform.OS === 'web') {
     return children;
   }
+  return <DetailPane>{children}</DetailPane>;
+}
+
+function DetailPane({ children }: { children: ReactElement }) {
+  const { foldGap } = useSplitPaneWidths();
   return (
-    <PaneSafeAreaProvider touchesLeft={false} touchesRight>
-      <SideInsetView>
-        <SideInsetsApplied>{children}</SideInsetsApplied>
-      </SideInsetView>
-    </PaneSafeAreaProvider>
+    <View style={{ flex: 1, paddingLeft: foldGap }}>
+      <PaneSafeAreaProvider touchesLeft={false} touchesRight>
+        <SideInsetView>
+          <SideInsetsApplied>{children}</SideInsetsApplied>
+        </SideInsetView>
+      </PaneSafeAreaProvider>
+    </View>
   );
 }
