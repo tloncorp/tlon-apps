@@ -1,17 +1,19 @@
 import * as ub from '@tloncorp/api/urbit';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { Icon, useIsWindowNarrow } from '@tloncorp/ui';
+import { ActionSheetContext, Icon, useIsWindowNarrow } from '@tloncorp/ui';
 import { IconButton } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import React, {
   ReactElement,
   memo,
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useState,
 } from 'react';
+import { Platform } from 'react-native';
 import { Popover, isWeb } from 'tamagui';
 
 import { useCurrentUserId } from '../contexts/appDataContext';
@@ -29,6 +31,10 @@ import {
   desktopFlyoutPopoverProps,
 } from './ActionSheet';
 import { ListItem } from './ListItem';
+import {
+  ExpoSwiftUIActionContent,
+  ExpoSwiftUIPaneStack,
+} from './ExpoSwiftUISheet';
 
 function getNotificationTitle(
   volumeSettings: { level: ub.NotificationLevel } | null | undefined,
@@ -63,6 +69,7 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
   trigger,
 }: ChatOptionsSheetProps) {
   const { open: contextOpen, setChat, group } = useChatOptions();
+  const preserveChatOnDismiss = Platform.OS !== 'web';
 
   // Use props for explicit control (popovers)
   // For sheets, this will be false and context.open will handle state
@@ -75,27 +82,22 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
         // Set chat state for both popovers and sheets
         contextOpen(chat.id, chat.type);
       } else if (!open) {
-        // Close both popover and sheet states
-        if (propOnOpenChange) {
-          propOnOpenChange(false);
-        }
-        // Clear chat state after a short delay to allow handlers to complete
-        if (clearChat) {
+        // Keep the selected chat stable while the SwiftUI sheet dismisses.
+        // Clearing it here tears down the context behind the closing sheet.
+        if (clearChat && !preserveChatOnDismiss) {
           setTimeout(() => {
             setChat(null);
           }, 100);
         }
       }
 
-      // Call provided handler for popovers
-      if (propOnOpenChange) {
-        propOnOpenChange(open);
-      }
+      propOnOpenChange?.(open);
     },
-    [chat, contextOpen, setChat, propOnOpenChange]
+    [chat, contextOpen, setChat, propOnOpenChange, preserveChatOnDismiss]
   );
 
-  if (!chat || (!isOpen && !trigger)) {
+  // Keep the native host mounted across closes so dismissal can finish.
+  if (!chat || (!isOpen && !trigger && !preserveChatOnDismiss)) {
     return null;
   }
 
@@ -145,6 +147,7 @@ export function GroupOptionsSheetLoader({
   >('initial');
   const chatOptions = useChatOptions();
   const { group } = chatOptions;
+  const nativeExpoUIPilot = Platform.OS !== 'web';
 
   const handlePressNotifications = useCallback(() => {
     setPane('notifications');
@@ -159,10 +162,10 @@ export function GroupOptionsSheetLoader({
   }, [setPane]);
 
   useEffect(() => {
-    if (!open) {
+    if (!open && !nativeExpoUIPilot) {
       resetPane();
     }
-  }, [open, resetPane]);
+  }, [open, resetPane, nativeExpoUIPilot]);
 
   const title = utils.useGroupTitle(group) ?? 'Loading...';
   const currentUserId = useCurrentUserId();
@@ -224,9 +227,44 @@ export function GroupOptionsSheetLoader({
   }
 
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange} modal>
+    <ActionSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      modal
+      nativeExpoUI
+      onNativeDismissed={resetPane}
+    >
       <ChatOptionsContext.Provider value={chatOptions}>
-        {pane === 'notifications' ? (
+        {nativeExpoUIPilot &&
+        (pane === 'initial' || pane === 'notifications' || pane === 'sort') ? (
+          <ExpoSwiftUIPaneStack
+            selected={pane}
+            onSelectionChange={(selected) => setPane(selected)}
+            initial={
+              <GroupOptionsSheetContent
+                groupUnread={groupUnread ?? null}
+                currentUserIsAdmin={currentUserIsAdmin}
+                onPressNotifications={handlePressNotifications}
+                onPressSort={handlePressSort}
+                chatTitle={title}
+                group={group || groupData!}
+                onOpenChange={onOpenChange}
+              />
+            }
+            notifications={
+              <NotificationsSheetContent
+                chatTitle={title}
+                onPressBack={resetPane}
+              />
+            }
+            sort={
+              <SortChannelsSheetContent
+                chatTitle={title}
+                onPressBack={resetPane}
+              />
+            }
+          />
+        ) : pane === 'notifications' ? (
           <NotificationsSheetContent
             chatTitle={title}
             onPressBack={resetPane}
@@ -434,6 +472,7 @@ function SortChannelsSheetContent({
       subtitle="Choose your display preference"
       actionGroups={sortActions}
       icon={<SheetBackButton onPress={onPressBack} />}
+      onBack={onPressBack}
     />
   );
 }
@@ -504,6 +543,7 @@ function EditGroupSheetContent({
       subtitle="Edit group details"
       actionGroups={editActions}
       icon={<SheetBackButton onPress={onPressBack} />}
+      onBack={onPressBack}
     />
   );
 }
@@ -524,6 +564,7 @@ const ChannelOptionsSheetLoader = memo(
   }) => {
     const [pane, setPane] = useState<ChannelPanes>('initial');
     const chatOptions = useChatOptions();
+    const nativeExpoUIPilot = Platform.OS !== 'web';
     const channelQuery = store.useChannel({
       id: channelId,
     });
@@ -551,10 +592,10 @@ const ChannelOptionsSheetLoader = memo(
     }, [setPane]);
 
     useEffect(() => {
-      if (!open) {
+      if (!open && !nativeExpoUIPilot) {
         resetPane();
       }
-    }, [open, resetPane]);
+    }, [open, resetPane, nativeExpoUIPilot]);
 
     if (!channelQuery.data) {
       return null;
@@ -597,9 +638,38 @@ const ChannelOptionsSheetLoader = memo(
     }
 
     return (
-      <ActionSheet open={open} onOpenChange={onOpenChange} modal>
+      <ActionSheet
+        open={open}
+        onOpenChange={onOpenChange}
+        modal
+        nativeExpoUI
+        onNativeDismissed={resetPane}
+      >
         <ChatOptionsContext.Provider value={chatOptions}>
-          {pane === 'notifications' ? (
+          {nativeExpoUIPilot ? (
+            <ExpoSwiftUIPaneStack
+              selected={pane}
+              onSelectionChange={(selected) => {
+                if (selected !== 'sort') {
+                  setPane(selected);
+                }
+              }}
+              initial={
+                <ChannelOptionsSheetContent
+                  chatTitle={chatTitle}
+                  channel={channel}
+                  onPressNotifications={handlePressNotifications}
+                  onOpenChange={onOpenChange}
+                />
+              }
+              notifications={
+                <NotificationsSheetContent
+                  chatTitle={chatTitle}
+                  onPressBack={resetPane}
+                />
+              }
+            />
+          ) : pane === 'notifications' ? (
             <NotificationsSheetContent
               chatTitle={chatTitle}
               onPressBack={resetPane}
@@ -820,14 +890,29 @@ export function ChatOptionsSheetContent({
   title,
   subtitle,
   icon,
+  onBack,
 }: {
   actionGroups: ActionGroup[];
   title: string;
   subtitle: string;
   icon?: ReactElement;
+  onBack?: () => void;
 }) {
   const isWindowNarrow = useIsWindowNarrow();
+  const { nativePresentation } = useContext(ActionSheetContext);
   const isDesktopFlyout = isWeb && !isWindowNarrow;
+
+  if (Platform.OS !== 'web' && isWindowNarrow && nativePresentation) {
+    return (
+      <ExpoSwiftUIActionContent
+        title={title}
+        subtitle={subtitle}
+        icon={icon}
+        onBack={onBack}
+        actionGroups={actionGroups}
+      />
+    );
+  }
 
   return (
     <>
@@ -893,6 +978,7 @@ function NotificationsSheetContent({
       actionGroups={notificationActions}
       subtitle={'Set what you want to be notified about'}
       icon={<SheetBackButton onPress={onPressBack} />}
+      onBack={onPressBack}
     />
   );
 }

@@ -1,4 +1,3 @@
-import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import NetInfo, { useNetInfo } from '@react-native-community/netinfo';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import {
@@ -403,14 +402,7 @@ function AuthenticatedAppContent({
 
   return (
     <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
-      {/*
-        Re-root BottomSheetModalProvider here so @gorhom/bottom-sheet modal
-        sheets have access to `AppDataContext`. Tamagui sheets don't need a
-        re-rooted PortalProvider: native portals (react-native-teleport) keep
-        the React tree in place, so portaled content already sees this context.
-      */}
-      <BottomSheetModalProvider>
-        <ForwardPostSheetProvider>
+      <ForwardPostSheetProvider>
           <MessageTextSelectionProvider>
             <ShareIntentForwardSheetProvider enabled>
               <AuthenticatedApp
@@ -419,8 +411,7 @@ function AuthenticatedAppContent({
               />
             </ShareIntentForwardSheetProvider>
           </MessageTextSelectionProvider>
-        </ForwardPostSheetProvider>
-      </BottomSheetModalProvider>
+      </ForwardPostSheetProvider>
     </AppDataProvider>
   );
 }
