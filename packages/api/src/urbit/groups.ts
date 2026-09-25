@@ -615,7 +615,7 @@ export interface NewChannelFormSchema extends ChannelFormSchema {
 export interface ChannelPreview {
   nest: string;
   meta: GroupMeta;
-  group: GroupPreview;
+  group: GroupPreviewV7;
 }
 
 export function isGroup(obj: any): obj is Group {
