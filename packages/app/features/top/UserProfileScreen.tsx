@@ -132,12 +132,12 @@ export function UserProfileScreen({ route, navigation }: Props) {
   }, [currentUserId, userId, contacts]);
 
   const shouldShowBackButton = useMemo(() => {
-    const isWebDesktop = isWeb && !isWindowNarrow;
+    const isDesktopLayout = !isWindowNarrow;
     const navHistory = navigation.getState().history;
     const isContactsTabRoot = navHistory?.length === 1;
     // @ts-expect-error - key is a valid property
     const isActivityTab = navHistory?.[0]?.key.includes('ActivityEmpty');
-    return !(isWebDesktop && (isContactsTabRoot || isActivityTab));
+    return !(isDesktopLayout && (isContactsTabRoot || isActivityTab));
   }, [isWindowNarrow, navigation]);
 
   return (

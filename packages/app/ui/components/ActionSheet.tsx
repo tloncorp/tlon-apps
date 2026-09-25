@@ -15,7 +15,9 @@ import {
   PropsWithChildren,
   ReactElement,
   ReactNode,
+  cloneElement,
   forwardRef,
+  isValidElement,
   useCallback,
   useContext,
   useEffect,
@@ -127,8 +129,10 @@ type ActionSheetProps = {
 const useAdaptiveMode = (mode?: AdaptiveMode) => {
   const isWindowNarrow = useIsWindowNarrow();
 
-  // On mobile, always use sheet regardless of specified mode
-  if (isWindowNarrow) {
+  // On mobile, always use sheet regardless of specified mode. Native sheet
+  // content is built on @gorhom/bottom-sheet, which dialogs and popovers
+  // cannot host, so native wide windows keep sheets too.
+  if (isWindowNarrow || Platform.OS !== 'web') {
     return 'sheet';
   }
 
@@ -189,6 +193,7 @@ const ActionSheetComponent = ({
     >
 >) => {
   const mode = useAdaptiveMode(forcedMode);
+  const isWindowNarrow = useIsWindowNarrow();
   const isInsideSheet = useContext(ActionSheetContext).isInsideSheet;
   const hasOpened = useRef(open);
   const { bottom } = useSafeAreaInsets();
@@ -370,7 +375,9 @@ const ActionSheetComponent = ({
       dismissOnSnapToBottom={true}
       transition="quick"
       handleDisableScroll={true}
-      modal={props.modal}
+      // In the split layout a non-modal sheet renders inside the pane that
+      // opened it, leaving the other panes interactive.
+      modal={props.modal ?? !isWindowNarrow}
       snapPoints={props.snapPoints}
       snapPointsMode={props.snapPointsMode as any}
       showHandle={true}
@@ -421,9 +428,23 @@ const ActionSheetComponent = ({
     </Sheet>
   );
 
+  // A trigger passed for popover or dialog mode leaves opening to Popover or
+  // Dialog. Native wide windows still get a sheet, so open it from the press.
+  const sheetTrigger =
+    useBottomSheet &&
+    !isWindowNarrow &&
+    isValidElement<{ onPress?: (...args: unknown[]) => void }>(trigger)
+      ? cloneElement(trigger, {
+          onPress: (...args: unknown[]) => {
+            trigger.props.onPress?.(...args);
+            onOpenChange(true);
+          },
+        })
+      : trigger;
+
   return (
     <>
-      {trigger}
+      {sheetTrigger}
       {sheetContent}
     </>
   );

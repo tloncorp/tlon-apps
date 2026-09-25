@@ -1,6 +1,7 @@
 import * as api from '@tloncorp/api';
 import { getConstants } from '@tloncorp/api/types/constants';
 import * as store from '@tloncorp/shared/store';
+import { Platform } from 'react-native';
 
 // Matches the web app's mobile routing breakpoint.
 const MOBILE_VIEWPORT_QUERY = '(max-width: 767px)';
@@ -28,6 +29,7 @@ export const useShowWebSplashModal = () => {
   }
 
   const isMobileDevice =
+    Platform.OS === 'web' &&
     typeof window !== 'undefined' &&
     window.matchMedia(MOBILE_VIEWPORT_QUERY).matches;
   if (!isMobileDevice) {

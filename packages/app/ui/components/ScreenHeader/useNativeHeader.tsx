@@ -1,5 +1,6 @@
 import { NavigationContext } from '@react-navigation/native';
 import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
   useContext,
   useId,
@@ -52,8 +53,11 @@ export function useNativeHeader({
     titleStore.set(titleElement);
   }, [left, right, titleElement, titleStore]);
 
+  // The split layout's navigators are the desktop ones, which draw headers
+  // inline.
+  const isWindowNarrow = useIsWindowNarrow();
   const shouldUseNativeHeader =
-    enabled && Platform.OS !== 'web' && navigation != null;
+    enabled && Platform.OS !== 'web' && isWindowNarrow && navigation != null;
   // Keep this renderer mounted while its store reconciles title updates, but
   // remount when a different screen installs its store into the shared header.
   const resolvedBackgroundColor = resolveNativeHeaderColor(

@@ -2,6 +2,7 @@ import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { ChatList } from '../../features/chat-list/ChatList';
@@ -28,6 +29,7 @@ import {
 } from '../../ui';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { useRootNavigation } from '../utils';
+import { useSidebarSearch } from './useSidebarSearch';
 
 const logger = createDevLogger('HomeSidebar', false);
 
@@ -150,13 +152,14 @@ export const MessagesSidebar = memo(
       [performGroupAction]
     );
 
-    const handleSearch = useCallback(() => {
+    const openGlobalSearch = useCallback(() => {
       setSearchIsOpen(true);
     }, [setSearchIsOpen]);
+    const search = useSidebarSearch(openGlobalSearch);
 
     const displayData = useFilteredChats({
       ...resolvedChats,
-      searchQuery: '',
+      searchQuery: search.query,
       activeTab: 'talk',
     });
 
@@ -185,15 +188,23 @@ export const MessagesSidebar = memo(
                 <>
                   <ScreenHeader.IconButton
                     type="Search"
-                    onPress={handleSearch}
+                    onPress={search.toggle}
                   />
-                  <CreateChatSheet
-                    ref={createChatSheetRef}
-                    trigger={<ScreenHeader.IconButton type="Add" />}
-                  />
+                  {Platform.OS === 'web' ? (
+                    <CreateChatSheet
+                      ref={createChatSheetRef}
+                      trigger={<ScreenHeader.IconButton type="Add" />}
+                    />
+                  ) : (
+                    <ScreenHeader.IconButton
+                      type="Add"
+                      onPress={() => createChatSheetRef.current?.open()}
+                    />
+                  )}
                 </>
               }
             />
+            {search.searchInput}
             {chats && displayData.some((section) => section.data.length > 0) ? (
               <ChatList
                 data={displayData}
@@ -217,6 +228,9 @@ export const MessagesSidebar = memo(
             />
           </View>
         </NavigationProvider>
+        {Platform.OS === 'web' ? null : (
+          <CreateChatSheet ref={createChatSheetRef} />
+        )}
       </ChatOptionsProvider>
     );
   }

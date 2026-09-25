@@ -210,7 +210,7 @@ export type ProfileDrawerParamList = Pick<RootStackParamList, 'Contacts'> &
 
 export type ActivityDrawerParamList = Pick<
   RootStackParamList,
-  'GroupSettings' | 'UserProfile' | 'EditProfile'
+  'GroupSettings' | 'UserProfile' | 'EditProfile' | 'InviteSystemContacts'
 > & {
   // Drawer-only placeholder shown before an activity item is selected.
   ActivityEmpty: undefined;

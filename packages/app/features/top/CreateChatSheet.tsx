@@ -469,7 +469,9 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
     } as Partial<{ onPress: () => void; 'data-testid': string }>);
   }, [open, trigger]);
 
-  return !isWindowNarrow ? (
+  // Native keeps the phone sheets at any width: ActionSheet has no dialog
+  // there.
+  return !isWindowNarrow && Platform.OS === 'web' ? (
     <>
       {triggerWithOnPress}
       <ActionSheet

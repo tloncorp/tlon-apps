@@ -1,4 +1,5 @@
 import { NavigationContext } from '@react-navigation/native';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useContext, useMemo } from 'react';
 import { Platform, type ScrollViewProps } from 'react-native';
 
@@ -24,6 +25,10 @@ export function useScreenScrollProps({
   bottomEdgeEffect = 'hidden',
 }: UseScreenScrollPropsOptions = {}): ScreenScrollProps {
   const navigation = useContext(NavigationContext);
+  // The split layout's navigators show no native headers.
+  const isWindowNarrow = useIsWindowNarrow();
+  const installsNativeOptions =
+    enabled && Platform.OS === 'ios' && isWindowNarrow;
   const options = useMemo(
     () =>
       getNativeHeaderScrollOptions({
@@ -38,12 +43,13 @@ export function useScreenScrollProps({
   useInstalledNavigationOptions(
     navigation,
     options,
-    enabled && Platform.OS === 'ios',
+    installsNativeOptions,
     nativeHeaderScrollResetOptions
   );
 
   return {
-    contentInsetAdjustmentBehavior:
-      enabled && Platform.OS === 'ios' ? 'automatic' : undefined,
+    contentInsetAdjustmentBehavior: installsNativeOptions
+      ? 'automatic'
+      : undefined,
   };
 }

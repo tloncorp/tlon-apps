@@ -52,7 +52,7 @@ export function NotesActionMenu({
       snapPointsMode="fit"
       trigger={trigger}
     >
-      {header && isWindowNarrow ? (
+      {header && (isWindowNarrow || Platform.OS !== 'web') ? (
         <ActionSheet.Header>
           <ListItem.SystemIcon icon={header.icon} />
           <ActionSheet.ActionContent>

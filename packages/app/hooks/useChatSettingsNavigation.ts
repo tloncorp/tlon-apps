@@ -3,7 +3,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useMutableRef } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback } from 'react';
-import { Platform } from 'react-native';
 
 import { getTopLevelTabRoute } from '../navigation/topLevelTabs';
 import type { RootStackParamList } from '../navigation/types';
@@ -214,7 +213,7 @@ export const useChatSettingsNavigation = () => {
   );
 
   const onLeaveGroup = useCallback(() => {
-    if (Platform.OS !== 'web' || isWindowNarrow) {
+    if (isWindowNarrow) {
       const route = getTopLevelTabRoute('ChatList');
       navigationRef.current.navigate(route.name, route.params, { pop: true });
     } else {

@@ -9,6 +9,7 @@ import {
 } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 
 import { ActualRootDrawerParamList } from '../navigation/types';
 
@@ -19,6 +20,10 @@ export function useInviteParam() {
     useNavigation<DrawerNavigationProp<ActualRootDrawerParamList>>();
 
   useEffect(() => {
+    if (Platform.OS !== 'web') {
+      return;
+    }
+
     async function runEffect() {
       const urlParams = new URLSearchParams(window.location.search);
       const inviteToken = urlParams.get('inviteToken');
