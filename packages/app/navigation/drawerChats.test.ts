@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest';
 import {
   chatMatchesDrawerFilter,
   getDrawerChats,
+  getDrawerSearchChats,
+  getDrawerSearchRows,
   getUnreadDrawerFilters,
 } from './drawerChats';
 
@@ -284,5 +286,107 @@ describe('getUnreadDrawerFilters', () => {
   it('is empty before the chats have loaded', () => {
     expect(getUnreadDrawerFilters(undefined)).toEqual([]);
     expect(getUnreadDrawerFilters(null)).toEqual([]);
+  });
+});
+
+describe('getDrawerSearchChats', () => {
+  it('looks through both tabs at once, newest first', () => {
+    const chats = {
+      pinned: [group('pinned-group', 10)],
+      unpinned: [
+        channel('a-dm', 40, 'dm'),
+        group('a-group', 30),
+        channel('a-group-channel', 20, 'chat'),
+      ],
+      pending: [group('invite', 35)],
+    };
+
+    expect(getDrawerSearchChats(chats).map((c) => c.id)).toEqual([
+      'a-dm',
+      'invite',
+      'a-group',
+      'pinned-group',
+    ]);
+  });
+
+  it('leaves out the conversation the footer already carries', () => {
+    const chats = {
+      pinned: [],
+      unpinned: [channel('bot-dm', 20, 'dm'), channel('a-dm', 10, 'dm')],
+      pending: [],
+    };
+
+    expect(getDrawerSearchChats(chats, 'bot-dm').map((c) => c.id)).toEqual([
+      'a-dm',
+    ]);
+  });
+
+  it('is empty before the chats have loaded', () => {
+    expect(getDrawerSearchChats(undefined)).toEqual([]);
+    expect(getDrawerSearchChats(null)).toEqual([]);
+  });
+});
+
+describe('getDrawerSearchRows', () => {
+  function workspace(id: string, channelIds: string[]): db.Chat {
+    return {
+      id,
+      timestamp: 1,
+      pin: null,
+      volumeSettings: null,
+      isPending: false,
+      unreadCount: 0,
+      type: 'group',
+      group: {
+        id,
+        channels: channelIds.map(
+          (channelId) =>
+            ({ id: channelId, currentUserIsMember: true }) as db.Channel
+        ),
+      } as db.Group,
+    };
+  }
+
+  function keys(rows: ReturnType<typeof getDrawerSearchRows>) {
+    return rows.map((row) => row.key);
+  }
+
+  it('heads each half with its tab, workspaces first, in the ranked order', () => {
+    const results = [
+      channel('dm-best', 1, 'dm'),
+      group('group-best', 1),
+      channel('dm-next', 1, 'groupDm'),
+      group('group-next', 1),
+    ];
+
+    expect(keys(getDrawerSearchRows(results, null))).toEqual([
+      'heading:workspaces',
+      'group-best',
+      'group-next',
+      'heading:messages',
+      'dm-best',
+      'dm-next',
+    ]);
+  });
+
+  it('gives a half with nothing in it no heading', () => {
+    expect(keys(getDrawerSearchRows([channel('a-dm', 1, 'dm')], null))).toEqual(
+      ['heading:messages', 'a-dm']
+    );
+    expect(getDrawerSearchRows([], null)).toEqual([]);
+  });
+
+  it('lays out the unfurled workspace’s channels under it', () => {
+    const rows = getDrawerSearchRows(
+      [workspace('a-group', ['one', 'two'])],
+      'a-group'
+    );
+
+    expect(keys(rows)).toEqual([
+      'heading:workspaces',
+      'a-group',
+      'a-group:one',
+      'a-group:two',
+    ]);
   });
 });
