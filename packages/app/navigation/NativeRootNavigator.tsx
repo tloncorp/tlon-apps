@@ -8,6 +8,7 @@ import { StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { useAgentGroupOnboardingStartupRoute } from '../hooks/useAgentGroupOnboardingLock';
 import { useTheme } from '../ui';
+import { FoldSplitProvider } from './FoldSplitProvider';
 import { RootStack } from './RootStack';
 import { TopLevelDrawer } from './desktop/TopLevelDrawer';
 import { navigateRoot } from './navigateRoot';
@@ -202,7 +203,9 @@ export function NativeRootNavigator() {
   return (
     <View style={styles.fill}>
       {splitMounted ? (
-        <TopLevelDrawer />
+        <FoldSplitProvider>
+          <TopLevelDrawer />
+        </FoldSplitProvider>
       ) : (
         <RootStack
           initialMainTabsParams={getMainTabsParams(pending?.state ?? null)}

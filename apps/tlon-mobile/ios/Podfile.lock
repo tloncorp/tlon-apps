@@ -2382,6 +2382,27 @@ PODS:
     - RecaptchaInterop (~> 101.0.0)
   - RecaptchaEnterpriseSDK (18.8.2)
   - RecaptchaInterop (101.0.0)
+  - ReservedRegions (0.2.0):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - RNCAsyncStorage (2.2.0):
     - hermes-engine
     - RCTRequired
@@ -3037,6 +3058,7 @@ DEPENDENCIES:
   - ReactCommon/turbomodule/core (from `../../../node_modules/react-native/ReactCommon`)
   - ReactNativeDependencies (from `../../../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`)
   - "recaptcha-enterprise-react-native (from `../../../node_modules/@google-cloud/recaptcha-enterprise-react-native`)"
+  - ReservedRegions (from `../../../node_modules/react-native-reserved-regions`)
   - "RNCAsyncStorage (from `../../../node_modules/@react-native-async-storage/async-storage`)"
   - "RNCPicker (from `../../../node_modules/@react-native-picker/picker`)"
   - RNDeviceInfo (from `../../../node_modules/react-native-device-info`)
@@ -3366,6 +3388,8 @@ EXTERNAL SOURCES:
     :podspec: "../../../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec"
   recaptcha-enterprise-react-native:
     :path: "../../../node_modules/@google-cloud/recaptcha-enterprise-react-native"
+  ReservedRegions:
+    :path: "../../../node_modules/react-native-reserved-regions"
   RNCAsyncStorage:
     :path: "../../../node_modules/@react-native-async-storage/async-storage"
   RNCPicker:
@@ -3567,6 +3591,7 @@ SPEC CHECKSUMS:
   RecaptchaEnterprise: 2d06f415c94253c3e92214a4d1472b5875442cdc
   RecaptchaEnterpriseSDK: 2fd06a12a27f943c24f643f8814404a27cc74288
   RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
+  ReservedRegions: 7177924924f539c2b45fac2016c72d100948c125
   RNCAsyncStorage: a455ed0edb854f0c8471b3049935680d5868796a
   RNCPicker: 47d8598233e5858a65f6d91a80505d5ca86bd5f0
   RNDeviceInfo: addb9b427c2822a2d8e94c87a136a224e0af738c
