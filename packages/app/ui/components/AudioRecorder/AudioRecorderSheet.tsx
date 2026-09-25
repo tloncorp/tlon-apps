@@ -17,14 +17,12 @@ type AudioRecorderSheetProps = Omit<
   'children' | 'onOpenChange'
 > & {
   audioRecorderProps: ComponentProps<typeof AudioRecorder>;
-  disableDrag?: boolean;
   onOpenChange?: (open: boolean) => void;
 };
 
 export function AudioRecorderSheet({
   audioRecorderProps,
   onOpenChange: onOpenChangeProp,
-  disableDrag = false,
   ...forwardedProps
 }: AudioRecorderSheetProps) {
   const safeAreaInsets = useSafeAreaInsets();
@@ -64,9 +62,11 @@ export function AudioRecorderSheet({
     <BottomSheetWrapper
       {...forwardedProps}
       onOpenChange={onAnyOpenChange}
-      enablePanDownToClose={!disableDrag}
-      dismissOnSnapToBottom={!disableDrag}
-      showHandle={!disableDrag}
+      // Recording must only end through its explicit cancel/submit controls.
+      // Expo UI couples pan dismissal to scrim dismissal, so keep both off.
+      enablePanDownToClose={false}
+      dismissOnSnapToBottom={false}
+      showHandle={false}
       showOverlay
     >
       <View
