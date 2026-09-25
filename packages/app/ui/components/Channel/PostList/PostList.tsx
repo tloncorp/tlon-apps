@@ -921,6 +921,7 @@ const ConversationPostListAttempt = React.forwardRef<
         }
         dataKey={channel.id}
         data={postsWithNeighbors}
+        keyboardShouldPersistTaps="handled"
         keyExtractor={getPostListKey}
         renderItem={renderAnimatedItem}
         getItemType={({ post }) => post.type}

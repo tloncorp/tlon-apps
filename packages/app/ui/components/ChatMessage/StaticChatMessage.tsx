@@ -8,12 +8,20 @@ import { isDmChannelId } from '@tloncorp/api/client';
 import * as db from '@tloncorp/shared/db';
 import { A2UI, convertContent, getRandomId } from '@tloncorp/shared/logic';
 import {
+  ensureAgentGroupNotebook,
   renameAgentGroupFromOnboarding,
+  resolveGroupChannelBotShipId,
   useGroup,
 } from '@tloncorp/shared/store';
 import * as store from '@tloncorp/shared/store';
 import { Text, useToast } from '@tloncorp/ui';
-import { ComponentProps, ReactNode, useCallback, useMemo } from 'react';
+import {
+  ComponentProps,
+  ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+} from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import {
@@ -29,6 +37,7 @@ import {
 } from '../../../features/browser/browserHandoffContinuation';
 import { useA2UINavigation } from '../../../hooks/useA2UINavigation';
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
+import { AGENT_SHIP_OVERRIDE } from '../../../lib/envVars';
 import { submitCreditIncreaseRequest } from '../../../utils/creditIncreaseRequest';
 import { getPostImageViewerId } from '../../../utils/mediaViewer';
 import type { A2UIActionCompletion } from '../../contexts/componentsKits';
@@ -37,6 +46,7 @@ import { A2UIBlock } from '../PostContent/A2UIBlock';
 import { DefaultRendererProps } from '../PostContent/BlockRenderer';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import { isA2UISendMessageActionConsumed } from '../PostContent/a2uiActionConsumption';
+import { isPendingProvisionSuperseded } from './a2uiActionCompletion';
 import {
   hasRenderableA2UIStoryFallback,
   isA2UIBlockRenderable,
@@ -52,6 +62,12 @@ import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
+import {
+  findConsumedProvisionSelection,
+  isCurrentOwnerInterview,
+  resolveAgentProvisionId,
+  resolveAgentProvisionTimezone,
+} from './agentProvision';
 
 function receiptFollowsPost(
   receipt:
@@ -60,6 +76,9 @@ function receiptFollowsPost(
   post: db.Post
 ) {
   if (!receipt || receipt.postId === post.id) return false;
+  if (receipt.receivedAt !== post.receivedAt) {
+    return receipt.receivedAt > post.receivedAt;
+  }
   if (
     receipt.sequenceNum != null &&
     receipt.sequenceNum > 0 &&
@@ -69,7 +88,7 @@ function receiptFollowsPost(
   ) {
     return receipt.sequenceNum > post.sequenceNum;
   }
-  return receipt.receivedAt >= post.receivedAt;
+  return false;
 }
 
 function provisionMatchesPlan(
@@ -83,11 +102,17 @@ function provisionMatchesPlan(
     provision.groupId === plan.groupId &&
     provision.purposeId === plan.purposeId &&
     provision.purpose === plan.purpose &&
+    provision.approach === plan.approach &&
     provision.timezone === plan.timezone &&
     provision.scheduleHour === plan.scheduleHour &&
     provision.scheduleMinute === plan.scheduleMinute &&
+    provision.taskPrompt === plan.taskPrompt &&
+    provision.scheduleExpression === plan.scheduleExpression &&
+    provision.scheduleDescription === plan.scheduleDescription &&
     provision.notebookNest === notebookNest &&
     provision.notebookTitle === notebookTitle &&
+    provision.interviewStartMessageId === plan.interviewStartMessageId &&
+    provision.interviewMessageId === plan.interviewMessageId &&
     provision.topics.length === plan.topics.length &&
     provision.topics.every((topic, index) => topic === plan.topics[index])
   );
@@ -148,20 +173,59 @@ export function StaticChatMessage({
     (draftInputContext?.channel.id === post.channelId
       ? draftInputContext.channel.groupId
       : undefined);
-  const knownAgent = resolvedPostGroupId
-    ? groupAgents[resolvedPostGroupId]
-    : undefined;
   const currentGroup = group ?? draftInputContext?.group;
+  const structuralAgent = useMemo(
+    () =>
+      resolveGroupChannelBotShipId({
+        channel:
+          draftInputContext?.channel.id === post.channelId
+            ? draftInputContext.channel
+            : undefined,
+        groupMembers: currentGroup?.members,
+        currentUserId,
+      }),
+    [
+      currentGroup?.members,
+      currentUserId,
+      draftInputContext?.channel,
+      post.channelId,
+    ]
+  );
+  const knownAgent =
+    structuralAgent ??
+    (resolvedPostGroupId ? groupAgents[resolvedPostGroupId] : undefined);
   const currentUserHostsPostGroup = Boolean(
     resolvedPostGroupId &&
     currentGroup?.currentUserIsHost &&
     currentGroup.id === resolvedPostGroupId &&
     currentGroup.hostUserId === currentUserId
   );
+  useEffect(() => {
+    if (
+      !resolvedPostGroupId ||
+      !currentUserHostsPostGroup ||
+      !structuralAgent ||
+      groupAgents[resolvedPostGroupId] === structuralAgent
+    ) {
+      return;
+    }
+    void db.agentGroupAgents.setValue((current) =>
+      current[resolvedPostGroupId] === structuralAgent
+        ? current
+        : { ...current, [resolvedPostGroupId]: structuralAgent }
+    );
+  }, [
+    currentUserHostsPostGroup,
+    groupAgents,
+    resolvedPostGroupId,
+    structuralAgent,
+  ]);
   // Onboarding runs in the bot DM, which belongs to no group. With no
   // surrounding group to bind an agent action to, authorship is the binding:
   // only this user's own bot can drive their onboarding.
-  const postIsFromOwnBot = post.authorId === getBotUserIdForUser(currentUserId);
+  const postIsFromOwnBot =
+    post.authorId === getBotUserIdForUser(currentUserId) ||
+    Boolean(AGENT_SHIP_OVERRIDE && post.authorId === AGENT_SHIP_OVERRIDE);
   const canUseAgentProviderControls =
     postIsFromOwnBot ||
     Boolean(
@@ -230,7 +294,8 @@ export function StaticChatMessage({
   const sendAgentProvision = useCallback(
     async (
       plan: A2UI.ProvisionAgentEvent['context'] & { timezone: string },
-      selection?: PostBlobDataEntryA2UISelection
+      selection?: PostBlobDataEntryA2UISelection,
+      payloadIdentity = ''
     ) => {
       const { groupId, draftInput } = resolveActionGroup(plan.groupId);
       // In a DM no surrounding group vouched for this one, so confirm the
@@ -239,16 +304,30 @@ export function StaticChatMessage({
       if (!targetGroup?.currentUserIsHost) {
         throw new Error('The onboarding group is not available');
       }
-      // Channel creation is persisted separately from the group's embedded
-      // channel list, which can lag behind the live channel table for this
-      // render. Resolve the notebook from the canonical table at action time.
-      const notebooks = (await db.getAllChannels()).filter(
-        (channel) => channel.groupId === groupId && channel.type === 'notes'
-      );
-      if (notebooks.length !== 1) {
-        throw new Error('The onboarding group needs exactly one notebook');
+      // The local channel table can lag behind a freshly furnished group.
+      // Re-read and adopt the ship's notebook before creating one, while the
+      // shared helper also protects against ambiguous or concurrent creation.
+      const notebook = await ensureAgentGroupNotebook(groupId);
+      const notebookTitle = notebook.title ?? 'Updates';
+      const interviewStartMessageId = plan.interviewStartMessageId;
+      const resolvedTimezone = plan.timezone;
+
+      if (selection?.componentId === 'auto-provision') {
+        const channelPosts = await db.getChanPosts({
+          channelId: post.channelId,
+        });
+        if (
+          !isCurrentOwnerInterview({
+            interviewStartMessageId: plan.interviewStartMessageId,
+            interviewMessageId: plan.interviewMessageId,
+            planPost: post,
+            channelPosts,
+            ownerId: currentUserId,
+          })
+        ) {
+          throw new Error('This plan was replaced by a newer answer');
+        }
       }
-      const notebookTitle = notebooks[0].title ?? 'Updates';
 
       const locks = await db.agentGroupOnboardingLocks.getValue();
       const existingLock = locks[groupId];
@@ -258,25 +337,44 @@ export function StaticChatMessage({
         existingLock?.provisionAcknowledgedAt == null &&
         provisionMatchesPlan(
           existingLock?.provision,
-          { ...plan, groupId },
-          notebooks[0].id,
+          { ...plan, groupId, timezone: resolvedTimezone },
+          notebook.id,
           notebookTitle
         )
           ? existingLock?.provision?.provisionId
           : undefined;
+      const fallbackProvisionId = `${getRandomId()}-${Date.now().toString(36)}`;
       const request = {
         type: 'tlon-agent-provision',
         version: 1,
         provisionId:
-          provisionId ?? `${getRandomId()}-${Date.now().toString(36)}`,
+          provisionId ??
+          resolveAgentProvisionId(
+            selection?.sourcePostId ?? post.id,
+            selection?.componentId,
+            fallbackProvisionId,
+            payloadIdentity
+          ),
         groupId,
+        ...(interviewStartMessageId ? { interviewStartMessageId } : {}),
+        ...(plan.interviewMessageId
+          ? { interviewMessageId: plan.interviewMessageId }
+          : {}),
         purposeId: plan.purposeId,
         purpose: plan.purpose,
+        ...(plan.approach ? { approach: plan.approach } : {}),
         topics: plan.topics,
-        timezone: plan.timezone,
+        timezone: resolvedTimezone,
         scheduleHour: plan.scheduleHour,
         scheduleMinute: plan.scheduleMinute,
-        notebookNest: notebooks[0].id,
+        ...(plan.taskPrompt ? { taskPrompt: plan.taskPrompt } : {}),
+        ...(plan.scheduleExpression
+          ? { scheduleExpression: plan.scheduleExpression }
+          : {}),
+        ...(plan.scheduleDescription
+          ? { scheduleDescription: plan.scheduleDescription }
+          : {}),
+        notebookNest: notebook.id,
         notebookTitle,
       } satisfies PostBlobDataEntryAgentProvision;
       const blob = selection
@@ -292,24 +390,28 @@ export function StaticChatMessage({
           provision: request,
         },
       }));
-      // A definitive failure leaves a retryable timeline row. Treat that row
-      // as the sole retry path and keep the source control consumed.
-      await draftInput.sendPostFromDraft({
-        channelId: draftInput.channel.id,
-        content: [plan.topics.join(', ')],
-        attachments: [],
-        blob,
-        channelType: draftInput.channel.type,
-        replyToPostId: null,
-        isEdit: false,
-      });
+      // Surface definitive failures on the source plan card. The typed
+      // transport remains hidden so synthetic plan fields never look like a
+      // message the owner composed.
+      await draftInput.sendPostFromDraft(
+        {
+          channelId: draftInput.channel.id,
+          content: [plan.topics.join(', ')],
+          attachments: [],
+          blob,
+          channelType: draftInput.channel.type,
+          replyToPostId: null,
+          isEdit: false,
+        },
+        { rejectOnDefinitiveFailure: true }
+      );
       await renameAgentGroupFromOnboarding({
         groupId,
         purposeId: plan.purposeId,
         topics: plan.topics,
       });
     },
-    [resolveActionGroup]
+    [currentUserId, post, resolveActionGroup]
   );
 
   const configureAgentProviders = useCallback(
@@ -439,11 +541,15 @@ export function StaticChatMessage({
       }
 
       if (action.event.name === A2UI.action.provisionAgent) {
-        const timezone =
-          Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+        const timezone = resolveAgentProvisionTimezone(
+          action.event.context.timezoneOverride,
+          action.event.context.interviewTimezone ??
+            Intl.DateTimeFormat().resolvedOptions().timeZone
+        );
         await sendAgentProvision(
           { ...action.event.context, timezone },
-          selection
+          selection,
+          JSON.stringify(action.event.context)
         );
         return;
       }
@@ -509,6 +615,7 @@ export function StaticChatMessage({
         // denormalized channel relation catches up; submission validates the
         // canonical channel table above.
         return Boolean(
+          !isPendingProvisionSuperseded(a2uiActionCompletion) &&
           draftInputContext &&
           draftInputContext.canStartDraft !== false &&
           resolveAgentActionGroupId({
@@ -536,6 +643,7 @@ export function StaticChatMessage({
       return false;
     },
     [
+      a2uiActionCompletion,
       canUseAgentProviderControls,
       allowBrowserHandoff,
       draftInputContext,
@@ -636,13 +744,16 @@ export function StaticChatMessage({
   );
   const getConsumedA2UISelection = useCallback(
     (surfaceId: string, componentId: string) =>
-      a2uiSelections.data?.find(
-        (entry) =>
-          entry.sourcePostId === post.id &&
-          entry.surfaceId === surfaceId &&
-          entry.componentId === componentId
-      ),
-    [a2uiSelections.data, post.id]
+      findConsumedProvisionSelection({
+        sourcePostId: post.id,
+        surfaceId,
+        componentId,
+        selections: a2uiSelections.data,
+        successfulProvisionSelections: provisionReceipts?.flatMap((receipt) =>
+          receipt.selection ? [receipt.selection] : []
+        ),
+      }),
+    [a2uiSelections.data, post.id, provisionReceipts]
   );
   const lastEditPostContent = usePostLastEditContent(post);
   const blobContent = useMemo(
