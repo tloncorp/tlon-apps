@@ -41,7 +41,15 @@ export * from './components/View';
 export * from './contexts/ActionSheetContext';
 export * from './contexts/globalSearch';
 export { useCopy } from './hooks/useCopy';
-export { default as useIsWindowNarrow } from './hooks/useIsWindowNarrow';
+export {
+  default as useIsWindowNarrow,
+  isNativeSplitLayoutMounted,
+  setNativeSplitLayoutMounted,
+} from './hooks/useIsWindowNarrow';
+export {
+  WindowSafeAreaInsetsContext,
+  useWindowSafeAreaInsets,
+} from './hooks/useWindowSafeAreaInsets';
 export * from './components/Toast';
 export * from './components/ZStack';
 export * from './utils';

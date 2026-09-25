@@ -22,7 +22,7 @@ import {
 } from '@tloncorp/app/lib/pushNotifTapTelemetry';
 import { recoverTlonbotRevivalDeferredConfig } from '@tloncorp/app/lib/tlonbotRevivalDeferredConfig';
 import { DeskOutdatedScreen } from '@tloncorp/app/features/DeskOutdatedScreen';
-import { RootStack } from '@tloncorp/app/navigation/RootStack';
+import { NativeRootNavigator } from '@tloncorp/app/navigation/NativeRootNavigator';
 import { SideInsetView } from '@tloncorp/app/navigation/SideInsetScreenLayout';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import {
@@ -320,7 +320,7 @@ function AuthenticatedApp({
           />
         </SideInsetView>
       ) : (
-        <RootStack />
+        <NativeRootNavigator />
       )}
       {AUTOMATED_TEST && <AutomatedTestSyncScreen />}
       {/* Shake-triggered, so it can't cover the notice on its own; someone who

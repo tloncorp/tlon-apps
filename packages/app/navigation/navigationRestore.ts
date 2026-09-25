@@ -1,5 +1,6 @@
 let restoredSavedPosition = false;
 let restoredTopLevelTab: string | null = null;
+let restoredLayout: 'phone' | 'split' | null = null;
 
 /**
  * Records that the navigator was seeded with a position saved by a previous
@@ -39,4 +40,18 @@ export function getRestoredTopLevelTab() {
 export function resetNavigationRestored() {
   restoredSavedPosition = false;
   restoredTopLevelTab = null;
+  restoredLayout = null;
+}
+
+/**
+ * The navigator tree a restored position was shaped for. The native root
+ * mounts that tree first even if the window has since crossed the split
+ * layout breakpoint, then switches trees carrying the position across.
+ */
+export function setRestoredNavigationLayout(layout: 'phone' | 'split' | null) {
+  restoredLayout = layout;
+}
+
+export function getRestoredNavigationLayout() {
+  return restoredLayout;
 }
