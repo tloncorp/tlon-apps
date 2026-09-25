@@ -217,18 +217,47 @@ describe('WebDb', () => {
     });
   });
 
-  it('reports when migrations run without a database, and skips migrating', async () => {
+  it('retries setup, then throws when migrations still have no database', async () => {
+    vi.useFakeTimers();
+    sqlocalRuntime.setShouldConnect(false);
     const db = new WebDb({ enableStoragePersistence: false });
+
+    const run = expect(db.runMigrations()).rejects.toThrow('no database');
+    await vi.advanceTimersByTimeAsync(15000);
+    await run;
+
+    expect(webMigratorSpies.migrate).not.toHaveBeenCalled();
+    expect(errorEvents().map(([, e]) => e.context)).toEqual([
+      'setupDb: failed to set up SQLite db',
+      'runMigrations: called without a database',
+    ]);
+  });
+
+  it('runs migrations when the setup retry connects', async () => {
+    vi.useFakeTimers();
+    sqlocalRuntime.setShouldConnect(false);
+    const db = new WebDb({ enableStoragePersistence: false });
+    const setup = db.setupDb();
+    await vi.advanceTimersByTimeAsync(15000);
+    await setup;
+    sqlocalRuntime.setShouldConnect(true);
 
     await db.runMigrations();
 
-    expect(webMigratorSpies.migrate).not.toHaveBeenCalled();
-    expect(onlyErrorEvent()).toMatchObject({
-      context: 'runMigrations: called without a database',
-      hasClient: false,
-      hasSqlocal: false,
-      severity: 'Critical',
-    });
+    expect(sharedDbSpies.setClient).toHaveBeenCalledTimes(1);
+    expect(webMigratorSpies.migrate).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-runs setup from migrations after a failure past connect', async () => {
+    sqlocalRuntime.setSqlBehavior(failingSql);
+    const db = new WebDb({ enableStoragePersistence: false });
+    await db.setupDb();
+    sqlocalRuntime.setSqlBehavior(async () => []);
+
+    await db.runMigrations();
+
+    expect(sharedDbSpies.setClient).toHaveBeenCalledTimes(1);
+    expect(webMigratorSpies.migrate).toHaveBeenCalledTimes(1);
   });
 
   it('runs migrations once the database is set up', async () => {

@@ -3123,15 +3123,25 @@ export const addChatMembersToRoles = createWriteQuery(
     },
     ctx: QueryCtx
   ) => {
-    return ctx.db.insert($chatMemberGroupRoles).values(
-      contactIds.flatMap((contactId) =>
-        roleIds.map((roleId) => ({
-          groupId,
-          contactId,
-          roleId,
-        }))
+    if (contactIds.length === 0 || roleIds.length === 0) return;
+    return ctx.db
+      .insert($chatMemberGroupRoles)
+      .values(
+        contactIds.flatMap((contactId) =>
+          roleIds.map((roleId) => ({
+            groupId,
+            contactId,
+            roleId,
+          }))
+        )
       )
-    );
+      .onConflictDoNothing({
+        target: [
+          $chatMemberGroupRoles.groupId,
+          $chatMemberGroupRoles.contactId,
+          $chatMemberGroupRoles.roleId,
+        ],
+      });
   },
   ['chatMembers', 'chatMemberGroupRoles']
 );
@@ -3924,6 +3934,14 @@ export const updateNavSectionOrder = createWriteQuery(
     { groupId, sectionIds }: { groupId: string; sectionIds: string[] },
     ctx: QueryCtx
   ) => {
+    // A desk/client fact-shape drift (TLON-6696) should skip the reorder, not abort the group update.
+    if (!Array.isArray(sectionIds)) {
+      logger.trackError('updateNavSectionOrder: sectionIds is not an array', {
+        groupId,
+        type: typeof sectionIds,
+      });
+      return;
+    }
     // Update each section's index based on position in array
     for (let i = 0; i < sectionIds.length; i++) {
       const navSectionId = `${groupId}-${sectionIds[i]}`;
