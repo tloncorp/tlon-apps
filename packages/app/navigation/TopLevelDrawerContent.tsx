@@ -135,13 +135,14 @@ const FOOTER_CONTROL_RADIUS = floatingChromeMetrics.controlRadius;
 // for anybody's variation on it.
 const BOT_BUTTON_LABEL = 'Tlonbot';
 // The one control in the panel that carries a colour, so it is the first
-// thing the eye finds there. The same blue in every theme, as the platform's
-// own prominent buttons are, and so the same white on it in every theme.
+// thing the eye finds there. The same blue in every theme, so the same white
+// on it in every theme.
 const BOT_BUTTON_FILL = '$blue' as const;
 const BOT_BUTTON_FOREGROUND = '$white' as const;
 // The bot's avatar at the size and corners its bottom tab showed it with —
 // the avatar beside a chat message's author.
 const BOT_AVATAR_SIZE = '$2xl' as const;
+const UNREAD_DOT_RING = 2;
 
 // The footer controls are Liquid Glass on an OS that has it, and the drawer's
 // own flat surfaces everywhere else.
@@ -490,7 +491,12 @@ export function DrawerChatButton({
         alignItems="center"
         justifyContent="center"
         gap="$m"
-        paddingHorizontal="$xl"
+        // The avatar sits at the centre of the pill's rounded end, so its
+        // inset is whatever the pill's height leaves around it.
+        paddingLeft={
+          (FOOTER_CONTROL_SIZE - getTokenValue(BOT_AVATAR_SIZE, 'size')) / 2
+        }
+        paddingRight="$xl"
       >
         <DrawerBotAvatar botId={botId} />
         <Text size="$label/l" color={BOT_BUTTON_FOREGROUND}>
@@ -1205,13 +1211,19 @@ function DrawerPanel(props: DrawerContentComponentProps) {
               onPress={() => select('BotChat')}
             />
             {botDmHasUnread ? (
+              // The pill is the same blue, so the dot sits on a disc of the
+              // panel's colour to stay a dot rather than a nub on its corner.
+              // A disc, not a border: a view's background runs under its
+              // border and shows at its edge.
               <Circle
-                size="$s"
-                backgroundColor="$blue"
+                size={getTokenValue('$s', 'size') + 2 * UNREAD_DOT_RING}
+                backgroundColor="$background"
                 position="absolute"
-                top={-2}
-                right={-2}
-              />
+                top={-2 - UNREAD_DOT_RING}
+                right={-2 - UNREAD_DOT_RING}
+              >
+                <Circle size="$s" backgroundColor="$blue" />
+              </Circle>
             ) : null}
           </View>
         ) : (
