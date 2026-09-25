@@ -808,6 +808,24 @@ describe('launch targets in the split layout', () => {
     expect(rootNavigator.whenMounted).toHaveBeenCalledTimes(1);
   });
 
+  it('holds a deep link until a root navigator mounts', async () => {
+    const navigateRoot = jest.mocked(useNavigateRoot());
+    const rootNavigator = jest.mocked(useRootNavigatorMount());
+    rootNavigator.isMounted.mockReturnValueOnce(false);
+
+    renderHook(() => useDeepLinkListener());
+    await waitFor(() =>
+      expect(rootNavigator.whenMounted).toHaveBeenCalledTimes(1)
+    );
+    expect(navigateRoot).not.toHaveBeenCalled();
+
+    act(() => rootNavigator.whenMounted.mock.calls[0][0]());
+    expect(navigateRoot).toHaveBeenCalledWith({
+      name: 'Home',
+      params: { screen: 'ChatList', params: { previewGroupId: '~zod/g' } },
+    });
+  });
+
   it('opens an invited group preview in the Home sidebar from a deep link', async () => {
     renderHook(() => useDeepLinkListener());
     const navigateRoot = useNavigateRoot();
