@@ -12,7 +12,7 @@ import {
   scryAutomations,
   subscribeToAutomations,
   updateAutomation,
-} from '../index';
+} from '../client/stewardAutomationApi';
 
 vi.mock('../client/urbit', () => ({
   requestJson: vi.fn(),

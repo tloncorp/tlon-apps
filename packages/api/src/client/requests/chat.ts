@@ -1,0 +1,172 @@
+import type { Entry } from './types';
+
+export const chat = {
+  // {mode} is light or heavy.
+  dmWritsRange: {
+    kind: 'scry',
+    agent: 'chat',
+    path: '/v4/dm/{id}/writs/range/{start}/{end}/{mode}',
+    since: '12.2.0',
+  },
+  dmWritsNewest: {
+    kind: 'scry',
+    agent: 'chat',
+    path: '/v4/dm/{id}/writs/newest/{count}/{mode}',
+    since: '12.2.0',
+  },
+  dmWritsOlder: {
+    kind: 'scry',
+    agent: 'chat',
+    path: '/v4/dm/{id}/writs/older/{cursor}/{count}/{mode}',
+    since: '12.2.0',
+  },
+  dmWritsNewer: {
+    kind: 'scry',
+    agent: 'chat',
+    path: '/v4/dm/{id}/writs/newer/{cursor}/{count}/{mode}',
+    since: '12.2.0',
+  },
+  dmWritsAround: {
+    kind: 'scry',
+    agent: 'chat',
+    path: '/v4/dm/{id}/writs/around/{cursor}/{count}/{mode}',
+    since: '12.2.0',
+  },
+  dmWrit: {
+    kind: 'scry',
+    agent: 'chat',
+    path: '/v4/dm/{id}/writs/writ/id/{author}/{time}',
+    since: '12.2.0',
+  },
+  // Unversioned: %chat answers these under %v0.
+  dmSearch: {
+    kind: 'scry',
+    agent: 'chat',
+    path: '/dm/{id}/search/bounded/text/{cursor}/{depth}/{query}',
+    since: '12.2.0',
+  },
+  clubWritsRange: {
+    kind: 'scry',
+    agent: 'chat',
+    path: '/v4/club/{id}/writs/range/{start}/{end}/{mode}',
+    since: '12.2.0',
+  },
+  clubWritsNewest: {
+    kind: 'scry',
+    agent: 'chat',
+    path: '/v4/club/{id}/writs/newest/{count}/{mode}',
+    since: '12.2.0',
+  },
+  clubWritsOlder: {
+    kind: 'scry',
+    agent: 'chat',
+    path: '/v4/club/{id}/writs/older/{cursor}/{count}/{mode}',
+    since: '12.2.0',
+  },
+  clubWritsNewer: {
+    kind: 'scry',
+    agent: 'chat',
+    path: '/v4/club/{id}/writs/newer/{cursor}/{count}/{mode}',
+    since: '12.2.0',
+  },
+  clubWritsAround: {
+    kind: 'scry',
+    agent: 'chat',
+    path: '/v4/club/{id}/writs/around/{cursor}/{count}/{mode}',
+    since: '12.2.0',
+  },
+  clubWrit: {
+    kind: 'scry',
+    agent: 'chat',
+    path: '/v4/club/{id}/writs/writ/id/{author}/{time}',
+    since: '12.2.0',
+  },
+  clubSearch: {
+    kind: 'scry',
+    agent: 'chat',
+    path: '/club/{id}/search/bounded/text/{cursor}/{depth}/{query}',
+    since: '12.2.0',
+  },
+  blocked: { kind: 'scry', agent: 'chat', path: '/blocked', since: '12.2.0' },
+  clubs: { kind: 'scry', agent: 'chat', path: '/clubs', since: '12.2.0' },
+  dms: { kind: 'scry', agent: 'chat', path: '/dm', since: '12.2.0' },
+  dmInvited: {
+    kind: 'scry',
+    agent: 'chat',
+    path: '/dm/invited',
+    since: '12.2.0',
+  },
+  hiddenMessages: {
+    kind: 'scry',
+    agent: 'chat',
+    path: '/hidden-messages',
+    since: '12.2.0',
+  },
+  negotiateStatus: {
+    kind: 'scry',
+    agent: 'chat',
+    path: '/~/negotiate/status/json',
+    since: '12.2.0',
+  },
+  updates: { kind: 'subscribe', agent: 'chat', path: '/v4', since: '12.2.0' },
+  negotiateNotify: {
+    kind: 'subscribe',
+    agent: 'chat',
+    path: '/~/negotiate/notify/json',
+    since: '12.2.0',
+  },
+  dmAction: {
+    kind: 'poke',
+    agent: 'chat',
+    mark: 'chat-dm-action-2',
+    since: '12.2.0',
+  },
+  clubAction: {
+    kind: 'poke',
+    agent: 'chat',
+    mark: 'chat-club-action-2',
+    since: '12.2.0',
+  },
+  clubCreate: {
+    kind: 'poke',
+    agent: 'chat',
+    mark: 'chat-club-create',
+    since: '12.2.0',
+  },
+  dmRsvp: {
+    kind: 'poke',
+    agent: 'chat',
+    mark: 'chat-dm-rsvp',
+    since: '12.2.0',
+  },
+  remark: {
+    kind: 'poke',
+    agent: 'chat',
+    mark: 'chat-remark-action',
+    since: '12.2.0',
+  },
+  blockShip: {
+    kind: 'poke',
+    agent: 'chat',
+    mark: 'chat-block-ship',
+    since: '12.2.0',
+  },
+  unblockShip: {
+    kind: 'poke',
+    agent: 'chat',
+    mark: 'chat-unblock-ship',
+    since: '12.2.0',
+  },
+  toggleMessage: {
+    kind: 'poke',
+    agent: 'chat',
+    mark: 'chat-toggle-message',
+    since: '12.2.0',
+  },
+  negotiate: {
+    kind: 'poke',
+    agent: 'chat',
+    mark: 'chat-negotiate',
+    since: '12.2.0',
+  },
+} as const satisfies Record<string, Entry>;
