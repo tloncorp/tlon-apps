@@ -39,6 +39,7 @@ import {
   ViewStyle,
   useWindowDimensions,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, getTokens, styled, useStyle, useTheme } from 'tamagui';
 
@@ -57,6 +58,10 @@ import { EmojiPickerSheet } from '../Emoji';
 import { supportsLiquidGlass } from '../GlassSurface';
 import { ConversationScrollToBottomButton } from '../conversationScrollChrome';
 import { ChannelDivider } from './ChannelDivider';
+import {
+  useConversationComposerLayout,
+  useConversationKeyboardLiftStyle,
+} from './ConversationLayout';
 import { ContextLensRunSheet } from './ContextLens/ContextLensRunSheet';
 import {
   ConversationContentInsets,
@@ -398,6 +403,8 @@ const Scroller = forwardRef(
     const insets = useSafeAreaInsets();
     const rootVerticalPadding = getTokens().space.l.val;
     const composerBottomInset = contentInsets.bottom;
+    const composerLayout = useConversationComposerLayout();
+    const keyboardLiftStyle = useConversationKeyboardLiftStyle();
     // iOS conversation lists keep the composer inset native so the list can
     // own keyboard and composer clearance; every other layout pads for it.
     const listOwnsComposerInset =
@@ -413,8 +420,9 @@ const Scroller = forwardRef(
     }, []);
     const standaloneBottomSafeArea =
       composerBottomInset > 0 ? 0 : insets.bottom;
-    const scrollButtonBottom =
-      composerBottomInset > 0
+    const scrollButtonBottom = composerLayout.floating
+      ? composerLayout.height + getTokens().space.s.val
+      : composerBottomInset > 0
         ? composerBottomInset + getTokens().space.s.val
         : getTokens().space.m.val;
     const contentContainerStyle = useStyle(
@@ -702,11 +710,13 @@ const Scroller = forwardRef(
             pointerEvents={showScrollButton ? 'box-none' : 'none'}
             zIndex={1000}
           >
-            <ConversationScrollToBottomButton
-              loading={Boolean(isLoading && hasPressedGoToBottom)}
-              onPress={pressedGoToBottom}
-              visible={showScrollButton}
-            />
+            <Animated.View style={keyboardLiftStyle}>
+              <ConversationScrollToBottomButton
+                loading={Boolean(isLoading && hasPressedGoToBottom)}
+                onPress={pressedGoToBottom}
+                visible={showScrollButton}
+              />
+            </Animated.View>
           </View>
         )}
         {activeMessage !== null && !emojiPickerOpen && (

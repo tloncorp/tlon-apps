@@ -1,0 +1,116 @@
+import {
+  convertContent,
+  plaintextPreviewOf,
+} from '@tloncorp/api/client/postContent';
+import * as React from 'react';
+import { EaseView, type TimingTransition } from 'react-native-ease';
+
+import { getAppendedPostIds } from './postArrivals';
+import {
+  getPostListKey,
+  type PostListComponentProps,
+  type PostWithNeighbors,
+} from './shared';
+
+const messageFadeIn: TimingTransition = {
+  type: 'timing',
+  duration: 400,
+  easing: 'easeInOut',
+};
+
+const multilineMessageFadeIn: TimingTransition = {
+  type: 'timing',
+  delay: 100,
+  duration: 550,
+  easing: 'easeInOut',
+};
+
+function getMessageFadeIn(content: unknown): TimingTransition {
+  try {
+    // The stored text preview flattens line breaks. Read the message body so
+    // paragraphs, blank lines and inline breaks all get the multiline timing.
+    const text = plaintextPreviewOf(convertContent(content, undefined));
+    return text.includes('\n') ? multilineMessageFadeIn : messageFadeIn;
+  } catch {
+    return messageFadeIn;
+  }
+}
+
+function PostArrival({
+  postId,
+  content,
+  animate,
+  displayedPostIds,
+  children,
+}: React.PropsWithChildren<{
+  postId: string;
+  content: unknown;
+  animate: boolean;
+  displayedPostIds: Set<string>;
+}>) {
+  const [shouldAnimate] = React.useState(
+    () => animate && !displayedPostIds.has(postId)
+  );
+  const [transition] = React.useState(() =>
+    shouldAnimate ? getMessageFadeIn(content) : messageFadeIn
+  );
+  React.useLayoutEffect(() => {
+    // Virtualization may mount this post again when returning from history.
+    displayedPostIds.add(postId);
+  }, [displayedPostIds, postId]);
+
+  return (
+    <EaseView
+      initialAnimate={shouldAnimate ? { opacity: 0 } : undefined}
+      animate={{ opacity: 1 }}
+      transition={transition}
+    >
+      {children}
+    </EaseView>
+  );
+}
+
+export function usePostArrivalAnimation({
+  posts,
+  renderItem,
+  enabled,
+}: {
+  posts: PostWithNeighbors[];
+  renderItem: PostListComponentProps['renderItem'];
+  enabled: boolean;
+}): PostListComponentProps['renderItem'] {
+  const [displayedPostIds] = React.useState(() => new Set<string>());
+  const [previous, setPrevious] = React.useState({
+    posts,
+    enabled,
+    arrivals: new Set<string>(),
+  });
+  // Classify the update before the new rows mount, so their first native
+  // frame already has the entry animation. Initial pages stay immediate.
+  if (previous.posts !== posts || previous.enabled !== enabled) {
+    setPrevious({
+      posts,
+      enabled,
+      arrivals:
+        enabled && previous.enabled
+          ? getAppendedPostIds(previous.posts, posts)
+          : new Set<string>(),
+    });
+  }
+  const { arrivals } = previous;
+
+  return React.useCallback(
+    (props) => (
+      <PostArrival
+        key={getPostListKey(props.item)}
+        postId={props.item.post.id}
+        content={props.item.post.content}
+        animate={arrivals.has(props.item.post.id)}
+        displayedPostIds={displayedPostIds}
+      >
+        {renderItem(props)}
+      </PostArrival>
+    ),
+    [arrivals, displayedPostIds, renderItem]
+  );
+}

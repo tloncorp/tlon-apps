@@ -18,7 +18,14 @@ const keyboard = vi.hoisted(() => ({
   providerHeight: { value: 0 },
   providerProgress: { value: 0 },
   handlers: {} as Record<string, (event: KeyboardEvent) => void>,
-  style: () => ({ transform: [{ translateY: 0 }] }),
+  style: (() => ({ transform: [{ translateY: 0 }] })) as () => {
+    transform?: { translateY: number }[];
+    paddingBottom?: number;
+  },
+  styles: [] as (() => {
+    transform?: { translateY: number }[];
+    paddingBottom?: number;
+  })[],
 }));
 
 const composer = vi.hoisted(() => ({
@@ -58,28 +65,37 @@ vi.mock('react-native-keyboard-controller/src/hooks', () => ({
     progress: keyboard.providerProgress,
   }),
 }));
-vi.mock('react-native-reanimated', () => ({
-  default: { View: 'AnimatedView' },
-  useSharedValue: <T,>(value: T) => ({ value }),
-  useAnimatedStyle: (style: typeof keyboard.style) => {
-    keyboard.style = style;
-    return style();
-  },
-  interpolate: (value: number, input: number[], output: number[]) =>
-    output[0] +
-    ((value - input[0]) / (input[1] - input[0])) * (output[1] - output[0]),
-}));
+vi.mock('react-native-reanimated', async () => {
+  const { useRef } = await import('react');
+  return {
+    default: { View: 'AnimatedView' },
+    useSharedValue: <T,>(value: T) => useRef({ value }).current,
+    useAnimatedStyle: (style: typeof keyboard.style) => {
+      keyboard.style = style;
+      keyboard.styles.push(style);
+      return style();
+    },
+    useDerivedValue: <T,>(compute: () => T) => ({
+      get value() {
+        return compute();
+      },
+    }),
+    interpolate: (value: number, input: number[], output: number[]) =>
+      output[0] +
+      ((value - input[0]) / (input[1] - input[0])) * (output[1] - output[0]),
+  };
+});
 vi.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ bottom: 34 }),
 }));
 vi.mock('tamagui', () => ({
   View: 'View',
+  YStack: 'YStack',
   useTheme: () => ({ background: '#fff' }),
   getVariableValue: (value: unknown) => value,
 }));
 vi.mock('../../contexts/componentsKits', () => ({}));
 vi.mock('../../contexts/scroll', () => ({
-  useConversationScrollViewNativeID: () => undefined,
   useConversationScrollToBottomControl: () => undefined,
   useConversationComposerHeight: () => ({
     report: (height: number, collapsibleInset: number) => {
@@ -97,6 +113,8 @@ vi.mock('../conversationScrollChrome', () => ({
 vi.mock('../draftInputs/shared', () => ({}));
 
 let renderer: ReactTestRenderer | undefined;
+let ConversationLayout: typeof import('./ConversationLayout').ConversationLayout;
+let useConversationComposerLayout: typeof import('./ConversationLayout').useConversationComposerLayout;
 let ConversationComposerPlacement: typeof import('./DraftInputView').ConversationComposerPlacement;
 
 beforeEach(async () => {
@@ -107,8 +125,13 @@ beforeEach(async () => {
   keyboard.providerProgress.value = 0;
   keyboard.handlers = {};
   keyboard.style = () => ({ transform: [{ translateY: 0 }] });
+  keyboard.styles = [];
   // The platform-specific wrapper is selected when the module is loaded.
   vi.resetModules();
+  ({ ConversationLayout, useConversationComposerLayout } =
+    await vi.importActual<typeof import('./ConversationLayout')>(
+      './ConversationLayout'
+    ));
   ({ ConversationComposerPlacement } =
     await vi.importActual<typeof import('./DraftInputView')>(
       './DraftInputView'
@@ -137,11 +160,151 @@ function emit(name: string, height: number) {
   keyboard.handlers[name]?.(event);
 }
 
-const offset = () => keyboard.style().transform[0].translateY;
+const offset = () => keyboard.style().transform![0].translateY;
+const latestStyle = (key: 'paddingBottom' | 'transform') =>
+  keyboard.styles.findLast((style) => key in style())!();
+// iOS keeps the conversation frame fixed and translates its composer instead.
+const containerPadding = () => latestStyle('paddingBottom').paddingBottom;
+const composerLift = () => -latestStyle('transform').transform![0].translateY;
+const expectKeyboardClearance = (overlap: number) => {
+  const ios = keyboard.platform === 'ios';
+  expect(containerPadding()).toBe(ios ? 0 : overlap);
+  expect(composerLift()).toBe(ios ? overlap : 0);
+};
+const findComposer = () =>
+  renderer!.root.find(
+    (node) =>
+      (node.type as unknown) === 'AnimatedView' &&
+      Array.isArray(node.props.style) &&
+      node.props.style[0]?.flexShrink === 0
+  );
+const composerStyle = () =>
+  Object.assign({}, ...findComposer().props.style.filter(Boolean));
 
 describe.each(['ios', 'android'] as const)('%s', (platform) => {
   beforeAll(() => {
     keyboard.platform = platform;
+  });
+
+  it('preserves the input instance and draft while docking and floating above the keyboard', () => {
+    let layout: ReturnType<typeof useConversationComposerLayout>;
+    let changeDraft: React.Dispatch<React.SetStateAction<string>>;
+    let mounts = 0;
+    function Draft() {
+      layout = useConversationComposerLayout();
+      const [draft, setDraft] = React.useState('');
+      changeDraft = setDraft;
+      React.useEffect(() => {
+        mounts += 1;
+      }, []);
+      return <input value={draft} />;
+    }
+    act(() => {
+      renderer = create(
+        <ConversationLayout enabled>
+          <section />
+          <ConversationComposerPlacement enabled>
+            <Draft />
+          </ConversationComposerPlacement>
+        </ConversationLayout>
+      );
+    });
+    act(() => changeDraft('Keep this draft'));
+    emit('onEnd', 300);
+    act(() => layout.setFloating(true));
+    expect(composerStyle().position).toBe('absolute');
+    expect(composerStyle().bottom).toBe(0);
+    expect(
+      findComposer().findByType('View' as never).props.backgroundColor
+    ).toBe('transparent');
+    expectKeyboardClearance(266);
+    act(() => layout.setFloating(false));
+    expect(renderer!.root.findByType('input').props.value).toBe(
+      'Keep this draft'
+    );
+    expect(mounts).toBe(1);
+  });
+
+  it('gives the list and composer a shared resizing keyboard container', () => {
+    act(() => {
+      renderer = create(
+        <ConversationLayout enabled>
+          <section />
+          <ConversationComposerPlacement enabled>
+            <input />
+          </ConversationComposerPlacement>
+        </ConversationLayout>
+      );
+    });
+    expectKeyboardClearance(0);
+    emit('onStart', 300);
+    expectKeyboardClearance(0);
+    emit('onMove', 150);
+    expectKeyboardClearance(133);
+    emit('onEnd', 300);
+    expectKeyboardClearance(266);
+    emit('onInteractive', 150);
+    expectKeyboardClearance(133);
+    emit('onEnd', 0);
+    expectKeyboardClearance(0);
+    expect(findComposer().findByType('View' as never).props.paddingBottom).toBe(
+      34
+    );
+    expect(composerStyle().position).toBeUndefined();
+  });
+
+  it('reserves the current keyboard overlap when a docked conversation mounts with it open', () => {
+    keyboard.visible = true;
+    keyboard.height = 300;
+    act(() => {
+      renderer = create(
+        <ConversationLayout enabled>
+          <section />
+          <ConversationComposerPlacement enabled>
+            <input />
+          </ConversationComposerPlacement>
+        </ConversationLayout>
+      );
+    });
+    expectKeyboardClearance(266);
+  });
+
+  it('clears a tab bar in docked and floating modes without leaving a keyboard gap', () => {
+    let layout: ReturnType<typeof useConversationComposerLayout>;
+    function Draft() {
+      layout = useConversationComposerLayout();
+      return <input />;
+    }
+    act(() => {
+      renderer = create(
+        <ConversationLayout enabled bottomChromeClearance={84}>
+          <section />
+          <ConversationComposerPlacement enabled>
+            <Draft />
+          </ConversationComposerPlacement>
+        </ConversationLayout>
+      );
+    });
+    const padding = () =>
+      findComposer().findByType('View' as never).props.paddingBottom;
+    expect(padding()).toBe(92);
+    expectKeyboardClearance(0);
+    emit('onStart', 300);
+    expectKeyboardClearance(0);
+    emit('onMove', 150);
+    expectKeyboardClearance(104);
+    emit('onEnd', 300);
+    expectKeyboardClearance(208);
+    act(() => layout.setFloating(true));
+    expect(composerStyle().position).toBe('absolute');
+    expect(padding()).toBe(92);
+    expectKeyboardClearance(208);
+    emit('onInteractive', 150);
+    expectKeyboardClearance(104);
+    emit('onEnd', 0);
+    expectKeyboardClearance(0);
+    act(() => layout.setFloating(false));
+    expect(padding()).toBe(92);
   });
 
   describe.each([

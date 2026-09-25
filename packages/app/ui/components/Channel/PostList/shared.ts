@@ -12,6 +12,15 @@ export interface PostWithNeighbors {
   next: db.Post | null;
 }
 
+/**
+ * The host assigns a new id when it confirms an optimistic post, but keeps the
+ * client's `sentAt`, so keying rows by it keeps a row mounted and measured
+ * across confirmation.
+ */
+export function getPostListKey({ post }: PostWithNeighbors) {
+  return `${post.authorId}:${post.sentAt}`;
+}
+
 export interface PostListMethods {
   scrollToStart: (opts: { animated?: boolean }) => void;
   scrollToEnd: (opts: { animated?: boolean }) => void;

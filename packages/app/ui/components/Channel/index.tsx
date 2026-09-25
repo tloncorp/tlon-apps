@@ -68,6 +68,7 @@ import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
 import { ContextLensPanel, useContextLensController } from './ContextLens';
 import { DmInviteOptions } from './DmInviteOptions';
 import { DraftInputView } from './DraftInputView';
+import { ConversationLayout } from './ConversationLayout';
 import { PinnedPostBanner } from './PinnedPostBanner';
 import { PostView } from './PostView';
 import { ReadOnlyNotice } from './ReadOnlyNotice';
@@ -736,7 +737,7 @@ export function Channel({
       sendPostFromDraft: async (draft, options) => {
         setEditingPost?.(undefined);
         await finalizeAndSendPost(draft, options);
-        if (!draft.isEdit) {
+        if (!draft.isEdit && !options?.scrollHandled) {
           scrollToNewMessage();
         }
       },
@@ -881,16 +882,12 @@ export function Channel({
   const usesFloatingPinnedPostBanner = isChatChannel && supportsLiquidGlass();
   const shouldReservePinnedPostBannerSpace =
     usesFloatingPinnedPostBanner && shouldRenderPinnedPostBanner;
-  const {
-    contentInsets,
-    navigationHeaderHeight,
-    floatingHeaderHeight,
-    onFloatingHeightChange,
-  } = useConversationInsets({
-    hasFloatingComposer: draftInputType === DraftInputId.chat,
-    hasTransparentHeader: isChatChannel,
-    hasFloatingPinnedPostBanner: shouldReservePinnedPostBannerSpace,
-  });
+  const { contentInsets, navigationHeaderHeight, floatingHeaderHeight } =
+    useConversationInsets({
+      hasFloatingComposer: false,
+      hasTransparentHeader: isChatChannel,
+      hasFloatingPinnedPostBanner: shouldReservePinnedPostBannerSpace,
+    });
   const sharedTopInset =
     floatingHeaderHeight +
     (shouldReservePinnedPostBannerSpace
@@ -1023,7 +1020,15 @@ export function Channel({
                             }
                             position="relative"
                           >
-                            <YStack alignItems="stretch" flex={1} minWidth={0}>
+                            <ConversationLayout
+                              bottomChromeClearance={
+                                isTopLevelTab ? tabBarClearance : 0
+                              }
+                              enabled={
+                                draftInputType === DraftInputId.chat &&
+                                !readOnlyNoticeType
+                              }
+                            >
                               {shouldRenderJoinRequestNotice && (
                                 <SystemNotices.ConnectedJoinRequestNotice
                                   group={group}
@@ -1036,7 +1041,11 @@ export function Channel({
                               <AnimatePresence>
                                 {draftInputPresentationMode !==
                                   'fullscreen' && (
-                                  <View flex={1}>
+                                  <View
+                                    flex={1}
+                                    minHeight={0}
+                                    overflow="hidden"
+                                  >
                                     <PostCollectionContext.Provider
                                       value={{
                                         contentInsets: postCollectionInsets,
@@ -1108,9 +1117,6 @@ export function Channel({
                                   bottomChromeClearance={
                                     isTopLevelTab ? tabBarClearance : 0
                                   }
-                                  onFloatingHeightChange={
-                                    onFloatingHeightChange
-                                  }
                                 />
                               ) : null}
 
@@ -1120,7 +1126,7 @@ export function Channel({
                                   goBack={goBack}
                                 />
                               )}
-                            </YStack>
+                            </ConversationLayout>
                             {contextLensAvailable &&
                               contextLensOpen &&
                               !isNarrow && (
