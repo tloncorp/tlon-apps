@@ -279,9 +279,83 @@ export function findTlonSubcommandIndex(args: string[]): number {
 
 export type BlockedTlonOperation = {
   message: string;
-  reason: 'diary_operation' | 'migration_operation' | 'send_operation';
+  reason:
+    | 'diary_operation'
+    | 'migration_operation'
+    | 'send_operation'
+    | 'reserved_automatic_provision'
+    | 'reserved_provider_configuration'
+    | 'reserved_agent_choice_marker';
   diaryNest?: string;
 };
+
+function containsAutomaticProvisionAction(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.some(containsAutomaticProvisionAction);
+  }
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Record<string, unknown>;
+  if (record.action && typeof record.action === 'object') {
+    const event = (record.action as { event?: unknown }).event;
+    if (
+      event &&
+      typeof event === 'object' &&
+      (event as { name?: unknown }).name === 'tlon.provisionAgent'
+    ) {
+      return true;
+    }
+  }
+  return Object.values(record).some(containsAutomaticProvisionAction);
+}
+
+function containsProviderConfigurationAction(value: unknown): boolean {
+  if (Array.isArray(value))
+    return value.some(containsProviderConfigurationAction);
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Record<string, unknown>;
+  if (
+    record.event &&
+    typeof record.event === 'object' &&
+    (record.event as { name?: unknown }).name === 'tlon.configureAgentProviders'
+  ) {
+    return true;
+  }
+  return Object.values(record).some(containsProviderConfigurationAction);
+}
+
+function containsAgentChoiceMarker(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(containsAgentChoiceMarker);
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Record<string, unknown>;
+  if (
+    record.type === 'tlon-agent-post-marker' &&
+    typeof record.key === 'string' &&
+    record.key.startsWith('agent-choice-dimension:')
+  ) {
+    return true;
+  }
+  return Object.values(record).some(containsAgentChoiceMarker);
+}
+
+function hasReservedBlobContent(
+  args: string[],
+  containsReservedContent: (value: unknown) => boolean
+): boolean {
+  if (args[0]?.toLocaleLowerCase() !== 'posts') return false;
+  const blobs = args.flatMap((argument, index) => {
+    if (argument === '--blob') return args[index + 1] ? [args[index + 1]!] : [];
+    return argument.startsWith('--blob=')
+      ? [argument.slice('--blob='.length)]
+      : [];
+  });
+  return blobs.some((blob) => {
+    try {
+      return containsReservedContent(JSON.parse(blob));
+    } catch {
+      return false;
+    }
+  });
+}
 
 /**
  * Check blocked operations only after removing global credential flags.
@@ -293,6 +367,29 @@ export function checkBlockedTlonOperation(
 ): BlockedTlonOperation | null {
   const subIdx = findTlonSubcommandIndex(args);
   const commandArgs = subIdx >= 0 ? args.slice(subIdx) : [];
+  if (hasReservedBlobContent(commandArgs, containsAutomaticProvisionAction)) {
+    return {
+      message:
+        'Blocked: automatic recurring-task provisioning may be posted only by the typed tlon_agent_task_plan tool.',
+      reason: 'reserved_automatic_provision',
+    };
+  }
+  if (
+    hasReservedBlobContent(commandArgs, containsProviderConfigurationAction)
+  ) {
+    return {
+      message:
+        'Blocked: provider access may be configured only by the verified onboarding coordinator.',
+      reason: 'reserved_provider_configuration',
+    };
+  }
+  if (hasReservedBlobContent(commandArgs, containsAgentChoiceMarker)) {
+    return {
+      message:
+        'Blocked: agent choice evidence may be posted only by the typed tlon_agent_choice tool.',
+      reason: 'reserved_agent_choice_marker',
+    };
+  }
   const migration = checkBlockedMigrationOperation(commandArgs);
   if (migration) {
     return {
