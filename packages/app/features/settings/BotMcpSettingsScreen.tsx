@@ -42,6 +42,8 @@ export function BotMcpSettingsScreen(props: Props) {
     api.TlawnOAuthProvider[]
   >([]);
   const [status, setStatus] = useState<api.TlawnOAuthStatus | null>(null);
+  const [hostingSessionUnavailable, setHostingSessionUnavailable] =
+    useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [startingProviderId, setStartingProviderId] = useState<string | null>(
@@ -66,6 +68,22 @@ export function BotMcpSettingsScreen(props: Props) {
 
     setRefreshing(true);
     try {
+      const [authToken, hostingUserId] = await Promise.all([
+        db.hostingAuthToken.getValue(),
+        db.hostingUserId.getValue(),
+      ]);
+      if (!authToken || !hostingUserId) {
+        if (isMounted.current) {
+          setHostingSessionUnavailable(true);
+          setProviderConfigs([]);
+          setStatus(null);
+        }
+        return;
+      }
+
+      if (isMounted.current) {
+        setHostingSessionUnavailable(false);
+      }
       const [nextProviders, nextStatus] = await Promise.all([
         api.getTlawnOAuthProviders(),
         api.getTlawnOAuthStatus(currentUserId),
@@ -352,7 +370,9 @@ export function BotMcpSettingsScreen(props: Props) {
       providers={providers}
       refreshing={refreshing}
       busyProviderId={busyProviderId}
-      showUnavailableNotice={status?.available === false}
+      showUnavailableNotice={
+        hostingSessionUnavailable || status?.available === false
+      }
     />
   );
 }

@@ -28,6 +28,127 @@ describe('isVisibleChannelPost', () => {
     ).toBe(false);
   });
 
+  it('hides successful automatic provision transport posts', () => {
+    expect(
+      isVisibleChannelPost(
+        {
+          authorId: '~ten',
+          blob: appendToPostBlob(undefined, {
+            type: 'tlon-agent-provision',
+            version: 1,
+            provisionId: 'auto-plan-post',
+            groupId: '~ten/group',
+            purposeId: 'agent-learning',
+            purpose: 'Learning',
+            topics: ['Balcony gardening'],
+            scheduleHour: 18,
+            scheduleMinute: 0,
+            scheduleExpression: '0 18 * * *',
+            scheduleDescription: 'daily at 6 PM',
+            taskPrompt: 'Teach one practical balcony-gardening lesson.',
+            timezone: 'Europe/Paris',
+            notebookNest: 'notes/~ten/updates',
+          }),
+        },
+        '~ten'
+      )
+    ).toBe(false);
+  });
+
+  it('keeps a failed automatic provision hidden while its plan card offers retry', () => {
+    const provisionBlob = appendToPostBlob(undefined, {
+      type: 'tlon-agent-provision',
+      version: 1,
+      provisionId: 'auto-plan-post',
+      groupId: '~ten/group',
+      purposeId: 'agent-learning',
+      purpose: 'Learning',
+      topics: ['Balcony gardening'],
+      scheduleHour: 18,
+      scheduleMinute: 0,
+      scheduleExpression: '0 18 * * *',
+      scheduleDescription: 'daily at 6 PM',
+      taskPrompt: 'Teach one practical balcony-gardening lesson.',
+      timezone: 'Europe/Paris',
+      notebookNest: 'notes/~ten/updates',
+    });
+    expect(
+      isVisibleChannelPost(
+        {
+          authorId: '~ten',
+          deliveryStatus: 'failed',
+          blob: appendToPostBlob(provisionBlob, {
+            type: 'tlon-a2ui-selection',
+            version: 1,
+            sourcePostId: '~bot/plan',
+            surfaceId: 'agent-task-plan',
+            componentId: 'auto-provision',
+            values: ['Balcony gardening'],
+          }),
+        },
+        '~ten'
+      )
+    ).toBe(false);
+  });
+
+  it('keeps a failed manual provision visible so the owner can retry it', () => {
+    expect(
+      isVisibleChannelPost(
+        {
+          authorId: '~ten',
+          deliveryStatus: 'failed',
+          blob: appendToPostBlob(undefined, {
+            type: 'tlon-agent-provision',
+            version: 1,
+            provisionId: 'manual-plan-post',
+            groupId: '~ten/group',
+            purposeId: 'agent-learning',
+            purpose: 'Learning',
+            topics: ['Balcony gardening'],
+            scheduleHour: 18,
+            scheduleMinute: 0,
+            timezone: 'Europe/Paris',
+            notebookNest: 'notes/~ten/updates',
+          }),
+        },
+        '~ten'
+      )
+    ).toBe(true);
+  });
+
+  it('hides owner provision transports from other group members', () => {
+    const provisionBlob = appendToPostBlob(undefined, {
+      type: 'tlon-agent-provision',
+      version: 1,
+      provisionId: 'shared-group-plan',
+      groupId: '~ten/group',
+      purposeId: 'agent-learning',
+      purpose: 'Learning',
+      topics: ['Balcony gardening'],
+      scheduleHour: 18,
+      scheduleMinute: 0,
+      timezone: 'Europe/Paris',
+      notebookNest: 'notes/~ten/updates',
+    });
+
+    expect(
+      isVisibleChannelPost(
+        { authorId: '~ten', blob: provisionBlob },
+        '~nec',
+        'chat/~ten/general',
+        '~ten'
+      )
+    ).toBe(false);
+    expect(
+      isVisibleChannelPost(
+        { authorId: '~malicious', blob: provisionBlob },
+        '~nec',
+        'chat/~ten/general',
+        '~ten'
+      )
+    ).toBe(true);
+  });
+
   it('keeps onboarding intro requests from other authors visible', () => {
     expect(
       isVisibleChannelPost(
@@ -88,8 +209,8 @@ describe('isVisibleChannelPost', () => {
       "I'm a purpose-built AI agent that can help you get things done.",
       "You can chat with me here or add me to a group; in groups, you'll need" +
         " to mention me (just @ten's tlonbot) to get my attention.",
-      "I'd love to get to know you a bit so I can be more useful. What should" +
-        ' I call you, and what kinds of things do you want help with on Tlon?',
+      "I'd love to get to know you a bit so I can be more useful. What kinds" +
+        ' of things do you want help with on Tlon?',
       'I can send you a daily morning brief on any topic (AI, news, sports,' +
         ' anything), a daily reminder, or your local weather every morning.' +
         " Just say the word and I'll be there every day. \u{1F305} ",

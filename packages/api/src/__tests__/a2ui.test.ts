@@ -51,6 +51,17 @@ describe('a2ui blob entries', () => {
     expect(A2UI.validateBlobEntry(a2uiBlobEntry)).toBe(true);
   });
 
+  test('accepts v1 and v2 blob entries but rejects newer versions', () => {
+    expect(A2UI.validateBlobEntry({ ...a2uiBlobEntry, version: 1 })).toBe(true);
+    expect(A2UI.validateBlobEntry({ ...a2uiBlobEntry, version: 2 })).toBe(true);
+    expect(
+      A2UI.validateBlobEntry({
+        ...a2uiBlobEntry,
+        version: 3,
+      } as unknown as A2UI.BlobEntry)
+    ).toBe(false);
+  });
+
   test('finds the create message past unrelated primitive messages', () => {
     const entry = {
       ...a2uiBlobEntry,
@@ -205,6 +216,10 @@ describe('a2ui blob entries', () => {
             topics: ['Open hardware', 'Space weather'],
             scheduleHour: 8,
             scheduleMinute: 0,
+            taskPrompt: 'Summarize meaningful open-hardware releases.',
+            scheduleExpression: '0 8 * * 1-5',
+            scheduleDescription: 'every weekday at 8 AM',
+            timezoneOverride: 'Asia/Tokyo',
           },
         },
       },

@@ -206,6 +206,10 @@ describe('post blob helpers', () => {
         version: 1,
         groupId: '~zod/test',
         isFirstGroup: true,
+        clientTimezone: 'America/Los_Angeles',
+        clientLocale: 'en-US',
+        timezone: 'America/Los_Angeles',
+        campaignVersion: 2,
       },
       {
         type: 'tlon-agent-provision',
@@ -218,6 +222,9 @@ describe('post blob helpers', () => {
         timezone: 'America/New_York',
         scheduleHour: 9,
         scheduleMinute: 30,
+        taskPrompt: 'Summarize primary-source Urbit and AI updates.',
+        scheduleExpression: '30 9 * * 1-5',
+        scheduleDescription: 'every weekday at 9:30 AM',
         notebookNest: 'notes/~zod/test-updates',
         notebookTitle: 'Updates',
       },
@@ -267,6 +274,26 @@ describe('post blob helpers', () => {
             timezone: 'America/New_York',
             scheduleHour: 25,
             scheduleMinute: 0,
+            notebookNest: 'notes/~zod/test-updates',
+          },
+        ])
+      )
+    ).toEqual([{ type: 'unknown' }]);
+    expect(
+      parsePostBlob(
+        JSON.stringify([
+          {
+            type: 'tlon-agent-provision',
+            version: 1,
+            provisionId: 'provision-1',
+            groupId: '~zod/test',
+            purposeId: 'agent-research',
+            purpose: 'Research',
+            topics: ['Urbit'],
+            timezone: 'America/New_York',
+            scheduleHour: 9,
+            scheduleMinute: 0,
+            scheduleExpression: 'not a valid cron expression',
             notebookNest: 'notes/~zod/test-updates',
           },
         ])
@@ -333,6 +360,7 @@ describe('post blob helpers', () => {
       surfaceId: 'agent-purpose',
       componentId: 'purpose-choice',
       optionId: 'daily-digest',
+      clientTimezone: 'America/New_York',
       // A one-shot Button records the full message it posted, which may
       // exceed topicLength.
       values: ['x'.repeat(1000)],

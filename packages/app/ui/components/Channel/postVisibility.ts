@@ -32,7 +32,8 @@ export function isVisibleChannelPost(
     deliveryStatus?: db.Post['deliveryStatus'];
   },
   currentUserId: string,
-  channelId?: string
+  channelId?: string,
+  groupHostUserId?: string | null
 ): boolean {
   // A DM channel is addressed by the other party, so the bot's own DM is the
   // only place this can match, and only for a post the bot itself authored.
@@ -45,6 +46,25 @@ export function isVisibleChannelPost(
     return false;
   }
   if (!post.blob) return true;
+  const isProvisionTransport = postHasBlobEntry(
+    post.blob,
+    'tlon-agent-provision'
+  );
+  // Automatic provision failures are recovered from the source plan card,
+  // which now receives definitive send failures. Never flash its synthetic
+  // topic payload as if the owner had written it.
+  if (
+    isProvisionTransport &&
+    (post.authorId === currentUserId || post.authorId === groupHostUserId)
+  ) {
+    const isAutomatic = parsePostBlob(post.blob).some(
+      (entry) =>
+        entry.type === 'tlon-a2ui-selection' &&
+        entry.componentId === 'auto-provision'
+    );
+    if (isAutomatic || post.deliveryStatus !== 'failed') return false;
+    return true;
+  }
   if (post.authorId !== currentUserId) return true;
   if (post.deliveryStatus === 'failed') return true;
 
