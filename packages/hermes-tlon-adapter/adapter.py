@@ -4295,13 +4295,15 @@ class TlonAdapter(BasePlatformAdapter):
         if is_command:
             return text, PreparedMedia()
         cite_block = ""
-        if self._sse is not None and message.content:
+        # Queued events keep draining while a lost channel is rebuilt, so
+        # cite rendering can't be gated on a live SSE: group pointers need no
+        # connection. Channel quotes do, and are skipped without one.
+        if message.content:
             partial: list[str] = []
             try:
+                scry = self._sse.scry if self._sse is not None else None
                 cite_block = await asyncio.wait_for(
-                    resolve_cites(
-                        self._sse.scry, message.content, collected=partial
-                    ),
+                    resolve_cites(scry, message.content, collected=partial),
                     CITE_RESOLUTION_BUDGET_SECONDS,
                 )
             except (Exception, asyncio.TimeoutError) as exc:
