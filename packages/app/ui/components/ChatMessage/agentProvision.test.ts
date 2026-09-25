@@ -195,6 +195,30 @@ describe('isCurrentOwnerInterview', () => {
       })
     ).toBe(true);
   });
+
+  it('ignores thread replies outside the root onboarding conversation', () => {
+    expect(
+      isCurrentOwnerInterview({
+        interviewStartMessageId: interviewStart.id,
+        interviewMessageId: interviewEnd.id,
+        planPost,
+        channelPosts: [
+          interviewStart,
+          interviewEnd,
+          {
+            id: 'thread-reply',
+            authorId: 'owner',
+            channelId: 'chat',
+            receivedAt: 400,
+            sequenceNum: 4,
+            type: 'reply',
+            parentId: 'unrelated-root',
+          },
+        ],
+        ownerId: 'owner',
+      })
+    ).toBe(true);
+  });
 });
 
 describe('provision helpers', () => {

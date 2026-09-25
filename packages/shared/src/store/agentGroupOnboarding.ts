@@ -534,7 +534,9 @@ export async function renameAgentGroupFromOnboarding({
   try {
     const lock = (await db.agentGroupOnboardingLocks.getValue())[groupId];
     if (!lock) return;
-    const group = await db.getGroup({ id: groupId });
+    // The local row can lag a rename from another client. Re-read the ship
+    // immediately before deciding whether the placeholder is still untouched.
+    const group = await api.getGroup(groupId);
     if (!group || !isAgentGroupTitleRenameEligible(lock, group.title ?? null))
       return;
 

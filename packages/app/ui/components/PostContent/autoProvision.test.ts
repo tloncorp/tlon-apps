@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   claimAutomaticProvisionRetry,
+  clearFailedAutomaticProvision,
   shouldAttemptAutomaticProvision,
   trackAutomaticProvisionReceipt,
 } from './autoProvision';
@@ -9,6 +10,7 @@ import {
 const ready = {
   componentId: 'auto-provision',
   actionName: 'tlon.provisionAgent',
+  componentDisabled: false,
   selectionsPending: false,
   actionAvailable: true,
   consumed: false,
@@ -52,6 +54,15 @@ describe('automatic task-plan provisioning', () => {
     expect(
       shouldAttemptAutomaticProvision({ ...ready, actionAvailable: false })
     ).toBe(false);
+    expect(
+      shouldAttemptAutomaticProvision({ ...ready, componentDisabled: true })
+    ).toBe(false);
+  });
+
+  it('clears a stale failure after a successful direct retry', () => {
+    expect(
+      clearFailedAutomaticProvision(['surface-1', 'surface-2'], 'surface-1')
+    ).toEqual(['surface-2']);
   });
 
   it('surfaces a retry when a confirmed optimistic receipt later fails', () => {
