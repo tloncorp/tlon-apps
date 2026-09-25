@@ -1,4 +1,4 @@
-import { ForwardingProps, Sheet } from '@tloncorp/ui';
+import { View } from '@tloncorp/ui';
 import {
   ComponentProps,
   ComponentRef,
@@ -8,18 +8,23 @@ import {
 } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BottomSheetWrapper } from '../BottomSheetWrapper';
+import { BottomSheetWrapperProps } from '../BottomSheetWrapper.types';
 import { AudioRecorder } from './AudioRecorder';
+
+type AudioRecorderSheetProps = Omit<
+  BottomSheetWrapperProps,
+  'children' | 'onOpenChange'
+> & {
+  audioRecorderProps: ComponentProps<typeof AudioRecorder>;
+  onOpenChange?: (open: boolean) => void;
+};
 
 export function AudioRecorderSheet({
   audioRecorderProps,
   onOpenChange: onOpenChangeProp,
   ...forwardedProps
-}: ForwardingProps<
-  typeof Sheet,
-  {
-    audioRecorderProps: ComponentProps<typeof AudioRecorder>;
-  }
->) {
+}: AudioRecorderSheetProps) {
   const safeAreaInsets = useSafeAreaInsets();
   const audioRecorderRef = useRef<ComponentRef<typeof AudioRecorder> | null>(
     null
@@ -54,16 +59,17 @@ export function AudioRecorderSheet({
   }, [forwardedProps.open, onAnyOpenChange]);
 
   return (
-    <Sheet
-      transition="simple"
-      modal
-      dismissOnOverlayPress={false}
+    <BottomSheetWrapper
       {...forwardedProps}
       onOpenChange={onAnyOpenChange}
+      // Recording must only end through its explicit cancel/submit controls.
+      // Expo UI couples pan dismissal to scrim dismissal, so keep both off.
+      enablePanDownToClose={false}
+      dismissOnSnapToBottom={false}
+      showHandle={false}
+      showOverlay
     >
-      <Sheet.Overlay transition="simple" />
-      <Sheet.Frame
-        borderRadius="$3.5xl"
+      <View
         backgroundColor="$background"
         paddingVertical={40}
         justifyContent="center"
@@ -87,7 +93,7 @@ export function AudioRecorderSheet({
             }
           }}
         />
-      </Sheet.Frame>
-    </Sheet>
+      </View>
+    </BottomSheetWrapper>
   );
 }

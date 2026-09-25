@@ -100,9 +100,6 @@ function RoleAssignmentSheet({
       onOpenChange={setOpen}
       mode="popover"
       modal
-      // Nested inside the parent ProfileSheet's BottomSheetModal. Use `push` so
-      // Gorhom does not minimize the parent on present (TLON-5891).
-      stackBehavior="push"
       trigger={
         <ActionSheet.Action
           {...actionProps}

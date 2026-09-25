@@ -5,3 +5,6 @@ apps/tlon-mobile/ios/ShareExtension/ShareExtension-Info.plist linguist-generated
 apps/tlon-mobile/ios/ShareExtension/ShareExtension.entitlements linguist-generated=true
 apps/tlon-mobile/ios/ShareExtension/ShareExtensionPreprocessor.js linguist-generated=true
 apps/tlon-mobile/ios/ShareExtension/ShareViewController.swift linguist-generated=true
+
+# Unified diffs encode blank context lines as a single leading space.
+patches/*.patch -whitespace

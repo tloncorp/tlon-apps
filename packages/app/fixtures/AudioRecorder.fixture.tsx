@@ -55,7 +55,6 @@ export default function AudioRecorderFixture() {
       </FixtureWrapper>
       <AudioRecorderSheet
         open={isSheetOpen}
-        disableDrag
         snapPointsMode="fit"
         audioRecorderProps={{
           startInRecordingMode: true,

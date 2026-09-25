@@ -15,7 +15,6 @@ import {
   useState,
 } from 'react';
 import { Alert, Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack } from 'tamagui';
 
 import useGroupSearch from '../../hooks/useGroupSearch';
@@ -249,15 +248,13 @@ const JoinGroupFormContent = ({
   close: () => void;
 }) => {
   const { title, subtitle } = CHAT_TYPE_CONFIG[chatType];
-  const { bottom } = useSafeAreaInsets();
-
   return (
-    <YStack flex={1} gap="$l" paddingBottom={bottom}>
+    <ActionSheet.SafeAreaContent flex={1} gap="$l">
       <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
       <ActionSheet.ContentBlock>
         <JoinGroupByIdPane open={open} close={close} />
       </ActionSheet.ContentBlock>
-    </YStack>
+    </ActionSheet.SafeAreaContent>
   );
 };
 
@@ -270,13 +267,12 @@ const CreateChatFormContent = ({
   onScrollChange,
 }: CreateChatFormContentProps) => {
   const { title, subtitle } = CHAT_TYPE_CONFIG[chatType];
-  const { bottom } = useSafeAreaInsets();
   const isWindowNarrow = useIsWindowNarrow();
   const isGroup = chatType === 'group';
   const disabledIds = store.useGroupsNegotiationClashes({ enabled: isGroup });
 
   return (
-    <YStack flex={1} gap="$l" paddingBottom={bottom}>
+    <ActionSheet.SafeAreaContent flex={1} gap="$l">
       <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
       <YStack flex={1} gap="$l" $sm={{ paddingHorizontal: '$xl' }}>
         <ContactBook
@@ -304,7 +300,7 @@ const CreateChatFormContent = ({
           />
         )}
       </YStack>
-    </YStack>
+    </ActionSheet.SafeAreaContent>
   );
 };
 
@@ -673,8 +669,8 @@ export function CreateChatInviteSheet({
     });
   }, [onSubmit, selectedContactIds, templateId, title]);
 
-  // hack: ensure the nested ContactBook will scroll properly within the sheet
-  // by disabling drag within the main content (drag handle only)
+  // Ensure the nested ContactBook owns vertical pans on Android. The shared
+  // wrapper hides the inactive handle; back/scrim still dismiss.
   const enableContentPanningGesture = useMemo(() => {
     return Platform.OS === 'android' ? false : undefined;
   }, []);
@@ -711,8 +707,6 @@ export function JoinGroupSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { bottom } = useSafeAreaInsets();
-
   return (
     <ActionSheet
       moveOnKeyboardChange
@@ -720,7 +714,7 @@ export function JoinGroupSheet({
       onOpenChange={onOpenChange}
       modal
     >
-      <YStack flex={1} paddingBottom={bottom}>
+      <YStack flex={1}>
         <JoinGroupFormContent
           chatType="joinGroup"
           open={open}

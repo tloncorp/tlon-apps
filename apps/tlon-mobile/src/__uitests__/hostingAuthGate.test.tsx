@@ -62,9 +62,6 @@ jest.mock('@tloncorp/app/navigation/RootStack', () => {
 jest.mock('@tloncorp/app/provider/AppDataProvider', () => ({
   AppDataProvider: require('react-native').View,
 }));
-jest.mock('@gorhom/bottom-sheet', () => ({
-  BottomSheetModalProvider: require('react-native').View,
-}));
 jest.mock('@tloncorp/app/ui', () => {
   const { View, Text } = require('react-native');
   return {

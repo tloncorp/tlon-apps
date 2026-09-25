@@ -1,7 +1,6 @@
 import {
   ActionSheetContext,
   Icon,
-  IconButton,
   IconType,
   Pressable,
   Sheet,
@@ -21,7 +20,6 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
 } from 'react';
 import { Platform, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -45,6 +43,7 @@ import {
   BottomSheetWrapper,
 } from './BottomSheetWrapper';
 import { BottomSheetWrapperProps } from './BottomSheetWrapper.types';
+import { ExpoSwiftUISheet } from './ExpoSwiftUISheet';
 import { ListItem } from './ListItem';
 
 type Accent = 'positive' | 'negative' | 'neutral' | 'disabled';
@@ -122,6 +121,10 @@ type ActionSheetProps = {
   dialogContentProps?: ComponentProps<typeof Dialog.Content>;
   closeButton?: boolean;
   footerComponent?: React.FC<any>;
+  /** Render this sheet's content with Expo UI's native platform components. */
+  nativeExpoUI?: boolean;
+  /** Fires after the native Expo UI dismissal animation completes. */
+  onNativeDismissed?: () => void;
 };
 
 const useAdaptiveMode = (mode?: AdaptiveMode) => {
@@ -173,8 +176,9 @@ const ActionSheetComponent = ({
   dialogContentProps,
   closeButton,
   footerComponent,
+  nativeExpoUI = false,
+  onNativeDismissed,
   unmountOnClose,
-  stackBehavior,
   ...props
 }: PropsWithChildren<
   ActionSheetProps &
@@ -185,11 +189,16 @@ const ActionSheetComponent = ({
       | 'hasScrollableContent'
       | 'keyboardBehavior'
       | 'unmountOnClose'
-      | 'stackBehavior'
     >
 >) => {
   const mode = useAdaptiveMode(forcedMode);
   const isInsideSheet = useContext(ActionSheetContext).isInsideSheet;
+  const nativePresentation =
+    Platform.OS !== 'web' &&
+    mode === 'sheet' &&
+    nativeExpoUI &&
+    !isInsideSheet &&
+    !footerComponent;
   const hasOpened = useRef(open);
   const { bottom } = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -204,8 +213,12 @@ const ActionSheetComponent = ({
   );
 
   const actionSheetContextValue = useMemo(
-    () => ({ isInsideSheet: true, mode }),
-    [mode]
+    () => ({
+      isInsideSheet: true,
+      mode,
+      nativePresentation,
+    }),
+    [mode, nativePresentation]
   );
 
   // listen for escape key to close the sheet
@@ -264,8 +277,8 @@ const ActionSheetComponent = ({
     return hasScrollable;
   }, [children]);
 
-  // Allow explicit prop to override auto-detection (useful for BottomSheetFlatList
-  // which isn't detected by the above logic)
+  // Allow explicit prop to override auto-detection for scrollables that cannot
+  // be detected by walking the children above.
   const hasScrollableContent =
     props.hasScrollableContent ?? detectedHasScrollableContent;
 
@@ -363,51 +376,37 @@ const ActionSheetComponent = ({
   // Use BottomSheetWrapper for native platforms, Sheet for web
   const useBottomSheet = Platform.OS !== 'web';
 
-  const sheetContent = useBottomSheet ? (
-    <BottomSheetWrapper
-      open={open}
-      onOpenChange={onOpenChange}
-      dismissOnSnapToBottom={true}
-      transition="quick"
-      handleDisableScroll={true}
-      modal={props.modal}
-      snapPoints={props.snapPoints}
-      snapPointsMode={props.snapPointsMode as any}
-      showHandle={true}
-      showOverlay={true}
-      enablePanDownToClose={true}
-      enableContentPanningGesture={props.enableContentPanningGesture}
-      keyboardBehavior={props.keyboardBehavior}
-      footerComponent={footerComponent}
-      hasScrollableContent={hasScrollableContent}
-      unmountOnClose={unmountOnClose}
-      stackBehavior={stackBehavior}
-      frameStyle={{}}
-    >
-      <ActionSheetContext.Provider value={actionSheetContextValue}>
-        {forcedMode === 'popover' ? (
-          <ActionSheet.ScrollableContent>
-            <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
-          </ActionSheet.ScrollableContent>
-        ) : (
-          children
-        )}
-      </ActionSheetContext.Provider>
-    </BottomSheetWrapper>
-  ) : (
-    <Sheet
-      open={open}
-      onOpenChange={onOpenChange}
-      dismissOnSnapToBottom
-      snapPointsMode="fit"
-      transition="quick"
-      handleDisableScroll
-      {...props}
-      modal={props.modal}
-    >
-      <Sheet.Overlay transition="quick" />
-      <Sheet.Frame pressStyle={{}}>
-        <Sheet.Handle />
+  const sheetContent =
+    useBottomSheet && nativePresentation && nativeExpoUI ? (
+      <ExpoSwiftUISheet
+        open={open}
+        onOpenChange={onOpenChange}
+        onDismiss={onNativeDismissed}
+      >
+        <ActionSheetContext.Provider value={actionSheetContextValue}>
+          {children}
+        </ActionSheetContext.Provider>
+      </ExpoSwiftUISheet>
+    ) : useBottomSheet ? (
+      <BottomSheetWrapper
+        open={open}
+        onOpenChange={onOpenChange}
+        dismissOnSnapToBottom={true}
+        transition="quick"
+        handleDisableScroll={true}
+        modal={props.modal}
+        snapPoints={props.snapPoints}
+        snapPointsMode={props.snapPointsMode as any}
+        showHandle={true}
+        showOverlay={true}
+        enablePanDownToClose={true}
+        enableContentPanningGesture={props.enableContentPanningGesture}
+        keyboardBehavior={props.keyboardBehavior}
+        footerComponent={footerComponent}
+        hasScrollableContent={hasScrollableContent}
+        unmountOnClose={unmountOnClose}
+        frameStyle={{}}
+      >
         <ActionSheetContext.Provider value={actionSheetContextValue}>
           {forcedMode === 'popover' ? (
             <ActionSheet.ScrollableContent>
@@ -417,9 +416,33 @@ const ActionSheetComponent = ({
             children
           )}
         </ActionSheetContext.Provider>
-      </Sheet.Frame>
-    </Sheet>
-  );
+      </BottomSheetWrapper>
+    ) : (
+      <Sheet
+        open={open}
+        onOpenChange={onOpenChange}
+        dismissOnSnapToBottom
+        snapPointsMode="fit"
+        transition="quick"
+        handleDisableScroll
+        {...props}
+        modal={props.modal}
+      >
+        <Sheet.Overlay transition="quick" />
+        <Sheet.Frame pressStyle={{}}>
+          <Sheet.Handle />
+          <ActionSheetContext.Provider value={actionSheetContextValue}>
+            {forcedMode === 'popover' ? (
+              <ActionSheet.ScrollableContent>
+                <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
+              </ActionSheet.ScrollableContent>
+            ) : (
+              children
+            )}
+          </ActionSheetContext.Provider>
+        </Sheet.Frame>
+      </Sheet>
+    );
 
   return (
     <>
@@ -452,6 +475,21 @@ const ActionSheetContent = YStack.styleable((props, ref) => {
   const contentStyle = useContentStyle();
   return <YStack {...contentStyle} {...props} ref={ref} />;
 });
+
+const useActionSheetBottomInset = () => {
+  const { bottom } = useSafeAreaInsets();
+  const { nativePresentation } = useContext(ActionSheetContext);
+  // SwiftUI's sheet already reserves the home-indicator area for its content.
+  return Platform.OS === 'ios' && nativePresentation ? 0 : bottom;
+};
+
+const ActionSheetSafeAreaContent = ({
+  bottomSpacing = 0,
+  ...props
+}: ComponentProps<typeof YStack> & { bottomSpacing?: number }) => {
+  const bottom = useActionSheetBottomInset();
+  return <YStack {...props} paddingBottom={bottom + bottomSpacing} />;
+};
 
 const ActionSheetScrollableContent = forwardRef<
   typeof BottomSheetScrollView,
@@ -509,12 +547,17 @@ const ActionSheetScrollableContent = forwardRef<
 ActionSheetScrollableContent.displayName = 'ActionSheetScrollableContent';
 
 const useContentStyle = () => {
-  const insets = useSafeAreaInsets();
+  const bottom = useActionSheetBottomInset();
   const isWindowNarrow = useIsWindowNarrow();
+  const { nativePresentation } = useContext(ActionSheetContext);
   return {
-    paddingBottom: isWindowNarrow
-      ? insets.bottom + getTokenValue('$2xl', 'size')
-      : getTokenValue('$xl', 'size'),
+    // Both native hosts account for the home-indicator area themselves.
+    paddingBottom:
+      Platform.OS === 'ios' && nativePresentation
+        ? 0
+        : isWindowNarrow
+          ? bottom + getTokenValue('$2xl', 'size')
+          : getTokenValue('$xl', 'size'),
   };
 };
 
@@ -925,6 +968,7 @@ export const ActionSheet = withStaticProperties(ActionSheetComponent, {
   // Building blocks
   Header: ActionSheetHeader,
   Content: ActionSheetContent,
+  SafeAreaContent: ActionSheetSafeAreaContent,
   ScrollableContent: ActionSheetScrollableContent,
   ContentBlock: ActionSheetContentBlock,
   FormBlock: ActionSheetFormBlock,
