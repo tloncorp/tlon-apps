@@ -20,7 +20,6 @@ it('persists owner opt-out and sent steps independently across restarts', async 
   try {
     await store.save(row);
     await store.save(row);
-    // Owner updates cannot erase an accepted sent step.
     await store.save({ ...row, sent: [], status: 'opted-out' });
     store.close();
     store = openCampaignStore(directory);

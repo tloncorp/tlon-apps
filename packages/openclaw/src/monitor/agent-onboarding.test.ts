@@ -71,7 +71,7 @@ it.each([false, true])(
       },
     ];
     expect(
-      agentOnboardingTesting.findProvisionRequest(
+      agentOnboardingTesting.findFirstProvisionRequest(
         reversed ? history.reverse() : history,
         '~ten',
         provision.groupId,
@@ -2556,7 +2556,7 @@ describe('provision coordinator ordering', () => {
     });
     expect(sendPost).toHaveBeenCalledOnce();
     expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).toContain(
-      "couldn't finish setting up the daily task yet"
+      "couldn't finish setting up the task yet"
     );
   });
 

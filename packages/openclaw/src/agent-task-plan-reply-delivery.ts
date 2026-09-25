@@ -22,7 +22,7 @@ const ONBOARDING_SURFACE_TOOL_NAMES = new Set([
 ]);
 const COMPLETED_PLAN_TTL_MS = 5 * 60 * 1000;
 
-export const TLON_ONBOARDING_SURFACE_REPLY_SUPPRESSION_REASON =
+const TLON_ONBOARDING_SURFACE_REPLY_SUPPRESSION_REASON =
   'tlon_onboarding_surface_owns_reply';
 
 type CompletedPlanMarker = {
@@ -42,18 +42,8 @@ function toolResultFailed(event: AfterToolCallEvent): boolean {
     return false;
   }
 
-  const result = event.result as {
-    content?: Array<{ text?: unknown }>;
-    details?: { error?: unknown };
-  };
-  if (result.details?.error === true) {
-    return true;
-  }
   return (
-    result.content?.some(
-      (item) =>
-        typeof item.text === 'string' && /^error:/i.test(item.text.trim())
-    ) ?? false
+    (event.result as { details?: { error?: unknown } }).details?.error === true
   );
 }
 
@@ -120,11 +110,6 @@ export function recordSuccessfulAgentOnboardingSurface(
   }
 }
 
-/**
- * A successful typed onboarding tool posts the visible question or plan
- * itself. Suppress same-run final prose so the model cannot duplicate the
- * question or race the coordinator with unverified status.
- */
 export function suppressReplyAfterSuccessfulAgentOnboardingSurface(
   event: PluginHookReplyPayloadSendingEvent,
   ctx: PluginHookReplyPayloadSendingContext

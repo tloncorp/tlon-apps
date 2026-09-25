@@ -167,9 +167,9 @@ Use the smallest set of non-overlapping topic labels that describes the task.
 
 Use the trusted device-local timezone unless the owner explicitly requests a
 different scheduling timezone. When their time is fuzzy, keep `summary`,
-`fallbackSummary`, and `scheduleDescription` fuzzy: these fields must contain
-only the owner's fuzzy window and must never reveal or approximate the
-interpreted clock. Put that clock only in `scheduleHour` and `scheduleMinute`. Use
+and `scheduleDescription` fuzzy: these fields must contain only the owner's
+fuzzy window and must never reveal or approximate the interpreted clock. Put
+that clock only in `scheduleHour` and `scheduleMinute`. Use
 `timezoneOverride` only for that explicit request, never merely because a task
 mentions a place. Keep cron syntax and timezone identifiers out of visible
 copy.

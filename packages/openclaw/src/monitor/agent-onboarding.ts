@@ -1,5 +1,4 @@
 import {
-  A2UI,
   AGENT_ONBOARDING_FIRST_ENTRY_FAILED_MARKER,
   AGENT_ONBOARDING_FIRST_ENTRY_MARKER,
   type AgentOnboardingPurposeId,
@@ -91,7 +90,7 @@ function sameEvidencePostId(
   );
 }
 
-export type AgentOnboardingClientDateTimeContext = {
+type AgentOnboardingClientDateTimeContext = {
   timezone: string;
   locale: string;
 };
@@ -138,10 +137,9 @@ type AgentOnboardingContext = {
    */
   onConversationComplete?: () => void | Promise<void>;
   requestSentAt?: number;
-  /** Enrollment checks the original post timestamp, including during catch-up. */
   onInitialIntro?: (
     request: PostBlobDataEntryAgentIntroRequest,
-    occurredAt: number
+    introPostedAt: number
   ) => Promise<void>;
   presentation?: {
     startThinking: () => void | Promise<void>;
@@ -613,7 +611,7 @@ async function handleAgentOnboardingRequestInternal(
     await configureProviders(context, history, request, deps);
     return true;
   }
-  const historyRequest = findProvisionRequest(
+  const historyRequest = findFirstProvisionRequest(
     history,
     context.ownerShip,
     request.groupId,
@@ -633,53 +631,67 @@ async function handleAgentOnboardingRequestInternal(
     return true;
   }
   const effectiveRequest = historyRequest ?? request;
-  const automaticPlanError = validateAutomaticPlanEvidence(
-    history,
-    context.ownerShip,
-    context.botShip,
-    effectiveRequest,
-    context.blob
-  );
-  if (automaticPlanError) {
-    context.log?.(
-      `[tlon] rejected automatic agent provision: ${automaticPlanError}`
-    );
-    await postOnce(
+  if (
+    await rejectUnverifiableAutomaticPlan(
       context,
       history,
-      `provision-rejected:${effectiveRequest.provisionId}`,
-      async () => ({
-        text: "I couldn't verify that this plan reflects your latest message, so I didn't create it. Tell me what you want changed and I'll make a fresh plan.",
-      }),
+      effectiveRequest,
       deps,
       presentation
-    );
+    )
+  ) {
     return true;
   }
   try {
     await provision(context, history, effectiveRequest, deps, presentation);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    try {
-      await postOnce(
-        context,
-        history,
-        `provision-retrying:${effectiveRequest.provisionId}`,
-        async () => ({
-          text: "I couldn't finish setting up the daily task yet. I'll keep retrying safely, and I won't create a duplicate.",
-        }),
-        deps,
-        presentation
-      );
-    } catch {
-      // Preserve the coordinator failure as the actionable error even when
-      // the best-effort status post cannot be delivered either.
-    }
+    await postOnce(
+      context,
+      history,
+      `provision-retrying:${effectiveRequest.provisionId}`,
+      async () => ({
+        text: "I couldn't finish setting up the task yet. I'll keep retrying safely, and I won't create a duplicate.",
+      }),
+      deps,
+      presentation
+    ).catch(() => {});
     throw new Error(
       `agent onboarding provision ${effectiveRequest.provisionId} failed: ${detail}`,
       { cause: error }
     );
   }
+  return true;
+}
+
+async function rejectUnverifiableAutomaticPlan(
+  context: AgentOnboardingContext,
+  history: TlonHistoryEntry[],
+  request: PostBlobDataEntryAgentProvision,
+  deps: AgentOnboardingDeps,
+  presentation: OnboardingPresentation,
+  includePostRequestAnswers = false
+): Promise<boolean> {
+  const reason = validateAutomaticPlanEvidence(
+    history,
+    context.ownerShip!,
+    context.botShip,
+    request,
+    context.blob,
+    includePostRequestAnswers
+  );
+  if (!reason) return false;
+  context.log?.(`[tlon] rejected automatic agent provision: ${reason}`);
+  await postOnce(
+    context,
+    history,
+    `provision-rejected:${request.provisionId}`,
+    async () => ({
+      text: "I couldn't verify that this plan reflects your latest message, so I didn't create it. Tell me what you want changed and I'll make a fresh plan.",
+    }),
+    deps,
+    presentation
+  );
   return true;
 }
 
@@ -944,31 +956,16 @@ async function provision(
       ?.title ?? request.notebookTitle
   );
   if (!existingAck) {
-    // Membership can take several seconds to settle. An owner correction
-    // during that wait must invalidate the earlier automatic plan before we
-    // touch cron, even when no newer provision post exists yet.
-    const currentPlanError = validateAutomaticPlanEvidence(
-      history,
-      context.ownerShip!,
-      context.botShip,
-      request,
-      context.blob,
-      true
-    );
-    if (currentPlanError) {
-      context.log?.(
-        `[tlon] rejected automatic agent provision after setup: ${currentPlanError}`
-      );
-      await postOnce(
+    if (
+      await rejectUnverifiableAutomaticPlan(
         context,
         history,
-        `provision-rejected:${request.provisionId}`,
-        async () => ({
-          text: "I couldn't verify that this plan reflects your latest message, so I didn't create it. Tell me what you want changed and I'll make a fresh plan.",
-        }),
+        request,
         deps,
-        presentation
-      );
+        presentation,
+        true
+      )
+    ) {
       return;
     }
     // The authenticated durable provision is proof that the owner completed
@@ -1166,7 +1163,7 @@ async function configureProvidersOnce(
       ? record.provision
       : null;
   const provisionRequest =
-    findProvisionRequest(
+    findFirstProvisionRequest(
       history,
       context.ownerShip!,
       config.groupId,
@@ -2474,15 +2471,12 @@ function findAckJobId(
   return ack?.type === 'tlon-agent-provision-ack' ? ack.cronJobId : null;
 }
 
-function findProvisionRequest(
+function findFirstProvisionRequest(
   history: TlonHistoryEntry[],
   ownerShip: string,
   groupId: string,
   provisionId: string
 ) {
-  // A stable provision id can be posted by more than one client. Keep the
-  // first accepted request authoritative so a later device cannot change its
-  // timezone or schedule while the same plan is being reconciled.
   const request = blobEntriesByAuthor(history, ownerShip)
     .filter(
       ({ entry }) =>
@@ -2595,8 +2589,6 @@ function validateAutomaticPlanEvidence(
   if (compareHistoryOrder(planPost, interviewPost) < 0) {
     return 'the source plan predates its bound owner interview';
   }
-  // The skill and model own interview semantics. The coordinator verifies only
-  // provenance and freshness before carrying out the typed plan.
   const hasNewerOwnerAnswer = history.some((candidate) => {
     if (
       candidate.author !== ownerShip ||
@@ -2960,7 +2952,7 @@ export const agentOnboardingTesting = {
   fetchOnboardingGroup,
   findFirstRunCorrelation,
   findDeliveredRunNote,
-  findProvisionRequest,
+  findFirstProvisionRequest,
   hasPostMarker,
   notebookDisplayName,
   reconcileRestoredFirstRun,

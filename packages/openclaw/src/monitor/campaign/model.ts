@@ -1,10 +1,11 @@
 export const DAY = 24 * 60 * 60 * 1000;
 export const MINUTE = 60 * 1000;
 export const VERSION = 1;
-export const RECENT_ACTIVITY_MS = 15 * MINUTE;
-export const DAYTIME_START = 9;
-export const DAYTIME_END = 21;
-export const STEPS = [
+export const CAMPAIGN_CHECK_INTERVAL_MS = 15 * MINUTE;
+export const RECENT_ACTIVITY_MS = CAMPAIGN_CHECK_INTERVAL_MS;
+const DAYTIME_START = 9;
+const DAYTIME_END = 21;
+const STEPS = [
   { id: 'useful-request', start: DAY, end: 2 * DAY },
   { id: 'recurring-help', start: 2 * DAY, end: 3 * DAY },
   { id: 'archive', start: 3 * DAY, end: 4 * DAY },
@@ -40,13 +41,12 @@ export type CampaignState = {
 export type CampaignConfig = {
   enabled?: boolean;
   enrollAfter?: string;
-  copy?: Partial<Record<StepId, string>>;
   testing?: {
     intervalMinutes?: number;
     ignoreLocalDeliveryWindow?: boolean;
   };
 };
-export type CampaignTiming = {
+type CampaignTiming = {
   steps: readonly {
     id: Exclude<StepId, 'task-feedback'>;
     start: number;
@@ -56,14 +56,14 @@ export type CampaignTiming = {
   spacing: number;
   ignoreLocalDeliveryWindow: boolean;
 };
-export type CampaignFacts = {
+type CampaignFacts = {
   enabled: boolean;
   hasTask: boolean;
   task?: CampaignTask;
   busy: boolean;
   lastActivityAt?: number;
 };
-export type Decision =
+type Decision =
   | { kind: 'send'; step: StepId }
   | {
       kind: 'skip';
@@ -181,9 +181,10 @@ export function evaluateCampaign(
       state.activityMinute ?? localMinute(state.enrolledAt, state.timezone)
     )
   );
-  // The monitor checks every 15 minutes, at an arbitrary minute offset.
-  // Let its final daytime check satisfy a later preference before quiet hours.
-  if (minute < preferred && minute < DAYTIME_END * 60 - 15)
+  if (
+    minute < preferred &&
+    minute < DAYTIME_END * 60 - CAMPAIGN_CHECK_INTERVAL_MS / MINUTE
+  )
     return { kind: 'defer', reason: 'usual-activity-time' };
   return { kind: 'send', step: step.id };
 }
@@ -191,7 +192,7 @@ export function eligibleEnrollment(
   input: {
     isFirstGroup?: boolean;
     campaignVersion?: number;
-    occurredAt: number;
+    introPostedAt: number;
   },
   config: CampaignConfig,
   now: number
@@ -202,7 +203,7 @@ export function eligibleEnrollment(
     Number.isFinite(cutoff) &&
     input.isFirstGroup === true &&
     input.campaignVersion === VERSION &&
-    input.occurredAt >= cutoff &&
-    Math.abs(now - input.occurredAt) <= 5 * MINUTE
+    input.introPostedAt >= cutoff &&
+    Math.abs(now - input.introPostedAt) <= 5 * MINUTE
   );
 }

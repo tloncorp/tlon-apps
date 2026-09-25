@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
 import { isStopTips } from './campaign/templates.js';
 import { createLiveCampaign } from './campaign/live.js';
+import { CAMPAIGN_CHECK_INTERVAL_MS } from './campaign/model.js';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
 import type { OpenClawConfig, ReplyPayload } from 'openclaw/plugin-sdk/core';
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
@@ -1568,11 +1569,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       : null;
     const enrollCampaign = async (
       request: PostBlobDataEntryAgentIntroRequest,
-      occurredAt: number,
+      introPostedAt: number,
       channelId: string
     ) => {
       await campaign
-        ?.enroll({ ...request, occurredAt, channelId })
+        ?.enroll({ ...request, introPostedAt, channelId })
         .catch((error) =>
           runtime.error?.(`[tlon] campaign enrollment: ${String(error)}`)
         );
@@ -2568,8 +2569,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       messageId: string;
       senderShip: string;
       messageText: string;
-      /** Original owner text used for slash-command detection. */
-      commandText?: string;
+      originalCommandText?: string;
       citedContent?: string;
       /** Cite-free rendering used only for message-level gates. */
       gateText?: string;
@@ -3267,7 +3267,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           ...(params.onboardingDmTarget && onboardingGroupId
             ? {
                 channelNest: params.onboardingDmTarget,
-                onboardingGroupId,
+                requestedOnboardingGroupId: onboardingGroupId,
               }
             : {}),
           ...(threadParentId ? { threadParentId } : {}),
@@ -3276,7 +3276,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             : {}),
           ...(ownerMessageId ? { messageId: ownerMessageId } : {}),
           ...(onboardingClientDateTime
-            ? { interviewTimezone: onboardingClientDateTime.timezone }
+            ? { onboardingDeviceTimezone: onboardingClientDateTime.timezone }
             : {}),
         });
       }
@@ -3298,7 +3298,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // gateway silently drops it as unauthorized.
       const commandBody = resolveCommandBody({
         messageText: params.messageText,
-        commandText: params.commandText,
+        originalCommandText: params.originalCommandText,
         isGroup,
         botShipName,
       });
@@ -4231,8 +4231,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           log: (message) => runtime.log?.(message),
           trackStep: trackOnboardingStep(nest, groupId),
           onConversationComplete: markBootstrapComplete,
-          onInitialIntro: (request, occurredAt) =>
-            enrollCampaign(request, occurredAt, nest),
+          onInitialIntro: (request, introPostedAt) =>
+            enrollCampaign(request, introPostedAt, nest),
           presentation,
         });
         if (opts.abortSignal?.aborted) return;
@@ -4511,8 +4511,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             trackStep: trackOnboardingStep(nest, onboardingGroupId),
             onConversationComplete: markBootstrapComplete,
             requestSentAt: content.sent,
-            onInitialIntro: (request, occurredAt) =>
-              enrollCampaign(request, occurredAt, nest),
+            onInitialIntro: (request, introPostedAt) =>
+              enrollCampaign(request, introPostedAt, nest),
             presentation: {
               startThinking: () => {
                 computingPresence.refreshRun({
@@ -4834,7 +4834,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           messageText: campaignContext
             ? `${campaignContext}\n\n[Current owner message]\n${rawText}`
             : rawText,
-          commandText: rawText,
+          originalCommandText: rawText,
           ...(citedContent ? { citedContent } : {}),
           gateText: engagementText,
           trigger,
@@ -5222,8 +5222,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 log: (message) => runtime.log?.(message),
                 trackStep: trackOnboardingStep(whom, onboardingGroupId),
                 requestSentAt: dmContent.sent,
-                onInitialIntro: (introRequest, occurredAt) =>
-                  enrollCampaign(introRequest, occurredAt, whom),
+                onInitialIntro: (introRequest, introPostedAt) =>
+                  enrollCampaign(introRequest, introPostedAt, whom),
                 onConversationComplete: async () => {
                   onboardingDmState.noteComplete(whom);
                   await markBootstrapComplete();
@@ -5296,7 +5296,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           messageText: campaignContext
             ? `${campaignContext}\n\n[Current owner message]\n${rawText}`
             : rawText,
-          commandText: rawText,
+          originalCommandText: rawText,
           ...(citedContent ? { citedContent } : {}),
           gateText: engagementText,
           trigger: 'dm',
@@ -6426,16 +6426,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         2 * 60 * 1000
       );
 
-      let campaignRefreshTicks = 0;
+      let nextCampaignCheckAt = Date.now() + CAMPAIGN_CHECK_INTERVAL_MS;
       const settingsRefreshInterval = setInterval(async () => {
         if (opts.abortSignal?.aborted) {
           return;
         }
         await refreshSettingsNow();
-        // Reuse the five-minute monitor interval for a local campaign check
-        // every fifteen minutes. History/privacy are fetched only when due.
-        if (++campaignRefreshTicks === 3) {
-          campaignRefreshTicks = 0;
+        if (Date.now() >= nextCampaignCheckAt) {
+          nextCampaignCheckAt = Date.now() + CAMPAIGN_CHECK_INTERVAL_MS;
           await campaign?.check();
         }
       }, SETTINGS_REFRESH_INTERVAL_MS);

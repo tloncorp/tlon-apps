@@ -2,18 +2,18 @@ import { TLON_A2UI_CATALOG_ID } from '@tloncorp/api';
 
 const MAX_OPTIONS = 6;
 const MAX_QUESTION_LENGTH = 1000;
-const MAX_OPTION_LENGTH = 64;
-const MAX_APPROACH_OPTION_LENGTH = 36;
-const MAX_SURFACE_ID_LENGTH = 512;
+const MAX_OPTION_LENGTH = 36;
 const RESERVED_FREEFORM_OPTION =
   /^(?:other|custom|something else|write your own)(?:\s*(?:\([^)]*\)|[-–—:/].*))?$/i;
 
 export type AgentChoiceToolParams = {
   target: string;
-  surfaceId: string;
-  dimension: 'focus' | 'time' | 'approach' | 'context' | 'priority' | 'output';
   question: string;
   options: string[];
+};
+
+type ResolvedAgentChoiceToolParams = AgentChoiceToolParams & {
+  surfaceId: string;
 };
 
 export const agentChoiceToolParameters = {
@@ -22,16 +22,6 @@ export const agentChoiceToolParameters = {
     target: {
       type: 'string',
       description: 'Current Tlon chat nest or first-run bot DM target.',
-    },
-    surfaceId: {
-      type: 'string',
-      description: 'Unique A2UI surface ID beginning with agent-choice-.',
-    },
-    dimension: {
-      type: 'string',
-      enum: ['focus', 'time', 'approach', 'context', 'priority', 'output'],
-      description:
-        'The single decision this question resolves. Ask only when this unanswered decision materially changes the task.',
     },
     question: {
       type: 'string',
@@ -44,33 +34,19 @@ export const agentChoiceToolParameters = {
       maxItems: MAX_OPTIONS,
       description:
         'Two to six short, useful answers, each at most 36 characters so labels fit the mobile row. Time answers should normally be natural, fuzzy parts of the day tailored to the task instead of a fixed exact-clock list. Approach answers must be concise ways of gathering information or developing the answer, not output formats or topic slices. The control also lets the owner write their own answer.',
-      items: { type: 'string', maxLength: MAX_APPROACH_OPTION_LENGTH },
+      items: { type: 'string', maxLength: MAX_OPTION_LENGTH },
     },
   },
-  required: ['target', 'surfaceId', 'dimension', 'question', 'options'],
+  required: ['target', 'question', 'options'],
   additionalProperties: false,
 } as const;
 
-function parseParams(params: AgentChoiceToolParams): AgentChoiceToolParams {
+function parseParams(
+  params: ResolvedAgentChoiceToolParams
+): ResolvedAgentChoiceToolParams {
   if (!/^(?:chat\/~[a-z0-9-]+\/[a-z0-9-]+|~[a-z-]+)$/i.test(params.target)) {
     throw new Error('target must be a chat channel nest or bot DM');
   }
-  if (
-    !params.surfaceId.startsWith('agent-choice-') ||
-    params.surfaceId.length > MAX_SURFACE_ID_LENGTH
-  ) {
-    throw new Error(
-      `surfaceId must begin with agent-choice- and be at most ${MAX_SURFACE_ID_LENGTH} characters`
-    );
-  }
-  if (
-    !['focus', 'time', 'approach', 'context', 'priority', 'output'].includes(
-      params.dimension
-    )
-  ) {
-    throw new Error('dimension must identify one supported interview decision');
-  }
-
   const question = params.question.trim();
   if (!question || question.length > MAX_QUESTION_LENGTH) {
     throw new Error(`question must be 1-${MAX_QUESTION_LENGTH} characters`);
@@ -82,14 +58,6 @@ function parseParams(params: AgentChoiceToolParams): AgentChoiceToolParams {
   const options = params.options.map((option) => option.trim());
   if (options.some((option) => !option || option.length > MAX_OPTION_LENGTH)) {
     throw new Error(`each option must be 1-${MAX_OPTION_LENGTH} characters`);
-  }
-  if (
-    params.dimension === 'approach' &&
-    options.some((option) => option.length > MAX_APPROACH_OPTION_LENGTH)
-  ) {
-    throw new Error(
-      `each approach option must be at most ${MAX_APPROACH_OPTION_LENGTH} characters`
-    );
   }
   if (
     new Set(options.map((option) => option.toLocaleLowerCase())).size !==
@@ -105,7 +73,7 @@ function parseParams(params: AgentChoiceToolParams): AgentChoiceToolParams {
   return { ...params, question, options };
 }
 
-export function buildAgentChoiceBlob(input: AgentChoiceToolParams) {
+function buildAgentChoiceBlob(input: ResolvedAgentChoiceToolParams) {
   const params = parseParams(input);
   return [
     {
@@ -173,7 +141,10 @@ export function createAgentChoiceToolExecutor(deps: {
   return async function execute(id: string, params: AgentChoiceToolParams) {
     let publicationAttempted = false;
     try {
-      const blob = buildAgentChoiceBlob(params);
+      const blob = buildAgentChoiceBlob({
+        ...params,
+        surfaceId: `agent-choice-${id}`,
+      });
       deps.assertCurrent(id);
       publicationAttempted = true;
       await deps.postChoice({
