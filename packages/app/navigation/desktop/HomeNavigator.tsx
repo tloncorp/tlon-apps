@@ -25,7 +25,7 @@ import { NotesSearchScreen } from '../../features/top/NotesSearchScreen';
 import PostScreen from '../../features/top/PostScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
-import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
+import { useGlobalSearch } from '../../ui';
 import { NotebookSidebarProvider } from '../../ui/contexts/notebookSidebar';
 import { getDesktopGroupInvitePreviewProps } from '../routeHelpers';
 import { DesktopChannelStackParamList, HomeDrawerParamList } from '../types';
@@ -35,10 +35,12 @@ import {
   ListPaneSafeArea,
   detailPaneScreenLayout,
 } from './PaneSafeAreaProvider';
+import { useSplitPaneWidths } from './splitPaneWidths';
 
 const HomeDrawer = createDrawerNavigator<HomeDrawerParamList>();
 
 export const HomeNavigator = () => {
+  const { listPaneWidth } = useSplitPaneWidths();
   const theme = useTheme();
   const { setLastOpenTab } = useGlobalSearch();
   const backgroundColor = getVariableValue(theme.background);
@@ -63,7 +65,7 @@ export const HomeNavigator = () => {
             drawerType: 'permanent',
             headerShown: false,
             drawerStyle: {
-              width: DESKTOP_SIDEBAR_WIDTH,
+              width: listPaneWidth,
               backgroundColor,
               borderRightColor: borderColor,
             },

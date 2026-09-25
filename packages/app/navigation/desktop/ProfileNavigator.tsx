@@ -17,7 +17,6 @@ import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { useMarkMatchesSeen } from '../../hooks/useMarkMatchesSeen';
 import {
   ContactsScreenView,
-  DESKTOP_SIDEBAR_WIDTH,
   ScreenHeader,
   getDisplayName,
   isWeb,
@@ -27,6 +26,7 @@ import {
   ListPaneSafeArea,
   detailPaneScreenLayout,
 } from './PaneSafeAreaProvider';
+import { useSplitPaneWidths } from './splitPaneWidths';
 
 const ProfileDrawer = createDrawerNavigator<ProfileDrawerParamList>();
 
@@ -108,6 +108,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
 }
 
 export const ProfileNavigator = () => {
+  const { listPaneWidth } = useSplitPaneWidths();
   return (
     <ProfileDrawer.Navigator
       initialRouteName="UserProfile"
@@ -121,7 +122,7 @@ export const ProfileNavigator = () => {
         headerShown: false,
         drawerType: 'permanent',
         drawerStyle: {
-          width: DESKTOP_SIDEBAR_WIDTH,
+          width: listPaneWidth,
           backgroundColor: getVariableValue(useTheme().background),
           borderRightColor: getVariableValue(useTheme().border),
         },

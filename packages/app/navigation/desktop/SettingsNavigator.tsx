@@ -33,7 +33,7 @@ import { useSettingsRowLabels } from '../../features/settings/useSettingsRowLabe
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
-import { DESKTOP_SIDEBAR_WIDTH, SettingsScreenView } from '../../ui';
+import { SettingsScreenView } from '../../ui';
 import {
   openExternalBotSettings,
   useHasExpectedBotDm,
@@ -42,6 +42,7 @@ import {
   ListPaneSafeArea,
   detailPaneScreenLayout,
 } from './PaneSafeAreaProvider';
+import { useSplitPaneWidths } from './splitPaneWidths';
 
 const SettingsDrawer = createDrawerNavigator<SettingsDrawerParamList>();
 
@@ -127,6 +128,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
 }
 
 export const SettingsNavigator = () => {
+  const { listPaneWidth } = useSplitPaneWidths();
   return (
     <SettingsDrawer.Navigator
       initialRouteName="SettingsEmpty"
@@ -145,7 +147,7 @@ export const SettingsNavigator = () => {
         headerShown: false,
         drawerType: 'permanent',
         drawerStyle: {
-          width: DESKTOP_SIDEBAR_WIDTH,
+          width: listPaneWidth,
           backgroundColor: getVariableValue(useTheme().background),
           borderRightColor: getVariableValue(useTheme().border),
         },

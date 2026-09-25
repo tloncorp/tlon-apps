@@ -15,13 +15,14 @@ import { ActivityEmptyState } from '../../features/top/DesktopEmptyStates';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
-import { ActivityScreenView, DESKTOP_SIDEBAR_WIDTH } from '../../ui';
+import { ActivityScreenView } from '../../ui';
 import { useRootNavigation } from '../utils';
 import { ActivityDrawerParamList } from '../types';
 import {
   ListPaneSafeArea,
   detailPaneScreenLayout,
 } from './PaneSafeAreaProvider';
+import { useSplitPaneWidths } from './splitPaneWidths';
 
 const ActivityDrawer = createDrawerNavigator<ActivityDrawerParamList>();
 
@@ -102,6 +103,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
 }
 
 export const ActivityNavigator = () => {
+  const { listPaneWidth } = useSplitPaneWidths();
   return (
     <ActivityDrawer.Navigator
       initialRouteName="ActivityEmpty"
@@ -116,7 +118,7 @@ export const ActivityNavigator = () => {
         headerShown: false,
         drawerType: 'permanent',
         drawerStyle: {
-          width: DESKTOP_SIDEBAR_WIDTH,
+          width: listPaneWidth,
           backgroundColor: getVariableValue(useTheme().background),
           borderRightColor: getVariableValue(useTheme().border),
         },

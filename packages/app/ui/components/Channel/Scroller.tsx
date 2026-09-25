@@ -8,7 +8,6 @@ import * as db from '@tloncorp/shared/db';
 import { isSameDay } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import {
-  DESKTOP_SIDEBAR_WIDTH,
   DESKTOP_TOPLEVEL_SIDEBAR_WIDTH,
   LoadingSpinner,
   Modal,
@@ -44,6 +43,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, getTokens, styled, useStyle, useTheme } from 'tamagui';
 
 import { useLivePost } from '../../../hooks/useLivePost';
+import { useSplitPaneWidths } from '../../../navigation/desktop/splitPaneWidths';
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import type {
   A2UIActionCompletion,
@@ -174,11 +174,12 @@ const Scroller = forwardRef(
     // the rail's width includes the window's left inset.
     const windowInsets = useWindowSafeAreaInsets();
     const isWindowNarrow = useIsWindowNarrow();
+    const { listPaneWidth, foldGap } = useSplitPaneWidths();
     const setScrollToBottomControl = useSetConversationScrollToBottomControl();
     const availableSpace = useMemo(() => {
       const sidebarsTotalWidth = isWindowNarrow
         ? 0
-        : DESKTOP_TOPLEVEL_SIDEBAR_WIDTH + DESKTOP_SIDEBAR_WIDTH;
+        : DESKTOP_TOPLEVEL_SIDEBAR_WIDTH + listPaneWidth + foldGap;
       return Math.floor(
         width -
           windowInsets.left -
@@ -186,7 +187,7 @@ const Scroller = forwardRef(
           sidebarsTotalWidth -
           2 * getTokens().space.m.val
       );
-    }, [width, windowInsets.left, windowInsets.right]);
+    }, [width, windowInsets.left, windowInsets.right, listPaneWidth, foldGap]);
 
     const columns = useMemo(() => {
       const gap = getTokens().space.l.val;
