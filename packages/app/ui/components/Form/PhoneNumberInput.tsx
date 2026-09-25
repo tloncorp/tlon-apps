@@ -9,6 +9,7 @@ import {
   type TransformerTextInputInstance,
 } from 'react-native-transformer-text-input';
 import { PhoneNumberTransformer } from 'react-native-transformer-text-input/formatters/phone-number';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from 'tamagui';
 
 import { Field } from './Field';
@@ -35,6 +36,7 @@ export function PhoneNumberInput({ form, shouldFocus = true }: Props) {
   const [country, setCountry] = useState(defaultCountry);
   const inputRef = useRef<TransformerTextInputInstance>(null);
   const theme = useTheme();
+  const { left: leftInset, right: rightInset } = useSafeAreaInsets();
   const { errors } = useFormState({ control: form.control });
 
   // One international transformer: the calling code is part of the editable
@@ -126,6 +128,14 @@ export function PhoneNumberInput({ form, shouldFocus = true }: Props) {
           modal: {
             flex: 0.8,
             backgroundColor: theme.background.val,
+            width: 'auto',
+            marginLeft: leftInset,
+            marginRight: rightInset,
+          },
+          modalInner: {
+            width: 'auto',
+            marginLeft: leftInset,
+            marginRight: rightInset,
           },
           countryButtonStyles: {
             backgroundColor: theme.background.val,
