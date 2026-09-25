@@ -289,6 +289,40 @@ function sameStrings(left: string[], right: string[]) {
   );
 }
 
+// Enough of an error body to find storage's <Code> and <Message>. An error
+// response is read no further than this: the upload endpoint is chosen by the
+// Bucket's host, which is untrusted, and a 4xx/5xx with an endless chunked
+// body read whole with .text() would exhaust the hosted bot's heap.
+const MAX_ERROR_BODY_BYTES = 8 * 1024;
+
+async function readErrorBody(response: Response): Promise<string> {
+  if (!response.body) return '';
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+  try {
+    while (received < MAX_ERROR_BODY_BYTES) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.byteLength;
+    }
+  } catch {
+    // What arrived is still worth reporting.
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+  const bytes = new Uint8Array(Math.min(received, MAX_ERROR_BODY_BYTES));
+  let offset = 0;
+  for (const chunk of chunks) {
+    const room = bytes.length - offset;
+    if (room <= 0) break;
+    bytes.set(chunk.subarray(0, room), offset);
+    offset += Math.min(chunk.byteLength, room);
+  }
+  return new TextDecoder().decode(bytes);
+}
+
 async function readBoundedText(response: Response, fileId: number) {
   if (!response.body) {
     throw commandError(`File ${fileId} returned an empty response body`);
@@ -318,8 +352,6 @@ async function readBoundedText(response: Response, fileId: number) {
   }
 }
 
-// Read once rather than poll. Completion is the answer to the host's own
-// call to storage, so the entry is published before %finish-upload returns.
 function mimeFromPath(filePath: string) {
   return (
     MIME_TYPES[path.extname(filePath).toLowerCase()] ||
@@ -442,7 +474,8 @@ function createBucketsOperations(): BucketsOperations {
       // Entries are documented as unbounded and the runner buffers all of
       // stdout, so a large Bucket could exhaust the bot's heap or swamp the
       // model's tool result. The metadata is what `show` is for; `files`
-      // pages through the contents.
+      // lists one folder at a time. Neither `files` nor `search` pages or
+      // caps its output yet.
       const { entries, ...state } = snapshot.state;
       return { flag: snapshot.flag, state, entryCount: entries.length };
     },
@@ -517,18 +550,13 @@ function createBucketsOperations(): BucketsOperations {
       // spent attempt, and running out of attempts is not a failure. It used
       // to be both, and the model's retry of a Bucket that did exist met
       // "already exists".
-      for (let attempt = 0; attempt < STATE_ATTEMPTS; attempt += 1) {
-        const found = await getBucket(flag).catch(() => null);
-        if (
-          found &&
-          flagsMatch(found.state.group, normalizedGroup) &&
-          found.state.bucket.title === bucketTitle
-        ) {
-          return { nest };
-        }
-        await sleep(POLL_DELAY_MS);
-      }
-      return { nest, note: REPLICA_LAGGING };
+      const visible = await awaitReplica({ flag, nest }, -1, (snapshot) =>
+        flagsMatch(snapshot.state.group, normalizedGroup) &&
+        snapshot.state.bucket.title === bucketTitle
+          ? true
+          : undefined
+      );
+      return visible ? { nest } : { nest, note: REPLICA_LAGGING };
     },
 
     async createFolder({ target, parentId, name }) {
@@ -639,7 +667,7 @@ function createBucketsOperations(): BucketsOperations {
           body: fileUploadBody(resolvedPath),
         });
         if (!uploadResponse.ok) {
-          const body = await uploadResponse.text().catch(() => '');
+          const body = await readErrorBody(uploadResponse);
           const code = body.match(/<Code>([^<]+)<\/Code>/)?.[1];
           const message = body.match(/<Message>([^<]+)<\/Message>/)?.[1];
           const detail = [code, message].filter(Boolean).join(': ');
@@ -659,10 +687,26 @@ function createBucketsOperations(): BucketsOperations {
         // file as failed, skipped the cancel because completion had been
         // attempted, and left the model to retry into a duplicate.
         const before = await getSnapshot(target).catch(() => null);
-        await sendBucketsAction({
-          type: 'finish-upload',
-          flag: target.flag,
-          sessionId: grant.session,
+        // One id, resubmitted once if the answer is lost, as begin-upload
+        // does. The host holds this request open while it verifies the
+        // receipt with storage, which makes it the likeliest place for an
+        // answer to go missing -- and a lost answer after a successful PUT
+        // was reported as a failure, with no cancel, and retried into a
+        // duplicate. The host replays a settled id and holds a repeat of an
+        // in-flight one open for the same answer, so resubmitting is safe.
+        const finishRequestId = mintRequestId();
+        const finish = () =>
+          sendBucketsAction(
+            {
+              type: 'finish-upload',
+              flag: target.flag,
+              sessionId: grant!.session,
+            },
+            finishRequestId
+          );
+        await finish().catch((cause) => {
+          if (cause instanceof BucketsActionFailed) throw cause;
+          return finish();
         });
         const visible = await awaitReplica(
           target,
@@ -723,7 +767,7 @@ function createBucketsOperations(): BucketsOperations {
       const readUrl = await privateReadUrl(target, entry);
       const response = await fetch(readUrl);
       if (!response.ok) {
-        const body = await response.text();
+        const body = await readErrorBody(response);
         const code = body.match(/<Code>([^<]+)<\/Code>/)?.[1];
         const message = body.match(/<Message>([^<]+)<\/Message>/)?.[1];
         const detail = [code, message].filter(Boolean).join(': ');

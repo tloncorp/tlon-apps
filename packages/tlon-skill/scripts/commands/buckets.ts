@@ -93,8 +93,9 @@ export type BucketTarget = {
 
 export interface BucketsOperations {
   list(): Promise<unknown[]>;
-  // A summary, not the manifest: entries are unbounded and `files` pages
-  // through them. `show` answers what the Bucket is, plus how much is in it.
+  // A summary, not the manifest: entries are unbounded, and `files` lists
+  // them one folder at a time (it does not page within a folder). `show`
+  // answers what the Bucket is, plus how much is in it.
   show(target: BucketTarget): Promise<BucketsSummary & { entryCount: number }>;
   files(
     target: BucketTarget,

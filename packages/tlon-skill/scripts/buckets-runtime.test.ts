@@ -585,6 +585,149 @@ describe('Buckets runtime hardening', () => {
     }
   });
 
+  function grantedUpload(url = 'https://upload.test/object-mine') {
+    mockedRequestBucketsUpload.impl = async () => ({
+      session: 'upload-session',
+      entryId: 11,
+      url,
+      headers: [],
+      expiresAt: '~2026.1.1',
+    });
+  }
+
+  // The host holds finish open while it verifies the receipt, so its answer
+  // is the one most likely to be lost. Losing it must not become a failure.
+  it('resubmits a finish whose answer was lost, under the same request id', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'tlon-buckets-upload-'));
+    const filePath = path.join(directory, 'plan.md');
+    writeFileSync(filePath, '# Project\n');
+    setReplicaWaitForTests(2, 1);
+    mockedGetBucket.impl = async () => snapshot();
+    grantedUpload();
+    const finishes: unknown[] = [];
+    const sent: string[] = [];
+    mockedSendBucketsAction.impl = async (
+      action: unknown,
+      requestId?: unknown
+    ) => {
+      const type = (action as BucketsAction).type;
+      sent.push(type);
+      if (type !== 'finish-upload') return undefined;
+      finishes.push(requestId);
+      if (finishes.length === 1) throw new Error('socket hang up');
+      return { ok: null };
+    };
+    globalThis.fetch = (async () =>
+      new Response('', { status: 200 })) as unknown as typeof fetch;
+
+    try {
+      await expect(
+        createBucketsDeps().buckets.upload({
+          target: TARGET,
+          filePath,
+          parentId: null,
+        })
+      ).resolves.toMatchObject({ id: 11, status: 'ready' });
+      expect(finishes).toHaveLength(2);
+      expect(finishes[0]).toBeDefined();
+      expect(finishes[1]).toBe(finishes[0]);
+      expect(sent).not.toContain('cancel-upload');
+    } finally {
+      setReplicaWaitForTests(40, 250);
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('does not resubmit a finish the host refused', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'tlon-buckets-upload-'));
+    const filePath = path.join(directory, 'plan.md');
+    writeFileSync(filePath, '# Project\n');
+    mockedGetBucket.impl = async () => snapshot();
+    grantedUpload();
+    let finishes = 0;
+    mockedSendBucketsAction.impl = async (action: unknown) => {
+      if ((action as BucketsAction).type !== 'finish-upload') return undefined;
+      finishes += 1;
+      throw new MockBucketsActionFailed(
+        'invalid-input',
+        'receipt did not match'
+      );
+    };
+    globalThis.fetch = (async () =>
+      new Response('', { status: 200 })) as unknown as typeof fetch;
+
+    try {
+      await expect(
+        createBucketsDeps().buckets.upload({
+          target: TARGET,
+          filePath,
+          parentId: null,
+        })
+      ).rejects.toThrow('receipt did not match');
+      expect(finishes).toBe(1);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  // The upload endpoint is the untrusted host's choice. An error response
+  // with an endless body must be read only as far as its code and message.
+  it('reads no more than a bounded prefix of an upload error body', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'tlon-buckets-upload-'));
+    const filePath = path.join(directory, 'plan.md');
+    writeFileSync(filePath, '# Project\n');
+    mockedGetBucket.impl = async () => snapshot();
+    grantedUpload();
+    let pulled = 0;
+    const endless = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled += 1;
+        controller.enqueue(
+          new TextEncoder().encode(
+            pulled === 1 ? '<Code>SlowDown</Code>' : 'x'.repeat(64 * 1024)
+          )
+        );
+      },
+    });
+    globalThis.fetch = (async () =>
+      new Response(endless, {
+        status: 503,
+        statusText: 'Busy',
+      })) as unknown as typeof fetch;
+
+    try {
+      await expect(
+        createBucketsDeps().buckets.upload({
+          target: TARGET,
+          filePath,
+          parentId: null,
+        })
+      ).rejects.toThrow('Object upload failed: 503 Busy (SlowDown)');
+      expect(pulled).toBeLessThan(10);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('reports a created Bucket as created when the replica has not caught up', async () => {
+    setReplicaWaitForTests(2, 1);
+    mockedGetBuckets.impl = async () => [];
+    mockedGetBucket.impl = async () => null;
+    mockedGetGroup.impl = async () => ({ roles: [] });
+    mockedSendBucketsAction.impl = async () => ({ ok: null });
+    try {
+      const result = await createBucketsDeps().buckets.create({
+        group: GROUP,
+        title: 'Project Files',
+        name: 'project-files',
+      });
+      expect(result).toMatchObject({ nest: 'buckets/~zod/project-files' });
+      expect(result).toHaveProperty('note');
+    } finally {
+      setReplicaWaitForTests(40, 250);
+    }
+  });
+
   it('cancels through the host when an upload fails after it is granted', async () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'tlon-buckets-upload-'));
     const filePath = path.join(directory, 'plan.md');
