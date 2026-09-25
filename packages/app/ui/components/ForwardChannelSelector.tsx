@@ -1,8 +1,7 @@
-import { BottomSheetFlashList } from '@gorhom/bottom-sheet';
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Platform, useWindowDimensions } from 'react-native';
+import { useWindowDimensions } from 'react-native';
 import { Text, View, XStack, getTokenValue } from 'tamagui';
 
 import { useFilteredChannelChats } from '../../hooks/useFilteredChannelChats';
@@ -19,10 +18,6 @@ type ChannelChat = db.Chat & { type: 'channel' };
 
 const ITEM_H = 76;
 const LIST_HEIGHT_RATIO = 0.68;
-const ForwardSheetFlashList = (
-  Platform.OS === 'web' ? FlashList : BottomSheetFlashList
-) as typeof FlashList;
-
 const getItemType = (chat: ChannelChat) =>
   chat.channel.type === 'dm' || chat.channel.type === 'groupDm'
     ? 'dm'
@@ -121,7 +116,7 @@ export function ForwardChannelSelector({
               No results found
             </Text>
           ) : (
-            <ForwardSheetFlashList<ChannelChat>
+            <FlashList<ChannelChat>
               data={channelChats}
               extraData={highlightedChannelId}
               contentContainerStyle={contentContainerStyle}
@@ -130,6 +125,7 @@ export function ForwardChannelSelector({
               renderItem={renderItem}
               drawDistance={ITEM_H * 8}
               keyboardShouldPersistTaps="always"
+              nestedScrollEnabled
             />
           )}
         </View>

@@ -162,78 +162,35 @@ Removal:
 Drop these hunks if react-native-screens gains native badge styling that can
 draw a small dot beneath the icon, or if the tab bar stops using blank badges.
 
-## @gorhom/bottom-sheet@5.2.14
+## @expo/ui@57.0.7
 
 Local patch:
-`patches/@gorhom__bottom-sheet@5.2.14.patch`
-
-This patch carries two independent fixes.
-
-### 1. First-open layout of flex:1 sheet content
+`patches/@expo__ui@57.0.7.patch`
 
 Why:
-On the first open of a bottom sheet whose content is a `flex:1` ScrollView/View
-with content larger than the eventual viewport (a long scrollable list with a
-footer/submit button below it), the footer ends up positioned past the bottom
-of the visible sheet. The first frame of `contentMaskContainerAnimatedStyle`
-returns `{}` while the container height is still being measured, so the
-flex:1 child is laid out at intrinsic content size; once the real height
-arrives a frame later, Yoga keeps the stale flex-basis from the unconstrained
-pass and the child overflows.
-
-The patch returns `{ height: 0 }` on the initial frame so children never get
-a chance to lay out at intrinsic size, then snaps the height directly
-(without going through `withTiming`) on the first real layout pass to avoid
-animating the height up from 0. Subsequent transitions use the normal
-animated path.
-
-This is a workaround for an underlying Yoga bug that affects any flex tree
-with the same shape, not just gorhom — see facebook/yoga#1552. The proper RN
-fix (enabling Yoga's `WebFlexBasis` flag) requires building React Native
-from source, which we currently don't do; the writeup is in the closed
-draft PR linked below.
-
-Background and reproduction details: PR #5790 (closed, kept for reference).
-
-Validation:
-Open any sheet whose content is a `flex:1` `ScrollView` with content larger
-than the viewport plus a footer (e.g. CreateChatSheet). The footer should be
-visible at the bottom of the sheet on first open.
-
-Removal:
-Drop this hunk once we either move to building React Native from source
-(so we can flip the Yoga `WebFlexBasis` flag and fix the bug at the
-layout-engine level), or once `@gorhom/bottom-sheet` ships an equivalent
-workaround upstream.
-
-### 2. Modal dismiss() bricks the modal when already dismissed
-
-Why:
-`BottomSheetModal.dismiss()` called while the modal's status is `INITIAL`
-(never presented, or already fully dismissed and reset) falls through the
-already-closed early-exit, permanently sets the internal status to
-`DISMISSING`, and every later `present()` silently no-ops. Our
-`BottomSheetWrapper` calls `dismiss()` whenever `open` flips false — which
-is always the case right after a user-initiated close (backdrop tap / swipe
-down) has already dismissed the modal internally — so modal sheets (e.g. the
-personal invite sheet) could only be opened once per mount.
+Tlon's native action sheets need a controlled custom-height detent that can
+animate as the user moves between panes. Expo UI 57 exposes fixed sheet
+presentation, but not controlled detent selection or a dismissal control that
+matches the app's action-sheet chrome.
 
 What it does:
-Adds `MODAL_STATUS.INITIAL` to the already-closed early-exit in
-`handleDismiss` (`src/components/bottomSheetModal/BottomSheetModal.tsx`),
-making `dismiss()` idempotent.
-
-Upstream:
-- issue: `gorhom/react-native-bottom-sheet#2669`
-- fix submitted: `gorhom/react-native-bottom-sheet#2711`
+- Exposes native detents, selected-detent control and animation duration on
+  Expo UI's SwiftUI `BottomSheet`.
+- Keeps the selected height synchronized with `UISheetPresentationController`
+  so pane changes animate instead of jumping.
+- Adds the native close control, hides the drag indicator and uses the system
+  material for the outer sheet canvas.
 
 Validation:
-- Home header → AddPerson opens the invite sheet; close it via the backdrop;
-  tap AddPerson again — the sheet must open again (repeat a few times).
+- Build the iOS preview app from source.
+- Open Chat Options, switch between its notifications and sorting panes, and
+  confirm the sheet height animates in both directions.
+- Confirm the close control aligns with the header and the sheet can be
+  dismissed and reopened repeatedly in light and dark mode.
 
 Removal:
-Drop this hunk once `gorhom/react-native-bottom-sheet#2711` (or an
-equivalent fix) ships in a release we use.
+Drop the patch once Expo UI exposes equivalent controlled-detent animation and
+sheet chrome configuration upstream.
 
 ## @10play/tentap-editor@0.5.21
 

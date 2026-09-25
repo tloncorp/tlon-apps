@@ -43,7 +43,6 @@ patchedDependencies:
   drizzle-orm: patches/drizzle-orm@0.39.3.patch
   react-native-country-codes-picker: patches/react-native-country-codes-picker@2.3.5.patch
   "@simform_solutions/react-native-audio-waveform": patches/@simform_solutions__react-native-audio-waveform@2.1.6.patch
-  "@gorhom/bottom-sheet": patches/@gorhom__bottom-sheet@5.2.14.patch
   react-native-reanimated: patches/react-native-reanimated@4.5.0.patch
   react-native-screens@4.25.2: patches/react-native-screens@4.25.2.patch
   react-native-gesture-handler: patches/react-native-gesture-handler@2.32.0.patch
@@ -55,6 +54,7 @@ patchedDependencies:
   react-native@0.86.3: patches/react-native@0.86.3.patch
   react-native-worklets@0.10.3: patches/react-native-worklets@0.10.3.patch
   expo-modules-core@57.0.6: patches/expo-modules-core@57.0.6.patch
+  '@expo/ui@57.0.7': patches/@expo__ui@57.0.7.patch
 
 allowUnusedPatches: false
 

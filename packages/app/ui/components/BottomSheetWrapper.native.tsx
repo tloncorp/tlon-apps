@@ -1,23 +1,20 @@
-import BottomSheet, {
-  BottomSheetBackdrop,
-  BottomSheetFooter,
-  BottomSheetFooterProps,
-  BottomSheetModal,
-  BottomSheetView,
-  BottomSheetScrollView as GorhomBottomSheetScrollView,
-} from '@gorhom/bottom-sheet';
-import { ActionSheetContext, View } from '@tloncorp/ui';
+import {
+  BottomSheet as ExpoBottomSheet,
+  BottomSheetScrollView as ExpoBottomSheetScrollView,
+  BottomSheetTextInput as ExpoBottomSheetTextInput,
+} from '@expo/ui/community/bottom-sheet';
+import { View } from '@tloncorp/ui';
 import React, {
+  ComponentProps,
   PropsWithChildren,
   forwardRef,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
-import { BackHandler, Keyboard } from 'react-native';
+import { Keyboard } from 'react-native';
 import { useTheme } from 'tamagui';
 
 import {
@@ -25,102 +22,18 @@ import {
   BottomSheetWrapperProps,
 } from './BottomSheetWrapper.types';
 
-const MemoizedBackdrop = React.memo(
-  ({
-    backdropStyle,
-    overlayOpacity,
-    ...props
-  }: {
-    backdropStyle: any;
-    overlayOpacity: number;
-  } & any) => (
-    <BottomSheetBackdrop
-      {...props}
-      accessible={false}
-      accessibilityElementsHidden={true}
-      disappearsOnIndex={-1}
-      appearsOnIndex={0}
-      opacity={overlayOpacity}
-      pressBehavior="close"
-      style={backdropStyle}
-    />
-  )
-);
-
-MemoizedBackdrop.displayName = 'MemoizedBackdrop';
-
-const MemoizedHandle = React.memo(() => <BottomSheetHandle />);
-
-MemoizedHandle.displayName = 'MemoizedHandle';
-
-const MemoizedBackground = React.memo(({ style }: { style: any }) => (
-  <View style={style} accessible={false} pointerEvents="none" />
-));
-
-MemoizedBackground.displayName = 'MemoizedBackground';
-
-const ModalChildrenWrapper = React.memo(
-  ({
-    useBottomSheetView,
-    style,
-    children,
-  }: {
-    useBottomSheetView: boolean;
-    style: { flex: number };
-    children: React.ReactNode;
-  }) => {
-    if (useBottomSheetView) {
-      return (
-        <BottomSheetView style={style} accessible={false}>
-          {children}
-        </BottomSheetView>
-      );
-    }
-    return (
-      <View style={style} accessible={false}>
-        {children}
-      </View>
-    );
-  }
-);
-
-ModalChildrenWrapper.displayName = 'ModalChildrenWrapper';
-
-const NonModalChildrenWrapper = React.memo(
-  ({
-    useBottomSheetView,
-    style,
-    children,
-  }: {
-    useBottomSheetView: boolean;
-    style: { flex: number; backgroundColor: string };
-    children: React.ReactNode;
-  }) => {
-    if (useBottomSheetView) {
-      return (
-        <BottomSheetView style={style} accessible={false}>
-          {children}
-        </BottomSheetView>
-      );
-    }
-    return (
-      <View style={style} accessible={false}>
-        {children}
-      </View>
-    );
-  }
-);
-
-NonModalChildrenWrapper.displayName = 'NonModalChildrenWrapper';
-
-const ANIMATION_CONFIGS = {
-  quick: { duration: 250 },
-  medium: { duration: 350 },
-  slow: { duration: 500 },
+const ANIMATION_DURATIONS = {
+  quick: 250,
+  medium: 350,
+  slow: 500,
 } as const;
 
+/**
+ * The single native sheet adapter. Expo UI delegates presentation, gestures,
+ * keyboard handling, and dismissal to SwiftUI on iOS and Compose on Android.
+ */
 export const BottomSheetWrapper = forwardRef<
-  BottomSheet,
+  ExpoBottomSheet,
   PropsWithChildren<BottomSheetWrapperProps>
 >(
   (
@@ -130,217 +43,44 @@ export const BottomSheetWrapper = forwardRef<
       children,
       transition = 'quick',
       dismissOnSnapToBottom = true,
-      handleDisableScroll: _handleDisableScroll,
-      frameStyle,
-      modal = false,
-      showHandle = true,
-      showOverlay = true,
-      overlayOpacity = 0.5,
-      enablePanDownToClose = true,
-      keyboardBehavior = 'interactive',
-      // KeyboardProvider keeps the root full height; Gorhom must offset the sheet
-      // itself instead of relying on Android to resize its container.
-      android_keyboardInputMode = 'adjustPan',
       snapPointsMode = 'fit',
       snapPoints,
-      footerComponent,
-      hasScrollableContent = false,
-      enableContentPanningGesture,
+      showHandle = true,
+      enablePanDownToClose = true,
       enableDynamicSizing,
+      frameStyle,
+      footerComponent,
       unmountOnClose = false,
-      stackBehavior,
     },
     ref
   ) => {
-    const bottomSheetRef = useRef<BottomSheet>(null);
-    const bottomSheetModalRef = useRef<BottomSheetModal>(null);
-    /**
-     * Tracks whether the current sheet state change was triggered programmatically
-     * (via prop changes) vs user-initiated (via gestures). This prevents feedback
-     * loops where programmatic dismissals trigger onOpenChange callbacks during
-     * sheet transitions.
-     */
-    const isProgrammaticChange = useRef(false);
-    /**
-     * Whether `handleSheetChanges` already observed the closed state (index -1)
-     * for the current dismissal. `handleModalDismiss` is only a fallback for the
-     * case where gorhom skips `onChange(-1)`; if that callback already ran, it
-     * made the open/skip decision and `handleModalDismiss` must not report the
-     * close a second time.
-     */
-    const reachedClosedIndex = useRef(false);
-    // Default-path callers (unmountOnClose=false) start mounted=true regardless
-    // of `open`, mirroring today's render-immediately behavior. Opt-in callers
-    // start mounted === open.
-    const [mounted, setMounted] = useState<boolean>(open || !unmountOnClose);
-    const [mountKey, setMountKey] = useState(0);
-    const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const prevOpenRef = useRef<boolean>(open);
     const theme = useTheme();
+    const [mounted, setMounted] = useState(open || !unmountOnClose);
+    const [mountKey, setMountKey] = useState(0);
+    const previousOpen = useRef(open);
+    const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const clearCloseTimer = useCallback(() => {
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
-        closeTimerRef.current = null;
-      }
-    }, []);
-
-    const backgroundColor = useMemo(
-      () => theme.background.val,
-      [theme.background.val]
-    );
-    const overlayBackgroundColor = useMemo(
-      () => theme.overlayBackground.val,
-      [theme.overlayBackground.val]
-    );
-
-    const backdropStyle = useMemo(
-      () => ({
-        backgroundColor: overlayBackgroundColor,
-      }),
-      [overlayBackgroundColor]
-    );
-
-    const flexStyle = useMemo(() => ({ flex: 1 }), []);
-
-    const flexWithBackgroundStyle = useMemo(
-      () => ({ flex: 1, backgroundColor }),
-      [backgroundColor]
-    );
-
-    const wrappedFooterComponent = useMemo(
-      () =>
-        footerComponent
-          ? (props: BottomSheetFooterProps) => {
-              const content = footerComponent(props);
-              return content ? (
-                <BottomSheetFooter {...props}>
-                  <View backgroundColor={backgroundColor}>{content}</View>
-                </BottomSheetFooter>
-              ) : null;
-            }
-          : undefined,
-      [backgroundColor, footerComponent]
-    );
-
-    // Transform snapPoints based on snapPointsMode for compatibility with Tamagui Sheet API
     const transformedSnapPoints = useMemo(() => {
-      if (!snapPoints) return snapPoints;
-
-      // When in percent mode, convert numbers to percentage strings
+      if (!snapPoints) return undefined;
       if (snapPointsMode === 'percent') {
         return snapPoints.map((point) =>
           typeof point === 'number' ? `${point}%` : point
         );
       }
-
       return snapPoints;
     }, [snapPoints, snapPointsMode]);
 
-    // Resolve enableDynamicSizing: explicit prop takes precedence, otherwise
-    // default to false for percent-mode sheets (they should expand to the percentage,
-    // not fit content) and true for fit/constant modes (gorhom's default behavior)
-    const resolvedEnableDynamicSizing = useMemo(() => {
-      if (enableDynamicSizing !== undefined) {
-        return enableDynamicSizing;
-      }
-      if (snapPointsMode === 'percent') {
-        return false;
-      }
-      return true;
-    }, [enableDynamicSizing, snapPointsMode]);
+    const resolvedEnableDynamicSizing =
+      enableDynamicSizing ?? snapPointsMode !== 'percent';
 
-    // Read `.current` at call time so methods stay correct across `mountKey`
-    // remounts under `unmountOnClose`.
-    React.useImperativeHandle(ref, () => {
-      const m = () => bottomSheetModalRef.current;
-      const s = () => bottomSheetRef.current;
-      return {
-        present: () => (modal ? m()?.present() : s()?.expand()),
-        dismiss: () => (modal ? m()?.dismiss() : s()?.close()),
-        close: () => (modal ? m()?.dismiss() : s()?.close()),
-        expand: () => (modal ? m()?.present() : s()?.expand()),
-        collapse: () => (modal ? m()?.dismiss() : s()?.collapse()),
-        snapToIndex: (index: number) =>
-          modal ? m()?.snapToIndex(index) : s()?.snapToIndex(index),
-        snapToPosition: (position: string | number) =>
-          modal ? m()?.snapToPosition(position) : s()?.snapToPosition(position),
-        forceClose: () => (modal ? m()?.forceClose() : s()?.forceClose()),
-      } as any;
-    }, [modal]);
-
-    // Opt-in lifecycle: when `unmountOnClose === true`, mount the subtree on
-    // open, schedule an unmount after the close-grace window on close, and bump
-    // `mountKey` on every real `false → true` transition so each subsequent
-    // open mounts a fresh Gorhom instance. Default path (unmountOnClose=false)
-    // snaps `mounted=true` and is otherwise inert.
-    useEffect(() => {
-      if (!unmountOnClose) {
-        clearCloseTimer();
-        setMounted(true);
-        prevOpenRef.current = open;
-        return;
-      }
-      clearCloseTimer();
-      if (open) {
-        setMounted(true);
-        if (!prevOpenRef.current) {
-          // Real false → true edge.
-          //
-          // Note: for the current ActionSheet-mounted consumer, the very first
-          // open does not bump key 0 because ActionSheet does not mount this
-          // wrapper until first `open=true` (so `prevOpenRef.current` was
-          // initialised to `true` by `useRef(open)` above). For a future
-          // direct BottomSheetWrapper consumer that mounts with `open=false`
-          // initially, the first `false → true` transition would bump key 0
-          // to key 1; that is harmless because the render gate keeps
-          // `mounted=false` until this same effect run sets it `true`, so
-          // the bumped key is the first key actually rendered.
-          setMountKey((k) => k + 1);
+    const handleChange = useCallback(
+      (index: number) => {
+        if (index === -1 && open && dismissOnSnapToBottom) {
+          onOpenChange(false);
         }
-        prevOpenRef.current = open;
-        return;
-      }
-      // open === false
-      closeTimerRef.current = setTimeout(() => {
-        setMounted(false);
-        closeTimerRef.current = null;
-      }, ANIMATION_CONFIGS[transition].duration + 100);
-      prevOpenRef.current = open;
-      return () => clearCloseTimer();
-    }, [open, unmountOnClose, transition, clearCloseTimer]);
-
-    // Cancel any pending close timer when the wrapper unmounts.
-    useEffect(() => () => clearCloseTimer(), [clearCloseTimer]);
-
-    // Handle modal sheet open/close
-    useEffect(() => {
-      if (!modal) return;
-
-      if (open) {
-        // Small delay to ensure modal is mounted before presenting
-        const timer = setTimeout(() => {
-          isProgrammaticChange.current = true;
-          bottomSheetModalRef.current?.present();
-        }, 50);
-        return () => clearTimeout(timer);
-      } else {
-        isProgrammaticChange.current = true;
-        bottomSheetModalRef.current?.dismiss();
-      }
-    }, [open, modal, mountKey]);
-
-    // Handle non-modal sheet open/close
-    useEffect(() => {
-      if (modal) return;
-
-      isProgrammaticChange.current = true;
-      if (!open) {
-        bottomSheetRef.current?.close();
-      } else {
-        bottomSheetRef.current?.expand();
-      }
-    }, [open, modal, mountKey]);
+      },
+      [dismissOnSnapToBottom, onOpenChange, open]
+    );
 
     useEffect(() => {
       if (!open) {
@@ -349,259 +89,105 @@ export const BottomSheetWrapper = forwardRef<
     }, [open]);
 
     useEffect(() => {
-      if (!open) return;
+      if (closeTimer.current) {
+        clearTimeout(closeTimer.current);
+        closeTimer.current = null;
+      }
 
-      const subscription = BackHandler.addEventListener(
-        'hardwareBackPress',
-        () => {
-          if (Keyboard.isVisible()) {
-            Keyboard.dismiss();
-          } else if (dismissOnSnapToBottom) {
-            isProgrammaticChange.current = false;
-            if (modal) {
-              bottomSheetModalRef.current?.dismiss();
-            } else {
-              bottomSheetRef.current?.close();
-            }
-          }
-          return true;
-        }
-      );
-      return () => subscription.remove();
-    }, [open, modal, dismissOnSnapToBottom]);
-
-    const handleSheetAnimate = useCallback(
-      (_fromIndex: number, toIndex: number) => {
-        if (toIndex === -1) {
-          // Blur while the input is still mounted, before Gorhom removes the modal.
-          Keyboard.dismiss();
-        }
-      },
-      []
-    );
-
-    const handleSheetChanges = useCallback(
-      (index: number) => {
-        // When sheet is closed (index -1), handle cleanup and callbacks
-        if (index === -1) {
-          reachedClosedIndex.current = true;
-          // Only notify parent if dismissOnSnapToBottom is true and it's user-initiated
-          if (dismissOnSnapToBottom && !isProgrammaticChange.current) {
-            onOpenChange(false);
-          }
-          // Reset flag when reaching closed state
-          isProgrammaticChange.current = false;
-        } else if (index >= 0) {
-          reachedClosedIndex.current = false;
-          // Reset flag when sheet reaches any open snap point
-          // This ensures the flag only protects the specific operation that set it
-          isProgrammaticChange.current = false;
-        }
-      },
-      [dismissOnSnapToBottom, onOpenChange]
-    );
-
-    // Gorhom skips onChange(-1) when the sheet is dismissed before its open
-    // animation finishes (e.g. a backdrop tap mid-animation), so
-    // handleSheetChanges alone can leave `open` stuck at true. onDismiss fires
-    // on every modal dismissal path; if the parent still thinks the sheet is
-    // open at that point, sync it so the next open isn't a no-op.
-    const handleModalDismiss = useCallback(() => {
-      // If handleSheetChanges already saw index -1 for this dismissal, it has
-      // already decided whether to report the close (respecting the
-      // programmatic-change flag). Reporting again here would double-fire
-      // onOpenChange(false) for programmatic dismissals and, since the flag was
-      // consumed by handleSheetChanges, this fallback can no longer tell such a
-      // dismissal apart — spuriously closing the parent (e.g. clobbering a
-      // nested-sheet handoff).
-      if (reachedClosedIndex.current) {
-        reachedClosedIndex.current = false;
+      if (!unmountOnClose) {
+        setMounted(true);
+        previousOpen.current = open;
         return;
       }
-      // Fallback for when gorhom skips onChange(-1) (dismiss mid-open-animation).
-      // A programmatic close sets `open` false first, so it no-ops here; only a
-      // user dismiss reaches this with the parent still open, and we sync it so
-      // the sheet can reopen.
+
       if (open) {
-        onOpenChange(false);
+        setMounted(true);
+        if (!previousOpen.current) {
+          setMountKey((key) => key + 1);
+        }
+      } else {
+        closeTimer.current = setTimeout(() => {
+          setMounted(false);
+          closeTimer.current = null;
+        }, ANIMATION_DURATIONS[transition] + 100);
       }
-    }, [open, onOpenChange]);
+      previousOpen.current = open;
 
-    const renderBackdrop = useCallback(
-      (props: any) =>
-        showOverlay ? (
-          <MemoizedBackdrop
-            {...props}
-            backdropStyle={backdropStyle}
-            overlayOpacity={overlayOpacity}
-          />
-        ) : null,
-      [showOverlay, overlayOpacity, backdropStyle]
-    );
-
-    const renderHandle = useCallback(
-      () => (showHandle ? <MemoizedHandle /> : null),
-      [showHandle]
-    );
-    const renderBackground = useCallback(
-      (props: any) => <MemoizedBackground {...props} />,
-      []
-    );
-
-    const commonProps = useMemo(
-      () => ({
-        // Keep the sheet container itself out of the accessibility tree so
-        // nested actionable content remains discoverable.
-        accessible: false,
-        enablePanDownToClose,
-        enableDynamicSizing: resolvedEnableDynamicSizing,
-        keyboardBehavior,
-        keyboardBlurBehavior: 'restore' as const,
-        android_keyboardInputMode,
-        animationConfigs: ANIMATION_CONFIGS[transition],
-        onAnimate: handleSheetAnimate,
-        onChange: handleSheetChanges,
-        backdropComponent: renderBackdrop,
-        handleComponent: renderHandle,
-        backgroundComponent: renderBackground,
-        footerComponent: wrappedFooterComponent,
-        style: frameStyle,
-        snapPointsMode,
-        snapPoints: transformedSnapPoints,
-        backgroundStyle: {
-          backgroundColor: backgroundColor,
-        },
-        // Prevents pan gesture from being activated unless user has scrolled
-        // this much vertical distance. Important for nested horizontal
-        // scrollviews.
-        activeOffsetY: [-10, 10] as [number, number],
-      }),
-      [
-        enablePanDownToClose,
-        resolvedEnableDynamicSizing,
-        keyboardBehavior,
-        android_keyboardInputMode,
-        transition,
-        handleSheetAnimate,
-        handleSheetChanges,
-        renderBackdrop,
-        renderHandle,
-        renderBackground,
-        wrappedFooterComponent,
-        frameStyle,
-        snapPointsMode,
-        transformedSnapPoints,
-        backgroundColor,
-      ]
-    );
-
-    const commonOverrides = useMemo(() => {
-      return {
-        enableContentPanningGesture,
+      return () => {
+        if (closeTimer.current) {
+          clearTimeout(closeTimer.current);
+          closeTimer.current = null;
+        }
       };
-    }, [enableContentPanningGesture]);
+    }, [open, transition, unmountOnClose]);
 
-    const nonModalProps = useMemo(
+    const contentStyle = useMemo(
       () => ({
-        ...commonProps,
-        ...commonOverrides,
-        index: open ? 0 : -1, // Control visibility via index instead of conditional rendering
+        ...(resolvedEnableDynamicSizing ? null : { flex: 1 }),
+        backgroundColor: theme.background.val,
       }),
-      [commonOverrides, commonProps, open]
+      [resolvedEnableDynamicSizing, theme.background.val]
+    );
+    const bodyStyle = useMemo(
+      () =>
+        footerComponent && !resolvedEnableDynamicSizing
+          ? ({ flex: 1 } as const)
+          : undefined,
+      [footerComponent, resolvedEnableDynamicSizing]
     );
 
-    const isNested = useContext(ActionSheetContext).isInsideSheet;
-
-    const useBottomSheetViewForModal = !(
-      footerComponent ||
-      isNested ||
-      hasScrollableContent
-    );
-    const useBottomSheetViewForNonModal = !(
-      footerComponent || hasScrollableContent
-    );
-
-    // Opt-in render gate: only return null when the caller explicitly asked for
-    // unmount-on-close AND the close-grace timer has already fired. Default
-    // callers (unmountOnClose=false) never hit this branch.
-    const gateUnmounted = unmountOnClose && !mounted;
-
-    if (modal) {
-      return gateUnmounted ? null : (
-        <BottomSheetModal
-          key={mountKey}
-          ref={bottomSheetModalRef}
-          accessibilityViewIsModal={true}
-          stackBehavior={stackBehavior}
-          onDismiss={handleModalDismiss}
-          {...commonProps}
-          {...commonOverrides}
-        >
-          {/* BottomSheetView is only for simple static content. Use plain View for:
-              - footerComponent: BottomSheetView interferes with gorhom's footer layout system
-              - isNested: Avoids gesture conflicts between parent/child sheets
-              - hasScrollableContent: Scrollables (BottomSheetScrollView) should be direct children,
-                not wrapped in BottomSheetView per gorhom's architecture */}
-          <ModalChildrenWrapper
-            useBottomSheetView={useBottomSheetViewForModal}
-            style={flexStyle}
-          >
-            {children}
-          </ModalChildrenWrapper>
-        </BottomSheetModal>
-      );
+    if (unmountOnClose && !mounted) {
+      return null;
     }
 
-    return gateUnmounted ? null : (
-      <View
-        position="absolute"
-        left={0}
-        right={0}
-        top={0}
-        bottom={0}
-        zIndex={9999}
-        pointerEvents="box-none"
-        accessible={false}
+    return (
+      <ExpoBottomSheet
+        key={mountKey}
+        ref={ref as any}
+        index={open ? 0 : -1}
+        snapPoints={transformedSnapPoints}
+        enableDynamicSizing={resolvedEnableDynamicSizing}
+        enablePanDownToClose={enablePanDownToClose}
+        handleComponent={showHandle ? BottomSheetHandle : null}
+        backgroundStyle={{ backgroundColor: theme.background.val }}
+        style={frameStyle}
+        onChange={handleChange}
       >
-        <BottomSheet key={mountKey} ref={bottomSheetRef} {...nonModalProps}>
-          {/* BottomSheetView only for simple static content, not for layouts with footers */}
-          <NonModalChildrenWrapper
-            useBottomSheetView={useBottomSheetViewForNonModal}
-            style={flexWithBackgroundStyle}
-          >
-            {children}
-          </NonModalChildrenWrapper>
-        </BottomSheet>
-      </View>
+        <View style={contentStyle} accessible={false}>
+          {footerComponent ? (
+            <>
+              <View style={bodyStyle} accessible={false}>
+                {children}
+              </View>
+              <View backgroundColor="$background">{footerComponent({})}</View>
+            </>
+          ) : (
+            children
+          )}
+        </View>
+      </ExpoBottomSheet>
     );
   }
 );
 
 BottomSheetWrapper.displayName = 'BottomSheetWrapper';
 
-// Custom handle component that matches the Tamagui Sheet handle style
-const BottomSheetHandle = () => {
-  return (
-    <View
-      alignSelf="center"
-      marginVertical="$l"
-      width="$4xl"
-      height="$xs"
-      borderRadius="$2xs"
-      backgroundColor="$border"
-    />
-  );
-};
+// Any non-null handle component asks Expo UI to render the platform-native
+// drag indicator. Its React content is intentionally not rendered on native.
+const BottomSheetHandle = () => null;
 
-// ScrollView wrapper
 export const BottomSheetScrollView = forwardRef<
-  typeof GorhomBottomSheetScrollView,
+  typeof ExpoBottomSheetScrollView,
   PropsWithChildren<BottomSheetScrollViewProps>
->((props, ref) => {
-  return <GorhomBottomSheetScrollView ref={ref as any} {...props} />;
-});
+>((props, ref) => (
+  <ExpoBottomSheetScrollView ref={ref as any} nestedScrollEnabled {...props} />
+));
 
 BottomSheetScrollView.displayName = 'BottomSheetScrollView';
 
-// Export TextInput from gorhom for proper keyboard handling
-export { BottomSheetTextInput } from '@gorhom/bottom-sheet';
+export const BottomSheetTextInput = forwardRef<
+  React.ElementRef<typeof ExpoBottomSheetTextInput>,
+  ComponentProps<typeof ExpoBottomSheetTextInput>
+>((props, ref) => <ExpoBottomSheetTextInput ref={ref} {...props} />);
+
+BottomSheetTextInput.displayName = 'BottomSheetTextInput';

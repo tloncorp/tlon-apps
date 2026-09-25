@@ -287,6 +287,10 @@ PODS:
   - ExpoTaskManager (57.0.5):
     - ExpoModulesCore
     - UMAppLoader
+  - ExpoUI (57.0.7):
+    - ExpoModulesCore
+    - ExpoModulesWorklets
+    - React-RCTFabric
   - ExpoVideo (57.0.1):
     - ExpoModulesCore
   - ExpoWebBrowser (57.0.3):
@@ -2946,6 +2950,7 @@ DEPENDENCIES:
   - ExpoSpeechRecognition (from `../../../node_modules/expo-speech-recognition/ios`)
   - ExpoSplashScreen (from `../../../node_modules/expo-splash-screen/ios`)
   - ExpoTaskManager (from `../../../node_modules/expo-task-manager/ios`)
+  - "ExpoUI (from `../../../node_modules/@expo/ui/ios`)"
   - ExpoVideo (from `../../../node_modules/expo-video/ios`)
   - ExpoWebBrowser (from `../../../node_modules/expo-web-browser/ios`)
   - EXUpdatesInterface (from `../../../node_modules/expo-updates-interface/ios`)
@@ -3187,6 +3192,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-splash-screen/ios"
   ExpoTaskManager:
     :path: "../../../node_modules/expo-task-manager/ios"
+  ExpoUI:
+    :path: "../../../node_modules/@expo/ui/ios"
   ExpoVideo:
     :path: "../../../node_modules/expo-video/ios"
   ExpoWebBrowser:
@@ -3454,6 +3461,7 @@ SPEC CHECKSUMS:
   ExpoSpeechRecognition: 119acf84448579e53f841d040aad76982f945e2d
   ExpoSplashScreen: a0e6d83ad9642f133aa11e83c880064f57c32d59
   ExpoTaskManager: fed019ee76e17650f4240f4f0790534d7bb770f0
+  ExpoUI: 19f2ca6e82d91240530ee9762dedccc31fc6f429
   ExpoVideo: 50bc4d4739c754ce05d551a96bd39a2ca0a73a9d
   ExpoWebBrowser: a4d7c382116fbe33c1ec7f60293f02b7e97042e4
   EXUpdatesInterface: 92d2aa5194b6fb93ca8ab749db75665cb28b2e60
