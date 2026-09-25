@@ -4,6 +4,7 @@ import { Pressable, TlonText } from '@tloncorp/ui';
 import { debounce } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NativeSyntheticEvent, TextInputKeyPressEventData } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Portal, View, XStack, YStack } from 'tamagui';
 
 import { TextInput } from '../Form';
@@ -38,6 +39,7 @@ export function NotesSearchModal({
   // The input's live text and the debounced term driving the search are tracked
   // separately: Enter has to know whether what's on screen has been searched
   // yet, which it can't ask a search field that owns its own value.
+  const { left: leftInset, right: rightInset } = useSafeAreaInsets();
   const [inputValue, setInputValue] = useState('');
   const [query, setQuery] = useState('');
   const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
@@ -217,6 +219,8 @@ export function NotesSearchModal({
         bottom={0}
         justifyContent="center"
         left={0}
+        paddingLeft={leftInset}
+        paddingRight={rightInset}
         position="absolute"
         // Tamagui's Portal wraps its children in a `box-none` view, which
         // compiles to `pointer-events: none` with only direct children handed

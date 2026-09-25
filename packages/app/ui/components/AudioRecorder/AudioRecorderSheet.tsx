@@ -68,6 +68,8 @@ export function AudioRecorderSheet({
         paddingVertical={40}
         justifyContent="center"
         paddingBottom={safeAreaInsets.bottom}
+        paddingLeft={safeAreaInsets.left}
+        paddingRight={safeAreaInsets.right}
       >
         <AudioRecorder
           {...audioRecorderProps}

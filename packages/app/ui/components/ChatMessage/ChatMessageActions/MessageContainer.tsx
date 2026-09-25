@@ -2,6 +2,7 @@ import { getSize } from '@tamagui/get-token';
 import * as db from '@tloncorp/shared/db';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { Dimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View } from 'tamagui';
 
 import AuthorRow from '../../AuthorRow';
@@ -16,8 +17,11 @@ const MAX_MESSAGE_TO_SCREEN_RATIO_NOTE = 0.5;
 export function MessageContainer({ post }: { post: db.Post }) {
   const screenHeight = Dimensions.get('window').height;
   const screenWidth = Dimensions.get('window').width;
+  const { left, right } = useSafeAreaInsets();
   const isWindowNarrow = useIsWindowNarrow();
-  const width = isWindowNarrow ? screenWidth - getSize('$xl').val * 2 : 400;
+  const width = isWindowNarrow
+    ? screenWidth - left - right - getSize('$xl').val * 2
+    : 400;
 
   return (
     <View

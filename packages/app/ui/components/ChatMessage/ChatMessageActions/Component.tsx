@@ -97,7 +97,7 @@ export function ChatMessageActions({
       return;
     }
     postRef.current?.measure((_x, _y, width, height, pageX, pageY) => {
-      translateX.value = pageX;
+      translateX.value = pageX - insets.left;
       translateY.value = pageY;
       setOriginalLayout({ x: pageX, y: pageY, width, height });
     });
