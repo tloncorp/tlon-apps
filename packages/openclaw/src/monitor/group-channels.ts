@@ -172,6 +172,51 @@ export function applyGroupsUiRoleFact(
   }
 }
 
+/**
+ * Narrow a `/groups/ui` fact to a member join: `update.diff.fleet.{ships,
+ * diff.add}` (`desk/lib/groups-json.hoon:1233`, from a seat add in
+ * `desk/lib/groups-conv.hoon:666-676`). The bot's own ship is dropped: its
+ * join is not news to it.
+ */
+export function parseGroupsUiMemberJoinFact(
+  event: unknown,
+  opts: { botShip?: string } = {}
+): { groupId: string; ships: string[] } | null {
+  if (!isRecord(event)) return null;
+  const { flag, update } = event;
+  if (typeof flag !== 'string' || !isRecord(update)) return null;
+  const diff = update.diff;
+  if (!isRecord(diff)) return null;
+  const fleet = diff.fleet;
+  if (!isRecord(fleet) || !isRecord(fleet.diff) || !('add' in fleet.diff)) {
+    return null;
+  }
+  const ships = stringList(fleet.ships).filter((s) => s !== opts.botShip);
+  return ships.length > 0 ? { groupId: flag, ships } : null;
+}
+
+/** `~2000.1.1`, the `@da` bunt, in the Unix ms the seat JSON carries. */
+const DA_BUNT_MS = 946684800000;
+
+/**
+ * Keep the ships whose seat records a join. An admin seat add or re-add also
+ * emits a fleet `add`, but leaves `joined` at the `@da` bunt
+ * (`desk/app/groups.hoon:2679`), which the backend's own join activity skips
+ * (`:4195`); the legacy `/groups/ui` fact drops that distinction, so read it
+ * from the seats.
+ */
+export async function filterJoinedShips(
+  join: { groupId: string; ships: string[] },
+  scry: (path: string) => Promise<unknown>
+): Promise<string[]> {
+  const group = await scry(`/groups/v2/groups/${join.groupId}.json`);
+  const seats = isRecord(group) && isRecord(group.seats) ? group.seats : {};
+  return join.ships.filter((ship) => {
+    const joined = isRecord(seats[ship]) ? seats[ship].joined : undefined;
+    return typeof joined === 'number' && joined !== DA_BUNT_MS;
+  });
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }

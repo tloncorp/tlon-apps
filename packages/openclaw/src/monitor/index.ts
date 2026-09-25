@@ -189,8 +189,10 @@ import {
   type GroupsUiChannelHandlerDeps,
   applyGroupsUiRoleFact,
   createGroupChannelJournal,
+  filterJoinedShips,
   handleGroupsUiChannelFact,
   parseGroupsUiChannelFact,
+  parseGroupsUiMemberJoinFact,
   parseGroupsUiRoleFact,
 } from './group-channels.js';
 import {
@@ -5884,54 +5886,46 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           path: '/groups/ui',
           event: async (event: any) => {
             try {
-              // Handle fleet (member) changes - inject system message for joins
-              //
-              // Known-dead: the `group-action-3` mark emits
-              // `update.diff.fleet.{ships, diff}`, not `update.fleet`, so this
-              // branch has never matched a real fact. Reviving it enables a
-              // model-visible system turn per member join, which is a product
-              // decision tracked in the TLON-6297 follow-up issue.
-              if (event?.flag && event?.update?.fleet) {
-                const groupFlag = event.flag as string;
-                const fleet = event.update.fleet;
-                // Fleet structure: { "~ship": { add: null } } or similar
-                if (fleet && typeof fleet === 'object') {
-                  for (const [ship, diff] of Object.entries(fleet)) {
-                    if (
-                      diff &&
-                      typeof diff === 'object' &&
-                      'add' in (diff as any)
-                    ) {
-                      // New member joined - find sessions with channels in this group
-                      for (const [nest, flag] of channelToGroup.entries()) {
-                        if (flag === groupFlag && watchedChannels.has(nest)) {
-                          const route = core.channel.routing.resolveAgentRoute({
-                            cfg,
-                            channel: 'tlon',
-                            peer: { kind: 'group', id: nest },
-                          });
-                          if (route?.sessionKey) {
-                            const memberDisplay = formatShipWithNickname(ship);
-                            core.system.enqueueSystemEvent(
-                              `[${memberDisplay} joined group ${groupFlag}]`,
-                              {
-                                sessionKey: route.sessionKey,
-                                // Route any resulting system turn back to Tlon.
-                                deliveryContext: tlonDeliveryContext(
-                                  `tlon:${nest}`,
-                                  route.accountId
-                                ),
-                              }
-                            );
-                            runtime.log?.(
-                              `[tlon] Member joined: ${ship} → ${groupFlag}`
-                            );
-                            break; // Only inject once per group
-                          }
-                        }
-                      }
+              // One queued system event per fact, naming ships rather than
+              // display names: nicknames are member-controlled text.
+              const join = parseGroupsUiMemberJoinFact(event, {
+                botShip: botShipName,
+              });
+              const watchesGroup =
+                join !== null &&
+                [...channelToGroup].some(
+                  ([nest, flag]) =>
+                    flag === join.groupId && watchedChannels.has(nest)
+                );
+              const ships = watchesGroup
+                ? await filterJoinedShips(join, (path) => api.scry(path))
+                : [];
+              if (join && ships.length > 0) {
+                const { groupId } = join;
+                for (const [nest, flag] of channelToGroup.entries()) {
+                  if (flag !== groupId || !watchedChannels.has(nest)) continue;
+                  const route = core.channel.routing.resolveAgentRoute({
+                    cfg,
+                    channel: 'tlon',
+                    accountId: opts.accountId ?? undefined,
+                    peer: { kind: 'group', id: nest },
+                  });
+                  if (!route?.sessionKey) continue;
+                  core.system.enqueueSystemEvent(
+                    `[${ships.join(', ')} joined group ${groupId}]`,
+                    {
+                      sessionKey: route.sessionKey,
+                      // Route any resulting system turn back to Tlon.
+                      deliveryContext: tlonDeliveryContext(
+                        `tlon:${nest}`,
+                        route.accountId
+                      ),
                     }
-                  }
+                  );
+                  runtime.log?.(
+                    `[tlon] Member joined: ${ships.join(', ')} → ${groupId}`
+                  );
+                  break; // Only inject once per group
                 }
               }
 

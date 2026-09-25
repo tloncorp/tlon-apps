@@ -7,8 +7,10 @@ import {
   type GroupChannelJournalDeps,
   type GroupsUiChannelHandlerDeps,
   createGroupChannelJournal,
+  filterJoinedShips,
   handleGroupsUiChannelFact,
   parseGroupsUiChannelFact,
+  parseGroupsUiMemberJoinFact,
   canReadChannel,
   applyGroupsUiRoleFact,
   parseGroupsUiRoleFact,
@@ -364,6 +366,56 @@ describe('parseGroupsUiChannelFact readability data', () => {
     expect(fact.channels).toEqual([
       { nest: 'chat/~zod/staff', title: 'Staff', readers: ['staff'] },
     ]);
+  });
+});
+
+describe('parseGroupsUiMemberJoinFact', () => {
+  const fleetFact = (ships: string[], diff: unknown) => ({
+    flag: '~zod/test',
+    update: { time: FLEET_FACT.update.time, diff: { fleet: { ships, diff } } },
+  });
+
+  it('reads a fleet add as one join naming every ship but the bot', () => {
+    expect(
+      parseGroupsUiMemberJoinFact(
+        fleetFact(['~nec', '~bus', '~wes'], { add: null }),
+        {
+          botShip: '~bus',
+        }
+      )
+    ).toEqual({ groupId: '~zod/test', ships: ['~nec', '~wes'] });
+    expect(
+      parseGroupsUiMemberJoinFact(fleetFact(['~bus'], { add: null }), {
+        botShip: '~bus',
+      })
+    ).toBeNull();
+  });
+
+  it('ignores fleet dels, channel facts, and the old update.fleet shape', () => {
+    expect(
+      parseGroupsUiMemberJoinFact(fleetFact(['~nec'], { del: null }))
+    ).toBeNull();
+    expect(parseGroupsUiMemberJoinFact(CHANNEL_ADD_FACT)).toBeNull();
+    expect(
+      parseGroupsUiMemberJoinFact({
+        flag: '~zod/test',
+        update: { fleet: { '~nec': { add: null } } },
+      })
+    ).toBeNull();
+  });
+});
+
+describe('filterJoinedShips', () => {
+  it('drops ships whose seat joined time is the @da bunt', async () => {
+    const scry = vi.fn(async (_path: string) => ({
+      seats: {
+        '~nec': { roles: [], joined: 1710342753588 },
+        '~wes': { roles: [], joined: 946684800000 },
+      },
+    }));
+    const join = { groupId: '~zod/test', ships: ['~nec', '~wes', '~ten'] };
+    expect(await filterJoinedShips(join, scry)).toEqual(['~nec']);
+    expect(scry).toHaveBeenCalledWith('/groups/v2/groups/~zod/test.json');
   });
 });
 
