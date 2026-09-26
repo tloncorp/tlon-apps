@@ -262,11 +262,6 @@ export function parseTips(value: string | undefined): number {
 async function resumeSet(reference: string, options: Options) {
   const set = loadRunSet(resolveRunSet(reference));
   const { manifest } = set;
-  if (manifest.mode === 'real') {
-    throw new Error(
-      'Resuming real-mode sets is not supported yet; start a new set.'
-    );
-  }
   const frozen = frozenResumeInputs(set.dir, manifest);
   const checkpoint = frozen?.checkpoint;
   const config = checkpoint
@@ -314,6 +309,30 @@ async function resumeSet(reference: string, options: Options) {
   console.log(
     `${manifest.label}: ${jobs.length} runs to fill (${jobs.filter((job) => job.run).length} re-grade only)`
   );
+  if (manifest.mode === 'real') {
+    // Real runs can't be re-graded in place; fill missing or failed ones.
+    const fresh = await runRealSet({
+      dir: set.dir,
+      jobs: jobs.filter((job) => !job.run || job.run.error),
+      config,
+      sources,
+      agent: manifest.deployment?.agent,
+      maxTurns: frozen?.maxTurns ?? Number(options['max-turns'] ?? 8),
+      judge: frozen?.judge ?? !options['no-judge'],
+      checkpoint: frozen ?? {},
+      onRun: (run) => console.log(progressLine(run)),
+    });
+    const all = [
+      ...set.runs.filter(
+        (run) =>
+          !fresh.some(
+            (f) => f.persona.id === run.persona.id && f.repeat === run.repeat
+          )
+      ),
+      ...fresh,
+    ];
+    return finishSet(set.dir, manifest.label, manifest, all);
+  }
   await pool(jobs, Number(options.concurrency ?? 4), async (job) => {
     let run: RunRecord;
     if (job.run) {

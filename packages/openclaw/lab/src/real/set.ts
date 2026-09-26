@@ -35,9 +35,8 @@ export async function runRealSet(input: {
   agent: DeployedAgent | undefined;
   maxTurns: number;
   judge: boolean;
-  checkpoint: Pick<
-    PromptCheckpoint,
-    'rubric' | 'simulatorPolicy' | 'keepPolicy'
+  checkpoint: Partial<
+    Pick<PromptCheckpoint, 'rubric' | 'simulatorPolicy' | 'keepPolicy'>
   >;
   onRun?: (run: RunRecord) => void;
 }): Promise<RunRecord[]> {
@@ -62,6 +61,25 @@ export async function runRealSet(input: {
   }).trim();
   const proxy = new ModelProxy(Number(process.env.LAB_PROXY_PORT ?? 48790));
   await proxy.start();
+  // Urbit clients keep event streams open in the background; when a reset
+  // restarts a ship agent those streams reject with nobody awaiting them.
+  // Anything else still ends the set.
+  const onRejection = (reason: unknown) => {
+    const message = String((reason as Error)?.message ?? reason);
+    const cause = String((reason as { cause?: Error })?.cause?.message ?? '');
+    if (
+      /fetch failed|other side closed|ECONNRESET|socket/i.test(
+        `${message} ${cause}`
+      )
+    ) {
+      console.warn(
+        `Ignored a dropped ship connection: ${message} ${cause}`.trim()
+      );
+      return;
+    }
+    throw reason;
+  };
+  process.on('unhandledRejection', onRejection);
   try {
     const stack = new LabStack(config.tlonbotDir);
     console.log(`Preparing the sandbox on plugin ${ref.slice(0, 10)}…`);
@@ -115,6 +133,7 @@ export async function runRealSet(input: {
     });
     return runs;
   } finally {
+    process.off('unhandledRejection', onRejection);
     await proxy.stop();
   }
 }
