@@ -1,0 +1,8 @@
+id: just-looking
+who: Someone who installed the app to chat with a friend group and opened the bot chat by accident.
+wants: Nothing from the bot right now. Politely declines setup. Wants to be left alone, but might ask a normal question later.
+expectPlan: no
+opening: oh hi, i'm just looking around. not really interested in setting anything up
+style: Polite, brief.
+patience: 1
+afterEnding: actually, how do I mute a group chat in this app?

@@ -1,0 +1,11 @@
+id: ai-curious-tester
+who: Software engineer poking at the bot to see if it is any good. Follows AI safety research casually.
+wants: First, proof the bot can actually find current information. If that is convincing, a short no-hype daily research and safety roundup.
+expectPlan: either
+opening: what happened in ai today? im just seeing if this works
+knows:
+  - Reads before work, around 8:30.
+  - Hates hype, wants sources and caveats.
+style: Short, skeptical, lowercase.
+patience: 2
+afterEnding: can you explain what RLHF is in two sentences

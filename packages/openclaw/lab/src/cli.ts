@@ -1,0 +1,268 @@
+import { writeFileSync } from 'node:fs';
+import path from 'node:path';
+import { parseArgs } from 'node:util';
+import { loadConfig, loadPromptSources, RUNS_DIR } from './config.js';
+import { judgePair } from './judge.js';
+import type { CostMeter } from './openrouter.js';
+import {
+  type ComparePair,
+  metrics,
+  renderCompareReport,
+  renderRunSetReport,
+} from './report.js';
+import { runPersona } from './runner.js';
+import {
+  createRunSet,
+  loadPersonas,
+  loadRunSet,
+  resolveRunSet,
+  writeRun,
+} from './store.js';
+import type { RunRecord } from './types.js';
+
+const USAGE = `Onboarding lab: simulated users against the real onboarding skill and tools.
+
+  pnpm lab run [options]            run personas and grade them
+  pnpm lab ab --variant <dir> [...]  run baseline and a variant, then compare
+  pnpm lab compare <setA> <setB>     judge two existing run sets side by side
+  pnpm lab report <set>              re-render a run set's report
+  pnpm lab personas                  list persona cards
+
+Options:
+  --personas a,b      persona ids (default: all)
+  --repeat N          runs per persona (default: 1 for run, 3 for ab)
+  --variant DIR       folder of edited SKILL.md and/or tlonbot prompt files
+  --label NAME        run set name (default: baseline or the variant folder)
+  --concurrency N     personas in flight at once (default: 4)
+  --max-turns N       user messages before giving up (default: 8)
+  --bot-model ID      OpenRouter model for the bot
+  --user-model ID     OpenRouter model for the simulated person
+  --judge-model ID    OpenRouter model for the judge
+  --no-judge          skip the judge (facts and keep verdict only)
+`;
+
+async function pool<T, R>(
+  items: T[],
+  limit: number,
+  work: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, async () => {
+      while (next < items.length) {
+        const index = next++;
+        results[index] = await work(items[index]);
+      }
+    })
+  );
+  return results;
+}
+
+function progressLine(run: RunRecord) {
+  const j = run.judgement;
+  const status = run.error ? '✗' : '✓';
+  return `${status} ${run.persona.id} #${run.repeat}  ending=${run.facts.ending}  matched=${j ? (j.outcome.matched ? 'yes' : 'no') : '-'}  conv=${j?.conversation.score ?? '-'}  result=${j?.result.score ?? '-'}  keep=${run.keep ? (run.keep.keep ? 'yes' : 'no') : '-'}  $${run.costUsd.toFixed(3)}  ${(run.durationMs / 1000).toFixed(0)}s${run.error ? `  (${run.error})` : ''}`;
+}
+
+type Options = {
+  personas?: string;
+  repeat?: string;
+  variant?: string;
+  label?: string;
+  concurrency?: string;
+  'max-turns'?: string;
+  'bot-model'?: string;
+  'user-model'?: string;
+  'judge-model'?: string;
+  'no-judge'?: boolean;
+};
+
+async function runSet(
+  options: Options,
+  defaults: { repeat: number; label?: string }
+) {
+  const config = loadConfig({
+    bot: options['bot-model'],
+    user: options['user-model'],
+    judge: options['judge-model'],
+  });
+  const variant = options.variant ? path.resolve(options.variant) : undefined;
+  const sources = loadPromptSources(config, variant);
+  const personas = loadPersonas(
+    options.personas
+      ?.split(',')
+      .map((id) => id.trim())
+      .filter(Boolean)
+  );
+  const repeat = Number(options.repeat ?? defaults.repeat);
+  const label =
+    defaults.label ??
+    options.label ??
+    (variant ? path.basename(variant) : 'baseline');
+  const { dir, manifest } = createRunSet({
+    label,
+    config,
+    sources,
+    variant,
+    personas,
+    repeat,
+  });
+  console.log(
+    `${label}: ${personas.length} personas × ${repeat} · bot ${config.models.bot} · prompts from ${config.tlonbotDir}${config.braveKey ? '' : ' · no BRAVE_API_KEY, web search disabled'}`
+  );
+  const jobs = personas.flatMap((persona) =>
+    Array.from({ length: repeat }, (_, index) => ({
+      persona,
+      repeat: index + 1,
+    }))
+  );
+  const runs = await pool(
+    jobs,
+    Number(options.concurrency ?? 4),
+    async (job) => {
+      const run = await runPersona({
+        ...job,
+        config,
+        sources,
+        maxTurns: Number(options['max-turns'] ?? 8),
+        judge: !options['no-judge'],
+      });
+      writeRun(dir, run);
+      console.log(progressLine(run));
+      return run;
+    }
+  );
+  const reportPath = path.join(dir, 'report.html');
+  writeFileSync(reportPath, renderRunSetReport(manifest, runs));
+  const m = metrics(runs);
+  console.log(
+    `\n${label}: matched ${m.outcomeMatched === null ? '-' : `${Math.round(m.outcomeMatched * 100)}%`} · conversation ${m.conversation?.toFixed(2) ?? '-'} · result ${m.result?.toFixed(2) ?? '-'} · keep ${m.keep === null ? '-' : `${Math.round(m.keep * 100)}%`} · $${m.costUsd.toFixed(2)}\nReport: ${reportPath}`
+  );
+  return dir;
+}
+
+async function compare(aRef: string, bRef: string, judgeModel?: string) {
+  const config = loadConfig({ judge: judgeModel });
+  const a = loadRunSet(resolveRunSet(aRef));
+  const b = loadRunSet(resolveRunSet(bRef));
+  const key = (run: RunRecord) => `${run.persona.id}#${run.repeat}`;
+  const byKey = new Map(b.runs.map((run) => [key(run), run]));
+  const matched = a.runs
+    .filter(
+      (run) => byKey.has(key(run)) && !run.error && !byKey.get(key(run))!.error
+    )
+    .map((run) => ({ a: run, b: byKey.get(key(run))! }));
+  if (!matched.length)
+    throw new Error('The two run sets share no completed persona runs.');
+  const meter: CostMeter = { usd: 0 };
+  console.log(`Judging ${matched.length} pairs side by side…`);
+  const pairs = await pool(matched, 4, async ({ a: runA, b: runB }) => {
+    // Shuffle order so the judge's position bias does not favor either set.
+    const flip = Math.random() < 0.5;
+    const verdict = await judgePair({
+      a: flip ? runB : runA,
+      b: flip ? runA : runB,
+      config,
+      meter,
+    });
+    const winner =
+      verdict.winner === 'tie'
+        ? 'tie'
+        : (verdict.winner === 'A') !== flip
+          ? 'A'
+          : 'B';
+    return {
+      persona: runA.persona.id,
+      repeat: runA.repeat,
+      a: runA,
+      b: runB,
+      verdict: { winner, why: verdict.why },
+    } satisfies ComparePair;
+  });
+  const stamp = new Date()
+    .toISOString()
+    .replace(/[-:]/g, '')
+    .replace(/\..+$/, '')
+    .replace('T', '-');
+  const reportPath = path.join(
+    RUNS_DIR,
+    `compare-${stamp}-${a.manifest.label}-vs-${b.manifest.label}.html`.replace(
+      /[^a-z0-9.-]+/gi,
+      '-'
+    )
+  );
+  writeFileSync(reportPath, renderCompareReport({ a, b, pairs }));
+  const wins = { A: 0, B: 0, tie: 0 };
+  for (const pair of pairs) wins[pair.verdict.winner]++;
+  console.log(
+    `${b.manifest.label} won ${wins.B}, ${a.manifest.label} won ${wins.A}, ${wins.tie} ties · judging cost $${meter.usd.toFixed(2)}\nReport: ${reportPath}`
+  );
+}
+
+async function main() {
+  const { values, positionals } = parseArgs({
+    allowPositionals: true,
+    options: {
+      personas: { type: 'string' },
+      repeat: { type: 'string' },
+      variant: { type: 'string' },
+      label: { type: 'string' },
+      concurrency: { type: 'string' },
+      'max-turns': { type: 'string' },
+      'bot-model': { type: 'string' },
+      'user-model': { type: 'string' },
+      'judge-model': { type: 'string' },
+      'no-judge': { type: 'boolean' },
+      help: { type: 'boolean', short: 'h' },
+    },
+  });
+  const [command, ...rest] = positionals;
+  if (!command || values.help) {
+    console.log(USAGE);
+    return;
+  }
+  switch (command) {
+    case 'run':
+      await runSet(values, { repeat: 1 });
+      return;
+    case 'ab': {
+      if (!values.variant) throw new Error('ab needs --variant <dir>');
+      const baseline = await runSet(
+        { ...values, variant: undefined },
+        {
+          repeat: 3,
+          label: 'baseline',
+        }
+      );
+      const candidate = await runSet(values, { repeat: 3 });
+      await compare(baseline, candidate, values['judge-model']);
+      return;
+    }
+    case 'compare':
+      if (rest.length !== 2) throw new Error('compare needs two run sets');
+      await compare(rest[0], rest[1], values['judge-model']);
+      return;
+    case 'report': {
+      const set = loadRunSet(resolveRunSet(rest[0] ?? ''));
+      const reportPath = path.join(set.dir, 'report.html');
+      writeFileSync(reportPath, renderRunSetReport(set.manifest, set.runs));
+      console.log(`Report: ${reportPath}`);
+      return;
+    }
+    case 'personas':
+      for (const persona of loadPersonas()) {
+        console.log(
+          `${persona.id.padEnd(22)} expectPlan=${persona.expectPlan.padEnd(6)} ${persona.wants}`
+        );
+      }
+      return;
+    default:
+      throw new Error(`Unknown command "${command}".\n\n${USAGE}`);
+  }
+}
+
+main().catch((error: unknown) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exitCode = 1;
+});

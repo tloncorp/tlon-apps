@@ -1,0 +1,155 @@
+# Onboarding lab
+
+A fast way to try changes to Tlonbot's first-run onboarding and see whether
+they help. You edit the onboarding skill or a workspace prompt, run a set of
+simulated people through onboarding, and get a report that grades each
+conversation and the first result it produced. Two sets of runs can be judged
+side by side.
+
+It runs without Urbit, Docker or the gateway. A run takes under a minute and a
+few cents per persona, and personas run in parallel.
+
+## How a run works
+
+1. A **persona card** (`personas/*.yaml`) describes a person: who they are, what
+   they want from the bot, what they know but only share when asked, how they
+   write, and how many questions they tolerate.
+2. The coordinator's real welcome message opens the chat.
+3. A **simulated person** (a second model, playing the card) replies. It taps a
+   picker option or types, the way that person would.
+4. The **bot** answers with the configured model, the real onboarding skill and
+   tlonbot's workspace prompts, and the plugin's own tools and guards. See
+   "What is real" below.
+5. When the bot posts a task plan, the lab posts the coordinator's real
+   acknowledgement, runs the scheduled task once with web search to produce the
+   first note, and posts the "first entry is ready" message.
+6. **After the ending**, the person sends one unrelated message (`afterEnding`)
+   to see whether the bot answers it or keeps steering toward setup.
+7. The simulated person says whether they got what they came for.
+8. A **judge** model grades the run against the persona card, using
+   [`rubric.md`](rubric.md) and the skill the bot was running.
+
+## What is real and what is approximated
+
+Real, imported from the plugin:
+
+- The onboarding skill, tlonbot's workspace prompts, and the per-turn notes the
+  gateway adds to owner messages (`src/onboarding-turn-context.ts`).
+- The typed tools' names, descriptions, parameter schemas and validation
+  (`tlon_agent_choice`, `tlon_agent_task_plan`, `tlon_agent_service_setup`).
+- The turn guards in `src/onboarding-tool-boundary.ts`: one picker per turn, no
+  plan after a picker, stale-turn blocking, and `cron` blocked while onboarding
+  is incomplete.
+- The coordinator's messages and the scheduled-run prompt
+  (`agentOnboardingTesting` in `src/monitor/agent-onboarding.ts`).
+- Onboarding stays incomplete, and the skill note keeps being added, until a
+  first entry is produced. This is the plugin's current behavior.
+- Web search (Brave) and page fetches.
+
+Approximated:
+
+- OpenClaw's own system prompt framing. The workspace files, skill listing and
+  tool guidance are real, but the wrapper around them is rebuilt in
+  `src/context.ts`.
+- The `tlon` tool answers only `settings get`, `groups list` and
+  `contacts self`. `cron` succeeds without scheduling anything once onboarding
+  is complete.
+- Delivery and the app itself. Timing races (a user sending "hello?" while a
+  plan is provisioning), the app's picker UI, and notebook delivery are not
+  simulated. Those belong to the real-stack tier.
+
+When the fast tier and the real stack disagree, trust the real stack and fix
+the lab.
+
+## Setup
+
+The lab reads tlonbot's prompts and keys from a tlonbot checkout. Put its path
+in `lab/.env` (gitignored):
+
+```
+TLONBOT_DIR=/path/to/tlonbot
+```
+
+It picks up `OPENROUTER_API_KEY` and `BRAVE_API_KEY` from that checkout's
+`tests/.env`, or from `lab/.env` or your shell. Without a Brave key, web search
+returns an error to the bot.
+
+Models default to the bot model in tlonbot's `tests/.env`, Claude Sonnet 5 for
+the simulated person, and Claude Opus 5.5 for the judge. Override them with
+`LAB_BOT_MODEL`, `LAB_USER_MODEL` and `LAB_JUDGE_MODEL`, or with the flags below.
+Keep the judge on a different model family from the bot.
+
+## Commands
+
+Run these from `packages/openclaw`.
+
+```bash
+pnpm lab personas                         # list persona cards
+pnpm lab run                              # every persona once, graded
+pnpm lab run --personas founder-blunt,one-off-toast --repeat 3
+pnpm lab ab --variant ~/lab-variants/shorter-questions
+pnpm lab compare baseline shorter-questions
+pnpm lab report baseline                  # re-render a run set's report
+```
+
+`run` options: `--personas`, `--repeat`, `--variant`, `--label`,
+`--concurrency` (default 4), `--max-turns` (default 8), `--bot-model`,
+`--user-model`, `--judge-model`, `--no-judge`.
+
+Each run set is saved under `lab/runs/<timestamp>-<label>/` (gitignored), with
+one JSON file per run, a `manifest.json` and a `report.html`. The manifest
+records the git revision, the models, and a hash of the skill and every prompt
+file, so you can always tell what produced a result.
+
+## Trying a change
+
+A **variant** is a folder of edited copies. Any `SKILL.md` in it replaces the
+onboarding skill. Any other `.md` file replaces the tlonbot prompt with the same
+name. The onboarding sandbox's `.sandbox-prompts` folder works as a variant.
+
+```bash
+mkdir -p ~/lab-variants/shorter-questions
+cp skills/tlon-agent-onboarding/SKILL.md ~/lab-variants/shorter-questions/
+# edit it, then:
+pnpm lab ab --variant ~/lab-variants/shorter-questions --repeat 3
+```
+
+`ab` runs the baseline and the variant with the same personas, then has the
+judge compare each pair side by side. The order within each pair is shuffled so
+the judge's position bias cancels out. Models are noisy, so use at least three
+repeats before trusting a difference. Side-by-side wins are more reliable than
+the difference between two average scores.
+
+## Reading the report
+
+- **Ending matched**: the judge's call on whether the conversation ended the
+  way this person wanted. A plan counts against the bot for someone who wanted
+  a single answer.
+- **Conversation** and **first result**: 1–5 scores. Every issue quotes the text
+  it is about.
+- **Follow-up**: whether the bot answered the unrelated message normally.
+- **Rule breaks**: clear breaks of the skill's own rules, with quotes.
+- **Came for it**: the simulated person's own answer.
+- **Pickers** and **user messages**: measured facts, not grades.
+
+## Personas
+
+A persona card is a YAML file in `personas/`:
+
+```yaml
+id: one-off-toast
+who: Sibling of the bride. Wedding is this Saturday.
+wants: Help writing one short toast now. Declines any recurring setup.
+expectPlan: no          # yes | no | either
+opening: can u help me write a toast for my sisters wedding saturday?
+knows:
+  - Sister is Maya, marrying Jordan.
+style: Warm, a little nervous.
+patience: 2             # questions tolerated before getting impatient
+afterEnding: thanks. whats a good gift under $100 for them
+timezone: America/New_York
+```
+
+Keep about half the suite awkward: people who decline, want a single answer,
+want a cadence the product doesn't offer, ignore the buttons, or ask for
+private data the bot can't reach. The cooperative cases mostly pass already.

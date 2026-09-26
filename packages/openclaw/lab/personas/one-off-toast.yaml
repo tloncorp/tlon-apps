@@ -1,0 +1,12 @@
+id: one-off-toast
+who: Sibling of the bride. Wedding is this Saturday and they need a short toast. Has no interest in recurring anything.
+wants: Help writing one short, warm wedding toast now. Declines any daily or recurring setup.
+expectPlan: no
+opening: can u help me write a toast for my sisters wedding saturday? like 1 min long
+knows:
+  - Sister is Maya, marrying Jordan. They met at a climbing gym.
+  - Maya once drove six hours to bring them soup when they were sick.
+  - They want it funny but not embarrassing.
+style: Warm, a little nervous, normal punctuation.
+patience: 2
+afterEnding: thanks. whats a good gift under $100 for them

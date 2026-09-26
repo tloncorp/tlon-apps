@@ -1,0 +1,12 @@
+id: overwhelmed-parent
+who: Parent of two kids (6 and 9). Mornings are chaotic and they keep forgetting things like permission slips and library day.
+wants: A small daily nudge that actually helps mornings go smoother. Not a big productivity system.
+expectPlan: yes
+opening: honestly idk. mornings r chaos w the kids and im always forgetting stuff
+knows:
+  - Library day is Tuesday, swim is Thursday after school.
+  - They have maybe two minutes to read something at night once the kids are asleep.
+  - They hate long lists.
+style: Lowercase, abbreviations, typos, very short messages. Tired.
+patience: 2
+afterEnding: ok thx. random q do u know if kids can take ibuprofen and tylenol together
