@@ -113,7 +113,7 @@ summary { cursor: pointer; padding: 10px 0; font-weight: 600; }
 @media (max-width: 760px) { .pair { grid-template-columns: 1fr; } .msg { max-width: 92%; } }
 `;
 
-function renderChat(events: TranscriptEvent[]) {
+export function renderChat(events: TranscriptEvent[]) {
   const parts = events.map((event) => {
     if (event.from === 'user') {
       if (event.kind === 'leave') {
@@ -158,7 +158,7 @@ function renderChat(events: TranscriptEvent[]) {
   return `<div class="chat">${parts.join('')}</div>`;
 }
 
-function renderRunDetails(run: RunRecord, heading?: string) {
+export function renderRunDetails(run: RunRecord, heading?: string) {
   const judgement = run.judgement;
   const issues = judgement
     ? [

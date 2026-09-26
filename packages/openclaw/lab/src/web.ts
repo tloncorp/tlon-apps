@@ -4,20 +4,21 @@ import { STYLE } from './report.js';
 // JSON API. Kept dependency-free so `pnpm lab serve` needs nothing extra.
 
 const APP_STYLE = `
-main { max-width: 1320px; }
+main { max-width: 1400px; }
 header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
 nav.tabs { display: flex; gap: 4px; }
 nav.tabs a { padding: 6px 12px; border-radius: 7px; color: var(--muted); text-decoration: none; font-size: 14px; }
 nav.tabs a.active { background: var(--panel); border: 1px solid var(--line); color: var(--text); }
 .layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+.layout.wide-side { grid-template-columns: minmax(0, 1fr) 440px; }
 .layout > div { min-width: 0; }
-@media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
+@media (max-width: 1000px) { .layout, .layout.wide-side { grid-template-columns: 1fr; } }
 [hidden] { display: none !important; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; }
 .panel h2 { margin: 0 0 10px; }
 label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
 input[type=text], input[type=number], select, textarea { width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--text); font: inherit; }
-textarea.code { font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; min-height: 460px; resize: vertical; tab-size: 2; }
+textarea.code { font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; min-height: 560px; resize: vertical; tab-size: 2; }
 .row { display: flex; gap: 10px; } .row > * { flex: 1; }
 button { font: inherit; font-size: 14px; padding: 7px 12px; border-radius: 7px; border: 1px solid var(--line); background: var(--bg); color: var(--text); cursor: pointer; }
 button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -29,6 +30,8 @@ button.seg.on { background: var(--text); color: var(--bg); border-color: var(--t
 .checks label { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--text); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .radio label, .inline { display: flex; gap: 6px; align-items: center; color: var(--text); margin: 4px 0; }
 .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.hint:empty { display: none; }
+.muted { color: var(--muted); }
 .pill { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
 .pill.running { color: var(--accent); border-color: var(--accent); }
 .pill.done { color: var(--good); border-color: var(--good); }
@@ -49,15 +52,43 @@ td.pick { width: 28px; text-align: center; }
 .empty { color: var(--muted); font-size: 14px; }
 .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 10; }
 .toast.show { opacity: 1; }
-.filetabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0; }
-.filetabs button { font-size: 13px; padding: 4px 10px; }
-.filetabs button.on { border-color: var(--accent); color: var(--accent); }
 .dirty { color: var(--bad); font-size: 13px; }
-.diff { font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; border: 1px solid var(--line); border-radius: 7px; overflow: auto; max-height: 600px; }
+.diff { font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; border: 1px solid var(--line); border-radius: 7px; overflow: auto; max-height: 680px; }
 .diff div { white-space: pre-wrap; padding: 0 8px; overflow-wrap: anywhere; }
 .diff .add { background: color-mix(in srgb, var(--good) 16%, transparent); }
 .diff .del { background: color-mix(in srgb, var(--bad) 16%, transparent); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--bad) 50%, transparent); }
 .diff .gap { color: var(--muted); font-style: italic; }
+.error { color: var(--bad); font-size: 13px; white-space: pre-wrap; }
+table.overview td.desc { min-width: 280px; }
+table.overview td.num, table.overview td.num a { white-space: nowrap; }
+table.overview tr.vrow { cursor: pointer; }
+table.overview tr.vrow:hover td { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+ul.bullets { margin: 4px 0 0; padding-left: 18px; font-size: 13px; }
+ul.bullets li { margin: 2px 0; }
+.fchange { font-size: 12px; white-space: nowrap; }
+a.back { font-size: 14px; text-decoration: none; }
+.editor-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+.editor-head h2 { margin: 0; }
+.editor-head .spacer { flex: 1; }
+.editor-grid { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 16px; margin-top: 14px; }
+@media (max-width: 760px) { .editor-grid { grid-template-columns: 1fr; } }
+.files h4 { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 14px 0 4px; }
+.files h4:first-child { margin-top: 0; }
+.files button { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: 6px; text-align: left; border: 1px solid transparent; background: none; padding: 5px 7px; font-size: 13px; border-radius: 6px; }
+.files button:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.files button.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.files .state { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.files .state.changed { color: var(--accent); font-weight: 600; }
+.files .oc { font-size: 10px; border: 1px solid var(--line); border-radius: 4px; padding: 0 3px; margin-left: 5px; color: var(--muted); }
+.files .legend { font-size: 11.5px; color: var(--muted); margin-top: 12px; line-height: 1.45; }
+.sim-chat { max-height: 72vh; overflow: auto; margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+.sim-chat .msg { max-width: 94%; }
+.sim-chat .issue { font-size: 12px; }
+.sim-status { font-size: 13px; color: var(--muted); margin-top: 10px; display: flex; justify-content: space-between; gap: 8px; }
+.sim-status:empty { display: none; }
+.who { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.earlier { font-size: 12.5px; margin-top: 10px; }
+.earlier div { display: flex; justify-content: space-between; gap: 8px; }
 .tipgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
 @media (max-width: 960px) { .tipgrid { grid-template-columns: 1fr; } }
 .tipcard { border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; margin-bottom: 10px; background: var(--bg); }
@@ -66,16 +97,6 @@ td.pick { width: 28px; text-align: center; }
 .tipcard .personal { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); font-size: 14px; white-space: pre-wrap; }
 .tipcard .personal .muted { font-size: 12px; }
 .tipcard.changed { border-color: var(--accent); }
-.error { color: var(--bad); font-size: 13px; white-space: pre-wrap; }
-table.overview td.desc { min-width: 280px; }
-table.overview td.num, table.overview td.num a { white-space: nowrap; }
-table.overview tr.current td { background: color-mix(in srgb, var(--accent) 7%, transparent); }
-table.overview tr.vrow { cursor: pointer; }
-table.overview tr.vrow:hover td { background: color-mix(in srgb, var(--accent) 4%, transparent); }
-ul.bullets { margin: 4px 0 0; padding-left: 18px; font-size: 13px; }
-ul.bullets li { margin: 2px 0; }
-.fchange { font-size: 12px; white-space: nowrap; }
-.muted { color: var(--muted); }
 `;
 
 const SCRIPT = `
@@ -84,15 +105,18 @@ const esc = (value) => String(value ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&a
 const pct = (value) => value == null ? '—' : Math.round(value * 100) + '%';
 const num = (value, digits = 2) => value == null ? '—' : Number(value).toFixed(digits);
 const when = (iso) => new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+const remember = (key, value) => { try { localStorage.setItem(key, value); } catch {} };
+const recall = (key) => { try { return localStorage.getItem(key); } catch { return null; } };
 let state = null;
 let picked = [];
 let openJobs = new Set();
 let personasInitialized = false;
-let variants = [];
-const editor = { variant: null, file: 'SKILL.md', original: '', parent: null, parentText: null, productionText: null, openclaw: null, readOnly: false, mode: 'edit' };
-const tips = { variant: null, original: '', baseline: '', cases: [], personal: {}, timer: null };
 let overview = [];
 const describing = new Set();
+const editor = { variant: null, file: null, original: '', parent: null, parentText: null, productionText: null, openclaw: null, readOnly: false, mode: 'edit', files: [] };
+const tips = { variant: null, original: '', baseline: '', personal: {}, timer: null };
+const sim = { label: null, job: null, timer: null };
+const SIM_EMPTY = '<p class="empty">Pick a persona and press Run test to watch one conversation with this variant. About a cent, a minute or two.</p>';
 
 function toast(message) {
   const el = $('#toast');
@@ -109,23 +133,39 @@ async function api(path, body, method) {
   return data;
 }
 
-/* ---------- tabs ---------- */
+/* ---------- routing ---------- */
 
-function currentTab() {
-  const tab = location.hash.replace('#', '');
-  return ['runs', 'variants', 'tips'].includes(tab) ? tab : 'runs';
+function route() {
+  const [tab, name] = location.hash.replace('#', '').split('/').map(decodeURIComponent);
+  if (tab === 'variants' && name) return { tab, screen: 'editor', variant: name };
+  if (tab === 'variants') return { tab, screen: 'list' };
+  if (tab === 'tips') return { tab, screen: 'tips' };
+  return { tab: 'runs', screen: 'runs' };
 }
 
-function showTab() {
-  const tab = currentTab();
-  document.querySelectorAll('[data-tab]').forEach((el) => { el.hidden = el.dataset.tab !== tab; });
-  document.querySelectorAll('nav.tabs a').forEach((a) => a.classList.toggle('active', a.getAttribute('href') === '#' + tab));
-  if (tab === 'variants' && !editor.variant) loadVariants();
-  if (tab === 'variants') loadOverview().catch((e) => toast(e.message));
-  if (tab === 'tips' && !tips.variant) loadVariants();
+async function show() {
+  const r = route();
+  if ((r.screen !== 'editor' || r.variant !== editor.variant) && editorDirty()) {
+    if (!confirm('Leave without saving ' + editor.file + '?')) {
+      history.replaceState(null, '', '#variants/' + encodeURIComponent(editor.variant));
+      return;
+    }
+    $('#e-editor').value = editor.original;
+  }
+  document.querySelectorAll('[data-screen]').forEach((el) => { el.hidden = !el.dataset.screen.split(' ').includes(r.screen); });
+  document.querySelectorAll('nav.tabs a').forEach((a) => a.classList.toggle('active', a.dataset.tab === r.tab));
+  $('#layout').classList.toggle('wide-side', r.screen === 'editor');
+  window.scrollTo(0, 0);
+  try {
+    if (r.screen === 'list') await loadOverview();
+    if (r.screen === 'editor') await openEditor(r.variant);
+    if (r.screen === 'tips') await loadTipsVariants();
+  } catch (error) {
+    toast(error.message);
+  }
 }
 
-window.addEventListener('hashchange', showTab);
+window.addEventListener('hashchange', show);
 window.addEventListener('beforeunload', (event) => {
   if (editorDirty() || tipsDirty()) event.preventDefault();
 });
@@ -168,10 +208,12 @@ function renderDiff(before, after) {
   return html;
 }
 
-/* ---------- runs tab ---------- */
+/* ---------- runs screen ---------- */
+
+const runSets = () => state.sets.filter((set) => !set.label.startsWith('sim-'));
 
 function renderSets() {
-  const sets = state.sets;
+  const sets = runSets();
   if (!sets.length) return '<p class="empty">No run sets yet. Start one on the right.</p>';
   const rows = sets.map((set) => {
     const order = picked.indexOf(set.name);
@@ -233,22 +275,16 @@ function renderJobs() {
     '</div>').join('');
 }
 
-function personaOptions() {
-  return state.personas.map((p) => '<option value="' + esc(p.id) + '">' + esc(p.id) + (p.blank ? ' (blank slate)' : '') + '</option>').join('');
-}
-
 function renderForm() {
-  const options = state.variants.map((v) => '<option>' + esc(v) + '</option>').join('');
-  for (const id of ['#variant', '#try-variant']) {
-    const el = $(id);
-    const current = el.value;
-    el.innerHTML = options;
-    if (current && state.variants.includes(current)) el.value = current;
-  }
-  if (editor.variant) $('#try-variant').value = editor.variant;
+  const current = $('#variant').value;
+  $('#variant').innerHTML = state.variants.map((v) => '<option>' + esc(v) + '</option>').join('');
+  if (current && state.variants.includes(current)) $('#variant').value = current;
   if (!personasInitialized) {
     $('#personas').innerHTML = state.personas.map((p) => '<label title="' + esc(p.wants) + '"><input type="checkbox" name="persona" value="' + esc(p.id) + '" checked> ' + esc(p.id) + '</label>').join('');
-    $('#try-persona').innerHTML = personaOptions();
+    $('#sim-persona').innerHTML = state.personas.map((p) => '<option value="' + esc(p.id) + '">' + esc(p.id) + (p.blank ? ' · blank slate' : '') + '</option>').join('');
+    const last = recall('lab.simPersona');
+    if (last && state.personas.some((p) => p.id === last)) $('#sim-persona').value = last;
+    updatePersonaInfo();
     personasInitialized = true;
   }
   updateEstimate();
@@ -287,24 +323,17 @@ async function refresh() {
   $('#judging').innerHTML = renderJudging();
   $('#jobs').innerHTML = renderJobs();
   renderForm();
-  $('#summary').textContent = state.sets.length + ' run sets · ' + state.judging.length + ' judging folders';
+  renderEarlierTests();
+  $('#summary').textContent = runSets().length + ' run sets · ' + state.judging.length + ' judging folders';
   await refreshLogs();
   const running = state.jobs.some((job) => job.status === 'running');
   clearTimeout(window.__poll);
   window.__poll = setTimeout(refresh, running ? 2500 : 15000);
 }
 
-async function startRun(body, message) {
-  const job = await api('/api/runs', body);
-  openJobs.add(job.id);
-  toast(message);
-  refresh();
-}
-
-/* ---------- variants tab ---------- */
+/* ---------- variants list ---------- */
 
 function renderOverview() {
-  if (!overview.length) return '<p class="empty">No variants yet. Create one below.</p>';
   const rows = overview.map((v) => {
     const d = v.description;
     const describe = describing.has(v.name)
@@ -320,23 +349,24 @@ function renderOverview() {
       ? v.runSets.length + (v.runSets.length === 1 ? ' set' : ' sets') + '<span class="sub"><a href="/files/' + encodeURIComponent(latest.name) + '/report.html" target="_blank">latest ' + esc(when(latest.createdAt)) + '</a></span>' +
         (v.editedSinceLastRun ? '<span class="sub bad">edited since</span>' : '')
       : '<span class="muted">never run</span>';
-    return '<tr class="vrow' + (v.name === editor.variant ? ' current' : '') + '" data-row="' + esc(v.name) + '" title="Open ' + esc(v.name) + ' in the editor">' +
+    return '<tr class="vrow" data-row="' + esc(v.name) + '" title="Open ' + esc(v.name) + '">' +
       '<td><b>' + esc(v.name) + '</b><span class="sub">from ' + esc(v.parent) + '</span><span class="sub">' + esc(when(v.modifiedAt)) + '</span></td>' +
       '<td class="desc">' + describe + '</td>' +
       '<td>' + files + '</td>' +
       '<td class="num">' + runs + '</td>' +
-      '<td style="white-space:nowrap"><button class="link" data-edit="' + esc(v.name) + '">Edit</button><br>' +
-      '<button class="link" data-try="' + esc(v.name) + '">Try it</button><br>' +
-      (d && v.files.length ? '<button class="link" data-describe="' + esc(v.name) + '" data-force="1">Redescribe</button>' : '') + '</td>' +
+      '<td>' + (d && v.files.length ? '<button class="link" data-describe="' + esc(v.name) + '" data-force="1">Redescribe</button>' : '') + '</td>' +
       '</tr>';
   }).join('');
-  return '<div class="scroll"><table class="overview"><tr><th>Variant</th><th>What it changes vs its parent</th><th>Files</th><th>Runs</th><th></th></tr>' + rows + '</table></div>' +
-    '<p class="hint">Descriptions are written by Luna from the diff against the parent, cached, and redone only when either side changes.</p>';
+  const baseline = '<tr class="vrow" data-row="baseline" title="Open baseline"><td><b>baseline</b><span class="sub">production · read-only</span></td>' +
+    '<td class="desc"><span class="muted">What ships today: the plugin’s skills and tlonbot’s prompts. Open it to compare prompts with OpenClaw’s defaults or to test production.</span></td><td></td><td></td><td></td></tr>';
+  return '<div class="scroll"><table class="overview"><tr><th>Variant</th><th>What it changes vs its parent</th><th>Files</th><th>Runs</th><th></th></tr>' + rows + baseline + '</table></div>' +
+    '<p class="hint">Click a row to open it. Descriptions are written by Luna from the diff against the parent, cached, and redone only when either side changes.</p>';
 }
 
 async function loadOverview() {
   overview = await api('/api/variants/overview');
   $('#v-list').innerHTML = renderOverview();
+  $('#v-from').innerHTML = ['baseline', ...overview.map((v) => v.name).sort()].map((n) => '<option>' + esc(n) + '</option>').join('');
   for (const v of overview) {
     if (!v.description && !describing.has(v.name)) await describe(v.name, false);
   }
@@ -357,59 +387,60 @@ async function describe(name, force) {
   }
 }
 
+/* ---------- variant editor ---------- */
+
 function editorDirty() {
-  return !editor.readOnly && editor.variant && $('#v-editor').value !== editor.original;
+  return Boolean(editor.variant && !editor.readOnly && $('#e-editor').value !== editor.original);
 }
 
-async function loadVariants() {
-  variants = await api('/api/variants');
-  const options = variants.map((v) => '<option value="' + esc(v.name) + '">' + esc(v.name) + (v.readOnly ? ' (read-only)' : '') + '</option>').join('');
-  $('#v-select').innerHTML = options;
-  $('#v-from').innerHTML = variants.map((v) => '<option>' + esc(v.name) + '</option>').join('');
-  $('#t-variant').innerHTML = options;
-  if (!editor.variant) {
-    const first = variants.find((v) => !v.readOnly) || variants[0];
-    await openVariant(first.name, 'SKILL.md');
-  } else {
-    $('#v-select').value = editor.variant;
+async function openEditor(name) {
+  const switching = editor.variant !== name;
+  if (switching) {
+    Object.assign(editor, { variant: name, file: null, original: '', mode: 'edit' });
+    $('#e-editor').value = '';
+    clearTimeout(sim.timer);
+    Object.assign(sim, { label: null, job: null });
+    $('#sim-chat').innerHTML = SIM_EMPTY;
+    $('#sim-status').innerHTML = '';
+    $('#sim-run').disabled = false;
   }
-  if (!tips.variant) {
-    const first = variants.find((v) => !v.readOnly && v.files.includes('tips.yaml')) || variants.find((v) => !v.readOnly) || variants[0];
-    await openTips(first.name);
-  } else {
-    $('#t-variant').value = tips.variant;
-  }
+  if (!overview.length) overview = await api('/api/variants/overview');
+  const row = overview.find((v) => v.name === name);
+  if (name !== 'baseline' && !row) throw new Error('No variant named ' + name);
+  $('#e-title').textContent = name;
+  $('#e-parent').textContent = name === 'baseline' ? 'production · read-only' : 'from ' + row.parent;
+  $('#e-desc').textContent = row?.description?.title && row.files.length ? row.description.title : '';
+  $('#e-fork').textContent = 'New variant from ' + name + '…';
+  $('#sim-variant').textContent = name;
+  editor.files = await api('/api/variants/files?variant=' + encodeURIComponent(name));
+  const first = editor.file || editor.files.find((f) => f.changed)?.file || 'SKILL.md';
+  await openFile(first, true);
+  renderEarlierTests();
 }
 
-function renderFileTabs() {
-  const variant = variants.find((v) => v.name === editor.variant);
-  const shown = variant.readOnly ? ['SKILL.md', 'coordinator.yaml', 'tips.yaml'] : variant.files;
-  const present = shown.includes(editor.file) ? shown : [...shown, editor.file];
-  const others = (window.__editable || []).filter((file) => !present.includes(file));
-  $('#v-files').innerHTML = present.map((file) => '<button class="' + (file === editor.file ? 'on' : '') + '" data-file="' + esc(file) + '">' + esc(file) + '</button>').join('') +
-    (others.length ? '<select id="v-add"><option value="">+ override another file…</option>' + others.map((f) => '<option>' + esc(f) + '</option>').join('') + '</select>' : '');
-  const addSelect = $('#v-add');
-  if (addSelect) addSelect.style.width = 'auto';
+function renderFiles() {
+  const baseline = editor.variant === 'baseline';
+  const group = (name, title) => '<h4>' + title + '</h4>' + editor.files.filter((f) => f.group === name).map((f) => {
+    const status = baseline ? '' : f.changed ? 'changed' : f.overridden ? 'same as parent' : 'inherited';
+    return '<button class="' + (f.file === editor.file ? 'on' : '') + '" data-open-file="' + esc(f.file) + '">' +
+      '<span>' + esc(f.file) + (f.openclaw ? '<span class="oc" title="OpenClaw ships a default for this file">OC</span>' : '') + '</span>' +
+      '<span class="state' + (f.changed ? ' changed' : '') + '">' + status + '</span></button>';
+  }).join('');
+  $('#e-files').innerHTML = group('onboarding', 'Onboarding') + group('workspace', 'Workspace prompts') +
+    '<div class="legend"><b>OC</b>: OpenClaw ships a stock version, so “vs OpenClaw default” works. The onboarding files are Tlon’s own and have no OpenClaw counterpart.</div>';
 }
 
-async function openVariant(name, file) {
-  if (editorDirty() && !confirm('Discard unsaved changes to ' + editor.file + '?')) {
-    $('#v-select').value = editor.variant;
-    return;
-  }
-  const data = await api('/api/variants/file?variant=' + encodeURIComponent(name) + '&file=' + encodeURIComponent(file));
-  Object.assign(editor, { variant: name, file, original: data.text, parent: data.parent, parentText: data.parentText, productionText: data.productionText, openclaw: data.openclaw, readOnly: data.readOnly });
-  const variant = variants.find((v) => v.name === name);
-  $('#v-select').value = name;
-  $('#v-parent').textContent = variant.readOnly ? 'What the lab uses when a variant doesn’t replace a file.' : 'Based on ' + (variant.parent || 'baseline') + '.';
-  $('#v-editor').value = data.text;
-  $('#v-editor').readOnly = data.readOnly;
-  $('#v-save').hidden = data.readOnly;
-  $('#v-exists').textContent = data.exists ? '' : 'Not overridden yet: this is the ' + (data.parent || 'baseline') + ' version. Saving creates the override.';
-  $('#try-variant').value = name;
-  renderFileTabs();
-  setEditorMode(editor.mode);
-  updateEditorStatus();
+async function openFile(file, force) {
+  if (!force && editorDirty() && !confirm('Discard unsaved changes to ' + editor.file + '?')) return;
+  const data = await api('/api/variants/file?variant=' + encodeURIComponent(editor.variant) + '&file=' + encodeURIComponent(file));
+  Object.assign(editor, { file, original: data.text, parent: data.parent, parentText: data.parentText, productionText: data.productionText, openclaw: data.openclaw, readOnly: data.readOnly });
+  $('#e-editor').value = data.text;
+  $('#e-editor').readOnly = data.readOnly;
+  $('#e-save').hidden = data.readOnly;
+  $('#e-exists').textContent = data.exists ? '' : 'Inherited from ' + (data.parent || 'baseline') + '. Saving gives this variant its own copy.';
+  renderFiles();
+  setMode(editor.mode);
+  updateDirty();
 }
 
 function diffSources() {
@@ -420,58 +451,125 @@ function diffSources() {
   };
 }
 
-function setEditorMode(mode) {
+function setMode(mode) {
   const sources = diffSources();
   if (mode !== 'edit' && !sources[mode]) mode = 'edit';
   editor.mode = mode;
   document.querySelectorAll('[data-mode]').forEach((b) => {
     b.classList.toggle('on', b.dataset.mode === mode);
-    if (b.dataset.mode !== 'edit') {
-      b.disabled = !sources[b.dataset.mode];
-      b.title = sources[b.dataset.mode] ? '' : b.dataset.mode === 'openclaw' ? 'OpenClaw has no stock template for this file' : 'Not applicable to baseline';
-    }
+    if (b.dataset.mode !== 'edit') b.disabled = !sources[b.dataset.mode];
   });
-  $('#v-editor').hidden = mode !== 'edit';
-  $('#v-diff').hidden = mode === 'edit';
-  $('#v-diff-label').textContent = mode === 'edit' ? '' : 'Red: only in ' + sources[mode].label + ' · Green: only in ' + editor.variant;
-  if (mode !== 'edit') $('#v-diff').innerHTML = renderDiff(sources[mode].text, $('#v-editor').value);
+  $('#e-editor').hidden = mode !== 'edit';
+  $('#e-diff').hidden = mode === 'edit';
+  $('#e-diff-label').textContent = mode === 'edit' ? '' : 'Red: only in ' + sources[mode].label + ' · Green: only in ' + editor.variant;
+  const why = [];
+  if (!sources.openclaw) why.push('No OpenClaw default: OpenClaw ships stock versions of the workspace prompts marked OC, but ' + editor.file + ' is Tlon’s own.');
+  if (editor.readOnly) why.push('Baseline is production, so there’s no parent to compare with.');
+  $('#e-why').textContent = why.join(' ');
+  if (mode !== 'edit') $('#e-diff').innerHTML = renderDiff(sources[mode].text, $('#e-editor').value);
 }
 
-function updateEditorStatus() {
-  $('#v-dirty').textContent = editorDirty() ? '● unsaved' : '';
+function updateDirty() {
+  $('#e-dirty').textContent = editorDirty() ? '● unsaved' : '';
 }
 
 async function saveEditor() {
   if (editor.readOnly) return;
-  await api('/api/variants/file', { variant: editor.variant, file: editor.file, text: $('#v-editor').value }, 'PUT');
-  editor.original = $('#v-editor').value;
-  $('#v-exists').textContent = '';
-  variants = await api('/api/variants');
-  renderFileTabs();
-  updateEditorStatus();
-  if (editor.file === 'tips.yaml' && tips.variant === editor.variant) openTips(tips.variant);
-  loadOverview().catch((e) => toast(e.message));
+  await api('/api/variants/file', { variant: editor.variant, file: editor.file, text: $('#e-editor').value }, 'PUT');
+  editor.original = $('#e-editor').value;
+  $('#e-exists').textContent = '';
+  updateDirty();
+  editor.files = await api('/api/variants/files?variant=' + encodeURIComponent(editor.variant));
+  renderFiles();
+  overview = await api('/api/variants/overview');
+  if (editor.file === 'tips.yaml' && tips.variant === editor.variant && !tipsDirty()) openTips(tips.variant);
   toast('Saved ' + editor.file);
 }
 
-/* ---------- tips tab ---------- */
+/* ---------- test conversation ---------- */
+
+function updatePersonaInfo() {
+  const persona = state?.personas.find((p) => p.id === $('#sim-persona').value);
+  $('#sim-who').textContent = persona ? persona.wants : '';
+}
+
+function renderEarlierTests() {
+  if (!state || !editor.variant) return;
+  const tests = state.sets.filter((set) => set.label.startsWith('sim-') && (set.variant || 'baseline') === editor.variant && set.label !== sim.label).slice(0, 6);
+  $('#sim-earlier').innerHTML = tests.length
+    ? '<label>Earlier tests</label>' + tests.map((set) => '<div><button class="link" data-sim="' + esc(set.label) + '">' + esc(set.persona || set.label) + '</button><span class="muted">' + esc(when(set.createdAt)) + (set.errors ? ' · error' : '') + '</span></div>').join('')
+    : '';
+}
+
+async function runSim() {
+  if (editorDirty()) await saveEditor();
+  const persona = $('#sim-persona').value;
+  remember('lab.simPersona', persona);
+  const result = await api('/api/sim', { variant: editor.variant, persona, search: $('#sim-search').checked, tips: Number($('#sim-tips').value) || 0 });
+  Object.assign(sim, { label: result.label, job: result.job.id });
+  $('#sim-chat').innerHTML = '<p class="empty">Starting ' + esc(persona) + '…</p>';
+  $('#sim-run').disabled = true;
+  pollSim();
+  refresh();
+}
+
+async function pollSim() {
+  clearTimeout(sim.timer);
+  const label = sim.label;
+  if (!label) return;
+  try {
+    const view = await api('/api/sim?label=' + encodeURIComponent(label) + '&job=' + (sim.job ?? 0));
+    if (label !== sim.label) return;
+    const box = $('#sim-chat');
+    const atBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 24;
+    if (view.html) box.innerHTML = view.html;
+    if (view.error) box.insertAdjacentHTML('beforeend', '<pre class="log">' + esc(view.error) + '</pre>');
+    if (atBottom) box.scrollTop = box.scrollHeight;
+    const running = view.status === 'running';
+    const summary = running
+      ? 'Running…'
+      : view.status === 'done'
+        ? 'Finished' + (view.durationMs ? ' in ' + Math.round(view.durationMs / 1000) + 's' : '') + (view.costUsd != null ? ' · $' + view.costUsd.toFixed(3) : '')
+        : view.status;
+    $('#sim-status').innerHTML = '<span>' + esc(summary) + '</span>' + (view.reportPath && !running ? '<a href="' + view.reportPath + '" target="_blank">Full report</a>' : '');
+    $('#sim-run').disabled = running;
+    if (running) sim.timer = setTimeout(pollSim, 1500);
+  } catch (error) {
+    $('#sim-status').textContent = error.message;
+    $('#sim-run').disabled = false;
+  }
+}
+
+/* ---------- tips screen ---------- */
 
 function tipsDirty() {
-  const variant = variants.find((v) => v.name === tips.variant);
-  return variant && !variant.readOnly && $('#t-editor').value !== tips.original;
+  return Boolean(tips.variant && tips.variant !== 'baseline' && $('#t-editor').value !== tips.original);
 }
 
 function tipSample() {
   return { topic: $('#t-topic').value.trim(), lastOwnerText: $('#t-last').value.trim(), taskName: $('#t-task').value.trim() };
 }
 
+async function loadTipsVariants() {
+  const list = await api('/api/variants');
+  $('#t-variant').innerHTML = list.map((v) => '<option value="' + esc(v.name) + '">' + esc(v.name) + (v.readOnly ? ' (production, read-only)' : '') + '</option>').join('');
+  if (!tips.variant) {
+    const first = list.find((v) => !v.readOnly && v.files.includes('tips.yaml')) || list.find((v) => !v.readOnly) || list[0];
+    await openTips(first.name);
+  } else {
+    $('#t-variant').value = tips.variant;
+  }
+}
+
 async function openTips(name) {
-  if (tipsDirty() && !confirm('Discard unsaved tip copy?')) {
+  if (tips.variant !== name && tipsDirty() && !confirm('Discard unsaved tip copy?')) {
     $('#t-variant').value = tips.variant;
     return;
   }
-  const data = await api('/api/variants/file?variant=' + encodeURIComponent(name) + '&file=tips.yaml');
-  const baseline = await api('/api/variants/file?variant=baseline&file=tips.yaml');
+  const [data, baseline] = await Promise.all([
+    api('/api/variants/file?variant=' + encodeURIComponent(name) + '&file=tips.yaml'),
+    api('/api/variants/file?variant=baseline&file=tips.yaml'),
+  ]);
   Object.assign(tips, { variant: name, original: data.text, baseline: baseline.text, personal: {} });
   $('#t-variant').value = name;
   $('#t-editor').value = data.text;
@@ -493,7 +591,6 @@ async function previewTips() {
     ]);
     $('#t-error').textContent = '';
     const before = Object.fromEntries(baseline.cases.map((c) => [c.id, c.text]));
-    tips.cases = current.cases;
     $('#t-cases').innerHTML = current.cases.map((c) => {
       const changed = before[c.id] !== c.text;
       const personal = tips.personal[c.id];
@@ -513,9 +610,8 @@ async function saveTips() {
   await api('/api/variants/file', { variant: tips.variant, file: 'tips.yaml', text: $('#t-editor').value }, 'PUT');
   tips.original = $('#t-editor').value;
   $('#t-note').textContent = '';
-  variants = await api('/api/variants');
   previewTips();
-  if (editor.variant === tips.variant && editor.file === 'tips.yaml') openVariant(editor.variant, 'tips.yaml');
+  if (editor.variant === tips.variant && editor.file === 'tips.yaml' && !editorDirty()) editor.variant = null;
   toast('Saved tips.yaml to ' + tips.variant);
 }
 
@@ -563,39 +659,40 @@ document.addEventListener('click', async (event) => {
         el.checked = mode === 'all' || (mode === 'blank' && blank.has(el.value));
       });
       updateEstimate();
-    } else if (target.dataset.edit || (target.closest('tr[data-row]') && !target.closest('a, button'))) {
-      const name = target.dataset.edit || target.closest('tr[data-row]').dataset.row;
-      const row = overview.find((v) => v.name === name);
-      await openVariant(name, row?.files[0]?.file || 'SKILL.md');
-      $('#v-list').innerHTML = renderOverview();
-      $('#v-editor-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else if (target.dataset.try) {
-      $('#try-variant').value = target.dataset.try;
-      $('#try-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
-      toast('Pick a persona and press Run once.');
     } else if (target.dataset.describe) {
       await describe(target.dataset.describe, target.dataset.force === '1');
-    } else if (target.dataset.file) {
-      await openVariant(editor.variant, target.dataset.file);
+    } else if (target.closest('tr[data-row]') && !target.closest('a, button')) {
+      location.hash = '#variants/' + encodeURIComponent(target.closest('tr[data-row]').dataset.row);
+    } else if (target.closest('[data-open-file]')) {
+      await openFile(target.closest('[data-open-file]').dataset.openFile);
     } else if (target.dataset.mode) {
-      setEditorMode(target.dataset.mode);
-    } else if (target.id === 'v-save') {
+      setMode(target.dataset.mode);
+    } else if (target.id === 'e-save') {
       await saveEditor();
-    } else if (target.id === 'v-new') {
-      $('#v-new-form').hidden = !$('#v-new-form').hidden;
-      $('#v-from').value = editor.variant || 'baseline';
+    } else if (target.id === 'v-new' || target.id === 'e-fork') {
+      const from = target.id === 'e-fork' ? editor.variant : 'baseline';
+      if (route().screen !== 'list') {
+        location.hash = '#variants';
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+      $('#v-new-form').hidden = false;
+      $('#v-from').value = from;
       $('#v-name').focus();
     } else if (target.id === 'v-create') {
-      const name = $('#v-name').value.trim();
-      const created = await api('/api/variants', { name, from: $('#v-from').value });
+      const created = await api('/api/variants', { name: $('#v-name').value.trim(), from: $('#v-from').value });
       $('#v-new-form').hidden = true;
       $('#v-name').value = '';
-      editor.variant = null;
-      await loadVariants();
-      await openVariant(created.name, 'SKILL.md');
-      loadOverview().catch((e) => toast(e.message));
+      overview = [];
       refresh();
+      location.hash = '#variants/' + encodeURIComponent(created.name);
       toast('Created ' + created.name);
+    } else if (target.id === 'sim-run') {
+      await runSim();
+    } else if (target.dataset.sim) {
+      Object.assign(sim, { label: target.dataset.sim, job: null });
+      $('#sim-chat').innerHTML = '<p class="empty">Loading…</p>';
+      await pollSim();
+      renderEarlierTests();
     } else if (target.id === 't-save') {
       await saveTips();
     } else if (target.id === 't-reset') {
@@ -605,37 +702,25 @@ document.addEventListener('click', async (event) => {
       const id = target.dataset.personalize;
       tips.personal[id] = { pending: true };
       previewTips();
-      const result = await api('/api/tips/personalize', { yaml: $('#t-editor').value, sample: tipSample(), id });
-      tips.personal[id] = result;
+      tips.personal[id] = await api('/api/tips/personalize', { yaml: $('#t-editor').value, sample: tipSample(), id });
       previewTips();
-    } else if (target.id === 'try-run') {
-      await startRun({
-        variant: $('#try-variant').value,
-        personas: [$('#try-persona').value],
-        repeat: 1,
-        concurrency: 1,
-        tips: Number($('#try-tips').value) || 0,
-        search: $('#try-search').checked,
-        judge: 'claude',
-        label: 'try-' + $('#try-variant').value,
-      }, 'Running one conversation…');
     }
   } catch (error) {
     toast(error.message);
+    if (target.id === 'sim-run') $('#sim-run').disabled = false;
   }
 });
 
 document.addEventListener('change', async (event) => {
   const target = event.target;
   if (target.closest?.('#run-form')) updateEstimate();
-  if (target.id === 'v-select') await openVariant(target.value, 'SKILL.md');
-  if (target.id === 'v-add' && target.value) await openVariant(editor.variant, target.value);
+  if (target.id === 'sim-persona') updatePersonaInfo();
   if (target.id === 't-variant') await openTips(target.value);
 });
 
 document.addEventListener('input', (event) => {
   const target = event.target;
-  if (target.id === 'v-editor') updateEditorStatus();
+  if (target.id === 'e-editor') updateDirty();
   if (target.id === 't-editor' || target.closest?.('#t-sample')) {
     clearTimeout(tips.timer);
     tips.timer = setTimeout(previewTips, 300);
@@ -644,9 +729,9 @@ document.addEventListener('input', (event) => {
 
 document.addEventListener('keydown', (event) => {
   if ((event.metaKey || event.ctrlKey) && event.key === 's') {
-    const tab = currentTab();
-    if (tab === 'variants' && !editor.readOnly) { event.preventDefault(); saveEditor().catch((e) => toast(e.message)); }
-    if (tab === 'tips' && !$('#t-save').hidden) { event.preventDefault(); saveTips().catch((e) => toast(e.message)); }
+    const screen = route().screen;
+    if (screen === 'editor' && !editor.readOnly) { event.preventDefault(); saveEditor().catch((e) => toast(e.message)); }
+    if (screen === 'tips' && !$('#t-save').hidden) { event.preventDefault(); saveTips().catch((e) => toast(e.message)); }
   }
 });
 
@@ -655,7 +740,7 @@ $('#run-form').addEventListener('submit', async (event) => {
   const personas = selectedPersonas();
   if (!personas.length) return toast('Pick at least one persona.');
   try {
-    await startRun({
+    const job = await api('/api/runs', {
       variant: $('#variant').value,
       label: $('#label').value.trim(),
       repeat: Number($('#repeat').value),
@@ -664,45 +749,60 @@ $('#run-form').addEventListener('submit', async (event) => {
       search: $('#search').checked,
       judge: document.querySelector('input[name=judge]:checked').value,
       personas,
-    }, 'Run started.');
+    });
+    openJobs.add(job.id);
+    toast('Run started.');
+    refresh();
   } catch (error) {
     toast(error.message);
   }
 });
 
-window.__editable = EDITABLE_FILES;
-showTab();
-refresh().then(() => { if (currentTab() !== 'runs') loadVariants(); });
+refresh().then(show);
 `;
 
-export function renderApp(editableFiles: string[]) {
+export function renderApp() {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Onboarding lab</title><style>${STYLE}${APP_STYLE}</style></head><body><main>
 <header><h1>Onboarding lab</h1>
-  <nav class="tabs"><a href="#runs">Runs</a><a href="#variants">Variants</a><a href="#tips">Tips</a></nav>
+  <nav class="tabs"><a href="#runs" data-tab="runs">Runs</a><a href="#variants" data-tab="variants">Variants</a><a href="#tips" data-tab="tips">Tips</a></nav>
   <span class="muted" id="summary"></span></header>
-<div class="layout">
+<div class="layout" id="layout">
   <div>
-    <div data-tab="runs">
+    <div data-screen="runs">
       <section class="panel"><h2>Run sets</h2><div id="sets"><p class="empty">Loading…</p></div></section>
       <section class="panel"><h2>Comparisons</h2><div id="judging"></div></section>
     </div>
-    <div data-tab="variants" hidden>
-      <section class="panel"><h2>All variants</h2><div id="v-list"><p class="empty">Loading…</p></div></section>
-      <section class="panel" id="v-editor-panel">
-        <div class="toolbar"><select id="v-select" style="width:auto"></select><span id="v-parent"></span><span class="spacer"></span><button id="v-new">New variant…</button></div>
-        <div id="v-new-form" hidden class="row" style="align-items:end">
+    <div data-screen="list" hidden>
+      <section class="panel">
+        <div class="toolbar"><h2 style="margin:0;color:var(--text)">Variants</h2><span class="spacer"></span><button id="v-new">New variant…</button></div>
+        <div id="v-new-form" hidden class="row" style="align-items:end;margin-bottom:12px">
           <div><label for="v-name">Name</label><input id="v-name" type="text" placeholder="e.g. warmer-welcome"></div>
           <div><label for="v-from">Start from</label><select id="v-from"></select></div>
           <div style="flex:0"><button class="primary" id="v-create">Create</button></div>
         </div>
-        <div class="filetabs" id="v-files"></div>
-        <div class="toolbar"><span><button class="seg on" data-mode="edit">Edit</button><button class="seg" data-mode="parent">vs parent</button><button class="seg" data-mode="production">vs production</button><button class="seg" data-mode="openclaw">vs OpenClaw default</button></span><span class="hint" id="v-diff-label"></span><span class="hint" id="v-exists"></span><span class="spacer"></span><span class="dirty" id="v-dirty"></span><button class="primary" id="v-save">Save</button></div>
-        <textarea id="v-editor" class="code" spellcheck="false"></textarea>
-        <div id="v-diff" class="diff" hidden></div>
-        <p class="hint">⌘S saves. A variant only replaces the files it holds; everything else comes from baseline. Runs read variant files when they start.</p>
+        <div id="v-list"><p class="empty">Loading…</p></div>
       </section>
     </div>
-    <div data-tab="tips" hidden>
+    <div data-screen="editor" hidden>
+      <section class="panel">
+        <a class="back" href="#variants">← All variants</a>
+        <div class="editor-head"><h2 id="e-title"></h2><span class="muted" id="e-parent"></span><span class="spacer"></span><button id="e-fork"></button></div>
+        <div class="hint" id="e-desc"></div>
+        <div class="editor-grid">
+          <aside class="files" id="e-files"></aside>
+          <div>
+            <div class="toolbar"><span><button class="seg on" data-mode="edit">Edit</button><button class="seg" data-mode="parent">vs parent</button><button class="seg" data-mode="production">vs production</button><button class="seg" data-mode="openclaw">vs OpenClaw default</button></span><span class="spacer"></span><span class="dirty" id="e-dirty"></span><button class="primary" id="e-save">Save</button></div>
+            <div class="hint" id="e-why" style="margin:0 0 6px"></div>
+            <div class="hint" id="e-exists" style="margin:0 0 6px"></div>
+            <div class="hint" id="e-diff-label" style="margin:0 0 6px"></div>
+            <textarea id="e-editor" class="code" spellcheck="false"></textarea>
+            <div id="e-diff" class="diff" hidden></div>
+            <p class="hint">⌘S saves. A variant only replaces the files it holds; everything else comes from its parent. Running a test saves first.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div data-screen="tips" hidden>
       <section class="panel">
         <div class="toolbar"><select id="t-variant" style="width:auto"></select><span class="hint" id="t-note"></span><span class="spacer"></span><span class="dirty" id="t-dirty"></span><button id="t-reset">Reset to production</button><button class="primary" id="t-save">Save</button></div>
         <div class="row" id="t-sample">
@@ -719,7 +819,7 @@ export function renderApp(editableFiles: string[]) {
     </div>
   </div>
   <div>
-    <section class="panel" data-tab="runs"><h2>Start a run</h2>
+    <section class="panel" data-screen="runs"><h2>Start a run</h2>
       <form id="run-form">
         <label for="variant">Variant</label><select id="variant"></select>
         <label for="label">Label (optional)</label><input id="label" type="text" placeholder="defaults to the variant name">
@@ -739,19 +839,21 @@ export function renderApp(editableFiles: string[]) {
         <button class="primary" type="submit">Start run</button>
       </form>
     </section>
-    <section class="panel" data-tab="variants" hidden id="try-panel"><h2>Try it</h2>
-      <p class="hint" style="margin-top:0">One conversation with one persona, about a cent. The report opens from the job when it finishes.</p>
-      <label for="try-variant">Variant</label><select id="try-variant"></select>
-      <label for="try-persona">Persona</label><select id="try-persona"></select>
-      <div class="row">
-        <div><label for="try-tips">Tips to simulate</label><input id="try-tips" type="number" min="0" max="5" value="0"></div>
+    <section class="panel" data-screen="editor" hidden><h2>Test <span id="sim-variant"></span></h2>
+      <label for="sim-persona">Persona</label><select id="sim-persona"></select>
+      <div class="who" id="sim-who"></div>
+      <div class="row" style="align-items:end">
+        <div><label for="sim-tips">Tips to simulate</label><input id="sim-tips" type="number" min="0" max="5" value="0"></div>
+        <label class="inline" style="margin-bottom:9px"><input type="checkbox" id="sim-search"> Web search</label>
+        <button class="primary" id="sim-run" style="flex:0 0 auto">Run test</button>
       </div>
-      <label class="inline"><input type="checkbox" id="try-search"> Web search</label>
-      <button class="primary" id="try-run" style="margin-top:8px">Run once</button>
+      <div class="earlier" id="sim-earlier"></div>
+      <div class="sim-status" id="sim-status"></div>
+      <div class="sim-chat" id="sim-chat"></div>
     </section>
-    <section class="panel"><h2>Jobs</h2><div id="jobs"></div></section>
+    <section class="panel" data-screen="runs list tips"><h2>Jobs</h2><div id="jobs"></div></section>
   </div>
 </div>
 <div class="toast" id="toast"></div>
-</main><script>const EDITABLE_FILES = ${JSON.stringify(editableFiles)};${SCRIPT}</script></body></html>`;
+</main><script>${SCRIPT}</script></body></html>`;
 }

@@ -187,6 +187,8 @@ function runSetsByVariant() {
     const manifestFile = path.join(RUNS_DIR, name, 'manifest.json');
     if (!existsSync(manifestFile)) continue;
     const manifest = loadRunSet(path.join(RUNS_DIR, name)).manifest;
+    // One-off test conversations from the editor are not run sets.
+    if (manifest.label.startsWith('sim-')) continue;
     const variant = manifest.variant
       ? path.basename(manifest.variant)
       : 'baseline';
