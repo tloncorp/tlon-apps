@@ -8,6 +8,7 @@ const getActiveForegroundContextLensForConversation = vi.fn<() => unknown>(
   () => null
 );
 const resolveTlonAccount = vi.fn(() => ({
+  accountId: 'secondary',
   configured: true,
   ship: '~zod',
   url: 'http://localhost:8080',
@@ -122,6 +123,7 @@ describe('sendMedia', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     resolveTlonAccount.mockReturnValue({
+      accountId: 'secondary',
       configured: true,
       ship: '~zod',
       url: 'http://localhost:8080',
@@ -145,18 +147,23 @@ describe('sendMedia', () => {
       new Error('Local file paths are not supported on this channel')
     );
     const { startTlonAgentTurn } = await import('./turn-recorder.js');
+    const recordDispatchAttempted = vi.fn();
+    const recordDispatchFailed = vi.fn();
     const turn = startTlonAgentTurn(
       {
         accountId: 'hosted',
         agentId: 'main',
         destinationKind: 'dm',
+        inputMessageId: '~nec/111',
         runId: 'media-failure',
         sessionKey: 'agent:main:tlon:direct:~nec',
-        ship: '~zod',
+        ship: 'zod',
         trigger: 'dm',
       },
       {
         observer: {
+          recordDispatchAttempted,
+          recordDispatchFailed,
           recordStarted: () => undefined,
           recordTerminal: () => undefined,
         },
@@ -175,11 +182,53 @@ describe('sendMedia', () => {
     expect(sendDm).not.toHaveBeenCalled();
     expect(sendDmWithStory).not.toHaveBeenCalled();
     expect(sendChannelPost).not.toHaveBeenCalled();
+    expect(recordDispatchAttempted).not.toHaveBeenCalled();
+    expect(recordDispatchFailed).not.toHaveBeenCalled();
     expect(turn.finalize({ durationMs: 10 })).toMatchObject({
-      delivery: 'failed',
-      deliveryFailureCount: 1,
+      delivery: 'not_applicable',
+      deliveryFailureCount: 0,
       deliverySuccessCount: 0,
+      dispatch: 'not_applicable',
+      dispatchAttemptCount: 0,
     });
+  });
+
+  it('attributes sends to the resolved outbound account and ship', async () => {
+    const { startTlonAgentTurn } = await import('./turn-recorder.js');
+    const recordDispatchAttempted = vi.fn();
+    const turn = startTlonAgentTurn(
+      {
+        accountId: 'primary',
+        agentId: 'main',
+        destinationKind: 'dm',
+        inputMessageId: '~nec/111',
+        runId: 'cross-account',
+        sessionKey: 'agent:main:tlon:direct:~nec',
+        ship: '~nec',
+        trigger: 'dm',
+      },
+      {
+        observer: {
+          recordDispatchAttempted,
+          recordStarted: () => undefined,
+          recordTerminal: () => undefined,
+        },
+      }
+    );
+
+    await turn.run(() =>
+      tlonRuntimeOutbound.sendText({
+        ...baseCtx,
+        accountId: 'secondary',
+      })
+    );
+
+    expect(recordDispatchAttempted).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        accountId: 'secondary',
+        ship: 'zod',
+      })
+    );
   });
 
   it('posts exactly once with valid https URL', async () => {
@@ -193,6 +242,7 @@ describe('sendMedia', () => {
         accountId: 'hosted',
         agentId: 'main',
         destinationKind: 'dm',
+        inputMessageId: '~nec/222',
         runId: 'media-success',
         sessionKey: 'agent:main:tlon:direct:~nec',
         ship: '~zod',
@@ -221,6 +271,53 @@ describe('sendMedia', () => {
       deliverySuccessCount: 1,
     });
   });
+
+  it('records the actual outbound destination kind for cross-target sends', async () => {
+    const { startTlonAgentTurn } = await import('./turn-recorder.js');
+    const recordDispatchAttempted = vi.fn();
+    const recordMoonReplyEnqueued = vi.fn();
+    const turn = startTlonAgentTurn(
+      {
+        accountId: 'hosted',
+        agentId: 'main',
+        destinationKind: 'dm',
+        inputMessageId: '~nec/333',
+        runId: 'cross-target',
+        sessionKey: 'agent:main:tlon:direct:~nec',
+        ship: '~zod',
+        trigger: 'dm',
+      },
+      {
+        observer: {
+          recordDispatchAttempted,
+          recordMoonReplyEnqueued,
+          recordStarted: () => undefined,
+          recordTerminal: () => undefined,
+        },
+      }
+    );
+
+    await turn.run(() =>
+      tlonRuntimeOutbound.sendText({
+        ...baseCtx,
+        to: 'chat/~zod/general',
+      })
+    );
+
+    expect(sendDm).not.toHaveBeenCalled();
+    expect(sendChannelPost).toHaveBeenCalledTimes(1);
+    expect(recordDispatchAttempted).toHaveBeenCalledWith(
+      expect.objectContaining({
+        destinationKind: 'group_channel',
+      })
+    );
+    expect(recordMoonReplyEnqueued).toHaveBeenCalledWith(
+      expect.objectContaining({
+        destinationKind: 'group_channel',
+        outputMessageId: '~zod/123',
+      })
+    );
+  });
 });
 
 describe('notes delivery', () => {
@@ -230,6 +327,7 @@ describe('notes delivery', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     resolveTlonAccount.mockReturnValue({
+      accountId: 'secondary',
       configured: true,
       ship: '~zod',
       url: 'http://localhost:8080',
@@ -389,6 +487,7 @@ describe('notes delivery', () => {
     const recordOutput = vi.fn();
     const recordPersistence = vi.fn();
     resolveTlonAccount.mockReturnValue({
+      accountId: 'secondary',
       configured: true,
       ship: '~zod',
       url: 'http://localhost:8080',

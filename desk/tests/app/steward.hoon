@@ -1853,7 +1853,7 @@
   %-  (do-as ~zod)
   (do-poke %steward-lens-action-1 !>(`action:v1:l`[%retry ~dev 'lens-r']))
 ::
-::  fresh initialization uses current state, seeds lens, and starts empty
+::  fresh initialization starts every module and seeds current state
 ::
 ++  test-migration-fresh-initialization
   %-  eval-mare
@@ -1865,6 +1865,8 @@
   ;<  ~  bind:m
     %+  ex-cards  caz
     :~  (ex-task /activity [~dev %activity] %watch /v5)
+        (ex-task /journey/chat [~dev %chat] %watch /v4)
+        (ex-task /journey/channels [~dev %channels] %watch /v4)
         ex-eyre-connect
         (ex-cleanup-timer ~2000.1.1)
     ==
@@ -3448,6 +3450,48 @@
       (ex-arvo /gateway/lease-check %b %wait new-lease)
       (ex-fact-paths ~[/v1/gateway])
   ==
+::
+::  an upgrade from before journey observation preserves the liveness seed
+::  while installing both missing subscriptions
+::
+++  test-on-load-migration-adds-journey-watches
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(wex ~)))
+  =/  g=gateway-0  *gateway-0
+  =.  status.g  %up
+  =/  old=state-0  [%0 `~bus (sy ~[moon]) *state:v1:l g]
+  ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
+  %+  ex-cards  caz
+  :~  (ex-task /activity [~dev %activity] %watch /v5)
+      (ex-task /journey/chat [~dev %chat] %watch /v4)
+      (ex-task /journey/channels [~dev %channels] %watch /v4)
+      (liveness-poke &)
+      ex-eyre-connect
+      (ex-cleanup-timer ~2024.1.1)
+  ==
+::
+::  current-state upgrades install missing watches once, without a migration
+::  liveness seed or duplicate subscriptions on the next load
+::
+++  test-on-load-state-1-adds-journey-watches-once
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(wex ~)))
+  ;<  caz=(list card)  bind:m  (do-load agent ~)
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  (ex-task /activity [~dev %activity] %watch /v5)
+        (ex-task /journey/chat [~dev %chat] %watch /v4)
+        (ex-task /journey/channels [~dev %channels] %watch /v4)
+        ex-eyre-connect
+    ==
+  ;<  caz=(list card)  bind:m  (do-load agent ~)
+  (ex-cards caz ~[ex-eyre-connect])
 ::
 ::  on-load migrates a %0 state: every gateway field survives and the new
 ::  notify-on-start flag starts cleared
