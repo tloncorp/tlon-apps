@@ -125,6 +125,9 @@ function renderChat(events: TranscriptEvent[]) {
       if (event.kind === 'phase') {
         return '<div class="msg meta">— after the ending —</div>';
       }
+      if (event.kind === 'task-change') {
+        return `<div class="msg meta">scheduled task ${escape(event.action)}</div>`;
+      }
       return event.ok
         ? `<div class="msg note"><div class="muted">First result in Updates</div>${escape(event.markdown)}</div>`
         : '<div class="msg meta bad">first run produced nothing</div>';

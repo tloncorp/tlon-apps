@@ -57,7 +57,8 @@ export type TranscriptEvent =
   | { from: 'user'; kind: 'type'; text: string }
   | { from: 'user'; kind: 'leave'; reason: string }
   | { from: 'system'; kind: 'first-result'; ok: boolean; markdown: string }
-  | { from: 'system'; kind: 'phase'; phase: 'after-ending' };
+  | { from: 'system'; kind: 'phase'; phase: 'after-ending' }
+  | { from: 'system'; kind: 'task-change'; action: string; job: unknown };
 
 export type BotTurn = {
   userText: string;

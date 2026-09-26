@@ -3,6 +3,7 @@ import { BotSession } from './bot.js';
 import type { CoordinatorMessage, LabConfig, PromptSources } from './config.js';
 import {
   coordinatorAcknowledgement,
+  coordinatorJob,
   coordinatorReveal,
   runScheduledTask,
 } from './first-run.js';
@@ -207,6 +208,10 @@ export async function runPersona(input: {
           source: 'coordinator',
         });
       }
+      // The coordinator creates the job when the plan is provisioned.
+      session.cronJobs.push(
+        coordinatorJob(session.plan, timezone) as Record<string, unknown>
+      );
       const task = { plan: session.plan, config, sources, timezone, meter };
       const first = await runScheduledTask(task);
       firstRunToolCalls.push(...first.toolCalls);
