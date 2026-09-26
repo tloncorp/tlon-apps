@@ -213,7 +213,7 @@ export async function runPersona(input: {
           ...task,
           now: atLocalTime(
             new Date(Date.now() + 24 * 60 * 60 * 1000),
-            session.plan.timezoneOverride ?? timezone,
+            session.plan.timezoneOverride?.trim() || timezone,
             session.plan.scheduleHour,
             session.plan.scheduleMinute
           ),
@@ -222,6 +222,21 @@ export async function runPersona(input: {
     }
 
     transcript.push({ from: 'system', kind: 'phase', phase: 'after-ending' });
+    if (persona.asks?.length) {
+      // Setup can finish before the person gets to their app questions.
+      const move = await nextUserMove({
+        persona,
+        events: transcript,
+        config,
+        meter,
+        nudge:
+          'Setup is over. If one of your questions about the app is still unasked, ask it now. If you have asked them all, choose leave.',
+      });
+      if (move.action !== 'leave') {
+        transcript.push({ from: 'user', kind: move.action, text: move.text });
+        await botTurn(move.text);
+      }
+    }
     const after = persona.afterEnding ?? DEFAULT_AFTER_ENDING;
     transcript.push({ from: 'user', kind: 'type', text: after });
     await botTurn(after);

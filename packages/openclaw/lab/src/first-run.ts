@@ -28,7 +28,7 @@ function provisionRequest(plan: TaskPlan, timezone: string) {
     scheduleMinute: plan.scheduleMinute,
     scheduleExpression: `${plan.scheduleMinute} ${plan.scheduleHour} * * *`,
     scheduleDescription: plan.scheduleDescription,
-    timezone: plan.timezoneOverride ?? timezone,
+    timezone: plan.timezoneOverride?.trim() || timezone,
     taskPrompt: plan.taskPrompt,
   } as never;
 }

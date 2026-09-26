@@ -63,7 +63,7 @@ function personaBrief(persona: Persona) {
       ? `Things you know, shared only when asked or when it naturally comes up:\n${persona.knows.map((fact) => `- ${fact}`).join('\n')}`
       : '',
     persona.asks?.length
-      ? `Questions about the app you will ask at some point, one at a time, in your own words, when it feels natural (not necessarily first):\n${persona.asks.map((question) => `- ${question}`).join('\n')}`
+      ? `Questions about the app you want answered, in your own words. Ask them early, by your second or third message, one at a time. You can ask one alongside answering the assistant's question (type your answer and the question together):\n${persona.asks.map((question) => `- ${question}`).join('\n')}`
       : '',
     persona.style ? `How you write: ${persona.style}` : '',
     persona.patience !== undefined
@@ -89,6 +89,8 @@ export async function nextUserMove(input: {
   config: LabConfig;
   meter: CostMeter;
   lastOptions?: string[];
+  /** Extra direction for this one move. */
+  nudge?: string;
 }): Promise<UserMove> {
   const { persona, events, config, meter } = input;
   const reply = await chatJson<{ action?: string; text?: string }>({
@@ -101,7 +103,7 @@ export async function nextUserMove(input: {
       { role: 'system', content: `${RULES}\n\n${personaBrief(persona)}` },
       {
         role: 'user',
-        content: `The chat so far:\n\n${renderForUser(events)}\n\nWhat do you do next?`,
+        content: `The chat so far:\n\n${renderForUser(events)}\n\n${input.nudge ? `${input.nudge}\n\n` : ''}What do you do next?`,
       },
     ],
   });
