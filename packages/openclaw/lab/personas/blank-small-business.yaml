@@ -1,0 +1,11 @@
+id: blank-small-business
+who: Owns a small bakery and joined because a supplier uses Tlon Messenger. Busy and practical.
+wants: To know quickly whether this can save time in the business. Would set up something only if the value is obvious.
+expectPlan: either
+knows:
+  - Bakery is in Portland, Oregon, opens at 7.
+  - Worries about flour and butter prices and local food-safety rules.
+  - Does admin after closing, around 3pm.
+style: Brisk, practical, full sentences but short.
+patience: 3
+afterEnding: how long does laminated dough keep in the fridge

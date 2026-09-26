@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { taskPlanScheduleExpression } from '../../src/agent-task-plan-tool.js';
 import { agentOnboardingTesting } from '../../src/monitor/agent-onboarding.js';
 import {
   type LabConfig,
@@ -26,7 +27,7 @@ function provisionRequest(plan: TaskPlan, timezone: string) {
     topics: plan.topics,
     scheduleHour: plan.scheduleHour,
     scheduleMinute: plan.scheduleMinute,
-    scheduleExpression: `${plan.scheduleMinute} ${plan.scheduleHour} * * *`,
+    scheduleExpression: taskPlanScheduleExpression(plan),
     scheduleDescription: plan.scheduleDescription,
     timezone: plan.timezoneOverride?.trim() || timezone,
     taskPrompt: plan.taskPrompt,
@@ -54,7 +55,7 @@ export function coordinatorJob(plan: TaskPlan, timezone: string) {
     enabled: true,
     schedule: {
       kind: 'cron',
-      expr: `${plan.scheduleMinute} ${plan.scheduleHour} * * *`,
+      expr: taskPlanScheduleExpression(plan),
       tz: request.timezone,
     },
     payload: {
