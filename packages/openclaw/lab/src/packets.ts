@@ -1,4 +1,11 @@
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 import { stringify } from 'yaml';
 import {
@@ -71,6 +78,10 @@ ${[...new Set(input.skills)].map((skill) => `- ${skill}`).join('\n')}
 ${input.rubric}
 `;
 
+function mappingPath(dir: string) {
+  return `${dir.replace(/\/$/, '')}.mapping.json`;
+}
+
 function runKey(run: RunRecord) {
   return `${run.persona.id}.${run.repeat}`;
 }
@@ -104,19 +115,33 @@ export function writePackets(config: LabConfig, dirA: string, dirB: string) {
     )
   );
   mkdirSync(dir, { recursive: true });
+  // Judges need each conversation's skill to check rule breaks, but a file
+  // path like variants/<name>/SKILL.md would reveal which side is which.
+  mkdirSync(path.join(dir, 'skills'));
+  const aSkillIsOne = Math.random() < 0.5;
   const skills = {
-    A: skillPath(config, a.manifest.variant),
-    B: skillPath(config, b.manifest.variant),
+    A: path.join(dir, 'skills', aSkillIsOne ? 'skill-1.md' : 'skill-2.md'),
+    B: path.join(dir, 'skills', aSkillIsOne ? 'skill-2.md' : 'skill-1.md'),
   };
+  copyFileSync(skillPath(config, a.manifest.variant), skills.A);
+  copyFileSync(skillPath(config, b.manifest.variant), skills.B);
   const sources = loadPromptSources(config);
   const productGuide = sources.skills.find(
     (skill) => skill.dir === PRODUCT_GUIDE_DIR
   )!.path;
 
   const mapping: Mapping = { setA: a.dir, setB: b.dir, pairs: {} };
-  for (const runA of pairs) {
+  // An exact half-and-half split, shuffled, so position bias cancels out.
+  const order = pairs.map((_, index): 'A' | 'B' =>
+    index % 2 === 0 ? 'A' : 'B'
+  );
+  for (let index = order.length - 1; index > 0; index--) {
+    const swap = Math.floor(Math.random() * (index + 1));
+    [order[index], order[swap]] = [order[swap], order[index]];
+  }
+  for (const [index, runA] of pairs.entries()) {
     const runB = byKey.get(runKey(runA))!;
-    const first: 'A' | 'B' = Math.random() < 0.5 ? 'A' : 'B';
+    const first = order[index];
     const [firstRun, secondRun] = first === 'A' ? [runA, runB] : [runB, runA];
     const [firstSkill, secondSkill] =
       first === 'A' ? [skills.A, skills.B] : [skills.B, skills.A];
@@ -143,10 +168,8 @@ export function writePackets(config: LabConfig, dirA: string, dirB: string) {
       ].join('\n\n')
     );
   }
-  writeFileSync(
-    path.join(dir, 'mapping.json'),
-    JSON.stringify(mapping, null, 2)
-  );
+  // Kept outside the packet folder so judges never see it.
+  writeFileSync(mappingPath(dir), JSON.stringify(mapping, null, 2));
   writeFileSync(
     path.join(dir, 'INSTRUCTIONS.md'),
     INSTRUCTIONS({
@@ -160,8 +183,9 @@ export function writePackets(config: LabConfig, dirA: string, dirB: string) {
 
 /** Fold verdicts back into both run sets and render their reports. */
 export function importVerdicts(dir: string) {
+  const legacy = path.join(dir, 'mapping.json');
   const mapping = JSON.parse(
-    readFileSync(path.join(dir, 'mapping.json'), 'utf8')
+    readFileSync(existsSync(legacy) ? legacy : mappingPath(dir), 'utf8')
   ) as Mapping;
   const a = loadRunSet(mapping.setA);
   const b = loadRunSet(mapping.setB);
