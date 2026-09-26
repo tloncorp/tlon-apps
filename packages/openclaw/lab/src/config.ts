@@ -82,12 +82,17 @@ export type LabConfig = {
   /** False when a round runs without web search, e.g. while search quota is out. */
   search: boolean;
   models: { bot: string; user: string; judge: string };
+  /** Reasoning and routing for bot calls, as the deployed OpenClaw sends them. */
+  botRequest?: {
+    reasoning?: Record<string, unknown>;
+    provider?: Record<string, unknown>;
+  };
 };
 
 export function loadConfig(
   overrides: Partial<LabConfig['models']> = {},
   options: { search?: boolean } = {}
-) {
+): LabConfig {
   const labEnv = parseEnvFile(path.join(LAB_DIR, '.env'));
   const env = { ...labEnv, ...process.env };
   const tlonbotDir = findTlonbotDir(env);

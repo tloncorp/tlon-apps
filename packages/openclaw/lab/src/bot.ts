@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { withCampaignContext } from '../../src/monitor/campaign/templates.js';
 import {
   clearTlonSessionRunSurface,
   rememberTlonSessionRunSurface,
@@ -94,7 +95,7 @@ export class BotSession {
       role: 'user',
       content: buildOwnerMessage({
         text: campaignContext
-          ? `${campaignContext}\n\n${userText}`
+          ? withCampaignContext(campaignContext, userText)
           : replyTo
             ? `${userText}\n[Replying to your earlier message: "${replyTo}"]`
             : userText,
@@ -124,6 +125,7 @@ export class BotSession {
           ],
           tools: this.tools,
           meter: this.meter,
+          ...this.config.botRequest,
         });
         this.messages.push({
           role: 'assistant',
