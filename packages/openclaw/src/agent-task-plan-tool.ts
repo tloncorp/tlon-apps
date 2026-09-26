@@ -4,7 +4,7 @@ import {
   TLON_A2UI_CATALOG_ID,
 } from '@tloncorp/api';
 
-const AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID = 'auto-provision';
+export const AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID = 'auto-provision';
 export type AgentTaskPlanToolParams = {
   target: string;
   summary: string;
