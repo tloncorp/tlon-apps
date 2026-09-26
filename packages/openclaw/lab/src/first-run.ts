@@ -8,6 +8,8 @@ import {
   type PromptSources,
 } from './config.js';
 import { buildSystemPrompt, localTime } from './context.js';
+import { cronMessage, fillSystem } from './template.js';
+import { ONBOARDING_JOB_NAME } from '../../src/monitor/onboarding-job.js';
 import { type ChatMessage, type CostMeter, chat } from './openrouter.js';
 import { executeTool, labTools } from './tools.js';
 import type { TaskPlan, ToolCallRecord } from './types.js';
@@ -88,14 +90,23 @@ export async function runScheduledTask(input: {
   prompt?: string;
 }): Promise<{ ok: boolean; markdown: string; toolCalls: ToolCallRecord[] }> {
   const { plan, config, sources, timezone, meter, now } = input;
-  const tools = labTools({ webOnly: true, search: Boolean(config.braveKey) });
-  const system = buildSystemPrompt({
-    sources,
-    tools,
-    botModel: config.models.bot,
-    timezone,
-    now,
+  const template = config.template?.cron ? config.template : undefined;
+  const tools = labTools({
+    webOnly: true,
+    search: Boolean(config.braveKey),
+    template,
   });
+  const system = template
+    ? fillSystem(template.cron!.system, template, sources, {
+        sessionId: randomUUID(),
+      })
+    : buildSystemPrompt({
+        sources,
+        tools,
+        botModel: config.models.bot,
+        timezone,
+        now,
+      });
   const prompt =
     input.prompt ??
     agentOnboardingTesting.buildRecurringPrompt(
@@ -104,7 +115,14 @@ export async function runScheduledTask(input: {
   const messages: ChatMessage[] = [
     {
       role: 'user',
-      content: `[cron run ${localTime(timezone, now)}] ${prompt}`,
+      content: template
+        ? cronMessage(template, {
+            jobId: randomUUID(),
+            jobName: ONBOARDING_JOB_NAME,
+            prompt,
+            now: now ?? new Date(),
+          })
+        : `[cron run ${localTime(timezone, now)}] ${prompt}`,
     },
   ];
   const toolCalls: ToolCallRecord[] = [];
@@ -116,6 +134,7 @@ export async function runScheduledTask(input: {
     botModel: config.models.bot,
     braveKey: config.braveKey,
     webOnly: true,
+    template,
     onChoice: () => {},
     onPlan: () => {},
     onServiceSetup: () => {},
@@ -128,6 +147,9 @@ export async function runScheduledTask(input: {
       tools,
       meter,
       ...config.botRequest,
+      ...(template?.settings.reasoning
+        ? { reasoning: template.settings.reasoning }
+        : {}),
     });
     messages.push({
       role: 'assistant',

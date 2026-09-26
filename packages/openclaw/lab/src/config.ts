@@ -87,6 +87,8 @@ export type LabConfig = {
     reasoning?: Record<string, unknown>;
     provider?: Record<string, unknown>;
   };
+  /** Fast mode fills this real-run capture instead of imitating OpenClaw. */
+  template?: import('./template.js').Template;
 };
 
 export function loadConfig(

@@ -4,6 +4,7 @@ import {
 } from '../../src/onboarding-turn-context.js';
 import { OWNER_SHIP, type PromptSources, renderPrompt } from './config.js';
 import type { ChatTool } from './openrouter.js';
+import { type Template, stamp } from './template.js';
 
 // OpenClaw injects these workspace files into every run. BOOTSTRAP.md is not
 // injected; AGENTS.md tells the bot to read it with the `read` tool.
@@ -113,4 +114,30 @@ export function buildOwnerMessage(input: {
     timeZoneName: 'short',
   });
   return `[Tlon ${OWNER_SHIP} ${stamp}] ${body}`;
+}
+
+/** The owner's message wrapped the way OpenClaw sent it in the template. */
+export function templatedOwnerMessage(input: {
+  template: Template;
+  text: string;
+  onboardingActive: boolean;
+  timezone: string;
+  now: Date;
+}) {
+  let body = input.text;
+  if (input.onboardingActive) {
+    body += onboardingDmContextNote(OWNER_SHIP);
+    body += onboardingClientDateTimeNote({
+      timezone: input.timezone,
+      locale: 'en-US',
+    });
+  }
+  return input.template.ownerFormat
+    .replace('{{STAMP}}', stamp(input.now, input.template.stampTimezone))
+    .replace('{{BODY}}', () => body);
+}
+
+/** OpenClaw's runtime-context message for the current owner message. */
+export function runtimeContextMessage(template: Template, messageId: string) {
+  return template.runtimeContext.replace('{{MESSAGE_ID}}', messageId);
 }

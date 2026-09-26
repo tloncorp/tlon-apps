@@ -20,12 +20,17 @@ import {
   renderRunSetReport,
 } from './report.js';
 import { importVerdicts, listPackets, writePackets } from './packets.js';
-import { runRealSet } from './real/set.js';
+import { divergenceReport } from './diverge.js';
+import { renderSwapReport, swapTest } from './swap.js';
+import { loadTemplate } from './template.js';
+import { calibrate, runRealSet } from './real/set.js';
+import { LabStack } from './real/stack.js';
 import { gradeRun, runPersona } from './runner.js';
 import {
   createRunSet,
   loadPersonas,
   loadRunSet,
+  frozenTemplate,
   resolveRunSet,
   writeRun,
 } from './store.js';
@@ -39,6 +44,9 @@ const USAGE = `Onboarding lab: simulated users against the real onboarding skill
   pnpm lab packets <control> <set>...  write judging packets (2–4 sets) for a Claude session to judge
   pnpm lab import <judging-dir>      fold packet verdicts into both sets and render reports
   pnpm lab report <set>              re-render a run set's report
+  pnpm lab diverge <fast> <real>     compare a fast set with a real-mode set of the same personas
+  pnpm lab swap <real> [--samples N]  resend real decision points with the fast lab's prompt or tools swapped in
+  pnpm lab calibrate <real>          refresh fast mode's OpenClaw template from a real set
   pnpm lab personas                  list persona cards
   pnpm lab serve [--port 4410]       open a local page to browse runs and start new ones
 
@@ -123,6 +131,27 @@ async function runSet(
   config.botRequest = botRequestSettings(deployment.agent);
   for (const warning of deployment.warnings)
     console.warn(`Warning: ${warning}`);
+  if (!options.real) {
+    config.template = loadTemplate();
+    const t = config.template;
+    if (!t) {
+      console.warn(
+        'Warning: no calibration template, so fast mode approximates OpenClaw. Run a real set once (pnpm lab run --real) to calibrate it.'
+      );
+    } else {
+      console.log(
+        `Fast mode calibrated from ${t.capturedFrom} (OpenClaw ${t.openclaw}, ${t.capturedAt.slice(0, 10)})`
+      );
+      if (
+        deployment.openclaw.deployed &&
+        t.openclaw !== deployment.openclaw.deployed
+      ) {
+        console.warn(
+          `Warning: calibrated on OpenClaw ${t.openclaw} but ${deployment.openclaw.deployed} is deployed; run a real set to recalibrate.`
+        );
+      }
+    }
+  }
   const variant = options.variant ? path.resolve(options.variant) : undefined;
   const sources = loadPromptSources(config, variant);
   const personas = loadPersonas(
@@ -148,6 +177,7 @@ async function runSet(
     tips,
     deployment,
     mode: options.real ? 'real' : 'fast',
+    template: config.template,
   });
   const checkpoint = loadCheckpoint(dir, manifest)!;
   console.log(
@@ -240,6 +270,11 @@ export function parseTips(value: string | undefined): number {
 async function resumeSet(reference: string, options: Options) {
   const set = loadRunSet(resolveRunSet(reference));
   const { manifest } = set;
+  if (manifest.mode === 'real') {
+    throw new Error(
+      'Resuming real-mode sets is not supported yet; start a new set.'
+    );
+  }
   const frozen = frozenResumeInputs(set.dir, manifest);
   const checkpoint = frozen?.checkpoint;
   const config = checkpoint
@@ -250,6 +285,7 @@ async function resumeSet(reference: string, options: Options) {
       };
   // Resumed runs keep the model settings the set started with.
   config.botRequest = botRequestSettings(manifest.deployment?.agent);
+  config.template = frozenTemplate(set.dir);
   const sources =
     frozen?.sources ?? loadPromptSources(config, manifest.variant);
   const current = new Map(
@@ -410,6 +446,8 @@ async function main() {
       'no-search': { type: 'boolean' },
       resume: { type: 'string' },
       real: { type: 'boolean' },
+      samples: { type: 'string' },
+      'max-points': { type: 'string' },
       port: { type: 'string' },
       help: { type: 'boolean', short: 'h' },
     },
@@ -420,6 +458,53 @@ async function main() {
     return;
   }
   switch (command) {
+    case 'calibrate': {
+      const [real] = rest;
+      if (!real) throw new Error('calibrate needs <real set>');
+      const dir = resolveRunSet(real);
+      const set = loadRunSet(dir);
+      const checkpoint = loadCheckpoint(dir, set.manifest);
+      if (set.manifest.mode !== 'real' || !checkpoint) {
+        throw new Error(`${real} is not a real-mode run set`);
+      }
+      const stack = new LabStack(loadConfig({}, { search: false }).tlonbotDir);
+      calibrate({
+        dir,
+        runs: set.runs,
+        stack,
+        sources: checkpoint.sources,
+        ref: stack.pluginRef(),
+        workspaceFiles: stack
+          .workspaceFiles()
+          .filter(
+            (name) =>
+              name in checkpoint.sources.prompts || name === 'HEARTBEAT.md'
+          ),
+      });
+      return;
+    }
+    case 'swap': {
+      const [real] = rest;
+      if (!real) throw new Error('swap needs <real set>');
+      const samples = Number(values.samples ?? 6);
+      const outcome = await swapTest({
+        realDir: resolveRunSet(real),
+        config: loadConfig({}, { search: false }),
+        samples,
+        maxPoints: Number(values['max-points'] ?? 30),
+        concurrency: Number(values.concurrency ?? 6),
+      });
+      console.log(`Report: ${renderSwapReport({ ...outcome, samples })}`);
+      return;
+    }
+    case 'diverge': {
+      const [fast, real] = rest;
+      if (!fast || !real)
+        throw new Error('diverge needs <fast set> <real set>');
+      const file = divergenceReport(resolveRunSet(fast), resolveRunSet(real));
+      console.log(`Report: ${file}`);
+      return;
+    }
     case 'run':
       if (values.resume) await resumeSet(values.resume, values);
       else await runSet(values, { repeat: 1 });
