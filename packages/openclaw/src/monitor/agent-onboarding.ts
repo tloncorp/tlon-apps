@@ -34,6 +34,7 @@ import {
 } from '../urbit/api-client.js';
 import { type BotProfile, sendChannelPost } from '../urbit/send.js';
 import { markdownToStory } from '../urbit/story.js';
+import { ONBOARDING_JOB_NAME } from './onboarding-job.js';
 import {
   type AgentOnboardingRunRecord,
   claimAgentOnboardingRun,
@@ -2662,7 +2663,7 @@ async function upsertPrimaryJobOnce(
   const desired = {
     // Cron names are included in generic telemetry. Keep owner-entered topics
     // in the job payload only, where they are needed to produce the update.
-    name: 'Tlonbot scheduled update',
+    name: ONBOARDING_JOB_NAME,
     description,
     enabled: true,
     schedule: {
