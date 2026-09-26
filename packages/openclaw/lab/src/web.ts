@@ -70,6 +70,8 @@ td.pick { width: 28px; text-align: center; }
 table.overview td.desc { min-width: 280px; }
 table.overview td.num, table.overview td.num a { white-space: nowrap; }
 table.overview tr.current td { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+table.overview tr.vrow { cursor: pointer; }
+table.overview tr.vrow:hover td { background: color-mix(in srgb, var(--accent) 4%, transparent); }
 ul.bullets { margin: 4px 0 0; padding-left: 18px; font-size: 13px; }
 ul.bullets li { margin: 2px 0; }
 .fchange { font-size: 12px; white-space: nowrap; }
@@ -318,7 +320,7 @@ function renderOverview() {
       ? v.runSets.length + (v.runSets.length === 1 ? ' set' : ' sets') + '<span class="sub"><a href="/files/' + encodeURIComponent(latest.name) + '/report.html" target="_blank">latest ' + esc(when(latest.createdAt)) + '</a></span>' +
         (v.editedSinceLastRun ? '<span class="sub bad">edited since</span>' : '')
       : '<span class="muted">never run</span>';
-    return '<tr class="' + (v.name === editor.variant ? 'current' : '') + '">' +
+    return '<tr class="vrow' + (v.name === editor.variant ? ' current' : '') + '" data-row="' + esc(v.name) + '" title="Open ' + esc(v.name) + ' in the editor">' +
       '<td><b>' + esc(v.name) + '</b><span class="sub">from ' + esc(v.parent) + '</span><span class="sub">' + esc(when(v.modifiedAt)) + '</span></td>' +
       '<td class="desc">' + describe + '</td>' +
       '<td>' + files + '</td>' +
@@ -561,9 +563,10 @@ document.addEventListener('click', async (event) => {
         el.checked = mode === 'all' || (mode === 'blank' && blank.has(el.value));
       });
       updateEstimate();
-    } else if (target.dataset.edit) {
-      const row = overview.find((v) => v.name === target.dataset.edit);
-      await openVariant(target.dataset.edit, row?.files[0]?.file || 'SKILL.md');
+    } else if (target.dataset.edit || (target.closest('tr[data-row]') && !target.closest('a, button'))) {
+      const name = target.dataset.edit || target.closest('tr[data-row]').dataset.row;
+      const row = overview.find((v) => v.name === name);
+      await openVariant(name, row?.files[0]?.file || 'SKILL.md');
       $('#v-list').innerHTML = renderOverview();
       $('#v-editor-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else if (target.dataset.try) {
