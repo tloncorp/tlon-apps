@@ -34,7 +34,7 @@ export class BotSession {
     private readonly meter: CostMeter,
     private readonly now: () => Date = () => new Date()
   ) {
-    this.tools = labTools({});
+    this.tools = labTools({ search: Boolean(config.braveKey) });
   }
 
   /**

@@ -20,6 +20,7 @@ import {
   renderRunSetReport,
 } from './report.js';
 import { importVerdicts, listPackets, writePackets } from './packets.js';
+import { runRealSet } from './real/set.js';
 import { gradeRun, runPersona } from './runner.js';
 import {
   createRunSet,
@@ -28,7 +29,7 @@ import {
   resolveRunSet,
   writeRun,
 } from './store.js';
-import type { RunRecord } from './types.js';
+import type { RunRecord, RunSetManifest } from './types.js';
 
 const USAGE = `Onboarding lab: simulated users against the real onboarding skill and tools.
 
@@ -53,7 +54,11 @@ Options:
   --user-model ID     OpenRouter model for the simulated person
   --judge-model ID    OpenRouter model for the judge
   --no-judge          skip the judge (facts and keep verdict only)
-  --no-search         run without web search (the bot sees it as unavailable)
+  --no-search         run without web search (the bot has no search tool, as when
+                      hosted tlonbot has no search key)
+  --real              run against the lab's local OpenClaw sandbox instead of the
+                      fast model loop (one run at a time; needs Docker and a
+                      tlonbot checkout; plugin changes must be committed)
   --resume SET        fill in a set's missing or failed runs instead of starting a new one
 `;
 
@@ -95,6 +100,7 @@ type Options = {
   'no-judge'?: boolean;
   'no-search'?: boolean;
   resume?: string;
+  real?: boolean;
 };
 
 async function runSet(
@@ -141,6 +147,7 @@ async function runSet(
     judge: !options['no-judge'],
     tips,
     deployment,
+    mode: options.real ? 'real' : 'fast',
   });
   const checkpoint = loadCheckpoint(dir, manifest)!;
   console.log(
@@ -152,6 +159,21 @@ async function runSet(
       repeat: index + 1,
     }))
   );
+  if (options.real) {
+    if (tips) throw new Error('--real does not simulate tips yet');
+    const runs = await runRealSet({
+      dir,
+      jobs,
+      config,
+      sources: checkpoint.sources,
+      agent: deployment.agent,
+      maxTurns,
+      judge: !options['no-judge'],
+      checkpoint,
+      onRun: (run) => console.log(progressLine(run)),
+    });
+    return finishSet(dir, label, manifest, runs);
+  }
   const runs = await pool(
     jobs,
     Number(options.concurrency ?? 4),
@@ -184,6 +206,15 @@ async function runSet(
       return run;
     }
   );
+  return finishSet(dir, label, manifest, runs);
+}
+
+function finishSet(
+  dir: string,
+  label: string,
+  manifest: RunSetManifest,
+  runs: RunRecord[]
+) {
   const reportPath = path.join(dir, 'report.html');
   writeFileSync(reportPath, renderRunSetReport(manifest, runs));
   const m = metrics(runs);
@@ -378,6 +409,7 @@ async function main() {
       'no-judge': { type: 'boolean' },
       'no-search': { type: 'boolean' },
       resume: { type: 'string' },
+      real: { type: 'boolean' },
       port: { type: 'string' },
       help: { type: 'boolean', short: 'h' },
     },

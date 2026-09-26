@@ -61,6 +61,7 @@ export function createRunSet(input: {
   judge: boolean;
   tips: number;
   deployment?: DeploymentCheck;
+  mode?: 'fast' | 'real';
 }): { dir: string; manifest: RunSetManifest } {
   const stamp = new Date()
     .toISOString()
@@ -110,6 +111,7 @@ export function createRunSet(input: {
       rubric: readFileSync(RUBRIC_PATH, 'utf8'),
     }),
     ...(input.deployment ? { deployment: input.deployment } : {}),
+    ...(input.mode === 'real' ? { mode: 'real' as const } : {}),
   };
   writeFileSync(
     path.join(dir, 'manifest.json'),

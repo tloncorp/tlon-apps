@@ -102,8 +102,14 @@ const WEB_TOOLS: LabTool[] = [
   }),
 ];
 
-export function labTools(context: Pick<ToolContext, 'webOnly'>): LabTool[] {
-  if (context.webOnly) return WEB_TOOLS;
+export function labTools(
+  context: Pick<ToolContext, 'webOnly'> & { search?: boolean }
+): LabTool[] {
+  // Hosted tlonbot only offers web_search when it has a search key.
+  const web = WEB_TOOLS.filter(
+    (tool) => context.search !== false || tool.function.name !== 'web_search'
+  );
+  if (context.webOnly) return web;
   const typed = [
     [agentChoiceToolMetadata, agentChoiceToolParameters],
     [agentTaskPlanToolMetadata, agentTaskPlanToolParameters],
@@ -135,7 +141,7 @@ export function labTools(context: Pick<ToolContext, 'webOnly'>): LabTool[] {
       },
       required: ['action'],
     }),
-    ...WEB_TOOLS,
+    ...web,
     ...typed.map(([meta, parameters]) =>
       tool(meta.name, meta.description, parameters, [
         meta.promptSnippet,
