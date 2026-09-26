@@ -18,6 +18,11 @@ import {
   templatedOwnerMessage,
 } from './context.js';
 import { fillSystem } from './template.js';
+import { agentChoiceToolMetadata } from '../../src/agent-choice-tool.js';
+import { agentServiceSetupToolMetadata } from '../../src/agent-service-setup-tool.js';
+import { agentTaskPlanToolMetadata } from '../../src/agent-task-plan-tool.js';
+import { resolveSilentFailureNotice } from '../../src/silent-failure-notice.js';
+import type { TlonAgentTurnSummary } from '../../src/turn-recorder.js';
 import { type ChatMessage, type CostMeter, chat } from './openrouter.js';
 import { type LabTool, executeTool, labTools } from './tools.js';
 import type { BotTurn, TaskPlan, TranscriptEvent } from './types.js';
@@ -105,16 +110,18 @@ export class BotSession {
   }
 
   /**
-   * `followUp` is a second owner message sent before the bot answered. Like
-   * OpenClaw's steering, it joins the running turn after the current tool
-   * calls; if the bot finishes first, `followUpPending` says so.
+   * `followUp` is a second owner message sent before the bot answered. As in
+   * the real sandbox, it reaches the plugin during the bot's first model call
+   * (so the plugin's guards treat it as the newest message) but not the
+   * running turn; it gets its own turn afterwards. `followUpArrived` says it
+   * was already put in this turn's events.
    */
   async turn(
     userText: string,
     replyTo?: string,
     campaignContext?: string,
     followUp?: string
-  ): Promise<BotTurn & { followUpPending?: boolean }> {
+  ): Promise<BotTurn & { followUpArrived?: boolean }> {
     const runId = randomUUID();
     const onboardingActive = !this.onboardingComplete;
     this.ownerSpoke(onboardingActive);
@@ -163,6 +170,7 @@ export class BotSession {
     const template = this.config.template;
     this.messages.push(this.ownerMessage(text, onboardingActive));
     let pending = followUp;
+    let followUpArrived = false;
     // OpenClaw sends a runtime-context message after the current owner
     // message only; earlier turns lose theirs.
     const runtime: ChatMessage[] = template
@@ -194,6 +202,13 @@ export class BotSession {
             ? { reasoning: template.settings.reasoning }
             : {}),
         });
+        if (pending) {
+          // The owner's second message lands while the model is working.
+          events.push({ from: 'user', kind: 'type', text: pending });
+          this.ownerSpoke(onboardingActive);
+          pending = undefined;
+          followUpArrived = true;
+        }
         const silent =
           !reply.toolCalls.length &&
           (!reply.content?.trim() || reply.content.trim() === 'NO_REPLY');
@@ -226,34 +241,111 @@ export class BotSession {
               content: record.result,
             });
           }
-          if (pending) {
-            // The owner's second message arrives while the bot is working.
-            events.push({ from: 'user', kind: 'type', text: pending });
-            this.messages.push(this.ownerMessage(pending, onboardingActive));
-            this.ownerSpoke(onboardingActive);
-            pending = undefined;
-          }
           continue;
         }
         const text = reply.content?.trim() ?? '';
+        const visible = () =>
+          events.some(
+            (event) =>
+              event.from === 'bot' &&
+              event.kind !== 'silent' &&
+              event.kind !== 'suppressed'
+          );
         if (!text || text === 'NO_REPLY') {
-          if (!events.length) events.push({ from: 'bot', kind: 'silent' });
+          // Nothing to add.
         } else if (typedSurfacePosted) {
           // The plugin cancels the first final reply after a typed surface.
           events.push({ from: 'bot', kind: 'suppressed', text });
         } else {
           events.push({ from: 'bot', kind: 'text', text, source: 'model' });
         }
-        return pending ? { ...turn, followUpPending: true } : turn;
+        // The plugin's own warning when a DM turn delivered nothing.
+        const notice = template
+          ? silentFailureNotice(turn.toolCalls, visible(), text)
+          : undefined;
+        if (notice) {
+          events.push({
+            from: 'bot',
+            kind: 'text',
+            text: notice,
+            source: 'coordinator',
+          });
+        }
+        if (!visible()) events.push({ from: 'bot', kind: 'silent' });
+        return followUpArrived ? { ...turn, followUpArrived } : turn;
       }
-      throw new Error(
-        `bot exceeded ${MAX_TOOL_ROUNDS} tool rounds (${turn.toolCalls
-          .slice(-6)
-          .map((call) => call.name)
-          .join(', ')})`
+      if (!template) {
+        throw new Error(
+          `bot exceeded ${MAX_TOOL_ROUNDS} tool rounds (${turn.toolCalls
+            .slice(-6)
+            .map((call) => call.name)
+            .join(', ')})`
+        );
+      }
+      // The real bot loops like this until OpenClaw's run timeout, then the
+      // owner sees its timeout errors and a failure line for the last tool.
+      const last = turn.toolCalls.at(-1);
+      const label = TOOL_LABELS[last?.name ?? ''] ?? last?.name ?? 'Tool';
+      events.push(
+        {
+          from: 'bot',
+          kind: 'text',
+          text: 'The model request timed out before it could finish. Please try again.',
+          source: 'coordinator',
+        },
+        {
+          from: 'bot',
+          kind: 'text',
+          text: `⚠️ 🧩 ${label} failed`,
+          source: 'coordinator',
+        }
       );
+      return followUpArrived ? { ...turn, followUpArrived } : turn;
     } finally {
       clearTlonSessionRunSurface(runId);
     }
   }
+}
+
+const TOOL_LABELS: Record<string, string> = {
+  [agentChoiceToolMetadata.name]: agentChoiceToolMetadata.label,
+  [agentTaskPlanToolMetadata.name]: agentTaskPlanToolMetadata.label,
+  [agentServiceSetupToolMetadata.name]: agentServiceSetupToolMetadata.label,
+};
+
+/** What the plugin posts after a DM turn that delivered nothing. */
+function silentFailureNotice(
+  calls: { name: string; result: string; error?: boolean; blocked?: boolean }[],
+  delivered: boolean,
+  finalText: string
+) {
+  const failed = calls.filter((call) => call.error || call.blocked);
+  const last = failed.at(-1);
+  const notice = resolveSilentFailureNotice({
+    summary: {
+      trigger: 'dm',
+      execution: 'completed',
+      delivery: delivered ? 'delivered' : 'none',
+      deliveryFailureCount: 0,
+      deliverySuccessCount: delivered ? 1 : 0,
+      toolErrorCount: failed.length,
+      lastToolError: last
+        ? {
+            toolName: last.name,
+            message: last.result.replace(/^Tool call blocked: /, ''),
+          }
+        : null,
+      destinationKind: 'dm',
+      result:
+        finalText === 'NO_REPLY'
+          ? 'intentional_silence'
+          : finalText
+            ? 'reply'
+            : 'empty',
+    } as unknown as TlonAgentTurnSummary,
+    deliveredCount: delivered ? 1 : 0,
+    requester: OWNER_SHIP,
+    conversation: `our DM with ${OWNER_SHIP}`,
+  });
+  return notice?.text;
 }
