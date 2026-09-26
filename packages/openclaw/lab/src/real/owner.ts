@@ -426,11 +426,16 @@ export class OwnerApp {
     return request;
   }
 
-  /** Notes in the onboarding notebook, newest first. */
-  async notes() {
+  /** The newest note in the onboarding notebook, with its body. */
+  async newestNote() {
     const notes = (await this.use(() =>
       notesV1.listNotes(this.notebookNest)
-    )) as { id?: string | number; title?: string; body?: string }[];
-    return [...notes].reverse();
+    )) as { id: number; title: string }[];
+    const newest = [...notes].sort((a, b) => b.id - a.id)[0];
+    if (!newest) return undefined;
+    const note = await this.use(() =>
+      notesV1.getNote({ flag: this.notebookNest, noteId: newest.id })
+    );
+    return { title: note.title, body: note.bodyMd ?? '' };
   }
 }
