@@ -36,8 +36,7 @@ export type Changeset = {
 
 export type Description = {
   hash: string;
-  title: string;
-  bullets: string[];
+  summary: string;
   describedAt: string;
 };
 
@@ -121,14 +120,14 @@ function cachedDescription(name: string, hash: string) {
   const file = descriptionFile(name);
   if (!existsSync(file)) return undefined;
   const cached = JSON.parse(readFileSync(file, 'utf8')) as Description;
-  return cached.hash === hash ? cached : undefined;
+  return cached.hash === hash && cached.summary ? cached : undefined;
 }
 
 const DESCRIBE_PROMPT = `You are summarizing one experiment in a prompt lab for an onboarding chatbot (Tlonbot, in the Tlon Messenger app). Below is the diff between a variant and the variant it was based on. Files: SKILL.md is the onboarding skill the bot follows; coordinator.yaml holds fixed app messages (welcome, post-setup offer); tips.yaml holds first-week tip copy; other .md files are workspace prompts.
 
-Describe what the variant changes about the bot's behavior or what users see, not the mechanics of the edit. Plain words, no jargon, no line numbers. Lead with the most important change.
+In one short sentence (at most 20 words), say what the variant changes about the bot's behavior or what users see, not the mechanics of the edit. Plain words, no jargon, no file names. Lead with the most important change; leave out minor ones.
 
-Return only JSON: {"title": "<at most 8 words>", "bullets": ["<one short sentence>", ...]} with 1 to 4 bullets.`;
+Return only JSON: {"summary": "<the sentence>"}`;
 
 /** The cached description, or a new one if the changeset moved since. */
 export async function describeVariant(name: string, force = false) {
@@ -136,8 +135,7 @@ export async function describeVariant(name: string, force = false) {
   if (!change.files.length) {
     return {
       hash: change.hash,
-      title: 'Same as its parent',
-      bullets: [],
+      summary: 'Same as its parent.',
       describedAt: new Date().toISOString(),
     } satisfies Description;
   }
@@ -148,7 +146,7 @@ export async function describeVariant(name: string, force = false) {
     .join('\n\n')
     .slice(0, 16_000);
   const config = loadConfig({}, { search: false });
-  const reply = await chatJson<{ title?: string; bullets?: string[] }>({
+  const reply = await chatJson<{ summary?: string }>({
     key: config.openrouterKey,
     model: config.models.bot,
     maxTokens: 2000,
@@ -163,10 +161,9 @@ export async function describeVariant(name: string, force = false) {
   });
   const description: Description = {
     hash: change.hash,
-    title: String(reply.title ?? 'Changes').slice(0, 80),
-    bullets: (Array.isArray(reply.bullets) ? reply.bullets : [])
-      .map(String)
-      .slice(0, 4),
+    summary: String(reply.summary ?? 'Changes')
+      .trim()
+      .slice(0, 200),
     describedAt: new Date().toISOString(),
   };
   writeFileSync(
@@ -229,7 +226,7 @@ export function variantOverview() {
       );
       const description = change.files.length
         ? cachedDescription(variant.name, change.hash)
-        : { title: 'Same as its parent', bullets: [] };
+        : { summary: 'Same as its parent.' };
       return {
         name: variant.name,
         parent: change.parent,
