@@ -55,6 +55,9 @@ export type ToolContext = {
   onChoice: (choice: Choice) => void;
   onPlan: (plan: TaskPlan) => void;
   onServiceSetup: (providerId: string) => void;
+  /** The owner's scheduled jobs, shared across turns so `cron` sees real state. */
+  cronJobs?: Record<string, unknown>[];
+  onCronChange?: (action: string, job: unknown) => void;
 };
 
 function tool(
@@ -251,6 +254,40 @@ async function webSearch(args: Record<string, unknown>, context: ToolContext) {
   );
 }
 
+/** A small in-memory stand-in for OpenClaw's cron store. */
+function runCron(args: Record<string, unknown>, context: ToolContext) {
+  const jobs = context.cronJobs ?? [];
+  const action = String(args.action ?? '');
+  const job = (args.job ?? {}) as Record<string, unknown>;
+  const id = String(args.id ?? job.id ?? '');
+  switch (action) {
+    case 'list':
+      return JSON.stringify({ jobs });
+    case 'add': {
+      const added = { ...job, id: `job-${jobs.length + 1}` };
+      jobs.push(added);
+      context.onCronChange?.('add', added);
+      return JSON.stringify({ ok: true, job: added });
+    }
+    case 'update': {
+      const index = jobs.findIndex((entry) => entry.id === id);
+      if (index < 0) throw new Error(`no cron job with id ${id}`);
+      jobs[index] = { ...jobs[index], ...job, id };
+      context.onCronChange?.('update', jobs[index]);
+      return JSON.stringify({ ok: true, job: jobs[index] });
+    }
+    case 'remove': {
+      const index = jobs.findIndex((entry) => entry.id === id);
+      if (index < 0) throw new Error(`no cron job with id ${id}`);
+      const [removed] = jobs.splice(index, 1);
+      context.onCronChange?.('remove', removed);
+      return JSON.stringify({ ok: true });
+    }
+    default:
+      throw new Error(`unknown cron action ${action}`);
+  }
+}
+
 async function webFetch(args: Record<string, unknown>) {
   const response = await fetch(String(args.url), {
     signal: AbortSignal.timeout(20_000),
@@ -317,9 +354,7 @@ export async function executeTool(
       case 'web_fetch':
         return record(await webFetch(args));
       case 'cron':
-        return record(
-          JSON.stringify({ ok: true, note: 'lab stub; nothing scheduled' })
-        );
+        return record(runCron(args, context));
       case 'tlon_agent_choice': {
         const params = args as unknown as AgentChoiceToolParams;
         const execute = createAgentChoiceToolExecutor({

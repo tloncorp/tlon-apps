@@ -43,6 +43,30 @@ export function coordinatorAcknowledgement(plan: TaskPlan, timezone: string) {
   ];
 }
 
+/** The job the coordinator creates, shaped like the plugin's cron slot. */
+export function coordinatorJob(plan: TaskPlan, timezone: string) {
+  const request = provisionRequest(plan, timezone) as unknown as {
+    timezone: string;
+  };
+  return {
+    id: 'job-1',
+    name: 'Tlonbot scheduled update',
+    enabled: true,
+    schedule: {
+      kind: 'cron',
+      expr: `${plan.scheduleMinute} ${plan.scheduleHour} * * *`,
+      tz: request.timezone,
+    },
+    payload: {
+      kind: 'agentTurn',
+      message: agentOnboardingTesting.buildRecurringPrompt(
+        provisionRequest(plan, timezone)
+      ),
+    },
+    delivery: { mode: 'announce', channel: 'tlon', to: 'Updates notebook' },
+  };
+}
+
 export function coordinatorReveal(markdown: string) {
   const title = /^#\s+(.+)$/m.exec(markdown)?.[1];
   return agentOnboardingTesting.firstEntryReadyMessage(title);

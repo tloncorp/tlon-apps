@@ -23,6 +23,7 @@ export class BotSession {
   readonly messages: ChatMessage[] = [];
   onboardingComplete = false;
   plan?: TaskPlan;
+  readonly cronJobs: Record<string, unknown>[] = [];
   private readonly tools: LabTool[];
   private readonly system: string;
 
@@ -84,6 +85,10 @@ export class BotSession {
       },
       onServiceSetup: (providerId: string) => {
         events.push({ from: 'bot', kind: 'service-setup', providerId });
+      },
+      cronJobs: this.cronJobs,
+      onCronChange: (action: string, job: unknown) => {
+        events.push({ from: 'system', kind: 'task-change', action, job });
       },
     };
 

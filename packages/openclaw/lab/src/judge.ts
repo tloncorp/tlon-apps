@@ -20,6 +20,9 @@ export function renderForJudge(record: RunRecord): string {
     }
     if (event.from === 'system') {
       if (event.kind === 'phase') return '--- after the ending ---';
+      if (event.kind === 'task-change') {
+        return `SCHEDULED TASK ${event.action.toUpperCase()}: ${JSON.stringify(event.job).slice(0, 600)}`;
+      }
       return event.ok
         ? `FIRST RESULT (published to the Updates notebook):\n${event.markdown}`
         : 'FIRST RESULT: the scheduled run produced nothing.';
