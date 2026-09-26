@@ -249,6 +249,7 @@ export async function runPersona(input: {
   try {
     secondResult = await dayTwo;
   } catch (caught) {
+    if (caught instanceof OutOfCreditError) throw caught;
     secondResult = {
       ok: false,
       markdown: `day-two run failed: ${caught instanceof Error ? caught.message : String(caught)}`,

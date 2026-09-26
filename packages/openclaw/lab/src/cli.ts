@@ -377,7 +377,7 @@ main().catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : error);
   if (error instanceof OutOfCreditError) {
     console.error(
-      'Finished runs are saved. Add credit, then continue with --resume <set>.'
+      'Finished runs are saved. Add credit or quota, then continue with --resume <set>.'
     );
   }
   process.exitCode = 1;

@@ -38,7 +38,7 @@ import {
   type PromptSources,
   renderPrompt,
 } from './config.js';
-import type { ChatTool } from './openrouter.js';
+import { type ChatTool, OutOfCreditError } from './openrouter.js';
 import type { Choice, TaskPlan, ToolCallRecord } from './types.js';
 
 export type LabTool = ChatTool & { guidelines?: string[] };
@@ -221,6 +221,13 @@ async function webSearch(args: Record<string, unknown>, context: ToolContext) {
     await new Promise((resolve) => setTimeout(resolve, 1500 * attempt));
     response = await search();
   }
+  if (response.status === 402) {
+    // Out of search quota is a lab failure, not something the bot should
+    // work around: every later run would silently lose web search.
+    throw new OutOfCreditError(
+      `Brave search is out of quota: ${await response.text()}`
+    );
+  }
   if (!response.ok) {
     throw new Error(`web search failed: ${response.status}`);
   }
@@ -366,6 +373,7 @@ export async function executeTool(
         throw new Error(`Tool ${name} is not available.`);
     }
   } catch (error) {
+    if (error instanceof OutOfCreditError) throw error;
     return record(
       `Error: ${error instanceof Error ? error.message : String(error)}`,
       { error: true }
