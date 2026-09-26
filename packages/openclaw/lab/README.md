@@ -33,8 +33,10 @@ few cents per persona, and personas run in parallel.
 
 Real, imported from the plugin:
 
-- The onboarding skill, tlonbot's workspace prompts, and the per-turn notes the
-  gateway adds to owner messages (`src/onboarding-turn-context.ts`).
+- Every skill the plugin installs (`tlon`, `tlon-agent-onboarding`,
+  `tlon-product-guide`), listed and readable at the same paths the bot uses,
+  plus tlonbot's workspace prompts and the per-turn notes the gateway adds to
+  owner messages (`src/onboarding-turn-context.ts`).
 - The typed tools' names, descriptions, parameter schemas and validation
   (`tlon_agent_choice`, `tlon_agent_task_plan`, `tlon_agent_service_setup`).
 - The turn guards in `src/onboarding-tool-boundary.ts`: one picker per turn, no
@@ -103,9 +105,9 @@ file, so you can always tell what produced a result.
 
 ## Trying a change
 
-A **variant** is a folder of edited copies. Any `SKILL.md` in it replaces the
-onboarding skill. Any other `.md` file replaces the tlonbot prompt with the same
-name. The onboarding sandbox's `.sandbox-prompts` folder works as a variant.
+A **variant** is a folder of edited copies. A `SKILL.md` at its top replaces
+the onboarding skill, `tlon-product-guide/SKILL.md` replaces the product guide,
+and any other `.md` file replaces the tlonbot prompt with the same name. The onboarding sandbox's `.sandbox-prompts` folder works as a variant.
 
 ```bash
 mkdir -p ~/lab-variants/shorter-questions
@@ -127,6 +129,8 @@ the difference between two average scores.
   a single answer.
 - **Conversation** and **first result**: 1–5 scores. Every issue quotes the text
   it is about.
+- **Product answers**: 1–5, checked against the product guide, when the person
+  asked about the app itself. Empty when they didn't.
 - **Follow-up**: whether the bot answered the unrelated message normally.
 - **Rule breaks**: clear breaks of the skill's own rules, with quotes.
 - **Came for it**: the simulated person's own answer.
@@ -146,6 +150,8 @@ knows:
   - Sister is Maya, marrying Jordan.
 style: Warm, a little nervous.
 patience: 2             # questions tolerated before getting impatient
+asks:                   # optional questions about the app itself, asked when natural
+  - Can people join if they don't have the app yet?
 afterEnding: thanks. whats a good gift under $100 for them
 timezone: America/New_York
 ```

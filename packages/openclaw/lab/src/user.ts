@@ -62,6 +62,9 @@ function personaBrief(persona: Persona) {
     persona.knows?.length
       ? `Things you know, shared only when asked or when it naturally comes up:\n${persona.knows.map((fact) => `- ${fact}`).join('\n')}`
       : '',
+    persona.asks?.length
+      ? `Questions about the app you will ask at some point, one at a time, in your own words, when it feels natural (not necessarily first):\n${persona.asks.map((question) => `- ${question}`).join('\n')}`
+      : '',
     persona.style ? `How you write: ${persona.style}` : '',
     persona.patience !== undefined
       ? `Patience: you put up with about ${persona.patience} questions before you get impatient, say so, or leave.`

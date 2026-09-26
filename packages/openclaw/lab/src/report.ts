@@ -7,6 +7,7 @@ export type Metrics = {
   outcomeMatched: number | null;
   conversation: number | null;
   result: number | null;
+  product: number | null;
   followUpOk: number | null;
   keep: number | null;
   ruleBreaks: number | null;
@@ -36,6 +37,11 @@ export function metrics(runs: RunRecord[]): Metrics {
         .map((run) => run.judgement!.result.score)
         .filter((score): score is number => typeof score === 'number')
     ),
+    product: mean(
+      graded
+        .map((run) => run.judgement!.product?.score)
+        .filter((score): score is number => typeof score === 'number')
+    ),
     followUpOk: rate(graded.map((run) => run.judgement!.followUp.ok)),
     keep: rate(runs.filter((run) => run.keep).map((run) => run.keep!.keep)),
     ruleBreaks: mean(graded.map((run) => run.judgement!.ruleBreaks.length)),
@@ -54,6 +60,7 @@ const METRIC_ROWS: [
   ['outcomeMatched', 'Ending matched what the person wanted', 'pct', 1],
   ['conversation', 'Conversation score (1–5)', 'score', 1],
   ['result', 'First result score (1–5)', 'score', 1],
+  ['product', 'Product answers score (1–5)', 'score', 1],
   ['followUpOk', 'Handled the follow-up normally', 'pct', 1],
   ['keep', 'Person got what they came for and would come back', 'pct', 1],
   ['ruleBreaks', 'Skill rule breaks per run', 'num', -1],
@@ -150,6 +157,9 @@ function renderRunDetails(run: RunRecord, heading?: string) {
           (i) => ['conversation', i] as const
         ),
         ...judgement.result.issues.map((i) => ['result', i] as const),
+        ...(judgement.product?.issues ?? []).map(
+          (i) => ['product', i] as const
+        ),
       ]
     : [];
   return `
@@ -202,6 +212,7 @@ export function renderRunSetReport(
         <td>${mark(run.judgement?.outcome.matched)}</td>
         <td class="num">${run.judgement?.conversation.score ?? '—'}</td>
         <td class="num">${run.judgement?.result.score ?? '—'}</td>
+        <td class="num">${run.judgement?.product?.score ?? '—'}</td>
         <td>${mark(run.judgement?.followUp.ok)}</td>
         <td class="num">${run.judgement?.ruleBreaks.length ?? '—'}</td>
         <td>${mark(run.keep?.keep)}</td>
@@ -220,7 +231,7 @@ export function renderRunSetReport(
     `Onboarding lab: ${manifest.label}`,
     `<h1>Onboarding lab: ${escape(manifest.label)}</h1>${manifestLine(manifest)}
      <h2>Summary</h2><table>${summary}</table>
-     <h2>Runs</h2><div class="scroll"><table><tr><th>Persona</th><th>Ending</th><th>Matched</th><th>Conv</th><th>Result</th><th>Follow-up</th><th>Rule breaks</th><th>Came for it</th><th>Pickers</th><th>Cost</th></tr>${rows}</table></div>
+     <h2>Runs</h2><div class="scroll"><table><tr><th>Persona</th><th>Ending</th><th>Matched</th><th>Conv</th><th>Result</th><th>Product</th><th>Follow-up</th><th>Rule breaks</th><th>Came for it</th><th>Pickers</th><th>Cost</th></tr>${rows}</table></div>
      <h2>Transcripts</h2>${details}`
   );
 }

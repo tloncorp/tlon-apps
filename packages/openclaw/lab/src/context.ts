@@ -16,14 +16,8 @@ const INJECTED_WORKSPACE_FILES = [
   'MEMORY.md',
 ];
 
-export const SKILL_LOCATION =
-  '~/.openclaw/plugin-skills/tlon-agent-onboarding/SKILL.md';
-
-function skillDescription(skillText: string) {
-  return (
-    /^description:\s*(.+)$/m.exec(skillText)?.[1]?.trim() ??
-    'First-run onboarding.'
-  );
+function frontmatter(skillText: string, field: string) {
+  return new RegExp(`^${field}:\\s*(.+)$`, 'm').exec(skillText)?.[1]?.trim();
 }
 
 export function localTime(timezone: string, now = new Date()) {
@@ -71,8 +65,10 @@ export function buildSystemPrompt(input: {
     '- If exactly one skill clearly applies: read its SKILL.md at <location> with `read`, then follow it.',
     '- If none clearly apply: do not read any SKILL.md.',
     '<available_skills>',
-    `  <skill><name>tlon-agent-onboarding</name><description>${skillDescription(input.sources.skill.text)}</description><location>${SKILL_LOCATION}</location></skill>`,
-    '  <skill><name>tlon-skill</name><description>Tlon CLI syntax reference for reading and administering Tlon data.</description><location>~/.openclaw/plugin-skills/tlon-skill/SKILL.md</location></skill>',
+    ...input.sources.skills.map(
+      (skill) =>
+        `  <skill><name>${frontmatter(skill.text, 'name') ?? skill.dir}</name><description>${frontmatter(skill.text, 'description') ?? ''}</description><location>~/.openclaw/plugin-skills/${skill.dir}/SKILL.md</location></skill>`
+    ),
     '</available_skills>',
     '',
     '## Workspace',

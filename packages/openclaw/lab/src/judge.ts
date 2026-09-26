@@ -1,6 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { stringify } from 'yaml';
-import { type LabConfig, RUBRIC_PATH } from './config.js';
+import {
+  type LabConfig,
+  PRODUCT_GUIDE_DIR,
+  type PromptSources,
+  RUBRIC_PATH,
+} from './config.js';
 import { type CostMeter, chatJson } from './openrouter.js';
 import type { Issue, Judgement, RunRecord, TranscriptEvent } from './types.js';
 
@@ -60,7 +65,7 @@ export function renderForJudge(record: RunRecord): string {
 
 export async function judgeRun(input: {
   record: RunRecord;
-  skillText: string;
+  sources: PromptSources;
   config: LabConfig;
   meter: CostMeter;
 }): Promise<Judgement> {
@@ -83,7 +88,10 @@ export async function judgeRun(input: {
           '## What happened',
           renderForJudge(record),
           '## Onboarding skill the bot was running',
-          input.skillText,
+          input.sources.skill.text,
+          '## Tlon product guide (the reference for checking product answers)',
+          input.sources.skills.find((skill) => skill.dir === PRODUCT_GUIDE_DIR)
+            ?.text ?? '(not available)',
         ].join('\n\n'),
       },
     ],
@@ -114,6 +122,10 @@ function normalizeJudgement(raw: Partial<Judgement>): Judgement {
     result: {
       score: score(raw.result?.score),
       issues: normalizeIssues(raw.result?.issues),
+    },
+    product: {
+      score: score(raw.product?.score),
+      issues: normalizeIssues(raw.product?.issues),
     },
     followUp: {
       ok: raw.followUp?.ok === true,

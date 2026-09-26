@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 import {
   type AgentChoiceToolParams,
   agentChoiceToolMetadata,
@@ -142,13 +144,23 @@ export function labTools(context: Pick<ToolContext, 'webOnly'>): LabTool[] {
   ];
 }
 
-function readFile(path: string, context: ToolContext) {
-  const clean = path.trim();
-  if (clean.endsWith('plugin-skills/tlon-agent-onboarding/SKILL.md')) {
-    return context.sources.skill.text;
-  }
-  if (clean.endsWith('plugin-skills/tlon-skill/SKILL.md')) {
-    return 'The Tlon CLI reference is not loaded in the onboarding lab. Use `tlon settings get`, `tlon groups list`, or `tlon contacts self`.';
+function readFile(file: string, context: ToolContext) {
+  const clean = file.trim();
+  // Installed skills live at ~/.openclaw/plugin-skills/<dir>/...
+  const skillPath = /plugin-skills\/([^/]+)\/(.+)$/.exec(clean);
+  if (skillPath) {
+    const skill = context.sources.skills.find(
+      (entry) => entry.dir === skillPath[1]
+    );
+    if (skill && skillPath[2] === 'SKILL.md') return skill.text;
+    if (skill) {
+      const root = path.dirname(skill.path);
+      const target = path.resolve(root, skillPath[2]);
+      if (target.startsWith(`${root}${path.sep}`) && existsSync(target)) {
+        return readFileSync(target, 'utf8');
+      }
+    }
+    throw new Error(`ENOENT: no such file or directory, open '${clean}'`);
   }
   const name = clean.replace(/^\.\//, '');
   const prompt = context.sources.prompts[name];
@@ -288,7 +300,9 @@ export async function executeTool(
   try {
     switch (name) {
       case 'read':
-        return record(readFile(String(args.path ?? ''), context));
+        return record(
+          readFile(String(args.path ?? args.file_path ?? ''), context)
+        );
       case 'tlon':
         return record(runTlon(String(args.command ?? ''), context));
       case 'web_search':

@@ -64,7 +64,7 @@ export function createRunSet(input: {
   const dir = path.join(RUNS_DIR, `${stamp}-${slug}`);
   mkdirSync(dir, { recursive: true });
   const sourceFiles = [
-    input.sources.skill,
+    ...input.sources.skills,
     ...Object.values(input.sources.prompts),
   ];
   const manifest: RunSetManifest = {
