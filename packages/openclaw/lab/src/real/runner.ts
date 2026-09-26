@@ -174,13 +174,12 @@ export async function runRealPersona(input: {
   let onboardingComplete = false;
   let error: string | undefined;
 
-  stack.reset(sources);
   proxy.setTag(tag);
   const owner = new OwnerApp(stack.owner(), SANDBOX_BOT, {
     timezone,
     locale: 'en-US',
   });
-  let seen = await owner.latestSeq();
+  let seen = 0;
   let lastChoice: BotPost | undefined;
   let lastPlan: BotPost | undefined;
 
@@ -238,6 +237,8 @@ export async function runRealPersona(input: {
   };
 
   try {
+    await stack.reset(sources);
+    seen = await owner.latestSeq();
     await owner.furnish();
     const welcome = await settle({ maxMs: 90_000 });
     transcript.push(...welcome.map(toEvent));

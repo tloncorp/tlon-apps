@@ -181,17 +181,29 @@ export class OwnerApp {
   /** @tloncorp/api keeps one global client; run each call as this owner. */
   private use<T>(fn: () => Promise<T>): Promise<T> {
     const next = this.queue.then(async () => {
-      if (!this.connected) {
-        await this.urbit.connect();
-        this.connected = true;
+      // A ship busy after a reset can drop a request; retry network errors.
+      for (let attempt = 1; ; attempt++) {
+        try {
+          if (!this.connected) {
+            await this.urbit.connect();
+            this.connected = true;
+          }
+          configureClient({
+            shipName: this.credentials.shipName.slice(1),
+            shipUrl: this.credentials.shipUrl,
+            getCode: async () => this.credentials.code,
+            client: this.urbit,
+          });
+          return await fn();
+        } catch (error) {
+          const network = /fetch failed|ECONNRESET|ECONNREFUSED|socket/i.test(
+            String((error as Error)?.message ?? error)
+          );
+          if (!network || attempt >= 5) throw error;
+          this.connected = false;
+          await new Promise((resolve) => setTimeout(resolve, 3000 * attempt));
+        }
       }
-      configureClient({
-        shipName: this.credentials.shipName.slice(1),
-        shipUrl: this.credentials.shipUrl,
-        getCode: async () => this.credentials.code,
-        client: this.urbit,
-      });
-      return fn();
     });
     this.queue = next.catch(() => undefined);
     return next;

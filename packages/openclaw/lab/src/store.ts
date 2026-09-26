@@ -1,3 +1,4 @@
+import type { Template } from './template.js';
 import type { DeploymentCheck } from './deployed.js';
 import { execFileSync } from 'node:child_process';
 import {
@@ -62,6 +63,7 @@ export function createRunSet(input: {
   tips: number;
   deployment?: DeploymentCheck;
   mode?: 'fast' | 'real';
+  template?: Template;
 }): { dir: string; manifest: RunSetManifest } {
   const stamp = new Date()
     .toISOString()
@@ -112,12 +114,36 @@ export function createRunSet(input: {
     }),
     ...(input.deployment ? { deployment: input.deployment } : {}),
     ...(input.mode === 'real' ? { mode: 'real' as const } : {}),
+    ...(input.template
+      ? {
+          template: {
+            openclaw: input.template.openclaw,
+            capturedAt: input.template.capturedAt,
+            capturedFrom: input.template.capturedFrom,
+          },
+        }
+      : {}),
   };
   writeFileSync(
     path.join(dir, 'manifest.json'),
     `${JSON.stringify(manifest, null, 2)}\n`
   );
+  // A frozen copy, so resumed runs fill the same template.
+  if (input.template) {
+    writeFileSync(
+      path.join(dir, 'checkpoint', 'template.json'),
+      `${JSON.stringify(input.template)}\n`
+    );
+  }
   return { dir, manifest };
+}
+
+/** The template a fast run set was calibrated with, if any. */
+export function frozenTemplate(dir: string): Template | undefined {
+  const file = path.join(dir, 'checkpoint', 'template.json');
+  return existsSync(file)
+    ? (JSON.parse(readFileSync(file, 'utf8')) as Template)
+    : undefined;
 }
 
 export function writeRun(dir: string, record: RunRecord) {

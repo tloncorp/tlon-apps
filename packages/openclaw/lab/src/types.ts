@@ -154,4 +154,6 @@ export type RunSetManifest = {
   /** How the tested build compared with the deployed one. */
   deployment?: DeploymentCheck;
   mode?: 'fast' | 'real';
+  /** The real-run capture fast mode filled in, if any. */
+  template?: { openclaw: string; capturedAt: string; capturedFrom: string };
 };

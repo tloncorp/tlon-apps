@@ -1,4 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
+import { Urbit } from '@tloncorp/api';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -153,7 +154,8 @@ export class LabStack {
     pluginRef: string,
     agent: DeployedAgent | undefined,
     proxyPort: number,
-    search: boolean
+    search: boolean,
+    campaign: boolean
   ) {
     if (!this.running() || this.pluginRef() !== pluginRef) {
       try {
@@ -170,7 +172,7 @@ export class LabStack {
         `sandbox runs plugin ${this.pluginRef().slice(0, 10)}, expected ${pluginRef.slice(0, 10)}`
       );
     }
-    this.configure(agent, proxyPort, search);
+    this.configure(agent, proxyPort, search, campaign);
   }
 
   /**
@@ -180,7 +182,8 @@ export class LabStack {
   configure(
     agent: DeployedAgent | undefined,
     proxyPort: number,
-    search: boolean
+    search: boolean,
+    campaign: boolean
   ) {
     const deny = JSON.stringify(agent?.deniedTools ?? []);
     const thinking = JSON.stringify(agent?.thinkingDefault ?? null);
@@ -192,7 +195,12 @@ export class LabStack {
         .tools.deny = ((.tools.deny // []) + $deny | unique)
         | (if $thinking then .agents.defaults.thinkingDefault = $thinking else . end)
         | .models.providers.openrouter.baseUrl = $base
+        # Scheduled runs call .models.find on any configured provider.
+        | .models.providers.openrouter.models = (.models.providers.openrouter.models // [])
         | .tools.web.fetch.enabled = true
+        # Hosted production runs no first-week campaign; the lab turns it on
+        # only for runs that simulate tips.
+        | .channels.tlon.onboardingCampaign.enabled = ${campaign}
         | (if ${search} then . else
             .tools.web.search.enabled = false
             | .plugins.entries["image-search"].enabled = false
@@ -269,6 +277,66 @@ export class LabStack {
     }
   }
 
+  /** The values the sandbox fills into prompt files; others stay literal. */
+  substitutions(): Record<string, string> {
+    const [ship, owner, url] = this.bot(
+      'printf "%s\\n%s\\n%s" "$TLON_SHIP" "$TLON_OWNER_SHIP" "$TLON_URL"'
+    ).split('\n');
+    const model = this.bot(
+      "jq -r '.agents.defaults.model.primary // empty' /root/.openclaw/openclaw.json"
+    ).trim();
+    return {
+      TLON_SHIP: ship,
+      TLON_OWNER_SHIP: owner,
+      TLON_URL: url,
+      ...(model ? { MODEL: model } : {}),
+    };
+  }
+
+  /**
+   * Settings the sandbox reset leaves behind, which a fresh bot wouldn't
+   * have: the channel list and the owner's last-message time.
+   */
+  private async clearBotSettings() {
+    const urbit = new Urbit(`http://localhost:${this.ports.zod}`, BOT.code);
+    (urbit as Urbit & { ship: string }).ship = BOT.ship.slice(1);
+    await urbit.connect();
+    try {
+      for (const key of [
+        'groupChannels',
+        'lastOwnerMessageAt',
+        'lastOwnerMessageDate',
+      ]) {
+        await urbit.poke({
+          app: 'settings',
+          mark: 'settings-event',
+          json: {
+            'del-entry': {
+              desk: 'moltbot',
+              'bucket-key': 'tlon',
+              'entry-key': key,
+            },
+          },
+        });
+      }
+    } finally {
+      urbit.delete?.();
+    }
+  }
+
+  /** Files in the bot's workspace right now. */
+  workspaceFiles() {
+    return this.bot(`ls -1 ${WORKSPACE}`)
+      .split('\n')
+      .filter((name) => name.endsWith('.md'));
+  }
+
+  openclawVersion() {
+    return (
+      /\d{4}\.\d+\.\d+/.exec(this.bot('openclaw --version'))?.[0] ?? 'unknown'
+    );
+  }
+
   /**
    * Write the variant's copies of the plugin's own skills over the installed
    * ones. tlon-skill ships as a separate package and is left as installed.
@@ -301,9 +369,10 @@ export class LabStack {
    * session, cron jobs or campaign, and the workspace restored to its
    * baseline plus the variant's prompt files.
    */
-  reset(sources: PromptSources) {
+  async reset(sources: PromptSources) {
     const dir = mkdtempSync(path.join(os.tmpdir(), 'lab-prompts-'));
     try {
+      await this.clearBotSettings();
       for (const [name, file] of Object.entries(sources.prompts)) {
         writeFileSync(path.join(dir, name), file.text);
       }

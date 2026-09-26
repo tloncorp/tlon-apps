@@ -37,6 +37,7 @@ import {
   renderPrompt,
 } from './config.js';
 import { type ChatTool, OutOfCreditError } from './openrouter.js';
+import { type Template, renderLikeSandbox } from './template.js';
 import type { Choice, TaskPlan, ToolCallRecord } from './types.js';
 
 export type LabTool = ChatTool & { guidelines?: string[] };
@@ -56,6 +57,12 @@ export type ToolContext = {
   /** The owner's scheduled jobs, shared across turns so `cron` sees real state. */
   cronJobs?: Record<string, unknown>[];
   onCronChange?: (action: string, job: unknown) => void;
+  /** Calibrated from a real run: OpenClaw's tools, errors and workspace. */
+  template?: Template;
+  /** Files the bot wrote this session, by workspace-relative path. */
+  written?: Map<string, string>;
+  /** A message the bot sent with the `message` tool. */
+  onMessage?: (text: string, target: string) => void;
 };
 
 function tool(
@@ -102,19 +109,68 @@ const WEB_TOOLS: LabTool[] = [
   }),
 ];
 
+const TYPED_TOOLS = [
+  [agentChoiceToolMetadata, agentChoiceToolParameters],
+  [agentTaskPlanToolMetadata, agentTaskPlanToolParameters],
+  [agentServiceSetupToolMetadata, agentServiceSetupToolParameters],
+] as const;
+
+/**
+ * OpenClaw's own tool list from the calibration template. The plugin's typed
+ * tools come from live code when it changed since calibration, so plugin
+ * edits show up before the next real run.
+ */
+function templateTools(template: Template, webOnly: boolean, search: boolean) {
+  if (webOnly) {
+    return (template.cron?.tools ?? []).filter(
+      (tool) => search || tool.function.name !== 'web_search'
+    );
+  }
+  const live = new Map(
+    TYPED_TOOLS.map(([meta, parameters]) => [
+      meta.name,
+      {
+        type: 'function' as const,
+        function: {
+          name: meta.name,
+          description: meta.description,
+          parameters: JSON.parse(JSON.stringify(parameters)) as unknown,
+        },
+      },
+    ])
+  );
+  const tools = template.tools.map((tool) => {
+    const current = live.get(tool.function.name);
+    if (!current) return tool;
+    const same =
+      current.function.description === tool.function.description &&
+      JSON.stringify(current.function.parameters) ===
+        JSON.stringify(tool.function.parameters);
+    return same ? tool : current;
+  });
+  const missingSearch =
+    search && !tools.some((tool) => tool.function.name === 'web_search');
+  return missingSearch
+    ? [...tools, ...WEB_TOOLS.filter((t) => t.function.name === 'web_search')]
+    : tools;
+}
+
 export function labTools(
-  context: Pick<ToolContext, 'webOnly'> & { search?: boolean }
+  context: Pick<ToolContext, 'webOnly' | 'template'> & { search?: boolean }
 ): LabTool[] {
+  if (context.template) {
+    return templateTools(
+      context.template,
+      Boolean(context.webOnly),
+      context.search !== false
+    );
+  }
   // Hosted tlonbot only offers web_search when it has a search key.
   const web = WEB_TOOLS.filter(
     (tool) => context.search !== false || tool.function.name !== 'web_search'
   );
   if (context.webOnly) return web;
-  const typed = [
-    [agentChoiceToolMetadata, agentChoiceToolParameters],
-    [agentTaskPlanToolMetadata, agentTaskPlanToolParameters],
-    [agentServiceSetupToolMetadata, agentServiceSetupToolParameters],
-  ] as const;
+  const typed = TYPED_TOOLS;
   return [
     tool('read', 'Read a file from the workspace or an installed skill.', {
       type: 'object',
@@ -152,7 +208,9 @@ export function labTools(
 }
 
 function readFile(file: string, context: ToolContext) {
-  const clean = file.trim();
+  const clean = file.trim().replace(/^\/root\/\.openclaw\/workspace\//, '');
+  const written = context.written?.get(clean.replace(/^\.\//, ''));
+  if (written !== undefined) return written;
   // Installed skills live at ~/.openclaw/plugin-skills/<dir>/...
   const skillPath = /plugin-skills\/([^/]+)\/(.+)$/.exec(clean);
   if (skillPath) {
@@ -169,19 +227,57 @@ function readFile(file: string, context: ToolContext) {
   }
   const name = clean.replace(/^\.\//, '');
   const prompt = context.sources.prompts[name];
-  if (prompt)
+  // Only files the real workspace had exist; OpenClaw removes BOOTSTRAP.md
+  // from a fresh workspace that already holds tlonbot's prompts.
+  const present =
+    !context.template || context.template.workspaceFiles.includes(name);
+  if (prompt && present && context.template)
+    return renderLikeSandbox(prompt.text, context.template);
+  if (prompt && present)
     return renderPrompt(
       prompt.text,
       context.botModel,
       context.sources.substitutions
     );
-  throw new Error(`ENOENT: no such file or directory, open '${clean}'`);
+  throw new Error(
+    context.template
+      ? `ENOENT: no such file or directory, access '/root/.openclaw/workspace/${name}'`
+      : `ENOENT: no such file or directory, open '${clean}'`
+  );
+}
+
+/** Lines `offset` (1-based) through `offset + limit - 1`, like OpenClaw's read. */
+function sliceLines(text: string, args: Record<string, unknown>) {
+  const offset = Number(args.offset ?? 1);
+  const limit = args.limit === undefined ? undefined : Number(args.limit);
+  if (offset <= 1 && limit === undefined) return text;
+  const lines = text.split('\n');
+  const start = Math.max(offset - 1, 0);
+  return lines
+    .slice(start, limit === undefined ? undefined : start + limit)
+    .join('\n');
 }
 
 function runTlon(command: string, context: ToolContext) {
   const clean = command.trim().replace(/^tlon\s+/, '');
   if (/^settings get\b/.test(clean)) {
-    return JSON.stringify({ bootstrapComplete: context.onboardingComplete });
+    if (!context.template) {
+      return JSON.stringify({ bootstrapComplete: context.onboardingComplete });
+    }
+    // What a fresh bot's settings hold during onboarding.
+    const now = new Date();
+    return JSON.stringify(
+      {
+        dmAllowlist: [OWNER_SHIP],
+        autoDiscoverChannels: true,
+        groupChannels: [`chat/${ONBOARDING_GROUP_ID}-general`],
+        lastOwnerMessageDate: now.toISOString().slice(0, 10),
+        lastOwnerMessageAt: now.getTime(),
+        ...(context.onboardingComplete ? { bootstrapComplete: true } : {}),
+      },
+      null,
+      2
+    );
   }
   if (/^(groups list|channels groups)\b/.test(clean)) {
     return JSON.stringify([
@@ -266,7 +362,7 @@ function runCron(args: Record<string, unknown>, context: ToolContext) {
   const jobs = context.cronJobs ?? [];
   const action = String(args.action ?? '');
   const job = (args.job ?? {}) as Record<string, unknown>;
-  const id = String(args.id ?? job.id ?? '');
+  const id = String(args.jobId ?? args.id ?? job.id ?? '');
   switch (action) {
     case 'list':
       return JSON.stringify({ jobs });
@@ -279,7 +375,12 @@ function runCron(args: Record<string, unknown>, context: ToolContext) {
     case 'update': {
       const index = jobs.findIndex((entry) => entry.id === id);
       if (index < 0) throw new Error(`no cron job with id ${id}`);
-      jobs[index] = { ...jobs[index], ...job, id };
+      jobs[index] = {
+        ...jobs[index],
+        ...job,
+        ...((args.patch ?? {}) as Record<string, unknown>),
+        id,
+      };
       context.onCronChange?.('update', jobs[index]);
       return JSON.stringify({ ok: true, job: jobs[index] });
     }
@@ -352,8 +453,70 @@ export async function executeTool(
     switch (name) {
       case 'read':
         return record(
-          readFile(String(args.path ?? args.file_path ?? ''), context)
+          sliceLines(
+            readFile(String(args.path ?? args.file_path ?? ''), context),
+            args
+          )
         );
+      case 'write': {
+        const target = String(args.path ?? args.file_path ?? '').replace(
+          /^\/root\/\.openclaw\/workspace\//,
+          ''
+        );
+        context.written?.set(target, String(args.content ?? ''));
+        return record(`Successfully wrote ${target}`);
+      }
+      case 'edit': {
+        const target = String(args.path ?? args.file_path ?? '').replace(
+          /^\/root\/\.openclaw\/workspace\//,
+          ''
+        );
+        const current = readFile(target, context);
+        const oldText = String(args.oldText ?? args.old_string ?? '');
+        if (!current.includes(oldText)) {
+          throw new Error(`Could not find the text to replace in ${target}`);
+        }
+        context.written?.set(
+          target,
+          current.replace(
+            oldText,
+            String(args.newText ?? args.new_string ?? '')
+          )
+        );
+        return record(`Successfully edited ${target}`);
+      }
+      case 'message': {
+        const text = String(args.message ?? '');
+        const target = String(args.target ?? OWNER_SHIP);
+        if (args.action === 'send' && text) context.onMessage?.(text, target);
+        return record(
+          JSON.stringify({ ok: true, action: args.action, target })
+        );
+      }
+      case 'session_status':
+        return record(
+          `Session status: model ${context.botModel} · ${new Date().toISOString()}`
+        );
+      case 'sessions_list':
+      case 'subagents':
+      case 'agents_list':
+        return record(JSON.stringify({ items: [] }));
+      case 'create_goal':
+      case 'update_goal':
+      case 'get_goal':
+        return record(JSON.stringify({ ok: true, goal: args }));
+      case 'apply_patch':
+      case 'sessions_history':
+      case 'sessions_send':
+      case 'sessions_spawn':
+      case 'sessions_yield':
+      case 'skill_workshop':
+      case 'image':
+      case 'pdf':
+      case 'music_generate':
+        // Present in the real tool list; the lab records the call but
+        // cannot run it.
+        throw new Error(`${name} is not simulated in the lab`);
       case 'tlon':
         return record(runTlon(String(args.command ?? ''), context));
       case 'web_search':
@@ -416,8 +579,16 @@ export async function executeTool(
     }
   } catch (error) {
     if (error instanceof OutOfCreditError) throw error;
+    const message = error instanceof Error ? error.message : String(error);
+    // OpenClaw reports tool failures as JSON; the pre-calibration lab didn't.
     return record(
-      `Error: ${error instanceof Error ? error.message : String(error)}`,
+      context.template
+        ? JSON.stringify(
+            { status: 'error', tool: name, error: message },
+            null,
+            2
+          )
+        : `Error: ${message}`,
       { error: true }
     );
   }

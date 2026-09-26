@@ -11,7 +11,13 @@ import {
   OWNER_SHIP,
   type PromptSources,
 } from './config.js';
-import { buildOwnerMessage, buildSystemPrompt } from './context.js';
+import {
+  buildOwnerMessage,
+  buildSystemPrompt,
+  runtimeContextMessage,
+  templatedOwnerMessage,
+} from './context.js';
+import { fillSystem } from './template.js';
 import { type ChatMessage, type CostMeter, chat } from './openrouter.js';
 import { type LabTool, executeTool, labTools } from './tools.js';
 import type { BotTurn, TaskPlan, TranscriptEvent } from './types.js';
@@ -26,6 +32,8 @@ export class BotSession {
   plan?: TaskPlan;
   readonly cronJobs: Record<string, unknown>[] = [];
   private readonly tools: LabTool[];
+  private readonly written = new Map<string, string>();
+  private readonly sessionId = randomUUID();
 
   constructor(
     private readonly config: LabConfig,
@@ -34,7 +42,25 @@ export class BotSession {
     private readonly meter: CostMeter,
     private readonly now: () => Date = () => new Date()
   ) {
-    this.tools = labTools({ search: Boolean(config.braveKey) });
+    this.tools = labTools({
+      search: Boolean(config.braveKey),
+      template: config.template,
+    });
+  }
+
+  private systemPrompt() {
+    const template = this.config.template;
+    return template
+      ? fillSystem(template.system, template, this.sources, {
+          sessionId: this.sessionId,
+        })
+      : buildSystemPrompt({
+          sources: this.sources,
+          tools: this.tools,
+          botModel: this.config.models.bot,
+          timezone: this.timezone,
+          now: this.now(),
+        });
   }
 
   /**
@@ -89,21 +115,49 @@ export class BotSession {
       onCronChange: (action: string, job: unknown) => {
         events.push({ from: 'system', kind: 'task-change', action, job });
       },
+      template: this.config.template,
+      written: this.written,
+      onMessage: (text: string) => {
+        events.push({ from: 'bot', kind: 'text', text, source: 'model' });
+      },
     };
 
+    const text = campaignContext
+      ? withCampaignContext(campaignContext, userText)
+      : replyTo
+        ? `${userText}\n[Replying to your earlier message: "${replyTo}"]`
+        : userText;
+    const template = this.config.template;
     this.messages.push({
       role: 'user',
-      content: buildOwnerMessage({
-        text: campaignContext
-          ? withCampaignContext(campaignContext, userText)
-          : replyTo
-            ? `${userText}\n[Replying to your earlier message: "${replyTo}"]`
-            : userText,
-        onboardingActive,
-        timezone: this.timezone,
-        now: this.now(),
-      }),
+      content: template
+        ? templatedOwnerMessage({
+            template,
+            text,
+            onboardingActive,
+            timezone: this.timezone,
+            now: this.now(),
+          })
+        : buildOwnerMessage({
+            text,
+            onboardingActive,
+            timezone: this.timezone,
+            now: this.now(),
+          }),
     });
+    // OpenClaw sends a runtime-context message after the current owner
+    // message only; earlier turns lose theirs.
+    const runtime: ChatMessage[] = template
+      ? [
+          {
+            role: 'user',
+            content: runtimeContextMessage(
+              template,
+              `${OWNER_SHIP}/170.141.184.508.${Date.now()}`
+            ),
+          },
+        ]
+      : [];
 
     try {
       for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
@@ -111,27 +165,28 @@ export class BotSession {
           key: this.config.openrouterKey,
           model: this.config.models.bot,
           messages: [
-            {
-              role: 'system',
-              content: buildSystemPrompt({
-                sources: this.sources,
-                tools: this.tools,
-                botModel: this.config.models.bot,
-                timezone: this.timezone,
-                now: this.now(),
-              }),
-            },
+            { role: 'system', content: this.systemPrompt() },
             ...this.messages,
+            ...runtime,
           ],
           tools: this.tools,
           meter: this.meter,
           ...this.config.botRequest,
+          ...(template?.settings.reasoning
+            ? { reasoning: template.settings.reasoning }
+            : {}),
         });
-        this.messages.push({
-          role: 'assistant',
-          content: reply.content,
-          ...(reply.toolCalls.length ? { tool_calls: reply.toolCalls } : {}),
-        });
+        const silent =
+          !reply.toolCalls.length &&
+          (!reply.content?.trim() || reply.content.trim() === 'NO_REPLY');
+        // OpenClaw keeps no trace of a silent final reply in the history.
+        if (!(template && silent)) {
+          this.messages.push({
+            role: 'assistant',
+            content: reply.content,
+            ...(reply.toolCalls.length ? { tool_calls: reply.toolCalls } : {}),
+          });
+        }
         if (reply.toolCalls.length) {
           for (const call of reply.toolCalls) {
             let args: Record<string, unknown>;
