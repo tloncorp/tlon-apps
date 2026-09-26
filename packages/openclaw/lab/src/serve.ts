@@ -223,7 +223,8 @@ function runArgs(body: Record<string, unknown>) {
   const concurrency = Math.min(Math.max(Number(body.concurrency) || 4, 1), 8);
   args.push('--repeat', String(repeat), '--concurrency', String(concurrency));
   const tips = Number(body.tips ?? 0);
-  if (!Number.isInteger(tips) || tips < 0 || tips > 5) throw new Error('tips must be an integer from 0 through 5');
+  if (!Number.isInteger(tips) || tips < 0 || tips > 5)
+    throw new Error('tips must be an integer from 0 through 5');
   args.push('--tips', String(tips));
   if (body.search === false) args.push('--no-search');
   const label = String(body.label ?? '').trim();

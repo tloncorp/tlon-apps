@@ -24,17 +24,20 @@ export type PromptCheckpoint = {
 
 const FILE = 'checkpoint/index.json';
 
-export function writeCheckpoint(dir: string, input: {
-  models: RunSetManifest['models'];
-  search: boolean;
-  maxTurns: number;
-  judge: boolean;
-  tips: number;
-  sources: PromptSources;
-  personas: Persona[];
-  personaCards: Record<string, string>;
-  rubric: string;
-}): RunSetManifest['checkpoint'] {
+export function writeCheckpoint(
+  dir: string,
+  input: {
+    models: RunSetManifest['models'];
+    search: boolean;
+    maxTurns: number;
+    judge: boolean;
+    tips: number;
+    sources: PromptSources;
+    personas: Persona[];
+    personaCards: Record<string, string>;
+    rubric: string;
+  }
+): RunSetManifest['checkpoint'] {
   const checkpoint: PromptCheckpoint = {
     version: 1,
     models: input.models,
@@ -43,7 +46,12 @@ export function writeCheckpoint(dir: string, input: {
     judge: input.judge,
     tips: input.tips,
     sources: input.sources,
-    personas: Object.fromEntries(input.personas.map((persona) => [persona.id, input.personaCards[persona.id]])),
+    personas: Object.fromEntries(
+      input.personas.map((persona) => [
+        persona.id,
+        input.personaCards[persona.id],
+      ])
+    ),
     rubric: input.rubric,
     simulatorPolicy: USER_RULES,
     tipMovePolicy: TIP_MOVE_RULES,
@@ -51,16 +59,25 @@ export function writeCheckpoint(dir: string, input: {
     campaignPromptPolicy: CAMPAIGN_PROMPT_POLICY,
   };
   mkdirSync(path.join(dir, 'checkpoint'), { recursive: true });
-  writeFileSync(path.join(dir, FILE), `${JSON.stringify(checkpoint, null, 2)}\n`);
+  writeFileSync(
+    path.join(dir, FILE),
+    `${JSON.stringify(checkpoint, null, 2)}\n`
+  );
   return { version: 1, file: FILE };
 }
 
-export function loadCheckpoint(dir: string, manifest: RunSetManifest): PromptCheckpoint | undefined {
+export function loadCheckpoint(
+  dir: string,
+  manifest: RunSetManifest
+): PromptCheckpoint | undefined {
   if (!manifest.checkpoint) return;
   if (manifest.checkpoint.version !== 1 || manifest.checkpoint.file !== FILE)
     throw new Error('Unsupported prompt checkpoint');
-  const checkpoint = JSON.parse(readFileSync(path.join(dir, FILE), 'utf8')) as PromptCheckpoint;
-  if (checkpoint.version !== 1) throw new Error('Unsupported prompt checkpoint version');
+  const checkpoint = JSON.parse(
+    readFileSync(path.join(dir, FILE), 'utf8')
+  ) as PromptCheckpoint;
+  if (checkpoint.version !== 1)
+    throw new Error('Unsupported prompt checkpoint version');
   return checkpoint;
 }
 

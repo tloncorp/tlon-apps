@@ -21,7 +21,8 @@ export function renderForUser(events: TranscriptEvent[]): string {
       continue;
     }
     if (event.from === 'system') {
-      if (event.kind === 'campaign' && event.action === 'opted-out') lines.push('(Onboarding tips stopped.)');
+      if (event.kind === 'campaign' && event.action === 'opted-out')
+        lines.push('(Onboarding tips stopped.)');
       if (event.kind === 'first-result' && event.ok) {
         lines.push(
           `(A new note appeared in your Updates notebook:)\n${event.markdown}`
@@ -92,8 +93,10 @@ Rules:
 - Product and model names you don't recognize may simply be newer than you are. Don't assume they are made up.
 Return only JSON: {"thought": "<one private sentence>", "action": "pick" | "type" | "leave", "text": "<button text or your message; for leave, why>"}`;
 
-export const TIP_MOVE_RULES = 'A later onboarding tip just arrived. Choose honestly: ignore it, reply with one ordinary message, or opt out of tips. Return only JSON: {"action":"ignore"|"reply"|"opt-out","text":"message if replying"}.';
-export const KEEP_RULES = 'You are this person, looking back on a chat you just had with the Tlonbot assistant in a messaging app. Answer honestly, as this person would, not as a polite reviewer. Return only JSON: {"keep": true | false, "why": "<one or two sentences in your own voice>"}';
+export const TIP_MOVE_RULES =
+  'A later onboarding tip just arrived. Choose honestly: ignore it, reply with one ordinary message, or opt out of tips. Return only JSON: {"action":"ignore"|"reply"|"opt-out","text":"message if replying"}.';
+export const KEEP_RULES =
+  'You are this person, looking back on a chat you just had with the Tlonbot assistant in a messaging app. Answer honestly, as this person would, not as a polite reviewer. Return only JSON: {"keep": true | false, "why": "<one or two sentences in your own voice>"}';
 
 export async function nextUserMove(input: {
   persona: Persona;
@@ -113,7 +116,10 @@ export async function nextUserMove(input: {
     maxTokens: 800,
     meter,
     messages: [
-      { role: 'system', content: `${input.policy ?? USER_RULES}\n\n${personaBrief(persona)}` },
+      {
+        role: 'system',
+        content: `${input.policy ?? USER_RULES}\n\n${personaBrief(persona)}`,
+      },
       {
         role: 'user',
         content: `The chat so far:\n\n${renderForUser(events)}\n\n${input.nudge ? `${input.nudge}\n\n` : ''}What do you do next?`,
@@ -147,12 +153,17 @@ export async function nextTipMove(input: {
     maxTokens: 500,
     meter: input.meter,
     messages: [
-      { role: 'system', content: `${input.policy ?? USER_RULES}\n\n${personaBrief(input.persona)}\n\n${input.tipPolicy ?? TIP_MOVE_RULES}` },
+      {
+        role: 'system',
+        content: `${input.policy ?? USER_RULES}\n\n${personaBrief(input.persona)}\n\n${input.tipPolicy ?? TIP_MOVE_RULES}`,
+      },
       { role: 'user', content: renderForUser(input.events) },
     ],
   });
-  if (reply.action === 'opt-out') return { action: 'opt-out', text: '/stop-tips' };
-  if (reply.action === 'reply' && reply.text?.trim()) return { action: 'reply', text: reply.text.trim() };
+  if (reply.action === 'opt-out')
+    return { action: 'opt-out', text: '/stop-tips' };
+  if (reply.action === 'reply' && reply.text?.trim())
+    return { action: 'reply', text: reply.text.trim() };
   return { action: 'ignore' };
 }
 

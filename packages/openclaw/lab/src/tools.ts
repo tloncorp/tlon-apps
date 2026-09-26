@@ -155,14 +155,20 @@ function readFile(file: string, context: ToolContext) {
     );
     if (skill && skillPath[2] === 'SKILL.md') return skill.text;
     if (skill && !skillPath[2].split('/').includes('..')) {
-      const resource = context.sources.resources[`${skill.dir}/${skillPath[2]}`];
+      const resource =
+        context.sources.resources[`${skill.dir}/${skillPath[2]}`];
       if (resource) return resource.text;
     }
     throw new Error(`ENOENT: no such file or directory, open '${clean}'`);
   }
   const name = clean.replace(/^\.\//, '');
   const prompt = context.sources.prompts[name];
-  if (prompt) return renderPrompt(prompt.text, context.botModel, context.sources.substitutions);
+  if (prompt)
+    return renderPrompt(
+      prompt.text,
+      context.botModel,
+      context.sources.substitutions
+    );
   throw new Error(`ENOENT: no such file or directory, open '${clean}'`);
 }
 

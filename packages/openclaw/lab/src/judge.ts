@@ -24,7 +24,8 @@ export function renderForJudge(record: RunRecord): string {
       if (event.kind === 'task-change') {
         return `SCHEDULED TASK ${event.action.toUpperCase()}: ${JSON.stringify(event.job).slice(0, 600)}`;
       }
-      if (event.kind === 'campaign') return `CAMPAIGN ${event.action}${event.step ? ` ${event.step}` : ''}${event.reason ? ` (${event.reason})` : ''} at ${event.at}`;
+      if (event.kind === 'campaign')
+        return `CAMPAIGN ${event.action}${event.step ? ` ${event.step}` : ''}${event.reason ? ` (${event.reason})` : ''} at ${event.at}`;
       return event.ok
         ? `FIRST RESULT (published to the Updates notebook):\n${event.markdown}`
         : 'FIRST RESULT: the scheduled run produced nothing.';
@@ -49,7 +50,11 @@ export function renderForJudge(record: RunRecord): string {
   for (const event of record.transcript) {
     const line = describe(event);
     if (line) lines.push(line);
-    if (event.from === 'user' && event.kind !== 'leave' && event.kind !== 'tip-ignored') {
+    if (
+      event.from === 'user' &&
+      event.kind !== 'leave' &&
+      event.kind !== 'tip-ignored'
+    ) {
       const turn = record.turns[turnIndex++];
       const tools = turn?.toolCalls
         .map(

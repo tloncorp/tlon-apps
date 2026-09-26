@@ -119,17 +119,29 @@ export function loadConfig(
 }
 
 /** Credentials stay live. Frozen runs do not need a surviving prompt checkout. */
-export function loadFrozenConfig(models: LabConfig['models'], search: boolean): LabConfig {
+export function loadFrozenConfig(
+  models: LabConfig['models'],
+  search: boolean
+): LabConfig {
   const env = { ...parseEnvFile(path.join(LAB_DIR, '.env')), ...process.env };
-  const tlonbotDir = [env.TLONBOT_DIR, path.resolve(REPO_ROOT, '../tlonbot'), path.join(os.homedir(), 'Projects/tlonbot')]
-    .find((candidate): candidate is string => Boolean(candidate && existsSync(candidate))) ?? '';
-  const stack = tlonbotDir ? parseEnvFile(path.join(tlonbotDir, 'tests/.env')) : {};
-  const openrouterKey = env.OPENROUTER_API_KEY ?? stack.OPENROUTER_API_KEY ?? '';
+  const tlonbotDir =
+    [
+      env.TLONBOT_DIR,
+      path.resolve(REPO_ROOT, '../tlonbot'),
+      path.join(os.homedir(), 'Projects/tlonbot'),
+    ].find((candidate): candidate is string =>
+      Boolean(candidate && existsSync(candidate))
+    ) ?? '';
+  const stack = tlonbotDir
+    ? parseEnvFile(path.join(tlonbotDir, 'tests/.env'))
+    : {};
+  const openrouterKey =
+    env.OPENROUTER_API_KEY ?? stack.OPENROUTER_API_KEY ?? '';
   if (!openrouterKey) throw new Error('No OpenRouter key for resumed run.');
   return {
     tlonbotDir,
     openrouterKey,
-    braveKey: search ? env.BRAVE_API_KEY ?? stack.BRAVE_API_KEY : undefined,
+    braveKey: search ? (env.BRAVE_API_KEY ?? stack.BRAVE_API_KEY) : undefined,
     search,
     models,
   };
@@ -163,21 +175,30 @@ export type PromptSources = {
 const TEXT_RESOURCE = new Set(['.md', '.txt', '.yaml', '.yml', '.json']);
 
 function skillResources(dir: string, root: string): Record<string, SourceFile> {
-  if (lstatSync(root).isSymbolicLink()) throw new Error(`Skill resource symlink: ${root}`);
+  if (lstatSync(root).isSymbolicLink())
+    throw new Error(`Skill resource symlink: ${root}`);
   const resources: Record<string, SourceFile> = {};
   const references = path.join(root, 'references');
   if (!existsSync(references)) return resources;
-  if (lstatSync(references).isSymbolicLink()) throw new Error(`Skill resource symlink: ${references}`);
+  if (lstatSync(references).isSymbolicLink())
+    throw new Error(`Skill resource symlink: ${references}`);
   const walk = (directory: string) => {
     for (const entry of readdirSync(directory)) {
       if (entry.startsWith('.') || entry === 'node_modules') continue;
       const file = path.join(directory, entry);
       const stat = lstatSync(file);
-      if (stat.isSymbolicLink()) throw new Error(`Skill resource symlink: ${file}`);
+      if (stat.isSymbolicLink())
+        throw new Error(`Skill resource symlink: ${file}`);
       if (stat.isDirectory()) walk(file);
-      else if (stat.isFile() && TEXT_RESOURCE.has(path.extname(entry).toLowerCase())) {
+      else if (
+        stat.isFile() &&
+        TEXT_RESOURCE.has(path.extname(entry).toLowerCase())
+      ) {
         const relative = path.relative(root, file);
-        if (relative !== 'SKILL.md' && !relative.split(path.sep).some((part) => part === '..'))
+        if (
+          relative !== 'SKILL.md' &&
+          !relative.split(path.sep).some((part) => part === '..')
+        )
           resources[`${dir}/${relative.split(path.sep).join('/')}`] = {
             path: file,
             text: readFileSync(file, 'utf8'),
@@ -201,12 +222,15 @@ export function loadPromptSources(
   variantDir?: string
 ): PromptSources {
   const read = (file: string) => {
-    if (lstatSync(file).isSymbolicLink()) throw new Error(`Prompt symlink: ${file}`);
+    if (lstatSync(file).isSymbolicLink())
+      throw new Error(`Prompt symlink: ${file}`);
     return { path: file, text: readFileSync(file, 'utf8') };
   };
   const promptsDir = path.join(config.tlonbotDir, 'prompts');
-  if (lstatSync(promptsDir).isSymbolicLink()) throw new Error(`Prompt symlink: ${promptsDir}`);
-  if (variantDir && lstatSync(variantDir).isSymbolicLink()) throw new Error(`Variant symlink: ${variantDir}`);
+  if (lstatSync(promptsDir).isSymbolicLink())
+    throw new Error(`Prompt symlink: ${promptsDir}`);
+  if (variantDir && lstatSync(variantDir).isSymbolicLink())
+    throw new Error(`Variant symlink: ${variantDir}`);
   const prompts: PromptSources['prompts'] = {};
   for (const name of readdirSync(promptsDir)) {
     if (name.endsWith('.md')) prompts[name] = read(path.join(promptsDir, name));
@@ -230,12 +254,18 @@ export function loadPromptSources(
     }
   }
   const skill = skills.find((entry) => entry.dir === ONBOARDING_SKILL_DIR)!;
-  const resources = Object.fromEntries(INSTALLED_SKILLS.flatMap((installed) => [
-    ...Object.entries(skillResources(installed.dir, path.dirname(installed.path))),
-    ...(variantDir && existsSync(path.join(variantDir, installed.dir))
-      ? Object.entries(skillResources(installed.dir, path.join(variantDir, installed.dir)))
-      : []),
-  ]));
+  const resources = Object.fromEntries(
+    INSTALLED_SKILLS.flatMap((installed) => [
+      ...Object.entries(
+        skillResources(installed.dir, path.dirname(installed.path))
+      ),
+      ...(variantDir && existsSync(path.join(variantDir, installed.dir))
+        ? Object.entries(
+            skillResources(installed.dir, path.join(variantDir, installed.dir))
+          )
+        : []),
+    ])
+  );
   const coordinatorFile = variantDir
     ? path.join(variantDir, 'coordinator.yaml')
     : undefined;
@@ -249,7 +279,14 @@ export function loadPromptSources(
           };
         })()
       : undefined;
-  return { skill, skills, prompts, resources, substitutions: promptSubstitutions(config.models.bot), ...(coordinator ? { coordinator } : {}) };
+  return {
+    skill,
+    skills,
+    prompts,
+    resources,
+    substitutions: promptSubstitutions(config.models.bot),
+    ...(coordinator ? { coordinator } : {}),
+  };
 }
 
 export function sha256(text: string) {
@@ -268,8 +305,13 @@ export function promptSubstitutions(botModel: string) {
   };
 }
 
-export function renderPrompt(text: string, botModel: string, frozen?: Record<string, string>) {
-  const values: Record<string, string> = frozen ?? promptSubstitutions(botModel);
+export function renderPrompt(
+  text: string,
+  botModel: string,
+  frozen?: Record<string, string>
+) {
+  const values: Record<string, string> =
+    frozen ?? promptSubstitutions(botModel);
   return text.replace(
     /\$\{([A-Z_]+)\}/g,
     (match, name: string) => values[name] ?? match

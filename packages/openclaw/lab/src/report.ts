@@ -119,7 +119,8 @@ function renderChat(events: TranscriptEvent[]) {
       if (event.kind === 'leave') {
         return `<div class="msg meta">user left: ${escape(event.reason)}</div>`;
       }
-      if (event.kind === 'tip-ignored') return `<div class="msg meta">ignored ${escape(event.step)} tip</div>`;
+      if (event.kind === 'tip-ignored')
+        return `<div class="msg meta">ignored ${escape(event.step)} tip</div>`;
       return `<div class="msg user">${escape(event.text)}${event.kind === 'pick' ? ' <span class="muted">(tapped)</span>' : ''}</div>`;
     }
     if (event.from === 'system') {
@@ -129,7 +130,8 @@ function renderChat(events: TranscriptEvent[]) {
       if (event.kind === 'task-change') {
         return `<div class="msg meta">scheduled task ${escape(event.action)}</div>`;
       }
-      if (event.kind === 'campaign') return `<div class="msg meta">campaign ${escape(event.action)}${event.step ? ` ${escape(event.step)}` : ''}${event.reason ? ` (${escape(event.reason)})` : ''}</div>`;
+      if (event.kind === 'campaign')
+        return `<div class="msg meta">campaign ${escape(event.action)}${event.step ? ` ${escape(event.step)}` : ''}${event.reason ? ` (${escape(event.reason)})` : ''}</div>`;
       return event.ok
         ? `<div class="msg note"><div class="muted">First result in Updates</div>${escape(event.markdown)}</div>`
         : '<div class="msg meta bad">first run produced nothing</div>';

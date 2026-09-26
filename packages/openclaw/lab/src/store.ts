@@ -98,7 +98,12 @@ export function createRunSet(input: {
       tips: input.tips,
       sources: input.sources,
       personas: input.personas,
-      personaCards: Object.fromEntries(input.personas.map((persona) => [persona.id, readFileSync(path.join(PERSONAS_DIR, `${persona.id}.yaml`), 'utf8')])),
+      personaCards: Object.fromEntries(
+        input.personas.map((persona) => [
+          persona.id,
+          readFileSync(path.join(PERSONAS_DIR, `${persona.id}.yaml`), 'utf8'),
+        ])
+      ),
       rubric: readFileSync(RUBRIC_PATH, 'utf8'),
     }),
   };
