@@ -177,7 +177,9 @@ export function createAgentChoiceToolExecutor(deps: {
       // because transport failure is ambiguous and a duplicate choice would
       // be worse.
       deps.finish(id, publicationAttempted);
-      if (error instanceof SupersededTurnError) return supersededToolResult();
+      if (error instanceof SupersededTurnError) {
+        return supersededToolResult(error);
+      }
       const message = error instanceof Error ? error.message : String(error);
       return {
         content: [{ type: 'text' as const, text: `Error: ${message}` }],

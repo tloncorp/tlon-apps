@@ -5,20 +5,36 @@
  * message, and it must not be treated as a failure either: retrying can never
  * succeed in that turn, and the owner's newer message will get the reply.
  */
-export const SUPERSEDED_TURN_TEXT =
-  'A newer owner message arrived and will get its own reply, so nothing was posted. Reply with only NO_REPLY now and make no more tool calls.';
+const MARKER = 'will get its own reply';
+
+/**
+ * Quoting the newer message matters: told only that "a newer message
+ * arrived", models go looking for it with session tools and retry for a
+ * minute, which also delays the reply to that newer message.
+ */
+export function supersededTurnText(newerOwnerText?: string) {
+  const text = newerOwnerText?.replace(/\s+/g, ' ').trim();
+  const quoted = text
+    ? ` The owner has since written: "${text.length > 200 ? `${text.slice(0, 199)}…` : text}".`
+    : '';
+  return `A newer owner message arrived and ${MARKER}, so nothing was posted here.${quoted} Reply with only NO_REPLY now; make no more tool calls and do not look the message up.`;
+}
+
+export const SUPERSEDED_TURN_TEXT = supersededTurnText();
 
 export class SupersededTurnError extends Error {
-  constructor() {
-    super(SUPERSEDED_TURN_TEXT);
+  constructor(newerOwnerText?: string) {
+    super(supersededTurnText(newerOwnerText));
     this.name = 'SupersededTurnError';
   }
 }
 
 /** A tool result for an action a newer owner message made stale. */
-export function supersededToolResult() {
+export function supersededToolResult(error?: SupersededTurnError) {
   return {
-    content: [{ type: 'text' as const, text: SUPERSEDED_TURN_TEXT }],
+    content: [
+      { type: 'text' as const, text: error?.message ?? SUPERSEDED_TURN_TEXT },
+    ],
     details: { superseded: true as const },
   };
 }
@@ -32,6 +48,6 @@ export function isSupersededToolOutcome(input: {
     ?.details;
   return (
     details?.superseded === true ||
-    Boolean(input.errorMessage?.includes(SUPERSEDED_TURN_TEXT))
+    Boolean(input.errorMessage?.includes(MARKER))
   );
 }

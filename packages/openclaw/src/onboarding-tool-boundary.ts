@@ -1,8 +1,5 @@
 import { sharedMap } from './shared-state.js';
-import {
-  SUPERSEDED_TURN_TEXT,
-  SupersededTurnError,
-} from './superseded-turn.js';
+import { SupersededTurnError, supersededTurnText } from './superseded-turn.js';
 
 type TlonSessionSurface = {
   kind: 'direct' | 'group';
@@ -12,6 +9,8 @@ type TlonSessionSurface = {
   threadParentId?: string;
   bootstrapComplete?: boolean;
   messageId?: string;
+  /** The owner's latest message, quoted when it supersedes a running turn. */
+  ownerText?: string;
   onboardingDeviceTimezone?: string;
   timestamp: number;
 };
@@ -239,10 +238,9 @@ export function claimTlonChoiceCall(input: {
 export function assertTlonChoiceCallCurrent(toolCallId: string): void {
   const call = choiceCalls.get(toolCallId);
   if (!call) throw new Error('choice is not bound to the current owner turn');
-  if (
-    getTlonSessionSurface(call.sessionKey)?.messageId !== call.ownerMessageId
-  ) {
-    throw new SupersededTurnError();
+  const current = getTlonSessionSurface(call.sessionKey);
+  if (current?.messageId !== call.ownerMessageId) {
+    throw new SupersededTurnError(current?.ownerText);
   }
 }
 
@@ -340,7 +338,7 @@ export function assertTlonTaskPlanCallCurrent(toolCallId: string): void {
   }
   const current = getTlonSessionSurface(call.sessionKey);
   if (current?.messageId !== call.interviewMessageId) {
-    throw new SupersededTurnError();
+    throw new SupersededTurnError(current?.ownerText);
   }
 }
 
@@ -404,7 +402,7 @@ export function onboardingToolBlockReason(
       runSurface?.messageId &&
       surface.messageId !== runSurface.messageId
     ) {
-      return SUPERSEDED_TURN_TEXT;
+      return supersededTurnText(surface.ownerText);
     }
   }
 

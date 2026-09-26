@@ -381,7 +381,9 @@ export function createAgentTaskPlanToolExecutor(deps: {
       // have accepted the post before the CLI lost its response. Retain the
       // one-plan claim so this run cannot publish a second automatic card.
       deps.finish(id, publicationAttempted);
-      if (error instanceof SupersededTurnError) return supersededToolResult();
+      if (error instanceof SupersededTurnError) {
+        return supersededToolResult(error);
+      }
       const message = error instanceof Error ? error.message : String(error);
       return {
         content: [{ type: 'text' as const, text: `Error: ${message}` }],
