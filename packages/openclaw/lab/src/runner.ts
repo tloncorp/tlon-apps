@@ -156,7 +156,9 @@ export async function runPersona(input: {
   const startedAt = new Date();
   const timezone = persona.timezone ?? DEFAULT_TIMEZONE;
   let virtualNow = () => new Date();
-  const session = new BotSession(config, sources, timezone, meter, () => virtualNow());
+  const session = new BotSession(config, sources, timezone, meter, () =>
+    virtualNow()
+  );
   const overrides = sources.coordinator?.overrides ?? {};
   const coordinatorEvent = (message: CoordinatorMessage): TranscriptEvent =>
     message.options?.length
@@ -178,26 +180,37 @@ export async function runPersona(input: {
   const transcript: TranscriptEvent[] = [coordinatorEvent(welcome)];
   const turns: BotTurn[] = [];
   const firstRunToolCalls: ToolCallRecord[] = [];
-  const recordTurn = async (text: string, replyTo?: string, campaignContext?: string) => {
+  const recordTurn = async (
+    text: string,
+    replyTo?: string,
+    campaignContext?: string
+  ) => {
     const turn = await session.turn(text, replyTo, campaignContext);
     turns.push(turn);
     transcript.push(...turn.events);
     return turn;
   };
-  const tips = input.tips ? createLabCampaign({
-    limit: input.tips,
-    startedAt,
-    timezone,
-    persona,
-    config,
-    meter,
-    transcript,
-    policy: input.campaignPromptPolicy,
-    userPolicy: input.simulatorPolicy,
-    tipMovePolicy: input.tipMovePolicy,
-    botTurn: async (text, context) => { await recordTurn(text, undefined, context); },
-    onHandled: (text) => { turns.push({ userText: text, toolCalls: [], events: [] }); },
-  }) : undefined;
+  const tips = input.tips
+    ? createLabCampaign({
+        limit: input.tips,
+        startedAt,
+        timezone,
+        persona,
+        plan: () => session.plan,
+        config,
+        meter,
+        transcript,
+        policy: input.campaignPromptPolicy,
+        userPolicy: input.simulatorPolicy,
+        tipMovePolicy: input.tipMovePolicy,
+        botTurn: async (text, context) => {
+          await recordTurn(text, undefined, context);
+        },
+        onHandled: (text) => {
+          turns.push({ userText: text, toolCalls: [], events: [] });
+        },
+      })
+    : undefined;
   if (tips) virtualNow = tips.now;
   let ending: Ending = 'turn-limit';
   let firstResultOk: boolean | null = null;
@@ -209,7 +222,11 @@ export async function runPersona(input: {
   const botTurn = async (text: string, replyTo?: string) => {
     const campaign = await tips?.ownerMessage(text);
     if (campaign?.handled) {
-      const turn = { userText: text, toolCalls: [], events: [] } satisfies BotTurn;
+      const turn = {
+        userText: text,
+        toolCalls: [],
+        events: [],
+      } satisfies BotTurn;
       turns.push(turn);
       return turn;
     }
@@ -423,7 +440,15 @@ export async function runPersona(input: {
   };
 
   if (!error)
-    await gradeRun({ record, config, sources, judge: input.judge, meter, rubric: input.rubric, keepPolicy: input.keepPolicy });
+    await gradeRun({
+      record,
+      config,
+      sources,
+      judge: input.judge,
+      meter,
+      rubric: input.rubric,
+      keepPolicy: input.keepPolicy,
+    });
   record.durationMs = Date.now() - startedAt.getTime();
   record.costUsd = meter.usd;
   return record;
