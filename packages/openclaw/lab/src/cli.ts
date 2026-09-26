@@ -16,6 +16,7 @@ import {
   renderCompareReport,
   renderRunSetReport,
 } from './report.js';
+import { importVerdicts, listPackets, writePackets } from './packets.js';
 import { gradeRun, runPersona } from './runner.js';
 import {
   createRunSet,
@@ -30,7 +31,9 @@ const USAGE = `Onboarding lab: simulated users against the real onboarding skill
 
   pnpm lab run [options]            run personas and grade them
   pnpm lab ab --variant <dir> [...]  run baseline and a variant, then compare
-  pnpm lab compare <setA> <setB>     judge two existing run sets side by side
+  pnpm lab compare <setA> <setB>     judge two existing run sets side by side (judge model)
+  pnpm lab packets <setA> <setB>     write judging packets for a Claude session to judge
+  pnpm lab import <judging-dir>      fold packet verdicts into both sets and render reports
   pnpm lab report <set>              re-render a run set's report
   pnpm lab personas                  list persona cards
 
@@ -327,6 +330,30 @@ async function main() {
       if (rest.length !== 2) throw new Error('compare needs two run sets');
       await compare(rest[0], rest[1], values['judge-model']);
       return;
+    case 'packets': {
+      if (rest.length !== 2) throw new Error('packets needs two run sets');
+      const { dir, count } = writePackets(
+        loadConfig(),
+        resolveRunSet(rest[0]),
+        resolveRunSet(rest[1])
+      );
+      console.log(
+        `${count} packets in ${dir}\nInstructions: ${path.join(dir, 'INSTRUCTIONS.md')}`
+      );
+      for (const file of listPackets(dir)) console.log(file);
+      return;
+    }
+    case 'import': {
+      const { reportPath, pairs, missing, labels } = importVerdicts(
+        path.resolve(rest[0] ?? '')
+      );
+      const wins = { A: 0, B: 0, tie: 0 };
+      for (const pair of pairs) wins[pair.verdict.winner]++;
+      console.log(
+        `${labels[1]} won ${wins.B}, ${labels[0]} won ${wins.A}, ${wins.tie} ties${missing.length ? ` · ${missing.length} packets without a verdict: ${missing.join(', ')}` : ''}\nReport: ${reportPath}`
+      );
+      return;
+    }
     case 'report': {
       const set = loadRunSet(resolveRunSet(rest[0] ?? ''));
       const reportPath = path.join(set.dir, 'report.html');

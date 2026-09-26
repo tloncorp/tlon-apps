@@ -76,10 +76,21 @@ It picks up `OPENROUTER_API_KEY` and `BRAVE_API_KEY` from that checkout's
 `tests/.env`, or from `lab/.env` or your shell. Without a Brave key, web search
 returns an error to the bot.
 
-Models default to the bot model in tlonbot's `tests/.env`, Claude Sonnet 5 for
-the simulated person, and Claude Opus 5.5 for the judge. Override them with
-`LAB_BOT_MODEL`, `LAB_USER_MODEL` and `LAB_JUDGE_MODEL`, or with the flags below.
-Keep the judge on a different model family from the bot.
+The bot and the simulated person default to the bot model in tlonbot's
+`tests/.env`, which keeps a run to a cent or two. Override them with
+`LAB_BOT_MODEL` and `LAB_USER_MODEL`, or with the flags below.
+
+Judging is the expensive part, so there are two ways to do it:
+
+- **A Claude session judges** (the cheap default for iteration). Run with
+  `--no-judge`, then `pnpm lab packets <setA> <setB>` writes one packet per
+  pair of runs plus `INSTRUCTIONS.md`. Ask Claude Code to judge the packets:
+  it writes a verdict JSON next to each one. `pnpm lab import <judging-dir>`
+  folds the verdicts into both run sets and writes a comparison report.
+- **A judge model** (`LAB_JUDGE_MODEL`, default Claude Opus 5.5) grades each run
+  as it finishes, and `pnpm lab compare` judges pairs. This costs roughly ten
+  times more per round. Keep the judge on a different model family from the
+  bot.
 
 ## Commands
 
@@ -89,8 +100,10 @@ Run these from `packages/openclaw`.
 pnpm lab personas                         # list persona cards
 pnpm lab run                              # every persona once, graded
 pnpm lab run --personas founder-blunt,one-off-toast --repeat 3
-pnpm lab ab --variant ~/lab-variants/shorter-questions
-pnpm lab compare baseline shorter-questions
+pnpm lab run --no-judge --variant ~/lab-variants/shorter-questions --repeat 3
+pnpm lab packets baseline shorter-questions   # then have Claude judge them
+pnpm lab import lab/runs/judging-<stamp>-baseline-vs-shorter-questions
+pnpm lab ab --variant ~/lab-variants/shorter-questions   # judge-model version
 pnpm lab report baseline                  # re-render a run set's report
 ```
 
@@ -116,8 +129,9 @@ cp skills/tlon-agent-onboarding/SKILL.md ~/lab-variants/shorter-questions/
 pnpm lab ab --variant ~/lab-variants/shorter-questions --repeat 3
 ```
 
-`ab` runs the baseline and the variant with the same personas, then has the
-judge compare each pair side by side. The order within each pair is shuffled so
+Run the variant and a baseline with the same personas and simulator, then judge
+them as pairs (`packets` and `import`, or `ab` with a judge model). A baseline
+only needs re-running when the code, models or personas change. The order within each pair is shuffled so
 the judge's position bias cancels out. Models are noisy, so use at least three
 repeats before trusting a difference. Side-by-side wins are more reliable than
 the difference between two average scores.
