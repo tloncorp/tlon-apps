@@ -1,0 +1,13 @@
+id: mid-flow-asker
+who: Football fan who follows Arsenal and wants to keep up without scrolling social media.
+wants: A daily Premier League recap focused on Arsenal. Also wants to know where the recap will show up and whether they will be notified, and expects a straight answer before finishing setup.
+expectPlan: yes
+opening: can you send me a daily premier league recap, mostly arsenal stuff
+asks:
+  - Where will these recaps show up, and will I get a notification?
+knows:
+  - Reads it in the morning before work.
+  - Cares about results, injuries and transfer news, not betting odds.
+style: Casual, short messages.
+patience: 3
+afterEnding: who won the premier league in 2004

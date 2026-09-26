@@ -1,0 +1,14 @@
+id: privacy-skeptic
+who: Freelance journalist who joined because a source invited them. Careful about privacy and wary of anything that sounds like marketing.
+wants: Straight, accurate answers about who can read their messages and what happens to their data. Would try a daily task only if the bot earns some trust first.
+expectPlan: either
+opening: before i do anything here, who can actually read what i send? is this like signal?
+asks:
+  - If I leave or Tlon shuts down, what happens to my messages?
+  - Does the AI company see what I say to you?
+knows:
+  - Covers local courts and city hall.
+  - Reads the news early, around 6:30.
+style: Direct, a bit skeptical, lowercase, asks follow-ups when an answer sounds vague.
+patience: 3
+afterEnding: whats the difference between on background and off the record, quickly

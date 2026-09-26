@@ -17,6 +17,25 @@ export const SKILL_PATH = path.join(
   'skills/tlon-agent-onboarding/SKILL.md'
 );
 
+/**
+ * The skills the plugin installs under ~/.openclaw/plugin-skills/<dir>, in the
+ * order openclaw.plugin.json lists them. The bot sees all of them, not only the
+ * onboarding skill.
+ */
+const INSTALLED_SKILLS = [
+  {
+    dir: 'tlon-skill',
+    path: path.join(REPO_ROOT, 'packages/tlon-skill/SKILL.md'),
+  },
+  { dir: 'tlon-agent-onboarding', path: SKILL_PATH },
+  {
+    dir: 'tlon-product-guide',
+    path: path.join(PLUGIN_DIR, 'skills/tlon-product-guide/SKILL.md'),
+  },
+];
+export const ONBOARDING_SKILL_DIR = 'tlon-agent-onboarding';
+export const PRODUCT_GUIDE_DIR = 'tlon-product-guide';
+
 // The fixed identities the rendered prompts and tools agree on.
 export const BOT_SHIP = '~zod';
 export const OWNER_SHIP = '~ten';
@@ -85,15 +104,21 @@ export function loadConfig(overrides: Partial<LabConfig['models']> = {}) {
   } satisfies LabConfig;
 }
 
+export type SourceFile = { path: string; text: string };
+
 export type PromptSources = {
-  skill: { path: string; text: string };
-  prompts: Record<string, { path: string; text: string }>;
+  /** The onboarding skill (also present in `skills`). */
+  skill: SourceFile;
+  skills: (SourceFile & { dir: string })[];
+  prompts: Record<string, SourceFile>;
 };
 
 /**
- * The onboarding skill plus tlonbot's workspace prompts, with any file in the
- * variant directory replacing the file of the same name. A variant can be the
- * onboarding sandbox's `.sandbox-prompts` folder or any folder of edited copies.
+ * The installed skills plus tlonbot's workspace prompts. In a variant folder,
+ * `SKILL.md` replaces the onboarding skill, `<skill-dir>/SKILL.md` (such as
+ * `tlon-product-guide/SKILL.md`) replaces that skill, and any other `.md` file
+ * replaces the tlonbot prompt of the same name. A variant can be the onboarding
+ * sandbox's `.sandbox-prompts` folder or any folder of edited copies.
  */
 export function loadPromptSources(
   config: LabConfig,
@@ -108,16 +133,26 @@ export function loadPromptSources(
   for (const name of readdirSync(promptsDir)) {
     if (name.endsWith('.md')) prompts[name] = read(path.join(promptsDir, name));
   }
-  let skill = read(SKILL_PATH);
+  const skills = INSTALLED_SKILLS.map(({ dir, path: file }) => {
+    const override = variantDir
+      ? [
+          path.join(variantDir, dir, 'SKILL.md'),
+          ...(dir === ONBOARDING_SKILL_DIR
+            ? [path.join(variantDir, 'SKILL.md')]
+            : []),
+        ].find((candidate) => existsSync(candidate))
+      : undefined;
+    return { dir, ...read(override ?? file) };
+  });
   if (variantDir) {
     for (const name of readdirSync(variantDir)) {
-      if (!name.endsWith('.md')) continue;
-      const file = path.join(variantDir, name);
-      if (name === 'SKILL.md') skill = read(file);
-      else prompts[name] = read(file);
+      if (name.endsWith('.md') && name !== 'SKILL.md') {
+        prompts[name] = read(path.join(variantDir, name));
+      }
     }
   }
-  return { skill, prompts };
+  const skill = skills.find((entry) => entry.dir === ONBOARDING_SKILL_DIR)!;
+  return { skill, skills, prompts };
 }
 
 export function sha256(text: string) {

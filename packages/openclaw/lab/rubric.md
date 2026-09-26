@@ -58,6 +58,24 @@ moment, so tasks about current events may surface the same stories. Do not cap
 those for overlapping news; judge whether the task itself would pick up new
 stories on a real new day.
 
+## Product answers (score 1–5, or null when the person asked nothing about the app)
+
+When the person asks about Tlon Messenger or Tlonbot itself (how something
+works, where things show up, privacy, invites, what the bot can do), check the
+answer against the product guide included below.
+
+- **5**: Accurate, practical, the length the question deserved, in plain words,
+  and it said so when the guide does not cover something instead of guessing.
+  If the question came up mid-setup, the bot answered it and then picked the
+  setup back up naturally.
+- **3**: Mostly right but vague, padded, or missing the practical step the
+  person needed.
+- **1**: Wrong, invented a feature, pointed to a web search for something the
+  guide covers, or ignored the question to push setup forward.
+
+Quote the part of the answer that is wrong or missing, and name the guide
+section it contradicts.
+
 ## Follow-up
 
 After the ending, the person sends one unrelated message. `ok` is true when
@@ -83,10 +101,12 @@ Return only this JSON object:
   "outcome": { "matched": true, "why": "..." },
   "conversation": { "score": 4, "issues": [{ "quote": "...", "problem": "..." }] },
   "result": { "score": 3, "issues": [{ "quote": "...", "problem": "..." }] },
+  "product": { "score": null, "issues": [] },
   "followUp": { "ok": true, "why": "..." },
   "ruleBreaks": [{ "rule": "...", "quote": "..." }],
   "summary": "Two or three plain sentences a product designer can act on."
 }
 ```
 
-Use `"score": null` for the result when no note was produced.
+Use `"score": null` for the result when no note was produced, and for product
+answers when the person asked nothing about the app.

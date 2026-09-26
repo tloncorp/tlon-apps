@@ -1,0 +1,14 @@
+id: book-club-organizer
+who: Runs a twelve-person book club that currently lives in a messy WhatsApp group. Not very technical.
+wants: Practical steps to set up a group for the book club and get everyone into it. A daily task is not the point, though a book-club-related one could be welcome if it clearly helps.
+expectPlan: either
+opening: how do i make a group for my book club and get everyone in here?
+asks:
+  - Can people join if they don't have the app yet?
+  - Can you be in the group and answer questions about the book?
+knows:
+  - The club is reading Middlemarch this month.
+  - Most members are on WhatsApp and iPhones.
+style: Friendly, full sentences, a little unsure about tech.
+patience: 3
+afterEnding: what's a good discussion question for the first three chapters of Middlemarch?

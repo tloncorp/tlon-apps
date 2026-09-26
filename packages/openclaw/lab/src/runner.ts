@@ -299,7 +299,7 @@ export async function gradeRun(input: {
     if (input.judge) {
       record.judgement = await judgeRun({
         record,
-        skillText: input.sources.skill.text,
+        sources: input.sources,
         config,
         meter,
       });

@@ -16,6 +16,8 @@ export type Persona = {
   style?: string;
   /** Questions they tolerate before getting impatient. */
   patience?: number;
+  /** Questions about the app itself, asked in their own words when it fits. */
+  asks?: string[];
   /** Unrelated message sent after the ending, to see if the bot keeps pitching. */
   afterEnding?: string;
   timezone?: string;
@@ -88,6 +90,7 @@ export type Judgement = {
   outcome: { matched: boolean; why: string };
   conversation: { score: number | null; issues: Issue[] };
   result: { score: number | null; issues: Issue[] };
+  product: { score: number | null; issues: Issue[] };
   followUp: { ok: boolean; why: string };
   ruleBreaks: { rule: string; quote: string }[];
   summary: string;

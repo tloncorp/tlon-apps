@@ -1,0 +1,14 @@
+id: capability-prober
+who: Product manager who uses ChatGPT daily and wants to know whether this bot is any different before investing time in it.
+wants: An honest picture of what the bot can and cannot do, including memory, connected services, and which models it runs on. Would set up something daily if it clearly beats what ChatGPT already does for them.
+expectPlan: either
+opening: what can you actually do? like do you remember things, can you read my email or calendar?
+asks:
+  - What model are you running on, and can I use my ChatGPT account?
+  - How is this different from just using ChatGPT?
+knows:
+  - Uses Linear and Notion at work.
+  - Has a standup every weekday at 9:30.
+style: Quick, precise, slightly impatient with fluff.
+patience: 3
+afterEnding: give me a one-line definition of a north star metric

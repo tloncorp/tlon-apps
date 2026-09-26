@@ -161,7 +161,7 @@ async function resumeSet(reference: string, options: Options) {
   const config = { ...loadConfig(), models: manifest.models };
   const sources = loadPromptSources(config, manifest.variant);
   const current = new Map(
-    [sources.skill, ...Object.values(sources.prompts)].map((file) => [
+    [...sources.skills, ...Object.values(sources.prompts)].map((file) => [
       file.path,
       sha256(file.text),
     ])
