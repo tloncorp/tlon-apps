@@ -250,8 +250,9 @@ export function claimTlonChoiceCall(input: {
 export function assertTlonChoiceCallCurrent(toolCallId: string): void {
   const call = choiceCalls.get(toolCallId);
   if (!call) throw new Error('choice is not bound to the current owner turn');
-  const current = getTlonSessionSurface(call.sessionKey);
-  if (current?.messageId !== call.ownerMessageId) {
+  if (
+    getTlonSessionSurface(call.sessionKey)?.messageId !== call.ownerMessageId
+  ) {
     throw new SupersededTurnError();
   }
 }

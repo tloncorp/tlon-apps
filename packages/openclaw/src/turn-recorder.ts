@@ -1,9 +1,9 @@
-import { isSupersededToolOutcome } from './superseded-turn.js';
 import { metrics } from '@opentelemetry/api';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createSubsystemLogger } from 'openclaw/plugin-sdk/runtime-env';
 
 import { sharedMap, sharedSlot } from './shared-state.js';
+import { isSupersededToolOutcome } from './superseded-turn.js';
 
 export type TlonAgentTurnExecution =
   | 'completed'

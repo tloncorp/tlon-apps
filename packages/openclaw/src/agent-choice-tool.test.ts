@@ -1,7 +1,3 @@
-import {
-  SUPERSEDED_TURN_TEXT,
-  SupersededTurnError,
-} from './superseded-turn.js';
 import { A2UI } from '@tloncorp/api';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -10,6 +6,10 @@ import {
   agentChoiceToolParameters,
   createAgentChoiceToolExecutor,
 } from './agent-choice-tool.js';
+import {
+  SUPERSEDED_TURN_TEXT,
+  SupersededTurnError,
+} from './superseded-turn.js';
 
 const validChoice: AgentChoiceToolParams = {
   target: 'chat/~zod/home-group-chat',

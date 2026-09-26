@@ -1,8 +1,9 @@
+import { TLON_A2UI_CATALOG_ID } from '@tloncorp/api';
+
 import {
   SupersededTurnError,
   supersededToolResult,
 } from './superseded-turn.js';
-import { TLON_A2UI_CATALOG_ID } from '@tloncorp/api';
 
 const MAX_PROVIDER_ID_LENGTH = 500;
 

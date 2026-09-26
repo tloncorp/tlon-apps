@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { supersededToolResult } from './superseded-turn.js';
-
 import {
   type TlonAgentTurnObserver,
   type TlonAgentTurnSummary,

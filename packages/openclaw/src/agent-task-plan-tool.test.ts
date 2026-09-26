@@ -1,4 +1,3 @@
-import { SupersededTurnError } from './superseded-turn.js';
 import { A2UI } from '@tloncorp/api';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -9,6 +8,7 @@ import {
   resolveOnboardingDmGroupId,
   resolveTaskPlanGroupId,
 } from './agent-task-plan-tool.js';
+import { SupersededTurnError } from './superseded-turn.js';
 
 const validPlan: AgentTaskPlanToolParams = {
   target: 'chat/~zod/home-group-chat',
