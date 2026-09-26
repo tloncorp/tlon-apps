@@ -172,7 +172,9 @@ export async function runPersona(input: {
   const firstRunToolCalls: ToolCallRecord[] = [];
   let ending: Ending = 'turn-limit';
   let firstResultOk: boolean | null = null;
-  let dayTwo: Promise<{ ok: boolean; markdown: string }> | undefined;
+  let startDayTwo:
+    | (() => Promise<{ ok: boolean; markdown: string }> | undefined)
+    | undefined;
   let error: string | undefined;
 
   const botTurn = async (text: string, replyTo?: string) => {
@@ -251,17 +253,43 @@ export async function runPersona(input: {
         // The coordinator marks onboarding complete once the entry publishes.
         session.onboardingComplete = true;
         // The next scheduled run, for the judge only: does it produce
-        // something new?
-        const planTimezone = session.plan.timezoneOverride?.trim() || timezone;
-        dayTwo = runScheduledTask({
-          ...task,
-          now: atLocalTime(
-            nextScheduledDay(session.plan.scheduleDays, planTimezone),
-            planTimezone,
-            session.plan.scheduleHour,
-            session.plan.scheduleMinute
-          ),
-        });
+        // something new? It runs after the conversation, from the job as it
+        // stands then, so edits the owner asked for show up.
+        const plan = session.plan;
+        const planTimezone = plan.timezoneOverride?.trim() || timezone;
+        startDayTwo = () => {
+          const job = session.cronJobs.find((entry) => entry.id === 'job-1') as
+            | {
+                enabled?: boolean;
+                schedule?: { expr?: string };
+                payload?: { message?: string };
+              }
+            | undefined;
+          if (!job || job.enabled === false) return undefined;
+          const [minute, hour, , , dayField] = (job.schedule?.expr ?? '').split(
+            /\s+/
+          );
+          const days =
+            dayField && dayField !== '*'
+              ? dayField.split(',').map(Number)
+              : undefined;
+          const scheduleHour = Number.isFinite(Number(hour))
+            ? Number(hour)
+            : plan.scheduleHour;
+          const scheduleMinute = Number.isFinite(Number(minute))
+            ? Number(minute)
+            : plan.scheduleMinute;
+          return runScheduledTask({
+            ...task,
+            prompt: job.payload?.message,
+            now: atLocalTime(
+              nextScheduledDay(days ?? plan.scheduleDays, planTimezone),
+              planTimezone,
+              scheduleHour,
+              scheduleMinute
+            ),
+          });
+        };
       }
     }
 
@@ -313,7 +341,7 @@ export async function runPersona(input: {
   }
   let secondResult: { ok: boolean; markdown: string } | undefined;
   try {
-    secondResult = await dayTwo;
+    secondResult = await startDayTwo?.();
   } catch (caught) {
     if (caught instanceof OutOfCreditError) throw caught;
     secondResult = {

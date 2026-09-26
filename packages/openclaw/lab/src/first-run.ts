@@ -84,6 +84,8 @@ export async function runScheduledTask(input: {
   timezone: string;
   meter: CostMeter;
   now?: Date;
+  /** The job's current prompt, when the owner edited it after setup. */
+  prompt?: string;
 }): Promise<{ ok: boolean; markdown: string; toolCalls: ToolCallRecord[] }> {
   const { plan, config, sources, timezone, meter, now } = input;
   const tools = labTools({ webOnly: true });
@@ -94,9 +96,11 @@ export async function runScheduledTask(input: {
     timezone,
     now,
   });
-  const prompt = agentOnboardingTesting.buildRecurringPrompt(
-    provisionRequest(plan, timezone)
-  );
+  const prompt =
+    input.prompt ??
+    agentOnboardingTesting.buildRecurringPrompt(
+      provisionRequest(plan, timezone)
+    );
   const messages: ChatMessage[] = [
     {
       role: 'user',
