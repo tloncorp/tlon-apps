@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
@@ -109,6 +109,10 @@ function templatize(
     );
   }
   system = system
+    .replace(
+      /session=agent:([\w-]+):cron:[\w-]+:run:[\w-]+/g,
+      'session=agent:$1:cron:{{JOB_ID}}:run:{{RUN_ID}}'
+    )
     .replace(/sessionId=[\w-]+/g, 'sessionId={{SESSION_ID}}')
     .replace(/host=[\w.-]+/g, 'host={{HOST}}');
   return { system, injected };
@@ -208,7 +212,10 @@ function substance(template: Template) {
   void capturedAt;
   void capturedFrom;
   void pluginCommit;
-  return JSON.stringify(rest);
+  return JSON.stringify({
+    ...rest,
+    ...(rest.cron ? { cron: { ...rest.cron, nowExample: '' } } : {}),
+  });
 }
 
 /** Save a template; returns undefined when nothing that matters changed. */
@@ -280,6 +287,8 @@ export function fillSystem(
       .replace(`{{SKILL_VERSION:${skill.dir}}}`, skillVersion(skill.text));
   }
   filled = filled
+    .replace(/\{\{JOB_ID\}\}/g, randomUUID())
+    .replace(/\{\{RUN_ID\}\}/g, randomUUID())
     .replace(/\{\{SESSION_ID\}\}/g, run.sessionId)
     .replace(/\{\{HOST\}\}/g, 'lab');
   const missing = /\{\{[A-Z_]+(?::[^}]+)?\}\}/.exec(filled);
