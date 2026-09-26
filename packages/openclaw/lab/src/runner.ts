@@ -289,7 +289,13 @@ export async function runPersona(input: {
       const first = await runScheduledTask(task);
       firstRunToolCalls.push(...first.toolCalls);
       firstResultOk = first.ok;
-      tips?.taskResult(first.ok);
+      tips?.taskResult(
+        first.ok,
+        String(
+          session.cronJobs.find((job) => job.id === 'job-1')?.name ??
+            'Tlonbot scheduled update'
+        )
+      );
       transcript.push({
         from: 'system',
         kind: 'first-result',
