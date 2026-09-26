@@ -85,6 +85,8 @@ export async function judgeRun(input: {
           stringify(record.persona),
           '## Measured facts',
           JSON.stringify(record.facts, null, 2),
+          '## Deployment facts',
+          `The bot runs on \`${record.models.bot}\` through OpenRouter. This is a real model, possibly newer than your training data; the bot naming it is not a hallucination. Today is ${new Date(record.startedAt).toDateString()}.`,
           '## What happened',
           renderForJudge(record),
           '## Onboarding skill the bot was running',
