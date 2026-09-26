@@ -33,6 +33,19 @@ type AgentTaskPlanEvidence = {
   onboardingTarget?: string;
 };
 
+export const agentTaskPlanToolMetadata = {
+  name: 'tlon_agent_task_plan',
+  label: 'Tlon Agent Task Plan',
+  description:
+    'Post one automatically provisioned daily recurring-task plan during first-run onboarding. ' +
+    'The tlon-agent-onboarding skill decides when the task is ready. The trusted client and coordinator create it without another confirmation gate. Use this instead of hand-authoring A2UI or calling cron directly.',
+  promptSnippet:
+    '`tlon_agent_task_plan`: automatically provision the finished daily recurring task during first-run onboarding',
+  promptGuidelines: [
+    'Follow the tlon-agent-onboarding skill. Do not call cron directly; after the plan posts, return NO_REPLY because the coordinator owns activation and result status.',
+  ],
+};
+
 export const agentTaskPlanToolParameters = {
   type: 'object',
   properties: {

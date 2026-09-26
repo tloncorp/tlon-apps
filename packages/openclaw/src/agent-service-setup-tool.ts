@@ -11,6 +11,18 @@ type ResolvedAgentServiceSetupToolParams = AgentServiceSetupToolParams & {
   surfaceId: string;
 };
 
+export const agentServiceSetupToolMetadata = {
+  name: 'tlon_agent_service_setup',
+  label: 'Tlon Agent Service Setup',
+  description:
+    'Post an actionable Connected Services recovery card when the owner explicitly chooses to connect a private source required before a first-run task can be created. The client opens its existing service-management flow, preserving hosted OAuth and the native unavailable state.',
+  promptSnippet:
+    '`tlon_agent_service_setup`: open Connected Services for an owner-chosen private source that is required before planning',
+  promptGuidelines: [
+    'When first-run onboarding cannot proceed because an explicitly chosen private source is not connected and the owner chooses to connect it, call `tlon_agent_service_setup` instead of ending with prose; after it posts successfully, return NO_REPLY and wait for the owner to return and tap Continue setup or send a message. On that turn, check whether the source is connected before continuing. Do not call it when the owner chose an immediately executable fallback.',
+  ],
+};
+
 export const agentServiceSetupToolParameters = {
   type: 'object',
   properties: {

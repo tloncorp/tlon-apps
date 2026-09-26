@@ -19,16 +19,19 @@ import {
 import { tlonMessageActions } from './actions.js';
 import {
   type AgentChoiceToolParams,
+  agentChoiceToolMetadata,
   agentChoiceToolParameters,
   createAgentChoiceToolExecutor,
 } from './agent-choice-tool.js';
 import {
   type AgentServiceSetupToolParams,
+  agentServiceSetupToolMetadata,
   agentServiceSetupToolParameters,
   createAgentServiceSetupToolExecutor,
 } from './agent-service-setup-tool.js';
 import {
   type AgentTaskPlanToolParams,
+  agentTaskPlanToolMetadata,
   agentTaskPlanToolParameters,
   createAgentTaskPlanToolExecutor,
   resolveOnboardingDmGroupId,
@@ -252,44 +255,19 @@ export const tlonPlugin = createChatChannelPlugin({
 
       return [
         {
-          name: 'tlon_agent_choice',
-          label: 'Tlon Agent Choice',
-          description:
-            'Post one model-authored onboarding question as a Tlon A2UI choice control with a built-in free-form answer path. The tlon-agent-onboarding skill decides whether and what to ask.',
-          promptSnippet:
-            '`tlon_agent_choice`: ask one concise question with selectable answers and a write-your-own option',
-          promptGuidelines: [
-            'Follow the tlon-agent-onboarding skill. After the choice posts, return NO_REPLY and wait for the owner.',
-          ],
+          ...agentChoiceToolMetadata,
           parameters: agentChoiceToolParameters,
           execute: (id, params) =>
             executeChoice(id, params as AgentChoiceToolParams),
         },
         {
-          name: 'tlon_agent_task_plan',
-          label: 'Tlon Agent Task Plan',
-          description:
-            'Post one automatically provisioned daily recurring-task plan during first-run onboarding. ' +
-            'The tlon-agent-onboarding skill decides when the task is ready. The trusted client and coordinator create it without another confirmation gate. Use this instead of hand-authoring A2UI or calling cron directly.',
-          promptSnippet:
-            '`tlon_agent_task_plan`: automatically provision the finished daily recurring task during first-run onboarding',
-          promptGuidelines: [
-            'Follow the tlon-agent-onboarding skill. Do not call cron directly; after the plan posts, return NO_REPLY because the coordinator owns activation and result status.',
-          ],
+          ...agentTaskPlanToolMetadata,
           parameters: agentTaskPlanToolParameters,
           execute: (id, params) =>
             executeTaskPlan(id, params as AgentTaskPlanToolParams),
         },
         {
-          name: 'tlon_agent_service_setup',
-          label: 'Tlon Agent Service Setup',
-          description:
-            'Post an actionable Connected Services recovery card when the owner explicitly chooses to connect a private source required before a first-run task can be created. The client opens its existing service-management flow, preserving hosted OAuth and the native unavailable state.',
-          promptSnippet:
-            '`tlon_agent_service_setup`: open Connected Services for an owner-chosen private source that is required before planning',
-          promptGuidelines: [
-            'When first-run onboarding cannot proceed because an explicitly chosen private source is not connected and the owner chooses to connect it, call `tlon_agent_service_setup` instead of ending with prose; after it posts successfully, return NO_REPLY and wait for the owner to return and tap Continue setup or send a message. On that turn, check whether the source is connected before continuing. Do not call it when the owner chose an immediately executable fallback.',
-          ],
+          ...agentServiceSetupToolMetadata,
           parameters: agentServiceSetupToolParameters,
           execute: (id, params) =>
             executeServiceSetup(id, params as AgentServiceSetupToolParams),
