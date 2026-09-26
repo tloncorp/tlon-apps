@@ -285,6 +285,7 @@ describe('agent task plan tool', () => {
     const result = await execute('call-stale', validPlan);
 
     expect(result.details).toEqual({ superseded: true });
+    expect(result).toEqual(expect.objectContaining({ terminate: true }));
     expect(postPlan).not.toHaveBeenCalled();
     expect(boundary.finish).toHaveBeenCalledWith('call-stale', false);
   });

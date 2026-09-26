@@ -40,6 +40,7 @@ import {
 import { tlonChannelConfigSchema } from './config-schema.js';
 import {
   assertTlonChoiceCallCurrent,
+  assertTlonServiceSetupCallCurrent,
   finishTlonChoiceCall,
   assertTlonTaskPlanCallCurrent,
   finishTlonTaskPlanCall,
@@ -233,6 +234,7 @@ export const tlonPlugin = createChatChannelPlugin({
           postSurface(target, fallbackQuestion, blob),
       });
       const executeServiceSetup = createAgentServiceSetupToolExecutor({
+        assertCurrent: assertTlonServiceSetupCallCurrent,
         postSetup: ({ target, fallbackMessage, blob }) =>
           postSurface(target, fallbackMessage, blob),
       });

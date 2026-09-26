@@ -178,7 +178,7 @@ export function createAgentChoiceToolExecutor(deps: {
       // be worse.
       deps.finish(id, publicationAttempted);
       if (error instanceof SupersededTurnError) {
-        return supersededToolResult(error);
+        return supersededToolResult();
       }
       const message = error instanceof Error ? error.message : String(error);
       return {

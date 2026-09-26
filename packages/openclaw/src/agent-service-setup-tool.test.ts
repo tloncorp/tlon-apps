@@ -6,6 +6,10 @@ import {
   agentServiceSetupToolParameters,
   createAgentServiceSetupToolExecutor,
 } from './agent-service-setup-tool.js';
+import {
+  SupersededTurnError,
+  supersededToolResult,
+} from './superseded-turn.js';
 
 const validSetup: AgentServiceSetupToolParams = {
   target: 'chat/~zod/home-group-chat',
@@ -16,6 +20,7 @@ describe('agent service setup tool', () => {
   it('builds a recovery card for the furnished first-run bot DM', async () => {
     const execute = createAgentServiceSetupToolExecutor({
       postSetup: vi.fn(async () => '{}'),
+      assertCurrent: vi.fn(),
     });
     expect(
       (await execute('dm-setup', { ...validSetup, target: '~ten' })).details
@@ -32,10 +37,10 @@ describe('agent service setup tool', () => {
 
   it('builds a valid recovery card that opens existing connected services', async () => {
     const postSetup = vi.fn(async () => '{}');
-    await createAgentServiceSetupToolExecutor({ postSetup })(
-      'setup',
-      validSetup
-    );
+    await createAgentServiceSetupToolExecutor({
+      postSetup,
+      assertCurrent: vi.fn(),
+    })('setup', validSetup);
     const entry = JSON.parse(postSetup.mock.calls[0]![0].blob)[0];
 
     expect(A2UI.validateBlobEntry(entry)).toBe(true);
@@ -90,7 +95,10 @@ describe('agent service setup tool', () => {
 
   it('posts honest fallback copy with the recovery action', async () => {
     const postSetup = vi.fn(async () => '{"ok":true}');
-    const execute = createAgentServiceSetupToolExecutor({ postSetup });
+    const execute = createAgentServiceSetupToolExecutor({
+      postSetup,
+      assertCurrent: vi.fn(),
+    });
 
     const result = await execute('call-1', validSetup);
 
@@ -104,9 +112,27 @@ describe('agent service setup tool', () => {
     });
   });
 
+  it('ends the turn quietly when a newer owner message supersedes it', async () => {
+    const postSetup = vi.fn(async () => '{}');
+    const execute = createAgentServiceSetupToolExecutor({
+      postSetup,
+      assertCurrent: vi.fn(() => {
+        throw new SupersededTurnError();
+      }),
+    });
+
+    const result = await execute('stale-setup', validSetup);
+
+    expect(result).toEqual(supersededToolResult());
+    expect(postSetup).not.toHaveBeenCalled();
+  });
+
   it('rejects an invalid target or provider id', async () => {
     const postSetup = vi.fn(async () => 'unexpected');
-    const execute = createAgentServiceSetupToolExecutor({ postSetup });
+    const execute = createAgentServiceSetupToolExecutor({
+      postSetup,
+      assertCurrent: vi.fn(),
+    });
 
     for (const params of [
       { ...validSetup, target: 'dm/~zod' },

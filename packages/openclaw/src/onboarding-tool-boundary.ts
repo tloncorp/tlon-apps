@@ -1,5 +1,5 @@
 import { sharedMap } from './shared-state.js';
-import { SupersededTurnError, supersededTurnText } from './superseded-turn.js';
+import { SupersededTurnError } from './superseded-turn.js';
 
 type TlonSessionSurface = {
   kind: 'direct' | 'group';
@@ -9,8 +9,6 @@ type TlonSessionSurface = {
   threadParentId?: string;
   bootstrapComplete?: boolean;
   messageId?: string;
-  /** The owner's latest message, quoted when it supersedes a running turn. */
-  ownerText?: string;
   onboardingDeviceTimezone?: string;
   timestamp: number;
 };
@@ -39,6 +37,12 @@ type TlonChoiceCall = {
   timestamp: number;
 };
 
+type TlonServiceSetupCall = {
+  sessionKey: string;
+  ownerMessageId: string;
+  timestamp: number;
+};
+
 const sessionSurfaces = sharedMap<string, TlonSessionSurface>(
   'onboarding-session-surfaces'
 );
@@ -59,6 +63,9 @@ const interviewStarts = sharedMap<string, TlonInterviewStart>(
 );
 const choiceCalls = sharedMap<string, TlonChoiceCall>(
   'onboarding-choice-calls'
+);
+const serviceSetupCalls = sharedMap<string, TlonServiceSetupCall>(
+  'onboarding-service-setup-calls'
 );
 const SURFACE_TTL_MS = 60 * 60 * 1000;
 
@@ -113,6 +120,11 @@ function pruneExpiredSurfaces(now = Date.now()): void {
       if (choiceRunClaims.get(entry.runId) === key) {
         choiceRunClaims.delete(entry.runId);
       }
+    }
+  }
+  for (const [key, entry] of serviceSetupCalls) {
+    if (now - entry.timestamp > SURFACE_TTL_MS) {
+      serviceSetupCalls.delete(key);
     }
   }
 }
@@ -240,7 +252,7 @@ export function assertTlonChoiceCallCurrent(toolCallId: string): void {
   if (!call) throw new Error('choice is not bound to the current owner turn');
   const current = getTlonSessionSurface(call.sessionKey);
   if (current?.messageId !== call.ownerMessageId) {
-    throw new SupersededTurnError(current?.ownerText);
+    throw new SupersededTurnError();
   }
 }
 
@@ -253,6 +265,34 @@ export function finishTlonChoiceCall(
   choiceCalls.delete(toolCallId);
   if (choiceRunClaims.get(call.runId) === toolCallId) {
     choiceRunClaims.delete(call.runId);
+  }
+}
+
+/** Tie a setup card to the owner message whose turn is posting it. */
+export function bindTlonServiceSetupCall(input: {
+  toolCallId?: string;
+  runId?: string;
+  sessionKey?: string;
+}): void {
+  const toolCallId = input.toolCallId?.trim();
+  const sessionKey = input.sessionKey?.trim();
+  const runSurface = getTlonSessionRunSurface(input.runId);
+  if (!toolCallId || !sessionKey || !runSurface?.messageId) return;
+  pruneExpiredSurfaces();
+  serviceSetupCalls.set(toolCallId, {
+    sessionKey,
+    ownerMessageId: runSurface.messageId,
+    timestamp: Date.now(),
+  });
+}
+
+export function assertTlonServiceSetupCallCurrent(toolCallId: string): void {
+  const call = serviceSetupCalls.get(toolCallId);
+  serviceSetupCalls.delete(toolCallId);
+  if (!call) return;
+  const current = getTlonSessionSurface(call.sessionKey);
+  if (current?.messageId && current.messageId !== call.ownerMessageId) {
+    throw new SupersededTurnError();
   }
 }
 
@@ -338,7 +378,7 @@ export function assertTlonTaskPlanCallCurrent(toolCallId: string): void {
   }
   const current = getTlonSessionSurface(call.sessionKey);
   if (current?.messageId !== call.interviewMessageId) {
-    throw new SupersededTurnError(current?.ownerText);
+    throw new SupersededTurnError();
   }
 }
 
@@ -393,17 +433,6 @@ export function onboardingToolBlockReason(
     if (target !== surface.channelNest) {
       return 'The onboarding tool target must match the active conversation.';
     }
-    // Choices and plans recheck right before posting and report a stale
-    // turn as a normal result, not an error; only the setup card, which has
-    // no such check, is stopped here.
-    if (
-      toolName === 'tlon_agent_service_setup' &&
-      surface.messageId &&
-      runSurface?.messageId &&
-      surface.messageId !== runSurface.messageId
-    ) {
-      return supersededTurnText(surface.ownerText);
-    }
   }
 
   if (toolName === 'cron' && surface?.bootstrapComplete === false) {
@@ -424,5 +453,6 @@ export const _testing = {
     taskPlanCalls.clear();
     interviewStarts.clear();
     choiceCalls.clear();
+    serviceSetupCalls.clear();
   },
 };
