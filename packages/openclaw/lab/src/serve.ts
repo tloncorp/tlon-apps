@@ -2,7 +2,15 @@ import { type ChildProcess, spawn } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
-import { LAB_DIR, PLUGIN_DIR, REPO_ROOT, RUNS_DIR } from './config.js';
+import {
+  LAB_DIR,
+  PLUGIN_DIR,
+  REPO_ROOT,
+  RUNS_DIR,
+  loadConfig,
+} from './config.js';
+import { checkDeployment } from './deployed.js';
+import { loadTemplate } from './template.js';
 import { metrics, renderChat, renderRunDetails } from './report.js';
 import type { RunRecord, TranscriptEvent } from './types.js';
 import { loadPersonas, loadRunSet } from './store.js';
@@ -177,6 +185,8 @@ function summarizeSets() {
         judged: set.runs.filter((run) => run.judgement).length,
         metrics: m,
         hasReport: existsSync(path.join(RUNS_DIR, name, 'report.html')),
+        mode: set.manifest.mode ?? 'fast',
+        calibratedFrom: set.manifest.template?.capturedFrom ?? null,
       };
     });
 }
@@ -228,6 +238,39 @@ function modelComparisons() {
     .filter((name) => name.startsWith('compare-') && name.endsWith('.html'))
     .sort()
     .reverse();
+}
+
+/** Fast-vs-real and swap-test reports, newest first. */
+function fidelityReports() {
+  if (!existsSync(RUNS_DIR)) return [];
+  return readdirSync(RUNS_DIR)
+    .filter((name) => /^(diverge|swap)-.*\.html$/.test(name))
+    .sort()
+    .reverse();
+}
+
+let deploymentCache: { at: number; value: unknown } | undefined;
+
+/** Drift between what the lab tests and what is deployed, cached briefly. */
+function deploymentState() {
+  if (deploymentCache && Date.now() - deploymentCache.at < 60_000) {
+    return deploymentCache.value;
+  }
+  const config = loadConfig({}, { search: false });
+  const check = checkDeployment(config.tlonbotDir, config.models.bot);
+  const template = loadTemplate();
+  const value = {
+    warnings: check.warnings,
+    calibration: template
+      ? {
+          openclaw: template.openclaw,
+          capturedAt: template.capturedAt,
+          capturedFrom: template.capturedFrom,
+        }
+      : null,
+  };
+  deploymentCache = { at: Date.now(), value };
+  return value;
 }
 
 async function readBody(request: http.IncomingMessage) {
@@ -289,6 +332,12 @@ function runArgs(body: Record<string, unknown>) {
     throw new Error('tips must be an integer from 0 through 5');
   args.push('--tips', String(tips));
   if (body.search === false) args.push('--no-search');
+  if (body.real === true) {
+    // The sandbox runs one conversation at a time and has no tip clock.
+    args.push('--real');
+    args.splice(args.indexOf('--concurrency'), 2);
+    args.splice(args.indexOf('--tips'), 2);
+  }
   const label = String(body.label ?? '').trim();
   if (label) {
     if (!/^[\w.-]{1,40}$/.test(label))
@@ -319,6 +368,8 @@ async function handle(
       sets: summarizeSets(),
       judging: summarizeJudging(),
       modelComparisons: modelComparisons(),
+      fidelity: fidelityReports(),
+      deployment: deploymentState(),
       variants: ['baseline', ...listVariants()],
       personas: loadPersonas().map(({ id, wants, expectPlan, opening }) => ({
         id,
@@ -451,6 +502,23 @@ async function handle(
       response,
       200,
       jobView(startJob('run', `Run ${variant}`, args), false)
+    );
+  }
+  if (method === 'POST' && url.pathname === '/api/diverge') {
+    const body = await readBody(request);
+    const fast = runsEntry(body.fast);
+    const real = runsEntry(body.real);
+    return json(
+      response,
+      200,
+      jobView(
+        startJob('import', `Fast vs real: ${fast} vs ${real}`, [
+          'diverge',
+          path.join(RUNS_DIR, fast),
+          path.join(RUNS_DIR, real),
+        ]),
+        false
+      )
     );
   }
   if (method === 'POST' && url.pathname === '/api/packets') {

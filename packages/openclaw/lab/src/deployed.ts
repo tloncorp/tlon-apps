@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { PLUGIN_DIR, REPO_ROOT } from './config.js';
+import { loadTemplate } from './template.js';
 
 // What the deployed bot actually runs, read from the sources that deploy it:
 // tlonbot's config bundle and its config builder (entrypoint/tlawn.py). The
@@ -17,7 +18,8 @@ export type DeployedAgent = {
 
 export type DeploymentCheck = {
   bundle: string;
-  openclaw: { deployed?: string; installed?: string };
+  /** installed: the package the lab has; calibrated: the real-run template. */
+  openclaw: { deployed?: string; installed?: string; calibrated?: string };
   plugin: {
     deployedBranch?: string;
     testedBranch: string;
@@ -124,13 +126,19 @@ export function checkDeployment(
   const warnings: string[] = [];
   if (!existsSync(bundleFile)) warnings.push(`No config bundle ${bundleFile}`);
 
+  const calibrated = loadTemplate()?.openclaw;
   const openclaw = {
     deployed: bundle.openclaw,
     installed: installedOpenclaw(),
+    calibrated,
   };
-  if (openclaw.deployed && openclaw.deployed !== openclaw.installed) {
+  // Fast mode follows the calibration template when there is one.
+  const modeled = calibrated ?? openclaw.installed;
+  if (openclaw.deployed && openclaw.deployed !== modeled) {
     warnings.push(
-      `OpenClaw: deployed ${openclaw.deployed}, lab modeled on ${openclaw.installed ?? 'unknown'}`
+      calibrated
+        ? `OpenClaw: deployed ${openclaw.deployed}, fast mode calibrated on ${calibrated}; run a real set to recalibrate`
+        : `OpenClaw: deployed ${openclaw.deployed}, fast mode imitates ${openclaw.installed ?? 'unknown'} until a real set calibrates it`
     );
   }
 
