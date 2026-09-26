@@ -87,11 +87,29 @@ ensure_sandbox() {
   fi
 }
 
+# The sandbox's stock piers run an older %groups desk than this checkout's
+# app and plugin expect, and newer endpoints 404 against it. Put this
+# checkout's desk on the ships (tlonbot skips it when nothing changed).
+install_desk() {
+  if ! grep -q 'install-desk' "$CONTROL"; then
+    echo "note: this tlonbot checkout can't install a desk; the ships keep their stock %groups desk" >&2
+    return 0
+  fi
+  local dir
+  dir="$(mktemp -d)"
+  "$REPO_ROOT/scripts/sync-deps.sh" >/dev/null
+  "$REPO_ROOT/scripts/assemble-desk.sh" "$dir/groups" >/dev/null
+  "$CONTROL" install-desk "$dir/groups"
+  rm -rf "$dir"
+}
+
 case "${1:-}" in
   start|"")
     ensure_sandbox
     TLONBOT_INTRO_FILE="$SANDBOX_INTRO" "$CONTROL" start "$SANDBOX_DIR"
+    install_desk
     ;;
+  desk)      install_desk ;;
   reset)
     ensure_sandbox
     TLONBOT_INTRO_FILE="$SANDBOX_INTRO" "$CONTROL" reset "$SANDBOX_DIR"
@@ -102,5 +120,5 @@ case "${1:-}" in
   set-model) shift; "$CONTROL" set-model "$@" ;;
   set-key)   "$CONTROL" set-key ;;   # key arrives on stdin (kept out of argv)
   down)      "$CONTROL" down ;;
-  *) echo "usage: pnpm onboarding | onboarding:reset | onboarding:logs | onboarding:down" >&2; exit 1 ;;
+  *) echo "usage: pnpm onboarding | onboarding:reset | onboarding:logs | onboarding:down (or run.sh desk)" >&2; exit 1 ;;
 esac

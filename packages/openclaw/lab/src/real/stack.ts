@@ -1,6 +1,12 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { Urbit } from '@tloncorp/api';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { REPO_ROOT, type PromptSources } from '../config.js';
@@ -28,6 +34,8 @@ const DEFAULT_PORTS: StackPorts = {
 // The sandbox's fixed fakezod codes, as tests/dev/onboarding.sh has them.
 const OWNER = { ship: '~ten', code: 'lapseg-nolmel-riswen-hopryc' };
 const BOT = { ship: '~zod', code: 'lidlut-tabwed-pillex-ridrup' };
+// onboarding.sh had a stale ~mug code; this is the one that logs in.
+const MUG_CODE = 'ravsut-bolryd-hapsum-pastul';
 
 // Runs inside the ships container: mount a ship's %groups desk, replace it
 // with the staged one and commit, through the same loopback dojo the
@@ -256,6 +264,12 @@ export class LabStack {
         ['scripts/assemble-desk.sh', path.join(dir, 'groups')],
         { cwd: REPO_ROOT }
       );
+      // Newer tlonbot checkouts install desks themselves; prefer that.
+      if (readFileSync(this.script, 'utf8').includes('install-desk')) {
+        this.control(['install-desk', path.join(dir, 'groups')]);
+        this.ships(`printf %s '${identity}' > ${marker}`);
+        return;
+      }
       const container = `${this.project}-ships-1`;
       this.ships('rm -rf /tmp/lab-groups');
       execFileSync('docker', [
@@ -266,13 +280,12 @@ export class LabStack {
       for (const [ship, port, code] of [
         ['zod', this.ports.zod, BOT.code],
         ['ten', this.ports.ten, OWNER.code],
-        ['mug', this.ports.mug, undefined],
+        ['mug', this.ports.mug, MUG_CODE],
       ] as const) {
         execFileSync('docker', ['exec', '-i', container, 'bash', '-s', ship], {
           input: INSTALL_DESK,
         });
-        // ~mug only relays invites; the sandbox has no working code for it.
-        if (code) await waitForGroupsV3(`http://localhost:${port}`, code);
+        await waitForGroupsV3(`http://localhost:${port}`, code);
       }
       this.ships(`printf %s '${identity}' > ${marker}`);
     } finally {
