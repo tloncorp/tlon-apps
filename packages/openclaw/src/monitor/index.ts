@@ -1,7 +1,7 @@
 import type { PostBlobDataEntryAgentIntroRequest, Story } from '@tloncorp/api';
 import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
-import { isStopTips } from './campaign/templates.js';
+import { isStopTips, withCampaignContext } from './campaign/templates.js';
 import { createLiveCampaign } from './campaign/live.js';
 import { CAMPAIGN_CHECK_INTERVAL_MS } from './campaign/model.js';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
@@ -4827,9 +4827,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         await processMessage({
           messageId: messageId ?? '',
           senderShip,
-          messageText: campaignContext
-            ? `${campaignContext}\n\n[Current owner message]\n${rawText}`
-            : rawText,
+          messageText: withCampaignContext(campaignContext, rawText),
           originalCommandText: rawText,
           ...(citedContent ? { citedContent } : {}),
           gateText: engagementText,
@@ -5289,9 +5287,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         await processMessage({
           messageId: effectiveMessageId ?? '',
           senderShip,
-          messageText: campaignContext
-            ? `${campaignContext}\n\n[Current owner message]\n${rawText}`
-            : rawText,
+          messageText: withCampaignContext(campaignContext, rawText),
           originalCommandText: rawText,
           ...(citedContent ? { citedContent } : {}),
           gateText: engagementText,

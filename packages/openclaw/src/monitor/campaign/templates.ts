@@ -112,6 +112,14 @@ export function withOptOut(
   return text;
 }
 
+/** The owner's message as the agent sees it while a tip is in play. */
+export function withCampaignContext(
+  context: string | undefined,
+  text: string
+): string {
+  return context ? `${context}\n\n[Current owner message]\n${text}` : text;
+}
+
 export function isStopTips(text: string): boolean {
   const value = text.trim();
   return (
