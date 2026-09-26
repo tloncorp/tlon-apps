@@ -92,7 +92,10 @@ function computeFacts(input: {
         (event.kind === 'pick' || event.kind === 'type')
     ),
     choicesPosted: count(
-      (event) => event.from === 'bot' && event.kind === 'choice'
+      (event) =>
+        event.from === 'bot' &&
+        event.kind === 'choice' &&
+        event.source !== 'coordinator'
     ),
     botTextMessages: count(
       (event) =>
