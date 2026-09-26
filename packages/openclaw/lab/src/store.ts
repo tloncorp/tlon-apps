@@ -71,6 +71,7 @@ export function createRunSet(input: {
   const sourceFiles = [
     ...input.sources.skills,
     ...(input.sources.coordinator ? [input.sources.coordinator] : []),
+    ...(input.sources.tipCopy ? [input.sources.tipCopy] : []),
     ...Object.values(input.sources.prompts),
     ...Object.values(input.sources.resources),
   ];

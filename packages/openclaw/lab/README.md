@@ -133,8 +133,17 @@ A local page for the same workflow:
 - **Start a run**: pick a variant, personas (all, blank-slate, or by hand),
   repeats, web search, and whether to judge with a model now or in Claude
   later. The estimate shows roughly what it will cost.
-- **Jobs**: runs, packets and imports started from the page, with live logs and
-  a stop button.
+- **Jobs**: runs, packets and imports started from the page, with live logs,
+  a stop button, and a link to the report when a run finishes.
+- **Variants tab**: pick a variant, edit any file it can override (the skill,
+  `coordinator.yaml`, `tips.yaml`, the product guide, tlonbot prompts), and
+  compare it with its parent, with production, or, for workspace prompts,
+  with OpenClaw's stock template. "New variant" copies one and records its
+  parent. "Try it" runs one persona against the variant for about a cent.
+- **Tips tab**: edit a variant's tip copy and see every tip in every situation
+  as production would render it, updating as you type. Changed tips are
+  highlighted. "Personalize" makes the real personalization call for one tip
+  with the sample context above it (a fraction of a cent).
 
 It listens on localhost only and runs nothing but the lab CLI. Jobs are child
 processes of the server, so stopping the server stops them.
@@ -143,7 +152,10 @@ processes of the server, so stopping the server stops them.
 
 A **variant** is a folder of edited copies. A `SKILL.md` at its top replaces
 the onboarding skill, `tlon-product-guide/SKILL.md` replaces the product guide,
-and any other `.md` file replaces the tlonbot prompt with the same name. The onboarding sandbox's `.sandbox-prompts` folder works as a variant.
+`coordinator.yaml` replaces the welcome and post-setup messages, `tips.yaml`
+replaces any first-week tip copy (keys as in production's `TIP_COPY`), and any
+other `.md` file replaces the tlonbot prompt with the same name. A `.parent`
+file records which variant it started from, for comparisons. The onboarding sandbox's `.sandbox-prompts` folder works as a variant.
 
 ```bash
 mkdir -p ~/lab-variants/shorter-questions
