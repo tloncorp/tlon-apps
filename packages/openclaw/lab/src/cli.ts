@@ -64,6 +64,8 @@ Options:
   --no-judge          skip the judge (facts and keep verdict only)
   --no-search         run without web search (the bot has no search tool, as when
                       hosted tlonbot has no search key)
+  --double-texts      let the simulated person sometimes send a second message
+                      before the bot answers
   --real              run against the lab's local OpenClaw sandbox instead of the
                       fast model loop (one run at a time; needs Docker and a
                       tlonbot checkout; plugin changes must be committed)
@@ -109,6 +111,7 @@ type Options = {
   'no-search'?: boolean;
   resume?: string;
   real?: boolean;
+  'double-texts'?: boolean;
 };
 
 async function runSet(
@@ -170,6 +173,7 @@ async function runSet(
     deployment,
     mode: options.real ? 'real' : 'fast',
     template: config.template,
+    doubleTexts: options['double-texts'],
   });
   const checkpoint = loadCheckpoint(dir, manifest)!;
   console.log(
@@ -218,6 +222,7 @@ async function runSet(
         tips,
         rubric: checkpoint.rubric,
         simulatorPolicy: checkpoint.simulatorPolicy,
+        doubleTextRate: checkpoint.doubleTextRate,
         tipMovePolicy: checkpoint.tipMovePolicy,
         keepPolicy: checkpoint.keepPolicy,
         campaignPromptPolicy: checkpoint.campaignPromptPolicy,
@@ -359,6 +364,7 @@ async function resumeSet(reference: string, options: Options) {
         tips: frozen?.tips ?? 0,
         rubric: frozen?.rubric,
         simulatorPolicy: frozen?.simulatorPolicy,
+        doubleTextRate: frozen?.doubleTextRate,
         tipMovePolicy: frozen?.tipMovePolicy,
         keepPolicy: frozen?.keepPolicy,
         campaignPromptPolicy: frozen?.campaignPromptPolicy,
@@ -457,6 +463,7 @@ async function main() {
       'no-search': { type: 'boolean' },
       resume: { type: 'string' },
       real: { type: 'boolean' },
+      'double-texts': { type: 'boolean' },
       samples: { type: 'string' },
       'max-points': { type: 'string' },
       port: { type: 'string' },
