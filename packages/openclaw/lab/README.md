@@ -103,11 +103,12 @@ mode, so noise isn't mistaken for a difference.
 
 `--double-texts` lets the simulated person send a quick second message, about
 one move in four, before the bot answers. In both modes the second message
-reaches the plugin while the bot's first model call is running, so the
-plugin's turn guards block any card the bot tries to post in that turn, and
-the message then gets a turn of its own. Fast mode ends such a turn the way
-the real bot does: with the plugin's "I didn't reply" warning, or, when the
-bot keeps retrying, OpenClaw's timeout errors.
+reaches the plugin while the bot's first model call is running, so any card
+the bot tries to post in that turn comes back "not posted" and ends the turn
+(the tool result sets `terminate`, and OpenClaw stops without another model
+call). The message then gets a turn of its own. Fast mode ends turns the same
+way, and shows the plugin's "I didn't reply" warning, or OpenClaw's timeout
+errors when the bot keeps retrying, only where the real bot would.
 
 ## Setup
 
