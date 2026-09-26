@@ -10,14 +10,16 @@ const MARKER = 'will get its own reply';
 /**
  * Quoting the newer message matters: told only that "a newer message
  * arrived", models go looking for it with session tools and retry for a
- * minute, which also delays the reply to that newer message.
+ * minute, which also delays the reply to that newer message. Scoping the
+ * NO_REPLY to this turn matters too: the next turn sees this result in its
+ * history, and without the scope the model stays silent there as well.
  */
 export function supersededTurnText(newerOwnerText?: string) {
   const text = newerOwnerText?.replace(/\s+/g, ' ').trim();
   const quoted = text
     ? ` The owner has since written: "${text.length > 200 ? `${text.slice(0, 199)}…` : text}".`
     : '';
-  return `A newer owner message arrived and ${MARKER}, so nothing was posted here.${quoted} Reply with only NO_REPLY now; make no more tool calls and do not look the message up.`;
+  return `This turn is stale: a newer owner message arrived and ${MARKER} right after this one, so nothing was posted here.${quoted} End this stale turn by replying with only NO_REPLY; make no more tool calls and do not look the message up. This applies only to this turn: when the newer message's turn starts, answer it normally.`;
 }
 
 export const SUPERSEDED_TURN_TEXT = supersededTurnText();
