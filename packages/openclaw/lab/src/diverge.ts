@@ -325,7 +325,89 @@ function behaviourSection(fast: Set, real: Set) {
   <p class="muted">Means per run. Differences smaller than the spread between repeats of the same mode are noise.</p>
   <table><tr><th></th><th>Fast (${escape(fast.manifest.label)})</th><th>Real (${escape(real.manifest.label)})</th></tr>${rows}</table>
   <h3>By persona</h3>
-  <table><tr><th>Persona</th><th>Fast</th><th>Real</th></tr>${personaRows}</table>`;
+  <table><tr><th>Persona</th><th>Fast</th><th>Real</th></tr>${personaRows}</table>
+  ${noiseSection(fast, real)}`;
+}
+
+type Probe = { label: string; value: (run: RunRecord) => number | string };
+
+const PROBES: Probe[] = [
+  { label: 'made a plan', value: (run) => String(run.facts.planCreated) },
+  { label: 'how it ended', value: (run) => run.facts.ending },
+  {
+    label: 'first reply kind',
+    value: (run) =>
+      run.turns
+        .flatMap((turn) => turn.events)
+        .find((e) => e.from === 'bot' && e.kind !== 'suppressed')?.kind ??
+      'none',
+  },
+  { label: 'choice cards', value: (run) => run.facts.choicesPosted },
+  { label: 'owner messages', value: (run) => run.facts.userTurns },
+  {
+    label: 'tool calls',
+    value: (run) => run.turns.flatMap((turn) => turn.toolCalls).length,
+  },
+  { label: 'would come back', value: (run) => String(run.keep?.keep ?? '-') },
+];
+
+/** Difference between two runs: 0/1 for labels, absolute gap for counts. */
+function gap(a: number | string, b: number | string) {
+  return typeof a === 'number' && typeof b === 'number'
+    ? Math.abs(a - b)
+    : a === b
+      ? 0
+      : 1;
+}
+
+/**
+ * Same persona, two runs: how different are they within a mode versus
+ * across modes? Only the part of the cross-mode gap above the within-mode
+ * gaps is a difference between fast and real.
+ */
+function noiseSection(fast: Set, real: Set) {
+  const byPersona = (set: Set) => {
+    const map = new Map<string, RunRecord[]>();
+    for (const run of set.runs.filter((r) => !r.error)) {
+      map.set(run.persona.id, [...(map.get(run.persona.id) ?? []), run]);
+    }
+    return map;
+  };
+  const f = byPersona(fast);
+  const r = byPersona(real);
+  const pairsWithin = (map: Map<string, RunRecord[]>) =>
+    [...map.values()].flatMap((runs) =>
+      runs.flatMap((a, i) => runs.slice(i + 1).map((b) => [a, b] as const))
+    );
+  const pairsAcross = [...f.entries()].flatMap(([id, runs]) =>
+    runs.flatMap((a) => (r.get(id) ?? []).map((b) => [a, b] as const))
+  );
+  const average = (pairs: (readonly [RunRecord, RunRecord])[], probe: Probe) =>
+    pairs.length
+      ? pairs.reduce(
+          (sum, [a, b]) => sum + gap(probe.value(a), probe.value(b)),
+          0
+        ) / pairs.length
+      : null;
+  const show = (value: number | null, probe: Probe) =>
+    value === null
+      ? '—'
+      : typeof probe.value(fast.runs[0] ?? real.runs[0]) === 'number'
+        ? value.toFixed(1)
+        : `${Math.round(value * 100)}%`;
+  const rows = PROBES.map((probe) => {
+    const ff = average(pairsWithin(f), probe);
+    const rr = average(pairsWithin(r), probe);
+    const fr = average(pairsAcross, probe);
+    const noise = Math.max(ff ?? 0, rr ?? 0);
+    const flag =
+      fr !== null && fr > noise * 1.5 && fr - noise > 0.1 ? ' <b>↑</b>' : '';
+    return `<tr><td>${escape(probe.label)}</td><td class="num">${show(ff, probe)}</td><td class="num">${show(rr, probe)}</td><td class="num">${show(fr, probe)}${flag}</td></tr>`;
+  }).join('');
+  return `
+  <h3>Same persona, different runs</h3>
+  <p class="muted">How often two runs of one persona differ (labels) or by how much on average (counts). ↑ marks where fast and real differ clearly more than either mode differs from itself.</p>
+  <table><tr><th></th><th>Fast vs fast</th><th>Real vs real</th><th>Fast vs real</th></tr>${rows}</table>`;
 }
 
 function transcriptsSection(fast: Set, real: Set) {
