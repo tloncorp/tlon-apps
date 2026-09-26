@@ -110,7 +110,7 @@ function normalizeIssues(value: unknown): Issue[] {
     : [];
 }
 
-function normalizeJudgement(raw: Partial<Judgement>): Judgement {
+export function normalizeJudgement(raw: Partial<Judgement>): Judgement {
   const score = (value: unknown) => (typeof value === 'number' ? value : null);
   return {
     outcome: {

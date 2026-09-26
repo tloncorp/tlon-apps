@@ -97,7 +97,11 @@ export function loadConfig(overrides: Partial<LabConfig['models']> = {}) {
     models: {
       bot:
         overrides.bot ?? env.LAB_BOT_MODEL ?? stackModel ?? 'openai/gpt-6-luna',
-      user: overrides.user ?? env.LAB_USER_MODEL ?? 'anthropic/claude-sonnet-5',
+      user:
+        overrides.user ??
+        env.LAB_USER_MODEL ??
+        stackModel ??
+        'openai/gpt-6-luna',
       judge:
         overrides.judge ?? env.LAB_JUDGE_MODEL ?? 'anthropic/claude-opus-5.5',
     },
