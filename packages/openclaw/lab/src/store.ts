@@ -1,3 +1,4 @@
+import type { DeploymentCheck } from './deployed.js';
 import { execFileSync } from 'node:child_process';
 import {
   existsSync,
@@ -59,6 +60,7 @@ export function createRunSet(input: {
   maxTurns: number;
   judge: boolean;
   tips: number;
+  deployment?: DeploymentCheck;
 }): { dir: string; manifest: RunSetManifest } {
   const stamp = new Date()
     .toISOString()
@@ -107,6 +109,7 @@ export function createRunSet(input: {
       ),
       rubric: readFileSync(RUBRIC_PATH, 'utf8'),
     }),
+    ...(input.deployment ? { deployment: input.deployment } : {}),
   };
   writeFileSync(
     path.join(dir, 'manifest.json'),

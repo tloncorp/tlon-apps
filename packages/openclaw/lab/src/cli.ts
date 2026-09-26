@@ -1,5 +1,6 @@
 import { rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { botRequestSettings, checkDeployment } from './deployed.js';
 import { parseArgs } from 'node:util';
 import {
   loadConfig,
@@ -112,6 +113,10 @@ async function runSet(
     },
     { search: !options['no-search'] }
   );
+  const deployment = checkDeployment(config.tlonbotDir, config.models.bot);
+  config.botRequest = botRequestSettings(deployment.agent);
+  for (const warning of deployment.warnings)
+    console.warn(`Warning: ${warning}`);
   const variant = options.variant ? path.resolve(options.variant) : undefined;
   const sources = loadPromptSources(config, variant);
   const personas = loadPersonas(
@@ -135,6 +140,7 @@ async function runSet(
     maxTurns,
     judge: !options['no-judge'],
     tips,
+    deployment,
   });
   const checkpoint = loadCheckpoint(dir, manifest)!;
   console.log(
@@ -211,6 +217,8 @@ async function resumeSet(reference: string, options: Options) {
         ...loadConfig({}, { search: manifest.search !== false }),
         models: manifest.models,
       };
+  // Resumed runs keep the model settings the set started with.
+  config.botRequest = botRequestSettings(manifest.deployment?.agent);
   const sources =
     frozen?.sources ?? loadPromptSources(config, manifest.variant);
   const current = new Map(

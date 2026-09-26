@@ -26,6 +26,9 @@ const RETRYABLE = new Set([408, 409, 429, 500, 502, 503, 504]);
 // request is in flight. Without a cap it reserves the model's full output
 // limit, and a handful of parallel judge calls exhausts a small key.
 const DEFAULT_MAX_TOKENS = 6000;
+// A reply cut off by the cap is retried with a larger one rather than passed
+// on as if it were complete; production's cap is far higher than ours.
+const MAX_TOKENS_CEILING = 32_000;
 
 export class OutOfCreditError extends Error {}
 
@@ -37,12 +40,18 @@ export async function chat(input: {
   temperature?: number;
   json?: boolean;
   maxTokens?: number;
+  /** OpenRouter's reasoning setting, e.g. { effort: 'medium' }. */
+  reasoning?: Record<string, unknown>;
+  /** OpenRouter provider routing, as production configures it. */
+  provider?: Record<string, unknown>;
   meter: CostMeter;
 }): Promise<{ content: string | null; toolCalls: ChatToolCall[] }> {
   const body = {
     model: input.model,
     messages: input.messages,
     max_tokens: input.maxTokens ?? DEFAULT_MAX_TOKENS,
+    ...(input.reasoning ? { reasoning: input.reasoning } : {}),
+    ...(input.provider ? { provider: input.provider } : {}),
     ...(input.tools?.length ? { tools: input.tools, tool_choice: 'auto' } : {}),
     ...(input.temperature === undefined
       ? {}
@@ -95,6 +104,7 @@ export async function chat(input: {
     }
     const data = (await response.json()) as {
       choices?: {
+        finish_reason?: string;
         message?: { content?: string | null; tool_calls?: ChatToolCall[] };
       }[];
       usage?: { cost?: number };
@@ -105,6 +115,17 @@ export async function chat(input: {
       continue;
     }
     input.meter.usd += data.usage?.cost ?? 0;
+    if (data.choices?.[0]?.finish_reason === 'length') {
+      if (body.max_tokens >= MAX_TOKENS_CEILING) {
+        throw new Error(
+          `OpenRouter ${input.model} reply was cut off at ${body.max_tokens} tokens`
+        );
+      }
+      body.max_tokens = Math.min(body.max_tokens * 2, MAX_TOKENS_CEILING);
+      lastError = 'reply cut off by max_tokens';
+      waitMs = 1;
+      continue;
+    }
     const message = data.choices?.[0]?.message;
     if (!message) {
       lastError = 'empty completion';

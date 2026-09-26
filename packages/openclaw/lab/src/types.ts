@@ -1,3 +1,4 @@
+import type { DeploymentCheck } from './deployed.js';
 export type ExpectPlan = 'yes' | 'no' | 'either';
 
 export type Persona = {
@@ -146,4 +147,6 @@ export type RunSetManifest = {
   personas: string[];
   repeat: number;
   checkpoint?: { version: 1; file: string };
+  /** How the tested build compared with the deployed one. */
+  deployment?: DeploymentCheck;
 };

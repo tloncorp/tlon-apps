@@ -127,6 +127,7 @@ export async function runScheduledTask(input: {
       messages: [{ role: 'system', content: system }, ...messages],
       tools,
       meter,
+      ...config.botRequest,
     });
     messages.push({
       role: 'assistant',
