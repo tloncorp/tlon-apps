@@ -95,7 +95,19 @@ pnpm lab swap x-real             # resend real decision points with the old
 pnpm lab calibrate x-real        # refresh the template from an existing set
 ```
 
-When fast and real disagree, trust real and fix the lab.
+When fast and real disagree, trust real and fix the lab. `diverge` also
+compares each gap with how much two runs of the same persona differ within a
+mode, so noise isn't mistaken for a difference.
+
+### Double-texting
+
+`--double-texts` lets the simulated person send a quick second message, about
+one move in four, before the bot answers. In both modes the second message
+reaches the plugin while the bot's first model call is running, so the
+plugin's turn guards block any card the bot tries to post in that turn, and
+the message then gets a turn of its own. Fast mode ends such a turn the way
+the real bot does: with the plugin's "I didn't reply" warning, or, when the
+bot keeps retrying, OpenClaw's timeout errors.
 
 ## Setup
 

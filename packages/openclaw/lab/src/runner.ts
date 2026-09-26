@@ -244,7 +244,7 @@ export async function runPersona(input: {
     text: string,
     replyTo?: string,
     followUp?: string
-  ): Promise<BotTurn & { followUpPending?: boolean }> => {
+  ): Promise<BotTurn & { followUpArrived?: boolean }> => {
     const campaign = await tips?.ownerMessage(text);
     if (campaign?.handled) {
       const turn = {
@@ -253,7 +253,7 @@ export async function runPersona(input: {
         events: [],
       } satisfies BotTurn;
       turns.push(turn);
-      return followUp ? { ...turn, followUpPending: true } : turn;
+      return turn;
     }
     return recordTurn(text, replyTo, campaign?.context, followUp);
   };
@@ -305,9 +305,11 @@ export async function runPersona(input: {
       }
       transcript.push({ from: 'user', kind: move.action, text: move.text });
       let turn = await botTurn(move.text, undefined, move.then);
-      if (move.then && turn.followUpPending) {
-        // The bot answered before the second message; it's a turn of its own.
-        transcript.push({ from: 'user', kind: 'type', text: move.then });
+      if (move.then) {
+        // The second message is handled as its own turn once this one ends.
+        if (!turn.followUpArrived) {
+          transcript.push({ from: 'user', kind: 'type', text: move.then });
+        }
         turn = await botTurn(move.then);
       }
       const choice = turn.events.findLast((event) => event.kind === 'choice');
