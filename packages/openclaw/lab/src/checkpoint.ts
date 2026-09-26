@@ -112,5 +112,6 @@ export function checkpointSourceHashes(checkpoint: PromptCheckpoint) {
     ...Object.values(checkpoint.sources.prompts),
     ...Object.values(checkpoint.sources.resources),
     ...(checkpoint.sources.coordinator ? [checkpoint.sources.coordinator] : []),
+    ...(checkpoint.sources.tipCopy ? [checkpoint.sources.tipCopy] : []),
   ].map((source) => ({ path: source.path, sha256: sha256(source.text) }));
 }

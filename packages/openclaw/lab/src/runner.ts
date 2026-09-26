@@ -197,6 +197,7 @@ export async function runPersona(input: {
         timezone,
         persona,
         plan: () => session.plan,
+        copy: sources.tipCopy?.overrides,
         config,
         meter,
         transcript,

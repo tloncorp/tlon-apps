@@ -6,6 +6,16 @@ import { LAB_DIR, PLUGIN_DIR, REPO_ROOT, RUNS_DIR } from './config.js';
 import { metrics } from './report.js';
 import { loadPersonas, loadRunSet } from './store.js';
 import { renderApp } from './web.js';
+import {
+  EDITABLE_FILES,
+  type TipSample,
+  createVariant,
+  listVariants as workbenchVariants,
+  personalizeTipCase,
+  previewTips,
+  readVariantFile,
+  writeVariantFile,
+} from './workbench.js';
 
 // A small local control panel for the lab: browse run sets, judging folders
 // and reports, and start runs, packets and imports as child processes. It
@@ -77,17 +87,26 @@ function startJob(kind: Job['kind'], title: string, args: string[]) {
 function jobView(job: Job, withLog: boolean) {
   const { id, kind, title, args, status, exitCode, startedAt, endedAt, log } =
     job;
+  // The CLI prints "Report: <path>" when it writes one; link the newest.
+  const report = [...log]
+    .reverse()
+    .map((line) => /Report: (.+\.html)\s*$/.exec(line)?.[1])
+    .find(Boolean);
+  const reportPath =
+    report && report.startsWith(`${RUNS_DIR}${path.sep}`)
+      ? `/files/${path.relative(RUNS_DIR, report).split(path.sep).map(encodeURIComponent).join('/')}`
+      : undefined;
   return {
     ...{ id, kind, title, args, status, exitCode, startedAt, endedAt },
+    ...(reportPath ? { reportPath } : {}),
     ...(withLog ? { log } : { lastLine: log.at(-1) ?? '' }),
   };
 }
 
 function listVariants() {
-  if (!existsSync(VARIANTS_DIR)) return [];
-  return readdirSync(VARIANTS_DIR)
-    .filter((name) => statSync(path.join(VARIANTS_DIR, name)).isDirectory())
-    .sort();
+  return workbenchVariants()
+    .map((variant) => variant.name)
+    .filter((name) => name !== 'baseline');
 }
 
 function summarizeSets() {
@@ -250,7 +269,7 @@ async function handle(
   const method = request.method ?? 'GET';
 
   if (method === 'GET' && url.pathname === '/') {
-    return send(response, 200, renderApp(), 'text/html');
+    return send(response, 200, renderApp(EDITABLE_FILES), 'text/html');
   }
   if (method === 'GET' && url.pathname === '/api/state') {
     return json(response, 200, {
@@ -279,6 +298,57 @@ async function handle(
       return json(response, 200, jobView(job, true));
     }
     return json(response, 200, jobView(job, true));
+  }
+  if (method === 'GET' && url.pathname === '/api/variants') {
+    return json(response, 200, workbenchVariants());
+  }
+  if (method === 'GET' && url.pathname === '/api/variants/file') {
+    return json(
+      response,
+      200,
+      readVariantFile(
+        url.searchParams.get('variant') ?? '',
+        url.searchParams.get('file') ?? ''
+      )
+    );
+  }
+  if (method === 'PUT' && url.pathname === '/api/variants/file') {
+    const body = await readBody(request);
+    writeVariantFile(
+      String(body.variant ?? ''),
+      String(body.file ?? ''),
+      String(body.text ?? '')
+    );
+    return json(response, 200, { ok: true });
+  }
+  if (method === 'POST' && url.pathname === '/api/variants') {
+    const body = await readBody(request);
+    return json(
+      response,
+      200,
+      createVariant(String(body.name ?? ''), String(body.from ?? 'baseline'))
+    );
+  }
+  if (method === 'POST' && url.pathname === '/api/tips/preview') {
+    const body = await readBody(request);
+    return json(response, 200, {
+      cases: previewTips(
+        String(body.yaml ?? ''),
+        (body.sample ?? {}) as TipSample
+      ),
+    });
+  }
+  if (method === 'POST' && url.pathname === '/api/tips/personalize') {
+    const body = await readBody(request);
+    return json(
+      response,
+      200,
+      await personalizeTipCase(
+        String(body.yaml ?? ''),
+        (body.sample ?? {}) as TipSample,
+        String(body.id ?? '')
+      )
+    );
   }
   if (method === 'POST' && url.pathname === '/api/runs') {
     const body = await readBody(request);

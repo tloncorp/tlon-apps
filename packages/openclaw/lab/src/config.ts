@@ -4,6 +4,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse as parseYaml } from 'yaml';
+import {
+  TIP_COPY,
+  type TipCopy,
+} from '../../src/monitor/campaign/templates.js';
 
 export const LAB_DIR = path.dirname(
   path.dirname(fileURLToPath(import.meta.url))
@@ -167,6 +171,8 @@ export type PromptSources = {
   skills: (SourceFile & { dir: string })[];
   prompts: Record<string, SourceFile>;
   coordinator?: SourceFile & { overrides: CoordinatorOverrides };
+  /** Tip copy a variant replaces; any key of the production TipCopy. */
+  tipCopy?: SourceFile & { overrides: Partial<TipCopy> };
   /** Installed skill text resources, keyed by <skill-dir>/<relative path>. */
   resources: Record<string, SourceFile>;
   substitutions?: Record<string, string>;
@@ -266,19 +272,24 @@ export function loadPromptSources(
         : []),
     ])
   );
-  const coordinatorFile = variantDir
-    ? path.join(variantDir, 'coordinator.yaml')
-    : undefined;
-  const coordinator =
-    coordinatorFile && existsSync(coordinatorFile)
-      ? (() => {
-          const file = read(coordinatorFile);
-          return {
-            ...file,
-            overrides: parseYaml(file.text) as CoordinatorOverrides,
-          };
-        })()
-      : undefined;
+  const variantYaml = <T>(name: string) => {
+    const file = variantDir ? path.join(variantDir, name) : undefined;
+    if (!file || !existsSync(file)) return undefined;
+    const source = read(file);
+    return { ...source, overrides: (parseYaml(source.text) ?? {}) as T };
+  };
+  const coordinator = variantYaml<CoordinatorOverrides>('coordinator.yaml');
+  const tipCopy = variantYaml<Partial<TipCopy>>('tips.yaml');
+  if (tipCopy) {
+    const unknown = Object.keys(tipCopy.overrides).filter(
+      (key) => !(key in TIP_COPY)
+    );
+    if (unknown.length) {
+      throw new Error(
+        `tips.yaml has unknown keys: ${unknown.join(', ')}. Known keys: ${Object.keys(TIP_COPY).join(', ')}`
+      );
+    }
+  }
   return {
     skill,
     skills,
@@ -286,6 +297,7 @@ export function loadPromptSources(
     resources,
     substitutions: promptSubstitutions(config.models.bot),
     ...(coordinator ? { coordinator } : {}),
+    ...(tipCopy ? { tipCopy } : {}),
   };
 }
 

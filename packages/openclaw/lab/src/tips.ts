@@ -12,7 +12,10 @@ import {
   acceptPersonalization,
   type TipDraft,
 } from '../../src/monitor/campaign/personalize.js';
-import { isStopTips } from '../../src/monitor/campaign/templates.js';
+import {
+  isStopTips,
+  type TipCopy,
+} from '../../src/monitor/campaign/templates.js';
 import type { CampaignStore } from '../../src/monitor/campaign/store.js';
 import { type LabConfig, OWNER_SHIP } from './config.js';
 import { chat, type CostMeter } from './openrouter.js';
@@ -26,6 +29,8 @@ export function createLabCampaign(input: {
   persona: Persona;
   /** The plan the bot created, if any: the only setup fact production can read. */
   plan?: () => TaskPlan | undefined;
+  /** Tip copy overrides from the variant's tips.yaml. */
+  copy?: Partial<TipCopy>;
   config: LabConfig;
   meter: CostMeter;
   transcript: TranscriptEvent[];
@@ -80,6 +85,7 @@ export function createLabCampaign(input: {
     task: async () => task,
     busy: () => false,
     destination: async () => OWNER_SHIP,
+    copy: input.copy,
     // Production reads topics from the owner's provision post; purpose only
     // came from pickers the current flow no longer posts. Never read the
     // persona card here: it holds facts the campaign could not know.
