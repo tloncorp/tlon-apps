@@ -102,7 +102,8 @@ async function runSet(
 ) {
   const tips = parseTips(options.tips);
   const maxTurns = Number(options['max-turns'] ?? 8);
-  if (!Number.isInteger(maxTurns) || maxTurns < 1) throw new Error('--max-turns must be a positive integer');
+  if (!Number.isInteger(maxTurns) || maxTurns < 1)
+    throw new Error('--max-turns must be a positive integer');
   const config = loadConfig(
     {
       bot: options['bot-model'],
@@ -179,7 +180,8 @@ async function runSet(
 export function parseTips(value: string | undefined): number {
   if (value === undefined) return 0;
   const n = Number(value);
-  if (!/^[0-5]$/.test(value) || !Number.isInteger(n)) throw new Error('--tips must be an integer from 0 through 5');
+  if (!/^[0-5]$/.test(value) || !Number.isInteger(n))
+    throw new Error('--tips must be an integer from 0 through 5');
   return n;
 }
 
@@ -195,8 +197,12 @@ async function resumeSet(reference: string, options: Options) {
   const checkpoint = frozen?.checkpoint;
   const config = checkpoint
     ? loadFrozenConfig(checkpoint.models, checkpoint.search)
-    : { ...loadConfig({}, { search: manifest.search !== false }), models: manifest.models };
-  const sources = frozen?.sources ?? loadPromptSources(config, manifest.variant);
+    : {
+        ...loadConfig({}, { search: manifest.search !== false }),
+        models: manifest.models,
+      };
+  const sources =
+    frozen?.sources ?? loadPromptSources(config, manifest.variant);
   const current = new Map(
     [...sources.skills, ...Object.values(sources.prompts)].map((file) => [
       file.path,
@@ -220,7 +226,9 @@ async function resumeSet(reference: string, options: Options) {
   const jobs = personas.flatMap((persona) =>
     Array.from({ length: manifest.repeat }, (_, index) => {
       const run = existing.get(`${persona.id}#${index + 1}`);
-      const judged = Boolean(run?.judgement) || (frozen ? !frozen.judge : options['no-judge']);
+      const judged =
+        Boolean(run?.judgement) ||
+        (frozen ? !frozen.judge : options['no-judge']);
       if (run && !run.error && judged) return [];
       const regrade = Boolean(run && run.facts.ending !== 'bot-error');
       return [{ persona, repeat: index + 1, run: regrade ? run : undefined }];
@@ -274,7 +282,10 @@ async function compare(aRef: string, bRef: string, judgeModel?: string) {
   const b = loadRunSet(resolveRunSet(bRef));
   const checkpoint = loadCheckpoint(a.dir, a.manifest);
   const config = checkpoint
-    ? loadFrozenConfig({ ...checkpoint.models, judge: judgeModel ?? checkpoint.models.judge }, checkpoint.search)
+    ? loadFrozenConfig(
+        { ...checkpoint.models, judge: judgeModel ?? checkpoint.models.judge },
+        checkpoint.search
+      )
     : loadConfig({ judge: judgeModel });
   const rubric = checkpoint?.rubric;
   const key = (run: RunRecord) => `${run.persona.id}#${run.repeat}`;

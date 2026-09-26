@@ -177,9 +177,17 @@ export function writePackets(config: LabConfig, dirs: string[]) {
     return file;
   });
   const productGuide = path.join(dir, 'skills', 'product-guide.md');
-  const frozenGuide = checkpoints[0]?.sources.skills.find((skill) => skill.dir === PRODUCT_GUIDE_DIR);
+  const frozenGuide = checkpoints[0]?.sources.skills.find(
+    (skill) => skill.dir === PRODUCT_GUIDE_DIR
+  );
   if (frozenGuide) writeFileSync(productGuide, frozenGuide.text);
-  else copyFileSync(loadPromptSources(config).skills.find((skill) => skill.dir === PRODUCT_GUIDE_DIR)!.path, productGuide);
+  else
+    copyFileSync(
+      loadPromptSources(config).skills.find(
+        (skill) => skill.dir === PRODUCT_GUIDE_DIR
+      )!.path,
+      productGuide
+    );
 
   const orders = permutations(sets.length);
   const assigned = shuffle(

@@ -61,7 +61,14 @@ export type TranscriptEvent =
   | { from: 'user'; kind: 'leave'; reason: string }
   | { from: 'system'; kind: 'first-result'; ok: boolean; markdown: string }
   | { from: 'system'; kind: 'phase'; phase: 'after-ending' }
-  | { from: 'system'; kind: 'campaign'; action: string; step?: string; reason?: string; at: string }
+  | {
+      from: 'system';
+      kind: 'campaign';
+      action: string;
+      step?: string;
+      reason?: string;
+      at: string;
+    }
   | { from: 'system'; kind: 'task-change'; action: string; job: unknown };
 
 export type BotTurn = {
@@ -113,7 +120,10 @@ export type RunRecord = {
   turns: BotTurn[];
   firstRunToolCalls: ToolCallRecord[];
   plan?: TaskPlan;
-  campaign?: { trace: { action: string; step?: string; reason?: string; at: string }[]; final?: import('../../src/monitor/campaign/model.js').CampaignState };
+  campaign?: {
+    trace: { action: string; step?: string; reason?: string; at: string }[];
+    final?: import('../../src/monitor/campaign/model.js').CampaignState;
+  };
   /** The same task run as if it were tomorrow. Only the judge sees it. */
   secondResult?: { ok: boolean; markdown: string };
   facts: Facts;
