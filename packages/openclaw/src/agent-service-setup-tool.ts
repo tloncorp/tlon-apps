@@ -126,7 +126,7 @@ function buildAgentServiceSetupBlob(
                   event: {
                     name: 'tlon.sendMessage',
                     context: {
-                      text: 'Continue my daily task setup. Check whether the source I chose is connected; if not, help me choose an available source.',
+                      text: 'Continue my task setup. Check whether the source I chose is connected; if not, help me choose an available source.',
                     },
                   },
                 },

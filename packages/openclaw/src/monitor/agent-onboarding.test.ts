@@ -3291,7 +3291,7 @@ describe('provision coordinator ordering', () => {
     // so the card is a bonus, not the message.
     expect(JSON.stringify(reveal.story)).toContain('Your first entry is ready');
     expect(JSON.stringify(reveal.story)).toContain('First entry');
-    expect(JSON.stringify(reveal.story)).toContain('daily task is active');
+    expect(JSON.stringify(reveal.story)).toContain('task is active');
     expect(reveal.story).toContainEqual({
       block: {
         cite: {

@@ -2948,8 +2948,8 @@ function scheduleConfirmation(request: PostBlobDataEntryAgentProvision) {
 function firstEntryReadyMessage(title?: string | null) {
   const trimmed = title?.trim();
   return trimmed
-    ? `Your first entry is ready: “${trimmed}”. Your daily task is active.`
-    : 'Your first entry is ready. Your daily task is active.';
+    ? `Your first entry is ready: “${trimmed}”. Your task is active.`
+    : 'Your first entry is ready. Your task is active.';
 }
 
 export const agentOnboardingTesting = {
