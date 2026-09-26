@@ -21,7 +21,7 @@ import type {
 import { keepVerdict, nextUserMove } from './user.js';
 import { createLabCampaign } from './tips.js';
 
-const DEFAULT_TIMEZONE = 'America/New_York';
+export const DEFAULT_TIMEZONE = 'America/New_York';
 
 /** A moment on the next day (after today) whose weekday is in `days`. */
 function nextScheduledDay(days: number[] | undefined, timezone: string) {
@@ -73,10 +73,10 @@ function atLocalTime(
     guess;
   return new Date(guess - offset);
 }
-const DEFAULT_AFTER_ENDING =
+export const DEFAULT_AFTER_ENDING =
   'unrelated but whats a quick dinner i can make tonight with eggs and spinach';
 
-function computeFacts(input: {
+export function computeFacts(input: {
   persona: Persona;
   ending: Ending;
   transcript: TranscriptEvent[];

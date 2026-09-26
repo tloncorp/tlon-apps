@@ -74,6 +74,8 @@ export type TranscriptEvent =
 
 export type BotTurn = {
   userText: string;
+  /** When the owner's message went out; real runs use it to match model calls. */
+  startedAt?: string;
   toolCalls: ToolCallRecord[];
   events: TranscriptEvent[];
 };
@@ -112,6 +114,8 @@ export type Judgement = {
 export type KeepVerdict = { keep: boolean; why: string };
 
 export type RunRecord = {
+  /** Fast: the lab's own model loop. Real: the local OpenClaw sandbox. */
+  mode?: 'fast' | 'real';
   persona: Persona;
   repeat: number;
   startedAt: string;
@@ -149,4 +153,5 @@ export type RunSetManifest = {
   checkpoint?: { version: 1; file: string };
   /** How the tested build compared with the deployed one. */
   deployment?: DeploymentCheck;
+  mode?: 'fast' | 'real';
 };

@@ -88,7 +88,7 @@ export async function runScheduledTask(input: {
   prompt?: string;
 }): Promise<{ ok: boolean; markdown: string; toolCalls: ToolCallRecord[] }> {
   const { plan, config, sources, timezone, meter, now } = input;
-  const tools = labTools({ webOnly: true });
+  const tools = labTools({ webOnly: true, search: Boolean(config.braveKey) });
   const system = buildSystemPrompt({
     sources,
     tools,

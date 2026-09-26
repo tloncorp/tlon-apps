@@ -45,8 +45,9 @@ export function renderForUser(events: TranscriptEvent[]): string {
         );
         break;
       case 'plan':
+        // The app submits the plan card itself; the owner taps nothing.
         lines.push(
-          `Tlonbot (card): ${event.plan.summary}\n  [button: Set up daily task → Creating… → Request sent]`
+          `Tlonbot (card): ${event.plan.summary}\n  [the app starts setting this up automatically]`
         );
         break;
       case 'service-setup':
