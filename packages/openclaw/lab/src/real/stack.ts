@@ -157,7 +157,10 @@ export class LabStack {
     search: boolean,
     campaign: boolean
   ) {
-    if (!this.running() || this.pluginRef() !== pluginRef) {
+    // Only a change to the plugin's code (or the api it builds with) needs a
+    // new container; lab-only commits don't.
+    const current = () => (this.running() ? this.pluginRef() : '');
+    if (!samePlugin(current(), pluginRef)) {
       try {
         this.control(['start'], pluginRef);
       } catch (error) {
@@ -167,7 +170,7 @@ export class LabStack {
       }
     }
     await this.installDesk();
-    if (this.pluginRef() !== pluginRef) {
+    if (!samePlugin(this.pluginRef(), pluginRef)) {
       throw new Error(
         `sandbox runs plugin ${this.pluginRef().slice(0, 10)}, expected ${pluginRef.slice(0, 10)}`
       );
@@ -420,4 +423,31 @@ async function waitForGroupsV3(url: string, code: string) {
     await new Promise((resolve) => setTimeout(resolve, 5000));
   }
   throw new Error(`${url} never served the new %groups desk`);
+}
+
+/** Whether two commits have the same plugin and api code (the lab aside). */
+function samePlugin(a: string, b: string) {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  try {
+    execFileSync(
+      'git',
+      [
+        '-C',
+        REPO_ROOT,
+        'diff',
+        '--quiet',
+        a,
+        b,
+        '--',
+        'packages/openclaw',
+        ':(exclude)packages/openclaw/lab',
+        'packages/api',
+      ],
+      { stdio: 'ignore' }
+    );
+    return true;
+  } catch {
+    return false;
+  }
 }
