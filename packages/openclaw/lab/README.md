@@ -6,8 +6,9 @@ simulated people through onboarding, and get a report that grades each
 conversation and the first result it produced. Two sets of runs can be judged
 side by side.
 
-It runs without Urbit, Docker or the gateway. A run takes under a minute and a
-few cents per persona, and personas run in parallel.
+By default it runs without Urbit, Docker or the gateway: a run takes under a
+minute and a few cents per persona, and personas run in parallel. `--real`
+runs the same personas against the actual bot in a local sandbox.
 
 ## How a run works
 
@@ -29,39 +30,72 @@ few cents per persona, and personas run in parallel.
 8. A **judge** model grades the run against the persona card, using
    [`rubric.md`](rubric.md) and the skill the bot was running.
 
-## What is real and what is approximated
+## Fast mode and real mode
 
-Real, imported from the plugin:
+**Fast mode** (the default) drives the bot model directly: a few cents and
+under a minute per persona, many in parallel. **Real mode** (`--real`) runs
+the same personas against the actual OpenClaw bot in a local sandbox: minutes
+per persona, one at a time, but nothing is imitated on the bot's side.
 
-- Every skill the plugin installs (`tlon`, `tlon-agent-onboarding`,
-  `tlon-product-guide`), listed and readable at the same paths the bot uses,
-  plus tlonbot's workspace prompts and the per-turn notes the gateway adds to
-  owner messages (`src/onboarding-turn-context.ts`).
-- The typed tools' names, descriptions, parameter schemas and validation
-  (`tlon_agent_choice`, `tlon_agent_task_plan`, `tlon_agent_service_setup`).
-- The turn guards in `src/onboarding-tool-boundary.ts`: one picker per turn, no
-  plan after a picker, stale-turn blocking, and `cron` blocked while onboarding
-  is incomplete.
-- The coordinator's messages and the scheduled-run prompt
-  (`agentOnboardingTesting` in `src/monitor/agent-onboarding.ts`).
-- Onboarding stays incomplete, and the skill note keeps being added, until a
-  first entry is produced. This is the plugin's current behavior.
-- Web search (Brave) and page fetches.
+### Fast mode is calibrated from real runs
 
-Approximated:
+Fast mode doesn't imitate OpenClaw by hand. Every real set captures the exact
+requests OpenClaw sends the model, and `lab/templates/openclaw-<version>.json`
+keeps one as a template with placeholders where a variant differs: the
+workspace files, the plugin skills' descriptions and versions, and per-run
+values like the session id. Fast runs fill it in, so their system prompt, tool
+list and schemas, request settings, message wrapping and scheduled-run prompt
+are OpenClaw's own, byte for byte. The template holds no tlonbot prompt text,
+so it is committed.
 
-- OpenClaw's own system prompt framing. The workspace files, skill listing and
-  tool guidance are real, but the wrapper around them is rebuilt in
-  `src/context.ts`.
-- The `tlon` tool answers only `settings get`, `groups list` and
-  `contacts self`. `cron` succeeds without scheduling anything once onboarding
-  is complete.
-- Delivery and the app itself. Timing races (a user sending "hello?" while a
-  plan is provisioning), the app's picker UI, and notebook delivery are not
-  simulated. Those belong to the real-stack tier.
+Still simulated in fast mode:
 
-When the fast tier and the real stack disagree, trust the real stack and fix
-the lab.
+- Tools run as stand-ins: `tlon` answers `settings get`, `groups list` and
+  `contacts self`; `cron`, `write`, `edit` and `message` act on in-memory
+  state; the rest record the call and return an error. Web fetch and search
+  are real.
+- The coordinator's timing and the app. Messages arrive instantly and in
+  order, and plans are provisioned without Urbit.
+
+Real mode catches what those miss. Each real set refreshes the template when
+OpenClaw's side changed, and every run records how far the tested build is
+from the deployed one (OpenClaw version, plugin branch, tlonbot prompts); the
+web tool shows the same as a banner.
+
+### Real mode
+
+Real mode needs Docker and a tlonbot checkout (the same `TLONBOT_DIR`). It
+starts a separate copy of tlonbot's onboarding sandbox, compose project
+`onboarding-lab` on ports 48080–48082 and 48789, so the `dev` stack stays
+untouched. On first use it:
+
+- installs this branch's `%groups` desk on the fake ships (the stock pier desk
+  is older than the app and plugin code expect), and
+- sets what the sandbox leaves at its own defaults the way hosted tlonbot
+  does: the tool deny list and reasoning level (read from
+  `entrypoint/tlawn.py`), web search off when there's no key, the first-week
+  campaign off unless tips are simulated, and model traffic routed through a
+  local recording proxy.
+
+Each run resets the ships, the bot's session, settings, cron jobs and
+workspace, then plays the app's part as the owner (`src/real/owner.ts`): it
+creates the onboarding group and notebook, sends the intro request, taps
+picker options, and submits the plan card the way the app does. Every blob it
+sends is checked with the app's own parser. Plugin and desk changes must be
+committed, because the sandbox loads the plugin from git.
+
+### Measuring the gap
+
+```bash
+pnpm lab run --real --personas a,b,c --repeat 2 --no-judge --label x-real
+pnpm lab run --personas a,b,c --repeat 2 --no-judge --label x-fast
+pnpm lab diverge x-fast x-real   # inputs side by side, behavior, transcripts
+pnpm lab swap x-real             # resend real decision points with the old
+                                 # fast prompt or tools swapped in
+pnpm lab calibrate x-real        # refresh the template from an existing set
+```
+
+When fast and real disagree, trust real and fix the lab.
 
 ## Setup
 
@@ -109,7 +143,8 @@ pnpm lab report baseline                  # re-render a run set's report
 
 `run` options: `--personas`, `--repeat`, `--variant`, `--label`,
 `--concurrency` (default 4), `--max-turns` (default 8), `--bot-model`,
-`--user-model`, `--judge-model`, `--no-judge`.
+`--user-model`, `--judge-model`, `--no-judge`, `--no-search`, `--tips`,
+`--real`.
 
 Each run set is saved under `lab/runs/<timestamp>-<label>/` (gitignored), with
 one JSON file per run, a `manifest.json` and a `report.html`. The manifest

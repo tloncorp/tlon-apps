@@ -142,14 +142,6 @@ async function runSet(
       console.log(
         `Fast mode calibrated from ${t.capturedFrom} (OpenClaw ${t.openclaw}, ${t.capturedAt.slice(0, 10)})`
       );
-      if (
-        deployment.openclaw.deployed &&
-        t.openclaw !== deployment.openclaw.deployed
-      ) {
-        console.warn(
-          `Warning: calibrated on OpenClaw ${t.openclaw} but ${deployment.openclaw.deployed} is deployed; run a real set to recalibrate.`
-        );
-      }
     }
   }
   const variant = options.variant ? path.resolve(options.variant) : undefined;

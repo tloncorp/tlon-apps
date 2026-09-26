@@ -84,6 +84,9 @@ a.back { font-size: 14px; text-decoration: none; }
 .sim-chat .issue { font-size: 12px; }
 .sim-status { font-size: 13px; color: var(--muted); margin-top: 10px; display: flex; justify-content: space-between; gap: 8px; }
 .sim-status:empty { display: none; }
+.banner { border: 1px solid color-mix(in srgb, var(--bad) 40%, var(--line)); background: color-mix(in srgb, var(--bad) 6%, var(--panel)); border-radius: 10px; padding: 10px 14px; margin-bottom: 16px; font-size: 13px; }
+.banner ul { margin: 4px 0 0; padding-left: 18px; }
+.pill.real { color: var(--accent); border-color: var(--accent); }
 .who { font-size: 12px; color: var(--muted); margin-top: 4px; }
 .earlier { font-size: 12.5px; margin-top: 10px; }
 .earlier div { display: flex; justify-content: space-between; gap: 8px; }
@@ -222,7 +225,7 @@ function renderSets() {
         ? '<span class="order" role="button" title="Remove from comparison" data-unpick="' + esc(set.name) + '">' + (order + 1) + '</span>'
         : '<input type="checkbox" aria-label="Pick for comparison" data-pick="' + esc(set.name) + '">') + '</td>' +
       '<td><b>' + esc(set.label) + '</b><span class="sub" title="' + esc(set.name) + '">' + esc(when(set.createdAt)) + '</span></td>' +
-      '<td>' + esc(set.variant || 'baseline') + '<span class="sub">' + esc(set.models.bot.split('/').pop()) + (set.search ? '' : ' · no search') + '</span></td>' +
+      '<td>' + esc(set.variant || 'baseline') + (set.mode === 'real' ? ' <span class="pill real">real</span>' : '') + '<span class="sub">' + esc(set.models.bot.split('/').pop()) + (set.search ? '' : ' · no search') + (set.mode === 'real' ? '' : set.calibratedFrom ? ' · calibrated' : ' · uncalibrated') + '</span></td>' +
       '<td class="num">' + set.runs + '/' + set.expected + '<span class="sub">' + judged + (set.errors ? ' · ' + set.errors + ' errors' : '') + '</span></td>' +
       '<td class="num">' + pct(m.outcomeMatched) + '</td>' +
       '<td class="num">' + num(m.conversation) + '</td>' +
@@ -234,8 +237,17 @@ function renderSets() {
   }).join('');
   return '<div class="toolbar"><span>Tick sets to compare; the first one ticked is the control.</span>' +
     '<button id="packets" class="primary"' + (picked.length >= 2 && picked.length <= 4 ? '' : ' disabled') + '>Write judging packets (' + picked.length + ')</button>' +
+    (divergePair() ? '<button id="diverge">Fast vs real report</button>' : '') +
     (picked.length ? '<button class="link" id="clear-picks">Clear</button>' : '') + '</div>' +
     '<div class="scroll"><table><tr><th></th><th>Set</th><th>Variant</th><th>Runs</th><th>Matched</th><th>Conv</th><th>Result</th><th>Came for it</th><th>Cost</th><th></th></tr>' + rows + '</table></div>';
+}
+
+function divergePair() {
+  if (picked.length !== 2) return undefined;
+  const sets = picked.map((name) => state.sets.find((set) => set.name === name));
+  const real = sets.find((set) => set?.mode === 'real');
+  const fast = sets.find((set) => set?.mode !== 'real');
+  return real && fast ? { real: real.name, fast: fast.name } : undefined;
 }
 
 function judgingPrompt(name) {
@@ -245,7 +257,7 @@ function judgingPrompt(name) {
 function renderJudging() {
   const items = state.judging;
   const older = state.modelComparisons;
-  if (!items.length && !older.length) return '<p class="empty">No judging folders yet.</p>';
+  if (!items.length && !older.length && !state.fidelity.length) return '<p class="empty">No judging folders yet.</p>';
   const rows = items.map((item) => {
     const share = item.packets ? item.verdicts / item.packets : 0;
     const reports = item.reports.map((file) => '<a href="/files/' + encodeURIComponent(item.name) + '/' + encodeURIComponent(file) + '" target="_blank">' + esc(file.replace(/^compare-?/, '').replace(/\\.html$/, '') || 'compare') + '</a>').join('<br>');
@@ -257,7 +269,8 @@ function renderJudging() {
   }).join('');
   const table = items.length ? '<div class="scroll"><table><tr><th>Comparison</th><th>Verdicts</th><th>Reports</th><th></th></tr>' + rows + '</table></div>' : '';
   const olderList = older.length ? '<h3>Judged by a model</h3>' + older.map((file) => '<div><a href="/files/' + encodeURIComponent(file) + '" target="_blank">' + esc(file) + '</a></div>').join('') : '';
-  return table + olderList;
+  const fidelity = state.fidelity.length ? '<h3>Fast vs real</h3>' + state.fidelity.map((file) => '<div><a href="/files/' + encodeURIComponent(file) + '" target="_blank">' + esc(file.replace(/\.html$/, '')) + '</a></div>').join('') : '';
+  return table + olderList + fidelity;
 }
 
 function renderJobs() {
@@ -294,6 +307,13 @@ function selectedPersonas() {
 
 function updateEstimate() {
   const count = selectedPersonas().length * (Number($('#repeat').value) || 1);
+  const real = $('#real').checked;
+  $('#concurrency').disabled = real;
+  $('#tips').disabled = real;
+  if (real) {
+    $('#estimate').textContent = count + (count === 1 ? ' run' : ' runs') + ' in the sandbox, one at a time · about ' + Math.round(count * 4) + ' minutes and $' + (count * 0.03).toFixed(2);
+    return;
+  }
   const perRun = document.querySelector('input[name=judge]:checked')?.value === 'model' ? 0.14 : 0.006;
   $('#estimate').textContent = count + (count === 1 ? ' run' : ' runs') + ' · roughly $' + (count * perRun).toFixed(2) + (perRun < 0.1 ? ' (Luna only; judge in Claude afterwards)' : ' with the model judge');
 }
@@ -320,6 +340,10 @@ async function refresh() {
   $('#sets').innerHTML = renderSets();
   $('#judging').innerHTML = renderJudging();
   $('#jobs').innerHTML = renderJobs();
+  const d = state.deployment;
+  $('#banner').hidden = !d.warnings.length;
+  $('#banner').innerHTML = '<b>What the lab tests differs from what is deployed</b><ul>' + d.warnings.map((w) => '<li>' + esc(w) + '</li>').join('') + '</ul>';
+  $('#calibration').textContent = d.calibration ? 'Fast mode calibrated from ' + d.calibration.capturedFrom + ' (OpenClaw ' + d.calibration.openclaw + ').' : 'Fast mode is not calibrated; run a real set once.';
   renderForm();
   renderEarlierTests();
   $('#summary').textContent = runSets().length + ' run sets · ' + state.judging.length + ' judging folders';
@@ -634,6 +658,12 @@ document.addEventListener('click', async (event) => {
       picked = [];
       toast('Writing packets…');
       refresh();
+    } else if (target.id === 'diverge') {
+      const job = await api('/api/diverge', divergePair());
+      openJobs.add(job.id);
+      picked = [];
+      toast('Comparing fast and real…');
+      refresh();
     } else if (target.dataset.copy) {
       await navigator.clipboard.writeText(judgingPrompt(target.dataset.copy));
       toast('Copied. Paste it into Claude Code.');
@@ -745,6 +775,7 @@ $('#run-form').addEventListener('submit', async (event) => {
       concurrency: Number($('#concurrency').value),
       tips: Number($('#tips').value),
       search: $('#search').checked,
+      real: $('#real').checked,
       judge: document.querySelector('input[name=judge]:checked').value,
       personas,
     });
@@ -767,7 +798,8 @@ export function renderApp() {
 <div class="layout" id="layout">
   <div>
     <div data-screen="runs">
-      <section class="panel"><h2>Run sets</h2><div id="sets"><p class="empty">Loading…</p></div></section>
+      <div class="banner" id="banner" hidden></div>
+      <section class="panel"><h2>Run sets</h2><p class="hint" id="calibration" style="margin-top:-6px"></p><div id="sets"><p class="empty">Loading…</p></div></section>
       <section class="panel"><h2>Comparisons</h2><div id="judging"></div></section>
     </div>
     <div data-screen="list" hidden>
@@ -829,6 +861,7 @@ export function renderApp() {
         <label>Personas <button type="button" class="link" data-personas="all">all</button> · <button type="button" class="link" data-personas="blank">blank-slate</button> · <button type="button" class="link" data-personas="none">none</button></label>
         <div class="checks" id="personas"></div>
         <label class="inline"><input type="checkbox" id="search" checked> Web search</label>
+        <label class="inline"><input type="checkbox" id="real"> Real sandbox: the actual OpenClaw bot (slower)</label>
         <div class="radio">
           <label><input type="radio" name="judge" value="claude" checked> Judge in Claude later</label>
           <label><input type="radio" name="judge" value="model"> Judge with a model now</label>
