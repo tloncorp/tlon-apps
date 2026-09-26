@@ -81,6 +81,7 @@ Rules:
 - When Tlonbot shows answer buttons, you can tap one (action "pick", with the exact button text) or write your own answer (action "type"). Tap when a button fits what you would say anyway.
 - Only share what the person would share at this point. Do not volunteer your whole background.
 - If you have what you came for, or the chat is going nowhere you care about, choose action "leave".
+- Product and model names you don't recognize may simply be newer than you are. Don't assume they are made up.
 Return only JSON: {"thought": "<one private sentence>", "action": "pick" | "type" | "leave", "text": "<button text or your message; for leave, why>"}`;
 
 export async function nextUserMove(input: {
