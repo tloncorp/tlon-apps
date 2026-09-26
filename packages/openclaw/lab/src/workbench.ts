@@ -122,7 +122,7 @@ export function baselineFile(file: string): string {
   return sources.prompts[file]?.text ?? '';
 }
 
-function parentOf(name: string) {
+export function parentOf(name: string) {
   const file = path.join(VARIANTS_DIR, name, '.parent');
   return existsSync(file) ? readFileSync(file, 'utf8').trim() : BASELINE;
 }
@@ -148,7 +148,7 @@ export function listVariants() {
 }
 
 /** The text a variant's run would actually use for `file`. */
-function effectiveText(name: string, file: string): string {
+export function effectiveText(name: string, file: string): string {
   if (name === BASELINE) return baselineFile(file);
   const own = path.join(VARIANTS_DIR, name, file);
   return existsSync(own) ? readFileSync(own, 'utf8') : baselineFile(file);

@@ -5,6 +5,7 @@ import path from 'node:path';
 import { LAB_DIR, PLUGIN_DIR, REPO_ROOT, RUNS_DIR } from './config.js';
 import { metrics } from './report.js';
 import { loadPersonas, loadRunSet } from './store.js';
+import { describeVariant, variantOverview } from './changesets.js';
 import { renderApp } from './web.js';
 import {
   EDITABLE_FILES,
@@ -301,6 +302,17 @@ async function handle(
   }
   if (method === 'GET' && url.pathname === '/api/variants') {
     return json(response, 200, workbenchVariants());
+  }
+  if (method === 'GET' && url.pathname === '/api/variants/overview') {
+    return json(response, 200, variantOverview());
+  }
+  if (method === 'POST' && url.pathname === '/api/variants/describe') {
+    const body = await readBody(request);
+    return json(
+      response,
+      200,
+      await describeVariant(String(body.name ?? ''), body.force === true)
+    );
   }
   if (method === 'GET' && url.pathname === '/api/variants/file') {
     return json(
