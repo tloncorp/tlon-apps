@@ -63,8 +63,6 @@ table.overview td.desc { min-width: 280px; }
 table.overview td.num, table.overview td.num a { white-space: nowrap; }
 table.overview tr.vrow { cursor: pointer; }
 table.overview tr.vrow:hover td { background: color-mix(in srgb, var(--accent) 5%, transparent); }
-ul.bullets { margin: 4px 0 0; padding-left: 18px; font-size: 13px; }
-ul.bullets li { margin: 2px 0; }
 .fchange { font-size: 12px; white-space: nowrap; }
 a.back { font-size: 14px; text-decoration: none; }
 .editor-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
@@ -339,7 +337,7 @@ function renderOverview() {
     const describe = describing.has(v.name)
       ? '<span class="muted">Describing…</span>'
       : d
-        ? '<b>' + esc(d.title) + '</b>' + (d.bullets.length ? '<ul class="bullets">' + d.bullets.map((b) => '<li>' + esc(b) + '</li>').join('') + '</ul>' : '')
+        ? esc(d.summary)
         : '<button class="link" data-describe="' + esc(v.name) + '">Describe</button>';
     const files = v.files.length
       ? v.files.map((f) => '<div class="fchange"><span>' + esc(f.file) + '</span> <span class="good">+' + f.added + '</span> <span class="bad">−' + f.removed + '</span></div>').join('')
@@ -358,7 +356,7 @@ function renderOverview() {
       '</tr>';
   }).join('');
   const baseline = '<tr class="vrow" data-row="baseline" title="Open baseline"><td><b>baseline</b><span class="sub">production · read-only</span></td>' +
-    '<td class="desc"><span class="muted">What ships today: the plugin’s skills and tlonbot’s prompts. Open it to compare prompts with OpenClaw’s defaults or to test production.</span></td><td></td><td></td><td></td></tr>';
+    '<td class="desc"><span class="muted">What ships today; read-only.</span></td><td></td><td></td><td></td></tr>';
   return '<div class="scroll"><table class="overview"><tr><th>Variant</th><th>What it changes vs its parent</th><th>Files</th><th>Runs</th><th></th></tr>' + rows + baseline + '</table></div>' +
     '<p class="hint">Click a row to open it. Descriptions are written by Luna from the diff against the parent, cached, and redone only when either side changes.</p>';
 }
@@ -409,7 +407,7 @@ async function openEditor(name) {
   if (name !== 'baseline' && !row) throw new Error('No variant named ' + name);
   $('#e-title').textContent = name;
   $('#e-parent').textContent = name === 'baseline' ? 'production · read-only' : 'from ' + row.parent;
-  $('#e-desc').textContent = row?.description?.title && row.files.length ? row.description.title : '';
+  $('#e-desc').textContent = row?.files.length ? row.description?.summary ?? '' : '';
   $('#e-fork').textContent = 'New variant from ' + name + '…';
   $('#sim-variant').textContent = name;
   editor.files = await api('/api/variants/files?variant=' + encodeURIComponent(name));
