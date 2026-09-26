@@ -19,7 +19,9 @@ import {
 } from '../../src/agent-task-plan-tool.js';
 import {
   assertTlonChoiceCallCurrent,
+  assertTlonServiceSetupCallCurrent,
   assertTlonTaskPlanCallCurrent,
+  bindTlonServiceSetupCall,
   claimTlonChoiceCall,
   claimTlonTaskPlanCall,
   finishTlonChoiceCall,
@@ -543,6 +545,18 @@ async function webFetch(args: Record<string, unknown>) {
   return text.slice(0, Number(args.maxChars ?? 12_000));
 }
 
+/** How a typed onboarding tool's result shows up in the run record. */
+function typedToolOutcome(result: {
+  details?: unknown;
+  terminate?: boolean;
+}): Partial<ToolCallRecord> {
+  return {
+    error: Boolean((result.details as { error?: unknown } | undefined)?.error),
+    ...(isSupersededToolOutcome(result) ? { superseded: true } : {}),
+    ...(result.terminate ? { terminate: true } : {}),
+  };
+}
+
 export async function executeTool(
   id: string,
   name: string,
@@ -579,6 +593,13 @@ export async function executeTool(
         : undefined);
   if (blockReason) {
     return record(`Tool call blocked: ${blockReason}`, { blocked: true });
+  }
+  if (name === 'tlon_agent_service_setup') {
+    bindTlonServiceSetupCall({
+      toolCallId: id,
+      runId: context.runId,
+      sessionKey: context.sessionKey,
+    });
   }
 
   try {
@@ -675,12 +696,7 @@ export async function executeTool(
           },
         });
         const result = await execute(id, params);
-        return record(result.content[0].text, {
-          error: Boolean(
-            result.details && 'error' in result.details && result.details.error
-          ),
-          ...(isSupersededToolOutcome({ result }) ? { superseded: true } : {}),
-        });
+        return record(result.content[0].text, typedToolOutcome(result));
       }
       case 'tlon_agent_task_plan': {
         const params = args as unknown as AgentTaskPlanToolParams;
@@ -696,28 +712,19 @@ export async function executeTool(
           },
         });
         const result = await execute(id, params);
-        return record(result.content[0].text, {
-          error: Boolean(
-            result.details && 'error' in result.details && result.details.error
-          ),
-          ...(isSupersededToolOutcome({ result }) ? { superseded: true } : {}),
-        });
+        return record(result.content[0].text, typedToolOutcome(result));
       }
       case 'tlon_agent_service_setup': {
         const params = args as unknown as AgentServiceSetupToolParams;
         const execute = createAgentServiceSetupToolExecutor({
+          assertCurrent: assertTlonServiceSetupCallCurrent,
           postSetup: async () => {
             context.onServiceSetup(params.providerId);
             return 'posted';
           },
         });
         const result = await execute(id, params);
-        return record(result.content[0].text, {
-          error: Boolean(
-            result.details && 'error' in result.details && result.details.error
-          ),
-          ...(isSupersededToolOutcome({ result }) ? { superseded: true } : {}),
-        });
+        return record(result.content[0].text, typedToolOutcome(result));
       }
       default:
         throw new Error(`Tool ${name} is not available.`);

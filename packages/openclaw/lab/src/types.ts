@@ -48,6 +48,8 @@ export type ToolCallRecord = {
   error?: boolean;
   /** Not posted because a newer owner message overtook the turn. */
   superseded?: boolean;
+  /** Ends the turn; OpenClaw stops when every call in a batch sets this. */
+  terminate?: boolean;
 };
 
 export type TranscriptEvent =
