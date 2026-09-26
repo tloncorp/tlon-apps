@@ -75,8 +75,9 @@ export class BotSession {
    * saw it, so the plugin would have to pass it along; the lab does the same.
    */
   /** A new owner message, as the plugin records it for its turn guards. */
-  private ownerSpoke(onboardingActive: boolean) {
+  private ownerSpoke(onboardingActive: boolean, text: string) {
     setTlonSessionSurface(this.sessionKey, {
+      ownerText: text,
       kind: 'direct',
       senderRole: 'owner',
       channelNest: OWNER_SHIP,
@@ -125,7 +126,7 @@ export class BotSession {
   ): Promise<BotTurn & { followUpArrived?: boolean }> {
     const runId = randomUUID();
     const onboardingActive = !this.onboardingComplete;
-    this.ownerSpoke(onboardingActive);
+    this.ownerSpoke(onboardingActive, userText);
     rememberTlonSessionRunSurface(runId, this.sessionKey, {
       senderRole: 'owner',
     });
@@ -206,7 +207,7 @@ export class BotSession {
         if (pending) {
           // The owner's second message lands while the model is working.
           events.push({ from: 'user', kind: 'type', text: pending });
-          this.ownerSpoke(onboardingActive);
+          this.ownerSpoke(onboardingActive, pending);
           pending = undefined;
           followUpArrived = true;
         }
