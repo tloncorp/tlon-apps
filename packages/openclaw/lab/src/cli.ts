@@ -36,6 +36,7 @@ const USAGE = `Onboarding lab: simulated users against the real onboarding skill
   pnpm lab import <judging-dir>      fold packet verdicts into both sets and render reports
   pnpm lab report <set>              re-render a run set's report
   pnpm lab personas                  list persona cards
+  pnpm lab serve [--port 4410]       open a local page to browse runs and start new ones
 
 Options:
   --personas a,b      persona ids (default: all)
@@ -309,6 +310,7 @@ async function main() {
       'no-judge': { type: 'boolean' },
       'no-search': { type: 'boolean' },
       resume: { type: 'string' },
+      port: { type: 'string' },
       help: { type: 'boolean', short: 'h' },
     },
   });
@@ -378,6 +380,11 @@ async function main() {
           `${missing.length} packets without a verdict: ${missing.join(', ')}`
         );
       }
+      return;
+    }
+    case 'serve': {
+      const { serve } = await import('./serve.js');
+      serve(Number(values.port ?? 4410));
       return;
     }
     case 'report': {

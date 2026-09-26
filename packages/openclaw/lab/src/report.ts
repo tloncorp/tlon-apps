@@ -76,14 +76,14 @@ function format(value: number | null, kind: 'pct' | 'score' | 'num' | 'usd') {
   return value.toFixed(kind === 'score' ? 2 : 1);
 }
 
-const escape = (text: string | undefined) =>
+export const escape = (text: string | undefined) =>
   String(text ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
-const STYLE = `
+export const STYLE = `
 :root { --bg:#fbfbfa; --panel:#fff; --text:#1d1d1b; --muted:#6b6b66; --line:#e4e3de; --bot:#f1f0ec; --user:#dbe8ff; --good:#1f7a3f; --bad:#b3261e; --accent:#2f5bd3; }
 @media (prefers-color-scheme: dark) { :root { --bg:#161615; --panel:#1f1f1d; --text:#ecebe6; --muted:#9d9c95; --line:#34332f; --bot:#2a2a27; --user:#23344f; --good:#5cc27f; --bad:#ff8a80; --accent:#8fb0ff; } }
 * { box-sizing: border-box; }
