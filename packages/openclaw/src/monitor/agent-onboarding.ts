@@ -239,6 +239,8 @@ const AGENT_ONBOARDING_INTRO =
   'I can keep you informed, help you learn, or follow a ' +
   'question over time.';
 const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What can I help you with?';
+const AGENT_ONBOARDING_FIRST_ENTRY_PENDING_TEXT =
+  'I’ll be back in a few seconds with your tailored post.';
 const AGENT_GROUP_SETUP_COMPLETE_MARKER = 'group-setup-complete';
 /**
  * Give a newly discovered chat a short, bounded window for its durable intro
@@ -1047,7 +1049,7 @@ async function provision(
       history,
       'first-entry-pending',
       async () => ({
-        text: 'I’ll be back in a few seconds with your tailored post.',
+        text: AGENT_ONBOARDING_FIRST_ENTRY_PENDING_TEXT,
         shouldSend: async () => {
           const latest = await lookupAgentOnboardingRun(
             onboardingAccountId(context),
@@ -1607,10 +1609,7 @@ async function completeFirstRunCorrelation(
         // hasn't synced the notes channel yet, so name the entry in text. Keep
         // completion focused on the delivered result; explain workspace
         // concepts later only when the owner asks.
-        const title = newest?.title?.trim();
-        const message = title
-          ? `Your first entry is ready: “${title}”. Your daily task is active.`
-          : 'Your first entry is ready. Your daily task is active.';
+        const message = firstEntryReadyMessage(newest?.title);
         const story = markdownToStory(message);
         if (newest) {
           story.push({
@@ -2945,9 +2944,19 @@ function scheduleConfirmation(request: PostBlobDataEntryAgentProvision) {
   return `After this first entry, new ones arrive at ${hour}:${minute} ${meridiem}.`;
 }
 
+function firstEntryReadyMessage(title?: string | null) {
+  const trimmed = title?.trim();
+  return trimmed
+    ? `Your first entry is ready: “${trimmed}”. Your daily task is active.`
+    : 'Your first entry is ready. Your daily task is active.';
+}
+
 export const agentOnboardingTesting = {
   buildProvisionAcknowledgement,
   buildRecurringPrompt,
+  firstEntryPendingText: AGENT_ONBOARDING_FIRST_ENTRY_PENDING_TEXT,
+  firstEntryReadyMessage,
+  welcomeText: `${AGENT_ONBOARDING_INTRO}\n\n${AGENT_ONBOARDING_PURPOSE_PROMPT}`,
   ensureFirstRunEnqueued,
   fetchOnboardingGroup,
   findFirstRunCorrelation,

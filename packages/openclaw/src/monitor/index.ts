@@ -59,6 +59,10 @@ import {
   setTlonSessionSurface,
 } from '../onboarding-tool-boundary.js';
 import {
+  onboardingClientDateTimeNote,
+  onboardingDmContextNote,
+} from '../onboarding-turn-context.js';
+import {
   type PendingNudge,
   clearPendingNudge,
   getPendingNudge,
@@ -3352,11 +3356,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             reason: 'member list available through tlon tool, not injected raw',
           });
         } else if (params.onboardingDmTarget) {
-          bodyWithAttachments +=
-            `\n[First-run onboarding DM context: use target ${params.onboardingDmTarget} ` +
-            'for typed onboarding tools. ' +
-            'Before responding, read and follow ~/.openclaw/plugin-skills/tlon-agent-onboarding/SKILL.md. ' +
-            'This DM is already bound to that onboarding group; continue setup here and do not redirect the owner to create or open another group.]';
+          bodyWithAttachments += onboardingDmContextNote(
+            params.onboardingDmTarget
+          );
           contextLenses.recordContextSource(lens.lensId, {
             kind: 'system',
             label: 'Onboarding DM group binding',
@@ -3368,13 +3370,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         }
         const clientDateTime = onboardingClientDateTime;
         if (clientDateTime) {
-          bodyWithAttachments +=
-            `\n[Client date/time context: device timezone ${clientDateTime.timezone}; ` +
-            `locale ${clientDateTime.locale}. Interpret unqualified schedule times in this ` +
-            'device timezone. Always format visible onboarding times with AM/PM, even when the locale normally uses 24-hour time. Keep cron expressions and ' +
-            'technical timezone identifiers out of user-facing choices and confirmations. ' +
-            'If the owner explicitly names another timezone, preserve that override and ' +
-            'describe it in ordinary language.]';
+          bodyWithAttachments += onboardingClientDateTimeNote(clientDateTime);
         }
       }
 

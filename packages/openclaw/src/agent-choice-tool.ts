@@ -16,6 +16,18 @@ type ResolvedAgentChoiceToolParams = AgentChoiceToolParams & {
   surfaceId: string;
 };
 
+export const agentChoiceToolMetadata = {
+  name: 'tlon_agent_choice',
+  label: 'Tlon Agent Choice',
+  description:
+    'Post one model-authored onboarding question as a Tlon A2UI choice control with a built-in free-form answer path. The tlon-agent-onboarding skill decides whether and what to ask.',
+  promptSnippet:
+    '`tlon_agent_choice`: ask one concise question with selectable answers and a write-your-own option',
+  promptGuidelines: [
+    'Follow the tlon-agent-onboarding skill. After the choice posts, return NO_REPLY and wait for the owner.',
+  ],
+};
+
 export const agentChoiceToolParameters = {
   type: 'object',
   properties: {
