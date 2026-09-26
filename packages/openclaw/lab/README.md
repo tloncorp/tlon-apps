@@ -135,6 +135,12 @@ A local page for the same workflow:
   later. The estimate shows roughly what it will cost.
 - **Jobs**: runs, packets and imports started from the page, with live logs,
   a stop button, and a link to the report when a run finishes.
+- **All variants**: every variant, newest change first, with what it changes
+  versus its parent in plain words, the files it touches (lines added and
+  removed), how many run sets used it, and a flag when it has been edited since
+  its last run. Luna writes each description from the diff, caches it in
+  `.description.json`, and redoes it only when the variant or its parent
+  changes.
 - **Variants tab**: pick a variant, edit any file it can override (the skill,
   `coordinator.yaml`, `tips.yaml`, the product guide, tlonbot prompts), and
   compare it with its parent, with production, or, for workspace prompts,

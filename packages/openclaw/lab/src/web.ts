@@ -67,6 +67,13 @@ td.pick { width: 28px; text-align: center; }
 .tipcard .personal .muted { font-size: 12px; }
 .tipcard.changed { border-color: var(--accent); }
 .error { color: var(--bad); font-size: 13px; white-space: pre-wrap; }
+table.overview td.desc { min-width: 280px; }
+table.overview td.num, table.overview td.num a { white-space: nowrap; }
+table.overview tr.current td { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+ul.bullets { margin: 4px 0 0; padding-left: 18px; font-size: 13px; }
+ul.bullets li { margin: 2px 0; }
+.fchange { font-size: 12px; white-space: nowrap; }
+.muted { color: var(--muted); }
 `;
 
 const SCRIPT = `
@@ -82,6 +89,8 @@ let personasInitialized = false;
 let variants = [];
 const editor = { variant: null, file: 'SKILL.md', original: '', parent: null, parentText: null, productionText: null, openclaw: null, readOnly: false, mode: 'edit' };
 const tips = { variant: null, original: '', baseline: '', cases: [], personal: {}, timer: null };
+let overview = [];
+const describing = new Set();
 
 function toast(message) {
   const el = $('#toast');
@@ -110,6 +119,7 @@ function showTab() {
   document.querySelectorAll('[data-tab]').forEach((el) => { el.hidden = el.dataset.tab !== tab; });
   document.querySelectorAll('nav.tabs a').forEach((a) => a.classList.toggle('active', a.getAttribute('href') === '#' + tab));
   if (tab === 'variants' && !editor.variant) loadVariants();
+  if (tab === 'variants') loadOverview().catch((e) => toast(e.message));
   if (tab === 'tips' && !tips.variant) loadVariants();
 }
 
@@ -291,6 +301,60 @@ async function startRun(body, message) {
 
 /* ---------- variants tab ---------- */
 
+function renderOverview() {
+  if (!overview.length) return '<p class="empty">No variants yet. Create one below.</p>';
+  const rows = overview.map((v) => {
+    const d = v.description;
+    const describe = describing.has(v.name)
+      ? '<span class="muted">Describing…</span>'
+      : d
+        ? '<b>' + esc(d.title) + '</b>' + (d.bullets.length ? '<ul class="bullets">' + d.bullets.map((b) => '<li>' + esc(b) + '</li>').join('') + '</ul>' : '')
+        : '<button class="link" data-describe="' + esc(v.name) + '">Describe</button>';
+    const files = v.files.length
+      ? v.files.map((f) => '<div class="fchange"><span>' + esc(f.file) + '</span> <span class="good">+' + f.added + '</span> <span class="bad">−' + f.removed + '</span></div>').join('')
+      : '<span class="muted">none</span>';
+    const latest = v.runSets[0];
+    const runs = latest
+      ? v.runSets.length + (v.runSets.length === 1 ? ' set' : ' sets') + '<span class="sub"><a href="/files/' + encodeURIComponent(latest.name) + '/report.html" target="_blank">latest ' + esc(when(latest.createdAt)) + '</a></span>' +
+        (v.editedSinceLastRun ? '<span class="sub bad">edited since</span>' : '')
+      : '<span class="muted">never run</span>';
+    return '<tr class="' + (v.name === editor.variant ? 'current' : '') + '">' +
+      '<td><b>' + esc(v.name) + '</b><span class="sub">from ' + esc(v.parent) + '</span><span class="sub">' + esc(when(v.modifiedAt)) + '</span></td>' +
+      '<td class="desc">' + describe + '</td>' +
+      '<td>' + files + '</td>' +
+      '<td class="num">' + runs + '</td>' +
+      '<td style="white-space:nowrap"><button class="link" data-edit="' + esc(v.name) + '">Edit</button><br>' +
+      '<button class="link" data-try="' + esc(v.name) + '">Try it</button><br>' +
+      (d && v.files.length ? '<button class="link" data-describe="' + esc(v.name) + '" data-force="1">Redescribe</button>' : '') + '</td>' +
+      '</tr>';
+  }).join('');
+  return '<div class="scroll"><table class="overview"><tr><th>Variant</th><th>What it changes vs its parent</th><th>Files</th><th>Runs</th><th></th></tr>' + rows + '</table></div>' +
+    '<p class="hint">Descriptions are written by Luna from the diff against the parent, cached, and redone only when either side changes.</p>';
+}
+
+async function loadOverview() {
+  overview = await api('/api/variants/overview');
+  $('#v-list').innerHTML = renderOverview();
+  for (const v of overview) {
+    if (!v.description && !describing.has(v.name)) await describe(v.name, false);
+  }
+}
+
+async function describe(name, force) {
+  describing.add(name);
+  $('#v-list').innerHTML = renderOverview();
+  try {
+    const description = await api('/api/variants/describe', { name, force });
+    const row = overview.find((v) => v.name === name);
+    if (row) row.description = description;
+  } catch (error) {
+    toast(error.message);
+  } finally {
+    describing.delete(name);
+    $('#v-list').innerHTML = renderOverview();
+  }
+}
+
 function editorDirty() {
   return !editor.readOnly && editor.variant && $('#v-editor').value !== editor.original;
 }
@@ -384,6 +448,7 @@ async function saveEditor() {
   renderFileTabs();
   updateEditorStatus();
   if (editor.file === 'tips.yaml' && tips.variant === editor.variant) openTips(tips.variant);
+  loadOverview().catch((e) => toast(e.message));
   toast('Saved ' + editor.file);
 }
 
@@ -496,6 +561,17 @@ document.addEventListener('click', async (event) => {
         el.checked = mode === 'all' || (mode === 'blank' && blank.has(el.value));
       });
       updateEstimate();
+    } else if (target.dataset.edit) {
+      const row = overview.find((v) => v.name === target.dataset.edit);
+      await openVariant(target.dataset.edit, row?.files[0]?.file || 'SKILL.md');
+      $('#v-list').innerHTML = renderOverview();
+      $('#v-editor-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (target.dataset.try) {
+      $('#try-variant').value = target.dataset.try;
+      $('#try-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      toast('Pick a persona and press Run once.');
+    } else if (target.dataset.describe) {
+      await describe(target.dataset.describe, target.dataset.force === '1');
     } else if (target.dataset.file) {
       await openVariant(editor.variant, target.dataset.file);
     } else if (target.dataset.mode) {
@@ -514,6 +590,7 @@ document.addEventListener('click', async (event) => {
       editor.variant = null;
       await loadVariants();
       await openVariant(created.name, 'SKILL.md');
+      loadOverview().catch((e) => toast(e.message));
       refresh();
       toast('Created ' + created.name);
     } else if (target.id === 't-save') {
@@ -607,7 +684,8 @@ export function renderApp(editableFiles: string[]) {
       <section class="panel"><h2>Comparisons</h2><div id="judging"></div></section>
     </div>
     <div data-tab="variants" hidden>
-      <section class="panel">
+      <section class="panel"><h2>All variants</h2><div id="v-list"><p class="empty">Loading…</p></div></section>
+      <section class="panel" id="v-editor-panel">
         <div class="toolbar"><select id="v-select" style="width:auto"></select><span id="v-parent"></span><span class="spacer"></span><button id="v-new">New variant…</button></div>
         <div id="v-new-form" hidden class="row" style="align-items:end">
           <div><label for="v-name">Name</label><input id="v-name" type="text" placeholder="e.g. warmer-welcome"></div>
@@ -658,7 +736,7 @@ export function renderApp(editableFiles: string[]) {
         <button class="primary" type="submit">Start run</button>
       </form>
     </section>
-    <section class="panel" data-tab="variants" hidden><h2>Try it</h2>
+    <section class="panel" data-tab="variants" hidden id="try-panel"><h2>Try it</h2>
       <p class="hint" style="margin-top:0">One conversation with one persona, about a cent. The report opens from the job when it finishes.</p>
       <label for="try-variant">Variant</label><select id="try-variant"></select>
       <label for="try-persona">Persona</label><select id="try-persona"></select>
