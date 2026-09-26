@@ -41,6 +41,10 @@ export function resolveSilentFailureNotice(input: {
   if (summary.execution === 'cancelled' || summary.execution === 'abandoned') {
     return null;
   }
+  // The owner's newer message gets the reply; this turn was right to stop.
+  if (summary.superseded) {
+    return null;
+  }
   if (deliveredCount > 0) {
     return null;
   }

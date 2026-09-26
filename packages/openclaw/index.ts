@@ -1262,6 +1262,7 @@ export default defineBundledChannelEntry({
       }
       recordActiveTlonTurnToolCall({
         toolName: event.toolName,
+        result: event.result,
         errorMessage:
           typeof event.error === 'string' && event.error.trim()
             ? event.error

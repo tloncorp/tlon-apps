@@ -1,3 +1,4 @@
+import { SupersededTurnError } from './superseded-turn.js';
 import { A2UI } from '@tloncorp/api';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -273,7 +274,7 @@ describe('agent task plan tool', () => {
     const postPlan = vi.fn(async () => '{"ok":true}');
     const boundary = executionBoundary();
     boundary.assertCurrent.mockImplementation(() => {
-      throw new Error('newer owner message');
+      throw new SupersededTurnError();
     });
     const execute = createAgentTaskPlanToolExecutor({
       postPlan,
@@ -283,7 +284,7 @@ describe('agent task plan tool', () => {
 
     const result = await execute('call-stale', validPlan);
 
-    expect(result.details).toEqual({ error: true });
+    expect(result.details).toEqual({ superseded: true });
     expect(postPlan).not.toHaveBeenCalled();
     expect(boundary.finish).toHaveBeenCalledWith('call-stale', false);
   });

@@ -1,3 +1,7 @@
+import {
+  SUPERSEDED_TURN_TEXT,
+  SupersededTurnError,
+} from './superseded-turn.js';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -307,28 +311,24 @@ describe('onboarding tool boundary', () => {
     expect(getTlonSessionSurface(sessionKey)?.senderRole).toBe('user');
   });
 
-  it('blocks a typed card from a run superseded by newer owner input', () => {
+  it('leaves stale choices and plans to their own recheck, and stops a stale setup card', () => {
     rememberGroupRun('run-old', '~owner/100');
     setGroupTurn('~owner/101');
 
     const current = getTlonSessionSurface(groupSessionKey);
     const oldRun = getTlonSessionRunSurface('run-old');
-    expect(
-      onboardingToolBlockReason(
-        'tlon_agent_task_plan',
-        { target: 'chat/~zod/home' },
-        current,
-        oldRun
-      )
-    ).toContain('newer owner message');
-    expect(
-      onboardingToolBlockReason(
-        'tlon_agent_choice',
-        { target: 'chat/~zod/home' },
-        current,
-        oldRun
-      )
-    ).toContain('newer owner message');
+    // Choices and plans recheck right before posting and report a stale
+    // turn as a normal result, so the boundary lets them through.
+    for (const tool of ['tlon_agent_task_plan', 'tlon_agent_choice']) {
+      expect(
+        onboardingToolBlockReason(
+          tool,
+          { target: 'chat/~zod/home' },
+          current,
+          oldRun
+        )
+      ).toBeUndefined();
+    }
     expect(
       onboardingToolBlockReason(
         'tlon_agent_service_setup',
@@ -336,7 +336,7 @@ describe('onboarding tool boundary', () => {
         current,
         oldRun
       )
-    ).toContain('newer owner message');
+    ).toBe(SUPERSEDED_TURN_TEXT);
 
     rememberTlonSessionRunSurface('run-current', groupSessionKey);
     expect(
@@ -395,7 +395,7 @@ describe('onboarding tool boundary', () => {
 
     rememberGroupRun('run-2', '~owner/200');
     expect(() => assertTlonChoiceCallCurrent('choice-1')).toThrow(
-      'The stale choice was not posted'
+      SupersededTurnError
     );
     expect(claimChoice('choice-2', 'run-2')).toBeUndefined();
     expect(() => assertTlonChoiceCallCurrent('choice-2')).not.toThrow();

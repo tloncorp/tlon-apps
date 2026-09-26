@@ -1,4 +1,8 @@
 import { sharedMap } from './shared-state.js';
+import {
+  SUPERSEDED_TURN_TEXT,
+  SupersededTurnError,
+} from './superseded-turn.js';
 
 type TlonSessionSurface = {
   kind: 'direct' | 'group';
@@ -238,9 +242,7 @@ export function assertTlonChoiceCallCurrent(toolCallId: string): void {
   if (
     getTlonSessionSurface(call.sessionKey)?.messageId !== call.ownerMessageId
   ) {
-    throw new Error(
-      'A newer owner message arrived during this response. The stale choice was not posted.'
-    );
+    throw new SupersededTurnError();
   }
 }
 
@@ -338,9 +340,7 @@ export function assertTlonTaskPlanCallCurrent(toolCallId: string): void {
   }
   const current = getTlonSessionSurface(call.sessionKey);
   if (current?.messageId !== call.interviewMessageId) {
-    throw new Error(
-      'A newer owner message arrived during this response. The stale task plan was not posted.'
-    );
+    throw new SupersededTurnError();
   }
 }
 
@@ -395,15 +395,16 @@ export function onboardingToolBlockReason(
     if (target !== surface.channelNest) {
       return 'The onboarding tool target must match the active conversation.';
     }
+    // Choices and plans recheck right before posting and report a stale
+    // turn as a normal result, not an error; only the setup card, which has
+    // no such check, is stopped here.
     if (
+      toolName === 'tlon_agent_service_setup' &&
       surface.messageId &&
       runSurface?.messageId &&
       surface.messageId !== runSurface.messageId
     ) {
-      return (
-        'A newer owner message arrived during this response. Do not post this ' +
-        'onboarding action; stop and let the newer owner turn handle the latest intent.'
-      );
+      return SUPERSEDED_TURN_TEXT;
     }
   }
 

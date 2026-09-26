@@ -1,3 +1,7 @@
+import {
+  SupersededTurnError,
+  supersededToolResult,
+} from './superseded-turn.js';
 import { TLON_A2UI_CATALOG_ID } from '@tloncorp/api';
 
 const MAX_OPTIONS = 6;
@@ -168,10 +172,12 @@ export function createAgentChoiceToolExecutor(deps: {
         details: undefined,
       };
     } catch (error) {
-      // Validation and stale-turn errors are safe to retry in the same model
-      // turn. Once publication starts, keep the claim because transport
-      // failure is ambiguous and a duplicate choice would be worse.
+      // Validation errors are safe to retry in the same model turn; a stale
+      // turn is not, and says so. Once publication starts, keep the claim
+      // because transport failure is ambiguous and a duplicate choice would
+      // be worse.
       deps.finish(id, publicationAttempted);
+      if (error instanceof SupersededTurnError) return supersededToolResult();
       const message = error instanceof Error ? error.message : String(error);
       return {
         content: [{ type: 'text' as const, text: `Error: ${message}` }],
