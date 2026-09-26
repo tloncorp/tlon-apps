@@ -1112,6 +1112,9 @@ importers:
       openclaw:
         specifier: 2026.5.28
         version: 2026.5.28(encoding@0.1.13)
+      tsx:
+        specifier: ^4.22.4
+        version: 4.22.4
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -1121,6 +1124,9 @@ importers:
       vitest:
         specifier: ^4.0.0
         version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@25.9.3)(jsdom@23.2.0)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.46.0)(tsx@4.22.4)(yaml@2.9.0))
+      yaml:
+        specifier: ^2.9.0
+        version: 2.9.0
 
   packages/scripts:
     dependencies:

@@ -37,6 +37,7 @@
     "postinstall": "node scripts/generate-version.js",
     "prebuild": "node scripts/generate-version.js",
     "tsc": "tsc --noEmit",
+    "lab": "tsx lab/src/cli.ts",
     "test": "vitest run src/",
     "test:all": "vitest run && vitest run --config vitest.integration.config.ts",
     "test:integration": "bash ./test/run.sh",
@@ -64,9 +65,11 @@
     "@urbit/nockjs": "^1.6.0",
     "dotenv": "^17.2.4",
     "openclaw": "2026.5.28",
+    "tsx": "^4.22.4",
     "typescript": "^5.7.0",
     "vite": "^8.0.7",
     "vitest": "^4.0.0",
+    "yaml": "^2.9.0",
     "zod": "^4.4.1"
   },
   "peerDependencies": {

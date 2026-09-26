@@ -1,0 +1,11 @@
+id: weekly-meal-planner
+who: Busy nurse who grocery shops on Sundays and wants a weekly dinner plan.
+wants: A weekly Sunday meal plan with a grocery list. Weekly, not daily. Will accept a daily alternative only if it clearly makes sense to them.
+expectPlan: either
+opening: can you send me a meal plan + grocery list every sunday morning
+knows:
+  - Cooks for two, one is vegetarian.
+  - Works 12-hour shifts Monday, Wednesday, Friday.
+style: Clear, practical, full sentences.
+patience: 3
+afterEnding: what can I substitute for eggs in banana bread?

@@ -15,3 +15,6 @@ WORKLOG.md
 # Workspace tlon CLI staged for the e2e container (tlon-bot-e2e
 # openclaw driver beforeComposeBuild) — a ~99MB platform binary.
 dev/tlon-skill-workspace-bin/
+
+# Onboarding lab: run output holds transcripts of private prompts
+lab/runs/

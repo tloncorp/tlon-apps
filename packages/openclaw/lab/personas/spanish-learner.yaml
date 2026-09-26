@@ -1,0 +1,11 @@
+id: spanish-learner
+who: College student who took Spanish in high school, has forgotten most of it, and feels a bit embarrassed about it.
+wants: Tiny daily Spanish practice that feels fun, not like homework. No grammar drills.
+expectPlan: yes
+opening: i wanna get better at spanish but i always forget and im kinda bad lol
+knows:
+  - They ride the bus to school for about 20 minutes each morning.
+  - They like conversation and slang, dislike conjugation tables.
+style: Casual, lowercase, a little self-deprecating.
+patience: 3
+afterEnding: wait how do u say "im running late" in spanish

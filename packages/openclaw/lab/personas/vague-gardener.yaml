@@ -1,0 +1,12 @@
+id: vague-gardener
+who: First-year home gardener with tomatoes, basil, rosemary and some zinnias in raised beds. Unsure whether they overwater.
+wants: Something that helps them stop guessing about watering. Open to daily help if it is genuinely useful.
+expectPlan: yes
+opening: maybe help with my garden? not sure whats useful
+knows:
+  - Lives in Austin, Texas. It has been hot and dry.
+  - Waters in the morning after breakfast.
+  - Two tomato leaves are yellowing at the bottom.
+style: Friendly, a bit uncertain, short messages.
+patience: 3
+afterEnding: also is it ok to eat basil after it flowers
