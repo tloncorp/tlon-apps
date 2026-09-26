@@ -52,6 +52,14 @@ export function createLabCampaign(input: {
   const tipQueue: { step: string; text: string }[] = [];
   let task: CampaignTask | undefined;
   let delivered = 0;
+  const note = (action: string, step: string, reason: string) => {
+    trace.push({
+      action,
+      step,
+      reason: reason.slice(0, 200),
+      at: new Date(virtualNow).toISOString(),
+    });
+  };
   const store: CampaignStore = {
     async lookup(key) {
       const state = states.get(key);
@@ -92,11 +100,23 @@ export function createLabCampaign(input: {
               content: buildPersonalizationPrompt(draft, input.policy),
             },
           ],
-          maxTokens: 220,
+          // Luna reasons before answering; a tight cap can leave no room for
+          // the tip itself. Production sets no cap here.
+          maxTokens: 2000,
           meter: input.meter,
         });
-        return acceptPersonalization(draft, result.content ?? undefined);
-      } catch {
+        const accepted = acceptPersonalization(
+          draft,
+          result.content ?? undefined
+        );
+        if (!accepted) {
+          note('personalize-rejected', draft.step, result.content ?? 'empty');
+        }
+        return accepted;
+      } catch (error) {
+        // Production falls back to the base tip too, but the lab should
+        // say why, so a run that never personalizes is visible.
+        note('personalize-failed', draft.step, String(error));
         return;
       }
     },
@@ -173,10 +193,11 @@ export function createLabCampaign(input: {
     async taskCreated() {
       await campaign.taskCreated();
     },
-    taskResult(ok: boolean) {
+    /** `name` is the job's name in the cron store, which tips quote to the owner. */
+    taskResult(ok: boolean, name = 'Tlonbot scheduled update') {
       task = {
         id: 'job-1',
-        name: 'First recurring task',
+        name,
         enabled: true,
         ...(ok ? { deliveredAt: virtualNow } : { failedAt: virtualNow }),
       };
