@@ -48,7 +48,7 @@ export type ToolCallRecord = {
 
 export type TranscriptEvent =
   | { from: 'bot'; kind: 'text'; text: string; source: 'model' | 'coordinator' }
-  | { from: 'bot'; kind: 'choice'; choice: Choice }
+  | { from: 'bot'; kind: 'choice'; choice: Choice; source?: 'coordinator' }
   | { from: 'bot'; kind: 'plan'; plan: TaskPlan }
   | { from: 'bot'; kind: 'service-setup'; providerId: string }
   | { from: 'bot'; kind: 'silent' }
@@ -125,6 +125,8 @@ export type RunSetManifest = {
   models: { bot: string; user: string; judge: string };
   sources: { path: string; sha256: string }[];
   variant?: string;
+  /** False when the round ran without web search. */
+  search?: boolean;
   personas: string[];
   repeat: number;
 };

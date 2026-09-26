@@ -1,0 +1,11 @@
+id: one-word
+who: Teenager who installed the app because friends are on it. Answers everything with as few words as possible.
+wants: Something mildly fun or useful without effort. Will go along with a reasonable suggestion but never explains much.
+expectPlan: either
+opening: hi
+knows:
+  - Plays basketball and likes NBA highlights.
+  - Has school until 3.
+style: One or two words per message, lowercase, "idk", "sure", "whatever", "ok".
+patience: 2
+afterEnding: who has the most nba titles

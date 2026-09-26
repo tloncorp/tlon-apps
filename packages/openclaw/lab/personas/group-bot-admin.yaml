@@ -1,0 +1,14 @@
+id: group-bot-admin
+who: Runs a Tlon group for a neighborhood gardening club and wants the bot to help inside that group.
+wants: To add the bot to their group so members can ask it gardening questions, and to understand who the bot will answer. A daily task is not the point.
+expectPlan: no
+opening: can i add you to my gardening club group so people can ask you stuff?
+asks:
+  - Will you answer everyone in the group or just me?
+  - Can you post a weekly reminder about the Saturday work day in the group?
+knows:
+  - The group has about 25 members.
+  - They are the group's host.
+style: Friendly, practical, full sentences.
+patience: 3
+afterEnding: when should i plant garlic in zone 6

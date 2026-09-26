@@ -1,0 +1,11 @@
+id: spanish-speaker
+who: Accountant in Mexico City who is more comfortable in Spanish than English.
+wants: A daily summary of exchange-rate and economic news that matters for Mexico, written in Spanish. Expects the whole conversation in Spanish.
+expectPlan: yes
+opening: hola! me puedes mandar un resumen diario de noticias económicas de méxico? sobre todo tipo de cambio
+knows:
+  - Reads news at 8 in the morning before opening email.
+  - Cares about the peso-dollar rate, Banxico decisions and inflation.
+style: Writes only in Spanish, casual, sometimes without accents.
+patience: 3
+afterEnding: cual es la diferencia entre inflacion general y subyacente, en dos lineas

@@ -1,6 +1,6 @@
 import { agentOnboardingTesting } from '../../src/monitor/agent-onboarding.js';
 import { BotSession } from './bot.js';
-import type { LabConfig, PromptSources } from './config.js';
+import type { CoordinatorMessage, LabConfig, PromptSources } from './config.js';
 import {
   coordinatorAcknowledgement,
   coordinatorReveal,
@@ -129,14 +129,25 @@ export async function runPersona(input: {
   const startedAt = new Date();
   const timezone = persona.timezone ?? DEFAULT_TIMEZONE;
   const session = new BotSession(config, sources, timezone, meter);
-  const transcript: TranscriptEvent[] = [
-    {
-      from: 'bot',
-      kind: 'text',
-      text: agentOnboardingTesting.welcomeText,
-      source: 'coordinator',
-    },
-  ];
+  const overrides = sources.coordinator?.overrides ?? {};
+  const coordinatorEvent = (message: CoordinatorMessage): TranscriptEvent =>
+    message.options?.length
+      ? {
+          from: 'bot',
+          kind: 'choice',
+          choice: { question: message.text, options: message.options },
+          source: 'coordinator',
+        }
+      : {
+          from: 'bot',
+          kind: 'text',
+          text: message.text,
+          source: 'coordinator',
+        };
+  const welcome: CoordinatorMessage = overrides.welcome ?? {
+    text: agentOnboardingTesting.welcomeText,
+  };
+  const transcript: TranscriptEvent[] = [coordinatorEvent(welcome)];
   const turns: BotTurn[] = [];
   const firstRunToolCalls: ToolCallRecord[] = [];
   let ending: Ending = 'turn-limit';
@@ -144,18 +155,20 @@ export async function runPersona(input: {
   let dayTwo: Promise<{ ok: boolean; markdown: string }> | undefined;
   let error: string | undefined;
 
-  const botTurn = async (text: string) => {
-    const turn = await session.turn(text);
+  const botTurn = async (text: string, replyTo?: string) => {
+    const turn = await session.turn(text, replyTo);
     turns.push(turn);
     transcript.push(...turn.events);
     return turn;
   };
 
   try {
-    let lastOptions: string[] | undefined;
+    let lastOptions = welcome.options;
     for (let index = 0; index < input.maxTurns; index++) {
+      // With buttons on the welcome, the person may tap one before saying what
+      // they came for; without them, they open with their own words.
       const move =
-        index === 0 && persona.opening
+        index === 0 && persona.opening && !welcome.options?.length
           ? ({ action: 'type', text: persona.opening } as const)
           : await nextUserMove({
               persona,
@@ -163,6 +176,11 @@ export async function runPersona(input: {
               config,
               meter,
               lastOptions,
+              ...(index === 0 && persona.opening
+                ? {
+                    nudge: `You came here wanting to say roughly: "${persona.opening}". Tap a button if one fits, or type your message.`,
+                  }
+                : {}),
             });
       if (move.action === 'leave') {
         transcript.push({ from: 'user', kind: 'leave', reason: move.reason });
@@ -218,6 +236,28 @@ export async function runPersona(input: {
             session.plan.scheduleMinute
           ),
         });
+      }
+    }
+
+    if (firstResultOk && overrides.afterFirstEntry) {
+      const offer = overrides.afterFirstEntry;
+      transcript.push(coordinatorEvent(offer));
+      let options = offer.options;
+      let replyTo: string | undefined = offer.text;
+      for (let index = 0; index < 3; index++) {
+        const move = await nextUserMove({
+          persona,
+          events: transcript,
+          config,
+          meter,
+          lastOptions: options,
+        });
+        if (move.action === 'leave') break;
+        transcript.push({ from: 'user', kind: move.action, text: move.text });
+        const turn = await botTurn(move.text, replyTo);
+        replyTo = undefined;
+        const choice = turn.events.findLast((event) => event.kind === 'choice');
+        options = choice?.kind === 'choice' ? choice.choice.options : undefined;
       }
     }
 

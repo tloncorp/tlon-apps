@@ -1,0 +1,11 @@
+id: mind-changer
+who: Grad student who starts one direction and changes their mind partway through.
+wants: Starts by asking for daily science news, then partway through decides they would rather get one research paper summary each day in their field (neuroscience), explained simply. Wants the bot to follow the change without starting over.
+expectPlan: yes
+opening: can you send me science news every day
+knows:
+  - Studies neuroscience, specifically sleep and memory.
+  - Reads on the train in the morning.
+style: Casual, a bit scattered, changes direction with "actually".
+patience: 3
+afterEnding: what's the difference between a preprint and a published paper
