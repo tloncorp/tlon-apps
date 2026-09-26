@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "capturedAt": "2026-09-26T20:15:13.324Z",
-  "capturedFrom": "20260926-192754-diverge-real",
+  "capturedAt": "2026-09-26T23:14:53.161Z",
+  "capturedFrom": "20260926-222231-real-simplified-4-gate",
   "openclaw": "2026.7.1",
-  "pluginCommit": "9c0a0478283d864ca16664baff434caf76203e4a",
+  "pluginCommit": "e02e3201f44bdc2db07ecb40a6136dcf2285a335",
   "model": "openai/gpt-6-luna",
   "settings": {
     "reasoning": {
@@ -15,6 +15,8 @@
     "TLON_SHIP": "~zod",
     "TLON_OWNER_SHIP": "~ten",
     "TLON_URL": "http://ships:8080",
+    "TLON_OWNER_URL": "http://ships:8081",
+    "TLON_OWNER_CONFIG_PATH": "/usr/local/share/openclaw/skills/tlon/ships/ten.json",
     "MODEL": "openrouter/openai/gpt-6-luna"
   },
   "workspaceFiles": [
@@ -2183,6 +2185,6 @@
       }
     ],
     "message": "[cron:{{JOB_ID}} {{JOB_NAME}}] {{PROMPT}}\nCurrent time: {{NOW}}\nReference UTC: {{UTC}}\n\nReturn your response as plain text; it will be delivered automatically. If the task explicitly calls for messaging a specific external recipient, note who/where it should go instead of sending it yourself.",
-    "nowExample": "Saturday, September 26th, 2026 - 7:33 PM (UTC)"
+    "nowExample": "Saturday, September 26th, 2026 - 10:37 PM (UTC)"
   }
 }
