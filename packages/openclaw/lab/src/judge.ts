@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { stringify } from 'yaml';
 import { type LabConfig, RUBRIC_PATH } from './config.js';
 import { type CostMeter, chatJson } from './openrouter.js';
-import type { Judgement, RunRecord, TranscriptEvent } from './types.js';
+import type { Issue, Judgement, RunRecord, TranscriptEvent } from './types.js';
 
 /** Everything that happened, including what the user never sees. */
 export function renderForJudge(record: RunRecord): string {
@@ -66,7 +66,7 @@ export async function judgeRun(input: {
 }): Promise<Judgement> {
   const { record } = input;
   const rubric = readFileSync(RUBRIC_PATH, 'utf8');
-  return chatJson<Judgement>({
+  const raw = await chatJson<Partial<Judgement>>({
     key: input.config.openrouterKey,
     model: input.config.models.judge,
     temperature: 0,
@@ -88,6 +88,45 @@ export async function judgeRun(input: {
       },
     ],
   });
+  return normalizeJudgement(raw);
+}
+
+function normalizeIssues(value: unknown): Issue[] {
+  return Array.isArray(value)
+    ? value.map((issue) => ({
+        quote: String(issue?.quote ?? ''),
+        problem: String(issue?.problem ?? ''),
+      }))
+    : [];
+}
+
+function normalizeJudgement(raw: Partial<Judgement>): Judgement {
+  const score = (value: unknown) => (typeof value === 'number' ? value : null);
+  return {
+    outcome: {
+      matched: raw.outcome?.matched === true,
+      why: String(raw.outcome?.why ?? ''),
+    },
+    conversation: {
+      score: score(raw.conversation?.score),
+      issues: normalizeIssues(raw.conversation?.issues),
+    },
+    result: {
+      score: score(raw.result?.score),
+      issues: normalizeIssues(raw.result?.issues),
+    },
+    followUp: {
+      ok: raw.followUp?.ok === true,
+      why: String(raw.followUp?.why ?? ''),
+    },
+    ruleBreaks: Array.isArray(raw.ruleBreaks)
+      ? raw.ruleBreaks.map((rule) => ({
+          rule: String(rule?.rule ?? ''),
+          quote: String(rule?.quote ?? ''),
+        }))
+      : [],
+    summary: String(raw.summary ?? ''),
+  };
 }
 
 export type PairVerdict = { winner: 'A' | 'B' | 'tie'; why: string };

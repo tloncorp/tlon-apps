@@ -26,7 +26,11 @@ export function metrics(runs: RunRecord[]): Metrics {
     runs: runs.length,
     errors: runs.filter((run) => run.error).length,
     outcomeMatched: rate(graded.map((run) => run.judgement!.outcome.matched)),
-    conversation: mean(graded.map((run) => run.judgement!.conversation.score)),
+    conversation: mean(
+      graded
+        .map((run) => run.judgement!.conversation.score)
+        .filter((score): score is number => typeof score === 'number')
+    ),
     result: mean(
       graded
         .map((run) => run.judgement!.result.score)
@@ -65,8 +69,8 @@ function format(value: number | null, kind: 'pct' | 'score' | 'num' | 'usd') {
   return value.toFixed(kind === 'score' ? 2 : 1);
 }
 
-const escape = (text: string) =>
-  text
+const escape = (text: string | undefined) =>
+  String(text ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
