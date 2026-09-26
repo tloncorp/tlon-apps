@@ -46,6 +46,8 @@ export type ToolCallRecord = {
   result: string;
   blocked?: boolean;
   error?: boolean;
+  /** Not posted because a newer owner message overtook the turn. */
+  superseded?: boolean;
 };
 
 export type TranscriptEvent =

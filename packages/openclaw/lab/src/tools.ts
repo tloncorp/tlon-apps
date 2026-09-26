@@ -38,6 +38,7 @@ import {
 } from './config.js';
 import { type ChatTool, OutOfCreditError } from './openrouter.js';
 import { type Template, renderLikeSandbox } from './template.js';
+import { isSupersededToolOutcome } from '../../src/superseded-turn.js';
 import type { Choice, TaskPlan, ToolCallRecord } from './types.js';
 
 export type LabTool = ChatTool & { guidelines?: string[] };
@@ -675,7 +676,10 @@ export async function executeTool(
         });
         const result = await execute(id, params);
         return record(result.content[0].text, {
-          error: Boolean(result.details?.error),
+          error: Boolean(
+            result.details && 'error' in result.details && result.details.error
+          ),
+          ...(isSupersededToolOutcome({ result }) ? { superseded: true } : {}),
         });
       }
       case 'tlon_agent_task_plan': {
@@ -693,7 +697,10 @@ export async function executeTool(
         });
         const result = await execute(id, params);
         return record(result.content[0].text, {
-          error: Boolean(result.details?.error),
+          error: Boolean(
+            result.details && 'error' in result.details && result.details.error
+          ),
+          ...(isSupersededToolOutcome({ result }) ? { superseded: true } : {}),
         });
       }
       case 'tlon_agent_service_setup': {
@@ -706,7 +713,10 @@ export async function executeTool(
         });
         const result = await execute(id, params);
         return record(result.content[0].text, {
-          error: Boolean(result.details?.error),
+          error: Boolean(
+            result.details && 'error' in result.details && result.details.error
+          ),
+          ...(isSupersededToolOutcome({ result }) ? { superseded: true } : {}),
         });
       }
       default:
