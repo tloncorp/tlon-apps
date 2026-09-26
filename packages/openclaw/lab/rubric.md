@@ -47,9 +47,12 @@ The note the scheduled task produced right after setup.
 - **1**: Empty, a template with blanks to fill in, wrong, or unrelated to the
   plan.
 
-Look for fill-in-the-blank placeholders, advice that would repeat daily,
-invented facts or sources, claims of access the bot does not have, and
-mismatch with the plan summary.
+Look for fill-in-the-blank placeholders, invented facts or sources, claims of
+access the bot does not have, and mismatch with the plan summary.
+
+When a day-two result is included, it is the same task run as if it were
+tomorrow. Use it to judge whether the task keeps being worth reading: a day-two
+note that repeats day one, or differs only in wording, caps the score at 3.
 
 ## Follow-up
 
