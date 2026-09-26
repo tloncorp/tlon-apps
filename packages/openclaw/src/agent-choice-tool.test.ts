@@ -1,3 +1,7 @@
+import {
+  SUPERSEDED_TURN_TEXT,
+  SupersededTurnError,
+} from './superseded-turn.js';
 import { A2UI } from '@tloncorp/api';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -127,16 +131,18 @@ describe('agent choice tool', () => {
     ]);
   });
 
-  it('does not post a choice after its owner turn is superseded', async () => {
+  it('stops quietly when a newer owner message supersedes the turn', async () => {
     const { deps, execute, postChoice } = choiceHarness();
     deps.assertCurrent.mockImplementation(() => {
-      throw new Error('A newer owner message arrived');
+      throw new SupersededTurnError();
     });
 
     const result = await execute('stale-choice', validChoice);
 
-    expect(result.details).toEqual({ error: true });
-    expect(result.content[0]?.text).toContain('A newer owner message arrived');
+    // Not an error: retrying can't succeed, and the newer message gets its
+    // own reply.
+    expect(result.details).toEqual({ superseded: true });
+    expect(result.content[0]?.text).toBe(SUPERSEDED_TURN_TEXT);
     expect(postChoice).not.toHaveBeenCalled();
   });
 

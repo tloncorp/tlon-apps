@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  SUPERSEDED_TURN_TEXT,
+  supersededToolResult,
+} from './superseded-turn.js';
+
+import {
   type TlonAgentTurnObserver,
   type TlonAgentTurnSummary,
   beginTlonTurnSilenceObservation,
@@ -440,6 +445,7 @@ describe('Tlon agent turn classification', () => {
       sourceReplyCount: 2,
       toolCallCount: 3,
       toolErrorCount: 0,
+      superseded: false,
       trigger: 'dm',
     });
   });
@@ -1054,5 +1060,25 @@ describe('Tlon agent-end silence evidence', () => {
     expect(turn.finalize({ durationMs: 10 }).result).toBe(
       'intentional_silence'
     );
+  });
+});
+
+describe('superseded turns', () => {
+  it('marks a turn a newer owner message overtook without counting an error', () => {
+    const turn = startTlonAgentTurn(baseTurn, { observer: noOpObserver });
+    turn.run(() => {
+      recordActiveTlonTurnToolCall({
+        toolName: 'tlon_agent_choice',
+        result: supersededToolResult(),
+      });
+      recordActiveTlonTurnToolCall({
+        toolName: 'tlon_agent_service_setup',
+        errorMessage: SUPERSEDED_TURN_TEXT,
+      });
+    });
+    const summary = turn.finalize({ execution: 'completed' });
+    expect(summary.superseded).toBe(true);
+    expect(summary.toolErrorCount).toBe(0);
+    expect(summary.lastToolError).toBeNull();
   });
 });

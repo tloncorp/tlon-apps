@@ -1,3 +1,4 @@
+import { isSupersededToolOutcome } from './superseded-turn.js';
 import { metrics } from '@opentelemetry/api';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type {
@@ -109,6 +110,8 @@ export type TlonAgentTurnSummary = TlonAgentTurnStart & {
   sourceReplyCount: number;
   toolCallCount: number;
   toolErrorCount: number;
+  /** A newer owner message overtook this turn; it gets its own reply. */
+  superseded: boolean;
 };
 
 export type TlonAgentTurnObserver = {
@@ -153,6 +156,7 @@ type TlonAgentTurnState = TlonAgentTurnStart & {
   summary: TlonAgentTurnSummary | null;
   toolCallCount: number;
   toolErrorCount: number;
+  superseded: boolean;
 };
 
 type MetricAttributes = Record<string, string>;
@@ -429,6 +433,7 @@ function buildSummary(
     sourceReplyCount: state.sourceReplyCount,
     toolCallCount: state.toolCallCount,
     toolErrorCount: state.toolErrorCount,
+    superseded: state.superseded,
     trigger: state.trigger,
   };
 }
@@ -606,6 +611,7 @@ export function startTlonAgentTurn(
     summary: null,
     toolCallCount: 0,
     toolErrorCount: 0,
+    superseded: false,
   };
 
   agentOutputsByRunId.set(state.runId, state.agentOutput);
@@ -697,10 +703,15 @@ export function recordActiveTlonTurnSourceReply(reply?: {
 export function recordActiveTlonTurnToolCall(update?: {
   toolName?: string;
   errorMessage?: string;
+  result?: unknown;
 }): void {
   updateActiveTurn((state) => {
     state.toolCallCount += 1;
     const errorMessage = update?.errorMessage;
+    if (isSupersededToolOutcome({ result: update?.result, errorMessage })) {
+      state.superseded = true;
+      return;
+    }
     if (typeof errorMessage === 'string' && errorMessage.trim()) {
       state.toolErrorCount += 1;
       state.lastToolError = {

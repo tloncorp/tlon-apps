@@ -1,4 +1,8 @@
 import {
+  SupersededTurnError,
+  supersededToolResult,
+} from './superseded-turn.js';
+import {
   AGENT_PROTOCOL_LIMITS,
   AgentProvisionActionContextSchema,
   TLON_A2UI_CATALOG_ID,
@@ -377,6 +381,7 @@ export function createAgentTaskPlanToolExecutor(deps: {
       // have accepted the post before the CLI lost its response. Retain the
       // one-plan claim so this run cannot publish a second automatic card.
       deps.finish(id, publicationAttempted);
+      if (error instanceof SupersededTurnError) return supersededToolResult();
       const message = error instanceof Error ? error.message : String(error);
       return {
         content: [{ type: 'text' as const, text: `Error: ${message}` }],
