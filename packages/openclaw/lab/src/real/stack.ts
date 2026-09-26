@@ -58,6 +58,18 @@ const PLUGIN_SKILLS =
   '/root/.openclaw/extensions/tlon-checkout/packages/openclaw/skills';
 const BASELINE = '/root/.openclaw/lab-workspace-baseline';
 
+/**
+ * The variables the sandbox fills into prompt files, read from its script's
+ * envsubst lists so a variable it starts filling can't drift from the lab.
+ */
+export function sandboxPromptVariables(script: string) {
+  const names = new Set<string>();
+  for (const [, list] of script.matchAll(/envsubst '([^']*)'/g)) {
+    for (const [, name] of list.matchAll(/\$\{([A-Z_]+)\}/g)) names.add(name);
+  }
+  return [...names];
+}
+
 export class LabStack {
   readonly project: string;
   readonly ports: StackPorts;
@@ -295,16 +307,19 @@ export class LabStack {
 
   /** The values the sandbox fills into prompt files; others stay literal. */
   substitutions(): Record<string, string> {
-    const [ship, owner, url] = this.bot(
-      'printf "%s\\n%s\\n%s" "$TLON_SHIP" "$TLON_OWNER_SHIP" "$TLON_URL"'
+    // The sandbox renders ${MODEL} from the gateway config, the rest from
+    // the bot container's environment.
+    const names = sandboxPromptVariables(
+      readFileSync(this.script, 'utf8')
+    ).filter((name) => name !== 'MODEL');
+    const values = this.bot(
+      `printf '%s\\n' ${names.map((name) => `"$${name}"`).join(' ')}`
     ).split('\n');
     const model = this.bot(
       "jq -r '.agents.defaults.model.primary // empty' /root/.openclaw/openclaw.json"
     ).trim();
     return {
-      TLON_SHIP: ship,
-      TLON_OWNER_SHIP: owner,
-      TLON_URL: url,
+      ...Object.fromEntries(names.map((name, i) => [name, values[i] ?? ''])),
       ...(model ? { MODEL: model } : {}),
     };
   }
