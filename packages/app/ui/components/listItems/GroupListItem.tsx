@@ -155,6 +155,7 @@ export const GroupListItem = ({
         testID={`GroupListItem-${model.title || 'Untitled group'}-${model.pin ? 'pinned' : 'unpinned'}`}
       >
         <ListItem
+          gap="$2xl"
           {...props}
           alignItems={isPending ? 'center' : 'stretch'}
           backgroundColor={shouldHighlight ? '$positiveBackground' : 'unset'}
