@@ -22,6 +22,7 @@ import { agentChoiceToolMetadata } from '../../src/agent-choice-tool.js';
 import { agentServiceSetupToolMetadata } from '../../src/agent-service-setup-tool.js';
 import { agentTaskPlanToolMetadata } from '../../src/agent-task-plan-tool.js';
 import { resolveSilentFailureNotice } from '../../src/silent-failure-notice.js';
+import { isSupersededToolOutcome } from '../../src/superseded-turn.js';
 import type { TlonAgentTurnSummary } from '../../src/turn-recorder.js';
 import { type ChatMessage, type CostMeter, chat } from './openrouter.js';
 import { type LabTool, executeTool, labTools } from './tools.js';
@@ -315,11 +316,26 @@ const TOOL_LABELS: Record<string, string> = {
 
 /** What the plugin posts after a DM turn that delivered nothing. */
 function silentFailureNotice(
-  calls: { name: string; result: string; error?: boolean; blocked?: boolean }[],
+  calls: {
+    name: string;
+    result: string;
+    error?: boolean;
+    blocked?: boolean;
+    superseded?: boolean;
+  }[],
   delivered: boolean,
   finalText: string
 ) {
-  const failed = calls.filter((call) => call.error || call.blocked);
+  const superseded = calls.some(
+    (call) =>
+      call.superseded || isSupersededToolOutcome({ errorMessage: call.result })
+  );
+  const failed = calls.filter(
+    (call) =>
+      (call.error || call.blocked) &&
+      !call.superseded &&
+      !isSupersededToolOutcome({ errorMessage: call.result })
+  );
   const last = failed.at(-1);
   const notice = resolveSilentFailureNotice({
     summary: {
@@ -336,6 +352,7 @@ function silentFailureNotice(
           }
         : null,
       destinationKind: 'dm',
+      superseded,
       result:
         finalText === 'NO_REPLY'
           ? 'intentional_silence'
