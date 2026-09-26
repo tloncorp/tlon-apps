@@ -33,7 +33,7 @@ export function renderForJudge(record: RunRecord): string {
       case 'choice':
         return `BOT picker${event.source === 'coordinator' ? ' (coordinator)' : ''}: ${event.choice.question}\n  options: ${event.choice.options.map((o) => `"${o}"`).join(', ')} (+ write your own)`;
       case 'plan':
-        return `BOT plan card: ${event.plan.summary}\n  schedule shown: "${event.plan.scheduleDescription}" (runs at ${event.plan.scheduleHour}:${String(event.plan.scheduleMinute).padStart(2, '0')})\n  task prompt: ${event.plan.taskPrompt}`;
+        return `BOT plan card: ${event.plan.summary}\n  schedule shown: "${event.plan.scheduleDescription}" (runs at ${event.plan.scheduleHour}:${String(event.plan.scheduleMinute).padStart(2, '0')}${event.plan.scheduleDays?.length ? ` on days ${event.plan.scheduleDays.join(',')} (0 = Sunday)` : ' every day'})\n  task prompt: ${event.plan.taskPrompt}`;
       case 'service-setup':
         return `BOT service card: connect ${event.providerId}`;
       case 'silent':

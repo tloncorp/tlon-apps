@@ -1,0 +1,11 @@
+id: blank-student
+who: College sophomore who joined because their study group moved here. Low effort, easily bored.
+wants: Something that makes the app worth opening, ideally fun or making school easier. Leaves quickly if it feels like a sign-up form.
+expectPlan: either
+knows:
+  - Studying for an organic chemistry exam in three weeks.
+  - Listens to a lot of hip-hop.
+  - Classes end around 2.
+style: Lowercase, terse, a bit sarcastic.
+patience: 2
+afterEnding: explain sn1 vs sn2 like im tired

@@ -32,7 +32,7 @@ const USAGE = `Onboarding lab: simulated users against the real onboarding skill
   pnpm lab run [options]            run personas and grade them
   pnpm lab ab --variant <dir> [...]  run baseline and a variant, then compare
   pnpm lab compare <setA> <setB>     judge two existing run sets side by side (judge model)
-  pnpm lab packets <setA> <setB>     write judging packets for a Claude session to judge
+  pnpm lab packets <control> <set>...  write judging packets (2–4 sets) for a Claude session to judge
   pnpm lab import <judging-dir>      fold packet verdicts into both sets and render reports
   pnpm lab report <set>              re-render a run set's report
   pnpm lab personas                  list persona cards
@@ -340,11 +340,14 @@ async function main() {
       await compare(rest[0], rest[1], values['judge-model']);
       return;
     case 'packets': {
-      if (rest.length !== 2) throw new Error('packets needs two run sets');
+      if (rest.length < 2) {
+        throw new Error(
+          'packets needs two or more run sets; the first is the control'
+        );
+      }
       const { dir, count } = writePackets(
         loadConfig(),
-        resolveRunSet(rest[0]),
-        resolveRunSet(rest[1])
+        rest.map((reference) => resolveRunSet(reference))
       );
       console.log(
         `${count} packets in ${dir}\nInstructions: ${path.join(dir, 'INSTRUCTIONS.md')}`
@@ -353,14 +356,28 @@ async function main() {
       return;
     }
     case 'import': {
-      const { reportPath, pairs, missing, labels } = importVerdicts(
+      const { control, comparisons, averageRank, missing } = importVerdicts(
         path.resolve(rest[0] ?? '')
       );
-      const wins = { A: 0, B: 0, tie: 0 };
-      for (const pair of pairs) wins[pair.verdict.winner]++;
-      console.log(
-        `${labels[1]} won ${wins.B}, ${labels[0]} won ${wins.A}, ${wins.tie} ties${missing.length ? ` · ${missing.length} packets without a verdict: ${missing.join(', ')}` : ''}\nReport: ${reportPath}`
-      );
+      for (const { label, reportPath, pairs } of comparisons) {
+        const wins = { A: 0, B: 0, tie: 0 };
+        for (const pair of pairs) wins[pair.verdict.winner]++;
+        console.log(
+          `${label} vs ${control}: ${label} won ${wins.B}, ${control} won ${wins.A}, ${wins.tie} ties\n  Report: ${reportPath}`
+        );
+      }
+      if (averageRank.length > 2) {
+        for (const { label, averageRank: rank, firstPlaces } of averageRank) {
+          console.log(
+            `${label}: average rank ${rank?.toFixed(2) ?? '-'}, ranked first ${firstPlaces} times`
+          );
+        }
+      }
+      if (missing.length) {
+        console.log(
+          `${missing.length} packets without a verdict: ${missing.join(', ')}`
+        );
+      }
       return;
     }
     case 'report': {

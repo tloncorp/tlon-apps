@@ -33,6 +33,7 @@ export type TaskPlan = {
   topics: string[];
   scheduleHour: number;
   scheduleMinute: number;
+  scheduleDays?: number[];
   scheduleDescription: string;
   timezoneOverride?: string;
   taskPrompt: string;

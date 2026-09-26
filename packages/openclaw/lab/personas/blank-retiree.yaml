@@ -1,0 +1,11 @@
+id: blank-retiree
+who: Retired librarian whose grandson set up the app for them. Curious but unsure what any of this is for.
+wants: A gentle explanation of what this is, and maybe something pleasant to receive regularly. Put off by jargon and anything that feels like homework.
+expectPlan: either
+knows:
+  - Loves local history and birdwatching.
+  - Has coffee on the porch every morning around 7.
+  - Lives in Asheville, North Carolina.
+style: Polite, full sentences, a little formal, types slowly.
+patience: 4
+afterEnding: What birds should I expect at my feeder in October?

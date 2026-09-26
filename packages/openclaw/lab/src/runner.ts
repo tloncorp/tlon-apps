@@ -22,6 +22,22 @@ import { keepVerdict, nextUserMove } from './user.js';
 
 const DEFAULT_TIMEZONE = 'America/New_York';
 
+/** A moment on the next day (after today) whose weekday is in `days`. */
+function nextScheduledDay(days: number[] | undefined, timezone: string) {
+  for (let offset = 1; offset <= 7; offset++) {
+    const candidate = new Date(Date.now() + offset * 24 * 60 * 60 * 1000);
+    const weekday = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      weekday: 'short',
+    }).format(candidate);
+    const index = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(
+      weekday
+    );
+    if (!days?.length || days.includes(index)) return candidate;
+  }
+  return new Date(Date.now() + 24 * 60 * 60 * 1000);
+}
+
 /** The instant that is `hour:minute` local time in `timezone` on `day`'s date. */
 function atLocalTime(
   day: Date,
@@ -234,12 +250,14 @@ export async function runPersona(input: {
         });
         // The coordinator marks onboarding complete once the entry publishes.
         session.onboardingComplete = true;
-        // Tomorrow's run, for the judge only: does the task produce something new?
+        // The next scheduled run, for the judge only: does it produce
+        // something new?
+        const planTimezone = session.plan.timezoneOverride?.trim() || timezone;
         dayTwo = runScheduledTask({
           ...task,
           now: atLocalTime(
-            new Date(Date.now() + 24 * 60 * 60 * 1000),
-            session.plan.timezoneOverride?.trim() || timezone,
+            nextScheduledDay(session.plan.scheduleDays, planTimezone),
+            planTimezone,
             session.plan.scheduleHour,
             session.plan.scheduleMinute
           ),
