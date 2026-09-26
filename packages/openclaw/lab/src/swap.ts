@@ -98,11 +98,8 @@ export async function swapTest(input: {
   const fastTools = labTools({ search: set.manifest.search !== false }).map(
     ({ guidelines: _guidelines, ...tool }) => tool
   );
-  const points: {
-    persona: string;
-    timezone: string;
-    exchange: ModelExchange;
-  }[] = [];
+  type Moment = { persona: string; timezone: string; exchange: ModelExchange };
+  const perRun: Moment[][] = [];
   for (const run of set.runs) {
     const file = path.join(
       input.realDir,
@@ -112,23 +109,41 @@ export async function swapTest(input: {
     const exchanges = (
       JSON.parse(readFileSync(file, 'utf8')) as ModelExchange[]
     ).filter((exchange) => !isCronExchange(exchange) && exchange.response);
+    const moments: Moment[] = [];
     for (const exchange of exchanges) {
-      const messages = (exchange.request as Request).messages;
-      // A decision point: the model's first call after the owner spoke.
-      const last = messages.filter((m) => m.role !== 'system').at(-1);
-      if (last?.role === 'user') {
-        points.push({
+      const messages = (exchange.request as Request).messages.filter(
+        (m) => m.role !== 'system'
+      );
+      // A decision point: the model's first call after the owner spoke. The
+      // last message is OpenClaw's runtime context, so look one before it.
+      if (
+        messages.at(-1)?.role === 'user' &&
+        messages.at(-2)?.role === 'user'
+      ) {
+        moments.push({
           persona: run.persona.id,
           timezone: run.persona.timezone ?? 'America/New_York',
           exchange,
         });
       }
     }
+    perRun.push(moments);
   }
-  const chosen = points.slice(0, input.maxPoints);
+  // Take moments from every run in turn, so no one persona dominates.
+  const chosen: Moment[] = [];
+  for (let i = 0; chosen.length < input.maxPoints; i++) {
+    const round = perRun.map((moments) => moments[i]).filter(Boolean);
+    if (!round.length) break;
+    chosen.push(...round.slice(0, input.maxPoints - chosen.length));
+  }
+  // The real setup is sampled twice as often: one half is the reference, the
+  // other measures how much it disagrees with itself.
   const jobs = chosen.flatMap((point, index) =>
     CONDITIONS.flatMap((condition) =>
-      Array.from({ length: input.samples }, () => ({ index, point, condition }))
+      Array.from(
+        { length: condition === 'real' ? input.samples * 2 : input.samples },
+        () => ({ index, point, condition })
+      )
     )
   );
   const results: Point[] = chosen.map(({ persona, exchange }) => {
@@ -204,22 +219,20 @@ export function renderSwapReport(input: {
   label: string;
   samples: number;
 }) {
+  const half = (point: Point) => Math.floor(point.samples.real.length / 2);
+  const reference = (point: Point) => point.samples.real.slice(0, half(point));
   const noise =
     input.results
-      .map((point) => {
-        const half = Math.floor(point.samples.real.length / 2);
-        return distance(
-          point.samples.real.slice(0, half),
-          point.samples.real.slice(half)
-        );
-      })
+      .map((point) =>
+        distance(reference(point), point.samples.real.slice(half(point)))
+      )
       .reduce((a, b) => a + b, 0) / Math.max(input.results.length, 1);
   const summary =
     `<tr><td>nothing (real resampled against itself)</td><td class="num">${Math.round(noise * 100)}%</td></tr>` +
     CONDITIONS.slice(1)
       .map((condition) => {
         const d = input.results.map((point) =>
-          distance(point.samples.real, point.samples[condition])
+          distance(reference(point), point.samples[condition])
         );
         const avg = d.reduce((a, b) => a + b, 0) / Math.max(d.length, 1);
         return `<tr><td>${condition}</td><td class="num">${Math.round(avg * 100)}%</td></tr>`;
