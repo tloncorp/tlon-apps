@@ -288,7 +288,7 @@ export async function runRealPersona(input: {
         FIRST_ENTRY_MARKERS.includes(post.marker ?? '')
       );
       firstResultOk = done?.marker === 'first-entry-ping';
-      const note = firstResultOk ? (await owner.notes())[0] : undefined;
+      const note = firstResultOk ? await owner.newestNote() : undefined;
       for (const post of posts) {
         if (post === done) {
           transcript.push({
