@@ -150,6 +150,8 @@ export async function runPersona(input: {
   tipMovePolicy?: string;
   keepPolicy?: string;
   campaignPromptPolicy?: string;
+  /** Called with the transcript each time it grows, for live previews. */
+  onProgress?: (transcript: TranscriptEvent[]) => void;
 }): Promise<RunRecord> {
   const { persona, config, sources } = input;
   const meter: CostMeter = { usd: 0 };
@@ -178,6 +180,16 @@ export async function runPersona(input: {
     text: agentOnboardingTesting.welcomeText,
   };
   const transcript: TranscriptEvent[] = [coordinatorEvent(welcome)];
+  const onProgress = input.onProgress;
+  if (onProgress) {
+    // Every writer (turns, coordinator posts, simulated tips) pushes here.
+    transcript.push = (...items) => {
+      const length = Array.prototype.push.apply(transcript, items);
+      onProgress(transcript);
+      return length;
+    };
+    onProgress(transcript);
+  }
   const turns: BotTurn[] = [];
   const firstRunToolCalls: ToolCallRecord[] = [];
   const recordTurn = async (

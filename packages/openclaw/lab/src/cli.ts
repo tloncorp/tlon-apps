@@ -1,4 +1,4 @@
-import { writeFileSync } from 'node:fs';
+import { rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import {
@@ -150,8 +150,17 @@ async function runSet(
     jobs,
     Number(options.concurrency ?? 4),
     async (job) => {
+      const partial = path.join(
+        dir,
+        `${job.persona.id}.${job.repeat}.partial.json`
+      );
       const run = await runPersona({
         ...job,
+        onProgress: (transcript) =>
+          writeFileSync(
+            partial,
+            JSON.stringify({ persona: job.persona.id, transcript })
+          ),
         config,
         sources: checkpoint.sources,
         maxTurns,
@@ -164,6 +173,7 @@ async function runSet(
         campaignPromptPolicy: checkpoint.campaignPromptPolicy,
       });
       writeRun(dir, run);
+      rmSync(partial, { force: true });
       console.log(progressLine(run));
       return run;
     }

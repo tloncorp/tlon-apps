@@ -3,18 +3,19 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { LAB_DIR, PLUGIN_DIR, REPO_ROOT, RUNS_DIR } from './config.js';
-import { metrics } from './report.js';
+import { metrics, renderChat, renderRunDetails } from './report.js';
+import type { RunRecord, TranscriptEvent } from './types.js';
 import { loadPersonas, loadRunSet } from './store.js';
 import { describeVariant, variantOverview } from './changesets.js';
 import { renderApp } from './web.js';
 import {
-  EDITABLE_FILES,
   type TipSample,
   createVariant,
   listVariants as workbenchVariants,
   personalizeTipCase,
   previewTips,
   readVariantFile,
+  variantFiles,
   writeVariantFile,
 } from './workbench.js';
 
@@ -104,6 +105,45 @@ function jobView(job: Job, withLog: boolean) {
   };
 }
 
+/** The live or finished conversation for a test started from the editor. */
+function simView(label: string, jobId: number) {
+  if (!/^sim-[\w.-]+$/.test(label)) throw new Error('Unknown test');
+  const job = jobs.find((entry) => entry.id === jobId);
+  const status = job?.status ?? 'done';
+  const error = status === 'failed' ? job?.log.slice(-4).join('\n') : undefined;
+  const dirName = existsSync(RUNS_DIR)
+    ? readdirSync(RUNS_DIR).find((name) => name.endsWith(`-${label}`))
+    : undefined;
+  if (!dirName) return { status, error, html: '' };
+  const dir = path.join(RUNS_DIR, dirName);
+  const final = readdirSync(dir).find((name) => /\.1\.json$/.test(name));
+  if (final) {
+    const run = JSON.parse(
+      readFileSync(path.join(dir, final), 'utf8')
+    ) as RunRecord;
+    return {
+      status,
+      html: renderRunDetails(run),
+      costUsd: run.costUsd,
+      durationMs: run.durationMs,
+      reportPath: `/files/${encodeURIComponent(dirName)}/report.html`,
+    };
+  }
+  const partial = readdirSync(dir).find((name) =>
+    name.endsWith('.partial.json')
+  );
+  if (!partial) return { status, error, html: '' };
+  try {
+    const { transcript } = JSON.parse(
+      readFileSync(path.join(dir, partial), 'utf8')
+    ) as { transcript: TranscriptEvent[] };
+    return { status, error, html: renderChat(transcript) };
+  } catch {
+    // Caught mid-write; the next poll will read it.
+    return { status, html: null };
+  }
+}
+
 function listVariants() {
   return workbenchVariants()
     .map((variant) => variant.name)
@@ -128,6 +168,8 @@ function summarizeSets() {
           : null,
         models: set.manifest.models,
         search: set.manifest.search !== false,
+        persona:
+          set.manifest.personas.length === 1 ? set.manifest.personas[0] : null,
         gitRev: set.manifest.gitRev,
         expected: set.manifest.personas.length * set.manifest.repeat,
         runs: set.runs.length,
@@ -270,7 +312,7 @@ async function handle(
   const method = request.method ?? 'GET';
 
   if (method === 'GET' && url.pathname === '/') {
-    return send(response, 200, renderApp(EDITABLE_FILES), 'text/html');
+    return send(response, 200, renderApp(), 'text/html');
   }
   if (method === 'GET' && url.pathname === '/api/state') {
     return json(response, 200, {
@@ -312,6 +354,13 @@ async function handle(
       response,
       200,
       await describeVariant(String(body.name ?? ''), body.force === true)
+    );
+  }
+  if (method === 'GET' && url.pathname === '/api/variants/files') {
+    return json(
+      response,
+      200,
+      variantFiles(url.searchParams.get('variant') ?? '')
     );
   }
   if (method === 'GET' && url.pathname === '/api/variants/file') {
@@ -359,6 +408,38 @@ async function handle(
         String(body.yaml ?? ''),
         (body.sample ?? {}) as TipSample,
         String(body.id ?? '')
+      )
+    );
+  }
+  if (method === 'POST' && url.pathname === '/api/sim') {
+    const body = await readBody(request);
+    const variant = String(body.variant ?? 'baseline');
+    const label = `sim-${variant.slice(0, 24)}-${Date.now().toString(36)}`;
+    const args = runArgs({
+      variant,
+      personas: [String(body.persona ?? '')],
+      repeat: 1,
+      concurrency: 1,
+      tips: Number(body.tips ?? 0),
+      search: body.search === true,
+      judge: 'claude',
+      label,
+    });
+    if (!args.includes('--personas')) throw new Error('Pick one persona');
+    const job = startJob(
+      'run',
+      `Test ${variant} · ${String(body.persona)}`,
+      args
+    );
+    return json(response, 200, { job: jobView(job, false), label });
+  }
+  if (method === 'GET' && url.pathname === '/api/sim') {
+    return json(
+      response,
+      200,
+      simView(
+        url.searchParams.get('label') ?? '',
+        Number(url.searchParams.get('job'))
       )
     );
   }

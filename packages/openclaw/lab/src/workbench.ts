@@ -172,6 +172,26 @@ export function readVariantFile(name: string, file: string) {
   };
 }
 
+/** Each file a variant could hold, and how it stands against its parent. */
+export function variantFiles(name: string) {
+  if (name !== BASELINE) checkName(name);
+  const parent = name === BASELINE ? null : parentOf(name);
+  return EDITABLE_FILES.map((file) => {
+    const overridden =
+      name !== BASELINE && existsSync(path.join(VARIANTS_DIR, name, file));
+    const changed =
+      parent !== null &&
+      effectiveText(name, file) !== effectiveText(parent, file);
+    return {
+      file,
+      group: PROMPT_FILES.includes(file) ? 'workspace' : 'onboarding',
+      overridden,
+      changed,
+      openclaw: openclawDefault(file) !== null,
+    };
+  });
+}
+
 export function writeVariantFile(name: string, file: string, text: string) {
   checkName(name);
   checkFile(file);
