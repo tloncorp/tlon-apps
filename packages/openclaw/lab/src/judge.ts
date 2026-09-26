@@ -28,7 +28,7 @@ export function renderForJudge(record: RunRecord): string {
       case 'text':
         return `BOT${event.source === 'coordinator' ? ' (coordinator)' : ''}: ${event.text}`;
       case 'choice':
-        return `BOT picker: ${event.choice.question}\n  options: ${event.choice.options.map((o) => `"${o}"`).join(', ')} (+ write your own)`;
+        return `BOT picker${event.source === 'coordinator' ? ' (coordinator)' : ''}: ${event.choice.question}\n  options: ${event.choice.options.map((o) => `"${o}"`).join(', ')} (+ write your own)`;
       case 'plan':
         return `BOT plan card: ${event.plan.summary}\n  schedule shown: "${event.plan.scheduleDescription}" (runs at ${event.plan.scheduleHour}:${String(event.plan.scheduleMinute).padStart(2, '0')})\n  task prompt: ${event.plan.taskPrompt}`;
       case 'service-setup':

@@ -163,6 +163,12 @@ export function writePackets(config: LabConfig, dirA: string, dirB: string) {
         stringify(runA.persona),
         '## Deployment facts',
         `The bot runs on \`${runA.models.bot}\` through OpenRouter. This is a real model, possibly newer than your training data; the bot naming it is not a hallucination. Today is ${new Date(runA.startedAt).toDateString()}.`,
+        ...(a.manifest.search === false || b.manifest.search === false
+          ? [
+              'Web search was unavailable to the bot in this round (a quota outage), in both conversations. Do not penalize a result for lacking current information; judge how the bot handled not having it.',
+            ]
+          : []),
+        'Messages marked (coordinator) come from fixed product code, not the bot model. Judge the flow they create, but do not count their wording as the bot’s choices or rule breaks.',
         section('First', firstRun, firstSkill),
         section('Second', secondRun, secondSkill),
       ].join('\n\n')

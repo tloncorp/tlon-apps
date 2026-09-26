@@ -48,6 +48,7 @@ Options:
   --user-model ID     OpenRouter model for the simulated person
   --judge-model ID    OpenRouter model for the judge
   --no-judge          skip the judge (facts and keep verdict only)
+  --no-search         run without web search (the bot sees it as unavailable)
   --resume SET        fill in a set's missing or failed runs instead of starting a new one
 `;
 
@@ -86,6 +87,7 @@ type Options = {
   'user-model'?: string;
   'judge-model'?: string;
   'no-judge'?: boolean;
+  'no-search'?: boolean;
   resume?: string;
 };
 
@@ -93,11 +95,14 @@ async function runSet(
   options: Options,
   defaults: { repeat: number; label?: string }
 ) {
-  const config = loadConfig({
-    bot: options['bot-model'],
-    user: options['user-model'],
-    judge: options['judge-model'],
-  });
+  const config = loadConfig(
+    {
+      bot: options['bot-model'],
+      user: options['user-model'],
+      judge: options['judge-model'],
+    },
+    { search: !options['no-search'] }
+  );
   const variant = options.variant ? path.resolve(options.variant) : undefined;
   const sources = loadPromptSources(config, variant);
   const personas = loadPersonas(
@@ -120,7 +125,7 @@ async function runSet(
     repeat,
   });
   console.log(
-    `${label}: ${personas.length} personas × ${repeat} · bot ${config.models.bot} · prompts from ${config.tlonbotDir}${config.braveKey ? '' : ' · no BRAVE_API_KEY, web search disabled'}`
+    `${label}: ${personas.length} personas × ${repeat} · bot ${config.models.bot} · prompts from ${config.tlonbotDir}${config.braveKey ? '' : ' · web search off'}`
   );
   const jobs = personas.flatMap((persona) =>
     Array.from({ length: repeat }, (_, index) => ({
@@ -161,7 +166,10 @@ async function runSet(
 async function resumeSet(reference: string, options: Options) {
   const set = loadRunSet(resolveRunSet(reference));
   const { manifest } = set;
-  const config = { ...loadConfig(), models: manifest.models };
+  const config = {
+    ...loadConfig({}, { search: manifest.search !== false }),
+    models: manifest.models,
+  };
   const sources = loadPromptSources(config, manifest.variant);
   const current = new Map(
     [...sources.skills, ...Object.values(sources.prompts)].map((file) => [
@@ -299,6 +307,7 @@ async function main() {
       'user-model': { type: 'string' },
       'judge-model': { type: 'string' },
       'no-judge': { type: 'boolean' },
+      'no-search': { type: 'boolean' },
       resume: { type: 'string' },
       help: { type: 'boolean', short: 'h' },
     },

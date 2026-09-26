@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parse as parseYaml } from 'yaml';
 
 export const LAB_DIR = path.dirname(
   path.dirname(fileURLToPath(import.meta.url))
@@ -74,10 +75,15 @@ export type LabConfig = {
   tlonbotDir: string;
   openrouterKey: string;
   braveKey?: string;
+  /** False when a round runs without web search, e.g. while search quota is out. */
+  search: boolean;
   models: { bot: string; user: string; judge: string };
 };
 
-export function loadConfig(overrides: Partial<LabConfig['models']> = {}) {
+export function loadConfig(
+  overrides: Partial<LabConfig['models']> = {},
+  options: { search?: boolean } = {}
+) {
   const labEnv = parseEnvFile(path.join(LAB_DIR, '.env'));
   const env = { ...labEnv, ...process.env };
   const tlonbotDir = findTlonbotDir(env);
@@ -93,7 +99,11 @@ export function loadConfig(overrides: Partial<LabConfig['models']> = {}) {
   return {
     tlonbotDir,
     openrouterKey,
-    braveKey: env.BRAVE_API_KEY ?? tlonbotEnv.BRAVE_API_KEY,
+    braveKey:
+      options.search === false
+        ? undefined
+        : (env.BRAVE_API_KEY ?? tlonbotEnv.BRAVE_API_KEY),
+    search: options.search !== false,
     models: {
       bot:
         overrides.bot ?? env.LAB_BOT_MODEL ?? stackModel ?? 'openai/gpt-6-luna',
@@ -110,11 +120,24 @@ export function loadConfig(overrides: Partial<LabConfig['models']> = {}) {
 
 export type SourceFile = { path: string; text: string };
 
+export type CoordinatorMessage = { text: string; options?: string[] };
+
+/**
+ * Coordinator copy a variant can replace, to try flow changes that live in
+ * plugin code before building them. `afterFirstEntry` is an extra message
+ * posted after the "first entry is ready" reveal.
+ */
+export type CoordinatorOverrides = {
+  welcome?: CoordinatorMessage;
+  afterFirstEntry?: CoordinatorMessage;
+};
+
 export type PromptSources = {
   /** The onboarding skill (also present in `skills`). */
   skill: SourceFile;
   skills: (SourceFile & { dir: string })[];
   prompts: Record<string, SourceFile>;
+  coordinator?: SourceFile & { overrides: CoordinatorOverrides };
 };
 
 /**
@@ -156,7 +179,20 @@ export function loadPromptSources(
     }
   }
   const skill = skills.find((entry) => entry.dir === ONBOARDING_SKILL_DIR)!;
-  return { skill, skills, prompts };
+  const coordinatorFile = variantDir
+    ? path.join(variantDir, 'coordinator.yaml')
+    : undefined;
+  const coordinator =
+    coordinatorFile && existsSync(coordinatorFile)
+      ? (() => {
+          const file = read(coordinatorFile);
+          return {
+            ...file,
+            overrides: parseYaml(file.text) as CoordinatorOverrides,
+          };
+        })()
+      : undefined;
+  return { skill, skills, prompts, ...(coordinator ? { coordinator } : {}) };
 }
 
 export function sha256(text: string) {

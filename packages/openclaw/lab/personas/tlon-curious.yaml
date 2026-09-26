@@ -1,0 +1,13 @@
+id: tlon-curious
+who: Designer who joined because a friend kept talking about Tlon. Has no task in mind and mostly wants to understand what this app is and why it matters.
+wants: A clear, interesting sense of what Tlon Messenger is and what the bot could do for them. Open to trying one small thing if it sounds fun, but not in a hurry to set anything up.
+expectPlan: either
+opening: my friend won't stop talking about tlon. what is this actually?
+asks:
+  - What's a node, and do I have to run a server?
+knows:
+  - Likes design newsletters and architecture.
+  - Usually browses in the evening after dinner.
+style: Curious, friendly, lowercase, short-to-medium messages.
+patience: 4
+afterEnding: whats a good book about typography for a beginner

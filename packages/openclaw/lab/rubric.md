@@ -36,6 +36,11 @@ Compare the number of questions with the person's patience. Picker options
 should be distinct, relevant, and phrased the way this person thinks about
 their day, not generic buckets.
 
+Also judge whether it was engaging, not just efficient: did the bot react to
+what the person actually said, show something real about what it or Tlon
+Messenger can do, and leave them with a reason to come back? A flow that
+reaches a plan in two taps but feels like filling in a form should not score 5.
+
 ## First result (score 1–5, or null when there is none)
 
 The note the scheduled task produced right after setup.

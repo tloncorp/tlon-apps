@@ -65,6 +65,7 @@ export function createRunSet(input: {
   mkdirSync(dir, { recursive: true });
   const sourceFiles = [
     ...input.sources.skills,
+    ...(input.sources.coordinator ? [input.sources.coordinator] : []),
     ...Object.values(input.sources.prompts),
   ];
   const manifest: RunSetManifest = {
@@ -80,6 +81,7 @@ export function createRunSet(input: {
       sha256: sha256(file.text),
     })),
     ...(input.variant ? { variant: input.variant } : {}),
+    search: input.config.search,
     personas: input.personas.map((persona) => persona.id),
     repeat: input.repeat,
   };

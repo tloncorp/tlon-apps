@@ -192,7 +192,7 @@ function runTlon(command: string, context: ToolContext) {
 
 async function webSearch(args: Record<string, unknown>, context: ToolContext) {
   if (!context.braveKey) {
-    throw new Error('web search is unavailable: no BRAVE_API_KEY configured');
+    throw new Error('Web search is unavailable right now.');
   }
   const params = new URLSearchParams({
     q: String(args.query ?? ''),

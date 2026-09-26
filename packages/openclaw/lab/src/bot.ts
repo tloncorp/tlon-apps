@@ -41,7 +41,11 @@ export class BotSession {
     });
   }
 
-  async turn(userText: string): Promise<BotTurn> {
+  /**
+   * `replyTo` is a coordinator message the owner is answering. The model never
+   * saw it, so the plugin would have to pass it along; the lab does the same.
+   */
+  async turn(userText: string, replyTo?: string): Promise<BotTurn> {
     const runId = randomUUID();
     const onboardingActive = !this.onboardingComplete;
     setTlonSessionSurface(this.sessionKey, {
@@ -86,7 +90,9 @@ export class BotSession {
     this.messages.push({
       role: 'user',
       content: buildOwnerMessage({
-        text: userText,
+        text: replyTo
+          ? `${userText}\n[Replying to your earlier message: "${replyTo}"]`
+          : userText,
         onboardingActive,
         timezone: this.timezone,
       }),
