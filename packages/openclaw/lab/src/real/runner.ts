@@ -15,7 +15,7 @@ import type {
   ToolCallRecord,
   TranscriptEvent,
 } from '../types.js';
-import { nextUserMove } from '../user.js';
+import { type UserMove, followUpMessage, nextUserMove } from '../user.js';
 import { type BotPost, OwnerApp } from './owner.js';
 import { type ModelExchange, type ModelProxy, exchangeCost } from './proxy.js';
 import { type LabStack, SANDBOX_BOT } from './stack.js';
@@ -159,6 +159,8 @@ export async function runRealPersona(input: {
   proxy: ModelProxy;
   rubric?: string;
   simulatorPolicy?: string;
+  /** Share of moves that get a quick second message. */
+  doubleTextRate?: number;
   keepPolicy?: string;
   onProgress?: (transcript: TranscriptEvent[]) => void;
 }): Promise<RunRecord & { exchanges: ModelExchange[] }> {
@@ -223,13 +225,26 @@ export async function runRealPersona(input: {
   };
 
   /** Send one owner message and record the bot's visible answer. */
-  const botTurn = async (move: { action: 'pick' | 'type'; text: string }) => {
+  const botTurn = async (move: {
+    action: 'pick' | 'type';
+    text: string;
+    then?: string;
+  }) => {
     const turnStart = new Date();
     lastPlan = undefined;
     if (move.action === 'pick' && lastChoice) {
       await owner.pick(lastChoice, move.text);
     } else {
       await owner.type(move.text);
+    }
+    if (move.then) {
+      // Send the second message once the bot has started working, the way a
+      // person who doesn't wait would.
+      for (let i = 0; i < 20 && !proxy.busy; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+      }
+      await owner.type(move.then);
+      transcript.push({ from: 'user', kind: 'type', text: move.then });
     }
     const posts = await settle();
     const events: TranscriptEvent[] = posts.length
@@ -255,7 +270,7 @@ export async function runRealPersona(input: {
     let lastOptions = lastChoice?.choice?.options;
 
     for (let index = 0; index < input.maxTurns; index++) {
-      const move =
+      let move: UserMove =
         index === 0 && persona.opening && !lastOptions?.length
           ? ({ action: 'type', text: persona.opening } as const)
           : await nextUserMove({
@@ -271,6 +286,24 @@ export async function runRealPersona(input: {
                   }
                 : {}),
             });
+      if (
+        move.action !== 'leave' &&
+        input.doubleTextRate &&
+        Math.random() < input.doubleTextRate
+      ) {
+        const then = await followUpMessage({
+          persona,
+          events: [
+            ...transcript,
+            { from: 'user', kind: move.action, text: move.text },
+          ],
+          sent: move.text,
+          config,
+          meter,
+          policy: input.simulatorPolicy,
+        });
+        if (then) move = { ...move, then };
+      }
       if (move.action === 'leave') {
         transcript.push({ from: 'user', kind: 'leave', reason: move.reason });
         ending = 'user-left';

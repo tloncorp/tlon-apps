@@ -22,7 +22,8 @@ import { type ChatMessage, type CostMeter, chat } from './openrouter.js';
 import { type LabTool, executeTool, labTools } from './tools.js';
 import type { BotTurn, TaskPlan, TranscriptEvent } from './types.js';
 
-const MAX_TOOL_ROUNDS = 12;
+// OpenClaw has no round limit, only a run timeout; this just stops loops.
+const MAX_TOOL_ROUNDS = 30;
 
 /** One owner DM session with the bot, driven turn by turn. */
 export class BotSession {
@@ -67,13 +68,8 @@ export class BotSession {
    * `replyTo` is a coordinator message the owner is answering. The model never
    * saw it, so the plugin would have to pass it along; the lab does the same.
    */
-  async turn(
-    userText: string,
-    replyTo?: string,
-    campaignContext?: string
-  ): Promise<BotTurn> {
-    const runId = randomUUID();
-    const onboardingActive = !this.onboardingComplete;
+  /** A new owner message, as the plugin records it for its turn guards. */
+  private ownerSpoke(onboardingActive: boolean) {
     setTlonSessionSurface(this.sessionKey, {
       kind: 'direct',
       senderRole: 'owner',
@@ -85,6 +81,43 @@ export class BotSession {
       messageId: randomUUID(),
       onboardingDeviceTimezone: this.timezone,
     });
+  }
+
+  private ownerMessage(text: string, onboardingActive: boolean): ChatMessage {
+    const template = this.config.template;
+    return {
+      role: 'user',
+      content: template
+        ? templatedOwnerMessage({
+            template,
+            text,
+            onboardingActive,
+            timezone: this.timezone,
+            now: this.now(),
+          })
+        : buildOwnerMessage({
+            text,
+            onboardingActive,
+            timezone: this.timezone,
+            now: this.now(),
+          }),
+    };
+  }
+
+  /**
+   * `followUp` is a second owner message sent before the bot answered. Like
+   * OpenClaw's steering, it joins the running turn after the current tool
+   * calls; if the bot finishes first, `followUpPending` says so.
+   */
+  async turn(
+    userText: string,
+    replyTo?: string,
+    campaignContext?: string,
+    followUp?: string
+  ): Promise<BotTurn & { followUpPending?: boolean }> {
+    const runId = randomUUID();
+    const onboardingActive = !this.onboardingComplete;
+    this.ownerSpoke(onboardingActive);
     rememberTlonSessionRunSurface(runId, this.sessionKey, {
       senderRole: 'owner',
     });
@@ -128,23 +161,8 @@ export class BotSession {
         ? `${userText}\n[Replying to your earlier message: "${replyTo}"]`
         : userText;
     const template = this.config.template;
-    this.messages.push({
-      role: 'user',
-      content: template
-        ? templatedOwnerMessage({
-            template,
-            text,
-            onboardingActive,
-            timezone: this.timezone,
-            now: this.now(),
-          })
-        : buildOwnerMessage({
-            text,
-            onboardingActive,
-            timezone: this.timezone,
-            now: this.now(),
-          }),
-    });
+    this.messages.push(this.ownerMessage(text, onboardingActive));
+    let pending = followUp;
     // OpenClaw sends a runtime-context message after the current owner
     // message only; earlier turns lose theirs.
     const runtime: ChatMessage[] = template
@@ -208,6 +226,13 @@ export class BotSession {
               content: record.result,
             });
           }
+          if (pending) {
+            // The owner's second message arrives while the bot is working.
+            events.push({ from: 'user', kind: 'type', text: pending });
+            this.messages.push(this.ownerMessage(pending, onboardingActive));
+            this.ownerSpoke(onboardingActive);
+            pending = undefined;
+          }
           continue;
         }
         const text = reply.content?.trim() ?? '';
@@ -219,9 +244,14 @@ export class BotSession {
         } else {
           events.push({ from: 'bot', kind: 'text', text, source: 'model' });
         }
-        return turn;
+        return pending ? { ...turn, followUpPending: true } : turn;
       }
-      throw new Error(`bot exceeded ${MAX_TOOL_ROUNDS} tool rounds`);
+      throw new Error(
+        `bot exceeded ${MAX_TOOL_ROUNDS} tool rounds (${turn.toolCalls
+          .slice(-6)
+          .map((call) => call.name)
+          .join(', ')})`
+      );
     } finally {
       clearTlonSessionRunSurface(runId);
     }

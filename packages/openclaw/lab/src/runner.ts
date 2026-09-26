@@ -18,7 +18,12 @@ import type {
   ToolCallRecord,
   TranscriptEvent,
 } from './types.js';
-import { keepVerdict, nextUserMove } from './user.js';
+import {
+  type UserMove,
+  followUpMessage,
+  keepVerdict,
+  nextUserMove,
+} from './user.js';
 import { createLabCampaign } from './tips.js';
 
 export const DEFAULT_TIMEZONE = 'America/New_York';
@@ -147,6 +152,8 @@ export async function runPersona(input: {
   tips?: number;
   rubric?: string;
   simulatorPolicy?: string;
+  /** Share of moves that get a quick second message. */
+  doubleTextRate?: number;
   tipMovePolicy?: string;
   keepPolicy?: string;
   campaignPromptPolicy?: string;
@@ -195,9 +202,10 @@ export async function runPersona(input: {
   const recordTurn = async (
     text: string,
     replyTo?: string,
-    campaignContext?: string
+    campaignContext?: string,
+    followUp?: string
   ) => {
-    const turn = await session.turn(text, replyTo, campaignContext);
+    const turn = await session.turn(text, replyTo, campaignContext, followUp);
     turns.push(turn);
     transcript.push(...turn.events);
     return turn;
@@ -232,7 +240,11 @@ export async function runPersona(input: {
     | undefined;
   let error: string | undefined;
 
-  const botTurn = async (text: string, replyTo?: string) => {
+  const botTurn = async (
+    text: string,
+    replyTo?: string,
+    followUp?: string
+  ): Promise<BotTurn & { followUpPending?: boolean }> => {
     const campaign = await tips?.ownerMessage(text);
     if (campaign?.handled) {
       const turn = {
@@ -241,9 +253,9 @@ export async function runPersona(input: {
         events: [],
       } satisfies BotTurn;
       turns.push(turn);
-      return turn;
+      return followUp ? { ...turn, followUpPending: true } : turn;
     }
-    return recordTurn(text, replyTo, campaign?.context);
+    return recordTurn(text, replyTo, campaign?.context, followUp);
   };
 
   try {
@@ -252,7 +264,7 @@ export async function runPersona(input: {
     for (let index = 0; index < input.maxTurns; index++) {
       // With buttons on the welcome, the person may tap one before saying what
       // they came for; without them, they open with their own words.
-      const move =
+      let move: UserMove =
         index === 0 && persona.opening && !welcome.options?.length
           ? ({ action: 'type', text: persona.opening } as const)
           : await nextUserMove({
@@ -268,13 +280,36 @@ export async function runPersona(input: {
                   }
                 : {}),
             });
+      if (
+        move.action !== 'leave' &&
+        input.doubleTextRate &&
+        Math.random() < input.doubleTextRate
+      ) {
+        const then = await followUpMessage({
+          persona,
+          events: [
+            ...transcript,
+            { from: 'user', kind: move.action, text: move.text },
+          ],
+          sent: move.text,
+          config,
+          meter,
+          policy: input.simulatorPolicy,
+        });
+        if (then) move = { ...move, then };
+      }
       if (move.action === 'leave') {
         transcript.push({ from: 'user', kind: 'leave', reason: move.reason });
         ending = 'user-left';
         break;
       }
       transcript.push({ from: 'user', kind: move.action, text: move.text });
-      const turn = await botTurn(move.text);
+      let turn = await botTurn(move.text, undefined, move.then);
+      if (move.then && turn.followUpPending) {
+        // The bot answered before the second message; it's a turn of its own.
+        transcript.push({ from: 'user', kind: 'type', text: move.then });
+        turn = await botTurn(move.then);
+      }
       const choice = turn.events.findLast((event) => event.kind === 'choice');
       lastOptions =
         choice?.kind === 'choice' ? choice.choice.options : undefined;

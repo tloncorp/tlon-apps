@@ -36,7 +36,10 @@ export async function runRealSet(input: {
   maxTurns: number;
   judge: boolean;
   checkpoint: Partial<
-    Pick<PromptCheckpoint, 'rubric' | 'simulatorPolicy' | 'keepPolicy'>
+    Pick<
+      PromptCheckpoint,
+      'rubric' | 'simulatorPolicy' | 'keepPolicy' | 'doubleTextRate'
+    >
   >;
   onRun?: (run: RunRecord) => void;
 }): Promise<RunRecord[]> {
@@ -107,6 +110,7 @@ export async function runRealSet(input: {
         rubric: input.checkpoint.rubric,
         simulatorPolicy: input.checkpoint.simulatorPolicy,
         keepPolicy: input.checkpoint.keepPolicy,
+        doubleTextRate: input.checkpoint.doubleTextRate,
         onProgress: (transcript) =>
           writeFileSync(
             `${stem}.partial.json`,

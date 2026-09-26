@@ -3,8 +3,8 @@ import { type CostMeter, chatJson } from './openrouter.js';
 import type { KeepVerdict, Persona, TranscriptEvent } from './types.js';
 
 export type UserMove =
-  | { action: 'pick'; text: string }
-  | { action: 'type'; text: string }
+  | { action: 'pick'; text: string; then?: string }
+  | { action: 'type'; text: string; then?: string }
   | { action: 'leave'; reason: string };
 
 /** What the person sees in the app, in reading order. */
@@ -94,6 +94,38 @@ Rules:
 - Product and model names you don't recognize may simply be newer than you are. Don't assume they are made up.
 Return only JSON: {"thought": "<one private sentence>", "action": "pick" | "type" | "leave", "text": "<button text or your message; for leave, why>"}`;
 
+/** How often a move gets a quick second message with --double-texts. */
+export const DOUBLE_TEXT_RATE = 0.25;
+
+/** The second message this person fires off before the bot has answered. */
+export async function followUpMessage(input: {
+  persona: Persona;
+  events: TranscriptEvent[];
+  sent: string;
+  config: LabConfig;
+  meter: CostMeter;
+  policy?: string;
+}): Promise<string | undefined> {
+  const reply = await chatJson<{ text?: string }>({
+    key: input.config.openrouterKey,
+    model: input.config.models.user,
+    temperature: 0.8,
+    maxTokens: 400,
+    meter: input.meter,
+    messages: [
+      {
+        role: 'system',
+        content: `${input.policy ?? USER_RULES}\n\n${personaBrief(input.persona)}`,
+      },
+      {
+        role: 'user',
+        content: `The chat so far:\n\n${renderForUser(input.events)}\n\nYou just sent: "${input.sent}". Before Tlonbot answers, you send one more short message, the way this person would: a correction, something you forgot, or an impatient nudge. Return only JSON: {"text": "<the second message>"}`,
+      },
+    ],
+  });
+  return reply.text?.trim() || undefined;
+}
+
 export const TIP_MOVE_RULES =
   'A later onboarding tip just arrived. Choose honestly: ignore it, reply with one ordinary message, or opt out of tips. Return only JSON: {"action":"ignore"|"reply"|"opt-out","text":"message if replying"}.';
 export const KEEP_RULES =
@@ -110,7 +142,11 @@ export async function nextUserMove(input: {
   policy?: string;
 }): Promise<UserMove> {
   const { persona, events, config, meter } = input;
-  const reply = await chatJson<{ action?: string; text?: string }>({
+  const reply = await chatJson<{
+    action?: string;
+    text?: string;
+    then?: string;
+  }>({
     key: config.openrouterKey,
     model: config.models.user,
     temperature: 0.8,
@@ -129,13 +165,17 @@ export async function nextUserMove(input: {
   });
   const text = (reply.text ?? '').trim();
   if (reply.action === 'leave') return { action: 'leave', reason: text };
+  const then =
+    typeof reply.then === 'string' && reply.then.trim()
+      ? { then: reply.then.trim() }
+      : {};
   if (reply.action === 'pick') {
     const option = input.lastOptions?.find(
       (candidate) => candidate.toLowerCase() === text.toLowerCase()
     );
-    if (option) return { action: 'pick', text: option };
+    if (option) return { action: 'pick', text: option, ...then };
   }
-  return { action: 'type', text: text || '?' };
+  return { action: 'type', text: text || '?', ...then };
 }
 
 /** A later campaign message can be ignored without ending the persona run. */
