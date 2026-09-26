@@ -1,5 +1,3 @@
-import { existsSync, readFileSync } from 'node:fs';
-import path from 'node:path';
 import {
   type AgentChoiceToolParams,
   agentChoiceToolMetadata,
@@ -156,18 +154,15 @@ function readFile(file: string, context: ToolContext) {
       (entry) => entry.dir === skillPath[1]
     );
     if (skill && skillPath[2] === 'SKILL.md') return skill.text;
-    if (skill) {
-      const root = path.dirname(skill.path);
-      const target = path.resolve(root, skillPath[2]);
-      if (target.startsWith(`${root}${path.sep}`) && existsSync(target)) {
-        return readFileSync(target, 'utf8');
-      }
+    if (skill && !skillPath[2].split('/').includes('..')) {
+      const resource = context.sources.resources[`${skill.dir}/${skillPath[2]}`];
+      if (resource) return resource.text;
     }
     throw new Error(`ENOENT: no such file or directory, open '${clean}'`);
   }
   const name = clean.replace(/^\.\//, '');
   const prompt = context.sources.prompts[name];
-  if (prompt) return renderPrompt(prompt.text, context.botModel);
+  if (prompt) return renderPrompt(prompt.text, context.botModel, context.sources.substitutions);
   throw new Error(`ENOENT: no such file or directory, open '${clean}'`);
 }
 

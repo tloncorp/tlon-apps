@@ -25,28 +25,22 @@ export class BotSession {
   plan?: TaskPlan;
   readonly cronJobs: Record<string, unknown>[] = [];
   private readonly tools: LabTool[];
-  private readonly system: string;
 
   constructor(
     private readonly config: LabConfig,
     private readonly sources: PromptSources,
     private readonly timezone: string,
-    private readonly meter: CostMeter
+    private readonly meter: CostMeter,
+    private readonly now: () => Date = () => new Date()
   ) {
     this.tools = labTools({});
-    this.system = buildSystemPrompt({
-      sources,
-      tools: this.tools,
-      botModel: config.models.bot,
-      timezone,
-    });
   }
 
   /**
    * `replyTo` is a coordinator message the owner is answering. The model never
    * saw it, so the plugin would have to pass it along; the lab does the same.
    */
-  async turn(userText: string, replyTo?: string): Promise<BotTurn> {
+  async turn(userText: string, replyTo?: string, campaignContext?: string): Promise<BotTurn> {
     const runId = randomUUID();
     const onboardingActive = !this.onboardingComplete;
     setTlonSessionSurface(this.sessionKey, {
@@ -95,11 +89,12 @@ export class BotSession {
     this.messages.push({
       role: 'user',
       content: buildOwnerMessage({
-        text: replyTo
+        text: campaignContext ? `${campaignContext}\n\n${userText}` : replyTo
           ? `${userText}\n[Replying to your earlier message: "${replyTo}"]`
           : userText,
         onboardingActive,
         timezone: this.timezone,
+        now: this.now(),
       }),
     });
 
@@ -109,7 +104,7 @@ export class BotSession {
           key: this.config.openrouterKey,
           model: this.config.models.bot,
           messages: [
-            { role: 'system', content: this.system },
+            { role: 'system', content: buildSystemPrompt({ sources: this.sources, tools: this.tools, botModel: this.config.models.bot, timezone: this.timezone, now: this.now() }) },
             ...this.messages,
           ],
           tools: this.tools,

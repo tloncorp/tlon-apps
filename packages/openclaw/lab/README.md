@@ -196,3 +196,10 @@ timezone: America/New_York
 Keep about half the suite awkward: people who decline, want a single answer,
 want a cadence the product doesn't offer, ignore the buttons, or ask for
 private data the bot can't reach. The cooperative cases mostly pass already.
+# Frozen run inputs and first-week tips
+
+`pnpm lab run --label week-one --tips 3 --no-judge` opts into first-week campaign simulation. `--tips` accepts an integer from 0 through 5 and defaults to 0. The local web form has the same control. The limit caps delivered messages; production eligibility, quiet hours, skipped slots, replies, opt-out, and the five-total-send cap still apply. A persona may receive fewer than the requested number of tips.
+
+Each new labeled run set stores `checkpoint/index.json`. It freezes workspace prompts including `SOUL.md` and `BOOTSTRAP.md`, installed skill files and allowlisted text resources, coordinator overrides, persona cards, rubric, simulator and campaign prompt policies, non-secret substitutions, model choices, search mode, turn limit, judge choice, and tip limit. Resume, grading, and judging packets read the checkpoint. API keys and `.env` files are not serialized. Older run sets remain readable and retain their live-source resume behavior; reports label them as legacy.
+
+The campaign trace records meaningful sends, skips, replies, opt-out, and task-result events, plus final state. The first scheduled result still runs immediately and the optional day-two result remains judge-only. Later recurring task results are not simulated as evidence for campaign messages.

@@ -244,6 +244,7 @@ $('#run-form').addEventListener('submit', async (event) => {
       label: $('#label').value.trim(),
       repeat: Number($('#repeat').value),
       concurrency: Number($('#concurrency').value),
+      tips: Number($('#tips').value),
       search: $('#search').checked,
       judge: document.querySelector('input[name=judge]:checked').value,
       personas,
@@ -276,6 +277,7 @@ export function renderApp() {
           <div><label for="repeat">Runs per persona</label><input id="repeat" type="number" min="1" max="5" value="1"></div>
           <div><label for="concurrency">In parallel</label><input id="concurrency" type="number" min="1" max="8" value="4"></div>
         </div>
+        <label for="tips">First-week tips (0–5)</label><input id="tips" type="number" min="0" max="5" step="1" value="0">
         <label>Personas <button type="button" class="link" data-personas="all">all</button> · <button type="button" class="link" data-personas="blank">blank-slate</button> · <button type="button" class="link" data-personas="none">none</button></label>
         <div class="checks" id="personas"></div>
         <label style="display:flex;gap:6px;align-items:center;color:var(--text)"><input type="checkbox" id="search" checked> Web search</label>

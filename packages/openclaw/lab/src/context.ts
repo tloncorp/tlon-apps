@@ -48,7 +48,7 @@ export function buildSystemPrompt(input: {
     (name) => input.sources.prompts[name]
   ).map(
     (name) =>
-      `## ${name}\n\n${renderPrompt(input.sources.prompts[name].text, input.botModel)}`
+      `## ${name}\n\n${renderPrompt(input.sources.prompts[name].text, input.botModel, input.sources.substitutions)}`
   );
   return [
     'You are a personal assistant running inside OpenClaw.',

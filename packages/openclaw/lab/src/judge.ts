@@ -16,6 +16,7 @@ export function renderForJudge(record: RunRecord): string {
   const describe = (event: TranscriptEvent): string | undefined => {
     if (event.from === 'user') {
       if (event.kind === 'leave') return `USER leaves: ${event.reason}`;
+      if (event.kind === 'tip-ignored') return `USER ignored ${event.step} tip`;
       return `USER (${event.kind === 'pick' ? 'tapped' : 'typed'}): ${event.text}`;
     }
     if (event.from === 'system') {
@@ -23,6 +24,7 @@ export function renderForJudge(record: RunRecord): string {
       if (event.kind === 'task-change') {
         return `SCHEDULED TASK ${event.action.toUpperCase()}: ${JSON.stringify(event.job).slice(0, 600)}`;
       }
+      if (event.kind === 'campaign') return `CAMPAIGN ${event.action}${event.step ? ` ${event.step}` : ''}${event.reason ? ` (${event.reason})` : ''} at ${event.at}`;
       return event.ok
         ? `FIRST RESULT (published to the Updates notebook):\n${event.markdown}`
         : 'FIRST RESULT: the scheduled run produced nothing.';
@@ -30,6 +32,8 @@ export function renderForJudge(record: RunRecord): string {
     switch (event.kind) {
       case 'text':
         return `BOT${event.source === 'coordinator' ? ' (coordinator)' : ''}: ${event.text}`;
+      case 'tip':
+        return `BOT onboarding tip (${event.step}, ${event.at}): ${event.text}`;
       case 'choice':
         return `BOT picker${event.source === 'coordinator' ? ' (coordinator)' : ''}: ${event.choice.question}\n  options: ${event.choice.options.map((o) => `"${o}"`).join(', ')} (+ write your own)`;
       case 'plan':
@@ -45,7 +49,7 @@ export function renderForJudge(record: RunRecord): string {
   for (const event of record.transcript) {
     const line = describe(event);
     if (line) lines.push(line);
-    if (event.from === 'user' && event.kind !== 'leave') {
+    if (event.from === 'user' && event.kind !== 'leave' && event.kind !== 'tip-ignored') {
       const turn = record.turns[turnIndex++];
       const tools = turn?.toolCalls
         .map(
@@ -71,9 +75,10 @@ export async function judgeRun(input: {
   sources: PromptSources;
   config: LabConfig;
   meter: CostMeter;
+  rubric?: string;
 }): Promise<Judgement> {
   const { record } = input;
-  const rubric = readFileSync(RUBRIC_PATH, 'utf8');
+  const rubric = input.rubric ?? readFileSync(RUBRIC_PATH, 'utf8');
   const raw = await chatJson<Partial<Judgement>>({
     key: input.config.openrouterKey,
     model: input.config.models.judge,
@@ -154,8 +159,9 @@ export async function judgePair(input: {
   b: RunRecord;
   config: LabConfig;
   meter: CostMeter;
+  rubric?: string;
 }): Promise<PairVerdict> {
-  const rubric = readFileSync(RUBRIC_PATH, 'utf8').replace(
+  const rubric = (input.rubric ?? readFileSync(RUBRIC_PATH, 'utf8')).replace(
     /## Output[\s\S]*$/,
     ''
   );
