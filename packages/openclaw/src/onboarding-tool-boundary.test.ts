@@ -1,4 +1,3 @@
-import { SupersededTurnError } from './superseded-turn.js';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -21,6 +20,7 @@ import {
   resolveTlonSessionOwnerMessageId,
   setTlonSessionSurface,
 } from './onboarding-tool-boundary.js';
+import { SupersededTurnError } from './superseded-turn.js';
 
 const groupSessionKey = 'agent:dev:tlon:group:chat/~zod/home';
 const groupTarget = 'chat/~zod/home';

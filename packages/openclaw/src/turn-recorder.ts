@@ -1,4 +1,3 @@
-import { isSupersededToolOutcome } from './superseded-turn.js';
 import { metrics } from '@opentelemetry/api';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type {
@@ -14,6 +13,7 @@ import {
 } from './message-journey.js';
 import { sharedMap, sharedSlot } from './shared-state.js';
 import { isSuccessfulSilentAgentOutput } from './silent-reply.js';
+import { isSupersededToolOutcome } from './superseded-turn.js';
 
 export type TlonAgentTurnExecution =
   | 'completed'
