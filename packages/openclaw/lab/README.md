@@ -116,6 +116,29 @@ one JSON file per run, a `manifest.json` and a `report.html`. The manifest
 records the git revision, the models, and a hash of the skill and every prompt
 file, so you can always tell what produced a result.
 
+## Web tool
+
+```bash
+pnpm lab serve            # then open http://localhost:4410
+```
+
+A local page for the same workflow:
+
+- **Run sets**: every set with its variant, run count, judged count, headline
+  scores and cost, and a link to its report. Tick two to four sets (the first
+  is the control) to write judging packets.
+- **Comparisons**: each judging folder with its verdict progress and reports.
+  "Copy judging prompt" copies a ready-made request to paste into Claude Code;
+  "Import verdicts" folds finished verdicts into the reports.
+- **Start a run**: pick a variant, personas (all, blank-slate, or by hand),
+  repeats, web search, and whether to judge with a model now or in Claude
+  later. The estimate shows roughly what it will cost.
+- **Jobs**: runs, packets and imports started from the page, with live logs and
+  a stop button.
+
+It listens on localhost only and runs nothing but the lab CLI. Jobs are child
+processes of the server, so stopping the server stops them.
+
 ## Trying a change
 
 A **variant** is a folder of edited copies. A `SKILL.md` at its top replaces
