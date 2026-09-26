@@ -444,6 +444,15 @@ describe('onboarding tool boundary', () => {
     });
   });
 
+  it('quotes the newer owner message so the stale turn has nothing to look up', () => {
+    rememberGroupRun('run-1', '~owner/100');
+    expect(claimChoice('choice-1', 'run-1')).toBeUndefined();
+    setGroupTurn('~owner/101', { ownerText: 'nba highlights' });
+    expect(() => assertTlonChoiceCallCurrent('choice-1')).toThrow(
+      'The owner has since written: "nba highlights".'
+    );
+  });
+
   it('rechecks owner intent immediately before task-plan publication', () => {
     rememberGroupRun('run-1', '~owner/100');
     bindTlonInterviewStartToCurrentOwnerTurn('run-1', groupSessionKey);
