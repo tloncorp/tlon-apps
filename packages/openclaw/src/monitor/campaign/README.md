@@ -45,8 +45,7 @@ reading the campaign database.
   Reply context uses task facts cached by the campaign check, not another cron read.
 - Normal replies follow the owner's latest request and the onboarding skill;
   the campaign does not append a generic recurring-task pitch to useful answers.
-- Existing bot tools create tasks only after agreement and resolving work,
-  cadence, clock time, timezone, and destination. Campaign code creates no tasks.
+- Task creation follows the onboarding skill. Campaign code creates no tasks.
 - Any user recurring task, including a disabled task or one created outside
   onboarding, stops acquisition prompts. Removing it does not restart them.
   One-shot and internal heartbeat jobs do not count.

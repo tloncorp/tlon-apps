@@ -47,16 +47,6 @@ const invalidChoices: Array<{
     name: '37-character labels',
     params: { ...validChoice, options: ['News', 'x'.repeat(37)] },
   },
-  ...[
-    'Other',
-    'Custom: describe it',
-    'Something else (write it in)',
-    'Write your own',
-  ].map((option) => ({
-    name: `reserved freeform option "${option}"`,
-    params: { ...validChoice, options: ['News', option] },
-    message: 'built-in freeform',
-  })),
   {
     name: 'non-chat target',
     params: { ...validChoice, target: 'dm/~zod' },

@@ -3,8 +3,6 @@ import { TLON_A2UI_CATALOG_ID } from '@tloncorp/api';
 const MAX_OPTIONS = 6;
 const MAX_QUESTION_LENGTH = 1000;
 const MAX_OPTION_LENGTH = 36;
-const RESERVED_FREEFORM_OPTION =
-  /^(?:other|custom|something else|write your own)(?:\s*(?:\([^)]*\)|[-–—:/].*))?$/i;
 
 export type AgentChoiceToolParams = {
   target: string;
@@ -45,7 +43,7 @@ export const agentChoiceToolParameters = {
       minItems: 2,
       maxItems: MAX_OPTIONS,
       description:
-        'Two to six short, useful answers, each at most 36 characters so labels fit the mobile row. Time answers should normally be natural, fuzzy parts of the day tailored to the task instead of a fixed exact-clock list. Approach answers must be concise ways of gathering information or developing the answer, not output formats or topic slices. The control also lets the owner write their own answer.',
+        'Two to six answers, each at most 36 characters so labels fit the mobile row. The control also lets the owner write their own answer.',
       items: { type: 'string', maxLength: MAX_OPTION_LENGTH },
     },
   },
@@ -76,11 +74,6 @@ function parseParams(
     options.length
   ) {
     throw new Error('options must be unique');
-  }
-  if (options.some((option) => RESERVED_FREEFORM_OPTION.test(option))) {
-    throw new Error(
-      'options must not duplicate the built-in freeform answer (Other, Custom, Something else, or Write your own)'
-    );
   }
   return { ...params, question, options };
 }
