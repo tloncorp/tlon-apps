@@ -1,13 +1,12 @@
-import {
-  SUPERSEDED_TURN_TEXT,
-  SupersededTurnError,
-} from './superseded-turn.js';
+import { SupersededTurnError } from './superseded-turn.js';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   _testing,
   assertTlonChoiceCallCurrent,
+  assertTlonServiceSetupCallCurrent,
   assertTlonTaskPlanCallCurrent,
+  bindTlonServiceSetupCall,
   claimTlonChoiceCall,
   claimTlonTaskPlanCall,
   finishTlonChoiceCall,
@@ -311,15 +310,19 @@ describe('onboarding tool boundary', () => {
     expect(getTlonSessionSurface(sessionKey)?.senderRole).toBe('user');
   });
 
-  it('leaves stale choices and plans to their own recheck, and stops a stale setup card', () => {
+  it('leaves stale onboarding cards to their own recheck', () => {
     rememberGroupRun('run-old', '~owner/100');
     setGroupTurn('~owner/101');
 
     const current = getTlonSessionSurface(groupSessionKey);
     const oldRun = getTlonSessionRunSurface('run-old');
-    // Choices and plans recheck right before posting and report a stale
-    // turn as a normal result, so the boundary lets them through.
-    for (const tool of ['tlon_agent_task_plan', 'tlon_agent_choice']) {
+    // Each card rechecks right before posting and ends a stale turn with a
+    // normal result; a block here could not end the turn.
+    for (const tool of [
+      'tlon_agent_task_plan',
+      'tlon_agent_choice',
+      'tlon_agent_service_setup',
+    ]) {
       expect(
         onboardingToolBlockReason(
           tool,
@@ -329,15 +332,6 @@ describe('onboarding tool boundary', () => {
         )
       ).toBeUndefined();
     }
-    expect(
-      onboardingToolBlockReason(
-        'tlon_agent_service_setup',
-        { target: 'chat/~zod/home' },
-        current,
-        oldRun
-      )
-    ).toBe(SUPERSEDED_TURN_TEXT);
-
     rememberTlonSessionRunSurface('run-current', groupSessionKey);
     expect(
       onboardingToolBlockReason(
@@ -444,13 +438,26 @@ describe('onboarding tool boundary', () => {
     });
   });
 
-  it('quotes the newer owner message so the stale turn has nothing to look up', () => {
+  it('rechecks a setup card against the owner turn that posted it', () => {
     rememberGroupRun('run-1', '~owner/100');
-    expect(claimChoice('choice-1', 'run-1')).toBeUndefined();
-    setGroupTurn('~owner/101', { ownerText: 'nba highlights' });
-    expect(() => assertTlonChoiceCallCurrent('choice-1')).toThrow(
-      'The owner has since written: "nba highlights".'
+    bindTlonServiceSetupCall({
+      toolCallId: 'setup-1',
+      runId: 'run-1',
+      sessionKey: groupSessionKey,
+    });
+    bindTlonServiceSetupCall({
+      toolCallId: 'setup-2',
+      runId: 'run-1',
+      sessionKey: groupSessionKey,
+    });
+    expect(() => assertTlonServiceSetupCallCurrent('setup-1')).not.toThrow();
+
+    setGroupTurn('~owner/101');
+    expect(() => assertTlonServiceSetupCallCurrent('setup-2')).toThrow(
+      SupersededTurnError
     );
+    // Unbound calls keep posting as before.
+    expect(() => assertTlonServiceSetupCallCurrent('setup-3')).not.toThrow();
   });
 
   it('rechecks owner intent immediately before task-plan publication', () => {
@@ -460,7 +467,7 @@ describe('onboarding tool boundary', () => {
 
     setGroupTurn('~owner/101');
     expect(() => assertTlonTaskPlanCallCurrent('call-1')).toThrow(
-      'newer owner message'
+      SupersededTurnError
     );
   });
 });

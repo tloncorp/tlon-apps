@@ -3279,9 +3279,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             ? { bootstrapComplete: currentSettings.bootstrapComplete }
             : {}),
           ...(ownerMessageId ? { messageId: ownerMessageId } : {}),
-          ...(senderRole === 'owner' && params.originalCommandText
-            ? { ownerText: params.originalCommandText.slice(0, 400) }
-            : {}),
           ...(onboardingClientDateTime
             ? { onboardingDeviceTimezone: onboardingClientDateTime.timezone }
             : {}),

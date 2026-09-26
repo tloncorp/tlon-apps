@@ -131,7 +131,7 @@ describe('agent choice tool', () => {
     ]);
   });
 
-  it('stops quietly when a newer owner message supersedes the turn', async () => {
+  it('ends the turn quietly when a newer owner message supersedes it', async () => {
     const { deps, execute, postChoice } = choiceHarness();
     deps.assertCurrent.mockImplementation(() => {
       throw new SupersededTurnError();
@@ -140,8 +140,9 @@ describe('agent choice tool', () => {
     const result = await execute('stale-choice', validChoice);
 
     // Not an error: retrying can't succeed, and the newer message gets its
-    // own reply.
+    // own reply. OpenClaw ends the turn instead of asking the model again.
     expect(result.details).toEqual({ superseded: true });
+    expect(result).toEqual(expect.objectContaining({ terminate: true }));
     expect(result.content[0]?.text).toBe(SUPERSEDED_TURN_TEXT);
     expect(postChoice).not.toHaveBeenCalled();
   });

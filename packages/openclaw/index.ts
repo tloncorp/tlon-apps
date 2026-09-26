@@ -48,6 +48,7 @@ import {
   suppressReplyAfterSuccessfulAgentOnboardingSurface,
 } from './src/agent-task-plan-reply-delivery.js';
 import {
+  bindTlonServiceSetupCall,
   claimTlonChoiceCall,
   claimTlonTaskPlanCall,
   clearTlonSessionRunSurface,
@@ -1118,6 +1119,13 @@ export default defineBundledChannelEntry({
       );
       const isBlocked =
         blocksNonOwner || blocksOnboardingMcp || blocksOnboardingBoundary;
+      if (!isBlocked && event.toolName === 'tlon_agent_service_setup') {
+        bindTlonServiceSetupCall({
+          toolCallId,
+          runId: ctx.runId,
+          sessionKey: ctx.sessionKey,
+        });
+      }
       const blockReason = blocksOnboardingMcp
         ? 'This scheduled onboarding update may inspect and call only selected-provider MCP tools explicitly described as read-only.'
         : (effectiveOnboardingBoundaryReason ?? ownerOnlyDecision.reason);

@@ -1,3 +1,7 @@
+import {
+  SupersededTurnError,
+  supersededToolResult,
+} from './superseded-turn.js';
 import { TLON_A2UI_CATALOG_ID } from '@tloncorp/api';
 
 const MAX_PROVIDER_ID_LENGTH = 500;
@@ -150,6 +154,7 @@ export function createAgentServiceSetupToolExecutor(deps: {
     fallbackMessage: string;
     blob: string;
   }) => Promise<string>;
+  assertCurrent: (toolCallId: string) => void;
 }) {
   return async function execute(
     id: string,
@@ -160,6 +165,7 @@ export function createAgentServiceSetupToolExecutor(deps: {
         ...params,
         surfaceId: `agent-service-setup-${id}`,
       });
+      deps.assertCurrent(id);
       const output = await deps.postSetup({
         target: params.target,
         fallbackMessage: recoveryCopy(),
@@ -170,6 +176,9 @@ export function createAgentServiceSetupToolExecutor(deps: {
         details: undefined,
       };
     } catch (error) {
+      if (error instanceof SupersededTurnError) {
+        return supersededToolResult();
+      }
       const message = error instanceof Error ? error.message : String(error);
       return {
         content: [{ type: 'text' as const, text: `Error: ${message}` }],

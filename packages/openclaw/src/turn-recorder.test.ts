@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-  SUPERSEDED_TURN_TEXT,
-  supersededToolResult,
-} from './superseded-turn.js';
+import { supersededToolResult } from './superseded-turn.js';
 
 import {
   type TlonAgentTurnObserver,
@@ -774,10 +771,6 @@ describe('superseded turns', () => {
       recordActiveTlonTurnToolCall({
         toolName: 'tlon_agent_choice',
         result: supersededToolResult(),
-      });
-      recordActiveTlonTurnToolCall({
-        toolName: 'tlon_agent_service_setup',
-        errorMessage: SUPERSEDED_TURN_TEXT,
       });
     });
     const summary = turn.finalize({ execution: 'completed' });

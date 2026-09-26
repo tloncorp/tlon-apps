@@ -510,7 +510,7 @@ export function recordActiveTlonTurnToolCall(update?: {
   updateActiveTurn((state) => {
     state.toolCallCount += 1;
     const errorMessage = update?.errorMessage;
-    if (isSupersededToolOutcome({ result: update?.result, errorMessage })) {
+    if (isSupersededToolOutcome(update?.result)) {
       state.superseded = true;
       return;
     }
