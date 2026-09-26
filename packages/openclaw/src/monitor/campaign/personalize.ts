@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import { getTlonRuntime } from '../../runtime.js';
 import type { CampaignState, CampaignTask, StepId } from './model.js';
+import { taskLabel } from './templates.js';
 
 export type TipDraft = {
   step: StepId;
@@ -21,7 +22,10 @@ export const CAMPAIGN_PROMPT_POLICY = [
   'Do not include opt-out instructions; the caller appends them when required. No preamble, headings, or explanation of this writing task.',
 ].join('\n');
 
-export function buildPersonalizationPrompt(draft: TipDraft, policy = CAMPAIGN_PROMPT_POLICY) {
+export function buildPersonalizationPrompt(
+  draft: TipDraft,
+  policy = CAMPAIGN_PROMPT_POLICY
+) {
   const { state, task } = draft;
   return `${policy}\n${JSON.stringify({
     step: draft.step,
@@ -29,14 +33,26 @@ export function buildPersonalizationPrompt(draft: TipDraft, policy = CAMPAIGN_PR
     setupTopic: state.topic?.slice(0, 1000),
     setupPurpose: state.purpose?.slice(0, 1000),
     latestUserMessage: state.lastOwnerText?.slice(0, 2000),
-    task,
+    // The onboarding job's name is internal; describe the task instead.
+    task: task && { ...task, name: taskLabel(task) },
   })}`;
 }
 
-export function acceptPersonalization(draft: TipDraft, text: string | undefined) {
-  if (!draft.state.topic && !draft.state.purpose && !draft.state.lastOwnerText && !draft.task) return;
+export function acceptPersonalization(
+  draft: TipDraft,
+  text: string | undefined
+) {
+  if (
+    !draft.state.topic &&
+    !draft.state.purpose &&
+    !draft.state.lastOwnerText &&
+    !draft.task
+  )
+    return;
   const candidate = text?.trim();
-  return candidate && candidate !== 'NO_REPLY' && candidate.length <= 800 ? candidate : undefined;
+  return candidate && candidate !== 'NO_REPLY' && candidate.length <= 800
+    ? candidate
+    : undefined;
 }
 
 export async function personalizeTip(
@@ -45,7 +61,13 @@ export async function personalizeTip(
   accountId: string,
   signal?: AbortSignal
 ): Promise<string | undefined> {
-  if (!draft.state.topic && !draft.state.purpose && !draft.state.lastOwnerText && !draft.task) return;
+  if (
+    !draft.state.topic &&
+    !draft.state.purpose &&
+    !draft.state.lastOwnerText &&
+    !draft.task
+  )
+    return;
   const runtime = getTlonRuntime();
   const route = runtime.channel.routing.resolveAgentRoute({
     cfg: config,

@@ -8,7 +8,9 @@ import {
 } from './model.js';
 import { type CampaignDeps, createCampaign } from './runner.js';
 import type { CampaignStore } from './store.js';
-import { renderTip, isStopTips } from './templates.js';
+import { TIP_COPY, renderTip, isStopTips } from './templates.js';
+import { ONBOARDING_JOB_NAME } from '../onboarding-job.js';
+import { buildPersonalizationPrompt } from './personalize.js';
 
 const enrolledAt = Date.parse('2026-09-17T15:37:00Z');
 const facts = { enabled: true, hasTask: false, busy: false };
@@ -967,4 +969,65 @@ it('abandons task feedback when the selected task disappears during inference', 
 
   expect(h.deps.send).not.toHaveBeenCalled();
   expect(h.read().sent).toEqual([]);
+});
+
+it('describes the onboarding task instead of quoting its internal job name', () => {
+  const onboardingTask = {
+    id: 'job',
+    name: ONBOARDING_JOB_NAME,
+    enabled: true,
+  };
+  const tips = [
+    renderTip('task-feedback', state(), {
+      ...onboardingTask,
+      deliveredAt: enrolledAt + DAY,
+    }),
+    renderTip('task-feedback', state(), {
+      ...onboardingTask,
+      failedAt: enrolledAt + DAY,
+    }),
+    renderTip('task-feedback', state(), onboardingTask),
+    renderTip('closing', state(), { ...onboardingTask, failedAt: enrolledAt }),
+  ];
+  for (const tip of tips) {
+    expect(tip).not.toContain(ONBOARDING_JOB_NAME);
+    expect(tip.toLowerCase()).toContain('your recurring update');
+  }
+  expect(tips[2]).toMatch(/^Your recurring update is set up/);
+});
+
+it('quotes tasks the owner or bot named later', () => {
+  expect(
+    renderTip('task-feedback', state(), {
+      id: 'job',
+      name: 'Morning AI roundup',
+      enabled: true,
+      deliveredAt: enrolledAt + DAY,
+    })
+  ).toContain('How’s “Morning AI roundup” working for you?');
+});
+
+it('renders overridden tip copy with the same placeholders', () => {
+  expect(
+    renderTip(
+      'task-feedback',
+      state({ sent: [{ step: 'useful-request', at: enrolledAt }] }),
+      { id: 'job', name: ONBOARDING_JOB_NAME, enabled: true, deliveredAt: 1 },
+      {
+        ...TIP_COPY,
+        taskDelivered: 'Is {task} earning its place?',
+      }
+    )
+  ).toBe('Is your recurring update earning its place?');
+});
+
+it('never shows the tip rewriter the internal job name', () => {
+  const prompt = buildPersonalizationPrompt({
+    step: 'task-feedback',
+    state: state({ topic: 'NBA' }),
+    task: { id: 'job', name: ONBOARDING_JOB_NAME, enabled: true },
+    text: 'How’s your recurring update working for you?',
+  });
+  expect(prompt).not.toContain(ONBOARDING_JOB_NAME);
+  expect(prompt).toContain('your recurring update');
 });
