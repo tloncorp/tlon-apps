@@ -86,7 +86,7 @@ export type Issue = { quote: string; problem: string };
 
 export type Judgement = {
   outcome: { matched: boolean; why: string };
-  conversation: { score: number; issues: Issue[] };
+  conversation: { score: number | null; issues: Issue[] };
   result: { score: number | null; issues: Issue[] };
   followUp: { ok: boolean; why: string };
   ruleBreaks: { rule: string; quote: string }[];

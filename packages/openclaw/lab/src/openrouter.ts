@@ -22,6 +22,12 @@ export type ChatTool = {
 export type CostMeter = { usd: number };
 
 const RETRYABLE = new Set([408, 409, 429, 500, 502, 503, 504]);
+// OpenRouter reserves max_tokens × price against the key's credit while a
+// request is in flight. Without a cap it reserves the model's full output
+// limit, and a handful of parallel judge calls exhausts a small key.
+const DEFAULT_MAX_TOKENS = 6000;
+
+export class OutOfCreditError extends Error {}
 
 export async function chat(input: {
   key: string;
@@ -30,11 +36,13 @@ export async function chat(input: {
   tools?: ChatTool[];
   temperature?: number;
   json?: boolean;
+  maxTokens?: number;
   meter: CostMeter;
 }): Promise<{ content: string | null; toolCalls: ChatToolCall[] }> {
   const body = {
     model: input.model,
     messages: input.messages,
+    max_tokens: input.maxTokens ?? DEFAULT_MAX_TOKENS,
     ...(input.tools?.length ? { tools: input.tools, tool_choice: 'auto' } : {}),
     ...(input.temperature === undefined
       ? {}
@@ -43,8 +51,12 @@ export async function chat(input: {
     usage: { include: true },
   };
   let lastError = '';
-  for (let attempt = 0; attempt < 5; attempt++) {
-    if (attempt) await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
+  let waitMs = 0;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    if (attempt) {
+      await new Promise((r) => setTimeout(r, waitMs || 1000 * 2 ** attempt));
+    }
+    waitMs = 0;
     const response = await fetch(
       'https://openrouter.ai/api/v1/chat/completions',
       {
@@ -63,8 +75,22 @@ export async function chat(input: {
     });
     if (!response) continue;
     if (!response.ok) {
-      lastError = `${response.status} ${await response.text()}`;
+      const text = await response.text();
+      lastError = `${response.status} ${text}`;
       if (RETRYABLE.has(response.status)) continue;
+      // Too much reserved at once: wait for in-flight requests to settle.
+      // Any other 402 means the key or account is out of credit.
+      if (response.status === 402 && text.includes('in_flight_budget')) {
+        waitMs =
+          Math.min(Number(response.headers.get('retry-after') ?? 30), 120) *
+          1000;
+        continue;
+      }
+      if (response.status === 402) {
+        throw new OutOfCreditError(
+          `OpenRouter is out of credit for this key: ${text}`
+        );
+      }
       break;
     }
     const data = (await response.json()) as {

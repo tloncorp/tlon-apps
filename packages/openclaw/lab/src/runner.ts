@@ -7,7 +7,7 @@ import {
   runScheduledTask,
 } from './first-run.js';
 import { judgeRun } from './judge.js';
-import type { CostMeter } from './openrouter.js';
+import { type CostMeter, OutOfCreditError } from './openrouter.js';
 import type {
   BotTurn,
   Ending,
@@ -20,6 +20,41 @@ import type {
 import { keepVerdict, nextUserMove } from './user.js';
 
 const DEFAULT_TIMEZONE = 'America/New_York';
+
+/** The instant that is `hour:minute` local time in `timezone` on `day`'s date. */
+function atLocalTime(
+  day: Date,
+  timezone: string,
+  hour: number,
+  minute: number
+) {
+  const localParts = (date: Date) => {
+    const parts = Object.fromEntries(
+      new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        hourCycle: 'h23',
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+      })
+        .formatToParts(date)
+        .map((part) => [part.type, Number(part.value)])
+    );
+    return parts as Record<
+      'year' | 'month' | 'day' | 'hour' | 'minute',
+      number
+    >;
+  };
+  const { year, month, day: date } = localParts(day);
+  const guess = Date.UTC(year, month - 1, date, hour, minute);
+  const seen = localParts(new Date(guess));
+  const offset =
+    Date.UTC(seen.year, seen.month - 1, seen.day, seen.hour, seen.minute) -
+    guess;
+  return new Date(guess - offset);
+}
 const DEFAULT_AFTER_ENDING =
   'unrelated but whats a quick dinner i can make tonight with eggs and spinach';
 
@@ -176,7 +211,12 @@ export async function runPersona(input: {
         // Tomorrow's run, for the judge only: does the task produce something new?
         dayTwo = runScheduledTask({
           ...task,
-          now: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          now: atLocalTime(
+            new Date(Date.now() + 24 * 60 * 60 * 1000),
+            session.plan.timezoneOverride ?? timezone,
+            session.plan.scheduleHour,
+            session.plan.scheduleMinute
+          ),
         });
       }
     }
@@ -186,6 +226,7 @@ export async function runPersona(input: {
     transcript.push({ from: 'user', kind: 'type', text: after });
     await botTurn(after);
   } catch (caught) {
+    if (caught instanceof OutOfCreditError) throw caught;
     ending = 'bot-error';
     error = caught instanceof Error ? caught.message : String(caught);
   }
@@ -231,27 +272,40 @@ export async function runPersona(input: {
     ...(error ? { error } : {}),
   };
 
-  if (!error) {
-    try {
-      record.keep = await keepVerdict({
-        persona,
-        events: transcript,
-        config,
-        meter,
-      });
-      if (input.judge) {
-        record.judgement = await judgeRun({
-          record,
-          skillText: sources.skill.text,
-          config,
-          meter,
-        });
-      }
-    } catch (caught) {
-      record.error = `grading failed: ${caught instanceof Error ? caught.message : String(caught)}`;
-    }
-  }
+  if (!error)
+    await gradeRun({ record, config, sources, judge: input.judge, meter });
   record.durationMs = Date.now() - startedAt.getTime();
   record.costUsd = meter.usd;
   return record;
+}
+
+/** The simulated person's verdict and the judge's grade, stored on the record. */
+export async function gradeRun(input: {
+  record: RunRecord;
+  config: LabConfig;
+  sources: PromptSources;
+  judge: boolean;
+  meter: CostMeter;
+}) {
+  const { record, config, meter } = input;
+  delete record.error;
+  try {
+    record.keep = await keepVerdict({
+      persona: record.persona,
+      events: record.transcript,
+      config,
+      meter,
+    });
+    if (input.judge) {
+      record.judgement = await judgeRun({
+        record,
+        skillText: input.sources.skill.text,
+        config,
+        meter,
+      });
+    }
+  } catch (caught) {
+    if (caught instanceof OutOfCreditError) throw caught;
+    record.error = `grading failed: ${caught instanceof Error ? caught.message : String(caught)}`;
+  }
 }

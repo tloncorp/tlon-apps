@@ -92,6 +92,7 @@ export async function nextUserMove(input: {
     key: config.openrouterKey,
     model: config.models.user,
     temperature: 0.8,
+    maxTokens: 800,
     meter,
     messages: [
       { role: 'system', content: `${RULES}\n\n${personaBrief(persona)}` },
@@ -122,6 +123,7 @@ export async function keepVerdict(input: {
     key: input.config.openrouterKey,
     model: input.config.models.user,
     temperature: 0.2,
+    maxTokens: 800,
     meter: input.meter,
     messages: [
       {

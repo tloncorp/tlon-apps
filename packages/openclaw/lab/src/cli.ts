@@ -1,16 +1,22 @@
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { loadConfig, loadPromptSources, RUNS_DIR } from './config.js';
+import {
+  loadConfig,
+  loadPromptSources,
+  REPO_ROOT,
+  RUNS_DIR,
+  sha256,
+} from './config.js';
 import { judgePair } from './judge.js';
-import type { CostMeter } from './openrouter.js';
+import { type CostMeter, OutOfCreditError } from './openrouter.js';
 import {
   type ComparePair,
   metrics,
   renderCompareReport,
   renderRunSetReport,
 } from './report.js';
-import { runPersona } from './runner.js';
+import { gradeRun, runPersona } from './runner.js';
 import {
   createRunSet,
   loadPersonas,
@@ -39,6 +45,7 @@ Options:
   --user-model ID     OpenRouter model for the simulated person
   --judge-model ID    OpenRouter model for the judge
   --no-judge          skip the judge (facts and keep verdict only)
+  --resume SET        fill in a set's missing or failed runs instead of starting a new one
 `;
 
 async function pool<T, R>(
@@ -76,6 +83,7 @@ type Options = {
   'user-model'?: string;
   'judge-model'?: string;
   'no-judge'?: boolean;
+  resume?: string;
 };
 
 async function runSet(
@@ -140,6 +148,80 @@ async function runSet(
     `\n${label}: matched ${m.outcomeMatched === null ? '-' : `${Math.round(m.outcomeMatched * 100)}%`} · conversation ${m.conversation?.toFixed(2) ?? '-'} · result ${m.result?.toFixed(2) ?? '-'} · keep ${m.keep === null ? '-' : `${Math.round(m.keep * 100)}%`} · $${m.costUsd.toFixed(2)}\nReport: ${reportPath}`
   );
   return dir;
+}
+
+/**
+ * Fill in a run set: rerun runs that are missing or crashed, and re-grade runs
+ * whose conversation finished but grading failed. Refuses when the skill or
+ * prompts changed since the set was created, so a set never mixes versions.
+ */
+async function resumeSet(reference: string, options: Options) {
+  const set = loadRunSet(resolveRunSet(reference));
+  const { manifest } = set;
+  const config = { ...loadConfig(), models: manifest.models };
+  const sources = loadPromptSources(config, manifest.variant);
+  const current = new Map(
+    [sources.skill, ...Object.values(sources.prompts)].map((file) => [
+      file.path,
+      sha256(file.text),
+    ])
+  );
+  const changed = manifest.sources.filter(
+    (source) =>
+      current.get(path.resolve(REPO_ROOT, source.path)) !== source.sha256 &&
+      current.get(source.path) !== source.sha256
+  );
+  if (changed.length) {
+    throw new Error(
+      `Sources changed since this set was created, so resuming would mix versions: ${changed.map((source) => source.path).join(', ')}`
+    );
+  }
+  const personas = loadPersonas(manifest.personas);
+  const existing = new Map(
+    set.runs.map((run) => [`${run.persona.id}#${run.repeat}`, run])
+  );
+  const jobs = personas.flatMap((persona) =>
+    Array.from({ length: manifest.repeat }, (_, index) => {
+      const run = existing.get(`${persona.id}#${index + 1}`);
+      const judged = Boolean(run?.judgement) || options['no-judge'];
+      if (run && !run.error && judged) return [];
+      const regrade = Boolean(run && run.facts.ending !== 'bot-error');
+      return [{ persona, repeat: index + 1, run: regrade ? run : undefined }];
+    }).flat()
+  );
+  console.log(
+    `${manifest.label}: ${jobs.length} runs to fill (${jobs.filter((job) => job.run).length} re-grade only)`
+  );
+  await pool(jobs, Number(options.concurrency ?? 4), async (job) => {
+    let run: RunRecord;
+    if (job.run) {
+      run = job.run;
+      const meter: CostMeter = { usd: 0 };
+      await gradeRun({
+        record: run,
+        config,
+        sources,
+        judge: !options['no-judge'],
+        meter,
+      });
+      run.costUsd += meter.usd;
+    } else {
+      run = await runPersona({
+        persona: job.persona,
+        repeat: job.repeat,
+        config,
+        sources,
+        maxTurns: Number(options['max-turns'] ?? 8),
+        judge: !options['no-judge'],
+      });
+    }
+    writeRun(set.dir, run);
+    console.log(progressLine(run));
+  });
+  const runs = loadRunSet(set.dir).runs;
+  const reportPath = path.join(set.dir, 'report.html');
+  writeFileSync(reportPath, renderRunSetReport(manifest, runs));
+  console.log(`Report: ${reportPath}`);
 }
 
 async function compare(aRef: string, bRef: string, judgeModel?: string) {
@@ -214,6 +296,7 @@ async function main() {
       'user-model': { type: 'string' },
       'judge-model': { type: 'string' },
       'no-judge': { type: 'boolean' },
+      resume: { type: 'string' },
       help: { type: 'boolean', short: 'h' },
     },
   });
@@ -224,7 +307,8 @@ async function main() {
   }
   switch (command) {
     case 'run':
-      await runSet(values, { repeat: 1 });
+      if (values.resume) await resumeSet(values.resume, values);
+      else await runSet(values, { repeat: 1 });
       return;
     case 'ab': {
       if (!values.variant) throw new Error('ab needs --variant <dir>');
@@ -264,5 +348,10 @@ async function main() {
 
 main().catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : error);
+  if (error instanceof OutOfCreditError) {
+    console.error(
+      'Finished runs are saved. Add credit, then continue with --resume <set>.'
+    );
+  }
   process.exitCode = 1;
 });
