@@ -105,6 +105,8 @@ export type RunRecord = {
   turns: BotTurn[];
   firstRunToolCalls: ToolCallRecord[];
   plan?: TaskPlan;
+  /** The same task run as if it were tomorrow. Only the judge sees it. */
+  secondResult?: { ok: boolean; markdown: string };
   facts: Facts;
   keep?: KeepVerdict;
   judgement?: Judgement;

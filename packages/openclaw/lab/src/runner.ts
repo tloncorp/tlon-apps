@@ -4,7 +4,7 @@ import type { LabConfig, PromptSources } from './config.js';
 import {
   coordinatorAcknowledgement,
   coordinatorReveal,
-  runFirstEntry,
+  runScheduledTask,
 } from './first-run.js';
 import { judgeRun } from './judge.js';
 import type { CostMeter } from './openrouter.js';
@@ -106,6 +106,7 @@ export async function runPersona(input: {
   const firstRunToolCalls: ToolCallRecord[] = [];
   let ending: Ending = 'turn-limit';
   let firstResultOk: boolean | null = null;
+  let dayTwo: Promise<{ ok: boolean; markdown: string }> | undefined;
   let error: string | undefined;
 
   const botTurn = async (text: string) => {
@@ -153,13 +154,8 @@ export async function runPersona(input: {
           source: 'coordinator',
         });
       }
-      const first = await runFirstEntry({
-        plan: session.plan,
-        config,
-        sources,
-        timezone,
-        meter,
-      });
+      const task = { plan: session.plan, config, sources, timezone, meter };
+      const first = await runScheduledTask(task);
       firstRunToolCalls.push(...first.toolCalls);
       firstResultOk = first.ok;
       transcript.push({
@@ -177,6 +173,11 @@ export async function runPersona(input: {
         });
         // The coordinator marks onboarding complete once the entry publishes.
         session.onboardingComplete = true;
+        // Tomorrow's run, for the judge only: does the task produce something new?
+        dayTwo = runScheduledTask({
+          ...task,
+          now: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        });
       }
     }
 
@@ -187,6 +188,15 @@ export async function runPersona(input: {
   } catch (caught) {
     ending = 'bot-error';
     error = caught instanceof Error ? caught.message : String(caught);
+  }
+  let secondResult: { ok: boolean; markdown: string } | undefined;
+  try {
+    secondResult = await dayTwo;
+  } catch (caught) {
+    secondResult = {
+      ok: false,
+      markdown: `day-two run failed: ${caught instanceof Error ? caught.message : String(caught)}`,
+    };
   }
 
   const record: RunRecord = {
@@ -199,6 +209,14 @@ export async function runPersona(input: {
     turns,
     firstRunToolCalls,
     ...(session.plan ? { plan: session.plan } : {}),
+    ...(secondResult
+      ? {
+          secondResult: {
+            ok: secondResult.ok,
+            markdown: secondResult.markdown,
+          },
+        }
+      : {}),
     facts: computeFacts({
       persona,
       ending,

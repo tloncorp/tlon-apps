@@ -195,16 +195,20 @@ async function webSearch(args: Record<string, unknown>, context: ToolContext) {
   } else if (typeof args.freshness === 'string') {
     params.set('freshness', args.freshness);
   }
-  const response = await fetch(
-    `https://api.search.brave.com/res/v1/web/search?${params}`,
-    {
+  const search = () =>
+    fetch(`https://api.search.brave.com/res/v1/web/search?${params}`, {
       headers: {
         Accept: 'application/json',
-        'X-Subscription-Token': context.braveKey,
+        'X-Subscription-Token': context.braveKey!,
       },
       signal: AbortSignal.timeout(20_000),
-    }
-  );
+    });
+  let response = await search();
+  // Parallel lab runs share one key; wait out rate limits instead of failing.
+  for (let attempt = 1; response.status === 429 && attempt <= 4; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 1500 * attempt));
+    response = await search();
+  }
   if (!response.ok) {
     throw new Error(`web search failed: ${response.status}`);
   }

@@ -48,6 +48,13 @@ export function renderForJudge(record: RunRecord): string {
       if (tools) lines.push(`  (bot tools this turn: ${tools})`);
     }
   }
+  if (record.secondResult) {
+    lines.push(
+      record.secondResult.ok
+        ? `DAY TWO RESULT (the same task run as if it were tomorrow; the person has not seen it):\n${record.secondResult.markdown}`
+        : 'DAY TWO RESULT: the second run produced nothing.'
+    );
+  }
   return lines.join('\n\n');
 }
 

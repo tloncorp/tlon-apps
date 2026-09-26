@@ -48,21 +48,26 @@ export function coordinatorReveal(markdown: string) {
   return agentOnboardingTesting.firstEntryReadyMessage(title);
 }
 
-/** Run the scheduled task once, with only web tools, like the cron job. */
-export async function runFirstEntry(input: {
+/**
+ * Run the scheduled task once, with only web tools, like the cron job. `now`
+ * lets the lab run a second day to see whether the notes actually differ.
+ */
+export async function runScheduledTask(input: {
   plan: TaskPlan;
   config: LabConfig;
   sources: PromptSources;
   timezone: string;
   meter: CostMeter;
+  now?: Date;
 }): Promise<{ ok: boolean; markdown: string; toolCalls: ToolCallRecord[] }> {
-  const { plan, config, sources, timezone, meter } = input;
+  const { plan, config, sources, timezone, meter, now } = input;
   const tools = labTools({ webOnly: true });
   const system = buildSystemPrompt({
     sources,
     tools,
     botModel: config.models.bot,
     timezone,
+    now,
   });
   const prompt = agentOnboardingTesting.buildRecurringPrompt(
     provisionRequest(plan, timezone)
@@ -70,7 +75,7 @@ export async function runFirstEntry(input: {
   const messages: ChatMessage[] = [
     {
       role: 'user',
-      content: `[cron run ${localTime(timezone)}] ${prompt}`,
+      content: `[cron run ${localTime(timezone, now)}] ${prompt}`,
     },
   ];
   const toolCalls: ToolCallRecord[] = [];

@@ -157,6 +157,7 @@ function renderRunDetails(run: RunRecord, heading?: string) {
     ${judgement ? `<div class="issue"><b>ending:</b> ${escape(judgement.outcome.why)}</div><div class="issue"><b>follow-up:</b> ${escape(judgement.followUp.why)}</div>` : ''}
     ${run.keep ? `<div class="issue"><b>person:</b> “${escape(run.keep.why)}”</div>` : ''}
     ${renderChat(run.transcript)}
+    ${run.secondResult ? `<div class="msg note"><div class="muted">Day two (judge only)</div>${escape(run.secondResult.markdown)}</div>` : ''}
     <div class="muted">tools: ${escape(
       Object.entries(run.facts.toolCounts)
         .map(([name, n]) => `${name}×${n}`)
