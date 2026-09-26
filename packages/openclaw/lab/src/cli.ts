@@ -3,11 +3,13 @@ import path from 'node:path';
 import { parseArgs } from 'node:util';
 import {
   loadConfig,
+  loadFrozenConfig,
   loadPromptSources,
   REPO_ROOT,
   RUNS_DIR,
   sha256,
 } from './config.js';
+import { frozenResumeInputs, loadCheckpoint } from './checkpoint.js';
 import { judgePair } from './judge.js';
 import { type CostMeter, OutOfCreditError } from './openrouter.js';
 import {
@@ -45,6 +47,7 @@ Options:
   --label NAME        run set name (default: baseline or the variant folder)
   --concurrency N     personas in flight at once (default: 4)
   --max-turns N       user messages before giving up (default: 8)
+  --tips N            simulate up to N first-week tips (0–5; default: 0)
   --bot-model ID      OpenRouter model for the bot
   --user-model ID     OpenRouter model for the simulated person
   --judge-model ID    OpenRouter model for the judge
@@ -84,6 +87,7 @@ type Options = {
   label?: string;
   concurrency?: string;
   'max-turns'?: string;
+  tips?: string;
   'bot-model'?: string;
   'user-model'?: string;
   'judge-model'?: string;
@@ -96,6 +100,9 @@ async function runSet(
   options: Options,
   defaults: { repeat: number; label?: string }
 ) {
+  const tips = parseTips(options.tips);
+  const maxTurns = Number(options['max-turns'] ?? 8);
+  if (!Number.isInteger(maxTurns) || maxTurns < 1) throw new Error('--max-turns must be a positive integer');
   const config = loadConfig(
     {
       bot: options['bot-model'],
@@ -124,7 +131,11 @@ async function runSet(
     variant,
     personas,
     repeat,
+    maxTurns,
+    judge: !options['no-judge'],
+    tips,
   });
+  const checkpoint = loadCheckpoint(dir, manifest)!;
   console.log(
     `${label}: ${personas.length} personas × ${repeat} · bot ${config.models.bot} · prompts from ${config.tlonbotDir}${config.braveKey ? '' : ' · web search off'}`
   );
@@ -141,9 +152,15 @@ async function runSet(
       const run = await runPersona({
         ...job,
         config,
-        sources,
-        maxTurns: Number(options['max-turns'] ?? 8),
+        sources: checkpoint.sources,
+        maxTurns,
         judge: !options['no-judge'],
+        tips,
+        rubric: checkpoint.rubric,
+        simulatorPolicy: checkpoint.simulatorPolicy,
+        tipMovePolicy: checkpoint.tipMovePolicy,
+        keepPolicy: checkpoint.keepPolicy,
+        campaignPromptPolicy: checkpoint.campaignPromptPolicy,
       });
       writeRun(dir, run);
       console.log(progressLine(run));
@@ -159,6 +176,13 @@ async function runSet(
   return dir;
 }
 
+export function parseTips(value: string | undefined): number {
+  if (value === undefined) return 0;
+  const n = Number(value);
+  if (!/^[0-5]$/.test(value) || !Number.isInteger(n)) throw new Error('--tips must be an integer from 0 through 5');
+  return n;
+}
+
 /**
  * Fill in a run set: rerun runs that are missing or crashed, and re-grade runs
  * whose conversation finished but grading failed. Refuses when the skill or
@@ -167,11 +191,12 @@ async function runSet(
 async function resumeSet(reference: string, options: Options) {
   const set = loadRunSet(resolveRunSet(reference));
   const { manifest } = set;
-  const config = {
-    ...loadConfig({}, { search: manifest.search !== false }),
-    models: manifest.models,
-  };
-  const sources = loadPromptSources(config, manifest.variant);
+  const frozen = frozenResumeInputs(set.dir, manifest);
+  const checkpoint = frozen?.checkpoint;
+  const config = checkpoint
+    ? loadFrozenConfig(checkpoint.models, checkpoint.search)
+    : { ...loadConfig({}, { search: manifest.search !== false }), models: manifest.models };
+  const sources = frozen?.sources ?? loadPromptSources(config, manifest.variant);
   const current = new Map(
     [...sources.skills, ...Object.values(sources.prompts)].map((file) => [
       file.path,
@@ -183,19 +208,19 @@ async function resumeSet(reference: string, options: Options) {
       current.get(path.resolve(REPO_ROOT, source.path)) !== source.sha256 &&
       current.get(source.path) !== source.sha256
   );
-  if (changed.length) {
+  if (!checkpoint && changed.length) {
     throw new Error(
       `Sources changed since this set was created, so resuming would mix versions: ${changed.map((source) => source.path).join(', ')}`
     );
   }
-  const personas = loadPersonas(manifest.personas);
+  const personas = frozen?.personas ?? loadPersonas(manifest.personas);
   const existing = new Map(
     set.runs.map((run) => [`${run.persona.id}#${run.repeat}`, run])
   );
   const jobs = personas.flatMap((persona) =>
     Array.from({ length: manifest.repeat }, (_, index) => {
       const run = existing.get(`${persona.id}#${index + 1}`);
-      const judged = Boolean(run?.judgement) || options['no-judge'];
+      const judged = Boolean(run?.judgement) || (frozen ? !frozen.judge : options['no-judge']);
       if (run && !run.error && judged) return [];
       const regrade = Boolean(run && run.facts.ending !== 'bot-error');
       return [{ persona, repeat: index + 1, run: regrade ? run : undefined }];
@@ -213,8 +238,10 @@ async function resumeSet(reference: string, options: Options) {
         record: run,
         config,
         sources,
-        judge: !options['no-judge'],
+        judge: frozen?.judge ?? !options['no-judge'],
         meter,
+        rubric: frozen?.rubric,
+        keepPolicy: frozen?.keepPolicy,
       });
       run.costUsd += meter.usd;
     } else {
@@ -223,8 +250,14 @@ async function resumeSet(reference: string, options: Options) {
         repeat: job.repeat,
         config,
         sources,
-        maxTurns: Number(options['max-turns'] ?? 8),
-        judge: !options['no-judge'],
+        maxTurns: frozen?.maxTurns ?? Number(options['max-turns'] ?? 8),
+        judge: frozen?.judge ?? !options['no-judge'],
+        tips: frozen?.tips ?? 0,
+        rubric: frozen?.rubric,
+        simulatorPolicy: frozen?.simulatorPolicy,
+        tipMovePolicy: frozen?.tipMovePolicy,
+        keepPolicy: frozen?.keepPolicy,
+        campaignPromptPolicy: frozen?.campaignPromptPolicy,
       });
     }
     writeRun(set.dir, run);
@@ -237,9 +270,13 @@ async function resumeSet(reference: string, options: Options) {
 }
 
 async function compare(aRef: string, bRef: string, judgeModel?: string) {
-  const config = loadConfig({ judge: judgeModel });
   const a = loadRunSet(resolveRunSet(aRef));
   const b = loadRunSet(resolveRunSet(bRef));
+  const checkpoint = loadCheckpoint(a.dir, a.manifest);
+  const config = checkpoint
+    ? loadFrozenConfig({ ...checkpoint.models, judge: judgeModel ?? checkpoint.models.judge }, checkpoint.search)
+    : loadConfig({ judge: judgeModel });
+  const rubric = checkpoint?.rubric;
   const key = (run: RunRecord) => `${run.persona.id}#${run.repeat}`;
   const byKey = new Map(b.runs.map((run) => [key(run), run]));
   const matched = a.runs
@@ -259,6 +296,7 @@ async function compare(aRef: string, bRef: string, judgeModel?: string) {
       b: flip ? runA : runB,
       config,
       meter,
+      rubric,
     });
     const winner =
       verdict.winner === 'tie'
@@ -304,6 +342,7 @@ async function main() {
       label: { type: 'string' },
       concurrency: { type: 'string' },
       'max-turns': { type: 'string' },
+      tips: { type: 'string' },
       'bot-model': { type: 'string' },
       'user-model': { type: 'string' },
       'judge-model': { type: 'string' },
@@ -347,9 +386,12 @@ async function main() {
           'packets needs two or more run sets; the first is the control'
         );
       }
+      const setDirs = rest.map((reference) => resolveRunSet(reference));
+      const first = loadRunSet(setDirs[0]);
+      const frozen = loadCheckpoint(first.dir, first.manifest);
       const { dir, count } = writePackets(
-        loadConfig(),
-        rest.map((reference) => resolveRunSet(reference))
+        frozen ? loadFrozenConfig(frozen.models, frozen.search) : loadConfig(),
+        setDirs
       );
       console.log(
         `${count} packets in ${dir}\nInstructions: ${path.join(dir, 'INSTRUCTIONS.md')}`

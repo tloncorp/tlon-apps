@@ -19,6 +19,7 @@ import type {
   TranscriptEvent,
 } from './types.js';
 import { keepVerdict, nextUserMove } from './user.js';
+import { createLabCampaign } from './tips.js';
 
 const DEFAULT_TIMEZONE = 'America/New_York';
 
@@ -143,12 +144,19 @@ export async function runPersona(input: {
   sources: PromptSources;
   maxTurns: number;
   judge: boolean;
+  tips?: number;
+  rubric?: string;
+  simulatorPolicy?: string;
+  tipMovePolicy?: string;
+  keepPolicy?: string;
+  campaignPromptPolicy?: string;
 }): Promise<RunRecord> {
   const { persona, config, sources } = input;
   const meter: CostMeter = { usd: 0 };
   const startedAt = new Date();
   const timezone = persona.timezone ?? DEFAULT_TIMEZONE;
-  const session = new BotSession(config, sources, timezone, meter);
+  let virtualNow = () => new Date();
+  const session = new BotSession(config, sources, timezone, meter, () => virtualNow());
   const overrides = sources.coordinator?.overrides ?? {};
   const coordinatorEvent = (message: CoordinatorMessage): TranscriptEvent =>
     message.options?.length
@@ -170,6 +178,27 @@ export async function runPersona(input: {
   const transcript: TranscriptEvent[] = [coordinatorEvent(welcome)];
   const turns: BotTurn[] = [];
   const firstRunToolCalls: ToolCallRecord[] = [];
+  const recordTurn = async (text: string, replyTo?: string, campaignContext?: string) => {
+    const turn = await session.turn(text, replyTo, campaignContext);
+    turns.push(turn);
+    transcript.push(...turn.events);
+    return turn;
+  };
+  const tips = input.tips ? createLabCampaign({
+    limit: input.tips,
+    startedAt,
+    timezone,
+    persona,
+    config,
+    meter,
+    transcript,
+    policy: input.campaignPromptPolicy,
+    userPolicy: input.simulatorPolicy,
+    tipMovePolicy: input.tipMovePolicy,
+    botTurn: async (text, context) => { await recordTurn(text, undefined, context); },
+    onHandled: (text) => { turns.push({ userText: text, toolCalls: [], events: [] }); },
+  }) : undefined;
+  if (tips) virtualNow = tips.now;
   let ending: Ending = 'turn-limit';
   let firstResultOk: boolean | null = null;
   let startDayTwo:
@@ -178,13 +207,17 @@ export async function runPersona(input: {
   let error: string | undefined;
 
   const botTurn = async (text: string, replyTo?: string) => {
-    const turn = await session.turn(text, replyTo);
-    turns.push(turn);
-    transcript.push(...turn.events);
-    return turn;
+    const campaign = await tips?.ownerMessage(text);
+    if (campaign?.handled) {
+      const turn = { userText: text, toolCalls: [], events: [] } satisfies BotTurn;
+      turns.push(turn);
+      return turn;
+    }
+    return recordTurn(text, replyTo, campaign?.context);
   };
 
   try {
+    await tips?.enroll();
     let lastOptions = welcome.options;
     for (let index = 0; index < input.maxTurns; index++) {
       // With buttons on the welcome, the person may tap one before saying what
@@ -197,6 +230,7 @@ export async function runPersona(input: {
               events: transcript,
               config,
               meter,
+              policy: input.simulatorPolicy,
               lastOptions,
               ...(index === 0 && persona.opening
                 ? {
@@ -233,10 +267,12 @@ export async function runPersona(input: {
       session.cronJobs.push(
         coordinatorJob(session.plan, timezone) as Record<string, unknown>
       );
+      await tips?.taskCreated();
       const task = { plan: session.plan, config, sources, timezone, meter };
       const first = await runScheduledTask(task);
       firstRunToolCalls.push(...first.toolCalls);
       firstResultOk = first.ok;
+      tips?.taskResult(first.ok);
       transcript.push({
         from: 'system',
         kind: 'first-result',
@@ -304,6 +340,7 @@ export async function runPersona(input: {
           events: transcript,
           config,
           meter,
+          policy: input.simulatorPolicy,
           lastOptions: options,
         });
         if (move.action === 'leave') break;
@@ -323,6 +360,7 @@ export async function runPersona(input: {
         events: transcript,
         config,
         meter,
+        policy: input.simulatorPolicy,
         nudge:
           'Setup is over. If one of your questions about the app is still unasked, ask it now. If you have asked them all, choose leave.',
       });
@@ -334,6 +372,7 @@ export async function runPersona(input: {
     const after = persona.afterEnding ?? DEFAULT_AFTER_ENDING;
     transcript.push({ from: 'user', kind: 'type', text: after });
     await botTurn(after);
+    await tips?.advanceWeek();
   } catch (caught) {
     if (caught instanceof OutOfCreditError) throw caught;
     ending = 'bot-error';
@@ -360,6 +399,7 @@ export async function runPersona(input: {
     turns,
     firstRunToolCalls,
     ...(session.plan ? { plan: session.plan } : {}),
+    ...(tips ? { campaign: tips.snapshot() } : {}),
     ...(secondResult
       ? {
           secondResult: {
@@ -383,7 +423,7 @@ export async function runPersona(input: {
   };
 
   if (!error)
-    await gradeRun({ record, config, sources, judge: input.judge, meter });
+    await gradeRun({ record, config, sources, judge: input.judge, meter, rubric: input.rubric, keepPolicy: input.keepPolicy });
   record.durationMs = Date.now() - startedAt.getTime();
   record.costUsd = meter.usd;
   return record;
@@ -396,6 +436,8 @@ export async function gradeRun(input: {
   sources: PromptSources;
   judge: boolean;
   meter: CostMeter;
+  rubric?: string;
+  keepPolicy?: string;
 }) {
   const { record, config, meter } = input;
   delete record.error;
@@ -405,6 +447,7 @@ export async function gradeRun(input: {
       events: record.transcript,
       config,
       meter,
+      policy: input.keepPolicy,
     });
     if (input.judge) {
       record.judgement = await judgeRun({
@@ -412,6 +455,7 @@ export async function gradeRun(input: {
         sources: input.sources,
         config,
         meter,
+        rubric: input.rubric,
       });
     }
   } catch (caught) {

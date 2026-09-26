@@ -7,6 +7,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
+import { loadCheckpoint } from './checkpoint.js';
 import { stringify } from 'yaml';
 import {
   type LabConfig,
@@ -141,6 +142,7 @@ export function writePackets(config: LabConfig, dirs: string[]) {
     throw new Error(`packets needs 2 to ${LABELS.length} run sets`);
   }
   const sets = dirs.map((dir) => loadRunSet(dir));
+  const checkpoints = sets.map((set) => loadCheckpoint(set.dir, set.manifest));
   const byKey = sets.map(
     (set) => new Map(set.runs.map((run) => [runKey(run), run]))
   );
@@ -169,12 +171,15 @@ export function writePackets(config: LabConfig, dirs: string[]) {
   const skillNumbers = shuffle(sets.map((_, index) => index + 1));
   const skills = sets.map((set, index) => {
     const file = path.join(dir, 'skills', `skill-${skillNumbers[index]}.md`);
-    copyFileSync(skillPath(config, set.manifest.variant), file);
+    const frozen = checkpoints[index];
+    if (frozen) writeFileSync(file, frozen.sources.skill.text);
+    else copyFileSync(skillPath(config, set.manifest.variant), file);
     return file;
   });
-  const productGuide = loadPromptSources(config).skills.find(
-    (skill) => skill.dir === PRODUCT_GUIDE_DIR
-  )!.path;
+  const productGuide = path.join(dir, 'skills', 'product-guide.md');
+  const frozenGuide = checkpoints[0]?.sources.skills.find((skill) => skill.dir === PRODUCT_GUIDE_DIR);
+  if (frozenGuide) writeFileSync(productGuide, frozenGuide.text);
+  else copyFileSync(loadPromptSources(config).skills.find((skill) => skill.dir === PRODUCT_GUIDE_DIR)!.path, productGuide);
 
   const orders = permutations(sets.length);
   const assigned = shuffle(
@@ -219,7 +224,7 @@ export function writePackets(config: LabConfig, dirs: string[]) {
     path.join(dir, 'INSTRUCTIONS.md'),
     INSTRUCTIONS({
       count: sets.length,
-      rubric: readFileSync(RUBRIC_PATH, 'utf8'),
+      rubric: checkpoints[0]?.rubric ?? readFileSync(RUBRIC_PATH, 'utf8'),
       skills,
       productGuide,
     })

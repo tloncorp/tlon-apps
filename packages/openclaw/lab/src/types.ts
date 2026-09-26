@@ -54,11 +54,14 @@ export type TranscriptEvent =
   | { from: 'bot'; kind: 'service-setup'; providerId: string }
   | { from: 'bot'; kind: 'silent' }
   | { from: 'bot'; kind: 'suppressed'; text: string }
+  | { from: 'bot'; kind: 'tip'; text: string; step: string; at: string }
   | { from: 'user'; kind: 'pick'; text: string }
   | { from: 'user'; kind: 'type'; text: string }
+  | { from: 'user'; kind: 'tip-ignored'; step: string }
   | { from: 'user'; kind: 'leave'; reason: string }
   | { from: 'system'; kind: 'first-result'; ok: boolean; markdown: string }
   | { from: 'system'; kind: 'phase'; phase: 'after-ending' }
+  | { from: 'system'; kind: 'campaign'; action: string; step?: string; reason?: string; at: string }
   | { from: 'system'; kind: 'task-change'; action: string; job: unknown };
 
 export type BotTurn = {
@@ -110,6 +113,7 @@ export type RunRecord = {
   turns: BotTurn[];
   firstRunToolCalls: ToolCallRecord[];
   plan?: TaskPlan;
+  campaign?: { trace: { action: string; step?: string; reason?: string; at: string }[]; final?: import('../../src/monitor/campaign/model.js').CampaignState };
   /** The same task run as if it were tomorrow. Only the judge sees it. */
   secondResult?: { ok: boolean; markdown: string };
   facts: Facts;
@@ -131,4 +135,5 @@ export type RunSetManifest = {
   search?: boolean;
   personas: string[];
   repeat: number;
+  checkpoint?: { version: 1; file: string };
 };

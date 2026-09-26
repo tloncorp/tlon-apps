@@ -119,6 +119,7 @@ function renderChat(events: TranscriptEvent[]) {
       if (event.kind === 'leave') {
         return `<div class="msg meta">user left: ${escape(event.reason)}</div>`;
       }
+      if (event.kind === 'tip-ignored') return `<div class="msg meta">ignored ${escape(event.step)} tip</div>`;
       return `<div class="msg user">${escape(event.text)}${event.kind === 'pick' ? ' <span class="muted">(tapped)</span>' : ''}</div>`;
     }
     if (event.from === 'system') {
@@ -128,6 +129,7 @@ function renderChat(events: TranscriptEvent[]) {
       if (event.kind === 'task-change') {
         return `<div class="msg meta">scheduled task ${escape(event.action)}</div>`;
       }
+      if (event.kind === 'campaign') return `<div class="msg meta">campaign ${escape(event.action)}${event.step ? ` ${escape(event.step)}` : ''}${event.reason ? ` (${escape(event.reason)})` : ''}</div>`;
       return event.ok
         ? `<div class="msg note"><div class="muted">First result in Updates</div>${escape(event.markdown)}</div>`
         : '<div class="msg meta bad">first run produced nothing</div>';
@@ -135,6 +137,8 @@ function renderChat(events: TranscriptEvent[]) {
     switch (event.kind) {
       case 'text':
         return `<div class="msg bot">${escape(event.text)}${event.source === 'coordinator' ? ' <span class="muted">(coordinator)</span>' : ''}</div>`;
+      case 'tip':
+        return `<div class="msg bot"><span class="muted">Onboarding tip ${escape(event.step)} · ${escape(event.at)}</span><br>${escape(event.text)}</div>`;
       case 'choice':
         return `<div class="msg bot">${escape(event.choice.question)}<div class="opts">${event.choice.options
           .map((option) => `<span class="opt">${escape(option)}</span>`)
@@ -195,7 +199,7 @@ function page(title: string, body: string) {
 }
 
 function manifestLine(manifest: RunSetManifest) {
-  return `<p class="muted">${escape(manifest.createdAt)} · ${escape(manifest.gitRev)}${manifest.gitDirty ? ' (uncommitted changes)' : ''} · bot ${escape(manifest.models.bot)} · user ${escape(manifest.models.user)} · judge ${escape(manifest.models.judge)}${manifest.variant ? ` · variant ${escape(manifest.variant)}` : ''}</p>`;
+  return `<p class="muted">${escape(manifest.createdAt)} · ${escape(manifest.gitRev)}${manifest.gitDirty ? ' (uncommitted changes)' : ''} · bot ${escape(manifest.models.bot)} · user ${escape(manifest.models.user)} · judge ${escape(manifest.models.judge)}${manifest.variant ? ` · variant ${escape(manifest.variant)}` : ''} · ${manifest.checkpoint ? 'frozen prompt checkpoint' : 'legacy live prompt sources'}</p>`;
 }
 
 export function renderRunSetReport(

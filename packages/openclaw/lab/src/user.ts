@@ -13,10 +13,15 @@ export function renderForUser(events: TranscriptEvent[]): string {
   for (const event of events) {
     if (event.from === 'user') {
       if (event.kind === 'leave') continue;
+      if (event.kind === 'tip-ignored') {
+        lines.push(`(You ignored the ${event.step} tip.)`);
+        continue;
+      }
       lines.push(`You: ${event.text}`);
       continue;
     }
     if (event.from === 'system') {
+      if (event.kind === 'campaign' && event.action === 'opted-out') lines.push('(Onboarding tips stopped.)');
       if (event.kind === 'first-result' && event.ok) {
         lines.push(
           `(A new note appeared in your Updates notebook:)\n${event.markdown}`
@@ -27,6 +32,9 @@ export function renderForUser(events: TranscriptEvent[]): string {
     switch (event.kind) {
       case 'text':
         lines.push(`Tlonbot: ${event.text}`);
+        break;
+      case 'tip':
+        lines.push(`Tlonbot (onboarding tip): ${event.text}`);
         break;
       case 'choice':
         lines.push(
@@ -74,7 +82,7 @@ function personaBrief(persona: Persona) {
     .join('\n');
 }
 
-const RULES = `You are role-playing a person using a chat app. They are talking to the app's built-in assistant, Tlonbot, for the first time. Stay fully in character. You are not an AI, you are not testing anything, and you never mention either.
+export const USER_RULES = `You are role-playing a person using a chat app. They are talking to the app's built-in assistant, Tlonbot, for the first time. Stay fully in character. You are not an AI, you are not testing anything, and you never mention either.
 
 Rules:
 - Reply with one chat message, the way this person would actually type it.
@@ -84,6 +92,9 @@ Rules:
 - Product and model names you don't recognize may simply be newer than you are. Don't assume they are made up.
 Return only JSON: {"thought": "<one private sentence>", "action": "pick" | "type" | "leave", "text": "<button text or your message; for leave, why>"}`;
 
+export const TIP_MOVE_RULES = 'A later onboarding tip just arrived. Choose honestly: ignore it, reply with one ordinary message, or opt out of tips. Return only JSON: {"action":"ignore"|"reply"|"opt-out","text":"message if replying"}.';
+export const KEEP_RULES = 'You are this person, looking back on a chat you just had with the Tlonbot assistant in a messaging app. Answer honestly, as this person would, not as a polite reviewer. Return only JSON: {"keep": true | false, "why": "<one or two sentences in your own voice>"}';
+
 export async function nextUserMove(input: {
   persona: Persona;
   events: TranscriptEvent[];
@@ -92,6 +103,7 @@ export async function nextUserMove(input: {
   lastOptions?: string[];
   /** Extra direction for this one move. */
   nudge?: string;
+  policy?: string;
 }): Promise<UserMove> {
   const { persona, events, config, meter } = input;
   const reply = await chatJson<{ action?: string; text?: string }>({
@@ -101,7 +113,7 @@ export async function nextUserMove(input: {
     maxTokens: 800,
     meter,
     messages: [
-      { role: 'system', content: `${RULES}\n\n${personaBrief(persona)}` },
+      { role: 'system', content: `${input.policy ?? USER_RULES}\n\n${personaBrief(persona)}` },
       {
         role: 'user',
         content: `The chat so far:\n\n${renderForUser(events)}\n\n${input.nudge ? `${input.nudge}\n\n` : ''}What do you do next?`,
@@ -119,11 +131,37 @@ export async function nextUserMove(input: {
   return { action: 'type', text: text || '?' };
 }
 
+/** A later campaign message can be ignored without ending the persona run. */
+export async function nextTipMove(input: {
+  persona: Persona;
+  events: TranscriptEvent[];
+  config: LabConfig;
+  meter: CostMeter;
+  policy?: string;
+  tipPolicy?: string;
+}): Promise<{ action: 'ignore' | 'reply' | 'opt-out'; text?: string }> {
+  const reply = await chatJson<{ action?: string; text?: string }>({
+    key: input.config.openrouterKey,
+    model: input.config.models.user,
+    temperature: 0.5,
+    maxTokens: 500,
+    meter: input.meter,
+    messages: [
+      { role: 'system', content: `${input.policy ?? USER_RULES}\n\n${personaBrief(input.persona)}\n\n${input.tipPolicy ?? TIP_MOVE_RULES}` },
+      { role: 'user', content: renderForUser(input.events) },
+    ],
+  });
+  if (reply.action === 'opt-out') return { action: 'opt-out', text: '/stop-tips' };
+  if (reply.action === 'reply' && reply.text?.trim()) return { action: 'reply', text: reply.text.trim() };
+  return { action: 'ignore' };
+}
+
 export async function keepVerdict(input: {
   persona: Persona;
   events: TranscriptEvent[];
   config: LabConfig;
   meter: CostMeter;
+  policy?: string;
 }): Promise<KeepVerdict> {
   const reply = await chatJson<{ keep?: boolean; why?: string }>({
     key: input.config.openrouterKey,
@@ -134,7 +172,7 @@ export async function keepVerdict(input: {
     messages: [
       {
         role: 'system',
-        content: `You are this person, looking back on a chat you just had with the Tlonbot assistant in a messaging app.\n\n${personaBrief(input.persona)}\n\nAnswer honestly, as this person would, not as a polite reviewer. Return only JSON: {"keep": true | false, "why": "<one or two sentences in your own voice>"}`,
+        content: `${input.policy ?? KEEP_RULES}\n\n${personaBrief(input.persona)}`,
       },
       {
         role: 'user',

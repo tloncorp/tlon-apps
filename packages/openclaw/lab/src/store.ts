@@ -8,12 +8,14 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { parse } from 'yaml';
+import { writeCheckpoint } from './checkpoint.js';
 import {
   type LabConfig,
   PERSONAS_DIR,
   PLUGIN_DIR,
   type PromptSources,
   REPO_ROOT,
+  RUBRIC_PATH,
   RUNS_DIR,
   sha256,
 } from './config.js';
@@ -54,6 +56,9 @@ export function createRunSet(input: {
   variant?: string;
   personas: Persona[];
   repeat: number;
+  maxTurns: number;
+  judge: boolean;
+  tips: number;
 }): { dir: string; manifest: RunSetManifest } {
   const stamp = new Date()
     .toISOString()
@@ -67,6 +72,7 @@ export function createRunSet(input: {
     ...input.sources.skills,
     ...(input.sources.coordinator ? [input.sources.coordinator] : []),
     ...Object.values(input.sources.prompts),
+    ...Object.values(input.sources.resources),
   ];
   const manifest: RunSetManifest = {
     label: input.label,
@@ -84,6 +90,17 @@ export function createRunSet(input: {
     search: input.config.search,
     personas: input.personas.map((persona) => persona.id),
     repeat: input.repeat,
+    checkpoint: writeCheckpoint(dir, {
+      models: input.config.models,
+      search: input.config.search,
+      maxTurns: input.maxTurns,
+      judge: input.judge,
+      tips: input.tips,
+      sources: input.sources,
+      personas: input.personas,
+      personaCards: Object.fromEntries(input.personas.map((persona) => [persona.id, readFileSync(path.join(PERSONAS_DIR, `${persona.id}.yaml`), 'utf8')])),
+      rubric: readFileSync(RUBRIC_PATH, 'utf8'),
+    }),
   };
   writeFileSync(
     path.join(dir, 'manifest.json'),
