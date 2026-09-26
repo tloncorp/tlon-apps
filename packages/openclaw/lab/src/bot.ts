@@ -22,7 +22,6 @@ import { agentChoiceToolMetadata } from '../../src/agent-choice-tool.js';
 import { agentServiceSetupToolMetadata } from '../../src/agent-service-setup-tool.js';
 import { agentTaskPlanToolMetadata } from '../../src/agent-task-plan-tool.js';
 import { resolveSilentFailureNotice } from '../../src/silent-failure-notice.js';
-import { isSupersededToolOutcome } from '../../src/superseded-turn.js';
 import type { TlonAgentTurnSummary } from '../../src/turn-recorder.js';
 import { type ChatMessage, type CostMeter, chat } from './openrouter.js';
 import { type LabTool, executeTool, labTools } from './tools.js';
@@ -77,7 +76,6 @@ export class BotSession {
   /** A new owner message, as the plugin records it for its turn guards. */
   private ownerSpoke(onboardingActive: boolean, text: string) {
     setTlonSessionSurface(this.sessionKey, {
-      ownerText: text,
       kind: 'direct',
       senderRole: 'owner',
       channelNest: OWNER_SHIP,
@@ -223,6 +221,7 @@ export class BotSession {
           });
         }
         if (reply.toolCalls.length) {
+          let ended = true;
           for (const call of reply.toolCalls) {
             let args: Record<string, unknown>;
             try {
@@ -242,10 +241,15 @@ export class BotSession {
               tool_call_id: call.id,
               content: record.result,
             });
+            ended &&= Boolean(record.terminate);
           }
-          continue;
+          // OpenClaw asks the model again unless every result in the batch
+          // ends the turn.
+          if (!ended) continue;
         }
-        const text = reply.content?.trim() ?? '';
+        const text = reply.toolCalls.length
+          ? ''
+          : (reply.content?.trim() ?? '');
         const visible = () =>
           events.some(
             (event) =>
@@ -327,15 +331,9 @@ function silentFailureNotice(
   delivered: boolean,
   finalText: string
 ) {
-  const superseded = calls.some(
-    (call) =>
-      call.superseded || isSupersededToolOutcome({ errorMessage: call.result })
-  );
+  const superseded = calls.some((call) => call.superseded);
   const failed = calls.filter(
-    (call) =>
-      (call.error || call.blocked) &&
-      !call.superseded &&
-      !isSupersededToolOutcome({ errorMessage: call.result })
+    (call) => (call.error || call.blocked) && !call.superseded
   );
   const last = failed.at(-1);
   const notice = resolveSilentFailureNotice({
