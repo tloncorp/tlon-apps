@@ -90,6 +90,17 @@ function text(content: unknown): string {
   return '';
 }
 
+/** OpenClaw reports failures as `{"status": "error", ...}` or plain errors. */
+function isToolError(result: string) {
+  const trimmed = result.trim();
+  if (/^error\b/i.test(trimmed)) return true;
+  try {
+    return (JSON.parse(trimmed) as { status?: string }).status === 'error';
+  } catch {
+    return false;
+  }
+}
+
 /** The model's tool calls in these exchanges, paired with their results. */
 export function toolCallsFrom(exchanges: ModelExchange[]): ToolCallRecord[] {
   const results = new Map<string, string>();
@@ -119,9 +130,7 @@ export function toolCallsFrom(exchanges: ModelExchange[]): ToolCallRecord[] {
         args,
         result,
         ...(/blocked/i.test(result.slice(0, 200)) ? { blocked: true } : {}),
-        ...(/^(error|\{"status":"error")/i.test(result.trim())
-          ? { error: true }
-          : {}),
+        ...(isToolError(result) ? { error: true } : {}),
       };
     })
   );
