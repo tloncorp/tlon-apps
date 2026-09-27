@@ -25,9 +25,54 @@ import { type LabStack, SANDBOX_BOT } from './stack.js';
 // same grading) so the two kinds of run can be compared line for line.
 
 const FIRST_ENTRY_MARKERS = ['first-entry-ping', 'first-entry-failed'];
-// The coordinator paces its posts (up to a few seconds apart), so a bot is
-// only done once the model is idle and nothing has been posted for a while.
+// The coordinator paces its posts (up to a few seconds apart), so without
+// OpenClaw's own record the lab can only call the bot done once the model is
+// idle and nothing has been posted for a while.
 const QUIET_MS = 9000;
+// How long OpenClaw gets to log that an owner message reached it before the
+// lab falls back to waiting for quiet.
+const RECEIVE_MS = 45_000;
+// The plugin ends a turn, posting any warning, a few seconds after OpenClaw
+// has handled the message.
+const TERMINAL_MS = 15_000;
+// How long a closed turn's last post gets to reach the owner's ship.
+const DELIVERY_MS = 4000;
+
+/** What a gateway log line says about the owner's DM messages, if anything. */
+export function ownerMessageLogEvent(line: string, ownerShip: string) {
+  if (line.includes('tlon.agent_turn.terminal'))
+    return { kind: 'terminal' as const };
+  const match = new RegExp(
+    `message (received|processed): .*messageId=(${ownerShip}/\\S+)`
+  ).exec(line);
+  return match
+    ? { kind: match[1] as 'received' | 'processed', id: match[2] }
+    : undefined;
+}
+
+/**
+ * Which of the owner's DM messages OpenClaw has received and finished
+ * handling, read from the gateway log. A bot turn is over when every message
+ * sent in it is handled; a quiet window alone ends turns early whenever a
+ * tool call runs longer than the window.
+ */
+function followOwnerMessages(stack: LabStack, ownerShip: string) {
+  const received = new Set<string>();
+  const handled = new Set<string>();
+  let terminalAt = 0;
+  const stop = stack.followLogs((line) => {
+    const event = ownerMessageLogEvent(line, ownerShip);
+    if (event?.kind === 'terminal') terminalAt = Date.now();
+    else if (event)
+      (event.kind === 'received' ? received : handled).add(event.id);
+  });
+  return {
+    stop,
+    count: () => received.size,
+    pending: () => [...received].some((id) => !handled.has(id)),
+    terminalAt: () => terminalAt,
+  };
+}
 
 function planFromCard(post: BotPost): TaskPlan {
   const context = post.plan!.context as Record<string, unknown> & {
@@ -193,6 +238,18 @@ export async function runRealPersona(input: {
   let seen = 0;
   let lastChoice: BotPost | undefined;
   let lastPlan: BotPost | undefined;
+  let messages: ReturnType<typeof followOwnerMessages> | undefined;
+
+  const collect = async (into: BotPost[]) => {
+    const posts = await owner.botPostsAfter(seen);
+    for (const post of posts) {
+      seen = Math.max(seen, post.seq);
+      into.push(post);
+      if (post.choice) lastChoice = post;
+      if (post.plan) lastPlan = post;
+    }
+    return posts.length;
+  };
 
   /** Collect bot posts until the bot has gone quiet, or `until` is met. */
   const settle = async (
@@ -203,20 +260,60 @@ export async function runRealPersona(input: {
     let lastPost = Date.now();
     while (Date.now() - started < (options.maxMs ?? 240_000)) {
       await new Promise((resolve) => setTimeout(resolve, 1500));
-      const posts = await owner.botPostsAfter(seen);
-      for (const post of posts) {
-        seen = Math.max(seen, post.seq);
-        lastPost = Date.now();
-        collected.push(post);
-        if (post.choice) lastChoice = post;
-        if (post.plan) lastPlan = post;
-      }
+      if (await collect(collected)) lastPost = Date.now();
       if (options.until && collected.some(options.until)) break;
       if (
         !options.until &&
         Date.now() - started > 4000 &&
         Date.now() - lastPost >= QUIET_MS &&
         proxy.idle(QUIET_MS)
+      ) {
+        break;
+      }
+    }
+    return collected;
+  };
+
+  /**
+   * Collect the bot's posts for a turn in which the owner sent `sent`
+   * messages, until OpenClaw has handled all of them and the plugin has
+   * closed the turn.
+   */
+  const settleTurn = async (sent: number, before: number) => {
+    const log = messages!;
+    const collected: BotPost[] = [];
+    const started = Date.now();
+    let lastPost = Date.now();
+    let handledAt = 0;
+    let closedAt = 0;
+    while (Date.now() - started < 240_000) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      if (await collect(collected)) lastPost = Date.now();
+      const arrived = log.count() - before;
+      if (!arrived) {
+        if (
+          Date.now() - started > RECEIVE_MS &&
+          Date.now() - lastPost >= QUIET_MS &&
+          proxy.idle(QUIET_MS)
+        ) {
+          break;
+        }
+        continue;
+      }
+      if (arrived < sent || log.pending()) {
+        handledAt = 0;
+        closedAt = 0;
+        continue;
+      }
+      handledAt ||= Date.now();
+      const closed =
+        log.terminalAt() >= handledAt - 1000 ||
+        Date.now() - handledAt > TERMINAL_MS;
+      if (!closed) continue;
+      closedAt ||= Date.now();
+      if (
+        Date.now() - closedAt >= DELIVERY_MS &&
+        Date.now() - lastPost >= DELIVERY_MS
       ) {
         break;
       }
@@ -231,6 +328,7 @@ export async function runRealPersona(input: {
     then?: string;
   }) => {
     const turnStart = new Date();
+    const before = messages!.count();
     lastPlan = undefined;
     if (move.action === 'pick' && lastChoice) {
       await owner.pick(lastChoice, move.text);
@@ -246,7 +344,7 @@ export async function runRealPersona(input: {
       await owner.type(move.then);
       transcript.push({ from: 'user', kind: 'type', text: move.then });
     }
-    const posts = await settle();
+    const posts = await settleTurn(move.then ? 2 : 1, before);
     const events: TranscriptEvent[] = posts.length
       ? posts.map(toEvent)
       : [{ from: 'bot', kind: 'silent' }];
@@ -262,6 +360,7 @@ export async function runRealPersona(input: {
 
   try {
     await stack.reset(sources);
+    messages = followOwnerMessages(stack, stack.owner().shipName);
     seen = await owner.latestSeq();
     await owner.furnish();
     const welcome = await settle({ maxMs: 90_000 });
@@ -379,6 +478,7 @@ export async function runRealPersona(input: {
     ending = 'bot-error';
     error = caught instanceof Error ? caught.message : String(caught);
   } finally {
+    messages?.stop();
     owner.close();
   }
 

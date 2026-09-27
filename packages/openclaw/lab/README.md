@@ -35,7 +35,8 @@ runs the same personas against the actual bot in a local sandbox.
 **Fast mode** (the default) drives the bot model directly: a few cents and
 under a minute per persona, many in parallel. **Real mode** (`--real`) runs
 the same personas against the actual OpenClaw bot in a local sandbox: minutes
-per persona, one at a time, but nothing is imitated on the bot's side.
+per persona, one at a time per sandbox, but nothing is imitated on the bot's
+side.
 
 ### Fast mode is calibrated from real runs
 
@@ -83,6 +84,18 @@ creates the onboarding group and notebook, sends the intro request, taps
 picker options, and submits the plan card the way the app does. Every blob it
 sends is checked with the app's own parser. Plugin and desk changes must be
 committed, because the sandbox loads the plugin from git.
+
+A bot turn ends when OpenClaw's log shows it has handled every message the
+owner sent in that turn and the plugin has closed the turn, not after a quiet
+spell: a slow tool call can outlast any quiet window, and under load that used
+to cut turns short and record replies as silence.
+
+`--sandboxes N` runs a set on N sandboxes at once (`onboarding-lab`,
+`onboarding-lab-2`, … on ports 100 apart, each with its own recording proxy).
+Two roughly doubled throughput with CPU and memory to spare. Each new sandbox
+needs about 4.5 GB of disk, and the lab won't create one with less than 6 GB
+free. Other Docker work on the machine, such as a busy `dev` stack, slows every
+sandbox.
 
 ### Measuring the gap
 
