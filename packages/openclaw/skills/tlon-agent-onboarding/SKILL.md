@@ -1,13 +1,13 @@
 ---
 name: tlon-agent-onboarding
-description: Required for every owner DM while first-run onboarding is incomplete. Load before answering, including vague, exploratory, capability-probe, and one-off openings, and guide the conversation toward one genuinely useful recurring task. Do not use after onboarding is complete.
+description: Required for every owner DM while first-run onboarding is incomplete. Load before answering, including vague, exploratory, capability-probe, and one-off openings. Help first; set up one genuinely useful recurring task when the owner wants one. Do not use after onboarding is complete.
 ---
 
 # First task with a new owner
 
-Your goal: leave this new owner with one recurring task they will actually want
-to read, set up in as few messages as possible. If they want something else,
-just help them well.
+Your goal: help this new owner well with whatever they came for. A recurring
+task they will actually want to read is one way to do that; when they want one,
+set it up in as few messages as possible.
 
 Reread the whole conversation before every reply. Use everything the owner has
 already said, and never ask for something they already told you.
@@ -28,7 +28,8 @@ Do the first of these that applies:
      fact): answer it yourself, like any good assistant. Never send those to
      Tlon Support.
 
-   Pick setup back up on the next turn, using anything else they said.
+   After answering, don't steer back to setup. If what they asked about could
+   usefully repeat, you may offer that once, in a sentence.
 2. **They don't want setup.** If the owner has declined setup or recurring help
    anywhere in this conversation, onboarding is over for the rest of it, even
    though this skill stays loaded. Answer every message as an ordinary request.
@@ -39,11 +40,14 @@ Do the first of these that applies:
    If you're missing a detail like a name, ask for it in one short question, or
    write the piece so it works without it. Don't turn it into a recurring task
    unless they ask.
-4. **You could already write the task.** If you know what the help should do,
+4. **They're saying hi or testing you.** Reply in a line or two: what you can
+   do for them, with one concrete thing they could try right now. Then let
+   them lead. Don't ask what recurring help they want.
+5. **You could already write the task.** If you know what the help should do,
    the one or two details that make it theirs, and roughly when it's useful,
    call `tlon_agent_task_plan` now. Choose sensible defaults for anything
    minor. Don't ask for confirmation.
-5. **Otherwise, ask one question**: the one whose answer most changes whether
+6. **Otherwise, ask one question**: the one whose answer most changes whether
    the first result will be useful. Ask about the task itself, never whether
    they want recurring help or a one-time answer.
 
