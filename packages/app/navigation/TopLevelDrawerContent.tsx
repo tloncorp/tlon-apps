@@ -36,7 +36,6 @@ import {
   XStack,
   YStack,
   getTokenValue,
-  isWeb,
   useTheme,
 } from 'tamagui';
 
@@ -273,18 +272,6 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
     () => onPressSettings?.(chat),
     [chat, onPressSettings]
   );
-  // A native screen reader treats the row as one element and never reaches
-  // the gear inside it, so the row offers what the gear does as an action of
-  // its own. The web has no such action, and reaches the gear as the element
-  // of its own it is there.
-  const handleAccessibilityAction = useCallback(
-    (event: { nativeEvent: { actionName: string } }) => {
-      if (event.nativeEvent.actionName === 'openSettings') {
-        onPressSettings?.(chat);
-      }
-    },
-    [chat, onPressSettings]
-  );
   const leading = useMemo(
     () => getDrawerChatLeading(chat, pinned),
     [chat, pinned]
@@ -321,16 +308,6 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
         selected,
         ...(unfurls ? { expanded: unfurled } : {}),
       }}
-      // Left off entirely on web, where the DOM would be handed them as
-      // attributes it does not know.
-      {...(showsSettings && !isWeb
-        ? {
-            accessibilityActions: [
-              { name: 'openSettings', label: GROUP_SETTINGS_LABEL },
-            ],
-            onAccessibilityAction: handleAccessibilityAction,
-          }
-        : {})}
       testID={`TopLevelDrawerChat-${chat.id}`}
       borderTopLeftRadius="$l"
       borderTopRightRadius="$l"
