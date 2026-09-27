@@ -188,6 +188,10 @@ A group DM is a DM with several people in it. It has its own members and its own
 
 To send a DM: on the Workspaces tab, tap the plus icon at the top right, tap `New Message`, and pick who it's going to. The chat opens as soon as you pick them.
 
+### Mute a chat
+
+Long-press a chat in your list, tap `Chat notifications` (for a DM), `Group notifications` (for a group) or `Channel notifications` (for one channel in a group), and choose `Nothing`. That works for your bot's DM too. To silence the whole app instead, use your phone's notification settings.
+
 ---
 
 ## 6. Tlonbot
