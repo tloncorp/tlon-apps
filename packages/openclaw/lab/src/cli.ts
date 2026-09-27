@@ -56,7 +56,7 @@ const USAGE = `Onboarding lab: simulated users against the real onboarding skill
 
 Options:
   --personas a,b      persona ids or set names from personas/sets.yaml
-                      (default: the `default` set)
+                      (default: the "default" set)
   --repeat N          runs per persona (default: 1 for run, 3 for ab)
   --variant DIR       folder of edited SKILL.md and/or tlonbot prompt files
   --label NAME        run set name (default: baseline or the variant folder)
