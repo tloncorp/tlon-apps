@@ -102,6 +102,10 @@ export function RootStack() {
         component={TopLevelNavigator}
         options={{
           ...nativeHeaderScreenOptions,
+          // The header is up before any section has installed its own title
+          // (the bot DM draws nothing until its channel loads), and native
+          // stack titles an untitled header with the route name.
+          title: '',
           animation: 'none',
           gestureEnabled: false,
         }}
