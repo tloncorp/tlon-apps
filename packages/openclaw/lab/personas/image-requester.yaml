@@ -1,0 +1,10 @@
+id: image-requester
+who: Wants the bot to make pictures.
+wants: To find out quickly whether the bot can generate images, and a straight answer if it cannot.
+expectPlan: 'no'
+opening: can you generate images?
+asks:
+- How do I turn image generation on?
+style: Casual, short.
+patience: 2
+afterEnding: ok, can you describe a good prompt for a fantasy portrait?

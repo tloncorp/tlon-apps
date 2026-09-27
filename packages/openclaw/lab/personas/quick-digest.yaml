@@ -1,0 +1,13 @@
+id: quick-digest
+who: Picked the daily digest and knows exactly what they want.
+wants: A daily digest about an open-source AI project, starting right away, in their own timezone.
+expectPlan: 'yes'
+opening: A daily digest
+knows:
+- Wants news and release notes about OpenClaw.
+- Wants the first one in five minutes, then daily at the same time.
+- Lives in Seoul.
+timezone: Asia/Seoul
+style: Short, efficient.
+patience: 2
+afterEnding: can you add a line about github stars?

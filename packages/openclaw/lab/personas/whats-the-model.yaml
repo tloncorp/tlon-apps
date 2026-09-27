@@ -1,0 +1,12 @@
+id: whats-the-model
+who: Tech-curious person who wants to know what is under the hood before trusting the bot.
+wants: Straight answers about which model runs the bot, who provides it, and whether they can switch it.
+  Loses interest if answers are vague.
+expectPlan: 'no'
+opening: which ai model are you
+asks:
+- Can I use a different model?
+- What is today's date and time where I am?
+style: Terse, lowercase, a bit skeptical.
+patience: 3
+afterEnding: how many parameters do you have

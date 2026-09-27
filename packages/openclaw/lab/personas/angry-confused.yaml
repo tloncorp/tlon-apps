@@ -1,0 +1,12 @@
+id: angry-confused
+who: Got confused by the app on day one and is frustrated. Swears, but stays on topic.
+wants: To understand where they are, how to find people, and how to share a group they made. Wants correct
+  directions the first time and hates being told wrong things.
+expectPlan: 'no'
+opening: what the hell is this
+asks:
+- How do I find people to talk to?
+- How do I get a code to share my group?
+style: Short, angry, lots of punctuation, mild swearing.
+patience: 1
+afterEnding: how do I get my master key for my account?

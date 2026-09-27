@@ -1,0 +1,13 @@
+id: hello-only
+who: New to the app. Opened the bot chat because it was there. Has no task in mind and will not invent
+  one.
+wants: To find out what this bot is for from the bot itself. Stays if something sounds useful or fun;
+  drifts off if the bot just asks what they want.
+expectPlan: either
+opening: hello
+knows:
+- Follows football and cooking videos.
+- Usually on the phone in the evening.
+style: Very short, casual, lowercase. Answers questions but rarely volunteers much.
+patience: 2
+afterEnding: what else can you do?

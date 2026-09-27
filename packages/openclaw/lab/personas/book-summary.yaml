@@ -1,0 +1,8 @@
+id: book-summary
+who: Student who wants one thing explained.
+wants: A good summary of book 2 of Plato's Republic. Not interested in anything recurring.
+expectPlan: 'no'
+opening: Summarize book 2 of Plato's Republic
+style: Direct, one line at a time.
+patience: 1
+afterEnding: what are the main counterarguments?
