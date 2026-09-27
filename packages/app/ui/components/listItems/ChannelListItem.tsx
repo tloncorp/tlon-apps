@@ -123,14 +123,6 @@ export function ChannelListItem({
     onLongPress?.(model);
   });
 
-  const subtitleIcon = useMemo(() => {
-    if (model.type === 'dm' || model.type === 'groupDm') {
-      return memberCount > 2 ? 'ChannelMultiDM' : 'ChannelDM';
-    } else {
-      return utils.getChannelTypeIcon(model.type);
-    }
-  }, [model, memberCount]);
-
   const isFocused = useNavigation().focusedChannelId === model.id;
   const groupTitle = utils.useGroupTitle(model.group);
   const isDmType = model.type === 'dm' || model.type === 'groupDm';
@@ -190,7 +182,7 @@ export function ChannelListItem({
               <NotesChannelSubtitle channel={model} />
             ) : (model.type === 'dm' || model.type === 'groupDm') &&
               utils.hasNickname(model.members?.[0]?.contact) ? (
-              <ListItem.SubtitleWithIcon icon={subtitleIcon}>
+              <ListItem.Subtitle>
                 <ContactName
                   contactId={firstMemberId}
                   mode="contactId"
@@ -207,7 +199,7 @@ export function ChannelListItem({
                   </>
                 )}
                 {memberCount > 3 && ` and ${memberCount - 1} others`}
-              </ListItem.SubtitleWithIcon>
+              </ListItem.Subtitle>
             ) : null}
             {model.lastPost && !model.isDmInvite && (
               <ListItem.PostPreview
