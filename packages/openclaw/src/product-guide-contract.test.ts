@@ -8,20 +8,20 @@ const guide = readFileSync(
 );
 
 describe('Tlon product guide contracts', () => {
-  it('distinguishes the hosted ChatGPT subscription flow from API-key billing', () => {
+  it('distinguishes hosted subscriptions from API-key billing', () => {
     const frontmatter = guide.match(/^---\n([\s\S]*?)\n---/)?.[1];
     expect(frontmatter).toContain(
-      "A hosted Tlonbot can use models included with a ChatGPT subscription through Tlon's first-class sign-in flow"
+      "A hosted Tlonbot can use models included with a ChatGPT, Claude or Grok subscription through Tlon's own connection flow"
     );
     expect(frontmatter).toContain(
       'this is not generic API or OpenRouter billing'
     );
-    expect(guide).toContain('`Bot Settings` → `ChatGPT subscription`');
     expect(guide).toContain(
-      'chooses one of the models included with that subscription for Tlonbot'
+      '`Provider subscriptions` covers ChatGPT, Claude and Grok'
     );
+    expect(guide).toContain('run `claude setup-token` in Claude Code');
     expect(guide).toContain(
-      'ChatGPT subscription access and an OpenAI API key are alternatives'
+      'A subscription and an API key for the same provider are alternatives'
     );
     expect(guide).toContain(
       "don't substitute generic OpenClaw or OpenRouter billing advice"
