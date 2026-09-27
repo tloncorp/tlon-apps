@@ -19,6 +19,8 @@ export type DrawerRow =
       /** Whether this row unfurls its channels instead of navigating. */
       unfurls: boolean;
       unfurled: boolean;
+      /** In the pinned section at the top of its tab. */
+      pinned: boolean;
     }
   | {
       kind: 'channel';
@@ -130,32 +132,25 @@ export function chatRowHasUnread(chat: db.Chat): boolean {
   if (chat.type !== 'group' || chat.isPending) {
     return false;
   }
-  return readableChannels(chat.group).some((channel) =>
-    channelRowHasUnread(channel, true)
+  return readableChannels(chat.group).some(
+    (channel) => channelHoldsUnread(channel) && channelIsHeard(channel, true)
   );
 }
 
+function channelHoldsUnread(channel: db.Channel): boolean {
+  return (channel.unread?.count ?? 0) > 0 || (channel.unread?.notify ?? false);
+}
+
 /**
- * Whether a channel's row lights its unread dot.
- *
- * The same contract the chat rows keep: a chat the user asked not to be drawn
- * back to keeps its count on the workspace list, where counts are read
- * deliberately, and lights nothing in the panel.
+ * Whether the user still hears a channel of a workspace.
  *
  * A channel's own setting is an override rather than something the workspace's
  * is read alongside — `getChannelVolumeSetting` returns it and stops, and only
  * a channel that has none falls back to what encloses it. So a workspace set to
  * `hush` with one channel turned back up is a workspace the user still hears
- * that one channel from, and its row has to say so.
+ * that one channel from.
  */
-export function channelRowHasUnread(
-  channel: db.Channel,
-  groupMuted: boolean
-): boolean {
-  const notified = channel.unread?.notify ?? false;
-  if ((channel.unread?.count ?? 0) <= 0 && !notified) {
-    return false;
-  }
+function channelIsHeard(channel: db.Channel, groupMuted: boolean): boolean {
   const ownLevel = channel.volumeSettings?.level;
   if (ownLevel) {
     return !logic.isMuted(ownLevel, 'channel');
@@ -164,8 +159,32 @@ export function channelRowHasUnread(
 }
 
 /**
+ * What a channel's row says about its unread: nothing, the grey dot, or the
+ * accent one.
+ *
+ * Unlike a chat row, a channel row speaks for a muted channel too. It is only
+ * on screen once the user has opened its workspace to look inside, which is
+ * reading deliberately — the reason the workspace list keeps a muted chat's
+ * count — so it is bold with the grey dot, as an unread that does not alert
+ * is. Only a notified unread in a channel the user still hears takes the
+ * accent.
+ */
+export function channelRowUnread(
+  channel: db.Channel,
+  groupMuted: boolean
+): 'none' | 'quiet' | 'notified' {
+  if (!channelHoldsUnread(channel)) {
+    return 'none';
+  }
+  return (channel.unread?.notify ?? false) &&
+    channelIsHeard(channel, groupMuted)
+    ? 'notified'
+    : 'quiet';
+}
+
+/**
  * The drawer's chats, with the channels of the unfurled workspace laid out
- * beneath it.
+ * beneath it. `pinned` marks each chat row as one of its tab's pinned section.
  *
  * A channel's key is qualified by its workspace rather than being the channel's
  * own id, because a channel pinned out of a group is already a chat row of this
@@ -174,7 +193,8 @@ export function channelRowHasUnread(
  */
 export function getDrawerRows(
   chats: db.Chat[],
-  unfurledGroupId: string | null
+  unfurledGroupId: string | null,
+  pinned = false
 ): DrawerRow[] {
   const rows: DrawerRow[] = [];
   for (const chat of chats) {
@@ -188,6 +208,7 @@ export function getDrawerRows(
       chat,
       unfurls: rowUnfurls,
       unfurled,
+      pinned,
     });
     const channels = unfurled ? getUnfurlableChannels(chat) : null;
     if (!channels) {

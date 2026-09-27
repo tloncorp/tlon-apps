@@ -93,32 +93,35 @@ export function getUnreadDrawerFilters(
   return DRAWER_FILTERS.filter((filter) => unread.has(filter));
 }
 
+export type DrawerTabChats = { pinned: db.Chat[]; unpinned: db.Chat[] };
+
 /**
- * The chats the drawer lists under a tab, newest first.
+ * The chats the drawer lists under a tab: the ones the user pinned, in the
+ * order they arranged them, and then everything else, newest first.
  *
  * Membership echoes the workspace list — the same groups and direct messages,
  * bar the one the footer already carries — cut by whichever tab is showing.
- * Order does not: that screen keeps its three buckets apart, pinned chats at
- * the top in the order the user arranged them and invites in their own
- * section, because it is where those distinctions are acted on. Here the
- * buckets are flattened and the only thing that orders the list is when each
- * chat last saw activity.
+ * Pinned chats keep their own section at the top of each tab, as they do at
+ * the top of that list. The rest are flattened, invites included, and the only
+ * thing that orders them is when each chat last saw activity.
  */
 export function getDrawerChats(
   chats: db.GroupedChats | null | undefined,
   filter: DrawerFilter,
   excludeChannelId?: string
-): db.Chat[] {
+): DrawerTabChats {
   if (!chats) {
-    return [];
+    return { pinned: [], unpinned: [] };
   }
-  return allChats(chats)
-    .filter(
-      (chat) =>
-        isDrawerChat(chat, excludeChannelId) &&
-        chatMatchesDrawerFilter(chat, filter)
-    )
-    .sort((a, b) => b.timestamp - a.timestamp);
+  const inTab = (chat: db.Chat) =>
+    isDrawerChat(chat, excludeChannelId) &&
+    chatMatchesDrawerFilter(chat, filter);
+  return {
+    pinned: chats.pinned.filter(inTab),
+    unpinned: [...chats.unpinned, ...chats.pending]
+      .filter(inTab)
+      .sort((a, b) => b.timestamp - a.timestamp),
+  };
 }
 
 /**
@@ -148,7 +151,34 @@ export function getDrawerSearchChats(
  */
 export type DrawerListRow =
   | DrawerRow
-  | { kind: 'heading'; key: string; filter: DrawerFilter };
+  | { kind: 'heading'; key: string; label: string };
+
+/**
+ * A tab's rows: its pinned section under its own heading, then the rest.
+ *
+ * The rest is headed too, but only below a pinned section. There it says where
+ * the section ends and why the order changes — from the user's arrangement to
+ * recency — and with nothing pinned there is no section for it to close.
+ */
+export function getDrawerTabRows(
+  chats: DrawerTabChats,
+  unfurledGroupId: string | null
+): DrawerListRow[] {
+  const unpinned = getDrawerRows(chats.unpinned, unfurledGroupId);
+  if (!chats.pinned.length) {
+    return unpinned;
+  }
+  return [
+    { kind: 'heading', key: 'heading:pinned', label: 'Pinned' },
+    ...getDrawerRows(chats.pinned, unfurledGroupId, true),
+    ...(unpinned.length
+      ? [
+          { kind: 'heading', key: 'heading:recent', label: 'Recent' } as const,
+          ...unpinned,
+        ]
+      : []),
+  ];
+}
 
 /**
  * A search's results, cut back into the two halves the tabs would have shown
@@ -172,7 +202,11 @@ export function getDrawerSearchRows(
       return [];
     }
     return [
-      { kind: 'heading', key: `heading:${filter}`, filter },
+      {
+        kind: 'heading',
+        key: `heading:${filter}`,
+        label: DRAWER_FILTER_LABELS[filter],
+      },
       ...getDrawerRows(matches, unfurledGroupId),
     ];
   });

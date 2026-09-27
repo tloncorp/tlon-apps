@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   channelRecency,
-  channelRowHasUnread,
+  channelRowUnread,
   chatRowHasUnread,
   getDrawerRows,
   getUnfurlableChannels,
@@ -273,54 +273,62 @@ describe('getUnfurlableChannels, on channels the user cannot read', () => {
   });
 });
 
-describe('channelRowHasUnread', () => {
-  it('lights for a count, and for a notification without one', () => {
-    expect(channelRowHasUnread(channel('a', { count: 3 }), false)).toBe(true);
-    expect(channelRowHasUnread(channel('b', { notify: true }), false)).toBe(
-      true
+describe('channelRowUnread', () => {
+  it('takes the accent for a notification the user hears', () => {
+    expect(channelRowUnread(channel('a', { notify: true }), false)).toBe(
+      'notified'
+    );
+    expect(
+      channelRowUnread(channel('b', { count: 3, notify: true }), false)
+    ).toBe('notified');
+  });
+
+  it('is quiet for an unread that does not alert', () => {
+    expect(channelRowUnread(channel('c', { count: 3 }), false)).toBe('quiet');
+  });
+
+  it('says nothing with nothing unread', () => {
+    expect(channelRowUnread(channel('d'), false)).toBe('none');
+    expect(channelRowUnread(channel('e', { volume: 'hush' }), true)).toBe(
+      'none'
     );
   });
 
-  it('stays dark with nothing unread', () => {
-    expect(channelRowHasUnread(channel('c'), false)).toBe(false);
+  // Opened to be looked inside, a muted channel still says what it holds —
+  // in grey, whatever the unread would have done had it been heard.
+  it('is quiet for a hushed channel, notified or not', () => {
+    expect(
+      channelRowUnread(channel('f', { count: 3, volume: 'hush' }), false)
+    ).toBe('quiet');
+    expect(
+      channelRowUnread(channel('g', { notify: true, volume: 'hush' }), false)
+    ).toBe('quiet');
   });
 
-  it('stays dark for a hushed channel', () => {
-    expect(
-      channelRowHasUnread(channel('d', { count: 3, volume: 'hush' }), false)
-    ).toBe(false);
+  it('is quiet for a channel of a muted workspace that has no setting', () => {
+    expect(channelRowUnread(channel('h', { count: 3 }), true)).toBe('quiet');
+    expect(channelRowUnread(channel('i', { notify: true }), true)).toBe(
+      'quiet'
+    );
   });
 
   // `soft` mutes a group but not a channel, which is `isMuted`'s own split.
-  it('still lights for a channel set to soft', () => {
+  it('still takes the accent for a channel set to soft', () => {
     expect(
-      channelRowHasUnread(channel('e', { count: 3, volume: 'soft' }), false)
-    ).toBe(true);
-  });
-
-  it('stays dark for a channel of a muted workspace that has no setting', () => {
-    expect(channelRowHasUnread(channel('f', { count: 3 }), true)).toBe(false);
-    expect(channelRowHasUnread(channel('g', { notify: true }), true)).toBe(
-      false
-    );
+      channelRowUnread(channel('j', { notify: true, volume: 'soft' }), false)
+    ).toBe('notified');
   });
 
   // A channel's own setting replaces what encloses it rather than being read
   // alongside it, so a channel turned back up inside a muted workspace is one
   // the user still hears.
-  it('lights for a channel turned back up inside a muted workspace', () => {
+  it('takes the accent for a channel turned back up inside a muted workspace', () => {
     expect(
-      channelRowHasUnread(channel('h', { count: 3, volume: 'loud' }), true)
-    ).toBe(true);
+      channelRowUnread(channel('k', { notify: true, volume: 'loud' }), true)
+    ).toBe('notified');
     expect(
-      channelRowHasUnread(channel('i', { count: 3, volume: 'medium' }), true)
-    ).toBe(true);
-  });
-
-  it('stays dark for a channel hushed inside an unmuted workspace', () => {
-    expect(
-      channelRowHasUnread(channel('j', { count: 3, volume: 'hush' }), false)
-    ).toBe(false);
+      channelRowUnread(channel('l', { notify: true, volume: 'medium' }), true)
+    ).toBe('notified');
   });
 });
 
