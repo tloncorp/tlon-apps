@@ -492,6 +492,7 @@ export type TlonOnboardingCompletionPath =
   | 'app_tour_declined'
   | 'bot_tour_declined'
   | 'bot_tour_completed'
+  | 'first_day_elapsed'
   | 'first_entry_published';
 
 /**

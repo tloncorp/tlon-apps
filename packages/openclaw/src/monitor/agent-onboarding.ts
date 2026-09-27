@@ -34,6 +34,7 @@ import {
 } from '../urbit/api-client.js';
 import { type BotProfile, sendChannelPost } from '../urbit/send.js';
 import { markdownToStory } from '../urbit/story.js';
+import type { OnboardingRequestRef } from './onboarding-dm-state.js';
 import { ONBOARDING_JOB_NAME } from './onboarding-job.js';
 import {
   type AgentOnboardingRunRecord,
@@ -510,13 +511,13 @@ export { isDmNest };
  * DM, so the newest one the owner authored is the authoritative answer. Absent
  * until furnishing finishes, so callers retry rather than treating it as final.
  */
-export async function findOnboardingGroupIdInChannel(
+export async function findOnboardingRequestInChannel(
   context: Pick<
     AgentOnboardingScanContext,
     'api' | 'abortSignal' | 'channelNest' | 'ownerShip'
   >,
   deps: Pick<AgentOnboardingDeps, 'fetchHistory'> = {}
-): Promise<string | undefined> {
+): Promise<OnboardingRequestRef | undefined> {
   if (!context.ownerShip) return undefined;
   const history = await fetchOnboardingHistory(context, deps);
 
@@ -534,7 +535,11 @@ export async function findOnboardingGroupIdInChannel(
         request: Extract<AgentRequest, { type: 'tlon-agent-intro-request' }>;
       } => candidate.request?.type === 'tlon-agent-intro-request'
     )
-    .sort((a, b) => b.timestamp - a.timestamp)[0]?.request.groupId;
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .map(({ timestamp, request }) => ({
+      groupId: request.groupId,
+      requestedAt: timestamp,
+    }))[0];
 }
 
 export function parseAgentOnboardingRequest(

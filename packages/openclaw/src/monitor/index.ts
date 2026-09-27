@@ -149,7 +149,7 @@ import {
   createAgentOnboardingCatchUpScheduler,
   createAgentOnboardingReconciliationPresence,
   drainAgentOnboardingRuntime,
-  findOnboardingGroupIdInChannel,
+  findOnboardingRequestInChannel,
   parseAgentOnboardingRequest,
   handleAgentOnboardingRequest,
   isDmNest,
@@ -4169,12 +4169,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         // names the workspace it furnished; until it lands there is nothing to
         // reconcile, so fall through to the retry below.
         try {
-          groupId = await findOnboardingGroupIdInChannel({
-            api,
-            abortSignal: opts.abortSignal,
-            channelNest: nest,
-            ownerShip: effectiveOwnerShip,
-          });
+          groupId = (
+            await findOnboardingRequestInChannel({
+              api,
+              abortSignal: opts.abortSignal,
+              channelNest: nest,
+              ownerShip: effectiveOwnerShip,
+            })
+          )?.groupId;
         } catch (error) {
           runtime.error?.(
             `[tlon] Failed to resolve onboarding group from ${nest}: ${error instanceof Error ? error.message : String(error)}`
@@ -4478,12 +4480,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         let onboardingGroupId = channelToGroup.get(nest);
         if (!onboardingGroupId && isDmNest(nest)) {
           try {
-            onboardingGroupId = await findOnboardingGroupIdInChannel({
-              api,
-              abortSignal: opts.abortSignal,
-              channelNest: nest,
-              ownerShip: effectiveOwnerShip,
-            });
+            onboardingGroupId = (
+              await findOnboardingRequestInChannel({
+                api,
+                abortSignal: opts.abortSignal,
+                channelNest: nest,
+                ownerShip: effectiveOwnerShip,
+              })
+            )?.groupId;
           } catch (error) {
             runtime.error?.(
               `[tlon] Failed to resolve onboarding group from ${nest}: ${error instanceof Error ? error.message : String(error)}`
@@ -5174,26 +5178,56 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             !!effectiveOwnerShip && senderShip === effectiveOwnerShip;
           let onboardingGroupId: string | undefined = request?.groupId;
           if (onboardingGroupId && fromOwner) {
-            onboardingDmState.noteRequest(whom, onboardingGroupId);
+            onboardingDmState.noteRequest(
+              whom,
+              onboardingGroupId,
+              dmContent.sent || Date.now()
+            );
           }
           onboardingGroupId ??= onboardingDmState.groupFor(whom);
           if (
             !onboardingGroupId &&
             fromOwner &&
             currentSettings.bootstrapComplete !== true &&
-            !onboardingDmState.isInactive(whom)
+            !onboardingDmState.isInactive(whom) &&
+            !onboardingDmState.lapsedGroupFor(whom)
           ) {
             try {
-              onboardingGroupId = await findOnboardingGroupIdInChannel({
-                api,
-                abortSignal: opts.abortSignal,
-                channelNest: whom,
-                ownerShip: effectiveOwnerShip,
-              });
-              onboardingDmState.noteLookup(whom, onboardingGroupId);
+              onboardingDmState.noteLookup(
+                whom,
+                await findOnboardingRequestInChannel({
+                  api,
+                  abortSignal: opts.abortSignal,
+                  channelNest: whom,
+                  ownerShip: effectiveOwnerShip,
+                })
+              );
+              onboardingGroupId = onboardingDmState.groupFor(whom);
             } catch (error) {
               runtime.error?.(
                 `[tlon] Failed to bind onboarding DM ${whom}: ${error instanceof Error ? error.message : String(error)}`
+              );
+            }
+          }
+          // First-run onboarding is for the first day. An owner still talking
+          // after that gets the ordinary bot, task or no task, so neither this
+          // DM's onboarding note nor tlonbot's first-run gate keeps steering
+          // them back into setup.
+          const lapsedGroupId = onboardingDmState.lapsedGroupFor(whom);
+          if (!request && fromOwner && lapsedGroupId) {
+            onboardingDmState.noteComplete(whom);
+            trackOnboardingStep(
+              whom,
+              lapsedGroupId
+            )({
+              step: 'onboarding_completed',
+              completionPath: 'first_day_elapsed',
+            });
+            try {
+              await markBootstrapComplete();
+            } catch (error) {
+              runtime.error?.(
+                `[tlon] Failed to end first-run onboarding in ${whom}: ${error instanceof Error ? error.message : String(error)}`
               );
             }
           }
