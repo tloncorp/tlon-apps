@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { getNativeHeaderScrollOptions } from './nativeHeaderOptions';
+import {
+  channelTypeUsesNativeHeader,
+  getNativeHeaderScrollOptions,
+} from './nativeHeaderOptions';
 
 vi.mock('@tloncorp/ui', () => ({
   mobileTypeStyles: {
@@ -56,5 +59,19 @@ describe('native header options', () => {
         liquidGlassAvailable: false,
       })
     ).toEqual({});
+  });
+});
+
+describe('channelTypeUsesNativeHeader', () => {
+  it('uses the native bar for conversations and notes', () => {
+    for (const type of ['chat', 'dm', 'groupDm', 'notes']) {
+      expect(channelTypeUsesNativeHeader(type)).toBe(true);
+    }
+  });
+
+  it('leaves inline-header channel types alone', () => {
+    for (const type of ['gallery', 'notebook', 'buckets']) {
+      expect(channelTypeUsesNativeHeader(type)).toBe(false);
+    }
   });
 });

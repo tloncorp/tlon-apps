@@ -12,6 +12,16 @@ export const nativeHeaderPresentationOptions = {
   },
 } as const satisfies NativeStackNavigationOptions;
 
+/**
+ * Channel types whose header is the stack's native bar. Gallery, notebook and
+ * buckets channels draw an inline header instead.
+ */
+export function channelTypeUsesNativeHeader(type: string) {
+  return (
+    type === 'chat' || type === 'dm' || type === 'groupDm' || type === 'notes'
+  );
+}
+
 const topScrollEdgeEffects = {
   top: 'soft',
   bottom: 'hidden',

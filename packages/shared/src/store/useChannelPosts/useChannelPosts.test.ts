@@ -12,7 +12,7 @@ vi.mock('../../db', async (importOriginal) => ({
 }));
 
 import { useDebugStore } from '../../debug';
-import { hasNewerPosts } from './useChannelPosts';
+import { hasNewerPosts, listReachesNewestPost } from './useChannelPosts';
 
 afterEach(() => {
   dbMocks.getLatestChannelSequenceNum.mockReset();
@@ -67,5 +67,62 @@ describe('hasNewerPosts', () => {
     expect(dbMocks.getLatestChannelSequenceNum).toHaveBeenCalledWith({
       channelId: '~solfer-magfed',
     });
+  });
+});
+
+describe('listReachesNewestPost', () => {
+  it('reaches the newest post when the query has no newer page', () => {
+    expect(
+      listReachesNewestPost({
+        hasPreviousPage: false,
+        loadedNewest: false,
+        newestShownSequenceNum: 0,
+        latestSequenceNum: null,
+      })
+    ).toBe(true);
+  });
+
+  it('keeps following when a refetch reports a newer page but the newest post is shown', () => {
+    expect(
+      listReachesNewestPost({
+        hasPreviousPage: true,
+        loadedNewest: true,
+        newestShownSequenceNum: 11,
+        latestSequenceNum: 11,
+      })
+    ).toBe(true);
+  });
+
+  it('stops following through a genuine gap, where the watermark is ahead', () => {
+    expect(
+      listReachesNewestPost({
+        hasPreviousPage: true,
+        loadedNewest: true,
+        newestShownSequenceNum: 11,
+        latestSequenceNum: 20,
+      })
+    ).toBe(false);
+  });
+
+  it('does not follow a query that never loaded the newest post', () => {
+    expect(
+      listReachesNewestPost({
+        hasPreviousPage: true,
+        loadedNewest: false,
+        newestShownSequenceNum: 20,
+        latestSequenceNum: 20,
+      })
+    ).toBe(false);
+  });
+
+  it('does not follow without a watermark to compare against', () => {
+    expect(
+      listReachesNewestPost({
+        hasPreviousPage: true,
+        loadedNewest: true,
+        newestShownSequenceNum: 20,
+        latestSequenceNum: null,
+      })
+    ).toBe(false);
   });
 });

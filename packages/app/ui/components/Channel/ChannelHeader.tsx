@@ -20,6 +20,7 @@ import {
 import { View } from 'tamagui';
 
 import { useShipConnectionStatus } from '../../../features/top/useShipConnectionStatus';
+import { channelTypeUsesNativeHeader } from '../../../navigation/nativeHeaderOptions';
 import { useTopLevelDrawerToggleAction } from '../../../navigation/useTopLevelDrawerToggle';
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import {
@@ -485,8 +486,7 @@ export function ChannelHeader({
       ],
     },
   ];
-  const usesNavigationHeader =
-    isChatChannel(channel) || channel.type === 'notes';
+  const usesNavigationHeader = channelTypeUsesNativeHeader(channel.type);
   // The conversation list owns its scroll props, but this call installs the
   // matching native scroll-edge options on the navigator.
   useScreenScrollProps({

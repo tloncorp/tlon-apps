@@ -48,6 +48,8 @@ type UseChannelPostsParams = UseChannelPostsPageParams & {
   enabled: boolean;
   firstPageCount?: number;
   filterDeleted?: boolean;
+  /** The channel's `lastPostSequenceNum`, for `reachesNewest`. */
+  latestSequenceNum?: number | null;
 };
 
 export const useChannelPosts = (options: UseChannelPostsParams) => {
@@ -213,6 +215,25 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
   const hasNewest =
     !query.hasPreviousPage || (wasAtNewestRef.current && newPosts.length > 0);
 
+  // The list's own answer to the same question, stricter than `hasNewest`:
+  // that guard is set before any data loads and counts every post heard in
+  // the visit, which the merge needs but would pin a list to its end through
+  // a genuine catch-up. Only a query that has actually loaded the newest post
+  // qualifies, so a cursor jump's older window starts fresh.
+  const loadedNewestQueryKeyRef = useRef<unknown>(null);
+  if (query.data && !query.isPlaceholderData && !query.hasPreviousPage) {
+    loadedNewestQueryKeyRef.current = queryKey;
+  }
+  const reachesNewest = listReachesNewestPost({
+    hasPreviousPage: query.hasPreviousPage,
+    loadedNewest: loadedNewestQueryKeyRef.current === queryKey,
+    newestShownSequenceNum: Math.max(
+      query.data?.pages[0]?.posts[0]?.sequenceNum ?? 0,
+      ...newPosts.map((post) => post.sequenceNum ?? 0)
+    ),
+    latestSequenceNum: options.latestSequenceNum,
+  });
+
   const rawPosts = useMemo<db.Post[] | null>(() => {
     const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? [];
     return mergePendingPosts({
@@ -255,10 +276,43 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
   );
 
   return useMemo(
-    () => ({ posts, query, loadOlder, loadNewer, isLoading }),
-    [posts, query, loadOlder, loadNewer, isLoading]
+    () => ({ posts, query, reachesNewest, loadOlder, loadNewer, isLoading }),
+    [posts, query, reachesNewest, loadOlder, loadNewer, isLoading]
   );
 };
+
+/**
+ * Whether a conversation list should treat its posts as reaching the newest
+ * one, for following new messages. A refetch can flip the query's
+ * `hasPreviousPage` back to true after it loaded the newest post (a sequence
+ * gap, e.g. the channel's watermark moving before its new posts are written),
+ * while the posts heard over the subscription still include the newest one.
+ * Once the query has loaded the newest post, the list follows as long as what
+ * it shows reaches the channel's watermark; a genuine gap leaves the
+ * watermark ahead, and old posts re-delivered for a reaction or edit sit below
+ * it.
+ */
+export function listReachesNewestPost({
+  hasPreviousPage,
+  loadedNewest,
+  newestShownSequenceNum,
+  latestSequenceNum,
+}: {
+  hasPreviousPage: boolean;
+  loadedNewest: boolean;
+  newestShownSequenceNum: number;
+  latestSequenceNum: number | null | undefined;
+}) {
+  if (!hasPreviousPage) {
+    return true;
+  }
+  return (
+    loadedNewest &&
+    latestSequenceNum != null &&
+    latestSequenceNum > 0 &&
+    newestShownSequenceNum >= latestSequenceNum
+  );
+}
 
 /*
   We want to operate on sequence numbers, but our unread markers are keyed by postId.

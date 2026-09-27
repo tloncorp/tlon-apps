@@ -338,6 +338,7 @@ export default function ChannelScreen(props: Props) {
   const {
     posts,
     query: postsQuery,
+    reachesNewest: postsReachNewest,
     loadNewer,
     loadOlder,
     isLoading: isLoadingPosts,
@@ -350,6 +351,7 @@ export default function ChannelScreen(props: Props) {
     channelId: currentChannelId,
     count: 30,
     filterDeleted: !includeDeletedPosts,
+    latestSequenceNum: channel?.lastPostSequenceNum,
     ...(cursor && !clearedCursor
       ? {
           mode: 'around',
@@ -644,7 +646,7 @@ export default function ChannelScreen(props: Props) {
           }
           isLoadingPosts={isLoadingPosts}
           loadPostsError={postsQuery.error}
-          hasNewerPosts={postsQuery.hasPreviousPage}
+          hasNewerPosts={!postsReachNewest}
           hasOlderPosts={postsQuery.hasNextPage}
           group={group}
           groupIsLoading={groupIsLoading}
