@@ -23,9 +23,19 @@ import {
 } from './config.js';
 import type { Persona, RunRecord, RunSetManifest } from './types.js';
 
-export function loadPersonas(ids?: string[]): Persona[] {
+/** Persona ids, with any named set from personas/sets.yaml expanded. */
+function expandPersonaSets(ids: string[]) {
+  const file = path.join(PERSONAS_DIR, 'sets.yaml');
+  const sets = existsSync(file)
+    ? (parse(readFileSync(file, 'utf8')) as Record<string, string[]>)
+    : {};
+  return ids.flatMap((id) => sets[id] ?? [id]);
+}
+
+export function loadPersonas(requested?: string[]): Persona[] {
+  const ids = requested && expandPersonaSets(requested);
   const all = readdirSync(PERSONAS_DIR)
-    .filter((name) => name.endsWith('.yaml'))
+    .filter((name) => name.endsWith('.yaml') && name !== 'sets.yaml')
     .sort()
     .map((name) => {
       const persona = parse(

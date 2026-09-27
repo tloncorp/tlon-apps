@@ -35,8 +35,14 @@ const RECEIVE_MS = 45_000;
 // The plugin ends a turn, posting any warning, a few seconds after OpenClaw
 // has handled the message.
 const TERMINAL_MS = 15_000;
-// How long a closed turn's last post gets to reach the owner's ship.
+// How long a turn with nothing delivered waits after the plugin closes it,
+// for a warning to reach the owner's ship.
 const DELIVERY_MS = 4000;
+// A reply can arrive in pieces; the turn ends once none has come for this long.
+const REPLY_QUIET_MS = 2000;
+// Posts this close before OpenClaw finishes a message count as its reply.
+const REPLY_SLACK_MS = 3000;
+const POLL_MS = 750;
 
 /** What a gateway log line says about the owner's DM messages, if anything. */
 export function ownerMessageLogEvent(line: string, ownerShip: string) {
@@ -283,17 +289,18 @@ export async function runRealPersona(input: {
     const log = messages!;
     const collected: BotPost[] = [];
     const started = Date.now();
-    let lastPost = Date.now();
+    let lastPostAt = 0;
     let handledAt = 0;
     let closedAt = 0;
     while (Date.now() - started < 240_000) {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      if (await collect(collected)) lastPost = Date.now();
+      await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+      if (await collect(collected)) lastPostAt = Date.now();
+      const quietFor = Date.now() - (lastPostAt || started);
       const arrived = log.count() - before;
       if (!arrived) {
         if (
           Date.now() - started > RECEIVE_MS &&
-          Date.now() - lastPost >= QUIET_MS &&
+          quietFor >= QUIET_MS &&
           proxy.idle(QUIET_MS)
         ) {
           break;
@@ -306,14 +313,20 @@ export async function runRealPersona(input: {
         continue;
       }
       handledAt ||= Date.now();
+      // A post as OpenClaw finishes is the reply reaching the owner. With none,
+      // wait for the plugin to close the turn: that is when it posts any
+      // warning about a turn that delivered nothing.
+      const replied = lastPostAt >= handledAt - REPLY_SLACK_MS;
       const closed =
+        replied ||
         log.terminalAt() >= handledAt - 1000 ||
         Date.now() - handledAt > TERMINAL_MS;
       if (!closed) continue;
       closedAt ||= Date.now();
       if (
-        Date.now() - closedAt >= DELIVERY_MS &&
-        Date.now() - lastPost >= DELIVERY_MS
+        replied
+          ? quietFor >= REPLY_QUIET_MS
+          : Date.now() - closedAt >= DELIVERY_MS && quietFor >= DELIVERY_MS
       ) {
         break;
       }
@@ -363,7 +376,16 @@ export async function runRealPersona(input: {
     messages = followOwnerMessages(stack, stack.owner().shipName);
     seen = await owner.latestSeq();
     await owner.furnish();
-    const welcome = await settle({ maxMs: 90_000 });
+    // The app's welcome is one coordinator post; give anything right behind it
+    // a moment rather than waiting out a quiet window.
+    const welcome = await settle({
+      maxMs: 90_000,
+      until: (post) => Boolean(post.marker),
+    });
+    for (const end = Date.now() + 3000; Date.now() < end;) {
+      await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+      await collect(welcome);
+    }
     transcript.push(...welcome.map(toEvent));
     await owner.grantBotAdmin(60_000);
     let lastOptions = lastChoice?.choice?.options;

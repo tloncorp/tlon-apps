@@ -1,0 +1,19 @@
+# Named persona sets for --personas, e.g. --personas quick.
+# quick: a dozen for fast rounds. Four want a plan, three don't, five could go
+# either way; between them they cover terse and impatient people, a non-English
+# speaker, product questions, a weekly schedule, a connected service, and a
+# skeptic. A dozen pairs only settles large differences; confirm close calls
+# on the full set.
+quick:
+  - founder-blunt
+  - mind-changer
+  - overwhelmed-parent
+  - spanish-speaker
+  - group-bot-admin
+  - just-looking
+  - one-off-toast
+  - tlon-curious
+  - capability-prober
+  - weekly-meal-planner
+  - one-word
+  - ai-curious-tester
