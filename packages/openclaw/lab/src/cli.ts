@@ -55,7 +55,8 @@ const USAGE = `Onboarding lab: simulated users against the real onboarding skill
   pnpm lab serve [--port 4410]       open a local page to browse runs and start new ones
 
 Options:
-  --personas a,b      persona ids (default: all)
+  --personas a,b      persona ids or set names from personas/sets.yaml
+                      (default: the `default` set)
   --repeat N          runs per persona (default: 1 for run, 3 for ab)
   --variant DIR       folder of edited SKILL.md and/or tlonbot prompt files
   --label NAME        run set name (default: baseline or the variant folder)
