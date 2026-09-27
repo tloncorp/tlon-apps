@@ -1,6 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { getChannelType } from '@tloncorp/api/urbit';
+import { useMemo } from 'react';
 import { Platform, StatusBar } from 'react-native';
 
 import { InviteUsersScreen } from '../features/InviteUsersScreen';
@@ -47,11 +48,13 @@ import { UserProfileScreen } from '../features/top/UserProfileScreen';
 import { useIsDarkMode } from '../hooks/useDarkMode';
 import { useAgentGroupOnboardingStartupRoute } from '../hooks/useAgentGroupOnboardingLock';
 import { useTheme } from '../ui';
+import { supportsLiquidGlass } from '../ui/components/GlassSurface';
 import { GroupSettingsStack } from './GroupSettingsStack';
 import { OnboardingStartupScreen } from './OnboardingStartupScreen';
 import { TopLevelNavigator } from './TopLevelNavigator';
 import {
   channelTypeUsesNativeHeader,
+  getNativeHeaderScrollOptions,
   nativeHeaderPresentationOptions,
 } from './nativeHeaderOptions';
 import type { RootStackParamList } from './types';
@@ -82,6 +85,21 @@ export function RootStack() {
   });
 
   const theme = useTheme();
+  // A conversation's header turns transparent once it mounts (the scroll
+  // options ChannelHeader installs). Starting that way keeps the content frame
+  // from resizing under a conversation that is still loading.
+  const conversationHeaderScreenOptions = useMemo(
+    () => ({
+      ...untitledNativeHeaderScreenOptions,
+      ...getNativeHeaderScrollOptions({
+        platform: Platform.OS,
+        platformVersion: Platform.Version,
+        liquidGlassAvailable: supportsLiquidGlass(),
+        bottomEdgeEffect: 'soft',
+      }),
+    }),
+    []
+  );
   const onboardingStartup = useAgentGroupOnboardingStartupRoute();
 
   if (onboardingStartup.isLoading) return null;
@@ -128,24 +146,27 @@ export function RootStack() {
       <Root.Screen
         name="Channel"
         component={ChannelScreen}
-        options={({ route }) => ({
-          ...(channelTypeUsesNativeHeader(
-            getChannelType(route.params.channelId)
-          )
-            ? untitledNativeHeaderScreenOptions
-            : null),
-          animation: route.params.disableTransition ? 'none' : 'default',
-        })}
+        options={({ route }) => {
+          const type = getChannelType(route.params.channelId);
+          return {
+            ...(type === 'notes'
+              ? untitledNativeHeaderScreenOptions
+              : channelTypeUsesNativeHeader(type)
+                ? conversationHeaderScreenOptions
+                : null),
+            animation: route.params.disableTransition ? 'none' : 'default',
+          };
+        }}
       />
       <Root.Screen
         name="DM"
         component={ChannelScreen}
-        options={untitledNativeHeaderScreenOptions}
+        options={conversationHeaderScreenOptions}
       />
       <Root.Screen
         name="GroupDM"
         component={ChannelScreen}
-        options={untitledNativeHeaderScreenOptions}
+        options={conversationHeaderScreenOptions}
       />
       <Root.Screen name="ChannelSearch" component={ChannelSearchScreen} />
       <Root.Screen
