@@ -1154,7 +1154,7 @@ describe('agent onboarding requests', () => {
       'Welcome! This is your private chat with me, your Tlonbot.'
     );
     expect(JSON.stringify(firstGroup[0])).toContain(
-      'I can keep you informed, help you learn, or follow a question over time.'
+      'I can answer questions and look things up, join a group to help you and your people, or keep an eye on something and report back on a schedule. You choose which AI model I run on in settings.'
     );
     expect(JSON.stringify(firstGroup[0])).toContain(
       'What can I help you with?'
