@@ -148,6 +148,8 @@ On a phone with a Tlonbot, the plus menu offers `New Workspace` — a group with
 
 ### Join a group with a code
 
+To bring people into your group, use an invite link: `Invite people` → `Share link`. That works for anyone, including people not on Tlon yet. A code is for someone already on Tlon.
+
 A group code is the group's ID, `~host/group-name`. Anyone in a group can copy it: `Group info & settings` → `Copy group ID`. To join with one, tap the plus icon, then `Join a group with a code (reference)`, and paste it. That button is on desktop and on phones without a Tlonbot. A phone with a bot has no code box: ask someone in the group for an invite link, or to send you the group itself (`Forward reference` in group info), then tap it in the chat to open a preview and join. Asking your bot to join a group adds the bot, not you.
 
 A code isn't an invite link. Invite links come from `Invite people` → `Share link`, and someone new to Tlon pastes one on the `Have an invite?` screen when signing up.
