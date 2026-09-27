@@ -338,6 +338,7 @@ export default function ChannelScreen(props: Props) {
   const {
     posts,
     query: postsQuery,
+    hasNewest: postsReachNewest,
     loadNewer,
     loadOlder,
     isLoading: isLoadingPosts,
@@ -644,7 +645,7 @@ export default function ChannelScreen(props: Props) {
           }
           isLoadingPosts={isLoadingPosts}
           loadPostsError={postsQuery.error}
-          hasNewerPosts={postsQuery.hasPreviousPage}
+          hasNewerPosts={!postsReachNewest}
           hasOlderPosts={postsQuery.hasNextPage}
           group={group}
           groupIsLoading={groupIsLoading}

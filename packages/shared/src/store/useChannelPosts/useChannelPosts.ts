@@ -210,8 +210,11 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     wasAtNewestRef.current = false;
   }, [options.channelId]);
 
-  const hasNewest =
-    !query.hasPreviousPage || (wasAtNewestRef.current && newPosts.length > 0);
+  const hasNewest = isAtNewestPosts({
+    hasPreviousPage: query.hasPreviousPage,
+    wasAtNewest: wasAtNewestRef.current,
+    newPostCount: newPosts.length,
+  });
 
   const rawPosts = useMemo<db.Post[] | null>(() => {
     const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? [];
@@ -255,10 +258,29 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
   );
 
   return useMemo(
-    () => ({ posts, query, loadOlder, loadNewer, isLoading }),
-    [posts, query, loadOlder, loadNewer, isLoading]
+    () => ({ posts, query, hasNewest, loadOlder, loadNewer, isLoading }),
+    [posts, query, hasNewest, loadOlder, loadNewer, isLoading]
   );
 };
+
+/**
+ * Whether the loaded posts reach the newest post in the channel. Consumers
+ * should read this rather than the query's `hasPreviousPage`, which a refetch
+ * can flip back to true after the query reached the newest post (a sequence
+ * gap, e.g. the channel's watermark moving before its new posts are written).
+ * Once the query has been at the newest post, posts heard since keep it there.
+ */
+export function isAtNewestPosts({
+  hasPreviousPage,
+  wasAtNewest,
+  newPostCount,
+}: {
+  hasPreviousPage: boolean;
+  wasAtNewest: boolean;
+  newPostCount: number;
+}) {
+  return !hasPreviousPage || (wasAtNewest && newPostCount > 0);
+}
 
 /*
   We want to operate on sequence numbers, but our unread markers are keyed by postId.

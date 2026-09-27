@@ -12,7 +12,7 @@ vi.mock('../../db', async (importOriginal) => ({
 }));
 
 import { useDebugStore } from '../../debug';
-import { hasNewerPosts } from './useChannelPosts';
+import { hasNewerPosts, isAtNewestPosts } from './useChannelPosts';
 
 afterEach(() => {
   dbMocks.getLatestChannelSequenceNum.mockReset();
@@ -67,5 +67,47 @@ describe('hasNewerPosts', () => {
     expect(dbMocks.getLatestChannelSequenceNum).toHaveBeenCalledWith({
       channelId: '~solfer-magfed',
     });
+  });
+});
+
+describe('isAtNewestPosts', () => {
+  it('is at newest when the query has no newer page', () => {
+    expect(
+      isAtNewestPosts({
+        hasPreviousPage: false,
+        wasAtNewest: false,
+        newPostCount: 0,
+      })
+    ).toBe(true);
+  });
+
+  it('stays at newest when a refetch reports a newer page after live posts', () => {
+    expect(
+      isAtNewestPosts({
+        hasPreviousPage: true,
+        wasAtNewest: true,
+        newPostCount: 1,
+      })
+    ).toBe(true);
+  });
+
+  it('is not at newest when the query never reached the newest post', () => {
+    expect(
+      isAtNewestPosts({
+        hasPreviousPage: true,
+        wasAtNewest: false,
+        newPostCount: 3,
+      })
+    ).toBe(false);
+  });
+
+  it('is not at newest when no posts have been heard since the regression', () => {
+    expect(
+      isAtNewestPosts({
+        hasPreviousPage: true,
+        wasAtNewest: true,
+        newPostCount: 0,
+      })
+    ).toBe(false);
   });
 });
