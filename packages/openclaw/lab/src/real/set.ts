@@ -97,6 +97,17 @@ export async function runRealSet(input: {
   };
   process.on('unhandledRejection', onRejection);
   try {
+    // New sandboxes start from copies of the first one's volumes, taken while
+    // it is stopped so the piers are consistent.
+    const [first, ...rest] = lanes;
+    const fresh = rest.filter(({ stack }) => !stack.hasPiers());
+    if (fresh.length && first.stack.hasPiers()) {
+      console.log(
+        `Copying ${first.stack.project} into ${fresh.map(({ stack }) => stack.project).join(', ')}…`
+      );
+      first.stack.stop();
+      for (const { stack } of fresh) stack.seedFrom(first.stack);
+    }
     for (const { stack, proxy } of lanes) {
       console.log(`Preparing ${stack.project} on plugin ${ref.slice(0, 10)}…`);
       await stack.up(

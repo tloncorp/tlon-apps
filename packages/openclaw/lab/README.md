@@ -92,9 +92,11 @@ to cut turns short and record replies as silence.
 
 `--sandboxes N` runs a set on N sandboxes at once (`onboarding-lab`,
 `onboarding-lab-2`, … on ports 100 apart, each with its own recording proxy).
-Two roughly doubled throughput with CPU and memory to spare. Each new sandbox
-needs about 4.5 GB of disk, and the lab won't create one with less than 6 GB
-free. Other Docker work on the machine, such as a busy `dev` stack, slows every
+Two roughly doubled throughput with CPU and memory to spare. A new sandbox
+starts from a copy of the first one's volumes (the first is stopped briefly
+while they're copied), which takes a few minutes instead of booting ships and
+compiling the desk on each. Each needs about 4.5 GB of disk, and the lab won't
+create one with less than 6 GB free. Other Docker work on the machine, such as a busy `dev` stack, slows every
 sandbox.
 
 ### Measuring the gap
