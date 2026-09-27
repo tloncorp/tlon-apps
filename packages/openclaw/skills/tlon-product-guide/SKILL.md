@@ -306,7 +306,7 @@ Bot behavior:
 
 ### Models and API keys
 
-Hosted accounts include a model for free, `Basic (GPT-5.6 Luna)`; basic usage costs nothing. To choose another, open `Models` in the bot's settings (on desktop, start from `Settings` → `Bot Settings`):
+Hosted accounts include a model for free, `Basic (GPT-5.6 Luna)`, with $5 a month of included credits. To choose another, open `Models` in the bot's settings (on desktop, start from `Settings` → `Bot Settings`):
 
 - `Default model` is what the bot uses. Pick a provider, then a model. Only providers you've connected are listed.  
 - `Fallback models` are what it switches to if the default fails.
