@@ -1,4 +1,4 @@
-import { execFile, execFileSync, spawnSync } from 'node:child_process';
+import { execFile, execFileSync, spawn, spawnSync } from 'node:child_process';
 import { Urbit } from '@tloncorp/api';
 import {
   mkdirSync,
@@ -175,6 +175,27 @@ export class LabStack {
         `onboarding.sh ${args[0]} failed:\n${`${stdout}${stderr}`.split('\n').slice(-25).join('\n')}`
       );
     }
+  }
+
+  /**
+   * Call `onLine` with each line the bot container logs from now on, across
+   * gateway reloads; returns a function that stops following.
+   */
+  followLogs(onLine: (line: string) => void) {
+    const child = spawn(
+      'docker',
+      ['logs', '-f', '--since', new Date().toISOString(), this.container],
+      { stdio: ['ignore', 'pipe', 'pipe'] }
+    );
+    for (const stream of [child.stdout, child.stderr]) {
+      let rest = '';
+      stream.on('data', (chunk: Buffer) => {
+        const lines = (rest + chunk.toString('utf8')).split('\n');
+        rest = lines.pop() ?? '';
+        for (const line of lines) onLine(line);
+      });
+    }
+    return () => child.kill();
   }
 
   /** Run a shell command inside the bot container. */
