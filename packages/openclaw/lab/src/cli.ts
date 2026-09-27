@@ -69,6 +69,8 @@ Options:
   --real              run against the lab's local OpenClaw sandbox instead of the
                       fast model loop (one run at a time; needs Docker and a
                       tlonbot checkout; plugin changes must be committed)
+  --sandboxes N       with --real, run on N sandboxes at once (default: 1; each
+                      new one needs about 4.5 GB of disk)
   --resume SET        fill in a set's missing or failed runs instead of starting a new one
 `;
 
@@ -111,6 +113,7 @@ type Options = {
   'no-search'?: boolean;
   resume?: string;
   real?: boolean;
+  sandboxes?: string;
   'double-texts'?: boolean;
 };
 
@@ -190,6 +193,7 @@ async function runSet(
     const runs = await runRealSet({
       dir,
       jobs,
+      sandboxes: parseSandboxes(options.sandboxes),
       config,
       sources: checkpoint.sources,
       agent: deployment.agent,
@@ -249,6 +253,14 @@ function finishSet(
     `\n${label}: matched ${m.outcomeMatched === null ? '-' : `${Math.round(m.outcomeMatched * 100)}%`} · conversation ${m.conversation?.toFixed(2) ?? '-'} · result ${m.result?.toFixed(2) ?? '-'} · keep ${m.keep === null ? '-' : `${Math.round(m.keep * 100)}%`} · $${m.costUsd.toFixed(2)}\nReport: ${reportPath}`
   );
   return dir;
+}
+
+function parseSandboxes(value: string | undefined): number {
+  if (value === undefined) return 1;
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 1)
+    throw new Error('--sandboxes must be a positive integer');
+  return n;
 }
 
 export function parseTips(value: string | undefined): number {
@@ -319,6 +331,7 @@ async function resumeSet(reference: string, options: Options) {
     const fresh = await runRealSet({
       dir: set.dir,
       jobs: jobs.filter((job) => !job.run || job.run.error),
+      sandboxes: parseSandboxes(options.sandboxes),
       config,
       sources,
       agent: manifest.deployment?.agent,
@@ -463,6 +476,7 @@ async function main() {
       'no-search': { type: 'boolean' },
       resume: { type: 'string' },
       real: { type: 'boolean' },
+      sandboxes: { type: 'string' },
       'double-texts': { type: 'boolean' },
       samples: { type: 'string' },
       'max-points': { type: 'string' },
