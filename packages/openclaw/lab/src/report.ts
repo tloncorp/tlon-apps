@@ -10,6 +10,7 @@ export type Metrics = {
   product: number | null;
   followUpOk: number | null;
   keep: number | null;
+  overall: number | null;
   ruleBreaks: number | null;
   questions: number;
   userTurns: number;
@@ -44,6 +45,11 @@ export function metrics(runs: RunRecord[]): Metrics {
     ),
     followUpOk: rate(graded.map((run) => run.judgement!.followUp.ok)),
     keep: rate(runs.filter((run) => run.keep).map((run) => run.keep!.keep)),
+    overall: mean(
+      runs
+        .map((run) => run.keep?.overall)
+        .filter((score): score is number => typeof score === 'number')
+    ),
     ruleBreaks: mean(graded.map((run) => run.judgement!.ruleBreaks.length)),
     questions: mean(runs.map((run) => run.facts.choicesPosted)) ?? 0,
     userTurns: mean(runs.map((run) => run.facts.userTurns)) ?? 0,
@@ -63,6 +69,7 @@ const METRIC_ROWS: [
   ['product', 'Product answers score (1–5)', 'score', 1],
   ['followUpOk', 'Handled the follow-up normally', 'pct', 1],
   ['keep', 'Person got what they came for and would come back', 'pct', 1],
+  ['overall', "Person's overall rating (1–10)", 'score', 1],
   ['ruleBreaks', 'Skill rule breaks per run', 'num', -1],
   ['questions', 'Pickers per run', 'num', -1],
   ['userTurns', 'User messages before the ending', 'num', -1],
@@ -178,7 +185,7 @@ export function renderRunDetails(run: RunRecord, heading?: string) {
     ${issues.length ? `<div>${issues.map(([area, issue]) => `<div class="issue"><b>${area}:</b> <q>${escape(issue.quote)}</q> — ${escape(issue.problem)}</div>`).join('')}</div>` : ''}
     ${judgement?.ruleBreaks.length ? `<div>${judgement.ruleBreaks.map((rule) => `<div class="issue"><b>rule:</b> ${escape(rule.rule)} — <q>${escape(rule.quote)}</q></div>`).join('')}</div>` : ''}
     ${judgement ? `<div class="issue"><b>ending:</b> ${escape(judgement.outcome.why)}</div><div class="issue"><b>follow-up:</b> ${escape(judgement.followUp.why)}</div>` : ''}
-    ${run.keep ? `<div class="issue"><b>person:</b> “${escape(run.keep.why)}”</div>` : ''}
+    ${run.keep ? `<div class="issue"><b>person${run.keep.overall !== undefined ? ` (${run.keep.overall}/10)` : ''}:</b> “${escape(run.keep.why)}”${run.keep.worst ? ` Worst: <q>${escape(run.keep.worst)}</q>` : ''}</div>` : ''}
     ${renderChat(run.transcript)}
     ${run.secondResult ? `<div class="msg note"><div class="muted">Day two (judge only)</div>${escape(run.secondResult.markdown)}</div>` : ''}
     <div class="muted">tools: ${escape(

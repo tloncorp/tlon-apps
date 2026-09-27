@@ -21,6 +21,7 @@ import {
 } from './report.js';
 import { importVerdicts, listPackets, writePackets } from './packets.js';
 import { divergenceReport } from './diverge.js';
+import { scoreSets, setupDifferences } from './score.js';
 import { renderSwapReport, swapTest } from './swap.js';
 import { loadTemplate } from './template.js';
 import { calibrate, runRealSet } from './real/set.js';
@@ -40,6 +41,8 @@ const USAGE = `Onboarding lab: simulated users against the real onboarding skill
 
   pnpm lab run [options]            run personas and grade them
   pnpm lab ab --variant <dir> [...]  run baseline and a variant, then compare
+  pnpm lab score <base> <variant>    pick each pair's winner from the person's own survey
+                                     (a fraction of a cent; the base set can be reused)
   pnpm lab compare <setA> <setB>     judge two existing run sets side by side (judge model)
   pnpm lab packets <control> <set>...  write judging packets (2–4 sets) for a Claude session to judge
   pnpm lab import <judging-dir>      fold packet verdicts into both sets and render reports
@@ -95,7 +98,7 @@ async function pool<T, R>(
 function progressLine(run: RunRecord) {
   const j = run.judgement;
   const status = run.error ? '✗' : '✓';
-  return `${status} ${run.persona.id} #${run.repeat}  ending=${run.facts.ending}  matched=${j ? (j.outcome.matched ? 'yes' : 'no') : '-'}  conv=${j?.conversation.score ?? '-'}  result=${j?.result.score ?? '-'}  keep=${run.keep ? (run.keep.keep ? 'yes' : 'no') : '-'}  $${run.costUsd.toFixed(3)}  ${(run.durationMs / 1000).toFixed(0)}s${run.error ? `  (${run.error})` : ''}`;
+  return `${status} ${run.persona.id} #${run.repeat}  ending=${run.facts.ending}  matched=${j ? (j.outcome.matched ? 'yes' : 'no') : '-'}  conv=${j?.conversation.score ?? '-'}  result=${j?.result.score ?? '-'}  keep=${run.keep ? (run.keep.keep ? 'yes' : 'no') : '-'}  rating=${run.keep?.overall ?? '-'}  $${run.costUsd.toFixed(3)}  ${(run.durationMs / 1000).toFixed(0)}s${run.error ? `  (${run.error})` : ''}`;
 }
 
 type Options = {
@@ -392,6 +395,52 @@ async function resumeSet(reference: string, options: Options) {
   console.log(`Report: ${reportPath}`);
 }
 
+async function score(aRef: string, bRef: string, fresh = false) {
+  const a = loadRunSet(resolveRunSet(aRef));
+  const b = loadRunSet(resolveRunSet(bRef));
+  for (const difference of setupDifferences(a, b)) {
+    console.warn(`Warning: the sets differ beyond the variant: ${difference}`);
+  }
+  const meter: CostMeter = { usd: 0 };
+  const pairs = await scoreSets(a, b, meter, fresh);
+  const count = (winner: string) =>
+    pairs.filter((pair) => pair.winner === winner).length;
+  const mean = (
+    side: 'a' | 'b',
+    field: 'overall' | 'answered' | 'effort' | 'ending' | 'notes'
+  ) => {
+    const values = pairs
+      .map((pair) => pair[side]?.[field])
+      .filter((value): value is number => typeof value === 'number');
+    return values.length
+      ? (values.reduce((x, y) => x + y, 0) / values.length).toFixed(1)
+      : '-';
+  };
+  for (const pair of pairs) {
+    const mark = {
+      A: a.manifest.label,
+      B: b.manifest.label,
+      tie: 'tie',
+      missing: 'missing',
+    }[pair.winner];
+    console.log(
+      `${pair.key.padEnd(26)} ${String(pair.a?.overall ?? '-').padStart(2)} vs ${String(pair.b?.overall ?? '-').padEnd(2)}  ${mark}`
+    );
+  }
+  console.log(
+    `\n${b.manifest.label} won ${count('B')}, ${a.manifest.label} won ${count('A')}, ${count('tie')} ties${count('missing') ? `, ${count('missing')} without a survey` : ''}`
+  );
+  for (const [side, set] of [
+    ['a', a],
+    ['b', b],
+  ] as const) {
+    console.log(
+      `${set.manifest.label}: overall ${mean(side, 'overall')}/10 · answered ${mean(side, 'answered')} · effort ${mean(side, 'effort')} · ending ${mean(side, 'ending')} · notes ${mean(side, 'notes')}`
+    );
+  }
+  console.log(`Survey cost $${meter.usd.toFixed(3)}`);
+}
+
 async function compare(aRef: string, bRef: string, judgeModel?: string) {
   const a = loadRunSet(resolveRunSet(aRef));
   const b = loadRunSet(resolveRunSet(bRef));
@@ -472,6 +521,7 @@ async function main() {
       'bot-model': { type: 'string' },
       'user-model': { type: 'string' },
       'judge-model': { type: 'string' },
+      fresh: { type: 'boolean' },
       'no-judge': { type: 'boolean' },
       'no-search': { type: 'boolean' },
       resume: { type: 'string' },
@@ -554,6 +604,10 @@ async function main() {
       await compare(baseline, candidate, values['judge-model']);
       return;
     }
+    case 'score':
+      if (rest.length !== 2) throw new Error('score needs two run sets');
+      await score(rest[0], rest[1], values.fresh);
+      return;
     case 'compare':
       if (rest.length !== 2) throw new Error('compare needs two run sets');
       await compare(rest[0], rest[1], values['judge-model']);
