@@ -132,7 +132,7 @@ const ListItemSubtitle = styled(Text, {
 export const ListItemTimeText = styled(Text, {
   name: 'ListItemTimeText',
   numberOfLines: 1,
-  color: '$tertiaryText',
+  color: '$secondaryText',
   size: '$label/m',
   paddingBottom: '$xs',
 });
