@@ -1,3 +1,4 @@
+import { type VoiceCheck, claimCheck, voiceCheck } from './checks.js';
 import type { PairVerdict } from './judge.js';
 import type { RunRecord, RunSetManifest, TranscriptEvent } from './types.js';
 
@@ -14,6 +15,9 @@ export type Metrics = {
   ruleBreaks: number | null;
   questions: number;
   userTurns: number;
+  wordsPerReply: number | null;
+  genericHabits: number | null;
+  badClaims: number | null;
   costUsd: number;
 };
 
@@ -21,6 +25,23 @@ const mean = (values: number[]) =>
   values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
 const rate = (values: boolean[]) =>
   values.length ? values.filter(Boolean).length / values.length : null;
+
+/** Emoji, exclamations, bold-label bullets, closing offers and stock phrases. */
+export function habits(voice: VoiceCheck) {
+  return (
+    voice.emoji +
+    voice.exclamations +
+    voice.boldBullets +
+    voice.closingOffers +
+    voice.stockPhrases.length
+  );
+}
+
+// Runs recorded before the checks existed are checked here, so old
+// baselines stay comparable.
+const voiceOf = (run: RunRecord) =>
+  run.facts.voice ?? voiceCheck(run.transcript);
+const claimsOf = (run: RunRecord) => run.facts.claims ?? claimCheck(run.turns);
 
 export function metrics(runs: RunRecord[]): Metrics {
   const graded = runs.filter((run) => run.judgement);
@@ -53,6 +74,20 @@ export function metrics(runs: RunRecord[]): Metrics {
     ruleBreaks: mean(graded.map((run) => run.judgement!.ruleBreaks.length)),
     questions: mean(runs.map((run) => run.facts.choicesPosted)) ?? 0,
     userTurns: mean(runs.map((run) => run.facts.userTurns)) ?? 0,
+    wordsPerReply: (() => {
+      const checked = runs.map(voiceOf);
+      const replies = checked.reduce((sum, voice) => sum + voice.replies, 0);
+      return replies
+        ? checked.reduce((sum, voice) => sum + voice.words, 0) / replies
+        : null;
+    })(),
+    genericHabits: mean(runs.map((run) => habits(voiceOf(run)))),
+    badClaims: mean(
+      runs.map((run) => {
+        const claims = claimsOf(run);
+        return claims.madeUpActions.length + claims.falseClaims.length;
+      })
+    ),
     costUsd: runs.reduce((sum, run) => sum + run.costUsd, 0),
   };
 }
@@ -73,6 +108,9 @@ const METRIC_ROWS: [
   ['ruleBreaks', 'Skill rule breaks per run', 'num', -1],
   ['questions', 'Pickers per run', 'num', -1],
   ['userTurns', 'User messages before the ending', 'num', -1],
+  ['wordsPerReply', 'Words per bot reply', 'num', -1],
+  ['genericHabits', 'Generic-assistant habits per run', 'num', -1],
+  ['badClaims', 'Made-up actions or false claims per run', 'num', -1],
   ['costUsd', 'Total cost', 'usd', -1],
 ];
 
@@ -186,13 +224,14 @@ export function renderRunDetails(run: RunRecord, heading?: string) {
     ${judgement?.ruleBreaks.length ? `<div>${judgement.ruleBreaks.map((rule) => `<div class="issue"><b>rule:</b> ${escape(rule.rule)} — <q>${escape(rule.quote)}</q></div>`).join('')}</div>` : ''}
     ${judgement ? `<div class="issue"><b>ending:</b> ${escape(judgement.outcome.why)}</div><div class="issue"><b>follow-up:</b> ${escape(judgement.followUp.why)}</div>` : ''}
     ${run.keep ? `<div class="issue"><b>person${run.keep.overall !== undefined ? ` (${run.keep.overall}/10)` : ''}:</b> “${escape(run.keep.why)}”${run.keep.worst ? ` Worst: <q>${escape(run.keep.worst)}</q>` : ''}</div>` : ''}
+    ${[...claimsOf(run).madeUpActions.map((quote) => ['no tool call behind', quote]), ...claimsOf(run).falseClaims.map((claim) => ['false claim', claim])].map(([label, quote]) => `<div class="issue"><b>${label}:</b> <q>${escape(quote)}</q></div>`).join('')}
     ${renderChat(run.transcript)}
     ${run.secondResult ? `<div class="msg note"><div class="muted">Day two (judge only)</div>${escape(run.secondResult.markdown)}</div>` : ''}
     <div class="muted">tools: ${escape(
       Object.entries(run.facts.toolCounts)
         .map(([name, n]) => `${name}×${n}`)
         .join(', ') || 'none'
-    )} · blocked ${run.facts.blockedToolCalls} · errors ${run.facts.toolErrors} · ${(run.durationMs / 1000).toFixed(0)}s · $${run.costUsd.toFixed(3)}</div>
+    )} · blocked ${run.facts.blockedToolCalls} · errors ${run.facts.toolErrors} · habits ${habits(voiceOf(run))} · ${(run.durationMs / 1000).toFixed(0)}s · $${run.costUsd.toFixed(3)}</div>
   `;
 }
 
