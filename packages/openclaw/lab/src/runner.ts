@@ -526,6 +526,7 @@ export async function gradeRun(input: {
     record.keep = await keepVerdict({
       persona: record.persona,
       events: record.transcript,
+      secondResult: record.secondResult,
       config,
       meter,
       policy: input.keepPolicy,

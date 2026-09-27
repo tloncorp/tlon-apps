@@ -140,8 +140,19 @@ The bot and the simulated person default to the bot model in tlonbot's
 `tests/.env`, which keeps a run to a cent or two. Override them with
 `LAB_BOT_MODEL` and `LAB_USER_MODEL`, or with the flags below.
 
-Judging is the expensive part, so there are two ways to do it:
+Judging is the expensive part, so there are three ways to do it:
 
+- **The person's own survey** (the default for quick rounds). Every run ends
+  with the simulated person answering a short survey as themselves: was their
+  question answered, was it easy, did it end the way they wanted, were the
+  notes useful, and an overall 1–10, averaged over three answers.
+  `pnpm lab score <base> <variant>` picks each pair's winner from it, for about
+  a cent per dozen conversations, and fills in surveys for older runs. Scores
+  belong to single runs, so a base set can be reused across rounds; `score`
+  warns when the two sets differ in anything besides the variant. On pairs
+  Claude judged, the survey picked Claude's winner about two times in three,
+  as often as a second Claude judge does, so a dozen pairs only settle large
+  differences.
 - **A Claude session judges** (the cheap default for iteration). Run with
   `--no-judge`, then `pnpm lab packets <setA> <setB>` writes one packet per
   pair of runs plus `INSTRUCTIONS.md`. Ask Claude Code to judge the packets:

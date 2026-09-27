@@ -128,8 +128,18 @@ export async function followUpMessage(input: {
 
 export const TIP_MOVE_RULES =
   'A later onboarding tip just arrived. Choose honestly: ignore it, reply with one ordinary message, or opt out of tips. Return only JSON: {"action":"ignore"|"reply"|"opt-out","text":"message if replying"}.';
-export const KEEP_RULES =
-  'You are this person, looking back on a chat you just had with the Tlonbot assistant in a messaging app. Answer honestly, as this person would, not as a polite reviewer. Return only JSON: {"keep": true | false, "why": "<one or two sentences in your own voice>"}';
+// The person's own view is the lab's cheapest reliable judge: on pairs Claude
+// judged side by side, this survey picked the same winner 32 times out of 40.
+export const KEEP_RULES = `You are this person, looking back on a chat you just had with the Tlonbot assistant in a messaging app, and at any notes it posted for you afterwards. Answer honestly, as this person would, not as a polite reviewer.
+Return only JSON:
+{"answered": <1 to 5: did it answer what you actually asked, in words, when you asked>,
+ "effort": <1 to 5: how easy it was; 5 means no wasted, repeated or pushy questions>,
+ "ending": <1 to 5: did it end the way you wanted, with recurring help only if you wanted it>,
+ "notes": <1 to 5: how useful and specific to you its notes were; null if it posted none>,
+ "overall": <1 to 10: how glad you are you used it>,
+ "worst": "<the one thing that bothered you most, quoted, or empty>",
+ "keep": <true or false>,
+ "why": "<one or two sentences in your own voice>"}`;
 
 export async function nextUserMove(input: {
   persona: Persona;
@@ -208,29 +218,86 @@ export async function nextTipMove(input: {
   return { action: 'ignore' };
 }
 
+/** How many times the person answers the survey; scores are averaged. */
+export const SURVEY_SAMPLES = 3;
+
 export async function keepVerdict(input: {
   persona: Persona;
   events: TranscriptEvent[];
+  /** The same task run as if it were the next day, when the run has one. */
+  secondResult?: { ok: boolean; markdown: string };
   config: LabConfig;
   meter: CostMeter;
   policy?: string;
 }): Promise<KeepVerdict> {
-  const reply = await chatJson<{ keep?: boolean; why?: string }>({
-    key: input.config.openrouterKey,
-    model: input.config.models.user,
-    temperature: 0.2,
-    maxTokens: 800,
-    meter: input.meter,
-    messages: [
-      {
-        role: 'system',
-        content: `${input.policy ?? KEEP_RULES}\n\n${personaBrief(input.persona)}`,
-      },
-      {
-        role: 'user',
-        content: `The chat:\n\n${renderForUser(input.events)}\n\nDid you get what you came for, and would you come back to this assistant the next time you need something like it? If a daily task was set up, would you keep it? Answer "keep": true only if all that applies to you is yes.`,
-      },
-    ],
-  });
-  return { keep: reply.keep === true, why: reply.why ?? '' };
+  const ask = () =>
+    chatJson<Partial<KeepVerdict>>({
+      key: input.config.openrouterKey,
+      model: input.config.models.user,
+      temperature: 0.2,
+      maxTokens: 800,
+      meter: input.meter,
+      messages: [
+        {
+          role: 'system',
+          content: `${input.policy ?? KEEP_RULES}\n\n${personaBrief(input.persona)}`,
+        },
+        {
+          role: 'user',
+          content: `${renderWithNotes(input.events, input.secondResult)}\n\nDid you get what you came for, and would you come back to this assistant the next time you need something like it? If a daily task was set up, would you keep it? Answer "keep": true only if all that applies to you is yes.`,
+        },
+      ],
+    });
+  // One reading of a 1-10 scale is too noisy to rank two conversations by,
+  // so the person answers a few times and the scores are averaged.
+  const replies = await Promise.all(
+    Array.from({ length: SURVEY_SAMPLES }, () => ask())
+  );
+  const average = (field: keyof KeepVerdict) => {
+    const values = replies
+      .map((reply) => reply[field])
+      .filter(
+        (value): value is number =>
+          typeof value === 'number' && Number.isFinite(value)
+      );
+    return values.length
+      ? Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) /
+          10
+      : undefined;
+  };
+  const [first] = replies;
+  const overall = average('overall');
+  return {
+    keep:
+      replies.filter((reply) => reply.keep === true).length * 2 >
+      replies.length,
+    why: first.why ?? '',
+    ...(overall !== undefined
+      ? {
+          answered: average('answered'),
+          effort: average('effort'),
+          ending: average('ending'),
+          notes: average('notes') ?? null,
+          overall,
+          worst: typeof first.worst === 'string' ? first.worst : '',
+        }
+      : {}),
+  };
+}
+
+/** The chat as the person saw it, plus the notes it posted afterwards. */
+function renderWithNotes(
+  events: TranscriptEvent[],
+  secondResult?: { ok: boolean; markdown: string }
+) {
+  const failed = '(the scheduled note failed to post)';
+  const notes = events.flatMap((event) =>
+    event.kind === 'first-result' ? [event.ok ? event.markdown : failed] : []
+  );
+  if (secondResult) {
+    notes.push(
+      `The next day:\n\n${secondResult.ok ? secondResult.markdown : failed}`
+    );
+  }
+  return `The chat:\n\n${renderForUser(events)}${notes.length ? `\n\nNotes it later posted to your Updates notebook:\n\n${notes.join('\n\n---\n\n')}` : ''}`;
 }

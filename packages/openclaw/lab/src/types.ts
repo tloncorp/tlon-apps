@@ -115,7 +115,19 @@ export type Judgement = {
   summary: string;
 };
 
-export type KeepVerdict = { keep: boolean; why: string };
+export type KeepVerdict = {
+  keep: boolean;
+  why: string;
+  /** The person's survey, 1 to 5 each; absent on runs graded before it. */
+  answered?: number;
+  effort?: number;
+  ending?: number;
+  /** null when no note was posted. */
+  notes?: number | null;
+  /** 1 to 10. */
+  overall?: number;
+  worst?: string;
+};
 
 export type RunRecord = {
   /** Fast: the lab's own model loop. Real: the local OpenClaw sandbox. */
