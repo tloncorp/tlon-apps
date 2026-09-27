@@ -123,6 +123,7 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
   return (
     <ChannelOptionsSheetLoader
       channelId={chat.id}
+      asChannel={chat.asChannel}
       open={isOpen}
       onOpenChange={handleOpenChange}
       trigger={trigger}
@@ -514,11 +515,14 @@ type ChannelPanes = 'initial' | 'notifications';
 const ChannelOptionsSheetLoader = memo(
   ({
     channelId,
+    asChannel,
     open,
     onOpenChange,
     trigger,
   }: {
     channelId: string;
+    /** The channel as itself even in a group of one (see `open`). */
+    asChannel?: boolean;
     open: boolean;
     onOpenChange: (open: boolean, clearChat?: boolean) => void;
     trigger?: React.ReactNode;
@@ -539,7 +543,7 @@ const ChannelOptionsSheetLoader = memo(
     const groupTitle = utils.useGroupTitle(group) ?? 'group';
     const channelTitle =
       utils.useChannelTitle(channelQuery.data ?? null) ?? 'channel';
-    const isSingleChannelGroup = group?.channels.length === 1;
+    const isSingleChannelGroup = !asChannel && group?.channels.length === 1;
     const chatTitle = isSingleChannelGroup ? groupTitle : channelTitle;
     const isWindowNarrow = useIsWindowNarrow();
 
@@ -588,6 +592,7 @@ const ChannelOptionsSheetLoader = memo(
               <ChannelOptionsSheetContent
                 chatTitle={chatTitle}
                 channel={channel}
+                asChannel={asChannel}
                 onPressNotifications={handlePressNotifications}
                 onOpenChange={onOpenChange}
               />
@@ -609,6 +614,7 @@ const ChannelOptionsSheetLoader = memo(
             <ChannelOptionsSheetContent
               chatTitle={chatTitle}
               channel={channel}
+              asChannel={asChannel}
               onPressNotifications={handlePressNotifications}
               onOpenChange={onOpenChange}
             />
@@ -623,11 +629,14 @@ ChannelOptionsSheetLoader.displayName = 'ChannelOptionsSheetLoader';
 export function ChannelOptionsSheetContent({
   chatTitle,
   channel,
+  asChannel,
   onPressNotifications,
   onOpenChange,
 }: {
   chatTitle: string;
   channel: db.Channel;
+  /** The channel as itself even in a group of one (see `open`). */
+  asChannel?: boolean;
   onPressNotifications: () => void;
   onOpenChange: (open: boolean, clearChat?: boolean) => void;
 }) {
@@ -647,7 +656,7 @@ export function ChannelOptionsSheetContent({
   const channelActionCapabilities = utils.getChannelActionCapabilities(channel);
 
   const groupTitle = utils.useGroupTitle(group) ?? 'group';
-  const isSingleChannelGroup = group?.channels?.length === 1;
+  const isSingleChannelGroup = !asChannel && group?.channels?.length === 1;
   // A Bucket has no unread row at all, so the bare `!== 0` test read
   // `undefined` as unread and offered the action; +readChannel then retries
   // an %activity operation that cannot succeed for this channel type.
