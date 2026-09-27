@@ -171,7 +171,8 @@ Run these from `packages/openclaw`.
 
 ```bash
 pnpm lab personas                         # list persona cards
-pnpm lab run                              # every persona once, graded
+pnpm lab run                              # the default set once, graded
+pnpm lab run --personas quick,tester      # sets and single cards mix
 pnpm lab run --personas founder-blunt,one-off-toast --repeat 3
 pnpm lab run --no-judge --variant ~/lab-variants/shorter-questions --repeat 3
 pnpm lab packets baseline shorter-questions   # then have Claude judge them
@@ -264,6 +265,13 @@ the difference between two average scores.
 - **Rule breaks**: clear breaks of the skill's own rules, with quotes.
 - **Came for it**: the simulated person's own answer.
 - **Pickers** and **user messages**: measured facts, not grades.
+- **Words per reply**, **generic-assistant habits** and **made-up actions or
+  false claims**: mechanical checks in `src/checks.ts`, free and the same every
+  time. Habits count emoji, exclamation marks, bold-label bullets, closing
+  "Want me to…?" offers and stock phrases. Claims flag a turn that says it did
+  something with no tool call behind it, calling Tlon end-to-end encrypted, and
+  self-hosting steps given to a hosted user. Each flagged line shows under the
+  run. Older runs are checked when the report is drawn.
 
 ## Personas
 
@@ -284,6 +292,17 @@ asks:                   # optional questions about the app itself, asked when na
 afterEnding: thanks. whats a good gift under $100 for them
 timezone: America/New_York
 ```
+
+`personas/sets.yaml` names groups of cards. `--personas` takes set names and
+card ids mixed together, and a run with no `--personas` uses the `default`
+set:
+
+- `real` (the default): 24 cards drawn from real first-day openers, most of
+  them people with no task in mind, a question about the product, or a single
+  request.
+- `quick`: 12 of those for fast rounds.
+- `legacy`: the original 24 cards, which lean toward people who want a
+  recurring task.
 
 Keep about half the suite awkward: people who decline, want a single answer,
 want a cadence the product doesn't offer, ignore the buttons, or ask for
