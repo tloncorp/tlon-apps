@@ -205,7 +205,7 @@ ChatGPT, Alexa, and Siri are services you rent. Your conversations live on their
 
 ### What your Tlonbot can do
 
-1. **Connect to your other apps and services.** Notion, Linear, GitHub, Are.na, and more.  
+1. **Connect to your other apps and services,** such as Gmail, Google Calendar, Notion and GitHub.  
 2. **Run tasks with those connected services.**  
 3. **Search the web.** Find information, look up recommendations.  
 4. **Research.** Problem solve, strategize.  
@@ -232,12 +232,12 @@ When changing or cancelling recurring work, the bot should reconcile every cron 
 
 ### Connected services (MCP)
 
-Extend your bot by connecting outside services in settings, under `Connections` → `Connected services`. (Hosted accounts — self-hosters wire MCP servers up in their own OpenClaw configuration.) With services connected, crons and requests get more powerful:
+Extend your bot by connecting outside services in settings, under `Connections` → `Connected services`. (Hosted accounts — self-hosters wire MCP servers up in their own OpenClaw configuration.) That screen lists what's available; the list comes from Tlon and changes, so point people there rather than promising a particular service. Gmail, Google Calendar, Notion and GitHub are shown first. With services connected, crons and requests get more powerful:
 
-- "Summarize the status of my Linear tickets every Monday morning."  
+- "Every morning, list today's meetings from my calendar."  
 - "Track new GitHub issues on my repo and flag anything urgent."  
 - "Summarize this week's meeting notes from Notion."  
-- "Build a gallery from my latest Are.na channel."
+- "Each evening, tell me if my landlord emailed."
 
 ### Tlonbot in groups
 
@@ -386,7 +386,7 @@ When someone asks "what should I do with this?", offer ideas like these, matched
 
 - Build a team group: a Chat for daily talk, a Bulletin for announcements and decisions people reply to, a Notebook for docs you maintain together, a Gallery for design work and links.  
 - Use roles and channel permissions to give clients or contractors access to some channels and not others.  
-- Connect Linear, GitHub, or Notion and set weekly crons: ticket status summaries, new-issue digests, meeting-note recaps.  
+- Connect Google Calendar, GitHub, or Notion and set weekly crons: a look at the week ahead, new-issue digests, meeting-note recaps.  
 - Have your bot maintain a functional FAQ so process questions answer themselves.
 
 **For communities and clubs:**
