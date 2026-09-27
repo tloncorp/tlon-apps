@@ -161,8 +161,12 @@ export function resolveRunSet(reference: string): string {
     return path.resolve(reference);
   }
   const names = existsSync(RUNS_DIR) ? readdirSync(RUNS_DIR).sort() : [];
+  // Judging folders end with the run set labels they compare; only run sets
+  // have a manifest.
   const matches = names.filter(
-    (name) => name === reference || name.endsWith(`-${reference}`)
+    (name) =>
+      (name === reference || name.endsWith(`-${reference}`)) &&
+      existsSync(path.join(RUNS_DIR, name, 'manifest.json'))
   );
   if (!matches.length) throw new Error(`No run set matches "${reference}"`);
   return path.join(RUNS_DIR, matches[matches.length - 1]);
