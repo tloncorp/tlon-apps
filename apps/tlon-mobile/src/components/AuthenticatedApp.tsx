@@ -27,6 +27,7 @@ import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import {
   ForwardPostSheetProvider,
   LoadingSpinner,
+  View,
   ZStack,
   useWebAppSplash,
 } from '@tloncorp/app/ui';
@@ -394,9 +395,9 @@ function AuthenticatedAppContent({
 
   if (!clientReady || isProbingColdStart) {
     return (
-      <ZStack flex={1} alignItems="center" justifyContent="center">
+      <View flex={1} alignItems="center" justifyContent="center">
         <LoadingSpinner />
-      </ZStack>
+      </View>
     );
   }
 
@@ -550,9 +551,9 @@ export default function ConnectedAuthenticatedApp({
 
   if (hostingAuthState === 'checking' || !checkedConnection) {
     return (
-      <ZStack flex={1} alignItems="center" justifyContent="center">
+      <View flex={1} alignItems="center" justifyContent="center">
         <LoadingSpinner />
-      </ZStack>
+      </View>
     );
   }
 
