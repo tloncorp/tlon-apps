@@ -6,6 +6,7 @@ import {
   getDrawerChats,
   getDrawerSearchChats,
   getDrawerSearchRows,
+  getDrawerTabRows,
   getUnreadDrawerFilters,
 } from './drawerChats';
 
@@ -64,8 +65,21 @@ describe('chatMatchesDrawerFilter', () => {
 });
 
 describe('getDrawerChats', () => {
-  it('flattens the buckets and orders the whole list by recency', () => {
-    const sorted = getDrawerChats(
+  it('keeps pinned chats apart, in their pinned order', () => {
+    const { pinned } = getDrawerChats(
+      {
+        pinned: [group('pinned-first', 10), group('pinned-second', 40)],
+        unpinned: [group('newest', 30)],
+        pending: [],
+      },
+      'workspaces'
+    );
+
+    expect(pinned.map((c) => c.id)).toEqual(['pinned-first', 'pinned-second']);
+  });
+
+  it('flattens the rest, invites included, and orders it by recency', () => {
+    const { unpinned } = getDrawerChats(
       {
         pinned: [group('pinned-old', 10)],
         unpinned: [group('newest', 30), group('oldest', 5)],
@@ -74,12 +88,7 @@ describe('getDrawerChats', () => {
       'workspaces'
     );
 
-    expect(sorted.map((c) => c.id)).toEqual([
-      'newest',
-      'invite',
-      'pinned-old',
-      'oldest',
-    ]);
+    expect(unpinned.map((c) => c.id)).toEqual(['newest', 'invite', 'oldest']);
   });
 
   it('lists a tab’s own chats, and not the channels inside a group', () => {
@@ -94,13 +103,12 @@ describe('getDrawerChats', () => {
       pending: [],
     };
 
-    expect(getDrawerChats(chats, 'workspaces').map((c) => c.id)).toEqual([
-      'a-group',
-    ]);
-    expect(getDrawerChats(chats, 'messages').map((c) => c.id)).toEqual([
-      'a-dm',
-      'a-group-dm',
-    ]);
+    expect(
+      getDrawerChats(chats, 'workspaces').unpinned.map((c) => c.id)
+    ).toEqual(['a-group']);
+    expect(getDrawerChats(chats, 'messages').unpinned.map((c) => c.id)).toEqual(
+      ['a-dm', 'a-group-dm']
+    );
   });
 
   it('keeps a group channel the user pinned to the top level, under Workspaces', () => {
@@ -110,27 +118,32 @@ describe('getDrawerChats', () => {
       pending: [],
     };
 
-    expect(getDrawerChats(chats, 'workspaces').map((c) => c.id)).toEqual([
-      'pinned-channel',
-    ]);
-    expect(getDrawerChats(chats, 'messages')).toEqual([]);
+    expect(getDrawerChats(chats, 'workspaces').pinned.map((c) => c.id)).toEqual(
+      ['pinned-channel']
+    );
+    expect(getDrawerChats(chats, 'messages')).toEqual({
+      pinned: [],
+      unpinned: [],
+    });
   });
 
   it('leaves out the conversation the footer already carries', () => {
+    const pin = { index: 0 } as db.Pin;
     const chats = {
-      pinned: [],
+      pinned: [channel('bot-dm', 20, 'dm', pin)],
       unpinned: [channel('bot-dm', 20, 'dm'), channel('a-dm', 10, 'dm')],
       pending: [],
     };
 
-    expect(
-      getDrawerChats(chats, 'messages', 'bot-dm').map((c) => c.id)
-    ).toEqual(['a-dm']);
+    const { pinned, unpinned } = getDrawerChats(chats, 'messages', 'bot-dm');
+    expect(pinned).toEqual([]);
+    expect(unpinned.map((c) => c.id)).toEqual(['a-dm']);
   });
 
   it('is empty before the chats have loaded', () => {
-    expect(getDrawerChats(undefined, 'workspaces')).toEqual([]);
-    expect(getDrawerChats(null, 'messages')).toEqual([]);
+    const empty = { pinned: [], unpinned: [] };
+    expect(getDrawerChats(undefined, 'workspaces')).toEqual(empty);
+    expect(getDrawerChats(null, 'messages')).toEqual(empty);
   });
 
   it('leaves the query result untouched', () => {
@@ -402,5 +415,112 @@ describe('getDrawerSearchRows', () => {
       'a-group:one',
       'a-group:two',
     ]);
+  });
+
+  it('marks no result as pinned: the pin belongs to the tab’s section', () => {
+    const pinned = channel('pinned-dm', 1, 'dm', { index: 0 } as db.Pin);
+
+    expect(getDrawerSearchRows([pinned], null)[1]).toMatchObject({
+      kind: 'chat',
+      pinned: false,
+    });
+  });
+});
+
+describe('getDrawerTabRows', () => {
+  function keys(rows: ReturnType<typeof getDrawerTabRows>) {
+    return rows.map((row) => row.key);
+  }
+
+  it('is the list alone when nothing is pinned', () => {
+    const rows = getDrawerTabRows(
+      { pinned: [], unpinned: [group('a', 2), group('b', 1)] },
+      null,
+      'workspaces'
+    );
+
+    expect(keys(rows)).toEqual(['a', 'b']);
+    expect(rows.every((row) => row.kind === 'chat' && !row.pinned)).toBe(true);
+  });
+
+  it('heads the pinned section and the rest below it', () => {
+    const rows = getDrawerTabRows(
+      { pinned: [group('pinned', 1)], unpinned: [group('a', 2)] },
+      null,
+      'workspaces'
+    );
+
+    expect(keys(rows)).toEqual([
+      'heading:pinned:workspaces',
+      'pinned',
+      'heading:recent:workspaces',
+      'a',
+    ]);
+    expect(rows[0]).toMatchObject({ kind: 'heading', label: 'Pinned' });
+    expect(rows[1]).toMatchObject({ kind: 'chat', pinned: true });
+    expect(rows[2]).toMatchObject({ kind: 'heading', label: 'Recent' });
+    expect(rows[3]).toMatchObject({ kind: 'chat', pinned: false });
+  });
+
+  it('closes no section that has nothing after it', () => {
+    const rows = getDrawerTabRows(
+      { pinned: [group('pinned', 1)], unpinned: [] },
+      null,
+      'workspaces'
+    );
+
+    expect(keys(rows)).toEqual(['heading:pinned:workspaces', 'pinned']);
+  });
+
+  it('unfurls a pinned workspace in place', () => {
+    const pinnedWorkspace: db.Chat = {
+      id: 'pinned',
+      timestamp: 1,
+      pin: { index: 0 } as db.Pin,
+      volumeSettings: null,
+      isPending: false,
+      unreadCount: 0,
+      type: 'group',
+      group: {
+        id: 'pinned',
+        channels: [
+          { id: 'one', currentUserIsMember: true },
+          { id: 'two', currentUserIsMember: true },
+        ] as db.Channel[],
+      } as db.Group,
+    };
+
+    expect(
+      keys(
+        getDrawerTabRows(
+          { pinned: [pinnedWorkspace], unpinned: [group('a', 2)] },
+          'pinned',
+          'workspaces'
+        )
+      )
+    ).toEqual([
+      'heading:pinned:workspaces',
+      'pinned',
+      'pinned:one',
+      'pinned:two',
+      'heading:recent:workspaces',
+      'a',
+    ]);
+  });
+
+  // The list holds its first visible row across a change of tab, and must
+  // not find that row in the other tab.
+  it('keys each tab’s headings apart', () => {
+    const chats = { pinned: [group('pinned', 1)], unpinned: [group('a', 2)] };
+    const workspaces = getDrawerTabRows(chats, null, 'workspaces');
+    const messages = getDrawerTabRows(chats, null, 'messages');
+
+    const headingKeys = (rows: typeof workspaces) =>
+      rows.filter((row) => row.kind === 'heading').map((row) => row.key);
+    expect(
+      headingKeys(workspaces).filter((key) =>
+        headingKeys(messages).includes(key)
+      )
+    ).toEqual([]);
   });
 });

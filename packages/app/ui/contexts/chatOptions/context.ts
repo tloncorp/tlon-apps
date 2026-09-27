@@ -26,7 +26,17 @@ export type ChatOptionsContextValue = {
   leaveChannel: () => void;
   updateVolume: (level: ub.NotificationLevel | null) => void;
   setChannelSortPreference?: (sortBy: 'recency' | 'arranged') => void;
-  open: (chatId: string, chatType: 'group' | 'channel') => void;
+  /**
+   * `asChannel` opens a channel's own sheet even when it is the only channel
+   * of its group, which otherwise opens the group's: a group of one channel
+   * is shown as that channel, except by a caller listing the channel apart
+   * from its group.
+   */
+  open: (
+    chatId: string,
+    chatType: 'group' | 'channel',
+    options?: { asChannel?: boolean }
+  ) => void;
   setChat: (chat: { id: string; type: 'group' | 'channel' } | null) => void;
 } | null;
 

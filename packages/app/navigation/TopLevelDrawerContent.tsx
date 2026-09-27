@@ -6,6 +6,7 @@ import {
   AnalyticsEvent,
   configurationFromChannel,
   createDevLogger,
+  useMutableRef,
 } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
@@ -28,7 +29,15 @@ import React, {
 import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Circle, View, XStack, YStack, getTokenValue } from 'tamagui';
+import {
+  Circle,
+  type ColorTokens,
+  View,
+  XStack,
+  YStack,
+  getTokenValue,
+  useTheme,
+} from 'tamagui';
 
 import {
   CreateChatSheet,
@@ -45,7 +54,11 @@ import {
   getUnreadColors,
   useChatOptions,
 } from '../ui';
-import { ImageAvatar, SigilAvatar } from '../ui/components/Avatar';
+import {
+  ContactAvatar,
+  ImageAvatar,
+  SigilAvatar,
+} from '../ui/components/Avatar';
 import { floatingChromeMetrics } from '../ui/components/conversationInsets';
 import {
   GlassSurface,
@@ -57,20 +70,23 @@ import { DrawerFilterTabs } from './DrawerFilterTabs';
 import { DrawerSearchHeader } from './DrawerSearchHeader';
 import { DRAWER_CONTROL_SHADOW } from './drawerControlShadow';
 import {
-  DRAWER_FILTER_LABELS,
   type DrawerFilter,
   type DrawerListRow,
   getDrawerChats,
   getDrawerSearchChats,
   getDrawerSearchRows,
+  getDrawerTabRows,
   getUnreadDrawerFilters,
 } from './drawerChats';
-import { getDrawerChannelIcon, getDrawerChatIcon } from './drawerRowIcons';
+import {
+  type DrawerChatLeading,
+  getDrawerChannelIcon,
+  getDrawerChatLeading,
+} from './drawerRowIcons';
 import {
   channelRecency,
-  channelRowHasUnread,
+  channelRowUnread,
   chatRowHasUnread,
-  getDrawerRows,
   toggleUnfurled,
 } from './drawerWorkspaceRows';
 import {
@@ -109,14 +125,27 @@ const CARET_SLOT = 14;
 // together read as one mark on the row rather than as two columns.
 const ROW_ICON_SIZE = 16;
 const ROW_ICON_GAP = '$xs' as const;
-// A channel of an unfurled workspace starts its glyph where the workspace
-// above it starts its name, which is what makes the block read as nested.
-// Computed rather than written down so it follows the pieces it clears.
-const CHANNEL_INDENT =
-  CARET_SLOT +
-  getTokenValue(ROW_ICON_GAP, 'space') +
-  ROW_ICON_SIZE +
-  getTokenValue(ROW_GAP, 'space');
+// A channel of an unfurled workspace sets its glyph in the column the
+// workspace's own glyph stands in, so the kinds of channel read down one line
+// under the workspace's mark, and the caret's column alone is what sets them
+// in. Computed rather than written down so it follows the pieces it clears.
+const CHANNEL_INDENT = CARET_SLOT + getTokenValue(ROW_ICON_GAP, 'space');
+// An avatar in the glyph's column, at the corners the app's own avatars of
+// that size have.
+const ROW_AVATAR_RADIUS = '$2xs' as const;
+// The gear an unfurled workspace shows where its dot was is one glyph drawn,
+// and a press the height of the row taken: held out from the glyph by this
+// much on every side, and pulled back by as much so the row does not grow.
+const ROW_CONTROL_PAD = (CHAT_ROW_MIN_HEIGHT - ROW_ICON_SIZE) / 2;
+const GROUP_SETTINGS_LABEL = 'Group info & settings';
+// A tab's list opens on a row of its own, one point tall and empty, that
+// never moves. The list holds its first visible row in place across a change
+// of data, so a chat moving up does not shift the rows being read — and at
+// the top of the list, that row is this one. Anything arriving above the rows
+// on show, the pinned section when the first chat is pinned or a chat that
+// has just seen activity, then lands in view beneath it instead of the list
+// holding its place below and pushing the new rows out of sight.
+const TOP_ANCHOR_ROW: DrawerListRow = { kind: 'anchor', key: 'anchor:top' };
 // An unfurled workspace and its channels are one block, so they share one
 // fill and the rows between its ends carry no corners of their own.
 const UNFURLED_FILL = '$secondaryBackground' as const;
@@ -141,11 +170,15 @@ const FOOTER_CONTROL_RADIUS = floatingChromeMetrics.controlRadius;
 // but a pill at the foot of the panel has room for the product's name and not
 // for anybody's variation on it.
 const BOT_BUTTON_LABEL = 'Tlonbot';
-// The one control in the panel that carries a colour, so it is the first
-// thing the eye finds there. The same blue in every theme, so the same white
-// on it in every theme.
-const BOT_BUTTON_FILL = '$blue' as const;
-const BOT_BUTTON_FOREGROUND = '$white' as const;
+// The pill is in the panel's own ink — black on a light panel, white on a dark
+// one — and turns the app's blue only while the bot's conversation holds an
+// unread. It is the one control in the panel that can carry a colour, so the
+// colour is news rather than decoration. The same blue in every theme, so the
+// same white on it in every theme.
+const BOT_BUTTON_FILL = '$primaryText' as const;
+const BOT_BUTTON_FOREGROUND = '$background' as const;
+const BOT_BUTTON_UNREAD_FILL = '$blue' as const;
+const BOT_BUTTON_UNREAD_FOREGROUND = '$white' as const;
 // The bot's avatar at the size and corners its bottom tab showed it with —
 // the avatar beside a chat message's author.
 const BOT_AVATAR_SIZE = '$2xl' as const;
@@ -155,6 +188,51 @@ const UNREAD_DOT_RING = 2;
 // own flat surfaces everywhere else.
 const usesIOSGlass = supportsLiquidGlass();
 
+function RowGlyph({ icon }: { icon: IconType }) {
+  // Frame sized to the glyph: the default leaves 4pt of padding inside it,
+  // which would set every icon in from its column.
+  return (
+    <Icon
+      type={icon}
+      customSize={[ROW_ICON_SIZE, ROW_ICON_SIZE]}
+      color="$tertiaryText"
+    />
+  );
+}
+
+/**
+ * What stands in a chat row's glyph column. A face or a workspace's icon is
+ * drawn at the glyph's size, so every row starts its name on the same line.
+ */
+function DrawerChatLeadingMark({ leading }: { leading: DrawerChatLeading }) {
+  switch (leading.kind) {
+    case 'glyph':
+      return <RowGlyph icon={leading.icon} />;
+    case 'image':
+      return (
+        <ImageAvatar
+          imageUrl={leading.imageUrl}
+          isGroupIcon
+          size="custom"
+          width={ROW_ICON_SIZE}
+          height={ROW_ICON_SIZE}
+          borderRadius={ROW_AVATAR_RADIUS}
+          fallback={<RowGlyph icon={leading.fallback} />}
+        />
+      );
+    case 'contact':
+      return (
+        <ContactAvatar
+          contactId={leading.contactId}
+          size="custom"
+          width={ROW_ICON_SIZE}
+          height={ROW_ICON_SIZE}
+          borderRadius={ROW_AVATAR_RADIUS}
+        />
+      );
+  }
+}
+
 const DrawerChatRow = React.memo(function DrawerChatRowComponent({
   chat,
   title,
@@ -162,8 +240,10 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
   disabled,
   unfurls,
   unfurled,
+  pinned,
   onPress,
   onLongPress,
+  onPressSettings,
 }: {
   chat: db.Chat;
   title: string;
@@ -172,14 +252,29 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
   /** Whether pressing this row opens its channels below it. */
   unfurls: boolean;
   unfurled: boolean;
+  /** In its tab's pinned section, which leads with a pin in place of its
+      glyph. */
+  pinned: boolean;
   onPress: (chat: db.Chat) => void;
   /** Held down: the chat's own options, or nothing for a row that has none. */
   onLongPress?: (chat: db.Chat) => void;
+  /** The gear an unfurled workspace shows: the workspace's info and
+      settings. */
+  onPressSettings?: (chat: db.Chat) => void;
 }) {
   const handlePress = useCallback(() => onPress(chat), [chat, onPress]);
   const handleLongPress = useCallback(
     () => onLongPress?.(chat),
     [chat, onLongPress]
+  );
+  const showsSettings = unfurled && !disabled && onPressSettings != null;
+  const handlePressSettings = useCallback(
+    () => onPressSettings?.(chat),
+    [chat, onPressSettings]
+  );
+  const leading = useMemo(
+    () => getDrawerChatLeading(chat, pinned),
+    [chat, pinned]
   );
   const notified =
     chat.type === 'group'
@@ -251,13 +346,7 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
               />
             ) : null}
           </View>
-          {/* Frame sized to the glyph: the default leaves 4pt of padding
-              inside it, which would set every icon in from its column. */}
-          <Icon
-            type={getDrawerChatIcon(chat)}
-            customSize={[ROW_ICON_SIZE, ROW_ICON_SIZE]}
-            color="$tertiaryText"
-          />
+          <DrawerChatLeadingMark leading={leading} />
         </XStack>
         <Text
           flex={1}
@@ -269,7 +358,27 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
           {title}
         </Text>
         <ListItem.Time time={chat.timestamp} paddingBottom={0} />
-        {hasUnread ? <Circle size="$s" backgroundColor={unreadColor} /> : null}
+        {showsSettings ? (
+          // In the dot's place: an open workspace has its channels on show
+          // below it, each saying for itself what it holds, so the roll-up
+          // has nothing left to add there.
+          <Pressable
+            onPress={handlePressSettings}
+            accessibilityRole="button"
+            accessibilityLabel={GROUP_SETTINGS_LABEL}
+            testID={`TopLevelDrawerChatSettings-${chat.id}`}
+            padding={ROW_CONTROL_PAD}
+            margin={-ROW_CONTROL_PAD}
+          >
+            <Icon
+              type="Settings"
+              customSize={[ROW_ICON_SIZE, ROW_ICON_SIZE]}
+              color="$tertiaryText"
+            />
+          </Pressable>
+        ) : hasUnread ? (
+          <Circle size="$s" backgroundColor={unreadColor} />
+        ) : null}
       </XStack>
     </Pressable>
   );
@@ -290,6 +399,7 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
   groupMuted,
   last,
   onPress,
+  onLongPress,
 }: {
   channel: db.Channel;
   title: string;
@@ -301,15 +411,23 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
   /** Last of its workspace's channels, so the block's fill ends here. */
   last: boolean;
   onPress: (channel: db.Channel) => void;
+  /** Held down: the channel's own options. */
+  onLongPress?: (channel: db.Channel) => void;
 }) {
   const handlePress = useCallback(() => onPress(channel), [channel, onPress]);
-  const notified = channel.unread?.notify ?? false;
-  const hasUnread = channelRowHasUnread(channel, groupMuted);
+  const handleLongPress = useCallback(
+    () => onLongPress?.(channel),
+    [channel, onLongPress]
+  );
+  const unread = channelRowUnread(channel, groupMuted);
+  const hasUnread = unread !== 'none';
+  const notified = unread === 'notified';
   const unreadColor = getUnreadColors(notified).foreground;
 
   return (
     <Pressable
       onPress={disabled ? undefined : handlePress}
+      onLongPress={disabled || !onLongPress ? undefined : handleLongPress}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={
@@ -334,11 +452,7 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
       hoverStyle={{ backgroundColor: UNFURLED_EMPHASIS }}
     >
       <XStack alignItems="center" gap={ROW_GAP} paddingLeft={CHANNEL_INDENT}>
-        <Icon
-          type={getDrawerChannelIcon(channel)}
-          customSize={[ROW_ICON_SIZE, ROW_ICON_SIZE]}
-          color="$tertiaryText"
-        />
+        <RowGlyph icon={getDrawerChannelIcon(channel)} />
         <Text
           flex={1}
           numberOfLines={1}
@@ -366,7 +480,14 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
  * rather than from the hosting service's copy of the bot's avatar, which is
  * often empty or slow while the bot's gateway starts.
  */
-function DrawerBotAvatar({ botId }: { botId: string }) {
+function DrawerBotAvatar({
+  botId,
+  color,
+}: {
+  botId: string;
+  /** The pill's label colour, which the glyph is drawn in. */
+  color: ColorTokens;
+}) {
   const botContact = useContact(botId);
   return (
     <ImageAvatar
@@ -387,7 +508,7 @@ function DrawerBotAvatar({ botId }: { botId: string }) {
             <Icon
               type={TOP_LEVEL_TABS.BotChat.icon}
               customSize={[20, 20]}
-              color={BOT_BUTTON_FOREGROUND}
+              color={color}
             />
           </View>
         )
@@ -397,12 +518,13 @@ function DrawerBotAvatar({ botId }: { botId: string }) {
 }
 
 /**
- * The name of the tab a run of search results would have been found under.
+ * What a run of rows is: the pinned section and the rest of a tab, or the tab
+ * a run of search results would have been found under.
  *
  * On the same column as the rows' own content, and in the grey their times
  * are in: it labels them, and should not read as one of them.
  */
-function DrawerSearchHeading({ filter }: { filter: DrawerFilter }) {
+function DrawerListHeading({ label }: { label: string }) {
   return (
     <Text
       size="$label/s"
@@ -412,7 +534,7 @@ function DrawerSearchHeading({ filter }: { filter: DrawerFilter }) {
       paddingTop="$l"
       paddingBottom="$xs"
     >
-      {DRAWER_FILTER_LABELS[filter]}
+      {label}
     </Text>
   );
 }
@@ -422,7 +544,7 @@ function DrawerSearchHeading({ filter }: { filter: DrawerFilter }) {
  *
  * Liquid Glass is the chrome where the OS has it, so the control picks up the
  * list scrolling under it the way the composer's do. Everywhere else it is the
- * app's ordinary button, filled with the same blue.
+ * app's ordinary button, filled with the same colour.
  */
 export function DrawerChatButton({
   botId,
@@ -441,17 +563,26 @@ export function DrawerChatButton({
   const accessibilityLabel = hasUnread
     ? `${BOT_BUTTON_LABEL}, unread`
     : BOT_BUTTON_LABEL;
+  const fill = hasUnread ? BOT_BUTTON_UNREAD_FILL : BOT_BUTTON_FILL;
+  const foreground = hasUnread
+    ? BOT_BUTTON_UNREAD_FOREGROUND
+    : BOT_BUTTON_FOREGROUND;
+  // The glass takes a colour rather than a token, and the ink is a theme's.
+  const theme = useTheme();
+  const glassTint = hasUnread
+    ? getTokenValue(BOT_BUTTON_UNREAD_FILL, 'color')
+    : theme.primaryText?.val;
 
   if (!usesIOSGlass) {
     // The frame and text rather than `Button` itself, whose label takes the
     // primary intent's colour — the panel's own background, which is dark
-    // on the blue in a dark theme.
+    // on the unread blue in a dark theme.
     return (
       <Button.Frame
         intent="primary"
         fill="solid"
-        backgroundColor={BOT_BUTTON_FILL}
-        borderColor={BOT_BUTTON_FILL}
+        backgroundColor={fill}
+        borderColor={fill}
         onPress={() => {
           triggerHaptic('baseButtonClick');
           onPress();
@@ -462,10 +593,8 @@ export function DrawerChatButton({
         testID="TopLevelDrawerChatButton"
         {...DRAWER_CONTROL_SHADOW}
       >
-        <DrawerBotAvatar botId={botId} />
-        <Button.Text color={BOT_BUTTON_FOREGROUND}>
-          {BOT_BUTTON_LABEL}
-        </Button.Text>
+        <DrawerBotAvatar botId={botId} color={foreground} />
+        <Button.Text color={foreground}>{BOT_BUTTON_LABEL}</Button.Text>
       </Button.Frame>
     );
   }
@@ -487,7 +616,7 @@ export function DrawerChatButton({
           everywhere else, so both treatments read as one control. */}
       <GlassSurface
         glassEffectStyle="regular"
-        tintColor={getTokenValue(BOT_BUTTON_FILL, 'color')}
+        tintColor={glassTint}
         pointerEvents="none"
         style={[StyleSheet.absoluteFill, footerStyles.chatPill]}
       />
@@ -509,8 +638,8 @@ export function DrawerChatButton({
         }
         paddingRight="$xl"
       >
-        <DrawerBotAvatar botId={botId} />
-        <Text size="$label/l" color={BOT_BUTTON_FOREGROUND}>
+        <DrawerBotAvatar botId={botId} color={foreground} />
+        <Text size="$label/l" color={foreground}>
           {BOT_BUTTON_LABEL}
         </Text>
       </Pressable>
@@ -1009,8 +1138,8 @@ function DrawerPanel(props: DrawerContentComponentProps) {
   const selectFilter = useCallback((next: DrawerFilter) => {
     // Changing tabs is a request to stay in the panel, the same as unfurling a
     // workspace, so it supersedes anything still resolving its route. A
-    // one-channel workspace tapped a moment ago is still reading its group,
-    // and nothing else here would stop it: the app behind the panel has not
+    // workspace with nothing to unfurl yet, tapped a moment ago, is still
+    // reading its group, and nothing else here would stop it: the app behind the panel has not
     // moved, so its own staleness checks pass and it would reset the stack and
     // close the panel out from under the tab just chosen.
     navigationRequestRef.current += 1;
@@ -1103,9 +1232,9 @@ function DrawerPanel(props: DrawerContentComponentProps) {
         return;
       }
       // Opening a workspace is a request to stay in the panel, so it supersedes
-      // anything still resolving its route — a one-channel workspace tapped a
-      // moment ago would otherwise come back, reset the stack and close the
-      // panel out from under the channels just unfurled.
+      // anything still resolving its route — a workspace with nothing to
+      // unfurl yet, tapped a moment ago, would otherwise come back, reset the
+      // stack and close the panel out from under the channels just unfurled.
       navigationRequestRef.current += 1;
       setUnfurledGroupId((current) => toggleUnfurled(current, chat.id));
     },
@@ -1114,25 +1243,50 @@ function DrawerPanel(props: DrawerContentComponentProps) {
 
   // Held down, a chat row offers what the workspace list offers for the same
   // chat — the sheet below is that list's own.
-  const { open: openChatOptions } = useChatOptions();
-  const openOptions = useCallback(
+  const { open: openChatOptions, onPressChatDetails } = useChatOptions();
+  // Read through a ref: the handler is rebuilt on every render of the
+  // provider above, and a new one here would re-render every row.
+  const onPressChatDetailsRef = useMutableRef(onPressChatDetails);
+  // An open workspace's gear goes where the sheet's own "Group info &
+  // settings" does, by the same handler, which closes the panel on its way.
+  const openGroupSettings = useCallback(
     (chat: db.Chat) => {
+      if (chatsLocked) {
+        return;
+      }
+      // Leaving the panel supersedes anything still resolving its route, as
+      // every other way out of it does.
+      navigationRequestRef.current += 1;
+      onPressChatDetailsRef.current({ type: 'group', id: chat.id });
+    },
+    [chatsLocked, onPressChatDetailsRef]
+  );
+  const openOptions = useCallback(
+    (chat: { id: string; type: 'group' | 'channel'; asChannel?: boolean }) => {
       if (chatsLocked) {
         return;
       }
       // A request to stay in the panel, so it supersedes anything still
       // resolving a route, the same as unfurling a workspace or changing tabs.
-      // A one-channel workspace tapped a moment ago is still reading its
-      // group, and nothing else here would stop it: the app behind the panel
+      // A workspace with nothing to unfurl yet, tapped a moment ago, is still
+      // reading its group, and nothing else here would stop it: the app behind the panel
       // has not moved, so its staleness checks pass and it would reset the
       // stack and close the panel out from under the sheet just opened.
       navigationRequestRef.current += 1;
       // The sheet comes up from the bottom, where the keyboard is, and one
       // left up over a sheet traps the touches meant for it (TLON-6187).
       searchInputRef.current?.blur();
-      openChatOptions(chat.id, chat.type);
+      openChatOptions(chat.id, chat.type, { asChannel: chat.asChannel });
     },
     [chatsLocked, openChatOptions]
+  );
+  // A channel of an unfurled workspace is held down for its own options, and
+  // the workspace's are the row above it — the only channel of a workspace
+  // too, which the sheet would otherwise answer for with its workspace's.
+  const openChannelOptions = useCallback(
+    (channel: db.Channel) =>
+      openOptions({ id: channel.id, type: 'channel', asChannel: true }),
+    [openOptions]
   );
 
   // A field opened but not yet typed into leaves the tab's own list showing:
@@ -1143,14 +1297,17 @@ function DrawerPanel(props: DrawerContentComponentProps) {
     () =>
       isSearching
         ? getDrawerSearchRows(searchResults, unfurledGroupId)
-        : getDrawerRows(drawerChats, unfurledGroupId),
-    [drawerChats, isSearching, searchResults, unfurledGroupId]
+        : [
+            TOP_ANCHOR_ROW,
+            ...getDrawerTabRows(drawerChats, unfurledGroupId, filter),
+          ],
+    [drawerChats, filter, isSearching, searchResults, unfurledGroupId]
   );
   const titles = useMemo(
     () =>
       new Map(
         rows.flatMap((row): [string, string][] =>
-          row.kind === 'heading'
+          row.kind !== 'chat' && row.kind !== 'channel'
             ? []
             : [
                 [
@@ -1172,22 +1329,26 @@ function DrawerPanel(props: DrawerContentComponentProps) {
 
   const renderRow = useCallback(
     ({ item }: { item: DrawerListRow }) =>
-      item.kind === 'heading' ? (
-        <DrawerSearchHeading filter={item.filter} />
+      item.kind === 'anchor' ? (
+        <View height={1} />
+      ) : item.kind === 'heading' ? (
+        <DrawerListHeading label={item.label} />
       ) : item.kind === 'chat' ? (
         <DrawerChatRow
           chat={item.chat}
           title={titles.get(item.key) ?? ''}
-          selected={routeShowsChat(item.chat, focusedStackRoute)}
+          selected={routeShowsChat(item.chat, focusedStackRoute, item.unfurled)}
           disabled={chatsLocked}
           unfurls={item.unfurls}
           unfurled={item.unfurled}
+          pinned={item.pinned}
           onPress={item.unfurls ? toggleWorkspace : openChat}
           // An invite has nothing to offer yet: it is not joined, so none of
           // the sheet's actions apply to it — the same row the workspace list
           // withholds the sheet from. Withheld rather than ignored, so holding
           // one down still reaches its preview the way tapping it does.
           onLongPress={item.chat.isPending ? undefined : openOptions}
+          onPressSettings={openGroupSettings}
         />
       ) : (
         <DrawerChannelRow
@@ -1201,12 +1362,15 @@ function DrawerPanel(props: DrawerContentComponentProps) {
           groupMuted={item.groupMuted}
           last={item.last}
           onPress={openWorkspaceChannel}
+          onLongPress={openChannelOptions}
         />
       ),
     [
       chatsLocked,
       focusedStackRoute,
+      openChannelOptions,
       openChat,
+      openGroupSettings,
       openOptions,
       openWorkspaceChannel,
       titles,
@@ -1296,7 +1460,7 @@ function DrawerPanel(props: DrawerContentComponentProps) {
         }
         data={rows}
         keyExtractor={(row) => row.key}
-        // Three shapes of row in one list, so the recycler is told which is
+        // Several shapes of row in one list, so the recycler is told which is
         // which rather than handing a channel's view to a chat.
         getItemType={(row) => row.kind}
         renderItem={renderRow}

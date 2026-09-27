@@ -1,5 +1,5 @@
 import { createDrawerNavigator } from '@react-navigation/drawer';
-import { queryClient } from '@tloncorp/shared';
+import { queryClient, render } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useEffect, useState } from 'react';
 import { useWindowDimensions } from 'react-native';
@@ -8,7 +8,16 @@ import { View } from 'tamagui';
 import { TopLevelDrawerContent } from '../navigation/TopLevelDrawerContent';
 import { useTopLevelDrawerScreenOptions } from '../navigation/topLevelDrawerOptions';
 import { FixtureWrapper } from './FixtureWrapper';
-import { group, groupWithLongTitle } from './fakeData';
+import {
+  brianContact,
+  group,
+  groupWithImage,
+  groupWithLongTitle,
+  markContact,
+  tlonLocalIntros,
+  tlonLocalSupport,
+  tlonLocalWaterCooler,
+} from './fakeData';
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -51,12 +60,19 @@ function dm(
  * something under both of its tabs: two workspaces of several channels each,
  * and the direct messages the Messages tab is for.
  */
-const filler = Array.from({ length: 24 }, (_, i) =>
-  dm(`~filler-${i}`, 'dm', [`~filler-${i}`], Date.now() - (i + 4) * DAY)
-);
+// Real planet names: a direct message's row draws its correspondent's sigil,
+// which cannot be drawn for a name that is not one.
+const filler = Array.from({ length: 24 }, (_, i) => {
+  const id = render('p', BigInt(0x10000 + i * 7919));
+  return dm(id, 'dm', [id], Date.now() - (i + 6) * DAY);
+});
 
 const fixtureDms = [
   dm('~solfer-magfed', 'dm', ['~solfer-magfed'], Date.now() - DAY, 3),
+  // The one fixture contact with an avatar, so a face shows beside the sigils.
+  dm(brianContact.id, 'dm', [brianContact.id], Date.now() - 2 * DAY),
+  // Pinned below, so the Messages tab has a pinned section too.
+  dm(markContact.id, 'dm', [markContact.id], Date.now() - 5 * DAY),
   dm(
     '0v4.00000.qd4p2.cnv33.vqn0t.d0qk3',
     'groupDm',
@@ -74,10 +90,32 @@ function useSeededDrawerChats() {
       await db.insertGroups({
         groups: [
           { ...group, lastPostAt: Date.now() - 60_000 },
+          { ...groupWithImage, lastPostAt: Date.now() - DAY },
           { ...groupWithLongTitle, lastPostAt: Date.now() - 2 * DAY },
         ],
       });
       await db.insertChannels(fixtureDms);
+      await db.insertPinnedItems([
+        { type: 'group', itemId: groupWithLongTitle.id, index: 0 },
+        { type: 'dm', itemId: markContact.id, index: 1 },
+      ]);
+      // Tlon Local's channels hold each kind of unread a channel row can
+      // show once the workspace is unfurled: one that notified, one that did
+      // not, and one in a channel the user has muted.
+      await db.setVolumes({
+        volumes: [
+          { itemId: tlonLocalSupport.id, itemType: 'channel', level: 'hush' },
+        ],
+      });
+      await db.insertGroupUnreads([
+        {
+          groupId: group.id,
+          count: 11,
+          notify: true,
+          notifyCount: 4,
+          updatedAt: Date.now() - 60_000,
+        } as db.GroupUnread,
+      ]);
       // One unread on the Messages side, so the Workspaces tab shows what an
       // unread in the half that is not being drawn looks like.
       await db.insertChannelUnreads([
@@ -89,6 +127,21 @@ function useSeededDrawerChats() {
           notify: false,
           updatedAt: Date.now() - DAY,
         } as db.ChannelUnread,
+        ...[
+          { channel: tlonLocalIntros, count: 4, notify: true },
+          { channel: tlonLocalWaterCooler, count: 2, notify: false },
+          { channel: tlonLocalSupport, count: 5, notify: false },
+        ].map(
+          ({ channel, count, notify }) =>
+            ({
+              channelId: channel.id,
+              type: 'channel',
+              count,
+              countWithoutThreads: count,
+              notify,
+              updatedAt: Date.now() - 60_000,
+            }) as db.ChannelUnread
+        ),
       ]);
       await queryClient.invalidateQueries();
       if (!cancelled) {

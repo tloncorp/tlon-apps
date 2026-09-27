@@ -26,11 +26,40 @@ export function getDrawerChannelIcon(channel: db.Channel): IconType {
   }
 }
 
+export type DrawerChatLeading =
+  | { kind: 'glyph'; icon: IconType }
+  | { kind: 'image'; imageUrl: string; fallback: IconType }
+  | { kind: 'contact'; contactId: string };
+
 /**
- * The glyph a chat row leads with: `#` for a workspace, and for anything that
- * stands at the top level as a single channel — a direct message, or a channel
- * pinned out of a group — that channel's own.
+ * What a chat row leads with, in the glyph's column.
+ *
+ * - A row of the pinned section: a pin, whatever it is, since that section is
+ *   the one place where why a row sits where it does is not its recency.
+ * - A workspace: its icon when it has one, and `#` when it has none — or while
+ *   the icon cannot be shown, which is what `fallback` is for.
+ * - A direct message: the person, by their avatar or else their sigil.
+ * - Anything else standing at the top level as a single channel — a group DM,
+ *   or a channel pinned out of a group — that channel's own glyph.
  */
-export function getDrawerChatIcon(chat: db.Chat): IconType {
-  return chat.type === 'group' ? 'Channel' : getDrawerChannelIcon(chat.channel);
+export function getDrawerChatLeading(
+  chat: db.Chat,
+  pinned: boolean
+): DrawerChatLeading {
+  if (pinned) {
+    return { kind: 'glyph', icon: 'Pin' };
+  }
+  if (chat.type === 'group') {
+    return chat.group.iconImage
+      ? { kind: 'image', imageUrl: chat.group.iconImage, fallback: 'Channel' }
+      : { kind: 'glyph', icon: 'Channel' };
+  }
+  if (chat.channel.type === 'dm') {
+    // How `ChannelAvatar` finds a direct message's correspondent.
+    return {
+      kind: 'contact',
+      contactId: chat.channel.members?.[0]?.contactId ?? chat.channel.id,
+    };
+  }
+  return { kind: 'glyph', icon: getDrawerChannelIcon(chat.channel) };
 }
