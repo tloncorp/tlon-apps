@@ -413,6 +413,7 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
   groupMuted,
   last,
   onPress,
+  onLongPress,
 }: {
   channel: db.Channel;
   title: string;
@@ -424,8 +425,14 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
   /** Last of its workspace's channels, so the block's fill ends here. */
   last: boolean;
   onPress: (channel: db.Channel) => void;
+  /** Held down: the channel's own options. */
+  onLongPress?: (channel: db.Channel) => void;
 }) {
   const handlePress = useCallback(() => onPress(channel), [channel, onPress]);
+  const handleLongPress = useCallback(
+    () => onLongPress?.(channel),
+    [channel, onLongPress]
+  );
   const unread = channelRowUnread(channel, groupMuted);
   const hasUnread = unread !== 'none';
   const notified = unread === 'notified';
@@ -434,6 +441,7 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
   return (
     <Pressable
       onPress={disabled ? undefined : handlePress}
+      onLongPress={disabled || !onLongPress ? undefined : handleLongPress}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={
@@ -1265,7 +1273,7 @@ function DrawerPanel(props: DrawerContentComponentProps) {
     [chatsLocked, onPressChatDetails]
   );
   const openOptions = useCallback(
-    (chat: db.Chat) => {
+    (chat: { id: string; type: 'group' | 'channel' }) => {
       if (chatsLocked) {
         return;
       }
@@ -1282,6 +1290,13 @@ function DrawerPanel(props: DrawerContentComponentProps) {
       openChatOptions(chat.id, chat.type);
     },
     [chatsLocked, openChatOptions]
+  );
+  // A channel of an unfurled workspace is held down for its own options — the
+  // sheet a channel's row offers everywhere else — rather than its
+  // workspace's, which the row above it already gives.
+  const openChannelOptions = useCallback(
+    (channel: db.Channel) => openOptions({ id: channel.id, type: 'channel' }),
+    [openOptions]
   );
 
   // A field opened but not yet typed into leaves the tab's own list showing:
@@ -1352,11 +1367,13 @@ function DrawerPanel(props: DrawerContentComponentProps) {
           groupMuted={item.groupMuted}
           last={item.last}
           onPress={openWorkspaceChannel}
+          onLongPress={openChannelOptions}
         />
       ),
     [
       chatsLocked,
       focusedStackRoute,
+      openChannelOptions,
       openChat,
       openGroupSettings,
       openOptions,
