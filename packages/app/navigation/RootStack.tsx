@@ -59,6 +59,12 @@ const Root = createNativeStackNavigator<RootStackParamList>();
 const nativeHeaderScreenOptions = {
   headerShown: Platform.OS !== 'web',
 } as const;
+// For screens that draw nothing until their data loads: native stack titles
+// an untitled header with the route name.
+const untitledNativeHeaderScreenOptions = {
+  ...nativeHeaderScreenOptions,
+  title: '',
+} as const;
 
 export function RootStack() {
   const isDarkMode = useIsDarkMode();
@@ -139,12 +145,12 @@ export function RootStack() {
       <Root.Screen
         name="NotesDetail"
         component={NotesDetailScreen}
-        options={nativeHeaderScreenOptions}
+        options={untitledNativeHeaderScreenOptions}
       />
       <Root.Screen
         name="NotesFolder"
         component={NotesFolderScreen}
-        options={nativeHeaderScreenOptions}
+        options={untitledNativeHeaderScreenOptions}
       />
       <Root.Screen name="NotesSearch" component={NotesSearchScreen} />
       <Root.Screen
