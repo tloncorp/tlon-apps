@@ -71,32 +71,57 @@ describe('hasNewerPosts', () => {
 });
 
 describe('listReachesNewestPost', () => {
+  const newestLoad = {
+    heardPostIds: new Set(['heard-earlier']),
+    newestSequenceNum: 10,
+  };
+
   it('reaches the newest post when the query has no newer page', () => {
     expect(
       listReachesNewestPost({
         hasPreviousPage: false,
-        newPostCountAtNewest: null,
-        newPostCount: 0,
+        newestLoad: null,
+        newPosts: [],
       })
     ).toBe(true);
   });
 
-  it('keeps following when a post is heard after a refetch reports a newer page', () => {
+  it('keeps following a newer post heard after a refetch reports a newer page', () => {
     expect(
       listReachesNewestPost({
         hasPreviousPage: true,
-        newPostCountAtNewest: 2,
-        newPostCount: 3,
+        newestLoad,
+        newPosts: [{ id: 'new', sequenceNum: 11 }],
       })
     ).toBe(true);
   });
 
-  it('stops following when only posts heard before the newer page count', () => {
+  it('keeps following a just-sent post that has no sequence number yet', () => {
     expect(
       listReachesNewestPost({
         hasPreviousPage: true,
-        newPostCountAtNewest: 2,
-        newPostCount: 2,
+        newestLoad,
+        newPosts: [{ id: 'sent', sequenceNum: null }],
+      })
+    ).toBe(true);
+  });
+
+  it('ignores posts heard before the newer page was reported', () => {
+    expect(
+      listReachesNewestPost({
+        hasPreviousPage: true,
+        newestLoad,
+        newPosts: [{ id: 'heard-earlier', sequenceNum: 12 }],
+      })
+    ).toBe(false);
+  });
+
+  it('ignores an old post heard again because its reactions or edits changed', () => {
+    expect(
+      listReachesNewestPost({
+        hasPreviousPage: true,
+        newestLoad,
+        newPosts: [{ id: 'old', sequenceNum: 4 }],
       })
     ).toBe(false);
   });
@@ -105,8 +130,8 @@ describe('listReachesNewestPost', () => {
     expect(
       listReachesNewestPost({
         hasPreviousPage: true,
-        newPostCountAtNewest: null,
-        newPostCount: 3,
+        newestLoad: null,
+        newPosts: [{ id: 'new', sequenceNum: 11 }],
       })
     ).toBe(false);
   });

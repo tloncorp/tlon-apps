@@ -217,20 +217,31 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
   // that guard is set before any data loads and keeps counting posts heard
   // earlier in the visit, which the merge needs but would pin a list to its
   // end through a genuine catch-up. Only this query having loaded the newest
-  // post counts, and only posts heard since it last had.
-  const newestLoadRef = useRef<{ queryKey: unknown; newPostCount: number }>(
-    null
-  );
+  // post counts, and after that only a post newer than anything it had then:
+  // the changes feed also delivers old posts whose reactions or edits moved.
+  const newestLoadRef = useRef<{
+    queryKey: unknown;
+    load: NewestPostLoad;
+  }>(null);
   if (query.data && !query.isPlaceholderData && !query.hasPreviousPage) {
-    newestLoadRef.current = { queryKey, newPostCount: newPosts.length };
+    newestLoadRef.current = {
+      queryKey,
+      load: {
+        heardPostIds: new Set(newPosts.map((post) => post.id)),
+        newestSequenceNum: Math.max(
+          query.data.pages[0]?.posts[0]?.sequenceNum ?? 0,
+          ...newPosts.map((post) => post.sequenceNum ?? 0)
+        ),
+      },
+    };
   }
   const reachesNewest = listReachesNewestPost({
     hasPreviousPage: query.hasPreviousPage,
-    newPostCountAtNewest:
+    newestLoad:
       newestLoadRef.current?.queryKey === queryKey
-        ? newestLoadRef.current.newPostCount
+        ? newestLoadRef.current.load
         : null,
-    newPostCount: newPosts.length,
+    newPosts,
   });
 
   const rawPosts = useMemo<db.Post[] | null>(() => {
@@ -280,27 +291,41 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
   );
 };
 
+type NewestPostLoad = {
+  heardPostIds: ReadonlySet<string>;
+  newestSequenceNum: number;
+};
+
 /**
  * Whether a conversation list should treat its posts as reaching the newest
  * one, for following new messages. A refetch can flip the query's
  * `hasPreviousPage` back to true after it loaded the newest post (a sequence
  * gap, e.g. the channel's watermark moving before its new posts are written);
- * a post heard over the subscription after that still arrives as the newest.
- * `newPostCountAtNewest` is how many had been heard the last time this query
- * loaded the newest post, or null if it never has.
+ * a post heard over the subscription after that is still the newest.
+ * `newestLoad` records what the query had the last time it loaded the newest
+ * post, or is null if it never has. A heard post with no sequence number yet
+ * is one that was just sent.
  */
 export function listReachesNewestPost({
   hasPreviousPage,
-  newPostCountAtNewest,
-  newPostCount,
+  newestLoad,
+  newPosts,
 }: {
   hasPreviousPage: boolean;
-  newPostCountAtNewest: number | null;
-  newPostCount: number;
+  newestLoad: NewestPostLoad | null;
+  newPosts: ReadonlyArray<Pick<db.Post, 'id' | 'sequenceNum'>>;
 }) {
-  return (
-    !hasPreviousPage ||
-    (newPostCountAtNewest !== null && newPostCount > newPostCountAtNewest)
+  if (!hasPreviousPage) {
+    return true;
+  }
+  if (!newestLoad) {
+    return false;
+  }
+  return newPosts.some(
+    (post) =>
+      !newestLoad.heardPostIds.has(post.id) &&
+      (post.sequenceNum == null ||
+        post.sequenceNum > newestLoad.newestSequenceNum)
   );
 }
 
