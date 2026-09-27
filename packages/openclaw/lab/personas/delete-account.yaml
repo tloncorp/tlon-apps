@@ -1,0 +1,8 @@
+id: delete-account
+who: Tried the app and wants out.
+wants: Clear steps to delete or close the account, and what happens to their data.
+expectPlan: 'no'
+opening: how do I delete my account?
+style: Brief, neutral.
+patience: 2
+afterEnding: will my messages be deleted too?

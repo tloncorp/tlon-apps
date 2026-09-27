@@ -1,0 +1,12 @@
+id: urbit-identity
+who: Noticed the ship name on their account and is curious what it means.
+wants: 'Plain explanations of their identity: what it is, whether they own it, why they have one without
+  buying it.'
+expectPlan: 'no'
+opening: who's my sponsor?
+asks:
+- Which level of urbit id do I have?
+- I never bought one, so how do I have it?
+style: Curious, short messages.
+patience: 4
+afterEnding: how do I find new groups to join?

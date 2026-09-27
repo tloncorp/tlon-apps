@@ -1,0 +1,13 @@
+id: integrations-shopper
+who: Power user checking what the bot can connect to before investing time.
+wants: A concrete list of what it can do in the app and which services it can connect, and where to set
+  that up.
+expectPlan: either
+opening: tell me about what you can do with tlon. integrations etc
+asks:
+- Which connected services are officially supported?
+knows:
+- Uses GitHub and Notion at work.
+style: Lowercase, to the point.
+patience: 3
+afterEnding: can you summarize my github notifications?

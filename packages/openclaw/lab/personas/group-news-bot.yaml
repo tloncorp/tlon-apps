@@ -1,0 +1,11 @@
+id: group-news-bot
+who: Runs a small group and wants the bot to post news there.
+wants: The bot posting curated news from a few named websites into their group on a schedule.
+expectPlan: 'yes'
+opening: can I have you join a group of mine to post news stories from specific websites
+knows:
+- The sites are two tech news sites and one science site.
+- Wants one post each morning.
+style: Practical, medium-length messages.
+patience: 3
+afterEnding: can other people in the group ask you things too?

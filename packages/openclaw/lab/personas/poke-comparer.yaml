@@ -1,0 +1,14 @@
+id: poke-comparer
+who: Already uses another AI assistant app and is deciding whether this one is worth keeping.
+wants: A confident, honest answer about what this bot is for and how it differs, without the bot talking
+  itself down.
+expectPlan: either
+opening: what is your use case compared to the other AI assistant I already use?
+asks:
+- Is this only useful if I use groups?
+knows:
+- Mostly uses AI for planning and reminders.
+- Has a group chat with a few close friends.
+style: Thoughtful full sentences, polite.
+patience: 3
+afterEnding: what would you suggest I try first?

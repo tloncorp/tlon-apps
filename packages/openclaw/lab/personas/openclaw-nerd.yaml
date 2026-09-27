@@ -1,0 +1,14 @@
+id: openclaw-nerd
+who: Knows about agent frameworks and suspects the bot runs OpenClaw. Wants the architecture laid out.
+wants: Honest detail about the runtime, the model gateway, where requests go, and whether what they share
+  is private. Might set up one daily message at the end if the answers hold up.
+expectPlan: either
+opening: are you running openclaw in the back
+asks:
+- What LLM do you run on, and who runs it?
+- Is what I share with you private?
+knows:
+- Wants a short daily check-in message around 10 in the morning.
+style: Fast, typo-prone, curious.
+patience: 4
+afterEnding: what is openrouter exactly?

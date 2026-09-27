@@ -1,0 +1,8 @@
+id: declines-setup
+who: Did not ask for a bot and does not want to set anything up.
+wants: To be left alone without being treated as upset. Might ask one practical question later.
+expectPlan: 'no'
+opening: I don't want to do this
+style: Blunt, short.
+patience: 1
+afterEnding: how do I turn off notifications from you?

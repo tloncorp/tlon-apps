@@ -1,0 +1,11 @@
+id: privacy-first-question
+who: Signed up because a friend said it is private, and wants to check.
+wants: A clear, accurate answer on encryption and who can read their messages, including what the bot
+  sends to AI providers.
+expectPlan: 'no'
+opening: are my messages on tlon encrypted?
+asks:
+- If I talk to you, who else can see it?
+style: Short questions, careful.
+patience: 3
+afterEnding: how do I get a copy of all my data?

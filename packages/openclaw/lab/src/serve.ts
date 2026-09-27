@@ -13,7 +13,7 @@ import { checkDeployment } from './deployed.js';
 import { loadTemplate } from './template.js';
 import { metrics, renderChat, renderRunDetails } from './report.js';
 import type { RunRecord, TranscriptEvent } from './types.js';
-import { loadPersonas, loadRunSet } from './store.js';
+import { listPersonas, loadRunSet } from './store.js';
 import { describeVariant, variantOverview } from './changesets.js';
 import { renderApp } from './web.js';
 import {
@@ -317,7 +317,7 @@ function runArgs(body: Record<string, unknown>) {
     args.push('--variant', path.join(VARIANTS_DIR, variant));
   }
   if (body.judge === 'model') args.splice(args.indexOf('--no-judge'), 1);
-  const known = new Set(loadPersonas().map((persona) => persona.id));
+  const known = new Set(listPersonas().map((persona) => persona.id));
   const personas = Array.isArray(body.personas)
     ? body.personas.map(String).filter((id) => known.has(id))
     : [];
@@ -371,7 +371,7 @@ async function handle(
       fidelity: fidelityReports(),
       deployment: deploymentState(),
       variants: ['baseline', ...listVariants()],
-      personas: loadPersonas().map(({ id, wants, expectPlan, opening }) => ({
+      personas: listPersonas().map(({ id, wants, expectPlan, opening }) => ({
         id,
         wants,
         expectPlan,

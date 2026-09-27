@@ -1,0 +1,10 @@
+id: tester
+who: Poking at the bot to see if it works and what it knows about them.
+wants: To know who the bot is and who it thinks they are, in plain words. Not interested in setup.
+expectPlan: 'no'
+opening: test
+asks:
+- Who are you and who am I?
+style: Playful, short, casual.
+patience: 2
+afterEnding: can I rename you?

@@ -1,0 +1,12 @@
+id: setup-button
+who: Tapped a "get set up" button in the app and expects the bot to lead from there.
+wants: A clear first step and something working quickly. Gets annoyed if asked for their name or timezone,
+  or if the same question comes back.
+expectPlan: either
+opening: Let's get set up.
+knows:
+- Reads tech and science news most mornings.
+- Commutes by train on weekdays.
+style: Short and direct. Repeats "let's get set up" if the bot does not move things along.
+patience: 2
+afterEnding: how do I change what you send me?

@@ -29,6 +29,7 @@ import { LabStack } from './real/stack.js';
 import { gradeRun, runPersona } from './runner.js';
 import {
   createRunSet,
+  listPersonas,
   loadPersonas,
   loadRunSet,
   frozenTemplate,
@@ -669,7 +670,7 @@ async function main() {
       return;
     }
     case 'personas':
-      for (const persona of loadPersonas()) {
+      for (const persona of listPersonas()) {
         console.log(
           `${persona.id.padEnd(22)} expectPlan=${persona.expectPlan.padEnd(6)} ${persona.wants}`
         );

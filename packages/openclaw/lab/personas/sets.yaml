@@ -1,19 +1,75 @@
-# Named persona sets for --personas, e.g. --personas quick.
-# quick: a dozen for fast rounds. Four want a plan, three don't, five could go
-# either way; between them they cover terse and impatient people, a non-English
-# speaker, product questions, a weekly schedule, a connected service, and a
-# skeptic. A dozen pairs only settles large differences; confirm close calls
-# on the full set.
-quick:
-  - founder-blunt
-  - mind-changer
-  - overwhelmed-parent
-  - spanish-speaker
-  - group-bot-admin
-  - just-looking
-  - one-off-toast
+# Named persona sets for --personas, e.g. --personas quick. A run without
+# --personas uses `default`.
+#
+# real: 24 personas in roughly the mix of what real users did first in their
+# first day (29 accounts, Sep 12-26, 2026): what is this / which model / is it
+# private (7), a greeting, test or setup button (7), identity (1), people and
+# groups (2), a one-off task (2), a recurring task (2), declining or angry (2),
+# account (1).
+real:
   - tlon-curious
-  - capability-prober
-  - weekly-meal-planner
+  - whats-the-model
+  - openclaw-nerd
+  - poke-comparer
+  - integrations-shopper
+  - browser-tester
+  - privacy-first-question
+  - hello-only
+  - tester
+  - setup-button
+  - weather-hi
+  - image-requester
+  - just-looking
   - one-word
+  - urbit-identity
+  - find-people
+  - group-bot-admin
+  - book-summary
+  - one-off-toast
+  - quick-digest
+  - group-news-bot
+  - declines-setup
+  - angry-confused
+  - delete-account
+# quick: a dozen from `real` in the same proportions, for fast rounds. A dozen
+# pairs only settles large differences; confirm close calls on `real`.
+quick:
+  - whats-the-model
+  - poke-comparer
+  - tlon-curious
+  - privacy-first-question
+  - hello-only
+  - setup-button
+  - tester
+  - image-requester
+  - find-people
+  - book-summary
+  - quick-digest
+  - angry-confused
+# legacy: the original task-heavy set, for comparing with older run sets.
+legacy:
   - ai-curious-tester
+  - blank-new-installer
+  - blank-retiree
+  - blank-small-business
+  - blank-student
+  - book-club-organizer
+  - capability-prober
+  - founder-blunt
+  - grieving-paperwork
+  - group-bot-admin
+  - inbox-summary
+  - just-looking
+  - mid-flow-asker
+  - mind-changer
+  - one-off-toast
+  - one-word
+  - overwhelmed-parent
+  - paragraph-typer
+  - privacy-skeptic
+  - spanish-learner
+  - spanish-speaker
+  - tlon-curious
+  - vague-gardener
+  - weekly-meal-planner
+default: real

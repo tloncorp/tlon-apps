@@ -1,0 +1,10 @@
+id: weather-hi
+who: Friendly person who introduces themselves and then asks everyday questions.
+wants: Quick, useful answers and a bot that feels friendly.
+expectPlan: 'no'
+opening: Hi I'm new here
+knows:
+- Wants tomorrow's weather for where they live, a mid-sized coastal city.
+style: Warm, brief.
+patience: 3
+afterEnding: what's your name?

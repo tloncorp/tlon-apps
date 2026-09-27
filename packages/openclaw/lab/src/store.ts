@@ -23,18 +23,31 @@ import {
 } from './config.js';
 import type { Persona, RunRecord, RunSetManifest } from './types.js';
 
-/** Persona ids, with any named set from personas/sets.yaml expanded. */
-function expandPersonaSets(ids: string[]) {
+/** Named persona sets from personas/sets.yaml. */
+function personaSets(): Record<string, string[] | string> {
   const file = path.join(PERSONAS_DIR, 'sets.yaml');
-  const sets = existsSync(file)
-    ? (parse(readFileSync(file, 'utf8')) as Record<string, string[]>)
+  return existsSync(file)
+    ? (parse(readFileSync(file, 'utf8')) as Record<string, string[] | string>)
     : {};
-  return ids.flatMap((id) => sets[id] ?? [id]);
 }
 
-export function loadPersonas(requested?: string[]): Persona[] {
-  const ids = requested && expandPersonaSets(requested);
-  const all = readdirSync(PERSONAS_DIR)
+/**
+ * Persona ids with named sets expanded; no ids means the `default` set (the
+ * name of another set), or every persona when there is none.
+ */
+function expandPersonaSets(ids: string[] | undefined) {
+  const sets = personaSets();
+  const fallback = typeof sets.default === 'string' ? [sets.default] : [];
+  const requested = ids?.length ? ids : fallback;
+  return requested.flatMap((id) => {
+    const set = sets[id];
+    return Array.isArray(set) ? set : [id];
+  });
+}
+
+/** Every persona card, whatever set it belongs to. */
+export function listPersonas(): Persona[] {
+  return readdirSync(PERSONAS_DIR)
     .filter((name) => name.endsWith('.yaml') && name !== 'sets.yaml')
     .sort()
     .map((name) => {
@@ -43,6 +56,11 @@ export function loadPersonas(requested?: string[]): Persona[] {
       ) as Persona;
       return { ...persona, id: persona.id ?? name.replace(/\.yaml$/, '') };
     });
+}
+
+export function loadPersonas(requested?: string[]): Persona[] {
+  const ids = expandPersonaSets(requested);
+  const all = listPersonas();
   if (!ids?.length) return all;
   const missing = ids.filter((id) => !all.some((persona) => persona.id === id));
   if (missing.length)
