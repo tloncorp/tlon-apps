@@ -38,6 +38,36 @@ describe('voiceCheck', () => {
     ]);
   });
 
+  it('reads the questions on the bot’s own pickers', () => {
+    const check = voiceCheck([
+      {
+        from: 'bot',
+        kind: 'choice',
+        choice: {
+          question: 'Great question! Which would help?',
+          options: ['A'],
+        },
+      },
+      {
+        from: 'bot',
+        kind: 'choice',
+        choice: { question: 'Pick one!', options: ['A'] },
+        source: 'coordinator',
+      },
+    ]);
+    expect(check).toMatchObject({ replies: 1, words: 5, exclamations: 1 });
+    expect(check.stockPhrases).toEqual(['Great question']);
+  });
+
+  it('counts questions that steer toward a recurring task', () => {
+    const check = voiceCheck([
+      reply('What would make a useful bit of daily help for you?'),
+      reply('Which kind of recurring help would actually be useful?'),
+      reply('I read it daily. Anything else?'),
+    ]);
+    expect(check.taskPitches).toBe(2);
+  });
+
   it('leaves plain replies alone', () => {
     const check = voiceCheck([reply('85°F and sunny in Austin.')]);
     expect(check).toMatchObject({
@@ -46,6 +76,7 @@ describe('voiceCheck', () => {
       boldBullets: 0,
       closingOffers: 0,
       stockPhrases: [],
+      taskPitches: 0,
     });
   });
 });

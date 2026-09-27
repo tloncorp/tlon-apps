@@ -17,6 +17,7 @@ export type Metrics = {
   userTurns: number;
   wordsPerReply: number | null;
   genericHabits: number | null;
+  taskPitches: number | null;
   badClaims: number | null;
   costUsd: number;
 };
@@ -37,11 +38,10 @@ export function habits(voice: VoiceCheck) {
   );
 }
 
-// Runs recorded before the checks existed are checked here, so old
-// baselines stay comparable.
-const voiceOf = (run: RunRecord) =>
-  run.facts.voice ?? voiceCheck(run.transcript);
-const claimsOf = (run: RunRecord) => run.facts.claims ?? claimCheck(run.turns);
+// Checked when the report is drawn, so every run set, old or new, is checked
+// by the current rules.
+const voiceOf = (run: RunRecord) => voiceCheck(run.transcript);
+const claimsOf = (run: RunRecord) => claimCheck(run.turns);
 
 export function metrics(runs: RunRecord[]): Metrics {
   const graded = runs.filter((run) => run.judgement);
@@ -82,6 +82,7 @@ export function metrics(runs: RunRecord[]): Metrics {
         : null;
     })(),
     genericHabits: mean(runs.map((run) => habits(voiceOf(run)))),
+    taskPitches: mean(runs.map((run) => voiceOf(run).taskPitches)),
     badClaims: mean(
       runs.map((run) => {
         const claims = claimsOf(run);
@@ -110,6 +111,7 @@ const METRIC_ROWS: [
   ['userTurns', 'User messages before the ending', 'num', -1],
   ['wordsPerReply', 'Words per bot reply', 'num', -1],
   ['genericHabits', 'Generic-assistant habits per run', 'num', -1],
+  ['taskPitches', 'Recurring-task pitches per run', 'num', -1],
   ['badClaims', 'Made-up actions or false claims per run', 'num', -1],
   ['costUsd', 'Total cost', 'usd', -1],
 ];
@@ -231,7 +233,7 @@ export function renderRunDetails(run: RunRecord, heading?: string) {
       Object.entries(run.facts.toolCounts)
         .map(([name, n]) => `${name}×${n}`)
         .join(', ') || 'none'
-    )} · blocked ${run.facts.blockedToolCalls} · errors ${run.facts.toolErrors} · habits ${habits(voiceOf(run))} · ${(run.durationMs / 1000).toFixed(0)}s · $${run.costUsd.toFixed(3)}</div>
+    )} · blocked ${run.facts.blockedToolCalls} · errors ${run.facts.toolErrors} · habits ${habits(voiceOf(run))} · task pitches ${voiceOf(run).taskPitches} · ${(run.durationMs / 1000).toFixed(0)}s · $${run.costUsd.toFixed(3)}</div>
   `;
 }
 

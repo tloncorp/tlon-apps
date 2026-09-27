@@ -265,13 +265,17 @@ the difference between two average scores.
 - **Rule breaks**: clear breaks of the skill's own rules, with quotes.
 - **Came for it**: the simulated person's own answer.
 - **Pickers** and **user messages**: measured facts, not grades.
-- **Words per reply**, **generic-assistant habits** and **made-up actions or
-  false claims**: mechanical checks in `src/checks.ts`, free and the same every
-  time. Habits count emoji, exclamation marks, bold-label bullets, closing
-  "Want me to…?" offers and stock phrases. Claims flag a turn that says it did
+- **Words per reply**, **generic-assistant habits**, **recurring-task
+  pitches** and **made-up actions or false claims**: mechanical checks in
+  `src/checks.ts`, free and the same every time. They read the bot's text
+  replies and the questions on its own pickers. Habits count emoji,
+  exclamation marks, bold-label bullets, closing "Want me to…?" offers and
+  stock phrases. Pitches count questions that steer toward something daily or
+  recurring. Claims flag a turn that says it did
   something with no tool call behind it, calling Tlon end-to-end encrypted, and
   self-hosting steps given to a hosted user. Each flagged line shows under the
-  run. Older runs are checked when the report is drawn.
+  run. The checks run when the report is drawn, so every run set is checked by
+  the current rules.
 
 ## Personas
 

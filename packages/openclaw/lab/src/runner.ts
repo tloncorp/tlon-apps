@@ -1,5 +1,4 @@
 import { agentOnboardingTesting } from '../../src/monitor/agent-onboarding.js';
-import { claimCheck, voiceCheck } from './checks.js';
 import { BotSession } from './bot.js';
 import type { CoordinatorMessage, LabConfig, PromptSources } from './config.js';
 import {
@@ -140,8 +139,6 @@ export function computeFacts(input: {
     toolCounts,
     blockedToolCalls: calls.filter((call) => call.blocked).length,
     toolErrors: calls.filter((call) => call.error).length,
-    voice: voiceCheck(input.transcript),
-    claims: claimCheck(input.turns),
   };
 }
 

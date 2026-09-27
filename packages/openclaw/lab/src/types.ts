@@ -1,4 +1,3 @@
-import type { ClaimCheck, VoiceCheck } from './checks.js';
 import type { DeploymentCheck } from './deployed.js';
 export type ExpectPlan = 'yes' | 'no' | 'either';
 
@@ -102,9 +101,6 @@ export type Facts = {
   toolCounts: Record<string, number>;
   blockedToolCalls: number;
   toolErrors: number;
-  /** Absent on runs recorded before these checks existed. */
-  voice?: VoiceCheck;
-  claims?: ClaimCheck;
 };
 
 export type Issue = { quote: string; problem: string };

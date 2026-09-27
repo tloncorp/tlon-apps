@@ -16,6 +16,8 @@ export type VoiceCheck = {
   closingOffers: number;
   /** Stock assistant phrases, quoted. */
   stockPhrases: string[];
+  /** Questions that steer toward something recurring ("what daily help…?"). */
+  taskPitches: number;
 };
 
 export type ClaimCheck = {
@@ -40,6 +42,9 @@ const CLOSING_OFFER =
   /(?:^|[.!?]\s+|\n\s*)(?:want me to|would you like (?:me )?to|should i|shall i)[^?]*\?\s*$/i;
 
 const EMOJI = /\p{Extended_Pictographic}/gu;
+
+const TASK_PITCH =
+  /\b(?:daily|recurring|each day|every (?:day|morning|week)|ongoing|regular)\b[^?.!]*\?/i;
 
 const ACTION_CLAIM =
   /\b(?:I(?:['’]ve| have)? (?:just )?(?:sent|scheduled|set up|created|invited|joined|added|posted|saved|messaged|checked|contacted)|Done\s*[.!—–-])/i;
@@ -74,12 +79,15 @@ function sentences(text: string) {
     .filter(Boolean);
 }
 
+/** What the model wrote: its text replies and the questions on its pickers. */
 function modelReplies(events: TranscriptEvent[]) {
-  return events.flatMap((event) =>
-    event.from === 'bot' && event.kind === 'text' && event.source === 'model'
-      ? [event.text]
-      : []
-  );
+  return events.flatMap((event) => {
+    if (event.from !== 'bot') return [];
+    if (event.kind === 'text' && event.source === 'model') return [event.text];
+    if (event.kind === 'choice' && event.source !== 'coordinator')
+      return [event.choice.question];
+    return [];
+  });
 }
 
 export function voiceCheck(transcript: TranscriptEvent[]): VoiceCheck {
@@ -92,6 +100,7 @@ export function voiceCheck(transcript: TranscriptEvent[]): VoiceCheck {
     boldBullets: 0,
     closingOffers: 0,
     stockPhrases: [],
+    taskPitches: 0,
   };
   for (const text of replies) {
     check.words += text.split(/\s+/).filter(Boolean).length;
@@ -101,6 +110,7 @@ export function voiceCheck(transcript: TranscriptEvent[]): VoiceCheck {
       .split('\n')
       .filter((line) => /^\s*(?:[-*•]|\d+\.)\s+\*\*/.test(line)).length;
     if (CLOSING_OFFER.test(text.trim())) check.closingOffers += 1;
+    if (TASK_PITCH.test(text)) check.taskPitches += 1;
     for (const phrase of STOCK_PHRASES) {
       const match = phrase.exec(text);
       if (match) check.stockPhrases.push(match[0]);
