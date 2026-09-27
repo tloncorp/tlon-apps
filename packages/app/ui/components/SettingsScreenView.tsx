@@ -177,6 +177,7 @@ export function SettingsScreenView(props: Props) {
     node: (
       <SettingsAction
         title="Blocked users"
+        subtitle="Accounts you've blocked"
         leftIcon="Placeholder"
         rightIcon="ChevronRight"
         onPress={props.onBlockedUsersPressed}
