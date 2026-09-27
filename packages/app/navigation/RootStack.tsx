@@ -1,5 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { getChannelType } from '@tloncorp/api/urbit';
 import { Platform, StatusBar } from 'react-native';
 
 import { InviteUsersScreen } from '../features/InviteUsersScreen';
@@ -49,7 +50,10 @@ import { useTheme } from '../ui';
 import { GroupSettingsStack } from './GroupSettingsStack';
 import { OnboardingStartupScreen } from './OnboardingStartupScreen';
 import { TopLevelNavigator } from './TopLevelNavigator';
-import { nativeHeaderPresentationOptions } from './nativeHeaderOptions';
+import {
+  channelTypeUsesNativeHeader,
+  nativeHeaderPresentationOptions,
+} from './nativeHeaderOptions';
 import type { RootStackParamList } from './types';
 import { mediaViewerScreenOptions } from './utils';
 
@@ -125,11 +129,24 @@ export function RootStack() {
         name="Channel"
         component={ChannelScreen}
         options={({ route }) => ({
+          ...(channelTypeUsesNativeHeader(
+            getChannelType(route.params.channelId)
+          )
+            ? untitledNativeHeaderScreenOptions
+            : null),
           animation: route.params.disableTransition ? 'none' : 'default',
         })}
       />
-      <Root.Screen name="DM" component={ChannelScreen} />
-      <Root.Screen name="GroupDM" component={ChannelScreen} />
+      <Root.Screen
+        name="DM"
+        component={ChannelScreen}
+        options={untitledNativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="GroupDM"
+        component={ChannelScreen}
+        options={untitledNativeHeaderScreenOptions}
+      />
       <Root.Screen name="ChannelSearch" component={ChannelSearchScreen} />
       <Root.Screen
         name="ContextLensRuns"
