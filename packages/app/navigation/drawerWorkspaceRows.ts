@@ -72,18 +72,21 @@ function readableChannels(group: db.Group): db.Channel[] {
 /**
  * Whether a chat row unfurls rather than navigating.
  *
+ * Every workspace does, one of a single channel too: a workspace reads the
+ * same in the panel however many channels it has, and pressing one always
+ * shows what is inside it rather than sometimes going somewhere instead.
+ *
  * Three kinds of row do not. A direct message is not a workspace. An invite is
  * acted on through its preview sheet, and its channels are not the user's to
- * open until they have joined. And a workspace holding one readable channel is
- * already opened *as* that channel — there is nothing to choose between, so
- * unfurling it would put the same conversation on two rows and ask the user
- * which.
+ * open until they have joined. And a workspace with no channel the user can
+ * read yet — its channels unsynced, or every one of them gated — would unfurl
+ * to nothing, so it opens the way the workspace list opens it.
  */
 export function unfurls(chat: db.Chat): boolean {
   if (chat.type !== 'group' || chat.isPending) {
     return false;
   }
-  return readableChannels(chat.group).length > 1;
+  return readableChannels(chat.group).length > 0;
 }
 
 /**
@@ -112,9 +115,8 @@ export function getUnfurlableChannels(chat: db.Chat): db.Channel[] | null {
  * been turned back up is one the user asked to keep hearing, and the workspace
  * roll-up this reads cannot say so — it is suppressed whole by the mute. So a
  * muted workspace is asked about the channels it holds, and lights for a
- * channel that speaks over it. Every workspace, not only the ones that unfurl:
- * a workspace of one channel is *opened as* that channel, so its row is that
- * channel's row and there is no second place for the dot to appear.
+ * channel that speaks over it. Asked whether or not the workspace is unfurled:
+ * folded shut, its row is the only place in the panel that can say so.
  *
  * Asked by the row itself and by the tab above it, so what a tab claims its
  * hidden half is holding is what its rows would show.

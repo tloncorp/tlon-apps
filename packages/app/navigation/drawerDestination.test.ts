@@ -97,6 +97,23 @@ describe('routeShowsChat', () => {
     ).toBe(true);
   });
 
+  // Unfurled, the channel has a row of its own, which is the one marked.
+  it('leaves an unfurling group’s only channel to that channel’s row', () => {
+    const route = {
+      name: 'Channel',
+      params: { channelId: 'c1', groupId: 'g1' },
+    };
+
+    expect(routeShowsChat(oneChannelGroup, route, true)).toBe(false);
+    expect(
+      routeShowsChat(
+        oneChannelGroup,
+        { name: 'GroupChannels', params: { groupId: 'g1' } },
+        true
+      )
+    ).toBe(true);
+  });
+
   // The pair that shares a groupId: a group and a channel pinned out of it are
   // two rows, and neither may answer for the other.
   it('does not let a pinned channel stand for its group', () => {

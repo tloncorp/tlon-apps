@@ -6,6 +6,7 @@ import {
   AnalyticsEvent,
   configurationFromChannel,
   createDevLogger,
+  useMutableRef,
 } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
@@ -26,7 +27,11 @@ import React, {
   useState,
 } from 'react';
 import { FlashList, type FlashListRef } from '@shopify/flash-list';
-import { StyleSheet } from 'react-native';
+import {
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  StyleSheet,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Circle,
@@ -35,6 +40,7 @@ import {
   XStack,
   YStack,
   getTokenValue,
+  isWeb,
   useTheme,
 } from 'tamagui';
 
@@ -137,6 +143,9 @@ const ROW_AVATAR_RADIUS = '$2xs' as const;
 // much on every side, and pulled back by as much so the row does not grow.
 const ROW_CONTROL_PAD = (CHAT_ROW_MIN_HEIGHT - ROW_ICON_SIZE) / 2;
 const GROUP_SETTINGS_LABEL = 'Group info & settings';
+// How near its top the list counts as standing at it.
+const LIST_TOP_SLOP = CHAT_ROW_MIN_HEIGHT / 2;
+const HOLD_NO_ROW = { disabled: true } as const;
 // An unfurled workspace and its channels are one block, so they share one
 // fill and the rows between its ends carry no corners of their own.
 const UNFURLED_FILL = '$secondaryBackground' as const;
@@ -260,16 +269,13 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
   );
   const showsSettings = unfurled && !disabled && onPressSettings != null;
   const handlePressSettings = useCallback(
-    (event?: { stopPropagation?: () => void }) => {
-      // On web a press is a click, and a click bubbles: without this the row
-      // under the gear would take it too and fold the workspace back up.
-      event?.stopPropagation?.();
-      onPressSettings?.(chat);
-    },
+    () => onPressSettings?.(chat),
     [chat, onPressSettings]
   );
-  // A screen reader treats the row as one element and never reaches the gear
-  // inside it, so the row offers what the gear does as an action of its own.
+  // A native screen reader treats the row as one element and never reaches
+  // the gear inside it, so the row offers what the gear does as an action of
+  // its own. The web has no such action, and reaches the gear as the element
+  // of its own it is there.
   const handleAccessibilityAction = useCallback(
     (event: { nativeEvent: { actionName: string } }) => {
       if (event.nativeEvent.actionName === 'openSettings') {
@@ -314,14 +320,16 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
         selected,
         ...(unfurls ? { expanded: unfurled } : {}),
       }}
-      accessibilityActions={
-        showsSettings
-          ? [{ name: 'openSettings', label: GROUP_SETTINGS_LABEL }]
-          : undefined
-      }
-      onAccessibilityAction={
-        showsSettings ? handleAccessibilityAction : undefined
-      }
+      // Left off entirely on web, where the DOM would be handed them as
+      // attributes it does not know.
+      {...(showsSettings && !isWeb
+        ? {
+            accessibilityActions: [
+              { name: 'openSettings', label: GROUP_SETTINGS_LABEL },
+            ],
+            onAccessibilityAction: handleAccessibilityAction,
+          }
+        : {})}
       testID={`TopLevelDrawerChat-${chat.id}`}
       borderTopLeftRadius="$l"
       borderTopRightRadius="$l"
@@ -1149,11 +1157,20 @@ function DrawerPanel(props: DrawerContentComponentProps) {
   // Workspaces.
   const [filter, setFilter] = useState<DrawerFilter>('workspaces');
   const listRef = useRef<FlashListRef<DrawerListRow>>(null);
+  // Whether the list stands at its top, which decides whether it holds its
+  // first visible row in place when its rows change (see the list below).
+  const [listAtTop, setListAtTop] = useState(true);
+  const handleListScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      setListAtTop(event.nativeEvent.contentOffset.y <= LIST_TOP_SLOP);
+    },
+    []
+  );
   const selectFilter = useCallback((next: DrawerFilter) => {
     // Changing tabs is a request to stay in the panel, the same as unfurling a
     // workspace, so it supersedes anything still resolving its route. A
-    // one-channel workspace tapped a moment ago is still reading its group,
-    // and nothing else here would stop it: the app behind the panel has not
+    // workspace with nothing to unfurl yet, tapped a moment ago, is still
+    // reading its group, and nothing else here would stop it: the app behind the panel has not
     // moved, so its own staleness checks pass and it would reset the stack and
     // close the panel out from under the tab just chosen.
     navigationRequestRef.current += 1;
@@ -1225,6 +1242,11 @@ function DrawerPanel(props: DrawerContentComponentProps) {
     debounceMs: 0,
     disableNicknames,
   });
+  // The results and the tab's list are each mounted fresh when one gives way
+  // to the other, and a fresh list stands at its top.
+  useEffect(() => {
+    setListAtTop(true);
+  }, [isSearching]);
   // Read across the whole list rather than the half being shown, so the tab
   // that is not showing can say it has something in it.
   const unreadFilters = useMemo(
@@ -1246,9 +1268,9 @@ function DrawerPanel(props: DrawerContentComponentProps) {
         return;
       }
       // Opening a workspace is a request to stay in the panel, so it supersedes
-      // anything still resolving its route — a one-channel workspace tapped a
-      // moment ago would otherwise come back, reset the stack and close the
-      // panel out from under the channels just unfurled.
+      // anything still resolving its route — a workspace with nothing to
+      // unfurl yet, tapped a moment ago, would otherwise come back, reset the
+      // stack and close the panel out from under the channels just unfurled.
       navigationRequestRef.current += 1;
       setUnfurledGroupId((current) => toggleUnfurled(current, chat.id));
     },
@@ -1258,6 +1280,9 @@ function DrawerPanel(props: DrawerContentComponentProps) {
   // Held down, a chat row offers what the workspace list offers for the same
   // chat — the sheet below is that list's own.
   const { open: openChatOptions, onPressChatDetails } = useChatOptions();
+  // Read through a ref: the handler is rebuilt on every render of the
+  // provider above, and a new one here would re-render every row.
+  const onPressChatDetailsRef = useMutableRef(onPressChatDetails);
   // An open workspace's gear goes where the sheet's own "Group info &
   // settings" does, by the same handler, which closes the panel on its way.
   const openGroupSettings = useCallback(
@@ -1268,9 +1293,9 @@ function DrawerPanel(props: DrawerContentComponentProps) {
       // Leaving the panel supersedes anything still resolving its route, as
       // every other way out of it does.
       navigationRequestRef.current += 1;
-      onPressChatDetails({ type: 'group', id: chat.id });
+      onPressChatDetailsRef.current({ type: 'group', id: chat.id });
     },
-    [chatsLocked, onPressChatDetails]
+    [chatsLocked, onPressChatDetailsRef]
   );
   const openOptions = useCallback(
     (chat: { id: string; type: 'group' | 'channel' }) => {
@@ -1279,8 +1304,8 @@ function DrawerPanel(props: DrawerContentComponentProps) {
       }
       // A request to stay in the panel, so it supersedes anything still
       // resolving a route, the same as unfurling a workspace or changing tabs.
-      // A one-channel workspace tapped a moment ago is still reading its
-      // group, and nothing else here would stop it: the app behind the panel
+      // A workspace with nothing to unfurl yet, tapped a moment ago, is still
+      // reading its group, and nothing else here would stop it: the app behind the panel
       // has not moved, so its staleness checks pass and it would reset the
       // stack and close the panel out from under the sheet just opened.
       navigationRequestRef.current += 1;
@@ -1342,7 +1367,7 @@ function DrawerPanel(props: DrawerContentComponentProps) {
         <DrawerChatRow
           chat={item.chat}
           title={titles.get(item.key) ?? ''}
-          selected={routeShowsChat(item.chat, focusedStackRoute)}
+          selected={routeShowsChat(item.chat, focusedStackRoute, item.unfurls)}
           disabled={chatsLocked}
           unfurls={item.unfurls}
           unfurled={item.unfurled}
@@ -1459,10 +1484,17 @@ function DrawerPanel(props: DrawerContentComponentProps) {
         // below the top of the tab's list, with a blank band above it. A list
         // mounted fresh has no row to hold, and the results, which change with
         // every letter, are told not to hold one.
+        //
+        // The tab's list lets go of that row while it stands at its top, too.
+        // There is nothing above the fold to keep still then, and a row that
+        // arrives above the one showing — the pinned section, when the first
+        // chat is pinned, or a chat that has just seen activity — belongs in
+        // view, not pushed out of it by the list holding its place below.
         key={isSearching ? 'search' : 'chats'}
         maintainVisibleContentPosition={
-          isSearching ? { disabled: true } : undefined
+          isSearching || listAtTop ? HOLD_NO_ROW : undefined
         }
+        onScroll={handleListScroll}
         data={rows}
         keyExtractor={(row) => row.key}
         // Three shapes of row in one list, so the recycler is told which is
