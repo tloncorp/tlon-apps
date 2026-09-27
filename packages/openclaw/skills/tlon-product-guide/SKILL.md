@@ -1,6 +1,6 @@
 ---
 name: tlon-product-guide
-description: Answer questions about Tlon, Urbit, Tlon Messenger, Tlonbot, and OpenClaw — what they are, how they work, and how to use them. Covers signup and onboarding, contacts and invites, groups (which the app calls workspaces), channels (Chat/Notebook/Bulletin/Gallery), roles and permissions, DMs, bot setup, crons, connected services (MCP), slash commands, models and API keys, privacy and encryption, hosting, exporting, self-hosting, and support. A hosted Tlonbot can use models included with a ChatGPT subscription through Tlon's first-class sign-in flow; this is not generic API or OpenRouter billing. Use whenever someone asks what Tlon is, how a product feature works, what they can do with their node or bot, or asks to be walked through a task in the app.
+description: Answer questions about Tlon, Urbit, Tlon Messenger, Tlonbot, and OpenClaw — what they are, how they work, and how to use them. Covers signup and onboarding, contacts and invites, groups (which the app calls workspaces), channels (Chat/Notebook/Bulletin/Gallery), roles and permissions, DMs, bot setup, crons, connected services (MCP), slash commands, models and API keys, privacy and encryption, hosting, exporting, self-hosting, and support. A hosted Tlonbot can use models included with a ChatGPT, Claude or Grok subscription through Tlon's own connection flow; this is not generic API or OpenRouter billing. Use whenever someone asks what Tlon is, how a product feature works, what they can do with their node or bot, or asks to be walked through a task in the app.
 ---
 
 # Tlon Messenger: Product Guide
@@ -164,6 +164,12 @@ With a hosted Tlonbot, tap the plus icon at the top right of the Workspaces tab 
 7. Add channels: in `Group info & settings`, tap `Channels`, then `New` in the upper right, then `New channel`, and choose `Chat`, `Notebook`, or `Gallery`.  
 8. Save your channel settings and go back. Tap `Invite` — from there you can pick people already on Tlon Messenger, or tap `Share link` for a join link anyone can use.
 
+### Join a group with a code
+
+A group code is the group's ID, `~host/group-name`. Anyone in a group can copy it: `Group info & settings` → `Copy group ID`. To join with one, tap the plus icon, then `Join a group with a code (reference)`, and paste it. That button is on desktop and on phones without a Tlonbot. A phone with a bot has no code box: ask someone in the group for an invite link, or to send you the group itself (`Forward reference` in group info), then tap it in the chat to open a preview and join. Asking your bot to join a group adds the bot, not you.
+
+A code isn't an invite link. Invite links come from `Invite people` → `Share link`, and someone new to Tlon pastes one on the `Have an invite?` screen when signing up.
+
 ### Ownership and roles
 
 The person who created a group owns it. Their node hosts the group and controls its roles, channels, and updates, which other members' nodes follow.
@@ -201,7 +207,7 @@ ChatGPT, Alexa, and Siri are services you rent. Your conversations live on their
 1. Download the iOS or Android app and sign in.  
 2. Open the Bot tab, the first icon in the tab bar. On a hosted account your bot is already there, and the app opens on it. Self-hosting? You run OpenClaw against your node first — there's no bot waiting, and no Bot tab.  
 3. Talk to it. You command your bot by typing instructions into the DM, in plain language.  
-4. Configure it from the Settings tab, where your bot's settings sit at the top: `Models` for the AI model it uses, `Connections` for API keys and connected services, and `Permissions` for who can message it and which channels it watches (`Per-channel rules`). On desktop, they're behind `Settings` → `Bot Settings`. These settings are part of hosting — if you're running your own bot they won't be there, and the same settings live in your OpenClaw configuration instead.
+4. Configure it from the Settings tab, where your bot's settings sit at the top: `Models` for the AI model it uses, `Connections` for API keys and connected services, `Permissions` for who can message it and which channels it watches (`Per-channel rules`), then `Privacy` and `Advanced`. On desktop, they're behind `Settings` → `Bot Settings`, which opens tlon.network/tlonbot. A change asks to restart the bot (`Apply & restart`) before it takes effect. These settings are part of hosting — if you're running your own bot they won't be there, and the same settings live in your OpenClaw configuration instead.
 
 ### First things to try
 
@@ -222,6 +228,9 @@ ChatGPT, Alexa, and Siri are services you rent. Your conversations live on their
 7. **Run recurring jobs.** Regular summaries at specific times, news roundups, and more.  
 8. **Respond to slash commands.** Change models, manage access, and more.  
 9. **Read documents you send it** — PDFs, text, and CSV. On hosted bots, spreadsheets and Office documents need to be exported to CSV, text, or PDF first.
+10. **Use a browser.** Hosted bots can open websites with a hosted browser. The browser connects when the bot starts, so right after a restart it can be missing for a while; say that rather than claiming it doesn't exist.
+
+What it can't do: make images or video. Hosted bots have those tools switched off, so don't offer them, and say so plainly when asked.
 
 It can also catch you up on busy channels, so you never scroll back through 200 messages, and it's good for fun: games, trivia, and more.
 
@@ -237,7 +246,7 @@ When changing or cancelling recurring work, the bot should reconcile every cron 
 
 ### Connected services (MCP)
 
-Extend your bot by connecting outside services under `Connected services` in its settings — the Settings tab on a phone, `Settings` → `Bot Settings` on desktop. (Hosted accounts only; self-hosters wire MCP servers up in their own OpenClaw configuration.) With services connected, crons and requests get more powerful:
+Extend your bot by connecting outside services under `Connections` → `Connected services` in its settings — the Settings tab on a phone, `Settings` → `Bot Settings` on desktop. (Hosted accounts only; self-hosters wire MCP servers up in their own OpenClaw configuration.) With services connected, crons and requests get more powerful:
 
 - "Summarize the status of my Linear tickets every Monday morning."  
 - "Track new GitHub issues on my repo and flag anything urgent."  
@@ -257,6 +266,10 @@ That works in groups the bot hosts — the ones it made for you. In someone else
 Deleting a group is the exception, and an admin role doesn't buy it. Only the host can delete a group, so the bot can delete the ones it hosts and no others — someone else's group has to be deleted by whoever made it.
 
 You control who it listens to — tell it in a DM which members it may respond to or communicate with.
+
+### Seeing what the bot did
+
+Context Lens shows how the bot handled a message. In your bot's DM, or a group it's in, the context lens button in the header lists its recent runs. Each reply it sends you also has a `View bot run` button. A run shows the context it used, the tools it called, the model, what it wrote, and a retry button.
 
 ### Slash commands
 
@@ -289,11 +302,23 @@ Bot behavior:
 
 ### Models and API keys
 
-Hosted accounts include an AI model for free — basic usage costs nothing. They also have a first-class **ChatGPT subscription** option: under `Provider subscriptions` → `ChatGPT` in the bot's settings (on desktop, start from `Settings` → `Bot Settings`), the owner signs in to authorize their ChatGPT account, then chooses one of the models included with that subscription for Tlonbot. When someone asks what it means to "use a ChatGPT subscription for this," answer this Tlon-specific flow directly; don't substitute generic OpenClaw or OpenRouter billing advice.
+Hosted accounts include a model for free, `Basic (GPT-5.6 Luna)`; basic usage costs nothing. To choose another, open `Models` in the bot's settings (on desktop, start from `Settings` → `Bot Settings`):
 
-ChatGPT subscription access and an OpenAI API key are alternatives, not the same credential. Connecting the subscription removes a saved OpenAI API key, and saving an OpenAI API key disconnects the subscription. Other model providers still use their own API keys, under `API keys` in the same settings. Use `/model` to check or change what's running after the provider is connected.
+- `Default model` is what the bot uses. Pick a provider, then a model. Only providers you've connected are listed.  
+- `Fallback models` are what it switches to if the default fails.
 
-Self-hosting means no included model, ChatGPT-subscription screen, or bot settings in the app: configure the provider in your own OpenClaw setup and pay whoever you point it at. Either way there's no lock-in — everything you build with your bot stays with you.
+There are two ways to connect a provider, both under `Connections`:
+
+- **A subscription you already pay for.** `Provider subscriptions` covers ChatGPT, Claude and Grok. ChatGPT and Grok sign in with a one-time code. Claude takes a setup token instead: run `claude setup-token` in Claude Code on a computer and paste the token. Then choose one of the models that subscription includes. When someone asks what it means to "use a ChatGPT subscription for this," answer this Tlon-specific flow directly; don't substitute generic OpenClaw or OpenRouter billing advice.  
+- **An API key**, under `API keys`, for Anthropic, OpenAI, OpenRouter or xAI.
+
+A subscription and an API key for the same provider are alternatives, not the same credential. Connecting a subscription replaces a saved API key for that provider, and the app asks first. For ChatGPT the reverse holds too: saving an OpenAI API key disconnects the subscription.
+
+**Zero data retention.** With the included model, `Privacy` → `Zero data retention` keeps requests away from model providers that retain data. It may use the included credits faster. OpenRouter's model list has its own zero-data-retention filter.
+
+Use `/model` in chat to check or change what's running.
+
+Self-hosting means no included model, subscription screens, or bot settings in the app: configure the provider in your own OpenClaw setup and pay whoever you point it at. Either way there's no lock-in — everything you build with your bot stays with you.
 
 ### Guardrails
 
@@ -340,6 +365,10 @@ Tlon runs your node for you: health monitoring, updates, and data backups with r
 ### Leaving is always an option
 
 If you don't want Tlon to host you, you can self-host on Native Planet hardware, install the Urbit runtime on your own computer, or export your node and boot it anywhere. Export your master ticket and node archive from your dashboard.
+
+### Closing your account
+
+There's no delete button in the app itself. Account changes happen on your account page: `Settings` → `Manage Tlon account` opens tlon.network/account inside the app. If you close the account there, the app signs you out.
 
 ### What if Tlon disappears?
 
@@ -411,7 +440,7 @@ When someone asks "what should I do with this?", offer ideas like these, matched
 
 **What is Tlonbot?** A personal AI agent that lives inside Tlon Messenger. It can search the web, join your group chats, remember your conversations, and schedule tasks. It's powered by OpenClaw and runs on its own node, linked to yours, on the same peer-to-peer network.
 
-**Does Tlonbot cost anything?** Hosted accounts get one for free, including a free AI model for basic usage. Bring your own API key to use other models. Self-hosters run their own and pay for whatever model they point it at.
+**Does Tlonbot cost anything?** Hosted accounts get one for free, including a free AI model for basic usage. To use other models, connect a ChatGPT, Claude or Grok subscription you already pay for, or bring your own API key. Self-hosters run their own and pay for whatever model they point it at.
 
 **Does Tlon read my bot's conversations?** No. Your bot's memory lives on your bot's node, and model requests go straight to the provider rather than through a Tlon service that logs them. On a hosted account that node is Tlon-run, so this rests on policy the same way your hosted messages do — see "Does Tlon read my conversations?" above.
 
