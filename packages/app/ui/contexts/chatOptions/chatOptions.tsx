@@ -72,6 +72,7 @@ export const ChatOptionsProvider = ({
   const [chat, setChat] = useState<{
     id: string;
     type: 'group' | 'channel';
+    asChannel?: boolean;
   } | null>(initialChat ?? null);
   // Which tree is mounted, not how wide the window is. These are the
   // sheets the mobile tree needs, and it is the only tree built on native
@@ -81,11 +82,16 @@ export const ChatOptionsProvider = ({
   const isMobileTree = useIsMobileTree();
 
   const openSheet = useCallback(
-    (chatId: string, chatType: 'group' | 'channel') => {
+    (
+      chatId: string,
+      chatType: 'group' | 'channel',
+      options?: { asChannel?: boolean }
+    ) => {
       trackEvent(AnalyticsEvent.ChatOptionsOpened, { type: chatType });
       setChat({
         id: chatId,
         type: chatType,
+        asChannel: options?.asChannel,
       });
       setSheetOpen(true);
     },

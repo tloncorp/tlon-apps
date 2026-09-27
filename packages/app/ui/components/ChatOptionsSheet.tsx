@@ -52,6 +52,7 @@ type ChatOptionsSheetProps = {
   chat?: {
     type: 'group' | 'channel';
     id: string;
+    asChannel?: boolean;
   } | null;
   trigger?: React.ReactNode;
 };
@@ -108,7 +109,7 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
         trigger={trigger}
       />
     );
-  } else if (group?.id && group?.channels?.length === 1) {
+  } else if (!chat.asChannel && group?.id && group?.channels?.length === 1) {
     return (
       <GroupOptionsSheetLoader
         groupId={group.id}

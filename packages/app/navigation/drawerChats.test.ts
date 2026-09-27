@@ -435,7 +435,8 @@ describe('getDrawerTabRows', () => {
   it('is the list alone when nothing is pinned', () => {
     const rows = getDrawerTabRows(
       { pinned: [], unpinned: [group('a', 2), group('b', 1)] },
-      null
+      null,
+      'workspaces'
     );
 
     expect(keys(rows)).toEqual(['a', 'b']);
@@ -445,13 +446,14 @@ describe('getDrawerTabRows', () => {
   it('heads the pinned section and the rest below it', () => {
     const rows = getDrawerTabRows(
       { pinned: [group('pinned', 1)], unpinned: [group('a', 2)] },
-      null
+      null,
+      'workspaces'
     );
 
     expect(keys(rows)).toEqual([
-      'heading:pinned',
+      'heading:pinned:workspaces',
       'pinned',
-      'heading:recent',
+      'heading:recent:workspaces',
       'a',
     ]);
     expect(rows[0]).toMatchObject({ kind: 'heading', label: 'Pinned' });
@@ -463,10 +465,11 @@ describe('getDrawerTabRows', () => {
   it('closes no section that has nothing after it', () => {
     const rows = getDrawerTabRows(
       { pinned: [group('pinned', 1)], unpinned: [] },
-      null
+      null,
+      'workspaces'
     );
 
-    expect(keys(rows)).toEqual(['heading:pinned', 'pinned']);
+    expect(keys(rows)).toEqual(['heading:pinned:workspaces', 'pinned']);
   });
 
   it('unfurls a pinned workspace in place', () => {
@@ -491,16 +494,33 @@ describe('getDrawerTabRows', () => {
       keys(
         getDrawerTabRows(
           { pinned: [pinnedWorkspace], unpinned: [group('a', 2)] },
-          'pinned'
+          'pinned',
+          'workspaces'
         )
       )
     ).toEqual([
-      'heading:pinned',
+      'heading:pinned:workspaces',
       'pinned',
       'pinned:one',
       'pinned:two',
-      'heading:recent',
+      'heading:recent:workspaces',
       'a',
     ]);
+  });
+
+  // The list holds its first visible row across a change of tab, and must
+  // not find that row in the other tab.
+  it('keys each tab’s headings apart', () => {
+    const chats = { pinned: [group('pinned', 1)], unpinned: [group('a', 2)] };
+    const workspaces = getDrawerTabRows(chats, null, 'workspaces');
+    const messages = getDrawerTabRows(chats, null, 'messages');
+
+    const headingKeys = (rows: typeof workspaces) =>
+      rows.filter((row) => row.kind === 'heading').map((row) => row.key);
+    expect(
+      headingKeys(workspaces).filter((key) =>
+        headingKeys(messages).includes(key)
+      )
+    ).toEqual([]);
   });
 });

@@ -151,7 +151,9 @@ export function getDrawerSearchChats(
  */
 export type DrawerListRow =
   | DrawerRow
-  | { kind: 'heading'; key: string; label: string };
+  | { kind: 'heading'; key: string; label: string }
+  /** An empty row for the list to hold still (see the panel's list). */
+  | { kind: 'anchor'; key: string };
 
 /**
  * A tab's rows: its pinned section under its own heading, then the rest.
@@ -159,21 +161,30 @@ export type DrawerListRow =
  * The rest is headed too, but only below a pinned section. There it says where
  * the section ends and why the order changes — from the user's arrangement to
  * recency — and with nothing pinned there is no section for it to close.
+ *
+ * The headings' keys carry the tab. The list holds its first visible row in
+ * place across a change of data, and a heading the other tab also has would
+ * be found there and held, opening that tab partway down.
  */
 export function getDrawerTabRows(
   chats: DrawerTabChats,
-  unfurledGroupId: string | null
+  unfurledGroupId: string | null,
+  filter: DrawerFilter
 ): DrawerListRow[] {
   const unpinned = getDrawerRows(chats.unpinned, unfurledGroupId);
   if (!chats.pinned.length) {
     return unpinned;
   }
   return [
-    { kind: 'heading', key: 'heading:pinned', label: 'Pinned' },
+    { kind: 'heading', key: `heading:pinned:${filter}`, label: 'Pinned' },
     ...getDrawerRows(chats.pinned, unfurledGroupId, true),
     ...(unpinned.length
       ? [
-          { kind: 'heading', key: 'heading:recent', label: 'Recent' } as const,
+          {
+            kind: 'heading',
+            key: `heading:recent:${filter}`,
+            label: 'Recent',
+          } as const,
           ...unpinned,
         ]
       : []),

@@ -98,7 +98,7 @@ describe('routeShowsChat', () => {
   });
 
   // Unfurled, the channel has a row of its own, which is the one marked.
-  it('leaves an unfurling group’s only channel to that channel’s row', () => {
+  it('leaves an unfurled group’s only channel to that channel’s row', () => {
     const route = {
       name: 'Channel',
       params: { channelId: 'c1', groupId: 'g1' },

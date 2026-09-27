@@ -27,11 +27,7 @@ import React, {
   useState,
 } from 'react';
 import { FlashList, type FlashListRef } from '@shopify/flash-list';
-import {
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-  StyleSheet,
-} from 'react-native';
+import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Circle,
@@ -143,9 +139,14 @@ const ROW_AVATAR_RADIUS = '$2xs' as const;
 // much on every side, and pulled back by as much so the row does not grow.
 const ROW_CONTROL_PAD = (CHAT_ROW_MIN_HEIGHT - ROW_ICON_SIZE) / 2;
 const GROUP_SETTINGS_LABEL = 'Group info & settings';
-// How near its top the list counts as standing at it.
-const LIST_TOP_SLOP = CHAT_ROW_MIN_HEIGHT / 2;
-const HOLD_NO_ROW = { disabled: true } as const;
+// A tab's list opens on a row of its own, one point tall and empty, that
+// never moves. The list holds its first visible row in place across a change
+// of data, so a chat moving up does not shift the rows being read — and at
+// the top of the list, that row is this one. Anything arriving above the rows
+// on show, the pinned section when the first chat is pinned or a chat that
+// has just seen activity, then lands in view beneath it instead of the list
+// holding its place below and pushing the new rows out of sight.
+const TOP_ANCHOR_ROW: DrawerListRow = { kind: 'anchor', key: 'anchor:top' };
 // An unfurled workspace and its channels are one block, so they share one
 // fill and the rows between its ends carry no corners of their own.
 const UNFURLED_FILL = '$secondaryBackground' as const;
@@ -1157,15 +1158,6 @@ function DrawerPanel(props: DrawerContentComponentProps) {
   // Workspaces.
   const [filter, setFilter] = useState<DrawerFilter>('workspaces');
   const listRef = useRef<FlashListRef<DrawerListRow>>(null);
-  // Whether the list stands at its top, which decides whether it holds its
-  // first visible row in place when its rows change (see the list below).
-  const [listAtTop, setListAtTop] = useState(true);
-  const handleListScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      setListAtTop(event.nativeEvent.contentOffset.y <= LIST_TOP_SLOP);
-    },
-    []
-  );
   const selectFilter = useCallback((next: DrawerFilter) => {
     // Changing tabs is a request to stay in the panel, the same as unfurling a
     // workspace, so it supersedes anything still resolving its route. A
@@ -1242,11 +1234,6 @@ function DrawerPanel(props: DrawerContentComponentProps) {
     debounceMs: 0,
     disableNicknames,
   });
-  // The results and the tab's list are each mounted fresh when one gives way
-  // to the other, and a fresh list stands at its top.
-  useEffect(() => {
-    setListAtTop(true);
-  }, [isSearching]);
   // Read across the whole list rather than the half being shown, so the tab
   // that is not showing can say it has something in it.
   const unreadFilters = useMemo(
@@ -1298,7 +1285,7 @@ function DrawerPanel(props: DrawerContentComponentProps) {
     [chatsLocked, onPressChatDetailsRef]
   );
   const openOptions = useCallback(
-    (chat: { id: string; type: 'group' | 'channel' }) => {
+    (chat: { id: string; type: 'group' | 'channel'; asChannel?: boolean }) => {
       if (chatsLocked) {
         return;
       }
@@ -1312,15 +1299,16 @@ function DrawerPanel(props: DrawerContentComponentProps) {
       // The sheet comes up from the bottom, where the keyboard is, and one
       // left up over a sheet traps the touches meant for it (TLON-6187).
       searchInputRef.current?.blur();
-      openChatOptions(chat.id, chat.type);
+      openChatOptions(chat.id, chat.type, { asChannel: chat.asChannel });
     },
     [chatsLocked, openChatOptions]
   );
-  // A channel of an unfurled workspace is held down for its own options — the
-  // sheet a channel's row offers everywhere else — rather than its
-  // workspace's, which the row above it already gives.
+  // A channel of an unfurled workspace is held down for its own options, and
+  // the workspace's are the row above it — the only channel of a workspace
+  // too, which the sheet would otherwise answer for with its workspace's.
   const openChannelOptions = useCallback(
-    (channel: db.Channel) => openOptions({ id: channel.id, type: 'channel' }),
+    (channel: db.Channel) =>
+      openOptions({ id: channel.id, type: 'channel', asChannel: true }),
     [openOptions]
   );
 
@@ -1332,14 +1320,17 @@ function DrawerPanel(props: DrawerContentComponentProps) {
     () =>
       isSearching
         ? getDrawerSearchRows(searchResults, unfurledGroupId)
-        : getDrawerTabRows(drawerChats, unfurledGroupId),
-    [drawerChats, isSearching, searchResults, unfurledGroupId]
+        : [
+            TOP_ANCHOR_ROW,
+            ...getDrawerTabRows(drawerChats, unfurledGroupId, filter),
+          ],
+    [drawerChats, filter, isSearching, searchResults, unfurledGroupId]
   );
   const titles = useMemo(
     () =>
       new Map(
         rows.flatMap((row): [string, string][] =>
-          row.kind === 'heading'
+          row.kind !== 'chat' && row.kind !== 'channel'
             ? []
             : [
                 [
@@ -1361,13 +1352,15 @@ function DrawerPanel(props: DrawerContentComponentProps) {
 
   const renderRow = useCallback(
     ({ item }: { item: DrawerListRow }) =>
-      item.kind === 'heading' ? (
+      item.kind === 'anchor' ? (
+        <View height={1} />
+      ) : item.kind === 'heading' ? (
         <DrawerListHeading label={item.label} />
       ) : item.kind === 'chat' ? (
         <DrawerChatRow
           chat={item.chat}
           title={titles.get(item.key) ?? ''}
-          selected={routeShowsChat(item.chat, focusedStackRoute, item.unfurls)}
+          selected={routeShowsChat(item.chat, focusedStackRoute, item.unfurled)}
           disabled={chatsLocked}
           unfurls={item.unfurls}
           unfurled={item.unfurled}
@@ -1484,20 +1477,13 @@ function DrawerPanel(props: DrawerContentComponentProps) {
         // below the top of the tab's list, with a blank band above it. A list
         // mounted fresh has no row to hold, and the results, which change with
         // every letter, are told not to hold one.
-        //
-        // The tab's list lets go of that row while it stands at its top, too.
-        // There is nothing above the fold to keep still then, and a row that
-        // arrives above the one showing — the pinned section, when the first
-        // chat is pinned, or a chat that has just seen activity — belongs in
-        // view, not pushed out of it by the list holding its place below.
         key={isSearching ? 'search' : 'chats'}
         maintainVisibleContentPosition={
-          isSearching || listAtTop ? HOLD_NO_ROW : undefined
+          isSearching ? { disabled: true } : undefined
         }
-        onScroll={handleListScroll}
         data={rows}
         keyExtractor={(row) => row.key}
-        // Three shapes of row in one list, so the recycler is told which is
+        // Several shapes of row in one list, so the recycler is told which is
         // which rather than handing a channel's view to a chat.
         getItemType={(row) => row.kind}
         renderItem={renderRow}

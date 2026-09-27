@@ -86,14 +86,15 @@ type ChatLike =
  * builds. Ids alone will not do it: a group and a channel pinned out of that
  * group carry the same `groupId`, so each would answer for the other.
  *
- * A group row that `unfurls` is never entered through its only channel: it
- * lists that channel beneath it, which answers for itself, so the group
- * answers only for its channel list and the two are not both marked.
+ * A group row that is `unfurled` has its only channel on a row of its own
+ * beneath it, which answers for that channel, so the group answers only for
+ * its channel list and the two are not both marked. Folded, it still answers
+ * for the channel, which the rest of the app opens it as.
  */
 export function routeShowsChat(
   chat: ChatLike,
   route: RouteLike | undefined,
-  unfurls = false
+  unfurled = false
 ): boolean {
   const params = route?.params as
     | { channelId?: string; groupId?: string }
@@ -104,7 +105,7 @@ export function routeShowsChat(
   if (route?.name === 'GroupChannels') {
     return params?.groupId === chat.group.id;
   }
-  if (unfurls) {
+  if (unfurled) {
     return false;
   }
   const only =
