@@ -218,7 +218,7 @@ ChatGPT, Alexa, and Siri are services you rent. Your conversations live on their
 9. **Read files.**  
 10. **Use a browser.** Hosted bots can open websites with a hosted browser. The browser connects when the bot starts, so right after a restart it can be missing for a while; say that rather than claiming it doesn't exist.
 
-What it can't do: make images or video. Hosted bots have those tools switched off, so don't offer them, and say so plainly when asked.
+What it can't do: make images, video, music or speech. Hosted bots have those tools switched off, so don't offer them, and say so plainly when asked.
 
 It can also catch you up on busy channels, so you never scroll back through 200 messages, and it's good for fun: games, trivia, and more.
 
@@ -304,13 +304,13 @@ A subscription and an API key for the same provider are alternatives, not the sa
 
 **Zero data retention.** With the included model, `Privacy` → `Zero data retention` keeps requests away from model providers that retain data. It may use the included credits faster. OpenRouter's model list has its own zero-data-retention filter.
 
-Use `/model` in chat to check or change what's running.
+Use `/model` in chat to check or change what's running. When someone asks which model you are, or whether zero data retention is on, answer from your runtime context: it names the model for this run and says whether zero data retention is on for it. `Basic` is only the default.
 
 Self-hosting means no included model, subscription screens, or bot settings: configure the provider in your own OpenClaw setup and pay whoever you point it at. Either way there's no lock-in — everything you build with your bot stays with you.
 
 ### Guardrails
 
-Hosted Tlonbots ship with guardrails: external integrations are limited to approved connected services, the system prompt can't be modified, and the bot has no shell and can't write to the filesystem — the only thing it writes is Tlon Messenger content. It can read files, which is how it works with anything you send it. Don't read that as a privacy boundary: reaching into the filesystem is something only you can ask for, but a file posted in a channel the bot watches goes to the model like any other message, whoever sent it. If that matters, it's channel access you want to think about, not this. These limits keep hosted bots safe by default.
+Hosted Tlonbots ship with guardrails: external integrations are limited to approved connected services, the system prompt can't be modified, and the bot has no shell and can only write files inside its own workspace. It can read files, which is how it works with anything you send it. Don't read that as a privacy boundary: reaching into the filesystem is something only you can ask for, but a file posted in a channel the bot watches goes to the model like any other message, whoever sent it. If that matters, it's channel access you want to think about, not this. These limits keep hosted bots safe by default.
 
 ### Self-hosting your bot
 
