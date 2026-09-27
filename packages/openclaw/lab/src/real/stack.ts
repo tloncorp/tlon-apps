@@ -208,7 +208,7 @@ export class LabStack {
   }
 
   /** Whether this sandbox's ships exist from an earlier set. */
-  private hasPiers() {
+  hasPiers() {
     try {
       execFileSync(
         'docker',
@@ -228,6 +228,57 @@ export class LabStack {
       throw new Error(
         `Not enough disk for a new sandbox (${this.project}): ${(free / 1024 ** 3).toFixed(1)} GB free, ${NEW_SANDBOX_FREE_BYTES / 1024 ** 3} GB needed. Free some space or use fewer sandboxes.`
       );
+    }
+  }
+
+  /** Stop this sandbox's containers, keeping their volumes. */
+  stop() {
+    spawnSync('docker', ['stop', this.container, `${this.project}-ships-1`], {
+      stdio: 'ignore',
+    });
+  }
+
+  /**
+   * Start a new sandbox from copies of a stopped sandbox's volumes. Every
+   * sandbox runs the same fake ships on its own network, so the copy skips
+   * booting ships, compiling the desk on each (about 20 minutes) and building
+   * the plugin.
+   */
+  seedFrom(source: LabStack) {
+    this.assertRoomForPiers();
+    for (const volume of ['ships-data', 'bot-state']) {
+      const from = `${source.project}_${volume}`;
+      const to = `${this.project}_${volume}`;
+      const labels = JSON.parse(
+        execFileSync(
+          'docker',
+          ['volume', 'inspect', from, '--format', '{{json .Labels}}'],
+          { encoding: 'utf8' }
+        )
+      ) as Record<string, string>;
+      labels['com.docker.compose.project'] = this.project;
+      execFileSync('docker', [
+        'volume',
+        'create',
+        ...Object.entries(labels).flatMap(([key, value]) => [
+          '--label',
+          `${key}=${value}`,
+        ]),
+        to,
+      ]);
+      execFileSync('docker', [
+        'run',
+        '--rm',
+        '-v',
+        `${from}:/from:ro`,
+        '-v',
+        `${to}:/to`,
+        'ubuntu:22.04',
+        'cp',
+        '-a',
+        '/from/.',
+        '/to/',
+      ]);
     }
   }
 
