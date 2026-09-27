@@ -48,6 +48,8 @@ type UseChannelPostsParams = UseChannelPostsPageParams & {
   enabled: boolean;
   firstPageCount?: number;
   filterDeleted?: boolean;
+  /** The channel's `lastPostSequenceNum`, for `reachesNewest`. */
+  latestSequenceNum?: number | null;
 };
 
 export const useChannelPosts = (options: UseChannelPostsParams) => {
@@ -214,34 +216,22 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     !query.hasPreviousPage || (wasAtNewestRef.current && newPosts.length > 0);
 
   // The list's own answer to the same question, stricter than `hasNewest`:
-  // that guard is set before any data loads and keeps counting posts heard
-  // earlier in the visit, which the merge needs but would pin a list to its
-  // end through a genuine catch-up. Only this query having loaded the newest
-  // post counts, and after that only a post newer than anything it had then:
-  // the changes feed also delivers old posts whose reactions or edits moved.
-  const newestLoadRef = useRef<{
-    queryKey: unknown;
-    load: NewestPostLoad;
-  }>(null);
+  // that guard is set before any data loads and counts every post heard in
+  // the visit, which the merge needs but would pin a list to its end through
+  // a genuine catch-up. Only a query that has actually loaded the newest post
+  // qualifies, so a cursor jump's older window starts fresh.
+  const loadedNewestQueryKeyRef = useRef<unknown>(null);
   if (query.data && !query.isPlaceholderData && !query.hasPreviousPage) {
-    newestLoadRef.current = {
-      queryKey,
-      load: {
-        heardPostIds: new Set(newPosts.map((post) => post.id)),
-        newestSequenceNum: Math.max(
-          query.data.pages[0]?.posts[0]?.sequenceNum ?? 0,
-          ...newPosts.map((post) => post.sequenceNum ?? 0)
-        ),
-      },
-    };
+    loadedNewestQueryKeyRef.current = queryKey;
   }
   const reachesNewest = listReachesNewestPost({
     hasPreviousPage: query.hasPreviousPage,
-    newestLoad:
-      newestLoadRef.current?.queryKey === queryKey
-        ? newestLoadRef.current.load
-        : null,
-    newPosts,
+    loadedNewest: loadedNewestQueryKeyRef.current === queryKey,
+    newestShownSequenceNum: Math.max(
+      query.data?.pages[0]?.posts[0]?.sequenceNum ?? 0,
+      ...newPosts.map((post) => post.sequenceNum ?? 0)
+    ),
+    latestSequenceNum: options.latestSequenceNum,
   });
 
   const rawPosts = useMemo<db.Post[] | null>(() => {
@@ -291,41 +281,36 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
   );
 };
 
-type NewestPostLoad = {
-  heardPostIds: ReadonlySet<string>;
-  newestSequenceNum: number;
-};
-
 /**
  * Whether a conversation list should treat its posts as reaching the newest
  * one, for following new messages. A refetch can flip the query's
  * `hasPreviousPage` back to true after it loaded the newest post (a sequence
- * gap, e.g. the channel's watermark moving before its new posts are written);
- * a post heard over the subscription after that is still the newest.
- * `newestLoad` records what the query had the last time it loaded the newest
- * post, or is null if it never has. A heard post with no sequence number yet
- * is one that was just sent.
+ * gap, e.g. the channel's watermark moving before its new posts are written),
+ * while the posts heard over the subscription still include the newest one.
+ * Once the query has loaded the newest post, the list follows as long as what
+ * it shows reaches the channel's watermark; a genuine gap leaves the
+ * watermark ahead, and old posts re-delivered for a reaction or edit sit below
+ * it.
  */
 export function listReachesNewestPost({
   hasPreviousPage,
-  newestLoad,
-  newPosts,
+  loadedNewest,
+  newestShownSequenceNum,
+  latestSequenceNum,
 }: {
   hasPreviousPage: boolean;
-  newestLoad: NewestPostLoad | null;
-  newPosts: ReadonlyArray<Pick<db.Post, 'id' | 'sequenceNum'>>;
+  loadedNewest: boolean;
+  newestShownSequenceNum: number;
+  latestSequenceNum: number | null | undefined;
 }) {
   if (!hasPreviousPage) {
     return true;
   }
-  if (!newestLoad) {
-    return false;
-  }
-  return newPosts.some(
-    (post) =>
-      !newestLoad.heardPostIds.has(post.id) &&
-      (post.sequenceNum == null ||
-        post.sequenceNum > newestLoad.newestSequenceNum)
+  return (
+    loadedNewest &&
+    latestSequenceNum != null &&
+    latestSequenceNum > 0 &&
+    newestShownSequenceNum >= latestSequenceNum
   );
 }
 

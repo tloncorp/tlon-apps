@@ -71,57 +71,35 @@ describe('hasNewerPosts', () => {
 });
 
 describe('listReachesNewestPost', () => {
-  const newestLoad = {
-    heardPostIds: new Set(['heard-earlier']),
-    newestSequenceNum: 10,
-  };
-
   it('reaches the newest post when the query has no newer page', () => {
     expect(
       listReachesNewestPost({
         hasPreviousPage: false,
-        newestLoad: null,
-        newPosts: [],
+        loadedNewest: false,
+        newestShownSequenceNum: 0,
+        latestSequenceNum: null,
       })
     ).toBe(true);
   });
 
-  it('keeps following a newer post heard after a refetch reports a newer page', () => {
+  it('keeps following when a refetch reports a newer page but the newest post is shown', () => {
     expect(
       listReachesNewestPost({
         hasPreviousPage: true,
-        newestLoad,
-        newPosts: [{ id: 'new', sequenceNum: 11 }],
+        loadedNewest: true,
+        newestShownSequenceNum: 11,
+        latestSequenceNum: 11,
       })
     ).toBe(true);
   });
 
-  it('keeps following a just-sent post that has no sequence number yet', () => {
+  it('stops following through a genuine gap, where the watermark is ahead', () => {
     expect(
       listReachesNewestPost({
         hasPreviousPage: true,
-        newestLoad,
-        newPosts: [{ id: 'sent', sequenceNum: null }],
-      })
-    ).toBe(true);
-  });
-
-  it('ignores posts heard before the newer page was reported', () => {
-    expect(
-      listReachesNewestPost({
-        hasPreviousPage: true,
-        newestLoad,
-        newPosts: [{ id: 'heard-earlier', sequenceNum: 12 }],
-      })
-    ).toBe(false);
-  });
-
-  it('ignores an old post heard again because its reactions or edits changed', () => {
-    expect(
-      listReachesNewestPost({
-        hasPreviousPage: true,
-        newestLoad,
-        newPosts: [{ id: 'old', sequenceNum: 4 }],
+        loadedNewest: true,
+        newestShownSequenceNum: 11,
+        latestSequenceNum: 20,
       })
     ).toBe(false);
   });
@@ -130,8 +108,20 @@ describe('listReachesNewestPost', () => {
     expect(
       listReachesNewestPost({
         hasPreviousPage: true,
-        newestLoad: null,
-        newPosts: [{ id: 'new', sequenceNum: 11 }],
+        loadedNewest: false,
+        newestShownSequenceNum: 20,
+        latestSequenceNum: 20,
+      })
+    ).toBe(false);
+  });
+
+  it('does not follow without a watermark to compare against', () => {
+    expect(
+      listReachesNewestPost({
+        hasPreviousPage: true,
+        loadedNewest: true,
+        newestShownSequenceNum: 20,
+        latestSequenceNum: null,
       })
     ).toBe(false);
   });

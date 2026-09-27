@@ -351,6 +351,7 @@ export default function ChannelScreen(props: Props) {
     channelId: currentChannelId,
     count: 30,
     filterDeleted: !includeDeletedPosts,
+    latestSequenceNum: channel?.lastPostSequenceNum,
     ...(cursor && !clearedCursor
       ? {
           mode: 'around',
