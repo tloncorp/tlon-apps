@@ -10,6 +10,7 @@ import {
   onInternalDiagnosticEvent,
 } from 'openclaw/plugin-sdk/diagnostic-runtime';
 
+import { modelPrivacyNote } from './src/model-privacy-context.js';
 import { tlonPlugin } from './src/channel.js';
 import { registerTlonCommands } from './src/commands-registry.js';
 import { notifyCampaignCronChanged } from './src/monitor/campaign/live.js';
@@ -1348,6 +1349,15 @@ export default defineBundledChannelEntry({
     // ── Session lifecycle / watchdog telemetry ─────────────────────────
     // These hooks are global to OpenClaw, so telemetry.ts filters them through
     // session keys remembered from Tlon inbound replies before emitting.
+    api.on('before_prompt_build', (_event, ctx) => {
+      const note = modelPrivacyNote(
+        api.runtime.config.loadConfig(),
+        ctx.modelProviderId,
+        ctx.modelId
+      );
+      return note ? { appendSystemContext: note } : undefined;
+    });
+
     api.on('session_start', (event, ctx) => {
       safeTelemetryObserver({
         logger: api.logger,
