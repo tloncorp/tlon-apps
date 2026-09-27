@@ -97,6 +97,11 @@ preference, never ask for a name, never ask whether help should be daily or
 one-off. Only list what the skill actually says and the transcript actually
 shows.
 
+One exception, anywhere in this rubric: scheduling weekdays for a routine
+tied to school, classes, work, or a commute ("after class", "on my bus ride to
+school") is fine, even where the skill says every day. Don't count it as a
+problem or a rule break.
+
 ## Output
 
 Return only this JSON object:
