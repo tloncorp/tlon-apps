@@ -12,7 +12,7 @@ vi.mock('../../db', async (importOriginal) => ({
 }));
 
 import { useDebugStore } from '../../debug';
-import { hasNewerPosts, isAtNewestPosts } from './useChannelPosts';
+import { hasNewerPosts, listReachesNewestPost } from './useChannelPosts';
 
 afterEach(() => {
   dbMocks.getLatestChannelSequenceNum.mockReset();
@@ -70,43 +70,43 @@ describe('hasNewerPosts', () => {
   });
 });
 
-describe('isAtNewestPosts', () => {
-  it('is at newest when the query has no newer page', () => {
+describe('listReachesNewestPost', () => {
+  it('reaches the newest post when the query has no newer page', () => {
     expect(
-      isAtNewestPosts({
+      listReachesNewestPost({
         hasPreviousPage: false,
-        wasAtNewest: false,
+        newPostCountAtNewest: null,
         newPostCount: 0,
       })
     ).toBe(true);
   });
 
-  it('stays at newest when a refetch reports a newer page but posts were heard', () => {
+  it('keeps following when a post is heard after a refetch reports a newer page', () => {
     expect(
-      isAtNewestPosts({
+      listReachesNewestPost({
         hasPreviousPage: true,
-        wasAtNewest: true,
-        newPostCount: 1,
+        newPostCountAtNewest: 2,
+        newPostCount: 3,
       })
     ).toBe(true);
   });
 
-  it('is not at newest when the query never reached the newest post', () => {
+  it('stops following when only posts heard before the newer page count', () => {
     expect(
-      isAtNewestPosts({
+      listReachesNewestPost({
         hasPreviousPage: true,
-        wasAtNewest: false,
-        newPostCount: 3,
+        newPostCountAtNewest: 2,
+        newPostCount: 2,
       })
     ).toBe(false);
   });
 
-  it('is not at newest when a newer page is reported and no posts were heard', () => {
+  it('does not follow a query that never loaded the newest post', () => {
     expect(
-      isAtNewestPosts({
+      listReachesNewestPost({
         hasPreviousPage: true,
-        wasAtNewest: true,
-        newPostCount: 0,
+        newPostCountAtNewest: null,
+        newPostCount: 3,
       })
     ).toBe(false);
   });

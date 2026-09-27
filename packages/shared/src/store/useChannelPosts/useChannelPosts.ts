@@ -210,9 +210,26 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     wasAtNewestRef.current = false;
   }, [options.channelId]);
 
-  const hasNewest = isAtNewestPosts({
+  const hasNewest =
+    !query.hasPreviousPage || (wasAtNewestRef.current && newPosts.length > 0);
+
+  // The list's own answer to the same question, stricter than `hasNewest`:
+  // that guard is set before any data loads and keeps counting posts heard
+  // earlier in the visit, which the merge needs but would pin a list to its
+  // end through a genuine catch-up. Only this query having loaded the newest
+  // post counts, and only posts heard since it last had.
+  const newestLoadRef = useRef<{ queryKey: unknown; newPostCount: number }>(
+    null
+  );
+  if (query.data && !query.isPlaceholderData && !query.hasPreviousPage) {
+    newestLoadRef.current = { queryKey, newPostCount: newPosts.length };
+  }
+  const reachesNewest = listReachesNewestPost({
     hasPreviousPage: query.hasPreviousPage,
-    wasAtNewest: wasAtNewestRef.current,
+    newPostCountAtNewest:
+      newestLoadRef.current?.queryKey === queryKey
+        ? newestLoadRef.current.newPostCount
+        : null,
     newPostCount: newPosts.length,
   });
 
@@ -258,28 +275,33 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
   );
 
   return useMemo(
-    () => ({ posts, query, hasNewest, loadOlder, loadNewer, isLoading }),
-    [posts, query, hasNewest, loadOlder, loadNewer, isLoading]
+    () => ({ posts, query, reachesNewest, loadOlder, loadNewer, isLoading }),
+    [posts, query, reachesNewest, loadOlder, loadNewer, isLoading]
   );
 };
 
 /**
- * Whether the loaded posts reach the newest post in the channel. A refetch can
- * flip the query's `hasPreviousPage` back to true after it reached the newest
- * post (a sequence gap, e.g. the channel's watermark moving before its new
- * posts are written), so once the query has been at the newest post, any post
- * heard over the subscription keeps it there.
+ * Whether a conversation list should treat its posts as reaching the newest
+ * one, for following new messages. A refetch can flip the query's
+ * `hasPreviousPage` back to true after it loaded the newest post (a sequence
+ * gap, e.g. the channel's watermark moving before its new posts are written);
+ * a post heard over the subscription after that still arrives as the newest.
+ * `newPostCountAtNewest` is how many had been heard the last time this query
+ * loaded the newest post, or null if it never has.
  */
-export function isAtNewestPosts({
+export function listReachesNewestPost({
   hasPreviousPage,
-  wasAtNewest,
+  newPostCountAtNewest,
   newPostCount,
 }: {
   hasPreviousPage: boolean;
-  wasAtNewest: boolean;
+  newPostCountAtNewest: number | null;
   newPostCount: number;
 }) {
-  return !hasPreviousPage || (wasAtNewest && newPostCount > 0);
+  return (
+    !hasPreviousPage ||
+    (newPostCountAtNewest !== null && newPostCount > newPostCountAtNewest)
+  );
 }
 
 /*
