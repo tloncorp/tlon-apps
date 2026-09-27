@@ -177,7 +177,14 @@ export function writePackets(config: LabConfig, dirs: string[]) {
     return file;
   });
   const productGuide = path.join(dir, 'skills', 'product-guide.md');
-  const frozenGuide = checkpoints[0]?.sources.skills.find(
+  // One guide for every conversation: the newest set's, since when sets ran
+  // different guides the newest is closest to what the app does now.
+  const newest = sets.reduce(
+    (latest, set, index) =>
+      set.manifest.createdAt > sets[latest].manifest.createdAt ? index : latest,
+    0
+  );
+  const frozenGuide = checkpoints[newest]?.sources.skills.find(
     (skill) => skill.dir === PRODUCT_GUIDE_DIR
   );
   if (frozenGuide) writeFileSync(productGuide, frozenGuide.text);
