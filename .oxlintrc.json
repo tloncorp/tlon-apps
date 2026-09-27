@@ -11,7 +11,8 @@
   "ignorePatterns": [
     "dist",
     "node_modules",
-    "*.md"
+    "*.md",
+    "oxlint/fixtures"
   ],
   "rules": {
     "no-useless-escape": "warn",
@@ -70,6 +71,7 @@
     "tlon/no-common-actions-reset": "error",
     "tlon/navigate-requires-pop": "error",
     "tlon/restricted-paths": "error",
+    "tlon/no-raw-desk-request": "error",
     "react/error-boundaries": "warn",
     "react/globals": "warn",
     "react/immutability": "warn",
@@ -236,6 +238,15 @@
       ],
       "rules": {
         "react-hooks/rules-of-hooks": "off"
+      }
+    },
+    {
+      "files": [
+        "packages/api/src/client/bucketsApi.ts",
+        "packages/api/src/client/initApi.ts"
+      ],
+      "rules": {
+        "tlon/no-raw-desk-request": "off"
       }
     }
   ]
