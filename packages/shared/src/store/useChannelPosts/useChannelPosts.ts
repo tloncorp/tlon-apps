@@ -264,11 +264,11 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
 };
 
 /**
- * Whether the loaded posts reach the newest post in the channel. Consumers
- * should read this rather than the query's `hasPreviousPage`, which a refetch
- * can flip back to true after the query reached the newest post (a sequence
- * gap, e.g. the channel's watermark moving before its new posts are written).
- * Once the query has been at the newest post, posts heard since keep it there.
+ * Whether the loaded posts reach the newest post in the channel. A refetch can
+ * flip the query's `hasPreviousPage` back to true after it reached the newest
+ * post (a sequence gap, e.g. the channel's watermark moving before its new
+ * posts are written), so once the query has been at the newest post, any post
+ * heard over the subscription keeps it there.
  */
 export function isAtNewestPosts({
   hasPreviousPage,

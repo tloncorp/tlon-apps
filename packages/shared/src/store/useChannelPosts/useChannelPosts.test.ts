@@ -81,7 +81,7 @@ describe('isAtNewestPosts', () => {
     ).toBe(true);
   });
 
-  it('stays at newest when a refetch reports a newer page after live posts', () => {
+  it('stays at newest when a refetch reports a newer page but posts were heard', () => {
     expect(
       isAtNewestPosts({
         hasPreviousPage: true,
@@ -101,7 +101,7 @@ describe('isAtNewestPosts', () => {
     ).toBe(false);
   });
 
-  it('is not at newest when no posts have been heard since the regression', () => {
+  it('is not at newest when a newer page is reported and no posts were heard', () => {
     expect(
       isAtNewestPosts({
         hasPreviousPage: true,

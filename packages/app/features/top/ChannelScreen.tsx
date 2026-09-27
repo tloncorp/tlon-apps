@@ -645,7 +645,14 @@ export default function ChannelScreen(props: Props) {
           }
           isLoadingPosts={isLoadingPosts}
           loadPostsError={postsQuery.error}
-          hasNewerPosts={!postsReachNewest}
+          // Only the newest page takes the hook's guarded answer. After a
+          // jump to an older post the hook's record of having reached the
+          // newest post still stands, and would pin that window to its end.
+          hasNewerPosts={
+            cursor && !clearedCursor
+              ? postsQuery.hasPreviousPage
+              : !postsReachNewest
+          }
           hasOlderPosts={postsQuery.hasNextPage}
           group={group}
           groupIsLoading={groupIsLoading}
