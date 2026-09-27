@@ -168,7 +168,11 @@ DMs are personal messages outside any group — with one person, with a few peop
 
 Pick more than one person and you get a group DM instead. It has its own members and its own header, and it lives alongside your other DMs. It isn't a group: no channels, no roles.
 
-To send one: tap the plus button, tap `New direct message`, and select who it's going to.
+To send one: tap the plus button, tap `New Message`, and select who it's going to.
+
+### Mute a chat
+
+Long-press a chat in your list, tap `Chat notifications` (for a DM), `Group notifications` (for a group) or `Channel notifications` (for one channel in a group), and choose `Nothing`. That works for your bot's DM too. To silence the whole app instead, use your phone's notification settings.
 
 ---
 
