@@ -109,13 +109,19 @@ export async function scoreSets(
   /** Survey every run again, not only those without one. */
   fresh = false
 ): Promise<ScoredPair[]> {
+  const key = (run: RunRecord) => `${run.persona.id}.${run.repeat}`;
+  const inB = new Set(b.runs.map(key));
+  const inBoth = new Set(a.runs.map(key).filter((k) => inB.has(k)));
   for (const set of [a, b]) {
     const models = loadCheckpoint(set.dir, set.manifest)?.models;
     const config = loadConfig(models ? { user: models.user } : {}, {
       search: false,
     });
     const missing = set.runs.filter(
-      (run) => !run.error && (fresh || run.keep?.overall === undefined)
+      (run) =>
+        inBoth.has(key(run)) &&
+        !run.error &&
+        (fresh || run.keep?.overall === undefined)
     );
     let next = 0;
     await Promise.all(
@@ -138,9 +144,10 @@ export async function scoreSets(
       })
     );
   }
-  const key = (run: RunRecord) => `${run.persona.id}.${run.repeat}`;
   const byKey = new Map(b.runs.map((run) => [key(run), run]));
-  return a.runs.map((runA) => {
+  // A reused base set can cover more personas than the round did.
+  const shared = a.runs.filter((run) => byKey.has(key(run)));
+  return shared.map((runA) => {
     const runB = byKey.get(key(runA));
     const sa = runA.error ? undefined : runA.keep;
     const sb = runB && !runB.error ? runB.keep : undefined;
