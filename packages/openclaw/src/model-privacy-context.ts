@@ -29,10 +29,10 @@ export function modelPrivacyNote(
   const zdr = models?.[`${provider}/${model}`]?.params?.provider?.zdr === true;
   return zdr
     ? `Data retention: zero data retention is on for ${provider}/${model}, ` +
-        'the model you are running now. Requests only go to model providers ' +
-        'that keep no data.'
+        'the model you are running now. OpenRouter only sends requests to ' +
+        'companies serving the model that keep no data.'
     : `Data retention: zero data retention is off for ${provider}/${model}, ` +
-        'the model you are running now, so the model provider may keep ' +
-        'requests under its own policy. On a hosted account the owner can ' +
-        'turn it on in settings.';
+        'the model you are running now. OpenRouter routes each request to a ' +
+        'company serving the model, which may keep it under its own policy. ' +
+        'On a hosted account the owner can turn it on in settings.';
 }
