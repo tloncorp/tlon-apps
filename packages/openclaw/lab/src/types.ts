@@ -120,6 +120,8 @@ export type KeepVerdict = { keep: boolean; why: string };
 export type RunRecord = {
   /** Fast: the lab's own model loop. Real: the local OpenClaw sandbox. */
   mode?: 'fast' | 'real';
+  /** Which sandbox ran it, when a real set runs on several. */
+  sandbox?: number;
   persona: Persona;
   repeat: number;
   startedAt: string;

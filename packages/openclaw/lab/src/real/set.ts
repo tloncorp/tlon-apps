@@ -8,7 +8,7 @@ import { writeRun } from '../store.js';
 import type { Persona, RunRecord } from '../types.js';
 import { type ModelExchange, ModelProxy } from './proxy.js';
 import { runRealPersona } from './runner.js';
-import { LabStack } from './stack.js';
+import { LabStack, labStackOptions } from './stack.js';
 import {
   extractTemplate,
   renderLikeSandbox,
@@ -26,10 +26,14 @@ const COMMITTED_PATHS = [
   'desk',
 ];
 
-/** Run each job, one at a time, against the lab's sandbox stack. */
+/**
+ * Run each job against the lab's sandbox stacks: one at a time per sandbox,
+ * with `sandboxes` of them taking the next job as they finish.
+ */
 export async function runRealSet(input: {
   dir: string;
   jobs: { persona: Persona; repeat: number }[];
+  sandboxes?: number;
   config: LabConfig;
   sources: PromptSources;
   agent: DeployedAgent | undefined;
@@ -62,8 +66,17 @@ export async function runRealSet(input: {
   const ref = execFileSync('git', ['-C', REPO_ROOT, 'rev-parse', 'HEAD'], {
     encoding: 'utf8',
   }).trim();
-  const proxy = new ModelProxy(Number(process.env.LAB_PROXY_PORT ?? 48790));
-  await proxy.start();
+  // A proxy records one run at a time, so each sandbox gets its own.
+  const proxyPort = Number(process.env.LAB_PROXY_PORT ?? 48790);
+  const lanes = Array.from(
+    { length: Math.max(1, input.sandboxes ?? 1) },
+    (_, index) => ({
+      index,
+      stack: new LabStack(config.tlonbotDir, labStackOptions(index)),
+      proxy: new ModelProxy(proxyPort + index),
+    })
+  );
+  for (const lane of lanes) await lane.proxy.start();
   // Urbit clients keep event streams open in the background; when a reset
   // restarts a ship agent those streams reject with nobody awaiting them.
   // Anything else still ends the set.
@@ -84,51 +97,64 @@ export async function runRealSet(input: {
   };
   process.on('unhandledRejection', onRejection);
   try {
-    const stack = new LabStack(config.tlonbotDir);
-    console.log(`Preparing the sandbox on plugin ${ref.slice(0, 10)}…`);
-    await stack.up(
-      ref,
-      input.agent,
-      proxy.port,
-      Boolean(config.braveKey),
-      false
-    );
-    stack.applySkills(sources);
+    for (const { stack, proxy } of lanes) {
+      console.log(`Preparing ${stack.project} on plugin ${ref.slice(0, 10)}…`);
+      await stack.up(
+        ref,
+        input.agent,
+        proxy.port,
+        Boolean(config.braveKey),
+        false
+      );
+      stack.applySkills(sources);
+    }
     const runs: RunRecord[] = [];
     // What the workspace holds once OpenClaw has set it up for a run.
     let workspaceFiles: string[] | undefined;
-    for (const job of input.jobs) {
-      const stem = path.join(input.dir, `${job.persona.id}.${job.repeat}`);
-      const { exchanges, ...run } = await runRealPersona({
-        ...job,
-        config,
-        sources,
-        maxTurns: input.maxTurns,
-        judge: input.judge,
-        stack,
-        proxy,
-        rubric: input.checkpoint.rubric,
-        simulatorPolicy: input.checkpoint.simulatorPolicy,
-        keepPolicy: input.checkpoint.keepPolicy,
-        doubleTextRate: input.checkpoint.doubleTextRate,
-        onProgress: (transcript) =>
-          writeFileSync(
-            `${stem}.partial.json`,
-            JSON.stringify({ persona: job.persona.id, transcript })
-          ),
-      });
-      writeRun(input.dir, run);
-      // Every model request and reply, exactly as OpenClaw sent them.
-      writeFileSync(`${stem}.model.json`, JSON.stringify(exchanges));
-      rmSync(`${stem}.partial.json`, { force: true });
-      input.onRun?.(run);
-      runs.push(run);
-      workspaceFiles ??= stack.workspaceFiles();
-    }
+    let next = 0;
+    await Promise.all(
+      lanes.map(async ({ index, stack, proxy }) => {
+        while (next < input.jobs.length) {
+          const job = input.jobs[next++];
+          const stem = path.join(input.dir, `${job.persona.id}.${job.repeat}`);
+          const { exchanges, ...result } = await runRealPersona({
+            ...job,
+            config,
+            sources,
+            maxTurns: input.maxTurns,
+            judge: input.judge,
+            stack,
+            proxy,
+            rubric: input.checkpoint.rubric,
+            simulatorPolicy: input.checkpoint.simulatorPolicy,
+            keepPolicy: input.checkpoint.keepPolicy,
+            doubleTextRate: input.checkpoint.doubleTextRate,
+            onProgress: (transcript) =>
+              writeFileSync(
+                `${stem}.partial.json`,
+                JSON.stringify({ persona: job.persona.id, transcript })
+              ),
+          });
+          const run = lanes.length > 1 ? { ...result, sandbox: index } : result;
+          writeRun(input.dir, run);
+          // Every model request and reply, exactly as OpenClaw sent them.
+          writeFileSync(`${stem}.model.json`, JSON.stringify(exchanges));
+          rmSync(`${stem}.partial.json`, { force: true });
+          input.onRun?.(run);
+          runs.push(run);
+          workspaceFiles ??= stack.workspaceFiles();
+        }
+      })
+    );
+    const order = (run: RunRecord) =>
+      input.jobs.findIndex(
+        (job) => job.persona.id === run.persona.id && job.repeat === run.repeat
+      );
+    runs.sort((a, b) => order(a) - order(b));
     calibrate({
       dir: input.dir,
       runs,
-      stack,
+      stack: lanes[0].stack,
       sources,
       ref,
       workspaceFiles: (workspaceFiles ?? []).filter(
@@ -138,7 +164,7 @@ export async function runRealSet(input: {
     return runs;
   } finally {
     process.off('unhandledRejection', onRejection);
-    await proxy.stop();
+    for (const lane of lanes) await lane.proxy.stop();
   }
 }
 

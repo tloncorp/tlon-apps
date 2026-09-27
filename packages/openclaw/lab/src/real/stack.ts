@@ -1,14 +1,16 @@
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFile, execFileSync, spawnSync } from 'node:child_process';
 import { Urbit } from '@tloncorp/api';
 import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
+  statfsSync,
   writeFileSync,
 } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { promisify } from 'node:util';
 import { REPO_ROOT, type PromptSources } from '../config.js';
 import type { DeployedAgent } from '../deployed.js';
 
@@ -30,6 +32,30 @@ const DEFAULT_PORTS: StackPorts = {
   mug: 48082,
   gateway: 48789,
 };
+
+const execFileAsync = promisify(execFile);
+
+/**
+ * The nth sandbox (from 0) when a set runs on several: its own compose
+ * project, and ports 100 apart so the sandboxes never collide.
+ */
+export function labStackOptions(index: number) {
+  if (index === 0) return {};
+  const shift = (port: number) => port + 100 * index;
+  return {
+    project: `onboarding-lab-${index + 1}`,
+    ports: {
+      zod: shift(DEFAULT_PORTS.zod),
+      ten: shift(DEFAULT_PORTS.ten),
+      mug: shift(DEFAULT_PORTS.mug),
+      gateway: shift(DEFAULT_PORTS.gateway),
+    },
+  };
+}
+
+// A new sandbox's piers and bot state take about 4.5 GB and grow as it runs;
+// a full disk crashes ships mid-run.
+const NEW_SANDBOX_FREE_BYTES = 6 * 1024 ** 3;
 
 // The sandbox's fixed fakezod codes, as tests/dev/onboarding.sh has them.
 const OWNER = { ship: '~ten', code: 'lapseg-nolmel-riswen-hopryc' };
@@ -128,6 +154,29 @@ export class LabStack {
     return output;
   }
 
+  /**
+   * `control` without blocking this process: other sandboxes' model proxies
+   * run in it, and would stall until a blocking call returned.
+   */
+  private async controlAsync(args: string[]) {
+    try {
+      const { stdout, stderr } = await execFileAsync(
+        'bash',
+        [this.script, ...args],
+        { env: this.env(), encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 }
+      );
+      return `${stdout}${stderr}`;
+    } catch (error) {
+      const { stdout = '', stderr = '' } = error as {
+        stdout?: string;
+        stderr?: string;
+      };
+      throw new Error(
+        `onboarding.sh ${args[0]} failed:\n${`${stdout}${stderr}`.split('\n').slice(-25).join('\n')}`
+      );
+    }
+  }
+
   /** Run a shell command inside the bot container. */
   bot(command: string, input?: string) {
     return execFileSync(
@@ -135,6 +184,30 @@ export class LabStack {
       ['exec', '-i', this.container, 'sh', '-c', command],
       { encoding: 'utf8', input, maxBuffer: 20 * 1024 * 1024 }
     );
+  }
+
+  /** Whether this sandbox's ships exist from an earlier set. */
+  private hasPiers() {
+    try {
+      execFileSync(
+        'docker',
+        ['volume', 'inspect', `${this.project}_ships-data`],
+        { stdio: 'ignore' }
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private assertRoomForPiers() {
+    const { bavail, bsize } = statfsSync(os.homedir());
+    const free = bavail * bsize;
+    if (free < NEW_SANDBOX_FREE_BYTES) {
+      throw new Error(
+        `Not enough disk for a new sandbox (${this.project}): ${(free / 1024 ** 3).toFixed(1)} GB free, ${NEW_SANDBOX_FREE_BYTES / 1024 ** 3} GB needed. Free some space or use fewer sandboxes.`
+      );
+    }
   }
 
   running() {
@@ -181,6 +254,7 @@ export class LabStack {
     // new container; lab-only commits don't.
     const current = () => (this.running() ? this.pluginRef() : '');
     if (!samePlugin(current(), pluginRef)) {
+      if (!this.hasPiers()) this.assertRoomForPiers();
       try {
         this.control(['start'], pluginRef);
       } catch (error) {
@@ -407,15 +481,19 @@ export class LabStack {
       for (const [name, file] of Object.entries(sources.prompts)) {
         writeFileSync(path.join(dir, name), file.text);
       }
-      this.bot(
+      await execFileAsync('docker', [
+        'exec',
+        this.container,
+        'sh',
+        '-c',
         `set -e
         agent=$(jq -r '.agents.list[0].id // "dev"' /root/.openclaw/openclaw.json)
         rm -rf /root/.openclaw/agents/$agent/sessions
         mkdir -p /root/.openclaw/agents/$agent/sessions
         find ${WORKSPACE} -mindepth 1 -maxdepth 1 -exec rm -rf {} +
-        cp -a ${BASELINE}/. ${WORKSPACE}/`
-      );
-      return this.control(['reset', dir]);
+        cp -a ${BASELINE}/. ${WORKSPACE}/`,
+      ]);
+      return await this.controlAsync(['reset', dir]);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
