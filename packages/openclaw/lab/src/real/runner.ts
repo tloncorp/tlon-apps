@@ -373,7 +373,14 @@ export async function runRealPersona(input: {
 
   let ownerGroup: { flag: string; nest: string } | undefined;
   try {
-    await stack.reset(sources);
+    try {
+      await stack.reset(sources);
+    } catch {
+      // With several sandboxes resetting at once, a ship can miss the reset's
+      // final check; resetting is safe to repeat and a second try goes through.
+      await new Promise((resolve) => setTimeout(resolve, 15_000));
+      await stack.reset(sources);
+    }
     messages = followOwnerMessages(stack, stack.owner().shipName);
     seen = await owner.latestSeq();
     await owner.furnish();
