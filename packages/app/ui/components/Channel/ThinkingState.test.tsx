@@ -180,6 +180,40 @@ describe('ThinkingState', () => {
     act(() => renderer!.unmount());
   });
 
+  it('collapses when it mounts mid-cycle with the response already latest', async () => {
+    let renderer: ReactTestRenderer;
+    // A list remount (a new unread anchor on the reply) can mount the footer
+    // after the response rendered but before presence clears.
+    mocks.computing = computing();
+    await act(async () => {
+      renderer = create(
+        <ThinkingState
+          conversationId="chat"
+          channelType="chat"
+          latestPostId="post-1"
+          latestPostAuthorId="~bot"
+        />
+      );
+    });
+    mocks.computing = null;
+    await act(async () => {
+      renderer!.update(
+        <ThinkingState
+          conversationId="chat"
+          channelType="chat"
+          latestPostId="post-1"
+          latestPostAuthorId="~bot"
+        />
+      );
+    });
+
+    expect(
+      renderer!.root.find((node) => (node.type as unknown) === 'View').props
+        .height
+    ).toBe(0);
+    act(() => renderer!.unmount());
+  });
+
   it('remembers a response when a later member post becomes latest', async () => {
     let renderer: ReactTestRenderer;
     mocks.computing = computing();

@@ -26,6 +26,7 @@ export function ThinkingState({
   const [responseObserved, setResponseObserved] = useState(false);
   const postIdWhenThinkingStarted = useRef<string | undefined>(latestPostId);
   const latestPostIdWhileIdle = useRef<string | undefined>(latestPostId);
+  const hasObservedIdle = useRef(false);
   const expectedResponders = useRef<Set<string>>(new Set());
   const wasComputing = useRef(false);
   const collapseTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -37,8 +38,12 @@ export function ThinkingState({
       );
       if (!wasComputing.current) {
         postIdWhenThinkingStarted.current = latestPostIdWhileIdle.current;
+        // Mounting mid-cycle (a list remount while a reply is still unread)
+        // leaves no idle post to compare against, so a latest post from a
+        // responder is the response itself rather than what preceded it.
         setResponseObserved(
-          latestPostId !== latestPostIdWhileIdle.current &&
+          (!hasObservedIdle.current ||
+            latestPostId !== latestPostIdWhileIdle.current) &&
             (expectedResponders.current.size === 0 ||
               (latestPostAuthorId != null &&
                 expectedResponders.current.has(latestPostAuthorId)))
@@ -60,6 +65,7 @@ export function ThinkingState({
       return;
     }
     wasComputing.current = false;
+    hasObservedIdle.current = true;
 
     const responseHasArrived =
       holdUntilResponse &&
