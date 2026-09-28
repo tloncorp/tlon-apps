@@ -8,7 +8,7 @@ import { useTheme } from 'tamagui';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { useScrollToTabTop } from '../../hooks/useScrollToTabTop';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
-import { useFloatingHeaderHeight } from '../../navigation/useFloatingHeaderHeight';
+import { FloatingHeaderClearance } from '../../navigation/FloatingHeaderClearance';
 import { useRootNavigation } from '../../navigation/utils';
 import { ActivityScreenView, View } from '../../ui';
 import { useScreenScrollProps } from '../../ui/components/useScreenScrollProps';
@@ -26,7 +26,6 @@ export function ActivityScreen() {
   // list and must not fall under the floating header, so the clearance is
   // layout on this column rather than a scroll inset on the list.
   useScreenScrollProps();
-  const headerClearance = useFloatingHeaderHeight();
 
   const allFetcher = store.useInfiniteBucketedActivity('all');
   const mentionsFetcher = store.useInfiniteBucketedActivity('mentions');
@@ -101,28 +100,26 @@ export function ActivityScreen() {
   }, [navigation]);
 
   return (
-    <View
-      backgroundColor={theme.background?.val}
-      flex={1}
-      paddingTop={headerClearance}
-    >
-      <View flex={1} width="100%" maxWidth={600} marginHorizontal="auto">
-        <ActivityScreenView
-          bucketFetchers={bucketedActivity}
-          isFocused={isFocused}
-          goToChannel={handleGoToChannel}
-          goToThread={handleGoToThread}
-          goToGroup={handleGoToGroup}
-          goToUserProfile={handleGoToUserProfile}
-          refresh={handleRefreshActivity}
-          onGroupAction={performGroupAction}
-          subtitle={syncSubtitle}
-          loadingSubtitle={loadingSubtitle}
-          onNavigateToContacts={handleNavigateToContacts}
-          onInviteFriends={handleInviteFriends}
-          scrollRef={scrollRef}
-        />
-      </View>
+    <View backgroundColor={theme.background?.val} flex={1}>
+      <FloatingHeaderClearance>
+        <View flex={1} width="100%" maxWidth={600} marginHorizontal="auto">
+          <ActivityScreenView
+            bucketFetchers={bucketedActivity}
+            isFocused={isFocused}
+            goToChannel={handleGoToChannel}
+            goToThread={handleGoToThread}
+            goToGroup={handleGoToGroup}
+            goToUserProfile={handleGoToUserProfile}
+            refresh={handleRefreshActivity}
+            onGroupAction={performGroupAction}
+            subtitle={syncSubtitle}
+            loadingSubtitle={loadingSubtitle}
+            onNavigateToContacts={handleNavigateToContacts}
+            onInviteFriends={handleInviteFriends}
+            scrollRef={scrollRef}
+          />
+        </View>
+      </FloatingHeaderClearance>
     </View>
   );
 }
