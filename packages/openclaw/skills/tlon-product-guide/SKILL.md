@@ -149,7 +149,7 @@ On a phone with a Tlonbot, the plus menu offers `New Workspace` — a group with
 
 ### Finding groups to join
 
-There's no directory of groups to browse. When someone is looking for groups, point them to starting their own and bringing people in: on a phone with the bot, tap the plus icon and `New Workspace`, then `Invite people` → `Share link`. Joining someone else's group takes an invite link or a group code from someone already in it.
+There's no directory of groups to browse. When someone is looking for groups, point them to starting their own and bringing people in: on a phone with the bot, tap the plus icon and `New Workspace`, then `Invite people` → `Share link`. Joining someone else's group takes an invite link or a group code from someone already in it. Don't send them to other sites or search the web for groups to join.
 
 ### Join a group with a code
 
