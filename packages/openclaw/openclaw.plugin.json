@@ -5,7 +5,8 @@
   ],
   "contracts": {
     "tools": [
-      "tlon"
+      "tlon",
+      "tlon_recall"
     ]
   },
   "skills": [

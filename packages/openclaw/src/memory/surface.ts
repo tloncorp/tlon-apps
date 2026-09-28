@@ -11,10 +11,12 @@
  */
 
 export type TlonSurface =
-  | { kind: 'dm'; ship: string; threadId?: string }
-  | { kind: 'channel'; nest: string; threadId?: string };
+  | { kind: "dm"; ship: string; threadId?: string }
+  | { kind: "channel"; nest: string; threadId?: string };
 
-const SESSION_KEY_RE = /^agent:[^:]+:tlon:(direct|channel):(.+)$/;
+// Live keys use `group` for group channels (observed on hosted ships);
+// `channel` is kept for compatibility with any older key shape.
+const SESSION_KEY_RE = /^agent:[^:]+:tlon:(direct|channel|group):(.+)$/;
 const SHIP_RE = /^~[a-z-]+$/;
 const NEST_RE = /^(chat|heap|diary)\/~[a-z-]+\/[a-z0-9.-]+$/;
 
@@ -24,13 +26,13 @@ const NEST_RE = /^(chat|heap|diary)\/~[a-z-]+\/[a-z0-9.-]+$/;
  * stripped key identifies the surface being served.
  */
 export function stripActiveMemorySuffix(sessionKey: string): string {
-  const idx = sessionKey.indexOf(':active-memory:');
+  const idx = sessionKey.indexOf(":active-memory:");
   return idx > 0 ? sessionKey.slice(0, idx) : sessionKey;
 }
 
 /** Strip a trailing `:thread:<id>` suffix, if present. */
 export function stripThreadSuffix(sessionKey: string): string {
-  const idx = sessionKey.indexOf(':thread:');
+  const idx = sessionKey.indexOf(":thread:");
   return idx > 0 ? sessionKey.slice(0, idx) : sessionKey;
 }
 
@@ -44,9 +46,9 @@ export function parseTlonSurface(sessionKey: string): TlonSurface | null {
     return null;
   }
   const base = stripActiveMemorySuffix(trimmed);
-  const threadIdx = base.indexOf(':thread:');
+  const threadIdx = base.indexOf(":thread:");
   const threadId =
-    threadIdx > 0 ? base.slice(threadIdx + ':thread:'.length) : undefined;
+    threadIdx > 0 ? base.slice(threadIdx + ":thread:".length) : undefined;
   const surfaceKey = threadIdx > 0 ? base.slice(0, threadIdx) : base;
 
   const match = SESSION_KEY_RE.exec(surfaceKey);
@@ -54,14 +56,14 @@ export function parseTlonSurface(sessionKey: string): TlonSurface | null {
     return null;
   }
   const [, kind, rest] = match;
-  if (kind === 'direct') {
+  if (kind === "direct") {
     if (!SHIP_RE.test(rest)) {
       return null;
     }
-    return { kind: 'dm', ship: rest, ...(threadId ? { threadId } : {}) };
+    return { kind: "dm", ship: rest, ...(threadId ? { threadId } : {}) };
   }
   if (!NEST_RE.test(rest)) {
     return null;
   }
-  return { kind: 'channel', nest: rest, ...(threadId ? { threadId } : {}) };
+  return { kind: "channel", nest: rest, ...(threadId ? { threadId } : {}) };
 }
