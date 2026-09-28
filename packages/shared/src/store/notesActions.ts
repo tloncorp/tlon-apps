@@ -322,7 +322,9 @@ export function markNotesNotebookStale(channelId: string) {
   nudge();
 }
 
-async function ensureNotesNotebookJoined(flagInput: api.NotesFlag | string) {
+export async function ensureNotesNotebookJoined(
+  flagInput: api.NotesFlag | string
+): Promise<boolean | 'notMember'> {
   const { flag, parsed } = requireNotesNotebookFlag(flagInput);
 
   const currentUserId = api.getCurrentUserId();
@@ -332,6 +334,14 @@ async function ensureNotesNotebookJoined(flagInput: api.NotesFlag | string) {
       logger.error('Failed to sync joined notes notebook', e);
     });
     return true;
+  }
+
+  // Opening a group's notebook is not a request to join it: a member who
+  // left (or was never joined) rejoins from the channel list, as with any
+  // other channel.
+  const channel = await db.getChannel({ id: api.notesChannelId(parsed) });
+  if (channel?.groupId && channel.currentUserIsMember === false) {
+    return 'notMember';
   }
 
   await api.joinNotesNotebook(parsed);
@@ -367,6 +377,19 @@ export function useEnsureNotesNotebookJoined({
     enabled: enabled && Boolean(notebookFlag),
     retry: false,
     staleTime: NOTES_SYNC_STALE_TIME,
+  });
+}
+
+// For a membership change reported by %groups, which %notes sends only once
+// the book is in place or gone. A notebook screen open across the change
+// would otherwise keep its cached answer until it goes stale.
+export function recheckNotesNotebookJoined(channelId: string) {
+  const notebookFlag = notesNotebookFlagFromChannelId(channelId);
+  if (!notebookFlag) {
+    return;
+  }
+  return queryClient.invalidateQueries({
+    queryKey: ['notesEnsureJoined', notebookFlag],
   });
 }
 

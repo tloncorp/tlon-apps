@@ -42,7 +42,10 @@ import {
   partitionDiscoveryMatches,
 } from '../lanyardActions';
 import { useLureState } from '../lure';
-import { markNotesNotebookStaleForNoteEvent } from '../notesActions';
+import {
+  markNotesNotebookStaleForNoteEvent,
+  recheckNotesNotebookJoined,
+} from '../notesActions';
 import { verifyPostDelivery } from '../postActions/verifyPostDelivery';
 import { clearPresenceState, handlePresenceEvent } from '../presence';
 import {
@@ -1473,9 +1476,11 @@ export async function handleGroupUpdate(
       break;
     case 'joinChannel':
       await db.addJoinedGroupChannel({ channelId: update.channelId }, ctx);
+      void recheckNotesNotebookJoined(update.channelId);
       break;
     case 'leaveChannel':
       await db.removeJoinedGroupChannel({ channelId: update.channelId }, ctx);
+      void recheckNotesNotebookJoined(update.channelId);
       break;
     case 'addNavSection':
       logger.log('adding nav section', update);

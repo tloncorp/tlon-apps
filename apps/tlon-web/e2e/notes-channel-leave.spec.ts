@@ -4,14 +4,7 @@ import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
 const notebookTitle = 'Leave Test Notebook';
-
-async function confirmLeaveChannel(page: Page) {
-  const dialog = page.getByRole('dialog');
-  await expect(
-    dialog.getByText('You will no longer receive updates from this channel.')
-  ).toBeVisible({ timeout: 5000 });
-  await dialog.getByText('Leave', { exact: true }).click();
-}
+const notMemberGate = "You're not in this notebook";
 
 type InitGroups = Record<
   string,
@@ -21,40 +14,55 @@ type InitGroups = Record<
   }
 >;
 
-// Whether the ship's %groups lists the notebook in its group's active-channels,
-// which %notes reports into on join and leave. null when no group has it.
-async function notebookIsActiveOnShip(page: Page) {
-  return page.evaluate(async (title) => {
-    const response = await fetch('/~/scry/groups-ui/v10/init.json', {
-      credentials: 'include',
-    });
-    const { groups = {} } = (await response.json()) as { groups?: InitGroups };
-    for (const group of Object.values(groups)) {
-      for (const [nest, channel] of Object.entries(group.channels ?? {})) {
-        if (channel.meta?.title === title) {
-          return (group['active-channels'] ?? []).includes(nest);
-        }
+// Whether the ship's %groups lists the notebook in the group's active-channels,
+// which %notes reports into on join and leave. null when the group or
+// notebook isn't there.
+async function notebookIsActiveOnShip(page: Page, groupId: string) {
+  return page.evaluate(
+    async ([flag, title]) => {
+      const response = await fetch('/~/scry/groups-ui/v10/init.json', {
+        credentials: 'include',
+      });
+      const { groups = {} } = (await response.json()) as {
+        groups?: InitGroups;
+      };
+      const group = groups[flag];
+      const nest = Object.entries(group?.channels ?? {}).find(
+        ([, channel]) => channel.meta?.title === title
+      )?.[0];
+      if (!group || !nest) {
+        return null;
       }
-    }
-    return null;
-  }, notebookTitle);
+      return (group['active-channels'] ?? []).includes(nest);
+    },
+    [groupId, notebookTitle] as const
+  );
 }
 
-async function expectNotebookJoined(page: Page) {
-  const row = page.getByTestId(`ChannelListItem-${notebookTitle}`);
-  await expect(row).toBeVisible({ timeout: 15000 });
-  await expect(row.getByText('Join')).not.toBeVisible({ timeout: 15000 });
+function notebookRow(page: Page) {
+  return page.getByTestId(`ChannelListItem-${notebookTitle}`);
+}
+
+// Joining lands the notebook's snapshot, which fills in the row's subtitle and
+// settles its place in the list; wait for that before pointing at the row.
+async function expectNotebookJoined(page: Page, groupId: string) {
+  await expect(notebookRow(page).getByText('No notes')).toBeVisible({
+    timeout: 15000,
+  });
+  await expect(
+    notebookRow(page).getByText('Join', { exact: true })
+  ).not.toBeVisible();
   await expect
-    .poll(() => notebookIsActiveOnShip(page), { timeout: 15000 })
+    .poll(() => notebookIsActiveOnShip(page, groupId), { timeout: 15000 })
     .toBe(true);
 }
 
-async function expectNotebookUnjoined(page: Page) {
+async function expectNotebookUnjoined(page: Page, groupId: string) {
   await expect(
-    page.getByTestId(`ChannelListItem-${notebookTitle}`).getByText('Join')
+    notebookRow(page).getByText('Join', { exact: true })
   ).toBeVisible({ timeout: 15000 });
   await expect
-    .poll(() => notebookIsActiveOnShip(page), { timeout: 15000 })
+    .poll(() => notebookIsActiveOnShip(page, groupId), { timeout: 15000 })
     .toBe(false);
 }
 
@@ -78,26 +86,64 @@ test('a member who does not host a notebook can leave it', async ({
   await helpers.openGroupSettings(zodPage);
   await zodPage.getByTestId('GroupChannels').getByText('Channels').click();
   await helpers.createChannel(zodPage, notebookTitle, 'notes');
+  const groupId = helpers.groupIdFromUrl(zodPage);
 
   await expect(tenPage.getByText('Home')).toBeVisible();
   await helpers.acceptGroupInvite(tenPage, groupName);
-  await expectNotebookJoined(tenPage);
+  await expectNotebookJoined(tenPage, groupId);
 
-  // Both the channel options sheet (right-click is web's long press) and the
-  // channel info screen offer Leave; they share the same confirm-and-leave path.
-  await tenPage
-    .getByTestId(`ChannelListItem-${notebookTitle}`)
-    .click({ button: 'right' });
-  await expect(
-    tenPage.getByTestId('ActionSheetAction-Leave channel')
-  ).toBeVisible({ timeout: 5000 });
+  // Open the notebook, then bring the sidebar back to the channel list with
+  // the notebook still showing beside it.
+  await notebookRow(tenPage).click();
+  const notebookSidebar = tenPage.getByTestId('NotebookSidebarBackHeader');
+  await expect(notebookSidebar).toBeVisible({ timeout: 15000 });
+  await notebookSidebar.getByTestId('HeaderBackButton').click();
+
+  // Leave from the channel options sheet (right-click is web's long press).
+  // The open notebook must show that it's been left, not rejoin itself.
+  await notebookRow(tenPage).click({ button: 'right' });
+  await tenPage.getByTestId('ActionSheetAction-Leave channel').click();
+  await helpers.confirmLeaveChannel(tenPage);
+  await expectNotebookUnjoined(tenPage, groupId);
+  await expect(tenPage.getByText(notMemberGate)).toBeVisible({
+    timeout: 10000,
+  });
+
+  // Rejoining from the channel list restores the open notebook
+  await notebookRow(tenPage).click();
+  await expectNotebookJoined(tenPage, groupId);
+  await expect(tenPage.getByText('Select a note')).toBeVisible({
+    timeout: 15000,
+  });
+
+  // Leave from the channel info screen
+  await notebookRow(tenPage).click({ button: 'right' });
   await tenPage
     .getByTestId('ActionSheetAction-Channel info & settings')
     .click();
-  await expect(tenPage.getByText('Channel info')).toBeVisible({
+  await expect(tenPage.getByText('Channel info', { exact: true })).toBeVisible({
     timeout: 5000,
   });
   await tenPage.getByTestId('ChannelLeaveAction-Leave channel').click();
-  await confirmLeaveChannel(tenPage);
-  await expectNotebookUnjoined(tenPage);
+  await helpers.confirmLeaveChannel(tenPage);
+  await expectNotebookUnjoined(tenPage, groupId);
+
+  // The host still can't leave their own notebook
+  await expectNotebookJoined(zodPage, groupId);
+  await notebookRow(zodPage).click({ button: 'right' });
+  await expect(zodPage.getByText('Cannot leave channel')).toBeVisible({
+    timeout: 5000,
+  });
+  await expect(
+    zodPage.getByTestId('ActionSheetAction-Leave channel')
+  ).not.toBeVisible();
+  await zodPage
+    .getByTestId('ActionSheetAction-Channel info & settings')
+    .click();
+  await expect(
+    zodPage.getByTestId('ChannelLeaveAction-Delete channel')
+  ).toBeVisible({ timeout: 5000 });
+  await expect(
+    zodPage.getByTestId('ChannelLeaveAction-Leave channel')
+  ).not.toBeVisible();
 });
