@@ -29,8 +29,8 @@ const REF_CHAN_KINDS = ['chat', 'heap', 'diary', 'notes'];
  * Whether a chan cite's `where` locates something the app renders, for the
  * given channel kind: a post (`/msg/...`, plus `/curio/...` for heaps and
  * `/note/...` for diaries and notebooks), each optionally with a reply id as
- * a second segment. A bare channel `where` renders nothing, so it is not
- * accepted.
+ * a second segment — except notebook notes, which have no reply concept. A
+ * bare channel `where` renders nothing, so it is not accepted.
  */
 function isValidChanWhere(kind: string, where: string): boolean {
   const parts = where.split('/');
@@ -55,7 +55,8 @@ function isValidChanWhere(kind: string, where: string): boolean {
     return false;
   }
   // `/curio/<id>` and `/note/<id>`, each optionally with a reply id as a
-  // second segment; unlike `/msg`, neither has a `~author` variant.
+  // second segment (notebook notes excepted); unlike `/msg`, neither has a
+  // `~author` variant.
   if (
     (parts.length !== 3 && parts.length !== 4) ||
     !REF_ID_REGEX.test(parts[2]) ||
@@ -67,7 +68,13 @@ function isValidChanWhere(kind: string, where: string): boolean {
     return kind === 'heap';
   }
   if (head === 'note') {
-    return kind === 'diary' || kind === 'notes';
+    if (kind === 'diary') {
+      return true;
+    }
+    // A notebook NoteReference carries only a noteId and the renderer ignores
+    // anything after `/note/<id>`, so a reply id would silently point the
+    // card at the wrong note.
+    return kind === 'notes' && parts.length === 3;
   }
   return false;
 }

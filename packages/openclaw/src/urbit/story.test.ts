@@ -222,6 +222,7 @@ describe('markdownToStory', () => {
       '/1/chan/chat/~zod/general/curio/5',
       '/1/chan/notes/~zod/nb/note/1..2',
       '/1/chan/notes/~zod/nb/note/1/2/3',
+      '/1/chan/notes/~zod/nb/note/3/4',
       '/1/chan/chat/~zod/general/msg/0.001',
       '/1/chan/chat/~zod/Bad_Name/msg/123',
       '/1/chan/chat/~foobar/general/msg/123',
