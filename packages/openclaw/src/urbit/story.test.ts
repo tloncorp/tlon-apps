@@ -11,9 +11,13 @@ describe('markdownToStory', () => {
     });
 
     it('hoists a channel reference to a cite block', () => {
-      expect(markdownToStory('/1/chan/chat/~ten/general')).toEqual([
+      expect(markdownToStory('/1/chan/chat/~ten/general/msg/123')).toEqual([
         {
-          block: { cite: { chan: { nest: 'chat/~ten/general', where: '/' } } },
+          block: {
+            cite: {
+              chan: { nest: 'chat/~ten/general', where: '/msg/123' },
+            },
+          },
         },
       ]);
     });
@@ -82,6 +86,147 @@ describe('markdownToStory', () => {
     it('leaves a path that is not a reference as literal text', () => {
       expect(markdownToStory('/1/nonsense/workspace')).toEqual([
         { inline: ['/1/nonsense/workspace'] },
+      ]);
+    });
+
+    it('hoists a validated group reference', () => {
+      expect(markdownToStory('/1/group/~zod/test')).toEqual([
+        { block: { cite: { group: '~zod/test' } } },
+      ]);
+    });
+
+    it('hoists a chat post reference', () => {
+      expect(
+        markdownToStory(
+          '/1/chan/chat/~zod/general/msg/170.141.184.505.979.681.243.072.382.329.337.971.474'
+        )
+      ).toEqual([
+        {
+          block: {
+            cite: {
+              chan: {
+                nest: 'chat/~zod/general',
+                where:
+                  '/msg/170.141.184.505.979.681.243.072.382.329.337.971.474',
+              },
+            },
+          },
+        },
+      ]);
+    });
+
+    it('hoists a chat thread reply reference', () => {
+      expect(markdownToStory('/1/chan/chat/~zod/general/msg/123/456')).toEqual([
+        {
+          block: {
+            cite: {
+              chan: { nest: 'chat/~zod/general', where: '/msg/123/456' },
+            },
+          },
+        },
+      ]);
+    });
+
+    it('hoists a legacy authored-post reference', () => {
+      expect(
+        markdownToStory('/1/chan/chat/~zod/general/msg/~sampel-palnet/123')
+      ).toEqual([
+        {
+          block: {
+            cite: {
+              chan: {
+                nest: 'chat/~zod/general',
+                where: '/msg/~sampel-palnet/123',
+              },
+            },
+          },
+        },
+      ]);
+    });
+
+    it('hoists a heap curio reference', () => {
+      expect(
+        markdownToStory(
+          '/1/chan/heap/~zod/gallery/curio/170.141.184.505.979.681.243.072.382.329.337.971.474'
+        )
+      ).toEqual([
+        {
+          block: {
+            cite: {
+              chan: {
+                nest: 'heap/~zod/gallery',
+                where:
+                  '/curio/170.141.184.505.979.681.243.072.382.329.337.971.474',
+              },
+            },
+          },
+        },
+      ]);
+    });
+
+    it('hoists a diary note reference', () => {
+      expect(markdownToStory('/1/chan/diary/~zod/journal/note/123')).toEqual([
+        {
+          block: {
+            cite: {
+              chan: { nest: 'diary/~zod/journal', where: '/note/123' },
+            },
+          },
+        },
+      ]);
+    });
+
+    it('hoists a notebook note reference', () => {
+      expect(markdownToStory('/1/chan/notes/~zod/nb/note/3')).toEqual([
+        {
+          block: {
+            cite: {
+              chan: { nest: 'notes/~zod/nb', where: '/note/3' },
+            },
+          },
+        },
+      ]);
+    });
+
+    it.each([
+      '/1/group/~zod/Bad_Name',
+      '/1/group/~zod/x_',
+      '/1/group/~foobar/test',
+      '/1/desk/~zod/app',
+      '/1/chan/chat/~zod/general',
+      '/1/chan/chat/~zod/general/note/3',
+      '/1/chan/chat/~zod/general/curio/5',
+      '/1/chan/notes/~zod/nb/note/1..2',
+      '/1/chan/chat/~zod/general/msg/0.001',
+      '/1/chan/chat/~zod/Bad_Name/msg/123',
+      '/1/chan/chat/~foobar/general/msg/123',
+    ])('keeps wire-invalid path %s literal, its ship unmentioned', (path) => {
+      // An invalid cite would fail the whole poke (bad sym), render an error
+      // card (desk) or render nothing (bare channel, non-canonical id), so the
+      // path stays text — and the ~ship inside it must not become a mention.
+      expect(markdownToStory(path)).toEqual([{ inline: [path] }]);
+    });
+  });
+
+  describe('heading-like lines', () => {
+    it('returns a bare # as a paragraph', () => {
+      expect(markdownToStory('#')).toEqual([{ inline: ['#'] }]);
+    });
+
+    it('terminates on a # line without a space, keeping it literal', () => {
+      // Neither the heading branch nor any other branch consumes such a line,
+      // so it must fall into the paragraph collector rather than spin.
+      expect(markdownToStory('#no-space')).toEqual([{ inline: ['#no-space'] }]);
+    });
+
+    it('collects a # line without a space into the paragraph, ending it at a real heading', () => {
+      // Regression: the paragraph collector must not treat '#no-space' as a
+      // heading terminator (it would spin) nor swallow the real heading that
+      // follows; the paragraph ends at '# Heading', which becomes its block.
+      expect(markdownToStory('before\n#no-space\n# Heading\nafter')).toEqual([
+        { inline: ['before', { break: null }, '#no-space'] },
+        { block: { header: { tag: 'h1', content: ['Heading'] } } },
+        { inline: ['after'] },
       ]);
     });
   });

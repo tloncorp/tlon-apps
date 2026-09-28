@@ -15,7 +15,7 @@ When running as a Hermes plugin skill, the `tlon` tool is a wrapper around the `
 
 For exact command syntax, use the command sections below or run `tlon <subcommand> --help` through the tool.
 
-When a Tlon user asks you to create a group for them, use `tlon groups create-owned "Name" --owner ~requester [--description "..."]`. This invites the requester and makes them an admin. Do not use plain `tlon groups create` for user-requested groups; that creates a bot-owned group that does not automatically include the requester.
+When a Tlon user asks you to create a group for them, use `tlon groups create-owned "Name" --owner ~requester [--description "..."]`. This invites the requester and makes them an admin. Do not use plain `tlon groups create` for user-requested groups; that creates a bot-owned group that does not automatically include the requester. After `create-owned`, share the group using the `Ref:` path from the output.
 
 For a normal text reply in the current Tlon conversation, respond with final assistant text and let Hermes deliver it through `TlonAdapter.send()`. To post to a different channel or one-to-one DM (a proactive send), use `posts send` with that target (`chat/~host/slug` for channels, `~ship` for one-to-one DMs). Reserve `dms send <club-id>` for group DMs, whose club IDs start with `0v`.
 
@@ -475,14 +475,13 @@ Send `--image` takes a **direct https** png/jpeg/gif/webp URL — normally the U
 
 Message text supports Markdown lists, task lists, blockquotes, code, links, and ship mentions; raw HTML blocks and reference-style links are not supported.
 
-**Referencing a group, channel or post.** Put its reference path in the message text and it renders as a card, the same as pasting one into the app:
+**Referencing a group, post or note.** Reference paths render as cards only in the bot's normal reply, the text delivered through the OpenClaw `message` tool: the reply conversion turns a valid path into a reference card, the same as pasting one into the app. `tlon posts send` does not do this conversion — it posts the path as literal text, and the `~host` inside it may be mention-tokenized — so put the path in a reply message instead:
 
-```bash
-tlon posts send ~sampel "Carry on over here: /1/group/~host/slug"
-tlon posts send ~sampel "/1/chan/chat/~host/slug"          # a channel
+```text
+Carry on over here: /1/group/~host/slug
 ```
 
-Paths are `/1/group/<host>/<slug>`, `/1/chan/<nest>`, `/1/desk/<flag>`. A group's path is just `/1/group/` followed by the group id from `tlon groups list`. The card replaces the path in the message, so write the sentence introducing it and let the card follow; anything that is not a valid reference path is left as literal text. Never use LaTeX math delimiters ($...$, $$...$$, \(...\), \[...\]) — Tlon renders no math; write math as plain text/Unicode or in code blocks.
+The forms that render are `/1/group/<host>/<slug>` (group card), `/1/chan/<nest>/msg/<id>` (quoted post), and `/1/chan/notes/<host>/<name>/note/<id>` (note card). A group's path is just `/1/group/` followed by the group id from `tlon groups list`. The card replaces the path in the message, so write the sentence introducing it and let the card follow; anything that is not a valid reference path is left as literal text. Never use LaTeX math delimiters ($...$, $$...$$, \(...\), \[...\]) — Tlon renders no math; write math as plain text/Unicode or in code blocks.
 
 ### Notes
 
