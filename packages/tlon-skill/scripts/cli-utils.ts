@@ -327,3 +327,24 @@ export function refuseNotesChannelMetadataUpdate(
     );
   }
 }
+
+function extractNumericId(id: string): string {
+  const slash = id.indexOf('/');
+  return slash >= 0 ? id.slice(slash + 1) : id;
+}
+
+function formatUd(id: string): string {
+  const clean = id.replace(/\./g, '');
+  const parts: string[] = [];
+  for (let i = clean.length; i > 0; i -= 3) {
+    parts.unshift(clean.slice(Math.max(0, i - 3), i));
+  }
+  return parts.join('.');
+}
+
+// Normalize a post id to the backend's dotted @ud form, stripping any
+// `channel/` prefix first. Shared by commands/posts.ts and messages.ts so
+// both agree on the wire format they send.
+export function formatPostId(postId: string): string {
+  return formatUd(extractNumericId(postId));
+}

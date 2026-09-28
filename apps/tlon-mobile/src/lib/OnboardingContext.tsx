@@ -3,10 +3,21 @@ import {
   execute,
   initClient,
 } from '@google-cloud/recaptcha-enterprise-react-native';
-import * as hostingApi from '@tloncorp/api';
-import { getLandscapeAuthCookie } from '@tloncorp/api';
+import {
+  getHostingAvailability,
+  getLandscapeAuthCookie,
+  requestLoginOtp,
+  requestSignupOtp,
+} from '@tloncorp/api';
 import * as store from '@tloncorp/shared/store';
 import { createContext, useContext } from 'react';
+
+// The hosting calls the onboarding screens make, injectable for fixtures.
+const hostingApi = {
+  getHostingAvailability,
+  requestLoginOtp,
+  requestSignupOtp,
+};
 
 interface OnboardingContextValue {
   hostingApi: typeof hostingApi;
