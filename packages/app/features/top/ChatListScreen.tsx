@@ -24,7 +24,7 @@ import { useGroupActions } from '../../hooks/useGroupActions';
 import { useScrollToTabTop } from '../../hooks/useScrollToTabTop';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
 import { reportChatListFirstPaint } from '../../lib/chatListSettleTelemetry';
-import { useFloatingHeaderHeight } from '../../navigation/useFloatingHeaderHeight';
+import { FloatingHeaderClearance } from '../../navigation/FloatingHeaderClearance';
 import { useTopLevelDrawerToggleAction } from '../../navigation/useTopLevelDrawerToggle';
 import type { TopLevelTabParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
@@ -390,11 +390,6 @@ export function ChatListScreenView({
   // inheriting whichever section was focused last: the clearance below is only
   // the right offset once the header actually floats.
   useScreenScrollProps();
-  // The native header floats over the screen on iOS 26, and this screen's
-  // content starts at the top of that area. The filter tabs sit above the
-  // list, so the clearance has to be layout on the column rather than a
-  // scroll inset on the list — nothing here scrolls under the header.
-  const headerClearance = useFloatingHeaderHeight();
   const handlePressFilter = useCallback(
     (filter: ChatListFilter) => {
       if (filter === listFilter) return;
@@ -427,91 +422,96 @@ export function ChatListScreenView({
         onPressInvite={handlePressInvite}
       >
         <NavigationProvider focusedChannelId={focusedChannelId}>
-          <View userSelect="none" flex={1} paddingTop={headerClearance}>
-            {showHomeAddTooltip && (
-              // Absolute, so the column's padding does not move it: it has
-              // to clear the floating header itself to sit under the + it
-              // points at.
-              <WayfindingNotice.HomeAddTooltip
-                top={isWeb ? 36 : headerClearance + 8}
+          {/* The filter tabs sit above the list, so nothing here scrolls
+              under a floating header: the clearance is layout on the column
+              rather than a scroll inset on the list. */}
+          <FloatingHeaderClearance>
+            <View userSelect="none" flex={1}>
+              {showHomeAddTooltip && (
+                // Absolute within the column, which already starts below a
+                // floating header, so it takes the same clearance as the
+                // tabs and stays under the + it points at.
+                <WayfindingNotice.HomeAddTooltip top={isWeb ? 36 : 8} />
+              )}
+              <ScreenHeader
+                title="Workspaces"
+                subtitle={syncSubtitle}
+                loadingSubtitle={loadingSubtitle}
+                showSubtitle={true}
+                leftActions={[
+                  ...(drawerToggle ? [drawerToggle] : []),
+                  {
+                    id: 'invite-people',
+                    icon: 'AddPerson',
+                    label: 'Invite people',
+                    onPress: handlePersonalInvitePress,
+                    visible: !!personalInvite,
+                  },
+                ]}
+                rightActions={[
+                  {
+                    id: 'search',
+                    icon: 'Search',
+                    label: 'Search',
+                    onPress: handleSearchInputToggled,
+                  },
+                  {
+                    id: 'add-chat',
+                    icon: 'Add',
+                    label: 'Add a chat',
+                    onPress: handlePressAddChat,
+                    testID: 'CreateChatSheetTrigger',
+                    tint: showHomeAddTooltip
+                      ? '$positiveActionText'
+                      : undefined,
+                    backgroundTint: showHomeAddTooltip
+                      ? '$positiveBackground'
+                      : undefined,
+                  },
+                ]}
+                placement="navigation"
               />
-            )}
-            <ScreenHeader
-              title="Workspaces"
-              subtitle={syncSubtitle}
-              loadingSubtitle={loadingSubtitle}
-              showSubtitle={true}
-              leftActions={[
-                ...(drawerToggle ? [drawerToggle] : []),
-                {
-                  id: 'invite-people',
-                  icon: 'AddPerson',
-                  label: 'Invite people',
-                  onPress: handlePersonalInvitePress,
-                  visible: !!personalInvite,
-                },
-              ]}
-              rightActions={[
-                {
-                  id: 'search',
-                  icon: 'Search',
-                  label: 'Search',
-                  onPress: handleSearchInputToggled,
-                },
-                {
-                  id: 'add-chat',
-                  icon: 'Add',
-                  label: 'Add a chat',
-                  onPress: handlePressAddChat,
-                  testID: 'CreateChatSheetTrigger',
-                  tint: showHomeAddTooltip ? '$positiveActionText' : undefined,
-                  backgroundTint: showHomeAddTooltip
-                    ? '$positiveBackground'
-                    : undefined,
-                },
-              ]}
-              placement="navigation"
-            />
-            {chats &&
-            (chats.unpinned.length ||
-              chats.pending.length ||
-              chats.pinned.length) ? (
-              <>
-                <ChatListFilterTabs
-                  activeFilter={listFilter}
-                  onPressFilter={handlePressFilter}
-                />
-                <ChatListSearch
-                  query={searchQuery}
-                  onQueryChange={setSearchQuery}
-                  isOpen={showSearchInput}
-                  onPressClear={handlePressClear}
-                  onPressClose={handlePressClose}
-                />
-                {searchQuery !== '' && !displayData[0]?.data.length ? (
-                  <SearchResultsEmpty
+              {chats &&
+              (chats.unpinned.length ||
+                chats.pending.length ||
+                chats.pinned.length) ? (
+                <>
+                  <ChatListFilterTabs
                     activeFilter={listFilter}
+                    onPressFilter={handlePressFilter}
+                  />
+                  <ChatListSearch
+                    query={searchQuery}
+                    onQueryChange={setSearchQuery}
+                    isOpen={showSearchInput}
                     onPressClear={handlePressClear}
-                    onPressTryAll={handlePressTryAll}
+                    onPressClose={handlePressClose}
                   />
-                ) : (
-                  <ChatList
-                    data={displayData}
-                    allPinnedChats={resolvedChats.pinned}
-                    onPressItem={onPressChat}
-                    onLoad={handleChatListLoad}
-                    scrollRef={chatListRef}
-                  />
-                )}
-              </>
-            ) : null}
-            <GroupPreviewSheet
-              open={groupPreviewSheetOpen}
-              onOpenChange={handleGroupPreviewSheetOpenChange}
-              group={groupPreviewSheetGroup}
-              onActionComplete={handleGroupAction}
-            />
-          </View>
+                  {searchQuery !== '' && !displayData[0]?.data.length ? (
+                    <SearchResultsEmpty
+                      activeFilter={listFilter}
+                      onPressClear={handlePressClear}
+                      onPressTryAll={handlePressTryAll}
+                    />
+                  ) : (
+                    <ChatList
+                      data={displayData}
+                      allPinnedChats={resolvedChats.pinned}
+                      onPressItem={onPressChat}
+                      onLoad={handleChatListLoad}
+                      scrollRef={chatListRef}
+                    />
+                  )}
+                </>
+              ) : null}
+              <GroupPreviewSheet
+                open={groupPreviewSheetOpen}
+                onOpenChange={handleGroupPreviewSheetOpenChange}
+                group={groupPreviewSheetGroup}
+                onActionComplete={handleGroupAction}
+              />
+            </View>
+          </FloatingHeaderClearance>
         </NavigationProvider>
         {displayData && <SystemNotices.NotificationsPrompt />}
       </ChatOptionsProvider>
