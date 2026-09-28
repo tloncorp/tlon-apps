@@ -20,8 +20,8 @@ import {
 import {
   BotSettingsApplyBar,
   BotSettingsNavigate,
-  BotSettingsSections,
   useBotSettingsHub,
+  useBotSettingsSectionModels,
 } from './bot/BotSettingsSections';
 import { useHostingSession } from './bot/useHostingSession';
 import { useSettingsRowLabels } from './useSettingsRowLabels';
@@ -176,11 +176,12 @@ function SettingsViewWithBot({
     },
     [navigationRef]
   );
+  const botSections = useBotSettingsSectionModels(hub, navigate);
 
   return (
     <SettingsScreenView
       {...viewProps}
-      botSections={<BotSettingsSections hub={hub} navigate={navigate} />}
+      botSections={botSections}
       bottomBar={<BotSettingsApplyBar hub={hub} />}
     />
   );

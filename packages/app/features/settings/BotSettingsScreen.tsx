@@ -17,12 +17,7 @@ import {
 } from './bot/BotSettingsSections';
 import { useHostingSession } from './bot/useHostingSession';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'BotSettings'> & {
-  zdrRowLayout?: {
-    descriptionGap?: number;
-    paddingVertical?: number;
-  };
-};
+type Props = NativeStackScreenProps<RootStackParamList, 'BotSettings'>;
 
 const logger = createDevLogger('BotSettingsScreen', false);
 
@@ -89,7 +84,6 @@ export function BotSettingsScreen(props: Props) {
           <BotSettingsSections
             hub={hub}
             navigate={navigation.navigate as unknown as BotSettingsNavigate}
-            zdrRowLayout={props.zdrRowLayout}
           />
         </View>
       </SettingsContentScrollView>
