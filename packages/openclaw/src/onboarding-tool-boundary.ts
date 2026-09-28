@@ -1,5 +1,7 @@
+import { ONBOARDING_JOB_NAME } from './monitor/onboarding-job.js';
 import { sharedMap } from './shared-state.js';
 import { SupersededTurnError } from './superseded-turn.js';
+import { isDmNest } from './targets.js';
 
 type TlonSessionSurface = {
   kind: 'direct' | 'group';
@@ -436,13 +438,35 @@ export function onboardingToolBlockReason(
     }
   }
 
-  if (toolName === 'cron' && surface?.bootstrapComplete === false) {
+  if (
+    toolName === 'cron' &&
+    surface?.bootstrapComplete === false &&
+    !cronOpenDuringOnboarding(params)
+  ) {
     return surface.kind === 'direct' && !surface.requestedOnboardingGroupId
       ? 'First-run recurring-task provisioning is owned by the group coordinator. Tell the owner to choose +, then New Tlonbot group, and stop.'
-      : 'Recurring-task onboarding provisioning is owned by the typed task-plan coordinator. Post a current tlon_agent_task_plan to activate the agreed task, and do not call cron directly.';
+      : 'Recurring-task onboarding provisioning is owned by the typed task-plan coordinator. Post a current tlon_agent_task_plan to activate the agreed task, and do not call cron directly. ' +
+          "Until the task's first entry has posted, cron can only list jobs or add one that delivers to a DM or a group chat.";
   }
 
   return undefined;
+}
+
+/**
+ * During first-run onboarding the typed task plan owns the onboarding task, so
+ * cron stays closed to it. Reads stay open, and so does adding an ordinary job
+ * that delivers somewhere the onboarding task never does: a reminder in a DM,
+ * or posts in a group chat.
+ */
+function cronOpenDuringOnboarding(params: unknown) {
+  const { action, job } = (params ?? {}) as {
+    action?: unknown;
+    job?: { name?: unknown; delivery?: { to?: unknown } };
+  };
+  if (['status', 'list', 'get', 'runs'].includes(String(action))) return true;
+  if (action !== 'add' || job?.name === ONBOARDING_JOB_NAME) return false;
+  const to = job?.delivery?.to;
+  return typeof to === 'string' && (isDmNest(to) || to.startsWith('chat/'));
 }
 
 export const _testing = {
