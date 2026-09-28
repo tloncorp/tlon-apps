@@ -40,7 +40,7 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
 +    sizeAtScroll,
      offset: scroll,
      onLayout,
-@@ -59,177 +73,243 @@
+@@ -59,177 +73,248 @@
      onContentSizeChange,
    } = useScrollState(scrollViewRef);
 
@@ -329,6 +329,17 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
 -          effective > 0
 -        ) {
 -          contentOffsetY.value = scroll.value;
++  // The end as of this frame: rows that laid out since the last scroll event
++  // count, and so does the inset being applied.
++  const getLiveEnd = () => {
++    "worklet";
++    const totalPadding = Math.min(
++      layout.value.height,
++      padding.value + extraContentPadding.value,
++    );
++    return Math.max(size.value.height - layout.value.height + totalPadding, 0);
++  };
++
 +  const move = (e: NativeEvent) => {
 +    "worklet";
 +    if (freeze.value) {
@@ -344,14 +355,7 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
 +        : Math.max(0, Math.min(1, (e.height - t.fromHeight) / distance));
 +    padding.value = t.fromPadding + progress * (t.toPadding - t.fromPadding);
 +    if (t.followEnd) {
-+      const totalPadding = Math.min(
-+        layout.value.height,
-+        padding.value + extraContentPadding.value,
-+      );
-+      contentOffsetY.value = Math.max(
-+        size.value.height - layout.value.height + totalPadding,
-+        0,
-+      );
++      contentOffsetY.value = getLiveEnd();
 +    } else {
 +      // Keep composer-height adjustments made between keyboard frames.
 +      contentOffsetY.value +=
@@ -408,14 +412,15 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
 +      onInteractive: (e) => {
 +        "worklet";
 +        // Interactive frames arrive after onEnd, without a new onStart. Apply
-+        // each observed height directly and preserve the user's scroll delta.
++        // each observed height directly and preserve the user's scroll delta,
++        // unless the list is at its end: it follows rows arriving mid-swipe.
 +        transition.value = { ...transition.value, active: false };
 +        currentHeight.value = e.height;
 +        if (freeze.value) return;
 +
 +        const target = getTarget(e);
 +        padding.value = target.padding;
-+        contentOffsetY.value = target.scroll;
++        contentOffsetY.value = target.followEnd ? getLiveEnd() : target.scroll;
 +      },
        onEnd: (e) => {
          "worklet";
@@ -426,7 +431,7 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
            return;
          }
 
-@@ -239,6 +319,9 @@
+@@ -239,6 +324,9 @@
            offset,
          );
 

@@ -279,6 +279,17 @@ describe('patched iOS keyboard tracking', () => {
     expect(result.contentOffsetY?.value).toBe(1320);
   });
 
+  it('keeps a message that arrives during interactive dismissal above the input', () => {
+    const result = setup();
+    state.handlers.onStart(event(300));
+    state.handlers.onEnd(event(300));
+    state.scroll.value = 1500;
+    // A 100-point row lays out mid-swipe, before any scroll event.
+    state.size.value = { width: 400, height: 2100 };
+    state.handlers.onInteractive(event(150, -1));
+    expect(result.contentOffsetY?.value).toBe(1450);
+  });
+
   it('keeps the full keyboard height as the safe-area offset reference during a gesture', () => {
     const result = setup({ value: false }, 30);
     state.handlers.onStart(event(300));
