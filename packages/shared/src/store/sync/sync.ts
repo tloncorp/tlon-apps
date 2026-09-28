@@ -42,7 +42,11 @@ import {
   partitionDiscoveryMatches,
 } from '../lanyardActions';
 import { useLureState } from '../lure';
-import { markNotesNotebookStaleForNoteEvent } from '../notesActions';
+import {
+  markNotesNotebookStaleForNoteEvent,
+  recheckAllNotesNotebooksJoined,
+  recheckNotesNotebookJoined,
+} from '../notesActions';
 import { verifyPostDelivery } from '../postActions/verifyPostDelivery';
 import { clearPresenceState, handlePresenceEvent } from '../presence';
 import {
@@ -182,6 +186,7 @@ export const syncInitData = async (
         queryCtx
       )
       .then(() => logger.crumb('reconciled group channel membership'));
+    void recheckAllNotesNotebooksJoined();
     updateLastActivityTime();
   };
 
@@ -1473,9 +1478,11 @@ export async function handleGroupUpdate(
       break;
     case 'joinChannel':
       await db.addJoinedGroupChannel({ channelId: update.channelId }, ctx);
+      void recheckNotesNotebookJoined(update.channelId);
       break;
     case 'leaveChannel':
       await db.removeJoinedGroupChannel({ channelId: update.channelId }, ctx);
+      void recheckNotesNotebookJoined(update.channelId);
       break;
     case 'addNavSection':
       logger.log('adding nav section', update);
