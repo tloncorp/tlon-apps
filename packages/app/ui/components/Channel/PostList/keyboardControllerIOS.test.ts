@@ -222,6 +222,24 @@ describe('patched iOS keyboard tracking', () => {
     expect(result.contentOffsetY?.value).toBe(1550);
   });
 
+  it('lifts a short chat once while its end-alignment spacer shrinks', () => {
+    // Content shorter than the viewport, padded at the top to sit on the
+    // 100pt composer, so it cannot scroll and has no scroll event yet.
+    const extraContentPadding = { value: 100 };
+    state.scroll.value = 0;
+    state.size.value = { width: 400, height: 700 };
+    state.sizeAtScroll.value = 0;
+    const result = setup({ value: false }, 0, extraContentPadding);
+    state.handlers.onStart(event(300));
+    // The list shrinks its spacer by the reported keyboard inset from JS.
+    state.size.value = { width: 400, height: 550 };
+    state.handlers.onMove(event(150));
+    expect(result.contentOffsetY?.value).toBe(0);
+    state.size.value = { width: 400, height: 400 };
+    state.handlers.onEnd(event(300));
+    expect(result.contentOffsetY?.value).toBe(0);
+  });
+
   it('keeps a message that arrives while the keyboard opens above the input', () => {
     const result = setup();
     state.handlers.onStart(event(300));
