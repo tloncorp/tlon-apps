@@ -25,6 +25,7 @@ import {
   AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID,
   claimAutomaticProvisionRetry,
   clearFailedAutomaticProvision,
+  isAutomaticProvisionControl,
   isComponentReachableFromRoot,
   shouldAttemptAutomaticProvision,
   trackAutomaticProvisionReceipt,
@@ -1187,6 +1188,15 @@ export function A2UIBlock({
             />
           );
         case 'Button': {
+          if (
+            isAutomaticProvisionControl({
+              componentId: component.id,
+              actionName: component.action.event.name,
+            })
+          ) {
+            return null;
+          }
+
           const actionCanBeConsumed = isConsumableA2UIAction(component.action);
           const consumptionPending =
             actionCanBeConsumed && areA2UISelectionsPending;
