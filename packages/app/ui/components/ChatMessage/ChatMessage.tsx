@@ -1,5 +1,7 @@
+import * as api from '@tloncorp/api';
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { Pressable } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
@@ -7,10 +9,13 @@ import { View, isWeb } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useChannelContext } from '../../contexts/channel';
+import type { A2UIActionCompletion } from '../../contexts/componentsKits';
 import { useCanWrite } from '../../utils/channelUtils';
 import AuthorRow from '../AuthorRow';
+import { getOwnContextLensStamp } from '../Channel/ContextLens/lensPost';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { MaskedChatMessage } from '../PostModeration';
+import { BotFeedbackRow } from './BotFeedbackRow';
 import { ChatMessageActions } from './ChatMessageActions/Component';
 import { MessageContextMenu } from './MessageContextMenu';
 import { StaticChatMessage } from './StaticChatMessage';
@@ -23,6 +28,7 @@ import { StaticChatMessage } from './StaticChatMessage';
  */
 const ChatMessage = ({
   post,
+  a2uiActionCompletion,
   showAuthor,
   hideProfilePreview,
   onPressReplies,
@@ -41,6 +47,7 @@ const ChatMessage = ({
   searchQuery,
 }: {
   post: db.Post;
+  a2uiActionCompletion?: A2UIActionCompletion;
   showAuthor?: boolean;
   hideProfilePreview?: boolean;
   authorRowProps?: Partial<ComponentProps<typeof AuthorRow>>;
@@ -69,7 +76,19 @@ const ChatMessage = ({
     () => ChannelAction.channelActionIdsFor({ channel, canWrite }),
     [channel, canWrite]
   );
-
+  // Rating feedback is only supported for the user's Tlon-hosted bot, but
+  // lens-stamped posts from any owned bot ship (e.g. self-hosted bots) still
+  // get the row for the Context Lens action.
+  const isOwnTlonBotReply =
+    (post.type === 'chat' || post.type === 'reply') &&
+    api.isBotUserIdForUser(post.authorId, currentUserId);
+  const { data: ownedBotShips } = store.useContextLensBotShips();
+  const hasOwnLensStamp = useMemo(
+    () => Boolean(getOwnContextLensStamp(post, ownedBotShips ?? [])),
+    [post, ownedBotShips]
+  );
+  const showBotFeedback =
+    isOwnTlonBotReply || (hasOwnLensStamp && !!onPressBotRun);
   const handleRepliesPressed = useCallback(() => {
     onPressReplies?.(post);
   }, [onPressReplies, post]);
@@ -148,15 +167,28 @@ const ChatMessage = ({
                 hideSentAtTimestamp: hideOverflowMenu || !isHovered,
                 isHighlighted,
                 onLongPress: usesNativeContextMenu ? undefined : onLongPress,
-                onPressBotRun,
                 onPressImage,
                 onPressReplies,
                 onPressRetry,
                 post,
+                a2uiActionCompletion,
                 searchQuery,
                 setViewReactionsPost,
                 showAuthor,
                 showReplies,
+                feedbackRow: showBotFeedback
+                  ? ({ inline }: { inline: boolean }) => (
+                      <BotFeedbackRow
+                        post={post}
+                        currentUserId={currentUserId}
+                        onPressBotRun={onPressBotRun}
+                        // Controls sharing a row with reactions or the reply
+                        // summary reveal on hover (web-only slots); the
+                        // standalone row is always visible.
+                        visible={!inline || isHovered}
+                      />
+                    )
+                  : undefined,
               }}
             />
             {!hideOverflowMenu && (isHovered || isPopoverOpen) && (
@@ -200,6 +232,7 @@ export default memo(ChatMessage, (prev, next) => {
     prev.onLongPress === next.onLongPress &&
     prev.onPress === next.onPress &&
     prev.onPressBotRun === next.onPressBotRun &&
+    isEqual(prev.a2uiActionCompletion, next.a2uiActionCompletion) &&
     prev.searchQuery === next.searchQuery &&
     prev.displayDebugMode === next.displayDebugMode;
 

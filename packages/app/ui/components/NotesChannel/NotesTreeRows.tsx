@@ -2,6 +2,7 @@ import * as db from '@tloncorp/shared/db';
 import {
   getNoteBodyPreview,
   getNoteReferencePath,
+  noteTimestampMs,
 } from '@tloncorp/shared/logic';
 import { Icon, Pressable, useIsWindowNarrow } from '@tloncorp/ui';
 import type { IconType } from '@tloncorp/ui';
@@ -17,7 +18,6 @@ import { ListItem } from '../ListItem';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { UnreadDot } from '../UnreadDot';
 import { NotesActionMenu } from './NotesActions';
-import { noteTimestampMs } from './notesTree';
 
 export function FolderTreeRow({
   canEdit,
@@ -130,6 +130,7 @@ export function FolderTreeRow({
 
 export function NoteRow({
   canEdit,
+  hasPublishedUpdate,
   isPublished,
   note,
   publishDisabled,
@@ -145,6 +146,7 @@ export function NoteRow({
   onViewPublished,
 }: {
   canEdit: boolean;
+  hasPublishedUpdate: boolean;
   isPublished: boolean;
   note: db.NotesNote;
   publishDisabled: boolean;
@@ -192,7 +194,7 @@ export function NoteRow({
   const referenceSection = (
     <ActionSheet.ActionGroup accent="neutral">
       <ActionSheet.CopyAction
-        action={{ title: 'Copy link to note', startIcon: 'Copy' }}
+        action={{ title: 'Copy Tlon reference', startIcon: 'Copy' }}
         copyText={getNoteReferencePath(
           `notes/${note.notebookFlag}`,
           note.noteId
@@ -226,7 +228,7 @@ export function NoteRow({
           testID={`NotesPublishToggleAction-${note.noteId}`}
         />
       ) : null}
-      {canEdit && isPublished ? (
+      {canEdit && isPublished && hasPublishedUpdate ? (
         <ActionSheet.Action
           action={{
             title: 'Update published note',
@@ -239,7 +241,7 @@ export function NoteRow({
       ) : null}
       {isPublished && publishedUrl ? (
         <ActionSheet.CopyAction
-          action={{ title: 'Copy link', startIcon: 'Copy' }}
+          action={{ title: 'Copy link', startIcon: 'Link' }}
           copyText={publishedUrl}
           testID={`NotesCopyPublishedNoteAction-${note.noteId}`}
         />
@@ -248,7 +250,7 @@ export function NoteRow({
         <ActionSheet.Action
           action={{
             title: 'View published note',
-            startIcon: 'Link',
+            startIcon: 'ExternalLink',
             action: onViewPublished,
           }}
           testID={`NotesViewPublishedNoteAction-${note.noteId}`}

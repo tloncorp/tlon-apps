@@ -1,12 +1,20 @@
 import { describe, expect, it } from 'bun:test';
 
 import {
+  IMAGE_GUARD_OPTIONS,
+  assertPostableImageUrl,
   fetchImageVerse,
   imageDimensions,
   imageFlagIndex,
   imageFlagValue,
   validatedImageFlag,
 } from './image-attach';
+import {
+  HTTPS_ONLY_ERROR,
+  INVALID_MEDIA_ERROR,
+  LOCAL_MEDIA_ERROR,
+  USERINFO_ERROR,
+} from './media-guard';
 
 function bytes(...parts: (number[] | string)[]): Uint8Array {
   const out: number[] = [];
@@ -96,19 +104,34 @@ describe('imageDimensions', () => {
   });
 });
 
+describe('image guard budget', () => {
+  it('applies the outbound-media contract limits', () => {
+    expect(IMAGE_GUARD_OPTIONS).toEqual({
+      maxBytes: 10 * 1024 * 1024,
+      deadlineMs: 30_000,
+      maxRedirects: 3,
+      requireHttps: true,
+    });
+  });
+});
+
 describe('fetchImageVerse', () => {
-  const fetchReturning = (body: Uint8Array, ok = true, status = 200) =>
-    (async () => ({
-      ok,
-      status,
-      arrayBuffer: async () =>
-        body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength),
-    })) as unknown as typeof fetch;
+  function fetcherReturning(body: Uint8Array) {
+    const calls: string[] = [];
+    return {
+      calls,
+      fetchImage: async (url: string) => {
+        calls.push(url);
+        return { bytes: body };
+      },
+    };
+  }
 
   it('builds a story image block with sniffed dimensions and alt', async () => {
+    const fetcher = fetcherReturning(PNG_2X3);
     const verse = await fetchImageVerse(
       'https://storage.example.com/~zod/tree%20pic.png',
-      fetchReturning(PNG_2X3)
+      fetcher.fetchImage
     );
     expect(verse).toEqual({
       block: {
@@ -120,29 +143,67 @@ describe('fetchImageVerse', () => {
         },
       },
     });
+    expect(fetcher.calls).toEqual([
+      'https://storage.example.com/~zod/tree%20pic.png',
+    ]);
   });
 
-  it('throws on a non-OK response', async () => {
-    await expect(
-      fetchImageVerse(
-        'https://x.example/img.png',
-        fetchReturning(PNG_2X3, false, 404)
-      )
-    ).rejects.toThrow('Failed to fetch image: 404');
+  it('fetches and posts the canonical URL, never the raw input', async () => {
+    const fetcher = fetcherReturning(PNG_2X3);
+    const verse = await fetchImageVerse(
+      '  HTTPS://Storage.Example.com/a.png  ',
+      fetcher.fetchImage
+    );
+    expect(fetcher.calls).toEqual(['https://storage.example.com/a.png']);
+    expect(
+      (verse as { block: { image: { src: string } } }).block.image.src
+    ).toBe('https://storage.example.com/a.png');
   });
 
   it('throws when dimensions cannot be determined', async () => {
+    const fetcher = fetcherReturning(bytes('<html>not an image</html>'));
     await expect(
-      fetchImageVerse(
-        'https://x.example/page.html',
-        fetchReturning(bytes('<html>not an image</html>'))
-      )
+      fetchImageVerse('https://x.example/page.html', fetcher.fetchImage)
     ).rejects.toThrow(/Could not determine image dimensions/);
+  });
+
+  it('classifies before fetching — rejections never touch the network', async () => {
+    const cases: Array<[string, string]> = [
+      ['/pier/generated.png', LOCAL_MEDIA_ERROR],
+      ['file:///pier/generated.png', LOCAL_MEDIA_ERROR],
+      ['~/generated.png', LOCAL_MEDIA_ERROR],
+      ['C:\\generated.png', LOCAL_MEDIA_ERROR],
+      ['http://x.example/y.png', HTTPS_ONLY_ERROR],
+      ['https://user:pw@x.example/y.png', USERINFO_ERROR],
+      ['https://@x.example/y.png', USERINFO_ERROR],
+      ['ftp://x.example/y.png', INVALID_MEDIA_ERROR],
+      ['y.png', INVALID_MEDIA_ERROR],
+      ['garbage', INVALID_MEDIA_ERROR],
+    ];
+
+    for (const [input, expected] of cases) {
+      const fetcher = fetcherReturning(PNG_2X3);
+      await expect(fetchImageVerse(input, fetcher.fetchImage)).rejects.toThrow(
+        expected
+      );
+      expect(fetcher.calls).toEqual([]);
+    }
+  });
+
+  it('never echoes the caller URL into an error message', () => {
+    let message = '';
+    try {
+      assertPostableImageUrl('http://x.example/y.png?token=SUPERSECRET');
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toBe(HTTPS_ONLY_ERROR);
+    expect(message).not.toContain('SUPERSECRET');
   });
 });
 
 describe('image flag parsing', () => {
-  it('accepts separated and equals image flags', () => {
+  it('accepts separated and equals image flags and returns the canonical URL', () => {
     expect(
       validatedImageFlag(
         ['posts', 'send', '~sampel', '--image', 'https://x.example/y.png'],
@@ -151,10 +212,37 @@ describe('image flag parsing', () => {
     ).toBe('https://x.example/y.png');
     expect(
       validatedImageFlag(
-        ['posts', 'send', '~sampel', '--image=https://x.example/y.png'],
+        ['posts', 'send', '~sampel', '--image=HTTPS://X.example/y.png'],
         'usage'
       )
     ).toBe('https://x.example/y.png');
+  });
+
+  it('returns undefined when the flag is absent', () => {
+    expect(
+      validatedImageFlag(['posts', 'send', '~sampel', 'hi'], 'usage')
+    ).toBe(undefined);
+  });
+
+  it('throws a usage error when the flag value is missing', () => {
+    expect(() =>
+      validatedImageFlag(['posts', 'send', '~sampel', '--image'], 'usage')
+    ).toThrow();
+  });
+
+  it('applies the media contract to the flag value', () => {
+    expect(() =>
+      validatedImageFlag(
+        ['posts', 'send', '~sampel', '--image', '/pier/x.png'],
+        'usage'
+      )
+    ).toThrow(LOCAL_MEDIA_ERROR);
+    expect(() =>
+      validatedImageFlag(
+        ['posts', 'send', '~sampel', '--image=http://x.example/y.png'],
+        'usage'
+      )
+    ).toThrow(HTTPS_ONLY_ERROR);
   });
 
   it('finds equals image flags for message boundary parsing', () => {

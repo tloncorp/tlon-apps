@@ -1,6 +1,4 @@
 import type { ContentReference } from '@tloncorp/api';
-// @ts-expect-error -- subpath export not resolvable under moduleResolution:Node
-// (bun resolves it fine at runtime and in tests)
 import { markdownToStory } from '@tloncorp/api/client/markdown';
 import { describe, expect, it } from 'bun:test';
 

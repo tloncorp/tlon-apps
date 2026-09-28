@@ -37,7 +37,7 @@ export const FilteredChatList = React.memo(
       listType?: TabName;
       searchQuery: string;
       onPressItem: (item: db.Chat) => void;
-      listProps?: Partial<ComponentProps<typeof FlashList>>;
+      listProps?: Partial<ComponentProps<typeof FlashList<ChatListItemData>>>;
     }
   >(function FilteredChatList(
     { searchQuery, listType, listProps, onPressItem },
@@ -185,7 +185,7 @@ export const FilteredChatList = React.memo(
             No results found
           </Text>
         ) : (
-          <FlashList
+          <FlashList<ChatListItemData>
             ref={listRef}
             data={listItems}
             contentContainerStyle={contentContainerStyle}

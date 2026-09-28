@@ -1,0 +1,102 @@
+appId: ${MAESTRO_APP_ID}
+---
+- launchApp:
+    clearState: true
+    clearKeychain: true
+- assertVisible: '^Tlon Messenger$'
+- tapOn: '^Have an account\? Log in$'
+- runFlow:
+    when:
+      true: ${output.reliability.hosted}
+    commands:
+      - runFlow:
+          when:
+            visible:
+              id: log-in-with-email
+          commands:
+            - tapOn:
+                id: log-in-with-email
+      - tapOn:
+          id: or-use-password
+      - tapOn:
+          id: email-input-legacy
+      - inputText:
+          text: ${MAESTRO_EMAIL}
+          label: Enter configured test account email
+      - tapOn:
+          id: password-input-legacy
+      - inputText:
+          text: ${MAESTRO_PASSWORD}
+          label: Enter configured test account password
+      - tapOn: '^Submit$'
+- runFlow:
+    when:
+      true: ${!output.reliability.hosted}
+    commands:
+      - tapOn: '^Or configure self hosted$'
+      - assertVisible: '^Connect Ship$'
+      - tapOn:
+          id: '^textInput shipUrl$'
+      - eraseText: 100
+      - inputText:
+          text: ${MAESTRO_LOGIN_URL}
+          label: Enter configured test ship URL
+      - tapOn:
+          id: '^textInput accessCode$'
+      - eraseText: 100
+      - inputText:
+          text: ${MAESTRO_LOGIN_CODE}
+          label: Enter test ship access code
+      - tapOn: '^Connect$'
+# Declared login/network phase; outside the 5-second warm interaction budget.
+# An account with an agent lands on the Bot tab rather than the chat list, and
+# neither that tab's header nor the iOS tab buttons carry a title, so accept
+# any signal that the main UI is up: the iOS tab-bar container, or on Android
+# the label of whichever tab was selected.
+- extendedWaitUntil:
+    visible: '^(Tab Bar|Workspaces|Bot|Usage Statistics|Save Password\?)$'
+    timeout: 60000
+- runFlow:
+    when:
+      visible: '^Save Password\?$'
+    commands:
+      - tapOn: '^Not Now$'
+- extendedWaitUntil:
+    visible: '^(Tab Bar|Workspaces|Bot|Usage Statistics)$'
+    timeout: 60000
+- runFlow:
+    when:
+      visible: '^Usage Statistics$'
+    commands:
+      - tapOn: '^Next$'
+# A fresh ship can still be syncing once the prompts are gone. Where it lands
+# depends on the account: one with an agent opens on the Bot tab, whose header
+# title is deliberately blank, so wait for the bar every tab shares rather than
+# for a title. `begin.yaml` selects the tab the journey needs.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - extendedWaitUntil:
+          visible: '^Tab Bar$'
+          timeout: 60000
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - extendedWaitUntil:
+          visible: '^(Workspaces|Bot)$'
+          timeout: 60000
+# The password-manager sheet can arrive a moment *after* the tab navigator
+# mounts, so both checks above can pass before it exists and the one-shot
+# dismissal misses it -- leaving it to swallow the first tab selection. Give it
+# a window here rather than treating the tab bar as proof the prompts are done.
+- extendedWaitUntil:
+    visible: '^Save Password\?$'
+    timeout: 5000
+    optional: true
+- runFlow:
+    when:
+      visible: '^Save Password\?$'
+    commands:
+      - tapOn: '^Not Now$'

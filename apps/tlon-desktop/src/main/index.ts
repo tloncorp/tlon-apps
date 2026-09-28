@@ -120,13 +120,15 @@ async function createWindow() {
       const headers = details.requestHeaders;
       if (headers) {
         // Get the auth cookie from storage
-        store.get('encryptedAuthCookie').then((encryptedAuthCookie) => {
-          if (encryptedAuthCookie) {
-            const authCookie = decrypt(encryptedAuthCookie);
-            headers.Cookie = authCookie;
-          }
-          callback({ requestHeaders: headers });
-        });
+        store
+          .get('encryptedAuthCookie')
+          .then((encryptedAuthCookie: unknown) => {
+            if (typeof encryptedAuthCookie === 'string') {
+              const authCookie = decrypt(encryptedAuthCookie);
+              headers.Cookie = authCookie;
+            }
+            callback({ requestHeaders: headers });
+          });
       } else {
         callback({ requestHeaders: details.requestHeaders });
       }

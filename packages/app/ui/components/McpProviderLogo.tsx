@@ -45,21 +45,26 @@ export function McpProviderLogo({
   displayName,
   logoUrl,
   providerId,
+  compact = false,
 }: {
+  compact?: boolean;
   displayName: string;
   logoUrl?: string;
   providerId: string;
 }) {
+  const logoSize = compact ? 20 : LOGO_SIZE;
+  const hostingLogoSize = compact ? 32 : HOSTING_LOGO_SIZE;
+  const containerSize = compact ? 32 : '$4xl';
   const SvgLogo = svgLogos[providerId];
   const imageLogo = imageLogos[providerId];
   const fallbackLogo = SvgLogo ? (
-    <SvgLogo height={LOGO_SIZE} width={LOGO_SIZE} />
+    <SvgLogo height={logoSize} width={logoSize} />
   ) : imageLogo ? (
     <Image
       fallback={null}
-      height={LOGO_SIZE}
+      height={logoSize}
       source={imageLogo.source}
-      width={LOGO_SIZE}
+      width={logoSize}
       contentFit="contain"
     />
   ) : (
@@ -75,17 +80,17 @@ export function McpProviderLogo({
       borderColor="$border"
       borderRadius="$s"
       borderWidth={1}
-      height="$4xl"
+      height={containerSize}
       justifyContent="center"
       overflow="hidden"
-      width="$4xl"
+      width={containerSize}
     >
       {logoUrl ? (
         <Image
           fallback={fallbackLogo}
-          height={HOSTING_LOGO_SIZE}
+          height={hostingLogoSize}
           source={logoUrl}
-          width={HOSTING_LOGO_SIZE}
+          width={hostingLogoSize}
           contentFit="contain"
         />
       ) : (

@@ -16,7 +16,7 @@ export function Modal(props: ComponentProps<typeof RNModal>) {
     <RNModal transparent={true} {...props}>
       <ZStack flex={1}>
         <Overlay onPress={onDismiss} />
-        <View flex={1} position="absolute" pointerEvents="box-none">
+        <View flex={1} position="absolute" inset={0} pointerEvents="box-none">
           {props.children}
         </View>
       </ZStack>

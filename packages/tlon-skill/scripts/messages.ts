@@ -26,6 +26,7 @@ import type { Post } from '@tloncorp/api';
 
 import { ensureClient, normalizeShip } from './api-client';
 import {
+  formatPostId,
   isHelpArg,
   printErrorAndExit,
   printHelpAndExit,
@@ -290,6 +291,7 @@ async function fetchContext(
   resolve: boolean = false,
   json: boolean = false
 ): Promise<void> {
+  postId = formatPostId(postId);
   if (!json) {
     console.log(`Fetching context around post ${postId} in ${channelId}`);
     console.log(
@@ -345,6 +347,7 @@ async function fetchPost(
   resolve: boolean = false,
   json: boolean = false
 ): Promise<void> {
+  postId = formatPostId(postId);
   if (!json) {
     console.log(`Fetching post ${postId} from ${channelId}\n`);
   }

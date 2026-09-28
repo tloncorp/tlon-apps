@@ -12,9 +12,10 @@ import {
   BASIC_DEFAULT_MODEL,
   BASIC_PROVIDER_ID,
   PROVIDER_OPTIONS,
+  isSubscriptionProvider,
 } from './constants';
 import {
-  getOpenAIAuthStatus,
+  getLLMAuthProviderStatus,
   isLLMAuthProviderConnected,
 } from './openAiSubscription';
 
@@ -43,6 +44,7 @@ export type ChatFormValues = {
 export type ModelFormValues = {
   provider: string;
   model: string;
+  zdr: boolean;
   fallbacks: { provider: string; model: string }[];
 };
 
@@ -104,6 +106,96 @@ export const hasGroupMembership = (
   const hostGroups = groups[hostKey] || groups[desig(hostKey)] || {};
   return Object.prototype.hasOwnProperty.call(hostGroups, group);
 };
+
+// `departed`: the bot has rules in the group (saved or pending) but has been
+// kicked or has left. `unknown`: nothing has loaded that can say either way.
+export type BotGroupMembership =
+  | 'member'
+  | 'departed'
+  | 'not-member'
+  | 'unknown';
+
+export type BotGroupMembershipResolver = (
+  host: string,
+  group: string,
+  hasRules: boolean
+) => BotGroupMembership;
+
+// Combines the two membership signals. The user's local copy of a group's
+// roster comes from the group host: a join adds the moon's seat before the
+// moon's own channel listing catches up, and a kick or leave removes it. A
+// stored moon seat (alongside the user's own) therefore means member. Its
+// absence only means departed once the group's full roster has been fetched
+// this session (`syncedAt` after `sessionStartTime`) — init and changes carry
+// just 15 seats for large groups, and a kick missed while offline is only
+// cleared by that fetch. Otherwise fall back to the moon's listing, which lags
+// joins and omits groups whose channels the moon can't read, so there rules
+// also count as membership.
+export const buildBotGroupMembershipResolver = ({
+  seats,
+  currentUserId,
+  moon,
+  moonChannels,
+  sessionStartTime,
+}: {
+  seats:
+    | { groupId: string | null; contactId: string; syncedAt: number | null }[]
+    | undefined;
+  currentUserId: string;
+  moon: string | null;
+  moonChannels: TlawnChannelGroups | undefined;
+  sessionStartTime: number | undefined;
+}): BotGroupMembershipResolver => {
+  const userGroups = new Set<string>();
+  const freshGroups = new Set<string>();
+  const moonGroups = new Set<string>();
+  seats?.forEach(({ groupId, contactId, syncedAt }) => {
+    if (!groupId) return;
+    if (contactId === currentUserId) {
+      userGroups.add(groupId);
+      if (
+        sessionStartTime !== undefined &&
+        syncedAt !== null &&
+        syncedAt > sessionStartTime
+      ) {
+        freshGroups.add(groupId);
+      }
+    }
+    if (contactId === moon) moonGroups.add(groupId);
+  });
+
+  return (host, group, hasRules) => {
+    const groupId = `${formatChannelHost(host)}/${group}`;
+    if (moon && userGroups.has(groupId)) {
+      if (moonGroups.has(groupId)) return 'member';
+      if (freshGroups.has(groupId)) {
+        return hasRules ? 'departed' : 'not-member';
+      }
+    }
+    if (moonChannels && hasGroupMembership(moonChannels, host, group)) {
+      return 'member';
+    }
+    if (hasRules) return 'member';
+    return moonChannels ? 'not-member' : 'unknown';
+  };
+};
+
+// The keys in `drafts` whose channel is in this group, placing each rule the
+// same way groupChannelEntries does.
+export const getGroupChannelRuleKeys = (
+  groups: TlawnChannelGroups,
+  host: string,
+  group: string,
+  drafts: Record<string, ChannelRuleDraft>
+): string[] =>
+  Object.keys(drafts).filter((key) => {
+    const parsed = parseChannelRuleKey(key);
+    return (
+      parsed !== null &&
+      formatChannelHost(parsed.host) === formatChannelHost(host) &&
+      resolveGroupForChannel(groups, parsed.host, parsed.channelId) === group
+    );
+  });
 
 export const normalizeChannelRuleKey = (key: string): string => {
   const parsed = parseChannelRuleKey(key);
@@ -184,8 +276,10 @@ export const hasProviderCredential = (
   providerId === BASIC_PROVIDER_ID
     ? Boolean(config?.defaultKeys?.[BASIC_PROVIDER_ID])
     : Boolean(config?.keys?.[providerId]) ||
-      (providerId === 'openai' &&
-        isLLMAuthProviderConnected(getOpenAIAuthStatus(llmAuthStatus)?.status));
+      (isSubscriptionProvider(providerId) &&
+        isLLMAuthProviderConnected(
+          getLLMAuthProviderStatus(llmAuthStatus, providerId)?.status
+        ));
 
 export const getAvailableProviderIds = (
   config: TlawnProviderConfigInfo | undefined,
@@ -249,12 +343,14 @@ export const getModelFormValues = (
       model: hasProviderCredential(config, BASIC_PROVIDER_ID)
         ? BASIC_DEFAULT_MODEL
         : '',
+      zdr: false,
       fallbacks: [],
     };
   }
   return {
     provider: toDisplayProviderId(config, primary.provider, primary.model),
     model: primary.model,
+    zdr: primary.zdr === true,
     fallbacks: nonChannelModels
       .filter((model) => model !== primary)
       .map((model) => ({

@@ -1,4 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { SUPPORT_EMAIL } from '@tloncorp/app/constants';
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
 import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
 import { OnboardingTextBlock, ScreenHeader, View } from '@tloncorp/app/ui';
@@ -52,7 +53,7 @@ export function UnderMaintenanceScreen({ navigation }: Props) {
 
   const handleEmailSupport = useCallback(() => {
     openComposer({
-      to: 'support@tlon.io',
+      to: SUPPORT_EMAIL,
       subject: 'Help! My node needs repair.',
     });
   }, []);

@@ -79,6 +79,7 @@ export const settings = sqliteTable('settings', {
   webAppSplashDismissed: boolean('web_app_splash_dismissed'),
   mobileAppPromoDismissed: boolean('mobile_app_promo_dismissed'),
   contextLensEnabled: boolean('context_lens_enabled'),
+  showDeleteMarkers: boolean('show_delete_markers'),
 });
 
 export const systemContacts = sqliteTable(
@@ -167,6 +168,10 @@ export const contacts = sqliteTable(
     // versions), read off its contact profile. Validated at read; see
     // docs/bot-info.md.
     botInfo: text('bot_info'),
+    // Raw JSON of the bot's self-published liveness claim (`bot-liveness`
+    // contact key), read off its contact profile. Validated at read by
+    // `parseBotLiveness`; see docs/bot-liveness.md.
+    botLiveness: text('bot_liveness'),
     isBlocked: boolean('blocked'),
     isContact: boolean('isContact'),
     isContactSuggestion: boolean('isContactSuggestion'),
@@ -410,6 +415,9 @@ export const activityEvents = sqliteTable(
   (table) => {
     return {
       pk: primaryKey({ columns: [table.id, table.bucketId] }),
+      channelTimestampIndex: index(
+        'activity_events_channel_id_timestamp_index'
+      ).on(table.channelId, table.timestamp),
     };
   }
 );
@@ -515,6 +523,7 @@ export type GroupPrivacy = ApiGroupPrivacy;
 export const groups = sqliteTable('groups', {
   id: text('id').primaryKey(),
   ...metaFields,
+  blob: text('blob'),
   privacy: text('privacy').$type<GroupPrivacy>(),
   haveInvite: boolean('have_invite'),
   haveRequestedInvite: boolean('have_requested_invite'),
@@ -827,6 +836,138 @@ export const channelReaderRelations = relations(channelReaders, ({ one }) => {
     }),
   };
 });
+
+/**
+ * One Bucket's manifest, and the revision it is at.
+ *
+ * A Bucket's contents live here for the same reason posts do: the app-wide
+ * %buckets subscription is the only thing that receives them, and a view
+ * should read what has been received rather than fetch and hold its own copy.
+ * Everything else about a Bucket is already a channel, so this is the
+ * revision and nothing more.
+ *
+ * Keyed by channel without a foreign key to it, as every other per-channel
+ * table here is. A key would order the two writes, and they are not ordered:
+ * the subscription's first snapshot races the init fetch that creates channel
+ * rows, so on a cold start the manifest could arrive first and be rejected --
+ * leaving the Bucket empty until something forced a resubscribe. Cleanup is
+ * explicit in +deleteChannels instead, which also makes it the same on every
+ * platform: whether a cascade runs at all depends on a PRAGMA no driver here
+ * agrees on.
+ */
+export const buckets = sqliteTable('buckets', {
+  channelId: text('channel_id').primaryKey(),
+  revision: integer('revision').notNull().default(0),
+});
+
+export const bucketsRelations = relations(buckets, ({ one, many }) => ({
+  channel: one(channels, {
+    fields: [buckets.channelId],
+    references: [channels.id],
+  }),
+  entries: many(bucketEntries),
+}));
+
+/**
+ * Entries are per-Bucket, so the key is the pair.
+ *
+ * `entryId` is only unique within its own Bucket -- which is why a view
+ * holding one Bucket's entries while pointed at another could act on the
+ * wrong one.
+ */
+export const bucketEntries = sqliteTable(
+  'bucket_entries',
+  {
+    channelId: text('channel_id').notNull(),
+    entryId: integer('entry_id').notNull(),
+    parentId: integer('parent_id'),
+    name: text('name').notNull(),
+    kind: text('kind').$type<'folder' | 'file'>().notNull(),
+    createdBy: text('created_by').notNull(),
+    createdAt: integer('created_at').notNull(),
+    updatedBy: text('updated_by').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+    // File-only, and null on a folder.
+    mime: text('mime'),
+    size: integer('size'),
+    checksum: text('checksum'),
+    objectKey: text('object_key'),
+    status: text('status').$type<'pending' | 'ready' | 'failed'>(),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({ columns: [table.channelId, table.entryId] }),
+      channelIdIndex: index('bucket_entries_channel_id_index').on(
+        table.channelId
+      ),
+      parentIndex: index('bucket_entries_parent_index').on(
+        table.channelId,
+        table.parentId
+      ),
+    };
+  }
+);
+
+export const bucketEntriesRelations = relations(bucketEntries, ({ one }) => ({
+  bucket: one(buckets, {
+    fields: [bucketEntries.channelId],
+    references: [buckets.channelId],
+  }),
+}));
+
+/**
+ * An upload in flight, as far as it can be written down.
+ *
+ * The bytes cannot be: the source is a File handle or a local URI belonging to
+ * the process that picked it, so it lives in a module-level registry
+ * alongside the transfer task. What is here is everything else -- enough for
+ * a second pane to show the upload, for it to survive leaving the Bucket,
+ * and, if the app is closed mid-transfer, for the next launch to find the
+ * abandoned session and cancel it rather than leaving the host holding a
+ * reservation and its quota until they lapse.
+ */
+export const bucketUploads = sqliteTable(
+  'bucket_uploads',
+  {
+    id: text('id').primaryKey(),
+    channelId: text('channel_id').notNull(),
+    parentId: integer('parent_id'),
+    name: text('name').notNull(),
+    size: integer('size').notNull(),
+    mime: text('mime'),
+    progress: integer('progress').notNull().default(0),
+    // 'completed' rows are kept until the batch they belong to has no active
+    // uploads left. The aggregate progress bar sums every row, so dropping
+    // one the moment it finished shrank the total and made the bar jump --
+    // which is what a second parallel structure used to exist to avoid.
+    state: text('state')
+      .$type<'queued' | 'uploading' | 'failed' | 'completed'>()
+      .notNull()
+      .default('queued'),
+    error: text('error'),
+    // The host's names for this upload, once it has them.
+    sessionId: text('session_id'),
+    serverEntryId: integer('server_entry_id'),
+    // Kept across a failure so a retry re-asks under the id the host may
+    // already have answered rather than opening a second session.
+    openRequestId: text('open_request_id'),
+    startedAt: integer('started_at').notNull(),
+  },
+  (table) => {
+    return {
+      channelIdIndex: index('bucket_uploads_channel_id_index').on(
+        table.channelId
+      ),
+    };
+  }
+);
+
+export const bucketUploadsRelations = relations(bucketUploads, ({ one }) => ({
+  channel: one(channels, {
+    fields: [bucketUploads.channelId],
+    references: [channels.id],
+  }),
+}));
 
 export const channelWriters = sqliteTable(
   'channel_writers',
@@ -1224,6 +1365,20 @@ export const notesNotesRelations = relations(notesNotes, ({ one }) => ({
   }),
 }));
 
+// A fetch-completion timestamp cannot prove that a lagging notebook replica
+// causally includes an activity event. Record only deletions that the Notes
+// action path explicitly confirmed against the host-facing API.
+export const notesActivityEventTombstones = sqliteTable(
+  'notes_activity_event_tombstones',
+  {
+    channelId: text('channel_id').notNull(),
+    noteId: text('note_id').notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.channelId, table.noteId] }),
+  })
+);
+
 export const notesMembers = sqliteTable(
   'notes_members',
   {
@@ -1434,9 +1589,30 @@ export const postReactionsRelations = relations(postReactions, ({ one }) => ({
   }),
 }));
 
+export const botReplyFeedback = sqliteTable(
+  'bot_reply_feedback',
+  {
+    messageId: text('message_id').primaryKey().notNull(),
+    postId: text('post_id').notNull(),
+    feedbackId: text('feedback_id').notNull(),
+    revision: integer('revision').notNull(),
+    rating: text('rating').$type<'up' | 'down' | null>(),
+    categories: text('categories', { mode: 'json' })
+      .$type<string[]>()
+      .notNull(),
+    submittedAt: timestamp('submitted_at').notNull(),
+  },
+  (table) => ({
+    postIdIndex: index('bot_reply_feedback_post_id_index').on(table.postId),
+    submittedAtIndex: index('bot_reply_feedback_submitted_at_index').on(
+      table.submittedAt
+    ),
+  })
+);
+
 // Per-run bot introspection records synced from the %steward agent's lens
 // module. Payload is the gateway's run record as structured JSON (inner
-// schemaVersion); see docs/steward.md.
+// schemaVersion); see docs/backend/desk/app/steward.md.
 export const contextLensRuns = sqliteTable(
   'context_lens_runs',
   {

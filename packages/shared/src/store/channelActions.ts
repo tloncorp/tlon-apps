@@ -5,6 +5,7 @@ import {
 } from '@tloncorp/api';
 import { TimeoutError } from '@tloncorp/api';
 import { GroupChannelV7, getChannelKindFromType } from '@tloncorp/api/urbit';
+import { p } from '@urbit/aura';
 import { isEqual } from 'lodash';
 
 import { trackEvent } from '../analytics';
@@ -17,10 +18,76 @@ import { notesPermissionsCompatActive } from '../logic/notesPermissionsCompat';
 import { syncNotesNotebook } from './notesActions';
 
 const logger = createDevLogger('ChannelActions', false);
+// Channel types a client may still create. 'notebook' — the %diary type — is
+// absent because %notes replaced it; existing diary channels keep working.
+// 'buckets' is creatable here but gated in the UI by a feature flag, so this
+// list is about what the type system permits, not about what is on offer.
+const CREATABLE_CHANNEL_TYPES = [
+  'chat',
+  'gallery',
+  'notes',
+  'buckets',
+] as const;
+type CreatableChannelType = (typeof CREATABLE_CHANNEL_TYPES)[number];
+
 const NOTES_CHANNEL_LISTING_ATTEMPTS = 5;
 const NOTES_CHANNEL_LISTING_DELAY_MS = 250;
+const BUCKETS_CHANNEL_LISTING_ATTEMPTS = 20;
+const BUCKETS_CHANNEL_LISTING_DELAY_MS = 250;
 
 class NotesChannelListingUnverifiedError extends Error {}
+class BucketsChannelListingUnverifiedError extends Error {}
+
+export const BUCKETS_HOSTED_SHIP_REQUIRED_MESSAGE =
+  'Buckets are currently available only in groups hosted on Tlon.';
+
+/**
+ * Whether `ship` could hold buckets at all.
+ *
+ * The storage broker authenticates a bucket host through that ship's hosting
+ * sidecar, so a self-hosted ship cannot hold one however willing it is -- its
+ * token push has nothing to verify against and is refused. Ship class is only
+ * a proxy for that, and a poor one: a self-hosted planet passes here and
+ * still cannot host. It is also stricter than the broker, which supports a
+ * moon of a hosted ship via its parent's sidecar -- left excluded because
+ * that is a product decision, not an accident.
+ *
+ * So this stays a coarse pre-filter. Use `canCurrentUserHostBuckets` wherever
+ * the ship in question is our own, which is the case that can be answered.
+ */
+export function canShipHostBuckets(ship: string) {
+  try {
+    return p.kind(ship) === 'planet';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Whether a group hosted by `hostUserId` can hold buckets, answered as well as
+ * this client can answer it.
+ *
+ * When we host the group we know outright, because whether our own node is
+ * hosted is observable. For a group hosted elsewhere there is nothing to read,
+ * so the ship class is all we have and the host's own sync is the real check.
+ */
+export function canGroupHostBuckets(hostUserId: string) {
+  if (!canShipHostBuckets(hostUserId)) return false;
+  let hostIsUs = false;
+  try {
+    hostIsUs = api.getCurrentUserId() === hostUserId;
+  } catch {
+    // No client yet, so we cannot tell whose ship this is; the class filter
+    // above is the only answer available.
+    return true;
+  }
+  if (!hostIsUs) return true;
+  try {
+    return api.getCurrentUserIsHosted();
+  } catch {
+    return false;
+  }
+}
 
 export async function createChannel({
   groupId,
@@ -46,11 +113,25 @@ export async function createChannel({
   const currentUserId = api.getCurrentUserId();
   const channelType = rawChannelType === 'custom' ? 'chat' : rawChannelType;
 
+  if (!CREATABLE_CHANNEL_TYPES.includes(channelType as CreatableChannelType)) {
+    throw new Error(`Cannot create a channel of type ${channelType}`);
+  }
+
   if (channelType === 'notes') {
     return createNotesChannel({
       groupId,
       title,
       readers,
+    });
+  }
+
+  if (channelType === 'buckets') {
+    return createBucketsChannel({
+      customSlug,
+      groupId,
+      readers,
+      title,
+      writers,
     });
   }
 
@@ -116,6 +197,108 @@ export async function createChannel({
   return newChannel;
 }
 
+async function createBucketsChannel({
+  customSlug,
+  groupId,
+  readers = [],
+  title,
+  writers = [],
+}: {
+  customSlug?: string;
+  groupId: string;
+  readers?: string[];
+  title: string;
+  writers?: string[];
+}): Promise<db.Channel> {
+  const [groupHost, groupName, ...rest] = groupId.split('/');
+  if (!groupHost || !groupName || rest.length > 0) {
+    throw new Error(`Invalid group id: ${groupId}`);
+  }
+  if (!canGroupHostBuckets(groupHost)) {
+    throw new Error(BUCKETS_HOSTED_SHIP_REQUIRED_MESSAGE);
+  }
+
+  const name = customSlug || getRandomId();
+  // Bucket storage belongs to the group host even when another group admin
+  // initiates creation. The local %buckets agent forwards the request and the
+  // group host re-checks the caller's live admin authority before creating it.
+  const flag: api.BucketsFlag = { host: groupHost, name };
+  const channelId = api.formatBucketsChannelId(flag);
+  let created = false;
+
+  logger.trackEvent(
+    AnalyticsEvent.ActionCreateChannel,
+    logic.getModelAnalytics({
+      channel: { id: channelId, type: 'buckets' },
+      group: { id: groupId },
+    })
+  );
+
+  try {
+    await api.sendBucketsAction({
+      type: 'create',
+      group: { host: groupHost, name: groupName },
+      name,
+      readers,
+      title,
+      writers,
+    });
+    created = true;
+
+    const listedChannel = await waitForBucketsChannelListing(
+      groupId,
+      channelId
+    );
+    const newChannel: db.Channel = {
+      ...listedChannel,
+      contentConfiguration:
+        channelContentConfigurationForChannelType('buckets'),
+      type: 'buckets',
+      writerRoles: writers.map((roleId) => ({ channelId, roleId })),
+    };
+    await db.insertChannels([newChannel]);
+    await db.insertChannelPerms([{ channelId, readers, writers }]);
+    return newChannel;
+  } catch (e) {
+    await db.deleteChannels([channelId]).catch(() => undefined);
+    // A successful create followed by an inconclusive listing read is not
+    // evidence that creation failed. Keep the host-owned Bucket intact so a
+    // slow or temporarily unavailable %groups read cannot destroy live data.
+    if (created && !(e instanceof BucketsChannelListingUnverifiedError)) {
+      await api
+        .sendBucketsAction({ type: 'delete-bucket', flag })
+        .catch((rollbackError) =>
+          logger.error('Failed to roll back Bucket creation', rollbackError)
+        );
+    }
+    logger.error('Failed to add Buckets channel', e);
+    throw new Error('Failed to add Buckets channel to group');
+  }
+}
+
+async function waitForBucketsChannelListing(
+  groupId: string,
+  channelId: string
+) {
+  for (
+    let attempt = 1;
+    attempt <= BUCKETS_CHANNEL_LISTING_ATTEMPTS;
+    attempt += 1
+  ) {
+    const group = await api.getGroup(groupId).catch(() => null);
+    const listedChannel = group?.channels?.find(
+      (channel) => channel.id === channelId
+    );
+    if (listedChannel) return listedChannel;
+    if (attempt < BUCKETS_CHANNEL_LISTING_ATTEMPTS) {
+      await wait(BUCKETS_CHANNEL_LISTING_DELAY_MS);
+    }
+  }
+  throw new BucketsChannelListingUnverifiedError(
+    `Bucket channel listing did not appear: ${channelId}`
+  );
+}
+
 async function createNotesChannel({
   groupId,
   title,
@@ -158,6 +341,19 @@ async function createNotesChannel({
     const newChannel = await waitForNotesChannelListing(groupId, channelId);
     await db.insertChannels([newChannel]);
     insertedChannelId = newChannel.id;
+    // `insertChannels` excludes `currentUserIsMember` from its conflict-update
+    // set, so whoever inserts the row first decides it permanently. The chat
+    // path wins that race with a synchronous optimistic insert; this path
+    // cannot — it awaits a notebook create plus listing polls, and the %groups
+    // SSE update lands first and writes the row as a non-member. The notebook
+    // then sat under "Available Channels" with a Join button on the ship that
+    // hosts it. A direct update is the only write that can correct it, and it
+    // carries the listing's own answer rather than assuming membership, so a
+    // deliberately restricted notebook stays restricted.
+    await db.updateChannel({
+      id: newChannel.id,
+      currentUserIsMember: newChannel.currentUserIsMember ?? true,
+    });
     await db.insertChannelPerms([
       {
         channelId: newChannel.id,
@@ -280,6 +476,12 @@ function channelContentConfigurationForChannelType(
         defaultPostContentRenderer: api.PostContentRendererId.notes,
         defaultPostCollectionRenderer: api.CollectionRendererId.notes,
       };
+    case 'buckets':
+      return {
+        draftInput: api.DraftInputId.buckets,
+        defaultPostContentRenderer: api.PostContentRendererId.buckets,
+        defaultPostCollectionRenderer: api.CollectionRendererId.buckets,
+      };
   }
 
   throw new Error('Unknown channel type');
@@ -300,17 +502,36 @@ export async function deleteChannel({
     })
   );
 
+  const deletedChannel = await db.getChannel({ id: channelId });
+  const bucketFlag = api.parseBucketsChannelId(channelId);
+  // Deleting a channel clears its Bucket's manifest and in-flight uploads with
+  // it, so the optimistic delete below takes those too. Held here so a refused
+  // delete can put back more than the channel row: without them the restored
+  // Bucket comes back empty and its uploads lose the session ids that make
+  // them cancellable, until a reconnect supplies a fresh snapshot.
+  const deletedBucket = bucketFlag ? await db.getBucket({ channelId }) : null;
+  const deletedUploads = bucketFlag
+    ? await db.getBucketUploads({ channelId })
+    : [];
+
   // optimistic update
   await db.deleteChannels([channelId]);
 
   try {
-    await api.deleteChannel({ channelId, groupId });
+    if (bucketFlag) {
+      await api.sendBucketsAction({ type: 'delete-bucket', flag: bucketFlag });
+    } else {
+      await api.deleteChannel({ channelId, groupId });
+    }
   } catch (e) {
     console.error('Failed to delete channel', e);
     // rollback optimistic update
-    const channel = await db.getChannel({ id: channelId });
-    if (channel) {
-      await db.insertChannels([channel]);
+    if (deletedChannel) {
+      await db.insertChannels([deletedChannel]);
+    }
+    if (deletedBucket) {
+      const { entries, ...bucket } = deletedBucket;
+      await db.restoreBucket({ bucket, entries, uploads: deletedUploads });
     }
     return;
   }
@@ -420,6 +641,23 @@ export async function updateChannel({
       channelId: channel.id,
       channel: groupChannel,
     });
+    const bucketFlag = api.parseBucketsChannelId(channel.id);
+    if (bucketFlag) {
+      await api.sendBucketsAction({
+        type: 'set-title',
+        flag: bucketFlag,
+        title: channel.title ?? '',
+      });
+      // No set-readers: api.updateChannel above already sent `readers` to
+      // %groups, which is the only place a bucket's readability lives.
+      await api.sendBucketsAction({
+        type: 'set-writers',
+        flag: bucketFlag,
+        writers,
+      });
+      logger.log('updated Bucket channel on server');
+      return;
+    }
     if (writersToAdd.length > 0) {
       logger.log('adding writers', writersToAdd);
       await api.addChannelWriters({

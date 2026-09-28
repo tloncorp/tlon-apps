@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/db';
+import * as domain from '@tloncorp/shared/domain';
 import { Icon, IconType } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
 import { UrbitSigil } from '@tloncorp/ui';
@@ -91,8 +92,9 @@ export const ContactAvatar = React.memo(function ContactAvatarComponent({
 } & AvatarProps) {
   const dbContact = useContact(contactId);
   const contact = contactOverride ?? dbContact;
+  const offline = domain.botLivenessOf(contact) === 'offline';
 
-  return (
+  const avatar = (
     <ImageAvatar
       imageUrl={overrideUrl ?? contact?.avatarImage ?? undefined}
       fallback={
@@ -106,6 +108,35 @@ export const ContactAvatar = React.memo(function ContactAvatarComponent({
       ignoreCalm={ignoreCalm}
       {...props}
     />
+  );
+
+  if (!offline) {
+    return avatar;
+  }
+
+  // size undefined defaults to $4xl, which shows the dot like every size
+  // except $xl. 'custom' sizes can be tiny (the nav bar renders 20px), so
+  // they get the dimming only.
+  const showDot = props.size !== '$xl' && props.size !== 'custom';
+  const dotSize = props.size === '$5xl' || props.size === '$9xl' ? 12 : 8;
+  return (
+    <View position="relative" flexShrink={0} testID="ContactAvatarOffline">
+      <View opacity={0.5}>{avatar}</View>
+      {showDot && (
+        <View
+          testID="ContactAvatarOfflineDot"
+          position="absolute"
+          right={-2}
+          bottom={-2}
+          width={dotSize}
+          height={dotSize}
+          borderRadius={dotSize / 2}
+          backgroundColor="$tertiaryText"
+          borderWidth={1}
+          borderColor="$background"
+        />
+      )}
+    </View>
   );
 });
 
@@ -212,11 +243,14 @@ export const ImageAvatar = function ImageAvatarComponent({
   fallback?: React.ReactNode;
 } & AvatarProps) {
   const calmSettings = useCalm();
-  const [loadFailed, setLoadFailed] = useState(false);
+  // Keyed by URL: a long-lived avatar (the tab bar's) must try a new URL
+  // after an old one failed.
+  const [failedUrl, setFailedUrl] = useState<string>();
+  const loadFailed = failedUrl !== undefined && failedUrl === imageUrl;
   const [isLoading, setIsLoading] = useState(true);
   const handleLoadError = useCallback(() => {
-    setLoadFailed(true);
-  }, []);
+    setFailedUrl(imageUrl);
+  }, [imageUrl]);
   const handleLoadEnd = useCallback(() => setIsLoading(false), []);
   // TODO: figure out how to sanitize svgs so we can support svg avatars
   const isSVG = imageUrl?.endsWith('.svg');

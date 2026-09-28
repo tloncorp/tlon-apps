@@ -7,12 +7,8 @@ import { desig } from '../lib/urbit';
 import { StorageCredentials } from '../urbit';
 import * as ub from '../urbit';
 import { StorageConfiguration } from './upload';
-import {
-  getCurrentUserId,
-  getCurrentUserIsHosted,
-  scry,
-  subscribe,
-} from './urbit';
+import { base, scryRequest, subscribeRequest } from './requests';
+import { getCurrentUserId, getCurrentUserIsHosted } from './urbit';
 
 const logger = createDevLogger('storageApi', false);
 
@@ -82,7 +78,7 @@ export type StorageUpdate =
 export const subscribeToStorageUpdates = async (
   eventHandler: (update: StorageUpdate) => void
 ) => {
-  subscribe<ub.StorageUpdate>({ app: 'storage', path: '/all' }, (e) => {
+  subscribeRequest(base.storageAll)<ub.StorageUpdate>({}, (e) => {
     eventHandler(toStorageUpdate(e));
   });
 };
@@ -117,22 +113,16 @@ function toStorageUpdate(e: ub.StorageUpdate): StorageUpdate {
 
 export const getStorageConfiguration =
   async (): Promise<StorageConfiguration> => {
-    const configuration = await scry<{
+    const configuration = await scryRequest(base.storageConfiguration)<{
       'storage-update': StorageUpdateConfiguration;
-    }>({
-      app: 'storage',
-      path: '/configuration',
-    });
+    }>({});
     return configuration['storage-update'].configuration;
   };
 
 export const getStorageCredentials = async (): Promise<StorageCredentials> => {
-  const credentials = await scry<{
+  const credentials = await scryRequest(base.storageCredentials)<{
     'storage-update': StorageUpdateCredentials;
-  }>({
-    app: 'storage',
-    path: '/credentials',
-  });
+  }>({});
   return credentials['storage-update'].credentials;
 };
 
@@ -337,10 +327,7 @@ async function getMemexUploadUrl(params: {
   fileName: string;
 }): Promise<{ hostedUrl: string; uploadUrl: string }> {
   const currentUser = getCurrentUserId();
-  const token = await scry<string>({
-    app: 'genuine',
-    path: '/secret',
-  });
+  const token = await scryRequest(base.genuineSecret)<string>({});
 
   const endpoint = `${memexBaseUrl()}/v1/${desig(currentUser)}/upload`;
   const response = await fetch(endpoint, {

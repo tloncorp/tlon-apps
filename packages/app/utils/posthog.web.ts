@@ -1,4 +1,3 @@
-import { useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import posthog, { Properties } from 'posthog-js';
 
@@ -42,15 +41,6 @@ posthog.init(POST_HOG_API_KEY, {
 });
 
 export const analyticsClient = posthog;
-
-const wrappedErrorLogger = {
-  capture: (event: string, data: Record<string, unknown>) => {
-    analyticsClient.capture(event, { ...data, ...EVENT_PRIVACY_MASK });
-  },
-};
-
-// hand off the instance to our dev loggers
-useDebugStore.getState().initializeErrorLogger(wrappedErrorLogger);
 
 export const identifyTlonEmployee = () => {
   db.isTlonEmployee.setValue(true);

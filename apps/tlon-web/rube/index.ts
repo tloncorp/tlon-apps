@@ -16,29 +16,24 @@ import { promisify } from 'util';
 import * as zlib from 'zlib';
 
 import { desksMatch } from './deskManifest';
+import { loadEnvTest } from './envTest';
+import { shouldIncludeShip } from './shipSelection';
 
 const pipeline = promisify(stream.pipeline);
 
-// Load .env.test file if it exists
-const envTestPath = path.join(__dirname, '..', '..', '.env.test');
-if (fs.existsSync(envTestPath)) {
-  const envContent = fs.readFileSync(envTestPath, 'utf8');
-  envContent.split('\n').forEach((line) => {
-    // Skip comments and empty lines
-    if (line && !line.startsWith('#') && line.includes('=')) {
-      const [key, ...valueParts] = line.split('=');
-      const value = valueParts.join('=').trim();
-      // Only set if not already set (allow command-line overrides)
-      if (!process.env[key.trim()]) {
-        process.env[key.trim()] = value;
-      }
-    }
-  });
-  console.log('Loaded environment variables from .env.test');
-}
+// Load .env.test before anything reads process.env — getShips() below decides
+// the ship selection from it.
+loadEnvTest(__dirname);
 
 const spawnedProcesses: childProcess.ChildProcess[] = [];
 const startHashes: { [ship: string]: { [desk: string]: string } } = {};
+// rube always runs compiled (see rube/compile-rube.sh + rube-runner.sh:
+// `node ./rube/dist/index.js`), never via tsx against the source in rube/, so
+// __dirname is this checkout's rube/dist directory at runtime. Every
+// worktree's pier path contains the same "rube/dist" substring, so process
+// cleanup below matches on this absolute path (with a trailing slash)
+// instead of that bare substring, to avoid killing a pier build or run in
+// another worktree.
 const rubeDir = __dirname;
 const pidFile = path.join(rubeDir, '.rube.pid');
 const childrenFile = path.join(rubeDir, '.rube-children.json');
@@ -85,20 +80,27 @@ export interface Ship {
   extractPath: string;
   skipCommit: boolean;
   skipSetup: boolean;
+  skipAuth?: boolean;
+  /** Boots only under INCLUDE_OPTIONAL_SHIPS (~bus, ~mug). */
   optional?: boolean;
+  /**
+   * The N-1 desk pier (~bud). Selected ONLY by naming it in N1_SHIP, never by
+   * INCLUDE_OPTIONAL_SHIPS — see rube/shipSelection.ts.
+   */
+  n1?: boolean;
+  /**
+   * The %groups desk release this pier is pinned to, for a ship rube does not
+   * build a desk on (skipCommit). Only the N-1 pier has one, kept equal to
+   * MIN_GROUPS_VERSION and rebuilt by rube/build-n1-pier.sh. Ships rube commits
+   * to carry whatever the run's tree holds, and set nothing here.
+   */
+  deskVersion?: string;
 }
 
 function getShips(): Record<string, Ship> {
   return Object.fromEntries(
     Object.entries(shipManifest)
-      .filter(([, value]) => {
-        const v = value as Ship;
-        // Skip if marked as skipSetup
-        if (v.skipSetup) return false;
-        // Skip optional ships unless explicitly included
-        if (v.optional && !INCLUDE_OPTIONAL_SHIPS) return false;
-        return true;
-      })
+      .filter(([, value]) => shouldIncludeShip(value as Ship))
       .map(([, value]) => {
         const v = value as Ship;
         const ship = v.ship;
@@ -1516,8 +1518,9 @@ const cleanupSpawnedProcesses = () => {
   // CRITICAL: Use pattern-based killing to clean up all Urbit processes
   // This is necessary because Urbit spawns serf sub-processes that aren't tracked
   try {
-    // Kill all Urbit processes matching our rube pattern
-    const killUrbitCmd = `ps aux | grep urbit | grep "rube/dist" | grep -v grep | awk '{print $2}' | while read pid; do kill -9 $pid 2>/dev/null; done`;
+    // Kill all Urbit processes matching our rube pattern, scoped to this
+    // workspace's rube/dist (see the comment on `rubeDir` above).
+    const killUrbitCmd = `ps aux | grep urbit | grep -F "${rubeDir}/" | grep -v grep | awk '{print $2}' | while read pid; do kill -9 $pid 2>/dev/null; done`;
     childProcess.execSync(killUrbitCmd, { stdio: 'ignore', timeout: 5000 });
 
     // Also use our existing commands as additional cleanup
@@ -1538,17 +1541,16 @@ const cleanupSpawnedProcesses = () => {
   if (!process.env.IN_CONTAINER) {
     console.log('Cleaning up ports...');
     try {
-      const ports = [
-        '35453',
-        '36963',
-        '38473',
-        '39983',
-        '3000',
-        '3001',
-        '3002',
-        '3003',
-      ];
+      // Only the ships this run selected — `ships` is already filtered by
+      // shouldIncludeShip. Killing every port in the manifest would also hit
+      // ships this run never booted (e.g. ~bud when N1_SHIP is unset), and
+      // can SIGKILL a concurrent pier build or N-1 run in another worktree.
+      const ports = Object.values(ships).flatMap((ship) => [
+        ship.httpPort,
+        ship.webUrl.match(/:(\d+)/)?.[1],
+      ]);
       ports.forEach((port) => {
+        if (!port) return;
         try {
           const cmd = `command -v lsof >/dev/null 2>&1 && lsof -ti:${port} | xargs kill -9 2>/dev/null || true`;
           childProcess.execSync(cmd, { stdio: 'ignore', timeout: 1000 });
@@ -1573,7 +1575,7 @@ const cleanupSpawnedProcesses = () => {
   try {
     const remainingUrbit = childProcess
       .execSync(
-        `ps aux | grep urbit | grep "rube/dist" | grep -v grep | wc -l`,
+        `ps aux | grep urbit | grep -F "${rubeDir}/" | grep -v grep | wc -l`,
         { encoding: 'utf8' }
       )
       .trim();

@@ -334,23 +334,25 @@
   ::  remove .seq and .mod-at
   [- |3]:seal
 ::
+::  NOTE  v9 and later carry reacts as unicode glyphs, so .reacts passes
+::        through untouched here. only +s-post-1 and +s-post-2 downgrade to
+::        v7 shortcodes, because their output types really are v7/v8.
+::
 ++  s-post-3
   |=  =post:v9:cv
   ~>  %spin.['libcu-s-post-3']
   ^-  simple-post:v9:cv
   :_  +>.post
   %=  -.post
-    reacts   (v7:reacts:v9:ccv reacts.post)
     replies  (s-replies-3 replies.post)
   ==
 ::
 ++  s-post-4
   |=  =post:v10:cv
-  ~>  %spin.['libcu-s-post-3']
+  ~>  %spin.['libcu-s-post-4']
   ^-  simple-post:v10:cv
   :_  +>.post
   %=  -.post
-    reacts   (v7:reacts:v9:ccv reacts.post)
     replies  (s-replies-4 replies.post)
   ==
 ++  suv-post
@@ -904,7 +906,11 @@
     ?~  reply
       &+[*reply-seal:c ~[%inline 'Unknown comment']~ ~nul *@da]
     ?:  ?=(%| -.u.reply)  u.reply
-    &+(suv-reply-2 p.plan +.u.reply)
+    ::  NOTE  +suv-reply-2 is the v8 builder; its output nests here because
+    ::        v8 and v9 $memo are identical, but it downgrades reacts to v7
+    ::        shortcodes. v9 wants glyphs, so use the v9 builder.
+    ::
+    &+(suv-reply-3 p.plan +.u.reply)
   [%channel-said-2 !>(`said:v9:cv`[nest %reply p.plan reply])]
 ++  said-4
   |=  [=nest:c =plan:c posts=v-posts:c]

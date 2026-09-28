@@ -135,7 +135,11 @@ function ChatContentRenderer({
   }, [content, postAuthorName]);
   return (
     <>
-      <ActivityContentRenderer content={enrichedContent} gap="$l" />
+      <ActivityContentRenderer
+        content={enrichedContent}
+        groupId={summary.newest.groupId}
+        gap="$l"
+      />
       {(unreadCount ?? 0) > 1 ? (
         <Text size="$label/m" color="$tertiaryText" trimmed={false}>
           +{(unreadCount ?? 0) - 1} more

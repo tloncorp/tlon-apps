@@ -1,5 +1,9 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  configurationFromChannel,
+  trackEvent,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect } from 'react';
@@ -29,7 +33,16 @@ export default function PostScreen(props: Props) {
   useEffect(() => {
     // if we don't already have the post in the DB, make sure we sync it
     if (!post && !isLoading) {
-      store.syncThreadPosts({ postId, authorId, channelId });
+      store
+        .syncThreadPosts({
+          postId,
+          authorId,
+          channelId,
+          trigger: 'missing_parent',
+        })
+        .catch(() => {
+          // The fetch records its outcome even when the parent never reaches the DB.
+        });
     }
   }, [post, isLoading, postId, authorId, channelId]);
 
@@ -82,11 +95,24 @@ function PostScreenContent({
 
   const currentUserId = useCurrentUserId();
   const channelType = channel?.type;
+  const { data: showDeleteMarkers = false } = store.useShowDeleteMarkers();
+  const shouldHideDeletedPost = Boolean(
+    post.isDeleted &&
+    channel &&
+    configurationFromChannel(channel).includeDeletedPosts &&
+    !showDeleteMarkers
+  );
 
   useEffect(() => {
     if (!channelType) return;
     trackEvent(AnalyticsEvent.PostOpened, { type: channelType });
   }, [channelType, postId]);
+
+  useEffect(() => {
+    if (shouldHideDeletedPost) {
+      navigation.goBack();
+    }
+  }, [navigation, shouldHideDeletedPost]);
 
   const handleDeletePost = useCallback(
     async (post: db.Post) => {
@@ -143,7 +169,7 @@ function PostScreenContent({
     navigateBackFromPost(channel!, postId);
   }, [channel, postId, navigation, navigateBackFromPost]);
 
-  return currentUserId && channel && post ? (
+  return currentUserId && channel && post && !shouldHideDeletedPost ? (
     <PostScreenView
       handleGoToUserProfile={handleGoToUserProfile}
       parentPost={post}

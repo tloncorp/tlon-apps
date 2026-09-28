@@ -1,6 +1,7 @@
 import * as api from '@tloncorp/api';
 import {
   GroupTemplateId,
+  TemplateChannel,
   groupTemplatesById,
 } from '@tloncorp/api/types/groupTemplates';
 import { createSectionId, getChannelKindFromType } from '@tloncorp/api/urbit';
@@ -13,78 +14,16 @@ import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
-import { pinGroup } from './channelActions';
+import { createChannel } from './channelActions';
 
 const logger = createDevLogger('groupActions', false);
 
 interface CreateGroupParams {
+  groupId?: string;
+  defaultChannelId?: string;
   title?: string;
   image?: string;
   memberIds?: string[];
-}
-
-export async function scaffoldPersonalGroup() {
-  const currentUserId = api.getCurrentUserId();
-  const PersonalGroupKeys = logic.getPersonalGroupKeys(currentUserId);
-  const groupIconUrl = logic.getRandomDefaultPersonalGroupIcon();
-
-  logger.trackEvent('Personal Group Scaffold', {
-    context: 'starting personal group scaffold',
-    method: 'thread creation',
-  });
-
-  try {
-    const personalGroup: db.Group = {
-      id: PersonalGroupKeys.groupId,
-      title: PersonalGroupKeys.groupName,
-      iconImage: groupIconUrl,
-      currentUserIsMember: true,
-      isPersonalGroup: true,
-      hostUserId: currentUserId,
-      currentUserIsHost: true,
-      privacy: 'secret',
-    };
-
-    const chatChannel: db.Channel = {
-      id: PersonalGroupKeys.chatChannelId,
-      groupId: PersonalGroupKeys.groupId,
-      type: 'chat',
-      title: PersonalGroupKeys.chatChannelName,
-      lastPostSequenceNum: 0,
-    };
-
-    const collectionChannel: db.Channel = {
-      id: PersonalGroupKeys.collectionChannelId,
-      groupId: PersonalGroupKeys.groupId,
-      type: 'gallery',
-      title: PersonalGroupKeys.collectionChannelName,
-      lastPostSequenceNum: 0,
-    };
-
-    const notebookChannel: db.Channel = {
-      id: PersonalGroupKeys.notebookChannelId,
-      groupId: PersonalGroupKeys.groupId,
-      type: 'notebook',
-      title: PersonalGroupKeys.notebookChannelName,
-      lastPostSequenceNum: 0,
-    };
-
-    personalGroup.channels = [chatChannel, collectionChannel, notebookChannel];
-
-    const createdGroup = await createGroup({ group: personalGroup });
-
-    // attempt to pin it
-    pinGroup(createdGroup);
-
-    logger.trackEvent('Completed Personal Group Scaffold', {
-      ...logic.getModelAnalytics({ group: { id: PersonalGroupKeys.groupId } }),
-    });
-  } catch (e) {
-    logger.trackEvent('Error Personal Group Scaffold', {
-      error: e,
-    });
-    throw new Error('Something went wrong');
-  }
 }
 
 export async function createDefaultGroup(
@@ -92,7 +31,7 @@ export async function createDefaultGroup(
 ): Promise<db.Group> {
   const currentUserId = api.getCurrentUserId();
   const groupSlug = getRandomId();
-  const groupId = `${currentUserId}/${groupSlug}`;
+  const groupId = params.groupId ?? `${currentUserId}/${groupSlug}`;
 
   // build the group
   const newGroup: db.Group = {
@@ -106,8 +45,8 @@ export async function createDefaultGroup(
   };
 
   // build the default channel channel
-  const channelSlug = getRandomId();
-  const channelId = `chat/${currentUserId}/${channelSlug}`;
+  const channelId =
+    params.defaultChannelId ?? `chat/${currentUserId}/${getRandomId()}`;
   const defaultChannel: db.Channel = {
     id: channelId,
     groupId,
@@ -147,7 +86,17 @@ export async function createGroupFromTemplate(
     privacy: 'secret',
   };
 
-  const channels: db.Channel[] = template.channels.map((channelTemplate) => {
+  // %channels kinds (chat/gallery) ride the group-creation poke as nests. A
+  // %notes notebook can't — it's created against the %notes API and then bound
+  // to the group — so it has to follow once the group exists.
+  const pokeChannelTemplates = template.channels.filter(
+    (channelTemplate) => channelTemplate.type !== 'notes'
+  );
+  const notesChannelTemplates = template.channels.filter(
+    (channelTemplate) => channelTemplate.type === 'notes'
+  );
+
+  newGroup.channels = pokeChannelTemplates.map((channelTemplate) => {
     const channelSlug = getRandomId();
     const channelKind = getChannelKindFromType(channelTemplate.type);
     const channelId = `${channelKind}/${currentUserId}/${channelSlug}`;
@@ -162,13 +111,54 @@ export async function createGroupFromTemplate(
     };
   });
 
-  newGroup.channels = channels;
-
-  return createGroup({
+  const group = await createGroup({
     group: newGroup,
     memberIds: params.memberIds ?? [],
     templateId: params.templateId,
   });
+
+  const notesChannels = await addTemplateNotesChannels(
+    group.id,
+    notesChannelTemplates
+  );
+
+  return notesChannels.length
+    ? { ...group, channels: [...(group.channels ?? []), ...notesChannels] }
+    : group;
+}
+
+/**
+ * Add a template's %notes notebooks to a group that already exists.
+ *
+ * A notebook that fails to appear leaves the group usable, so this reports the
+ * failure and returns what it managed to create rather than rejecting and
+ * stranding the caller with a created group it thinks failed. The template's
+ * channel `description` is dropped: `createChannel` doesn't carry one onto the
+ * %notes path.
+ */
+async function addTemplateNotesChannels(
+  groupId: string,
+  channelTemplates: readonly TemplateChannel[]
+): Promise<db.Channel[]> {
+  const created: db.Channel[] = [];
+  for (const channelTemplate of channelTemplates) {
+    try {
+      created.push(
+        await createChannel({
+          groupId,
+          title: channelTemplate.title,
+          channelType: 'notes',
+        })
+      );
+    } catch (e) {
+      logger.trackError('Failed to create template notes channel', {
+        error: e,
+        groupId,
+        channelTitle: channelTemplate.title,
+      });
+    }
+  }
+  return created;
 }
 
 export async function createGroup(params: {
@@ -483,6 +473,39 @@ export async function updateGroupMeta(
     // rollback optimistic update
     if (existingGroup) {
       await db.updateGroup(existingGroup);
+    }
+    if (config?.shouldThrow) {
+      throw e;
+    }
+  }
+}
+
+export async function updateGroupBlob(
+  group: db.Group,
+  blob: string | null,
+  config?: { shouldThrow?: boolean }
+) {
+  logger.log('updating group blob', group.id);
+
+  const existingGroup = await db.getGroup({ id: group.id });
+
+  // The host emits no %blob update when the value is unchanged, so the tracked
+  // poke would wait out its timeout and then roll back a write that was
+  // already correct.
+  if (existingGroup && (existingGroup.blob ?? null) === blob) {
+    return;
+  }
+
+  // optimistic update
+  await db.updateGroup({ id: group.id, blob });
+
+  try {
+    await api.updateGroupBlob({ groupId: group.id, blob });
+  } catch (e) {
+    logger.error('Failed to update group blob', e);
+    // rollback optimistic update
+    if (existingGroup) {
+      await db.updateGroup({ id: group.id, blob: existingGroup.blob ?? null });
     }
     if (config?.shouldThrow) {
       throw e;

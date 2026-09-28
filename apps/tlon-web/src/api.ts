@@ -1,19 +1,24 @@
-import type UrbitMock from '@tloncorp/mock-http-api';
 import UrbitBase, {
-  Message,
-  Poke,
+  ChannelUrlTransformer,
   PokeInterface,
   Scry,
   SubscriptionRequestInterface,
   Thread,
-  UrbitHttpApiEvent,
+  UrbitHttpApiEventMap,
   UrbitHttpApiEventType,
-} from '@urbit/http-api';
+} from '@tloncorp/api/http-api';
+import {
+  type One,
+  type Params,
+  type RegistryEntry,
+  entryPath,
+} from '@tloncorp/api/client/requests';
+import type UrbitMock from '@tloncorp/mock-http-api';
 import _ from 'lodash';
 
 import { useLocalState } from '@/state/local';
 
-import { actionDrill, isHosted, parseKind } from './logic/utils';
+import { actionDrill, isHosted, parseKind, preSig } from './logic/utils';
 import { useEyreState } from './state/eyre';
 import useSchedulerStore from './state/scheduler';
 
@@ -23,6 +28,11 @@ const URL = (import.meta.env.VITE_MOCK_URL ||
   import.meta.env.VITE_VERCEL_URL) as string;
 
 type Hook = (event: any, mark: string) => boolean;
+
+export type Registered<K extends RegistryEntry['kind']> = Extract<
+  RegistryEntry,
+  { kind: K }
+>;
 
 interface Watcher {
   id: string;
@@ -40,10 +50,7 @@ function subPath(id: SubscriptionId) {
   return `${id.app}${id.path}`;
 }
 
-type EyrePayload = (Message &
-  (Poke<any> | Thread<any> | SubscriptionRequestInterface | Scry))[];
-
-function hostingUrl(url: string, messages: EyrePayload) {
+const hostingUrl: ChannelUrlTransformer = (url, messages) => {
   if (!isHosted || messages.length !== 1) {
     return url;
   }
@@ -62,15 +69,7 @@ function hostingUrl(url: string, messages: EyrePayload) {
   }
 
   return url;
-}
-
-const Urbit = UrbitBase as new (
-  url: string,
-  code?: string,
-  desk?: string,
-  fetch?: typeof window.fetch,
-  urlTransformer?: (someUrl: string, json: EyrePayload) => string
-) => UrbitBase;
+};
 
 class API {
   private client: UrbitBase | UrbitMock | undefined;
@@ -109,35 +108,45 @@ class API {
       return this.client;
     }
 
-    this.client = new Urbit('', '', window.desk, undefined, hostingUrl);
-    this.client.ship = window.ship;
+    this.client = new UrbitBase('', '', window.desk, undefined, hostingUrl);
+    // the vendored client compares `nodeId` against the sigiled name it
+    // fetches from `/~/name`, and `window.ship` is bare.
+    this.client.nodeId = preSig(window.ship);
     this.client.verbose = showDevTools;
 
-    (this.client as UrbitBase).onReconnect = () => {
-      const { onReconnect } = useLocalState.getState();
-      if (onReconnect) {
-        onReconnect();
+    // the vendored client has no onReconnect/onRetry/onError callbacks; the
+    // nearest equivalents are these `status-update` transitions. two cases
+    // differ from the callbacks they replace:
+    //   - a failed SSE reopen no longer runs reconnect handling. `reconnected`
+    //     is emitted only once the reopened response is ok, where `onReconnect`
+    //     fired on any reopen marked as a reconnect.
+    //   - an HTTP 500 on the stream rotates the channel via seamlessReset
+    //     without emitting `reconnecting`, so it no longer bumps errorCount.
+    // the `reconnected` branch is inert either way: nothing on web ever
+    // assigns useLocalState.onReconnect, which is initialized to null.
+    this.client.on('status-update', ({ status }) => {
+      useLocalState.getState().log(`http-api status: ${status}`);
+
+      if (status === 'reconnected') {
+        const { onReconnect } = useLocalState.getState();
+        if (onReconnect) {
+          onReconnect();
+        }
       }
-    };
 
-    this.client.onRetry = () => {
-      useLocalState.setState((state) => ({
-        subscription: 'reconnecting',
-        errorCount: state.errorCount + 1,
-      }));
-    };
+      if (status === 'reconnecting') {
+        useLocalState.setState((state) => ({
+          subscription: 'reconnecting',
+          errorCount: state.errorCount + 1,
+        }));
+      }
 
-    this.client.onError = () => {
-      (async () => {
+      if (status === 'errored') {
         useLocalState.setState((state) => ({
           airLockErrorCount: state.airLockErrorCount + 1,
           subscription: 'disconnected',
         }));
-      })();
-    };
-
-    this.client.on('status-update', ({ status }) => {
-      useLocalState.getState().log(`http-api status: ${status}`);
+      }
     });
 
     this.client.on('error', (error) => {
@@ -186,6 +195,26 @@ class API {
       useLocalState.setState((state) => ({ errorCount: state.errorCount + 1 }));
       throw e;
     }
+  }
+
+  // Registry-entry forms of the request methods below: each fills the
+  // entry's path and forwards to the method itself, so dedup, watchers,
+  // scheduling and error handling are unchanged.
+  scryEntry<E extends Registered<'scry'>>(entry: One<E>) {
+    return <T>(params: Params<E['path']>) =>
+      this.scry<T>({ app: entry.agent, path: entryPath(entry, params) });
+  }
+
+  subscribeEntry<E extends Registered<'subscribe'>>(entry: One<E>) {
+    return (
+      params: Params<E['path']>,
+      request: Omit<SubscriptionRequestInterface, 'app' | 'path'>,
+      ...priority: [priority?: number]
+    ) =>
+      this.subscribe(
+        { ...request, app: entry.agent, path: entryPath(entry, params) },
+        ...priority
+      );
   }
 
   async scry<T>(params: Scry) {
@@ -319,14 +348,23 @@ class API {
   }
 
   async subscribeOnce<T>(app: string, path: string, timeout?: number) {
-    return this.withErrorHandling(() => {
+    return this.withErrorHandling((client) => {
       useLocalState.getState().log(`subscribe once ${app} ${path}`);
-      return this.client!.subscribeOnce<T>(app, path, timeout);
+      // the vendored client takes an optional `ship` ahead of `timeout`
+      return IS_MOCK
+        ? (client as UrbitMock).subscribeOnce<T>(app, path, timeout)
+        : (client as UrbitBase).subscribeOnce<T>(app, path, undefined, timeout);
     });
   }
 
-  async thread<Return, T>(params: Thread<T>) {
-    return this.withErrorHandling(() => this.client!.thread<Return, T>(params));
+  async thread<T>(params: Thread<T>) {
+    // the vendored client resolves the raw `Response`; the mock client
+    // resolves the already-parsed body
+    return this.withErrorHandling((client) =>
+      IS_MOCK
+        ? (client as UrbitMock).thread<unknown, T>(params)
+        : (client as UrbitBase).thread<T>(params)
+    );
   }
 
   async unsubscribe(id: number) {
@@ -345,7 +383,7 @@ class API {
 
   on<T extends UrbitHttpApiEventType>(
     event: T,
-    callback: (data: UrbitHttpApiEvent[T]) => void
+    callback: UrbitHttpApiEventMap[T]
   ) {
     this.withClient((client) => (client as UrbitBase).on(event, callback));
   }

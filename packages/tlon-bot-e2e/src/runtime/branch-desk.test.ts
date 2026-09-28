@@ -31,8 +31,8 @@ afterEach(async () => {
 });
 
 describe('branch desk ship set', () => {
-  test('defaults to zod and ten and normalizes configured ships', () => {
-    expect(parseDeskShips()).toEqual(['zod', 'ten']);
+  test('defaults to every running ship and normalizes configured ships', () => {
+    expect(parseDeskShips()).toEqual(['zod', 'ten', 'mug']);
     expect(parseDeskShips(' zod, ~mug,~zod ')).toEqual(['zod', 'mug']);
   });
 

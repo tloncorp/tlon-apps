@@ -98,13 +98,28 @@ The current renderer expects one `createSurface` message and one `updateComponen
 
 The supported v1 client subset is intentionally small:
 
-- components: `Card`, `Column`, `Row`, `Text`, `Divider`, and `Button`
+- components: `Card`, `Column`, `Row`, `Text`, `Divider`, `Button`, `Choice`,
+  `SmallChoice`, and `McpConnect`
 - button actions:
   - `tlon.sendMessage`, which sends explicit action text in the current DM
   - `tlon.navigate`, which can navigate to a message, channel, group, profile, chat details, or chat volume screen
     - message reply targets should include `parentAuthorId` when `parentId` is not already prefixed as `~author/id`
 - rendering policy: A2UI blocks render only in direct messages for now
 - validation limits: component count, tree depth, text length, and expanded render size
+
+`McpConnect` is a client-populated menu rather than bot-authored provider data.
+The blob supplies only bounded presentation labels and three validated actions:
+
+- `action`: navigate to the MCP settings screen, optionally focused on a provider
+- `configureAction`: send the selected connected provider ids to the onboarding coordinator
+- `completionAction`: optional send-message action that advances the conversation
+
+The client obtains the provider catalog and current grants from Hosting. It does
+not trust provider names, URLs, grant state, or availability from the post. A
+provider row either opens the normal authorization flow or toggles an already
+connected provider for the group; configuration is applied only when the owner
+submits it. The completion action is one-shot and remains disabled when a live
+`tlon-a2ui-selection` receipt exists for that surface and component.
 
 ## Read/write behavior
 

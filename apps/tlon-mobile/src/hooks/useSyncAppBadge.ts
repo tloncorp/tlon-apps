@@ -27,8 +27,7 @@ export function useSyncAppBadge() {
       UrbitModule.updateBadgeCount(count, baseUnread.notifTimestamp);
     } catch (e) {
       logger.trackError('Failed to sync OS badge count', {
-        error: e.toString(),
-        errorStack: e.stack,
+        error: e,
         count,
         updatedAt: baseUnread.updatedAt,
       });

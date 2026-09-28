@@ -1,0 +1,64 @@
+diff --git a/android/src/main/java/expo/modules/notifications/notifications/NotificationManager.kt b/android/src/main/java/expo/modules/notifications/notifications/NotificationManager.kt
+index 2e51957f7f60aee86b86c068fda34f1174d61185..bda6f2303f7b4b0d7f10391fcc49e032b3da7f03 100644
+--- a/android/src/main/java/expo/modules/notifications/notifications/NotificationManager.kt
++++ b/android/src/main/java/expo/modules/notifications/notifications/NotificationManager.kt
+@@ -36,13 +36,21 @@ object NotificationManager {
+     }
+     listeners.add(listener)
+     if (pendingNotificationResponses.isNotEmpty()) {
++      var handled = false
+       for (pendingResponse in pendingNotificationResponses) {
+-        listener.onNotificationResponseReceived(pendingResponse)
++        handled = listener.onNotificationResponseReceived(pendingResponse) || handled
++      }
++      if (handled) {
++        pendingNotificationResponses.clear()
+       }
+     }
+     if (pendingNotificationResponsesFromExtras.isNotEmpty()) {
++      var handled = false
+       for (extras in pendingNotificationResponsesFromExtras) {
+-        listener.onNotificationResponseIntentReceived(extras)
++        handled = listener.onNotificationResponseIntentReceived(extras) || handled
++      }
++      if (handled) {
++        pendingNotificationResponsesFromExtras.clear()
+       }
+     }
+   }
+diff --git a/android/src/main/java/expo/modules/notifications/notifications/emitting/NotificationsEmitter.kt b/android/src/main/java/expo/modules/notifications/notifications/emitting/NotificationsEmitter.kt
+index af020ccaa28c2ecefce5c5c7a4830cd4d953347d..3b904b122f2ff4499aec16716a790e76a1b83ca4 100644
+--- a/android/src/main/java/expo/modules/notifications/notifications/emitting/NotificationsEmitter.kt
++++ b/android/src/main/java/expo/modules/notifications/notifications/emitting/NotificationsEmitter.kt
+@@ -72,11 +72,12 @@ open class NotificationsEmitter : Module(), NotificationListener {
+     return true
+   }
+ 
+-  override fun onNotificationResponseIntentReceived(extras: Bundle) {
++  override fun onNotificationResponseIntentReceived(extras: Bundle): Boolean {
+     val bundle = NotificationSerializer.toResponseBundleFromExtras(extras)
+     DebugLogging.logBundle("NotificationsEmitter.onNotificationResponseIntentReceived", bundle)
+     lastNotificationResponseBundle = bundle
+     sendEvent(NEW_RESPONSE_EVENT_NAME, lastNotificationResponseBundle)
++    return true
+   }
+ 
+   /**
+diff --git a/android/src/main/java/expo/modules/notifications/notifications/interfaces/NotificationListener.kt b/android/src/main/java/expo/modules/notifications/notifications/interfaces/NotificationListener.kt
+index 10392b94027261af3e6827a09bddeea4492b2d0b..dbe9d8ee5a70fd8e424c3e7b7db8b9384de55041 100644
+--- a/android/src/main/java/expo/modules/notifications/notifications/interfaces/NotificationListener.kt
++++ b/android/src/main/java/expo/modules/notifications/notifications/interfaces/NotificationListener.kt
+@@ -18,8 +18,11 @@ interface NotificationListener {
+    */
+   fun onNotificationResponseReceived(response: NotificationResponse): Boolean = false
+ 
+-  /** Callback called when notification response is received through package lifecycle listeners. */
+-  fun onNotificationResponseIntentReceived(extras: Bundle) {}
++  /**
++   * Callback called when notification response is received through package lifecycle listeners.
++   * @return Whether the notification response has been handled
++   */
++  fun onNotificationResponseIntentReceived(extras: Bundle): Boolean = false
+ 
+   /** Callback called when some notifications are dropped. */
+   fun onNotificationsDropped() {}

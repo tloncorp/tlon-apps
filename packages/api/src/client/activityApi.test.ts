@@ -1,14 +1,15 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import type * as ub from '../urbit';
-import { subscribeToActivity } from './activityApi';
-import { subscribe } from './urbit';
+import { getThreadUnreadsByChannel, subscribeToActivity } from './activityApi';
+import { scry, subscribe } from './urbit';
 
 vi.mock('./urbit', async () => {
   const actual = await vi.importActual<typeof import('./urbit')>('./urbit');
 
   return {
     ...actual,
+    scry: vi.fn(),
     subscribe: vi.fn(),
   };
 });
@@ -38,7 +39,20 @@ function mockActivityAdd({
 }
 
 beforeEach(() => {
+  vi.mocked(scry).mockReset();
   vi.mocked(subscribe).mockReset();
+});
+
+test('does not request activity thread unreads for Buckets', async () => {
+  await expect(
+    getThreadUnreadsByChannel({
+      id: 'buckets/~zod/project-files',
+      type: 'buckets',
+      groupId: '~zod/test-group',
+    })
+  ).resolves.toBeNull();
+
+  expect(scry).not.toHaveBeenCalled();
 });
 
 describe('subscribeToActivity invite conversion', () => {

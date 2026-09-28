@@ -115,7 +115,7 @@ export const TlonAccountSchema = z.object({
   showModelSignature: z.boolean().optional(),
   // Auto-accept settings
   autoAcceptDmInvites: z.boolean().optional(), // Auto-accept DMs from ships in dmAllowlist
-  autoAcceptGroupInvites: z.boolean().optional(), // No longer governs group-invite authorization (groupInviteAllowlist does); retained for channel persistence and back-compat
+  autoAcceptGroupInvites: z.boolean().optional(), // No longer governs group-invite authorization or channel persistence; it has no remaining runtime effect and is only parsed, migrated, and logged. Retained for config back-compat pending retirement.
   // Owner ship for approval system
   ownerShip: ShipSchema.optional(), // Ship that receives approval requests and can approve/deny
   // Reaction level: off (no reactions), ack (notify only), minimal (react sparingly), extensive (react freely)
@@ -153,7 +153,7 @@ export const TlonConfigSchema = z.object({
   accounts: z.record(z.string(), TlonAccountSchema).optional(),
   // Auto-accept settings
   autoAcceptDmInvites: z.boolean().optional(), // Auto-accept DMs from ships in dmAllowlist
-  autoAcceptGroupInvites: z.boolean().optional(), // No longer governs group-invite authorization (groupInviteAllowlist does); retained for channel persistence and back-compat
+  autoAcceptGroupInvites: z.boolean().optional(), // No longer governs group-invite authorization or channel persistence; it has no remaining runtime effect and is only parsed, migrated, and logged. Retained for config back-compat pending retirement.
   // Owner ship for approval system
   ownerShip: ShipSchema.optional(), // Ship that receives approval requests and can approve/deny
   // Reaction level: off (no reactions), ack (notify only), minimal (react sparingly), extensive (react freely)
@@ -166,6 +166,9 @@ export const TlonConfigSchema = z.object({
   // Opt-in hosted-only re-engagement nudges; absent/false keeps the
   // scheduler off even when ownerShip is configured.
   reengagement: TlonReengagementSchema.optional(),
+  // Hosted BOOT.md catch-up, gated on authenticated connection readiness.
+  // The generic boot-md hook must be disabled when this is enabled.
+  restartCatchup: z.object({ enabled: z.boolean().optional() }).optional(),
   // Optional static file-config override for the plugin scheduler's
   // active hours. See TlonNudgeActiveHoursSchema for precedence.
   nudgeActiveHours: TlonNudgeActiveHoursSchema.optional(),

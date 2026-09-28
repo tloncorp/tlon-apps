@@ -27,6 +27,8 @@ export interface PostCollectionContextValue {
   onLoadNewerPosts?: () => void;
   onLoadOlderPosts?: () => void;
   posts?: db.Post[];
+  pendingThinkingLabel?: string;
+  suppressEmptyState?: boolean;
   scrollToBottom?: () => void;
   selectedPostId?: string | null;
   setEditingPost?: (post: db.Post | undefined) => void;

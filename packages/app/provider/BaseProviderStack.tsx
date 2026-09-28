@@ -33,7 +33,10 @@ export function BaseProviderStack({
 }: PropsWithChildren<BaseProviderStackProps>) {
   return (
     <GlobalProviderStack>
-      <UIProviderStack tamaguiState={tamaguiState}>
+      <UIProviderStack
+        tamaguiState={tamaguiState}
+        migrationsSucceeded={migrationState.success}
+      >
         <AppProviderStack migrationState={migrationState}>
           {children}
         </AppProviderStack>
@@ -65,12 +68,17 @@ function AppProviderStack({
  */
 function UIProviderStack({
   tamaguiState,
+  migrationsSucceeded,
   children,
 }: PropsWithChildren<{
   tamaguiState?: { defaultTheme?: string };
+  migrationsSucceeded: boolean;
 }>) {
   return (
-    <TamaguiProvider defaultTheme={tamaguiState?.defaultTheme ?? 'light'}>
+    <TamaguiProvider
+      defaultTheme={tamaguiState?.defaultTheme ?? 'light'}
+      migrationsSucceeded={migrationsSucceeded}
+    >
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <GestureHandlerRootView style={{ flex: 1 }}>
           <BottomSheetModalProvider>

@@ -6,20 +6,24 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import * as api from '@tloncorp/api';
-import { desig } from '@tloncorp/api/lib/urbit';
+import { desig, preSig } from '@tloncorp/api/lib/urbit';
 import * as db from '@tloncorp/shared/db';
-import { useCallback, useMemo } from 'react';
+import * as store from '@tloncorp/shared/store';
+import { useCallback, useEffect, useMemo } from 'react';
 
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
+import { mcpProviderQueryKeys } from '../../../lib/mcpProviders';
 import {
   BASIC_PROVIDER_ID,
   BASIC_PROVIDER_MODEL,
   EMPTY_PROVIDER_CONFIG,
   PROVIDER_OPTIONS,
   RETRY_INTERVAL_MS,
+  SUBSCRIPTION_PROVIDERS,
 } from './constants';
 import {
   ModelFormValues,
+  buildBotGroupMembershipResolver,
   getAvailableProviderIds,
   hasProviderCredential,
   normalizeMoonName,
@@ -28,11 +32,12 @@ import {
   toBackendModel,
 } from './helpers';
 import {
+  getLLMAuthDisconnectQueryKeys,
   getLLMAuthStatusRefetchInterval,
-  getOpenAIDisconnectQueryKeys,
-  getOpenAISubscriptionModels,
+  getLLMAuthSubscriptionModels,
   mergeProviderModels,
 } from './openAiSubscription';
+import { trackTlonbotSettingUpdated } from './botSettingsTelemetry';
 
 /**
  * Identifiers for the tlonbot hosting endpoints. User-level endpoints
@@ -101,15 +106,6 @@ export function useBotSettingsQueries() {
       botReady && query.state.data !== undefined ? false : RETRY_INTERVAL_MS,
   });
 
-  const avatarQuery = useQuery({
-    queryKey: ['tlonbot', 'avatar', ship],
-    queryFn: () => api.getTlawnAvatar(ship),
-    enabled: Boolean(ship) && isFocused,
-    retry: false,
-    refetchInterval: (query) =>
-      botReady && query.state.data !== undefined ? false : RETRY_INTERVAL_MS,
-  });
-
   const channelsQuery = useQuery({
     queryKey: ['tlonbot', 'channels', ship],
     queryFn: () => api.getTlawnChannels(ship),
@@ -140,7 +136,7 @@ export function useBotSettingsQueries() {
   });
 
   const oauthStatusQuery = useQuery({
-    queryKey: ['tlonbot', 'oauth-status', ship],
+    queryKey: mcpProviderQueryKeys.status(ship),
     queryFn: () => api.getTlawnOAuthStatus(ship),
     enabled: Boolean(ship) && isFocused,
     retry: false,
@@ -159,7 +155,7 @@ export function useBotSettingsQueries() {
   });
 
   const oauthProvidersQuery = useQuery({
-    queryKey: ['tlonbot', 'oauth-providers'],
+    queryKey: mcpProviderQueryKeys.providers,
     queryFn: () => api.getTlawnOAuthProviders(),
     retry: false,
     staleTime: 5 * 60 * 1000,
@@ -174,7 +170,6 @@ export function useBotSettingsQueries() {
     providerConfig: providerConfigQuery.data ?? EMPTY_PROVIDER_CONFIG,
     configQuery,
     nicknameQuery,
-    avatarQuery,
     channelsQuery,
     moonQuery,
     moon,
@@ -186,6 +181,96 @@ export function useBotSettingsQueries() {
 }
 
 export type BotSettingsQueries = ReturnType<typeof useBotSettingsQueries>;
+
+/**
+ * Whether the bot moon is in a given group, from the user's local copy of the
+ * group roster and the moon's own channel listing (see
+ * buildBotGroupMembershipResolver). Fetches the full roster of each group in
+ * `verifyGroupIds` (once per session) so a departure there can be confirmed.
+ * `refreshMembership` re-reads both sources, refetching the given group's full
+ * roster, for polling after a join.
+ */
+export function useBotGroupMembership(
+  queries: BotSettingsQueries,
+  verifyGroupIds: string[] = []
+) {
+  const currentUserId = preSig(useCurrentUserId());
+  const { moon } = queries;
+  const contactIds = useMemo(
+    () => (moon ? [currentUserId, moon] : []),
+    [currentUserId, moon]
+  );
+  const { data: seats } = store.useJoinedGroupSeats(contactIds);
+  const sessionStartTime = store.useCurrentSession()?.startTime;
+  const moonChannels = queries.moonChannelsQuery.data;
+  const refetchMoonChannels = queries.moonChannelsQuery.refetch;
+
+  const verifyKey = verifyGroupIds.join('\n');
+  useEffect(() => {
+    if (!verifyKey || sessionStartTime === undefined) return;
+    // Cancel queued fetches when the groups, session, or account change.
+    const controller = new AbortController();
+    verifyKey.split('\n').forEach((groupId) => {
+      // syncGroup skips groups already fetched this session.
+      store
+        .syncGroup(groupId, {
+          priority: store.SyncPriority.Low,
+          retry: true,
+          abortSignal: controller.signal,
+        })
+        .catch((error) => {
+          if (!controller.signal.aborted) {
+            console.error('bot settings: group sync failed', groupId, error);
+          }
+        });
+    });
+    return () => controller.abort();
+  }, [verifyKey, sessionStartTime]);
+
+  const getMembership = useMemo(
+    () =>
+      buildBotGroupMembershipResolver({
+        seats,
+        currentUserId,
+        moon,
+        moonChannels,
+        sessionStartTime,
+      }),
+    [seats, currentUserId, moon, moonChannels, sessionStartTime]
+  );
+
+  const refreshMembership = useCallback(
+    async (groupId: string) => {
+      // Without a moon, the listing's query would fetch the ship's own channels.
+      if (!moon) return getMembership;
+      const [{ data: freshMoonChannels }] = await Promise.all([
+        refetchMoonChannels(),
+        // A group already confirmed departed stays that way until its full
+        // roster shows the bot's seat, so don't wait on the live event alone.
+        store
+          .syncGroup(
+            groupId,
+            { priority: store.SyncPriority.High },
+            { force: true }
+          )
+          .catch((error) =>
+            console.error('bot settings: group sync failed', groupId, error)
+          ),
+      ]);
+      const freshSeats = await db.getJoinedGroupSeats({ contactIds });
+      return buildBotGroupMembershipResolver({
+        seats: freshSeats,
+        currentUserId,
+        moon,
+        moonChannels: freshMoonChannels,
+        sessionStartTime: store.getSession()?.startTime,
+      });
+    },
+    [refetchMoonChannels, contactIds, currentUserId, moon, getMembership]
+  );
+
+  return { getMembership, refreshMembership };
+}
 
 /**
  * Model lists for every provider the user has a credential for. The Basic
@@ -258,19 +343,48 @@ export function useAllProviderModels(
       loading[BASIC_PROVIDER_ID] = false;
       errors[BASIC_PROVIDER_ID] = null;
     }
-    if (providers.includes('openai')) {
-      models.openai = mergeProviderModels(
-        getOpenAISubscriptionModels(llmAuthStatus),
-        models.openai ?? []
+    SUBSCRIPTION_PROVIDERS.forEach((provider) => {
+      if (!providers.includes(provider)) return;
+      models[provider] = mergeProviderModels(
+        getLLMAuthSubscriptionModels(llmAuthStatus, provider),
+        models[provider] ?? []
       );
-      loading.openai = loading.openai ?? false;
-      errors.openai = errors.openai ?? null;
-    }
+      loading[provider] = loading[provider] ?? false;
+      errors[provider] = errors[provider] ?? null;
+    });
     return { providers, models, loading, errors };
   }, [providers, fetched, llmAuthStatus]);
 }
 
 export type AllProviderModels = ReturnType<typeof useAllProviderModels>;
+
+export function useOpenRouterModelMetadata(enabled: boolean) {
+  const { hostingUserId } = useBotSettingsIds();
+  const isFocused = useIsFocused();
+  const queryEnabled = Boolean(hostingUserId && enabled && isFocused);
+  const recommendedModelsQuery = useQuery({
+    queryKey: ['tlonbot', 'openrouter-recommended-models', hostingUserId],
+    queryFn: () => api.getTlawnOpenRouterRecommendedModels(hostingUserId),
+    enabled: queryEnabled,
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
+  const zdrEndpointsQuery = useQuery({
+    queryKey: ['tlonbot', 'openrouter-zdr-endpoints', hostingUserId],
+    queryFn: () => api.getTlawnOpenRouterZdrEndpoints(hostingUserId),
+    enabled: queryEnabled,
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+  });
+
+  return {
+    recommendedModelIds: recommendedModelsQuery.data ?? [],
+    zdrEndpoints: zdrEndpointsQuery.data ?? [],
+    loading: zdrEndpointsQuery.isLoading,
+    error: zdrEndpointsQuery.error,
+  };
+}
 
 export function useBotSettingsMutations() {
   const { ship, hostingUserId } = useBotSettingsIds();
@@ -304,6 +418,11 @@ export function useBotSettingsMutations() {
     onSuccess: (data, { provider }) => {
       setProviderConfig(data);
       invalidateProviderModels(provider);
+      trackTlonbotSettingUpdated({
+        setting: 'api_key',
+        action: 'saved',
+        provider,
+      });
     },
   });
 
@@ -313,23 +432,39 @@ export function useBotSettingsMutations() {
     onSuccess: (data, { provider }) => {
       setProviderConfig(data);
       invalidateProviderModels(provider);
+      trackTlonbotSettingUpdated({
+        setting: 'api_key',
+        action: 'removed',
+        provider,
+      });
     },
   });
 
-  const disconnectOpenAISubscription = useMutation({
-    mutationFn: () => api.disconnectTlawnLLMAuth(ship, 'openai'),
-    onSuccess: () =>
-      Promise.all(
-        getOpenAIDisconnectQueryKeys(ship, hostingUserId).map((queryKey) =>
-          queryClient.invalidateQueries({ queryKey })
+  const disconnectLLMSubscription = useMutation({
+    mutationFn: (provider: api.TlawnLLMAuthProvider) =>
+      api.disconnectTlawnLLMAuth(ship, provider),
+    onSuccess: (_data, provider) => {
+      trackTlonbotSettingUpdated({
+        setting: 'subscription',
+        action: 'disconnected',
+        provider,
+      });
+      return Promise.all(
+        getLLMAuthDisconnectQueryKeys(ship, hostingUserId, provider).map(
+          (queryKey) => queryClient.invalidateQueries({ queryKey })
         )
-      ),
+      );
+    },
   });
 
   const updateNickname = useMutation({
     mutationFn: (nickname: string) => api.setTlawnNickname(ship, nickname),
     onSuccess: (data) => {
       queryClient.setQueryData(['tlonbot', 'nickname', ship], data);
+      trackTlonbotSettingUpdated({
+        setting: 'nickname',
+        action: 'updated',
+      });
     },
   });
 
@@ -357,6 +492,7 @@ export function useBotSettingsMutations() {
       // empty/stale model.
       return api.setTlawnPrimaryModel(hostingUserId, {
         ...toBackendModel(update.provider, update.model),
+        zdr: update.zdr || undefined,
         fallbacks: update.fallbacks
           .filter(
             (fallback) =>
@@ -376,7 +512,7 @@ export function useBotSettingsMutations() {
     setProviderConfig,
     saveProviderKey,
     deleteProviderKey,
-    disconnectOpenAISubscription,
+    disconnectLLMSubscription,
     updateNickname,
     savePrimaryModel,
   };

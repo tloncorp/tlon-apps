@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { buildPendingApprovalsResponse } from './monitor/approval.js';
 import {
   APPROVAL_TTL_MS,
   DM_INVITE_PREVIEW,
   applySettingsUpdate,
   createSettingsManager,
   parseSettingsResponse,
+  type TlonSettingsStore,
 } from './settings.js';
 
 describe('Settings: parseSettingsResponse', () => {
@@ -170,12 +172,14 @@ describe('Settings: parseSettingsResponse', () => {
               id: 'expired',
               type: 'channel',
               requestingShip: '~old',
+              channelNest: 'chat/~host/general',
               timestamp: now - APPROVAL_TTL_MS - 1,
             },
             {
               id: 'fresh',
               type: 'channel',
               requestingShip: '~new',
+              channelNest: 'chat/~host/general',
               timestamp: now,
               originalMessage: {
                 messageId: '170.000',
@@ -202,6 +206,7 @@ describe('Settings: parseSettingsResponse', () => {
               id: 'stale-channel',
               type: 'channel',
               requestingShip: '~old',
+              channelNest: 'chat/~host/general',
               timestamp: now,
             },
             {
@@ -215,6 +220,7 @@ describe('Settings: parseSettingsResponse', () => {
               id: 'fresh-channel',
               type: 'channel',
               requestingShip: '~new',
+              channelNest: 'chat/~host/general',
               timestamp: now,
               originalMessage: {
                 messageId: '170.000',
@@ -231,6 +237,137 @@ describe('Settings: parseSettingsResponse', () => {
         'dm-invite',
         'fresh-channel',
       ]);
+    });
+
+    it('round-trips delivery/cooldown fields without stripping them', () => {
+      const result = parseSettingsResponse({
+        tlon: {
+          pendingApprovals: JSON.stringify([
+            {
+              id: 'g1234',
+              type: 'group',
+              requestingShip: '~inviter',
+              groupFlag: '~host/group',
+              timestamp: Date.now(),
+              notificationMessageId: '170141184507',
+              notifyAttemptAt: 2_000,
+            },
+          ]),
+        },
+      });
+
+      expect(result.pendingApprovals?.[0]).toMatchObject({
+        notificationMessageId: '170141184507',
+        notifyAttemptAt: 2_000,
+      });
+    });
+
+    it("round-trips the other runtime's delivery fields", () => {
+      const result = parseSettingsResponse({
+        tlon: {
+          pendingApprovals: JSON.stringify([
+            {
+              id: 'g1234',
+              type: 'group',
+              requestingShip: '~inviter',
+              groupFlag: '~host/group',
+              timestamp: Date.now(),
+              // hermes-private stamps: this runtime never reads them but must
+              // not strip them, or a shared record loses its retry state.
+              notificationDeliveredAt: 1_700_000_000_000,
+              lastNotifiedAt: 1_700_000_000_000,
+            },
+          ]),
+        },
+      });
+
+      expect(result.pendingApprovals?.[0]).toMatchObject({
+        notificationDeliveredAt: 1_700_000_000_000,
+        lastNotifiedAt: 1_700_000_000_000,
+      });
+    });
+
+    it.each([
+      { type: 'group' as const, locator: 'groupFlag' },
+      { type: 'channel' as const, locator: 'channelNest' },
+    ])(
+      'drops a $type record whose $locator is missing or mistyped',
+      ({ type, locator }) => {
+        const base = {
+          id: 'x1234',
+          type,
+          requestingShip: '~inviter',
+          timestamp: Date.now(),
+          originalMessage: {
+            messageId: '170.000',
+            messageText: 'hi',
+            timestamp: Date.now(),
+          },
+        };
+
+        for (const bad of [undefined, 7, '', null, ['~host/group']]) {
+          const result = parseSettingsResponse({
+            tlon: {
+              pendingApprovals: JSON.stringify([{ ...base, [locator]: bad }]),
+            },
+          });
+          // Execution gates on a truthy locator and removes the record either
+          // way, so a locator-less record would report success while the
+          // approval never happened.
+          expect(result.pendingApprovals).toEqual([]);
+        }
+      }
+    );
+
+    it.each([
+      { field: 'groupTitle', bad: 7 },
+      { field: 'messagePreview', bad: { text: 'hi' } },
+      { field: 'notificationMessageId', bad: 170141184507 },
+      { field: 'notifyAttemptAt', bad: '2000' },
+    ])('drops only a mistyped $field, keeping the record', ({ field, bad }) => {
+      const result = parseSettingsResponse({
+        tlon: {
+          pendingApprovals: JSON.stringify([
+            {
+              id: 'g1234',
+              type: 'group',
+              requestingShip: '~inviter',
+              groupFlag: '~host/group',
+              timestamp: Date.now(),
+              [field]: bad,
+            },
+          ]),
+        },
+      });
+
+      expect(result.pendingApprovals).toHaveLength(1);
+      expect(result.pendingApprovals?.[0]).not.toHaveProperty(field);
+      expect(result.pendingApprovals?.[0]?.id).toBe('g1234');
+    });
+
+    it('renders a sanitized record in /pending without throwing', () => {
+      const result = parseSettingsResponse({
+        tlon: {
+          pendingApprovals: JSON.stringify([
+            {
+              id: 'g1234',
+              type: 'group',
+              requestingShip: '~inviter',
+              groupFlag: '~host/group',
+              groupTitle: 7,
+              timestamp: Date.now(),
+            },
+          ]),
+        },
+      });
+
+      // truncate() would throw a TypeError on a numeric title.
+      const response = buildPendingApprovalsResponse(
+        result.pendingApprovals ?? [],
+        undefined,
+        () => undefined
+      );
+      expect(response.text).toContain('~host/group');
     });
   });
 });
@@ -541,5 +678,195 @@ describe('Settings: createSettingsManager.load', () => {
 
     expect(log).not.toHaveBeenCalled();
     expect(manager.current).toEqual({ ownerShip: '~zod' });
+  });
+});
+
+describe('Settings: createSettingsManager.onChange changedKey', () => {
+  it('passes the key each subscription event changed', async () => {
+    let emit!: (event: unknown) => void;
+    const manager = createSettingsManager({
+      scry: async () => ({}),
+      subscribe: async (params: { event: (event: unknown) => void }) => {
+        emit = params.event;
+      },
+    } as never);
+    const listener = vi.fn();
+    manager.onChange(listener);
+    await manager.startSubscription();
+
+    emit({
+      'put-entry': {
+        desk: 'moltbot',
+        'bucket-key': 'tlon',
+        'entry-key': 'groupChannels',
+        value: ['chat/~zod/a'],
+      },
+    });
+    emit({
+      'del-entry': {
+        desk: 'moltbot',
+        'bucket-key': 'tlon',
+        'entry-key': 'groupChannels',
+      },
+    });
+    expect(listener).toHaveBeenNthCalledWith(
+      1,
+      { groupChannels: ['chat/~zod/a'] },
+      'groupChannels'
+    );
+    expect(listener).toHaveBeenNthCalledWith(2, {}, 'groupChannels');
+  });
+});
+
+describe('Settings: createSettingsManager.startSubscription onGap', () => {
+  it('reports a subscription error and a quit as gaps', async () => {
+    let handlers:
+      | { err: (error: unknown) => void; quit: () => void }
+      | undefined;
+    const manager = createSettingsManager({
+      scry: async () => ({}),
+      subscribe: async (params: {
+        err: (error: unknown) => void;
+        quit: () => void;
+      }) => {
+        handlers = params;
+      },
+    } as never);
+    const onGap = vi.fn();
+    await manager.startSubscription({ onGap });
+    expect(onGap).not.toHaveBeenCalled();
+
+    handlers?.err(new Error('stream broke'));
+    expect(onGap).toHaveBeenCalledTimes(1);
+    expect(onGap).toHaveBeenNthCalledWith(1, 'err');
+    handlers?.quit();
+    expect(onGap).toHaveBeenCalledTimes(2);
+    expect(onGap).toHaveBeenNthCalledWith(2, 'quit');
+  });
+});
+
+describe('Settings: createSettingsManager.applyLocal', () => {
+  it('updates the snapshot without notifying listeners', () => {
+    const manager = createSettingsManager({ scry: async () => ({}) } as never);
+    const listener = vi.fn();
+    manager.onChange(listener);
+
+    expect(manager.applyLocal('groupChannels', ['chat/~zod/general'])).toEqual({
+      groupChannels: ['chat/~zod/general'],
+    });
+    expect(manager.current).toEqual({
+      groupChannels: ['chat/~zod/general'],
+    });
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('normalizes the value exactly like a subscription event would', () => {
+    const manager = createSettingsManager({ scry: async () => ({}) } as never);
+
+    manager.applyLocal('groupChannels', ['chat/~zod/general', 7]);
+
+    expect(manager.current).toEqual({
+      groupChannels: ['chat/~zod/general'],
+    });
+  });
+
+  it('installs what reconcile returns, never the raw scry result', async () => {
+    // A refresh scry that an echo overtook carries an older value; the
+    // monitor's reconcile hook substitutes the observed value before the
+    // manager installs it, so no subscription event can build on the stale
+    // baseline.
+    let emit: ((event: unknown) => void) | undefined;
+    const manager = createSettingsManager({
+      scry: async () => ({
+        all: { moltbot: { tlon: { groupChannels: [], ownerShip: '~zod' } } },
+      }),
+      subscribe: async (params: { event: (event: unknown) => void }) => {
+        emit = params.event;
+      },
+    } as never);
+    await manager.startSubscription();
+    const listener = vi.fn();
+    manager.onChange(listener);
+
+    const reconcile = vi.fn((settings: TlonSettingsStore) =>
+      applySettingsUpdate(settings, 'groupChannels', ['chat/~zod/a'])
+    );
+    const result = await manager.load({ logSnapshot: false, reconcile });
+
+    expect(reconcile).toHaveBeenCalledWith({
+      groupChannels: [],
+      ownerShip: '~zod',
+    });
+    expect(result).toEqual({
+      settings: { groupChannels: ['chat/~zod/a'], ownerShip: '~zod' },
+      fresh: true,
+    });
+    expect(manager.current.groupChannels).toEqual(['chat/~zod/a']);
+
+    emit?.({
+      'put-entry': {
+        desk: 'moltbot',
+        'bucket-key': 'tlon',
+        'entry-key': 'showModelSig',
+        value: true,
+      },
+    });
+    expect(listener).toHaveBeenCalledWith(
+      {
+        groupChannels: ['chat/~zod/a'],
+        ownerShip: '~zod',
+        showModelSig: true,
+      },
+      'showModelSig'
+    );
+  });
+
+  it('does not call reconcile when the scry fails', async () => {
+    const manager = createSettingsManager({
+      scry: async () => {
+        throw new Error('settings unavailable');
+      },
+    } as never);
+    const reconcile = vi.fn((settings: TlonSettingsStore) => settings);
+
+    const result = await manager.load({ logSnapshot: false, reconcile });
+
+    expect(result.fresh).toBe(false);
+    expect(reconcile).not.toHaveBeenCalled();
+  });
+
+  it('is the baseline a later subscription event builds on', async () => {
+    // The migration poke is invisible locally: the subscription starts after
+    // it and does not replay. Without the local apply, the first unrelated
+    // fact would present a snapshot that lost the migrated key.
+    let emit: ((event: unknown) => void) | undefined;
+    const manager = createSettingsManager({
+      scry: async () => ({}),
+      subscribe: async (params: { event: (event: unknown) => void }) => {
+        emit = params.event;
+      },
+    } as never);
+    const listener = vi.fn();
+    manager.onChange(listener);
+    await manager.startSubscription();
+
+    manager.applyLocal('groupChannels', ['chat/~zod/general']);
+    emit?.({
+      'put-entry': {
+        desk: 'moltbot',
+        'bucket-key': 'tlon',
+        'entry-key': 'ownerShip',
+        value: '~zod',
+      },
+    });
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledWith(
+      {
+        groupChannels: ['chat/~zod/general'],
+        ownerShip: '~zod',
+      },
+      'ownerShip'
+    );
   });
 });

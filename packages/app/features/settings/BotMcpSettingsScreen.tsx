@@ -11,6 +11,7 @@ import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
 import { RootStackParamList } from '../../navigation/types';
 import { BotSettingsScreenView } from '../../ui';
+import { mcpProviderQueryKeys } from '../../lib/mcpProviders';
 import {
   GENERIC_ERROR_MESSAGE,
   MCP_TELEMETRY_EVENTS,
@@ -21,6 +22,8 @@ import {
   trackMcpError,
   trackMcpEvent,
 } from './botMcpSettingsHelpers';
+import { trackTlonbotSettingUpdated } from './bot/botSettingsTelemetry';
+import { openOAuthUrl } from './openOAuthUrl';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BotMcpSettings'>;
 
@@ -48,6 +51,7 @@ export function BotMcpSettingsScreen(props: Props) {
     string | null
   >(null);
   const handledCompletionUrls = useRef(new Set<string>());
+  const requestedProviders = useRef(new Set<string>());
   const isMounted = useRef(true);
 
   const refreshStatus = useCallback(async () => {
@@ -66,6 +70,17 @@ export function BotMcpSettingsScreen(props: Props) {
         api.getTlawnOAuthProviders(),
         api.getTlawnOAuthStatus(currentUserId),
       ]);
+      // This screen owns mutations to connector grants. Publish its
+      // authoritative refresh into the shared cache so mounted chat controls
+      // reflect changes made here when the user navigates back.
+      db.queryClient.setQueryData(
+        mcpProviderQueryKeys.providers,
+        nextProviders
+      );
+      db.queryClient.setQueryData(
+        mcpProviderQueryKeys.status(currentUserId),
+        nextStatus
+      );
       if (isMounted.current) {
         setProviderConfigs(nextProviders);
         setStatus(nextStatus);
@@ -148,6 +163,11 @@ export function BotMcpSettingsScreen(props: Props) {
         trackMcpEvent(MCP_TELEMETRY_EVENTS.connected, {
           providerId: completion.providerId,
         });
+        trackTlonbotSettingUpdated({
+          setting: 'connected_service',
+          action: 'connected',
+          provider: completion.providerId ?? undefined,
+        });
         triggerHaptic('success');
       }
       showMcpToast({
@@ -208,11 +228,23 @@ export function BotMcpSettingsScreen(props: Props) {
       setStartingProviderId(providerId);
       trackMcpEvent(MCP_TELEMETRY_EVENTS.initiatedOAuth, { providerId });
       try {
+        const finalRedirectUrl = getFinalRedirectUrl();
         const response = await api.startTlawnOAuth(currentUserId, {
           providerId,
-          finalRedirectUrl: getFinalRedirectUrl(),
+          finalRedirectUrl,
         });
-        await Linking.openURL(response.authUrl);
+        const openResult = await openOAuthUrl(
+          response.authUrl,
+          finalRedirectUrl
+        );
+        if (openResult.type === 'completed') {
+          handleOAuthCompletion(openResult.url);
+        } else if (openResult.type === 'canceled') {
+          setStartingProviderId(null);
+          showMcpToast({
+            message: 'Connection canceled. You can try again.',
+          });
+        }
       } catch (err) {
         trackMcpError('Failed to start OAuth flow', {
           action: 'startOAuth',
@@ -223,8 +255,45 @@ export function BotMcpSettingsScreen(props: Props) {
         showMcpToast({ message: GENERIC_ERROR_MESSAGE });
       }
     },
-    [currentUserId, disconnectingProviderId, showMcpToast, startingProviderId]
+    [
+      currentUserId,
+      disconnectingProviderId,
+      handleOAuthCompletion,
+      showMcpToast,
+      startingProviderId,
+    ]
   );
+
+  useEffect(() => {
+    const providerId = props.route.params?.providerId;
+    if (!providerId || initialLoading || !status) {
+      return;
+    }
+
+    const provider = providers.find((candidate) => candidate.id === providerId);
+    if (
+      !provider ||
+      !status.available ||
+      provider.status === 'connected' ||
+      requestedProviders.current.has(providerId)
+    ) {
+      props.navigation.setParams({ providerId: undefined });
+      return;
+    }
+
+    requestedProviders.current.add(providerId);
+    props.navigation.setParams({ providerId: undefined });
+    void handleConnectProvider(providerId).finally(() => {
+      requestedProviders.current.delete(providerId);
+    });
+  }, [
+    handleConnectProvider,
+    initialLoading,
+    props.navigation,
+    props.route.params?.providerId,
+    providers,
+    status,
+  ]);
 
   const handleDisconnectProvider = useCallback(
     async (providerId: string) => {
@@ -236,6 +305,11 @@ export function BotMcpSettingsScreen(props: Props) {
       try {
         await api.deleteTlawnOAuthGrant(currentUserId, providerId);
         trackMcpEvent(MCP_TELEMETRY_EVENTS.disconnected, { providerId });
+        trackTlonbotSettingUpdated({
+          setting: 'connected_service',
+          action: 'disconnected',
+          provider: providerId,
+        });
         triggerHaptic('success');
         showMcpToast({ message: 'Connection disconnected.' });
         await refreshStatus();

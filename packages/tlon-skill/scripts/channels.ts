@@ -477,7 +477,7 @@ async function addReaders(groupFlag: string, nest: string, roles: string[]) {
   );
   await poke({
     app: 'groups',
-    mark: 'group-action-4',
+    mark: 'group-action-5',
     json: {
       group: {
         flag: groupFlag,
@@ -502,7 +502,7 @@ async function removeReaders(groupFlag: string, nest: string, roles: string[]) {
   );
   await poke({
     app: 'groups',
-    mark: 'group-action-4',
+    mark: 'group-action-5',
     json: {
       group: {
         flag: groupFlag,

@@ -1,6 +1,6 @@
 import type * as db from '../types/models';
 import * as ub from '../urbit';
-import { poke, scry, subscribe } from './urbit';
+import { base, pokeRequest, scryRequest, subscribeRequest } from './requests';
 
 const PENDING_MEMBER_DISMISSAL_PREFIX = 'pendingMemberDismissal:';
 export function getPendingMemberDismissalKey(groupId: string) {
@@ -10,6 +10,93 @@ export function getPendingMemberDismissalKey(groupId: string) {
 const DISMISSED_PINNED_POST_BANNER_PREFIX = 'dismissedPinnedPostBanner:';
 export function getDismissedPinnedPostBannerKey(postId: string) {
   return `${DISMISSED_PINNED_POST_BANNER_PREFIX}${postId}`;
+}
+
+export type BotReplyFeedbackRating = 'up' | 'down';
+
+export type BotReplyFeedbackEntry = {
+  feedbackId: string;
+  revision: number;
+  rating: BotReplyFeedbackRating | null;
+  categories: string[];
+  submittedAt: number;
+};
+
+export type BotReplyFeedbackSetting = BotReplyFeedbackEntry & {
+  messageId: string;
+};
+
+const BOT_REPLY_FEEDBACK_BUCKET = 'botReplyFeedback';
+
+function parseBotReplyFeedbackValue(
+  value: unknown
+): BotReplyFeedbackEntry | null {
+  try {
+    const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+    if (!parsed || typeof parsed !== 'object') return null;
+    const candidate = parsed as Record<string, unknown>;
+    if (
+      typeof candidate.feedbackId !== 'string' ||
+      typeof candidate.revision !== 'number' ||
+      !Number.isInteger(candidate.revision) ||
+      candidate.revision < 1 ||
+      (candidate.rating !== null &&
+        candidate.rating !== 'up' &&
+        candidate.rating !== 'down') ||
+      !Array.isArray(candidate.categories) ||
+      !candidate.categories.every((category) => typeof category === 'string') ||
+      typeof candidate.submittedAt !== 'number'
+    ) {
+      return null;
+    }
+    return {
+      feedbackId: candidate.feedbackId,
+      revision: candidate.revision,
+      rating: candidate.rating,
+      categories: candidate.categories,
+      submittedAt: candidate.submittedAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function parseBotReplyFeedback(
+  settings: ub.GroupsDeskSettings
+): BotReplyFeedbackSetting[] {
+  return Object.entries(settings.desk.botReplyFeedback ?? {}).flatMap(
+    ([messageId, value]) => {
+      const entry = parseBotReplyFeedbackValue(value);
+      return entry ? [{ messageId, ...entry }] : [];
+    }
+  );
+}
+
+export async function getBotReplyFeedback(
+  messageId: string
+): Promise<BotReplyFeedbackEntry | null> {
+  const settings = await scryRequest(base.settingsDesk)<ub.GroupsDeskSettings>({
+    desk: 'groups',
+  });
+  return parseBotReplyFeedbackValue(
+    settings.desk.botReplyFeedback?.[messageId]
+  );
+}
+
+export async function setBotReplyFeedback(
+  messageId: string,
+  entry: BotReplyFeedbackEntry
+) {
+  return pokeRequest(base.settingsEvent)({
+    'put-entry': {
+      desk: 'groups',
+      'bucket-key': BOT_REPLY_FEEDBACK_BUCKET,
+      'entry-key': messageId,
+      // The settings wire type supports scalar values, so encode the
+      // structured entry as JSON within this dedicated bucket.
+      value: JSON.stringify(entry),
+    },
+  });
 }
 
 export function getMessagesFilter(
@@ -58,6 +145,7 @@ function getBucket(key: string): string {
     case 'showUnreadCounts':
       return 'calmEngine';
     case 'theme':
+    case 'showDeleteMarkers':
       return 'display';
     default:
       console.warn(
@@ -68,16 +156,12 @@ function getBucket(key: string): string {
 }
 
 export const setSetting = async (key: string, val: any) => {
-  return poke({
-    app: 'settings',
-    mark: 'settings-event',
-    json: {
-      'put-entry': {
-        desk: 'groups',
-        'bucket-key': getBucket(key),
-        'entry-key': key,
-        value: val,
-      },
+  return pokeRequest(base.settingsEvent)({
+    'put-entry': {
+      desk: 'groups',
+      'bucket-key': getBucket(key),
+      'entry-key': key,
+      value: val,
     },
   });
 };
@@ -86,21 +170,23 @@ export const getSettings = async (): Promise<{
   settings: db.Settings;
   pendingMemberDismissals: db.PendingMemberDismissals;
   dismissedPinnedPostBannerIds: string[];
+  botReplyFeedback: BotReplyFeedbackSetting[];
 }> => {
-  const results = await scry<ub.GroupsDeskSettings>({
-    app: 'settings',
-    path: '/desk/groups',
+  const results = await scryRequest(base.settingsDesk)<ub.GroupsDeskSettings>({
+    desk: 'groups',
   });
 
   const settings = toClientSettings(results);
   const pendingMemberDismissals = parsePendingMemberDismissals(results);
   const dismissedPinnedPostBannerIds =
     parseDismissedPinnedPostBannerIds(results);
+  const botReplyFeedback = parseBotReplyFeedback(results);
 
   return {
     settings,
     pendingMemberDismissals,
     dismissedPinnedPostBannerIds,
+    botReplyFeedback,
   };
 };
 
@@ -111,9 +197,8 @@ export const getSettings = async (): Promise<{
 export const getContextLensEnabledRaw = async (): Promise<
   boolean | undefined
 > => {
-  const results = await scry<ub.GroupsDeskSettings>({
-    app: 'settings',
-    path: '/desk/groups',
+  const results = await scryRequest(base.settingsDesk)<ub.GroupsDeskSettings>({
+    desk: 'groups',
   });
   return results.desk.groups?.contextLensEnabled;
 };
@@ -175,6 +260,7 @@ export const toClientSettings = (
     // default; getContextLensEnabledRaw exists for callers that need the
     // uncached backend value.
     contextLensEnabled: settings.desk.groups?.contextLensEnabled,
+    showDeleteMarkers: settings.desk.display?.showDeleteMarkers ?? false,
   };
 };
 
@@ -285,25 +371,39 @@ export interface Pikes {
   [desk: string]: Pike;
 }
 
-export async function getAppInfo(): Promise<db.AppInfo> {
-  const pikes = await scry<Pikes>({
-    app: 'hood',
-    path: '/kiln/pikes',
-  });
-  const charges = (
-    await scry<ChargeUpdateInitial>({
-      app: 'docket',
-      path: '/charges',
-    })
-  ).initial;
+// Ceiling for the pike scry. Short on purpose: it only carries the hash and
+// sync node shown on the App Info screen, and startup can't afford to wait on
+// it for the version it does need.
+const DIAGNOSTICS_TIMEOUT = 3 * 1000;
 
-  const groupsPike = pikes?.['groups'] ?? {};
+export async function getAppInfo({
+  timeout,
+}: { timeout?: number } = {}): Promise<db.AppInfo> {
+  // Parallel rather than sequential: startup gates on this, so the two scries
+  // should cost one round trip, not two.
+  const [pikes, charges] = await Promise.all([
+    // The pike is diagnostics only. Losing it must not throw away the version
+    // from the charge, which is the answer the startup gate is waiting for —
+    // and it has to give up well inside the gate's own deadline, or a hung
+    // pike would hold this Promise.all past it and lose the version anyway.
+    scryRequest(base.kilnPikes)<Pikes>(
+      {},
+      {
+        timeout: Math.min(timeout ?? DIAGNOSTICS_TIMEOUT, DIAGNOSTICS_TIMEOUT),
+      }
+    ).catch(() => null),
+    scryRequest(base.charges)<ChargeUpdateInitial>({}, { timeout }).then(
+      (update) => update?.initial
+    ),
+  ]);
+
+  const groupsPike = pikes?.['groups'];
   const groupsCharge = charges?.['groups'] ?? {};
 
   return {
     groupsVersion: groupsCharge.version ?? 'n/a',
-    groupsHash: groupsPike.hash ?? 'n/a',
-    groupsSyncNode: groupsPike.sync?.ship ?? 'n/a',
+    groupsHash: groupsPike?.hash ?? 'n/a',
+    groupsSyncNode: groupsPike?.sync?.ship ?? 'n/a',
   };
 }
 
@@ -316,14 +416,16 @@ export type SettingsUpdate =
       type: 'dismissPinnedPostBanner';
       postId: string;
       dismissed: boolean;
+    }
+  | {
+      type: 'botReplyFeedback';
+      messageId: string;
+      entry: BotReplyFeedbackEntry | null;
     };
 
 export function subscribeToSettings(handler: (update: SettingsUpdate) => void) {
-  subscribe<ub.SettingsEvent>(
-    {
-      app: 'settings',
-      path: '/desk/groups',
-    },
+  subscribeRequest(base.settingsDeskUpdates)<ub.SettingsEvent>(
+    { desk: 'groups' },
     (update) => {
       if (!('settings-event' in update)) {
         return;
@@ -333,6 +435,15 @@ export function subscribeToSettings(handler: (update: SettingsUpdate) => void) {
       if ('put-entry' in event) {
         const update = event['put-entry'];
         const entryKey = update['entry-key'];
+
+        if (update['bucket-key'] === BOT_REPLY_FEEDBACK_BUCKET) {
+          handler({
+            type: 'botReplyFeedback',
+            messageId: entryKey,
+            entry: parseBotReplyFeedbackValue(update.value),
+          });
+          return;
+        }
 
         if (entryKey.startsWith(DISMISSED_PINNED_POST_BANNER_PREFIX)) {
           const postId = entryKey.slice(
@@ -355,6 +466,17 @@ export function subscribeToSettings(handler: (update: SettingsUpdate) => void) {
             [entryKey]: update.value,
           },
         });
+      }
+
+      if ('del-entry' in event) {
+        const update = event['del-entry'];
+        if (update['bucket-key'] === BOT_REPLY_FEEDBACK_BUCKET) {
+          handler({
+            type: 'botReplyFeedback',
+            messageId: update['entry-key'],
+            entry: null,
+          });
+        }
       }
     }
   );

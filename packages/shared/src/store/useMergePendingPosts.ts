@@ -35,8 +35,10 @@ export const mergePendingPosts = ({
     return keys;
   };
   const deletedPostKeys = new Set<string>();
+  const deletedPostIds = new Set<string>();
   [...newPosts, ...pendingPosts, ...existingPosts].forEach((post) => {
     if (post.isDeleted || deletedPosts[post.id]) {
+      deletedPostIds.add(post.id);
       postMergeKeys(post).forEach((key) => deletedPostKeys.add(key));
     }
   });
@@ -44,6 +46,7 @@ export const mergePendingPosts = ({
     return (
       post.isDeleted ||
       deletedPosts[post.id] ||
+      deletedPostIds.has(post.id) ||
       postMergeKeys(post).some((key) => deletedPostKeys.has(key))
     );
   };
@@ -100,8 +103,15 @@ export const mergePendingPosts = ({
   const lowerPaginationBound = existingPosts[existingPosts.length - 1].sentAt;
   const upperPaginationBound = hasNewest ? Infinity : existingPosts[0].sentAt;
 
+  // A server-backed post carries the same id on both sides, so identity beats
+  // the `sentAt` proxy: `toPostData`'s tombstone branch reports the
+  // host-assigned id time rather than `essay.sent`, so the same post arrives
+  // here with two different `sentAt` values and would otherwise be woven in
+  // twice under one key.
+  const existingPostIds = new Set(existingPosts.map((p) => p.id));
   const filteredNewPosts = newAndPendingPosts.filter((p) => {
     return (
+      !existingPostIds.has(p.id) &&
       p.sentAt > lowerPaginationBound &&
       p.sentAt < upperPaginationBound &&
       !existingPosts.some((existing) => existing.sentAt === p.sentAt)

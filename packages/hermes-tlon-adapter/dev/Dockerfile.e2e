@@ -21,7 +21,9 @@ RUN apt-get update \
 
 RUN npm install -g pnpm@11.9.0
 
-RUN curl -fsSL https://bun.sh/install | bash
+# Pinned to the version the tlon-skill release build uses, so the CLI the
+# e2e suite compiles from source behaves like the published binaries.
+RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14"
 
 RUN git clone --depth 1 --branch "$HERMES_AGENT_REF" "$HERMES_AGENT_REPO" "$HERMES_AGENT_DIR" \
   || (rm -rf "$HERMES_AGENT_DIR" \

@@ -77,6 +77,7 @@ export const SetNotificationsScreen = ({ navigation }: Props) => {
       />
       <View
         flex={1}
+        width="100%"
         paddingHorizontal="$2xl"
         maxWidth={600}
         marginHorizontal="auto"

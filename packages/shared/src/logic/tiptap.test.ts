@@ -1,7 +1,8 @@
 import { Block, Inline, JSONContent } from '@tloncorp/api/urbit';
+import { Story } from '@tloncorp/api/urbit/channel';
 import { describe, expect, test } from 'vitest';
 
-import { JSONToInlines } from './tiptap';
+import { JSONToInlines, diaryMixedToJSON } from './tiptap';
 
 test('tiptap: test mixed text, inline code and code block with langs', () => {
   const json: JSONContent = {
@@ -222,5 +223,56 @@ describe('JSONToInlines - links with marks', () => {
       },
       { break: null },
     ]);
+  });
+});
+
+describe('diaryMixedToJSON - code blocks', () => {
+  test('emits a code block as a sibling of paragraphs, not nested in one', () => {
+    const story: Story = [{ inline: [{ code: 'const x = 42;' }] }];
+
+    expect(diaryMixedToJSON(story)).toEqual({
+      type: 'doc',
+      content: [
+        {
+          type: 'codeBlock',
+          content: [{ type: 'text', text: 'const x = 42;' }],
+        },
+      ],
+    });
+  });
+
+  test('keeps surrounding inline text in order around a code block', () => {
+    const story: Story = [
+      { inline: ['before', { code: 'const x = 42;' }, 'after'] },
+    ];
+
+    expect(diaryMixedToJSON(story)).toEqual({
+      type: 'doc',
+      content: [
+        { type: 'paragraph', content: [{ type: 'text', text: 'before' }] },
+        {
+          type: 'codeBlock',
+          content: [{ type: 'text', text: 'const x = 42;' }],
+        },
+        { type: 'paragraph', content: [{ type: 'text', text: 'after' }] },
+      ],
+    });
+  });
+
+  test('keeps inline text ahead of a blockquote in order', () => {
+    const story: Story = [{ inline: ['before', { blockquote: ['quoted'] }] }];
+
+    expect(diaryMixedToJSON(story)).toEqual({
+      type: 'doc',
+      content: [
+        { type: 'paragraph', content: [{ type: 'text', text: 'before' }] },
+        {
+          type: 'blockquote',
+          content: [
+            { type: 'paragraph', content: [{ type: 'text', text: 'quoted' }] },
+          ],
+        },
+      ],
+    });
   });
 });

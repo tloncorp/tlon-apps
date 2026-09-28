@@ -3,6 +3,88 @@ import { describe, expect, it } from 'vitest';
 import { hasMarkdown, markdownToStory } from './story.js';
 
 describe('markdownToStory', () => {
+  describe('reference paths', () => {
+    it('hoists a group reference to a cite block', () => {
+      expect(markdownToStory('/1/group/~ten/workspace')).toEqual([
+        { block: { cite: { group: '~ten/workspace' } } },
+      ]);
+    });
+
+    it('hoists a channel reference to a cite block', () => {
+      expect(markdownToStory('/1/chan/chat/~ten/general')).toEqual([
+        {
+          block: { cite: { chan: { nest: 'chat/~ten/general', where: '/' } } },
+        },
+      ]);
+    });
+
+    it('keeps the surrounding prose as inline text', () => {
+      // The reference renders as its own card, so the sentence introducing it
+      // has to survive alongside rather than being swallowed.
+      expect(markdownToStory('Continue here: /1/group/~ten/workspace')).toEqual(
+        [
+          { inline: ['Continue here: '] },
+          { block: { cite: { group: '~ten/workspace' } } },
+        ]
+      );
+    });
+
+    it('keeps a reference inside bold as text rather than a stray marker', () => {
+      // Only a top-level inline can be hoisted to a cite block; a marker left
+      // inside bold would go out as an inline Tlon does not have.
+      const story = markdownToStory('**/1/group/~ten/workspace**');
+      expect(story).toEqual([
+        { inline: [{ bold: ['/1/group/~ten/workspace'] }] },
+      ]);
+      expect(JSON.stringify(story)).not.toContain('__cite');
+    });
+
+    it('keeps a reference in a heading or blockquote as text', () => {
+      for (const md of [
+        '# /1/group/~ten/workspace',
+        '> /1/group/~ten/workspace',
+      ]) {
+        const serialized = JSON.stringify(markdownToStory(md));
+        expect(serialized).not.toContain('__cite');
+        expect(serialized).not.toContain('"cite"');
+        expect(serialized).toContain('/1/group/~ten/workspace');
+      }
+    });
+
+    it('keeps sentence punctuation out of the reference, as text', () => {
+      // The period stays in the paragraph's inline verse; blocks are hoisted
+      // after it, as images already are.
+      expect(markdownToStory('See /1/group/~ten/workspace.')).toEqual([
+        { inline: ['See ', '.'] },
+        { block: { cite: { group: '~ten/workspace' } } },
+      ]);
+    });
+
+    it('keeps a closing quotation mark out of the reference, as text', () => {
+      expect(markdownToStory('See "/1/group/~ten/workspace".')).toEqual([
+        { inline: ['See "', '".'] },
+        { block: { cite: { group: '~ten/workspace' } } },
+      ]);
+      expect(markdownToStory('See “/1/group/~ten/workspace”.')).toEqual([
+        { inline: ['See “', '”.'] },
+        { block: { cite: { group: '~ten/workspace' } } },
+      ]);
+    });
+
+    it('keeps an incomplete reference literal, its ship unmentioned', () => {
+      const story = markdownToStory('See /1/group/~zod today');
+      const serialized = JSON.stringify(story);
+      expect(serialized).toContain('/1/group/~zod');
+      expect(serialized).not.toContain('"ship"');
+      expect(story.some((verse) => 'block' in verse)).toBe(false);
+    });
+
+    it('leaves a path that is not a reference as literal text', () => {
+      expect(markdownToStory('/1/nonsense/workspace')).toEqual([
+        { inline: ['/1/nonsense/workspace'] },
+      ]);
+    });
+  });
   describe('ship mentions', () => {
     it('converts plain ship mention', () => {
       const story = markdownToStory('~zod is cool');

@@ -219,6 +219,16 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
     'Usage: tlon groups info'
   ),
   usageErrorCase(
+    'groups invite-link missing flag',
+    ['groups', 'invite-link'],
+    'Usage: tlon groups invite-link'
+  ),
+  usageErrorCase(
+    'groups invite-link rejects malformed flag',
+    ['groups', 'invite-link', 'not-a-flag'],
+    'Usage: tlon groups invite-link'
+  ),
+  usageErrorCase(
     'hooks init missing name',
     ['hooks', 'init'],
     'Usage: tlon hooks init'
@@ -296,18 +306,51 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
     'Usage: tlon posts send'
   ),
   {
-    name: 'posts send rejects non-http image url',
+    name: 'posts send rejects an invalid image url',
     args: ['posts', 'send', 'chat/~host/channel', '--image', 'ftp://x/y.png'],
     expectedExitCode: 1,
     stdout: '',
-    stderrIncludes: ['--image must be an http(s) image URL'],
+    stderrIncludes: ['Invalid media URL — pass a public https URL'],
   },
   {
-    name: 'posts send rejects non-http equals image url',
+    name: 'posts send rejects an invalid equals image url',
     args: ['posts', 'send', 'chat/~host/channel', '--image=ftp://x/y.png'],
     expectedExitCode: 1,
     stdout: '',
-    stderrIncludes: ['--image must be an http(s) image URL'],
+    stderrIncludes: ['Invalid media URL — pass a public https URL'],
+  },
+  {
+    name: 'posts send rejects a plain-http image url',
+    args: ['posts', 'send', 'chat/~host/channel', '--image', 'http://x/y.png'],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['Only https media URLs are supported.'],
+  },
+  {
+    name: 'posts send rejects a local image path',
+    args: [
+      'posts',
+      'send',
+      'chat/~host/channel',
+      '--image',
+      '/pier/generated.png',
+    ],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['Local file paths are not supported for --image'],
+  },
+  {
+    name: 'posts send rejects an image url with embedded credentials',
+    args: [
+      'posts',
+      'send',
+      'chat/~host/channel',
+      '--image',
+      'https://u:p@x/y.png',
+    ],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['Media URLs with embedded credentials are not supported.'],
   },
   usageErrorCase(
     'posts send rejects a value on the valueless --bot flag',
@@ -325,11 +368,18 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
     'Usage: tlon dms reply'
   ),
   {
-    name: 'dms send rejects non-http equals image url',
+    name: 'dms send rejects an invalid equals image url',
     args: ['dms', 'send', '0v5.abcde', '--image=ftp://x/y.png'],
     expectedExitCode: 1,
     stdout: '',
-    stderrIncludes: ['--image must be an http(s) image URL'],
+    stderrIncludes: ['Invalid media URL — pass a public https URL'],
+  },
+  {
+    name: 'dms send rejects a plain-http image url',
+    args: ['dms', 'send', '0v5.abcde', '--image', 'http://x/y.png'],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['Only https media URLs are supported.'],
   },
   usageErrorCase(
     'settings set missing args',
@@ -453,6 +503,11 @@ export const NESTED_HELP_CASES: CliCase[] = [
     'groups info --help',
     ['groups', 'info', '--help'],
     'Usage: tlon groups info'
+  ),
+  helpCase(
+    'groups invite-link --help',
+    ['groups', 'invite-link', '--help'],
+    'Usage: tlon groups invite-link'
   ),
   helpCase(
     'posts react --help',
@@ -1598,6 +1653,30 @@ export const NOTES_CONTENT_UNSUPPORTED_CASES: CliCase[] = [
   ]),
 ];
 
+// Black-box credential-routing cases for `groups invite-link` — deterministic
+// and pre-network (the hermetic env carries no credentials at all).
+export const INVITE_LINK_CREDENTIAL_CASES: CliCase[] = [
+  authRequiredCase('groups invite-link reaches normal resolution', [
+    'groups',
+    'invite-link',
+    '~zod/test',
+  ]),
+  authRequiredCase('groups invite-link --self reaches normal resolution', [
+    'groups',
+    'invite-link',
+    '~zod/test',
+    '--self',
+  ]),
+  {
+    name: 'groups invite-link explicit --config beats owner routing',
+    args: ['--config', '/nonexistent', 'groups', 'invite-link', '~zod/test'],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['Ship config not found'],
+    stderrExcludes: ['Usage:', ...STACK_PATTERNS],
+  },
+];
+
 export const CLI_MATRIX_CASES: CliCase[] = [
   TOP_LEVEL_HELP_CASE,
   UNKNOWN_TOP_LEVEL_CASE,
@@ -1614,6 +1693,7 @@ export const CLI_MATRIX_CASES: CliCase[] = [
   ...NOTES_CHANNEL_KIND_CASES,
   ...NOTES_CONTENT_UNSUPPORTED_CASES,
   ...DIARY_REMOVED_CASES,
+  ...INVITE_LINK_CREDENTIAL_CASES,
 ];
 
 export type HostileHelpCommand = {
@@ -1630,6 +1710,7 @@ export const HOSTILE_HELP_COMMANDS: HostileHelpCommand[] = [
     name: family,
     args: [family, '--help'],
   })),
+  { name: 'groups invite-link', args: ['groups', 'invite-link', '--help'] },
   { name: 'posts react', args: ['posts', 'react', '--help'] },
   { name: 'posts send', args: ['posts', 'send', '--help'] },
   { name: 'posts reply', args: ['posts', 'reply', '--help'] },

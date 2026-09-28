@@ -650,3 +650,69 @@ describe('mergePendingPosts markPostSent catch-up window', () => {
     expect(merged.map((p) => p.id)).not.toContain(failed.id);
   });
 });
+
+describe('tombstones arriving with a re-derived sentAt', () => {
+  // A tombstone reports `getReceivedAtFromId(post.id)` as its sentAt, not the
+  // original `essay.sent`, so the same post reaches the merge twice with two
+  // different sentAt values.
+  const original = { ...makePost(1000), id: 'post-a', sequenceNum: 2 };
+  const tombstone = {
+    ...makePost(1200),
+    id: 'post-a',
+    sequenceNum: 2,
+    isDeleted: true,
+  };
+
+  test('emits the post once when the local delete stamped it deleted', () => {
+    const merged = mergePendingPosts({
+      newPosts: [tombstone],
+      pendingPosts: [],
+      existingPosts: [original, { ...makePost(500), id: 'post-b' }],
+      deletedPosts: { 'post-a': true },
+      hasNewest: true,
+    });
+
+    expect(merged.map((p) => p.id)).toEqual(['post-a', 'post-b']);
+    expect(merged[0].isDeleted).toBe(true);
+  });
+
+  test('drops the post entirely under filterDeleted', () => {
+    const merged = mergePendingPosts({
+      newPosts: [tombstone],
+      pendingPosts: [],
+      existingPosts: [original, { ...makePost(500), id: 'post-b' }],
+      deletedPosts: {},
+      hasNewest: true,
+      filterDeleted: true,
+    });
+
+    expect(merged.map((p) => p.id)).toEqual(['post-b']);
+  });
+
+  test('marks the surviving row deleted when the tombstone falls outside the page', () => {
+    const merged = mergePendingPosts({
+      newPosts: [{ ...tombstone, sentAt: 300 }],
+      pendingPosts: [],
+      existingPosts: [original, { ...makePost(500), id: 'post-b' }],
+      deletedPosts: {},
+      hasNewest: true,
+    });
+
+    expect(merged.map((p) => p.id)).toEqual(['post-a', 'post-b']);
+    expect(merged[0].isDeleted).toBe(true);
+  });
+
+  test('marks the surviving row deleted for a remote delete', () => {
+    const merged = mergePendingPosts({
+      newPosts: [tombstone],
+      pendingPosts: [],
+      existingPosts: [original, { ...makePost(500), id: 'post-b' }],
+      deletedPosts: {},
+      hasNewest: true,
+    });
+
+    expect(merged.map((p) => p.id)).toEqual(['post-a', 'post-b']);
+    expect(merged[0].isDeleted).toBe(true);
+    expect(merged[1].isDeleted).toBeFalsy();
+  });
+});

@@ -46,13 +46,18 @@ const CRON_ERROR_MAX_CHARS = 500;
 const SNAPSHOT_RETRY_DELAY_MS = 20_000;
 
 type CronServiceAccessor = () => PluginHookGatewayCronService | undefined;
+
+export type TlonCronService = PluginHookGatewayCronService & {
+  run?: (id: string, mode?: 'due' | 'force') => Promise<unknown>;
+  enqueueRun?: (id: string, mode?: 'due' | 'force') => Promise<unknown>;
+};
 type CronObservabilityOptions = {
   observer?: TlonCronOtelObserver;
 };
 
-// OpenClaw 2026.5.28 predates event-driven `on-exit` schedules, while this
-// plugin's peer range also permits newer hosts that expose them. Keep the
-// pinned SDK for development and add only the newer runtime projection here.
+// The plugin's peer range starts at 2026.5.7, which predates event-driven
+// `on-exit` schedules; newer hosts expose them. Keep the projection here
+// forward-compatible with both.
 // The command and cwd are intentionally never included in telemetry.
 type ForwardCompatibleCronSchedule =
   | NonNullable<PluginHookGatewayCronJob['schedule']>
@@ -81,6 +86,10 @@ export function setCronServiceAccessor(
 
 export function clearCronServiceAccessor(): void {
   cronServiceAccessorSlot.set(null);
+}
+
+export function getTlonCronService(): TlonCronService | undefined {
+  return cronServiceAccessorSlot.get()?.() as TlonCronService | undefined;
 }
 
 function optionalString(value: string | null | undefined): string | null {

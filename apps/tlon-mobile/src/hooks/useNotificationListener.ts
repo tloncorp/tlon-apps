@@ -10,6 +10,7 @@ import {
   presentContactMatchNotification,
   presentContactsMatchedNotification,
 } from '@tloncorp/app/lib/notifications';
+import { useAgentGroupOnboardingNavGate } from '@tloncorp/app/hooks/useAgentGroupOnboardingLock';
 import { startPushNotifTapMeasurement } from '@tloncorp/app/lib/pushNotifTapTelemetry';
 import { RootStackParamList } from '@tloncorp/app/navigation/types';
 import {
@@ -30,6 +31,7 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import {
   Notification,
   clearLastNotificationResponseAsync,
@@ -91,6 +93,32 @@ function getNotificationType(data: ProcessableNotificationData) {
   return data.type ?? 'channelNotification';
 }
 
+// Shape-only description of a notification we failed to parse: which delivery
+// path it came in on, which keys the payload carried, and which activity event
+// kind it wrapped. Key names only -- the values hold message content.
+function describeNotificationShape(notification: Notification) {
+  const { trigger } = notification.request;
+  const triggerType =
+    trigger != null &&
+    typeof trigger === 'object' &&
+    'type' in trigger &&
+    typeof trigger.type === 'string'
+      ? trigger.type
+      : 'none';
+  const payload = readRawPayload(notification);
+  const event = safeParseActivityEvent(payload);
+  return {
+    notificationTrigger: triggerType,
+    payloadKeys: Object.keys(payload).sort().join(','),
+    activityEventKind:
+      event == null
+        ? 'none'
+        : Object.keys(event)
+            .filter((key) => key !== 'notified')
+            .join(','),
+  };
+}
+
 export function getNotificationRouteCategory(
   data: ProcessableNotificationData
 ) {
@@ -141,9 +169,17 @@ export function getMissingNotificationTargetRecovery(
 export default function useNotificationListener() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const isTlonEmployee = db.isTlonEmployee.useValue();
+  const {
+    locked: agentOnboardingLocked,
+    isLoading: agentOnboardingLockLoading,
+    runWhenUnlocked,
+  } = useAgentGroupOnboardingNavGate();
 
   const [notifToProcess, setNotifToProcess] =
     useState<ProcessableNotificationData | null>(null);
+  // Hold launch targets until the desk verdict is ok: while the desk notice
+  // replaces the navigator a consumed target would be lost (TLON-6531).
+  const deskOk = store.useDeskCompatibility()?.status === 'ok';
 
   // Start notifications prompt
   useEffect(() => {
@@ -167,7 +203,7 @@ export default function useNotificationListener() {
 
   const notificationResponse = useLastNotificationResponse();
   useEffect(() => {
-    if (notificationResponse != null) {
+    if (deskOk && notificationResponse != null) {
       try {
         const data = payloadFromNotification(notificationResponse.notification);
 
@@ -194,6 +230,7 @@ export default function useNotificationListener() {
             context: 'Failed to get notification payload',
             properties: {
               notificationType: data?.type ?? 'null',
+              ...describeNotificationShape(notificationResponse.notification),
             },
           });
         } else {
@@ -216,7 +253,7 @@ export default function useNotificationListener() {
         });
       }
     }
-  }, [notificationResponse]);
+  }, [deskOk, notificationResponse]);
 
   // Emit DM-tap telemetry (TLON-5728) in its own effect, decoupled from the
   // routing effect above so it cannot cause routing/navigation to re-run.
@@ -259,6 +296,12 @@ export default function useNotificationListener() {
       return true;
     }
 
+    async function goToChatList() {
+      createTypedReset(navigation)([getTopLevelTabRoute('ChatList')]);
+      setNotifToProcess(null);
+      return true;
+    }
+
     async function goToUserProfile(userId: string) {
       navigation.navigate('UserProfile', { userId });
       setNotifToProcess(null);
@@ -266,8 +309,8 @@ export default function useNotificationListener() {
     }
 
     async function goToContacts() {
-      const route = getTopLevelTabRoute('Contacts');
-      navigation.navigate(route.name, route.params, { pop: true });
+      // Contacts is a stack screen now, not a tab.
+      navigation.navigate('Contacts', undefined, { pop: true });
       setNotifToProcess(null);
       return true;
     }
@@ -290,15 +333,6 @@ export default function useNotificationListener() {
       if (!channel) {
         return false;
       }
-
-      logger.trackEvent(
-        AnalyticsEvent.ActionTappedPushNotif,
-        logic.getModelAnalytics({ channel })
-      );
-      startPushNotifTapMeasurement({
-        channelId: channel.id,
-        initialLastPostId: channel.lastPostId ?? null,
-      });
 
       const routeStack: RouteStack = [getTopLevelTabRoute('ChatList')];
       if (channel.groupId) {
@@ -352,6 +386,14 @@ export default function useNotificationListener() {
 
       const typedReset = createTypedReset(navigation);
 
+      logger.trackEvent(
+        AnalyticsEvent.ActionTappedPushNotif,
+        logic.getModelAnalytics({ channel })
+      );
+      startPushNotifTapMeasurement({
+        channelId: channel.id,
+        initialLastPostId: channel.lastPostId ?? null,
+      });
       typedReset(routeStack, 1);
       setNotifToProcess(null);
       return true;
@@ -386,12 +428,24 @@ export default function useNotificationListener() {
       }
     }
 
-    if (notifToProcess) {
+    // See deskOk above.
+    if (
+      deskOk &&
+      notifToProcess &&
+      !agentOnboardingLockLoading &&
+      !agentOnboardingLocked
+    ) {
       const notificationData = notifToProcess;
       const handleNavigate = (() => {
         switch (notificationData.type) {
           case 'groupJoinRequest':
             return () => goToGroupMembers(notificationData.groupId);
+          case 'groupMembers':
+            // we were kicked: the group and its members screen are gone
+            return () =>
+              notificationData.ship === getCurrentUserId()
+                ? goToChatList()
+                : goToGroupMembers(notificationData.groupId);
           case 'groupInvite':
             return () => goToGroupInvite(notificationData.groupId);
           case 'contactMatched':
@@ -429,17 +483,29 @@ export default function useNotificationListener() {
             }
           }
 
-          let didNavigate = canNavigate ? await handleNavigate() : false;
-
-          if (!didNavigate) {
+          let navigated = false;
+          if (canNavigate) {
+            const attempt = await runWhenUnlocked(handleNavigate);
+            if (!attempt.ran) {
+              // Keep the notification pending; the effect retries it after
+              // the onboarding lock clears.
+              return;
+            }
+            navigated = attempt.result === true;
+          }
+          if (!navigated) {
             const recovered = await syncMissingNotificationTarget(
               notificationData,
               preparedDmInviteTarget
             );
-            didNavigate = recovered ? await handleNavigate() : false;
+            if (recovered) {
+              const retry = await runWhenUnlocked(handleNavigate);
+              if (!retry.ran) return;
+              navigated = retry.result === true;
+            }
 
             // If still not found, clear out the requested channel ID
-            if (!didNavigate) {
+            if (!navigated) {
               if (isTlonEmployee) {
                 logger.trackEvent(AnalyticsEvent.ErrorPushNotifNavigate, {
                   routeCategory: getNotificationRouteCategory(notificationData),
@@ -460,5 +526,14 @@ export default function useNotificationListener() {
         }
       })();
     }
-  }, [notifToProcess, navigation, isTlonEmployee, isDesktop]);
+  }, [
+    deskOk,
+    agentOnboardingLocked,
+    agentOnboardingLockLoading,
+    runWhenUnlocked,
+    notifToProcess,
+    navigation,
+    isTlonEmployee,
+    isDesktop,
+  ]);
 }

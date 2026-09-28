@@ -18,7 +18,7 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
         static let scaleBounceDelay: TimeInterval = 0.05
     }
 
-    private static let backdropColor = UIColor.black.withAlphaComponent(0.32)
+    private static let backdropColor = UIColor.black.withAlphaComponent(0.40)
     private static let scaleBounceValues: [NSNumber] = {
         let sampleCount = max(
             30,

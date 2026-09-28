@@ -7,4 +7,5 @@ export interface PosthogClient {
   flush: () => Promise<void>;
   reset: () => void;
   distinctId: () => string | undefined;
+  ready: () => Promise<void>;
 }

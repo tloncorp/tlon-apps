@@ -240,6 +240,7 @@
 ::    .id: a message identifier
 ::    .action: an update to the dm
 ::    .rsvp: a response to a dm invitation
+::    .status: the dm's net state, or ~ once it is gone
 ::
 ++  dm
   |^  dm
@@ -255,6 +256,7 @@
   +$  diff      diff:writs
   +$  action    (pair ship diff)
   +$  rsvp      [=ship ok=?]
+  +$  status    [=ship net=(unit net)]
   --
 ::
 ::  $whom: a polymorphic identifier for chats

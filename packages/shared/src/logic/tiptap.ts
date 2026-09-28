@@ -536,14 +536,15 @@ export function wrapParagraphs(content: JSONContent[]) {
 
   const wrappedContent = content.reduce((memo, c) => {
     switch (c.type) {
+      // Block-level nodes can't legally sit inside a paragraph, so emit them
+      // as siblings, flushing any inline content queued ahead of them first.
       case 'paragraph':
+      case 'blockquote':
+      case 'codeBlock':
         if (wrapQueue.length > 0) {
           memo.push(makeParagraph(wrapQueue));
+          wrapQueue = [];
         }
-        memo.push(c);
-        wrapQueue = [];
-        break;
-      case 'blockquote':
         memo.push(c);
         break;
       default:
