@@ -47,7 +47,7 @@ patchedDependencies:
   react-cosmos: 658acdaf59c16d70e54b6b0b9d522593cd973839891ed5446a3dd3045d4e37eb
   react-native-country-codes-picker: 53c90d297e1cc4991af0f2d72d0f33a68e8be46e75bdf3da919a20160791bee5
   react-native-gesture-handler: e6fc0413229a6f38cc4b2432f69ea6cc8692cc4d611e47452f4c65678df5caf4
-  react-native-keyboard-controller@1.22.0: 135822b3fbbd9e736ab25e8f31924148f56b4e6dee353fcbe698cb72d6f0200d
+  react-native-keyboard-controller@1.22.0: 06d68f93f289af8f1b74d97fe717b6c1b100eb38c3e5604b08d687441aa15e13
   react-native-reanimated: dca1e6927879993905550e8e56f8fa98423ff51ce87750ea4478bd40a4341f7f
   react-native-screens@4.25.2: 3de189f15fb8d14cb52fdf8b0b0009f6fbc4cf78b7252b5d4b0cec4fe879623e
   react-native-transformer-text-input@0.4.1: 59b2f399a7dcef714fa84a97b03013427dcff2d9058643292fc244db8a5e0e88
@@ -391,7 +391,7 @@ importers:
         version: 1.11.0(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))
       react-native-keyboard-controller:
         specifier: 1.22.0
-        version: 1.22.0(patch_hash=135822b3fbbd9e736ab25e8f31924148f56b4e6dee353fcbe698cb72d6f0200d)(b1082fdc65452e42169d12a7171b4634)
+        version: 1.22.0(patch_hash=06d68f93f289af8f1b74d97fe717b6c1b100eb38c3e5604b08d687441aa15e13)(b1082fdc65452e42169d12a7171b4634)
       react-native-reanimated:
         specifier: 4.5.0
         version: 4.5.0(patch_hash=dca1e6927879993905550e8e56f8fa98423ff51ce87750ea4478bd40a4341f7f)(react-native-worklets@0.10.3(patch_hash=493073c3d3dffc3a19003c8bb99960497eb1d81f29e6dc25068c4b85a86c312e)(@babel/core@7.29.0)(@react-native/metro-config@0.86.3)(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
@@ -26208,7 +26208,7 @@ snapshots:
       react: 19.2.3
       react-native: 0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3)
 
-  react-native-keyboard-controller@1.22.0(patch_hash=135822b3fbbd9e736ab25e8f31924148f56b4e6dee353fcbe698cb72d6f0200d)(b1082fdc65452e42169d12a7171b4634):
+  react-native-keyboard-controller@1.22.0(patch_hash=06d68f93f289af8f1b74d97fe717b6c1b100eb38c3e5604b08d687441aa15e13)(b1082fdc65452e42169d12a7171b4634):
     dependencies:
       react: 19.2.3
       react-native: 0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3)

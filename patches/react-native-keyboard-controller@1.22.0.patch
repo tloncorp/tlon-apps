@@ -18,7 +18,7 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
   *
   * @param scrollViewRef - Animated ref to the scroll view.
   * @param options - Configuration for inverted and keyboardLiftBehavior.
-@@ -50,6 +52,17 @@
+@@ -50,9 +52,21 @@
    const contentOffsetY = useSharedValue(0);
    const targetKeyboardHeight = useSharedValue(0);
    const prevAbsorption = useSharedValue(0);
@@ -36,7 +36,11 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
 
    const {
      layout,
-@@ -59,177 +72,226 @@
+     size,
++    sizeAtScroll,
+     offset: scroll,
+     onLayout,
+@@ -59,177 +73,243 @@
      onContentSizeChange,
    } = useScrollState(scrollViewRef);
 
@@ -266,6 +270,28 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
 
 -        padding.value = effective;
 -        prevAbsorption.value = minimumPaddingAbsorbed;
++    // A list that sat at its true end (inset included) when it last scrolled
++    // stays there for the whole transition, including rows that laid out
++    // since or arrive mid-animation. Following a trajectory fixed here would
++    // overwrite the list's own follow-scroll on every frame and strand those
++    // rows behind the input.
++    const heightAtScroll =
++      sizeAtScroll.value > 0 ? sizeAtScroll.value : size.value.height;
++    target.followEnd =
++      !inverted &&
++      keyboardLiftBehavior !== "never" &&
++      blankSpace.value === 0 &&
++      isScrollAtEnd(
++        scroll.value,
++        layout.value.height,
++        heightAtScroll +
++          Math.min(
++            layout.value.height,
++            padding.value + extraContentPadding.value,
++          ),
++        inverted,
++      );
++
 +    if (!shouldShiftContent(keyboardLiftBehavior, atEnd)) {
 +      // Preserve current scroll position so animated props
 +      // don't re-apply a stale contentOffset when padding changes
@@ -292,11 +318,6 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
 +      inverted,
 +      actualTotalPadding,
 +    );
-+    // A list shown at its end stays there for the whole transition, including
-+    // rows that arrive mid-animation. A trajectory fixed here would overwrite
-+    // the list's own follow-scroll on every frame and strand the new rows
-+    // behind the input.
-+    target.followEnd = atEnd && !inverted && blankSpace.value === 0;
 +    return target;
 +  };
 
@@ -405,7 +426,7 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
            return;
          }
 
-@@ -239,6 +301,9 @@
+@@ -239,6 +319,9 @@
            offset,
          );
 
@@ -415,6 +436,36 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
          padding.value = effective;
        },
      },
+diff --git a/src/components/hooks/useScrollState.ts b/src/components/hooks/useScrollState.ts
+--- a/src/components/hooks/useScrollState.ts
++++ b/src/components/hooks/useScrollState.ts
+@@ -34,6 +34,9 @@ const useScrollState = (ref: AnimatedRef<Reanimated.ScrollView>) => {
+   const offset = useSharedValue(0);
+   const layout = useSharedValue({ width: 0, height: 0 });
+   const size = useSharedValue({ width: 0, height: 0 });
++  // Content height as of the last native scroll event. Unlike `size`, content
++  // that grows without the view scrolling leaves it behind.
++  const sizeAtScroll = useSharedValue(0);
+ 
+   const register = useEventHandlerRegistration(ref);
+ 
+@@ -44,6 +47,7 @@ const useScrollState = (ref: AnimatedRef<Reanimated.ScrollView>) => {
+     offset.value = event.contentOffset.y;
+     layout.value = event.layoutMeasurement;
+     size.value = event.contentSize;
++    sizeAtScroll.value = event.contentSize.height;
+   }, NATIVE_SCROLL_EVENT_NAMES);
+ 
+   useEffect(() => {
+@@ -75,7 +79,7 @@ const useScrollState = (ref: AnimatedRef<Reanimated.ScrollView>) => {
+     [size],
+   );
+ 
+-  return { offset, layout, size, onLayout, onContentSizeChange };
++  return { offset, layout, size, sizeAtScroll, onLayout, onContentSizeChange };
+ };
+ 
+ export default useScrollState;
 diff --git a/src/components/KeyboardChatScrollView/useExtraContentPadding/index.ts b/src/components/KeyboardChatScrollView/useExtraContentPadding/index.ts
 --- a/src/components/KeyboardChatScrollView/useExtraContentPadding/index.ts
 +++ b/src/components/KeyboardChatScrollView/useExtraContentPadding/index.ts
