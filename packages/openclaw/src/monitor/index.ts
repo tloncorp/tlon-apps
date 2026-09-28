@@ -84,7 +84,10 @@ import {
   STEWARD_AUTOMATION_FINALIZE_PATH,
   StewardAutomationEditProcessor,
 } from '../steward-automation-edit.js';
-import { isStewardAutomationProjectionEligible } from '../steward-automation-reconciliation.js';
+import {
+  getStewardAutomationReconciler,
+  isStewardAutomationProjectionEligible,
+} from '../steward-automation-reconciliation.js';
 import {
   canonicalizeNest,
   normalizeShip,
@@ -5203,14 +5206,24 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 '[tlon] Steward prompts harness quit received, SSE client will resubscribe'
               );
             },
+            // %steward can start with an empty prompts slice under a live
+            // harness: a desk that adds the module after the plugin is
+            // already running (the watch nacks until then), or an agent
+            // reset. Each time the watch goes live, push the workspace again;
+            // an unchanged projection is a no-op on the ship.
+            retryOnNack: true,
+            onLive: () => {
+              void sync.project('harness live');
+            },
           });
           runtime.log?.(
             '[tlon] Subscribed to steward prompts harness (/v1/prompts/harness)'
           );
         } catch (error) {
-          promptSync = null;
+          // The subscription stays registered and is retried with the
+          // channel; the sync itself stays live for when it lands.
           runtime.log?.(
-            `[tlon] Steward prompts sync unavailable: ${String(error)}`
+            `[tlon] Steward prompts harness subscription deferred: ${String(error)}`
           );
         }
       }
@@ -5550,14 +5563,25 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 '[tlon] Steward automation harness quit received, SSE client will resubscribe'
               );
             },
+            // The cron projection otherwise runs only on gateway_start and
+            // cron_changed, so a %steward that starts empty under a running
+            // gateway (a desk upgrade adding the module, an agent reset)
+            // stays empty until the next cron edit. Reconcile whenever the
+            // harness watch goes live.
+            retryOnNack: true,
+            onLive: () => {
+              void getStewardAutomationReconciler()?.trigger(() =>
+                getTlonCronService()
+              );
+            },
           });
           runtime.log?.(
             `[tlon] Subscribed to steward automation harness feed (${STEWARD_AUTOMATION_HARNESS_PATH})`
           );
         } catch (error: any) {
-          // Ships without the edit loop nack the subscribe; owner edits then
-          // fail fast on the bot as harness-offline while everything else
-          // keeps working.
+          // A nack does not land here — it arrives later on the stream and is
+          // retried there. This catches only a failed send, which the channel
+          // also retries.
           runtime.log?.(
             `[tlon] Steward automation harness subscription unavailable: ${error?.message ?? String(error)}`
           );
