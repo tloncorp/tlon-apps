@@ -66,7 +66,11 @@ describe('cron budget holds', () => {
     await f.reconcile('limited', true);
     // Core startup bookkeeping changes updatedAtMs without a user edit.
     f.jobs[0].updatedAtMs = 200;
-    f.jobs[0].state = { lastRunAtMs: 50, lastRunStatus: 'error' };
+    f.jobs[0].state = {
+      lastRunAtMs: 50,
+      lastRunStatus: 'error',
+      lastDurationMs: 150,
+    };
     await f.reconcile('limited');
     expect(f.state.holds.report.revision).toBe(200);
     await f.reconcile('available');
@@ -79,10 +83,35 @@ describe('cron budget holds', () => {
       f.jobs[0].state = { runningAtMs: 50 };
       await f.reconcile('limited');
       f.jobs[0].updatedAtMs = 200;
-      f.jobs[0].state = { lastRunAtMs: 50, lastRunStatus };
+      f.jobs[0].state = { lastRunAtMs: 50, lastRunStatus, lastDurationMs: 150 };
       await f.reconcile('limited');
       await f.reconcile('available');
       expect(f.jobs[0].enabled).toBe(true);
+    }
+  );
+
+  it.each(['limited', 'available'] as const)(
+    'does not adopt a post-completion edit after restart with %s credit',
+    async (budget) => {
+      const f = fixture();
+      f.jobs[0].state = { runningAtMs: 50 };
+      await f.reconcile('limited');
+      f.jobs[0].state = {
+        lastRunAtMs: 50,
+        lastRunStatus: 'ok',
+        lastDurationMs: 150,
+      };
+      // Completion was revision 200; an offline operator edit came afterward.
+      f.jobs[0].updatedAtMs = 201;
+      const restored = JSON.parse(JSON.stringify(f.state));
+      await reconcileBudgetHolds({
+        budget,
+        state: restored,
+        cron: f.cron,
+        save: f.save,
+      });
+      expect(f.jobs[0].enabled).toBe(false);
+      expect(restored.holds.report).toBeUndefined();
     }
   );
 

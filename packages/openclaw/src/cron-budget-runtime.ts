@@ -31,7 +31,12 @@ export function installBudgetHoldNotifier(
   };
 }
 
-type Runner = { tick: () => Promise<void>; stop: () => Promise<void> };
+type CronChange = { action: string; jobId: string };
+type Runner = {
+  tick: () => Promise<void>;
+  changed: (event: CronChange) => void;
+  stop: () => Promise<void>;
+};
 const runnerSlot = sharedSlot<Runner>('cronBudget.runner');
 
 /** Hosted-only. The wrapper supplies an explicit signal, never inferred from a model name. */
@@ -40,10 +45,6 @@ export function registerBudgetHoldHooks(
 ) {
   const paths = budgetHoldPaths();
   if (!paths) return;
-  const ownMutation = new AsyncLocalStorage<{ active: boolean }>();
-  const pendingEdits = new Map<string, number>();
-  let editGeneration = 0;
-  let activeEdits: Set<string> | undefined;
 
   api.on('before_tool_call', async (event) => {
     if (event.toolName !== 'cron' || event.params.action !== 'run') return;
@@ -61,6 +62,10 @@ export function registerBudgetHoldHooks(
 
   api.on('gateway_start', (_event, ctx) => {
     if (runnerSlot.get()) return;
+    const ownMutation = new AsyncLocalStorage<{ active: boolean }>();
+    const pendingEdits = new Map<string, number>();
+    let editGeneration = 0;
+    let activeEdits: Set<string> | undefined;
     let flight: Promise<void> | undefined;
     let stopped = false;
     let rerun = false;
@@ -147,6 +152,22 @@ export function registerBudgetHoldHooks(
     timer.unref();
     runnerSlot.set({
       tick,
+      changed: (event) => {
+        if (event.action === 'updated') {
+          if (ownMutation.getStore()?.active) return;
+          // Record before any await: a finishing run can overwrite updatedAtMs
+          // before reconciliation sees the manually edited job.
+          pendingEdits.set(event.jobId, ++editGeneration);
+          activeEdits?.add(event.jobId);
+        }
+        if (
+          event.action === 'added' ||
+          event.action === 'updated' ||
+          event.action === 'removed'
+        ) {
+          void tick();
+        }
+      },
       stop: async () => {
         stopped = true;
         clearInterval(timer);
@@ -158,20 +179,7 @@ export function registerBudgetHoldHooks(
   // Do not await inside a cron mutation's hook. Reconciliation itself mutates
   // cron jobs; awaiting here could deadlock the host's mutation lock.
   api.on('cron_changed', (event) => {
-    if (event.action === 'updated') {
-      if (ownMutation.getStore()?.active) return;
-      // Record before any await: a finishing run can overwrite updatedAtMs
-      // before reconciliation sees the manually edited job.
-      pendingEdits.set(event.jobId, ++editGeneration);
-      activeEdits?.add(event.jobId);
-    }
-    if (
-      event.action === 'added' ||
-      event.action === 'updated' ||
-      event.action === 'removed'
-    ) {
-      void runnerSlot.get()?.tick();
-    }
+    runnerSlot.get()?.changed(event);
   });
   api.on('gateway_stop', async () => {
     const runner = runnerSlot.get();

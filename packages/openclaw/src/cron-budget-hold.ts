@@ -161,7 +161,11 @@ export async function reconcileBudgetHolds(opts: {
       const finishedHeldRun =
         hold.runningAtMs !== undefined &&
         job.state?.runningAtMs === undefined &&
-        job.state?.lastRunAtMs === hold.runningAtMs;
+        job.state?.lastRunAtMs === hold.runningAtMs &&
+        typeof job.state.lastDurationMs === 'number' &&
+        // Core stamps updatedAtMs with the completion time. A later edit has
+        // a different revision even while lastRunAtMs still names this run.
+        job.updatedAtMs === hold.runningAtMs + job.state.lastDurationMs;
       const stillOurs =
         !opts.externallyEditedJobs?.has(job.id) &&
         job.enabled === false &&

@@ -53,10 +53,12 @@ async function setup() {
   const on = vi.fn((name: string, handler: unknown) => {
     hooks.set(name, handler as (...args: unknown[]) => unknown);
   });
-  registerBudgetHoldHooks({ on, logger: { warn } } as unknown as Pick<
-    OpenClawPluginApi,
-    'on' | 'logger'
-  >);
+  const register = () =>
+    registerBudgetHoldHooks({ on, logger: { warn } } as unknown as Pick<
+      OpenClawPluginApi,
+      'on' | 'logger'
+    >);
+  register();
   const fire = async (name: string, ...args: unknown[]) =>
     hooks.get(name)?.(...args);
   cleanups.push(async () => {
@@ -78,6 +80,7 @@ async function setup() {
   const cron = { list, update };
   return {
     job,
+    register,
     update,
     list,
     warn,
@@ -144,7 +147,7 @@ it('resumes a held task after its active run completes normally', async () => {
   const f = await setup();
   f.job.state = { runningAtMs: 50 };
   await f.fire('gateway_start', {}, f.ctx);
-  f.job.state = { lastRunAtMs: 50, lastRunStatus: 'ok' };
+  f.job.state = { lastRunAtMs: 50, lastRunStatus: 'ok', lastDurationMs: 50 };
   f.job.updatedAtMs = 100;
   await f.setBudget('available');
   await f.fire('cron_changed', { action: 'added', jobId: 'another' });
@@ -168,7 +171,7 @@ it('preserves a manual pause when completion overwrites its revision during reco
   await vi.waitFor(() => expect(finishList).toBeDefined());
   // An independent user update arrives while the budget runner awaits list.
   await f.update(f.job.id, { enabled: false });
-  f.job.state = { lastRunAtMs: 50, lastRunStatus: 'ok' };
+  f.job.state = { lastRunAtMs: 50, lastRunStatus: 'ok', lastDurationMs: 50 };
   f.job.updatedAtMs = 100;
   finishList([structuredClone(f.job)]);
   await vi.waitFor(() => expect(f.job.description).toBe(''));
@@ -216,7 +219,11 @@ it('does not classify a delayed descendant callback as an owned mutation', async
     // in which the original budget-owned mutation was performed.
     delayedUpdate = AsyncResource.bind(async () => {
       await f.update(f.job.id, { enabled: false });
-      f.job.state = { lastRunAtMs: 50, lastRunStatus: 'ok' };
+      f.job.state = {
+        lastRunAtMs: 50,
+        lastRunStatus: 'ok',
+        lastDurationMs: 50,
+      };
       f.job.updatedAtMs = 100;
     });
     await originalUpdate(id, patch);
@@ -227,5 +234,34 @@ it('does not classify a delayed descendant callback as an owned mutation', async
   await vi.waitFor(() => expect(f.job.description).toBe(''));
   await f.fire('gateway_stop');
   expect(f.job.enabled).toBe(false);
+  expect(f.warn).not.toHaveBeenCalled();
+});
+
+it('preserves edits delivered by a prewarmed plugin registry', async () => {
+  const f = await setup();
+  f.job.state = { runningAtMs: 50 };
+  await f.fire('gateway_start', {}, f.ctx);
+  f.register();
+  await f.fire('gateway_start', {}, f.ctx);
+  await f.setBudget('available');
+  await f.update(f.job.id, { enabled: false });
+  f.job.state = { lastRunAtMs: 50, lastRunStatus: 'ok', lastDurationMs: 50 };
+  f.job.updatedAtMs = 100;
+  await vi.waitFor(() => expect(f.job.description).toBe(''));
+  await f.fire('gateway_stop');
+  expect(f.job.enabled).toBe(false);
+  expect(f.warn).not.toHaveBeenCalled();
+});
+
+it('recognizes owned writes through a replacement registry', async () => {
+  const f = await setup();
+  await f.fire('gateway_start', {}, f.ctx);
+  f.register();
+  await f.update(f.job.id, { enabled: true });
+  await vi.waitFor(() => expect(f.job.enabled).toBe(false));
+  await f.fire('gateway_stop');
+  await f.setBudget('available');
+  await f.fire('gateway_start', {}, f.ctx);
+  expect(f.job.enabled).toBe(true);
   expect(f.warn).not.toHaveBeenCalled();
 });
