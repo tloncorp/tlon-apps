@@ -6,6 +6,10 @@ opening: can I have you join a group of mine to post news stories from specific 
 knows:
 - The sites are two tech news sites and one science site.
 - Wants one post each morning.
+- Has already added the bot to their group Tech Friends; the news should go in its news channel.
 style: Practical, medium-length messages.
 patience: 3
 afterEnding: can other people in the group ask you things too?
+group:
+  title: Tech Friends
+  channel: news

@@ -27,7 +27,14 @@ export type Persona = {
    * (they didn't want a bot), so "keep" still measures whether it served them.
    */
   keepQuestion?: string;
+  /**
+   * A group the person runs, with the bot already added to it. The lab lists
+   * it among the bot's groups so a task can post there.
+   */
+  group?: OwnerGroup;
 };
+
+export type OwnerGroup = { title: string; channel: string };
 
 export type Choice = { question: string; options: string[] };
 
