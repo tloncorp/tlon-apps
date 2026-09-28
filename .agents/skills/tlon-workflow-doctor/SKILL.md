@@ -23,10 +23,10 @@ Unsandboxed because `gh auth status` cannot reach the keyring inside a shell san
 | `gh` | 2.99.0 or newer (the `--attach` upload flag), authenticated | nothing; prints the install or `gh auth login` line |
 | `stim` | the `stim` package, 1.1.0 or newer, resolved first on PATH; a note when npm has a newer one | installs or upgrades `stim`; uninstalls `stim-cli` when that is what resolves |
 | `stim ports` | the `ports` command, which the loop's web and Cosmos steps take their ports from | upgrades `stim` |
-| `stim remote` | `stim ios --remote`, which runs the loop's devices on EAS Simulator, from stim 1.8.0 (the release the loop was verified on) | upgrades `stim` |
+| `stim remote` | `stim ios --remote`, which runs the loop's devices on EAS Simulator, from stim 1.9.0 (the first release that gives each worktree's EAS session its own name) | upgrades `stim` |
 | `eas` | eas-cli installed, logged in, and EAS Simulator enabled for the project's account | installs `eas-cli`; `eas login` and account access need a person |
 | `stim skill` | `stim` skill in `~/.agents/skills` or this repo | `npx skills add appandflow/stim -g -y` |
-| `agent-device` | installed, 0.21.13 or newer (verified with stim 1.8.0; older pairs lost Fast Refresh and broke the session lease); a note when npm has a newer one | `npm install -g agent-device` |
+| `agent-device` | installed, 0.21.13 or newer (the loop was last verified with agent-device 0.21.14 and stim 1.10.0; older pairs lost Fast Refresh and broke the session lease); a note when npm has a newer one | `npm install -g agent-device` |
 | `agent-device skill` | `agent-device` skill in `~/.agents/skills` or this repo | `npx skills add callstack/agent-device -g -y` |
 | `ship login` | `DEFAULT_SHIP_LOGIN_URL` + `DEFAULT_SHIP_LOGIN_ACCESS_CODE`, or `DEFAULT_TLON_LOGIN_EMAIL` + `DEFAULT_TLON_LOGIN_PASSWORD`, in the source checkout's `apps/tlon-mobile/.env.local` | nothing; they are credentials (see the tlon-workflow skill, Sign in) |
 | `stim doctor` | no `cost` finding in `apps/tlon-mobile`; one is a note with its fix, since it slows builds without blocking them | nothing; prints each finding and its fix |
