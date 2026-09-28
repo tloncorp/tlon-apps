@@ -428,7 +428,7 @@ export function ChatListScreenView({
           <FloatingHeaderClearance>
             <View userSelect="none" flex={1}>
               {showHomeAddTooltip && (
-                // Absolute within the column, which already starts below a
+                // Absolute within the column, which starts below any
                 // floating header, so it takes the same clearance as the
                 // tabs and stays under the + it points at.
                 <WayfindingNotice.HomeAddTooltip top={isWeb ? 36 : 8} />
