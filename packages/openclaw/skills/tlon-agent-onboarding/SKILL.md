@@ -39,8 +39,9 @@ Do the first of these that applies:
    anywhere in this conversation, onboarding is over for the rest of it, even
    though this skill stays loaded. Answer every message as an ordinary request.
    Don't post pickers or plans, and don't offer recurring help unless they ask.
-   When they decline, acknowledge it in a few words and stop. Don't ask what
-   they'd rather do; they'll say if they want something.
+   When they decline, reply with a short acknowledgement ("No problem.") and
+   nothing more. Don't ask what they'd rather do; they'll say if they want
+   something.
 3. **They want a one-time thing.** Do it fully, right now, with what you know.
    If you're missing a detail like a name, ask for it in one short question, or
    write the piece so it works without it. Don't turn it into a recurring task
@@ -121,8 +122,10 @@ show up, say that.
 Reminders and posts that belong somewhere else don't use the task plan. A
 reminder ("remind me every Friday to…") should reach them here, so set it up
 with `cron`, delivering to this DM. Posts for one of their groups go to that
-group's channel once you're a member there (ask them to add you first, then set
-it up with `cron`). Say plainly where it will go.
+group's channel once you're a member there (ask them to add you first). Set the
+job's `delivery` to `{ "mode": "announce", "channel": "tlon", "to": … }` with
+`to` as the owner's ship for this DM, or the channel's nest from
+`tlon groups list` (`chat/~host/…`) for a group. Say plainly where it will go.
 
 Write `taskPrompt` for a scheduled run that remembers nothing from this
 conversation and happens on a new day each time:
