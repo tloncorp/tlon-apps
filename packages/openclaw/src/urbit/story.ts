@@ -28,8 +28,9 @@ const REF_CHAN_KINDS = ['chat', 'heap', 'diary', 'notes'];
 /**
  * Whether a chan cite's `where` locates something the app renders, for the
  * given channel kind: a post (`/msg/...`, plus `/curio/...` for heaps and
- * `/note/...` for diaries and notebooks). A bare channel `where` renders
- * nothing, so it is not accepted.
+ * `/note/...` for diaries and notebooks), each optionally with a reply id as
+ * a second segment. A bare channel `where` renders nothing, so it is not
+ * accepted.
  */
 function isValidChanWhere(kind: string, where: string): boolean {
   const parts = where.split('/');
@@ -53,7 +54,13 @@ function isValidChanWhere(kind: string, where: string): boolean {
     }
     return false;
   }
-  if (parts.length !== 3 || !REF_ID_REGEX.test(parts[2])) {
+  // `/curio/<id>` and `/note/<id>`, each optionally with a reply id as a
+  // second segment; unlike `/msg`, neither has a `~author` variant.
+  if (
+    (parts.length !== 3 && parts.length !== 4) ||
+    !REF_ID_REGEX.test(parts[2]) ||
+    (parts.length === 4 && !REF_ID_REGEX.test(parts[3]))
+  ) {
     return false;
   }
   if (head === 'curio') {

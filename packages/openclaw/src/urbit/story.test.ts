@@ -188,6 +188,30 @@ describe('markdownToStory', () => {
       ]);
     });
 
+    it('hoists a diary note reply reference', () => {
+      expect(markdownToStory('/1/chan/diary/~zod/blog/note/123/456')).toEqual([
+        {
+          block: {
+            cite: {
+              chan: { nest: 'diary/~zod/blog', where: '/note/123/456' },
+            },
+          },
+        },
+      ]);
+    });
+
+    it('hoists a heap curio reply reference', () => {
+      expect(markdownToStory('/1/chan/heap/~zod/gallery/curio/5/6')).toEqual([
+        {
+          block: {
+            cite: {
+              chan: { nest: 'heap/~zod/gallery', where: '/curio/5/6' },
+            },
+          },
+        },
+      ]);
+    });
+
     it.each([
       '/1/group/~zod/Bad_Name',
       '/1/group/~zod/x_',
@@ -197,6 +221,7 @@ describe('markdownToStory', () => {
       '/1/chan/chat/~zod/general/note/3',
       '/1/chan/chat/~zod/general/curio/5',
       '/1/chan/notes/~zod/nb/note/1..2',
+      '/1/chan/notes/~zod/nb/note/1/2/3',
       '/1/chan/chat/~zod/general/msg/0.001',
       '/1/chan/chat/~zod/Bad_Name/msg/123',
       '/1/chan/chat/~foobar/general/msg/123',
