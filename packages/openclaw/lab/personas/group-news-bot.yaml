@@ -4,7 +4,7 @@ wants: The bot posting curated news from a few named websites into their group o
 expectPlan: 'yes'
 opening: can I have you join a group of mine to post news stories from specific websites
 knows:
-- The sites are two tech news sites and one science site.
+- The sites are The Verge and Ars Technica for tech news, and ScienceDaily for science.
 - Wants one post each morning.
 - Has already added the bot to their group Tech Friends; the news should go in its General chat.
 style: Practical, medium-length messages.
