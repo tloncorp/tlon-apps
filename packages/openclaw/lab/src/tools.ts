@@ -1,3 +1,4 @@
+import { cleanCronToolArgs } from '../../src/cron-tool-args.js';
 import {
   type AgentChoiceToolParams,
   agentChoiceToolMetadata,
@@ -452,6 +453,12 @@ function runCron(args: Record<string, unknown>, context: ToolContext) {
     case 'update': {
       const index = jobs.findIndex((entry) => entry.id === id);
       if (index < 0) throw new Error(`no cron job with id ${id}`);
+      // As core 2026.7.1 does.
+      if (args.patch && 'agentId' in (args.patch as Record<string, unknown>)) {
+        throw new Error(
+          'cron patch agentId cannot be changed by the agent cron tool'
+        );
+      }
       jobs[index] = {
         ...jobs[index],
         ...job,
@@ -579,9 +586,12 @@ function typedToolOutcome(result: {
 export async function executeTool(
   id: string,
   name: string,
-  args: Record<string, unknown>,
+  rawArgs: Record<string, unknown>,
   context: ToolContext
 ): Promise<ToolCallRecord> {
+  // The plugin's before_tool_call hook hands core a cleaned cron call.
+  const args =
+    (name === 'cron' ? cleanCronToolArgs(rawArgs) : undefined) ?? rawArgs;
   const record = (result: string, extra: Partial<ToolCallRecord> = {}) => ({
     name,
     args,
