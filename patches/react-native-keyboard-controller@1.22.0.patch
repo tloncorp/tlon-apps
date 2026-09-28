@@ -18,7 +18,7 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
   *
   * @param scrollViewRef - Animated ref to the scroll view.
   * @param options - Configuration for inverted and keyboardLiftBehavior.
-@@ -50,6 +52,16 @@
+@@ -50,9 +52,21 @@
    const contentOffsetY = useSharedValue(0);
    const targetKeyboardHeight = useSharedValue(0);
    const prevAbsorption = useSharedValue(0);
@@ -31,11 +31,16 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
 +    toPadding: 0,
 +    fromScroll: 0,
 +    toScroll: 0,
++    followEnd: false,
 +  });
 
    const {
      layout,
-@@ -59,177 +71,205 @@
+     size,
++    sizeAtScroll,
+     offset: scroll,
+     onLayout,
+@@ -59,177 +73,248 @@
      onContentSizeChange,
    } = useScrollState(scrollViewRef);
 
@@ -102,7 +107,11 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
 +      blankSpace.value,
 +      effective + extraContentPadding.value,
 +    );
-+    const target = { padding: effective, scroll: scroll.value };
++    const target = {
++      padding: effective,
++      scroll: scroll.value,
++      followEnd: false,
++    };
 
 -        // Scale minimum padding absorption by how much of it is visible.
 -        // Fully visible → full absorption; fully off-screen → no absorption.
@@ -261,6 +270,28 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
 
 -        padding.value = effective;
 -        prevAbsorption.value = minimumPaddingAbsorbed;
++    // A list that sat at its true end (inset included) when it last scrolled
++    // stays there for the whole transition, including rows that laid out
++    // since or arrive mid-animation. Following a trajectory fixed here would
++    // overwrite the list's own follow-scroll on every frame and strand those
++    // rows behind the input.
++    const heightAtScroll =
++      sizeAtScroll.value > 0 ? sizeAtScroll.value : size.value.height;
++    target.followEnd =
++      !inverted &&
++      keyboardLiftBehavior !== "never" &&
++      blankSpace.value === 0 &&
++      isScrollAtEnd(
++        scroll.value,
++        layout.value.height,
++        heightAtScroll +
++          Math.min(
++            layout.value.height,
++            padding.value + extraContentPadding.value,
++          ),
++        inverted,
++      );
++
 +    if (!shouldShiftContent(keyboardLiftBehavior, atEnd)) {
 +      // Preserve current scroll position so animated props
 +      // don't re-apply a stale contentOffset when padding changes
@@ -298,6 +329,17 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
 -          effective > 0
 -        ) {
 -          contentOffsetY.value = scroll.value;
++  // The end as of this frame: rows that laid out since the last scroll event
++  // count, and so does the inset being applied.
++  const getLiveEnd = () => {
++    "worklet";
++    const totalPadding = Math.min(
++      layout.value.height,
++      padding.value + extraContentPadding.value,
++    );
++    return Math.max(size.value.height - layout.value.height + totalPadding, 0);
++  };
++
 +  const move = (e: NativeEvent) => {
 +    "worklet";
 +    if (freeze.value) {
@@ -312,9 +354,13 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
 +        ? 1
 +        : Math.max(0, Math.min(1, (e.height - t.fromHeight) / distance));
 +    padding.value = t.fromPadding + progress * (t.toPadding - t.fromPadding);
-+    // Keep composer-height adjustments made between keyboard frames.
-+    contentOffsetY.value +=
-+      (progress - t.progress) * (t.toScroll - t.fromScroll);
++    if (t.followEnd) {
++      contentOffsetY.value = getLiveEnd();
++    } else {
++      // Keep composer-height adjustments made between keyboard frames.
++      contentOffsetY.value +=
++        (progress - t.progress) * (t.toScroll - t.fromScroll);
++    }
 +    transition.value = { ...t, progress };
 +    currentHeight.value = e.height;
 +  };
@@ -351,6 +397,7 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
 +          toPadding: target.padding,
 +          fromScroll,
 +          toScroll: target.scroll,
++          followEnd: target.followEnd,
 +        };
 +        padding.value = fromPadding;
 +        contentOffsetY.value = fromScroll;
@@ -365,14 +412,15 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
 +      onInteractive: (e) => {
 +        "worklet";
 +        // Interactive frames arrive after onEnd, without a new onStart. Apply
-+        // each observed height directly and preserve the user's scroll delta.
++        // each observed height directly and preserve the user's scroll delta,
++        // unless the list is at its end: it follows rows arriving mid-swipe.
 +        transition.value = { ...transition.value, active: false };
 +        currentHeight.value = e.height;
 +        if (freeze.value) return;
 +
 +        const target = getTarget(e);
 +        padding.value = target.padding;
-+        contentOffsetY.value = target.scroll;
++        contentOffsetY.value = target.followEnd ? getLiveEnd() : target.scroll;
 +      },
        onEnd: (e) => {
          "worklet";
@@ -383,7 +431,7 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
            return;
          }
 
-@@ -239,6 +279,9 @@
+@@ -239,6 +324,9 @@
            offset,
          );
 
@@ -393,6 +441,36 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
          padding.value = effective;
        },
      },
+diff --git a/src/components/hooks/useScrollState.ts b/src/components/hooks/useScrollState.ts
+--- a/src/components/hooks/useScrollState.ts
++++ b/src/components/hooks/useScrollState.ts
+@@ -34,6 +34,9 @@ const useScrollState = (ref: AnimatedRef<Reanimated.ScrollView>) => {
+   const offset = useSharedValue(0);
+   const layout = useSharedValue({ width: 0, height: 0 });
+   const size = useSharedValue({ width: 0, height: 0 });
++  // Content height as of the last native scroll event. Unlike `size`, content
++  // that grows without the view scrolling leaves it behind.
++  const sizeAtScroll = useSharedValue(0);
+ 
+   const register = useEventHandlerRegistration(ref);
+ 
+@@ -44,6 +47,7 @@ const useScrollState = (ref: AnimatedRef<Reanimated.ScrollView>) => {
+     offset.value = event.contentOffset.y;
+     layout.value = event.layoutMeasurement;
+     size.value = event.contentSize;
++    sizeAtScroll.value = event.contentSize.height;
+   }, NATIVE_SCROLL_EVENT_NAMES);
+ 
+   useEffect(() => {
+@@ -75,7 +79,7 @@ const useScrollState = (ref: AnimatedRef<Reanimated.ScrollView>) => {
+     [size],
+   );
+ 
+-  return { offset, layout, size, onLayout, onContentSizeChange };
++  return { offset, layout, size, sizeAtScroll, onLayout, onContentSizeChange };
+ };
+ 
+ export default useScrollState;
 diff --git a/src/components/KeyboardChatScrollView/useExtraContentPadding/index.ts b/src/components/KeyboardChatScrollView/useExtraContentPadding/index.ts
 --- a/src/components/KeyboardChatScrollView/useExtraContentPadding/index.ts
 +++ b/src/components/KeyboardChatScrollView/useExtraContentPadding/index.ts
@@ -537,3 +615,134 @@ diff --git a/lib/commonjs/components/ScrollViewWithBottomPadding/index.js b/lib/
          prevContentOffsetY.value = curr;
          result.contentOffset = {
            x: 0,
+diff --git a/ios/observers/movement/observer/KeyboardMovementObserver.swift b/ios/observers/movement/observer/KeyboardMovementObserver.swift
+--- a/ios/observers/movement/observer/KeyboardMovementObserver.swift
++++ b/ios/observers/movement/observer/KeyboardMovementObserver.swift
+@@ -37,6 +37,8 @@
+   // manual did events
+   var notification: Notification?
+   var keyboardDidTask: DispatchWorkItem?
++  // Keyboard notifications can describe an unfinished interactive navigation.
++  var deferredNavigationKeyboardEvent: (id: UUID, notification: Notification, isShowing: Bool)?
+
+   @objc public init(
+     handler: @escaping (NSString, NSNumber, NSNumber, NSNumber, NSNumber) -> Void,
+diff --git a/ios/observers/movement/observer/KeyboardMovementObserver+Listeners.swift b/ios/observers/movement/observer/KeyboardMovementObserver+Listeners.swift
+--- a/ios/observers/movement/observer/KeyboardMovementObserver+Listeners.swift
++++ b/ios/observers/movement/observer/KeyboardMovementObserver+Listeners.swift
+@@ -8,7 +8,11 @@
+ extension KeyboardMovementObserver {
+   @objc func keyboardWillAppear(_ notification: Notification) {
+     guard !UIResponder.isKeyboardPreloading else { return }
+-
++    guard !deferKeyboardEventForNavigation(notification, isShowing: true) else { return }
++    handleKeyboardWillAppear(notification)
++  }
++
++  private func handleKeyboardWillAppear(_ notification: Notification) {
+     let (duration, frame) = notification.keyboardMetaData()
+     if let keyboardFrame = frame {
+       tag = UIResponder.current.reactViewTag
+@@ -35,6 +39,11 @@
+
+   @objc func keyboardWillDisappear(_ notification: Notification) {
+     guard !UIResponder.isKeyboardPreloading else { return }
++    guard !deferKeyboardEventForNavigation(notification, isShowing: false) else { return }
++    handleKeyboardWillDisappear(notification)
++  }
++
++  private func handleKeyboardWillDisappear(_ notification: Notification) {
+     let (duration, _) = notification.keyboardMetaData()
+     tag = UIResponder.current.reactViewTag
+     self.notification = notification
+@@ -113,4 +122,79 @@
+     keyboardDidTask = task
+     DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: task)
+   }
++
++  // A swipe-back can emit willHide while the keyboard only moves horizontally.
++  // Its duration is not a dismissal deadline: the user can hold or cancel the
++  // gesture. Keep both frame tracking and synthesized did events suspended until
++  // UIKit settles the navigation, then publish the final keyboard state once.
++  private func deferKeyboardEventForNavigation(_ notification: Notification, isShowing: Bool) -> Bool {
++    if let pending = deferredNavigationKeyboardEvent {
++      deferredNavigationKeyboardEvent = (pending.id, notification, isShowing)
++      return true
++    }
++    guard let coordinator = interactiveNavigationTransition(
++      in: UIApplication.shared.activeWindow?.rootViewController
++    ) else { return false }
++
++    let id = UUID()
++    let previousNotification = self.notification
++    deferredNavigationKeyboardEvent = (id, notification, isShowing)
++    keyboardDidTask?.cancel()
++    onCancelAnimation()
++    removeKeyboardWatcher()
++    removeKVObserver()
++    animation = nil
++
++    let registered = coordinator.animate(alongsideTransition: nil) { [weak self] context in
++      guard let self = self, let pending = self.deferredNavigationKeyboardEvent,
++            pending.id == id else { return }
++      self.deferredNavigationKeyboardEvent = nil
++      guard self.isMounted else { return }
++
++      var settled = pending.notification
++      var showing = pending.isShowing
++      // Cancellation may finish before UIKit repeats the willShow notification.
++      // In that case the previously visible keyboard is still authoritative.
++      if context.isCancelled, !showing, let previous = previousNotification {
++        settled = previous
++        showing = previous.name == UIResponder.keyboardWillShowNotification
++      }
++      settled.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] = 0.0
++      if showing {
++        self.handleKeyboardWillAppear(settled)
++      } else {
++        self.prevKeyboardPosition = 0
++        self.handleKeyboardWillDisappear(settled)
++      }
++    }
++    if !registered {
++      deferredNavigationKeyboardEvent = nil
++    }
++    return registered
++  }
++
++  private func interactiveNavigationTransition(
++    in controller: UIViewController?
++  ) -> UIViewControllerTransitionCoordinator? {
++    guard let controller = controller else { return nil }
++    if let coordinator = controller.transitionCoordinator, coordinator.isInteractive,
++       let from = coordinator.viewController(forKey: .from),
++       let to = coordinator.viewController(forKey: .to),
++       let navigation = from.navigationController,
++       navigation === to.navigationController
++    {
++      return coordinator
++    }
++    if let presented = controller.presentedViewController,
++       let coordinator = interactiveNavigationTransition(in: presented)
++    {
++      return coordinator
++    }
++    for child in controller.children.reversed() {
++      if let coordinator = interactiveNavigationTransition(in: child) {
++        return coordinator
++      }
++    }
++    return nil
++  }
+ }
+diff --git a/ios/observers/movement/observer/KeyboardMovementObserver+Lifecycle.swift b/ios/observers/movement/observer/KeyboardMovementObserver+Lifecycle.swift
+--- a/ios/observers/movement/observer/KeyboardMovementObserver+Lifecycle.swift
++++ b/ios/observers/movement/observer/KeyboardMovementObserver+Lifecycle.swift
+@@ -29,6 +29,7 @@
+
+   @objc func unmount() {
+     isMounted = false
++    deferredNavigationKeyboardEvent = nil
+     // swiftlint:disable:next notification_center_detachment
+     NotificationCenter.default.removeObserver(self)
+   }

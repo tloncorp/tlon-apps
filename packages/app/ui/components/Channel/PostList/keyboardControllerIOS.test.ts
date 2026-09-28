@@ -14,6 +14,9 @@ const state = vi.hoisted(() => ({
   scroll: { value: 1200 },
   layout: { value: { width: 400, height: 800 } },
   size: { value: { width: 400, height: 2000 } },
+  // Content height the last scroll event reported; rows that lay out without
+  // a scroll leave it behind `size`.
+  sizeAtScroll: { value: 2000 },
 }));
 
 vi.mock('react-native-reanimated', () => ({
@@ -34,6 +37,7 @@ vi.mock(
       offset: state.scroll,
       layout: state.layout,
       size: state.size,
+      sizeAtScroll: state.sizeAtScroll,
       onLayout: vi.fn(),
       onContentSizeChange: vi.fn(),
     }),
@@ -50,9 +54,15 @@ const event = (height: number, duration = 250) => ({
 describe('patched iOS keyboard tracking', () => {
   beforeEach(() => {
     state.scroll.value = 1200;
+    state.size.value = { width: 400, height: 2000 };
+    state.sizeAtScroll.value = 2000;
   });
 
-  function setup(freeze = { value: false }, offset = 0) {
+  function setup(
+    freeze = { value: false },
+    offset = 0,
+    extraContentPadding = { value: 0 }
+  ) {
     // All hooks are mocked above; exercise the registered handlers without React.
     // eslint-disable-next-line react-hooks/rules-of-hooks
     return useChatKeyboard(vi.fn() as never, {
@@ -61,7 +71,7 @@ describe('patched iOS keyboard tracking', () => {
       offset,
       freeze: freeze as never,
       blankSpace: { value: 0 } as never,
-      extraContentPadding: { value: 0 } as never,
+      extraContentPadding: extraContentPadding as never,
     });
   }
 
@@ -134,12 +144,109 @@ describe('patched iOS keyboard tracking', () => {
   });
 
   it('keeps a composer-height adjustment made between keyboard frames', () => {
-    const result = setup();
+    const extraContentPadding = { value: 0 };
+    const result = setup({ value: false }, 0, extraContentPadding);
     state.handlers.onStart(event(300));
     state.handlers.onMove(event(150));
+    // useExtraContentPadding moves the offset along with the grown inset.
+    extraContentPadding.value = 50;
     result.contentOffsetY!.value += 50;
     state.handlers.onEnd(event(300));
     expect(result.contentOffsetY?.value).toBe(1550);
+  });
+
+  it('keeps a message that arrives while the keyboard closes above the input', () => {
+    const result = setup();
+    state.handlers.onStart(event(300));
+    state.handlers.onEnd(event(300));
+    state.scroll.value = 1500;
+    state.handlers.onStart(event(0));
+    state.handlers.onMove(event(150));
+    expect(result.contentOffsetY?.value).toBe(1350);
+    state.size.value = { width: 400, height: 2100 };
+    state.handlers.onMove(event(75));
+    expect(result.contentOffsetY?.value).toBe(1375);
+    state.handlers.onEnd(event(0));
+    expect(result.contentOffsetY?.value).toBe(1300);
+  });
+
+  it('keeps a message that arrived just before the keyboard closes above the input', () => {
+    const result = setup();
+    state.handlers.onStart(event(300));
+    state.handlers.onEnd(event(300));
+    // The row has laid out, but the list has not scrolled to it yet.
+    state.scroll.value = 1500;
+    state.size.value = { width: 400, height: 2100 };
+    state.handlers.onStart(event(0));
+    state.handlers.onMove(event(150));
+    expect(result.contentOffsetY?.value).toBe(1450);
+    state.handlers.onEnd(event(0));
+    expect(result.contentOffsetY?.value).toBe(1300);
+  });
+
+  it('keeps a tall message that laid out before the keyboard closes above the input', () => {
+    const result = setup();
+    state.handlers.onStart(event(300));
+    state.handlers.onEnd(event(300));
+    state.scroll.value = 1500;
+    // Taller than the keyboard and composer, so the end is off-screen.
+    state.size.value = { width: 400, height: 2600 };
+    state.handlers.onStart(event(0));
+    state.handlers.onMove(event(150));
+    expect(result.contentOffsetY?.value).toBe(1950);
+    state.handlers.onEnd(event(0));
+    expect(result.contentOffsetY?.value).toBe(1800);
+  });
+
+  it('keeps a position a little above the end when the keyboard closes', () => {
+    const result = setup();
+    state.handlers.onStart(event(300));
+    state.handlers.onEnd(event(300));
+    // Scrolled up by less than the inset, so the last row is still in frame.
+    state.scroll.value = 1250;
+    state.handlers.onStart(event(0));
+    state.handlers.onMove(event(150));
+    expect(result.contentOffsetY?.value).toBe(1100);
+    state.handlers.onEnd(event(0));
+    expect(result.contentOffsetY?.value).toBe(950);
+  });
+
+  it('keeps a composer-height adjustment on a lift that does not follow the end', () => {
+    const result = setup({ value: false }, 0, { value: 40 });
+    // Within the end threshold of the content, but short of the inset.
+    state.handlers.onStart(event(300));
+    state.handlers.onMove(event(150));
+    expect(result.contentOffsetY?.value).toBe(1350);
+    result.contentOffsetY!.value += 50;
+    state.handlers.onEnd(event(300));
+    expect(result.contentOffsetY?.value).toBe(1550);
+  });
+
+  it('lifts a short chat once while its end-alignment spacer shrinks', () => {
+    // Content shorter than the viewport, padded at the top to sit on the
+    // 100pt composer, so it cannot scroll and has no scroll event yet.
+    const extraContentPadding = { value: 100 };
+    state.scroll.value = 0;
+    state.size.value = { width: 400, height: 700 };
+    state.sizeAtScroll.value = 0;
+    const result = setup({ value: false }, 0, extraContentPadding);
+    state.handlers.onStart(event(300));
+    // The list shrinks its spacer by the reported keyboard inset from JS.
+    state.size.value = { width: 400, height: 550 };
+    state.handlers.onMove(event(150));
+    expect(result.contentOffsetY?.value).toBe(0);
+    state.size.value = { width: 400, height: 400 };
+    state.handlers.onEnd(event(300));
+    expect(result.contentOffsetY?.value).toBe(0);
+  });
+
+  it('keeps a message that arrives while the keyboard opens above the input', () => {
+    const result = setup();
+    state.handlers.onStart(event(300));
+    state.handlers.onMove(event(150));
+    state.size.value = { width: 400, height: 2100 };
+    state.handlers.onEnd(event(300));
+    expect(result.contentOffsetY?.value).toBe(1600);
   });
 
   it('keeps the observed height current while layout writes are frozen', () => {
@@ -170,6 +277,17 @@ describe('patched iOS keyboard tracking', () => {
     expect(result.padding.value).toBe(150);
     expect(result.currentHeight.value).toBe(150);
     expect(result.contentOffsetY?.value).toBe(1320);
+  });
+
+  it('keeps a message that arrives during interactive dismissal above the input', () => {
+    const result = setup();
+    state.handlers.onStart(event(300));
+    state.handlers.onEnd(event(300));
+    state.scroll.value = 1500;
+    // A 100-point row lays out mid-swipe, before any scroll event.
+    state.size.value = { width: 400, height: 2100 };
+    state.handlers.onInteractive(event(150, -1));
+    expect(result.contentOffsetY?.value).toBe(1450);
   });
 
   it('keeps the full keyboard height as the safe-area offset reference during a gesture', () => {

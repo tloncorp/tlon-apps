@@ -180,6 +180,108 @@ describe('ThinkingState', () => {
     act(() => renderer!.unmount());
   });
 
+  it('collapses with the reply when its list remounts mid-cycle', async () => {
+    let renderer: ReactTestRenderer;
+    const footer = (listKey: string, postId: string, authorId: string) => (
+      <ThinkingState
+        key={listKey}
+        conversationId="chat"
+        channelType="chat"
+        latestPostId={postId}
+        latestPostAuthorId={authorId}
+        handoffKey="remount"
+      />
+    );
+    await act(async () => {
+      renderer = create(footer('first', 'post-0', '~ten'));
+    });
+    mocks.computing = computing();
+    await act(async () => {
+      renderer!.update(footer('first', 'post-0', '~ten'));
+    });
+    // A new unread anchor on the reply remounts the list, and this footer with
+    // it, before presence clears.
+    await act(async () => {
+      renderer!.update(footer('second', 'post-1', '~bot'));
+    });
+    mocks.computing = null;
+    await act(async () => {
+      renderer!.update(footer('second', 'post-1', '~bot'));
+    });
+
+    expect(
+      renderer!.root.find((node) => (node.type as unknown) === 'View').props
+        .height
+    ).toBe(0);
+    act(() => renderer!.unmount());
+  });
+
+  it('holds for the reply when it first mounts mid-cycle after an earlier bot post', async () => {
+    let renderer: ReactTestRenderer;
+    mocks.computing = computing();
+    const footer = (
+      <ThinkingState
+        conversationId="chat"
+        channelType="chat"
+        latestPostId="post-1"
+        latestPostAuthorId="~bot"
+        handoffKey="fresh"
+      />
+    );
+    await act(async () => {
+      renderer = create(footer);
+    });
+    mocks.computing = null;
+    await act(async () => {
+      renderer!.update(footer);
+    });
+
+    expect(
+      renderer!.root.find((node) => (node.type as unknown) === 'View').props
+        .height
+    ).toBe(52);
+    act(() => renderer!.unmount());
+  });
+
+  it('drops a handoff that no replacement claims within a second', async () => {
+    vi.useFakeTimers();
+    let renderer: ReactTestRenderer;
+    const footer = (postId: string, authorId: string) => (
+      <ThinkingState
+        conversationId="chat"
+        channelType="chat"
+        latestPostId={postId}
+        latestPostAuthorId={authorId}
+        handoffKey="expired"
+      />
+    );
+    await act(async () => {
+      renderer = create(footer('post-0', '~ten'));
+    });
+    mocks.computing = computing();
+    await act(async () => {
+      renderer!.update(footer('post-0', '~ten'));
+    });
+    act(() => renderer!.unmount());
+    act(() => {
+      vi.advanceTimersByTime(1_000);
+    });
+    await act(async () => {
+      renderer = create(footer('post-1', '~bot'));
+    });
+    mocks.computing = null;
+    await act(async () => {
+      renderer!.update(footer('post-1', '~bot'));
+    });
+
+    expect(
+      renderer!.root.find((node) => (node.type as unknown) === 'View').props
+        .height
+    ).toBe(52);
+    act(() => renderer!.unmount());
+    vi.useRealTimers();
+  });
+
   it('remembers a response when a later member post becomes latest', async () => {
     let renderer: ReactTestRenderer;
     mocks.computing = computing();
