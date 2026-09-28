@@ -132,8 +132,7 @@ export function getChannelActionCapabilities(channel?: db.Channel | null): {
 } {
   return {
     canDelete: !!channel && channel.type !== 'buckets',
-    canLeave:
-      !!channel && channel.type !== 'notes' && channel.type !== 'buckets',
+    canLeave: !!channel && channel.type !== 'buckets',
     deleteDescription:
       channel?.type === 'notes'
         ? 'This action cannot be undone. The notebook and its notes will be permanently deleted.'

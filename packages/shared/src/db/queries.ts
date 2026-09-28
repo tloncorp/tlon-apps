@@ -5,6 +5,7 @@ import {
   formatNotesFlag,
   getCurrentUserId,
   getTextContent,
+  isGroupChannelId,
   parseNotesChannelId,
 } from '@tloncorp/api';
 import { parseGroupId } from '@tloncorp/api';
@@ -6883,7 +6884,13 @@ export const insertActivityEvents = createWriteQuery(
     const currentUserId = getCurrentUserId();
     if (events.length === 0) return;
 
-    const activityEventChannels = events.flatMap((e) => e.channelId || []);
+    // Only DMs and group DMs. %groups' active-channels owns group-channel
+    // membership (reconcileJoinedGroupChannels, active-channel deltas), and
+    // an event naming a channel doesn't mean we're in it: a group-sourced
+    // flag report outlives our leaving the channel it names.
+    const activityEventChannels = events.flatMap((e) =>
+      e.channelId && !isGroupChannelId(e.channelId) ? e.channelId : []
+    );
 
     const activityEventGroups = events.flatMap(
       (contact) => contact.contactUpdateGroups || []
