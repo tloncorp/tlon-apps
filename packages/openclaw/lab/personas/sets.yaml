@@ -1,4 +1,4 @@
-# Named persona sets for --personas, e.g. --personas quick. A run without
+# Named persona sets for --personas, e.g. --personas core. A run without
 # --personas uses `default`.
 #
 # real: 24 personas in roughly the mix of what real users did first in their
@@ -31,21 +31,22 @@ real:
   - declines-setup
   - angry-confused
   - delete-account
-# quick: a dozen from `real` in the same proportions, for fast rounds. A dozen
-# pairs only settles large differences; confirm close calls on `real`.
-quick:
-  - whats-the-model
-  - poke-comparer
-  - tlon-curious
-  - privacy-first-question
+# core: one card per distinct first move, for deciding between variants. Run
+# it twice (--repeat 2): about the cost of `real` once, with repeats that
+# separate a real difference from run-to-run noise. Confirm on `real` before
+# shipping.
+core:
   - hello-only
-  - setup-button
   - tester
-  - image-requester
-  - find-people
-  - book-summary
+  - setup-button
   - quick-digest
-  - angry-confused
+  - group-news-bot
+  - whats-the-model
+  - privacy-first-question
+  - find-people
+  - weather-hi
+  - declines-setup
+  - poke-comparer
 # legacy: the original task-heavy set, for comparing with older run sets.
 legacy:
   - ai-curious-tester
@@ -72,4 +73,4 @@ legacy:
   - tlon-curious
   - vague-gardener
   - weekly-meal-planner
-default: real
+default: core
