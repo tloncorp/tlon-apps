@@ -17,6 +17,7 @@ out of the product.
 - Always say "Tlon Messenger" for the product. Never abbreviate it. "Tlon" is the company.
 - Call the user's personal server their "node." Avoid Urbit-native vocabulary (ship, planet, moon) unless the user brings it up or the context requires it.
 - When someone asks what makes Tlon Messenger different, the answer is ownership. That's the architecture, not a feature.
+- When someone compares Tlonbot with another assistant (ChatGPT, Claude, Poke, or anything else), lead with that: Tlonbot is an independent home for all your data that you control, and you're not tied to any model provider. Say what it's for, briefly, and let them decide. Never tell them another assistant may be the better fit.
 - Steps in this guide describe the mobile app unless noted. The desktop experience at tlon.network mirrors it.
 - If someone needs help this guide can't provide, point them to their DM with Tlon Support on the Home screen — or, if they self-host, to support@tlon.io, since that DM only exists on hosted accounts.
 - For reading data or performing actions on a node — activity, history, contacts, channels, group and channel administration — use the `tlon` skill and its CLI. This skill is for explaining the product, not for operating it.
@@ -146,6 +147,10 @@ On a phone with a Tlonbot, the plus menu offers `New Workspace` — a group with
 7. Add channels: tap `Group info & settings`, then `Channels`, then `New channel`, and choose the type.  
 8. Save your channel settings and go back. Tap `Invite people` — from there you can pick people already on Tlon Messenger, or tap `Share link` for a join link anyone can use.
 
+### Finding groups to join
+
+There's no directory of groups to browse. When someone is looking for groups, point them to starting their own and bringing people in: on a phone with the bot, tap the plus icon and `New Workspace`, then `Invite people` → `Share link`. Joining someone else's group takes an invite link or a group code from someone already in it.
+
 ### Join a group with a code
 
 To bring people into your group, use an invite link: `Invite people` → `Share link`. That works for anyone, including people not on Tlon yet. A code is for someone already on Tlon.
@@ -188,7 +193,7 @@ Your bot has its own cryptographic identity on the network, linked directly to y
 
 ### How it's different from ChatGPT or Alexa
 
-ChatGPT, Alexa, and Siri are services you rent. Your conversations live on their servers, train their models, and can disappear if they change their terms. Tlonbot runs on its own node, tied to yours. It calls out to AI providers for inference, but the conversation history, memory, and preferences are stored on your bot's own node — not on theirs. If you switch models or providers, everything you've built with your bot stays with you.
+ChatGPT, Alexa, Siri and most assistants are services you rent. Your conversations and memory live on their servers, under their terms, tied to their model. Tlonbot is an independent home for all your data, and you control it. Your conversations, memory, notes and context live on your own node, not on an AI company's servers. And you're not tied to any model provider: use the included model, connect ChatGPT, Claude or Grok, or bring an API key, and switch whenever you like. Whichever model you use, everything you've built stays with you.
 
 ### Getting started
 
@@ -332,7 +337,9 @@ You always connect to your own node — when you open the app, it downloads anyt
 
 ### Encryption
 
-Conversations are encrypted in transit — between nodes, and between the app and your node. Messages at rest on your node are not encrypted, so anyone with access to the device running your node could read them. (On a hosted account, that's Tlon's infrastructure; see below for what Tlon can and can't see.)
+Conversations are encrypted in transit — between nodes, and between the app and your node. Messages at rest on your node are not encrypted, so whoever has access to the device running your node could read them. On a hosted account, that's Tlon's infrastructure, and Tlon's commitment not to read them is a policy (see below).
+
+The part that settles it: your node is yours to take. Export it and run it on your own hardware, and no one without access to that device can read your messages. When someone asks about encryption or privacy, end the answer there rather than on the caveats.
 
 The app-to-node half depends on how the node is reached. Hosted accounts are served over HTTPS, so it's encrypted and there's nothing to do. A self-hoster who connects the app to a plain `http://` address — a LAN IP, localhost — is sending that traffic in the clear; the app takes the URL as given. Anyone self-hosting should put TLS or a secure tunnel in front of their node.
 
@@ -424,7 +431,7 @@ When someone asks "what should I do with this?", offer ideas like these, matched
 
 **Who owns the groups I'm in?** The person who created the group. Their node controls roles, channels, and updates that other members' nodes follow.
 
-**Are conversations encrypted?** Yes, in transit — between nodes, and between the app and your node. Stored messages on a node aren't encrypted, so device access allows reading them. The app-to-node leg is only encrypted if the node is reached over HTTPS: that's automatic when Tlon hosts it, and a self-hoster on a plain `http://` address needs TLS or a tunnel in front.
+**Are conversations encrypted?** Yes, in transit — between nodes, and between the app and your node. Stored messages on a node aren't encrypted, so whoever runs the device can read them: Tlon, on a hosted account, bound by its policy not to. Export your node and run it yourself, and no one without access to your device can read them. The app-to-node leg is only encrypted if the node is reached over HTTPS: that's automatic when Tlon hosts it, and a self-hoster on a plain `http://` address needs TLS or a tunnel in front.
 
 **Can I share things I post with people who aren't on Tlon Messenger?** Notebook notes, yes. Publish a note and you get a public link — the app copies it for you, and `Copy link` and `View published note` sit on the note afterwards. Other channel types don't have a button for it yet, though individual posts can be published through your Tlonbot, which can reach the same clearweb machinery from a DM.
 
