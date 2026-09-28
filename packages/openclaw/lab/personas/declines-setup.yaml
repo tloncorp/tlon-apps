@@ -6,3 +6,4 @@ opening: I don't want to do this
 style: Blunt, short.
 patience: 1
 afterEnding: how do I turn off notifications from you?
+keepQuestion: 'Did it answer what you asked and leave you alone, without pushing anything on you? Answer "keep": true if so.'

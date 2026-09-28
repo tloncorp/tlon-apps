@@ -22,6 +22,11 @@ export type Persona = {
   /** Unrelated message sent after the ending, to see if the bot keeps pitching. */
   afterEnding?: string;
   timezone?: string;
+  /**
+   * The survey's keep question, for someone who by definition won't come back
+   * (they didn't want a bot), so "keep" still measures whether it served them.
+   */
+  keepQuestion?: string;
 };
 
 export type Choice = { question: string; options: string[] };
