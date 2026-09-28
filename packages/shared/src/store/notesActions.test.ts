@@ -5,7 +5,8 @@ import * as db from '../db';
 import { useDebugStore } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import { publishedNotePath, publishedNoteUrl } from '../logic';
-import { setupDatabaseTestSuite } from '../test/helpers';
+import * as schema from '../db/schema';
+import { getClient, setupDatabaseTestSuite } from '../test/helpers';
 import {
   makeApiNotesFolder,
   makeApiNotesNote,
@@ -1898,7 +1899,10 @@ test('deleteNotebookNote holds the queue across the remote and local delete', as
   ).resolves.toBeNull();
 });
 
-async function insertNotebookChannel(currentUserIsMember: boolean) {
+async function insertNotebookChannel(
+  currentUserIsMember: boolean,
+  readerRoleIds: string[] = []
+) {
   const groupId = '~zod/notes-group';
   await db.insertGroups({
     groups: [
@@ -1918,6 +1922,16 @@ async function insertNotebookChannel(currentUserIsMember: boolean) {
       currentUserIsMember,
     } as db.Channel,
   ]);
+  if (readerRoleIds.length) {
+    await getClient()!
+      .insert(schema.channelReaders)
+      .values(
+        readerRoleIds.map((roleId) => ({
+          channelId: api.notesChannelId(notebookFlag),
+          roleId,
+        }))
+      );
+  }
 }
 
 test('ensureNotesNotebookJoined does not rejoin a group notebook the user left', async () => {
@@ -1928,6 +1942,15 @@ test('ensureNotesNotebookJoined does not rejoin a group notebook the user left',
   await expect(ensureNotesNotebookJoined(notebookFlag)).resolves.toBe(
     'notMember'
   );
+  expect(join).not.toHaveBeenCalled();
+});
+
+test('ensureNotesNotebookJoined does not join a notebook the channel list withholds', async () => {
+  await insertNotebookChannel(false, ['admin']);
+  vi.spyOn(api.notes, 'listNotebooks').mockResolvedValue([]);
+  const join = vi.spyOn(api, 'joinNotesNotebook').mockResolvedValue(1);
+
+  await expect(ensureNotesNotebookJoined(notebookFlag)).resolves.toBe(false);
   expect(join).not.toHaveBeenCalled();
 });
 

@@ -6883,7 +6883,12 @@ export const insertActivityEvents = createWriteQuery(
     const currentUserId = getCurrentUserId();
     if (events.length === 0) return;
 
-    const activityEventChannels = events.flatMap((e) => e.channelId || []);
+    // A notebook's events outlive leaving it (they stay in the group's
+    // stream), and opening a notebook marked joined joins it; %notes reports
+    // notebook membership through %groups instead.
+    const activityEventChannels = events.flatMap((e) =>
+      e.channelId && !parseNotesChannelId(e.channelId) ? e.channelId : []
+    );
 
     const activityEventGroups = events.flatMap(
       (contact) => contact.contactUpdateGroups || []

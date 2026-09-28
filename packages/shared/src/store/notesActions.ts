@@ -338,10 +338,11 @@ export async function ensureNotesNotebookJoined(
 
   // Opening a group's notebook is not a request to join it: a member who
   // left (or was never joined) rejoins from the channel list, as with any
-  // other channel.
+  // other channel. 'notMember' only when that list offers it.
   const channel = await db.getChannel({ id: api.notesChannelId(parsed) });
   if (channel?.groupId && channel.currentUserIsMember === false) {
-    return 'notMember';
+    const joinable = await db.getUnjoinedGroupChannels(channel.groupId);
+    return joinable.some((c) => c.id === channel.id) ? 'notMember' : false;
   }
 
   await api.joinNotesNotebook(parsed);

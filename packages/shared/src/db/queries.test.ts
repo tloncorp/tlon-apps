@@ -3995,3 +3995,50 @@ describe('insertSettings', () => {
     expect((await queries.getSettings())?.messagesFilter).toBe('all');
   });
 });
+
+test('insertActivityEvents marks channels joined, but not notebooks', async () => {
+  const groupId = '~zod/activity-membership';
+  const chatId = 'chat/~zod/activity-membership';
+  const notebookId = 'notes/~zod/activity-notebook';
+  await queries.insertGroups({
+    groups: [
+      {
+        id: groupId,
+        currentUserIsMember: true,
+        currentUserIsHost: false,
+        hostUserId: '~zod',
+      } as Parameters<typeof queries.insertGroups>[0]['groups'][number],
+    ],
+  });
+  await queries.insertChannels([
+    { id: chatId, type: 'chat', groupId, currentUserIsMember: false },
+    { id: notebookId, type: 'notes', groupId, currentUserIsMember: false },
+  ]);
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+  // See insertNoteActivityEvent: the legacy contact-group FK rejects activity
+  // event inserts while FK enforcement is on.
+  client.run($.sql`PRAGMA foreign_keys = OFF`);
+
+  await queries.insertActivityEvents(
+    [chatId, notebookId].map(
+      (channelId, i) =>
+        ({
+          id: `event-${i}`,
+          bucketId: 'all',
+          sourceId: `channel/${channelId}`,
+          type: 'post',
+          timestamp: 100 + i,
+          channelId,
+          groupId,
+        }) as ActivityEvent
+    )
+  );
+
+  await expect(queries.getChannel({ id: chatId })).resolves.toMatchObject({
+    currentUserIsMember: true,
+  });
+  await expect(queries.getChannel({ id: notebookId })).resolves.toMatchObject({
+    currentUserIsMember: false,
+  });
+});
