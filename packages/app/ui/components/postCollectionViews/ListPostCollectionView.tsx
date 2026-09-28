@@ -68,6 +68,7 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
             latestPostId={latestPostId}
             latestPostAuthorId={latestPost?.authorId}
             forcedLabel={ctx.pendingThinkingLabel}
+            handoffKey={ctx.channel.id}
           />
         ) : undefined,
       [

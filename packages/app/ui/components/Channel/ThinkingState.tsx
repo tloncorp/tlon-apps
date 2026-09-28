@@ -7,6 +7,15 @@ import { ContactAvatar } from '../Avatar';
 import { useConversationComputingState } from './useConversationComputingState';
 
 const MAX_VISIBLE_AVATARS = 3;
+const CYCLE_HANDOFF_MS = 1_000;
+
+// A list remount mid-cycle (a new unread anchor on the reply) replaces this
+// footer. Its replacement mounts with the reply already latest, so it needs
+// the post that preceded thinking to count the reply as the response.
+const cycleHandoffs = new Map<
+  string,
+  { baseline: string | undefined; release: ReturnType<typeof setTimeout> }
+>();
 
 export function ThinkingState({
   conversationId,
@@ -14,22 +23,53 @@ export function ThinkingState({
   latestPostId,
   latestPostAuthorId,
   forcedLabel,
+  handoffKey,
 }: {
   conversationId: string;
   channelType: db.Channel['type'];
   latestPostId?: string;
   latestPostAuthorId?: string;
   forcedLabel?: string;
+  /** Identifies footers that replace each other when their list remounts. */
+  handoffKey?: string;
 }) {
   const computingState = useConversationComputingState(conversationId);
   const [holdUntilResponse, setHoldUntilResponse] = useState(false);
   const [responseObserved, setResponseObserved] = useState(false);
   const postIdWhenThinkingStarted = useRef<string | undefined>(latestPostId);
   const latestPostIdWhileIdle = useRef<string | undefined>(latestPostId);
-  const hasObservedIdle = useRef(false);
   const expectedResponders = useRef<Set<string>>(new Set());
   const wasComputing = useRef(false);
   const collapseTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Declared before the computing effect so a mount reads the handoff first.
+  // An effect rather than render: in a same-commit remount the replacement
+  // renders before the old footer's cleanup parks the handoff.
+  useEffect(() => {
+    if (!handoffKey) {
+      return;
+    }
+    const handoff = cycleHandoffs.get(handoffKey);
+    if (handoff) {
+      clearTimeout(handoff.release);
+      cycleHandoffs.delete(handoffKey);
+      postIdWhenThinkingStarted.current = handoff.baseline;
+      latestPostIdWhileIdle.current = handoff.baseline;
+    }
+    return () => {
+      if (!wasComputing.current) {
+        return;
+      }
+      clearTimeout(cycleHandoffs.get(handoffKey)?.release);
+      cycleHandoffs.set(handoffKey, {
+        baseline: postIdWhenThinkingStarted.current,
+        release: setTimeout(
+          () => cycleHandoffs.delete(handoffKey),
+          CYCLE_HANDOFF_MS
+        ),
+      });
+    };
+  }, [handoffKey]);
 
   useEffect(() => {
     if (computingState) {
@@ -38,12 +78,8 @@ export function ThinkingState({
       );
       if (!wasComputing.current) {
         postIdWhenThinkingStarted.current = latestPostIdWhileIdle.current;
-        // Mounting mid-cycle (a list remount while a reply is still unread)
-        // leaves no idle post to compare against, so a latest post from a
-        // responder is the response itself rather than what preceded it.
         setResponseObserved(
-          (!hasObservedIdle.current ||
-            latestPostId !== latestPostIdWhileIdle.current) &&
+          latestPostId !== latestPostIdWhileIdle.current &&
             (expectedResponders.current.size === 0 ||
               (latestPostAuthorId != null &&
                 expectedResponders.current.has(latestPostAuthorId)))
@@ -65,7 +101,6 @@ export function ThinkingState({
       return;
     }
     wasComputing.current = false;
-    hasObservedIdle.current = true;
 
     const responseHasArrived =
       holdUntilResponse &&
