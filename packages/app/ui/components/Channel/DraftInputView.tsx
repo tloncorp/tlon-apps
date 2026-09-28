@@ -18,12 +18,17 @@ import { useComponentsKitContext } from '../../contexts/componentsKits';
 import {
   useConversationComposerHeight,
   useConversationScrollToBottomControl,
-  useConversationScrollViewNativeID,
 } from '../../contexts/scroll';
 import { ScrollEdgeElementContainer } from '../ScrollEdgeElementContainer';
 import { floatingScrollControlClearance } from '../conversationScrollChrome';
 import { DraftInputContext } from '../draftInputs';
 import { DraftInputContextProvider } from '../draftInputs/shared';
+import {
+  useConversationBottomInset,
+  useConversationComposerLayout,
+  useConversationKeyboardLiftStyle,
+  useIsConversationDocked,
+} from './ConversationLayout';
 
 export function DraftInputView({
   draftInputContext,
@@ -98,7 +103,7 @@ function IOSKeyboardTrackingView({
 const ComposerKeyboardView =
   Platform.OS === 'ios' ? IOSKeyboardTrackingView : KeyboardStickyView;
 
-/** Owns the native floating placement and its matching scroll-content inset. */
+/** Places chat composers in their conversation layout, with a legacy floating fallback. */
 export function ConversationComposerPlacement({
   children,
   enabled,
@@ -114,13 +119,15 @@ export function ConversationComposerPlacement({
   inlineID?: string;
 }>) {
   const insets = useSafeAreaInsets();
+  const docked = useIsConversationDocked();
+  const composerLayout = useConversationComposerLayout();
+  const keyboardLiftStyle = useConversationKeyboardLiftStyle();
   // Nothing sits between the composer and the window's bottom edge now that
   // the top-level sections are reached from a drawer, so the home indicator is
   // the whole of the inset — and none of it collapses when the keyboard opens,
   // which is what every pushed channel already did.
-  const composerBottomInset = insets.bottom;
+  const composerBottomInset = useConversationBottomInset();
   const theme = useTheme();
-  const scrollViewNativeID = useConversationScrollViewNativeID();
   const scrollToBottomControl = useConversationScrollToBottomControl();
   const { report: reportConversationComposerHeight } =
     useConversationComposerHeight();
@@ -131,11 +138,36 @@ export function ConversationComposerPlacement({
   );
 
   useEffect(() => {
-    if (!enabled || !supportsFloatingComposer) {
+    if (docked || !enabled || !supportsFloatingComposer) {
       return;
     }
     return () => reportConversationComposerHeight(0);
-  }, [enabled, reportConversationComposerHeight]);
+  }, [docked, enabled, reportConversationComposerHeight]);
+
+  if (enabled && docked) {
+    return (
+      <Animated.View
+        style={[
+          styles.dockedInput,
+          composerLayout.floating && styles.floatingDockedInput,
+          keyboardLiftStyle,
+        ]}
+      >
+        <View
+          id={inlineID}
+          paddingBottom={composerBottomInset}
+          backgroundColor={
+            composerLayout.floating ? 'transparent' : '$background'
+          }
+          onLayout={(event) =>
+            composerLayout.setHeight(event.nativeEvent.layout.height)
+          }
+        >
+          {content}
+        </View>
+      </Animated.View>
+    );
+  }
 
   if (enabled && supportsFloatingComposer) {
     return (
@@ -145,9 +177,10 @@ export function ConversationComposerPlacement({
         offset={{ closed: 0, opened: composerBottomInset }}
         style={styles.floatingInput}
       >
+        {/* Preserve hit testing around glass controls, but leave this moving
+            host unbound: UIKit's edge effect retains the keyboard-open extent. */}
         <ScrollEdgeElementContainer
           edge="bottom"
-          scrollViewNativeID={scrollViewNativeID}
           style={[
             { paddingBottom: composerBottomInset },
             Platform.OS === 'android'
@@ -197,6 +230,16 @@ export function ConversationComposerPlacement({
 }
 
 const styles = StyleSheet.create({
+  dockedInput: {
+    flexShrink: 0,
+    zIndex: 10,
+  },
+  floatingDockedInput: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
   floatingInput: {
     position: 'absolute',
     bottom: 0,

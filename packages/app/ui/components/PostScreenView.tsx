@@ -54,6 +54,7 @@ import {
   ConversationComposerPlacement,
   DraftInputView,
 } from './Channel/DraftInputView';
+import { ConversationLayout } from './Channel/ConversationLayout';
 import { ScrollAnchor } from './Channel/Scroller';
 import { DetailView } from './DetailView';
 import { FileDrop } from './FileDrop';
@@ -63,6 +64,7 @@ import { DraftInputContext } from './draftInputs';
 import {
   DraftInputContextProvider,
   DraftInputHandle,
+  type DraftSendOptions,
   GalleryDraftType,
 } from './draftInputs/shared';
 
@@ -851,7 +853,7 @@ function SinglePostView({
   );
 
   const sendFromThreadComposer = useCallback(
-    async (draft: domain.PostDataDraft, options?: store.PostSendOptions) => {
+    async (draft: domain.PostDataDraft, options?: DraftSendOptions) => {
       setEditingPost?.(undefined);
       if (draft.isEdit) {
         await store.finalizeAndSendPost(draft, options);
@@ -860,7 +862,9 @@ function SinglePostView({
 
       draft.replyToPostId = parentPost.id;
       await store.finalizeAndSendPost(draft, options);
-      scrollToNewReply();
+      if (!options?.scrollHandled) {
+        scrollToNewReply();
+      }
     },
     [parentPost, scrollToNewReply, setEditingPost]
   );
@@ -876,16 +880,16 @@ function SinglePostView({
       isEditingParent &&
       (channel.type === 'notebook' || channel.type === 'gallery')
     );
-  const hasFloatingReplyInput = canRenderReplyInput && isChatChannel;
+  const hasDockedReplyInput = canRenderReplyInput && isChatChannel;
   const { bottom } = useSafeAreaInsets();
-  const { contentInsets, onFloatingHeightChange } = useConversationInsets({
-    hasFloatingComposer: hasFloatingReplyInput,
+  const { contentInsets } = useConversationInsets({
+    hasFloatingComposer: false,
     hasTransparentHeader: isChatChannel,
   });
-  // Native floating composers include the home-indicator inset. Web composers
+  // Native docked composers include the home-indicator inset. Web composers
   // stay inline, so the screen still owns its bottom safe-area clearance.
   const screenBottomInset =
-    hasFloatingReplyInput && Platform.OS !== 'web' ? undefined : bottom;
+    hasDockedReplyInput && Platform.OS !== 'web' ? undefined : bottom;
 
   const threadComposerContext = useMemo(
     (): DraftInputContext => ({
@@ -939,7 +943,10 @@ function SinglePostView({
   ) : null;
 
   return (
-    <YStack flex={1} paddingBottom={screenBottomInset}>
+    <ConversationLayout
+      enabled={!!hasDockedReplyInput}
+      bottomInset={screenBottomInset}
+    >
       {/* Thread composer context sends new drafts as replies; edits preserve their original target. */}
       <DraftInputContextProvider value={threadComposerContext}>
         {parentPost ? (
@@ -969,11 +976,10 @@ function SinglePostView({
 
         {replyInput && (
           <ConversationComposerPlacement
-            enabled={hasFloatingReplyInput}
-            avoidKeyboard={!hasFloatingReplyInput}
+            enabled={hasDockedReplyInput}
+            avoidKeyboard={!hasDockedReplyInput}
             contentProps={containingProperties}
             inlineID="reply-container"
-            onFloatingHeightChange={onFloatingHeightChange}
           >
             {replyInput}
           </ConversationComposerPlacement>
@@ -1030,7 +1036,7 @@ function SinglePostView({
           />
         </View>
       ) : null}
-    </YStack>
+    </ConversationLayout>
   );
 }
 

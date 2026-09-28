@@ -1,5 +1,26 @@
 PODS:
   - BranchSDK (2.2.1)
+  - Ease (0.8.0):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - EXApplication (57.0.2):
     - ExpoModulesCore
   - EXConstants (57.0.6):
@@ -2899,6 +2920,7 @@ PODS:
   - Yoga (0.0.0)
 
 DEPENDENCIES:
+  - Ease (from `../../../node_modules/react-native-ease`)
   - EXApplication (from `../../../node_modules/expo-application/ios`)
   - EXConstants (from `../../../node_modules/expo-constants/ios`)
   - EXJSONUtils (from `../../../node_modules/expo-json-utils/ios`)
@@ -3093,6 +3115,8 @@ SPEC REPOS:
     - sqlite3
 
 EXTERNAL SOURCES:
+  Ease:
+    :path: "../../../node_modules/react-native-ease"
   EXApplication:
     :path: "../../../node_modules/expo-application/ios"
   EXConstants:
@@ -3407,6 +3431,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   BranchSDK: cb046c2714b03e573484ce9e349e2ddbad7016e8
+  Ease: 14677b9f440b1037e0ceb78ef640eb718ede2bb2
   EXApplication: bbd517d50878ca1d121fb3843392beb210181e28
   EXConstants: 8641fb5fcb789b2bfc9d01c9206a6826ca9d49e6
   EXJSONUtils: 7a1683cfa2cbe6d11fca97097d51a496755b0287
@@ -3574,7 +3599,7 @@ SPEC CHECKSUMS:
   RNFBCrashlytics: 351caa361fa92d5591e81ee9f705420b52865d55
   RNFBPerf: eb8cf7425e26011c71dee9757adc9295a205aba7
   RNGestureHandler: a6fc176c2a0224a64fa635a65fac7baf2de379ed
-  RNReanimated: dc9af98db59a93ffc39f756da100225ee11b3086
+  RNReanimated: 708a1f3a6f51047314bb68b0d5ff2b314bf1ac40
   RNScreens: df54f9e1092ce77fe96fc0c3a5314862d05a506e
   RNSentry: 18fc2982a2c646dfada4ddd6fc8e225e1bcad812
   RNSVG: 02c4605f1656727c3a83059ef119dc7e469df182
