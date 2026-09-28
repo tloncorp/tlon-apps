@@ -45,6 +45,64 @@ reconnect, monitor reload, or plugin prewarming. It uses the public embedded age
 runner with a temporary transcript rather than a resumable subagent task. The
 initial implementation requires one configured Tlon account with an owner.
 
+### Hosted cron budget holds
+
+The hosted wrapper supplies `TLON_CRON_BUDGET_FILE`, an atomic JSON file with
+`{"version":1,"state":"limited"}` (or `available` / `unknown`). This is the
+confirmed hosting budget signal, not an inference from the selected model.
+Self-hosted installs without this environment variable are unaffected.
+
+While limited, enabled `cron` and `every` tasks are disabled with a visible
+`[Paused: credit budget]` description prefix. One-shot (`at`) and event-driven
+schedules are excluded. The owner receives one notice per budget episode:
+“Your token credits are low. Your 3 scheduled tasks have been paused.” It includes
+an A2UI **Request credit increase** button. Failed delivery is retried.
+New or re-enabled recurring tasks are held as well. Already-running work is not
+cancelled; live reconciliation runs on job changes and every five seconds.
+
+On confirmed recovery, only unchanged budget-held tasks are re-enabled using
+the live cron API, which computes the next scheduled occurrence without replaying
+missed runs. Tasks already disabled before the hold remain disabled. Editing or
+explicitly disabling a held task preserves that user/SRE decision on recovery.
+Missing or unreadable budget signals retain the last hold state.
+
+Ownership and notification state persist in
+`$OPENCLAW_STATE_DIR/tlon-cron-budget-holds.json`. Operators can inspect held
+tasks through the normal cron list including disabled jobs; the description
+explains the pause. The `cron run` model tool cannot force a budget-held task.
+
+Deploy the matching tlonbot wrapper and plugin together. Before launching a
+gateway, the wrapper runs `dist/src/cron-budget-bootstrap.js` as the gateway
+user, after ensuring no old gateway is running. This applies holds through the
+public SDK's cron store API before the scheduler can catch up overdue tasks.
+The bootstrap must never run alongside a live gateway. Recovery is left to the
+plugin's live API. A failed bootstrap prevents gateway launch rather than
+silently starting unprotected scheduled work.
+
+Verify locally with `pnpm exec tsc` followed by
+`node scripts/test-cron-budget-bootstrap.mjs`. Set `OPENCLAW_TEST_PACKAGE` to a
+built OpenClaw package directory to repeat the same startup checks against the
+hosting version. The test uses an isolated temporary state directory.
+
+The request button uses the native `tlon.requestCreditIncrease` A2UI action.
+In the owner's bot DM, the app submits a `TlonBot Credit Increase Requested`
+event through its existing first-party PostHog ingestion proxy. The event includes
+`ownerShip`, `botShip`, `sourcePostId`, `requestId`, `source: budget_hold`, and
+`requestedFrom: tlon_app`. This is a manual-review signal; it does not change the
+credit limit or release any holds. An alert can filter on the event and
+deduplicate by `requestId`. No external alert rule is installed here.
+
+After successful ingestion, the app saves a completion marker in local KV and
+disables the original button with the label **Credit Increase Requested**. It
+creates no chat message or bot acknowledgment and does not edit the original
+post remotely. Local completion survives app restarts; it is not synchronized
+across devices. Concurrent taps are deduplicated, and a stable event UUID covers
+retries or requests from another device. A failed submission leaves the button
+available to retry and shows an error toast. App ingestion must be configured.
+
+Ship the app/API support before enabling these plugin cards. Older clients
+cannot perform the native action and display the notice's fallback story.
+
 ### Full Configuration Example
 
 ```yaml

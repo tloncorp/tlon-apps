@@ -1,0 +1,131 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import type { OpenClawPluginApi } from 'openclaw/plugin-sdk/core';
+import type { PluginHookGatewayCronJob } from 'openclaw/plugin-sdk/types';
+import { afterEach, expect, it, vi } from 'vitest';
+import { getCurrentUserId } from '@tloncorp/api';
+import {
+  runWithTlonApiScope,
+  setScopedTlonApiWithPoke,
+} from './urbit/api-client.js';
+import {
+  installBudgetHoldNotifier,
+  registerBudgetHoldHooks,
+} from './cron-budget-runtime.js';
+
+const cleanups: (() => Promise<void> | void)[] = [];
+afterEach(async () => {
+  for (const cleanup of cleanups.reverse()) await cleanup();
+  cleanups.length = 0;
+  vi.unstubAllEnvs();
+});
+
+it('sends the notice in the authenticated monitor scope from a gateway callback', async () => {
+  const f = await setup();
+  const sentAs = vi.fn();
+  await runWithTlonApiScope(async () => {
+    setScopedTlonApiWithPoke(vi.fn(), '~zod', 'http://zod');
+    cleanups.push(
+      installBudgetHoldNotifier(async () => {
+        sentAs(getCurrentUserId());
+        return true;
+      })
+    );
+  });
+  await f.fire('gateway_start', {}, f.ctx);
+  expect(sentAs).toHaveBeenCalledWith('~zod');
+  expect(f.warn).not.toHaveBeenCalled();
+});
+
+async function setup() {
+  const dir = await mkdtemp(join(tmpdir(), 'cron-budget-runtime-'));
+  cleanups.push(() => rm(dir, { recursive: true, force: true }));
+  const signal = join(dir, 'signal.json');
+  vi.stubEnv('TLON_CRON_BUDGET_FILE', signal);
+  vi.stubEnv('OPENCLAW_STATE_DIR', dir);
+  const setBudget = (state: string) =>
+    writeFile(signal, JSON.stringify({ version: 1, state }));
+  await setBudget('limited');
+  const hooks = new Map<string, (...args: unknown[]) => unknown>();
+  const warn = vi.fn();
+  const on = vi.fn((name: string, handler: unknown) => {
+    hooks.set(name, handler as (...args: unknown[]) => unknown);
+  });
+  registerBudgetHoldHooks({ on, logger: { warn } } as unknown as Pick<
+    OpenClawPluginApi,
+    'on' | 'logger'
+  >);
+  const fire = async (name: string, ...args: unknown[]) =>
+    hooks.get(name)?.(...args);
+  cleanups.push(async () => {
+    await fire('gateway_stop');
+  });
+  const job: PluginHookGatewayCronJob = {
+    id: 'news',
+    enabled: true,
+    schedule: { kind: 'every', everyMs: 60_000 },
+    updatedAtMs: 1,
+  };
+  let revision = 1;
+  const update = vi.fn(async (_id: string, patch: object) => {
+    Object.assign(job, patch, { updatedAtMs: ++revision });
+    // Core emits a change from inside the mutation: this must not deadlock.
+    await fire('cron_changed', { action: 'updated', jobId: job.id });
+  });
+  const cron = { list: async () => [structuredClone(job)], update };
+  return { job, update, warn, fire, setBudget, ctx: { getCron: () => cron } };
+}
+
+it('holds without a connected owner, then notifies once when delivery becomes available', async () => {
+  const f = await setup();
+  await f.fire('gateway_start', {}, f.ctx);
+  expect(f.job.enabled).toBe(false);
+  const notify = vi.fn(async () => true);
+  cleanups.push(installBudgetHoldNotifier(notify));
+  await f.fire('cron_changed', { action: 'added', jobId: 'another' });
+  await vi.waitFor(() =>
+    expect(notify).toHaveBeenCalledWith(
+      'Your token credits are low. Your 1 scheduled task has been paused.',
+      expect.any(String)
+    )
+  );
+  await f.fire('gateway_start', {}, f.ctx);
+  expect(f.update).toHaveBeenCalledTimes(1);
+  expect(f.warn).not.toHaveBeenCalled();
+});
+
+it('observes live recovery and prevents model-forced runs while held', async () => {
+  const f = await setup();
+  await f.fire('gateway_start', {}, f.ctx);
+  expect(
+    await f.fire('before_tool_call', {
+      toolName: 'cron',
+      params: { action: 'run', jobId: 'news' },
+    })
+  ).toMatchObject({ block: true });
+  expect(
+    await f.fire('before_tool_call', {
+      toolName: 'cron',
+      params: { action: 'run', jobId: 'one-shot' },
+    })
+  ).toBeUndefined();
+  await f.setBudget('available');
+  await f.fire('cron_changed', { action: 'updated', jobId: 'another' });
+  await vi.waitFor(() => expect(f.job.enabled).toBe(true));
+  await f.fire('gateway_stop');
+  await f.setBudget('limited');
+  await f.fire('cron_changed', { action: 'updated', jobId: 'another' });
+  expect(f.job.enabled).toBe(true);
+  expect(f.warn).not.toHaveBeenCalled();
+});
+
+it('does not install budget policy for self-hosted instances without a signal', () => {
+  vi.stubEnv('TLON_CRON_BUDGET_FILE', '');
+  const on = vi.fn();
+  registerBudgetHoldHooks({ on } as unknown as Pick<
+    OpenClawPluginApi,
+    'on' | 'logger'
+  >);
+  expect(on).not.toHaveBeenCalled();
+});

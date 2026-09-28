@@ -51,6 +51,32 @@ describe('a2ui blob entries', () => {
     expect(A2UI.validateBlobEntry(a2uiBlobEntry)).toBe(true);
   });
 
+  test('validates native credit requests and their completion label', () => {
+    const entry = structuredClone(a2uiBlobEntry);
+    const button = A2UI.getUpdateMessage(
+      entry
+    )?.updateComponents.components.find(
+      (component) => component.component === 'Button'
+    );
+    if (!button || button.component !== 'Button')
+      throw new Error('missing button');
+    button.action = {
+      event: {
+        name: A2UI.action.requestCreditIncrease,
+        context: { requestId: '697e119d-26da-4df7-a131-89f8a816a7dd' },
+      },
+    };
+    button.consumedLabel = 'Credit Increase Requested';
+    expect(A2UI.validateBlobEntry(entry)).toBe(true);
+    button.action = {
+      event: {
+        name: A2UI.action.requestCreditIncrease,
+        context: { requestId: 'invalid' },
+      },
+    };
+    expect(A2UI.validateBlobEntry(entry)).toBe(false);
+  });
+
   test('finds the create message past unrelated primitive messages', () => {
     const entry = {
       ...a2uiBlobEntry,
