@@ -235,6 +235,42 @@ describe('onboarding tool boundary', () => {
     ).toBeUndefined();
   });
 
+  it('lets reminders and group posts through cron during onboarding, but not the onboarding task', () => {
+    const surface = {
+      kind: 'direct' as const,
+      requestedOnboardingGroupId: '~ten/workspace',
+      channelNest: '~ten',
+      bootstrapComplete: false,
+      timestamp: Date.now(),
+    };
+    const add = (name: string, to: string) =>
+      onboardingToolBlockReason(
+        'cron',
+        { action: 'add', job: { name, delivery: { mode: 'announce', to } } },
+        surface
+      );
+    expect(add('Friday timesheet', '~ten')).toBeUndefined();
+    expect(
+      add('Morning news', 'chat/~ten/tech-friends-general')
+    ).toBeUndefined();
+    expect(add('Morning news', 'diary/~ten/updates')).toContain(
+      'typed task-plan coordinator'
+    );
+    expect(add('Tlonbot scheduled update', '~ten')).toContain(
+      'typed task-plan coordinator'
+    );
+    expect(
+      onboardingToolBlockReason('cron', { action: 'list' }, surface)
+    ).toBeUndefined();
+    expect(
+      onboardingToolBlockReason(
+        'cron',
+        { action: 'update', id: 'job-1', patch: { enabled: false } },
+        surface
+      )
+    ).toContain('only list jobs or add one that delivers to a DM');
+  });
+
   it('shares the surface with thread session keys', () => {
     setTlonSessionSurface('agent:dev:tlon:group:chat/~zod/home', {
       kind: 'group',
