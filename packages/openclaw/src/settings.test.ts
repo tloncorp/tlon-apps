@@ -11,6 +11,16 @@ import {
 } from './settings.js';
 
 describe('Settings: parseSettingsResponse', () => {
+  it('parses bootstrapComplete only as a boolean', () => {
+    expect(
+      parseSettingsResponse({ tlon: { bootstrapComplete: true } })
+        .bootstrapComplete
+    ).toBe(true);
+    expect(
+      parseSettingsResponse({ tlon: { bootstrapComplete: 'true' } })
+        .bootstrapComplete
+    ).toBeUndefined();
+  });
   it('parses lastOwnerMessageAt as number', () => {
     const result = parseSettingsResponse({
       tlon: { lastOwnerMessageAt: 1700000000000 },
@@ -403,6 +413,19 @@ describe('Settings: autoDiscoverChannels', () => {
 });
 
 describe('Settings: applySettingsUpdate', () => {
+  it('hot-updates and clears bootstrapComplete', () => {
+    expect(
+      applySettingsUpdate({}, 'bootstrapComplete', true).bootstrapComplete
+    ).toBe(true);
+    expect(
+      applySettingsUpdate(
+        { bootstrapComplete: true },
+        'bootstrapComplete',
+        undefined
+      ).bootstrapComplete
+    ).toBeUndefined();
+  });
+
   it('updates lastOwnerMessageAt with number value', () => {
     const result = applySettingsUpdate({}, 'lastOwnerMessageAt', 1700000000000);
     expect(result.lastOwnerMessageAt).toBe(1700000000000);

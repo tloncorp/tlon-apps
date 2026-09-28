@@ -41,6 +41,8 @@ export type PendingApproval = {
 };
 
 export type TlonSettingsStore = {
+  /** First-run onboarding state; absent preserves legacy cron behavior. */
+  bootstrapComplete?: boolean;
   groupChannels?: string[];
   dmAllowlist?: string[];
   autoDiscover?: boolean;
@@ -339,6 +341,10 @@ export function parseSettingsResponse(raw: unknown): TlonSettingsStore {
   const settings = bucket as Record<string, unknown>;
 
   return {
+    bootstrapComplete:
+      typeof settings.bootstrapComplete === 'boolean'
+        ? settings.bootstrapComplete
+        : undefined,
     groupChannels: Array.isArray(settings.groupChannels)
       ? settings.groupChannels.filter((x): x is string => typeof x === 'string')
       : undefined,
@@ -581,6 +587,9 @@ export function applySettingsUpdate(
   const next = { ...current };
 
   switch (key) {
+    case 'bootstrapComplete':
+      next.bootstrapComplete = typeof value === 'boolean' ? value : undefined;
+      break;
     case 'groupChannels':
       next.groupChannels = Array.isArray(value)
         ? value.filter((x): x is string => typeof x === 'string')

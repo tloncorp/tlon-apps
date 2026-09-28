@@ -4,6 +4,7 @@ import {
   type ReplyWithMemo,
   formatUd,
 } from '@tloncorp/api';
+import { da } from '@urbit/aura';
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 
 import { isDmNest } from '../targets.js';
@@ -14,6 +15,7 @@ export type TlonHistoryEntry = {
   author: string;
   content: string;
   timestamp: number;
+  sequenceNum?: number;
   id?: string;
   blob?: string | null;
   parsedBlobData?: ClientPostBlobData | null;
@@ -44,6 +46,40 @@ function parsePostAuthor(author: unknown): string | null {
   return null;
 }
 
+function parseSequenceNum(value: unknown): number | undefined {
+  const sequenceNum = typeof value === 'number' ? value : Number(value);
+  return Number.isSafeInteger(sequenceNum) && sequenceNum > 0
+    ? sequenceNum
+    : undefined;
+}
+
+function parseHistoryTimestamp(value: unknown): number | undefined {
+  if (typeof value === 'number') {
+    return Number.isSafeInteger(value) && value > 0 ? value : undefined;
+  }
+  if (typeof value !== 'string') return undefined;
+  const digits = value.replaceAll('.', '');
+  if (!/^\d+$/.test(digits)) return undefined;
+  try {
+    const atom = BigInt(digits);
+    if (atom <= BigInt(Number.MAX_SAFE_INTEGER)) {
+      const unix = Number(atom);
+      return unix > 0 ? unix : undefined;
+    }
+    return da.toUnix(atom);
+  } catch {
+    return undefined;
+  }
+}
+
+function historyTimestamp(sent: unknown, id: unknown): number {
+  const direct = parseHistoryTimestamp(sent);
+  if (direct !== undefined) return direct;
+  const idTime =
+    typeof id === 'string' ? id.slice(id.lastIndexOf('/') + 1) : undefined;
+  return parseHistoryTimestamp(idTime) ?? Date.now();
+}
+
 /** Parse the supported single-post and single-reply scry payload shapes. */
 export function parsePostPayload(
   payload: unknown,
@@ -57,6 +93,9 @@ export function parsePostPayload(
     const post = payload as unknown as PostDataResponse;
     const sourceAuthor = parsePostAuthor(post.essay.author);
     const id = post.seal?.id ?? fallbackId;
+    const sequenceNum = parseSequenceNum(
+      (post.seal as { seq?: unknown } | undefined)?.seq
+    );
     const blob = typeof post.essay.blob === 'string' ? post.essay.blob : null;
 
     return {
@@ -68,6 +107,7 @@ export function parsePostPayload(
             ? post.essay.sent
             : Date.now(),
         ...(id ? { id } : {}),
+        ...(sequenceNum ? { sequenceNum } : {}),
         blob,
       },
       sourceAuthor,
@@ -329,6 +369,7 @@ export async function fetchChannelHistoryOrThrow(
     .map((item) => {
       const essay = item.essay || item['r-post']?.set?.essay;
       const seal = item.seal || item['r-post']?.set?.seal;
+      const sequenceNum = parseSequenceNum(seal?.seq);
 
       return {
         // v8 channel history returns bot authors as profile objects while
@@ -336,8 +377,14 @@ export async function fetchChannelHistoryOrThrow(
         // downstream keys identity by ship, so normalize both shapes here.
         author: parsePostAuthor(essay?.author) ?? 'unknown',
         content: extractMessageText(essay?.content || []),
-        timestamp: essay?.sent || Date.now(),
+        // %chat DM history may expose `sent` as an @da atom rather than Unix
+        // milliseconds. Preserve the true client time so delayed onboarding
+        // reconciliation cannot make a fresh intro look ineligible (or an old
+        // intro look fresh). The seal id retains the exact atom when a JSON
+        // number has already lost precision.
+        timestamp: historyTimestamp(essay?.sent, seal?.id),
         id: seal?.id,
+        ...(sequenceNum ? { sequenceNum } : {}),
         blob: essay?.blob ?? null,
       } as TlonHistoryEntry;
     })
