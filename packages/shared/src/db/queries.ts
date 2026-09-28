@@ -471,7 +471,7 @@ export const getUnjoinedGroupChannels = createReadQuery(
       return canRead;
     });
   },
-  ['channels', 'groups']
+  ['channels', 'groups', 'groupRoles', 'chatMemberGroupRoles', 'channelReaders']
 );
 
 export const getAnalyticsDigest = createReadQuery(

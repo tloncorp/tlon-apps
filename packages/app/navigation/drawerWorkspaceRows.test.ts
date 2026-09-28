@@ -515,6 +515,19 @@ describe('getDrawerRows, with channels the user has not joined', () => {
     ]);
   });
 
+  it('stays open on what it offers once its last joined channel is left', () => {
+    const emptied = workspace('group', [
+      channel('left', { currentUserIsMember: false }),
+    ]);
+    const rows = getDrawerRows([emptied], 'group', false, [
+      unjoined('left', 'group'),
+    ]);
+
+    expect(rows.map((row) => row.key)).toEqual(['group', 'group:left']);
+    expect(rows[0]).toMatchObject({ unfurls: true, unfurled: true });
+    expect(rows[1]).toMatchObject({ joined: false, last: true });
+  });
+
   it('shows none while the workspace is folded', () => {
     const rows = getDrawerRows([open], null, false, [
       unjoined('left', 'group'),

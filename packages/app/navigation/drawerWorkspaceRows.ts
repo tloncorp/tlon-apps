@@ -39,7 +39,7 @@ export type DrawerRow =
       /**
        * False for a channel the user can read but has not joined, or has
        * left: listed after the joined ones so it can be found again, drawn
-       * quieter, and joined by pressing it.
+       * quieter, and joined and opened by pressing it.
        */
       joined: boolean;
     };
@@ -209,7 +209,14 @@ export function getDrawerRows(
   for (const chat of chats) {
     // Asked of every row on every chat-list change, so it stays a count. Only
     // a row that is actually open pays to copy and order its channels.
-    const rowUnfurls = unfurls(chat);
+    const offered =
+      chat.id === unfurledGroupId
+        ? availableChannels.filter((channel) => channel.groupId === chat.id)
+        : [];
+    // Leaving the last joined channel of the open workspace keeps it open on
+    // the channels it still offers, the one just left among them, rather than
+    // folding the block away under the user.
+    const rowUnfurls = unfurls(chat) || offered.length > 0;
     const unfurled = rowUnfurls && chat.id === unfurledGroupId;
     rows.push({
       kind: 'chat',
@@ -219,16 +226,20 @@ export function getDrawerRows(
       unfurled,
       pinned,
     });
-    const joinedChannels = unfurled ? getUnfurlableChannels(chat) : null;
-    if (!joinedChannels) {
+    if (!unfurled) {
       continue;
     }
+    const joinedChannels = getUnfurlableChannels(chat) ?? [];
     const joinedIds = new Set(joinedChannels.map((channel) => channel.id));
-    const unjoinedChannels = availableChannels
-      .filter(
-        (channel) => channel.groupId === chat.id && !joinedIds.has(channel.id)
-      )
-      .sort((a, b) => channelRecency(b) - channelRecency(a));
+    // Channels never joined have no activity on record, so the title keeps
+    // their order steady.
+    const unjoinedChannels = offered
+      .filter((channel) => !joinedIds.has(channel.id))
+      .sort(
+        (a, b) =>
+          channelRecency(b) - channelRecency(a) ||
+          (a.title ?? '').localeCompare(b.title ?? '')
+      );
     const channels = [
       ...joinedChannels.map((channel) => ({ channel, joined: true })),
       ...unjoinedChannels.map((channel) => ({ channel, joined: false })),

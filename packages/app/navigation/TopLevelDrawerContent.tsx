@@ -1034,6 +1034,38 @@ function DrawerPanel(props: DrawerContentComponentProps) {
     [openChannel]
   );
 
+  /**
+   * Join a channel the workspace offers, then open it.
+   *
+   * The row turns ordinary as soon as the join is written; the panel stays up
+   * until the ship has taken it, so a channel that could not be joined is not
+   * opened. Anything pressed meanwhile supersedes it, as with any other
+   * destination that waits on something.
+   */
+  const joinWorkspaceChannel = useCallback(
+    async (channel: db.Channel) => {
+      if (!channel.groupId) {
+        return;
+      }
+      navigationRequestRef.current += 1;
+      const request = navigationRequestRef.current;
+      await store.joinGroupChannel({
+        channelId: channel.id,
+        groupId: channel.groupId,
+      });
+      // A failed join rolls itself back rather than throwing.
+      const joined = await db.getChannel({ id: channel.id });
+      if (
+        navigationRequestRef.current !== request ||
+        !joined?.currentUserIsMember
+      ) {
+        return;
+      }
+      openWorkspaceChannel(joined);
+    },
+    [openWorkspaceChannel]
+  );
+
   const openChat = useCallback(
     (chat: db.Chat) => {
       if (chatsLocked) {
@@ -1245,14 +1277,6 @@ function DrawerPanel(props: DrawerContentComponentProps) {
     () => unjoinedChannels ?? [],
     [unjoinedChannels]
   );
-  const joinWorkspaceChannel = useCallback((channel: db.Channel) => {
-    if (channel.groupId) {
-      void store.joinGroupChannel({
-        channelId: channel.id,
-        groupId: channel.groupId,
-      });
-    }
-  }, []);
   const toggleWorkspace = useCallback(
     (chat: db.Chat) => {
       if (chatsLocked) {
@@ -1404,8 +1428,6 @@ function DrawerPanel(props: DrawerContentComponentProps) {
           groupMuted={item.groupMuted}
           last={item.last}
           joined={item.joined}
-          // Joining leaves the panel as it is: the row turns into an ordinary
-          // one in place, as on the workspace's own channel list.
           onPress={item.joined ? openWorkspaceChannel : joinWorkspaceChannel}
           onLongPress={item.joined ? openChannelOptions : undefined}
         />
@@ -1649,8 +1671,8 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
     };
     return {
       ...closing,
-      // Leaving a channel only takes its row out of the panel, so the panel
-      // stays open on it. The app moves only if it was standing in that
+      // Leaving a channel only moves its row down among the channels not
+      // joined, so the panel stays open on it. The app moves only if it was standing in that
       // channel, and then to the channel now at the top of the group's list
       // in the panel, or the group's channel list if none is left, opened the
       // way a row opens one: on the sections as they stand, with the drawer
