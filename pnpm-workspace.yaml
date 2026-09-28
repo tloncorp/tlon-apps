@@ -56,6 +56,7 @@ patchedDependencies:
   react-native-worklets@0.10.3: patches/react-native-worklets@0.10.3.patch
   expo-modules-core@57.0.6: patches/expo-modules-core@57.0.6.patch
   react-native-transformer-text-input@0.4.1: patches/react-native-transformer-text-input@0.4.1.patch
+  '@legendapp/list@3.3.3': patches/@legendapp__list@3.3.3.patch
 
 allowUnusedPatches: false
 

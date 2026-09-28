@@ -1,0 +1,102 @@
+diff --git a/keyboard.js b/keyboard.js
+index 736286a3fa183645b1b58259557b3b0dbb082d9d..b9886691a390ac31cd47fa7416557f4c6738a123 100644
+--- a/keyboard.js
++++ b/keyboard.js
+@@ -114,9 +114,16 @@ var KeyboardAwareLegendList = typedForwardRef(function KeyboardAwareLegendList2(
+       }
+     };
+   }, [anchoredEndSpace, blankSpace]);
++  const keyboardInsetInputsRef = React.useRef(null);
++  keyboardInsetInputsRef.current = { anchoredEndSpace, contentInset: rest.contentInset, contentInsetEndAdjustment };
+   const onContentInsetChange = React.useCallback((insets) => {
+-    var _a;
+-    (_a = refLegendList.current) == null ? void 0 : _a.reportContentInset(insets);
++    var _a, _b, _c;
++    const inputs = keyboardInsetInputsRef.current;
++    // KeyboardChatScrollView lifts end-anchored content by the keyboard with its
++    // contentOffset. Report that share of the inset separately so the
++    // alignItemsAtEnd spacer does not lift short content a second time.
++    const keyboardInset = inputs.anchoredEndSpace ? 0 : Math.max(0, insets.bottom - ((_b = (_a = inputs.contentInset) == null ? void 0 : _a.bottom) != null ? _b : 0) - ((_c = inputs.contentInsetEndAdjustment == null ? void 0 : inputs.contentInsetEndAdjustment.value) != null ? _c : 0));
++    (_a = refLegendList.current) == null ? void 0 : _a.reportContentInset({ ...insets, keyboardInset });
+   }, []);
+   const memoList = React.useCallback(
+     (scrollProps) => {
+diff --git a/keyboard.mjs b/keyboard.mjs
+index c1dd27020db002cce6f65d9e82d3a0330eb2a55f..e07a7178b64b22c4495da38d88031789d16b895d 100644
+--- a/keyboard.mjs
++++ b/keyboard.mjs
+@@ -93,9 +93,16 @@ var KeyboardAwareLegendList = typedForwardRef(function KeyboardAwareLegendList2(
+       }
+     };
+   }, [anchoredEndSpace, blankSpace]);
++  const keyboardInsetInputsRef = useRef(null);
++  keyboardInsetInputsRef.current = { anchoredEndSpace, contentInset: rest.contentInset, contentInsetEndAdjustment };
+   const onContentInsetChange = useCallback((insets) => {
+-    var _a;
+-    (_a = refLegendList.current) == null ? void 0 : _a.reportContentInset(insets);
++    var _a, _b, _c;
++    const inputs = keyboardInsetInputsRef.current;
++    // KeyboardChatScrollView lifts end-anchored content by the keyboard with its
++    // contentOffset. Report that share of the inset separately so the
++    // alignItemsAtEnd spacer does not lift short content a second time.
++    const keyboardInset = inputs.anchoredEndSpace ? 0 : Math.max(0, insets.bottom - ((_b = (_a = inputs.contentInset) == null ? void 0 : _a.bottom) != null ? _b : 0) - ((_c = inputs.contentInsetEndAdjustment == null ? void 0 : inputs.contentInsetEndAdjustment.value) != null ? _c : 0));
++    (_a = refLegendList.current) == null ? void 0 : _a.reportContentInset({ ...insets, keyboardInset });
+   }, []);
+   const memoList = useCallback(
+     (scrollProps) => {
+diff --git a/react-native.js b/react-native.js
+index 229f09a8230ab24079d471f65d28d36908f0f2ea..a16e72dc7a11805d0157a43c159b68fc4949b757 100644
+--- a/react-native.js
++++ b/react-native.js
+@@ -1046,7 +1046,13 @@ function getRawContentLength(ctx) {
+ function getAlignItemsAtEndPadding(ctx) {
+   const { state } = ctx;
+   const shouldPad = !!state.props.alignItemsAtEndPaddingEnabled && !state.props.horizontal && state.props.data.length > 0 && state.scrollLength > 0;
+-  return shouldPad ? Math.max(0, state.scrollLength - getRawContentLength(ctx) - getContentInsetEnd(ctx)) : 0;
++  if (!shouldPad) {
++    return 0;
++  }
++  // The keyboard share of the end inset is matched by a contentOffset lift in
++  // KeyboardAwareLegendList; padding for it too would lift short content twice.
++  const keyboardInset = state.contentInsetOverride && state.contentInsetOverride.keyboardInset || 0;
++  return Math.max(0, state.scrollLength - getRawContentLength(ctx) - Math.max(0, getContentInsetEnd(ctx) - keyboardInset));
+ }
+ function updateContentMetricsState(ctx) {
+   const previousPadding = peek$(ctx, "alignItemsAtEndPadding") || 0;
+@@ -5812,7 +5818,7 @@ function setFooterSize(ctx, size) {
+ }
+ function areInsetsEqual(left, right) {
+   var _a3, _b, _c, _d, _e, _f, _g, _h;
+-  return ((_a3 = left == null ? void 0 : left.top) != null ? _a3 : 0) === ((_b = right == null ? void 0 : right.top) != null ? _b : 0) && ((_c = left == null ? void 0 : left.bottom) != null ? _c : 0) === ((_d = right == null ? void 0 : right.bottom) != null ? _d : 0) && ((_e = left == null ? void 0 : left.left) != null ? _e : 0) === ((_f = right == null ? void 0 : right.left) != null ? _f : 0) && ((_g = left == null ? void 0 : left.right) != null ? _g : 0) === ((_h = right == null ? void 0 : right.right) != null ? _h : 0);
++  return ((_a3 = left == null ? void 0 : left.top) != null ? _a3 : 0) === ((_b = right == null ? void 0 : right.top) != null ? _b : 0) && ((_c = left == null ? void 0 : left.bottom) != null ? _c : 0) === ((_d = right == null ? void 0 : right.bottom) != null ? _d : 0) && ((_e = left == null ? void 0 : left.left) != null ? _e : 0) === ((_f = right == null ? void 0 : right.left) != null ? _f : 0) && ((_g = left == null ? void 0 : left.right) != null ? _g : 0) === ((_h = right == null ? void 0 : right.right) != null ? _h : 0) && ((left == null ? void 0 : left.keyboardInset) || 0) === ((right == null ? void 0 : right.keyboardInset) || 0);
+ }
+ function setContentInsetOverride(ctx, inset) {
+   const { state } = ctx;
+diff --git a/react-native.mjs b/react-native.mjs
+index c2e0f3823f524e31e2105a5fbda76be78c926226..d05ea1be32369971df944d89d8dbff2a902926f0 100644
+--- a/react-native.mjs
++++ b/react-native.mjs
+@@ -1025,7 +1025,13 @@ function getRawContentLength(ctx) {
+ function getAlignItemsAtEndPadding(ctx) {
+   const { state } = ctx;
+   const shouldPad = !!state.props.alignItemsAtEndPaddingEnabled && !state.props.horizontal && state.props.data.length > 0 && state.scrollLength > 0;
+-  return shouldPad ? Math.max(0, state.scrollLength - getRawContentLength(ctx) - getContentInsetEnd(ctx)) : 0;
++  if (!shouldPad) {
++    return 0;
++  }
++  // The keyboard share of the end inset is matched by a contentOffset lift in
++  // KeyboardAwareLegendList; padding for it too would lift short content twice.
++  const keyboardInset = state.contentInsetOverride && state.contentInsetOverride.keyboardInset || 0;
++  return Math.max(0, state.scrollLength - getRawContentLength(ctx) - Math.max(0, getContentInsetEnd(ctx) - keyboardInset));
+ }
+ function updateContentMetricsState(ctx) {
+   const previousPadding = peek$(ctx, "alignItemsAtEndPadding") || 0;
+@@ -5791,7 +5797,7 @@ function setFooterSize(ctx, size) {
+ }
+ function areInsetsEqual(left, right) {
+   var _a3, _b, _c, _d, _e, _f, _g, _h;
+-  return ((_a3 = left == null ? void 0 : left.top) != null ? _a3 : 0) === ((_b = right == null ? void 0 : right.top) != null ? _b : 0) && ((_c = left == null ? void 0 : left.bottom) != null ? _c : 0) === ((_d = right == null ? void 0 : right.bottom) != null ? _d : 0) && ((_e = left == null ? void 0 : left.left) != null ? _e : 0) === ((_f = right == null ? void 0 : right.left) != null ? _f : 0) && ((_g = left == null ? void 0 : left.right) != null ? _g : 0) === ((_h = right == null ? void 0 : right.right) != null ? _h : 0);
++  return ((_a3 = left == null ? void 0 : left.top) != null ? _a3 : 0) === ((_b = right == null ? void 0 : right.top) != null ? _b : 0) && ((_c = left == null ? void 0 : left.bottom) != null ? _c : 0) === ((_d = right == null ? void 0 : right.bottom) != null ? _d : 0) && ((_e = left == null ? void 0 : left.left) != null ? _e : 0) === ((_f = right == null ? void 0 : right.left) != null ? _f : 0) && ((_g = left == null ? void 0 : left.right) != null ? _g : 0) === ((_h = right == null ? void 0 : right.right) != null ? _h : 0) && ((left == null ? void 0 : left.keyboardInset) || 0) === ((right == null ? void 0 : right.keyboardInset) || 0);
+ }
+ function setContentInsetOverride(ctx, inset) {
+   const { state } = ctx;
