@@ -81,6 +81,8 @@ export type LabConfig = {
   braveKey?: string;
   /** False when a round runs without web search, e.g. while search quota is out. */
   search: boolean;
+  /** Fast mode plays web search with a model instead of calling Brave. */
+  simulatedSearch?: boolean;
   models: { bot: string; user: string; judge: string };
   /** Reasoning and routing for bot calls, as the deployed OpenClaw sends them. */
   botRequest?: {
@@ -93,7 +95,7 @@ export type LabConfig = {
 
 export function loadConfig(
   overrides: Partial<LabConfig['models']> = {},
-  options: { search?: boolean } = {}
+  options: { search?: boolean; simulatedSearch?: boolean } = {}
 ): LabConfig {
   const labEnv = parseEnvFile(path.join(LAB_DIR, '.env'));
   const env = { ...labEnv, ...process.env };
@@ -111,10 +113,13 @@ export function loadConfig(
     tlonbotDir,
     openrouterKey,
     braveKey:
-      options.search === false
+      options.search === false || options.simulatedSearch
         ? undefined
         : (env.BRAVE_API_KEY ?? tlonbotEnv.BRAVE_API_KEY),
     search: options.search !== false,
+    ...(options.search !== false && options.simulatedSearch
+      ? { simulatedSearch: true }
+      : {}),
     models: {
       bot:
         overrides.bot ?? env.LAB_BOT_MODEL ?? stackModel ?? 'openai/gpt-6-luna',
@@ -132,7 +137,8 @@ export function loadConfig(
 /** Credentials stay live. Frozen runs do not need a surviving prompt checkout. */
 export function loadFrozenConfig(
   models: LabConfig['models'],
-  search: boolean
+  search: boolean,
+  simulatedSearch = false
 ): LabConfig {
   const env = { ...parseEnvFile(path.join(LAB_DIR, '.env')), ...process.env };
   const tlonbotDir =
@@ -152,8 +158,12 @@ export function loadFrozenConfig(
   return {
     tlonbotDir,
     openrouterKey,
-    braveKey: search ? (env.BRAVE_API_KEY ?? stack.BRAVE_API_KEY) : undefined,
+    braveKey:
+      search && !simulatedSearch
+        ? (env.BRAVE_API_KEY ?? stack.BRAVE_API_KEY)
+        : undefined,
     search,
+    ...(search && simulatedSearch ? { simulatedSearch: true } : {}),
     models,
   };
 }

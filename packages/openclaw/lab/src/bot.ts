@@ -56,7 +56,7 @@ export class BotSession {
     private readonly now: () => Date = () => new Date()
   ) {
     this.tools = labTools({
-      search: Boolean(config.braveKey),
+      search: Boolean(config.braveKey || config.simulatedSearch),
       template: config.template,
     });
   }
@@ -160,6 +160,16 @@ export class BotSession {
       },
       cronJobs: this.cronJobs,
       ownerGroups: this.ownerGroups,
+      ...(this.config.simulatedSearch
+        ? {
+            searchSimulator: {
+              key: this.config.openrouterKey,
+              model: this.config.models.user,
+              meter: this.meter,
+              now: this.now,
+            },
+          }
+        : {}),
       onCronChange: (action: string, job: unknown) => {
         events.push({ from: 'system', kind: 'task-change', action, job });
       },

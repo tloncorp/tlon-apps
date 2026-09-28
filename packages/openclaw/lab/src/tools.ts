@@ -1,3 +1,8 @@
+import {
+  type SearchSimulator,
+  simulateSearch,
+  simulatedPageText,
+} from './simulated-search.js';
 import { cleanCronToolArgs } from '../../src/cron-tool-args.js';
 import {
   type AgentChoiceToolParams,
@@ -69,6 +74,8 @@ export type ToolContext = {
   onMessage?: (text: string, target: string) => void;
   /** Groups the owner runs that the bot has been added to. */
   ownerGroups?: OwnerGroup[];
+  /** When set, a model plays web search and the pages it returns. */
+  searchSimulator?: SearchSimulator;
 };
 
 function tool(
@@ -375,6 +382,9 @@ function runTlon(command: string, context: ToolContext) {
 }
 
 async function webSearch(args: Record<string, unknown>, context: ToolContext) {
+  if (context.searchSimulator) {
+    return simulateSearch(args, context.searchSimulator);
+  }
   if (!context.braveKey) {
     throw new Error('Web search is unavailable right now.');
   }
@@ -504,14 +514,24 @@ async function webFetchLikeOpenClaw(
     100,
     Number(args.maxChars ?? WEB_FETCH_DEFAULT_MAX_CHARS)
   );
-  const response = await fetch(url, {
-    signal: AbortSignal.timeout(20_000),
-    headers: { 'User-Agent': 'Mozilla/5.0 (onboarding lab)' },
-  });
-  if (!response.ok) throw new Error(`fetch failed: ${response.status}`);
-  const contentType = response.headers.get('content-type')?.split(';')[0] ?? '';
-  const raw = await response.text();
-  const html = contentType.includes('html');
+  const simulated = context.searchSimulator
+    ? await simulatedPageText(url, context.searchSimulator)
+    : undefined;
+  const response =
+    simulated === undefined
+      ? await fetch(url, {
+          signal: AbortSignal.timeout(20_000),
+          headers: { 'User-Agent': 'Mozilla/5.0 (onboarding lab)' },
+        })
+      : undefined;
+  if (response && !response.ok) {
+    throw new Error(`fetch failed: ${response.status}`);
+  }
+  const contentType = response
+    ? (response.headers.get('content-type')?.split(';')[0] ?? '')
+    : 'text/html';
+  const raw = simulated ?? (await response!.text());
+  const html = simulated === undefined && contentType.includes('html');
   const extracted = html
     ? raw
         .replace(/<script[\s\S]*?<\/script>/gi, ' ')
@@ -536,8 +556,8 @@ async function webFetchLikeOpenClaw(
   return JSON.stringify(
     {
       url,
-      finalUrl: response.url || url,
-      status: response.status,
+      finalUrl: response?.url || url,
+      status: response?.status ?? 200,
       contentType,
       extractMode: args.extractMode ?? 'markdown',
       extractor: html ? 'readability' : 'raw',
@@ -556,7 +576,13 @@ async function webFetchLikeOpenClaw(
   );
 }
 
-async function webFetch(args: Record<string, unknown>) {
+async function webFetch(args: Record<string, unknown>, context: ToolContext) {
+  const simulated = context.searchSimulator
+    ? await simulatedPageText(String(args.url), context.searchSimulator)
+    : undefined;
+  if (simulated !== undefined) {
+    return simulated.slice(0, Number(args.maxChars ?? 12_000));
+  }
   const response = await fetch(String(args.url), {
     signal: AbortSignal.timeout(20_000),
     headers: { 'User-Agent': 'Mozilla/5.0 (onboarding lab)' },
@@ -707,7 +733,7 @@ export async function executeTool(
         return record(
           context.template
             ? await webFetchLikeOpenClaw(args, context)
-            : await webFetch(args)
+            : await webFetch(args, context)
         );
       case 'cron':
         return record(runCron(args, context));

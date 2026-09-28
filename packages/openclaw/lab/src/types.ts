@@ -179,6 +179,8 @@ export type RunSetManifest = {
   variant?: string;
   /** False when the round ran without web search. */
   search?: boolean;
+  /** True when a model played web search (fast mode's default). */
+  simulatedSearch?: boolean;
   personas: string[];
   repeat: number;
   checkpoint?: { version: 1; file: string };
