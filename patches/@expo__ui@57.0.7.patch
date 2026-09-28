@@ -32,7 +32,7 @@ index 9936c0209b487ec6d59e4ffd7adcf8b4b96cd144..c007ec0bb4dc533797e253434189ed79
  /**
   * Controls the visibility of the drag indicator on a sheet.
 diff --git a/ios/BottomSheetView.swift b/ios/BottomSheetView.swift
-index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..572fd6e39414c7043accd8b5794d144852f617c8 100644
+index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..c62043343c1b8757838afeba47045fcc6d0053e4 100644
 --- a/ios/BottomSheetView.swift
 +++ b/ios/BottomSheetView.swift
 @@ -6,6 +6,7 @@ import ExpoModulesCore
@@ -43,7 +43,7 @@ index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..572fd6e39414c7043accd8b5794d1448
    var onIsPresentedChange = EventDispatcher()
    var onDismiss = EventDispatcher()
  }
-@@ -58,6 +59,50 @@ private struct BottomSheetSizeReader<Content: View>: View {
+@@ -58,6 +59,48 @@ private struct BottomSheetSizeReader<Content: View>: View {
    }
  }
  
@@ -65,9 +65,7 @@ index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..572fd6e39414c7043accd8b5794d1448
 +        }
 +        .buttonStyle(.plain)
 +        .frame(width: 44, height: 44)
-+        // Align the close control with the 40-point sheet header row, whose
-+        // content begins 36 points below the sheet edge.
-+        .padding(.top, 34)
++        .padding(.top, 8)
 +        .padding(.trailing, 8)
 +        .accessibilityIdentifier("SheetCloseButton")
 +      }
@@ -94,7 +92,7 @@ index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..572fd6e39414c7043accd8b5794d1448
  struct BottomSheetView: ExpoSwiftUI.View {
    @ObservedObject var props: BottomSheetProps
    @State private var isPresented: Bool = false
-@@ -90,7 +135,18 @@ struct BottomSheetView: ExpoSwiftUI.View {
+@@ -90,7 +133,18 @@ struct BottomSheetView: ExpoSwiftUI.View {
        .sheet(isPresented: $isPresented, onDismiss: {
          props.onDismiss()
        }) {
