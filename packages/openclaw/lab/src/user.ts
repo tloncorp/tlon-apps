@@ -141,6 +141,9 @@ Return only JSON:
  "keep": <true or false>,
  "why": "<one or two sentences in your own voice>"}`;
 
+const KEEP_QUESTION =
+  'Did you get what you came for, and would you come back to this assistant the next time you need something like it? If a daily task was set up, would you keep it? Answer "keep": true only if all that applies to you is yes.';
+
 export async function nextUserMove(input: {
   persona: Persona;
   events: TranscriptEvent[];
@@ -244,7 +247,7 @@ export async function keepVerdict(input: {
         },
         {
           role: 'user',
-          content: `${renderWithNotes(input.events, input.secondResult)}\n\nDid you get what you came for, and would you come back to this assistant the next time you need something like it? If a daily task was set up, would you keep it? Answer "keep": true only if all that applies to you is yes.`,
+          content: `${renderWithNotes(input.events, input.secondResult)}\n\n${input.persona.keepQuestion ?? KEEP_QUESTION}`,
         },
       ],
     });

@@ -295,6 +295,8 @@ asks:                   # optional questions about the app itself, asked when na
   - Can people join if they don't have the app yet?
 afterEnding: thanks. whats a good gift under $100 for them
 timezone: America/New_York
+keepQuestion: '...'     # optional: replaces "would you come back?" in the survey,
+                        # for someone who by definition won't (they didn't want a bot)
 ```
 
 `personas/sets.yaml` names groups of cards. `--personas` takes set names and
