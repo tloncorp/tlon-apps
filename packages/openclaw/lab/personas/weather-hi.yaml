@@ -1,0 +1,12 @@
+id: weather-hi
+who: Friendly person who introduces themselves and then asks everyday questions.
+wants: Quick, useful answers and a bot that feels friendly. Would welcome a short forecast every morning
+  before their 7am run if the bot offers it at the right moment, but won't ask for it.
+expectPlan: either
+opening: Hi I'm new here
+knows:
+- Wants tomorrow's weather for where they live, a mid-sized coastal city.
+- Runs along the seafront most mornings around 7.
+style: Warm, brief.
+patience: 3
+afterEnding: what's your name?

@@ -1,0 +1,79 @@
+# Named persona sets for --personas, e.g. --personas core. A run without
+# --personas uses `default`.
+#
+# real: 24 personas in roughly the mix of what real users did first in their
+# first day (29 accounts, Sep 12-26, 2026): what is this / which model / is it
+# private (7), a greeting, test or setup button (7), identity (1), people and
+# groups (2), a one-off task (2), a recurring task (2), declining or angry (2),
+# account (1).
+real:
+  - tlon-curious
+  - whats-the-model
+  - openclaw-nerd
+  - poke-comparer
+  - integrations-shopper
+  - browser-tester
+  - privacy-first-question
+  - hello-only
+  - tester
+  - setup-button
+  - weather-hi
+  - image-requester
+  - just-looking
+  - one-word
+  - urbit-identity
+  - find-people
+  - group-bot-admin
+  - book-summary
+  - one-off-toast
+  - quick-digest
+  - group-news-bot
+  - declines-setup
+  - angry-confused
+  - delete-account
+# core: one card per distinct first move, for deciding between variants. Run
+# it twice (--repeat 2): about the cost of `real` once, with repeats that
+# separate a real difference from run-to-run noise. Confirm on `real` before
+# shipping. Three cards ask for a recurring task outright (setup-button,
+# quick-digest, group-news-bot) and four have one they'd welcome but won't ask
+# for (hello-only, weather-hi, poke-comparer, whats-the-model), so a good
+# first minute has to find it.
+core:
+  - hello-only
+  - tester
+  - setup-button
+  - quick-digest
+  - group-news-bot
+  - whats-the-model
+  - privacy-first-question
+  - find-people
+  - weather-hi
+  - declines-setup
+  - poke-comparer
+# legacy: the original task-heavy set, for comparing with older run sets.
+legacy:
+  - ai-curious-tester
+  - blank-new-installer
+  - blank-retiree
+  - blank-small-business
+  - blank-student
+  - book-club-organizer
+  - capability-prober
+  - founder-blunt
+  - grieving-paperwork
+  - group-bot-admin
+  - inbox-summary
+  - just-looking
+  - mid-flow-asker
+  - mind-changer
+  - one-off-toast
+  - one-word
+  - overwhelmed-parent
+  - paragraph-typer
+  - privacy-skeptic
+  - spanish-learner
+  - spanish-speaker
+  - tlon-curious
+  - vague-gardener
+  - weekly-meal-planner
+default: core

@@ -1,0 +1,143 @@
+import {
+  onboardingClientDateTimeNote,
+  onboardingDmContextNote,
+} from '../../src/onboarding-turn-context.js';
+import { OWNER_SHIP, type PromptSources, renderPrompt } from './config.js';
+import type { ChatTool } from './openrouter.js';
+import { type Template, stamp } from './template.js';
+
+// OpenClaw injects these workspace files into every run. BOOTSTRAP.md is not
+// injected; AGENTS.md tells the bot to read it with the `read` tool.
+const INJECTED_WORKSPACE_FILES = [
+  'AGENTS.md',
+  'SOUL.md',
+  'TOOLS.md',
+  'IDENTITY.md',
+  'USER.md',
+  'MEMORY.md',
+];
+
+function frontmatter(skillText: string, field: string) {
+  return new RegExp(`^${field}:\\s*(.+)$`, 'm').exec(skillText)?.[1]?.trim();
+}
+
+export function localTime(timezone: string, now = new Date()) {
+  return now.toLocaleString('en-US', {
+    timeZone: timezone,
+    dateStyle: 'full',
+    timeStyle: 'short',
+  });
+}
+
+/**
+ * An approximation of the system prompt OpenClaw builds: its own framing is
+ * not reproduced exactly, but the workspace files, skill listing and tool
+ * guidance are the real ones. The real-stack tier catches what this misses.
+ */
+export function buildSystemPrompt(input: {
+  sources: PromptSources;
+  tools: (ChatTool & { guidelines?: string[] })[];
+  botModel: string;
+  timezone: string;
+  now?: Date;
+}) {
+  const toolLines = input.tools.map(
+    (tool) => `- ${tool.function.name}: ${tool.function.description}`
+  );
+  const guidelines = input.tools.flatMap((tool) => tool.guidelines ?? []);
+  const workspace = INJECTED_WORKSPACE_FILES.filter(
+    (name) => input.sources.prompts[name]
+  ).map(
+    (name) =>
+      `## ${name}\n\n${renderPrompt(input.sources.prompts[name].text, input.botModel, input.sources.substitutions)}`
+  );
+  return [
+    'You are a personal assistant running inside OpenClaw.',
+    '',
+    '## Tooling',
+    'Tool availability (filtered by policy):',
+    ...toolLines,
+    ...(guidelines.length
+      ? ['', 'Tool guidelines:', ...guidelines.map((g) => `- ${g}`)]
+      : []),
+    '',
+    '## Skills (mandatory)',
+    'Before replying: scan <available_skills> <description> entries.',
+    '- If exactly one skill clearly applies: read its SKILL.md at <location> with `read`, then follow it.',
+    '- If none clearly apply: do not read any SKILL.md.',
+    '<available_skills>',
+    ...input.sources.skills.map(
+      (skill) =>
+        `  <skill><name>${frontmatter(skill.text, 'name') ?? skill.dir}</name><description>${frontmatter(skill.text, 'description') ?? ''}</description><location>~/.openclaw/plugin-skills/${skill.dir}/SKILL.md</location></skill>`
+    ),
+    '</available_skills>',
+    '',
+    '## Workspace',
+    'Your working directory is: /root/.openclaw/workspace',
+    '',
+    '## Current Date & Time',
+    `${localTime(input.timezone, input.now)} (${input.timezone})`,
+    '',
+    '# Project Context',
+    'The following project context files have been loaded:',
+    '',
+    ...workspace,
+    '',
+    '## Runtime',
+    `Runtime: agent=main | channel=tlon | model=openrouter/${input.botModel}`,
+  ].join('\n');
+}
+
+/** The owner's message as the gateway hands it to the model. */
+export function buildOwnerMessage(input: {
+  text: string;
+  onboardingActive: boolean;
+  timezone: string;
+  now?: Date;
+}) {
+  let body = input.text;
+  if (input.onboardingActive) {
+    body += onboardingDmContextNote(OWNER_SHIP);
+    body += onboardingClientDateTimeNote({
+      timezone: input.timezone,
+      locale: 'en-US',
+    });
+  }
+  const stamp = (input.now ?? new Date()).toLocaleString('en-US', {
+    timeZone: input.timezone,
+    weekday: 'short',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  });
+  return `[Tlon ${OWNER_SHIP} ${stamp}] ${body}`;
+}
+
+/** The owner's message wrapped the way OpenClaw sent it in the template. */
+export function templatedOwnerMessage(input: {
+  template: Template;
+  text: string;
+  onboardingActive: boolean;
+  timezone: string;
+  now: Date;
+}) {
+  let body = input.text;
+  if (input.onboardingActive) {
+    body += onboardingDmContextNote(OWNER_SHIP);
+    body += onboardingClientDateTimeNote({
+      timezone: input.timezone,
+      locale: 'en-US',
+    });
+  }
+  return input.template.ownerFormat
+    .replace('{{STAMP}}', stamp(input.now, input.template.stampTimezone))
+    .replace('{{BODY}}', () => body);
+}
+
+/** OpenClaw's runtime-context message for the current owner message. */
+export function runtimeContextMessage(template: Template, messageId: string) {
+  return template.runtimeContext.replace('{{MESSAGE_ID}}', messageId);
+}

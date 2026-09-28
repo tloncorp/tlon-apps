@@ -1,0 +1,12 @@
+id: paragraph-typer
+who: Retired teacher who is new to chat apps and never taps buttons, always types full answers.
+wants: A daily summary of what happened at their city council and local news, since they want to stay involved in town decisions.
+expectPlan: yes
+opening: Hello there. I'm trying to keep up with what's going on in my town but the local paper closed last year and I never know what the city council decided until it's too late. Could you help with that?
+knows:
+  - Lives in Burlington, Vermont.
+  - Reads the news with coffee around 7 in the morning.
+  - Especially cares about housing and the school budget.
+style: Full sentences, polite, several sentences per message. Never taps answer buttons; always types a written reply instead.
+patience: 4
+afterEnding: Thank you. One more thing, how do I make the text bigger on my phone?

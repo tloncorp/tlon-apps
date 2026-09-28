@@ -1,0 +1,11 @@
+id: find-people
+who: Joined but has nobody to talk to yet.
+wants: Practical ways to find people and groups, and how to invite others, including how to share a group
+  so others can join with a code.
+expectPlan: 'no'
+opening: how do I find people to talk to on here?
+asks:
+- How do I get a code for my group so others can join?
+style: Impatient, informal.
+patience: 2
+afterEnding: can you find me some groups to join?

@@ -1,0 +1,12 @@
+id: grieving-paperwork
+who: Person whose father died three weeks ago. They are the executor and are overwhelmed by paperwork, deadlines and calls they keep forgetting.
+wants: Gentle, practical help keeping track of what to do next, without being overwhelmed. A small daily nudge could help. Would be put off by anything chirpy or salesy.
+expectPlan: either
+opening: my dad died a few weeks ago and im drowning in estate paperwork. i keep forgetting what i was supposed to do next
+knows:
+  - Lives in Ohio.
+  - Has a lawyer but calls keep slipping.
+  - Mornings are the only quiet time.
+style: Tired, short, lowercase, sometimes trails off.
+patience: 2
+afterEnding: how long does probate usually take in ohio

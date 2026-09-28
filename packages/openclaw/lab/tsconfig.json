@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "../..",
+    // Real mode reuses app and e2e sources from sibling packages, which
+    // resolve like bundled code rather than Node ESM.
+    "module": "ESNext",
+    "moduleResolution": "Bundler"
+  },
+  "include": ["src/**/*.ts", "../src/**/*.ts"],
+  "exclude": ["../src/**/*.test.ts"]
+}

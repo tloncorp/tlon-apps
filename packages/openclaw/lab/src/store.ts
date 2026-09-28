@@ -1,0 +1,221 @@
+import type { Template } from './template.js';
+import type { DeploymentCheck } from './deployed.js';
+import { execFileSync } from 'node:child_process';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+} from 'node:fs';
+import path from 'node:path';
+import { parse } from 'yaml';
+import { writeCheckpoint } from './checkpoint.js';
+import {
+  type LabConfig,
+  PERSONAS_DIR,
+  PLUGIN_DIR,
+  type PromptSources,
+  REPO_ROOT,
+  RUBRIC_PATH,
+  RUNS_DIR,
+  sha256,
+} from './config.js';
+import type { Persona, RunRecord, RunSetManifest } from './types.js';
+
+/** Named persona sets from personas/sets.yaml. */
+function personaSets(): Record<string, string[] | string> {
+  const file = path.join(PERSONAS_DIR, 'sets.yaml');
+  return existsSync(file)
+    ? (parse(readFileSync(file, 'utf8')) as Record<string, string[] | string>)
+    : {};
+}
+
+/**
+ * Persona ids with named sets expanded; no ids means the `default` set (the
+ * name of another set), or every persona when there is none.
+ */
+function expandPersonaSets(ids: string[] | undefined) {
+  const sets = personaSets();
+  const fallback = typeof sets.default === 'string' ? [sets.default] : [];
+  const requested = ids?.length ? ids : fallback;
+  return requested.flatMap((id) => {
+    const set = sets[id];
+    return Array.isArray(set) ? set : [id];
+  });
+}
+
+/** Every persona card, whatever set it belongs to. */
+export function listPersonas(): Persona[] {
+  return readdirSync(PERSONAS_DIR)
+    .filter((name) => name.endsWith('.yaml') && name !== 'sets.yaml')
+    .sort()
+    .map((name) => {
+      const persona = parse(
+        readFileSync(path.join(PERSONAS_DIR, name), 'utf8')
+      ) as Persona;
+      return { ...persona, id: persona.id ?? name.replace(/\.yaml$/, '') };
+    });
+}
+
+export function loadPersonas(requested?: string[]): Persona[] {
+  const ids = expandPersonaSets(requested);
+  const all = listPersonas();
+  if (!ids?.length) return all;
+  const missing = ids.filter((id) => !all.some((persona) => persona.id === id));
+  if (missing.length)
+    throw new Error(`Unknown personas: ${missing.join(', ')}`);
+  return all.filter((persona) => ids.includes(persona.id));
+}
+
+function git(args: string[]) {
+  try {
+    return execFileSync('git', args, {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+    }).trim();
+  } catch {
+    return '';
+  }
+}
+
+export function createRunSet(input: {
+  label: string;
+  config: LabConfig;
+  sources: PromptSources;
+  variant?: string;
+  personas: Persona[];
+  repeat: number;
+  maxTurns: number;
+  judge: boolean;
+  tips: number;
+  deployment?: DeploymentCheck;
+  mode?: 'fast' | 'real';
+  template?: Template;
+  doubleTexts?: boolean;
+}): { dir: string; manifest: RunSetManifest } {
+  const stamp = new Date()
+    .toISOString()
+    .replace(/[-:]/g, '')
+    .replace(/\..+$/, '')
+    .replace('T', '-');
+  const slug = input.label.replace(/[^a-z0-9-]+/gi, '-').toLowerCase();
+  const dir = path.join(RUNS_DIR, `${stamp}-${slug}`);
+  mkdirSync(dir, { recursive: true });
+  const sourceFiles = [
+    ...input.sources.skills,
+    ...(input.sources.coordinator ? [input.sources.coordinator] : []),
+    ...(input.sources.tipCopy ? [input.sources.tipCopy] : []),
+    ...Object.values(input.sources.prompts),
+    ...Object.values(input.sources.resources),
+  ];
+  const manifest: RunSetManifest = {
+    label: input.label,
+    createdAt: new Date().toISOString(),
+    gitRev: git(['rev-parse', '--short', 'HEAD']),
+    gitDirty: git(['status', '--porcelain', '--', PLUGIN_DIR]) !== '',
+    models: input.config.models,
+    sources: sourceFiles.map((file) => ({
+      path: path.relative(REPO_ROOT, file.path).startsWith('..')
+        ? file.path
+        : path.relative(REPO_ROOT, file.path),
+      sha256: sha256(file.text),
+    })),
+    ...(input.variant ? { variant: input.variant } : {}),
+    search: input.config.search,
+    ...(input.config.simulatedSearch ? { simulatedSearch: true } : {}),
+    personas: input.personas.map((persona) => persona.id),
+    repeat: input.repeat,
+    checkpoint: writeCheckpoint(dir, {
+      models: input.config.models,
+      search: input.config.search,
+      ...(input.config.simulatedSearch ? { simulatedSearch: true } : {}),
+      maxTurns: input.maxTurns,
+      judge: input.judge,
+      tips: input.tips,
+      sources: input.sources,
+      personas: input.personas,
+      personaCards: Object.fromEntries(
+        input.personas.map((persona) => [
+          persona.id,
+          readFileSync(path.join(PERSONAS_DIR, `${persona.id}.yaml`), 'utf8'),
+        ])
+      ),
+      rubric: readFileSync(RUBRIC_PATH, 'utf8'),
+      doubleTexts: input.doubleTexts,
+    }),
+    ...(input.deployment ? { deployment: input.deployment } : {}),
+    ...(input.mode === 'real' ? { mode: 'real' as const } : {}),
+    ...(input.template
+      ? {
+          template: {
+            openclaw: input.template.openclaw,
+            capturedAt: input.template.capturedAt,
+            capturedFrom: input.template.capturedFrom,
+          },
+        }
+      : {}),
+  };
+  writeFileSync(
+    path.join(dir, 'manifest.json'),
+    `${JSON.stringify(manifest, null, 2)}\n`
+  );
+  // A frozen copy, so resumed runs fill the same template.
+  if (input.template) {
+    writeFileSync(
+      path.join(dir, 'checkpoint', 'template.json'),
+      `${JSON.stringify(input.template)}\n`
+    );
+  }
+  return { dir, manifest };
+}
+
+/** The template a fast run set was calibrated with, if any. */
+export function frozenTemplate(dir: string): Template | undefined {
+  const file = path.join(dir, 'checkpoint', 'template.json');
+  return existsSync(file)
+    ? (JSON.parse(readFileSync(file, 'utf8')) as Template)
+    : undefined;
+}
+
+export function writeRun(dir: string, record: RunRecord) {
+  writeFileSync(
+    path.join(dir, `${record.persona.id}.${record.repeat}.json`),
+    `${JSON.stringify(record, null, 2)}\n`
+  );
+}
+
+/** Accepts a path, a run-set folder name, or a unique suffix like "baseline". */
+export function resolveRunSet(reference: string): string {
+  if (existsSync(path.join(reference, 'manifest.json'))) {
+    return path.resolve(reference);
+  }
+  const names = existsSync(RUNS_DIR) ? readdirSync(RUNS_DIR).sort() : [];
+  // Judging folders end with the run set labels they compare; only run sets
+  // have a manifest.
+  const matches = names.filter(
+    (name) =>
+      (name === reference || name.endsWith(`-${reference}`)) &&
+      existsSync(path.join(RUNS_DIR, name, 'manifest.json'))
+  );
+  if (!matches.length) throw new Error(`No run set matches "${reference}"`);
+  return path.join(RUNS_DIR, matches[matches.length - 1]);
+}
+
+export function loadRunSet(dir: string): {
+  dir: string;
+  manifest: RunSetManifest;
+  runs: RunRecord[];
+} {
+  const manifest = JSON.parse(
+    readFileSync(path.join(dir, 'manifest.json'), 'utf8')
+  ) as RunSetManifest;
+  const runs = readdirSync(dir)
+    .filter((name) => /\.\d+\.json$/.test(name))
+    .sort()
+    .map(
+      (name) =>
+        JSON.parse(readFileSync(path.join(dir, name), 'utf8')) as RunRecord
+    );
+  return { dir, manifest, runs };
+}
