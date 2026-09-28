@@ -10,6 +10,7 @@ import {
   onInternalDiagnosticEvent,
 } from 'openclaw/plugin-sdk/diagnostic-runtime';
 
+import { cleanCronToolArgs } from './src/cron-tool-args.js';
 import { modelPrivacyNote } from './src/model-privacy-context.js';
 import { tlonPlugin } from './src/channel.js';
 import { registerTlonCommands } from './src/commands-registry.js';
@@ -1051,6 +1052,10 @@ export default defineBundledChannelEntry({
 
     api.on('before_tool_call', async (event, ctx) => {
       const toolCallId = readToolCallId(event);
+      // What the model meant, without the schema placeholders it fills in.
+      const cronParams =
+        event.toolName === 'cron' ? cleanCronToolArgs(event.params) : undefined;
+      const allowed = () => (cronParams ? { params: cronParams } : undefined);
       const runSurface = getTlonSessionRunSurface(ctx.runId);
       const role =
         runSurface?.senderRole ?? getSessionRole(ctx.sessionKey ?? '');
@@ -1087,7 +1092,7 @@ export default defineBundledChannelEntry({
             )));
       const onboardingBoundaryReason = onboardingToolBlockReason(
         event.toolName,
-        event.params,
+        cronParams ?? event.params,
         getTlonSessionSurface(ctx.sessionKey),
         runSurface
       );
@@ -1194,7 +1199,7 @@ export default defineBundledChannelEntry({
         !blocksOnboardingMcp &&
         !blocksOnboardingBoundary
       ) {
-        return undefined;
+        return allowed();
       }
 
       // Allow owner sessions and internal sessions (heartbeat, cron, etc.).
@@ -1238,7 +1243,7 @@ export default defineBundledChannelEntry({
       api.logger.info(
         `[tlon] Allowed ${event.toolName} tool for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`
       );
-      return undefined;
+      return allowed();
     });
 
     api.on('after_tool_call', async (event, ctx) => {
