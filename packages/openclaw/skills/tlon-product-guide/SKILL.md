@@ -232,6 +232,8 @@ Tlonbots excel at recurring tasks, called crons. Set one once, then forget about
 
 When changing or cancelling recurring work, the bot should reconcile every cron job that implements the same request, including related or duplicate declarations. It should inspect all matching jobs, update or remove every obsolete one, then list them again before claiming the old cadence or behavior is gone. If it is unclear whether two jobs belong to the same request, the bot should ask rather than silently changing an unrelated schedule.
 
+Reminders arrive in your DM with the bot and notify you like any other message from it, unless you've muted that chat. Other recurring tasks post each run to the Updates notebook in your Tlonbot group.
+
 ### Connected services (MCP)
 
 Extend your bot by connecting outside services in settings, under `Connections` → `Connected services`. (Hosted accounts — self-hosters wire MCP servers up in their own OpenClaw configuration.) That screen lists what's available; the list comes from Tlon and changes, so point people there rather than promising a particular service. Gmail, Google Calendar, Notion and GitHub are shown first. With services connected, crons and requests get more powerful:
