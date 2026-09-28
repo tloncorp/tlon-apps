@@ -8,7 +8,7 @@ import {
   createDevLogger,
   useMutableRef,
 } from '@tloncorp/shared';
-import type * as db from '@tloncorp/shared/db';
+import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import {
@@ -92,6 +92,7 @@ import {
 import {
   buildDrawerChannelRoute,
   drawerOwnsEdge,
+  focusedRouteIsInChannel,
   routeShowsChat,
 } from './drawerDestination';
 import { announceTopLevelSectionReselected } from './topLevelSectionReselect';
@@ -1579,12 +1580,13 @@ function DrawerPanel(props: DrawerContentComponentProps) {
 export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
   const { navigation } = props;
   const settingsNavigation = useChatSettingsNavigation();
+  const reset = useTypedReset();
   const closingSettingsNavigation = useMemo(() => {
     const entries = Object.entries(settingsNavigation) as [
       keyof typeof settingsNavigation,
       (...args: never[]) => unknown,
     ][];
-    return Object.fromEntries(
+    const closing = Object.fromEntries(
       entries.map(([name, handler]) => [
         name,
         (...args: never[]) => {
@@ -1593,7 +1595,43 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
         },
       ])
     ) as typeof settingsNavigation;
-  }, [navigation, settingsNavigation]);
+    const readStack = () => {
+      const state = navigation.getState() as unknown as {
+        index: number;
+        routes: ReadonlyArray<RouteSnapshot>;
+      };
+      return state.routes[state.index]?.state;
+    };
+    return {
+      ...closing,
+      // Leaving a channel only takes its row out of the panel, so the panel
+      // stays open on it. The app moves only if it was standing in that
+      // channel, and then into the group's next channel opened the way a row
+      // opens one: on the sections as they stand, with the drawer button
+      // rather than a caret back to a fresh Workspaces.
+      onLeaveChannel: async (groupId: string, channelId: string) => {
+        if (!focusedRouteIsInChannel(readStack(), channelId)) {
+          return;
+        }
+        const group = await db.getGroup({ id: groupId });
+        // Read again after the wait: the user may have moved on meanwhile.
+        const stack = readStack();
+        if (!focusedRouteIsInChannel(stack, channelId)) {
+          return;
+        }
+        const nextChannel = group?.channels?.find(
+          (channel) => channel.id !== channelId
+        );
+        if (!nextChannel) {
+          return settingsNavigation.onLeaveChannel(groupId, channelId);
+        }
+        reset([
+          getStandingTopLevelTabRoute(stack, 'ChatList'),
+          buildDrawerChannelRoute({ id: nextChannel.id, groupId }),
+        ]);
+      },
+    };
+  }, [navigation, reset, settingsNavigation]);
 
   return (
     <ChatOptionsProvider {...closingSettingsNavigation}>
