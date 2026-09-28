@@ -1,24 +1,11 @@
 diff --git a/build/swift-ui/BottomSheet/index.d.ts b/build/swift-ui/BottomSheet/index.d.ts
-index 52504c12fb31b4aa89da0914cd67405d1b34b867..2876001f9d59e427cd5936ad9dcb768688142971 100644
+index 52504c12fb31b4aa89da0914cd67405d1b34b867..0c2a3f89948ff6a5a7e3b057f493913261eba002 100644
 --- a/build/swift-ui/BottomSheet/index.d.ts
 +++ b/build/swift-ui/BottomSheet/index.d.ts
-@@ -1,3 +1,4 @@
-+import { type PresentationDetent } from '../modifiers/presentationModifiers';
- import { type CommonViewModifierProps } from '../types';
- export interface BottomSheetProps extends CommonViewModifierProps {
-     /**
-@@ -25,6 +26,16 @@ export interface BottomSheetProps extends CommonViewModifierProps {
+@@ -25,6 +25,8 @@ export interface BottomSheetProps extends CommonViewModifierProps {
       * @default false
       */
      fitToContents?: boolean;
-+    /** Available sheet heights managed directly by the native bottom sheet. */
-+    detents?: PresentationDetent[];
-+    /** The currently selected native sheet height. */
-+    selectedDetent?: PresentationDetent;
-+    /** Whether native selected-detent changes use the standard system animation. */
-+    animateSelectedDetentChanges?: boolean;
-+    /** Duration, in seconds, for native selected-detent height changes. */
-+    detentAnimationDuration?: number;
 +    /** Whether to show the native close control. */
 +    showCloseButton?: boolean;
  }
@@ -45,22 +32,18 @@ index 9936c0209b487ec6d59e4ffd7adcf8b4b96cd144..c007ec0bb4dc533797e253434189ed79
  /**
   * Controls the visibility of the drag indicator on a sheet.
 diff --git a/ios/BottomSheetView.swift b/ios/BottomSheetView.swift
-index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..286f066e32c928ae391b58249a12c949306b0508 100644
+index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..572fd6e39414c7043accd8b5794d144852f617c8 100644
 --- a/ios/BottomSheetView.swift
 +++ b/ios/BottomSheetView.swift
-@@ -6,6 +6,11 @@ import ExpoModulesCore
+@@ -6,6 +6,7 @@ import ExpoModulesCore
  final class BottomSheetProps: UIBaseViewProps {
    @Field var isPresented: Bool = false
    @Field var fitToContents: Bool = false
-+  @Field var detents: [Either<PresentationDetentPreset, PresentationDetentItem>]?
-+  @Field var selectedDetent: Either<PresentationDetentPreset, PresentationDetentItem>?
-+  @Field var animateSelectedDetentChanges: Bool = false
-+  @Field var detentAnimationDuration: Double = 0.4
 +  @Field var showCloseButton: Bool = true
    var onIsPresentedChange = EventDispatcher()
    var onDismiss = EventDispatcher()
  }
-@@ -58,6 +63,241 @@ private struct BottomSheetSizeReader<Content: View>: View {
+@@ -58,6 +59,50 @@ private struct BottomSheetSizeReader<Content: View>: View {
    }
  }
  
@@ -106,219 +89,12 @@ index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..286f066e32c928ae391b58249a12c949
 +  }
 +}
 +
-+@available(iOS 16.0, *)
-+private func bottomSheetHeightIdentifier(
-+  _ height: CGFloat
-+) -> UISheetPresentationController.Detent.Identifier {
-+  UISheetPresentationController.Detent.Identifier("expo-ui-height-\(Int(height.rounded()))")
-+}
-+
-+@available(iOS 16.0, *)
-+private func bottomSheetHeight(
-+  from identifier: UISheetPresentationController.Detent.Identifier?
-+) -> CGFloat? {
-+  let prefix = "expo-ui-height-"
-+  guard
-+    let rawValue = identifier?.rawValue,
-+    rawValue.hasPrefix(prefix),
-+    let height = Double(rawValue.dropFirst(prefix.count))
-+  else {
-+    return nil
-+  }
-+  return CGFloat(height)
-+}
-+
-+@available(iOS 16.0, *)
-+private func quantizedBottomSheetHeight(_ height: CGFloat) -> CGFloat {
-+  let clampedHeight = min(max(height, 240), 800)
-+  return (clampedHeight / 4).rounded() * 4
-+}
-+
-+@available(iOS 16.0, *)
-+private struct BottomSheetPresentationControllerConfigurator: UIViewControllerRepresentable {
-+  let selectedHeight: Double?
-+  let animateSelectionChanges: Bool
-+  let animationDuration: Double
-+
-+  final class Coordinator: NSObject {
-+    weak var presentationController: UISheetPresentationController?
-+    var displayLink: CADisplayLink?
-+    var currentHeight: CGFloat?
-+    var targetHeight: CGFloat?
-+    var startHeight: CGFloat = 0
-+    var startTime: CFTimeInterval = 0
-+    var duration: Double = 0
-+
-+    func select(
-+      height: CGFloat,
-+      in presentationController: UISheetPresentationController,
-+      animated: Bool,
-+      duration: Double
-+    ) {
-+      if
-+        let targetHeight,
-+        abs(targetHeight - height) < 1,
-+        displayLink != nil
-+      {
-+        return
-+      }
-+
-+      stopAnimation()
-+      self.presentationController = presentationController
-+      let resolvedCurrentHeight = currentHeight
-+        ?? bottomSheetHeight(from: presentationController.selectedDetentIdentifier)
-+        ?? height
-+      currentHeight = resolvedCurrentHeight
-+      targetHeight = height
-+
-+      guard animated, duration > 0, abs(resolvedCurrentHeight - height) > 1 else {
-+        apply(height: height)
-+        targetHeight = nil
-+        return
-+      }
-+
-+      startHeight = resolvedCurrentHeight
-+      startTime = CACurrentMediaTime()
-+      self.duration = duration
-+      let displayLink = CADisplayLink(target: self, selector: #selector(step(_:)))
-+      self.displayLink = displayLink
-+      displayLink.add(to: .main, forMode: .common)
-+    }
-+
-+    @objc private func step(_ displayLink: CADisplayLink) {
-+      guard let targetHeight else {
-+        stopAnimation()
-+        return
-+      }
-+      let progress = min(max((displayLink.timestamp - startTime) / duration, 0), 1)
-+      let easedProgress: Double
-+      if progress < 0.5 {
-+        easedProgress = 4 * progress * progress * progress
-+      } else {
-+        easedProgress = 1 - pow(-2 * progress + 2, 3) / 2
-+      }
-+      let height = startHeight + (targetHeight - startHeight) * CGFloat(easedProgress)
-+      apply(height: height)
-+
-+      if progress >= 1 {
-+        apply(height: targetHeight)
-+        self.targetHeight = nil
-+        stopAnimation()
-+      }
-+    }
-+
-+    private func apply(height: CGFloat) {
-+      guard let presentationController else {
-+        return
-+      }
-+      let height = quantizedBottomSheetHeight(height)
-+      let identifier = bottomSheetHeightIdentifier(height)
-+      let detent = UISheetPresentationController.Detent.custom(identifier: identifier) { context in
-+        min(height, context.maximumDetentValue)
-+      }
-+      // Expose only the frame currently being rendered. Keeping the entire
-+      // animation ladder installed would make every intermediate height a
-+      // user-selectable resting point and can violate UIKit's detent ordering.
-+      presentationController.detents = [detent]
-+      presentationController.selectedDetentIdentifier = identifier
-+      currentHeight = height
-+    }
-+
-+    private func stopAnimation() {
-+      displayLink?.invalidate()
-+      displayLink = nil
-+    }
-+
-+    deinit {
-+      stopAnimation()
-+    }
-+  }
-+
-+  func makeCoordinator() -> Coordinator {
-+    Coordinator()
-+  }
-+
-+  func makeUIViewController(context: Context) -> UIViewController {
-+    UIViewController()
-+  }
-+
-+  func updateUIViewController(_ viewController: UIViewController, context: Context) {
-+    let selectedHeight = selectedHeight.map { quantizedBottomSheetHeight(CGFloat($0)) }
-+    let animateSelectionChanges = animateSelectionChanges
-+    let animationDuration = max(animationDuration, 0)
-+
-+    DispatchQueue.main.async {
-+      var ancestor: UIViewController? = viewController
-+      var presentationController: UISheetPresentationController?
-+      while let current = ancestor, presentationController == nil {
-+        presentationController = current.sheetPresentationController
-+        ancestor = current.parent
-+      }
-+      guard let presentationController, let selectedHeight else {
-+        return
-+      }
-+
-+      presentationController.prefersGrabberVisible = false
-+
-+      context.coordinator.select(
-+        height: selectedHeight,
-+        in: presentationController,
-+        animated: animateSelectionChanges,
-+        duration: animationDuration
-+      )
-+    }
-+  }
-+}
-+
-+@available(iOS 16.0, *)
-+private struct BottomSheetDetentsContent<Content: View>: View {
-+  @ObservedObject var props: BottomSheetProps
-+  let content: Content
-+
-+  private var selectedHeight: Double? {
-+    guard
-+      let selectedDetent = props.selectedDetent,
-+      let item: PresentationDetentItem = selectedDetent.get()
-+    else {
-+      return nil
-+    }
-+    return item.height
-+  }
-+
-+  var body: some View {
-+    content
-+      .background {
-+        BottomSheetPresentationControllerConfigurator(
-+          selectedHeight: selectedHeight,
-+          animateSelectionChanges: props.animateSelectedDetentChanges,
-+          animationDuration: props.detentAnimationDuration
-+        )
-+        .frame(width: 0, height: 0)
-+      }
-+  }
-+}
 +#endif
 +
  struct BottomSheetView: ExpoSwiftUI.View {
    @ObservedObject var props: BottomSheetProps
    @State private var isPresented: Bool = false
-@@ -81,7 +335,15 @@ struct BottomSheetView: ExpoSwiftUI.View {
-         content
-       }
-     } else {
-+      #if os(iOS)
-+      if #available(iOS 16.0, *), props.detents != nil {
-+        BottomSheetDetentsContent(props: props, content: Children())
-+      } else {
-+        Children()
-+      }
-+      #else
-       Children()
-+      #endif
-     }
-   }
- 
-@@ -90,7 +352,18 @@ struct BottomSheetView: ExpoSwiftUI.View {
+@@ -90,7 +135,18 @@ struct BottomSheetView: ExpoSwiftUI.View {
        .sheet(isPresented: $isPresented, onDismiss: {
          props.onDismiss()
        }) {
@@ -338,7 +114,7 @@ index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..286f066e32c928ae391b58249a12c949
        .onChange(of: isPresented, perform: { newIsPresented in
          if props.isPresented == newIsPresented {
 diff --git a/ios/Modifiers/PresentationModifiers.swift b/ios/Modifiers/PresentationModifiers.swift
-index 8718921d38c951a0606a2954ea4c1cdc721cbe6a..245e6ccd97430f1c0e7eab17e86e6c12c51ba429 100644
+index 8718921d38c951a0606a2954ea4c1cdc721cbe6a..3989c8ba9f025c3ed993425061375ad3e6916093 100644
 --- a/ios/Modifiers/PresentationModifiers.swift
 +++ b/ios/Modifiers/PresentationModifiers.swift
 @@ -16,7 +16,7 @@ internal struct PresentationDetentItem: Record {
@@ -374,7 +150,7 @@ index 8718921d38c951a0606a2954ea4c1cdc721cbe6a..245e6ccd97430f1c0e7eab17e86e6c12
    let eventDispatcher: EventDispatcher?
    let wrappedContent: WrappedContent
  
-@@ -116,18 +119,39 @@ private struct PresentationDetentsSelectionView<WrappedContent: View>: View {
+@@ -116,12 +119,14 @@ private struct PresentationDetentsSelectionView<WrappedContent: View>: View {
      detents: Set<PresentationDetent>,
      rawDetents: [Either<PresentationDetentPreset, PresentationDetentItem>],
      initialSelection: PresentationDetent?,
@@ -389,12 +165,10 @@ index 8718921d38c951a0606a2954ea4c1cdc721cbe6a..245e6ccd97430f1c0e7eab17e86e6c12
      self.eventDispatcher = eventDispatcher
      self.wrappedContent = content()
      // Default to the first detent in the ordered array, not `detents.first` (the Set's order is
-     // randomized per process), so the sheet always opens at the same detent.
-     let firstOrderedDetent = rawDetents.compactMap { parsePresentationDetent($0) }.first
--    self._selectedDetent = State(initialValue: initialSelection ?? firstOrderedDetent ?? .large)
-+    self._selectedDetent = State(initialValue: firstOrderedDetent ?? initialSelection ?? .large)
-+  }
-+
+@@ -130,6 +135,25 @@ private struct PresentationDetentsSelectionView<WrappedContent: View>: View {
+     self._selectedDetent = State(initialValue: initialSelection ?? firstOrderedDetent ?? .large)
+   }
+ 
 +  private func updateSelection(_ newSelection: PresentationDetent?) {
 +    guard let newSelection, selectedDetent != newSelection else {
 +      return
@@ -412,9 +186,11 @@ index 8718921d38c951a0606a2954ea4c1cdc721cbe6a..245e6ccd97430f1c0e7eab17e86e6c12
 +    } else {
 +      selectedDetent = newSelection
 +    }
-   }
- 
++  }
++
    var body: some View {
+     wrappedContent
+       .presentationDetents(detents, selection: $selectedDetent)
 @@ -138,10 +162,11 @@ private struct PresentationDetentsSelectionView<WrappedContent: View>: View {
            eventDispatcher?(["presentationDetents": ["detent": serialized]])
          }
@@ -431,7 +207,7 @@ index 8718921d38c951a0606a2954ea4c1cdc721cbe6a..245e6ccd97430f1c0e7eab17e86e6c12
    }
  }
 diff --git a/src/community/bottom-sheet/BottomSheet.android.tsx b/src/community/bottom-sheet/BottomSheet.android.tsx
-index f60ae61bf0c9023d41c55cdca2d9af0de7291a92..a7092b918dceab914450db3653abce3d092649a1 100644
+index f60ae61bf0c9023d41c55cdca2d9af0de7291a92..ce188a8a9af463c46a0271b4b09d12af1e9f1f5b 100644
 --- a/src/community/bottom-sheet/BottomSheet.android.tsx
 +++ b/src/community/bottom-sheet/BottomSheet.android.tsx
 @@ -46,6 +46,23 @@ function findNearestSnapPointIndex(
@@ -458,15 +234,13 @@ index f60ae61bf0c9023d41c55cdca2d9af0de7291a92..a7092b918dceab914450db3653abce3d
  /**
   * Android implementation of `BottomSheet` using Material3 ModalBottomSheet.
   *
-@@ -60,6 +77,7 @@ export function BottomSheet(props: BottomSheetProps) {
+@@ -61,15 +78,19 @@ export function BottomSheet(props: BottomSheetProps) {
      onClose,
      onDismiss,
      enablePanDownToClose = false,
 +    enableContentPanningGesture = true,
      enableDynamicSizing = true,
      handleComponent,
-     backgroundStyle,
-@@ -66,10 +83,13 @@ export function BottomSheet(props: BottomSheetProps) {
      backgroundStyle,
      children,
    } = props;
@@ -481,7 +255,7 @@ index f60ae61bf0c9023d41c55cdca2d9af0de7291a92..a7092b918dceab914450db3653abce3d
    const skipPartially = fitToContents || !hasMultipleSnapPoints;
    const maxIndex = snapPointsProp ? snapPointsProp.length - 1 : 0;
    const containerColor = extractBackgroundColor(backgroundStyle);
-@@ -193,16 +213,23 @@ export function BottomSheet(props: BottomSheetProps) {
+@@ -193,16 +214,23 @@ export function BottomSheet(props: BottomSheetProps) {
              skipPartiallyExpanded={skipPartially}
              initialFullyExpanded={hasMultipleSnapPoints && pendingIndexRef.current === maxIndex}
              showDragHandle={handleComponent !== null}
@@ -508,19 +282,6 @@ index f60ae61bf0c9023d41c55cdca2d9af0de7291a92..a7092b918dceab914450db3653abce3d
                  <SheetScrollContextReset>{children}</SheetScrollContextReset>
                </View>
              </RNHostView>
-diff --git a/src/community/bottom-sheet/README.md b/src/community/bottom-sheet/README.md
-index bb05f5dc557133066e64a281dc855196b46093b4..1a6121ee0d030a2d22b710f10de30acf2c65d713 100644
---- a/src/community/bottom-sheet/README.md
-+++ b/src/community/bottom-sheet/README.md
-@@ -108,7 +108,7 @@ This package ships a cross-platform bottom sheet API modeled after `@gorhom/bot
- | `style` | Partial | Passed through where possible |
- | `children` | Yes | |
- | `animateOnMount` | No | Accepted, no effect. |
--| `enableContentPanningGesture` | No | Accepted, no effect. |
-+| `enableContentPanningGesture` | Partial | Android: `false` disables sheet gestures so nested content owns vertical pans; callers should hide the inactive handle. iOS/web: accepted, no effect. |
- | `enableHandlePanningGesture` | No | Accepted, no effect. |
- | `enableOverDrag` | No | Accepted, no effect. |
- | `overDragResistanceFactor` | No | Accepted, no effect. |
 diff --git a/src/community/bottom-sheet/BottomSheet.ios.tsx b/src/community/bottom-sheet/BottomSheet.ios.tsx
 index 9908630d50d9a405688ae60c88f5e6638948420d..4dbe3244f77c8f8f0250bfa66e1364c52d3e64d3 100644
 --- a/src/community/bottom-sheet/BottomSheet.ios.tsx
@@ -555,30 +316,27 @@ index 9908630d50d9a405688ae60c88f5e6638948420d..4dbe3244f77c8f8f0250bfa66e1364c5
                    }>
                    <SheetScrollContextReset>{children}</SheetScrollContextReset>
                  </View>
+diff --git a/src/community/bottom-sheet/README.md b/src/community/bottom-sheet/README.md
+index f090bb78fcadfc827c196f77055b1317508d35c5..bb62177b791cab3d5f1731042cd0df7efbf1ec32 100644
+--- a/src/community/bottom-sheet/README.md
++++ b/src/community/bottom-sheet/README.md
+@@ -108,7 +108,7 @@ That's it. Ref types (`useRef<BottomSheet>`, `useRef<BottomSheetModal>`), method
+ | `style` | Partial | Passed through where possible |
+ | `children` | Yes | |
+ | `animateOnMount` | No | Accepted, no effect. |
+-| `enableContentPanningGesture` | No | Accepted, no effect. |
++| `enableContentPanningGesture` | Partial | Android: `false` disables sheet gestures so nested content owns vertical pans; callers should hide the inactive handle. iOS/web: accepted, no effect. |
+ | `enableHandlePanningGesture` | No | Accepted, no effect. |
+ | `enableOverDrag` | No | Accepted, no effect. |
+ | `overDragResistanceFactor` | No | Accepted, no effect. |
 diff --git a/src/swift-ui/BottomSheet/index.tsx b/src/swift-ui/BottomSheet/index.tsx
-index cd8bad40beefa33e008f0bef895e894d48d72cdd..68346ae8a206c27a894a0e19943cb26ece56197c 100644
+index cd8bad40beefa33e008f0bef895e894d48d72cdd..4eabef37153a21279ee13124869aed77d7a4893a 100644
 --- a/src/swift-ui/BottomSheet/index.tsx
 +++ b/src/swift-ui/BottomSheet/index.tsx
-@@ -3,6 +3,7 @@ import { useState, type ComponentType } from 'react';
- import { type NativeSyntheticEvent } from 'react-native';
- 
- import { createViewModifierEventListener } from '../modifiers/utils';
-+import { type PresentationDetent } from '../modifiers/presentationModifiers';
- import { type CommonViewModifierProps } from '../types';
- 
- export interface BottomSheetProps extends CommonViewModifierProps {
-@@ -31,6 +32,16 @@ export interface BottomSheetProps extends CommonViewModifierProps {
+@@ -31,6 +31,8 @@ export interface BottomSheetProps extends CommonViewModifierProps {
     * @default false
     */
    fitToContents?: boolean;
-+  /** Available sheet heights managed directly by the native bottom sheet. */
-+  detents?: PresentationDetent[];
-+  /** The currently selected native sheet height. */
-+  selectedDetent?: PresentationDetent;
-+  /** Whether native selected-detent changes use the standard system animation. */
-+  animateSelectedDetentChanges?: boolean;
-+  /** Duration, in seconds, for native selected-detent height changes. */
-+  detentAnimationDuration?: number;
 +  /** Whether to show the native close control. */
 +  showCloseButton?: boolean;
  }

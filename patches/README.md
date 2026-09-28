@@ -168,16 +168,14 @@ Local patch:
 `patches/@expo__ui@57.0.7.patch`
 
 Why:
-Tlon's native action sheets need controlled custom-height detents. Expo UI 57
-does not expose controlled iOS detent selection, and its Android community
-adapter expands every single snap point to full height instead of preserving
-the requested percentage.
+Tlon's native action sheets need animated custom-height detent selection. Expo
+UI 57 exposes iOS detent selection but does not animate programmatic selection
+changes, and its Android community adapter expands every single snap point to
+full height instead of preserving the requested percentage.
 
 What it does:
-- Exposes native detents, selected-detent control and animation duration on
-  Expo UI's SwiftUI `BottomSheet`.
-- Keeps the selected height synchronized with `UISheetPresentationController`
-  so pane changes animate instead of jumping.
+- Adds animation duration to Expo UI's SwiftUI `presentationDetents` modifier
+  while preserving native user-driven detent selection.
 - Adds the native close control, hides the drag indicator and uses the system
   material for the outer sheet canvas. Dismissible generic content reserves the
   close control's header area inside its measured height so inputs cannot sit

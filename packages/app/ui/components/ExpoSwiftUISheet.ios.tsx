@@ -30,6 +30,7 @@ import {
   lineLimit,
   onGeometryChange,
   padding,
+  presentationDetents,
   presentationDragIndicator,
   shapes,
   strokeBorder,
@@ -47,6 +48,7 @@ import {
   useState,
 } from 'react';
 import { PlatformColor, View, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from 'tamagui';
 
 import type { Action, ActionGroup } from './ActionSheet';
@@ -81,6 +83,7 @@ export function ExpoSwiftUISheet({
   children,
 }: ExpoSwiftUISheetProps) {
   const { width, height } = useWindowDimensions();
+  const [isExpanded, setIsExpanded] = useState(false);
   const startingHeight = Math.min(420, height * 0.78);
   const [sheetHeightState, setSheetHeightState] = useState(() => ({
     contentHeight: 420,
@@ -147,6 +150,7 @@ export function ExpoSwiftUISheet({
 
   useEffect(() => {
     if (open) triggerHaptic('sheetOpen');
+    else setIsExpanded(false);
   }, [open]);
 
   useEffect(
@@ -164,16 +168,23 @@ export function ExpoSwiftUISheet({
         <Host style={{ position: 'absolute', width }} pointerEvents="none">
           <BottomSheet
             isPresented={open}
-            detents={[{ height: 240 }, 'large']}
-            selectedDetent={{ height: selectedHeight }}
-            animateSelectedDetentChanges
-            detentAnimationDuration={sheetHeightAnimationDuration}
             onDismiss={onDismiss}
             onIsPresentedChange={(presented) => {
               if (!presented) close();
             }}
           >
-            <Group modifiers={[presentationDragIndicator('hidden')]}>
+            <Group
+              modifiers={[
+                presentationDetents([{ height: selectedHeight }, 'large'], {
+                  selection: isExpanded ? 'large' : { height: selectedHeight },
+                  onSelectionChange: (detent) => {
+                    setIsExpanded(detent === 'large');
+                  },
+                  animationDuration: sheetHeightAnimationDuration,
+                }),
+                presentationDragIndicator('hidden'),
+              ]}
+            >
               {children}
             </Group>
           </BottomSheet>
@@ -366,6 +377,7 @@ export function ExpoSwiftUIActionContent({
   actionGroups,
 }: ExpoSwiftUIActionContentProps) {
   const theme = useTheme();
+  const { bottom } = useSafeAreaInsets();
   const updateContentHeight = useContext(ContentHeightContext);
   const visibleGroups = useMemo(
     () => actionGroups.filter((group) => group.actions.length > 0),
@@ -382,13 +394,13 @@ export function ExpoSwiftUIActionContent({
       contentTopInset +
       40 +
       headerActionGap +
-      12 +
+      Math.max(12, bottom) +
       8 +
       rowCount * (rowContentHeight + rowVerticalInset * 2) +
       dividerCount +
       (visibleGroups.length - 1) * groupGap
     );
-  }, [visibleGroups]);
+  }, [bottom, visibleGroups]);
 
   useLayoutEffect(() => {
     updateContentHeight(estimatedHeight);
@@ -402,7 +414,7 @@ export function ExpoSwiftUIActionContent({
           frame({ maxWidth: Infinity, alignment: 'leading' }),
           padding({
             top: contentTopInset,
-            bottom: 12,
+            bottom: Math.max(12, bottom),
             horizontal: contentHorizontalInset,
           }),
           onGeometryChange(({ height }) => updateContentHeight(height + 8)),
