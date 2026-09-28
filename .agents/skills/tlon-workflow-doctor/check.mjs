@@ -31,8 +31,8 @@ function envHas(dir, key) {
   const value = quoted ? quoted[2] : raw.replace(/\s+#.*$/, '');
   return value.trim() !== '';
 }
-// The pair the EAS Simulator loop was verified on (see the stim remote check).
-const REMOTE_STIM = '1.8.0';
+// The EAS Simulator loop's floors (see the stim remote check).
+const REMOTE_STIM = '1.9.0';
 const REMOTE_AGENT_DEVICE = '0.21.13';
 const SKILL_DIRS = [
   join(homedir(), '.agents', 'skills'),
@@ -165,12 +165,13 @@ const checks = [
           how: 'npm install -g stim@latest',
           cmd: ['npm', ['install', '-g', 'stim@latest']],
         };
-      // The EAS loop was verified on stim 1.8.0 with agent-device 0.21.13. On
-      // 1.4.0 with 0.21.6, Fast Refresh never reached the device and a
+      // Before 1.9.0 every worktree's EAS session had the same agent-device
+      // name, so a second worktree took the first one's connection. On 1.4.0
+      // with agent-device 0.21.6, Fast Refresh never reached the device and a
       // --remote-config call broke the session's lease.
       if (!atLeast(v, REMOTE_STIM))
         return {
-          fix: `stim ${v} predates ${REMOTE_STIM}, the release the EAS loop was verified on`,
+          fix: `stim ${v} predates ${REMOTE_STIM}, which gives each worktree's EAS session its own name`,
           how: 'npm install -g stim@latest',
           cmd: ['npm', ['install', '-g', 'stim@latest']],
         };

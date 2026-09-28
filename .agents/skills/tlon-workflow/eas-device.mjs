@@ -138,15 +138,16 @@ export function easDevice(appRoot = APP, { keepalive = true } = {}) {
   const profile = readJson(profilePath);
   if (!profile?.session) fail(`no connection profile at ${profilePath}`);
 
-  // Every worktree's remote session gets the same name from Stim, and
-  // agent-device keeps one active connection per name. Refuse rather than
-  // drive another worktree's device.
+  // agent-device routes a call by the connection saved under the session
+  // name, not by this profile. Stim names each worktree's session after it,
+  // so that connection should come from this profile; refuse rather than
+  // drive a device this worktree did not connect.
   const connection = readJson(
     join(AGENT_DEVICE_STATE, 'remote-connections', `${profile.session}.json`)
   );
   if (connection?.remoteConfigPath !== profilePath)
     fail(
-      `agent-device's "${profile.session}" connection belongs to ${connection?.remoteConfigPath ?? 'nothing'}, not this worktree; another worktree connected an EAS session after this one`
+      `agent-device's "${profile.session}" connection comes from ${connection?.remoteConfigPath ?? 'nowhere'}, not this worktree's ${profilePath}; run stim ios --remote eas (or stim android --remote eas) from apps/tlon-mobile to reconnect`
     );
 
   const tokenPath = join(dir, TOKEN_FILE);
