@@ -171,8 +171,8 @@ Run these from `packages/openclaw`.
 
 ```bash
 pnpm lab personas                         # list persona cards
-pnpm lab run                              # the default set once, graded
-pnpm lab run --personas quick,tester      # sets and single cards mix
+pnpm lab run --repeat 2                   # the core set twice, graded
+pnpm lab run --personas core,tlon-curious # sets and single cards mix
 pnpm lab run --personas founder-blunt,one-off-toast --repeat 3
 pnpm lab run --no-judge --variant ~/lab-variants/shorter-questions --repeat 3
 pnpm lab packets baseline shorter-questions   # then have Claude judge them
@@ -301,10 +301,14 @@ timezone: America/New_York
 card ids mixed together, and a run with no `--personas` uses the `default`
 set:
 
-- `real` (the default): 24 cards drawn from real first-day openers, most of
-  them people with no task in mind, a question about the product, or a single
-  request.
-- `quick`: 12 of those for fast rounds.
+- `core` (the default): 11 cards, one per distinct first move (a greeting, a
+  test, the setup button, a clear recurring task, a group news bot, which model,
+  privacy, finding people, a one-off that could repeat, declining setup, and a
+  comparison with another assistant). Run it with `--repeat 2` to decide
+  between variants: about the cost of `real` once, and the repeats separate a
+  real difference from run-to-run noise.
+- `real`: 24 cards drawn from real first-day openers, in roughly the real mix.
+  Confirm a decision on it before shipping.
 - `legacy`: the original 24 cards, which lean toward people who want a
   recurring task.
 
