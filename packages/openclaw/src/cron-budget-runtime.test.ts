@@ -1,3 +1,4 @@
+import { AsyncResource } from 'node:async_hooks';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -73,8 +74,17 @@ async function setup() {
     // Core emits a change from inside the mutation: this must not deadlock.
     await fire('cron_changed', { action: 'updated', jobId: job.id });
   });
-  const cron = { list: async () => [structuredClone(job)], update };
-  return { job, update, warn, fire, setBudget, ctx: { getCron: () => cron } };
+  const list = vi.fn(async () => [structuredClone(job)]);
+  const cron = { list, update };
+  return {
+    job,
+    update,
+    list,
+    warn,
+    fire,
+    setBudget,
+    ctx: { getCron: () => cron },
+  };
 }
 
 it('holds without a connected owner, then notifies once when delivery becomes available', async () => {
@@ -128,4 +138,94 @@ it('does not install budget policy for self-hosted instances without a signal', 
     'on' | 'logger'
   >);
   expect(on).not.toHaveBeenCalled();
+});
+
+it('resumes a held task after its active run completes normally', async () => {
+  const f = await setup();
+  f.job.state = { runningAtMs: 50 };
+  await f.fire('gateway_start', {}, f.ctx);
+  f.job.state = { lastRunAtMs: 50, lastRunStatus: 'ok' };
+  f.job.updatedAtMs = 100;
+  await f.setBudget('available');
+  await f.fire('cron_changed', { action: 'added', jobId: 'another' });
+  await vi.waitFor(() => expect(f.job.enabled).toBe(true));
+  expect(f.warn).not.toHaveBeenCalled();
+});
+
+it('preserves a manual pause when completion overwrites its revision during reconciliation', async () => {
+  const f = await setup();
+  f.job.state = { runningAtMs: 50 };
+  await f.fire('gateway_start', {}, f.ctx);
+  let finishList!: (jobs: PluginHookGatewayCronJob[]) => void;
+  f.list.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finishList = resolve;
+      })
+  );
+  await f.setBudget('available');
+  await f.fire('cron_changed', { action: 'added', jobId: 'another' });
+  await vi.waitFor(() => expect(finishList).toBeDefined());
+  // An independent user update arrives while the budget runner awaits list.
+  await f.update(f.job.id, { enabled: false });
+  f.job.state = { lastRunAtMs: 50, lastRunStatus: 'ok' };
+  f.job.updatedAtMs = 100;
+  finishList([structuredClone(f.job)]);
+  await vi.waitFor(() => expect(f.job.description).toBe(''));
+  await f.fire('gateway_stop');
+  expect(f.job.enabled).toBe(false);
+  expect(
+    f.update.mock.calls.some(
+      ([, patch]) => 'enabled' in patch && patch.enabled === true
+    )
+  ).toBe(false);
+  expect(f.warn).not.toHaveBeenCalled();
+});
+
+it('does not revoke a new hold when an edit was already handled by the active pass', async () => {
+  const f = await setup();
+  await f.fire('gateway_start', {}, f.ctx);
+  let finishList!: (jobs: PluginHookGatewayCronJob[]) => void;
+  f.list.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finishList = resolve;
+      })
+  );
+  await f.fire('cron_changed', { action: 'added', jobId: 'another' });
+  await vi.waitFor(() => expect(finishList).toBeDefined());
+  await f.update(f.job.id, { enabled: true });
+  finishList([structuredClone(f.job)]);
+  await vi.waitFor(() => expect(f.job.enabled).toBe(false));
+  await vi.waitFor(() => expect(f.list).toHaveBeenCalledTimes(5));
+  // Stopping waits for the queued follow-up to finish persisting its result.
+  await f.fire('gateway_stop');
+  await f.setBudget('available');
+  await f.fire('gateway_start', {}, f.ctx);
+  expect(f.job.enabled).toBe(true);
+  expect(f.warn).not.toHaveBeenCalled();
+});
+
+it('does not classify a delayed descendant callback as an owned mutation', async () => {
+  const f = await setup();
+  f.job.state = { runningAtMs: 50 };
+  const originalUpdate = f.update.getMockImplementation()!;
+  let delayedUpdate!: () => Promise<void>;
+  f.update.mockImplementationOnce(async (id, patch) => {
+    // Like a timer installed by core, this callback retains the async context
+    // in which the original budget-owned mutation was performed.
+    delayedUpdate = AsyncResource.bind(async () => {
+      await f.update(f.job.id, { enabled: false });
+      f.job.state = { lastRunAtMs: 50, lastRunStatus: 'ok' };
+      f.job.updatedAtMs = 100;
+    });
+    await originalUpdate(id, patch);
+  });
+  await f.fire('gateway_start', {}, f.ctx);
+  await f.setBudget('available');
+  await delayedUpdate();
+  await vi.waitFor(() => expect(f.job.description).toBe(''));
+  await f.fire('gateway_stop');
+  expect(f.job.enabled).toBe(false);
+  expect(f.warn).not.toHaveBeenCalled();
 });

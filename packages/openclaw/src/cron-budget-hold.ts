@@ -28,9 +28,8 @@ type Hold = {
   description: string;
   // A missing revision is a write-ahead intent, recovered after a crash.
   revision?: number;
-  // Core records an interrupted run during startup and advances updatedAtMs.
-  // That runtime bookkeeping is not a manual edit to the held task.
-  startupRunAtMs?: number;
+  // Completion of a run already in flight advances updatedAtMs without an edit.
+  runningAtMs?: number;
 };
 export type BudgetHoldState = {
   version: 1;
@@ -90,7 +89,7 @@ export async function readBudgetHoldState(
         !h ||
         typeof h.description !== 'string' ||
         (h.revision !== undefined && !Number.isFinite(h.revision)) ||
-        (h.startupRunAtMs !== undefined && !Number.isFinite(h.startupRunAtMs))
+        (h.runningAtMs !== undefined && !Number.isFinite(h.runningAtMs))
       );
     })
   ) {
@@ -126,6 +125,7 @@ export async function reconcileBudgetHolds(opts: {
   // Before gateway startup we only apply holds. Core's live update API must
   // release them so it computes a future next-run time without a catch-up run.
   pauseOnly?: boolean;
+  externallyEditedJobs?: ReadonlySet<string>;
 }): Promise<void> {
   const { state, cron, save } = opts;
   if (opts.budget === 'limited' && !state.limited) {
@@ -157,23 +157,23 @@ export async function reconcileBudgetHolds(opts: {
   for (const job of jobs) {
     let hold: Hold | undefined = state.holds[job.id];
     if (hold) {
-      const description = BUDGET_HOLD_PREFIX + hold.description;
-      const finishedStartupRun =
-        hold.startupRunAtMs !== undefined &&
+      const description = (BUDGET_HOLD_PREFIX + hold.description).trimEnd();
+      const finishedHeldRun =
+        hold.runningAtMs !== undefined &&
         job.state?.runningAtMs === undefined &&
-        job.state?.lastRunAtMs === hold.startupRunAtMs &&
-        job.state?.lastRunStatus === 'error';
+        job.state?.lastRunAtMs === hold.runningAtMs;
       const stillOurs =
+        !opts.externallyEditedJobs?.has(job.id) &&
         job.enabled === false &&
         job.description === description &&
         (hold.revision === undefined ||
           job.updatedAtMs === hold.revision ||
-          finishedStartupRun);
+          finishedHeldRun);
       if (stillOurs && isRecurringJob(job)) {
         if (limited) {
-          if (hold.revision === undefined || finishedStartupRun) {
+          if (hold.revision === undefined || finishedHeldRun) {
             hold.revision = job.updatedAtMs;
-            delete hold.startupRunAtMs;
+            delete hold.runningAtMs;
             await save();
           }
           continue;
@@ -201,22 +201,22 @@ export async function reconcileBudgetHolds(opts: {
     // save must not strand a disabled job without a recoverable hold.
     hold = {
       description: job.description ?? '',
-      ...(opts.pauseOnly && job.state?.runningAtMs !== undefined
-        ? { startupRunAtMs: job.state.runningAtMs }
+      ...(job.state?.runningAtMs !== undefined
+        ? { runningAtMs: job.state.runningAtMs }
         : {}),
     };
     state.holds[job.id] = hold;
     await save();
     await cron.update(job.id, {
       enabled: false,
-      description: BUDGET_HOLD_PREFIX + hold.description,
+      description: (BUDGET_HOLD_PREFIX + hold.description).trimEnd(),
     });
     const updated = (await cron.list({ includeDisabled: true })).find(
       (j) => j.id === job.id
     );
     if (
       updated?.enabled === false &&
-      updated.description === BUDGET_HOLD_PREFIX + hold.description
+      updated.description === (BUDGET_HOLD_PREFIX + hold.description).trimEnd()
     ) {
       hold.revision = updated.updatedAtMs;
     }

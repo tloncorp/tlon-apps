@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import type { OpenClawPluginApi } from 'openclaw/plugin-sdk/core';
 
 import {
@@ -39,6 +40,10 @@ export function registerBudgetHoldHooks(
 ) {
   const paths = budgetHoldPaths();
   if (!paths) return;
+  const ownMutation = new AsyncLocalStorage<{ active: boolean }>();
+  const pendingEdits = new Map<string, number>();
+  let editGeneration = 0;
+  let activeEdits: Set<string> | undefined;
 
   api.on('before_tool_call', async (event) => {
     if (event.toolName !== 'cron' || event.params.action !== 'run') return;
@@ -58,26 +63,73 @@ export function registerBudgetHoldHooks(
     if (runnerSlot.get()) return;
     let flight: Promise<void> | undefined;
     let stopped = false;
+    let rerun = false;
     const tick = (): Promise<void> => {
       if (stopped) return Promise.resolve();
-      if (flight) return flight;
+      if (flight) {
+        rerun = true;
+        return flight;
+      }
       flight = (async () => {
         const cron = ctx.getCron?.() ?? getTlonCronService();
         if (!cron) return;
-        const state = await readBudgetHoldState(paths.state);
-        await reconcileBudgetHolds({
-          budget: await readBudgetSignal(paths.signal),
-          state,
-          cron,
-          save: () => writeBudgetHoldState(paths.state, state),
-          notify: (message) =>
-            notifier.get()?.(
-              message,
-              state.episodeId
-                ? buildCreditIncreaseCard(message, state.episodeId)
-                : undefined
-            ) ?? Promise.resolve(false),
-        });
+        do {
+          rerun = false;
+          const edits = new Set(pendingEdits.keys());
+          pendingEdits.clear();
+          activeEdits = edits;
+          try {
+            const state = await readBudgetHoldState(paths.state);
+            await reconcileBudgetHolds({
+              budget: await readBudgetSignal(paths.signal),
+              state,
+              cron: {
+                list: (options) => cron.list(options),
+                update: async (id, patch) => {
+                  const generation = pendingEdits.get(id);
+                  const scope = { active: true };
+                  let result: unknown;
+                  try {
+                    result = await ownMutation.run(scope, () =>
+                      cron.update(id, patch)
+                    );
+                  } finally {
+                    // Timers created by core inherit this async context, but
+                    // later mutations are no longer part of our own write.
+                    scope.active = false;
+                  }
+                  // A new hold incorporates edits already seen by this pass.
+                  // Do not revoke it again on the queued follow-up pass, but
+                  // retain any newer edit received while this write awaited.
+                  if (
+                    patch.enabled === false &&
+                    pendingEdits.get(id) === generation
+                  ) {
+                    pendingEdits.delete(id);
+                    edits.delete(id);
+                  }
+                  return result;
+                },
+              },
+              externallyEditedJobs: edits,
+              save: () => writeBudgetHoldState(paths.state, state),
+              notify: (message) =>
+                notifier.get()?.(
+                  message,
+                  state.episodeId
+                    ? buildCreditIncreaseCard(message, state.episodeId)
+                    : undefined
+                ) ?? Promise.resolve(false),
+            });
+          } catch (error) {
+            for (const id of edits) {
+              if (!pendingEdits.has(id)) pendingEdits.set(id, ++editGeneration);
+            }
+            throw error;
+          } finally {
+            activeEdits = undefined;
+          }
+        } while (rerun && !stopped);
       })()
         .catch((error) => {
           api.logger.warn(
@@ -106,6 +158,13 @@ export function registerBudgetHoldHooks(
   // Do not await inside a cron mutation's hook. Reconciliation itself mutates
   // cron jobs; awaiting here could deadlock the host's mutation lock.
   api.on('cron_changed', (event) => {
+    if (event.action === 'updated') {
+      if (ownMutation.getStore()?.active) return;
+      // Record before any await: a finishing run can overwrite updatedAtMs
+      // before reconciliation sees the manually edited job.
+      pendingEdits.set(event.jobId, ++editGeneration);
+      activeEdits?.add(event.jobId);
+    }
     if (
       event.action === 'added' ||
       event.action === 'updated' ||

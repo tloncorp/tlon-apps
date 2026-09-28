@@ -49,6 +49,8 @@ function fixture() {
     async (id: string, patch: { enabled?: boolean; description?: string }) => {
       const job = jobs.find((j) => j.id === id)!;
       Object.assign(job, patch, { updatedAtMs: ++revision });
+      if (job.description !== undefined)
+        job.description = job.description.trim();
     }
   );
   const cron = { list: async () => structuredClone(jobs), update };
@@ -70,6 +72,31 @@ describe('cron budget holds', () => {
     await f.reconcile('available');
     expect(f.jobs[0].enabled).toBe(true);
   });
+  it.each(['ok', 'error'] as const)(
+    'retains ownership when an already-running task finishes with %s',
+    async (lastRunStatus) => {
+      const f = fixture();
+      f.jobs[0].state = { runningAtMs: 50 };
+      await f.reconcile('limited');
+      f.jobs[0].updatedAtMs = 200;
+      f.jobs[0].state = { lastRunAtMs: 50, lastRunStatus };
+      await f.reconcile('limited');
+      await f.reconcile('available');
+      expect(f.jobs[0].enabled).toBe(true);
+    }
+  );
+
+  it('retains ownership after core trims the label of a task without a description', async () => {
+    const f = fixture();
+    await f.reconcile('limited');
+    expect(f.jobs[1].description).toBe(BUDGET_HOLD_PREFIX.trimEnd());
+    await f.reconcile('limited');
+    expect(f.state.holds.watch).toBeDefined();
+    await f.reconcile('available');
+    expect(f.jobs[1].enabled).toBe(true);
+    expect(f.jobs[1].description).toBe('');
+  });
+
   it('holds recurring jobs, preserving manual disables and one-shot reminders', async () => {
     const f = fixture();
     await f.reconcile('limited');
