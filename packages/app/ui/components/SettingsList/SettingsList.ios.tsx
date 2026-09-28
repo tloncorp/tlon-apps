@@ -117,57 +117,65 @@ function SettingsRow({
     );
   }
 
-  const button = (
-    <Button
-      onPress={row.onPress}
-      modifiers={[
-        ...rowModifiers,
-        // One label and value, so text matching and VoiceOver read the title
-        // alone rather than every text in the row run together.
-        accessibilityLabel(row.title),
-        ...(row.value || row.subtitle
-          ? [accessibilityValue((row.value ?? row.subtitle) as string)]
-          : []),
-      ]}
+  const labelledRowModifiers = [
+    ...rowModifiers,
+    // One label and value, so text matching and VoiceOver read the title
+    // alone rather than every text in the row run together.
+    accessibilityLabel(row.title),
+    ...(row.value || row.subtitle
+      ? [accessibilityValue((row.value ?? row.subtitle) as string)]
+      : []),
+  ];
+  const content = (
+    <HStack
+      spacing={8}
+      // A row with nothing to open is plain content, not a button.
+      modifiers={row.onPress ? undefined : labelledRowModifiers}
     >
-      <HStack spacing={8}>
-        <RowLabel row={row} colors={colors} />
-        <Spacer />
-        {row.pending ? (
-          <Pill
-            text="Pending"
-            textColor={colors.pending.text}
-            backgroundColor={colors.pending.background}
-          />
-        ) : null}
-        {row.status ? (
-          <Pill
-            text={row.status.text}
-            textColor={colors.status[row.status.tone].text}
-            backgroundColor={colors.status[row.status.tone].background}
-          />
-        ) : null}
-        {row.value ? (
-          <Text
-            modifiers={[foregroundStyle(colors.secondaryText), lineLimit(1)]}
-          >
-            {row.value}
-          </Text>
-        ) : null}
-        {row.external ? (
-          <Image
-            systemName="arrow.up.right"
-            size={13}
-            color={colors.tertiaryText}
-          />
-        ) : row.onPress ? (
-          <Image
-            systemName="chevron.right"
-            size={13}
-            color={colors.tertiaryText}
-          />
-        ) : null}
-      </HStack>
+      <RowLabel row={row} colors={colors} />
+      <Spacer />
+      {row.pending ? (
+        <Pill
+          text="Pending"
+          textColor={colors.pending.text}
+          backgroundColor={colors.pending.background}
+        />
+      ) : null}
+      {row.status ? (
+        <Pill
+          text={row.status.text}
+          textColor={colors.status[row.status.tone].text}
+          backgroundColor={colors.status[row.status.tone].background}
+        />
+      ) : null}
+      {row.value ? (
+        <Text modifiers={[foregroundStyle(colors.secondaryText), lineLimit(1)]}>
+          {row.value}
+        </Text>
+      ) : null}
+      {row.external ? (
+        <Image
+          systemName="arrow.up.right"
+          size={13}
+          color={colors.tertiaryText}
+        />
+      ) : row.onPress ? (
+        <Image
+          systemName="chevron.right"
+          size={13}
+          color={colors.tertiaryText}
+        />
+      ) : null}
+    </HStack>
+  );
+
+  if (!row.onPress) {
+    return content;
+  }
+
+  const button = (
+    <Button onPress={row.onPress} modifiers={labelledRowModifiers}>
+      {content}
     </Button>
   );
 
