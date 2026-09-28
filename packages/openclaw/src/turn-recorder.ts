@@ -3,6 +3,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { createSubsystemLogger } from 'openclaw/plugin-sdk/runtime-env';
 
 import { sharedMap, sharedSlot } from './shared-state.js';
+import { isSupersededToolOutcome } from './superseded-turn.js';
 
 export type TlonAgentTurnExecution =
   | 'completed'
@@ -93,6 +94,8 @@ export type TlonAgentTurnSummary = TlonAgentTurnStart & {
   sourceReplyCount: number;
   toolCallCount: number;
   toolErrorCount: number;
+  /** A newer owner message overtook this turn; it gets its own reply. */
+  superseded: boolean;
 };
 
 export type TlonAgentTurnObserver = {
@@ -112,6 +115,7 @@ type TlonAgentTurnState = TlonAgentTurnStart & {
   summary: TlonAgentTurnSummary | null;
   toolCallCount: number;
   toolErrorCount: number;
+  superseded: boolean;
 };
 
 type MetricAttributes = Record<string, string>;
@@ -342,6 +346,7 @@ function buildSummary(
     sourceReplyCount: state.sourceReplyCount,
     toolCallCount: state.toolCallCount,
     toolErrorCount: state.toolErrorCount,
+    superseded: state.superseded,
     trigger: state.trigger,
   };
 }
@@ -445,6 +450,7 @@ export function startTlonAgentTurn(
     summary: null,
     toolCallCount: 0,
     toolErrorCount: 0,
+    superseded: false,
   };
 
   safeObserve(() => observer.recordStarted(state));
@@ -499,10 +505,15 @@ export function recordActiveTlonTurnSourceReply(reply?: {
 export function recordActiveTlonTurnToolCall(update?: {
   toolName?: string;
   errorMessage?: string;
+  result?: unknown;
 }): void {
   updateActiveTurn((state) => {
     state.toolCallCount += 1;
     const errorMessage = update?.errorMessage;
+    if (isSupersededToolOutcome(update?.result)) {
+      state.superseded = true;
+      return;
+    }
     if (typeof errorMessage === 'string' && errorMessage.trim()) {
       state.toolErrorCount += 1;
       state.lastToolError = {

@@ -1,10 +1,13 @@
 import { TLON_A2UI_CATALOG_ID } from '@tloncorp/api';
 
+import {
+  SupersededTurnError,
+  supersededToolResult,
+} from './superseded-turn.js';
+
 const MAX_OPTIONS = 6;
 const MAX_QUESTION_LENGTH = 1000;
 const MAX_OPTION_LENGTH = 36;
-const RESERVED_FREEFORM_OPTION =
-  /^(?:other|custom|something else|write your own)(?:\s*(?:\([^)]*\)|[-–—:/].*))?$/i;
 
 export type AgentChoiceToolParams = {
   target: string;
@@ -14,6 +17,18 @@ export type AgentChoiceToolParams = {
 
 type ResolvedAgentChoiceToolParams = AgentChoiceToolParams & {
   surfaceId: string;
+};
+
+export const agentChoiceToolMetadata = {
+  name: 'tlon_agent_choice',
+  label: 'Tlon Agent Choice',
+  description:
+    'Post one model-authored onboarding question as a Tlon A2UI choice control with a built-in free-form answer path. The tlon-agent-onboarding skill decides whether and what to ask.',
+  promptSnippet:
+    '`tlon_agent_choice`: ask one concise question with selectable answers and a write-your-own option',
+  promptGuidelines: [
+    'Follow the tlon-agent-onboarding skill. After the choice posts, return NO_REPLY and wait for the owner.',
+  ],
 };
 
 export const agentChoiceToolParameters = {
@@ -33,7 +48,7 @@ export const agentChoiceToolParameters = {
       minItems: 2,
       maxItems: MAX_OPTIONS,
       description:
-        'Two to six short, useful answers, each at most 36 characters so labels fit the mobile row. Time answers should normally be natural, fuzzy parts of the day tailored to the task instead of a fixed exact-clock list. Approach answers must be concise ways of gathering information or developing the answer, not output formats or topic slices. The control also lets the owner write their own answer.',
+        'Two to six answers, each at most 36 characters so labels fit the mobile row. The control also lets the owner write their own answer.',
       items: { type: 'string', maxLength: MAX_OPTION_LENGTH },
     },
   },
@@ -64,11 +79,6 @@ function parseParams(
     options.length
   ) {
     throw new Error('options must be unique');
-  }
-  if (options.some((option) => RESERVED_FREEFORM_OPTION.test(option))) {
-    throw new Error(
-      'options must not duplicate the built-in freeform answer (Other, Custom, Something else, or Write your own)'
-    );
   }
   return { ...params, question, options };
 }
@@ -163,10 +173,14 @@ export function createAgentChoiceToolExecutor(deps: {
         details: undefined,
       };
     } catch (error) {
-      // Validation and stale-turn errors are safe to retry in the same model
-      // turn. Once publication starts, keep the claim because transport
-      // failure is ambiguous and a duplicate choice would be worse.
+      // Validation errors are safe to retry in the same model turn; a stale
+      // turn is not, and says so. Once publication starts, keep the claim
+      // because transport failure is ambiguous and a duplicate choice would
+      // be worse.
       deps.finish(id, publicationAttempted);
+      if (error instanceof SupersededTurnError) {
+        return supersededToolResult();
+      }
       const message = error instanceof Error ? error.message : String(error);
       return {
         content: [{ type: 'text' as const, text: `Error: ${message}` }],

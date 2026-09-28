@@ -1,7 +1,7 @@
 import type { PostBlobDataEntryAgentIntroRequest, Story } from '@tloncorp/api';
 import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
-import { isStopTips } from './campaign/templates.js';
+import { isStopTips, withCampaignContext } from './campaign/templates.js';
 import { createLiveCampaign } from './campaign/live.js';
 import { CAMPAIGN_CHECK_INTERVAL_MS } from './campaign/model.js';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
@@ -58,6 +58,10 @@ import {
   resolveTlonSessionThreadParentId,
   setTlonSessionSurface,
 } from '../onboarding-tool-boundary.js';
+import {
+  onboardingClientDateTimeNote,
+  onboardingDmContextNote,
+} from '../onboarding-turn-context.js';
 import {
   type PendingNudge,
   clearPendingNudge,
@@ -145,7 +149,7 @@ import {
   createAgentOnboardingCatchUpScheduler,
   createAgentOnboardingReconciliationPresence,
   drainAgentOnboardingRuntime,
-  findOnboardingGroupIdInChannel,
+  findOnboardingRequestInChannel,
   parseAgentOnboardingRequest,
   handleAgentOnboardingRequest,
   isDmNest,
@@ -3352,11 +3356,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             reason: 'member list available through tlon tool, not injected raw',
           });
         } else if (params.onboardingDmTarget) {
-          bodyWithAttachments +=
-            `\n[First-run onboarding DM context: use target ${params.onboardingDmTarget} ` +
-            'for typed onboarding tools. ' +
-            'Before responding, read and follow ~/.openclaw/plugin-skills/tlon-agent-onboarding/SKILL.md. ' +
-            'This DM is already bound to that onboarding group; continue setup here and do not redirect the owner to create or open another group.]';
+          bodyWithAttachments += onboardingDmContextNote(
+            params.onboardingDmTarget
+          );
           contextLenses.recordContextSource(lens.lensId, {
             kind: 'system',
             label: 'Onboarding DM group binding',
@@ -3368,13 +3370,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         }
         const clientDateTime = onboardingClientDateTime;
         if (clientDateTime) {
-          bodyWithAttachments +=
-            `\n[Client date/time context: device timezone ${clientDateTime.timezone}; ` +
-            `locale ${clientDateTime.locale}. Interpret unqualified schedule times in this ` +
-            'device timezone. Always format visible onboarding times with AM/PM, even when the locale normally uses 24-hour time. Keep cron expressions and ' +
-            'technical timezone identifiers out of user-facing choices and confirmations. ' +
-            'If the owner explicitly names another timezone, preserve that override and ' +
-            'describe it in ordinary language.]';
+          bodyWithAttachments += onboardingClientDateTimeNote(clientDateTime);
         }
       }
 
@@ -4173,12 +4169,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         // names the workspace it furnished; until it lands there is nothing to
         // reconcile, so fall through to the retry below.
         try {
-          groupId = await findOnboardingGroupIdInChannel({
-            api,
-            abortSignal: opts.abortSignal,
-            channelNest: nest,
-            ownerShip: effectiveOwnerShip,
-          });
+          groupId = (
+            await findOnboardingRequestInChannel({
+              api,
+              abortSignal: opts.abortSignal,
+              channelNest: nest,
+              ownerShip: effectiveOwnerShip,
+            })
+          )?.groupId;
         } catch (error) {
           runtime.error?.(
             `[tlon] Failed to resolve onboarding group from ${nest}: ${error instanceof Error ? error.message : String(error)}`
@@ -4482,12 +4480,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         let onboardingGroupId = channelToGroup.get(nest);
         if (!onboardingGroupId && isDmNest(nest)) {
           try {
-            onboardingGroupId = await findOnboardingGroupIdInChannel({
-              api,
-              abortSignal: opts.abortSignal,
-              channelNest: nest,
-              ownerShip: effectiveOwnerShip,
-            });
+            onboardingGroupId = (
+              await findOnboardingRequestInChannel({
+                api,
+                abortSignal: opts.abortSignal,
+                channelNest: nest,
+                ownerShip: effectiveOwnerShip,
+              })
+            )?.groupId;
           } catch (error) {
             runtime.error?.(
               `[tlon] Failed to resolve onboarding group from ${nest}: ${error instanceof Error ? error.message : String(error)}`
@@ -4831,9 +4831,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         await processMessage({
           messageId: messageId ?? '',
           senderShip,
-          messageText: campaignContext
-            ? `${campaignContext}\n\n[Current owner message]\n${rawText}`
-            : rawText,
+          messageText: withCampaignContext(campaignContext, rawText),
           originalCommandText: rawText,
           ...(citedContent ? { citedContent } : {}),
           gateText: engagementText,
@@ -5180,26 +5178,56 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             !!effectiveOwnerShip && senderShip === effectiveOwnerShip;
           let onboardingGroupId: string | undefined = request?.groupId;
           if (onboardingGroupId && fromOwner) {
-            onboardingDmState.noteRequest(whom, onboardingGroupId);
+            onboardingDmState.noteRequest(
+              whom,
+              onboardingGroupId,
+              dmContent.sent || Date.now()
+            );
           }
           onboardingGroupId ??= onboardingDmState.groupFor(whom);
           if (
             !onboardingGroupId &&
             fromOwner &&
             currentSettings.bootstrapComplete !== true &&
-            !onboardingDmState.isInactive(whom)
+            !onboardingDmState.isInactive(whom) &&
+            !onboardingDmState.lapsedGroupFor(whom)
           ) {
             try {
-              onboardingGroupId = await findOnboardingGroupIdInChannel({
-                api,
-                abortSignal: opts.abortSignal,
-                channelNest: whom,
-                ownerShip: effectiveOwnerShip,
-              });
-              onboardingDmState.noteLookup(whom, onboardingGroupId);
+              onboardingDmState.noteLookup(
+                whom,
+                await findOnboardingRequestInChannel({
+                  api,
+                  abortSignal: opts.abortSignal,
+                  channelNest: whom,
+                  ownerShip: effectiveOwnerShip,
+                })
+              );
+              onboardingGroupId = onboardingDmState.groupFor(whom);
             } catch (error) {
               runtime.error?.(
                 `[tlon] Failed to bind onboarding DM ${whom}: ${error instanceof Error ? error.message : String(error)}`
+              );
+            }
+          }
+          // First-run onboarding is for the first day. An owner still talking
+          // after that gets the ordinary bot, task or no task, so neither this
+          // DM's onboarding note nor tlonbot's first-run gate keeps steering
+          // them back into setup.
+          const lapsedGroupId = onboardingDmState.lapsedGroupFor(whom);
+          if (!request && fromOwner && lapsedGroupId) {
+            onboardingDmState.noteComplete(whom);
+            trackOnboardingStep(
+              whom,
+              lapsedGroupId
+            )({
+              step: 'onboarding_completed',
+              completionPath: 'first_day_elapsed',
+            });
+            try {
+              await markBootstrapComplete();
+            } catch (error) {
+              runtime.error?.(
+                `[tlon] Failed to end first-run onboarding in ${whom}: ${error instanceof Error ? error.message : String(error)}`
               );
             }
           }
@@ -5293,9 +5321,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         await processMessage({
           messageId: effectiveMessageId ?? '',
           senderShip,
-          messageText: campaignContext
-            ? `${campaignContext}\n\n[Current owner message]\n${rawText}`
-            : rawText,
+          messageText: withCampaignContext(campaignContext, rawText),
           originalCommandText: rawText,
           ...(citedContent ? { citedContent } : {}),
           gateText: engagementText,

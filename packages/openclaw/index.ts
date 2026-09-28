@@ -10,6 +10,8 @@ import {
   onInternalDiagnosticEvent,
 } from 'openclaw/plugin-sdk/diagnostic-runtime';
 
+import { cleanCronToolArgs } from './src/cron-tool-args.js';
+import { modelPrivacyNote } from './src/model-privacy-context.js';
 import { tlonPlugin } from './src/channel.js';
 import { registerTlonCommands } from './src/commands-registry.js';
 import { notifyCampaignCronChanged } from './src/monitor/campaign/live.js';
@@ -48,6 +50,7 @@ import {
   suppressReplyAfterSuccessfulAgentOnboardingSurface,
 } from './src/agent-task-plan-reply-delivery.js';
 import {
+  bindTlonServiceSetupCall,
   claimTlonChoiceCall,
   claimTlonTaskPlanCall,
   clearTlonSessionRunSurface,
@@ -1049,6 +1052,10 @@ export default defineBundledChannelEntry({
 
     api.on('before_tool_call', async (event, ctx) => {
       const toolCallId = readToolCallId(event);
+      // What the model meant, without the schema placeholders it fills in.
+      const cronParams =
+        event.toolName === 'cron' ? cleanCronToolArgs(event.params) : undefined;
+      const allowed = () => (cronParams ? { params: cronParams } : undefined);
       const runSurface = getTlonSessionRunSurface(ctx.runId);
       const role =
         runSurface?.senderRole ?? getSessionRole(ctx.sessionKey ?? '');
@@ -1085,7 +1092,7 @@ export default defineBundledChannelEntry({
             )));
       const onboardingBoundaryReason = onboardingToolBlockReason(
         event.toolName,
-        event.params,
+        cronParams ?? event.params,
         getTlonSessionSurface(ctx.sessionKey),
         runSurface
       );
@@ -1118,6 +1125,13 @@ export default defineBundledChannelEntry({
       );
       const isBlocked =
         blocksNonOwner || blocksOnboardingMcp || blocksOnboardingBoundary;
+      if (!isBlocked && event.toolName === 'tlon_agent_service_setup') {
+        bindTlonServiceSetupCall({
+          toolCallId,
+          runId: ctx.runId,
+          sessionKey: ctx.sessionKey,
+        });
+      }
       const blockReason = blocksOnboardingMcp
         ? 'This scheduled onboarding update may inspect and call only selected-provider MCP tools explicitly described as read-only.'
         : (effectiveOnboardingBoundaryReason ?? ownerOnlyDecision.reason);
@@ -1185,7 +1199,7 @@ export default defineBundledChannelEntry({
         !blocksOnboardingMcp &&
         !blocksOnboardingBoundary
       ) {
-        return undefined;
+        return allowed();
       }
 
       // Allow owner sessions and internal sessions (heartbeat, cron, etc.).
@@ -1229,7 +1243,7 @@ export default defineBundledChannelEntry({
       api.logger.info(
         `[tlon] Allowed ${event.toolName} tool for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`
       );
-      return undefined;
+      return allowed();
     });
 
     api.on('after_tool_call', async (event, ctx) => {
@@ -1262,6 +1276,7 @@ export default defineBundledChannelEntry({
       }
       recordActiveTlonTurnToolCall({
         toolName: event.toolName,
+        result: event.result,
         errorMessage:
           typeof event.error === 'string' && event.error.trim()
             ? event.error
@@ -1339,6 +1354,15 @@ export default defineBundledChannelEntry({
     // ── Session lifecycle / watchdog telemetry ─────────────────────────
     // These hooks are global to OpenClaw, so telemetry.ts filters them through
     // session keys remembered from Tlon inbound replies before emitting.
+    api.on('before_prompt_build', (_event, ctx) => {
+      const note = modelPrivacyNote(
+        api.runtime.config.loadConfig(),
+        ctx.modelProviderId,
+        ctx.modelId
+      );
+      return note ? { appendSystemContext: note } : undefined;
+    });
+
     api.on('session_start', (event, ctx) => {
       safeTelemetryObserver({
         logger: api.logger,

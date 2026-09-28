@@ -34,6 +34,8 @@ import {
 } from '../urbit/api-client.js';
 import { type BotProfile, sendChannelPost } from '../urbit/send.js';
 import { markdownToStory } from '../urbit/story.js';
+import type { OnboardingRequestRef } from './onboarding-dm-state.js';
+import { ONBOARDING_JOB_NAME } from './onboarding-job.js';
 import {
   type AgentOnboardingRunRecord,
   claimAgentOnboardingRun,
@@ -236,9 +238,14 @@ const TLONBOT_DM_WELCOME_MESSAGE =
   'anything here anytime.';
 const AGENT_ONBOARDING_INTRO =
   `${TLONBOT_DM_WELCOME_MESSAGE}\n\n` +
-  'I can keep you informed, help you learn, or follow a ' +
-  'question over time.';
+  "Here's what I can do:\n" +
+  '• Answer questions and look things up\n' +
+  '• Join a group to help you and your people\n' +
+  '• Keep an eye on something and report back on a schedule\n\n' +
+  'You choose which AI model I run on in settings.';
 const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What can I help you with?';
+const AGENT_ONBOARDING_FIRST_ENTRY_PENDING_TEXT =
+  'I’ll be back in a few seconds with your tailored post.';
 const AGENT_GROUP_SETUP_COMPLETE_MARKER = 'group-setup-complete';
 /**
  * Give a newly discovered chat a short, bounded window for its durable intro
@@ -507,13 +514,13 @@ export { isDmNest };
  * DM, so the newest one the owner authored is the authoritative answer. Absent
  * until furnishing finishes, so callers retry rather than treating it as final.
  */
-export async function findOnboardingGroupIdInChannel(
+export async function findOnboardingRequestInChannel(
   context: Pick<
     AgentOnboardingScanContext,
     'api' | 'abortSignal' | 'channelNest' | 'ownerShip'
   >,
   deps: Pick<AgentOnboardingDeps, 'fetchHistory'> = {}
-): Promise<string | undefined> {
+): Promise<OnboardingRequestRef | undefined> {
   if (!context.ownerShip) return undefined;
   const history = await fetchOnboardingHistory(context, deps);
 
@@ -531,7 +538,11 @@ export async function findOnboardingGroupIdInChannel(
         request: Extract<AgentRequest, { type: 'tlon-agent-intro-request' }>;
       } => candidate.request?.type === 'tlon-agent-intro-request'
     )
-    .sort((a, b) => b.timestamp - a.timestamp)[0]?.request.groupId;
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .map(({ timestamp, request }) => ({
+      groupId: request.groupId,
+      requestedAt: timestamp,
+    }))[0];
 }
 
 export function parseAgentOnboardingRequest(
@@ -1047,7 +1058,7 @@ async function provision(
       history,
       'first-entry-pending',
       async () => ({
-        text: 'I’ll be back in a few seconds with your tailored post.',
+        text: AGENT_ONBOARDING_FIRST_ENTRY_PENDING_TEXT,
         shouldSend: async () => {
           const latest = await lookupAgentOnboardingRun(
             onboardingAccountId(context),
@@ -1607,10 +1618,7 @@ async function completeFirstRunCorrelation(
         // hasn't synced the notes channel yet, so name the entry in text. Keep
         // completion focused on the delivered result; explain workspace
         // concepts later only when the owner asks.
-        const title = newest?.title?.trim();
-        const message = title
-          ? `Your first entry is ready: “${title}”. Your daily task is active.`
-          : 'Your first entry is ready. Your daily task is active.';
+        const message = firstEntryReadyMessage(newest?.title);
         const story = markdownToStory(message);
         if (newest) {
           story.push({
@@ -2663,7 +2671,7 @@ async function upsertPrimaryJobOnce(
   const desired = {
     // Cron names are included in generic telemetry. Keep owner-entered topics
     // in the job payload only, where they are needed to produce the update.
-    name: 'Tlonbot scheduled update',
+    name: ONBOARDING_JOB_NAME,
     description,
     enabled: true,
     schedule: {
@@ -2945,9 +2953,19 @@ function scheduleConfirmation(request: PostBlobDataEntryAgentProvision) {
   return `After this first entry, new ones arrive at ${hour}:${minute} ${meridiem}.`;
 }
 
+function firstEntryReadyMessage(title?: string | null) {
+  const trimmed = title?.trim();
+  return trimmed
+    ? `Your first entry is ready: “${trimmed}”. Your task is active.`
+    : 'Your first entry is ready. Your task is active.';
+}
+
 export const agentOnboardingTesting = {
   buildProvisionAcknowledgement,
   buildRecurringPrompt,
+  firstEntryPendingText: AGENT_ONBOARDING_FIRST_ENTRY_PENDING_TEXT,
+  firstEntryReadyMessage,
+  welcomeText: `${AGENT_ONBOARDING_INTRO}\n\n${AGENT_ONBOARDING_PURPOSE_PROMPT}`,
   ensureFirstRunEnqueued,
   fetchOnboardingGroup,
   findFirstRunCorrelation,
