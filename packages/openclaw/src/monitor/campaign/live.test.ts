@@ -99,7 +99,7 @@ afterEach(async () => {
   vi.useRealTimers();
 });
 
-it('couples the accelerated campaign only to the onboarding QA deployment config', () => {
+it('couples the accelerated campaign only to its test deployment configs', () => {
   const disabled = structuredClone(cfg) as OpenClawConfig;
   (
     disabled.channels!.tlon as {
@@ -107,6 +107,14 @@ it('couples the accelerated campaign only to the onboarding QA deployment config
     }
   ).onboardingCampaign.enabled = false;
   expect(resolveCampaignConfig(disabled, 'onboarding-qa-stack')).toMatchObject({
+    enabled: true,
+    enrollAfter: '2026-09-17T00:00:00Z',
+    testing: {
+      intervalMinutes: 60,
+      ignoreLocalDeliveryWindow: true,
+    },
+  });
+  expect(resolveCampaignConfig(disabled, 'frankenpool')).toMatchObject({
     enabled: true,
     enrollAfter: '2026-09-17T00:00:00Z',
     testing: {
