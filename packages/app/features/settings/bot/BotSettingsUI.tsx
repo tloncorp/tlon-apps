@@ -193,70 +193,45 @@ export function SelectableRow({
   );
 }
 
-export function BotIdentityHeader({
-  title,
-  subtitle,
+const botAvatarSize = 48;
+
+export function BotAvatar({
   avatarUrl,
   sigilContactId,
-  ready,
-  restarting,
 }: {
-  title: string;
-  subtitle: string;
   avatarUrl?: string;
   /** Shown in place of a missing avatar; the face icon stands in without it. */
   sigilContactId?: string;
-  ready: boolean;
-  restarting?: boolean;
 }) {
-  // Reflects the bot's runtime status only. Unsaved edits are surfaced by the
-  // Apply bar, so they don't belong in this badge (a "Pending" badge there just
-  // duplicates the bar and reads like the bot itself is unhealthy).
-  const statusText = restarting ? 'Restarting…' : ready ? 'Online' : 'Starting';
-  const statusType = restarting ? 'warning' : ready ? 'positive' : 'neutral';
-
   return (
-    <XStack alignItems="center" gap="$l" paddingHorizontal="$s">
-      <ImageAvatar
-        imageUrl={avatarUrl || undefined}
-        width={56}
-        height={56}
-        borderRadius="$l"
-        fallback={
-          sigilContactId ? (
-            <SigilAvatar
-              contactId={sigilContactId}
-              size="custom"
-              width={56}
-              height={56}
-              borderRadius="$l"
-            />
-          ) : (
-            <View
-              width={56}
-              height={56}
-              alignItems="center"
-              justifyContent="center"
-              borderRadius="$l"
-              backgroundColor="$background"
-            >
-              <Icon type="Face" size="$l" color="$secondaryText" />
-            </View>
-          )
-        }
-      />
-      <YStack flex={1} minWidth={0} gap="$2xs">
-        <XStack alignItems="center" justifyContent="space-between" gap="$m">
-          <Text size="$label/2xl" fontWeight="600" numberOfLines={1} flex={1}>
-            {title || 'Tlonbot'}
-          </Text>
-          <Badge text={statusText} type={statusType} size="micro" />
-        </XStack>
-        <Text size="$label/m" color="$secondaryText" numberOfLines={1}>
-          {subtitle}
-        </Text>
-      </YStack>
-    </XStack>
+    <ImageAvatar
+      imageUrl={avatarUrl || undefined}
+      width={botAvatarSize}
+      height={botAvatarSize}
+      borderRadius="$l"
+      fallback={
+        sigilContactId ? (
+          <SigilAvatar
+            contactId={sigilContactId}
+            size="custom"
+            width={botAvatarSize}
+            height={botAvatarSize}
+            borderRadius="$l"
+          />
+        ) : (
+          <View
+            width={botAvatarSize}
+            height={botAvatarSize}
+            alignItems="center"
+            justifyContent="center"
+            borderRadius="$l"
+            backgroundColor="$background"
+          >
+            <Icon type="Face" size="$l" color="$secondaryText" />
+          </View>
+        )
+      }
+    />
   );
 }
 

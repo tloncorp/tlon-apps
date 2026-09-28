@@ -1,20 +1,17 @@
 import { getBotUserIdForUser } from '@tloncorp/api';
-import { ConfirmDialog, Pressable, Text } from '@tloncorp/ui';
+import { ConfirmDialog } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
-import { XStack, YStack } from 'tamagui';
+import { YStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
-import { ListItem } from '../../../ui/components/ListItem';
-import { useContact } from '../../../ui/contexts/appDataContext';
 import {
-  ApplyChangesBar,
-  BotIdentityHeader,
-  BotSettingsDivider,
-  BotSettingsRow,
-  BotSettingsSection,
-  BotSwitchRow,
-  PendingBadge,
-} from './BotSettingsUI';
+  type SettingsRowModel,
+  type SettingsRowStatus,
+  type SettingsSectionModel,
+  SettingsSectionsView,
+} from '../../../ui/components/SettingsList';
+import { useContact } from '../../../ui/contexts/appDataContext';
+import { ApplyChangesBar, BotAvatar } from './BotSettingsUI';
 import {
   BASIC_PROVIDER_ID,
   PROVIDER_OPTIONS,
@@ -62,23 +59,24 @@ export function useBotSettingsHub() {
 
 export type BotSettingsHub = ReturnType<typeof useBotSettingsHub>;
 
-export function BotSettingsSections({
-  hub,
-  navigate,
-  zdrRowLayout,
-}: {
-  hub: BotSettingsHub;
-  navigate: BotSettingsNavigate;
-  zdrRowLayout?: { descriptionGap?: number; paddingVertical?: number };
-}) {
+/**
+ * The bot's settings as list sections: the bot itself, then its models, its
+ * connections and who can reach it. The Settings tab places these in its own
+ * list; the standalone screen draws them alone.
+ */
+export function useBotSettingsSectionModels(
+  hub: BotSettingsHub,
+  navigate: BotSettingsNavigate
+): SettingsSectionModel[] {
   const { queries, settingsReady, draft, pending, commitDraft, applying } = hub;
-  const [advancedOpen, setAdvancedOpen] = useState(false);
   const controlsReadOnly = !settingsReady || applying;
   // The bot's contact is already synced and cached, and it's what the DM tab
   // and chat list render. The hosting avatar endpoint is often empty or slow
-  // while the gateway starts, which left this header on its fallback icon.
+  // while the gateway starts, which left the avatar on its fallback icon.
   const currentUserId = useCurrentUserId();
   const botContact = useContact(getBotUserIdForUser(currentUserId));
+  const botAvatarUrl = botContact?.avatarImage ?? undefined;
+  const botContactId = botContact?.id;
 
   const connectedServicesCount = useMemo(
     () =>
@@ -108,188 +106,201 @@ export function BotSettingsSections({
     [queries.providerConfig.keys]
   );
 
-  const onBasicModel = draft.model.provider === BASIC_PROVIDER_ID;
-  // Tlon picks the fallback chain for its own hosted model, so there is no
-  // count to show until the user moves off it or sets fallbacks themselves.
-  const fallbacksValue = !settingsReady
-    ? undefined
-    : onBasicModel && draft.model.fallbacks.length === 0
-      ? 'Managed by Tlon'
-      : `${draft.model.fallbacks.length} set`;
+  const botAvatar = useMemo(
+    () => <BotAvatar avatarUrl={botAvatarUrl} sigilContactId={botContactId} />,
+    [botAvatarUrl, botContactId]
+  );
 
-  return (
-    <YStack gap="$2xl">
-      <BotIdentityHeader
-        title={draft.nickname || 'Tlonbot'}
-        subtitle={`Your personal bot · ${queries.moon ?? `~${queries.ship}`}`}
-        avatarUrl={botContact?.avatarImage ?? undefined}
-        sigilContactId={botContact?.id}
-        ready={queries.botReady}
-        restarting={applying}
-      />
-      {!queries.botReady && settingsReady ? (
-        <Text size="$label/s" color="$secondaryText" paddingHorizontal="$s">
-          Tlonbot is starting. Settings may take a moment to become editable.
-        </Text>
-      ) : null}
+  return useMemo(() => {
+    const onBasicModel = draft.model.provider === BASIC_PROVIDER_ID;
+    // Tlon picks the fallback chain for its own hosted model, so there is no
+    // count to show until the user moves off it or sets fallbacks themselves.
+    const fallbacksValue = !settingsReady
+      ? undefined
+      : onBasicModel && draft.model.fallbacks.length === 0
+        ? 'Managed by Tlon'
+        : `${draft.model.fallbacks.length} set`;
+    // Reflects the bot's runtime status only. Unsaved edits are surfaced by
+    // the apply bar and the rows they touch, not here.
+    const status: SettingsRowStatus = applying
+      ? { text: 'Restarting…', tone: 'warning' }
+      : queries.botReady
+        ? { text: 'Online', tone: 'positive' }
+        : { text: 'Starting', tone: 'neutral' };
+    // Zero data retention stays in the open: it is a privacy control, and a
+    // pending toggle hidden from view leaves the apply bar counting a change
+    // the user cannot see.
+    const showsZdr =
+      settingsReady && onBasicModel && Boolean(draft.model.model);
 
-      <BotSettingsSection title="Models">
-        <BotSettingsRow
-          label="Default model"
-          description={
-            draft.model.provider
-              ? providerLabel(draft.model.provider)
-              : 'Not set'
-          }
-          value={draft.model.model || undefined}
-          pending={pending.modelProvider || pending.model}
-          disabled={controlsReadOnly}
-          onPress={() => navigate('BotModelSettings', { mode: 'default' })}
-        />
-        <BotSettingsDivider />
-        <BotSettingsRow
-          label="Fallback models"
-          value={fallbacksValue}
-          pending={pending.fallbacks}
-          disabled={controlsReadOnly}
-          onPress={() => navigate('BotModelSettings', { mode: 'fallbacks' })}
-        />
-      </BotSettingsSection>
+    const modelRows: SettingsRowModel[] = [
+      {
+        key: 'default-model',
+        title: 'Default model',
+        subtitle: draft.model.provider
+          ? providerLabel(draft.model.provider)
+          : 'Not set',
+        value: draft.model.model || undefined,
+        pending: pending.modelProvider || pending.model,
+        disabled: controlsReadOnly,
+        onPress: () => navigate('BotModelSettings', { mode: 'default' }),
+      },
+      {
+        key: 'fallback-models',
+        title: 'Fallback models',
+        value: fallbacksValue,
+        pending: pending.fallbacks,
+        disabled: controlsReadOnly,
+        onPress: () => navigate('BotModelSettings', { mode: 'fallbacks' }),
+      },
+    ];
+    if (showsZdr) {
+      modelRows.push({
+        key: 'zdr',
+        title: 'Zero data retention',
+        pending: pending.zdr,
+        disabled: controlsReadOnly,
+        toggle: {
+          value: draft.model.zdr,
+          onValueChange: (value) =>
+            commitDraft((current) => ({
+              ...current,
+              model: { ...current.model, zdr: value },
+            })),
+        },
+      });
+    }
 
-      <BotSettingsSection title="Connections">
-        <BotSettingsRow
-          label="Provider subscriptions"
-          value={
-            queries.llmAuthStatusQuery.isLoading
+    return [
+      {
+        key: 'bot',
+        footer:
+          !queries.botReady && settingsReady
+            ? 'Tlonbot is starting. Settings may take a moment to become editable.'
+            : undefined,
+        rows: [
+          {
+            key: 'bot-identity',
+            title: draft.nickname || 'Tlonbot',
+            subtitle: `Your personal bot · ${queries.moon ?? `~${queries.ship}`}`,
+            leading: { kind: 'element', element: botAvatar },
+            prominent: true,
+            status,
+            pending: pending.nickname,
+            // The bot's own row edits its name, the way your profile row
+            // opens your profile.
+            onPress: controlsReadOnly
+              ? undefined
+              : () => navigate('BotIdentitySettings'),
+            testID: 'BotIdentityRow',
+          },
+        ],
+      },
+      {
+        key: 'bot-models',
+        title: 'Models',
+        footer: showsZdr
+          ? 'Zero data retention avoids model providers that retain data. It may use your included credits faster.'
+          : undefined,
+        rows: modelRows,
+      },
+      {
+        key: 'bot-connections',
+        title: 'Connections',
+        rows: [
+          {
+            key: 'subscriptions',
+            title: 'Provider subscriptions',
+            value: queries.llmAuthStatusQuery.isLoading
               ? 'Checking…'
               : queries.llmAuthStatusQuery.isError &&
                   queries.llmAuthStatusQuery.data === undefined
                 ? 'Unavailable'
-                : `${connectedSubscriptionCount} connected`
-          }
-          disabled={applying || !queries.providerConfigQuery.isSuccess}
-          onPress={() =>
-            navigate('BotProviderListSettings', { kind: 'subscriptions' })
-          }
-        />
-        <BotSettingsDivider />
-        <BotSettingsRow
-          label="API keys"
-          value={`${apiKeyCount} set`}
-          disabled={applying || !queries.providerConfigQuery.isSuccess}
-          onPress={() =>
-            navigate('BotProviderListSettings', { kind: 'apiKeys' })
-          }
-        />
-        <BotSettingsDivider />
-        <BotSettingsRow
-          label="Connected services"
-          value={
-            (queries.oauthProvidersQuery.data?.length ?? 0) === 0
-              ? 'Unavailable'
-              : `${connectedServicesCount} connected`
-          }
-          onPress={() => navigate('BotMcpSettings')}
-        />
-      </BotSettingsSection>
-
-      <BotSettingsSection>
-        <BotSettingsRow
-          label="Permissions"
-          description="People, invitations and channel access"
-          pending={
-            pending.dmAllowlist ||
-            pending.autoAcceptDmInvites ||
-            pending.autoDiscoverChannels ||
-            pending.defaultAuthorizedShips ||
-            pending.groupInviteAllowlist ||
-            pending.channelRules
-          }
-          disabled={controlsReadOnly}
-          onPress={() => navigate('BotPermissionsSettings')}
-        />
-      </BotSettingsSection>
-
-      {/* Zero data retention stays in the open rather than moving under
-          Advanced: it is a privacy control, and a pending toggle hidden behind
-          a collapsed disclosure leaves the apply bar counting a change the user
-          cannot see. */}
-      {settingsReady && onBasicModel && draft.model.model ? (
-        <BotSettingsSection title="Privacy">
-          <BotSwitchRow
-            label="Zero data retention"
-            description="Avoid model providers that retain data. May use your included credits faster."
-            descriptionNumberOfLines={3}
-            multilineDescriptionGap={zdrRowLayout?.descriptionGap}
-            multilinePaddingVertical={zdrRowLayout?.paddingVertical}
-            checked={draft.model.zdr}
-            pending={pending.zdr}
-            disabled={controlsReadOnly}
-            onCheckedChange={(value) =>
-              commitDraft((current) => ({
-                ...current,
-                model: { ...current.model, zdr: value },
-              }))
-            }
-          />
-        </BotSettingsSection>
-      ) : null}
-
-      <BotSettingsSection>
-        <AdvancedToggle
-          open={advancedOpen}
-          pending={pending.nickname}
-          onPress={() => setAdvancedOpen((open) => !open)}
-        />
-        {advancedOpen ? (
-          <>
-            <BotSettingsDivider />
-            <BotSettingsRow
-              label="Identity"
-              description="Your bot's name"
-              pending={pending.nickname}
-              disabled={controlsReadOnly}
-              onPress={() => navigate('BotIdentitySettings')}
-            />
-          </>
-        ) : null}
-      </BotSettingsSection>
-    </YStack>
-  );
+                : `${connectedSubscriptionCount} connected`,
+            disabled: applying || !queries.providerConfigQuery.isSuccess,
+            onPress: () =>
+              navigate('BotProviderListSettings', { kind: 'subscriptions' }),
+          },
+          {
+            key: 'api-keys',
+            title: 'API keys',
+            value: `${apiKeyCount} set`,
+            disabled: applying || !queries.providerConfigQuery.isSuccess,
+            onPress: () =>
+              navigate('BotProviderListSettings', { kind: 'apiKeys' }),
+          },
+          {
+            key: 'connected-services',
+            title: 'Connected services',
+            value:
+              (queries.oauthProvidersQuery.data?.length ?? 0) === 0
+                ? 'Unavailable'
+                : `${connectedServicesCount} connected`,
+            onPress: () => navigate('BotMcpSettings'),
+          },
+        ],
+      },
+      {
+        key: 'bot-access',
+        rows: [
+          {
+            key: 'permissions',
+            title: 'Permissions',
+            subtitle: 'People, invitations and channel access',
+            pending:
+              pending.dmAllowlist ||
+              pending.autoAcceptDmInvites ||
+              pending.autoDiscoverChannels ||
+              pending.defaultAuthorizedShips ||
+              pending.groupInviteAllowlist ||
+              pending.channelRules,
+            disabled: controlsReadOnly,
+            onPress: () => navigate('BotPermissionsSettings'),
+          },
+        ],
+      },
+    ];
+  }, [
+    apiKeyCount,
+    applying,
+    botAvatar,
+    commitDraft,
+    connectedServicesCount,
+    connectedSubscriptionCount,
+    controlsReadOnly,
+    draft.model.fallbacks.length,
+    draft.model.model,
+    draft.model.provider,
+    draft.model.zdr,
+    draft.nickname,
+    navigate,
+    pending,
+    queries.botReady,
+    queries.llmAuthStatusQuery.data,
+    queries.llmAuthStatusQuery.isError,
+    queries.llmAuthStatusQuery.isLoading,
+    queries.moon,
+    queries.oauthProvidersQuery.data,
+    queries.providerConfigQuery.isSuccess,
+    queries.ship,
+    settingsReady,
+  ]);
 }
 
-function AdvancedToggle({
-  open,
-  pending,
-  onPress,
+/** The bot's sections on their own, for the standalone bot settings screen. */
+export function BotSettingsSections({
+  hub,
+  navigate,
 }: {
-  open: boolean;
-  pending?: boolean;
-  onPress: () => void;
+  hub: BotSettingsHub;
+  navigate: BotSettingsNavigate;
 }) {
+  const sections = useBotSettingsSectionModels(hub, navigate);
+
   return (
-    <Pressable
-      onPress={onPress}
-      pressStyle={{ backgroundColor: '$secondaryBackground' }}
-    >
-      <ListItem>
-        <ListItem.SystemIcon
-          icon={open ? 'ChevronDown' : 'ChevronRight'}
-          rounded
-        />
-        <ListItem.MainContent justifyContent="center">
-          <ListItem.Title>Advanced</ListItem.Title>
-        </ListItem.MainContent>
-        {/* A pending edit inside a collapsed Advanced would otherwise be
-            invisible while the apply bar counts it. */}
-        <XStack alignItems="center" gap="$s" flexShrink={0}>
-          {pending && !open ? <PendingBadge /> : null}
-          <Text size="$label/m" color="$tertiaryText">
-            {open ? 'Hide' : 'Show'}
-          </Text>
-        </XStack>
-      </ListItem>
-    </Pressable>
+    <YStack gap="$2xl">
+      <SettingsSectionsView sections={sections} />
+    </YStack>
   );
 }
 
