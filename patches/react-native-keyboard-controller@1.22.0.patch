@@ -537,3 +537,134 @@ diff --git a/lib/commonjs/components/ScrollViewWithBottomPadding/index.js b/lib/
          prevContentOffsetY.value = curr;
          result.contentOffset = {
            x: 0,
+diff --git a/ios/observers/movement/observer/KeyboardMovementObserver.swift b/ios/observers/movement/observer/KeyboardMovementObserver.swift
+--- a/ios/observers/movement/observer/KeyboardMovementObserver.swift
++++ b/ios/observers/movement/observer/KeyboardMovementObserver.swift
+@@ -37,6 +37,8 @@
+   // manual did events
+   var notification: Notification?
+   var keyboardDidTask: DispatchWorkItem?
++  // Keyboard notifications can describe an unfinished interactive navigation.
++  var deferredNavigationKeyboardEvent: (id: UUID, notification: Notification, isShowing: Bool)?
+
+   @objc public init(
+     handler: @escaping (NSString, NSNumber, NSNumber, NSNumber, NSNumber) -> Void,
+diff --git a/ios/observers/movement/observer/KeyboardMovementObserver+Listeners.swift b/ios/observers/movement/observer/KeyboardMovementObserver+Listeners.swift
+--- a/ios/observers/movement/observer/KeyboardMovementObserver+Listeners.swift
++++ b/ios/observers/movement/observer/KeyboardMovementObserver+Listeners.swift
+@@ -8,7 +8,11 @@
+ extension KeyboardMovementObserver {
+   @objc func keyboardWillAppear(_ notification: Notification) {
+     guard !UIResponder.isKeyboardPreloading else { return }
+-
++    guard !deferKeyboardEventForNavigation(notification, isShowing: true) else { return }
++    handleKeyboardWillAppear(notification)
++  }
++
++  private func handleKeyboardWillAppear(_ notification: Notification) {
+     let (duration, frame) = notification.keyboardMetaData()
+     if let keyboardFrame = frame {
+       tag = UIResponder.current.reactViewTag
+@@ -35,6 +39,11 @@
+
+   @objc func keyboardWillDisappear(_ notification: Notification) {
+     guard !UIResponder.isKeyboardPreloading else { return }
++    guard !deferKeyboardEventForNavigation(notification, isShowing: false) else { return }
++    handleKeyboardWillDisappear(notification)
++  }
++
++  private func handleKeyboardWillDisappear(_ notification: Notification) {
+     let (duration, _) = notification.keyboardMetaData()
+     tag = UIResponder.current.reactViewTag
+     self.notification = notification
+@@ -113,4 +122,79 @@
+     keyboardDidTask = task
+     DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: task)
+   }
++
++  // A swipe-back can emit willHide while the keyboard only moves horizontally.
++  // Its duration is not a dismissal deadline: the user can hold or cancel the
++  // gesture. Keep both frame tracking and synthesized did events suspended until
++  // UIKit settles the navigation, then publish the final keyboard state once.
++  private func deferKeyboardEventForNavigation(_ notification: Notification, isShowing: Bool) -> Bool {
++    if let pending = deferredNavigationKeyboardEvent {
++      deferredNavigationKeyboardEvent = (pending.id, notification, isShowing)
++      return true
++    }
++    guard let coordinator = interactiveNavigationTransition(
++      in: UIApplication.shared.activeWindow?.rootViewController
++    ) else { return false }
++
++    let id = UUID()
++    let previousNotification = self.notification
++    deferredNavigationKeyboardEvent = (id, notification, isShowing)
++    keyboardDidTask?.cancel()
++    onCancelAnimation()
++    removeKeyboardWatcher()
++    removeKVObserver()
++    animation = nil
++
++    let registered = coordinator.animate(alongsideTransition: nil) { [weak self] context in
++      guard let self = self, let pending = self.deferredNavigationKeyboardEvent,
++            pending.id == id else { return }
++      self.deferredNavigationKeyboardEvent = nil
++      guard self.isMounted else { return }
++
++      var settled = pending.notification
++      var showing = pending.isShowing
++      // Cancellation may finish before UIKit repeats the willShow notification.
++      // In that case the previously visible keyboard is still authoritative.
++      if context.isCancelled, !showing, let previous = previousNotification {
++        settled = previous
++        showing = previous.name == UIResponder.keyboardWillShowNotification
++      }
++      settled.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] = 0.0
++      if showing {
++        self.handleKeyboardWillAppear(settled)
++      } else {
++        self.prevKeyboardPosition = 0
++        self.handleKeyboardWillDisappear(settled)
++      }
++    }
++    if !registered {
++      deferredNavigationKeyboardEvent = nil
++    }
++    return registered
++  }
++
++  private func interactiveNavigationTransition(
++    in controller: UIViewController?
++  ) -> UIViewControllerTransitionCoordinator? {
++    guard let controller = controller else { return nil }
++    if let coordinator = controller.transitionCoordinator, coordinator.isInteractive,
++       let from = coordinator.viewController(forKey: .from),
++       let to = coordinator.viewController(forKey: .to),
++       let navigation = from.navigationController,
++       navigation === to.navigationController
++    {
++      return coordinator
++    }
++    if let presented = controller.presentedViewController,
++       let coordinator = interactiveNavigationTransition(in: presented)
++    {
++      return coordinator
++    }
++    for child in controller.children.reversed() {
++      if let coordinator = interactiveNavigationTransition(in: child) {
++        return coordinator
++      }
++    }
++    return nil
++  }
+ }
+diff --git a/ios/observers/movement/observer/KeyboardMovementObserver+Lifecycle.swift b/ios/observers/movement/observer/KeyboardMovementObserver+Lifecycle.swift
+--- a/ios/observers/movement/observer/KeyboardMovementObserver+Lifecycle.swift
++++ b/ios/observers/movement/observer/KeyboardMovementObserver+Lifecycle.swift
+@@ -29,6 +29,7 @@
+
+   @objc func unmount() {
+     isMounted = false
++    deferredNavigationKeyboardEvent = nil
+     // swiftlint:disable:next notification_center_detachment
+     NotificationCenter.default.removeObserver(self)
+   }
