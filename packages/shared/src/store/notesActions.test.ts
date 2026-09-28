@@ -1936,12 +1936,17 @@ async function insertNotebookChannel(
 
 test('ensureNotesNotebookJoined does not rejoin a group notebook the user left', async () => {
   await insertNotebookChannel(false);
-  vi.spyOn(api.notes, 'listNotebooks').mockResolvedValue([]);
+  // settled from the channel row, so a failing %notes probe can't keep a
+  // stale "joined" answer standing
+  const listNotebooks = vi
+    .spyOn(api.notes, 'listNotebooks')
+    .mockRejectedValue(new Error('offline'));
   const join = vi.spyOn(api, 'joinNotesNotebook').mockResolvedValue(1);
 
   await expect(ensureNotesNotebookJoined(notebookFlag)).resolves.toBe(
     'notMember'
   );
+  expect(listNotebooks).not.toHaveBeenCalled();
   expect(join).not.toHaveBeenCalled();
 });
 

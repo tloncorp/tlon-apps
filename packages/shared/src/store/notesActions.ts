@@ -329,20 +329,25 @@ export async function ensureNotesNotebookJoined(
 
   const currentUserId = api.getCurrentUserId();
   const isHost = parsed.host === currentUserId;
+
+  // Opening a group's notebook is not a request to join it: a member who
+  // left (or was never joined) rejoins from the channel list, as with any
+  // other channel. 'notMember' only when that list offers it. The channel
+  // row mirrors %groups, so this is settled locally, before any request
+  // that could fail and leave a stale "joined" answer standing.
+  if (!isHost) {
+    const channel = await db.getChannel({ id: api.notesChannelId(parsed) });
+    if (channel?.groupId && channel.currentUserIsMember === false) {
+      const joinable = await db.getUnjoinedGroupChannels(channel.groupId);
+      return joinable.some((c) => c.id === channel.id) ? 'notMember' : false;
+    }
+  }
+
   if (isHost || (await notesNotebookIsJoined(parsed))) {
     await syncNotesNotebook(parsed).catch((e) => {
       logger.error('Failed to sync joined notes notebook', e);
     });
     return true;
-  }
-
-  // Opening a group's notebook is not a request to join it: a member who
-  // left (or was never joined) rejoins from the channel list, as with any
-  // other channel. 'notMember' only when that list offers it.
-  const channel = await db.getChannel({ id: api.notesChannelId(parsed) });
-  if (channel?.groupId && channel.currentUserIsMember === false) {
-    const joinable = await db.getUnjoinedGroupChannels(channel.groupId);
-    return joinable.some((c) => c.id === channel.id) ? 'notMember' : false;
   }
 
   await api.joinNotesNotebook(parsed);
@@ -392,6 +397,11 @@ export function recheckNotesNotebookJoined(channelId: string) {
   return queryClient.invalidateQueries({
     queryKey: ['notesEnsureJoined', notebookFlag],
   });
+}
+
+// For a full membership reconcile, which can move any notebook either way.
+export function recheckAllNotesNotebooksJoined() {
+  return queryClient.invalidateQueries({ queryKey: ['notesEnsureJoined'] });
 }
 
 export function useSyncNotesNotebook({

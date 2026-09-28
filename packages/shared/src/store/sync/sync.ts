@@ -44,6 +44,7 @@ import {
 import { useLureState } from '../lure';
 import {
   markNotesNotebookStaleForNoteEvent,
+  recheckAllNotesNotebooksJoined,
   recheckNotesNotebookJoined,
 } from '../notesActions';
 import { verifyPostDelivery } from '../postActions/verifyPostDelivery';
@@ -185,6 +186,7 @@ export const syncInitData = async (
         queryCtx
       )
       .then(() => logger.crumb('reconciled group channel membership'));
+    void recheckAllNotesNotebooksJoined();
     updateLastActivityTime();
   };
 
