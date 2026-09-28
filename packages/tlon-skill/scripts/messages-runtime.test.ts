@@ -369,6 +369,34 @@ describe('messages runtime', () => {
     const dupAnalysis = analyzeWindow(dupSeq, { truncated: true });
     expect(dupAnalysis.eligible).toBe(false);
     expect(ids(dupAnalysis.ordered)).toEqual(['writ-6b', 'writ-6']);
+
+    // An %egg-any-restored club can carry unique seqs that DISAGREE with
+    // receipt keys (fresh low-seq writ at the newest receipt): seq order is
+    // not receipt order there, so the page is ineligible — otherwise probe
+    // trimming would drop the genuinely newest message.
+    const restoredClub = [
+      makePost({
+        id: 'fresh-1',
+        sentAt: T0 + 2 * HOUR,
+        sequenceNum: 1,
+        backendTime: unixMsToUd(T0 + 2 * HOUR),
+      }),
+      makePost({
+        id: 'restored-100',
+        sentAt: T0,
+        sequenceNum: 100,
+        backendTime: unixMsToUd(T0 + 100),
+      }),
+    ];
+    expect(hasReceiptOrder(restoredClub)).toBe(false);
+    const restoredAnalysis = analyzeWindow(
+      restoredClub,
+      { truncated: true },
+      1
+    );
+    expect(restoredAnalysis.eligible).toBe(false);
+    // Nothing trimmed on the ineligible path: both posts display.
+    expect(restoredAnalysis.ordered.length).toBe(2);
   });
 
   it('7. treats exact tolerance and lag boundaries as documented', () => {

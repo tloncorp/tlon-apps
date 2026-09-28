@@ -135,6 +135,21 @@ export function hasReceiptOrder(posts: Post[]): boolean {
     if (seen.has(seq)) return false;
     seen.add(seq);
   }
+  // Where receipt keys exist (DM/club writs), sequence order must agree
+  // with them: an %egg-any-restored club pact keeps both pacts' numbering
+  // unrenumbered, so a fresh low-seq writ can sit at the newest receipt key
+  // — seq order there is NOT receipt order, and trimming bySequence[0]
+  // would drop a genuinely new message. Equal-millisecond ties pass.
+  const bySeq = [...posts].sort(
+    (a, b) => (a.sequenceNum as number) - (b.sequenceNum as number)
+  );
+  let prev: number | null = null;
+  for (const post of bySeq) {
+    const receipt = receiptTimeMs(post);
+    if (receipt === null) continue;
+    if (prev !== null && receipt < prev) return false;
+    prev = receipt;
+  }
   return true;
 }
 
