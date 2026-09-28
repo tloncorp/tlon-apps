@@ -15,6 +15,7 @@ import type {
   Facts,
   Persona,
   RunRecord,
+  SecondResult,
   ToolCallRecord,
   TranscriptEvent,
 } from './types.js';
@@ -236,9 +237,7 @@ export async function runPersona(input: {
   if (tips) virtualNow = tips.now;
   let ending: Ending = 'turn-limit';
   let firstResultOk: boolean | null = null;
-  let startDayTwo:
-    | (() => Promise<{ ok: boolean; markdown: string }> | undefined)
-    | undefined;
+  let startDayTwo: (() => Promise<SecondResult> | undefined) | undefined;
   let error: string | undefined;
 
   const botTurn = async (
@@ -389,16 +388,23 @@ export async function runPersona(input: {
           const scheduleMinute = Number.isFinite(Number(minute))
             ? Number(minute)
             : plan.scheduleMinute;
+          const now = atLocalTime(
+            nextScheduledDay(days ?? plan.scheduleDays, planTimezone),
+            planTimezone,
+            scheduleHour,
+            scheduleMinute
+          );
+          const at = now.toLocaleString('en-US', {
+            timeZone: planTimezone,
+            weekday: 'long',
+            hour: 'numeric',
+            minute: '2-digit',
+          });
           return runScheduledTask({
             ...task,
             prompt: job.payload?.message,
-            now: atLocalTime(
-              nextScheduledDay(days ?? plan.scheduleDays, planTimezone),
-              planTimezone,
-              scheduleHour,
-              scheduleMinute
-            ),
-          });
+            now,
+          }).then((result) => ({ ...result, at }));
         };
       }
     }
@@ -452,7 +458,7 @@ export async function runPersona(input: {
     ending = 'bot-error';
     error = caught instanceof Error ? caught.message : String(caught);
   }
-  let secondResult: { ok: boolean; markdown: string } | undefined;
+  let secondResult: SecondResult | undefined;
   try {
     secondResult = await startDayTwo?.();
   } catch (caught) {
@@ -479,6 +485,7 @@ export async function runPersona(input: {
           secondResult: {
             ok: secondResult.ok,
             markdown: secondResult.markdown,
+            ...(secondResult.at ? { at: secondResult.at } : {}),
           },
         }
       : {}),

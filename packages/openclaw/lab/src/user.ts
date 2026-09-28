@@ -1,6 +1,11 @@
 import type { LabConfig } from './config.js';
 import { type CostMeter, chatJson } from './openrouter.js';
-import type { KeepVerdict, Persona, TranscriptEvent } from './types.js';
+import type {
+  KeepVerdict,
+  Persona,
+  SecondResult,
+  TranscriptEvent,
+} from './types.js';
 
 export type UserMove =
   | { action: 'pick'; text: string; then?: string }
@@ -228,7 +233,7 @@ export async function keepVerdict(input: {
   persona: Persona;
   events: TranscriptEvent[];
   /** The same task run as if it were the next day, when the run has one. */
-  secondResult?: { ok: boolean; markdown: string };
+  secondResult?: SecondResult;
   config: LabConfig;
   meter: CostMeter;
   policy?: string;
@@ -291,15 +296,17 @@ export async function keepVerdict(input: {
 /** The chat as the person saw it, plus the notes it posted afterwards. */
 function renderWithNotes(
   events: TranscriptEvent[],
-  secondResult?: { ok: boolean; markdown: string }
+  secondResult?: SecondResult
 ) {
   const failed = '(the scheduled note failed to post)';
   const notes = events.flatMap((event) =>
     event.kind === 'first-result' ? [event.ok ? event.markdown : failed] : []
   );
   if (secondResult) {
+    // The lab writes the next run ahead of time, so its news can't be newer
+    // than the first note's.
     notes.push(
-      `The next day:\n\n${secondResult.ok ? secondResult.markdown : failed}`
+      `The next scheduled run${secondResult.at ? ` (${secondResult.at})` : ''}, written ahead of time, so its news can overlap the first note:\n\n${secondResult.ok ? secondResult.markdown : failed}`
     );
   }
   return `The chat:\n\n${renderForUser(events)}${notes.length ? `\n\nNotes it later posted to your Updates notebook:\n\n${notes.join('\n\n---\n\n')}` : ''}`;

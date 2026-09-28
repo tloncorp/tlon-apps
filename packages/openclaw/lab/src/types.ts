@@ -161,7 +161,7 @@ export type RunRecord = {
     final?: import('../../src/monitor/campaign/model.js').CampaignState;
   };
   /** The same task run as if it were tomorrow. Only the judge sees it. */
-  secondResult?: { ok: boolean; markdown: string };
+  secondResult?: SecondResult;
   facts: Facts;
   keep?: KeepVerdict;
   judgement?: Judgement;
@@ -187,4 +187,12 @@ export type RunSetManifest = {
   mode?: 'fast' | 'real';
   /** The real-run capture fast mode filled in, if any. */
   template?: { openclaw: string; capturedAt: string; capturedFrom: string };
+};
+
+/** The task's next scheduled run, for the judge. */
+export type SecondResult = {
+  ok: boolean;
+  markdown: string;
+  /** When it was scheduled, in the owner's words ("Sunday 7:00 PM"). */
+  at?: string;
 };
