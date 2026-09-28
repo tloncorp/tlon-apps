@@ -1901,14 +1901,17 @@ test('deleteNotebookNote holds the queue across the remote and local delete', as
 
 async function insertNotebookChannel(
   currentUserIsMember: boolean,
-  readerRoleIds: string[] = []
+  {
+    readerRoleIds = [],
+    inGroup = true,
+  }: { readerRoleIds?: string[]; inGroup?: boolean } = {}
 ) {
   const groupId = '~zod/notes-group';
   await db.insertGroups({
     groups: [
       {
         id: groupId,
-        currentUserIsMember: true,
+        currentUserIsMember: inGroup,
         currentUserIsHost: false,
         hostUserId: '~zod',
       } as db.Group,
@@ -1951,11 +1954,29 @@ test('ensureNotesNotebookJoined does not rejoin a group notebook the user left',
 });
 
 test('ensureNotesNotebookJoined does not join a notebook the channel list withholds', async () => {
-  await insertNotebookChannel(false, ['admin']);
+  await insertNotebookChannel(false, { readerRoleIds: ['admin'] });
   vi.spyOn(api.notes, 'listNotebooks').mockResolvedValue([]);
   const join = vi.spyOn(api, 'joinNotesNotebook').mockResolvedValue(1);
 
   await expect(ensureNotesNotebookJoined(notebookFlag)).resolves.toBe(false);
+  expect(join).not.toHaveBeenCalled();
+});
+
+test('ensureNotesNotebookJoined does not point at the channel list of a group the user left', async () => {
+  await insertNotebookChannel(false, { inGroup: false });
+  const join = vi.spyOn(api, 'joinNotesNotebook').mockResolvedValue(1);
+
+  await expect(ensureNotesNotebookJoined(notebookFlag)).resolves.toBe(false);
+  expect(join).not.toHaveBeenCalled();
+});
+
+test('ensureNotesNotebookJoined counts a group member as joined when the notes probe fails', async () => {
+  await insertNotebookChannel(true);
+  vi.spyOn(api.notes, 'listNotebooks').mockRejectedValue(new Error('offline'));
+  vi.spyOn(api.notes, 'getNotebook').mockRejectedValue(new Error('offline'));
+  const join = vi.spyOn(api, 'joinNotesNotebook').mockResolvedValue(1);
+
+  await expect(ensureNotesNotebookJoined(notebookFlag)).resolves.toBe(true);
   expect(join).not.toHaveBeenCalled();
 });
 
