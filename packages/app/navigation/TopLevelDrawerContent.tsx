@@ -399,6 +399,7 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
   disabled,
   groupMuted,
   last,
+  joined,
   onPress,
   onLongPress,
 }: {
@@ -411,6 +412,8 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
   groupMuted: boolean;
   /** Last of its workspace's channels, so the block's fill ends here. */
   last: boolean;
+  /** Not joined, or left: quieter, and pressing it joins. */
+  joined: boolean;
   onPress: (channel: db.Channel) => void;
   /** Held down: the channel's own options. */
   onLongPress?: (channel: db.Channel) => void;
@@ -420,7 +423,7 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
     () => onLongPress?.(channel),
     [channel, onLongPress]
   );
-  const unread = channelRowUnread(channel, groupMuted);
+  const unread = joined ? channelRowUnread(channel, groupMuted) : 'none';
   const hasUnread = unread !== 'none';
   const notified = unread === 'notified';
   const unreadColor = getUnreadColors(notified).foreground;
@@ -432,10 +435,13 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={
-        hasUnread
-          ? `${title}, ${notified ? 'unread, notified' : 'unread'}`
-          : title
+        !joined
+          ? `${title}, not joined`
+          : hasUnread
+            ? `${title}, ${notified ? 'unread, notified' : 'unread'}`
+            : title
       }
+      accessibilityHint={joined ? undefined : 'Joins the channel'}
       accessibilityState={{ disabled, selected }}
       testID={`TopLevelDrawerWorkspaceChannel-${channel.id}`}
       paddingHorizontal={CONTENT_INSET}
@@ -459,13 +465,15 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
           numberOfLines={1}
           size="$label/l"
           fontWeight={hasUnread ? '600' : undefined}
-          color="$primaryText"
+          color={joined ? '$primaryText' : '$tertiaryText'}
         >
           {title}
         </Text>
         {/* The value the channels are ordered by, so what a row says and where
             it sits cannot disagree. */}
-        <ListItem.Time time={channelRecency(channel)} paddingBottom={0} />
+        {joined ? (
+          <ListItem.Time time={channelRecency(channel)} paddingBottom={0} />
+        ) : null}
         {hasUnread ? <Circle size="$s" backgroundColor={unreadColor} /> : null}
       </XStack>
     </Pressable>
@@ -1227,6 +1235,24 @@ function DrawerPanel(props: DrawerContentComponentProps) {
   // so what the user opened is still open the next time they pull it out, and
   // a fresh launch starts from the list itself.
   const [unfurledGroupId, setUnfurledGroupId] = useState<string | null>(null);
+  // Channels of the open workspace the user can read but has not joined, or
+  // has left. Live, as on the workspace's own channel list: an admin can add
+  // or open one at any time.
+  const { data: unjoinedChannels } = store.useUnjoinedGroupChannels(
+    unfurledGroupId ?? ''
+  );
+  const availableChannels = useMemo(
+    () => unjoinedChannels ?? [],
+    [unjoinedChannels]
+  );
+  const joinWorkspaceChannel = useCallback((channel: db.Channel) => {
+    if (channel.groupId) {
+      void store.joinGroupChannel({
+        channelId: channel.id,
+        groupId: channel.groupId,
+      });
+    }
+  }, []);
   const toggleWorkspace = useCallback(
     (chat: db.Chat) => {
       if (chatsLocked) {
@@ -1297,12 +1323,24 @@ function DrawerPanel(props: DrawerContentComponentProps) {
   const rows = useMemo<DrawerListRow[]>(
     () =>
       isSearching
-        ? getDrawerSearchRows(searchResults, unfurledGroupId)
+        ? getDrawerSearchRows(searchResults, unfurledGroupId, availableChannels)
         : [
             TOP_ANCHOR_ROW,
-            ...getDrawerTabRows(drawerChats, unfurledGroupId, filter),
+            ...getDrawerTabRows(
+              drawerChats,
+              unfurledGroupId,
+              filter,
+              availableChannels
+            ),
           ],
-    [drawerChats, filter, isSearching, searchResults, unfurledGroupId]
+    [
+      availableChannels,
+      drawerChats,
+      filter,
+      isSearching,
+      searchResults,
+      unfurledGroupId,
+    ]
   );
   const titles = useMemo(
     () =>
@@ -1355,20 +1393,27 @@ function DrawerPanel(props: DrawerContentComponentProps) {
         <DrawerChannelRow
           channel={item.channel}
           title={titles.get(item.key) ?? ''}
-          selected={routeShowsChat(
-            { type: 'channel', channel: item.channel },
-            focusedStackRoute
-          )}
+          selected={
+            item.joined &&
+            routeShowsChat(
+              { type: 'channel', channel: item.channel },
+              focusedStackRoute
+            )
+          }
           disabled={chatsLocked}
           groupMuted={item.groupMuted}
           last={item.last}
-          onPress={openWorkspaceChannel}
-          onLongPress={openChannelOptions}
+          joined={item.joined}
+          // Joining leaves the panel as it is: the row turns into an ordinary
+          // one in place, as on the workspace's own channel list.
+          onPress={item.joined ? openWorkspaceChannel : joinWorkspaceChannel}
+          onLongPress={item.joined ? openChannelOptions : undefined}
         />
       ),
     [
       chatsLocked,
       focusedStackRoute,
+      joinWorkspaceChannel,
       openChannelOptions,
       openChat,
       openGroupSettings,

@@ -36,6 +36,12 @@ export type DrawerRow =
       groupMuted: boolean;
       /** Last channel of its workspace, where the block's fill ends. */
       last: boolean;
+      /**
+       * False for a channel the user can read but has not joined, or has
+       * left: listed after the joined ones so it can be found again, drawn
+       * quieter, and joined by pressing it.
+       */
+      joined: boolean;
     };
 
 /**
@@ -196,7 +202,8 @@ export function channelRowUnread(
 export function getDrawerRows(
   chats: db.Chat[],
   unfurledGroupId: string | null,
-  pinned = false
+  pinned = false,
+  availableChannels: db.Channel[] = []
 ): DrawerRow[] {
   const rows: DrawerRow[] = [];
   for (const chat of chats) {
@@ -212,14 +219,24 @@ export function getDrawerRows(
       unfurled,
       pinned,
     });
-    const channels = unfurled ? getUnfurlableChannels(chat) : null;
-    if (!channels) {
+    const joinedChannels = unfurled ? getUnfurlableChannels(chat) : null;
+    if (!joinedChannels) {
       continue;
     }
+    const joinedIds = new Set(joinedChannels.map((channel) => channel.id));
+    const unjoinedChannels = availableChannels
+      .filter(
+        (channel) => channel.groupId === chat.id && !joinedIds.has(channel.id)
+      )
+      .sort((a, b) => channelRecency(b) - channelRecency(a));
+    const channels = [
+      ...joinedChannels.map((channel) => ({ channel, joined: true })),
+      ...unjoinedChannels.map((channel) => ({ channel, joined: false })),
+    ];
     const groupMuted =
       chat.type === 'group' &&
       logic.isMuted(chat.volumeSettings?.level, 'group');
-    channels.forEach((channel, index) => {
+    channels.forEach(({ channel, joined }, index) => {
       rows.push({
         kind: 'channel',
         key: `${chat.id}:${channel.id}`,
@@ -227,6 +244,7 @@ export function getDrawerRows(
         groupId: chat.id,
         groupMuted,
         last: index === channels.length - 1,
+        joined,
       });
     });
   }
