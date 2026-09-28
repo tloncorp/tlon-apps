@@ -34,6 +34,7 @@ export type Persona = {
   group?: OwnerGroup;
 };
 
+/** `channel` names the group's chat; the real lab uses the one a new group comes with. */
 export type OwnerGroup = { title: string; channel: string };
 
 export type Choice = { question: string; options: string[] };
