@@ -238,9 +238,11 @@ const TLONBOT_DM_WELCOME_MESSAGE =
   'anything here anytime.';
 const AGENT_ONBOARDING_INTRO =
   `${TLONBOT_DM_WELCOME_MESSAGE}\n\n` +
-  'I can answer questions and look things up, join a group to help you ' +
-  'and your people, or keep an eye on something and report back on a ' +
-  'schedule. You choose which AI model I run on in settings.';
+  "Here's what I can do:\n" +
+  '• Answer questions and look things up\n' +
+  '• Join a group to help you and your people\n' +
+  '• Keep an eye on something and report back on a schedule\n\n' +
+  'You choose which AI model I run on in settings.';
 const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What can I help you with?';
 const AGENT_ONBOARDING_FIRST_ENTRY_PENDING_TEXT =
   'I’ll be back in a few seconds with your tailored post.';
