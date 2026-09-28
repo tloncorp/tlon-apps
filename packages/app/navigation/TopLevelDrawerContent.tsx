@@ -15,6 +15,7 @@ import {
   Button,
   Icon,
   IconType,
+  LoadingSpinner,
   Pressable,
   Text,
   triggerHaptic,
@@ -400,6 +401,7 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
   groupMuted,
   last,
   joined,
+  joining,
   onPress,
   onLongPress,
 }: {
@@ -414,6 +416,8 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
   last: boolean;
   /** Not joined, or left: quieter, and pressing it joins. */
   joined: boolean;
+  /** A join pressed here is still waiting on the ship. */
+  joining: boolean;
   onPress: (channel: db.Channel) => void;
   /** Held down: the channel's own options. */
   onLongPress?: (channel: db.Channel) => void;
@@ -430,19 +434,27 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
 
   return (
     <Pressable
-      onPress={disabled ? undefined : handlePress}
-      onLongPress={disabled || !onLongPress ? undefined : handleLongPress}
-      disabled={disabled}
+      onPress={disabled || joining ? undefined : handlePress}
+      onLongPress={
+        disabled || joining || !onLongPress ? undefined : handleLongPress
+      }
+      disabled={disabled || joining}
       accessibilityRole="button"
       accessibilityLabel={
-        !joined
-          ? `${title}, not joined`
-          : hasUnread
-            ? `${title}, ${notified ? 'unread, notified' : 'unread'}`
-            : title
+        joining
+          ? `${title}, joining`
+          : !joined
+            ? `${title}, not joined`
+            : hasUnread
+              ? `${title}, ${notified ? 'unread, notified' : 'unread'}`
+              : title
       }
       accessibilityHint={joined ? undefined : 'Joins the channel'}
-      accessibilityState={{ disabled, selected }}
+      accessibilityState={{
+        disabled: disabled || joining,
+        selected,
+        busy: joining,
+      }}
       testID={`TopLevelDrawerWorkspaceChannel-${channel.id}`}
       paddingHorizontal={CONTENT_INSET}
       justifyContent="center"
@@ -471,7 +483,9 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
         </Text>
         {/* The value the channels are ordered by, so what a row says and where
             it sits cannot disagree. */}
-        {joined ? (
+        {joining ? (
+          <LoadingSpinner size="small" />
+        ) : joined ? (
           <ListItem.Time time={channelRecency(channel)} paddingBottom={0} />
         ) : null}
         {hasUnread ? <Circle size="$s" backgroundColor={unreadColor} /> : null}
@@ -1042,17 +1056,31 @@ function DrawerPanel(props: DrawerContentComponentProps) {
    * opened. Anything pressed meanwhile supersedes it, as with any other
    * destination that waits on something.
    */
+  // Channels whose join is still out. The join is written before the ship
+  // answers, so the row reads as joined meanwhile; it shows a spinner and
+  // takes no presses until the answer is in, or a second press could open a
+  // channel that the join then rolls back.
+  const [joiningChannelIds, setJoiningChannelIds] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
   const joinWorkspaceChannel = useCallback(
     async (channel: db.Channel) => {
-      if (!channel.groupId) {
+      const groupId = channel.groupId;
+      if (!groupId) {
         return;
       }
       navigationRequestRef.current += 1;
       const request = navigationRequestRef.current;
-      await store.joinGroupChannel({
-        channelId: channel.id,
-        groupId: channel.groupId,
-      });
+      setJoiningChannelIds((ids) => new Set(ids).add(channel.id));
+      try {
+        await store.joinGroupChannel({ channelId: channel.id, groupId });
+      } finally {
+        setJoiningChannelIds((ids) => {
+          const next = new Set(ids);
+          next.delete(channel.id);
+          return next;
+        });
+      }
       // A failed join rolls itself back rather than throwing.
       const joined = await db.getChannel({ id: channel.id });
       if (
@@ -1428,6 +1456,7 @@ function DrawerPanel(props: DrawerContentComponentProps) {
           groupMuted={item.groupMuted}
           last={item.last}
           joined={item.joined}
+          joining={joiningChannelIds.has(item.channel.id)}
           onPress={item.joined ? openWorkspaceChannel : joinWorkspaceChannel}
           onLongPress={item.joined ? openChannelOptions : undefined}
         />
@@ -1435,6 +1464,7 @@ function DrawerPanel(props: DrawerContentComponentProps) {
     [
       chatsLocked,
       focusedStackRoute,
+      joiningChannelIds,
       joinWorkspaceChannel,
       openChannelOptions,
       openChat,
