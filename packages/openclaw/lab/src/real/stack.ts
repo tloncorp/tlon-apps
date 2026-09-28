@@ -13,6 +13,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { REPO_ROOT, type PromptSources } from '../config.js';
 import type { DeployedAgent } from '../deployed.js';
+import type { OwnerGroup } from '../types.js';
 
 // The lab's own copy of tlonbot's onboarding sandbox: a separate compose
 // project on its own ports, so it never disturbs the `dev` stack someone may
@@ -78,6 +79,12 @@ find /data/$ship/groups -mindepth 1 -maxdepth 1 -exec rm -rf {} +
 cp -a /tmp/lab-groups/. /data/$ship/groups/
 dojo '+hood/commit %groups' >/dev/null`;
 export const SANDBOX_BOT = '~zod';
+
+const TLON_CLI =
+  '/root/.openclaw/extensions/tlon-checkout/packages/openclaw/node_modules/.pnpm/@tloncorp+tlon-skill@*/node_modules/@tloncorp/tlon-skill/bin/tlon.js';
+/** Owner credentials for the CLI, written into the bot container on demand. */
+const OWNER_CLI_CONFIG = '/tmp/lab-owner.json';
+const shellQuote = (arg: string) => `'${arg.replace(/'/g, `'\\''`)}'`;
 
 const WORKSPACE = '/root/.openclaw/workspace';
 const PLUGIN_SKILLS =
@@ -205,6 +212,47 @@ export class LabStack {
       ['exec', '-i', this.container, 'sh', '-c', command],
       { encoding: 'utf8', input, maxBuffer: 20 * 1024 * 1024 }
     );
+  }
+
+  /** Run the tlon CLI in the bot container, as the bot or as the owner. */
+  private tlon(args: string[], asOwner = false) {
+    const config = asOwner ? `--config ${OWNER_CLI_CONFIG} ` : '';
+    return this.bot(
+      `node "$(ls -d ${TLON_CLI} | head -1)" ${config}${args.map(shellQuote).join(' ')} 2>&1`
+    );
+  }
+
+  /**
+   * Make a group the owner runs, with one chat channel, and add the bot to it,
+   * for a persona who says they already have. The plugin accepts the owner's
+   * invite on its own; this waits until the bot is in.
+   */
+  async addOwnerGroup(group: OwnerGroup) {
+    this.bot(
+      `printf '{"url":"%s","ship":"${OWNER.ship}","code":"${OWNER.code}"}' "$TLON_OWNER_URL" > ${OWNER_CLI_CONFIG}`
+    );
+    // A new group comes with one chat channel; the lab uses it.
+    const created = this.tlon(['groups', 'create', group.title], true);
+    const flag = /ID:\s*(~[\w-]+\/[\w-]+)/.exec(created)?.[1];
+    const nest = /Channel:\s*(chat\/~[\w-]+\/[\w-]+)/.exec(created)?.[1];
+    if (!flag || !nest) {
+      throw new Error(`could not create the group ${group.title}`);
+    }
+    this.tlon(['groups', 'invite', flag, SANDBOX_BOT], true);
+    for (const end = Date.now() + 60_000; Date.now() < end;) {
+      if (this.tlon(['groups', 'list']).includes(flag)) return { flag, nest };
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+    throw new Error(`the bot never joined ${flag}`);
+  }
+
+  /** Delete a group made by `addOwnerGroup`; best effort. */
+  removeOwnerGroup(flag: string) {
+    try {
+      this.tlon(['groups', 'delete', flag], true);
+    } catch {
+      // A slow delete confirmation still deletes; the next reset tolerates it.
+    }
   }
 
   /** Whether this sandbox's ships exist from an earlier set. */

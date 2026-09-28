@@ -298,8 +298,8 @@ timezone: America/New_York
 keepQuestion: '...'     # optional: replaces "would you come back?" in the survey,
                         # for someone who by definition won't (they didn't want a bot)
 group:                  # optional: a group they run with the bot already added;
-  title: Tech Friends   # fast mode lists it among the bot's groups
-  channel: news
+  title: Tech Friends   # fast mode lists it among the bot's groups, and real mode
+  channel: General      # creates it on ~ten, adds the bot, and deletes it after
 ```
 
 `personas/sets.yaml` names groups of cards. `--personas` takes set names and

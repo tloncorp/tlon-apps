@@ -371,6 +371,7 @@ export async function runRealPersona(input: {
     return posts;
   };
 
+  let ownerGroup: { flag: string; nest: string } | undefined;
   try {
     await stack.reset(sources);
     messages = followOwnerMessages(stack, stack.owner().shipName);
@@ -388,6 +389,7 @@ export async function runRealPersona(input: {
     }
     transcript.push(...welcome.map(toEvent));
     await owner.grantBotAdmin(60_000);
+    if (persona.group) ownerGroup = await stack.addOwnerGroup(persona.group);
     let lastOptions = lastChoice?.choice?.options;
 
     for (let index = 0; index < input.maxTurns; index++) {
@@ -502,6 +504,7 @@ export async function runRealPersona(input: {
   } finally {
     messages?.stop();
     owner.close();
+    if (ownerGroup) stack.removeOwnerGroup(ownerGroup.flag);
   }
 
   // Wait out anything still in flight so its calls land in this run.
