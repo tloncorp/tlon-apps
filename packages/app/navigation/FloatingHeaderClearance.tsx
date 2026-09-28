@@ -22,16 +22,17 @@ const measuredTopEdge: EdgeRecord = { top: 'maximum' };
  *
  * `useFloatingHeaderHeight` alone is not enough here. It reads JS state that
  * native-stack corrects only when react-native-screens reports the bar again,
- * and a cold launch has left it at 0 under a visible glass header until the
+ * and on a cold launch it has read 0 under a visible glass header until the
  * next header update (switching sections), which put Activity's tabs under
- * the status bar. So UIKit sets the floor: a provider nested here reads the
- * safe area at this spot, which takes in a translucent navigation bar, and
- * the padding never drops below it. The JS height is only the starting value,
- * for the frame before that measurement lands.
+ * the status bar. So the padding is the larger of that value and what UIKit
+ * measures: a provider nested here reads the safe area at this spot, which
+ * takes in a translucent navigation bar. UIKit's figure covers a JS value
+ * left too low; the JS value covers the frames before UIKit's lands, and
+ * those where it reads 0 because the screen is detached.
  *
- * Only the padding comes from the nested measurement. Descendants get back
- * the window's insets, so sheets and anything else sized by them are
- * unchanged.
+ * Descendants that read insets through the context get the window's back, so
+ * sheets and anything else sized by them are unchanged. A native
+ * `SafeAreaView` inside would still measure against the nested provider.
  */
 export function FloatingHeaderClearance({ children }: { children: ReactNode }) {
   const insets = useSafeAreaInsets();
