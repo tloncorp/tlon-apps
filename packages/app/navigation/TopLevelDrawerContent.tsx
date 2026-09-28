@@ -1606,9 +1606,10 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
       ...closing,
       // Leaving a channel only takes its row out of the panel, so the panel
       // stays open on it. The app moves only if it was standing in that
-      // channel, and then into the group's next channel opened the way a row
-      // opens one: on the sections as they stand, with the drawer button
-      // rather than a caret back to a fresh Workspaces.
+      // channel, and then to the channel now at the top of the group's list
+      // in the panel, or the group's channel list if none is left, opened the
+      // way a row opens one: on the sections as they stand, with the drawer
+      // button rather than a caret back to a fresh Workspaces.
       onLeaveChannel: async (groupId: string, channelId: string) => {
         if (!focusedRouteIsInChannel(readStack(), channelId)) {
           return;
@@ -1619,15 +1620,14 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
         if (!focusedRouteIsInChannel(stack, channelId)) {
           return;
         }
-        const nextChannel = group?.channels?.find(
-          (channel) => channel.id !== channelId
-        );
-        if (!nextChannel) {
-          return settingsNavigation.onLeaveChannel(groupId, channelId);
-        }
+        const [nextChannel] = (group?.channels ?? [])
+          .filter((channel) => channel.id !== channelId)
+          .sort((a, b) => channelRecency(b) - channelRecency(a));
         reset([
           getStandingTopLevelTabRoute(stack, 'ChatList'),
-          buildDrawerChannelRoute({ id: nextChannel.id, groupId }),
+          nextChannel
+            ? buildDrawerChannelRoute({ id: nextChannel.id, groupId })
+            : { name: 'GroupChannels', params: { groupId } },
         ]);
       },
     };
