@@ -47,6 +47,9 @@ import {
   gateGatewayStatusActivation,
   getGatewayStatusCoordinator,
 } from '../gateway-status.js';
+import { recordDigestMessage } from '../memory/digest.js';
+import { updateGroupIndex } from '../memory/group-index.js';
+import { recordSpeakerForSession } from '../memory/speaker-bridge.js';
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
 import {
   type PendingNudge,
@@ -1614,6 +1617,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       for (const [flag, roles] of initData.groupRoles) {
         groupRoles.set(flag, roles);
       }
+      // Feed the memory group index (digest rendering + audience checks)
+      updateGroupIndex({
+        channelToGroup: initData.channelToGroup,
+        channelReaders: initData.channelReaders,
+        channelNames: initData.channelNames,
+        groupNames: initData.groupNames,
+      });
     } catch (error: any) {
       runtime.error?.(
         `[tlon] Auto-discovery failed: ${error?.message ?? String(error)}`
@@ -3507,6 +3517,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           });
           bindContextLensToSession(lensSessionKeys, contextLenses, lens.lensId);
           logContextLens(lens.lensId, 'dispatching');
+          // Record the speaker for this session so the agent:bootstrap
+          // memory loader (which only receives a session key) can resolve
+          // who is talking — in a group channel the key alone can't say.
+          recordSpeakerForSession(
+            ctxPayload.SessionKey ?? route.sessionKey,
+            senderShip
+          );
           dispatchResult = await recordTlonRouteAndDispatch({
             session: core.channel.session,
             cfg,
@@ -4662,6 +4679,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         }
 
         const parsed = parseChannelNest(nest);
+        // Digest: record every observed group message (post-authorization),
+        // whether or not the bot replies — this is what it "saw" lately.
+        recordDigestMessage({
+          nest,
+          sender: senderShip,
+          text: rawText,
+          timestamp: content.sent || Date.now(),
+        });
         const citedContent = await resolveCitedContent(content.content);
         await processMessage({
           messageId: messageId ?? '',
