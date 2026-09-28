@@ -18,7 +18,7 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
   *
   * @param scrollViewRef - Animated ref to the scroll view.
   * @param options - Configuration for inverted and keyboardLiftBehavior.
-@@ -50,6 +52,16 @@
+@@ -50,6 +52,17 @@
    const contentOffsetY = useSharedValue(0);
    const targetKeyboardHeight = useSharedValue(0);
    const prevAbsorption = useSharedValue(0);
@@ -31,11 +31,12 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
 +    toPadding: 0,
 +    fromScroll: 0,
 +    toScroll: 0,
++    followEnd: false,
 +  });
 
    const {
      layout,
-@@ -59,177 +71,205 @@
+@@ -59,177 +72,226 @@
      onContentSizeChange,
    } = useScrollState(scrollViewRef);
 
@@ -102,7 +103,11 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
 +      blankSpace.value,
 +      effective + extraContentPadding.value,
 +    );
-+    const target = { padding: effective, scroll: scroll.value };
++    const target = {
++      padding: effective,
++      scroll: scroll.value,
++      followEnd: false,
++    };
 
 -        // Scale minimum padding absorption by how much of it is visible.
 -        // Fully visible → full absorption; fully off-screen → no absorption.
@@ -287,6 +292,11 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
 +      inverted,
 +      actualTotalPadding,
 +    );
++    // A list shown at its end stays there for the whole transition, including
++    // rows that arrive mid-animation. A trajectory fixed here would overwrite
++    // the list's own follow-scroll on every frame and strand the new rows
++    // behind the input.
++    target.followEnd = atEnd && !inverted && blankSpace.value === 0;
 +    return target;
 +  };
 
@@ -312,9 +322,20 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
 +        ? 1
 +        : Math.max(0, Math.min(1, (e.height - t.fromHeight) / distance));
 +    padding.value = t.fromPadding + progress * (t.toPadding - t.fromPadding);
-+    // Keep composer-height adjustments made between keyboard frames.
-+    contentOffsetY.value +=
-+      (progress - t.progress) * (t.toScroll - t.fromScroll);
++    if (t.followEnd) {
++      const totalPadding = Math.min(
++        layout.value.height,
++        padding.value + extraContentPadding.value,
++      );
++      contentOffsetY.value = Math.max(
++        size.value.height - layout.value.height + totalPadding,
++        0,
++      );
++    } else {
++      // Keep composer-height adjustments made between keyboard frames.
++      contentOffsetY.value +=
++        (progress - t.progress) * (t.toScroll - t.fromScroll);
++    }
 +    transition.value = { ...t, progress };
 +    currentHeight.value = e.height;
 +  };
@@ -351,6 +372,7 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
 +          toPadding: target.padding,
 +          fromScroll,
 +          toScroll: target.scroll,
++          followEnd: target.followEnd,
 +        };
 +        padding.value = fromPadding;
 +        contentOffsetY.value = fromScroll;
@@ -383,7 +405,7 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
            return;
          }
 
-@@ -239,6 +279,9 @@
+@@ -239,6 +301,9 @@
            offset,
          );
 

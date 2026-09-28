@@ -50,9 +50,14 @@ const event = (height: number, duration = 250) => ({
 describe('patched iOS keyboard tracking', () => {
   beforeEach(() => {
     state.scroll.value = 1200;
+    state.size.value = { width: 400, height: 2000 };
   });
 
-  function setup(freeze = { value: false }, offset = 0) {
+  function setup(
+    freeze = { value: false },
+    offset = 0,
+    extraContentPadding = { value: 0 }
+  ) {
     // All hooks are mocked above; exercise the registered handlers without React.
     // eslint-disable-next-line react-hooks/rules-of-hooks
     return useChatKeyboard(vi.fn() as never, {
@@ -61,7 +66,7 @@ describe('patched iOS keyboard tracking', () => {
       offset,
       freeze: freeze as never,
       blankSpace: { value: 0 } as never,
-      extraContentPadding: { value: 0 } as never,
+      extraContentPadding: extraContentPadding as never,
     });
   }
 
@@ -134,12 +139,53 @@ describe('patched iOS keyboard tracking', () => {
   });
 
   it('keeps a composer-height adjustment made between keyboard frames', () => {
-    const result = setup();
+    const extraContentPadding = { value: 0 };
+    const result = setup({ value: false }, 0, extraContentPadding);
     state.handlers.onStart(event(300));
     state.handlers.onMove(event(150));
+    // useExtraContentPadding moves the offset along with the grown inset.
+    extraContentPadding.value = 50;
     result.contentOffsetY!.value += 50;
     state.handlers.onEnd(event(300));
     expect(result.contentOffsetY?.value).toBe(1550);
+  });
+
+  it('keeps a message that arrives while the keyboard closes above the input', () => {
+    const result = setup();
+    state.handlers.onStart(event(300));
+    state.handlers.onEnd(event(300));
+    state.scroll.value = 1500;
+    state.handlers.onStart(event(0));
+    state.handlers.onMove(event(150));
+    expect(result.contentOffsetY?.value).toBe(1350);
+    state.size.value = { width: 400, height: 2100 };
+    state.handlers.onMove(event(75));
+    expect(result.contentOffsetY?.value).toBe(1375);
+    state.handlers.onEnd(event(0));
+    expect(result.contentOffsetY?.value).toBe(1300);
+  });
+
+  it('keeps a message that arrived just before the keyboard closes above the input', () => {
+    const result = setup();
+    state.handlers.onStart(event(300));
+    state.handlers.onEnd(event(300));
+    // The row has laid out, but the list has not scrolled to it yet.
+    state.scroll.value = 1500;
+    state.size.value = { width: 400, height: 2100 };
+    state.handlers.onStart(event(0));
+    state.handlers.onMove(event(150));
+    expect(result.contentOffsetY?.value).toBe(1450);
+    state.handlers.onEnd(event(0));
+    expect(result.contentOffsetY?.value).toBe(1300);
+  });
+
+  it('keeps a message that arrives while the keyboard opens above the input', () => {
+    const result = setup();
+    state.handlers.onStart(event(300));
+    state.handlers.onMove(event(150));
+    state.size.value = { width: 400, height: 2100 };
+    state.handlers.onEnd(event(300));
+    expect(result.contentOffsetY?.value).toBe(1600);
   });
 
   it('keeps the observed height current while layout writes are frozen', () => {
