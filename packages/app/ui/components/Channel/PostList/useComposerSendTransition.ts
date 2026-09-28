@@ -11,6 +11,9 @@ export function useComposerSendTransition(
   scrollsToEnd = true
 ) {
   const [active, setActive] = useState(false);
+  // A reader who scrolls away mid-send keeps end following off after the
+  // transition, until they return to the end or send again.
+  const [followingCancelled, setFollowingCancelled] = useState(false);
   const activeRef = useRef(false);
   const committingInset = useRef(false);
   const following = useRef(false);
@@ -42,6 +45,7 @@ export function useComposerSendTransition(
     }
     cancelFrame();
     following.current = true;
+    setFollowingCancelled(false);
     committingInset.current = false;
     activeRef.current = true;
     setActive(true);
@@ -74,8 +78,24 @@ export function useComposerSendTransition(
 
   const cancelFollowing = useCallback(() => {
     following.current = false;
+    if (activeRef.current) {
+      setFollowingCancelled(true);
+    }
+  }, []);
+  const resumeFollowing = useCallback(() => {
+    following.current = true;
+    setFollowingCancelled(false);
   }, []);
   const isActive = useCallback(() => activeRef.current, []);
 
-  return { active, isActive, begin, finish, reportHeight, cancelFollowing };
+  return {
+    active,
+    followingCancelled,
+    isActive,
+    begin,
+    finish,
+    reportHeight,
+    cancelFollowing,
+    resumeFollowing,
+  };
 }

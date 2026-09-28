@@ -87,13 +87,33 @@ describe('composer send scroll coordination', () => {
   it('preserves a user scroll made during the transition', () => {
     act(() => transition.begin());
     transition.reportHeight(90);
-    transition.cancelFollowing();
+    act(() => transition.cancelFollowing());
     transition.finish();
     tick();
     tick();
     expect(applyHeight).toHaveBeenCalledWith(90);
     expect(scrollToEnd).not.toHaveBeenCalled();
     expect(transition.active).toBe(false);
+  });
+
+  it('keeps following cancelled past the transition until resumed or another send', () => {
+    act(() => transition.cancelFollowing());
+    expect(transition.followingCancelled).toBe(false);
+    act(() => transition.begin());
+    act(() => transition.cancelFollowing());
+    transition.finish();
+    tick();
+    tick();
+    expect(transition.followingCancelled).toBe(true);
+    act(() => transition.resumeFollowing());
+    expect(transition.followingCancelled).toBe(false);
+    act(() => transition.begin());
+    act(() => transition.cancelFollowing());
+    transition.finish();
+    tick();
+    tick();
+    act(() => transition.begin());
+    expect(transition.followingCancelled).toBe(false);
   });
 
   it('cancels an earlier finish when another send begins', () => {

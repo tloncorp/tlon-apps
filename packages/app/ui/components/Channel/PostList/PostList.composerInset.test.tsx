@@ -545,4 +545,21 @@ describe('iOS native resize anchoring', () => {
     expect(nativeAnchoringEnabled()).toBe(true);
     expect(state.nativeScrolls).toEqual([]);
   });
+
+  it('leaves the native anchor off after a reader scrolls away mid-send', () => {
+    mount();
+    act(() => state.sendHandler?.begin());
+    act(() => (state.listProps.onScrollBeginDrag as () => void)());
+    state.geometry = { ...state.geometry, scroll: 400 };
+    act(() => (state.listProps.onScrollEndDrag as () => void)());
+    state.sendHandler?.finish();
+    tick();
+    tick();
+    // Native would follow any position within a viewport of the end.
+    expect(nativeAnchoringEnabled()).toBe(false);
+    act(() => (state.listProps.onScrollBeginDrag as () => void)());
+    state.geometry = { ...state.geometry, scroll: 700 };
+    act(() => (state.listProps.onScrollEndDrag as () => void)());
+    expect(nativeAnchoringEnabled()).toBe(true);
+  });
 });

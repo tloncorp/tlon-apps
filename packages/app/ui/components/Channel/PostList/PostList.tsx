@@ -598,6 +598,8 @@ const ConversationPostListAttempt = React.forwardRef<
       isActive: isComposerSendActive,
       reportHeight: reportComposerSendHeight,
       cancelFollowing: cancelComposerSendFollowing,
+      resumeFollowing: resumeComposerSendFollowing,
+      followingCancelled: composerSendFollowingCancelled,
     } = useComposerSendTransition(
       listRef,
       applyConversationComposerHeight,
@@ -679,7 +681,14 @@ const ConversationPostListAttempt = React.forwardRef<
     );
     const finishUserNavigation = React.useCallback(() => {
       userNavigationActive.current = false;
-    }, []);
+      const state = listRef.current?.getState();
+      if (
+        state &&
+        state.contentLength - state.scrollLength - state.scroll <= 2
+      ) {
+        resumeComposerSendFollowing();
+      }
+    }, [resumeComposerSendFollowing]);
     const markUserScrolled = React.useCallback(() => {
       followsViewportEnd.current = false;
       userNavigationActive.current = true;
@@ -1010,7 +1019,8 @@ const ConversationPostListAttempt = React.forwardRef<
           anchorToEnd &&
           !floating &&
           !hasNewerPosts &&
-          !composerSendActive
+          !composerSendActive &&
+          !composerSendFollowingCancelled
         }
       >
         {list}
