@@ -123,11 +123,13 @@ export function createRunSet(input: {
     })),
     ...(input.variant ? { variant: input.variant } : {}),
     search: input.config.search,
+    ...(input.config.simulatedSearch ? { simulatedSearch: true } : {}),
     personas: input.personas.map((persona) => persona.id),
     repeat: input.repeat,
     checkpoint: writeCheckpoint(dir, {
       models: input.config.models,
       search: input.config.search,
+      ...(input.config.simulatedSearch ? { simulatedSearch: true } : {}),
       maxTurns: input.maxTurns,
       judge: input.judge,
       tips: input.tips,

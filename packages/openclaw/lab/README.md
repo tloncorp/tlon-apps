@@ -181,9 +181,19 @@ pnpm lab ab --variant ~/lab-variants/shorter-questions   # judge-model version
 pnpm lab report baseline                  # re-render a run set's report
 ```
 
+**Search.** Fast mode doesn't call a search API: a model plays web search,
+returning realistic results dated to the lab's clock, and plays the pages those
+results link to when the bot fetches one (`src/simulated-search.ts`). Most of
+the lab's searches come from running the task after setup, where the question
+is whether the note fits the person, not whether the headlines are real; this
+keeps rounds from draining a search budget and gives both arms of a comparison
+the same kind of results. It can't catch real search failures (dead links, no
+results) or check facts: use `--real-search` in fast mode, or a real-mode
+round, which always searches the web.
+
 `run` options: `--personas`, `--repeat`, `--variant`, `--label`,
 `--concurrency` (default 4), `--max-turns` (default 8), `--bot-model`,
-`--user-model`, `--judge-model`, `--no-judge`, `--no-search`, `--tips`,
+`--user-model`, `--judge-model`, `--no-judge`, `--no-search`, `--real-search`, `--tips`,
 `--real`.
 
 Each run set is saved under `lab/runs/<timestamp>-<label>/` (gitignored), with

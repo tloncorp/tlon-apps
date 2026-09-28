@@ -67,6 +67,8 @@ Options:
   --user-model ID     OpenRouter model for the simulated person
   --judge-model ID    OpenRouter model for the judge
   --no-judge          skip the judge (facts and keep verdict only)
+  --real-search       search the web with Brave in fast mode (by default a model
+                      plays search there; real mode always uses the web)
   --no-search         run without web search (the bot has no search tool, as when
                       hosted tlonbot has no search key)
   --double-texts      let the simulated person sometimes send a second message
@@ -116,6 +118,7 @@ type Options = {
   'judge-model'?: string;
   'no-judge'?: boolean;
   'no-search'?: boolean;
+  'real-search'?: boolean;
   resume?: string;
   real?: boolean;
   sandboxes?: string;
@@ -136,7 +139,11 @@ async function runSet(
       user: options['user-model'],
       judge: options['judge-model'],
     },
-    { search: !options['no-search'] }
+    {
+      search: !options['no-search'],
+      // Fast rounds play search with a model; real rounds use the web.
+      simulatedSearch: !options.real && !options['real-search'],
+    }
   );
   const deployment = checkDeployment(config.tlonbotDir, config.models.bot);
   config.botRequest = botRequestSettings(deployment.agent);
@@ -185,7 +192,7 @@ async function runSet(
   });
   const checkpoint = loadCheckpoint(dir, manifest)!;
   console.log(
-    `${label}: ${personas.length} personas × ${repeat} · bot ${config.models.bot} · prompts from ${config.tlonbotDir}${config.braveKey ? '' : ' · web search off'}`
+    `${label}: ${personas.length} personas × ${repeat} · bot ${config.models.bot} · prompts from ${config.tlonbotDir}${config.simulatedSearch ? ' · search simulated' : config.braveKey ? '' : ' · web search off'}`
   );
   const jobs = personas.flatMap((persona) =>
     Array.from({ length: repeat }, (_, index) => ({
@@ -287,9 +294,19 @@ async function resumeSet(reference: string, options: Options) {
   const frozen = frozenResumeInputs(set.dir, manifest);
   const checkpoint = frozen?.checkpoint;
   const config = checkpoint
-    ? loadFrozenConfig(checkpoint.models, checkpoint.search)
+    ? loadFrozenConfig(
+        checkpoint.models,
+        checkpoint.search,
+        checkpoint.simulatedSearch
+      )
     : {
-        ...loadConfig({}, { search: manifest.search !== false }),
+        ...loadConfig(
+          {},
+          {
+            search: manifest.search !== false,
+            simulatedSearch: manifest.simulatedSearch,
+          }
+        ),
         models: manifest.models,
       };
   // Resumed runs keep the model settings the set started with.
@@ -526,6 +543,7 @@ async function main() {
       fresh: { type: 'boolean' },
       'no-judge': { type: 'boolean' },
       'no-search': { type: 'boolean' },
+      'real-search': { type: 'boolean' },
       resume: { type: 'string' },
       real: { type: 'boolean' },
       sandboxes: { type: 'string' },

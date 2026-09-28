@@ -15,6 +15,7 @@ export type PromptCheckpoint = {
   version: 1;
   models: RunSetManifest['models'];
   search: boolean;
+  simulatedSearch?: boolean;
   maxTurns: number;
   judge: boolean;
   tips: number;
@@ -36,6 +37,7 @@ export function writeCheckpoint(
   input: {
     models: RunSetManifest['models'];
     search: boolean;
+    simulatedSearch?: boolean;
     maxTurns: number;
     judge: boolean;
     tips: number;
@@ -50,6 +52,7 @@ export function writeCheckpoint(
     version: 1,
     models: input.models,
     search: input.search,
+    ...(input.simulatedSearch ? { simulatedSearch: true } : {}),
     maxTurns: input.maxTurns,
     judge: input.judge,
     tips: input.tips,

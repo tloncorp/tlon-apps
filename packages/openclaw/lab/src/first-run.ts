@@ -93,7 +93,7 @@ export async function runScheduledTask(input: {
   const template = config.template?.cron ? config.template : undefined;
   const tools = labTools({
     webOnly: true,
-    search: Boolean(config.braveKey),
+    search: Boolean(config.braveKey || config.simulatedSearch),
     template,
   });
   const system = template
@@ -133,6 +133,16 @@ export async function runScheduledTask(input: {
     sources,
     botModel: config.models.bot,
     braveKey: config.braveKey,
+    ...(config.simulatedSearch
+      ? {
+          searchSimulator: {
+            key: config.openrouterKey,
+            model: config.models.user,
+            meter,
+            now: () => now ?? new Date(),
+          },
+        }
+      : {}),
     webOnly: true,
     template,
     onChoice: () => {},
