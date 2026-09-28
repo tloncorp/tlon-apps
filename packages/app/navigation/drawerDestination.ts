@@ -171,6 +171,20 @@ export function drawerOwnsEdge(
 }
 
 /**
+ * Whether the screen the stack has focused belongs to `channelId`: the channel
+ * itself, or a thread or detail screen opened from it, all of which carry the
+ * channel's id.
+ */
+export function focusedRouteIsInChannel(
+  stackState: StackSnapshot,
+  channelId: string
+): boolean {
+  const focused = stackState?.routes?.[stackState.index ?? 0];
+  const params = focused?.params as { channelId?: string } | undefined;
+  return params?.channelId === channelId;
+}
+
+/**
  * The params that say what a conversation route *is*, lifted off a route so
  * they can be put back on one.
  *

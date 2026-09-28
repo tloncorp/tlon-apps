@@ -169,15 +169,21 @@ export type DrawerListRow =
 export function getDrawerTabRows(
   chats: DrawerTabChats,
   unfurledGroupId: string | null,
-  filter: DrawerFilter
+  filter: DrawerFilter,
+  availableChannels: db.Channel[] = []
 ): DrawerListRow[] {
-  const unpinned = getDrawerRows(chats.unpinned, unfurledGroupId);
+  const unpinned = getDrawerRows(
+    chats.unpinned,
+    unfurledGroupId,
+    false,
+    availableChannels
+  );
   if (!chats.pinned.length) {
     return unpinned;
   }
   return [
     { kind: 'heading', key: `heading:pinned:${filter}`, label: 'Pinned' },
-    ...getDrawerRows(chats.pinned, unfurledGroupId, true),
+    ...getDrawerRows(chats.pinned, unfurledGroupId, true, availableChannels),
     ...(unpinned.length
       ? [
           {
@@ -203,7 +209,8 @@ export function getDrawerTabRows(
  */
 export function getDrawerSearchRows(
   results: db.Chat[],
-  unfurledGroupId: string | null
+  unfurledGroupId: string | null,
+  availableChannels: db.Channel[] = []
 ): DrawerListRow[] {
   return DRAWER_FILTERS.flatMap((filter): DrawerListRow[] => {
     const matches = results.filter((chat) =>
@@ -218,7 +225,7 @@ export function getDrawerSearchRows(
         key: `heading:${filter}`,
         label: DRAWER_FILTER_LABELS[filter],
       },
-      ...getDrawerRows(matches, unfurledGroupId),
+      ...getDrawerRows(matches, unfurledGroupId, false, availableChannels),
     ];
   });
 }

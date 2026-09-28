@@ -469,3 +469,70 @@ describe('getDrawerRows, with one workspace open at a time', () => {
     ]);
   });
 });
+
+describe('getDrawerRows, with channels the user has not joined', () => {
+  const unjoined = (id: string, groupId: string, lastPostAt = 0) =>
+    ({
+      ...channel(id, { lastPostAt, currentUserIsMember: false }),
+      groupId,
+    }) as db.Channel;
+  const open = workspace('group', [
+    channel('joined-new', { lastPostAt: 30 }),
+    channel('joined-old', { lastPostAt: 10 }),
+  ]);
+
+  it('lists them after the joined channels, newest first, ending the block', () => {
+    const rows = getDrawerRows([open], 'group', false, [
+      unjoined('left-old', 'group', 5),
+      unjoined('left-new', 'group', 20),
+    ]);
+
+    expect(rows.map((row) => row.key)).toEqual([
+      'group',
+      'group:joined-new',
+      'group:joined-old',
+      'group:left-new',
+      'group:left-old',
+    ]);
+    expect(
+      rows.slice(1).map((row) => row.kind === 'channel' && row.joined)
+    ).toEqual([true, true, false, false]);
+    expect(
+      rows.slice(1).map((row) => row.kind === 'channel' && row.last)
+    ).toEqual([false, false, false, true]);
+  });
+
+  it('skips channels of other workspaces and ones already listed as joined', () => {
+    const rows = getDrawerRows([open], 'group', false, [
+      unjoined('elsewhere', 'other-group'),
+      unjoined('joined-new', 'group'),
+    ]);
+
+    expect(rows.map((row) => row.key)).toEqual([
+      'group',
+      'group:joined-new',
+      'group:joined-old',
+    ]);
+  });
+
+  it('stays open on what it offers once its last joined channel is left', () => {
+    const emptied = workspace('group', [
+      channel('left', { currentUserIsMember: false }),
+    ]);
+    const rows = getDrawerRows([emptied], 'group', false, [
+      unjoined('left', 'group'),
+    ]);
+
+    expect(rows.map((row) => row.key)).toEqual(['group', 'group:left']);
+    expect(rows[0]).toMatchObject({ unfurls: true, unfurled: true });
+    expect(rows[1]).toMatchObject({ joined: false, last: true });
+  });
+
+  it('shows none while the workspace is folded', () => {
+    const rows = getDrawerRows([open], null, false, [
+      unjoined('left', 'group'),
+    ]);
+
+    expect(rows.map((row) => row.key)).toEqual(['group']);
+  });
+});

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildDrawerChannelRoute,
+  focusedRouteIsInChannel,
   carriedConversationParams,
   drawerOwnsEdge,
   isDrawerDestinationRoute,
@@ -281,5 +282,70 @@ describe('buildDrawerChannelRoute', () => {
       channelId: '~nec',
       isDrawerDestination: true,
     });
+  });
+});
+
+describe('focusedRouteIsInChannel', () => {
+  const stack = (
+    ...routes: { name: string; params?: object }[]
+  ): { index: number; routes: { name: string; params?: object }[] } => ({
+    index: routes.length - 1,
+    routes,
+  });
+
+  it('is in the channel standing on it', () => {
+    expect(
+      focusedRouteIsInChannel(
+        stack(
+          { name: 'MainTabs' },
+          { name: 'Channel', params: { channelId: 'chat/~zod/a' } }
+        ),
+        'chat/~zod/a'
+      )
+    ).toBe(true);
+  });
+
+  it('is in the channel standing on one of its threads', () => {
+    expect(
+      focusedRouteIsInChannel(
+        stack(
+          { name: 'MainTabs' },
+          { name: 'Channel', params: { channelId: 'chat/~zod/a' } },
+          { name: 'Post', params: { channelId: 'chat/~zod/a', postId: '1' } }
+        ),
+        'chat/~zod/a'
+      )
+    ).toBe(true);
+  });
+
+  it('is not in the channel standing somewhere else', () => {
+    expect(
+      focusedRouteIsInChannel(
+        stack(
+          { name: 'MainTabs' },
+          { name: 'Channel', params: { channelId: 'chat/~zod/b' } }
+        ),
+        'chat/~zod/a'
+      )
+    ).toBe(false);
+  });
+
+  it('is not in the channel when it sits below the focused screen', () => {
+    expect(
+      focusedRouteIsInChannel(
+        stack(
+          { name: 'MainTabs' },
+          { name: 'Channel', params: { channelId: 'chat/~zod/a' } },
+          { name: 'UserProfile', params: { userId: '~bus' } }
+        ),
+        'chat/~zod/a'
+      )
+    ).toBe(false);
+  });
+
+  it('is not in any channel on a section', () => {
+    expect(
+      focusedRouteIsInChannel(stack({ name: 'MainTabs' }), 'chat/~zod/a')
+    ).toBe(false);
   });
 });

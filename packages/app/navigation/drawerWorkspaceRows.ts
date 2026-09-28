@@ -36,6 +36,12 @@ export type DrawerRow =
       groupMuted: boolean;
       /** Last channel of its workspace, where the block's fill ends. */
       last: boolean;
+      /**
+       * False for a channel the user can read but has not joined, or has
+       * left: listed after the joined ones so it can be found again, drawn
+       * quieter, and joined and opened by pressing it.
+       */
+      joined: boolean;
     };
 
 /**
@@ -196,13 +202,21 @@ export function channelRowUnread(
 export function getDrawerRows(
   chats: db.Chat[],
   unfurledGroupId: string | null,
-  pinned = false
+  pinned = false,
+  availableChannels: db.Channel[] = []
 ): DrawerRow[] {
   const rows: DrawerRow[] = [];
   for (const chat of chats) {
     // Asked of every row on every chat-list change, so it stays a count. Only
     // a row that is actually open pays to copy and order its channels.
-    const rowUnfurls = unfurls(chat);
+    const offered =
+      chat.id === unfurledGroupId
+        ? availableChannels.filter((channel) => channel.groupId === chat.id)
+        : [];
+    // Leaving the last joined channel of the open workspace keeps it open on
+    // the channels it still offers, the one just left among them, rather than
+    // folding the block away under the user.
+    const rowUnfurls = unfurls(chat) || offered.length > 0;
     const unfurled = rowUnfurls && chat.id === unfurledGroupId;
     rows.push({
       kind: 'chat',
@@ -212,14 +226,28 @@ export function getDrawerRows(
       unfurled,
       pinned,
     });
-    const channels = unfurled ? getUnfurlableChannels(chat) : null;
-    if (!channels) {
+    if (!unfurled) {
       continue;
     }
+    const joinedChannels = getUnfurlableChannels(chat) ?? [];
+    const joinedIds = new Set(joinedChannels.map((channel) => channel.id));
+    // Channels never joined have no activity on record, so the title keeps
+    // their order steady.
+    const unjoinedChannels = offered
+      .filter((channel) => !joinedIds.has(channel.id))
+      .sort(
+        (a, b) =>
+          channelRecency(b) - channelRecency(a) ||
+          (a.title ?? '').localeCompare(b.title ?? '')
+      );
+    const channels = [
+      ...joinedChannels.map((channel) => ({ channel, joined: true })),
+      ...unjoinedChannels.map((channel) => ({ channel, joined: false })),
+    ];
     const groupMuted =
       chat.type === 'group' &&
       logic.isMuted(chat.volumeSettings?.level, 'group');
-    channels.forEach((channel, index) => {
+    channels.forEach(({ channel, joined }, index) => {
       rows.push({
         kind: 'channel',
         key: `${chat.id}:${channel.id}`,
@@ -227,6 +255,7 @@ export function getDrawerRows(
         groupId: chat.id,
         groupMuted,
         last: index === channels.length - 1,
+        joined,
       });
     });
   }

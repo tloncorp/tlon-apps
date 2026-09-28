@@ -8,13 +8,14 @@ import {
   createDevLogger,
   useMutableRef,
 } from '@tloncorp/shared';
-import type * as db from '@tloncorp/shared/db';
+import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import {
   Button,
   Icon,
   IconType,
+  LoadingSpinner,
   Pressable,
   Text,
   triggerHaptic,
@@ -92,6 +93,7 @@ import {
 import {
   buildDrawerChannelRoute,
   drawerOwnsEdge,
+  focusedRouteIsInChannel,
   routeShowsChat,
 } from './drawerDestination';
 import { announceTopLevelSectionReselected } from './topLevelSectionReselect';
@@ -398,6 +400,8 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
   disabled,
   groupMuted,
   last,
+  joined,
+  joining,
   onPress,
   onLongPress,
 }: {
@@ -410,6 +414,10 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
   groupMuted: boolean;
   /** Last of its workspace's channels, so the block's fill ends here. */
   last: boolean;
+  /** Not joined, or left: quieter, and pressing it joins. */
+  joined: boolean;
+  /** A join pressed here is still waiting on the ship. */
+  joining: boolean;
   onPress: (channel: db.Channel) => void;
   /** Held down: the channel's own options. */
   onLongPress?: (channel: db.Channel) => void;
@@ -419,23 +427,34 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
     () => onLongPress?.(channel),
     [channel, onLongPress]
   );
-  const unread = channelRowUnread(channel, groupMuted);
+  const unread = joined ? channelRowUnread(channel, groupMuted) : 'none';
   const hasUnread = unread !== 'none';
   const notified = unread === 'notified';
   const unreadColor = getUnreadColors(notified).foreground;
 
   return (
     <Pressable
-      onPress={disabled ? undefined : handlePress}
-      onLongPress={disabled || !onLongPress ? undefined : handleLongPress}
-      disabled={disabled}
+      onPress={disabled || joining ? undefined : handlePress}
+      onLongPress={
+        disabled || joining || !onLongPress ? undefined : handleLongPress
+      }
+      disabled={disabled || joining}
       accessibilityRole="button"
       accessibilityLabel={
-        hasUnread
-          ? `${title}, ${notified ? 'unread, notified' : 'unread'}`
-          : title
+        joining
+          ? `${title}, joining`
+          : !joined
+            ? `${title}, not joined`
+            : hasUnread
+              ? `${title}, ${notified ? 'unread, notified' : 'unread'}`
+              : title
       }
-      accessibilityState={{ disabled, selected }}
+      accessibilityHint={joined ? undefined : 'Joins the channel'}
+      accessibilityState={{
+        disabled: disabled || joining,
+        selected,
+        busy: joining,
+      }}
       testID={`TopLevelDrawerWorkspaceChannel-${channel.id}`}
       paddingHorizontal={CONTENT_INSET}
       justifyContent="center"
@@ -458,13 +477,17 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
           numberOfLines={1}
           size="$label/l"
           fontWeight={hasUnread ? '600' : undefined}
-          color="$primaryText"
+          color={joined ? '$primaryText' : '$tertiaryText'}
         >
           {title}
         </Text>
         {/* The value the channels are ordered by, so what a row says and where
             it sits cannot disagree. */}
-        <ListItem.Time time={channelRecency(channel)} paddingBottom={0} />
+        {joining ? (
+          <LoadingSpinner size="small" />
+        ) : joined ? (
+          <ListItem.Time time={channelRecency(channel)} paddingBottom={0} />
+        ) : null}
         {hasUnread ? <Circle size="$s" backgroundColor={unreadColor} /> : null}
       </XStack>
     </Pressable>
@@ -1025,6 +1048,52 @@ function DrawerPanel(props: DrawerContentComponentProps) {
     [openChannel]
   );
 
+  /**
+   * Join a channel the workspace offers, then open it.
+   *
+   * The row turns ordinary as soon as the join is written; the panel stays up
+   * until the ship has taken it, so a channel that could not be joined is not
+   * opened. Anything pressed meanwhile supersedes it, as with any other
+   * destination that waits on something.
+   */
+  // Channels whose join is still out. The join is written before the ship
+  // answers, so the row reads as joined meanwhile; it shows a spinner and
+  // takes no presses until the answer is in, or a second press could open a
+  // channel that the join then rolls back.
+  const [joiningChannelIds, setJoiningChannelIds] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
+  const joinWorkspaceChannel = useCallback(
+    async (channel: db.Channel) => {
+      const groupId = channel.groupId;
+      if (!groupId) {
+        return;
+      }
+      navigationRequestRef.current += 1;
+      const request = navigationRequestRef.current;
+      setJoiningChannelIds((ids) => new Set(ids).add(channel.id));
+      try {
+        await store.joinGroupChannel({ channelId: channel.id, groupId });
+      } finally {
+        setJoiningChannelIds((ids) => {
+          const next = new Set(ids);
+          next.delete(channel.id);
+          return next;
+        });
+      }
+      // A failed join rolls itself back rather than throwing.
+      const joined = await db.getChannel({ id: channel.id });
+      if (
+        navigationRequestRef.current !== request ||
+        !joined?.currentUserIsMember
+      ) {
+        return;
+      }
+      openWorkspaceChannel(joined);
+    },
+    [openWorkspaceChannel]
+  );
+
   const openChat = useCallback(
     (chat: db.Chat) => {
       if (chatsLocked) {
@@ -1226,6 +1295,16 @@ function DrawerPanel(props: DrawerContentComponentProps) {
   // so what the user opened is still open the next time they pull it out, and
   // a fresh launch starts from the list itself.
   const [unfurledGroupId, setUnfurledGroupId] = useState<string | null>(null);
+  // Channels of the open workspace the user can read but has not joined, or
+  // has left. Live, as on the workspace's own channel list: an admin can add
+  // or open one at any time.
+  const { data: unjoinedChannels } = store.useUnjoinedGroupChannels(
+    unfurledGroupId ?? ''
+  );
+  const availableChannels = useMemo(
+    () => unjoinedChannels ?? [],
+    [unjoinedChannels]
+  );
   const toggleWorkspace = useCallback(
     (chat: db.Chat) => {
       if (chatsLocked) {
@@ -1296,12 +1375,24 @@ function DrawerPanel(props: DrawerContentComponentProps) {
   const rows = useMemo<DrawerListRow[]>(
     () =>
       isSearching
-        ? getDrawerSearchRows(searchResults, unfurledGroupId)
+        ? getDrawerSearchRows(searchResults, unfurledGroupId, availableChannels)
         : [
             TOP_ANCHOR_ROW,
-            ...getDrawerTabRows(drawerChats, unfurledGroupId, filter),
+            ...getDrawerTabRows(
+              drawerChats,
+              unfurledGroupId,
+              filter,
+              availableChannels
+            ),
           ],
-    [drawerChats, filter, isSearching, searchResults, unfurledGroupId]
+    [
+      availableChannels,
+      drawerChats,
+      filter,
+      isSearching,
+      searchResults,
+      unfurledGroupId,
+    ]
   );
   const titles = useMemo(
     () =>
@@ -1354,20 +1445,27 @@ function DrawerPanel(props: DrawerContentComponentProps) {
         <DrawerChannelRow
           channel={item.channel}
           title={titles.get(item.key) ?? ''}
-          selected={routeShowsChat(
-            { type: 'channel', channel: item.channel },
-            focusedStackRoute
-          )}
+          selected={
+            item.joined &&
+            routeShowsChat(
+              { type: 'channel', channel: item.channel },
+              focusedStackRoute
+            )
+          }
           disabled={chatsLocked}
           groupMuted={item.groupMuted}
           last={item.last}
-          onPress={openWorkspaceChannel}
-          onLongPress={openChannelOptions}
+          joined={item.joined}
+          joining={joiningChannelIds.has(item.channel.id)}
+          onPress={item.joined ? openWorkspaceChannel : joinWorkspaceChannel}
+          onLongPress={item.joined ? openChannelOptions : undefined}
         />
       ),
     [
       chatsLocked,
       focusedStackRoute,
+      joiningChannelIds,
+      joinWorkspaceChannel,
       openChannelOptions,
       openChat,
       openGroupSettings,
@@ -1579,12 +1677,13 @@ function DrawerPanel(props: DrawerContentComponentProps) {
 export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
   const { navigation } = props;
   const settingsNavigation = useChatSettingsNavigation();
+  const reset = useTypedReset();
   const closingSettingsNavigation = useMemo(() => {
     const entries = Object.entries(settingsNavigation) as [
       keyof typeof settingsNavigation,
       (...args: never[]) => unknown,
     ][];
-    return Object.fromEntries(
+    const closing = Object.fromEntries(
       entries.map(([name, handler]) => [
         name,
         (...args: never[]) => {
@@ -1593,7 +1692,43 @@ export function TopLevelDrawerContent(props: DrawerContentComponentProps) {
         },
       ])
     ) as typeof settingsNavigation;
-  }, [navigation, settingsNavigation]);
+    const readStack = () => {
+      const state = navigation.getState() as unknown as {
+        index: number;
+        routes: ReadonlyArray<RouteSnapshot>;
+      };
+      return state.routes[state.index]?.state;
+    };
+    return {
+      ...closing,
+      // Leaving a channel only moves its row down among the channels not
+      // joined, so the panel stays open on it. The app moves only if it was standing in that
+      // channel, and then to the channel now at the top of the group's list
+      // in the panel, or the group's channel list if none is left, opened the
+      // way a row opens one: on the sections as they stand, with the drawer
+      // button rather than a caret back to a fresh Workspaces.
+      onLeaveChannel: async (groupId: string, channelId: string) => {
+        if (!focusedRouteIsInChannel(readStack(), channelId)) {
+          return;
+        }
+        const group = await db.getGroup({ id: groupId });
+        // Read again after the wait: the user may have moved on meanwhile.
+        const stack = readStack();
+        if (!focusedRouteIsInChannel(stack, channelId)) {
+          return;
+        }
+        const [nextChannel] = (group?.channels ?? [])
+          .filter((channel) => channel.id !== channelId)
+          .sort((a, b) => channelRecency(b) - channelRecency(a));
+        reset([
+          getStandingTopLevelTabRoute(stack, 'ChatList'),
+          nextChannel
+            ? buildDrawerChannelRoute({ id: nextChannel.id, groupId })
+            : { name: 'GroupChannels', params: { groupId } },
+        ]);
+      },
+    };
+  }, [navigation, reset, settingsNavigation]);
 
   return (
     <ChatOptionsProvider {...closingSettingsNavigation}>
