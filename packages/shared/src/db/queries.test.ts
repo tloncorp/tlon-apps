@@ -3996,49 +3996,107 @@ describe('insertSettings', () => {
   });
 });
 
-test('insertActivityEvents marks channels joined, but not notebooks', async () => {
-  const groupId = '~zod/activity-membership';
-  const chatId = 'chat/~zod/activity-membership';
-  const notebookId = 'notes/~zod/activity-notebook';
+const activityMembershipGroupId = '~zod/activity-membership';
+
+async function insertActivityMembershipFixtures(
+  channels: Parameters<typeof queries.insertChannels>[0]
+) {
   await queries.insertGroups({
     groups: [
       {
-        id: groupId,
+        id: activityMembershipGroupId,
         currentUserIsMember: true,
         currentUserIsHost: false,
         hostUserId: '~zod',
       } as Parameters<typeof queries.insertGroups>[0]['groups'][number],
     ],
   });
-  await queries.insertChannels([
-    { id: chatId, type: 'chat', groupId, currentUserIsMember: false },
-    { id: notebookId, type: 'notes', groupId, currentUserIsMember: false },
-  ]);
+  await queries.insertChannels(channels);
   const client = getClient();
   if (!client) throw new Error('test db not initialized');
   // See insertNoteActivityEvent: the legacy contact-group FK rejects activity
   // event inserts while FK enforcement is on.
   client.run($.sql`PRAGMA foreign_keys = OFF`);
+}
+
+function makeActivityPostEvents(channelIds: string[]) {
+  return channelIds.map(
+    (channelId, i) =>
+      ({
+        id: `event-${i}`,
+        bucketId: 'all',
+        sourceId: `channel/${channelId}`,
+        type: 'post',
+        timestamp: 100 + i,
+        channelId,
+        groupId: channelId.includes('/') ? activityMembershipGroupId : null,
+      }) as ActivityEvent
+  );
+}
+
+test('insertActivityEvents marks DMs joined, but not group channels', async () => {
+  const groupId = activityMembershipGroupId;
+  const groupChannels = [
+    { id: 'chat/~zod/activity-chat', type: 'chat' },
+    { id: 'heap/~zod/activity-heap', type: 'gallery' },
+    { id: 'diary/~zod/activity-diary', type: 'notebook' },
+    { id: 'notes/~zod/activity-notebook', type: 'notes' },
+  ] as const;
+  const groupChannelIds = groupChannels.map((c) => c.id);
+  const dmId = '~bus';
+  const groupDmId = '0v4.00000.activity-club';
+  await insertActivityMembershipFixtures([
+    ...groupChannels.map((c) => ({
+      ...c,
+      groupId,
+      currentUserIsMember: false,
+    })),
+    { id: dmId, type: 'dm', currentUserIsMember: false },
+    { id: groupDmId, type: 'groupDm', currentUserIsMember: false },
+  ]);
 
   await queries.insertActivityEvents(
-    [chatId, notebookId].map(
-      (channelId, i) =>
-        ({
-          id: `event-${i}`,
-          bucketId: 'all',
-          sourceId: `channel/${channelId}`,
-          type: 'post',
-          timestamp: 100 + i,
-          channelId,
-          groupId,
-        }) as ActivityEvent
-    )
+    makeActivityPostEvents([...groupChannelIds, dmId, groupDmId])
   );
 
-  await expect(queries.getChannel({ id: chatId })).resolves.toMatchObject({
-    currentUserIsMember: true,
+  for (const id of groupChannelIds) {
+    await expect(queries.getChannel({ id })).resolves.toMatchObject({
+      currentUserIsMember: false,
+    });
+  }
+  for (const id of [dmId, groupDmId]) {
+    await expect(queries.getChannel({ id })).resolves.toMatchObject({
+      currentUserIsMember: true,
+    });
+  }
+});
+
+test('a left group channel stays unjoined when its activity is reset', async () => {
+  // syncInitData reconciles membership from %groups' active-channels, then
+  // resetActivity rewrites the feed. Leaving drops the channel's own
+  // %activity source, but a group-sourced event naming it (an admin's flag
+  // report) stays in the feed, so the reset brings it back.
+  const groupId = activityMembershipGroupId;
+  const leftChatId = 'chat/~zod/activity-left';
+  const joinedChatId = 'chat/~zod/activity-joined';
+  await insertActivityMembershipFixtures([
+    { id: leftChatId, type: 'chat', groupId, currentUserIsMember: true },
+    { id: joinedChatId, type: 'chat', groupId, currentUserIsMember: true },
+  ]);
+
+  await queries.reconcileJoinedGroupChannels({
+    joinedChannelIds: [joinedChatId],
   });
-  await expect(queries.getChannel({ id: notebookId })).resolves.toMatchObject({
-    currentUserIsMember: false,
-  });
+  await queries.clearActivityEvents();
+  const [flagReport, post] = makeActivityPostEvents([leftChatId, joinedChatId]);
+  await queries.insertActivityEvents([
+    { ...flagReport, type: 'flag-post', sourceId: `group/${groupId}` },
+    post,
+  ]);
+
+  const unjoined = await queries.getUnjoinedGroupChannels(groupId);
+  expect(unjoined.map((c) => c.id)).toEqual([leftChatId]);
+  await expect(queries.getChannel({ id: joinedChatId })).resolves.toMatchObject(
+    { currentUserIsMember: true }
+  );
 });
