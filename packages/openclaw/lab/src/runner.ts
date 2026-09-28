@@ -168,6 +168,7 @@ export async function runPersona(input: {
   const session = new BotSession(config, sources, timezone, meter, () =>
     virtualNow()
   );
+  if (persona.group) session.ownerGroups = [persona.group];
   const overrides = sources.coordinator?.overrides ?? {};
   const coordinatorEvent = (message: CoordinatorMessage): TranscriptEvent =>
     message.options?.length

@@ -41,7 +41,7 @@ import {
 import { type ChatTool, OutOfCreditError } from './openrouter.js';
 import { type Template, renderLikeSandbox } from './template.js';
 import { isSupersededToolOutcome } from '../../src/superseded-turn.js';
-import type { Choice, TaskPlan, ToolCallRecord } from './types.js';
+import type { Choice, OwnerGroup, TaskPlan, ToolCallRecord } from './types.js';
 
 export type LabTool = ChatTool & { guidelines?: string[] };
 
@@ -66,6 +66,8 @@ export type ToolContext = {
   written?: Map<string, string>;
   /** A message the bot sent with the `message` tool. */
   onMessage?: (text: string, target: string) => void;
+  /** Groups the owner runs that the bot has been added to. */
+  ownerGroups?: OwnerGroup[];
 };
 
 function tool(
@@ -312,6 +314,18 @@ function freshShipTlon(clean: string, context: ToolContext) {
   return JSON.stringify({ ok: true });
 }
 
+const slug = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
+export const ownerGroupFlag = (group: OwnerGroup) =>
+  `${OWNER_SHIP}/${slug(group.title)}`;
+
+export const ownerGroupChannel = (group: OwnerGroup) =>
+  `chat/${OWNER_SHIP}/${slug(group.channel)}`;
+
 function runTlon(command: string, context: ToolContext) {
   const clean = command.trim().replace(/^tlon\s+/, '');
   if (/^settings get\b/.test(clean)) {
@@ -340,6 +354,11 @@ function runTlon(command: string, context: ToolContext) {
         title: 'Tlonbot',
         channels: [{ nest: 'diary/~ten/updates', title: 'Updates' }],
       },
+      ...(context.ownerGroups ?? []).map((group) => ({
+        id: ownerGroupFlag(group),
+        title: group.title,
+        channels: [{ nest: ownerGroupChannel(group), title: group.channel }],
+      })),
     ]);
   }
   if (context.template) {

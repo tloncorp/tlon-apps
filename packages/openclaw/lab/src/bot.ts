@@ -25,7 +25,12 @@ import { resolveSilentFailureNotice } from '../../src/silent-failure-notice.js';
 import type { TlonAgentTurnSummary } from '../../src/turn-recorder.js';
 import { type ChatMessage, type CostMeter, chat } from './openrouter.js';
 import { type LabTool, executeTool, labTools } from './tools.js';
-import type { BotTurn, TaskPlan, TranscriptEvent } from './types.js';
+import type {
+  BotTurn,
+  OwnerGroup,
+  TaskPlan,
+  TranscriptEvent,
+} from './types.js';
 
 // OpenClaw has no round limit, only a run timeout; this just stops loops.
 const MAX_TOOL_ROUNDS = 30;
@@ -35,6 +40,8 @@ export class BotSession {
   readonly sessionKey = `agent:main:tlon:direct:${OWNER_SHIP}:lab-${randomUUID()}`;
   readonly messages: ChatMessage[] = [];
   onboardingComplete = false;
+  /** Groups the owner runs that the bot has been added to. */
+  ownerGroups: OwnerGroup[] = [];
   plan?: TaskPlan;
   readonly cronJobs: Record<string, unknown>[] = [];
   private readonly tools: LabTool[];
@@ -152,6 +159,7 @@ export class BotSession {
         events.push({ from: 'bot', kind: 'service-setup', providerId });
       },
       cronJobs: this.cronJobs,
+      ownerGroups: this.ownerGroups,
       onCronChange: (action: string, job: unknown) => {
         events.push({ from: 'system', kind: 'task-change', action, job });
       },
