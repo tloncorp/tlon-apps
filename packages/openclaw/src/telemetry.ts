@@ -4,6 +4,7 @@ import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 import { PostHog } from 'posthog-node';
 
 import type { TlonAuthPhase } from './auth-retry-state.js';
+import type { BudgetHoldChange, BudgetState } from './cron-budget-hold.js';
 import { sharedMap, sharedSlot } from './shared-state.js';
 import type {
   TlonChannelKind,
@@ -390,6 +391,19 @@ export type TlonCronScheduleFields = {
   scheduleAt: string | null;
 };
 
+export type TlonCronBudgetIdentity = {
+  accountId: string;
+  ownerShip: string | null;
+  botShip: string;
+};
+export type TlonCronBudgetSnapshot = TlonCronBudgetIdentity & {
+  budgetState: BudgetState;
+  episodeId: string | null;
+  budgetPausedCronCount: number;
+  reason: 'gateway_start' | 'state_change';
+};
+export type TlonCronBudgetChanged = TlonCronBudgetIdentity & BudgetHoldChange;
+
 export type TlonCronCountFields = {
   activeCronJobCount: number | null;
   totalCronJobCount: number | null;
@@ -714,6 +728,8 @@ export interface TlonTelemetryClient {
   captureCronJobChanged(event: TlonCronJobChangedEvent): void;
   captureCronRun(event: TlonCronRunEvent): void;
   captureCronSnapshot(event: TlonCronSnapshotEvent): void;
+  captureCronBudgetSnapshot(event: TlonCronBudgetSnapshot): void;
+  captureCronBudgetChanged(event: TlonCronBudgetChanged): void;
   captureMigration(event: TlonMigrationEvent): void;
   captureOutboundRoute(
     event: TlonOutboundRouteEvent & {
@@ -783,6 +799,10 @@ function onboardingEventUuid(event: TlonOnboardingFunnelEvent): string {
     event.answer,
     event.completionPath,
   ]);
+  return stableEventUuid(input);
+}
+
+function stableEventUuid(input: string): string {
   const bytes = createHash('sha256').update(input).digest().subarray(0, 16);
   bytes[6] = (bytes[6] & 0x0f) | 0x40;
   bytes[8] = (bytes[8] & 0x3f) | 0x80;
@@ -1984,6 +2004,34 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         },
         { omitNullish: true }
       ),
+    });
+  }
+
+  captureCronBudgetSnapshot(event: TlonCronBudgetSnapshot): void {
+    if (!this.ensureIdentified(event.ownerShip ?? '', event.botShip)) return;
+    this.client.capture({
+      distinctId: event.ownerShip!,
+      event: 'TlonBot Cron Budget Snapshot',
+      properties: this.properties({ ...event }),
+    });
+  }
+
+  captureCronBudgetChanged(event: TlonCronBudgetChanged): void {
+    if (!this.ensureIdentified(event.ownerShip ?? '', event.botShip)) return;
+    this.client.capture({
+      distinctId: event.ownerShip!,
+      event: 'TlonBot Cron Budget Changed',
+      timestamp: new Date(event.occurredAtMs),
+      // Stable across replay, distinct for each account receiving the event.
+      uuid: stableEventUuid(
+        JSON.stringify([
+          'cron-budget-v1',
+          event.eventId,
+          event.accountId,
+          event.botShip,
+        ])
+      ),
+      properties: this.properties({ ...event }),
     });
   }
 

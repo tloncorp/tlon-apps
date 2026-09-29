@@ -24,7 +24,7 @@ import {
   threadRequest,
   trackedPokeRequest,
 } from './requests';
-import { BadResponseError, getCurrentUserId, subscribeOnce } from './urbit';
+import { BadResponseError, getCurrentUserId } from './urbit';
 
 const logger = createDevLogger('groupsApi', false);
 
@@ -311,16 +311,12 @@ export const setPinnedItemOrder = async (itemIds: string[]) => {
 export const getChannelPreview = async (
   channelId: string
 ): Promise<db.Channel | null> => {
-  // oxlint-disable-next-line tlon/no-raw-desk-request -- dead request, see TLON-6538
-  const channelPreview = await subscribeOnce<ub.ChannelPreview>(
-    {
-      app: 'groups',
-      path: `/chan/${channelId}`,
-    },
-    undefined,
-    undefined,
-    { tag: 'getChannelPreview' }
-  );
+  const { kind, host, name } = parseGroupChannelId(channelId);
+  const channelPreview = await subscribeOnceRequest(
+    groups.channelPreview
+  )<ub.ChannelPreview>({ app: kind, ship: host, name }, undefined, undefined, {
+    tag: 'getChannelPreview',
+  });
 
   if (!channelPreview) {
     return null;
