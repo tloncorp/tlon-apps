@@ -341,7 +341,9 @@ describe('gateway-status lifecycle', () => {
           `[gateway-status-e2e] ${lineAt(startupLogs, startup.prewarm)}`
         );
       } else {
-        evidence('[gateway-status-e2e] prewarm assertion skipped (no marker on this core)');
+        evidence(
+          '[gateway-status-e2e] prewarm assertion skipped (no marker on this core)'
+        );
       }
 
       // Observe a real heartbeat lease advance before taking L0. Mutating just

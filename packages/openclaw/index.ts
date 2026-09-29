@@ -40,7 +40,10 @@ import {
 import { notifyDiaryMigrationDiscovery } from './src/diary-migration-discovery.js';
 import { suppressTlonFallbackNotice } from './src/fallback-notice-delivery.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
-import { registerBudgetHoldHooks } from './src/cron-budget-runtime.js';
+import {
+  registerBudgetHoldHooks,
+  registerBudgetRunGuard,
+} from './src/cron-budget-runtime.js';
 import { registerRestartCatchupHooks } from './src/restart-catchup.js';
 import { createMigrateCommandHandler } from './src/migrate-command.js';
 import {
@@ -1633,5 +1636,6 @@ export default defineBundledChannelEntry({
   },
   registerCapabilities(api) {
     registerAgentTurnHooks(api);
+    registerBudgetRunGuard(api);
   },
 });
