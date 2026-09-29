@@ -550,7 +550,11 @@ async function reauthOnce(sent: SendContext) {
 
 export async function subscribe<T>(
   endpoint: UrbitEndpoint,
-  handler: (update: T, id?: number) => void
+  handler: (update: T, id?: number) => void,
+  // Hears a watch the ship rejects after this has resolved, once the retries
+  // below have given up on it. This resolves when the channel PUT lands, so a
+  // nack arriving later on the event stream has no promise left to reject.
+  onRejected?: (error: unknown) => void
 ): Promise<number> {
   // the account this is for. As in poke, the send and any retry go to it,
   // never to an account that replaced it mid-flight
@@ -631,7 +635,7 @@ export async function subscribe<T>(
         sent,
         `subscribe ${printEndpoint(endpoint)}`
       );
-      return doSub(retry);
+      return doSub(onWatchError);
     }
     if (!(err instanceof AuthError)) {
       throw err;
@@ -640,11 +644,18 @@ export async function subscribe<T>(
     await reauthOnce(sent);
     // keep the err handler wired so the re-established subscription can
     // recover from a later auth death the same way the initial one does
-    return doSub(retry);
+    return doSub(onWatchError);
+  };
+
+  const onWatchError = (error: any) => {
+    const retried = retry(error);
+    if (onRejected) {
+      retried.catch(onRejected);
+    }
   };
 
   try {
-    return await doSub(retry);
+    return await doSub(onWatchError);
   } catch (err) {
     return retry(err);
   }

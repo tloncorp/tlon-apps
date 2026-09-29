@@ -1487,9 +1487,9 @@ describe('desk compatibility gate', () => {
     scryPaths().some((path) => path.includes(fragment));
   const probeCount = () =>
     scryCalls.filter(({ path }) => path === '/kiln/pikes').length;
-  const bucketsSubscribeCount = () =>
-    vi.mocked(subscribe).mock.calls.filter(([{ app }]) => app === 'buckets')
-      .length;
+  const bucketsSubscribeCalls = () =>
+    vi.mocked(subscribe).mock.calls.filter(([{ app }]) => app === 'buckets');
+  const bucketsSubscribeCount = () => bucketsSubscribeCalls().length;
 
   // Lets a test keep the probe in flight while it does something else (log out,
   // let the timeout fire) and then decide what a late answer does.
@@ -2595,6 +2595,28 @@ describe('desk compatibility gate', () => {
       // The capability stays on, so no change will open it again: the next
       // recovery is the only chance this login gets.
       failSubscribe(new Error('subscribe failed'));
+      await handleDiscontinuity({ context: 'test' });
+      expect(bucketsSubscribeCount()).toBe(2);
+
+      await handleDiscontinuity({ context: 'test' });
+      expect(bucketsSubscribeCount()).toBe(2);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a later recovery reopens a %buckets watch the ship nacked',
+    async () => {
+      await syncStart();
+      reportedDeskVersion = BUCKETS_MIN_GROUPS_VERSION;
+      await handleDiscontinuity({ context: 'test' });
+      expect(bucketsSubscribeCount()).toBe(1);
+
+      // The subscribe resolved when its PUT landed. %buckets nacks the watch
+      // afterwards, which only the rejection callback hears.
+      const rejectWatch = bucketsSubscribeCalls()[0][2];
+      expect(rejectWatch).toBeDefined();
+      rejectWatch?.('watch nacked');
       await handleDiscontinuity({ context: 'test' });
       expect(bucketsSubscribeCount()).toBe(2);
 

@@ -3018,13 +3018,17 @@ async function subscribeToBucketsOnce() {
     return;
   }
   bucketsSubscribedGeneration = generation;
-  try {
-    await api.subscribeToBuckets(createHandler(handleBucketsUpdate));
-  } catch (err) {
-    // Not open after all, so the next chance in this lifetime tries again.
+  // Not open after all, so the next chance in this lifetime tries again. A
+  // watch %buckets nacks lands here after the subscribe has already resolved.
+  const reopen = () => {
     if (bucketsSubscribedGeneration === generation) {
       bucketsSubscribedGeneration = null;
     }
+  };
+  try {
+    await api.subscribeToBuckets(createHandler(handleBucketsUpdate), reopen);
+  } catch (err) {
+    reopen();
     throw err;
   }
 }
