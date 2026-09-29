@@ -17,6 +17,7 @@ import {
   accessibilityLabel,
   accessibilityValue,
   background,
+  createModifier,
   disabled,
   font,
   foregroundStyle,
@@ -35,6 +36,11 @@ import {
   type SettingsListColors,
   useSettingsListColors,
 } from './useSettingsListColors';
+
+// Backported to @expo/ui 57.0.7 by patches/@expo__ui@57.0.7.patch; newer
+// releases export this modifier directly.
+const listRowSeparatorTint = (color: string) =>
+  createModifier('listRowSeparatorTint', { color });
 
 /** Settings drawn as a SwiftUI inset-grouped form, in Tlon's theme colors. */
 export function SettingsList({ sections }: SettingsListProps) {
@@ -85,6 +91,7 @@ function SettingsRow({
 }) {
   const rowModifiers = [
     listRowBackground(colors.row),
+    listRowSeparatorTint(colors.separator),
     disabled(Boolean(row.disabled)),
     ...(row.testID ? [accessibilityIdentifier(row.testID)] : []),
   ];
