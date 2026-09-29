@@ -50,7 +50,7 @@ function resultOf(renderer: ReactTestRenderer) {
 }
 
 beforeEach(() => {
-  api.setDeskSupportsBuckets(false);
+  api.setDeskSupportsBuckets(null);
   mocks.appInfo = { value: null, isLoading: false };
 });
 
@@ -58,7 +58,7 @@ afterEach(() => {
   act(() => {
     mounted.splice(0).forEach((renderer) => renderer.unmount());
   });
-  api.setDeskSupportsBuckets(false);
+  api.setDeskSupportsBuckets(null);
 });
 
 test('is unsupported on a 12.2 ship', () => {
@@ -91,4 +91,13 @@ test('follows the client flag when the stored version lags it', () => {
   });
 
   expect(resultOf(renderer)).toBe(true);
+});
+
+// A fresh probe outranks a stored version it contradicts, even when the
+// write that would have corrected the store failed.
+test('a known-unsupported desk overrides stale stored app info', () => {
+  mocks.appInfo = { value: { groupsVersion: '12.3.0' }, isLoading: false };
+  api.setDeskSupportsBuckets(false);
+
+  expect(resultOf(render())).toBe(false);
 });

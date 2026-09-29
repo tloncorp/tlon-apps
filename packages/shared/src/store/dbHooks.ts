@@ -799,22 +799,21 @@ export const useChannelSearchResults = (
  * Bucket view does goes through the local %buckets agent, which those ships
  * do not have.
  *
- * Yes if either the client flag or the stored app info says so. The flag is
- * what sync start set from the version it fetched, and it stands even when
- * persisting that version failed; but it is still false in the moment before
- * sync start applies it, when the stored app info is the only answer and
- * gating on the flag alone would tell a 12.3 ship it needs an update.
- * Undefined while the flag is off and the stored value has not been read, so
- * a gate can wait instead of flashing the unsupported state.
+ * The client capability wins once sync start has resolved it from the
+ * version it fetched, and it stands even when persisting that version failed.
+ * Before then it is null, and the stored app info is the only answer: gating
+ * on the capability alone would tell a 12.3 ship it needs an update.
+ * Undefined while the capability is unresolved and the stored value has not
+ * been read, so a gate can wait instead of flashing the unsupported state.
  */
 export const useDeskSupportsBuckets = (): boolean | undefined => {
   const clientSupports = useSyncExternalStore(
     api.onDeskSupportsBucketsChange,
-    api.getDeskSupportsBuckets
+    api.getDeskSupportsBucketsState
   );
   const { value: appInfo, isLoading } = db.appInfo.useStorageItem();
-  if (clientSupports) {
-    return true;
+  if (clientSupports !== null) {
+    return clientSupports;
   }
   if (isLoading) {
     return undefined;
