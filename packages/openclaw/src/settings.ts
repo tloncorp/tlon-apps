@@ -47,7 +47,7 @@ export type TlonSettingsStore = {
   showModelSig?: boolean;
   autoAcceptDmInvites?: boolean;
   autoDiscoverChannels?: boolean;
-  /** No longer governs group-invite authorization (groupInviteAllowlist does); retained for channel persistence and back-compat */
+  /** No longer governs group-invite authorization or channel persistence; it has no remaining runtime effect and is only parsed, migrated, and logged. Retained for config back-compat pending retirement. */
   autoAcceptGroupInvites?: boolean;
   /** Ships allowed to invite us to groups (allowlist membership is sufficient for auto-accept) */
   groupInviteAllowlist?: string[];
@@ -671,6 +671,13 @@ export type SettingsLogger = {
 export type SettingsLoadOptions = {
   /** Emit the compact snapshot summary. Intended for the initial startup load. */
   logSnapshot?: boolean;
+  /**
+   * Adjust a fresh scry result before it is installed as the snapshot. Runs
+   * synchronously, so a value the caller knows to be newer than the scry (an
+   * echo that overtook it) is never exposed as the baseline, not even to a
+   * subscription event in the same tick.
+   */
+  reconcile?: (settings: TlonSettingsStore) => TlonSettingsStore;
 };
 
 /**
@@ -690,12 +697,14 @@ export function createSettingsManager(
     loaded: false,
   };
 
-  const listeners = new Set<(settings: TlonSettingsStore) => void>();
+  const listeners = new Set<
+    (settings: TlonSettingsStore, changedKey: string) => void
+  >();
 
-  const notify = () => {
+  const notify = (changedKey: string) => {
     for (const listener of listeners) {
       try {
-        listener(state.current);
+        listener(state.current, changedKey);
       } catch (err) {
         logger?.error?.(`[settings] Listener error: ${String(err)}`);
       }
@@ -730,7 +739,8 @@ export function createSettingsManager(
           all?: Record<string, Record<string, unknown>>;
         };
         const deskData = allData?.all?.[SETTINGS_DESK];
-        state.current = parseSettingsResponse(deskData ?? {});
+        const parsed = parseSettingsResponse(deskData ?? {});
+        state.current = options.reconcile ? options.reconcile(parsed) : parsed;
         state.loaded = true;
         if (options.logSnapshot !== false) {
           logger?.log?.(
@@ -750,9 +760,27 @@ export function createSettingsManager(
     },
 
     /**
-     * Subscribe to settings changes.
+     * Fold a write this process made directly (a migration poke) into the
+     * snapshot without notifying listeners. The settings subscription starts
+     * after the migration and does not replay it, so without this the next
+     * unrelated fact would present the pre-write value as a key change.
      */
-    async startSubscription(): Promise<void> {
+    applyLocal(key: string, value: unknown): TlonSettingsStore {
+      state.current = applySettingsUpdate(state.current, key, value);
+      return state.current;
+    },
+
+    /**
+     * Subscribe to settings changes. `onGap` fires when the subscription
+     * errors or ends: echoes may have been missed, so any state derived from
+     * them is stale until the next fresh load. The kind tells a `quit`, after
+     * which no fact arrives until the client resubscribes, from an `err`,
+     * which the client also fans out for stream-level failures, in one path
+     * only after it has already reconnected.
+     */
+    async startSubscription(
+      options: { onGap?: (kind: 'err' | 'quit') => void } = {}
+    ): Promise<void> {
       await api.subscribe({
         app: 'settings',
         path: '/desk/' + SETTINGS_DESK,
@@ -773,22 +801,28 @@ export function createSettingsManager(
             update.key,
             update.value
           );
-          notify();
+          notify(update.key);
         },
         err: (error) => {
           logger?.error?.(`[settings] Subscription error: ${String(error)}`);
+          options.onGap?.('err');
         },
         quit: () => {
           logger?.log?.('[settings] Subscription ended');
+          options.onGap?.('quit');
         },
       });
       logger?.log?.('[settings] Subscribed to settings updates');
     },
 
     /**
-     * Register a listener for settings changes.
+     * Register a listener for settings changes. The listener receives the
+     * whole snapshot and the key the event changed, so a consumer can tell a
+     * fact about its own key from an unrelated one without inspecting values.
      */
-    onChange(listener: (settings: TlonSettingsStore) => void): () => void {
+    onChange(
+      listener: (settings: TlonSettingsStore, changedKey: string) => void
+    ): () => void {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },

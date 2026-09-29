@@ -8,7 +8,7 @@ import { getMessagesFilter } from '@tloncorp/api';
 import { referenceLookupId } from '@tloncorp/api/client/references';
 import * as ub from '@tloncorp/api/urbit';
 import { isMatch, pick } from 'lodash';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
 
 import * as db from '../db';
 import { GroupedChats } from '../db/types';
@@ -593,6 +593,14 @@ export const useMemberRoles = (chatId: string, userId: string) => {
   return memberRoles;
 };
 
+export const useJoinedGroupSeats = (contactIds: string[]) => {
+  const deps = useKeyFromQueryDeps(db.getJoinedGroupSeats);
+  return useQuery({
+    queryKey: ['joinedGroupSeats', deps, contactIds],
+    queryFn: () => db.getJoinedGroupSeats({ contactIds }),
+  });
+};
+
 export const useGroupPreview = (groupId: string) => {
   const deps = useKeyFromQueryDeps(db.getGroup, groupId);
   const { data: group } = useGroup({ id: groupId });
@@ -762,6 +770,76 @@ export const useChannelSearchResults = (
   return useQuery({
     queryKey: [['channelSearchResults', channelId, postIds], deps],
     queryFn: () => db.getChannelSearchResults({ channelId, postIds }),
+  });
+};
+
+/**
+ * Whether this ship runs %buckets, for gating the views that talk to it.
+ *
+ * A group's channel list comes from its host, so a 12.3-hosted group lists
+ * its Buckets to members whose own ship is still on 12.2.x. Everything a
+ * Bucket view does goes through the local %buckets agent, which those ships
+ * do not have.
+ *
+ * The client capability wins once sync start has resolved it from the
+ * version it fetched, and it stands even when persisting that version failed.
+ * Before then it is null, and the stored app info is the only answer: gating
+ * on the capability alone would tell a 12.3 ship it needs an update.
+ * Undefined while the capability is unresolved and the stored value has not
+ * been read, so a gate can wait instead of flashing the unsupported state.
+ */
+export const useDeskSupportsBuckets = (): boolean | undefined => {
+  const clientSupports = useSyncExternalStore(
+    api.onDeskSupportsBucketsChange,
+    api.getDeskSupportsBucketsState
+  );
+  const { value: appInfo, isLoading } = db.appInfo.useStorageItem();
+  if (clientSupports !== null) {
+    return clientSupports;
+  }
+  if (isLoading) {
+    return undefined;
+  }
+  return logic.deskVersionSupportsBuckets(appInfo?.groupsVersion);
+};
+
+/**
+ * One Bucket's manifest, as reduced from the %buckets subscription.
+ *
+ * Invalidated by the tables the reducer writes, so an update arriving on that
+ * subscription refreshes every pane looking at the Bucket -- rather than each
+ * pane holding a copy it reduced itself.
+ */
+export const useBucket = (options: { channelId?: string }) => {
+  const { channelId } = options;
+  return useQuery({
+    enabled: !!channelId,
+    queryKey: ['bucket', useKeyFromQueryDeps(db.getBucket), channelId],
+    queryFn: () => {
+      if (!channelId) {
+        throw new Error('missing channel id');
+      }
+      return db.getBucket({ channelId });
+    },
+  });
+};
+
+/** One Bucket's in-flight uploads. */
+export const useBucketUploads = (options: { channelId?: string }) => {
+  const { channelId } = options;
+  return useQuery({
+    enabled: !!channelId,
+    queryKey: [
+      'bucketUploads',
+      useKeyFromQueryDeps(db.getBucketUploads),
+      channelId,
+    ],
+    queryFn: () => {
+      if (!channelId) {
+        throw new Error('missing channel id');
+      }
+      return db.getBucketUploads({ channelId });
+    },
   });
 };
 

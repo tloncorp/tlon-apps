@@ -16,12 +16,14 @@ export const SHEET_CLOSE_ANIMATION_MS = Platform.OS === 'web' ? 0 : 300;
  * that runs the action after the grace window (immediately when the window is
  * `0`, e.g. web) plus a `cancel` to drop a pending action when a competing
  * close/open path takes over. The pending action is also cancelled on unmount,
- * so a stale timer can't fire into a later reopened sheet.
+ * and scheduling after unmount is dropped, so a stale action can't fire into a
+ * later reopened sheet or outlive the tree that asked for it.
  */
 export function useSheetCloseAfterAnimation(
   delayMs: number = SHEET_CLOSE_ANIMATION_MS
 ) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
 
   const cancel = useCallback(() => {
     if (timerRef.current) {
@@ -32,6 +34,15 @@ export function useSheetCloseAfterAnimation(
 
   const closeAfterAnimation = useCallback(
     (onClosed: () => void) => {
+      // Cancelling on unmount only covers a timer that already exists. A caller
+      // that awaits before scheduling can arrive here after unmount, with
+      // nothing left for the cleanup to cancel -- and where the window is 0
+      // (web) `onClosed` would run straight away. Dropping the action instead
+      // keeps the guarantee above true however late the call arrives.
+      if (!mountedRef.current) {
+        return;
+      }
+
       cancel();
 
       if (delayMs === 0) {
@@ -47,7 +58,15 @@ export function useSheetCloseAfterAnimation(
     [cancel, delayMs]
   );
 
-  useEffect(() => cancel, [cancel]);
+  useEffect(() => {
+    // reassigned on mount, not just initialised, so a remount (StrictMode
+    // double-invokes effects on the same instance) re-arms the hook
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      cancel();
+    };
+  }, [cancel]);
 
   return { closeAfterAnimation, cancel };
 }

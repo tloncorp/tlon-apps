@@ -13,7 +13,17 @@ import { YStack } from 'tamagui';
 const EMPTY_FOLDERS: db.NotesFolder[] = [];
 const EMPTY_NOTES: db.NotesNote[] = [];
 
-export type NotebookGate = 'unavailable' | 'loading' | 'unjoinable' | null;
+export type NotebookGate =
+  | 'unavailable'
+  | 'loading'
+  | 'unjoinable'
+  | 'notMember'
+  | null;
+
+// Neither gate has a notebook the user can act on.
+export function notebookGateBlocksAccess(gate: NotebookGate) {
+  return gate === 'unjoinable' || gate === 'notMember';
+}
 
 export function useNotebookData(
   notebookFlag: string | null | undefined,
@@ -56,11 +66,13 @@ export function useNotebookData(
     : joinQuery.isLoading ||
         (!notebook && (syncQuery.isLoading || notebookQuery.isLoading))
       ? 'loading'
-      : !joined
-        ? 'unjoinable'
-        : !notebook
-          ? 'unavailable'
-          : null;
+      : joinQuery.data === 'notMember'
+        ? 'notMember'
+        : !joined
+          ? 'unjoinable'
+          : !notebook
+            ? 'unavailable'
+            : null;
 
   return { notebook, folders, notes, canEdit, rootFolderId, gate };
 }
@@ -82,6 +94,14 @@ export function NotebookGateMessage({
       <NotesMessage title={loadingTitle}>
         <LoadingSpinner />
       </NotesMessage>
+    );
+  }
+  if (gate === 'notMember') {
+    return (
+      <NotesMessage
+        title="You're not in this notebook"
+        subtitle="Join it from the group's channel list."
+      />
     );
   }
   return (

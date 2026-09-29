@@ -1,4 +1,5 @@
-import { Pike, Pikes, getPikes, scryLag } from '@urbit/api';
+import { base } from '@tloncorp/api/client/requests';
+import { Pike, Pikes } from '@urbit/api';
 import produce from 'immer';
 import { useCallback } from 'react';
 import create from 'zustand';
@@ -19,11 +20,11 @@ const useKilnState = create<KilnState>((set, get) => ({
   lag: false,
   loaded: false,
   fetchPikes: async () => {
-    const pikes = await api.scry<Pikes>(getPikes);
+    const pikes = await api.scryEntry(base.kilnPikes)<Pikes>({});
     set({ pikes, loaded: true });
   },
   fetchLag: async () => {
-    const lag = await api.scry<boolean>(scryLag);
+    const lag = await api.scryEntry(base.kilnLag)<boolean>({});
     set({ lag });
   },
   set: produce(set),

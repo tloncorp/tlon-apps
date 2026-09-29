@@ -2,6 +2,7 @@ import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import { queryClient } from '@tloncorp/shared';
 import { clearSessionStorageItems } from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
+import { clearLastNotificationResponseAsync } from 'expo-notifications';
 import { useCallback } from 'react';
 
 import { useBranch } from '../contexts/branch';
@@ -19,6 +20,16 @@ export function useHandleLogout({ resetDb }: { resetDb: () => void }) {
   const clearTelemetry = useClearTelemetryConfig();
 
   const handleLogout = useCallback(async () => {
+    // A target held while the desk notice was up must not be consumed by the
+    // next login (TLON-6531).
+    try {
+      await clearLastNotificationResponseAsync();
+    } catch (error) {
+      logger.trackError(AnalyticsEvent.ErrorNotificationService, {
+        context: 'Failed to clear last notification response on logout',
+        error,
+      });
+    }
     queryClient.clear();
     store.removeClient();
     clearShip();

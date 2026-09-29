@@ -42,6 +42,7 @@ import { isAgentGroupSetupActive } from '../../ui/components/Channel/postVisibil
 import { shouldAutoLoadOlderPosts } from './channelPagination';
 import { useAgentOnboardingChannel } from './useAgentOnboardingChannel';
 import { useAgentOnboardingFirstEntry } from './useAgentOnboardingFirstEntry';
+import { useRecoverCursorJump } from './useRecoverCursorJump';
 
 const logger = createDevLogger('ChannelScreen', false);
 
@@ -160,8 +161,14 @@ export default function ChannelScreen(props: Props) {
   const notesActivityCapabilitiesEpoch =
     channel?.type === 'notes' ? activityCapabilitiesEpoch : 0;
 
+  // Buckets keep no unread state: nothing posts to them and nothing marks
+  // them read, so each piece of unread work below is inapplicable rather
+  // than merely unnecessary. Asked once, since it was three spellings of
+  // the same question and one of them was missed on the first pass.
+  const channelTracksUnreads = channel?.type !== 'buckets';
+
   useEffect(() => {
-    if (channelIsPending) {
+    if (channelIsPending || !channelTracksUnreads) {
       return;
     }
 
@@ -178,7 +185,12 @@ export default function ChannelScreen(props: Props) {
       });
 
     return () => abortController.abort();
-  }, [channelIsPending, channelId, notesActivityCapabilitiesEpoch]);
+  }, [
+    channelTracksUnreads,
+    channelIsPending,
+    channelId,
+    notesActivityCapabilitiesEpoch,
+  ]);
 
   // Snapshot unread state once per focused entry so the divider does not move
   // as the channel is marked read.
@@ -320,9 +332,11 @@ export default function ChannelScreen(props: Props) {
     loadOlder,
     isLoading: isLoadingPosts,
   } = store.useChannelPosts({
-    // Capture the unread cursor before loading posts or mounting Channel,
-    // which can mark the channel read as soon as cached posts are available.
-    enabled: unreadDidInitialize && !!channel && !channel?.isPendingChannel,
+    enabled:
+      unreadDidInitialize &&
+      !!channel &&
+      !channel.isPendingChannel &&
+      channelTracksUnreads,
     channelId: currentChannelId,
     count: 30,
     filterDeleted: !includeDeletedPosts,
@@ -336,6 +350,17 @@ export default function ChannelScreen(props: Props) {
           mode: 'newest',
           firstPageCount: 50,
         }),
+  });
+
+  useRecoverCursorJump({
+    channelId: currentChannelId,
+    selectedPostId,
+    clearedCursor,
+    isFocused,
+    isLoading: isLoadingPosts,
+    isFetching: postsQuery.isFetching,
+    error: postsQuery.error,
+    onRecover: handleScrollToBottom,
   });
 
   const oldestPage = postsQuery.data?.pages.at(-1);
@@ -523,7 +548,12 @@ export default function ChannelScreen(props: Props) {
   );
 
   const handleMarkRead = useCallback(async () => {
-    if (unreadDidInitialize && channel && !channel.isPendingChannel) {
+    if (
+      unreadDidInitialize &&
+      channel &&
+      !channel.isPendingChannel &&
+      channelTracksUnreads
+    ) {
       store.markChannelRead({
         id: channel.id,
         groupId: channel.groupId ?? undefined,

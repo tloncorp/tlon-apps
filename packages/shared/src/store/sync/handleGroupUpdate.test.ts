@@ -3,11 +3,72 @@ import * as $ from 'drizzle-orm';
 import { expect, test, vi } from 'vitest';
 
 import { batchEffects } from '../../db/query';
+import * as queries from '../../db/queries';
 import * as schema from '../../db/schema';
 import { getClient, setupDatabaseTestSuite } from '../../test/helpers';
 import { handleGroupUpdate } from './sync';
 
 setupDatabaseTestSuite();
+
+test('duplicate role assignments still refresh the group and unreads', async () => {
+  const groupId = '~bus/role-echo';
+  const membership = { groupId, contactId: '~zod', roleId: 'moderator' };
+  const group = {
+    id: groupId,
+    currentUserIsMember: true,
+    currentUserIsHost: false,
+    hostUserId: '~bus',
+  };
+  await queries.insertGroups({ groups: [group] });
+  await queries.addMembersToRole({
+    groupId,
+    roleId: membership.roleId,
+    contactIds: [membership.contactId],
+  });
+  const getGroup = vi.spyOn(api, 'getGroup').mockResolvedValue({
+    ...group,
+    title: 'Refreshed group',
+  });
+  const getUnreads = vi
+    .spyOn(api, 'getGroupAndChannelUnreads')
+    .mockResolvedValue({
+      groupUnreads: [],
+      channelUnreads: [],
+      threadActivity: [],
+    });
+
+  try {
+    for (let i = 0; i < 2; i++) {
+      await batchEffects('test:role-assignment-echo', (ctx) =>
+        handleGroupUpdate(
+          {
+            type: 'addGroupMembersToRole',
+            groupId,
+            ships: [membership.contactId, '~nec'],
+            roles: [membership.roleId],
+          },
+          ctx
+        )
+      );
+    }
+
+    expect(getGroup).toHaveBeenCalledTimes(2);
+    expect(getGroup).toHaveBeenCalledWith(groupId);
+    expect(getUnreads).toHaveBeenCalledTimes(2);
+    expect((await queries.getGroup({ id: groupId }))?.title).toBe(
+      'Refreshed group'
+    );
+    expect(await getClient()!.query.chatMemberGroupRoles.findMany()).toEqual(
+      expect.arrayContaining([membership, { ...membership, contactId: '~nec' }])
+    );
+    expect(
+      await getClient()!.query.chatMemberGroupRoles.findMany()
+    ).toHaveLength(2);
+  } finally {
+    getGroup.mockRestore();
+    getUnreads.mockRestore();
+  }
+});
 
 // `addChannelToNavSection` events carry both a bare backend zone id
 // (`sectionId`) and a prefixed local DB id (`navSectionId =

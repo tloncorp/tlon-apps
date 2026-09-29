@@ -42,18 +42,19 @@ const SYNC_START_RETRY: RetryConfig = {
 };
 
 /**
- * Sync start for a freshly provisioned node, retried until it actually runs.
+ * Sync start for a freshly provisioned node, retried while the desk gates it.
  *
  * `withRetry` only retries on a throw, but a desk-gated sync start *resolves*.
- * Left as a plain call, a gate would end the retries after one attempt: the
- * sequence advances to CONNECTING, no subscriptions are ever registered, and
- * the connection status it waits on never turns Connected. A node mid-update
- * clears the gate on a later attempt, so turn that one outcome into a throw and
- * let the backoff do its job.
+ * A node mid-update clears the gate once its update lands, so turn that one
+ * outcome into a throw: the backoff re-attempts it after 30 s and again after
+ * 60 s, three attempts in all. Every other outcome resolves as it did before —
+ * `'ok'` ran, `'busy'` means another start owns the work, and `'abandoned'`
+ * means the login is already gone. Retrying helps none of them.
  *
- * Every other outcome resolves as it did before — `'ok'` ran, `'busy'` means
- * another start owns the work, and `'abandoned'` means the login is already
- * gone. Retrying helps none of them.
+ * This is best-effort, not what the sequence waits on. CONNECTING opens the
+ * channel itself (`syncGroupPreviews` subscribes, which starts the event
+ * source), so the boot advances even while gated, the invite phases time out,
+ * and the authenticated shell then shows the desk notice with its own retry.
  */
 export function retryUntilSyncStarts(
   runSyncStart: () => Promise<store.SyncStartOutcome> = store.syncStart,

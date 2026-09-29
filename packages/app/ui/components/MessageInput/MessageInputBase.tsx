@@ -1,6 +1,5 @@
 import type { BridgeState, EditorBridge } from '@10play/tentap-editor';
 import { JSONContent } from '@tloncorp/api/urbit';
-import type { PostSendOptions } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import { Button, FloatingActionButton, Icon } from '@tloncorp/ui';
@@ -38,7 +37,7 @@ import {
   floatingScrollControlClearance,
   floatingChromeMetrics as metrics,
 } from '../conversationScrollChrome';
-import { GalleryDraftType } from '../draftInputs/shared';
+import { type DraftSendOptions, GalleryDraftType } from '../draftInputs/shared';
 import AttachmentButton from './AttachmentButton';
 import InputMentionPopup from './InputMentionPopup';
 import InputSlashCommandPopup from './InputSlashCommandPopup';
@@ -48,7 +47,7 @@ export interface MessageInputProps {
   setShouldBlur: (shouldBlur: boolean) => void;
   sendPostFromDraft: (
     draft: domain.PostDataDraft,
-    options?: PostSendOptions
+    options?: DraftSendOptions
   ) => Promise<void>;
   channelId: string;
   groupId?: string | null;
@@ -171,6 +170,43 @@ export const MessageInputContainer = memo(
       setMeasuredInputHeight(height);
     };
 
+    const separateGlassSend = usesIOSGlass && !floatingActionButton;
+    const sendAction = floatingActionButton ? (
+      <View position="absolute" bottom="$l" right="$l">
+        {disableSend ? null : (
+          <FloatingActionButton
+            onPress={isEditing && onPressEdit ? onPressEdit : onPressSend}
+            icon={
+              <Icon
+                color={sendError ? 'red' : undefined}
+                type={sendError ? 'Refresh' : 'ArrowUp'}
+              />
+            }
+          />
+        )}
+      </View>
+    ) : (
+      <MessageInputChromeSendAction>
+        <MessageInputChromeButton
+          preset="secondary"
+          disabled={disableSend}
+          loading={isSending}
+          testID="MessageInputSendButton"
+          onPress={isEditing ? onPressEdit : onPressSend}
+          icon={
+            isEditing ? (
+              'Checkmark'
+            ) : (
+              <Icon
+                color={sendError ? '$negativeActionText' : undefined}
+                type="ArrowUp"
+              />
+            )
+          }
+        />
+      </MessageInputChromeSendAction>
+    );
+
     return (
       <MessageInputChromeRoot
         isEditing={isEditing}
@@ -241,44 +277,9 @@ export const MessageInputContainer = memo(
               >
                 {children}
               </MessageInputContentFrame>
-              {floatingActionButton ? (
-                <View position="absolute" bottom="$l" right="$l">
-                  {disableSend ? null : (
-                    <FloatingActionButton
-                      onPress={
-                        isEditing && onPressEdit ? onPressEdit : onPressSend
-                      }
-                      icon={
-                        <Icon
-                          color={sendError ? 'red' : undefined}
-                          type={sendError ? 'Refresh' : 'ArrowUp'}
-                        />
-                      }
-                    />
-                  )}
-                </View>
-              ) : (
-                <MessageInputChromeSendAction>
-                  <MessageInputChromeButton
-                    preset="secondary"
-                    disabled={disableSend}
-                    loading={isSending}
-                    testID="MessageInputSendButton"
-                    onPress={isEditing ? onPressEdit : onPressSend}
-                    icon={
-                      isEditing ? (
-                        'Checkmark'
-                      ) : (
-                        <Icon
-                          color={sendError ? '$negativeActionText' : undefined}
-                          type="ArrowUp"
-                        />
-                      )
-                    }
-                  />
-                </MessageInputChromeSendAction>
-              )}
+              {!separateGlassSend && sendAction}
             </MessageInputChromeBody>
+            {separateGlassSend && sendAction}
           </MessageInputChromeRow>
         ) : (
           // Note: This **must** be an XStack (not a YStack, View, or Stack), otherwise the WebView in MessageInput will not
@@ -531,6 +532,17 @@ function MessageInputChromeButton(props: ComponentProps<typeof Button>) {
 }
 
 function MessageInputChromeSendAction({ children }: PropsWithChildren) {
+  if (usesIOSGlass) {
+    return (
+      <GlassSurface
+        isInteractive
+        glassEffectStyle="regular"
+        style={inputChromeStyles.action}
+      >
+        {children}
+      </GlassSurface>
+    );
+  }
   return (
     <View
       top={usesFloatingChrome ? undefined : 2}

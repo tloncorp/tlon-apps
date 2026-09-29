@@ -1,9 +1,8 @@
 name: Sync Develop with Staging
 on:
+  # Called by staging.yml after the canary deploy.
+  workflow_call:
   workflow_dispatch:
-  push:
-    branches:
-      - "staging"
 jobs:
   sync:
     runs-on: ubuntu-latest

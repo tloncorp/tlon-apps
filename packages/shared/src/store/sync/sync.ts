@@ -16,6 +16,7 @@ import { AnalyticsEvent, AnalyticsSeverity } from '../../domain';
 import {
   MIN_GROUPS_VERSION,
   activityVersionSupportsNotes,
+  deskVersionSupportsBuckets,
   activityVersionSupportsReactions,
   classifyDeskVersion,
 } from '../../logic';
@@ -41,7 +42,11 @@ import {
   partitionDiscoveryMatches,
 } from '../lanyardActions';
 import { useLureState } from '../lure';
-import { markNotesNotebookStaleForNoteEvent } from '../notesActions';
+import {
+  markNotesNotebookStaleForNoteEvent,
+  recheckAllNotesNotebooksJoined,
+  recheckNotesNotebookJoined,
+} from '../notesActions';
 import { verifyPostDelivery } from '../postActions/verifyPostDelivery';
 import { clearPresenceState, handlePresenceEvent } from '../presence';
 import {
@@ -54,6 +59,10 @@ import {
 import { migrateLegacyContextLensFlag } from '../settingsActions';
 import { SyncCtx, SyncPriority, syncQueue } from '../syncQueue';
 import { getSystemContacts } from '../systemContactsApi';
+import {
+  recordThreadPostsReceived,
+  recordThreadPostDeleted,
+} from '../threadSyncTelemetry';
 import { clearChannelPostsQueries } from '../useChannelPosts/queries';
 import { addToChannelPosts } from '../useChannelPosts/subscriptions';
 import { logger } from './logger';
@@ -133,6 +142,41 @@ export const syncInitData = async (
     await db
       .insertChannelPerms(initData.channelPerms, queryCtx)
       .then(() => logger.crumb('inserted channel perms'));
+    // Straight from init now, alongside the channels whose writers arrive the
+    // same way. Reading them separately meant a Bucket that appeared after
+    // startup never got its writer roles at all.
+    const buckets = initData.buckets;
+    if (buckets.length > 0) {
+      // Writers only. %groups does not model a channel's writer roles, so a
+      // bucket keeps its own and this is the only place they come from --
+      // but readability is %groups' alone, and insertGroups above has
+      // already written those. updateChannel preserves them; passing them
+      // here as [] would wipe every reader role off the channel.
+      for (const snapshot of buckets) {
+        const channelId = api.formatBucketsChannelId(snapshot.flag);
+        // The init fetch and the %buckets subscription run concurrently, so a
+        // writer change can already have been reduced from a fact by the time
+        // this delayed init write runs. Writing unconditionally reinstalls the
+        // older set, and with infinite staleness it stays visible until a
+        // reconnect -- long enough for an admin to open permissions and save
+        // the removed role back to the host.
+        const held = await db.getBucket({ channelId }, queryCtx);
+        if (held && held.revision > snapshot.state.revision) {
+          continue;
+        }
+        await db.updateChannel(
+          {
+            id: channelId,
+            writerRoles: snapshot.state.writers.map((roleId) => ({
+              channelId,
+              roleId,
+            })),
+          },
+          queryCtx
+        );
+      }
+      logger.crumb('inserted Bucket channel writers');
+    }
     await db
       .insertChannelOrder(initData.channelPerms, queryCtx)
       .then(() => logger.crumb('inserted channel order'));
@@ -142,6 +186,7 @@ export const syncInitData = async (
         queryCtx
       )
       .then(() => logger.crumb('reconciled group channel membership'));
+    void recheckAllNotesNotebooksJoined();
     updateLastActivityTime();
   };
 
@@ -427,6 +472,7 @@ export const syncLatestChanges = async ({
     throw new StaleSyncDataError(runningForMs);
   }
 
+  recordThreadPostsReceived(result.posts, 'changes');
   await perfTime(
     'syncLatestChanges.insertChanges',
     () => db.insertChanges(result, queryCtx),
@@ -523,6 +569,7 @@ export const syncCachedChanges = async (input: {
   const syncedAt = await db.changesSyncedAt.getValue();
   if (syncedAt && input.begin <= syncedAt && input.end > syncedAt) {
     // cached changes are valid, insert them
+    recordThreadPostsReceived(input.changes.posts, 'changes');
     await db.insertChanges(input.changes);
     notifyChannelPostListenersFromLatestChanges(input.changes.posts);
     await db.changesSyncedAt.setValue(input.end);
@@ -616,6 +663,9 @@ export const syncAppInfo = async (
   api.setActivitySupportsNotes(
     activityVersionSupportsNotes(appInfo?.groupsVersion)
   );
+  api.setDeskSupportsBuckets(
+    deskVersionSupportsBuckets(appInfo?.groupsVersion)
+  );
   // Awaited so the App Info screen and the notes-search gate see it promptly.
   // The capability flags don't depend on it landing: what protects those is
   // the in-memory version recorded above.
@@ -651,6 +701,7 @@ export const syncReactionSupport = async () => {
     activityVersionSupportsReactions(groupsVersion)
   );
   api.setActivitySupportsNotes(activityVersionSupportsNotes(groupsVersion));
+  api.setDeskSupportsBuckets(deskVersionSupportsBuckets(groupsVersion));
 };
 
 export const syncVolumeSettings = async (ctx?: SyncCtx) => {
@@ -958,6 +1009,11 @@ export const syncChannelThreadUnreads = async (
     );
     return;
   }
+  // Buckets are file manifests, not post collections. They have no activity
+  // thread endpoint, so never enqueue a thread-unread scry for them.
+  if (channel.type === 'buckets') {
+    return;
+  }
   const unreads = await syncQueue.add('thread unreads', ctx, () =>
     api.getThreadUnreadsByChannel(channel)
   );
@@ -1080,31 +1136,7 @@ export async function syncUpdatedPosts(
   return response;
 }
 
-export async function syncThreadPosts(
-  {
-    postId,
-    authorId,
-    channelId,
-  }: {
-    postId: string;
-    authorId: string;
-    channelId: string;
-  },
-  ctx?: SyncCtx
-) {
-  const response = await syncQueue.add('syncThreadPosts', ctx, () =>
-    api.getPostWithReplies({
-      postId,
-      authorId,
-      channelId,
-    })
-  );
-  logger.log('got thread posts from api', response);
-  await db.insertChannelPosts({
-    posts: [response, ...(response.replies ?? [])],
-  });
-  updateLastActivityTime();
-}
+export { syncThreadPosts } from './syncThreadPosts';
 
 export const syncStorageSettings = (ctx?: SyncCtx) => {
   return Promise.all([
@@ -1446,9 +1478,11 @@ export async function handleGroupUpdate(
       break;
     case 'joinChannel':
       await db.addJoinedGroupChannel({ channelId: update.channelId }, ctx);
+      void recheckNotesNotebookJoined(update.channelId);
       break;
     case 'leaveChannel':
       await db.removeJoinedGroupChannel({ channelId: update.channelId }, ctx);
+      void recheckNotesNotebookJoined(update.channelId);
       break;
     case 'addNavSection':
       logger.log('adding nav section', update);
@@ -1795,6 +1829,97 @@ export const handleSettingsUpdate = async (
   }
 };
 
+/**
+ * The one place %buckets responses are applied.
+ *
+ * A Bucket's manifest and its writer roles arrive only here -- no other agent
+ * models either -- so this reduces them into the database and views read what
+ * has been reduced. Panes used to hold their own copy of the snapshot and
+ * reduce into it, which meant two subscriptions to the same firehose, state
+ * that died when a pane unmounted, and no shared view between two panes on
+ * the same Bucket.
+ *
+ * A snapshot carries the whole manifest, so it replaces; the entry arms carry
+ * one entry, so they upsert.
+ */
+export const handleBucketsUpdate = async (
+  response: api.BucketsResponse,
+  ctx: QueryCtx
+) => {
+  const channelId = api.formatBucketsChannelId(response.flag);
+
+  if (response.type === 'snapshot') {
+    await db.replaceBucketEntries(
+      {
+        channelId,
+        entries: response.state.entries,
+        revision: response.state.revision,
+      },
+      ctx
+    );
+    await writeBucketWriters(
+      channelId,
+      response.state.writers,
+      response.state.revision,
+      ctx
+    );
+    return;
+  }
+
+  const { revision, update } = response;
+  switch (update.type) {
+    case 'bucket-deleted':
+      await db.deleteBucket(channelId, ctx);
+      return;
+    case 'writers-updated':
+      await writeBucketWriters(channelId, update.writers, revision, ctx);
+      return;
+    case 'entry-created':
+    case 'entry-updated':
+      await db.upsertBucketEntry(
+        { channelId, entry: update.entry, revision },
+        ctx
+      );
+      return;
+    case 'entries-deleted':
+      await db.deleteBucketEntries(
+        { channelId, entryIds: update.ids, revision },
+        ctx
+      );
+      return;
+    // Metadata lives on the channel, which %groups already maintains.
+    case 'bucket-created':
+    case 'bucket-updated':
+      return;
+  }
+};
+
+/**
+ * Writers are a channel column, as they are for every channel type.
+ *
+ * Empty is meaningful rather than absent -- it is what "any reader may write"
+ * looks like -- so it is written through as given.
+ */
+async function writeBucketWriters(
+  channelId: string,
+  writers: string[],
+  revision: number,
+  ctx: QueryCtx
+) {
+  await db.updateChannel(
+    {
+      id: channelId,
+      writerRoles: writers.map((roleId) => ({ channelId, roleId })),
+    },
+    ctx
+  );
+  // Advanced with the writers, not just with entry writes. The init guard
+  // skips summaries older than the stored revision, so a writer update that
+  // left the revision behind made the stale summary look current and let it
+  // reinstall the roles this event just removed.
+  await db.setBucketRevision({ channelId, revision }, ctx);
+}
+
 export const handleChannelsUpdate = async (
   update: api.ChannelsUpdate,
   ctx: QueryCtx
@@ -1843,6 +1968,7 @@ export const handleChannelsUpdate = async (
       }
       break;
     case 'deletePost':
+      recordThreadPostDeleted(update.postId);
       await db.markPostAsDeleted(update.postId, ctx);
       await db.recomputeChannelLastPost({ channelId: update.channelId }, ctx);
       break;
@@ -1916,6 +2042,7 @@ export const handleChatUpdate = async (
       await handleAddPost(update.post, update.replyMeta, ctx);
       break;
     case 'deletePost':
+      recordThreadPostDeleted(update.postId);
       await db.deletePosts({ ids: [update.postId] }, ctx);
       break;
     case 'addReaction':
@@ -1995,6 +2122,7 @@ export async function handleAddPost(
   replyMeta?: db.ReplyMeta | null,
   ctx?: QueryCtx
 ) {
+  recordThreadPostsReceived([post], 'subscription');
   logger.log('event: add post', post);
   await perfTime(
     'handleAddPost.total',
@@ -2662,6 +2790,10 @@ export const syncStart = async (
       return deskOutcome;
     }
 
+    if (isSubscribed) {
+      subscribeToBucketsIfMissed();
+    }
+
     // it's important that this isn't within the main batchEffects block. If we're
     // returning from a cold open, we don't want to wait for all of High Priority sync
     // to complete before showing changes
@@ -2869,10 +3001,82 @@ export const syncStart = async (
   }
 };
 
+// Which client lifetime has its %buckets subscription open or opening, so the
+// high-priority set and the late path below never both open it.
+let bucketsSubscribedGeneration: number | null = null;
+// Which client lifetime's high-priority set has already read the capability.
+// Until then a change is that set's to pick up when it reads it; from then on,
+// only the late path below can open %buckets for the lifetime.
+let bucketsCheckedGeneration: number | null = null;
+
+async function subscribeToBucketsOnce() {
+  const generation = getClientGeneration();
+  if (
+    !api.getDeskSupportsBuckets() ||
+    bucketsSubscribedGeneration === generation
+  ) {
+    return;
+  }
+  bucketsSubscribedGeneration = generation;
+  // Not open after all, so the next chance in this lifetime tries again. A
+  // watch %buckets nacks lands here after the subscribe has already resolved.
+  const reopen = () => {
+    if (bucketsSubscribedGeneration === generation) {
+      bucketsSubscribedGeneration = null;
+    }
+  };
+  try {
+    await api.subscribeToBuckets(createHandler(handleBucketsUpdate), reopen);
+  } catch (err) {
+    reopen();
+    throw err;
+  }
+}
+
+// A ship upgraded to a Buckets desk while the app stays open is found by the
+// recovery sync's re-probe, and that sync skips subscribing because everything
+// it would watch is still up. %buckets is the exception: it was never watched,
+// and useLiveBucket reads only what this subscription reduces into the
+// database, so the Bucket the capability now opens would stay empty until a
+// restart. Run when the capability changes, and by every recovery sync, since
+// a failed attempt leaves the capability on and nothing would change it again.
+function subscribeToBucketsIfMissed() {
+  if (
+    getSession() === null ||
+    bucketsCheckedGeneration !== getClientGeneration()
+  ) {
+    return;
+  }
+  subscribeToBucketsOnce().catch((error) =>
+    logger.trackError('buckets: late subscribe failed', { error })
+  );
+}
+
+let watchingBucketsSupport = false;
+
+// Registered on first use rather than on import, so the modules that import
+// sync under a partial api mock never reach it.
+function watchBucketsSupport() {
+  if (watchingBucketsSupport) {
+    return;
+  }
+  watchingBucketsSupport = true;
+  api.onDeskSupportsBucketsChange(subscribeToBucketsIfMissed);
+}
+
 export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {
   return syncQueue.add('setupHighPrioritySubscriptions', ctx, () => {
+    bucketsCheckedGeneration = getClientGeneration();
+    watchBucketsSupport();
     return Promise.all([
       api.subscribeToChannelsUpdates(createHandler(handleChannelsUpdate)),
+      // Gated on the same capability that picks the init endpoint. The desk
+      // gate admits anything at or above MIN_GROUPS_VERSION (12.2.0) while
+      // %buckets arrives at 12.3.0, so there is a supported band where the
+      // agent is simply absent: watching it there is nacked, and one
+      // rejection in this Promise.all takes every high-priority subscription
+      // down with it.
+      subscribeToBucketsOnce(),
       api.subscribeToChatUpdates(createHandler(handleChatUpdate)),
       api.subscribeGroups(createHandler(handleGroupUpdate)),
       api.subscribeToPresenceUpdates(handlePresenceEvent),

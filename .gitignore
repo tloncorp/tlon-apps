@@ -42,6 +42,9 @@ tsconfig.tsbuildinfo
 launch.json
 expo-env.d.ts
 .expo
+# EAS Simulator session credentials, written by eas-cli. Here rather than in
+# apps/tlon-mobile/.gitignore, which is a native fingerprint input.
+.env.eas-simulator
 # Playwright MCP development logs
 apps/tlon-web/playwright-dev.log
 apps/tlon-web/.playwright-dev.pid

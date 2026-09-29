@@ -1,7 +1,14 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 
-import { toGroupsUpdate } from '../client/groupsApi';
+import { getChannelPreview, toGroupsUpdate } from '../client/groupsApi';
+import { subscribeOnce } from '../client/urbit';
 import type * as ub from '../urbit';
+
+vi.mock('../client/urbit', async () => ({
+  ...(await vi.importActual('../client/urbit')),
+  getCurrentUserId: () => '~zod',
+  subscribeOnce: vi.fn(),
+}));
 
 const flag = '~solfer-magfed/test-group';
 const ships = ['~zod', '~bus'];
@@ -145,5 +152,53 @@ describe('toGroupsUpdate role responses', () => {
         coverImageColor: null,
       },
     });
+  });
+});
+
+describe('toGroupsUpdate section-order responses', () => {
+  // groups-json.hoon's `++r-group` wraps every delta in `frond -.r-group`, and
+  // the %section-order arm adds its own `frond 'section-order'`, so the list
+  // arrives one level deeper than the snapshot's bare array.
+  test('reads the section ids from the nested section-order envelope', () => {
+    const sectionOrder = {
+      flag,
+      'r-group': { 'section-order': { 'section-order': ['sec-a', 'sec-b'] } },
+    } satisfies ub.GroupResponse;
+    expect(toGroupsUpdate(sectionOrder)).toEqual({
+      type: 'updateSectionOrder',
+      groupId: flag,
+      sectionIds: ['sec-a', 'sec-b'],
+    });
+  });
+});
+
+// Shaped from groups-json.hoon `++channel-preview:v7:enjs`, the JSON grow arm
+// of %channel-preview-1.
+const channelPreview = {
+  nest: 'chat/~solfer-magfed/general',
+  meta: { title: 'General', description: 'Chatter', image: '', cover: '' },
+  group: {
+    flag,
+    meta: { title: 'Test', description: '', image: '', cover: '' },
+    time: 1700000000000,
+    'member-count': 3,
+    privacy: 'public',
+  },
+} satisfies ub.ChannelPreview;
+
+test('getChannelPreview watches the v1 channel preview path', async () => {
+  vi.mocked(subscribeOnce).mockResolvedValueOnce(channelPreview);
+  const channel = await getChannelPreview(channelPreview.nest);
+  expect(vi.mocked(subscribeOnce).mock.calls[0][0]).toEqual({
+    app: 'groups',
+    path: '/v1/channels/chat/~solfer-magfed/general/preview',
+  });
+  expect(channel).toMatchObject({
+    id: channelPreview.nest,
+    groupId: flag,
+    type: 'chat',
+    title: 'General',
+    description: 'Chatter',
+    currentUserIsHost: false,
   });
 });
