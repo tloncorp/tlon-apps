@@ -30,10 +30,14 @@ it('sends the notice in the authenticated monitor scope from a gateway callback'
   await runWithTlonApiScope(async () => {
     setScopedTlonApiWithPoke(vi.fn(), '~zod', 'http://zod');
     cleanups.push(
-      installBudgetHoldNotifier('default', async () => {
-        sentAs(getCurrentUserId());
-        return true;
-      })
+      installBudgetHoldNotifier(
+        'default',
+        async () => {
+          sentAs(getCurrentUserId());
+          return true;
+        },
+        f.config
+      )
     );
   });
   await f.fire('gateway_start', {}, f.ctx);
@@ -116,7 +120,7 @@ it('holds without a connected owner, then notifies once when delivery becomes av
   await f.fire('gateway_start', {}, f.ctx);
   expect(f.job.enabled).toBe(false);
   const notify = vi.fn(async () => true);
-  cleanups.push(installBudgetHoldNotifier('default', notify));
+  cleanups.push(installBudgetHoldNotifier('default', notify, f.config));
   await f.fire('cron_changed', { action: 'added', jobId: 'another' });
   await vi.waitFor(() =>
     expect(notify).toHaveBeenCalledWith(
@@ -338,12 +342,12 @@ it('notifies each account in its own scope and retains successful delivery acros
   });
   await runWithTlonApiScope(async () => {
     setScopedTlonApiWithPoke(vi.fn(), '~zod', 'http://zod');
-    cleanups.push(installBudgetHoldNotifier('alice', alice));
+    cleanups.push(installBudgetHoldNotifier('alice', alice, f.config));
   });
   let stopBob!: () => void;
   await runWithTlonApiScope(async () => {
     setScopedTlonApiWithPoke(vi.fn(), '~bus', 'http://bus');
-    stopBob = installBudgetHoldNotifier('bob', bob);
+    stopBob = installBudgetHoldNotifier('bob', bob, f.config);
     cleanups.push(stopBob);
   });
   await f.fire('gateway_start', {}, f.ctx);
@@ -362,7 +366,10 @@ it('notifies each account in its own scope and retains successful delivery acros
     join(f.dir, 'tlon-cron-budget-holds.json')
   );
   expect(state.notified).toBe(true);
-  expect(state.notifiedAccounts).toEqual(['alice', 'bob']);
+  expect(state.notifiedRecipients?.map((key) => JSON.parse(key))).toEqual([
+    ['alice', '~zod', null],
+    ['bob', '~zod', null],
+  ]);
   // Disconnecting the last installed monitor must not remove Alice's sender.
   stopBob();
   await f.fire('gateway_stop');
@@ -401,8 +408,54 @@ it('notifies a newly runnable account after the episode was already notified', a
   const after = await readBudgetHoldState(statePath);
   expect(after.episodeId).toBe(initial.episodeId);
   expect(after.notified).toBe(true);
-  expect(after.notifiedAccounts).toEqual(['alice', 'bob']);
+  expect(after.notifiedRecipients?.map((key) => JSON.parse(key))).toEqual([
+    ['alice', '~zod', null],
+    ['bob', '~bus', null],
+  ]);
   expect(alice).toHaveBeenCalledTimes(1);
   expect(f.job.enabled).toBe(false);
+  expect(f.warn).not.toHaveBeenCalled();
+});
+
+it('notifies a replacement owner under the same account ID and deduplicates after restart', async () => {
+  const f = await setup(['alice']);
+  const config = {
+    ...f.config,
+    channels: {
+      tlon: {
+        accounts: {
+          alice: {
+            ...f.config.channels.tlon.accounts.alice,
+            ownerShip: '~bus',
+          },
+        },
+      },
+    },
+  };
+  const original = vi.fn(async () => true);
+  const replacement = vi.fn(async () => true);
+  const stopOriginal = installBudgetHoldNotifier('alice', original, config);
+  cleanups.push(stopOriginal);
+  await f.fire('gateway_start', {}, f.ctx);
+  const path = join(f.dir, 'tlon-cron-budget-holds.json');
+  const initial = await readBudgetHoldState(path);
+  expect(initial.notified).toBe(true);
+  const changed = structuredClone(config);
+  changed.channels.tlon.accounts.alice.ownerShip = '~nec';
+  cleanups.push(installBudgetHoldNotifier('alice', replacement, changed));
+  stopOriginal();
+  await f.fire('cron_changed', { action: 'added', jobId: 'another' });
+  await vi.waitFor(() => expect(replacement).toHaveBeenCalledTimes(1));
+  await f.fire('gateway_stop');
+  const state = await readBudgetHoldState(path);
+  expect(state.episodeId).toBe(initial.episodeId);
+  expect(state.notifiedRecipients?.map((key) => JSON.parse(key))).toEqual([
+    ['alice', '~zod', '~bus'],
+    ['alice', '~zod', '~nec'],
+  ]);
+  cleanups.push(installBudgetHoldNotifier('alice', replacement, changed));
+  await f.fire('gateway_start', {}, f.ctx);
+  expect(original).toHaveBeenCalledTimes(1);
+  expect(replacement).toHaveBeenCalledTimes(1);
   expect(f.warn).not.toHaveBeenCalled();
 });

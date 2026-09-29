@@ -12,13 +12,23 @@ import {
 } from './cron-budget-hold.js';
 import { getTlonCronService } from './cron-telemetry.js';
 import { buildCreditIncreaseCard } from './credit-increase-request.js';
-import { listRunnableTlonAccountIds } from './types.js';
+import { normalizeShip } from './targets.js';
+import { listRunnableTlonAccountIds, resolveTlonAccount } from './types.js';
 import { sharedMap, sharedSlot } from './shared-state.js';
 import { captureTlonApiScope } from './urbit/api-client.js';
 
+function recipientKey(accountId: string, config: OpenClawPluginApi['config']) {
+  const account = resolveTlonAccount(config, accountId);
+  return JSON.stringify([
+    accountId,
+    account.ship ? normalizeShip(account.ship) : null,
+    account.ownerShip ? normalizeShip(account.ownerShip) : null,
+  ]);
+}
+
 const notifiers = sharedMap<
   string,
-  (message: string, blob?: string) => Promise<boolean>
+  { key: string; send: (message: string, blob?: string) => Promise<boolean> }
 >('cronBudget.notifiers');
 const monitorConfig = sharedSlot<OpenClawPluginApi['config']>(
   'cronBudget.monitorConfig'
@@ -26,7 +36,7 @@ const monitorConfig = sharedSlot<OpenClawPluginApi['config']>(
 export function installBudgetHoldNotifier(
   accountId: string,
   send: (message: string, blob?: string) => Promise<boolean>,
-  config?: OpenClawPluginApi['config']
+  config: OpenClawPluginApi['config']
 ) {
   // Gateway timers run outside the monitor's authenticated async context.
   const runInMonitorScope = captureTlonApiScope();
@@ -34,12 +44,13 @@ export function installBudgetHoldNotifier(
     ? (message: string, blob?: string) =>
         runInMonitorScope(() => send(message, blob))
     : send;
-  notifiers.set(accountId, scopedSend);
+  const notifier = { key: recipientKey(accountId, config), send: scopedSend };
+  notifiers.set(accountId, notifier);
   // Monitor restarts receive the host's current config, including accounts
   // added after gateway_start captured its original configuration.
-  if (config) monitorConfig.set(config);
+  monitorConfig.set(config);
   return () => {
-    if (notifiers.get(accountId) === scopedSend) notifiers.delete(accountId);
+    if (notifiers.get(accountId) === notifier) notifiers.delete(accountId);
   };
 }
 
@@ -111,22 +122,26 @@ export function registerBudgetHoldHooks(
           activeEdits = edits;
           try {
             const state = await readBudgetHoldState(paths.state);
-            const accountIds = listRunnableTlonAccountIds(
-              monitorConfig.get() ?? ctx.config ?? api.config
-            );
-            const pendingAccounts = accountIds.filter(
-              (id) => !state.notifiedAccounts?.includes(id)
+            const config = monitorConfig.get() ?? ctx.config ?? api.config;
+            const recipients = listRunnableTlonAccountIds(config).map((id) => ({
+              id,
+              key: recipientKey(id, config),
+            }));
+            const pendingRecipients = recipients.filter(
+              ({ key }) => !state.notifiedRecipients?.includes(key)
             );
             // Completion is relative to the current recipients, not permanent
             // for the episode. Existing delivery receipts still deduplicate.
-            if (state.notified && pendingAccounts.length > 0) {
+            if (state.notified && pendingRecipients.length > 0) {
               state.notified = false;
               await writeBudgetHoldState(paths.state, state);
             }
             const canNotify =
-              accountIds.length > 0 &&
-              (pendingAccounts.length === 0 ||
-                pendingAccounts.some((id) => notifiers.has(id)));
+              recipients.length > 0 &&
+              (pendingRecipients.length === 0 ||
+                pendingRecipients.some(
+                  ({ id, key }) => notifiers.get(id)?.key === key
+                ));
             await reconcileBudgetHolds({
               budget: await readBudgetSignal(paths.signal),
               state,
@@ -166,12 +181,12 @@ export function registerBudgetHoldHooks(
                       ? buildCreditIncreaseCard(message, state.episodeId)
                       : undefined;
                     let deliveryError: unknown;
-                    for (const id of pendingAccounts) {
-                      const send = notifiers.get(id);
-                      if (!send) continue;
+                    for (const { id, key } of pendingRecipients) {
+                      const notifier = notifiers.get(id);
+                      if (notifier?.key !== key) continue;
                       try {
-                        if (await send(message, blob)) {
-                          (state.notifiedAccounts ??= []).push(id);
+                        if (await notifier.send(message, blob)) {
+                          (state.notifiedRecipients ??= []).push(key);
                           await writeBudgetHoldState(paths.state, state);
                         }
                       } catch (error) {
@@ -181,8 +196,8 @@ export function registerBudgetHoldHooks(
                       }
                     }
                     if (deliveryError) throw deliveryError;
-                    return accountIds.every((id) =>
-                      state.notifiedAccounts?.includes(id)
+                    return recipients.every(({ key }) =>
+                      state.notifiedRecipients?.includes(key)
                     );
                   }
                 : undefined,

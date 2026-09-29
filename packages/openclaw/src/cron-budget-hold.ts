@@ -36,7 +36,7 @@ export type BudgetHoldState = {
   limited: boolean;
   notified: boolean;
   episodeId?: string;
-  notifiedAccounts?: string[];
+  notifiedRecipients?: string[];
   notificationAttempts?: number;
   nextNotificationAtMs?: number;
   holds: Record<string, Hold>;
@@ -83,9 +83,11 @@ export async function readBudgetHoldState(
     typeof data.limited !== 'boolean' ||
     typeof data.notified !== 'boolean' ||
     (data.episodeId !== undefined && typeof data.episodeId !== 'string') ||
-    (data.notifiedAccounts !== undefined &&
-      (!Array.isArray(data.notifiedAccounts) ||
-        data.notifiedAccounts.some((id: unknown) => typeof id !== 'string'))) ||
+    (data.notifiedRecipients !== undefined &&
+      (!Array.isArray(data.notifiedRecipients) ||
+        data.notifiedRecipients.some(
+          (id: unknown) => typeof id !== 'string'
+        ))) ||
     (data.notificationAttempts !== undefined &&
       (!Number.isSafeInteger(data.notificationAttempts) ||
         data.notificationAttempts < 0)) ||
@@ -143,7 +145,7 @@ export async function reconcileBudgetHolds(opts: {
   if (opts.budget === 'limited' && !state.limited) {
     state.limited = true;
     state.notified = false;
-    delete state.notifiedAccounts;
+    delete state.notifiedRecipients;
     delete state.notificationAttempts;
     delete state.nextNotificationAtMs;
     state.episodeId = randomUUID();
@@ -272,7 +274,7 @@ export async function reconcileBudgetHolds(opts: {
   if (!limited) {
     state.limited = false;
     state.notified = false;
-    delete state.notifiedAccounts;
+    delete state.notifiedRecipients;
     delete state.notificationAttempts;
     delete state.nextNotificationAtMs;
     await save();

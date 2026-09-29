@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   completed: {} as Record<string, string>,
   getValue: vi.fn(),
   setValue: vi.fn(),
+  setItem: vi.fn(),
   fetch: vi.fn(),
 }));
 vi.mock('@tloncorp/shared/db', () => ({
@@ -11,6 +12,18 @@ vi.mock('@tloncorp/shared/db', () => ({
     getValue: mocks.getValue,
     setValue: mocks.setValue,
   },
+}));
+vi.mock('../../shared/src/db/getStorageMethods', () => ({
+  getStorageMethods: () => ({
+    getItem: async () => JSON.stringify(mocks.completed),
+    setItem: mocks.setItem,
+  }),
+}));
+vi.mock('../../shared/src/db/reactQuery', () => ({
+  queryClient: { invalidateQueries: vi.fn() },
+}));
+vi.mock('../../shared/src/debug', () => ({
+  createDevLogger: () => ({ log: vi.fn(), trackEvent: vi.fn() }),
 }));
 vi.mock('../constants', () => ({
   POST_HOG_API_KEY: 'test-key',
@@ -25,13 +38,21 @@ const request = {
   requestId: '697e119d-26da-4df7-a131-89f8a816a7dd',
 };
 
-beforeEach(() => {
+beforeEach(async () => {
+  const { createStorageItem } = await vi.importActual<
+    typeof import('@tloncorp/shared/db')
+  >('../../shared/src/db/storageItem');
   vi.clearAllMocks();
   mocks.completed = {};
-  mocks.getValue.mockImplementation(async () => mocks.completed);
-  mocks.setValue.mockImplementation(async (update) => {
-    mocks.completed = update(mocks.completed);
+  mocks.setItem.mockImplementation(async (_key, value) => {
+    mocks.completed = JSON.parse(value);
   });
+  const receipt = createStorageItem<Record<string, string>>({
+    key: 'creditIncreaseRequested',
+    defaultValue: {},
+  });
+  mocks.getValue.mockImplementation(receipt.getValue);
+  mocks.setValue.mockImplementation(receipt.setValue);
   mocks.fetch.mockResolvedValue({ ok: true });
   vi.stubGlobal('fetch', mocks.fetch);
 });
@@ -96,13 +117,14 @@ it.each(['network', 'http'])(
 );
 
 it('reuses the event UUID after a local receipt write fails', async () => {
-  mocks.setValue.mockRejectedValueOnce(new Error('storage unavailable'));
+  mocks.setItem.mockRejectedValueOnce(new Error('storage unavailable'));
   await expect(submitCreditIncreaseRequest(request)).rejects.toThrow();
   await submitCreditIncreaseRequest(request);
   const ids = mocks.fetch.mock.calls.map(
     ([, init]) => JSON.parse(init.body).batch[0].uuid
   );
   expect(ids).toEqual([request.requestId, request.requestId]);
+  expect(mocks.completed[request.sourcePostId]).toBe(request.requestId);
 });
 
 it('accepts a request from a local bot without the hosted naming convention', async () => {
