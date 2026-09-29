@@ -258,15 +258,30 @@ export const getActivitySupportsNotes = (): boolean => {
   return config.activitySupportsNotes;
 };
 
+const deskSupportsBucketsListeners = new Set<() => void>();
+
 // Whether the connected backend serves /v11/init (Buckets and their writer
 // roles). No capabilities epoch to bump: this picks one path at init time
-// rather than steering live subscriptions.
+// rather than steering live subscriptions. Views gated on it listen below.
 export const setDeskSupportsBuckets = (value: boolean) => {
+  const changed = config.deskSupportsBuckets !== value;
   config.deskSupportsBuckets = value;
+  if (changed) {
+    deskSupportsBucketsListeners.forEach((listener) => listener());
+  }
 };
 
 export const getDeskSupportsBuckets = (): boolean => {
   return config.deskSupportsBuckets;
+};
+
+export const onDeskSupportsBucketsChange = (
+  listener: () => void
+): (() => void) => {
+  deskSupportsBucketsListeners.add(listener);
+  return () => {
+    deskSupportsBucketsListeners.delete(listener);
+  };
 };
 
 export const client = new Proxy(

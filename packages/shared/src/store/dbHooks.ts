@@ -8,7 +8,7 @@ import { getMessagesFilter } from '@tloncorp/api';
 import { referenceLookupId } from '@tloncorp/api/client/references';
 import * as ub from '@tloncorp/api/urbit';
 import { isMatch, pick } from 'lodash';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
 
 import * as db from '../db';
 import { GroupedChats } from '../db/types';
@@ -799,14 +799,23 @@ export const useChannelSearchResults = (
  * Bucket view does goes through the local %buckets agent, which those ships
  * do not have.
  *
- * Read from the stored app info rather than the client flag, which is not
- * reactive and is still false in the moment before sync start applies it:
- * gating on that would tell a 12.3 ship it needs an update. Undefined until
- * the stored value has been read, so a gate can wait instead of flashing the
- * unsupported state.
+ * Yes if either the client flag or the stored app info says so. The flag is
+ * what sync start set from the version it fetched, and it stands even when
+ * persisting that version failed; but it is still false in the moment before
+ * sync start applies it, when the stored app info is the only answer and
+ * gating on the flag alone would tell a 12.3 ship it needs an update.
+ * Undefined while the flag is off and the stored value has not been read, so
+ * a gate can wait instead of flashing the unsupported state.
  */
 export const useDeskSupportsBuckets = (): boolean | undefined => {
+  const clientSupports = useSyncExternalStore(
+    api.onDeskSupportsBucketsChange,
+    api.getDeskSupportsBuckets
+  );
   const { value: appInfo, isLoading } = db.appInfo.useStorageItem();
+  if (clientSupports) {
+    return true;
+  }
   if (isLoading) {
     return undefined;
   }
