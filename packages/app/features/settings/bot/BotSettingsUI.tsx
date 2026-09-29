@@ -193,12 +193,12 @@ export function SelectableRow({
   );
 }
 
-const botAvatarSize = 48;
-
 export function BotAvatar({
+  size,
   avatarUrl,
   sigilContactId,
 }: {
+  size: number;
   avatarUrl?: string;
   /** Shown in place of a missing avatar; the face icon stands in without it. */
   sigilContactId?: string;
@@ -206,22 +206,22 @@ export function BotAvatar({
   return (
     <ImageAvatar
       imageUrl={avatarUrl || undefined}
-      width={botAvatarSize}
-      height={botAvatarSize}
+      width={size}
+      height={size}
       borderRadius="$l"
       fallback={
         sigilContactId ? (
           <SigilAvatar
             contactId={sigilContactId}
             size="custom"
-            width={botAvatarSize}
-            height={botAvatarSize}
+            width={size}
+            height={size}
             borderRadius="$l"
           />
         ) : (
           <View
-            width={botAvatarSize}
-            height={botAvatarSize}
+            width={size}
+            height={size}
             alignItems="center"
             justifyContent="center"
             borderRadius="$l"

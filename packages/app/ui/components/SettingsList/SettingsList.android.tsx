@@ -12,6 +12,7 @@ import {
   Shapes,
   alpha,
   background,
+  clickable,
   clip,
   combinedClickable,
   fillMaxWidth,
@@ -21,10 +22,9 @@ import {
   weight,
 } from '@expo/ui/jetpack-compose/modifiers';
 import { Fragment } from 'react';
-import { View } from 'react-native';
 
 import { useTopLevelTabBarContentInset } from '../../../navigation/useTopLevelTabBarContentInset';
-import { SettingsRowLeading } from './SettingsRowLeading';
+import { HostedSettingsRowLeading } from './SettingsRowLeading';
 import type { SettingsListProps, SettingsRowModel } from './types';
 import {
   type SettingsListColors,
@@ -81,7 +81,7 @@ export function SettingsList({ sections }: SettingsListProps) {
                         padding(16, 0, 0, 0),
                         fillMaxWidth(),
                         height(1),
-                        background(colors.border),
+                        background(colors.page),
                       ]}
                     />
                   ) : null}
@@ -125,9 +125,13 @@ function SettingsRow({
       horizontalArrangement={{ spacedBy: 16 }}
       modifiers={[
         fillMaxWidth(),
-        ...(row.disabled || (!onClick && !onLongClick)
+        ...(row.disabled
           ? []
-          : [combinedClickable({ onClick, onLongClick })]),
+          : onLongClick
+            ? [combinedClickable({ onClick, onLongClick })]
+            : onClick
+              ? [clickable(onClick)]
+              : []),
         padding(16, row.prominent ? 16 : 12, 16, row.prominent ? 16 : 12),
         ...(row.disabled ? [alpha(0.5)] : []),
         ...(row.testID ? [testID(row.testID)] : []),
@@ -135,10 +139,7 @@ function SettingsRow({
     >
       {row.leading ? (
         <RNHostView matchContents>
-          {/* The row takes the tap, not the hosted view. */}
-          <View pointerEvents="none">
-            <SettingsRowLeading row={row} compact />
-          </View>
+          <HostedSettingsRowLeading row={row} />
         </RNHostView>
       ) : null}
       <Column modifiers={[weight(1)]} verticalArrangement={{ spacedBy: 2 }}>
