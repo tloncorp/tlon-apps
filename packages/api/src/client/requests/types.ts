@@ -10,7 +10,8 @@ export type ExternalDesk = 'base' | 'landscape';
 
 // Runtime capabilities a guarded entry may name, each with the desk release
 // that turns it on. A guarded entry's `since` must equal its guard's (the
-// registry check), and the request helpers refuse it while the guard is off.
+// registry check), and the request helpers refuse it once the guard is known
+// to be off (not while it is still unresolved).
 export const GUARDS = {
   deskSupportsBuckets: { since: BUCKETS_MIN_GROUPS_VERSION },
 } as const satisfies Record<string, { since: DeskVersion }>;

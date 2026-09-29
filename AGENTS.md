@@ -14,7 +14,8 @@ automation is excluded by design) is an entry in
 `packages/api/src/client/requests/`, called through its helper. Adding or
 changing a request means adding or updating its entry (`since`). A non-exempt
 entry that only the current desk serves also needs `guardedBy`; the helpers
-refuse the request while the guard is off. Entries labelled with an external
+refuse the request once the desk is known not to serve it, and send it while
+the capability is still unresolved. Entries labelled with an external
 `desk` already bypass the version comparison. See `docs/tlon-apps/desk-compatibility.md`.
 
 Before running the mobile app on a simulator or emulator, use the

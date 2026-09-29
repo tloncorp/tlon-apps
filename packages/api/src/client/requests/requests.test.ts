@@ -3,11 +3,14 @@ import { type Mock, beforeEach, expect, test, vi } from 'vitest';
 import {
   DeskUnsupportedError,
   getDeskSupportsBuckets,
+  internalConfigureClient,
+  internalRemoveClient,
   poke,
   request,
   requestJson,
   scry,
   scryNoun,
+  setDeskSupportsBuckets,
   subscribe,
   thread,
 } from '../urbit';
@@ -34,7 +37,6 @@ vi.mock('../urbit', async () => {
   const actual = await vi.importActual<typeof import('../urbit')>('../urbit');
   return {
     ...actual,
-    getDeskSupportsBuckets: vi.fn(),
     poke: vi.fn(),
     request: vi.fn(),
     requestJson: vi.fn(),
@@ -49,6 +51,7 @@ const calls = (fn: unknown) => (fn as Mock).mock.calls;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  setDeskSupportsBuckets(null);
 });
 
 test('caller options cannot change the declared request', async () => {
@@ -127,7 +130,7 @@ test('httpRequest encodes the query and forwards method, body and options', asyn
 });
 
 test('a guarded request is refused unsent while its guard is off', async () => {
-  vi.mocked(getDeskSupportsBuckets).mockReturnValue(false);
+  setDeskSupportsBuckets(false);
   expect(() => scryRequest(buckets.list)({})).toThrow(DeskUnsupportedError);
   expect(() => subscribeRequest(buckets.updates)({}, vi.fn())).toThrow(
     DeskUnsupportedError
@@ -141,9 +144,40 @@ test('a guarded request is refused unsent while its guard is off', async () => {
     [],
   ]);
 
-  vi.mocked(getDeskSupportsBuckets).mockReturnValue(true);
+  setDeskSupportsBuckets(true);
   await scryRequest(buckets.list)({});
   expect(calls(scry)).toEqual([[{ app: 'buckets', path: '/v1/buckets' }]]);
+});
+
+async function sendGuardedRequests() {
+  await scryRequest(buckets.list)({});
+  await subscribeRequest(buckets.updates)({}, vi.fn());
+  await httpRequest(buckets.action)({});
+  return [calls(scry), calls(subscribe), calls(requestJson)].map(
+    (c) => c.length
+  );
+}
+
+test('a guarded request goes out while its capability is unknown', async () => {
+  expect(getDeskSupportsBuckets()).toBe(false);
+  expect(await sendGuardedRequests()).toEqual([1, 1, 1]);
+});
+
+test('logout leaves the capability unknown, not unsupported', async () => {
+  // the channel DELETE on logout goes to the setup file's client
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response(null))
+  );
+  setDeskSupportsBuckets(false);
+  internalRemoveClient();
+  vi.unstubAllGlobals();
+  expect(getDeskSupportsBuckets()).toBe(false);
+  internalConfigureClient({
+    shipName: 'solfer-magfed',
+    shipUrl: 'http://localhost:8080',
+  });
+  expect(await sendGuardedRequests()).toEqual([1, 1, 1]);
 });
 
 test.each(['x?y', 'x#y', 'x\\y', '%2e%2E'])('a hole rejects %j', (count) => {

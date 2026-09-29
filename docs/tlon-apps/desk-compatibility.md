@@ -27,7 +27,9 @@ result.
 **Guarded requests.** `guardedBy` names a capability (today
 `deskSupportsBuckets`, read by `getDeskSupportsBuckets`). The request helpers
 assert it at call time and throw `DeskUnsupportedError` before any network
-call while it is off. A guarded entry's `since` must equal its guard's version
+call once the desk is known not to serve it; until the sync-start probe (or
+persisted app info) has resolved the capability, the request goes out as an
+unguarded one would. A guarded entry's `since` must equal its guard's version
 (floor check). Once the floor reaches that version, the check fails until the
 guard is removed.
 
