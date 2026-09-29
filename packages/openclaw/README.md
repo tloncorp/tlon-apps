@@ -65,7 +65,7 @@ channels:
 
         # Auto-accept settings
         autoAcceptDmInvites: true # Accept DMs from ships in dmAllowlist
-        autoAcceptGroupInvites: false # Legacy: no longer governs group-invite authorization (groupInviteAllowlist does); controls channel persistence
+        autoAcceptGroupInvites: false # Legacy: no longer governs group-invite authorization or channel persistence; it has no remaining runtime effect and is only parsed, migrated, and logged. Retained for config back-compat pending retirement.
 
         # Ships allowed to invite the bot to groups (auto-accepted unless blocked)
         groupInviteAllowlist:
@@ -73,7 +73,13 @@ channels:
 
         # Channel discovery
         autoDiscoverChannels: true # Monitor all channels in joined groups
-        groupChannels: # Additional channels to monitor explicitly
+        # Additional channels to monitor explicitly; also the journal of
+        # channels from joined groups, written best-effort from %groups facts.
+        # A `groupChannels` settings edit adds or removes settings-managed
+        # channels; file-configured channels, and discovered channels while
+        # `autoDiscoverChannels` is on, stay watched; traffic or discovery may
+        # re-add a removed channel.
+        groupChannels:
             - 'chat/~host-ship/channel-name'
 
         # Per-channel authorization
@@ -113,6 +119,20 @@ Cron observability rides the gateway's `cron_changed` hook: `TlonBot Cron Job Ch
 Diary migration (`/migrate`) emits `TlonBot Diary Migration` per accepted CLI run: `started`, then `completed`, `failed` (with error text truncated to 500 chars), or `consent_required` (the CLI's write-widening refusal — the owner is expected to accept and re-run, so it is not counted as a failure). Events share a `migrationId` and carry `action` (apply/cleanup), `durationMs` on terminals, and `deadlineExceeded` when the run outlived its advisory reporting deadline. A gateway death mid-run leaves a `started` with no terminal — count those as unresolved, not failed. Error text is CLI output, so like the package's other error-carrying events it can name channel nests; message and post content are never sent.
 
 The plugin does not enable telemetry automatically just because an API key is present. `enabled: true` is required so open-source installs do not phone home by default.
+
+## Steward automation mirror
+
+Against OpenClaw `2026.9.4` (the hosted version; the SDK devDependency matches, and the plugin pins Node 24.16.0 in `packages/openclaw/.nvmrc`), the plugin keeps a best-effort ship-side mirror of cron definitions in the bot's local `%steward`. `gateway_start` and every `cron_changed` action trigger a complete `getCron().list({ includeDisabled: true })` read. The plugin normalizes supported `cron`, `at`, and `every` schedules (including ISO `at` text to Unix milliseconds) and submits the complete list through `%steward-automation-action-1` as one `%project` poke.
+
+Reconciliation is serialized and busy-period triggers are coalesced. Unavailable cron access, read failures, missing ship connections, and poke acknowledgement failures retry while the gateway is active. `gateway_stop` cancels retries and guards against a stale post-stop submission, but deliberately leaves the last successful Steward snapshot intact. The same process-lifetime worker is reused across OpenClaw plugin-registration passes. These behaviors repair the mirror after a later successful read; they do not guarantee continuous freshness.
+
+OpenClaw remains authoritative. The mirror includes disabled task definitions but excludes execution state and events, run history, delivery data, session keys, and runtime-only fields. Local clients can read the latest accepted map from `/x/v1/automation/tasks`; an empty projection is `{}`. See the repository's [Steward backend documentation](../../docs/backend/desk/app/steward.md#module-automation) for the stored type, versioned migration, `%project` JSON shape, atomic replacement behavior, exclusions, and scry mark.
+
+### Owner edits
+
+The owner can create, update, and delete the bot's cron jobs from a Tlon client. The edit travels client → owner ship → bot ship → this plugin, and the plugin is the only party that touches OpenClaw: the bot's `%steward` gives each pending command as a `dispatch` fact on `/v1/automation/harness`, the monitor subscribes to that feed alongside the lens feed, and `src/steward-automation-edit.ts` maps the command onto the gateway `CronService` (`add`, `update`, `remove`, reached through the same `getCron()` accessor the telemetry observer stashes) and answers with a `%finalize` poke under `%steward-automation-action-1`. Commands are applied one at a time in arrival order.
+
+A create requests a job id derived from its request id (`steward-<requestId>`) and reports back whatever id OpenClaw actually assigned. Hosts from 2026.7.1 honor the requested id, so a command replayed after the plugin applied it and died before answering is rejected as a duplicate and answered as the create that already landed; 2026.5.28 and earlier ignore the requested id and assign a UUID, so replay is not idempotent there. Every outstanding command is replayed when the plugin (re)subscribes. Outcomes are typed: `created`/`updated`/`deleted` with the job id, or `error` with `invalid` (the dispatch failed validation before reaching the service), `not-found` (no such job), or `harness-error` (the service threw; the message rides along). The subscription is gated like the projection: exactly one runnable Tlon account. A ship whose `%steward` predates the edit loop nacks the subscribe, and owner edits then fail fast on the bot as `harness-offline` while everything else keeps working. Steward never mutates its task map on an edit; the change becomes visible through the next `%project` reconciliation.
 
 ## Approval System
 
