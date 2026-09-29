@@ -173,7 +173,10 @@ describe('fake model server', () => {
 
     const response = await postChat(server.baseUrl, key, {
       messages: [
-        { role: 'user', content: `[tlon-test:${key}] Please respond for ${key}` },
+        {
+          role: 'user',
+          content: `[tlon-test:${key}] Please respond for ${key}`,
+        },
         {
           role: 'user',
           content: [

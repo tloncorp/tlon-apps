@@ -425,7 +425,8 @@ function extractLatestScriptKey(messages) {
 // OpenClaw 2026.9.x appends its conversation metadata to the request as one
 // more user-role message after the real user turn. It is data, not a turn, so
 // the latest user turn is the last user message that is not this envelope.
-const OPENCLAW_INTERNAL_CONTEXT_MARKER = '<<<BEGIN_OPENCLAW_INTERNAL_CONTEXT>>>';
+const OPENCLAW_INTERNAL_CONTEXT_MARKER =
+  '<<<BEGIN_OPENCLAW_INTERNAL_CONTEXT>>>';
 
 function isOpenClawInternalContext(text) {
   return text.trimStart().startsWith(OPENCLAW_INTERNAL_CONTEXT_MARKER);
