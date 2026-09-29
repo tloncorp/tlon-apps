@@ -132,10 +132,10 @@
         [/x/v3/said %noun]
         [/x/v3/v-channels %noun]
       ::
-        [/x/v4/$/$/$/perm %channel-perm]
         [/x/v4/channels %channels-4]
         [/x/v4/said %channel-said-2]
         [/x/v4/heads %channel-heads-3]
+        [/x/v4/$/$/$/perm %channel-perm]
         [/x/v4/$/$/$/posts %channel-posts-4]
         [/x/v4/$/$/$/posts/post %channel-post-4]
         [/x/v4/$/$/$/posts/post/id/$/replies %channel-replies-4]

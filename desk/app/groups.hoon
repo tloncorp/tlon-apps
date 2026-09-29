@@ -103,11 +103,11 @@
       [/x/v3/changes %group-changed-groups-3]
     ::
       [/x/v2/groups/$/$/channels/can-read %noun]
-      [/x/v2/groups/$/$/channels/$/$/$/can-read/$ %loob]
       [/x/v2/groups/$/$/channels/$/$/$/can-write %noun]
       [/x/v2/groups/$/$/channels/$/$/$/readers %ships]
       [/x/v2/groups/$/$/channels/$/$/$/writers %ships]
       [/x/groups/$/$/seats/$ %noun]
+      [/x/v2/groups/$/$/seats/ships %ships]
     ::
       [/x/groups/light %groups]
       [/x/v0/light/groups %groups]

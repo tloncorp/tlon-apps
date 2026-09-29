@@ -79,60 +79,67 @@
   ==
 ::
 +$  membership
-  ::  what it takes to participate in a context, once resolved
+  ::  what it takes to participate in a context we host, resolved once
+  ::  per context so that per-ship checks need no further scries
   ::
-  $%  [%any ~]
-      [%dm peer=ship]
-      [%channel group=flag:gv kind=@tas host=ship name=@tas]
-      [%group =flag:gv]
+  $%  [%dm peer=ship]
+      [%channel =nest:gv seats=(set ship) can-read=$-([ship nest:gv] ?)]
+      [%group seats=(set ship)]
   ==
 ::
 ++  resolve-context
-  ::  the context-level half of the participant check: resolves the
-  ::  channel to its group and confirms we know it. done once per
-  ::  context so per-ship checks don't repeat these scries.
+  ::  the context-level half of the participant check: we must host the
+  ::  context, and for channels resolve the channel to a group we know.
+  ::  fetches the group's seats and cached read-permission gate once.
   ::
   |=  [=context =bowl:gall]
   ^-  (each membership term)
-  ?+  context  &+[%any ~]
+  ?+  context  |+%presence-bad-path
       [%dm @ ~]
     ?~  peer=(slaw %p i.t.context)  |+%presence-bad-path
     &+[%dm u.peer]
   ::
       [%channel @ @ @ ~]
     ?~  host=(slaw %p i.t.t.context)  |+%presence-bad-path
+    ?.  =(our.bowl u.host)  |+%presence-not-host
     =*  kind  i.t.context
     =*  name  i.t.t.t.context
     =/  group=(unit flag:gv)  (group-for-channel kind u.host name bowl)
     ?~  group  |+%presence-unknown-channel
     ?.  (has-group u.group bowl)  |+%presence-unknown-channel-group
-    &+[%channel u.group kind u.host name]
+    :-  %&
+    :^    %channel
+        [kind u.host name]
+      (group-seats u.group bowl)
+    (can-read-gate u.group bowl)
   ::
       [%group @ @ ~]
     ?~  host=(slaw %p i.t.context)  |+%presence-bad-path
+    ?.  =(our.bowl u.host)  |+%presence-not-host
     =/  =flag:gv  [u.host i.t.t.context]
     ?.  (has-group flag bowl)  |+%presence-unknown-group
-    &+[%group flag]
+    &+[%group (group-seats flag bowl)]
   ==
 ::
 ++  member-error
-  ::  the per-ship half: why .who may not participate, if at all
+  ::  the per-ship half: why .who may not participate, if at all.
+  ::  a seat is required either way: the read gate alone admits anyone
+  ::  to a public group's open channels.
   ::
   |=  [who=ship =membership =bowl:gall]
   ^-  (unit term)
   ?-  -.membership
-      %any  ~
       %dm   ?:(=(who peer.membership) ~ `%presence-not-dm-counterparty)
       %group
-    ?:((has-seat flag.membership who bowl) ~ `%presence-not-group-member)
+    ?:((~(has in seats.membership) who) ~ `%presence-not-group-member)
   ::
       %channel
     ::  the channel host can always read its own channel, whatever its
     ::  roles say, mirroring +can-read:perms in /lib/channel-utils
     ::
-    ?:  =(who host.membership)  ~
-    =,  membership
-    ?:  (can-read group kind host name who bowl)  ~
+    ?:  =(who our.bowl)  ~
+    ?.  (~(has in seats.membership) who)  `%presence-not-group-member
+    ?:  (can-read.membership who nest.membership)  ~
     `%presence-cannot-read-channel
   ==
 ::
@@ -150,50 +157,65 @@
 ++  context-readable
   ::  whether we, as a subscriber, should still expect the host to accept
   ::  our subscription to .context. for channels, the channel must still
-  ::  be in its group, and readable by us, per our local %groups. channels
-  ::  that were deleted from their group (or that we lost read access to)
-  ::  may linger in %channels; their hosts nack us forever.
+  ::  be in its group, we must hold a seat, and be able to read it, per
+  ::  our local %groups. channels that were deleted from their group (or
+  ::  that we lost read access to) may linger in %channels; their hosts
+  ::  nack us forever. if %groups isn't running we can't tell, and assume
+  ::  the best.
   ::
   |=  [=context =bowl:gall]
   ^-  ?
   ?.  ?=([%channel @ @ @ ~] context)  &
+  ?.  (groups-running bowl)  &
   ?~  host=(slaw %p i.t.t.context)  |
   =*  kind  i.t.context
   =*  name  i.t.t.t.context
   =/  group=(unit flag:gv)  (group-for-channel kind u.host name bowl)
   ?~  group  |
-  ?.  (has-group u.group bowl)  |
-  (can-read u.group kind u.host name our.bowl bowl)
+  (readable-by-us u.group [kind u.host name] bowl)
+::
+++  readable-by-us
+  ::  callers check +groups-running first
+  |=  [group=flag:gv =nest:gv =bowl:gall]
+  ^-  ?
+  ?.  (has-group group bowl)  |
+  ?.  (~(has in (group-seats group bowl)) our.bowl)  |
+  ((can-read-gate group bowl) our.bowl nest)
+::
+++  groups-scry
+  |=  =bowl:gall
+  ^-  path
+  /(scot %p our.bowl)/groups/(scot %da now.bowl)
+::
+++  groups-running
+  |=  =bowl:gall
+  ^-  ?
+  .^(? %gu (weld (groups-scry bowl) /$))
 ::
 ++  has-group
+  ::  callers check +groups-running first
   |=  [=flag:gv =bowl:gall]
   ^-  ?
-  =/  base=path  /(scot %p our.bowl)/groups/(scot %da now.bowl)
-  ?.  .^(? %gu (weld base /$))  |
-  .^(? %gu (weld base /groups/(scot %p p.flag)/[q.flag]))
+  .^(? %gu (weld (groups-scry bowl) /groups/(scot %p p.flag)/[q.flag]))
 ::
-++  has-seat
+++  group-seats
   ::  callers check +has-group first
-  |=  [=flag:gv who=ship =bowl:gall]
-  ^-  ?
-  =;  seat
-    ?=(^ seat)
-  .^  (unit seat:v7:gv)  %gx
-    %+  weld  /(scot %p our.bowl)/groups/(scot %da now.bowl)
-    /groups/(scot %p p.flag)/[q.flag]/seats/(scot %p who)/noun
+  |=  [=flag:gv =bowl:gall]
+  ^-  (set ship)
+  .^  (set ship)  %gx
+    %+  weld  (groups-scry bowl)
+    /v2/groups/(scot %p p.flag)/[q.flag]/seats/ships/ships
   ==
 ::
-++  can-read
-  ::  whether .who may read channel [kind host name] of .group, according
-  ::  to our %groups. false if the channel is no longer part of the group.
-  ::  callers check +has-group first.
+++  can-read-gate
+  ::  %groups' cached read-permission check for a group's channels: false
+  ::  for a channel no longer in the group. callers check +has-group first.
   ::
-  |=  [group=flag:gv kind=@tas host=ship name=@tas who=ship =bowl:gall]
-  ^-  ?
-  .^  ?  %gx
-    %+  weld  /(scot %p our.bowl)/groups/(scot %da now.bowl)
-    %+  weld  /v2/groups/(scot %p p.group)/[q.group]
-    /channels/[kind]/(scot %p host)/[name]/can-read/(scot %p who)/loob
+  |=  [=flag:gv =bowl:gall]
+  ^-  $-([ship nest:gv] ?)
+  .^  $-([ship nest:gv] ?)  %gx
+    %+  weld  (groups-scry bowl)
+    /v2/groups/(scot %p p.flag)/[q.flag]/channels/can-read/noun
   ==
 ::
 ++  group-for-channel
@@ -314,12 +336,16 @@
     .^  channels:v9:cv  %gx
       /(scot %p our.bowl)/channels/(scot %da now.bowl)/v4/channels/channels-4
     ==
+  ::  without %groups we can't tell what's readable; keep everything
+  ::  rather than drop every subscription
+  ::
+  =/  check=?  (groups-running bowl)
   %-  ~(gas in *(set [ship context]))
   %+  murn  ~(tap by chans)
   |=  [=nest:v9:cv =channel:v9:cv]
   ^-  (unit [ship context])
-  ?.  ?&  (has-group group.perm.channel bowl)
-          (can-read group.perm.channel kind.nest ship.nest name.nest our.bowl bowl)
+  ?.  ?|  !check
+          (readable-by-us group.perm.channel [kind.nest ship.nest name.nest] bowl)
       ==
     ~
   `[ship.nest /channel/[kind.nest]/(scot %p ship.nest)/[name.nest]]
@@ -673,26 +699,25 @@
       ::  retry forever; the next full setup starts a fresh cycle if
       ::  the context is still relevant.
       ::
-      ::  none of this is a crash on our end, so we only ever +tell.
-      ::  keep the message texts stable, dashboards filter on them.
+      ::  a nack is a crash on the host's end, so it's reported with
+      ::  +fail; dashboards filter on volume. retries are %info, giving
+      ::  up is a single %warn. keep the message texts stable.
       ::
       =/  try=@ud  +((~(gut by tries) [src.bowl context] 0))
       ?:  (gth try max-tries)
         =.  want   (~(del in want) [src.bowl context])
         =.  tries  (~(del by tries) [src.bowl context])
         :_  this
-        =-  [(tell:log %warn - ~)]~
-        :*  'context sub nacked, giving up'
+        =-  [(fail:log %warn - u.p.sign ~)]~
+        :~  'context sub nacked, giving up'
             >[src=src.bowl context=context tries=max-tries]<
-            u.p.sign
         ==
       =.  tries  (~(put by tries) [src.bowl context] try)
       :_  this
       :~  (await-setup (add now.bowl (mul try ~m5)) `[src.bowl context])
-          =-  (tell:log %info - ~)
-          :*  'context sub nacked, will retry'
+          =-  (fail:log %info - u.p.sign ~)
+          :~  'context sub nacked, will retry'
               >[src=src.bowl context=context try=try]<
-              u.p.sign
           ==
       ==
     ::

@@ -140,11 +140,12 @@
 ::
 ++  host-context  `context:p`/channel/chat/(scot %p ~zod)/general
 ::
-::  mocked %channels and %groups: every channel is in .group-flag,
-::  and readability is whatever the test says
+::  mocked %channels and %groups: every channel is in .group-flag, the
+::  seats are .seats, and readability is whatever the test's gate says
 ::
-++  chan-scry
-  |=  readable=?
+++  seats  (sy ~[~zod host ~fun])
+++  gate-scry
+  |=  [seats=(set ship) can-read=$-([ship nest:gv] ?)]
   ^-  scry
   |=  =path
   ^-  (unit vase)
@@ -157,9 +158,17 @@
       [%gx @ %channels @ %v4 @ @ @ %perm %channel-perm ~]
     `!>(`perm:v9:cv`[~ group-flag])
   ::
-      [%gx @ %groups @ %v2 %groups @ @ %channels @ @ @ %can-read @ %loob ~]
-    `!>(readable)
+      [%gx @ %groups @ %v2 %groups @ @ %seats %ships %ships ~]
+    `!>(seats)
+  ::
+      [%gx @ %groups @ %v2 %groups @ @ %channels %can-read %noun ~]
+    `!>(can-read)
   ==
+::
+++  chan-scry
+  |=  readable=?
+  ^-  scry
+  (gate-scry seats |=([ship nest:gv] readable))
 ::
 ::  we (~zod) want ~ten's channel, our subscription to it is pending,
 ::  and we have been nacked .tries times before
@@ -225,7 +234,7 @@
   ;<  ~  bind:m
     %+  ex-cards-with-logs  caz
     :~  (ex-arvo chan-setup %b %wait (add t0 ~m5))
-        (ex-log %tell %info 'context sub nacked, will retry')
+        (ex-log %fail %info 'context sub nacked, will retry')
     ==
   ::  when the retry timer fires, we resubscribe
   ::
@@ -247,7 +256,7 @@
   ;<  ~  bind:m
     %+  ex-cards-with-logs  caz
     :~  (ex-arvo chan-setup %b %wait (add t0 ~m5))
-        (ex-log %tell %info 'context sub nacked, will retry')
+        (ex-log %fail %info 'context sub nacked, will retry')
     ==
   ;<  ~  bind:m  (wait ~m5)
   ;<  caz=(list card)  bind:m  do-chan-wake
@@ -267,7 +276,7 @@
   ;<  caz=(list card)  bind:m  do-chan-nack
   ;<  ~  bind:m
     %+  ex-cards-with-logs  caz
-    [(ex-log %tell %warn 'context sub nacked, giving up')]~
+    [(ex-log %fail %warn 'context sub nacked, giving up')]~
   ;<  caz=(list card)  bind:m  do-chan-wake
   (ex-cards caz ~)
 ::
@@ -277,7 +286,7 @@
 ++  setup-scry
   |=  =path
   ^-  (unit vase)
-  ?+  path  ((chan-scry &) path)
+  ?+  path  ((gate-scry seats |=([* n=nest:gv] =(%general q.q.n))) path)
       [%gx @ %chat @ %dm %ships ~]
     `!>(`(set ship)`(sy ~[host]))
   ::
@@ -286,12 +295,6 @@
     =.  perm.chan  [~ group-flag]
     :-  ~  !>  ^-  channels:v9:cv
     (my ~[[[%chat host %general] chan] [[%chat host %old] chan]])
-  ::
-      [%gx @ %groups @ %v2 %groups @ @ %channels @ @ %general %can-read @ %loob ~]
-    `!>(&)
-  ::
-      [%gx @ %groups @ %v2 %groups @ @ %channels @ @ @ %can-read @ %loob ~]
-    `!>(|)
   ==
 ::
 ++  test-setup-skips-unreadable-channels
@@ -327,6 +330,31 @@
   ;<  ~  bind:m  (set-src host)
   (ex-fail (do-watch [%context (scot %p ~fun) host-context]))
 ::
+::  a watch for a context we don't host, or with a shape we don't know,
+::  is rejected before any membership check
+::
+++  test-watch-rejects-foreign-context
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (set-scry-gate (chan-scry &))
+  ;<  ~  bind:m  (set-src host)
+  ;<  ~  bind:m  (ex-fail (do-watch [%context (scot %p host) chan-context]))
+  (ex-fail (do-watch [%context (scot %p host) %bogus ~]))
+::
+::  the read gate alone admits anyone to a public group's open channels,
+::  so a ship without a seat is rejected even when the gate says yes
+::
+++  test-watch-rejects-seatless
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (set-scry-gate (gate-scry (sy ~[~zod]) |=([ship nest:gv] &)))
+  ;<  ~  bind:m  (set-src host)
+  (ex-fail (do-watch [%context (scot %p host) host-context]))
+::
 ++  test-watch-accepts-readable
   %-  eval-mare
   =/  m  (mare ,~)
@@ -340,13 +368,7 @@
 ::  as a host, when fanning out we kick and forget subscribers that can no
 ::  longer read the channel. ~ten can still read, ~fun cannot.
 ::
-++  who-scry
-  |=  =path
-  ^-  (unit vase)
-  ?+  path  ((chan-scry &) path)
-      [%gx @ %groups @ %v2 %groups @ @ %channels @ @ @ %can-read @ %loob ~]
-    `!>(=((snag 13 `(list @ta)`path) (scot %p host)))
-  ==
+++  who-scry  (gate-scry seats |=([who=ship nest:gv] =(who host)))
 ::
 ++  test-set-kicks-subscribers-that-lost-access
   %-  eval-mare
