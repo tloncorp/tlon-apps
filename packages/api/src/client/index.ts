@@ -3,6 +3,7 @@ export * from './agentProtocol';
 export * from './a2ui';
 export * from './channelContentConfig';
 export * from './channelsApi';
+export * from './bucketsApi';
 export * from './chatApi';
 export * from './contactsApi';
 export * from './groupsApi';

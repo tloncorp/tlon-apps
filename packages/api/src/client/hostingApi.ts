@@ -1262,13 +1262,12 @@ export const assignShipToUser = async (userId: string) => {
   const isReady = response.ship.status.phase === 'Ready';
   const code = response.code;
   const personalInviteToken = response.personalLureToken || null;
-  const homeGroupInviteToken = response.homeGroupLureToken || null;
 
   if (!nodeId) {
     throw new Error('Invalid ship assignment response');
   }
 
-  return { nodeId, isReady, code, personalInviteToken, homeGroupInviteToken };
+  return { nodeId, isReady, code, personalInviteToken };
 };
 
 export const getReservableShips = async (user: string) =>

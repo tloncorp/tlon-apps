@@ -1,5 +1,5 @@
 appId: ${MAESTRO_APP_ID}
-name: Native Home filters and group controls
+name: Native Workspaces filters and group controls
 tags: [regression]
 env:
   JOURNEY: o
@@ -10,7 +10,7 @@ env:
 - tapOn: '^Back$'
 - tapOn: '^Groups$'
 - tapOn: '^Search$'
-- inputText: ${MAESTRO_RUN_TAG}
+- inputText: ${output.reliability.groupQuery}
 - assertVisible: ${output.reliability.groupPattern}
 - tapOn: '^Messages$'
 - assertVisible: '^No results found\.$'
@@ -24,7 +24,7 @@ env:
 - assertVisible: '^No results found\.$'
 - tapOn: '^Clear search$'
 - tapOn: '^Filter by name$'
-- inputText: ${MAESTRO_RUN_TAG}
+- inputText: ${output.reliability.groupQuery}
 - assertVisible: ${output.reliability.groupPattern}
 - pressKey: Enter
 - longPressOn: ${output.reliability.groupPattern}
@@ -66,9 +66,9 @@ env:
     text: ${MAESTRO_RUN_TAG + ' description'}
 - tapOn: '^Back$'
 - tapOn: '^Back$'
-- assertVisible: '^Home$'
+- assertVisible: '^Workspaces$'
 - tapOn: '^Search$'
-- inputText: ${MAESTRO_RUN_TAG}
+- inputText: ${output.reliability.groupQuery}
 - assertVisible: ${output.reliability.group + ' renamed'}
 - assertNotVisible: ${output.reliability.groupPattern}
 - pressKey: Enter
@@ -101,10 +101,10 @@ env:
     commands:
       - tapOn: '(?i)^Delete group$'
 - extendedWaitUntil:
-    visible: '^Home$'
+    visible: '^Workspaces$'
     timeout: 5000
-- assertVisible: '^${MAESTRO_RUN_TAG}$'
+- assertVisible: '^${output.reliability.groupQuery}$'
 - assertNotVisible: ${output.reliability.group + ' renamed'}
 - tapOn: '^Clear$'
 - tapOn: '^Close$'
-- assertVisible: '^Home$'
+- assertVisible: '^Workspaces$'

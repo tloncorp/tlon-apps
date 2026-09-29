@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
   draftStashes: {} as Record<string, Record<string, unknown>>,
   floatingHeaderHeight: 0,
   getDraftStashes: vi.fn(),
+  isWeb: true,
   notes: [] as Array<Record<string, unknown>>,
   saveNotebookNote: vi.fn(),
   setDraftStashes: vi.fn(),
@@ -70,7 +71,10 @@ vi.mock('tamagui', () => ({
   XStack: 'XStack',
   YStack: 'YStack',
   getTokenValue: () => 16,
-  isWeb: true,
+  // Read at render time, so a test can switch platform without re-importing.
+  get isWeb() {
+    return mocks.isWeb;
+  },
 }));
 
 vi.mock('../Channel/ChannelHeader', () => ({
@@ -202,6 +206,7 @@ function registerNotesDetailTestHooks() {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.floatingHeaderHeight = 0;
+    mocks.isWeb = true;
     mocks.draftStashes = {};
     mocks.getDraftStashes.mockResolvedValue({});
     mocks.setDraftStashes.mockResolvedValue(undefined);
@@ -1984,6 +1989,54 @@ describe('NotesNoteDetail scroll restoration', () => {
 
     expect(scrollTo).not.toHaveBeenCalled();
     await act(async () => renderer.unmount());
+  });
+});
+
+describe('NotesNoteDetail scroll container', () => {
+  registerNotesDetailTestHooks();
+
+  async function renderScrollView() {
+    let renderer!: ReactTestRenderer;
+    await act(async () => {
+      renderer = create(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    const scrollView = renderer.root.findByProps({
+      testID: 'NotesDetailScrollView',
+    });
+    return { renderer, scrollView };
+  }
+
+  it('sizes the native content container to the note, not the viewport', async () => {
+    // A container grown to the viewport gave automaticallyAdjustKeyboardInsets
+    // a full keyboard's worth of scroll range on a three-line note, which let
+    // the whole note scroll off the top (TLON-6540).
+    mocks.isWeb = false;
+    const { renderer, scrollView } = await renderScrollView();
+
+    expect(scrollView.props.contentContainerStyle ?? {}).not.toHaveProperty(
+      'flexGrow'
+    );
+
+    act(() => renderer.unmount());
+  });
+
+  it('keeps the web editor pane pinned to the viewport', async () => {
+    mocks.isWeb = true;
+    const { renderer, scrollView } = await renderScrollView();
+
+    expect(scrollView.props.contentContainerStyle).toEqual({
+      flexGrow: 1,
+      height: '100%',
+    });
+
+    act(() => renderer.unmount());
   });
 });
 

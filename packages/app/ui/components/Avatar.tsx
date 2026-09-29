@@ -243,11 +243,14 @@ export const ImageAvatar = function ImageAvatarComponent({
   fallback?: React.ReactNode;
 } & AvatarProps) {
   const calmSettings = useCalm();
-  const [loadFailed, setLoadFailed] = useState(false);
+  // Keyed by URL: a long-lived avatar (the tab bar's) must try a new URL
+  // after an old one failed.
+  const [failedUrl, setFailedUrl] = useState<string>();
+  const loadFailed = failedUrl !== undefined && failedUrl === imageUrl;
   const [isLoading, setIsLoading] = useState(true);
   const handleLoadError = useCallback(() => {
-    setLoadFailed(true);
-  }, []);
+    setFailedUrl(imageUrl);
+  }, [imageUrl]);
   const handleLoadEnd = useCallback(() => setIsLoading(false), []);
   // TODO: figure out how to sanitize svgs so we can support svg avatars
   const isSVG = imageUrl?.endsWith('.svg');

@@ -241,7 +241,6 @@ export async function checkHostingNodeStatus(
     } = await getNodeStatus(nodeId);
     await initializeCachedHostedInviteLinks({
       personalLureToken: ship?.personalLureToken,
-      homeGroupLureToken: ship?.homeGroupLureToken,
       nodeId,
       source: 'checkHostingNodeStatus',
     });
@@ -390,7 +389,6 @@ export async function checkCurrentNodeIsTlonbotReady() {
   const result = await getHostedShip(nodeId);
   await initializeCachedHostedInviteLinks({
     personalLureToken: result.ship.personalLureToken,
-    homeGroupLureToken: result.ship.homeGroupLureToken,
     nodeId,
     source: 'checkCurrentNodeIsTlonbotReady',
   });

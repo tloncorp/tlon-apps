@@ -7,6 +7,13 @@ import UrbitBase, {
   UrbitHttpApiEventMap,
   UrbitHttpApiEventType,
 } from '@tloncorp/api/http-api';
+import {
+  type One,
+  type Params,
+  type RegistryEntry,
+  assertGuard,
+  entryPath,
+} from '@tloncorp/api/client/requests';
 import type UrbitMock from '@tloncorp/mock-http-api';
 import _ from 'lodash';
 
@@ -22,6 +29,11 @@ const URL = (import.meta.env.VITE_MOCK_URL ||
   import.meta.env.VITE_VERCEL_URL) as string;
 
 type Hook = (event: any, mark: string) => boolean;
+
+export type Registered<K extends RegistryEntry['kind']> = Extract<
+  RegistryEntry,
+  { kind: K }
+>;
 
 interface Watcher {
   id: string;
@@ -184,6 +196,34 @@ class API {
       useLocalState.setState((state) => ({ errorCount: state.errorCount + 1 }));
       throw e;
     }
+  }
+
+  // Registry-entry forms of the request methods below: each fills the
+  // entry's path and forwards to the method itself, so dedup, watchers,
+  // scheduling and error handling are unchanged. They bypass the package
+  // helpers, so they assert the entry's guard themselves.
+  scryEntry<E extends Registered<'scry'>>(entry: One<E>) {
+    return <T>(params: Params<E['path']>) => {
+      assertGuard(entry);
+      return this.scry<T>({
+        app: entry.agent,
+        path: entryPath(entry, params),
+      });
+    };
+  }
+
+  subscribeEntry<E extends Registered<'subscribe'>>(entry: One<E>) {
+    return (
+      params: Params<E['path']>,
+      request: Omit<SubscriptionRequestInterface, 'app' | 'path'>,
+      ...priority: [priority?: number]
+    ) => {
+      assertGuard(entry);
+      return this.subscribe(
+        { ...request, app: entry.agent, path: entryPath(entry, params) },
+        ...priority
+      );
+    };
   }
 
   async scry<T>(params: Scry) {

@@ -10,6 +10,7 @@ import { pipeline } from 'node:stream/promises';
 import { fetchWithSsrFGuard } from 'openclaw/plugin-sdk/ssrf-runtime';
 
 import { getDefaultSsrFPolicy } from '../urbit/context.js';
+import { tlonMediaUserAgent } from '../version.js';
 
 // Default to OpenClaw workspace media directory
 const DEFAULT_MEDIA_DIR = path.join(
@@ -108,7 +109,7 @@ export async function downloadMedia(
     // Use fetchWithSsrFGuard directly (not urbitFetch) to preserve the full URL path
     const { response, release } = await fetchWithSsrFGuard({
       url,
-      init: { method: 'GET' },
+      init: { method: 'GET', headers: { 'User-Agent': tlonMediaUserAgent() } },
       policy: getDefaultSsrFPolicy(),
       auditContext: 'tlon-media-download',
     });

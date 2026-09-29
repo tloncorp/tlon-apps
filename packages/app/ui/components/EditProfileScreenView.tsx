@@ -232,18 +232,24 @@ export function EditProfileScreenView(props: Props) {
                         return (
                           <XStack gap="$m">
                             <View flex={1}>{children}</View>
-                            <SigilAvatar
-                              contactId={currentUserId}
-                              contactOverride={{
-                                ...userContact,
-                                id: currentUserId,
-                                color: currentSigilColor || null,
-                              }}
-                              width={56}
-                              height={56}
-                              borderRadius="$l"
-                              size="custom"
-                            />
+                            <View
+                              accessible
+                              accessibilityLabel={`Profile avatar color ${currentSigilColor || 'default'}`}
+                              testID="ProfileAvatarPreview"
+                            >
+                              <SigilAvatar
+                                contactId={currentUserId}
+                                contactOverride={{
+                                  ...userContact,
+                                  id: currentUserId,
+                                  color: currentSigilColor || null,
+                                }}
+                                width={56}
+                                height={56}
+                                borderRadius="$l"
+                                size="custom"
+                              />
+                            </View>
                           </XStack>
                         );
                       }

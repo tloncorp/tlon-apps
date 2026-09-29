@@ -9,7 +9,6 @@ import { RootStackParamList } from '../../navigation/types';
 import { AppTheme } from '../../types/theme';
 import {
   ListItem,
-  ListItemInputOption,
   LoadingSpinner,
   Pressable,
   RadioControl,
@@ -21,6 +20,7 @@ import {
   useIsWindowNarrow,
 } from '../../ui';
 import { normalizeTheme } from '../../ui/utils/themeUtils';
+import { THEME_OPTIONS } from './themeOptions';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Theme'>;
 
@@ -30,22 +30,7 @@ export function ThemeScreen(props: Props) {
   const [selectedTheme, setSelectedTheme] = useState<AppTheme>('auto');
   const [loadingTheme, setLoadingTheme] = useState<AppTheme | null>(null);
 
-  const themes: ListItemInputOption<AppTheme>[] = [
-    {
-      title: 'Auto',
-      value: 'auto',
-      subtitle: 'Uses your system appearance',
-    },
-    { title: 'Tlon Light', value: 'light' },
-    { title: 'Tlon Dark', value: 'dark' },
-    { title: 'Dracula', value: 'dracula' },
-    { title: 'Greenscreen', value: 'greenscreen' },
-    { title: 'Gruvbox', value: 'gruvbox' },
-    { title: 'Monokai', value: 'monokai' },
-    { title: 'Nord', value: 'nord' },
-    { title: 'Peony', value: 'peony' },
-    { title: 'Solarized', value: 'solarized' },
-  ];
+  const themes = THEME_OPTIONS;
 
   const handleThemeChange = async (value: AppTheme) => {
     if (value === selectedTheme || loadingTheme) return;

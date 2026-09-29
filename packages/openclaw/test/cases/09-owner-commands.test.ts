@@ -80,6 +80,15 @@ describe('owner commands in third-party-hosted channels', () => {
     );
   }
 
+  async function getJournaledGroupChannels(): Promise<string[]> {
+    // Raw scry, not botState.settings(): that reads the `groups` desk, and the
+    // journal writes `moltbot`/`tlon`.
+    const raw = await fixtures.botState.scry<{
+      all?: Record<string, Record<string, { groupChannels?: string[] }>>;
+    }>('settings', '/all');
+    return raw?.all?.moltbot?.tlon?.groupChannels ?? [];
+  }
+
   beforeAll(async () => {
     fixtures = await getFixtures();
     requireThirdParty(fixtures);
@@ -133,6 +142,19 @@ describe('owner commands in third-party-hosted channels', () => {
       60_000,
       2_000,
       'bot to join the third-party group'
+    );
+
+    // The join's %groups `create` fact journals the group's channels into the
+    // shared `groupChannels` settings key (src/monitor/group-channels.ts).
+    // Exercises the real mark, the fact parser, and the settings poke.
+    await waitFor(
+      async () =>
+        (await getJournaledGroupChannels()).includes(chatChannel)
+          ? true
+          : undefined,
+      60_000,
+      2_000,
+      'joined channel to be journaled to groupChannels'
     );
 
     // Seed the channel with an earlier post so command dispatch runs the

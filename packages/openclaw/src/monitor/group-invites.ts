@@ -186,7 +186,12 @@ export async function processPendingForeigns(
  */
 export function createCatchUpRunner(
   run: () => Promise<void>,
-  opts: { abortSignal?: AbortSignal; error?: (msg: string) => void } = {}
+  opts: {
+    abortSignal?: AbortSignal;
+    error?: (msg: string) => void;
+    /** Names the work in the failure log; defaults to the group-invite processor. */
+    label?: string;
+  } = {}
 ) {
   let chain: Promise<void> = Promise.resolve();
   let queuedCatchUp: Promise<void> | null = null;
@@ -206,7 +211,7 @@ export function createCatchUpRunner(
         await task();
       } catch (err) {
         report?.(
-          `[tlon] Group-invite processing failed: ${err instanceof Error ? err.message : String(err)}`
+          `[tlon] ${opts.label ?? 'Group-invite processing'} failed: ${err instanceof Error ? err.message : String(err)}`
         );
       }
     });

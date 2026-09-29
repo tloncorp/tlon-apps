@@ -1,18 +1,26 @@
 import * as db from '@tloncorp/shared/db';
-import { isMoonOfUser } from '@tloncorp/api/client/apiUtils';
-import { isBotHomeGroupChatChannel } from '@tloncorp/api/client/wayfinding';
+import { getBotUserIdForUser } from '@tloncorp/api/client/apiUtils';
 import {
   findPostBlobEntry,
   parsePostBlob,
   postHasBlobEntry,
 } from '@tloncorp/api';
 
-// Provisioned by ylem before the conversational onboarding begins. Keep the
-// exact full copy here so a later bot message that builds on it remains visible.
-export const TLAWN_HOME_GROUP_WELCOME_MESSAGE =
-  'Welcome! This is your private group with me, your Tlonbot. You can @ me ' +
-  'here anytime and I will respond. Invite some friends, and they can @ me ' +
-  'too—we can all chat together.';
+// Posted into the bot DM before the conversational onboarding begins
+// (`INTRO_MESSAGE` in tlonbot's `entrypoint/tlawn.py`). It interpolates the
+// ship into its middle, so unlike the home-group welcome it cannot be held
+// here whole. Anchor on the head and tail it never varies in: together they
+// identify this message without swallowing a later one that quotes part of it.
+const TLONBOT_DM_INTRO_HEAD = "Howdy, I'm your Tlonbot";
+const TLONBOT_DM_INTRO_TAIL =
+  "Just say the word and I'll be there every day. \u{1F305}";
+
+function isTlonbotDmIntro(text: string): boolean {
+  return (
+    text.startsWith(TLONBOT_DM_INTRO_HEAD) &&
+    text.endsWith(TLONBOT_DM_INTRO_TAIL)
+  );
+}
 
 /**
  * Typed coordinator requests are durable transport receipts, not chat copy.
@@ -26,11 +34,13 @@ export function isVisibleChannelPost(
   currentUserId: string,
   channelId?: string
 ): boolean {
+  // A DM channel is addressed by the other party, so the bot's own DM is the
+  // only place this can match, and only for a post the bot itself authored.
   if (
     channelId &&
-    isBotHomeGroupChatChannel(currentUserId, channelId) &&
-    (post.isBot === true || isMoonOfUser(post.authorId, currentUserId)) &&
-    post.textContent?.trim() === TLAWN_HOME_GROUP_WELCOME_MESSAGE
+    channelId === getBotUserIdForUser(currentUserId) &&
+    post.authorId === channelId &&
+    isTlonbotDmIntro(post.textContent?.trim() ?? '')
   ) {
     return false;
   }

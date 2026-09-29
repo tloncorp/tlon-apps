@@ -472,3 +472,35 @@ describe('blob download limits', () => {
     expect(MAX_BLOB_DOWNLOAD_BYTES).toBe(100 * 1024 * 1024);
   });
 });
+
+describe('guard invocation', () => {
+  let mediaDir: string;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    mediaDir = await mkdtemp(path.join(tmpdir(), 'tlon-media-ua-test-'));
+  });
+
+  afterEach(async () => {
+    await rm(mediaDir, { recursive: true, force: true });
+  });
+
+  it('sends the descriptive User-Agent', async () => {
+    mockedFetchWithSsrFGuard.mockResolvedValue({
+      response: new Response('small blob', {
+        status: 200,
+        headers: { 'content-type': 'text/plain' },
+      }),
+      release: vi.fn().mockResolvedValue(undefined),
+    } as Awaited<ReturnType<typeof fetchWithSsrFGuard>>);
+
+    await downloadMedia('https://storage.example.com/x.png', mediaDir);
+
+    const guardArg = mockedFetchWithSsrFGuard.mock.calls[0][0] as {
+      init?: { headers?: Record<string, string> };
+    };
+    expect(guardArg.init?.headers?.['User-Agent']).toMatch(
+      /^TlonBot\/\S+ \(https:\/\/tlon\.io; support@tlon\.io\) openclaw-tlon\/\S+$/
+    );
+  });
+});

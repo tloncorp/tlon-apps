@@ -1,6 +1,6 @@
 ---
 name: tlon-workflow-doctor
-description: Use when setting up a machine for mobile agent work on this repository, when the tlon-workflow skill's prerequisite check fails, or when stim, agent-device, gh, or their skills are missing, outdated, or installed under an old name.
+description: Use when setting up a machine for mobile agent work on this repository, when the tlon-workflow skill's prerequisite check fails, or when stim, agent-device, eas-cli, gh, or their skills are missing, outdated, or installed under an old name.
 ---
 
 # Tlon workflow doctor
@@ -21,10 +21,13 @@ Unsandboxed because `gh auth status` cannot reach the keyring inside a shell san
 | Line | Requirement | `--fix` does |
 |---|---|---|
 | `gh` | 2.99.0 or newer (the `--attach` upload flag), authenticated | nothing; prints the install or `gh auth login` line |
+| `node` | the major version in `.nvmrc`, both for the `node` on PATH (which stim and eas run on) and for the one running this script; on Node 26, `expo config` cannot load `app.config.ts`, and eas reports only that `simulator:availability` printed no JSON | nothing; prints the `nvm use && nvm alias default` line |
 | `stim` | the `stim` package, 1.1.0 or newer, resolved first on PATH; a note when npm has a newer one | installs or upgrades `stim`; uninstalls `stim-cli` when that is what resolves |
 | `stim ports` | the `ports` command, which the loop's web and Cosmos steps take their ports from | upgrades `stim` |
+| `stim remote` | `stim ios --remote`, which runs the loop's devices on EAS Simulator, from stim 1.9.0 (the first release that gives each worktree's EAS session its own name) | upgrades `stim` |
+| `eas` | eas-cli installed, logged in, and EAS Simulator enabled for the project's account; when `simulator:availability` prints no JSON, the line carries eas's stderr | installs `eas-cli`, unless it was `expo config` that failed; `eas login` and account access need a person |
 | `stim skill` | `stim` skill in `~/.agents/skills` or this repo | `npx skills add appandflow/stim -g -y` |
-| `agent-device` | installed; a note when npm has a newer one | `npm install -g agent-device` |
+| `agent-device` | installed, 0.21.13 or newer (the loop was last verified with agent-device 0.21.14 and stim 1.10.0; older pairs lost Fast Refresh and broke the session lease); a note when npm has a newer one | `npm install -g agent-device` |
 | `agent-device skill` | `agent-device` skill in `~/.agents/skills` or this repo | `npx skills add callstack/agent-device -g -y` |
 | `ship login` | `DEFAULT_SHIP_LOGIN_URL` + `DEFAULT_SHIP_LOGIN_ACCESS_CODE`, or `DEFAULT_TLON_LOGIN_EMAIL` + `DEFAULT_TLON_LOGIN_PASSWORD`, in the source checkout's `apps/tlon-mobile/.env.local` | nothing; they are credentials (see the tlon-workflow skill, Sign in) |
 | `stim doctor` | no `cost` finding in `apps/tlon-mobile`; one is a note with its fix, since it slows builds without blocking them | nothing; prints each finding and its fix |
@@ -35,6 +38,8 @@ It deliberately does not run `stim doctor --fix`, which writes `.claude/settings
 
 ## When a line stays `fix`
 
-The line carries the exact command. Two that need a person: `gh auth login` opens a browser, and the ship login values are credentials nobody but the user should type.
+The line carries the exact command. Three that need a person: `gh auth login` and `eas login` take the user's own credentials, EAS Simulator access is granted to the Expo account rather than installed, and the ship login values are credentials nobody but the user should type.
+
+`node` can outlast its own fix. `nvm use` changes only the shell it runs in, and an agent session keeps the PATH of whatever launched it, so a session started on another Node stays on it even when nvm's default alias already matches `.nvmrc`. Restart the session from a shell on the pinned version.
 
 The `ship login` note is worth clearing even though it is only a note. Without those two variables every reproduction that needs a signed-in app stalls on a 2FA code an unattended run cannot read. With them, sign-in is four taps and no typing.

@@ -85,25 +85,51 @@ export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
     [navigation]
   );
 
+  const { navigation: rootNavigation } = useRootNavigation();
+  // Mounted as the BotChat tab, the nearest navigator is the tab bar, which
+  // has no push(); those screens live on the root stack, so go there instead.
+  const pushScreen = useCallback(
+    <Name extends keyof RootStackParamList>(
+      name: Name,
+      params: RootStackParamList[Name]
+    ) => {
+      const stack = navigation as { push?: unknown };
+      if (typeof stack.push === 'function') {
+        (navigation.push as (n: Name, p: RootStackParamList[Name]) => void)(
+          name,
+          params
+        );
+        return;
+      }
+      (
+        rootNavigation.navigate as (
+          n: Name,
+          p: RootStackParamList[Name]
+        ) => void
+      )(name, params);
+    },
+    [navigation, rootNavigation]
+  );
+
   const navigateToSearch = useCallback(() => {
     if (!channelQuery.data) {
       return;
     }
-    navigation.push('ChannelSearch', {
+    pushScreen('ChannelSearch', {
       channelId: channelQuery.data.id ?? null,
       groupId: channelQuery.data.groupId ?? '',
     });
-  }, [navigation, channelQuery.data]);
+  }, [pushScreen, channelQuery.data]);
 
   const navigateToContextLensRuns = useCallback(() => {
-    navigation.push('ContextLensRuns', { channelId });
-  }, [navigation, channelId]);
+    pushScreen('ContextLensRuns', { channelId });
+  }, [pushScreen, channelId]);
 
   const navigateToContextLensRun = useCallback(
     ({ botShip, lensId }: { botShip: string; lensId: string }) => {
-      navigation.push('ContextLensRun', { botShip, lensId, channelId });
+      pushScreen('ContextLensRun', { botShip, lensId, channelId });
     },
-    [navigation, channelId]
+    [pushScreen, channelId]
   );
 
   return {

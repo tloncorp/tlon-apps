@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -37,6 +38,7 @@ import {
 import { notifyDiaryMigrationDiscovery } from './src/diary-migration-discovery.js';
 import { suppressTlonFallbackNotice } from './src/fallback-notice-delivery.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
+import { registerBudgetHoldHooks } from './src/cron-budget-runtime.js';
 import { registerRestartCatchupHooks } from './src/restart-catchup.js';
 import { createMigrateCommandHandler } from './src/migrate-command.js';
 import {
@@ -63,7 +65,8 @@ import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import { setTlonRuntime } from './src/runtime.js';
 import { resolveOwnerOnlyToolBlock } from './src/owner-only-tools.js';
 import { getSessionRole } from './src/session-roles.js';
-import { parseTlonTarget } from './src/targets.js';
+import { registerStewardAutomationReconciliationHooks } from './src/steward-automation-reconciliation.js';
+import { normalizeShip, parseTlonTarget } from './src/targets.js';
 import {
   type TlonDiagnosticLogAttributes,
   type TlonSessionDiagnosticReportInput,
@@ -911,6 +914,7 @@ export default defineBundledChannelEntry({
       },
     });
     registerRestartCatchupHooks(api);
+    registerBudgetHoldHooks(api);
 
     // Resolve the tlon tool binary once. The tool itself and version
     // diagnostics share this path so telemetry reports what OpenClaw will
@@ -977,6 +981,11 @@ export default defineBundledChannelEntry({
       notifyDiaryMigrationDiscovery: (nest) =>
         notifyDiaryMigrationDiscovery(nest, api.config),
       logError: (message) => api.logger.warn(`[tlon] ${message}`),
+      // Lets the executor run `groups invite-link` as the owner, so invites
+      // attribute to the owner rather than the bot.
+      ownerShip: normalizeShip(account.ownerShip ?? '') || undefined,
+      env: process.env,
+      fileExists: (path) => existsSync(path),
     });
 
     api.registerTool({
@@ -1350,6 +1359,11 @@ export default defineBundledChannelEntry({
           `[tlon] Agent onboarding observer failed (cron_changed:${event.action}): ${String(error)}`
         );
       }
+    });
+
+    registerStewardAutomationReconciliationHooks(api, {
+      logger: { warn: (message) => api.logger.warn(message) },
+      getConfig: () => api.runtime.config.loadConfig(),
     });
 
     if (shouldInstallTlonDiagnosticSubscriptions(api.registrationMode)) {
