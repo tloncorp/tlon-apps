@@ -2997,8 +2997,66 @@ export const syncStart = async (
   }
 };
 
+// Which client lifetime has its %buckets subscription open or opening. Two
+// places open it — the high-priority set, and a capability change after that
+// set went up without it — and this keeps them from both doing so.
+let bucketsSubscribedGeneration: number | null = null;
+// Which client lifetime's high-priority set has already read the capability.
+// Until then a change is that set's to pick up when it reads it; from then on,
+// the listener below is the only thing that can open %buckets for the lifetime.
+let bucketsCheckedGeneration: number | null = null;
+
+async function subscribeToBucketsOnce() {
+  const generation = getClientGeneration();
+  if (
+    !api.getDeskSupportsBuckets() ||
+    bucketsSubscribedGeneration === generation
+  ) {
+    return;
+  }
+  bucketsSubscribedGeneration = generation;
+  try {
+    await api.subscribeToBuckets(createHandler(handleBucketsUpdate));
+  } catch (err) {
+    // Not open after all, so the next chance in this lifetime tries again.
+    if (bucketsSubscribedGeneration === generation) {
+      bucketsSubscribedGeneration = null;
+    }
+    throw err;
+  }
+}
+
+let watchingBucketsSupport = false;
+
+// A ship upgraded to a Buckets desk while the app stays open is found by the
+// recovery sync's re-probe, and that sync skips subscribing because everything
+// it would watch is still up. %buckets is the exception: it was never watched,
+// and useLiveBucket reads only what this subscription reduces into the
+// database, so the Bucket the capability now opens would stay empty until a
+// restart. Registered on first use rather than on import, so the modules that
+// import sync under a partial api mock never reach it.
+function watchBucketsSupport() {
+  if (watchingBucketsSupport) {
+    return;
+  }
+  watchingBucketsSupport = true;
+  api.onDeskSupportsBucketsChange(() => {
+    if (
+      getSession() === null ||
+      bucketsCheckedGeneration !== getClientGeneration()
+    ) {
+      return;
+    }
+    subscribeToBucketsOnce().catch((error) =>
+      logger.trackError('buckets: late subscribe failed', { error })
+    );
+  });
+}
+
 export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {
   return syncQueue.add('setupHighPrioritySubscriptions', ctx, () => {
+    bucketsCheckedGeneration = getClientGeneration();
+    watchBucketsSupport();
     return Promise.all([
       api.subscribeToChannelsUpdates(createHandler(handleChannelsUpdate)),
       // Gated on the same capability that picks the init endpoint. The desk
@@ -3007,9 +3065,7 @@ export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {
       // agent is simply absent: watching it there is nacked, and one
       // rejection in this Promise.all takes every high-priority subscription
       // down with it.
-      ...(api.getDeskSupportsBuckets()
-        ? [api.subscribeToBuckets(createHandler(handleBucketsUpdate))]
-        : []),
+      subscribeToBucketsOnce(),
       api.subscribeToChatUpdates(createHandler(handleChatUpdate)),
       api.subscribeGroups(createHandler(handleGroupUpdate)),
       api.subscribeToPresenceUpdates(handlePresenceEvent),
