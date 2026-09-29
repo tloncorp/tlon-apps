@@ -20,9 +20,13 @@ const notifiers = sharedMap<
   string,
   (message: string, blob?: string) => Promise<boolean>
 >('cronBudget.notifiers');
+const monitorConfig = sharedSlot<OpenClawPluginApi['config']>(
+  'cronBudget.monitorConfig'
+);
 export function installBudgetHoldNotifier(
   accountId: string,
-  send: (message: string, blob?: string) => Promise<boolean>
+  send: (message: string, blob?: string) => Promise<boolean>,
+  config?: OpenClawPluginApi['config']
 ) {
   // Gateway timers run outside the monitor's authenticated async context.
   const runInMonitorScope = captureTlonApiScope();
@@ -31,6 +35,9 @@ export function installBudgetHoldNotifier(
         runInMonitorScope(() => send(message, blob))
     : send;
   notifiers.set(accountId, scopedSend);
+  // Monitor restarts receive the host's current config, including accounts
+  // added after gateway_start captured its original configuration.
+  if (config) monitorConfig.set(config);
   return () => {
     if (notifiers.get(accountId) === scopedSend) notifiers.delete(accountId);
   };
@@ -104,10 +111,18 @@ export function registerBudgetHoldHooks(
           activeEdits = edits;
           try {
             const state = await readBudgetHoldState(paths.state);
-            const accountIds = listRunnableTlonAccountIds(api.config);
+            const accountIds = listRunnableTlonAccountIds(
+              monitorConfig.get() ?? ctx.config ?? api.config
+            );
             const pendingAccounts = accountIds.filter(
               (id) => !state.notifiedAccounts?.includes(id)
             );
+            // Completion is relative to the current recipients, not permanent
+            // for the episode. Existing delivery receipts still deduplicate.
+            if (state.notified && pendingAccounts.length > 0) {
+              state.notified = false;
+              await writeBudgetHoldState(paths.state, state);
+            }
             const canNotify =
               accountIds.length > 0 &&
               (pendingAccounts.length === 0 ||
@@ -231,6 +246,9 @@ export function registerBudgetHoldHooks(
   api.on('gateway_stop', async () => {
     const runner = runnerSlot.get();
     await runner?.stop();
-    if (runnerSlot.get() === runner) runnerSlot.set(null);
+    if (runnerSlot.get() === runner) {
+      runnerSlot.set(null);
+      monitorConfig.set(null);
+    }
   });
 }

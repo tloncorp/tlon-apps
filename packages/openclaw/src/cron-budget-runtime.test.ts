@@ -99,6 +99,7 @@ async function setup(accountIds = ['default']) {
   const cron = { list, update };
   return {
     job,
+    config,
     dir,
     register,
     update,
@@ -372,5 +373,36 @@ it('notifies each account in its own scope and retains successful delivery acros
   await f.fire('gateway_start', {}, f.ctx);
   expect(alice).toHaveBeenCalledTimes(2);
   expect(bob).toHaveBeenCalledTimes(2);
+  expect(f.warn).not.toHaveBeenCalled();
+});
+
+it('notifies a newly runnable account after the episode was already notified', async () => {
+  const f = await setup(['alice']);
+  const alice = vi.fn(async () => true);
+  const bob = vi.fn(async () => true);
+  cleanups.push(installBudgetHoldNotifier('alice', alice, f.config));
+  await f.fire('gateway_start', {}, f.ctx);
+  const statePath = join(f.dir, 'tlon-cron-budget-holds.json');
+  const initial = await readBudgetHoldState(statePath);
+  expect(initial.notified).toBe(true);
+  expect(alice).toHaveBeenCalledTimes(1);
+  // A monitor reload gets a fresh config object; the gateway's original
+  // configuration remains unchanged throughout this budget episode.
+  const config = structuredClone(f.config);
+  config.channels.tlon.accounts.bob = {
+    ship: '~bus',
+    url: 'http://bus',
+    code: 'test-code',
+  };
+  cleanups.push(installBudgetHoldNotifier('bob', bob, config));
+  await f.fire('cron_changed', { action: 'added', jobId: 'another' });
+  await vi.waitFor(() => expect(bob).toHaveBeenCalledTimes(1));
+  await f.fire('gateway_stop');
+  const after = await readBudgetHoldState(statePath);
+  expect(after.episodeId).toBe(initial.episodeId);
+  expect(after.notified).toBe(true);
+  expect(after.notifiedAccounts).toEqual(['alice', 'bob']);
+  expect(alice).toHaveBeenCalledTimes(1);
+  expect(f.job.enabled).toBe(false);
   expect(f.warn).not.toHaveBeenCalled();
 });

@@ -6187,7 +6187,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       removeBudgetHoldNotifier = installBudgetHoldNotifier(
         account.accountId,
         async (message, blob) =>
-          Boolean(await sendOwnerNotification(message, blob))
+          Boolean(await sendOwnerNotification(message, blob)),
+        cfg
       );
 
       // Periodically refresh channel discovery
