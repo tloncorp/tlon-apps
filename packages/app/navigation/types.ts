@@ -120,6 +120,8 @@ export type RootStackParamList = {
   BotPermissionsSettings: undefined;
   BotIdentitySettings: undefined;
   BotProviderListSettings: { kind: 'subscriptions' | 'apiKeys' };
+  BotModels: undefined;
+  BotConnections: undefined;
   BlockedUsers: undefined;
   PrivacySettings: undefined;
   AppInfo: undefined;
@@ -247,6 +249,8 @@ export type SettingsDrawerParamList = Pick<
   | 'BotPermissionsSettings'
   | 'BotIdentitySettings'
   | 'BotProviderListSettings'
+  | 'BotModels'
+  | 'BotConnections'
   | 'BlockedUsers'
   | 'AppInfo'
   | 'PushNotificationSettings'

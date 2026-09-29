@@ -39,7 +39,9 @@ export type BotSettingsNavigate = (
     | 'BotProviderListSettings'
     | 'BotMcpSettings'
     | 'BotPermissionsSettings'
-    | 'BotIdentitySettings',
+    | 'BotIdentitySettings'
+    | 'BotModels'
+    | 'BotConnections',
   params?: Record<string, unknown>
 ) => void;
 
@@ -59,15 +61,26 @@ export function useBotSettingsHub() {
 
 export type BotSettingsHub = ReturnType<typeof useBotSettingsHub>;
 
+export type BotSettingsSectionModels = {
+  /** The bot's card: the bot itself, then a summary row per area. */
+  overview: SettingsSectionModel[];
+  models: SettingsSectionModel[];
+  connections: SettingsSectionModel[];
+};
+
+function countLabel(count: number, singular: string) {
+  return `${count} ${singular}${count === 1 ? '' : 's'}`;
+}
+
 /**
- * The bot's settings as list sections: the bot itself, then its models, its
- * connections and who can reach it. The Settings tab places these in its own
- * list; the standalone screen draws them alone.
+ * The bot's settings as list sections. The Settings tab and the standalone bot
+ * screen show the overview card; the Models and Connections screens it opens
+ * show the detail sections.
  */
 export function useBotSettingsSectionModels(
   hub: BotSettingsHub,
   navigate: BotSettingsNavigate
-): SettingsSectionModel[] {
+): BotSettingsSectionModels {
   const { queries, settingsReady, draft, pending, commitDraft, applying } = hub;
   const controlsReadOnly = !settingsReady || applying;
   // The bot's contact is already synced and cached, and it's what the DM tab
@@ -133,9 +146,9 @@ export function useBotSettingsSectionModels(
       : queries.botReady
         ? { text: 'Online', tone: 'positive' }
         : { text: 'Starting', tone: 'neutral' };
-    // Zero data retention stays in the open: it is a privacy control, and a
-    // pending toggle hidden from view leaves the apply bar counting a change
-    // the user cannot see.
+    // Zero data retention sits beside the model it constrains rather than
+    // behind a disclosure: a pending toggle hidden from view leaves the apply
+    // bar counting a change the user cannot see.
     const showsZdr =
       settingsReady && onBasicModel && Boolean(draft.model.model);
 
@@ -177,95 +190,133 @@ export function useBotSettingsSectionModels(
       });
     }
 
-    return [
-      {
-        key: 'bot',
-        footer:
-          !queries.botReady && settingsReady
-            ? 'Tlonbot is starting. Settings may take a moment to become editable.'
+    const subscriptionsLoading = queries.llmAuthStatusQuery.isLoading;
+    const connectionParts = [
+      connectedSubscriptionCount > 0
+        ? countLabel(connectedSubscriptionCount, 'subscription')
+        : null,
+      apiKeyCount > 0 ? countLabel(apiKeyCount, 'API key') : null,
+      connectedServicesCount > 0
+        ? countLabel(connectedServicesCount, 'service')
+        : null,
+    ].filter((part): part is string => part !== null);
+    const connectionsValue =
+      connectionParts.length > 0
+        ? connectionParts.join(', ')
+        : subscriptionsLoading
+          ? 'Checking…'
+          : 'None';
+
+    return {
+      overview: [
+        {
+          key: 'bot',
+          footer:
+            !queries.botReady && settingsReady
+              ? 'Tlonbot is starting. Settings may take a moment to become editable.'
+              : undefined,
+          rows: [
+            {
+              key: 'bot-identity',
+              title: draft.nickname || 'Tlonbot',
+              subtitle: `Your personal bot · ${queries.moon ?? `~${queries.ship}`}`,
+              leading: { kind: 'element', render: renderBotAvatar },
+              prominent: true,
+              status,
+              pending: pending.nickname,
+              // The bot's own row edits its name, the way your profile row
+              // opens your profile.
+              onPress: controlsReadOnly
+                ? undefined
+                : () => navigate('BotIdentitySettings'),
+              testID: 'BotIdentityRow',
+            },
+            {
+              key: 'models',
+              title: 'Models',
+              value:
+                draft.model.model ||
+                (draft.model.provider
+                  ? providerLabel(draft.model.provider)
+                  : undefined),
+              pending:
+                pending.modelProvider ||
+                pending.model ||
+                pending.fallbacks ||
+                pending.zdr,
+              onPress: () => navigate('BotModels'),
+              testID: 'BotModelsRow',
+            },
+            {
+              key: 'connections',
+              title: 'Connections',
+              value: connectionsValue,
+              onPress: () => navigate('BotConnections'),
+              testID: 'BotConnectionsRow',
+            },
+            {
+              key: 'permissions',
+              title: 'Permissions',
+              pending:
+                pending.dmAllowlist ||
+                pending.autoAcceptDmInvites ||
+                pending.autoDiscoverChannels ||
+                pending.defaultAuthorizedShips ||
+                pending.groupInviteAllowlist ||
+                pending.channelRules,
+              disabled: controlsReadOnly,
+              onPress: () => navigate('BotPermissionsSettings'),
+            },
+          ],
+        },
+      ],
+      models: [
+        {
+          key: 'bot-models',
+          footer: showsZdr
+            ? 'Zero data retention avoids model providers that retain data. It may use your included credits faster.'
             : undefined,
-        rows: [
-          {
-            key: 'bot-identity',
-            title: draft.nickname || 'Tlonbot',
-            subtitle: `Your personal bot · ${queries.moon ?? `~${queries.ship}`}`,
-            leading: { kind: 'element', render: renderBotAvatar },
-            prominent: true,
-            status,
-            pending: pending.nickname,
-            // The bot's own row edits its name, the way your profile row
-            // opens your profile.
-            onPress: controlsReadOnly
-              ? undefined
-              : () => navigate('BotIdentitySettings'),
-            testID: 'BotIdentityRow',
-          },
-        ],
-      },
-      {
-        key: 'bot-models',
-        title: 'Models',
-        footer: showsZdr
-          ? 'Zero data retention avoids model providers that retain data. It may use your included credits faster.'
-          : undefined,
-        rows: modelRows,
-      },
-      {
-        key: 'bot-connections',
-        title: 'Connections',
-        rows: [
-          {
-            key: 'subscriptions',
-            title: 'Provider subscriptions',
-            value: queries.llmAuthStatusQuery.isLoading
-              ? 'Checking…'
-              : queries.llmAuthStatusQuery.isError &&
-                  queries.llmAuthStatusQuery.data === undefined
-                ? 'Unavailable'
-                : `${connectedSubscriptionCount} connected`,
-            disabled: applying || !queries.providerConfigQuery.isSuccess,
-            onPress: () =>
-              navigate('BotProviderListSettings', { kind: 'subscriptions' }),
-          },
-          {
-            key: 'api-keys',
-            title: 'API keys',
-            value: `${apiKeyCount} set`,
-            disabled: applying || !queries.providerConfigQuery.isSuccess,
-            onPress: () =>
-              navigate('BotProviderListSettings', { kind: 'apiKeys' }),
-          },
-          {
-            key: 'connected-services',
-            title: 'Connected services',
-            value:
-              (queries.oauthProvidersQuery.data?.length ?? 0) === 0
-                ? 'Unavailable'
-                : `${connectedServicesCount} connected`,
-            onPress: () => navigate('BotMcpSettings'),
-          },
-        ],
-      },
-      {
-        key: 'bot-access',
-        rows: [
-          {
-            key: 'permissions',
-            title: 'Permissions',
-            subtitle: 'People, invitations and channel access',
-            pending:
-              pending.dmAllowlist ||
-              pending.autoAcceptDmInvites ||
-              pending.autoDiscoverChannels ||
-              pending.defaultAuthorizedShips ||
-              pending.groupInviteAllowlist ||
-              pending.channelRules,
-            disabled: controlsReadOnly,
-            onPress: () => navigate('BotPermissionsSettings'),
-          },
-        ],
-      },
-    ];
+          rows: modelRows,
+        },
+      ],
+      connections: [
+        {
+          key: 'bot-connections',
+          rows: [
+            {
+              key: 'subscriptions',
+              title: 'Provider subscriptions',
+              value: subscriptionsLoading
+                ? 'Checking…'
+                : queries.llmAuthStatusQuery.isError &&
+                    queries.llmAuthStatusQuery.data === undefined
+                  ? 'Unavailable'
+                  : `${connectedSubscriptionCount} connected`,
+              disabled: applying || !queries.providerConfigQuery.isSuccess,
+              onPress: () =>
+                navigate('BotProviderListSettings', { kind: 'subscriptions' }),
+            },
+            {
+              key: 'api-keys',
+              title: 'API keys',
+              value: `${apiKeyCount} set`,
+              disabled: applying || !queries.providerConfigQuery.isSuccess,
+              onPress: () =>
+                navigate('BotProviderListSettings', { kind: 'apiKeys' }),
+            },
+            {
+              key: 'connected-services',
+              title: 'Connected services',
+              value:
+                (queries.oauthProvidersQuery.data?.length ?? 0) === 0
+                  ? 'Unavailable'
+                  : `${connectedServicesCount} connected`,
+              onPress: () => navigate('BotMcpSettings'),
+            },
+          ],
+        },
+      ],
+    };
   }, [
     apiKeyCount,
     applying,
@@ -301,11 +352,11 @@ export function BotSettingsSections({
   hub: BotSettingsHub;
   navigate: BotSettingsNavigate;
 }) {
-  const sections = useBotSettingsSectionModels(hub, navigate);
+  const { overview } = useBotSettingsSectionModels(hub, navigate);
 
   return (
     <YStack gap="$2xl">
-      <SettingsSectionsView sections={sections} />
+      <SettingsSectionsView sections={overview} />
     </YStack>
   );
 }

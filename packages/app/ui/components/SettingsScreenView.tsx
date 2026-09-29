@@ -56,6 +56,8 @@ const botSettingsRouteNames = new Set([
   'BotPermissionsSettings',
   'BotIdentitySettings',
   'BotProviderListSettings',
+  'BotModels',
+  'BotConnections',
 ]);
 
 export function SettingsScreenView(props: Props) {
@@ -155,8 +157,8 @@ function useSettingsSections(
               height={size}
               alignItems="center"
               justifyContent="center"
-              // Native rows sit on the secondary background.
-              backgroundColor={compact ? '$background' : '$secondaryBackground'}
+              // Native lists draw bare glyphs, so the logo goes without its disc.
+              backgroundColor={compact ? undefined : '$secondaryBackground'}
               borderRadius={100}
             >
               <TlonLogo width={'$xl'} height={'$xl'} color="$secondaryText" />
