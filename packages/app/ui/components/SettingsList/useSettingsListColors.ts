@@ -36,7 +36,6 @@ export function useSettingsListColors() {
       colorScheme: isDark ? ('dark' as const) : ('light' as const),
       page: theme.background.val,
       row: theme.secondaryBackground.val,
-      border: theme.border.val,
       primaryText: theme.primaryText.val,
       secondaryText: theme.secondaryText.val,
       tertiaryText: theme.tertiaryText.val,

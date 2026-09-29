@@ -4,8 +4,14 @@ import type { ReactElement } from 'react';
 export type SettingsRowLeading =
   | { kind: 'icon'; icon: IconType }
   | { kind: 'contact'; contactId: string }
-  /** Plain React Native content, such as an avatar; native lists host it. */
-  | { kind: 'element'; element: ReactElement };
+  /**
+   * Plain React Native content, such as an avatar, drawn at the size the list
+   * gives it; native lists host it in a frame of that size.
+   */
+  | {
+      kind: 'element';
+      render: (options: { size: number; compact: boolean }) => ReactElement;
+    };
 
 export type SettingsContextAction = {
   key: string;

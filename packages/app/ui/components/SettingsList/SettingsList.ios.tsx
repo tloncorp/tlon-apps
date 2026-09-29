@@ -27,10 +27,9 @@ import {
   scrollContentBackground,
   shapes,
 } from '@expo/ui/swift-ui/modifiers';
-import { View } from 'react-native';
 
 import { useScreenScrollProps } from '../useScreenScrollProps';
-import { SettingsRowLeading } from './SettingsRowLeading';
+import { HostedSettingsRowLeading } from './SettingsRowLeading';
 import type { SettingsListProps, SettingsRowModel } from './types';
 import {
   type SettingsListColors,
@@ -210,10 +209,7 @@ function RowLabel({
     <HStack spacing={12}>
       {row.leading ? (
         <RNHostView matchContents>
-          {/* The row's button takes the tap, not the hosted view. */}
-          <View pointerEvents="none">
-            <SettingsRowLeading row={row} compact />
-          </View>
+          <HostedSettingsRowLeading row={row} />
         </RNHostView>
       ) : null}
       <VStack alignment="leading" spacing={2}>

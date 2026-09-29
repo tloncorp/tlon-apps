@@ -106,8 +106,14 @@ export function useBotSettingsSectionModels(
     [queries.providerConfig.keys]
   );
 
-  const botAvatar = useMemo(
-    () => <BotAvatar avatarUrl={botAvatarUrl} sigilContactId={botContactId} />,
+  const renderBotAvatar = useCallback(
+    ({ size }: { size: number }) => (
+      <BotAvatar
+        size={size}
+        avatarUrl={botAvatarUrl}
+        sigilContactId={botContactId}
+      />
+    ),
     [botAvatarUrl, botContactId]
   );
 
@@ -183,7 +189,7 @@ export function useBotSettingsSectionModels(
             key: 'bot-identity',
             title: draft.nickname || 'Tlonbot',
             subtitle: `Your personal bot · ${queries.moon ?? `~${queries.ship}`}`,
-            leading: { kind: 'element', element: botAvatar },
+            leading: { kind: 'element', render: renderBotAvatar },
             prominent: true,
             status,
             pending: pending.nickname,
@@ -263,7 +269,7 @@ export function useBotSettingsSectionModels(
   }, [
     apiKeyCount,
     applying,
-    botAvatar,
+    renderBotAvatar,
     commitDraft,
     connectedServicesCount,
     connectedSubscriptionCount,

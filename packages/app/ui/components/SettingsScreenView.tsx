@@ -149,10 +149,14 @@ function useSettingsSections(
         title: 'Manage Tlon account',
         leading: {
           kind: 'element',
-          element: (
+          render: ({ size, compact }) => (
             <View
-              padding="$xl"
-              backgroundColor="$secondaryBackground"
+              width={size}
+              height={size}
+              alignItems="center"
+              justifyContent="center"
+              // Native rows sit on the secondary background.
+              backgroundColor={compact ? '$background' : '$secondaryBackground'}
               borderRadius={100}
             >
               <TlonLogo width={'$xl'} height={'$xl'} color="$secondaryText" />
