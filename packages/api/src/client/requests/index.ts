@@ -227,15 +227,19 @@ export function scryNounRequest<E extends ScryReg>(entry: One<E>) {
   };
 }
 
+type SubscribeRest = [onRejected?: (error: unknown) => void];
+
 export function subscribeRequest<E extends SubscribeReg>(entry: One<E>) {
   return <T = unknown>(
     params: Params<E['path']>,
-    handler: (update: T, id?: number) => void
+    handler: (update: T, id?: number) => void,
+    ...rest: SubscribeRest
   ) => {
     assertGuard(entry);
     return subscribe<T>(
       { app: entry.agent, path: fillPath(entry, params) },
-      handler
+      handler,
+      ...rest
     );
   };
 }

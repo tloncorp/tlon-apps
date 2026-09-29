@@ -996,6 +996,30 @@ describe('channel identity mismatch', () => {
     expect(client.subscribe).toHaveBeenCalledTimes(2);
   });
 
+  // The subscribe resolved when its PUT landed, so a nack that arrives later
+  // on the event stream can only reach the caller through onRejected.
+  test('a watch the ship nacks after the PUT reaches onRejected', async () => {
+    const client = fakeClient({ subscribe: vi.fn().mockResolvedValue(4) });
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+    const onRejected = vi.fn();
+
+    await expect(
+      subscribe({ app: 'buckets', path: '/v1' }, () => {}, onRejected)
+    ).resolves.toBe(4);
+    expect(onRejected).not.toHaveBeenCalled();
+
+    client.subscribe.mock.calls[0][0].err('nacked', '4');
+
+    await vi.waitFor(() => expect(onRejected).toHaveBeenCalledWith('nacked'));
+    // A nack is not an auth or channel failure, so nothing resubscribed.
+    expect(client.subscribe).toHaveBeenCalledTimes(1);
+  });
+
   test('other channel PUT failures surface without a rotation', async () => {
     const failure = new ChannelPutError(500);
     const client = fakeClient({ poke: vi.fn().mockRejectedValue(failure) });

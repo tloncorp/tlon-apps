@@ -39,7 +39,7 @@ import type { MockInstance } from 'vitest';
 import rawChannelPostWithRepliesData from '../../../../api/src/__tests__/fixtures/channelPostWithReplies.json';
 import rawChannelPostsData from '../../../../api/src/__tests__/fixtures/channelPosts.json';
 import * as db from '../../db';
-import { MIN_GROUPS_VERSION } from '../../logic';
+import { BUCKETS_MIN_GROUPS_VERSION, MIN_GROUPS_VERSION } from '../../logic';
 import rawNewestPostData from '../../test/channelNewestPost.json';
 import rawAfterNewestPostData from '../../test/channelPostsAfterNewest.json';
 import rawContactsData from '../../test/contactsDirectory.json';
@@ -1487,6 +1487,9 @@ describe('desk compatibility gate', () => {
     scryPaths().some((path) => path.includes(fragment));
   const probeCount = () =>
     scryCalls.filter(({ path }) => path === '/kiln/pikes').length;
+  const bucketsSubscribeCalls = () =>
+    vi.mocked(subscribe).mock.calls.filter(([{ app }]) => app === 'buckets');
+  const bucketsSubscribeCount = () => bucketsSubscribeCalls().length;
 
   // Lets a test keep the probe in flight while it does something else (log out,
   // let the timeout fire) and then decide what a late answer does.
@@ -1612,6 +1615,9 @@ describe('desk compatibility gate', () => {
     // Without a live client the lifetime token never changes, and the guards
     // that depend on it would go untested.
     logIn();
+    // What removing the client resets it to, so a Buckets desk seen by an
+    // earlier test can't leave this one's subscriptions already decided.
+    api.setDeskSupportsBuckets(false);
     vi.mocked(subscribe).mockClear();
     // The shared storage mock discards writes, so reads always come back as
     // the default: assert on the writes instead.
@@ -2541,6 +2547,120 @@ describe('desk compatibility gate', () => {
         status: 'incompatible',
         current: '12.1.0',
       });
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'opens %buckets once when a discontinuity finds the ship upgraded to Buckets',
+    async () => {
+      await syncStart();
+      expect(bucketsSubscribeCount()).toBe(0);
+      expect(didScry('/v10/init')).toBe(true);
+
+      // Upgraded from 12.2 while the app stayed open. Recovery subscribes to
+      // nothing, since the rest of the set is still up.
+      reportedDeskVersion = BUCKETS_MIN_GROUPS_VERSION;
+      scryCalls = [];
+      await handleDiscontinuity({ context: 'test' });
+
+      expect(api.getDeskSupportsBuckets()).toBe(true);
+      expect(bucketsSubscribeCount()).toBe(1);
+      // The recovery's own init already moves to /v11: it reads the version
+      // its re-probe fetched, not the one the session started with.
+      expect(didScry('/v11/init')).toBe(true);
+      expect(didScry('/v10/init')).toBe(false);
+
+      // The capability is already on, so nothing opens a second one.
+      await handleDiscontinuity({ context: 'test' });
+      await syncStart();
+
+      expect(bucketsSubscribeCount()).toBe(1);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a later recovery retries a late %buckets subscribe that failed',
+    async () => {
+      await syncStart();
+
+      let failSubscribe: (error: Error) => void = () => {};
+      let failNext = true;
+      vi.mocked(subscribe).mockImplementation((async (endpoint: {
+        app: string;
+      }) => {
+        if (endpoint.app === 'buckets' && failNext) {
+          failNext = false;
+          return new Promise((_resolve, reject) => {
+            failSubscribe = reject;
+          });
+        }
+        return 1;
+      }) as unknown as typeof subscribe);
+
+      reportedDeskVersion = BUCKETS_MIN_GROUPS_VERSION;
+      await handleDiscontinuity({ context: 'test' });
+      expect(bucketsSubscribeCount()).toBe(1);
+
+      // The capability stays on, so no change will open it again: the next
+      // recovery is the only chance this login gets.
+      failSubscribe(new Error('subscribe failed'));
+      await handleDiscontinuity({ context: 'test' });
+      expect(bucketsSubscribeCount()).toBe(2);
+
+      await handleDiscontinuity({ context: 'test' });
+      expect(bucketsSubscribeCount()).toBe(2);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a later recovery reopens a %buckets watch the ship nacked',
+    async () => {
+      await syncStart();
+      reportedDeskVersion = BUCKETS_MIN_GROUPS_VERSION;
+      await handleDiscontinuity({ context: 'test' });
+      expect(bucketsSubscribeCount()).toBe(1);
+
+      // The subscribe resolved when its PUT landed. %buckets nacks the watch
+      // afterwards, which only the rejection callback hears.
+      const rejectWatch = bucketsSubscribeCalls()[0][2];
+      expect(rejectWatch).toBeDefined();
+      rejectWatch?.('watch nacked');
+      await handleDiscontinuity({ context: 'test' });
+      expect(bucketsSubscribeCount()).toBe(2);
+
+      await handleDiscontinuity({ context: 'test' });
+      expect(bucketsSubscribeCount()).toBe(2);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a start on a Buckets desk opens %buckets once per login',
+    async () => {
+      // The probe turns the capability on before the high-priority set reads
+      // it, and the set opens %buckets itself; the change must not open a
+      // second one.
+      reportedDeskVersion = BUCKETS_MIN_GROUPS_VERSION;
+      await syncStart();
+
+      expect(bucketsSubscribeCount()).toBe(1);
+
+      // Removing the client turns the capability off. That change, and any
+      // late one after it, belong to a login that is gone.
+      logOut();
+      api.setDeskSupportsBuckets(false);
+      api.setDeskSupportsBuckets(true);
+      api.setDeskSupportsBuckets(false);
+
+      expect(bucketsSubscribeCount()).toBe(1);
+
+      logIn();
+      await syncStart();
+
+      expect(bucketsSubscribeCount()).toBe(2);
     },
     FULL_SYNC_TIMEOUT
   );

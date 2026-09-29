@@ -277,9 +277,17 @@ export async function requestBucketReadToken(
  * replacement id Airlock allocates when a subscription is kicked. Neither the
  * fan-out nor the disposal survived that change; holding either in a module
  * variable would outlive the client it was opened on.
+ *
+ * `onRejected` hears %buckets refusing the watch, which arrives after this has
+ * resolved.
  */
 export function subscribeToBuckets(
-  handler: (response: BucketsResponse) => void
+  handler: (response: BucketsResponse) => void,
+  onRejected?: (error: unknown) => void
 ) {
-  return subscribeRequest(buckets.updates)<BucketsResponse>({}, handler);
+  return subscribeRequest(buckets.updates)<BucketsResponse>(
+    {},
+    handler,
+    onRejected
+  );
 }
