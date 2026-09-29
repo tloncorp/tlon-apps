@@ -441,16 +441,22 @@ if [ "${VERBOSE:-0}" = "1" ]; then
   echo "  URBIT_CODE=${URBIT_CODE:-<not set>}"
 fi
 
-# Create sessions directory
+# Create sessions directory. Do not seed a legacy sessions.json: OpenClaw
+# 2026.9.x keeps sessions in SQLite and refuses to start the gateway over a
+# legacy JSON store until doctor has migrated it.
 SESSIONS_DIR=/root/.openclaw/agents/test/sessions
 mkdir -p "$SESSIONS_DIR"
-echo "{}" > "$SESSIONS_DIR/sessions.json"
 
 if [ "${VERBOSE:-0}" = "1" ]; then
   echo "==> DEBUG: Directory structure:"
   ls -la /root/.openclaw/
   ls -la /root/.openclaw/agents/test/ 2>/dev/null || true
 fi
+
+# Finish any offline state migrations before the gateway starts, as the
+# hosting entrypoint does; the gateway refuses to boot over unmigrated state.
+echo "==> Running openclaw doctor --fix..."
+openclaw doctor --fix --non-interactive || echo "==> WARN: openclaw doctor --fix exited $?"
 
 echo "==> Starting OpenClaw gateway..."
 exec openclaw gateway --port 18789 --bind lan --verbose
