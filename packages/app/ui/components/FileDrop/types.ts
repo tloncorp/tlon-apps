@@ -4,6 +4,7 @@ import { View } from 'tamagui';
 
 export type FileDropComponent = ComponentType<
   {
+    dropEnabled?: boolean;
     onAssetsDropped: (files: Attachment.UploadIntent[]) => void;
   } & ComponentProps<typeof View>
 >;

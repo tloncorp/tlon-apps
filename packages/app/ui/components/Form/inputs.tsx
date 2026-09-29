@@ -839,15 +839,15 @@ export const CheckboxControl = (
 ) => <Control {...props} type="checkbox" />;
 
 const presets = [
-  '$red',
-  '$orange',
-  '$yellow',
-  '$green',
-  '$blue',
-  '$indigo',
-  '$gray900',
-  '$gray500',
-  '$gray100',
+  ['red', '$red'],
+  ['orange', '$orange'],
+  ['yellow', '$yellow'],
+  ['green', '$green'],
+  ['blue', '$blue'],
+  ['indigo', '$indigo'],
+  ['dark gray', '$gray900'],
+  ['gray', '$gray500'],
+  ['light gray', '$gray100'],
 ] as const;
 
 const ColorSwatchFrame = styled(Pressable, {
@@ -904,12 +904,15 @@ export const ColorInput = ({
       }}
       horizontal
     >
-      {presets.map((color) => {
+      {presets.map(([name, color]) => {
         const colorValue = getTokenValue(color, 'color');
+        const selected = value === colorValue;
         return (
           <ColorSwatchFrame
             key={colorValue}
-            selected={value === colorValue}
+            testID={`ProfileColorSwatch-${colorValue.slice(1)}`}
+            accessibilityLabel={`Profile avatar color ${name}${selected ? ', selected' : ''}`}
+            selected={selected}
             onPress={() => handleSelect(colorValue)}
           >
             <ColorSwatchInner backgroundColor={colorValue} />

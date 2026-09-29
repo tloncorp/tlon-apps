@@ -74,4 +74,4 @@ env:
     id: ScrollToBottomButton
 - tapOn: '^Back$'
 - tapOn: '^Back$'
-- assertVisible: '^Home$'
+- assertVisible: '^Workspaces$'

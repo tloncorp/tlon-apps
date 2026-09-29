@@ -122,4 +122,18 @@ test('should show group info, channel, and role changes to invited user', async 
   await expect(
     tenPage.getByTestId('ChannelListItem-Real-time Channel')
   ).toBeVisible();
+
+  // A role created *after* ~ten joined reaches ~ten only as an `addRole`
+  // subscription event — unlike 'Test Role', it is not in the group snapshot
+  // ~ten synced at join time.
+  await helpers.openGroupSettings(zodPage);
+  await zodPage.getByTestId('GroupRoles').click();
+  await helpers.createRole(zodPage, 'Late Role', 'Created after ten joined');
+  await helpers.navigateBack(zodPage);
+
+  await helpers.openGroupSettings(tenPage);
+  await tenPage.getByTestId('GroupRoles').click();
+  await expect(tenPage.getByTestId('GroupRole-Late Role')).toBeVisible({
+    timeout: 15000,
+  });
 });

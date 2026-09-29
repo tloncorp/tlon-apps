@@ -92,6 +92,8 @@ import {
   shipIsBanned,
   shipIsSeated,
 } from './commands/groups-verification';
+import { INVITE_LINK_HELP } from './commands/invite-link';
+import { runInviteLinkCommand } from './invite-link-runtime';
 import { createNotesChannelInGroup } from './notes-channel';
 import { createNotesChannelDeps } from './notes-channel-runtime';
 
@@ -118,6 +120,7 @@ Commands:
   create-owned "Group Name" --owner <ship> [--description "..."]
   invite <group-id> <ship> [<ship2> ...]
   info <group-id>
+  invite-link <group-id> [--self]
   leave <group-id>
   join <group-id>
   request-invite <group-id>
@@ -153,6 +156,7 @@ const GROUPS_COMMAND_HELP: Record<string, string> = {
   'create-owned': `Usage: tlon groups create-owned "Group Name" --owner <ship> [--description "..."]\nExample: tlon groups create-owned "Projects" --owner ~nec --description "Shared work"`,
   invite: `Usage: tlon groups invite <group-id> <ship> [<ship2> ...]\nExample: tlon groups invite ~host/group-slug ~nec ~bud`,
   info: `Usage: tlon groups info <group-id>\nExample: tlon groups info ~host/group-slug`,
+  'invite-link': INVITE_LINK_HELP,
   leave: `Usage: tlon groups leave <group-id>\nExample: tlon groups leave ~host/group-slug`,
   join: `Usage: tlon groups join <group-id>\nJoins public or invited groups. For private groups without an invite, requests an invite.\nExample: tlon groups join ~host/group-slug`,
   'request-invite': `Usage: tlon groups request-invite <group-id>\nExample: tlon groups request-invite ~host/group-slug`,
@@ -208,6 +212,7 @@ function validateGroupsArgs(args: string[]): void {
       return;
     }
     case 'info':
+    case 'invite-link':
     case 'leave':
     case 'join':
     case 'request-invite':
@@ -1450,6 +1455,15 @@ async function main() {
   }
 
   validateGroupsArgs(args);
+
+  // invite-link owns its whole flow: a global deadline around a single
+  // authenticate-then-act sequence. Dispatching before the family-wide
+  // ensureClient keeps that flow intact (and its subscriptions unopened).
+  // Which ship it acts as is the resolver's answer — owner selection belongs
+  // to the bot harnesses, which inject credentials before invoking the CLI.
+  if (command === 'invite-link') {
+    process.exit(await runInviteLinkCommand(args.slice(1)));
+  }
 
   await ensureClient(['groups', 'channels']);
 

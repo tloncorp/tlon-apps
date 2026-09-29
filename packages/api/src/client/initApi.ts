@@ -1,6 +1,8 @@
 import { createDevLogger } from '../lib/logger';
+import { getDeskSupportsBuckets } from './urbit';
 import type * as db from '../types/models';
 import type * as ub from '../urbit';
+import type { BucketsSummary } from '../urbit/buckets';
 import { toClientUnreads } from './activityApi';
 import { ChannelInit, toClientChannelsInit } from './channelsApi';
 import { toClientDms, toClientGroupDms } from './chatApi';
@@ -20,6 +22,7 @@ export interface InitData {
   unjoinedGroups: db.Group[];
   channels: db.Channel[];
   channelPerms: ChannelInit[];
+  buckets: BucketsSummary[];
   joinedGroups: string[];
   joinedGroupChannels: string[];
   hiddenPostIds: string[];
@@ -32,12 +35,23 @@ type InitDataOptions = {
 };
 
 export const getInitData = async () => {
-  // /v10/init is /v9 plus the group blob: v10-native activity (notebook/note
-  // sources) so a fresh init hydrates pre-existing note unreads, over v11
-  // groups so it also carries blob. Old backends don't serve it.
-  const response = await scry<ub.GroupsInit10>({
+  // /v11/init is /v10 plus Buckets and their writer roles, which no agent
+  // but %buckets models — so a Bucket learned from the group alone arrives
+  // without them. /v10 is /v9 plus the group blob: v10-native activity
+  // (notebook/note sources) so a fresh init hydrates pre-existing note
+  // unreads, over v11 groups so it also carries blob. Old backends don't
+  // serve it.
+  // Which endpoint exists is decided by the backend's version, resolved by
+  // the capability probe before this runs — not discovered by calling and
+  // catching. A ship whose desk predates Buckets serves /v10 and not /v11,
+  // and letting that 404 escape abandons the whole high-priority batch: the
+  // client then hydrates no groups and no channels at all. /v11 is /v10 plus
+  // Buckets, so the older path degrades to Buckets arriving without their
+  // writer roles until the subscription fills them in.
+  const path = getDeskSupportsBuckets() ? '/v11/init' : '/v10/init';
+  const response = await scry<ub.GroupsInit11>({
     app: 'groups-ui',
-    path: '/v10/init',
+    path,
   });
 
   logger.crumb('got init data from api');
@@ -74,7 +88,9 @@ function extractJoinedGroupChannelsFromV7Groups(
 }
 
 export const toInitData = (
-  response: ub.GroupsInit10,
+  // Accepts a /v10 payload too: fixtures and older captures have no buckets
+  // field, and an absent one is simply no buckets.
+  response: ub.GroupsInit10 & { buckets?: ub.BucketsSummary[] },
   options: InitDataOptions
 ): InitData => {
   logger.crumb('converting init data to client data');
@@ -152,5 +168,6 @@ export const toInitData = (
     joinedGroupChannels,
     hiddenPostIds,
     blockedUsers,
+    buckets: response.buckets ?? [],
   };
 };

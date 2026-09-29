@@ -26,6 +26,12 @@ data class ActivityEventPreview(
 
     // present when event represents a user-to-user message
     val messagingMetadata: ActivityEventPreviewMessage?,
+
+    /**
+     * Serialized %activity source that a "mark as read" on this notification
+     * should read, or null when the event has no source of its own.
+     */
+    val readSource: String?,
 )
 
 @SuppressLint("SetJavaScriptEnabled")
@@ -66,7 +72,8 @@ suspend fun renderPreview(context: Context, activityEventJson: String): Activity
                                     isGroupConversation = m.isGroupConversation
                                 )
                             }
-                        }
+                        },
+                        readSource = parsed.readSource,
                     )
                     cnt.resume(preview)
                 }
@@ -86,7 +93,9 @@ fun renderPreviewAsync(context: Context, activityEventJson: String, onSuccess: j
 
 data class PreviewContentPayload(
     val notification: NotificationPayload,
-    val message: MessagePayload?
+    val message: MessagePayload?,
+    /** Raw JSON of the %activity source to read, as emitted by the JS bundle. */
+    val readSource: String?,
 ) {
     data class NotificationPayload(
         val title: PreviewContentNode?,
@@ -124,7 +133,8 @@ data class PreviewContentPayload(
                         messageText = parseNodeAtKey(source, "messageText"),
                     )
                 }
-            else null
+            else null,
+            readSource = source.optJSONObject("readSource")?.toString(),
         )
     }
 }

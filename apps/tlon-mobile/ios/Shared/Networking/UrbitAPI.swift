@@ -12,6 +12,7 @@ enum APIError: Error {
     case unknownShip
     case forbidden
     case notFound
+    case httpError(statusCode: Int)
     case invalidURL
     case invalidParams
     case invalidDateFormat
@@ -26,6 +27,8 @@ extension APIError: LocalizedError {
             return "User forbidden"
         case .notFound:
             return "Not found"
+        case .httpError(let statusCode):
+            return "Request failed with status \(statusCode)"
         case .invalidURL:
             return "Invalid URL provided"
         case .invalidParams:
@@ -33,6 +36,30 @@ extension APIError: LocalizedError {
         case .invalidDateFormat:
             return "Invalid @da received from JS"
         }
+    }
+}
+
+extension APIError {
+    var statusCode: Int? {
+        switch self {
+        case .forbidden: return 403
+        case .notFound: return 404
+        case .httpError(let statusCode): return statusCode
+        case .unknownShip, .invalidURL, .invalidParams, .invalidDateFormat: return nil
+        }
+    }
+}
+
+extension Error {
+    /// HTTP status behind this error, when it came from a response. Neither our
+    /// own `APIError` nor Alamofire puts it in `localizedDescription`, so it is
+    /// lost unless a caller asks for it.
+    var httpStatusCode: Int? {
+        if let apiError = self as? APIError {
+            return apiError.statusCode
+        }
+
+        return asAFError?.responseCode
     }
 }
 
@@ -115,17 +142,23 @@ final class UrbitAPI {
 
     func processDataTask<T>(_ dataTask: DataTask<T>) async throws -> T {
         let response = await dataTask.response
-        if let error = response.error {
-            if let statusCode = response.response?.statusCode {
-                if statusCode == 403 {
-                    throw APIError.forbidden
-                }
 
-                if statusCode == 404 {
-                    throw APIError.notFound
-                }
+        // Nothing here calls `.validate()`, so a failing status with a body in it
+        // — an urbit login page on a 403, a proxy's 502 page — serializes as
+        // happily as a real one. Judge the status before the serializer gets a
+        // vote, or those come back as success and fail later as a parse error
+        // that says nothing about the status.
+        if let statusCode = response.response?.statusCode, !(200..<300).contains(statusCode) {
+            switch statusCode {
+            case 403: throw APIError.forbidden
+            case 404: throw APIError.notFound
+            default: throw APIError.httpError(statusCode: statusCode)
             }
+        }
 
+        // A 2xx that still errored is a serialization failure; that error says
+        // what failed to decode, so it is the one worth keeping.
+        if let error = response.error {
             throw error
         }
 

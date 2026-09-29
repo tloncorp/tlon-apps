@@ -1,6 +1,8 @@
 import * as Sentry from '@sentry/react';
 import { populateScope, toSentryCapture } from '@tloncorp/shared';
 
+import { currentHosting } from './sentry-bootstrap';
+
 /**
  * Creates a Sentry error logger that implements the ErrorLoggerStub interface
  * used by packages/shared for platform-agnostic error tracking.
@@ -12,7 +14,12 @@ import { populateScope, toSentryCapture } from '@tloncorp/shared';
 export function createSentryErrorLogger() {
   return {
     capture: (event: string, data: Record<string, unknown>) => {
-      const c = toSentryCapture(event, data);
+      // Web scries stringify to `[object Response]`, so most request failures
+      // never name a host. The app is same-origin with its node, so the page's
+      // own hosting class stands in.
+      const c = toSentryCapture(event, data, {
+        fallbackHosting: currentHosting(),
+      });
       // The payload's breadcrumbs are the non-sensitive snapshot taken when
       // the error was logged; rereading the store later can attach unrelated
       // post-error activity.

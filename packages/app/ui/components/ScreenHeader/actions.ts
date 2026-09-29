@@ -23,6 +23,8 @@ export interface ScreenHeaderIconAction extends BaseAction {
   tint?: string;
   /** React-rendered header highlight behind the icon. */
   backgroundTint?: string;
+  /** Count or marker drawn on the icon; omit for none. */
+  badge?: number | string;
 }
 
 export interface ScreenHeaderTextAction extends BaseAction {
@@ -159,6 +161,7 @@ export function getScreenHeaderActionPresentation(
       disabled: action.disabled,
       tint: resolveColor(action.tint),
       backgroundTint: resolveColor(action.backgroundTint),
+      badge: action.badge,
       testID: action.testID,
     };
   });

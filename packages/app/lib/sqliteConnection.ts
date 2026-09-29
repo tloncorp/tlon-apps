@@ -23,7 +23,17 @@ export interface SQLiteConnection<
       | null
   ): void;
   getDbPath(): string;
+  /**
+   * Close the connection, leaving the database file in place. Closing twice is
+   * undefined behavior in SQLite, so a closed connection must be discarded.
+   */
   close(): void;
+  /**
+   * Close the connection *and* remove the database file. Implementations own
+   * the close, so callers must not call `close()` first -- op-sqlite's binding
+   * closes internally, and a preceding `close()` makes that a second
+   * `sqlite3_close_v2` on a freed handle.
+   */
   delete(): void;
   migrateClient(client: Client): Promise<void>;
   // `Schema` is hardcoded here to match `AnySqliteDatabase`, which also

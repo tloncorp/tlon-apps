@@ -16,7 +16,10 @@ import { Text } from '@tloncorp/ui';
 import { ComponentProps, ReactNode, useCallback, useMemo } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
-import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
+import {
+  CHAT_IMAGE_MAX_WINDOW_HEIGHT_FRACTION,
+  CHAT_REF_LIKE_MAX_WIDTH,
+} from '../../../constants';
 import { useA2UINavigation } from '../../../hooks/useA2UINavigation';
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
 import { getPostImageViewerId } from '../../../utils/mediaViewer';
@@ -36,6 +39,7 @@ import {
 } from '../PostContent/contentUtils';
 import { SentTimeText } from '../SentTimeText';
 import { useDraftInputContext } from '../draftInputs/shared';
+import { resolveAgentActionGroupId } from './agentActionGroup';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
@@ -144,8 +148,12 @@ export function StaticChatMessage({
     currentGroup.id === resolvedPostGroupId &&
     currentGroup.hostUserId === currentUserId
   );
+  // Onboarding runs in the bot DM, which belongs to no group. With no
+  // surrounding group to bind an agent action to, authorship is the binding:
+  // only this user's own bot can drive their onboarding.
+  const postIsFromOwnBot = post.authorId === getBotUserIdForUser(currentUserId);
   const canUseAgentProviderControls =
-    post.authorId === getBotUserIdForUser(currentUserId) ||
+    postIsFromOwnBot ||
     Boolean(
       resolvedPostGroupId &&
       currentUserHostsPostGroup &&
@@ -189,18 +197,18 @@ export function StaticChatMessage({
       if (!draftInputContext || draftInputContext.canStartDraft === false) {
         throw new Error('This channel is not ready to send messages');
       }
-      const currentGroup = group ?? draftInputContext.group;
-      const groupId = post.groupId ?? currentGroup?.id;
-      if (
-        !groupId ||
-        currentGroup?.id !== groupId ||
-        expectedGroupId !== groupId
-      ) {
+      const groupId = resolveAgentActionGroupId({
+        postGroupId: post.groupId,
+        currentGroupId: (group ?? draftInputContext.group)?.id,
+        requestedGroupId: expectedGroupId,
+        postIsFromOwnBot,
+      });
+      if (!groupId) {
         throw new Error('The onboarding group is not available');
       }
       return { groupId, draftInput: draftInputContext };
     },
-    [draftInputContext, group, post.groupId]
+    [draftInputContext, group, post.groupId, postIsFromOwnBot]
   );
 
   const sendAgentProvision = useCallback(
@@ -209,6 +217,12 @@ export function StaticChatMessage({
       selection?: PostBlobDataEntryA2UISelection
     ) => {
       const { groupId, draftInput } = resolveActionGroup(plan.groupId);
+      // In a DM no surrounding group vouched for this one, so confirm the
+      // caller hosts it — the same bar configureAgentProviders applies.
+      const targetGroup = await db.getGroup({ id: groupId });
+      if (!targetGroup?.currentUserIsHost) {
+        throw new Error('The onboarding group is not available');
+      }
       // Channel creation is persisted separately from the group's embedded
       // channel list, which can lag behind the live channel table for this
       // render. Resolve the notebook from the canonical table at action time.
@@ -403,7 +417,6 @@ export function StaticChatMessage({
 
       if (action.event.name === A2UI.action.provisionAgent) {
         const currentGroup = group ?? draftInputContext?.group;
-        const groupId = post.groupId ?? currentGroup?.id;
         // Furnishing creates the notebook before the bot can post this
         // action. Do not leave the action visually disabled while the group's
         // denormalized channel relation catches up; submission validates the
@@ -411,9 +424,12 @@ export function StaticChatMessage({
         return Boolean(
           draftInputContext &&
           draftInputContext.canStartDraft !== false &&
-          groupId &&
-          currentGroup?.id === groupId &&
-          action.event.context.groupId === groupId
+          resolveAgentActionGroupId({
+            postGroupId: post.groupId,
+            currentGroupId: currentGroup?.id,
+            requestedGroupId: action.event.context.groupId,
+            postIsFromOwnBot,
+          })
         );
       }
 
@@ -432,7 +448,13 @@ export function StaticChatMessage({
 
       return false;
     },
-    [canUseAgentProviderControls, draftInputContext, group, post.groupId]
+    [
+      canUseAgentProviderControls,
+      draftInputContext,
+      group,
+      post.groupId,
+      postIsFromOwnBot,
+    ]
   );
 
   // `useGroup()` can briefly clear its query result while a live post is
@@ -719,6 +741,13 @@ const WebChatImageRenderer: DefaultRendererProps['image'] = {
   },
 };
 
+// Native cannot reuse the fixed pixel caps above, which assume a column narrower
+// than the ones it renders at. Bound the height against the window instead and
+// let the image fit itself to whatever column it lands in.
+const NativeChatImageRenderer: DefaultRendererProps['image'] = {
+  maxWindowHeightFraction: CHAT_IMAGE_MAX_WINDOW_HEIGHT_FRACTION,
+};
+
 const WebChatVideoRenderer: DefaultRendererProps['video'] = {
   alignItems: 'flex-start',
   maxWidth: 600,
@@ -742,7 +771,7 @@ const ChatContentRenderer = createContentRenderer({
       contentSize: '$l',
       maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
     },
-    image: isWeb ? WebChatImageRenderer : undefined,
+    image: isWeb ? WebChatImageRenderer : NativeChatImageRenderer,
     video: isWeb ? WebChatVideoRenderer : undefined,
     link: {
       renderDescription: true,

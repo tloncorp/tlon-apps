@@ -88,14 +88,19 @@ export function useAgentOnboardingChannel({
     agentOnboarding.locked ||
     Boolean(agentOnboardingGroupId && agentOnboarding.isLoading);
   const agentGroupAgents = db.agentGroupAgents.useValue();
-  const agentShipId = groupId ? agentGroupAgents[groupId] : undefined;
+  // A DM has no loaded group; the route carries it. Everything that keys
+  // on the group — agent, acknowledgement, marker — uses the same id.
+  const agentShipId = agentOnboardingGroupId
+    ? agentGroupAgents[agentOnboardingGroupId]
+    : undefined;
   const latestChannelSequenceNum =
     store.useChannelLatestSequenceNum(currentChannelId);
 
   useEffect(() => {
     const provision = agentOnboarding.marker?.provision;
+    const lockGroupId = agentOnboardingGroupId;
     if (
-      !groupId ||
+      !lockGroupId ||
       !agentShipId ||
       !provision ||
       latestChannelSequenceNum == null ||
@@ -116,7 +121,7 @@ export function useAgentOnboardingChannel({
         );
         if (!acknowledged) return;
         return db.agentGroupOnboardingLocks.setValue((current) => {
-          const lock = current[groupId];
+          const lock = current[lockGroupId];
           if (
             !lock ||
             lock.provisionAcknowledgedAt ||
@@ -126,7 +131,7 @@ export function useAgentOnboardingChannel({
           }
           return {
             ...current,
-            [groupId]: { ...lock, provisionAcknowledgedAt: Date.now() },
+            [lockGroupId]: { ...lock, provisionAcknowledgedAt: Date.now() },
           };
         });
       })
@@ -134,7 +139,7 @@ export function useAgentOnboardingChannel({
         if (!cancelled) {
           logger.trackError('Failed to reconcile agent provision receipt', {
             error,
-            groupId,
+            groupId: lockGroupId,
           });
         }
       });
@@ -143,9 +148,9 @@ export function useAgentOnboardingChannel({
     };
   }, [
     agentOnboarding.marker,
+    agentOnboardingGroupId,
     agentShipId,
     currentChannelId,
-    groupId,
     latestChannelSequenceNum,
   ]);
 
