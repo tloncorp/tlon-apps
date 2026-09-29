@@ -5,6 +5,7 @@ import {
   getStewardPromptRequest,
   awaitStewardPromptRequest,
   getStewardPromptFiles,
+  PromptsUnsupportedError,
   subscribeToStewardPrompts,
   StewardPromptEditError,
   StewardPromptPendingError,
@@ -82,6 +83,23 @@ test('poll exhaustion remains pending', async () => {
     awaitStewardPromptRequest(requestId, { attempts: 1 })
   ).rejects.toBeInstanceOf(StewardPromptPendingError);
 });
+test('polling rides out a transient failure and still settles', async () => {
+  vi.mocked(requestJson)
+    .mockRejectedValueOnce(new Error('network blip'))
+    .mockResolvedValueOnce(updated);
+  await expect(
+    awaitStewardPromptRequest(requestId, { attempts: 3, intervalMs: 0 })
+  ).resolves.toEqual({ requestId, name: 'SOUL.md' });
+});
+test('a terminal error still surfaces instead of being polled through', async () => {
+  vi.mocked(requestJson).mockResolvedValue({
+    requestId,
+    body: { type: 'error', errorType: 'not-authorized', message: ['nope'] },
+  });
+  await expect(
+    awaitStewardPromptRequest(requestId, { attempts: 3, intervalMs: 0 })
+  ).rejects.toBeInstanceOf(StewardPromptEditError);
+});
 test('harness failures remain typed errors', async () => {
   vi.mocked(requestJson).mockResolvedValue({
     requestId,
@@ -107,9 +125,19 @@ test('reads and subscribes to projections independently of edit results', async 
   vi.mocked(requestJson).mockResolvedValue(files);
   await expect(getStewardPromptFiles()).resolves.toEqual(files);
   const handler = vi.fn();
-  subscribeToStewardPrompts(handler);
+  const onQuit = vi.fn();
+  subscribeToStewardPrompts(handler, onQuit);
   expect(subscribe).toHaveBeenCalledWith(
     { app: 'steward', path: '/v1/prompts/files' },
-    handler
+    handler,
+    { onQuit }
+  );
+});
+test('an unbound prompts path reports an unsupported endpoint', async () => {
+  vi.mocked(requestJson).mockRejectedValue(
+    Object.assign(new Error('HTTP 404'), { status: 404 })
+  );
+  await expect(getStewardPromptFiles()).rejects.toBeInstanceOf(
+    PromptsUnsupportedError
   );
 });
