@@ -14,6 +14,7 @@ import {
 } from './cron-budget-hold.js';
 
 function fixture() {
+  let now = 1_000_000;
   let revision = 100;
   const jobs: PluginHookGatewayCronJob[] = [
     {
@@ -55,8 +56,27 @@ function fixture() {
   );
   const cron = { list: async () => structuredClone(jobs), update };
   const reconcile = (budget: BudgetState, pauseOnly = false) =>
-    reconcileBudgetHolds({ budget, state, cron, save, notify, pauseOnly });
-  return { jobs, state, save, notify, update, cron, reconcile };
+    reconcileBudgetHolds({
+      budget,
+      state,
+      cron,
+      save,
+      notify,
+      pauseOnly,
+      now: () => now,
+    });
+  return {
+    jobs,
+    state,
+    save,
+    notify,
+    update,
+    cron,
+    reconcile,
+    advance: (ms: number) => {
+      now += ms;
+    },
+  };
 }
 
 describe('cron budget holds', () => {
@@ -178,6 +198,9 @@ describe('cron budget holds', () => {
     await f.reconcile('limited');
     expect(f.state.notified).toBe(false);
     await f.reconcile('limited');
+    expect(f.notify).toHaveBeenCalledTimes(1);
+    f.advance(60_000);
+    await f.reconcile('limited');
     expect(f.state.notified).toBe(true);
     await f.reconcile('available');
     await f.reconcile('limited');
@@ -262,4 +285,54 @@ it('treats missing, malformed, or unknown signals as unknown', async () => {
   }
   await writeFile(path, '{"version":1,"state":"limited"}');
   expect(await readBudgetSignal(path)).toBe('limited');
+});
+
+it('backs off failed notices exponentially without delaying new holds or recovery', async () => {
+  const f = fixture();
+  f.notify.mockResolvedValue(false);
+  for (const delay of [60_000, 120_000, 240_000, 480_000, 900_000, 900_000]) {
+    const calls = f.notify.mock.calls.length;
+    await f.reconcile('limited');
+    expect(f.notify).toHaveBeenCalledTimes(calls + 1);
+    f.advance(delay - 1);
+    await f.reconcile('limited');
+    expect(f.notify).toHaveBeenCalledTimes(calls + 1);
+    f.advance(1);
+  }
+  f.jobs[2].enabled = true;
+  await f.reconcile('limited');
+  expect(f.jobs[2].enabled).toBe(false);
+  await f.reconcile('available');
+  expect(f.jobs[0].enabled).toBe(true);
+  expect(f.state.nextNotificationAtMs).toBeUndefined();
+  f.notify.mockResolvedValue(true);
+  await f.reconcile('limited');
+  expect(f.state.notified).toBe(true);
+});
+
+it('persists the retry deadline before a throwing delivery and honors it after reload', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'cron-budget-backoff-'));
+  try {
+    const path = join(dir, 'holds.json');
+    const f = fixture();
+    f.save.mockImplementation(() => writeBudgetHoldState(path, f.state));
+    f.notify.mockImplementation(async () => {
+      throw new Error('network unavailable');
+    });
+    await expect(f.reconcile('limited')).rejects.toThrow('network unavailable');
+    const state = await readBudgetHoldState(path);
+    expect(state.notificationAttempts).toBe(1);
+    expect(state.nextNotificationAtMs).toBe(1_060_000);
+    await reconcileBudgetHolds({
+      budget: 'limited',
+      state,
+      cron: f.cron,
+      save: async () => {},
+      notify: f.notify,
+      now: () => 1_030_000,
+    });
+    expect(f.notify).toHaveBeenCalledTimes(1);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });

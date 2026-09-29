@@ -6185,6 +6185,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           runtime.error?.(`[tlon] Cron snapshot failed: ${String(error)}`),
       });
       removeBudgetHoldNotifier = installBudgetHoldNotifier(
+        account.accountId,
         async (message, blob) =>
           Boolean(await sendOwnerNotification(message, blob))
       );

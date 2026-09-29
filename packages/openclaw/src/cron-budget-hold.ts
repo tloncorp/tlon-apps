@@ -36,6 +36,9 @@ export type BudgetHoldState = {
   limited: boolean;
   notified: boolean;
   episodeId?: string;
+  notifiedAccounts?: string[];
+  notificationAttempts?: number;
+  nextNotificationAtMs?: number;
   holds: Record<string, Hold>;
 };
 
@@ -80,6 +83,14 @@ export async function readBudgetHoldState(
     typeof data.limited !== 'boolean' ||
     typeof data.notified !== 'boolean' ||
     (data.episodeId !== undefined && typeof data.episodeId !== 'string') ||
+    (data.notifiedAccounts !== undefined &&
+      (!Array.isArray(data.notifiedAccounts) ||
+        data.notifiedAccounts.some((id: unknown) => typeof id !== 'string'))) ||
+    (data.notificationAttempts !== undefined &&
+      (!Number.isSafeInteger(data.notificationAttempts) ||
+        data.notificationAttempts < 0)) ||
+    (data.nextNotificationAtMs !== undefined &&
+      !Number.isFinite(data.nextNotificationAtMs)) ||
     !data.holds ||
     Array.isArray(data.holds) ||
     typeof data.holds !== 'object' ||
@@ -126,11 +137,15 @@ export async function reconcileBudgetHolds(opts: {
   // release them so it computes a future next-run time without a catch-up run.
   pauseOnly?: boolean;
   externallyEditedJobs?: ReadonlySet<string>;
+  now?: () => number;
 }): Promise<void> {
   const { state, cron, save } = opts;
   if (opts.budget === 'limited' && !state.limited) {
     state.limited = true;
     state.notified = false;
+    delete state.notifiedAccounts;
+    delete state.notificationAttempts;
+    delete state.nextNotificationAtMs;
     state.episodeId = randomUUID();
     await save();
   }
@@ -228,19 +243,38 @@ export async function reconcileBudgetHolds(opts: {
   }
 
   const count = Object.keys(state.holds).length;
-  if (limited && count > 0 && !state.notified && opts.notify) {
+  const now = (opts.now ?? Date.now)();
+  if (
+    limited &&
+    count > 0 &&
+    !state.notified &&
+    opts.notify &&
+    now >= (state.nextNotificationAtMs ?? 0)
+  ) {
+    // Persist before delivery so throws or restarts cannot reset the backoff.
+    // Reconciliation still runs every five seconds, independently of notices.
+    const attempts = state.notificationAttempts ?? 0;
+    state.notificationAttempts = Math.min(attempts + 1, 5);
+    state.nextNotificationAtMs =
+      now + Math.min(60_000 * 2 ** Math.min(attempts, 4), 900_000);
+    await save();
     if (
       await opts.notify(
         `Your token credits are low. Your ${count} scheduled ${count === 1 ? 'task has' : 'tasks have'} been paused.`
       )
     ) {
       state.notified = true;
+      delete state.notificationAttempts;
+      delete state.nextNotificationAtMs;
       await save();
     }
   }
   if (!limited) {
     state.limited = false;
     state.notified = false;
+    delete state.notifiedAccounts;
+    delete state.notificationAttempts;
+    delete state.nextNotificationAtMs;
     await save();
   }
 }

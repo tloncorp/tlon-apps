@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import type { OpenClawPluginApi } from 'openclaw/plugin-sdk/core';
 import type { PluginHookGatewayCronJob } from 'openclaw/plugin-sdk/types';
 import { afterEach, expect, it, vi } from 'vitest';
+import { readBudgetHoldState } from './cron-budget-hold.js';
 import { getCurrentUserId } from '@tloncorp/api';
 import {
   runWithTlonApiScope,
@@ -20,6 +21,7 @@ afterEach(async () => {
   for (const cleanup of cleanups.reverse()) await cleanup();
   cleanups.length = 0;
   vi.unstubAllEnvs();
+  vi.restoreAllMocks();
 });
 
 it('sends the notice in the authenticated monitor scope from a gateway callback', async () => {
@@ -28,7 +30,7 @@ it('sends the notice in the authenticated monitor scope from a gateway callback'
   await runWithTlonApiScope(async () => {
     setScopedTlonApiWithPoke(vi.fn(), '~zod', 'http://zod');
     cleanups.push(
-      installBudgetHoldNotifier(async () => {
+      installBudgetHoldNotifier('default', async () => {
         sentAs(getCurrentUserId());
         return true;
       })
@@ -39,7 +41,24 @@ it('sends the notice in the authenticated monitor scope from a gateway callback'
   expect(f.warn).not.toHaveBeenCalled();
 });
 
-async function setup() {
+async function setup(accountIds = ['default']) {
+  const config = {
+    channels: {
+      tlon: {
+        ...(accountIds.includes('default')
+          ? { ship: '~zod', url: 'http://zod', code: 'test-code' }
+          : {}),
+        accounts: Object.fromEntries(
+          accountIds
+            .filter((id) => id !== 'default')
+            .map((id) => [
+              id,
+              { ship: '~zod', url: 'http://zod', code: 'test-code' },
+            ])
+        ),
+      },
+    },
+  };
   const dir = await mkdtemp(join(tmpdir(), 'cron-budget-runtime-'));
   cleanups.push(() => rm(dir, { recursive: true, force: true }));
   const signal = join(dir, 'signal.json');
@@ -54,9 +73,9 @@ async function setup() {
     hooks.set(name, handler as (...args: unknown[]) => unknown);
   });
   const register = () =>
-    registerBudgetHoldHooks({ on, logger: { warn } } as unknown as Pick<
+    registerBudgetHoldHooks({ on, logger: { warn }, config } as unknown as Pick<
       OpenClawPluginApi,
-      'on' | 'logger'
+      'on' | 'logger' | 'config'
     >);
   register();
   const fire = async (name: string, ...args: unknown[]) =>
@@ -80,6 +99,7 @@ async function setup() {
   const cron = { list, update };
   return {
     job,
+    dir,
     register,
     update,
     list,
@@ -95,7 +115,7 @@ it('holds without a connected owner, then notifies once when delivery becomes av
   await f.fire('gateway_start', {}, f.ctx);
   expect(f.job.enabled).toBe(false);
   const notify = vi.fn(async () => true);
-  cleanups.push(installBudgetHoldNotifier(notify));
+  cleanups.push(installBudgetHoldNotifier('default', notify));
   await f.fire('cron_changed', { action: 'added', jobId: 'another' });
   await vi.waitFor(() =>
     expect(notify).toHaveBeenCalledWith(
@@ -138,7 +158,7 @@ it('does not install budget policy for self-hosted instances without a signal', 
   const on = vi.fn();
   registerBudgetHoldHooks({ on } as unknown as Pick<
     OpenClawPluginApi,
-    'on' | 'logger'
+    'on' | 'logger' | 'config'
   >);
   expect(on).not.toHaveBeenCalled();
 });
@@ -263,5 +283,94 @@ it('recognizes owned writes through a replacement registry', async () => {
   await f.setBudget('available');
   await f.fire('gateway_start', {}, f.ctx);
   expect(f.job.enabled).toBe(true);
+  expect(f.warn).not.toHaveBeenCalled();
+});
+
+it('blocks a newly added recurring task before reconciliation persists its hold', async () => {
+  const f = await setup();
+  await f.setBudget('available');
+  await f.fire('gateway_start', {}, f.ctx);
+  await f.setBudget('limited');
+  let finishList!: (jobs: PluginHookGatewayCronJob[]) => void;
+  f.list.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finishList = resolve;
+      })
+  );
+  await f.fire('cron_changed', { action: 'added', jobId: f.job.id });
+  await vi.waitFor(() => expect(finishList).toBeDefined());
+  expect(
+    (await readBudgetHoldState(join(f.dir, 'tlon-cron-budget-holds.json')))
+      .holds
+  ).toEqual({});
+  expect(
+    await f.fire('before_tool_call', {
+      toolName: 'cron',
+      params: { action: 'run', id: f.job.id },
+    })
+  ).toMatchObject({ block: true });
+  // The same guard leaves one-shot reminders outside this policy.
+  f.job.schedule = { kind: 'at', at: '2030-01-01T00:00:00Z' };
+  expect(
+    await f.fire('before_tool_call', {
+      toolName: 'cron',
+      params: { action: 'run', jobId: f.job.id },
+    })
+  ).toBeUndefined();
+  finishList([structuredClone(f.job)]);
+  await f.fire('gateway_stop');
+  expect(f.warn).not.toHaveBeenCalled();
+});
+
+it('notifies each account in its own scope and retains successful delivery across restart', async () => {
+  const f = await setup(['alice', 'bob']);
+  let now = 1_000_000;
+  vi.spyOn(Date, 'now').mockImplementation(() => now);
+  const alice = vi.fn(async () => {
+    expect(getCurrentUserId()).toBe('~zod');
+    return true;
+  });
+  const bob = vi.fn(async () => {
+    expect(getCurrentUserId()).toBe('~bus');
+    return false;
+  });
+  await runWithTlonApiScope(async () => {
+    setScopedTlonApiWithPoke(vi.fn(), '~zod', 'http://zod');
+    cleanups.push(installBudgetHoldNotifier('alice', alice));
+  });
+  let stopBob!: () => void;
+  await runWithTlonApiScope(async () => {
+    setScopedTlonApiWithPoke(vi.fn(), '~bus', 'http://bus');
+    stopBob = installBudgetHoldNotifier('bob', bob);
+    cleanups.push(stopBob);
+  });
+  await f.fire('gateway_start', {}, f.ctx);
+  expect(alice).toHaveBeenCalledTimes(1);
+  expect(bob).toHaveBeenCalledTimes(1);
+  await f.fire('gateway_stop');
+  await f.fire('gateway_start', {}, f.ctx);
+  expect(bob).toHaveBeenCalledTimes(1);
+  now += 60_000;
+  bob.mockResolvedValue(true);
+  await f.fire('gateway_stop');
+  await f.fire('gateway_start', {}, f.ctx);
+  expect(alice).toHaveBeenCalledTimes(1);
+  expect(bob).toHaveBeenCalledTimes(2);
+  const state = await readBudgetHoldState(
+    join(f.dir, 'tlon-cron-budget-holds.json')
+  );
+  expect(state.notified).toBe(true);
+  expect(state.notifiedAccounts).toEqual(['alice', 'bob']);
+  // Disconnecting the last installed monitor must not remove Alice's sender.
+  stopBob();
+  await f.fire('gateway_stop');
+  await f.setBudget('available');
+  await f.fire('gateway_start', {}, f.ctx);
+  await f.fire('gateway_stop');
+  await f.setBudget('limited');
+  await f.fire('gateway_start', {}, f.ctx);
+  expect(alice).toHaveBeenCalledTimes(2);
+  expect(bob).toHaveBeenCalledTimes(2);
   expect(f.warn).not.toHaveBeenCalled();
 });

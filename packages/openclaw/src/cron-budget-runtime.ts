@@ -3,6 +3,8 @@ import type { OpenClawPluginApi } from 'openclaw/plugin-sdk/core';
 
 import {
   budgetHoldPaths,
+  isRecurringJob,
+  type BudgetCronService,
   readBudgetHoldState,
   readBudgetSignal,
   reconcileBudgetHolds,
@@ -10,13 +12,16 @@ import {
 } from './cron-budget-hold.js';
 import { getTlonCronService } from './cron-telemetry.js';
 import { buildCreditIncreaseCard } from './credit-increase-request.js';
-import { sharedSlot } from './shared-state.js';
+import { listRunnableTlonAccountIds } from './types.js';
+import { sharedMap, sharedSlot } from './shared-state.js';
 import { captureTlonApiScope } from './urbit/api-client.js';
 
-const notifier = sharedSlot<
+const notifiers = sharedMap<
+  string,
   (message: string, blob?: string) => Promise<boolean>
->('cronBudget.notifier');
+>('cronBudget.notifiers');
 export function installBudgetHoldNotifier(
+  accountId: string,
   send: (message: string, blob?: string) => Promise<boolean>
 ) {
   // Gateway timers run outside the monitor's authenticated async context.
@@ -25,14 +30,15 @@ export function installBudgetHoldNotifier(
     ? (message: string, blob?: string) =>
         runInMonitorScope(() => send(message, blob))
     : send;
-  notifier.set(scopedSend);
+  notifiers.set(accountId, scopedSend);
   return () => {
-    if (notifier.get() === scopedSend) notifier.set(null);
+    if (notifiers.get(accountId) === scopedSend) notifiers.delete(accountId);
   };
 }
 
 type CronChange = { action: string; jobId: string };
 type Runner = {
+  getCron: () => BudgetCronService | undefined;
   tick: () => Promise<void>;
   changed: (event: CronChange) => void;
   stop: () => Promise<void>;
@@ -41,7 +47,7 @@ const runnerSlot = sharedSlot<Runner>('cronBudget.runner');
 
 /** Hosted-only. The wrapper supplies an explicit signal, never inferred from a model name. */
 export function registerBudgetHoldHooks(
-  api: Pick<OpenClawPluginApi, 'on' | 'logger'>
+  api: Pick<OpenClawPluginApi, 'on' | 'logger' | 'config'>
 ) {
   const paths = budgetHoldPaths();
   if (!paths) return;
@@ -51,7 +57,20 @@ export function registerBudgetHoldHooks(
     const id = event.params.jobId ?? event.params.id;
     if (typeof id !== 'string') return;
     const state = await readBudgetHoldState(paths.state);
-    if (Object.hasOwn(state.holds, id)) {
+    let blocked = Object.hasOwn(state.holds, id);
+    if (!blocked) {
+      const budget = await readBudgetSignal(paths.signal);
+      const limited =
+        budget === 'limited' || (budget === 'unknown' && state.limited);
+      const cron = runnerSlot.get()?.getCron() ?? getTlonCronService();
+      if (limited && cron) {
+        const job = (await cron.list({ includeDisabled: true })).find(
+          (job) => job.id === id
+        );
+        blocked = Boolean(job && isRecurringJob(job));
+      }
+    }
+    if (blocked) {
       return {
         block: true,
         blockReason:
@@ -85,6 +104,14 @@ export function registerBudgetHoldHooks(
           activeEdits = edits;
           try {
             const state = await readBudgetHoldState(paths.state);
+            const accountIds = listRunnableTlonAccountIds(api.config);
+            const pendingAccounts = accountIds.filter(
+              (id) => !state.notifiedAccounts?.includes(id)
+            );
+            const canNotify =
+              accountIds.length > 0 &&
+              (pendingAccounts.length === 0 ||
+                pendingAccounts.some((id) => notifiers.has(id)));
             await reconcileBudgetHolds({
               budget: await readBudgetSignal(paths.signal),
               state,
@@ -118,13 +145,32 @@ export function registerBudgetHoldHooks(
               },
               externallyEditedJobs: edits,
               save: () => writeBudgetHoldState(paths.state, state),
-              notify: (message) =>
-                notifier.get()?.(
-                  message,
-                  state.episodeId
-                    ? buildCreditIncreaseCard(message, state.episodeId)
-                    : undefined
-                ) ?? Promise.resolve(false),
+              notify: canNotify
+                ? async (message) => {
+                    const blob = state.episodeId
+                      ? buildCreditIncreaseCard(message, state.episodeId)
+                      : undefined;
+                    let deliveryError: unknown;
+                    for (const id of pendingAccounts) {
+                      const send = notifiers.get(id);
+                      if (!send) continue;
+                      try {
+                        if (await send(message, blob)) {
+                          (state.notifiedAccounts ??= []).push(id);
+                          await writeBudgetHoldState(paths.state, state);
+                        }
+                      } catch (error) {
+                        // One account's outage must not prevent other owners
+                        // from receiving their notice in their own API scope.
+                        deliveryError = error;
+                      }
+                    }
+                    if (deliveryError) throw deliveryError;
+                    return accountIds.every((id) =>
+                      state.notifiedAccounts?.includes(id)
+                    );
+                  }
+                : undefined,
             });
           } catch (error) {
             for (const id of edits) {
@@ -151,6 +197,7 @@ export function registerBudgetHoldHooks(
     }, 5_000);
     timer.unref();
     runnerSlot.set({
+      getCron: () => ctx.getCron?.() ?? getTlonCronService(),
       tick,
       changed: (event) => {
         if (event.action === 'updated') {
