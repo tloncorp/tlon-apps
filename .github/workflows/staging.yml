@@ -1,0 +1,72 @@
+# The Staging pipeline. The canary deploy and the develop sync run only after
+# the N-1 desk E2E passes: a failed N-1 run stops both for that push. `staging`
+# has no required status checks, so the gate has to live in the workflows.
+# Policy: docs/tlon-apps/desk-compatibility.md
+#
+# Each stage keeps `workflow_dispatch` as the manual override; dispatching
+# deploy-canary.yml directly deploys without the gate.
+#
+# Concurrency is per stage. A newer push cancels a superseded run's N-1 stage
+# while it's still running. Deploys and syncs share one group that queues them
+# instead: none is cancelled part-way, and no two run at once. A deploy that is
+# already running finishes, and it deploys `staging` as it is when it starts —
+# not necessarily the commit its own N-1 stage tested. So between this run's
+# N-1 stage and its deploy checkout (including any time the deploy waits in
+# the queue), `staging`'s tip can move to a commit this run never tested. The
+# `tested-commit` guard job closes that window: right before deploy, it
+# re-reads the tip and fails the run closed if it no longer matches the commit
+# N-1 tested, so only the tested commit is ever deployed or synced. A
+# superseded run then ends red at the guard, and the newer push's own pipeline
+# carries the deploy and sync through.
+#
+# Accepted limit: the guard only covers the window up to its own check. A
+# `staging` push that lands after the guard passes -- during deploy's own
+# checkout, or while a deploy or sync is already running or queued behind it
+# -- is deployed to the canary untested and merged into `develop` by that
+# run's sync; the new push's own pipeline still runs and reports the N-1
+# result red, just after the fact. Closing that gap would need the guard's
+# SHA pinned all the way through deploy's checkout and sync, or a single
+# fused deploy-and-sync unit -- both rejected as more machinery than the
+# canary is worth.
+name: Staging
+on:
+  push:
+    branches:
+      - "staging"
+jobs:
+  n1-e2e:
+    uses: ./.github/workflows/n1-e2e.yml
+    secrets: inherit
+    concurrency:
+      group: staging-n1
+      cancel-in-progress: true
+  tested-commit:
+    name: Deploy only the tested commit
+    needs: n1-e2e
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm staging still points at the tested commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          tip="$(git ls-remote https://github.com/${{ github.repository }}.git refs/heads/staging | cut -f1)"
+          if [ "$tip" = "${{ github.sha }}" ]; then
+            echo "staging tip $tip matches tested commit ${{ github.sha }}"
+            exit 0
+          fi
+          echo "::error::staging moved to $tip after the N-1 stage tested ${{ github.sha }}; that push's own Staging run deploys it"
+          exit 1
+  deploy:
+    needs: tested-commit
+    uses: ./.github/workflows/deploy-canary.yml
+    secrets: inherit
+    concurrency:
+      group: staging-deploy
+      cancel-in-progress: false
+  sync:
+    needs: deploy
+    uses: ./.github/workflows/sync-dev.yml
+    secrets: inherit
+    concurrency:
+      group: staging-deploy
+      cancel-in-progress: false

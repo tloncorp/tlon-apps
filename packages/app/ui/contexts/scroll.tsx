@@ -27,6 +27,11 @@ export type ConversationScrollToBottomControl = {
   visible: boolean;
 };
 
+type ConversationComposerSendHandler = {
+  begin: () => void;
+  finish: () => void;
+  isActive: () => boolean;
+};
 type ConversationComposerHeightHandler = (
   height: number,
   /**
@@ -67,7 +72,18 @@ const ConversationScrollToBottomContext = createContext<{
 const ConversationComposerHeightContext = createContext<{
   register: (handler: ConversationComposerHeightHandler) => () => void;
   report: (height: number, collapsibleInset?: number) => void;
-}>({ register: () => () => {}, report: () => {} });
+  registerSend: (handler: ConversationComposerSendHandler) => () => void;
+  beginSend: () => void;
+  finishSend: () => void;
+  isSendCoordinated: () => boolean;
+}>({
+  register: () => () => {},
+  report: () => {},
+  registerSend: () => () => {},
+  beginSend: () => {},
+  finishSend: () => {},
+  isSendCoordinated: () => false,
+});
 
 export const useScrollContext = () => useContext(ScrollContext);
 export const useConversationScrollViewNativeID = () =>
@@ -85,10 +101,16 @@ export const useScrollDirectionTracker = ({
   setIsAtBottom: setIsAtBottomProp,
   atBottomThreshold = 1, // multiple of screen/viewport height
   bottomAtEnd = false,
+  onScrollPositionChange,
 }: {
   setIsAtBottom?: (isAtBottom: boolean) => void;
   atBottomThreshold?: number;
   bottomAtEnd?: boolean;
+  onScrollPositionChange?: (position: {
+    offset: number;
+    contentHeight: number;
+    viewportHeight: number;
+  }) => void;
 } = {}) => {
   const [scrollValue] = useScrollContext();
   const previousScrollValue = useSharedValue(0);
@@ -107,6 +129,15 @@ export const useScrollDirectionTracker = ({
 
   const scrollHandler = useAnimatedScrollHandler((event) => {
     const { y } = event.contentOffset;
+    if (onScrollPositionChange) {
+      runOnJS(onScrollPositionChange)({
+        offset: y,
+        // The iOS keyboard extends the scroll range through contentInset.
+        contentHeight:
+          event.contentSize.height + (event.contentInset?.bottom ?? 0),
+        viewportHeight: event.layoutMeasurement.height,
+      });
+    }
     const maxOffset = Math.max(
       0,
       event.contentSize.height -
@@ -173,6 +204,9 @@ export const ScrollContextProvider: React.FC<React.PropsWithChildren> = ({
   const conversationComposerHeightHandler =
     useRef<ConversationComposerHeightHandler | null>(null);
   const lastConversationComposerHeight = useRef<number | null>(null);
+  const composerSendHandler = useRef<ConversationComposerSendHandler | null>(
+    null
+  );
   const lastConversationComposerCollapsibleInset = useRef(0);
   const scrollViewNativeID = `${defaultConversationScrollViewNativeID}-${useId()}`;
   const [scrollToBottomControl, setScrollToBottomControl] =
@@ -232,6 +266,17 @@ export const ScrollContextProvider: React.FC<React.PropsWithChildren> = ({
         lastConversationComposerCollapsibleInset.current = collapsibleInset;
         conversationComposerHeightHandler.current?.(height, collapsibleInset);
       },
+      registerSend: (handler: ConversationComposerSendHandler) => {
+        composerSendHandler.current = handler;
+        return () => {
+          if (composerSendHandler.current === handler) {
+            composerSendHandler.current = null;
+          }
+        };
+      },
+      beginSend: () => composerSendHandler.current?.begin(),
+      finishSend: () => composerSendHandler.current?.finish(),
+      isSendCoordinated: () => composerSendHandler.current?.isActive() ?? false,
     }),
     []
   );

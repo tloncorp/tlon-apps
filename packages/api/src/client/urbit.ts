@@ -67,6 +67,7 @@ interface Config extends Pick<ClientParams, 'onQuitOrReset'> {
   lastStatus: string;
   activitySupportsReactions: boolean;
   activitySupportsNotes: boolean;
+  deskSupportsBuckets: boolean;
 }
 
 type Predicate = (event: any, mark: string) => boolean;
@@ -171,6 +172,10 @@ const config: Config = {
   // Off until the app confirms the backend's groups version ships notes
   // activity (v10 %activity endpoints).
   activitySupportsNotes: false,
+  // Off until the app confirms the backend's groups version serves /v11/init.
+  // Defaults false so a ship whose version we cannot read is asked for /v10,
+  // which every backend has — a 404 here costs the whole init.
+  deskSupportsBuckets: false,
 };
 
 type ClientResolver = () => Urbit | null | undefined;
@@ -251,6 +256,32 @@ export const setActivitySupportsNotes = (value: boolean) => {
 
 export const getActivitySupportsNotes = (): boolean => {
   return config.activitySupportsNotes;
+};
+
+const deskSupportsBucketsListeners = new Set<() => void>();
+
+// Whether the connected backend serves /v11/init (Buckets and their writer
+// roles). No capabilities epoch to bump: this picks one path at init time
+// rather than steering live subscriptions. Views gated on it listen below.
+export const setDeskSupportsBuckets = (value: boolean) => {
+  const changed = config.deskSupportsBuckets !== value;
+  config.deskSupportsBuckets = value;
+  if (changed) {
+    deskSupportsBucketsListeners.forEach((listener) => listener());
+  }
+};
+
+export const getDeskSupportsBuckets = (): boolean => {
+  return config.deskSupportsBuckets;
+};
+
+export const onDeskSupportsBucketsChange = (
+  listener: () => void
+): (() => void) => {
+  deskSupportsBucketsListeners.add(listener);
+  return () => {
+    deskSupportsBucketsListeners.delete(listener);
+  };
 };
 
 export const client = new Proxy(
@@ -519,7 +550,11 @@ async function reauthOnce(sent: SendContext) {
 
 export async function subscribe<T>(
   endpoint: UrbitEndpoint,
-  handler: (update: T, id?: number) => void
+  handler: (update: T, id?: number) => void,
+  // Hears a watch the ship rejects after this has resolved, once the retries
+  // below have given up on it. This resolves when the channel PUT lands, so a
+  // nack arriving later on the event stream has no promise left to reject.
+  onRejected?: (error: unknown) => void
 ): Promise<number> {
   // the account this is for. As in poke, the send and any retry go to it,
   // never to an account that replaced it mid-flight
@@ -600,7 +635,7 @@ export async function subscribe<T>(
         sent,
         `subscribe ${printEndpoint(endpoint)}`
       );
-      return doSub(retry);
+      return doSub(onWatchError);
     }
     if (!(err instanceof AuthError)) {
       throw err;
@@ -609,11 +644,18 @@ export async function subscribe<T>(
     await reauthOnce(sent);
     // keep the err handler wired so the re-established subscription can
     // recover from a later auth death the same way the initial one does
-    return doSub(retry);
+    return doSub(onWatchError);
+  };
+
+  const onWatchError = (error: any) => {
+    const retried = retry(error);
+    if (onRejected) {
+      retried.catch(onRejected);
+    }
   };
 
   try {
-    return await doSub(retry);
+    return await doSub(onWatchError);
   } catch (err) {
     return retry(err);
   }
