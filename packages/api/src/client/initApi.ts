@@ -1,5 +1,5 @@
 import { createDevLogger } from '../lib/logger';
-import { getDeskSupportsBuckets } from './urbit';
+import { getDeskSupportsBuckets, setDeskSupportsBuckets } from './urbit';
 import type * as db from '../types/models';
 import type * as ub from '../urbit';
 import type { BucketsSummary } from '../urbit/buckets';
@@ -41,18 +41,46 @@ export const getInitData = async () => {
   // (notebook/note sources) so a fresh init hydrates pre-existing note
   // unreads, over v11 groups so it also carries blob. Old backends don't
   // serve it.
-  // Which endpoint exists is decided by the backend's version, resolved by
-  // the capability probe before this runs — not discovered by calling and
-  // catching. A ship whose desk predates Buckets serves /v10 and not /v11,
-  // and letting that 404 escape abandons the whole high-priority batch: the
-  // client then hydrates no groups and no channels at all. /v11 is /v10 plus
-  // Buckets, so the older path degrades to Buckets arriving without their
-  // writer roles until the subscription fills them in.
-  const path = getDeskSupportsBuckets() ? '/v11/init' : '/v10/init';
-  const response = await scry<ub.GroupsInit11>({
-    app: 'groups-ui',
-    path,
-  });
+  // Which endpoint to ask for first is decided by the backend's version,
+  // resolved by the capability probe before this runs. A ship whose desk
+  // predates Buckets serves /v10 and not /v11, and letting that 404 escape
+  // abandons the whole high-priority batch: the client then hydrates no
+  // groups and no channels at all.
+  //
+  // The version is not proof on its own. %groups 12.3.0 shipped without
+  // Buckets and develop carries Buckets at the same 12.3.0, so the two report
+  // identically -- and trusting the number sent every released ship to a
+  // /v11 it does not have. So when /v11 is refused, ask for /v10 and treat
+  // this ship as having no Buckets for the rest of the session, which also
+  // keeps its subscription from being tried. /v11 is /v10 plus Buckets, so
+  // nothing else is lost.
+  let response: ub.GroupsInit11 | ub.GroupsInit10;
+  if (getDeskSupportsBuckets()) {
+    try {
+      response = await scry<ub.GroupsInit11>({
+        app: 'groups-ui',
+        path: '/v11/init',
+      });
+    } catch (v11Error) {
+      logger.crumb('/v11/init refused; falling back to /v10 without Buckets');
+      try {
+        response = await scry<ub.GroupsInit10>({
+          app: 'groups-ui',
+          path: '/v10/init',
+        });
+      } catch {
+        // Both refused is the ship being unreachable or far older, not a
+        // version question -- report what the first attempt ran into.
+        throw v11Error;
+      }
+      setDeskSupportsBuckets(false);
+    }
+  } else {
+    response = await scry<ub.GroupsInit10>({
+      app: 'groups-ui',
+      path: '/v10/init',
+    });
+  }
 
   logger.crumb('got init data from api');
 
