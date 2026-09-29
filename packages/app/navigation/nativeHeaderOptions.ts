@@ -12,12 +12,18 @@ export const nativeHeaderPresentationOptions = {
   },
 } as const satisfies NativeStackNavigationOptions;
 
-const topScrollEdgeEffects = {
-  top: 'soft',
-  bottom: 'hidden',
-  left: 'hidden',
-  right: 'hidden',
-} as const;
+function getMajorVersion(platformVersion: string | number) {
+  return Number.parseInt(String(platformVersion), 10);
+}
+
+// The header title is text outside Liquid Glass, so it relies on the top edge
+// effect for contrast. On iOS 27 a soft effect forced by an app built with the
+// iOS 26 SDK stops at the status bar and leaves the title over sharp content.
+// There the automatic style is the nearly opaque edge Apple recommends for
+// that kind of bar.
+function getTopScrollEdgeEffect(platformVersion: string | number) {
+  return getMajorVersion(platformVersion) >= 27 ? 'automatic' : 'soft';
+}
 
 export function supportsNativeScrollEdgeChrome(
   platform: string,
@@ -27,7 +33,7 @@ export function supportsNativeScrollEdgeChrome(
   return (
     liquidGlassAvailable &&
     platform === 'ios' &&
-    Number.parseInt(String(platformVersion), 10) >= 26
+    getMajorVersion(platformVersion) >= 26
   );
 }
 
@@ -54,7 +60,12 @@ export function getNativeHeaderScrollOptions({
 
   return {
     headerTransparent: true,
-    scrollEdgeEffects: { ...topScrollEdgeEffects, bottom: bottomEdgeEffect },
+    scrollEdgeEffects: {
+      top: getTopScrollEdgeEffect(platformVersion),
+      bottom: bottomEdgeEffect,
+      left: 'hidden',
+      right: 'hidden',
+    },
   };
 }
 

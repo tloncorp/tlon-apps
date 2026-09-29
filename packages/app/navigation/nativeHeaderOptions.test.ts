@@ -38,6 +38,35 @@ describe('native header options', () => {
     ).toMatchObject({ top: 'soft', bottom: 'soft' });
   });
 
+  it('lets iOS 27 choose the top edge style behind the title', () => {
+    expect(
+      getNativeHeaderScrollOptions({
+        platform: 'ios',
+        platformVersion: '27.0',
+        liquidGlassAvailable: true,
+        bottomEdgeEffect: 'soft',
+      })
+    ).toMatchObject({
+      headerTransparent: true,
+      scrollEdgeEffects: {
+        top: 'automatic',
+        bottom: 'soft',
+        left: 'hidden',
+        right: 'hidden',
+      },
+    });
+  });
+
+  it('keeps the soft top edge through iOS 26 point releases', () => {
+    expect(
+      getNativeHeaderScrollOptions({
+        platform: 'ios',
+        platformVersion: '26.5',
+        liquidGlassAvailable: true,
+      }).scrollEdgeEffects
+    ).toMatchObject({ top: 'soft' });
+  });
+
   it('keeps the standard opaque header before iOS 26', () => {
     expect(
       getNativeHeaderScrollOptions({
