@@ -48,6 +48,14 @@ initial implementation requires one configured Tlon account with an owner.
 ### Full Configuration Example
 
 ```yaml
+# OpenClaw 2026.9.x only treats a channel sender as the owner when they are
+# listed here. Without this entry the owner ship still gets approvals and
+# `ownerShip`-gated plugin behavior, but OpenClaw hides its owner-only core
+# tools (`automations`, `sessions`, `gateway`, ...) from the owner's turns.
+commands:
+    ownerAllowFrom:
+        - 'tlon:~your-main-ship'
+
 channels:
     tlon:
         enabled: true
