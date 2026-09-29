@@ -2790,6 +2790,10 @@ export const syncStart = async (
       return deskOutcome;
     }
 
+    if (isSubscribed) {
+      subscribeToBucketsIfMissed();
+    }
+
     // it's important that this isn't within the main batchEffects block. If we're
     // returning from a cold open, we don't want to wait for all of High Priority sync
     // to complete before showing changes
@@ -2997,13 +3001,12 @@ export const syncStart = async (
   }
 };
 
-// Which client lifetime has its %buckets subscription open or opening. Two
-// places open it — the high-priority set, and a capability change after that
-// set went up without it — and this keeps them from both doing so.
+// Which client lifetime has its %buckets subscription open or opening, so the
+// high-priority set and the late path below never both open it.
 let bucketsSubscribedGeneration: number | null = null;
 // Which client lifetime's high-priority set has already read the capability.
 // Until then a change is that set's to pick up when it reads it; from then on,
-// the listener below is the only thing that can open %buckets for the lifetime.
+// only the late path below can open %buckets for the lifetime.
 let bucketsCheckedGeneration: number | null = null;
 
 async function subscribeToBucketsOnce() {
@@ -3026,31 +3029,35 @@ async function subscribeToBucketsOnce() {
   }
 }
 
-let watchingBucketsSupport = false;
-
 // A ship upgraded to a Buckets desk while the app stays open is found by the
 // recovery sync's re-probe, and that sync skips subscribing because everything
 // it would watch is still up. %buckets is the exception: it was never watched,
 // and useLiveBucket reads only what this subscription reduces into the
 // database, so the Bucket the capability now opens would stay empty until a
-// restart. Registered on first use rather than on import, so the modules that
-// import sync under a partial api mock never reach it.
+// restart. Run when the capability changes, and by every recovery sync, since
+// a failed attempt leaves the capability on and nothing would change it again.
+function subscribeToBucketsIfMissed() {
+  if (
+    getSession() === null ||
+    bucketsCheckedGeneration !== getClientGeneration()
+  ) {
+    return;
+  }
+  subscribeToBucketsOnce().catch((error) =>
+    logger.trackError('buckets: late subscribe failed', { error })
+  );
+}
+
+let watchingBucketsSupport = false;
+
+// Registered on first use rather than on import, so the modules that import
+// sync under a partial api mock never reach it.
 function watchBucketsSupport() {
   if (watchingBucketsSupport) {
     return;
   }
   watchingBucketsSupport = true;
-  api.onDeskSupportsBucketsChange(() => {
-    if (
-      getSession() === null ||
-      bucketsCheckedGeneration !== getClientGeneration()
-    ) {
-      return;
-    }
-    subscribeToBucketsOnce().catch((error) =>
-      logger.trackError('buckets: late subscribe failed', { error })
-    );
-  });
+  api.onDeskSupportsBucketsChange(subscribeToBucketsIfMissed);
 }
 
 export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {

@@ -2570,6 +2570,41 @@ describe('desk compatibility gate', () => {
   );
 
   test(
+    'a later recovery retries a late %buckets subscribe that failed',
+    async () => {
+      await syncStart();
+
+      let failSubscribe: (error: Error) => void = () => {};
+      let failNext = true;
+      vi.mocked(subscribe).mockImplementation((async (endpoint: {
+        app: string;
+      }) => {
+        if (endpoint.app === 'buckets' && failNext) {
+          failNext = false;
+          return new Promise((_resolve, reject) => {
+            failSubscribe = reject;
+          });
+        }
+        return 1;
+      }) as unknown as typeof subscribe);
+
+      reportedDeskVersion = BUCKETS_MIN_GROUPS_VERSION;
+      await handleDiscontinuity({ context: 'test' });
+      expect(bucketsSubscribeCount()).toBe(1);
+
+      // The capability stays on, so no change will open it again: the next
+      // recovery is the only chance this login gets.
+      failSubscribe(new Error('subscribe failed'));
+      await handleDiscontinuity({ context: 'test' });
+      expect(bucketsSubscribeCount()).toBe(2);
+
+      await handleDiscontinuity({ context: 'test' });
+      expect(bucketsSubscribeCount()).toBe(2);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
     'a start on a Buckets desk opens %buckets once per login',
     async () => {
       // The probe turns the capability on before the high-priority set reads
