@@ -10,6 +10,7 @@ import {
   reconcileBudgetHolds,
   writeBudgetHoldState,
 } from './cron-budget-hold.js';
+import { createBudgetHoldObserver } from './cron-budget-observability.js';
 import { getTlonCronService } from './cron-telemetry.js';
 import { buildCreditIncreaseCard } from './credit-increase-request.js';
 import { normalizeShip } from './targets.js';
@@ -99,6 +100,7 @@ export function registerBudgetHoldHooks(
 
   api.on('gateway_start', (_event, ctx) => {
     if (runnerSlot.get()) return;
+    const observer = createBudgetHoldObserver(api.logger);
     const ownMutation = new AsyncLocalStorage<{ active: boolean }>();
     const pendingEdits = new Map<string, number>();
     let editGeneration = 0;
@@ -142,66 +144,85 @@ export function registerBudgetHoldHooks(
                 pendingRecipients.some(
                   ({ id, key }) => notifiers.get(id)?.key === key
                 ));
-            await reconcileBudgetHolds({
-              budget: await readBudgetSignal(paths.signal),
-              state,
-              cron: {
-                list: (options) => cron.list(options),
-                update: async (id, patch) => {
-                  const generation = pendingEdits.get(id);
-                  const scope = { active: true };
-                  let result: unknown;
-                  try {
-                    result = await ownMutation.run(scope, () =>
-                      cron.update(id, patch)
-                    );
-                  } finally {
-                    // Timers created by core inherit this async context, but
-                    // later mutations are no longer part of our own write.
-                    scope.active = false;
-                  }
-                  // A new hold incorporates edits already seen by this pass.
-                  // Do not revoke it again on the queued follow-up pass, but
-                  // retain any newer edit received while this write awaited.
-                  if (
-                    patch.enabled === false &&
-                    pendingEdits.get(id) === generation
-                  ) {
-                    pendingEdits.delete(id);
-                    edits.delete(id);
-                  }
-                  return result;
-                },
-              },
-              externallyEditedJobs: edits,
-              save: () => writeBudgetHoldState(paths.state, state),
-              notify: canNotify
-                ? async (message) => {
-                    const blob = state.episodeId
-                      ? buildCreditIncreaseCard(message, state.episodeId)
-                      : undefined;
-                    let deliveryError: unknown;
-                    for (const { id, key } of pendingRecipients) {
-                      const notifier = notifiers.get(id);
-                      if (notifier?.key !== key) continue;
-                      try {
-                        if (await notifier.send(message, blob)) {
-                          (state.notifiedRecipients ??= []).push(key);
-                          await writeBudgetHoldState(paths.state, state);
-                        }
-                      } catch (error) {
-                        // One account's outage must not prevent other owners
-                        // from receiving their notice in their own API scope.
-                        deliveryError = error;
-                      }
+            const budget = await readBudgetSignal(paths.signal);
+            try {
+              await reconcileBudgetHolds({
+                budget,
+                state,
+                cron: {
+                  list: (options) => cron.list(options),
+                  update: async (id, patch) => {
+                    const generation = pendingEdits.get(id);
+                    const scope = { active: true };
+                    let result: unknown;
+                    try {
+                      result = await ownMutation.run(scope, () =>
+                        cron.update(id, patch)
+                      );
+                    } finally {
+                      // Timers created by core inherit this async context, but
+                      // later mutations are no longer part of our own write.
+                      scope.active = false;
                     }
-                    if (deliveryError) throw deliveryError;
-                    return recipients.every(({ key }) =>
-                      state.notifiedRecipients?.includes(key)
-                    );
-                  }
-                : undefined,
-            });
+                    // A new hold incorporates edits already seen by this pass.
+                    // Do not revoke it again on the queued follow-up pass, but
+                    // retain any newer edit received while this write awaited.
+                    if (
+                      patch.enabled === false &&
+                      pendingEdits.get(id) === generation
+                    ) {
+                      pendingEdits.delete(id);
+                      edits.delete(id);
+                    }
+                    return result;
+                  },
+                },
+                externallyEditedJobs: edits,
+                save: () => writeBudgetHoldState(paths.state, state),
+                notify: canNotify
+                  ? async (message) => {
+                      const blob = state.episodeId
+                        ? buildCreditIncreaseCard(message, state.episodeId)
+                        : undefined;
+                      let deliveryError: unknown;
+                      for (const { id, key } of pendingRecipients) {
+                        const notifier = notifiers.get(id);
+                        if (notifier?.key !== key) continue;
+                        try {
+                          if (await notifier.send(message, blob)) {
+                            (state.notifiedRecipients ??= []).push(key);
+                            await writeBudgetHoldState(paths.state, state);
+                          }
+                        } catch (error) {
+                          // One account's outage must not prevent other owners
+                          // from receiving their notice in their own API scope.
+                          deliveryError = error;
+                        }
+                      }
+                      if (deliveryError) throw deliveryError;
+                      return recipients.every(({ key }) =>
+                        state.notifiedRecipients?.includes(key)
+                      );
+                    }
+                  : undefined,
+              });
+            } finally {
+              // Even if a later update or notification fails, report changes
+              // already confirmed in this pass. Analytics cannot gate recovery.
+              try {
+                if (
+                  observer.observe(config, budget, state) &&
+                  state.pendingTelemetryChanges?.length
+                ) {
+                  delete state.pendingTelemetryChanges;
+                  await writeBudgetHoldState(paths.state, state);
+                }
+              } catch (error) {
+                api.logger.warn(
+                  `[tlon] Cron budget telemetry failed: ${String(error)}`
+                );
+              }
+            }
           } catch (error) {
             for (const id of edits) {
               if (!pendingEdits.has(id)) pendingEdits.set(id, ++editGeneration);
@@ -249,6 +270,7 @@ export function registerBudgetHoldHooks(
         stopped = true;
         clearInterval(timer);
         await flight;
+        await observer.close();
       },
     });
     return tick();

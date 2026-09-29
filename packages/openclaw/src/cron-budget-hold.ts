@@ -31,6 +31,16 @@ type Hold = {
   // Completion of a run already in flight advances updatedAtMs without an edit.
   runningAtMs?: number;
 };
+export type BudgetHoldChange = {
+  eventId: string;
+  occurredAtMs: number;
+  episodeId: string | null;
+  jobId: string;
+  action: 'paused' | 'resumed';
+  reason: 'credit_budget' | 'credit_recovered';
+  source: 'startup' | 'runtime';
+};
+
 export type BudgetHoldState = {
   version: 1;
   limited: boolean;
@@ -40,6 +50,8 @@ export type BudgetHoldState = {
   notificationAttempts?: number;
   nextNotificationAtMs?: number;
   holds: Record<string, Hold>;
+  // Startup runs before telemetry exists. Drain confirmed changes in the gateway.
+  pendingTelemetryChanges?: BudgetHoldChange[];
 };
 
 export const emptyBudgetHoldState = (): BudgetHoldState => ({
@@ -93,6 +105,19 @@ export async function readBudgetHoldState(
         data.notificationAttempts < 0)) ||
     (data.nextNotificationAtMs !== undefined &&
       !Number.isFinite(data.nextNotificationAtMs)) ||
+    (data.pendingTelemetryChanges !== undefined &&
+      (!Array.isArray(data.pendingTelemetryChanges) ||
+        data.pendingTelemetryChanges.some(
+          (event: BudgetHoldChange) =>
+            !event ||
+            typeof event.eventId !== 'string' ||
+            !Number.isFinite(event.occurredAtMs) ||
+            (event.episodeId !== null && typeof event.episodeId !== 'string') ||
+            typeof event.jobId !== 'string' ||
+            !['paused', 'resumed'].includes(event.action) ||
+            !['credit_budget', 'credit_recovered'].includes(event.reason) ||
+            !['startup', 'runtime'].includes(event.source)
+        ))) ||
     !data.holds ||
     Array.isArray(data.holds) ||
     typeof data.holds !== 'object' ||
@@ -142,6 +167,17 @@ export async function reconcileBudgetHolds(opts: {
   now?: () => number;
 }): Promise<void> {
   const { state, cron, save } = opts;
+  const recordChange = (jobId: string, action: BudgetHoldChange['action']) => {
+    (state.pendingTelemetryChanges ??= []).push({
+      eventId: randomUUID(),
+      occurredAtMs: (opts.now ?? Date.now)(),
+      episodeId: state.episodeId ?? null,
+      jobId,
+      action,
+      reason: action === 'paused' ? 'credit_budget' : 'credit_recovered',
+      source: opts.pauseOnly ? 'startup' : 'runtime',
+    });
+  };
   if (opts.budget === 'limited' && !state.limited) {
     state.limited = true;
     state.notified = false;
@@ -191,8 +227,14 @@ export async function reconcileBudgetHolds(opts: {
           job.updatedAtMs === hold.revision ||
           finishedHeldRun);
       if (stillOurs && isRecurringJob(job)) {
+        const unconfirmed = hold.revision === undefined;
+        if (unconfirmed) {
+          // Recover a confirmed pause after a crash between update and save.
+          hold.revision = job.updatedAtMs;
+          recordChange(job.id, 'paused');
+        }
         if (limited) {
-          if (hold.revision === undefined || finishedHeldRun) {
+          if (unconfirmed || finishedHeldRun) {
             hold.revision = job.updatedAtMs;
             delete hold.runningAtMs;
             await save();
@@ -204,6 +246,7 @@ export async function reconcileBudgetHolds(opts: {
           description: hold.description,
         });
         delete state.holds[job.id];
+        recordChange(job.id, 'resumed');
         await save();
         continue;
       }
@@ -240,6 +283,7 @@ export async function reconcileBudgetHolds(opts: {
       updated.description === (BUDGET_HOLD_PREFIX + hold.description).trimEnd()
     ) {
       hold.revision = updated.updatedAtMs;
+      recordChange(job.id, 'paused');
     }
     await save();
   }

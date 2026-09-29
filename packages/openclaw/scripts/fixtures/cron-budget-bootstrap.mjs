@@ -55,6 +55,11 @@ const ledger = JSON.parse(
 );
 assert.deepEqual(Object.keys(ledger.holds), ['repeat']);
 assert.equal(ledger.notified, false);
+assert.equal(ledger.pendingTelemetryChanges.length, 1);
+assert.equal(ledger.pendingTelemetryChanges[0].jobId, 'repeat');
+assert.equal(ledger.pendingTelemetryChanges[0].action, 'paused');
+assert.equal(ledger.pendingTelemetryChanges[0].source, 'startup');
+assert.equal(ledger.pendingTelemetryChanges[0].episodeId, ledger.episodeId);
 run();
 assert.deepEqual(
   JSON.parse(await readFile(root + '/tlon-cron-budget-holds.json', 'utf8')),

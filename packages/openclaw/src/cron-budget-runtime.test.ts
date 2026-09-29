@@ -5,7 +5,12 @@ import { join } from 'node:path';
 import type { OpenClawPluginApi } from 'openclaw/plugin-sdk/core';
 import type { PluginHookGatewayCronJob } from 'openclaw/plugin-sdk/types';
 import { afterEach, expect, it, vi } from 'vitest';
-import { readBudgetHoldState } from './cron-budget-hold.js';
+import {
+  readBudgetHoldState,
+  emptyBudgetHoldState,
+  reconcileBudgetHolds,
+  writeBudgetHoldState,
+} from './cron-budget-hold.js';
 import { getCurrentUserId } from '@tloncorp/api';
 import {
   runWithTlonApiScope,
@@ -73,14 +78,16 @@ async function setup(accountIds = ['default']) {
   await setBudget('limited');
   const hooks = new Map<string, (...args: unknown[]) => unknown>();
   const warn = vi.fn();
+  const info = vi.fn();
   const on = vi.fn((name: string, handler: unknown) => {
     hooks.set(name, handler as (...args: unknown[]) => unknown);
   });
   const register = () =>
-    registerBudgetHoldHooks({ on, logger: { warn }, config } as unknown as Pick<
-      OpenClawPluginApi,
-      'on' | 'logger' | 'config'
-    >);
+    registerBudgetHoldHooks({
+      on,
+      logger: { warn, info },
+      config,
+    } as unknown as Pick<OpenClawPluginApi, 'on' | 'logger' | 'config'>);
   register();
   const fire = async (name: string, ...args: unknown[]) =>
     hooks.get(name)?.(...args);
@@ -109,6 +116,7 @@ async function setup(accountIds = ['default']) {
     update,
     list,
     warn,
+    info,
     fire,
     setBudget,
     ctx: { getCron: () => cron },
@@ -458,4 +466,97 @@ it('notifies a replacement owner under the same account ID and deduplicates afte
   expect(original).toHaveBeenCalledTimes(1);
   expect(replacement).toHaveBeenCalledTimes(1);
   expect(f.warn).not.toHaveBeenCalled();
+});
+
+it('logs one startup snapshot, quiet steady state, and recovery to zero', async () => {
+  const f = await setup();
+  const events = () => f.info.mock.calls.map(([line]) => JSON.parse(line));
+  await f.fire('gateway_start', {}, f.ctx);
+  const first = events();
+  expect(first).toHaveLength(2);
+  expect(
+    first.find((e) => e.event === 'TlonBot Cron Budget Snapshot')
+  ).toMatchObject({
+    reason: 'gateway_start',
+    budgetState: 'limited',
+    budgetPausedCronCount: 1,
+    botShip: '~zod',
+    accountId: 'default',
+  });
+  expect(first.find((e) => e.action === 'paused')).toMatchObject({
+    jobId: 'news',
+    reason: 'credit_budget',
+    source: 'runtime',
+  });
+  await f.fire('cron_changed', { action: 'added', jobId: 'another' });
+  expect(events()).toEqual(first);
+  await f.setBudget('available');
+  await f.fire('cron_changed', { action: 'added', jobId: 'another' });
+  await vi.waitFor(() => expect(events()).toHaveLength(4));
+  expect(events().find((e) => e.reason === 'state_change')).toMatchObject({
+    budgetState: 'available',
+    budgetPausedCronCount: 0,
+  });
+  expect(events().find((e) => e.action === 'resumed')).toMatchObject({
+    jobId: 'news',
+    episodeId: first[0].episodeId,
+  });
+  expect(
+    (await readBudgetHoldState(join(f.dir, 'tlon-cron-budget-holds.json')))
+      .pendingTelemetryChanges
+  ).toBeUndefined();
+});
+
+it('replays startup pauses after preflight and emits a snapshot on every gateway start', async () => {
+  const f = await setup();
+  const path = join(f.dir, 'tlon-cron-budget-holds.json');
+  const state = emptyBudgetHoldState();
+  await reconcileBudgetHolds({
+    budget: 'limited',
+    state,
+    cron: f.ctx.getCron(),
+    save: () => writeBudgetHoldState(path, state),
+    pauseOnly: true,
+  });
+  const eventId = state.pendingTelemetryChanges![0].eventId;
+  expect(f.info).not.toHaveBeenCalled();
+  await f.fire('gateway_start', {}, f.ctx);
+  expect(f.info.mock.calls.map(([line]) => JSON.parse(line))).toContainEqual(
+    expect.objectContaining({ eventId, action: 'paused', source: 'startup' })
+  );
+  await f.fire('gateway_stop');
+  f.info.mockClear();
+  await f.fire('gateway_start', {}, f.ctx);
+  expect(f.info.mock.calls.map(([line]) => JSON.parse(line))).toEqual([
+    expect.objectContaining({
+      reason: 'gateway_start',
+      budgetPausedCronCount: 1,
+    }),
+  ]);
+});
+
+it('logs an available startup with zero paused tasks', async () => {
+  const f = await setup();
+  await f.setBudget('available');
+  await f.fire('gateway_start', {}, f.ctx);
+  expect(f.info.mock.calls.map(([line]) => JSON.parse(line))).toEqual([
+    expect.objectContaining({
+      budgetState: 'available',
+      budgetPausedCronCount: 0,
+      reason: 'gateway_start',
+    }),
+  ]);
+});
+
+it('excludes failed pause intents from the snapshot count', async () => {
+  const f = await setup();
+  f.update.mockRejectedValueOnce(new Error('update failed'));
+  await f.fire('gateway_start', {}, f.ctx);
+  expect(f.info.mock.calls.map(([line]) => JSON.parse(line))).toEqual([
+    expect.objectContaining({
+      budgetState: 'limited',
+      budgetPausedCronCount: 0,
+    }),
+  ]);
+  expect(f.warn).toHaveBeenCalled();
 });

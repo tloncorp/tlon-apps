@@ -336,3 +336,88 @@ it('persists the retry deadline before a throwing delivery and honors it after r
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+describe('budget transition journal', () => {
+  it('journals confirmed pauses once across startup and recovery in the same episode', async () => {
+    const f = fixture();
+    await f.reconcile('limited', true);
+    const paused = structuredClone(f.state.pendingTelemetryChanges!);
+    expect(paused).toHaveLength(2);
+    expect(paused.map(({ jobId }) => jobId)).toEqual(['report', 'watch']);
+    expect(paused[0]).toMatchObject({
+      action: 'paused',
+      source: 'startup',
+      reason: 'credit_budget',
+      occurredAtMs: 1_000_000,
+      episodeId: f.state.episodeId,
+    });
+    await f.reconcile('limited');
+    expect(f.state.pendingTelemetryChanges).toEqual(paused);
+    f.advance(100);
+    await f.reconcile('available');
+    expect(f.state.pendingTelemetryChanges).toHaveLength(4);
+    expect(f.state.pendingTelemetryChanges!.slice(2)).toEqual(
+      paused.map((event) => ({
+        ...event,
+        eventId: expect.any(String),
+        occurredAtMs: 1_000_100,
+        action: 'resumed',
+        reason: 'credit_recovered',
+        source: 'runtime',
+      }))
+    );
+    expect(
+      new Set(f.state.pendingTelemetryChanges!.map((e) => e.eventId)).size
+    ).toBe(4);
+    expect(f.state.holds).toEqual({});
+  });
+
+  it('does not report failed mutations or manual ownership changes as budget transitions', async () => {
+    const f = fixture();
+    f.update.mockRejectedValueOnce(new Error('mutation failed'));
+    await expect(f.reconcile('limited')).rejects.toThrow('mutation failed');
+    expect(f.state.pendingTelemetryChanges).toBeUndefined();
+    await f.reconcile('limited');
+    expect(f.state.pendingTelemetryChanges).toHaveLength(2);
+    delete f.state.pendingTelemetryChanges;
+    f.update.mockRejectedValueOnce(new Error('resume failed'));
+    await expect(f.reconcile('available')).rejects.toThrow('resume failed');
+    expect(f.state.pendingTelemetryChanges).toBeUndefined();
+    f.jobs[0].updatedAtMs = 999; // manual edit while held
+    await f.reconcile('available');
+    expect(
+      f.state.pendingTelemetryChanges?.map((e) => [e.jobId, e.action])
+    ).toEqual([['watch', 'resumed']]);
+  });
+
+  it('recovers a confirmed pause from a persisted write-ahead intent once', async () => {
+    const f = fixture();
+    f.jobs[0].enabled = false;
+    f.jobs[0].description = BUDGET_HOLD_PREFIX + 'Morning news';
+    f.state.holds.report = { description: 'Morning news' };
+    await f.reconcile('limited');
+    expect(
+      f.state.pendingTelemetryChanges?.filter((e) => e.jobId === 'report')
+    ).toHaveLength(1);
+    await f.reconcile('limited');
+    expect(
+      f.state.pendingTelemetryChanges?.filter((e) => e.jobId === 'report')
+    ).toHaveLength(1);
+  });
+});
+
+it('does not let telemetry persistence gate recovery of an incomplete pause intent', async () => {
+  const f = fixture();
+  f.state.limited = true;
+  f.state.episodeId = 'episode';
+  f.state.holds.report = { description: 'Morning news' };
+  f.jobs[0].enabled = false;
+  f.jobs[0].description = BUDGET_HOLD_PREFIX + 'Morning news';
+  f.save.mockRejectedValue(new Error('ledger unavailable'));
+  await expect(f.reconcile('available')).rejects.toThrow('ledger unavailable');
+  expect(f.jobs[0].enabled).toBe(true);
+  expect(f.state.pendingTelemetryChanges?.map((e) => e.action)).toEqual([
+    'paused',
+    'resumed',
+  ]);
+});
