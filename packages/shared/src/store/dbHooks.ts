@@ -792,6 +792,28 @@ export const useChannelSearchResults = (
 };
 
 /**
+ * Whether this ship runs %buckets, for gating the views that talk to it.
+ *
+ * A group's channel list comes from its host, so a 12.3-hosted group lists
+ * its Buckets to members whose own ship is still on 12.2.x. Everything a
+ * Bucket view does goes through the local %buckets agent, which those ships
+ * do not have.
+ *
+ * Read from the stored app info rather than the client flag, which is not
+ * reactive and is still false in the moment before sync start applies it:
+ * gating on that would tell a 12.3 ship it needs an update. Undefined until
+ * the stored value has been read, so a gate can wait instead of flashing the
+ * unsupported state.
+ */
+export const useDeskSupportsBuckets = (): boolean | undefined => {
+  const { value: appInfo, isLoading } = db.appInfo.useStorageItem();
+  if (isLoading) {
+    return undefined;
+  }
+  return logic.deskVersionSupportsBuckets(appInfo?.groupsVersion);
+};
+
+/**
  * One Bucket's manifest, as reduced from the %buckets subscription.
  *
  * Invalidated by the tables the reducer writes, so an update arriving on that
