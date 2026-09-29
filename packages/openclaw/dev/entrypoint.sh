@@ -125,6 +125,7 @@ if [ -f "$CONFIG_PATH" ]; then
     )
     | .plugins.allow = (.plugins.allow // []) + ["tlon"]
     | .plugins.allow |= unique
+    | .plugins.entries.tlon.hooks.allowConversationAccess = true
   ' "$CONFIG_PATH" > "$CONFIG_PATH.tmp" && mv "$CONFIG_PATH.tmp" "$CONFIG_PATH"
 
   # Dev-only: bypass browser device pairing so the Control UI is reachable

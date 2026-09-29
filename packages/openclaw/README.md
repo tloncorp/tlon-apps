@@ -56,6 +56,17 @@ commands:
     ownerAllowFrom:
         - 'tlon:~your-main-ship'
 
+# OpenClaw 2026.9.x refuses to register a non-bundled plugin's conversation
+# hooks (agent_turn_prepare, agent_end) without this grant; the plugin uses
+# them for cron attribution and end-of-turn cleanup. It is plugin-wide: it lets
+# the plugin's hooks see conversation content on every turn it handles.
+plugins:
+    entries:
+        tlon:
+            enabled: true
+            hooks:
+                allowConversationAccess: true
+
 channels:
     tlon:
         enabled: true

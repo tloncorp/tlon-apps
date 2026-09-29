@@ -386,6 +386,7 @@ try {
 
 **Implementation:**
 - `before_tool_call` hook intercepts calls to restricted tools (policy in `src/owner-only-tools.ts`: `OWNER_ONLY_TOOLS`, `resolveOwnerOnlyToolBlock`)
+- The hook is registered from the entry's `registerCapabilities` (`registerAgentTurnHooks` in `index.ts`), not `registerFull`. OpenClaw 2026.9.x dispatches hooks inside an agent turn from a per-turn plugin registry it loads in discovery mode, where the channel entry helper never calls `registerFull`; a gate registered only there is silently inert. `src/agent-turn-hooks.test.ts` locks the placement in.
 - Checks SenderRole from session tracker (stored the same way for DM and group senders)
 - Only blocks when role is explicitly `"user"` (a non-owner sender, DM or group)
 - Owner sessions (`"owner"`) and internal sessions (`undefined` role) are allowed

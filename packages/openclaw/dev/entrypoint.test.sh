@@ -206,13 +206,14 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
     }
   },
   "plugins": {
-    "allow": ["@tloncorp/openclaw"],
+    "allow": ["tlon"],
     "load": {
       "paths": ["/workspace/tlon"]
     },
     "entries": {
       "tlon": {
-        "enabled": true
+        "enabled": true,
+        "hooks": { "allowConversationAccess": true }
       }
     }
   },
