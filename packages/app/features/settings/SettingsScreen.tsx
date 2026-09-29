@@ -176,7 +176,7 @@ function SettingsViewWithBot({
     },
     [navigationRef]
   );
-  const botSections = useBotSettingsSectionModels(hub, navigate);
+  const botSections = useBotSettingsSectionModels(hub, navigate).overview;
 
   return (
     <SettingsScreenView
