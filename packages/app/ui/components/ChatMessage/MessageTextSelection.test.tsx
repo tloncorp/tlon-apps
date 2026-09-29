@@ -12,6 +12,10 @@ vi.hoisted(() => {
 
 const mocks = vi.hoisted(() => ({
   platform: { OS: 'ios' },
+  input: { setSelection: vi.fn() },
+  textView: {},
+  selectAll: vi.fn(async () => true),
+  findNodeHandle: vi.fn(() => 42),
   copy: vi.fn(async () => {}),
   copiedText: '',
   toast: vi.fn(),
@@ -20,7 +24,12 @@ const mocks = vi.hoisted(() => ({
 vi.mock('react-native', () => ({
   Platform: mocks.platform,
   TextInput: 'TextInput',
+  Text: 'NativeText',
+  findNodeHandle: mocks.findNodeHandle,
   Alert: {},
+}));
+vi.mock('expo-modules-core', () => ({
+  requireOptionalNativeModule: () => ({ selectAll: mocks.selectAll }),
 }));
 vi.mock('@tloncorp/ui', () => ({
   Icon: 'Icon',
@@ -52,6 +61,7 @@ vi.mock('../ContactNameV2', () => ({ ContactName: 'ContactName' }));
 vi.mock('../SentTimeText', () => ({ SentTimeText: 'SentTimeText' }));
 vi.mock('@tloncorp/shared', () => ({
   ChannelAction: { staticSpecForId: () => ({}) },
+  createDevLogger: () => ({ trackError: vi.fn() }),
 }));
 vi.mock('@tloncorp/shared/db', () => ({}));
 vi.mock('@tloncorp/shared/logic', () => ({
@@ -121,7 +131,14 @@ function renderMenu(message = post, withProvider = true) {
         </MessageTextSelectionProvider>
       ) : (
         <Menu message={message} />
-      )
+      ),
+      {
+        createNodeMock: (element) => {
+          if (element.type === 'TextInput') return mocks.input;
+          if (element.type === 'NativeText') return mocks.textView;
+          return null;
+        },
+      }
     );
   });
 }
@@ -136,6 +153,9 @@ beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true, __DEV__: false });
   vi.useFakeTimers();
   mocks.platform.OS = 'ios';
+  mocks.input.setSelection.mockClear();
+  mocks.selectAll.mockClear();
+  mocks.findNodeHandle.mockClear();
   mocks.copy.mockClear();
   mocks.toast.mockClear();
   afterDismiss.mockClear();
@@ -168,7 +188,7 @@ test('uses native selectable text on Android', () => {
   renderMenu();
   openSheet();
   const text = renderer.root.findByProps({ testID: 'SelectableMessageText' });
-  expect(text.type).toBe('Text');
+  expect(text.type).toBe('NativeText');
   expect(text.props.selectable).toBe(true);
 });
 
@@ -239,4 +259,55 @@ test('does not offer selection for a message containing only an image', () => {
     ],
   });
   expect(model.actions.map((action) => action.id)).not.toContain('selectText');
+});
+
+test('preselects the full iOS message when the sheet finishes opening without locking the range', () => {
+  renderMenu();
+  openSheet();
+  const text = renderer.root.findByType('TextInput' as never);
+  expect(text.props.autoFocus).toBe(true);
+  expect(text.props.editable).toBe(false);
+  expect(text.props.selection).toBeUndefined();
+  expect(mocks.input.setSelection).not.toHaveBeenCalled();
+  act(() => sheet().props.onDidOpen());
+  expect(mocks.input.setSelection).toHaveBeenCalledWith(
+    0,
+    text.props.value.length
+  );
+  // Moving to another snap point must preserve the user's adjusted range.
+  act(() => sheet().props.onDidOpen());
+  expect(mocks.input.setSelection).toHaveBeenCalledOnce();
+});
+
+test('preselects again after reopening the same message before dismiss cleanup runs', () => {
+  renderMenu();
+  openSheet();
+  act(() => sheet().props.onDidOpen());
+  act(() => sheet().props.onOpenChange(false));
+  expect(renderer.root.findByType('TextInput' as never).props.autoFocus).toBe(
+    false
+  );
+  openSheet();
+  act(() => sheet().props.onDidOpen());
+  expect(mocks.input.setSelection).toHaveBeenCalledTimes(2);
+});
+
+test('ignores an opening callback after the sheet was closed', () => {
+  renderMenu();
+  openSheet();
+  act(() => sheet().props.onOpenChange(false));
+  act(() => sheet().props.onDidOpen());
+  expect(mocks.input.setSelection).not.toHaveBeenCalled();
+});
+
+test('starts Android native selection once after the sheet opens', async () => {
+  mocks.platform.OS = 'android';
+  renderMenu();
+  openSheet();
+  expect(mocks.selectAll).not.toHaveBeenCalled();
+  await act(async () => sheet().props.onDidOpen());
+  expect(mocks.findNodeHandle).toHaveBeenCalledWith(mocks.textView);
+  expect(mocks.selectAll).toHaveBeenCalledWith(42);
+  await act(async () => sheet().props.onDidOpen());
+  expect(mocks.selectAll).toHaveBeenCalledOnce();
 });

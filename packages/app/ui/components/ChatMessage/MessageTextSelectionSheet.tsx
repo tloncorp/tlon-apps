@@ -1,13 +1,22 @@
+import { createDevLogger } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import { Icon, Pressable, Text, useCopy, useToast } from '@tloncorp/ui';
+import { requireOptionalNativeModule } from 'expo-modules-core';
 import {
   PropsWithChildren,
   createContext,
   useCallback,
   useContext,
+  useEffect,
+  useRef,
   useState,
 } from 'react';
-import { Platform, TextInput } from 'react-native';
+import {
+  Platform,
+  Text as NativeText,
+  TextInput,
+  findNodeHandle,
+} from 'react-native';
 import { XStack, YStack, useTheme } from 'tamagui';
 
 import { useSheetCloseAfterAnimation } from '../../hooks/useSheetCloseAfterAnimation';
@@ -15,6 +24,8 @@ import { ActionSheet } from '../ActionSheet';
 import { ContactAvatar } from '../Avatar';
 import { ContactName } from '../ContactNameV2';
 import { SentTimeText } from '../SentTimeText';
+
+const logger = createDevLogger('MessageTextSelection', false);
 
 const MessageTextSelectionContext = createContext<
   ((post: db.Post, text: string) => void) | null
@@ -76,6 +87,32 @@ export function MessageTextSelectionSheet({
   onOpenChange: (open: boolean) => void;
 }) {
   const theme = useTheme();
+  const inputRef = useRef<TextInput>(null);
+  const textRef = useRef<NativeText>(null);
+  const didSelectAll = useRef(false);
+
+  useEffect(() => {
+    if (!open) didSelectAll.current = false;
+  }, [open]);
+
+  const selectAllOnOpen = useCallback(() => {
+    if (!open || didSelectAll.current) return;
+    if (Platform.OS === 'ios') {
+      if (!inputRef.current) return;
+      inputRef.current.setSelection(0, text.length);
+    } else if (Platform.OS === 'android') {
+      const viewTag = findNodeHandle(textRef.current);
+      if (viewTag === null) return;
+      // Older Android builds can still select manually until rebuilt.
+      const nativeSelection = requireOptionalNativeModule<{
+        selectAll: (viewTag: number) => Promise<boolean>;
+      }>('TlonTextSelection');
+      void nativeSelection?.selectAll(viewTag).catch((error) => {
+        logger.trackError('Unable to preselect message text', error);
+      });
+    }
+    didSelectAll.current = true;
+  }, [open, text]);
   const { doCopy } = useCopy(text);
   const showToast = useToast();
   const copyAll = useCallback(async () => {
@@ -88,6 +125,7 @@ export function MessageTextSelectionSheet({
     <ActionSheet
       open={open}
       onOpenChange={onOpenChange}
+      onDidOpen={selectAllOnOpen}
       title="Select text"
       mode="sheet"
       snapPointsMode="percent"
@@ -139,6 +177,9 @@ export function MessageTextSelectionSheet({
               // iOS Text's selectable prop only offers whole-message copying.
               // A read-only UITextView provides native range-selection handles.
               <TextInput
+                key={open ? 'open' : 'closed'}
+                ref={inputRef}
+                autoFocus={open}
                 value={text}
                 multiline
                 editable={false}
@@ -153,9 +194,18 @@ export function MessageTextSelectionSheet({
                 testID="SelectableMessageText"
               />
             ) : (
-              <Text size="$body" selectable testID="SelectableMessageText">
+              <NativeText
+                ref={textRef}
+                selectable
+                style={{
+                  color: theme.primaryText.val,
+                  fontSize: 16,
+                  lineHeight: 24,
+                }}
+                testID="SelectableMessageText"
+              >
                 {text}
-              </Text>
+              </NativeText>
             )}
           </YStack>
         </XStack>

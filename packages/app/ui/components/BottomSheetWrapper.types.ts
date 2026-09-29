@@ -4,6 +4,8 @@ import { ViewStyle } from 'react-native';
 export interface BottomSheetWrapperProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Called after the native sheet settles at an open snap point. */
+  onDidOpen?: () => void;
   children: ReactNode;
 
   // Animation & behavior
