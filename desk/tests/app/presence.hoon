@@ -8,7 +8,9 @@
 ::    subscription nacks on the subscriber's ship: we retry with backoff,
 ::    the retry wake drops a channel we can no longer read (deleted from
 ::    its group, or we lost access), and we give up after +max-tries.
-::    none of that is a crash, so we only ever +tell.
+::    a nack is a crash on the host's end, so it is reported with +fail
+::    at a volume that says how much it matters: %info while retrying,
+::    %warn on giving up. dropping a context is +tell; nothing crashed.
 ::
 ::    participant checks on the host's ship: a context watch by a ship
 ::    that cannot read the channel is rejected, with a hint saying why.
@@ -223,7 +225,7 @@
   ~
 ::
 ::  a nack for a channel we can still read is retried with backoff,
-::  and only logged as a %tell
+::  and reported as a %fail at %info
 ::
 ++  test-chan-nack-readable-retries
   %-  eval-mare
