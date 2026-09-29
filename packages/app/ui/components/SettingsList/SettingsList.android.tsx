@@ -81,7 +81,7 @@ export function SettingsList({ sections }: SettingsListProps) {
                         padding(16, 0, 0, 0),
                         fillMaxWidth(),
                         height(1),
-                        background(colors.page),
+                        background(colors.separator),
                       ]}
                     />
                   ) : null}

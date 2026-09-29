@@ -36,6 +36,9 @@ export function useSettingsListColors() {
       colorScheme: isDark ? ('dark' as const) : ('light' as const),
       page: theme.background.val,
       row: theme.secondaryBackground.val,
+      // Warm like the rest of the palette; the platforms' own separator grays
+      // are cool and read as off against it.
+      separator: theme.secondaryBorder.val,
       primaryText: theme.primaryText.val,
       secondaryText: theme.secondaryText.val,
       tertiaryText: theme.tertiaryText.val,
