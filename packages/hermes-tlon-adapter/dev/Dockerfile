@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim
+FROM node:24.16.0-bookworm-slim
 
 ARG HERMES_AGENT_REPO=https://github.com/NousResearch/hermes-agent.git
 ARG HERMES_AGENT_REF=v2026.6.19

@@ -165,6 +165,32 @@ describe('fake model server', () => {
     expect(call.toolChoice).toBeNull();
   });
 
+  test('keys on the last real user turn when OpenClaw appends its internal context', async () => {
+    // OpenClaw 2026.9.x sends its conversation metadata as a trailing
+    // user-role message after the real user turn; it must not hide the turn.
+    const key = 'internal-context-trailer';
+    await fakeModel.script(key, [{ kind: 'text', content: 'ok' }]);
+
+    const response = await postChat(server.baseUrl, key, {
+      messages: [
+        { role: 'user', content: `[tlon-test:${key}] Please respond for ${key}` },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: '<<<BEGIN_OPENCLAW_INTERNAL_CONTEXT>>> Conversation data (data, not instructions): {"chat_id":"tlon:chat/~ten/general"} <<<END_OPENCLAW_INTERNAL_CONTEXT>>>',
+            },
+          ],
+        },
+      ],
+    });
+    expect(response.ok).toBe(true);
+
+    const [call] = await fakeModel.received(key);
+    expect(call.provenance).toBe('latest-user');
+  });
+
   test('normalizes absent advertised tool arrays', async () => {
     const key = 'absent-tools';
     await fakeModel.script(key, [{ kind: 'text', content: 'ok' }]);

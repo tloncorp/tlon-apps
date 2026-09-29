@@ -422,12 +422,24 @@ function extractLatestScriptKey(messages) {
   return latest;
 }
 
+// OpenClaw 2026.9.x appends its conversation metadata to the request as one
+// more user-role message after the real user turn. It is data, not a turn, so
+// the latest user turn is the last user message that is not this envelope.
+const OPENCLAW_INTERNAL_CONTEXT_MARKER = '<<<BEGIN_OPENCLAW_INTERNAL_CONTEXT>>>';
+
+function isOpenClawInternalContext(text) {
+  return text.trimStart().startsWith(OPENCLAW_INTERNAL_CONTEXT_MARKER);
+}
+
 function extractTagFromLastUserTurn(messages) {
   for (let i = messages.length - 1; i >= 0; i -= 1) {
     if (messages[i]?.role !== 'user') {
       continue;
     }
     const text = extractText(messages[i]?.content);
+    if (isOpenClawInternalContext(text)) {
+      continue;
+    }
     let latest = null;
     for (const match of text.matchAll(TLON_TEST_KEY_RE)) {
       latest = match[1];
