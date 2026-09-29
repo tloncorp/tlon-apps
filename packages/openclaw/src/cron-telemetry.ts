@@ -92,10 +92,21 @@ export type CronChangedEvent = {
   provider?: string;
 };
 
+/** The gateway cron update-input fields the plugin edits. */
+export type GatewayCronJobPatch = {
+  enabled?: boolean;
+  description?: string;
+};
+
 export type GatewayCronService = {
   list: (opts?: { includeDisabled?: boolean }) => Promise<GatewayCronJob[]>;
+  // OpenClaw 2026.9.x does not export its cron create/update input types from
+  // a public SDK subpath, so `add` stays `never` (callers cast) and `update`
+  // takes the subset of the gateway's update input the plugin edits, which
+  // keeps the hook context's cron service assignable to this type and a
+  // union of the two callable.
   add: (input: never) => Promise<unknown>;
-  update: (id: string, patch: never) => Promise<unknown>;
+  update: (id: string, patch: GatewayCronJobPatch) => Promise<unknown>;
   remove: (id: string) => Promise<{ removed?: boolean }>;
   removeStaleJobFamily: (family: {
     declarationKey: string;
