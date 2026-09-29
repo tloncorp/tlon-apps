@@ -342,6 +342,10 @@ export function routeUpdateWillSkipByPin(
  * below keeps this plugin's deliberate fail-open semantics: a persistence
  * failure — including `resolveStorePath` throwing on bad session-store
  * config — is logged but never suppresses the live Tlon reply.
+ *
+ * Resolves to `undefined` when the kernel admits the message but does not
+ * dispatch it (bot-loop protection, outbound echo, duplicate): an expected
+ * no-op, never an error.
  */
 export async function recordTlonRouteAndDispatch<T>(params: {
   session: Pick<
@@ -365,8 +369,14 @@ export async function recordTlonRouteAndDispatch<T>(params: {
   logDebug?: (msg: string) => void;
   /** Called with the built record, before persistence (used for debug logging). */
   onRecord?: (record: TlonInboundRouteRecord) => void;
+  /**
+   * Called instead of `dispatch` when the kernel admits the message but does
+   * not run it (bot-loop protection, outbound echo, duplicate). The caller
+   * should account for the turn as a skip, not a failure or an empty reply.
+   */
+  onNotDispatched?: (admission: { kind: string; reason?: string }) => void;
   dispatch: () => Promise<T>;
-}): Promise<T> {
+}): Promise<T | undefined> {
   const record = buildTlonInboundRouteRecord({
     cfg: params.cfg,
     route: params.route,
@@ -480,9 +490,20 @@ export async function recordTlonRouteAndDispatch<T>(params: {
     runDispatch: params.dispatch,
   });
   if (!turn.dispatched) {
-    throw new Error(
-      `Prepared Tlon inbound reply was not dispatched (${turn.admission.kind})`
+    // The kernel admits a turn but deliberately does not dispatch it for
+    // expected reasons (bot-loop protection, an outbound echo, a duplicate
+    // seen again after a restart). That is a normal no-op for this message,
+    // not a turn failure: report no dispatch result and let the caller's
+    // optional handling take over, instead of recording a spurious error.
+    safeLog(
+      params.logDebug,
+      `[tlon][route-debug] inbound turn not dispatched: admission=${turn.admission.kind}` +
+        ('reason' in turn.admission && turn.admission.reason
+          ? ` reason=${turn.admission.reason}`
+          : '')
     );
+    params.onNotDispatched?.(turn.admission);
+    return undefined;
   }
   return turn.dispatchResult;
 }

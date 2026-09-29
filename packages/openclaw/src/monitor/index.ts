@@ -3529,6 +3529,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               ? (msg) => runtime.log?.(msg)
               : undefined,
             onRecord: routeDebug,
+            // No run happened, so the finalize below must not read this as
+            // an empty DM reply and page the owner.
+            onNotDispatched: () => recordDeliverySkip('not_dispatched'),
             dispatch: () =>
               turnRecorder.run(async () => {
                 let activeDispatchError: unknown;

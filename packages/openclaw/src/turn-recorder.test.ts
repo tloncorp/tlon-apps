@@ -210,6 +210,18 @@ describe('Tlon agent turn classification', () => {
       },
     },
     {
+      name: 'not dispatched by the turn kernel',
+      input: {
+        terminal: { durationMs: 250, deliverySkipReason: 'not_dispatched' },
+      },
+      expected: {
+        execution: 'completed',
+        result: 'empty',
+        delivery: 'not_applicable',
+        reason: 'not_dispatched',
+      },
+    },
+    {
       name: 'partial delivery',
       input: {
         replyCount: 1,

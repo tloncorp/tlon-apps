@@ -147,7 +147,8 @@ export type TlonDeliverySkipReason =
   | 'empty_payload_text'
   | 'block_directive_only'
   | 'media_only_payload_not_sent'
-  | 'source_reply_delivery_mode_message_tool_only';
+  | 'source_reply_delivery_mode_message_tool_only'
+  | 'not_dispatched';
 
 export type TlonReplyOutcomeEvent = {
   sessionKey: string;
