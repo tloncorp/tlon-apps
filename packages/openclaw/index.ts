@@ -39,6 +39,7 @@ import {
 import { notifyDiaryMigrationDiscovery } from './src/diary-migration-discovery.js';
 import { suppressTlonFallbackNotice } from './src/fallback-notice-delivery.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
+import { registerBudgetHoldHooks } from './src/cron-budget-runtime.js';
 import { registerRestartCatchupHooks } from './src/restart-catchup.js';
 import { createMigrateCommandHandler } from './src/migrate-command.js';
 import {
@@ -914,6 +915,7 @@ export default defineBundledChannelEntry({
       },
     });
     registerRestartCatchupHooks(api);
+    registerBudgetHoldHooks(api);
 
     // Resolve the tlon tool binary once. The tool itself and version
     // diagnostics share this path so telemetry reports what OpenClaw will

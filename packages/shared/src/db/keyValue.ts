@@ -35,6 +35,14 @@ export const dismissedPinnedPostBannerIds = createStorageItem<string[]>({
   defaultValue: [],
 });
 
+/** Local completion of credit request cards, keyed by source post id. */
+export const creditIncreaseRequested = createStorageItem<
+  Record<string, string>
+>({
+  key: 'creditIncreaseRequested',
+  defaultValue: {},
+});
+
 export const storageConfiguration =
   createStorageItem<StorageConfiguration | null>({
     key: 'storageConfiguration',
