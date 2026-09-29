@@ -1,15 +1,10 @@
 import { test as setup } from '@playwright/test';
 
+import { shouldIncludeShip } from '../rube/shipSelection';
 import shipManifest from './shipManifest.json';
 
-const INCLUDE_OPTIONAL_SHIPS = process.env.INCLUDE_OPTIONAL_SHIPS === 'true';
-
 Object.entries(shipManifest).forEach(([_key, ship]: [string, any]) => {
-  if (ship.skipSetup || ship.skipAuth) {
-    return;
-  }
-  // Skip optional ships unless explicitly included
-  if (ship.optional && !INCLUDE_OPTIONAL_SHIPS) {
+  if (ship.skipAuth || !shouldIncludeShip(ship)) {
     return;
   }
 

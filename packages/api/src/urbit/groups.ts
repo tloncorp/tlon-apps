@@ -651,13 +651,8 @@ export type GroupAction =
   | { channel: { nest: string; 'a-channel': GroupChannelAction } }
   | { section: { 'section-id': string; 'a-section': GroupSectionAction } }
   | { navigation: GroupNavigationAction }
-  | {
-      'flag-content': {
-        nest: string;
-        plan: [number, number | null]; // [post-time, reply-time?]
-        src: string; // ship
-      };
-    }
+  // The desk's dejs reads post-key here, not plan (groups-json ++flag-content).
+  | FlagContentDiff
   | { delete: null };
 
 export type GroupEntryAction =

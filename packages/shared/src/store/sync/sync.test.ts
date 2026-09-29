@@ -1,3 +1,4 @@
+import * as api from '@tloncorp/api';
 import {
   StructuredChannelDescriptionPayload,
   scry,
@@ -38,7 +39,7 @@ import type { MockInstance } from 'vitest';
 import rawChannelPostWithRepliesData from '../../../../api/src/__tests__/fixtures/channelPostWithReplies.json';
 import rawChannelPostsData from '../../../../api/src/__tests__/fixtures/channelPosts.json';
 import * as db from '../../db';
-import { MIN_GROUPS_VERSION } from '../../logic';
+import { BUCKETS_MIN_GROUPS_VERSION, MIN_GROUPS_VERSION } from '../../logic';
 import rawNewestPostData from '../../test/channelNewestPost.json';
 import rawAfterNewestPostData from '../../test/channelPostsAfterNewest.json';
 import rawContactsData from '../../test/contactsDirectory.json';
@@ -51,6 +52,7 @@ import {
   setScryOutputs,
   setupDatabaseTestSuite,
 } from '../../test/helpers';
+import { batchEffects } from '../../db/query';
 import rawGroupsInit2 from '../../test/init.json';
 import {
   DeskCompatibility,
@@ -64,6 +66,7 @@ import * as threadSyncTelemetry from '../threadSyncTelemetry';
 import {
   clearSyncStartLock,
   ensureDmInviteChannel,
+  syncChannelThreadUnreads,
   handleAddPost,
   handleDiscontinuity,
   handleDmStatus,
@@ -71,6 +74,7 @@ import {
   syncChannelWithBackoff,
   syncDms,
   syncGroups,
+  handleBucketsUpdate,
   syncInitData,
   syncInitialPosts,
   syncCachedChanges,
@@ -96,8 +100,404 @@ const groupsInitData = rawGroupsInitData as unknown as GroupsInit10;
 const groupsInitData2 = rawGroupsInit2 as unknown as GroupsInit10;
 const headsData = rawHeadsData as unknown as CombinedHeads;
 
+function setInitSyncScryOutputs({
+  heads,
+  init,
+}: {
+  heads?: CombinedHeads;
+  init: GroupsInit10;
+}) {
+  vi.mocked(scry).mockImplementation(async ({ app, path }) => {
+    if (app === 'groups-ui' && /^\/v\d+\/init$/.test(path)) {
+      return init;
+    }
+    if (app === 'groups-ui' && path.startsWith('/v4/heads')) {
+      if (!heads) throw new Error(`Unexpected heads scry: ${app}${path}`);
+      return heads;
+    }
+    throw new Error(`Unexpected scry: ${app}${path}`);
+  });
+}
+
 setupDatabaseTestSuite();
 
+test('does not sync thread unreads for Buckets', async () => {
+  const getThreadUnreads = vi.spyOn(api, 'getThreadUnreadsByChannel');
+  await db.insertChannels([
+    {
+      id: 'buckets/~zod/project-files',
+      type: 'buckets',
+    },
+  ]);
+
+  await syncChannelThreadUnreads('buckets/~zod/project-files');
+
+  expect(getThreadUnreads).not.toHaveBeenCalled();
+  getThreadUnreads.mockRestore();
+});
+
+// A Bucket's writers live in %buckets alone, so nothing else can supply
+// them. Init covers startup; this covers a Bucket created or edited while
+// the app is running. Without it the settings form cannot tell "no writers"
+// from "not yet known" and saving unrelated metadata submits set-writers [],
+// which opens a restricted Bucket to every reader.
+test('hydrates Bucket writers from a live subscription update', async () => {
+  const channelId = 'buckets/~zod/live-added';
+  await db.insertChannels([{ id: channelId, type: 'buckets' }]);
+
+  const before = await db.getChannel({ id: channelId, includeWriters: true });
+  expect(before?.writerRoles ?? []).toEqual([]);
+
+  // A Bucket arriving whole, as one created while we are running does.
+  await batchEffects('test:bucketSnapshot', (ctx) =>
+    handleBucketsUpdate(
+      {
+        type: 'snapshot',
+        flag: { host: '~zod', name: 'live-added' },
+        state: {
+          bucket: {
+            id: 1,
+            title: 'Live',
+            createdBy: '~zod',
+            createdAt: 0,
+            updatedBy: '~zod',
+            updatedAt: 0,
+          },
+          group: { host: '~zod', name: 'group' },
+          writers: ['admin'],
+          entries: [],
+          revision: 1,
+        },
+      } as unknown as api.BucketsResponse,
+      ctx
+    )
+  );
+
+  const hydrated = await db.getChannel({ id: channelId, includeWriters: true });
+  expect(hydrated?.writerRoles?.map((r) => r.roleId)).toEqual(['admin']);
+
+  // And an edit afterwards replaces the set rather than adding to it.
+  await batchEffects('test:bucketWriters', (ctx) =>
+    handleBucketsUpdate(
+      {
+        type: 'update',
+        flag: { host: '~zod', name: 'live-added' },
+        revision: 2,
+        update: { type: 'writers-updated', writers: ['editor'] },
+      } as unknown as api.BucketsResponse,
+      ctx
+    )
+  );
+
+  const edited = await db.getChannel({ id: channelId, includeWriters: true });
+  expect(edited?.writerRoles?.map((r) => r.roleId)).toEqual(['editor']);
+});
+
+// Subscriptions are set up alongside the init fetch, not after it, so on a
+// cold start the first snapshot can land before init has written any channel
+// rows. It has to be kept: a rejected write is swallowed by the subscription
+// handler, and nothing asks again, so the Bucket would read as empty for the
+// rest of the connection.
+// Codex claimed a writer update landing before insertChannels is lost, on the
+// grounds that updateChannel no-ops without a channel row. It writes perms
+// through insertChannelPerms before it touches $channels, so this pins down
+// what actually survives.
+test('keeps a writer update that arrives before the channel row', async () => {
+  const channelId = 'buckets/~zod/early-writers';
+  const flag = { host: '~zod', name: 'early-writers' };
+
+  await batchEffects('test:earlyWriters', (ctx) =>
+    handleBucketsUpdate(
+      {
+        type: 'update',
+        flag,
+        revision: 2,
+        update: { type: 'writers-updated', writers: ['admin'] },
+      } as unknown as api.BucketsResponse,
+      ctx
+    )
+  );
+
+  // the channel row shows up afterwards, as a cold start would have it
+  await db.insertChannels([{ id: channelId, type: 'buckets' }]);
+
+  const channel = await db.getChannelWithRelations({ id: channelId });
+  expect(channel?.writerRoles?.map((role) => role.roleId)).toEqual(['admin']);
+});
+
+// A writer update carries a revision like any other event. If it is not
+// persisted, the stale-init guard compares against a revision the row never
+// reached and lets the old roles back in.
+test('advances the stored revision on a writers-updated event', async () => {
+  const channelId = 'buckets/~zod/revisions';
+  const flag = { host: '~zod', name: 'revisions' };
+
+  await db.insertChannels([{ id: channelId, type: 'buckets' }]);
+  await batchEffects('test:writerRevision', (ctx) =>
+    handleBucketsUpdate(
+      {
+        type: 'snapshot',
+        flag,
+        state: {
+          bucket: {
+            id: 1,
+            title: 'Revisions',
+            createdBy: '~zod',
+            createdAt: 0,
+            updatedBy: '~zod',
+            updatedAt: 0,
+          },
+          group: { host: '~zod', name: 'group' },
+          writers: ['admin', 'editor'],
+          entries: [],
+          revision: 1,
+        },
+      } as unknown as api.BucketsResponse,
+      ctx
+    )
+  );
+
+  await batchEffects('test:writerRevision2', (ctx) =>
+    handleBucketsUpdate(
+      {
+        type: 'update',
+        flag,
+        revision: 2,
+        update: { type: 'writers-updated', writers: ['admin'] },
+      } as unknown as api.BucketsResponse,
+      ctx
+    )
+  );
+
+  const stored = await db.getBucket({ channelId });
+  expect(stored?.revision).toBe(2);
+});
+
+// The init fetch and the %buckets subscription race on startup, and init is
+// the slower of the two. Writing its summary unconditionally reinstalls a
+// writer set the subscription has already superseded.
+test('does not let init data overwrite a newer Bucket writer set', async () => {
+  const channelId = 'buckets/~zod/writers';
+  const flag = { host: '~zod', name: 'writers' };
+  const bucket = {
+    id: 1,
+    title: 'Writers',
+    createdBy: '~zod',
+    createdAt: 0,
+    updatedBy: '~zod',
+    updatedAt: 0,
+  };
+
+  await db.insertChannels([{ id: channelId, type: 'buckets' }]);
+
+  // the subscription has already reduced revision 9, dropping %editor
+  await batchEffects('test:newerWriters', (ctx) =>
+    handleBucketsUpdate(
+      {
+        type: 'snapshot',
+        flag,
+        state: {
+          bucket,
+          group: { host: '~zod', name: 'group' },
+          writers: ['admin'],
+          entries: [],
+          revision: 9,
+        },
+      } as unknown as api.BucketsResponse,
+      ctx
+    )
+  );
+
+  // init arrives late, still carrying revision 3 with %editor present
+  const getInitData = vi.spyOn(api, 'getInitData').mockResolvedValue({
+    groups: [],
+    joinedGroups: [],
+    unjoinedGroups: [],
+    channels: [],
+    channelPerms: [],
+    joinedGroupChannels: [],
+    unreads: {
+      baseUnread: null,
+      groupUnreads: [],
+      channelUnreads: [],
+      threadActivity: [],
+    },
+    channelUnreads: [],
+    groupUnreads: [],
+    pins: [],
+    blockedUsers: [],
+    contacts: [],
+    channelOrder: [],
+    buckets: [
+      {
+        flag,
+        state: {
+          bucket,
+          group: { host: '~zod', name: 'group' },
+          writers: ['admin', 'editor'],
+          entries: [],
+          revision: 3,
+        },
+      },
+    ],
+  } as unknown as api.InitData);
+  await syncInitData();
+  getInitData.mockRestore();
+
+  const channel = await db.getChannelWithRelations({ id: channelId });
+  expect(channel?.writerRoles?.map((role) => role.roleId).sort()).toEqual([
+    'admin',
+  ]);
+});
+
+test('keeps a Bucket manifest that arrives before its channel row', async () => {
+  const channelId = 'buckets/~zod/early';
+
+  await batchEffects('test:earlyBucket', (ctx) =>
+    handleBucketsUpdate(
+      {
+        type: 'snapshot',
+        flag: { host: '~zod', name: 'early' },
+        state: {
+          bucket: {
+            id: 1,
+            title: 'Early',
+            createdBy: '~zod',
+            createdAt: 0,
+            updatedBy: '~zod',
+            updatedAt: 0,
+          },
+          group: { host: '~zod', name: 'group' },
+          writers: [],
+          entries: [
+            {
+              id: 1,
+              parentId: null,
+              name: 'plans',
+              kind: 'folder',
+              createdBy: '~zod',
+              createdAt: 0,
+              updatedBy: '~zod',
+              updatedAt: 0,
+            },
+          ],
+          revision: 4,
+        },
+      } as unknown as api.BucketsResponse,
+      ctx
+    )
+  );
+
+  const stored = await db.getBucket({ channelId });
+  expect(stored?.revision).toBe(4);
+  expect(stored?.entries.map((entry) => entry.name)).toEqual(['plans']);
+});
+
+// A Bucket's manifest arrives only through this subscription, so the database
+// is where it lands and views read it from there.
+test('reduces a Bucket manifest into the database', async () => {
+  const channelId = 'buckets/~zod/files';
+  await db.insertChannels([{ id: channelId, type: 'buckets' }]);
+
+  const folder = {
+    id: 1,
+    parentId: null,
+    name: 'plans',
+    kind: 'folder' as const,
+    createdBy: '~zod',
+    createdAt: 1,
+    updatedBy: '~zod',
+    updatedAt: 1,
+  };
+  const file = {
+    id: 2,
+    parentId: 1,
+    name: 'q3.pdf',
+    kind: 'file' as const,
+    createdBy: '~zod',
+    createdAt: 2,
+    updatedBy: '~zod',
+    updatedAt: 2,
+    file: {
+      mime: 'application/pdf',
+      size: 42,
+      checksum: null,
+      objectKey: 'object-2',
+      status: 'ready' as const,
+    },
+  };
+
+  const send = (response: unknown) =>
+    batchEffects('test:buckets', (ctx) =>
+      handleBucketsUpdate(response as api.BucketsResponse, ctx)
+    );
+
+  // A snapshot carries the whole manifest.
+  await send({
+    type: 'snapshot',
+    flag: { host: '~zod', name: 'files' },
+    state: {
+      bucket: {
+        id: 1,
+        title: 'Files',
+        createdBy: '~zod',
+        createdAt: 1,
+        updatedBy: '~zod',
+        updatedAt: 1,
+      },
+      group: { host: '~zod', name: 'group' },
+      writers: ['admin'],
+      entries: [folder, file],
+      revision: 4,
+    },
+  });
+
+  const stored = await db.getBucket({ channelId });
+  expect(stored?.revision).toBe(4);
+  expect(stored?.entries.map((entry) => entry.entryId).sort()).toEqual([1, 2]);
+  // A file's fields come along; a folder leaves them null.
+  const storedFile = stored?.entries.find((entry) => entry.entryId === 2);
+  expect(storedFile?.objectKey).toBe('object-2');
+  expect(storedFile?.status).toBe('ready');
+  const storedFolder = stored?.entries.find((entry) => entry.entryId === 1);
+  expect(storedFolder?.objectKey).toBeNull();
+
+  // An entry update replaces just that entry.
+  await send({
+    type: 'update',
+    flag: { host: '~zod', name: 'files' },
+    revision: 5,
+    update: {
+      type: 'entry-updated',
+      id: 2,
+      entry: { ...file, name: 'q3-final.pdf' },
+    },
+  });
+  const renamed = await db.getBucket({ channelId });
+  expect(renamed?.revision).toBe(5);
+  expect(renamed?.entries.find((e) => e.entryId === 2)?.name).toBe(
+    'q3-final.pdf'
+  );
+
+  // A delete removes it, and the rest stay.
+  await send({
+    type: 'update',
+    flag: { host: '~zod', name: 'files' },
+    revision: 6,
+    update: { type: 'entries-deleted', ids: [2] },
+  });
+  const pruned = await db.getBucket({ channelId });
+  expect(pruned?.entries.map((entry) => entry.entryId)).toEqual([1]);
+
+  // Losing the Bucket forgets it entirely.
+  await send({
+    type: 'update',
+    flag: { host: '~zod', name: 'files' },
+    revision: 7,
+    update: { type: 'bucket-deleted' },
+  });
+  expect(await db.getBucket({ channelId })).toBeNull();
+});
 test.each(['before', 'concurrently with'] as const)(
   'does not double-count a reply when the snapshot arrives %s the event',
   async (order) => {
@@ -882,7 +1282,7 @@ const testGroupData: db.Group = {
 // });
 
 test('syncs init data', async () => {
-  setScryOutput(rawGroupsInitData);
+  setInitSyncScryOutputs({ init: groupsInitData });
   await syncInitData();
   const groups = await db.getGroups({});
   expect(groups.length).toEqual(Object.values(groupsInitData.groups).length);
@@ -904,7 +1304,7 @@ test('syncs init data', async () => {
 });
 
 test('syncs last posts', async () => {
-  setScryOutputs([groupsInitData2, headsData]);
+  setInitSyncScryOutputs({ init: groupsInitData2, heads: headsData });
   await syncInitData();
   await syncLatestPosts();
   const chats = await db.getChats();
@@ -934,7 +1334,7 @@ test('init data repairs latest posts that arrived before channel rows', async ()
   if (!client) throw new Error('test db not initialized');
 
   await db.headsSyncedAt.resetValue();
-  setScryOutputs([headsData, groupsInitData2]);
+  setInitSyncScryOutputs({ init: groupsInitData2, heads: headsData });
 
   await syncLatestPosts();
   await syncInitData();
@@ -1087,6 +1487,9 @@ describe('desk compatibility gate', () => {
     scryPaths().some((path) => path.includes(fragment));
   const probeCount = () =>
     scryCalls.filter(({ path }) => path === '/kiln/pikes').length;
+  const bucketsSubscribeCalls = () =>
+    vi.mocked(subscribe).mock.calls.filter(([{ app }]) => app === 'buckets');
+  const bucketsSubscribeCount = () => bucketsSubscribeCalls().length;
 
   // Lets a test keep the probe in flight while it does something else (log out,
   // let the timeout fire) and then decide what a late answer does.
@@ -1164,7 +1567,7 @@ describe('desk compatibility gate', () => {
               : { groups: { version: reportedDeskVersion } },
         };
       }
-      if (app === 'groups-ui' && path === '/v10/init') {
+      if (app === 'groups-ui' && /^\/v1[01]\/init$/.test(path)) {
         return groupsInitData;
       }
       if (app === 'groups-ui' && path.startsWith('/v4/heads')) {
@@ -1212,6 +1615,9 @@ describe('desk compatibility gate', () => {
     // Without a live client the lifetime token never changes, and the guards
     // that depend on it would go untested.
     logIn();
+    // What removing the client resets it to, so a Buckets desk seen by an
+    // earlier test can't leave this one's subscriptions already decided.
+    api.setDeskSupportsBuckets(false);
     vi.mocked(subscribe).mockClear();
     // The shared storage mock discards writes, so reads always come back as
     // the default: assert on the writes instead.
@@ -2130,6 +2536,120 @@ describe('desk compatibility gate', () => {
         status: 'incompatible',
         current: '12.1.0',
       });
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'opens %buckets once when a discontinuity finds the ship upgraded to Buckets',
+    async () => {
+      await syncStart();
+      expect(bucketsSubscribeCount()).toBe(0);
+      expect(didScry('/v10/init')).toBe(true);
+
+      // Upgraded from 12.2 while the app stayed open. Recovery subscribes to
+      // nothing, since the rest of the set is still up.
+      reportedDeskVersion = BUCKETS_MIN_GROUPS_VERSION;
+      scryCalls = [];
+      await handleDiscontinuity({ context: 'test' });
+
+      expect(api.getDeskSupportsBuckets()).toBe(true);
+      expect(bucketsSubscribeCount()).toBe(1);
+      // The recovery's own init already moves to /v11: it reads the version
+      // its re-probe fetched, not the one the session started with.
+      expect(didScry('/v11/init')).toBe(true);
+      expect(didScry('/v10/init')).toBe(false);
+
+      // The capability is already on, so nothing opens a second one.
+      await handleDiscontinuity({ context: 'test' });
+      await syncStart();
+
+      expect(bucketsSubscribeCount()).toBe(1);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a later recovery retries a late %buckets subscribe that failed',
+    async () => {
+      await syncStart();
+
+      let failSubscribe: (error: Error) => void = () => {};
+      let failNext = true;
+      vi.mocked(subscribe).mockImplementation((async (endpoint: {
+        app: string;
+      }) => {
+        if (endpoint.app === 'buckets' && failNext) {
+          failNext = false;
+          return new Promise((_resolve, reject) => {
+            failSubscribe = reject;
+          });
+        }
+        return 1;
+      }) as unknown as typeof subscribe);
+
+      reportedDeskVersion = BUCKETS_MIN_GROUPS_VERSION;
+      await handleDiscontinuity({ context: 'test' });
+      expect(bucketsSubscribeCount()).toBe(1);
+
+      // The capability stays on, so no change will open it again: the next
+      // recovery is the only chance this login gets.
+      failSubscribe(new Error('subscribe failed'));
+      await handleDiscontinuity({ context: 'test' });
+      expect(bucketsSubscribeCount()).toBe(2);
+
+      await handleDiscontinuity({ context: 'test' });
+      expect(bucketsSubscribeCount()).toBe(2);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a later recovery reopens a %buckets watch the ship nacked',
+    async () => {
+      await syncStart();
+      reportedDeskVersion = BUCKETS_MIN_GROUPS_VERSION;
+      await handleDiscontinuity({ context: 'test' });
+      expect(bucketsSubscribeCount()).toBe(1);
+
+      // The subscribe resolved when its PUT landed. %buckets nacks the watch
+      // afterwards, which only the rejection callback hears.
+      const rejectWatch = bucketsSubscribeCalls()[0][2];
+      expect(rejectWatch).toBeDefined();
+      rejectWatch?.('watch nacked');
+      await handleDiscontinuity({ context: 'test' });
+      expect(bucketsSubscribeCount()).toBe(2);
+
+      await handleDiscontinuity({ context: 'test' });
+      expect(bucketsSubscribeCount()).toBe(2);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a start on a Buckets desk opens %buckets once per login',
+    async () => {
+      // The probe turns the capability on before the high-priority set reads
+      // it, and the set opens %buckets itself; the change must not open a
+      // second one.
+      reportedDeskVersion = BUCKETS_MIN_GROUPS_VERSION;
+      await syncStart();
+
+      expect(bucketsSubscribeCount()).toBe(1);
+
+      // Removing the client turns the capability off. That change, and any
+      // late one after it, belong to a login that is gone.
+      logOut();
+      api.setDeskSupportsBuckets(false);
+      api.setDeskSupportsBuckets(true);
+      api.setDeskSupportsBuckets(false);
+
+      expect(bucketsSubscribeCount()).toBe(1);
+
+      logIn();
+      await syncStart();
+
+      expect(bucketsSubscribeCount()).toBe(2);
     },
     FULL_SYNC_TIMEOUT
   );

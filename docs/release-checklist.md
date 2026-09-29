@@ -9,7 +9,7 @@ workflow, that workflow's trigger is the authority for when it runs.
 | version bump | `desk.docket-0`'s `version+[X Y Z]` is rewritten and pushed         | `bump.yml` (the only writer)    |
 | glob         | the web bundle is built and globbed, docket updated                 | `build-and-glob.yml`            |
 | staging      | `develop` is merged to `staging` **by hand** — no workflow does it  | —                               |
-| back-merge   | pushing `staging` merges it back into `develop`                     | `sync-dev.yml`                  |
+| back-merge   | a `staging` push merges into `develop` once N-1 E2E + canary pass   | `staging.yml` → `sync-dev.yml`  |
 | release tag  | a `vX.Y.Z` tag is created **by hand** — no workflow creates one     | —                               |
 | livenet      | the tag is deployed to `~sogryp-dister-dozzod-dozzod`               | `deploy-livenet.yml`            |
 | master sync  | on a completed livenet deploy, `staging` merges into `master`       | `sync.yml` (`workflow_run`)     |
@@ -85,8 +85,23 @@ receive updates, and post against desk release N-1.
 ## After deploying
 
 - [ ] Raise `MIN_GROUPS_VERSION` to the release you just shipped, **only once it
-      has shipped**, and re-pin the `~bus` E2E pier
-      (`apps/tlon-web/e2e/shipManifest.json`) in the same change.
+      has shipped**, and rebuild the pinned N-1 E2E pier in the same change —
+      the `N-1 Desk E2E` job fails fast when the two disagree. `~bud` is the
+      N-1 pier; `~bus` is a different ship, kept deliberately far out of date
+      for protocol-mismatch rendering, and is not re-pinned here.
+      1. Set `~bud`'s `deskVersion` in `apps/tlon-web/e2e/shipManifest.json` to
+         the new `MIN_GROUPS_VERSION`, and bump its `downloadUrl` to the next
+         `rube-bud<n>.tgz`.
+      2. `cd apps/tlon-web/rube && ./build-n1-pier.sh` — boots a fresh `~bud`,
+         commits the `v<deskVersion>` desk to it, and leaves the archive in
+         `rube/dist/`.
+      3. Upload it, from `apps/tlon-web/rube`:
+         `gsutil cp dist/rube-bud<n>.tgz gs://bootstrap.urbit.org/` then
+         `gsutil acl ch -u AllUsers:R gs://bootstrap.urbit.org/rube-bud<n>.tgz`.
+         The job refuses to boot until that object is public.
+      4. Dispatch `n1-e2e.yml` to confirm the new pier works before the next
+         staging push depends on it: until it passes, a `staging` push gets
+         neither the canary deploy nor the `develop` sync.
 - [ ] Cut mobile builds from the release tag if it includes native changes.
       Dispatch `mobile-build.yml` with `profile=production` and the platforms
       you intend. `profile` offers `preview` and `production`, `platform`
