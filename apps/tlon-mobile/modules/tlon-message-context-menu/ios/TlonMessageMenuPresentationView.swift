@@ -19,6 +19,8 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
     }
 
     private static let backdropColor = UIColor.black.withAlphaComponent(0.40)
+    // Well under Metal's 16,384 px texture limit.
+    static let maximumSnapshotPixelHeight: CGFloat = 8192
     private static let scaleBounceValues: [NSNumber] = {
         let sampleCount = max(
             30,
@@ -81,7 +83,11 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
     ) {
         self.sourceView = sourceView
         let snapshotRect = sourceView.window.map {
-            Self.snapshotRect(of: sourceView, in: $0)
+            Self.snapshotRect(
+                of: sourceView,
+                restingFrame: restingSourceFrame,
+                in: $0
+            )
         } ?? sourceView.bounds
         self.snapshotRect = snapshotRect
         sourceSnapshot = sourceView.resizableSnapshotView(
@@ -89,8 +95,7 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
             afterScreenUpdates: false,
             withCapInsets: .zero
         ) ?? UIView()
-        // At rest the source is unscaled, so its bounds map onto the window
-        // by translation alone.
+        // Where the snapshotted part sits once the press scale is gone.
         restingSnapshotFrame = restingSourceFrame.map {
             snapshotRect.offsetBy(
                 dx: $0.minX - sourceView.bounds.minX,
@@ -488,14 +493,20 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
         )
     }
 
-    // Returns the part of the source to preview, in its bounds. A message that
-    // fits on screen previews whole, even when some of it is scrolled out of
-    // view. A taller one previews only what is on screen: the preview could
-    // not show all of it anyway, and a snapshot many screens tall can exceed
-    // the render server's texture limit and come back empty.
-    static func snapshotRect(of view: UIView, in window: UIWindow) -> CGRect {
-        guard view.bounds.height > window.bounds.height else {
-            return view.bounds
+    // Returns the part of the source to snapshot, in its bounds. A message
+    // short enough to snapshot whole is, even when some of it is scrolled out
+    // of view. A longer one is cut to what is on screen, because a snapshot
+    // that tall can exceed the render server's texture limit and come back
+    // empty.
+    static func snapshotRect(
+        of view: UIView,
+        restingFrame: CGRect?,
+        in window: UIWindow
+    ) -> CGRect {
+        let bounds = view.bounds
+        let displayScale = max(window.traitCollection.displayScale, 1)
+        guard bounds.height * displayScale > maximumSnapshotPixelHeight else {
+            return bounds
         }
 
         // The window's bounds, narrowed by every ancestor that clips, such as
@@ -511,13 +522,15 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
             ancestor = clippingView.superview
         }
 
-        guard !visibleFrame.isEmpty else {
-            return view.bounds
-        }
-        let visibleRect = view.bounds.intersection(
-            view.convert(visibleFrame, from: window)
+        // Measure against the resting frame so the rect still fits the clip
+        // once the press scale is gone. At rest the source is unscaled, so
+        // its bounds map onto the window by translation alone.
+        let frame = restingFrame ?? view.convert(bounds, to: window)
+        let visibleRect = visibleFrame.intersection(frame).offsetBy(
+            dx: bounds.minX - frame.minX,
+            dy: bounds.minY - frame.minY
         )
-        return visibleRect.isEmpty ? view.bounds : visibleRect
+        return visibleRect.isEmpty ? bounds : visibleRect
     }
 
     private func applyTargetLayout() {
