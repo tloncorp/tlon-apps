@@ -278,6 +278,19 @@ export function findTlonSubcommandIndex(args: string[]): number {
   return findFirstPositionalArgumentIndex(args, 0, CREDENTIAL_FLAGS_WITH_VALUE);
 }
 
+export function redactBrowserHandoffCommand(command: string): string {
+  const args = shellSplitCommand(command);
+  const subIdx = findTlonSubcommandIndex(args);
+  if (
+    args[subIdx]?.toLowerCase() === 'browser' &&
+    args[subIdx + 1]?.toLowerCase() === 'handoff'
+  ) {
+    // Keep only the operation: arguments can carry a signed viewer capability.
+    return 'browser handoff [REDACTED]';
+  }
+  return command;
+}
+
 export type BlockedTlonOperation = {
   message: string;
   reason: 'diary_operation' | 'migration_operation' | 'send_operation';

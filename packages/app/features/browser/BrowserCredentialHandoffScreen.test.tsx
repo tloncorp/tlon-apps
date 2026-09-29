@@ -89,7 +89,7 @@ describe('BrowserCredentialHandoffScreen', () => {
     await act(async () => {
       renderer = create(
         <BrowserCredentialHandoffScreen
-          navigation={{ goBack: vi.fn() }}
+          navigation={{ goBack: vi.fn(), isFocused: () => true }}
           route={{
             params: {
               handoffId: 'opaque-handoff-id',
@@ -151,7 +151,7 @@ describe('BrowserCredentialHandoffScreen', () => {
     await act(async () => {
       renderer = create(
         <BrowserCredentialHandoffScreen
-          navigation={{ goBack: vi.fn() }}
+          navigation={{ goBack: vi.fn(), isFocused: () => true }}
           route={{
             params: {
               handoffId: 'opaque-handoff-id',
@@ -175,6 +175,75 @@ describe('BrowserCredentialHandoffScreen', () => {
     act(() => renderer!.unmount());
   });
 
+  it.each(['focused', 'dismissed', 'unmounted'] as const)(
+    'only navigates back from an active route after completion (%s)',
+    async (routeState) => {
+      mocks.beginHandoff.mockResolvedValue({
+        kind: 'otp',
+        origin: 'https://example.com',
+      });
+      mocks.submitCredentials.mockResolvedValue({ submitted: true });
+      let finishCompletion!: () => void;
+      mocks.complete.mockReturnValue(
+        new Promise<void>((resolve) => {
+          finishCompletion = resolve;
+        })
+      );
+      let focused = true;
+      const navigation = {
+        isFocused: () => focused,
+        goBack: vi.fn(() => {
+          focused = false;
+        }),
+      };
+      let renderer: ReactTestRenderer;
+      await act(async () => {
+        renderer = create(
+          <BrowserCredentialHandoffScreen
+            navigation={navigation}
+            route={{ params: { handoffId: 'opaque-handoff-id' } }}
+          />
+        );
+      });
+      act(() => {
+        renderer!.root
+          .findByProps({ autoComplete: 'one-time-code' })
+          .props.onChangeText('123456');
+      });
+      await act(async () => {
+        await renderer!.root
+          .findByProps({ label: 'Submit code' })
+          .props.onPress();
+      });
+      let returning!: Promise<void>;
+      act(() => {
+        returning = renderer!.root
+          .findByProps({ label: 'Return to conversation' })
+          .props.onPress();
+      });
+      expect(mocks.complete).toHaveBeenCalledWith('opaque-handoff-id');
+      expect(navigation.goBack).not.toHaveBeenCalled();
+      if (routeState === 'dismissed') {
+        act(() => {
+          renderer!.root
+            .findByType('ScreenHeader' as React.ElementType)
+            .props.backAction();
+        });
+      } else if (routeState === 'unmounted') {
+        focused = false;
+        act(() => renderer!.unmount());
+      }
+      await act(async () => {
+        finishCompletion();
+        await returning;
+      });
+      expect(navigation.goBack).toHaveBeenCalledTimes(
+        routeState === 'unmounted' ? 0 : 1
+      );
+      if (routeState !== 'unmounted') act(() => renderer!.unmount());
+    }
+  );
+
   it.each([true, false])(
     'sets credential autofill for isWeb=%s',
     async (isWeb) => {
@@ -183,7 +252,7 @@ describe('BrowserCredentialHandoffScreen', () => {
       await act(async () => {
         renderer = create(
           <BrowserCredentialHandoffScreen
-            navigation={{ goBack: vi.fn() }}
+            navigation={{ goBack: vi.fn(), isFocused: () => true }}
             route={{ params: { handoffId: 'opaque-handoff-id' } }}
           />
         );
@@ -221,7 +290,7 @@ describe('BrowserCredentialHandoffScreen', () => {
     await act(async () => {
       renderer = create(
         <BrowserCredentialHandoffScreen
-          navigation={{ goBack: vi.fn() }}
+          navigation={{ goBack: vi.fn(), isFocused: () => true }}
           route={{ params: { handoffId: 'expired-id' } }}
         />
       );

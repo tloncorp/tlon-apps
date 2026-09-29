@@ -139,6 +139,28 @@ function parsed(detail: string | undefined): Record<string, unknown> {
   return JSON.parse(detail as string) as Record<string, unknown>;
 }
 
+describe('browser handoff parameter redaction', () => {
+  it.each([
+    'browser handoff https://browser.example/s/private.signature',
+    '  browser\thandoff\n"https://browser.example/s/private.signature"',
+    "--ship ~zod 'browser' 'handoff' 'https://browser.example/s/private.signature'",
+    '--ship=~zod browser handoff https://browser.example/s/private.signature',
+    `browser handoff https://browser.example/s/private.signature${'x'.repeat(3000)}`,
+  ])('redacts before serializing %s', (command) => {
+    const params = { command };
+    expect(parsed(detailToolParams(params))).toEqual({
+      command: 'browser handoff [REDACTED]',
+    });
+    expect(params.command).toBe(command);
+  });
+
+  it('preserves ordinary command arguments', () => {
+    expect(parsed(detailToolParams({ command: 'contacts get ~zod' }))).toEqual({
+      command: 'contacts get ~zod',
+    });
+  });
+});
+
 describe('detailToolParams', () => {
   it('returns undefined for nullish params', () => {
     expect(detailToolParams(null)).toBeUndefined();

@@ -17,7 +17,7 @@ import {
 import { useBrowserCredentialHandoff } from './BrowserCredentialHandoffProvider';
 
 type Props = {
-  navigation: { goBack(): void };
+  navigation: { goBack(): void; isFocused(): boolean };
   route: { params: BrowserCredentialHandoffParams };
 };
 
@@ -139,7 +139,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     setError(undefined);
     try {
       await complete(handoffId);
-      navigation.goBack();
+      if (navigation.isFocused()) navigation.goBack();
     } catch (nextError) {
       setError(errorMessage(nextError));
       setReturning(false);
