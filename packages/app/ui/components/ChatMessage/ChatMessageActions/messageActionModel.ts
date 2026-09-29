@@ -1,7 +1,10 @@
 import type { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 
-export type MessageMenuActionId = ChannelAction.Id | 'viewBotRun';
+export type MessageMenuActionId =
+  | ChannelAction.Id
+  | 'viewBotRun'
+  | 'selectText';
 
 export interface MessageMenuActionDescriptor {
   id: MessageMenuActionId;
