@@ -1,12 +1,10 @@
-import { isVersionBelow, parseVersion } from './semver';
+import {
+  MIN_GROUPS_VERSION,
+  isVersionBelow,
+  parseVersion,
+} from '@tloncorp/api/lib/deskVersion';
 
-// Oldest %groups desk this client supports. Ships reporting a lower docket
-// version get the desk-outdated notice instead of an empty home. Raise it only
-// when dropping backwards-compatibility for older desks; adding a new desk
-// dependency without a fallback also requires raising it (12.2.0 = first desk
-// with /v10/init and the /v3/groups subscription, which the client currently
-// requires with no fallback).
-export const MIN_GROUPS_VERSION = '12.2.0';
+export { MIN_GROUPS_VERSION };
 
 export type DeskVersionClassification = 'ok' | 'outdated' | 'unknown';
 

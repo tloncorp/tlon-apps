@@ -1,7 +1,7 @@
 ::  notes: shared notebook Gall agent (dual-mode host/subscriber)
 ::
 /-  n=notes, mcp-proxy, av=activity-ver
-/+  default-agent, dbug, verb, server, logs, notes-json
+/+  default-agent, dbug, verb, server, logs, notes-json, eyre-reply
 ::  static web assets, imported straight from files and served as-is. The
 ::  agent sets each response's content-type explicitly (see below), so the
 ::  import marks only need to carry the raw bytes.
@@ -259,12 +259,9 @@
   ?:  ?=([%notes %~.~ %v1 %request @ ~] site)
     ?.  =(%'GET' method)
       (http-error eyre-id 405 'method not allowed')
-    ::  the @uv rid carries dots; apat mistook its trailing dot-group for a
-    ::  file extension and split it off, so glue the ext back on before
-    ::  handing the rid down.
     =/  rid-knot=@t
-      ?~  ext  i.t.t.t.t.site
-      (rap 3 i.t.t.t.t.site '.' u.ext ~)
+      =/  back=(list @t)  (rejoin-ext:eyre-reply ~[i.t.t.t.t.site] ext)
+      ?~(back i.t.t.t.t.site i.back)
     (handle-v1-get-request eyre-id rid-knot inbound-request)
   ?:  ?=([%notes %~.~ %v1 *] site)
     =/  pax=(list @t)  t.t.t.site
@@ -1350,18 +1347,13 @@
 ++  give-http
   |=  [eyre-id=@ta code=@ud ct=@t body=@t]
   ^+  cor
-  =/  data=octs  (as-octs:mimes:html body)
-  %-  emil
-  :~  [%give %fact [/http-response/[eyre-id]]~ %http-response-header !>(`response-header:http`[code ~[['content-type' ct]]])]
-      [%give %fact [/http-response/[eyre-id]]~ %http-response-data !>(`data)]
-      [%give %kick [/http-response/[eyre-id]]~ ~]
-  ==
+  (emil (reply:eyre-reply eyre-id code ct body))
 ::  +http-error: emit a non-200 HTTP error response (plain text body)
 ::
 ++  http-error
   |=  [eyre-id=@ta code=@ud message=@t]
   ^+  cor
-  (give-http eyre-id code 'text/plain' message)
+  (emil (error:eyre-reply eyre-id code message))
 ::  +give-http-response: emit a 200 application/json HTTP response carrying
 ::  the encoded response.
 ::

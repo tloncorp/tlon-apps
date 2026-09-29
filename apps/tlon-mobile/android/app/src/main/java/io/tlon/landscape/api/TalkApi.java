@@ -26,11 +26,21 @@ import io.tlon.landscape.storage.SecureStorage;
 
 public class TalkApi {
 
+    private static RequestQueue sharedQueue;
     private final RequestQueue queue;
     private int eventId = 1;
 
     public TalkApi(Context context) {
-        queue = Volley.newRequestQueue(context);
+        queue = getRequestQueue(context);
+    }
+
+    private static synchronized RequestQueue getRequestQueue(Context context) {
+        // Notification clients are short-lived, but Volley workers live until stopped.
+        // Share their queue so each notification does not retain another thread pool and cache.
+        if (sharedQueue == null) {
+            sharedQueue = Volley.newRequestQueue(context.getApplicationContext());
+        }
+        return sharedQueue;
     }
 
     public static JSONObject createPokePayload(String app, String mark, JSONObject json) throws JSONException {

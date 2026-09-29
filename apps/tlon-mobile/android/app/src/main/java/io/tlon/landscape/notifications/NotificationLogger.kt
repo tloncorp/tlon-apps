@@ -1,6 +1,13 @@
 package io.tlon.landscape.notifications
 
 import android.util.Log
+import com.android.volley.AuthFailureError
+import com.android.volley.ClientError
+import com.android.volley.NetworkError
+import com.android.volley.NoConnectionError
+import com.android.volley.ParseError
+import com.android.volley.ServerError
+import com.android.volley.TimeoutError
 import com.android.volley.VolleyError
 import com.posthog.PostHog
 
@@ -41,13 +48,33 @@ fun getLogPayload(uid: String, message: String, e: Exception? = null): Map<Strin
         // cause. Report the cause as the message and its class as the type.
         val cause = e.cause ?: e
         payload["errorMessage"] = cause.toString()
-        payload["errorType"] = cause.javaClass.name
+        payload["errorType"] = cause.stableTypeName()
+        // Volley wraps the root cause, which separates a DNS failure from a socket
+        // timeout.
+        cause.cause?.let { payload["errorCause"] = it.stableTypeName() }
         payload["errorStack"] = Log.getStackTraceString(e)
         cause.httpStatusCode()?.let { payload["httpStatus"] = it }
     }
 
     return payload
 }
+
+/**
+ * R8 renames classes in release builds, so `javaClass.name` reached PostHog as
+ * `u2.a`. Volley's errors are named by hand; subclasses precede their parents.
+ */
+internal fun Throwable.stableTypeName(): String =
+    when (this) {
+        is TimeoutError -> "TimeoutError"
+        is NoConnectionError -> "NoConnectionError"
+        is NetworkError -> "NetworkError"
+        is AuthFailureError -> "AuthFailureError"
+        is ClientError -> "ClientError"
+        is ServerError -> "ServerError"
+        is ParseError -> "ParseError"
+        is VolleyError -> "VolleyError"
+        else -> javaClass.simpleName
+    }
 
 /** HTTP status behind this error, when it came from a response. */
 private fun Throwable.httpStatusCode(): Int? =
