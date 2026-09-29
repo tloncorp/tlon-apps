@@ -22,7 +22,10 @@ jobs:
           git pull
           git checkout develop
           git pull
-          git merge staging
+          # desk.docket-0 conflicts on every sync (each branch carries its own glob
+          # hash); the step runs under bash -e, so the merge must not abort it before
+          # the --theirs recovery below.
+          git merge staging || true
           git checkout --theirs desk/desk.docket-0
           git add -A
           git diff-index --quiet HEAD || git commit -n --no-edit
