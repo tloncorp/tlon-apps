@@ -38,7 +38,7 @@ import {
 const CRON_ERROR_MAX_CHARS = 500;
 const SNAPSHOT_RETRY_DELAY_MS = 20_000;
 
-type GatewayCronSchedule =
+export type GatewayCronSchedule =
   | { kind: 'cron'; expr?: string; tz?: string; staggerMs?: number }
   | { kind: 'at'; at?: string }
   | { kind: 'every'; everyMs?: number; anchorMs?: number }
@@ -53,7 +53,7 @@ type GatewayCronSchedule =
       maxBatchBytes?: number;
     };
 
-type GatewayCronJob = {
+export type GatewayCronJob = {
   id: string;
   agentId?: string;
   name?: string;
@@ -92,7 +92,7 @@ export type CronChangedEvent = {
   provider?: string;
 };
 
-type GatewayCronService = {
+export type GatewayCronService = {
   list: (opts?: { includeDisabled?: boolean }) => Promise<GatewayCronJob[]>;
   add: (input: never) => Promise<unknown>;
   update: (id: string, patch: never) => Promise<unknown>;

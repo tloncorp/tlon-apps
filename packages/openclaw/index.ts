@@ -4,6 +4,7 @@ import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineBundledChannelEntry } from 'openclaw/plugin-sdk/channel-entry-contract';
 import { type OpenClawPluginApi } from 'openclaw/plugin-sdk/core';
+import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import {
   emitDiagnosticEvent,
   onDiagnosticEvent,
@@ -1362,7 +1363,9 @@ export default defineBundledChannelEntry({
 
     registerStewardAutomationReconciliationHooks(api, {
       logger: { warn: (message) => api.logger.warn(message) },
-      getConfig: () => api.runtime.config.loadConfig(),
+      // 2026.9.x exposes the runtime config as a read-only snapshot; the
+      // reconciler only reads it.
+      getConfig: () => api.runtime.config.current() as OpenClawConfig,
     });
 
     if (shouldInstallTlonDiagnosticSubscriptions(api.registrationMode)) {
