@@ -17,6 +17,7 @@
  */
 import { sharedMap } from '../shared-state.js';
 import { getChannelIndexEntry, getGroupIndexEntry } from './group-index.js';
+import { siblingReadableFromCurrent } from './recall-scope.js';
 
 interface DigestEvent {
   timestamp: number;
@@ -130,10 +131,10 @@ export function renderGroupDigestForChannel(currentNest: string): {
   const quiet: string[] = [];
   for (const nest of group.channels.slice(0, 64)) {
     const isCurrent = nest === currentNest;
-    const entry = getChannelIndexEntry(nest);
-    // Audience rule: siblings must be open to all members; unknown fails
+    // Audience rule (containment): a sibling row renders only when everyone
+    // who can read the current channel can read the sibling; unknown fails
     // closed. The current channel is always safe to describe to itself.
-    if (!isCurrent && (!entry || entry.readers.length > 0)) {
+    if (!isCurrent && !siblingReadableFromCurrent(currentNest, nest)) {
       continue;
     }
     const state = digestState.get(nest);

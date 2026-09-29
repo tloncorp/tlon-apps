@@ -1623,6 +1623,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         channelReaders: initData.channelReaders,
         channelNames: initData.channelNames,
         groupNames: initData.groupNames,
+        groupSeats: initData.groupSeats,
       });
     } catch (error: any) {
       runtime.error?.(

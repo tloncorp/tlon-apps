@@ -8,26 +8,27 @@
  * is its parent's plus a suffix) and searches only what that surface's
  * audience may see:
  *
- *   DM with ~x  → ~x's person files (both tiers) + that DM's own LCM
- *                 history (all session-family segments, threads included)
+ *   DM with ~x  → ~x's person files (both tiers), that DM's own LCM
+ *                 history, and every channel ~x can read (the audience is
+ *                 exactly ~x, who was entitled to all of it)
  *   channel     → the channel's place file, the current speaker's public
- *                 tier, and the channel's own LCM history
+ *                 tier, the channel's own LCM history, and siblings whose
+ *                 reader roles contain this channel's
  *
- * Cross-surface transcript search is deliberately absent in v1 — it needs
- * seat-level audience containment (audienceContains) fed by group state
- * we don't snapshot yet. The digest already provides cross-channel
- * awareness; this provides depth on the current surface.
+ * Scope derivation lives in recall-scope.ts (audience containment) and
+ * fails closed on anything the group index cannot vouch for.
  */
-import fs from "node:fs/promises";
-import path from "node:path";
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
-import { selectMemoryFilePaths } from "./bootstrap-loader.js";
-import { type LcmSearchHit, searchLcmHistory } from "./lcm-reader.js";
+import { selectMemoryFilePaths } from './bootstrap-loader.js';
+import { type LcmSearchHit, searchLcmHistory } from './lcm-reader.js';
+import { buildRecallSessionKeys } from './recall-scope.js';
 import {
   parseTlonSurface,
   stripActiveMemorySuffix,
   stripThreadSuffix,
-} from "./surface.js";
+} from './surface.js';
 
 const MAX_OUTPUT_CHARS = 6_000;
 const SNIPPET_CHARS = 240;
@@ -40,20 +41,20 @@ export interface RecallDeps {
   log?: (message: string) => void;
 }
 
-type RecallStatus = "ok" | "no_results" | "error";
+type RecallStatus = 'ok' | 'no_results' | 'error';
 
 // `details.status` doubles as active-memory's structured-result protocol:
 // 'no_results' / 'error' tell the recall sub-agent this output is not
 // recall evidence, so a literal NONE never gets injected as context.
 function textResult(
   text: string,
-  details: { status: RecallStatus; historyHits?: number } = { status: "ok" },
+  details: { status: RecallStatus; historyHits?: number } = { status: 'ok' }
 ) {
-  return { content: [{ type: "text" as const, text }], details };
+  return { content: [{ type: 'text' as const, text }], details };
 }
 
 function snippet(content: string): string {
-  const singleLine = content.replace(/\s+/g, " ").trim();
+  const singleLine = content.replace(/\s+/g, ' ').trim();
   return singleLine.length <= SNIPPET_CHARS
     ? singleLine
     : `${singleLine.slice(0, SNIPPET_CHARS - 1)}…`;
@@ -64,7 +65,7 @@ function describeSource(sessionKey: string): string {
   if (!surface) {
     return sessionKey;
   }
-  if (surface.kind === "dm") {
+  if (surface.kind === 'dm') {
     return surface.threadId
       ? `DM ${surface.ship} (thread)`
       : `DM ${surface.ship}`;
@@ -75,7 +76,7 @@ function describeSource(sessionKey: string): string {
 async function searchMemoryFiles(
   workspaceDir: string,
   relPaths: string[],
-  query: string,
+  query: string
 ): Promise<string[]> {
   const terms = query
     .toLowerCase()
@@ -88,11 +89,11 @@ async function searchMemoryFiles(
   for (const relPath of relPaths) {
     let content: string;
     try {
-      content = await fs.readFile(path.resolve(workspaceDir, relPath), "utf8");
+      content = await fs.readFile(path.resolve(workspaceDir, relPath), 'utf8');
     } catch {
       continue;
     }
-    for (const line of content.split("\n")) {
+    for (const line of content.split('\n')) {
       const lower = line.toLowerCase();
       if (terms.some((term) => lower.includes(term)) && line.trim()) {
         lines.push(`- [${relPath}] ${snippet(line)}`);
@@ -108,46 +109,48 @@ async function searchMemoryFiles(
 /** Build the tlon_recall tool for one session context. */
 export function createTlonRecallTool(deps: RecallDeps) {
   return {
-    name: "tlon_recall",
-    label: "Tlon Recall",
+    name: 'tlon_recall',
+    label: 'Tlon Recall',
     description:
-      "Search this conversation surface’s memory: durable facts about the " +
-      "current person and place, plus the full transcript history of THIS " +
-      "surface (including before session resets). Scope is enforced by the " +
-      "tool — it never returns content from other DMs or channels. " +
-      "Returns NONE when nothing relevant is found.",
+      'Search everything this conversation’s audience may see: durable ' +
+      'facts about the current person and place, this surface’s full ' +
+      'transcript history (including before session resets), and — in a ' +
+      'DM — the channels this person can read; in a channel, siblings its ' +
+      'whole audience can read. Scope is enforced by the tool: it never ' +
+      'returns other people’s DMs or channels the current audience cannot ' +
+      'read. Returns NONE when nothing relevant is found.',
     parameters: {
-      type: "object",
+      type: 'object',
       properties: {
         query: {
-          type: "string",
+          type: 'string',
           description:
-            "1–4 distinctive keywords for what to recall (names, topics, " +
-            "identifiers). Not a sentence.",
+            '1–4 distinctive keywords for what to recall (names, topics, ' +
+            'identifiers). Not a sentence.',
         },
         limit: {
-          type: "number",
-          description: "Max transcript matches to return (default 8, max 20).",
+          type: 'number',
+          description: 'Max transcript matches to return (default 8, max 20).',
         },
       },
-      required: ["query"],
+      required: ['query'],
     },
     execute: async (
       _callId: string,
-      params: { query?: string; limit?: number },
+      params: { query?: string; limit?: number }
     ) => {
       const query = params.query?.trim();
       if (!query) {
-        return textResult("Error: query is required.", { status: "error" });
+        return textResult('Error: query is required.', { status: 'error' });
       }
       const sessionKey = deps.sessionKey?.trim();
       if (!sessionKey) {
-        return textResult("NONE", { status: "no_results" });
+        return textResult('NONE', { status: 'no_results' });
       }
       const surface = parseTlonSurface(sessionKey);
       if (!surface) {
         // Not a Tlon surface (webchat, cron, …): nothing is in scope.
-        return textResult("NONE", { status: "no_results" });
+        return textResult('NONE', { status: 'no_results' });
       }
 
       const sections: string[] = [];
@@ -156,10 +159,10 @@ export function createTlonRecallTool(deps: RecallDeps) {
         const fileLines = await searchMemoryFiles(
           deps.workspaceDir,
           selectMemoryFilePaths(sessionKey),
-          query,
+          query
         );
         if (fileLines.length > 0) {
-          sections.push("## Memory files", ...fileLines);
+          sections.push('## Memory files', ...fileLines);
         }
       }
 
@@ -167,34 +170,41 @@ export function createTlonRecallTool(deps: RecallDeps) {
       // the parent surface; the LIKE clause in the reader then re-includes
       // every thread under it (a thread inherits its channel's history).
       const baseKey = stripThreadSuffix(stripActiveMemorySuffix(sessionKey));
+      // Audience-containment scope (v2): the surface's own history plus
+      // every source this surface's audience is entitled to — a DM spans
+      // the channels its ship can read, a channel spans qualifying
+      // siblings. Falls back to the surface itself when the group index
+      // is empty (unit tests, or before discovery has populated it).
+      const scopedKeys = buildRecallSessionKeys(baseKey);
+      const baseSessionKeys = scopedKeys.length > 0 ? scopedKeys : [baseKey];
       const search = deps.searchHistory ?? searchLcmHistory;
       const limit = Math.min(Math.max(params.limit ?? 8, 1), 20);
       let hits: LcmSearchHit[] = [];
       try {
-        hits = search({ baseSessionKeys: [baseKey], query, limit });
+        hits = search({ baseSessionKeys, query, limit });
       } catch {
         hits = [];
       }
       if (hits.length > 0) {
         sections.push(
-          "## This surface’s history",
+          '## This surface’s history',
           ...hits.map(
             (hit) =>
-              `- [${describeSource(hit.sessionKey)} · ${hit.createdAt} · ${hit.role}] ${snippet(hit.content)}`,
-          ),
+              `- [${describeSource(hit.sessionKey)} · ${hit.createdAt} · ${hit.role}] ${snippet(hit.content)}`
+          )
         );
       }
 
       if (sections.length === 0) {
-        return textResult("NONE", { status: "no_results" });
+        return textResult('NONE', { status: 'no_results' });
       }
-      const text = sections.join("\n");
+      const text = sections.join('\n');
       deps.log?.(
-        `[tlon] recall: ${hits.length} history hits for ${describeSource(baseKey)}`,
+        `[tlon] recall: ${hits.length} history hits for ${describeSource(baseKey)}`
       );
       return textResult(
         text.length > MAX_OUTPUT_CHARS ? text.slice(0, MAX_OUTPUT_CHARS) : text,
-        { status: "ok", historyHits: hits.length },
+        { status: 'ok', historyHits: hits.length }
       );
     },
   };
