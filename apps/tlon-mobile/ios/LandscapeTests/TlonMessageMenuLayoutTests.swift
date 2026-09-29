@@ -88,4 +88,32 @@ final class TlonMessageMenuLayoutTests: XCTestCase {
         XCTAssertEqual(layout.actionFrame.minX, 114)
         XCTAssertEqual(layout.reactionFrame?.minX, 166)
     }
+
+    func testMessageThatFitsOnScreenPreviewsWhole() {
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        let list = UIView(frame: CGRect(x: 0, y: 100, width: 390, height: 600))
+        list.clipsToBounds = true
+        let message = UIView(frame: CGRect(x: 0, y: -50, width: 390, height: 200))
+        list.addSubview(message)
+        window.addSubview(list)
+
+        XCTAssertEqual(
+            TlonMessageMenuPresentationView.snapshotRect(of: message, in: window),
+            CGRect(x: 0, y: 0, width: 390, height: 200)
+        )
+    }
+
+    func testTallMessagePreviewsOnlyItsOnScreenPart() {
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        let list = UIView(frame: CGRect(x: 0, y: 100, width: 390, height: 600))
+        list.clipsToBounds = true
+        let message = UIView(frame: CGRect(x: 0, y: -3000, width: 390, height: 9000))
+        list.addSubview(message)
+        window.addSubview(list)
+
+        XCTAssertEqual(
+            TlonMessageMenuPresentationView.snapshotRect(of: message, in: window),
+            CGRect(x: 0, y: 3000, width: 390, height: 600)
+        )
+    }
 }
