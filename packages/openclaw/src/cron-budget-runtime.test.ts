@@ -560,3 +560,103 @@ it('excludes failed pause intents from the snapshot count', async () => {
   ]);
   expect(f.warn).toHaveBeenCalled();
 });
+
+it.each(['added', 'updated'] as const)(
+  'pauses an %s task while owner delivery remains pending',
+  async (action) => {
+    const f = await setup();
+    let finishNotice!: (delivered: boolean) => void;
+    const notify = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finishNotice = resolve;
+        })
+    );
+    cleanups.push(installBudgetHoldNotifier('default', notify, f.config));
+    try {
+      // This must complete while notification delivery is still unresolved.
+      await f.fire('gateway_start', {}, f.ctx);
+      expect(f.job.enabled).toBe(false);
+      expect(notify).toHaveBeenCalledOnce();
+      if (action === 'added') {
+        f.job.id = 'new-task';
+        f.job.enabled = true;
+        f.job.updatedAtMs = 10;
+        await f.fire('cron_changed', { action, jobId: f.job.id });
+      } else {
+        await f.update(f.job.id, { enabled: true });
+      }
+      await vi.waitFor(() => expect(f.job.enabled).toBe(false));
+      // A late receipt must not restore the ledger from before the new hold.
+      finishNotice(true);
+      const path = join(f.dir, 'tlon-cron-budget-holds.json');
+      await vi.waitFor(async () => {
+        const state = await readBudgetHoldState(path);
+        expect(state.notified).toBe(true);
+        expect(state.holds[f.job.id]?.revision).toBe(f.job.updatedAtMs);
+      });
+      expect(notify).toHaveBeenCalledOnce();
+      expect(f.warn).not.toHaveBeenCalled();
+    } finally {
+      finishNotice?.(false);
+    }
+  }
+);
+
+it('recovers during a pending notice and ignores its receipt in a later episode', async () => {
+  const f = await setup();
+  let finishNotice!: (delivered: boolean) => void;
+  const notify = vi
+    .fn(async () => false)
+    .mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finishNotice = resolve;
+        })
+    );
+  cleanups.push(installBudgetHoldNotifier('default', notify, f.config));
+  try {
+    await f.fire('gateway_start', {}, f.ctx);
+    const path = join(f.dir, 'tlon-cron-budget-holds.json');
+    const initial = await readBudgetHoldState(path);
+    await f.setBudget('available');
+    await f.fire('cron_changed', { action: 'added', jobId: 'another' });
+    await vi.waitFor(() => expect(f.job.enabled).toBe(true));
+    await f.setBudget('limited');
+    await f.fire('cron_changed', { action: 'added', jobId: 'another' });
+    await vi.waitFor(() => expect(f.job.enabled).toBe(false));
+    finishNotice(true);
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledTimes(2));
+    await f.fire('gateway_stop');
+    const current = await readBudgetHoldState(path);
+    expect(current.episodeId).not.toBe(initial.episodeId);
+    expect(current.notified).toBe(false);
+    expect(current.notifiedRecipients ?? []).toEqual([]);
+  } finally {
+    finishNotice?.(false);
+  }
+});
+
+it('keeps startup holds until the wrapper replaces a stale available signal', async () => {
+  const f = await setup();
+  await f.setBudget('available');
+  vi.stubEnv(
+    'TLON_CRON_BUDGET_STARTUP',
+    JSON.stringify({ state: 'limited', staleRevision: null })
+  );
+  await f.fire('gateway_start', {}, f.ctx);
+  expect(f.job.enabled).toBe(false);
+  await f.fire('cron_changed', { action: 'added', jobId: 'another' });
+  await f.fire('gateway_stop');
+  expect(f.job.enabled).toBe(false);
+  await writeFile(
+    join(f.dir, 'signal.json'),
+    JSON.stringify({
+      version: 1,
+      state: 'available',
+      revision: 'fresh-publication',
+    })
+  );
+  await f.fire('gateway_start', {}, f.ctx);
+  expect(f.job.enabled).toBe(true);
+});

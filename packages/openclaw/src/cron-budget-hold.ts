@@ -4,6 +4,7 @@ import { dirname } from 'node:path';
 import type { PluginHookGatewayCronJob } from 'openclaw/plugin-sdk/types';
 
 export const BUDGET_SIGNAL_ENV = 'TLON_CRON_BUDGET_FILE';
+export const BUDGET_STARTUP_ENV = 'TLON_CRON_BUDGET_STARTUP';
 export function budgetHoldPaths(env = process.env) {
   const signal = env[BUDGET_SIGNAL_ENV];
   const stateDir = env.OPENCLAW_STATE_DIR;
@@ -66,15 +67,44 @@ export function isRecurringJob(job: PluginHookGatewayCronJob): boolean {
 }
 
 export async function readBudgetSignal(path: string): Promise<BudgetState> {
+  // The wrapper supplies a fresh observation if publication failed at startup.
+  // Ignore that specific stale file until a later successful publication gives
+  // it a new revision. Both preflight and the live gateway use this handoff.
+  let startup:
+    | { state: 'limited' | 'unknown'; staleRevision: string | null }
+    | undefined;
+  try {
+    const value = JSON.parse(process.env[BUDGET_STARTUP_ENV] ?? 'null');
+    if (
+      value &&
+      (value.state === 'limited' || value.state === 'unknown') &&
+      (value.staleRevision === null || typeof value.staleRevision === 'string')
+    ) {
+      startup = value;
+    }
+  } catch {
+    /* Invalid optional startup context cannot grant recovery. */
+  }
   try {
     const data = JSON.parse(await readFile(path, 'utf8'));
+    const revision = typeof data.revision === 'string' ? data.revision : null;
+    if (startup) {
+      const valid =
+        data.version === 1 &&
+        ['limited', 'available', 'unknown'].includes(data.state);
+      if (!valid || revision === null || revision === startup.staleRevision)
+        return startup.state;
+      // Retire the process-wide handoff once a fresh publication supersedes it.
+      // Later read failures must be unknown, never resurrect an old limit.
+      delete process.env[BUDGET_STARTUP_ENV];
+    }
     return data.version === 1 &&
       (data.state === 'limited' || data.state === 'available')
       ? data.state
       : 'unknown';
   } catch {
     // Probe/file failures cannot release an existing hold.
-    return 'unknown';
+    return startup?.state ?? 'unknown';
   }
 }
 

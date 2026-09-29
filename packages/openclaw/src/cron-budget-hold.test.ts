@@ -421,3 +421,37 @@ it('does not let telemetry persistence gate recovery of an incomplete pause inte
     'resumed',
   ]);
 });
+
+it.each(['limited', 'unknown'] as const)(
+  'uses unpublished %s startup state until a new signal revision arrives',
+  async (state) => {
+    const dir = await mkdtemp(join(tmpdir(), 'budget-startup-'));
+    temporaryDirs.push(dir);
+    const path = join(dir, 'signal.json');
+    vi.stubEnv(
+      'TLON_CRON_BUDGET_STARTUP',
+      JSON.stringify({ state, staleRevision: 'old' })
+    );
+    try {
+      expect(await readBudgetSignal(path)).toBe(state);
+      for (const revision of [undefined, 'old']) {
+        await writeFile(
+          path,
+          JSON.stringify({ version: 1, state: 'available', revision })
+        );
+        expect(await readBudgetSignal(path)).toBe(state);
+      }
+      await writeFile(
+        path,
+        JSON.stringify({ version: 1, state: 'available', revision: 'new' })
+      );
+      expect(await readBudgetSignal(path)).toBe('available');
+      await rm(path);
+      expect(await readBudgetSignal(path)).toBe('unknown');
+      await writeFile(path, 'malformed');
+      expect(await readBudgetSignal(path)).toBe('unknown');
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  }
+);

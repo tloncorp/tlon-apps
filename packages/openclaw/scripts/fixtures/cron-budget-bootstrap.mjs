@@ -10,8 +10,12 @@ const root = process.env.OPENCLAW_STATE_DIR;
 await writeFile(process.env.OPENCLAW_CONFIG_PATH, '{}');
 await writeFile(
   process.env.TLON_CRON_BUDGET_FILE,
-  JSON.stringify({ version: 1, state: 'limited' })
+  JSON.stringify({ version: 1, state: 'available', revision: 'stale' })
 );
+process.env.TLON_CRON_BUDGET_STARTUP = JSON.stringify({
+  state: 'limited',
+  staleRevision: 'stale',
+});
 const past = Date.now() - 60_000;
 const job = (id, schedule, enabled = true) => ({
   id,
@@ -67,7 +71,7 @@ assert.deepEqual(
 );
 await writeFile(
   process.env.TLON_CRON_BUDGET_FILE,
-  JSON.stringify({ version: 1, state: 'available' })
+  JSON.stringify({ version: 1, state: 'available', revision: 'fresh' })
 );
 run();
 store = await loadCronStore(storePath);

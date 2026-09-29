@@ -5,6 +5,7 @@ import {
   budgetHoldPaths,
   isRecurringJob,
   type BudgetCronService,
+  type BudgetHoldState,
   readBudgetHoldState,
   readBudgetSignal,
   reconcileBudgetHolds,
@@ -106,6 +107,35 @@ export function registerBudgetHoldHooks(
     let editGeneration = 0;
     let activeEdits: Set<string> | undefined;
     let flight: Promise<void> | undefined;
+    let notificationFlight: Promise<void> | undefined;
+    const deliveryReceipts: { episodeId: string; key: string }[] = [];
+    // Merge delivery results into the latest ledger under the reconciliation
+    // writer. A slow send must never retain a stale copy of hold ownership.
+    const persistDeliveryReceipts = async (
+      state: BudgetHoldState,
+      config: OpenClawPluginApi['config']
+    ) => {
+      const count = deliveryReceipts.length;
+      if (!count) return;
+      for (const receipt of deliveryReceipts.slice(0, count)) {
+        if (!state.limited || receipt.episodeId !== state.episodeId) continue;
+        const received = (state.notifiedRecipients ??= []);
+        if (!received.includes(receipt.key)) received.push(receipt.key);
+      }
+      const recipients = listRunnableTlonAccountIds(config).map((id) =>
+        recipientKey(id, config)
+      );
+      state.notified =
+        state.limited &&
+        recipients.length > 0 &&
+        recipients.every((key) => state.notifiedRecipients?.includes(key));
+      if (state.notified) {
+        delete state.notificationAttempts;
+        delete state.nextNotificationAtMs;
+      }
+      await writeBudgetHoldState(paths.state, state);
+      deliveryReceipts.splice(0, count);
+    };
     let stopped = false;
     let rerun = false;
     const tick = (): Promise<void> => {
@@ -125,6 +155,7 @@ export function registerBudgetHoldHooks(
           try {
             const state = await readBudgetHoldState(paths.state);
             const config = monitorConfig.get() ?? ctx.config ?? api.config;
+            await persistDeliveryReceipts(state, config);
             const recipients = listRunnableTlonAccountIds(config).map((id) => ({
               id,
               key: recipientKey(id, config),
@@ -139,6 +170,7 @@ export function registerBudgetHoldHooks(
               await writeBudgetHoldState(paths.state, state);
             }
             const canNotify =
+              !notificationFlight &&
               recipients.length > 0 &&
               (pendingRecipients.length === 0 ||
                 pendingRecipients.some(
@@ -181,28 +213,32 @@ export function registerBudgetHoldHooks(
                 save: () => writeBudgetHoldState(paths.state, state),
                 notify: canNotify
                   ? async (message) => {
-                      const blob = state.episodeId
-                        ? buildCreditIncreaseCard(message, state.episodeId)
-                        : undefined;
-                      let deliveryError: unknown;
-                      for (const { id, key } of pendingRecipients) {
-                        const notifier = notifiers.get(id);
-                        if (notifier?.key !== key) continue;
-                        try {
-                          if (await notifier.send(message, blob)) {
-                            (state.notifiedRecipients ??= []).push(key);
-                            await writeBudgetHoldState(paths.state, state);
+                      if (pendingRecipients.length === 0) return true;
+                      const episodeId = state.episodeId;
+                      if (!episodeId) return false;
+                      const blob = buildCreditIncreaseCard(message, episodeId);
+                      // Reconciliation already persisted the retry backoff.
+                      // Delivery runs separately; only its receipt is merged
+                      // on a later pass, without blocking scheduler updates.
+                      notificationFlight = (async () => {
+                        for (const { id, key } of pendingRecipients) {
+                          const notifier = notifiers.get(id);
+                          if (notifier?.key !== key) continue;
+                          try {
+                            if (await notifier.send(message, blob)) {
+                              deliveryReceipts.push({ episodeId, key });
+                            }
+                          } catch (error) {
+                            api.logger.warn(
+                              `[tlon] Cron budget notice failed: ${String(error)}`
+                            );
                           }
-                        } catch (error) {
-                          // One account's outage must not prevent other owners
-                          // from receiving their notice in their own API scope.
-                          deliveryError = error;
                         }
-                      }
-                      if (deliveryError) throw deliveryError;
-                      return recipients.every(({ key }) =>
-                        state.notifiedRecipients?.includes(key)
-                      );
+                      })().finally(() => {
+                        notificationFlight = undefined;
+                        void tick();
+                      });
+                      return false;
                     }
                   : undefined,
               });
@@ -270,6 +306,13 @@ export function registerBudgetHoldHooks(
         stopped = true;
         clearInterval(timer);
         await flight;
+        await notificationFlight;
+        if (deliveryReceipts.length) {
+          await persistDeliveryReceipts(
+            await readBudgetHoldState(paths.state),
+            monitorConfig.get() ?? ctx.config ?? api.config
+          );
+        }
         await observer.close();
       },
     });
