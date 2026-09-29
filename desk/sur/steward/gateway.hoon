@@ -13,11 +13,11 @@
 ::    .last-interaction: when anyone last engaged the bot — a group @-mention,
 ::    a reply in one of its threads, or a DM — which widens the restart-notice
 ::    window beyond the owner's own DMs (.last-owner-msg).
-::    both new fields lead so the app's %0→%1 migration is a one-line cons
-::    ([| *@da gateway.old]).
+::    .status-messages-enabled: allow restart, back-online and offline DMs.
 ::
 +$  state
-  $:  notify-on-start=?
+  $:  status-messages-enabled=$~(& ?)
+      notify-on-start=?
       last-interaction=@da
       last-owner-msg=@da
       last-owner-msg-id=(unit message-key:a)
@@ -37,6 +37,7 @@
 ::
 +$  action
   $%  [%configure active-window=@dr reply-cooldown=@dr]
+      [%status-messages enabled=?]
       [%gateway-start boot-id=@t lease-until=@da]
       [%gateway-heartbeat boot-id=@t lease-until=@da]
       [%gateway-stop boot-id=@t reason=@t]

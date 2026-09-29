@@ -18,15 +18,17 @@ import { useComponentsKitContext } from '../../contexts/componentsKits';
 import {
   useConversationComposerHeight,
   useConversationScrollToBottomControl,
-  useConversationScrollViewNativeID,
 } from '../../contexts/scroll';
 import { ScrollEdgeElementContainer } from '../ScrollEdgeElementContainer';
-import {
-  floatingScrollControlClearance,
-  unobscuredConversationBottomGap,
-} from '../conversationScrollChrome';
+import { floatingScrollControlClearance } from '../conversationScrollChrome';
 import { DraftInputContext } from '../draftInputs';
 import { DraftInputContextProvider } from '../draftInputs/shared';
+import {
+  useConversationBottomInset,
+  useConversationComposerLayout,
+  useConversationKeyboardLiftStyle,
+  useIsConversationDocked,
+} from './ConversationLayout';
 
 export function DraftInputView({
   draftInputContext,
@@ -104,7 +106,7 @@ function IOSKeyboardTrackingView({
 const ComposerKeyboardView =
   Platform.OS === 'ios' ? IOSKeyboardTrackingView : KeyboardStickyView;
 
-/** Owns the native floating placement and its matching scroll-content inset. */
+/** Places chat composers in their conversation layout, with a legacy floating fallback. */
 export function ConversationComposerPlacement({
   children,
   enabled,
@@ -127,12 +129,10 @@ export function ConversationComposerPlacement({
   inlineID?: string;
 }>) {
   const insets = useSafeAreaInsets();
-  const composerBottomInset = bottomChromeClearance
-    ? Math.max(
-        insets.bottom,
-        bottomChromeClearance + unobscuredConversationBottomGap
-      )
-    : insets.bottom;
+  const docked = useIsConversationDocked();
+  const composerLayout = useConversationComposerLayout();
+  const keyboardLiftStyle = useConversationKeyboardLiftStyle();
+  const composerBottomInset = useConversationBottomInset(bottomChromeClearance);
   // Padding and the sticky view's offset have to agree, so both stay constant —
   // changing them on keyboard visibility jumps the composer mid-animation. The
   // sticky view cancels this padding to sit on the keyboard's edge, so that much
@@ -140,7 +140,6 @@ export function ConversationComposerPlacement({
   // away on keyboard progress instead.
   const collapsibleInset = composerBottomInset - insets.bottom;
   const theme = useTheme();
-  const scrollViewNativeID = useConversationScrollViewNativeID();
   const scrollToBottomControl = useConversationScrollToBottomControl();
   const { report: reportConversationComposerHeight } =
     useConversationComposerHeight();
@@ -151,11 +150,36 @@ export function ConversationComposerPlacement({
   );
 
   useEffect(() => {
-    if (!enabled || !supportsFloatingComposer) {
+    if (docked || !enabled || !supportsFloatingComposer) {
       return;
     }
     return () => reportConversationComposerHeight(0);
-  }, [enabled, reportConversationComposerHeight]);
+  }, [docked, enabled, reportConversationComposerHeight]);
+
+  if (enabled && docked) {
+    return (
+      <Animated.View
+        style={[
+          styles.dockedInput,
+          composerLayout.floating && styles.floatingDockedInput,
+          keyboardLiftStyle,
+        ]}
+      >
+        <View
+          id={inlineID}
+          paddingBottom={composerBottomInset}
+          backgroundColor={
+            composerLayout.floating ? 'transparent' : '$background'
+          }
+          onLayout={(event) =>
+            composerLayout.setHeight(event.nativeEvent.layout.height)
+          }
+        >
+          {content}
+        </View>
+      </Animated.View>
+    );
+  }
 
   if (enabled && supportsFloatingComposer) {
     return (
@@ -165,9 +189,10 @@ export function ConversationComposerPlacement({
         offset={{ closed: 0, opened: composerBottomInset }}
         style={styles.floatingInput}
       >
+        {/* Preserve hit testing around glass controls, but leave this moving
+            host unbound: UIKit's edge effect retains the keyboard-open extent. */}
         <ScrollEdgeElementContainer
           edge="bottom"
-          scrollViewNativeID={scrollViewNativeID}
           style={[
             { paddingBottom: composerBottomInset },
             Platform.OS === 'android'
@@ -217,6 +242,16 @@ export function ConversationComposerPlacement({
 }
 
 const styles = StyleSheet.create({
+  dockedInput: {
+    flexShrink: 0,
+    zIndex: 10,
+  },
+  floatingDockedInput: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
   floatingInput: {
     position: 'absolute',
     bottom: 0,

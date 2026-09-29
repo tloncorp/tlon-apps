@@ -155,6 +155,23 @@ describe('toGroupsUpdate role responses', () => {
   });
 });
 
+describe('toGroupsUpdate section-order responses', () => {
+  // groups-json.hoon's `++r-group` wraps every delta in `frond -.r-group`, and
+  // the %section-order arm adds its own `frond 'section-order'`, so the list
+  // arrives one level deeper than the snapshot's bare array.
+  test('reads the section ids from the nested section-order envelope', () => {
+    const sectionOrder = {
+      flag,
+      'r-group': { 'section-order': { 'section-order': ['sec-a', 'sec-b'] } },
+    } satisfies ub.GroupResponse;
+    expect(toGroupsUpdate(sectionOrder)).toEqual({
+      type: 'updateSectionOrder',
+      groupId: flag,
+      sectionIds: ['sec-a', 'sec-b'],
+    });
+  });
+});
+
 // Shaped from groups-json.hoon `++channel-preview:v7:enjs`, the JSON grow arm
 // of %channel-preview-1.
 const channelPreview = {

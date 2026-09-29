@@ -1667,7 +1667,7 @@ export const toGroupsUpdate = (
     return {
       type: 'updateSectionOrder',
       groupId,
-      sectionIds: event['section-order'].order,
+      sectionIds: event['section-order']['section-order'],
     };
   }
 

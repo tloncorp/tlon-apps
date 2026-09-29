@@ -593,6 +593,14 @@ export const useMemberRoles = (chatId: string, userId: string) => {
   return memberRoles;
 };
 
+export const useJoinedGroupSeats = (contactIds: string[]) => {
+  const deps = useKeyFromQueryDeps(db.getJoinedGroupSeats);
+  return useQuery({
+    queryKey: ['joinedGroupSeats', deps, contactIds],
+    queryFn: () => db.getJoinedGroupSeats({ contactIds }),
+  });
+};
+
 export const useGroupPreview = (groupId: string) => {
   const deps = useKeyFromQueryDeps(db.getGroup, groupId);
   const { data: group } = useGroup({ id: groupId });
