@@ -1,4 +1,5 @@
 import { parseBucketsChannelId } from '@tloncorp/api';
+import { useDeskSupportsBuckets } from '@tloncorp/shared';
 import { Text } from '@tloncorp/ui';
 import { forwardRef } from 'react';
 import { YStack } from 'tamagui';
@@ -11,11 +12,37 @@ export const BucketsPostCollection: IPostCollectionView = forwardRef(
   function BucketsPostCollection() {
     const { channel } = usePostCollectionContext();
     const flag = parseBucketsChannelId(channel.id);
+    // Gated here rather than in the channel list because this is the one
+    // place every way into a Bucket lands -- the list, activity, a pin, a deep
+    // link, a restored route. The live view is what talks to %buckets, so a
+    // ship without it must never mount one.
+    const deskSupportsBuckets = useDeskSupportsBuckets();
 
     if (!flag) {
       return (
         <YStack flex={1} alignItems="center" justifyContent="center">
           <Text color="$secondaryText">This Bucket address is invalid.</Text>
+        </YStack>
+      );
+    }
+
+    if (deskSupportsBuckets === undefined) {
+      return null;
+    }
+
+    if (!deskSupportsBuckets) {
+      return (
+        <YStack
+          flex={1}
+          alignItems="center"
+          justifyContent="center"
+          paddingHorizontal="$2xl"
+          testID="BucketsUnsupportedNotice"
+        >
+          <Text color="$secondaryText" textAlign="center">
+            Opening Buckets needs a newer version of the Tlon backend on your
+            ship.
+          </Text>
         </YStack>
       );
     }
