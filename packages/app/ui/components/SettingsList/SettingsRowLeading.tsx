@@ -1,3 +1,4 @@
+import { Icon } from '@tloncorp/ui';
 import { View } from 'react-native';
 import { getTokenValue } from 'tamagui';
 
@@ -55,15 +56,21 @@ export function SettingsRowLeading({
 
   switch (leading.kind) {
     case 'icon':
-      return (
+      // Native settings lists draw the bare glyph; the badge behind it is a
+      // web-card convention.
+      return compact ? (
+        <Icon
+          type={leading.icon}
+          width={size}
+          height={size}
+          color="$secondaryText"
+        />
+      ) : (
         <SystemIconAvatar
           icon={leading.icon}
           rounded
           width={size}
           height={size}
-          // Native rows sit on the secondary background, so the badge flips to
-          // the primary one to stay visible.
-          backgroundColor={compact ? '$background' : undefined}
         />
       );
     case 'contact':
