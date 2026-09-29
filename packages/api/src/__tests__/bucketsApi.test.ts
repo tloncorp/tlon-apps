@@ -33,7 +33,7 @@ vi.mock('../client/urbit', () => ({
       this.name = 'BadResponseError';
     }
   },
-  getDeskSupportsBuckets: () => true,
+  getDeskSupportsBucketsState: () => true,
   requestJson: vi.fn(),
   scry: vi.fn(),
   subscribe: vi.fn(),

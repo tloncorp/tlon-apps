@@ -2,7 +2,7 @@ import type { Noun } from '@urbit/nockjs';
 
 import {
   DeskUnsupportedError,
-  getDeskSupportsBuckets,
+  getDeskSupportsBucketsState,
   poke,
   pokeNoun,
   request,
@@ -100,19 +100,22 @@ function nameOf(entry: { agent: string; path?: string }) {
 
 // Read at call time, not when this module loads: a helper can be bound
 // before the capability is known, and tests mock '../urbit' partially.
-const GUARD_FNS: Record<GuardName, () => boolean> = {
-  deskSupportsBuckets: () => getDeskSupportsBuckets(),
+const GUARD_FNS: Record<GuardName, () => boolean | null> = {
+  deskSupportsBuckets: () => getDeskSupportsBucketsState(),
 };
 
-// Refuses a guarded request before anything is sent. Throws synchronously,
-// as fillPath does.
+// Refuses a guarded request before anything is sent once its capability is
+// known to be off. Throws synchronously, as fillPath does. An unknown (null)
+// capability lets the request through as an unguarded one: the flag hydrates
+// only when the sync-start probe returns, and a view can mount from
+// persisted app info before that.
 export function assertGuard(entry: {
   agent: string;
   path?: string;
   guardedBy?: GuardName;
 }) {
   const guard = entry.guardedBy;
-  if (guard && !GUARD_FNS[guard]()) {
+  if (guard && GUARD_FNS[guard]() === false) {
     throw new DeskUnsupportedError(nameOf(entry), GUARDS[guard].since, guard);
   }
 }
