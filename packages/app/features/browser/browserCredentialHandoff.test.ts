@@ -67,6 +67,39 @@ describe('browser credential handoff', () => {
     expect(request).not.toHaveBeenCalled();
   });
 
+  describe.each(['password', 'otp'] as const)('%s target origin', (kind) => {
+    it.each([
+      'http://example.com',
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'http://[::1]:3000',
+    ])('rejects an HTTP login page: %s', async (origin) => {
+      const request = vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            handoffId: 'a'.repeat(43),
+            origin,
+            kind,
+            ...(kind === 'password'
+              ? { hasUsername: true }
+              : { codeLength: 6 }),
+            expiresAt: Date.now() + 60_000,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      );
+      vi.stubGlobal('fetch', request);
+
+      await expect(
+        beginBrowserCredentialHandoff(
+          'https://browser-session-ovh1.tlon.network/s/payload.signature'
+        )
+      ).rejects.toThrow('Browser login requires an HTTPS website.');
+      expect(request).toHaveBeenCalledTimes(1);
+      expect(request.mock.calls[0][1].method).toBe('GET');
+    });
+  });
+
   it.each([
     'http://localhost:3000/s/payload.signature',
     'http://127.0.0.1:3000/s/payload.signature',

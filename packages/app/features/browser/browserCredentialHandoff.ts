@@ -79,10 +79,10 @@ export async function beginBrowserCredentialHandoff(
     throw new Error('The browser returned an invalid login handoff.');
   }
   const targetOrigin = new URL(body.origin);
-  if (
-    (targetOrigin.protocol !== 'http:' && targetOrigin.protocol !== 'https:') ||
-    targetOrigin.origin !== body.origin
-  ) {
+  if (targetOrigin.protocol !== 'https:') {
+    throw new Error('Browser login requires an HTTPS website.');
+  }
+  if (targetOrigin.origin !== body.origin) {
     throw new Error('The browser returned an invalid login origin.');
   }
   const base = {
