@@ -158,11 +158,15 @@ const configureAgentProvidersEventSchema = z.object({
   name: z.literal(ACTION_CONFIGURE_AGENT_PROVIDERS),
   context: AgentProviderConfigContextSchema,
 });
-const buttonEventSchema = z.discriminatedUnion('name', [
+const choiceEventSchema = z.discriminatedUnion('name', [
   sendMessageEventSchema,
-  requestCreditIncreaseEventSchema,
   navigateEventSchema,
   provisionAgentEventSchema,
+]);
+const buttonEventSchema = z.discriminatedUnion('name', [
+  ...choiceEventSchema.options,
+  // Only Buttons restore this action's persisted receipt and completion label.
+  requestCreditIncreaseEventSchema,
 ]);
 const buttonActionSchema = z.object({ event: buttonEventSchema });
 const sendMessageActionSchema = z.object({ event: sendMessageEventSchema });
@@ -231,7 +235,7 @@ const choiceOptionSchema = z.object({
   description: z.string().max(LIMITS.maxTextNodeLength).optional(),
   icon: choiceIconSchema.optional(),
   accent: choiceAccentSchema.optional(),
-  action: buttonActionSchema,
+  action: z.object({ event: choiceEventSchema }),
 });
 const choiceSchema = z.object({
   ...componentBaseShape,
