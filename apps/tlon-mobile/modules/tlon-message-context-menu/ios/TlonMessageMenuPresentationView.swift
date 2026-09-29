@@ -20,7 +20,7 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
 
     private static let backdropColor = UIColor.black.withAlphaComponent(0.40)
     // Well under Metal's 16,384 px texture limit.
-    static let maximumSnapshotPixelHeight: CGFloat = 8192
+    private static let maximumSnapshotPixelHeight: CGFloat = 8192
     private static let scaleBounceValues: [NSNumber] = {
         let sampleCount = max(
             30,
@@ -493,11 +493,10 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
         )
     }
 
-    // Returns the part of the source to snapshot, in its bounds. A message
-    // short enough to snapshot whole is, even when some of it is scrolled out
-    // of view. A longer one is cut to what is on screen, because a snapshot
-    // that tall can exceed the render server's texture limit and come back
-    // empty.
+    // Returns the part of the source to snapshot, in its bounds: all of it,
+    // even when some is scrolled out of view, unless the message is too tall.
+    // A snapshot that tall can exceed the render server's texture limit and
+    // come back empty, so it is cut to what is on screen.
     static func snapshotRect(
         of view: UIView,
         restingFrame: CGRect?,
