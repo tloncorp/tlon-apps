@@ -4,6 +4,7 @@ import { Icon, Pressable, Text } from '@tloncorp/ui';
 import { PropsWithChildren, ReactNode, useMemo } from 'react';
 import { Theme, View, XStack, YStack, isWeb } from 'tamagui';
 
+import { useFeatureFlag } from '../../../lib/featureFlags';
 import { useThreadUnreads } from '../../contexts/threadUnreads';
 import { useNavigateToProfile } from '../AuthorRow';
 import { ContactAvatar } from '../Avatar';
@@ -32,9 +33,13 @@ const OVERLAY_INSET = 8;
 
 const channelTypesWithBubbles: db.ChannelType[] = ['chat', 'dm', 'groupDm'];
 
-/** Whether chat rows in a channel of this type render as bubbles. */
+/**
+ * Whether chat rows in a channel of this type render as bubbles: native only,
+ * behind the `chatBubbles` flag under Settings > Experimental features.
+ */
 export function useChatBubbleLayout(channelType: db.ChannelType) {
-  return !isWeb && channelTypesWithBubbles.includes(channelType);
+  const [enabled] = useFeatureFlag('chatBubbles');
+  return enabled && !isWeb && channelTypesWithBubbles.includes(channelType);
 }
 
 export function ChatMessageBubbleRow({

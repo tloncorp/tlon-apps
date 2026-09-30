@@ -21,6 +21,11 @@ export const featureMeta = {
     label: 'Enable Buckets channels',
     onlyTlon: false,
   },
+  chatBubbles: {
+    default: false,
+    label: 'Show chat messages as bubbles (mobile app)',
+    onlyTlon: false,
+  },
 } satisfies Record<
   string,
   { default: boolean; label: string; onlyTlon: boolean }
