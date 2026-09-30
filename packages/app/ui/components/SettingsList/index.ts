@@ -5,6 +5,7 @@ export { settingsListPageColor } from './settingsListPageColor';
 export type {
   SettingsContextAction,
   SettingsListProps,
+  SettingsListSearch,
   SettingsRowLeading,
   SettingsRowModel,
   SettingsSectionModel,

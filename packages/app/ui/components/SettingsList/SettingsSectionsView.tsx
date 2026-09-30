@@ -4,6 +4,7 @@ import { Switch } from 'react-native';
 import { XStack } from 'tamagui';
 
 import { Badge } from '../Badge';
+import { TextInput } from '../Form';
 import { ListItem } from '../ListItem';
 import { SettingsDivider, SettingsSection } from '../SettingsSection';
 import { SettingsRowLeading } from './SettingsRowLeading';
@@ -39,6 +40,25 @@ export function SettingsSectionsView({
 }
 
 function SettingsRow({ row }: { row: SettingsRowModel }) {
+  if (row.textField) {
+    return (
+      <XStack padding="$l">
+        <TextInput
+          flex={1}
+          value={row.textField.value}
+          placeholder={row.textField.placeholder}
+          secureTextEntry={row.textField.secure}
+          autoCapitalize="none"
+          autoCorrect={false}
+          aria-label={row.title}
+          disabled={row.disabled}
+          onChangeText={row.textField.onChangeText}
+          testID={row.testID}
+        />
+      </XStack>
+    );
+  }
+
   const isChoice = row.selected !== undefined;
   const showsChevron =
     Boolean(row.onPress) &&

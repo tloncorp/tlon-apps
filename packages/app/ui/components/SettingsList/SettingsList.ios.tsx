@@ -6,18 +6,22 @@ import {
   Host,
   Image,
   RNHostView,
+  SecureField,
   Section,
   Spacer,
   Text,
+  TextField,
   Toggle,
   VStack,
   ZStack,
+  useNativeState,
 } from '@expo/ui/swift-ui';
 import {
   accessibilityAddTraits,
   accessibilityIdentifier,
   accessibilityLabel,
   accessibilityValue,
+  autocorrectionDisabled,
   background,
   createModifier,
   disabled,
@@ -30,6 +34,7 @@ import {
   padding,
   scrollContentBackground,
   shapes,
+  textInputAutocapitalization,
 } from '@expo/ui/swift-ui/modifiers';
 
 import { useScreenScrollProps } from '../useScreenScrollProps';
@@ -38,6 +43,7 @@ import {
   getSettingsRowLeadingSize,
 } from './SettingsRowLeading';
 import type { SettingsListProps, SettingsRowModel } from './types';
+import { useSyncedFieldText } from './useSyncedFieldText';
 import {
   type SettingsListColors,
   useSettingsListColors,
@@ -115,6 +121,10 @@ function SettingsRow({
     disabled(Boolean(row.disabled)),
     ...(row.testID ? [accessibilityIdentifier(row.testID)] : []),
   ];
+
+  if (row.textField) {
+    return <TextFieldRow row={row} modifiers={rowModifiers} />;
+  }
 
   if (row.toggle) {
     return (
@@ -233,6 +243,40 @@ function SettingsRow({
       </ContextMenu.Items>
       <ContextMenu.Trigger>{button}</ContextMenu.Trigger>
     </ContextMenu>
+  );
+}
+
+/** A row that is its own editable field, kept in step with the screen's value. */
+function TextFieldRow({
+  row,
+  modifiers,
+}: {
+  row: SettingsRowModel;
+  modifiers: ReturnType<typeof listRowBackground>[];
+}) {
+  const field = row.textField!;
+  const text = useNativeState(field.value);
+  const onChangeText = useSyncedFieldText(
+    text,
+    field.value,
+    field.onChangeText
+  );
+
+  const fieldProps = {
+    text,
+    placeholder: field.placeholder,
+    onTextChange: onChangeText,
+    modifiers: [
+      ...modifiers,
+      accessibilityLabel(row.title),
+      textInputAutocapitalization('never'),
+      autocorrectionDisabled(),
+    ],
+  };
+  return field.secure ? (
+    <SecureField {...fieldProps} />
+  ) : (
+    <TextField {...fieldProps} />
   );
 }
 

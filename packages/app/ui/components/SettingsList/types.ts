@@ -60,6 +60,18 @@ export interface SettingsRowModel {
    */
   contextActions?: SettingsContextAction[];
   toggle?: { value: boolean; onValueChange: (value: boolean) => void };
+  /**
+   * An editable single-line value, such as a URL or token. The row shows the
+   * field in place of its title, which still labels it for accessibility, so
+   * give the section a title that says what the value is.
+   */
+  textField?: {
+    value: string;
+    onChangeText: (text: string) => void;
+    placeholder?: string;
+    /** Masks the value, for secrets. */
+    secure?: boolean;
+  };
   /** Desktop highlight for the row whose screen is open beside the list. */
   isFocused?: boolean;
   testID?: string;
@@ -74,4 +86,11 @@ export interface SettingsSectionModel {
 
 export interface SettingsListProps {
   sections: SettingsSectionModel[];
+}
+
+/** A search over a settings list, kept in the screen's own state. */
+export interface SettingsListSearch {
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder: string;
 }
