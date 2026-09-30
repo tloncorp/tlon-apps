@@ -289,6 +289,30 @@ index cb40643f08892111ce5ec119bc97770589ef14a0..38039da7f5f7753c3ec35413fd26ba08
      register("presentationBackgroundInteraction") { params, appContext, _ in
        return try PresentationBackgroundInteractionModifier(from: params, appContext: appContext)
      }
+diff --git a/src/community/bottom-sheet/README.md b/src/community/bottom-sheet/README.md
+--- a/src/community/bottom-sheet/README.md
++++ b/src/community/bottom-sheet/README.md
+@@ -100,7 +100,7 @@
+ | `index` | Yes | `-1` = closed, `0+` = open at snap point. Default `-1` (gorhom defaults `0`). |
+ | `onChange` | Yes | |
+ | `onClose` | Yes | |
+-| `onDismiss` | Yes | Alias for `onClose` (gorhom `BottomSheetModal` compat) |
++| `onDismiss` | Yes | iOS: after native dismissal completes. Android: alias for `onClose`. |
+ | `enablePanDownToClose` | Yes | iOS: enables swipe + backdrop tap. Android: swipe + back button + scrim tap. |
+ | `enableDynamicSizing` | Yes | Fit-to-content when no `snapPoints`. Cannot combine with explicit snap points. |
+ | `handleComponent` | Partial | `null` hides handle, non-null shows native/vaul handle. Custom components not rendered. |
+diff --git a/src/community/bottom-sheet/types.ts b/src/community/bottom-sheet/types.ts
+--- a/src/community/bottom-sheet/types.ts
++++ b/src/community/bottom-sheet/types.ts
+@@ -174,7 +174,7 @@
+   /**
+    * Callback when the bottom sheet is dismissed.
+    * Compatible with `@gorhom/bottom-sheet` `BottomSheetModal.onDismiss`.
+-   * Alias for `onClose`.
++   * iOS: fires after native dismissal completes. Android: alias for `onClose`.
+    */
+   onDismiss?: () => void;
+ 
 diff --git a/src/community/bottom-sheet/BottomSheet.android.tsx b/src/community/bottom-sheet/BottomSheet.android.tsx
 index f60ae61bf0c9023d41c55cdca2d9af0de7291a92..ce188a8a9af463c46a0271b4b09d12af1e9f1f5b 100644
 --- a/src/community/bottom-sheet/BottomSheet.android.tsx
@@ -378,10 +402,19 @@ index 9908630d50d9a405688ae60c88f5e6638948420d..4dbe3244f77c8f8f0250bfa66e1364c5
    const internalContextValue = useMemo(() => ({ fitToContents }), [fitToContents]);
  
    const fireCloseCallbacks = useCallback(() => {
-@@ -235,7 +237,8 @@ export function BottomSheet(props: BottomSheetProps) {
+@@ -125,7 +127,6 @@ export function BottomSheet(props: BottomSheetProps) {
+     if (closedRef.current) return;
+     closedRef.current = true;
+     onCloseRef.current?.();
+-    onDismissRef.current?.();
+     onChangeRef.current?.(-1);
+   }, []);
+ 
+@@ -235,7 +236,9 @@ export function BottomSheet(props: BottomSheetProps) {
            <NativeBottomSheet
              isPresented={isPresented}
              onIsPresentedChange={handlePresentedChange}
++            onDismiss={() => onDismissRef.current?.()}
 -            fitToContents={fitToContents}>
 +            fitToContents={fitToContents}
 +            showCloseButton={enablePanDownToClose}>

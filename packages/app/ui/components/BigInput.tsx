@@ -791,7 +791,8 @@ export function BigInput({
         </>
       )}
 
-      {channelType === 'notebook' && showAttachmentSheet && (
+      {/* Keep attachment sheets mounted until native dismissal can hand off to the picker. */}
+      {channelType === 'notebook' && (
         <AttachmentSheet
           isOpen={showAttachmentSheet}
           onOpenChange={setShowAttachmentSheet}
@@ -803,7 +804,7 @@ export function BigInput({
         />
       )}
 
-      {channelType === 'notebook' && showInlineImageSheet && (
+      {channelType === 'notebook' && (
         <AttachmentSheet
           isOpen={showInlineImageSheet}
           onOpenChange={setShowInlineImageSheet}

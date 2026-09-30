@@ -394,6 +394,7 @@ const ActionSheetComponent = ({
         open={open}
         onOpenChange={onOpenChange}
         onDidOpen={onDidOpen}
+        onDismiss={onNativeDismissed}
         dismissOnSnapToBottom={true}
         transition="quick"
         handleDisableScroll={true}

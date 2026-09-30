@@ -41,6 +41,7 @@ export const BottomSheetWrapper = forwardRef<
       open,
       onOpenChange,
       onDidOpen,
+      onDismiss,
       children,
       transition = 'quick',
       dismissOnSnapToBottom = true,
@@ -163,6 +164,7 @@ export const BottomSheetWrapper = forwardRef<
         backgroundStyle={{ backgroundColor: theme.background.val }}
         style={frameStyle}
         onChange={handleChange}
+        onDismiss={onDismiss}
       >
         <View style={contentStyle} accessible={false}>
           {footerComponent ? (

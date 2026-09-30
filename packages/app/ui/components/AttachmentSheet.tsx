@@ -6,7 +6,7 @@ import {
   createDevLogger,
   trackEvent,
 } from '@tloncorp/shared';
-import { Button } from '@tloncorp/ui';
+import { Button, useIsWindowNarrow } from '@tloncorp/ui';
 import * as ImagePicker from 'expo-image-picker';
 import { ComponentRef, useCallback, useMemo, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
@@ -25,6 +25,7 @@ import {
 } from '../../utils/files';
 import { normalizeImagePickerAssetForUpload } from '../../utils/imagePickerAsset';
 import { useAttachmentContext } from '../contexts/attachment';
+import { useSheetDismissalAction } from '../hooks/useSheetDismissalAction';
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
 import { AudioRecorder, AudioRecorderSheet } from './AudioRecorder';
 import { ListItem } from './ListItem';
@@ -63,6 +64,22 @@ export default function AttachmentSheet({
     ImagePicker.useMediaLibraryPermissions();
   const [cameraPermissionStatus, requestCameraPermission] =
     ImagePicker.useCameraPermissions();
+  const isWindowNarrow = useIsWindowNarrow();
+  const { dismissThenRun, onDismissed } = useSheetDismissalAction({
+    open: showAttachmentSheet,
+    onOpenChange,
+    waitForDismissal: Platform.OS === 'ios' && isWindowNarrow,
+  });
+  const openMediaPicker = useCallback(
+    (action: () => void) => {
+      dismissThenRun(() => {
+        // Keep Android's existing activity handoff unchanged.
+        if (Platform.OS === 'android') setTimeout(action, 50);
+        else action();
+      });
+    },
+    [dismissThenRun]
+  );
 
   const {
     attachAssets,
@@ -134,11 +151,7 @@ export default function AttachmentSheet({
 
   const takePicture = useCallback(
     (cameraMediaTypes: ImagePicker.MediaType[] = pickerMediaTypes) => {
-      // Close the sheet immediately
-      onOpenChange(false);
-
-      // Then initiate the camera after a small delay to ensure sheet is closed
-      setTimeout(async () => {
+      openMediaPicker(async () => {
         try {
           if (cameraPermissionStatus?.granted === false) {
             const permissionResult = await requestCameraPermission();
@@ -184,13 +197,13 @@ export default function AttachmentSheet({
             clearAttachments();
           }
         }
-      }, 50); // Small delay to ensure the sheet closes first
+      });
     },
     [
       attachAssets,
       attachToContext,
       clearAttachments,
-      onOpenChange,
+      openMediaPicker,
       cameraPermissionStatus,
       pickerMediaTypes,
       requestCameraPermission,
@@ -258,10 +271,8 @@ export default function AttachmentSheet({
     },
   });
   const startRecordingVoiceMemo = useCallback(() => {
-    // Close the sheet immediately
-    onOpenChange(false);
-    audioRecorder.present();
-  }, [onOpenChange, audioRecorder]);
+    dismissThenRun(audioRecorder.present);
+  }, [dismissThenRun, audioRecorder]);
 
   const pickImage = useCallback(() => {
     const openImagePicker = async () => {
@@ -328,25 +339,15 @@ export default function AttachmentSheet({
       }
     };
 
-    // Close the sheet immediately
-    onOpenChange(false);
-
-    if (Platform.OS === 'web') {
-      // File picker must open in the same user gesture on web.
+    openMediaPicker(() => {
       void openImagePicker();
-      return;
-    }
-
-    // Native: wait for close animation to complete before opening picker.
-    setTimeout(() => {
-      void openImagePicker();
-    }, 50);
+    });
   }, [
     attachAssets,
     attachUploadIntents,
     attachToContext,
     clearAttachments,
-    onOpenChange,
+    openMediaPicker,
     mediaLibraryPermissionStatus,
     allowMultipleSelection,
     pickerMediaTypes,
@@ -355,18 +356,18 @@ export default function AttachmentSheet({
     removePlaceholderAttachment,
   ]);
 
-  const startFilePicker = useCallback(async () => {
-    onOpenChange(false);
-
-    const { uploadIntents, errorMessage } = await pickFile(
-      ['*/*'],
-      allowMultipleSelection
-    );
-    if (errorMessage) {
-      Alert.alert('Unable to attach', errorMessage);
-    }
-    await attachNormalizedUploadIntents(uploadIntents);
-  }, [allowMultipleSelection, attachNormalizedUploadIntents, onOpenChange]);
+  const startFilePicker = useCallback(() => {
+    dismissThenRun(async () => {
+      const { uploadIntents, errorMessage } = await pickFile(
+        ['*/*'],
+        allowMultipleSelection
+      );
+      if (errorMessage) {
+        Alert.alert('Unable to attach', errorMessage);
+      }
+      await attachNormalizedUploadIntents(uploadIntents);
+    });
+  }, [allowMultipleSelection, attachNormalizedUploadIntents, dismissThenRun]);
 
   const actionGroups: ActionGroup[] = useMemo(
     () =>
@@ -447,6 +448,7 @@ export default function AttachmentSheet({
       <ActionSheet
         open={showAttachmentSheet}
         onOpenChange={(open: boolean) => onOpenChange(open)}
+        onNativeDismissed={onDismissed}
         modal
       >
         <ActionSheet.Header>

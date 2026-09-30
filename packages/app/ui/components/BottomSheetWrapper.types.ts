@@ -6,6 +6,8 @@ export interface BottomSheetWrapperProps {
   onOpenChange: (open: boolean) => void;
   /** Called after the native sheet settles at an open snap point. */
   onDidOpen?: () => void;
+  /** iOS: fires after native dismissal completes. Android: aliases onClose. */
+  onDismiss?: () => void;
   children: ReactNode;
 
   // Animation & behavior
