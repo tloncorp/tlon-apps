@@ -211,6 +211,7 @@ export function useBotSettingsSectionModels(
             {
               key: 'bot-identity',
               title: draft.nickname || 'Tlonbot',
+              subtitle: 'Bot profile',
               leading: { kind: 'element', render: renderBotAvatar },
               prominent: true,
               pending: pending.nickname,
