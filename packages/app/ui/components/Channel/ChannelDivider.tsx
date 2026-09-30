@@ -40,7 +40,8 @@ export function ChannelDivider({
     return (
       <XStack justifyContent="center" paddingTop="$xl" paddingBottom="$2xs">
         <Text
-          size="$label/s"
+          // Matches system notices (see LineText's isNotice variant).
+          size="$label/m"
           numberOfLines={1}
           color={unreadCount ? '$positiveActionText' : '$tertiaryText'}
           userSelect="none"

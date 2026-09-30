@@ -8,6 +8,7 @@ import Scroller, { ScrollAnchor } from './Channel/Scroller';
 import { ThinkingState } from './Channel/ThinkingState';
 import { useShouldShowThinkingState } from './Channel/useShouldShowThinkingState';
 import { ChatMessage } from './ChatMessage';
+import { useChatBubbleLayout } from './ChatMessage/ChatMessageBubble';
 import { GalleryPostDetailView } from './GalleryPost/GalleryPost';
 import { NotebookPostDetailView } from './NotebookPost/NotebookPost';
 
@@ -61,6 +62,7 @@ export const DetailView = ({
 }: DetailViewProps) => {
   const channelType = channel.type;
   const isChat = channelType !== 'notebook' && channelType !== 'gallery';
+  const bubbleLayout = useChatBubbleLayout(channelType);
   const resolvedPosts = useMemo(() => {
     if (isChat) {
       return posts ? [post, ...[...posts].reverse()] : posts;
@@ -128,7 +130,8 @@ export const DetailView = ({
 
   return (
     <View
-      paddingHorizontal={isChat ? '$m' : undefined}
+      // Bubbles inset themselves from the screen edge.
+      paddingHorizontal={isChat && !bubbleLayout ? '$m' : undefined}
       flex={1}
       overflow={isChat ? undefined : 'hidden'}
       {...containingProperties}
