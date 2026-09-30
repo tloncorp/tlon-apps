@@ -6,6 +6,7 @@ import { Alert } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
+import { useCalm } from '../../ui';
 import {
   type SettingsSectionModel,
   SettingsListScreenView,
@@ -44,6 +45,7 @@ export function BlockedUsersScreen(props: Props) {
     }
   }, []);
 
+  const { disableNicknames } = useCalm();
   const sections = useMemo<SettingsSectionModel[]>(() => {
     const contacts = blockedContacts ?? [];
     if (contacts.length === 0) {
@@ -60,10 +62,11 @@ export function BlockedUsersScreen(props: Props) {
         footer: 'Tap someone to unblock them.',
         rows: contacts.map((contact) => {
           const userId = formatUserId(contact.id)?.display ?? contact.id;
+          const nickname = disableNicknames ? null : contact.nickname;
           return {
             key: contact.id,
-            title: contact.nickname || userId,
-            subtitle: contact.nickname ? userId : undefined,
+            title: nickname || userId,
+            subtitle: nickname ? userId : undefined,
             leading: { kind: 'contact', contactId: contact.id },
             value: 'Unblock',
             accessory: 'none',
@@ -72,7 +75,7 @@ export function BlockedUsersScreen(props: Props) {
         }),
       },
     ];
-  }, [blockedContacts, onBlockedContactPress]);
+  }, [blockedContacts, disableNicknames, onBlockedContactPress]);
 
   return (
     <SettingsListScreenView
