@@ -1,13 +1,11 @@
 import { getBotUserIdForUser } from '@tloncorp/api';
 import { ConfirmDialog } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
-import { YStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
-import {
-  type SettingsRowModel,
-  type SettingsSectionModel,
-  SettingsSectionsView,
+import type {
+  SettingsRowModel,
+  SettingsSectionModel,
 } from '../../../ui/components/SettingsList';
 import { useContact } from '../../../ui/contexts/appDataContext';
 import { ApplyChangesBar, BotAvatar } from './BotSettingsUI';
@@ -331,23 +329,6 @@ export function useBotSettingsSectionModels(
     queries.providerConfigQuery.isSuccess,
     settingsReady,
   ]);
-}
-
-/** The bot's sections on their own, for the standalone bot settings screen. */
-export function BotSettingsSections({
-  hub,
-  navigate,
-}: {
-  hub: BotSettingsHub;
-  navigate: BotSettingsNavigate;
-}) {
-  const { overview } = useBotSettingsSectionModels(hub, navigate);
-
-  return (
-    <YStack gap="$2xl">
-      <SettingsSectionsView sections={overview} />
-    </YStack>
-  );
 }
 
 /**

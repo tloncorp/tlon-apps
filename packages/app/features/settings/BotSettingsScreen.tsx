@@ -1,19 +1,17 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createDevLogger } from '@tloncorp/shared';
-import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect } from 'react';
 import { Alert } from 'react-native';
-import { View } from 'tamagui';
 
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
 import { RootStackParamList } from '../../navigation/types';
-import { ScreenHeader, SettingsContentScrollView } from '../../ui';
+import { SettingsListScreenView } from '../../ui/components/SettingsList';
 import {
   BotSettingsApplyBar,
   BotSettingsNavigate,
-  BotSettingsSections,
   useBotSettingsHub,
+  useBotSettingsSectionModels,
 } from './bot/BotSettingsSections';
 import { useHostingSession } from './bot/useHostingSession';
 
@@ -26,7 +24,6 @@ const logger = createDevLogger('BotSettingsScreen', false);
  * renders the same sections inline, so both surfaces stay in step.
  */
 export function BotSettingsScreen(props: Props) {
-  const isWindowNarrow = useIsWindowNarrow();
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
   const hub = useBotSettingsHub();
@@ -67,27 +64,17 @@ export function BotSettingsScreen(props: Props) {
     navigation.goBack();
   }, [navigation]);
 
+  const { overview } = useBotSettingsSectionModels(
+    hub,
+    navigation.navigate as unknown as BotSettingsNavigate
+  );
+
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader
-        borderBottom
-        backAction={isWindowNarrow ? handleBack : undefined}
-        title="Bot settings"
-        placement="navigation"
-      />
-      <SettingsContentScrollView
-        paddingHorizontal="$l"
-        paddingTop="$l"
-        safeAreaBottomOffset={24}
-      >
-        <View paddingBottom="$2xl">
-          <BotSettingsSections
-            hub={hub}
-            navigate={navigation.navigate as unknown as BotSettingsNavigate}
-          />
-        </View>
-      </SettingsContentScrollView>
-      <BotSettingsApplyBar hub={hub} />
-    </View>
+    <SettingsListScreenView
+      title="Bot settings"
+      sections={overview}
+      onBackPressed={handleBack}
+      bottomBar={<BotSettingsApplyBar hub={hub} />}
+    />
   );
 }
