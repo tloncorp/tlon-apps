@@ -203,6 +203,7 @@ export function useBotSettingsSectionModels(
       overview: [
         {
           key: 'bot',
+          title: 'Your bot',
           footer:
             !queries.botReady && settingsReady
               ? 'Tlonbot is starting. Settings may take a moment to become editable.'
@@ -211,7 +212,6 @@ export function useBotSettingsSectionModels(
             {
               key: 'bot-identity',
               title: draft.nickname || 'Tlonbot',
-              subtitle: 'Your personal bot',
               leading: { kind: 'element', render: renderBotAvatar },
               prominent: true,
               pending: pending.nickname,
