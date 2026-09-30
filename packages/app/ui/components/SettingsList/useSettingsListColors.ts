@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import { getTokenValue, useTheme } from 'tamagui';
 
 import { useIsDarkMode } from '../../../hooks/useDarkMode';
-import type { SettingsRowStatus } from './types';
 
 /**
  * The active Tlon theme resolved to plain colors for the native lists, which
@@ -14,24 +13,6 @@ export function useSettingsListColors() {
   const isDark = useIsDarkMode();
 
   return useMemo(() => {
-    const status: Record<
-      SettingsRowStatus['tone'],
-      { text: string; background: string }
-    > = {
-      positive: {
-        text: theme.positiveActionText.val,
-        background: theme.positiveBackground.val,
-      },
-      warning: {
-        text: getTokenValue('$orange', 'color'),
-        background: getTokenValue('$orangeSoft', 'color'),
-      },
-      neutral: {
-        text: theme.secondaryText.val,
-        background: theme.secondaryBackground.val,
-      },
-    };
-
     return {
       colorScheme: isDark ? ('dark' as const) : ('light' as const),
       page: theme.secondaryBackground.val,
@@ -44,8 +25,10 @@ export function useSettingsListColors() {
       tertiaryText: theme.tertiaryText.val,
       accent: theme.positiveActionText.val,
       negative: theme.negativeActionText.val,
-      status,
-      pending: status.warning,
+      pending: {
+        text: getTokenValue('$orange', 'color'),
+        background: getTokenValue('$orangeSoft', 'color'),
+      },
     };
   }, [isDark, theme]);
 }

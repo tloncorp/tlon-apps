@@ -6,6 +6,5 @@ export type {
   SettingsListProps,
   SettingsRowLeading,
   SettingsRowModel,
-  SettingsRowStatus,
   SettingsSectionModel,
 } from './types';

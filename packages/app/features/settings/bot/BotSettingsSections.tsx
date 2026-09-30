@@ -6,7 +6,6 @@ import { YStack } from 'tamagui';
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
 import {
   type SettingsRowModel,
-  type SettingsRowStatus,
   type SettingsSectionModel,
   SettingsSectionsView,
 } from '../../../ui/components/SettingsList';
@@ -139,13 +138,6 @@ export function useBotSettingsSectionModels(
       : onBasicModel && draft.model.fallbacks.length === 0
         ? 'Managed by Tlon'
         : `${draft.model.fallbacks.length} set`;
-    // Reflects the bot's runtime status only. Unsaved edits are surfaced by
-    // the apply bar and the rows they touch, not here.
-    const status: SettingsRowStatus = applying
-      ? { text: 'Restarting…', tone: 'warning' }
-      : queries.botReady
-        ? { text: 'Online', tone: 'positive' }
-        : { text: 'Starting', tone: 'neutral' };
     // Zero data retention sits beside the model it constrains rather than
     // behind a disclosure: a pending toggle hidden from view leaves the apply
     // bar counting a change the user cannot see.
@@ -219,10 +211,9 @@ export function useBotSettingsSectionModels(
             {
               key: 'bot-identity',
               title: draft.nickname || 'Tlonbot',
-              subtitle: `Your personal bot · ${queries.moon ?? `~${queries.ship}`}`,
+              subtitle: 'Your personal bot',
               leading: { kind: 'element', render: renderBotAvatar },
               prominent: true,
-              status,
               pending: pending.nickname,
               // The bot's own row edits its name, the way your profile row
               // opens your profile.
@@ -336,10 +327,8 @@ export function useBotSettingsSectionModels(
     queries.llmAuthStatusQuery.data,
     queries.llmAuthStatusQuery.isError,
     queries.llmAuthStatusQuery.isLoading,
-    queries.moon,
     queries.oauthProvidersQuery.data,
     queries.providerConfigQuery.isSuccess,
-    queries.ship,
     settingsReady,
   ]);
 }

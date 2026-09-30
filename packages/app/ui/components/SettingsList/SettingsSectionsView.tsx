@@ -58,9 +58,6 @@ function SettingsRow({ row }: { row: SettingsRowModel }) {
         {row.pending ? (
           <Badge text="Pending" type="warning" size="micro" />
         ) : null}
-        {row.status ? (
-          <Badge text={row.status.text} type={row.status.tone} size="micro" />
-        ) : null}
         {row.value ? (
           <Text
             size="$label/m"

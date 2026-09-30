@@ -165,13 +165,6 @@ function SettingsRow({
           backgroundColor={colors.pending.background}
         />
       ) : null}
-      {row.status ? (
-        <Pill
-          text={row.status.text}
-          textColor={colors.status[row.status.tone].text}
-          backgroundColor={colors.status[row.status.tone].background}
-        />
-      ) : null}
       {row.toggle ? (
         <Switch
           value={row.toggle.value}
