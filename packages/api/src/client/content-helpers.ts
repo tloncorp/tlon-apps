@@ -974,6 +974,18 @@ export function postHasBlobEntry<Type extends PostBlobDataEntry['type']>(
   return findPostBlobEntry(blob, type) !== undefined;
 }
 
+/** Inspect raw entries: even an unrenderable card can expose its capability. */
+export function postHasBrowserHandoff(blob: string): boolean {
+  function containsHandoff(value: unknown): boolean {
+    if (!value || typeof value !== 'object') return false;
+    return (
+      ('screen' in value && value.screen === 'browserCredentialHandoff') ||
+      Object.values(value).some(containsHandoff)
+    );
+  }
+  return containsHandoff(parseRawPostBlobData(blob));
+}
+
 export function toPostData({
   attachments,
   blob: initialBlob,

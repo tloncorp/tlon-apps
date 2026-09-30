@@ -4,7 +4,7 @@ import { resolveBrowserOwnerShip } from './browser-owner';
 
 function resolver(
   config: unknown,
-  activeShip = '~bot',
+  activeShip = '~zod',
   configPath = '/config/openclaw.json'
 ) {
   return () =>
@@ -21,7 +21,7 @@ describe('browser owner resolution', () => {
   it('uses the harness owner without an OpenClaw configuration file', () => {
     expect(
       resolveBrowserOwnerShip({
-        activeShip: '~bot',
+        activeShip: '~zod',
         env: { TLON_OWNER_SHIP: '  ~ZOD  ' },
         exists: () => {
           throw new Error('must not read OpenClaw config');
@@ -30,12 +30,12 @@ describe('browser owner resolution', () => {
     ).toBe('~zod');
   });
 
-  it.each(['', '   ', '~zod/other', 'not a ship'])(
+  it.each(['', '   ', '~zod/other', 'not a ship', '~~zod', 'zo~d', '~owner'])(
     'rejects invalid harness owner %j',
     (owner) => {
       expect(() =>
         resolveBrowserOwnerShip({
-          activeShip: '~bot',
+          activeShip: '~zod',
           env: { TLON_OWNER_SHIP: owner },
         })
       ).toThrow('TLON_OWNER_SHIP must name a configured owner');
@@ -46,10 +46,20 @@ describe('browser owner resolution', () => {
     expect(
       resolver({
         channels: {
-          tlon: { ship: '~bot', ownerShip: '~owner' },
+          tlon: { ship: '~zod', ownerShip: '~nec' },
         },
       })()
-    ).toBe('~owner');
+    ).toBe('~nec');
+  });
+
+  it('normalizes the configured ship and owner', () => {
+    expect(
+      resolver({
+        channels: {
+          tlon: { ship: '  ~ZOD  ', ownerShip: '  NEC  ' },
+        },
+      })()
+    ).toBe('~nec');
   });
 
   it('selects the matching account and inherits its base owner', () => {
@@ -58,22 +68,22 @@ describe('browser owner resolution', () => {
         {
           channels: {
             tlon: {
-              ownerShip: '~owner',
+              ownerShip: '~nec',
               accounts: {
-                first: { ship: '~first-bot' },
-                second: { ship: '~second-bot', ownerShip: '~second-owner' },
+                first: { ship: '~bud' },
+                second: { ship: '~wes', ownerShip: '~sev' },
               },
             },
           },
         },
-        '~second-bot'
+        '~wes'
       )()
-    ).toBe('~second-owner');
+    ).toBe('~sev');
   });
 
   it('fails closed when the active bot has no configured owner', () => {
-    expect(resolver({ channels: { tlon: { ship: '~bot' } } })).toThrow(
-      'OpenClaw has no owner configured for ~bot'
+    expect(resolver({ channels: { tlon: { ship: '~zod' } } })).toThrow(
+      'OpenClaw has no owner configured for ~zod'
     );
   });
 
@@ -84,13 +94,24 @@ describe('browser owner resolution', () => {
           channels: {
             tlon: {
               accounts: {
-                other: { ship: '~other-bot', ownerShip: '~other-owner' },
+                other: { ship: '~bud', ownerShip: '~nec' },
               },
             },
           },
         },
+        '~zod'
+      )
+    ).toThrow('OpenClaw has no owner configured for ~zod');
+  });
+
+  it('rejects an invalid active ship instead of matching an account without a ship', () => {
+    expect(
+      resolver(
+        {
+          channels: { tlon: { accounts: { missing: { ownerShip: '~nec' } } } },
+        },
         '~bot'
       )
-    ).toThrow('OpenClaw has no owner configured for ~bot');
+    ).toThrow('OpenClaw has no owner configured');
   });
 });

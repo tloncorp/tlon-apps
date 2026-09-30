@@ -69,6 +69,9 @@ describe('tool trace helpers', () => {
     (phase) => {
       for (const command of [
         'browser handoff https://browser.example/s/private.signature',
+        'tlon browser handoff https://browser.example/s/private.signature',
+        'tlon --ship=~zod browser handoff https://browser.example/s/private.signature',
+        '--ship ~zod tlon browser handoff https://browser.example/s/private.signature',
         '--ship=~zod browser handoff "https://browser.example/s/private.signature"',
         `browser handoff https://browser.example/s/private.signature${'x'.repeat(3000)}`,
       ]) {

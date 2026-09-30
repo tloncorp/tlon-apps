@@ -224,6 +224,24 @@ describe('runTlonCommand timeout output capture', () => {
 });
 
 describe('runTlonCommand credential environment', () => {
+  it.each(['~nec', ''])(
+    'passes the resolved account owner %j instead of an ambient owner',
+    async (ownerShip) => {
+      vi.stubEnv('TLON_OWNER_SHIP', '~zod');
+      vi.stubEnv('OPENCLAW_CONFIG_PATH', '/custom/openclaw.json');
+      const stdout = await runTlonCommand(
+        process.execPath,
+        [
+          '-e',
+          'process.stdout.write(JSON.stringify(process.env.TLON_OWNER_SHIP))',
+        ],
+        undefined,
+        { ownerShip }
+      );
+      expect(JSON.parse(stdout)).toBe(ownerShip);
+    }
+  );
+
   it('scrubs ambient credential selectors when credentials are supplied', async () => {
     const childEnv = await captureChildCredentialEnv({
       url: 'https://selected.example',

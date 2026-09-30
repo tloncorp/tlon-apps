@@ -280,7 +280,14 @@ export function findTlonSubcommandIndex(args: string[]): number {
 
 export function redactBrowserHandoffCommand(command: string): string {
   const args = shellSplitCommand(command);
-  const subIdx = findTlonSubcommandIndex(args);
+  let subIdx = findTlonSubcommandIndex(args);
+  if (args[subIdx]?.toLowerCase() === 'tlon') {
+    subIdx = findFirstPositionalArgumentIndex(
+      args,
+      subIdx + 1,
+      CREDENTIAL_FLAGS_WITH_VALUE
+    );
+  }
   if (
     args[subIdx]?.toLowerCase() === 'browser' &&
     args[subIdx + 1]?.toLowerCase() === 'handoff'

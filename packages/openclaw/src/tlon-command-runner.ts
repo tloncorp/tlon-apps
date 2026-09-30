@@ -33,6 +33,8 @@ export type TlonCommandDeadlineOutput = {
 
 export type TlonCommandRunnerOptions = {
   timeoutMs?: number;
+  /** Trusted owner from the active OpenClaw account, not tool arguments. */
+  ownerShip?: string;
   onDeadline?: (output: TlonCommandDeadlineOutput) => void;
 };
 
@@ -47,6 +49,9 @@ export function runTlonCommand(
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const env = { ...process.env };
+    if (options?.ownerShip !== undefined) {
+      env.TLON_OWNER_SHIP = options.ownerShip;
+    }
     if (credentials) {
       for (const key of EXPLICIT_CREDENTIAL_ENV_KEYS_TO_CLEAR) {
         delete env[key];

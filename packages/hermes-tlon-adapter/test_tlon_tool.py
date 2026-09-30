@@ -58,6 +58,23 @@ adapter_mod = load_module("adapter")
 
 
 class TlonToolGuardTests(unittest.TestCase):
+    def test_browser_handoffs_are_not_available(self):
+        for requester in ("~zod", "~nec"):
+            for prefix in ([], ["--ship", "~bud"]):
+                with self.subTest(requester=requester, prefix=prefix):
+                    error = tlon_tool.check_tlon_tool_command(
+                        [
+                            *prefix,
+                            "browser",
+                            "handoff",
+                            "https://browser.example/s/private.signature",
+                        ],
+                        session_platform="tlon",
+                        session_user_id=requester,
+                        owner_ship="~zod",
+                    )
+                    self.assertIn("Unknown tlon subcommand 'browser'", error)
+
     def test_credential_flags_are_skipped_before_subcommand(self):
         args, error = tlon_tool.split_tlon_command(
             "--url http://127.0.0.1:8080 --ship ~zod contacts self"

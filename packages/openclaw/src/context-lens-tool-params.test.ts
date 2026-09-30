@@ -142,6 +142,9 @@ function parsed(detail: string | undefined): Record<string, unknown> {
 describe('browser handoff parameter redaction', () => {
   it.each([
     'browser handoff https://browser.example/s/private.signature',
+    'tlon browser handoff https://browser.example/s/private.signature',
+    'tlon --ship ~zod browser handoff https://browser.example/s/private.signature',
+    '--ship ~zod tlon browser handoff https://browser.example/s/private.signature',
     '  browser\thandoff\n"https://browser.example/s/private.signature"',
     "--ship ~zod 'browser' 'handoff' 'https://browser.example/s/private.signature'",
     '--ship=~zod browser handoff https://browser.example/s/private.signature',

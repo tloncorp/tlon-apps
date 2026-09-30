@@ -13,9 +13,8 @@ export function canUseBrowserHandoff({
   canUseAgentProviderControls: boolean;
 }): boolean {
   return (
-    canUseAgentProviderControls ||
-    (isDmChannelId(channelId) &&
-      authorId === channelId &&
-      isMoonOfUser(authorId, currentUserId))
+    isDmChannelId(channelId) &&
+    authorId === channelId &&
+    (canUseAgentProviderControls || isMoonOfUser(authorId, currentUserId))
   );
 }

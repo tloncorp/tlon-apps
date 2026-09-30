@@ -52,16 +52,22 @@ describe('browser handoff trust', () => {
     ).toBe(false);
   });
 
-  it('allows the hosted owner bot and authorized group agent', () => {
+  it('allows the hosted owner bot in its DM', () => {
     expect(
       canUseBrowserHandoff({ ...dm, canUseAgentProviderControls: true })
     ).toBe(true);
-    expect(
-      canUseBrowserHandoff({
-        ...dm,
-        channelId: 'chat/~sampel-palnet/general',
-        canUseAgentProviderControls: true,
-      })
-    ).toBe(true);
   });
+
+  it.each(['chat/~sampel-palnet/general', '0v123', '~nec'])(
+    'rejects handoffs outside the owner/bot DM even with provider controls: %s',
+    (channelId) => {
+      expect(
+        canUseBrowserHandoff({
+          ...dm,
+          channelId,
+          canUseAgentProviderControls: true,
+        })
+      ).toBe(false);
+    }
+  );
 });

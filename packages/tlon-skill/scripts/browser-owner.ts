@@ -1,3 +1,5 @@
+import { desig, preSig } from '@tloncorp/api/lib/urbit';
+import { valid } from '@urbit/aura';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -12,8 +14,8 @@ function object(value: unknown): JsonObject {
 
 function ship(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
-  const normalized = value.trim().toLowerCase().replace(/^~/, '');
-  return /^[a-z]+(?:-[a-z]+)*$/.test(normalized) ? normalized : undefined;
+  const normalized = preSig(value.trim().toLowerCase());
+  return valid('p', normalized) ? desig(normalized) : undefined;
 }
 
 function configuredOwner(
@@ -25,10 +27,11 @@ function configuredOwner(
   if (Object.keys(tlon).length === 0) return undefined;
 
   const normalizedActiveShip = ship(activeShip);
+  if (!normalizedActiveShip) return undefined;
   const baseOwner = ship(tlon.ownerShip);
   const baseShip = ship(tlon.ship);
   if (baseShip && baseShip === normalizedActiveShip) {
-    return baseOwner ? `~${baseOwner}` : undefined;
+    return baseOwner ? preSig(baseOwner) : undefined;
   }
 
   const matches = Object.values(object(tlon.accounts))
@@ -36,7 +39,7 @@ function configuredOwner(
     .filter((account) => ship(account.ship) === normalizedActiveShip);
   if (matches.length !== 1) return undefined;
   const owner = ship(matches[0].ownerShip) ?? baseOwner;
-  return owner ? `~${owner}` : undefined;
+  return owner ? preSig(owner) : undefined;
 }
 
 export type BrowserOwnerResolutionInput = {
@@ -54,7 +57,7 @@ export function resolveBrowserOwnerShip(
   if (env.TLON_OWNER_SHIP !== undefined) {
     const owner = ship(env.TLON_OWNER_SHIP);
     if (!owner) throw new Error('TLON_OWNER_SHIP must name a configured owner');
-    return `~${owner}`;
+    return preSig(owner);
   }
   const homeDir = input.homeDir ?? os.homedir();
   const exists = input.exists ?? fs.existsSync;
@@ -80,12 +83,12 @@ export function resolveBrowserOwnerShip(
     if (owner) return owner;
     if (explicitPath) {
       throw new Error(
-        `OpenClaw has no owner configured for ~${ship(input.activeShip) ?? input.activeShip}`
+        `OpenClaw has no owner configured for ${preSig(ship(input.activeShip) ?? input.activeShip)}`
       );
     }
   }
 
   throw new Error(
-    `OpenClaw has no owner configured for ~${ship(input.activeShip) ?? input.activeShip}`
+    `OpenClaw has no owner configured for ${preSig(ship(input.activeShip) ?? input.activeShip)}`
   );
 }
