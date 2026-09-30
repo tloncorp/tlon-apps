@@ -830,20 +830,37 @@ export const PostBlobDataEntrySchema = z.union(postBlobDataEntryDefinitions);
 export type PostBlobDataEntry = z.infer<typeof PostBlobDataEntrySchema>;
 export type UnknownPostBlobDataEntry = { type: 'unknown' };
 
+/** Keep schema diagnostics without copying browser bearer capabilities into logs. */
+function redactPostBlobForLogging(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(redactPostBlobForLogging);
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [
+        key,
+        key === 'viewerUrl' || key === 'fillUrl'
+          ? '[REDACTED]'
+          : redactPostBlobForLogging(entry),
+      ])
+    );
+  }
+  return value;
+}
+
 function parseRawPostBlobData(blob: string): unknown[] | null {
   try {
     const parsed = JSON.parse(blob);
     if (Array.isArray(parsed)) {
       return parsed;
     }
-    logger.trackError('Failed to parse PostBlob data: expected array', {
-      blob,
-      parsed,
+    logger.warn('Failed to parse PostBlob data: expected array', {
+      receivedType: parsed === null ? 'null' : typeof parsed,
     });
   } catch (error) {
     // The parser's own message quotes the input, which is message content.
-    logger.trackError('Failed to parse PostBlob data', {
-      blob,
+    logger.warn('Failed to parse PostBlob data', {
+      blobLength: blob.length,
       errorName: error instanceof Error ? error.name : typeof error,
     });
   }
@@ -857,8 +874,8 @@ export function appendToPostBlob(
   const parsedEntry = PostBlobDataEntrySchema.safeParse(entry);
   if (!parsedEntry.success) {
     logger.trackError('Failed to validate PostBlobDataEntry before append', {
-      entry,
-      error: parsedEntry.error,
+      entry: redactPostBlobForLogging(entry),
+      issueCodes: parsedEntry.error.issues.map((issue) => issue.code),
     });
     throw new Error('Invalid PostBlobDataEntry');
   }
@@ -871,7 +888,7 @@ export function appendToPostBlob(
     if (arr) {
       return arr;
     }
-    // once we track the error, just start over with an empty blob so we can
+    // Once we warn, start over with an empty blob so we can
     // respect the user's intent to add the file
     return [];
   })();
@@ -945,7 +962,10 @@ export function parsePostBlob(blob: string): ClientPostBlobData {
   return safeParseArrayWithFallback(
     PostBlobDataEntrySchema,
     (entry) => {
-      logger.trackError('Failed to parse PostBlobDataEntry', { entry });
+      // Unknown types and versions are expected when clients support different schemas.
+      logger.warn('Failed to parse PostBlobDataEntry', {
+        entry: redactPostBlobForLogging(entry),
+      });
       return { type: 'unknown' } as const;
     },
     arr
