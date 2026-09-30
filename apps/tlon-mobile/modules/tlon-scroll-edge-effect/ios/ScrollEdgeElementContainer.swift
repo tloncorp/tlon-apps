@@ -354,11 +354,13 @@ public final class ScrollEdgeElementContainer: ExpoView {
             return
         }
 
+        // Leave the style to UIKit. A forced style outlives this element on the
+        // scroll view, and on iOS 27 a forced .soft from an app built with the
+        // iOS 26 SDK covers only the status bar, not the header title.
         let edgeEffect = edge == .top
             ? scrollView.topEdgeEffect
             : scrollView.bottomEdgeEffect
         edgeEffect.isHidden = false
-        edgeEffect.style = .soft
     }
 
     @objc private func keyboardDidHide() {
@@ -423,8 +425,8 @@ public final class ScrollEdgeElementContainer: ExpoView {
                 scheduleAttachmentValidation()
 
                 // React Native Screens may apply its screen options after the
-                // list mounts. Reassert the same style on the following run
-                // loop so a late-mounted upright chat list gets this edge.
+                // list mounts. Reassert the edge on the following run loop so
+                // a late-mounted upright chat list still shows it.
                 DispatchQueue.main.async { [weak self, weak scrollView] in
                     guard let self, let scrollView else {
                         return
