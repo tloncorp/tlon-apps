@@ -29,7 +29,7 @@ export function getSettingsRowLeadingSize(
 }
 
 /**
- * Leading content for a native row, at a fixed size. Native lists host it with
+ * Leading content for a native row, at a fixed size. Android hosts it with
  * `matchContents`, which takes its size from the hosted view, so the view must
  * have one rather than stretching across the row. The row takes the tap.
  */
