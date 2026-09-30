@@ -10,8 +10,8 @@ import { SettingsRowLeading } from './SettingsRowLeading';
 import type { SettingsRowModel, SettingsSectionModel } from './types';
 
 /**
- * Settings sections drawn with Tamagui, for web and for screens that still
- * scroll their own content. The caller supplies the scroll view and spacing.
+ * Settings sections drawn with Tamagui, for the web list. The caller supplies
+ * the scroll view and spacing.
  */
 export function SettingsSectionsView({
   sections,
