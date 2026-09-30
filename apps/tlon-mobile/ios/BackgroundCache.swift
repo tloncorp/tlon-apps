@@ -26,6 +26,17 @@ class BackgroundCache: NSObject {
         }
     }
     
+    @objc(acknowledgeBackgroundData:resolver:rejecter:)
+    func acknowledgeBackgroundData(cacheId: String,
+                                   resolver resolve: @escaping RCTPromiseResolveBlock,
+                                   rejecter reject: @escaping RCTPromiseRejectBlock) {
+        do {
+            resolve(try ChangesLoader.acknowledge(cacheId))
+        } catch {
+            reject("acknowledge_error", error.localizedDescription, error)
+        }
+    }
+
     @objc(setLastSyncTimestamp:resolver:rejecter:)
         func setLastSyncTimestamp(timestamp: NSNumber,
                                  resolver resolve: @escaping RCTPromiseResolveBlock,
