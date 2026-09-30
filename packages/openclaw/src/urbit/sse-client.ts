@@ -105,6 +105,14 @@ export class UrbitSSEClient {
    * by path rather than id because every retry mints a fresh id.
    */
   private nackRetries = new Map<string, number>();
+  /**
+   * The pending nack retry per app+path. A positive ack — including one for
+   * the original id after a stream reconnect recreated it — must cancel it:
+   * a late retry would move the handlers off a live subscription and leave
+   * that id handlerless, so its facts would fall through to the broadcast
+   * path and reach every other subscription's handler.
+   */
+  private nackRetryTimers = new Map<string, ReturnType<typeof setTimeout>>();
   aborted = false;
   streamController: AbortController | null = null;
   onReconnect: UrbitSseOptions['onReconnect'] | null;
@@ -1394,6 +1402,7 @@ export class UrbitSSEClient {
     const key = `${sub.app}${sub.path}`;
     if (err === undefined || err === null) {
       this.nackRetries.delete(key);
+      this.cancelNackRetry(key);
       handlers.onLive?.();
       return;
     }
@@ -1408,12 +1417,25 @@ export class UrbitSSEClient {
     this.logger.log?.(
       `[SSE] Watch on ${key} nacked (attempt ${attempt}); retrying in ${delay}ms`
     );
-    setTimeout(() => {
-      if (this.aborted) return;
+    this.cancelNackRetry(key);
+    const timer = setTimeout(() => {
+      this.nackRetryTimers.delete(key);
+      // The id must still own the handlers. If anything moved them since —
+      // a quit-driven resubscribe, say — this retry is stale.
+      if (this.aborted || !this.eventHandlers.has(subId)) return;
       // Reuses the quit path: a fresh id, handlers carried over, and the
       // stream-reconnect epoch handling. Its outcome is the next watch-ack.
       void this.resubscribeAfterQuit(subId);
-    }, delay).unref?.();
+    }, delay);
+    timer.unref?.();
+    this.nackRetryTimers.set(key, timer);
+  }
+
+  private cancelNackRetry(key: string) {
+    const timer = this.nackRetryTimers.get(key);
+    if (timer === undefined) return;
+    clearTimeout(timer);
+    this.nackRetryTimers.delete(key);
   }
 
   /**
@@ -1524,6 +1546,11 @@ export class UrbitSSEClient {
   async close() {
     this.aborted = true;
     this.isConnected = false;
+    for (const timer of this.nackRetryTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.nackRetryTimers.clear();
+    this.nackRetries.clear();
     this.stopStreamWatchdog();
     this.streamController?.abort();
     this.stopSubscriptionRetryTimer();

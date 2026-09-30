@@ -427,6 +427,39 @@ describe('UrbitSSEClient', () => {
       expect(onLive).toHaveBeenCalledTimes(1);
     });
 
+    it('cancels a pending nack retry once the original watch is acked', async () => {
+      // The race: a stream reconnect recreates the nacked subscription under
+      // its original id before the retry timer fires, and that watch lands.
+      // A late retry would strand the live id without handlers, so its facts
+      // would be broadcast to every other subscription.
+      const mockUrbitFetch = await okFetch();
+      const client = connectedClient();
+      const event = vi.fn();
+      const other = vi.fn();
+      await client.subscribe({
+        app: 'steward',
+        path: '/v1/x',
+        retryOnNack: true,
+        event,
+      });
+      await client.subscribe({ app: 'channels', path: '/v4', event: other });
+
+      client.processEvent(`id: 1\ndata: ${nack}`);
+      client.processEvent(
+        'id: 2\ndata: {"id":1,"response":"subscribe","ok":"ok"}'
+      );
+      mockUrbitFetch.mockClear();
+      await vi.advanceTimersByTimeAsync(15 * 60_000);
+
+      expect(mockUrbitFetch).not.toHaveBeenCalled();
+      expect(client.subscriptions).toHaveLength(2);
+      client.processEvent(
+        'id: 3\ndata: {"id":1,"response":"diff","json":{"fact":1}}'
+      );
+      expect(event).toHaveBeenCalledWith({ fact: 1 });
+      expect(other).not.toHaveBeenCalled();
+    });
+
     it('does not retry a nack after the client closes', async () => {
       const mockUrbitFetch = await okFetch();
       const client = connectedClient();
