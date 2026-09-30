@@ -13,6 +13,7 @@ function makeDeps(
     events?: ActivityEvent[];
     getInitialActivity?: ActivityDeps['activityApi']['getInitialActivity'];
     getGroupAndChannelUnreads?: ActivityDeps['activityApi']['getGroupAndChannelUnreads'];
+    now?: number;
   } = {}
 ) {
   const stdout: string[] = [];
@@ -73,7 +74,10 @@ function makeDeps(
     },
     format: {
       activityHeader: (bucket, count) => `HEADER:${bucket}:${count}`,
-      noActivity: (bucket) => `NO_ACTIVITY:${bucket}`,
+      noActivity: (bucket, since) =>
+        since === undefined
+          ? `NO_ACTIVITY:${bucket}`
+          : `NO_ACTIVITY:${bucket}:${since}`,
       event: (event) => {
         calls.eventFormatter.push(event.id);
         return `EVENT:${event.id}`;
@@ -86,6 +90,7 @@ function makeDeps(
       channelUnread: (summary) =>
         `CHANNEL:${summary.channelId}:${summary.count ?? 0}`,
     },
+    now: options.now === undefined ? undefined : () => options.now as number,
   };
 
   return {
@@ -119,6 +124,23 @@ describe('activity command run', () => {
       {
         args: ['mentions', '--limit', 'abc'],
         expected: '--limit must be a positive integer',
+      },
+      { args: ['mentions', '--since'], expected: '--since requires a value' },
+      {
+        args: ['mentions', '--since', '30'],
+        expected: '--since must be a duration',
+      },
+      {
+        args: ['mentions', '--since', '2w'],
+        expected: '--since must be a duration',
+      },
+      {
+        args: ['mentions', '--since', 'yesterday'],
+        expected: '--since must be a duration',
+      },
+      {
+        args: ['mentions', '--since', '2026-13-45'],
+        expected: '--since must be a duration',
       },
     ];
 
@@ -172,6 +194,76 @@ describe('activity command run', () => {
     expect(context.calls.eventFormatter).toEqual(['new']);
     expect(context.stdout()).toBe('HEADER:mentions:1\nEVENT:new\n\n');
     expect(context.stderr()).toBe('');
+  });
+
+  it('drops events older than a relative --since window', async () => {
+    const hour = 60 * 60 * 1000;
+    const now = 100 * hour;
+    const context = makeDeps({
+      now,
+      events: [
+        {
+          id: 'stale',
+          bucketId: 'mentions',
+          sourceId: 's1',
+          type: 'post',
+          timestamp: now - 3 * hour,
+        },
+        {
+          id: 'edge',
+          bucketId: 'mentions',
+          sourceId: 's2',
+          type: 'post',
+          timestamp: now - 2 * hour,
+        },
+        {
+          id: 'fresh',
+          bucketId: 'mentions',
+          sourceId: 's3',
+          type: 'post',
+          timestamp: now - 1000,
+        },
+        {
+          id: 'reply',
+          bucketId: 'replies',
+          sourceId: 's4',
+          type: 'reply',
+          timestamp: now - 1000,
+        },
+      ],
+    });
+
+    const exitCode = await run(['mentions', '--since', '2h'], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.eventFormatter).toEqual(['fresh', 'edge']);
+    expect(context.stdout()).toBe(
+      'HEADER:mentions:2\nEVENT:fresh\n\nEVENT:edge\n\n'
+    );
+  });
+
+  it('accepts an ISO 8601 --since and reports the cutoff when nothing matches', async () => {
+    const cutoff = Date.parse('2026-09-30T14:00:00Z');
+    const context = makeDeps({
+      events: [
+        {
+          id: 'before',
+          bucketId: 'replies',
+          sourceId: 's1',
+          type: 'reply',
+          timestamp: cutoff - 1,
+        },
+      ],
+    });
+
+    const exitCode = await run(
+      ['replies', '--since', '2026-09-30T14:00:00Z'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.eventFormatter).toEqual([]);
+    expect(context.stdout()).toBe(`NO_ACTIVITY:replies:${cutoff}\n`);
   });
 
   it('uses the injected unreads API and formatter', async () => {
