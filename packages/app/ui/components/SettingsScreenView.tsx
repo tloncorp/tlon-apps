@@ -141,7 +141,7 @@ function useSettingsSections(
       accountRows.push({
         key: 'contacts',
         title: 'Contacts',
-        leading: { kind: 'icon', icon: 'AddPerson' },
+        leading: { kind: 'icon', icon: 'Contacts' },
         onPress: props.onContactsPressed,
         isFocused: focusedRouteName === 'Contacts',
       });
