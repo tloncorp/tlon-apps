@@ -63,8 +63,8 @@ navigation and non-sensitive form filling should continue through the browser
 tools without a handoff.
 
 First navigate the live session all the way to the visible login or verification
-form. Call `browser_session_handoff` for that same session to obtain a fresh
-signed viewer URL. In OpenClaw, call the model-facing `tlon` tool with:
+form. Use the unexpired signed `viewer_url` returned by `browser_session_create`
+for that same session. In OpenClaw, call the model-facing `tlon` tool with:
 
 ```json
 {"command": "browser handoff <signed-viewer-url>"}
@@ -72,6 +72,11 @@ signed viewer URL. In OpenClaw, call the model-facing `tlon` tool with:
 
 Do not include the executable name in the tool's `command` argument. From a
 shell, the equivalent is `tlon browser handoff <signed-viewer-url>`.
+
+Do not call `browser_session_handoff` as a prerequisite for this card. That tool
+uses MCP viewer/elicitation capabilities to arrange human browser control; it
+does not issue or refresh signed viewer URLs. Its `client_capability_missing`
+error does not determine whether the Tlon native login form is available.
 
 This is the one exception to the rule against using that tool to send a message.
 The command
@@ -85,7 +90,9 @@ embed the remote page. The browser service re-inspects the live page, tells
 Tlon which standard fields are present, and receives the submitted values
 directly. The values are never posted to chat or returned to the bot. If login
 advances to a separate OTP page, run the same command again with the same live
-session's newly issued signed viewer URL to send the owner the OTP form.
+session's signed viewer URL, provided it is still valid, to send the owner the
+OTP form. Each time the owner opens the form, the browser service inspects the
+current page and issues a one-use fill handle.
 
 Keep the session live while the owner completes the form. After a successful
 submission, “Return to conversation” automatically sends the same continuation
@@ -97,10 +104,12 @@ finished.
 
 If handoff reports that no visible password or code form exists, the browser is
 usually on the wrong page or an earlier login step. Inspect it, navigate or
-click until the sensitive form is visibly present, and request a fresh handoff.
-If authorization or the handoff link expired, obtain a new signed URL from the
-same live session; do not reuse or edit the old URL. If the live session itself
-expired, create a new one.
+click until the sensitive form is visibly present, and have the owner reopen
+the card. If the signed viewer URL is missing, rejected, or expired, report that
+the native handoff is unavailable; do not invent or edit a URL, reuse an expired
+one, or claim that `browser_session_handoff` refreshes it. If the live session
+itself expired, create a new one and navigate back to the required form before
+sending a card with its signed viewer URL.
 
 #### What persists
 
