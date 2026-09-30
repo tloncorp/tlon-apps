@@ -5,7 +5,6 @@ import * as store from '@tloncorp/shared/store';
 import { triggerHaptic } from '@tloncorp/ui';
 import { ComponentProps, useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
-import { getVariableValue, useTheme } from 'tamagui';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
@@ -13,6 +12,7 @@ import { useResetDb } from '../../hooks/useResetDb';
 import { useNavigation } from '../../navigation/utils';
 import { SettingsScreenView, View, openTlonWebApp } from '../../ui';
 import ProfileStatusSheet from '../../ui/components/ProfileStatusSheet';
+import { settingsListPageColor } from '../../ui/components/SettingsList';
 import {
   openExternalBotSettings,
   useHasExpectedBotDm,
@@ -111,8 +111,6 @@ export default function SettingsScreen() {
     setStatusSheetOpen(false);
   }, []);
 
-  const backgroundColor = getVariableValue(useTheme().background);
-
   const viewProps: ComponentProps<typeof SettingsScreenView> = {
     hasHostedAuth,
     currentUserId,
@@ -136,7 +134,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <View backgroundColor={backgroundColor} flex={1}>
+    <View backgroundColor={settingsListPageColor} flex={1}>
       {showsInlineBotSettings ? (
         <SettingsViewWithBot viewProps={viewProps} />
       ) : (

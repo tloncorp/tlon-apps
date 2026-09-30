@@ -6,8 +6,8 @@ import type { SettingsRowStatus } from './types';
 
 /**
  * The active Tlon theme resolved to plain colors for the native lists, which
- * draw outside Tamagui. Rows sit on the secondary background so each group
- * reads as a surface against the page, in every theme.
+ * draw outside Tamagui. Grouped rows sit on the primary background over a page
+ * in the secondary one (`settingsListPageColor`), in every theme.
  */
 export function useSettingsListColors() {
   const theme = useTheme();
@@ -28,14 +28,14 @@ export function useSettingsListColors() {
       },
       neutral: {
         text: theme.secondaryText.val,
-        background: theme.background.val,
+        background: theme.secondaryBackground.val,
       },
     };
 
     return {
       colorScheme: isDark ? ('dark' as const) : ('light' as const),
-      page: theme.background.val,
-      row: theme.secondaryBackground.val,
+      page: theme.secondaryBackground.val,
+      row: theme.background.val,
       // Warm like the rest of the palette; the platforms' own separator grays
       // are cool and read as off against it.
       separator: theme.secondaryBorder.val,
