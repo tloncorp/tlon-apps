@@ -1,15 +1,11 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback } from 'react';
-import { View, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
-import { ScreenHeader, SettingsContentScrollView } from '../../ui';
 import {
-  BotSettingsDivider,
-  BotSettingsRow,
-  BotSettingsSection,
-} from './bot/BotSettingsUI';
+  type SettingsRowModel,
+  SettingsListScreenView,
+} from '../../ui/components/SettingsList';
 import {
   BASIC_PROVIDER_ID,
   PROVIDER_OPTIONS,
@@ -48,7 +44,6 @@ const listMeta: Record<
 export function BotProviderListSettingsScreen(props: Props) {
   const { kind } = props.route.params;
   const meta = listMeta[kind];
-  const isWindowNarrow = useIsWindowNarrow();
   const queries = useBotSettingsQueries();
   const applying = useBotSettingsDraftStore((state) => state.applying);
 
@@ -87,60 +82,35 @@ export function BotProviderListSettingsScreen(props: Props) {
     return Number(rightConfigured) - Number(leftConfigured);
   });
 
+  const rows: SettingsRowModel[] =
+    kind === 'subscriptions'
+      ? subscriptionProviders.map((provider) => ({
+          key: `${provider.providerId}:subscription`,
+          title: subscriptionProviderLabel(provider.providerId),
+          value: provider.summary,
+          leading: { kind: 'icon', icon: 'Link' },
+          disabled: applying || !queries.botReady || !providerKeysReady,
+          onPress: () =>
+            navigate('BotOpenAISubscription', {
+              provider: provider.providerId,
+            }),
+        }))
+      : apiKeyProviders.map((option) => ({
+          key: option.id,
+          title: option.label,
+          value: queries.providerConfig.keys?.[option.id]
+            ? safeKeySummary(queries.providerConfig, option.id)
+            : 'Add key',
+          leading: { kind: 'icon', icon: 'Lock' },
+          disabled: applying || !providerKeysReady,
+          onPress: () => navigate('BotApiKeySettings', { provider: option.id }),
+        }));
+
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader
-        borderBottom
-        backAction={isWindowNarrow ? handleBack : undefined}
-        title={meta.title}
-        placement="navigation"
-      />
-      <SettingsContentScrollView
-        paddingHorizontal="$l"
-        paddingTop="$l"
-        safeAreaBottomOffset={24}
-      >
-        <BotSettingsSection subtitle={meta.description}>
-          {kind === 'subscriptions'
-            ? subscriptionProviders.map((provider, index) => (
-                <YStack key={`${provider.providerId}:subscription`}>
-                  {index > 0 ? <BotSettingsDivider /> : null}
-                  <BotSettingsRow
-                    label={subscriptionProviderLabel(provider.providerId)}
-                    value={provider.summary}
-                    valueColor={provider.connected ? '$primaryText' : undefined}
-                    icon="Link"
-                    disabled={
-                      applying || !queries.botReady || !providerKeysReady
-                    }
-                    onPress={() =>
-                      navigate('BotOpenAISubscription', {
-                        provider: provider.providerId,
-                      })
-                    }
-                  />
-                </YStack>
-              ))
-            : apiKeyProviders.map((option, index) => (
-                <YStack key={option.id}>
-                  {index > 0 ? <BotSettingsDivider /> : null}
-                  <BotSettingsRow
-                    label={option.label}
-                    value={
-                      queries.providerConfig.keys?.[option.id]
-                        ? safeKeySummary(queries.providerConfig, option.id)
-                        : 'Add key'
-                    }
-                    icon="Lock"
-                    disabled={applying || !providerKeysReady}
-                    onPress={() =>
-                      navigate('BotApiKeySettings', { provider: option.id })
-                    }
-                  />
-                </YStack>
-              ))}
-        </BotSettingsSection>
-      </SettingsContentScrollView>
-    </View>
+    <SettingsListScreenView
+      title={meta.title}
+      sections={[{ key: kind, footer: meta.description, rows }]}
+      onBackPressed={handleBack}
+    />
   );
 }
