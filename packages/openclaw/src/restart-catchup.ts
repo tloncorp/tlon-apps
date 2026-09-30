@@ -188,6 +188,11 @@ export function createRestartCatchupCoordinator(
   let lifecycle: AbortController | undefined;
   let task: Promise<void> | undefined;
   let started = false;
+  // Resolves once this gateway start's catch-up is over, whether it ran,
+  // was skipped, failed, or was stopped. The monitor holds activity reads
+  // until then; see monitor/activity-read.ts.
+  let settle!: () => void;
+  let settled = new Promise<void>((resolve) => (settle = resolve));
 
   const attachMonitor = (accountId: string, config: OpenClawConfig) => {
     // Catch-up supports one runnable account. A reload can rename that account,
@@ -207,6 +212,7 @@ export function createRestartCatchupCoordinator(
         monitor.abort.abort();
         if (activeMonitor === monitor) activeMonitor = undefined;
       },
+      settled: () => settled,
     };
   };
 
@@ -215,7 +221,10 @@ export function createRestartCatchupCoordinator(
     started = true;
     const abort = new AbortController();
     lifecycle = abort;
-    if (!isRestartCatchupEnabled(ctx.config)) return;
+    if (!isRestartCatchupEnabled(ctx.config)) {
+      settle();
+      return;
+    }
 
     // Hosted catch-up uses the bot's CLI credentials and one owner. Do not
     // run the checklist against an ambiguous multi-account transport.
@@ -230,6 +239,7 @@ export function createRestartCatchupCoordinator(
       ctx.logger.warn(
         '[tlon] Restart catch-up skipped: requires one configured Tlon account with an owner'
       );
+      settle();
       return;
     }
 
@@ -411,6 +421,7 @@ export function createRestartCatchupCoordinator(
         }
       })
       .finally(() => {
+        settle();
         clearTimeout(timer);
         if (timedOut) {
           ctx.logger.error(
@@ -428,6 +439,7 @@ export function createRestartCatchupCoordinator(
       stoppedLifecycle?.abort();
       activeMonitor?.abort.abort();
       activeMonitor = undefined;
+      settle();
       // gateway_stop awaits this promise before tearing down the runtime.
       // Keep the startup latch set until the run and transcript cleanup settle.
       await task;
@@ -435,6 +447,7 @@ export function createRestartCatchupCoordinator(
         lifecycle = undefined;
         task = undefined;
         started = false;
+        settled = new Promise<void>((resolve) => (settle = resolve));
       }
     },
   };

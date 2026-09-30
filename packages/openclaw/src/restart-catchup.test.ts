@@ -188,6 +188,56 @@ describe('restart catch-up', () => {
     expect(f.run).toHaveBeenCalledTimes(1);
   });
 
+  describe('settled (activity reads wait on it)', () => {
+    const isSettled = async (promise: Promise<void>) => {
+      let done = false;
+      void promise.then(() => (done = true));
+      await vi.advanceTimersByTimeAsync(0);
+      return done;
+    };
+
+    it('settles right away when catch-up is disabled', async () => {
+      const f = fixture(config(false));
+      const settled = f.monitor.settled();
+      f.coordinator.start(f.ctx);
+      expect(await isSettled(settled)).toBe(true);
+    });
+
+    it('stays pending until gateway_start, then until the catch-up run ends', async () => {
+      const f = fixture();
+      const settled = f.monitor.settled();
+      const run = deferred<{ meta: object }>();
+      f.run.mockReturnValue(run.promise);
+      expect(await isSettled(settled)).toBe(false);
+
+      f.ready();
+      f.coordinator.start(f.ctx);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(f.run).toHaveBeenCalledTimes(1);
+      expect(await isSettled(settled)).toBe(false);
+
+      run.resolve({ meta: {} });
+      expect(await isSettled(settled)).toBe(true);
+    });
+
+    it('settles when the catch-up run fails', async () => {
+      const f = fixture();
+      const settled = f.monitor.settled();
+      f.run.mockRejectedValue(new Error('model down'));
+      f.ready();
+      f.coordinator.start(f.ctx);
+      expect(await isSettled(settled)).toBe(true);
+    });
+
+    it('settles on stop and re-arms for the next gateway start', async () => {
+      const f = fixture();
+      const first = f.monitor.settled();
+      await f.coordinator.stop();
+      expect(await isSettled(first)).toBe(true);
+      expect(await isSettled(f.monitor.settled())).toBe(false);
+    });
+  });
+
   it('marks existing activity read instead of running the first catch-up with read tracking', async () => {
     const f = fixture();
     f.readSettings.mockResolvedValue(settings(true, false));

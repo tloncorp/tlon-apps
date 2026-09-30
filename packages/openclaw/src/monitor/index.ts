@@ -332,6 +332,9 @@ export type MonitorTlonOpts = {
   abortSignal?: AbortSignal;
   accountId?: string | null;
   onReady?: (connection: RestartCatchupConnection) => void;
+  /** Resolves when restart catch-up is over; activity reads wait for it.
+   * Absent means there is no catch-up to wait for. */
+  activityReadsReady?: Promise<void>;
   /**
    * Channel-start config snapshot (the gateway adapter's `ctx.cfg`), used
    * instead of an independent `core.config.loadConfig()` call so
@@ -925,9 +928,29 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     const activityReads = createActivityReadTracker({
       poke: (params) => api!.poke(params),
       isStopping: () => Boolean(opts.abortSignal?.aborted),
+      ready: opts.activityReadsReady ?? Promise.resolve(),
       onError: (error) =>
         runtime.log?.(`[tlon] Failed to mark activity read: ${String(error)}`),
     });
+    // A channel read needs the channel's group. The startup init scry can fail
+    // and, with discovery off, nothing retries it; refresh the mapping (at
+    // most once a minute) when a message arrives in an unmapped channel.
+    let lastChannelGroupRefresh = 0;
+    const refreshChannelGroups = () => {
+      if (Date.now() - lastChannelGroupRefresh < 60_000) return;
+      lastChannelGroupRefresh = Date.now();
+      void fetchInitData(api!, runtime, { signal: opts.abortSignal })
+        .then((initData) => {
+          for (const [nest, groupFlag] of initData.channelToGroup) {
+            channelToGroup.set(nest, groupFlag);
+          }
+        })
+        .catch((error) =>
+          runtime.log?.(
+            `[tlon] Failed to refresh channel groups: ${String(error)}`
+          )
+        );
+    };
     let groupChannels: string[] = [];
     const channelToGroup = new Map<string, string>();
     // Every nest discovery has reported, recorded outside any "not already
@@ -4298,7 +4321,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         if (!processedTracker.mark(messageId)) {
           return;
         }
-        endActivityRead = activityReads.begin(
+        if (!channelToGroup.has(nest)) refreshChannelGroups();
+        endActivityRead = activityReads.begin(`channel/${nest}`, () =>
           channelReadSource(nest, channelToGroup.get(nest))
         );
 
@@ -4937,7 +4961,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         if (!processedTracker.mark(effectiveMessageId)) {
           return;
         }
-        endActivityRead = activityReads.begin(dmReadSource(whom));
+        endActivityRead = activityReads.begin(`dm/${whom}`, () =>
+          dmReadSource(whom)
+        );
 
         const authorShip = normalizeShip(extractAuthorShip(dmContent.author));
         const partnerShip = extractDmPartnerShip(whom);
@@ -6130,8 +6156,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         opts.onReady?.({
           isConnected: () => api.isConnected,
           readSettings: (signal) => api.scry('/settings/all.json', { signal }),
-          establishActivityReadBaseline: async () => {
+          establishActivityReadBaseline: async (signal) => {
+            signal.throwIfAborted();
             await api.poke(activityReadPoke({ base: null }));
+            signal.throwIfAborted();
             await api.poke({
               app: 'settings',
               mark: 'settings-event',
