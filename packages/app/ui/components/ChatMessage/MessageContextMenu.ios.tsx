@@ -65,6 +65,7 @@ export function MessageContextMenu(props: MessageContextMenuProps) {
 function EnabledMessageContextMenu({
   children,
   previewKey,
+  bubbleLayout,
   post,
   postActionIds,
   canReact,
@@ -135,7 +136,9 @@ function EnabledMessageContextMenu({
     ? JSON.stringify([post.id, 'moreReactions'])
     : undefined;
   const alignment = post.authorId === currentUserId ? 'trailing' : 'leading';
-  const previewBackgroundColor = theme.secondaryBackground.val;
+  const previewBackgroundColor = bubbleLayout
+    ? theme.background.val
+    : theme.secondaryBackground.val;
   const contactPresentationKey = useMemo(
     () =>
       [post.authorId, ...(post.replyContactIds ?? [])].map((contactId) => {

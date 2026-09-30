@@ -138,6 +138,7 @@ const ChatMessage = ({
           displayDebugMode,
           searchQuery,
         ])}
+        bubbleLayout={bubbleLayout}
         post={post}
         postActionIds={postActionIds}
         canReact={canWrite}
