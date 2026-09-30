@@ -131,6 +131,12 @@ import {
   resolveTlonSkillVersion,
 } from '../version.js';
 import {
+  activityReadPoke,
+  channelReadSource,
+  createActivityReadTracker,
+  dmReadSource,
+} from './activity-read.js';
+import {
   type OnboardingStepReport,
   createAgentOnboardingCatchUpScheduler,
   createAgentOnboardingReconciliationPresence,
@@ -914,6 +920,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     };
 
     const processedTracker = createProcessedMessageTracker(2000);
+    // Marks each channel/DM read once its messages are handled, so restart
+    // catch-up's `tlon activity --unread` only sees what the bot never got to.
+    const activityReads = createActivityReadTracker({
+      poke: (params) => api!.poke(params),
+      isStopping: () => Boolean(opts.abortSignal?.aborted),
+      onError: (error) =>
+        runtime.log?.(`[tlon] Failed to mark activity read: ${String(error)}`),
+    });
     let groupChannels: string[] = [];
     const channelToGroup = new Map<string, string>();
     // Every nest discovery has reported, recorded outside any "not already
@@ -4136,6 +4150,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
     // Firehose handler for all channel messages (/v4)
     const handleChannelsFirehose = async (event: ChannelFirehoseEvent) => {
+      let endActivityRead: (() => void) | undefined;
       try {
         const nest = event?.nest;
 
@@ -4283,6 +4298,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         if (!processedTracker.mark(messageId)) {
           return;
         }
+        endActivityRead = activityReads.begin(
+          channelReadSource(nest, channelToGroup.get(nest))
+        );
 
         const senderShip = normalizeShip(extractAuthorShip(content?.author));
         if (!senderShip) {
@@ -4688,6 +4706,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         runtime.error?.(
           `[tlon] Error handling channel firehose event: ${error?.message ?? String(error)}`
         );
+      } finally {
+        endActivityRead?.();
       }
     };
 
@@ -4696,6 +4716,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     const processedDmInvites = new Set<string>();
 
     const handleChatFirehose = async (event: ChatFirehoseEvent) => {
+      let endActivityRead: (() => void) | undefined;
       try {
         // Handle DM invite lists (arrays)
         if (Array.isArray(event)) {
@@ -4916,6 +4937,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         if (!processedTracker.mark(effectiveMessageId)) {
           return;
         }
+        endActivityRead = activityReads.begin(dmReadSource(whom));
 
         const authorShip = normalizeShip(extractAuthorShip(dmContent.author));
         const partnerShip = extractDmPartnerShip(whom);
@@ -5115,6 +5137,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         runtime.error?.(
           `[tlon] Error handling chat firehose event: ${error?.message ?? String(error)}`
         );
+      } finally {
+        endActivityRead?.();
       }
     };
 
@@ -6106,6 +6130,21 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         opts.onReady?.({
           isConnected: () => api.isConnected,
           readSettings: (signal) => api.scry('/settings/all.json', { signal }),
+          establishActivityReadBaseline: async () => {
+            await api.poke(activityReadPoke({ base: null }));
+            await api.poke({
+              app: 'settings',
+              mark: 'settings-event',
+              json: {
+                'put-entry': {
+                  desk: 'moltbot',
+                  'bucket-key': 'tlon',
+                  'entry-key': 'activityReadBaseline',
+                  value: true,
+                },
+              },
+            });
+          },
         });
       }
       // The groupChannels journal's first trusted base: a fresh load taken

@@ -31,6 +31,10 @@ function waitForRetry(ms: number, signal: AbortSignal): Promise<void> {
 export interface RestartCatchupConnection {
   isConnected: () => boolean;
   readSettings: (signal: AbortSignal) => Promise<unknown>;
+  /** Mark all existing activity read and record that in settings, so the
+   * first catch-up after read tracking ships doesn't treat every past
+   * mention as missed. */
+  establishActivityReadBaseline: (signal: AbortSignal) => Promise<void>;
 }
 
 type StartupContext = Pick<OpenClawPluginApi, 'runtime' | 'logger'> & {
@@ -138,6 +142,16 @@ export function isRestartCatchupEnabled(config: OpenClawConfig): boolean {
 /** Read the same authenticated settings snapshot as `tlon settings get`.
  * A failed/malformed read is not evidence that onboarding is incomplete. */
 export function readBootstrapComplete(raw: unknown): boolean {
+  return readTlonSetting(raw, 'bootstrapComplete');
+}
+
+/** Whether the plugin has marked pre-existing activity read. Until it has,
+ * `tlon activity --unread` can't tell missed messages from old ones. */
+export function readActivityReadBaseline(raw: unknown): boolean {
+  return readTlonSetting(raw, 'activityReadBaseline');
+}
+
+function readTlonSetting(raw: unknown, key: string): boolean {
   if (
     !raw ||
     typeof raw !== 'object' ||
@@ -151,7 +165,7 @@ export function readBootstrapComplete(raw: unknown): boolean {
     string,
     Record<string, Record<string, unknown>>
   >;
-  const value = all.moltbot?.tlon?.bootstrapComplete;
+  const value = all.moltbot?.tlon?.[key];
   return value === true || value === 'true';
 }
 
@@ -250,10 +264,11 @@ export function createRestartCatchupCoordinator(
             return;
           const signal = AbortSignal.any([abort.signal, monitor.abort.signal]);
           let complete: boolean;
+          let hasReadBaseline: boolean;
           try {
-            complete = readBootstrapComplete(
-              await connection.readSettings(signal)
-            );
+            const settings = await connection.readSettings(signal);
+            complete = readBootstrapComplete(settings);
+            hasReadBaseline = readActivityReadBaseline(settings);
           } catch (error) {
             if (!signal.aborted) lastReadError = error;
             await waitForRetry(retryMs, abort.signal);
@@ -270,6 +285,13 @@ export function createRestartCatchupCoordinator(
           if (!complete) {
             ctx.logger.info(
               '[tlon] Restart catch-up skipped: bootstrap is incomplete'
+            );
+            return;
+          }
+          if (!hasReadBaseline) {
+            await connection.establishActivityReadBaseline(signal);
+            ctx.logger.info(
+              '[tlon] Restart catch-up skipped: marked existing activity read for the first run with read tracking'
             );
             return;
           }

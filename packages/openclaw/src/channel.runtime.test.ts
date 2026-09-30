@@ -462,7 +462,11 @@ describe('gateway startup catch-up wiring', () => {
     const pending = new Promise<void>((resolve) => {
       finish = resolve;
     });
-    const connection = { isConnected: () => true, readSettings: vi.fn() };
+    const connection = {
+      isConnected: () => true,
+      readSettings: vi.fn(),
+      establishActivityReadBaseline: vi.fn(),
+    };
     vi.mocked(monitorTlonProvider).mockImplementationOnce(async (opts) => {
       opts?.onReady?.(connection);
       await pending;

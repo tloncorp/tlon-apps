@@ -34,8 +34,10 @@ const config = (
     },
   },
 });
-const settings = (value: unknown = true) => ({
-  all: { moltbot: { tlon: { bootstrapComplete: value } } },
+const settings = (value: unknown = true, activityReadBaseline = true) => ({
+  all: {
+    moltbot: { tlon: { bootstrapComplete: value, activityReadBaseline } },
+  },
 });
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -83,7 +85,12 @@ function fixture(cfg = config()) {
   });
   const readSettings = vi.fn().mockResolvedValue(settings());
   const isConnected = vi.fn().mockReturnValue(true);
-  const connection = { readSettings, isConnected };
+  const establishActivityReadBaseline = vi.fn().mockResolvedValue(undefined);
+  const connection = {
+    readSettings,
+    isConnected,
+    establishActivityReadBaseline,
+  };
   const monitor = coordinator.attachMonitor('default', cfg);
   const ready = () => monitor.connected(connection);
   return {
@@ -94,6 +101,7 @@ function fixture(cfg = config()) {
     readChecklist,
     readSettings,
     isConnected,
+    establishActivityReadBaseline,
     monitor,
     connection,
     ready,
@@ -178,6 +186,43 @@ describe('restart catch-up', () => {
     f.coordinator.start(f.ctx);
     await vi.advanceTimersByTimeAsync(0);
     expect(f.run).toHaveBeenCalledTimes(1);
+  });
+
+  it('marks existing activity read instead of running the first catch-up with read tracking', async () => {
+    const f = fixture();
+    f.readSettings.mockResolvedValue(settings(true, false));
+    f.ready();
+    f.coordinator.start(f.ctx);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(f.establishActivityReadBaseline).toHaveBeenCalledTimes(1);
+    expect(f.run).not.toHaveBeenCalled();
+    expect(f.readChecklist).not.toHaveBeenCalled();
+    expect(f.logger.error).not.toHaveBeenCalled();
+  });
+
+  it('runs catch-up without re-marking once the read baseline exists', async () => {
+    const f = fixture();
+    f.ready();
+    f.coordinator.start(f.ctx);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(f.establishActivityReadBaseline).not.toHaveBeenCalled();
+    expect(f.run).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports a failed read baseline without running catch-up', async () => {
+    const f = fixture();
+    f.readSettings.mockResolvedValue(settings(true, false));
+    f.establishActivityReadBaseline.mockRejectedValue(new Error('nack'));
+    f.ready();
+    f.coordinator.start(f.ctx);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(f.run).not.toHaveBeenCalled();
+    expect(f.logger.error).toHaveBeenCalledWith(
+      expect.stringContaining('Restart catch-up failed: Error: nack')
+    );
   });
 
   it.each([false, undefined, 'false', 1, 'yes'])(
@@ -280,7 +325,11 @@ describe('restart catch-up', () => {
       config(true, { accounts: { disabled: { enabled: false } } })
     );
     const readSettings = vi.fn().mockResolvedValue(settings());
-    replacement.connected({ readSettings, isConnected: () => true });
+    replacement.connected({
+      readSettings,
+      isConnected: () => true,
+      establishActivityReadBaseline: vi.fn().mockResolvedValue(undefined),
+    });
     f.monitor.stop();
     pending.resolve(settings());
     await vi.advanceTimersByTimeAsync(1_000);
@@ -301,7 +350,11 @@ describe('restart catch-up', () => {
     const replacement = f.coordinator.attachMonitor('renamed', nextConfig);
     expect(f.readSettings.mock.calls[0][0].aborted).toBe(true);
     const readSettings = vi.fn().mockResolvedValue(settings());
-    replacement.connected({ readSettings, isConnected: () => true });
+    replacement.connected({
+      readSettings,
+      isConnected: () => true,
+      establishActivityReadBaseline: vi.fn().mockResolvedValue(undefined),
+    });
     f.monitor.stop();
     pending.resolve(settings());
     await vi.advanceTimersByTimeAsync(1_000);
@@ -377,7 +430,11 @@ describe('restart catch-up', () => {
     expect(f.readSettings).toHaveBeenCalledTimes(1);
     const replacement = f.coordinator.attachMonitor('default', f.ctx.config);
     const readSettings = vi.fn().mockResolvedValue(settings());
-    replacement.connected({ readSettings, isConnected: () => true });
+    replacement.connected({
+      readSettings,
+      isConnected: () => true,
+      establishActivityReadBaseline: vi.fn().mockResolvedValue(undefined),
+    });
     pending.resolve();
     await vi.advanceTimersByTimeAsync(0);
     expect(readSettings).toHaveBeenCalledTimes(1);
