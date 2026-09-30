@@ -71,6 +71,7 @@ const INVALID_OPERATION = 'invalid';
 
 const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
   ['activity', new Set(['mentions', 'replies', 'all', 'unreads'])],
+  ['browser', new Set(['handoff'])],
   [
     'channels',
     new Set([
@@ -277,9 +278,47 @@ export function findTlonSubcommandIndex(args: string[]): number {
   return findFirstPositionalArgumentIndex(args, 0, CREDENTIAL_FLAGS_WITH_VALUE);
 }
 
+export function isBrowserHandoffCommand(args: string[]): boolean {
+  const subIdx = findTlonSubcommandIndex(args);
+  return (
+    args[subIdx]?.toLowerCase() === 'browser' &&
+    args[subIdx + 1]?.toLowerCase() === 'handoff'
+  );
+}
+
+function hasCredentialOverride(args: string[]): boolean {
+  return args.some((arg) =>
+    CREDENTIAL_FLAGS_WITH_VALUE.has(arg.split('=', 1)[0])
+  );
+}
+
+export function redactBrowserHandoffCommand(command: string): string {
+  const args = shellSplitCommand(command);
+  let subIdx = findTlonSubcommandIndex(args);
+  if (args[subIdx]?.toLowerCase() === 'tlon') {
+    subIdx = findFirstPositionalArgumentIndex(
+      args,
+      subIdx + 1,
+      CREDENTIAL_FLAGS_WITH_VALUE
+    );
+  }
+  if (
+    args[subIdx]?.toLowerCase() === 'browser' &&
+    args[subIdx + 1]?.toLowerCase() === 'handoff'
+  ) {
+    // Keep only the operation: arguments can carry a signed viewer capability.
+    return 'browser handoff [REDACTED]';
+  }
+  return command;
+}
+
 export type BlockedTlonOperation = {
   message: string;
-  reason: 'diary_operation' | 'migration_operation' | 'send_operation';
+  reason:
+    | 'diary_operation'
+    | 'migration_operation'
+    | 'send_operation'
+    | 'browser_account_override';
   diaryNest?: string;
 };
 
@@ -291,6 +330,13 @@ export type BlockedTlonOperation = {
 export function checkBlockedTlonOperation(
   args: string[]
 ): BlockedTlonOperation | null {
+  if (isBrowserHandoffCommand(args) && hasCredentialOverride(args)) {
+    return {
+      message:
+        'Browser handoff does not allow credential overrides. Use the configured Tlon account.',
+      reason: 'browser_account_override',
+    };
+  }
   const subIdx = findTlonSubcommandIndex(args);
   const commandArgs = subIdx >= 0 ? args.slice(subIdx) : [];
   const migration = checkBlockedMigrationOperation(commandArgs);
@@ -322,11 +368,7 @@ const HELP_TOKENS = new Set(['-h', '--help']);
  * credentials, exactly as the model wrote it.
  */
 export function shouldInjectOwnerCredentials(args: string[]): boolean {
-  for (const arg of args) {
-    const equalsIndex = arg.indexOf('=');
-    const flag = equalsIndex >= 0 ? arg.slice(0, equalsIndex) : arg;
-    if (CREDENTIAL_FLAGS_WITH_VALUE.has(flag)) return false;
-  }
+  if (hasCredentialOverride(args)) return false;
 
   const subIdx = findTlonSubcommandIndex(args);
   if (subIdx < 0) return false;
@@ -524,6 +566,8 @@ function summarizeKnownTlonCommand(
   switch (subcommand) {
     case 'activity':
       return build('read');
+    case 'browser':
+      return build('write');
     case 'channels':
       return summarizeChannelsOperation(operation, remainder, build);
     case 'contacts':

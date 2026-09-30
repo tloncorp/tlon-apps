@@ -1,4 +1,8 @@
 import { spawn } from 'node:child_process';
+import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
+
+import { normalizeShip } from './targets.js';
+import { listRunnableTlonAccountIds, resolveTlonAccount } from './types.js';
 
 export const DEFAULT_TLON_CLI_TIMEOUT_MS = 45_000;
 
@@ -33,8 +37,44 @@ export type TlonCommandDeadlineOutput = {
 
 export type TlonCommandRunnerOptions = {
   timeoutMs?: number;
+  /** Trusted owner from the active OpenClaw account, not tool arguments. */
+  ownerShip?: string;
   onDeadline?: (output: TlonCommandDeadlineOutput) => void;
 };
+
+/** Browser capabilities require credentials and owner from one unambiguous account. */
+export function runBrowserHandoffCommand(
+  binary: string,
+  args: string[],
+  config: OpenClawConfig
+): Promise<string> {
+  const accountIds = listRunnableTlonAccountIds(config);
+  if (accountIds.length !== 1) {
+    throw new Error(
+      'Browser handoff requires exactly one enabled, configured Tlon account.'
+    );
+  }
+  const account = resolveTlonAccount(config, accountIds[0]);
+  const ownerShip = normalizeShip(account.ownerShip ?? '');
+  if (!account.ship || !account.url || !account.code || !ownerShip) {
+    throw new Error(
+      'Browser handoff requires bot credentials and a configured owner.'
+    );
+  }
+  return runTlonCommand(
+    binary,
+    args,
+    {
+      ship: account.ship,
+      url: account.url,
+      code: account.code,
+    },
+    {
+      ownerShip,
+      timeoutMs: account.lifecycle.toolTimeoutMs ?? DEFAULT_TLON_CLI_TIMEOUT_MS,
+    }
+  );
+}
 
 /**
  * Run the tlon command and return the result.
@@ -47,6 +87,9 @@ export function runTlonCommand(
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const env = { ...process.env };
+    if (options?.ownerShip !== undefined) {
+      env.TLON_OWNER_SHIP = options.ownerShip;
+    }
     if (credentials) {
       for (const key of EXPLICIT_CREDENTIAL_ENV_KEYS_TO_CLEAR) {
         delete env[key];
