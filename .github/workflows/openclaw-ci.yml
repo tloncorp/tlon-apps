@@ -68,7 +68,7 @@ jobs:
     # + upload, so a step that runs to its cap hits a *step* timeout (a step
     # failure), never this job timeout (a cancellation) — the capture steps
     # below then still run with the orphaned stack alive.
-    timeout-minutes: 65
+    timeout-minutes: 75
     strategy:
       fail-fast: false
       matrix:
