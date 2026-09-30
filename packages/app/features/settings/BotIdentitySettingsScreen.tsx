@@ -4,6 +4,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
+import {
+  getSettingsListHeaderColor,
+  settingsListPageColor,
+} from '../../ui/components/SettingsList';
 import { ScreenHeader, SettingsContentScrollView, TextInput } from '../../ui';
 import {
   BotSettingsApplyBar,
@@ -23,8 +27,9 @@ export function BotIdentitySettingsScreen(props: Props) {
   }, [props.navigation]);
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
+    <View flex={1} backgroundColor={settingsListPageColor}>
       <ScreenHeader
+        backgroundColor={getSettingsListHeaderColor()}
         borderBottom
         backAction={isWindowNarrow ? handleBack : undefined}
         title="Identity"

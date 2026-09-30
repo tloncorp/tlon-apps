@@ -6,7 +6,7 @@ import {
   Pressable,
   Text,
 } from '@tloncorp/ui';
-import { PropsWithChildren, ReactNode } from 'react';
+import { ComponentProps, PropsWithChildren, ReactNode } from 'react';
 import { Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, XStack, YStack } from 'tamagui';
@@ -20,10 +20,17 @@ import {
   SettingsSection,
 } from '../../../ui/components/SettingsSection';
 
-export const BotSettingsSection = SettingsSection;
-export const BotSettingsDivider = SettingsDivider;
+/** Bot settings forms sit beside the native settings lists, so group like them. */
+export function BotSettingsSection(
+  props: Omit<ComponentProps<typeof SettingsSection>, 'variant'>
+) {
+  return <SettingsSection variant="grouped" {...props} />;
+}
+export function BotSettingsDivider() {
+  return <SettingsDivider variant="grouped" />;
+}
 
-export function BotSettingsRow({
+function BotSettingsRow({
   label,
   value,
   valueColor = '$tertiaryText',
@@ -147,7 +154,7 @@ export function BotSwitchRow({
   );
 }
 
-export function PendingBadge() {
+function PendingBadge() {
   return <Badge text="Pending" type="warning" size="micro" />;
 }
 

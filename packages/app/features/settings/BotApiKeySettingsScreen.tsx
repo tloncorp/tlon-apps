@@ -12,6 +12,10 @@ import { View, XStack, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
 import {
+  getSettingsListHeaderColor,
+  settingsListPageColor,
+} from '../../ui/components/SettingsList';
+import {
   Field,
   ScreenHeader,
   SettingsContentScrollView,
@@ -189,8 +193,9 @@ export function BotApiKeySettingsScreen(props: Props) {
       : null);
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
+    <View flex={1} backgroundColor={settingsListPageColor}>
       <ScreenHeader
+        backgroundColor={getSettingsListHeaderColor()}
         borderBottom
         backAction={isWindowNarrow ? handleBack : undefined}
         title={`${provider.label} API key`}
