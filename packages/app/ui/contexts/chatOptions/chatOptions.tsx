@@ -13,6 +13,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { Platform } from 'react-native';
 
 import { ChatOptionsSheet } from '../../components/ChatOptionsSheet';
 import { InviteUsersSheet } from '../../components/InviteUsersSheet';
@@ -73,6 +74,19 @@ export const ChatOptionsProvider = ({
   const sheetGenerationRef = useRef(0);
   const sheetOpenRef = useRef(false);
   const [inviteSheetOpen, setInviteSheetOpen] = useState(false);
+  const [inviteGroupId, setInviteGroupId] = useState<string>();
+  const pendingInvite = useRef<{ generation: number; groupId: string } | null>(
+    null
+  );
+  const inviteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelPendingInvite = useCallback(() => {
+    pendingInvite.current = null;
+    if (inviteTimer.current !== null) {
+      clearTimeout(inviteTimer.current);
+      inviteTimer.current = null;
+    }
+  }, []);
+  useEffect(() => cancelPendingInvite, [cancelPendingInvite]);
   const [leaveChannelDialogOpen, setLeaveChannelDialogOpen] = useState(false);
   const [leaveChannelTitle, setLeaveChannelTitle] = useState<string | null>(
     null
@@ -89,6 +103,7 @@ export const ChatOptionsProvider = ({
   const openSheet = useCallback(
     (chatId: string, chatType: 'group' | 'channel') => {
       trackEvent(AnalyticsEvent.ChatOptionsOpened, { type: chatType });
+      cancelPendingInvite();
       const generation = sheetGenerationRef.current + 1;
       sheetGenerationRef.current = generation;
       setChat({
@@ -99,7 +114,7 @@ export const ChatOptionsProvider = ({
       sheetOpenRef.current = true;
       setSheetOpen(true);
     },
-    []
+    [cancelPendingInvite]
   );
 
   const closeInviteSheet = useCallback(() => {
@@ -124,6 +139,12 @@ export const ChatOptionsProvider = ({
 
     setChat(null);
     setSheetMountGeneration(null);
+    const invite = pendingInvite.current;
+    pendingInvite.current = null;
+    if (invite?.generation === generation) {
+      setInviteGroupId(invite.groupId);
+      setInviteSheetOpen(true);
+    }
   }, []);
 
   const updateChat = useCallback(
@@ -147,11 +168,12 @@ export const ChatOptionsProvider = ({
 
   useEffect(() => {
     if (!isWindowNarrow) {
+      cancelPendingInvite();
       sheetOpenRef.current = false;
       setSheetOpen(false);
       setSheetMountGeneration(null);
     }
-  }, [isWindowNarrow]);
+  }, [isWindowNarrow, cancelPendingInvite]);
 
   const isChannel = chat?.type === 'channel';
   const isGroup = chat?.type === 'group';
@@ -323,13 +345,36 @@ export const ChatOptionsProvider = ({
         onPressInvite?.(groupId);
       } else {
         // if not handled by the parent, open built in invite sheet
+        cancelPendingInvite();
+        if (
+          Platform.OS === 'ios' &&
+          isWindowNarrow &&
+          sheetOpenRef.current &&
+          sheetMountGeneration !== null
+        ) {
+          pendingInvite.current = {
+            generation: sheetMountGeneration,
+            groupId,
+          };
+          closeSheet();
+          return;
+        }
         closeSheet();
-        setTimeout(() => {
+        inviteTimer.current = setTimeout(() => {
+          inviteTimer.current = null;
+          setInviteGroupId(groupId);
           setInviteSheetOpen(true);
         }, 300);
       }
     }
-  }, [closeSheet, groupId, onPressInvite]);
+  }, [
+    closeSheet,
+    groupId,
+    onPressInvite,
+    cancelPendingInvite,
+    isWindowNarrow,
+    sheetMountGeneration,
+  ]);
 
   const handlePressChannelMeta = useCallback(() => {
     if (channelId) {
@@ -468,7 +513,7 @@ export const ChatOptionsProvider = ({
             open={inviteSheetOpen}
             onOpenChange={closeInviteSheet}
             onInviteComplete={() => closeInviteSheet()}
-            groupId={groupId}
+            groupId={inviteGroupId}
           />
         </>
       )}

@@ -10,6 +10,7 @@ import React, {
   forwardRef,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -21,12 +22,6 @@ import {
   BottomSheetScrollViewProps,
   BottomSheetWrapperProps,
 } from './BottomSheetWrapper.types';
-
-const ANIMATION_DURATIONS = {
-  quick: 250,
-  medium: 350,
-  slow: 500,
-} as const;
 
 /**
  * The single native sheet adapter. Expo UI delegates presentation, gestures,
@@ -43,7 +38,6 @@ export const BottomSheetWrapper = forwardRef<
       onDidOpen,
       onDismiss,
       children,
-      transition = 'quick',
       dismissOnSnapToBottom = true,
       snapPointsMode = 'fit',
       snapPoints,
@@ -61,7 +55,14 @@ export const BottomSheetWrapper = forwardRef<
     const [mounted, setMounted] = useState(open || !unmountOnClose);
     const [mountKey, setMountKey] = useState(0);
     const previousOpen = useRef(open);
-    const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const openRef = useRef(open);
+    const mountKeyRef = useRef(mountKey);
+    const dismissalHandled = useRef(!open);
+    useLayoutEffect(() => {
+      openRef.current = open;
+      mountKeyRef.current = mountKey;
+      if (open) dismissalHandled.current = false;
+    }, [open, mountKey]);
 
     const transformedSnapPoints = useMemo(() => {
       if (!snapPoints) return undefined;
@@ -85,6 +86,7 @@ export const BottomSheetWrapper = forwardRef<
     const handleChange = useCallback(
       (index: number) => {
         if (index === -1 && open && dismissOnSnapToBottom) {
+          openRef.current = false;
           onOpenChange(false);
         } else if (index >= 0 && open) {
           onDidOpen?.();
@@ -93,6 +95,19 @@ export const BottomSheetWrapper = forwardRef<
       [dismissOnSnapToBottom, onOpenChange, onDidOpen, open]
     );
 
+    const handleDismiss = useCallback(() => {
+      if (
+        openRef.current ||
+        mountKeyRef.current !== mountKey ||
+        dismissalHandled.current
+      ) {
+        return;
+      }
+      dismissalHandled.current = true;
+      if (unmountOnClose) setMounted(false);
+      onDismiss?.();
+    }, [mountKey, onDismiss, unmountOnClose]);
+
     useEffect(() => {
       if (!open) {
         Keyboard.dismiss();
@@ -100,11 +115,6 @@ export const BottomSheetWrapper = forwardRef<
     }, [open]);
 
     useEffect(() => {
-      if (closeTimer.current) {
-        clearTimeout(closeTimer.current);
-        closeTimer.current = null;
-      }
-
       if (!unmountOnClose) {
         setMounted(true);
         previousOpen.current = open;
@@ -116,21 +126,9 @@ export const BottomSheetWrapper = forwardRef<
         if (!previousOpen.current) {
           setMountKey((key) => key + 1);
         }
-      } else {
-        closeTimer.current = setTimeout(() => {
-          setMounted(false);
-          closeTimer.current = null;
-        }, ANIMATION_DURATIONS[transition] + 100);
       }
       previousOpen.current = open;
-
-      return () => {
-        if (closeTimer.current) {
-          clearTimeout(closeTimer.current);
-          closeTimer.current = null;
-        }
-      };
-    }, [open, transition, unmountOnClose]);
+    }, [open, unmountOnClose]);
 
     const contentStyle = useMemo(
       () => ({
@@ -164,7 +162,7 @@ export const BottomSheetWrapper = forwardRef<
         backgroundStyle={{ backgroundColor: theme.background.val }}
         style={frameStyle}
         onChange={handleChange}
-        onDismiss={onDismiss}
+        onDismiss={handleDismiss}
       >
         <View style={contentStyle} accessible={false}>
           {footerComponent ? (

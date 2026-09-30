@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useImperativeHandle } from 'react';
 import { act, create } from 'react-test-renderer';
 import {
   afterAll,
@@ -14,6 +14,7 @@ import {
 import type { ActionGroup } from './ActionSheet';
 import AttachmentSheet from './AttachmentSheet';
 import { BigInput } from './BigInput';
+import { InputToolbar } from './MessageInput/InputToolbar';
 
 const mocks = vi.hoisted(() => ({
   platform: { OS: 'ios' },
@@ -35,7 +36,7 @@ vi.mock('@tloncorp/shared', () => ({
   trackEvent: vi.fn(),
 }));
 vi.mock('@tloncorp/ui', () => ({
-  Button: Object.assign(() => null, { Frame: 'Button' }),
+  Button: Object.assign(() => null, { Frame: 'button' }),
   Icon: () => null,
   Image: () => null,
   Text: 'Text',
@@ -49,7 +50,12 @@ vi.mock('./Channel/ChannelHeader', () => ({
   useRegisterChannelHeaderItem: () => {},
 }));
 vi.mock('./MarkdownEditor', () => ({ MarkdownEditor: () => null }));
-vi.mock('./MessageInput', () => ({ MessageInput: () => null }));
+vi.mock('./MessageInput', () => ({
+  MessageInput: ({ ref }: { ref: React.Ref<unknown> }) => {
+    useImperativeHandle(ref, () => ({ editor: {} }));
+    return null;
+  },
+}));
 vi.mock('./MessageInput/InputToolbar', () => ({ InputToolbar: () => null }));
 vi.mock('./MessageInput/toolbarActions', () => ({ DEFAULT_TOOLBAR_ITEMS: [] }));
 vi.mock('react-native-keyboard-controller', () => ({
@@ -64,7 +70,7 @@ vi.mock('expo-image-picker', () => ({
 vi.mock('react-native', () => ({
   Platform: mocks.platform,
   Alert: { alert: vi.fn() },
-  TouchableOpacity: 'Button',
+  TouchableOpacity: 'button',
 }));
 vi.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ bottom: 0 }),
@@ -74,7 +80,11 @@ vi.mock('tamagui', () => ({
   Input: 'Input',
   XStack: 'View',
   getTokenValue: () => 16,
-  useTheme: () => ({ background: { val: '#fff' } }),
+  useTheme: () => ({
+    background: { val: '#fff' },
+    primaryText: { val: '#000' },
+    border: { val: '#ddd' },
+  }),
 }));
 vi.mock('../../utils/filepicker', () => ({
   pickFile: mocks.file,
@@ -281,9 +291,37 @@ describe('AttachmentSheet modal handoffs', () => {
           />
         );
       });
-      const sheet = () => tree.root.findAllByType(AttachmentSheet)[index];
-      expect(sheet().props.isOpen).toBe(false);
-      act(() => sheet().props.onOpenChange(true));
+      expect(tree!.root.findAllByType(AttachmentSheet)).toHaveLength(0);
+      act(() => {
+        if (index === 0) {
+          tree.root
+            .findAllByType('button')
+            .find(
+              (button) =>
+                button.findAll((node) =>
+                  node.children.includes('Add header image')
+                ).length > 0
+            )!
+            .props.onPress();
+        } else {
+          tree.root
+            .findAllByType('button')
+            .find((button) => button.props.right === 16)!
+            .props.onPress();
+        }
+      });
+      if (index === 1) {
+        act(() => {
+          const items = tree.root.findAllByType(InputToolbar)[0].props.items;
+          items
+            .find((item: { icon: string }) => item.icon === 'Camera')
+            .onPress({ editorState: { selection: { from: 0, to: 0 } } })();
+        });
+      }
+      // Opening either menu must not eagerly create the other one.
+      expect(tree!.root.findAllByType(AttachmentSheet)).toHaveLength(1);
+      const sheet = () => tree.root.findByType(AttachmentSheet);
+      expect(sheet().props.isOpen).toBe(true);
       const groups = sheet().find((node) => node.props.actionGroups != null)
         .props.actionGroups as ActionGroup[];
       act(() =>

@@ -289,32 +289,8 @@ index cb40643f08892111ce5ec119bc97770589ef14a0..38039da7f5f7753c3ec35413fd26ba08
      register("presentationBackgroundInteraction") { params, appContext, _ in
        return try PresentationBackgroundInteractionModifier(from: params, appContext: appContext)
      }
-diff --git a/src/community/bottom-sheet/README.md b/src/community/bottom-sheet/README.md
---- a/src/community/bottom-sheet/README.md
-+++ b/src/community/bottom-sheet/README.md
-@@ -100,7 +100,7 @@
- | `index` | Yes | `-1` = closed, `0+` = open at snap point. Default `-1` (gorhom defaults `0`). |
- | `onChange` | Yes | |
- | `onClose` | Yes | |
--| `onDismiss` | Yes | Alias for `onClose` (gorhom `BottomSheetModal` compat) |
-+| `onDismiss` | Yes | iOS: after native dismissal completes. Android: alias for `onClose`. |
- | `enablePanDownToClose` | Yes | iOS: enables swipe + backdrop tap. Android: swipe + back button + scrim tap. |
- | `enableDynamicSizing` | Yes | Fit-to-content when no `snapPoints`. Cannot combine with explicit snap points. |
- | `handleComponent` | Partial | `null` hides handle, non-null shows native/vaul handle. Custom components not rendered. |
-diff --git a/src/community/bottom-sheet/types.ts b/src/community/bottom-sheet/types.ts
---- a/src/community/bottom-sheet/types.ts
-+++ b/src/community/bottom-sheet/types.ts
-@@ -174,7 +174,7 @@
-   /**
-    * Callback when the bottom sheet is dismissed.
-    * Compatible with `@gorhom/bottom-sheet` `BottomSheetModal.onDismiss`.
--   * Alias for `onClose`.
-+   * iOS: fires after native dismissal completes. Android: alias for `onClose`.
-    */
-   onDismiss?: () => void;
- 
 diff --git a/src/community/bottom-sheet/BottomSheet.android.tsx b/src/community/bottom-sheet/BottomSheet.android.tsx
-index f60ae61bf0c9023d41c55cdca2d9af0de7291a92..ce188a8a9af463c46a0271b4b09d12af1e9f1f5b 100644
+index f60ae61bf0c9023d41c55cdca2d9af0de7291a92..47c0bb9a3bf585d2d39fab13c48a0158d2e3d6c6 100644
 --- a/src/community/bottom-sheet/BottomSheet.android.tsx
 +++ b/src/community/bottom-sheet/BottomSheet.android.tsx
 @@ -46,6 +46,23 @@ function findNearestSnapPointIndex(
@@ -362,7 +338,144 @@ index f60ae61bf0c9023d41c55cdca2d9af0de7291a92..ce188a8a9af463c46a0271b4b09d12af
    const skipPartially = fitToContents || !hasMultipleSnapPoints;
    const maxIndex = snapPointsProp ? snapPointsProp.length - 1 : 0;
    const containerColor = extractBackgroundColor(backgroundStyle);
-@@ -193,16 +214,23 @@ export function BottomSheet(props: BottomSheetProps) {
+@@ -89,6 +110,14 @@ export function BottomSheet(props: BottomSheetProps) {
+   // Guards fireCloseCallbacks against double-firing when programmatic hide and
+   // a native onDismissRequest race (e.g. swipe-dismiss during auto-close).
+   const closedRef = useRef(indexProp < 0);
++  const dismissedRef = useRef(indexProp < 0);
++  const operationRef = useRef(0);
++  const hidingRef = useRef(false);
++  const [mountKey, setMountKey] = useState(0);
++  const mountKeyRef = useRef(0);
++  useEffect(() => () => {
++    ++operationRef.current;
++  }, []);
+ 
+   // Stable callback refs
+   const onChangeRef = useRef(onChange);
+@@ -102,43 +131,73 @@ export function BottomSheet(props: BottomSheetProps) {
+     if (closedRef.current) return;
+     closedRef.current = true;
+     onCloseRef.current?.();
+-    onDismissRef.current?.();
+     onChangeRef.current?.(-1);
+   }, []);
+ 
++  const finishDismiss = useCallback(() => {
++    if (dismissedRef.current) return;
++    dismissedRef.current = true;
++    hidingRef.current = false;
++    isOpenRef.current = false;
++    pendingIndexRef.current = null;
++    setIsOpen(false);
++    fireCloseCallbacks();
++    onDismissRef.current?.();
++  }, [fireCloseCallbacks]);
++
++  const close = useCallback(() => {
++    if (!isOpenRef.current || hidingRef.current) return;
++    const operation = ++operationRef.current;
++    hidingRef.current = true;
++    pendingIndexRef.current = null;
++    fireCloseCallbacks();
++    // Keep the native host alive until Compose's hide animation completes.
++    const hidden = sheetRef.current?.hide() ?? Promise.resolve();
++    void hidden.then(() => {
++      if (operationRef.current === operation) finishDismiss();
++    });
++  }, [fireCloseCallbacks, finishDismiss]);
++
++  const open = useCallback(() => {
++    ++operationRef.current;
++    if (hidingRef.current || !isOpenRef.current) {
++      // New presentations must reject callbacks from the previous native host.
++      mountKeyRef.current += 1;
++      setMountKey(mountKeyRef.current);
++    }
++    hidingRef.current = false;
++    closedRef.current = false;
++    dismissedRef.current = false;
++    isOpenRef.current = true;
++    setIsOpen(true);
++  }, []);
++
+   // Sync with external index prop changes
+   useEffect(() => {
+     if (indexProp === -1) {
+-      pendingIndexRef.current = null;
+-      setIsOpen(false);
+-      fireCloseCallbacks();
++      close();
+     } else if (indexProp >= 0) {
+       pendingIndexRef.current = clampIndex(indexProp);
+-      closedRef.current = false;
+-      setIsOpen(true);
++      open();
+     }
+-  }, [clampIndex, indexProp, fireCloseCallbacks]);
++  }, [clampIndex, indexProp, close, open]);
+ 
+   const handleDismiss = useCallback(() => {
+-    setIsOpen(false);
+-    fireCloseCallbacks();
+-  }, [fireCloseCallbacks]);
++    if (mountKeyRef.current !== mountKey) return;
++    ++operationRef.current;
++    finishDismiss();
++  }, [finishDismiss, mountKey]);
+ 
+   const methods: BottomSheetMethods = useMemo(() => {
+     const snapToIndex = (index: number) => {
+       if (index === -1) {
+-        sheetRef.current?.hide().then(() => {
+-          setIsOpen(false);
+-          pendingIndexRef.current = null;
+-          fireCloseCallbacks();
+-        });
++        close();
+         return;
+       }
+       const clampedIndex = clampIndex(index);
+       pendingIndexRef.current = clampedIndex;
+-      closedRef.current = false;
+-      if (!isOpenRef.current) {
+-        setIsOpen(true);
++      if (!isOpenRef.current || hidingRef.current) {
++        open();
+       } else if (hasMultipleSnapPoints) {
+         // Native ModalBottomSheet has two states: partial (~50%) and expanded (full).
+         // Map index 0 → partialExpand(), last index → expand().
+@@ -152,14 +211,6 @@ export function BottomSheet(props: BottomSheetProps) {
+       onChangeRef.current?.(clampedIndex);
+     };
+ 
+-    const close = () => {
+-      sheetRef.current?.hide().then(() => {
+-        setIsOpen(false);
+-        pendingIndexRef.current = null;
+-        fireCloseCallbacks();
+-      });
+-    };
+-
+     return {
+       snapToIndex,
+       snapToPosition: (position: string | number) =>
+@@ -171,7 +222,7 @@ export function BottomSheet(props: BottomSheetProps) {
+       present: () => snapToIndex(0),
+       dismiss: close,
+     };
+-  }, [clampIndex, maxIndex, hasMultipleSnapPoints, fireCloseCallbacks, snapPointsProp]);
++  }, [clampIndex, maxIndex, hasMultipleSnapPoints, close, open, snapPointsProp]);
+ 
+   useImperativeHandle(ref, () => methods, [methods]);
+ 
+@@ -188,21 +239,29 @@ export function BottomSheet(props: BottomSheetProps) {
+       <BottomSheetContext.Provider value={methods}>
+         <Host style={{ position: 'absolute', width }} pointerEvents="none">
+           <ModalBottomSheet
++            key={mountKey}
+             ref={sheetRef}
+             onDismissRequest={handleDismiss}
              skipPartiallyExpanded={skipPartially}
              initialFullyExpanded={hasMultipleSnapPoints && pendingIndexRef.current === maxIndex}
              showDragHandle={handleComponent !== null}
@@ -390,10 +503,10 @@ index f60ae61bf0c9023d41c55cdca2d9af0de7291a92..ce188a8a9af463c46a0271b4b09d12af
                </View>
              </RNHostView>
 diff --git a/src/community/bottom-sheet/BottomSheet.ios.tsx b/src/community/bottom-sheet/BottomSheet.ios.tsx
-index 9908630d50d9a405688ae60c88f5e6638948420d..4dbe3244f77c8f8f0250bfa66e1364c52d3e64d3 100644
+index 9908630d50d9a405688ae60c88f5e6638948420d..84c55ed21eac7258d861bacd496faef11154b728 100644
 --- a/src/community/bottom-sheet/BottomSheet.ios.tsx
 +++ b/src/community/bottom-sheet/BottomSheet.ios.tsx
-@@ -117,6 +117,8 @@ export function BottomSheet(props: BottomSheetProps) {
+@@ -117,13 +117,14 @@ export function BottomSheet(props: BottomSheetProps) {
  
    const selectedDetent = detents[currentIndex] ?? detents[0];
    const fitToContents = enableDynamicSizing && (!snapPointsProp || snapPointsProp.length === 0);
@@ -402,7 +515,6 @@ index 9908630d50d9a405688ae60c88f5e6638948420d..4dbe3244f77c8f8f0250bfa66e1364c5
    const internalContextValue = useMemo(() => ({ fitToContents }), [fitToContents]);
  
    const fireCloseCallbacks = useCallback(() => {
-@@ -125,7 +127,6 @@ export function BottomSheet(props: BottomSheetProps) {
      if (closedRef.current) return;
      closedRef.current = true;
      onCloseRef.current?.();
@@ -414,8 +526,8 @@ index 9908630d50d9a405688ae60c88f5e6638948420d..4dbe3244f77c8f8f0250bfa66e1364c5
            <NativeBottomSheet
              isPresented={isPresented}
              onIsPresentedChange={handlePresentedChange}
-+            onDismiss={() => onDismissRef.current?.()}
 -            fitToContents={fitToContents}>
++            onDismiss={() => onDismissRef.current?.()}
 +            fitToContents={fitToContents}
 +            showCloseButton={enablePanDownToClose}>
              <Group modifiers={modifiers}>
@@ -433,9 +545,18 @@ index 9908630d50d9a405688ae60c88f5e6638948420d..4dbe3244f77c8f8f0250bfa66e1364c5
                    <SheetScrollContextReset>{children}</SheetScrollContextReset>
                  </View>
 diff --git a/src/community/bottom-sheet/README.md b/src/community/bottom-sheet/README.md
-index f090bb78fcadfc827c196f77055b1317508d35c5..bb62177b791cab3d5f1731042cd0df7efbf1ec32 100644
+index f090bb78fcadfc827c196f77055b1317508d35c5..449ce74d3ab5fdf22e3abfae56f66eb35060e201 100644
 --- a/src/community/bottom-sheet/README.md
 +++ b/src/community/bottom-sheet/README.md
+@@ -100,7 +100,7 @@ That's it. Ref types (`useRef<BottomSheet>`, `useRef<BottomSheetModal>`), method
+ | `index` | Yes | `-1` = closed, `0+` = open at snap point. Default `-1` (gorhom defaults `0`). |
+ | `onChange` | Yes | |
+ | `onClose` | Yes | |
+-| `onDismiss` | Yes | Alias for `onClose` (gorhom `BottomSheetModal` compat) |
++| `onDismiss` | Yes | After native dismissal completes. |
+ | `enablePanDownToClose` | Yes | iOS: enables swipe + backdrop tap. Android: swipe + back button + scrim tap. |
+ | `enableDynamicSizing` | Yes | Fit-to-content when no `snapPoints`. Cannot combine with explicit snap points. |
+ | `handleComponent` | Partial | `null` hides handle, non-null shows native/vaul handle. Custom components not rendered. |
 @@ -108,7 +108,7 @@ That's it. Ref types (`useRef<BottomSheet>`, `useRef<BottomSheetModal>`), method
  | `style` | Partial | Passed through where possible |
  | `children` | Yes | |
@@ -445,6 +566,19 @@ index f090bb78fcadfc827c196f77055b1317508d35c5..bb62177b791cab3d5f1731042cd0df7e
  | `enableHandlePanningGesture` | No | Accepted, no effect. |
  | `enableOverDrag` | No | Accepted, no effect. |
  | `overDragResistanceFactor` | No | Accepted, no effect. |
+diff --git a/src/community/bottom-sheet/types.ts b/src/community/bottom-sheet/types.ts
+index d7372fcb72e3717329ee8df4e27e2f537f17decb..ee3e3334bd21bee5af55cdd84ae1799013578afb 100644
+--- a/src/community/bottom-sheet/types.ts
++++ b/src/community/bottom-sheet/types.ts
+@@ -174,7 +174,7 @@ export interface BottomSheetProps {
+   /**
+    * Callback when the bottom sheet is dismissed.
+    * Compatible with `@gorhom/bottom-sheet` `BottomSheetModal.onDismiss`.
+-   * Alias for `onClose`.
++   * Fires after native dismissal completes.
+    */
+   onDismiss?: () => void;
+ 
 diff --git a/src/swift-ui/BottomSheet/index.tsx b/src/swift-ui/BottomSheet/index.tsx
 index cd8bad40beefa33e008f0bef895e894d48d72cdd..ea5355e5d6acd1ade2807fdfefb7e048bbfe850e 100644
 --- a/src/swift-ui/BottomSheet/index.tsx
