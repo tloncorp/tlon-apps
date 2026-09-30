@@ -9,9 +9,12 @@ type ScrollPosition = {
   viewportHeight: number;
 };
 
+/** How far from the end the list scrolls before the composer floats. */
+export const FLOATING_COMPOSER_ENTER_DISTANCE = 24;
+
 /** Keep a small dead zone so rounding and bottom bounce cannot toggle chrome. */
 export function getFloatingComposerMode(distance: number, floating: boolean) {
-  return floating ? distance > 2 : distance > 24;
+  return floating ? distance > 2 : distance > FLOATING_COMPOSER_ENTER_DISTANCE;
 }
 
 export function useFloatingComposer(

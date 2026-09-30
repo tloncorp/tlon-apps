@@ -71,6 +71,7 @@ import {
   PostWithNeighbors,
 } from './PostList';
 import { getPostListScopeKey } from './PostList/postListInitialization';
+import { FLOATING_COMPOSER_ENTER_DISTANCE } from './PostList/useFloatingComposer';
 import { isVisibleChannelPost } from './postVisibility';
 import type { ScrollAnchor } from './scrollerTypes';
 
@@ -482,7 +483,12 @@ const Scroller = forwardRef(
               // Bubbles inset themselves from the screen edge.
               paddingHorizontal: bubbleLayout ? 0 : '$m',
               paddingTop: contentInsets.top,
-              paddingBottom: scrollContentBottomInset,
+              // The composer stays docked, ending the list at its edge, until
+              // the list is this far from its end. Without the clearance the
+              // last bubble is cut off flat at that edge on the way to floating.
+              paddingBottom:
+                scrollContentBottomInset +
+                (bubbleLayout ? FLOATING_COMPOSER_ENTER_DISTANCE : 0),
             };
           }
 
