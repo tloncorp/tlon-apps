@@ -86,9 +86,9 @@ export function SettingsScreenView(props: Props) {
 }
 
 /**
- * Settings grouped the way platform settings screens are: you and your account
- * first, then your bot, then app preferences, then help and app details, with
- * logging out on its own at the end.
+ * Settings in untitled groups: your bot first, then you, your account and app
+ * preferences together, then help and app details, with logging out on its own
+ * at the end.
  */
 function useSettingsSections(
   props: Props,
@@ -240,11 +240,10 @@ function useSettingsSections(
     }
 
     const sections: SettingsSectionModel[] = [
-      { key: 'account', rows: accountRows },
       ...(botSections ?? []),
       { key: 'bot-link', rows: botLinkRows },
-      { key: 'preferences', title: 'Preferences', rows: preferenceRows },
-      { key: 'about', title: 'About', rows: aboutRows },
+      { key: 'account', rows: [...accountRows, ...preferenceRows] },
+      { key: 'about', rows: aboutRows },
     ];
     if (!isWeb) {
       sections.push({

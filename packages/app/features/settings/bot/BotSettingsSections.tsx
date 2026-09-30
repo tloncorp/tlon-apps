@@ -203,7 +203,6 @@ export function useBotSettingsSectionModels(
       overview: [
         {
           key: 'bot',
-          title: 'Your bot',
           footer:
             !queries.botReady && settingsReady
               ? 'Tlonbot is starting. Settings may take a moment to become editable.'
