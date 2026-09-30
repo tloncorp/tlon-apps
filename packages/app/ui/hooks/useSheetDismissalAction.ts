@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 
 /** Keeps modal handoffs behind the sheet's native dismissal completion. */
 export function useSheetDismissalAction({
@@ -13,10 +19,29 @@ export function useSheetDismissalAction({
   const pendingAction = useRef<(() => void) | null>(null);
   const mounted = useRef(true);
   const openRef = useRef(open);
+  const generation = useRef(0);
+  const [presentation, setPresentation] = useState({ open, key: 0 });
+  // Derive the key before children commit, not after a native host opens.
+  if (presentation.open !== open) {
+    setPresentation({ open, key: presentation.key + (open ? 1 : 0) });
+  }
+  const presentationKey = presentation.key;
+  const [retained, setRetained] = useState(open);
   useLayoutEffect(() => {
+    generation.current = presentationKey;
     openRef.current = open;
-    if (open) pendingAction.current = null;
-  }, [open]);
+    if (open) {
+      pendingAction.current = null;
+      setRetained(true);
+    } else if (!waitForDismissal) {
+      pendingAction.current = null;
+      setRetained(false);
+    }
+  }, [open, waitForDismissal, presentationKey]);
+
+  const cancel = useCallback(() => {
+    pendingAction.current = null;
+  }, []);
 
   useEffect(() => {
     mounted.current = true;
@@ -38,11 +63,23 @@ export function useSheetDismissalAction({
   );
 
   const onDismissed = useCallback(() => {
-    if (!mounted.current || openRef.current) return;
+    if (
+      !mounted.current ||
+      openRef.current ||
+      generation.current !== presentationKey
+    )
+      return;
+    setRetained(false);
     const action = pendingAction.current;
     pendingAction.current = null;
     action?.();
-  }, []);
+  }, [presentationKey]);
 
-  return { dismissThenRun, onDismissed };
+  return {
+    dismissThenRun,
+    onDismissed,
+    cancel,
+    presentationKey,
+    shouldRender: open || (waitForDismissal && retained),
+  };
 }

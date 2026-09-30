@@ -347,7 +347,7 @@ export const ChatOptionsProvider = ({
         // if not handled by the parent, open built in invite sheet
         cancelPendingInvite();
         if (
-          Platform.OS === 'ios' &&
+          Platform.OS !== 'web' &&
           isWindowNarrow &&
           sheetOpenRef.current &&
           sheetMountGeneration !== null

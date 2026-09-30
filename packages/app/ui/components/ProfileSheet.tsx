@@ -1,11 +1,12 @@
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert } from 'react-native';
+import { useCallback, useEffect, useRef, useState, ReactNode } from 'react';
+import { Alert, Platform } from 'react-native';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import { isWeb } from 'tamagui';
 
 import { useCurrentUserId } from '../contexts/appDataContext';
-import { useSheetCloseAfterAnimation } from '../hooks/useSheetCloseAfterAnimation';
+import { useSheetDismissalAction } from '../hooks/useSheetDismissalAction';
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
 import { ProfileBlock } from './ProfileBlock';
 
@@ -16,8 +17,10 @@ function RoleAssignmentSheet({
   selectedUserRoles,
   contactIsHost,
   closeParent,
-  cancelParentClose,
-  ...actionProps
+  open,
+  onOpenChange,
+  onNativeDismissed,
+  trigger,
 }: {
   onAssignRole: (roleId: string) => void;
   onRemoveRole: (roleId: string) => void;
@@ -25,9 +28,11 @@ function RoleAssignmentSheet({
   selectedUserRoles: string[];
   contactIsHost: boolean;
   closeParent: () => void;
-  cancelParentClose: () => void;
-} & Parameters<typeof ActionSheet.Action>[0]) {
-  const [open, setOpen] = useState(false);
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onNativeDismissed: () => void;
+  trigger?: ReactNode;
+}) {
   // Suppresses rapid double-taps between the role tap and the inner sheet's
   // open=false commit. Reset on the false → true edge so the picker is fully
   // usable on the next open (including immediately after a host/admin guard).
@@ -36,9 +41,8 @@ function RoleAssignmentSheet({
   useEffect(() => {
     if (open) {
       closingRef.current = false;
-      cancelParentClose();
     }
-  }, [open, cancelParentClose]);
+  }, [open]);
 
   const handleRoleAction = (role: db.GroupRole) => {
     if (closingRef.current) {
@@ -59,7 +63,7 @@ function RoleAssignmentSheet({
     closingRef.current = true;
 
     if (isGuardedHostAdmin) {
-      setOpen(false);
+      onOpenChange(false);
       return;
     }
 
@@ -68,10 +72,6 @@ function RoleAssignmentSheet({
     } else {
       onAssignRole(role.id);
     }
-    setOpen(false);
-    // Owned by ProfileSheet (not here), so an optimistic role mutation that
-    // unmounts the admin action group — and `RoleAssignmentSheet` with it —
-    // doesn't cancel the pending parent close. See TLON-5891 follow-up.
     closeParent();
   };
 
@@ -97,15 +97,11 @@ function RoleAssignmentSheet({
   return (
     <ActionSheet
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={onOpenChange}
+      onNativeDismissed={onNativeDismissed}
       mode="popover"
       modal
-      trigger={
-        <ActionSheet.Action
-          {...actionProps}
-          action={{ title: 'Assign role', action: () => setOpen(true) }}
-        />
-      }
+      trigger={trigger}
     >
       {roleActions}
     </ActionSheet>
@@ -116,6 +112,7 @@ export function ProfileSheet({
   contact,
   contactId,
   onOpenChange,
+  onNativeDismissed,
   open,
   currentUserIsAdmin,
   groupHostId,
@@ -135,6 +132,7 @@ export function ProfileSheet({
   contactId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onNativeDismissed?: () => void;
   currentUserIsAdmin?: boolean;
   groupHostId?: string;
   userIsBanned?: boolean;
@@ -153,15 +151,19 @@ export function ProfileSheet({
   const contactIsHost = groupHostId === contactId;
   const contactIsAdmin = selectedUserRoles?.includes('admin');
 
-  // Owns the deferred parent-close used by `RoleAssignmentSheet`'s role-action
-  // flow. Owned here (not in `RoleAssignmentSheet`) because the role action
-  // that schedules the close can also unmount the admin action group as a side
-  // effect — e.g. a non-host admin self-demoting via the checked `admin` role
-  // flips `currentUserIsAdmin` to false, which drops the admin action group and
-  // unmounts `RoleAssignmentSheet`. Owning it at this level keeps the pending
-  // close alive across that subtree churn.
-  const { closeAfterAnimation, cancel: clearParentCloseTimer } =
-    useSheetCloseAfterAnimation();
+  const [rolePickerOpen, setRolePickerOpen] = useState(false);
+  const isWindowNarrow = useIsWindowNarrow();
+  const nativeRoleSheet = Platform.OS !== 'web' && isWindowNarrow;
+  const {
+    dismissThenRun,
+    onDismissed: onRoleDismissed,
+    cancel: cancelRoleClose,
+    presentationKey,
+  } = useSheetDismissalAction({
+    open: rolePickerOpen,
+    onOpenChange: setRolePickerOpen,
+    waitForDismissal: nativeRoleSheet,
+  });
 
   // Stable reference to the latest `onOpenChange` so the deferred close doesn't
   // read a stale closure if the prop identity changes between schedule and fire.
@@ -171,23 +173,20 @@ export function ProfileSheet({
   }, [onOpenChange]);
 
   const requestParentClose = useCallback(() => {
-    closeAfterAnimation(() => onOpenChangeRef.current(false));
-  }, [closeAfterAnimation]);
+    dismissThenRun(() => onOpenChangeRef.current(false));
+  }, [dismissThenRun]);
 
-  // Cancel any pending parent-close when another close path takes over, when
-  // the contact changes, or when ProfileSheet unmounts entirely. The hook
-  // already cancels on unmount; this also covers the `!open` and contactId
-  // transitions, which the hook does not.
   useEffect(() => {
     if (!open) {
-      clearParentCloseTimer();
+      cancelRoleClose();
+      setRolePickerOpen(false);
     }
-  }, [open, clearParentCloseTimer]);
+  }, [open, cancelRoleClose]);
 
-  useEffect(
-    () => () => clearParentCloseTimer(),
-    [contactId, clearParentCloseTimer]
-  );
+  useEffect(() => {
+    cancelRoleClose();
+    setRolePickerOpen(false);
+  }, [contactId, cancelRoleClose]);
 
   const handleBlock = useCallback(() => {
     if (contact && contact.isBlocked) {
@@ -237,22 +236,42 @@ export function ProfileSheet({
         'neutral',
         {
           title: 'Assign Role',
-          render: (props) => (
-            <RoleAssignmentSheet
-              roles={roles}
-              selectedUserRoles={selectedUserRoles ?? []}
-              contactIsHost={contactIsHost}
-              closeParent={requestParentClose}
-              cancelParentClose={clearParentCloseTimer}
-              onAssignRole={(roleId: string) => {
-                onPressAsignRole?.(roleId);
-              }}
-              onRemoveRole={(roleId: string) => {
-                onPressRemoveRole?.(roleId);
-              }}
-              {...props}
-            />
-          ),
+          render: (props) =>
+            nativeRoleSheet ? (
+              <ActionSheet.Action
+                {...props}
+                action={{
+                  title: 'Assign role',
+                  action: () => setRolePickerOpen(true),
+                }}
+              />
+            ) : (
+              <RoleAssignmentSheet
+                key={presentationKey}
+                open={rolePickerOpen}
+                onOpenChange={setRolePickerOpen}
+                onNativeDismissed={onRoleDismissed}
+                roles={roles}
+                selectedUserRoles={selectedUserRoles ?? []}
+                contactIsHost={contactIsHost}
+                closeParent={requestParentClose}
+                onAssignRole={(roleId: string) => {
+                  onPressAsignRole?.(roleId);
+                }}
+                onRemoveRole={(roleId: string) => {
+                  onPressRemoveRole?.(roleId);
+                }}
+                trigger={
+                  <ActionSheet.Action
+                    {...props}
+                    action={{
+                      title: 'Assign role',
+                      action: () => setRolePickerOpen(true),
+                    }}
+                  />
+                }
+              />
+            ),
         },
         currentUserId !== contactId &&
           !userIsInvited && {
@@ -295,7 +314,12 @@ export function ProfileSheet({
   );
 
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange} modal>
+    <ActionSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      onNativeDismissed={onNativeDismissed}
+      modal
+    >
       <ActionSheet.ScrollableContent>
         <ActionSheet.ContentBlock>
           <ProfileBlock
@@ -306,6 +330,21 @@ export function ProfileSheet({
         </ActionSheet.ContentBlock>
         <ActionSheet.SimpleActionGroupList actionGroups={actions} />
       </ActionSheet.ScrollableContent>
+      {/* Native dismissal must survive an optimistic change to admin controls. */}
+      {nativeRoleSheet && (
+        <RoleAssignmentSheet
+          key={`${contactId}:${presentationKey}`}
+          open={rolePickerOpen}
+          onOpenChange={setRolePickerOpen}
+          onNativeDismissed={onRoleDismissed}
+          roles={roles ?? []}
+          selectedUserRoles={selectedUserRoles ?? []}
+          contactIsHost={contactIsHost}
+          closeParent={requestParentClose}
+          onAssignRole={(roleId) => onPressAsignRole?.(roleId)}
+          onRemoveRole={(roleId) => onPressRemoveRole?.(roleId)}
+        />
+      )}
     </ActionSheet>
   );
 }

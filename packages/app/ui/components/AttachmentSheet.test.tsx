@@ -230,7 +230,7 @@ describe('AttachmentSheet modal handoffs', () => {
     sheet.unmount();
   });
 
-  it.each(['web', 'android'])(
+  it.each(['web'])(
     'keeps the file picker synchronous on %s',
     async (platform) => {
       mocks.platform.OS = platform;
@@ -245,22 +245,23 @@ describe('AttachmentSheet modal handoffs', () => {
   it.each([
     ['Capture photo', mocks.camera],
     ['Media Library', mocks.library],
-  ] as const)('preserves Android timing for %s', async (title, picker) => {
-    mocks.platform.OS = 'android';
-    const sheet = renderSheet();
-    sheet.choose(title);
-    expect(picker).not.toHaveBeenCalled();
-    act(() => {
-      vi.advanceTimersByTime(49);
-    });
-    expect(picker).not.toHaveBeenCalled();
-    act(() => {
-      vi.advanceTimersByTime(1);
-    });
-    expect(picker).toHaveBeenCalledTimes(1);
-    await act(async () => {});
-    sheet.unmount();
-  });
+  ] as const)(
+    'waits for Android dismissal before %s',
+    async (title, picker) => {
+      mocks.platform.OS = 'android';
+      const sheet = renderSheet();
+      sheet.choose(title);
+      expect(picker).not.toHaveBeenCalled();
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(picker).not.toHaveBeenCalled();
+      sheet.completeDismissal();
+      expect(picker).toHaveBeenCalledTimes(1);
+      await act(async () => {});
+      sheet.unmount();
+    }
+  );
 
   it('does not wait for a native event on the wide-window dialog', async () => {
     mocks.narrow = false;

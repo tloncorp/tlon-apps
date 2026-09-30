@@ -33,6 +33,10 @@ function renderHook(waitForDismissal = true) {
         tree.update(<Probe />);
       });
     },
+    setNative(waitForDismissal: boolean) {
+      options = { ...options, waitForDismissal };
+      act(() => tree.update(<Probe />));
+    },
     unmount() {
       act(() => {
         tree.unmount();
@@ -50,6 +54,70 @@ afterAll(() => {
 });
 
 describe('useSheetDismissalAction', () => {
+  it('retains a closing native host until completion, without a timer', () => {
+    vi.useFakeTimers();
+    const hook = renderHook();
+    hook.setOpen(false);
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(hook.controller.shouldRender).toBe(true);
+    act(() => hook.controller.onDismissed());
+    expect(hook.controller.shouldRender).toBe(false);
+    hook.unmount();
+    vi.useRealTimers();
+  });
+
+  it('ignores an old presentation completion even after the reopened sheet closes', () => {
+    const hook = renderHook();
+    hook.setOpen(false);
+    const stale = hook.controller.onDismissed;
+    const oldKey = hook.controller.presentationKey;
+    hook.setOpen(true);
+    expect(hook.controller.presentationKey).not.toBe(oldKey);
+    const action = vi.fn();
+    act(() => hook.controller.dismissThenRun(action));
+    hook.setOpen(false);
+    act(() => stale());
+    expect(action).not.toHaveBeenCalled();
+    expect(hook.controller.shouldRender).toBe(true);
+    act(() => hook.controller.onDismissed());
+    expect(action).toHaveBeenCalledTimes(1);
+    expect(hook.controller.shouldRender).toBe(false);
+    hook.unmount();
+  });
+
+  it('allows a competing close path to cancel the queued action', () => {
+    const hook = renderHook();
+    const action = vi.fn();
+    act(() => hook.controller.dismissThenRun(action));
+    hook.setOpen(false);
+    hook.controller.cancel();
+    act(() => hook.controller.onDismissed());
+    expect(action).not.toHaveBeenCalled();
+    expect(hook.controller.shouldRender).toBe(false);
+    hook.unmount();
+  });
+
+  it('does not retain non-native content after closing', () => {
+    const hook = renderHook(false);
+    hook.setOpen(false);
+    expect(hook.controller.shouldRender).toBe(false);
+    hook.unmount();
+  });
+
+  it('cancels a handoff when its native host is replaced by a wide dialog', () => {
+    const hook = renderHook();
+    const action = vi.fn();
+    act(() => hook.controller.dismissThenRun(action));
+    hook.setOpen(false);
+    const stale = hook.controller.onDismissed;
+    hook.setNative(false);
+    expect(hook.controller.shouldRender).toBe(false);
+    act(() => stale());
+    expect(action).not.toHaveBeenCalled();
+    hook.unmount();
+  });
   it.each(['camera', 'library', 'file picker', 'voice recorder'])(
     'waits for completion before presenting %s, and runs once',
     () => {
@@ -60,8 +128,8 @@ describe('useSheetDismissalAction', () => {
       expect(action).not.toHaveBeenCalled();
       hook.setOpen(false);
       expect(action).not.toHaveBeenCalled();
-      hook.controller.onDismissed();
-      hook.controller.onDismissed();
+      act(() => hook.controller.onDismissed());
+      act(() => hook.controller.onDismissed());
       expect(action).toHaveBeenCalledTimes(1);
       hook.unmount();
     }
@@ -73,7 +141,7 @@ describe('useSheetDismissalAction', () => {
     hook.controller.dismissThenRun(action);
     expect(action).toHaveBeenCalledTimes(1);
     hook.setOpen(false);
-    hook.controller.onDismissed();
+    act(() => hook.controller.onDismissed());
     expect(action).toHaveBeenCalledTimes(1);
     hook.unmount();
   });
@@ -81,7 +149,7 @@ describe('useSheetDismissalAction', () => {
   it('does nothing for cancellation without a handoff', () => {
     const hook = renderHook();
     hook.setOpen(false);
-    hook.controller.onDismissed();
+    act(() => hook.controller.onDismissed());
     expect(hook.onOpenChange).not.toHaveBeenCalled();
     hook.unmount();
   });
@@ -92,9 +160,9 @@ describe('useSheetDismissalAction', () => {
     hook.controller.dismissThenRun(action);
     hook.setOpen(false);
     hook.setOpen(true);
-    hook.controller.onDismissed();
+    act(() => hook.controller.onDismissed());
     hook.setOpen(false);
-    hook.controller.onDismissed();
+    act(() => hook.controller.onDismissed());
     expect(action).not.toHaveBeenCalled();
     hook.unmount();
   });
@@ -105,7 +173,7 @@ describe('useSheetDismissalAction', () => {
     hook.controller.dismissThenRun(action);
     hook.setOpen(false);
     hook.unmount();
-    hook.controller.onDismissed();
+    act(() => hook.controller.onDismissed());
     hook.controller.dismissThenRun(action);
     expect(action).not.toHaveBeenCalled();
   });
@@ -115,7 +183,7 @@ describe('useSheetDismissalAction', () => {
     const action = vi.fn();
     hook.setOpen(false);
     hook.controller.dismissThenRun(action);
-    hook.controller.onDismissed();
+    act(() => hook.controller.onDismissed());
     expect(action).not.toHaveBeenCalled();
     expect(hook.onOpenChange).not.toHaveBeenCalled();
     hook.unmount();

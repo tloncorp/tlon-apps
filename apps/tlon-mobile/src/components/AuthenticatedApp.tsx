@@ -403,14 +403,14 @@ function AuthenticatedAppContent({
   return (
     <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
       <ForwardPostSheetProvider>
-          <MessageTextSelectionProvider>
-            <ShareIntentForwardSheetProvider enabled>
-              <AuthenticatedApp
-                onLogout={onLogout}
-                requireHostingAuth={requireHostingAuth}
-              />
-            </ShareIntentForwardSheetProvider>
-          </MessageTextSelectionProvider>
+        <MessageTextSelectionProvider>
+          <ShareIntentForwardSheetProvider enabled>
+            <AuthenticatedApp
+              onLogout={onLogout}
+              requireHostingAuth={requireHostingAuth}
+            />
+          </ShareIntentForwardSheetProvider>
+        </MessageTextSelectionProvider>
       </ForwardPostSheetProvider>
     </AppDataProvider>
   );

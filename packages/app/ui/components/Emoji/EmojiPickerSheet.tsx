@@ -105,7 +105,6 @@ export function EmojiPickerSheet(
       dismissOnOverlayPress
       transition="quick"
       modal
-      hasScrollableContent={Platform.OS !== 'web'}
       {...rest}
     >
       {Platform.OS === 'web' ? (

@@ -1,11 +1,9 @@
 import {
   BottomSheet as ExpoBottomSheet,
   BottomSheetScrollView as ExpoBottomSheetScrollView,
-  BottomSheetTextInput as ExpoBottomSheetTextInput,
 } from '@expo/ui/community/bottom-sheet';
 import { View } from '@tloncorp/ui';
 import React, {
-  ComponentProps,
   PropsWithChildren,
   forwardRef,
   useCallback,
@@ -164,7 +162,13 @@ export const BottomSheetWrapper = forwardRef<
         onChange={handleChange}
         onDismiss={handleDismiss}
       >
-        <View style={contentStyle} accessible={false}>
+        <View
+          style={contentStyle}
+          accessible={false}
+          onLayout={() => {
+            if (open) onDidOpen?.();
+          }}
+        >
           {footerComponent ? (
             <>
               <View style={bodyStyle} accessible={false}>
@@ -195,10 +199,3 @@ export const BottomSheetScrollView = forwardRef<
 ));
 
 BottomSheetScrollView.displayName = 'BottomSheetScrollView';
-
-export const BottomSheetTextInput = forwardRef<
-  React.ElementRef<typeof ExpoBottomSheetTextInput>,
-  ComponentProps<typeof ExpoBottomSheetTextInput>
->((props, ref) => <ExpoBottomSheetTextInput ref={ref} {...props} />);
-
-BottomSheetTextInput.displayName = 'BottomSheetTextInput';

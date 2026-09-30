@@ -186,11 +186,7 @@ const ActionSheetComponent = ({
     SheetProps &
     Pick<
       BottomSheetWrapperProps,
-      | 'enableContentPanningGesture'
-      | 'hasScrollableContent'
-      | 'keyboardBehavior'
-      | 'unmountOnClose'
-      | 'onDidOpen'
+      'enableContentPanningGesture' | 'unmountOnClose' | 'onDidOpen'
     >
 >) => {
   const mode = useAdaptiveMode(forcedMode);
@@ -242,47 +238,6 @@ const ActionSheetComponent = ({
       };
     }
   }, [onOpenChange, open]);
-
-  // Detect if children contain scrollable content (must be before any early returns)
-  // Uses depth-limited recursion to find nested scrollable content
-  const detectedHasScrollableContent = useMemo(() => {
-    let hasScrollable = false;
-    const MAX_DEPTH = 3; // Limit recursion depth for performance
-
-    const checkChild = (child: ReactNode, depth: number): void => {
-      if (!child || depth > MAX_DEPTH) return;
-
-      if (typeof child === 'object' && 'type' in child) {
-        // Check if it's ActionSheet.ScrollableContent
-        if (child.type === ActionSheetScrollableContent) {
-          hasScrollable = true;
-          return;
-        }
-
-        const childProps = child.props as any;
-        // Check if it has renderScrollComponent prop (FlatList/FlashList pattern)
-        if (childProps?.renderScrollComponent) {
-          hasScrollable = true;
-          return;
-        }
-
-        // Recursively check children with depth limit
-        if (childProps?.children && !hasScrollable) {
-          Children.forEach(childProps.children, (c) =>
-            checkChild(c, depth + 1)
-          );
-        }
-      }
-    };
-
-    Children.forEach(children, (child) => checkChild(child, 0));
-    return hasScrollable;
-  }, [children]);
-
-  // Allow explicit prop to override auto-detection for scrollables that cannot
-  // be detected by walking the children above.
-  const hasScrollableContent =
-    props.hasScrollableContent ?? detectedHasScrollableContent;
 
   if (!hasOpened.current && open) {
     hasOpened.current = true;
@@ -396,20 +351,13 @@ const ActionSheetComponent = ({
         onDidOpen={onDidOpen}
         onDismiss={onNativeDismissed}
         dismissOnSnapToBottom={true}
-        transition="quick"
-        handleDisableScroll={true}
-        modal={props.modal}
         snapPoints={props.snapPoints}
         snapPointsMode={props.snapPointsMode as any}
         showHandle={true}
-        showOverlay={true}
         enablePanDownToClose={true}
         enableContentPanningGesture={props.enableContentPanningGesture}
-        keyboardBehavior={props.keyboardBehavior}
         footerComponent={footerComponent}
-        hasScrollableContent={hasScrollableContent}
         unmountOnClose={unmountOnClose}
-        frameStyle={{}}
       >
         <ActionSheetContext.Provider value={actionSheetContextValue}>
           {forcedMode === 'popover' ? (
@@ -943,54 +891,6 @@ export const SimpleActionGroupList = ({
             action={action}
             testID={action.testID ?? `ActionSheetAction-${action.title}`}
           />
-        ))}
-      </ActionSheet.ActionGroup>
-    );
-  });
-};
-
-function ActionSheetCopyAction({
-  action,
-  copyText,
-  ...props
-}: ComponentProps<typeof ActionSheetAction> & { copyText: string }) {
-  const { doCopy, didCopy } = useCopy(copyText);
-  const resolvedAction: Action = useMemo(
-    () => ({
-      title: action.title,
-      description: action.description,
-      action: doCopy,
-      startIcon: action.startIcon,
-      endIcon: didCopy ? 'Checkmark' : 'Copy',
-    }),
-    [action.title, action.description, action.startIcon, doCopy, didCopy]
-  );
-  return <ActionSheetAction {...props} action={resolvedAction} />;
-}
-
-export const ActionSheet = withStaticProperties(ActionSheetComponent, {
-  // Building blocks
-  Header: ActionSheetHeader,
-  Content: ActionSheetContent,
-  SafeAreaContent: ActionSheetSafeAreaContent,
-  ScrollableContent: ActionSheetScrollableContent,
-  ContentBlock: ActionSheetContentBlock,
-  FormBlock: ActionSheetFormBlock,
-  ActionGroup: ActionSheetActionGroup,
-  Action: ActionSheetAction,
-  ActionContent: ActionSheetActionContent,
-  ActionFrame: ActionSheetActionFrame,
-  ActionIcon: ActionSheetActionIcon,
-  ActionGroupContent: ActionSheetActionGroupContent,
-  ActionGroupFrame: ActionSheetActionGroupFrame,
-  ActionTitle: ActionSheetActionTitle,
-  ActionDescription: ActionSheetActionDescription,
-  // Prefab components -- used in simple/common applications
-  Simple: SimpleActionSheet,
-  SimpleHeader: SimpleActionSheetHeader,
-  SimpleActionGroupList: SimpleActionGroupList,
-  CopyAction: ActionSheetCopyAction,
-});
         ))}
       </ActionSheet.ActionGroup>
     );

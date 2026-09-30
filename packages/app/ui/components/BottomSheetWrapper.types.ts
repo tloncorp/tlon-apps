@@ -4,9 +4,9 @@ import { ViewStyle } from 'react-native';
 export interface BottomSheetWrapperProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Called after the native sheet settles at an open snap point. */
+  /** Called when native sheet content is laid out or its open detent changes. */
   onDidOpen?: () => void;
-  /** iOS: fires after native dismissal completes. Android: aliases onClose. */
+  /** Fires after native dismissal completes. */
   onDismiss?: () => void;
   children: ReactNode;
 
@@ -31,22 +31,14 @@ export interface BottomSheetWrapperProps {
   // Footer
   footerComponent?: React.FC<any>;
 
-  // Scrollable content handling
-  hasScrollableContent?: boolean;
-
   // Overlay
   showOverlay?: boolean;
   overlayOpacity?: number;
 
   // Platform specific - used by native implementation
   enablePanDownToClose?: boolean;
-  keyboardBehavior?: 'interactive' | 'fillParent' | 'extend';
-  android_keyboardInputMode?: 'adjustPan' | 'adjustResize';
   enableDynamicSizing?: boolean;
   enableContentPanningGesture?: boolean;
-
-  // Disable keyboard avoidance for sheets with inputs
-  disableKeyboardAvoidance?: boolean;
 
   /**
    * When `true`, the wrapper unmounts the underlying sheet subtree after each

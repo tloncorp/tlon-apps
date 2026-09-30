@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { useCurrentUserId } from '../contexts/appDataContext';
-import { useSheetCloseAfterAnimation } from '../hooks/useSheetCloseAfterAnimation';
+import { useSheetDismissalAction } from '../hooks/useSheetDismissalAction';
 import { useIsAdmin } from '../utils';
 import { ProfileSheet } from './ProfileSheet';
 
@@ -50,18 +52,26 @@ export function GroupMemberProfileSheet({
   // Keep the parent mounted until the native dismissal animation finishes,
   // then signal the caller to unmount the React subtree.
   const [parentOpen, setParentOpen] = useState(true);
-  const { closeAfterAnimation, cancel: cancelDismiss } =
-    useSheetCloseAfterAnimation();
+  const isWindowNarrow = useIsWindowNarrow();
+  const {
+    dismissThenRun,
+    onDismissed,
+    cancel: cancelDismiss,
+    presentationKey,
+  } = useSheetDismissalAction({
+    open: parentOpen,
+    onOpenChange: setParentOpen,
+    waitForDismissal: Platform.OS !== 'web' && isWindowNarrow,
+  });
 
   const dismiss = useCallback(
     (afterDismiss?: () => void) => {
-      setParentOpen(false);
-      closeAfterAnimation(() => {
+      dismissThenRun(() => {
         onDismiss();
         afterDismiss?.();
       });
     },
-    [closeAfterAnimation, onDismiss]
+    [dismissThenRun, onDismiss]
   );
 
   const handlePressGoToProfile = useCallback(() => {
@@ -86,7 +96,9 @@ export function GroupMemberProfileSheet({
 
   return (
     <ProfileSheet
+      key={`${selectedContact}:${presentationKey}`}
       open={parentOpen}
+      onNativeDismissed={onDismissed}
       onOpenChange={(open) => {
         if (!open) {
           dismiss();

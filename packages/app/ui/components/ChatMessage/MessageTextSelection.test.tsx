@@ -40,6 +40,7 @@ vi.mock('@tloncorp/ui', () => ({
     return { doCopy: mocks.copy };
   },
   useToast: () => mocks.toast,
+  useIsWindowNarrow: () => true,
 }));
 vi.mock('tamagui', () => ({
   XStack: 'XStack',
@@ -205,8 +206,10 @@ test('copy all copies the displayed text, closes the sheet, and confirms success
   expect(mocks.toast).toHaveBeenCalledWith({ message: 'Copied text' });
   expect(sheet().props.open).toBe(false);
   act(() => {
-    vi.advanceTimersByTime(300);
+    vi.advanceTimersByTime(5000);
   });
+  expect(renderer.root.findAllByType('ActionSheet' as never)).toHaveLength(1);
+  act(() => sheet().props.onNativeDismissed());
   expect(renderer.root.findAllByType('ActionSheet' as never)).toHaveLength(0);
 });
 
@@ -214,11 +217,17 @@ test('a quick reopen cancels cleanup from the previous dismissal', () => {
   renderMenu();
   openSheet();
   act(() => sheet().props.onOpenChange(false));
+  const staleDismissal = sheet().props.onNativeDismissed;
   openSheet();
   act(() => {
-    vi.advanceTimersByTime(300);
+    staleDismissal();
   });
   expect(sheet().props.open).toBe(true);
+  act(() => sheet().props.onOpenChange(false));
+  act(() => staleDismissal());
+  expect(renderer.root.findAllByType('ActionSheet' as never)).toHaveLength(1);
+  act(() => sheet().props.onNativeDismissed());
+  expect(renderer.root.findAllByType('ActionSheet' as never)).toHaveLength(0);
 });
 
 test('rejects an action token from a message edited while the menu was open', () => {

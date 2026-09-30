@@ -41,7 +41,13 @@ export const ForwardPostSheetProvider = ({ children }: PropsWithChildren) => {
     },
     [post]
   );
-  const { handleChannelSelected, renderFooter } = useForwardToChannelSheet({
+  const {
+    handleChannelSelected,
+    renderFooter,
+    onNativeDismissed,
+    keepMounted,
+    presentationKey,
+  } = useForwardToChannelSheet({
     isOpen,
     onClose: () => handleOpenChange(false),
     onForwardToChannel: handleForwardToChannel,
@@ -54,8 +60,11 @@ export const ForwardPostSheetProvider = ({ children }: PropsWithChildren) => {
     <ForwardPostSheetContext.Provider value={contextValue}>
       {children}
       <ForwardToChannelSheet
+        key={presentationKey}
         open={isOpen}
         onOpenChange={handleOpenChange}
+        onNativeDismissed={onNativeDismissed}
+        keepMounted={keepMounted}
         title="Forward to channel"
         onChannelSelected={handleChannelSelected}
         footerComponent={renderFooter}

@@ -1,6 +1,13 @@
 import { createDevLogger } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
-import { Icon, Pressable, Text, useCopy, useToast } from '@tloncorp/ui';
+import {
+  Icon,
+  Pressable,
+  Text,
+  useCopy,
+  useIsWindowNarrow,
+  useToast,
+} from '@tloncorp/ui';
 import { requireOptionalNativeModule } from 'expo-modules-core';
 import {
   PropsWithChildren,
@@ -19,7 +26,7 @@ import {
 } from 'react-native';
 import { XStack, YStack, useTheme } from 'tamagui';
 
-import { useSheetCloseAfterAnimation } from '../../hooks/useSheetCloseAfterAnimation';
+import { useSheetDismissalAction } from '../../hooks/useSheetDismissalAction';
 import { ActionSheet } from '../ActionSheet';
 import { ContactAvatar } from '../Avatar';
 import { ContactName } from '../ContactNameV2';
@@ -41,7 +48,13 @@ export function MessageTextSelectionProvider({ children }: PropsWithChildren) {
     text: string;
   } | null>(null);
   const [open, setOpen] = useState(false);
-  const { closeAfterAnimation, cancel } = useSheetCloseAfterAnimation();
+  const isWindowNarrow = useIsWindowNarrow();
+  const { dismissThenRun, onDismissed, cancel, presentationKey } =
+    useSheetDismissalAction({
+      open,
+      onOpenChange: setOpen,
+      waitForDismissal: Platform.OS !== 'web' && isWindowNarrow,
+    });
   const show = useCallback(
     (post: db.Post, text: string) => {
       cancel();
@@ -52,12 +65,10 @@ export function MessageTextSelectionProvider({ children }: PropsWithChildren) {
   );
   const onOpenChange = useCallback(
     (nextOpen: boolean) => {
-      setOpen(nextOpen);
-      if (!nextOpen) {
-        closeAfterAnimation(() => setSelection(null));
-      }
+      if (nextOpen) setOpen(true);
+      else dismissThenRun(() => setSelection(null));
     },
-    [closeAfterAnimation]
+    [dismissThenRun]
   );
 
   return (
@@ -65,10 +76,11 @@ export function MessageTextSelectionProvider({ children }: PropsWithChildren) {
       {children}
       {selection && (
         <MessageTextSelectionSheet
-          key={selection.post.id}
+          key={`${selection.post.id}:${presentationKey}`}
           {...selection}
           open={open}
           onOpenChange={onOpenChange}
+          onNativeDismissed={onDismissed}
         />
       )}
     </MessageTextSelectionContext.Provider>
@@ -80,11 +92,13 @@ export function MessageTextSelectionSheet({
   text,
   open,
   onOpenChange,
+  onNativeDismissed,
 }: {
   post: db.Post;
   text: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onNativeDismissed?: () => void;
 }) {
   const theme = useTheme();
   const inputRef = useRef<TextInput>(null);
@@ -125,13 +139,13 @@ export function MessageTextSelectionSheet({
     <ActionSheet
       open={open}
       onOpenChange={onOpenChange}
+      onNativeDismissed={onNativeDismissed}
       onDidOpen={selectAllOnOpen}
       title="Select text"
       mode="sheet"
       snapPointsMode="percent"
       snapPoints={[65, 90]}
       enableContentPanningGesture={false}
-      hasScrollableContent
       modal
     >
       <XStack

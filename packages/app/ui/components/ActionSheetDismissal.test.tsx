@@ -55,7 +55,6 @@ vi.mock('./BottomSheetWrapper', async () =>
 vi.mock('@expo/ui/community/bottom-sheet', () => ({
   BottomSheet: ({ children }: { children?: React.ReactNode }) => children,
   BottomSheetScrollView: () => null,
-  BottomSheetTextInput: () => null,
 }));
 
 beforeAll(() => {
@@ -69,6 +68,29 @@ afterAll(() => {
 });
 
 describe('ordinary ActionSheet dismissal forwarding', () => {
+  it('forwards the open callback after content layout, but not when closed', () => {
+    const opened = vi.fn();
+    let tree: ReturnType<typeof create>;
+    const element = (open: boolean) => (
+      <ActionSheet open={open} onOpenChange={vi.fn()} onDidOpen={opened}>
+        {null}
+      </ActionSheet>
+    );
+    act(() => {
+      tree = create(element(true));
+    });
+    const layout = () =>
+      tree!.root.find((node) => node.type === 'View' && node.props.onLayout)
+        .props.onLayout;
+    expect(opened).not.toHaveBeenCalled();
+    act(() => layout()());
+    expect(opened).toHaveBeenCalledOnce();
+    act(() => tree.update(element(false)));
+    act(() => layout()());
+    expect(opened).toHaveBeenCalledOnce();
+    act(() => tree.unmount());
+  });
+
   it('forwards native completion through ActionSheet and BottomSheetWrapper', () => {
     const dismissed = vi.fn();
     let tree: ReturnType<typeof create>;

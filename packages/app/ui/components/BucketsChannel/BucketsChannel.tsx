@@ -605,7 +605,6 @@ export function BucketsRenameSheet({
     <ActionSheet
       closeButton={isWeb}
       dialogContentProps={{ width: 420, maxWidth: '90%', minWidth: 320 }}
-      keyboardBehavior="interactive"
       moveOnKeyboardChange
       open={item !== null}
       onOpenChange={onOpenChange}
@@ -761,7 +760,6 @@ export function BucketsNewSheet({
     <ActionSheet
       closeButton={isWeb}
       dialogContentProps={{ width: 420, maxWidth: '90%', minWidth: 320 }}
-      keyboardBehavior="interactive"
       moveOnKeyboardChange
       open={open}
       onOpenChange={onOpenChange}

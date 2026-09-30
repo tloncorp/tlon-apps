@@ -65,18 +65,15 @@ export default function AttachmentSheet({
   const [cameraPermissionStatus, requestCameraPermission] =
     ImagePicker.useCameraPermissions();
   const isWindowNarrow = useIsWindowNarrow();
-  const { dismissThenRun, onDismissed } = useSheetDismissalAction({
-    open: showAttachmentSheet,
-    onOpenChange,
-    waitForDismissal: Platform.OS === 'ios' && isWindowNarrow,
-  });
+  const { dismissThenRun, onDismissed, presentationKey } =
+    useSheetDismissalAction({
+      open: showAttachmentSheet,
+      onOpenChange,
+      waitForDismissal: Platform.OS !== 'web' && isWindowNarrow,
+    });
   const openMediaPicker = useCallback(
     (action: () => void) => {
-      dismissThenRun(() => {
-        // Keep Android's existing activity handoff unchanged.
-        if (Platform.OS === 'android') setTimeout(action, 50);
-        else action();
-      });
+      dismissThenRun(action);
     },
     [dismissThenRun]
   );
@@ -449,6 +446,7 @@ export default function AttachmentSheet({
         open={showAttachmentSheet}
         onOpenChange={(open: boolean) => onOpenChange(open)}
         onNativeDismissed={onDismissed}
+        key={presentationKey}
         modal
       >
         <ActionSheet.Header>

@@ -684,7 +684,6 @@ export function CreateChatInviteSheet({
       snapPoints={[90]}
       snapPointsMode="percent"
       enableContentPanningGesture={enableContentPanningGesture}
-      hasScrollableContent
       modal
     >
       <CreateChatFormContent

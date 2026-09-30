@@ -61,7 +61,6 @@ export function ShipPickerSheet({
         snapPointsMode="percent"
         disableDrag={scrolling}
         enableContentPanningGesture={enableContentPanningGesture}
-        hasScrollableContent
       >
         {body}
       </ActionSheet>

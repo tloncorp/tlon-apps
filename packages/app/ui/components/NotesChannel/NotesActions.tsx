@@ -13,6 +13,7 @@ export function NotesActionMenu({
   onAction,
   open,
   onOpenChange,
+  onNativeDismissed,
   bottomContent,
   trigger,
 }: {
@@ -25,6 +26,7 @@ export function NotesActionMenu({
   onAction?: (action?: () => void) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onNativeDismissed?: () => void;
   // Rendered below the action list, outside the dismiss-on-press wrapper —
   // for rows that must keep the sheet open, e.g. inline toggles.
   bottomContent?: ReactNode;
@@ -47,6 +49,7 @@ export function NotesActionMenu({
     <ActionSheet
       open={open}
       onOpenChange={onOpenChange}
+      onNativeDismissed={onNativeDismissed}
       mode={Platform.OS === 'web' ? 'popover' : 'sheet'}
       modal
       snapPointsMode="fit"

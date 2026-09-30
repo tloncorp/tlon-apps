@@ -159,7 +159,7 @@ describe('Chat Options invite handoff', () => {
     expect(provider.inviteSheet().props.open).toBe(false);
     provider.unmount();
   });
-  it.each(['android', 'web'])('preserves the %s timed handoff', (platform) => {
+  it.each(['web'])('preserves the %s timed handoff', (platform) => {
     mocks.platform.OS = platform;
     const provider = renderProvider();
     provider.open();
@@ -175,6 +175,19 @@ describe('Chat Options invite handoff', () => {
     expect(provider.inviteSheet().props.groupId).toBe('group');
     provider.unmount();
   });
+  it('waits for Android dismissal before opening the invite sheet', () => {
+    mocks.platform.OS = 'android';
+    const provider = renderProvider();
+    provider.open();
+    provider.invite();
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(provider.inviteSheet().props.open).toBe(false);
+    act(() => provider.sheet().props.onNativeDismissed());
+    expect(provider.inviteSheet().props.open).toBe(true);
+    provider.unmount();
+  });
   it('preserves an external invite handler', () => {
     const onPressInvite = vi.fn();
     const provider = renderProvider({ onPressInvite });
@@ -185,7 +198,7 @@ describe('Chat Options invite handoff', () => {
     provider.unmount();
   });
   it('cancels a timer on unmount', () => {
-    mocks.platform.OS = 'android';
+    mocks.platform.OS = 'web';
     const provider = renderProvider();
     provider.open();
     const timeout = vi.spyOn(globalThis, 'setTimeout');
