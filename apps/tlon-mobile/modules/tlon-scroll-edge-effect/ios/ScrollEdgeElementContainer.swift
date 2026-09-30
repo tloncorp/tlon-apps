@@ -64,6 +64,12 @@ public final class ConversationViewport: ExpoView {
         frameObservation = nil
         contentSizeObservation = nil
         scrollView = findScrollView(in: self)
+        if #available(iOS 26.0, *), let scrollView {
+            // Fabric recycles scroll views without resetting their edge
+            // effects, so a style another screen set can arrive with this one.
+            scrollView.topEdgeEffect.isHidden = false
+            scrollView.topEdgeEffect.style = .automatic
+        }
         frameObservation = scrollView?.observe(\.frame, options: [.prior]) { [weak self] scrollView, change in
             guard let self else {
                 return
