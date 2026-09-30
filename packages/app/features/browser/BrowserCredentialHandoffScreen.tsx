@@ -112,8 +112,9 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
           : { code: code.trim(), submit: true }
       );
       if (!result.submitted) {
+        setHandoff(undefined);
         setError(
-          'The browser filled the form but could not submit it. Check that the entries are correct and try again.'
+          'The browser filled the form but could not submit it. Try again to reconnect before resubmitting.'
         );
       } else {
         setUsername('');
@@ -123,6 +124,8 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
         setSubmitted(true);
       }
     } catch (nextError) {
+      // A failed response can still consume the one-use fill handle.
+      setHandoff(undefined);
       setError(errorMessage(nextError));
     }
     setSubmitting(false);

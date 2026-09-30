@@ -64,14 +64,17 @@ tools without a handoff.
 
 First navigate the live session all the way to the visible login or verification
 form. Call `browser_session_handoff` for that same session to obtain a fresh
-signed viewer URL, then run:
+signed viewer URL. In OpenClaw, call the model-facing `tlon` tool with:
 
-```bash
-tlon browser handoff <signed-viewer-url>
+```json
+{"command": "browser handoff <signed-viewer-url>"}
 ```
 
-In OpenClaw, invoke this through the model-facing `tlon` tool. This is the one
-exception to the rule against using that tool to send a message. The command
+Do not include the executable name in the tool's `command` argument. From a
+shell, the equivalent is `tlon browser handoff <signed-viewer-url>`.
+
+This is the one exception to the rule against using that tool to send a message.
+The command
 always sends the handoff card to the owner configured for the active bot
 account. It has no recipient argument or override. If no owner is configured,
 it fails instead of sending the form elsewhere. Never claim the handoff was

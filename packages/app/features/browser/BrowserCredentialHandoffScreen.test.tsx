@@ -84,59 +84,100 @@ describe('BrowserCredentialHandoffScreen', () => {
     mocks.submitCredentials.mockResolvedValue({ submitted: false });
   });
 
-  it('retains credentials and does not offer continuation when submission fails', async () => {
-    let renderer: ReactTestRenderer;
-    await act(async () => {
-      renderer = create(
-        <BrowserCredentialHandoffScreen
-          navigation={{ goBack: vi.fn(), isFocused: () => true }}
-          route={{
-            params: {
-              handoffId: 'opaque-handoff-id',
-            },
-          }}
-        />
+  it.each(['not submitted', 'request failed'])(
+    'obtains a fresh handle before resubmitting after %s',
+    async (failure) => {
+      if (failure === 'request failed') {
+        mocks.submitCredentials.mockRejectedValueOnce(
+          new Error('Connection lost')
+        );
+      }
+      let renderer: ReactTestRenderer;
+      await act(async () => {
+        renderer = create(
+          <BrowserCredentialHandoffScreen
+            navigation={{ goBack: vi.fn(), isFocused: () => true }}
+            route={{
+              params: {
+                handoffId: 'opaque-handoff-id',
+              },
+            }}
+          />
+        );
+      });
+
+      const usernameInput = renderer!.root.findByProps({
+        autoComplete: 'username',
+      });
+      const passwordInput = renderer!.root.findByProps({
+        autoComplete: 'current-password',
+      });
+
+      act(() => {
+        usernameInput.props.onChangeText('person@example.com');
+        passwordInput.props.onChangeText('keep-in-form');
+      });
+      await act(async () => {
+        await renderer!.root
+          .findByProps({ label: 'Fill and sign in' })
+          .props.onPress();
+      });
+
+      expect(mocks.submitCredentials).toHaveBeenCalledWith(expect.any(Object), {
+        username: 'person@example.com',
+        password: 'keep-in-form',
+        submit: true,
+      });
+      expect(
+        renderer!.root.findAllByProps({ label: 'Fill and sign in' })
+      ).toHaveLength(0);
+      expect(
+        renderer!.root.findAllByProps({ label: 'Return to conversation' })
+      ).toHaveLength(0);
+
+      // A failed refresh must not expose the consumed handle for another submit.
+      mocks.beginHandoff.mockRejectedValueOnce(
+        new Error('Browser unavailable')
       );
-    });
+      await act(async () => {
+        renderer!.root.findByProps({ label: 'Try again' }).props.onPress();
+      });
+      expect(
+        renderer!.root.findAllByProps({ label: 'Fill and sign in' })
+      ).toHaveLength(0);
+      expect(mocks.submitCredentials).toHaveBeenCalledTimes(1);
 
-    const usernameInput = renderer!.root.findByProps({
-      autoComplete: 'username',
-    });
-    const passwordInput = renderer!.root.findByProps({
-      autoComplete: 'current-password',
-    });
-
-    act(() => {
-      usernameInput.props.onChangeText('person@example.com');
-      passwordInput.props.onChangeText('keep-in-form');
-    });
-    await act(async () => {
-      await renderer!.root
-        .findByProps({ label: 'Fill and sign in' })
-        .props.onPress();
-    });
-
-    expect(mocks.submitCredentials).toHaveBeenCalledWith(expect.any(Object), {
-      username: 'person@example.com',
-      password: 'keep-in-form',
-      submit: true,
-    });
-    expect(
-      renderer!.root.findByProps({ autoComplete: 'username' }).props.value
-    ).toBe('person@example.com');
-    expect(
-      renderer!.root.findByProps({ autoComplete: 'current-password' }).props
-        .value
-    ).toBe('keep-in-form');
-    expect(renderer!.root.findByProps({ label: 'Password' }).props.error).toBe(
-      'The browser filled the form but could not submit it. Check that the entries are correct and try again.'
-    );
-    expect(
-      renderer!.root.findAllByProps({ label: 'Return to conversation' })
-    ).toHaveLength(0);
-
-    act(() => renderer!.unmount());
-  });
+      const freshHandoff = {
+        ...mocks.submitCredentials.mock.calls[0][0],
+        fillUrl:
+          'https://browser-session-ovh1.tlon.network/credential-fills/fresh',
+      };
+      mocks.beginHandoff.mockResolvedValueOnce(freshHandoff);
+      await act(async () => {
+        renderer!.root.findByProps({ label: 'Try again' }).props.onPress();
+      });
+      expect(mocks.beginHandoff).toHaveBeenCalledTimes(3);
+      expect(
+        renderer!.root.findByProps({ autoComplete: 'username' }).props.value
+      ).toBe('person@example.com');
+      expect(
+        renderer!.root.findByProps({ autoComplete: 'current-password' }).props
+          .value
+      ).toBe('keep-in-form');
+      mocks.submitCredentials.mockResolvedValueOnce({ submitted: true });
+      await act(async () => {
+        await renderer!.root
+          .findByProps({ label: 'Fill and sign in' })
+          .props.onPress();
+      });
+      expect(mocks.submitCredentials).toHaveBeenLastCalledWith(freshHandoff, {
+        username: 'person@example.com',
+        password: 'keep-in-form',
+        submit: true,
+      });
+      act(() => renderer!.unmount());
+    }
+  );
 
   it('submits a verification code with its original casing', async () => {
     mocks.beginHandoff.mockResolvedValue({
