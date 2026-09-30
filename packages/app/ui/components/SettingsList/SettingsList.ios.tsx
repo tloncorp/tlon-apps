@@ -14,6 +14,7 @@ import {
   ZStack,
 } from '@expo/ui/swift-ui';
 import {
+  accessibilityAddTraits,
   accessibilityIdentifier,
   accessibilityLabel,
   accessibilityValue,
@@ -142,6 +143,14 @@ function SettingsRow({
     );
   }
 
+  if (row.action) {
+    return (
+      <Button onPress={row.onPress} modifiers={rowModifiers}>
+        <Text modifiers={[foregroundStyle(colors.accent)]}>{row.title}</Text>
+      </Button>
+    );
+  }
+
   const labelledRowModifiers = [
     ...rowModifiers,
     // One label and value, so text matching and VoiceOver read the title
@@ -150,7 +159,14 @@ function SettingsRow({
     ...(row.value || row.subtitle
       ? [accessibilityValue((row.value ?? row.subtitle) as string)]
       : []),
+    ...(row.selected ? [accessibilityAddTraits(['isSelected'])] : []),
   ];
+  // A choice shows its checkmark instead of an accessory.
+  const accessory = !row.onPress
+    ? 'none'
+    : row.selected !== undefined
+      ? 'none'
+      : (row.accessory ?? 'chevron');
   const content = (
     <HStack
       spacing={8}
@@ -171,13 +187,16 @@ function SettingsRow({
           {row.value}
         </Text>
       ) : null}
-      {row.external ? (
+      {row.selected ? (
+        <Image systemName="checkmark" size={15} color={colors.accent} />
+      ) : null}
+      {accessory === 'external' ? (
         <Image
           systemName="arrow.up.right"
           size={13}
           color={colors.tertiaryText}
         />
-      ) : row.onPress ? (
+      ) : accessory === 'chevron' ? (
         <Image
           systemName="chevron.right"
           size={13}
@@ -249,6 +268,14 @@ function RowLabel({
           </Text>
         ) : null}
       </VStack>
+      {/* Other rows show it beside their value; a toggle has no value slot. */}
+      {row.toggle && row.pending ? (
+        <Pill
+          text="Pending"
+          textColor={colors.pending.text}
+          backgroundColor={colors.pending.background}
+        />
+      ) : null}
     </HStack>
   );
 }

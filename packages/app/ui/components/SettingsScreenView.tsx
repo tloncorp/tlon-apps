@@ -234,7 +234,7 @@ function useSettingsSections(
         key: 'web-app',
         title: 'Tlon Messenger on the Web',
         leading: { kind: 'icon', icon: 'Link' },
-        external: true,
+        accessory: 'external',
         onPress: props.onWebAppPressed,
       });
     }

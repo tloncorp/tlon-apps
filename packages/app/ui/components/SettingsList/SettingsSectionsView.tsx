@@ -39,14 +39,26 @@ export function SettingsSectionsView({
 }
 
 function SettingsRow({ row }: { row: SettingsRowModel }) {
+  const isChoice = row.selected !== undefined;
   const showsChevron =
-    Boolean(row.onPress) && !row.toggle && !row.external && !row.destructive;
+    Boolean(row.onPress) &&
+    !row.toggle &&
+    !row.destructive &&
+    !row.action &&
+    !isChoice &&
+    (row.accessory ?? 'chevron') === 'chevron';
   const content = (
     <ListItem opacity={row.disabled ? 0.6 : 1}>
       <SettingsRowLeading row={row} />
       <ListItem.MainContent>
         <ListItem.Title
-          color={row.destructive ? '$negativeActionText' : undefined}
+          color={
+            row.destructive
+              ? '$negativeActionText'
+              : row.action
+                ? '$positiveActionText'
+                : undefined
+          }
         >
           {row.title}
         </ListItem.Title>
@@ -75,6 +87,9 @@ function SettingsRow({ row }: { row: SettingsRowModel }) {
             onValueChange={row.toggle.onValueChange}
           />
         ) : null}
+        {row.selected ? (
+          <Icon type="Checkmark" size="$m" color="$positiveActionText" />
+        ) : null}
         {showsChevron ? (
           <Icon type="ChevronRight" size="$m" color="$tertiaryText" />
         ) : null}
@@ -88,6 +103,8 @@ function SettingsRow({ row }: { row: SettingsRowModel }) {
 
   return (
     <Pressable
+      accessibilityRole={isChoice ? 'radio' : undefined}
+      accessibilityState={isChoice ? { checked: row.selected } : undefined}
       disabled={row.disabled}
       onPress={row.disabled ? undefined : row.onPress}
       onLongPress={row.contextActions?.[0]?.onPress}

@@ -21,7 +21,9 @@ import {
   testID,
   weight,
 } from '@expo/ui/jetpack-compose/modifiers';
+import { Icon } from '@tloncorp/ui';
 import { Fragment } from 'react';
+import { View } from 'react-native';
 
 import { useTopLevelTabBarContentInset } from '../../../navigation/useTopLevelTabBarContentInset';
 import { HostedSettingsRowLeading } from './SettingsRowLeading';
@@ -144,7 +146,13 @@ function SettingsRow({
       ) : null}
       <Column modifiers={[weight(1)]} verticalArrangement={{ spacedBy: 2 }}>
         <Text
-          color={row.destructive ? colors.negative : colors.primaryText}
+          color={
+            row.destructive
+              ? colors.negative
+              : row.action
+                ? colors.accent
+                : colors.primaryText
+          }
           style={{
             fontSize: row.prominent ? 18 : 16,
             fontWeight: row.prominent ? '600' : undefined,
@@ -180,7 +188,31 @@ function SettingsRow({
           }}
         />
       ) : null}
+      {row.selected ? (
+        <RNHostView matchContents>
+          <HostedCheckmark />
+        </RNHostView>
+      ) : null}
     </Row>
+  );
+}
+
+const checkmarkSize = 24;
+
+/** Tlon's checkmark, since Compose's radio button can't take theme colors. */
+function HostedCheckmark() {
+  return (
+    <View
+      pointerEvents="none"
+      style={{ width: checkmarkSize, height: checkmarkSize }}
+    >
+      <Icon
+        type="Checkmark"
+        width={checkmarkSize}
+        height={checkmarkSize}
+        color="$positiveActionText"
+      />
+    </View>
   );
 }
 

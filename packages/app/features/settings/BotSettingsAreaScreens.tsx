@@ -1,15 +1,8 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback } from 'react';
-import { View } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
-import { ScreenHeader } from '../../ui';
-import {
-  SettingsList,
-  getSettingsListHeaderColor,
-  settingsListPageColor,
-} from '../../ui/components/SettingsList';
+import { SettingsListScreenView } from '../../ui/components/SettingsList';
 import {
   BotSettingsApplyBar,
   BotSettingsNavigate,
@@ -40,7 +33,6 @@ function BotSettingsAreaScreen({
     navigate: unknown;
   };
 }) {
-  const isWindowNarrow = useIsWindowNarrow();
   const hub = useBotSettingsHub();
   const sections = useBotSettingsSectionModels(
     hub,
@@ -49,18 +41,12 @@ function BotSettingsAreaScreen({
   const handleBack = useCallback(() => navigation.goBack(), [navigation]);
 
   return (
-    <View flex={1} backgroundColor={settingsListPageColor}>
-      <ScreenHeader
-        title={areaTitles[area]}
-        backgroundColor={getSettingsListHeaderColor()}
-        backAction={isWindowNarrow ? handleBack : undefined}
-        placement="navigation"
-      />
-      <View flex={1}>
-        <SettingsList sections={sections} />
-      </View>
-      <BotSettingsApplyBar hub={hub} />
-    </View>
+    <SettingsListScreenView
+      title={areaTitles[area]}
+      sections={sections}
+      onBackPressed={handleBack}
+      bottomBar={<BotSettingsApplyBar hub={hub} />}
+    />
   );
 }
 
