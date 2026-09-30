@@ -363,6 +363,13 @@ function withMessageBubble(base: BaseTheme) {
   return { ...base, messageBubble: base.secondaryBackground };
 }
 
+// Other people's grey bubbles are the fill that cards nested in them
+// (references, code, link previews, A2UI) already use, so inside a bubble
+// those cards take the page color instead.
+function otherMessageTheme(base: BaseTheme) {
+  return { ...withMessageBubble(base), secondaryBackground: base.background };
+}
+
 function ownMessageTheme(
   base: BaseTheme,
   { bubble, text }: { bubble: string; text: string }
@@ -397,40 +404,49 @@ const blueBubble = { bubble: color.blue, text: color.white };
 
 export const themes = {
   dark: withMessageBubble(baseThemes.dark),
+  dark_otherMessage: otherMessageTheme(baseThemes.dark),
   dark_ownMessage: ownMessageTheme(baseThemes.dark, blueBubble),
   light: withMessageBubble(baseThemes.light),
+  light_otherMessage: otherMessageTheme(baseThemes.light),
   light_ownMessage: ownMessageTheme(baseThemes.light, blueBubble),
   dracula: withMessageBubble(baseThemes.dracula),
+  dracula_otherMessage: otherMessageTheme(baseThemes.dracula),
   dracula_ownMessage: ownMessageTheme(
     baseThemes.dracula,
     accentBubble(baseThemes.dracula)
   ),
   gruvbox: withMessageBubble(baseThemes.gruvbox),
+  gruvbox_otherMessage: otherMessageTheme(baseThemes.gruvbox),
   gruvbox_ownMessage: ownMessageTheme(
     baseThemes.gruvbox,
     accentBubble(baseThemes.gruvbox)
   ),
   monokai: withMessageBubble(baseThemes.monokai),
+  monokai_otherMessage: otherMessageTheme(baseThemes.monokai),
   monokai_ownMessage: ownMessageTheme(
     baseThemes.monokai,
     accentBubble(baseThemes.monokai)
   ),
   solarized: withMessageBubble(baseThemes.solarized),
+  solarized_otherMessage: otherMessageTheme(baseThemes.solarized),
   solarized_ownMessage: ownMessageTheme(
     baseThemes.solarized,
     accentBubble(baseThemes.solarized)
   ),
   nord: withMessageBubble(baseThemes.nord),
+  nord_otherMessage: otherMessageTheme(baseThemes.nord),
   nord_ownMessage: ownMessageTheme(
     baseThemes.nord,
     accentBubble(baseThemes.nord)
   ),
   greenscreen: withMessageBubble(baseThemes.greenscreen),
+  greenscreen_otherMessage: otherMessageTheme(baseThemes.greenscreen),
   greenscreen_ownMessage: ownMessageTheme(
     baseThemes.greenscreen,
     accentBubble(baseThemes.greenscreen)
   ),
   peony: withMessageBubble(baseThemes.peony),
+  peony_otherMessage: otherMessageTheme(baseThemes.peony),
   peony_ownMessage: ownMessageTheme(
     baseThemes.peony,
     accentBubble(baseThemes.peony)

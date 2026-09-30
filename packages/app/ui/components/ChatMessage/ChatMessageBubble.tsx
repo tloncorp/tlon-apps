@@ -1,8 +1,6 @@
 import * as db from '@tloncorp/shared/db';
-import type * as cn from '@tloncorp/shared/logic';
 import { resolveThreadUnread } from '@tloncorp/shared/logic';
 import { Icon, Pressable, Text } from '@tloncorp/ui';
-import { differenceInCalendarDays, format } from 'date-fns';
 import { PropsWithChildren, ReactNode, useMemo } from 'react';
 import { Theme, View, XStack, YStack, isWeb } from 'tamagui';
 
@@ -14,6 +12,11 @@ import { ContactName } from '../ContactNameV2';
 import { UnreadDot } from '../UnreadDot';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ReactionsDisplay } from './ReactionsDisplay';
+import {
+  BubbleSegment,
+  formatBubbleTimestamp,
+  segmentHugsContent,
+} from './chatBubbleLayout';
 import { useAuthorBubbleTint } from './useAuthorBubbleTint';
 
 // Measurements from the mobile chat bubble designs.
@@ -32,63 +35,6 @@ const channelTypesWithBubbles: db.ChannelType[] = ['chat', 'dm', 'groupDm'];
 /** Whether chat rows in a channel of this type render as bubbles. */
 export function useChatBubbleLayout(channelType: db.ChannelType) {
   return !isWeb && channelTypesWithBubbles.includes(channelType);
-}
-
-/**
- * Day of the week within the last week, otherwise the Urbit-style date. Today's
- * messages show only the time: the day divider above them already says so.
- */
-export function formatBubbleTimestamp(sentAt: number, now = Date.now()) {
-  const date = new Date(sentAt);
-  const time = format(date, 'HH:mm');
-  const days = differenceInCalendarDays(now, date);
-  if (days <= 0) {
-    return time;
-  }
-  if (days < 7) {
-    return `${format(date, 'EEEE')} • ${time}`;
-  }
-  return `~${format(date, 'yyyy.M.d')} • ${time}`;
-}
-
-export type BubbleSegment = {
-  kind: 'media' | 'body';
-  blocks: cn.BlockData[];
-};
-
-const MEDIA_BLOCK_TYPES = new Set<cn.BlockType>(['image', 'video']);
-// Blocks that size to their text. Everything else (references, code, files,
-// lists) lays out against a full-width column, so its bubble stretches.
-const HUGGING_BLOCK_TYPES = new Set<cn.BlockType>([
-  'paragraph',
-  'blockquote',
-  'header',
-  'bigEmoji',
-]);
-
-/**
- * Splits a message into the separate bubbles it renders as: each image or
- * video is its own full-bleed bubble, and runs of everything else share one.
- */
-export function segmentBubbleContent(content: cn.PostContent) {
-  const segments: BubbleSegment[] = [];
-  for (const block of content) {
-    const kind = MEDIA_BLOCK_TYPES.has(block.type) ? 'media' : 'body';
-    const previous = segments[segments.length - 1];
-    if (kind === 'body' && previous?.kind === 'body') {
-      previous.blocks.push(block);
-    } else {
-      segments.push({ kind, blocks: [block] });
-    }
-  }
-  return segments;
-}
-
-export function segmentHugsContent(segment: BubbleSegment) {
-  return (
-    segment.kind === 'body' &&
-    segment.blocks.every((block) => HUGGING_BLOCK_TYPES.has(block.type))
-  );
 }
 
 export function ChatMessageBubbleRow({
@@ -191,7 +137,9 @@ export function ChatMessageBubbleSegment({
     </YStack>
   );
 
-  return isOwn ? <Theme name="ownMessage">{bubble}</Theme> : bubble;
+  // Sub-themes defined in tamagui.config: legible colors on the accent for
+  // your own bubbles, and cards that stand off the grey for everyone else's.
+  return <Theme name={isOwn ? 'ownMessage' : 'otherMessage'}>{bubble}</Theme>;
 }
 
 function OverlayPill({ children }: PropsWithChildren) {
@@ -212,13 +160,16 @@ export function ChatMessageBubbleHeader({
   isOwn,
   showIdentity,
   showEditedIndicator,
+  disableProfilePreview,
 }: {
   post: db.Post;
   isOwn: boolean;
   showIdentity: boolean;
   showEditedIndicator: boolean;
+  disableProfilePreview?: boolean;
 }) {
-  const openProfile = useNavigateToProfile(post.authorId);
+  const navigateToProfile = useNavigateToProfile(post.authorId);
+  const openProfile = disableProfilePreview ? undefined : navigateToProfile;
   const timestamp = useMemo(
     () => (post.sentAt ? formatBubbleTimestamp(post.sentAt) : null),
     [post.sentAt]
@@ -310,7 +261,15 @@ export function ChatMessageBubbleFooter({
       flexWrap="wrap"
       justifyContent={isOwn ? 'flex-end' : 'flex-start'}
     >
-      {showEditedIndicator && !overlay ? <EditedText /> : null}
+      {showEditedIndicator ? (
+        overlay ? (
+          <OverlayPill>
+            <EditedText />
+          </OverlayPill>
+        ) : (
+          <EditedText />
+        )
+      ) : null}
       {replies && overlay ? <OverlayPill>{replies}</OverlayPill> : replies}
       {hasReactions ? (
         <ReactionsDisplay

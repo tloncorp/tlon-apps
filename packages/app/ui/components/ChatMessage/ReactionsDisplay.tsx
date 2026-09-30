@@ -13,6 +13,7 @@ import { useCanWrite } from '../../utils/channelUtils';
 import { ReactionListItem, useReactionDetails } from '../../utils/postUtils';
 import { useContactName } from '../ContactNameV2';
 import { EmojiPickerSheet } from '../Emoji';
+import { pickVisibleReactions } from './chatBubbleLayout';
 
 const TOOLTIP_USER_DISPLAY_COUNT = 3;
 const TOOLTIP_MAX_WIDTH_PX = 320;
@@ -179,11 +180,11 @@ export function ReactionsDisplay({
     if (reactionDetails.list.length === 0) {
       return null;
     }
-    const visibleReactions = reactionDetails.list.slice(
-      0,
+    const { visible: visibleReactions, hiddenCount } = pickVisibleReactions(
+      reactionDetails.list,
+      reactionDetails.self.value,
       BUBBLE_VISIBLE_REACTIONS
     );
-    const hiddenCount = reactionDetails.list.length - visibleReactions.length;
 
     return (
       <XStack gap="$xs" alignItems="center">
@@ -207,7 +208,7 @@ export function ReactionsDisplay({
               onLongPress={() => handleOpenReactions(post)}
             >
               <SizableEmoji emojiInput={reaction.value} fontSize="$s" />
-              {reaction.count > 1 && (
+              {reaction.count > 0 && (
                 <Text size="$label/s">{reaction.count}</Text>
               )}
             </BubbleReactionPill>
@@ -219,6 +220,7 @@ export function ReactionsDisplay({
             backgroundColor="$background"
             borderColor="transparent"
             onPress={() => handleOpenReactions(post)}
+            onLongPress={() => handleOpenReactions(post)}
           >
             <Text size="$label/s">+{hiddenCount}</Text>
           </BubbleReactionPill>

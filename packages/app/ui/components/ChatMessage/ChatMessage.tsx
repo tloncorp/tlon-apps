@@ -46,6 +46,7 @@ const ChatMessage = ({
   hideOverflowMenu,
   displayDebugMode = false,
   searchQuery,
+  bubbleLayout: bubbleLayoutProp,
 }: {
   post: db.Post;
   a2uiActionCompletion?: A2UIActionCompletion;
@@ -67,13 +68,16 @@ const ChatMessage = ({
   displayDebugMode?: boolean;
   hideOverflowMenu?: boolean;
   searchQuery?: string;
+  /** Pass false to keep flat rows where bubbles would otherwise apply. */
+  bubbleLayout?: boolean;
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const channel = useChannelContext();
   const currentUserId = useCurrentUserId();
   const canWrite = useCanWrite(channel, currentUserId);
-  const bubbleLayout = useChatBubbleLayout(channel.type);
+  const channelUsesBubbles = useChatBubbleLayout(channel.type);
+  const bubbleLayout = channelUsesBubbles && bubbleLayoutProp !== false;
   const postActionIds = useMemo(
     () => ChannelAction.channelActionIdsFor({ channel, canWrite }),
     [channel, canWrite]
@@ -238,7 +242,8 @@ export default memo(ChatMessage, (prev, next) => {
     prev.onPressBotRun === next.onPressBotRun &&
     isEqual(prev.a2uiActionCompletion, next.a2uiActionCompletion) &&
     prev.searchQuery === next.searchQuery &&
-    prev.displayDebugMode === next.displayDebugMode;
+    prev.displayDebugMode === next.displayDebugMode &&
+    prev.bubbleLayout === next.bubbleLayout;
 
   return isPostEqual && areOtherPropsEqual;
 });

@@ -404,6 +404,18 @@ const Scroller = forwardRef(
       ]
     );
 
+    // Bubble rows drop the list's horizontal padding; the footer (the
+    // thinking indicator) keeps it.
+    const paddedListBottomComponent = useMemo(
+      () =>
+        bubbleLayout && listBottomComponent ? (
+          <View paddingHorizontal="$m">{listBottomComponent}</View>
+        ) : (
+          listBottomComponent
+        ),
+      [bubbleLayout, listBottomComponent]
+    );
+
     const insets = useSafeAreaInsets();
     const rootVerticalPadding = getTokens().space.l.val;
     const composerBottomInset = contentInsets.bottom;
@@ -689,7 +701,7 @@ const Scroller = forwardRef(
             scrollEnabled={!editingPost}
             style={style}
             listHeaderComponent={listHeaderComponent}
-            listBottomComponent={listBottomComponent}
+            listBottomComponent={paddedListBottomComponent}
             contentInsets={contentInsets}
           />
         )}
@@ -896,8 +908,19 @@ const BaseScrollerItem = ({
     if (isPrevDeleted) {
       return true;
     }
+    // A divider between bubbles breaks the series, so the next bubble
+    // starts one: header, and the gap between series.
+    if (bubbleLayout && dividersEnabled && showUnreadDivider) {
+      return true;
+    }
     return showAuthor;
-  }, [isPrevDeleted, showAuthor]);
+  }, [
+    isPrevDeleted,
+    showAuthor,
+    bubbleLayout,
+    dividersEnabled,
+    showUnreadDivider,
+  ]);
 
   const handleLayout = useCallback(
     (e: LayoutChangeEvent) => {

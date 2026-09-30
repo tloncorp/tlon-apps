@@ -31,12 +31,14 @@ export function adjustColorContrastForTheme(
 ): string {
   const hslaColor = parseInputAsHsla(color);
   const lightness = hslaColor[2];
+  // Sub-themes (e.g. `dark_ownMessage`) keep their parent's scheme.
+  const scheme = theme.split('_')[0];
 
-  if (lightness <= 0.2 && theme === 'dark') {
+  if (lightness <= 0.2 && scheme === 'dark') {
     return lighten(color, 0.2 - lightness);
   }
 
-  if (lightness >= 0.8 && theme === 'light') {
+  if (lightness >= 0.8 && scheme === 'light') {
     return darken(color, lightness - 0.8);
   }
 

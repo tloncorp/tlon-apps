@@ -49,12 +49,11 @@ import {
   ChatMessageBubbleRetry,
   ChatMessageBubbleRow,
   ChatMessageBubbleSegment,
-  segmentBubbleContent,
-  segmentHugsContent,
 } from './ChatMessageBubble';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
+import { segmentBubbleContent, segmentHugsContent } from './chatBubbleLayout';
 import { ReactionsDisplay } from './ReactionsDisplay';
 
 function receiptFollowsPost(
@@ -686,6 +685,9 @@ export function StaticChatMessage({
     const isOwn = post.authorId === currentUserId;
     const isFirstInSeries = Boolean(showAuthor);
     const segments = segmentBubbleContent(renderedContent);
+    const BubbleContentRenderer = isOwn
+      ? OwnBubbleChatContentRenderer
+      : BubbleChatContentRenderer;
     if (segments.length === 0) {
       segments.push({ kind: 'body', blocks: [] });
     }
@@ -713,6 +715,7 @@ export function StaticChatMessage({
                       isOwn={isOwn}
                       // 1:1 DMs have only one other sender to name.
                       showIdentity={!isOwn && !isDmChannelId(post.channelId)}
+                      disableProfilePreview={hideProfilePreview}
                       showEditedIndicator={!!post.isEdited}
                     />
                   ) : null
@@ -734,7 +737,7 @@ export function StaticChatMessage({
                 }
               >
                 {segment.blocks.length ? (
-                  <BubbleChatContentRenderer
+                  <BubbleContentRenderer
                     content={segment.blocks}
                     width={segmentHugsContent(segment) ? 'auto' : '100%'}
                     gap={BUBBLE_ELEMENT_GAP}
@@ -918,18 +921,39 @@ const ChatContentRenderer = createContentRenderer({
 
 // Bubbles supply their own padding and spacing between elements, and images
 // fill the bubble they sit in.
+const bubbleBlockSettings: Partial<DefaultRendererProps> = {
+  ...chatBlockSettings,
+  blockWrapper: {
+    padding: 0,
+  },
+  image: {
+    ...NativeChatImageRenderer,
+    imageProps: { borderRadius: BUBBLE_RADIUS },
+  },
+};
+
 const BubbleChatContentRenderer = createContentRenderer({
   blockRenderers: {
     a2ui: A2UIBlock,
   },
+  blockSettings: bubbleBlockSettings,
+});
+
+// Your own media hugs the right edge, under the overlays pinned there, when
+// it is narrower than the bubble column (small images, very tall ones).
+const OwnBubbleChatContentRenderer = createContentRenderer({
+  blockRenderers: {
+    a2ui: A2UIBlock,
+  },
   blockSettings: {
-    ...chatBlockSettings,
-    blockWrapper: {
-      padding: 0,
-    },
+    ...bubbleBlockSettings,
     image: {
-      ...NativeChatImageRenderer,
-      imageProps: { borderRadius: BUBBLE_RADIUS },
+      ...bubbleBlockSettings.image,
+      alignSelf: 'flex-end',
+      width: '100%',
+    },
+    video: {
+      alignSelf: 'flex-end',
     },
   },
 });
