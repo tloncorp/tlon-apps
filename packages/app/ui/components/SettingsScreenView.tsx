@@ -7,7 +7,7 @@ import { useContactName } from './ContactNameV2';
 import { ScreenHeader } from './ScreenHeader';
 import {
   SettingsList,
-  settingsListPageColor,
+  getSettingsListHeaderColor,
   type SettingsRowModel,
   type SettingsSectionModel,
 } from './SettingsList';
@@ -72,7 +72,7 @@ export function SettingsScreenView(props: Props) {
     <>
       <ScreenHeader
         title="Settings"
-        backgroundColor={settingsListPageColor}
+        backgroundColor={getSettingsListHeaderColor()}
         backAction={props.onBackPressed}
         borderBottom={isWindowNarrow}
         placement="navigation"
