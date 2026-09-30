@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { runTlonCommand } from './tlon-command-runner.js';
+import { normalizeShip } from './targets.js';
+import { resolveTlonAccount } from './types.js';
 
 const AMBIENT_CREDENTIAL_ENV = {
   TLON_CONFIG_FILE: '/tmp/ambient-tlon-config.json',
@@ -224,6 +226,34 @@ describe('runTlonCommand timeout output capture', () => {
 });
 
 describe('runTlonCommand credential environment', () => {
+  it('leaves owner discovery to the CLI when only a named account is configured', async () => {
+    vi.stubEnv('TLON_OWNER_SHIP', undefined);
+    const account = resolveTlonAccount({
+      channels: {
+        tlon: {
+          accounts: {
+            personal: {
+              ship: '~zod',
+              url: 'https://zod.example',
+              code: 'test-code',
+              ownerShip: '~nec',
+            },
+          },
+        },
+      },
+    });
+    const stdout = await runTlonCommand(
+      process.execPath,
+      [
+        '-e',
+        'process.stdout.write(JSON.stringify(process.env.TLON_OWNER_SHIP ?? null))',
+      ],
+      undefined,
+      { ownerShip: normalizeShip(account.ownerShip ?? '') || undefined }
+    );
+    expect(JSON.parse(stdout)).toBeNull();
+  });
+
   it.each(['~nec', ''])(
     'passes the resolved account owner %j instead of an ambient owner',
     async (ownerShip) => {
