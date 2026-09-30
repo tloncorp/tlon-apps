@@ -101,7 +101,7 @@ export const tokens = createTokens({
   zIndex,
 });
 
-export const themes = {
+const baseThemes = {
   dark: {
     primaryText: '#FFFFFF',
     color: '#FFFFFF',
@@ -345,6 +345,96 @@ export const themes = {
     systemNoticeText: '#ffe4f5',
     mediaScrim: tokens.color.mediaScrim.val,
   },
+};
+
+type BaseTheme = (typeof baseThemes)['light'];
+
+function withAlpha(hex: string, alpha: number) {
+  const value = parseInt(hex.slice(1), 16);
+  return `rgba(${(value >> 16) & 255}, ${(value >> 8) & 255}, ${value & 255}, ${alpha})`;
+}
+
+// The native chat bubble layout puts other people's messages on
+// `$messageBubble` and wraps your own in <Theme name="ownMessage">, which
+// Tamagui resolves to `<parent>_ownMessage`. Everything inside your bubble --
+// text, links, mentions, timestamps, reply counts, reaction pills -- then reads
+// legibly on the accent color without per-component overrides.
+function withMessageBubble(base: BaseTheme) {
+  return { ...base, messageBubble: base.secondaryBackground };
+}
+
+function ownMessageTheme(
+  base: BaseTheme,
+  { bubble, text }: { bubble: string; text: string }
+) {
+  return {
+    ...base,
+    messageBubble: bubble,
+    primaryText: text,
+    color: text,
+    secondaryText: withAlpha(text, 0.8),
+    tertiaryText: withAlpha(text, 0.65),
+    background: withAlpha(text, 0.2),
+    secondaryBackground: withAlpha(text, 0.15),
+    shadow: withAlpha(text, 0.1),
+    border: withAlpha(text, 0.25),
+    secondaryBorder: withAlpha(text, 0.25),
+    activeBorder: withAlpha(text, 0.4),
+    positiveActionText: text,
+    positiveBackground: withAlpha(text, 0.3),
+    positiveBorder: withAlpha(text, 0.5),
+    neutralUnreadDot: withAlpha(text, 0.65),
+  };
+}
+
+// Light and dark use the bright blue from the original bubble designs; the
+// alternate themes set their background color on their own accent.
+const accentBubble = (base: BaseTheme) => ({
+  bubble: base.positiveActionText,
+  text: base.background,
+});
+const blueBubble = { bubble: color.blue, text: color.white };
+
+export const themes = {
+  dark: withMessageBubble(baseThemes.dark),
+  dark_ownMessage: ownMessageTheme(baseThemes.dark, blueBubble),
+  light: withMessageBubble(baseThemes.light),
+  light_ownMessage: ownMessageTheme(baseThemes.light, blueBubble),
+  dracula: withMessageBubble(baseThemes.dracula),
+  dracula_ownMessage: ownMessageTheme(
+    baseThemes.dracula,
+    accentBubble(baseThemes.dracula)
+  ),
+  gruvbox: withMessageBubble(baseThemes.gruvbox),
+  gruvbox_ownMessage: ownMessageTheme(
+    baseThemes.gruvbox,
+    accentBubble(baseThemes.gruvbox)
+  ),
+  monokai: withMessageBubble(baseThemes.monokai),
+  monokai_ownMessage: ownMessageTheme(
+    baseThemes.monokai,
+    accentBubble(baseThemes.monokai)
+  ),
+  solarized: withMessageBubble(baseThemes.solarized),
+  solarized_ownMessage: ownMessageTheme(
+    baseThemes.solarized,
+    accentBubble(baseThemes.solarized)
+  ),
+  nord: withMessageBubble(baseThemes.nord),
+  nord_ownMessage: ownMessageTheme(
+    baseThemes.nord,
+    accentBubble(baseThemes.nord)
+  ),
+  greenscreen: withMessageBubble(baseThemes.greenscreen),
+  greenscreen_ownMessage: ownMessageTheme(
+    baseThemes.greenscreen,
+    accentBubble(baseThemes.greenscreen)
+  ),
+  peony: withMessageBubble(baseThemes.peony),
+  peony_ownMessage: ownMessageTheme(
+    baseThemes.peony,
+    accentBubble(baseThemes.peony)
+  ),
 };
 
 export const systemFont = createFont({

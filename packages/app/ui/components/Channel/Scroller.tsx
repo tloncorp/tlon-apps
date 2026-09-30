@@ -52,6 +52,7 @@ import type {
 import { useSetConversationScrollToBottomControl } from '../../contexts/scroll';
 import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
+import { useChatBubbleLayout } from '../ChatMessage/ChatMessageBubble';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import { getA2UIActionCompletions } from '../ChatMessage/a2uiActionCompletion';
 import { EmojiPickerSheet } from '../Emoji';
@@ -260,6 +261,7 @@ const Scroller = forwardRef(
     const { value: debugMessageJson } = db.debugMessageJson.useStorageItem();
 
     const theme = useTheme();
+    const bubbleLayout = useChatBubbleLayout(channel.type);
 
     const visiblePosts = useMemo(
       () =>
@@ -367,6 +369,7 @@ const Scroller = forwardRef(
             columnCount={columns}
             previousPost={previous}
             a2uiActionCompletion={a2uiActionCompletion}
+            bubbleLayout={bubbleLayout}
             {...rest}
           />
         );
@@ -397,6 +400,7 @@ const Scroller = forwardRef(
         setActiveMessage,
         setEditingPost,
         debugMessageJson,
+        bubbleLayout,
       ]
     );
 
@@ -463,7 +467,8 @@ const Scroller = forwardRef(
         switch (collectionLayoutType) {
           case 'compact-list-bottom-to-top': {
             return {
-              paddingHorizontal: '$m',
+              // Bubbles inset themselves from the screen edge.
+              paddingHorizontal: bubbleLayout ? 0 : '$m',
               paddingTop: contentInsets.top,
               paddingBottom: scrollContentBottomInset,
             };
@@ -494,6 +499,7 @@ const Scroller = forwardRef(
           }
         }
       }, [
+        bubbleLayout,
         standaloneBottomSafeArea,
         visiblePosts?.length,
         collectionLayoutType,
@@ -838,6 +844,7 @@ const BaseScrollerItem = ({
   columnCount,
   previousPost,
   a2uiActionCompletion,
+  bubbleLayout,
 }: {
   showUnreadDivider: boolean;
   showAuthor: boolean;
@@ -869,6 +876,8 @@ const BaseScrollerItem = ({
   columnCount: number;
   previousPost?: db.Post | null;
   a2uiActionCompletion?: A2UIActionCompletion;
+  // Bubble rows space themselves, so the separators between blocks go.
+  bubbleLayout: boolean;
 }) => {
   const post = useLivePost(item);
 
@@ -915,8 +924,8 @@ const BaseScrollerItem = ({
       case 'day':
         return (
           <>
-            <ChannelDivider unreadCount={0} post={post} />
-            <PostBlockSeparator />
+            <ChannelDivider unreadCount={0} post={post} plain={bubbleLayout} />
+            {!bubbleLayout && <PostBlockSeparator />}
           </>
         );
       case 'unread':
@@ -926,14 +935,15 @@ const BaseScrollerItem = ({
               post={post}
               unreadCount={unreadCount ?? 0}
               isFirstPostOfDay={showDayDivider}
+              plain={bubbleLayout}
             />
-            <PostBlockSeparator />
+            {!bubbleLayout && <PostBlockSeparator />}
           </>
         );
       case null:
         return null;
     }
-  }, [dividerType, post, unreadCount, showDayDivider]);
+  }, [dividerType, post, unreadCount, showDayDivider, bubbleLayout]);
 
   const editPost = useCallback<
     Exclude<ComponentPropsWithoutRef<RenderItemType>['editPost'], undefined>
@@ -975,7 +985,7 @@ const BaseScrollerItem = ({
           onPressEdit={onPressEdit}
         />
       </PressableMessage>
-      {isLastPostOfBlock && <PostBlockSeparator />}
+      {isLastPostOfBlock && !bubbleLayout && <PostBlockSeparator />}
     </View>
   );
 };
@@ -1009,7 +1019,8 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
     prev.activeMessage === next.activeMessage &&
     prev.itemWidth === next.itemWidth &&
     prev.displayDebugMode === next.displayDebugMode &&
-    prev.isLastPostOfBlock === next.isLastPostOfBlock;
+    prev.isLastPostOfBlock === next.isLastPostOfBlock &&
+    prev.bubbleLayout === next.bubbleLayout;
 
   return isItemEqual && areOtherPropsEqual && isIndexEqual;
 });

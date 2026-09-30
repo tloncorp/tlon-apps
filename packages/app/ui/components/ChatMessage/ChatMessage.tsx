@@ -16,6 +16,7 @@ import { getOwnContextLensStamp } from '../Channel/ContextLens/lensPost';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { MaskedChatMessage } from '../PostModeration';
 import { BotFeedbackRow } from './BotFeedbackRow';
+import { useChatBubbleLayout } from './ChatMessageBubble';
 import { ChatMessageActions } from './ChatMessageActions/Component';
 import { MessageContextMenu } from './MessageContextMenu';
 import { StaticChatMessage } from './StaticChatMessage';
@@ -72,6 +73,7 @@ const ChatMessage = ({
   const channel = useChannelContext();
   const currentUserId = useCurrentUserId();
   const canWrite = useCanWrite(channel, currentUserId);
+  const bubbleLayout = useChatBubbleLayout(channel.type);
   const postActionIds = useMemo(
     () => ChannelAction.channelActionIdsFor({ channel, canWrite }),
     [channel, canWrite]
@@ -162,6 +164,7 @@ const ChatMessage = ({
           >
             <StaticChatMessage
               {...{
+                bubbleLayout,
                 displayDebugMode,
                 hideProfilePreview,
                 hideSentAtTimestamp: hideOverflowMenu || !isHovered,

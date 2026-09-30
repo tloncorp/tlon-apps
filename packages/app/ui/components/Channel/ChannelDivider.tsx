@@ -8,10 +8,13 @@ export function ChannelDivider({
   post,
   unreadCount,
   isFirstPostOfDay,
+  plain = false,
 }: {
   post: db.Post;
   unreadCount: number;
   isFirstPostOfDay?: boolean;
+  /** A single row of text, styled like system messages, with no pill. */
+  plain?: boolean;
 }) {
   const [backgroundColor, textColor, borderColor] = unreadCount
     ? ['$positiveActionText', '$background', '$positiveActionText']
@@ -22,6 +25,31 @@ export function ChannelDivider({
   const time = useMemo(() => {
     return makePrettyDay(new Date(post.receivedAt));
   }, [post.receivedAt]);
+
+  const label = (
+    <>
+      {!hideTime ? `${time}` : null}
+      {!hideTime && unreadCount ? ' • ' : null}
+      {unreadCount
+        ? `${unreadCount} new message${unreadCount === 1 ? '' : 's below'}`
+        : null}
+    </>
+  );
+
+  if (plain) {
+    return (
+      <XStack justifyContent="center" paddingTop="$xl" paddingBottom="$2xs">
+        <Text
+          size="$label/s"
+          numberOfLines={1}
+          color={unreadCount ? '$positiveActionText' : '$tertiaryText'}
+          userSelect="none"
+        >
+          {label}
+        </Text>
+      </XStack>
+    );
+  }
 
   return (
     <XStack alignItems="center" justifyContent="center" paddingVertical="$l">
@@ -38,11 +66,7 @@ export function ChannelDivider({
           color={textColor}
           userSelect="none"
         >
-          {!hideTime ? `${time}` : null}
-          {!hideTime && unreadCount ? ' • ' : null}
-          {unreadCount
-            ? `${unreadCount} new message${unreadCount === 1 ? '' : 's below'}`
-            : null}
+          {label}
         </Text>
       </View>
     </XStack>

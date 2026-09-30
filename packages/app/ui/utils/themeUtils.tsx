@@ -9,7 +9,7 @@ import { AppTheme } from '../../types/theme';
 export function normalizeTheme(theme: string | null): AppTheme {
   if (!theme) return 'auto';
   const t = String(theme).toLowerCase();
-  const validThemes: Record<string, ThemeName> = {
+  const validThemes: Record<string, AppTheme> = {
     light: 'light',
     dark: 'dark',
     dracula: 'dracula',

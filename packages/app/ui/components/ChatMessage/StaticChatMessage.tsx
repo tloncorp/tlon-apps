@@ -41,6 +41,17 @@ import {
 import { SentTimeText } from '../SentTimeText';
 import { useDraftInputContext } from '../draftInputs/shared';
 import { resolveAgentActionGroupId } from './agentActionGroup';
+import {
+  BUBBLE_ELEMENT_GAP,
+  BUBBLE_RADIUS,
+  ChatMessageBubbleFooter,
+  ChatMessageBubbleHeader,
+  ChatMessageBubbleRetry,
+  ChatMessageBubbleRow,
+  ChatMessageBubbleSegment,
+  segmentBubbleContent,
+  segmentHugsContent,
+} from './ChatMessageBubble';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
@@ -93,6 +104,7 @@ function provisionMatchesPlan(
  */
 export function StaticChatMessage({
   a2uiActionCompletion,
+  bubbleLayout = false,
   displayDebugMode = false,
   hideProfilePreview,
   hideSentAtTimestamp,
@@ -110,6 +122,8 @@ export function StaticChatMessage({
 }: {
   authorRowProps?: Partial<ComponentProps<typeof AuthorRow>>;
   a2uiActionCompletion?: A2UIActionCompletion;
+  /** Render as the native chat bubble layout rather than flat rows. */
+  bubbleLayout?: boolean;
   displayDebugMode?: boolean;
   hideProfilePreview?: boolean;
   hideSentAtTimestamp?: boolean;
@@ -640,6 +654,104 @@ export function StaticChatMessage({
     </XStack>
   ) : null;
 
+  const renderedContent =
+    post.editStatus === 'failed' ? lastEditContent : content;
+  const contentRendererProps = {
+    isNotice,
+    onPressImage: handleImagePressed,
+    getImageViewerId: (src: string) => getPostImageViewerId(post.id, src),
+    onLongPress: handleLongPress,
+    onA2UIAction: canRenderA2UI ? handleA2UIAction : undefined,
+    isA2UIActionAvailable: canRenderA2UI ? isA2UIActionAvailable : undefined,
+    canSendA2UIResponse: Boolean(
+      canRenderA2UI &&
+      draftInputContext &&
+      draftInputContext.canStartDraft !== false
+    ),
+    areA2UISelectionsPending:
+      a2uiSelections.isPending || agentProtocolReceipts.isPending,
+    a2uiSourcePostId: post.id,
+    canUseAgentProviderControls,
+    getConsumedA2UISelection: canRenderA2UI
+      ? getConsumedA2UISelection
+      : undefined,
+    isA2UIActionConsumed: canRenderA2UI ? isA2UIActionConsumed : undefined,
+    getConfiguredAgentProviderIds,
+    provisionedAgentTopics,
+    consumedA2UIMessageText: a2uiActionCompletion?.sentMessageText,
+    searchQuery,
+  };
+
+  if (bubbleLayout && !isNotice && !displayDebugMode) {
+    const isOwn = post.authorId === currentUserId;
+    const isFirstInSeries = Boolean(showAuthor);
+    const segments = segmentBubbleContent(renderedContent);
+    if (segments.length === 0) {
+      segments.push({ kind: 'body', blocks: [] });
+    }
+
+    return (
+      <YStack key={post.id}>
+        {isHighlighted && <ChatMessageHighlight active={isHighlighted} />}
+        <ChatMessageBubbleRow
+          isOwn={isOwn}
+          isFirstInSeries={isFirstInSeries}
+          deliveryStatus={post.deliveryStatus}
+        >
+          {segments.map((segment, index) => {
+            const isLast = index === segments.length - 1;
+            return (
+              <ChatMessageBubbleSegment
+                key={index}
+                segment={segment}
+                isOwn={isOwn}
+                header={
+                  index === 0 && isFirstInSeries ? (
+                    <ChatMessageBubbleHeader
+                      post={post}
+                      isOwn={isOwn}
+                      // 1:1 DMs have only one other sender to name.
+                      showIdentity={!isOwn && !isDmChannelId(post.channelId)}
+                      showEditedIndicator={!!post.isEdited}
+                    />
+                  ) : null
+                }
+                footer={
+                  isLast ? (
+                    <ChatMessageBubbleFooter
+                      post={post}
+                      isOwn={isOwn}
+                      overlay={segment.kind === 'media'}
+                      showReplies={!!showReplies}
+                      showEditedIndicator={!isFirstInSeries && !!post.isEdited}
+                      onPressReplies={
+                        shouldRenderReplies ? handleRepliesPressed : undefined
+                      }
+                      onViewPostReactions={setViewReactionsPost}
+                    />
+                  ) : null
+                }
+              >
+                {segment.blocks.length ? (
+                  <BubbleChatContentRenderer
+                    content={segment.blocks}
+                    width={segmentHugsContent(segment) ? 'auto' : '100%'}
+                    gap={BUBBLE_ELEMENT_GAP}
+                    {...contentRendererProps}
+                  />
+                ) : null}
+              </ChatMessageBubbleSegment>
+            );
+          })}
+          {deliveryFailed && (
+            <ChatMessageBubbleRetry onPressRetry={handleRetryPressed} />
+          )}
+          {feedbackRow?.({ inline: false })}
+        </ChatMessageBubbleRow>
+      </YStack>
+    );
+  }
+
   return (
     <YStack key={post.id}>
       {isHighlighted && <ChatMessageHighlight active={isHighlighted} />}
@@ -700,36 +812,9 @@ export function StaticChatMessage({
           </Text>
         ) : (
           <ChatContentRenderer
-            content={post.editStatus === 'failed' ? lastEditContent : content}
+            content={renderedContent}
             paddingBottom={contentIsOnlyA2UI ? '$l' : undefined}
-            isNotice={post.type === 'notice'}
-            onPressImage={handleImagePressed}
-            getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
-            onLongPress={handleLongPress}
-            onA2UIAction={canRenderA2UI ? handleA2UIAction : undefined}
-            isA2UIActionAvailable={
-              canRenderA2UI ? isA2UIActionAvailable : undefined
-            }
-            canSendA2UIResponse={Boolean(
-              canRenderA2UI &&
-              draftInputContext &&
-              draftInputContext.canStartDraft !== false
-            )}
-            areA2UISelectionsPending={
-              a2uiSelections.isPending || agentProtocolReceipts.isPending
-            }
-            a2uiSourcePostId={post.id}
-            canUseAgentProviderControls={canUseAgentProviderControls}
-            getConsumedA2UISelection={
-              canRenderA2UI ? getConsumedA2UISelection : undefined
-            }
-            isA2UIActionConsumed={
-              canRenderA2UI ? isA2UIActionConsumed : undefined
-            }
-            getConfiguredAgentProviderIds={getConfiguredAgentProviderIds}
-            provisionedAgentTopics={provisionedAgentTopics}
-            consumedA2UIMessageText={a2uiActionCompletion?.sentMessageText}
-            searchQuery={searchQuery}
+            {...contentRendererProps}
           />
         )}
         {isWeb && !hasReactions && !hasLowerAuxiliaryRow && feedbackRow && (
@@ -790,40 +875,60 @@ const WebChatVideoRenderer: DefaultRendererProps['video'] = {
   maxHeight: 400,
 };
 
+const chatBlockSettings: Partial<DefaultRendererProps> = {
+  blockWrapper: {
+    paddingLeft: 0,
+  },
+  a2ui: {
+    wrapperProps: {
+      paddingBottom: 0,
+    },
+  },
+  reference: {
+    contentSize: '$l',
+    maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
+  },
+  image: isWeb ? WebChatImageRenderer : NativeChatImageRenderer,
+  video: isWeb ? WebChatVideoRenderer : undefined,
+  link: {
+    renderDescription: true,
+    maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
+    imageProps: {
+      aspectRatio: 2,
+    },
+  },
+  code: {
+    maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
+  },
+  file: {
+    maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
+  },
+  voicememo: {
+    maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
+  },
+};
+
 const ChatContentRenderer = createContentRenderer({
   blockRenderers: {
     a2ui: A2UIBlock,
   },
+  blockSettings: chatBlockSettings,
+});
+
+// Bubbles supply their own padding and spacing between elements, and images
+// fill the bubble they sit in.
+const BubbleChatContentRenderer = createContentRenderer({
+  blockRenderers: {
+    a2ui: A2UIBlock,
+  },
   blockSettings: {
+    ...chatBlockSettings,
     blockWrapper: {
-      paddingLeft: 0,
+      padding: 0,
     },
-    a2ui: {
-      wrapperProps: {
-        paddingBottom: 0,
-      },
-    },
-    reference: {
-      contentSize: '$l',
-      maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
-    },
-    image: isWeb ? WebChatImageRenderer : NativeChatImageRenderer,
-    video: isWeb ? WebChatVideoRenderer : undefined,
-    link: {
-      renderDescription: true,
-      maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
-      imageProps: {
-        aspectRatio: 2,
-      },
-    },
-    code: {
-      maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
-    },
-    file: {
-      maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
-    },
-    voicememo: {
-      maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
+    image: {
+      ...NativeChatImageRenderer,
+      imageProps: { borderRadius: BUBBLE_RADIUS },
     },
   },
 });
