@@ -49,6 +49,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   const { resolve, complete, discard } = useBrowserCredentialHandoff();
   const handoffId = route.params.handoffId;
   const activeHandoffs = useRef(new Set<string>());
+  const submittingRef = useRef(false);
 
   const load = useCallback(
     async (signal?: AbortSignal) => {
@@ -97,7 +98,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   }, [discard, handoffId]);
 
   const fillAndSubmit = useCallback(async () => {
-    if (!handoff) return;
+    if (!handoff || submittingRef.current) return;
     if (
       (handoff.kind === 'password' &&
         (!password || (handoff.hasUsername && !username.trim()))) ||
@@ -108,6 +109,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     ) {
       return;
     }
+    submittingRef.current = true;
     setSubmitting(true);
     setError(undefined);
     try {
@@ -138,6 +140,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
       setHandoff(undefined);
       setError(errorMessage(nextError));
     }
+    submittingRef.current = false;
     setSubmitting(false);
   }, [code, handoff, password, username]);
 

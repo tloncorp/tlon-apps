@@ -9,9 +9,15 @@ import {
   useBrowserCredentialHandoff,
 } from './BrowserCredentialHandoffProvider';
 
-const navigate = vi.hoisted(() => vi.fn());
+const { navigate, navigateToGroup } = vi.hoisted(() => ({
+  navigate: vi.fn(),
+  navigateToGroup: vi.fn(),
+}));
 vi.mock('../../navigation/utils', () => ({
-  useRootNavigation: () => ({ navigateToBrowserCredentialHandoff: navigate }),
+  useRootNavigation: () => ({
+    navigateToBrowserCredentialHandoff: navigate,
+    navigateToGroup,
+  }),
 }));
 vi.mock('@tloncorp/api/client', () => ({ getCanonicalPostId: vi.fn() }));
 vi.mock('@tloncorp/shared', () => ({
@@ -27,6 +33,33 @@ describe('browser handoff registry', () => {
   afterAll(() => {
     delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
       .IS_REACT_ACT_ENVIRONMENT;
+  });
+  it('renders navigation consumers without a registry and only requires it for trusted handoffs', async () => {
+    let navigateA2UI!: ReturnType<typeof useA2UINavigation>;
+    function Preview() {
+      const navigateToTarget = useA2UINavigation();
+      useEffect(() => {
+        navigateA2UI = navigateToTarget;
+      }, [navigateToTarget]);
+      return null;
+    }
+    let renderer!: ReactTestRenderer;
+    await act(async () => {
+      renderer = create(<Preview />);
+    });
+    await navigateA2UI({ type: 'group', groupId: '~zod/example' });
+    expect(navigateToGroup).toHaveBeenCalledWith('~zod/example');
+    const target = {
+      type: 'screen',
+      screen: 'browserCredentialHandoff',
+      viewerUrl: 'https://browser-session.tlon.network/s/payload.signature',
+    } as const;
+    await expect(navigateA2UI(target)).resolves.toBeUndefined();
+    await expect(
+      navigateA2UI(target, { allowBrowserCredentialHandoff: true })
+    ).rejects.toThrow('provider is unavailable');
+    expect(navigate).not.toHaveBeenCalled();
+    act(() => renderer.unmount());
   });
   it('keeps the capability out of linked navigation state and discards it on completion', async () => {
     let registry!: ReturnType<typeof useBrowserCredentialHandoff>;

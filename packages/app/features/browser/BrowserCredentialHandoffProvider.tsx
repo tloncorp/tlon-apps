@@ -73,8 +73,12 @@ export function BrowserCredentialHandoffProvider({
   );
 }
 
+export function useOptionalBrowserCredentialHandoff() {
+  return useContext(BrowserCredentialHandoffContext);
+}
+
 export function useBrowserCredentialHandoff() {
-  const value = useContext(BrowserCredentialHandoffContext);
+  const value = useOptionalBrowserCredentialHandoff();
   if (!value) {
     throw new Error('Browser credential handoff provider is unavailable.');
   }

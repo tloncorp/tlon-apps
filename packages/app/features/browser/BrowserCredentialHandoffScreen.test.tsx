@@ -84,6 +84,61 @@ describe('BrowserCredentialHandoffScreen', () => {
     mocks.submitCredentials.mockResolvedValue({ submitted: false });
   });
 
+  it.each(['password', 'otp'] as const)(
+    'locks %s submission before React commits the pending state',
+    async (kind) => {
+      mocks.beginHandoff.mockResolvedValue({
+        fillUrl:
+          'https://browser-session.tlon.network/credential-fills/one-use',
+        origin: 'https://example.com',
+        expiresAt: Date.now() + 60_000,
+        kind,
+        hasUsername: false,
+      });
+      let finish!: (result: { submitted: boolean }) => void;
+      mocks.submitCredentials.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          })
+      );
+      let renderer!: ReactTestRenderer;
+      await act(async () => {
+        renderer = create(
+          <BrowserCredentialHandoffScreen
+            navigation={{ goBack: vi.fn(), isFocused: () => true }}
+            route={{ params: { handoffId: 'opaque-handoff-id' } }}
+          />
+        );
+      });
+      const input = renderer.root.findByProps({
+        autoComplete:
+          kind === 'password' ? 'current-password' : 'one-time-code',
+      });
+      act(() => input.props.onChangeText('secret'));
+      const button = renderer.root.findByProps({
+        label: kind === 'password' ? 'Fill and sign in' : 'Submit code',
+      });
+      let submission!: Promise<void>;
+      act(() => {
+        submission = button.props.onPress();
+        input.props.onSubmitEditing();
+        void button.props.onPress();
+      });
+      expect(mocks.submitCredentials).toHaveBeenCalledOnce();
+      expect(button.props.disabled).toBe(true);
+      await act(async () => {
+        finish({ submitted: true });
+        await submission;
+      });
+      expect(
+        renderer.root.findByProps({ label: 'Return to conversation' })
+      ).toBeDefined();
+      expect(mocks.submitCredentials).toHaveBeenCalledOnce();
+      act(() => renderer.unmount());
+    }
+  );
+
   it.each(['not submitted', 'request failed'])(
     'obtains a fresh handle before resubmitting after %s',
     async (failure) => {

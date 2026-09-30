@@ -84,10 +84,12 @@ import {
 import { resolveTlonBinary } from './src/tlon-binary.js';
 import {
   DEFAULT_TLON_CLI_TIMEOUT_MS,
+  runBrowserHandoffCommand,
   runTlonCommand,
 } from './src/tlon-command-runner.js';
 import {
   createTlonToolExecutor,
+  isBrowserHandoffCommand,
   summarizeTlonCommand,
 } from './src/tlon-tool-command.js';
 import { buildTlonToolDiagnosticRecord } from './src/tlon-tool-diagnostics.js';
@@ -975,10 +977,12 @@ export default defineBundledChannelEntry({
 
     const executeTlonTool = createTlonToolExecutor({
       runCommand: (args) =>
-        runTlonCommand(tlonBinary, args, credentials, {
-          timeoutMs: toolTimeoutMs,
-          ownerShip: normalizeShip(account.ownerShip ?? '') || undefined,
-        }),
+        isBrowserHandoffCommand(args)
+          ? runBrowserHandoffCommand(tlonBinary, args, api.config)
+          : runTlonCommand(tlonBinary, args, credentials, {
+              timeoutMs: toolTimeoutMs,
+              ownerShip: normalizeShip(account.ownerShip ?? '') || undefined,
+            }),
       notifyDiaryMigrationDiscovery: (nest) =>
         notifyDiaryMigrationDiscovery(nest, api.config),
       logError: (message) => api.logger.warn(`[tlon] ${message}`),

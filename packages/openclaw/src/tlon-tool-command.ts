@@ -278,6 +278,20 @@ export function findTlonSubcommandIndex(args: string[]): number {
   return findFirstPositionalArgumentIndex(args, 0, CREDENTIAL_FLAGS_WITH_VALUE);
 }
 
+export function isBrowserHandoffCommand(args: string[]): boolean {
+  const subIdx = findTlonSubcommandIndex(args);
+  return (
+    args[subIdx]?.toLowerCase() === 'browser' &&
+    args[subIdx + 1]?.toLowerCase() === 'handoff'
+  );
+}
+
+function hasCredentialOverride(args: string[]): boolean {
+  return args.some((arg) =>
+    CREDENTIAL_FLAGS_WITH_VALUE.has(arg.split('=', 1)[0])
+  );
+}
+
 export function redactBrowserHandoffCommand(command: string): string {
   const args = shellSplitCommand(command);
   let subIdx = findTlonSubcommandIndex(args);
@@ -300,7 +314,11 @@ export function redactBrowserHandoffCommand(command: string): string {
 
 export type BlockedTlonOperation = {
   message: string;
-  reason: 'diary_operation' | 'migration_operation' | 'send_operation';
+  reason:
+    | 'diary_operation'
+    | 'migration_operation'
+    | 'send_operation'
+    | 'browser_account_override';
   diaryNest?: string;
 };
 
@@ -312,6 +330,13 @@ export type BlockedTlonOperation = {
 export function checkBlockedTlonOperation(
   args: string[]
 ): BlockedTlonOperation | null {
+  if (isBrowserHandoffCommand(args) && hasCredentialOverride(args)) {
+    return {
+      message:
+        'Browser handoff does not allow credential overrides. Use the configured Tlon account.',
+      reason: 'browser_account_override',
+    };
+  }
   const subIdx = findTlonSubcommandIndex(args);
   const commandArgs = subIdx >= 0 ? args.slice(subIdx) : [];
   const migration = checkBlockedMigrationOperation(commandArgs);
@@ -343,11 +368,7 @@ const HELP_TOKENS = new Set(['-h', '--help']);
  * credentials, exactly as the model wrote it.
  */
 export function shouldInjectOwnerCredentials(args: string[]): boolean {
-  for (const arg of args) {
-    const equalsIndex = arg.indexOf('=');
-    const flag = equalsIndex >= 0 ? arg.slice(0, equalsIndex) : arg;
-    if (CREDENTIAL_FLAGS_WITH_VALUE.has(flag)) return false;
-  }
+  if (hasCredentialOverride(args)) return false;
 
   const subIdx = findTlonSubcommandIndex(args);
   if (subIdx < 0) return false;
