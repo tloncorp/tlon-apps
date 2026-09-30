@@ -5,7 +5,10 @@ import { View } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../ui';
-import { SettingsList } from '../../ui/components/SettingsList';
+import {
+  SettingsList,
+  settingsListPageColor,
+} from '../../ui/components/SettingsList';
 import {
   BotSettingsApplyBar,
   BotSettingsNavigate,
@@ -45,9 +48,10 @@ function BotSettingsAreaScreen({
   const handleBack = useCallback(() => navigation.goBack(), [navigation]);
 
   return (
-    <View flex={1} backgroundColor="$background">
+    <View flex={1} backgroundColor={settingsListPageColor}>
       <ScreenHeader
         title={areaTitles[area]}
+        backgroundColor={settingsListPageColor}
         backAction={isWindowNarrow ? handleBack : undefined}
         placement="navigation"
       />
