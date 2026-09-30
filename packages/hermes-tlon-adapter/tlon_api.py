@@ -785,7 +785,6 @@ class TlonConfig:
         env = dict(base or os.environ)
         for key in (
             "TLON_CONFIG_FILE",
-            "TLON_OWNER_SHIP",
             "URBIT_COOKIE",
             "TLON_COOKIE",
             "URBIT_URL",
@@ -801,8 +800,6 @@ class TlonConfig:
             env["TLON_SHIP_URL"] = self.ship_url
             env["TLON_URL"] = self.ship_url
             env["URBIT_URL"] = self.ship_url
-        if self.owner_ship:
-            env["TLON_OWNER_SHIP"] = self.owner_ship
         if self.ship_name:
             env["TLON_NODE_ID"] = self.ship_name
             env["TLON_SHIP_NAME"] = self.ship_name
