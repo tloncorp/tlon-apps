@@ -12,6 +12,8 @@ type Handoff = {
   onComplete?: () => Promise<void>;
 };
 
+type RegisteredHandoff = Handoff & { completing?: boolean };
+
 type BrowserCredentialHandoffContextValue = {
   register: (handoff: Handoff) => string;
   resolve: (id: string) => string | undefined;
@@ -25,30 +27,32 @@ const BrowserCredentialHandoffContext =
 export function BrowserCredentialHandoffProvider({
   children,
 }: PropsWithChildren) {
-  const handoffs = useRef(new Map<string, Handoff>());
+  const handoffs = useRef(new Map<string, RegisteredHandoff>());
   const sequence = useRef(0);
 
   const register = useCallback((handoff: Handoff) => {
     const id = `browser-handoff-${Date.now()}-${++sequence.current}`;
-    handoffs.current.set(id, handoff);
+    handoffs.current.set(id, { ...handoff });
     return id;
   }, []);
 
-  const resolve = useCallback(
-    (id: string) => handoffs.current.get(id)?.viewerUrl,
-    []
-  );
+  const resolve = useCallback((id: string) => {
+    const handoff = handoffs.current.get(id);
+    return handoff?.completing ? undefined : handoff?.viewerUrl;
+  }, []);
 
   const complete = useCallback(async (id: string) => {
     const handoff = handoffs.current.get(id);
-    if (!handoff) {
+    if (!handoff || handoff.completing) {
       throw new Error('The originating conversation is no longer available.');
     }
-    handoffs.current.delete(id);
+    handoff.completing = true;
     try {
       await handoff.onComplete?.();
+      handoffs.current.delete(id);
     } catch (error) {
-      handoffs.current.set(id, handoff);
+      // A dismissed screen removes the entry even while completion is pending.
+      handoff.completing = false;
       throw error;
     }
   }, []);

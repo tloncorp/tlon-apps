@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { MAX_BROWSER_VIEWER_URL_LENGTH } from './browserSession';
+
 import {
   AGENT_PROTOCOL_LIMITS,
   AgentProviderConfigContextSchema,
@@ -123,7 +125,7 @@ const botMcpSettingsNavigationTargetSchema = z.object({
 const browserCredentialHandoffNavigationTargetSchema = z.object({
   type: z.literal('screen'),
   screen: z.literal('browserCredentialHandoff'),
-  viewerUrl: z.string().url().max(2048),
+  viewerUrl: z.string().url().max(MAX_BROWSER_VIEWER_URL_LENGTH),
 });
 const screenNavigationTargetSchema = z.union([
   botMcpSettingsNavigationTargetSchema,

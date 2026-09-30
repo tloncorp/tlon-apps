@@ -1,4 +1,7 @@
-import { isTrustedBrowserViewerHost } from '@tloncorp/api/client/browserSession';
+import {
+  isTrustedBrowserViewerHost,
+  MAX_BROWSER_VIEWER_URL_LENGTH,
+} from '@tloncorp/api/client/browserSession';
 
 import { commandError } from './commands/command';
 
@@ -8,6 +11,12 @@ export function validateBrowserViewerUrl(raw: string): string {
     url = new URL(raw);
   } catch {
     throw commandError('viewer URL is invalid');
+  }
+
+  if (url.toString().length > MAX_BROWSER_VIEWER_URL_LENGTH) {
+    throw commandError(
+      `viewer URL must not exceed ${MAX_BROWSER_VIEWER_URL_LENGTH} characters`
+    );
   }
 
   if (

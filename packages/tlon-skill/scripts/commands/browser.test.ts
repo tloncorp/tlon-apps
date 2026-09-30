@@ -31,6 +31,25 @@ function makeDeps(ownerShip = '~owner') {
 }
 
 describe('browser handoff', () => {
+  it.each([2048, 2049])(
+    'checks the renderer URL length limit (%s characters)',
+    async (length) => {
+      const context = makeDeps();
+      let authenticated = false;
+      context.deps.authenticate = async () => {
+        authenticated = true;
+      };
+      const prefix = 'https://browser-session.tlon.network/s/';
+      const viewerUrl = `${prefix}${'a'.repeat(length - prefix.length - 2)}.b`;
+      expect(viewerUrl).toHaveLength(length);
+      expect(await run(['handoff', viewerUrl], context.deps)).toBe(
+        length === 2048 ? 0 : 1
+      );
+      expect(authenticated).toBe(length === 2048);
+      expect(context.sent).toHaveLength(length === 2048 ? 1 : 0);
+    }
+  );
+
   it.each([
     'browser-session-us-east5-cluster1.tlon.network',
     'browser-session-ovh-test-1.test.tlon.systems',

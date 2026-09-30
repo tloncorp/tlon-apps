@@ -52,6 +52,12 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
 
   const load = useCallback(
     async (signal?: AbortSignal) => {
+      // The gateway exposes no stable form identity. A fresh handle can point
+      // at a different form, even on the same origin, so require fresh input.
+      setUsername('');
+      setPassword('');
+      setCode('');
+      setShowPassword(false);
       const viewerUrl = resolve(handoffId);
       if (!viewerUrl) {
         setError('Reopen the browser login form from the conversation.');
@@ -59,7 +65,11 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
         return;
       }
       try {
-        setHandoff(await beginBrowserCredentialHandoff(viewerUrl, signal));
+        const nextHandoff = await beginBrowserCredentialHandoff(
+          viewerUrl,
+          signal
+        );
+        if (!signal?.aborted) setHandoff(nextHandoff);
       } catch (nextError) {
         if (!signal?.aborted) setError(errorMessage(nextError));
       }

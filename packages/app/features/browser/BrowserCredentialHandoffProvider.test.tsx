@@ -104,6 +104,26 @@ describe('browser handoff registry', () => {
     await expect(registry.complete(id)).rejects.toThrow('Try again');
     expect(registry.resolve(id)).toBe(viewerUrl);
     await registry.complete(id);
+    let rejectCompletion!: (error: Error) => void;
+    const pendingId = registry.register({
+      viewerUrl,
+      onComplete: () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectCompletion = reject;
+        }),
+    });
+    const completion = registry.complete(pendingId);
+    expect(registry.resolve(pendingId)).toBeUndefined();
+    await expect(registry.complete(pendingId)).rejects.toThrow(
+      'no longer available'
+    );
+    registry.discard(pendingId);
+    rejectCompletion(new Error('Send failed after dismissal'));
+    await expect(completion).rejects.toThrow('Send failed after dismissal');
+    expect(registry.resolve(pendingId)).toBeUndefined();
+    await expect(registry.complete(pendingId)).rejects.toThrow(
+      'no longer available'
+    );
     const noCallbackId = registry.register({ viewerUrl });
     await registry.complete(noCallbackId);
     expect(registry.resolve(noCallbackId)).toBeUndefined();

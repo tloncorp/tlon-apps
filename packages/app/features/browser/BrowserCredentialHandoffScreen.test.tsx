@@ -159,11 +159,22 @@ describe('BrowserCredentialHandoffScreen', () => {
       expect(mocks.beginHandoff).toHaveBeenCalledTimes(3);
       expect(
         renderer!.root.findByProps({ autoComplete: 'username' }).props.value
-      ).toBe('person@example.com');
+      ).toBe('');
       expect(
         renderer!.root.findByProps({ autoComplete: 'current-password' }).props
           .value
-      ).toBe('keep-in-form');
+      ).toBe('');
+      expect(
+        renderer!.root.findByProps({ label: 'Fill and sign in' }).props.disabled
+      ).toBe(true);
+      act(() => {
+        renderer!.root
+          .findByProps({ autoComplete: 'username' })
+          .props.onChangeText('person@example.com');
+        renderer!.root
+          .findByProps({ autoComplete: 'current-password' })
+          .props.onChangeText('fresh-input');
+      });
       mocks.submitCredentials.mockResolvedValueOnce({ submitted: true });
       await act(async () => {
         await renderer!.root
@@ -172,10 +183,104 @@ describe('BrowserCredentialHandoffScreen', () => {
       });
       expect(mocks.submitCredentials).toHaveBeenLastCalledWith(freshHandoff, {
         username: 'person@example.com',
-        password: 'keep-in-form',
+        password: 'fresh-input',
         submit: true,
       });
       act(() => renderer!.unmount());
+    }
+  );
+
+  it.each([
+    {
+      initialKind: 'password',
+      kind: 'password',
+      hasUsername: true,
+      origin: 'https://other.example',
+    },
+    {
+      initialKind: 'password',
+      kind: 'password',
+      hasUsername: false,
+      origin: 'https://example.com',
+    },
+    {
+      initialKind: 'password',
+      kind: 'otp',
+      codeLength: 6,
+      origin: 'https://example.com',
+    },
+    {
+      initialKind: 'otp',
+      kind: 'otp',
+      codeLength: 8,
+      origin: 'https://example.com',
+    },
+  ])(
+    'clears credentials when refreshing to $origin / $kind / $hasUsername',
+    async (target) => {
+      if (target.initialKind === 'otp') {
+        mocks.beginHandoff.mockResolvedValueOnce({
+          kind: 'otp',
+          codeLength: 6,
+          origin: 'https://example.com',
+        });
+      }
+      let renderer!: ReactTestRenderer;
+      await act(async () => {
+        renderer = create(
+          <BrowserCredentialHandoffScreen
+            navigation={{ goBack: vi.fn(), isFocused: () => true }}
+            route={{ params: { handoffId: 'opaque-handoff-id' } }}
+          />
+        );
+      });
+      act(() => {
+        if (target.initialKind === 'otp') {
+          renderer.root
+            .findByProps({ autoComplete: 'one-time-code' })
+            .props.onChangeText('123456');
+          return;
+        }
+        renderer.root
+          .findByProps({ autoComplete: 'username' })
+          .props.onChangeText('person@example.com');
+        renderer.root
+          .findByProps({ autoComplete: 'current-password' })
+          .props.onChangeText('site-a-secret');
+        renderer.root
+          .findByProps({ accessibilityLabel: 'Show password' })
+          .props.onPress();
+      });
+      await act(async () => {
+        await renderer.root
+          .findByProps({
+            label:
+              target.initialKind === 'otp' ? 'Submit code' : 'Fill and sign in',
+          })
+          .props.onPress();
+      });
+      mocks.beginHandoff.mockResolvedValueOnce(target);
+      await act(async () => {
+        renderer.root.findByProps({ label: 'Try again' }).props.onPress();
+      });
+      for (const input of renderer.root.findAllByType(
+        'TextInput' as React.ElementType
+      )) {
+        expect(input.props.value).toBe('');
+      }
+      const label = target.kind === 'otp' ? 'Submit code' : 'Fill and sign in';
+      expect(renderer.root.findByProps({ label }).props.disabled).toBe(true);
+      await act(async () => {
+        await renderer.root.findByProps({ label }).props.onPress();
+      });
+      expect(mocks.submitCredentials).toHaveBeenCalledTimes(1);
+      if (target.kind === 'password') {
+        expect(
+          renderer.root.findByProps({ autoComplete: 'current-password' }).props
+            .secureTextEntry
+        ).toBe(true);
+      }
+      act(() => renderer.unmount());
     }
   );
 

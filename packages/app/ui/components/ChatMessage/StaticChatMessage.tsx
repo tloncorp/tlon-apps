@@ -21,6 +21,11 @@ import {
   CHAT_REF_LIKE_MAX_WIDTH,
 } from '../../../constants';
 import { canUseBrowserHandoff } from '../../../features/browser/browserHandoffTrust';
+import {
+  BROWSER_HANDOFF_CONTINUATION,
+  getBrowserHandoffContinuationSelection,
+  sendBrowserHandoffContinuation,
+} from '../../../features/browser/browserHandoffContinuation';
 import { useA2UINavigation } from '../../../hooks/useA2UINavigation';
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
 import { submitCreditIncreaseRequest } from '../../../utils/creditIncreaseRequest';
@@ -360,17 +365,28 @@ export function StaticChatMessage({
       }
       const trimmed = text.trim();
       if (!trimmed) return;
-      await draftInputContext.sendPostFromDraft({
-        channelId: draftInputContext.channel.id,
-        content: [trimmed],
-        attachments: [],
-        blob: selection ? appendToPostBlob(undefined, selection) : undefined,
-        channelType: draftInputContext.channel.type,
-        replyToPostId: null,
-        isEdit: false,
-      });
+      const send = () =>
+        draftInputContext.sendPostFromDraft({
+          channelId: draftInputContext.channel.id,
+          content: [trimmed],
+          attachments: [],
+          blob: selection ? appendToPostBlob(undefined, selection) : undefined,
+          channelType: draftInputContext.channel.type,
+          replyToPostId: null,
+          isEdit: false,
+        });
+      if (trimmed === BROWSER_HANDOFF_CONTINUATION && selection) {
+        await sendBrowserHandoffContinuation({
+          channelId: post.channelId,
+          authorId: currentUserId,
+          selection,
+          send,
+        });
+      } else {
+        await send();
+      }
     },
-    [draftInputContext]
+    [draftInputContext, post.channelId, currentUserId]
   );
 
   const handleA2UIAction = useCallback(
@@ -399,12 +415,22 @@ export function StaticChatMessage({
           onBrowserCredentialHandoffComplete:
             target.type === 'screen' &&
             target.screen === 'browserCredentialHandoff'
-              ? () =>
-                  sendA2UIMessage(
-                    'I signed in; continue the browser task.',
-                    undefined,
+              ? async () => {
+                  const continuation = getBrowserHandoffContinuationSelection(
+                    post,
+                    target.viewerUrl
+                  );
+                  if (!continuation) {
+                    throw new Error(
+                      'The originating browser handoff is no longer available.'
+                    );
+                  }
+                  await sendA2UIMessage(
+                    BROWSER_HANDOFF_CONTINUATION,
+                    continuation,
                     true
-                  )
+                  );
+                }
               : undefined,
         });
         return;
@@ -444,8 +470,7 @@ export function StaticChatMessage({
       sendAgentProvision,
       sendA2UIMessage,
       currentUserId,
-      post.authorId,
-      post.id,
+      post,
       showToast,
     ]
   );
