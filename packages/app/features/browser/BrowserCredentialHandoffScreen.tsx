@@ -50,6 +50,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   const handoffId = route.params.handoffId;
   const activeHandoffs = useRef(new Set<string>());
   const submittingRef = useRef(false);
+  const requestController = useRef<AbortController | undefined>(undefined);
 
   const load = useCallback(
     async (signal?: AbortSignal) => {
@@ -81,6 +82,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
 
   useEffect(() => {
     const controller = new AbortController();
+    requestController.current = controller;
     void load(controller.signal);
     return () => controller.abort();
   }, [load]);
@@ -98,7 +100,8 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   }, [discard, handoffId]);
 
   const fillAndSubmit = useCallback(async () => {
-    if (!handoff || submittingRef.current) return;
+    const signal = requestController.current?.signal;
+    if (!handoff || submittingRef.current || !signal || signal.aborted) return;
     if (
       (handoff.kind === 'password' &&
         (!password || (handoff.hasUsername && !username.trim()))) ||
@@ -121,8 +124,10 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
               password,
               submit: true,
             }
-          : { code: code.trim(), submit: true }
+          : { code: code.trim(), submit: true },
+        signal
       );
+      if (signal.aborted) return;
       if (!result.submitted) {
         setHandoff(undefined);
         setError(
@@ -136,6 +141,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
         setSubmitted(true);
       }
     } catch (nextError) {
+      if (signal.aborted) return;
       // A failed response can still consume the one-use fill handle.
       setHandoff(undefined);
       setError(errorMessage(nextError));
@@ -145,10 +151,17 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   }, [code, handoff, password, username]);
 
   const retry = useCallback(() => {
+    const signal = requestController.current?.signal;
+    if (!signal || signal.aborted) return;
     setLoading(true);
     setError(undefined);
-    void load();
+    void load(signal);
   }, [load]);
+
+  const dismiss = useCallback(() => {
+    requestController.current?.abort();
+    navigation.goBack();
+  }, [navigation]);
 
   const returnToConversation = useCallback(async () => {
     setReturning(true);
@@ -166,7 +179,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         borderBottom
-        backAction={navigation.goBack}
+        backAction={dismiss}
         title={
           handoff?.kind === 'otp' ? 'Browser verification' : 'Browser login'
         }

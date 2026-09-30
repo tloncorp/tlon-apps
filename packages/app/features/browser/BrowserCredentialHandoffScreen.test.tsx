@@ -139,6 +139,88 @@ describe('BrowserCredentialHandoffScreen', () => {
     }
   );
 
+  describe.each(['password', 'otp'] as const)('%s cancellation', (kind) => {
+    it.each([
+      ['back', 'success'],
+      ['back', 'failure'],
+      ['unmount', 'success'],
+      ['unmount', 'failure'],
+    ] as const)(
+      'aborts on %s and ignores a late %s',
+      async (dismissal, outcome) => {
+        mocks.beginHandoff.mockResolvedValue({
+          kind,
+          hasUsername: false,
+          origin: 'https://example.com',
+        });
+        let finish!: (result: { submitted: boolean }) => void;
+        let fail!: (error: Error) => void;
+        mocks.submitCredentials.mockImplementationOnce(
+          () =>
+            new Promise((resolve, reject) => {
+              finish = resolve;
+              fail = reject;
+            })
+        );
+        const navigation = { goBack: vi.fn(), isFocused: () => true };
+        let renderer!: ReactTestRenderer;
+        await act(async () => {
+          renderer = create(
+            <BrowserCredentialHandoffScreen
+              navigation={navigation}
+              route={{ params: { handoffId: 'opaque-handoff-id' } }}
+            />
+          );
+        });
+        act(() => {
+          renderer.root
+            .findByProps({
+              autoComplete:
+                kind === 'password' ? 'current-password' : 'one-time-code',
+            })
+            .props.onChangeText('secret');
+        });
+        let submission!: Promise<void>;
+        const submit = renderer.root.findByProps({
+          label: kind === 'password' ? 'Fill and sign in' : 'Submit code',
+        }).props.onPress;
+        act(() => {
+          submission = submit();
+        });
+        const signal = mocks.submitCredentials.mock.calls[0][2] as AbortSignal;
+        expect(signal).toBeInstanceOf(AbortSignal);
+        expect(signal.aborted).toBe(false);
+        await act(async () => {
+          if (dismissal === 'unmount') {
+            renderer.unmount();
+          } else {
+            renderer.root
+              .findByType('ScreenHeader' as React.ElementType)
+              .props.backAction();
+          }
+        });
+        expect(signal.aborted).toBe(true);
+        const dismissedTree = renderer.toJSON();
+        await act(async () => {
+          if (outcome === 'success') finish({ submitted: true });
+          else fail(new Error('Request aborted'));
+          await submission;
+          await submit();
+        });
+        expect(renderer.toJSON()).toEqual(dismissedTree);
+        expect(mocks.submitCredentials).toHaveBeenCalledOnce();
+        expect(mocks.complete).not.toHaveBeenCalled();
+        expect(navigation.goBack).toHaveBeenCalledTimes(
+          dismissal === 'back' ? 1 : 0
+        );
+        if (dismissal === 'back') {
+          await act(async () => renderer.unmount());
+        }
+        expect(mocks.discard).toHaveBeenCalledWith('opaque-handoff-id');
+      }
+    );
+  });
+
   it.each(['not submitted', 'request failed'])(
     'obtains a fresh handle before resubmitting after %s',
     async (failure) => {
@@ -178,11 +260,15 @@ describe('BrowserCredentialHandoffScreen', () => {
           .props.onPress();
       });
 
-      expect(mocks.submitCredentials).toHaveBeenCalledWith(expect.any(Object), {
-        username: 'person@example.com',
-        password: 'keep-in-form',
-        submit: true,
-      });
+      expect(mocks.submitCredentials).toHaveBeenCalledWith(
+        expect.any(Object),
+        {
+          username: 'person@example.com',
+          password: 'keep-in-form',
+          submit: true,
+        },
+        expect.any(AbortSignal)
+      );
       expect(
         renderer!.root.findAllByProps({ label: 'Fill and sign in' })
       ).toHaveLength(0);
@@ -236,11 +322,15 @@ describe('BrowserCredentialHandoffScreen', () => {
           .findByProps({ label: 'Fill and sign in' })
           .props.onPress();
       });
-      expect(mocks.submitCredentials).toHaveBeenLastCalledWith(freshHandoff, {
-        username: 'person@example.com',
-        password: 'fresh-input',
-        submit: true,
-      });
+      expect(mocks.submitCredentials).toHaveBeenLastCalledWith(
+        freshHandoff,
+        {
+          username: 'person@example.com',
+          password: 'fresh-input',
+          submit: true,
+        },
+        expect.any(AbortSignal)
+      );
       act(() => renderer!.unmount());
     }
   );
@@ -369,10 +459,14 @@ describe('BrowserCredentialHandoffScreen', () => {
         .findByProps({ label: 'Submit code' })
         .props.onPress();
     });
-    expect(mocks.submitCredentials).toHaveBeenCalledWith(expect.any(Object), {
-      code: 'aBc123',
-      submit: true,
-    });
+    expect(mocks.submitCredentials).toHaveBeenCalledWith(
+      expect.any(Object),
+      {
+        code: 'aBc123',
+        submit: true,
+      },
+      expect.any(AbortSignal)
+    );
     act(() => renderer!.unmount());
   });
 

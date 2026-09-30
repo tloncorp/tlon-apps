@@ -180,10 +180,16 @@ describe('browser credential handoff', () => {
     );
     expect(handoff).toMatchObject({ kind: 'otp', codeLength: 6 });
 
-    await submitBrowserCredentials(handoff, {
-      code: '123456',
-      submit: true,
-    });
+    const controller = new AbortController();
+    await submitBrowserCredentials(
+      handoff,
+      {
+        code: '123456',
+        submit: true,
+      },
+      controller.signal
+    );
+    expect(request.mock.calls[1][1].signal).toBe(controller.signal);
     expect(JSON.parse(request.mock.calls[1][1].body)).toEqual({
       code: '123456',
       submit: true,
