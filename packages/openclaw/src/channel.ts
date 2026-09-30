@@ -172,7 +172,11 @@ export const tlonPlugin = createChatChannelPlugin({
           '',
           'IMPORTANT: media= accepts a public https URL only (normally the URL returned by `tlon upload`).',
           'Local file paths are NOT accepted on this channel (unlike other channels) — upload the file first, then pass the returned https URL.',
-          'Media that cannot be fetched will fail the send — never claim an image was delivered unless the tool call succeeded.'
+          'Media that cannot be fetched will fail the send — never claim an image was delivered unless the tool call succeeded.',
+          '',
+          'On Tlon, action=react and action=delete only work on messages in the current conversation.',
+          '- To react, unreact, or delete in any other conversation, use the tlon tool instead: `tlon posts react|unreact|delete <channel> <postId> ...` for channels, `tlon dms react|unreact|delete ~ship <postId> ...` for DMs.',
+          '- If a reaction or delete call returns an error, say it failed; never claim it succeeded.'
         );
 
         const level = account.reactionLevel ?? 'minimal';
@@ -186,7 +190,7 @@ export const tlonPlugin = createChatChannelPlugin({
               '- Express sentiment and personality through reactions',
               '- React to interesting content, humor, or notable events',
               '- Use reactions to confirm understanding or agreement',
-              '- Use action=react with emoji, messageId, and target (channel nest or DM ship)',
+              '- Use action=react with emoji, messageId, and target (the current channel nest or DM ship)',
               'Guideline: react whenever it feels natural.'
             );
           } else {
@@ -197,7 +201,7 @@ export const tlonPlugin = createChatChannelPlugin({
               '- Acknowledge important user requests or confirmations',
               '- Express genuine sentiment (humor, appreciation) sparingly',
               '- Avoid reacting to routine messages or your own replies',
-              '- Use action=react with emoji, messageId, and target (channel nest or DM ship)',
+              '- Use action=react with emoji, messageId, and target (the current channel nest or DM ship)',
               'Guideline: at most 1 reaction per 5-10 exchanges.'
             );
           }
