@@ -69,7 +69,6 @@ import { ContextLensPanel, useContextLensController } from './ContextLens';
 import { DmInviteOptions } from './DmInviteOptions';
 import { DraftInputView } from './DraftInputView';
 import { ConversationLayout } from './ConversationLayout';
-import { HeaderScrollEdgeElement } from './HeaderScrollEdgeElement';
 import { PinnedPostBanner } from './PinnedPostBanner';
 import { PostView } from './PostView';
 import { ReadOnlyNotice } from './ReadOnlyNotice';
@@ -995,11 +994,6 @@ export function Channel({
                             onDismiss={() =>
                               setShowOnboardingBackTooltip(false)
                             }
-                          />
-                        ) : null}
-                        {floatingHeaderHeight > 0 ? (
-                          <HeaderScrollEdgeElement
-                            height={floatingHeaderHeight}
                           />
                         ) : null}
                         {shouldRenderPinnedPostBanner && pinnedPost && (
