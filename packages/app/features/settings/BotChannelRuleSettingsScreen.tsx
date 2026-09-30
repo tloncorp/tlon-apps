@@ -12,6 +12,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
+import {
+  getSettingsListHeaderColor,
+  settingsListPageColor,
+} from '../../ui/components/SettingsList';
 import { ScreenHeader, SettingsContentScrollView, TextInput } from '../../ui';
 import { BotBadge } from '../../ui/components/BotBadge';
 import {
@@ -316,8 +320,9 @@ export function BotChannelRuleSettingsScreen(props: Props) {
     }, [allProviderModels.models, overrideProvider, normalizedModelSearch]);
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
+    <View flex={1} backgroundColor={settingsListPageColor}>
       <ScreenHeader
+        backgroundColor={getSettingsListHeaderColor()}
         borderBottom
         backAction={isWindowNarrow ? handleBack : undefined}
         title={channelLabel || 'Channel'}

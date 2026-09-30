@@ -6,6 +6,10 @@ import { Alert, KeyboardAvoidingView, Platform } from 'react-native';
 
 import { RootStackParamList } from '../../navigation/types';
 import {
+  getSettingsListHeaderColor,
+  settingsListPageColor,
+} from '../../ui/components/SettingsList';
+import {
   Button,
   ControlledTextareaField,
   FormFrame,
@@ -56,8 +60,9 @@ export function UserBugReportScreen({ navigation }: Props) {
   const isWindowNarrow = useIsWindowNarrow();
 
   return (
-    <View backgroundColor="$background" flex={1}>
+    <View backgroundColor={settingsListPageColor} flex={1}>
       <ScreenHeader
+        backgroundColor={getSettingsListHeaderColor()}
         title="Report a bug"
         borderBottom
         backAction={isWindowNarrow ? () => navigation.goBack() : undefined}
