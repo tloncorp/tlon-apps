@@ -19,11 +19,6 @@ export type SettingsContextAction = {
   onPress: () => void;
 };
 
-export type SettingsRowStatus = {
-  text: string;
-  tone: 'positive' | 'warning' | 'neutral';
-};
-
 /**
  * One settings row, described as data so each platform can draw it with its
  * own list: a SwiftUI form on iOS, a Compose list on Android, Tamagui on web.
@@ -38,7 +33,6 @@ export interface SettingsRowModel {
   leading?: SettingsRowLeading;
   /** A larger row for an identity: your profile, or your bot. */
   prominent?: boolean;
-  status?: SettingsRowStatus;
   /** Marks an edit that is staged but not yet applied. */
   pending?: boolean;
   disabled?: boolean;

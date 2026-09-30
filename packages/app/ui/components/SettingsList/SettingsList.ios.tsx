@@ -147,13 +147,6 @@ function SettingsRow({
           backgroundColor={colors.pending.background}
         />
       ) : null}
-      {row.status ? (
-        <Pill
-          text={row.status.text}
-          textColor={colors.status[row.status.tone].text}
-          backgroundColor={colors.status[row.status.tone].background}
-        />
-      ) : null}
       {row.value ? (
         <Text modifiers={[foregroundStyle(colors.secondaryText), lineLimit(1)]}>
           {row.value}

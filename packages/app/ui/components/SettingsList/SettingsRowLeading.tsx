@@ -5,6 +5,9 @@ import { getTokenValue } from 'tamagui';
 import { ContactAvatar, SystemIconAvatar } from '../Avatar';
 import type { SettingsRowModel } from './types';
 
+/** Avatar size for the account rows in native lists, as in iOS Settings. */
+const prominentNativeSize = 60;
+
 /** The side of the square the row's leading content occupies. */
 export function getSettingsRowLeadingSize(
   row: SettingsRowModel,
@@ -16,9 +19,12 @@ export function getSettingsRowLeadingSize(
     case 'icon':
       return compact ? small : large;
     case 'contact':
-      return row.prominent && compact ? large : small;
+      return row.prominent && compact ? prominentNativeSize : small;
     default:
-      return row.prominent || !compact ? large : small;
+      if (row.prominent) {
+        return compact ? prominentNativeSize : large;
+      }
+      return compact ? small : large;
   }
 }
 
@@ -80,7 +86,13 @@ export function SettingsRowLeading({
           size="custom"
           width={size}
           height={size}
-          borderRadius={size > getTokenValue('$3xl', 'size') ? '$s' : '$xs'}
+          borderRadius={
+            size >= prominentNativeSize
+              ? '$m'
+              : size > getTokenValue('$3xl', 'size')
+                ? '$s'
+                : '$xs'
+          }
         />
       );
     case 'element':

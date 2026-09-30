@@ -119,8 +119,9 @@ function useSettingsSections(
     if (props.onProfilePressed) {
       accountRows.push({
         key: 'profile',
-        title: 'Your profile',
-        subtitle: profileName,
+        // Your name leads, the way the account row does in platform settings.
+        title: profileName || 'Your profile',
+        subtitle: profileName ? 'Your profile' : undefined,
         leading: { kind: 'contact', contactId: props.currentUserId },
         prominent: true,
         onPress: props.onProfilePressed,
@@ -141,7 +142,6 @@ function useSettingsSections(
       accountRows.push({
         key: 'contacts',
         title: 'Contacts',
-        subtitle: 'People you know and invite',
         leading: { kind: 'icon', icon: 'AddPerson' },
         onPress: props.onContactsPressed,
         isFocused: focusedRouteName === 'Contacts',
@@ -163,7 +163,13 @@ function useSettingsSections(
               backgroundColor={compact ? undefined : '$secondaryBackground'}
               borderRadius={100}
             >
-              <TlonLogo width={'$xl'} height={'$xl'} color="$secondaryText" />
+              <TlonLogo
+                // Native glyphs fill most of their frame; the web disc keeps
+                // the logo small inside it.
+                width={compact ? Math.round(size * 0.7) : '$xl'}
+                height={compact ? Math.round(size * 0.7) : '$xl'}
+                color="$secondaryText"
+              />
             </View>
           ),
         },
