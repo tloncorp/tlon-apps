@@ -1,10 +1,15 @@
+import {
+  ChannelContentConfiguration,
+  PostContentRendererId,
+} from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { resolveThreadUnread } from '@tloncorp/shared/logic';
 import { Icon, Pressable, Text } from '@tloncorp/ui';
-import { PropsWithChildren, ReactNode, useMemo } from 'react';
+import { PropsWithChildren, ReactNode, useContext, useMemo } from 'react';
 import { Theme, View, XStack, YStack, isWeb } from 'tamagui';
 
 import { useFeatureFlag } from '../../../lib/featureFlags';
+import { ComponentsKitContext } from '../../contexts/componentsKits';
 import { useThreadUnreads } from '../../contexts/threadUnreads';
 import { useNavigateToProfile } from '../AuthorRow';
 import { ContactAvatar } from '../Avatar';
@@ -30,16 +35,37 @@ const BUBBLE_PADDING_HORIZONTAL = 15;
 export const BUBBLE_ELEMENT_GAP = 10;
 export const BUBBLE_RADIUS = 12;
 const OVERLAY_INSET = 8;
+// Lifts a footer overlaid in a video's bottom-right corner above the duration
+// badge VideoPreview draws there.
+const VIDEO_BADGE_CLEARANCE = 36;
 
 const channelTypesWithBubbles: db.ChannelType[] = ['chat', 'dm', 'groupDm'];
 
 /**
- * Whether chat rows in a channel of this type render as bubbles: native only,
- * behind the `chatBubbles` flag under Settings > Experimental features.
+ * Whether a channel's rows render as bubbles: native only, behind the
+ * `chatBubbles` flag under Settings > Experimental features, and only where
+ * PostView renders the channel with ChatMessage.
  */
-export function useChatBubbleLayout(channelType: db.ChannelType) {
+export function useChatBubbleLayout(
+  channel: Pick<db.Channel, 'type' | 'contentConfiguration'>
+) {
   const [enabled] = useFeatureFlag('chatBubbles');
-  return enabled && !isWeb && channelTypesWithBubbles.includes(channelType);
+  const renderers = useContext(ComponentsKitContext)?.renderers;
+  if (!enabled || isWeb || !channelTypesWithBubbles.includes(channel.type)) {
+    return false;
+  }
+  // As in PostView, a configured renderer the kit knows replaces ChatMessage.
+  const configuredId =
+    channel.contentConfiguration == null
+      ? null
+      : ChannelContentConfiguration.defaultPostContentRenderer(
+          channel.contentConfiguration
+        ).id;
+  return (
+    configuredId == null ||
+    configuredId === PostContentRendererId.chat ||
+    renderers?.[configuredId] == null
+  );
 }
 
 export function ChatMessageBubbleRow({
@@ -110,7 +136,11 @@ export function ChatMessageBubbleSegment({
         {footer ? (
           <View
             position="absolute"
-            bottom={OVERLAY_INSET}
+            bottom={
+              isOwn && segment.blocks[0]?.type === 'video'
+                ? VIDEO_BADGE_CLEARANCE
+                : OVERLAY_INSET
+            }
             {...(isOwn ? { right: OVERLAY_INSET } : { left: OVERLAY_INSET })}
           >
             {footer}

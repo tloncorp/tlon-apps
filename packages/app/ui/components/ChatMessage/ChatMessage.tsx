@@ -76,7 +76,7 @@ const ChatMessage = ({
   const channel = useChannelContext();
   const currentUserId = useCurrentUserId();
   const canWrite = useCanWrite(channel, currentUserId);
-  const channelUsesBubbles = useChatBubbleLayout(channel.type);
+  const channelUsesBubbles = useChatBubbleLayout(channel);
   const bubbleLayout = channelUsesBubbles && bubbleLayoutProp !== false;
   const postActionIds = useMemo(
     () => ChannelAction.channelActionIdsFor({ channel, canWrite }),

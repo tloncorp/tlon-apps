@@ -261,7 +261,7 @@ const Scroller = forwardRef(
     const { value: debugMessageJson } = db.debugMessageJson.useStorageItem();
 
     const theme = useTheme();
-    const bubbleLayout = useChatBubbleLayout(channel.type);
+    const bubbleLayout = useChatBubbleLayout(channel);
 
     const visiblePosts = useMemo(
       () =>
@@ -902,20 +902,27 @@ const BaseScrollerItem = ({
   );
   // Check if the previous post (A) exists and (B) is deleted
   const isPrevDeleted = hasPreviousPost && livePreviousPost.isDeleted === true;
+  // A hidden post renders as a moderation notice, not a bubble.
+  const isPrevHidden = hasPreviousPost && livePreviousPost.hidden === true;
   // If the previous post is deleted, show the author, otherwise fall back to the
   // display rules calculated in the showAuthor prop
   const showAuthorLive = useMemo(() => {
     if (isPrevDeleted) {
       return true;
     }
-    // A divider between bubbles breaks the series, so the next bubble
-    // starts one: header, and the gap between series.
-    if (bubbleLayout && dividersEnabled && showUnreadDivider) {
+    // A divider, or a hidden post's notice, between bubbles breaks the
+    // series, so the next bubble starts one: header, and the gap between
+    // series.
+    if (
+      bubbleLayout &&
+      (isPrevHidden || (dividersEnabled && showUnreadDivider))
+    ) {
       return true;
     }
     return showAuthor;
   }, [
     isPrevDeleted,
+    isPrevHidden,
     showAuthor,
     bubbleLayout,
     dividersEnabled,

@@ -62,7 +62,7 @@ export const DetailView = ({
 }: DetailViewProps) => {
   const channelType = channel.type;
   const isChat = channelType !== 'notebook' && channelType !== 'gallery';
-  const bubbleLayout = useChatBubbleLayout(channelType);
+  const bubbleLayout = useChatBubbleLayout(channel);
   const resolvedPosts = useMemo(() => {
     if (isChat) {
       return posts ? [post, ...[...posts].reverse()] : posts;

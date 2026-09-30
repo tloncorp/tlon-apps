@@ -1,5 +1,6 @@
 import { createAnimations } from '@tamagui/animations-moti';
 import { createMedia } from '@tamagui/react-native-media-driver';
+import { getContrast, readableColorIsBlack } from 'color2k';
 import { Platform } from 'react-native';
 import { createFont, createTamagui, createTokens } from 'tamagui';
 
@@ -395,11 +396,19 @@ function ownMessageTheme(
 }
 
 // Light and dark use the bright blue from the original bubble designs; the
-// alternate themes set their background color on their own accent.
-const accentBubble = (base: BaseTheme) => ({
-  bubble: base.positiveActionText,
-  text: base.background,
-});
+// alternate themes set their background color on their own accent, or plain
+// ink where that background doesn't read on it (peony's pale pink on green).
+const MIN_BUBBLE_TEXT_CONTRAST = 4.5;
+const accentBubble = (base: BaseTheme) => {
+  const bubble = base.positiveActionText;
+  const text =
+    getContrast(bubble, base.background) >= MIN_BUBBLE_TEXT_CONTRAST
+      ? base.background
+      : readableColorIsBlack(bubble)
+        ? baseThemes.light.primaryText
+        : color.white;
+  return { bubble, text };
+};
 const blueBubble = { bubble: color.blue, text: color.white };
 
 export const themes = {
