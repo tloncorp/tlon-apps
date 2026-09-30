@@ -7,6 +7,7 @@ import { RootStackParamList } from '../../navigation/types';
 import { ScreenHeader } from '../../ui';
 import {
   SettingsList,
+  getSettingsListHeaderColor,
   settingsListPageColor,
 } from '../../ui/components/SettingsList';
 import {
@@ -51,7 +52,7 @@ function BotSettingsAreaScreen({
     <View flex={1} backgroundColor={settingsListPageColor}>
       <ScreenHeader
         title={areaTitles[area]}
-        backgroundColor={settingsListPageColor}
+        backgroundColor={getSettingsListHeaderColor()}
         backAction={isWindowNarrow ? handleBack : undefined}
         placement="navigation"
       />
