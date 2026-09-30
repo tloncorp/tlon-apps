@@ -1,8 +1,8 @@
-import { useIsWindowNarrow } from '@tloncorp/ui';
+import { LoadingSpinner, useIsWindowNarrow } from '@tloncorp/ui';
 import type { ReactNode } from 'react';
 import { View } from 'tamagui';
 
-import { ScreenHeader } from '../ScreenHeader';
+import { ScreenHeader, type ScreenHeaderAction } from '../ScreenHeader';
 import { SettingsList } from './SettingsList';
 import { getSettingsListHeaderColor } from './settingsListHeaderColor';
 import { settingsListPageColor } from './settingsListPageColor';
@@ -17,12 +17,23 @@ export function SettingsListScreenView({
   title,
   sections,
   onBackPressed,
+  rightActions,
+  loadingSubtitle,
+  loading = false,
   bottomBar,
+  children,
 }: {
   title: string;
   sections: SettingsSectionModel[];
   onBackPressed: () => void;
+  rightActions?: ScreenHeaderAction[];
+  /** A note under the title while the list refreshes. */
+  loadingSubtitle?: string | null;
+  /** Shows a spinner in place of the list until there is something to list. */
+  loading?: boolean;
   bottomBar?: ReactNode;
+  /** Anything else the screen mounts, such as its dialogs. */
+  children?: ReactNode;
 }) {
   const isWindowNarrow = useIsWindowNarrow();
 
@@ -32,13 +43,22 @@ export function SettingsListScreenView({
         title={title}
         backgroundColor={getSettingsListHeaderColor()}
         backAction={isWindowNarrow ? onBackPressed : undefined}
+        rightActions={rightActions}
+        loadingSubtitle={loadingSubtitle}
         borderBottom
         placement="navigation"
       />
       <View flex={1}>
-        <SettingsList sections={sections} />
+        {loading ? (
+          <View flex={1} alignItems="center" justifyContent="center">
+            <LoadingSpinner />
+          </View>
+        ) : (
+          <SettingsList sections={sections} />
+        )}
       </View>
       {bottomBar}
+      {children}
     </View>
   );
 }

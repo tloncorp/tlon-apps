@@ -1,22 +1,13 @@
-import {
-  ConfirmDialog,
-  Icon,
-  LoadingSpinner,
-  Pressable,
-  SectionListHeader,
-  Text,
-  triggerHaptic,
-} from '@tloncorp/ui';
-import { useState } from 'react';
-import { Platform } from 'react-native';
-import { View, XStack, YStack } from 'tamagui';
+import { ConfirmDialog, triggerHaptic } from '@tloncorp/ui';
+import { useMemo, useState } from 'react';
 
 import type { McpProviderRow } from '../../lib/mcpProviders';
-import { useIsWindowNarrow } from '../utils';
-import { ListItem } from './ListItem';
 import { McpProviderLogo } from './McpProviderLogo';
-import { ScreenHeader } from './ScreenHeader';
-import { SettingsContentScrollView } from './SettingsContentScrollView';
+import {
+  type SettingsRowModel,
+  type SettingsSectionModel,
+  SettingsListScreenView,
+} from './SettingsList';
 
 interface BotSettingsScreenViewProps {
   available: boolean;
@@ -43,214 +34,118 @@ export function BotSettingsScreenView({
   refreshing,
   showUnavailableNotice,
 }: BotSettingsScreenViewProps) {
-  const isWindowNarrow = useIsWindowNarrow();
-  const activeProviders = providers.filter(
-    (provider) => provider.status === 'connected'
-  );
-  const availableProviders = providers.filter(
-    (provider) => provider.status !== 'connected'
-  );
+  // The provider outlives the dialog's open state, so its name stays in the
+  // title while the dialog animates closed.
+  const [disconnectTarget, setDisconnectTarget] =
+    useState<McpProviderRow | null>(null);
+  const [disconnectDialogOpen, setDisconnectDialogOpen] = useState(false);
 
-  return (
-    <View flex={1} backgroundColor="$background">
-      <ScreenHeader
-        borderBottom
-        backAction={
-          Platform.OS !== 'web' || isWindowNarrow ? onBackPressed : undefined
-        }
-        loadingSubtitle={refreshing && !initialLoading ? 'Refreshing' : null}
-        rightActions={[
-          {
-            id: 'refresh-providers',
-            icon: 'Refresh',
-            label: 'Refresh providers',
-            onPress: onRefresh,
-          },
-        ]}
-        title="Connect MCP"
-        placement="navigation"
-      />
-      {initialLoading ? (
-        <YStack flex={1} alignItems="center" justifyContent="center">
-          <LoadingSpinner />
-        </YStack>
-      ) : (
-        <SettingsContentScrollView
-          paddingHorizontal="$l"
-          paddingTop="$l"
-          safeAreaBottomOffset={24}
-        >
-          <YStack gap="$m">
-            {showUnavailableNotice ? (
-              <NoticeBanner message="OAuth setup is unavailable for this ship." />
-            ) : null}
-            <YStack gap="$l">
-              {activeProviders.length > 0 ? (
-                <ProviderSection
-                  disabled={!available || !!busyProviderId}
-                  loadingProviderId={busyProviderId}
-                  onConnect={onConnectProvider}
-                  onDisconnect={onDisconnectProvider}
-                  providers={activeProviders}
-                  title="Connected"
-                />
-              ) : null}
-              {availableProviders.length > 0 ? (
-                <ProviderSection
-                  disabled={!available || !!busyProviderId}
-                  loadingProviderId={busyProviderId}
-                  onConnect={onConnectProvider}
-                  onDisconnect={onDisconnectProvider}
-                  providers={availableProviders}
-                  title="Available"
-                />
-              ) : null}
-            </YStack>
-          </YStack>
-        </SettingsContentScrollView>
-      )}
-    </View>
-  );
-}
-
-function NoticeBanner({ message }: { message: string }) {
-  return (
-    <View
-      backgroundColor="$negativeBackground"
-      borderColor="$negativeBorder"
-      borderRadius="$l"
-      borderWidth={1}
-      padding="$l"
-    >
-      <Text color="$negativeActionText" size="$label/m">
-        {message}
-      </Text>
-    </View>
-  );
-}
-
-function ProviderSection({
-  disabled,
-  loadingProviderId,
-  onConnect,
-  onDisconnect,
-  providers,
-  title,
-}: {
-  disabled: boolean;
-  loadingProviderId: string | null;
-  onConnect: (providerId: string) => void;
-  onDisconnect: (providerId: string) => void;
-  providers: McpProviderRow[];
-  title: string;
-}) {
-  return (
-    <YStack>
-      <SectionListHeader>
-        <SectionListHeader.Text>{title}</SectionListHeader.Text>
-      </SectionListHeader>
-      <YStack gap="$xs">
-        {providers.map((provider) => (
-          <ProviderListItem
-            key={provider.id}
-            disabled={disabled}
-            loading={loadingProviderId === provider.id}
-            onConnect={onConnect}
-            onDisconnect={onDisconnect}
-            provider={provider}
-          />
-        ))}
-      </YStack>
-    </YStack>
-  );
-}
-
-function ProviderListItem({
-  disabled,
-  loading,
-  onConnect,
-  onDisconnect,
-  provider,
-}: {
-  disabled: boolean;
-  loading: boolean;
-  onConnect: (providerId: string) => void;
-  onDisconnect: (providerId: string) => void;
-  provider: McpProviderRow;
-}) {
-  const isConnected = provider.status === 'connected';
-  const canConnect = !disabled && !isConnected;
-  const canShowDisconnectDialog = !disabled && isConnected;
-  const isPressable = canConnect || canShowDisconnectDialog;
-  const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
-  const handlePress = canConnect
-    ? () => {
-        triggerHaptic('baseButtonClick');
-        onConnect(provider.id);
-      }
-    : canShowDisconnectDialog
-      ? () => {
+  const sections = useMemo<SettingsSectionModel[]>(() => {
+    const disabled = !available || !!busyProviderId;
+    const providerRow = (provider: McpProviderRow): SettingsRowModel => {
+      const isConnected = provider.status === 'connected';
+      const busy = busyProviderId === provider.id;
+      return {
+        key: provider.id,
+        title: provider.displayName,
+        value: busy
+          ? isConnected
+            ? 'Disconnecting…'
+            : 'Connecting…'
+          : isConnected
+            ? 'Active'
+            : undefined,
+        leading: {
+          kind: 'element',
+          render: ({ compact }) => (
+            <McpProviderLogo
+              compact={compact}
+              displayName={provider.displayName}
+              logoUrl={provider.logoUrl}
+              providerId={provider.id}
+            />
+          ),
+        },
+        disabled,
+        // Connecting signs in on the provider's site; disconnecting asks first.
+        accessory: isConnected ? 'none' : 'external',
+        onPress: () => {
           triggerHaptic('baseButtonClick');
-          setShowDisconnectDialog(true);
-        }
-      : undefined;
+          if (isConnected) {
+            setDisconnectTarget(provider);
+            setDisconnectDialogOpen(true);
+          } else {
+            onConnectProvider(provider.id);
+          }
+        },
+      };
+    };
+
+    const connected = providers.filter((p) => p.status === 'connected');
+    const others = providers.filter((p) => p.status !== 'connected');
+    const result: SettingsSectionModel[] = [
+      ...(connected.length > 0
+        ? [
+            {
+              key: 'connected',
+              title: 'Connected',
+              rows: connected.map(providerRow),
+            },
+          ]
+        : []),
+      ...(others.length > 0
+        ? [
+            {
+              key: 'available',
+              title: 'Available',
+              rows: others.map(providerRow),
+            },
+          ]
+        : []),
+    ];
+    if (showUnavailableNotice && result.length > 0) {
+      result[0] = {
+        ...result[0],
+        footer: 'OAuth setup is unavailable for this ship.',
+      };
+    }
+    return result;
+  }, [
+    available,
+    busyProviderId,
+    onConnectProvider,
+    providers,
+    showUnavailableNotice,
+  ]);
 
   return (
-    <>
-      <Pressable
-        borderRadius="$l"
-        onPress={handlePress}
-        pressStyle={
-          isPressable ? { backgroundColor: '$secondaryBackground' } : undefined
-        }
-      >
-        <ListItem
-          alignItems="center"
-          backgroundColor="$transparent"
-          borderRadius="$l"
-          gap="$l"
-          padding="$l"
-        >
-          <McpProviderLogo
-            displayName={provider.displayName}
-            logoUrl={provider.logoUrl}
-            providerId={provider.id}
-          />
-          <ListItem.MainContent height="auto" minHeight="$4xl">
-            <XStack alignItems="center" gap="$s" flex={1}>
-              <ListItem.Title>{provider.displayName}</ListItem.Title>
-            </XStack>
-          </ListItem.MainContent>
-          {loading ? (
-            <LoadingSpinner color="$tertiaryText" size="small" />
-          ) : isConnected ? (
-            <XStack
-              backgroundColor="$positiveBackground"
-              borderRadius="$l"
-              paddingHorizontal="$m"
-              paddingVertical="$xs"
-            >
-              <Text color="$positiveActionText" size="$label/m">
-                Active
-              </Text>
-            </XStack>
-          ) : (
-            <Icon type="ChevronRight" color="$tertiaryText" size="$m" />
-          )}
-        </ListItem>
-      </Pressable>
-      {isConnected ? (
+    <SettingsListScreenView
+      title="Connect MCP"
+      sections={sections}
+      onBackPressed={onBackPressed}
+      loading={initialLoading}
+      loadingSubtitle={refreshing && !initialLoading ? 'Refreshing' : null}
+      rightActions={[
+        {
+          id: 'refresh-providers',
+          icon: 'Refresh',
+          label: 'Refresh providers',
+          onPress: onRefresh,
+        },
+      ]}
+    >
+      {disconnectTarget ? (
         <ConfirmDialog
           cancelText="Cancel"
           confirmText="Disconnect"
-          description={`${provider.displayName} will no longer be available to your bot.`}
+          description={`${disconnectTarget.displayName} will no longer be available to your bot.`}
           destructive
-          onConfirm={() => onDisconnect(provider.id)}
-          onOpenChange={setShowDisconnectDialog}
-          open={showDisconnectDialog}
-          title={`Disconnect ${provider.displayName}?`}
+          onConfirm={() => onDisconnectProvider(disconnectTarget.id)}
+          onOpenChange={setDisconnectDialogOpen}
+          open={disconnectDialogOpen}
+          title={`Disconnect ${disconnectTarget.displayName}?`}
         />
       ) : null}
-    </>
+    </SettingsListScreenView>
   );
 }
