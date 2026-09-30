@@ -191,11 +191,11 @@ Check recent notifications and unread counts. Ships are shown with nicknames whe
 tlon activity mentions --limit 10   # Recent mentions (max 25)
 tlon activity replies --limit 10    # Recent replies (max 25)
 tlon activity all --limit 10        # All recent activity (max 25)
-tlon activity mentions --since 1h   # Only events newer than a duration (90s, 30m, 2h, 1d) or ISO time
+tlon activity mentions --unread     # Only posts/replies still unread
 tlon activity unreads               # Unread counts per channel
 ```
 
-These commands return the newest events whether or not you have already handled them. Check each event's `Time:` (UTC, with its age) before acting on it.
+Without `--unread`, these commands return the newest events whether or not you have already handled them. Each event shows its `Time:` (UTC, with its age).
 
 ### Channels
 

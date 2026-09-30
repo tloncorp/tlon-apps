@@ -126,10 +126,10 @@ function createActivityFormatter(): ActivityFormatter {
   return {
     activityHeader: (bucket, count) =>
       `\n=== ${bucket.toUpperCase()} (${count} events) ===\n`,
-    noActivity: (bucket, since) =>
-      since === undefined
-        ? `No ${bucket} activity found.`
-        : `No ${bucket} activity since ${formatActivityTime(since, Date.now())}.`,
+    noActivity: (bucket, unreadOnly) =>
+      unreadOnly
+        ? `No unread ${bucket} activity found.`
+        : `No ${bucket} activity found.`,
     event: (event) => formatEvent(event, Date.now()),
     unreadsHeader: () => '\n=== UNREADS ===\n',
     noUnreads: () => 'No unreads!',

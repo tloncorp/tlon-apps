@@ -4,6 +4,7 @@ import {
   ACTIVITY_HELP,
   type ActivityDeps,
   type ActivityEvent,
+  type ActivityInit,
   run,
 } from './activity';
 import { commandError } from './command';
@@ -13,7 +14,7 @@ function makeDeps(
     events?: ActivityEvent[];
     getInitialActivity?: ActivityDeps['activityApi']['getInitialActivity'];
     getGroupAndChannelUnreads?: ActivityDeps['activityApi']['getGroupAndChannelUnreads'];
-    now?: number;
+    unreads?: ActivityInit;
   } = {}
 ) {
   const stdout: string[] = [];
@@ -42,6 +43,7 @@ function makeDeps(
         options.getGroupAndChannelUnreads ??
         (async () => {
           calls.getGroupAndChannelUnreads += 1;
+          if (options.unreads) return options.unreads;
           return {
             baseUnread: {
               id: 'base_unreads',
@@ -74,10 +76,8 @@ function makeDeps(
     },
     format: {
       activityHeader: (bucket, count) => `HEADER:${bucket}:${count}`,
-      noActivity: (bucket, since) =>
-        since === undefined
-          ? `NO_ACTIVITY:${bucket}`
-          : `NO_ACTIVITY:${bucket}:${since}`,
+      noActivity: (bucket, unreadOnly) =>
+        unreadOnly ? `NO_UNREAD_ACTIVITY:${bucket}` : `NO_ACTIVITY:${bucket}`,
       event: (event) => {
         calls.eventFormatter.push(event.id);
         return `EVENT:${event.id}`;
@@ -90,7 +90,6 @@ function makeDeps(
       channelUnread: (summary) =>
         `CHANNEL:${summary.channelId}:${summary.count ?? 0}`,
     },
-    now: options.now === undefined ? undefined : () => options.now as number,
   };
 
   return {
@@ -124,23 +123,6 @@ describe('activity command run', () => {
       {
         args: ['mentions', '--limit', 'abc'],
         expected: '--limit must be a positive integer',
-      },
-      { args: ['mentions', '--since'], expected: '--since requires a value' },
-      {
-        args: ['mentions', '--since', '30'],
-        expected: '--since must be a duration',
-      },
-      {
-        args: ['mentions', '--since', '2w'],
-        expected: '--since must be a duration',
-      },
-      {
-        args: ['mentions', '--since', 'yesterday'],
-        expected: '--since must be a duration',
-      },
-      {
-        args: ['mentions', '--since', '2026-13-45'],
-        expected: '--since must be a duration',
       },
     ];
 
@@ -196,74 +178,133 @@ describe('activity command run', () => {
     expect(context.stderr()).toBe('');
   });
 
-  it('drops events older than a relative --since window', async () => {
-    const hour = 60 * 60 * 1000;
-    const now = 100 * hour;
+  it('keeps only posts and replies at or after their source\'s first unread', async () => {
+    const unreads: ActivityInit = {
+      baseUnread: undefined,
+      groupUnreads: [],
+      channelUnreads: [
+        {
+          channelId: 'chat/~zod/test',
+          type: 'channel',
+          updatedAt: 1,
+          count: 1,
+          notify: false,
+          countWithoutThreads: 1,
+          firstUnreadPostId: '170.141.184.500',
+        },
+        {
+          channelId: '~bus',
+          type: 'dm',
+          updatedAt: 1,
+          count: 1,
+          notify: false,
+          countWithoutThreads: 1,
+          firstUnreadPostId: '170.141.184.700',
+        },
+        {
+          channelId: 'chat/~zod/quiet',
+          type: 'channel',
+          updatedAt: 1,
+          count: 0,
+          notify: false,
+          countWithoutThreads: 0,
+          firstUnreadPostId: null,
+        },
+      ],
+      threadActivity: [
+        {
+          channelId: 'chat/~zod/test',
+          threadId: '170.141.184.100',
+          updatedAt: 1,
+          count: 1,
+          notify: false,
+          firstUnreadPostId: '170.141.184.600',
+        },
+      ],
+    };
+    const post = (id: string, channelId: string, postId: string, timestamp: number) =>
+      ({
+        id,
+        bucketId: 'mentions',
+        sourceId: `channel/${channelId}`,
+        type: 'post',
+        timestamp,
+        channelId,
+        postId,
+      }) as ActivityEvent;
+    const reply = (id: string, postId: string, timestamp: number) =>
+      ({
+        id,
+        bucketId: 'mentions',
+        sourceId: 'thread/chat/~zod/test/170.141.184.100',
+        type: 'reply',
+        timestamp,
+        channelId: 'chat/~zod/test',
+        parentId: '170.141.184.100',
+        postId,
+      }) as ActivityEvent;
     const context = makeDeps({
-      now,
+      unreads,
       events: [
+        post('read-post', 'chat/~zod/test', '170.141.184.499', 1),
+        post('first-unread', 'chat/~zod/test', '170.141.184.500', 2),
+        post('later-unread', 'chat/~zod/test', '170.141.184.501', 3),
+        post('quiet-channel', 'chat/~zod/quiet', '170.141.184.900', 4),
+        post('untracked-channel', 'chat/~zod/other', '170.141.184.900', 5),
+        reply('read-reply', '170.141.184.599', 6),
+        reply('unread-reply', '170.141.184.600', 7),
+        post('read-dm', '~bus', '170.141.184.699', 8),
+        post('unread-dm', '~bus', '170.141.184.701', 9),
         {
-          id: 'stale',
+          id: 'join',
           bucketId: 'mentions',
-          sourceId: 's1',
-          type: 'post',
-          timestamp: now - 3 * hour,
-        },
-        {
-          id: 'edge',
-          bucketId: 'mentions',
-          sourceId: 's2',
-          type: 'post',
-          timestamp: now - 2 * hour,
-        },
-        {
-          id: 'fresh',
-          bucketId: 'mentions',
-          sourceId: 's3',
-          type: 'post',
-          timestamp: now - 1000,
-        },
-        {
-          id: 'reply',
-          bucketId: 'replies',
-          sourceId: 's4',
-          type: 'reply',
-          timestamp: now - 1000,
+          sourceId: 'group/~zod/test',
+          type: 'group-join',
+          timestamp: 10,
         },
       ],
     });
 
-    const exitCode = await run(['mentions', '--since', '2h'], context.deps);
+    const exitCode = await run(['mentions', '--unread'], context.deps);
 
     expect(exitCode).toBe(0);
-    expect(context.calls.eventFormatter).toEqual(['fresh', 'edge']);
-    expect(context.stdout()).toBe(
-      'HEADER:mentions:2\nEVENT:fresh\n\nEVENT:edge\n\n'
-    );
+    expect(context.calls.getGroupAndChannelUnreads).toBe(1);
+    expect(context.calls.eventFormatter).toEqual([
+      'unread-dm',
+      'unread-reply',
+      'later-unread',
+      'first-unread',
+    ]);
   });
 
-  it('accepts an ISO 8601 --since and reports the cutoff when nothing matches', async () => {
-    const cutoff = Date.parse('2026-09-30T14:00:00Z');
+  it('says there is no unread activity when --unread filters everything out', async () => {
     const context = makeDeps({
       events: [
         {
-          id: 'before',
+          id: 'old',
           bucketId: 'replies',
-          sourceId: 's1',
-          type: 'reply',
-          timestamp: cutoff - 1,
-        },
+          sourceId: 'channel/chat/~zod/elsewhere',
+          type: 'post',
+          timestamp: 1,
+          channelId: 'chat/~zod/elsewhere',
+          postId: '170.141.184.1',
+        } as ActivityEvent,
       ],
     });
 
-    const exitCode = await run(
-      ['replies', '--since', '2026-09-30T14:00:00Z'],
-      context.deps
-    );
+    const exitCode = await run(['replies', '--unread'], context.deps);
 
     expect(exitCode).toBe(0);
     expect(context.calls.eventFormatter).toEqual([]);
-    expect(context.stdout()).toBe(`NO_ACTIVITY:replies:${cutoff}\n`);
+    expect(context.stdout()).toBe('NO_UNREAD_ACTIVITY:replies\n');
+  });
+
+  it('does not fetch unreads without --unread', async () => {
+    const context = makeDeps();
+
+    await run(['mentions'], context.deps);
+
+    expect(context.calls.getGroupAndChannelUnreads).toBe(0);
   });
 
   it('uses the injected unreads API and formatter', async () => {
