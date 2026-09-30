@@ -1,4 +1,5 @@
 import {
+  BasicTextField,
   Box,
   Column,
   Host,
@@ -7,6 +8,7 @@ import {
   Row,
   Switch,
   Text,
+  useNativeState,
 } from '@expo/ui/jetpack-compose';
 import {
   Shapes,
@@ -28,6 +30,7 @@ import { View } from 'react-native';
 import { useTopLevelTabBarContentInset } from '../../../navigation/useTopLevelTabBarContentInset';
 import { HostedSettingsRowLeading } from './SettingsRowLeading';
 import type { SettingsListProps, SettingsRowModel } from './types';
+import { useSyncedFieldText } from './useSyncedFieldText';
 import {
   type SettingsListColors,
   useSettingsListColors,
@@ -114,6 +117,10 @@ function SettingsRow({
   row: SettingsRowModel;
   colors: SettingsListColors;
 }) {
+  if (row.textField) {
+    return <TextFieldRow row={row} colors={colors} />;
+  }
+
   const onClick = row.toggle
     ? () => row.toggle?.onValueChange(!row.toggle.value)
     : row.onPress;
@@ -194,6 +201,60 @@ function SettingsRow({
         </RNHostView>
       ) : null}
     </Row>
+  );
+}
+
+/**
+ * A row that is its own editable field, kept in step with the screen's value.
+ * Compose's plain field has no placeholder, so one sits under it while empty.
+ */
+function TextFieldRow({
+  row,
+  colors,
+}: {
+  row: SettingsRowModel;
+  colors: SettingsListColors;
+}) {
+  const field = row.textField!;
+  const value = useNativeState(field.value);
+  const onChangeText = useSyncedFieldText(
+    value,
+    field.value,
+    field.onChangeText
+  );
+
+  return (
+    <Box
+      modifiers={[
+        fillMaxWidth(),
+        padding(16, 14, 16, 14),
+        ...(row.disabled ? [alpha(0.5)] : []),
+      ]}
+    >
+      {field.value === '' && field.placeholder ? (
+        <Text color={colors.tertiaryText} style={{ fontSize: 16 }}>
+          {field.placeholder}
+        </Text>
+      ) : null}
+      <BasicTextField
+        value={value}
+        onValueChange={onChangeText}
+        enabled={!row.disabled}
+        singleLine
+        visualTransformation={field.secure ? 'password' : 'none'}
+        keyboardOptions={{
+          capitalization: 'none',
+          autoCorrectEnabled: false,
+          keyboardType: field.secure ? 'password' : 'uri',
+        }}
+        textStyle={{ color: colors.primaryText, fontSize: 16 }}
+        cursorColor={colors.accent}
+        modifiers={[
+          fillMaxWidth(),
+          ...(row.testID ? [testID(row.testID)] : []),
+        ]}
+      />
+    </Box>
   );
 }
 
