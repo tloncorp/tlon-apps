@@ -37,8 +37,22 @@ export interface SettingsRowModel {
   pending?: boolean;
   disabled?: boolean;
   destructive?: boolean;
-  /** Opens something outside the app instead of pushing a screen. */
-  external?: boolean;
+  /**
+   * A command that runs in place, such as exporting logs. Drawn in the accent
+   * color, without a chevron.
+   */
+  action?: boolean;
+  /**
+   * Marks one choice among its section's rows. A row that sets it, true or
+   * false, is a choice: it shows a checkmark when selected, never a chevron.
+   */
+  selected?: boolean;
+  /**
+   * How the end of a pressable row reads: a chevron for a pushed screen, an
+   * arrow for something outside the app, or nothing when pressing asks first,
+   * such as a confirmation. Defaults to a chevron.
+   */
+  accessory?: 'chevron' | 'external' | 'none';
   onPress?: () => void;
   /**
    * Long-press actions. iOS lists them in a context menu; Android and web run
