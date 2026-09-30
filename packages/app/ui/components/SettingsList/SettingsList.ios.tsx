@@ -11,6 +11,7 @@ import {
   Text,
   Toggle,
   VStack,
+  ZStack,
 } from '@expo/ui/swift-ui';
 import {
   accessibilityIdentifier,
@@ -30,7 +31,10 @@ import {
 } from '@expo/ui/swift-ui/modifiers';
 
 import { useScreenScrollProps } from '../useScreenScrollProps';
-import { HostedSettingsRowLeading } from './SettingsRowLeading';
+import {
+  HostedSettingsRowLeading,
+  getSettingsRowLeadingSize,
+} from './SettingsRowLeading';
 import type { SettingsListProps, SettingsRowModel } from './types';
 import {
   type SettingsListColors,
@@ -207,11 +211,7 @@ function RowLabel({
 }) {
   return (
     <HStack spacing={12}>
-      {row.leading ? (
-        <RNHostView matchContents>
-          <HostedSettingsRowLeading row={row} />
-        </RNHostView>
-      ) : null}
+      {row.leading ? <RowLeading row={row} /> : null}
       <VStack alignment="leading" spacing={2}>
         <Text
           modifiers={[
@@ -235,6 +235,23 @@ function RowLabel({
         ) : null}
       </VStack>
     </HStack>
+  );
+}
+
+/**
+ * SwiftUI reserves the leading slot at a fixed size and the hosted view fills
+ * it. `matchContents` would size the slot from the hosted view instead, but a
+ * form row laid out before that view mounts gets a zero-width slot and keeps
+ * it, which leaves the icon drawn over the title.
+ */
+function RowLeading({ row }: { row: SettingsRowModel }) {
+  const size = getSettingsRowLeadingSize(row, true);
+  return (
+    <ZStack modifiers={[frame({ width: size, height: size })]}>
+      <RNHostView>
+        <HostedSettingsRowLeading row={row} />
+      </RNHostView>
+    </ZStack>
   );
 }
 
