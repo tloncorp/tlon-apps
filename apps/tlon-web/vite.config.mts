@@ -157,7 +157,7 @@ export default ({ mode }: { mode: string }) => {
           type: 'module',
         },
         injectManifest: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}'],
           maximumFileSizeToCacheInBytes: 100000000,
           plugins: [reactNativeWeb()],
         },
