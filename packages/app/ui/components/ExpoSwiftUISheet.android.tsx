@@ -12,7 +12,6 @@ import {
   Shapes,
   animateContentSize,
   background,
-  border,
   clickable,
   clip,
   defaultMinSize,
@@ -31,7 +30,9 @@ import React, {
   useState,
 } from 'react';
 import { View } from 'react-native';
-import { useTheme } from 'tamagui';
+import { getTokenValue, useTheme } from 'tamagui';
+
+import { useIsDarkMode } from '../../hooks/useDarkMode';
 
 import type { Action, ActionGroup } from './ActionSheet';
 import type {
@@ -43,6 +44,8 @@ import type {
 const contentHorizontalInset = 8;
 const groupGap = 24;
 const rowMinHeight = 72;
+const actionGroupShape = Shapes.RoundedCorner(16);
+const actionGroupInnerShape = Shapes.RoundedCorner(15);
 
 /** Expo UI's native Compose sheet shell for Android. */
 export function ExpoSwiftUISheet({
@@ -52,6 +55,7 @@ export function ExpoSwiftUISheet({
   children,
 }: ExpoSwiftUISheetProps) {
   const theme = useTheme();
+  const isDarkMode = useIsDarkMode();
   const sheetRef = useRef<ModalBottomSheetRef>(null);
   const [mounted, setMounted] = useState(open);
   const [mountKey, setMountKey] = useState(0);
@@ -126,7 +130,11 @@ export function ExpoSwiftUISheet({
   }, []);
 
   return (
-    <Host matchContents style={{ position: 'absolute' }}>
+    <Host
+      matchContents
+      colorScheme={isDarkMode ? 'dark' : 'light'}
+      style={{ position: 'absolute' }}
+    >
       {mounted ? (
         <ModalBottomSheet
           key={mountKey}
@@ -168,9 +176,11 @@ export function ExpoSwiftUIPaneStack({
 function HostedIcon({
   icon,
   size = 40,
+  rounded = false,
 }: {
   icon: React.ReactElement;
   size?: number;
+  rounded?: boolean;
 }) {
   return (
     <RNHostView matchContents>
@@ -180,6 +190,13 @@ function HostedIcon({
           height: size,
           alignItems: 'center',
           justifyContent: 'center',
+          // Clip the actual slot, not the larger avatar inside the native host.
+          ...(rounded
+            ? {
+                borderRadius: getTokenValue('$s', 'radius'),
+                overflow: 'hidden' as const,
+              }
+            : {}),
         }}
       >
         {icon}
@@ -294,6 +311,7 @@ export function ExpoSwiftUIActionContent({
   title,
   subtitle,
   icon,
+  onBack,
   actionGroups,
 }: ExpoSwiftUIActionContentProps) {
   const theme = useTheme();
@@ -317,7 +335,7 @@ export function ExpoSwiftUIActionContent({
         horizontalArrangement={{ spacedBy: 20 }}
         modifiers={[fillMaxWidth(), padding(16, 0, 8, 0)]}
       >
-        {icon ? <HostedIcon icon={icon} /> : null}
+        {icon ? <HostedIcon icon={icon} rounded={!onBack} /> : null}
         <Column
           verticalArrangement={{ spacedBy: 2 }}
           modifiers={[weight(1), defaultMinSize({ minHeight: 40 })]}
@@ -354,10 +372,8 @@ export function ExpoSwiftUIActionContent({
             key={groupIndex}
             modifiers={[
               fillMaxWidth(),
-              clip(Shapes.RoundedCorner(16)),
-              background(theme.secondaryBackground.val),
-              border(
-                1,
+              clip(actionGroupShape),
+              background(
                 group.accent === 'positive'
                   ? theme.positiveBorder.val
                   : group.accent === 'negative'
@@ -366,19 +382,29 @@ export function ExpoSwiftUIActionContent({
                       ? theme.secondaryBorder.val
                       : theme.border.val
               ),
+              padding(1, 1, 1, 1),
             ]}
           >
-            {group.actions.map((action, actionIndex) => (
-              <React.Fragment key={`${action.title}-${actionIndex}`}>
-                {actionIndex > 0 ? (
-                  <HorizontalDivider
-                    color={theme.secondaryBorder.val}
-                    thickness={1}
-                  />
-                ) : null}
-                <ActionRow action={action} groupAccent={group.accent} />
-              </React.Fragment>
-            ))}
+            {/* An inset rounded fill draws a continuous 1dp border using stock Expo UI. */}
+            <Column
+              modifiers={[
+                fillMaxWidth(),
+                clip(actionGroupInnerShape),
+                background(theme.background.val),
+              ]}
+            >
+              {group.actions.map((action, actionIndex) => (
+                <React.Fragment key={`${action.title}-${actionIndex}`}>
+                  {actionIndex > 0 ? (
+                    <HorizontalDivider
+                      color={theme.secondaryBorder.val}
+                      thickness={1}
+                    />
+                  ) : null}
+                  <ActionRow action={action} groupAccent={group.accent} />
+                </React.Fragment>
+              ))}
+            </Column>
           </Column>
         ))}
       </Column>

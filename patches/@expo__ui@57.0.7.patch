@@ -1,18 +1,20 @@
 diff --git a/build/swift-ui/BottomSheet/index.d.ts b/build/swift-ui/BottomSheet/index.d.ts
-index 52504c12fb31b4aa89da0914cd67405d1b34b867..0c2a3f89948ff6a5a7e3b057f493913261eba002 100644
+index 52504c12fb31b4aa89da0914cd67405d1b34b867..e45a2fbfea645f3b046bf9c413239c8b3a07ab93 100644
 --- a/build/swift-ui/BottomSheet/index.d.ts
 +++ b/build/swift-ui/BottomSheet/index.d.ts
-@@ -25,6 +25,8 @@ export interface BottomSheetProps extends CommonViewModifierProps {
+@@ -25,6 +25,10 @@ export interface BottomSheetProps extends CommonViewModifierProps {
       * @default false
       */
      fitToContents?: boolean;
 +    /** Whether to show the native close control. */
 +    showCloseButton?: boolean;
++    /** Whether a swipe over scrollable content resizes the sheet or scrolls its content. */
++    contentInteraction?: 'automatic' | 'resizes' | 'scrolls';
  }
  /**
   * `BottomSheet` presents content from the bottom of the screen.
 diff --git a/build/swift-ui/modifiers/presentationModifiers.d.ts b/build/swift-ui/modifiers/presentationModifiers.d.ts
-index 9936c0209b487ec6d59e4ffd7adcf8b4b96cd144..c007ec0bb4dc533797e253434189ed79cd0667e2 100644
+index 9936c0209b487ec6d59e4ffd7adcf8b4b96cd144..06f7bce13b1f5651eab2d9f33c7004271689c21f 100644
 --- a/build/swift-ui/modifiers/presentationModifiers.d.ts
 +++ b/build/swift-ui/modifiers/presentationModifiers.d.ts
 @@ -17,6 +17,7 @@ export type PresentationDetent = 'medium' | 'large' | {
@@ -31,19 +33,43 @@ index 9936c0209b487ec6d59e4ffd7adcf8b4b96cd144..c007ec0bb4dc533797e253434189ed79
  }) => ModifierConfig;
  /**
   * Controls the visibility of the drag indicator on a sheet.
+@@ -33,6 +35,13 @@ export declare const presentationDetents: (detents: PresentationDetent[], option
+  * @see Official [SwiftUI documentation](https://developer.apple.com/documentation/swiftui/view/presentationdragindicator(_:)).
+  */
+ export declare const presentationDragIndicator: (visibility: "automatic" | "visible" | "hidden") => ModifierConfig;
++/**
++ * Controls whether a scroll gesture resizes a sheet or scrolls its content first.
++ * @platform ios 16.4+
++ * @platform tvos 16.4+
++ * @see Official [SwiftUI documentation](https://developer.apple.com/documentation/swiftui/view/presentationcontentinteraction(_:)).
++ */
++export declare const presentationContentInteraction: (interaction: "automatic" | "resizes" | "scrolls") => ModifierConfig;
+ /**
+  * Presentation background interaction type.
+  */
 diff --git a/ios/BottomSheetView.swift b/ios/BottomSheetView.swift
-index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..c62043343c1b8757838afeba47045fcc6d0053e4 100644
+index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..9eea5a5933aa579d2a65bb01e256cc92d02cc7a9 100644
 --- a/ios/BottomSheetView.swift
 +++ b/ios/BottomSheetView.swift
-@@ -6,6 +6,7 @@ import ExpoModulesCore
+@@ -3,9 +3,17 @@
+ import SwiftUI
+ import ExpoModulesCore
+ 
++internal enum BottomSheetContentInteraction: String, Enumerable {
++  case automatic
++  case resizes
++  case scrolls
++}
++
  final class BottomSheetProps: UIBaseViewProps {
    @Field var isPresented: Bool = false
    @Field var fitToContents: Bool = false
 +  @Field var showCloseButton: Bool = true
++  @Field var contentInteraction: BottomSheetContentInteraction = .automatic
    var onIsPresentedChange = EventDispatcher()
    var onDismiss = EventDispatcher()
  }
-@@ -58,6 +59,48 @@ private struct BottomSheetSizeReader<Content: View>: View {
+@@ -58,6 +66,57 @@ private struct BottomSheetSizeReader<Content: View>: View {
    }
  }
  
@@ -53,6 +79,7 @@ index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..c62043343c1b8757838afeba47045fcc
 +  @Environment(\.dismiss) private var dismiss
 +  let content: Content
 +  let showCloseButton: Bool
++  let contentInteraction: BottomSheetContentInteraction
 +
 +  var body: some View {
 +    ZStack(alignment: .topTrailing) {
@@ -71,16 +98,24 @@ index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..c62043343c1b8757838afeba47045fcc
 +      }
 +    }
 +    .presentationDragIndicator(.hidden)
-+    .modifier(BottomSheetMaterialBackground())
++    .modifier(BottomSheetContentInteractionModifier(interaction: contentInteraction))
 +  }
 +}
 +
-+@available(iOS 16.0, *)
-+private struct BottomSheetMaterialBackground: ViewModifier {
++private struct BottomSheetContentInteractionModifier: ViewModifier {
++  let interaction: BottomSheetContentInteraction
++
 +  @ViewBuilder
 +  func body(content: Content) -> some View {
 +    if #available(iOS 16.4, *) {
-+      content.presentationBackground(.regularMaterial)
++      switch interaction {
++      case .automatic:
++        content.presentationContentInteraction(.automatic)
++      case .resizes:
++        content.presentationContentInteraction(.resizes)
++      case .scrolls:
++        content.presentationContentInteraction(.scrolls)
++      }
 +    } else {
 +      content
 +    }
@@ -92,7 +127,7 @@ index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..c62043343c1b8757838afeba47045fcc
  struct BottomSheetView: ExpoSwiftUI.View {
    @ObservedObject var props: BottomSheetProps
    @State private var isPresented: Bool = false
-@@ -90,7 +133,18 @@ struct BottomSheetView: ExpoSwiftUI.View {
+@@ -90,7 +149,19 @@ struct BottomSheetView: ExpoSwiftUI.View {
        .sheet(isPresented: $isPresented, onDismiss: {
          props.onDismiss()
        }) {
@@ -100,7 +135,8 @@ index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..c62043343c1b8757838afeba47045fcc
 +        if #available(iOS 16.0, *) {
 +          BottomSheetChromeContent(
 +            content: sheetContent,
-+            showCloseButton: props.showCloseButton
++            showCloseButton: props.showCloseButton,
++            contentInteraction: props.contentInteraction
 +          )
 +        } else {
 +          sheetContent
@@ -112,7 +148,7 @@ index 2aca8fb884fc63cb09e7ba9f5105ccdf9d8bcc41..c62043343c1b8757838afeba47045fcc
        .onChange(of: isPresented, perform: { newIsPresented in
          if props.isPresented == newIsPresented {
 diff --git a/ios/Modifiers/PresentationModifiers.swift b/ios/Modifiers/PresentationModifiers.swift
-index 8718921d38c951a0606a2954ea4c1cdc721cbe6a..3989c8ba9f025c3ed993425061375ad3e6916093 100644
+index 8718921d38c951a0606a2954ea4c1cdc721cbe6a..c79d37784693503b2b204a90ade4aaa700326b83 100644
 --- a/ios/Modifiers/PresentationModifiers.swift
 +++ b/ios/Modifiers/PresentationModifiers.swift
 @@ -16,7 +16,7 @@ internal struct PresentationDetentItem: Record {
@@ -204,6 +240,55 @@ index 8718921d38c951a0606a2954ea4c1cdc721cbe6a..3989c8ba9f025c3ed993425061375ad3
        }
    }
  }
+@@ -160,6 +185,33 @@ internal struct PresentationDragIndicatorModifier: ViewModifier, Record {
+   }
+ }
+ 
++// MARK: - Presentation Content Interaction
++
++internal enum PresentationContentInteractionType: String, Enumerable {
++  case automatic
++  case resizes
++  case scrolls
++}
++
++internal struct PresentationContentInteractionModifier: ViewModifier, Record {
++  @Field var interaction: PresentationContentInteractionType = .automatic
++
++  func body(content: Content) -> some View {
++    if #available(iOS 16.4, tvOS 16.4, *) {
++      switch interaction {
++      case .automatic:
++        content.presentationContentInteraction(.automatic)
++      case .resizes:
++        content.presentationContentInteraction(.resizes)
++      case .scrolls:
++        content.presentationContentInteraction(.scrolls)
++      }
++    } else {
++      content
++    }
++  }
++}
++
+ // MARK: - Presentation Background Interaction
+ 
+ internal enum PresentationBackgroundInteractionTypeModifier: String, Enumerable {
+diff --git a/ios/Modifiers/ViewModifierRegistry.swift b/ios/Modifiers/ViewModifierRegistry.swift
+index cb40643f08892111ce5ec119bc97770589ef14a0..38039da7f5f7753c3ec35413fd26ba0832518dfa 100644
+--- a/ios/Modifiers/ViewModifierRegistry.swift
++++ b/ios/Modifiers/ViewModifierRegistry.swift
+@@ -2124,6 +2124,10 @@ extension ViewModifierRegistry {
+       return try PresentationDragIndicatorModifier(from: params, appContext: appContext)
+     }
+ 
++    register("presentationContentInteraction") { params, appContext, _ in
++      return try PresentationContentInteractionModifier(from: params, appContext: appContext)
++    }
++
+     register("presentationBackgroundInteraction") { params, appContext, _ in
+       return try PresentationBackgroundInteractionModifier(from: params, appContext: appContext)
+     }
 diff --git a/src/community/bottom-sheet/BottomSheet.android.tsx b/src/community/bottom-sheet/BottomSheet.android.tsx
 index f60ae61bf0c9023d41c55cdca2d9af0de7291a92..ce188a8a9af463c46a0271b4b09d12af1e9f1f5b 100644
 --- a/src/community/bottom-sheet/BottomSheet.android.tsx
@@ -328,20 +413,22 @@ index f090bb78fcadfc827c196f77055b1317508d35c5..bb62177b791cab3d5f1731042cd0df7e
  | `enableOverDrag` | No | Accepted, no effect. |
  | `overDragResistanceFactor` | No | Accepted, no effect. |
 diff --git a/src/swift-ui/BottomSheet/index.tsx b/src/swift-ui/BottomSheet/index.tsx
-index cd8bad40beefa33e008f0bef895e894d48d72cdd..4eabef37153a21279ee13124869aed77d7a4893a 100644
+index cd8bad40beefa33e008f0bef895e894d48d72cdd..ea5355e5d6acd1ade2807fdfefb7e048bbfe850e 100644
 --- a/src/swift-ui/BottomSheet/index.tsx
 +++ b/src/swift-ui/BottomSheet/index.tsx
-@@ -31,6 +31,8 @@ export interface BottomSheetProps extends CommonViewModifierProps {
+@@ -31,6 +31,10 @@ export interface BottomSheetProps extends CommonViewModifierProps {
     * @default false
     */
    fitToContents?: boolean;
 +  /** Whether to show the native close control. */
 +  showCloseButton?: boolean;
++  /** Whether a swipe over scrollable content resizes the sheet or scrolls its content. */
++  contentInteraction?: 'automatic' | 'resizes' | 'scrolls';
  }
  
  type NativeBottomSheetProps = Omit<BottomSheetProps, 'onIsPresentedChange' | 'onDismiss'> & {
 diff --git a/src/swift-ui/modifiers/presentationModifiers.ts b/src/swift-ui/modifiers/presentationModifiers.ts
-index 66683ae042be9647673902347986c9fa027cb6fc..2fdfacf53ae08ee286ecd83003911cc651f6185c 100644
+index 66683ae042be9647673902347986c9fa027cb6fc..5a96bec0b974847a47b6e2bb628d00936472eb41 100644
 --- a/src/swift-ui/modifiers/presentationModifiers.ts
 +++ b/src/swift-ui/modifiers/presentationModifiers.ts
 @@ -19,6 +19,7 @@ export type PresentationDetent = 'medium' | 'large' | { fraction: number } | { h
@@ -368,3 +455,20 @@ index 66683ae042be9647673902347986c9fa027cb6fc..2fdfacf53ae08ee286ecd83003911cc6
  
    const { onSelectionChange } = options ?? {};
    if (onSelectionChange) {
+@@ -56,6 +62,16 @@ export const presentationDetents = (
+ export const presentationDragIndicator = (visibility: 'automatic' | 'visible' | 'hidden') =>
+   createModifier('presentationDragIndicator', { visibility });
+ 
++/**
++ * Controls whether a scroll gesture resizes a sheet or scrolls its content first.
++ * @platform ios 16.4+
++ * @platform tvos 16.4+
++ * @see Official [SwiftUI documentation](https://developer.apple.com/documentation/swiftui/view/presentationcontentinteraction(_:)).
++ */
++export const presentationContentInteraction = (
++  interaction: 'automatic' | 'resizes' | 'scrolls'
++) => createModifier('presentationContentInteraction', { interaction });
++
+ /**
+  * Presentation background interaction type.
+  */

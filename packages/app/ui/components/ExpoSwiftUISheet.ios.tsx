@@ -30,8 +30,10 @@ import {
   lineLimit,
   onGeometryChange,
   padding,
+  presentationBackground,
   presentationDetents,
   presentationDragIndicator,
+  scrollDisabled,
   shapes,
   strokeBorder,
   tabViewStyle,
@@ -60,6 +62,7 @@ import type {
 
 const ContentHeightContext = createContext<(height: number) => void>(() => {});
 const SheetHeightContext = createContext(420);
+const SheetExpandedContext = createContext(false);
 const platformColor = PlatformColor;
 const contentTopInset = 36;
 const contentHorizontalInset = 8;
@@ -71,8 +74,7 @@ const groupGap = 32;
 const rowContentHeight = 48;
 const rowHorizontalInset = 24;
 const rowVerticalInset = 12;
-const paneAnimationDuration = 0.28;
-const sheetHeightAnimationDuration = 0.4;
+const paneAnimationDuration = 0.17;
 const ignoreHeight = () => {};
 
 /** A native SwiftUI sheet shell; unlike the drop-in Expo sheet, its content is native too. */
@@ -82,113 +84,62 @@ export function ExpoSwiftUISheet({
   onDismiss,
   children,
 }: ExpoSwiftUISheetProps) {
+  const theme = useTheme();
   const { width, height } = useWindowDimensions();
   const [isExpanded, setIsExpanded] = useState(false);
-  const startingHeight = Math.min(420, height * 0.78);
-  const [sheetHeightState, setSheetHeightState] = useState(() => ({
-    contentHeight: 420,
-    frameHeight: startingHeight,
-    targetHeight: startingHeight,
-    selectedHeight: startingHeight,
-  }));
-  const sheetHeightStateRef = useRef(sheetHeightState);
-  const heightSelectionTimeoutRef = useRef<ReturnType<
-    typeof setTimeout
-  > | null>(null);
+  const [contentHeight, setContentHeight] = useState(420);
   const close = useCallback(() => onOpenChange(false), [onOpenChange]);
-  const updateContentHeight = useCallback(
-    (nextHeight: number) => {
-      if (!Number.isFinite(nextHeight) || nextHeight <= 0) return;
-      const roundedHeight = Math.ceil(nextHeight);
-      const targetHeight =
-        Math.round(
-          Math.min(Math.max(roundedHeight, 240), height * 0.78, 800) / 4
-        ) * 4;
-
-      const previous = sheetHeightStateRef.current;
-      const contentChanged =
-        Math.abs(previous.contentHeight - roundedHeight) > 4;
-      const selectionChanged =
-        Math.abs(previous.targetHeight - targetHeight) > 1;
-      if (!contentChanged && !selectionChanged) return;
-
-      if (selectionChanged) {
-        if (heightSelectionTimeoutRef.current !== null) {
-          clearTimeout(heightSelectionTimeoutRef.current);
-          heightSelectionTimeoutRef.current = null;
-        }
-      }
-      const stagedState = {
-        contentHeight: roundedHeight,
-        // Stage the native pager at the largest measured pane so its timed
-        // update can animate in sync with the selected sheet detent.
-        frameHeight: Math.max(previous.frameHeight, targetHeight),
-        targetHeight,
-        selectedHeight: previous.selectedHeight,
-      };
-      sheetHeightStateRef.current = stagedState;
-      setSheetHeightState(stagedState);
-
-      if (!selectionChanged) return;
-
-      heightSelectionTimeoutRef.current = setTimeout(() => {
-        const current = sheetHeightStateRef.current;
-        if (Math.abs(current.targetHeight - targetHeight) > 1) return;
-        const animatedState = {
-          ...current,
-          frameHeight: targetHeight,
-          selectedHeight: targetHeight,
-        };
-        sheetHeightStateRef.current = animatedState;
-        setSheetHeightState(animatedState);
-        heightSelectionTimeoutRef.current = null;
-      }, 50);
-    },
-    [height]
+  const updateContentHeight = useCallback((nextHeight: number) => {
+    if (!Number.isFinite(nextHeight) || nextHeight <= 0) return;
+    const roundedHeight = Math.ceil(nextHeight);
+    setContentHeight((previous) =>
+      Math.abs(previous - roundedHeight) > 4 ? roundedHeight : previous
+    );
+  }, []);
+  const initialHeight = Math.min(
+    Math.max(contentHeight, 240),
+    height * 0.78,
+    800
   );
-  const { frameHeight, selectedHeight } = sheetHeightState;
 
   useEffect(() => {
     if (open) triggerHaptic('sheetOpen');
     else setIsExpanded(false);
   }, [open]);
 
-  useEffect(
-    () => () => {
-      if (heightSelectionTimeoutRef.current !== null) {
-        clearTimeout(heightSelectionTimeoutRef.current);
-      }
-    },
-    []
-  );
-
   return (
     <ContentHeightContext.Provider value={updateContentHeight}>
-      <SheetHeightContext.Provider value={frameHeight}>
-        <Host style={{ position: 'absolute', width }} pointerEvents="none">
-          <BottomSheet
-            isPresented={open}
-            onDismiss={onDismiss}
-            onIsPresentedChange={(presented) => {
-              if (!presented) close();
-            }}
-          >
-            <Group
-              modifiers={[
-                presentationDetents([{ height: selectedHeight }, 'large'], {
-                  selection: isExpanded ? 'large' : { height: selectedHeight },
-                  onSelectionChange: (detent) => {
-                    setIsExpanded(detent === 'large');
-                  },
-                  animationDuration: sheetHeightAnimationDuration,
-                }),
-                presentationDragIndicator('hidden'),
-              ]}
+      <SheetHeightContext.Provider value={initialHeight}>
+        <SheetExpandedContext.Provider value={isExpanded}>
+          <Host style={{ position: 'absolute', width }} pointerEvents="none">
+            <BottomSheet
+              isPresented={open}
+              contentInteraction="resizes"
+              onDismiss={onDismiss}
+              onIsPresentedChange={(presented) => {
+                if (!presented) {
+                  setIsExpanded(false);
+                  close();
+                }
+              }}
             >
-              {children}
-            </Group>
-          </BottomSheet>
-        </Host>
+              <Group
+                modifiers={[
+                  presentationDetents([{ height: initialHeight }, 'large'], {
+                    // Observe native expansion without driving its selection from JS.
+                    onSelectionChange: (detent) => {
+                      setIsExpanded(detent === 'large');
+                    },
+                  }),
+                  presentationDragIndicator('hidden'),
+                  presentationBackground(theme.background.val),
+                ]}
+              >
+                {children}
+              </Group>
+            </BottomSheet>
+          </Host>
+        </SheetExpandedContext.Provider>
       </SheetHeightContext.Provider>
     </ContentHeightContext.Provider>
   );
@@ -232,26 +183,20 @@ export function ExpoSwiftUIPaneStack({
           maxHeight: Infinity,
         }),
         animation(
-          Animation.easeInOut({ duration: paneAnimationDuration }),
+          Animation.easeOut({ duration: paneAnimationDuration }),
           selectedTab === 'detail' ? 1 : 0
-        ),
-        animation(
-          Animation.easeInOut({ duration: sheetHeightAnimationDuration }),
-          sheetHeight
         ),
       ]}
     >
       <TabView.Tab value="initial">
-        <ContentHeightContext.Provider
-          value={selected === 'initial' ? updateContentHeight : ignoreHeight}
-        >
+        {/* Keep one stable height owner across navigation. Detail panes must not
+            resize the sheet or interrupt a native expand/collapse gesture. */}
+        <ContentHeightContext.Provider value={updateContentHeight}>
           {initial}
         </ContentHeightContext.Provider>
       </TabView.Tab>
       <TabView.Tab value="detail">
-        <ContentHeightContext.Provider
-          value={selected === 'initial' ? ignoreHeight : updateContentHeight}
-        >
+        <ContentHeightContext.Provider value={ignoreHeight}>
           {detail}
         </ContentHeightContext.Provider>
       </TabView.Tab>
@@ -378,6 +323,7 @@ export function ExpoSwiftUIActionContent({
 }: ExpoSwiftUIActionContentProps) {
   const theme = useTheme();
   const { bottom } = useSafeAreaInsets();
+  const isSheetExpanded = useContext(SheetExpandedContext);
   const updateContentHeight = useContext(ContentHeightContext);
   const visibleGroups = useMemo(
     () => actionGroups.filter((group) => group.actions.length > 0),
@@ -407,7 +353,10 @@ export function ExpoSwiftUIActionContent({
   }, [estimatedHeight, updateContentHeight]);
 
   return (
-    <ScrollView showsIndicators={false}>
+    <ScrollView
+      showsIndicators={false}
+      modifiers={[scrollDisabled(!isSheetExpanded)]}
+    >
       <VStack
         spacing={headerActionGap}
         modifiers={[
@@ -503,7 +452,7 @@ export function ExpoSwiftUIActionContent({
               spacing={0}
               modifiers={[
                 background(
-                  platformColor('secondarySystemBackground'),
+                  theme.background.val,
                   shapes.roundedRectangle({ cornerRadius: 16 })
                 ),
                 clipShape('roundedRectangle', 16),
