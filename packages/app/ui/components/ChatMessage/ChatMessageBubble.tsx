@@ -14,6 +14,7 @@ import { ContactName } from '../ContactNameV2';
 import { UnreadDot } from '../UnreadDot';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ReactionsDisplay } from './ReactionsDisplay';
+import { useAuthorBubbleTint } from './useAuthorBubbleTint';
 
 // Measurements from the mobile chat bubble designs.
 const NEAR_INSET = 25; // screen edge to the sender's side of a bubble
@@ -125,16 +126,23 @@ export function ChatMessageBubbleRow({
 
 export function ChatMessageBubbleSegment({
   segment,
+  authorId,
   isOwn,
   header,
   footer,
   children,
 }: PropsWithChildren<{
   segment: BubbleSegment;
+  authorId: string;
   isOwn: boolean;
   header?: ReactNode;
   footer?: ReactNode;
 }>) {
+  // Your own bubbles are the accent color, and media has no bubble behind it.
+  const tint = useAuthorBubbleTint(
+    isOwn || segment.kind === 'media' ? null : authorId
+  );
+
   if (segment.kind === 'media') {
     return (
       <View alignSelf="stretch" borderRadius={BUBBLE_RADIUS} overflow="hidden">
@@ -171,7 +179,7 @@ export function ChatMessageBubbleSegment({
           : 'stretch'
       }
       maxWidth="100%"
-      backgroundColor="$messageBubble"
+      backgroundColor={tint ?? '$messageBubble'}
       borderRadius={BUBBLE_RADIUS}
       paddingVertical={BUBBLE_PADDING_VERTICAL}
       paddingHorizontal={BUBBLE_PADDING_HORIZONTAL}

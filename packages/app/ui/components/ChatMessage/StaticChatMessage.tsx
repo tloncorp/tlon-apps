@@ -704,6 +704,7 @@ export function StaticChatMessage({
               <ChatMessageBubbleSegment
                 key={index}
                 segment={segment}
+                authorId={post.authorId}
                 isOwn={isOwn}
                 header={
                   index === 0 && isFirstInSeries ? (
