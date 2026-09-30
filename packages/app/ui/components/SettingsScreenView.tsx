@@ -11,7 +11,6 @@ import {
   type SettingsRowModel,
   type SettingsSectionModel,
 } from './SettingsList';
-import { TlonLogo } from './TlonLogo';
 
 interface Props {
   currentUserId: string;
@@ -151,28 +150,7 @@ function useSettingsSections(
       accountRows.push({
         key: 'manage-account',
         title: 'Manage Tlon account',
-        leading: {
-          kind: 'element',
-          render: ({ size, compact }) => (
-            <View
-              width={size}
-              height={size}
-              alignItems="center"
-              justifyContent="center"
-              // Native lists draw bare glyphs, so the logo goes without its disc.
-              backgroundColor={compact ? undefined : '$secondaryBackground'}
-              borderRadius={100}
-            >
-              <TlonLogo
-                // Native glyphs fill most of their frame; the web disc keeps
-                // the logo small inside it.
-                width={compact ? Math.round(size * 0.7) : '$xl'}
-                height={compact ? Math.round(size * 0.7) : '$xl'}
-                color="$secondaryText"
-              />
-            </View>
-          ),
-        },
+        leading: { kind: 'icon', icon: 'Tlon' },
         onPress: props.onManageAccountPressed,
         isFocused: focusedRouteName === 'ManageAccount',
       });
