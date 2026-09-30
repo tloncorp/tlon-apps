@@ -83,17 +83,25 @@
   ::  per context so that per-ship checks need no further scries
   ::
   $%  [%dm peer=ship]
-      [%channel =nest:gv seats=(set ship) can-read=$-([ship nest:gv] ?)]
-      [%group seats=(set ship)]
+      [%channel =nest:gv seated=$-(ship ?) can-read=$-([ship nest:gv] ?)]
+      [%group seated=$-(ship ?)]
   ==
 ::
 ++  resolve-context
   ::  the context-level half of the participant check: we must host the
   ::  context, and for channels resolve the channel to a group we know.
-  ::  fetches the group's seats and cached read-permission gate once.
+  ::  .bulk says whether many ships will be checked against the result:
+  ::  if so, fetch the group's seats once; if not, look the one ship up.
+  ::  fetches the cached read-permission gate once either way.
   ::
-  |=  [=context =bowl:gall]
+  |=  [=context bulk=? =bowl:gall]
   ^-  (each membership term)
+  =/  seated
+    |=  =flag:gv
+    ^-  $-(ship ?)
+    ?.  bulk  |=(who=ship (has-seat flag who bowl))
+    =/  seats  (group-seats flag bowl)
+    |=(who=ship (~(has in seats) who))
   ?+  context  |+%presence-bad-path
       [%dm @ ~]
     ?~  peer=(slaw %p i.t.context)  |+%presence-bad-path
@@ -102,6 +110,7 @@
       [%channel @ @ @ ~]
     ?~  host=(slaw %p i.t.t.context)  |+%presence-bad-path
     ?.  =(our.bowl u.host)  |+%presence-not-host
+    ?.  (groups-running bowl)  |+%presence-groups-not-running
     =*  kind  i.t.context
     =*  name  i.t.t.t.context
     =/  group=(unit flag:gv)  (group-for-channel kind u.host name bowl)
@@ -110,15 +119,16 @@
     :-  %&
     :^    %channel
         [kind u.host name]
-      (group-seats u.group bowl)
+      (seated u.group)
     (can-read-gate u.group bowl)
   ::
       [%group @ @ ~]
     ?~  host=(slaw %p i.t.context)  |+%presence-bad-path
     ?.  =(our.bowl u.host)  |+%presence-not-host
+    ?.  (groups-running bowl)  |+%presence-groups-not-running
     =/  =flag:gv  [u.host i.t.t.context]
     ?.  (has-group flag bowl)  |+%presence-unknown-group
-    &+[%group (group-seats flag bowl)]
+    &+[%group (seated flag)]
   ==
 ::
 ++  member-error
@@ -131,14 +141,14 @@
   ?-  -.membership
       %dm   ?:(=(who peer.membership) ~ `%presence-not-dm-counterparty)
       %group
-    ?:((~(has in seats.membership) who) ~ `%presence-not-group-member)
+    ?:((seated.membership who) ~ `%presence-not-group-member)
   ::
       %channel
     ::  the channel host can always read its own channel, whatever its
     ::  roles say, mirroring +can-read:perms in /lib/channel-utils
     ::
     ?:  =(who our.bowl)  ~
-    ?.  (~(has in seats.membership) who)  `%presence-not-group-member
+    ?.  (seated.membership who)  `%presence-not-group-member
     ?:  (can-read.membership who nest.membership)  ~
     `%presence-cannot-read-channel
   ==
@@ -150,7 +160,7 @@
   ::
   |=  [who=ship =context =bowl:gall]
   ^-  (unit term)
-  =/  res  (resolve-context context bowl)
+  =/  res  (resolve-context context | bowl)
   ?:  ?=(%| -.res)  `p.res
   (member-error who p.res bowl)
 ::
@@ -197,6 +207,19 @@
   |=  [=flag:gv =bowl:gall]
   ^-  ?
   .^(? %gu (weld (groups-scry bowl) /groups/(scot %p p.flag)/[q.flag]))
+::
+++  has-seat
+  ::  callers check +has-group first. for many ships, +group-seats once
+  ::  is cheaper than this per ship.
+  ::
+  |=  [=flag:gv who=ship =bowl:gall]
+  ^-  ?
+  =;  seat
+    ?=(^ seat)
+  .^  (unit seat:v7:gv)  %gx
+    %+  weld  (groups-scry bowl)
+    /groups/(scot %p p.flag)/[q.flag]/seats/(scot %p who)/noun
+  ==
 ::
 ++  group-seats
   ::  callers check +has-group first
@@ -286,7 +309,7 @@
   ^-  [(list card) _subs]
   ::  resolve the context once; only the per-ship check runs in the loop
   ::
-  =/  res  (resolve-context context bowl)
+  =/  res  (resolve-context context & bowl)
   =/  bad=(list ship)
     %+  skip  ~(tap in (~(get ju subs) context))
     |=  who=ship

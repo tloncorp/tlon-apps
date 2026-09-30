@@ -163,6 +163,10 @@
       [%gx @ %groups @ %v2 %groups @ @ %seats %ships %ships ~]
     `!>(seats)
   ::
+      [%gx @ %groups @ %groups @ @ %seats @ %noun ~]
+    =/  who  (slav %p (snag 8 `(list @ta)`path))
+    `!>(`(unit seat:v7:gv)`?:((~(has in seats) who) `*seat:v7:gv ~))
+  ::
       [%gx @ %groups @ %v2 %groups @ @ %channels %can-read %noun ~]
     `!>(can-read)
   ==
@@ -354,6 +358,22 @@
   ^-  form:m
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  (set-scry-gate (gate-scry (sy ~[~zod]) |=([ship nest:gv] &)))
+  ;<  ~  bind:m  (set-src host)
+  (ex-fail (do-watch [%context (scot %p host) host-context]))
+::
+::  with %groups not running, a watch is rejected with a clear reason
+::  rather than crashing on a blocked scry
+::
+++  test-watch-rejects-when-groups-down
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ?:  ?=([%gu @ %groups @ %$ ~] path)  `!>(|)
+    ((chan-scry &) path)
   ;<  ~  bind:m  (set-src host)
   (ex-fail (do-watch [%context (scot %p host) host-context]))
 ::
