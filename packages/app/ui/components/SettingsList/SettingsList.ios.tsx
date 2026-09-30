@@ -25,6 +25,7 @@ import {
   frame,
   lineLimit,
   listRowBackground,
+  listSectionMargins,
   padding,
   scrollContentBackground,
   shapes,
@@ -48,6 +49,12 @@ const listRowSeparatorTint = (color: string) =>
 const scrollEdgeEffectStyle = (style: 'soft', edges: 'top') =>
   createModifier('scrollEdgeEffectStyle', { style, edges });
 
+// SwiftUI leaves a section's worth of space (35 pt) above the first section,
+// which reads as a gap under the navigation bar's small inline title.
+const firstSectionModifiers = [
+  listSectionMargins({ edges: 'top', length: 24 }),
+];
+
 /** Settings drawn as a SwiftUI inset-grouped form, in Tlon's theme colors. */
 export function SettingsList({ sections }: SettingsListProps) {
   const colors = useSettingsListColors();
@@ -65,9 +72,10 @@ export function SettingsList({ sections }: SettingsListProps) {
           scrollEdgeEffectStyle('soft', 'top'),
         ]}
       >
-        {sections.map((section) => (
+        {sections.map((section, index) => (
           <Section
             key={section.key}
+            modifiers={index === 0 ? firstSectionModifiers : undefined}
             header={
               section.title ? (
                 <Text modifiers={[foregroundStyle(colors.secondaryText)]}>
