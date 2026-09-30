@@ -112,11 +112,11 @@ jobs:
   # repo-wide format/lint/tsc/test:ci ran for them before gating. Only
   # needed when test-build is skipped (bot-only PRs); on mixed PRs test-build
   # covers all of this. The openclaw and tlon-bot-e2e unit steps duplicate
-  # jobs in the path-triggered hermes-ci/openclaw-ci workflows, on purpose:
-  # those workflows can't be required status checks (a paths-filtered workflow
+  # jobs in the path-triggered openclaw-ci workflow, on purpose: that
+  # workflow can't be a required status check (a paths-filtered workflow
   # never reports on unrelated PRs, wedging a required context), so this job
   # is what puts that coverage behind the CI OK merge gate. Their heavyweight
-  # shared-E2E suites stay in the plugin workflows only, non-blocking.
+  # shared-E2E suites stay in openclaw-ci only, non-blocking.
   bot-checks:
     needs: changes
     if:
@@ -163,9 +163,6 @@ jobs:
 
       - name: tlon-skill typecheck, tests, and build smoke
         run: pnpm --filter '@tloncorp/tlon-skill' check
-
-      - name: Run Hermes adapter unit tests
-        run: ./packages/hermes-tlon-adapter/dev/test.sh
 
       # The drift contract lives in @tloncorp/shared (it owns the static
       # command lists) but its whole purpose is catching runtime changes — and
