@@ -42,21 +42,28 @@ import {
 } from './useSettingsListColors';
 
 // Backported to @expo/ui 57.0.7 by patches/@expo__ui@57.0.7.patch; newer
-// releases export this modifier directly.
+// releases export these modifiers directly.
 const listRowSeparatorTint = (color: string) =>
   createModifier('listRowSeparatorTint', { color });
+const scrollEdgeEffectStyle = (style: 'soft', edges: 'top') =>
+  createModifier('scrollEdgeEffectStyle', { style, edges });
 
 /** Settings drawn as a SwiftUI inset-grouped form, in Tlon's theme colors. */
 export function SettingsList({ sections }: SettingsListProps) {
   const colors = useSettingsListColors();
-  // Keeps the transparent header and scroll-edge treatment the tab's other
-  // scroll views install on iOS 26; the form scrolls beneath it.
+  // Keeps the transparent header the tab's other scroll views install on iOS
+  // 26; the form scrolls beneath it. The screen's soft top edge only reaches a
+  // React Native scroll view, so the form asks for its own.
   useScreenScrollProps();
 
   return (
     <Host style={{ flex: 1 }} colorScheme={colors.colorScheme}>
       <Form
-        modifiers={[scrollContentBackground('hidden'), background(colors.page)]}
+        modifiers={[
+          scrollContentBackground('hidden'),
+          background(colors.page),
+          scrollEdgeEffectStyle('soft', 'top'),
+        ]}
       >
         {sections.map((section) => (
           <Section
