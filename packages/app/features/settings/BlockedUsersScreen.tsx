@@ -1,25 +1,21 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
 import {
-  BlockedContactsWidget,
-  ScreenHeader,
-  SettingsContentScrollView,
-  View,
-  useIsWindowNarrow,
-} from '../../ui';
+  type SettingsSectionModel,
+  SettingsListScreenView,
+} from '../../ui/components/SettingsList';
 import { formatUserId } from '../../ui/utils/user';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BlockedUsers'>;
 
 export function BlockedUsersScreen(props: Props) {
   const { data: blockedContacts } = store.useBlockedContacts();
-  const isNarrow = useIsWindowNarrow();
 
   const onBlockedContactPress = useCallback((contact: db.Contact) => {
     // For the confirmation dialog, we use nickname if available, otherwise formatted userId
@@ -48,20 +44,41 @@ export function BlockedUsersScreen(props: Props) {
     }
   }, []);
 
+  const sections = useMemo<SettingsSectionModel[]>(() => {
+    const contacts = blockedContacts ?? [];
+    if (contacts.length === 0) {
+      return [
+        {
+          key: 'blocked',
+          rows: [{ key: 'empty', title: 'No blocked users' }],
+        },
+      ];
+    }
+    return [
+      {
+        key: 'blocked',
+        footer: 'Tap someone to unblock them.',
+        rows: contacts.map((contact) => {
+          const userId = formatUserId(contact.id)?.display ?? contact.id;
+          return {
+            key: contact.id,
+            title: contact.nickname || userId,
+            subtitle: contact.nickname ? userId : undefined,
+            leading: { kind: 'contact', contactId: contact.id },
+            value: 'Unblock',
+            accessory: 'none',
+            onPress: () => onBlockedContactPress(contact),
+          };
+        }),
+      },
+    ];
+  }, [blockedContacts, onBlockedContactPress]);
+
   return (
-    <View flex={1} backgroundColor="$background">
-      <ScreenHeader
-        backAction={isNarrow ? () => props.navigation.goBack() : undefined}
-        title="Blocked users"
-        borderBottom
-        placement="navigation"
-      />
-      <SettingsContentScrollView>
-        <BlockedContactsWidget
-          blockedContacts={blockedContacts ?? []}
-          onBlockedContactPress={onBlockedContactPress}
-        />
-      </SettingsContentScrollView>
-    </View>
+    <SettingsListScreenView
+      title="Blocked users"
+      sections={sections}
+      onBackPressed={() => props.navigation.goBack()}
+    />
   );
 }
