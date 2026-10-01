@@ -52,11 +52,9 @@ import {
 } from './useSettingsListColors';
 
 // Backported to @expo/ui 57.0.7 by patches/@expo__ui@57.0.7.patch; newer
-// releases export these modifiers directly.
+// releases export this modifier directly.
 const listRowSeparatorTint = (color: string) =>
   createModifier('listRowSeparatorTint', { color });
-const scrollEdgeEffectStyle = (style: 'soft', edges: 'top') =>
-  createModifier('scrollEdgeEffectStyle', { style, edges });
 
 // SwiftUI leaves a section's worth of space (35 pt) above the first section,
 // which reads as a gap under the navigation bar's small inline title.
@@ -68,8 +66,7 @@ const firstSectionModifiers = [
 export function SettingsList({ sections }: SettingsListProps) {
   const colors = useSettingsListColors();
   // Keeps the transparent header the tab's other scroll views install on iOS
-  // 26; the form scrolls beneath it. The screen's soft top edge only reaches a
-  // React Native scroll view, so the form asks for its own.
+  // 26; the form scrolls beneath it, and iOS gives it the soft edge on its own.
   useScreenScrollProps();
 
   return (
@@ -78,11 +75,7 @@ export function SettingsList({ sections }: SettingsListProps) {
         // SwiftUI keeps a row's separator tint from when it was first drawn, so
         // a theme change would leave the old color; rebuild the form instead.
         key={colors.separator}
-        modifiers={[
-          scrollContentBackground('hidden'),
-          background(colors.page),
-          scrollEdgeEffectStyle('soft', 'top'),
-        ]}
+        modifiers={[scrollContentBackground('hidden'), background(colors.page)]}
       >
         {sections.map((section, index) => (
           <Section
