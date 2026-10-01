@@ -31,9 +31,11 @@ import {
   lineLimit,
   listRowBackground,
   listSectionMargins,
+  onSubmit as submitAction,
   padding,
   scrollContentBackground,
   shapes,
+  submitLabel,
   textInputAutocapitalization,
 } from '@expo/ui/swift-ui/modifiers';
 
@@ -266,11 +268,19 @@ function TextFieldRow({
     text,
     placeholder: field.placeholder,
     onTextChange: onChangeText,
+    onFocusChange: field.onFocusChange,
     modifiers: [
       ...modifiers,
       accessibilityLabel(row.title),
-      textInputAutocapitalization('never'),
+      textInputAutocapitalization(
+        field.capitalization === 'words' || field.capitalization === 'sentences'
+          ? field.capitalization
+          : 'never'
+      ),
       autocorrectionDisabled(),
+      ...(field.onSubmit
+        ? [submitLabel('done'), submitAction(field.onSubmit)]
+        : []),
     ],
   };
   return field.secure ? (

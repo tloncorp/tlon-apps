@@ -48,11 +48,15 @@ function SettingsRow({ row }: { row: SettingsRowModel }) {
           value={row.textField.value}
           placeholder={row.textField.placeholder}
           secureTextEntry={row.textField.secure}
-          autoCapitalize="none"
+          autoCapitalize={row.textField.capitalization ?? 'none'}
           autoCorrect={false}
           aria-label={row.title}
           disabled={row.disabled}
           onChangeText={row.textField.onChangeText}
+          onFocus={() => row.textField?.onFocusChange?.(true)}
+          onBlur={() => row.textField?.onFocusChange?.(false)}
+          onSubmitEditing={row.textField.onSubmit}
+          returnKeyType={row.textField.onSubmit ? 'done' : undefined}
           testID={row.testID}
         />
       </XStack>
