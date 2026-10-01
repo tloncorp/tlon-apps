@@ -63,6 +63,32 @@ export type ChannelListGroup = {
 const CHANNEL_APPS = ['chat', 'heap', 'diary'];
 const DEFAULT_CHANNEL_APP = 'chat';
 
+export type ConnectionsSummaryState = 'settled' | 'checking' | 'unavailable';
+
+/**
+ * Whether the bot card's connection counts can be trusted. A count is known
+ * only once its request has returned data: one still waiting on the bot to
+ * start, or one that failed, hasn't answered, and reading it as zero would
+ * replace a remembered value with a wrong one.
+ */
+export const getConnectionsSummaryState = ({
+  botReady,
+  queries,
+}: {
+  botReady: boolean;
+  queries: { data: unknown; isError: boolean }[];
+}): ConnectionsSummaryState => {
+  if (queries.every((query) => query.data !== undefined)) {
+    return 'settled';
+  }
+  // While the bot starts, its endpoints fail and are retried, so a failure
+  // only counts once it is up.
+  return botReady &&
+    queries.some((query) => query.isError && query.data === undefined)
+    ? 'unavailable'
+    : 'checking';
+};
+
 export const formatChannelHost = (host: string): string => preSig(host);
 
 export const parseChannelRuleKey = (

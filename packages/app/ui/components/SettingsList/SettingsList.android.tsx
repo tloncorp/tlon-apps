@@ -21,6 +21,7 @@ import {
   height,
   imePadding,
   padding,
+  selectable,
   testID,
   weight,
 } from '@expo/ui/jetpack-compose/modifiers';
@@ -136,6 +137,7 @@ function SettingsRow({
   const onLongClick = row.contextActions?.[0]?.onPress;
   // Material shows a setting's value as the line under its title.
   const supporting = [row.subtitle, row.value].filter(Boolean).join(' · ');
+  const isChoice = row.selected !== undefined;
 
   return (
     <Row
@@ -145,11 +147,15 @@ function SettingsRow({
         fillMaxWidth(),
         ...(row.disabled
           ? []
-          : onLongClick
-            ? [combinedClickable({ onClick, onLongClick })]
-            : onClick
-              ? [clickable(onClick)]
-              : []),
+          : isChoice && onClick
+            ? // The checkmark is only drawn; this is what tells TalkBack and
+              // UI tests which choice is the current one.
+              [selectable(Boolean(row.selected), onClick, 'radioButton')]
+            : onLongClick
+              ? [combinedClickable({ onClick, onLongClick })]
+              : onClick
+                ? [clickable(onClick)]
+                : []),
         padding(16, row.prominent ? 16 : 12, 16, row.prominent ? 16 : 12),
         ...(row.disabled ? [alpha(0.5)] : []),
         ...(row.testID ? [testID(row.testID)] : []),
