@@ -7,7 +7,7 @@ import { useContactName } from './ContactNameV2';
 import { ScreenHeader } from './ScreenHeader';
 import {
   SettingsList,
-  getSettingsListHeaderColor,
+  useSettingsListHeaderColor,
   type SettingsRowModel,
   type SettingsSectionModel,
 } from './SettingsList';
@@ -62,6 +62,7 @@ const botSettingsRouteNames = new Set([
 
 export function SettingsScreenView(props: Props) {
   const isWindowNarrow = useIsWindowNarrow();
+  const headerColor = useSettingsListHeaderColor();
   const profileName = useContactName({
     contactId: props.currentUserId,
     expandLongIds: true,
@@ -72,7 +73,7 @@ export function SettingsScreenView(props: Props) {
     <>
       <ScreenHeader
         title="Settings"
-        backgroundColor={getSettingsListHeaderColor()}
+        backgroundColor={headerColor}
         backAction={props.onBackPressed}
         borderBottom={isWindowNarrow}
         placement="navigation"

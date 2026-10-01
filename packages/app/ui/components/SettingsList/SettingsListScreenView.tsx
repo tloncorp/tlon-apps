@@ -6,8 +6,10 @@ import { View } from 'tamagui';
 import { TextInput } from '../Form';
 import { ScreenHeader, type ScreenHeaderAction } from '../ScreenHeader';
 import { SettingsList } from './SettingsList';
-import { getSettingsListHeaderColor } from './settingsListHeaderColor';
-import { settingsListPageColor } from './settingsListPageColor';
+import {
+  useSettingsListHeaderColor,
+  useSettingsListSurfaces,
+} from './settingsListSurfaces';
 import type { SettingsListSearch, SettingsSectionModel } from './types';
 import { useNativeHeaderSearch } from './useNativeHeaderSearch';
 
@@ -45,13 +47,15 @@ export function SettingsListScreenView({
   children?: ReactNode;
 }) {
   const isWindowNarrow = useIsWindowNarrow();
+  const { page } = useSettingsListSurfaces();
+  const headerColor = useSettingsListHeaderColor();
   useNativeHeaderSearch(loading ? undefined : search);
 
   return (
-    <View flex={1} backgroundColor={settingsListPageColor}>
+    <View flex={1} backgroundColor={page}>
       <ScreenHeader
         title={title}
-        backgroundColor={getSettingsListHeaderColor()}
+        backgroundColor={headerColor}
         backAction={
           isWindowNarrow || showsBackOnWideWindows ? onBackPressed : undefined
         }
