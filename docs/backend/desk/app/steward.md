@@ -27,10 +27,10 @@ The app helper core keeps each module's logic in its own sub-core: `le-core` for
 
 ## state model
 
-State is versioned (`state-2` today), defined in the app file; `on-load` migrates older shapes forward one version per step. Cross-cutting config is top level; each module owns its own slice, typed from its own sur file:
+State is versioned (`state-4` today), defined in the app file; `on-load` migrates older shapes forward one version per step. Cross-cutting config is top level; each module owns its own slice, typed from its own sur file:
 
 ```
-state-2 (%2, current)
+state-4 (%4, current)
   owner       (unit ship)        shared owner config; ~ = inert
   bots        (set ship)         owner-side trusted lens bots
   lens        state:v1:lens      stored lens run records
@@ -45,12 +45,14 @@ Migrations so far:
 
 - `%0 → %1`: the gateway slice gained two leading fields — `notify-on-start=?` (an owner-initiated stop is pending) and `last-interaction=@da` (when anyone last engaged the bot). They lead so the migration is a one-line cons, `[| *@da gateway.old]`. A migrated bot whose gateway is already `%up` or `%down` also seeds its `bot-liveness` claim (see the gateway module).
 - `%1 → %2`: the automation module arrives with an empty slice. The app keeps the pre-%2 shapes (`state-1`, `state-0`, `gateway-0`) only for `on-load`.
+- `%2 → %3`: the gateway slice gained the status-message toggle.
+- `%3 → %4`: every stored task gains `delivery`, and every `agentTurn` payload gains `tools-allow`. Both migrate as `~` and the harness's next projection supplies them, since the mirror is derived. A bot-side `pending-command` carries a task inside its `edit`, so pending commands are widened too rather than dropped. The app keeps the pre-%4 automation shapes (`task-3`, `edit-3`, `automation-3`) only for `on-load`.
 
 The automation `tasks` map holds one entry per ship: the **local projection** lives under `our`, written only by accepted `%project` actions, and each **mirrored remote bot** lives under its own ship, written only by facts from the subscription to that bot. The writers are disjoint by key, so the two never collide. Every entry follows the same presence rule: absent until its first projection or snapshot arrives, present (possibly empty) afterward — an empty entry means "synced, zero tasks", an absent one means "never synced". `state-1` is unreleased, so this shape replaced the earlier flat task map in place with no extra state version; `state-0-to-1` is unchanged (it initializes automation from the bunt, which yields an empty map).
 
 `owner` is shared: the lens module sends runs to it, and the gateway module treats its DMs as owner activity worth auto-replying to. `bots` is the owner-side allowlist of ships permitted to fan lens runs in (see the `%entry` gate below); managed via the core `%trust-bot`/`%untrust-bot` pokes.
 
-`on-load` delegates to `load`, which decodes the persisted vase as `versioned-state` and migrates one version per step (`state-0-to-1`, `state-1-to-2`). Migration never auto-subscribes an already-trusted bot set — mirroring starts only from an explicit `%trust-bot` poke. `on-save` always writes the current `state-2` shape. A malformed or unrecognized persisted state fails visibly during decode; it is not replaced with bunt state.
+`on-load` delegates to `load`, which decodes the persisted vase as `versioned-state` and migrates one version per step (`state-0-to-1` through `state-3-to-4`). Migration never auto-subscribes an already-trusted bot set — mirroring starts only from an explicit `%trust-bot` poke. `on-save` always writes the current `state-4` shape. A malformed or unrecognized persisted state fails visibly during decode; it is not replaced with bunt state.
 
 `run` (in `sur/steward/lens.hoon`):
 
@@ -131,8 +133,13 @@ The v1 state is `tasks=(map ship tasks)` with `+$  tasks  (map @t task)` (see th
 | enabled state | `(unit ?)` | `enabled` |
 | schedule | `(unit cron-schedule)` | `schedule` |
 | execution target | `(unit @t)` for each value | `sessionTarget`, `wakeMode` |
-| payload definition | optional `kind` and `message` | `payload` |
+| payload definition | optional `kind`, `message`, and `tools-allow` | `payload` |
+| delivery | `(unit delivery)` | `delivery` |
 | definition timestamps | `(unit @da)` for each value | `createdAtMs`, `updatedAtMs` |
+
+`delivery` is where a run's output goes: `mode` (`%none`, `%announce`, `%webhook`), `channel` naming the transport (`'tlon'`), `to` giving the address within it — a channel nest, or a ship for a DM — and an optional `failure-destination` for failure notices. The host's cron store carries it and routes on it, but `openclaw/plugin-sdk/types` does not declare it, so both the projection and the edit mapping read and write it off the host's own shape rather than the plugin declaration. The host's `thread-id` and `best-effort` are not mirrored; a patch that omits a field leaves the host's value alone, so they survive an edit from here. The same holds for the agentTurn payload fields this does not model (`model`, `fallbacks`, `thinking`, `timeoutSeconds`, `lightContext`).
+
+`tools-allow` is the host's tool allow-list: when set, only those tools are offered to the model. The bot's own onboarding sets it so publishing stays out of the model's reach, so a create that means to match an onboarding job must set it too.
 
 Supported schedules are `cron` (`expr`, `tz`, and `staggerMs`), `at` (`at`), and `every` (`everyMs` and `anchorMs`). Millisecond duration and timestamp fields cross the JSON boundary as non-negative integer milliseconds. Pinned OpenClaw returns an `at` timestamp as ISO text; the TypeScript normalizer validates and converts it to Unix milliseconds before `%steward` receives it.
 
@@ -377,8 +384,8 @@ With no entries at all the exact JSON shape is `{}`. Task values use the support
 
 ## lifecycle and invariants
 
-- `on-init` creates `state-2`, subscribes to `%activity /v5` for the gateway module, seeds the default lens retention cap, and leaves automation empty. There is no lens prune timer (retention is count-only, enforced on insert/configure).
-- `on-load` delegates to `load`, which migrates one version per step (`state-0-to-1`, `state-1-to-2`) in the same shape as `%activity`'s `load`. Its only migration card is the `bot-liveness` seed for a `%0` bot whose gateway is already `%up` or `%down` (owner configured): heartbeats advertise only on an up transition, so an already-up gateway would otherwise stay unknown until its next restart. Every load re-emits the Eyre binding for `/steward`; the automation sweep chain is armed once, by `on-init` or by the `%1 → %2` step, since it re-arms itself. Decode or migration failure is visible and never resets to bunt. `on-save` writes `state-2`.
+- `on-init` creates `state-4`, subscribes to `%activity /v5` for the gateway module, seeds the default lens retention cap, and leaves automation empty. There is no lens prune timer (retention is count-only, enforced on insert/configure).
+- `on-load` delegates to `load`, which migrates one version per step (`state-0-to-1` through `state-3-to-4`) in the same shape as `%activity`'s `load`. Its only migration card is the `bot-liveness` seed for a `%0` bot whose gateway is already `%up` or `%down` (owner configured): heartbeats advertise only on an up transition, so an already-up gateway would otherwise stay unknown until its next restart. Every load re-emits the Eyre binding for `/steward`; the automation sweep chain is armed once, by `on-init` or by the `%1 → %2` step, since it re-arms itself. Decode or migration failure is visible and never resets to bunt. `on-save` writes `state-4`.
 - Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`, liveness publication to `%contacts` on `/gateway/liveness`, and the owner-side automation watches on `/automation/tasks/[bot-p]` — everything arriving on an automation wire is applied only for the ship in the wire (facts naming other ships are ignored). The `%activity` subscription is re-watched on `%kick`; an automation watch is re-watched on `%kick` iff its bot is still trusted. Poke/DM nacks are logged and ignored (Ames retries); a nacked automation watch is slogged and left for a `%trust-bot` re-poke to repair.
 - `on-watch` auth is per-path: lens and gateway paths require `=(src our)`; `/v1/automation/tasks` also admits the configured owner. Rejection is a crash (watch nack). Dotket `on-peek` calls execute locally against current state without caller-source authorization. Core, gateway, and automation pokes are local only; lens applies its per-action source rules to admit trusted bot runs and owner relays.
 

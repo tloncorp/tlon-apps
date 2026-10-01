@@ -18,13 +18,48 @@
       [%at at=(unit @da)]
       [%every every=(unit @dr) anchor=(unit @da)]
   ==
+::  $task-payload: the agentTurn payload. .tools-allow is the host's
+::  tool allow-list; when it is set the model is offered only those tools,
+::  which is how the bot keeps publishing out of the model's reach. the
+::  remaining agentTurn fields (model, fallbacks, thinking, timeout,
+::  light-context) are not mirrored yet; a patch that omits a field leaves
+::  the host's value alone, so they survive an edit from here
+::
 +$  task-payload
   $:  kind=(unit @t)
       message=(unit @t)
+      tools-allow=(unit (list @t))
   ==
-::  $task: the supported definition-only PluginHookGatewayCronJob subset; the ID
-::  from OpenClaw is stored separately as the map key. runtime job state and
+::  $delivery-mode: where a run's output goes. %none keeps it in the run
+::
++$  delivery-mode  ?(%none %announce %webhook)
+::  $failure-destination: separate target for failure notices
+::
++$  failure-destination
+  $:  mode=(unit ?(%announce %webhook))
+      channel=(unit @t)
+      to=(unit @t)
+      account-id=(unit @t)
+  ==
+::  $delivery: the job's destination. .channel names the transport
+::  ('tlon') and .to the address within it, a channel nest for Tlon. the
+::  host's .thread-id and .best-effort are not mirrored; as above, a patch
+::  that omits them leaves them alone
+::
++$  delivery
+  $:  mode=(unit delivery-mode)
+      channel=(unit @t)
+      to=(unit @t)
+      account-id=(unit @t)
+      failure-destination=(unit failure-destination)
+  ==
+::  $task: the definition-only subset of the host's cron job; the ID from
+::  OpenClaw is stored separately as the map key. runtime job state and
 ::  execution history are not represented
+::
+::    the plugin SDK's declared PluginHookGatewayCronJob omits .delivery,
+::    which the host nonetheless stores and routes on, so this follows the
+::    host's own cron store shape rather than the plugin declaration
 ::
 +$  task
   $:  agent-id=(unit @t)
@@ -35,6 +70,7 @@
       session-target=(unit @t)
       wake-mode=(unit @t)
       payload=(unit task-payload)
+      delivery=(unit delivery)
       created-at=(unit @da)
       updated-at=(unit @da)
   ==

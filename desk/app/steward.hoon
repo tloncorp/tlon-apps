@@ -23,13 +23,21 @@
 ::            pokes cross-ship. explicit and ship-class-agnostic; an empty
 ::            set means only local pokes are accepted.
 ::
++$  state-4
+  $:  %4
+      owner=(unit ship)
+      bots=(set ship)
+      lens=state:v1:sl
+      gateway=state:v1:sg
+      automation=state:v1:sa
+  ==
 +$  state-3
   $:  %3
       owner=(unit ship)
       bots=(set ship)
       lens=state:v1:sl
       gateway=state:v1:sg
-      automation=state:v1:sa
+      automation=automation-3
   ==
 +$  state-2
   $:  %2
@@ -37,9 +45,9 @@
       bots=(set ship)
       lens=state:v1:sl
       gateway=gateway-1
-      automation=state:v1:sa
+      automation=automation-3
   ==
-+$  versioned-state  $%(state-0 state-1 state-2 state-3)
++$  versioned-state  $%(state-0 state-1 state-2 state-3 state-4)
 ::  Persisted shapes used only by +on-load migrations. gateway-1 has the
 ::  notification latch and interaction timestamp; gateway-0 omits them.
 ::
@@ -49,6 +57,42 @@
       bots=(set ship)
       lens=state:v1:sl
       gateway=gateway-1
+  ==
+::  the automation slice before .delivery and .tools-allow. the mirror is
+::  derived, so a migrated task carries ~ for both until the next
+::  projection from the harness fills them in
+::
++$  task-payload-3
+  $:  kind=(unit @t)
+      message=(unit @t)
+  ==
++$  task-3
+  $:  agent-id=(unit @t)
+      name=(unit @t)
+      description=(unit @t)
+      enabled=(unit ?)
+      schedule=(unit cron-schedule:v1:sa)
+      session-target=(unit @t)
+      wake-mode=(unit @t)
+      payload=(unit task-payload-3)
+      created-at=(unit @da)
+      updated-at=(unit @da)
+  ==
++$  edit-3
+  $%  [%create task=task-3]
+      [%update id=@t task=task-3]
+      [%delete id=@t]
+  ==
++$  pending-command-3
+  $:  id=request-id:v1:sa
+      requester=ship
+      edit=edit-3
+      sent-at=@da
+  ==
++$  automation-3
+  $:  tasks=(map ship (map @t task-3))
+      requests=requests:v1:sa
+      pending=(map request-id:v1:sa pending-command-3)
   ==
 +$  state-0
   $:  %0
@@ -81,7 +125,7 @@
 ::
 ++  default-max-runs-per-bot  3.000
 --
-=|  state-3
+=|  state-4
 =*  state  -
 %-  agent:dbug
 %^  verb  |  %warn
@@ -172,7 +216,8 @@
   =/  new-slice  ?=(%1 -.old)
   =?  old  ?=(%1 -.old)  (state-1-to-2 old)
   =?  old  ?=(%2 -.old)  (state-2-to-3 old)
-  ?>  ?=(%3 -.old)
+  =?  old  ?=(%3 -.old)  (state-3-to-4 old)
+  ?>  ?=(%4 -.old)
   =.  state  old
   ::  re-establish the eyre binding on every load; re-connecting a bound
   ::  path is harmless
@@ -190,11 +235,56 @@
 ++  state-1-to-2
   |=  old=state-1
   ^-  state-2
-  [%2 owner.old bots.old lens.old gateway.old *state:v1:sa]
+  [%2 owner.old bots.old lens.old gateway.old *automation-3]
 ++  state-2-to-3
   |=  old=state-2
   ^-  state-3
   [%3 owner.old bots.old lens.old [& gateway.old] automation.old]
+::  %3 → %4: tasks gain .delivery and payloads gain .tools-allow. both
+::  start empty and the harness's next projection supplies them; pending
+::  commands carry a task too, so they are widened rather than dropped
+::
+++  state-3-to-4
+  |=  old=state-3
+  ^-  state-4
+  =/  tasks=(map ship tasks:v1:sa)
+    %-  ~(run by tasks.automation.old)
+    |=(entry=(map @t task-3) (~(run by entry) widen-task))
+  =/  pending=pending:v1:sa
+    %-  ~(run by pending.automation.old)
+    |=  pen=pending-command-3
+    ^-  pending-command:v1:sa
+    [id.pen requester.pen (widen-edit edit.pen) sent-at.pen]
+  :*  %4
+      owner.old
+      bots.old
+      lens.old
+      gateway.old
+      [tasks requests.automation.old pending]
+  ==
+++  widen-edit
+  |=  =edit-3
+  ^-  edit:v1:sa
+  ?-  -.edit-3
+    %delete  [%delete id.edit-3]
+    %create  [%create (widen-task task.edit-3)]
+    %update  [%update id.edit-3 (widen-task task.edit-3)]
+  ==
+++  widen-task
+  |=  t=task-3
+  ^-  task:v1:sa
+  :*  agent-id.t
+      name.t
+      description.t
+      enabled.t
+      schedule.t
+      session-target.t
+      wake-mode.t
+      ?~(payload.t ~ `[kind.u.payload.t message.u.payload.t ~])
+      ~
+      created-at.t
+      updated-at.t
+  ==
 ::  a %0 bot's gateway registered before the liveness claim existed, and
 ::  heartbeats only advertise on an up transition: seed the claim from the
 ::  migrated status, or an already-up gateway stays unknown until its next
