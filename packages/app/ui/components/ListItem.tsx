@@ -196,17 +196,24 @@ const ListItemCount = ({
       borderRadius="$l"
       {...rest}
     >
-      <ListItemCountNumber hidden={count < 1}>
+      <ListItemCountNumber hidden={count < 1 && !muted}>
         {muted && (
-          <Icon type="Muted" customSize={[12, 12]} color={foregroundColor} />
+          <Icon
+            testID="MutedIndicator"
+            type="Muted"
+            customSize={[12, 12]}
+            color={foregroundColor}
+          />
         )}
-        <Text
-          testID="UnreadCountNumber"
-          size="$label/m"
-          color={foregroundColor}
-        >
-          {numberWithMax(count, 256)}
-        </Text>
+        {(count > 0 || !muted) && (
+          <Text
+            testID="UnreadCountNumber"
+            size="$label/m"
+            color={foregroundColor}
+          >
+            {numberWithMax(count, 256)}
+          </Text>
+        )}
       </ListItemCountNumber>
     </View>
   );
