@@ -79,6 +79,8 @@ function SettingsRow({ row }: { row: SettingsRowModel }) {
       <SettingsRowLeading row={row} />
       <ListItem.MainContent>
         <ListItem.Title
+          // Wraps like the native lists, unless a value shares the row.
+          numberOfLines={row.value ? 1 : 3}
           color={
             row.destructive
               ? '$negativeActionText'
