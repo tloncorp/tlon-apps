@@ -1,6 +1,6 @@
 ---
 name: tlon
-description: Interact with Tlon/Urbit API. Use for reading activity, message history, contacts, channels, and groups. Also for group/channel administration, profile management, and exposing content to the clearweb.
+description: Interact with Tlon/Urbit API. Use for reading activity, message history, contacts, channels, and groups; hosted-browser login handoffs; group/channel administration; profile management; and exposing content to the clearweb.
 ---
 
 # Tlon Skill
@@ -46,6 +46,98 @@ tlon upload https://example.com/x.png  # remote URL
 ```
 
 Pass that printed URL as `media=`. On Tlon-hosted deployments (where `TLON_HOSTING` is set) the bot's own ship uploads through Tlon file hosting. Self-hosted moons have no storage, so `upload` refuses immediately with `This ship cannot store uploads …`; for a local file, retry through the owner ship's config: `tlon --config "$TLON_OWNER_CONFIG_PATH" upload <path>`. For a source that is already a public https URL, `media=` takes it directly — no upload needed. Never claim an image was sent unless the upload and the send both returned success.
+
+### Hosted-browser login handoff
+
+Use a browser login handoff when you are controlling a hosted browser on behalf
+of your owner and the live page needs sensitive input that they should provide,
+especially:
+
+- a username and password form;
+- a password-only form after a username step; or
+- a visible one-time-password or verification-code form.
+
+Do not ask the owner to send a password or code in chat. Do not type, store,
+repeat, summarize, or otherwise bring those values into model context. Ordinary
+navigation and non-sensitive form filling should continue through the browser
+tools without a handoff.
+
+First navigate the live session all the way to the visible login or verification
+form. Use the unexpired signed `viewer_url` returned by `browser_session_create`
+for that same session. In OpenClaw, call the model-facing `tlon` tool with:
+
+```json
+{"command": "browser handoff <signed-viewer-url>"}
+```
+
+Do not include the executable name in the tool's `command` argument. From a
+shell, the equivalent is `tlon browser handoff <signed-viewer-url>`.
+
+Do not call `browser_session_handoff` as a prerequisite for this card. That tool
+uses MCP viewer/elicitation capabilities to arrange human browser control; it
+does not issue or refresh signed viewer URLs. Its `client_capability_missing`
+error does not determine whether the Tlon native login form is available.
+
+This is the one exception to the rule against using that tool to send a message.
+The command
+always sends the handoff card to the owner configured for the active bot
+account. It has no recipient argument or override. If no owner is configured,
+it fails instead of sending the form elsewhere. Never claim the handoff was
+sent unless the command returned success.
+
+The card opens a native Tlon password or verification-code form. It does not
+embed the remote page. The browser service re-inspects the live page, tells
+Tlon which standard fields are present, and receives the submitted values
+directly. The values are never posted to chat or returned to the bot. If login
+advances to a separate OTP page, run the same command again with the same live
+session's signed viewer URL, provided it is still valid, to send the owner the
+OTP form. Each time the owner opens the form, the browser service inspects the
+current page and issues a one-use fill handle.
+
+Keep the session live while the owner completes the form. After a successful
+submission, “Return to conversation” automatically sends the same continuation
+message as the card's “I'm signed in” button. Wait for that message, then inspect
+the same browser session to verify that login actually succeeded and continue
+the task. Do not ask the owner to press both controls. The card button is only a
+manual fallback. Release the browser session promptly when the browser task is
+finished.
+
+If handoff reports that no visible password or code form exists, the browser is
+usually on the wrong page or an earlier login step. Inspect it, navigate or
+click until the sensitive form is visibly present, and have the owner reopen
+the card. If the signed viewer URL is missing, rejected, or expired, report that
+the native handoff is unavailable; do not invent or edit a URL, reuse an expired
+one, or claim that `browser_session_handoff` refreshes it. If the live session
+itself expired, create a new one and navigate back to the required form before
+sending a card with its signed viewer URL.
+
+#### What persists
+
+Do not describe the live session itself as permanent. A live Chrome session,
+its tabs, its current page, and its signed handoff URL are temporary and end on
+release, inactivity timeout, hard timeout, or Pod restart. Signed viewer URLs
+are short-lived bearer capabilities: pass one only to `tlon browser handoff`,
+never quote it into chat or share it with another user.
+
+The browser *profile* is persistent. In the self-hosted deployment, the MCP
+credential identifies the owner and transparently selects that owner's durable
+browser profile. Cookies and browser storage saved when a session closes are
+reused by later sessions for the same owner, so a successful login normally
+survives without leaving Chrome or hundreds of idle tabs running. A new session
+may open on a fresh page, but it should retain the saved login state. Logging
+out or clearing site data can persist that logged-out state as well.
+
+Profiles and session handles are isolated by MCP credential. A caller cannot
+open another owner's profile or session merely by guessing or obtaining a
+session handle; each browser call is authorized as the current credential.
+Treat a signed handoff URL as sensitive anyway because it intentionally grants
+temporary access to that one live session.
+
+When the owner asks how this works, explain it plainly: they enter the secret in
+a native Tlon form; Tlon submits it directly to their live browser; the bot does
+not receive the value; and the resulting browser login is saved in their
+isolated profile for later browser tasks. Do not claim that Tlon or the bot has
+stored their raw password.
 
 > **Deprecated: diary channels.** `%diary` is not managed by the CLI: `tlon notebook`, `--kind diary`, and `diary/...` targets fail with guidance toward `%notes`. Use the `tlon notes` family for Markdown notebooks. An owner can preview a legacy diary with `tlon notes migrate-plan <diary-nest>` and migrate it with `tlon notes migrate-apply <diary-nest> --yes`.
 
