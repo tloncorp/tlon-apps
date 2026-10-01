@@ -74,8 +74,14 @@ function SettingsRow({ row }: { row: SettingsRowModel }) {
     !row.action &&
     !isChoice &&
     (row.accessory ?? 'chevron') === 'chevron';
+  // A row with nothing to open has no pressable wrapper to carry its test ID:
+  // a toggle's goes on the switch, any other row's on the row itself.
+  const unwrappedTestID = row.onPress ? undefined : row.testID;
   const content = (
-    <ListItem opacity={row.disabled ? 0.6 : 1}>
+    <ListItem
+      opacity={row.disabled ? 0.6 : 1}
+      testID={row.toggle ? undefined : unwrappedTestID}
+    >
       <SettingsRowLeading row={row} />
       <ListItem.MainContent>
         <ListItem.Title
@@ -114,6 +120,7 @@ function SettingsRow({ row }: { row: SettingsRowModel }) {
             value={row.toggle.value}
             disabled={row.disabled}
             onValueChange={row.toggle.onValueChange}
+            testID={unwrappedTestID}
           />
         ) : null}
         {row.selected ? (

@@ -16,6 +16,7 @@ import {
   SUBSCRIPTION_PROVIDERS,
   providerLabel,
 } from './constants';
+import { getConnectionsSummaryState } from './helpers';
 import {
   getLLMAuthProviderStatus,
   isLLMAuthProviderConnected,
@@ -121,11 +122,15 @@ export function useBotSettingsSectionModels(
   // landed it shows what it showed last time, so they don't pop in one by one.
   const summary = db.botSettingsSummary.useValue();
   const remembered = summary?.ship === queries.ship ? summary : null;
-  const connectionsSettled =
-    queries.providerConfigQuery.isFetched &&
-    queries.oauthStatusQuery.isFetched &&
-    queries.readyQuery.isFetched &&
-    !queries.llmAuthStatusQuery.isLoading;
+  const connectionsState = getConnectionsSummaryState({
+    botReady: queries.botReady,
+    queries: [
+      queries.providerConfigQuery,
+      queries.oauthStatusQuery,
+      queries.llmAuthStatusQuery,
+    ],
+  });
+  const connectionsSettled = connectionsState === 'settled';
 
   const liveModelsValue =
     draft.model.model ||
@@ -146,7 +151,8 @@ export function useBotSettingsSectionModels(
   const modelsValue = settingsReady ? liveModelsValue : remembered?.models;
   const connectionsValue = connectionsSettled
     ? liveConnectionsValue
-    : (remembered?.connections ?? 'Checking…');
+    : (remembered?.connections ??
+      (connectionsState === 'unavailable' ? 'Unavailable' : 'Checking…'));
 
   // Remember applied values only: a pending model edit isn't the bot's model.
   const modelEditPending = pending.modelProvider || pending.model;
