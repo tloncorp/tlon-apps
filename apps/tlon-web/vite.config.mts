@@ -40,7 +40,14 @@ export default ({ mode }: { mode: string }) => {
     process.env.VITE_SHIP_URL2 ||
     'http://localhost:8080';
   console.log(SHIP_URL2);
-  const targetShipUrl = mode === 'dev2' ? SHIP_URL2 : SHIP_URL;
+  // Proxy to a literal loopback address, not `localhost`: Node resolves
+  // `localhost` to both ::1 and 127.0.0.1 and races them with a 250ms
+  // per-address connect timer, which can fire while the dev server's event
+  // loop is busy transforming modules (seen as `AggregateError [ETIMEDOUT]`).
+  const targetShipUrl = (mode === 'dev2' ? SHIP_URL2 : SHIP_URL).replace(
+    /^(https?:\/\/)localhost(?=[:/]|$)/,
+    '$1127.0.0.1'
+  );
   const shouldUploadSourcemaps =
     process.env.CI === 'true' && Boolean(process.env.SENTRY_AUTH_TOKEN);
 
@@ -150,7 +157,7 @@ export default ({ mode }: { mode: string }) => {
           type: 'module',
         },
         injectManifest: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}'],
           maximumFileSizeToCacheInBytes: 100000000,
           plugins: [reactNativeWeb()],
         },

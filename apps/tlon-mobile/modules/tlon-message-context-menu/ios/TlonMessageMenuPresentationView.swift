@@ -19,6 +19,8 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
     }
 
     private static let backdropColor = UIColor.black.withAlphaComponent(0.40)
+    // Well under Metal's 16,384 px texture limit.
+    private static let maximumSnapshotPixelHeight: CGFloat = 8192
     private static let scaleBounceValues: [NSNumber] = {
         let sampleCount = max(
             30,
@@ -45,8 +47,10 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
     }()
 
     private weak var sourceView: UIView?
+    // The part of the source the preview shows, in its bounds.
+    private let snapshotRect: CGRect
     private let sourceSnapshot: UIView
-    private let restingSourceFrame: CGRect?
+    private let restingSnapshotFrame: CGRect?
     private let previewContainer = UIView()
     private let dimView = UIView()
     private let actionList: TlonMessageActionListView
@@ -78,8 +82,26 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
         completion: @escaping (TlonMessageMenuSelection?) -> Void
     ) {
         self.sourceView = sourceView
-        sourceSnapshot = sourceView.snapshotView(afterScreenUpdates: false) ?? UIView()
-        self.restingSourceFrame = restingSourceFrame
+        let snapshotRect = sourceView.window.map {
+            Self.snapshotRect(
+                of: sourceView,
+                restingFrame: restingSourceFrame,
+                in: $0
+            )
+        } ?? sourceView.bounds
+        self.snapshotRect = snapshotRect
+        sourceSnapshot = sourceView.resizableSnapshotView(
+            from: snapshotRect,
+            afterScreenUpdates: false,
+            withCapInsets: .zero
+        ) ?? UIView()
+        // Where the snapshotted part sits once the press scale is gone.
+        restingSnapshotFrame = restingSourceFrame.map {
+            snapshotRect.offsetBy(
+                dx: $0.minX - sourceView.bounds.minX,
+                dy: $0.minY - sourceView.bounds.minY
+            )
+        }
         actionList = TlonMessageActionListView(actions: actions)
         reactionBar = reactions.isEmpty
             ? nil
@@ -122,7 +144,7 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
         frame = window.bounds
         autoresizingMask = [.flexibleWidth, .flexibleHeight]
         presentedBoundsSize = window.bounds.size
-        sourceFrame = sourceView?.convert(sourceView?.bounds ?? .zero, to: window) ?? .zero
+        sourceFrame = sourceView?.convert(snapshotRect, to: window) ?? .zero
 
         window.addSubview(self)
         setNeedsLayout()
@@ -471,6 +493,45 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
         )
     }
 
+    // Returns the part of the source to snapshot, in its bounds: all of it,
+    // even when some is scrolled out of view, unless the message is too tall.
+    // A snapshot that tall can exceed the render server's texture limit and
+    // come back empty, so it is cut to what is on screen.
+    static func snapshotRect(
+        of view: UIView,
+        restingFrame: CGRect?,
+        in window: UIWindow
+    ) -> CGRect {
+        let bounds = view.bounds
+        let displayScale = max(window.traitCollection.displayScale, 1)
+        guard bounds.height * displayScale > maximumSnapshotPixelHeight else {
+            return bounds
+        }
+
+        // The window's bounds, narrowed by every ancestor that clips, such as
+        // the chat list's scroll view.
+        var visibleFrame = window.bounds
+        var ancestor = view.superview
+        while let clippingView = ancestor, clippingView !== window {
+            if clippingView.clipsToBounds {
+                visibleFrame = visibleFrame.intersection(
+                    clippingView.convert(clippingView.bounds, to: window)
+                )
+            }
+            ancestor = clippingView.superview
+        }
+
+        // Measure against the resting frame so the rect still fits the clip
+        // once the press scale is gone. At rest the source is unscaled, so
+        // its bounds map onto the window by translation alone.
+        let frame = restingFrame ?? view.convert(bounds, to: window)
+        let visibleRect = visibleFrame.intersection(frame).offsetBy(
+            dx: bounds.minX - frame.minX,
+            dy: bounds.minY - frame.minY
+        )
+        return visibleRect.isEmpty ? bounds : visibleRect
+    }
+
     private func applyTargetLayout() {
         previewContainer.frame = targetPreviewFrame
         actionMotionView.frame = targetActionFrame
@@ -598,12 +659,12 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
     }
 
     private func dismissalDestinationFrame() -> CGRect {
-        let capturedFrame = restingSourceFrame ?? sourceFrame
+        let capturedFrame = restingSnapshotFrame ?? sourceFrame
         guard let sourceView, let window else {
             return capturedFrame
         }
 
-        let liveFrame = sourceView.convert(sourceView.bounds, to: window)
+        let liveFrame = sourceView.convert(snapshotRect, to: window)
         let sourceMoved = abs(liveFrame.minX - capturedFrame.minX) > 1
             || abs(liveFrame.minY - capturedFrame.minY) > 1
             || abs(liveFrame.width - capturedFrame.width) > 1

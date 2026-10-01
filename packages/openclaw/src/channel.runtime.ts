@@ -35,7 +35,6 @@ import {
   buildMediaStory,
   buildMediaText,
   sendChannelPost,
-  sendDm,
   sendDmWithStory,
 } from './urbit/send.js';
 import { markdownToStory } from './urbit/story.js';
@@ -157,10 +156,12 @@ function notesBody(markdown: string): string {
 }
 
 async function sendNotesEntry({
+  account,
   fromShip,
   nest,
   text,
 }: {
+  account: ConfiguredTlonAccount;
   fromShip: string;
   nest: string;
   text: string;
@@ -171,12 +172,29 @@ async function sendNotesEntry({
     (await notes.listNotes(nest)).map((note) => note.noteId)
   );
   const createStartedAt = Date.now();
-  const created = await notes.createNote({
-    flag: nest,
-    folder: notebook.rootFolderId,
-    title,
-    body: notesBody(text),
-  });
+  const body = notesBody(text);
+  const { created } = await observeActiveTlonTurnDelivery(
+    async () => {
+      const created = await notes.createNote({
+        flag: nest,
+        folder: notebook.rootFolderId,
+        title,
+        body,
+      });
+      return {
+        created,
+        messageId:
+          created?.id === undefined
+            ? undefined
+            : notesDeliveryMessageId(fromShip, created.id),
+      };
+    },
+    {
+      accountId: account.accountId,
+      destinationKind: 'notebook',
+      ship: fromShip,
+    }
+  );
   let noteId = created?.id;
   if (noteId === undefined) {
     // Compatibility with older Notes hosts whose successful write envelope
@@ -293,7 +311,7 @@ async function sendNotesEntryWithLens({
   text: string;
 }) {
   const target = resolveOutboundLensTarget(account, fromShip, nest);
-  const result = await sendNotesEntry({ fromShip, nest, text });
+  const result = await sendNotesEntry({ account, fromShip, nest, text });
   recordOutboundLensDelivery(target, {
     messageId: result.messageId,
     conversationId: nest,
@@ -304,7 +322,7 @@ async function sendNotesEntryWithLens({
   return result;
 }
 
-const unobservedTlonRuntimeOutbound: Pick<
+const coreTlonRuntimeOutbound: Pick<
   ChannelOutboundAdapter,
   'sendText' | 'sendMedia'
 > = {
@@ -323,19 +341,28 @@ const unobservedTlonRuntimeOutbound: Pick<
         const botProfile = await getBotProfile(fromShip);
         if (parsed.kind === 'dm') {
           const conversationId = normalizeShip(parsed.ship);
+          const story = markdownToStory(text);
           const target = resolveOutboundLensTarget(
             account,
             fromShip,
             conversationId
           );
-          const result = await sendDm({
-            fromShip,
-            toShip: parsed.ship,
-            text,
-            blob: target?.blob,
-            replyToId: replyId,
-            botProfile,
-          });
+          const result = await observeActiveTlonTurnDelivery(
+            () =>
+              sendDmWithStory({
+                fromShip,
+                toShip: parsed.ship,
+                story,
+                blob: target?.blob,
+                replyToId: replyId,
+                botProfile,
+              }),
+            {
+              accountId: account.accountId,
+              destinationKind: 'dm',
+              ship: fromShip,
+            }
+          );
           recordOutboundLensDelivery(target, {
             messageId: result.messageId,
             conversationId,
@@ -358,14 +385,23 @@ const unobservedTlonRuntimeOutbound: Pick<
           fromShip,
           parsed.nest
         );
-        const result = await sendChannelPost({
-          fromShip,
-          nest: parsed.nest,
-          story: markdownToStory(text),
-          blob: target?.blob,
-          replyToId: replyId,
-          botProfile,
-        });
+        const story = markdownToStory(text);
+        const result = await observeActiveTlonTurnDelivery(
+          () =>
+            sendChannelPost({
+              fromShip,
+              nest: parsed.nest,
+              story,
+              blob: target?.blob,
+              replyToId: replyId,
+              botProfile,
+            }),
+          {
+            accountId: account.accountId,
+            destinationKind: 'group_channel',
+            ship: fromShip,
+          }
+        );
         recordOutboundLensDelivery(target, {
           messageId: result.messageId,
           conversationId: parsed.nest,
@@ -408,14 +444,22 @@ const unobservedTlonRuntimeOutbound: Pick<
             fromShip,
             conversationId
           );
-          const result = await sendDmWithStory({
-            fromShip,
-            toShip: parsed.ship,
-            story,
-            blob: target?.blob,
-            replyToId: replyId,
-            botProfile,
-          });
+          const result = await observeActiveTlonTurnDelivery(
+            () =>
+              sendDmWithStory({
+                fromShip,
+                toShip: parsed.ship,
+                story,
+                blob: target?.blob,
+                replyToId: replyId,
+                botProfile,
+              }),
+            {
+              accountId: account.accountId,
+              destinationKind: 'dm',
+              ship: fromShip,
+            }
+          );
           recordOutboundLensDelivery(target, {
             messageId: result.messageId,
             conversationId,
@@ -438,14 +482,22 @@ const unobservedTlonRuntimeOutbound: Pick<
           fromShip,
           parsed.nest
         );
-        const result = await sendChannelPost({
-          fromShip,
-          nest: parsed.nest,
-          story,
-          blob: target?.blob,
-          replyToId: replyId,
-          botProfile,
-        });
+        const result = await observeActiveTlonTurnDelivery(
+          () =>
+            sendChannelPost({
+              fromShip,
+              nest: parsed.nest,
+              story,
+              blob: target?.blob,
+              replyToId: replyId,
+              botProfile,
+            }),
+          {
+            accountId: account.accountId,
+            destinationKind: 'group_channel',
+            ship: fromShip,
+          }
+        );
         recordOutboundLensDelivery(target, {
           messageId: result.messageId,
           conversationId: parsed.nest,
@@ -462,14 +514,8 @@ export const tlonRuntimeOutbound: Pick<
   ChannelOutboundAdapter,
   'sendPayload' | 'sendText' | 'sendMedia'
 > = {
-  sendText: (params) =>
-    observeActiveTlonTurnDelivery(() =>
-      unobservedTlonRuntimeOutbound.sendText!(params)
-    ),
-  sendMedia: (params) =>
-    observeActiveTlonTurnDelivery(() =>
-      unobservedTlonRuntimeOutbound.sendMedia!(params)
-    ),
+  sendText: (params) => coreTlonRuntimeOutbound.sendText!(params),
+  sendMedia: (params) => coreTlonRuntimeOutbound.sendMedia!(params),
   sendPayload: async (ctx) => {
     const parsed = parseTlonTarget(ctx.to);
     if (parsed?.kind === 'notebook') {
@@ -493,9 +539,7 @@ export const tlonRuntimeOutbound: Pick<
           )
       );
       const text = formatTextWithAttachmentLinks(ctx.payload.text, mediaUrls);
-      return await observeActiveTlonTurnDelivery(() =>
-        unobservedTlonRuntimeOutbound.sendText!({ ...ctx, text })
-      );
+      return await coreTlonRuntimeOutbound.sendText!({ ...ctx, text });
     }
     return await sendTextMediaPayload({
       channel: 'tlon',
