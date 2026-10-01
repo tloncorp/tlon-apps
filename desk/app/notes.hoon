@@ -120,9 +120,8 @@
 ::  suspends any standalone %notes desk and force-starts ours via kiln rein).
 ::
 ++  load
-  |=  =vase
+  |^  |=  =vase
   ^+  cor
-  |^
   =+  !<(old=any-state vase)
   =?  old  ?=(%14 -.old)  (state-14-to-15 old)
   ?>  ?=(%15 -.old)
