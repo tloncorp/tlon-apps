@@ -1026,7 +1026,7 @@ describe('NativeDb cache-generation recovery', () => {
       setVersion: vi.fn(async (version: number) => {
         previous = version;
       }),
-      clearNativeCache: vi.fn(async () => undefined),
+      clearNativeCache: vi.fn(async (): Promise<void> => {}),
     };
   }
 
