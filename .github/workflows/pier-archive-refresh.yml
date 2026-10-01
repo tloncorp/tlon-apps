@@ -51,16 +51,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
           HAS_GCS_KEY: ${{ secrets.PIER_ARCHIVE_GCS_KEY != '' }}
-          HAS_APP_ID: ${{ secrets.PIER_ARCHIVE_APP_ID != '' }}
-          HAS_APP_KEY: ${{ secrets.PIER_ARCHIVE_APP_PRIVATE_KEY != '' }}
+          HAS_GH_TOKEN: ${{ secrets.PIER_ARCHIVE_GH_TOKEN != '' }}
         run: |
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           skip=""
 
           missing=()
           [ "$HAS_GCS_KEY" = "true" ] || missing+=(PIER_ARCHIVE_GCS_KEY)
-          [ "$HAS_APP_ID" = "true" ] || missing+=(PIER_ARCHIVE_APP_ID)
-          [ "$HAS_APP_KEY" = "true" ] || missing+=(PIER_ARCHIVE_APP_PRIVATE_KEY)
+          [ "$HAS_GH_TOKEN" = "true" ] || missing+=(PIER_ARCHIVE_GH_TOKEN)
           if [ "${#missing[@]}" -gt 0 ]; then
             skip="missing secrets: ${missing[*]}"
           fi
@@ -191,23 +189,15 @@ jobs:
           kill "$tail_pid" 2> /dev/null
           exit "$status"
 
-      # Minted only now: installation tokens expire after an hour, shorter
-      # than the cut above.
-      - name: Mint GitHub App token
-        if: env.DRY_RUN_INPUT != 'true'
-        id: app-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.PIER_ARCHIVE_APP_ID }}
-          private-key: ${{ secrets.PIER_ARCHIVE_APP_PRIVATE_KEY }}
-
       # A PR opened with GITHUB_TOKEN gets only approval-gated CI, and this
-      # PR's CI is the acceptance test, so it is opened as the App.
+      # PR's CI is the acceptance test, so it is opened with a fine-grained
+      # PAT (Contents + Pull requests R/W on this repo). The PR is authored
+      # by the token's owner; the owner is looked up at run time, not
+      # hardcoded.
       - name: Open refresh PR
         if: env.DRY_RUN_INPUT != 'true'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+          GH_TOKEN: ${{ secrets.PIER_ARCHIVE_GH_TOKEN }}
           SOURCE_SHA: ${{ needs.preflight.outputs.sha }}
         run: |
           sidecar=packages/tlon-bot-e2e/docker/pier-archive.json
@@ -226,9 +216,10 @@ jobs:
           branch="ci/pier-refresh-v$generation"
           title="e2e: refresh pier archives to v$generation"
 
-          bot_id=$(gh api "/users/${APP_SLUG}[bot]" --jq .id)
-          git config user.name "${APP_SLUG}[bot]"
-          git config user.email "${bot_id}+${APP_SLUG}[bot]@users.noreply.github.com"
+          owner_login=$(gh api /user --jq .login)
+          owner_id=$(gh api /user --jq .id)
+          git config user.name "$owner_login"
+          git config user.email "${owner_id}+${owner_login}@users.noreply.github.com"
           git switch -c "$branch"
           git add -- "${pins[@]}"
           git commit -m "$title"
