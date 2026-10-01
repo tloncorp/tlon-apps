@@ -105,7 +105,7 @@
   ++  on-init
     ^-  (quip card _this)
     =.  max-runs-per-bot.lens.state  default-max-runs-per-bot
-    [(welp ~[watch-activity:cor] (welp au-init-cards:au-core:cor pr-init-cards:pr-core:cor)) this]
+    [(welp ~[watch-activity:cor] (welp au-init-cards:au-core:cor po-init-cards:po-core:cor)) this]
   ++  on-save  !>(state)
   ++  on-load
     |=  =vase
@@ -192,7 +192,7 @@
   ::
   =.  cor  (emit au-eyre-card:au-core)
   =?  cor  new-automation  (emit au-cleanup-card:au-core)
-  =?  cor  new-prompts  (emil pr-migrate-cards:pr-core)
+  =?  cor  new-prompts  (emil po-migrate-cards:po-core)
   cor
 ::  %0 → %1: the gateway slice gained leading .notify-on-start and
 ::  .last-interaction fields
@@ -254,12 +254,12 @@
       %trust-bot
       =.  bots.state  (~(put in bots.state) ship.action)
       =.  cor  (au-trust-bot:au-core ship.action)
-      (pr-trust-bot:pr-core ship.action)
+      (po-trust-bot:po-core ship.action)
     ::
       %untrust-bot
       =.  bots.state  (~(del in bots.state) ship.action)
       =.  cor  (au-untrust-bot:au-core ship.action)
-      (pr-untrust-bot:pr-core ship.action)
+      (po-untrust-bot:po-core ship.action)
     ==
   ::
   ::  lens module actions. auth is per-variant (each shape expects a
@@ -287,10 +287,10 @@
   ::  prompts actions and owner-to-bot commands follow the same relay shape.
   ::
       %steward-prompts-action-1
-    (pr-poke-action:pr-core !<(action:v1:sp vase))
+    (po-poke-action:po-core !<(action:v1:sp vase))
   ::
       %steward-prompts-command-1
-    (pr-poke-command:pr-core !<(c-prompts:v1:sp vase))
+    (po-poke-command:po-core !<(c-prompts:v1:sp vase))
   ::
   ::  the owner ship's HTTP surface for the edit loop. eyre pokes from
   ::  the local ship; a remote poke of this mark could forge an
@@ -353,15 +353,15 @@
   ::
       [%v1 %prompts %files ~]
     ?>  |(=(src.bowl our.bowl) =(`src.bowl owner.state))
-    pr-watch-files:pr-core
+    po-watch-files:po-core
   ::
       [%v1 %prompts %harness ~]
     ?>  =(src.bowl our.bowl)
-    pr-watch-harness:pr-core
+    po-watch-harness:po-core
   ::
       [%v1 %prompts %request @ ~]
     ?>  =(src.bowl our.bowl)
-    (pr-watch-local-request:pr-core (slav %uv i.t.t.t.path))
+    (po-watch-local-request:po-core (slav %uv i.t.t.t.path))
   ::
       [%v1 %prompts %request @ @ ~]
     =/  requester  (slav %p i.t.t.t.path)
@@ -369,7 +369,7 @@
             ?=(^ owner.state)
             =(src.bowl u.owner.state)
         ==
-    (pr-watch-bot-request:pr-core (slav %uv i.t.t.t.t.path))
+    (po-watch-bot-request:po-core (slav %uv i.t.t.t.t.path))
   ==
 ::
 ++  peek
@@ -379,7 +379,7 @@
     [%x %v1 %lens *]        (le-peek:le-core [%v1 t.t.t.path])
     [%x %v1 %gateway *]     (ga-peek:ga-core [%v1 t.t.t.path])
     [%x %v1 %automation *]  (au-peek:au-core [%v1 t.t.t.path])
-    [%x %v1 %prompts *]     (pr-peek:pr-core [%v1 t.t.t.path])
+    [%x %v1 %prompts *]     (po-peek:po-core [%v1 t.t.t.path])
   ==
 ::
 ++  agent
@@ -455,14 +455,14 @@
     [(slav %p i.t.t.wire) (slav %uv i.t.t.t.wire) sign]
   ::
       [%prompts %files @ ~]
-    (pr-handle-bot-sign:pr-core (slav %p i.t.t.wire) sign)
+    (po-handle-bot-sign:po-core (slav %p i.t.t.wire) sign)
   ::
       [%prompts %req @ @ %watch ~]
-    %-  pr-handle-req-watch-sign:pr-core
+    %-  po-handle-req-watch-sign:po-core
     [(slav %p i.t.t.wire) (slav %uv i.t.t.t.wire) sign]
   ::
       [%prompts %req @ @ %poke ~]
-    %-  pr-handle-req-poke-sign:pr-core
+    %-  po-handle-req-poke-sign:po-core
     [(slav %p i.t.t.wire) (slav %uv i.t.t.t.wire) sign]
   ==
 ::
@@ -487,11 +487,11 @@
   ::
       [%prompts %cleanup ~]
     ?.  ?=([%behn %wake *] sign)  cor
-    pr-cleanup:pr-core
+    po-cleanup:po-core
   ::
       [%prompts %req @ @ %wake ~]
     ?.  ?=([%behn %wake *] sign)  cor
-    (pr-finalize-pending:pr-core (slav %uv i.t.t.t.wire))
+    (po-finalize-pending:po-core (slav %uv i.t.t.t.wire))
   ==
 ::
 ++  watch-activity
@@ -505,7 +505,7 @@
     (parse-request-line:server url.request.inbound-request)
   ?:  ?=([%steward %~.~ %v1 %automation *] site.request-line)
     (au-handle-http:au-core eyre-id inbound-request)
-  (pr-handle-http:pr-core eyre-id inbound-request)
+  (po-handle-http:po-core eyre-id inbound-request)
 ::
 ++  give-http
   |=  [eyre-id=@ta code=@ud ct=@t body=@t]
@@ -1768,47 +1768,47 @@
     %^  au-give-http  eyre-id  200
     ['application/json' (en:json:html (response:enjs:aj response))]
   --
-::  |pr-core: prompt-file projection module
+::  |po-core: prompt-file projection module
 ::
-++  pr-core
+++  po-core
   |%
-  ++  pr-tell
+  ++  po-tell
     |=  [vol=volume:v1:lg event=@t =echo:v1:lg extra=log-data:v1:lg]
     ^+  cor
     (log-tell vol event echo ['flow'^s+'steward-prompts' extra])
-  ++  pr-fail
+  ++  po-fail
     |=  [event=@t =echo:v1:lg =tang extra=log-data:v1:lg]
     ^+  cor
     (log-fail event echo tang ['flow'^s+'steward-prompts' extra])
-  ++  pr-log-props
+  ++  po-log-props
     |=  [rid=request-id:v1:sp key=@t who=ship]
     ^-  log-data:v1:lg
     ~['requestId'^s+(scot %uv rid) key^s+(scot %p who)]
   ::
-  ++  pr-valid-edit
+  ++  po-valid-edit
     |=  =edit:v1:sp
     ^-  ?
     ?&  (lte (met 3 text.edit) 65.536)
         (~(has in (silt ~['AGENTS.md' 'SOUL.md' 'TOOLS.md' 'IDENTITY.md' 'USER.md' 'BOOTSTRAP.md'])) name.edit)
     ==
   ::
-  ++  pr-valid-files
+  ++  po-valid-files
     |=  files=prompts:v1:sp
     ^-  ?
     ?&  (lte (met 3 (jam files)) 524.288)
         %+  levy  ~(tap by files)
         |=  [name=@t text=@t]
-        (pr-valid-edit [%set name text])
+        (po-valid-edit [%set name text])
     ==
   ::
-  ++  pr-poke-action
+  ++  po-poke-action
     |=  =action:v1:sp
     ^+  cor
     ?>  =(src.bowl our.bowl)
     ?-  -.action
         %project
       =/  projected  prompts.action
-      ?>  (pr-valid-files projected)
+      ?>  (po-valid-files projected)
       ::  .old reads absent-as-empty for the diff; .had keeps the
       ::  absent/empty distinction for the no-op and creation checks
       ::
@@ -1820,18 +1820,18 @@
       ::  entry creation is inexpressible as file deltas: the first
       ::  accepted projection goes out as a full snapshot instead
       ::
-      ?.  had  pr-give-snapshot
-      (pr-give-deltas our.bowl old projected)
+      ?.  had  po-give-snapshot
+      (po-give-deltas our.bowl old projected)
     ::
         %edit
-      ?>  (pr-bot-editable bot.action)
-      (pr-handle-edit [request-id bot edit]:action)
+      ?>  (po-bot-editable bot.action)
+      (po-handle-edit [request-id bot edit]:action)
     ::
         %finalize
-      (pr-handle-finalize [request-id body]:action)
+      (po-handle-finalize [request-id body]:action)
     ==
   ::
-  ++  pr-watch-files
+  ++  po-watch-files
     ^+  cor
     %+  give  %fact
     :*  ~
@@ -1839,16 +1839,16 @@
         !>(`update:v1:sp`[%files files.prompts.state])
     ==
   ::
-  ++  pr-give-update
+  ++  po-give-update
     |=  =update:v1:sp
     ^+  cor
     (give %fact ~[/v1/prompts/files] %steward-prompts-update-1 !>(update))
   ::
-  ++  pr-give-snapshot
+  ++  po-give-snapshot
     ^+  cor
-    (pr-give-update [%files files.prompts.state])
+    (po-give-update [%files files.prompts.state])
   ::
-  ++  pr-give-deltas
+  ++  po-give-deltas
     |=  [who=ship old=prompts:v1:sp new=prompts:v1:sp]
     ^+  cor
     =.  cor
@@ -1856,13 +1856,13 @@
       |-  ^+  cor
       ?~  entries  cor
       =?  cor  !=((~(get by old) p.i.entries) `q.i.entries)
-        (pr-give-update [%set who p.i.entries q.i.entries])
+        (po-give-update [%set who p.i.entries q.i.entries])
       $(entries t.entries)
     =/  entries  ~(tap by old)
     |-  ^+  cor
     ?~  entries  cor
     =?  cor  !(~(has by new) p.i.entries)
-      (pr-give-update [%del who p.i.entries])
+      (po-give-update [%del who p.i.entries])
     $(entries t.entries)
   ::
   ::  the local ship never gets a watch: its entry is written by
@@ -1870,19 +1870,19 @@
   ::  trust-set membership) makes a re-poke an idempotent repair
   ::  after a nacked watch without duplicating a live subscription
   ::
-  ++  pr-trust-bot
+  ++  po-trust-bot
     |=  bot=ship
     ^+  cor
     ?:  =(bot our.bowl)  cor
     ?:  (~(has by wex.bowl) [/prompts/files/(scot %p bot) bot %steward])
       cor
-    (emit (pr-watch-card bot))
+    (emit (po-watch-card bot))
   ::
   ::  the local ship is a set-only no-op: there is never a
   ::  self-subscription and the our entry is %project-owned,
   ::  untouched by trust changes
   ::
-  ++  pr-untrust-bot
+  ++  po-untrust-bot
     |=  bot=ship
     ^+  cor
     ?:  =(bot our.bowl)  cor
@@ -1890,14 +1890,14 @@
       (emit %pass /prompts/files/(scot %p bot) %agent [bot %steward] %leave ~)
     ?.  (~(has by files.prompts.state) bot)  cor
     =.  files.prompts.state  (~(del by files.prompts.state) bot)
-    (pr-give-update [%gone bot])
+    (po-give-update [%gone bot])
   ::
-  ++  pr-watch-card
+  ++  po-watch-card
     |=  bot=ship
     ^-  card
     [%pass /prompts/files/(scot %p bot) %agent [bot %steward] %watch /v1/prompts/files]
   ::
-  ++  pr-handle-bot-sign
+  ++  po-handle-bot-sign
     |=  [bot=ship =sign:agent:gall]
     ^+  cor
     ?+  -.sign  cor
@@ -1906,14 +1906,14 @@
       ::  loudly rather than drop the fact
       ::
       ?>  ?=(%steward-prompts-update-1 p.cage.sign)
-      (pr-apply-bot-update bot !<(update:v1:sp q.cage.sign))
+      (po-apply-bot-update bot !<(update:v1:sp q.cage.sign))
     ::
     ::  the fresh subscription's snapshot repairs anything missed
     ::  while unsubscribed
     ::
         %kick
       ?.  (~(has in bots.state) bot)  cor
-      (emit (pr-watch-card bot))
+      (emit (po-watch-card bot))
     ::
     ::  a nack schedules no retry, so dropping the mirror here would
     ::  strand it until someone re-pokes %trust-bot. keep the last good
@@ -1921,13 +1921,13 @@
     ::
         %watch-ack
       ?~  p.sign  cor
-      %:  pr-fail  'Mirror Watch Nacked'
+      %:  po-fail  'Mirror Watch Nacked'
           ~['prompts mirror watch nacked']  u.p.sign
           ~['bot'^s+(scot %p bot)]
       ==
     ==
   ::
-  ++  pr-apply-bot-update
+  ++  po-apply-bot-update
     |=  [bot=ship =update:v1:sp]
     ^+  cor
     ?.  (~(has in bots.state) bot)  cor
@@ -1945,15 +1945,15 @@
       ?~  theirs
         =.  files.prompts.state
           (~(del by files.prompts.state) bot)
-        (pr-give-update [%gone bot])
-      ?>  (pr-valid-files u.theirs)
+        (po-give-update [%gone bot])
+      ?>  (po-valid-files u.theirs)
       ?~  ours
         =.  files.prompts.state
           (~(put by files.prompts.state) bot u.theirs)
-        pr-give-snapshot
+        po-give-snapshot
       =.  files.prompts.state
         (~(put by files.prompts.state) bot u.theirs)
-      (pr-give-deltas bot u.ours u.theirs)
+      (po-give-deltas bot u.ours u.theirs)
     ::
     ::  deltas naming any other ship are ignored (relay guard), and a
     ::  delta never creates an entry: mirroring starts at the first
@@ -1963,11 +1963,11 @@
       ?.  =(ship.update bot)  cor
       ?~  entry=(~(get by files.prompts.state) bot)  cor
       =/  next  (~(put by u.entry) name.update text.update)
-      ?>  (pr-valid-files next)
+      ?>  (po-valid-files next)
       ?:  =(next u.entry)  cor
       =.  files.prompts.state
         (~(put by files.prompts.state) bot next)
-      (pr-give-update [%set bot name.update text.update])
+      (po-give-update [%set bot name.update text.update])
     ::
         %del
       ?.  =(ship.update bot)  cor
@@ -1976,17 +1976,17 @@
       =.  files.prompts.state
         %+  ~(put by files.prompts.state)  bot
         (~(del by u.entry) name.update)
-      (pr-give-update [%del bot name.update])
+      (po-give-update [%del bot name.update])
     ::
         %gone
       ?.  =(ship.update bot)  cor
       ?.  (~(has by files.prompts.state) bot)  cor
       =.  files.prompts.state
         (~(del by files.prompts.state) bot)
-      (pr-give-update [%gone bot])
+      (po-give-update [%gone bot])
     ==
   ::
-  ++  pr-peek
+  ++  po-peek
     |=  =path
     ^-  (unit (unit cage))
     ?+  path  [~ ~]
@@ -1998,18 +1998,18 @@
   ::  an edit; the change becomes visible through the harness's next
   ::  %project. see docs/backend/desk/app/steward.md
   ::
-  ++  pr-init-cards
+  ++  po-init-cards
     ^-  (list card)
     ~[[%pass /prompts/cleanup %arvo %b %wait (add now.bowl ~m5)]]
   ::  a ship upgrading into %4 already has its trusted set. prompt
   ::  watches are otherwise only created by %trust-bot, so subscribe the
   ::  preserved bots here or their projections never arrive
   ::
-  ++  pr-migrate-cards
+  ++  po-migrate-cards
     ^-  (list card)
-    %+  welp  pr-init-cards
+    %+  welp  po-init-cards
     %+  turn
-      ::  guarded on wex like +pr-trust-bot: the local ship never gets a
+      ::  guarded on wex like +po-trust-bot: the local ship never gets a
       ::  watch, and a second card on a live wire crashes the subscribe
       ::
       %+  skip  ~(tap in bots.state)
@@ -2017,27 +2017,27 @@
       ?|  =(bot our.bowl)
           (~(has by wex.bowl) [/prompts/files/(scot %p bot) bot %steward])
       ==
-    pr-watch-card
+    po-watch-card
   ::
   ::  an edit may only be relayed to a bot this ship manages: the local
   ::  ship, or one in the trusted set. without this a client could drive
   ::  a workspace edit on any ship that names us as its owner
   ::
-  ++  pr-bot-editable
+  ++  po-bot-editable
     |=  bot=ship
     ^-  ?
     |(=(bot our.bowl) (~(has in bots.state) bot))
   ::
-  ++  pr-harness-path  `path`/v1/prompts/harness
-  ++  pr-req-wire
+  ++  po-harness-path  `path`/v1/prompts/harness
+  ++  po-req-wire
     |=  [bot=ship rid=request-id:v1:sp kind=@ta]
     ^-  wire
     /prompts/req/(scot %p bot)/(scot %uv rid)/[kind]
-  ++  pr-req-path
+  ++  po-req-path
     |=  [requester=ship rid=request-id:v1:sp]
     ^-  path
     /v1/prompts/request/(scot %p requester)/(scot %uv rid)
-  ++  pr-local-req-path
+  ++  po-local-req-path
     |=  rid=request-id:v1:sp
     ^-  path
     /v1/prompts/request/(scot %uv rid)
@@ -2049,10 +2049,10 @@
   ::  owner always pokes the bot; gall loops the poke back when the bot
   ::  is this ship
   ::
-  ++  pr-handle-edit
+  ++  po-handle-edit
     |=  [rid=request-id:v1:sp bot=ship =edit:v1:sp]
     ^+  cor
-    ?>  (pr-valid-edit edit)
+    ?>  (po-valid-edit edit)
     ?^  old=(~(get by requests.prompts.state) rid)
       ?>  =([bot edit] [bot edit]:u.old)
       cor
@@ -2060,33 +2060,33 @@
         !(~(has by requests.prompts.state) rid)
       %+  ~(put by requests.prompts.state)  rid
       [rid bot edit ~ %sending ~ now.bowl ~ |]
-    (pr-send-edit rid bot edit)
+    (po-send-edit rid bot edit)
   ::
-  ++  pr-send-edit
+  ++  po-send-edit
     |=  [rid=request-id:v1:sp bot=ship =edit:v1:sp]
     ^+  cor
     =.  cor
       %-  emit
-      :*  %pass  (pr-req-wire bot rid %watch)
+      :*  %pass  (po-req-wire bot rid %watch)
           %agent  [bot %steward]
-          %watch  (pr-req-path our.bowl rid)
+          %watch  (po-req-path our.bowl rid)
       ==
     =.  cor
       %-  emit
-      :*  %pass  (pr-req-wire bot rid %poke)
+      :*  %pass  (po-req-wire bot rid %poke)
           %agent  [bot %steward]
           %poke  %steward-prompts-command-1
           !>(`c-prompts:v1:sp`[%edit rid edit])
       ==
     %-  emit
-    [%pass (pr-req-wire bot rid %wake) %arvo %b %wait (add now.bowl ~s20)]
+    [%pass (po-req-wire bot rid %wake) %arvo %b %wait (add now.bowl ~s20)]
   ::
-  ++  pr-leave-req
+  ++  po-leave-req
     |=  [bot=ship rid=request-id:v1:sp]
     ^+  cor
-    (emit %pass (pr-req-wire bot rid %watch) %agent [bot %steward] %leave ~)
+    (emit %pass (po-req-wire bot rid %watch) %agent [bot %steward] %leave ~)
   ::
-  ++  pr-handle-req-watch-sign
+  ++  po-handle-req-watch-sign
     |=  [bot=ship rid=request-id:v1:sp =sign:agent:gall]
     ^+  cor
     ?~  req=(~(get by requests.prompts.state) rid)  cor
@@ -2094,7 +2094,7 @@
     ?+  -.sign  cor
         %watch-ack
       ?~  p.sign  cor
-      (pr-finalize-request rid [%error %not-authorized u.p.sign])
+      (po-finalize-request rid [%error %not-authorized u.p.sign])
     ::
     ::  a kick with the edit still in flight would leave the response with
     ::  no subscriber, and the record would then age out as %pending even
@@ -2106,9 +2106,9 @@
         %kick
       ?:  ?&(?=(^ result.u.req) !?=(%pending -.u.result.u.req))  cor
       %-  emit
-      :*  %pass  (pr-req-wire bot rid %watch)
+      :*  %pass  (po-req-wire bot rid %watch)
           %agent  [bot %steward]
-          %watch  (pr-req-path our.bowl rid)
+          %watch  (po-req-path our.bowl rid)
       ==
     ::
         %fact
@@ -2116,11 +2116,11 @@
       =+  !<(=response:v1:sp q.cage.sign)
       ?.  =(id.response rid)  cor
       ?:  ?=(%pending -.body.response)  cor
-      =.  cor  (pr-finalize-request rid body.response)
-      (pr-leave-req bot rid)
+      =.  cor  (po-finalize-request rid body.response)
+      (po-leave-req bot rid)
     ==
   ::
-  ++  pr-handle-req-poke-sign
+  ++  po-handle-req-poke-sign
     |=  [bot=ship rid=request-id:v1:sp =sign:agent:gall]
     ^+  cor
     ?.  ?=(%poke-ack -.sign)  cor
@@ -2137,13 +2137,13 @@
       cor
     =.  requests.prompts.state
       (~(put by requests.prompts.state) rid u.req(poke-status %nacked))
-    =.  cor  (pr-finalize-request rid [%error %unknown u.p.sign])
-    (pr-leave-req bot rid)
+    =.  cor  (po-finalize-request rid [%error %unknown u.p.sign])
+    (po-leave-req bot rid)
   ::
   ::  store the terminal body, fact it on the client's per-request path,
   ::  and complete a held HTTP request exactly once
   ::
-  ++  pr-finalize-request
+  ++  po-finalize-request
     |=  [rid=request-id:v1:sp body=response-body:v1:sp]
     ^+  cor
     ?~  req=(~(get by requests.prompts.state) rid)  cor
@@ -2154,16 +2154,16 @@
       u.req(http-id ~, result `body, final-at `now.bowl)
     =.  cor
       %-  give
-      [%fact ~[(pr-local-req-path rid)] %steward-prompts-response-1 !>(response)]
+      [%fact ~[(po-local-req-path rid)] %steward-prompts-response-1 !>(response)]
     ?~  http-id.u.req  cor
-    (pr-give-http-response u.http-id.u.req response)
+    (po-give-http-response u.http-id.u.req response)
   ::
   ::  the pending wake: close a held HTTP request with %pending and keep
   ::  the record for the late answer. a request already terminal is
   ::  untouched. final-at is stamped so a never-answered request ages
-  ::  out in pr-cleanup
+  ::  out in po-cleanup
   ::
-  ++  pr-finalize-pending
+  ++  po-finalize-pending
     |=  rid=request-id:v1:sp
     ^+  cor
     ?~  req=(~(get by requests.prompts.state) rid)  cor
@@ -2175,16 +2175,16 @@
       u.req(http-id ~, result `body, final-at `now.bowl)
     =.  cor
       %-  give
-      [%fact ~[(pr-local-req-path rid)] %steward-prompts-response-1 !>(response)]
+      [%fact ~[(po-local-req-path rid)] %steward-prompts-response-1 !>(response)]
     ?~  http-id.u.req  cor
-    (pr-give-http-response u.http-id.u.req response)
+    (po-give-http-response u.http-id.u.req response)
   ::
   ::  a client subscribing after the result landed gets it immediately
   ::
   ::  the owner re-subscribing after a kick gets a result the harness has
   ::  already reported, so a dropped subscription cannot lose it
   ::
-  ++  pr-watch-bot-request
+  ++  po-watch-bot-request
     |=  rid=request-id:v1:sp
     ^+  cor
     ?~  pen=(~(get by pending.prompts.state) rid)  cor
@@ -2194,7 +2194,7 @@
         !>(`response:v1:sp`[rid u.result.u.pen])
     ==
   ::
-  ++  pr-watch-local-request
+  ++  po-watch-local-request
     |=  rid=request-id:v1:sp
     ^+  cor
     ?~  req=(~(get by requests.prompts.state) rid)  cor
@@ -2204,17 +2204,17 @@
   ::
   ::  bot side
   ::
-  ++  pr-harness-online
+  ++  po-harness-online
     ^-  ?
     %+  lien  ~(val by sup.bowl)
     |=  [=ship =path]
-    &(=(ship our.bowl) =(path pr-harness-path))
+    &(=(ship our.bowl) =(path po-harness-path))
   ::
   ::  an accepted command is handed to the harness when one is
   ::  subscribed, and refused at once when none is. the pending record
   ::  carries no deadline: a late answer still completes the request
   ::
-  ++  pr-poke-command
+  ++  po-poke-command
     |=  =c-prompts:v1:sp
     ^+  cor
     ?>  ?&(?=(^ owner.state) =(src.bowl u.owner.state))
@@ -2224,27 +2224,27 @@
       ?^  old=(~(get by pending.prompts.state) rid)
         ?>  =([src.bowl edit.c-prompts] [requester edit]:u.old)
         ?~  result.u.old  cor
-        (pr-give-response src.bowl [rid u.result.u.old])
-      ?.  (pr-valid-edit edit.c-prompts)
-        (pr-give-response src.bowl [rid %error %invalid ~])
-      ?.  pr-harness-online
-        (pr-give-response src.bowl [rid %error %harness-offline ~])
+        (po-give-response src.bowl [rid u.result.u.old])
+      ?.  (po-valid-edit edit.c-prompts)
+        (po-give-response src.bowl [rid %error %invalid ~])
+      ?.  po-harness-online
+        (po-give-response src.bowl [rid %error %harness-offline ~])
       =.  pending.prompts.state
         %+  ~(put by pending.prompts.state)  rid
         [rid src.bowl edit.c-prompts now.bowl ~]
-      (pr-give-dispatch ~[pr-harness-path] [rid src.bowl edit.c-prompts])
+      (po-give-dispatch ~[po-harness-path] [rid src.bowl edit.c-prompts])
     ==
   ::
-  ++  pr-give-dispatch
+  ++  po-give-dispatch
     |=  [paths=(list path) =dispatch:v1:sp]
     ^+  cor
     (give %fact paths %steward-prompts-dispatch-1 !>(dispatch))
   ::
-  ++  pr-give-response
+  ++  po-give-response
     |=  [requester=ship =response:v1:sp]
     ^+  cor
     %-  give
-    :*  %fact  ~[(pr-req-path requester id.response)]
+    :*  %fact  ~[(po-req-path requester id.response)]
         %steward-prompts-response-1  !>(response)
     ==
   ::
@@ -2254,19 +2254,19 @@
   ::  %not-authorized, and that verdict has to settle the command — the
   ::  finalize is local, so there is nobody to gate here
   ::
-  ++  pr-handle-finalize
+  ++  po-handle-finalize
     |=  [rid=request-id:v1:sp body=outcome:v1:sp]
     ^+  cor
     ?~  pen=(~(get by pending.prompts.state) rid)  cor
     ?^  result.u.pen  cor
     =.  pending.prompts.state
       (~(put by pending.prompts.state) rid u.pen(result `body))
-    (pr-give-response requester.u.pen [rid body])
+    (po-give-response requester.u.pen [rid body])
   ::
   ::  a (re)subscribing harness receives every outstanding command,
   ::  oldest first, so a restart resumes in-flight work
   ::
-  ++  pr-watch-harness
+  ++  po-watch-harness
     ^+  cor
     =/  entries=(list pending-command:v1:sp)
       %+  sort  ~(val by pending.prompts.state)
@@ -2275,14 +2275,14 @@
     ?~  entries  cor
     =?  cor
         &(?=(~ result.i.entries) =(`requester.i.entries owner.state))
-      (pr-give-dispatch ~ [id requester edit]:i.entries)
+      (po-give-dispatch ~ [id requester edit]:i.entries)
     $(entries t.entries)
   ::
   ::  sweep: terminal records go once fetched or after a day; a pending
   ::  result and a pending command each live an hour; a record with no
   ::  result yet is left for its wake
   ::
-  ++  pr-cleanup
+  ++  po-cleanup
     ^+  cor
     =.  cor
       %+  roll  ~(tap by requests.prompts.state)
@@ -2297,8 +2297,8 @@
         cor
       =.  requests.prompts.state.cor
         (~(del by requests.prompts.state.cor) id)
-      =?  cor  waiting  (pr-leave-req:pr-core:cor bot.req id)
-      (give:cor %kick ~[(pr-local-req-path id)] ~)
+      =?  cor  waiting  (po-leave-req:po-core:cor bot.req id)
+      (give:cor %kick ~[(po-local-req-path id)] ~)
     ::  a command the harness never answered is closed out to its
     ::  requester as harness-offline, so the owner's record finalizes
     ::  instead of ageing out as pending
@@ -2314,12 +2314,12 @@
       |-  ^+  cor
       ?~  dropped  cor
       =.  cor
-        %:  pr-tell  %warn  'Command Expired'
+        %:  po-tell  %warn  'Command Expired'
             ~['command expired without a harness answer']
-            (pr-log-props id.i.dropped 'requester' requester.i.dropped)
+            (po-log-props id.i.dropped 'requester' requester.i.dropped)
         ==
       =.  cor
-        (pr-give-response requester.i.dropped [id.i.dropped %error %harness-offline ~])
+        (po-give-response requester.i.dropped [id.i.dropped %error %harness-offline ~])
       $(dropped t.dropped)
     =.  pending.prompts.state
       %-  ~(rep by pending.prompts.state)
@@ -2333,7 +2333,7 @@
   ::  authenticated-session check on every route; a request id is not a
   ::  capability, so GET is gated like POST
   ::
-  ++  pr-handle-http
+  ++  po-handle-http
     |=  [eyre-id=@ta =inbound-request:eyre]
     ^+  cor
     =/  =request-line:server
@@ -2342,91 +2342,91 @@
     =*  ext   ext.request-line
     =/  method=@tas  method.request.inbound-request
     ?.  authenticated.inbound-request
-      (pr-http-error eyre-id 401 'unauthorized')
+      (po-http-error eyre-id 401 'unauthorized')
     ?:  =(site ~[%steward %~.~ %v1 %prompts])
-      ?.  =(%'POST' method)  (pr-http-error eyre-id 405 'method not allowed')
-      (pr-handle-http-edit eyre-id inbound-request)
+      ?.  =(%'POST' method)  (po-http-error eyre-id 405 'method not allowed')
+      (po-handle-http-edit eyre-id inbound-request)
     ?:  =(site ~[%steward %~.~ %v1 %prompts %files])
-      ?.  =(%'GET' method)  (pr-http-error eyre-id 405 'method not allowed')
+      ?.  =(%'GET' method)  (po-http-error eyre-id 405 'method not allowed')
       %^  give-http  eyre-id  200
       ['application/json' (en:json:html (ship-files:enjs:pj files.prompts.state))]
     ::  the harness answers a dispatch here (bot side): the reply is the
     ::  acknowledgement a channel poke never gives it
     ::
     ?:  =(site ~[%steward %~.~ %v1 %prompts %finalize])
-      ?.  =(%'POST' method)  (pr-http-error eyre-id 405 'method not allowed')
-      (pr-handle-http-finalize eyre-id inbound-request)
+      ?.  =(%'POST' method)  (po-http-error eyre-id 405 'method not allowed')
+      (po-handle-http-finalize eyre-id inbound-request)
     ?:  ?=([%steward %~.~ %v1 %prompts %request @ ~] site)
-      ?.  =(%'GET' method)  (pr-http-error eyre-id 405 'method not allowed')
+      ?.  =(%'GET' method)  (po-http-error eyre-id 405 'method not allowed')
       ::  a @uv carries dots; apat split its last dot-group off as a
       ::  file extension, so glue it back before parsing
       ::
       =/  rid-knot=@t
         ?~  ext  i.t.t.t.t.t.site
         (rap 3 i.t.t.t.t.t.site '.' u.ext ~)
-      (pr-handle-http-get-request eyre-id rid-knot)
-    (pr-http-error eyre-id 404 'not found')
+      (po-handle-http-get-request eyre-id rid-knot)
+    (po-http-error eyre-id 404 'not found')
   ::
   ::  POST body: { requestId?, bot, action }. malformed input is a 400,
   ::  never a crash. a client-supplied id is honored when it parses;
   ::  absent IDs are minted; malformed IDs are rejected. the record
   ::  is registered with the eyre id so the request is held open
   ::
-  ++  pr-handle-http-edit
+  ++  po-handle-http-edit
     |=  [eyre-id=@ta =inbound-request:eyre]
     ^+  cor
     ?~  body.request.inbound-request
-      (pr-http-error eyre-id 400 'missing body')
+      (po-http-error eyre-id 400 'missing body')
     ?:  (gth p.u.body.request.inbound-request 524.288)
-      (pr-http-error eyre-id 413 'request body too large')
+      (po-http-error eyre-id 413 'request body too large')
     ?~  jon=(de:json:html q.u.body.request.inbound-request)
-      (pr-http-error eyre-id 400 'invalid json')
+      (po-http-error eyre-id 400 'invalid json')
     ?.  ?=([%o *] u.jon)
-      (pr-http-error eyre-id 400 'body must be a json object')
+      (po-http-error eyre-id 400 'body must be a json object')
     =/  bot-j=(unit json)  (~(get by p.u.jon) 'bot')
     ?.  ?&(?=(^ bot-j) ?=([%s *] u.bot-j))
-      (pr-http-error eyre-id 400 'missing `bot` field')
+      (po-http-error eyre-id 400 'missing `bot` field')
     =/  bot-res=(each ship tang)  (mule |.((slav %p p.u.bot-j)))
     ?:  ?=(%| -.bot-res)
-      (pr-http-error eyre-id 400 'malformed bot')
+      (po-http-error eyre-id 400 'malformed bot')
     ?~  act-j=(~(get by p.u.jon) 'action')
-      (pr-http-error eyre-id 400 'missing `action` field')
+      (po-http-error eyre-id 400 'missing `action` field')
     =/  edit-res=(each edit:v1:sp tang)  (mule |.((edit:dejs:pj u.act-j)))
     ?:  ?=(%| -.edit-res)
-      (pr-http-error eyre-id 400 'malformed action')
-    ?.  (pr-valid-edit p.edit-res)
-      (pr-http-error eyre-id 400 'unsupported file or oversized text')
+      (po-http-error eyre-id 400 'malformed action')
+    ?.  (po-valid-edit p.edit-res)
+      (po-http-error eyre-id 400 'unsupported file or oversized text')
     ::  a well-formed body is authorized last, so malformed input stays 400
     ::
-    ?.  (pr-bot-editable p.bot-res)
-      (pr-http-error eyre-id 403 'bot is not trusted')
+    ?.  (po-bot-editable p.bot-res)
+      (po-http-error eyre-id 403 'bot is not trusted')
     =/  rj  (~(get by p.u.jon) 'requestId')
     =/  parsed=(each request-id:v1:sp tang)
       ?~  rj  [%& `@uv`eny.bowl]
       (mule |.((request-id:dejs:pj u.rj)))
     ?:  ?=(%| -.parsed)
-      (pr-http-error eyre-id 400 'malformed request id')
+      (po-http-error eyre-id 400 'malformed request id')
     =/  rid  p.parsed
     ?^  old=(~(get by requests.prompts.state) rid)
       ?.  =([p.bot-res p.edit-res] [bot edit]:u.old)
-        (pr-http-error eyre-id 409 'request id already used for another edit')
+        (po-http-error eyre-id 409 'request id already used for another edit')
       =/  body=response-body:v1:sp
         ?~  result.u.old  [%pending poke-status.u.old]
         u.result.u.old
-      (pr-give-http-response eyre-id [rid body])
+      (po-give-http-response eyre-id [rid body])
     =.  requests.prompts.state
       %+  ~(put by requests.prompts.state)  rid
       [rid p.bot-res p.edit-res `eyre-id %sending ~ now.bowl ~ |]
-    (pr-send-edit rid p.bot-res p.edit-res)
+    (po-send-edit rid p.bot-res p.edit-res)
   ::
-  ++  pr-handle-http-get-request
+  ++  po-handle-http-get-request
     |=  [eyre-id=@ta rid-knot=@t]
     ^+  cor
     =/  parsed=(each @uv tang)  (mule |.((slav %uv rid-knot)))
     ?:  ?=(%| -.parsed)
-      (pr-http-error eyre-id 400 'malformed request id')
+      (po-http-error eyre-id 400 'malformed request id')
     ?~  req=(~(get by requests.prompts.state) p.parsed)
-      (pr-http-error eyre-id 404 'request not found')
+      (po-http-error eyre-id 404 'request not found')
     =/  body=response-body:v1:sp
       ?~  result.u.req  [%pending poke-status.u.req]
       u.result.u.req
@@ -2435,26 +2435,26 @@
     ::
     =?  requests.prompts.state  !?=(%pending -.body)
       (~(put by requests.prompts.state) p.parsed u.req(fetched &))
-    (pr-give-http-response eyre-id [p.parsed body])
+    (po-give-http-response eyre-id [p.parsed body])
   ::
   ::  POST body: { requestId, body }. The harness uses this instead of a
   ::  channel poke so its reply confirms that steward consumed the result.
   ::  Retrying a lost reply is harmless: an already-settled id returns
   ::  finalized=false.
   ::
-  ++  pr-handle-http-finalize
+  ++  po-handle-http-finalize
     |=  [eyre-id=@ta =inbound-request:eyre]
     ^+  cor
     ?~  body.request.inbound-request
-      (pr-http-error eyre-id 400 'missing body')
+      (po-http-error eyre-id 400 'missing body')
     ?~  jon=(de:json:html q.u.body.request.inbound-request)
-      (pr-http-error eyre-id 400 'invalid json')
+      (po-http-error eyre-id 400 'invalid json')
     =/  parsed=(each [request-id:v1:sp outcome:v1:sp] tang)
       %-  mule  |.
       %.  u.jon
       (ot:dejs:format 'requestId'^request-id:dejs:pj body+result:dejs:pj ~)
     ?:  ?=(%| -.parsed)
-      (pr-http-error eyre-id 400 'malformed response')
+      (po-http-error eyre-id 400 'malformed response')
     =/  [rid=request-id:v1:sp =outcome:v1:sp]  p.parsed
     ::  Terminal responses stay in pending for replay/deduplication, so
     ::  only an unresolved entry was actually finalized by this request.
@@ -2462,7 +2462,7 @@
       ?~  pen=(~(get by pending.prompts.state) rid)  |
       ?~  result.u.pen  &
       |
-    =.  cor  (pr-handle-finalize rid outcome)
+    =.  cor  (po-handle-finalize rid outcome)
     %^  give-http  eyre-id  200
     :-  'application/json'
     %-  en:json:html
@@ -2475,17 +2475,17 @@
   ::  /steward binding sends unknown routes here, so the fleet-wide
   ::  'HTTP Error' signal has to come from this handler too
   ::
-  ++  pr-http-error
+  ++  po-http-error
     |=  [eyre-id=@ta code=@ud message=@t]
     ^+  cor
     =.  cor
-      %:  pr-tell  %info  'HTTP Error'
+      %:  po-tell  %info  'HTTP Error'
           ~[(cat 3 'http error: ' message)]
           ~['status'^n+(scot %ud code) 'detail'^s+message]
       ==
     (http-error eyre-id code message)
   ::
-  ++  pr-give-http-response
+  ++  po-give-http-response
     |=  [eyre-id=@ta =response:v1:sp]
     ^+  cor
     %^  give-http  eyre-id  200

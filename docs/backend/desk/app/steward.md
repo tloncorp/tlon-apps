@@ -25,7 +25,7 @@ Modules:
 | `automation` | Durable best-effort mirror of OpenClaw cron task definitions, propagated bot → owner → client. |
 | `prompts`    | Projection of the OpenClaw workspace prompt files, with edits relayed back to the harness. |
 
-The app helper core keeps each module's logic in its own sub-core: `le-core` for lens, `ga-core` for gateway, `au-core` for automation, and `pr-core` for prompts. Adding a new module means a new `sur/steward/<module>.hoon`, its own mark family, and a dispatch arm in the app — existing modules and marks are untouched.
+The app helper core keeps each module's logic in its own sub-core: `le-core` for lens, `ga-core` for gateway, `au-core` for automation, and `po-core` for prompts. Adding a new module means a new `sur/steward/<module>.hoon`, its own mark family, and a dispatch arm in the app — existing modules and marks are untouched.
 
 ## state model
 
@@ -265,8 +265,9 @@ The map is scriable at `/x/v1/prompts/files`.
 
 An edit follows the owner → bot → local harness relay. The owner sends
 `a-prompts` `%edit`, watches the bot's request path, and pokes
-`c-prompts` `%edit`. Only a bot this ship manages — the local ship, or one in
-the trusted set — may be sent an edit; the HTTP route answers 403 for anything
+`c-prompts` `%edit`. Only a bot this ship manages may be sent an edit: this ship itself (a
+ship that runs its own harness, so it is both owner and bot), or a bot in
+its trusted set; the HTTP route answers 403 for anything
 else, and the local action crashes, exactly as automation does. The bot records
 the command and gives it on the local `/v1/prompts/harness` feed. The plugin
 writes the file atomically, projects the complete workspace again, then

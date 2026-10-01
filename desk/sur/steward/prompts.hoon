@@ -18,17 +18,19 @@
 ::
 +$  outcome
   $%  [%updated =name]
-      [%error type=action-error message=tang]
+      [%error =action-error message=tang]
   ==
 +$  response-body
   $%  [%updated =name]
-      [%error type=action-error message=tang]
+      [%error =action-error message=tang]
       [%pending status=poke-status]
   ==
 +$  response  [id=request-id body=response-body]
-::  $dispatch: .requester is the owner that authorized the command. the
-::  harness re-checks it against its own configured owner: a replay can
-::  reach a harness that has not yet re-pointed the bot at a new owner
+::  $dispatch: .requester is the owner that authorized the command. a
+::  (re)subscribing harness is sent every command still unanswered, so a
+::  command one owner issued can reach the harness after the bot was
+::  re-pointed at a new owner; the harness compares .requester with its
+::  own configured owner and refuses a mismatch
 ::
 +$  dispatch  [id=request-id requester=ship =edit]
 ::  $incoming-request: owner-side HTTP wait and eventual result

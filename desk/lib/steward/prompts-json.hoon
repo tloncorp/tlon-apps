@@ -95,7 +95,7 @@
         %error
       %-  pairs
       :~  ['type' s+'error']
-          ['errorType' s+(scot %tas type.body)]
+          ['errorType' s+(scot %tas action-error.body)]
           ['message' (tang-json message.body)]
       ==
         %pending
