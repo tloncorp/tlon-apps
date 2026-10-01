@@ -199,6 +199,10 @@ type CronPayload =
   | { kind: 'systemEvent'; text: string }
   | { kind: 'agentTurn'; message: string; toolsAllow?: string[] };
 
+type CronPayloadPatch =
+  | { kind: 'systemEvent'; text?: string; toolsAllow?: string[] }
+  | { kind: 'agentTurn'; message?: string; toolsAllow?: string[] };
+
 /**
  * The host's cron store carries a delivery block and an agentTurn tool
  * allow-list that `openclaw/plugin-sdk/types` does not declare; the bot's own
@@ -274,6 +278,44 @@ function mapSchedule(
  * patch, which merges per field. Verified against the cron store types of
  * openclaw 2026.5.28, 2026.7.1 and 2026.9.4.
  */
+/**
+ * A patch's payload, where the host requires only the kind discriminator and
+ * merges the rest per field. Keeping this separate from the create mapping is
+ * what lets an owner change the tool allow-list without resending the prompt.
+ */
+function mapPayloadPatch(
+  payload: NonNullable<StewardAutomationDispatchTask['payload']>
+): MappingResult<CronPayloadPatch> {
+  if (payload.kind === undefined) {
+    return invalid('payload.kind is required');
+  }
+  const { message, toolsAllow } = payload;
+  switch (payload.kind) {
+    case 'systemEvent':
+      return {
+        ok: true,
+        value: {
+          kind: 'systemEvent',
+          ...(message === undefined ? {} : { text: message }),
+          ...(toolsAllow === undefined ? {} : { toolsAllow }),
+        },
+      };
+    case 'agentTurn':
+      return {
+        ok: true,
+        value: {
+          kind: 'agentTurn',
+          ...(message === undefined ? {} : { message }),
+          ...(toolsAllow === undefined ? {} : { toolsAllow }),
+        },
+      };
+    default:
+      return invalid(
+        `payload.kind must be "systemEvent" or "agentTurn", got "${payload.kind}"`
+      );
+  }
+}
+
 function mapDelivery(
   delivery: NonNullable<StewardAutomationDispatchTask['delivery']>,
   { requireMode }: { requireMode: boolean }
@@ -341,8 +383,8 @@ export interface StewardAutomationCronCreateInput {
 }
 
 export type StewardAutomationCronPatch = Partial<
-  Omit<StewardAutomationCronCreateInput, 'id'>
->;
+  Omit<StewardAutomationCronCreateInput, 'id' | 'payload'>
+> & { payload?: CronPayloadPatch };
 
 /** Map a create's task onto the gateway create schema, requiring what it requires. */
 export function toStewardAutomationCronCreateInput(
@@ -430,7 +472,7 @@ export function toStewardAutomationCronPatch(
     patch.schedule = schedule.value;
   }
   if (task.payload !== undefined) {
-    const payload = mapPayload(task.payload);
+    const payload = mapPayloadPatch(task.payload);
     if (!payload.ok) {
       return payload;
     }

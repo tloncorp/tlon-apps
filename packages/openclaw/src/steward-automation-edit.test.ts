@@ -157,6 +157,23 @@ describe('toStewardAutomationCronCreateInput', () => {
     });
   });
 
+  it('patches the tool allow-list alone, without resending the prompt', () => {
+    expect(
+      toStewardAutomationCronPatch({
+        payload: { kind: 'agentTurn', toolsAllow: ['group:web'] },
+      })
+    ).toEqual({
+      ok: true,
+      value: { payload: { kind: 'agentTurn', toolsAllow: ['group:web'] } },
+    });
+  });
+
+  it('still requires a payload kind on a patch, as the host discriminates on it', () => {
+    expect(
+      toStewardAutomationCronPatch({ payload: { toolsAllow: ['group:web'] } })
+    ).toEqual({ ok: false, message: 'payload.kind is required' });
+  });
+
   it('allows an update to patch a delivery without a mode', () => {
     expect(
       toStewardAutomationCronPatch({ delivery: { to: 'chat/~zod/elsewhere' } })
