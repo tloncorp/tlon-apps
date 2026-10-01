@@ -11,9 +11,9 @@ import {
   useMigrations as useMigrationsBase,
 } from './baseDb';
 import {
-  getIOSCacheGeneration,
+  getNativeCacheGeneration,
   NativeCacheGeneration,
-} from './iosCacheGeneration';
+} from './nativeCacheGeneration';
 import { OPSQLite$SQLiteConnection } from './opsqliteConnection';
 import { SQLiteConnection } from './sqliteConnection';
 import { TRIGGER_SETUP } from './triggers';
@@ -664,7 +664,7 @@ export class NativeDb extends BaseDb {
 }
 
 // Create singleton instance
-const nativeDb = new NativeDb({ cacheGeneration: getIOSCacheGeneration() });
+const nativeDb = new NativeDb({ cacheGeneration: getNativeCacheGeneration() });
 export const setupDb = () => nativeDb.setupDb();
 export const ensureDbReady = () => nativeDb.ensureDbReady();
 export const abandonDbInit = () => nativeDb.abandonDbInit();

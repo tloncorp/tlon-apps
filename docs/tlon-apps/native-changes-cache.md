@@ -24,14 +24,19 @@ merge and destructive-read behavior until upgraded.
 
 ## Recovery for existing installations
 
-`IOS_CACHE_GENERATION` in `packages/app/lib/iosCacheGeneration.ts` versions the
-local iOS cache independently of the database schema. Generation 1 rebuilds
-caches that may have missed changes before the native merge fix. It applies to
-all iOS installations on the fixed native binary; an OTA on an older binary
-does not consume the recovery marker. Android and web are unaffected.
+`NATIVE_CACHE_GENERATION` in `packages/app/lib/nativeCacheGeneration.ts` versions
+the local iOS and Android databases independently of the database schema. Bump
+this number to rebuild both platforms' caches once on their next initialization.
+Generation 1 starts both platforms fresh and repairs iOS caches that may have
+missed changes before the native merge fix. Web is unaffected.
 
-Before exposing the database, initialization awaits clearing the native changes
-batch and extension cursor, then runs the existing SQLite purge/rebuild path.
+On iOS, recovery requires the fixed native binary; an OTA on an older binary
+does not consume the recovery marker. Android has no dependency on the iOS
+background-cache bridge and can apply a generation bump through an OTA update.
+
+Before exposing the database, initialization runs the existing SQLite
+purge/rebuild path. On iOS it first awaits clearing the native changes batch and
+extension cursor.
 That path resets persisted sync cursors and initial-sync flags, so normal ship
 sync repopulates the cache. Authentication remains intact. The one-time purge
 also discards local-only pending posts and upload drafts and requires a fresh
@@ -68,6 +73,6 @@ macOS file coordination. No simulator or ship is needed.
 persistence/acknowledgement ordering, retries, cursor gaps, overlapping app-open
 callbacks, acknowledgement failures, and older-native payload compatibility.
 
-`pnpm --filter @tloncorp/app exec vitest run lib/nativeDb.test.ts lib/iosCacheGeneration.test.ts`
+`pnpm --filter @tloncorp/app exec vitest run lib/nativeDb.test.ts lib/nativeCacheGeneration.test.ts`
 checks one-time recovery, reset ordering, initialization retries and abandonment,
 and platform/native-version gating.
