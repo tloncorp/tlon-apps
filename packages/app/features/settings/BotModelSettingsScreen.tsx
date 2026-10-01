@@ -1,8 +1,8 @@
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, usePreventRemove } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { TlawnProviderModel } from '@tloncorp/api';
 import { Button, Text } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack } from 'tamagui';
 
@@ -157,15 +157,41 @@ export function BotModelSettingsScreen(props: Props) {
     props.navigation.goBack();
   }, [defaultStep, mode, props.navigation]);
 
+  // On the model step, leaving the screen (a swipe back included) steps back
+  // to the provider list instead, like the back button. Done still leaves.
+  const leavingFromModelStepRef = useRef(false);
+  usePreventRemove(
+    mode === 'default' && defaultStep === 'model',
+    ({ data }) => {
+      if (leavingFromModelStepRef.current) {
+        leavingFromModelStepRef.current = false;
+        props.navigation.dispatch(data.action);
+        return;
+      }
+      setSearch('');
+      setValidationError(null);
+      setDefaultStep('provider');
+    }
+  );
+
   const handleDone = useCallback(() => {
     if (mode === 'default' && (!modelValues.provider || !modelValues.model)) {
       setValidationError('Select a model before continuing.');
       return;
     }
+    // Only the model step intercepts leaving, so only it needs letting through.
+    leavingFromModelStepRef.current =
+      mode === 'default' && defaultStep === 'model';
     setSelectedProvider('');
     setDefaultStep('provider');
     props.navigation.goBack();
-  }, [mode, modelValues.model, modelValues.provider, props.navigation]);
+  }, [
+    defaultStep,
+    mode,
+    modelValues.model,
+    modelValues.provider,
+    props.navigation,
+  ]);
 
   const setModel = useCallback(
     (provider: string, model: string, zdr = false) => {
