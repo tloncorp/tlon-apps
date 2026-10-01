@@ -12,8 +12,8 @@ import { View, XStack, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
 import {
-  getSettingsListHeaderColor,
-  settingsListPageColor,
+  useSettingsListHeaderColor,
+  useSettingsListSurfaces,
 } from '../../ui/components/SettingsList';
 import {
   Field,
@@ -45,6 +45,8 @@ import {
 type Props = NativeStackScreenProps<RootStackParamList, 'BotApiKeySettings'>;
 
 export function BotApiKeySettingsScreen(props: Props) {
+  const { page: settingsPage } = useSettingsListSurfaces();
+  const settingsHeaderColor = useSettingsListHeaderColor();
   const { provider: providerId } = props.route.params;
   const isWindowNarrow = useIsWindowNarrow();
   const queries = useBotSettingsQueries();
@@ -193,9 +195,9 @@ export function BotApiKeySettingsScreen(props: Props) {
       : null);
 
   return (
-    <View flex={1} backgroundColor={settingsListPageColor}>
+    <View flex={1} backgroundColor={settingsPage}>
       <ScreenHeader
-        backgroundColor={getSettingsListHeaderColor()}
+        backgroundColor={settingsHeaderColor}
         borderBottom
         backAction={isWindowNarrow ? handleBack : undefined}
         title={`${provider.label} API key`}

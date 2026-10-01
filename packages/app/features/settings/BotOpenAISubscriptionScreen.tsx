@@ -6,8 +6,8 @@ import { View, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
 import {
-  getSettingsListHeaderColor,
-  settingsListPageColor,
+  useSettingsListHeaderColor,
+  useSettingsListSurfaces,
 } from '../../ui/components/SettingsList';
 import {
   LLMSubscriptionAuthView,
@@ -35,6 +35,8 @@ type Props = NativeStackScreenProps<
 >;
 
 export function BotOpenAISubscriptionScreen(props: Props) {
+  const { page: settingsPage } = useSettingsListSurfaces();
+  const settingsHeaderColor = useSettingsListHeaderColor();
   const providerId = props.route.params?.provider ?? 'openai';
   const providerName = providerLabel(providerId);
   const subscriptionName = subscriptionLabel(providerId);
@@ -115,9 +117,9 @@ export function BotOpenAISubscriptionScreen(props: Props) {
       : null;
 
   return (
-    <View flex={1} backgroundColor={settingsListPageColor}>
+    <View flex={1} backgroundColor={settingsPage}>
       <ScreenHeader
-        backgroundColor={getSettingsListHeaderColor()}
+        backgroundColor={settingsHeaderColor}
         borderBottom
         backAction={() => {
           auth.dismiss();

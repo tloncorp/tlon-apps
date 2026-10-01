@@ -3,6 +3,8 @@ import { PropsWithChildren } from 'react';
 import { Platform } from 'react-native';
 import { View, YStack } from 'tamagui';
 
+import { useSettingsListSurfaces } from './SettingsList/settingsListSurfaces';
+
 /**
  * Card corners for a `grouped` section on native, matching the native settings
  * lists: iOS's inset-grouped cards and the Compose cards on Android.
@@ -30,6 +32,7 @@ export function SettingsSection({
   variant?: SectionVariant;
 }>) {
   const grouped = isGroupedNative(variant);
+  const { card } = useSettingsListSurfaces();
   return (
     <YStack gap="$m">
       {title || subtitle ? (
@@ -51,7 +54,7 @@ export function SettingsSection({
         borderColor="$border"
         borderRadius={grouped ? groupedCardRadius : '$xl'}
         style={grouped ? { borderCurve: 'continuous' } : undefined}
-        backgroundColor="$background"
+        backgroundColor={grouped ? card : '$background'}
         overflow="hidden"
       >
         {children}

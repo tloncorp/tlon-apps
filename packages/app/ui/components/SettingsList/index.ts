@@ -1,7 +1,9 @@
 export { SettingsList } from './SettingsList';
 export { SettingsListScreenView } from './SettingsListScreenView';
-export { getSettingsListHeaderColor } from './settingsListHeaderColor';
-export { settingsListPageColor } from './settingsListPageColor';
+export {
+  useSettingsListHeaderColor,
+  useSettingsListSurfaces,
+} from './settingsListSurfaces';
 export type {
   SettingsContextAction,
   SettingsListProps,

@@ -12,7 +12,7 @@ import { useResetDb } from '../../hooks/useResetDb';
 import { useNavigation } from '../../navigation/utils';
 import { SettingsScreenView, View, openTlonWebApp } from '../../ui';
 import ProfileStatusSheet from '../../ui/components/ProfileStatusSheet';
-import { settingsListPageColor } from '../../ui/components/SettingsList';
+import { useSettingsListSurfaces } from '../../ui/components/SettingsList';
 import {
   openExternalBotSettings,
   useHasExpectedBotDm,
@@ -49,6 +49,7 @@ export default function SettingsScreen() {
   const showsInlineBotSettings =
     botEnabled && Platform.OS !== 'web' && hostingSession === 'valid';
 
+  const { page: settingsPage } = useSettingsListSurfaces();
   const navigationRef = useMutableRef(useNavigation());
   const [statusSheetOpen, setStatusSheetOpen] = useState(false);
   const { themeLabel, notificationsLabel } = useSettingsRowLabels();
@@ -134,7 +135,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <View backgroundColor={settingsListPageColor} flex={1}>
+    <View backgroundColor={settingsPage} flex={1}>
       {showsInlineBotSettings ? (
         <SettingsViewWithBot viewProps={viewProps} />
       ) : (
