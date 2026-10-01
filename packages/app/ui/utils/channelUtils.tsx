@@ -131,13 +131,13 @@ export function getChannelActionCapabilities(channel?: db.Channel | null): {
   deleteDescription: string;
 } {
   return {
-    canDelete: !!channel && channel.type !== 'buckets',
+    canDelete: !!channel,
     canLeave: !!channel && channel.type !== 'buckets',
     deleteDescription:
       channel?.type === 'notes'
         ? 'This action cannot be undone. The notebook and its notes will be permanently deleted.'
         : channel?.type === 'buckets'
-          ? 'Bucket deletion will be available once stored objects can be removed atomically.'
+          ? 'This action cannot be undone. The Bucket and all of its files and folders will be permanently deleted.'
           : 'This action cannot be undone. All messages in this channel will be permanently deleted.',
   };
 }
