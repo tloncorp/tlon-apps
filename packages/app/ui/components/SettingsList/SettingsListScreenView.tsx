@@ -1,7 +1,6 @@
 import { LoadingSpinner, useIsWindowNarrow } from '@tloncorp/ui';
 import type { ReactNode } from 'react';
 import { Platform } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { View } from 'tamagui';
 
 import { TextInput } from '../Form';
@@ -47,13 +46,6 @@ export function SettingsListScreenView({
 }) {
   const isWindowNarrow = useIsWindowNarrow();
   useNativeHeaderSearch(loading ? undefined : search);
-  // SwiftUI moves its own form clear of the keyboard; the Compose list only
-  // learns about the keyboard by being resized, which the app's keyboard
-  // controller leaves to views like this one.
-  const avoidsKeyboard =
-    Platform.OS === 'android' &&
-    !loading &&
-    sections.some((section) => section.rows.some((row) => row.textField));
 
   return (
     <View flex={1} backgroundColor={settingsListPageColor}>
@@ -77,21 +69,15 @@ export function SettingsListScreenView({
           />
         </View>
       ) : null}
-      {avoidsKeyboard ? (
-        <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
+      <View flex={1}>
+        {loading ? (
+          <View flex={1} alignItems="center" justifyContent="center">
+            <LoadingSpinner />
+          </View>
+        ) : (
           <SettingsList sections={sections} />
-        </KeyboardAvoidingView>
-      ) : (
-        <View flex={1}>
-          {loading ? (
-            <View flex={1} alignItems="center" justifyContent="center">
-              <LoadingSpinner />
-            </View>
-          ) : (
-            <SettingsList sections={sections} />
-          )}
-        </View>
-      )}
+        )}
+      </View>
       {bottomBar}
       {children}
     </View>

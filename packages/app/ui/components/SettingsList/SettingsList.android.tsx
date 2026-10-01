@@ -19,6 +19,7 @@ import {
   combinedClickable,
   fillMaxWidth,
   height,
+  imePadding,
   padding,
   testID,
   weight,
@@ -43,6 +44,11 @@ const pillShape = Shapes.RoundedCorner(50);
 export function SettingsList({ sections }: SettingsListProps) {
   const colors = useSettingsListColors();
   const bottomContentInset = useTopLevelTabBarContentInset();
+  // A list holding a field makes room for the keyboard itself, so the field
+  // it scrolls into view ends up above the keyboard rather than behind it.
+  const hasTextField = sections.some((section) =>
+    section.rows.some((row) => row.textField)
+  );
 
   return (
     <Host style={{ flex: 1 }} colorScheme={colors.colorScheme}>
@@ -54,7 +60,10 @@ export function SettingsList({ sections }: SettingsListProps) {
           top: 16,
           bottom: bottomContentInset,
         }}
-        modifiers={[background(colors.page)]}
+        modifiers={[
+          background(colors.page),
+          ...(hasTextField ? [imePadding()] : []),
+        ]}
       >
         {sections.map((section) => (
           <Column
