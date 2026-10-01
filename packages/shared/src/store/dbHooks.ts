@@ -8,7 +8,7 @@ import { getMessagesFilter } from '@tloncorp/api';
 import { referenceLookupId } from '@tloncorp/api/client/references';
 import * as ub from '@tloncorp/api/urbit';
 import { isMatch, pick } from 'lodash';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
 
 import * as db from '../db';
 import { GroupedChats } from '../db/types';
@@ -258,6 +258,24 @@ export const useContacts = () => {
   return useQuery({
     queryKey: ['contacts', deps],
     queryFn: () => db.getContacts(),
+  });
+};
+
+export const useMentionCandidates = ({
+  chatId,
+  query,
+  enabled,
+}: {
+  chatId: string;
+  query: string;
+  enabled?: boolean;
+}) => {
+  const deps = useKeyFromQueryDeps(db.getMentionCandidates);
+  return useQuery({
+    queryKey: ['mentionCandidates', deps, chatId, query],
+    queryFn: () => db.getMentionCandidates({ chatId, query }),
+    placeholderData: (previousData) => previousData ?? [],
+    enabled,
   });
 };
 
@@ -611,6 +629,14 @@ export const useMemberRoles = (chatId: string, userId: string) => {
   return memberRoles;
 };
 
+export const useJoinedGroupSeats = (contactIds: string[]) => {
+  const deps = useKeyFromQueryDeps(db.getJoinedGroupSeats);
+  return useQuery({
+    queryKey: ['joinedGroupSeats', deps, contactIds],
+    queryFn: () => db.getJoinedGroupSeats({ contactIds }),
+  });
+};
+
 export const useGroupPreview = (groupId: string) => {
   const deps = useKeyFromQueryDeps(db.getGroup, groupId);
   const { data: group } = useGroup({ id: groupId });
@@ -781,6 +807,37 @@ export const useChannelSearchResults = (
     queryKey: [['channelSearchResults', channelId, postIds], deps],
     queryFn: () => db.getChannelSearchResults({ channelId, postIds }),
   });
+};
+
+/**
+ * Whether this ship runs %buckets, for gating the views that talk to it.
+ *
+ * A group's channel list comes from its host, so a 12.3-hosted group lists
+ * its Buckets to members whose own ship is still on 12.2.x. Everything a
+ * Bucket view does goes through the local %buckets agent, which those ships
+ * do not have.
+ *
+ * Yes if either the client flag or the stored app info says so. The flag is
+ * what sync start set from the version it fetched, and it stands even when
+ * persisting that version failed; but it is still false in the moment before
+ * sync start applies it, when the stored app info is the only answer and
+ * gating on the flag alone would tell a 12.3 ship it needs an update.
+ * Undefined while the flag is off and the stored value has not been read, so
+ * a gate can wait instead of flashing the unsupported state.
+ */
+export const useDeskSupportsBuckets = (): boolean | undefined => {
+  const clientSupports = useSyncExternalStore(
+    api.onDeskSupportsBucketsChange,
+    api.getDeskSupportsBuckets
+  );
+  const { value: appInfo, isLoading } = db.appInfo.useStorageItem();
+  if (clientSupports) {
+    return true;
+  }
+  if (isLoading) {
+    return undefined;
+  }
+  return logic.deskVersionSupportsBuckets(appInfo?.groupsVersion);
 };
 
 /**

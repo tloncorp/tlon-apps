@@ -328,6 +328,42 @@ describe('parseNotificationPayload', () => {
     );
   });
 
+  describe('kinds the native layer shows but JS used to drop (TLON-6566)', () => {
+    const ship = '~sampel-palnet';
+    const group = '~sampel-palnet/test';
+    const flagged = { channel: 'chat/~sampel-palnet/test', group };
+    const members = { type: 'groupMembers', groupId: group };
+    const thread = {
+      channelId: flagged.channel,
+      postInfo: { id: parentId.split('/')[1], authorId: ship, isDm: false },
+    };
+
+    it.each([
+      ['group-join', { ship, group }, members],
+      ['group-kick', { ship, group }, { ...members, ship }],
+      ['group-role', { ship, group, roles: ['admin'] }, members],
+      ['flag-post', { ...flagged, key: parentKey }, thread],
+      ['flag-reply', { ...flagged, key: childKey, parent: parentKey }, thread],
+      [
+        'contact',
+        { who: ship, update: {} },
+        { type: 'contactMatched', contactId: ship },
+      ],
+    ])('routes %s activity', (kind, info, target) => {
+      // the key set a real Android push carries alongside the event
+      const payload = {
+        ...payloadFor({ [kind]: info }),
+        'google.message_id': '0:1',
+        id: '1',
+        uid: '0v1',
+      };
+      expect(parseNotificationPayload(payload)).toEqual({
+        meta: { errorsFromExtension: undefined },
+        ...target,
+      });
+    });
+  });
+
   it('parses channel post react activity to the channel', () => {
     const result = parseNotificationPayload(
       payloadFor({

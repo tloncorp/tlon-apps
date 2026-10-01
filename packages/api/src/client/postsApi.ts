@@ -28,7 +28,6 @@ import {
 import {
   type AuthorProfile,
   formatDateParam,
-  formatScryPath,
   formatUd,
   getCanonicalPostId,
   getChannelIdType,
@@ -44,7 +43,15 @@ import {
 } from './apiUtils';
 import { PlaintextPreviewConfig, getTextContent } from './postContent';
 import { referenceLookupId } from './references';
-import { poke, scry, subscribeOnce } from './urbit';
+import {
+  channels,
+  chat,
+  groups,
+  groupsUi,
+  pokeRequest,
+  scryRequest,
+} from './requests';
+import { subscribeOnce } from './urbit';
 
 const logger = createDevLogger('postsApi', false);
 
@@ -59,8 +66,8 @@ export function chatAction(
 ): Poke<DmAction | ClubAction> {
   if (whomIsDm(whom)) {
     const action: Poke<DmAction> = {
-      app: 'chat',
-      mark: 'chat-dm-action-2',
+      app: chat.dmAction.agent,
+      mark: chat.dmAction.mark,
       json: {
         ship: whom,
         diff: {
@@ -74,8 +81,8 @@ export function chatAction(
 
   const diff: WritDiff = { id, delta };
   const action: Poke<ClubAction> = {
-    app: 'chat',
-    mark: 'chat-club-action-2',
+    app: chat.clubAction.agent,
+    mark: chat.clubAction.mark,
     json: {
       id: whom,
       diff: {
@@ -86,6 +93,19 @@ export function chatAction(
   };
 
   return action;
+}
+
+// chatAction builds a DmAction (keyed by ship) exactly when it picks the DM
+// mark, so the payload's shape picks the entry.
+function pokeChatAction(whom: string, id: string, delta: WritDelta) {
+  const { json } = chatAction(whom, id, delta);
+  return 'ship' in json
+    ? pokeRequest(chat.dmAction)(json)
+    : pokeRequest(chat.clubAction)(json);
+}
+
+function pokeChannelAction(nest: string, action: ub.Action) {
+  return pokeRequest(channels.action)(channelAction(nest, action).json);
 }
 
 export async function getPostReference({
@@ -110,6 +130,7 @@ export async function getPostReference({
   const path = `/v5/said/${askPrefix}${channelId}/post/${postId}${
     replyId ? '/' + replyId : ''
   }`;
+  // oxlint-disable-next-line tlon/no-raw-desk-request -- see TLON-6537
   const data = await subscribeOnce<ub.Said>(
     { app: 'channels', path },
     3000,
@@ -184,12 +205,11 @@ export const sendPost = async ({
       },
     };
 
-    const action = chatAction(
+    await pokeChatAction(
       channelId,
       `${authorId}/${formatUd(da.fromUnix(delta.add.essay.sent).toString())}`,
       delta
     );
-    await poke(action);
     return;
   }
 
@@ -214,7 +234,7 @@ export const sendPost = async ({
     add: essay,
   });
 
-  await poke(action);
+  await pokeRequest(channels.action)(action.json);
   logger.log('post sent', { channelId, authorId, sentAt, content });
 };
 
@@ -273,7 +293,7 @@ export const editPost = async ({
     };
 
     logger.log('sending action', action);
-    await poke(channelAction(channelId, action));
+    await pokeChannelAction(channelId, action);
     logger.log('action sent');
     return;
   }
@@ -305,7 +325,7 @@ export const editPost = async ({
   });
 
   logger.log('sending action', action);
-  await poke(action);
+  await pokeRequest(channels.action)(action.json);
   logger.log('action sent');
 };
 
@@ -349,8 +369,7 @@ export const sendReply = async ({
       },
     };
 
-    const action = chatAction(channelId, `${parentAuthor}/${parentId}`, delta);
-    await poke(action);
+    await pokeChatAction(channelId, `${parentAuthor}/${parentId}`, delta);
     return;
   }
 
@@ -369,7 +388,7 @@ export const sendReply = async ({
   };
 
   const action = channelPostAction(channelId, postAction);
-  await poke(action);
+  await pokeRequest(channels.action)(action.json);
 };
 export interface GetSequencedPostsOptions {
   channelId: string;
@@ -384,29 +403,12 @@ export const getSequencedChannelPosts = async (
   const encodedStart = formatUd(options.start.toString());
   const encodedEnd = formatUd(options.end.toString());
 
-  const type = getChannelIdType(options.channelId);
-  const app = type === 'channel' ? 'channels' : 'chat';
-  const endpoint = formatScryPath(
-    ...[
-      type === 'dm' ? 'v4/dm' : null,
-      type === 'club' ? 'v4/club' : null,
-      type === 'channel' ? 'v5' : null,
-    ],
+  const response = await scryPostsRange(
     options.channelId,
-    type === 'channel' ? 'posts' : 'writs',
-    'range',
     encodedStart,
     encodedEnd,
-    ...[
-      type === 'channel' ? (options.includeReplies ? 'post' : 'outline') : null,
-      type !== 'channel' ? (options.includeReplies ? 'heavy' : 'light') : null,
-    ]
+    !!options.includeReplies
   );
-
-  const response = await scry<ub.PagedPosts | ub.PagedWrits>({
-    app: app,
-    path: endpoint,
-  });
 
   const clientPosts = toPagedPostsData(options.channelId, response).posts;
   const withoutGaps = fillSequenceGaps(clientPosts, {
@@ -428,6 +430,121 @@ export const getSequencedChannelPosts = async (
     newestSequenceNum: Number(response.newest),
   };
 };
+
+type PagedPostsResponse = ub.PagedPosts | ub.PagedWrits;
+
+function scryPostsRange(
+  channelId: string,
+  start: string,
+  end: string,
+  includeReplies: boolean
+) {
+  const type = getChannelIdType(channelId);
+  if (type === 'channel') {
+    return scryRequest(channels.postsRange)<PagedPostsResponse>({
+      nest: channelId,
+      start,
+      end,
+      mode: includeReplies ? 'post' : 'outline',
+    });
+  }
+  const params = {
+    id: channelId,
+    start,
+    end,
+    mode: includeReplies ? 'heavy' : 'light',
+  };
+  return type === 'dm'
+    ? scryRequest(chat.dmWritsRange)<PagedPostsResponse>(params)
+    : scryRequest(chat.clubWritsRange)<PagedPostsResponse>(params);
+}
+
+type PageMode = 'older' | 'newer' | 'around' | 'newest';
+
+// The newest page is the only one served without a cursor, and it takes
+// none.
+function scryPostsPage(
+  channelId: string,
+  mode: PageMode,
+  cursor: string | null,
+  count: number,
+  includeReplies: boolean
+) {
+  // No desk arm serves a page without a count.
+  if (!count) {
+    throw new Error(
+      `getChannelPosts: no desk request serves a page without a count (got ${count})`
+    );
+  }
+  if ((mode === 'newest') === !!cursor) {
+    throw new Error(
+      `no desk request serves a ${mode} page ${cursor ? 'with' : 'without'} a cursor`
+    );
+  }
+  const type = getChannelIdType(channelId);
+  if (type === 'channel') {
+    const params = {
+      nest: channelId,
+      count,
+      mode: includeReplies ? 'post' : 'outline',
+    };
+    return mode === 'newest'
+      ? scryRequest(channels.postsNewest)<PagedPostsResponse>(params)
+      : mode === 'older'
+        ? scryRequest(channels.postsOlder)<PagedPostsResponse>({
+            ...params,
+            cursor: cursor!,
+          })
+        : mode === 'newer'
+          ? scryRequest(channels.postsNewer)<PagedPostsResponse>({
+              ...params,
+              cursor: cursor!,
+            })
+          : scryRequest(channels.postsAround)<PagedPostsResponse>({
+              ...params,
+              cursor: cursor!,
+            });
+  }
+  const params = {
+    id: channelId,
+    count,
+    mode: includeReplies ? 'heavy' : 'light',
+  };
+  if (type === 'dm') {
+    return mode === 'newest'
+      ? scryRequest(chat.dmWritsNewest)<PagedPostsResponse>(params)
+      : mode === 'older'
+        ? scryRequest(chat.dmWritsOlder)<PagedPostsResponse>({
+            ...params,
+            cursor: cursor!,
+          })
+        : mode === 'newer'
+          ? scryRequest(chat.dmWritsNewer)<PagedPostsResponse>({
+              ...params,
+              cursor: cursor!,
+            })
+          : scryRequest(chat.dmWritsAround)<PagedPostsResponse>({
+              ...params,
+              cursor: cursor!,
+            });
+  }
+  return mode === 'newest'
+    ? scryRequest(chat.clubWritsNewest)<PagedPostsResponse>(params)
+    : mode === 'older'
+      ? scryRequest(chat.clubWritsOlder)<PagedPostsResponse>({
+          ...params,
+          cursor: cursor!,
+        })
+      : mode === 'newer'
+        ? scryRequest(chat.clubWritsNewer)<PagedPostsResponse>({
+            ...params,
+            cursor: cursor!,
+          })
+        : scryRequest(chat.clubWritsAround)<PagedPostsResponse>({
+            ...params,
+            cursor: cursor!,
+          });
+}
 
 export type GetChannelPostsOptions = {
   channelId: string;
@@ -451,9 +568,9 @@ export const getInitialPosts = async (config: {
   channelCount: number;
   postCount: number;
 }) => {
-  const response = await scry<ub.PostsInit>({
-    app: 'groups-ui',
-    path: `/v6/init-posts/${config.channelCount}/${config.postCount}`,
+  const response = await scryRequest(groupsUi.initPosts)<ub.PostsInit>({
+    channels: config.channelCount,
+    context: config.postCount,
   });
 
   const channelPosts = Object.entries(response.channels).flatMap(
@@ -491,30 +608,14 @@ export const getChannelPosts = async ({
     };
   }
 
-  const type = getChannelIdType(channelId);
-  const app = type === 'channel' ? 'channels' : 'chat';
-  const path = formatScryPath(
-    ...[
-      type === 'dm' ? 'v4/dm' : null,
-      type === 'club' ? 'v4/club' : null,
-      type === 'channel' ? 'v5' : null,
-    ],
-    channelId,
-    type === 'channel' ? 'posts' : 'writs',
-    mode,
-    cursor ? formatCursor(cursor) : null,
-    count,
-    ...[
-      type === 'channel' ? (includeReplies ? 'post' : 'outline') : null,
-      type !== 'channel' ? (includeReplies ? 'heavy' : 'light') : null,
-    ]
-  );
-
   const response = await with404Handler(
-    scry<ub.PagedWrits | ub.PagedPosts>({
-      app,
-      path,
-    }),
+    scryPostsPage(
+      channelId,
+      mode,
+      cursor ? formatCursor(cursor) : null,
+      count,
+      includeReplies
+    ),
     { posts: [] }
   );
   const postsResponse = toPagedPostsData(channelId, response);
@@ -610,24 +711,19 @@ export type GetLatestPostsResponse = PostWithUpdateTime[];
 
 export const getLatestPosts = async ({
   afterCursor,
-  count,
   throwOnError = false,
 }: {
   afterCursor?: Cursor;
-  count?: number;
   throwOnError?: boolean;
 }): Promise<GetLatestPostsResponse> => {
   try {
-    const { channels, dms } = await scry<ub.CombinedHeads>({
-      app: 'groups-ui',
-      path: formatScryPath(
-        'v4/heads',
-        afterCursor ? formatCursor(afterCursor) : null,
-        count
-      ),
-    });
+    const { channels: channelHeads, dms } = afterCursor
+      ? await scryRequest(groupsUi.headsSince)<ub.CombinedHeads>({
+          since: formatCursor(afterCursor),
+        })
+      : await scryRequest(groupsUi.heads)<ub.CombinedHeads>({});
 
-    return [...channels, ...dms].map((head) => {
+    return [...channelHeads, ...dms].map((head) => {
       const channelId = 'nest' in head ? head.nest : head.whom;
       const latestPost = toPostData(channelId, head.latest);
       return {
@@ -668,14 +764,11 @@ export const getChangedPosts = async ({
       server does not implement this endpoint for non-group channels`
     );
   }
-  const response = await scry<ub.PagedPosts>({
-    app: 'channels',
-    path: formatScryPath(
-      `v4/${channelId}/posts/changes`,
-      formatCursor(startCursor),
-      formatCursor(endCursor),
-      render('da', da.fromUnix(afterTime.valueOf()))
-    ),
+  const response = await scryRequest(channels.postsChanges)<ub.PagedPosts>({
+    nest: channelId,
+    start: formatCursor(startCursor),
+    end: formatCursor(endCursor),
+    after: render('da', da.fromUnix(afterTime.valueOf())),
   });
   return toPagedPostsData(channelId, response);
 };
@@ -737,7 +830,7 @@ export async function addReaction({
             },
           },
         };
-        await poke(chatAction(channelId, fullParentId, delta));
+        await pokeChatAction(channelId, fullParentId, delta);
       } else {
         const delta: WritDeltaAddReact = {
           'add-react': {
@@ -745,8 +838,7 @@ export async function addReaction({
             author: our,
           },
         };
-        const action = chatAction(channelId, `${postAuthor}/${postId}`, delta);
-        await poke(action);
+        await pokeChatAction(channelId, `${postAuthor}/${postId}`, delta);
       }
       return;
     } else {
@@ -775,7 +867,7 @@ export async function addReaction({
             },
           },
         };
-        await poke(chatAction(channelId, fullParentId, delta));
+        await pokeChatAction(channelId, fullParentId, delta);
       } else {
         const delta: WritDeltaAddReact = {
           'add-react': {
@@ -783,41 +875,37 @@ export async function addReaction({
             author: our,
           },
         };
-        await poke(chatAction(channelId, `${postAuthor}/${postId}`, delta));
+        await pokeChatAction(channelId, `${postAuthor}/${postId}`, delta);
       }
       return;
     }
   }
 
   if (parentId) {
-    await poke(
-      channelAction(channelId, {
-        post: {
-          reply: {
-            id: parentId,
-            action: {
-              'add-react': {
-                id: postId,
-                react: emoji,
-                ship: our,
-              },
+    await pokeChannelAction(channelId, {
+      post: {
+        reply: {
+          id: parentId,
+          action: {
+            'add-react': {
+              id: postId,
+              react: emoji,
+              ship: our,
             },
           },
         },
-      })
-    );
+      },
+    });
   } else {
-    await poke(
-      channelAction(channelId, {
-        post: {
-          'add-react': {
-            id: postId,
-            react: emoji,
-            ship: our,
-          },
+    await pokeChannelAction(channelId, {
+      post: {
+        'add-react': {
+          id: postId,
+          react: emoji,
+          ship: our,
         },
-      })
-    );
+      },
+    });
   }
 }
 
@@ -862,12 +950,12 @@ export async function removeReaction({
             },
           },
         };
-        return poke(chatAction(channelId, fullParentId, delta));
+        return pokeChatAction(channelId, fullParentId, delta);
       } else {
         const delta: WritDeltaDelReact = {
           'del-react': our,
         };
-        return poke(chatAction(channelId, `${postAuthor}/${postId}`, delta));
+        return pokeChatAction(channelId, `${postAuthor}/${postId}`, delta);
       }
     } else {
       // Group DM reactions
@@ -892,99 +980,71 @@ export async function removeReaction({
             },
           },
         };
-        return poke(chatAction(channelId, fullParentId, delta));
+        return pokeChatAction(channelId, fullParentId, delta);
       } else {
         const delta: WritDeltaDelReact = {
           'del-react': our,
         };
-        return poke(chatAction(channelId, `${postAuthor}/${postId}`, delta));
+        return pokeChatAction(channelId, `${postAuthor}/${postId}`, delta);
       }
     }
   }
 
   if (parentId) {
-    return await poke(
-      channelAction(channelId, {
-        post: {
-          reply: {
-            id: parentId,
-            action: {
-              'del-react': {
-                id: postId,
-                ship: our,
-              },
+    return await pokeChannelAction(channelId, {
+      post: {
+        reply: {
+          id: parentId,
+          action: {
+            'del-react': {
+              id: postId,
+              ship: our,
             },
           },
         },
-      })
-    );
+      },
+    });
   } else {
-    return await poke(
-      channelAction(channelId, {
-        post: {
-          'del-react': {
-            id: postId,
-            ship: our,
-          },
+    return await pokeChannelAction(channelId, {
+      post: {
+        'del-react': {
+          id: postId,
+          ship: our,
         },
-      })
-    );
+      },
+    });
   }
 }
 
 export async function showPost(post: db.Post) {
   if (isGroupChannelId(post.channelId)) {
-    const action = {
-      app: 'channels',
-      mark: 'channel-action-2',
-      json: {
-        'toggle-post': {
-          show: post.id,
-        },
+    return pokeRequest(channels.action)({
+      'toggle-post': {
+        show: post.id,
       },
-    };
-
-    return poke(action);
+    });
   }
 
   const writId = `${post.authorId}/${post.id}`;
 
-  const action = {
-    app: 'chat',
-    mark: 'chat-toggle-message',
-    json: {
-      show: writId,
-    },
-  };
-
-  return poke(action);
+  return pokeRequest(chat.toggleMessage)({
+    show: writId,
+  });
 }
 
 export async function hidePost(post: db.Post) {
   if (isGroupChannelId(post.channelId)) {
-    const action = {
-      app: 'channels',
-      mark: 'channel-action-2',
-      json: {
-        'toggle-post': {
-          hide: post.id,
-        },
+    return pokeRequest(channels.action)({
+      'toggle-post': {
+        hide: post.id,
       },
-    };
-
-    return poke(action);
+    });
   }
 
   const writId = `${post.authorId}/${post.id}`;
-  const action = {
-    app: 'chat',
-    mark: 'chat-toggle-message',
-    json: {
-      hide: writId,
-    },
-  };
-
-  return poke(action);
+  return pokeRequest(chat.toggleMessage)({
+    hide: writId,
+  });
 }
 
 export const toClientHiddenPosts = (hiddenPostIds: string[]) => {
@@ -999,43 +1059,33 @@ export async function reportPost(
 ) {
   await hidePost(post);
 
-  const action = {
-    app: 'groups',
-    mark: 'group-action-5',
-    json: {
-      group: {
-        flag: groupId,
-        'a-group': {
-          'flag-content': {
-            nest: channelId,
-            'post-key': {
-              post: post.parentId ? post.parentId : post.id,
-              reply: post.parentId ? post.id : null,
-            },
-            src: currentUserId,
+  return await pokeRequest(groups.action)({
+    group: {
+      flag: groupId,
+      'a-group': {
+        'flag-content': {
+          nest: channelId,
+          'post-key': {
+            post: post.parentId ? post.parentId : post.id,
+            reply: post.parentId ? post.id : null,
           },
+          src: currentUserId,
         },
       },
     },
-  };
-
-  return await poke(action);
+  });
 }
 
 export const getHiddenPosts = async () => {
-  const hiddenPosts = await scry<HiddenPosts>({
-    app: 'channels',
-    path: '/hidden-posts',
-  });
+  const hiddenPosts = await scryRequest(channels.hiddenPosts)<HiddenPosts>({});
 
   return hiddenPosts.map((postId) => getCanonicalPostId(postId));
 };
 
 export const getHiddenDMPosts = async () => {
-  const hiddenDMPosts = await scry<HiddenMessages>({
-    app: 'chat',
-    path: '/hidden-messages',
-  });
+  const hiddenDMPosts = await scryRequest(chat.hiddenMessages)<HiddenMessages>(
+    {}
+  );
 
   return hiddenDMPosts.map((postId) => getCanonicalPostId(postId));
 };
@@ -1045,28 +1095,28 @@ export async function deletePost(
   postId: string,
   authorId: string
 ) {
-  const action = isDmChannelId(channelId)
-    ? chatAction(channelId, `${authorId}/${postId}`, {
+  // todo: we need to use a tracked poke here (or settle on a different pattern
+  // for expressing request response semantics)
+  return await (isDmChannelId(channelId)
+    ? pokeChatAction(channelId, `${authorId}/${postId}`, {
         del: null,
       })
     : isGroupDmChannelId(channelId)
-      ? ub.multiDmAction(channelId, {
-          writ: {
-            id: `${authorId}/${postId}`,
-            delta: {
-              del: null,
+      ? pokeRequest(chat.clubAction)(
+          ub.multiDmAction(channelId, {
+            writ: {
+              id: `${authorId}/${postId}`,
+              delta: {
+                del: null,
+              },
             },
-          },
-        })
-      : channelAction(channelId, {
+          }).json
+        )
+      : pokeChannelAction(channelId, {
           post: {
             del: postId,
           },
-        });
-
-  // todo: we need to use a tracked poke here (or settle on a different pattern
-  // for expressing request response semantics)
-  return await poke(action);
+        }));
 }
 
 export async function deleteReply(params: {
@@ -1076,10 +1126,8 @@ export async function deleteReply(params: {
   postId: string;
   authorId: string;
 }) {
-  let action = null;
-
   if (isDmChannelId(params.channelId)) {
-    action = chatAction(
+    return await pokeChatAction(
       params.channelId,
       `${params.parentAuthorId}/${params.parentId}`,
       {
@@ -1093,7 +1141,7 @@ export async function deleteReply(params: {
       }
     );
   } else if (isGroupDmChannelId(params.channelId)) {
-    action = ub.multiDmAction(params.channelId, {
+    const action = ub.multiDmAction(params.channelId, {
       writ: {
         id: `${params.parentAuthorId}/${params.parentId}`,
         delta: {
@@ -1107,8 +1155,9 @@ export async function deleteReply(params: {
         },
       },
     });
+    return await pokeRequest(chat.clubAction)(action.json);
   } else {
-    action = channelAction(params.channelId, {
+    return await pokeChannelAction(params.channelId, {
       post: {
         reply: {
           id: params.parentId,
@@ -1119,8 +1168,6 @@ export async function deleteReply(params: {
       },
     });
   }
-
-  return await poke(action);
 }
 
 export const getPostWithReplies = async ({
@@ -1145,26 +1192,27 @@ export const getPostWithReplies = async ({
     );
   }
 
-  let app: 'chat' | 'channels';
-  let path: string;
-
+  let post: ub.Post;
   if (isDmChannelId(channelId)) {
-    app = 'chat';
-    path = `/v4/dm/${channelId}/writs/writ/id/${authorId}/${postId}`;
+    post = await scryRequest(chat.dmWrit)<ub.Post>({
+      id: channelId,
+      author: authorId,
+      time: postId,
+    });
   } else if (isGroupDmChannelId(channelId)) {
-    app = 'chat';
-    path = `/v4/club/${channelId}/writs/writ/id/${authorId}/${postId}`;
+    post = await scryRequest(chat.clubWrit)<ub.Post>({
+      id: channelId,
+      author: authorId,
+      time: postId,
+    });
   } else if (isGroupChannelId(channelId)) {
-    app = 'channels';
-    path = `/v5/${channelId}/posts/post/${postId}`;
+    post = await scryRequest(channels.post)<ub.Post>({
+      nest: channelId,
+      id: postId,
+    });
   } else {
     throw new Error('invalid channel id');
   }
-
-  const post = await scry<ub.Post>({
-    app,
-    path,
-  });
 
   onResponse?.();
   const postData = toPostData(channelId, post);

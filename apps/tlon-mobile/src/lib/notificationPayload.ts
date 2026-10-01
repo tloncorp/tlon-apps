@@ -36,6 +36,13 @@ export interface GroupJoinRequestNotificationData extends BaseNotificationData {
   groupId: string;
 }
 
+export interface GroupMembersNotificationData extends BaseNotificationData {
+  type: 'groupMembers';
+  groupId: string;
+  // set for kicks, which the desk also delivers to the kicked ship itself
+  ship?: string;
+}
+
 export interface GroupInviteNotificationData extends BaseNotificationData {
   type: 'groupInvite';
   groupId: string;
@@ -54,6 +61,7 @@ export type NotificationData =
   | MinimalNotificationData
   | DMInviteNotificationData
   | GroupJoinRequestNotificationData
+  | GroupMembersNotificationData
   | GroupInviteNotificationData
   | ContactMatchedNotificationData
   | ContactsMatchedNotificationData
@@ -246,17 +254,44 @@ export function parseNotificationPayload(
         }
 
         case is(ev, 'group-join'):
-        // fallthrough
+          return {
+            ...baseNotificationData,
+            type: 'groupMembers',
+            groupId: ev['group-join'].group,
+          };
+
         case is(ev, 'group-kick'):
-        // fallthrough
+          return {
+            ...baseNotificationData,
+            type: 'groupMembers',
+            groupId: ev['group-kick'].group,
+            ship: ev['group-kick'].ship,
+          };
+
         case is(ev, 'group-role'):
-        // fallthrough
+          return {
+            ...baseNotificationData,
+            type: 'groupMembers',
+            groupId: ev['group-role'].group,
+          };
+
         case is(ev, 'flag-post'):
-        // fallthrough
-        case is(ev, 'contact'):
-        // fallthrough
+          // the flagged post itself, opened as its thread
+          return channelPostTarget(ev['flag-post'], {
+            parent: ev['flag-post'].key,
+          });
+
         case is(ev, 'flag-reply'):
-          return null;
+          return channelPostTarget(ev['flag-reply'], {
+            parent: ev['flag-reply'].parent,
+          });
+
+        case is(ev, 'contact'):
+          return {
+            ...baseNotificationData,
+            type: 'contactMatched',
+            contactId: ev.contact.who,
+          };
 
         default:
           return null;

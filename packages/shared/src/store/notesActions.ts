@@ -322,12 +322,50 @@ export function markNotesNotebookStale(channelId: string) {
   nudge();
 }
 
-async function ensureNotesNotebookJoined(flagInput: api.NotesFlag | string) {
+// The group's channel list offers a channel to join only while the group
+// is still ours and the channel is one we can read.
+async function channelListOffersJoin(channelId: string, groupId: string) {
+  const group = await db.getGroup({ id: groupId });
+  if (group?.currentUserIsMember !== true) {
+    return false;
+  }
+  const joinable = await db.getUnjoinedGroupChannels(groupId);
+  return joinable.some((c) => c.id === channelId);
+}
+
+export async function ensureNotesNotebookJoined(
+  flagInput: api.NotesFlag | string
+): Promise<boolean | 'notMember'> {
   const { flag, parsed } = requireNotesNotebookFlag(flagInput);
 
   const currentUserId = api.getCurrentUserId();
   const isHost = parsed.host === currentUserId;
-  if (isHost || (await notesNotebookIsJoined(parsed))) {
+
+  // Opening a group's notebook is not a request to join it: a member who
+  // left (or was never joined) rejoins from the channel list, as with any
+  // other channel. 'notMember' only when that list offers it. The channel
+  // row mirrors %groups, so membership is settled locally, and a failed
+  // request can't leave a stale answer standing either way.
+  const channel = isHost
+    ? null
+    : await db.getChannel({ id: api.notesChannelId(parsed) });
+  if (channel?.groupId && channel.currentUserIsMember === false) {
+    return (await channelListOffersJoin(channel.id, channel.groupId))
+      ? 'notMember'
+      : false;
+  }
+  const groupMember =
+    !!channel?.groupId && channel.currentUserIsMember === true;
+
+  const joined =
+    isHost ||
+    (await notesNotebookIsJoined(parsed).catch((e) => {
+      if (groupMember) {
+        return true;
+      }
+      throw e;
+    }));
+  if (joined) {
     await syncNotesNotebook(parsed).catch((e) => {
       logger.error('Failed to sync joined notes notebook', e);
     });
@@ -368,6 +406,24 @@ export function useEnsureNotesNotebookJoined({
     retry: false,
     staleTime: NOTES_SYNC_STALE_TIME,
   });
+}
+
+// For a membership change reported by %groups, which %notes sends only once
+// the book is in place or gone. A notebook screen open across the change
+// would otherwise keep its cached answer until it goes stale.
+export function recheckNotesNotebookJoined(channelId: string) {
+  const notebookFlag = notesNotebookFlagFromChannelId(channelId);
+  if (!notebookFlag) {
+    return;
+  }
+  return queryClient.invalidateQueries({
+    queryKey: ['notesEnsureJoined', notebookFlag],
+  });
+}
+
+// For a full membership reconcile, which can move any notebook either way.
+export function recheckAllNotesNotebooksJoined() {
+  return queryClient.invalidateQueries({ queryKey: ['notesEnsureJoined'] });
 }
 
 export function useSyncNotesNotebook({

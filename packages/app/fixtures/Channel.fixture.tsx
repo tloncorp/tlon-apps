@@ -335,7 +335,9 @@ function useSimulatedPostsQuery({
 
 function FixtureToolbar({
   children,
+  top = 10,
 }: {
+  top?: number;
   children: (opts: {
     doBusyWork: (fn: () => Promise<void>) => Promise<void>;
   }) => React.ReactNode;
@@ -355,7 +357,7 @@ function FixtureToolbar({
       style={{
         position: 'absolute',
         right: 10,
-        top: 10,
+        top,
       }}
     >
       <View
@@ -505,6 +507,46 @@ function ChannelWithControlledPostLoading() {
   );
 }
 
+function ChannelWithLiveArrivals() {
+  const [posts, setPosts] = useState(() =>
+    range(24).map((index) =>
+      createFakePost(
+        'chat',
+        JSON.stringify([{ inline: [`Earlier message ${24 - index}`] }]),
+        undefined,
+        { sentAt: Date.now() - index * 60_000, replyCount: 0, reactions: [] }
+      )
+    )
+  );
+  const nextMessage = useRef(0);
+  const receive = (count: number) => {
+    const additions = range(count).map(() => {
+      nextMessage.current += 1;
+      return createFakePost(
+        'chat',
+        JSON.stringify([{ inline: [`New message ${nextMessage.current}`] }]),
+        undefined,
+        { sentAt: Date.now(), replyCount: 0, reactions: [] }
+      );
+    });
+    setPosts((current) => [...additions.reverse(), ...current]);
+  };
+
+  return (
+    <>
+      <ChannelFixture passedProps={() => ({ posts })} />
+      <FixtureToolbar top={120}>
+        {() => (
+          <YStack>
+            <Button title="Receive message" onPress={() => receive(1)} />
+            <Button title="Receive three" onPress={() => receive(3)} />
+          </YStack>
+        )}
+      </FixtureToolbar>
+    </>
+  );
+}
+
 // Replays the agent group setup lifecycle on a timer: posts load into an
 // empty channel, the first-entry indicator appears, the first entry arrives,
 // then the indicator clears. The header height arrives late, as the
@@ -588,6 +630,7 @@ export default {
     />
   ),
   chatWithSimulatedLoad: <ChannelWithControlledPostLoading />,
+  chatWithLiveArrivals: <ChannelWithLiveArrivals />,
   chatWithUnreadAnchor: (
     <ChannelFixture
       negotiationMatch={true}

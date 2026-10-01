@@ -1,5 +1,6 @@
 import * as api from '@tloncorp/api';
-import { StorageConfiguration, scry } from '@tloncorp/api';
+import { StorageConfiguration } from '@tloncorp/api';
+import { base, scryRequest } from '@tloncorp/api/client/requests';
 import { desig } from '@tloncorp/api/lib/urbit';
 import { StorageCredentials } from '@tloncorp/api/urbit';
 
@@ -106,10 +107,7 @@ export const getMemexUpload = async (
   params: Omit<MemexUploadParams, 'token'>
 ) => {
   const currentUser = api.getCurrentUserId();
-  const token = await scry<string>({
-    app: 'genuine',
-    path: '/secret',
-  }).catch((e) => {
+  const token = await scryRequest(base.genuineSecret)<string>({}).catch((e) => {
     throw new Error('Failed to get secret');
   });
 
@@ -171,10 +169,7 @@ export namespace StorageInfoResponse {
 
 export const getStorageQuota = async (): Promise<StorageInfoResponse> => {
   const currentUser = api.getCurrentUserId();
-  const token = await scry<string>({
-    app: 'genuine',
-    path: '/secret',
-  }).catch((e) => {
+  const token = await scryRequest(base.genuineSecret)<string>({}).catch((e) => {
     throw new Error('Failed to get secret', { cause: e });
   });
 

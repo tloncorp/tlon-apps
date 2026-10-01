@@ -935,6 +935,10 @@ async function createOwnedGroup(
   console.log(`   Description: ${description || '(none)'}`);
   console.log(`   Owner: ${ownerShip}`);
   console.log(`   Channel: ${channelId}`);
+  console.log(`   Ref: /1/group/${groupId}`);
+  console.log(
+    `   Share: include the Ref path in a chat message to post a tappable group card.`
+  );
 
   return { groupId, channelId, ownerShip };
 }
@@ -1475,7 +1479,11 @@ async function main() {
         printUsageAndExit(GROUPS_COMMAND_HELP.create);
       }
       const description = getOption(args, 'description', 2) || '';
-      await createGroupWithChannel(title, description);
+      const { groupId } = await createGroupWithChannel(title, description);
+      console.log(`   Ref: /1/group/${groupId}`);
+      console.log(
+        `   Share: include the Ref path in a chat message to post a tappable group card.`
+      );
       break;
     }
 

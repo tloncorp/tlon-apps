@@ -25,8 +25,9 @@ vi.mock('@tloncorp/shared', () => ({
 }));
 vi.mock('@tloncorp/shared/db', () => ({}));
 vi.mock('@tloncorp/shared/logic', () => ({}));
-vi.mock('@tloncorp/shared/store', () => ({}));
-vi.mock('@tanstack/react-query', () => ({ useQuery: () => ({ data: [] }) }));
+vi.mock('@tloncorp/shared/store', () => ({
+  useMentionCandidates: () => ({ data: [] }),
+}));
 vi.mock('@tloncorp/ui', () => ({
   HEADER_HEIGHT: 48,
   RawText: 'RawText',
@@ -40,6 +41,7 @@ vi.mock('react-native', () => ({
     },
   },
   Keyboard: { dismiss: mocks.noop },
+  TextInput: 'TextInput',
 }));
 vi.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ bottom: 0, top: 0 }),
@@ -52,7 +54,7 @@ vi.mock('tamagui', () => ({
   getTokenValue: () => 8,
   getVariableValue: (value: unknown) => value,
   useTheme: () => ({ primaryText: '#000', secondaryText: '#999' }),
-  useWindowDimensions: () => ({ height: 800 }),
+  useWindowDimensions: () => ({ height: 800, fontScale: 1 }),
 }));
 vi.mock('../../contexts/attachment', () => ({
   useAttachmentContext: () => ({
@@ -61,6 +63,13 @@ vi.mock('../../contexts/attachment', () => ({
     clearAttachments: mocks.noop,
     resetAttachments: mocks.noop,
     removeAttachment: mocks.noop,
+  }),
+}));
+vi.mock('../../contexts/scroll', () => ({
+  useConversationComposerHeight: () => ({
+    beginSend: mocks.noop,
+    finishSend: mocks.noop,
+    isSendCoordinated: () => false,
   }),
 }));
 vi.mock('../../hooks/useKeyboardHeight', () => ({
