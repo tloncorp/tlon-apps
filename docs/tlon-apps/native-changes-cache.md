@@ -57,8 +57,9 @@ blocking and retryable. Marker read/write failures are logged but do not block
 a healthy database: initialization skips further generation work in that process
 and retries on the next launch. A failed marker write can therefore cause an
 extra rebuild on that next launch. Concurrent initialization shares one operation.
-The marker survives logout and represents a rebuilt database, not a completed
-ship sync.
+The marker is excluded from the storage-item reset registry, so it survives
+both logout and the first-install cleanup that runs after database initialization.
+It represents a rebuilt database, not a completed ship sync.
 
 ## Telemetry
 

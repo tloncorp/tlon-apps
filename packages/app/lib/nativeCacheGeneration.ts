@@ -32,7 +32,9 @@ export function getNativeCacheGeneration(): NativeCacheGeneration | undefined {
   const generation = createStorageItem<number>({
     key: 'nativeLocalCacheGeneration',
     defaultValue: 0,
-    persistAfterLogout: true,
+    // DB initialization precedes InitialStateCheckScreen's first-install clear.
+    // This is DB metadata, not session state: neither cleanup may reset it.
+    registerForReset: false,
   });
   return {
     version: NATIVE_CACHE_GENERATION,
