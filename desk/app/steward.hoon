@@ -39,7 +39,7 @@
       bots=(set ship)
       lens=state:v1:sl
       gateway=state:v1:sg
-      automation=state:pre-delivery:sa
+      automation=state:v0:sa
   ==
 +$  state-2
   $:  %2
@@ -47,7 +47,7 @@
       bots=(set ship)
       lens=state:v1:sl
       gateway=gateway-1
-      automation=state:pre-delivery:sa
+      automation=state:v0:sa
   ==
 +$  versioned-state  $%(state-0 state-1 state-2 state-3 state-4)
 ::  Persisted shapes used only by +on-load migrations. gateway-1 has the
@@ -201,7 +201,7 @@
 ++  state-1-to-2
   |=  old=state-1
   ^-  state-2
-  [%2 owner.old bots.old lens.old gateway.old *state:pre-delivery:sa]
+  [%2 owner.old bots.old lens.old gateway.old *state:v0:sa]
 ++  state-2-to-3
   |=  old=state-2
   ^-  state-3
@@ -215,41 +215,18 @@
   ^-  state-4
   =/  tasks=(map ship tasks:v1:sa)
     %-  ~(run by tasks.automation.old)
-    |=(entry=(map @t task:pre-delivery:sa) (~(run by entry) widen-task))
+    |=(entry=(map @t task:v0:sa) (~(run by entry) widen-task:v1:sa))
   =/  pending=pending:v1:sa
     %-  ~(run by pending.automation.old)
-    |=  pen=pending-command:pre-delivery:sa
+    |=  pen=pending-command:v0:sa
     ^-  pending-command:v1:sa
-    [id.pen requester.pen (widen-edit edit.pen) sent-at.pen]
+    [id.pen requester.pen (widen-edit:v1:sa edit.pen) sent-at.pen]
   :*  %4
       owner.old
       bots.old
       lens.old
       gateway.old
       [tasks requests.automation.old pending]
-  ==
-++  widen-edit
-  |=  old=edit:pre-delivery:sa
-  ^-  edit:v1:sa
-  ?-  -.old
-    %delete  [%delete id.old]
-    %create  [%create (widen-task task.old)]
-    %update  [%update id.old (widen-task task.old)]
-  ==
-++  widen-task
-  |=  t=task:pre-delivery:sa
-  ^-  task:v1:sa
-  :*  agent-id.t
-      name.t
-      description.t
-      enabled.t
-      schedule.t
-      session-target.t
-      wake-mode.t
-      ?~(payload.t ~ `[kind.u.payload.t message.u.payload.t ~])
-      ~
-      created-at.t
-      updated-at.t
   ==
 ::  a %0 bot's gateway registered before the liveness claim existed, and
 ::  heartbeats only advertise on an up transition: seed the claim from the

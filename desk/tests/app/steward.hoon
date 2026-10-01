@@ -26,7 +26,7 @@
       bots=(set ship)
       lens=state:v1:l
       gateway=state:v1:g
-      automation=state:pre-delivery:au
+      automation=state:v0:au
   ==
 +$  state-2
   $:  %2
@@ -34,7 +34,7 @@
       bots=(set ship)
       lens=state:v1:l
       gateway=gateway-1
-      automation=state:pre-delivery:au
+      automation=state:v0:au
   ==
 +$  state-1
   $:  %1
@@ -545,18 +545,18 @@
 ::  the %3 shape of an automation slice: drop .delivery and .tools-allow.
 ::  lossless for a task that has neither, which is what the fixtures build
 ::
-++  as-automation-3
+++  as-v0-automation
   |=  current=state:v1:au
-  ^-  state:pre-delivery:au
+  ^-  state:v0:au
   :+  (~(run by tasks.current) |=(e=tasks:v1:au (~(run by e) narrow-task)))
     requests.current
   %-  ~(run by pending.current)
   |=  pen=pending-command:v1:au
-  ^-  pending-command:pre-delivery:au
+  ^-  pending-command:v0:au
   [id.pen requester.pen (narrow-edit edit.pen) sent-at.pen]
 ++  narrow-edit
   |=  =edit:v1:au
-  ^-  edit:pre-delivery:au
+  ^-  edit:v0:au
   ?-  -.edit
     %delete  [%delete id.edit]
     %create  [%create (narrow-task task.edit)]
@@ -564,7 +564,7 @@
   ==
 ++  narrow-task
   |=  t=task:v1:au
-  ^-  task:pre-delivery:au
+  ^-  task:v0:au
   :*  agent-id.t
       name.t
       description.t
@@ -2091,7 +2091,7 @@
       bots.before
       lens.before
       +.gateway.before
-      (as-automation-3 automation.before)
+      (as-v0-automation automation.before)
   ==
   ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
   ;<  ~  bind:m  (ex-cards caz ~[ex-eyre-connect])
@@ -2115,7 +2115,7 @@
         bots.before
         lens.before
         gateway.before
-        (as-automation-3 automation.before)
+        (as-v0-automation automation.before)
     ==
   ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
   ;<  ~  bind:m  (ex-cards caz ~[ex-eyre-connect])

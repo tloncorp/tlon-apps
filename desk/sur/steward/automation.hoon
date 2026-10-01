@@ -197,12 +197,11 @@
 ::
 +$  action   a-automation
 +$  command  c-automation
-::  +pre-delivery: the task shapes as %steward state %3 stored them,
-::  before .delivery and .tools-allow. the mark version did not change, so
-::  these are not a v0 — they are kept only so +on-load can read a %3 state
-::  and widen it. nothing outside the migration should reference them
+::  +v0: the task shapes as %steward state %3 stored them, before
+::  .delivery and .tools-allow. kept so +on-load can read a %3 state and
+::  widen it; nothing outside the migration should reference them
 ::
-++  pre-delivery
+++  v0
   |%
   +$  task-payload
     $:  kind=(unit @t)
@@ -237,5 +236,32 @@
         pending=(map request-id pending-command)
     ==
   --
+::  +widen-task, +widen-edit: carry a v0 task into the current shape. the
+::  two new fields start empty, since the mirror is derived and the
+::  harness's next projection supplies them
+::
+++  widen-task
+  |=  old=task:v0
+  ^-  task
+  :*  agent-id.old
+      name.old
+      description.old
+      enabled.old
+      schedule.old
+      session-target.old
+      wake-mode.old
+      ?~(payload.old ~ `[kind.u.payload.old message.u.payload.old ~])
+      ~
+      created-at.old
+      updated-at.old
+  ==
+++  widen-edit
+  |=  old=edit:v0
+  ^-  edit
+  ?-  -.old
+    %delete  [%delete id.old]
+    %create  [%create (widen-task task.old)]
+    %update  [%update id.old (widen-task task.old)]
+  ==
 ++  v1  .
 --
