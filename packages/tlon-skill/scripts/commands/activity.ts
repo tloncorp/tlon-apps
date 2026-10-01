@@ -29,7 +29,7 @@ export interface ActivityApi {
 
 export interface ActivityFormatter {
   activityHeader: (bucket: ActivityBucket, count: number) => string;
-  noActivity: (bucket: ActivityBucket, unreadOnly: boolean) => string;
+  noActivity: (bucket: ActivityBucket) => string;
   event: (event: ActivityEvent) => string;
   unreadsHeader: () => string;
   noUnreads: () => string;
@@ -47,13 +47,10 @@ export interface ActivityDeps extends CommandDeps {
 export const ACTIVITY_HELP = `Usage: tlon activity <command>
 
 Commands:
-  mentions [--limit N] [--unread]   Show mention activity
-  replies [--limit N] [--unread]    Show reply activity
-  all [--limit N] [--unread]        Show all activity
-  unreads                           Show unread counts
-
-Options:
-  --unread   Only show posts and replies that are still unread`;
+  mentions [--limit N]   Show mention activity
+  replies [--limit N]    Show reply activity
+  all [--limit N]        Show all activity
+  unreads                Show unread counts`;
 
 const ACTIVITY_BUCKET_COMMANDS = ['mentions', 'replies', 'all'] as const;
 type ActivityBucketCommand = (typeof ACTIVITY_BUCKET_COMMANDS)[number];
@@ -67,12 +64,7 @@ const ACTIVITY_COMMANDS = new Set<string>([
 
 type ParsedActivityArgs =
   | { kind: 'help' }
-  | {
-      kind: 'activity';
-      command: ActivityBucketCommand;
-      limit: number;
-      unreadOnly: boolean;
-    }
+  | { kind: 'activity'; command: ActivityBucketCommand; limit: number }
   | { kind: 'unreads' };
 
 function isActivityBucketCommand(
@@ -108,7 +100,6 @@ function parseArgs(args: string[]): ParsedActivityArgs {
   }
 
   let limit = 10;
-  let unreadOnly = false;
   for (let i = 1; i < args.length; i += 1) {
     const arg = args[i];
 
@@ -130,11 +121,6 @@ function parseArgs(args: string[]): ParsedActivityArgs {
       continue;
     }
 
-    if (arg === '--unread') {
-      unreadOnly = true;
-      continue;
-    }
-
     if (arg.startsWith('-')) {
       throw usageError(`Unknown option: ${arg}`, ACTIVITY_HELP);
     }
@@ -143,42 +129,10 @@ function parseArgs(args: string[]): ParsedActivityArgs {
   }
 
   if (isActivityBucketCommand(command)) {
-    return { kind: 'activity', command, limit, unreadOnly };
+    return { kind: 'activity', command, limit };
   }
 
   return { kind: 'unreads' };
-}
-
-function postIdValue(id: string): bigint | null {
-  const digits = id.replace(/\./g, '');
-  return /^[0-9]+$/.test(digits) ? BigInt(digits) : null;
-}
-
-// %activity keeps one read floor per source, and each unread summary names the
-// first unread post in that source. A post event's source is its channel or
-// DM; a reply's source is its thread. Anything at or after the first unread
-// post is unread. Events other than posts and replies have no unread anchor.
-export function isUnreadEvent(event: ActivityEvent, unreads: ActivityInit): boolean {
-  if (!event.postId || !event.channelId) return false;
-  let firstUnreadPostId: string | null | undefined;
-  if (event.type === 'post') {
-    firstUnreadPostId = unreads.channelUnreads.find(
-      (unread) => unread.channelId === event.channelId
-    )?.firstUnreadPostId;
-  } else if (event.type === 'reply') {
-    firstUnreadPostId = unreads.threadActivity.find(
-      (unread) =>
-        unread.channelId === event.channelId &&
-        unread.threadId === event.parentId
-    )?.firstUnreadPostId;
-  } else {
-    return false;
-  }
-  if (!firstUnreadPostId) return false;
-  const postId = postIdValue(event.postId);
-  const firstUnread = postIdValue(firstUnreadPostId);
-  if (postId === null || firstUnread === null) return false;
-  return postId >= firstUnread;
 }
 
 function hasUnread(summary: BaseUnread | GroupUnread | ChannelUnread): boolean {
@@ -188,21 +142,16 @@ function hasUnread(summary: BaseUnread | GroupUnread | ChannelUnread): boolean {
 async function showActivity(
   bucket: ActivityBucket,
   limit: number,
-  unreadOnly: boolean,
   deps: ActivityDeps
 ): Promise<void> {
-  const [{ events }, unreads] = await Promise.all([
-    deps.activityApi.getInitialActivity(),
-    unreadOnly ? deps.activityApi.getGroupAndChannelUnreads() : null,
-  ]);
+  const { events } = await deps.activityApi.getInitialActivity();
   const bucketEvents = events
     .filter((event) => event.bucketId === bucket)
-    .filter((event) => unreads === null || isUnreadEvent(event, unreads))
     .sort((a, b) => b.timestamp - a.timestamp)
     .slice(0, limit);
 
   if (bucketEvents.length === 0) {
-    writeLine(deps.stdout, deps.format.noActivity(bucket, unreadOnly));
+    writeLine(deps.stdout, deps.format.noActivity(bucket));
     return;
   }
 
@@ -261,12 +210,7 @@ export async function run(args: string[], deps: ActivityDeps): Promise<number> {
     if (parsed.kind === 'unreads') {
       await showUnreads(deps);
     } else {
-      await showActivity(
-        parsed.command,
-        parsed.limit,
-        parsed.unreadOnly,
-        deps
-      );
+      await showActivity(parsed.command, parsed.limit, deps);
     }
 
     return 0;

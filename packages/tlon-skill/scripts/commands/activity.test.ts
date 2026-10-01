@@ -4,7 +4,6 @@ import {
   ACTIVITY_HELP,
   type ActivityDeps,
   type ActivityEvent,
-  type ActivityInit,
   run,
 } from './activity';
 import { commandError } from './command';
@@ -14,7 +13,6 @@ function makeDeps(
     events?: ActivityEvent[];
     getInitialActivity?: ActivityDeps['activityApi']['getInitialActivity'];
     getGroupAndChannelUnreads?: ActivityDeps['activityApi']['getGroupAndChannelUnreads'];
-    unreads?: ActivityInit;
   } = {}
 ) {
   const stdout: string[] = [];
@@ -43,7 +41,6 @@ function makeDeps(
         options.getGroupAndChannelUnreads ??
         (async () => {
           calls.getGroupAndChannelUnreads += 1;
-          if (options.unreads) return options.unreads;
           return {
             baseUnread: {
               id: 'base_unreads',
@@ -76,8 +73,7 @@ function makeDeps(
     },
     format: {
       activityHeader: (bucket, count) => `HEADER:${bucket}:${count}`,
-      noActivity: (bucket, unreadOnly) =>
-        unreadOnly ? `NO_UNREAD_ACTIVITY:${bucket}` : `NO_ACTIVITY:${bucket}`,
+      noActivity: (bucket) => `NO_ACTIVITY:${bucket}`,
       event: (event) => {
         calls.eventFormatter.push(event.id);
         return `EVENT:${event.id}`;
@@ -176,135 +172,6 @@ describe('activity command run', () => {
     expect(context.calls.eventFormatter).toEqual(['new']);
     expect(context.stdout()).toBe('HEADER:mentions:1\nEVENT:new\n\n');
     expect(context.stderr()).toBe('');
-  });
-
-  it('keeps only posts and replies at or after their source\'s first unread', async () => {
-    const unreads: ActivityInit = {
-      baseUnread: undefined,
-      groupUnreads: [],
-      channelUnreads: [
-        {
-          channelId: 'chat/~zod/test',
-          type: 'channel',
-          updatedAt: 1,
-          count: 1,
-          notify: false,
-          countWithoutThreads: 1,
-          firstUnreadPostId: '170.141.184.500',
-        },
-        {
-          channelId: '~bus',
-          type: 'dm',
-          updatedAt: 1,
-          count: 1,
-          notify: false,
-          countWithoutThreads: 1,
-          firstUnreadPostId: '170.141.184.700',
-        },
-        {
-          channelId: 'chat/~zod/quiet',
-          type: 'channel',
-          updatedAt: 1,
-          count: 0,
-          notify: false,
-          countWithoutThreads: 0,
-          firstUnreadPostId: null,
-        },
-      ],
-      threadActivity: [
-        {
-          channelId: 'chat/~zod/test',
-          threadId: '170.141.184.100',
-          updatedAt: 1,
-          count: 1,
-          notify: false,
-          firstUnreadPostId: '170.141.184.600',
-        },
-      ],
-    };
-    const post = (id: string, channelId: string, postId: string, timestamp: number) =>
-      ({
-        id,
-        bucketId: 'mentions',
-        sourceId: `channel/${channelId}`,
-        type: 'post',
-        timestamp,
-        channelId,
-        postId,
-      }) as ActivityEvent;
-    const reply = (id: string, postId: string, timestamp: number) =>
-      ({
-        id,
-        bucketId: 'mentions',
-        sourceId: 'thread/chat/~zod/test/170.141.184.100',
-        type: 'reply',
-        timestamp,
-        channelId: 'chat/~zod/test',
-        parentId: '170.141.184.100',
-        postId,
-      }) as ActivityEvent;
-    const context = makeDeps({
-      unreads,
-      events: [
-        post('read-post', 'chat/~zod/test', '170.141.184.499', 1),
-        post('first-unread', 'chat/~zod/test', '170.141.184.500', 2),
-        post('later-unread', 'chat/~zod/test', '170.141.184.501', 3),
-        post('quiet-channel', 'chat/~zod/quiet', '170.141.184.900', 4),
-        post('untracked-channel', 'chat/~zod/other', '170.141.184.900', 5),
-        reply('read-reply', '170.141.184.599', 6),
-        reply('unread-reply', '170.141.184.600', 7),
-        post('read-dm', '~bus', '170.141.184.699', 8),
-        post('unread-dm', '~bus', '170.141.184.701', 9),
-        {
-          id: 'join',
-          bucketId: 'mentions',
-          sourceId: 'group/~zod/test',
-          type: 'group-join',
-          timestamp: 10,
-        },
-      ],
-    });
-
-    const exitCode = await run(['mentions', '--unread'], context.deps);
-
-    expect(exitCode).toBe(0);
-    expect(context.calls.getGroupAndChannelUnreads).toBe(1);
-    expect(context.calls.eventFormatter).toEqual([
-      'unread-dm',
-      'unread-reply',
-      'later-unread',
-      'first-unread',
-    ]);
-  });
-
-  it('says there is no unread activity when --unread filters everything out', async () => {
-    const context = makeDeps({
-      events: [
-        {
-          id: 'old',
-          bucketId: 'replies',
-          sourceId: 'channel/chat/~zod/elsewhere',
-          type: 'post',
-          timestamp: 1,
-          channelId: 'chat/~zod/elsewhere',
-          postId: '170.141.184.1',
-        } as ActivityEvent,
-      ],
-    });
-
-    const exitCode = await run(['replies', '--unread'], context.deps);
-
-    expect(exitCode).toBe(0);
-    expect(context.calls.eventFormatter).toEqual([]);
-    expect(context.stdout()).toBe('NO_UNREAD_ACTIVITY:replies\n');
-  });
-
-  it('does not fetch unreads without --unread', async () => {
-    const context = makeDeps();
-
-    await run(['mentions'], context.deps);
-
-    expect(context.calls.getGroupAndChannelUnreads).toBe(0);
   });
 
   it('uses the injected unreads API and formatter', async () => {
