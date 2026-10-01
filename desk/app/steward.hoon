@@ -39,7 +39,7 @@
       bots=(set ship)
       lens=state:v1:sl
       gateway=state:v1:sg
-      automation=automation-3
+      automation=state:pre-delivery:sa
   ==
 +$  state-2
   $:  %2
@@ -47,7 +47,7 @@
       bots=(set ship)
       lens=state:v1:sl
       gateway=gateway-1
-      automation=automation-3
+      automation=state:pre-delivery:sa
   ==
 +$  versioned-state  $%(state-0 state-1 state-2 state-3 state-4)
 ::  Persisted shapes used only by +on-load migrations. gateway-1 has the
@@ -59,42 +59,6 @@
       bots=(set ship)
       lens=state:v1:sl
       gateway=gateway-1
-  ==
-::  the automation slice before .delivery and .tools-allow. the mirror is
-::  derived, so a migrated task carries ~ for both until the next
-::  projection from the harness fills them in
-::
-+$  task-payload-3
-  $:  kind=(unit @t)
-      message=(unit @t)
-  ==
-+$  task-3
-  $:  agent-id=(unit @t)
-      name=(unit @t)
-      description=(unit @t)
-      enabled=(unit ?)
-      schedule=(unit cron-schedule:v1:sa)
-      session-target=(unit @t)
-      wake-mode=(unit @t)
-      payload=(unit task-payload-3)
-      created-at=(unit @da)
-      updated-at=(unit @da)
-  ==
-+$  edit-3
-  $%  [%create task=task-3]
-      [%update id=@t task=task-3]
-      [%delete id=@t]
-  ==
-+$  pending-command-3
-  $:  id=request-id:v1:sa
-      requester=ship
-      edit=edit-3
-      sent-at=@da
-  ==
-+$  automation-3
-  $:  tasks=(map ship (map @t task-3))
-      requests=requests:v1:sa
-      pending=(map request-id:v1:sa pending-command-3)
   ==
 +$  state-0
   $:  %0
@@ -237,7 +201,7 @@
 ++  state-1-to-2
   |=  old=state-1
   ^-  state-2
-  [%2 owner.old bots.old lens.old gateway.old *automation-3]
+  [%2 owner.old bots.old lens.old gateway.old *state:pre-delivery:sa]
 ++  state-2-to-3
   |=  old=state-2
   ^-  state-3
@@ -251,10 +215,10 @@
   ^-  state-4
   =/  tasks=(map ship tasks:v1:sa)
     %-  ~(run by tasks.automation.old)
-    |=(entry=(map @t task-3) (~(run by entry) widen-task))
+    |=(entry=(map @t task:pre-delivery:sa) (~(run by entry) widen-task))
   =/  pending=pending:v1:sa
     %-  ~(run by pending.automation.old)
-    |=  pen=pending-command-3
+    |=  pen=pending-command:pre-delivery:sa
     ^-  pending-command:v1:sa
     [id.pen requester.pen (widen-edit edit.pen) sent-at.pen]
   :*  %4
@@ -265,15 +229,15 @@
       [tasks requests.automation.old pending]
   ==
 ++  widen-edit
-  |=  =edit-3
+  |=  old=edit:pre-delivery:sa
   ^-  edit:v1:sa
-  ?-  -.edit-3
-    %delete  [%delete id.edit-3]
-    %create  [%create (widen-task task.edit-3)]
-    %update  [%update id.edit-3 (widen-task task.edit-3)]
+  ?-  -.old
+    %delete  [%delete id.old]
+    %create  [%create (widen-task task.old)]
+    %update  [%update id.old (widen-task task.old)]
   ==
 ++  widen-task
-  |=  t=task-3
+  |=  t=task:pre-delivery:sa
   ^-  task:v1:sa
   :*  agent-id.t
       name.t

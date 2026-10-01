@@ -20,47 +20,13 @@
       gateway=state:v1:g
       automation=state:v1:au
   ==
-::  the %3 shape: tasks without .delivery, payloads without .tools-allow
-::
-+$  task-payload-3
-  $:  kind=(unit @t)
-      message=(unit @t)
-  ==
-+$  task-3
-  $:  agent-id=(unit @t)
-      name=(unit @t)
-      description=(unit @t)
-      enabled=(unit ?)
-      schedule=(unit cron-schedule:v1:au)
-      session-target=(unit @t)
-      wake-mode=(unit @t)
-      payload=(unit task-payload-3)
-      created-at=(unit @da)
-      updated-at=(unit @da)
-  ==
-+$  edit-3
-  $%  [%create task=task-3]
-      [%update id=@t task=task-3]
-      [%delete id=@t]
-  ==
-+$  pending-command-3
-  $:  id=request-id:v1:au
-      requester=ship
-      edit=edit-3
-      sent-at=@da
-  ==
-+$  automation-3
-  $:  tasks=(map ship (map @t task-3))
-      requests=requests:v1:au
-      pending=(map request-id:v1:au pending-command-3)
-  ==
 +$  state-3
   $:  %3
       owner=(unit ship)
       bots=(set ship)
       lens=state:v1:l
       gateway=state:v1:g
-      automation=automation-3
+      automation=state:pre-delivery:au
   ==
 +$  state-2
   $:  %2
@@ -68,7 +34,7 @@
       bots=(set ship)
       lens=state:v1:l
       gateway=gateway-1
-      automation=automation-3
+      automation=state:pre-delivery:au
   ==
 +$  state-1
   $:  %1
@@ -581,16 +547,16 @@
 ::
 ++  as-automation-3
   |=  current=state:v1:au
-  ^-  automation-3
+  ^-  state:pre-delivery:au
   :+  (~(run by tasks.current) |=(e=tasks:v1:au (~(run by e) narrow-task)))
     requests.current
   %-  ~(run by pending.current)
   |=  pen=pending-command:v1:au
-  ^-  pending-command-3
+  ^-  pending-command:pre-delivery:au
   [id.pen requester.pen (narrow-edit edit.pen) sent-at.pen]
 ++  narrow-edit
   |=  =edit:v1:au
-  ^-  edit-3
+  ^-  edit:pre-delivery:au
   ?-  -.edit
     %delete  [%delete id.edit]
     %create  [%create (narrow-task task.edit)]
@@ -598,7 +564,7 @@
   ==
 ++  narrow-task
   |=  t=task:v1:au
-  ^-  task-3
+  ^-  task:pre-delivery:au
   :*  agent-id.t
       name.t
       description.t

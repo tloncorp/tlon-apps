@@ -197,5 +197,45 @@
 ::
 +$  action   a-automation
 +$  command  c-automation
+::  +pre-delivery: the task shapes as %steward state %3 stored them,
+::  before .delivery and .tools-allow. the mark version did not change, so
+::  these are not a v0 — they are kept only so +on-load can read a %3 state
+::  and widen it. nothing outside the migration should reference them
+::
+++  pre-delivery
+  |%
+  +$  task-payload
+    $:  kind=(unit @t)
+        message=(unit @t)
+    ==
+  +$  task
+    $:  agent-id=(unit @t)
+        name=(unit @t)
+        description=(unit @t)
+        enabled=(unit ?)
+        schedule=(unit cron-schedule)
+        session-target=(unit @t)
+        wake-mode=(unit @t)
+        payload=(unit task-payload)
+        created-at=(unit @da)
+        updated-at=(unit @da)
+    ==
+  +$  edit
+    $%  [%create =task]
+        [%update id=@t =task]
+        [%delete id=@t]
+    ==
+  +$  pending-command
+    $:  id=request-id
+        requester=ship
+        =edit
+        sent-at=@da
+    ==
+  +$  state
+    $:  tasks=(map ship (map @t task))
+        requests=requests
+        pending=(map request-id pending-command)
+    ==
+  --
 ++  v1  .
 --
