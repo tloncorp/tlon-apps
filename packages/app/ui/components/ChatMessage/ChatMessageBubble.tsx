@@ -364,7 +364,13 @@ export function ChatMessageBubbleRetry({
   onPressRetry: () => void;
 }) {
   return (
-    <Pressable onPress={onPressRetry} paddingTop="$xs">
+    <Pressable
+      onPress={(e) => {
+        e?.stopPropagation();
+        onPressRetry();
+      }}
+      paddingTop="$xs"
+    >
       <XStack gap="$xs" alignItems="center">
         <Icon type="Redo" size="$s" color="$negativeActionText" />
         <Text size="$label/s" color="$negativeActionText">
