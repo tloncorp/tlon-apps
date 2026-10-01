@@ -5,6 +5,8 @@ import { useMemo } from 'react';
 import { Platform, StatusBar } from 'react-native';
 
 import { InviteUsersScreen } from '../features/InviteUsersScreen';
+import { BrowserCredentialHandoffProvider } from '../features/browser/BrowserCredentialHandoffProvider';
+import { BrowserCredentialHandoffScreen } from '../features/browser/BrowserCredentialHandoffScreen';
 import { ChannelMembersScreen } from '../features/channels/ChannelMembersScreen';
 import { ChannelMetaScreen } from '../features/channels/ChannelMetaScreen';
 import { ChannelTemplateScreen } from '../features/channels/ChannelTemplateScreen';
@@ -74,6 +76,14 @@ const untitledNativeHeaderScreenOptions = {
 } as const;
 
 export function RootStack() {
+  return (
+    <BrowserCredentialHandoffProvider>
+      <RootStackContent />
+    </BrowserCredentialHandoffProvider>
+  );
+}
+
+function RootStackContent() {
   const isDarkMode = useIsDarkMode();
 
   // Android status bar has a solid color by default, so we clear it
@@ -145,9 +155,14 @@ export function RootStack() {
       />
 
       {/* individual screens */}
+      <Root.Screen
+        name="BrowserCredentialHandoff"
+        component={BrowserCredentialHandoffScreen}
+        options={{ presentation: 'modal' }}
+      />
       <Root.Screen name="AddContacts" component={AddContactsScreen} />
       <Root.Screen name="GroupSettings" component={GroupSettingsStack} />
-      <Root.Screen
+      <Root.Screen<'Channel'>
         name="Channel"
         component={ChannelScreen}
         options={({ route }) => {

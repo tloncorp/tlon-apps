@@ -572,6 +572,22 @@
   !>([status.fil2 status.ses2 ~(wyt by entries.bs2) revision.bs2])
   !>([%ready %complete 1 1])
 ::
+::  A bucket or token we do not have is [~ ~], which Eyre serves as a 404.
+::  A bare ~ is a 500, and clients treat only a 404 as absent.
+::
+++  test-missing-bucket-peeks-are-empty
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  bucket=(unit (unit cage))  b
+    (get-peek /x/v1/buckets/~sampel-palnet/no-such-bucket)
+  ;<  token=(unit (unit cage))  b
+    (get-peek /x/v1/buckets/~sampel-palnet/no-such-bucket/read-token)
+  %+  ex-equal  !>([bucket token])
+  !>(`[(unit (unit cage)) (unit (unit cage))]`[[~ ~] [~ ~]])
+::
 ::  One read token covers the whole bucket: it authorizes any ready object in
 ::  it, and nothing outside it. Deletes stay bound to a single object.
 ::

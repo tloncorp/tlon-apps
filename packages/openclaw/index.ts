@@ -10,7 +10,6 @@ import {
   onInternalDiagnosticEvent,
 } from 'openclaw/plugin-sdk/diagnostic-runtime';
 
-import { tlonPlugin } from './src/channel.js';
 import { registerTlonCommands } from './src/commands-registry.js';
 import { publishContextLensEvent } from './src/context-lens-events.js';
 import { registerContextLensRoutes } from './src/context-lens-routes.js';
@@ -39,6 +38,7 @@ import {
 import { notifyDiaryMigrationDiscovery } from './src/diary-migration-discovery.js';
 import { suppressTlonFallbackNotice } from './src/fallback-notice-delivery.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
+import { registerBudgetHoldHooks } from './src/cron-budget-runtime.js';
 import { registerRestartCatchupHooks } from './src/restart-catchup.js';
 import { createMigrateCommandHandler } from './src/migrate-command.js';
 import {
@@ -84,10 +84,12 @@ import {
 import { resolveTlonBinary } from './src/tlon-binary.js';
 import {
   DEFAULT_TLON_CLI_TIMEOUT_MS,
+  runBrowserHandoffCommand,
   runTlonCommand,
 } from './src/tlon-command-runner.js';
 import {
   createTlonToolExecutor,
+  isBrowserHandoffCommand,
   summarizeTlonCommand,
 } from './src/tlon-tool-command.js';
 import { buildTlonToolDiagnosticRecord } from './src/tlon-tool-diagnostics.js';
@@ -914,6 +916,7 @@ export default defineBundledChannelEntry({
       },
     });
     registerRestartCatchupHooks(api);
+    registerBudgetHoldHooks(api);
 
     // Resolve the tlon tool binary once. The tool itself and version
     // diagnostics share this path so telemetry reports what OpenClaw will
@@ -974,9 +977,12 @@ export default defineBundledChannelEntry({
 
     const executeTlonTool = createTlonToolExecutor({
       runCommand: (args) =>
-        runTlonCommand(tlonBinary, args, credentials, {
-          timeoutMs: toolTimeoutMs,
-        }),
+        isBrowserHandoffCommand(args)
+          ? runBrowserHandoffCommand(tlonBinary, args, api.config)
+          : runTlonCommand(tlonBinary, args, credentials, {
+              timeoutMs: toolTimeoutMs,
+              ownerShip: normalizeShip(account.ownerShip ?? '') || undefined,
+            }),
       notifyDiaryMigrationDiscovery: (nest) =>
         notifyDiaryMigrationDiscovery(nest, api.config),
       logError: (message) => api.logger.warn(`[tlon] ${message}`),
@@ -992,7 +998,7 @@ export default defineBundledChannelEntry({
       label: 'Tlon CLI',
       description:
         'Tlon/Urbit API for reading data and administration: activity, channels, contacts, groups, messages, notes, posts, settings, upload, expose, hooks. ' +
-        'DO NOT use this tool to send messages — use the `message` tool instead. ' +
+        'To send ordinary messages, use the `message` tool, not this tool. When a hosted browser reaches a login form, use `browser handoff <signed-viewer-url>` to send the owner the secure native login form. ' +
         '%diary channels are deprecated and unsupported by this CLI tool; ask the owner to type `/migrate <diary-nest>` to move one to %notes. ' +
         'OpenClaw message delivery still accepts diary/ targets, including writable archives. ' +
         'Never use LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]) in note bodies or message text — Tlon renders no math; write math as plain text/Unicode or in code blocks. ' +
@@ -1004,8 +1010,8 @@ export default defineBundledChannelEntry({
           command: {
             type: 'string',
             description:
-              'The tlon command and arguments (read/admin operations). ' +
-              'To send messages, use the `message` tool, not this tool. ' +
+              'The tlon command and arguments (read/admin operations and browser login handoff). ' +
+              'To send ordinary messages, use the `message` tool, not this tool. When a hosted browser reaches a login form, use `browser handoff <signed-viewer-url>` to send the owner the secure native login form. ' +
               'Do not try migration writes through this model tool: ask the owner to type `/migrate <diary-nest>`. ' +
               'The message tool can still send to diary/ targets; migration only renames the source and does not make it read-only. ' +
               "Examples: 'activity mentions --limit 10', 'contacts get ~sampel-palnet', 'groups list', 'messages dm ~ship --limit 20', 'notes list'",

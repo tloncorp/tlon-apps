@@ -15,7 +15,7 @@ import {
   useGroup,
 } from '@tloncorp/shared/store';
 import * as store from '@tloncorp/shared/store';
-import { Text } from '@tloncorp/ui';
+import { Text, useToast } from '@tloncorp/ui';
 import {
   ComponentProps,
   ReactNode,
@@ -29,9 +29,16 @@ import {
   CHAT_IMAGE_MAX_WINDOW_HEIGHT_FRACTION,
   CHAT_REF_LIKE_MAX_WIDTH,
 } from '../../../constants';
+import { canUseBrowserHandoff } from '../../../features/browser/browserHandoffTrust';
+import {
+  BROWSER_HANDOFF_CONTINUATION,
+  getBrowserHandoffContinuationSelection,
+  sendBrowserHandoffContinuation,
+} from '../../../features/browser/browserHandoffContinuation';
 import { useA2UINavigation } from '../../../hooks/useA2UINavigation';
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
 import { AGENT_SHIP_OVERRIDE } from '../../../lib/envVars';
+import { submitCreditIncreaseRequest } from '../../../utils/creditIncreaseRequest';
 import { getPostImageViewerId } from '../../../utils/mediaViewer';
 import type { A2UIActionCompletion } from '../../contexts/componentsKits';
 import AuthorRow from '../AuthorRow';
@@ -145,6 +152,8 @@ export function StaticChatMessage({
   const draftInputContext = useDraftInputContext();
   const navigateToA2UITarget = useA2UINavigation();
   const currentUserId = useCurrentUserId();
+  const showToast = useToast();
+  const creditRequests = db.creditIncreaseRequested.useStorageItem();
   const { data: group } = useGroup({ id: post.groupId ?? '' });
   const groupAgents = db.agentGroupAgents.useValue();
   // A newly delivered post can arrive one render before its denormalized
@@ -214,6 +223,12 @@ export function StaticChatMessage({
       currentUserHostsPostGroup &&
       knownAgent === post.authorId
     );
+  const allowBrowserHandoff = canUseBrowserHandoff({
+    authorId: post.authorId,
+    channelId: post.channelId,
+    currentUserId,
+    canUseAgentProviderControls,
+  });
 
   if (isNotice) {
     showAuthor = false;
@@ -444,11 +459,87 @@ export function StaticChatMessage({
     [draftInputContext, post.groupId]
   );
 
+  const sendA2UIMessage = useCallback(
+    async (
+      text: string,
+      selection?: PostBlobDataEntryA2UISelection,
+      requireReady = false
+    ) => {
+      if (!draftInputContext || draftInputContext.canStartDraft === false) {
+        if (requireReady) {
+          throw new Error('This channel is not ready to send messages');
+        }
+        return;
+      }
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      const send = () =>
+        draftInputContext.sendPostFromDraft({
+          channelId: draftInputContext.channel.id,
+          content: [trimmed],
+          attachments: [],
+          blob: selection ? appendToPostBlob(undefined, selection) : undefined,
+          channelType: draftInputContext.channel.type,
+          replyToPostId: null,
+          isEdit: false,
+        });
+      if (trimmed === BROWSER_HANDOFF_CONTINUATION && selection) {
+        await sendBrowserHandoffContinuation({
+          channelId: post.channelId,
+          authorId: currentUserId,
+          selection,
+          send,
+        });
+      } else {
+        await send();
+      }
+    },
+    [draftInputContext, post.channelId, currentUserId]
+  );
+
   const handleA2UIAction = useCallback(
     async (action: A2UI.Action, selection?: PostBlobDataEntryA2UISelection) => {
+      if (action.event.name === A2UI.action.requestCreditIncrease) {
+        try {
+          await submitCreditIncreaseRequest({
+            ownerShip: currentUserId,
+            botShip: post.authorId,
+            sourcePostId: post.id,
+            requestId: action.event.context.requestId,
+          });
+        } catch (error) {
+          showToast({
+            message: "Couldn't send the request. Please try again.",
+          });
+          throw error;
+        }
+        return;
+      }
       if (action.event.name === A2UI.action.navigate) {
+        const target = action.event.context.target;
         await navigateToA2UITarget(action.event.context.target, {
           allowBotMcpSettings: canUseAgentProviderControls,
+          allowBrowserCredentialHandoff: allowBrowserHandoff,
+          onBrowserCredentialHandoffComplete:
+            target.type === 'screen' &&
+            target.screen === 'browserCredentialHandoff'
+              ? async () => {
+                  const continuation = getBrowserHandoffContinuationSelection(
+                    post,
+                    target.viewerUrl
+                  );
+                  if (!continuation) {
+                    throw new Error(
+                      'The originating browser handoff is no longer available.'
+                    );
+                  }
+                  await sendA2UIMessage(
+                    BROWSER_HANDOFF_CONTINUATION,
+                    continuation,
+                    true
+                  );
+                }
+              : undefined,
         });
         return;
       }
@@ -480,43 +571,34 @@ export function StaticChatMessage({
         return;
       }
 
-      if (!draftInputContext || draftInputContext.canStartDraft === false) {
-        return;
-      }
-
       const text = action.event.context.text.trim();
-      if (!text) {
-        return;
-      }
-
-      await draftInputContext.sendPostFromDraft({
-        channelId: draftInputContext.channel.id,
-        content: [text],
-        attachments: [],
-        blob: selection ? appendToPostBlob(undefined, selection) : undefined,
-        channelType: draftInputContext.channel.type,
-        replyToPostId: null,
-        isEdit: false,
-      });
+      await sendA2UIMessage(text, selection);
     },
     [
       canUseAgentProviderControls,
+      allowBrowserHandoff,
       configureAgentProviders,
-      draftInputContext,
       navigateToA2UITarget,
       sendAgentProvision,
+      sendA2UIMessage,
+      currentUserId,
+      post,
+      showToast,
     ]
   );
 
   const isA2UIActionAvailable = useCallback(
     (action: A2UI.Action) => {
+      if (action.event.name === A2UI.action.requestCreditIncrease) {
+        return !creditRequests.isLoading;
+      }
       if (action.event.name === A2UI.action.navigate) {
         const target = action.event.context.target;
-        return (
-          target.type !== 'screen' ||
-          target.screen !== 'botMcpSettings' ||
-          canUseAgentProviderControls
-        );
+        if (target.type !== 'screen') return true;
+        if (target.screen === 'browserCredentialHandoff') {
+          return allowBrowserHandoff;
+        }
+        return canUseAgentProviderControls;
       }
 
       if (action.event.name === A2UI.action.sendMessage) {
@@ -564,10 +646,12 @@ export function StaticChatMessage({
     [
       a2uiActionCompletion,
       canUseAgentProviderControls,
+      allowBrowserHandoff,
       draftInputContext,
       group,
       post.groupId,
       postIsFromOwnBot,
+      creditRequests.isLoading,
     ]
   );
 
@@ -637,6 +721,11 @@ export function StaticChatMessage({
   );
   const isA2UIActionConsumed = useCallback(
     (action: A2UI.Button['action']) => {
+      if (action.event.name === A2UI.action.requestCreditIncrease) {
+        return Object.values(creditRequests.value).includes(
+          action.event.context.requestId
+        );
+      }
       if (action.event.name === A2UI.action.sendMessage) {
         return isA2UISendMessageActionConsumed(
           action,
@@ -648,7 +737,11 @@ export function StaticChatMessage({
       }
       return false;
     },
-    [a2uiActionCompletion?.sentMessageText, provisionedAgentTopics]
+    [
+      a2uiActionCompletion?.sentMessageText,
+      provisionedAgentTopics,
+      creditRequests.value,
+    ]
   );
   const getConsumedA2UISelection = useCallback(
     (surfaceId: string, componentId: string) =>

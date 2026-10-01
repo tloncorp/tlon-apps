@@ -3,8 +3,8 @@ import type { LinkingOptions, PathConfig } from '@react-navigation/native';
 import {
   DesktopBasePathStackParamList,
   MobileBasePathStackParamList,
-} from './BasePathNavigator';
-import type { RootStackParamList } from './types';
+  RootStackParamList,
+} from './types';
 
 export const getMobileLinkingConfig = (
   mode: string
