@@ -2,6 +2,7 @@ import {
   ChannelContentConfiguration,
   PostContentRendererId,
 } from '@tloncorp/api';
+import { layoutTypeFromChannel } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { resolveThreadUnread } from '@tloncorp/shared/logic';
 import { Icon, Pressable, Text } from '@tloncorp/ui';
@@ -44,14 +45,17 @@ const channelTypesWithBubbles: db.ChannelType[] = ['chat', 'dm', 'groupDm'];
 /**
  * Whether a channel's rows render as bubbles: native only, behind the
  * `chatBubbles` flag under Settings > Experimental features, and only where
- * PostView renders the channel with ChatMessage.
+ * PostView renders the channel with ChatMessage in the compact chat list.
  */
-export function useChatBubbleLayout(
-  channel: Pick<db.Channel, 'type' | 'contentConfiguration'>
-) {
+export function useChatBubbleLayout(channel: db.Channel) {
   const [enabled] = useFeatureFlag('chatBubbles');
   const renderers = useContext(ComponentsKitContext)?.renderers;
-  if (!enabled || isWeb || !channelTypesWithBubbles.includes(channel.type)) {
+  if (
+    !enabled ||
+    isWeb ||
+    !channelTypesWithBubbles.includes(channel.type) ||
+    layoutTypeFromChannel(channel) !== 'compact-list-bottom-to-top'
+  ) {
     return false;
   }
   // As in PostView, a configured renderer the kit knows replaces ChatMessage.

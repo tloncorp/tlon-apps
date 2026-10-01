@@ -1010,6 +1010,7 @@ const BaseScrollerItem = ({
           setViewReactionsPost={setViewReactionsPost}
           onPressBotRun={onPressBotRun}
           showAuthor={showAuthorLive}
+          startsSeries={showAuthorLive}
           showReplies={showReplies}
           onPressReplies={post.isDeleted ? undefined : onPressReplies}
           onPressImage={post.isDeleted ? undefined : onPressImage}

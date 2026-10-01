@@ -117,6 +117,7 @@ export function StaticChatMessage({
   setViewReactionsPost,
   showAuthor,
   showReplies,
+  startsSeries,
   feedbackRow,
 }: {
   authorRowProps?: Partial<ComponentProps<typeof AuthorRow>>;
@@ -137,6 +138,8 @@ export function StaticChatMessage({
   setViewReactionsPost?: (post: db.Post) => void;
   showAuthor?: boolean;
   showReplies?: boolean;
+  /** Bubble layout: starts a run from one sender, even when authors are hidden. */
+  startsSeries?: boolean;
   feedbackRow?: (opts: { inline: boolean }) => ReactNode;
 }) {
   const isNotice = post.type === 'notice';
@@ -683,7 +686,7 @@ export function StaticChatMessage({
 
   if (bubbleLayout && !isNotice && !displayDebugMode) {
     const isOwn = post.authorId === currentUserId;
-    const isFirstInSeries = Boolean(showAuthor);
+    const isFirstInSeries = Boolean(startsSeries ?? showAuthor);
     const segments = segmentBubbleContent(renderedContent);
     const BubbleContentRenderer = isOwn
       ? OwnBubbleChatContentRenderer
@@ -714,7 +717,9 @@ export function StaticChatMessage({
                       post={post}
                       isOwn={isOwn}
                       // 1:1 DMs have only one other sender to name.
-                      showIdentity={!isOwn && !isDmChannelId(post.channelId)}
+                      showIdentity={
+                        !!showAuthor && !isOwn && !isDmChannelId(post.channelId)
+                      }
                       disableProfilePreview={hideProfilePreview}
                       showEditedIndicator={!!post.isEdited}
                     />

@@ -31,6 +31,7 @@ const ChatMessage = ({
   post,
   a2uiActionCompletion,
   showAuthor,
+  startsSeries,
   hideProfilePreview,
   onPressReplies,
   onPressImage,
@@ -51,6 +52,7 @@ const ChatMessage = ({
   post: db.Post;
   a2uiActionCompletion?: A2UIActionCompletion;
   showAuthor?: boolean;
+  startsSeries?: boolean;
   hideProfilePreview?: boolean;
   authorRowProps?: Partial<ComponentProps<typeof AuthorRow>>;
   showReplies?: boolean;
@@ -184,6 +186,7 @@ const ChatMessage = ({
                 setViewReactionsPost,
                 showAuthor,
                 showReplies,
+                startsSeries,
                 feedbackRow: showBotFeedback
                   ? ({ inline }: { inline: boolean }) => (
                       <BotFeedbackRow
@@ -234,6 +237,7 @@ export default memo(ChatMessage, (prev, next) => {
   const areOtherPropsEqual =
     prev.isHighlighted === next.isHighlighted &&
     prev.showAuthor === next.showAuthor &&
+    prev.startsSeries === next.startsSeries &&
     prev.showReplies === next.showReplies &&
     prev.onPressReplies === next.onPressReplies &&
     prev.onPressImage === next.onPressImage &&
