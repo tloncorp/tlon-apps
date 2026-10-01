@@ -67,7 +67,7 @@ interface Config extends Pick<ClientParams, 'onQuitOrReset'> {
   lastStatus: string;
   activitySupportsReactions: boolean;
   activitySupportsNotes: boolean;
-  deskSupportsBuckets: boolean;
+  deskSupportsBuckets: boolean | null;
 }
 
 type Predicate = (event: any, mark: string) => boolean;
@@ -101,6 +101,19 @@ export class BadResponseError extends Error {
     const detail = body.trim();
     super(detail ? `${prefix}: ${detail}` : prefix);
     this.name = 'BadResponseError';
+  }
+}
+
+// A registry request refused before it was sent, because the connected desk
+// predates the capability the request is guarded by.
+export class DeskUnsupportedError extends Error {
+  constructor(
+    public request: string,
+    public since: string,
+    public guard: string
+  ) {
+    super(`${request} needs desk ${since} (${guard} is off)`);
+    this.name = 'DeskUnsupportedError';
   }
 }
 
@@ -172,10 +185,11 @@ const config: Config = {
   // Off until the app confirms the backend's groups version ships notes
   // activity (v10 %activity endpoints).
   activitySupportsNotes: false,
-  // Off until the app confirms the backend's groups version serves /v11/init.
-  // Defaults false so a ship whose version we cannot read is asked for /v10,
-  // which every backend has — a 404 here costs the whole init.
-  deskSupportsBuckets: false,
+  // Unknown (null) until the app confirms the backend's groups version.
+  // Unknown reads as unsupported for picking /v10 vs /v11 init, so a ship
+  // whose version we cannot read is asked for /v10, which every backend has —
+  // a 404 there costs the whole init. Guarded requests refuse only false.
+  deskSupportsBuckets: null,
 };
 
 type ClientResolver = () => Urbit | null | undefined;
@@ -258,15 +272,36 @@ export const getActivitySupportsNotes = (): boolean => {
   return config.activitySupportsNotes;
 };
 
+const deskSupportsBucketsListeners = new Set<() => void>();
+
 // Whether the connected backend serves /v11/init (Buckets and their writer
 // roles). No capabilities epoch to bump: this picks one path at init time
-// rather than steering live subscriptions.
-export const setDeskSupportsBuckets = (value: boolean) => {
+// rather than steering live subscriptions. Views gated on it listen below.
+export const setDeskSupportsBuckets = (value: boolean | null) => {
+  const changed = config.deskSupportsBuckets !== value;
   config.deskSupportsBuckets = value;
+  if (changed) {
+    deskSupportsBucketsListeners.forEach((listener) => listener());
+  }
 };
 
 export const getDeskSupportsBuckets = (): boolean => {
+  return config.deskSupportsBuckets === true;
+};
+
+// null until sync start resolves the capability; the request guard refuses
+// only a known false.
+export const getDeskSupportsBucketsState = (): boolean | null => {
   return config.deskSupportsBuckets;
+};
+
+export const onDeskSupportsBucketsChange = (
+  listener: () => void
+): (() => void) => {
+  deskSupportsBucketsListeners.add(listener);
+  return () => {
+    deskSupportsBucketsListeners.delete(listener);
+  };
 };
 
 export const client = new Proxy(
@@ -434,9 +469,12 @@ export function internalRemoveClient() {
   config.subWatchers = {};
   // backend capabilities belong to the ship we were connected to; reset
   // so an account switch to an older backend doesn't request newer
-  // endpoints until app-info sync resolves the new ship's version
+  // endpoints until app-info sync resolves the new ship's version. The
+  // buckets capability goes back to unknown, not unsupported: the next
+  // login's guarded requests go out until the probe says otherwise.
   setActivitySupportsReactions(false);
   setActivitySupportsNotes(false);
+  setDeskSupportsBuckets(null);
 }
 
 function printEndpoint(endpoint: UrbitEndpoint) {
@@ -535,7 +573,11 @@ async function reauthOnce(sent: SendContext) {
 
 export async function subscribe<T>(
   endpoint: UrbitEndpoint,
-  handler: (update: T, id?: number) => void
+  handler: (update: T, id?: number) => void,
+  // Hears a watch the ship rejects after this has resolved, once the retries
+  // below have given up on it. This resolves when the channel PUT lands, so a
+  // nack arriving later on the event stream has no promise left to reject.
+  onRejected?: (error: unknown) => void
 ): Promise<number> {
   // the account this is for. As in poke, the send and any retry go to it,
   // never to an account that replaced it mid-flight
@@ -616,7 +658,7 @@ export async function subscribe<T>(
         sent,
         `subscribe ${printEndpoint(endpoint)}`
       );
-      return doSub(retry);
+      return doSub(onWatchError);
     }
     if (!(err instanceof AuthError)) {
       throw err;
@@ -625,11 +667,18 @@ export async function subscribe<T>(
     await reauthOnce(sent);
     // keep the err handler wired so the re-established subscription can
     // recover from a later auth death the same way the initial one does
-    return doSub(retry);
+    return doSub(onWatchError);
+  };
+
+  const onWatchError = (error: any) => {
+    const retried = retry(error);
+    if (onRejected) {
+      retried.catch(onRejected);
+    }
   };
 
   try {
-    return await doSub(retry);
+    return await doSub(onWatchError);
   } catch (err) {
     return retry(err);
   }

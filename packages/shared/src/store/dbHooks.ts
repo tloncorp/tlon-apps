@@ -8,7 +8,7 @@ import { getMessagesFilter } from '@tloncorp/api';
 import { referenceLookupId } from '@tloncorp/api/client/references';
 import * as ub from '@tloncorp/api/urbit';
 import { isMatch, pick } from 'lodash';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
 
 import * as db from '../db';
 import { GroupedChats } from '../db/types';
@@ -83,24 +83,6 @@ export const useCurrentChats = (
     },
     queryKey: ['currentChats', useKeyFromQueryDeps(db.getChats)],
     ...queryConfig,
-  });
-};
-
-// Probe %buckets once so channel creation only offers the type when the desk
-// is installed on the current ship.
-export const useBucketsDeskAvailable = () => {
-  return useQuery({
-    queryKey: ['bucketsDeskAvailable'],
-    queryFn: async () => {
-      try {
-        await api.getBucketsReady();
-        return true;
-      } catch (e) {
-        return false;
-      }
-    },
-    retry: false,
-    staleTime: 60_000,
   });
 };
 
@@ -258,6 +240,24 @@ export const useContacts = () => {
   return useQuery({
     queryKey: ['contacts', deps],
     queryFn: () => db.getContacts(),
+  });
+};
+
+export const useMentionCandidates = ({
+  chatId,
+  query,
+  enabled,
+}: {
+  chatId: string;
+  query: string;
+  enabled?: boolean;
+}) => {
+  const deps = useKeyFromQueryDeps(db.getMentionCandidates);
+  return useQuery({
+    queryKey: ['mentionCandidates', deps, chatId, query],
+    queryFn: () => db.getMentionCandidates({ chatId, query }),
+    placeholderData: (previousData) => previousData ?? [],
+    enabled,
   });
 };
 
@@ -789,6 +789,36 @@ export const useChannelSearchResults = (
     queryKey: [['channelSearchResults', channelId, postIds], deps],
     queryFn: () => db.getChannelSearchResults({ channelId, postIds }),
   });
+};
+
+/**
+ * Whether this ship runs %buckets, for gating the views that talk to it.
+ *
+ * A group's channel list comes from its host, so a 12.3-hosted group lists
+ * its Buckets to members whose own ship is still on 12.2.x. Everything a
+ * Bucket view does goes through the local %buckets agent, which those ships
+ * do not have.
+ *
+ * The client capability wins once sync start has resolved it from the
+ * version it fetched, and it stands even when persisting that version failed.
+ * Before then it is null, and the stored app info is the only answer: gating
+ * on the capability alone would tell a 12.3 ship it needs an update.
+ * Undefined while the capability is unresolved and the stored value has not
+ * been read, so a gate can wait instead of flashing the unsupported state.
+ */
+export const useDeskSupportsBuckets = (): boolean | undefined => {
+  const clientSupports = useSyncExternalStore(
+    api.onDeskSupportsBucketsChange,
+    api.getDeskSupportsBucketsState
+  );
+  const { value: appInfo, isLoading } = db.appInfo.useStorageItem();
+  if (clientSupports !== null) {
+    return clientSupports;
+  }
+  if (isLoading) {
+    return undefined;
+  }
+  return logic.deskVersionSupportsBuckets(appInfo?.groupsVersion);
 };
 
 /**

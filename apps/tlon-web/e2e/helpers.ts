@@ -1003,7 +1003,7 @@ export async function createDiaryChannel(page: Page, title: string) {
  * path, but the unencoded form is matched too so this doesn't silently capture
  * just the host.
  */
-function groupIdFromUrl(page: Page) {
+export function groupIdFromUrl(page: Page) {
   const match = page.url().match(/\/group\/(~[a-z-]+(?:%2F|\/)[^/?#]+)/i);
   if (!match) {
     throw new Error(`No group id in URL: ${page.url()}`);
@@ -2326,6 +2326,19 @@ export async function createDirectMessage(page: Page, contactId: string) {
 }
 
 /**
+ * Confirms the "Leave <channel>?" dialog that leaving a chat or channel opens
+ */
+export async function confirmLeaveChannel(page: Page) {
+  await expect(
+    page
+      .getByRole('dialog')
+      .getByText('You will no longer receive updates from this channel.')
+  ).toBeVisible({ timeout: 5000 });
+  await page.getByRole('dialog').getByText('Leave', { exact: true }).click();
+  await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 5000 });
+}
+
+/**
  * Leaves a direct message
  */
 export async function leaveDM(page: Page, contactId: string) {
@@ -2338,19 +2351,7 @@ export async function leaveDM(page: Page, contactId: string) {
   await page.getByTestId('ChannelOptionsSheetTrigger').first().click();
   await page.waitForTimeout(500);
   await page.getByTestId('ActionSheetAction-Leave chat').click();
-
-  // Wait for the confirmation dialog to appear
-  await expect(
-    page
-      .getByRole('dialog')
-      .getByText('You will no longer receive updates from this channel.')
-  ).toBeVisible({ timeout: 5000 });
-
-  // Click the Leave button in the confirmation dialog
-  await page.getByRole('dialog').getByText('Leave', { exact: true }).click();
-
-  // Wait for dialog to close first
-  await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 5000 });
+  await confirmLeaveChannel(page);
 
   // Then wait for channel to be removed from list with longer timeout for cross-ship sync
   await expect(

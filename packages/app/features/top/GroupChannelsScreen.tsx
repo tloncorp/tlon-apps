@@ -98,6 +98,15 @@ export function GroupChannelsScreenContent({
   const handleJoinChannel = useCallback(
     async (channel: db.Channel) => {
       if (navigationDisabled) return;
+      // A Bucket's membership comes from %buckets, not %channels, so there is
+      // nothing to join here: one listed as unjoined is one %buckets has not
+      // reported, which on a ship without it is every Bucket. A %channels join
+      // for it fails and rolls back, so the tap did nothing. Open it instead
+      // and let its renderer say whether this ship can use it.
+      if (channel.type === 'buckets') {
+        handleChannelSelected(channel);
+        return;
+      }
       try {
         await store.joinGroupChannel({
           channelId: channel.id,
@@ -107,7 +116,7 @@ export function GroupChannelsScreenContent({
         console.error('Failed to join channel:', error);
       }
     },
-    [id, navigationDisabled]
+    [handleChannelSelected, id, navigationDisabled]
   );
 
   const handlePressInvite = useCallback(

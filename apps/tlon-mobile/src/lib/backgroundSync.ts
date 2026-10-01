@@ -1,5 +1,5 @@
 import { configureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
-import { ensureDbReady } from '@tloncorp/app/lib/nativeDb';
+import { ensureDbReadyForBackgroundSync } from '@tloncorp/app/lib/nativeDb';
 import { discoverContactsAndNotify } from '@tloncorp/app/lib/notifications';
 import {
   SyncPriority,
@@ -18,7 +18,12 @@ import { refreshHostingAuth } from './hostingAuth';
 const logger = createDevLogger('backgroundSync', true);
 
 async function performSync(): Promise<BackgroundTask.BackgroundTaskResult> {
-  await ensureDbReady();
+  if (!(await ensureDbReadyForBackgroundSync())) {
+    logger.trackEvent('Skipping background sync', {
+      context: 'cache recovery requires foreground',
+    });
+    return BackgroundTask.BackgroundTaskResult.Success;
+  }
   const taskExecutionId = uuidv4();
   logger.trackEvent('Initiating background sync', { taskExecutionId });
   const timings: Record<string, number> = {

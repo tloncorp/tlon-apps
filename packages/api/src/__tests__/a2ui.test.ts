@@ -62,6 +62,65 @@ describe('a2ui blob entries', () => {
     ).toBe(false);
   });
 
+  test('validates native credit requests and their completion label', () => {
+    const entry = structuredClone(a2uiBlobEntry);
+    const button = A2UI.getUpdateMessage(
+      entry
+    )?.updateComponents.components.find(
+      (component) => component.component === 'Button'
+    );
+    if (!button || button.component !== 'Button')
+      throw new Error('missing button');
+    button.action = {
+      event: {
+        name: A2UI.action.requestCreditIncrease,
+        context: { requestId: '697e119d-26da-4df7-a131-89f8a816a7dd' },
+      },
+    };
+    button.consumedLabel = 'Credit Increase Requested';
+    expect(A2UI.validateBlobEntry(entry)).toBe(true);
+    button.action = {
+      event: {
+        name: A2UI.action.requestCreditIncrease,
+        context: { requestId: 'invalid' },
+      },
+    };
+    expect(A2UI.validateBlobEntry(entry)).toBe(false);
+  });
+
+  test('rejects credit requests in Choice options while preserving message choices', () => {
+    const entry = structuredClone(a2uiBlobEntry);
+    const update = A2UI.getUpdateMessage(entry)!.updateComponents;
+    update.root = 'choice';
+    const option = {
+      id: 'request',
+      label: 'Request credit increase',
+      action: {
+        event: {
+          name: 'tlon.requestCreditIncrease',
+          context: { requestId: '697e119d-26da-4df7-a131-89f8a816a7dd' },
+        },
+      },
+    };
+    const choice = { id: 'choice', component: 'Choice', options: [option] };
+    const payload = {
+      ...entry,
+      messages: [
+        entry.messages[0],
+        {
+          version: 'v0.9',
+          updateComponents: { ...update, components: [choice] },
+        },
+      ],
+    };
+    expect(A2UI.validateBlobEntry(payload)).toBe(false);
+    Object.assign(option.action.event, {
+      name: 'tlon.sendMessage',
+      context: { text: 'refresh weather' },
+    });
+    expect(A2UI.validateBlobEntry(payload)).toBe(true);
+  });
+
   test('finds the create message past unrelated primitive messages', () => {
     const entry = {
       ...a2uiBlobEntry,

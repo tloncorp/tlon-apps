@@ -67,13 +67,14 @@ function smallChoiceShortcut(index: number) {
 function isConsumableA2UIAction(action: A2UI.ButtonAction) {
   return (
     action.event.name === A2UI.action.sendMessage ||
+    action.event.name === A2UI.action.requestCreditIncrease ||
     action.event.name === A2UI.action.provisionAgent
   );
 }
 
 /**
  * The durable record an owner-response action leaves on the post it creates.
- * Undefined for client-local actions (navigation), which are never consumed.
+ * Undefined for actions without a chat response; those use their own state.
  */
 function buildActionSelection(
   sourcePostId: string | undefined,
@@ -703,6 +704,9 @@ function hasButtonChild(
 }
 
 function getButtonTreatment(component: A2UI.Button) {
+  if (component.action.event.name === A2UI.action.requestCreditIncrease) {
+    return { fill: 'solid', intent: 'primary' } as const;
+  }
   switch (component.variant) {
     case 'primary':
       return { fill: 'solid', intent: 'positive' } as const;
@@ -1206,16 +1210,17 @@ export function A2UIBlock({
               Boolean(getConsumedA2UISelection?.(surfaceId, component.id)) ||
               isA2UIActionConsumed?.(component.action) === true);
           const disabled =
+            pendingButtonIds.includes(component.id) ||
             actionConsumed ||
             pendingButtonIds.includes(component.id) ||
             consumptionPending ||
             component.disabled ||
             !onA2UIAction ||
             isA2UIActionAvailable?.(component.action) === false;
-          const label = getComponentText(
-            components.get(component.child),
-            components
-          );
+          const label =
+            actionConsumed && component.consumedLabel
+              ? component.consumedLabel
+              : getComponentText(components.get(component.child), components);
           const treatment = getButtonTreatment(component);
           const visibleLabel =
             component.action.event.name === A2UI.action.provisionAgent
@@ -1235,9 +1240,12 @@ export function A2UIBlock({
                 options.parentAlign === 'center' ? 'center' : 'flex-start'
               }
               marginTop={
-                options.standaloneControlTopMargin
-                  ? CHOICE_CONTROL_OUTER_MARGIN
-                  : undefined
+                component.action.event.name ===
+                A2UI.action.requestCreditIncrease
+                  ? 24
+                  : options.standaloneControlTopMargin
+                    ? CHOICE_CONTROL_OUTER_MARGIN
+                    : undefined
               }
               height={44}
               paddingHorizontal="$xl"
