@@ -1,6 +1,7 @@
 import { getBotUserIdForUser } from '@tloncorp/api';
+import * as db from '@tloncorp/shared/db';
 import { ConfirmDialog } from '@tloncorp/ui';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
 import type {
@@ -116,6 +117,71 @@ export function useBotSettingsSectionModels(
     [queries.providerConfig.keys]
   );
 
+  // The card's values arrive over several requests. Until they have all
+  // landed it shows what it showed last time, so they don't pop in one by one.
+  const summary = db.botSettingsSummary.useValue();
+  const remembered = summary?.ship === queries.ship ? summary : null;
+  const connectionsSettled =
+    queries.providerConfigQuery.isFetched &&
+    queries.oauthStatusQuery.isFetched &&
+    queries.readyQuery.isFetched &&
+    !queries.llmAuthStatusQuery.isLoading;
+
+  const liveModelsValue =
+    draft.model.model ||
+    (draft.model.provider ? providerLabel(draft.model.provider) : undefined);
+  const liveConnectionsValue = useMemo(() => {
+    const parts = [
+      connectedSubscriptionCount > 0
+        ? countLabel(connectedSubscriptionCount, 'subscription')
+        : null,
+      apiKeyCount > 0 ? countLabel(apiKeyCount, 'API key') : null,
+      connectedServicesCount > 0
+        ? countLabel(connectedServicesCount, 'service')
+        : null,
+    ].filter((part): part is string => part !== null);
+    return parts.length > 0 ? parts.join(', ') : 'None';
+  }, [apiKeyCount, connectedServicesCount, connectedSubscriptionCount]);
+
+  const modelsValue = settingsReady ? liveModelsValue : remembered?.models;
+  const connectionsValue = connectionsSettled
+    ? liveConnectionsValue
+    : (remembered?.connections ?? 'Checking…');
+
+  // Remember applied values only: a pending model edit isn't the bot's model.
+  const modelEditPending = pending.modelProvider || pending.model;
+  useEffect(() => {
+    if (
+      !queries.ship ||
+      !settingsReady ||
+      !connectionsSettled ||
+      modelEditPending
+    ) {
+      return;
+    }
+    const next = {
+      ship: queries.ship,
+      models: liveModelsValue ?? null,
+      connections: liveConnectionsValue,
+    };
+    if (
+      summary?.ship === next.ship &&
+      summary.models === next.models &&
+      summary.connections === next.connections
+    ) {
+      return;
+    }
+    db.botSettingsSummary.setValue(next);
+  }, [
+    connectionsSettled,
+    liveConnectionsValue,
+    liveModelsValue,
+    modelEditPending,
+    queries.ship,
+    settingsReady,
+    summary,
+  ]);
+
   const renderBotAvatar = useCallback(
     ({ size }: { size: number }) => (
       <BotAvatar
@@ -181,21 +247,6 @@ export function useBotSettingsSectionModels(
     }
 
     const subscriptionsLoading = queries.llmAuthStatusQuery.isLoading;
-    const connectionParts = [
-      connectedSubscriptionCount > 0
-        ? countLabel(connectedSubscriptionCount, 'subscription')
-        : null,
-      apiKeyCount > 0 ? countLabel(apiKeyCount, 'API key') : null,
-      connectedServicesCount > 0
-        ? countLabel(connectedServicesCount, 'service')
-        : null,
-    ].filter((part): part is string => part !== null);
-    const connectionsValue =
-      connectionParts.length > 0
-        ? connectionParts.join(', ')
-        : subscriptionsLoading
-          ? 'Checking…'
-          : 'None';
 
     return {
       overview: [
@@ -208,26 +259,26 @@ export function useBotSettingsSectionModels(
           rows: [
             {
               key: 'bot-identity',
-              title: draft.nickname || 'Tlonbot',
+              // The bot's contact is on hand before its settings are.
+              title:
+                draft.nickname ||
+                (settingsReady ? undefined : botContact?.nickname) ||
+                'Tlonbot',
               subtitle: 'Bot profile',
               leading: { kind: 'element', render: renderBotAvatar },
               prominent: true,
               pending: pending.nickname,
               // The bot's own row edits its name, the way your profile row
-              // opens your profile.
-              onPress: controlsReadOnly
-                ? undefined
-                : () => navigate('BotIdentitySettings'),
+              // opens your profile. It opens while settings load, too: the
+              // screen holds its own field until they are ready, and a row
+              // that gained its chevron later would read as popping in.
+              onPress: () => navigate('BotIdentitySettings'),
               testID: 'BotIdentityRow',
             },
             {
               key: 'models',
               title: 'Models',
-              value:
-                draft.model.model ||
-                (draft.model.provider
-                  ? providerLabel(draft.model.provider)
-                  : undefined),
+              value: modelsValue ?? undefined,
               pending:
                 pending.modelProvider ||
                 pending.model ||
@@ -253,7 +304,6 @@ export function useBotSettingsSectionModels(
                 pending.defaultAuthorizedShips ||
                 pending.groupInviteAllowlist ||
                 pending.channelRules,
-              disabled: controlsReadOnly,
               onPress: () => navigate('BotPermissionsSettings'),
             },
           ],
@@ -309,16 +359,19 @@ export function useBotSettingsSectionModels(
   }, [
     apiKeyCount,
     applying,
+    botContact?.nickname,
     renderBotAvatar,
     commitDraft,
     connectedServicesCount,
     connectedSubscriptionCount,
+    connectionsValue,
     controlsReadOnly,
     draft.model.fallbacks.length,
     draft.model.model,
     draft.model.provider,
     draft.model.zdr,
     draft.nickname,
+    modelsValue,
     navigate,
     pending,
     queries.botReady,
