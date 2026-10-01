@@ -19,6 +19,10 @@ TEMP_DIR=$(mktemp -d)
 # second ship would otherwise be looked up in the wrong place.
 START_DIR="$(pwd)"
 URBIT_BINARY="${URBIT_BINARY:-$SCRIPT_DIR/dist/urbit_extracted/urbit}"
+case "$URBIT_BINARY" in
+    /*) ;;
+    *) URBIT_BINARY="$(pwd)/$URBIT_BINARY" ;;
+esac
 
 # Colors for output
 RED='\033[0;31m'
@@ -90,8 +94,7 @@ check_prerequisites() {
         print_info "Downloading urbit binary..."
         
         # Use the same logic from rube to download urbit
-        cd "$SCRIPT_DIR"
-        pnpm rube --help >/dev/null 2>&1 || true
+        (cd "$SCRIPT_DIR" && pnpm rube --help >/dev/null 2>&1) || true
         
         if [ ! -f "$URBIT_BINARY" ]; then
             print_error "Failed to download urbit binary"
@@ -152,8 +155,9 @@ download_archive() {
     
     # Extract archive
     print_info "Extracting $archive_name..."
-    cd "$TEMP_DIR"
-    if ! tar -xzf "$archive_name"; then
+    # -C instead of cd: the script never changes directory, so relative
+    # candidate paths and a relative URBIT_BINARY keep resolving correctly.
+    if ! tar -xzf "$archive_path" -C "$TEMP_DIR"; then
         print_error "Failed to extract $archive_name"
         return 1
     fi
