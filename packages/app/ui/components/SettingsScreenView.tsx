@@ -87,9 +87,9 @@ export function SettingsScreenView(props: Props) {
 }
 
 /**
- * Settings in untitled groups: your bot first, then you, your account and app
- * preferences together, then help and app details, with logging out on its own
- * at the end.
+ * Settings in untitled groups: you on your own, then your bot with its
+ * options, then every other option in one list, with logging out on its own at
+ * the end.
  */
 function useSettingsSections(
   props: Props,
@@ -115,9 +115,9 @@ function useSettingsSections(
       ]);
     };
 
-    const accountRows: SettingsRowModel[] = [];
+    const profileRows: SettingsRowModel[] = [];
     if (props.onProfilePressed) {
-      accountRows.push({
+      profileRows.push({
         key: 'profile',
         // Your name leads, the way the account row does in platform settings.
         title: profileName || 'Your profile',
@@ -138,6 +138,7 @@ function useSettingsSections(
         testID: 'SettingsProfileRow',
       });
     }
+    const accountRows: SettingsRowModel[] = [];
     if (props.onContactsPressed) {
       accountRows.push({
         key: 'contacts',
@@ -241,10 +242,13 @@ function useSettingsSections(
     }
 
     const sections: SettingsSectionModel[] = [
+      { key: 'profile', rows: profileRows },
       ...(botSections ?? []),
       { key: 'bot-link', rows: botLinkRows },
-      { key: 'account', rows: [...accountRows, ...preferenceRows] },
-      { key: 'about', rows: aboutRows },
+      {
+        key: 'options',
+        rows: [...accountRows, ...preferenceRows, ...aboutRows],
+      },
     ];
     if (!isWeb) {
       sections.push({
