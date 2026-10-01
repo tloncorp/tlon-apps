@@ -28,6 +28,11 @@ export function useNativeHeaderSearch(search: SettingsListSearch | undefined) {
         placeholder,
         placement: 'stacked',
         hideWhenScrolling: false,
+        // The SwiftUI form doesn't follow the layout change when iOS hides the
+        // title to search, and leaves its rows under the field; results show in
+        // the list itself, so it needn't dim either.
+        hideNavigationBar: false,
+        obscureBackground: false,
         autoCapitalize: 'none',
         onChangeText: (event) =>
           onChangeTextRef.current?.(event.nativeEvent.text),
