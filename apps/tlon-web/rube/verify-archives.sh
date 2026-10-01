@@ -14,6 +14,10 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 MANIFEST_FILE="$PROJECT_ROOT/apps/tlon-web/e2e/shipManifest.json"
 TEMP_DIR=$(mktemp -d)
+# Candidate paths are resolved against the directory the script was started
+# in: extraction below cd's into TEMP_DIR, so a relative path given for the
+# second ship would otherwise be looked up in the wrong place.
+START_DIR="$(pwd)"
 URBIT_BINARY="${URBIT_BINARY:-$SCRIPT_DIR/dist/urbit_extracted/urbit}"
 
 # Colors for output
@@ -106,7 +110,12 @@ archive_source() {
     if [ ${#CANDIDATES[@]} -gt 0 ]; then
         for candidate in "${CANDIDATES[@]}"; do
             if [ "${candidate%%=*}" = "$ship" ]; then
-                echo "${candidate#*=}"
+                local source="${candidate#*=}"
+                case "$source" in
+                    http://*|https://*|/*) ;;
+                    *) source="$START_DIR/$source" ;;
+                esac
+                echo "$source"
                 return 0
             fi
         done
