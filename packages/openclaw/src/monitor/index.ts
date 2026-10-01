@@ -183,6 +183,7 @@ import {
   isAgentTimeoutEvent,
   resolveCompactionObservationTimeoutMs,
   resolveDispatchTimeoutMs,
+  resolveTimeoutOverrideReplyOptions,
 } from './dispatch-timeouts.js';
 import { dmReactionReplyParentId } from './dm-reactions.js';
 import {
@@ -3455,7 +3456,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       > = {
         abortSignal: dispatchAbortController.signal,
         ...(sourceReplyDeliveryMode ? { sourceReplyDeliveryMode } : {}),
-        timeoutOverrideSeconds: Math.ceil(dispatchTimeoutMs / 1000),
+        ...resolveTimeoutOverrideReplyOptions(dispatchTimeoutMs),
         runId,
         onCompactionStart: compactionTimeoutObserver.start,
         onCompactionEnd: compactionTimeoutObserver.complete,
@@ -3506,7 +3507,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           contextLenses.setStatus(lens.lensId, 'dispatching');
           contextLenses.recordLifecycle(lens.lensId, {
             dispatchStartedAt: Date.now(),
-            timeoutMs: dispatchTimeoutMs,
+            timeoutMs: dispatchTimeoutMs ?? null,
           });
           bindContextLensToSession(lensSessionKeys, contextLenses, lens.lensId);
           logContextLens(lens.lensId, 'dispatching');
@@ -3558,7 +3559,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                             isError: payload.isError === true,
                             timedOut: dispatchTimedOut,
                             durationMs: Date.now() - dispatchStartTime,
-                            timeoutMs: dispatchTimeoutMs,
+                            timeoutMs: dispatchTimeoutMs ?? null,
                           });
                           if (!replyText && !blob) {
                             const hasMedia = Array.isArray(payload.mediaUrls)
