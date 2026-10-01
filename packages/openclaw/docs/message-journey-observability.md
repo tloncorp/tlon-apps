@@ -53,6 +53,11 @@ Ship attributes use canonical `~ship` form. Dispatch events use the actual
 outbound target kind (`dm`, `group_channel`, or `notebook`), which can differ
 from the turn's inbound destination.
 
+For notebooks, dispatch observation covers `createNote`; setup reads and later
+note-ID recovery are outside that boundary. Older Notes hosts that acknowledge
+the write without a note ID emit `moon_reply_enqueued` without an
+`output_message_id`, even if a later lookup recovers the ID.
+
 For DMs, the plugin and backend share the canonical `author/timestamp` message
 ID. For channel posts and replies, the host assigns the stored ID after the
 send. The plugin does not receive that ID from the poke acknowledgement.

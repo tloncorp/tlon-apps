@@ -109,7 +109,8 @@
   =/  echo=echo:l  ~[`tank`body]
   =/  event=log-event:l  [%tell %info echo]
   =/  data=log-data:l
-    :~  `(pair @t json)`['tlon.message_journey.schema_version' [%n '1']]
+    :~  `(pair @t json)`['src' [%s (scot %p local)]]
+        'tlon.message_journey.schema_version'^[%n '1']
         'tlon.message_journey.event'^s+stage
         'tlon.message_journey.message_id'^s+message-id
         id-key^s+message-id
@@ -129,7 +130,8 @@
   =/  echo=echo:l  ~[`tank`body]
   =/  event=log-event:l  [%tell %info echo]
   =/  data=log-data:l
-    :~  `(pair @t json)`['tlon.message_journey.schema_version' [%n '1']]
+    :~  `(pair @t json)`['src' [%s (scot %p local)]]
+        'tlon.message_journey.schema_version'^[%n '1']
         'tlon.message_journey.event'^s+stage
         'tlon.message_journey.message_id'^s+message-id
         'tlon.message_journey.output_message_id'^s+message-id
@@ -151,6 +153,34 @@
   ;<  *  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%configure owner]))
   (pure:m ~)
+::
+++  check-schema-version
+  |=  [version=@t valid=?]
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =/  claim=@t
+    (rap 3 '{"v":' version ',"harness":"openclaw","version":"0.25.0"}' ~)
+  =/  con=contact:co  (malt [%bot-info [%text claim]] ~)
+  ;<  ~  bind:m  (setup owner (scry-owner-contact `con))
+  =/  =id:c  [owner when]
+  ;<  caz=(list card)  bind:m  (do-agent (make-fact owner bot owner id))
+  ?.  valid  (ex-cards caz ~)
+  (ex-cards caz ~[(ex-card (expected owner 'owner_message_sent' id owner bot))])
+::
+++  test-decimal-schema-version
+  (check-schema-version '1.0' &)
+::
+++  test-exponent-schema-version
+  (check-schema-version '1e0' &)
+::
+++  test-scaled-schema-version
+  (check-schema-version '10e-1' &)
+::
+++  test-fractional-schema-version
+  (check-schema-version '1.1' |)
+::
+++  test-string-schema-version
+  (check-schema-version '"1"' |)
 ::
 ++  test-owner-input-for-openclaw-bot
   %-  eval-mare
@@ -303,6 +333,31 @@
     [%j @ %sein @ @ ~]  `!>(owner)
   ==
 ::
+++  scry-without-journey-lookups
+  |=  =path
+  ^-  (unit vase)
+  ?+  path  ~
+    [%gu @ %activity @ %$ ~]  `!>(&)
+  ==
+::
+++  test-unrelated-dm-skips-sponsor-and-contact-scries
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =/  local=ship  ~zod
+  ;<  ~  bind:m  (setup local scry-without-journey-lookups)
+  ;<  caz=(list card)  bind:m
+    (do-agent (make-fact local bot local [local when]))
+  (ex-cards caz ~)
+::
+++  test-unrelated-channel-skips-sponsor-and-contact-scries
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =/  local=ship  ~zod
+  ;<  ~  bind:m  (setup local scry-without-journey-lookups)
+  ;<  caz=(list card)  bind:m
+    (do-agent (make-channel-post-fact local ~bus bot when %chat 0))
+  (ex-cards caz ~)
+::
 ++  test-unavailable-contacts-does-not-crash-observers
   %-  eval-mare
   =/  m  (mare ,~)
@@ -361,10 +416,11 @@
     (do-agent (make-fact owner bot owner [owner when]))
   (ex-cards caz ~)
 ::
-++  test-group-edits-emit-nothing
+++  test-group-edits-do-not-read-contacts
   %-  eval-mare
   =/  m  (mare ,~)
   ;<  ~  bind:m  (setup owner (scry-owner-contact `bot-contact))
+  ;<  ~  bind:m  (set-scry-gate |=(=path *(unit vase)))
   ;<  post-cards=(list card)  bind:m
     (do-agent (make-channel-post-fact owner owner bot when %chat 1))
   ;<  ~  bind:m  (ex-cards post-cards ~)

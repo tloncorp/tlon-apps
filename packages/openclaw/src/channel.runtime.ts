@@ -156,10 +156,12 @@ function notesBody(markdown: string): string {
 }
 
 async function sendNotesEntry({
+  account,
   fromShip,
   nest,
   text,
 }: {
+  account: ConfiguredTlonAccount;
   fromShip: string;
   nest: string;
   text: string;
@@ -170,12 +172,29 @@ async function sendNotesEntry({
     (await notes.listNotes(nest)).map((note) => note.noteId)
   );
   const createStartedAt = Date.now();
-  const created = await notes.createNote({
-    flag: nest,
-    folder: notebook.rootFolderId,
-    title,
-    body: notesBody(text),
-  });
+  const body = notesBody(text);
+  const { created } = await observeActiveTlonTurnDelivery(
+    async () => {
+      const created = await notes.createNote({
+        flag: nest,
+        folder: notebook.rootFolderId,
+        title,
+        body,
+      });
+      return {
+        created,
+        messageId:
+          created?.id === undefined
+            ? undefined
+            : notesDeliveryMessageId(fromShip, created.id),
+      };
+    },
+    {
+      accountId: account.accountId,
+      destinationKind: 'notebook',
+      ship: fromShip,
+    }
+  );
   let noteId = created?.id;
   if (noteId === undefined) {
     // Compatibility with older Notes hosts whose successful write envelope
@@ -292,7 +311,7 @@ async function sendNotesEntryWithLens({
   text: string;
 }) {
   const target = resolveOutboundLensTarget(account, fromShip, nest);
-  const result = await sendNotesEntry({ fromShip, nest, text });
+  const result = await sendNotesEntry({ account, fromShip, nest, text });
   recordOutboundLensDelivery(target, {
     messageId: result.messageId,
     conversationId: nest,
@@ -338,7 +357,11 @@ const coreTlonRuntimeOutbound: Pick<
                 replyToId: replyId,
                 botProfile,
               }),
-            { destinationKind: 'dm' }
+            {
+              accountId: account.accountId,
+              destinationKind: 'dm',
+              ship: fromShip,
+            }
           );
           recordOutboundLensDelivery(target, {
             messageId: result.messageId,
@@ -350,16 +373,12 @@ const coreTlonRuntimeOutbound: Pick<
           return result;
         }
         if (parsed.kind === 'notebook') {
-          return await observeActiveTlonTurnDelivery(
-            () =>
-              sendNotesEntryWithLens({
-                account,
-                fromShip,
-                nest: parsed.nest,
-                text,
-              }),
-            { destinationKind: 'notebook' }
-          );
+          return await sendNotesEntryWithLens({
+            account,
+            fromShip,
+            nest: parsed.nest,
+            text,
+          });
         }
         const target = resolveOutboundLensTarget(
           account,
@@ -377,7 +396,11 @@ const coreTlonRuntimeOutbound: Pick<
               replyToId: replyId,
               botProfile,
             }),
-          { destinationKind: 'group_channel' }
+          {
+            accountId: account.accountId,
+            destinationKind: 'group_channel',
+            ship: fromShip,
+          }
         );
         recordOutboundLensDelivery(target, {
           messageId: result.messageId,
@@ -431,7 +454,11 @@ const coreTlonRuntimeOutbound: Pick<
                 replyToId: replyId,
                 botProfile,
               }),
-            { destinationKind: 'dm' }
+            {
+              accountId: account.accountId,
+              destinationKind: 'dm',
+              ship: fromShip,
+            }
           );
           recordOutboundLensDelivery(target, {
             messageId: result.messageId,
@@ -443,16 +470,12 @@ const coreTlonRuntimeOutbound: Pick<
           return result;
         }
         if (parsed.kind === 'notebook') {
-          return await observeActiveTlonTurnDelivery(
-            () =>
-              sendNotesEntryWithLens({
-                account,
-                fromShip,
-                nest: parsed.nest,
-                text: buildMediaText(text, media?.url),
-              }),
-            { destinationKind: 'notebook' }
-          );
+          return await sendNotesEntryWithLens({
+            account,
+            fromShip,
+            nest: parsed.nest,
+            text: buildMediaText(text, media?.url),
+          });
         }
         const target = resolveOutboundLensTarget(
           account,
@@ -469,7 +492,11 @@ const coreTlonRuntimeOutbound: Pick<
               replyToId: replyId,
               botProfile,
             }),
-          { destinationKind: 'group_channel' }
+          {
+            accountId: account.accountId,
+            destinationKind: 'group_channel',
+            ship: fromShip,
+          }
         );
         recordOutboundLensDelivery(target, {
           messageId: result.messageId,

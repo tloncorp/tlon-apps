@@ -2,12 +2,12 @@ import { metrics } from '@opentelemetry/api';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createSubsystemLogger } from 'openclaw/plugin-sdk/runtime-env';
 
-import { sharedMap } from './shared-state.js';
 import {
   type MessageJourneyLoggerLike,
   type TlonMessageJourneyDestinationKind,
   recordTlonMessageJourneyEvent,
 } from './message-journey.js';
+import { sharedMap } from './shared-state.js';
 
 export type TlonAgentTurnExecution =
   | 'completed'
@@ -134,9 +134,9 @@ type TlonAgentTurnState = TlonAgentTurnStart & {
   finalErrorReplyCount: number;
   finalNonErrorReplyCount: number;
   finalized: boolean;
+  observer: TlonAgentTurnObserver;
   lastToolError: { toolName: string; message: string } | null;
   outputCount: number;
-  observer: TlonAgentTurnObserver;
   sourceReplyCount: number;
   summary: TlonAgentTurnSummary | null;
   toolCallCount: number;
@@ -382,8 +382,8 @@ function buildSummary(
     durationMs: Math.max(0, terminal.durationMs),
     execution,
     finalErrorReplyCount: state.finalErrorReplyCount,
-    lastToolError: state.lastToolError,
     inputMessageId: state.inputMessageId,
+    lastToolError: state.lastToolError,
     reason: resolveReason({
       delivery,
       execution,
@@ -566,9 +566,9 @@ export function startTlonAgentTurn(
     finalErrorReplyCount: 0,
     finalNonErrorReplyCount: 0,
     finalized: false,
+    observer,
     lastToolError: null,
     outputCount: 0,
-    observer,
     sourceReplyCount: 0,
     summary: null,
     toolCallCount: 0,
@@ -668,26 +668,14 @@ export function recordActiveTlonTurnDelivery(success: boolean): void {
   });
 }
 
-export function claimActiveTlonTurnOutput(): {
-  runId: string | null;
-  outputIndex: number;
-  traceId: string | null;
-} {
-  const state = turnStorage.getStore();
-  if (!state || state.finalized) {
-    return { runId: null, outputIndex: 0, traceId: null };
-  }
-  const outputIndex = state.outputCount;
-  state.outputCount += 1;
-  return {
-    runId: state.runId,
-    outputIndex,
-    traceId: traceIdsByRunId.get(state.runId) ?? null,
-  };
-}
+type ActiveTlonTurnDeliveryOptions = {
+  accountId?: string;
+  destinationKind?: TlonMessageJourneyDestinationKind;
+  ship?: string;
+};
 
 function activeDispatchAttempt(
-  destinationKind?: TlonMessageJourneyDestinationKind
+  options?: ActiveTlonTurnDeliveryOptions
 ): TlonAgentTurnDispatchAttempt | null {
   const state = turnStorage.getStore();
   if (!state || state.finalized) {
@@ -695,14 +683,14 @@ function activeDispatchAttempt(
   }
   state.dispatchAttemptCount += 1;
   const event: TlonAgentTurnDispatchAttempt = {
-    accountId: state.accountId,
+    accountId: options?.accountId ?? state.accountId,
     agentId: state.agentId,
     attemptNumber: state.dispatchAttemptCount,
-    destinationKind: destinationKind ?? state.destinationKind,
+    destinationKind: options?.destinationKind ?? state.destinationKind,
     inputMessageId: state.inputMessageId,
     runId: state.runId,
     sessionKey: state.sessionKey,
-    ship: state.ship,
+    ship: options?.ship ? normalizeShip(options.ship) : state.ship,
     trigger: state.trigger,
   };
   safeObserve(() => state.observer.recordDispatchAttempted?.(event));
@@ -758,11 +746,29 @@ function extractOutputMessageId(result: unknown): string | undefined {
   return typeof messageId === 'string' && messageId ? messageId : undefined;
 }
 
+export function claimActiveTlonTurnOutput(): {
+  runId: string | null;
+  outputIndex: number;
+  traceId: string | null;
+} {
+  const state = turnStorage.getStore();
+  if (!state || state.finalized) {
+    return { runId: null, outputIndex: 0, traceId: null };
+  }
+  const outputIndex = state.outputCount;
+  state.outputCount += 1;
+  return {
+    runId: state.runId,
+    outputIndex,
+    traceId: traceIdsByRunId.get(state.runId) ?? null,
+  };
+}
+
 export async function observeActiveTlonTurnDelivery<T>(
   delivery: () => Promise<T>,
-  options?: { destinationKind?: TlonMessageJourneyDestinationKind }
+  options?: ActiveTlonTurnDeliveryOptions
 ): Promise<T> {
-  const attempt = activeDispatchAttempt(options?.destinationKind);
+  const attempt = activeDispatchAttempt(options);
   try {
     const result = await delivery();
     activeDispatchOutcome({

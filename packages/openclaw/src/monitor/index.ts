@@ -122,7 +122,12 @@ import {
 import { ssrfPolicyFromAllowPrivateNetwork } from '../urbit/context.js';
 import { describeError } from '../urbit/errors.js';
 import type { DmInvite, Foreigns } from '../urbit/foreigns.js';
-import { type BotProfile, sendChannelPost, sendDm } from '../urbit/send.js';
+import {
+  type BotProfile,
+  formatSentAt,
+  sendChannelPost,
+  sendDm,
+} from '../urbit/send.js';
 import { UrbitSSEClient } from '../urbit/sse-client.js';
 import { markdownToStory } from '../urbit/story.js';
 import {
@@ -212,6 +217,7 @@ import {
   lookupOrFetchCachedChannelMessage,
   renderHistoryContent,
 } from './history.js';
+import { prepareChannelSummary } from './channel-summary.js';
 import {
   downloadBlobAttachments,
   downloadMessageImages,
@@ -2526,15 +2532,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         isThreadReply,
         messageContent,
       } = params;
-      recordTlonMessageJourneyEvent({
-        botShip: botShipName,
-        destinationKind: isGroup ? 'group_channel' : 'dm',
-        inputMessageId: messageId,
-        ownerShip: effectiveOwnerShip,
-        peerShip: senderShip,
-        stage: 'plugin_input_selected',
-        trigger: params.trigger ?? 'unknown',
-      });
       // replyParentId overrides parentId for the deliver callback (thread reply routing)
       // but doesn't affect the ctx payload (MessageThreadId/ReplyToId).
       // Used for reactions: agent sees no thread context (so it responds), but
@@ -2575,6 +2572,15 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       const trigger: ContextLensTrigger = isChannelSummaryRequest
         ? 'summarization'
         : (params.trigger ?? 'unknown');
+      recordTlonMessageJourneyEvent({
+        botShip: botShipName,
+        destinationKind: isGroup ? 'group_channel' : 'dm',
+        inputMessageId: messageId,
+        ownerShip: effectiveOwnerShip,
+        peerShip: senderShip,
+        stage: 'plugin_input_selected',
+        trigger,
+      });
       const citedContent = sanitizeMessageText(params.citedContent ?? '');
       let messageText = citedContent
         ? `${citedContent}\n\n${currentMessageText}`
@@ -2673,6 +2679,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         }
       }
       logContextLens(lens.lensId, 'created');
+      const preparationStartTime = Date.now();
+      const runId = randomUUID();
+      const turnRecorder = startTlonAgentTurn({
+        accountId: account.accountId,
+        agentId: route.agentId,
+        destinationKind: isGroup ? 'group_channel' : 'dm',
+        inputMessageId: messageId,
+        runId,
+        sessionKey: route.sessionKey,
+        ship: botShipName,
+        trigger,
+      });
 
       // Track owner interaction timestamp for the nudge scheduler.
       // The shadows update synchronously; the durable %settings writes happen
@@ -2970,130 +2988,47 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
 
       if (isChannelSummaryRequest && groupChannel) {
-        try {
-          const history = await getChannelHistory(
-            api,
-            groupChannel,
-            50,
-            runtime
-          );
-          contextLenses.recordContext(lens.lensId, {
-            channelMessages: history.length,
-          });
-          contextLenses.recordContextSource(lens.lensId, {
-            kind: 'message',
-            label: 'Channel summary history',
-            sourceId: groupChannel,
-            included: history.length > 0,
-            reason:
-              history.length > 0
-                ? `${history.length} messages for summarization`
-                : 'empty history',
-          });
-          if (history.length === 0) {
-            const noHistoryMsg =
-              "I couldn't fetch any messages for this channel. It might be empty or there might be a permissions issue.";
-            const contextLensBlob = buildContextLensReferenceBlobField(
-              lens.lensId
-            );
-            let outputMessageId: string | null = null;
-            if (isGroup && groupChannel) {
-              const result = await sendChannelPost({
-                botProfile: getBotProfile(),
-                fromShip: botShipName,
-                nest: groupChannel,
-                story: markdownToStory(noHistoryMsg),
-                replyToId: deliverParentId ?? undefined,
-                blob: contextLensBlob,
-              });
-              outputMessageId = result.messageId;
-            } else {
-              const result = await sendDm({
-                botProfile: getBotProfile(),
-                fromShip: botShipName,
-                toShip: senderShip,
-                text: noHistoryMsg,
-                blob: contextLensBlob,
-              });
-              outputMessageId = result.messageId;
-            }
-            contextLenses.recordPersistence(lens.lensId, { postsReply: true });
-            if (outputMessageId) {
-              contextLenses.recordOutput(lens.lensId, {
-                messageId: outputMessageId,
-                conversationId: isGroup ? (groupChannel ?? '') : senderShip,
-                kind: isGroup ? 'channel' : 'dm',
-                sentAt: Date.now(),
-                preview: previewText(noHistoryMsg),
-                chunkIndex: 0,
-              });
-            }
-            contextLenses.recordPersistenceEvent(lens.lensId, {
-              kind: 'conversation_state',
-              action: 'created',
-              location: 'urbit',
-              status: 'ok',
-              key: 'reply',
-              reason: 'posted no-history summary response',
-            });
-            contextLenses.recordLifecycle(lens.lensId, {
-              completedAt: Date.now(),
-              durationMs: Date.now() - lens.createdAt,
-              deliveredMessageCount: 1,
-            });
-            contextLenses.setStatus(lens.lensId, 'completed');
-            logContextLens(lens.lensId, 'final');
-            return;
-          }
-
-          const historyText = history
-            .map(
-              (msg) =>
-                `[${new Date(msg.timestamp).toLocaleString()}] ${msg.author}: ${sanitizeMessageText(renderHistoryContent(msg))}`
-            )
-            .join('\n');
-
-          messageText =
-            `Please summarize this channel conversation (${history.length} recent messages):\n\n${historyText}\n\n` +
-            'Provide a concise summary highlighting:\n' +
-            '1. Main topics discussed\n' +
-            '2. Key decisions or conclusions\n' +
-            '3. Action items if any\n' +
-            '4. Notable participants';
-        } catch (error: any) {
-          const errorMsg = `Sorry, I encountered an error while fetching the channel history: ${error?.message ?? String(error)}`;
-          const contextLensBlob = buildContextLensReferenceBlobField(
-            lens.lensId
-          );
-          let outputMessageId: string | null = null;
-          if (isGroup && groupChannel) {
-            const result = await sendChannelPost({
+        const preparation = await prepareChannelSummary({
+          dispatchFallback: (fallback) =>
+            sendChannelPost({
               botProfile: getBotProfile(),
               fromShip: botShipName,
               nest: groupChannel,
-              story: markdownToStory(errorMsg),
+              story: markdownToStory(fallback.text),
               replyToId: deliverParentId ?? undefined,
-              blob: contextLensBlob,
+              blob: buildContextLensReferenceBlobField(lens.lensId),
+            }),
+          dispatchStartTime: preparationStartTime,
+          loadHistory: () => getChannelHistory(api, groupChannel, 50, runtime),
+          onHistory: (history) => {
+            contextLenses.recordContext(lens.lensId, {
+              channelMessages: history.length,
             });
-            outputMessageId = result.messageId;
-          } else {
-            const result = await sendDm({
-              botProfile: getBotProfile(),
-              fromShip: botShipName,
-              toShip: senderShip,
-              text: errorMsg,
-              blob: contextLensBlob,
+            contextLenses.recordContextSource(lens.lensId, {
+              kind: 'message',
+              label: 'Channel summary history',
+              sourceId: groupChannel,
+              included: history.length > 0,
+              reason:
+                history.length > 0
+                  ? `${history.length} messages for summarization`
+                  : 'empty history',
             });
-            outputMessageId = result.messageId;
-          }
+          },
+          turnRecorder,
+        });
+
+        if (preparation.kind === 'fallback') {
+          const directReply = preparation.fallback;
+          const outputMessageId = preparation.dispatchResult.messageId;
           contextLenses.recordPersistence(lens.lensId, { postsReply: true });
           if (outputMessageId) {
             contextLenses.recordOutput(lens.lensId, {
               messageId: outputMessageId,
-              conversationId: isGroup ? (groupChannel ?? '') : senderShip,
-              kind: isGroup ? 'channel' : 'dm',
+              conversationId: groupChannel,
+              kind: 'channel',
               sentAt: Date.now(),
-              preview: previewText(errorMsg),
+              preview: previewText(directReply.text),
               chunkIndex: 0,
             });
           }
@@ -3103,7 +3038,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             location: 'urbit',
             status: 'ok',
             key: 'reply',
-            reason: 'posted summary error response',
+            reason: directReply.reason,
           });
           contextLenses.recordLifecycle(lens.lensId, {
             completedAt: Date.now(),
@@ -3114,6 +3049,21 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           logContextLens(lens.lensId, 'final');
           return;
         }
+
+        const historyText = preparation.history
+          .map(
+            (msg) =>
+              `[${new Date(msg.timestamp).toLocaleString()}] ${msg.author}: ${sanitizeMessageText(renderHistoryContent(msg))}`
+          )
+          .join('\n');
+
+        messageText =
+          `Please summarize this channel conversation (${preparation.history.length} recent messages):\n\n${historyText}\n\n` +
+          'Provide a concise summary highlighting:\n' +
+          '1. Main topics discussed\n' +
+          '2. Key decisions or conclusions\n' +
+          '3. Action items if any\n' +
+          '4. Notable participants';
       }
 
       // Warn if multiple users share a DM session (insecure dmScope configuration)
@@ -3156,6 +3106,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         senders.add(senderShip);
       }
 
+      const dispatchStartTime = Date.now();
       const senderRole = isOwner(senderShip) ? 'owner' : 'user';
       if (senderRole === 'owner') {
         const currentLens = contextLenses.get(lens.lensId);
@@ -3329,21 +3280,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               )
           : undefined;
 
-      const dispatchStartTime = Date.now();
       const dispatchTimeoutMs = resolveDispatchTimeoutMs(account.lifecycle);
       const compactionObservationTimeoutMs =
         resolveCompactionObservationTimeoutMs(cfg);
-      const runId = randomUUID();
-      const turnRecorder = startTlonAgentTurn({
-        accountId: account.accountId,
-        agentId: route.agentId,
-        destinationKind: isGroup ? 'group_channel' : 'dm',
-        inputMessageId: messageId,
-        runId,
-        sessionKey: route.sessionKey,
-        ship: botShipName,
-        trigger,
-      });
       const replyTelemetry = telemetry?.startReply({
         sessionKey: route.sessionKey,
         runId,
@@ -4910,7 +4849,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           dmReplyOwnId = dmReply.id ?? dmReply.delta?.add?.id;
           // If no explicit reply ID, construct from author/sent (same format as our outbound)
           if (!dmReplyOwnId && dmReplyEssay?.author && dmReplyEssay?.sent) {
-            dmReplyOwnId = `${normalizeShip(extractAuthorShip(dmReplyEssay.author))}/${dmReplyEssay.sent}`;
+            dmReplyOwnId = `${normalizeShip(extractAuthorShip(dmReplyEssay.author))}/${formatSentAt(dmReplyEssay.sent)}`;
           }
         }
 

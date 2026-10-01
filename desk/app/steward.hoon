@@ -10,10 +10,12 @@
 ::    (sur/steward/{lens,gateway,automation}.hoon) and mark families;
 ::    %steward-action-1 carries only cross-cutting config (the shared owner).
 ::
-/-  s=steward, a=activity, av=activity-ver, cv=chat-ver, st=story, c=chat, co=contacts, ch=channels, chv=channels-ver
+/-  s=steward, a=activity, av=activity-ver, c=chat, ch=channels, co=contacts
+/-  cv=chat-ver, chv=channels-ver, st=story
 /-  sl=steward-lens, sg=steward-gateway, sa=steward-automation
 /-  lg=logs
-/+  default-agent, verb, dbug, server, logs, utils=channel-utils, aj=steward-automation-json
+/+  default-agent, verb, dbug, server, logs, utils=channel-utils
+/+  aj=steward-automation-json
 |%
 +$  card  card:agent:gall
 ::  state is versioned; +on-load migrates older shapes forward.
@@ -94,21 +96,13 @@
   ++  on-init
     ^-  (quip card _this)
     =.  max-runs-per-bot.lens.state  default-max-runs-per-bot
-    [[watch-activity:cor watch-journey-chat:cor watch-journey-channels:cor au-init-cards:au-core:cor] this]
+    [(weld init-subs:cor au-init-cards:au-core:cor) this]
   ++  on-save  !>(state)
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
     =^  cards  state  abet:(load:cor vase)
-    =.  cards
-      ?:  (~(has by wex.bowl) [/journey/chat our.bowl %chat])
-        cards
-      [watch-journey-chat:cor cards]
-    =.  cards
-      ?:  (~(has by wex.bowl) [/journey/channels our.bowl %channels])
-        cards
-      [watch-journey-channels:cor cards]
-    [cards this]
+    [(weld init-subs:cor cards) this]
   ++  on-poke
     |=  [=mark =vase]
     ^-  (quip card _this)
@@ -480,6 +474,17 @@
 ++  watch-journey-channels
   ^-  card
   [%pass /journey/channels %agent [our.bowl %channels] %watch /v4]
+::
+++  init-subs
+  ^-  (list card)
+  =/  subs=(list card)  ~
+  =?  subs  !(~(has by wex.bowl) [/activity our.bowl %activity])
+    [watch-activity subs]
+  =?  subs  !(~(has by wex.bowl) [/journey/chat our.bowl %chat])
+    [watch-journey-chat subs]
+  =?  subs  !(~(has by wex.bowl) [/journey/channels our.bowl %channels])
+    [watch-journey-channels subs]
+  (flop subs)
 ::  |jo-core: content-free backend journey telemetry for OpenClaw messages
 ::
 ::  this module is deliberately stateless. a DM or group post is eligible only
@@ -491,13 +496,15 @@
   ++  jo-contact
     |=  who=ship
     ^-  (unit contact:co)
-    ?.  .^(? %gu /(scot %p our.bowl)/contacts/(scot %da now.bowl)/$)
+    =/  base=path  /(scot %p our.bowl)/contacts/(scot %da now.bowl)
+    ?.  .^(? %gu (weld base /$))
       ~
     ?:  =(who our.bowl)
-      `.^(contact:co %gx /(scot %p our.bowl)/contacts/(scot %da now.bowl)/v1/self/contact-1)
-    ?.  .^(? %gu /(scot %p our.bowl)/contacts/(scot %da now.bowl)/v1/contact/(scot %p who))
+      `.^(contact:co %gx (weld base /v1/self/contact-1))
+    =/  peer=path  (weld base /v1/contact/(scot %p who))
+    ?.  .^(? %gu peer)
       ~
-    `.^(contact:co %gx /(scot %p our.bowl)/contacts/(scot %da now.bowl)/v1/contact/(scot %p who)/contact-1)
+    `.^(contact:co %gx (weld peer /contact-1))
   ::
   ++  jo-valid-text
     |=  jon=(unit json)
@@ -520,7 +527,8 @@
     ?~  jon=(de:json:html p.u.info)  |
     ?.  ?=([%o *] u.jon)  |
     ?~  schema-version=(~(get by p.u.jon) 'v')  |
-    ?.  =([%n '1'] u.schema-version)  |
+    ?.  ?=([%n *] u.schema-version)  |
+    ?.  =(.~1 (ne:dejs:format u.schema-version))  |
     ?~  harness=(~(get by p.u.jon) 'harness')  |
     ?.  ?=([%s *] u.harness)  |
     ?.  (jo-valid-text harness)  |
@@ -611,7 +619,7 @@
     =/  author=author:c  author.u.msg
     =/  author-ship=ship  (get-author-ship:utils author)
     =/  peer-is-child=?
-      =(our.bowl (sein:title our.bowl now.bowl peer))
+      (moon:title our.bowl peer)
     =/  peer-is-owner=?
       ?~  owner.state  |
       =(peer u.owner.state)
@@ -634,17 +642,22 @@
     ^+  cor
     ?~  msg=(jo-channel-message response)  cor
     =/  bot=ship  author.u.msg
-    =/  owner=ship  (sein:title our.bowl now.bowl bot)
     =/  host=ship  ship.nest.u.msg
-    ?.  ?|(=(our.bowl host) =(our.bowl owner))  cor
-    ?.  (jo-is-openclaw bot)  cor
-    =.  cor
-      ?:  =(our.bowl host)
+    ?:  =(our.bowl host)
+      ?.  (jo-is-openclaw bot)  cor
+      =/  owner=ship
+        ?:  ?=(%earl (clan:title bot))
+          (end 5 bot)
+        (sein:title our.bowl now.bowl bot)
+      =.  cor
         (jo-log 'group_host_message_received' id.u.msg owner bot 'group_channel')
+      ?:  =(our.bowl owner)
+        (jo-log 'owner_group_message_received' id.u.msg owner bot 'group_channel')
       cor
-    ?:  =(our.bowl owner)
-      (jo-log 'owner_group_message_received' id.u.msg owner bot 'group_channel')
-    cor
+    ?.  (moon:title our.bowl bot)
+      cor
+    ?.  (jo-is-openclaw bot)  cor
+    (jo-log 'owner_group_message_received' id.u.msg our.bowl bot 'group_channel')
   --
 ::  |le-core: lens module
 ::

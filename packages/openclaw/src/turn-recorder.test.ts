@@ -399,8 +399,8 @@ describe('Tlon agent turn classification', () => {
       durationMs: 1250,
       execution: 'completed',
       finalErrorReplyCount: 0,
-      lastToolError: null,
       inputMessageId: '~nec/111',
+      lastToolError: null,
       reason: 'reply_and_action',
       result: 'reply_and_action',
       runId: 'run-1',
@@ -641,6 +641,35 @@ describe('Tlon agent turn async scope', () => {
         errorKind: 'TypeError',
         inputMessageId: '~nec/111',
         runId: 'run-2',
+      })
+    );
+  });
+
+  it('attributes a cross-account dispatch to the outbound account and ship', async () => {
+    const recordDispatchAttempted = vi.fn();
+    const observer: TlonAgentTurnObserver = {
+      recordDispatchAttempted,
+      recordStarted: () => undefined,
+      recordTerminal: () => undefined,
+    };
+    const turn = startTlonAgentTurn(baseTurn, { observer });
+
+    await turn.run(() =>
+      observeActiveTlonTurnDelivery(
+        async () => ({ messageId: '~marzod/222' }),
+        {
+          accountId: 'secondary',
+          destinationKind: 'group_channel',
+          ship: '~marzod',
+        }
+      )
+    );
+
+    expect(recordDispatchAttempted).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        accountId: 'secondary',
+        destinationKind: 'group_channel',
+        ship: 'marzod',
       })
     );
   });
