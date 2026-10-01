@@ -1,72 +1,74 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
-import {
-  getSettingsListHeaderColor,
-  settingsListPageColor,
-} from '../../ui/components/SettingsList';
-import { ScreenHeader, SettingsContentScrollView, TextInput } from '../../ui';
+import { SettingsListScreenView } from '../../ui/components/SettingsList';
 import {
   BotSettingsApplyBar,
   useBotSettingsHub,
 } from './bot/BotSettingsSections';
-import { BotSettingsSection } from './bot/BotSettingsUI';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BotIdentitySettings'>;
 
 export function BotIdentitySettingsScreen(props: Props) {
-  const isWindowNarrow = useIsWindowNarrow();
   const hub = useBotSettingsHub();
   const { queries, settingsReady, draft, pending, commitDraft, applying } = hub;
+  const loading = queries.nicknameQuery.isLoading;
 
   const handleBack = useCallback(() => {
     props.navigation.goBack();
   }, [props.navigation]);
 
+  const nickname = useNicknameEditor({
+    nickname: draft.nickname,
+    pending: pending.nickname,
+    onCommit: (value) =>
+      commitDraft((current) => ({ ...current, nickname: value })),
+  });
+
   return (
-    <View flex={1} backgroundColor={settingsListPageColor}>
-      <ScreenHeader
-        backgroundColor={getSettingsListHeaderColor()}
-        borderBottom
-        backAction={isWindowNarrow ? handleBack : undefined}
-        title="Identity"
-        placement="navigation"
-      />
-      <SettingsContentScrollView
-        paddingHorizontal="$l"
-        paddingTop="$l"
-        safeAreaBottomOffset={24}
-      >
-        <BotSettingsSection description="This is your bot's name. Your own profile name is set under Your profile.">
-          <NicknameField
-            nickname={draft.nickname}
-            loading={queries.nicknameQuery.isLoading}
-            readOnly={!settingsReady || applying}
-            pending={pending.nickname}
-            onCommit={(value) =>
-              commitDraft((current) => ({ ...current, nickname: value }))
-            }
-          />
-        </BotSettingsSection>
-      </SettingsContentScrollView>
-      <BotSettingsApplyBar hub={hub} />
-    </View>
+    <SettingsListScreenView
+      title="Identity"
+      sections={[
+        {
+          key: 'nickname',
+          title: `Nickname${pending.nickname ? ' (pending)' : ''}`,
+          footer:
+            nickname.error ??
+            "This is your bot's name. Your own profile name is set under Your profile.",
+          rows: [
+            {
+              key: 'nickname',
+              title: 'Nickname',
+              disabled: loading || !settingsReady || applying,
+              textField: {
+                value: nickname.value,
+                onChangeText: nickname.setValue,
+                placeholder: loading ? 'Loading…' : 'tlonbot',
+                capitalization: 'words',
+                onFocusChange: nickname.onFocusChange,
+                onSubmit: nickname.commit,
+              },
+            },
+          ],
+        },
+      ]}
+      onBackPressed={handleBack}
+      bottomBar={<BotSettingsApplyBar hub={hub} />}
+    />
   );
 }
 
-function NicknameField({
+/**
+ * Edits the nickname locally and commits it to the draft when editing ends,
+ * on blur or Done.
+ */
+function useNicknameEditor({
   nickname,
-  loading,
-  readOnly,
   pending,
   onCommit,
 }: {
   nickname: string;
-  loading: boolean;
-  readOnly: boolean;
   pending: boolean;
   onCommit: (nickname: string) => void;
 }) {
@@ -100,28 +102,16 @@ function NicknameField({
     onCommit(trimmed);
   }, [value, onCommit]);
 
-  return (
-    <YStack padding="$l" gap="$m">
-      <Text size="$label/m" color="$tertiaryText">
-        Nickname{pending ? ' (pending)' : ''}
-      </Text>
-      <TextInput
-        value={value}
-        placeholder={loading ? 'Loading…' : 'tlonbot'}
-        editable={!loading && !readOnly}
-        onFocus={() => {
-          isEditingRef.current = true;
-        }}
-        onChangeText={setValue}
-        onBlur={commit}
-        onSubmitEditing={commit}
-        returnKeyType="done"
-      />
-      {error ? (
-        <Text size="$label/s" color="$negativeActionText">
-          {error}
-        </Text>
-      ) : null}
-    </YStack>
+  const onFocusChange = useCallback(
+    (focused: boolean) => {
+      if (focused) {
+        isEditingRef.current = true;
+      } else {
+        commit();
+      }
+    },
+    [commit]
   );
+
+  return { value, setValue, error, commit, onFocusChange };
 }
