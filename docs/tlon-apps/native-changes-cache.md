@@ -22,6 +22,26 @@ This protocol requires a new native build. New JS remains compatible with older
 native payloads that lack `cacheId`, but those binaries retain the old native
 merge and destructive-read behavior until upgraded.
 
+## Recovery for existing installations
+
+`IOS_CACHE_GENERATION` in `packages/app/lib/iosCacheGeneration.ts` versions the
+local iOS cache independently of the database schema. Generation 1 rebuilds
+caches that may have missed changes before the native merge fix. It applies to
+all iOS installations on the fixed native binary; an OTA on an older binary
+does not consume the recovery marker. Android and web are unaffected.
+
+Before exposing the database, initialization awaits clearing the native changes
+batch and extension cursor, then runs the existing SQLite purge/rebuild path.
+That path resets persisted sync cursors and initial-sync flags, so normal ship
+sync repopulates the cache. Authentication remains intact. The one-time purge
+also discards local-only pending posts and upload drafts and requires a fresh
+download of cached data.
+
+The persistent generation marker is written only after migrations and database
+health checks succeed. Failures remain retryable, concurrent initialization
+shares one operation, and subsequent launches skip the rebuild. The marker
+survives logout and represents a rebuilt database, not a completed ship sync.
+
 ## Telemetry
 
 - `Notification Service Error` with `message = Background changes sync failed`
@@ -33,6 +53,8 @@ merge and destructive-read behavior until upgraded.
   it failed. An acknowledgement error also emits an app error.
 - A successful notification-delivery event does not imply successful background
   sync. Counts describe the final batch; there is no per-parent payload history.
+- `NativeDbDebug` includes `cache generation: rebuilding local database` and
+  `cache generation: rebuild complete`, with the cache generation number.
 
 ## Regression checks
 
@@ -45,3 +67,7 @@ macOS file coordination. No simulator or ship is needed.
 `pnpm --filter tlon-mobile test-ui --runInBand backgroundCacheHandoff` checks RN
 persistence/acknowledgement ordering, retries, cursor gaps, overlapping app-open
 callbacks, acknowledgement failures, and older-native payload compatibility.
+
+`pnpm --filter @tloncorp/app exec vitest run lib/nativeDb.test.ts lib/iosCacheGeneration.test.ts`
+checks one-time recovery, reset ordering, initialization retries and abandonment,
+and platform/native-version gating.

@@ -1012,3 +1012,136 @@ describe('NativeDb abandoned initialization', () => {
     }
   });
 });
+
+describe('NativeDb cache-generation recovery', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sqliteRuntime.reset();
+  });
+
+  function policy(previous = 0) {
+    return {
+      version: 1,
+      getVersion: vi.fn(async () => previous),
+      setVersion: vi.fn(async (version: number) => {
+        previous = version;
+      }),
+      clearNativeCache: vi.fn(async () => undefined),
+    };
+  }
+
+  it('clears native data, reuses purge, migrates, then records completion once', async () => {
+    const recovery = policy();
+    const old = sqliteRuntime.enqueueConnection();
+    const fresh = sqliteRuntime.enqueueConnection();
+    const db = new NativeDb({ cacheGeneration: recovery });
+    await Promise.all([db.ensureDbReady(), db.ensureDbReady()]);
+    expect(recovery.clearNativeCache).toHaveBeenCalledTimes(1);
+    expect(old.delete).toHaveBeenCalledTimes(1);
+    expect(sharedDbSpies.resetChangesSyncedAt).toHaveBeenCalledTimes(1);
+    expect(sharedDbSpies.resetHeadsSyncedAt).toHaveBeenCalledTimes(1);
+    expect(sharedDbSpies.resetDidSyncInitialPosts).toHaveBeenCalledTimes(1);
+    expect(sharedDbSpies.resetUserHasCompletedFirstSync).toHaveBeenCalledTimes(
+      1
+    );
+    expect(fresh.migrateClient).toHaveBeenCalledTimes(1);
+    expect(recovery.setVersion).toHaveBeenCalledWith(1);
+    expect(recovery.clearNativeCache.mock.invocationCallOrder[0]).toBeLessThan(
+      old.delete.mock.invocationCallOrder[0]
+    );
+    expect(fresh.execute.mock.invocationCallOrder.at(-1)).toBeLessThan(
+      recovery.setVersion.mock.invocationCallOrder[0]
+    );
+    await db.ensureDbReady();
+    expect(recovery.getVersion).toHaveBeenCalledTimes(1);
+    // Simulate another process launch with the persisted marker.
+    const reopened = sqliteRuntime.enqueueConnection();
+    await new NativeDb({ cacheGeneration: recovery }).ensureDbReady();
+    expect(reopened.delete).not.toHaveBeenCalled();
+    expect(recovery.clearNativeCache).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not reset or downgrade a newer cache generation', async () => {
+    const recovery = policy(2);
+    const connection = sqliteRuntime.enqueueConnection();
+    await new NativeDb({ cacheGeneration: recovery }).ensureDbReady();
+    expect(connection.delete).not.toHaveBeenCalled();
+    expect(recovery.clearNativeCache).not.toHaveBeenCalled();
+    expect(recovery.setVersion).not.toHaveBeenCalled();
+  });
+
+  it('retries failed native clearing without deleting SQLite or recording success', async () => {
+    const recovery = policy();
+    recovery.clearNativeCache.mockRejectedValueOnce(
+      new Error('native cache unavailable')
+    );
+    const old = sqliteRuntime.enqueueConnection();
+    const db = new NativeDb({ cacheGeneration: recovery });
+    await expect(db.ensureDbReady()).rejects.toThrow(
+      'native cache unavailable'
+    );
+    expect(old.delete).not.toHaveBeenCalled();
+    expect(recovery.setVersion).not.toHaveBeenCalled();
+    await db.ensureDbReady();
+    expect(recovery.setVersion).toHaveBeenCalledWith(1);
+  });
+
+  it('does not consume recovery after both migration attempts fail', async () => {
+    const recovery = policy();
+    sqliteRuntime.enqueueConnection();
+    sqliteRuntime.enqueueConnection(
+      sqliteRuntime.makeConnection({
+        migrateClient: vi.fn().mockRejectedValue(new Error('migration failed')),
+      })
+    );
+    sqliteRuntime.enqueueConnection(
+      sqliteRuntime.makeConnection({
+        migrateClient: vi.fn().mockRejectedValue(new Error('retry failed')),
+      })
+    );
+    const db = new NativeDb({ cacheGeneration: recovery });
+    await expect(db.ensureDbReady()).rejects.toThrow('retry failed');
+    expect(recovery.setVersion).not.toHaveBeenCalled();
+    await db.ensureDbReady();
+    expect(recovery.clearNativeCache).toHaveBeenCalledTimes(2);
+    expect(recovery.setVersion).toHaveBeenCalledWith(1);
+  });
+
+  it('retries marker-write failure even though schema migration succeeded', async () => {
+    const recovery = policy();
+    recovery.setVersion.mockRejectedValueOnce(new Error('storage unavailable'));
+    const db = new NativeDb({ cacheGeneration: recovery });
+    await expect(db.ensureDbReady()).rejects.toThrow('storage unavailable');
+    expect(internals(db).didMigrate).toBe(true);
+    await db.ensureDbReady();
+    expect(recovery.clearNativeCache).toHaveBeenCalledTimes(2);
+    expect(recovery.setVersion).toHaveBeenCalledTimes(2);
+  });
+
+  it('an abandoned native clear cannot purge its replacement database', async () => {
+    const recovery = policy();
+    let release!: () => void;
+    recovery.clearNativeCache.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        })
+    );
+    const old = sqliteRuntime.enqueueConnection();
+    const db = new NativeDb({ cacheGeneration: recovery });
+    const pending = db.ensureDbReady();
+    const rejection =
+      expect(pending).rejects.toBeInstanceOf(DbInitAbandonedError);
+    await vi.waitFor(() =>
+      expect(recovery.clearNativeCache).toHaveBeenCalledTimes(1)
+    );
+    expect(db.abandonDbInit()).toBe('abandoned');
+    await db.ensureDbReady();
+    expect(old.delete).toHaveBeenCalledTimes(1);
+    const fresh = sqliteRuntime.createdConnections.at(-1)!;
+    release();
+    await rejection;
+    expect(fresh.delete).not.toHaveBeenCalled();
+    expect(recovery.setVersion).toHaveBeenCalledTimes(1);
+  });
+});
