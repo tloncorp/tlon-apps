@@ -2,19 +2,34 @@ import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 
 import type { TlonLifecycleConfig } from '../types.js';
 
-const DEFAULT_RUN_TIMEOUT_MS = 120_000;
 const DEFAULT_COMPACTION_TIMEOUT_MS = 180_000;
 
-function normalizeRunTimeoutMs(value: number | null | undefined): number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 1_000
-    ? Math.floor(value)
-    : DEFAULT_RUN_TIMEOUT_MS;
-}
-
+/**
+ * Resolve the explicit Tlon run timeout (`channels.tlon.lifecycle.runTimeoutMs`).
+ * Returns `undefined` when unset or invalid so OpenClaw's own
+ * `agents.defaults.timeoutSeconds` governs the turn; the plugin imposes no
+ * timeout of its own.
+ */
 export function resolveDispatchTimeoutMs(
   lifecycle: TlonLifecycleConfig
-): number {
-  return normalizeRunTimeoutMs(lifecycle.runTimeoutMs);
+): number | undefined {
+  const value = lifecycle.runTimeoutMs;
+  return typeof value === 'number' && Number.isFinite(value) && value >= 1_000
+    ? Math.floor(value)
+    : undefined;
+}
+
+/**
+ * Reply options carrying the Tlon run timeout to OpenClaw. Empty when no
+ * timeout is configured so the key is omitted and OpenClaw's
+ * `agents.defaults.timeoutSeconds` applies.
+ */
+export function resolveTimeoutOverrideReplyOptions(
+  dispatchTimeoutMs: number | undefined
+): { timeoutOverrideSeconds?: number } {
+  return dispatchTimeoutMs !== undefined
+    ? { timeoutOverrideSeconds: Math.ceil(dispatchTimeoutMs / 1000) }
+    : {};
 }
 
 export function resolveCompactionObservationTimeoutMs(
