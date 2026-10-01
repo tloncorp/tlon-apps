@@ -111,13 +111,14 @@ test('failed writes leave the cache unacknowledged and retryable', async () => {
   expect(mockAcknowledge).toHaveBeenCalledTimes(1);
 });
 
-test('parse failures leave the native batch intact', async () => {
+test('parse failures discard the batch without persisting or advancing the cursor', async () => {
   mockParse.mockImplementationOnce(() => {
     throw new Error('invalid changes');
   });
   await run();
   expect(mockPersist).not.toHaveBeenCalled();
-  expect(mockAcknowledge).not.toHaveBeenCalled();
+  expect(mockAcknowledge).toHaveBeenCalledWith('generation-1');
+  expect(mockCursor).not.toHaveBeenCalled();
 });
 
 test('an already-covered batch is acknowledged, but a gap is retained', async () => {
@@ -166,14 +167,15 @@ test.each([
   { beginTimestamp: 300, endTimestamp: 200 },
   { beginTimestamp: 'invalid', endTimestamp: 200 },
 ])(
-  'invalid cache windows are retained without advancing the cursor: %p',
+  'invalid cache windows are discarded without advancing the cursor: %p',
   async (bounds) => {
     mockRetrieve.mockResolvedValue(
       JSON.stringify({ cacheId: 'generation-1', ...bounds, changes: {} })
     );
     await run();
     expect(mockPersist).not.toHaveBeenCalled();
-    expect(mockAcknowledge).not.toHaveBeenCalled();
+    expect(mockAcknowledge).toHaveBeenCalledWith('generation-1');
+    expect(mockCursor).not.toHaveBeenCalled();
   }
 );
 
@@ -184,4 +186,20 @@ test('a newer native generation surviving acknowledgement is reported accurately
     'Synced cached changes',
     expect.objectContaining({ didInsert: true, acknowledged: false })
   );
+});
+
+test('a failed invalid-batch discard remains retryable', async () => {
+  mockParse.mockImplementation(() => {
+    throw new Error('invalid changes');
+  });
+  mockAcknowledge.mockRejectedValueOnce(new Error('bridge unavailable'));
+  await run();
+  expect(mockTrackError).toHaveBeenCalledWith(
+    'Failed to discard invalid cached changes',
+    expect.any(Error)
+  );
+  await run();
+  expect(mockAcknowledge).toHaveBeenCalledTimes(2);
+  expect(mockPersist).not.toHaveBeenCalled();
+  mockParse.mockReset();
 });

@@ -1,6 +1,8 @@
 import { createStorageItem } from '@tloncorp/shared/db';
 import { Platform, TurboModuleRegistry } from 'react-native';
 
+import type { BackgroundCacheSpec } from './backgroundCache';
+
 export type NativeCacheGeneration = {
   version: number;
   getVersion: () => Promise<number>;
@@ -16,10 +18,9 @@ export function getNativeCacheGeneration(): NativeCacheGeneration | undefined {
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') return;
   let clearNativeCache = async (): Promise<void> => {};
   if (Platform.OS === 'ios') {
-    const cache = TurboModuleRegistry.get('BackgroundCache') as {
-      setLastSyncTimestamp: (timestamp: number) => Promise<void>;
-      acknowledgeBackgroundData?: (cacheId: string) => Promise<boolean>;
-    } | null;
+    const cache = TurboModuleRegistry.get(
+      'BackgroundCache'
+    ) as BackgroundCacheSpec | null;
     // An OTA on the old iOS binary must not consume the repair before the native
     // merge/handoff fixes are installed. The acknowledgement API marks that build.
     if (!cache?.acknowledgeBackgroundData) return;

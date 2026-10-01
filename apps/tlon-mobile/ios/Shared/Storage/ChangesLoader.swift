@@ -87,7 +87,7 @@ class ChangesLoader {
                     return nil
                 }
             }()
-            try cacheFile().write(
+            guard try cacheFile().write(
                 CachedChanges(
                     begin: cached.beginTimestamp,
                     end: now,
@@ -95,7 +95,7 @@ class ChangesLoader {
                     notificationReceivedAt: mergedNotificationReceivedAt
                 ),
                 replacing: cached.handoffId
-            )
+            ) else { return }
             if let latestNotificationReceivedAt = mergedNotificationReceivedAt {
                 markLatestNotificationSyncState(
                     receivedAt: latestNotificationReceivedAt,
@@ -110,7 +110,7 @@ class ChangesLoader {
         if let lastSyncedAt = getLastSyncTimestamp() {
             print("[ChangesLoader] Found last sync timestamp, fetching changes...")
             let fetchedChanges = try await PocketAPI.shared.fetchChangesSince(lastSyncedAt)
-            try cacheFile().write(
+            guard try cacheFile().write(
                 CachedChanges(
                     begin: lastSyncedAt,
                     end: now,
@@ -118,7 +118,7 @@ class ChangesLoader {
                     notificationReceivedAt: notificationReceivedAt
                 ),
                 replacing: nil
-            )
+            ) else { return }
             if let notificationReceivedAt {
                 markLatestNotificationSyncState(receivedAt: notificationReceivedAt, completed: true)
             }
@@ -191,9 +191,26 @@ struct ChangesCacheFile {
     }
 
     private func read(at url: URL) throws -> CachedChanges? {
+        let data: Data
         do {
-            return try JSONDecoder().decode(CachedChanges.self, from: Data(contentsOf: url))
+            data = try Data(contentsOf: url)
         } catch let error as NSError where error.domain == NSCocoaErrorDomain && error.code == NSFileReadNoSuchFileError {
+            return nil
+        }
+        do {
+            let cached = try JSONDecoder().decode(CachedChanges.self, from: data)
+            _ = try cached.getChanges()
+            guard cached.beginTimestamp <= cached.endTimestamp else {
+                throw NSError(domain: "ChangesCache", code: 3,
+                              userInfo: [NSLocalizedDescriptionKey: "Invalid cache window"])
+            }
+            return cached
+        } catch {
+            // Decoding/validation is deterministic. Remove the poison file while
+            // still holding the coordinator lock, without advancing any cursor.
+            // I/O failures above remain errors and never trigger deletion.
+            print("[ChangesCache] Discarding invalid cached data: \(error)")
+            try FileManager.default.removeItem(at: url)
             return nil
         }
     }
@@ -202,14 +219,18 @@ struct ChangesCacheFile {
         try coordinate { try read(at: $0) }
     }
 
-    func write(_ cache: CachedChanges, replacing expectedId: String?) throws {
+    @discardableResult
+    func write(_ cache: CachedChanges, replacing expectedId: String?) throws -> Bool {
         let data = try JSONEncoder().encode(cache)
-        try coordinate { url in
+        return try coordinate { url in
             guard try read(at: url)?.handoffId == expectedId else {
-                throw NSError(domain: "ChangesCache", code: 2,
-                              userInfo: [NSLocalizedDescriptionKey: "Cache changed during background fetch; preserving newer state"])
+                // Expected when RN consumes/resets a batch during a fetch. Don't
+                // reuse the stale payload with a new ID or resurrect cleared data.
+                print("[ChangesCache] Fetch superseded; preserving current cache state")
+                return false
             }
             try data.write(to: url, options: .atomic)
+            return true
         }
     }
 

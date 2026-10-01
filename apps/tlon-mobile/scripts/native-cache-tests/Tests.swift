@@ -51,27 +51,16 @@ enum NativeCacheTests {
         let second = try batch(original.merge(with: changes(["channel": ["other": parent]])), end: 300)
         try file.write(second, replacing: first.handoffId)
         try check(!file.acknowledge(first.handoffId), "Old acknowledgement must not delete newer writes")
-        do {
-            try file.write(batch(original, end: 250), replacing: first.handoffId)
-            preconditionFailure("A racing background fetch must not overwrite the newer generation")
-        } catch let error as NSError {
-            check(error.domain == "ChangesCache" && error.code == 2, "Expected generation conflict")
-        }
+        try check(!file.write(batch(original, end: 250), replacing: first.handoffId),
+                  "A racing background fetch cancels without overwriting the newer generation")
         try check(file.read()?.handoffId == second.handoffId, "Conflict leaves newer cache intact")
         try check(file.acknowledge(second.handoffId), "Successful ack consumes the matching batch")
         try check(file.read() == nil, "Acknowledged batch removed")
-        do {
-            try file.write(second, replacing: first.handoffId)
-            preconditionFailure("A fetch finishing after acknowledgement must not resurrect consumed data")
-        } catch let error as NSError {
-            check(error.code == 2, "Expected consumed-generation conflict")
-        }
+        try check(!file.write(second, replacing: first.handoffId),
+                  "A consumed-generation conflict cancels without throwing or resurrecting data")
         // Two initial requests may both have read an absent file.
         try file.write(first, replacing: nil)
-        do {
-            try file.write(second, replacing: nil)
-            preconditionFailure("A second initial fetch must not clobber the first")
-        } catch let error as NSError { check(error.code == 2, "Expected initial-write conflict") }
+        try check(!file.write(second, replacing: nil), "A second initial fetch cancels without clobbering the first")
         try file.remove()
         print("PASS: read/ack retry, stale acknowledgement, concurrent write, consumed-cache races")
 
@@ -82,6 +71,27 @@ enum NativeCacheTests {
         try check(file.read()!.handoffId == legacyId, "Legacy generation is stable across reads")
         try check(file.acknowledge(legacyId), "Old cache files can be acknowledged")
         print("PASS: pre-upgrade cache compatibility")
+
+        for invalid in [Data("not JSON".utf8), Data("{}".utf8)] {
+            try invalid.write(to: file.url)
+            try check(file.read() == nil, "Undecodable files are discarded")
+            check(!FileManager.default.fileExists(atPath: file.url.path), "Poison file is removed")
+        }
+        var invalidPayload = try JSONSerialization.jsonObject(with: JSONEncoder().encode(first)) as! [String: Any]
+        invalidPayload["changesData"] = Data("not JSON".utf8).base64EncodedString()
+        try JSONSerialization.data(withJSONObject: invalidPayload).write(to: file.url)
+        try check(file.read() == nil, "Corrupt embedded changes are discarded")
+        try file.write(batch(original, end: 50), replacing: nil)
+        try check(file.read() == nil, "Inverted cache windows are discarded")
+        try check(file.write(first, replacing: nil), "A valid batch can replace discarded poison data")
+        try check(file.read()?.handoffId == first.handoffId, "Fresh data remains readable")
+        // A directory produces a read error, not a decoding error: preserve it.
+        let directoryCache = ChangesCacheFile(url: dir)
+        do {
+            _ = try directoryCache.read()
+            preconditionFailure("Expected an I/O error")
+        } catch { check(FileManager.default.fileExists(atPath: dir.path), "I/O errors must not delete data") }
+        print("PASS: corrupt cache eviction, invalid windows, and I/O preservation")
 
         let error = NotificationError.backgroundSyncFailed(uid: "test-notification", underlyingError: NSError(domain: "CacheTest", code: 42))
         let event = LogEvent(userId: "test-user", data: .error(error)).asPostHogEvent

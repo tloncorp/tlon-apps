@@ -7,6 +7,7 @@ import {
   jest,
 } from '@jest/globals';
 import { configureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
+import { ensureDbReadyForBackgroundSync } from '@tloncorp/app/lib/nativeDb';
 import { discoverContactsAndNotify } from '@tloncorp/app/lib/notifications';
 import { createDevLogger, syncSince } from '@tloncorp/shared';
 import { storage, type ShipInfo } from '@tloncorp/shared/db';
@@ -19,7 +20,7 @@ jest.mock('@tloncorp/app/hooks/useConfigureUrbitClient', () => ({
   configureUrbitClient: jest.fn(),
 }));
 jest.mock('@tloncorp/app/lib/nativeDb', () => ({
-  ensureDbReady: async () => {},
+  ensureDbReadyForBackgroundSync: jest.fn(async () => true),
 }));
 jest.mock('@tloncorp/app/lib/notifications', () => ({
   discoverContactsAndNotify: jest.fn(async () => ({
@@ -165,5 +166,17 @@ describe('background sync session ownership', () => {
     );
     expect(configureUrbitClient).not.toHaveBeenCalled();
     expect(syncSince).not.toHaveBeenCalled();
+  });
+});
+
+it('skips the heartbeat while cache recovery needs foreground initialization', async () => {
+  jest.clearAllMocks();
+  jest.mocked(ensureDbReadyForBackgroundSync).mockResolvedValueOnce(false);
+  expect(await runTask()).toBe('success');
+  expect(refreshHostingAuth).not.toHaveBeenCalled();
+  expect(syncSince).not.toHaveBeenCalled();
+  expect(discoverContactsAndNotify).not.toHaveBeenCalled();
+  expect(logger.trackEvent).toHaveBeenCalledWith('Skipping background sync', {
+    context: 'cache recovery requires foreground',
   });
 });

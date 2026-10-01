@@ -1,7 +1,7 @@
 import { open } from '@op-engineering/op-sqlite';
 import { AnalyticsEvent, AnalyticsSeverity, escapeLog } from '@tloncorp/shared';
 import { schema, setClient } from '@tloncorp/shared/db';
-import { getTableName } from 'drizzle-orm';
+import { getTableName, sql } from 'drizzle-orm';
 
 import {
   BaseDb,
@@ -288,6 +288,35 @@ export class NativeDb extends BaseDb {
     );
   }
 
+  // A heartbeat must not start a destructive recovery without the foreground
+  // startup sync. Returning false leaves recovery pending for the next launch.
+  async ensureDbReadyForBackgroundSync(): Promise<boolean> {
+    if (!this.cacheGenerationChecked && this.cacheGeneration) {
+      try {
+        const previous = await this.cacheGeneration.getVersion();
+        if (
+          !Number.isFinite(previous) ||
+          previous < this.cacheGeneration.version
+        ) {
+          return false;
+        }
+      } catch (error) {
+        this.logCacheGenerationStorageFailure('background read', error);
+        return false;
+      }
+    }
+    await this.ensureDbReady();
+    return true;
+  }
+
+  private logCacheGenerationStorageFailure(operation: string, error: unknown) {
+    logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
+      context: 'cache generation: marker storage failed',
+      operation,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+  }
+
   async ensureDbReady() {
     if (
       this.didMigrate &&
@@ -313,14 +342,31 @@ export class NativeDb extends BaseDb {
       this.throwIfAbandoned(generation, 'ensureDbReady');
       let recordCacheGeneration = false;
       if (!this.cacheGenerationChecked && this.cacheGeneration) {
-        const previous = await this.cacheGeneration.getVersion();
+        let previous: number | undefined;
+        try {
+          previous = await this.cacheGeneration.getVersion();
+        } catch (error) {
+          // Don't strand an otherwise healthy database behind marker storage.
+          // Skip recovery for this process and try again on the next launch.
+          this.logCacheGenerationStorageFailure('read', error);
+        }
         this.throwIfAbandoned(generation, 'cache generation read');
         if (
-          !Number.isFinite(previous) ||
-          previous < this.cacheGeneration.version
+          previous !== undefined &&
+          (!Number.isFinite(previous) ||
+            previous < this.cacheGeneration.version)
         ) {
+          // Only a successfully read, empty schema proves this DB is fresh.
+          // Missing sentinel tables alone can indicate a damaged existing DB.
+          const tables = await this.client
+            .all(sql`SELECT name FROM sqlite_master
+            WHERE type = 'table' AND name NOT LIKE 'sqlite_%' LIMIT 1`);
+          this.throwIfAbandoned(generation, 'cache generation schema read');
+          const isFresh = tables.length === 0;
           logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
-            context: 'cache generation: rebuilding local database',
+            context: isFresh
+              ? 'cache generation: initializing fresh database'
+              : 'cache generation: rebuilding local database',
             previousCacheGeneration: previous,
             cacheGeneration: this.cacheGeneration.version,
           });
@@ -328,7 +374,13 @@ export class NativeDb extends BaseDb {
           this.throwIfAbandoned(generation, 'cache generation native reset');
           // Reuse the existing purge, including its persisted sync-cursor and
           // initial-sync-flag reset. Never call resetDb here: it reenters init.
-          await this.purgeDb(generation);
+          if (isFresh) {
+            // Even an empty file may have survived a previous interrupted purge
+            // with cursors in AsyncStorage. Clear those before recording success.
+            if (this.resetSyncStateOnPurge) await resetDbSyncState();
+          } else {
+            await this.purgeDb(generation);
+          }
           this.throwIfAbandoned(generation, 'cache generation purge');
           recordCacheGeneration = true;
         }
@@ -340,10 +392,16 @@ export class NativeDb extends BaseDb {
       if (recordCacheGeneration && this.cacheGeneration) {
         // A failed purge/migration must leave the old marker retryable. This
         // marks a rebuilt cache, not completion of the subsequent ship sync.
-        await this.cacheGeneration.setVersion(this.cacheGeneration.version);
+        try {
+          await this.cacheGeneration.setVersion(this.cacheGeneration.version);
+        } catch (error) {
+          // The DB is already healthy. Don't purge it again on every retry just
+          // because the marker could not be saved; retry next process launch.
+          this.logCacheGenerationStorageFailure('write', error);
+        }
         this.throwIfAbandoned(generation, 'cache generation completion');
         logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
-          context: 'cache generation: rebuild complete',
+          context: 'cache generation: database ready',
           cacheGeneration: this.cacheGeneration.version,
         });
       }
@@ -667,6 +725,8 @@ export class NativeDb extends BaseDb {
 const nativeDb = new NativeDb({ cacheGeneration: getNativeCacheGeneration() });
 export const setupDb = () => nativeDb.setupDb();
 export const ensureDbReady = () => nativeDb.ensureDbReady();
+export const ensureDbReadyForBackgroundSync = () =>
+  nativeDb.ensureDbReadyForBackgroundSync();
 export const abandonDbInit = () => nativeDb.abandonDbInit();
 export const purgeDb = () => nativeDb.purgeDb();
 export const getDbPath = () => nativeDb.getDbPath();

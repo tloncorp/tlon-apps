@@ -1,4 +1,5 @@
 import * as api from '@tloncorp/api';
+import type { BackgroundCacheSpec } from '@tloncorp/app/lib/backgroundCache';
 import { reportChatListNativeCacheResult } from '@tloncorp/app/lib/chatListSettleTelemetry';
 import { reportPushNotifNativeCacheResult } from '@tloncorp/app/lib/pushNotifTapTelemetry';
 import { createDevLogger } from '@tloncorp/shared';
@@ -11,12 +12,6 @@ import * as store from '@tloncorp/shared/store';
 import * as utils from '@tloncorp/shared/utils';
 import { useCallback, useEffect } from 'react';
 import { Platform, TurboModuleRegistry } from 'react-native';
-
-export interface BackgroundCacheSpec {
-  setLastSyncTimestamp(timestamp: number): Promise<void>;
-  retrieveBackgroundData(): Promise<string | null>;
-  acknowledgeBackgroundData?(cacheId: string): Promise<boolean>;
-}
 
 const BackgroundCache = TurboModuleRegistry.get(
   'BackgroundCache'
@@ -255,6 +250,21 @@ export function useCachedChanges() {
         logger.trackError(`Failed to sync cached changes`, e);
       }
     } else {
+      // A deterministic parse/window failure won't improve by replaying the
+      // same batch. Drop only this generation; leave the DB cursor untouched
+      // so ordinary network sync can fetch its window again.
+      if (cacheId && BackgroundCache.acknowledgeBackgroundData) {
+        try {
+          const discarded =
+            await BackgroundCache.acknowledgeBackgroundData(cacheId);
+          logger.trackEvent('Discarded invalid cached changes', {
+            cacheId,
+            discarded,
+          });
+        } catch (error) {
+          logger.trackError('Failed to discard invalid cached changes', error);
+        }
+      }
       reportChatListNativeCacheResult({
         present: true,
         applied: false,
