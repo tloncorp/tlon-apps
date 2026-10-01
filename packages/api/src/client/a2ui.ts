@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { MAX_BROWSER_VIEWER_URL_LENGTH } from './browserSession';
+
 import {
   AGENT_PROTOCOL_LIMITS,
   AgentProviderConfigContextSchema,
@@ -62,7 +64,7 @@ const buttonVariantSchema = z.enum([
   'secondary',
   'borderless',
 ]);
-const screenNameSchema = z.enum(['botMcpSettings']);
+const screenNameSchema = z.enum(['botMcpSettings', 'browserCredentialHandoff']);
 
 const nonEmptyString = (max?: number) => {
   const schema = max === undefined ? z.string() : z.string().max(max);
@@ -115,12 +117,21 @@ const chatVolumeNavigationTargetSchema = z.object({
   chatId: targetIdSchema,
   groupId: targetIdSchema.optional(),
 });
-const screenNavigationTargetSchema = z.object({
+const botMcpSettingsNavigationTargetSchema = z.object({
   type: z.literal('screen'),
-  screen: screenNameSchema,
+  screen: z.literal('botMcpSettings'),
   providerId: targetIdSchema.optional(),
 });
-const navigationTargetSchema = z.discriminatedUnion('type', [
+const browserCredentialHandoffNavigationTargetSchema = z.object({
+  type: z.literal('screen'),
+  screen: z.literal('browserCredentialHandoff'),
+  viewerUrl: z.string().url().max(MAX_BROWSER_VIEWER_URL_LENGTH),
+});
+const screenNavigationTargetSchema = z.union([
+  botMcpSettingsNavigationTargetSchema,
+  browserCredentialHandoffNavigationTargetSchema,
+]);
+const navigationTargetSchema = z.union([
   messageNavigationTargetSchema,
   channelNavigationTargetSchema,
   groupNavigationTargetSchema,
@@ -267,9 +278,7 @@ const mcpSettingsNavigateActionSchema = z.object({
   event: z.object({
     name: z.literal(ACTION_NAVIGATE),
     context: z.object({
-      target: screenNavigationTargetSchema.extend({
-        screen: z.literal('botMcpSettings'),
-      }),
+      target: botMcpSettingsNavigationTargetSchema,
     }),
   }),
 });
@@ -348,6 +357,9 @@ export namespace A2UI {
   export type ScreenName = z.infer<typeof screenNameSchema>;
   export type ScreenNavigationTarget = z.infer<
     typeof screenNavigationTargetSchema
+  >;
+  export type BrowserCredentialHandoffNavigationTarget = z.infer<
+    typeof browserCredentialHandoffNavigationTargetSchema
   >;
   export type NavigationTarget = z.infer<typeof navigationTargetSchema>;
   export type NavigateEvent = z.infer<typeof navigateEventSchema>;
