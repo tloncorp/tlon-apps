@@ -187,6 +187,9 @@ const ListItemCount = ({
     ? '$positiveBackground'
     : '$secondaryBackground';
   const resolvedBackgroundColor = count < 1 ? undefined : backgroundColor;
+  // A muted item shows its bell even with nothing unread. The zero stays
+  // mounted, invisible and zero-width, so the row keeps its usual height.
+  const bellOnly = muted && count < 1;
   return (
     <View
       key={getAndroidRoundedBackgroundKey(resolvedBackgroundColor)}
@@ -196,7 +199,10 @@ const ListItemCount = ({
       borderRadius="$l"
       {...rest}
     >
-      <ListItemCountNumber hidden={count < 1 && !muted}>
+      <ListItemCountNumber
+        hidden={count < 1 && !muted}
+        gap={bellOnly ? 0 : '$s'}
+      >
         {muted && (
           <Icon
             testID="MutedIndicator"
@@ -205,15 +211,14 @@ const ListItemCount = ({
             color={foregroundColor}
           />
         )}
-        {(count > 0 || !muted) && (
-          <Text
-            testID="UnreadCountNumber"
-            size="$label/m"
-            color={foregroundColor}
-          >
-            {numberWithMax(count, 256)}
-          </Text>
-        )}
+        <Text
+          testID="UnreadCountNumber"
+          size="$label/m"
+          color={foregroundColor}
+          {...(bellOnly ? { width: 0, opacity: 0, overflow: 'hidden' } : {})}
+        >
+          {numberWithMax(count, 256)}
+        </Text>
       </ListItemCountNumber>
     </View>
   );
