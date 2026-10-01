@@ -267,17 +267,19 @@ function TextFieldRow({
   const fieldProps = {
     text,
     placeholder: field.placeholder,
+    maxLength: field.maxLength,
     onTextChange: onChangeText,
     onFocusChange: field.onFocusChange,
     modifiers: [
       ...modifiers,
+      ...(field.lines ? [lineLimit(field.lines, { reservesSpace: true })] : []),
       accessibilityLabel(row.title),
       textInputAutocapitalization(
         field.capitalization === 'words' || field.capitalization === 'sentences'
           ? field.capitalization
           : 'never'
       ),
-      autocorrectionDisabled(),
+      autocorrectionDisabled(field.capitalization !== 'sentences'),
       ...(field.onSubmit
         ? [submitLabel('done'), submitAction(field.onSubmit)]
         : []),
@@ -286,7 +288,7 @@ function TextFieldRow({
   return field.secure ? (
     <SecureField {...fieldProps} />
   ) : (
-    <TextField {...fieldProps} />
+    <TextField {...fieldProps} axis={field.lines ? 'vertical' : undefined} />
   );
 }
 

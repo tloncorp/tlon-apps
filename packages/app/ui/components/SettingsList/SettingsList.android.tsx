@@ -249,11 +249,14 @@ function TextFieldRow({
         value={value}
         onValueChange={onChangeText}
         enabled={!row.disabled}
-        singleLine
+        singleLine={!field.lines}
+        minLines={field.lines}
+        maxLines={field.lines}
+        maxLength={field.maxLength}
         visualTransformation={field.secure ? 'password' : 'none'}
         keyboardOptions={{
           capitalization: field.capitalization ?? 'none',
-          autoCorrectEnabled: false,
+          autoCorrectEnabled: field.capitalization === 'sentences',
           keyboardType: field.secure
             ? 'password'
             : field.capitalization && field.capitalization !== 'none'

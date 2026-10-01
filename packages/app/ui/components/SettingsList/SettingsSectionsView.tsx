@@ -48,8 +48,11 @@ function SettingsRow({ row }: { row: SettingsRowModel }) {
           value={row.textField.value}
           placeholder={row.textField.placeholder}
           secureTextEntry={row.textField.secure}
+          multiline={Boolean(row.textField.lines)}
+          numberOfLines={row.textField.lines}
+          maxLength={row.textField.maxLength}
           autoCapitalize={row.textField.capitalization ?? 'none'}
-          autoCorrect={false}
+          autoCorrect={row.textField.capitalization === 'sentences'}
           aria-label={row.title}
           disabled={row.disabled}
           onChangeText={row.textField.onChangeText}
