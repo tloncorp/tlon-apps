@@ -159,6 +159,14 @@
   ^+  cor
   |^
   ?+  mark  ~|(bad-mark+mark !!)
+      %egg-any
+    ?>  =(our.bowl src.bowl)
+    =/  =egg:gall  (latest:egg-aid:gall !<(egg-any:gall vase))
+    ?.  ?=(%live -.egg)
+      ~&  [dap.bowl %egg-not-live]
+      cor
+    (load -:!>(*any-state:load) +>.old-state.egg)
+  ::
       %handle-http-request
     (serve-http !<([eyre-id=@ta =inbound-request:eyre] vase))
   ::
