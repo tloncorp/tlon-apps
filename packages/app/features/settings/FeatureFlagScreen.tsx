@@ -58,6 +58,7 @@ export function FeatureFlagScreen({ navigation }: Props) {
         .map(([name, meta]) => ({
           name,
           label: meta.label,
+          description: meta.description,
           enabled: flags[name as featureFlags.FeatureName],
         })),
     ],

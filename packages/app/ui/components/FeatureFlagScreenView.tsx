@@ -20,7 +20,12 @@ export function FeatureFlagScreenView({
   onBackPressed,
   onFlagToggled,
 }: {
-  features: { name: string; label: string; enabled: boolean }[];
+  features: {
+    name: string;
+    label: string;
+    description?: string;
+    enabled: boolean;
+  }[];
   textSettings?: FeatureFlagTextSetting[];
   onBackPressed: () => void;
   onFlagToggled: (flagName: string, enabled: boolean) => void;
@@ -32,6 +37,7 @@ export function FeatureFlagScreenView({
         rows: features.map((feature) => ({
           key: feature.name,
           title: feature.label,
+          subtitle: feature.description,
           toggle: {
             value: feature.enabled,
             onValueChange: (enabled) => onFlagToggled(feature.name, enabled),
