@@ -71,7 +71,17 @@ export interface SettingsRowModel {
     placeholder?: string;
     /** Masks the value, for secrets. */
     secure?: boolean;
-    /** Defaults to none, for URLs and keys; names want `words`. */
+    /**
+     * Makes the field multi-line, showing this many lines, for prose such as
+     * a bug report's notes. Longer text scrolls inside the field.
+     */
+    lines?: number;
+    /** The most characters the field takes; typing stops there. */
+    maxLength?: number;
+    /**
+     * Defaults to none, for URLs and keys; names want `words`. Prose wants
+     * `sentences`, which also keeps autocorrect on.
+     */
     capitalization?: 'none' | 'words' | 'sentences';
     /** Hears focus coming and going, for screens that commit when editing ends. */
     onFocusChange?: (focused: boolean) => void;
