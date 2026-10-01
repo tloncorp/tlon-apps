@@ -122,8 +122,24 @@ export interface StewardAutomationFinalizeRequest {
 
 export type StewardAutomationCronWriteService = Pick<
   PluginHookGatewayCronService,
-  'add' | 'update' | 'remove'
+  'add' | 'update' | 'remove' | 'list'
 >;
+
+/**
+ * Agent onboarding stores its primary job's slot key in `description` and
+ * finds that job by matching the string exactly (`SLOT_PREFIX` in
+ * monitor/agent-onboarding). An edit that rewrites it orphans the slot, and
+ * onboarding then creates a duplicate job, so edits may neither change a slot
+ * description nor mint one. Copied rather than imported to keep the
+ * onboarding module out of this path; a test pins the two together.
+ */
+const ONBOARDING_SLOT_PREFIX = 'tlon-agent-primary:';
+
+function isSlotDescription(description: string | undefined): boolean {
+  return description !== undefined
+    ? description.startsWith(ONBOARDING_SLOT_PREFIX)
+    : false;
+}
 
 export class StewardAutomationDispatchError extends Error {
   constructor(
@@ -514,6 +530,12 @@ export async function applyStewardAutomationDispatch(
   const { action } = dispatch;
 
   if ('create' in action) {
+    if (isSlotDescription(action.create.description)) {
+      return errorBody(
+        'invalid',
+        `description must not start with "${ONBOARDING_SLOT_PREFIX}", which is reserved for bot onboarding`
+      );
+    }
     const input = toStewardAutomationCronCreateInput(
       dispatch.requestId,
       action.create
@@ -538,6 +560,28 @@ export async function applyStewardAutomationDispatch(
 
   if ('update' in action) {
     const { id, ...task } = action.update;
+    if (task.description !== undefined) {
+      let current: string | undefined;
+      try {
+        const jobs = await cron.list({ includeDisabled: true });
+        current = jobs.find((job) => job.id === id)?.description;
+      } catch (error) {
+        return errorBody('harness-error', errorMessage(error));
+      }
+      // Resending a slot description unchanged is a harmless round trip.
+      if (isSlotDescription(current) && task.description !== current) {
+        return errorBody(
+          'invalid',
+          'description is the slot key bot onboarding matches on and cannot be changed'
+        );
+      }
+      if (!isSlotDescription(current) && isSlotDescription(task.description)) {
+        return errorBody(
+          'invalid',
+          `description must not start with "${ONBOARDING_SLOT_PREFIX}", which is reserved for bot onboarding`
+        );
+      }
+    }
     const patch = toStewardAutomationCronPatch(task);
     if (!patch.ok) {
       return errorBody('invalid', patch.message);

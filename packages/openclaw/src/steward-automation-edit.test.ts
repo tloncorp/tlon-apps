@@ -9,6 +9,7 @@ import {
   toStewardAutomationCronCreateInput,
   toStewardAutomationCronPatch,
 } from './steward-automation-edit.js';
+import { SLOT_PREFIX } from './monitor/agent-onboarding.js';
 import { setErrorTelemetryReporter } from './telemetry.js';
 
 const requestId = '0v4.jd3o0';
@@ -29,11 +30,13 @@ function cronService(
   add: ReturnType<typeof vi.fn>;
   update: ReturnType<typeof vi.fn>;
   remove: ReturnType<typeof vi.fn>;
+  list: ReturnType<typeof vi.fn>;
 } {
   return {
     add: vi.fn().mockResolvedValue({ id: jobId }),
     update: vi.fn().mockResolvedValue({ id: 'job-1' }),
     remove: vi.fn().mockResolvedValue({ ok: true, removed: true }),
+    list: vi.fn().mockResolvedValue([]),
     ...overrides,
   } as never;
 }
@@ -815,5 +818,94 @@ describe('StewardAutomationEditProcessor cancellation', () => {
     controller.abort();
 
     await expect(run).resolves.toBeUndefined();
+  });
+});
+
+describe('onboarding slot-key descriptions', () => {
+  const slot = 'tlon-agent-primary:group-1';
+
+  it('matches the prefix agent onboarding actually uses', () => {
+    expect(slot.startsWith(SLOT_PREFIX)).toBe(true);
+  });
+
+  it('refuses to create a job wearing a slot description', async () => {
+    const cron = cronService();
+    expect(
+      await applyStewardAutomationDispatch(
+        { requestId, action: { create: { ...createTask, description: slot } } },
+        cron
+      )
+    ).toMatchObject({ type: 'error', errorType: 'invalid' });
+    expect(cron.add).not.toHaveBeenCalled();
+  });
+
+  it('refuses to rename a slot description, which would orphan the slot', async () => {
+    const cron = cronService({
+      list: vi.fn().mockResolvedValue([{ id: 'job-1', description: slot }]),
+    } as never);
+
+    expect(
+      await applyStewardAutomationDispatch(
+        {
+          requestId,
+          action: { update: { id: 'job-1', description: 'my daily update' } },
+        },
+        cron
+      )
+    ).toMatchObject({ type: 'error', errorType: 'invalid' });
+    expect(cron.update).not.toHaveBeenCalled();
+  });
+
+  it('allows a client to resend a slot description unchanged', async () => {
+    const cron = cronService({
+      list: vi.fn().mockResolvedValue([{ id: 'job-1', description: slot }]),
+    } as never);
+
+    expect(
+      await applyStewardAutomationDispatch(
+        { requestId, action: { update: { id: 'job-1', description: slot } } },
+        cron
+      )
+    ).toEqual({ type: 'updated', id: 'job-1' });
+    expect(cron.update).toHaveBeenCalledOnce();
+  });
+
+  it('refuses to mint a slot description on an ordinary job', async () => {
+    const cron = cronService({
+      list: vi.fn().mockResolvedValue([{ id: 'job-1', description: 'mine' }]),
+    } as never);
+
+    expect(
+      await applyStewardAutomationDispatch(
+        { requestId, action: { update: { id: 'job-1', description: slot } } },
+        cron
+      )
+    ).toMatchObject({ type: 'error', errorType: 'invalid' });
+    expect(cron.update).not.toHaveBeenCalled();
+  });
+
+  it('leaves ordinary description edits alone', async () => {
+    const cron = cronService({
+      list: vi.fn().mockResolvedValue([{ id: 'job-1', description: 'mine' }]),
+    } as never);
+
+    expect(
+      await applyStewardAutomationDispatch(
+        {
+          requestId,
+          action: { update: { id: 'job-1', description: 'yours' } },
+        },
+        cron
+      )
+    ).toEqual({ type: 'updated', id: 'job-1' });
+  });
+
+  it('does not read the job list when an edit leaves description alone', async () => {
+    const cron = cronService();
+    await applyStewardAutomationDispatch(
+      { requestId, action: { update: { id: 'job-1', enabled: false } } },
+      cron
+    );
+    expect(cron.list).not.toHaveBeenCalled();
   });
 });
