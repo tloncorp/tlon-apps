@@ -1,6 +1,6 @@
 import { createAnimations } from '@tamagui/animations-moti';
 import { createMedia } from '@tamagui/react-native-media-driver';
-import { getContrast, readableColorIsBlack } from 'color2k';
+import { getContrast, getLuminance, readableColorIsBlack } from 'color2k';
 import { Platform } from 'react-native';
 import { createFont, createTamagui, createTokens } from 'tamagui';
 
@@ -364,11 +364,23 @@ function withMessageBubble(base: BaseTheme) {
   return { ...base, messageBubble: base.secondaryBackground };
 }
 
-// Other people's grey bubbles are the fill that cards nested in them
-// (references, code, link previews, A2UI) already use, so inside a bubble
-// those cards take the page color instead.
+// Cards nested in other people's bubbles (references, code, link previews,
+// A2UI) are a translucent veil over the bubble, so they stand off its fill in
+// whatever color it is: the author's tint, or the plain grey.
 function otherMessageTheme(base: BaseTheme) {
-  return { ...withMessageBubble(base), secondaryBackground: base.background };
+  const veil =
+    getLuminance(base.background) < 0.5
+      ? {
+          fill: withAlpha(color.white, 0.08),
+          edge: withAlpha(color.white, 0.12),
+        }
+      : { fill: withAlpha(color.white, 0.6), edge: 'rgba(0, 0, 0, 0.08)' };
+  return {
+    ...withMessageBubble(base),
+    secondaryBackground: veil.fill,
+    border: veil.edge,
+    secondaryBorder: veil.edge,
+  };
 }
 
 function ownMessageTheme(
