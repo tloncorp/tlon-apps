@@ -86,10 +86,12 @@ function fixture(cfg = config()) {
   const readSettings = vi.fn().mockResolvedValue(settings());
   const isConnected = vi.fn().mockReturnValue(true);
   const establishActivityReadBaseline = vi.fn().mockResolvedValue(undefined);
+  const replayMissedMessages = vi.fn().mockResolvedValue(undefined);
   const connection = {
     readSettings,
     isConnected,
     establishActivityReadBaseline,
+    replayMissedMessages,
   };
   const monitor = coordinator.attachMonitor('default', cfg);
   const ready = () => monitor.connected(connection);
@@ -102,6 +104,7 @@ function fixture(cfg = config()) {
     readSettings,
     isConnected,
     establishActivityReadBaseline,
+    replayMissedMessages,
     monitor,
     connection,
     ready,
@@ -251,6 +254,53 @@ describe('restart catch-up', () => {
     expect(f.logger.error).not.toHaveBeenCalled();
   });
 
+  it('replays missed messages before running BOOT.md', async () => {
+    const f = fixture();
+    const order: string[] = [];
+    f.replayMissedMessages.mockImplementation(async () => {
+      order.push('replay');
+    });
+    f.run.mockImplementation(async () => {
+      order.push('boot');
+      return { meta: {} };
+    });
+    f.ready();
+    f.coordinator.start(f.ctx);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(order).toEqual(['replay', 'boot']);
+    expect(f.replayMissedMessages.mock.calls[0][0]).toBeInstanceOf(AbortSignal);
+  });
+
+  it('still runs BOOT.md when replay fails, and logs the failure', async () => {
+    const f = fixture();
+    f.replayMissedMessages.mockRejectedValue(new Error('scry 500'));
+    f.ready();
+    f.coordinator.start(f.ctx);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(f.logger.error).toHaveBeenCalledWith(
+      expect.stringContaining('Restart replay failed: Error: scry 500')
+    );
+    expect(f.run).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not replay on the baseline run or before bootstrap', async () => {
+    const baseline = fixture();
+    baseline.readSettings.mockResolvedValue(settings(true, false));
+    baseline.ready();
+    baseline.coordinator.start(baseline.ctx);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(baseline.replayMissedMessages).not.toHaveBeenCalled();
+
+    const firstUse = fixture();
+    firstUse.readSettings.mockResolvedValue(settings(false));
+    firstUse.ready();
+    firstUse.coordinator.start(firstUse.ctx);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(firstUse.replayMissedMessages).not.toHaveBeenCalled();
+  });
+
   it('runs catch-up without re-marking once the read baseline exists', async () => {
     const f = fixture();
     f.ready();
@@ -379,6 +429,7 @@ describe('restart catch-up', () => {
       readSettings,
       isConnected: () => true,
       establishActivityReadBaseline: vi.fn().mockResolvedValue(undefined),
+      replayMissedMessages: vi.fn().mockResolvedValue(undefined),
     });
     f.monitor.stop();
     pending.resolve(settings());
@@ -404,6 +455,7 @@ describe('restart catch-up', () => {
       readSettings,
       isConnected: () => true,
       establishActivityReadBaseline: vi.fn().mockResolvedValue(undefined),
+      replayMissedMessages: vi.fn().mockResolvedValue(undefined),
     });
     f.monitor.stop();
     pending.resolve(settings());
@@ -484,6 +536,7 @@ describe('restart catch-up', () => {
       readSettings,
       isConnected: () => true,
       establishActivityReadBaseline: vi.fn().mockResolvedValue(undefined),
+      replayMissedMessages: vi.fn().mockResolvedValue(undefined),
     });
     pending.resolve();
     await vi.advanceTimersByTimeAsync(0);

@@ -467,6 +467,7 @@ describe('gateway startup catch-up wiring', () => {
       isConnected: () => true,
       readSettings: vi.fn(),
       establishActivityReadBaseline: vi.fn(),
+      replayMissedMessages: vi.fn(),
     };
     vi.mocked(monitorTlonProvider).mockImplementationOnce(async (opts) => {
       opts?.onReady?.(connection);

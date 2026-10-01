@@ -35,6 +35,9 @@ export interface RestartCatchupConnection {
    * first catch-up after read tracking ships doesn't treat every past
    * mention as missed. */
   establishActivityReadBaseline: (signal: AbortSignal) => Promise<void>;
+  /** Feed messages that arrived while the gateway was down through the
+   * normal inbound handlers; see monitor/restart-replay.ts. */
+  replayMissedMessages: (signal: AbortSignal) => Promise<void>;
 }
 
 type StartupContext = Pick<OpenClawPluginApi, 'runtime' | 'logger'> & {
@@ -304,6 +307,15 @@ export function createRestartCatchupCoordinator(
               '[tlon] Restart catch-up skipped: marked existing activity read for the first run with read tracking'
             );
             return;
+          }
+          clearTimeout(timer);
+          try {
+            await connection.replayMissedMessages(signal);
+            if (signal.aborted) continue;
+            ctx.logger.info('[tlon] Restart replay finished');
+          } catch (error) {
+            if (signal.aborted) continue;
+            ctx.logger.error(`[tlon] Restart replay failed: ${String(error)}`);
           }
 
           const route = ctx.runtime.channel.routing.resolveAgentRoute({

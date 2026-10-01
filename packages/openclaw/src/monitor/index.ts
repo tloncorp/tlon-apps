@@ -1,4 +1,5 @@
-import type { Story } from '@tloncorp/api';
+import { type Story, toClientUnreads } from '@tloncorp/api';
+import { da, scot } from '@urbit/aura';
 import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
@@ -136,6 +137,11 @@ import {
   createActivityReadTracker,
   dmReadSource,
 } from './activity-read.js';
+import {
+  RESTART_REPLAY_WINDOW_MS,
+  collectMissedMessages,
+  unreadAnchors,
+} from './restart-replay.js';
 import {
   type OnboardingStepReport,
   createAgentOnboardingCatchUpScheduler,
@@ -6156,6 +6162,41 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         opts.onReady?.({
           isConnected: () => api.isConnected,
           readSettings: (signal) => api.scry('/settings/all.json', { signal }),
+          replayMissedMessages: async (signal) => {
+            // Changes are keyed by the ship's receipt time; the window is
+            // generous enough that clock skew against this host doesn't matter.
+            const since = scot(
+              'da',
+              da.fromUnix(Date.now() - RESTART_REPLAY_WINDOW_MS)
+            );
+            const [channels, chat, activity] = await Promise.all([
+              api.scry(`/channels/v6/changes/${since}.json`, { signal }),
+              api.scry(`/chat/v4/changes/${since}.json`, { signal }),
+              api.scry('/activity/v4/activity.json', { signal }),
+            ]);
+            const missed = collectMissedMessages({
+              channels: (channels ?? {}) as never,
+              chat: (chat ?? {}) as never,
+              anchors: unreadAnchors(toClientUnreads(activity as never)),
+            });
+            runtime.log?.(
+              `[tlon] Restart replay: ${missed.length} unread message(s) from the last ${RESTART_REPLAY_WINDOW_MS / 60_000} minutes`
+            );
+            // One at a time, oldest first, through the live handlers, which
+            // apply dedup, gating and read marking exactly as they do live.
+            for (const item of missed) {
+              signal.throwIfAborted();
+              if (item.kind === 'channel') {
+                await handleChannelsFirehose(
+                  item.event as unknown as ChannelFirehoseEvent
+                );
+              } else {
+                await handleChatFirehose(
+                  item.event as unknown as ChatFirehoseEvent
+                );
+              }
+            }
+          },
           establishActivityReadBaseline: async (signal) => {
             signal.throwIfAborted();
             await api.poke(activityReadPoke({ base: null }));
