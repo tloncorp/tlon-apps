@@ -116,7 +116,7 @@ jobs:
   # workflow can't be a required status check (a paths-filtered workflow
   # never reports on unrelated PRs, wedging a required context), so this job
   # is what puts that coverage behind the CI OK merge gate. Their heavyweight
-  # shared-E2E suites stay in openclaw-ci only, non-blocking.
+  # bot E2E suites stay in openclaw-ci only, non-blocking.
   bot-checks:
     needs: changes
     if:

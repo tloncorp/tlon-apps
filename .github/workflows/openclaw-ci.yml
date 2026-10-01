@@ -58,7 +58,7 @@ jobs:
         run: npx vitest run src/security.test.ts
 
   integration-test:
-    name: Shared E2E (${{ matrix.shard }})
+    name: Bot E2E (${{ matrix.shard }})
     runs-on: blacksmith-8vcpu-ubuntu-2204
     # One stack per shard: the baseline and cron scenario partitions and the
     # package suite. Each stack boots fresh and re-applies the branch %groups
