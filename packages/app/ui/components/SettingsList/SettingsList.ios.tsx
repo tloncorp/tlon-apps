@@ -310,7 +310,7 @@ function RowLabel({
           modifiers={[
             foregroundStyle(colors.primaryText),
             ...(row.prominent ? [font({ size: 19, weight: 'semibold' })] : []),
-            lineLimit(1),
+            lineLimit(titleLineLimit(row)),
           ]}
         >
           {row.title}
@@ -354,6 +354,14 @@ function RowLeading({ row }: { row: SettingsRowModel }) {
       </RNHostView>
     </ZStack>
   );
+}
+
+/**
+ * Long titles, such as a feature flag's description, wrap; a title beside a
+ * value keeps to one line so the value keeps its room.
+ */
+function titleLineLimit(row: SettingsRowModel) {
+  return row.value ? 1 : 3;
 }
 
 function Pill({
