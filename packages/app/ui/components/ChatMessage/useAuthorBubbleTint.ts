@@ -1,6 +1,6 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { getLuminance, hsla, parseToHsla } from 'color2k';
+import { getContrast, getLuminance, hsla, parseToHsla } from 'color2k';
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 import { useTheme } from 'tamagui';
 
@@ -21,6 +21,9 @@ const DARK_TINT = { lightness: 0.2, minSaturation: 0.3, maxSaturation: 0.5 };
 // Below this, a color (a default black sigil, a mostly grey photo) has no hue
 // worth showing and keeps the plain grey bubble.
 const MIN_SATURATION = 0.12;
+// Themes with colored ink (peony's pink, solarized's grey-blue) can lose
+// legibility on some tints; those keep the plain bubble instead.
+const MIN_TEXT_CONTRAST = 4.5;
 
 // Settled colors by avatar URL; null when the image has no usable color.
 // Components read it through useSyncExternalStore, so every change notifies.
@@ -143,6 +146,7 @@ export function useAuthorBubbleTint(authorId: string | null) {
       : null;
   const imageColor = useAvatarColor(imageUrl);
   const background = theme.background.val;
+  const text = theme.primaryText.val;
 
   return useMemo(() => {
     if (!authorId) {
@@ -158,6 +162,7 @@ export function useAuthorBubbleTint(authorId: string | null) {
       Math.max(parsed.saturation, tint.minSaturation),
       tint.maxSaturation
     );
-    return hsla(parsed.hue, saturation, tint.lightness, 1);
-  }, [authorId, background, contact?.color, imageColor, imageUrl]);
+    const color = hsla(parsed.hue, saturation, tint.lightness, 1);
+    return getContrast(color, text) >= MIN_TEXT_CONTRAST ? color : null;
+  }, [authorId, background, text, contact?.color, imageColor, imageUrl]);
 }

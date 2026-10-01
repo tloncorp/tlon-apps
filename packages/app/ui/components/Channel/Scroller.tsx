@@ -908,20 +908,29 @@ const BaseScrollerItem = ({
   );
   // Check if the previous post (A) exists and (B) is deleted
   const isPrevDeleted = hasPreviousPost && livePreviousPost.isDeleted === true;
-  // A hidden post renders as a moderation notice, not a bubble.
+  // A hidden post, or one from a blocked author, renders as a moderation
+  // notice rather than a bubble; "Show anyway" reveals one post at a time.
   const isPrevHidden = hasPreviousPost && livePreviousPost.hidden === true;
+  const { data: blockedContacts } = store.useBlockedContacts();
+  const isPrevAuthorBlocked =
+    hasPreviousPost &&
+    !!blockedContacts?.some(
+      (contact) => contact.id === livePreviousPost.authorId
+    );
   // If the previous post is deleted, show the author, otherwise fall back to the
   // display rules calculated in the showAuthor prop
   const showAuthorLive = useMemo(() => {
     if (isPrevDeleted) {
       return true;
     }
-    // A divider, or a hidden post's notice, between bubbles breaks the
+    // A divider, or a moderation notice, between bubbles breaks the
     // series, so the next bubble starts one: header, and the gap between
     // series.
     if (
       bubbleLayout &&
-      (isPrevHidden || (dividersEnabled && showUnreadDivider))
+      (isPrevHidden ||
+        isPrevAuthorBlocked ||
+        (dividersEnabled && showUnreadDivider))
     ) {
       return true;
     }
@@ -929,6 +938,7 @@ const BaseScrollerItem = ({
   }, [
     isPrevDeleted,
     isPrevHidden,
+    isPrevAuthorBlocked,
     showAuthor,
     bubbleLayout,
     dividersEnabled,
