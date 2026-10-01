@@ -2,6 +2,7 @@ import { DIARY_REMOVED, NOTES_CHANNEL_CONTENT_UNSUPPORTED } from './cli-utils';
 
 export const COMMAND_FAMILIES = [
   'activity',
+  'buckets',
   'channels',
   'contacts',
   'dms',
