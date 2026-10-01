@@ -75,6 +75,9 @@ export function SettingsList({ sections }: SettingsListProps) {
   return (
     <Host style={{ flex: 1 }} colorScheme={colors.colorScheme}>
       <Form
+        // SwiftUI keeps a row's separator tint from when it was first drawn, so
+        // a theme change would leave the old color; rebuild the form instead.
+        key={colors.separator}
         modifiers={[
           scrollContentBackground('hidden'),
           background(colors.page),
