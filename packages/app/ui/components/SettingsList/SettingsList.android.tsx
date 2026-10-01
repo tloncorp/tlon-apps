@@ -252,10 +252,19 @@ function TextFieldRow({
         singleLine
         visualTransformation={field.secure ? 'password' : 'none'}
         keyboardOptions={{
-          capitalization: 'none',
+          capitalization: field.capitalization ?? 'none',
           autoCorrectEnabled: false,
-          keyboardType: field.secure ? 'password' : 'uri',
+          keyboardType: field.secure
+            ? 'password'
+            : field.capitalization && field.capitalization !== 'none'
+              ? 'text'
+              : 'uri',
+          ...(field.onSubmit ? { imeAction: 'done' as const } : {}),
         }}
+        keyboardActions={
+          field.onSubmit ? { onDone: () => field.onSubmit?.() } : undefined
+        }
+        onFocusChanged={field.onFocusChange}
         textStyle={{ color: colors.primaryText, fontSize: 16 }}
         cursorColor={colors.accent}
         modifiers={[

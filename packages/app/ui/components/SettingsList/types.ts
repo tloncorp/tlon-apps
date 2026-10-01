@@ -71,6 +71,12 @@ export interface SettingsRowModel {
     placeholder?: string;
     /** Masks the value, for secrets. */
     secure?: boolean;
+    /** Defaults to none, for URLs and keys; names want `words`. */
+    capitalization?: 'none' | 'words' | 'sentences';
+    /** Hears focus coming and going, for screens that commit when editing ends. */
+    onFocusChange?: (focused: boolean) => void;
+    /** Gives the keyboard a Done key that runs this. */
+    onSubmit?: () => void;
   };
   /** Desktop highlight for the row whose screen is open beside the list. */
   isFocused?: boolean;
