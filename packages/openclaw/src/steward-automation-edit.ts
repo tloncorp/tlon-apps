@@ -269,13 +269,28 @@ function mapSchedule(
   }
 }
 
+/**
+ * The host requires `mode` on a create and allows it to be omitted from a
+ * patch, which merges per field. Verified against the cron store types of
+ * openclaw 2026.5.28, 2026.7.1 and 2026.9.4.
+ */
 function mapDelivery(
-  delivery: NonNullable<StewardAutomationDispatchTask['delivery']>
-): CronDelivery {
-  const { failureDestination, ...rest } = delivery;
+  delivery: NonNullable<StewardAutomationDispatchTask['delivery']>,
+  { requireMode }: { requireMode: boolean }
+): MappingResult<CronDelivery> {
+  if (requireMode && delivery.mode === undefined) {
+    return invalid('delivery.mode is required when a create sets a delivery');
+  }
+  const { mode, channel, to, accountId, failureDestination } = delivery;
   return {
-    ...rest,
-    ...(failureDestination === undefined ? {} : { failureDestination }),
+    ok: true,
+    value: {
+      ...(mode === undefined ? {} : { mode }),
+      ...(channel === undefined ? {} : { channel }),
+      ...(to === undefined ? {} : { to }),
+      ...(accountId === undefined ? {} : { accountId }),
+      ...(failureDestination === undefined ? {} : { failureDestination }),
+    },
   };
 }
 
@@ -357,6 +372,14 @@ export function toStewardAutomationCronCreateInput(
   if (!payload.ok) {
     return payload;
   }
+  let delivery: CronDelivery | undefined;
+  if (task.delivery !== undefined) {
+    const mapped = mapDelivery(task.delivery, { requireMode: true });
+    if (!mapped.ok) {
+      return mapped;
+    }
+    delivery = mapped.value;
+  }
   return {
     ok: true,
     value: {
@@ -366,9 +389,7 @@ export function toStewardAutomationCronCreateInput(
       sessionTarget: task.sessionTarget,
       wakeMode: task.wakeMode,
       payload: payload.value,
-      ...(task.delivery === undefined
-        ? {}
-        : { delivery: mapDelivery(task.delivery) }),
+      ...(delivery === undefined ? {} : { delivery }),
       ...(task.agentId === undefined ? {} : { agentId: task.agentId }),
       ...(task.description === undefined
         ? {}
@@ -393,10 +414,14 @@ export function toStewardAutomationCronPatch(
       ? {}
       : { sessionTarget: task.sessionTarget }),
     ...(task.wakeMode === undefined ? {} : { wakeMode: task.wakeMode }),
-    ...(task.delivery === undefined
-      ? {}
-      : { delivery: mapDelivery(task.delivery) }),
   };
+  if (task.delivery !== undefined) {
+    const delivery = mapDelivery(task.delivery, { requireMode: false });
+    if (!delivery.ok) {
+      return delivery;
+    }
+    patch.delivery = delivery.value;
+  }
   if (task.schedule !== undefined) {
     const schedule = mapSchedule(task.schedule);
     if (!schedule.ok) {

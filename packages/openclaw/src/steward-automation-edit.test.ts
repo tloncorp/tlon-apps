@@ -145,6 +145,24 @@ describe('toStewardAutomationCronCreateInput', () => {
     });
   });
 
+  it('rejects a create whose delivery omits the required mode', () => {
+    expect(
+      toStewardAutomationCronCreateInput(requestId, {
+        ...createTask,
+        delivery: { channel: 'tlon', to: 'diary/~zod/notebook' },
+      })
+    ).toEqual({
+      ok: false,
+      message: 'delivery.mode is required when a create sets a delivery',
+    });
+  });
+
+  it('allows an update to patch a delivery without a mode', () => {
+    expect(
+      toStewardAutomationCronPatch({ delivery: { to: 'chat/~zod/elsewhere' } })
+    ).toEqual({ ok: true, value: { delivery: { to: 'chat/~zod/elsewhere' } } });
+  });
+
   it('leaves delivery off a create that does not set one', () => {
     const result = toStewardAutomationCronCreateInput(requestId, createTask);
     expect(result.ok && 'delivery' in result.value).toBe(false);
