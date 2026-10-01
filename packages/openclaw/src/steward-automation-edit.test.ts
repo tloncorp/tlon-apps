@@ -103,6 +103,53 @@ describe('toStewardAutomationCronCreateInput', () => {
     });
   });
 
+  it('carries the delivery block and the tool allow-list onto the create', () => {
+    const result = toStewardAutomationCronCreateInput(requestId, {
+      ...createTask,
+      payload: {
+        kind: 'agentTurn',
+        message: 'Send the daily status.',
+        toolsAllow: ['group:web'],
+      },
+      delivery: {
+        mode: 'announce',
+        channel: 'tlon',
+        to: 'diary/~zod/notebook',
+        failureDestination: {
+          mode: 'announce',
+          channel: 'tlon',
+          to: 'chat/~zod/errors',
+        },
+      },
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: expect.objectContaining({
+        payload: {
+          kind: 'agentTurn',
+          message: 'Send the daily status.',
+          toolsAllow: ['group:web'],
+        },
+        delivery: {
+          mode: 'announce',
+          channel: 'tlon',
+          to: 'diary/~zod/notebook',
+          failureDestination: {
+            mode: 'announce',
+            channel: 'tlon',
+            to: 'chat/~zod/errors',
+          },
+        },
+      }),
+    });
+  });
+
+  it('leaves delivery off a create that does not set one', () => {
+    const result = toStewardAutomationCronCreateInput(requestId, createTask);
+    expect(result.ok && 'delivery' in result.value).toBe(false);
+  });
+
   it('converts an at schedule from Unix milliseconds to ISO text', () => {
     const result = toStewardAutomationCronCreateInput(requestId, {
       ...createTask,

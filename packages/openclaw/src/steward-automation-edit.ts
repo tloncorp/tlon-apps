@@ -53,6 +53,22 @@ const DispatchScheduleSchema = z.discriminatedUnion('kind', [
 const DispatchPayloadSchema = z.object({
   kind: ExpectedStringSchema.optional(),
   message: ExpectedStringSchema.optional(),
+  toolsAllow: z.array(ExpectedStringSchema).optional(),
+});
+
+const DispatchFailureDestinationSchema = z.object({
+  mode: z.enum(['announce', 'webhook']).optional(),
+  channel: ExpectedStringSchema.optional(),
+  to: ExpectedStringSchema.optional(),
+  accountId: ExpectedStringSchema.optional(),
+});
+
+const DispatchDeliverySchema = z.object({
+  mode: z.enum(['none', 'announce', 'webhook']).optional(),
+  channel: ExpectedStringSchema.optional(),
+  to: ExpectedStringSchema.optional(),
+  accountId: ExpectedStringSchema.optional(),
+  failureDestination: DispatchFailureDestinationSchema.optional(),
 });
 
 const DispatchTaskSchema = z.object({
@@ -64,6 +80,7 @@ const DispatchTaskSchema = z.object({
   sessionTarget: ExpectedStringSchema.optional(),
   wakeMode: ExpectedStringSchema.optional(),
   payload: DispatchPayloadSchema.optional(),
+  delivery: DispatchDeliverySchema.optional(),
   createdAtMs: NaturalNumberSchema.optional(),
   updatedAtMs: NaturalNumberSchema.optional(),
 });
@@ -180,7 +197,28 @@ type CronSchedule =
 
 type CronPayload =
   | { kind: 'systemEvent'; text: string }
-  | { kind: 'agentTurn'; message: string };
+  | { kind: 'agentTurn'; message: string; toolsAllow?: string[] };
+
+/**
+ * The host's cron store carries a delivery block and an agentTurn tool
+ * allow-list that `openclaw/plugin-sdk/types` does not declare; the bot's own
+ * onboarding writes both. Declared here so an edit can set them rather than
+ * leaving a created job with no destination.
+ */
+type CronFailureDestination = {
+  mode?: 'announce' | 'webhook';
+  channel?: string;
+  to?: string;
+  accountId?: string;
+};
+
+type CronDelivery = {
+  mode?: 'none' | 'announce' | 'webhook';
+  channel?: string;
+  to?: string;
+  accountId?: string;
+  failureDestination?: CronFailureDestination;
+};
 
 function mapSchedule(
   schedule: NonNullable<StewardAutomationDispatchTask['schedule']>
@@ -231,6 +269,16 @@ function mapSchedule(
   }
 }
 
+function mapDelivery(
+  delivery: NonNullable<StewardAutomationDispatchTask['delivery']>
+): CronDelivery {
+  const { failureDestination, ...rest } = delivery;
+  return {
+    ...rest,
+    ...(failureDestination === undefined ? {} : { failureDestination }),
+  };
+}
+
 function mapPayload(
   payload: NonNullable<StewardAutomationDispatchTask['payload']>
 ): MappingResult<CronPayload> {
@@ -249,7 +297,13 @@ function mapPayload(
     case 'agentTurn':
       return {
         ok: true,
-        value: { kind: 'agentTurn', message: payload.message },
+        value: {
+          kind: 'agentTurn',
+          message: payload.message,
+          ...(payload.toolsAllow === undefined
+            ? {}
+            : { toolsAllow: payload.toolsAllow }),
+        },
       };
     default:
       return invalid(
@@ -265,6 +319,7 @@ export interface StewardAutomationCronCreateInput {
   sessionTarget: string;
   wakeMode: string;
   payload: CronPayload;
+  delivery?: CronDelivery;
   agentId?: string;
   description?: string;
   enabled?: boolean;
@@ -311,6 +366,9 @@ export function toStewardAutomationCronCreateInput(
       sessionTarget: task.sessionTarget,
       wakeMode: task.wakeMode,
       payload: payload.value,
+      ...(task.delivery === undefined
+        ? {}
+        : { delivery: mapDelivery(task.delivery) }),
       ...(task.agentId === undefined ? {} : { agentId: task.agentId }),
       ...(task.description === undefined
         ? {}
@@ -335,6 +393,9 @@ export function toStewardAutomationCronPatch(
       ? {}
       : { sessionTarget: task.sessionTarget }),
     ...(task.wakeMode === undefined ? {} : { wakeMode: task.wakeMode }),
+    ...(task.delivery === undefined
+      ? {}
+      : { delivery: mapDelivery(task.delivery) }),
   };
   if (task.schedule !== undefined) {
     const schedule = mapSchedule(task.schedule);
