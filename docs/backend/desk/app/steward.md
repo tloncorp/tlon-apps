@@ -12,6 +12,7 @@ Ship-native umbrella agent: the durable, always-on ship-side half of an ephemera
 | `lens`       | `sur/steward/lens.hoon`          | `%steward-lens-action-1`, `%steward-lens-update-1`                       |
 | `gateway`    | `sur/steward/gateway.hoon`       | `%steward-gateway-action-1`, `%steward-gateway-update-1`                 |
 | `automation` | `sur/steward/automation.hoon`    | `%steward-automation-action-1`, `%steward-automation-update-1`, `%steward-automation-tasks-1` |
+| `journey`    | —                                | —                                                                        |
 
 Each sur file is versioned on its own (`++v1`), referenced by callers as `action:v1:lens`, `update:v1:gateway`, etc. The core `sur/steward.hoon` carries only cross-cutting config (currently just `%configure`); each module's protocol lives in its own file.
 
@@ -22,8 +23,9 @@ Modules:
 | `lens`       | Per-run bot introspection (folded in from the former `%context-lens`). |
 | `gateway`    | Harness liveness tracking + offline DM auto-replies.                   |
 | `automation` | Durable best-effort mirror of OpenClaw cron task definitions, propagated bot → owner → client. |
+| `journey`    | Content-free OpenClaw DM and channel delivery telemetry.                |
 
-The app helper core keeps each module's logic in its own sub-core: `le-core` for lens, `ga-core` for gateway, and `au-core` for automation. Adding a new module means a new `sur/steward/<module>.hoon`, its own mark family, and a dispatch arm in the app — existing modules and marks are untouched.
+The app helper core keeps each module's logic in its own sub-core: `le-core` for lens, `ga-core` for gateway, `au-core` for automation, and the stateless `jo-core` for journey telemetry. Adding a stateful or protocol-bearing module means a new `sur/steward/<module>.hoon`, its own mark family, and a dispatch arm in the app — existing modules and marks are untouched.
 
 ## state model
 
@@ -115,6 +117,14 @@ Hosted bots are restarted by their supervisor (`tlawn.py`), not by anything the 
 On every liveness transition the module publishes a `bot-liveness` claim into the bot's own `%contacts` profile (`%contact-action-1` `%self`, wire `/gateway/liveness`): `offline` on `%gateway-stop` and on lease expiry, `online` on `%gateway-start` and on a heartbeat that revives an expired lease. Peers who have met the bot see it as a dimmed avatar / "Bot · Offline" badge. Format, semantics and audience are in [bot-liveness.md](../../../bot-liveness.md).
 
 `owner` is the shared top-level `(unit ship)`, set via the core `%configure`, so a harness sends two pokes at startup: the core `%configure` for the owner, then the gateway `%configure` for timings. The gateway action's own `%configure` carries only timing (`active-window`, `reply-cooldown`); the owner is set once at the core level.
+
+## module: journey
+
+Emits content-free delivery telemetry for OpenClaw bot DMs and new chat/gallery posts and replies. The module watches `%chat /v4` on `/journey/chat` and `%channels /v4` on `/journey/channels`. It checks the relevant `%contacts` profile for a valid `bot-info` claim identifying `"harness":"openclaw"`. Missing contacts, unavailable `%contacts`, and missing or malformed claims emit nothing. The observer stores no state and adds no poke, watch, or scry surface.
+
+DM stages are `owner_message_sent`, `bot_message_received`, `bot_message_sent`, and `owner_message_received`. Bot-side stages use the configured owner; owner-side stages apply only to structurally sponsored moons. Channel stages are `group_host_message_received` and `owner_group_message_received`; the latter requires the bot's moon sponsor to have the channel locally. Edits, reactions, legacy diary channels, and Notes notebooks emit no channel stages.
+
+DM and channel observations share the same best-effort contact check: profiles already delivered by ordinary peering qualify later messages, with no profile fetch or backfill. Events use the canonical DM ID or the channel message's sender `author/sent` correlation key and emit through `%logs` with source `steward/journey`. Channel host IDs differ from the sender key. See [Bot message journey observability](../../../../packages/openclaw/docs/message-journey-observability.md) for the cross-system event contract and correlation details.
 
 ## module: automation
 
@@ -377,9 +387,9 @@ With no entries at all the exact JSON shape is `{}`. Task values use the support
 
 ## lifecycle and invariants
 
-- `on-init` creates `state-2`, subscribes to `%activity /v5` for the gateway module, seeds the default lens retention cap, and leaves automation empty. There is no lens prune timer (retention is count-only, enforced on insert/configure).
-- `on-load` delegates to `load`, which migrates one version per step (`state-0-to-1`, `state-1-to-2`) in the same shape as `%activity`'s `load`. Its only migration card is the `bot-liveness` seed for a `%0` bot whose gateway is already `%up` or `%down` (owner configured): heartbeats advertise only on an up transition, so an already-up gateway would otherwise stay unknown until its next restart. Every load re-emits the Eyre binding for `/steward`; the automation sweep chain is armed once, by `on-init` or by the `%1 → %2` step, since it re-arms itself. Decode or migration failure is visible and never resets to bunt. `on-save` writes `state-2`.
-- Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`, liveness publication to `%contacts` on `/gateway/liveness`, and the owner-side automation watches on `/automation/tasks/[bot-p]` — everything arriving on an automation wire is applied only for the ship in the wire (facts naming other ships are ignored). The `%activity` subscription is re-watched on `%kick`; an automation watch is re-watched on `%kick` iff its bot is still trusted. Poke/DM nacks are logged and ignored (Ames retries); a nacked automation watch is slogged and left for a `%trust-bot` re-poke to repair.
+- `on-init` creates `state-2`, subscribes to `%activity /v5`, `%chat /v4`, and `%channels /v4`, seeds the default lens retention cap, and leaves automation empty. There is no lens prune timer (retention is count-only, enforced on insert/configure).
+- `on-load` delegates to `load`, which migrates one version per step (`state-0-to-1`, `state-1-to-2`) in the same shape as `%activity`'s `load`. Its only migration card is the `bot-liveness` seed for a `%0` bot whose gateway is already `%up` or `%down` (owner configured). Every load re-emits the Eyre binding for `/steward` and repairs any missing `%activity`, `%chat`, or `%channels` subscription without duplicating a live watch. The automation sweep chain is armed once, by `on-init` or by the `%1 → %2` step, since it re-arms itself. Decode or migration failure is visible and never resets to bunt. `on-save` writes `state-2`.
+- Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`, liveness publication to `%contacts` on `/gateway/liveness`, journey observations on `/journey/chat` and `/journey/channels`, journey log pokes on `/journey/logs`, and the owner-side automation watches on `/automation/tasks/[bot-p]` — everything arriving on an automation wire is applied only for the ship in the wire (facts naming other ships are ignored). The activity and journey subscriptions are re-watched on `%kick`; an automation watch is re-watched on `%kick` iff its bot is still trusted. Poke/DM nacks are logged and ignored (Ames retries); a nacked automation watch is slogged and left for a `%trust-bot` re-poke to repair.
 - `on-watch` auth is per-path: lens and gateway paths require `=(src our)`; `/v1/automation/tasks` also admits the configured owner. Rejection is a crash (watch nack). Dotket `on-peek` calls execute locally against current state without caller-source authorization. Core, gateway, and automation pokes are local only; lens applies its per-action source rules to admit trusted bot runs and owner relays.
 
 ## reporting
