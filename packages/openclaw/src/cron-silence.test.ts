@@ -97,6 +97,53 @@ describe('cron silence evidence', () => {
     expect(consumeCronSilenceOutput(finished)).toBe(false);
   });
 
+  it.each([
+    ['session ID', { sessionId: undefined }],
+    ['trigger', { trigger: undefined }],
+    ['both fields', { sessionId: undefined, trigger: undefined }],
+  ])(
+    'preserves same-run identity when the model hook omits %s',
+    (_name, partial) => {
+      beginCronSilenceObservation(ctx);
+      beginCronSilenceObservation({ ...ctx, ...partial });
+      recordCronSilenceOutput(end, ctx);
+      expect(consumeCronSilenceOutput(finished)).toBe(true);
+    }
+  );
+
+  it('resets prior output evidence on a partial same-run model start', () => {
+    beginCronSilenceObservation(ctx);
+    recordCronSilenceOutput(end, ctx);
+    beginCronSilenceObservation({
+      ...ctx,
+      sessionId: undefined,
+      trigger: undefined,
+    });
+    expect(consumeCronSilenceOutput(finished)).toBe(false);
+  });
+
+  it.each([
+    [
+      'different run',
+      { runId: 'next-run', trigger: undefined, sessionId: undefined },
+    ],
+    ['missing run ID', { runId: undefined, trigger: undefined }],
+    ['different session', { sessionId: 'next-session', trigger: undefined }],
+    ['explicit non-cron turn', { trigger: 'user' }],
+  ])('does not inherit cron identity for a %s', (_name, partial) => {
+    beginCronSilenceObservation(ctx);
+    recordCronSilenceOutput(end, ctx);
+    beginCronSilenceObservation({ ...ctx, ...partial });
+    recordCronSilenceOutput(end, ctx);
+    expect(consumeCronSilenceOutput(finished)).toBe(false);
+  });
+
+  it('does not infer a cron run from an unrecognized partial hook', () => {
+    beginCronSilenceObservation({ ...ctx, trigger: undefined });
+    recordCronSilenceOutput(end, ctx);
+    expect(consumeCronSilenceOutput(finished)).toBe(false);
+  });
+
   it.each(['cron', 'user'])(
     'clears stale evidence when a new %s turn starts',
     (trigger) => {

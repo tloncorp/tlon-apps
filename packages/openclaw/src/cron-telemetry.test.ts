@@ -467,6 +467,12 @@ describe('cron telemetry hook handling', () => {
         sessionKey: 'cron:job-1',
       };
       beginCronSilenceObservation(ctx);
+      // model_call_started can omit fields supplied by agent_turn_prepare.
+      beginCronSilenceObservation({
+        ...ctx,
+        sessionId: undefined,
+        trigger: undefined,
+      });
       recordCronSilenceOutput(
         {
           success: true,

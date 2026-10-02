@@ -22,12 +22,21 @@ export function isExplicitSilentReply(text: string | undefined): boolean {
 
 export function beginCronSilenceObservation(ctx: PluginHookAgentContext): void {
   if (!ctx.sessionKey) return;
+  const existing = outputs.get(ctx.sessionKey);
+  const sameRun =
+    existing !== undefined &&
+    existing.runId === ctx.runId &&
+    (!ctx.sessionId || existing.sessionId === ctx.sessionId);
+  // Model hooks can omit identity fields supplied by agent_turn_prepare.
+  // Only inherit them for the same run without a conflicting session ID.
+  const trigger = ctx.trigger ?? (sameRun ? 'cron' : undefined);
+  const sessionId = ctx.sessionId ?? (sameRun ? existing.sessionId : undefined);
   // A later interactive turn must invalidate any unconsumed cron evidence too.
   outputs.delete(ctx.sessionKey);
-  if (ctx.trigger !== 'cron' || !ctx.runId || !ctx.sessionId) return;
+  if (trigger !== 'cron' || !ctx.runId || !sessionId) return;
   outputs.set(ctx.sessionKey, {
     runId: ctx.runId,
-    sessionId: ctx.sessionId,
+    sessionId,
     silent: false,
   });
   while (outputs.size > 512) {
