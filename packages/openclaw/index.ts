@@ -32,6 +32,10 @@ import {
   setCronServiceAccessor,
 } from './src/cron-telemetry.js';
 import {
+  beginCronSilenceObservation,
+  recordCronSilenceOutput,
+} from './src/cron-silence.js';
+import {
   installTlonDiagnosticSubscriptions,
   shouldInstallTlonDiagnosticSubscriptions,
 } from './src/diagnostic-subscriptions.js';
@@ -1539,19 +1543,24 @@ export default defineBundledChannelEntry({
       await ensureCronContextLens(ctx);
     };
     api.on('agent_turn_prepare', async (_event, ctx) => {
+      beginCronSilenceObservation(ctx);
       // Cron has no active Tlon turn recorder, so its output trace stays nullable.
       if (ctx.trigger !== 'cron') {
         recordTlonAgentRunTrace(ctx.runId, ctx.trace?.traceId);
       }
       await onCronAgentHook(ctx);
     });
-    api.on('model_call_started', async (_event, ctx) => onCronAgentHook(ctx));
+    api.on('model_call_started', async (_event, ctx) => {
+      beginCronSilenceObservation(ctx);
+      await onCronAgentHook(ctx);
+    });
 
     // Background lenses normally finalize on tool-result idle; agent_end
     // re-arms the window so runs that end with model output (no trailing
     // tool call) still finalize, while leaving time for the gateway to
     // deliver the reply (stamped + recorded via the outbound send path).
-    api.on('agent_end', (_event, ctx) => {
+    api.on('agent_end', (event, ctx) => {
+      recordCronSilenceOutput(event, ctx);
       clearCronJobForSession(ctx.sessionKey, ctx.jobId);
       if (!contextLensEnabled) {
         return;

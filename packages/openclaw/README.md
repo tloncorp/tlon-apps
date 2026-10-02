@@ -191,6 +191,25 @@ Diary migration (`/migrate`) emits `TlonBot Diary Migration` per accepted CLI ru
 
 The plugin does not enable telemetry automatically just because an API key is present. `enabled: true` is required so open-source installs do not phone home by default.
 
+### Intentional cron silence
+
+From plugin 0.32.1, `TlonBot Cron Run` includes `intentionalSilence`, and the
+existing `tlon.cron.run.finished` log includes `tlon.cron.intentional_silence`.
+The flag is true only when a run finishes `ok`, is explicitly `not-delivered`
+with `delivered=false`, has no run or delivery error, and its summary is exactly
+`NO_REPLY` (ignoring surrounding whitespace and case). When core strips the token
+from the summary, the plugin also accepts a successful `agent_end` with that
+exact final output, correlated to the isolated cron's session after observing
+the agent run start. Only a boolean is retained; output text is never exported.
+Missing evidence, substantive summaries, and unexplained non-delivery produce
+`false`. Evidence is consumed on completion and reset at the next agent run.
+
+After deploying the plugin, update the Grafana cron alert and dashboard
+classifier to treat `ok` runs with `intentional_silence=true` as healthy before
+classifying `not-delivered` as broken. Keep explicit errors alertable and treat
+an absent flag from older plugin versions as unconfirmed silence. The plugin
+does not change the native status/delivery fields or the live Grafana rules.
+
 ## Steward automation mirror
 
 Against OpenClaw `2026.7.1-2` (the hosted version; the SDK devDependency stays on `2026.5.28` only because 7.1 requires Node ≥ 22.22.3 and the repo pins 22.22.0), the plugin keeps a best-effort ship-side mirror of cron definitions in the bot's local `%steward`. `gateway_start` and every `cron_changed` action trigger a complete `getCron().list({ includeDisabled: true })` read. The plugin normalizes supported `cron`, `at`, and `every` schedules (including ISO `at` text to Unix milliseconds) and submits the complete list through `%steward-automation-action-1` as one `%project` poke.
