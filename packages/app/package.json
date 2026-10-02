@@ -19,6 +19,7 @@
     "@tloncorp/shared": "workspace:*",
     "@tloncorp/ui": "workspace:*",
     "posthog-js": "^1.234.4",
+    "react-native-ease": "0.8.0",
     "refractor": "^4.8.0",
     "sqlocal": "^0.14.1"
   },
@@ -52,7 +53,7 @@
     "react-native-email-link": "*",
     "react-native-keyboard-controller": "^1.21.7",
     "react-native-safe-area-context": "*",
-    "react-native-transformer-text-input": "^0.4.1",
+    "react-native-transformer-text-input": "^0.4.2",
     "tamagui": "2.4.2",
     "@tanstack/react-query": "^5.32.1",
     "zustand": "^3.7.2"

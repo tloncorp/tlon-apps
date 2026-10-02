@@ -38,6 +38,61 @@ function beforeImmediate<T>(promise: Promise<T>) {
 }
 
 describe('tlon tool execution', () => {
+  describe('browser handoff credential binding', () => {
+    it.each(
+      ['--config', '--ship', '--url', '--code', '--cookie'].flatMap((flag) => [
+        `${flag} private-value browser handoff https://browser-session.tlon.network/s/private.signature`,
+        `${flag}=private-value browser handoff https://browser-session.tlon.network/s/private.signature`,
+        `browser handoff https://browser-session.tlon.network/s/private.signature ${flag}=private-value`,
+      ])
+    )(
+      'rejects an override without executing or logging the capability (%s)',
+      async (command) => {
+        const runCommand = vi.fn();
+        const logError = vi.fn();
+        const execute = createTlonToolExecutor({
+          runCommand,
+          logError,
+          notifyDiaryMigrationDiscovery: vi.fn(),
+        });
+        const result = await execute('handoff', { command });
+        expect(runCommand).not.toHaveBeenCalled();
+        expect(result.details).toMatchObject({
+          status: 'blocked',
+          reason: 'browser_account_override',
+        });
+        expect(JSON.stringify([result, logError.mock.calls])).not.toContain(
+          'private-value'
+        );
+        expect(JSON.stringify([result, logError.mock.calls])).not.toContain(
+          'private.signature'
+        );
+      }
+    );
+
+    it('runs a handoff without overrides and leaves ordinary credential overrides available', async () => {
+      const runCommand = vi.fn().mockResolvedValue('ok');
+      const execute = createTlonToolExecutor({
+        runCommand,
+        notifyDiaryMigrationDiscovery: vi.fn(),
+      });
+      await execute('handoff', {
+        command:
+          'browser handoff https://browser-session.tlon.network/s/payload.signature',
+      });
+      await execute('read', {
+        command: '--config /tmp/other.json contacts self',
+      });
+      expect(runCommand).toHaveBeenCalledTimes(2);
+      expect(runCommand).toHaveBeenLastCalledWith([
+        '--config',
+        '/tmp/other.json',
+        'contacts',
+        'self',
+      ]);
+    });
+  });
+
   it('returns a local diary refusal before discovery delivery settles and preserves notifier deduplication', async () => {
     let settleSend!: (messageId: string | undefined) => void;
     const send = vi.fn(
@@ -510,6 +565,21 @@ describe('checkBlockedTlonOperation', () => {
 
 const documentedActionOperations = {
   activity: ['mentions', 'replies', 'all', 'unreads'],
+  browser: ['handoff'],
+  buckets: [
+    'list',
+    'show',
+    'files',
+    'search',
+    'create',
+    'mkdir',
+    'upload',
+    'read',
+    'rename',
+    'move',
+    'delete',
+    'set-writers',
+  ],
   channels: [
     'dms',
     'group-dms',
@@ -634,6 +704,40 @@ const documentedActionOperations = {
 } as const;
 
 describe('tlon tool telemetry summarizer', () => {
+  it('classifies Bucket reads, uploads, and destructive operations without leaking paths', () => {
+    const read = summarizeTlonCommand(
+      'buckets read buckets/~zod/private-files 12'
+    );
+    expect(read).toMatchObject({
+      channelKind: 'buckets',
+      intent: 'read',
+      operation: 'read',
+      subcommand: 'buckets',
+    });
+
+    const upload = summarizeTlonCommand(
+      'buckets upload buckets/~zod/private-files ./secret-plan.md -t text/markdown'
+    );
+    expect(upload).toMatchObject({
+      channelKind: 'buckets',
+      contentTypeProvided: true,
+      intent: 'write',
+      operation: 'upload',
+      uploadSource: 'local',
+    });
+    expect(JSON.stringify(upload)).not.toContain('secret-plan.md');
+    expect(JSON.stringify(upload)).not.toContain('private-files');
+
+    const deletion = summarizeTlonCommand(
+      'buckets delete buckets/~zod/private-files 12'
+    );
+    expect(deletion).toMatchObject({
+      channelKind: 'buckets',
+      intent: 'admin',
+      operation: 'delete',
+    });
+  });
+
   it('accounts for documented tlon action operations', () => {
     for (const [subcommand, operations] of Object.entries(
       documentedActionOperations
@@ -817,6 +921,21 @@ describe('tlon tool telemetry summarizer', () => {
     expect(JSON.stringify(summary)).not.toContain(
       'https://cdn.example.com/private-assets/avatar.png'
     );
+  });
+
+  it('summarizes browser handoff without storing its signed capability', () => {
+    const summary = summarizeTlonCommand(
+      'browser handoff https://browser-session-ovh1.tlon.network/s/private.signature'
+    );
+
+    expect(summary).toMatchObject({
+      summaryKey: 'browser.handoff',
+      subcommand: 'browser',
+      operation: 'handoff',
+      intent: 'write',
+      isKnownSubcommand: true,
+    });
+    expect(JSON.stringify(summary)).not.toContain('private.signature');
   });
 
   it('marks wrong-path DM sends as blocked without storing the target ship', () => {

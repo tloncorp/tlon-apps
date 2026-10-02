@@ -478,7 +478,7 @@ function startSingleFlight<Key, Value>(
   return { flight, started: true } as const;
 }
 
-const SLOT_PREFIX = 'tlon-agent-primary:';
+export const SLOT_PREFIX = 'tlon-agent-primary:';
 
 export async function isAgentOnboardingCronJob(jobId: string | undefined) {
   if (!jobId) return false;

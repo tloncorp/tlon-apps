@@ -107,6 +107,7 @@
       [/x/v2/groups/$/$/channels/$/$/$/readers %ships]
       [/x/v2/groups/$/$/channels/$/$/$/writers %ships]
       [/x/groups/$/$/seats/$ %noun]
+      [/x/v2/groups/$/$/seats/ships %ships]
     ::
       [/x/groups/light %groups]
       [/x/v0/light/groups %groups]
@@ -640,6 +641,14 @@
   ~>  %spin.['channels-scry']
   ^-  path
   /(scot %p our.bowl)/channels/(scot %da now.bowl)/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
+::
+::  +channels-index-of: .channels-index entries for a group's channels
+::
+++  channels-index-of
+  |=  [=flag:g =group:g]
+  ^-  (map nest:g flag:g)
+  %-  ~(gas by *(map nest:g flag:g))
+  (turn ~(tap in ~(key by channels.group)) (late flag))
 ::
 ::  +is-joined: are we subscribed to (or host of) this channel?
 ::
@@ -1583,7 +1592,14 @@
       :: initialize .active-channels in $group
       ::
       [%load %active-channels ~]
+    ::  backfill .channels-index, which subscribers did not fill from the
+    ::  channels a group arrived with. a group's own channels win over
+    ::  an entry left pointing elsewhere.
     ::
+    =.  channels-index
+      %+  roll  ~(tap by groups)
+      |=  [[=flag:g =net:g =group:g] =_channels-index]
+      (~(uni by channels-index) (channels-index-of flag group))
     =.  groups
       %-  ~(run by groups)
       |=  [=net:g =group:g]
@@ -3993,6 +4009,12 @@
         invited.admissions  invited.admissions.group
         active-channels     active-channels.group
       ==
+    ::  index the channels the group arrives with. +go-u-channel only
+    ::  indexes channels added later, and a %channels %leave for a nest
+    ::  missing from .channels-index is dropped, leaving it active here.
+    ::
+    =.  channels-index
+      (~(uni by channels-index) (channels-index-of flag group))
     (go-response %create group)
   ::  +go-u-meta: apply meta update
   ::

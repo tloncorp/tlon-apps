@@ -28,8 +28,8 @@ services:
         mkdir -p /cache
 
         echo "==> fake ships runtime pin"
-        echo "    vere pin: vere-v4.5"
-        echo "    pier generation: 30"
+        echo "    vere: latest release (see pier-archive.json for the producing vere)"
+        echo "    pier generation: 31"
         echo "    zod code: lidlut-tabwed-pillex-ridrup"
         echo "    ten code: lapseg-nolmel-riswen-hopryc"
         echo "    mug code: ravsut-bolryd-hapsum-pastul"
@@ -130,29 +130,23 @@ services:
         }
 
         zod_archive="$$(artifact \
-          rube-zod30.tgz \
-          https://bootstrap.urbit.org/rube-zod30.tgz \
+          rube-zod31.tgz \
+          https://bootstrap.urbit.org/rube-zod31.tgz \
           md5 \
-          c156c20f2f16754433711a2ab1aab234 \
-          347494585)"
+          643fc662006bc38d8331f6f57ca04558 \
+          369200635)"
         ten_archive="$$(artifact \
-          rube-ten30.tgz \
-          https://bootstrap.urbit.org/rube-ten30.tgz \
+          rube-ten31.tgz \
+          https://bootstrap.urbit.org/rube-ten31.tgz \
           md5 \
-          833d91b522bab7ed1c28cc528b20ba46 \
-          346581323)"
+          68e0cf97a97a49078ca7b1e8498394d1 \
+          368221708)"
         mug_archive="$$(artifact \
-          rube-mug30.tgz \
-          https://bootstrap.urbit.org/rube-mug30.tgz \
+          rube-mug31.tgz \
+          https://bootstrap.urbit.org/rube-mug31.tgz \
           md5 \
-          29b6004ce1f6dfcf67253375d13dab90 \
-          347375646)"
-        vere_archive="$$(artifact \
-          linux-x86_64-vere-v4.5.tgz \
-          https://github.com/urbit/vere/releases/download/vere-v4.5/linux-x86_64.tgz \
-          sha256 \
-          bf7a30aad0a820bf217f3f81239b1029d16f11ba5274d45067d811489f817eed \
-          9728849)"
+          94d131a7e5a10002b8d776152cfeb8c1 \
+          369086682)"
 
         if [ ! -d zod ]; then
           echo "==> Extracting zod"
@@ -173,19 +167,29 @@ services:
           echo "==> mug pier already extracted"
         fi
 
-        if ! ls -1 vere-*-linux-x86_64 >/dev/null 2>&1; then
-          echo "==> Extracting vere"
-          tar xzf "$$vere_archive" || { echo "ERROR: failed to extract vere"; exit 1; }
-        else
-          echo "==> vere already extracted"
+        # Vere floats to the latest release, like rube: archives are cut on
+        # current vere and pier state only migrates forward, so a pinned older
+        # vere can fail to boot a newer archive. Fetched fresh on every start
+        # into a dir outside /cache (whose entries are keyed by filename and
+        # would pin whatever release was cached first).
+        vere_dir="$$(mktemp -d)"
+        echo "==> Downloading latest vere"
+        download \
+          https://github.com/urbit/vere/releases/latest/download/linux-x86_64.tgz \
+          "$$vere_dir/vere.tgz" || { echo "ERROR: failed to download vere"; exit 1; }
+        tar xzf "$$vere_dir/vere.tgz" -C "$$vere_dir" || { echo "ERROR: failed to extract vere"; exit 1; }
+        set -- "$$vere_dir"/vere-*-linux-x86_64
+        if [ "$$#" -ne 1 ] || [ ! -f "$$1" ]; then
+          echo "ERROR: expected exactly one vere binary in the release tarball"
+          exit 1
         fi
-        VERE="$$(ls -1 vere-*-linux-x86_64 | head -1)"
+        VERE="$$1"
         chmod +x "$$VERE"
-        echo "==> Using vere: $$VERE"
+        echo "==> Using vere: $$(basename "$$VERE")"
         echo "==> Starting ships"
-        ./"$$VERE" -t --loom 31 --http-port 8080 zod &
-        ./"$$VERE" -t --loom 31 --http-port 8081 ten &
-        ./"$$VERE" -t --loom 31 --http-port 8082 mug
+        "$$VERE" -t --loom 31 --http-port 8080 zod &
+        "$$VERE" -t --loom 31 --http-port 8081 ten &
+        "$$VERE" -t --loom 31 --http-port 8082 mug
     volumes:
       - ships-data:/data
       - ${FAKE_SHIP_CACHE_DIR:-fake-ship-cache}:/cache

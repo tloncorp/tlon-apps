@@ -96,6 +96,7 @@ import { INVITE_LINK_HELP } from './commands/invite-link';
 import { runInviteLinkCommand } from './invite-link-runtime';
 import { createNotesChannelInGroup } from './notes-channel';
 import { createNotesChannelDeps } from './notes-channel-runtime';
+import { sleep } from './runtime-deps';
 
 const ADMIN_ROLE_ID = 'admin';
 const GROUP_UPDATE_FLAGS = ['title', 'description', 'image', 'cover'] as const;
@@ -360,10 +361,6 @@ type OwnerAdminVerification =
 
 const VERIFY_ATTEMPTS = 5;
 const VERIFY_DELAY_MS = 500;
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 function groupHasRole(group: Group, roleId: string): boolean {
   return (group.roles || []).some((role) => role.id === roleId);
@@ -938,6 +935,10 @@ async function createOwnedGroup(
   console.log(`   Description: ${description || '(none)'}`);
   console.log(`   Owner: ${ownerShip}`);
   console.log(`   Channel: ${channelId}`);
+  console.log(`   Ref: /1/group/${groupId}`);
+  console.log(
+    `   Share: include the Ref path in a chat message to post a tappable group card.`
+  );
 
   return { groupId, channelId, ownerShip };
 }
@@ -1478,7 +1479,11 @@ async function main() {
         printUsageAndExit(GROUPS_COMMAND_HELP.create);
       }
       const description = getOption(args, 'description', 2) || '';
-      await createGroupWithChannel(title, description);
+      const { groupId } = await createGroupWithChannel(title, description);
+      console.log(`   Ref: /1/group/${groupId}`);
+      console.log(
+        `   Share: include the Ref path in a chat message to post a tappable group card.`
+      );
       break;
     }
 

@@ -22,6 +22,8 @@ import {
   DraftInputContext,
   useDraftInputContext,
 } from '../../draftInputs/shared';
+import { useMessageTextSelection } from '../MessageTextSelectionSheet';
+import { messageSelectionText } from '../messageSelectionText';
 import {
   MessageMenuActionDescriptor,
   MessageMenuActionId,
@@ -111,6 +113,7 @@ const systemImageForAction: Partial<Record<MessageMenuActionId, string>> = {
   quote: 'quote.bubble',
   edit: 'pencil',
   copyText: 'doc.on.doc',
+  selectText: 'text.cursor',
   copyRef: 'link',
   forward: 'arrowshape.turn.up.right',
   viewReactions: 'face.smiling',
@@ -143,6 +146,11 @@ export function useMessageActionModel({
   onViewBotRun?: (post: db.Post) => void;
   runAfterDismiss: RunAfterDismiss;
 }) {
+  const selectText = useMessageTextSelection();
+  const selectableText = useMemo(
+    () => (selectText ? messageSelectionText(post) : ''),
+    [selectText, post]
+  );
   const currentUserId = useCurrentUserId();
   const connectionStatus = store.useConnectionStatus();
   const channel = useChannelContext();
@@ -209,6 +217,24 @@ export function useMessageActionModel({
         ];
       }
     );
+    if (
+      selectText &&
+      selectableText.trim() &&
+      descriptors.some((action) => action.id === 'copyText')
+    ) {
+      const descriptor = {
+        id: 'selectText',
+        title: 'Select text',
+        systemImage: systemImageForAction.selectText,
+      } as const;
+      const copyIndex = descriptors.findIndex(
+        (action) => action.id === 'copyText'
+      );
+      descriptors.splice(copyIndex + 1, 0, {
+        ...descriptor,
+        token: messageActionToken(post, actionContentKey, descriptor),
+      });
+    }
     if (showViewBotRun) {
       const descriptor = {
         id: 'viewBotRun',
@@ -225,6 +251,8 @@ export function useMessageActionModel({
     postActionIds,
     connectionStatus,
     showViewBotRun,
+    selectText,
+    selectableText,
     post,
     actionContentKey,
     channel,
@@ -240,6 +268,12 @@ export function useMessageActionModel({
         token &&
         actions.find((action) => action.id === id)?.token !== token
       ) {
+        return;
+      }
+      if (id === 'selectText') {
+        if (selectText && selectableText.trim()) {
+          runAfterDismiss(() => selectText(post, selectableText));
+        }
         return;
       }
       if (id === 'viewBotRun') {
@@ -294,6 +328,8 @@ export function useMessageActionModel({
       onViewReactions,
       post,
       runAfterDismiss,
+      selectText,
+      selectableText,
     ]
   );
 

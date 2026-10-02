@@ -15,13 +15,11 @@ import {
   requestBucketsGrant,
   requestBucketsUpload,
   sendBucketsAction,
-} from '@tloncorp/api';
-import {
   BucketsBrokerError,
   deleteBucketObject,
   grantBucketRead,
   isBucketObjectAlreadyDeleted,
-} from '@tloncorp/shared';
+} from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { useBucket, useBucketUploads } from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';

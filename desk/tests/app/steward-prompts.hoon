@@ -4,8 +4,8 @@
 /+  *test-agent, pj=steward-prompts-json
 /=  agent  /app/steward
 |%
-+$  state-4
-  $:  %4
++$  state-5
+  $:  %5
       owner=(unit ship)
       bots=(set ship)
       lens=state:v1:l
@@ -14,11 +14,15 @@
       prompts=state:v1:pr
   ==
 ++  moon  ^-  ship  ~bus
+::  the bowl is set before do-init so on-init's watches are recorded under
+::  our real ship; otherwise every reload re-emits them as missing
+::
 ++  setup
   =/  m  (mare ,~)
   ^-  form:m
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~dev)))
   ;<  *  bind:m  (do-init %steward agent)
-  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~dev, now ~2024.1.1)))
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.1)))
   (pure:m ~)
 ++  configure
   |=  owner=ship
@@ -44,10 +48,10 @@
   ;<  ~  bind:m  (trust moon)
   (pure:m ~)
 ++  got-state
-  =/  m  (mare ,state-4)
+  =/  m  (mare ,state-5)
   ^-  form:m
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  (pure:m !<(state-4 !<(vase q.res)))
+  (pure:m !<(state-5 !<(vase q.res)))
 ++  rid  ^-  request-id:v1:pr  `@uv`0x1234.5678
 ++  edit-set  ^-  edit:v1:pr  [%set 'SOUL.md' 'new text']
 ++  updated  ^-  outcome:v1:pr  [%updated 'SOUL.md']
@@ -133,17 +137,17 @@
 ++  got-request
   =/  m  (mare ,incoming-request:v1:pr)
   ^-  form:m
-  ;<  st=state-4  bind:m  got-state
+  ;<  st=state-5  bind:m  got-state
   (pure:m (~(got by requests.prompts.st) rid))
 ++  got-requests
   =/  m  (mare ,requests:v1:pr)
   ^-  form:m
-  ;<  st=state-4  bind:m  got-state
+  ;<  st=state-5  bind:m  got-state
   (pure:m requests.prompts.st)
 ++  got-pending
   =/  m  (mare ,pending:v1:pr)
   ^-  form:m
-  ;<  st=state-4  bind:m  got-state
+  ;<  st=state-5  bind:m  got-state
   (pure:m pending.prompts.st)
 ++  advance-clock
   |=  by=@dr
@@ -706,7 +710,7 @@
   ^-  form:m
   ;<  ~  bind:m  setup
   ;<  *  bind:m  (project *prompts:v1:pr)
-  ;<  st=state-4  bind:m  got-state
+  ;<  st=state-5  bind:m  got-state
   (ex-equal !>((~(get by files.prompts.st) ~dev)) !>(`*prompts:v1:pr))
 ::
 ++  test-project-replaces-and-unchanged-is-silent
@@ -720,7 +724,7 @@
   ;<  caz=(list card)  bind:m  (project *prompts:v1:pr)
   ;<  ~  bind:m
     (ex-cards caz ~[(ex-fact ~[/v1/prompts/files] %steward-prompts-update-1 !>(`update:v1:pr`[%del ~dev 'SOUL.md']))])
-  ;<  st=state-4  bind:m  got-state
+  ;<  st=state-5  bind:m  got-state
   (ex-equal !>((~(get by files.prompts.st) ~dev)) !>(`*prompts:v1:pr))
 ::
 ++  test-project-is-local-only
@@ -750,7 +754,7 @@
   ;<  *  bind:m  (do-watch harness-path)
   ;<  *  bind:m  ((do-as ~bus) (do-command edit-set))
   ;<  *  bind:m  (do-finalize updated)
-  ;<  st=state-4  bind:m  got-state
+  ;<  st=state-5  bind:m  got-state
   (ex-equal !>((~(got by files.prompts.st) ~dev)) !>(files))
 ::
 ++  test-mirror-applies-only-wire-ship
@@ -762,7 +766,7 @@
     (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot moon]))
   ;<  *  bind:m  (bot-update [%files (my ~[[moon files] [~zod files]])])
   ;<  *  bind:m  (bot-update [%set ~zod 'SOUL.md' 'forged'])
-  ;<  st=state-4  bind:m  got-state
+  ;<  st=state-5  bind:m  got-state
   (ex-equal !>(files.prompts.st) !>((my ~[[moon files]])))
 ::
 ++  test-untrust-removes-mirror-and-ignores-late-fact
@@ -783,7 +787,7 @@
       [%fact %steward-prompts-update-1 !>(`update:v1:pr`[%files (my ~[[moon files]])])]
     ==
   ;<  ~  bind:m  (ex-cards caz ~)
-  ;<  st=state-4  bind:m  got-state
+  ;<  st=state-5  bind:m  got-state
   (ex-equal !>(files.prompts.st) !>(*(map ship prompts:v1:pr)))
 ::
 ++  test-finalized-command-does-not-replay
@@ -860,7 +864,7 @@
   =/  old
     [%1 `~bus (sy ~[~zod]) *state:v1:l +:*state:v1:g]
   ;<  *  bind:m  (do-load agent `!>(old))
-  ;<  st=state-4  bind:m  got-state
+  ;<  st=state-5  bind:m  got-state
   ;<  ~  bind:m  (ex-equal !>(owner.st) !>(`~bus))
   ;<  ~  bind:m  (ex-equal !>(bots.st) !>((sy ~[~zod])))
   (ex-equal !>(prompts.st) !>(*state:v1:pr))
@@ -871,10 +875,10 @@
   ^-  form:m
   ;<  ~  bind:m  setup
   ;<  *  bind:m  (project files)
-  ;<  st=state-4  bind:m  got-state
+  ;<  st=state-5  bind:m  got-state
   ;<  caz=(list card)  bind:m  (do-load agent `!>(st))
   ;<  ~  bind:m  (ex-cards caz ~[ex-eyre-connect])
-  ;<  after=state-4  bind:m  got-state
+  ;<  after=state-5  bind:m  got-state
   (ex-equal !>(st) !>(after))
 ::
 ++  test-finalize-rejects-pending
@@ -976,7 +980,7 @@
   ;<  caz=(list card)  bind:m
     (do-bot-sign moon [%watch-ack `~[leaf+"denied"]])
   ;<  ~  bind:m  (ex-cards caz ~)
-  ;<  st=state-4  bind:m  got-state
+  ;<  st=state-5  bind:m  got-state
   (ex-equal !>((~(get by files.prompts.st) moon)) !>(`files))
 ::
 ::  a late poke-ack refreshes an already-stored %pending result, or a
@@ -1014,16 +1018,16 @@
   ;<  pen=pending:v1:pr  bind:m  got-pending
   (ex-equal !>(pen) !>(*pending:v1:pr))
 ::
-::  upgrading into %4 must subscribe the bots already trusted: prompt
+::  upgrading into %5 must subscribe the bots already trusted: prompt
 ::  watches are otherwise only created by %trust-bot
 ::
-++  test-migrate-state-3-watches-trusted-bots
+++  test-migrate-state-4-watches-trusted-bots
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
   =/  old
-    :*  %3  `~bus  (sy ~[moon ~dev])
+    :*  %4  `~bus  (sy ~[moon ~dev])
         *state:v1:l  *state:v1:g  *state:v1:au
     ==
   ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
@@ -1033,7 +1037,7 @@
         (ex-cleanup-timer ~2024.1.1)
         (ex-files-watch moon)
     ==
-  ;<  st=state-4  bind:m  got-state
+  ;<  st=state-5  bind:m  got-state
   (ex-equal !>(bots.st) !>((sy ~[moon ~dev])))
 ::
 ::  a kick on the per-request watch while the edit is in flight re-watches,

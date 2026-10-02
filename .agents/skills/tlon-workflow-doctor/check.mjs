@@ -31,8 +31,8 @@ function envHas(dir, key) {
   const value = quoted ? quoted[2] : raw.replace(/\s+#.*$/, '');
   return value.trim() !== '';
 }
-// The pair the EAS Simulator loop was verified on (see the stim remote check).
-const REMOTE_STIM = '1.8.0';
+// The EAS Simulator loop's floors (see the stim remote check).
+const REMOTE_STIM = '1.9.0';
 const REMOTE_AGENT_DEVICE = '0.21.13';
 const SKILL_DIRS = [
   join(homedir(), '.agents', 'skills'),
@@ -105,6 +105,33 @@ const checks = [
     },
   },
   {
+    name: 'node',
+    test() {
+      // stim and eas run on the node that resolves on PATH, which need not be
+      // the one running this script. Off the pinned major, the failure lands
+      // far from its cause: Node 26's stripTypeScriptTypes rejects the
+      // `transform` mode @expo/require-utils loads app.config.ts with, so
+      // `expo config` exits 1 and eas prints no JSON.
+      const pin = readFileSync(join(REPO, '.nvmrc'), 'utf8').trim();
+      const major = (v) => v?.match(/^v?(\d+)/)?.[1];
+      const how = `nvm use && nvm alias default ${pin}`;
+      const path = which('node');
+      if (!path) return { fix: 'node is not on PATH', how };
+      const onPath = version('node');
+      if (major(onPath) !== major(pin))
+        return {
+          fix: `node ${onPath} at ${path}, which stim and eas run on; .nvmrc pins ${pin}`,
+          how,
+        };
+      if (major(process.version) !== major(pin))
+        return {
+          fix: `this script runs on node ${process.version.slice(1)}; .nvmrc pins ${pin} (PATH has ${onPath})`,
+          how,
+        };
+      return { ok: `node ${onPath} at ${path}` };
+    },
+  },
+  {
     name: 'stim',
     test() {
       const path = which('stim');
@@ -165,12 +192,13 @@ const checks = [
           how: 'npm install -g stim@latest',
           cmd: ['npm', ['install', '-g', 'stim@latest']],
         };
-      // The EAS loop was verified on stim 1.8.0 with agent-device 0.21.13. On
-      // 1.4.0 with 0.21.6, Fast Refresh never reached the device and a
+      // Before 1.9.0 every worktree's EAS session had the same agent-device
+      // name, so a second worktree took the first one's connection. On 1.4.0
+      // with agent-device 0.21.6, Fast Refresh never reached the device and a
       // --remote-config call broke the session's lease.
       if (!atLeast(v, REMOTE_STIM))
         return {
-          fix: `stim ${v} predates ${REMOTE_STIM}, the release the EAS loop was verified on`,
+          fix: `stim ${v} predates ${REMOTE_STIM}, which gives each worktree's EAS session its own name`,
           how: 'npm install -g stim@latest',
           cmd: ['npm', ['install', '-g', 'stim@latest']],
         };
@@ -201,8 +229,21 @@ const checks = [
       try {
         available = JSON.parse(gate.stdout).available;
       } catch {
+        const err = gate.stderr
+          .split('\n')
+          .map((l) => l.trim())
+          .filter(Boolean)
+          .join('\n      ');
+        // eas evaluates app.config.ts through `expo config`, and says only
+        // that it exited; eas-cli itself is not what failed. Rerun it in APP,
+        // where eas ran: a cold worktree has no expo for npx to find.
+        if (/ config --json exited/.test(gate.stderr))
+          return {
+            fix: `eas simulator:availability could not read the Expo config:\n      ${err}`,
+            how: `cd ${APP} && npx expo config --json`,
+          };
         return {
-          fix: `eas simulator:availability did not return JSON (eas-cli ${v} may predate it)`,
+          fix: `eas simulator:availability did not return JSON (eas-cli ${v} may predate it)${err ? `:\n      ${err}` : ''}`,
           how: 'npm install -g eas-cli@latest',
           cmd: ['npm', ['install', '-g', 'eas-cli@latest']],
         };

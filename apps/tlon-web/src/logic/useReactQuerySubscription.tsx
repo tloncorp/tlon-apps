@@ -4,28 +4,34 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
+import type { One, Params } from '@tloncorp/api/client/requests';
 import _ from 'lodash';
 import { useEffect, useRef } from 'react';
 
-import api from '@/api';
+import api, { type Registered } from '@/api';
 import useSchedulerStore from '@/state/scheduler';
 
-export default function useReactQuerySubscription<T, Event = null>({
+export default function useReactQuerySubscription<
+  E extends Registered<'scry'>,
+  S extends Registered<'subscribe'>,
+  T = unknown,
+  Event = null,
+>({
   queryKey,
-  app,
-  path,
   scry,
-  scryApp = app,
+  scryParams,
+  watch,
+  watchParams,
   priority = 3,
   onEvent,
   onScry,
   options,
 }: {
   queryKey: QueryKey;
-  app: string;
-  path: string;
-  scry: string;
-  scryApp?: string;
+  scry: One<E>;
+  scryParams: Params<E['path']>;
+  watch: One<S>;
+  watchParams: Params<S['path']>;
   priority?: number;
   onEvent?: (data: Event) => void;
   onScry?: (data: T) => T;
@@ -44,21 +50,16 @@ export default function useReactQuerySubscription<T, Event = null>({
 
   const fetchData = async () =>
     useSchedulerStore.getState().wait(async () => {
-      const result = await api.scry<T>({
-        app: scryApp,
-        path: scry,
-      });
+      const result = await api.scryEntry(scry)<T>(scryParams);
 
       return onScry ? onScry(result) : result;
     }, priority);
 
   useEffect(() => {
-    api.subscribe({
-      app,
-      path,
+    api.subscribeEntry(watch)(watchParams, {
       event: onEvent ? onEvent : invalidate.current,
     });
-  }, [app, path, queryClient, queryKey, onEvent]);
+  }, [watch, watchParams, queryClient, queryKey, onEvent]);
 
   return useQuery({
     queryKey,

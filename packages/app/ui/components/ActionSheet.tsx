@@ -175,6 +175,7 @@ const ActionSheetComponent = ({
   footerComponent,
   unmountOnClose,
   stackBehavior,
+  onDidOpen,
   ...props
 }: PropsWithChildren<
   ActionSheetProps &
@@ -186,6 +187,7 @@ const ActionSheetComponent = ({
       | 'keyboardBehavior'
       | 'unmountOnClose'
       | 'stackBehavior'
+      | 'onDidOpen'
     >
 >) => {
   const mode = useAdaptiveMode(forcedMode);
@@ -367,6 +369,7 @@ const ActionSheetComponent = ({
     <BottomSheetWrapper
       open={open}
       onOpenChange={onOpenChange}
+      onDidOpen={onDidOpen}
       dismissOnSnapToBottom={true}
       transition="quick"
       handleDisableScroll={true}

@@ -26,10 +26,11 @@ export const chat = {
     path: '/v4/dm/{id}/writs/newer/{cursor}/{count}/{mode}',
     since: '12.2.0',
   },
+  // The around cursor is a time or an author/time pair (dm.hoon peek).
   dmWritsAround: {
     kind: 'scry',
     agent: 'chat',
-    path: '/v4/dm/{id}/writs/around/{cursor}/{count}/{mode}',
+    path: '/v4/dm/{id}/writs/around/{cursor*}/{count}/{mode}',
     since: '12.2.0',
   },
   dmWrit: {
@@ -72,7 +73,7 @@ export const chat = {
   clubWritsAround: {
     kind: 'scry',
     agent: 'chat',
-    path: '/v4/club/{id}/writs/around/{cursor}/{count}/{mode}',
+    path: '/v4/club/{id}/writs/around/{cursor*}/{count}/{mode}',
     since: '12.2.0',
   },
   clubWrit: {

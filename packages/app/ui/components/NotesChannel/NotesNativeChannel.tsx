@@ -40,7 +40,11 @@ import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import type { ScreenHeaderAction } from '../ScreenHeader';
 import { useFloatingHeaderHeight } from '../conversationScrollChrome';
 import { NotesActionGroupList } from './NotesActions';
-import { NotebookGateMessage, useNotebookData } from './NotesData';
+import {
+  NotebookGateMessage,
+  notebookGateBlocksAccess,
+  useNotebookData,
+} from './NotesData';
 import { useEntityDialog } from './NotesDialogPrimitives';
 import {
   AddFolderDialog,
@@ -766,7 +770,7 @@ export function NotesNativeChannel({
     }
   });
 
-  const canDropImportNotes = canImportFolder && gate !== 'unjoinable';
+  const canDropImportNotes = canImportFolder && !notebookGateBlocksAccess(gate);
   const {
     dropImportProps,
     importFiles,
@@ -1169,14 +1173,14 @@ export function NotesNativeChannel({
   );
   const headerActions = useMemo(
     () =>
-      !notebookFlag || gate === 'unjoinable'
+      !notebookFlag || notebookGateBlocksAccess(gate)
         ? null
         : createNotesHeaderActions(headerActionOptions),
     [gate, notebookFlag, headerActionOptions]
   );
 
   const sidebarHeaderActions = useMemo<ScreenHeaderAction[]>(() => {
-    if (!notebookFlag || gate === 'unjoinable' || !canEdit) {
+    if (!notebookFlag || notebookGateBlocksAccess(gate) || !canEdit) {
       return [];
     }
     return [

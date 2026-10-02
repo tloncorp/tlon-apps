@@ -13,6 +13,7 @@ Ship-native umbrella agent: the durable, always-on ship-side half of an ephemera
 | `gateway`    | `sur/steward/gateway.hoon`       | `%steward-gateway-action-1`, `%steward-gateway-update-1`                 |
 | `automation` | `sur/steward/automation.hoon`    | `%steward-automation-action-1`, `%steward-automation-update-1`, `%steward-automation-tasks-1` |
 | `prompts`    | `sur/steward/prompts.hoon`       | `%steward-prompts-action-1`, `%steward-prompts-update-1`, `%steward-prompts-files-1` |
+| `journey`    | —                                | —                                                                        |
 
 Each sur file is versioned on its own (`++v1`), referenced by callers as `action:v1:lens`, `update:v1:gateway`, etc. The core `sur/steward.hoon` carries only cross-cutting config (currently just `%configure`); each module's protocol lives in its own file.
 
@@ -24,23 +25,27 @@ Modules:
 | `gateway`    | Harness liveness tracking + offline DM auto-replies.                   |
 | `automation` | Durable best-effort mirror of OpenClaw cron task definitions, propagated bot → owner → client. |
 | `prompts`    | Projection of the OpenClaw workspace prompt files, with edits relayed back to the harness. |
+| `journey`    | Content-free OpenClaw DM and channel delivery telemetry.                |
 
-The app helper core keeps each module's logic in its own sub-core: `le-core` for lens, `ga-core` for gateway, `au-core` for automation, and `po-core` for prompts. Adding a new module means a new `sur/steward/<module>.hoon`, its own mark family, and a dispatch arm in the app — existing modules and marks are untouched.
+The app helper core keeps each module's logic in its own sub-core: `le-core` for lens, `ga-core` for gateway, `au-core` for automation, `po-core` for prompts, and the stateless `jo-core` for journey telemetry. Adding a stateful or protocol-bearing module means a new `sur/steward/<module>.hoon`, its own mark family, and a dispatch arm in the app — existing modules and marks are untouched.
 
 ## state model
 
-State is versioned (`state-4` today), defined in the app file; `on-load` migrates older shapes forward one version per step. Cross-cutting config is top level; each module owns its own slice, typed from its own sur file:
+State is versioned (`state-5` today), defined in the app file; `on-load` migrates older shapes forward one version per step. Cross-cutting config is top level; each module owns its own slice, typed from its own sur file:
 
 ```
-state-4 (%4, current)
+state-5 (%5, current)
   owner       (unit ship)        shared owner config; ~ = inert
   bots        (set ship)         owner-side trusted lens bots
   lens        state:v1:lens      stored lens run records
   gateway     state:v1:gateway   liveness + auto-reply bookkeeping
   automation  state:v1:automation
-  prompts     state:v1:prompts
     tasks     (map ship tasks)   per-ship ID-keyed task maps (+$ tasks is (map @t task))
     requests  (map request-id incoming-request)   owner-side in-flight edits (see edit loop)
+    pending   (map request-id pending-command)    bot-side commands awaiting the harness
+  prompts     state:v1:prompts
+    files     (map ship prompts) per-ship file maps: the local projection and mirrored bots
+    requests  (map request-id incoming-request)   owner-side in-flight edits
     pending   (map request-id pending-command)    bot-side commands awaiting the harness
 ```
 
@@ -48,14 +53,15 @@ Migrations so far:
 
 - `%0 → %1`: the gateway slice gained two leading fields — `notify-on-start=?` (an owner-initiated stop is pending) and `last-interaction=@da` (when anyone last engaged the bot). They lead so the migration is a one-line cons, `[| *@da gateway.old]`. A migrated bot whose gateway is already `%up` or `%down` also seeds its `bot-liveness` claim (see the gateway module).
 - `%1 → %2`: the automation module arrives with an empty slice. The app keeps the pre-%2 shapes (`state-1`, `state-0`, `gateway-0`) only for `on-load`.
-- `%2 → %3`: the gateway slice gained a leading `status-messages-enabled` toggle, on by default (`[& gateway.old]`).
-- `%3 → %4`: the prompts module arrives with an empty slice, and the migration subscribes to every bot already in the trusted set. `state-3` and `state-2` remain only for `on-load`.
+- `%2 → %3`: the gateway slice gained the status-message toggle.
+- `%3 → %4`: every stored task gains `delivery`, and every `agentTurn` payload gains `tools-allow`. Both migrate as `~` and the harness's next projection supplies them, since the mirror is derived. A bot-side `pending-command` carries a task inside its `edit`, so pending commands are widened too rather than dropped. The pre-%4 shapes live in the sur under `+v0`, alongside the current ones, with `+widen-task` and `+widen-edit` beside them; `on-load` is their only caller.
+- `%4 → %5`: the prompts module arrives with an empty slice, and the migration subscribes to every bot already in the trusted set. `state-4` and earlier remain only for `on-load`.
 
 The automation `tasks` map holds one entry per ship: the **local projection** lives under `our`, written only by accepted `%project` actions, and each **mirrored remote bot** lives under its own ship, written only by facts from the subscription to that bot. The writers are disjoint by key, so the two never collide. Every entry follows the same presence rule: absent until its first projection or snapshot arrives, present (possibly empty) afterward — an empty entry means "synced, zero tasks", an absent one means "never synced". `state-1` is unreleased, so this shape replaced the earlier flat task map in place with no extra state version; `state-0-to-1` is unchanged (it initializes automation from the bunt, which yields an empty map).
 
 `owner` is shared: the lens module sends runs to it, and the gateway module treats its DMs as owner activity worth auto-replying to. `bots` is the owner-side allowlist of ships permitted to fan lens runs in (see the `%entry` gate below); managed via the core `%trust-bot`/`%untrust-bot` pokes.
 
-`on-load` delegates to `load`, which decodes the persisted vase as `versioned-state` and migrates one version per step (`state-0-to-1`, `state-1-to-2`). Migration never auto-subscribes an already-trusted bot set — mirroring starts only from an explicit `%trust-bot` poke. `on-save` always writes the current `state-2` shape. A malformed or unrecognized persisted state fails visibly during decode; it is not replaced with bunt state.
+`on-load` delegates to `load`, which decodes the persisted vase as `versioned-state` and migrates one version per step (`state-0-to-1` through `state-4-to-5`). Automation's migration never auto-subscribes an already-trusted bot set — its mirroring starts only from an explicit `%trust-bot` poke; the `%4 → %5` prompts step does subscribe them (see the prompts module). `on-save` always writes the current `state-5` shape. A malformed or unrecognized persisted state fails visibly during decode; it is not replaced with bunt state.
 
 `run` (in `sur/steward/lens.hoon`):
 
@@ -121,6 +127,14 @@ On every liveness transition the module publishes a `bot-liveness` claim into th
 
 `owner` is the shared top-level `(unit ship)`, set via the core `%configure`, so a harness sends two pokes at startup: the core `%configure` for the owner, then the gateway `%configure` for timings. The gateway action's own `%configure` carries only timing (`active-window`, `reply-cooldown`); the owner is set once at the core level.
 
+## module: journey
+
+Emits content-free delivery telemetry for OpenClaw bot DMs and new chat/gallery posts and replies. The module watches `%chat /v4` on `/journey/chat` and `%channels /v4` on `/journey/channels`. It checks the relevant `%contacts` profile for a valid `bot-info` claim identifying `"harness":"openclaw"`. Missing contacts, unavailable `%contacts`, and missing or malformed claims emit nothing. The observer stores no state and adds no poke, watch, or scry surface.
+
+DM stages are `owner_message_sent`, `bot_message_received`, `bot_message_sent`, and `owner_message_received`. Bot-side stages use the configured owner; owner-side stages apply only to structurally sponsored moons. Channel stages are `group_host_message_received` and `owner_group_message_received`; the latter requires the bot's moon sponsor to have the channel locally. Edits, reactions, legacy diary channels, and Notes notebooks emit no channel stages.
+
+DM and channel observations share the same best-effort contact check: profiles already delivered by ordinary peering qualify later messages, with no profile fetch or backfill. Events use the canonical DM ID or the channel message's sender `author/sent` correlation key and emit through `%logs` with source `steward/journey`. Channel host IDs differ from the sender key. See [Bot message journey observability](../../../../packages/openclaw/docs/message-journey-observability.md) for the cross-system event contract and correlation details.
+
 ## module: automation
 
 Stores the latest complete OpenClaw cron definition set successfully submitted by the local harness, and propagates it bot → owner → client. OpenClaw remains authoritative for scheduling and execution; this module is a durable, locally readable, best-effort mirror and must not be treated as continuously fresh while the harness is offline or reconciliation is failing.
@@ -136,8 +150,15 @@ The v1 state is `tasks=(map ship tasks)` with `+$  tasks  (map @t task)` (see th
 | enabled state | `(unit ?)` | `enabled` |
 | schedule | `(unit cron-schedule)` | `schedule` |
 | execution target | `(unit @t)` for each value | `sessionTarget`, `wakeMode` |
-| payload definition | optional `kind` and `message` | `payload` |
+| payload definition | optional `kind`, `message`, and `tools-allow` | `payload` |
+| delivery | `(unit delivery)` | `delivery` |
 | definition timestamps | `(unit @da)` for each value | `createdAtMs`, `updatedAtMs` |
+
+`delivery` is where a run's output goes: `mode` (`%none`, `%announce`, `%webhook`), `channel` naming the transport (`'tlon'`), `to` giving the address within it — a channel nest, or a ship for a DM — and an optional `failure-destination` for failure notices. The host's cron store carries it and routes on it, but `openclaw/plugin-sdk/types` does not declare it, so both the projection and the edit mapping read and write it off the host's own shape rather than the plugin declaration. The host requires `mode` when a create sets a delivery and allows a patch to omit it, so the create mapping requires it and the update mapping does not. The host's `thread-id`, `best-effort` and `completion-destination` are not mirrored; a patch that omits a field leaves the host's value alone, so they survive an edit from here. The same holds for the agentTurn payload fields this does not model (`model`, `fallbacks`, `thinking`, `timeoutSeconds`, `lightContext`).
+
+`tools-allow` is the host's tool allow-list: when set, only those tools are offered to the model. The host's own `tools-allow-is-default` marker is server-managed and not mirrored. The bot's own onboarding sets it so publishing stays out of the model's reach, so a create that means to match an onboarding job must set it too.
+
+These shapes were checked against the cron store types of openclaw 2026.5.28, 2026.7.1 and 2026.9.4: `delivery` is unchanged across all three apart from a `completion-destination` added in 7.1, and `tools-allow` stays `payload.toolsAllow` on the wire (9.4 moves it from the agentTurn fields into a mixin shared by every payload kind). The plugin-facing `PluginHookGatewayCronCreateInput` declares neither field in any of the three.
 
 Supported schedules are `cron` (`expr`, `tz`, and `staggerMs`), `at` (`at`), and `every` (`everyMs` and `anchorMs`). Millisecond duration and timestamp fields cross the JSON boundary as non-negative integer milliseconds. Pinned OpenClaw returns an `at` timestamp as ISO text; the TypeScript normalizer validates and converts it to Unix milliseconds before `%steward` receives it.
 
@@ -173,7 +194,7 @@ The inbound action and the feed/scry update use separate, independently versione
 
 An equal projection against an existing entry is a complete no-op: no state write, no facts — the harness reconciler re-reads on every `cron_changed` (including execution-only events), and those re-submissions must be silent. Equal-but-absent is the exception: the very first projection creates the `our` entry even when its task list is empty. Entry creation is inexpressible as task-level deltas, so the first accepted projection announces itself on the feed as one fresh full `%tasks` snapshot (even when empty); once the entry exists, a changed projection emits per-task `%set`/`%del` deltas naming the local ship, described below.
 
-The task map has exactly one writer per entry: the harness's `%project` for `our`, a bot's subscription for that bot. The [edit loop](#edit-loop) never writes it — an edit is relayed to the harness and becomes visible only through the harness's next `%project`. Automation excludes cron execution state, execution events, run history, delivery data, session keys, `deleteAfterRun`, and other runtime-only OpenClaw fields. Those values do not enter the Hoon task type, the automation facts, or the JSON scries.
+The task map has exactly one writer per entry: the harness's `%project` for `our`, a bot's subscription for that bot. The [edit loop](#edit-loop) never writes it — an edit is relayed to the harness and becomes visible only through the harness's next `%project`. Automation excludes cron execution *state*: execution events, run history, delivery outcome and status, session keys, `deleteAfterRun`, and other runtime-only OpenClaw fields. Those values do not enter the Hoon task type, the automation facts, or the JSON scries. The delivery *definition* — where a run's output is addressed — is part of the task and is mirrored; see [`delivery`](#module-automation) above.
 
 ### feed: `/v1/automation/tasks`
 
@@ -242,6 +263,8 @@ The `response` JSON is type-discriminated like the notes v1 envelope, with the m
 
 The implementation targets OpenClaw `2026.7.1-2`, the hosted version (the plugin's SDK devDependency stays on `2026.5.28` only because 7.1 requires Node ≥ 22.22.3 and the repo pins 22.22.0; the dev container runs 7.1-2), which provides `gateway_start`, `cron_changed`, `gateway_stop`, and `getCron()`, but not `cron_reconciled`. A job the plugin cannot represent (an unsupported schedule kind such as `on-exit`, a malformed field, a duplicate ID) is dropped from the snapshot and reported to telemetry rather than failing it, so one odd job cannot leave the mirror permanently stale. On `gateway_start` and on every `cron_changed` action—including execution-related `started` and `finished` actions—the Tlon plugin calls `getCron().list({ includeDisabled: true })`, normalizes the complete result, and submits one `%project` poke. A genuinely successful empty list therefore clears the projection; unavailable cron access or a failed read does not masquerade as an empty list.
 
+Two descriptions are refused at the plugin, as typed `invalid` answers rather than silent corrections. Agent onboarding keeps its primary job's slot key in `description` (`tlon-agent-primary:<groupId>`) and finds that job by matching the string exactly, so an edit may neither rename a slot description — which orphans the slot and makes onboarding create a duplicate job — nor mint one on an ordinary job. Resending a slot description unchanged is allowed, so a client that round-trips a whole task is unaffected, and an edit that leaves `description` alone never reads the job list.
+
 The v1 adapter uses one process-global monitor connection slot, so projection is enabled only when exactly one Tlon account is runnable (enabled with ship, URL, and code configured). Additional disabled or incomplete entries do not disable projection. With zero or multiple runnable accounts, gateway-start and cron-change hooks start no projection work; a one-to-many transition stops the active reconciliation epoch on the next trigger and preserves the last stored snapshots instead of targeting whichever monitor most recently published its connection.
 
 Reconciliation work is serialized so the worker does not deliberately start overlapping snapshots. Triggers that arrive while listing or waiting for poke acknowledgement are coalesced into one follow-up read using the latest cron accessor. Cron access, normalization, connection, read, and poke-acknowledgement failures retry the complete operation after a delay while the gateway epoch remains active. Each read-and-submit attempt has a 30-second local deadline so a promise that never settles cannot permanently own the process-lifetime worker. A timed-out list is fenced before submission, and late promise rejection remains observed. Until a later operation succeeds, the ship retains its last successful projection.
@@ -301,7 +324,7 @@ Trust changes drive the prompts mirror the way they drive automation's:
 `%trust-bot` subscribes to the bot's `/v1/prompts/files` (idempotent, guarded on
 `wex.bowl`), `%untrust-bot` leaves and deletes that bot's entry, and `%configure`
 with a new owner kicks the replaced owner off the feed. A ship upgrading into
-`%4` subscribes the bots it already trusts, since nothing else would. A **nacked**
+`%5` subscribes the bots it already trusts, since nothing else would. A **nacked**
 watch keeps the last good projection rather than wiping it — a nack schedules no
 retry, so dropping the mirror would strand it until someone re-pokes `%trust-bot`.
 
@@ -451,9 +474,9 @@ With no entries at all the exact JSON shape is `{}`. Task values use the support
 
 ## lifecycle and invariants
 
-- `on-init` creates `state-4`, subscribes to `%activity /v5` for the gateway module, seeds the default lens retention cap, and leaves automation and prompts empty. There is no lens prune timer (retention is count-only, enforced on insert/configure).
-- `on-load` delegates to `load`, which migrates one version per step (`state-0-to-1`, `state-1-to-2`, `state-2-to-3`, `state-3-to-4`) in the same shape as `%activity`'s `load`. Its only migration card is the `bot-liveness` seed for a `%0` bot whose gateway is already `%up` or `%down` (owner configured): heartbeats advertise only on an up transition, so an already-up gateway would otherwise stay unknown until its next restart. Every load re-emits the Eyre binding for `/steward`; each module's sweep chain is armed with its migration and then re-arms itself. Decode or migration failure is visible and never resets to bunt. `on-save` writes `state-4`.
-- Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`, liveness publication to `%contacts` on `/gateway/liveness`, and the owner-side automation watches on `/automation/tasks/[bot-p]` — everything arriving on an automation wire is applied only for the ship in the wire (facts naming other ships are ignored). The `%activity` subscription is re-watched on `%kick`; an automation watch is re-watched on `%kick` iff its bot is still trusted. Poke/DM nacks are logged and ignored (Ames retries); a nacked automation watch is slogged and left for a `%trust-bot` re-poke to repair.
+- `on-init` creates `state-5`, subscribes to `%activity /v5`, `%chat /v4`, and `%channels /v4`, seeds the default lens retention cap, and leaves automation and prompts empty. There is no lens prune timer (retention is count-only, enforced on insert/configure).
+- `on-load` delegates to `load`, which migrates one version per step (`state-0-to-1` through `state-4-to-5`) in the same shape as `%activity`'s `load`. Besides each module's sweep arming, its only migration card is the `bot-liveness` seed for a `%0` bot whose gateway is already `%up` or `%down` (owner configured): heartbeats advertise only on an up transition, so an already-up gateway would otherwise stay unknown until its next restart. Every load re-emits the Eyre binding for `/steward` and repairs any missing `%activity`, `%chat`, or `%channels` subscription without duplicating a live watch. Each sweep chain is armed once, by `on-init` or by the step that adds its module (`%1 → %2` for automation, `%4 → %5` for prompts, which also watches the already-trusted bots), since it re-arms itself. Decode or migration failure is visible and never resets to bunt. `on-save` writes `state-5`.
+- Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`, liveness publication to `%contacts` on `/gateway/liveness`, journey observations on `/journey/chat` and `/journey/channels`, journey log pokes on `/journey/logs`, and the owner-side automation watches on `/automation/tasks/[bot-p]` — everything arriving on an automation wire is applied only for the ship in the wire (facts naming other ships are ignored). The activity and journey subscriptions are re-watched on `%kick`; an automation watch is re-watched on `%kick` iff its bot is still trusted. Poke/DM nacks are logged and ignored (Ames retries); a nacked automation watch is slogged and left for a `%trust-bot` re-poke to repair.
 - `on-watch` auth is per-path: lens and gateway paths require `=(src our)`; `/v1/automation/tasks` also admits the configured owner. Rejection is a crash (watch nack). Dotket `on-peek` calls execute locally against current state without caller-source authorization. Core, gateway, and automation pokes are local only; lens applies its per-action source rules to admit trusted bot runs and owner relays.
 
 ## reporting
