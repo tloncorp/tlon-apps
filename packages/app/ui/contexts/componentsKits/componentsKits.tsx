@@ -18,6 +18,11 @@ type RenderItemProps = {
   post: db.Post;
   a2uiActionCompletion?: A2UIActionCompletion;
   showAuthor?: boolean;
+  /**
+   * The post starts a run from one sender (new author, day, or divider),
+   * whether or not the channel shows authors.
+   */
+  startsSeries?: boolean;
   showReplies?: boolean;
   onPress?: (post: db.Post) => void;
   onPressReplies?: (post: db.Post) => void;

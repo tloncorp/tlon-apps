@@ -26,6 +26,8 @@ function SearchResultComponent({
         hideProfilePreview
         onPress={onPress}
         searchQuery={searchQuery}
+        // Results are unrelated messages, not a conversation to group.
+        bubbleLayout={false}
       />
     </View>
   );

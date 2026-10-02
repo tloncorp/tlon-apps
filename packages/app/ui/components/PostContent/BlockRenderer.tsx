@@ -738,7 +738,7 @@ export function ImageBlock({
       {...props}
       {...(constrainedSize
         ? {
-            alignSelf: 'flex-start' as const,
+            alignSelf: props.alignSelf ?? ('flex-start' as const),
             width: constrainedSize.width,
             height: constrainedSize.height,
             maxWidth: '100%',

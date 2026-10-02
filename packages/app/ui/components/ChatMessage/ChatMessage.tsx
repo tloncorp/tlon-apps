@@ -16,6 +16,7 @@ import { getOwnContextLensStamp } from '../Channel/ContextLens/lensPost';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { MaskedChatMessage } from '../PostModeration';
 import { BotFeedbackRow } from './BotFeedbackRow';
+import { useChatBubbleLayout } from './ChatMessageBubble';
 import { ChatMessageActions } from './ChatMessageActions/Component';
 import { MessageContextMenu } from './MessageContextMenu';
 import { StaticChatMessage } from './StaticChatMessage';
@@ -30,6 +31,7 @@ const ChatMessage = ({
   post,
   a2uiActionCompletion,
   showAuthor,
+  startsSeries,
   hideProfilePreview,
   onPressReplies,
   onPressImage,
@@ -45,10 +47,12 @@ const ChatMessage = ({
   hideOverflowMenu,
   displayDebugMode = false,
   searchQuery,
+  bubbleLayout: bubbleLayoutProp,
 }: {
   post: db.Post;
   a2uiActionCompletion?: A2UIActionCompletion;
   showAuthor?: boolean;
+  startsSeries?: boolean;
   hideProfilePreview?: boolean;
   authorRowProps?: Partial<ComponentProps<typeof AuthorRow>>;
   showReplies?: boolean;
@@ -66,12 +70,16 @@ const ChatMessage = ({
   displayDebugMode?: boolean;
   hideOverflowMenu?: boolean;
   searchQuery?: string;
+  /** Pass false to keep flat rows where bubbles would otherwise apply. */
+  bubbleLayout?: boolean;
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const channel = useChannelContext();
   const currentUserId = useCurrentUserId();
   const canWrite = useCanWrite(channel, currentUserId);
+  const channelUsesBubbles = useChatBubbleLayout(channel);
+  const bubbleLayout = channelUsesBubbles && bubbleLayoutProp !== false;
   const postActionIds = useMemo(
     () => ChannelAction.channelActionIdsFor({ channel, canWrite }),
     [channel, canWrite]
@@ -136,6 +144,7 @@ const ChatMessage = ({
           displayDebugMode,
           searchQuery,
         ])}
+        bubbleLayout={bubbleLayout}
         post={post}
         postActionIds={postActionIds}
         canReact={canWrite}
@@ -162,6 +171,7 @@ const ChatMessage = ({
           >
             <StaticChatMessage
               {...{
+                bubbleLayout,
                 displayDebugMode,
                 hideProfilePreview,
                 hideSentAtTimestamp: hideOverflowMenu || !isHovered,
@@ -176,6 +186,7 @@ const ChatMessage = ({
                 setViewReactionsPost,
                 showAuthor,
                 showReplies,
+                startsSeries,
                 feedbackRow: showBotFeedback
                   ? ({ inline }: { inline: boolean }) => (
                       <BotFeedbackRow
@@ -226,6 +237,7 @@ export default memo(ChatMessage, (prev, next) => {
   const areOtherPropsEqual =
     prev.isHighlighted === next.isHighlighted &&
     prev.showAuthor === next.showAuthor &&
+    prev.startsSeries === next.startsSeries &&
     prev.showReplies === next.showReplies &&
     prev.onPressReplies === next.onPressReplies &&
     prev.onPressImage === next.onPressImage &&
@@ -234,7 +246,8 @@ export default memo(ChatMessage, (prev, next) => {
     prev.onPressBotRun === next.onPressBotRun &&
     isEqual(prev.a2uiActionCompletion, next.a2uiActionCompletion) &&
     prev.searchQuery === next.searchQuery &&
-    prev.displayDebugMode === next.displayDebugMode;
+    prev.displayDebugMode === next.displayDebugMode &&
+    prev.bubbleLayout === next.bubbleLayout;
 
   return isPostEqual && areOtherPropsEqual;
 });
