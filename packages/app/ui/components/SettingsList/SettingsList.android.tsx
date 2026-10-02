@@ -23,6 +23,7 @@ import {
   padding,
   selectable,
   testID,
+  toggleable,
   weight,
 } from '@expo/ui/jetpack-compose/modifiers';
 import { Icon } from '@tloncorp/ui';
@@ -149,8 +150,14 @@ function SettingsRow({
           ? []
           : isChoice && onClick
             ? // The checkmark is only drawn; this is what tells TalkBack and
-              // UI tests which choice is the current one.
-              [selectable(Boolean(row.selected), onClick, 'radioButton')]
+              // UI tests which choices are on.
+              [
+                row.multiple
+                  ? toggleable(Boolean(row.selected), onClick, {
+                      role: 'checkbox',
+                    })
+                  : selectable(Boolean(row.selected), onClick, 'radioButton'),
+              ]
             : onLongClick
               ? [combinedClickable({ onClick, onLongClick })]
               : onClick

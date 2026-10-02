@@ -139,7 +139,9 @@ function SettingsRow({ row }: { row: SettingsRowModel }) {
 
   return (
     <Pressable
-      accessibilityRole={isChoice ? 'radio' : undefined}
+      accessibilityRole={
+        isChoice ? (row.multiple ? 'checkbox' : 'radio') : undefined
+      }
       accessibilityState={isChoice ? { checked: row.selected } : undefined}
       disabled={row.disabled}
       onPress={row.disabled ? undefined : row.onPress}

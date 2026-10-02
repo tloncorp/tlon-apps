@@ -34,22 +34,26 @@ vi.mock('./SettingsRowLeading', () => ({
   SettingsRowLeading: 'SettingsRowLeading',
 }));
 
-/** The rendered elements carrying a test ID, by element name. */
-function elementsWithTestID(row: SettingsRowModel, testID: string) {
+function render(row: SettingsRowModel) {
   let renderer: ReactTestRenderer;
   act(() => {
     renderer = create(
       <SettingsSectionsView sections={[{ key: 'section', rows: [row] }]} />
     );
   });
-  return renderer!.root
+  return renderer!.root;
+}
+
+/** The rendered elements carrying a test ID, by element name. */
+function elementsWithTestID(row: SettingsRowModel, testID: string) {
+  return render(row)
     .findAll(
       (node) => typeof node.type === 'string' && node.props.testID === testID
     )
     .map((node) => node.type);
 }
 
-describe('SettingsSectionsView test IDs', () => {
+describe('SettingsSectionsView', () => {
   beforeAll(() => {
     (
       globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -95,5 +99,23 @@ describe('SettingsSectionsView test IDs', () => {
         'PrivacyRow'
       )
     ).toEqual(['Pressable']);
+  });
+
+  it('announces a choice as a radio button, or a checkbox when several can be on', () => {
+    const choice = { key: 'row', title: 'Model', onPress: () => {} };
+
+    const single = render({ ...choice, selected: true }).findByType(
+      'Pressable' as never
+    );
+    expect(single.props.accessibilityRole).toBe('radio');
+    expect(single.props.accessibilityState).toEqual({ checked: true });
+
+    const multiple = render({
+      ...choice,
+      selected: false,
+      multiple: true,
+    }).findByType('Pressable' as never);
+    expect(multiple.props.accessibilityRole).toBe('checkbox');
+    expect(multiple.props.accessibilityState).toEqual({ checked: false });
   });
 });
