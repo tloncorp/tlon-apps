@@ -1,8 +1,7 @@
-import { useFocusEffect, usePreventRemove } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { TlawnProviderModel } from '@tloncorp/api';
 import { Button, Text } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack } from 'tamagui';
 
@@ -13,13 +12,17 @@ import {
   SettingsListScreenView,
 } from '../../ui/components/SettingsList';
 import {
-  BASIC_DEFAULT_MODEL,
   BASIC_PROVIDER_ID,
   MAX_VISIBLE_MODELS,
   PROVIDER_OPTIONS,
-  providerLabel,
 } from './bot/constants';
 import { getErrorMessage, getModelDisplayName } from './bot/helpers';
+import {
+  type ModelPickerProvider,
+  blendedPricePerMillion,
+  buildDefaultModelSections,
+  hiddenModelsNote,
+} from './bot/modelPicker';
 import {
   useAllProviderModels,
   useBotSettingsQueries,
@@ -34,48 +37,6 @@ type Props = NativeStackScreenProps<RootStackParamList, 'BotModelSettings'>;
 
 const fallbackKey = (selection: { provider: string; model: string }) =>
   `${selection.provider}:${selection.model}`;
-
-const parseTokenPrice = (value?: string) => {
-  if (!value?.trim()) return null;
-  const price = Number(value);
-  return Number.isFinite(price) && price >= 0 ? price : null;
-};
-
-const blendedPricePerMillion = (
-  promptPrice?: string,
-  completionPrice?: string
-) => {
-  const input = parseTokenPrice(promptPrice);
-  const output = parseTokenPrice(completionPrice);
-  if (input === null || output === null) return null;
-  return 1_000_000 * (0.8 * input + 0.2 * output);
-};
-
-const formatBlendedPrice = (price: number | null, zdr: boolean) => {
-  if (price === null) return null;
-  if (price === 0) return 'free';
-  const formatted = new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: price < 1 ? 2 : 0,
-    maximumFractionDigits: price < 0.01 ? 4 : 2,
-  }).format(price);
-  return `${zdr ? 'from ' : '~'}$${formatted} / 1m`;
-};
-
-const prioritizeModels = (
-  models: TlawnProviderModel[],
-  recommendedRank: Map<string, number>
-) =>
-  [...models].sort((left, right) => {
-    const leftRank = recommendedRank.get(left.id);
-    const rightRank = recommendedRank.get(right.id);
-    if (leftRank === undefined && rightRank === undefined) return 0;
-    if (leftRank === undefined) return 1;
-    if (rightRank === undefined) return -1;
-    return leftRank - rightRank;
-  });
-
-const hiddenModelsNote = (count: number) =>
-  count > 0 ? `${count} more — refine your search to see them.` : undefined;
 
 export function BotModelSettingsScreen(props: Props) {
   const { mode } = props.route.params;
@@ -97,46 +58,28 @@ export function BotModelSettingsScreen(props: Props) {
     allProviderModels.providers.includes('openrouter')
   );
   const [search, setSearch] = useState('');
-  const [validationError, setValidationError] = useState<string | null>(null);
-  const [defaultStep, setDefaultStep] = useState<'provider' | 'model'>(
-    'provider'
-  );
-  const [selectedProvider, setSelectedProvider] = useState('');
-  const [zdrOnly, setZdrOnly] = useState(false);
+  const [expandedProviders, setExpandedProviders] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
+  // The list's ZDR filter follows the bot's setting until it is switched here.
+  const [zdrOverride, setZdrOverride] = useState<boolean | null>(null);
 
-  useFocusEffect(
-    useCallback(() => {
-      setSearch('');
-      setValidationError(null);
-      setDefaultStep('provider');
-      setSelectedProvider('');
-      setZdrOnly(false);
-    }, [])
-  );
+  const resetPicker = useCallback(() => {
+    setSearch('');
+    setExpandedProviders(new Set());
+    setZdrOverride(null);
+  }, []);
+
+  useFocusEffect(resetPicker);
 
   // The desktop settings drawer keeps this screen mounted across mode
-  // switches (default vs fallbacks); clear the search and validation state
-  // when the mode param changes so they don't leak between the two forms.
-  useEffect(() => {
-    setSearch('');
-    setValidationError(null);
-    setDefaultStep('provider');
-    setSelectedProvider('');
-    setZdrOnly(false);
-  }, [mode]);
+  // switches (default vs fallbacks); clear the picker's state when the mode
+  // param changes so it doesn't leak between the two forms.
+  useEffect(resetPicker, [mode, resetPicker]);
 
   const modelValues = draft.draft.model;
-
-  useEffect(() => {
-    if (
-      mode === 'default' &&
-      ready &&
-      defaultStep === 'provider' &&
-      !selectedProvider
-    ) {
-      setSelectedProvider(modelValues.provider);
-    }
-  }, [defaultStep, mode, modelValues.provider, ready, selectedProvider]);
+  const zdrOnly =
+    zdrOverride ?? (modelValues.provider === 'openrouter' && modelValues.zdr);
 
   const availableProviders = useMemo(
     () =>
@@ -147,106 +90,39 @@ export function BotModelSettingsScreen(props: Props) {
   );
 
   const handleBack = useCallback(() => {
-    if (mode === 'default' && defaultStep === 'model') {
-      setSearch('');
-      setValidationError(null);
-      setDefaultStep('provider');
-      return;
-    }
-    setSelectedProvider('');
     props.navigation.goBack();
-  }, [defaultStep, mode, props.navigation]);
+  }, [props.navigation]);
 
-  // On the model step, leaving the screen (a swipe back included) steps back
-  // to the provider list instead, like the back button. Done still leaves.
-  const leavingFromModelStepRef = useRef(false);
-  usePreventRemove(
-    mode === 'default' && defaultStep === 'model',
-    ({ data }) => {
-      if (leavingFromModelStepRef.current) {
-        leavingFromModelStepRef.current = false;
-        props.navigation.dispatch(data.action);
-        return;
-      }
-      setSearch('');
-      setValidationError(null);
-      setDefaultStep('provider');
-    }
-  );
-
-  const handleDone = useCallback(() => {
-    if (mode === 'default' && (!modelValues.provider || !modelValues.model)) {
-      setValidationError('Select a model before continuing.');
-      return;
-    }
-    // Only the model step intercepts leaving, so only it needs letting through.
-    leavingFromModelStepRef.current =
-      mode === 'default' && defaultStep === 'model';
-    setSelectedProvider('');
-    setDefaultStep('provider');
-    props.navigation.goBack();
-  }, [
-    defaultStep,
-    mode,
-    modelValues.model,
-    modelValues.provider,
-    props.navigation,
-  ]);
-
-  const setModel = useCallback(
-    (provider: string, model: string, zdr = false) => {
+  // Picking a model is the whole job here, so it also leaves the screen; the
+  // Apply bar on the screen behind is where the change gets confirmed.
+  const selectModel = useCallback(
+    (provider: string, model: string) => {
       if (!ready) return;
-      setValidationError(null);
+      const zdr =
+        provider === 'openrouter'
+          ? zdrOnly
+          : provider === BASIC_PROVIDER_ID &&
+            modelValues.provider === BASIC_PROVIDER_ID &&
+            modelValues.zdr;
       draft.commitDraft((current) => ({
         ...current,
-        model: {
-          ...current.model,
-          provider,
-          model,
-          zdr:
-            (provider === 'openrouter' || provider === BASIC_PROVIDER_ID) &&
-            zdr,
-        },
+        model: { ...current.model, provider, model, zdr },
       }));
+      props.navigation.goBack();
     },
-    [draft, ready]
+    [
+      draft,
+      modelValues.provider,
+      modelValues.zdr,
+      props.navigation,
+      ready,
+      zdrOnly,
+    ]
   );
 
-  const selectProvider = useCallback(
-    (provider: string) => {
-      if (provider === BASIC_PROVIDER_ID) {
-        setModel(
-          BASIC_PROVIDER_ID,
-          BASIC_DEFAULT_MODEL,
-          modelValues.provider === BASIC_PROVIDER_ID && modelValues.zdr
-        );
-        setSelectedProvider('');
-        props.navigation.goBack();
-        return;
-      }
-      setSelectedProvider(provider);
-      setZdrOnly(
-        provider === 'openrouter' &&
-          modelValues.provider === 'openrouter' &&
-          modelValues.zdr
-      );
-      setSearch('');
-      setValidationError(null);
-    },
-    [modelValues.provider, modelValues.zdr, props.navigation, setModel]
-  );
-
-  const chooseModel = useCallback(() => {
-    if (!selectedProvider || selectedProvider === BASIC_PROVIDER_ID) return;
-    setZdrOnly(
-      selectedProvider === 'openrouter' &&
-        modelValues.provider === 'openrouter' &&
-        modelValues.zdr
-    );
-    setSearch('');
-    setValidationError(null);
-    setDefaultStep('model');
-  }, [modelValues.provider, modelValues.zdr, selectedProvider]);
+  const expandProvider = useCallback((provider: string) => {
+    setExpandedProviders((current) => new Set(current).add(provider));
+  }, []);
 
   const toggleFallback = useCallback(
     (selection: { provider: string; model: string }) => {
@@ -285,9 +161,6 @@ export function BotModelSettingsScreen(props: Props) {
     [draft]
   );
 
-  const modelListProvider =
-    mode === 'default' ? selectedProvider : modelValues.provider;
-  const isOpenRouterModelList = modelListProvider === 'openrouter';
   const recommendedModelRank = useMemo(
     () =>
       new Map(
@@ -320,67 +193,26 @@ export function BotModelSettingsScreen(props: Props) {
     });
     return prices;
   }, [openRouterMetadata.zdrEndpoints]);
-  const providerModelsLoading = Boolean(
-    allProviderModels.loading[modelListProvider] ||
-    (isOpenRouterModelList && zdrOnly && openRouterMetadata.loading)
-  );
-  const providerModelsError =
-    allProviderModels.errors[modelListProvider] ||
-    (isOpenRouterModelList && zdrOnly ? openRouterMetadata.error : null);
-
   const toggleZdr = useCallback(
     (enabled: boolean) => {
-      setZdrOnly(enabled);
-      if (modelValues.provider !== 'openrouter') return;
+      setZdrOverride(enabled);
+      // The bot's own setting follows only while its model stays valid: a
+      // model with no ZDR endpoint is left alone until another is picked.
+      if (
+        modelValues.provider !== 'openrouter' ||
+        (enabled && !zdrModelIds.has(modelValues.model))
+      ) {
+        return;
+      }
       draft.commitDraft((current) => ({
         ...current,
-        model: {
-          ...current.model,
-          zdr: enabled,
-          model:
-            enabled &&
-            current.model.model &&
-            !zdrModelIds.has(current.model.model)
-              ? ''
-              : current.model.model,
-        },
+        model: { ...current.model, zdr: enabled },
       }));
     },
-    [draft, modelValues.provider, zdrModelIds]
+    [draft, modelValues.model, modelValues.provider, zdrModelIds]
   );
 
   const normalizedSearch = search.trim().toLowerCase();
-  const { visible: filteredProviderModels, hidden: hiddenProviderModelCount } =
-    useMemo(() => {
-      const providerModels = allProviderModels.models[modelListProvider] ?? [];
-      const eligibleModels =
-        isOpenRouterModelList && zdrOnly
-          ? providerModels.filter((model) => zdrModelIds.has(model.id))
-          : providerModels;
-      const prioritizedModels = isOpenRouterModelList
-        ? prioritizeModels(eligibleModels, recommendedModelRank)
-        : eligibleModels;
-      const matches = normalizedSearch
-        ? prioritizedModels.filter((model) =>
-            [getModelDisplayName(model), model.id].some((value) =>
-              value.toLowerCase().includes(normalizedSearch)
-            )
-          )
-        : prioritizedModels;
-      return {
-        visible: matches.slice(0, MAX_VISIBLE_MODELS),
-        hidden: Math.max(0, matches.length - MAX_VISIBLE_MODELS),
-      };
-    }, [
-      allProviderModels.models,
-      isOpenRouterModelList,
-      modelListProvider,
-      normalizedSearch,
-      recommendedModelRank,
-      zdrModelIds,
-      zdrOnly,
-    ]);
-
   // For fallback mode we search across every provider with a credential.
   const allSelectableModels = useMemo(
     () =>
@@ -426,97 +258,46 @@ export function BotModelSettingsScreen(props: Props) {
     [allSelectableModels]
   );
 
+  const pickerProviders = useMemo<ModelPickerProvider[]>(
+    () =>
+      availableProviders.map((provider) => {
+        const error = allProviderModels.errors[provider.id];
+        return {
+          id: provider.id,
+          label: provider.label,
+          models: allProviderModels.models[provider.id] ?? [],
+          loading: Boolean(allProviderModels.loading[provider.id]),
+          error: error
+            ? (getErrorMessage(error) ?? 'Unable to load models.')
+            : null,
+        };
+      }),
+    [allProviderModels, availableProviders]
+  );
+
   const sections = useMemo<SettingsSectionModel[]>(() => {
     const noteRow = (key: string, title: string): SettingsRowModel => ({
       key,
       title,
     });
 
-    if (mode === 'default' && defaultStep === 'provider') {
-      return [
-        {
-          key: 'provider',
-          title: 'Provider',
-          footer: validationError ?? undefined,
-          rows: availableProviders.map((option) => ({
-            key: option.id,
-            title: option.label,
-            selected: selectedProvider === option.id,
-            onPress: () => selectProvider(option.id),
-          })),
-        },
-      ];
-    }
-
     if (mode === 'default') {
-      const modelRows: SettingsRowModel[] = providerModelsLoading
-        ? [noteRow('loading', 'Loading models…')]
-        : providerModelsError
-          ? [
-              noteRow(
-                'error',
-                getErrorMessage(providerModelsError) ?? 'Unable to load models.'
-              ),
-            ]
-          : filteredProviderModels.length === 0
-            ? [noteRow('empty', 'No models found.')]
-            : filteredProviderModels.map((model) => {
-                const price = formatBlendedPrice(
-                  zdrOnly
-                    ? (zdrPrices.get(model.id) ?? null)
-                    : blendedPricePerMillion(
-                        model.pricing?.prompt,
-                        model.pricing?.completion
-                      ),
-                  zdrOnly
-                );
-                const tags = [
-                  recommendedModelRank.has(model.id) ? 'Recommended' : null,
-                  zdrOnly && zdrModelIds.has(model.id) ? 'ZDR' : null,
-                ].filter(Boolean);
-                return {
-                  key: model.id,
-                  title: getModelDisplayName(model),
-                  subtitle: [model.id, price].filter(Boolean).join(' · '),
-                  value: tags.length > 0 ? tags.join(' · ') : undefined,
-                  selected:
-                    modelValues.provider === selectedProvider &&
-                    modelValues.model === model.id,
-                  onPress: () => setModel(selectedProvider, model.id, zdrOnly),
-                };
-              });
-
-      return [
-        ...(selectedProvider === 'openrouter'
-          ? [
-              {
-                key: 'zdr',
-                rows: [
-                  {
-                    key: 'zdr',
-                    title: 'Zero data retention',
-                    subtitle: zdrOnly
-                      ? 'Showing only models with eligible ZDR endpoints.'
-                      : 'Only use endpoints that retain no data.',
-                    disabled:
-                      openRouterMetadata.loading ||
-                      (!zdrOnly && zdrModelIds.size === 0),
-                    toggle: { value: zdrOnly, onValueChange: toggleZdr },
-                  },
-                ],
-              },
-            ]
-          : []),
-        {
-          key: 'models',
-          title: `${providerLabel(selectedProvider)} models`,
-          footer:
-            [hiddenModelsNote(hiddenProviderModelCount), validationError]
-              .filter(Boolean)
-              .join('\n\n') || undefined,
-          rows: modelRows,
+      return buildDefaultModelSections({
+        providers: pickerProviders,
+        selection: modelValues,
+        search,
+        expandedProviders,
+        recommendedRank: recommendedModelRank,
+        zdr: {
+          enabled: zdrOnly,
+          loading: openRouterMetadata.loading,
+          modelIds: zdrModelIds,
+          prices: zdrPrices,
         },
-      ];
+        onSelect: selectModel,
+        onExpand: expandProvider,
+        onToggleZdr: toggleZdr,
+      });
     }
 
     return [
@@ -573,70 +354,42 @@ export function BotModelSettingsScreen(props: Props) {
     ];
   }, [
     availableProviders,
-    defaultStep,
+    expandProvider,
+    expandedProviders,
     fallbackLabelByKey,
-    filteredProviderModels,
     filteredSelectableModels,
-    hiddenProviderModelCount,
     hiddenSelectableModelCount,
     mode,
     modelValues,
     openRouterMetadata.loading,
-    providerModelsError,
-    providerModelsLoading,
+    pickerProviders,
     recommendedModelRank,
     removeFallbackAt,
-    selectProvider,
+    search,
+    selectModel,
     selectedFallbackKeys,
-    selectedProvider,
-    setModel,
     toggleFallback,
     toggleZdr,
-    validationError,
     zdrModelIds,
     zdrOnly,
     zdrPrices,
   ]);
 
-  const onProviderStep = mode === 'default' && defaultStep === 'provider';
-  const primaryAction = onProviderStep
-    ? {
-        label: 'Choose Model',
-        disabled: !selectedProvider || selectedProvider === BASIC_PROVIDER_ID,
-        onPress: chooseModel,
-      }
-    : {
-        label: 'Done',
-        disabled:
-          mode === 'default' &&
-          (modelValues.provider !== selectedProvider || !modelValues.model),
-        onPress: handleDone,
-      };
-
   return (
     <SettingsListScreenView
-      title={
-        mode === 'fallbacks'
-          ? 'Fallback models'
-          : onProviderStep
-            ? 'Choose provider'
-            : 'Choose model'
-      }
+      title={mode === 'fallbacks' ? 'Fallback models' : 'Default model'}
       sections={sections}
       onBackPressed={handleBack}
-      showsBackOnWideWindows={mode === 'default' && defaultStep === 'model'}
+      // Picking a model is the only other way out of the default picker.
+      showsBackOnWideWindows={mode === 'default'}
       loading={!ready}
-      search={
-        onProviderStep
-          ? undefined
-          : {
-              value: search,
-              onChangeText: setSearch,
-              placeholder: 'Search models',
-            }
-      }
+      search={{
+        value: search,
+        onChangeText: setSearch,
+        placeholder: 'Search models',
+      }}
       bottomBar={
-        ready ? (
+        ready && mode === 'fallbacks' ? (
           <YStack
             borderTopWidth={1}
             borderColor="$border"
@@ -647,9 +400,8 @@ export function BotModelSettingsScreen(props: Props) {
           >
             <Button
               preset="primary"
-              label={primaryAction.label}
-              disabled={primaryAction.disabled}
-              onPress={primaryAction.onPress}
+              label="Done"
+              onPress={handleBack}
               centered
             />
           </YStack>
