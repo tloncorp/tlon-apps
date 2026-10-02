@@ -2491,8 +2491,19 @@
         (po-give-response src.bowl [rid u.result.u.old])
       ?.  (po-valid-edit edit.c-prompts)
         (po-give-response src.bowl [rid %error %invalid ~])
+      ::  the owner's watch and this poke travel on separate flows, and
+      ::  ames orders messages only within a flow, so the watch can land
+      ::  after this answer. store it as an already-terminal command so a
+      ::  late watch replays it (+po-watch-bot-request) and a resend is
+      ::  answered from the record. %invalid is not stored: a healthy owner
+      ::  validates before sending, and the text could be oversized
+      ::
       ?.  po-harness-online
-        (po-give-response src.bowl [rid %error %harness-offline ~])
+        =/  body=outcome:v1:sp  [%error %harness-offline ~]
+        =.  pending.prompts.state
+          %+  ~(put by pending.prompts.state)  rid
+          [rid src.bowl edit.c-prompts now.bowl `body]
+        (po-give-response src.bowl [rid body])
       =.  pending.prompts.state
         %+  ~(put by pending.prompts.state)  rid
         [rid src.bowl edit.c-prompts now.bowl ~]

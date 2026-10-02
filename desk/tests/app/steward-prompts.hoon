@@ -411,8 +411,46 @@
     (do-command edit-set)
   ;<  ~  bind:m
     (ex-cards caz ~[(ex-bot-response ~bus [%error %harness-offline ~])])
+  ::  recorded as already terminal, so a late watch can still be answered
+  ::
   ;<  pen=pending:v1:pr  bind:m  got-pending
-  (ex-equal !>(pen) !>(*pending:v1:pr))
+  =/  expected=pending-command:v1:pr
+    [rid ~bus edit-set ~2024.1.1 `[%error %harness-offline ~]]
+  (ex-equal !>((~(get by pen) rid)) !>(`expected))
+::
+::  the owner's watch and the command poke ride separate ames flows, so the
+::  poke can win. the offline answer it gets must still reach the watch
+::  that lands afterwards
+::
+++  test-prompts-offline-answer-replays-to-late-watch
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m  ((do-as ~bus) (do-command edit-set))
+  ;<  caz=(list card)  bind:m
+    %-  (do-as ~bus)
+    (do-watch (req-path ~bus))
+  %+  ex-cards  caz
+  :~  %^  ex-fact  ~  %steward-prompts-response-1
+      !>(`response:v1:pr`[rid [%error %harness-offline ~]])
+  ==
+::
+::  a resend of a command already answered offline gets the same answer,
+::  and is never dispatched even once a harness has subscribed
+::
+++  test-prompts-offline-answer-is-final
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m  ((do-as ~bus) (do-command edit-set))
+  ;<  caz=(list card)  bind:m  (do-watch harness-path)
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  caz=(list card)  bind:m  ((do-as ~bus) (do-command edit-set))
+  (ex-cards caz ~[(ex-bot-response ~bus [%error %harness-offline ~])])
 ::
 ::  with a harness subscribed the command is recorded and dispatched
 ::
