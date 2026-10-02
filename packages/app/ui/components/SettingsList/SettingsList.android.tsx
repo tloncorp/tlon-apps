@@ -22,6 +22,7 @@ import {
   imePadding,
   padding,
   selectable,
+  semantics,
   testID,
   toggleable,
   weight,
@@ -306,6 +307,9 @@ function TextFieldRow({
         cursorColor={colors.accent}
         modifiers={[
           fillMaxWidth(),
+          // The title isn't drawn on a field row, so this is all TalkBack has
+          // to say what the field is for.
+          semantics({ contentDescription: row.title }),
           ...(row.testID ? [testID(row.testID)] : []),
         ]}
       />
