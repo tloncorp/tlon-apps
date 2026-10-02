@@ -1,4 +1,8 @@
-import { ensureDbReady } from '@tloncorp/app/lib/nativeDb';
+import {
+  type AbandonDbInitOutcome,
+  abandonDbInit,
+  ensureDbReady,
+} from '@tloncorp/app/lib/nativeDb';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { useEffect, useState } from 'react';
 
@@ -16,11 +20,24 @@ let mountCount = 0;
 // apart from any other remount -- the root error boundary also remounts after
 // render crashes that have nothing to do with the database.
 let lastMountFailed = false;
+// Narrower than `lastMountFailed`, which also covers the throw path, and
+// narrower than the deadline firing: it means the deadline found work still in
+// flight, which is the hang signature. A mount that threw, or that hit the
+// deadline during a backoff with nothing running, is worth retrying; one that
+// hung twice running is wedged somewhere JS can't reach, and the button would
+// only burn another deadline. See TLON-6527.
+let lastMountHung = false;
 
 interface DbInitTimeoutDetails {
   attempt: number;
   elapsedMs: number;
   lastError: string | null;
+  // What the deadline was able to detach. 'abandoned' is the hang signature;
+  // 'nothing-in-flight' means it raced a settled attempt; 'setup-owns-connection'
+  // means it couldn't detach without risking a second native connection.
+  abandonOutcome: AbandonDbInitOutcome;
+  // Read by RootErrorBoundary to decide whether to keep offering "Try again".
+  canRetry: boolean;
 }
 
 export class DbInitTimeoutError extends Error {
@@ -58,6 +75,7 @@ export function useDbReady() {
   useEffect(() => {
     const mount = ++mountCount;
     const recoveringFromFailure = lastMountFailed;
+    const recoveringFromHang = lastMountHung;
     const startedAt = Date.now();
     const elapsed = () => Date.now() - startedAt;
 
@@ -96,12 +114,30 @@ export function useDbReady() {
       timedOut = true;
       lastMountFailed = true;
       clearBackoff();
-      logger.crumb(`deadline fired on attempt ${attempt}`);
+      // Without this the next mount awaits the same promise and spends a whole
+      // second deadline on work that already failed to finish.
+      const abandonOutcome = abandonDbInit();
+      // Both 'abandoned' and 'setup-owns-connection' mean the deadline found
+      // work still in flight, which is the hang signature. Only
+      // 'nothing-in-flight' says it landed in a backoff after a slow rejection,
+      // which is the throw path running long and which retrying recovers.
+      const hung = abandonOutcome !== 'nothing-in-flight';
+      lastMountHung = hung;
+      logger.crumb(
+        `deadline fired on attempt ${attempt} (abandon outcome: ${abandonOutcome})`
+      );
       setDbInitError(
         new DbInitTimeoutError({
           attempt,
           elapsedMs: elapsed(),
           lastError: lastErrorText,
+          abandonOutcome,
+          // One retry for either kind of hang. 'setup-owns-connection' detached
+          // nothing, so the retry rejoins the attached work and finishes the
+          // moment it settles -- forcing a restart there would throw away an
+          // initialization that was about to succeed. Only a hang that survives
+          // a retry is worth a restart.
+          canRetry: !(recoveringFromHang && hung),
         })
       );
     }, DB_READY_DEADLINE_MS);
@@ -121,6 +157,7 @@ export function useDbReady() {
           }
           clearTimeout(deadlineTimer);
           lastMountFailed = false;
+          lastMountHung = false;
           if (recoveringFromFailure) {
             logger.trackEvent(AnalyticsEvent.DbReadyRetrySucceeded, {
               mount,
@@ -150,6 +187,9 @@ export function useDbReady() {
 
       clearTimeout(deadlineTimer);
       lastMountFailed = true;
+      // Exhausting the attempts is the throw path, not a hang: the next mount
+      // gets a clean slate and the button stays useful.
+      lastMountHung = false;
       setDbInitError(lastError);
     }
 

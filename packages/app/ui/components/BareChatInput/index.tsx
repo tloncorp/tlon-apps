@@ -1,4 +1,8 @@
-import { getCurrentUserId, toContentReference } from '@tloncorp/api';
+import {
+  getBotUserIdForUser,
+  getCurrentUserId,
+  toContentReference,
+} from '@tloncorp/api';
 import { JSONContent, Story, pathToCite } from '@tloncorp/api/urbit';
 import {
   Attachment,
@@ -30,7 +34,12 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Keyboard, Platform, TextInput } from 'react-native';
+import {
+  Keyboard,
+  Platform,
+  TextInput,
+  type TextLayoutEvent,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -44,6 +53,7 @@ import {
 } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
+import { useConversationComposerHeight } from '../../contexts/scroll';
 import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 import { getVideoPreviewData } from '../../utils/videoPreviewData';
 import { MentionController } from '../MentionPopup';
@@ -56,6 +66,7 @@ import {
 import { hydrateEditPost } from '../MessageInput/helpers';
 import { type SlashCommandController } from '../SlashCommandPopup';
 import type { DraftInputHandle } from '../draftInputs/shared';
+import { AnimatedInputHeight } from './AnimatedInputHeight';
 import { PasteableTextInput } from './PasteableTextInput';
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
 import { PastedFile, attachPastedImageFiles } from './pastedImage';
@@ -72,6 +83,7 @@ import {
 
 const bareChatInputLogger = createDevLogger('bareChatInput', false);
 const MESSAGE_INPUT_CONTAINER_HEIGHT = 48;
+const MAX_NATIVE_INPUT_LINES = 5;
 
 const AUTOCORRECT_FLUSH_TIMEOUT_MS = 20;
 
@@ -302,7 +314,7 @@ function BareChatInput(
   ref: ForwardedRef<DraftInputHandle>
 ) {
   const { bottom, top } = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
+  const { height, fontScale } = useWindowDimensions();
   const maxInputHeightBasic = useMemo(
     () => height - HEADER_HEIGHT - bottom - top,
     [height, bottom, top]
@@ -315,6 +327,23 @@ function BareChatInput(
     removeAttachment,
   } = useAttachmentContext();
   const [controlledText, setControlledText] = useState('');
+  const [pendingComposerSends, setPendingComposerSends] = useState(0);
+  const pendingComposerSendsRef = useRef(0);
+  const awaitingComposerSettlement = useRef(false);
+  const {
+    beginSend: beginComposerSend,
+    finishSend: finishComposerSend,
+    isSendCoordinated,
+  } = useConversationComposerHeight();
+  const handleComposerHeightSettled = useCallback(() => {
+    if (
+      awaitingComposerSettlement.current &&
+      pendingComposerSendsRef.current === 0
+    ) {
+      awaitingComposerSettlement.current = false;
+      finishComposerSend();
+    }
+  }, [finishComposerSend]);
   const [inputHeight, setInputHeight] = useState(initialHeight);
   const [sendError, setSendError] = useState(false);
   const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
@@ -350,13 +379,49 @@ function BareChatInput(
     resetSlashCommandMode,
   } = useSlashCommands({ manifest: slashCommandManifest });
   const maxInputHeight = useMaxInputHeight(maxInputHeightBasic);
+  const inputLineHeight = Math.ceil(getFontSize('$m') * 1.2);
+  const inputPadding = getTokenValue('$l', 'space');
+  const [lineMeasurement, setLineMeasurement] = useState<{
+    fontScale: number;
+    height: number;
+  }>();
+  const scaledLineHeight =
+    lineMeasurement?.fontScale === fontScale
+      ? lineMeasurement.height
+      : inputLineHeight * fontScale;
+  const measureLineHeight = useCallback(
+    ({ nativeEvent: { lines } }: TextLayoutEvent) => {
+      if (lines.length < 2) return;
+      const height = lines[1].y - lines[0].y;
+      if (height <= 0) return;
+      setLineMeasurement((previous) =>
+        previous?.fontScale === fontScale && previous.height === height
+          ? previous
+          : { fontScale, height }
+      );
+    },
+    [fontScale]
+  );
   // Android's material input pill is 48dp tall and bottom-anchors its content
   // so multiline composers grow upward. Fill that pill at the single-line
   // height; otherwise the 44dp text input sits 4dp low inside it.
-  const minimumInputHeight =
+  const minimumInputHeight = Math.max(
     Platform.OS === 'android'
       ? Math.max(initialHeight, MESSAGE_INPUT_CONTAINER_HEIGHT)
-      : initialHeight;
+      : initialHeight,
+    isWeb ? 0 : scaledLineHeight + inputPadding * 2
+  );
+  // Cap the native text viewport, leaving attachment previews their own space.
+  // Extra text scrolls inside the input instead of consuming the conversation.
+  const maximumTextInputHeight = isWeb
+    ? maxInputHeight - getTokenValue('$s', 'space')
+    : Math.max(
+        minimumInputHeight,
+        Math.min(
+          maxInputHeight - getTokenValue('$s', 'space'),
+          MAX_NATIVE_INPUT_LINES * scaledLineHeight + inputPadding * 2
+        )
+      );
   const inputRef = useRef<TextInput>(null);
   const runSendMessageRef = useRef<((isEdit: boolean) => void) | null>(null);
   const pendingAutocorrectSendRef = useRef<{ isEdit: boolean } | null>(null);
@@ -510,17 +575,13 @@ function BareChatInput(
       inputRef.current?.focus();
 
       if (!isWeb) {
-        // Only set the selection here — the input's text on native is driven
-        // by the TextWithMentions children. Setting `text` via setNativeProps
-        // would be *prepended* to the child text by RCTBaseTextInputShadowView,
-        // duplicating the message.
+        // The children own the native text. Move only the caret after they
+        // render the replacement, leaving it after the trailing space.
         requestAnimationFrame(() => {
-          inputRef.current?.setNativeProps({
-            selection: {
-              start: selectionResult.cursorPosition,
-              end: selectionResult.cursorPosition,
-            },
-          });
+          inputRef.current?.setSelection(
+            selectionResult.cursorPosition,
+            selectionResult.cursorPosition
+          );
         });
       }
     },
@@ -566,12 +627,10 @@ function BareChatInput(
         // children. Move only the selection after React has rendered the
         // replacement text so the next character lands after the command.
         requestAnimationFrame(() => {
-          inputRef.current?.setNativeProps({
-            selection: {
-              start: selection.cursorPosition,
-              end: selection.cursorPosition,
-            },
-          });
+          inputRef.current?.setSelection(
+            selection.cursorPosition,
+            selection.cursorPosition
+          );
         });
       }
     },
@@ -615,6 +674,23 @@ function BareChatInput(
       inputSessionRef.current += 1;
       setLinkMetaLoading(false);
 
+      // Keep the occupied composer space until the optimistic message exists,
+      // so clearing a tall draft cannot pull history down before its arrival.
+      let holdingComposerHeight = !isWeb && !isEdit;
+      if (holdingComposerHeight) {
+        beginComposerSend();
+        awaitingComposerSettlement.current = true;
+        pendingComposerSendsRef.current += 1;
+        setPendingComposerSends((count) => count + 1);
+      }
+      const releaseComposerHeight = () => {
+        if (holdingComposerHeight) {
+          holdingComposerHeight = false;
+          pendingComposerSendsRef.current -= 1;
+          setPendingComposerSends((count) => count - 1);
+        }
+      };
+
       setControlledText('');
       bareChatInputLogger.log('clearing attachments');
       clearAttachments();
@@ -626,7 +702,10 @@ function BareChatInput(
 
       try {
         bareChatInputLogger.log('sending message');
-        const sendOperation = sendPostFromDraft(draft);
+        const sendOperation = sendPostFromDraft(draft, {
+          onEnqueued: releaseComposerHeight,
+          scrollHandled: isSendCoordinated(),
+        });
         bareChatInputLogger.log('clearing draft');
         await clearDraft();
         await sendOperation;
@@ -634,6 +713,7 @@ function BareChatInput(
         bareChatInputLogger.error('Error sending message', e);
         setSendError(true);
       } finally {
+        releaseComposerHeight();
         onSend?.();
         bareChatInputLogger.log('sent message');
         setMentions([]);
@@ -658,6 +738,8 @@ function BareChatInput(
       initialHeight,
       resetMentionMode,
       resetSlashCommandMode,
+      beginComposerSend,
+      isSendCoordinated,
     ]
   );
 
@@ -1060,7 +1142,10 @@ function BareChatInput(
         tappedChatInput: true,
       }));
     }
-    if (logic.isBotHomeGroupChatChannel(getCurrentUserId(), channelId)) {
+    // The user's own bot DM only, matching `useShowBotMentionWayfinding`:
+    // focusing another user's Tlonbot must not dismiss a coach mark that has
+    // not been seen.
+    if (channelId === getBotUserIdForUser(getCurrentUserId())) {
       db.wayfindingProgress.setValue((prev) => ({
         ...prev,
         tappedHomeGroupHint: true,
@@ -1170,9 +1255,29 @@ function BareChatInput(
         maxHeight={maxInputHeight}
         justifyContent="center"
       >
+        {!isWeb && (
+          // Android scales large text nonlinearly. Measure native line spacing
+          // instead of assuming fontScale is a multiplier for the height cap.
+          <RawText
+            accessible={false}
+            pointerEvents="none"
+            position="absolute"
+            opacity={0}
+            fontSize={getFontSize('$m')}
+            lineHeight={inputLineHeight}
+            includeFontPadding={false}
+            onTextLayout={measureLineHeight}
+          >
+            {'M\nM'}
+          </RawText>
+        )}
         {linkMetaLoading && <LinkPreviewLoading />}
         {showInlineAttachments && <AttachmentPreviewList />}
-        <View position="relative">
+        <AnimatedInputHeight
+          minimumHeight={minimumInputHeight}
+          holdHeight={pendingComposerSends > 0}
+          onHeightSettled={handleComposerHeightSettled}
+        >
           <PasteableTextInput
             testID="MessageInput"
             ref={inputRef}
@@ -1185,6 +1290,7 @@ function BareChatInput(
             onKeyPress={handleKeyPress}
             onPasteFiles={isWeb ? undefined : handlePasteFiles}
             multiline
+            scrollEnabled={isWeb ? undefined : true}
             placeholder={placeholder}
             {...(!isWeb ? placeholderTextColor : {})}
             style={{
@@ -1199,14 +1305,15 @@ function BareChatInput(
                 : controlledText === ''
                   ? minimumInputHeight
                   : undefined,
-              maxHeight: maxInputHeight - getTokenValue('$s', 'space'),
-              paddingHorizontal: getTokenValue('$l', 'space'),
-              paddingTop: getTokenValue('$l', 'space'),
-              paddingBottom: getTokenValue('$l', 'space'),
+              maxHeight: maximumTextInputHeight,
+              paddingHorizontal: inputPadding,
+              paddingTop: inputPadding,
+              paddingBottom: inputPadding,
               fontSize: getFontSize('$m'),
               // Match the decoration overlay even when emoji change font metrics.
               fontFamily: isWeb ? 'inherit' : undefined,
-              lineHeight: isWeb ? getFontSize('$m') * 1.2 : undefined,
+              lineHeight: isWeb ? getFontSize('$m') * 1.2 : inputLineHeight,
+              includeFontPadding: isWeb ? undefined : false,
               verticalAlign: 'middle',
               letterSpacing: -0.032,
               color: inputTextColor,
@@ -1253,7 +1360,7 @@ function BareChatInput(
                 </RawText>
               </View>
             )}
-        </View>
+        </AnimatedInputHeight>
       </YStack>
     </MessageInputContainer>
   );

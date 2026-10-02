@@ -46,6 +46,47 @@ output.reliability = {
   sibling: MAESTRO_RUN_TAG + ' sibling',
   title: MAESTRO_RUN_TAG + ' note',
   body: MAESTRO_RUN_TAG + ' body',
+  unreadChannelPreviewPattern: exact(
+    '~ten: ' + MAESTRO_RUN_TAG + ' unread channel'
+  ),
+  unreadTopicPreviewPattern: exact(
+    '~ten: ' + MAESTRO_RUN_TAG + ' unread topic'
+  ),
+  groupSwipePreviewPattern: exact(
+    '~ten: ' + MAESTRO_RUN_TAG + ' group swipe unread'
+  ),
+  groupSwipeTitlePattern: exact('SwipeGroup-' + MAESTRO_RUN_TAG),
+  homeUnreadGroupTitlePattern: exact('HomeUnread-' + MAESTRO_RUN_TAG),
+  homeUnreadGroupPreviewPattern: exact(
+    '~ten: ' + MAESTRO_RUN_TAG + ' home group unread'
+  ),
+  homeUnreadDmPreviewPattern: exact(MAESTRO_RUN_TAG + ' home dm unread'),
+  dmSwipePreviewPattern: exact(MAESTRO_RUN_TAG + ' dm swipe unread'),
+  activityMentionPattern:
+    '^.*' + exact(MAESTRO_RUN_TAG + ' activity mention').slice(1, -1) + '.*$',
+  activityReadGatePattern: exact(
+    '~ten: ' + MAESTRO_RUN_TAG + ' targeted reads verified'
+  ),
+  activityMentionContextPattern: exact(
+    '~zod ' + MAESTRO_RUN_TAG + ' activity mention'
+  ),
+  activityGroupPattern: exact('Activity-' + MAESTRO_RUN_TAG),
+  activityReplyPattern:
+    '^.*' + exact(MAESTRO_RUN_TAG + ' activity reply').slice(1, -1) + '.*$',
+  activityPaginationOldestPattern:
+    '^.*' +
+    exact(MAESTRO_RUN_TAG + ' activity page oldest').slice(1, -1) +
+    '.*$',
+  activityPaginationNewestPattern:
+    '^.*' +
+    exact(MAESTRO_RUN_TAG + ' activity page newest').slice(1, -1) +
+    '.*$',
+  permissionRestoredPostPattern: exact(
+    MAESTRO_RUN_TAG + ' restored mobile post '
+  ).replace(/ \$$/, ' ?$'),
+  permissionRestoredNoticePattern: exact(
+    MAESTRO_RUN_TAG + ' read-write restored '
+  ).replace(/ \$$/, ' ?$'),
   contactNickname: boundedTaggedValue('contact', 30),
   profileStatus: boundedTaggedValue('status', 50),
   profileBio: boundedTaggedValue('biography', 300),

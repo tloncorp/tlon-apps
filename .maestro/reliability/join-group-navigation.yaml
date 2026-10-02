@@ -16,4 +16,4 @@ env:
 - tapOn: '^Close$'
 - assertVisible:
     id: ScreenHeaderTitle
-    text: '^Home$'
+    text: '^Workspaces$'

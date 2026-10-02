@@ -2,6 +2,7 @@ import { DIARY_REMOVED, NOTES_CHANNEL_CONTENT_UNSUPPORTED } from './cli-utils';
 
 export const COMMAND_FAMILIES = [
   'activity',
+  'browser',
   'channels',
   'contacts',
   'dms',
@@ -34,6 +35,7 @@ export type CliCase = {
 const SCRIPT_ERA_PATTERNS = [
   'npx ts-node',
   'Usage: activity.ts',
+  'Usage: browser.ts',
   'Usage: channels.ts',
   'Usage: contacts.ts',
   'Usage: dms.ts',
@@ -45,6 +47,7 @@ const SCRIPT_ERA_PATTERNS = [
   'Usage: settings.ts',
   'Usage: upload.ts',
   'Example: activity.ts',
+  'Example: browser.ts',
   'Example: channels.ts',
   'Example: contacts.ts',
   'Example: dms.ts',
@@ -55,6 +58,7 @@ const SCRIPT_ERA_PATTERNS = [
   'Example: posts.ts',
   'Example: settings.ts',
   'Example: upload.ts',
+  'scripts/browser.ts',
   'scripts/channels.ts',
   'scripts/contacts.ts',
   'scripts/dms.ts',
@@ -217,6 +221,16 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
     'groups info missing id',
     ['groups', 'info'],
     'Usage: tlon groups info'
+  ),
+  usageErrorCase(
+    'groups invite-link missing flag',
+    ['groups', 'invite-link'],
+    'Usage: tlon groups invite-link'
+  ),
+  usageErrorCase(
+    'groups invite-link rejects malformed flag',
+    ['groups', 'invite-link', 'not-a-flag'],
+    'Usage: tlon groups invite-link'
   ),
   usageErrorCase(
     'hooks init missing name',
@@ -493,6 +507,11 @@ export const NESTED_HELP_CASES: CliCase[] = [
     'groups info --help',
     ['groups', 'info', '--help'],
     'Usage: tlon groups info'
+  ),
+  helpCase(
+    'groups invite-link --help',
+    ['groups', 'invite-link', '--help'],
+    'Usage: tlon groups invite-link'
   ),
   helpCase(
     'posts react --help',
@@ -1638,6 +1657,30 @@ export const NOTES_CONTENT_UNSUPPORTED_CASES: CliCase[] = [
   ]),
 ];
 
+// Black-box credential-routing cases for `groups invite-link` — deterministic
+// and pre-network (the hermetic env carries no credentials at all).
+export const INVITE_LINK_CREDENTIAL_CASES: CliCase[] = [
+  authRequiredCase('groups invite-link reaches normal resolution', [
+    'groups',
+    'invite-link',
+    '~zod/test',
+  ]),
+  authRequiredCase('groups invite-link --self reaches normal resolution', [
+    'groups',
+    'invite-link',
+    '~zod/test',
+    '--self',
+  ]),
+  {
+    name: 'groups invite-link explicit --config beats owner routing',
+    args: ['--config', '/nonexistent', 'groups', 'invite-link', '~zod/test'],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['Ship config not found'],
+    stderrExcludes: ['Usage:', ...STACK_PATTERNS],
+  },
+];
+
 export const CLI_MATRIX_CASES: CliCase[] = [
   TOP_LEVEL_HELP_CASE,
   UNKNOWN_TOP_LEVEL_CASE,
@@ -1654,6 +1697,7 @@ export const CLI_MATRIX_CASES: CliCase[] = [
   ...NOTES_CHANNEL_KIND_CASES,
   ...NOTES_CONTENT_UNSUPPORTED_CASES,
   ...DIARY_REMOVED_CASES,
+  ...INVITE_LINK_CREDENTIAL_CASES,
 ];
 
 export type HostileHelpCommand = {
@@ -1670,6 +1714,7 @@ export const HOSTILE_HELP_COMMANDS: HostileHelpCommand[] = [
     name: family,
     args: [family, '--help'],
   })),
+  { name: 'groups invite-link', args: ['groups', 'invite-link', '--help'] },
   { name: 'posts react', args: ['posts', 'react', '--help'] },
   { name: 'posts send', args: ['posts', 'send', '--help'] },
   { name: 'posts reply', args: ['posts', 'reply', '--help'] },

@@ -1,0 +1,36 @@
+appId: ${MAESTRO_APP_ID}
+name: Load older Activity events
+env:
+  JOURNEY: activity-pagination
+---
+- runScript: ../reliability/data.js
+- runFlow: begin.yaml
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: '^Tab Bar$'
+          point: '50%,38%'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn: '^Activity.*$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Activity$'
+- extendedWaitUntil:
+    visible: ${output.reliability.activityPaginationNewestPattern}
+    timeout: 15000
+- assertNotVisible: ${output.reliability.activityPaginationOldestPattern}
+- scrollUntilVisible:
+    element: ${output.reliability.activityPaginationOldestPattern}
+    direction: DOWN
+    timeout: 30000
+    centerElement: true
+- assertNotVisible: ${output.reliability.activityPaginationNewestPattern}
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Activity$'
+- runFlow: ../reliability/subflows/workspaces-tab.yaml

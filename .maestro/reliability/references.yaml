@@ -63,7 +63,7 @@ env:
           timeout: 5000
 - assertVisible: ${output.reliability.groupPattern}
 - tapOn: '^Back$'
-- runFlow: subflows/home-tab.yaml
+- runFlow: subflows/workspaces-tab.yaml
 - runScript:
     file: data.js
     env:
@@ -98,4 +98,4 @@ env:
 # Back preserves the group from which the reference was opened.
 - assertVisible: ${output.reliability.groupPattern}
 - tapOn: '^Back$'
-- assertVisible: '^Home$'
+- assertVisible: '^Workspaces$'

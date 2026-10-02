@@ -22,7 +22,7 @@ appId: ${MAESTRO_APP_ID}
       platform: Android
     commands:
       - tapOn: '(?i)^Delete group$'
-- assertVisible: '^Home$'
+- assertVisible: '^Workspaces$'
 - assertNotVisible: ${output.reliability.groupPattern}
 - runFlow:
     when:

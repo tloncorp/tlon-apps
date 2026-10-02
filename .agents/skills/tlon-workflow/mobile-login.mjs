@@ -1,24 +1,32 @@
 #!/usr/bin/env node
 // Signs the app in on a simulator or emulator, so a reproduction starts on
-// Home instead of on the onboarding screens.
+// the Workspaces list instead of on the onboarding screens.
 //
+//   node <worktree>/.agents/skills/tlon-workflow/mobile-login.mjs \
+//     --platform ios --eas
 //   node <worktree>/.agents/skills/tlon-workflow/mobile-login.mjs \
 //     --platform ios --udid <udid> --session ios-1234-1435
 //
-// Opens the agent-device session and leaves it open for the rest of the run.
+// --eas drives this worktree's EAS Simulator session (see eas-device.mjs) under
+// the agent-device session Stim connected; --udid / --serial drive a
+// simulator or emulator on this machine. Either way the session stays open for
+// the rest of the run.
 // Local builds can prefill DEFAULT_SHIP_LOGIN_URL / DEFAULT_SHIP_LOGIN_ACCESS_CODE.
 // Hosted QA supplies TLON_LOGIN_URL / TLON_LOGIN_CODE at runtime instead.
 // These are read only by the login process, never by the testing agent.
 import { spawnSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
 
+import { easDevice } from './eas-device.mjs';
+
 function usage(message) {
   console.error(`mobile-login: ${message}
-usage: node <worktree>/.agents/skills/tlon-workflow/mobile-login.mjs --platform <ios|android> --session <name> [options]
+usage: node <worktree>/.agents/skills/tlon-workflow/mobile-login.mjs --platform <ios|android> (--eas | --session <name> --udid <udid> | --session <name> --serial <s>) [options]
   --platform <p>   ios or android
-  --session <name> the agent-device session to open, e.g. ios-1234-1435
-  --udid <udid>    the simulator, for ios (from stim status)
-  --serial <s>     the emulator, for android (from stim status)
+  --eas            this worktree's EAS Simulator session, from stim ios|android --remote eas
+  --session <name> the agent-device session to open, e.g. ios-1234-1435 (not with --eas)
+  --udid <udid>    a simulator on this machine, for ios (from stim status)
+  --serial <s>     an emulator on this machine, for android (from stim status)
   --app <id>       app id (default io.tlon.groups)`);
   process.exit(2);
 }
@@ -28,6 +36,7 @@ try {
   ({ values } = parseArgs({
     options: {
       platform: { type: 'string' },
+      eas: { type: 'boolean' },
       session: { type: 'string' },
       udid: { type: 'string' },
       serial: { type: 'string' },
@@ -48,14 +57,18 @@ const redact = (text) =>
     .reduce((s, v) => s.replaceAll(v, '[redacted]'), text);
 
 const platform = values.platform;
-const session = values.session;
 const app = values.app ?? 'io.tlon.groups';
 if (platform !== 'ios' && platform !== 'android') {
   usage('--platform takes ios or android');
 }
+if (values.eas && (values.session || values.udid || values.serial))
+  usage('--eas takes no --session, --udid or --serial');
+// A remote session only answers to the name Stim connected it under.
+const remote = values.eas ? easDevice() : null;
+const session = remote?.session ?? values.session;
 if (!session) usage('--session is required');
 const device = platform === 'ios' ? values.udid : values.serial;
-if (!device) {
+if (!remote && !device) {
   usage(
     `--${platform === 'ios' ? 'udid' : 'serial'} is required; stim status prints it`
   );
@@ -65,7 +78,10 @@ function device_(
   args,
   { allowFailure = false, retryPasswordSheet = true } = {}
 ) {
-  const r = spawnSync('agent-device', args, { encoding: 'utf8' });
+  const r = spawnSync('agent-device', args, {
+    encoding: 'utf8',
+    env: remote?.env ?? process.env,
+  });
   if (r.error) usage(`agent-device did not run (${r.error.message})`);
   const out = redact(`${r.stdout ?? ''}${r.stderr ?? ''}`);
   if (
@@ -101,22 +117,25 @@ function device_(
 }
 
 const S = ['--session', session, '--no-record'];
-const onScreen = (text) =>
-  device_(['find', `text="${text}"`, ...S], { allowFailure: true }).ok;
+const onScreen = (selector) =>
+  device_(['find', selector, ...S], { allowFailure: true }).ok;
+// The chat list renders "Workspaces" as both a navigation-bar and a text node,
+// and an exact `text=` match on two elements is an AMBIGUOUS_MATCH rather than
+// a hit, so the landing check matches on the label instead.
+const onLanding = () => onScreen('label="Workspaces"');
 
 device_([
   'open',
   app,
   '--platform',
   platform,
-  platform === 'ios' ? '--udid' : '--serial',
-  device,
+  ...(remote ? [] : [platform === 'ios' ? '--udid' : '--serial', device]),
   '--foreground',
   ...S,
 ]);
 
-// Already signed in: onboarding is gone and Home is up.
-if (onScreen('Home')) {
+// Already signed in: onboarding is gone and the Workspaces list is up.
+if (onLanding()) {
   console.log(`${session}: already signed in`);
   process.exit(0);
 }
@@ -138,7 +157,7 @@ for (const [press, next] of steps) {
   device_(['press', `text="${press}"`, ...S, '--settle']);
   if (press === 'Connect') {
     // Password-manager prompts and skipped analytics vary by build/account.
-    if (onScreen('Save Password?'))
+    if (onScreen('text="Save Password?"'))
       device_([
         'press',
         'role="button" text="Not Now"',
@@ -146,7 +165,7 @@ for (const [press, next] of steps) {
         '--raw',
         '--settle',
       ]);
-    if (onScreen('Home')) break;
+    if (onLanding()) break;
   }
   if (next) device_(['wait', 'text', next, ...S]);
 }
@@ -155,10 +174,13 @@ for (const [press, next] of steps) {
 // after `alert dismiss` would already have run.
 device_(['wait', '3000', ...S], { allowFailure: true });
 device_(['alert', 'dismiss', ...S], { allowFailure: true });
-// The "Stay in the loop" sheet comes later, over Home.
-if (onScreen('Not now')) device_(['press', 'text="Not now"', ...S, '--settle']);
+// The "Stay in the loop" sheet comes later, over the Workspaces list.
+if (onScreen('text="Not now"'))
+  device_(['press', 'text="Not now"', ...S, '--settle']);
 
 // A fresh disposable ship can still be completing its first sync after the
 // prompts are gone. Wait for the destination instead of assuming three seconds.
-device_(['wait', 'text', 'Home', '60000', ...S]);
+// A hosted account with an agent lands on the bot DM tab instead, whose
+// header is deliberately blank; that path is not exercised here.
+device_(['wait', 'text', 'Workspaces', '60000', ...S]);
 console.log(`${session}: signed in`);

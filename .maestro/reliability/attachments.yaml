@@ -36,7 +36,7 @@ env:
 - hideKeyboard
 - stopApp
 - launchApp
-- runFlow: subflows/home-tab.yaml
+- runFlow: subflows/workspaces-tab.yaml
 - tapOn: ${output.reliability.groupPattern}
 - tapOn: '^Chat$'
 - assertVisible: ${MAESTRO_RUN_TAG + ' image ?'}

@@ -6,10 +6,11 @@ env:
 ---
 - runScript: data.js
 - runFlow: subflows/begin.yaml
-- runFlow: subflows/contacts-tab.yaml
-- tapOn: '^Settings$'
-- assertVisible: '^Settings$'
-- tapOn: '^App info$'
+- runFlow: subflows/settings-tab.yaml
+- runFlow:
+    file: subflows/settings-row.yaml
+    env:
+      ROW: '^App info$'
 - assertVisible: '^App info$'
 - assertVisible: '^Build version$'
 - copyTextFrom:
@@ -32,7 +33,5 @@ env:
     env:
       EXPECTED_CONTENTS: ${output.reliability.appInfoValue}
 - assertVisible: '^App info$'
-- tapOn: '^Back$'
-- tapOn: '^Back$'
-- runFlow: subflows/home-tab.yaml
-- assertVisible: '^Home$'
+- runFlow: subflows/workspaces-tab.yaml
+- assertVisible: '^Workspaces$'

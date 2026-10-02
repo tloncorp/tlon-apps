@@ -1,0 +1,38 @@
+appId: ${MAESTRO_APP_ID}
+name: Copy a direct-message body to the system clipboard
+env:
+  JOURNEY: dm-copy-message
+---
+- runScript: ../reliability/data.js
+- runFlow: begin.yaml
+
+# Seed a distinct operating-system clipboard value so stale state cannot pass.
+- runFlow:
+    file: subflows/seed-system-clipboard.yaml
+    env:
+      CLIPBOARD_SENTINEL: ${'before-' + MAESTRO_RUN_TAG}
+- assertVisible: '^Workspaces$'
+- tapOn: '^Messages$'
+- scrollUntilVisible:
+    element:
+      id: 'ChannelListItem-~ten'
+    direction: DOWN
+    timeout: 5000
+    centerElement: true
+- tapOn:
+    id: 'ChannelListItem-~ten'
+- extendedWaitUntil:
+    visible: ${MAESTRO_RUN_TAG + ' dm clipboard target ?'}
+    timeout: 15000
+- longPressOn: ${MAESTRO_RUN_TAG + ' dm clipboard target ?'}
+- tapOn: '^Copy message text$'
+- assertNotVisible: '^Copy message text$'
+- runFlow:
+    file: subflows/assert-system-clipboard.yaml
+    env:
+      EXPECTED_CONTENTS: ${MAESTRO_RUN_TAG + ' dm clipboard target'}
+- assertVisible: ${MAESTRO_RUN_TAG + ' dm clipboard target ?'}
+- tapOn: '^Back$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Workspaces$'

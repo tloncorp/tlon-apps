@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { MAX_BROWSER_VIEWER_URL_LENGTH } from './browserSession';
+
 import {
   AGENT_PROTOCOL_LIMITS,
   AgentProviderConfigContextSchema,
@@ -8,6 +10,7 @@ import {
 } from './agentProtocol';
 
 const ACTION_SEND_MESSAGE = 'tlon.sendMessage';
+const ACTION_REQUEST_CREDIT_INCREASE = 'tlon.requestCreditIncrease';
 const ACTION_NAVIGATE = 'tlon.navigate';
 const ACTION_PROVISION_AGENT = 'tlon.provisionAgent';
 const ACTION_CONFIGURE_AGENT_PROVIDERS = 'tlon.configureAgentProviders';
@@ -61,7 +64,7 @@ const buttonVariantSchema = z.enum([
   'secondary',
   'borderless',
 ]);
-const screenNameSchema = z.enum(['botMcpSettings']);
+const screenNameSchema = z.enum(['botMcpSettings', 'browserCredentialHandoff']);
 
 const nonEmptyString = (max?: number) => {
   const schema = max === undefined ? z.string() : z.string().max(max);
@@ -114,12 +117,21 @@ const chatVolumeNavigationTargetSchema = z.object({
   chatId: targetIdSchema,
   groupId: targetIdSchema.optional(),
 });
-const screenNavigationTargetSchema = z.object({
+const botMcpSettingsNavigationTargetSchema = z.object({
   type: z.literal('screen'),
-  screen: screenNameSchema,
+  screen: z.literal('botMcpSettings'),
   providerId: targetIdSchema.optional(),
 });
-const navigationTargetSchema = z.discriminatedUnion('type', [
+const browserCredentialHandoffNavigationTargetSchema = z.object({
+  type: z.literal('screen'),
+  screen: z.literal('browserCredentialHandoff'),
+  viewerUrl: z.string().url().max(MAX_BROWSER_VIEWER_URL_LENGTH),
+});
+const screenNavigationTargetSchema = z.union([
+  botMcpSettingsNavigationTargetSchema,
+  browserCredentialHandoffNavigationTargetSchema,
+]);
+const navigationTargetSchema = z.union([
   messageNavigationTargetSchema,
   channelNavigationTargetSchema,
   groupNavigationTargetSchema,
@@ -134,6 +146,10 @@ const sendMessageEventSchema = z.object({
   context: z.object({
     text: nonEmptyString(LIMITS.maxButtonMessageLength),
   }),
+});
+const requestCreditIncreaseEventSchema = z.object({
+  name: z.literal(ACTION_REQUEST_CREDIT_INCREASE),
+  context: z.object({ requestId: z.string().uuid() }),
 });
 const smallChoiceSendMessageEventSchema = z.object({
   name: z.literal(ACTION_SEND_MESSAGE),
@@ -153,10 +169,15 @@ const configureAgentProvidersEventSchema = z.object({
   name: z.literal(ACTION_CONFIGURE_AGENT_PROVIDERS),
   context: AgentProviderConfigContextSchema,
 });
-const buttonEventSchema = z.discriminatedUnion('name', [
+const choiceEventSchema = z.discriminatedUnion('name', [
   sendMessageEventSchema,
   navigateEventSchema,
   provisionAgentEventSchema,
+]);
+const buttonEventSchema = z.discriminatedUnion('name', [
+  ...choiceEventSchema.options,
+  // Only Buttons restore this action's persisted receipt and completion label.
+  requestCreditIncreaseEventSchema,
 ]);
 const buttonActionSchema = z.object({ event: buttonEventSchema });
 const sendMessageActionSchema = z.object({ event: sendMessageEventSchema });
@@ -214,6 +235,8 @@ const buttonSchema = z.object({
   component: z.literal('Button'),
   child: nonEmptyString(),
   disabled: z.boolean().optional(),
+  /** Local completion copy; the original post does not need a remote edit. */
+  consumedLabel: nonEmptyString(LIMITS.maxTextNodeLength).optional(),
   variant: buttonVariantSchema.optional(),
   action: buttonActionSchema,
 });
@@ -223,7 +246,7 @@ const choiceOptionSchema = z.object({
   description: z.string().max(LIMITS.maxTextNodeLength).optional(),
   icon: choiceIconSchema.optional(),
   accent: choiceAccentSchema.optional(),
-  action: buttonActionSchema,
+  action: z.object({ event: choiceEventSchema }),
 });
 const choiceSchema = z.object({
   ...componentBaseShape,
@@ -255,9 +278,7 @@ const mcpSettingsNavigateActionSchema = z.object({
   event: z.object({
     name: z.literal(ACTION_NAVIGATE),
     context: z.object({
-      target: screenNavigationTargetSchema.extend({
-        screen: z.literal('botMcpSettings'),
-      }),
+      target: botMcpSettingsNavigationTargetSchema,
     }),
   }),
 });
@@ -336,6 +357,9 @@ export namespace A2UI {
   export type ScreenName = z.infer<typeof screenNameSchema>;
   export type ScreenNavigationTarget = z.infer<
     typeof screenNavigationTargetSchema
+  >;
+  export type BrowserCredentialHandoffNavigationTarget = z.infer<
+    typeof browserCredentialHandoffNavigationTargetSchema
   >;
   export type NavigationTarget = z.infer<typeof navigationTargetSchema>;
   export type NavigateEvent = z.infer<typeof navigateEventSchema>;
@@ -691,6 +715,7 @@ export function buildSmallChoiceMessage(
 export const A2UI = {
   action: {
     sendMessage: ACTION_SEND_MESSAGE,
+    requestCreditIncrease: ACTION_REQUEST_CREDIT_INCREASE,
     navigate: ACTION_NAVIGATE,
     provisionAgent: ACTION_PROVISION_AGENT,
     configureAgentProviders: ACTION_CONFIGURE_AGENT_PROVIDERS,

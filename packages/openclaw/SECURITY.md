@@ -66,9 +66,11 @@ Evaluated in this order per unprocessed valid invite:
 | 5   | On allowlist, **confirmed blocked**                | Silent ignore (no card), mark processed   | yes                 |
 | 6   | On allowlist, lookup failed/timed out (_unknown_)  | Fall through to row 2/3 (card, or ignore) | yes (attempted)     |
 
-The `autoAcceptGroupInvites` flag no longer governs invite authorization; it
-remains a persistence input (auto-detected channels are persisted to
-`groupChannels` only when it is true).
+The `autoAcceptGroupInvites` flag no longer governs invite authorization or
+channel persistence. The channels of joined groups are journaled to
+`groupChannels` from `%groups` facts, best-effort: transient settings failures
+are retried, and a hosted save rewrites the key (see the ownership rule in
+`src/monitor/group-channels.ts`).
 
 **Critical Invariants:**
 

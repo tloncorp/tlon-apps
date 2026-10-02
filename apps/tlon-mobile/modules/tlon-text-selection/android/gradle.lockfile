@@ -1,0 +1,41 @@
+# This is a Gradle generated file for dependency locking.
+# Manual edits can break the build and are not advised.
+# This file is expected to be part of source control.
+androidx.annotation:annotation-experimental:1.4.1=debugCompileClasspath
+androidx.annotation:annotation-jvm:1.8.1=debugCompileClasspath
+androidx.annotation:annotation:1.8.1=debugCompileClasspath
+androidx.arch.core:core-common:2.2.0=debugCompileClasspath
+androidx.collection:collection:1.0.0=debugCompileClasspath
+androidx.core:core-ktx:1.17.0=debugCompileClasspath
+androidx.core:core-viewtree:1.0.0=debugCompileClasspath
+androidx.core:core:1.17.0=debugCompileClasspath
+androidx.lifecycle:lifecycle-common:2.6.2=debugCompileClasspath
+androidx.lifecycle:lifecycle-runtime:2.6.2=debugCompileClasspath
+androidx.versionedparcelable:versionedparcelable:1.1.1=debugCompileClasspath
+com.google.guava:listenablefuture:1.0=debugCompileClasspath
+io.github.lukmccall.pika:pika-api:0.3.2=debugCompileClasspath,debugRuntimeClasspath
+io.github.lukmccall.pika:pika-compiler:0.3.2-2.1.20=kotlinCompilerPluginClasspathDebug
+org.jetbrains.intellij.deps:trove4j:1.0.20200330=kotlinBuildToolsApiClasspath,kotlinCompilerClasspath
+org.jetbrains.kotlin:kotlin-build-tools-api:2.1.20=kotlinBuildToolsApiClasspath
+org.jetbrains.kotlin:kotlin-build-tools-impl:2.1.20=kotlinBuildToolsApiClasspath
+org.jetbrains.kotlin:kotlin-compiler-embeddable:2.1.20=kotlinBuildToolsApiClasspath,kotlinCompilerClasspath
+org.jetbrains.kotlin:kotlin-compiler-runner:2.1.20=kotlinBuildToolsApiClasspath
+org.jetbrains.kotlin:kotlin-daemon-client:2.1.20=kotlinBuildToolsApiClasspath
+org.jetbrains.kotlin:kotlin-daemon-embeddable:2.1.20=kotlinBuildToolsApiClasspath,kotlinCompilerClasspath
+org.jetbrains.kotlin:kotlin-reflect:1.6.10=kotlinBuildToolsApiClasspath,kotlinCompilerClasspath
+org.jetbrains.kotlin:kotlin-script-runtime:2.1.20=kotlinBuildToolsApiClasspath,kotlinCompilerClasspath
+org.jetbrains.kotlin:kotlin-scripting-common:2.1.20=kotlinBuildToolsApiClasspath
+org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:2.1.20=kotlinBuildToolsApiClasspath
+org.jetbrains.kotlin:kotlin-scripting-compiler-impl-embeddable:2.1.20=kotlinBuildToolsApiClasspath
+org.jetbrains.kotlin:kotlin-scripting-jvm:2.1.20=kotlinBuildToolsApiClasspath
+org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.1.20=debugCompileClasspath,debugRuntimeClasspath
+org.jetbrains.kotlin:kotlin-stdlib:2.1.20=debugCompileClasspath,debugRuntimeClasspath,kotlinBuildToolsApiClasspath,kotlinCompilerClasspath,kotlinCompilerPluginClasspathDebug
+org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2=debugCompileClasspath
+org.jetbrains.kotlinx:kotlinx-coroutines-bom:1.10.2=debugCompileClasspath
+org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.10.2=debugCompileClasspath
+org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.8.0=kotlinBuildToolsApiClasspath,kotlinCompilerClasspath
+org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2=debugCompileClasspath
+org.jetbrains:annotations:13.0=kotlinBuildToolsApiClasspath,kotlinCompilerClasspath,kotlinCompilerPluginClasspathDebug
+org.jetbrains:annotations:23.0.0=debugCompileClasspath,debugRuntimeClasspath
+org.jspecify:jspecify:1.0.0=debugCompileClasspath
+empty=androidApis

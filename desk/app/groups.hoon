@@ -107,6 +107,7 @@
       [/x/v2/groups/$/$/channels/$/$/$/readers %ships]
       [/x/v2/groups/$/$/channels/$/$/$/writers %ships]
       [/x/groups/$/$/seats/$ %noun]
+      [/x/v2/groups/$/$/seats/ships %ships]
     ::
       [/x/groups/light %groups]
       [/x/v0/light/groups %groups]
@@ -4739,8 +4740,8 @@
           [%can-write ship=@ ~]
         =+  ship=(slav %p ship.rest.pole)
         ^-  (unit (unit rail))
-        ?~  seat=(~(get by seats.group) ship)  [~ ~]
-        ?:  (go-is-banned ship)  [~ ~]
+        ?~  seat=(~(get by seats.group) ship)  ``unsafe+noun+!>(~)
+        ?:  (go-is-banned ship)  ``unsafe+noun+!>(~)
         =-  ``unsafe+noun+!>(-)
         %-  some
         :-  admin=(go-is-admin ship)

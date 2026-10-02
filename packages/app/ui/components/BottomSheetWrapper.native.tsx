@@ -127,6 +127,7 @@ export const BottomSheetWrapper = forwardRef<
     {
       open,
       onOpenChange,
+      onDidOpen,
       children,
       transition = 'quick',
       dismissOnSnapToBottom = true,
@@ -393,12 +394,13 @@ export const BottomSheetWrapper = forwardRef<
           isProgrammaticChange.current = false;
         } else if (index >= 0) {
           reachedClosedIndex.current = false;
+          onDidOpen?.();
           // Reset flag when sheet reaches any open snap point
           // This ensures the flag only protects the specific operation that set it
           isProgrammaticChange.current = false;
         }
       },
-      [dismissOnSnapToBottom, onOpenChange]
+      [dismissOnSnapToBottom, onOpenChange, onDidOpen]
     );
 
     // Gorhom skips onChange(-1) when the sheet is dismissed before its open

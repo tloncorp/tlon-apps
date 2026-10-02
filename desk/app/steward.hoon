@@ -1,7 +1,7 @@
 ::  steward: harness-agnostic umbrella agent
 ::
 ::    an agent that manages our harnesses. it currently tracks the state of the
-::    harness gateway, as well as execution runs for each bot message.
+::    harness gateway and execution runs, and emits message-delivery telemetry.
 ::
 ::    the bot itself runs steward as well as the bot's owner, so that things
 ::    like lens data can be scried locally by the owner.
@@ -10,10 +10,12 @@
 ::    (sur/steward/{lens,gateway,automation}.hoon) and mark families;
 ::    %steward-action-1 carries only cross-cutting config (the shared owner).
 ::
-/-  s=steward, a=activity, av=activity-ver, cv=chat-ver, st=story
-/-  sl=steward-lens, sg=steward-gateway, sa=steward-automation, c=contacts
+/-  s=steward, a=activity, av=activity-ver, c=chat, ch=channels, co=contacts
+/-  cv=chat-ver, chv=channels-ver, st=story
+/-  sl=steward-lens, sg=steward-gateway, sa=steward-automation
 /-  lg=logs
-/+  default-agent, verb, dbug, server, logs, aj=steward-automation-json
+/+  default-agent, verb, dbug, server, logs, utils=channel-utils
+/+  aj=steward-automation-json
 |%
 +$  card  card:agent:gall
 ::  state is versioned; +on-load migrates older shapes forward.
@@ -23,25 +25,32 @@
 ::            pokes cross-ship. explicit and ship-class-agnostic; an empty
 ::            set means only local pokes are accepted.
 ::
-+$  state-2
-  $:  %2
++$  state-3
+  $:  %3
       owner=(unit ship)
       bots=(set ship)
       lens=state:v1:sl
       gateway=state:v1:sg
       automation=state:v1:sa
   ==
-+$  versioned-state  $%(state-0 state-1 state-2)
-::  pre-%2 shapes, kept for +on-load only. state-1 is the released shape
-::  before the automation slice; gateway-0 is the gateway slice before
-::  .notify-on-start was prepended (see sur/steward/gateway.hoon).
++$  state-2
+  $:  %2
+      owner=(unit ship)
+      bots=(set ship)
+      lens=state:v1:sl
+      gateway=gateway-1
+      automation=state:v1:sa
+  ==
++$  versioned-state  $%(state-0 state-1 state-2 state-3)
+::  Persisted shapes used only by +on-load migrations. gateway-1 has the
+::  notification latch and interaction timestamp; gateway-0 omits them.
 ::
 +$  state-1
   $:  %1
       owner=(unit ship)
       bots=(set ship)
       lens=state:v1:sl
-      gateway=state:v1:sg
+      gateway=gateway-1
   ==
 +$  state-0
   $:  %0
@@ -50,6 +59,8 @@
       lens=state:v1:sl
       gateway=gateway-0
   ==
++$  gateway-1
+  [notify-on-start=? last-interaction=@da gateway-0]
 +$  gateway-0
   $:  last-owner-msg=@da
       last-owner-msg-id=(unit message-key:a)
@@ -72,7 +83,7 @@
 ::
 ++  default-max-runs-per-bot  3.000
 --
-=|  state-2
+=|  state-3
 =*  state  -
 %-  agent:dbug
 %^  verb  |  %warn
@@ -85,13 +96,13 @@
   ++  on-init
     ^-  (quip card _this)
     =.  max-runs-per-bot.lens.state  default-max-runs-per-bot
-    [[watch-activity:cor au-init-cards:au-core:cor] this]
+    [(weld init-subs:cor au-init-cards:au-core:cor) this]
   ++  on-save  !>(state)
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
     =^  cards  state  abet:(load:cor vase)
-    [cards this]
+    [(weld init-subs:cor cards) this]
   ++  on-poke
     |=  [=mark =vase]
     ^-  (quip card _this)
@@ -162,7 +173,8 @@
   ::
   =/  new-slice  ?=(%1 -.old)
   =?  old  ?=(%1 -.old)  (state-1-to-2 old)
-  ?>  ?=(%2 -.old)
+  =?  old  ?=(%2 -.old)  (state-2-to-3 old)
+  ?>  ?=(%3 -.old)
   =.  state  old
   ::  re-establish the eyre binding on every load; re-connecting a bound
   ::  path is harmless
@@ -181,6 +193,10 @@
   |=  old=state-1
   ^-  state-2
   [%2 owner.old bots.old lens.old gateway.old *state:v1:sa]
+++  state-2-to-3
+  |=  old=state-2
+  ^-  state-3
+  [%3 owner.old bots.old lens.old [& gateway.old] automation.old]
 ::  a %0 bot's gateway registered before the liveness claim existed, and
 ::  heartbeats only advertise on an up transition: seed the claim from the
 ::  migrated status, or an already-up gateway stays unknown until its next
@@ -353,6 +369,45 @@
       ==
     ==
   ::
+      [%journey %chat ~]
+    ?+    -.sign  cor
+        %fact
+      ?.  =(%writ-response-4 p.cage.sign)  cor
+      =/  payload=[whom:c response:writs:c]
+        !<([whom:c response:writs:c] q.cage.sign)
+      (jo-observe-chat:jo-core payload)
+    ::
+        %kick
+      (emit watch-journey-chat)
+    ::
+        %watch-ack
+      ?~  p.sign  cor
+      ((slog 'steward: journey chat watch nacked' u.p.sign) cor)
+    ==
+  ::
+      [%journey %channels ~]
+    ?+    -.sign  cor
+        %fact
+      ?.  =(%channel-response-5 p.cage.sign)  cor
+      =/  response=r-channels:v10:chv
+        !<(r-channels:v10:chv q.cage.sign)
+      (jo-observe-channel:jo-core response)
+    ::
+        %kick
+      (emit watch-journey-channels)
+    ::
+        %watch-ack
+      ?~  p.sign  cor
+      ((slog 'steward: journey channels watch nacked' u.p.sign) cor)
+    ==
+  ::
+      [%journey %logs ~]
+    ?+  -.sign  cor
+        %poke-ack
+      ?~  p.sign  cor
+      ((slog 'steward: journey log poke nacked' u.p.sign) cor)
+    ==
+  ::
       [%gateway %dm %send ~]
     ?+  -.sign  cor
         %poke-ack
@@ -411,6 +466,199 @@
 ++  watch-activity
   ^-  card
   [%pass /activity %agent [our.bowl %activity] %watch /v5]
+::
+++  watch-journey-chat
+  ^-  card
+  [%pass /journey/chat %agent [our.bowl %chat] %watch /v4]
+::
+++  watch-journey-channels
+  ^-  card
+  [%pass /journey/channels %agent [our.bowl %channels] %watch /v4]
+::
+++  init-subs
+  ^-  (list card)
+  =/  subs=(list card)  ~
+  =?  subs  !(~(has by wex.bowl) [/activity our.bowl %activity])
+    [watch-activity subs]
+  =?  subs  !(~(has by wex.bowl) [/journey/chat our.bowl %chat])
+    [watch-journey-chat subs]
+  =?  subs  !(~(has by wex.bowl) [/journey/channels our.bowl %channels])
+    [watch-journey-channels subs]
+  (flop subs)
+::  |jo-core: content-free backend journey telemetry for OpenClaw messages
+::
+::  this module is deliberately stateless. a DM or group post is eligible only
+::  when the relevant %contacts profile already contains bot-info JSON
+::  identifying an OpenClaw harness. missing or malformed markers fail closed.
+::
+++  jo-core
+  |%
+  ++  jo-contact
+    |=  who=ship
+    ^-  (unit contact:co)
+    =/  base=path  /(scot %p our.bowl)/contacts/(scot %da now.bowl)
+    ?.  .^(? %gu (weld base /$))
+      ~
+    ?:  =(who our.bowl)
+      `.^(contact:co %gx (weld base /v1/self/contact-1))
+    =/  peer=path  (weld base /v1/contact/(scot %p who))
+    ?.  .^(? %gu peer)
+      ~
+    `.^(contact:co %gx (weld peer /contact-1))
+  ::
+  ++  jo-valid-text
+    |=  jon=(unit json)
+    ^-  ?
+    ?~  jon  |
+    ?.  ?=([%s *] u.jon)  |
+    ?:  =('' p.u.jon)  |
+    =/  length=(unit @ud)  (mole |.((lent (tuba (trip p.u.jon)))))
+    ?~  length  |
+    (lte u.length 64)
+  ::
+  ++  jo-is-openclaw
+    |=  who=ship
+    ^-  ?
+    =/  con=(unit contact:co)  (jo-contact who)
+    ?~  con  |
+    ?~  info=(~(get by u.con) %bot-info)  |
+    ?.  ?=([%text *] u.info)  |
+    ?.  (lte (met 3 p.u.info) 512)  |
+    ?~  jon=(de:json:html p.u.info)  |
+    ?.  ?=([%o *] u.jon)  |
+    ?~  schema-version=(~(get by p.u.jon) 'v')  |
+    ?.  ?=([%n *] u.schema-version)  |
+    ?.  =(.~1 (ne:dejs:format u.schema-version))  |
+    ?~  harness=(~(get by p.u.jon) 'harness')  |
+    ?.  ?=([%s *] u.harness)  |
+    ?.  (jo-valid-text harness)  |
+    ?.  =('openclaw' p.u.harness)  |
+    =/  claim-ver=(unit json)  (~(get by p.u.jon) 'version')
+    ?.  (jo-valid-text claim-ver)  |
+    =/  harness-ver=(unit json)  (~(get by p.u.jon) 'harnessVersion')
+    ?~  harness-ver  &
+    (jo-valid-text harness-ver)
+  ::
+  ++  jo-chat-message
+    |=  response=response:writs:c
+    ^-  (unit [id=id:c author=author:c])
+    ?-  -.response.response
+      %add
+        `[id.response author.essay.response.response]
+      %del  ~
+      %reply
+        =*  delta  delta.response.response
+        ?.  ?=(%add -.delta)  ~
+        `[id.response.response author.reply-essay.delta]
+      %add-react  ~
+      %del-react  ~
+    ==
+  ::
+  ::  channel IDs belong to the host; the plugin knows the sender timestamp.
+  ::
+  ++  jo-channel-message
+    |=  response=r-channels:v10:chv
+    ^-  (unit [nest=nest:ch id=id:c author=ship])
+    =*  nest  nest.response
+    ?.  ?|(?=(%chat kind.nest) ?=(%heap kind.nest))  ~
+    =*  r-channel  r-channel.response
+    ?.  ?=(%post -.r-channel)  ~
+    =*  r-post  r-post.r-channel
+    ?-  -.r-post
+      %set
+        ?:  ?=(%| -.post.r-post)  ~
+        =/  post=post:v10:chv  +.post.r-post
+        ?.  =(0 rev.post)  ~
+        =/  author=ship  (get-author-ship:utils author.post)
+        `[nest [author sent.post] author]
+      %reply
+        =*  r-reply  r-reply.r-post
+        ?.  ?=(%set -.r-reply)  ~
+        ?:  ?=(%| -.reply.r-reply)  ~
+        =/  reply=reply:v10:chv  +.reply.r-reply
+        ?.  =(0 rev.reply)  ~
+        =/  author=ship  (get-author-ship:utils author.reply)
+        `[nest [author sent.reply] author]
+      %reacts  ~
+      %essay   ~
+    ==
+  ::
+  ++  jo-log
+    |=  [stage=@t =id:c owner=ship bot=ship destination=@t]
+    ^+  cor
+    =/  message-id=@t
+      (rap 3 (scot %p p.id) '/' (scot %ud q.id) ~)
+    =/  id-key=@t
+      ?:  ?|  =(stage 'bot_message_sent')
+              =(stage 'owner_message_received')
+              =(stage 'group_host_message_received')
+              =(stage 'owner_group_message_received')
+          ==
+        'tlon.message_journey.output_message_id'
+      'tlon.message_journey.input_message_id'
+    =/  data=log-data:logs
+      :~  `(pair @t json)`['tlon.message_journey.schema_version' [%n '1']]
+          'tlon.message_journey.event'^s+stage
+          'tlon.message_journey.message_id'^s+message-id
+          id-key^s+message-id
+          'tlon.message_journey.owner_ship'^s+(scot %p owner)
+          'tlon.message_journey.bot_ship'^s+(scot %p bot)
+          'tlon.message_journey.destination_kind'^s+destination
+          'tlon.message_journey.source'^s+'steward/journey'
+      ==
+    =/  body=@t  (cat 3 'tlon.message_journey.' stage)
+    =/  echo=echo:logs  ~[`tank`body]
+    (emit (~(tell logs bowl /journey/logs) %info echo data))
+  ::
+  ++  jo-observe-chat
+    |=  [=whom:c response=response:writs:c]
+    ^+  cor
+    ?.  ?=(%ship -.whom)  cor
+    =/  peer=ship  p.whom
+    ?~  msg=(jo-chat-message response)  cor
+    =/  author=author:c  author.u.msg
+    =/  author-ship=ship  (get-author-ship:utils author)
+    =/  peer-is-child=?
+      (moon:title our.bowl peer)
+    =/  peer-is-owner=?
+      ?~  owner.state  |
+      =(peer u.owner.state)
+    ?:  =(author-ship our.bowl)
+      ?:  peer-is-child
+        ?.  (jo-is-openclaw peer)  cor
+        (jo-log 'owner_message_sent' id.u.msg our.bowl peer 'dm')
+      ?.  peer-is-owner  cor
+      ?.  (jo-is-openclaw our.bowl)  cor
+      (jo-log 'bot_message_sent' id.u.msg peer our.bowl 'dm')
+    ?:  peer-is-child
+      ?.  (jo-is-openclaw peer)  cor
+      (jo-log 'owner_message_received' id.u.msg our.bowl peer 'dm')
+    ?.  peer-is-owner  cor
+    ?.  (jo-is-openclaw our.bowl)  cor
+    (jo-log 'bot_message_received' id.u.msg peer our.bowl 'dm')
+  ::
+  ++  jo-observe-channel
+    |=  response=r-channels:v10:chv
+    ^+  cor
+    ?~  msg=(jo-channel-message response)  cor
+    =/  bot=ship  author.u.msg
+    =/  host=ship  ship.nest.u.msg
+    ?:  =(our.bowl host)
+      ?.  (jo-is-openclaw bot)  cor
+      =/  owner=ship
+        ?:  ?=(%earl (clan:title bot))
+          (end 5 bot)
+        (sein:title our.bowl now.bowl bot)
+      =.  cor
+        (jo-log 'group_host_message_received' id.u.msg owner bot 'group_channel')
+      ?:  =(our.bowl owner)
+        (jo-log 'owner_group_message_received' id.u.msg owner bot 'group_channel')
+      cor
+    ?.  (moon:title our.bowl bot)
+      cor
+    ?.  (jo-is-openclaw bot)  cor
+    (jo-log 'owner_group_message_received' id.u.msg our.bowl bot 'group_channel')
+  --
 ::  |le-core: lens module
 ::
 ++  le-core
@@ -749,6 +997,7 @@
   ++  ga-send-dm
     |=  [target=ship text=@t]
     ^+  cor
+    ?.  status-messages-enabled.gateway.state  cor
     =/  content=story:st  ~[[%inline ~[text]]]
     =/  =essay:v7:cv  [[content our.bowl now.bowl] chat+/ ~ ~]
     =/  =diff:dm:v7:cv  [[our.bowl now.bowl] %add essay `now.bowl]
@@ -773,9 +1022,9 @@
     =/  claim=@t
       ?:  up  '{"v":1,"state":"online"}'
       '{"v":1,"state":"offline"}'
-    =/  con=contact:c
-      (~(gas by *contact:c) ~[[%bot-liveness [%text claim]]])
-    =/  =action:c  [%self con]
+    =/  con=contact:co
+      (~(gas by *contact:co) ~[[%bot-liveness [%text claim]]])
+    =/  =action:co  [%self con]
     %-  emit
     :^    %pass  /gateway/liveness
         %agent
@@ -787,6 +1036,7 @@
     ?>  =(src.bowl our.bowl)
     ?-  -.action
       %configure          (ga-handle-configure active-window.action reply-cooldown.action)
+      %status-messages    (ga-handle-status-messages enabled.action)
       %gateway-start      (ga-handle-start boot-id.action lease-until.action)
       %gateway-heartbeat  (ga-handle-heartbeat boot-id.action lease-until.action)
       %gateway-stop       (ga-handle-stop boot-id.action reason.action)
@@ -804,8 +1054,16 @@
     ^-  (unit (unit cage))
     ?+  path  [~ ~]
         [%v1 %status ~]          ``noun+!>([status.gateway.state lease-until.gateway.state])
+        [%v1 %status-messages ~]  ``noun+!>(status-messages-enabled.gateway.state)
         [%v1 %owner-activity ~]  ``noun+!>(last-owner-msg.gateway.state)
     ==
+  ::
+  ++  ga-handle-status-messages
+    |=  enabled=?
+    ^+  cor
+    =.  status-messages-enabled.gateway.state  enabled
+    =?  notify-on-start.gateway.state  !enabled  |
+    cor
   ::
   ++  ga-handle-configure
     |=  [win=@dr orc=@dr]
@@ -865,7 +1123,9 @@
     =.  last-stop.gateway.state  `now.bowl
     =.  pending-restart.gateway.state  &
     =/  owner-notice  (ga-owner-notice reason)
-    =?  notify-on-start.gateway.state  ?=(^ owner-notice)  &
+    =?  notify-on-start.gateway.state
+      &(status-messages-enabled.gateway.state ?=(^ owner-notice))
+      &
     =/  notice=(unit @t)
       ?^  owner-notice  owner-notice
       ?.  (ga-is-recently-active now.bowl)  ~
@@ -897,6 +1157,7 @@
   ++  ga-should-auto-reply
     |=  current-key=message-key:a
     ^-  ?
+    ?.  status-messages-enabled.gateway.state  |
     ?:  ga-is-gateway-live  |
     ?:  ?&  ?=(^ last-auto-reply-to.gateway.state)
             =(u.last-auto-reply-to.gateway.state current-key)

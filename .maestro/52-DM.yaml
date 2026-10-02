@@ -3,13 +3,13 @@ appId: io.tlon.groups
 ---
 - runFlow: subflows/launch.yaml
 - runFlow: subflows/tlon-login.yaml
-- assertVisible: 'Home'
+- assertVisible: 'Workspaces'
 # Tap on the "+" button
 - tapOn:
     id: 'CreateGroupButton'
 # Assert that the sheet pops
-- assertVisible: 'Create a new chat with one other person.'
-- tapOn: 'New direct message'
+- assertVisible: 'Create a private chat with one other person'
+- tapOn: 'New Message'
 # Assert that the contacts sheet pops
 - assertVisible: 'Select a contact to chat with'
 # Select a contact and start the DM
@@ -36,12 +36,12 @@ appId: io.tlon.groups
       visible: '.*Hello, ~zod!.*'
     commands:
       - assertVisible: '.*Hello, ~zod!.*'
-# Navigate back to the Home screen and assert that the message preview is visible
+# Navigate back to the Workspaces list and assert that the message preview is visible
 - tapOn:
     id: 'HeaderBackButton'
 - runFlow:
     when:
-      visible: 'Home'
+      visible: 'Workspaces'
     commands:
       - assertVisible: '.*Hello, ~zod!.*'
 # Navigate back into the DM
@@ -129,7 +129,7 @@ appId: io.tlon.groups
           text: 'Delete this message '
       - tapOn: 'Delete message'
 - assertNotVisible: 'Delete this message '
-# Leave the DM from the Home screen
+# Leave the DM from the Workspaces list
 # For some reason, this is not working with the first tap;
 # it works with the second tap.
 - tapOn:
@@ -144,7 +144,7 @@ appId: io.tlon.groups
 - tapOn: 'Leave'
 - assertNotVisible: '~zod'
 # Leave the DM from within the DM
-# TODO: This is supposed to navigate you back to the Home screen,
+# TODO: This is supposed to navigate you back to the Workspaces list,
 # but we have a bug that causes navigation to fail.
 # - tapOn:
 #     id: 'ChannelHeaderOverflowMenuButton'

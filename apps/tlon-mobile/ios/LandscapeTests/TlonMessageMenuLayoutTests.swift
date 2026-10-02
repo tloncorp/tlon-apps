@@ -88,4 +88,61 @@ final class TlonMessageMenuLayoutTests: XCTestCase {
         XCTAssertEqual(layout.actionFrame.minX, 114)
         XCTAssertEqual(layout.reactionFrame?.minX, 166)
     }
+
+    func testShortMessageSnapshotsWholeWhenPartlyOffScreen() {
+        let (window, message) = makeMessageInList(
+            frame: CGRect(x: 0, y: -50, width: 390, height: 200)
+        )
+
+        XCTAssertEqual(
+            TlonMessageMenuPresentationView.snapshotRect(
+                of: message,
+                restingFrame: nil,
+                in: window
+            ),
+            CGRect(x: 0, y: 0, width: 390, height: 200)
+        )
+    }
+
+    func testLongMessageSnapshotsOnlyItsOnScreenPart() {
+        let (window, message) = makeMessageInList(
+            frame: CGRect(x: 0, y: -3000, width: 390, height: 9000)
+        )
+
+        XCTAssertEqual(
+            TlonMessageMenuPresentationView.snapshotRect(
+                of: message,
+                restingFrame: nil,
+                in: window
+            ),
+            CGRect(x: 0, y: 3000, width: 390, height: 600)
+        )
+    }
+
+    func testLongMessageSnapshotIgnoresPressScale() {
+        let (window, message) = makeMessageInList(
+            frame: CGRect(x: 0, y: -3000, width: 390, height: 9000)
+        )
+        let restingFrame = message.convert(message.bounds, to: window)
+        message.transform = CGAffineTransform(scaleX: 0.985, y: 0.985)
+
+        XCTAssertEqual(
+            TlonMessageMenuPresentationView.snapshotRect(
+                of: message,
+                restingFrame: restingFrame,
+                in: window
+            ),
+            CGRect(x: 0, y: 3000, width: 390, height: 600)
+        )
+    }
+
+    private func makeMessageInList(frame: CGRect) -> (UIWindow, UIView) {
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        let list = UIView(frame: CGRect(x: 0, y: 100, width: 390, height: 600))
+        list.clipsToBounds = true
+        let message = UIView(frame: frame)
+        list.addSubview(message)
+        window.addSubview(list)
+        return (window, message)
+    }
 }

@@ -24,11 +24,62 @@ maestro --udid DEVICE_ID test .maestro/reliability/chat.yaml
 
 By default every journey clears local app state and logs in. Set
 `MAESTRO_SESSION=warm` to retain an existing login; the app still restarts and the
-flow verifies the ship identity before modifying data. Do not run concurrent
-profile/settings journeys against the same account. These tests create private
-groups and posts that remain on the ship; only the lifecycle tests delete their
-own fixtures. Profile restores the original nickname in its completion hook;
-settings restores the original theme on success.
+flow verifies the ship identity before modifying data, through Settings, which
+is where the user's own profile now lives.
+
+Two things about the current app shape are worth knowing before editing a flow:
+
+- **The app restores where it was closed.** `stopApp`/`launchApp` no longer
+  returns to the chat list; it comes back to the screen the flow left, for 24
+  hours. So a relaunch has no landing to assert unless the flow navigated
+  somewhere known first: `relaunch.yaml` does, and asserts it; `settings`,
+  `profile` and `notebook` assert the restored position instead. Everywhere
+  else the relaunch is followed straight by a tab helper, which unwinds
+  whatever came back before selecting its tab -- do not put a landing
+  assertion in front of it, because the screen it names is not where the app
+  will be. The same goes for an `onFlowComplete` hook, which relaunches after
+  a failure that could have stopped anywhere. A fresh session is unaffected,
+  because `clearState` takes the saved position with it.
+- **iOS tab buttons are invisible to selectors.** The native tab bar exposes
+  only its container, so `subflows/workspaces-tab.yaml` and
+  `subflows/settings-tab.yaml` tap a point inside it. The percentages are
+  chosen to land on the right tab whether or not the account has the Bot tab,
+  which adds a fourth button and shifts the rest; see the comments in
+  `workspaces-tab.yaml`. Prefer those subflows over a hand-written tap, and
+  call `subflows/to-tab-root.yaml` first if a screen may be covering the bar.
+- **Android tab labels are content descriptions, and those words also turn up
+  in content.** A contact row carries a "Bot" badge, which satisfied the old
+  tab-bar guard in `subflows/to-tab-root.yaml`: the unwind was skipped on the
+  Contacts screen, the screen stayed over the bar, and the tab selection that
+  followed tapped a tab that was not there. The guard now keys on the native
+  bar's own view ids -- `navigation_bar_item_icon_view` for the bar,
+  `screen-header-back` for a screen above it -- which content cannot imitate.
+  Do not put tab labels back into it.
+- **Settings runs several screens deep.** On an account with an agent the bot's
+  own sections render above the App section, so `subflows/settings-row.yaml`
+  allows 25s up and 30s down and centres what it finds. Top to `App info`
+  measured 17.7s on a Pixel 7a, against the 10s allowed before; and a row left
+  at the bottom edge can hand the tap meant for it to the tab bar behind.
+
+**Known gap — the ten group-fixture journeys fail on an account with an
+agent.** `subflows/create-group.yaml` builds its fixture through the create
+sheet's "New group" action, and that action is not offered on a phone whose
+account has an agent: a Workspace is what the flow is for on mobile now. A
+Workspace is also not shaped like the template group these journeys expect --
+it arrives titled "My agent group" with a single chat channel called "General",
+gains a notes channel called "Updates" only when it is the account's first, and
+never gets a Gallery -- so rebuilding the fixture from one means renaming the
+group, renaming its channel and creating the missing ones, against a group
+furnished over the network by the bot. That is tracked in TLON-6632, which
+records the full shape of the problem. Until it lands, chat, channels, gallery, history, links, message-actions,
+notebook, relaunch, search and home-groups are expected to fail on
+`~batbet-litnec`; settings and profile, which create nothing, still pass.
+
+Do not run concurrent profile/settings journeys against the same account. These
+tests create private groups and posts that remain on the ship; only the
+lifecycle tests delete their own fixtures. Profile restores the original
+nickname in its completion hook; settings restores the original theme on
+success.
 
 Three extra flows have prerequisites: `contacts.yaml` requires `MAESTRO_CONTACT_SHIP`
 to name another test ship absent from Contacts; `files.yaml` requires Android and
@@ -119,6 +170,49 @@ relaunch corrects the badge to `1 reply` and the deleted body stays absent. The
 exact immediate-count assertion remains intact, so the journey stops there and
 does not yet reach its final-reply deletion checks on iOS. Android validation is
 pending.
+
+The separate `Maestro two-ship test` workflow runs on demand. It starts disposable
+`~zod` and `~ten` ships on CI using this checkout's backend, exposes only `~zod`
+through an IP-restricted tunnel, and reuses a qualified Android Cloud binary.
+An API peer creates the group and sends a message; Maestro receives it, replies,
+and sees the peer's acknowledgement without reloading. Group invitation opening
+and filtering are covered; invitation submission and peer acceptance are not.
+Dispatch `.github/workflows/maestro-fakeship-proof.yml` on this branch.
+
+CI needs `MAESTRO_CLOUD_API_KEY` and `MAESTRO_FAKE_SHIP_NGROK_TOKEN`. The workflow
+pins the Cloud project, binary, device, and CLI. Prepared ship snapshots are keyed
+by backend/manifest inputs; a miss prepares cold ships, while a mismatched warm
+snapshot fails quickly. App builds and local native caches are not involved.
+The retained artifacts include backend hashes and the peer's delivery receipt.
+
+Multiparty cases from the [Authenticated App QA sheet](https://docs.google.com/spreadsheets/d/1tm0wY5qzLxgBrym6W4rDMSn66b2w9IjWxHNU6Dabp_A/edit?gid=0):
+
+| Rows | Case | Peer evidence |
+| --- | --- | --- |
+| 132-133 | Open Invite People and filter to `~ten` | Disposable native-hosted group is absent on both ships after cleanup |
+| 455-456 | Select global mentions/replies and no-notification modes | Exact Activity events prove ordinary/mention/reply notification bits, the default is restored, and fixtures are deleted |
+| 207-208 | Edit a mobile message | Same post ID has the edited text on the other ship |
+| 209 | Delete that message | Other ship receives its deletion tombstone |
+| 201-202 | Reply to a peer and receive a thread reply | Both replies have the expected authors under the same root; UI shows two replies and reopens them |
+
+The global notification case intentionally fails its peer assertion while the
+current backend marks a reply as notifying after the native client selects
+`Nothing`. The flow still restores the default level and the peer deletes all
+four case-owned fixture groups before reporting that product failure.
+
+These run sequentially inside `exchange.yaml` to share one login and ship setup.
+`peer-checks.json` records completed backend checks even if a later step fails;
+Maestro must also pass before the run counts as successful.
+
+DM request controls use isolated, opt-in cases because each case changes the
+relationship between the same two ships. Dispatch `dm-deny`, `dm-block`, or
+`dm-unblock` separately; the workflow rejects combinations with another DM case.
+
+| Rows | Case | Peer evidence |
+| --- | --- | --- |
+| 340 | Deny an incoming request | The pending invite disappears without blocking the sender |
+| 341 | Block an incoming requester | The sender is blocked, the invite disappears, and another send creates no invite |
+| 462 | Unblock a blocked user | The ship disappears from the backend blocked set after native confirmation |
 
 The GitHub Actions workflow `.github/workflows/mobile-reliability-nightly.yml`
 runs this suite on `develop` nightly at 07:00 UTC and supports manual runs. It

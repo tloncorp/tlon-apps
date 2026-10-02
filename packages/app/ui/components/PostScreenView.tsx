@@ -1,3 +1,4 @@
+import { useIsFocused } from '@react-navigation/native';
 import { ChannelContentConfiguration } from '@tloncorp/api';
 import * as urbit from '@tloncorp/api/urbit';
 import { JSONContent } from '@tloncorp/api/urbit';
@@ -26,10 +27,11 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, XStack, YStack } from 'tamagui';
 
+import useAppStatus from '../../hooks/useAppStatus';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useIsUserActive } from '../../hooks/useUserActivity';
 import { useCurrentUserId } from '../contexts/appDataContext';
@@ -52,6 +54,7 @@ import {
   ConversationComposerPlacement,
   DraftInputView,
 } from './Channel/DraftInputView';
+import { ConversationLayout } from './Channel/ConversationLayout';
 import { ScrollAnchor } from './Channel/Scroller';
 import { DetailView } from './DetailView';
 import { FileDrop } from './FileDrop';
@@ -61,12 +64,14 @@ import { DraftInputContext } from './draftInputs';
 import {
   DraftInputContextProvider,
   DraftInputHandle,
+  type DraftSendOptions,
   GalleryDraftType,
 } from './draftInputs/shared';
 
 const noop = async () => {};
 
 const HIGHLIGHT_DURATION_MS = 5000;
+const isAppForeground = () => AppState.currentState === 'active';
 
 interface ChatThreadHandle {
   posts: db.Post[];
@@ -675,12 +680,12 @@ function SinglePostView({
   );
   const hasThreadUnreadActivity = hasUnreadActivity(liveThreadUnread);
 
-  const { data: threadPosts, isLoading: isLoadingThreadPosts } =
-    store.useThreadPosts({
-      postId: parentPost.id,
-      authorId: parentPost.authorId,
-      channelId: channel.id,
-    });
+  const threadQuery = store.useThreadPosts({
+    postId: parentPost.id,
+    authorId: parentPost.authorId,
+    channelId: channel.id,
+  });
+  const { data: threadPosts, isLoading: isLoadingThreadPosts } = threadQuery;
 
   const { data: showDeleteMarkers = false } = store.useShowDeleteMarkers();
   const includeDeletedPosts =
@@ -701,6 +706,38 @@ function SinglePostView({
   const posts = useMemo(() => {
     return parentPost ? [...(visibleThreadPosts ?? []), parentPost] : null;
   }, [parentPost, visibleThreadPosts]);
+
+  const screenIsFocused = useIsFocused();
+  const appStatus = useAppStatus();
+  const threadTelemetryView = useMemo(
+    () => ({
+      queryReplies: threadPosts,
+      listReplies: visibleThreadPosts ?? [],
+      includeDeleted: includeDeletedPosts,
+      queryStatus: threadQuery.status,
+      fetchStatus: threadQuery.fetchStatus,
+      dataUpdatedAt: threadQuery.dataUpdatedAt,
+      errorUpdatedAt: threadQuery.errorUpdatedAt,
+      parentReplyCount: parentPost.replyCount,
+    }),
+    [
+      threadPosts,
+      visibleThreadPosts,
+      includeDeletedPosts,
+      threadQuery.status,
+      threadQuery.fetchStatus,
+      threadQuery.dataUpdatedAt,
+      threadQuery.errorUpdatedAt,
+      parentPost.replyCount,
+    ]
+  );
+  store.useThreadCatchupTelemetry({
+    postId: parentPost.id,
+    channelId: channel.id,
+    active: screenIsFocused && isFocusedPost && appStatus === 'active',
+    isForeground: isAppForeground,
+    view: threadTelemetryView,
+  });
 
   const currentUserId = useCurrentUserId();
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
@@ -816,7 +853,7 @@ function SinglePostView({
   );
 
   const sendFromThreadComposer = useCallback(
-    async (draft: domain.PostDataDraft, options?: store.PostSendOptions) => {
+    async (draft: domain.PostDataDraft, options?: DraftSendOptions) => {
       setEditingPost?.(undefined);
       if (draft.isEdit) {
         await store.finalizeAndSendPost(draft, options);
@@ -825,7 +862,9 @@ function SinglePostView({
 
       draft.replyToPostId = parentPost.id;
       await store.finalizeAndSendPost(draft, options);
-      scrollToNewReply();
+      if (!options?.scrollHandled) {
+        scrollToNewReply();
+      }
     },
     [parentPost, scrollToNewReply, setEditingPost]
   );
@@ -841,16 +880,16 @@ function SinglePostView({
       isEditingParent &&
       (channel.type === 'notebook' || channel.type === 'gallery')
     );
-  const hasFloatingReplyInput = canRenderReplyInput && isChatChannel;
+  const hasDockedReplyInput = canRenderReplyInput && isChatChannel;
   const { bottom } = useSafeAreaInsets();
-  const { contentInsets, onFloatingHeightChange } = useConversationInsets({
-    hasFloatingComposer: hasFloatingReplyInput,
+  const { contentInsets } = useConversationInsets({
+    hasFloatingComposer: false,
     hasTransparentHeader: isChatChannel,
   });
-  // Native floating composers include the home-indicator inset. Web composers
+  // Native docked composers include the home-indicator inset. Web composers
   // stay inline, so the screen still owns its bottom safe-area clearance.
   const screenBottomInset =
-    hasFloatingReplyInput && Platform.OS !== 'web' ? undefined : bottom;
+    hasDockedReplyInput && Platform.OS !== 'web' ? undefined : bottom;
 
   const threadComposerContext = useMemo(
     (): DraftInputContext => ({
@@ -904,7 +943,10 @@ function SinglePostView({
   ) : null;
 
   return (
-    <YStack flex={1} paddingBottom={screenBottomInset}>
+    <ConversationLayout
+      enabled={!!hasDockedReplyInput}
+      bottomInset={screenBottomInset}
+    >
       {/* Thread composer context sends new drafts as replies; edits preserve their original target. */}
       <DraftInputContextProvider value={threadComposerContext}>
         {parentPost ? (
@@ -934,11 +976,10 @@ function SinglePostView({
 
         {replyInput && (
           <ConversationComposerPlacement
-            enabled={hasFloatingReplyInput}
-            avoidKeyboard={!hasFloatingReplyInput}
+            enabled={hasDockedReplyInput}
+            avoidKeyboard={!hasDockedReplyInput}
             contentProps={containingProperties}
             inlineID="reply-container"
-            onFloatingHeightChange={onFloatingHeightChange}
           >
             {replyInput}
           </ConversationComposerPlacement>
@@ -995,7 +1036,7 @@ function SinglePostView({
           />
         </View>
       ) : null}
-    </YStack>
+    </ConversationLayout>
   );
 }
 

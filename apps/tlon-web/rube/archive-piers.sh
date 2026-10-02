@@ -7,18 +7,37 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 RUBE_DIR="$SCRIPT_DIR"
-DIST_DIR="$RUBE_DIR/dist"
+# Where extracted piers live. Overridable, matching construct-desk.sh, so a
+# caller that built a pier elsewhere (build-n1-pier.sh) can point this at it.
+# ONLY under --skip-prepare: prepare_ships drives rube, whose workspace is its
+# own RUBE_WORKSPACE, and the binary lookup below has its own default, so an
+# override would prepare piers in one directory and archive from another. The
+# check that enforces this is after the flags are parsed.
+DIST_DIR_OVERRIDE="${DIST_DIR:-}"
+DIST_DIR="${DIST_DIR:-$RUBE_DIR/dist}"
+# Resolve to an absolute path now: archive_pier later cds into the pier's
+# parent before tarring to "$DIST_DIR/<archive>", so a relative override
+# (e.g. `DIST_DIR=out ./build-n1-pier.sh`) would otherwise point at the wrong
+# place once that cd happens.
+mkdir -p "$DIST_DIR"
+DIST_DIR="$(cd "$DIST_DIR" && pwd)"
 # Binary used for sync/pack/meld/roll/chop. Normally downloaded by rube during
 # prepare_ships; with --skip-prepare you must supply one that runs on THIS host
 # and matches the piers' kelvin. Override with URBIT_BINARY=/path/to/urbit.
 URBIT_BINARY="${URBIT_BINARY:-$RUBE_DIR/dist/urbit_extracted/urbit}"
 MANIFEST_FILE="$PROJECT_ROOT/apps/tlon-web/e2e/shipManifest.json"
 DOCKERFILE="$PROJECT_ROOT/apps/tlon-web/rube/Dockerfile"
+COMPOSE_FILE="$PROJECT_ROOT/packages/tlon-bot-e2e/docker/docker-compose.base.yml"
+SIDECAR_FILE="$PROJECT_ROOT/packages/tlon-bot-e2e/docker/pier-archive.json"
 
 # Security: Expected GCP configuration
 EXPECTED_PROJECT="tlon-groups-mobile"
 EXPECTED_BUCKET="gs://bootstrap.urbit.org"
 GCS_BUCKET="$EXPECTED_BUCKET"
+# Pin the project for every gcloud/gsutil call rather than trusting the
+# caller's gcloud config: an unattended runner that only activated a service
+# account has no configured project at all.
+export CLOUDSDK_CORE_PROJECT="$EXPECTED_PROJECT"
 
 # Configuration flags
 DRY_RUN=${DRY_RUN:-false}
@@ -29,15 +48,33 @@ VERIFY_AFTER_UPLOAD=${VERIFY_AFTER_UPLOAD:-false}
 FRESH_BOOT=${FRESH_BOOT:-false}
 SKIP_PREPARE=${SKIP_PREPARE:-false}
 ARCHIVE_TAG=${ARCHIVE_TAG:-}
+SHIP_SELECTOR=""
+
+# Whether this run started the ship fleet (prepare_ships), and the PIDs it
+# spawned. The EXIT cleanup below sweeps every e2e port with kill -9, which is
+# indiscriminate -- it takes down ships another checkout booted -- so it may
+# only run when this script is the one that started them.
+STARTED_FLEET=false
+SPAWNED_PIDS=()
 
 # Parse command line arguments
-for arg in "$@"; do
-    case $arg in
+while [ "$#" -gt 0 ]; do
+    case $1 in
         --fresh)
             FRESH_BOOT=true
             shift
             ;;
+        --ship)
+            SHIP_SELECTOR="${2:?--ship requires a ship name}"
+            shift 2
+            ;;
+        --ship=*)
+            SHIP_SELECTOR="${1#*=}"
+            shift
+            ;;
         --verify)
+            # The built archives are always verified locally before any pin
+            # changes; --verify verifies the uploaded objects instead.
             VERIFY_AFTER_UPLOAD=true
             shift
             ;;
@@ -50,13 +87,18 @@ for arg in "$@"; do
             echo ""
             echo "Options:"
             echo "  --fresh               Boot fresh fakeships instead of using existing archives"
+            echo "  --ship NAME           Archive only this ship instead of the default set"
+            echo "                        (requires --skip-prepare; the prep pass cannot build"
+            echo "                        a hand-built pier -- see build-n1-pier.sh)"
             echo "  --skip-prepare        Skip ship prep/re-extraction; archive piers already in dist/"
-            echo "  --verify              Run verify-archives.sh after successful upload"
+            echo "  --verify              Verify the uploaded archives (downloaded back from GCS)"
+            echo "                        instead of the local files, before updating pins"
             echo "  --help                Show this help message"
             echo ""
             echo "Environment variables:"
             echo "  DRY_RUN=true          Show what would be done without making changes"
-            echo "  SKIP_UPLOAD=true      Create archives but skip GCS upload"
+            echo "  SKIP_UPLOAD=true      Create and locally verify archives, print the pin diff;"
+            echo "                        no upload, no pin changes, archives kept"
             echo "  SKIP_CLEANUP=true     Keep local archives after upload"
             echo "  SKIP_MELD=true        Skip meld operation (for low-memory systems)"
             echo "  SKIP_PREPARE=true     Skip ship prep/re-extraction (same as --skip-prepare)"
@@ -67,6 +109,7 @@ for arg in "$@"; do
             ;;
         *)
             # Unknown option
+            shift
             ;;
     esac
 done
@@ -78,11 +121,46 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Ships to archive (bus is intentionally excluded as it's kept outdated)
+# Ships to archive by default. Two ships are deliberately left out:
+#   ~bus  kept outdated on purpose, for protocol-mismatch testing
+#   ~bud  the pinned N-1 pier; rebuilt by build-n1-pier.sh at every N-1 change,
+#         which then calls back in here with --ship bud
 SHIPS_TO_ARCHIVE=("zod" "ten" "mug")
 
 # Valid ships for input validation
-VALID_SHIPS=("zod" "ten" "mug" "bus")
+VALID_SHIPS=("zod" "ten" "mug" "bus" "bud")
+
+# DIST_DIR only redirects where prepared piers are READ from; it does not
+# reach rube. Preparing and archiving in different places would archive stale
+# piers, or none, so refuse the combination rather than half-honour it.
+if [ -n "$DIST_DIR_OVERRIDE" ] && [ "$SKIP_PREPARE" != "true" ]; then
+    echo "DIST_DIR is only honoured with --skip-prepare (it does not reach rube's own workspace)." >&2
+    echo "Either drop DIST_DIR, or prepare the piers yourself and pass --skip-prepare." >&2
+    exit 1
+fi
+
+# --ship narrows the run to one pier. Both excluded ships are hand-built, so
+# this is how they get archived without touching the routinely-updated three.
+#
+# It therefore requires --skip-prepare. prepare_ships runs rube with only
+# INCLUDE_OPTIONAL_SHIPS=true, which can never select an `n1` ship, so the prep
+# pass leaves $DIST_DIR/<ship> untouched and this script would go on to archive
+# whatever stale pier happened to be there.
+if [ -n "$SHIP_SELECTOR" ]; then
+    if ! printf '%s\n' "${VALID_SHIPS[@]}" | grep -qx "$SHIP_SELECTOR"; then
+        echo "Invalid ship name: $SHIP_SELECTOR (valid: ${VALID_SHIPS[*]})" >&2
+        exit 1
+    fi
+    if [ "$SKIP_PREPARE" != "true" ]; then
+        echo "--ship requires --skip-prepare." >&2
+        echo "The prep pass drives rube, which never builds a hand-built pier, so this run" >&2
+        echo "would archive whatever stale pier is already at $DIST_DIR/$SHIP_SELECTOR." >&2
+        echo "Build the pier first -- ./build-n1-pier.sh produces ~bud and calls back in here" >&2
+        echo "with --skip-prepare --ship $SHIP_SELECTOR -- then re-run with --skip-prepare." >&2
+        exit 1
+    fi
+    SHIPS_TO_ARCHIVE=("$SHIP_SELECTOR")
+fi
 
 # Function to print colored output
 print_status() {
@@ -125,23 +203,256 @@ get_current_version() {
     echo "$url" | sed -n 's/.*rube-'"$ship"'\([0-9]*\)\.tgz/\1/p'
 }
 
-# Function to increment version, or use a literal tag when pinned.
+# Whether an archive object already exists in the bucket. Uploading runs ask
+# gsutil (authenticated, so it also sees an object whose public ACL never got
+# set). SKIP_UPLOAD runs have no GCS access, so they ask the public URL; the
+# bucket answers 403 rather than 404 for a missing object there, so only a 200
+# counts as taken.
+archive_exists() {
+    local object=$1
+    if [ "$SKIP_UPLOAD" = "false" ]; then
+        gsutil -q stat "$GCS_BUCKET/$object" 2>/dev/null
+        return
+    fi
+    [ "$(curl -s -o /dev/null -I -w '%{http_code}' "https://bootstrap.urbit.org/$object" || true)" = "200" ]
+}
+
+# Pick the archive version for this run: one generation shared by every ship
+# in the set (the bot compose pins a single `pier generation`), or a literal
+# tag when pinned. The generation is the first number past the manifest's that
+# no ship in the set already has in the bucket -- not just manifest+1 -- so a
+# refresh abandoned after uploading never orphans its number for good. The
+# conditional upload is what actually prevents an overwrite; this only steers
+# around numbers already taken.
 # ARCHIVE_TAG names archives after what they contain rather than a position in
 # the numbered lineage (e.g. ARCHIVE_TAG=-group-blob -> rube-zod-group-blob.tgz),
 # for piers tied to a branch.
-get_next_version() {
-    local ship=$1
+allocate_generation() {
     if [ -n "$ARCHIVE_TAG" ]; then
         echo "$ARCHIVE_TAG"
         return 0
     fi
-    local current_version=$(get_current_version "$ship")
-    if [ -z "$current_version" ]; then
-        print_error "Cannot derive a version for ~$ship from $MANIFEST_FILE" >&2
-        print_info "The manifest holds a non-numeric archive name; set ARCHIVE_TAG explicitly." >&2
-        return 1
+    local ship current generation=0
+    for ship in "${SHIPS_TO_ARCHIVE[@]}"; do
+        current=$(get_current_version "$ship")
+        if [ -z "$current" ]; then
+            print_error "Cannot derive a version for ~$ship from $MANIFEST_FILE" >&2
+            print_info "The manifest holds a non-numeric archive name; set ARCHIVE_TAG explicitly." >&2
+            return 1
+        fi
+        if [ "$current" -gt "$generation" ]; then
+            generation=$current
+        fi
+    done
+    generation=$((generation + 1))
+    while :; do
+        local taken=""
+        for ship in "${SHIPS_TO_ARCHIVE[@]}"; do
+            if archive_exists "rube-${ship}${generation}.tgz"; then
+                taken="rube-${ship}${generation}.tgz"
+                break
+            fi
+        done
+        if [ -z "$taken" ]; then
+            break
+        fi
+        print_info "$taken already exists in $GCS_BUCKET; trying generation $((generation + 1))" >&2
+        generation=$((generation + 1))
+    done
+    echo "$generation"
+}
+
+# Whether this run cuts the routine zod/ten/mug generation that the bot
+# compose and its sidecar describe. A tagged run, a single hand-built ship, or
+# a --skip-prepare run (piers not built from this checkout, so the sidecar's
+# source hashes would be wrong) updates the web pins only.
+is_routine_generation() {
+    [ -z "$ARCHIVE_TAG" ] && [ "$SKIP_PREPARE" != "true" ] &&
+        [ "${SHIPS_TO_ARCHIVE[*]}" = "zod ten mug" ]
+}
+
+# Everything assemble-desk.sh reads when rube builds the %groups desk. The
+# sidecar records these at the source commit, so a later run can tell whether
+# a refresh would change anything.
+DESK_INPUTS=(desk peru.yaml scripts/assemble-desk.sh scripts/sync-deps.sh)
+
+# Blob hash of a file's committed content at a commit.
+git_blob_at() {
+    git -C "$PROJECT_ROOT" show "$1:$2" | git -C "$PROJECT_ROOT" hash-object --stdin
+}
+
+# Version string of the binary that produced the piers, for diagnosis only.
+urbit_version() {
+    local version
+    version=$(timeout 10 "$URBIT_BINARY" --version 2>/dev/null | head -1 |
+        sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' || true)
+    echo "${version:-unknown}"
+}
+
+# Write the bot E2E sidecar describing generation $1, cut from $SOURCE_SHA.
+write_sidecar() {
+    local generation=$1
+    local out=$2
+    local desk_tree peru_blob assemble_blob sync_deps_blob vere produced_at
+    desk_tree=$(git -C "$PROJECT_ROOT" rev-parse "$SOURCE_SHA:desk") || return 1
+    peru_blob=$(git_blob_at "$SOURCE_SHA" peru.yaml) || return 1
+    assemble_blob=$(git_blob_at "$SOURCE_SHA" scripts/assemble-desk.sh) || return 1
+    sync_deps_blob=$(git_blob_at "$SOURCE_SHA" scripts/sync-deps.sh) || return 1
+    vere=$(urbit_version)
+    produced_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    jq -n \
+        --argjson generation "$generation" \
+        --arg sourceSha "$SOURCE_SHA" \
+        --arg deskTree "$desk_tree" \
+        --arg peruBlob "$peru_blob" \
+        --arg assembleBlob "$assemble_blob" \
+        --arg syncDepsBlob "$sync_deps_blob" \
+        --arg vere "$vere" \
+        --arg producedAt "$produced_at" \
+        '{generation: $generation, sourceSha: $sourceSha, deskTree: $deskTree,
+          peruBlob: $peruBlob, assembleBlob: $assembleBlob,
+          syncDepsBlob: $syncDepsBlob, vere: $vere, producedAt: $producedAt}' \
+        > "$out"
+}
+
+file_md5() {
+    if command -v md5sum &> /dev/null; then
+        md5sum "$1" | awk '{print $1}'
+    else
+        md5 -q "$1"
     fi
-    echo $((current_version + 1))
+}
+
+# Rewrite one ship's `artifact` call in the bot compose: the cache filename
+# (the cache identity, so it must change with the generation), URL, md5 and
+# size. Matches on the `<ship>_archive="$$(artifact \` line and rewrites the
+# argument lines after it, keeping their indentation; fails unless exactly one
+# such call exists and it is md5-checked.
+rewrite_compose_artifact() {
+    local file=$1
+    PIN_MARKER="${2}_archive=\"\$\$(artifact \\" PIN_NAME="$3" PIN_URL="$4" \
+        PIN_MD5="$5" PIN_SIZE="$6" awk '
+        BEGIN { marker = ENVIRON["PIN_MARKER"]; found = 0; arg = 0; bad = 0 }
+        arg > 0 {
+            indent = $0; sub(/[^ ].*$/, "", indent)
+            trimmed = $0; sub(/^ +/, "", trimmed)
+            if (arg == 1) $0 = indent ENVIRON["PIN_NAME"] " \\"
+            else if (arg == 2) $0 = indent ENVIRON["PIN_URL"] " \\"
+            else if (arg == 3 && trimmed != "md5 \\") bad = 1
+            else if (arg == 4) $0 = indent ENVIRON["PIN_MD5"] " \\"
+            else if (arg == 5) $0 = indent ENVIRON["PIN_SIZE"] ")\""
+            arg = (arg == 5) ? 0 : arg + 1
+            print
+            next
+        }
+        {
+            trimmed = $0; sub(/^ +/, "", trimmed)
+            if (trimmed == marker) { found++; arg = 1 }
+            print
+        }
+        END { if (found != 1 || bad) exit 1 }
+    ' "$file"
+}
+
+# Repoint every pin at the new archives, in one place, once all of them are
+# uploaded and verified: the web manifest and rube Dockerfile, and for a
+# routine generation the bot compose (filename, URL, md5, size, generation
+# line) and its sidecar. Each file is rewritten into a staging dir first, so a
+# failed rewrite installs nothing. DRY_RUN and SKIP_UPLOAD print the diff and
+# write nothing.
+update_pins() {
+    local version=$1
+    shift
+    local archives=("$@")
+    local stage
+    stage=$(mktemp -d)
+
+    cp "$MANIFEST_FILE" "$stage/shipManifest.json" || return 1
+    cp "$DOCKERFILE" "$stage/Dockerfile" || return 1
+    local bot_pins=false
+    if is_routine_generation; then
+        bot_pins=true
+        cp "$COMPOSE_FILE" "$stage/docker-compose.base.yml" || return 1
+    fi
+
+    local i ship archive name url md5 size
+    for i in "${!SHIPS_TO_ARCHIVE[@]}"; do
+        ship="${SHIPS_TO_ARCHIVE[$i]}"
+        archive="${archives[$i]}"
+        name=$(basename "$archive")
+        url="https://bootstrap.urbit.org/$name"
+
+        jq --arg url "$url" ".\"~$ship\".downloadUrl = \$url" \
+            "$stage/shipManifest.json" > "$stage/next" || return 1
+        mv "$stage/next" "$stage/shipManifest.json" || return 1
+
+        # Pattern: "https://bootstrap.urbit.org/rube-SHIP*.tgz SHIP.tgz"
+        sed "s|https://bootstrap.urbit.org/rube-${ship}[^ ]*\.tgz ${ship}.tgz|${url} ${ship}.tgz|g" \
+            "$stage/Dockerfile" > "$stage/next" || return 1
+        mv "$stage/next" "$stage/Dockerfile" || return 1
+
+        if [ "$bot_pins" = "true" ]; then
+            md5=$(file_md5 "$archive") || return 1
+            size=$(wc -c < "$archive" | tr -d ' ') || return 1
+            if ! rewrite_compose_artifact "$stage/docker-compose.base.yml" \
+                "$ship" "$name" "$url" "$md5" "$size" > "$stage/next"; then
+                print_error "Could not find exactly one md5-checked artifact call for ~$ship in $COMPOSE_FILE"
+                return 1
+            fi
+            mv "$stage/next" "$stage/docker-compose.base.yml" || return 1
+        fi
+    done
+
+    if [ "$bot_pins" = "true" ]; then
+        sed -E 's/^( *echo "    pier generation: )[0-9]+"$/\1'"$version"'"/' \
+            "$stage/docker-compose.base.yml" > "$stage/next" || return 1
+        if [ "$(grep -c "^ *echo \"    pier generation: $version\"\$" "$stage/next")" != "1" ]; then
+            print_error "Could not find exactly one 'pier generation' line in $COMPOSE_FILE"
+            return 1
+        fi
+        mv "$stage/next" "$stage/docker-compose.base.yml" || return 1
+        write_sidecar "$version" "$stage/pier-archive.json" || return 1
+    else
+        print_warning "Not a routine zod/ten/mug generation: leaving $(basename "$COMPOSE_FILE") and $(basename "$SIDECAR_FILE") untouched"
+    fi
+
+    local targets=("$MANIFEST_FILE" "$DOCKERFILE")
+    if [ "$bot_pins" = "true" ]; then
+        targets+=("$COMPOSE_FILE" "$SIDECAR_FILE")
+    fi
+
+    local target staged
+    if [ "$DRY_RUN" = "true" ] || [ "$SKIP_UPLOAD" = "true" ]; then
+        print_info "Pin changes this run would make (nothing written):"
+        for target in "${targets[@]}"; do
+            staged="$stage/$(basename "$target")"
+            if [ -f "$target" ]; then
+                diff -u "$target" "$staged" || true
+            else
+                diff -u /dev/null "$staged" || true
+            fi
+        done
+    else
+        for target in "${targets[@]}"; do
+            cp "$stage/$(basename "$target")" "$target" || return 1
+            print_status "Updated ${target#"$PROJECT_ROOT"/}"
+        done
+    fi
+    rm -rf "$stage"
+}
+
+# Ports for the ships prepare_ships actually starts. prepare_ships always
+# passes INCLUDE_OPTIONAL_SHIPS=true and explicitly clears N1_SHIP, so per
+# shipSelection.ts's shouldIncludeShip() it boots every manifest ship except
+# the N-1 ship (~bud, the only entry with "n1": true) -- regardless of
+# SHIPS_TO_ARCHIVE, which only narrows what gets archived afterward. Deriving
+# this from the manifest, rather than a hard-coded list, keeps a routine
+# zod/ten/mug/bus run from sweeping ~bud's ports (3004, 41493) out from under
+# a concurrent N-1 build or run. Callers must only invoke this once jq's
+# presence has been confirmed (check_prerequisites, called at the top of
+# main() before prepare_ships/cleanup can reach STARTED_FLEET=true).
+prepared_ship_ports() {
+    jq -r 'to_entries[] | select(.value.n1 != true) | .value.httpPort, (.value.webUrl | ltrimstr("http://localhost:"))' "$MANIFEST_FILE"
 }
 
 # Cleanup function
@@ -151,28 +462,53 @@ cleanup() {
     if [ $exit_code -ne 0 ]; then
         print_error "Script failed with exit code $exit_code"
 
-        # On failure, restore manifest from backup if it exists
+        # On failure, restore manifest from backup if it exists. The `cp` is
+        # wrapped in an `if` rather than left bare: this runs under `set -e`,
+        # so an unwritable manifest would abort the trap and skip every
+        # cleanup step below it.
         if [ -n "${manifest_backup:-}" ] && [ -f "$manifest_backup" ]; then
             print_info "Restoring manifest from backup due to failure..."
-            cp "$manifest_backup" "$MANIFEST_FILE"
-            rm -f "$manifest_backup"
-            print_status "Manifest restored"
+            if cp "$manifest_backup" "$MANIFEST_FILE"; then
+                rm -f "$manifest_backup" || true
+                print_status "Manifest restored"
+            else
+                print_error "Could not restore $MANIFEST_FILE from $manifest_backup; restore it by hand"
+            fi
         fi
     fi
 
-    # Stop any running playwright-dev processes
-    if [ -f "$PROJECT_ROOT/apps/tlon-web/.playwright-dev.pid" ]; then
-        print_info "Stopping playwright-dev environment..."
-        "$PROJECT_ROOT/stop-playwright-dev.sh" >/dev/null 2>&1 || true
+    # The background children this script started. (sync_ship_snapshots and
+    # roll_and_chop_piers also boot a ship, but in the FOREGROUND and bounded by
+    # `timeout`, so they are gone before this runs -- and a Ctrl-C reaches them
+    # through the process group. Only a signal sent to this script alone could
+    # outlive one.)
+    if [ "${#SPAWNED_PIDS[@]}" -gt 0 ]; then
+        for pid in "${SPAWNED_PIDS[@]}"; do
+            kill -TERM "$pid" 2>/dev/null || true
+        done
     fi
 
-    # Additional cleanup of e2e ports if needed
-    for port in 3000 3001 3002 3003 35453 36963 38473 39983; do
-        pids=$(lsof -ti:$port 2>/dev/null || true)
-        if [ -n "$pids" ]; then
-            echo "$pids" | xargs kill -9 2>/dev/null || true
+    # The rest only applies when this run started the fleet. A --skip-prepare
+    # run -- how the hand-built piers (~bus, ~bud) are archived -- starts no
+    # long-lived ships of its own, so it must not stop a playwright-dev someone
+    # else is using, and must not run the port sweep: `lsof -ti:<port> | xargs
+    # kill -9` hits every process on those ports, including ships booted from
+    # another checkout, and it runs on success as well as on failure.
+    if [ "$STARTED_FLEET" = "true" ]; then
+        # Stop any running playwright-dev processes
+        if [ -f "$PROJECT_ROOT/apps/tlon-web/.playwright-dev.pid" ]; then
+            print_info "Stopping playwright-dev environment..."
+            "$PROJECT_ROOT/stop-playwright-dev.sh" >/dev/null 2>&1 || true
         fi
-    done
+
+        # Additional cleanup of e2e ports if needed
+        for port in $(prepared_ship_ports); do
+            pids=$(lsof -ti:$port 2>/dev/null || true)
+            if [ -n "$pids" ]; then
+                echo "$pids" | xargs kill -9 2>/dev/null || true
+            fi
+        done
+    fi
 
     # Clean up the playwright-dev log file
     if [ -f "$PROJECT_ROOT/apps/tlon-web/playwright-dev-archive.log" ]; then
@@ -189,16 +525,39 @@ check_prerequisites() {
     # Check for required tools
     local missing_tools=()
 
-    if ! command -v jq &> /dev/null; then
-        missing_tools+=("jq")
+    # timeout bounds every local ship boot (snapshot sync, version probe,
+    # verification); lsof finds the ships to stop; git hashes the sidecar's
+    # sources; curl serves verification downloads. macOS: `brew install
+    # coreutils` for timeout.
+    local tool
+    for tool in jq timeout lsof git curl; do
+        if ! command -v "$tool" &> /dev/null; then
+            missing_tools+=("$tool")
+        fi
+    done
+
+    # Only the prep pass assembles the desk (peru sync, then rsync).
+    if [ "$SKIP_PREPARE" != "true" ]; then
+        for tool in rsync peru; do
+            if ! command -v "$tool" &> /dev/null; then
+                missing_tools+=("$tool")
+            fi
+        done
     fi
 
-    if ! command -v gsutil &> /dev/null; then
-        missing_tools+=("gsutil")
-    fi
+    # The cloud tools are only needed to upload. SKIP_UPLOAD exists so an
+    # archive can be produced locally and handed to whoever does have bucket
+    # access -- which is how the N-1 pier is built (build-n1-pier.sh) -- so
+    # demanding a gcloud login for a run that writes nothing to GCS would stop
+    # that flow for no gain.
+    if [ "$SKIP_UPLOAD" = "false" ]; then
+        if ! command -v gsutil &> /dev/null; then
+            missing_tools+=("gsutil")
+        fi
 
-    if ! command -v gcloud &> /dev/null; then
-        missing_tools+=("gcloud")
+        if ! command -v gcloud &> /dev/null; then
+            missing_tools+=("gcloud")
+        fi
     fi
 
     if ! command -v pnpm &> /dev/null; then
@@ -211,6 +570,21 @@ check_prerequisites() {
         exit 1
     fi
 
+    # The sidecar records the desk inputs at HEAD; piers prepared from an
+    # uncommitted tree would not match that record.
+    if is_routine_generation && [ -n "$(git -C "$PROJECT_ROOT" status --porcelain -- "${DESK_INPUTS[@]}")" ]; then
+        if [ "$DRY_RUN" = "false" ] && [ "$SKIP_UPLOAD" = "false" ]; then
+            print_error "Uncommitted changes under ${DESK_INPUTS[*]}; commit or stash them first"
+            exit 1
+        fi
+        print_warning "Uncommitted changes under ${DESK_INPUTS[*]}; the would-be sidecar describes HEAD, not these piers"
+    fi
+
+    if [ "$SKIP_UPLOAD" = "true" ]; then
+        print_status "Prerequisites check passed (SKIP_UPLOAD: no GCS access needed)"
+        return 0
+    fi
+
     # Check GCP authentication
     if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" | grep -q .; then
         print_error "No active GCP authentication found"
@@ -218,50 +592,18 @@ check_prerequisites() {
         exit 1
     fi
 
-    # Check GCP project - SECURITY: Validate against expected project
-    local project=$(gcloud config get-value project 2>/dev/null)
-    if [ -z "$project" ]; then
-        print_error "No GCP project configured"
-        print_info "Please run: gcloud config set project $EXPECTED_PROJECT"
-        exit 1
-    fi
-
-    if [ "$project" != "$EXPECTED_PROJECT" ]; then
-        print_error "Wrong GCP project configured: $project"
-        print_info "Expected project: $EXPECTED_PROJECT"
-        print_info "Please run: gcloud config set project $EXPECTED_PROJECT"
-        print_warning "Refusing to continue with wrong project to prevent accidental uploads"
-        exit 1
-    fi
-
-    # SECURITY: Verify bucket access and permissions
-    print_info "Verifying GCS bucket access..."
-    if ! gsutil ls "$GCS_BUCKET" >/dev/null 2>&1; then
-        print_error "Cannot access bucket: $GCS_BUCKET"
-        print_info "Please check your authentication and permissions"
-        exit 1
-    fi
-
-    # Test write permissions (create and remove a test file)
-    local test_file="test-write-permission-$$-$(date +%s).txt"
-    if [ "$DRY_RUN" = "false" ] && [ "$SKIP_UPLOAD" = "false" ]; then
-        echo "test" | gsutil -q cp - "$GCS_BUCKET/$test_file" 2>/dev/null
-        if [ $? -eq 0 ]; then
-            gsutil -q rm "$GCS_BUCKET/$test_file" 2>/dev/null
-            print_status "Bucket write permissions verified"
-        else
-            print_error "No write permissions to bucket: $GCS_BUCKET"
-            print_info "Please check your IAM permissions"
-            exit 1
-        fi
-    fi
-
-    print_status "Prerequisites check passed (project: $project, bucket: $GCS_BUCKET)"
+    # No bucket listing or write probe: the project is pinned above, and the
+    # conditional upload itself proves (or loudly disproves) write access.
+    print_status "Prerequisites check passed (project: $EXPECTED_PROJECT, bucket: $GCS_BUCKET)"
 }
 
 # Start ships and update to latest desk code
 prepare_ships() {
     print_info "Starting ships with latest desk code..."
+
+    # From here on this run owns the e2e ports, so the EXIT cleanup may sweep
+    # them.
+    STARTED_FLEET=true
 
     cd "$PROJECT_ROOT/apps/tlon-web"
 
@@ -276,6 +618,10 @@ prepare_ships() {
 
     print_info "Starting playwright-dev environment (this may take several minutes)..."
 
+    # rube reuses an existing binary even under FORCE_EXTRACTION. Clear it so
+    # the piers are cut on today's `latest` vere, which the bot compose boots.
+    rm -rf "$RUBE_DIR/dist/urbit_extracted"
+
     # Try to run playwright-dev, but if it fails due to timeout, we'll retry
     local max_retries=3
     local retry_count=0
@@ -285,7 +631,7 @@ prepare_ships() {
         if [ $retry_count -gt 0 ]; then
             print_warning "Retrying... (attempt $((retry_count + 1))/$max_retries)"
             # Clean up any existing processes first
-            for port in 3000 3001 3002 3003 35453 36963 38473 39983; do
+            for port in $(prepared_ship_ports); do
                 pids=$(lsof -ti:$port 2>/dev/null || true)
                 if [ -n "$pids" ]; then
                     echo "$pids" | xargs kill -9 2>/dev/null || true
@@ -303,8 +649,15 @@ prepare_ships() {
 
         # Start playwright-dev in background so we can monitor and kill it when ships are ready
         cd "$PROJECT_ROOT/apps/tlon-web"
-        FORCE_EXTRACTION=true INCLUDE_OPTIONAL_SHIPS=true FRESH_BOOT=$FRESH_BOOT pnpm e2e:playwright-dev > "$PROJECT_ROOT/apps/tlon-web/playwright-dev-archive.log" 2>&1 &
+        # The archived piers are public, so no S3 credentials may reach them.
+        # The E2E_S3_* vars are set EMPTY rather than unset: rube's env loader
+        # refills absent vars from .env.test but leaves empty ones alone.
+        # SHIP_NAME and N1_SHIP likewise, so .env.test cannot narrow the fleet.
+        E2E_S3_ENDPOINT= E2E_S3_ACCESS_KEY_ID= E2E_S3_SECRET_ACCESS_KEY= \
+            E2E_S3_BUCKET_NAME= E2E_S3_REGION= SHIP_NAME= \
+            FORCE_EXTRACTION=true INCLUDE_OPTIONAL_SHIPS=true FRESH_BOOT=$FRESH_BOOT N1_SHIP= pnpm e2e:playwright-dev > "$PROJECT_ROOT/apps/tlon-web/playwright-dev-archive.log" 2>&1 &
         local playwright_pid=$!
+        SPAWNED_PIDS+=("$playwright_pid")
 
         # Monitor for SHIP_SETUP_COMPLETE signal which indicates ships are fully ready
         local wait_counter=0
@@ -341,28 +694,9 @@ prepare_ships() {
                 break
             fi
 
-            # Also check ship readiness via HTTP as a fallback
-            if [ $((wait_counter % 30)) -eq 0 ] && [ $wait_counter -gt 60 ]; then
-                print_info "Checking ship readiness via HTTP..."
-                local all_ships_responding=true
-                for ship in "${SHIPS_TO_ARCHIVE[@]}"; do
-                    local port=$(jq -r ".\"~$ship\".httpPort" "$MANIFEST_FILE")
-                    if ! curl -s -f -m 5 "http://localhost:$port/~/scry/hood/kiln/pikes.json" >/dev/null 2>&1; then
-                        all_ships_responding=false
-                        break
-                    fi
-                done
-
-                if [ "$all_ships_responding" = "true" ]; then
-                    print_status "All ships responding to HTTP requests"
-                    ships_ready=true
-                    success=true
-                    kill -TERM $playwright_pid 2>/dev/null || true
-                    sleep 2
-                    kill -9 $playwright_pid 2>/dev/null || true
-                    break
-                fi
-            fi
+            # No HTTP-readiness fallback: a ship answers HTTP long before the
+            # desk commit lands, and rube only prints SHIP_SETUP_COMPLETE
+            # after the commit and its readiness checks.
 
             sleep 2
             wait_counter=$((wait_counter + 2))
@@ -605,9 +939,9 @@ roll_and_chop_piers() {
         else
             print_error "  Failed roll for ~$ship"
             print_info "  Check /tmp/roll-$ship.log for details"
-            if [ "$SKIP_MELD" = "false" ]; then
-                print_warning "  Epoch cleanup may not work correctly without a successful roll"
-            fi
+            # Abort before the epoch cleanup below: without the new epoch,
+            # deleting all but the newest one can discard the only good state.
+            exit 1
         fi
 
         # Give a moment for roll to complete
@@ -883,63 +1217,42 @@ upload_archive() {
 
     print_info "Uploading $archive_name to GCS..."
 
-    # Upload with public-read ACL (same as existing archives)
-    if gsutil -h "Cache-Control:public, max-age=3600" cp "$archive_path" "$GCS_BUCKET/"; then
-        # Make it publicly readable
-        gsutil acl ch -u AllUsers:R "$GCS_BUCKET/$archive_name"
-        print_status "Uploaded $archive_name to $GCS_BUCKET/"
-    else
-        print_error "Failed to upload $archive_name"
+    # Upload with public-read ACL (same as existing archives).
+    # x-goog-if-generation-match:0 makes GCS reject the write if the object
+    # already exists, so a published archive can never be overwritten -- and
+    # there is no stat-then-upload race.
+    if ! gsutil -h "Cache-Control:public, max-age=3600" -h "x-goog-if-generation-match:0" \
+        cp "$archive_path" "$GCS_BUCKET/"; then
+        print_error "Failed to upload $archive_name (it may already exist in $GCS_BUCKET)"
         return 1
     fi
+    # Make it publicly readable
+    if ! gsutil acl ch -u AllUsers:R "$GCS_BUCKET/$archive_name"; then
+        print_error "Uploaded $archive_name but could not make it public"
+        return 1
+    fi
+    print_status "Uploaded $archive_name to $GCS_BUCKET/"
 }
 
-# Update manifest with new URLs
-update_manifest() {
-    local ship=$1
-    local version=$2
-    local archive_name="rube-${ship}${version}.tgz"
-    local new_url="https://bootstrap.urbit.org/$archive_name"
-
-    if [ "$DRY_RUN" = "true" ]; then
-        print_info "[DRY RUN] Would update manifest for ~$ship with URL: $new_url"
-        return 0
-    fi
-
-    print_info "Updating manifest for ~$ship..."
-
-    # Update the manifest using jq
-    local tmp_manifest=$(mktemp)
-    jq ".\"~$ship\".downloadUrl = \"$new_url\"" "$MANIFEST_FILE" > "$tmp_manifest"
-    mv "$tmp_manifest" "$MANIFEST_FILE"
-
-    print_status "Updated manifest for ~$ship"
-}
-
-# Update Dockerfile URLs to match manifest
-update_dockerfile() {
-    local ship=$1
-    local version=$2
-    local archive_name="rube-${ship}${version}.tgz"
-    local new_url="https://bootstrap.urbit.org/$archive_name"
-
-    if [ "$DRY_RUN" = "true" ]; then
-        print_info "[DRY RUN] Would update Dockerfile for ~$ship with URL: $new_url"
-        return 0
-    fi
-
-    print_info "Updating Dockerfile for ~$ship..."
-
-    # Use sed to update the URL line for this ship
-    # Pattern: "https://bootstrap.urbit.org/rube-SHIP*.tgz SHIP.tgz"
-    # macOS sed requires empty string after -i, GNU sed works with or without
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        sed -i '' "s|https://bootstrap.urbit.org/rube-${ship}[^ ]*\.tgz ${ship}.tgz|${new_url} ${ship}.tgz|g" "$DOCKERFILE"
-    else
-        sed -i "s|https://bootstrap.urbit.org/rube-${ship}[^ ]*\.tgz ${ship}.tgz|${new_url} ${ship}.tgz|g" "$DOCKERFILE"
-    fi
-
-    print_status "Updated Dockerfile for ~$ship"
+# Verify the candidate archives -- not whatever the committed manifest points
+# at, which is still the previous generation. $1 is the source kind ("local"
+# or "uploaded"); the rest are archive paths in SHIPS_TO_ARCHIVE order.
+verify_candidates() {
+    local kind=$1
+    shift
+    local archives=("$@")
+    local candidates=()
+    local i
+    for i in "${!SHIPS_TO_ARCHIVE[@]}"; do
+        if [ "$kind" = "uploaded" ]; then
+            candidates+=("${SHIPS_TO_ARCHIVE[$i]}=https://bootstrap.urbit.org/$(basename "${archives[$i]}")")
+        else
+            candidates+=("${SHIPS_TO_ARCHIVE[$i]}=${archives[$i]}")
+        fi
+    done
+    print_info "Verifying $kind archives..."
+    echo ""
+    URBIT_BINARY="$URBIT_BINARY" "$SCRIPT_DIR/verify-archives.sh" "${candidates[@]}"
 }
 
 # Main execution
@@ -956,6 +1269,10 @@ main() {
 
     # Check prerequisites
     check_prerequisites
+
+    # The commit the piers are cut from, captured before the long prep pass
+    # so the sidecar describes what rube actually assembled.
+    SOURCE_SHA=$(git -C "$PROJECT_ROOT" rev-parse HEAD)
 
     # Backup manifest for potential rollback
     local manifest_backup=""
@@ -1021,18 +1338,20 @@ main() {
     done
     echo ""
 
-    # Archive and upload each ship
+    # One version for the whole set (see allocate_generation). Split the
+    # declaration from the assignment so a failure is not masked by `local`.
+    local next_version
+    if ! next_version=$(allocate_generation); then
+        print_error "Aborting: no archive version available"
+        exit 1
+    fi
+    print_info "Archive version: $next_version"
+
+    # Archive every ship before uploading any, so a failed build never leaves
+    # a partial generation in the bucket.
     local archived_files=()
-    local uploaded_ships=()  # Track successful uploads for potential rollback
 
     for ship in "${SHIPS_TO_ARCHIVE[@]}"; do
-        # Validate ship name
-        if ! printf '%s\n' "${VALID_SHIPS[@]}" | grep -qx "$ship"; then
-            print_error "Invalid ship name: $ship"
-            print_info "Valid ships: ${VALID_SHIPS[*]}"
-            continue
-        fi
-
         print_info "Processing $ship..."
 
         # Check if pier exists
@@ -1042,83 +1361,64 @@ main() {
             exit 1
         fi
 
-        # Get next version number. Split the declaration from the assignment
-        # so a failure in get_next_version is not masked by `local`.
-        local next_version
-        if ! next_version=$(get_next_version "$ship"); then
-            print_error "Aborting: no archive version available for ~$ship"
-            exit 1
-        fi
-        print_info "Next version for $ship: $next_version"
-
         # Archive the pier
         local archive_path
-        archive_path=$(archive_pier "$ship" "$next_version")
+        archive_path=$(archive_pier "$ship" "$next_version") || true
 
         if [ -z "$archive_path" ] || [ ! -f "$archive_path" ]; then
             print_error "Failed to archive $ship"
-            continue
+            exit 1
         fi
 
         archived_files+=("$archive_path")
-
-        # Upload to GCS with transaction tracking
-        if upload_archive "$archive_path"; then
-            uploaded_ships+=("$ship:rube-${ship}${next_version}.tgz")
-
-            # Update manifest with rollback on failure
-            if ! update_manifest "$ship" "$next_version"; then
-                print_error "Manifest update failed for $ship"
-                print_warning "Archive uploaded but manifest not updated!"
-                print_info "Manual fix required:"
-                echo "  1. Update manifest manually with URL: https://bootstrap.urbit.org/rube-${ship}${next_version}.tgz"
-                echo "  2. Or delete uploaded archive: gsutil rm $GCS_BUCKET/rube-${ship}${next_version}.tgz"
-
-                # Optional: Could implement automatic rollback here
-                # gsutil rm "$GCS_BUCKET/rube-${ship}${next_version}.tgz" 2>/dev/null
-            else
-                # Also update Dockerfile URLs to match manifest
-                update_dockerfile "$ship" "$next_version"
-            fi
-        else
-            print_error "Failed to upload $ship, skipping manifest update"
-        fi
-
         echo ""
     done
 
-    # Cleanup local archives if requested
-    if [ ${#archived_files[@]} -gt 0 ]; then
-        if [ "$SKIP_CLEANUP" = "false" ] && [ "$DRY_RUN" = "false" ]; then
-            print_info "Cleaning up local archives..."
-            for archive in "${archived_files[@]}"; do
-                if [ -f "$archive" ]; then
-                    rm -f "$archive"
-                    print_status "Removed $(basename "$archive")"
-                fi
-            done
-        else
-            print_info "Keeping local archives (SKIP_CLEANUP=true or DRY_RUN=true)"
-            print_info "Archives created:"
-            for archive in "${archived_files[@]}"; do
-                echo "  - $archive"
-            done
+    # Any upload failure aborts before a single pin moves. Archives that did
+    # upload stay in the bucket; the next run's generation skips past them.
+    for archive in "${archived_files[@]}"; do
+        if ! upload_archive "$archive"; then
+            exit 1
         fi
+    done
+
+    # Verify before pinning: the uploaded objects with --verify on a real
+    # upload, otherwise the local files.
+    local verify_kind="local"
+    if [ "$VERIFY_AFTER_UPLOAD" = "true" ] && [ "$DRY_RUN" = "false" ] && [ "$SKIP_UPLOAD" = "false" ]; then
+        verify_kind="uploaded"
+    fi
+    if verify_candidates "$verify_kind" "${archived_files[@]}"; then
+        print_status "Verification successful!"
+    else
+        print_error "Verification failed! No pins were changed."
+        exit 1
+    fi
+
+    if ! update_pins "$next_version" "${archived_files[@]}"; then
+        print_error "Pin update failed; check the pin files with git status"
+        exit 1
+    fi
+
+    # Cleanup local archives if requested. SKIP_UPLOAD keeps them: they are
+    # the run's only output.
+    if [ "$SKIP_CLEANUP" = "false" ] && [ "$DRY_RUN" = "false" ] && [ "$SKIP_UPLOAD" = "false" ]; then
+        print_info "Cleaning up local archives..."
+        for archive in "${archived_files[@]}"; do
+            if [ -f "$archive" ]; then
+                rm -f "$archive"
+                print_status "Removed $(basename "$archive")"
+            fi
+        done
+    else
+        print_info "Keeping local archives (SKIP_CLEANUP, DRY_RUN or SKIP_UPLOAD)"
+        print_info "Archives created:"
+        for archive in "${archived_files[@]}"; do
+            echo "  - $archive"
+        done
     fi
 
     print_status "Archive and upload process complete!"
-
-    # Run verification if requested
-    if [ "$VERIFY_AFTER_UPLOAD" = "true" ] && [ "$DRY_RUN" = "false" ] && [ "$SKIP_UPLOAD" = "false" ]; then
-        print_info "Running verification of uploaded archives..."
-        echo ""
-        if "$SCRIPT_DIR/verify-archives.sh"; then
-            print_status "Verification successful!"
-        else
-            print_error "Verification failed! Check the archives before committing."
-            exit 1
-        fi
-    fi
 
     # Clean up manifest backup on success
     if [ "$DRY_RUN" = "false" ] && [ "$SKIP_UPLOAD" = "false" ] && [ -n "$manifest_backup" ] && [ -f "$manifest_backup" ]; then
@@ -1133,18 +1433,9 @@ main() {
     fi
 
     if [ "$DRY_RUN" = "false" ] && [ "$SKIP_UPLOAD" = "false" ]; then
-        if [ "$VERIFY_AFTER_UPLOAD" = "false" ]; then
-            print_info "Next steps:"
-            echo "  1. Verify the new archives work: ./verify-archives.sh"
-            echo "  2. Commit the updated shipManifest.json and rube/Dockerfile"
-            echo "  3. Create a PR with the changes"
-            echo ""
-            print_info "Tip: Use --verify flag to automatically verify after upload"
-        else
-            print_info "Next steps:"
-            echo "  1. Commit the updated shipManifest.json and rube/Dockerfile"
-            echo "  2. Create a PR with the changes"
-        fi
+        print_info "Next steps:"
+        echo "  1. Commit the updated pin files listed above"
+        echo "  2. Create a PR with the changes"
     fi
 
     # Exit with success
