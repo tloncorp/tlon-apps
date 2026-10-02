@@ -1,4 +1,5 @@
 export * from './components/ActionSheet';
+export * from './components/AgentTaskRows';
 export * from './components/Activity/ActivityScreenView';
 export * from './components/AddContactsView';
 export * from './components/AppSetting';
