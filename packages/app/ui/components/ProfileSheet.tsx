@@ -1,11 +1,11 @@
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useRef, useState, ReactNode } from 'react';
-import { Alert, Platform } from 'react-native';
-import { useIsWindowNarrow } from '@tloncorp/ui';
+import { Alert } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useCurrentUserId } from '../contexts/appDataContext';
+import { useIsNativeSheet } from '../hooks/useIsNativeSheet';
 import { useSheetDismissalAction } from '../hooks/useSheetDismissalAction';
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
 import { ProfileBlock } from './ProfileBlock';
@@ -152,8 +152,7 @@ export function ProfileSheet({
   const contactIsAdmin = selectedUserRoles?.includes('admin');
 
   const [rolePickerOpen, setRolePickerOpen] = useState(false);
-  const isWindowNarrow = useIsWindowNarrow();
-  const nativeRoleSheet = Platform.OS !== 'web' && isWindowNarrow;
+  const nativeRoleSheet = useIsNativeSheet();
   const {
     dismissThenRun,
     onDismissed: onRoleDismissed,
@@ -162,7 +161,6 @@ export function ProfileSheet({
   } = useSheetDismissalAction({
     open: rolePickerOpen,
     onOpenChange: setRolePickerOpen,
-    waitForDismissal: nativeRoleSheet,
   });
 
   // Stable reference to the latest `onOpenChange` so the deferred close doesn't

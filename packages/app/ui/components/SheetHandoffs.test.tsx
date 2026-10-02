@@ -1,14 +1,8 @@
 import React, { useLayoutEffect, useState } from 'react';
 import { act, create } from 'react-test-renderer';
-import {
-  afterAll,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { setupReactTestEnvironment } from '../../test/sheetTestUtils';
 
 import type * as db from '@tloncorp/shared/db';
 import { ActionSheet } from './ActionSheet';
@@ -61,39 +55,20 @@ vi.mock('tamagui', () => ({
   YStack: 'View',
   getTokenValue: () => 16,
 }));
-vi.mock('./ListItem', () => {
-  const Container = ({ children }: { children?: React.ReactNode }) => children;
-  return {
-    ListItem: Object.assign(Container, {
-      SystemIcon: () => null,
-      MainContent: Container,
-      Title: Container,
-      Subtitle: Container,
-      EndContent: Container,
-    }),
-  };
+vi.mock('./ListItem', async () => {
+  const { ListItem } = await import('../../test/sheetTestUtils');
+  return { ListItem };
 });
-vi.mock('./ActionSheet', () => {
-  const Container = ({
-    children,
-    trigger,
-  }: {
-    children?: React.ReactNode;
-    trigger?: React.ReactNode;
-  }) => (
-    <>
-      {trigger}
-      {children}
-    </>
-  );
-  const Empty = () => null;
+vi.mock('./ActionSheet', async () => {
+  const { Passthrough, Empty, createActionGroups } =
+    await import('../../test/sheetTestUtils');
   return {
-    ActionSheet: Object.assign(Container, {
+    ActionSheet: Object.assign(Passthrough, {
       Action: Empty,
-      ActionGroup: Container,
-      Content: Container,
-      ContentBlock: Container,
-      ScrollableContent: Container,
+      ActionGroup: Passthrough,
+      Content: Passthrough,
+      ContentBlock: Passthrough,
+      ScrollableContent: Passthrough,
       SimpleHeader: Empty,
       SimpleActionGroupList: ({
         actionGroups,
@@ -110,23 +85,11 @@ vi.mock('./ActionSheet', () => {
           )
         ),
     }),
-    createActionGroups: (...groups: ([string, ...unknown[]] | false)[]) =>
-      groups.filter(Boolean).map((group) => {
-        const [accent, ...actions] = group as [string, ...unknown[]];
-        return { accent, actions: actions.filter(Boolean) };
-      }),
+    createActionGroups,
   };
 });
 
-beforeAll(() => {
-  vi.stubGlobal('React', React);
-  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-});
-afterAll(() => {
-  vi.unstubAllGlobals();
-  delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
-    .IS_REACT_ACT_ENVIRONMENT;
-});
+setupReactTestEnvironment();
 beforeEach(() => {
   environment.platform.OS = 'ios';
   environment.narrow = true;

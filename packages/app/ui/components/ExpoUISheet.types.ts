@@ -2,14 +2,14 @@ import type { ReactElement, ReactNode } from 'react';
 
 import type { ActionGroup } from './ActionSheet';
 
-export type ExpoSwiftUISheetProps = {
+export type ExpoUISheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDismiss?: () => void;
   children: ReactNode;
 };
 
-export type ExpoSwiftUIActionContentProps = {
+export type ExpoUIActionContentProps = {
   title: string;
   subtitle?: string;
   icon?: ReactElement;
@@ -17,7 +17,7 @@ export type ExpoSwiftUIActionContentProps = {
   actionGroups: ActionGroup[];
 };
 
-export type ExpoSwiftUIPaneStackProps = {
+export type ExpoUIPaneStackProps = {
   selected: 'initial' | 'notifications' | 'sort';
   onSelectionChange: (selected: 'initial' | 'notifications' | 'sort') => void;
   initial: ReactNode;

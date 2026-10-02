@@ -57,12 +57,12 @@ import type { Action, ActionGroup } from './ActionSheet';
 import {
   getActionGroupBorderColor,
   getActionRowStyle,
-} from './ExpoSwiftUISheet.shared';
+} from './ExpoUISheet.shared';
 import type {
-  ExpoSwiftUIActionContentProps,
-  ExpoSwiftUIPaneStackProps,
-  ExpoSwiftUISheetProps,
-} from './ExpoSwiftUISheet.types';
+  ExpoUIActionContentProps,
+  ExpoUIPaneStackProps,
+  ExpoUISheetProps,
+} from './ExpoUISheet.types';
 
 const ContentHeightContext = createContext<(height: number) => void>(() => {});
 const SheetHeightContext = createContext(420);
@@ -82,12 +82,12 @@ const paneAnimationDuration = 0.17;
 const ignoreHeight = () => {};
 
 /** A native SwiftUI sheet shell; unlike the drop-in Expo sheet, its content is native too. */
-export function ExpoSwiftUISheet({
+export function ExpoUISheet({
   open,
   onOpenChange,
   onDismiss,
   children,
-}: ExpoSwiftUISheetProps) {
+}: ExpoUISheetProps) {
   const theme = useTheme();
   const { width, height } = useWindowDimensions();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -149,13 +149,13 @@ export function ExpoSwiftUISheet({
 }
 
 /** A native root/detail pager inside the existing sheet. */
-export function ExpoSwiftUIPaneStack({
+export function ExpoUIPaneStack({
   selected,
   onSelectionChange,
   initial,
   notifications,
   sort,
-}: ExpoSwiftUIPaneStackProps) {
+}: ExpoUIPaneStackProps) {
   const sheetHeight = useContext(SheetHeightContext);
   const updateContentHeight = useContext(ContentHeightContext);
   const selectedTab = selected === 'initial' ? 'initial' : 'detail';
@@ -291,13 +291,13 @@ function ActionRow({
 }
 
 /** Native header and grouped actions for chat options. */
-export function ExpoSwiftUIActionContent({
+export function ExpoUIActionContent({
   title,
   subtitle,
   icon,
   onBack,
   actionGroups,
-}: ExpoSwiftUIActionContentProps) {
+}: ExpoUIActionContentProps) {
   const theme = useTheme();
   const { bottom } = useSafeAreaInsets();
   const isSheetExpanded = useContext(SheetExpandedContext);

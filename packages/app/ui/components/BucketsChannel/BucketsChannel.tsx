@@ -753,14 +753,12 @@ export function BucketsNewSheet({
   const [view, setView] = useState<'actions' | 'folder'>('actions');
   const [folderName, setFolderName] = useState('');
   const isWeb = Platform.OS === 'web';
-  const isWindowNarrow = useIsWindowNarrow();
   const normalizedFolderName = folderName.trim();
   // The system pickers cannot present while the sheet is still dismissing.
   const { dismissThenRun, onDismissed, presentationKey } =
     useSheetDismissalAction({
       open,
       onOpenChange,
-      waitForDismissal: !isWeb && isWindowNarrow,
     });
 
   useEffect(() => {

@@ -1,6 +1,8 @@
 import React, { createRef } from 'react';
 import { act, create } from 'react-test-renderer';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+import { setupReactTestEnvironment } from '../../test/sheetTestUtils';
 
 // Exercise the installed patch, not a replacement for the community adapter.
 import { BottomSheet } from '../../../../node_modules/@expo/ui/src/community/bottom-sheet/BottomSheet.ios';
@@ -36,16 +38,7 @@ vi.mock(
   })
 );
 
-beforeAll(() => {
-  // Expo's source uses the automatic JSX runtime; this node suite uses classic JSX.
-  vi.stubGlobal('React', React);
-  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-});
-afterAll(() => {
-  vi.unstubAllGlobals();
-  delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
-    .IS_REACT_ACT_ENVIRONMENT;
-});
+setupReactTestEnvironment();
 
 describe('Expo iOS community sheet dismissal', () => {
   it.each(['prop', 'method', 'gesture'] as const)(

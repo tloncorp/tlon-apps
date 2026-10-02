@@ -1,7 +1,6 @@
 import * as db from '@tloncorp/shared/db';
-import { Button, useToast, useIsWindowNarrow } from '@tloncorp/ui';
+import { Button, useToast } from '@tloncorp/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { YStack, getTokenValue } from 'tamagui';
 
@@ -35,12 +34,10 @@ export function useForwardToChannelSheet({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const showToast = useToast();
   const insets = useSafeAreaInsets();
-  const isWindowNarrow = useIsWindowNarrow();
   const { dismissThenRun, onDismissed, shouldRender, presentationKey } =
     useSheetDismissalAction({
       open: isOpen,
       onOpenChange: onClose,
-      waitForDismissal: Platform.OS !== 'web' && isWindowNarrow,
     });
 
   useEffect(() => {

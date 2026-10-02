@@ -1,14 +1,8 @@
 import React, { createRef, useImperativeHandle } from 'react';
 import { act, create } from 'react-test-renderer';
-import {
-  afterAll,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { setupReactTestEnvironment } from '../../test/sheetTestUtils';
 
 import { BottomSheet } from '../../../../node_modules/@expo/ui/src/community/bottom-sheet/BottomSheet.android';
 import type { BottomSheetMethods } from '../../../../node_modules/@expo/ui/src/community/bottom-sheet/types';
@@ -39,15 +33,7 @@ vi.mock(
     RNHostView: ({ children }: { children: React.ReactNode }) => children,
   })
 );
-beforeAll(() => {
-  vi.stubGlobal('React', React);
-  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-});
-afterAll(() => {
-  vi.unstubAllGlobals();
-  delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
-    .IS_REACT_ACT_ENVIRONMENT;
-});
+setupReactTestEnvironment();
 beforeEach(() => {
   vi.clearAllMocks();
 });

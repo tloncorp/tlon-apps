@@ -43,7 +43,7 @@ import {
   BottomSheetWrapper,
 } from './BottomSheetWrapper';
 import { BottomSheetWrapperProps } from './BottomSheetWrapper.types';
-import { ExpoSwiftUISheet } from './ExpoSwiftUISheet';
+import { ExpoUISheet } from './ExpoUISheet';
 import { ListItem } from './ListItem';
 
 type Accent = 'positive' | 'negative' | 'neutral' | 'disabled';
@@ -341,7 +341,7 @@ const ActionSheetComponent = ({
       : undefined);
 
   const sheetContent = nativePresentation ? (
-    <ExpoSwiftUISheet
+    <ExpoUISheet
       open={open}
       onOpenChange={onOpenChange}
       onDismiss={onNativeDismissed}
@@ -349,7 +349,7 @@ const ActionSheetComponent = ({
       <ActionSheetContext.Provider value={actionSheetContextValue}>
         {children}
       </ActionSheetContext.Provider>
-    </ExpoSwiftUISheet>
+    </ExpoUISheet>
   ) : useBottomSheet ? (
     <BottomSheetWrapper
       open={open}

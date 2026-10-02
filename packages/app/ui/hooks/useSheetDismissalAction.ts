@@ -6,16 +6,24 @@ import {
   useState,
 } from 'react';
 
+import { useIsNativeSheet } from './useIsNativeSheet';
+
 /** Keeps modal handoffs behind the sheet's native dismissal completion. */
 export function useSheetDismissalAction({
   open,
   onOpenChange,
-  waitForDismissal,
+  waitForDismissal: waitForDismissalOverride,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  waitForDismissal: boolean;
+  /**
+   * Defaults to wherever `ActionSheet` presents natively. Pass it for a sheet
+   * that forces `mode="sheet"`, which is native on wide windows too.
+   */
+  waitForDismissal?: boolean;
 }) {
+  const isNativeSheet = useIsNativeSheet();
+  const waitForDismissal = waitForDismissalOverride ?? isNativeSheet;
   const pendingAction = useRef<(() => void) | null>(null);
   const mounted = useRef(true);
   const openRef = useRef(open);

@@ -1,15 +1,8 @@
 import React, { useContext } from 'react';
 import { act, create } from 'react-test-renderer';
-import {
-  afterAll,
-  afterEach,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { setupReactTestEnvironment } from '../../../test/sheetTestUtils';
 
 import { ChatOptionsProvider } from './chatOptions';
 import { ChatOptionsContext, type ChatOptionsContextValue } from './context';
@@ -45,15 +38,7 @@ vi.mock('../../components/InviteUsersSheet', () => ({
 }));
 vi.mock('../../utils', () => ({ useChannelTitle: () => '' }));
 
-beforeAll(() => {
-  vi.stubGlobal('React', React);
-  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-});
-afterAll(() => {
-  vi.unstubAllGlobals();
-  delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
-    .IS_REACT_ACT_ENVIRONMENT;
-});
+setupReactTestEnvironment();
 beforeEach(() => {
   vi.useFakeTimers();
   mocks.platform.OS = 'ios';

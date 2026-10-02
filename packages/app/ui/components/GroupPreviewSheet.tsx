@@ -4,7 +4,6 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { Button, LoadingSpinner, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Platform } from 'react-native';
 import { XStack, YStack } from 'tamagui';
 
 import { useSheetDismissalAction } from '../hooks/useSheetDismissalAction';
@@ -60,12 +59,10 @@ function GroupPreviewSheetComponent({
   group,
   onActionComplete,
 }: Props) {
-  const isWindowNarrow = useIsWindowNarrow();
   const { dismissThenRun, onDismissed, presentationKey } =
     useSheetDismissalAction({
       open,
       onOpenChange,
-      waitForDismissal: Platform.OS !== 'web' && isWindowNarrow,
     });
 
   useEffect(() => {

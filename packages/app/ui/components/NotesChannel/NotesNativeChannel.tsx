@@ -1097,7 +1097,6 @@ export function NotesNativeChannel({
   } = useSheetDismissalAction({
     open: newActionSheetOpen,
     onOpenChange: setNewActionSheetOpen,
-    waitForDismissal: Platform.OS !== 'web' && isWindowNarrow,
   });
 
   const createActions = [

@@ -13,13 +13,13 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { Platform } from 'react-native';
 import { Popover, isWeb } from 'tamagui';
 
 import { useCurrentUserId } from '../contexts/appDataContext';
 import { ChatOptionsContext } from '../contexts/chatOptions/context';
 import { useChatOptions } from '../contexts/chatOptions/useChatOptions';
 import { useChatVolumeOptions } from '../contexts/chatOptions/useChatVolumeOptions';
+import { useIsNativeSheet } from '../hooks/useIsNativeSheet';
 import * as utils from '../utils';
 import {
   Action,
@@ -31,10 +31,7 @@ import {
   desktopFlyoutPopoverProps,
 } from './ActionSheet';
 import { ListItem } from './ListItem';
-import {
-  ExpoSwiftUIActionContent,
-  ExpoSwiftUIPaneStack,
-} from './ExpoSwiftUISheet';
+import { ExpoUIActionContent, ExpoUIPaneStack } from './ExpoUISheet';
 
 function getNotificationTitle(
   volumeSettings: { level: ub.NotificationLevel } | null | undefined,
@@ -73,8 +70,7 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
   const { open: contextOpen, setChat, group } = useChatOptions();
   // Use props for explicit control (popovers). The provider owns native sheets.
   const isOpen = propOpen ?? false;
-  const isWindowNarrow = useIsWindowNarrow();
-  const preserveChatOnDismiss = Platform.OS !== 'web' && isWindowNarrow;
+  const preserveChatOnDismiss = useIsNativeSheet();
 
   // Handle open state changes
   const handleOpenChange = useCallback(
@@ -83,7 +79,7 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
         // Set chat state for both popovers and sheets
         contextOpen(chat.id, chat.type);
       } else if (!open) {
-        // Keep the selected chat stable while the SwiftUI sheet dismisses.
+        // Keep the selected chat stable while the native sheet dismisses.
         // Clearing it here tears down the context behind the closing sheet.
         if (clearChat && !preserveChatOnDismiss) {
           setTimeout(() => {
@@ -154,7 +150,7 @@ export function GroupOptionsSheetLoader({
   const chatOptions = useChatOptions();
   const { group } = chatOptions;
   const isWindowNarrow = useIsWindowNarrow();
-  const isNativeSheet = Platform.OS !== 'web' && isWindowNarrow;
+  const isNativeSheet = useIsNativeSheet();
 
   const handlePressNotifications = useCallback(() => {
     setPane('notifications');
@@ -247,7 +243,7 @@ export function GroupOptionsSheetLoader({
       <ChatOptionsContext.Provider value={chatOptions}>
         {isNativeSheet &&
         (pane === 'initial' || pane === 'notifications' || pane === 'sort') ? (
-          <ExpoSwiftUIPaneStack
+          <ExpoUIPaneStack
             selected={pane}
             onSelectionChange={(selected) => setPane(selected)}
             initial={
@@ -577,7 +573,7 @@ const ChannelOptionsSheetLoader = memo(
     const [pane, setPane] = useState<ChannelPanes>('initial');
     const chatOptions = useChatOptions();
     const isWindowNarrow = useIsWindowNarrow();
-    const isNativeSheet = Platform.OS !== 'web' && isWindowNarrow;
+    const isNativeSheet = useIsNativeSheet();
     const channelQuery = store.useChannel({
       id: channelId,
     });
@@ -663,7 +659,7 @@ const ChannelOptionsSheetLoader = memo(
       >
         <ChatOptionsContext.Provider value={chatOptions}>
           {isNativeSheet ? (
-            <ExpoSwiftUIPaneStack
+            <ExpoUIPaneStack
               selected={pane}
               onSelectionChange={(selected) => {
                 if (selected !== 'sort') {
@@ -918,9 +914,9 @@ export function ChatOptionsSheetContent({
   const { nativePresentation } = useContext(ActionSheetContext);
   const isDesktopFlyout = isWeb && !isWindowNarrow;
 
-  if (Platform.OS !== 'web' && isWindowNarrow && nativePresentation) {
+  if (nativePresentation) {
     return (
-      <ExpoSwiftUIActionContent
+      <ExpoUIActionContent
         title={title}
         subtitle={subtitle}
         icon={icon}

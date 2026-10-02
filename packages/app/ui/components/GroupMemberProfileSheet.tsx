@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Platform } from 'react-native';
-import { useIsWindowNarrow } from '@tloncorp/ui';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { useCurrentUserId } from '../contexts/appDataContext';
@@ -52,7 +50,6 @@ export function GroupMemberProfileSheet({
   // Keep the parent mounted until the native dismissal animation finishes,
   // then signal the caller to unmount the React subtree.
   const [parentOpen, setParentOpen] = useState(true);
-  const isWindowNarrow = useIsWindowNarrow();
   const {
     dismissThenRun,
     onDismissed,
@@ -61,7 +58,6 @@ export function GroupMemberProfileSheet({
   } = useSheetDismissalAction({
     open: parentOpen,
     onOpenChange: setParentOpen,
-    waitForDismissal: Platform.OS !== 'web' && isWindowNarrow,
   });
 
   const dismiss = useCallback(

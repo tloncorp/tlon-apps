@@ -38,12 +38,12 @@ import type { Action, ActionGroup } from './ActionSheet';
 import {
   getActionGroupBorderColor,
   getActionRowStyle,
-} from './ExpoSwiftUISheet.shared';
+} from './ExpoUISheet.shared';
 import type {
-  ExpoSwiftUIActionContentProps,
-  ExpoSwiftUIPaneStackProps,
-  ExpoSwiftUISheetProps,
-} from './ExpoSwiftUISheet.types';
+  ExpoUIActionContentProps,
+  ExpoUIPaneStackProps,
+  ExpoUISheetProps,
+} from './ExpoUISheet.types';
 
 const contentHorizontalInset = 8;
 const groupGap = 24;
@@ -52,12 +52,12 @@ const actionGroupShape = Shapes.RoundedCorner(16);
 const actionGroupInnerShape = Shapes.RoundedCorner(15);
 
 /** Expo UI's native Compose sheet shell for Android. */
-export function ExpoSwiftUISheet({
+export function ExpoUISheet({
   open,
   onOpenChange,
   onDismiss,
   children,
-}: ExpoSwiftUISheetProps) {
+}: ExpoUISheetProps) {
   const theme = useTheme();
   const isDarkMode = useIsDarkMode();
   const sheetRef = useRef<ModalBottomSheetRef>(null);
@@ -157,12 +157,12 @@ export function ExpoSwiftUISheet({
 }
 
 /** Native root/detail content whose height follows Compose's spring animation. */
-export function ExpoSwiftUIPaneStack({
+export function ExpoUIPaneStack({
   selected,
   initial,
   notifications,
   sort,
-}: ExpoSwiftUIPaneStackProps) {
+}: ExpoUIPaneStackProps) {
   const content =
     selected === 'initial'
       ? initial
@@ -279,13 +279,13 @@ function ActionRow({
 }
 
 /** Native Material 3 header and grouped actions for chat options. */
-export function ExpoSwiftUIActionContent({
+export function ExpoUIActionContent({
   title,
   subtitle,
   icon,
   onBack,
   actionGroups,
-}: ExpoSwiftUIActionContentProps) {
+}: ExpoUIActionContentProps) {
   const theme = useTheme();
   const visibleGroups = useMemo(
     () => actionGroups.filter((group) => group.actions.length > 0),

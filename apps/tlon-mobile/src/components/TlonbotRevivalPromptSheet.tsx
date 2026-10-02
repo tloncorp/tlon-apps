@@ -9,9 +9,8 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { Button, Text, useIsWindowNarrow } from '@tloncorp/ui';
+import { Button, Text } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
-import { Platform } from 'react-native';
 
 import type { NodeStatusCheckResult } from '../hooks/useCheckNodeStopped';
 
@@ -23,12 +22,10 @@ export function useTlonbotRevivalPrompt(
   const { ship, shipUrl, startSplashSequence } = useShip();
   const [open, setOpen] = useState(false);
   const [snoozed, setSnoozed] = useState(false);
-  const isWindowNarrow = useIsWindowNarrow();
   const { dismissThenRun, onDismissed, presentationKey } =
     useSheetDismissalAction({
       open,
       onOpenChange: setOpen,
-      waitForDismissal: Platform.OS !== 'web' && isWindowNarrow,
     });
 
   const maybeShowPrompt = useCallback(

@@ -1,13 +1,6 @@
 import { createDevLogger } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
-import {
-  Icon,
-  Pressable,
-  Text,
-  useCopy,
-  useIsWindowNarrow,
-  useToast,
-} from '@tloncorp/ui';
+import { Icon, Pressable, Text, useCopy, useToast } from '@tloncorp/ui';
 import { requireOptionalNativeModule } from 'expo-modules-core';
 import {
   PropsWithChildren,
@@ -48,12 +41,10 @@ export function MessageTextSelectionProvider({ children }: PropsWithChildren) {
     text: string;
   } | null>(null);
   const [open, setOpen] = useState(false);
-  const isWindowNarrow = useIsWindowNarrow();
   const { dismissThenRun, onDismissed, cancel, presentationKey } =
     useSheetDismissalAction({
       open,
       onOpenChange: setOpen,
-      waitForDismissal: Platform.OS !== 'web' && isWindowNarrow,
     });
   const show = useCallback(
     (post: db.Post, text: string) => {

@@ -1,8 +1,15 @@
 import React, { useLayoutEffect } from 'react';
 import { act, create } from 'react-test-renderer';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+import { setupReactTestEnvironment } from '../../test/sheetTestUtils';
 
 import { useSheetDismissalAction } from './useSheetDismissalAction';
+
+const environment = vi.hoisted(() => ({ nativeSheet: true }));
+vi.mock('./useIsNativeSheet', () => ({
+  useIsNativeSheet: () => environment.nativeSheet,
+}));
 
 type Options = Parameters<typeof useSheetDismissalAction>[0];
 type Controller = ReturnType<typeof useSheetDismissalAction>;
@@ -45,13 +52,7 @@ function renderHook(waitForDismissal = true) {
   };
 }
 
-beforeAll(() => {
-  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-});
-afterAll(() => {
-  delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
-    .IS_REACT_ACT_ENVIRONMENT;
-});
+setupReactTestEnvironment();
 
 describe('useSheetDismissalAction', () => {
   it('retains a closing native host until completion, without a timer', () => {
@@ -177,6 +178,36 @@ describe('useSheetDismissalAction', () => {
     hook.controller.dismissThenRun(action);
     expect(action).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ['waits', true, 0],
+    ['does not wait', false, 1],
+  ] as const)(
+    '%s by default when the sheet is native: %s',
+    (_, nativeSheet, callsBeforeDismissal) => {
+      environment.nativeSheet = nativeSheet;
+      const action = vi.fn();
+      let controller!: Controller;
+      function Probe() {
+        const current = useSheetDismissalAction({
+          open: true,
+          onOpenChange: vi.fn(),
+        });
+        useLayoutEffect(() => {
+          controller = current;
+        });
+        return null;
+      }
+      let tree!: ReturnType<typeof create>;
+      act(() => {
+        tree = create(<Probe />);
+      });
+      controller.dismissThenRun(action);
+      expect(action).toHaveBeenCalledTimes(callsBeforeDismissal);
+      act(() => tree.unmount());
+      environment.nativeSheet = true;
+    }
+  );
 
   it('does not queue an action while closed', () => {
     const hook = renderHook();

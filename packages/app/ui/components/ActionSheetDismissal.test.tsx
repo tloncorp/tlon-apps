@@ -1,6 +1,8 @@
 import React, { createContext, forwardRef } from 'react';
 import { act, create } from 'react-test-renderer';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+import { setupReactTestEnvironment } from '../../test/sheetTestUtils';
 
 import { ActionSheet } from './ActionSheet';
 import { BottomSheetWrapper } from './BottomSheetWrapper.native';
@@ -49,7 +51,7 @@ vi.mock('./ListItem', () => ({
     Subtitle: () => null,
   }),
 }));
-vi.mock('./ExpoSwiftUISheet', () => ({ ExpoSwiftUISheet: () => null }));
+vi.mock('./ExpoUISheet', () => ({ ExpoUISheet: () => null }));
 vi.mock('./BottomSheetWrapper', async () =>
   vi.importActual('./BottomSheetWrapper.native')
 );
@@ -58,15 +60,7 @@ vi.mock('@expo/ui/community/bottom-sheet', () => ({
   BottomSheetScrollView: () => null,
 }));
 
-beforeAll(() => {
-  vi.stubGlobal('React', React);
-  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-});
-afterAll(() => {
-  vi.unstubAllGlobals();
-  delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
-    .IS_REACT_ACT_ENVIRONMENT;
-});
+setupReactTestEnvironment();
 
 describe('ordinary ActionSheet dismissal forwarding', () => {
   it('forwards the open callback after content layout, but not when closed', () => {

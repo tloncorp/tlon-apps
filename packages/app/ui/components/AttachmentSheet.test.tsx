@@ -1,15 +1,8 @@
 import React, { useImperativeHandle } from 'react';
 import { act, create } from 'react-test-renderer';
-import {
-  afterAll,
-  afterEach,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { setupReactTestEnvironment } from '../../test/sheetTestUtils';
 
 import type { ActionGroup } from './ActionSheet';
 import AttachmentSheet from './AttachmentSheet';
@@ -112,31 +105,20 @@ vi.mock('./AudioRecorder', () => ({
   AudioRecorder: () => null,
   AudioRecorderSheet: () => null,
 }));
-vi.mock('./ActionSheet', () => {
-  const Container = ({ children }: { children?: React.ReactNode }) => children;
+vi.mock('./ActionSheet', async () => {
+  const { Passthrough, Empty, createActionGroups } =
+    await import('../../test/sheetTestUtils');
   return {
-    ActionSheet: Object.assign(Container, {
-      Header: Container,
-      Content: Container,
-      SimpleActionGroupList: () => null,
+    ActionSheet: Object.assign(Passthrough, {
+      Header: Passthrough,
+      Content: Passthrough,
+      SimpleActionGroupList: Empty,
     }),
-    createActionGroups: (...groups: ([string, ...unknown[]] | false)[]) =>
-      groups.filter(Boolean).map((group) => {
-        const [accent, ...actions] = group as [string, ...unknown[]];
-        return { accent, actions: actions.filter(Boolean) };
-      }),
+    createActionGroups,
   };
 });
 
-beforeAll(() => {
-  vi.stubGlobal('React', React);
-  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-});
-afterAll(() => {
-  vi.unstubAllGlobals();
-  delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
-    .IS_REACT_ACT_ENVIRONMENT;
-});
+setupReactTestEnvironment();
 beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers();

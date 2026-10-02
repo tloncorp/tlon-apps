@@ -6,7 +6,7 @@ import {
   createDevLogger,
   trackEvent,
 } from '@tloncorp/shared';
-import { Button, useIsWindowNarrow } from '@tloncorp/ui';
+import { Button } from '@tloncorp/ui';
 import * as ImagePicker from 'expo-image-picker';
 import { ComponentRef, useCallback, useMemo, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
@@ -64,12 +64,10 @@ export default function AttachmentSheet({
     ImagePicker.useMediaLibraryPermissions();
   const [cameraPermissionStatus, requestCameraPermission] =
     ImagePicker.useCameraPermissions();
-  const isWindowNarrow = useIsWindowNarrow();
   const { dismissThenRun, onDismissed, presentationKey } =
     useSheetDismissalAction({
       open: showAttachmentSheet,
       onOpenChange,
-      waitForDismissal: Platform.OS !== 'web' && isWindowNarrow,
     });
 
   const {

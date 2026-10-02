@@ -1,14 +1,8 @@
 import React, { useState } from 'react';
 import { act, create } from 'react-test-renderer';
-import {
-  afterAll,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { setupReactTestEnvironment } from '../../../test/sheetTestUtils';
 
 import { ActionSheet } from '../ActionSheet';
 import { NotesActionMenu } from '../NotesChannel/NotesActions';
@@ -52,37 +46,25 @@ vi.mock('tamagui', () => {
     getTokenValue: () => 16,
   };
 });
-vi.mock('../ActionSheet', () => {
-  const Container = ({ children }: { children?: React.ReactNode }) => children;
-  const Empty = () => null;
+vi.mock('../ActionSheet', async () => {
+  const { Passthrough, Empty, createActionGroups } =
+    await import('../../../test/sheetTestUtils');
   return {
-    ActionSheet: Object.assign(Container, {
+    ActionSheet: Object.assign(Passthrough, {
       Action: Empty,
-      ActionGroup: Container,
-      Content: Container,
-      FormBlock: Container,
+      ActionGroup: Passthrough,
+      Content: Passthrough,
+      FormBlock: Passthrough,
       SimpleHeader: Empty,
     }),
-    createActionGroups: (...groups: ([string, ...unknown[]] | false)[]) =>
-      groups.filter(Boolean).map((group) => {
-        const [accent, ...actions] = group as [string, ...unknown[]];
-        return { accent, actions: actions.filter(Boolean) };
-      }),
+    createActionGroups,
   };
 });
 vi.mock('../Badge', () => ({ Badge: () => null }));
 vi.mock('../Form', () => ({ TextInput: () => null }));
-vi.mock('../ListItem', () => {
-  const Container = ({ children }: { children?: React.ReactNode }) => children;
-  return {
-    ListItem: Object.assign(Container, {
-      EndContent: Container,
-      MainContent: Container,
-      Subtitle: Container,
-      SystemIcon: () => null,
-      Title: Container,
-    }),
-  };
+vi.mock('../ListItem', async () => {
+  const { ListItem } = await import('../../../test/sheetTestUtils');
+  return { ListItem };
 });
 vi.mock('../NotesChannel/NotesActions', () => ({
   NotesActionMenu: () => null,
@@ -94,15 +76,7 @@ vi.mock('./BucketsDropTarget', () => ({
   BucketsDropTarget: ({ children }: { children?: React.ReactNode }) => children,
 }));
 
-beforeAll(() => {
-  vi.stubGlobal('React', React);
-  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-});
-afterAll(() => {
-  vi.unstubAllGlobals();
-  delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
-    .IS_REACT_ACT_ENVIRONMENT;
-});
+setupReactTestEnvironment();
 beforeEach(() => {
   environment.platform.OS = 'ios';
   environment.narrow = true;
