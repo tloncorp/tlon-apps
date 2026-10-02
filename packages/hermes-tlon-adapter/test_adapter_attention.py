@@ -8,7 +8,7 @@ import unittest
 from collections import deque
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 
 PACKAGE_DIR = Path(__file__).parent
@@ -894,6 +894,53 @@ class AdapterAttentionTests(unittest.TestCase):
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0].text, "/help")
         self.assertTrue(events[0].text.startswith("/"))
+
+    def test_runtime_gateway_commands_stay_bare_with_history_and_reactions(self):
+        # /profile used to work only in an empty channel: it was absent from
+        # the popup's six commands, so fetched history hid it from core.
+        core = types.ModuleType("hermes_cli.commands")
+        setattr(core, "GATEWAY_KNOWN_COMMANDS", frozenset(
+            {"profile", "reset", "reasoning", "compact", "future-command"}
+        ))
+        for text in (
+            "/profile", "/reset", "/reasoning high", "/compact",
+            "/future-command argument",
+            "/approve", "/yes", "/ok", "/confirm", "/always", "/remember",
+            "/cancel", "/no", "/deny", "/nevermind",
+        ):
+            with self.subTest(text=text), patch.dict(
+                sys.modules, {"hermes_cli.commands": core}
+            ):
+                adapter = self.make_adapter(
+                    {
+                        "owner_ship": "~mug",
+                        "channels": ["chat/~mug/general"],
+                        "reaction_level": "minimal",
+                    }
+                )
+                adapter._sse = types.SimpleNamespace(scry=object(), poke=AsyncMock())
+                adapter._pending_reaction_notes["group:chat/~mug/general"] = deque(
+                    ["~dev reacted to an earlier message"]
+                )
+                # Keep the real context formatter; fake only its network read.
+                from importlib import import_module
+                HistoryEntry = import_module(f"{PACKAGE_NAME}.history").HistoryEntry
+                history = [HistoryEntry(
+                    author="~dev", content="Earlier chatter", timestamp=1,
+                    post_id="1",
+                )]
+                with patch.object(
+                    adapter_mod, "fetch_channel_history", AsyncMock(return_value=history)
+                ):
+                    events = asyncio.run(self.dispatches(
+                        adapter, channel_event(text, nest="chat/~mug/general")
+                    ))
+                self.assertEqual(len(events), 1)
+                self.assertEqual(events[0].text, text)
+                self.assertEqual(
+                    list(adapter._pending_reaction_notes["group:chat/~mug/general"]),
+                    ["~dev reacted to an earlier message"],
+                )
 
     def test_normal_text_is_enriched_by_the_same_harness(self):
         # Control for the bare-command test above: identical fake SSE and
