@@ -27,7 +27,7 @@ import {
   weight,
 } from '@expo/ui/jetpack-compose/modifiers';
 import { Icon } from '@tloncorp/ui';
-import { Fragment } from 'react';
+import { Fragment, useCallback, useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 import { useTopLevelTabBarContentInset } from '../../../navigation/useTopLevelTabBarContentInset';
@@ -239,10 +239,31 @@ function TextFieldRow({
 }) {
   const field = row.textField!;
   const value = useNativeState(field.value);
-  const onChangeText = useSyncedFieldText(
-    value,
+  // The placeholder follows the text in the field itself. The screen's value
+  // can lag behind typing while it saves, and would leave the placeholder
+  // drawn over what was just typed.
+  const [isEmpty, setIsEmpty] = useState(field.value === '');
+  const fieldState = useMemo(
+    () => ({
+      get: () => value.get(),
+      set: (text: string) => {
+        value.set(text);
+        setIsEmpty(text === '');
+      },
+    }),
+    [value]
+  );
+  const sendText = useSyncedFieldText(
+    fieldState,
     field.value,
     field.onChangeText
+  );
+  const onChangeText = useCallback(
+    (text: string) => {
+      setIsEmpty(text === '');
+      sendText(text);
+    },
+    [sendText]
   );
 
   return (
@@ -253,7 +274,7 @@ function TextFieldRow({
         ...(row.disabled ? [alpha(0.5)] : []),
       ]}
     >
-      {field.value === '' && field.placeholder ? (
+      {isEmpty && field.placeholder ? (
         <Text color={colors.tertiaryText} style={{ fontSize: 16 }}>
           {field.placeholder}
         </Text>
