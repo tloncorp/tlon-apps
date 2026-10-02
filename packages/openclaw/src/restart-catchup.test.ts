@@ -241,16 +241,22 @@ describe('restart catch-up', () => {
     });
   });
 
-  it('marks existing activity read instead of running the first catch-up with read tracking', async () => {
+  it('records the read baseline on the first start, then carries on with replay', async () => {
     const f = fixture();
+    const order: string[] = [];
     f.readSettings.mockResolvedValue(settings(true, false));
+    f.establishActivityReadBaseline.mockImplementation(async () => {
+      order.push('baseline');
+    });
+    f.replayMissedMessages.mockImplementation(async () => {
+      order.push('replay');
+    });
     f.ready();
     f.coordinator.start(f.ctx);
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(f.establishActivityReadBaseline).toHaveBeenCalledTimes(1);
-    expect(f.run).not.toHaveBeenCalled();
-    expect(f.readChecklist).not.toHaveBeenCalled();
+    expect(order).toEqual(['baseline', 'replay']);
+    expect(f.run).toHaveBeenCalledTimes(1);
     expect(f.logger.error).not.toHaveBeenCalled();
   });
 
@@ -285,20 +291,16 @@ describe('restart catch-up', () => {
     expect(f.run).toHaveBeenCalledTimes(1);
   });
 
-  it('does not replay on the baseline run or before bootstrap', async () => {
-    const baseline = fixture();
-    baseline.readSettings.mockResolvedValue(settings(true, false));
-    baseline.ready();
-    baseline.coordinator.start(baseline.ctx);
+  it('records the read baseline before onboarding is complete, but does not replay yet', async () => {
+    const f = fixture();
+    f.readSettings.mockResolvedValue(settings(false, false));
+    f.ready();
+    f.coordinator.start(f.ctx);
     await vi.advanceTimersByTimeAsync(0);
-    expect(baseline.replayMissedMessages).not.toHaveBeenCalled();
 
-    const firstUse = fixture();
-    firstUse.readSettings.mockResolvedValue(settings(false));
-    firstUse.ready();
-    firstUse.coordinator.start(firstUse.ctx);
-    await vi.advanceTimersByTimeAsync(0);
-    expect(firstUse.replayMissedMessages).not.toHaveBeenCalled();
+    expect(f.establishActivityReadBaseline).toHaveBeenCalledTimes(1);
+    expect(f.replayMissedMessages).not.toHaveBeenCalled();
+    expect(f.run).not.toHaveBeenCalled();
   });
 
   it('runs catch-up without re-marking once the read baseline exists', async () => {
@@ -319,6 +321,8 @@ describe('restart catch-up', () => {
     f.coordinator.start(f.ctx);
     await vi.advanceTimersByTimeAsync(0);
 
+    // Replaying without the baseline would re-answer what the old plugin handled.
+    expect(f.replayMissedMessages).not.toHaveBeenCalled();
     expect(f.run).not.toHaveBeenCalled();
     expect(f.logger.error).toHaveBeenCalledWith(
       expect.stringContaining('Restart catch-up failed: Error: nack')

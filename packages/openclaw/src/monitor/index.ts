@@ -2574,7 +2574,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       replyParentId?: string | null; // Override parentId for delivery only (not in ctx payload)
       degraded?: boolean;
       retryOf?: string; // lensId of the failed run this dispatch retries
-    }) => {
+    }): Promise<boolean | void> => {
       const {
         messageId,
         senderShip,
@@ -3955,6 +3955,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           });
         }
       }
+      // A timed-out turn produced no answer (at most a failure notice); tell
+      // the caller so the message stays unread for restart replay.
+      return !dispatchTimedOut;
     };
 
     // Track which channels we're interested in for filtering firehose events
@@ -4735,7 +4738,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
         const parsed = parseChannelNest(nest);
         const citedContent = await resolveCitedContent(content.content);
-        await processMessage({
+        const completed = await processMessage({
           messageId: messageId ?? '',
           senderShip,
           messageText: rawText,
@@ -4753,6 +4756,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           parentId,
           isThreadReply,
         });
+        if (completed === false) handled = false;
       } catch (error: any) {
         handled = false;
         runtime.error?.(
@@ -5173,7 +5177,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           }
         }
         const citedContent = await resolveCitedContent(dmContent.content);
-        await processMessage({
+        const completed = await processMessage({
           messageId: effectiveMessageId ?? '',
           senderShip,
           messageText: rawText,
@@ -5188,6 +5192,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           parentId: dmReplyParentId,
           isThreadReply: isDmThreadReply,
         });
+        if (completed === false) handled = false;
       } catch (error: any) {
         handled = false;
         runtime.error?.(

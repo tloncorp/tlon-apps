@@ -295,16 +295,18 @@ export function createRestartCatchupCoordinator(
             !connection.isConnected()
           )
             continue;
-          if (!complete) {
-            ctx.logger.info(
-              '[tlon] Restart catch-up skipped: bootstrap is incomplete'
-            );
-            return;
-          }
+          // First start with read tracking, whatever the bootstrap state: the
+          // old plugin never marked what it handled, so mark everything read
+          // once. Replay then finds nothing unread from before this start.
           if (!hasReadBaseline) {
             await connection.establishActivityReadBaseline(signal);
             ctx.logger.info(
-              '[tlon] Restart catch-up skipped: marked existing activity read for the first run with read tracking'
+              '[tlon] Marked existing activity read for read tracking'
+            );
+          }
+          if (!complete) {
+            ctx.logger.info(
+              '[tlon] Restart catch-up skipped: bootstrap is incomplete'
             );
             return;
           }
