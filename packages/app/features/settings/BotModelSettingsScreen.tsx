@@ -353,6 +353,7 @@ export function BotModelSettingsScreen(props: Props) {
                 title: model.modelLabel,
                 subtitle: model.providerLabel,
                 selected: selectedFallbackKeys.has(model.key),
+                multiple: true,
                 onPress: () =>
                   toggleFallback({
                     provider: model.providerId,

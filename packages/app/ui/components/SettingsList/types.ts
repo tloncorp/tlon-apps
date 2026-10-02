@@ -48,6 +48,11 @@ export interface SettingsRowModel {
    */
   selected?: boolean;
   /**
+   * With `selected`: several of the section's rows can be chosen at once, so
+   * the row is announced as a checkbox rather than one of a set.
+   */
+  multiple?: boolean;
+  /**
    * How the end of a pressable row reads: a chevron for a pushed screen, an
    * arrow for something outside the app, or nothing when pressing asks first,
    * such as a confirmation. Defaults to a chevron.

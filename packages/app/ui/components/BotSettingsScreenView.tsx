@@ -103,13 +103,14 @@ export function BotSettingsScreenView({
           ]
         : []),
     ];
-    if (showUnavailableNotice && result.length > 0) {
-      result[0] = {
-        ...result[0],
-        footer: 'OAuth setup is unavailable for this ship.',
-      };
+    if (!showUnavailableNotice) {
+      return result;
     }
-    return result;
+    const notice = 'OAuth setup is unavailable for this ship.';
+    // With no providers to hang it under, the notice is all there is to show.
+    return result.length > 0
+      ? [{ ...result[0], footer: notice }, ...result.slice(1)]
+      : [{ key: 'unavailable', rows: [{ key: 'unavailable', title: notice }] }];
   }, [
     available,
     busyProviderId,
