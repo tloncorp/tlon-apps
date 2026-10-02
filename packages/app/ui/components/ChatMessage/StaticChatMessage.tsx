@@ -12,7 +12,7 @@ import {
   useGroup,
 } from '@tloncorp/shared/store';
 import * as store from '@tloncorp/shared/store';
-import { Text } from '@tloncorp/ui';
+import { Text, useToast } from '@tloncorp/ui';
 import { ComponentProps, ReactNode, useCallback, useMemo } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
@@ -22,6 +22,7 @@ import {
 } from '../../../constants';
 import { useA2UINavigation } from '../../../hooks/useA2UINavigation';
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
+import { submitCreditIncreaseRequest } from '../../../utils/creditIncreaseRequest';
 import { getPostImageViewerId } from '../../../utils/mediaViewer';
 import type { A2UIActionCompletion } from '../../contexts/componentsKits';
 import AuthorRow from '../AuthorRow';
@@ -129,6 +130,8 @@ export function StaticChatMessage({
   const draftInputContext = useDraftInputContext();
   const navigateToA2UITarget = useA2UINavigation();
   const currentUserId = useCurrentUserId();
+  const showToast = useToast();
+  const creditRequests = db.creditIncreaseRequested.useStorageItem();
   const { data: group } = useGroup({ id: post.groupId ?? '' });
   const groupAgents = db.agentGroupAgents.useValue();
   // A newly delivered post can arrive one render before its denormalized
@@ -338,6 +341,22 @@ export function StaticChatMessage({
 
   const handleA2UIAction = useCallback(
     async (action: A2UI.Action, selection?: PostBlobDataEntryA2UISelection) => {
+      if (action.event.name === A2UI.action.requestCreditIncrease) {
+        try {
+          await submitCreditIncreaseRequest({
+            ownerShip: currentUserId,
+            botShip: post.authorId,
+            sourcePostId: post.id,
+            requestId: action.event.context.requestId,
+          });
+        } catch (error) {
+          showToast({
+            message: "Couldn't send the request. Please try again.",
+          });
+          throw error;
+        }
+        return;
+      }
       if (action.event.name === A2UI.action.navigate) {
         await navigateToA2UITarget(action.event.context.target, {
           allowBotMcpSettings: canUseAgentProviderControls,
@@ -393,11 +412,18 @@ export function StaticChatMessage({
       draftInputContext,
       navigateToA2UITarget,
       sendAgentProvision,
+      currentUserId,
+      post.authorId,
+      post.id,
+      showToast,
     ]
   );
 
   const isA2UIActionAvailable = useCallback(
     (action: A2UI.Action) => {
+      if (action.event.name === A2UI.action.requestCreditIncrease) {
+        return !creditRequests.isLoading;
+      }
       if (action.event.name === A2UI.action.navigate) {
         const target = action.event.context.target;
         return (
@@ -454,6 +480,7 @@ export function StaticChatMessage({
       group,
       post.groupId,
       postIsFromOwnBot,
+      creditRequests.isLoading,
     ]
   );
 
@@ -523,6 +550,11 @@ export function StaticChatMessage({
   );
   const isA2UIActionConsumed = useCallback(
     (action: A2UI.Button['action']) => {
+      if (action.event.name === A2UI.action.requestCreditIncrease) {
+        return Object.values(creditRequests.value).includes(
+          action.event.context.requestId
+        );
+      }
       if (action.event.name === A2UI.action.sendMessage) {
         return isA2UISendMessageActionConsumed(
           action,
@@ -534,7 +566,11 @@ export function StaticChatMessage({
       }
       return false;
     },
-    [a2uiActionCompletion?.sentMessageText, provisionedAgentTopics]
+    [
+      a2uiActionCompletion?.sentMessageText,
+      provisionedAgentTopics,
+      creditRequests.value,
+    ]
   );
   const getConsumedA2UISelection = useCallback(
     (surfaceId: string, componentId: string) =>

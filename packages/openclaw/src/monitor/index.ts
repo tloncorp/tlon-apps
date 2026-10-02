@@ -128,6 +128,7 @@ import {
   sendChannelPost,
   sendDm,
 } from '../urbit/send.js';
+import { installBudgetHoldNotifier } from '../cron-budget-runtime.js';
 import { UrbitSSEClient } from '../urbit/sse-client.js';
 import { markdownToStory } from '../urbit/story.js';
 import {
@@ -1910,6 +1911,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         return false;
       }
     }
+
+    let removeBudgetHoldNotifier = () => {};
 
     // Helper to send DM notification to owner. Returns the message ID if sent successfully.
     async function sendOwnerNotification(
@@ -6141,6 +6144,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         onError: (error) =>
           runtime.error?.(`[tlon] Cron snapshot failed: ${String(error)}`),
       });
+      removeBudgetHoldNotifier = installBudgetHoldNotifier(
+        account.accountId,
+        async (message, blob) =>
+          Boolean(await sendOwnerNotification(message, blob)),
+        cfg
+      );
 
       // Periodically refresh channel discovery
       const pollInterval = setInterval(
@@ -6266,6 +6275,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // drop during the main work). Both the late abort listener and
       // this finally call the helper; whichever runs first wins.
       cleanupGatewayStatus();
+      removeBudgetHoldNotifier();
       drainingAgentOnboarding = true;
       clearAgentOnboardingRetries?.();
       clearAgentOnboardingRetries = null;

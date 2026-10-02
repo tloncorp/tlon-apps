@@ -8,6 +8,7 @@ import {
 } from './agentProtocol';
 
 const ACTION_SEND_MESSAGE = 'tlon.sendMessage';
+const ACTION_REQUEST_CREDIT_INCREASE = 'tlon.requestCreditIncrease';
 const ACTION_NAVIGATE = 'tlon.navigate';
 const ACTION_PROVISION_AGENT = 'tlon.provisionAgent';
 const ACTION_CONFIGURE_AGENT_PROVIDERS = 'tlon.configureAgentProviders';
@@ -135,6 +136,10 @@ const sendMessageEventSchema = z.object({
     text: nonEmptyString(LIMITS.maxButtonMessageLength),
   }),
 });
+const requestCreditIncreaseEventSchema = z.object({
+  name: z.literal(ACTION_REQUEST_CREDIT_INCREASE),
+  context: z.object({ requestId: z.string().uuid() }),
+});
 const smallChoiceSendMessageEventSchema = z.object({
   name: z.literal(ACTION_SEND_MESSAGE),
   context: z.object({
@@ -153,10 +158,15 @@ const configureAgentProvidersEventSchema = z.object({
   name: z.literal(ACTION_CONFIGURE_AGENT_PROVIDERS),
   context: AgentProviderConfigContextSchema,
 });
-const buttonEventSchema = z.discriminatedUnion('name', [
+const choiceEventSchema = z.discriminatedUnion('name', [
   sendMessageEventSchema,
   navigateEventSchema,
   provisionAgentEventSchema,
+]);
+const buttonEventSchema = z.discriminatedUnion('name', [
+  ...choiceEventSchema.options,
+  // Only Buttons restore this action's persisted receipt and completion label.
+  requestCreditIncreaseEventSchema,
 ]);
 const buttonActionSchema = z.object({ event: buttonEventSchema });
 const sendMessageActionSchema = z.object({ event: sendMessageEventSchema });
@@ -214,6 +224,8 @@ const buttonSchema = z.object({
   component: z.literal('Button'),
   child: nonEmptyString(),
   disabled: z.boolean().optional(),
+  /** Local completion copy; the original post does not need a remote edit. */
+  consumedLabel: nonEmptyString(LIMITS.maxTextNodeLength).optional(),
   variant: buttonVariantSchema.optional(),
   action: buttonActionSchema,
 });
@@ -223,7 +235,7 @@ const choiceOptionSchema = z.object({
   description: z.string().max(LIMITS.maxTextNodeLength).optional(),
   icon: choiceIconSchema.optional(),
   accent: choiceAccentSchema.optional(),
-  action: buttonActionSchema,
+  action: z.object({ event: choiceEventSchema }),
 });
 const choiceSchema = z.object({
   ...componentBaseShape,
@@ -691,6 +703,7 @@ export function buildSmallChoiceMessage(
 export const A2UI = {
   action: {
     sendMessage: ACTION_SEND_MESSAGE,
+    requestCreditIncrease: ACTION_REQUEST_CREDIT_INCREASE,
     navigate: ACTION_NAVIGATE,
     provisionAgent: ACTION_PROVISION_AGENT,
     configureAgentProviders: ACTION_CONFIGURE_AGENT_PROVIDERS,

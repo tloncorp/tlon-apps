@@ -51,6 +51,9 @@ jobs:
       - name: Run unit tests
         run: npx vitest run src/ --exclude src/config-schema.test.ts
 
+      - name: Verify cron budget startup holds
+        run: node scripts/test-cron-budget-bootstrap.mjs
+
       - name: Run security tests
         run: npx vitest run src/security.test.ts
 
