@@ -94,6 +94,35 @@ const sharedDbSpies = vi.hoisted(() => ({
   setClient: vi.fn(),
 }));
 
+const appStateRuntime = vi.hoisted(() => {
+  const listeners = new Set<(state: string) => void>();
+  const AppState = {
+    currentState: 'active',
+    addEventListener: (_type: 'change', listener: (state: string) => void) => {
+      listeners.add(listener);
+      return { remove: () => listeners.delete(listener) };
+    },
+  };
+
+  return {
+    AppState,
+    listenerCount: () => listeners.size,
+    reset() {
+      AppState.currentState = 'active';
+      listeners.clear();
+    },
+    setState(state: string) {
+      AppState.currentState = state;
+      listeners.forEach((listener) => listener(state));
+    },
+  };
+});
+
+vi.mock('react-native', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  AppState: appStateRuntime.AppState,
+}));
+
 vi.mock('drizzle-orm', async (importOriginal) => {
   const actual = await importOriginal<typeof import('drizzle-orm')>();
   return {
@@ -189,6 +218,7 @@ describe('NativeDb', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sqliteRuntime.reset();
+    appStateRuntime.reset();
   });
 
   afterEach(() => {
@@ -426,6 +456,88 @@ describe('NativeDb', () => {
         payload.errorMessage.includes('Migration timeout exceeded')
     );
     expect(timeoutEvent).toBeDefined();
+  });
+
+  it('releases the migration timeout when the migration wins the race', async () => {
+    const connection = sqliteRuntime.makeConnection();
+    sqliteRuntime.enqueueConnection(connection);
+    const db = new NativeDb();
+
+    await db.runMigrations();
+
+    expect(connection.migrateClient).toHaveBeenCalledTimes(1);
+    expect(appStateRuntime.listenerCount()).toBe(0);
+  });
+
+  it('does not count a suspension against the migration timeout', async () => {
+    vi.useFakeTimers();
+    let finishMigrate!: () => void;
+    const firstConnection = sqliteRuntime.makeConnection({
+      migrateClient: vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            finishMigrate = resolve;
+          })
+      ),
+    });
+    const secondConnection = sqliteRuntime.makeConnection();
+    sqliteRuntime.enqueueConnection(firstConnection);
+    sqliteRuntime.enqueueConnection(secondConnection);
+    const db = new NativeDb();
+
+    const migration = db.runMigrations();
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(firstConnection.migrateClient).toHaveBeenCalledTimes(1);
+
+    appStateRuntime.setState('background');
+    await vi.advanceTimersByTimeAsync(60_000);
+    appStateRuntime.setState('active');
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    finishMigrate();
+    await migration;
+
+    expect(secondConnection.migrateClient).not.toHaveBeenCalled();
+    expect(firstConnection.delete).not.toHaveBeenCalled();
+    expect(
+      findPayload(
+        (payload) =>
+          typeof payload.errorMessage === 'string' &&
+          payload.errorMessage.includes('Migration timeout exceeded')
+      )
+    ).toBeUndefined();
+    expect(appStateRuntime.listenerCount()).toBe(0);
+  });
+
+  it('still times out after five seconds of foreground time across a suspension', async () => {
+    vi.useFakeTimers();
+    const firstConnection = sqliteRuntime.makeConnection({
+      migrateClient: vi.fn(() => new Promise<void>(() => undefined)),
+    });
+    const secondConnection = sqliteRuntime.makeConnection();
+    sqliteRuntime.enqueueConnection(firstConnection);
+    sqliteRuntime.enqueueConnection(secondConnection);
+    const db = new NativeDb();
+
+    const migration = db.runMigrations();
+    await vi.advanceTimersByTimeAsync(3_000);
+    appStateRuntime.setState('background');
+    await vi.advanceTimersByTimeAsync(60_000);
+    appStateRuntime.setState('active');
+    await vi.advanceTimersByTimeAsync(1_999);
+    expect(secondConnection.migrateClient).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+    await migration;
+
+    expect(secondConnection.migrateClient).toHaveBeenCalledTimes(1);
+    const timeoutEvent = findPayload(
+      (payload) =>
+        typeof payload.errorMessage === 'string' &&
+        payload.errorMessage === 'Migration timeout exceeded'
+    );
+    expect(timeoutEvent).toBeDefined();
+    expect(appStateRuntime.listenerCount()).toBe(0);
   });
 
   it('runMigrations throws if ensureDbReady resolves without didMigrate', async () => {

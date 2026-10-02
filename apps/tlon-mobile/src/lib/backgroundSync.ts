@@ -1,5 +1,5 @@
 import { configureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
-import { ensureDbReady } from '@tloncorp/app/lib/nativeDb';
+import { abandonDbInit, ensureDbReady } from '@tloncorp/app/lib/nativeDb';
 import { discoverContactsAndNotify } from '@tloncorp/app/lib/notifications';
 import {
   SyncPriority,
@@ -17,8 +17,49 @@ import { refreshHostingAuth } from './hostingAuth';
 
 const logger = createDevLogger('backgroundSync', true);
 
+// Wall-clock. A hung wait would strand the task, and Android schedules the
+// next run only once this one returns. iOS runs it as an app-refresh task with
+// about 30 s in total, so the bound leaves headroom for abandonDbInit, the
+// capped telemetry flush and the return before iOS expires the task. Android's
+// WorkManager budget is far larger and is not the constraint.
+export const DB_READY_TIMEOUT_MS = 20_000;
+
+async function waitForDbReady(): Promise<'ready' | 'timeout'> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      ensureDbReady().then(() => 'ready' as const),
+      new Promise<'timeout'>((resolve) => {
+        timer = setTimeout(() => resolve('timeout'), DB_READY_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Flush telemetry so events are sent now, not deferred until next foreground:
+// the OS may suspend the process as soon as the task returns.
+async function flushTelemetry() {
+  await Promise.race([
+    flushErrorLogger(),
+    new Promise<void>((resolve) => setTimeout(resolve, 500)),
+  ]).catch(() => {});
+}
+
 async function performSync(): Promise<BackgroundTask.BackgroundTaskResult> {
-  await ensureDbReady();
+  if ((await waitForDbReady()) === 'timeout') {
+    // Detach the pending init so the next task or foreground start begins
+    // fresh instead of rejoining it for another full wait.
+    const abandonOutcome = abandonDbInit();
+    logger.trackError('Background sync failed', {
+      context: 'db readiness timed out',
+      timeoutMs: DB_READY_TIMEOUT_MS,
+      abandonOutcome,
+    });
+    await flushTelemetry();
+    return BackgroundTask.BackgroundTaskResult.Failed;
+  }
   const taskExecutionId = uuidv4();
   logger.trackEvent('Initiating background sync', { taskExecutionId });
   const timings: Record<string, number> = {
@@ -143,11 +184,7 @@ async function performSync(): Promise<BackgroundTask.BackgroundTaskResult> {
       didSucceed: result === 'success',
       result,
     });
-    // flush telemetry so events are sent now, not deferred until next foreground
-    await Promise.race([
-      flushErrorLogger(),
-      new Promise<void>((resolve) => setTimeout(resolve, 500)),
-    ]).catch(() => {});
+    await flushTelemetry();
   }
 }
 
