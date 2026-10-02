@@ -32,6 +32,7 @@ vi.mock(
     presentationBackground: vi.fn(),
     presentationDetents: vi.fn(),
     presentationDragIndicator: vi.fn(),
+    presentationSizing: vi.fn(),
   })
 );
 
