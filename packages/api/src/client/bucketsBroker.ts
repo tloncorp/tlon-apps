@@ -15,8 +15,8 @@ const DEFAULT_MEMEX_BASE_URL = 'https://memex.tlon.network';
  * keeps the production default. The try/catch is what makes a bare `process`
  * reference safe in a runtime where nothing substituted it.
  *
- * Mirrors memexBaseUrl() in packages/api/src/client/storageApi.ts, rather than
- * importing it, because shared/ does not depend on api/.
+ * Not storageApi's memexBaseUrl(): that one reads `process.env?.TLON_MEMEX_URL`,
+ * the optional-chained form the define does not match.
  */
 function memexBaseUrl(): string {
   try {
@@ -26,7 +26,24 @@ function memexBaseUrl(): string {
   }
 }
 
+/**
+ * An explicit override of the whole broker path, for the CLI and its tests.
+ *
+ * Read in its own try: in a browser nothing substitutes it, so the bare
+ * `process` reference throws -- and sharing a try with TLON_MEMEX_URL would
+ * throw away the value the define did substitute.
+ */
+function explicitBrokerUrl(): string | undefined {
+  try {
+    return process.env.BUCKETS_BROKER_URL?.trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function bucketsBrokerUrl(): string {
+  const explicit = explicitBrokerUrl();
+  if (explicit) return explicit.replace(/\/+$/, '');
   return `${memexBaseUrl().replace(/\/+$/, '')}/v2/buckets`;
 }
 

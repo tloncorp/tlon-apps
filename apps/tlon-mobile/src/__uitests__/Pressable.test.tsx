@@ -14,9 +14,9 @@ jest.mock('expo-speech-recognition', () => ({}));
 
 // Regression test for TLON-6529 (Sentry REACT-NATIVE-13R). `Pressable` used to
 // call `useLinkProps` on every render, which throws "Couldn't find a navigation
-// object" wherever it renders outside a `NavigationContainer` — as it does when
-// `@gorhom/portal` hoists a sheet out of the navigation tree during onboarding.
-// These tests render with no navigation context at all.
+// object" wherever it renders outside a `NavigationContainer`, including native
+// overlays that sit outside the navigation tree. These tests render with no
+// navigation context at all.
 function renderWithoutNavigation(ui: React.ReactElement) {
   return render(
     <TamaguiProvider config={config} defaultTheme="light">
