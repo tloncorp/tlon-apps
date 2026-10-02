@@ -12,7 +12,6 @@ export const ALLOWED_TLON_COMMANDS = [
   'channels',
   'contacts',
   'dms',
-  'expose',
   'groups',
   'hooks',
   'messages',
@@ -44,7 +43,6 @@ const POSTS_COMMANDS = new Set([
   'edit',
   'delete',
 ]);
-const EXPOSE_TARGET_COMMANDS = new Set(['show', 'hide', 'check', 'url']);
 const HELP_ARGS = new Set(['--help', '-h']);
 const MIGRATION_BOOLEAN_FLAGS = new Set([
   '--allow-write-widening',
@@ -143,20 +141,6 @@ function canonicalNotesNest(raw: string | undefined): string | null {
   return canonicalizeNest(raw, 'notes');
 }
 
-function diaryNestFromCitePath(raw: string | undefined): string | null {
-  if (!raw) return null;
-  const parts = raw.trim().split('/');
-  if (
-    parts.length >= 6 &&
-    parts[0] === '' &&
-    parts[1] === '1' &&
-    parts[2] === 'chan'
-  ) {
-    return canonicalDiaryNest(parts.slice(3, 6).join('/'));
-  }
-  return canonicalDiaryNest(parts.slice(0, 3).join('/'));
-}
-
 function isHelpArg(arg: string | undefined): boolean {
   return arg != null && HELP_ARGS.has(arg);
 }
@@ -198,11 +182,6 @@ function messagesHelpTakesPrecedence(args: string[]): boolean {
   const searchQueryHelpLiteral =
     cliArgs[0] === 'search' && isHelpArg(cliArgs[1]) && searchChannel;
   return !searchQueryHelpLiteral;
-}
-
-function exposeHelpTakesPrecedence(args: string[]): boolean {
-  const cliArgs = args.slice(1);
-  return isHelpArg(cliArgs[0]) || wantsHelp(cliArgs.slice(1));
 }
 
 function postsHelpTakesPrecedence(args: string[]): boolean {
@@ -294,16 +273,6 @@ function diaryNestForRemovedCliOperation(args: string[]): string | null {
       return null;
     }
     return canonicalDiaryNest(args[2]);
-  }
-
-  if (subcommand === 'expose') {
-    if (exposeHelpTakesPrecedence(args)) {
-      return null;
-    }
-    if (!EXPOSE_TARGET_COMMANDS.has(action)) {
-      return null;
-    }
-    return diaryNestFromCitePath(args[2]);
   }
 
   return null;

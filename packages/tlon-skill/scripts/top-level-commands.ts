@@ -3,7 +3,6 @@ export const TOP_LEVEL_COMMANDS = [
   'channels',
   'contacts',
   'dms',
-  'expose',
   'groups',
   'hooks',
   'messages',

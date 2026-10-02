@@ -600,7 +600,6 @@ class TlonToolGuardTests(unittest.TestCase):
             "channels info diary/~sampel-palnet/field-notes",
             "messages channel diary/~sampel-palnet/field-notes",
             'posts send diary/~sampel-palnet/field-notes "hello"',
-            "expose check /1/chan/diary/~sampel-palnet/field-notes/note/170.141",
         ):
             with self.subTest(command=command):
                 args, error = tlon_tool.split_tlon_command(command)
@@ -632,21 +631,6 @@ class TlonToolGuardTests(unittest.TestCase):
             (
                 "mis-cased posts action",
                 ("posts", "Send", "diary/~zod/log", "hello"),
-                False,
-            ),
-            (
-                "valid expose action",
-                ("expose", "check", "diary/~zod/log/170.141"),
-                True,
-            ),
-            (
-                "unknown expose action",
-                ("expose", "bogus", "diary/~zod/log/170.141"),
-                False,
-            ),
-            (
-                "mis-cased expose action",
-                ("expose", "Check", "diary/~zod/log/170.141"),
                 False,
             ),
             (
@@ -811,7 +795,6 @@ class TlonToolGuardTests(unittest.TestCase):
     def test_allows_packaged_cli_help_before_diary_interception(self):
         for command in (
             "messages channel diary/~zod/log --help",
-            "expose check diary/~zod/log/170.141 --help",
             "posts react diary/~zod/log 170.141 --help",
         ):
             with self.subTest(command=command):

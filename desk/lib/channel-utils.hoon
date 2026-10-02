@@ -1414,7 +1414,7 @@
         %cite
       ;+
       ;div.cite
-        ; [reference]  ::TODO  link to /expose if chan ref?
+        ; [reference]
       ==
     ::
         %header

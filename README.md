@@ -31,11 +31,3 @@ The TM backend consists of a number of independent components, called agents.
 ### %activity
 
 %activity is TM's activity tracker. It aggregates events sent by other agents and alerts the user based on his notification settings.
-
-### %profile
-
-%profile allows the user to expose a personal webpage accessible through their node's URL. The webpage can feature a preview of user's favorite groups or widgets registered by any other agents.
-
-### %expose
-
-%expose allows the user to publish the content available in one of the channels to the clearweb.

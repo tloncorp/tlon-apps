@@ -2,7 +2,4 @@
 ::
 /=  broadcaster  /app/broadcaster
 /=  verifier     /app/verifier
-::
-/=  diary  /app/diary
-/=  heap   /app/heap
 ~
