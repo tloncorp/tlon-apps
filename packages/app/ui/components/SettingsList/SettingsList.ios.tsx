@@ -23,13 +23,13 @@ import {
   accessibilityValue,
   autocorrectionDisabled,
   background,
-  createModifier,
   disabled,
   font,
   foregroundStyle,
   frame,
   lineLimit,
   listRowBackground,
+  listRowSeparatorTint,
   listSectionMargins,
   onSubmit as submitAction,
   padding,
@@ -50,11 +50,6 @@ import {
   type SettingsListColors,
   useSettingsListColors,
 } from './useSettingsListColors';
-
-// Backported to @expo/ui 57.0.7 by patches/@expo__ui@57.0.7.patch; newer
-// releases export this modifier directly.
-const listRowSeparatorTint = (color: string) =>
-  createModifier('listRowSeparatorTint', { color });
 
 // SwiftUI leaves a section's worth of space (35 pt) above the first section,
 // which reads as a gap under the navigation bar's small inline title.
