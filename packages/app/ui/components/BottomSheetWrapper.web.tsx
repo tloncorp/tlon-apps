@@ -26,6 +26,7 @@ export const BottomSheetWrapper = forwardRef<
     return (
       <Sheet
         ref={ref}
+        modal
         open={open}
         onOpenChange={onOpenChange}
         dismissOnSnapToBottom={dismissOnSnapToBottom}
