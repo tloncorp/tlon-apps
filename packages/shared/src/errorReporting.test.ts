@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   hostingFromHostname,
   httpStatusFromError,
+  isIgnoredError,
   populateScope,
   reduceUrls,
   hostingFromUrl,
@@ -864,6 +865,35 @@ describe('SENTRY_IGNORE_ERRORS', () => {
   });
 });
 
+describe('isIgnoredError', () => {
+  it.each([
+    'Failed to fetch',
+    'HTTP request failed: fetch failed: FetchRequestCanceledException: Fetch request has been canceled (at Expo/NativeResponse.swift:63)',
+    'TypeError: Load failed',
+    'Connection reset',
+    'Error during reauth: TypeError: Failed to fetch',
+  ])('matches %s', (message) => {
+    expect(isIgnoredError(new Error(message))).toBe(true);
+    expect(isIgnoredError(message)).toBe(true);
+  });
+
+  it.each([
+    'HTTP 403',
+    'Request failed with status 500',
+    'Cannot read properties of undefined',
+    'Error during reauth: HTTP 500',
+  ])('does not match %s', (message) => {
+    expect(isIgnoredError(new Error(message))).toBe(false);
+  });
+
+  it('matches through the cause chain', () => {
+    const wrapped = new Error('sync failed', {
+      cause: new Error('Failed to fetch'),
+    });
+    expect(isIgnoredError(wrapped)).toBe(true);
+  });
+});
+
 interface IgnoreEvent {
   exception: { values: Array<{ type: string; value: string }> };
 }
@@ -943,6 +973,15 @@ function badResponse(status: number, body: string) {
 }
 
 describe('httpStatusFromError', () => {
+  it('is null when reading the status throws', () => {
+    const hostile = {
+      get status(): number {
+        throw new Error('no status for you');
+      },
+    };
+    expect(httpStatusFromError(hostile)).toBeNull();
+  });
+
   it('prefers the status field', () => {
     expect(httpStatusFromError(badResponse(503, 'service unavailable'))).toBe(
       503

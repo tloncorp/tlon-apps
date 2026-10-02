@@ -13,6 +13,7 @@ import { queryClient } from '../../db/reactQuery';
 import { SETTINGS_SINGLETON_KEY } from '../../db/schema';
 import { runIfDev } from '../../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../../domain';
+import { httpStatusFromError, isIgnoredError } from '../../errorReporting';
 import {
   MIN_GROUPS_VERSION,
   activityVersionSupportsNotes,
@@ -2615,9 +2616,17 @@ const checkDeskCompatibility = async (
       { priority: syncStartPriority.high, retry: false },
       { timeout: DESK_PROBE_TIMEOUT, isStale: isAbandoned }
     ).catch((err) => {
-      logger.trackError('Desk compatibility probe failed', {
-        error: err instanceof Error ? err.message : String(err),
-      });
+      const message = err instanceof Error ? err.message : String(err);
+      // Transient network failures are expected here, and the persisted desk
+      // version covers them.
+      if (isIgnoredError(err)) {
+        logger.crumb('Desk compatibility probe failed', message);
+      } else {
+        logger.trackError('Desk compatibility probe failed', {
+          error: message,
+          status: httpStatusFromError(err),
+        });
+      }
       return null;
     }),
     probeTimedOut,
