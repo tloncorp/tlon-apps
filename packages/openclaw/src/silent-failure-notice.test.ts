@@ -130,6 +130,23 @@ describe('resolveSilentFailureNotice', () => {
     ).toBeNull();
   });
 
+  it('stays silent when the kernel admitted but did not dispatch a DM turn', () => {
+    expect(
+      resolveSilentFailureNotice({
+        ...incidentInput,
+        summary: makeSummary({
+          trigger: 'dm',
+          destinationKind: 'dm',
+          toolCallCount: 0,
+          toolErrorCount: 0,
+          lastToolError: null,
+          result: 'empty',
+          reason: 'not_dispatched',
+        }),
+      })
+    ).toBeNull();
+  });
+
   it('fires when a DM turn ends empty with nothing to send', () => {
     expect(
       resolveSilentFailureNotice({

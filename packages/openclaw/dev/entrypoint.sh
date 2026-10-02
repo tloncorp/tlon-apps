@@ -84,13 +84,9 @@ if [ -f "/workspace/tlonbot/openclaw.json" ]; then
   echo "==> Copying config from tlonbot..."
   cp /workspace/tlonbot/openclaw.json "$CONFIG_PATH"
 
-  # Patch in Brave web search if available. openclaw 2026.5.28 only accepts
-  # provider "brave" when the plugin is installed, allowed, and enabled, so
-  # set provider, allow, and enable together (mirrors the test entrypoint and
-  # production tlonbot flow). The matching `plugins install` runs later, just
-  # before gateway start — the CLI refuses to install while the config is
-  # invalid, and at this point it can be (load.paths still points at
-  # /workspace/openclaw-tlon until the repoint below).
+  # Patch in Brave web search if available. Set the provider, allow entry, and
+  # enabled entry together (mirrors the test entrypoint and production tlonbot
+  # flow). The matching `plugins install` runs later, just before gateway start.
   if [ -n "$BRAVE_API_KEY" ]; then
     echo "==> Patching Brave web search into config..."
     jq --arg key "$BRAVE_API_KEY" \
@@ -129,6 +125,7 @@ if [ -f "$CONFIG_PATH" ]; then
     )
     | .plugins.allow = (.plugins.allow // []) + ["tlon"]
     | .plugins.allow |= unique
+    | .plugins.entries.tlon.hooks.allowConversationAccess = true
   ' "$CONFIG_PATH" > "$CONFIG_PATH.tmp" && mv "$CONFIG_PATH.tmp" "$CONFIG_PATH"
 
   # Dev-only: bypass browser device pairing so the Control UI is reachable

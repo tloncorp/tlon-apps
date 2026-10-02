@@ -1,6 +1,6 @@
 import { resolvePinnedMainDmOwnerFromAllowlist } from 'openclaw/plugin-sdk/conversation-runtime';
 import type { OpenClawConfig, PluginRuntime } from 'openclaw/plugin-sdk/core';
-import { runPreparedInboundReplyTurn } from 'openclaw/plugin-sdk/inbound-reply-dispatch';
+import { runPreparedInboundReply } from 'openclaw/plugin-sdk/inbound-reply-dispatch';
 import {
   type ResolvedAgentRoute,
   resolveInboundLastRouteSessionKey,
@@ -232,7 +232,7 @@ type RecordInboundParams = Parameters<
   SessionRecorder['recordInboundSession']
 >[0];
 type PreparedTurnCtxPayload = Parameters<
-  typeof runPreparedInboundReplyTurn
+  typeof runPreparedInboundReply
 >[0]['ctxPayload'];
 
 /**
@@ -334,7 +334,7 @@ export function routeUpdateWillSkipByPin(
  * The monitor's "build ctx → record route → dispatch" boundary (this is where
  * the original webchat-leak bug lived). Builds the Tlon route record, then runs
  * the turn through the SDK's prepared channel-turn kernel
- * (`runPreparedInboundReplyTurn`), which owns the record-before-dispatch
+ * (`runPreparedInboundReply`), which owns the record-before-dispatch
  * ordering shared by every in-tree channel.
  *
  * The kernel's own route write is fail-closed (a record failure aborts
@@ -342,6 +342,10 @@ export function routeUpdateWillSkipByPin(
  * below keeps this plugin's deliberate fail-open semantics: a persistence
  * failure — including `resolveStorePath` throwing on bad session-store
  * config — is logged but never suppresses the live Tlon reply.
+ *
+ * Resolves to `undefined` when the kernel admits the message but does not
+ * dispatch it (bot-loop protection, outbound echo, duplicate): an expected
+ * no-op, never an error.
  */
 export async function recordTlonRouteAndDispatch<T>(params: {
   session: Pick<
@@ -365,8 +369,14 @@ export async function recordTlonRouteAndDispatch<T>(params: {
   logDebug?: (msg: string) => void;
   /** Called with the built record, before persistence (used for debug logging). */
   onRecord?: (record: TlonInboundRouteRecord) => void;
+  /**
+   * Called instead of `dispatch` when the kernel admits the message but does
+   * not run it (bot-loop protection, outbound echo, duplicate). The caller
+   * should account for the turn as a skip, not a failure or an empty reply.
+   */
+  onNotDispatched?: (admission: { kind: string; reason?: string }) => void;
   dispatch: () => Promise<T>;
-}): Promise<T> {
+}): Promise<T | undefined> {
   const record = buildTlonInboundRouteRecord({
     cfg: params.cfg,
     route: params.route,
@@ -433,7 +443,7 @@ export async function recordTlonRouteAndDispatch<T>(params: {
     }
   };
 
-  const turn = await runPreparedInboundReplyTurn<T>({
+  const turn = await runPreparedInboundReply<T>({
     channel: 'tlon',
     accountId: params.route.accountId,
     routeSessionKey: params.route.sessionKey,
@@ -479,6 +489,22 @@ export async function recordTlonRouteAndDispatch<T>(params: {
     messageId: params.messageId,
     runDispatch: params.dispatch,
   });
+  if (!turn.dispatched) {
+    // The kernel admits a turn but deliberately does not dispatch it for
+    // expected reasons (bot-loop protection, an outbound echo, a duplicate
+    // seen again after a restart). That is a normal no-op for this message,
+    // not a turn failure: report no dispatch result and let the caller's
+    // optional handling take over, instead of recording a spurious error.
+    safeLog(
+      params.logDebug,
+      `[tlon][route-debug] inbound turn not dispatched: admission=${turn.admission.kind}` +
+        ('reason' in turn.admission && turn.admission.reason
+          ? ` reason=${turn.admission.reason}`
+          : '')
+    );
+    params.onNotDispatched?.(turn.admission);
+    return undefined;
+  }
   return turn.dispatchResult;
 }
 

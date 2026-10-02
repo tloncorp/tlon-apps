@@ -6,7 +6,7 @@ import {
   setConversationPresence,
 } from '@tloncorp/api';
 import { dr, render } from '@urbit/aura';
-import type { RuntimeEnv } from 'openclaw/plugin-sdk';
+import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 
 import { describeError } from '../urbit/errors.js';
 

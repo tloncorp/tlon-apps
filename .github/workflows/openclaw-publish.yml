@@ -22,8 +22,8 @@ jobs:
 
       - uses: pnpm/action-setup@v4
 
-      # Node 22 (repo default), not the old repo's Node 24: the monorepo
-      # install rebuilds better-sqlite3, which has no prebuilds for Node 24.
+      # Reads the root .nvmrc (Node 24): the monorepo is pinned there since
+      # OpenClaw 2026.9.4 requires it (pnpm-workspace.yaml engineStrict).
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
@@ -90,7 +90,7 @@ jobs:
       # the build's outputs.
       - uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: "24.16.0"
           registry-url: "https://registry.npmjs.org"
 
       - name: Download publish package

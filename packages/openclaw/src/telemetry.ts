@@ -144,10 +144,12 @@ export type TlonDeliverySkipReason =
   | 'empty'
   | 'silent'
   | 'heartbeat'
+  | 'channel_transform'
   | 'empty_payload_text'
   | 'block_directive_only'
   | 'media_only_payload_not_sent'
-  | 'source_reply_delivery_mode_message_tool_only';
+  | 'source_reply_delivery_mode_message_tool_only'
+  | 'not_dispatched';
 
 export type TlonReplyOutcomeEvent = {
   sessionKey: string;
@@ -452,6 +454,7 @@ export type TlonCronSnapshotEvent = TlonCronCountFields & {
   scheduleKindEveryCount: number | null;
   scheduleKindAtCount: number | null;
   scheduleKindOnExitCount: number | null;
+  scheduleKindStreamCount: number | null;
 };
 
 /**
@@ -1996,6 +1999,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           scheduleKindEveryCount: event.scheduleKindEveryCount,
           scheduleKindAtCount: event.scheduleKindAtCount,
           scheduleKindOnExitCount: event.scheduleKindOnExitCount,
+          scheduleKindStreamCount: event.scheduleKindStreamCount,
           ...this.cronCountPersonProps(event),
         },
         { omitNullish: true }

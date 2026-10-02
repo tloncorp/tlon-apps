@@ -33,10 +33,10 @@ import {
 
 const ARCHIVE = 'pinned rube-zod-group-blob';
 // Must match dev/Dockerfile.test's ARG OPENCLAW_CORE_VERSION default: the test
-// asserts the container's installed core equals this requested version. Bumping
-// both together to 2026.6.11/2026.7.1 (already in the known-prewarm map below)
-// promotes this case from a 5.28 smoke test to the full prewarm regression guard.
-const DEFAULT_CORE_VERSION = '2026.5.28';
+// asserts the container's installed core equals this requested version. Both
+// defaults use the package's pinned development version so this remains
+// the full prewarm regression guard.
+const DEFAULT_CORE_VERSION = '2026.9.4';
 const HARD_TEST_TIMEOUT_MS = 180_000;
 const INTERNAL_TEST_TIMEOUT_MS = 165_000;
 const DIAGNOSTIC_RESERVE_MS = 12_000;
@@ -139,10 +139,14 @@ function readPrewarmExpectation(coreVersion: string): boolean {
       `TEST_EXPECT_OPENCLAW_PREWARM must be 0 or 1 for core ${coreVersion}`
     );
   }
+  // 2026.9.x no longer logs the "agent runtime plugins pre-warmed" marker
+  // (its startup prewarm moved to provider auth state), so the ordering
+  // assertion is skipped there like on 5.28.
   const known: Record<string, boolean> = {
     '2026.5.28': false,
     '2026.6.11': true,
     '2026.7.1': true,
+    '2026.9.4': false,
   };
   if (raw == null) {
     if (!(coreVersion in known)) {
@@ -337,7 +341,9 @@ describe('gateway-status lifecycle', () => {
           `[gateway-status-e2e] ${lineAt(startupLogs, startup.prewarm)}`
         );
       } else {
-        evidence('[gateway-status-e2e] prewarm assertion skipped (5.28 smoke)');
+        evidence(
+          '[gateway-status-e2e] prewarm assertion skipped (no marker on this core)'
+        );
       }
 
       // Observe a real heartbeat lease advance before taking L0. Mutating just

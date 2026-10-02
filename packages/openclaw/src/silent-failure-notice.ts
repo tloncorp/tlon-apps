@@ -44,6 +44,12 @@ export function resolveSilentFailureNotice(input: {
   if (deliveredCount > 0) {
     return null;
   }
+  // The kernel admitted the message but chose not to run it (bot-loop
+  // protection, outbound echo, duplicate). Nothing was owed, so nothing was
+  // silently dropped.
+  if (summary.reason === 'not_dispatched') {
+    return null;
+  }
   // The message-tool send path records deliveries on the turn but not on the
   // monitor's delivered count (and its lens output needs ContextLens).
   if (summary.deliverySuccessCount > 0) {
