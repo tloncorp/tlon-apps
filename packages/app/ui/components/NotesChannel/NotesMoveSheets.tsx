@@ -4,9 +4,9 @@ import Fuse from 'fuse.js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, XStack, YStack, getTokenValue } from 'tamagui';
 
+import { useSheetBottomInset } from '../../hooks/useSheetBottomInset';
 import { ActionSheet } from '../ActionSheet';
 import { TextInput } from '../Form';
 import { ListItem } from '../ListItem';
@@ -130,7 +130,7 @@ export function MoveDestinationSheet({
   testID: string;
   title: string;
 }) {
-  const insets = useSafeAreaInsets();
+  const sheetBottomInset = useSheetBottomInset();
   const handleConfirm = useCallback(() => {
     if (!selectedDestination || isMoving) return;
     onConfirm(selectedDestination.folder.folderId);
@@ -143,7 +143,7 @@ export function MoveDestinationSheet({
 
     return (
       <YStack
-        paddingBottom={insets.bottom + getTokenValue('$xl', 'size')}
+        paddingBottom={sheetBottomInset + getTokenValue('$xl', 'size')}
         paddingHorizontal="$xl"
       >
         <Button
@@ -159,7 +159,7 @@ export function MoveDestinationSheet({
         />
       </YStack>
     );
-  }, [handleConfirm, insets.bottom, isMoving, selectedDestination]);
+  }, [handleConfirm, sheetBottomInset, isMoving, selectedDestination]);
 
   return (
     <ActionSheet

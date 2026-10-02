@@ -38,6 +38,7 @@ import {
   withStaticProperties,
 } from 'tamagui';
 
+import { useSheetBottomInset } from '../hooks/useSheetBottomInset';
 import {
   BottomSheetScrollView,
   BottomSheetWrapper,
@@ -483,11 +484,11 @@ const ActionSheetScrollableContent = forwardRef<
 ActionSheetScrollableContent.displayName = 'ActionSheetScrollableContent';
 
 const useContentStyle = () => {
-  const insets = useSafeAreaInsets();
+  const sheetBottomInset = useSheetBottomInset();
   const isWindowNarrow = useIsWindowNarrow();
   return {
     paddingBottom: isWindowNarrow
-      ? insets.bottom + getTokenValue('$2xl', 'size')
+      ? sheetBottomInset + getTokenValue('$2xl', 'size')
       : getTokenValue('$xl', 'size'),
   };
 };

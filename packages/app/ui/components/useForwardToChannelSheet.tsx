@@ -1,9 +1,9 @@
 import * as db from '@tloncorp/shared/db';
 import { Button, useToast } from '@tloncorp/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { YStack, getTokenValue } from 'tamagui';
 
+import { useSheetBottomInset } from '../hooks/useSheetBottomInset';
 import { useSheetDismissalAction } from '../hooks/useSheetDismissalAction';
 import { useChatTitle } from '../utils';
 
@@ -33,7 +33,7 @@ export function useForwardToChannelSheet({
   const queuedForward = useRef(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const showToast = useToast();
-  const insets = useSafeAreaInsets();
+  const sheetBottomInset = useSheetBottomInset();
   const { dismissThenRun, onDismissed, shouldRender, presentationKey } =
     useSheetDismissalAction({
       open: isOpen,
@@ -116,7 +116,7 @@ export function useForwardToChannelSheet({
 
     return (
       <YStack
-        paddingBottom={insets.bottom + getTokenValue('$xl', 'size')}
+        paddingBottom={sheetBottomInset + getTokenValue('$xl', 'size')}
         paddingHorizontal="$xl"
       >
         <Button
@@ -137,7 +137,7 @@ export function useForwardToChannelSheet({
   }, [
     errorMessage,
     handleSendItem,
-    insets.bottom,
+    sheetBottomInset,
     isSending,
     selectedChannel,
     selectedChannelTitle,

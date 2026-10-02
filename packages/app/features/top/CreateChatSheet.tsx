@@ -15,7 +15,6 @@ import {
   useState,
 } from 'react';
 import { Alert, Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack } from 'tamagui';
 
 import useGroupSearch from '../../hooks/useGroupSearch';
@@ -35,6 +34,7 @@ import {
   capitalize,
   useIsWindowNarrow,
 } from '../../ui';
+import { useSheetBottomInset } from '../../ui/hooks/useSheetBottomInset';
 import { GroupTitleInputSheet } from '../groups/GroupTitleInputSheet';
 import {
   GroupType,
@@ -249,7 +249,7 @@ const JoinGroupFormContent = ({
   close: () => void;
 }) => {
   const { title, subtitle } = CHAT_TYPE_CONFIG[chatType];
-  const { bottom } = useSafeAreaInsets();
+  const bottom = useSheetBottomInset();
 
   return (
     <YStack flex={1} gap="$l" paddingBottom={bottom}>
@@ -270,7 +270,7 @@ const CreateChatFormContent = ({
   onScrollChange,
 }: CreateChatFormContentProps) => {
   const { title, subtitle } = CHAT_TYPE_CONFIG[chatType];
-  const { bottom } = useSafeAreaInsets();
+  const bottom = useSheetBottomInset();
   const isWindowNarrow = useIsWindowNarrow();
   const isGroup = chatType === 'group';
   const disabledIds = store.useGroupsNegotiationClashes({ enabled: isGroup });

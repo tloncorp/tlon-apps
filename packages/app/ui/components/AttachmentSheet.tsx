@@ -10,7 +10,6 @@ import { Button } from '@tloncorp/ui';
 import * as ImagePicker from 'expo-image-picker';
 import { ComponentRef, useCallback, useMemo, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isWeb } from 'tamagui';
 
 import {
@@ -25,6 +24,7 @@ import {
 } from '../../utils/files';
 import { normalizeImagePickerAssetForUpload } from '../../utils/imagePickerAsset';
 import { useAttachmentContext } from '../contexts/attachment';
+import { useSheetBottomInset } from '../hooks/useSheetBottomInset';
 import { useSheetDismissalAction } from '../hooks/useSheetDismissalAction';
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
 import { AudioRecorder, AudioRecorderSheet } from './AudioRecorder';
@@ -484,7 +484,7 @@ function useAudioRecorderController({
     waveformPreview?: number[];
   }) => void;
 }) {
-  const safeAreaInsets = useSafeAreaInsets();
+  const sheetBottomInset = useSheetBottomInset();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const audioRecorderRef = useRef<ComponentRef<typeof AudioRecorder> | null>(
     null
@@ -497,7 +497,7 @@ function useAudioRecorderController({
         snapPointsMode="fit"
         audioRecorderProps={{
           startInRecordingMode: true,
-          paddingBottom: safeAreaInsets.bottom,
+          paddingBottom: sheetBottomInset,
           onSubmit,
           onCancel() {
             setIsSheetOpen(false);
