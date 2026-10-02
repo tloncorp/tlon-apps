@@ -80,8 +80,9 @@ describe('ordinary ActionSheet dismissal forwarding', () => {
       tree = create(element(true));
     });
     const layout = () =>
-      tree!.root.find((node) => node.type === 'View' && node.props.onLayout)
-        .props.onLayout;
+      tree!.root.find(
+        (node) => (node.type as unknown) === 'View' && node.props.onLayout
+      ).props.onLayout;
     expect(opened).not.toHaveBeenCalled();
     act(() => layout()());
     expect(opened).toHaveBeenCalledOnce();
