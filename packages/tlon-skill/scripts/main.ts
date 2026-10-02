@@ -52,7 +52,7 @@ Commands:
   contacts     Contact/profile management (list, get, self, sync, add, remove, update-profile)
   dms          Direct message operations (send, reply, react, unreact, delete, accept, decline)
   expose       Manage public content exposure (list, show, hide, check, url)
-  groups       Group management (list, create, info, join, request/accept invites, leave, delete, ...)
+  groups       Groups, called "workspaces" in the app (list, create, info, join, request/accept invites, leave, delete, ...)
   hooks        Channel hooks management (list, add, edit, delete, order, config, cron, rest)
   messages     Message history and search (dm, channel, history, search, context, post)
   notes        %notes notebooks (list, show, request, note-create, note-update, join, leave)
