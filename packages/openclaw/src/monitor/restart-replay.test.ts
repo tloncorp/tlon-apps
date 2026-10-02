@@ -1,19 +1,21 @@
+import type { ActivityInit, ChangesV11 } from '@tloncorp/api';
 import { describe, expect, it } from 'vitest';
 
-import { collectMissedMessages, unreadAnchors } from './restart-replay.js';
+import { collectMissedMessages } from './restart-replay.js';
 
 const NEST = 'chat/~zod/general';
-const essay = (sent: number, text = `msg ${sent}`) => ({
-  content: [{ inline: [text] }],
+const META = { replyCount: 0, lastRepliers: [], lastReply: null };
+const essay = (sent: number) => ({
+  content: [{ inline: [`msg ${sent}`] }],
   author: '~bus',
   sent,
 });
 const post = (
   id: string,
   sent: number,
-  replies: Record<string, unknown> | null = null
+  replies: Record<string, unknown> = {}
 ) => ({
-  seal: { id, replies, reacts: {} },
+  seal: { id, replies, reacts: {}, meta: META },
   essay: essay(sent),
   type: 'post',
 });
@@ -22,91 +24,123 @@ const reply = (id: string, parentId: string, sent: number) => ({
   'reply-essay': { ...essay(sent), blob: null },
 });
 
-const anchors = (options: {
-  channels?: Record<string, string>;
+function unreads(options: {
+  sources?: Record<string, string | null>;
   threads?: { channelId: string; threadId: string; first: string }[];
-}) =>
-  unreadAnchors({
-    channelUnreads: Object.entries(options.channels ?? {}).map(
-      ([channelId, firstUnreadPostId]) => ({ channelId, firstUnreadPostId })
+}): ActivityInit {
+  return {
+    groupUnreads: [],
+    channelUnreads: Object.entries(options.sources ?? {}).map(
+      ([channelId, firstUnreadPostId]) => ({
+        channelId,
+        type: 'channel',
+        updatedAt: 1,
+        count: firstUnreadPostId ? 1 : 0,
+        notify: false,
+        countWithoutThreads: firstUnreadPostId ? 1 : 0,
+        firstUnreadPostId,
+      })
     ),
     threadActivity: (options.threads ?? []).map((t) => ({
       channelId: t.channelId,
       threadId: t.threadId,
+      updatedAt: 1,
+      count: 1,
+      notify: false,
       firstUnreadPostId: t.first,
     })),
-  });
+  } as ActivityInit;
+}
+
+const changes = (input: { channels?: unknown; chat?: unknown }) =>
+  ({ channels: input.channels ?? {}, chat: input.chat ?? {} }) as Pick<
+    ChangesV11,
+    'channels' | 'chat'
+  >;
 
 describe('restart replay', () => {
   it('replays channel posts at or after the first unread, as firehose post events', () => {
-    const items = collectMissedMessages({
-      channels: {
-        [NEST]: {
-          '170.141.184.100': post('170.141.184.100', 1),
-          '170.141.184.200': post('170.141.184.200', 2),
-          '170.141.184.300': post('170.141.184.300', 3),
+    const items = collectMissedMessages(
+      changes({
+        channels: {
+          [NEST]: {
+            '170.141.184.100': post('170.141.184.100', 1),
+            '170.141.184.200': post('170.141.184.200', 2),
+            '170.141.184.300': post('170.141.184.300', 3),
+          },
         },
-      },
-      chat: {},
-      anchors: anchors({ channels: { [NEST]: '170.141.184.200' } }),
-    });
+      }),
+      unreads({ sources: { [NEST]: '170.141.184.200' } })
+    );
 
-    expect(items.map((i) => i.event.response)).toEqual([
+    expect(items.map((i) => i.event)).toEqual([
       {
-        post: {
-          id: '170.141.184.200',
-          'r-post': { set: post('170.141.184.200', 2) },
+        nest: NEST,
+        response: {
+          post: {
+            id: '170.141.184.200',
+            'r-post': { set: post('170.141.184.200', 2) },
+          },
         },
       },
       {
-        post: {
-          id: '170.141.184.300',
-          'r-post': { set: post('170.141.184.300', 3) },
+        nest: NEST,
+        response: {
+          post: {
+            id: '170.141.184.300',
+            'r-post': { set: post('170.141.184.300', 3) },
+          },
         },
       },
     ]);
-    expect(items[0]).toMatchObject({ kind: 'channel', event: { nest: NEST } });
   });
 
   it('skips sources with nothing unread, so already-handled posts never replay', () => {
-    const items = collectMissedMessages({
-      channels: { [NEST]: { '170.141.184.100': post('170.141.184.100', 1) } },
-      chat: {
-        '~bus': { '~bus/170.141.184.100': post('~bus/170.141.184.100', 1) },
-      },
-      anchors: anchors({}),
-    });
+    const items = collectMissedMessages(
+      changes({
+        channels: { [NEST]: { '170.141.184.100': post('170.141.184.100', 1) } },
+        chat: {
+          '~bus': { '~bus/170.141.184.100': post('~bus/170.141.184.100', 1) },
+        },
+      }),
+      unreads({ sources: { [NEST]: null } })
+    );
 
     expect(items).toEqual([]);
   });
 
-  it('replays unread thread replies by their thread anchor, as reply events', () => {
+  it('replays unread thread replies by their thread anchor, with the parent meta', () => {
     const parent = '170.141.184.100';
-    const items = collectMissedMessages({
-      channels: {
-        [NEST]: {
-          [parent]: post(parent, 1, {
-            '170.141.184.150': reply('170.141.184.150', parent, 2),
-            '170.141.184.250': reply('170.141.184.250', parent, 3),
-          }),
+    const items = collectMissedMessages(
+      changes({
+        channels: {
+          [NEST]: {
+            [parent]: post(parent, 1, {
+              '170.141.184.150': reply('170.141.184.150', parent, 2),
+              '170.141.184.250': reply('170.141.184.250', parent, 3),
+            }),
+          },
         },
-      },
-      chat: {},
-      anchors: anchors({
+      }),
+      unreads({
         threads: [
           { channelId: NEST, threadId: parent, first: '170.141.184.250' },
         ],
-      }),
-    });
+      })
+    );
 
     expect(items).toHaveLength(1);
-    expect(items[0].event.response).toEqual({
-      post: {
-        id: parent,
-        'r-post': {
-          reply: {
-            id: '170.141.184.250',
-            'r-reply': { set: reply('170.141.184.250', parent, 3) },
+    expect(items[0].event).toEqual({
+      nest: NEST,
+      response: {
+        post: {
+          id: parent,
+          'r-post': {
+            reply: {
+              id: '170.141.184.250',
+              meta: META,
+              'r-reply': { set: reply('170.141.184.250', parent, 3) },
+            },
           },
         },
       },
@@ -114,16 +148,17 @@ describe('restart replay', () => {
   });
 
   it('drops old posts that only appear because they were edited or reacted to', () => {
-    const items = collectMissedMessages({
-      channels: {
-        [NEST]: {
-          '170.141.184.1': post('170.141.184.1', 1),
-          '170.141.184.900': post('170.141.184.900', 9),
+    const items = collectMissedMessages(
+      changes({
+        channels: {
+          [NEST]: {
+            '170.141.184.1': post('170.141.184.1', 1),
+            '170.141.184.900': post('170.141.184.900', 9),
+          },
         },
-      },
-      chat: {},
-      anchors: anchors({ channels: { [NEST]: '170.141.184.900' } }),
-    });
+      }),
+      unreads({ sources: { [NEST]: '170.141.184.900' } })
+    );
 
     expect(items.map((i) => i.sent)).toEqual([9]);
   });
@@ -132,25 +167,26 @@ describe('restart replay', () => {
     const writ = (
       id: string,
       sent: number,
-      replies: Record<string, unknown> | null = null
+      replies: Record<string, unknown> = {}
     ) => ({
-      seal: { id, time: '170.141.184.999', replies, reacts: {} },
+      seal: { id, time: '170.141.184.999', replies, reacts: {}, meta: META },
       essay: essay(sent),
       type: 'writ',
     });
     const parent = '~bus/170.141.184.100';
-    const items = collectMissedMessages({
-      channels: {},
-      chat: {
-        '~bus': {
-          [parent]: writ(parent, 1, {
-            '~bus/170.141.184.150': reply('~bus/170.141.184.150', parent, 2),
-          }),
-          '~bus/170.141.184.300': writ('~bus/170.141.184.300', 3),
+    const items = collectMissedMessages(
+      changes({
+        chat: {
+          '~bus': {
+            [parent]: writ(parent, 1, {
+              '~bus/170.141.184.150': reply('~bus/170.141.184.150', parent, 2),
+            }),
+            '~bus/170.141.184.300': writ('~bus/170.141.184.300', 3),
+          },
         },
-      },
-      anchors: anchors({
-        channels: { '~bus': '170.141.184.300' },
+      }),
+      unreads({
+        sources: { '~bus': '170.141.184.300' },
         threads: [
           {
             channelId: '~bus',
@@ -158,8 +194,8 @@ describe('restart replay', () => {
             first: '170.141.184.150',
           },
         ],
-      }),
-    });
+      })
+    );
 
     expect(items.map((i) => i.event)).toEqual([
       {
@@ -168,11 +204,13 @@ describe('restart replay', () => {
         response: {
           reply: {
             id: '~bus/170.141.184.150',
+            meta: META,
             delta: {
               add: {
                 'reply-essay': reply('~bus/170.141.184.150', parent, 2)[
                   'reply-essay'
                 ],
+                time: null,
               },
             },
           },
@@ -181,41 +219,42 @@ describe('restart replay', () => {
       {
         whom: '~bus',
         id: '~bus/170.141.184.300',
-        response: {
-          add: { essay: essay(3), time: '170.141.184.999' },
-        },
+        response: { add: { essay: essay(3), time: '170.141.184.999' } },
       },
     ]);
   });
 
   it('orders everything oldest first across channels and DMs', () => {
-    const items = collectMissedMessages({
-      channels: { [NEST]: { '170.141.184.500': post('170.141.184.500', 30) } },
-      chat: {
-        '~bus': { '~bus/170.141.184.500': post('~bus/170.141.184.500', 10) },
-      },
-      anchors: anchors({
-        channels: { [NEST]: '170.141.184.1', '~bus': '170.141.184.1' },
+    const items = collectMissedMessages(
+      changes({
+        channels: {
+          [NEST]: { '170.141.184.500': post('170.141.184.500', 30) },
+        },
+        chat: {
+          '~bus': { '~bus/170.141.184.500': post('~bus/170.141.184.500', 10) },
+        },
       }),
-    });
+      unreads({ sources: { [NEST]: '170.141.184.1', '~bus': '170.141.184.1' } })
+    );
 
     expect(items.map((i) => i.kind)).toEqual(['chat', 'channel']);
   });
 
   it('ignores tombstones and deleted channels', () => {
-    const items = collectMissedMessages({
-      channels: {
-        [NEST]: {
-          '170.141.184.500': {
-            type: 'tombstone',
-            seal: { id: '170.141.184.500' },
+    const items = collectMissedMessages(
+      changes({
+        channels: {
+          [NEST]: {
+            '170.141.184.500': {
+              type: 'tombstone',
+              seal: { id: '170.141.184.500' },
+            },
           },
+          'chat/~zod/gone': null,
         },
-        'chat/~zod/gone': null,
-      },
-      chat: {},
-      anchors: anchors({ channels: { [NEST]: '170.141.184.1' } }),
-    });
+      }),
+      unreads({ sources: { [NEST]: '170.141.184.1' } })
+    );
 
     expect(items).toEqual([]);
   });
