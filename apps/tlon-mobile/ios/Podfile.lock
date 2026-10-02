@@ -2744,7 +2744,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - RNTransformerTextInput (0.4.1):
+  - RNTransformerTextInput (0.4.2):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -3603,7 +3603,7 @@ SPEC CHECKSUMS:
   RNScreens: df54f9e1092ce77fe96fc0c3a5314862d05a506e
   RNSentry: 18fc2982a2c646dfada4ddd6fc8e225e1bcad812
   RNSVG: 02c4605f1656727c3a83059ef119dc7e469df182
-  RNTransformerTextInput: f2385e527f211a7fd2657252454432a74d2c5523
+  RNTransformerTextInput: 620ab3862f8c8df0315e8461c3a22bb40189f786
   RNWorklets: eba081d1c24bfbfaacf243eedd5deade960b6f0b
   SDWebImage: e9fc87c1aab89a8ab1bbd74eba378c6f53be8abf
   SDWebImageAVIFCoder: afe194a084e851f70228e4be35ef651df0fc5c57
