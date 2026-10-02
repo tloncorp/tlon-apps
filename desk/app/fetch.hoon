@@ -1,12 +1,34 @@
-::  metagrab: fetch opengraph and other metadata from url
+::  fetch: retrieve third-party web content on the client's behalf
 ::
-::    serves an api endpoint at /apps/groups/~/metagrab,
-::    to which you can make requests at /[@uw-encoded-url-string],
-::    which will trigger this agent to fetch that target url,
-::    and respond with the metadata it parses from it.
+::    serves an api endpoint at /apps/groups/~/fetch, with the mode in the
+::    path, and the target as an @uw-encoded url string:
 ::
-::    for details on what it parses out of url response bodies,
-::    see /lib/metagrab.
+::      /apps/groups/~/fetch/meta/[@uw-url]  metadata parsed from the page
+::      /apps/groups/~/fetch/raw/[@uw-url]   the response, mostly as-is
+::
+::    both modes exist for the same reason: a browser cannot make these
+::    requests itself, because the target does not send CORS headers. the
+::    ship fetches on the client's behalf and hands back either distilled
+::    metadata or the raw response.
+::
+::    %meta issues its own HEAD (escalating to GET for html) and parses the
+::    body; see /lib/metagrab for what it pulls out of it. results are
+::    cached, and redirects are resolved here rather than by iris, so that
+::    we can detect loops -- see the proof above +on-poke.
+::
+::    %raw forwards the inbound request's method, headers (minus cookies)
+::    and body to the target, and relays the response back. it is not
+::    cached: callers get exactly one upstream request per inbound one.
+::
+::    this agent is NOT the outbound half of the hook layer, and the two
+::    should not be merged later. that path talks to *our own* services,
+::    authenticates with a per-ship credential, and needs a retry queue and
+::    idempotency keys. this one talks to arbitrary untrusted urls, carries
+::    no credential, and needs an address guard instead. opposite problems.
+::
+::    supersedes %metagrab and %dumb-proxy. their old endpoints are still
+::    bound here so that clients which have not moved over keep working;
+::    those two bindings can go once no client uses them.
 ::
 /+  de-html, mg=metagrab, hutils=http-utils,
     logs, dbug, verb
@@ -14,16 +36,25 @@
 |%
 +$  card  card:agent:gall
 ::
-+$  state-2
-  $:  %2
-      cache=(map @t response)  ::  cached results
-      await=(jug @t @ta)       ::  pending, w/ response targets
-      trail=(jug @t @t)        ::  redirection trail for policy
-  ==
-+$  state-1
-  $:  %1
-      cache=(map @t response)  ::  cached results
-      await=(jug @t @ta)       ::  pending, w/ response targets
+::  $mode: what the caller wants back
+::
+::    .meta: metadata parsed out of the page
+::    .raw:  the upstream response, relayed
+::
++$  mode  ?(%meta %raw)
+::
+::  $target: a mode and the url it applies to
+::
+::    the same url means different things in different modes, so the cache
+::    and the pending-request map are keyed by both.
+::
++$  target  [=mode url=@t]
+::
++$  state-0
+  $:  %0
+      cache=(map target response)  ::  cached results (%meta only)
+      await=(jug target @ta)       ::  pending, w/ response targets
+      trail=(jug @t @t)            ::  redirection trail for policy
   ==
 ::
 +$  result
@@ -46,6 +77,91 @@
 ::
 ++  cache-time  ~m5
 ++  user-agent  'chrome/123.0.0.0'  ::  fallback user-agent string
+::  +max-relay: cap on a %raw response body we will relay
+::
+::    iris hands us the whole body at once, so this cannot stop the ship
+::    from *fetching* something huge -- it only stops us relaying it back
+::    into eyre. a streaming cap would need runtime support we don't have.
+::
+++  max-relay  ^~((bex 22))  ::  4MiB
+::
+::  +private-ip: is this v4 address one we refuse to fetch from?
+::
+++  private-ip
+  |=  ip=@if
+  ^-  ?
+  =/  a  (cut 3 [3 1] ip)
+  =/  b  (cut 3 [2 1] ip)
+  ?|  =(0 a)                              ::  0.0.0.0/8
+      =(10 a)                             ::  10.0.0.0/8
+      =(127 a)                            ::  loopback
+      &(=(169 a) =(254 b))                ::  link-local
+      &(=(172 a) &((gte b 16) (lte b 31)))  ::  172.16.0.0/12
+      &(=(192 a) =(168 b))                ::  192.168.0.0/16
+  ==
+::
+::  +hop-by-hop: headers that describe a single connection, not the payload
+::
+::    these must not be forwarded in either direction. relaying upstream's
+::    transfer-encoding or content-length in particular breaks the response:
+::    eyre frames the body itself from the octs we hand it, so an inherited
+::    framing header makes the client wait for data that never arrives in
+::    that shape, and the body is dropped. (%dumb-proxy relayed headers
+::    verbatim and had this bug; nothing ever called it, so nobody saw it.)
+::
+++  hop-by-hop
+  ^~
+  %-  ~(gas in *(set @t))
+  :~  'connection'
+      'keep-alive'
+      'transfer-encoding'
+      'te'
+      'trailer'
+      'upgrade'
+      'proxy-authenticate'
+      'proxy-authorization'
+      'content-length'
+  ==
+::
+::  +strip-hops: drop hop-by-hop headers, case-insensitively
+::
+++  strip-hops
+  |=  hes=header-list:http
+  ^-  header-list:http
+  %+  skip  hes
+  |=  [key=@t val=@t]
+  (~(has in hop-by-hop) (crip (cass (trip key))))
+::
+::  +unsafe-target: why we refuse to fetch this url, if we do
+::
+::    this blocks the obvious server-side request forgery shapes: an ip
+::    literal in private space, and a hostname in a local-only tld. it
+::    cannot stop a public hostname that *resolves* to a private address,
+::    because resolution happens in the runtime and we never see the
+::    result. treat this as raising the floor, not as a boundary.
+::
+++  unsafe-target
+  |=  url=@t
+  ^-  (unit @t)
+  ?~  pur=(de-purl:html url)
+    `'target not parseable'
+  =/  hos  r.p.u.pur
+  ?-  -.hos
+      %|
+    ?.  (private-ip p.hos)  ~
+    `'target resolves to a private address'
+  ::
+      %&
+    ?~  dom=p.hos  `'target has no host'
+    ::  a $turf is stored tld-first, so the head is the tld
+    ::
+    ?.  ?|  =('localhost' i.dom)
+            =('internal' i.dom)
+            =('local' i.dom)
+        ==
+      ~
+    `'target is a local-only host'
+  ==
 ::
 ++  give-response
   |=  [ids=(set @ta) response]
@@ -110,6 +226,8 @@
       ==
   ==
 ::
+::  +fetch: issue a %meta request
+::
 ++  fetch
   |=  [met=?(%head %get) url=@t hes=header-list:http]
   ^-  card
@@ -117,7 +235,34 @@
   =/  =request:http
     [?-(met %head %'HEAD', %get %'GET') url hes ~]
   ::TODO  would we be fine with iris handling redirects for us?
-  [%pass /fetch/(scot %t url)/(crip ~(rend co %blob hes))/[met] %arvo %i %request request redirects=0 retries=3]
+  [%pass /meta/(scot %t url)/(crip ~(rend co %blob hes))/[met] %arvo %i %request request redirects=0 retries=3]
+::
+::  +relay: issue a %raw request, forwarding the caller's own request
+::
+++  relay
+  |=  [for=@ta secure=? url=@t =request:http]
+  ^-  card
+  =.  url.request  url
+  =.  header-list.request
+    ::  drop cookies from the original request, don't want to leak these,
+    ::  and drop the caller's host header -- it names *us*, not the target.
+    ::
+    %+  skip  header-list.request
+    |=  [key=@t @t]
+    =/  key  (crip (cass (trip key)))
+    |(=('cookie' key) =('host' key))
+  =.  header-list.request  (strip-hops header-list.request)
+  =.  header-list.request
+    =-  (set-header:http 'forwarded' - header-list.request)
+    ::NOTE  we intentionally don't include the originating ip address
+    %+  rap  3
+    :~  'for="tm-fetch";'
+        'proto='  ?:(secure 'https' 'http')
+    ==
+  ::NOTE  outbound-config is actually meaningless,
+  ::      iris doesn't do anything with it at present, so we cannot set a
+  ::      timeout here even though we would like to.
+  [%pass /raw/[for]/(scot %t url) %arvo %i %request request *outbound-config:iris]
 ::
 ++  extract-data
   |=  $:  url=@t
@@ -250,7 +395,7 @@
   ::
   ++  deez
     ^-  (list [@t json])
-    :-  %flow^s+'link preview'
+    :-  %flow^s+'web fetch'
     =;  l=(list (unit [@t json]))
       (murn l same)
     :~  ?~(url ~ `[%url s+u.url])
@@ -263,7 +408,7 @@
   --
 --
 ::
-=|  state-2
+=|  state-0
 =*  state  -
 ::
 =+  log=l
@@ -281,22 +426,25 @@
 ++  on-init
   ^-  (quip card _this)
   :_  this
-  [%pass /eyre/bind %arvo %e %connect [~ /apps/groups/~/metagrab] dap.bowl]~
+  ::  the two legacy bindings keep %metagrab's and %dumb-proxy's endpoints
+  ::  working for clients that have not moved to /fetch yet.
+  ::
+  :~  [%pass /eyre/bind/fetch %arvo %e %connect [~ /apps/groups/~/fetch] dap.bowl]
+      [%pass /eyre/bind/metagrab %arvo %e %connect [~ /apps/groups/~/metagrab] dap.bowl]
+      [%pass /eyre/bind/proxy %arvo %e %connect [~ /apps/groups/~/proxy] dap.bowl]
+  ==
 ::
 ++  on-load
   |=  ole=vase
-  |^  ^-  (quip card _this)
-      =+  old=!<(state-any ole)
-      =?  old  ?=(%0 -.old)  *state-1
-      =?  old  ?=(%1 -.old)
-        [%2 cache await ~]:old
-      ?>  ?=(%2 -.old)
-      =.  state  old
-      =.  cache  ~
-      =.  trail  ~
-      [~ this]
-  +$  state-any  $%([%0 *] state-1 state-2)
-  --
+  ^-  (quip card _this)
+  =+  old=!<(state-0 ole)
+  =.  state  old
+  ::  the cache is disposable; drop it rather than reason about staleness
+  ::  across an upgrade.
+  ::
+  =.  cache  ~
+  =.  trail  ~
+  [~ this]
 ::  +on-poke
 ::
 ::      redirection loop detection
@@ -322,9 +470,9 @@
 ::               loop, we detect it and return an error.
 ::    [trail 4]: when we exceed maximum number of redirections, we
 ::               we detect it and return an error.
-::    [trail 5]: if a redirection loop occured the last cached url 
+::    [trail 5]: if a redirection loop occured the last cached url
 ::               is removed.
-::    [trail 6]: if a redirection limit is exceeded the last cached url 
+::    [trail 6]: if a redirection limit is exceeded the last cached url
 ::               is removed.
 ::
 ::    a loop can occur in three distinct ways:
@@ -341,14 +489,14 @@
 ::    +on-arvo, while c resolved back to a. by trail (3) we detect this case
 ::    and return an error. this rules out (2).
 ::
-::    now suppose there is a loop in the cache b ->..-> b. how 
+::    now suppose there is a loop in the cache b ->..-> b. how
 ::    could we arrive at this state? if we had followed in a single
 ::    trail, this would be detected and removed from cache. this means a
 ::    loop must have been constructed from two separate trails. first we
 ::    had b -> ... -> a in the cache, then a separate trail inserted
 ::    a -> ... -> b without following through the already cached path, thus
 ::    evading detection. this would only be possible if the second trail
-::    exceeded maximum number of requests while resolving b. however, 
+::    exceeded maximum number of requests while resolving b. however,
 ::    we protect against this by removing the last cached request when
 ::    the limit is exceeded.
 ::
@@ -360,81 +508,94 @@
       %noun
     =+  url=!<(@t vase)
     ?>  ?=(^ (de-purl:html url))
+    ?^  why=(unsafe-target url)  ~|([%unsafe-target u.why] !!)
     [[(fetch %head url ['user-agent' user-agent]~) ~] this]
   ::
       %handle-http-request
     =+  !<(order:hutils vase)
     =+  (purse:hutils url.request)
-    ?.  ?=([%apps %groups %~.~ %metagrab *] site)
+    ?.  ?=([%apps %groups %~.~ *] site)
       :_  this
       %^  spout:hutils  id
         [404 ~]
       `(as-octs:mimes:html (cat 3 'bad route into ' dap.bowl))
-    =/  site  t.t.t.t.site  ::  tmi
-    ?+  site
-      [(spout:hutils id [404 ~] `(as-octs:mimes:html 'bad path')) this]
+    =/  site  t.t.t.site  ::  tmi
+    ::  resolve the endpoint into a $mode and the raw target string.
+    ::  /metagrab and /proxy are the pre-%fetch endpoints, kept alive
+    ::  until no client uses them.
     ::
-        [@ ~]
-      =|  msg=@t
-      =*  bad-req
-        %-  (tell:l %warn msg url.request ~)
-        [(spout:hutils id [400 ~] `(as-octs:mimes:html msg)) this]
-      ?~  target=(slaw %uw i.site)
-        =.  msg  'target not @uw'
-        bad-req
-      ?~  (de-purl:html u.target)
-        ::TODO  if parser fails, just dumb find <title> and extract
-        =.  msg  'target not parseable'
-        bad-req
-      ::TODO  special-case x.com/twitter.com links
-      ::TODO  deduplicate with +on-arvo somehow?
-      |-
-      ::  if we already started a fetch, simply await the result
-      ::
-      ?:  (~(has by await) u.target)
-        =.  await  (~(put ju await) u.target id)
-        [~ this]
-      ::  we aren't currently fetching it, but maybe we have a cache entry
-      ::
-      =/  entry  (~(get by cache) u.target)
-      ?:  ?|  ?=(~ entry)
-              (gth (sub now.bowl wen.u.entry) cache-time)
-          ==
-        ::  no valid cache entry for this target, start a new fetch
-        ::
-        =.  await  (~(put ju await) u.target id)
-        ::  [trail 1] every request to be resolved is a beginning of a
-        ::            new trail.
-        =.  trail  (~(put ju trail) u.target u.target)
-        =;  hes=(list (unit [@t @t]))
-          [[(fetch %head u.target (murn hes same)) ~] this]
-        =*  hl  header-list.request
-        :~  ::  pass on the user-agent string from the original request,
-            ::  in an attempt to evade some over-aggresive bot protections
-            ::
-            %-  some
-            :-  'user-agent'
-            (fall (get-header:http 'user-agent' hl) user-agent)
-          ::
-            ::  include the original accept-language header in case the
-            ::  target supports translations
-            ::
-            =-  (bind - (lead 'accept-language'))
-            (get-header:http 'accept-language' hl)
+    =/  route=(unit [=mode raw=@ta])
+      ?+  site  ~
+        [%fetch %meta @ ~]  `[%meta i.t.t.site]
+        [%fetch %raw @ ~]   `[%raw i.t.t.site]
+        [%metagrab @ ~]     `[%meta i.t.site]
+        [%proxy @ ~]        `[%raw i.t.site]
+      ==
+    ?~  route
+      [(spout:hutils id [404 ~] `(as-octs:mimes:html 'bad path')) this]
+    =/  mod  mode.u.route
+    =|  msg=@t
+    =*  bad-req
+      %-  (tell:l %warn msg url.request ~)
+      [(spout:hutils id [400 ~] `(as-octs:mimes:html msg)) this]
+    ?~  target=(slaw %uw raw.u.route)
+      =.  msg  'target not @uw'
+      bad-req
+    ::  refuse targets we should not be reaching at all, in either mode
+    ::
+    ?^  why=(unsafe-target u.target)
+      =.  msg  u.why
+      bad-req
+    ?:  ?=(%raw mod)
+      [[(relay id secure u.target request)]~ this]
+    ::TODO  special-case x.com/twitter.com links
+    ::TODO  deduplicate with +on-arvo somehow?
+    |-
+    ::  if we already started a fetch, simply await the result
+    ::
+    ?:  (~(has by await) [%meta u.target])
+      =.  await  (~(put ju await) [%meta u.target] id)
+      [~ this]
+    ::  we aren't currently fetching it, but maybe we have a cache entry
+    ::
+    =/  entry  (~(get by cache) [%meta u.target])
+    ?:  ?|  ?=(~ entry)
+            (gth (sub now.bowl wen.u.entry) cache-time)
         ==
-      ::  we have a valid cache entry.
-      ::  if it's a redirect where we know the next target,
-      ::  and can make a request to that,
-      ::  retry with that url as the target.
+      ::  no valid cache entry for this target, start a new fetch
       ::
-      ?:  ?&  ?=([%300 ~ @] wat.u.entry)
-              ?=(^ (de-purl:html u.nex.wat.u.entry))
-          ==
-        $(u.target u.nex.wat.u.entry)
-      ::  otherwise, simply serve the response from cache
-      ::
-      [(give-response [id ~ ~] u.entry) this]
-    ==
+      =.  await  (~(put ju await) [%meta u.target] id)
+      ::  [trail 1] every request to be resolved is a beginning of a
+      ::            new trail.
+      =.  trail  (~(put ju trail) u.target u.target)
+      =;  hes=(list (unit [@t @t]))
+        [[(fetch %head u.target (murn hes same)) ~] this]
+      =*  hl  header-list.request
+      :~  ::  pass on the user-agent string from the original request,
+          ::  in an attempt to evade some over-aggresive bot protections
+          ::
+          %-  some
+          :-  'user-agent'
+          (fall (get-header:http 'user-agent' hl) user-agent)
+        ::
+          ::  include the original accept-language header in case the
+          ::  target supports translations
+          ::
+          =-  (bind - (lead 'accept-language'))
+          (get-header:http 'accept-language' hl)
+      ==
+    ::  we have a valid cache entry.
+    ::  if it's a redirect where we know the next target,
+    ::  and can make a request to that,
+    ::  retry with that url as the target.
+    ::
+    ?:  ?&  ?=([%300 ~ @] wat.u.entry)
+            ?=(^ (de-purl:html u.nex.wat.u.entry))
+        ==
+      $(u.target u.nex.wat.u.entry)
+    ::  otherwise, simply serve the response from cache
+    ::
+    [(give-response [id ~ ~] u.entry) this]
   ==
 ::
 ++  on-arvo
@@ -443,14 +604,60 @@
   ^-  (quip card _this)
   ~|  [%on-arvo wire=wire sign=+<.sign]
   ?+  wire  ~|(%strange-sign-arvo !!)
-      [%eyre %bind ~]
+      [%eyre %bind @ ~]
     ?>  ?=(%bound +<.sign)
     ?:  accepted.sign  [~ this]
-    %-  (tell:l %error 'failed to eyre-bind' ~)
+    %-  (tell:l %error 'failed to eyre-bind' i.t.t.wire ~)
     %-  (slog dap.bowl 'failed to eyre-bind' ~)
     [~ this]
   ::
-      [%fetch @ @ ?(%head %get) ~]
+  ::  %raw: relay the upstream response straight back to the caller
+  ::
+      [%raw @ @ ~]
+    =/  eid=@ta  i.t.wire
+    =/  url=@t   (slav %t i.t.t.wire)
+    =.  url.log  `url
+    ?>  ?=([%iris %http-response *] sign)
+    =*  res  client-response.sign
+    ::  %progress responses are unexpected, the runtime doesn't support them
+    ::  right now. if they occur, just treat them as cancels.
+    ::
+    %-  ?.  ?=(%progress -.res)  same
+        (tell:l %warn 'strange iris %progress response' ~)
+    =?  res  ?=(%progress -.res)
+      ~&  [dap.bowl %strange-iris-progress-response]
+      [%cancel ~]
+    ::  we might get a %cancel if the runtime was restarted during our
+    ::  request.
+    ::
+    ?:  ?=(%cancel -.res)
+      :_  this
+      %+  spout:hutils  eid
+      :-  [502 'x-tlon-fetch'^'cancelled' ~]
+      ~
+    ::
+    ?>  ?=(%finished -.res)
+    ::  refuse to relay a body larger than we are willing to buffer
+    ::
+    ?:  ?&  ?=(^ full-file.res)
+            (gth p.data.u.full-file.res max-relay)
+        ==
+      %-  (tell:l %warn 'oversized raw response' url ~)
+      :_  this
+      %+  spout:hutils  eid
+      :-  [502 'x-tlon-fetch'^'too-large' ~]
+      ~
+    :_  this
+    %+  spout:hutils  eid
+    :-  =,  response-header.res
+        :-  status-code
+        (snoc (strip-hops headers) 'x-tlon-fetch'^'finished')
+    ?~  full-file.res  ~
+    `data.u.full-file.res
+  ::
+  ::  %meta: resolve redirects ourselves, then parse
+  ::
+      [%meta @ @ ?(%head %get) ~]
     =/  url=@t   (slav %t i.t.wire)
     =.  url.log  `url
     =/  hes=header-list:http
@@ -473,7 +680,7 @@
     ::
     =*  finalize
       %=  this
-        await  (~(del by await) url)
+        await  (~(del by await) [%meta url])
         trail  (~(del by trail) orig-url)
       ==
     ::  %progress responses are unexpected, the runtime doesn't support them
@@ -490,7 +697,7 @@
     ::  (inbound requests _should_ have gotten closed during restart, anyway.)
     ::
     ?:  ?=(%cancel -.res)
-      :-  (give-response (~(get ju await) url) now.bowl %bad 'cancelled')
+      :-  (give-response (~(get ju await) [%meta url]) now.bowl %bad 'cancelled')
       finalize
     ::
     ?>  ?=(%finished -.res)
@@ -514,8 +721,8 @@
         (extract-data url [response-header full-file]:res)
       %-  ?.  report  same
           (tell:l %warn 'failed to parse' url ~)
-      =.  cache  (~(put by cache) url now.bowl result)
-      :-  (give-response (~(get ju await) url) now.bowl result)
+      =.  cache  (~(put by cache) [%meta url] now.bowl result)
+      :-  (give-response (~(get ju await) [%meta url]) now.bowl result)
       finalize
     ::  handle redirects specially
     ::
@@ -524,13 +731,19 @@
     ::  the location value could be relative, make sure to resolve it first
     ::
     =?  nex    ?=(^ nex)  `(expand-url:mg url u.nex)
-    =.  cache  (~(put by cache) url now.bowl %300 nex)
+    =.  cache  (~(put by cache) [%meta url] now.bowl %300 nex)
     ?~  nex
-      :-  (give-response (~(get ju await) url) now.bowl %300 ~)
+      :-  (give-response (~(get ju await) [%meta url]) now.bowl %300 ~)
       finalize
     ?~  (de-purl:html u.nex)
       %-  (tell:l %warn 'unparsable redirect' u.nex ~)
-      :-  (give-response (~(get ju await) url) now.bowl %300 nex)
+      :-  (give-response (~(get ju await) [%meta url]) now.bowl %300 nex)
+      finalize
+    ::  a redirect must not be a way around the address guard
+    ::
+    ?^  why=(unsafe-target u.nex)
+      %-  (tell:l %warn 'unsafe redirect' u.nex ~)
+      :-  (give-response (~(get ju await) [%meta url]) now.bowl %500 `u.why)
       finalize
     ::TODO  deduplicate with %handle-http-request somehow?
     ::
@@ -543,26 +756,26 @@
       ::             loop, we detect it and return an error.
       ::
       %-  (tell:l %warn 'redirection loop' orig-url u.nex ~)
-      :-  (give-response (~(get ju await) url) now.bowl %500 `'redirection loop')
+      :-  (give-response (~(get ju await) [%meta url]) now.bowl %500 `'redirection loop')
       =.  this  finalize
-      this(cache (~(del by cache) url))
+      this(cache (~(del by cache) [%meta url]))
     ?:  (gth ~(wyt in (~(get ju trail) orig-url)) max-redir)
       %-  (tell:l %warn 'max redirections exceeded' orig-url u.nex ~)
-      :-  (give-response (~(get ju await) url) now.bowl %500 `'max redirections exceeded')
+      :-  (give-response (~(get ju await) [%meta url]) now.bowl %500 `'max redirections exceeded')
       =.  this  finalize
-      ::  important: protect against cache poisoning due to 
+      ::  important: protect against cache poisoning due to
       ::  two separate trails forming a loop.
       ::
-      this(cache (~(del by cache) url))
+      this(cache (~(del by cache) [%meta url]))
     ::  move awaiters over to the next target
     ::
     =.  await
       %-  ~(gas ju await)
-      (turn ~(tap in (~(get ju await) url)) (lead u.nex))
-    =?  await  !=(u.nex url)  (~(del by await) url)
+      (turn ~(tap in (~(get ju await) [%meta url])) (lead [%meta u.nex]))
+    =?  await  !=(u.nex url)  (~(del by await) [%meta url])
     ::  check the cache for the target
     ::
-    =/  entry  (~(get by cache) u.nex)
+    =/  entry  (~(get by cache) [%meta u.nex])
     ?:  ?|  ?=(~ entry)
             (gth (sub now.bowl wen.u.entry) cache-time)
         ==
@@ -585,9 +798,9 @@
       ==
     ::  otherwise, serve the response from cache
     ::
-    :-  (give-response (~(get ju await) u.nex) u.entry)
+    :-  (give-response (~(get ju await) [%meta u.nex]) u.entry)
     %=  this
-      await  (~(del by await) u.nex)
+      await  (~(del by await) [%meta u.nex])
       trail  (~(del by trail) orig-url)  ::  [trail 2]
     ==
   ==
