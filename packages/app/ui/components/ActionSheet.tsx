@@ -1,7 +1,6 @@
 import {
   ActionSheetContext,
   Icon,
-  IconButton,
   IconType,
   Pressable,
   Sheet,
@@ -21,7 +20,6 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
 } from 'react';
 import { Platform, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -45,6 +43,7 @@ import {
   BottomSheetWrapper,
 } from './BottomSheetWrapper';
 import { BottomSheetWrapperProps } from './BottomSheetWrapper.types';
+import { ExpoUISheet } from './ExpoUISheet';
 import { ListItem } from './ListItem';
 
 type Accent = 'positive' | 'negative' | 'neutral' | 'disabled';
@@ -122,6 +121,10 @@ type ActionSheetProps = {
   dialogContentProps?: ComponentProps<typeof Dialog.Content>;
   closeButton?: boolean;
   footerComponent?: React.FC<any>;
+  /** Render this sheet's content with Expo UI's native platform components. */
+  nativeExpoUI?: boolean;
+  /** Fires after the native Expo UI dismissal animation completes. */
+  onNativeDismissed?: () => void;
 };
 
 const useAdaptiveMode = (mode?: AdaptiveMode) => {
@@ -173,25 +176,27 @@ const ActionSheetComponent = ({
   dialogContentProps,
   closeButton,
   footerComponent,
-  unmountOnClose,
-  stackBehavior,
+  nativeExpoUI = false,
+  onNativeDismissed,
   onDidOpen,
+  unmountOnClose,
   ...props
 }: PropsWithChildren<
   ActionSheetProps &
     SheetProps &
     Pick<
       BottomSheetWrapperProps,
-      | 'enableContentPanningGesture'
-      | 'hasScrollableContent'
-      | 'keyboardBehavior'
-      | 'unmountOnClose'
-      | 'stackBehavior'
-      | 'onDidOpen'
+      'enableContentPanningGesture' | 'unmountOnClose' | 'onDidOpen'
     >
 >) => {
   const mode = useAdaptiveMode(forcedMode);
   const isInsideSheet = useContext(ActionSheetContext).isInsideSheet;
+  const nativePresentation =
+    Platform.OS !== 'web' &&
+    mode === 'sheet' &&
+    nativeExpoUI &&
+    !isInsideSheet &&
+    !footerComponent;
   const hasOpened = useRef(open);
   const { bottom } = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -206,8 +211,12 @@ const ActionSheetComponent = ({
   );
 
   const actionSheetContextValue = useMemo(
-    () => ({ isInsideSheet: true, mode }),
-    [mode]
+    () => ({
+      isInsideSheet: true,
+      mode,
+      nativePresentation,
+    }),
+    [mode, nativePresentation]
   );
 
   // listen for escape key to close the sheet
@@ -229,47 +238,6 @@ const ActionSheetComponent = ({
       };
     }
   }, [onOpenChange, open]);
-
-  // Detect if children contain scrollable content (must be before any early returns)
-  // Uses depth-limited recursion to find nested scrollable content
-  const detectedHasScrollableContent = useMemo(() => {
-    let hasScrollable = false;
-    const MAX_DEPTH = 3; // Limit recursion depth for performance
-
-    const checkChild = (child: ReactNode, depth: number): void => {
-      if (!child || depth > MAX_DEPTH) return;
-
-      if (typeof child === 'object' && 'type' in child) {
-        // Check if it's ActionSheet.ScrollableContent
-        if (child.type === ActionSheetScrollableContent) {
-          hasScrollable = true;
-          return;
-        }
-
-        const childProps = child.props as any;
-        // Check if it has renderScrollComponent prop (FlatList/FlashList pattern)
-        if (childProps?.renderScrollComponent) {
-          hasScrollable = true;
-          return;
-        }
-
-        // Recursively check children with depth limit
-        if (childProps?.children && !hasScrollable) {
-          Children.forEach(childProps.children, (c) =>
-            checkChild(c, depth + 1)
-          );
-        }
-      }
-    };
-
-    Children.forEach(children, (child) => checkChild(child, 0));
-    return hasScrollable;
-  }, [children]);
-
-  // Allow explicit prop to override auto-detection (useful for BottomSheetFlatList
-  // which isn't detected by the above logic)
-  const hasScrollableContent =
-    props.hasScrollableContent ?? detectedHasScrollableContent;
 
   if (!hasOpened.current && open) {
     hasOpened.current = true;
@@ -364,28 +332,38 @@ const ActionSheetComponent = ({
 
   // Use BottomSheetWrapper for native platforms, Sheet for web
   const useBottomSheet = Platform.OS !== 'web';
+  // `disableDrag` marks a sheet whose nested list scrolls. Compose cannot share
+  // vertical pans with that list, so on Android the list gets them outright.
+  const enableContentPanningGesture =
+    props.enableContentPanningGesture ??
+    (Platform.OS === 'android' && props.disableDrag !== undefined
+      ? false
+      : undefined);
 
-  const sheetContent = useBottomSheet ? (
+  const sheetContent = nativePresentation ? (
+    <ExpoUISheet
+      open={open}
+      onOpenChange={onOpenChange}
+      onDismiss={onNativeDismissed}
+    >
+      <ActionSheetContext.Provider value={actionSheetContextValue}>
+        {children}
+      </ActionSheetContext.Provider>
+    </ExpoUISheet>
+  ) : useBottomSheet ? (
     <BottomSheetWrapper
       open={open}
       onOpenChange={onOpenChange}
       onDidOpen={onDidOpen}
+      onDismiss={onNativeDismissed}
       dismissOnSnapToBottom={true}
-      transition="quick"
-      handleDisableScroll={true}
-      modal={props.modal}
       snapPoints={props.snapPoints}
       snapPointsMode={props.snapPointsMode as any}
       showHandle={true}
-      showOverlay={true}
       enablePanDownToClose={true}
-      enableContentPanningGesture={props.enableContentPanningGesture}
-      keyboardBehavior={props.keyboardBehavior}
+      enableContentPanningGesture={enableContentPanningGesture}
       footerComponent={footerComponent}
-      hasScrollableContent={hasScrollableContent}
       unmountOnClose={unmountOnClose}
-      stackBehavior={stackBehavior}
-      frameStyle={{}}
     >
       <ActionSheetContext.Provider value={actionSheetContextValue}>
         {forcedMode === 'popover' ? (

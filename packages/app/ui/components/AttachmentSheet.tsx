@@ -25,6 +25,7 @@ import {
 } from '../../utils/files';
 import { normalizeImagePickerAssetForUpload } from '../../utils/imagePickerAsset';
 import { useAttachmentContext } from '../contexts/attachment';
+import { useSheetDismissalAction } from '../hooks/useSheetDismissalAction';
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
 import { AudioRecorder, AudioRecorderSheet } from './AudioRecorder';
 import { ListItem } from './ListItem';
@@ -63,6 +64,11 @@ export default function AttachmentSheet({
     ImagePicker.useMediaLibraryPermissions();
   const [cameraPermissionStatus, requestCameraPermission] =
     ImagePicker.useCameraPermissions();
+  const { dismissThenRun, onDismissed, presentationKey } =
+    useSheetDismissalAction({
+      open: showAttachmentSheet,
+      onOpenChange,
+    });
 
   const {
     attachAssets,
@@ -134,11 +140,7 @@ export default function AttachmentSheet({
 
   const takePicture = useCallback(
     (cameraMediaTypes: ImagePicker.MediaType[] = pickerMediaTypes) => {
-      // Close the sheet immediately
-      onOpenChange(false);
-
-      // Then initiate the camera after a small delay to ensure sheet is closed
-      setTimeout(async () => {
+      dismissThenRun(async () => {
         try {
           if (cameraPermissionStatus?.granted === false) {
             const permissionResult = await requestCameraPermission();
@@ -184,13 +186,13 @@ export default function AttachmentSheet({
             clearAttachments();
           }
         }
-      }, 50); // Small delay to ensure the sheet closes first
+      });
     },
     [
       attachAssets,
       attachToContext,
       clearAttachments,
-      onOpenChange,
+      dismissThenRun,
       cameraPermissionStatus,
       pickerMediaTypes,
       requestCameraPermission,
@@ -258,10 +260,8 @@ export default function AttachmentSheet({
     },
   });
   const startRecordingVoiceMemo = useCallback(() => {
-    // Close the sheet immediately
-    onOpenChange(false);
-    audioRecorder.present();
-  }, [onOpenChange, audioRecorder]);
+    dismissThenRun(audioRecorder.present);
+  }, [dismissThenRun, audioRecorder]);
 
   const pickImage = useCallback(() => {
     const openImagePicker = async () => {
@@ -328,25 +328,15 @@ export default function AttachmentSheet({
       }
     };
 
-    // Close the sheet immediately
-    onOpenChange(false);
-
-    if (Platform.OS === 'web') {
-      // File picker must open in the same user gesture on web.
+    dismissThenRun(() => {
       void openImagePicker();
-      return;
-    }
-
-    // Native: wait for close animation to complete before opening picker.
-    setTimeout(() => {
-      void openImagePicker();
-    }, 50);
+    });
   }, [
     attachAssets,
     attachUploadIntents,
     attachToContext,
     clearAttachments,
-    onOpenChange,
+    dismissThenRun,
     mediaLibraryPermissionStatus,
     allowMultipleSelection,
     pickerMediaTypes,
@@ -355,18 +345,18 @@ export default function AttachmentSheet({
     removePlaceholderAttachment,
   ]);
 
-  const startFilePicker = useCallback(async () => {
-    onOpenChange(false);
-
-    const { uploadIntents, errorMessage } = await pickFile(
-      ['*/*'],
-      allowMultipleSelection
-    );
-    if (errorMessage) {
-      Alert.alert('Unable to attach', errorMessage);
-    }
-    await attachNormalizedUploadIntents(uploadIntents);
-  }, [allowMultipleSelection, attachNormalizedUploadIntents, onOpenChange]);
+  const startFilePicker = useCallback(() => {
+    dismissThenRun(async () => {
+      const { uploadIntents, errorMessage } = await pickFile(
+        ['*/*'],
+        allowMultipleSelection
+      );
+      if (errorMessage) {
+        Alert.alert('Unable to attach', errorMessage);
+      }
+      await attachNormalizedUploadIntents(uploadIntents);
+    });
+  }, [allowMultipleSelection, attachNormalizedUploadIntents, dismissThenRun]);
 
   const actionGroups: ActionGroup[] = useMemo(
     () =>
@@ -447,6 +437,8 @@ export default function AttachmentSheet({
       <ActionSheet
         open={showAttachmentSheet}
         onOpenChange={(open: boolean) => onOpenChange(open)}
+        onNativeDismissed={onDismissed}
+        key={presentationKey}
         modal
       >
         <ActionSheet.Header>
@@ -502,7 +494,6 @@ function useAudioRecorderController({
     mount: () => (
       <AudioRecorderSheet
         open={isSheetOpen}
-        disableDrag
         snapPointsMode="fit"
         audioRecorderProps={{
           startInRecordingMode: true,
