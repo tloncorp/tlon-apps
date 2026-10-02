@@ -82,7 +82,10 @@ import {
   reportTelemetryError,
 } from './src/telemetry.js';
 import { resolveTlonBinary } from './src/tlon-binary.js';
-import { runBrowserHandoffCommand, runTlonCommand } from './src/tlon-command-runner.js';
+import {
+  runBrowserHandoffCommand,
+  runTlonCommand,
+} from './src/tlon-command-runner.js';
 import {
   createTlonToolExecutor,
   isBrowserHandoffCommand,
