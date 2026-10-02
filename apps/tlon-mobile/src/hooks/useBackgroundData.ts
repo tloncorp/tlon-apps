@@ -1,4 +1,5 @@
 import * as api from '@tloncorp/api';
+import type { BackgroundCacheSpec } from '@tloncorp/app/lib/backgroundCache';
 import { reportChatListNativeCacheResult } from '@tloncorp/app/lib/chatListSettleTelemetry';
 import { reportPushNotifNativeCacheResult } from '@tloncorp/app/lib/pushNotifTapTelemetry';
 import { createDevLogger } from '@tloncorp/shared';
@@ -12,17 +13,16 @@ import * as utils from '@tloncorp/shared/utils';
 import { useCallback, useEffect } from 'react';
 import { Platform, TurboModuleRegistry } from 'react-native';
 
-export interface BackgroundCacheSpec {
-  setLastSyncTimestamp(timestamp: number): Promise<void>;
-  retrieveBackgroundData(): Promise<string | null>;
-}
-
 const BackgroundCache = TurboModuleRegistry.get(
   'BackgroundCache'
 ) as BackgroundCacheSpec | null;
 const ENABLED = Platform.OS === 'ios' && BackgroundCache;
 
 const logger = createDevLogger('cachedChanges', true);
+
+// App-open and foreground callbacks can overlap. Only one JS consumer should
+// persist/acknowledge a native generation at a time.
+let cachedChangesInFlight: Promise<void> | null = null;
 
 export function useCachedChanges() {
   // scaffold a listener to propagate changes to our synced at stamp
@@ -45,7 +45,7 @@ export function useCachedChanges() {
     }
   }, []);
 
-  const checkForCachedChanges = useCallback(async () => {
+  const applyCachedChanges = useCallback(async () => {
     if (!ENABLED) {
       reportChatListNativeCacheResult({
         present: false,
@@ -95,10 +95,13 @@ export function useCachedChanges() {
 
     let changes: db.ChangesResult | null = null;
     let begin, end;
+    let cacheId: string | null = null;
     let notificationReceivedAtMs: number | null = null;
     let notificationSyncCompleted: boolean | null = null;
     try {
       const deserialized = JSON.parse(cacheResult);
+      cacheId =
+        typeof deserialized.cacheId === 'string' ? deserialized.cacheId : null;
       changes = api.parseChanges(deserialized.changes);
       begin = Number(deserialized.beginTimestamp);
       end = Number(deserialized.endTimestamp);
@@ -134,7 +137,14 @@ export function useCachedChanges() {
     }
     const parsedAt = Date.now();
 
-    if (changes && begin && end) {
+    if (
+      changes &&
+      typeof begin === 'number' &&
+      typeof end === 'number' &&
+      Number.isFinite(begin) &&
+      Number.isFinite(end) &&
+      begin <= end
+    ) {
       try {
         logger.log(`Retrieved cached changes ${begin} - ${end}, syncing...`);
         const didInsert = await store.syncCachedChanges({
@@ -142,6 +152,21 @@ export function useCachedChanges() {
           begin,
           end,
         });
+        // A skipped batch is safe to remove only if the DB cursor already
+        // covers its end. A gap or a failed write must leave it retryable.
+        let acknowledged: boolean | null = null;
+        if (
+          cacheId &&
+          BackgroundCache.acknowledgeBackgroundData &&
+          (didInsert || ((await db.changesSyncedAt.getValue()) ?? 0) >= end)
+        ) {
+          try {
+            acknowledged =
+              await BackgroundCache.acknowledgeBackgroundData(cacheId);
+          } catch (error) {
+            logger.trackError('Failed to acknowledge cached changes', error);
+          }
+        }
         const channelUnreadCounts = Object.fromEntries(
           changes.unreads.channelUnreads.map((u) => [u.channelId, u.count ?? 0])
         );
@@ -192,6 +217,8 @@ export function useCachedChanges() {
         });
         logger.log(`Synced cache changes: ${Date.now() - execStart}ms`);
         logger.trackEvent('Synced cached changes', {
+          cacheId,
+          acknowledged,
           begin,
           end,
           numPosts: changes.posts.length,
@@ -223,6 +250,21 @@ export function useCachedChanges() {
         logger.trackError(`Failed to sync cached changes`, e);
       }
     } else {
+      // A deterministic parse/window failure won't improve by replaying the
+      // same batch. Drop only this generation; leave the DB cursor untouched
+      // so ordinary network sync can fetch its window again.
+      if (cacheId && BackgroundCache.acknowledgeBackgroundData) {
+        try {
+          const discarded =
+            await BackgroundCache.acknowledgeBackgroundData(cacheId);
+          logger.trackEvent('Discarded invalid cached changes', {
+            cacheId,
+            discarded,
+          });
+        } catch (error) {
+          logger.trackError('Failed to discard invalid cached changes', error);
+        }
+      }
       reportChatListNativeCacheResult({
         present: true,
         applied: false,
@@ -241,6 +283,15 @@ export function useCachedChanges() {
       });
     }
   }, []);
+
+  const checkForCachedChanges = useCallback(() => {
+    if (!cachedChangesInFlight) {
+      cachedChangesInFlight = applyCachedChanges().finally(() => {
+        cachedChangesInFlight = null;
+      });
+    }
+    return cachedChangesInFlight;
+  }, [applyCachedChanges]);
 
   return checkForCachedChanges;
 }

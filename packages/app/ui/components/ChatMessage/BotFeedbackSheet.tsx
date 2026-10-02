@@ -162,7 +162,6 @@ export function BotFeedbackSheet({
       title="Share feedback"
       modal
       closeButton
-      keyboardBehavior="interactive"
       dialogContentProps={{ width: 576, minWidth: 520, maxWidth: 576 }}
     >
       <ActionSheet.ScrollableContent

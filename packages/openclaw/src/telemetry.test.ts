@@ -80,6 +80,67 @@ describe('telemetry tool tracking', () => {
     });
   }
 
+  it('captures budget snapshots and deduplicatable transition events with their original time', () => {
+    const telemetry = createEnabledTelemetry()!;
+    const identity = {
+      accountId: 'default',
+      ownerShip: '~nec',
+      botShip: '~zod',
+    };
+    telemetry.captureCronBudgetSnapshot({
+      ...identity,
+      budgetState: 'available',
+      budgetPausedCronCount: 0,
+      episodeId: 'episode',
+      reason: 'gateway_start',
+    });
+    const change = {
+      ...identity,
+      eventId: 'change',
+      occurredAtMs: 1_000_000,
+      episodeId: 'episode',
+      jobId: 'news',
+      action: 'paused',
+      reason: 'credit_budget',
+      source: 'startup',
+    } as const;
+    telemetry.captureCronBudgetChanged(change);
+    telemetry.captureCronBudgetChanged(change);
+    telemetry.captureCronBudgetChanged({ ...change, accountId: 'other' });
+    const changes = postHogMocks.capture.mock.calls
+      .map(([event]) => event)
+      .filter((event) => event.event === 'TlonBot Cron Budget Changed');
+    expect(changes[0].uuid).toBe(changes[1].uuid);
+    expect(changes[0].uuid).not.toBe(changes[2].uuid);
+    expect(postHogMocks.capture).toHaveBeenCalledWith(
+      expect.objectContaining({
+        distinctId: '~nec',
+        event: 'TlonBot Cron Budget Snapshot',
+        properties: expect.objectContaining({
+          ...identity,
+          budgetPausedCronCount: 0,
+          budgetState: 'available',
+          ...VERSION_IDENTITY_MATCH,
+        }),
+      })
+    );
+    expect(postHogMocks.capture).toHaveBeenCalledWith(
+      expect.objectContaining({
+        distinctId: '~nec',
+        event: 'TlonBot Cron Budget Changed',
+        timestamp: new Date(1_000_000),
+        uuid: expect.stringMatching(
+          /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/
+        ),
+        properties: expect.objectContaining({
+          jobId: 'news',
+          action: 'paused',
+          episodeId: 'episode',
+        }),
+      })
+    );
+  });
+
   async function captureReply(params?: {
     sessionKey?: string;
     deliveredMessageCount?: number;
@@ -135,6 +196,7 @@ describe('telemetry tool tracking', () => {
       outcome: 'ok',
       nest: 'chat/~zod/general',
       groupFlag: '~zod/home-group',
+      provisionId: 'provision-1',
       purposeId: 'agent-research',
       topicCount: 2,
       timezone: 'America/New_York',
@@ -154,6 +216,7 @@ describe('telemetry tool tracking', () => {
       outcome: 'ok',
       nest: 'chat/~zod/general',
       groupFlag: '~zod/home-group',
+      provisionId: 'provision-1',
       purposeId: 'agent-research',
       topicCount: 2,
       timezone: 'America/New_York',
@@ -168,19 +231,59 @@ describe('telemetry tool tracking', () => {
     expect(postHogMocks.capture).toHaveBeenNthCalledWith(1, {
       distinctId: '~zod',
       event: 'TlonBot Onboarding Step',
+      uuid: expect.stringMatching(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+      ),
       properties: expect.objectContaining({
         step: 'app_tour_answered',
         answer: 'yes',
+        provisionId: 'provision-1',
       }),
     });
     expect(postHogMocks.capture).toHaveBeenNthCalledWith(2, {
       distinctId: '~zod',
       event: 'TlonBot Onboarding Step',
+      uuid: expect.any(String),
       properties: expect.objectContaining({
         step: 'onboarding_completed',
         completionPath: 'bot_tour_completed',
       }),
     });
+
+    await telemetry?.close();
+  });
+
+  it('uses stable distinct UUIDs for onboarding step retries', async () => {
+    const telemetry = createEnabledTelemetry();
+    const event = {
+      accountId: 'default',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      step: 'topics_submitted' as const,
+      outcome: 'ok' as const,
+      nest: 'chat/~zod/general',
+      groupFlag: '~zod/home-group',
+      provisionId: 'provision-1',
+      purposeId: 'agent-research',
+      topicCount: 2,
+      timezone: 'America/New_York',
+      cronJobId: null,
+      notebookNest: 'notes/~zod/updates',
+      answer: null,
+      completionPath: null,
+      elapsedMsSinceIntro: 12_000,
+      errorText: null,
+    };
+
+    telemetry?.captureOnboardingStep(event);
+    telemetry?.captureOnboardingStep(event);
+    telemetry?.captureOnboardingStep({ ...event, step: 'cron_created' });
+
+    const uuids = postHogMocks.capture.mock.calls.map(([capture]) =>
+      String(capture.uuid)
+    );
+    expect(uuids[0]).toBe(uuids[1]);
+    expect(uuids[2]).not.toBe(uuids[0]);
 
     await telemetry?.close();
   });

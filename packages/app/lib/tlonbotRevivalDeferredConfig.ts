@@ -3,11 +3,7 @@ import { desig } from '@tloncorp/api/lib/urbit';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Attachment } from '@tloncorp/shared/domain';
-import {
-  botHomeGroupHasDefaultTitle,
-  generateBotHomeGroupTitle,
-  withRetry,
-} from '@tloncorp/shared/logic';
+import { withRetry } from '@tloncorp/shared/logic';
 import {
   getSession,
   subscribeToSession,
@@ -71,30 +67,6 @@ function requireString(value: string | null | undefined, message: string) {
     throw new Error(message);
   }
   return value;
-}
-
-async function ensureBotHomeGroupTitleForNickname(nickname: string) {
-  const homeGroup = await db.getBotHomeGroup();
-  if (!homeGroup || !botHomeGroupHasDefaultTitle(homeGroup, nickname)) {
-    return;
-  }
-
-  const title = generateBotHomeGroupTitle({
-    id: api.getCurrentUserId(),
-    nickname,
-  });
-
-  if (homeGroup.title === title) {
-    return;
-  }
-
-  await updateGroupMeta(
-    {
-      ...homeGroup,
-      title,
-    },
-    { shouldThrow: true }
-  );
 }
 
 function hasActiveConnection() {
@@ -310,7 +282,6 @@ export async function recoverTlonbotRevivalDeferredConfig(
           const nickname = config.profileNickname!;
           await syncGroups();
           await updateCurrentUserProfile({ nickname }, { shouldThrow: true });
-          await ensureBotHomeGroupTitleForNickname(nickname);
         }
       );
     }

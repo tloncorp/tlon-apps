@@ -9,11 +9,49 @@ When adding a patch, document:
 - how to validate it
 - when it can be removed
 
+## expo-notifications@57.0.21
+
+Local patch:
+`patches/expo-notifications@57.0.21.patch`
+
+Why:
+On Android cold starts, expo-notifications queues the notification response
+until its native emitter is registered. Version 57.0.6 delivers that queued
+response but does not remove it. If the native module is recreated while the
+app process remains alive, the same notification tap is emitted again and the
+app routes back to the original channel. Killing the process clears the queue.
+
+What it does:
+Tracks whether a native listener handled each queued response and drains the
+queue after successful delivery, for both structured responses and responses
+reconstructed from launch-intent extras. The mobile package also lists
+`expo-notifications` in Android's `buildFromSource` configuration so this patch
+is compiled instead of the package's prebuilt AAR.
+
+Upstream:
+- `expo/expo#47615`
+- commit `6bbdfb1b7ac8029f83ebbe41a6cd4ced67684704`
+
+Validation:
+- Build and launch the Android `productionDebug` variant.
+- Open the app from a channel notification, background it, then reopen it from
+  the launcher without killing the process. It must stay on the current screen
+  instead of routing back to the notification's channel.
+
+Removal:
+Drop this patch when the pinned expo-notifications release includes
+`expo/expo#47615`, then remove `expo-notifications` from Android's
+`buildFromSource` list and refresh the Gradle dependency lock.
+
 ## @react-navigation/bottom-tabs@7.18.14 and react-native-screens@4.25.2
 
 Local patches:
 - `patches/@react-navigation__bottom-tabs@7.18.14.patch`
 - `patches/react-native-screens@4.25.2.patch`
+
+The react-native-screens patch carries three independent fixes.
+
+### 1. Full-color Android tab icons
 
 Why:
 Android native tabs tint every image icon with the navigation bar's active or
@@ -44,78 +82,135 @@ Removal:
 Remove both patches together once React Navigation and react-native-screens
 ship Android support for untinted native-tab image icons.
 
-## @gorhom/bottom-sheet@5.2.14
-
-Local patch:
-`patches/@gorhom__bottom-sheet@5.2.14.patch`
-
-This patch carries two independent fixes.
-
-### 1. First-open layout of flex:1 sheet content
+### 2. Android header children retained during screen removal
 
 Why:
-On the first open of a bottom sheet whose content is a `flex:1` ScrollView/View
-with content larger than the eventual viewport (a long scrollable list with a
-footer/submit button below it), the footer ends up positioned past the bottom
-of the visible sheet. The first frame of `contentMaskContainerAnimatedStyle`
-returns `{}` while the container height is still being measured, so the
-flex:1 child is laid out at intrinsic content size; once the real height
-arrives a frame later, Yoga keeps the stale flex-basis from the unconstrained
-pass and the child overflows.
-
-The patch returns `{ height: 0 }` on the initial frame so children never get
-a chance to lay out at intrinsic size, then snaps the height directly
-(without going through `withTiming`) on the first real layout pass to avoid
-animating the height up from 0. Subsequent transitions use the normal
-animated path.
-
-This is a workaround for an underlying Yoga bug that affects any flex tree
-with the same shape, not just gorhom — see facebook/yoga#1552. The proper RN
-fix (enabling Yoga's `WebFlexBasis` flag) requires building React Native
-from source, which we currently don't do; the writeup is in the closed
-draft PR linked below.
-
-Background and reproduction details: PR #5790 (closed, kept for reference).
-
-Validation:
-Open any sheet whose content is a `flex:1` `ScrollView` with content larger
-than the viewport plus a footer (e.g. CreateChatSheet). The footer should be
-visible at the bottom of the sheet on first open.
-
-Removal:
-Drop this hunk once we either move to building React Native from source
-(so we can flip the Yoga `WebFlexBasis` flag and fix the bug at the
-layout-engine level), or once `@gorhom/bottom-sheet` ships an equivalent
-workaround upstream.
-
-### 2. Modal dismiss() bricks the modal when already dismissed
-
-Why:
-`BottomSheetModal.dismiss()` called while the modal's status is `INITIAL`
-(never presented, or already fully dismissed and reset) falls through the
-already-closed early-exit, permanently sets the internal status to
-`DISMISSING`, and every later `present()` silently no-ops. Our
-`BottomSheetWrapper` calls `dismiss()` whenever `open` flips false — which
-is always the case right after a user-initiated close (backdrop tap / swipe
-down) has already dismissed the modal internally — so modal sheets (e.g. the
-personal invite sheet) could only be opened once per mount.
+During an Android screen removal transition, `startViewTransition` keeps a
+removed header child attached to its toolbar until the matching
+`endViewTransition` call. The existing cleanup walks the current child tree,
+so it misses children already removed from that tree. A concurrent header
+update can then try to add the retained child again and crash with `The
+specified child already has a parent` in `ScreenStackHeaderConfig.onUpdate`.
 
 What it does:
-Adds `MODAL_STATUS.INITIAL` to the already-closed early-exit in
-`handleDismiss` (`src/components/bottomSheetModal/BottomSheetModal.tsx`),
-making `dismiss()` idempotent.
+Records every parent-child transition pair when removal starts and finishes
+those pairs in reverse order, including children no longer present in the
+current view tree. Descendant transitions finish before the fragment root is
+detached. Header rebuilds are also skipped while the owning screen, or an
+ancestor screen, is being removed.
 
 Upstream:
-- issue: `gorhom/react-native-bottom-sheet#2669`
-- fix submitted: `gorhom/react-native-bottom-sheet#2711`
+- issue: [software-mansion/react-native-screens#3249](https://github.com/software-mansion/react-native-screens/issues/3249)
+- candidate fix: [software-mansion/react-native-screens#3777](https://github.com/software-mansion/react-native-screens/pull/3777)
+- Linear: `TLON-6547`
 
 Validation:
-- Home header → AddPerson opens the invite sheet; close it via the backdrop;
-  tap AddPerson again — the sheet must open again (repeat a few times).
+- Build and launch Android `productionDebug` on a physical device.
+- Start a removal transition for a screen with a custom header child, remove
+  that child from the toolbar, and finish the transition. The child's parent
+  must be null and adding it back to the toolbar must not throw.
+- The TLON-6547 device probe reproduced the exception before the patch and
+  passed after it on a Pixel 7a running Android 17.
 
 Removal:
-Drop this hunk once `gorhom/react-native-bottom-sheet#2711` (or an
-equivalent fix) ships in a release we use.
+Drop this hunk once the pinned react-native-screens release includes the
+transition cleanup and removal guard from #3777 or an equivalent upstream fix.
+
+### 3. Tab bar badges as a dot beneath the icon
+
+Why:
+The Bot and Activity tabs mark unread with a blank badge (`tabBarBadge: ' '`).
+Natively that is a large pill over the icon's top-end corner: UIKit's empty
+badge on iOS, a Material text badge on Android. The design is a small round
+dot beneath the icon, like the web nav bar's, without moving the icons.
+
+What it does:
+- Android: a blank badge becomes Material's text-less dot (`m3_badge_size`,
+  6dp), offset to sit centred 2dp beneath the icon. The offsets come from the
+  bar's `itemIconSize`, so the icon view is untouched.
+- iOS 26 and later: UIKit pads a badge's text by a fixed amount, so the badge
+  cannot shrink below about 8pt. A blank badge instead draws a U+25CF glyph
+  in the badge colour, at 8pt on a clear badge. That gives a 6pt dot, and a
+  `badgePositionAdjustment` centres it 2pt beneath the 24pt icon. The tab bar
+  draws every badge with the selected item's appearance, so the style goes on
+  every item. It applies only while every badge on the bar is blank: a bar
+  that also shows a text or number badge keeps UIKit's pills throughout.
+- iOS before 26 is unchanged, because its badge anchoring differs and it could
+  not be verified here.
+
+The iOS offset was measured on iOS 26.5, where a positive horizontal
+adjustment moves the badge towards the icon. It assumes the 24pt icons in
+`packages/app/navigation/assets`. In the bar's minimised state, UIKit anchors
+the badge to a shorter button, so the dot sits about 3pt lower there.
+
+Upstream:
+- react-native-screens 4.25.2 has no badge size, shape or position options
+  for native tabs.
+- Linear: `TLON-6649`
+
+Validation:
+- Rebuild iOS and Android so the native patch is compiled in.
+- Light both badges (an unread bot DM, unseen activity) and select a third
+  tab. Each dot should be blue, round, about 6pt/dp, and centred beneath its
+  icon. Select a badged tab: its dot keeps the same colour and position.
+- The icons must not move: compare the tab bar against a build without the
+  patch.
+- Give one tab a numeric badge. On iOS 26 every badge on the bar returns to
+  UIKit's pill.
+
+Removal:
+Drop these hunks if react-native-screens gains native badge styling that can
+draw a small dot beneath the icon, or if the tab bar stops using blank badges.
+
+## @expo/ui@57.0.21
+
+Local patch:
+`patches/@expo__ui@57.0.21.patch`
+
+Why:
+The shared mobile sheets present through Expo UI's `community/bottom-sheet`
+adapter. Stock Expo UI 57 has no close control on its iOS sheet, reports
+`onDismiss` on iOS in the same call as `onClose`, expands every single Android
+snap point to full height, ignores `enableContentPanningGesture`, and unmounts
+an Android sheet closed through its `index` prop without waiting for the hide
+animation.
+
+Only the close control is native code (`ios/BottomSheetView.swift`). The rest
+is JavaScript in `src/community/bottom-sheet`.
+
+What it does:
+- iOS: adds a `showCloseButton` prop that draws a native close control in the
+  sheet's top-trailing corner and hides the drag indicator. Dismissible generic
+  content reserves the control's header area inside its measured height so
+  inputs cannot sit beneath its hit target; non-dismissible sheets omit it.
+- iOS: `onClose` and `onChange(-1)` fire when the sheet starts closing, and
+  `onDismiss` fires from SwiftUI's own `onDismiss`, after the transition ends.
+  Follow-up presentations wait for `onDismiss`.
+- Android: sizes a single percentage or point snap to its requested total
+  height, including Material's drag-handle area.
+- Android: `enableContentPanningGesture={false}` disables sheet gestures so
+  nested content owns vertical pans. Back and scrim still dismiss.
+- Android: a close driven by `index` or `close()` awaits Compose's `hide()`
+  before unmounting, then fires `onDismiss`. A remount key rejects callbacks
+  from an earlier presentation.
+
+Validation:
+- Build the iOS preview app from source.
+- Open Chat Options and a generic sheet (for example the attachment sheet).
+  Confirm the close control aligns with the header, and that each sheet can be
+  dismissed and reopened repeatedly in light and dark mode.
+- From the attachment sheet, pick "Photo Library". The picker must appear after
+  the sheet has gone.
+- Build the Android preview app, open sheets with 60%, 70%, 80%, 85% and 90%
+  snap points, and confirm each opens at the requested height rather than full
+  screen. Close one with the back button and confirm it animates out.
+
+Removal:
+Drop the patch once Expo UI exposes sheet chrome configuration, a dismissal
+callback separate from `onClose`, single-snap Android sizing and
+`enableContentPanningGesture` upstream. Expo UI 57.0.21 already defers its iOS
+close callbacks to native dismissal, but fires them together, so the shared
+dismissal hook cannot tell "closing" from "dismissed" without this patch.
 
 ## @10play/tentap-editor@0.5.21
 
@@ -147,6 +242,108 @@ Removal:
 Remove this patch once we upgrade off the old `0.5.x` web bundle and confirm
 the replacement no longer vendors the legacy HTML link paste fallback or needs
 the local asset export stripping.
+
+## react-native-keyboard-controller@1.22.0
+
+Local patch:
+`patches/react-native-keyboard-controller@1.22.0.patch`
+
+Why:
+On iOS, upstream `KeyboardChatScrollView` applies the destination padding and
+scroll offset at the start of a keyboard transition, while the native keyboard
+is still moving. This can make the conversation jump ahead of the keyboard and
+composer during opening, dismissal, or an interrupted transition.
+
+On iOS, `KeyboardChatScrollView` implements composer growth through
+`extraContentPadding`, which updates the scroll view's `contentInset`. When
+`keyboardLiftBehavior="whenAtEnd"` decides not to move a user who is browsing
+older messages, upstream returns without re-emitting the current
+`contentOffset`. `ScrollViewWithBottomPadding` also omits `contentOffset` when
+its numeric target has not changed. UIKit can therefore adjust the offset while
+applying the inset by itself, producing a one-frame flash or jump when a
+multiline chat composer first grows.
+
+What it does:
+- Drives iOS chat padding and scroll movement from the native keyboard height
+  reported on each frame. It captures the current and destination values at
+  transition start, then applies incremental scroll deltas so composer-height
+  changes between frames are preserved. Interactive dismissal follows native
+  frames directly, including the user's scroll delta; interrupted, instant,
+  and duplicate end events do not replay stale offsets. Existing lift policies,
+  safe-area handling, and `freeze` behavior are preserved.
+- On iOS Fabric, re-publishes the currently observed offset when an
+  `extraContentPadding` change should not shift the content. The guard keeps
+  the workaround out of Android, web, and the legacy iOS architecture.
+- Emits that offset whenever bottom padding changes, even if its numeric value
+  is unchanged, so Reanimated sends the new `contentInset` and a
+  `contentOffset` that preserves position in the same animated-props commit.
+
+The composer-padding changes are mirrored in the TypeScript source and the
+published CommonJS and ES module builds. The keyboard frame-tracking change
+patches the iOS source hook used by the package's `react-native` entry point;
+Android retains its own hook implementation. The app still owns composer
+measurement and the `whenAtEnd` policy on both platforms.
+
+Upstream:
+- repo: `kirillzyusko/react-native-keyboard-controller`
+- related iOS gesture issue:
+  [#1563](https://github.com/kirillzyusko/react-native-keyboard-controller/issues/1563)
+  tracks sticky-view lag when interactive dismissal starts. It is related
+  timing context, not a report of this exact chat-list fix.
+- merged
+  [#1565](https://github.com/kirillzyusko/react-native-keyboard-controller/pull/1565)
+  avoids an extra programmatic scroll after interactive dismissal; it does not
+  add per-frame chat padding and offset updates.
+- related discussion:
+  [#1333](https://github.com/kirillzyusko/react-native-keyboard-controller/discussions/1333)
+  covers layout shifts involving `whenAtEnd` and `extraContentPadding`.
+- open
+  [#1605](https://github.com/kirillzyusko/react-native-keyboard-controller/pull/1605)
+  fixes lost scroll distance during animated padding changes. Closed
+  [#1609](https://github.com/kirillzyusko/react-native-keyboard-controller/pull/1609)
+  was superseded by merged
+  [#1629](https://github.com/kirillzyusko/react-native-keyboard-controller/pull/1629)
+  for Reanimated 4.6 compatibility. These address different failures from the
+  no-shift inset/offset commit above.
+- as of September 10, 2026, the latest release, `1.22.4`, still applies the
+  keyboard destination in `onStart`, leaves `onMove` empty, and retains the
+  no-shift and unchanged-offset behavior. No upstream issue or PR tracking this
+  exact local implementation has been identified; the links above are related
+  reports and fixes, not replacements for the patch.
+
+Validation:
+- Run `corepack pnpm install --frozen-lockfile` to confirm the patch applies
+  and its lockfile hash is current.
+- Run `pnpm --filter @tloncorp/app test ui/components/Channel/PostList/keyboardControllerIOS.test.ts`.
+  These regression tests exercise the installed patched iOS hook, including
+  native frame progress, interruptions, interactive dismissal, safe-area
+  offsets, composer changes between frames, and frozen transitions.
+- Rebuild the iOS app. Open, close, and interactively dismiss the keyboard at
+  the end of a conversation and while browsing history. The list should follow
+  the keyboard without an initial jump; cancel or reverse a dismissal to check
+  that the next transition starts from the current position.
+- With the keyboard open on iOS, grow and shrink the multiline
+  composer while browsing history; the same visible message should retain its
+  vertical position without flashing.
+- Repeat at the end of the conversation; the latest message should remain
+  anchored above the composer.
+- Exercise emoji keyboard changes, momentum scrolling, and leaving/reopening
+  the conversation to check for stale inset or offset state.
+- Rebuild Android and confirm composer growth and keyboard dismissal retain
+  the existing end-anchor behavior.
+
+Removal:
+Reassess each part independently when upgrading keyboard-controller:
+- Remove the iOS keyboard hook hunks once an upstream release keeps chat
+  padding and scroll movement synchronized with native keyboard frames and
+  passes the transition regression tests and device checks above.
+- Remove the composer-padding hunks once an upstream release commits
+  `contentInset` together with a preserving `contentOffset` for no-shift
+  `extraContentPadding` changes, including unchanged numeric offsets. Repeat
+  the mid-history and at-end composer checks without those hunks.
+
+Remove the whole patch only after both conditions hold. Closing a related
+upstream issue alone is not sufficient.
 
 ## react-native-reanimated@4.5.0
 
@@ -342,3 +539,159 @@ intentionally NOT included — on RN 0.85 the input's `__nativeTag` is populated
 so that change is unnecessary here and the lazy-host fix alone restores paste.
 Android image paste is a separate, still-open limitation (the context-menu path
 only reads `item.uri`) and is not patched here.
+
+## react-native-worklets@0.10.3
+
+Local patch:
+`patches/react-native-worklets@0.10.3.patch`
+
+Why:
+On Android, `WorkletsModule.invalidate()` tears down the C++ side
+(`invalidateCpp()` -> `~WorkletsModuleProxy` -> `animationFrameBatchinator_.reset()`)
+and deactivates `AndroidUIScheduler`, but never stops `mAnimationFrameQueue`.
+`invalidate()` runs on the React instance teardown thread while
+`AnimationFrameQueue.executeQueue()` dispatches on the Choreographer thread, so
+teardown can land in the middle of a frame batch. The rAF callback holds only a
+`weak_ptr` to the batchinator, so a `lock()` that succeeded just before teardown
+leaves the UI thread holding the *last* reference: it then runs
+`~AnimationFrameBatchinator` on the Choreographer thread, which releases
+`uiWorkletRuntime_` and any queued `jsi::Function` handles against a
+`jsi::Runtime` teardown has already dropped.
+
+Crashlytics `c8b636be37db34910d3babebc7230864` (29 events / 9 users over 90
+days, all on 9.4.2 and 9.4.3):
+
+```
+SIGSEGV 0x0  (null pointer dereference)
+  1  libworklets.so  worklets::AnimationFrameBatchinator::~AnimationFrameBatchinator() + 220
+  3  libworklets.so  worklets::AnimationFrameCallback::onAnimationFrame(double)
+  6  base.odex       com.swmansion.worklets.runloop.AnimationFrameQueue.executeQueue + 452
+  7  base.odex       AnimationFrameQueue$mChoreographerCallback$1.doFrameGuarded + 76
+```
+
+Upstream hit the same race as a JNI abort (`obj == null in call to
+CallLongMethodV from AnimationFrameCallback.onAnimationFrame`) rather than a
+SIGSEGV, but it is the same window. The sibling path already had this
+synchronization — see the comment in `AndroidUIScheduler.kt` about the cpp part
+being torn down while the UI thread is still executing it.
+
+The race is not new — `AnimationFrameBatchinator` is unchanged since 0.8.3 and
+that version's `invalidate()` has the same gap — but volume only appeared with
+9.4.2, which is the Expo 56 -> 57 upgrade (RN 0.85.3 -> 0.86.0, Reanimated
+4.3.1 -> 4.5.0, worklets 0.8.3 -> 0.10.3). The new stack appears to widen the
+window rather than open it.
+
+iOS is unaffected: `apple/worklets/apple/WorkletsModule.mm` already invalidates
+`animationFrameQueue_` before resetting `workletsModuleProxy_`. Android was the
+outlier.
+
+What it does:
+Carries upstream commit `b3157cd97` verbatim (minus its CHANGELOG entry):
+- `AnimationFrameQueue` gets a terminal `invalidate()` that sets an
+  `mInvalidated` flag, removes the posted frame callback, and clears queued
+  callbacks. `requestAnimationFrame()` and `scheduleQueueExecution()` refuse to
+  enqueue or post afterwards.
+- `executeQueue()` dispatches under a new `mDispatchLock` that `invalidate()`
+  also takes, so `invalidate()` blocks on an in-flight batch that
+  `pullCallbacks()` has already copied out, and no batch can start after
+  invalidation.
+- `WorkletsModule.invalidate()` calls `mAnimationFrameQueue.invalidate()`
+  *before* `invalidateCpp()`, in both the `networking` and `no-networking`
+  source sets (`android/build.gradle.kts` compiles one or the other depending
+  on `FETCH_PREVIEW_ENABLED`).
+
+`invalidate()` deliberately does not reuse `pause()`: `pause()` calls into
+`ReactChoreographer` while holding the `mPaused` monitor, and
+`ReactChoreographer` holds its own monitor across the whole frame dispatch,
+which would invert lock order against the UI thread.
+
+The patched `AnimationFrameQueue.kt` is byte-identical to upstream's. Not
+carried: the unrelated `initialize()`/`addLifecycleEventListener` registration
+upstream added separately (0.10.3 implements `LifecycleEventListener` but never
+registers, so `onHostPause`/`onHostResume` are dead code and the queue never
+pauses when backgrounded). That widens the window but does not create the race,
+and adding it changes runtime behavior beyond this crash fix.
+
+No `buildFromSource` entry is needed: `react-native-worklets` ships no prebuilt
+AAR, so RN autolinking compiles `node_modules` sources directly.
+
+Upstream:
+- repo: `software-mansion/react-native-reanimated`
+- fix: [#10278](https://github.com/software-mansion/react-native-reanimated/pull/10278),
+  merged 2026-08-14 as `b3157cd97`
+- related: #7659, #9449, #9450
+- as of September 4, 2026 the fix is in **no published release**. It is absent
+  from 0.10.4, 0.11.0-0.11.4, 0.12.0 and 0.12.1 (0.12.1 was cut before the
+  merge) and present only from `0.13.0-nightly-20260814`.
+  `AnimationFrameBatchinator.cpp` and `WorkletsModuleProxy.cpp` are otherwise
+  unchanged 0.10.3 -> 0.12.1, so bumping to a stable release does not help.
+- a bump is also blocked by Reanimated's peer pin: `react-native-reanimated@4.5.0`
+  requires `react-native-worklets: 0.10.x`, and `4.6.0` requires `0.12.x`. The
+  release carrying the fix will be `0.13.x`, so picking it up means moving
+  Reanimated too, once a Reanimated release pins `0.13.x`.
+- Linear: `TLON-6469`
+
+Validation:
+- `corepack pnpm install --frozen-lockfile` applies the patch and its lockfile
+  hash is current.
+- Rebuild the Android app so the Kotlin patch is compiled in.
+- Reproducing needs a React instance recreated in place, not a cold start,
+  while worklet rAF callbacks are in flight: render a few always-animating
+  views (`withRepeat(withTiming(...), -1, true)` driving a `useAnimatedStyle`),
+  then reload the instance repeatedly (dev menu reload, or
+  `reactHost.reload()`). Unpatched builds abort within one or two reloads
+  upstream; a static screen does not reproduce it.
+- Watch Crashlytics issue `c8b636be37db34910d3babebc7230864` on the release
+  after this lands.
+
+Removal:
+Drop this patch once we pin a `react-native-worklets` release that includes
+[#10278](https://github.com/software-mansion/react-native-reanimated/pull/10278)
+(0.13.0 or later) together with the Reanimated release that pins it, and confirm
+the Crashlytics issue stays closed.
+
+## @tamagui/build@2.4.2
+
+Local patch:
+- `patches/@tamagui__build@2.4.2.patch`
+
+Why:
+`packages/ui` builds with `tamagui-build --skip-types`. TypeScript 7 (the native
+compiler) ships no `ts.sys`, but `tamagui-build.js` builds a module-level
+`formatHost` that reads `ts.sys.getCurrentDirectory` and `ts.sys.newLine` as the
+file loads. That throws `Cannot read properties of undefined (reading
+'getCurrentDirectory')` before `--skip-types` is even considered, so
+`pnpm build:packages` cannot get past `@tloncorp/ui`.
+
+What it does:
+Guards both reads with optional chaining and a fallback (`process.cwd()` and
+`'\n'`). `formatHost` is only consumed by `reportDiagnostics`, which
+`--skip-types` never reaches, so this restores the JS-only build without
+changing behavior when `ts.sys` is present.
+
+Upstream:
+- fix submitted: [tamagui/tamagui#4171](https://github.com/tamagui/tamagui/pull/4171)
+- still present in `@tamagui/build@2.7.7`, the latest release at time of writing
+
+Validation:
+- `pnpm build:packages` completes, emitting `packages/ui/dist`
+
+Removal:
+Remove once [tamagui/tamagui#4171](https://github.com/tamagui/tamagui/pull/4171)
+(or an equivalent guard) ships in a released `@tamagui/build`.
+
+## @tamagui/static@2.4.2: TypeScript compiler API dependency
+
+`pnpm-workspace.yaml` adds the extractor's missing runtime dependency on
+TypeScript through `packageExtensions` and scopes its override to TypeScript 5.9.
+The published package only lists TypeScript in `devDependencies`, even though
+its config loader and import resolver call `ts.sys`, `findConfigFile`, and
+`nodeModuleNameResolver` at runtime. Resolving the hoisted TypeScript 7 instead
+throws while loading the Tamagui config and silently disables static extraction
+in an otherwise successful web build.
+
+Project type checks and API declarations still use TypeScript 7. Remove this
+exception when the extractor declares a compatible runtime dependency or no
+longer needs the legacy compiler API. Validate with `pnpm build:web`: the config
+must load and extraction must finish without `fileExists` or `Must provide
+components` errors.

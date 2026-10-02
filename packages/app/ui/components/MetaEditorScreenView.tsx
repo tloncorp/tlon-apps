@@ -99,7 +99,7 @@ export function MetaEditorScreenView({
           </ScreenHeader.TextButton>
         }
       />
-      <KeyboardAvoidingView style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
         <ScrollView
           keyboardDismissMode="on-drag"
           contentContainerStyle={{

@@ -25,3 +25,45 @@ export function getNoteBodyPreview(
 ): string | null {
   return stripNoteMarkdown(bodyMd) || null;
 }
+
+/**
+ * One-line summary of what a notebook holds, for rows that have no post to
+ * preview (e.g. a notes channel in the group channel list). Folder counts
+ * are expected to exclude the notebook's root folder.
+ */
+export function formatNotesChannelSubtitle({
+  noteCount,
+  folderCount,
+}: {
+  noteCount: number;
+  folderCount: number;
+}): string {
+  const notes = noteCount === 0 ? 'No notes' : countOf(noteCount, 'note');
+  return folderCount === 0
+    ? notes
+    : `${notes} in ${countOf(folderCount, 'folder')}`;
+}
+
+function countOf(count: number, noun: string) {
+  return `${count} ${noun}${count === 1 ? '' : 's'}`;
+}
+
+/** Format the status line for notebook activity shown on a group row. */
+export function formatNotesActivityLabel({
+  noteTitle,
+  notebookTitle,
+  isNew,
+}: {
+  noteTitle: string | null | undefined;
+  notebookTitle: string | null | undefined;
+  isNew: boolean;
+}): string {
+  const title = noteTitle?.trim();
+  const notebook = notebookTitle?.trim();
+  const quotedTitle = title ? ` “${title}”` : '';
+  const location = notebook ? ` in ${notebook}` : '';
+
+  return isNew
+    ? `New note${quotedTitle}${location}`
+    : `Note${quotedTitle} edited${location}`;
+}

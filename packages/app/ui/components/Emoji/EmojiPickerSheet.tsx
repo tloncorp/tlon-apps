@@ -1,4 +1,3 @@
-import { BottomSheetFlashList } from '@gorhom/bottom-sheet';
 import { FlashList } from '@shopify/flash-list';
 import { createDevLogger } from '@tloncorp/shared';
 import {
@@ -106,7 +105,6 @@ export function EmojiPickerSheet(
       dismissOnOverlayPress
       transition="quick"
       modal
-      hasScrollableContent={Platform.OS !== 'web'}
       {...rest}
     >
       {Platform.OS === 'web' ? (
@@ -140,12 +138,13 @@ export function EmojiPickerSheet(
               width: estimatedListSize.width,
             }}
           >
-            <BottomSheetFlashList
+            <FlashList
               data={listData}
               keyExtractor={keyExtractor}
               numColumns={6}
               renderItem={renderItem}
               extraData={listData}
+              nestedScrollEnabled
             />
           </View>
         </ActionSheet.Content>

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { captureMandatoryEventWithClient } from './mandatoryTelemetry';
+import { ensureIdentified } from './sessionIdentity';
 
 function client() {
   return {
@@ -58,5 +59,56 @@ describe('captureMandatoryEventWithClient', () => {
     ]);
     expect(posthog.optIn).toHaveBeenCalledTimes(2);
     expect(posthog.optOut).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('ensureIdentified', () => {
+  function identityClient(distinctId: string | undefined) {
+    return {
+      identify: vi.fn(),
+      distinctId: vi.fn(() => distinctId),
+    };
+  }
+
+  it('identifies when the sdk id has drifted from the ship', () => {
+    const posthog = identityClient('01924f3a-anon');
+
+    expect(
+      ensureIdentified({
+        posthog,
+        userId: '~sampel-palnet',
+        isHosted: true,
+      })
+    ).toBe(true);
+
+    expect(posthog.identify).toHaveBeenCalledOnce();
+    expect(posthog.identify).toHaveBeenCalledWith('~sampel-palnet', {
+      isHostedUser: true,
+      userId: '~sampel-palnet',
+    });
+  });
+
+  it('is a no-op when the sdk already reports the ship', () => {
+    const posthog = identityClient('~sampel-palnet');
+
+    expect(
+      ensureIdentified({
+        posthog,
+        userId: '~sampel-palnet',
+        isHosted: true,
+      })
+    ).toBe(false);
+
+    expect(posthog.identify).not.toHaveBeenCalled();
+  });
+
+  it('does not identify without a ship', () => {
+    const posthog = identityClient('01924f3a-anon');
+
+    expect(ensureIdentified({ posthog, userId: '', isHosted: false })).toBe(
+      false
+    );
+
+    expect(posthog.identify).not.toHaveBeenCalled();
   });
 });

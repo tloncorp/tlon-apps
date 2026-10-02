@@ -1,0 +1,6 @@
+appId: ${MAESTRO_APP_ID}
+---
+# The saved post remains behind the editor. Target the editable body directly.
+- tapOn:
+    id: NotesBodyInput
+    point: '95%,50%'

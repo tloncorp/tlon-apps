@@ -1,5 +1,5 @@
 import { PropsWithChildren, forwardRef } from 'react';
-import { Input, ScrollView, Sheet } from 'tamagui';
+import { ScrollView, Sheet } from 'tamagui';
 
 import {
   BottomSheetScrollViewProps,
@@ -16,21 +16,10 @@ export const BottomSheetWrapper = forwardRef<
       open,
       onOpenChange,
       children,
-      transition = 'quick',
       dismissOnSnapToBottom = true,
-      handleDisableScroll,
       snapPointsMode = 'fit',
       snapPoints,
-      frameStyle,
-      modal = false,
       showHandle = true,
-      showOverlay = true,
-      overlayOpacity = 0.5,
-      // Platform-specific props ignored on web
-      enablePanDownToClose: _enablePanDownToClose,
-      keyboardBehavior: _keyboardBehavior,
-      android_keyboardInputMode: _android_keyboardInputMode,
-      stackBehavior: _stackBehavior,
     },
     ref
   ) => {
@@ -42,14 +31,10 @@ export const BottomSheetWrapper = forwardRef<
         dismissOnSnapToBottom={dismissOnSnapToBottom}
         snapPointsMode={snapPointsMode}
         snapPoints={snapPoints}
-        transition={transition}
-        handleDisableScroll={handleDisableScroll}
-        modal={modal}
+        transition="quick"
       >
-        {showOverlay && (
-          <Sheet.Overlay transition={transition} opacity={overlayOpacity} />
-        )}
-        <Sheet.Frame style={frameStyle} pressStyle={{}}>
+        <Sheet.Overlay transition="quick" opacity={0.5} />
+        <Sheet.Frame pressStyle={{}}>
           {showHandle && <Sheet.Handle />}
           {children}
         </Sheet.Frame>
@@ -71,6 +56,3 @@ export const BottomSheetScrollView = forwardRef<
 });
 
 BottomSheetScrollView.displayName = 'BottomSheetScrollView';
-
-// On web, we can use regular Input from Tamagui
-export const BottomSheetTextInput = Input;

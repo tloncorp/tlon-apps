@@ -23,6 +23,8 @@ export interface ScreenHeaderIconAction extends BaseAction {
   tint?: string;
   /** React-rendered header highlight behind the icon. */
   backgroundTint?: string;
+  /** Count or marker drawn on the icon; omit for none. */
+  badge?: number | string;
 }
 
 export interface ScreenHeaderTextAction extends BaseAction {
@@ -35,6 +37,7 @@ export interface ScreenHeaderTextAction extends BaseAction {
 export interface ScreenHeaderMenuActionItem {
   id: string;
   label: string;
+  destructive?: boolean;
   onPress: () => void;
 }
 
@@ -60,7 +63,6 @@ export interface UseNativeHeaderOptions {
   enabled: boolean;
   title: string;
   titleElement: ReactNode;
-  titlePresentationKey: string;
   usesCustomTitle: boolean;
   backgroundColor?: string;
   left: ScreenHeaderAction[];
@@ -134,7 +136,11 @@ export function getScreenHeaderActionPresentation(
         icon: action.icon,
         label: action.label,
         testID: action.testID,
-        items: action.items.map(({ id, label }) => ({ id, label })),
+        items: action.items.map(({ id, label, destructive }) => ({
+          id,
+          label,
+          destructive,
+        })),
       };
     }
 
@@ -155,6 +161,7 @@ export function getScreenHeaderActionPresentation(
       disabled: action.disabled,
       tint: resolveColor(action.tint),
       backgroundTint: resolveColor(action.backgroundTint),
+      badge: action.badge,
       testID: action.testID,
     };
   });

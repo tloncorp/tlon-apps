@@ -9,20 +9,14 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import {
-  DEFAULT_BOTTOM_PADDING,
-  HEADER_HEIGHT,
-  KEYBOARD_EXTRA_PADDING,
-  Text,
-} from '@tloncorp/ui';
-import { KeyboardAvoidingView, LoadingSpinner } from '@tloncorp/ui';
+import { DEFAULT_BOTTOM_PADDING, Text } from '@tloncorp/ui';
+import { LoadingSpinner } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
-import { Platform } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View, useTheme } from 'tamagui';
+import { View, useTheme } from 'tamagui';
 
-import { useKeyboardAwareScroll } from '../../hooks/useKeyboardAwareScroll';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import {
   ControlledTextField,
@@ -47,9 +41,6 @@ interface LinkInputProps {
 const TITLE_MAX_LENGTH = 240;
 const DESCRIPTION_MAX_LENGTH = 580;
 
-const LABEL_HEIGHT = 40;
-const SCROLL_OFFSET_PADDING = 20;
-
 const PostRenderer = createContentRenderer({
   blockSettings: {
     link: {
@@ -69,15 +60,6 @@ export function LinkInput({
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
-  const {
-    scrollViewRef,
-    keyboardHeight,
-    handleInputFocus,
-    registerInputLayout,
-    getInputPosition,
-  } = useKeyboardAwareScroll({
-    scrollOffset: LABEL_HEIGHT + SCROLL_OFFSET_PADDING,
-  });
   const initialValues = useMemo(() => {
     if (!editingPost) {
       return null;
@@ -298,121 +280,99 @@ export function LinkInput({
 
   return (
     <View flex={1} backgroundColor={theme.background.val}>
-      <KeyboardAvoidingView
-        // Account for status bar + header
-        keyboardVerticalOffset={
-          Platform.OS === 'ios' ? insets.top + HEADER_HEIGHT : 0
-        }
+      <KeyboardAwareScrollView
+        keyboardDismissMode="on-drag"
+        bottomOffset={24}
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          width: '100%',
+          maxWidth: 600,
+          marginHorizontal: 'auto',
+          paddingBottom: insets.bottom + DEFAULT_BOTTOM_PADDING,
+        }}
+        bounces={true}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={true}
       >
-        <ScrollView
-          ref={scrollViewRef}
-          keyboardDismissMode="on-drag"
-          flex={1}
-          contentContainerStyle={{
-            flexGrow: 1,
-            width: '100%',
-            maxWidth: 600,
-            marginHorizontal: 'auto',
-            paddingBottom:
-              keyboardHeight > 0
-                ? keyboardHeight + KEYBOARD_EXTRA_PADDING
-                : insets.bottom + DEFAULT_BOTTOM_PADDING,
-          }}
-          bounces={true}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={true}
-        >
-          <FormFrame paddingBottom="$4xl">
-            {block && <PostRenderer content={[block]} />}
-            {hasIssue && (
-              <View
-                padding="$l"
-                backgroundColor="$secondaryBackground"
-                borderRadius="$m"
-                marginBottom="$l"
-              >
-                <Text color="$secondaryText">Unable to fetch link preview</Text>
+        <FormFrame paddingBottom="$4xl">
+          {block && <PostRenderer content={[block]} />}
+          {hasIssue && (
+            <View
+              padding="$l"
+              backgroundColor="$secondaryBackground"
+              borderRadius="$m"
+              marginBottom="$l"
+            >
+              <Text color="$secondaryText">Unable to fetch link preview</Text>
+            </View>
+          )}
+          <View>
+            <ControlledTextField
+              name="url"
+              label="URL"
+              control={control}
+              inputProps={{
+                autoFocus: true,
+                placeholder: 'https://example.com',
+                autoCapitalize: 'none',
+                keyboardType: 'url',
+                testID: 'LinkUrlInput',
+                paddingRight: '$3xl',
+              }}
+              rules={{
+                required: 'URL is required',
+                validate: (url) => {
+                  return isValidUrl(url) || 'Please enter a valid URL';
+                },
+              }}
+            />
+            {isLoading && (
+              <View position="absolute" right="$xl" bottom={18}>
+                <LoadingSpinner size="small" />
               </View>
             )}
-            <View>
-              <ControlledTextField
-                name="url"
-                label="URL"
-                control={control}
-                inputProps={{
-                  autoFocus: true,
-                  placeholder: 'https://example.com',
-                  autoCapitalize: 'none',
-                  keyboardType: 'url',
-                  testID: 'LinkUrlInput',
-                  paddingRight: '$3xl',
-                }}
-                rules={{
-                  required: 'URL is required',
-                  validate: (url) => {
-                    return isValidUrl(url) || 'Please enter a valid URL';
-                  },
-                }}
-              />
-              {isLoading && (
-                <View position="absolute" right="$xl" bottom={18}>
-                  <LoadingSpinner size="small" />
-                </View>
-              )}
-            </View>
+          </View>
 
-            <View onLayout={registerInputLayout('title')}>
-              <ControlledTextField
-                name="title"
-                label="Title"
-                control={control}
-                inputProps={{
-                  placeholder: 'Link title',
-                  testID: 'LinkTitleInput',
-                  onFocus: () => {
-                    const position = getInputPosition('title');
-                    if (position !== undefined) {
-                      handleInputFocus(position);
-                    }
-                  },
-                }}
-                rules={{
-                  maxLength: {
-                    value: TITLE_MAX_LENGTH,
-                    message: `Title is limited to ${TITLE_MAX_LENGTH} characters`,
-                  },
-                }}
-              />
-            </View>
+          <View>
+            <ControlledTextField
+              name="title"
+              label="Title"
+              control={control}
+              inputProps={{
+                placeholder: 'Link title',
+                testID: 'LinkTitleInput',
+              }}
+              rules={{
+                maxLength: {
+                  value: TITLE_MAX_LENGTH,
+                  message: `Title is limited to ${TITLE_MAX_LENGTH} characters`,
+                },
+              }}
+            />
+          </View>
 
-            <View onLayout={registerInputLayout('description')}>
-              <ControlledTextareaField
-                name="description"
-                label="Description"
-                control={control}
-                inputProps={{
-                  placeholder: 'Describe this link...',
-                  numberOfLines: 3,
-                  multiline: true,
-                  testID: 'LinkDescriptionInput',
-                  onFocus: () => {
-                    const position = getInputPosition('description');
-                    if (position !== undefined) {
-                      handleInputFocus(position);
-                    }
-                  },
-                }}
-                rules={{
-                  maxLength: {
-                    value: DESCRIPTION_MAX_LENGTH,
-                    message: `Description is limited to ${DESCRIPTION_MAX_LENGTH} characters`,
-                  },
-                }}
-              />
-            </View>
-          </FormFrame>
-        </ScrollView>
-      </KeyboardAvoidingView>
+          <View>
+            <ControlledTextareaField
+              name="description"
+              label="Description"
+              control={control}
+              inputProps={{
+                placeholder: 'Describe this link...',
+                numberOfLines: 3,
+                multiline: true,
+                testID: 'LinkDescriptionInput',
+              }}
+              rules={{
+                maxLength: {
+                  value: DESCRIPTION_MAX_LENGTH,
+                  message: `Description is limited to ${DESCRIPTION_MAX_LENGTH} characters`,
+                },
+              }}
+            />
+          </View>
+        </FormFrame>
+      </KeyboardAwareScrollView>
     </View>
   );
 }

@@ -28,6 +28,8 @@ export function usePosthog() {
       distinctId: () => {
         return posthog?.get_distinct_id();
       },
+      // posthog-js initializes synchronously at import, so it is always ready.
+      ready: async () => {},
     };
   }, [posthog]);
 }

@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from 'bun:test';
+import { afterAll, describe, expect, it, spyOn } from 'bun:test';
 import http from 'node:http';
 import https from 'node:https';
 import type { AddressInfo } from 'node:net';
@@ -6,12 +6,19 @@ import zlib from 'node:zlib';
 
 import {
   FETCH_FAILED_ERROR,
+  FETCH_RATE_LIMITED_ERROR,
+  FETCH_UNAVAILABLE_ERROR,
+  MEDIA_FETCH_USER_AGENT,
+  THROTTLE_DEFAULT_WAIT_MS,
+  THROTTLE_MAX_WAIT_MS,
+  THROTTLE_MIN_WAIT_MS,
   type ResolvedAddress,
   classifyMediaUrl,
   fetchGuardedMedia,
   isAllowedAddress,
   isDeniedHostname,
   strictPostableUrl,
+  throttleWaitMs,
 } from './media-guard';
 
 // ---------------------------------------------------------------------------
@@ -340,6 +347,39 @@ function countingResolver(address = '127.0.0.1') {
   };
 }
 
+function fakeSleep() {
+  const calls: number[] = [];
+  return {
+    calls,
+    sleep: async (ms: number) => {
+      calls.push(ms);
+    },
+  };
+}
+
+/** A sleeper that stays pending until the test releases it. */
+function deferredSleep() {
+  const calls: number[] = [];
+  let release: () => void = () => {};
+  let enter: () => void = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const entered = new Promise<void>((resolve) => {
+    enter = resolve;
+  });
+  return {
+    calls,
+    entered,
+    release: () => release(),
+    sleep: (ms: number) => {
+      calls.push(ms);
+      enter();
+      return gate;
+    },
+  };
+}
+
 // Loopback is (correctly) refused by the real policy; the transport tests pin
 // to it, so the policy is injected — and still asserted, not bypassed.
 const allowLoopback = (address: string): boolean => address === '127.0.0.1';
@@ -474,6 +514,7 @@ describe('fetchGuardedMedia — pinned http transport', () => {
       res.writeHead(404);
       res.end('nope');
     });
+    const sleeper = fakeSleep();
 
     await expect(
       fetchGuardedMedia(`http://${PINNED_HOST}:${server.port}/missing.png`, {
@@ -481,8 +522,12 @@ describe('fetchGuardedMedia — pinned http transport', () => {
         deadlineMs: 5_000,
         resolveHost: countingResolver().resolveHost,
         allowAddress: allowLoopback,
+        sleep: sleeper.sleep,
       })
     ).rejects.toThrow(FETCH_FAILED_ERROR);
+
+    expect(server.requests).toHaveLength(1);
+    expect(sleeper.calls).toEqual([]);
   });
 
   it('caps the streamed body without trusting Content-Length', async () => {
@@ -580,6 +625,410 @@ describe('fetchGuardedMedia — pinned http transport', () => {
       await new Promise((resolve) => setTimeout(resolve, 25));
     }
     expect(originSocketClosed).toBe(true);
+  });
+});
+
+describe('fetchGuardedMedia — throttling', () => {
+  it('sends the descriptive User-Agent on every hop', async () => {
+    const seenUserAgents: Array<string | undefined> = [];
+    const server = await startServer((req, res) => {
+      seenUserAgents.push(req.headers['user-agent']);
+      if (req.url === '/start.png') {
+        res.writeHead(302, { location: '/final.png' });
+        res.end();
+        return;
+      }
+      res.writeHead(200, { 'content-type': 'image/png' });
+      res.end(PNG_BYTES);
+    });
+
+    const result = await fetchGuardedMedia(
+      `http://${PINNED_HOST}:${server.port}/start.png`,
+      {
+        maxBytes: 1024,
+        deadlineMs: 30_000,
+        resolveHost: countingResolver().resolveHost,
+        allowAddress: allowLoopback,
+      }
+    );
+
+    expect(Buffer.from(result.bytes).equals(PNG_BYTES)).toBe(true);
+    expect(seenUserAgents).toEqual([
+      MEDIA_FETCH_USER_AGENT,
+      MEDIA_FETCH_USER_AGENT,
+    ]);
+    expect(MEDIA_FETCH_USER_AGENT.startsWith('TlonBot/')).toBe(true);
+    expect(MEDIA_FETCH_USER_AGENT).toContain('support@tlon.io');
+  });
+
+  it('retries once after Retry-After seconds on 429, and only after the sleep resolves', async () => {
+    let hits = 0;
+    const server = await startServer((req, res) => {
+      hits += 1;
+      if (hits === 1) {
+        res.writeHead(429, { 'retry-after': '2' });
+        res.end();
+        return;
+      }
+      res.writeHead(200, { 'content-type': 'image/png' });
+      res.end(PNG_BYTES);
+    });
+    const resolver = countingResolver();
+    const sleeper = deferredSleep();
+    // Count attempts as the client creates them, not as the server sees them,
+    // so a retry fired without awaiting the sleep cannot hide behind latency.
+    const requestSpy = spyOn(http, 'request');
+
+    try {
+      const pending = fetchGuardedMedia(
+        `http://${PINNED_HOST}:${server.port}/image.png`,
+        {
+          maxBytes: 1024,
+          deadlineMs: 30_000,
+          resolveHost: resolver.resolveHost,
+          allowAddress: allowLoopback,
+          sleep: sleeper.sleep,
+        }
+      );
+      await sleeper.entered;
+      expect(sleeper.calls).toEqual([2000]);
+      expect(requestSpy).toHaveBeenCalledTimes(1);
+
+      sleeper.release();
+      const result = await pending;
+      expect(Buffer.from(result.bytes)).toEqual(PNG_BYTES);
+      expect(requestSpy).toHaveBeenCalledTimes(2);
+      expect(server.requests).toHaveLength(2);
+      expect(resolver.calls).toHaveLength(1);
+    } finally {
+      sleeper.release();
+      requestSpy.mockRestore();
+    }
+  });
+
+  it('uses the 5 s default wait when Retry-After is absent', async () => {
+    let hits = 0;
+    const server = await startServer((req, res) => {
+      hits += 1;
+      if (hits === 1) {
+        res.writeHead(429);
+        res.end();
+        return;
+      }
+      res.writeHead(200, { 'content-type': 'image/png' });
+      res.end(PNG_BYTES);
+    });
+    const sleeper = fakeSleep();
+
+    const result = await fetchGuardedMedia(
+      `http://${PINNED_HOST}:${server.port}/image.png`,
+      {
+        maxBytes: 1024,
+        deadlineMs: 30_000,
+        resolveHost: countingResolver().resolveHost,
+        allowAddress: allowLoopback,
+        sleep: sleeper.sleep,
+      }
+    );
+    expect(Buffer.from(result.bytes)).toEqual(PNG_BYTES);
+    expect(sleeper.calls).toEqual([5000]);
+    expect(server.requests).toHaveLength(2);
+  });
+
+  it('fails with the rate-limited error when 429 repeats', async () => {
+    const server = await startServer((req, res) => {
+      res.writeHead(429, { 'retry-after': '1' });
+      res.end();
+    });
+    const sleeper = fakeSleep();
+
+    await expect(
+      fetchGuardedMedia(`http://${PINNED_HOST}:${server.port}/image.png`, {
+        maxBytes: 1024,
+        deadlineMs: 30_000,
+        resolveHost: countingResolver().resolveHost,
+        allowAddress: allowLoopback,
+        sleep: sleeper.sleep,
+      })
+    ).rejects.toThrow(FETCH_RATE_LIMITED_ERROR);
+
+    expect(server.requests).toHaveLength(2);
+    expect(sleeper.calls).toHaveLength(1);
+  });
+
+  it('treats 503 like 429 with its own error', async () => {
+    const server = await startServer((req, res) => {
+      res.writeHead(503, { 'retry-after': '1' });
+      res.end();
+    });
+    const sleeper = fakeSleep();
+
+    await expect(
+      fetchGuardedMedia(`http://${PINNED_HOST}:${server.port}/image.png`, {
+        maxBytes: 1024,
+        deadlineMs: 30_000,
+        resolveHost: countingResolver().resolveHost,
+        allowAddress: allowLoopback,
+        sleep: sleeper.sleep,
+      })
+    ).rejects.toThrow(FETCH_UNAVAILABLE_ERROR);
+
+    expect(server.requests).toHaveLength(2);
+    expect(sleeper.calls).toHaveLength(1);
+  });
+
+  it('retry budget is shared across the redirect chain: 429 then redirect then 429', async () => {
+    let hits = 0;
+    const server = await startServer((req, res) => {
+      hits += 1;
+      if (hits === 1) {
+        res.writeHead(429, { 'retry-after': '1' });
+        res.end();
+        return;
+      }
+      if (hits === 2) {
+        res.writeHead(302, { location: '/final.png' });
+        res.end();
+        return;
+      }
+      res.writeHead(429);
+      res.end();
+    });
+    const sleeper = fakeSleep();
+
+    await expect(
+      fetchGuardedMedia(`http://${PINNED_HOST}:${server.port}/start`, {
+        maxBytes: 1024,
+        deadlineMs: 30_000,
+        resolveHost: countingResolver().resolveHost,
+        allowAddress: allowLoopback,
+        sleep: sleeper.sleep,
+      })
+    ).rejects.toThrow(FETCH_RATE_LIMITED_ERROR);
+
+    expect(server.requests).toHaveLength(3);
+    expect(sleeper.calls).toHaveLength(1);
+  });
+
+  it('throttled first hop then a clean redirect chain succeeds', async () => {
+    let hits = 0;
+    const server = await startServer((req, res) => {
+      hits += 1;
+      if (hits === 1) {
+        res.writeHead(429, { 'retry-after': '1' });
+        res.end();
+        return;
+      }
+      if (hits === 2) {
+        res.writeHead(302, { location: '/final.png' });
+        res.end();
+        return;
+      }
+      res.writeHead(200, { 'content-type': 'image/png' });
+      res.end(PNG_BYTES);
+    });
+    const sleeper = fakeSleep();
+
+    const result = await fetchGuardedMedia(
+      `http://${PINNED_HOST}:${server.port}/start`,
+      {
+        maxBytes: 1024,
+        deadlineMs: 30_000,
+        resolveHost: countingResolver().resolveHost,
+        allowAddress: allowLoopback,
+        sleep: sleeper.sleep,
+      }
+    );
+
+    expect(Buffer.from(result.bytes).equals(PNG_BYTES)).toBe(true);
+    expect(server.requests).toHaveLength(3);
+    expect(sleeper.calls).toHaveLength(1);
+  });
+
+  it('throttled final hop after a redirect retries once', async () => {
+    let finalHits = 0;
+    const server = await startServer((req, res) => {
+      if (req.url === '/start') {
+        res.writeHead(302, { location: '/final.png' });
+        res.end();
+        return;
+      }
+      finalHits += 1;
+      if (finalHits === 1) {
+        res.writeHead(429, { 'retry-after': '1' });
+        res.end();
+        return;
+      }
+      res.writeHead(200, { 'content-type': 'image/png' });
+      res.end(PNG_BYTES);
+    });
+    const sleeper = fakeSleep();
+
+    const result = await fetchGuardedMedia(
+      `http://${PINNED_HOST}:${server.port}/start`,
+      {
+        maxBytes: 1024,
+        deadlineMs: 30_000,
+        resolveHost: countingResolver().resolveHost,
+        allowAddress: allowLoopback,
+        sleep: sleeper.sleep,
+      }
+    );
+
+    expect(Buffer.from(result.bytes).equals(PNG_BYTES)).toBe(true);
+    expect(server.requests).toHaveLength(3);
+    expect(sleeper.calls).toHaveLength(1);
+  });
+
+  it('does not retry when the requested delay exceeds the cap', async () => {
+    const server = await startServer((req, res) => {
+      res.writeHead(429, { 'retry-after': '1000' });
+      res.end();
+    });
+    const sleeper = fakeSleep();
+
+    await expect(
+      fetchGuardedMedia(`http://${PINNED_HOST}:${server.port}/image.png`, {
+        maxBytes: 1024,
+        deadlineMs: 30_000,
+        resolveHost: countingResolver().resolveHost,
+        allowAddress: allowLoopback,
+        sleep: sleeper.sleep,
+      })
+    ).rejects.toThrow(FETCH_RATE_LIMITED_ERROR);
+
+    expect(server.requests).toHaveLength(1);
+    expect(sleeper.calls).toEqual([]);
+  });
+
+  it('does not retry when the wait would exceed the deadline', async () => {
+    const server = await startServer((req, res) => {
+      res.writeHead(429, { 'retry-after': '9' });
+      res.end();
+    });
+    const sleeper = fakeSleep();
+
+    await expect(
+      fetchGuardedMedia(`http://${PINNED_HOST}:${server.port}/image.png`, {
+        maxBytes: 1024,
+        deadlineMs: 8_000,
+        resolveHost: countingResolver().resolveHost,
+        allowAddress: allowLoopback,
+        sleep: sleeper.sleep,
+      })
+    ).rejects.toThrow(FETCH_RATE_LIMITED_ERROR);
+
+    expect(server.requests).toHaveLength(1);
+    expect(sleeper.calls).toEqual([]);
+  });
+
+  it('throttle errors contain no URL or host text', async () => {
+    const server = await startServer((req, res) => {
+      const status = (req.url ?? '').includes('rl-429') ? 429 : 503;
+      res.writeHead(status, { 'retry-after': '1' });
+      res.end();
+    });
+    const sleeper = fakeSleep();
+    const secretSegment = 'x9-secret-segment';
+
+    const expectNoLeak = async (
+      path: string,
+      expectedMessage: string
+    ): Promise<void> => {
+      let message = '';
+      try {
+        await fetchGuardedMedia(
+          `http://${PINNED_HOST}:${server.port}/${path}/${secretSegment}.png?signature=SUPERSECRET-Q`,
+          {
+            maxBytes: 1024,
+            deadlineMs: 30_000,
+            resolveHost: countingResolver().resolveHost,
+            allowAddress: allowLoopback,
+            sleep: sleeper.sleep,
+          }
+        );
+      } catch (error) {
+        message = (error as Error).message;
+      }
+      expect(message).toBe(expectedMessage);
+      expect(message).not.toContain(secretSegment);
+      expect(message).not.toContain('SUPERSECRET-Q');
+      expect(message).not.toContain(PINNED_HOST);
+      expect(message).not.toContain(String(server.port));
+    };
+
+    await expectNoLeak('rl-429', FETCH_RATE_LIMITED_ERROR);
+    await expectNoLeak('rl-503', FETCH_UNAVAILABLE_ERROR);
+  });
+});
+
+describe('throttleWaitMs', () => {
+  // Second-aligned so HTTP-date truncation cannot wobble the computed delta.
+  const now = Math.floor(Date.now() / 1000) * 1000;
+
+  it('pins the policy values', () => {
+    expect([
+      THROTTLE_MIN_WAIT_MS,
+      THROTTLE_DEFAULT_WAIT_MS,
+      THROTTLE_MAX_WAIT_MS,
+    ]).toEqual([1_000, 5_000, 10_000]);
+  });
+
+  it('uses the default wait when the header is absent', () => {
+    expect(throttleWaitMs(undefined, now)).toBe(5000);
+  });
+
+  it('declines to retry on a present header it cannot understand', () => {
+    expect(throttleWaitMs('garbage', now)).toBeNull();
+  });
+
+  it('converts delta-seconds to milliseconds', () => {
+    expect(throttleWaitMs('2', now)).toBe(2000);
+  });
+
+  it('floors a zero delay at the minimum', () => {
+    expect(throttleWaitMs('0', now)).toBe(1000);
+  });
+
+  it('honors a delay exactly at the cap', () => {
+    expect(throttleWaitMs('10', now)).toBe(10000);
+  });
+
+  it('refuses delta-seconds above the cap', () => {
+    expect(throttleWaitMs('1000', now)).toBeNull();
+  });
+
+  it('honors an HTTP-date three seconds ahead', () => {
+    const wait = throttleWaitMs(new Date(now + 3_000).toUTCString(), now);
+    expect(wait).not.toBeNull();
+    expect(wait!).toBeGreaterThanOrEqual(2900);
+    expect(wait!).toBeLessThanOrEqual(3100);
+  });
+
+  it('floors an HTTP-date in the past at the minimum', () => {
+    expect(throttleWaitMs(new Date(now - 60_000).toUTCString(), now)).toBe(
+      1000
+    );
+  });
+
+  it('refuses an HTTP-date beyond the cap', () => {
+    expect(
+      throttleWaitMs(new Date(now + 60_000).toUTCString(), now)
+    ).toBeNull();
+  });
+
+  it('declines to retry on obsolete date forms, malformed numerics, and impossible dates', () => {
+    for (const raw of [
+      '-1',
+      '+2',
+      '1.5',
+      'Fri Sep 11 20:00:00 2026',
+      'Friday, 11-Sep-26 20:00:00 GMT',
+      'Fri, 31 Feb 2026 20:00:00 GMT',
+      'Mon, 11 Sep 2026 20:00:00 GMT',
+    ]) {
+      expect(throttleWaitMs(raw, now)).toBeNull();
+    }
   });
 });
 

@@ -11,13 +11,7 @@ import type {
   ActivityEvent,
   ActivityFormatter,
 } from './commands/activity';
-
-function createProcessCommandDeps() {
-  return {
-    stdout: (text: string) => process.stdout.write(text),
-    stderr: (text: string) => process.stderr.write(text),
-  };
-}
+import { createProcessCommandDeps } from './runtime-deps';
 
 function extractText(content: unknown): string {
   if (!content) return '';

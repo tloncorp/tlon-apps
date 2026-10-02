@@ -4,6 +4,31 @@ import * as db from '../../db';
 
 export const queryKeyPrefix = ['channelPosts'];
 
+type PaginationPost = {
+  sequenceNum?: number | null;
+};
+
+export function getOlderPageParam(
+  posts: PaginationPost[],
+  options: { channelId: string; count?: number }
+): db.GetSequencedPostsOptions | undefined {
+  const oldestPost = posts.at(-1);
+  const cursorSequenceNum = oldestPost?.sequenceNum;
+
+  // Local/optimistic posts do not have a server sequence and cannot anchor a
+  // history request. Sequence 1 is the beginning of the channel.
+  if (cursorSequenceNum == null || cursorSequenceNum <= 1) {
+    return undefined;
+  }
+
+  return {
+    channelId: options.channelId,
+    count: options.count ?? 50,
+    mode: 'older',
+    cursorSequenceNum,
+  };
+}
+
 export function getLatestChannelPostsInitialPage<
   TPage extends { fetchedAt: number },
   TPageParam extends {

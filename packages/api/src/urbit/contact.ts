@@ -89,6 +89,7 @@ export interface ContactBookProfile {
   ['lanyard-twitter-0-url']?: AttestationProviderUrl;
   ['lanyard-phone-0-url']?: AttestationProviderUrl;
   ['bot-info']?: ContactFieldText;
+  ['bot-liveness']?: ContactFieldText;
 }
 
 export interface ContactBookProfileEdit {
@@ -101,8 +102,13 @@ export interface ContactBookProfileEdit {
   status?: ContactFieldText | null;
 }
 
-// first element is the contact's profile, second is any user overrides
-export type ContactBookEntry = [ContactBookProfile, ContactBookProfile | null];
+// first element is the contact's profile, second is any user overrides. The
+// base can be null on the wire: a %id-keyed local contact, or a ship whose
+// profile we don't (yet) hold, still carries the user's own overrides.
+export type ContactBookEntry = [
+  ContactBookProfile | null,
+  ContactBookProfile | null,
+];
 
 export type ContactsAllScryResult1 = Record<string, ContactBookProfile>;
 export type ContactBookScryResult1 = Record<string, ContactBookEntry>;

@@ -1,0 +1,55 @@
+appId: ${MAESTRO_APP_ID}
+name: Filter and navigate deterministic Activity events
+env:
+  JOURNEY: activity-filters
+---
+- runScript: ../reliability/data.js
+- runFlow: begin.yaml
+- assertVisible: ${'Activity-' + MAESTRO_RUN_TAG}
+- extendedWaitUntil:
+    visible: ${output.reliability.activityReadGatePattern}
+    timeout: 30000
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: '^Tab Bar$'
+          point: '50%,38%'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn: '^Activity.*$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Activity$'
+- assertVisible: '^All$'
+- assertVisible: '^Mentions$'
+- assertVisible: '^Replies$'
+- assertVisible: ${output.reliability.activityMentionPattern}
+- tapOn: '^Activity options$'
+- assertVisible: '^Mark all as read$'
+- tapOn: '^Mark all as read$'
+- assertVisible: '^Are you sure you want to mark all conversations and notifications as read\?$'
+- assertVisible: '^Mark all read$'
+- tapOn: '^Mark all read$'
+- assertNotVisible: '^Are you sure you want to mark all conversations and notifications as read\?$'
+- assertVisible: ${output.reliability.activityMentionPattern}
+- tapOn: '^Mentions$'
+- assertVisible: ${output.reliability.activityMentionPattern}
+- assertNotVisible: ${output.reliability.activityReplyPattern}
+- tapOn: '^Replies$'
+- assertVisible: ${output.reliability.activityReplyPattern}
+- assertNotVisible: ${output.reliability.activityMentionPattern}
+- tapOn: '^All$'
+- assertVisible: ${output.reliability.activityMentionPattern}
+- tapOn: ${output.reliability.activityMentionPattern}
+- assertVisible: ${output.reliability.activityGroupPattern}
+- assertVisible: ${output.reliability.activityMentionContextPattern}
+- tapOn: '^Back$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Activity$'
+- assertVisible: ${output.reliability.activityMentionPattern}
+- runFlow: ../reliability/subflows/workspaces-tab.yaml

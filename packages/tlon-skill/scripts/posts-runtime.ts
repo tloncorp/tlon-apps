@@ -22,13 +22,7 @@ import type {
   PostsDeps,
 } from './commands/posts';
 import { fetchImageVerse } from './image-attach';
-
-function createProcessCommandDeps() {
-  return {
-    stdout: (text: string) => process.stdout.write(text),
-    stderr: (text: string) => process.stderr.write(text),
-  };
-}
+import { createProcessCommandDeps } from './runtime-deps';
 
 export function createPostsDeps(): PostsDeps {
   return {

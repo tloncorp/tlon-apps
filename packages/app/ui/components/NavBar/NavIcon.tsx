@@ -7,7 +7,7 @@ import { Platform } from 'react-native';
 import { Circle, ColorTokens, isWeb } from 'tamagui';
 
 import { getAndroidRoundedBackgroundKey } from '../../utils';
-import { ContactAvatar } from '../Avatar';
+import { ContactAvatar, ImageAvatar, SigilAvatar } from '../Avatar';
 
 // Match platform touch-target guidelines (iOS HIG 44pt, Android Material
 // 48dp); the tab's tappable area spans its full flex share of the bar.
@@ -67,6 +67,8 @@ export default function NavIcon({
   testID,
   type,
   activeType,
+  imageUrl,
+  sigilContactId,
   isActive,
   hasUnreads = false,
   onPress,
@@ -77,6 +79,10 @@ export default function NavIcon({
   testID?: string;
   type: IconType;
   activeType?: IconType;
+  /** Shown in place of the glyph, which remains the fallback. */
+  imageUrl?: string;
+  /** Shown in place of a missing `imageUrl`, before the glyph. */
+  sigilContactId?: string;
   isActive: boolean;
   hasUnreads?: boolean;
   onPress?: () => void;
@@ -108,10 +114,35 @@ export default function NavIcon({
       backgroundColor={backgroundColor}
       {...props}
     >
-      <View>
-        <Icon
-          type={resolvedType}
-          color={isActive ? '$primaryText' : '$tertiaryText'}
+      {/* The glyph's frame (Icon at $l), with an avatar centred in it at the
+          glyph's own size, so the bar and the unread dot stay put. */}
+      <View
+        width="$3xl"
+        height="$3xl"
+        alignItems="center"
+        justifyContent="center"
+      >
+        <ImageAvatar
+          imageUrl={imageUrl}
+          size="$2xl"
+          borderRadius="$xs"
+          opacity={isActive ? 1 : 0.6}
+          fallback={
+            sigilContactId ? (
+              <SigilAvatar
+                contactId={sigilContactId}
+                size="$2xl"
+                borderRadius="$xs"
+                opacity={isActive ? 1 : 0.6}
+              />
+            ) : (
+              <Icon
+                size="$l"
+                type={resolvedType}
+                color={isActive ? '$primaryText' : '$tertiaryText'}
+              />
+            )
+          }
         />
         {shouldShowUnreads ? (
           <View

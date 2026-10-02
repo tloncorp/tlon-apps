@@ -1,7 +1,10 @@
+import { createHash } from 'node:crypto';
+
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 import { PostHog } from 'posthog-node';
 
 import type { TlonAuthPhase } from './auth-retry-state.js';
+import type { BudgetHoldChange, BudgetState } from './cron-budget-hold.js';
 import { sharedMap, sharedSlot } from './shared-state.js';
 import type {
   TlonChannelKind,
@@ -386,6 +389,19 @@ export type TlonCronScheduleFields = {
   scheduleAt: string | null;
 };
 
+export type TlonCronBudgetIdentity = {
+  accountId: string;
+  ownerShip: string | null;
+  botShip: string;
+};
+export type TlonCronBudgetSnapshot = TlonCronBudgetIdentity & {
+  budgetState: BudgetState;
+  episodeId: string | null;
+  budgetPausedCronCount: number;
+  reason: 'gateway_start' | 'state_change';
+};
+export type TlonCronBudgetChanged = TlonCronBudgetIdentity & BudgetHoldChange;
+
 export type TlonCronCountFields = {
   activeCronJobCount: number | null;
   totalCronJobCount: number | null;
@@ -472,6 +488,7 @@ export type TlonOnboardingStep =
   | 'purpose_picker_posted'
   | 'purpose_chosen'
   | 'topics_picker_posted'
+  | 'topics_submitted'
   | 'provision_received'
   | 'cron_created'
   | 'first_run_enqueued'
@@ -509,6 +526,7 @@ export type TlonOnboardingFunnelEvent = {
   outcome: 'ok' | 'failed';
   nest: string;
   groupFlag: string | null;
+  provisionId: string | null;
   purposeId: string | null;
   topicCount: number | null;
   timezone: string | null;
@@ -627,7 +645,9 @@ export type TlonPluginErrorSource =
   | 'foreigns_subscription'
   | 'steward_subscription'
   | 'settings_refresh'
-  | 'sse_stream';
+  | 'sse_stream'
+  | 'approval_notification'
+  | 'group_invite_decline';
 
 export type TlonPluginErrorEvent = {
   harness: TlonHarnessName;
@@ -705,6 +725,8 @@ export interface TlonTelemetryClient {
   captureCronJobChanged(event: TlonCronJobChangedEvent): void;
   captureCronRun(event: TlonCronRunEvent): void;
   captureCronSnapshot(event: TlonCronSnapshotEvent): void;
+  captureCronBudgetSnapshot(event: TlonCronBudgetSnapshot): void;
+  captureCronBudgetChanged(event: TlonCronBudgetChanged): void;
   captureMigration(event: TlonMigrationEvent): void;
   captureOutboundRoute(
     event: TlonOutboundRouteEvent & {
@@ -741,6 +763,7 @@ const TLON_CRON_RUN_EVENT = 'TlonBot Cron Run';
 const TLON_CRON_SNAPSHOT_EVENT = 'TlonBot Cron Snapshot';
 const TLON_MIGRATION_EVENT = 'TlonBot Diary Migration';
 const TLON_ONBOARDING_STEP_EVENT = 'TlonBot Onboarding Step';
+const TLON_ONBOARDING_EVENT_ID_VERSION = 'v1';
 const MIGRATION_ERROR_MAX_CHARS = 500;
 const TLON_TELEMETRY_LOG_SOURCE = 'openclawPlugin';
 const TOOL_TRACE_TTL_MS = 60 * 60 * 1000;
@@ -754,6 +777,35 @@ const MAX_HARNESS_DEBUG_SNAPSHOTS = 5_000;
 const CRON_RUN_ATTRIBUTION_TTL_MS = 60 * 60 * 1000;
 const MAX_CRON_RUN_ATTRIBUTION_SESSIONS = 5_000;
 const MAX_CRON_RUN_IDS_PER_SESSION = 50;
+
+/**
+ * PostHog deduplicates retries by event UUID. Derive a valid UUID-shaped value
+ * from stable funnel identity so reconciliation cannot inflate step counts.
+ */
+function onboardingEventUuid(event: TlonOnboardingFunnelEvent): string {
+  const input = JSON.stringify([
+    TLON_ONBOARDING_EVENT_ID_VERSION,
+    event.ownerShip,
+    event.botShip,
+    event.nest,
+    event.groupFlag,
+    event.provisionId,
+    event.step,
+    event.outcome,
+    event.purposeId,
+    event.answer,
+    event.completionPath,
+  ]);
+  return stableEventUuid(input);
+}
+
+function stableEventUuid(input: string): string {
+  const bytes = createHash('sha256').update(input).digest().subarray(0, 16);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = bytes.toString('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
 // Restrict cron attribution to errors representing a failed gateway/model run.
 // Tool/runtime/plugin diagnostics remain in their existing streams and should
 // not independently count as a failed cron run.
@@ -1951,6 +2003,34 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     });
   }
 
+  captureCronBudgetSnapshot(event: TlonCronBudgetSnapshot): void {
+    if (!this.ensureIdentified(event.ownerShip ?? '', event.botShip)) return;
+    this.client.capture({
+      distinctId: event.ownerShip!,
+      event: 'TlonBot Cron Budget Snapshot',
+      properties: this.properties({ ...event }),
+    });
+  }
+
+  captureCronBudgetChanged(event: TlonCronBudgetChanged): void {
+    if (!this.ensureIdentified(event.ownerShip ?? '', event.botShip)) return;
+    this.client.capture({
+      distinctId: event.ownerShip!,
+      event: 'TlonBot Cron Budget Changed',
+      timestamp: new Date(event.occurredAtMs),
+      // Stable across replay, distinct for each account receiving the event.
+      uuid: stableEventUuid(
+        JSON.stringify([
+          'cron-budget-v1',
+          event.eventId,
+          event.accountId,
+          event.botShip,
+        ])
+      ),
+      properties: this.properties({ ...event }),
+    });
+  }
+
   captureOnboardingStep(event: TlonOnboardingFunnelEvent): void {
     const ownerShip = event.ownerShip ?? '';
     if (!this.ensureIdentified(ownerShip, event.botShip)) {
@@ -1962,6 +2042,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     this.client.capture({
       distinctId: ownerShip,
       event: TLON_ONBOARDING_STEP_EVENT,
+      uuid: onboardingEventUuid(event),
       properties: this.properties(
         {
           botShip: event.botShip,
@@ -1971,6 +2052,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           outcome: event.outcome,
           nest: event.nest,
           groupFlag: event.groupFlag,
+          provisionId: event.provisionId,
           purposeId: event.purposeId,
           topicCount: event.topicCount,
           timezone: event.timezone,
