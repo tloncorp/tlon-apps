@@ -1683,6 +1683,21 @@ export const INVITE_LINK_CREDENTIAL_CASES: CliCase[] = [
 ];
 
 export const CLI_MATRIX_CASES: CliCase[] = [
+  ...(['channels', 'groups'] as const).flatMap((family) => {
+    const operation = family === 'channels' ? 'create' : 'add-channel';
+    return [[], [operation]].map(
+      (suffix): CliCase => ({
+        name: `${family} ${suffix.join(' ')} help separates notes creation flags`,
+        args: [family, ...suffix, '--help'],
+        expectedExitCode: 0,
+        stdoutIncludes: [
+          '[--kind chat|heap] [--description "..."]',
+          '"Channel Name" --kind notes',
+        ],
+        stdoutExcludes: ['[--kind chat|heap|notes] [--description'],
+      })
+    );
+  }),
   TOP_LEVEL_HELP_CASE,
   UNKNOWN_TOP_LEVEL_CASE,
   ...FAMILY_HELP_CASES,

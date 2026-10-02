@@ -41,6 +41,7 @@ import {
   isSubcommandHelpRequest,
   looksLikePositionalChannelKind,
   printErrorAndExit,
+  channelCreateUsage,
   printHelpAndExit,
   printUsageAndExit,
   refuseDiaryNest,
@@ -70,7 +71,7 @@ Commands:
   groups
   all
   info <nest>
-  create <group-id> "Channel Name" [--kind chat|heap|notes] [--description "..."]
+  ${channelCreateUsage('create')}
   update <nest> (--title "..." | --description "...")
   rename <nest> "New Title"
   delete <nest>
@@ -89,7 +90,7 @@ const CHANNELS_COMMAND_HELP: Record<string, string> = {
   groups: `Usage: tlon channels groups`,
   all: `Usage: tlon channels all`,
   info: `Usage: tlon channels info <nest>\nExample: tlon channels info chat/~host/slug`,
-  create: `Usage: tlon channels create <group-id> "Channel Name" [--kind chat|heap|notes] [--description "..."]\nExample: tlon channels create ~host/group-slug "Projects" --kind chat`,
+  create: `Usage: ${channelCreateUsage('tlon channels create')}\nExample: tlon channels create ~host/group-slug "Projects" --kind chat`,
   update: `Usage: tlon channels update <nest> (--title "..." | --description "...")\nExample: tlon channels update chat/~host/slug --title "New Title"`,
   rename: `Usage: tlon channels rename <nest> "New Title"\nExample: tlon channels rename chat/~host/slug "Project Updates"`,
   delete: `Usage: tlon channels delete <nest>\nExample: tlon channels delete chat/~host/slug`,

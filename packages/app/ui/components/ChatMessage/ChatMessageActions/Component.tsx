@@ -1,6 +1,6 @@
 import * as store from '@tloncorp/shared/store';
 import React, { useEffect, useState } from 'react';
-import { Dimensions, LayoutChangeEvent } from 'react-native';
+import { Dimensions, LayoutChangeEvent, Platform } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -148,6 +148,13 @@ export function ChatMessageActions({
           }}
           placement="top-end"
           allowFlip
+          // Flipping cannot fit a tall menu on either side of a centered post.
+          // On web, also shift vertically so the reaction toolbar stays reachable.
+          stayInFrame={
+            Platform.OS === 'web'
+              ? { mainAxis: true, crossAxis: true, padding: 10 }
+              : true
+          }
           offset={-12}
         >
           <Popover.Trigger asChild>{trigger}</Popover.Trigger>

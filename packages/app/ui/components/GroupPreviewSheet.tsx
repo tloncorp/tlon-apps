@@ -6,7 +6,7 @@ import { Button, LoadingSpinner, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { XStack, YStack } from 'tamagui';
 
-import { useSheetCloseAfterAnimation } from '../hooks/useSheetCloseAfterAnimation';
+import { useSheetDismissalAction } from '../hooks/useSheetDismissalAction';
 import { triggerHaptic, useGroupTitle } from '../utils';
 import { ActionSheet } from './ActionSheet';
 import { Badge } from './Badge';
@@ -59,7 +59,11 @@ function GroupPreviewSheetComponent({
   group,
   onActionComplete,
 }: Props) {
-  const { closeAfterAnimation } = useSheetCloseAfterAnimation();
+  const { dismissThenRun, onDismissed, presentationKey } =
+    useSheetDismissalAction({
+      open,
+      onOpenChange,
+    });
 
   useEffect(() => {
     if (open) {
@@ -69,16 +73,21 @@ function GroupPreviewSheetComponent({
 
   const actionHandler = useCallback(
     (action: GroupPreviewAction, updatedGroup: db.Group) => {
-      onOpenChange(false);
-      closeAfterAnimation(() => {
+      dismissThenRun(() => {
         onActionComplete?.(action, updatedGroup);
       });
     },
-    [closeAfterAnimation, onActionComplete, onOpenChange]
+    [dismissThenRun, onActionComplete]
   );
 
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange} modal>
+    <ActionSheet
+      key={presentationKey}
+      open={open}
+      onOpenChange={onOpenChange}
+      onNativeDismissed={onDismissed}
+      modal
+    >
       {group ? (
         <GroupPreviewPane group={group} onActionComplete={actionHandler} />
       ) : (

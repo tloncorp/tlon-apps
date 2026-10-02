@@ -183,7 +183,13 @@ export function ShareIntentForwardSheetProvider({
     [enabled, navigateToChannelTarget, pendingShare]
   );
 
-  const { handleChannelSelected, renderFooter } = useForwardToChannelSheet({
+  const {
+    handleChannelSelected,
+    renderFooter,
+    onNativeDismissed,
+    keepMounted,
+    presentationKey,
+  } = useForwardToChannelSheet({
     isOpen,
     onClose: () => handleOpenChange(false),
     onForwardToChannel: routeShareIntentToChannel,
@@ -196,8 +202,11 @@ export function ShareIntentForwardSheetProvider({
     <ChannelShareIntentProvider value={channelShareIntentContextValue}>
       {children}
       <ForwardToChannelSheet
+        key={presentationKey}
         open={isOpen}
         onOpenChange={handleOpenChange}
+        onNativeDismissed={onNativeDismissed}
+        keepMounted={keepMounted}
         title="Send to channel"
         subtitle="Select where to send it"
         onChannelSelected={handleChannelSelected}

@@ -1,10 +1,10 @@
 import * as db from '@tloncorp/shared/db';
 import { Button, useToast } from '@tloncorp/ui';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { YStack, getTokenValue } from 'tamagui';
 
-import { useSheetCloseAfterAnimation } from '../hooks/useSheetCloseAfterAnimation';
+import { useSheetDismissalAction } from '../hooks/useSheetDismissalAction';
 import { useChatTitle } from '../utils';
 
 type UseForwardToChannelSheetParams = {
@@ -17,28 +17,6 @@ type UseForwardToChannelSheetParams = {
 };
 
 export const FORWARD_SHEET_SNAP_POINTS: number[] = [85];
-export const FORWARD_SHEET_CLOSE_DURATION_MS = 250;
-
-export function useDelayedClose(isOpen: boolean) {
-  const [isDelayedCloseOpen, setIsDelayedCloseOpen] = useState(isOpen);
-
-  useEffect(() => {
-    if (isOpen) {
-      setIsDelayedCloseOpen(true);
-      return;
-    }
-
-    const timeout = setTimeout(
-      () => setIsDelayedCloseOpen(false),
-      FORWARD_SHEET_CLOSE_DURATION_MS
-    );
-
-    return () => clearTimeout(timeout);
-  }, [isOpen]);
-
-  return isDelayedCloseOpen;
-}
-
 export function useForwardToChannelSheet({
   isOpen,
   onClose,
@@ -47,25 +25,37 @@ export function useForwardToChannelSheet({
   failureMessage,
   closeBeforeForward = false,
 }: UseForwardToChannelSheetParams) {
-  const isDelayedCloseOpen = useDelayedClose(isOpen);
   const [selectedChannel, setSelectedChannel] = useState<db.Channel | null>(
     null
   );
   const selectedChannelTitle = useChatTitle(selectedChannel) ?? 'channel';
   const [isSending, setIsSending] = useState(false);
+  const queuedForward = useRef(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const showToast = useToast();
   const insets = useSafeAreaInsets();
-  const { closeAfterAnimation } = useSheetCloseAfterAnimation();
+  const { dismissThenRun, onDismissed, shouldRender, presentationKey } =
+    useSheetDismissalAction({
+      open: isOpen,
+      onOpenChange: onClose,
+    });
 
   useEffect(() => {
-    if (isDelayedCloseOpen) {
+    if (shouldRender) {
       return;
     }
 
     setSelectedChannel(null);
     setErrorMessage(null);
-  }, [isDelayedCloseOpen]);
+  }, [shouldRender]);
+
+  // Reopening cancels a queued forward, so its finally block will not run.
+  useEffect(() => {
+    if (queuedForward.current) {
+      queuedForward.current = false;
+      setIsSending(false);
+    }
+  }, [presentationKey]);
 
   const handleChannelSelected = useCallback((channel: db.Channel) => {
     setSelectedChannel(channel);
@@ -80,6 +70,7 @@ export function useForwardToChannelSheet({
     setErrorMessage(null);
 
     const forward = async () => {
+      queuedForward.current = false;
       try {
         await onForwardToChannel(selectedChannel);
         if (!closeBeforeForward) {
@@ -101,13 +92,13 @@ export function useForwardToChannelSheet({
     };
 
     if (closeBeforeForward) {
-      onClose();
-      closeAfterAnimation(() => void forward());
+      queuedForward.current = true;
+      dismissThenRun(() => void forward());
     } else {
       void forward();
     }
   }, [
-    closeAfterAnimation,
+    dismissThenRun,
     closeBeforeForward,
     failureMessage,
     onClose,
@@ -155,5 +146,8 @@ export function useForwardToChannelSheet({
   return {
     handleChannelSelected,
     renderFooter,
+    onNativeDismissed: onDismissed,
+    keepMounted: shouldRender,
+    presentationKey,
   };
 }

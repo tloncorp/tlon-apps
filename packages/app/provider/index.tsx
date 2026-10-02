@@ -1,7 +1,13 @@
 import * as store from '@tloncorp/shared';
 import React, { useEffect } from 'react';
-import { Appearance, Platform } from 'react-native';
-import { TamaguiProvider, TamaguiProviderProps } from 'tamagui';
+import {
+  AppState,
+  Appearance,
+  NativeModules,
+  Platform,
+  processColor,
+} from 'react-native';
+import { TamaguiProvider, TamaguiProviderProps, useTheme } from 'tamagui';
 
 import { useIsDarkMode, useIsSystemDarkMode } from '../hooks/useDarkMode';
 import { SplashScreenTask, splashScreenProgress } from '../lib/splashscreen';
@@ -49,6 +55,32 @@ function ThemeProviderContent({
 
 function NativeAppearanceSync({ appTheme }: { appTheme: AppTheme | null }) {
   const isDarkTheme = useIsDarkMode();
+  const backgroundColor = useTheme().background.val;
+
+  useEffect(() => {
+    const setWindowBackgroundColor =
+      NativeModules.TlonTheme?.setWindowBackgroundColor;
+    if (
+      Platform.OS !== 'android' ||
+      appTheme == null ||
+      !setWindowBackgroundColor
+    ) {
+      return;
+    }
+
+    const syncBackground = () => {
+      const color = processColor(backgroundColor);
+      if (typeof color === 'number') {
+        setWindowBackgroundColor(color);
+      }
+    };
+
+    syncBackground();
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') syncBackground();
+    });
+    return () => subscription.remove();
+  }, [appTheme, backgroundColor]);
 
   useEffect(() => {
     if (Platform.OS !== 'ios' || appTheme == null) {

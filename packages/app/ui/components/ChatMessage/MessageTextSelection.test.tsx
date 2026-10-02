@@ -12,6 +12,7 @@ vi.hoisted(() => {
 
 const mocks = vi.hoisted(() => ({
   platform: { OS: 'ios' },
+  narrow: true,
   input: { setSelection: vi.fn() },
   textView: {},
   selectAll: vi.fn(async () => true),
@@ -40,6 +41,7 @@ vi.mock('@tloncorp/ui', () => ({
     return { doCopy: mocks.copy };
   },
   useToast: () => mocks.toast,
+  useIsWindowNarrow: () => mocks.narrow,
 }));
 vi.mock('tamagui', () => ({
   XStack: 'XStack',
@@ -153,6 +155,7 @@ beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true, __DEV__: false });
   vi.useFakeTimers();
   mocks.platform.OS = 'ios';
+  mocks.narrow = true;
   mocks.input.setSelection.mockClear();
   mocks.selectAll.mockClear();
   mocks.findNodeHandle.mockClear();
@@ -205,8 +208,21 @@ test('copy all copies the displayed text, closes the sheet, and confirms success
   expect(mocks.toast).toHaveBeenCalledWith({ message: 'Copied text' });
   expect(sheet().props.open).toBe(false);
   act(() => {
-    vi.advanceTimersByTime(300);
+    vi.advanceTimersByTime(5000);
   });
+  expect(renderer.root.findAllByType('ActionSheet' as never)).toHaveLength(1);
+  act(() => sheet().props.onNativeDismissed());
+  expect(renderer.root.findAllByType('ActionSheet' as never)).toHaveLength(0);
+});
+
+test('waits for native dismissal on a wide window, where the sheet is still native', () => {
+  mocks.narrow = false;
+  renderMenu();
+  openSheet();
+  act(() => sheet().props.onOpenChange(false));
+  expect(sheet().props.open).toBe(false);
+  expect(renderer.root.findAllByType('ActionSheet' as never)).toHaveLength(1);
+  act(() => sheet().props.onNativeDismissed());
   expect(renderer.root.findAllByType('ActionSheet' as never)).toHaveLength(0);
 });
 
@@ -214,11 +230,17 @@ test('a quick reopen cancels cleanup from the previous dismissal', () => {
   renderMenu();
   openSheet();
   act(() => sheet().props.onOpenChange(false));
+  const staleDismissal = sheet().props.onNativeDismissed;
   openSheet();
   act(() => {
-    vi.advanceTimersByTime(300);
+    staleDismissal();
   });
   expect(sheet().props.open).toBe(true);
+  act(() => sheet().props.onOpenChange(false));
+  act(() => staleDismissal());
+  expect(renderer.root.findAllByType('ActionSheet' as never)).toHaveLength(1);
+  act(() => sheet().props.onNativeDismissed());
+  expect(renderer.root.findAllByType('ActionSheet' as never)).toHaveLength(0);
 });
 
 test('rejects an action token from a message edited while the menu was open', () => {
