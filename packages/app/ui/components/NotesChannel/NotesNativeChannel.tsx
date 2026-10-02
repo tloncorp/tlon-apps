@@ -35,6 +35,7 @@ import { YStack } from 'tamagui';
 import { useShip } from '../../../contexts/ship';
 import type { RootStackParamList } from '../../../navigation/types';
 import { useNotebookSidebarRegistration } from '../../contexts/notebookSidebar';
+import { useSheetDismissalAction } from '../../hooks/useSheetDismissalAction';
 import { ActionSheet } from '../ActionSheet';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import type { ScreenHeaderAction } from '../ScreenHeader';
@@ -1087,30 +1088,26 @@ export function NotesNativeChannel({
     }
   );
 
-  const runImportAfterSheetCloses = useMutableCallback((action: () => void) => {
-    setNewActionSheetOpen(false);
-    if (Platform.OS === 'web') {
-      action();
-      return;
-    }
-
-    setTimeout(action, 50);
+  // The folder dialog and the import pickers cannot present while the "New"
+  // sheet is still dismissing, so its actions run once that completes.
+  const {
+    dismissThenRun: dismissNewSheetThenRun,
+    onDismissed: onNewSheetDismissed,
+    presentationKey: newSheetKey,
+  } = useSheetDismissalAction({
+    open: newActionSheetOpen,
+    onOpenChange: setNewActionSheetOpen,
+    waitForDismissal: Platform.OS !== 'web' && isWindowNarrow,
   });
 
   const createActions = [
     createNotesNewNoteAction({
-      action: () => {
-        setNewActionSheetOpen(false);
-        void handleCreateNote();
-      },
+      action: () => void handleCreateNote(),
       disabled: isCreatingNote,
       testID: 'NotesNewNoteAction',
     }),
     createNotesNewFolderAction({
-      action: () => {
-        setNewActionSheetOpen(false);
-        openAddFolderDialog();
-      },
+      action: () => openAddFolderDialog(),
       disabled: isCreatingFolder,
       testID: 'NotesNewFolderAction',
     }),
@@ -1122,9 +1119,7 @@ export function NotesNativeChannel({
           {
             title: 'Import files',
             startIcon: 'ChannelNote' as const,
-            action: () => {
-              runImportAfterSheetCloses(importFiles);
-            },
+            action: importFiles,
             disabled: isImportingNotes,
             testID: 'NotesImportFilesAction',
           },
@@ -1135,9 +1130,7 @@ export function NotesNativeChannel({
           {
             title: 'Import folder',
             startIcon: 'Folder' as const,
-            action: () => {
-              runImportAfterSheetCloses(importFolder);
-            },
+            action: importFolder,
             disabled: isImportingNotes,
             testID: 'NotesImportFolderAction',
           },
@@ -1318,8 +1311,10 @@ export function NotesNativeChannel({
         />
       ) : null}
       <ActionSheet
+        key={newSheetKey}
         open={newActionSheetOpen}
         onOpenChange={setNewActionSheetOpen}
+        onNativeDismissed={onNewSheetDismissed}
         modal
         unmountOnClose
       >
@@ -1330,10 +1325,7 @@ export function NotesNativeChannel({
         <ActionSheet.Content>
           <NotesActionGroupList
             groups={newActionGroups}
-            onAction={(action) => {
-              setNewActionSheetOpen(false);
-              action?.();
-            }}
+            onAction={(action) => dismissNewSheetThenRun(() => action?.())}
           />
         </ActionSheet.Content>
       </ActionSheet>

@@ -1,5 +1,4 @@
 import { IconType, useIsWindowNarrow } from '@tloncorp/ui';
-import { useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { Platform } from 'react-native';
 
@@ -23,7 +22,9 @@ export function NotesActionMenu({
     subtitle?: string;
     title: string;
   };
-  onAction?: (action?: () => void) => void;
+  // Off web the menu is a native sheet, so the caller decides when the chosen
+  // action runs: anything that presents must wait for `onNativeDismissed`.
+  onAction: (action?: () => void) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onNativeDismissed?: () => void;
@@ -33,17 +34,6 @@ export function NotesActionMenu({
   trigger: ReactNode;
 }) {
   const isWindowNarrow = useIsWindowNarrow();
-  const handleAction = useCallback(
-    (action?: () => void) => {
-      if (onAction) {
-        onAction(action);
-      } else {
-        onOpenChange(false);
-        action?.();
-      }
-    },
-    [onAction, onOpenChange]
-  );
 
   return (
     <ActionSheet
@@ -69,7 +59,7 @@ export function NotesActionMenu({
         </ActionSheet.Header>
       ) : null}
       <ActionSheet.Content>
-        <NotesActionGroupList groups={groups} onAction={handleAction} />
+        <NotesActionGroupList groups={groups} onAction={onAction} />
         {bottomContent}
       </ActionSheet.Content>
     </ActionSheet>
