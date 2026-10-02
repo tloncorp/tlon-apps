@@ -23,6 +23,9 @@ type ForwardToChannelSheetProps = {
   // being forwarded.
   channelFilter?: (channel: db.Channel) => boolean;
   channelChats?: ForwardChannelChat[];
+  // A notebook renders no posts, but a bot can still deliver a scheduled
+  // task's output to one as a new note.
+  allowNotebooks?: boolean;
   footerComponent?: ComponentProps<typeof ActionSheet>['footerComponent'];
 };
 
@@ -34,6 +37,7 @@ export function ForwardToChannelSheet({
   onChannelSelected,
   channelFilter,
   channelChats,
+  allowNotebooks = false,
   footerComponent,
 }: ForwardToChannelSheetProps) {
   const showSelector = useDelayedClose(open);
@@ -43,8 +47,10 @@ export function ForwardToChannelSheet({
   // intent excluded only notebooks.
   const targetFilter = useMemo(
     () => (channel: db.Channel) =>
-      channelHasPosts(channel) && (channelFilter?.(channel) ?? true),
-    [channelFilter]
+      (channelHasPosts(channel) ||
+        (allowNotebooks && channel.type === 'notes')) &&
+      (channelFilter?.(channel) ?? true),
+    [allowNotebooks, channelFilter]
   );
 
   // Unmount after the close window; otherwise the empty sheet shell can

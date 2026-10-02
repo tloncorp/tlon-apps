@@ -5,7 +5,7 @@ import type * as db from '@tloncorp/shared/db';
 import type { A2UI } from '@tloncorp/shared/logic';
 import { appendToPostBlob } from '@tloncorp/shared/logic';
 import { type PropsWithChildren, useMemo, useState } from 'react';
-import { Image } from 'react-native';
+import { Image, Platform } from 'react-native';
 import { View, useTheme } from 'tamagui';
 
 import { ShipProvider } from '../contexts/ship';
@@ -14,7 +14,6 @@ import {
   AppDataContextProvider,
   ChatMessage,
   type IdentifiedAutomationTask,
-  type RecurringTaskDraft,
   RecurringTaskEditorView,
   ScheduledTasksScreenView,
   ScreenHeader,
@@ -25,6 +24,13 @@ import {
   type DraftInputContext,
   DraftInputContextProvider,
 } from '../ui/components/draftInputs/shared';
+import {
+  type AutomationTaskDraft,
+  draftFromTask,
+  newTaskDraft,
+  taskStatus,
+} from '../ui/components/automationTaskDraft';
+import { formatAutomationSchedule } from '../ui/components/formatAutomationSchedule';
 import { ChannelProvider } from '../ui/contexts/channel';
 import { FixtureWrapper } from './FixtureWrapper';
 import { makePost, verse } from './contentHelpers';
@@ -44,8 +50,11 @@ const botContact = {
   ...hostedBotContact,
   id: '~pinser-botter-solfer-magfed',
   nickname: '🌱 News reader',
-  avatarImage: Image.resolveAssetSource(require('../ui/assets/raster/bot.png'))
-    .uri,
+  // Metro resolves the asset; the web renderer has no `require`.
+  avatarImage:
+    Platform.OS === 'web'
+      ? null
+      : Image.resolveAssetSource(require('../ui/assets/raster/bot.png')).uri,
   isContact: false,
   isContactSuggestion: true,
   isBlocked: false,
@@ -76,13 +85,15 @@ const taskDefinitions: IdentifiedAutomationTask[] = [
         message:
           "Summarize today's five most important news stories, with a short explanation of why each matters. Link to the original reporting, prioritize technology and science, and skip sports unless there is major breaking news.",
       },
+      delivery: { mode: 'announce', channel: 'tlon', to: danContact.id },
     },
   },
   {
     id: 'ship-backup',
     task: {
       name: 'Ship backup check',
-      enabled: true,
+      description: '[Paused: credit budget]',
+      enabled: false,
       schedule: { kind: 'cron', expr: '0 2 * * *', tz: 'UTC' },
       payload: {
         kind: 'agentTurn',
@@ -106,6 +117,11 @@ const taskDefinitions: IdentifiedAutomationTask[] = [
         message:
           "Review this week's conversations and produce a concise digest of decisions, unresolved questions, promised follow-ups, and messages that still need a reply. Group related items together and mention the responsible person when one is clear.",
       },
+      delivery: {
+        mode: 'announce',
+        channel: 'tlon',
+        to: `chat/${tlonLocalWaterCooler.id}`,
+      },
     },
   },
   {
@@ -114,6 +130,7 @@ const taskDefinitions: IdentifiedAutomationTask[] = [
       name: 'Unread triage',
       enabled: true,
       schedule: { kind: 'every', everyMs: 4 * 60 * 60 * 1000 },
+      delivery: { mode: 'none', channel: 'last' },
       payload: {
         kind: 'agentTurn',
         message:
@@ -190,22 +207,13 @@ function TaskListFixture({ empty = false }: { empty?: boolean }) {
       <ScheduledTasksScreenView
         available
         tasks={empty ? [] : taskDefinitions}
-        canMutate={false}
+        onAddTask={noop}
+        onPressTask={noop}
         onBack={noop}
       />
     </FullScreen>
   );
 }
-
-const initialDraft: RecurringTaskDraft = {
-  name: 'Morning news summary',
-  prompt:
-    "Summarize today's news in five bullets. Link every source. Skip sports.",
-  repeat: 'Weekly',
-  selectedDays: [1, 2, 3, 4, 5],
-  timeLabel: '7:00 AM',
-  destinationLabel: 'General',
-};
 
 const recurringTaskGroup: db.Group = {
   ...group,
@@ -218,10 +226,11 @@ const destinationChannelChats: Array<db.Chat & { type: 'channel' }> = [
   { channel: tlonLocalIntros, title: 'News' },
   { channel: tlonLocalBulletinBoard, title: 'Announcements' },
 ].map(({ channel, title }, index) => ({
-  id: channel.id,
+  id: `chat/${channel.id}`,
   type: 'channel',
   channel: {
     ...channel,
+    id: `chat/${channel.id}`,
     title,
     groupId: recurringTaskGroup.id,
     group: recurringTaskGroup,
@@ -233,8 +242,14 @@ const destinationChannelChats: Array<db.Chat & { type: 'channel' }> = [
   unreadCount: channel.unreadCount ?? 0,
 }));
 
-function TaskEditorFixture() {
-  const [draft, setDraft] = useState(initialDraft);
+function TaskEditorFixture({ taskId }: { taskId?: string }) {
+  const task = taskDefinitions.find(({ id }) => id === taskId)?.task;
+  const [draft, setDraft] = useState<AutomationTaskDraft>(() =>
+    task ? draftFromTask(task) : newTaskDraft(danContact.id)
+  );
+  const [enabled, setEnabled] = useState(task?.enabled !== false);
+  const status = task ? taskStatus({ ...task, enabled }) : undefined;
+  const { destination } = draft;
   return (
     <AppDataContextProvider
       currentUserId={danContact.id}
@@ -242,12 +257,50 @@ function TaskEditorFixture() {
     >
       <FullScreen>
         <RecurringTaskEditorView
+          title={task ? 'Scheduled task' : 'New task'}
           draft={draft}
-          readOnly={false}
           onChange={setDraft}
           onBack={noop}
-          onAutosave={noop}
+          disabled={status === 'held'}
+          notice={
+            status === 'held'
+              ? 'This task is paused while your credits are limited. It starts again on its own when credits return. Changing it now would stop that.'
+              : undefined
+          }
+          scheduleLabel={task ? formatAutomationSchedule(task) : undefined}
+          timezone={
+            task?.schedule?.kind === 'cron'
+              ? task.schedule.tz
+              : 'America/New_York'
+          }
+          destinationLabel={
+            destination.kind === 'dm'
+              ? 'Direct message to you'
+              : destination.kind === 'channel'
+                ? (destinationChannelChats.find(
+                    ({ id }) => id === destination.nest
+                  )?.channel.title ?? destination.nest)
+                : 'Nowhere'
+          }
+          onSelectDestination={(channel) =>
+            setDraft((current) => ({
+              ...current,
+              destination: { kind: 'channel', nest: channel.id },
+            }))
+          }
           destinationChannelChats={destinationChannelChats}
+          status={
+            status
+              ? { value: status, busy: false, onChange: setEnabled }
+              : undefined
+          }
+          save={{
+            label: task ? 'Save' : 'Create',
+            disabled: status === 'held',
+            busy: false,
+            onPress: noop,
+          }}
+          onDelete={task ? noop : undefined}
         />
       </FullScreen>
     </AppDataContextProvider>
@@ -458,7 +511,12 @@ export default {
   '1 · Bot profile': <BotProfileFixture />,
   '2 · Scheduled tasks': <TaskListFixture />,
   '2b · Empty state': <TaskListFixture empty />,
-  '3 · Definition editor': <TaskEditorFixture />,
+  '3 · Edit task': <TaskEditorFixture taskId="morning-news" />,
+  '3b · New task': <TaskEditorFixture />,
+  '3c · Schedule the editor cannot change': (
+    <TaskEditorFixture taskId="unread-triage" />
+  ),
+  '3d · Paused for credits': <TaskEditorFixture taskId="ship-backup" />,
   '4 · Shared task card (A2UI)': (
     <ChannelStateFixture posts={[requestPost, taskCardPost]} />
   ),

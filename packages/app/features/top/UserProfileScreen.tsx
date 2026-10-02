@@ -29,6 +29,7 @@ import {
 } from '../../utils/botSettings';
 import { useShipConnectionStatus } from './useShipConnectionStatus';
 import {
+  refetchAutomationsOnFocus,
   tasksForShip,
   useStewardAutomationTasks,
 } from '../automations/useStewardAutomationTasks';
@@ -119,7 +120,7 @@ export function UserProfileScreen({ route, navigation }: Props) {
   useFocusEffect(
     useCallback(() => {
       if (scheduledTasksEnabled && isOwnBotProfile) {
-        void automationQuery.refetch();
+        refetchAutomationsOnFocus(automationQuery.refetch);
       }
     }, [automationQuery.refetch, isOwnBotProfile, scheduledTasksEnabled])
   );

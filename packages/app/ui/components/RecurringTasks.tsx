@@ -1,9 +1,9 @@
+import { Picker } from '@react-native-picker/picker';
 import type { StewardAutomationTask } from '@tloncorp/api/urbit';
-import { useDebouncedValue } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
-import { Picker } from '@react-native-picker/picker';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { Switch } from 'react-native';
 import { View, XStack, YStack } from 'tamagui';
 
 import { ActionSheet } from './ActionSheet';
@@ -12,6 +12,14 @@ import type { ForwardChannelChat } from './ForwardChannelSelector';
 import { ForwardToChannelSheet } from './ForwardToChannelSheet';
 import { ScreenHeader } from './ScreenHeader';
 import { SettingsContentScrollView } from './SettingsContentScrollView';
+import {
+  type AutomationTaskDraft,
+  type AutomationTaskStatus,
+  type EditableSchedule,
+  taskPrompt,
+  taskStatus,
+  taskTitle,
+} from './automationTaskDraft';
 import { formatAutomationSchedule } from './formatAutomationSchedule';
 import { useForwardToChannelSheet } from './useForwardToChannelSheet';
 
@@ -20,16 +28,11 @@ export interface IdentifiedAutomationTask {
   task: StewardAutomationTask;
 }
 
-export interface RecurringTaskDraft {
-  name: string;
-  prompt: string;
-  repeat: 'Daily' | 'Weekly' | 'Monthly' | 'Yearly';
-  selectedDays: number[];
-  timeLabel: string;
-  destinationLabel: string;
-  scheduleLabel?: string;
-  enabled?: boolean;
-}
+const STATUS_LABELS: Record<AutomationTaskStatus, string> = {
+  active: 'Active',
+  paused: 'Paused',
+  held: 'Paused while credits are limited',
+};
 
 export function ScheduledTasksScreenView({
   available,
@@ -37,7 +40,6 @@ export function ScheduledTasksScreenView({
   error,
   loading,
   tasks,
-  canMutate,
   onAddTask,
   onBack,
   onPressTask,
@@ -48,12 +50,12 @@ export function ScheduledTasksScreenView({
   error?: boolean;
   loading?: boolean;
   tasks: IdentifiedAutomationTask[];
-  canMutate: boolean;
   onAddTask?: () => void;
   onBack: () => void;
   onPressTask?: (task: IdentifiedAutomationTask) => void;
   onRetry?: () => void;
 }) {
+  const ready = !loading && !error && available && synced;
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
@@ -65,7 +67,7 @@ export function ScheduledTasksScreenView({
             icon: 'Add',
             label: 'New task',
             onPress: onAddTask,
-            visible: canMutate && Boolean(onAddTask),
+            visible: ready && Boolean(onAddTask),
           },
         ]}
         title="Scheduled"
@@ -74,7 +76,7 @@ export function ScheduledTasksScreenView({
       {loading ? (
         <ScheduledTasksNotice
           title="Loading scheduled tasks"
-          body="Reading the latest definitions mirrored to Steward."
+          body="Getting your bot's tasks."
         />
       ) : error ? (
         <ScheduledTasksNotice
@@ -87,22 +89,20 @@ export function ScheduledTasksScreenView({
       ) : !available ? (
         <ScheduledTasksNotice
           title="Scheduled tasks unavailable"
-          body="This ship does not expose Steward's automation mirror yet."
+          body="Your node needs an update before it can show scheduled tasks."
         />
       ) : !synced ? (
         <ScheduledTasksNotice
           title="Scheduled tasks not synced"
-          body="This bot has not mirrored its task definitions yet."
+          body="Your bot has not shared its tasks yet. This can take a moment after it starts."
           action={onRetry ? { label: 'Refresh', onPress: onRetry } : undefined}
         />
       ) : tasks.length === 0 ? (
         <ScheduledTasksNotice
           title="No scheduled tasks"
-          body="OpenClaw has not mirrored any task definitions for this bot."
+          body="Add one here, or ask your bot to do something on a schedule."
           action={
-            canMutate && onAddTask
-              ? { label: 'New task', onPress: onAddTask }
-              : undefined
+            onAddTask ? { label: 'New task', onPress: onAddTask } : undefined
           }
         />
       ) : (
@@ -192,12 +192,12 @@ function ScheduledTaskListItem({
   onPress?: () => void;
 }) {
   const { task } = identified;
-  const title = task.name || task.description || 'Untitled task';
-  const prompt = task.payload?.message || task.description;
+  const prompt = taskPrompt(task);
+  const status = taskStatus(task);
   const content = (
     <YStack padding="$2xl" gap="$2xl">
       <Text size="$label/2xl" fontWeight="600" numberOfLines={1}>
-        {title}
+        {taskTitle(task)}
       </Text>
       {prompt ? (
         <Text size="$label/xl" color="$secondaryText" numberOfLines={3}>
@@ -205,7 +205,7 @@ function ScheduledTaskListItem({
         </Text>
       ) : null}
       <Text size="$label/xl" color="$tertiaryText">
-        {task.enabled === false ? 'Paused · ' : ''}
+        {status === 'active' ? '' : `${STATUS_LABELS[status]} · `}
         {formatAutomationSchedule(task)}
       </Text>
     </YStack>
@@ -220,6 +220,15 @@ function ScheduledTaskListItem({
 }
 
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const DAY_NAMES = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+];
 const HOURS = Array.from({ length: 12 }, (_, index) => index + 1);
 const MINUTES = Array.from({ length: 60 }, (_, index) => index);
 
@@ -229,104 +238,133 @@ type TimeSelection = {
   period: 'AM' | 'PM';
 };
 
-function parseTimeLabel(value: string): TimeSelection {
-  const match = value.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  const hour = Number(match?.[1]);
-  const minute = Number(match?.[2]);
+function toTimeSelection({
+  hour,
+  minute,
+}: Pick<EditableSchedule, 'hour' | 'minute'>): TimeSelection {
+  return { hour: hour % 12 || 12, minute, period: hour < 12 ? 'AM' : 'PM' };
+}
 
-  if (
-    !match ||
-    !Number.isInteger(hour) ||
-    hour < 1 ||
-    hour > 12 ||
-    !Number.isInteger(minute) ||
-    minute < 0 ||
-    minute > 59
-  ) {
-    return { hour: 8, minute: 0, period: 'AM' };
-  }
-
-  return {
-    hour,
-    minute,
-    period: match[3].toUpperCase() as TimeSelection['period'],
-  };
+function fromTimeSelection({ hour, minute, period }: TimeSelection) {
+  return { hour: (hour % 12) + (period === 'PM' ? 12 : 0), minute };
 }
 
 function formatTimeSelection({ hour, minute, period }: TimeSelection) {
   return `${hour}:${minute.toString().padStart(2, '0')} ${period}`;
 }
 
+function repeatLabel(days: number[]) {
+  if (days.length === 7) return 'Every day';
+  if (days.join() === '1,2,3,4,5') return 'Weekdays';
+  if (days.join() === '0,6') return 'Weekends';
+  return days.length ? 'Weekly' : 'Pick a day';
+}
+
+const FIELD_FRAME = {
+  borderWidth: 0,
+  borderRadius: '$2xl',
+  backgroundColor: '$background',
+} as const;
+
 export function RecurringTaskEditorView({
+  title,
   draft,
-  readOnly,
   onChange,
   onBack,
-  onAutosave,
+  disabled = false,
+  notice,
+  promptEditable = true,
+  scheduleLabel,
+  timezone,
+  destinationLabel,
+  onSelectDestination,
+  destinationFilter,
   destinationChannelChats,
+  status,
+  save,
+  onDelete,
+  deleting = false,
 }: {
-  draft: RecurringTaskDraft;
-  readOnly: boolean;
-  onChange: (draft: RecurringTaskDraft) => void;
+  title: string;
+  draft: AutomationTaskDraft;
+  onChange: (draft: AutomationTaskDraft) => void;
   onBack: () => void;
-  onAutosave?: (draft: RecurringTaskDraft) => void | Promise<void>;
+  /** Locks every control, for a task that must not be edited right now. */
+  disabled?: boolean;
+  /** Why the task is locked, or anything else the owner should know first. */
+  notice?: string;
+  promptEditable?: boolean;
+  /** Shown in place of the day and time controls when `draft.schedule` is null. */
+  scheduleLabel?: string;
+  timezone?: string;
+  destinationLabel: string;
+  onSelectDestination?: (channel: db.Channel) => void;
+  destinationFilter?: (channel: db.Channel) => boolean;
   destinationChannelChats?: ForwardChannelChat[];
+  /** Pause and resume for a task that already exists. */
+  status?: {
+    value: AutomationTaskStatus;
+    busy: boolean;
+    onChange: (enabled: boolean) => void;
+  };
+  save: {
+    label: string;
+    disabled: boolean;
+    busy: boolean;
+    onPress: () => void;
+  };
+  onDelete?: () => void;
+  deleting?: boolean;
 }) {
-  const debouncedDraft = useDebouncedValue(draft, 500);
-  const lastAutosavedDraft = useRef(draft);
   const [promptHeight, setPromptHeight] = useState(128);
   const [timeSheetOpen, setTimeSheetOpen] = useState(false);
   const [destinationSheetOpen, setDestinationSheetOpen] = useState(false);
-  useEffect(() => {
-    if (
-      readOnly ||
-      !onAutosave ||
-      debouncedDraft === lastAutosavedDraft.current
-    ) {
-      return;
-    }
-    lastAutosavedDraft.current = debouncedDraft;
-    void onAutosave(debouncedDraft);
-  }, [debouncedDraft, onAutosave, readOnly]);
+  const schedule = draft.schedule;
 
-  const update = <K extends keyof RecurringTaskDraft>(
+  const update = <K extends keyof AutomationTaskDraft>(
     key: K,
-    value: RecurringTaskDraft[K]
+    value: AutomationTaskDraft[K]
   ) => onChange({ ...draft, [key]: value });
   const toggleDay = (day: number) => {
-    if (readOnly) return;
-    update(
-      'selectedDays',
-      draft.selectedDays.includes(day)
-        ? draft.selectedDays.filter((current) => current !== day)
-        : [...draft.selectedDays, day].sort()
-    );
+    if (disabled || !schedule) return;
+    update('schedule', {
+      ...schedule,
+      days: schedule.days.includes(day)
+        ? schedule.days.filter((current) => current !== day)
+        : [...schedule.days, day].sort((a, b) => a - b),
+    });
   };
-  const updateDestination = useCallback(
-    async (channel: db.Channel) => {
-      const destination = channel.title?.trim() || 'Direct message';
-      onChange({ ...draft, destinationLabel: destination });
-    },
-    [draft, onChange]
+  const selectDestination = useCallback(
+    async (channel: db.Channel) => onSelectDestination?.(channel),
+    [onSelectDestination]
   );
   const { handleChannelSelected, renderFooter: renderDestinationFooter } =
     useForwardToChannelSheet({
       isOpen: destinationSheetOpen,
       onClose: () => setDestinationSheetOpen(false),
-      onForwardToChannel: updateDestination,
+      onForwardToChannel: selectDestination,
       successMessage: () => null,
       failureMessage: 'Could not select channel',
       submitLabel: (channelTitle) => `Post to ${channelTitle}`,
       submittingLabel: 'Selecting...',
     });
-  const destinationDisabled = readOnly;
+  const destinationDisabled = disabled || !onSelectDestination;
+  const controlOpacity = disabled ? 0.5 : 1;
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         backgroundColor="$secondaryBackground"
         backAction={onBack}
-        title="Scheduled task"
+        rightActions={[
+          {
+            id: 'save-scheduled-task',
+            text: save.busy ? 'Saving…' : save.label,
+            onPress: save.onPress,
+            disabled: save.disabled || save.busy,
+          },
+        ]}
+        title={title}
         placement="navigation"
       />
       <SettingsContentScrollView
@@ -335,21 +373,22 @@ export function RecurringTaskEditorView({
         safeAreaBottomOffset={24}
       >
         <YStack gap="$xl">
+          {notice ? (
+            <Text size="$label/m" color="$secondaryText" padding="$s">
+              {notice}
+            </Text>
+          ) : null}
           <TextInput
             accessibilityLabel="Task name"
-            editable={!readOnly}
+            editable={!disabled}
             value={draft.name}
             onChangeText={(value) => update('name', value)}
             placeholder="Task name"
-            frameStyle={{
-              borderWidth: 0,
-              borderRadius: '$2xl',
-              backgroundColor: '$background',
-            }}
+            frameStyle={FIELD_FRAME}
           />
           <TextInput
             accessibilityLabel="Task prompt"
-            editable={!readOnly}
+            editable={!disabled && promptEditable}
             value={draft.prompt}
             onChangeText={(value) => update('prompt', value)}
             placeholder="What should the bot do?"
@@ -365,41 +404,12 @@ export function RecurringTaskEditorView({
               );
             }}
             frameStyle={{
+              ...FIELD_FRAME,
               height: promptHeight,
               alignItems: 'flex-start',
-              borderWidth: 0,
-              borderRadius: '$2xl',
-              backgroundColor: '$background',
             }}
           />
-          {readOnly ? (
-            <YStack
-              backgroundColor="$background"
-              borderRadius="$2xl"
-              padding="$2xl"
-              gap="$2xl"
-            >
-              <XStack justifyContent="space-between" alignItems="center">
-                <Text size="$label/l">Schedule</Text>
-                <Text
-                  size="$label/l"
-                  color="$secondaryText"
-                  flex={1}
-                  flexShrink={1}
-                  textAlign="right"
-                >
-                  {draft.scheduleLabel ??
-                    `${draft.repeat} at ${draft.timeLabel}`}
-                </Text>
-              </XStack>
-              <XStack justifyContent="space-between" alignItems="center">
-                <Text size="$label/l">Status</Text>
-                <Text size="$label/l" color="$secondaryText">
-                  {draft.enabled === false ? 'Paused' : 'Active'}
-                </Text>
-              </XStack>
-            </YStack>
-          ) : (
+          {schedule ? (
             <>
               <YStack
                 backgroundColor="$background"
@@ -407,19 +417,23 @@ export function RecurringTaskEditorView({
                 padding="$2xl"
                 gap="$2xl"
                 overflow="hidden"
+                opacity={controlOpacity}
               >
                 <XStack justifyContent="space-between" alignItems="center">
                   <Text size="$label/l">Repeat</Text>
                   <Text size="$label/l" color="$secondaryText">
-                    {draft.repeat}
+                    {repeatLabel(schedule.days)}
                   </Text>
                 </XStack>
                 <XStack gap="$s">
                   {DAY_LABELS.map((label, day) => {
-                    const selected = draft.selectedDays.includes(day);
+                    const selected = schedule.days.includes(day);
                     return (
                       <Pressable
-                        key={`${label}-${day}`}
+                        key={DAY_NAMES[day]}
+                        accessibilityLabel={DAY_NAMES[day]}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected, disabled }}
                         flex={1}
                         aspectRatio={1}
                         borderRadius="$4xl"
@@ -444,6 +458,8 @@ export function RecurringTaskEditorView({
               <Pressable
                 accessibilityLabel="Time"
                 accessibilityRole="button"
+                accessibilityState={{ disabled }}
+                disabled={disabled}
                 onPress={() => setTimeSheetOpen(true)}
                 pressStyle={{ opacity: 0.72 }}
               >
@@ -454,19 +470,52 @@ export function RecurringTaskEditorView({
                   paddingHorizontal="$2xl"
                   alignItems="center"
                   justifyContent="space-between"
+                  opacity={controlOpacity}
                 >
-                  <Text size="$label/l">Time</Text>
+                  <YStack gap="$xs">
+                    <Text size="$label/l">Time</Text>
+                    {timezone ? (
+                      <Text size="$label/s" color="$tertiaryText">
+                        {timezone}
+                      </Text>
+                    ) : null}
+                  </YStack>
                   <YStack
                     backgroundColor="$secondaryBackground"
                     borderRadius="$4xl"
                     paddingHorizontal="$xl"
                     paddingVertical="$m"
                   >
-                    <Text size="$label/l">{draft.timeLabel}</Text>
+                    <Text size="$label/l">
+                      {formatTimeSelection(toTimeSelection(schedule))}
+                    </Text>
                   </YStack>
                 </XStack>
               </Pressable>
             </>
+          ) : (
+            <YStack
+              backgroundColor="$background"
+              borderRadius="$2xl"
+              padding="$2xl"
+              gap="$l"
+            >
+              <XStack justifyContent="space-between" alignItems="center">
+                <Text size="$label/l">Schedule</Text>
+                <Text
+                  size="$label/l"
+                  color="$secondaryText"
+                  flex={1}
+                  flexShrink={1}
+                  textAlign="right"
+                >
+                  {scheduleLabel}
+                </Text>
+              </XStack>
+              <Text size="$label/s" color="$tertiaryText">
+                Ask your bot to change this schedule.
+              </Text>
+            </YStack>
           )}
           <Pressable
             accessibilityLabel="Posts to"
@@ -483,34 +532,76 @@ export function RecurringTaskEditorView({
               paddingHorizontal="$2xl"
               alignItems="center"
               justifyContent="space-between"
+              gap="$xl"
+              opacity={destinationDisabled ? 0.5 : 1}
             >
               <Text size="$label/l">Posts to</Text>
-              <Text size="$label/l" color="$secondaryText">
-                {draft.destinationLabel}
+              <Text
+                size="$label/l"
+                color="$secondaryText"
+                flex={1}
+                flexShrink={1}
+                textAlign="right"
+                numberOfLines={1}
+              >
+                {destinationLabel}
               </Text>
             </XStack>
           </Pressable>
-          {readOnly ? (
-            <Text size="$label/s" color="$secondaryText" padding="$s">
-              Steward mirrors definitions but cannot edit OpenClaw schedules
-              yet.
-            </Text>
+          {status ? (
+            <XStack
+              minHeight={64}
+              backgroundColor="$background"
+              borderRadius="$2xl"
+              paddingHorizontal="$2xl"
+              alignItems="center"
+              justifyContent="space-between"
+              gap="$xl"
+            >
+              <Text size="$label/l" flex={1} flexShrink={1}>
+                {STATUS_LABELS[status.value]}
+              </Text>
+              {status.value === 'held' ? null : (
+                <Switch
+                  accessibilityLabel="Active"
+                  value={status.value === 'active'}
+                  disabled={disabled || status.busy}
+                  onValueChange={status.onChange}
+                />
+              )}
+            </XStack>
+          ) : null}
+          {onDelete ? (
+            <Button
+              preset="destructiveMinimal"
+              label="Delete task"
+              centered
+              loading={deleting}
+              disabled={deleting || save.busy}
+              onPress={onDelete}
+            />
           ) : null}
         </YStack>
       </SettingsContentScrollView>
-      <TimePickerSheet
-        open={timeSheetOpen}
-        onOpenChange={setTimeSheetOpen}
-        value={draft.timeLabel}
-        onChange={(time) => update('timeLabel', time)}
-      />
+      {schedule ? (
+        <TimePickerSheet
+          open={timeSheetOpen}
+          onOpenChange={setTimeSheetOpen}
+          value={toTimeSelection(schedule)}
+          onChange={(time) =>
+            update('schedule', { ...schedule, ...fromTimeSelection(time) })
+          }
+        />
+      ) : null}
       <ForwardToChannelSheet
         open={destinationSheetOpen}
         onOpenChange={setDestinationSheetOpen}
         title="Posts to"
         onChannelSelected={handleChannelSelected}
+        channelFilter={destinationFilter}
         channelChats={destinationChannelChats}
         footerComponent={renderDestinationFooter}
+        allowNotebooks
       />
     </View>
   );
@@ -524,16 +615,17 @@ function TimePickerSheet({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  value: string;
-  onChange: (value: string) => void;
+  value: TimeSelection;
+  onChange: (value: TimeSelection) => void;
 }) {
-  const [selection, setSelection] = useState(() => parseTimeLabel(value));
+  const [selection, setSelection] = useState(value);
+  const { hour, minute, period } = value;
 
   useEffect(() => {
     if (open) {
-      setSelection(parseTimeLabel(value));
+      setSelection({ hour, minute, period });
     }
-  }, [open, value]);
+  }, [open, hour, minute, period]);
 
   return (
     <ActionSheet
@@ -549,41 +641,41 @@ function TimePickerSheet({
           <Picker
             accessibilityLabel="Hour"
             selectedValue={selection.hour}
-            onValueChange={(hour) =>
-              setSelection((current) => ({ ...current, hour: Number(hour) }))
+            onValueChange={(next) =>
+              setSelection((current) => ({ ...current, hour: Number(next) }))
             }
             style={{ flex: 1 }}
           >
-            {HOURS.map((hour) => (
-              <Picker.Item key={hour} label={`${hour}`} value={hour} />
+            {HOURS.map((option) => (
+              <Picker.Item key={option} label={`${option}`} value={option} />
             ))}
           </Picker>
           <Picker
             accessibilityLabel="Minute"
             selectedValue={selection.minute}
-            onValueChange={(minute) =>
+            onValueChange={(next) =>
               setSelection((current) => ({
                 ...current,
-                minute: Number(minute),
+                minute: Number(next),
               }))
             }
             style={{ flex: 1 }}
           >
-            {MINUTES.map((minute) => (
+            {MINUTES.map((option) => (
               <Picker.Item
-                key={minute}
-                label={minute.toString().padStart(2, '0')}
-                value={minute}
+                key={option}
+                label={option.toString().padStart(2, '0')}
+                value={option}
               />
             ))}
           </Picker>
           <Picker
             accessibilityLabel="AM or PM"
             selectedValue={selection.period}
-            onValueChange={(period) =>
+            onValueChange={(next) =>
               setSelection((current) => ({
                 ...current,
-                period: period as TimeSelection['period'],
+                period: next as TimeSelection['period'],
               }))
             }
             style={{ flex: 1 }}
@@ -597,7 +689,7 @@ function TimePickerSheet({
           label="Done"
           centered
           onPress={() => {
-            onChange(formatTimeSelection(selection));
+            onChange(selection);
             onOpenChange(false);
           }}
         />
