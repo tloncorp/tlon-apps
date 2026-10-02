@@ -98,6 +98,15 @@ export function BotModelSettingsScreen(props: Props) {
   const selectModel = useCallback(
     (provider: string, model: string) => {
       if (!ready) return;
+      // Tlon picks the model behind its own option, so a bot already on it
+      // has nothing to change; writing our listed id would swap its model.
+      if (
+        provider === BASIC_PROVIDER_ID &&
+        modelValues.provider === BASIC_PROVIDER_ID
+      ) {
+        props.navigation.goBack();
+        return;
+      }
       const zdr =
         provider === 'openrouter'
           ? zdrOnly
