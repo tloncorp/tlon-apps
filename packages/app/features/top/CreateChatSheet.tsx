@@ -14,7 +14,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack } from 'tamagui';
 
@@ -673,6 +673,12 @@ export function CreateChatInviteSheet({
     });
   }, [onSubmit, selectedContactIds, templateId, title]);
 
+  // Ensure the nested ContactBook owns vertical pans on Android. The shared
+  // wrapper hides the inactive handle; back/scrim still dismiss.
+  const enableContentPanningGesture = useMemo(() => {
+    return Platform.OS === 'android' ? false : undefined;
+  }, []);
+
   return (
     <ActionSheet
       disableDrag={screenScrolling}
@@ -681,6 +687,7 @@ export function CreateChatInviteSheet({
       onOpenChange={onOpenChange}
       snapPoints={[90]}
       snapPointsMode="percent"
+      enableContentPanningGesture={enableContentPanningGesture}
       modal
     >
       <CreateChatFormContent

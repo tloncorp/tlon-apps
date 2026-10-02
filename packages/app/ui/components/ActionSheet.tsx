@@ -332,13 +332,6 @@ const ActionSheetComponent = ({
 
   // Use BottomSheetWrapper for native platforms, Sheet for web
   const useBottomSheet = Platform.OS !== 'web';
-  // `disableDrag` marks a sheet whose nested list scrolls. Compose cannot share
-  // vertical pans with that list, so on Android the list gets them outright.
-  const enableContentPanningGesture =
-    props.enableContentPanningGesture ??
-    (Platform.OS === 'android' && props.disableDrag !== undefined
-      ? false
-      : undefined);
 
   const sheetContent = nativePresentation ? (
     <ExpoUISheet
@@ -361,7 +354,7 @@ const ActionSheetComponent = ({
       snapPointsMode={props.snapPointsMode as any}
       showHandle={true}
       enablePanDownToClose={true}
-      enableContentPanningGesture={enableContentPanningGesture}
+      enableContentPanningGesture={props.enableContentPanningGesture}
       footerComponent={footerComponent}
       unmountOnClose={unmountOnClose}
     >
