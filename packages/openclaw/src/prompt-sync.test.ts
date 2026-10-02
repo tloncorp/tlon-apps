@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   MAX_PROMPT_BYTES,
   PROMPT_WATCH_DEBOUNCE_MS,
+  STEWARD_PROMPTS_PROJECT_PATH,
   createPromptSync,
   isAllowedPromptName,
   readWorkspacePrompts,
@@ -38,8 +39,11 @@ function dispatchFrom(
 
 function makeSync(
   opts: {
-    /** Fail the first `n` pokes carrying this json key, then succeed. */
-    failPokes?: { key: string; times: number };
+    /**
+     * Fail the first `n` ship calls carrying this json key — a `configure`
+     * poke or a `project` request — then succeed.
+     */
+    failCalls?: { key: string; times: number };
     /** Make opening the workspace watcher throw. */
     watchThrows?: boolean;
     /** Fail the first `n` finalize requests, then succeed. */
@@ -49,8 +53,8 @@ function makeSync(
     retryBaseMs?: number;
     /** What a failing finalize throws; defaults to a plain Error. */
     finalizeError?: Error;
-    /** What a failing poke throws; defaults to a plain Error. */
-    pokeError?: Error;
+    /** What a failing ship call throws; defaults to a plain Error. */
+    callError?: Error;
     reauthenticate?: () => Promise<void>;
   } = {}
 ) {
@@ -67,23 +71,35 @@ function makeSync(
       return watcher;
     },
   };
-  let pokeFailuresLeft = opts.failPokes?.times ?? 0;
+  let callFailuresLeft = opts.failCalls?.times ?? 0;
+  // Everything sent to the ship, in order: poke json and project request
+  // bodies alike, so a test can assert configure-then-project.
+  const log: unknown[] = [];
+  const failCall = (json: unknown) => {
+    if (
+      opts.failCalls &&
+      callFailuresLeft > 0 &&
+      Object.hasOwn(json as object, opts.failCalls.key)
+    ) {
+      callFailuresLeft -= 1;
+      throw opts.callError ?? new Error(`${opts.failCalls.key} refused`);
+    }
+  };
   let finalizeFailuresLeft = opts.failFinalize ?? 0;
   const sync = createPromptSync({
     owner: '~zod',
     workspaceDir,
     poke: async (poke) => {
-      if (
-        opts.failPokes &&
-        pokeFailuresLeft > 0 &&
-        Object.hasOwn(poke.json as object, opts.failPokes.key)
-      ) {
-        pokeFailuresLeft -= 1;
-        throw opts.pokeError ?? new Error(`poke ${opts.failPokes.key} refused`);
-      }
+      failCall(poke.json);
       pokes.push(poke);
+      log.push(poke.json);
     },
     requestJson: async (path, method, body) => {
+      if (path === STEWARD_PROMPTS_PROJECT_PATH) {
+        failCall(body);
+        log.push(body);
+        return;
+      }
       if (finalizeFailuresLeft > 0) {
         finalizeFailuresLeft -= 1;
         throw opts.finalizeError ?? new Error('finalize refused');
@@ -108,7 +124,7 @@ function makeSync(
     },
     ...(opts.reauthenticate ? { reauthenticate: opts.reauthenticate } : {}),
   });
-  return { sync, pokes, requests, logger, watchListeners, watcherClose };
+  return { sync, pokes, log, requests, logger, watchListeners, watcherClose };
 }
 
 describe('prompt workspace projection', () => {
@@ -137,28 +153,28 @@ describe('prompt workspace projection', () => {
 
   it('configures its owner and projects the complete workspace on startup', async () => {
     fs.writeFileSync(path.join(workspaceDir, 'SOUL.md'), 'be concise');
-    const { sync, pokes } = makeSync();
+    const { sync, pokes, log } = makeSync();
 
     await sync.start();
 
+    // configure is the only poke; the projection goes over the HTTP route
     expect(pokes).toEqual([
       {
         app: 'steward',
         mark: 'steward-action-1',
         json: { configure: { owner: '~zod' } },
       },
-      {
-        app: 'steward',
-        mark: 'steward-prompts-action-1',
-        json: { project: { 'SOUL.md': 'be concise' } },
-      },
+    ]);
+    expect(log).toEqual([
+      { configure: { owner: '~zod' } },
+      { project: { 'SOUL.md': 'be concise' } },
     ]);
   });
 
   it('projects a local allowlisted write after its atomic rename event', async () => {
     vi.useFakeTimers();
     try {
-      const { sync, pokes, watchListeners } = makeSync();
+      const { sync, pokes, log, watchListeners } = makeSync();
       await sync.start();
       fs.writeFileSync(path.join(workspaceDir, 'AGENTS.md'), 'local change');
 
@@ -166,7 +182,7 @@ describe('prompt workspace projection', () => {
       await vi.advanceTimersByTimeAsync(PROMPT_WATCH_DEBOUNCE_MS);
       await sync.flush();
 
-      expect(pokes.map((poke) => poke.json)).toEqual([
+      expect(log).toEqual([
         { configure: { owner: '~zod' } },
         { project: {} },
         { project: { 'AGENTS.md': 'local change' } },
@@ -178,11 +194,11 @@ describe('prompt workspace projection', () => {
 
   it('still configures and projects when the watcher cannot open', async () => {
     fs.writeFileSync(path.join(workspaceDir, 'SOUL.md'), 'unwatched');
-    const { sync, pokes, logger } = makeSync({ watchThrows: true });
+    const { log, sync, pokes, logger } = makeSync({ watchThrows: true });
 
     await sync.start();
 
-    expect(pokes.map((poke) => poke.json)).toEqual([
+    expect(log).toEqual([
       { configure: { owner: '~zod' } },
       { project: { 'SOUL.md': 'unwatched' } },
     ]);
@@ -194,14 +210,14 @@ describe('prompt workspace projection', () => {
   it('ignores workspace changes outside the prompt allowlist', async () => {
     vi.useFakeTimers();
     try {
-      const { sync, pokes, watchListeners } = makeSync();
+      const { sync, pokes, log, watchListeners } = makeSync();
       await sync.start();
 
       watchListeners[0]('change', 'MEMORY.md');
       await vi.advanceTimersByTimeAsync(PROMPT_WATCH_DEBOUNCE_MS);
       await sync.flush();
 
-      expect(pokes).toHaveLength(2);
+      expect(log).toHaveLength(2);
     } finally {
       vi.useRealTimers();
     }
@@ -210,7 +226,7 @@ describe('prompt workspace projection', () => {
   it('closes its workspace watcher and ignores later events', async () => {
     vi.useFakeTimers();
     try {
-      const { sync, pokes, watchListeners, watcherClose } = makeSync();
+      const { sync, pokes, log, watchListeners, watcherClose } = makeSync();
       await sync.start();
       await sync.close();
 
@@ -219,31 +235,31 @@ describe('prompt workspace projection', () => {
       await sync.flush();
 
       expect(watcherClose).toHaveBeenCalledOnce();
-      expect(pokes).toHaveLength(2);
+      expect(log).toHaveLength(2);
     } finally {
       vi.useRealTimers();
     }
   });
 
   it('writes an owner edit, projects it, and then finalizes it', async () => {
-    const { sync, pokes, requests } = makeSync();
+    const { sync, pokes, log, requests } = makeSync();
 
     await sync.handleDispatch(dispatchFrom('0v1', 'SOUL.md', 'be exact'));
 
     expect(fs.readFileSync(path.join(workspaceDir, 'SOUL.md'), 'utf8')).toBe(
       'be exact'
     );
+    // configure is the only poke; the projection goes over the HTTP route
     expect(pokes).toEqual([
       {
         app: 'steward',
         mark: 'steward-action-1',
         json: { configure: { owner: '~zod' } },
       },
-      {
-        app: 'steward',
-        mark: 'steward-prompts-action-1',
-        json: { project: { 'SOUL.md': 'be exact' } },
-      },
+    ]);
+    expect(log).toEqual([
+      { configure: { owner: '~zod' } },
+      { project: { 'SOUL.md': 'be exact' } },
     ]);
     expect(requests).toEqual([
       {
@@ -259,7 +275,7 @@ describe('prompt workspace projection', () => {
 
   it('finalizes a failed edit without replacing the last projection', async () => {
     fs.mkdirSync(path.join(workspaceDir, 'SOUL.md'));
-    const { sync, pokes, requests } = makeSync();
+    const { sync, pokes, log, requests } = makeSync();
 
     await sync.handleDispatch(
       dispatchFrom('0v2', 'SOUL.md', 'cannot write a directory')
@@ -289,14 +305,14 @@ describe('prompt workspace projection', () => {
   });
 
   it('serializes dispatches so each finalize follows its projection', async () => {
-    const { sync, pokes, requests } = makeSync();
+    const { sync, pokes, log, requests } = makeSync();
 
     await Promise.all([
       sync.handleDispatch(dispatchFrom('0v3', 'SOUL.md', 'first')),
       sync.handleDispatch(dispatchFrom('0v4', 'USER.md', 'second')),
     ]);
 
-    expect(pokes.map((poke) => poke.json)).toEqual([
+    expect(log).toEqual([
       { configure: { owner: '~zod' } },
       { project: { 'SOUL.md': 'first' } },
       { project: { 'SOUL.md': 'first', 'USER.md': 'second' } },
@@ -316,13 +332,13 @@ describe('prompt workspace projection', () => {
   });
 
   it('re-finalizes duplicate dispatches without writing or projecting again', async () => {
-    const { sync, pokes, requests } = makeSync();
+    const { sync, pokes, log, requests } = makeSync();
     const dispatch = dispatchFrom('0v5', 'SOUL.md', 'once');
 
     await sync.handleDispatch(dispatch);
     await sync.handleDispatch(dispatch);
 
-    expect(pokes.map((poke) => poke.json)).toEqual([
+    expect(log).toEqual([
       { configure: { owner: '~zod' } },
       { project: { 'SOUL.md': 'once' } },
     ]);
@@ -341,7 +357,7 @@ describe('prompt workspace projection', () => {
   });
 
   it('refuses a dispatch authorized by a previous owner', async () => {
-    const { sync, pokes, requests, logger } = makeSync();
+    const { sync, pokes, log, requests, logger } = makeSync();
 
     await sync.handleDispatch(
       dispatchFrom('0v6', 'SOUL.md', 'from the old owner', '~bus')
@@ -394,7 +410,7 @@ describe('prompt workspace projection', () => {
 
   it('reports a written edit as updated even when its projection fails', async () => {
     const { sync, requests } = makeSync({
-      failPokes: { key: 'project', times: 99 },
+      failCalls: { key: 'project', times: 99 },
     });
 
     await sync.handleDispatch(dispatchFrom('0v8', 'SOUL.md', 'written'));
@@ -414,23 +430,23 @@ describe('prompt workspace projection', () => {
   it('keeps retrying a projection past any fixed attempt budget', async () => {
     // The default has no attempt cap: only close() ends the retries, so a
     // ship outage longer than a fixed budget cannot leave a stale projection.
-    const { sync, pokes } = makeSync({
-      failPokes: { key: 'project', times: 25 },
+    const { sync, pokes, log } = makeSync({
+      failCalls: { key: 'project', times: 25 },
       retryAttempts: undefined,
     });
     fs.writeFileSync(path.join(workspaceDir, 'SOUL.md'), 'persistent');
 
     await sync.start();
 
-    expect(pokes.map((poke) => poke.json)).toEqual([
+    expect(log).toEqual([
       { configure: { owner: '~zod' } },
       { project: { 'SOUL.md': 'persistent' } },
     ]);
   });
 
   it('abandons retries when the sync closes mid-outage', async () => {
-    const { sync, pokes, logger } = makeSync({
-      failPokes: { key: 'project', times: 1_000 },
+    const { log, sync, pokes, logger } = makeSync({
+      failCalls: { key: 'project', times: 1_000 },
       retryAttempts: undefined,
       retryBaseMs: 50,
     });
@@ -441,9 +457,9 @@ describe('prompt workspace projection', () => {
 
     // close() both stops the retries and settles the queue, so the projection
     // is abandoned rather than hanging on a ship that never answers.
-    expect(
-      pokes.some((poke) => Object.hasOwn(poke.json as object, 'project'))
-    ).toBe(false);
+    expect(log.some((entry) => Object.hasOwn(entry as object, 'project'))).toBe(
+      false
+    );
     expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining('Prompt sync failed')
     );
@@ -456,13 +472,11 @@ describe('prompt workspace projection', () => {
       path.join(workspaceDir, 'SOUL.md'),
       'x'.repeat(MAX_PROMPT_BYTES + 1)
     );
-    const { sync, pokes, logger } = makeSync({ retryAttempts: undefined });
+    const { log, sync, pokes, logger } = makeSync({ retryAttempts: undefined });
 
     await sync.start();
 
-    expect(pokes.map((poke) => poke.json)).toEqual([
-      { configure: { owner: '~zod' } },
-    ]);
+    expect(log).toEqual([{ configure: { owner: '~zod' } }]);
     expect(logger.warn).not.toHaveBeenCalledWith(
       expect.stringContaining('retrying')
     );
@@ -501,9 +515,9 @@ describe('prompt workspace projection', () => {
     // than finalize: a stale cookie here would stall startup and every
     // later edit.
     const reauthenticate = vi.fn(async () => {});
-    const { sync, pokes } = makeSync({
-      failPokes: { key: 'project', times: 1 },
-      pokeError: new UrbitHttpError({ operation: 'Poke', status: 401 }),
+    const { sync, pokes, log } = makeSync({
+      failCalls: { key: 'project', times: 1 },
+      callError: new UrbitHttpError({ operation: 'Poke', status: 401 }),
       reauthenticate,
     });
     fs.writeFileSync(path.join(workspaceDir, 'SOUL.md'), 'after refresh');
@@ -511,7 +525,7 @@ describe('prompt workspace projection', () => {
     await sync.start();
 
     expect(reauthenticate).toHaveBeenCalledOnce();
-    expect(pokes.map((poke) => poke.json)).toEqual([
+    expect(log).toEqual([
       { configure: { owner: '~zod' } },
       { project: { 'SOUL.md': 'after refresh' } },
     ]);
@@ -560,15 +574,41 @@ describe('prompt workspace projection', () => {
     );
   });
 
+  it('treats a projection the ship rejects as terminal, not success', async () => {
+    // Over the poke this was a 204 and a log line, so a projection the ship
+    // refused (a file the desk's allowlist does not know yet) read as
+    // stored. The HTTP route answers 400, which is final.
+    const { log, sync, logger } = makeSync({
+      failCalls: { key: 'project', times: 1_000 },
+      callError: new UrbitHttpError({
+        operation: 'request /steward/~/v1/prompts/project',
+        status: 400,
+        bodyText: 'unsupported file or oversized text',
+      }),
+      retryAttempts: undefined,
+    });
+    fs.writeFileSync(path.join(workspaceDir, 'SOUL.md'), 'rejected');
+
+    await sync.start();
+
+    expect(log).toEqual([{ configure: { owner: '~zod' } }]);
+    expect(logger.warn).not.toHaveBeenCalledWith(
+      expect.stringContaining('retrying')
+    );
+    expect(logger.log).not.toHaveBeenCalledWith(
+      expect.stringContaining('Projected')
+    );
+  });
+
   it('retries a failed projection until it lands', async () => {
-    const { sync, pokes, logger } = makeSync({
-      failPokes: { key: 'project', times: 2 },
+    const { log, sync, pokes, logger } = makeSync({
+      failCalls: { key: 'project', times: 2 },
     });
     fs.writeFileSync(path.join(workspaceDir, 'SOUL.md'), 'eventually');
 
     await sync.start();
 
-    expect(pokes.map((poke) => poke.json)).toEqual([
+    expect(log).toEqual([
       { configure: { owner: '~zod' } },
       { project: { 'SOUL.md': 'eventually' } },
     ]);
@@ -578,14 +618,14 @@ describe('prompt workspace projection', () => {
   });
 
   it('re-asserts ownership when reprojecting after a reconnect', async () => {
-    const { sync, pokes } = makeSync();
+    const { sync, pokes, log } = makeSync();
 
     await sync.start();
     await sync.project('reconnect');
 
     // %steward may have been reset or re-pointed while this process stayed
     // up, so the owner is configured again rather than assumed.
-    expect(pokes.map((poke) => poke.json)).toEqual([
+    expect(log).toEqual([
       { configure: { owner: '~zod' } },
       { project: {} },
       { configure: { owner: '~zod' } },
@@ -594,14 +634,14 @@ describe('prompt workspace projection', () => {
   });
 
   it('drops dispatches that arrive after close', async () => {
-    const { sync, pokes, requests } = makeSync();
+    const { sync, pokes, log, requests } = makeSync();
 
     await sync.start();
     await sync.close();
     await sync.handleDispatch(dispatchFrom('0v9', 'SOUL.md', 'too late'));
 
     expect(fs.existsSync(path.join(workspaceDir, 'SOUL.md'))).toBe(false);
-    expect(pokes).toHaveLength(2);
+    expect(log).toHaveLength(2);
     expect(requests).toEqual([]);
   });
 

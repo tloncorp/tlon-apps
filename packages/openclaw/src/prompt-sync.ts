@@ -34,6 +34,12 @@ export type PromptFileName = (typeof PROMPT_FILE_NAMES)[number];
 export const MAX_PROMPT_BYTES = 65_536;
 /** The bot's HTTP finalize route; its reply confirms steward consumed it. */
 export const STEWARD_PROMPTS_FINALIZE_PATH = '/steward/~/v1/prompts/finalize';
+/**
+ * The bot's HTTP projection route, a wrapper over the %project poke. Its reply
+ * confirms the projection was stored or rejected; a rejected channel poke is
+ * only a log line, so the poke would report success either way.
+ */
+export const STEWARD_PROMPTS_PROJECT_PATH = '/steward/~/v1/prompts/project';
 const MAX_COMPLETED_REQUESTS = 1_000;
 /** Coalesce an editor's write/rename event burst into one projection. */
 export const PROMPT_WATCH_DEBOUNCE_MS = 150;
@@ -411,14 +417,13 @@ export function createPromptSync(opts: {
   const publish = async (reason: string) => {
     // The read stays outside the retry on purpose. An oversized or symlinked
     // file fails the same way every time, and looping on it would hold
-    // startup and every later owner edit behind one bad file. Only the poke
-    // is a network step worth retrying.
+    // startup and every later owner edit behind one bad file. Only the
+    // request is a network step worth retrying, and a 4xx from it (an
+    // invalid projection) is terminal like any other.
     const prompts = await readWorkspacePrompts(opts.workspaceDir);
     await withRetry(`Prompt projection (${reason})`, async () => {
-      await opts.poke({
-        app: 'steward',
-        mark: 'steward-prompts-action-1',
-        json: { project: prompts },
+      await opts.requestJson(STEWARD_PROMPTS_PROJECT_PATH, 'POST', {
+        project: prompts,
       });
     });
     opts.logger.log(
