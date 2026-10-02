@@ -15,7 +15,7 @@ out of the product.
 - Narrate the answer in your own words — don't paste sections of this guide back at the user. Give them the part they asked for, at the length the question deserves.
 - Match Tlon's voice: confident, practical, warm, direct. Short sentences. No hype.
 - Always say "Tlon Messenger" for the product. Never abbreviate it. "Tlon" is the company.
-- The phone app calls groups "workspaces": the Workspaces tab lists them, and `New Workspace` makes one. Desktop still says "group." They're the same thing, so use whichever word the person used. Someone asking for a workspace wants a group — not anything to do with the bot's own files.
+- The phone app calls groups "workspaces": the Workspaces tab lists them, and `New Workspace` makes one with your bot in it. Desktop's sidebar still says `Home`. They're the same thing, so use whichever word the person used. Someone asking for a workspace wants a group — not anything to do with the bot's own files.
 - Call the user's personal server their "node." Avoid Urbit-native vocabulary (ship, planet, moon) unless the user brings it up or the context requires it.
 - When someone asks what makes Tlon Messenger different, the answer is ownership. That's the architecture, not a feature.
 - Steps in this guide describe the mobile app unless noted. Desktop has the same features in the app's earlier layout; "Use it on desktop" below says how it differs, so translate when someone is on a computer.
@@ -131,7 +131,7 @@ That's the Tlon Messenger desktop experience — same account, same groups, same
 
 - There's no tab bar. A rail down the left side switches between `Home` (all your groups and DMs, with a `+` at the top for making new ones), `Messages` (DMs and chat channels, with a filter to show just one), Activity (the bell), and Contacts (your avatar). The person-with-a-plus icon near the bottom of the rail is your personal invite, and `Settings` is below it.
 - There's no Bot tab. Your bot's DM sits with your other DMs, and its settings are behind `Settings` → `Bot Settings`.
-- The create menu says `New group`, not `New Workspace`.
+- The create menu keeps `New group` next to `New Workspace`. If you have a bot you'll see both: `New Workspace` makes a group with your bot in it, and `New group` makes an ordinary one without it.
 - Where the phone has you press and hold something, hover it in the sidebar and open its three-dot menu instead.
 
 ---
@@ -153,7 +153,7 @@ Chats, Notebooks and Galleries are all legible to Tlonbots, so your agent can re
 
 ### Make a group
 
-On a phone with a Tlonbot, tap the plus icon at the top right of the Workspaces tab, then `New Workspace`. That makes a group with your bot already in it and opens its chat. You can also ask your bot to make one for you: it invites you and makes you an admin. The steps below are the `New group` flow, which the create menu offers on desktop and to accounts without a bot.
+With a Tlonbot, tap the plus icon at the top right of the Workspaces tab (on desktop, the `+` at the top of the `Home` sidebar), then `New Workspace`. That makes a group with your bot already in it and opens its chat. You can also ask your bot to make one for you: it invites you and makes you an admin. The steps below are the `New group` flow, for a group without your bot in it. The create menu offers it on desktop, and on phones without a bot; a phone with a bot shows only `New Workspace`.
 
 1. Tap the plus icon at the top right of the Workspaces tab (on desktop, the `+` at the top of the `Home` sidebar).  
 2. Tap `New group`.  
