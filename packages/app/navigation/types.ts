@@ -120,6 +120,13 @@ export type RootStackParamList = {
   BotPermissionsSettings: undefined;
   BotIdentitySettings: undefined;
   BotProviderListSettings: { kind: 'subscriptions' | 'apiKeys' };
+  ScheduledTasks: {
+    botShip: string;
+  };
+  ScheduledTaskEditor: {
+    botShip: string;
+    taskId?: string;
+  };
   BlockedUsers: undefined;
   PrivacySettings: undefined;
   AppInfo: undefined;
@@ -219,12 +226,21 @@ export type HomeDrawerParamList = Pick<TopLevelTabParamList, 'ChatList'> &
 export type ProfileDrawerParamList = Pick<RootStackParamList, 'Contacts'> &
   Pick<
     RootStackParamList,
-    'AddContacts' | 'UserProfile' | 'EditProfile' | 'Attestation'
+    | 'AddContacts'
+    | 'UserProfile'
+    | 'ScheduledTasks'
+    | 'ScheduledTaskEditor'
+    | 'EditProfile'
+    | 'Attestation'
   >;
 
 export type ActivityDrawerParamList = Pick<
   RootStackParamList,
-  'GroupSettings' | 'UserProfile' | 'EditProfile'
+  | 'GroupSettings'
+  | 'UserProfile'
+  | 'ScheduledTasks'
+  | 'ScheduledTaskEditor'
+  | 'EditProfile'
 > & {
   // Drawer-only placeholder shown before an activity item is selected.
   ActivityEmpty: undefined;
@@ -278,6 +294,8 @@ export type ChannelStackParamList = {
   NotesSearch: RootStackParamList['NotesSearch'];
   MediaViewer: RootStackParamList['MediaViewer'];
   UserProfile: RootStackParamList['UserProfile'];
+  ScheduledTasks: RootStackParamList['ScheduledTasks'];
+  ScheduledTaskEditor: RootStackParamList['ScheduledTaskEditor'];
   EditProfile: RootStackParamList['EditProfile'];
   ChannelMembers: RootStackParamList['ChannelMembers'];
   ChannelMeta: RootStackParamList['ChannelMeta'];
@@ -293,6 +311,8 @@ export type DesktopChannelStackParamList = Pick<
   | 'NotesSearch'
   | 'MediaViewer'
   | 'UserProfile'
+  | 'ScheduledTasks'
+  | 'ScheduledTaskEditor'
   | 'EditProfile'
   | 'ChannelMembers'
   | 'ChannelMeta'

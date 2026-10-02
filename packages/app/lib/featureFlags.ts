@@ -16,6 +16,11 @@ export const featureMeta = {
     label: 'Enable Markdown mode for notebook posts',
     onlyTlon: true,
   },
+  scheduledTasks: {
+    default: false,
+    label: 'Enable scheduled task management',
+    onlyTlon: true,
+  },
   buckets: {
     default: false,
     label: 'Enable Buckets channels',
