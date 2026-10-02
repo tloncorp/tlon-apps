@@ -64,7 +64,7 @@ Subscriber agents forward actions to the host with the noun-only `%buckets-comma
 
 The group host always creates and hosts the Bucket, but any current group admin may initiate creation. A non-host admin's local `%buckets` agent first checks its group replica, then forwards the request to the group host. The host checks the actor against its authoritative `%groups` state before allocating the Bucket or registering its channel. Consequently the channel nest, object storage, quota, and eventual billing all remain attached to the group host rather than the initiating admin. Repeating an identical create request is idempotent and re-attempts channel registration; a conflicting request for an existing Bucket name is rejected.
 
-The Gall delete action removes the manifest and the `%groups` registration, and the client does offer it — deleting a Bucket channel deletes its contents, which is the behaviour the team settled on. What it does not yet do is remove the objects: there is no host-authorized bulk cleanup at the broker, so a deleted Bucket's bytes are left for the orphan sweep rather than cleared in the same breath. Tracked as TLON-6399, with an archive export in TLON-6398.
+The Gall `%delete` action removes the manifest and the `%groups` registration, and `store.deleteChannel` can already send it as `delete-bucket`. The client UI does not yet offer it: `getChannelActionCapabilities` withholds Delete for Bucket channels, because there is no host-authorized bulk cleanup at the broker, and deleting a Bucket now would remove its channel and manifest but leave its stored objects behind. It waits on object deletion, tracked as TLON-6399, with an archive export in TLON-6398.
 
 ## HTTP surface
 
