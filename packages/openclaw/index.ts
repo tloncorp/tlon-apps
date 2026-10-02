@@ -1001,7 +1001,7 @@ export default defineBundledChannelEntry({
       label: 'Tlon CLI',
       description:
         'Tlon/Urbit API for reading data and administration: activity, Buckets shared files, channels, contacts, groups, messages, notes, posts, settings, upload, expose, hooks. ' +
-        'The Tlon Messenger app calls groups "workspaces": a request to create, join, or manage a workspace is about a Tlon group, so use `groups` commands (`groups create-owned` to make one for someone), never your own workspace files. ' +
+        'The Tlon Messenger app calls groups "workspaces": a request to create, join, or manage a workspace is about a Tlon group, so use `groups` commands (`groups create-owned` to make one for someone). It means your own workspace files only when the person is plainly talking about files, e.g. by naming SOUL.md. ' +
         'To send ordinary messages, use the `message` tool, not this tool. When a hosted browser reaches a login form, use `browser handoff <signed-viewer-url>` to send the owner the secure native login form. ' +
         '%diary channels are deprecated and unsupported by this CLI tool; ask the owner to type `/migrate <diary-nest>` to move one to %notes. ' +
         'OpenClaw message delivery still accepts diary/ targets, including writable archives. ' +
