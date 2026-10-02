@@ -167,3 +167,65 @@ describe('background sync session ownership', () => {
     expect(syncSince).not.toHaveBeenCalled();
   });
 });
+
+describe('background sync database readiness bound', () => {
+  // The module mock's ensureDbReady is a plain function; spy on it here so
+  // these tests can control readiness without changing the shared mock.
+  const nativeDb = jest.requireMock<{ ensureDbReady: () => Promise<void> }>(
+    '@tloncorp/app/lib/nativeDb'
+  );
+  let ensureDbReady: ReturnType<typeof jest.spyOn>;
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.clearAllMocks();
+    ensureDbReady = jest.spyOn(nativeDb, 'ensureDbReady');
+    jest
+      .mocked(storage.shipInfo.getValue)
+      .mockReset()
+      .mockResolvedValue(originalShip);
+    jest
+      .mocked(storage.hostingAuthToken.getValue)
+      .mockReset()
+      .mockResolvedValue('session-old');
+    jest.mocked(refreshHostingAuth).mockReset().mockResolvedValue('ok');
+  });
+  afterEach(() => {
+    ensureDbReady.mockRestore();
+    jest.useRealTimers();
+  });
+
+  it('fails the task when readiness never settles', async () => {
+    // Foreground-only migration timeouts never fire while backgrounded.
+    ensureDbReady.mockImplementationOnce(() => new Promise<void>(() => {}));
+
+    let outcome: unknown = 'pending';
+    void runTask().then((result) => {
+      outcome = result;
+    });
+
+    await jest.advanceTimersByTimeAsync(29_999);
+    expect(outcome).toBe('pending');
+
+    await jest.advanceTimersByTimeAsync(1);
+    expect(outcome).toBe('failed');
+    expect(logger.trackError).toHaveBeenCalledWith('Background sync failed', {
+      context: 'db readiness timed out',
+      timeoutMs: 30_000,
+    });
+    expect(refreshHostingAuth).not.toHaveBeenCalled();
+    expect(syncSince).not.toHaveBeenCalled();
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  it('syncs as before when readiness resolves, and clears the bound', async () => {
+    ensureDbReady.mockResolvedValueOnce(undefined);
+
+    expect(await runTask()).toBe('success');
+    expect(syncSince).toHaveBeenCalledTimes(1);
+    expect(logger.trackError).not.toHaveBeenCalled();
+    // Only the telemetry flush's 500 ms cap may outlive the task.
+    await jest.advanceTimersByTimeAsync(500);
+    expect(jest.getTimerCount()).toBe(0);
+  });
+});

@@ -17,8 +17,32 @@ import { refreshHostingAuth } from './hostingAuth';
 
 const logger = createDevLogger('backgroundSync', true);
 
+// Wall-clock and well inside WorkManager's 10 min budget: Android schedules
+// the next run only once this task returns, so a hung wait would strand it.
+const DB_READY_TIMEOUT_MS = 30_000;
+
+async function waitForDbReady(): Promise<'ready' | 'timeout'> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      ensureDbReady().then(() => 'ready' as const),
+      new Promise<'timeout'>((resolve) => {
+        timer = setTimeout(() => resolve('timeout'), DB_READY_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function performSync(): Promise<BackgroundTask.BackgroundTaskResult> {
-  await ensureDbReady();
+  if ((await waitForDbReady()) === 'timeout') {
+    logger.trackError('Background sync failed', {
+      context: 'db readiness timed out',
+      timeoutMs: DB_READY_TIMEOUT_MS,
+    });
+    return BackgroundTask.BackgroundTaskResult.Failed;
+  }
   const taskExecutionId = uuidv4();
   logger.trackEvent('Initiating background sync', { taskExecutionId });
   const timings: Record<string, number> = {
