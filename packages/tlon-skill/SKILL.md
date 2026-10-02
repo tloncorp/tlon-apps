@@ -1,6 +1,6 @@
 ---
 name: tlon
-description: Interact with Tlon/Urbit API. Use for reading activity, message history, contacts, channels, and groups; hosted-browser login handoffs; group/channel administration; profile management; and exposing content to the clearweb.
+description: Interact with Tlon/Urbit API. Use for reading activity, message history, contacts, channels, and groups (called workspaces in the Tlon Messenger app); hosted-browser login handoffs; group/channel administration; profile management; and exposing content to the clearweb.
 ---
 
 # Tlon Skill
@@ -360,6 +360,8 @@ Options: `--nickname`, `--bio`, `--status`, `--avatar`, `--cover`
 Full group management.
 
 When a Tlon user asks you to create a group for them, use `tlon groups create-owned "Name" --owner ~requester [--description "..."]`. This invites the requester and makes them an admin. Do not use plain `tlon groups create` for user-requested groups; that creates a bot-owned group that does not automatically include the requester. After `create-owned`, share the group by putting the `Ref:` path from the output in your reply (the OpenClaw message tool renders it as a card).
+
+The Tlon Messenger app calls groups **workspaces**: the list of them is the Workspaces tab, and on an account with a hosted bot the app's create button reads `New Workspace`. A user asking to create, join, rename, or invite someone to a workspace, or to list their workspaces, is asking about a group, so use these `tlon groups` commands — creating one for someone is `groups create-owned`. `groups list` shows only the groups the ship running the command is in: to list someone else's workspaces, run it with their credentials (`--config`) when you have them, and otherwise say the list covers only the groups you're in. That is a different thing from the agent harness's own workspace directory (OpenClaw's SOUL.md, AGENTS.md, and memory files). A request to create a workspace always means a group; read "workspace" as that directory only when the person is plainly talking about its files, for example by naming one.
 
 ```bash
 # Basics
