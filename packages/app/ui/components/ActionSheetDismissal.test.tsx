@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { ActionSheet } from './ActionSheet';
 import { BottomSheetWrapper } from './BottomSheetWrapper.native';
 
+const platform = vi.hoisted(() => ({ OS: 'ios' }));
 vi.mock('@tloncorp/ui', () => ({
   ActionSheetContext: createContext({ isInsideSheet: false }),
   Icon: () => null,
@@ -15,7 +16,7 @@ vi.mock('@tloncorp/ui', () => ({
   useIsWindowNarrow: () => true,
 }));
 vi.mock('react-native', () => ({
-  Platform: { OS: 'ios' },
+  Platform: platform,
   Keyboard: { dismiss: vi.fn() },
   useWindowDimensions: () => ({ height: 852 }),
 }));
@@ -113,6 +114,30 @@ describe('ordinary ActionSheet dismissal forwarding', () => {
     act(() => native.props.onDismiss());
     expect(dismissed).toHaveBeenCalledTimes(1);
     act(() => tree.unmount());
+  });
+
+  it.each([
+    ['android', false],
+    ['ios', undefined],
+  ])('gives a scrolling list the vertical pans on %s', (os, contentPanning) => {
+    platform.OS = os;
+    let tree: ReturnType<typeof create>;
+    act(() => {
+      tree = create(
+        <ActionSheet open onOpenChange={vi.fn()} disableDrag={false}>
+          {null}
+        </ActionSheet>
+      );
+    });
+    const native = tree!.root.find((node) => node.props.index === 0);
+    expect(native.props.enableContentPanningGesture).toBe(
+      contentPanning ?? true
+    );
+    expect(native.props.handleComponent === null).toBe(
+      contentPanning === false
+    );
+    act(() => tree.unmount());
+    platform.OS = 'ios';
   });
 });
 

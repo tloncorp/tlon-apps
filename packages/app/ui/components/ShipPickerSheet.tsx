@@ -1,6 +1,5 @@
 import { useIsWindowNarrow } from '@tloncorp/ui';
-import { useMemo, useState } from 'react';
-import { Platform } from 'react-native';
+import { useState } from 'react';
 import { View, YStack } from 'tamagui';
 
 import { ActionSheet } from './ActionSheet';
@@ -28,12 +27,6 @@ export function ShipPickerSheet({
 }) {
   const isWindowNarrow = useIsWindowNarrow();
   const [scrolling, setScrolling] = useState(false);
-  // Disable sheet gestures on Android so the nested ContactBook owns vertical
-  // pans. The shared wrapper hides the inactive handle; back/scrim still dismiss.
-  const enableContentPanningGesture = useMemo(
-    () => (Platform.OS === 'android' ? false : undefined),
-    []
-  );
 
   const body = (
     <YStack flex={1} gap="$l" $sm={{ paddingHorizontal: '$xl' }}>
@@ -60,7 +53,6 @@ export function ShipPickerSheet({
         snapPoints={[90]}
         snapPointsMode="percent"
         disableDrag={scrolling}
-        enableContentPanningGesture={enableContentPanningGesture}
       >
         {body}
       </ActionSheet>
