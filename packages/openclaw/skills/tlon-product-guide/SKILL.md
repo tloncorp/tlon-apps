@@ -129,7 +129,7 @@ That's the hosted path. Self-hosting? There's no signup email to log in with —
 
 That's the Tlon Messenger desktop experience — same account, same groups, same messages. It keeps the app's earlier layout, though, so steps in this guide need translating:
 
-- There's no tab bar. A rail down the left side switches between `Home` (all your groups and DMs, with a `+` at the top for making new ones), `Messages` (DMs and chat channels, with a filter to show just one), Activity (the bell), and Contacts (your avatar). The person-with-a-plus icon near the bottom of the rail is your personal invite, and `Settings` is below it.
+- There's no tab bar. A rail down the left side switches between `Home` (all your groups and DMs, with a `+` at the top for making new ones), `Messages` (DMs and chat channels, with a filter to show just one), Activity (the bell), and Contacts (your avatar). The person-with-a-plus icon near the bottom of the rail is your personal invite, and `Settings` is below it. Desktop shows that icon even without a personal invite link, so on a self-hosted node it opens a sheet stuck on `Preparing invite link`. Use a group invite there instead.
 - There's no Bot tab. Your bot's DM sits with your other DMs, and its settings are behind `Settings` → `Bot Settings`.
 - The create menu keeps `New group` next to `New Workspace`. If you have a bot you'll see both: `New Workspace` makes a group with your bot in it, and `New group` makes an ordinary one without it.
 - Where the phone has you press and hold something, hover it in the sidebar and open its three-dot menu instead.
@@ -143,7 +143,7 @@ That's the Tlon Messenger desktop experience — same account, same groups, same
 A group is a social space with members, roles, and channels. There are four channel types:
 
 - **Chat** — short, fast messages in a stream. For talking.  
-- **Notebook** — collaborative Markdown documents, organized in folders. For writing something together. Notebooks have no comments; discussion goes in a Chat or a Bulletin.  
+- **Notebook** — collaborative Markdown documents, organized in folders. For writing something together. Notebooks have no comments; discussion goes in a Chat.  
 - **Bulletin** — long-form publishing with threaded comments. For essays and announcements people reply to.  
 - **Gallery** — photos, videos, links, and files. For collecting and browsing visual material.
 
@@ -369,7 +369,7 @@ When someone asks "what should I do with this?", offer ideas like these, matched
 
 **For teams:**
 
-- Build a team group: a Chat for daily talk, a Bulletin for announcements and decisions people reply to, a Notebook for docs you maintain together, a Gallery for design work and links.  
+- Build a team group: a Chat for daily talk, a second Chat for announcements and decisions people reply to in threads, a Notebook for docs you maintain together, a Gallery for design work and links.  
 - Use roles and channel permissions to give clients or contractors access to some channels and not others.  
 - Connect Linear, GitHub, or Notion and set weekly crons: ticket status summaries, new-issue digests, meeting-note recaps.  
 - Have your bot maintain a functional FAQ so process questions answer themselves.
