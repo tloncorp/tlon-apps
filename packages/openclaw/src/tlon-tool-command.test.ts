@@ -38,6 +38,61 @@ function beforeImmediate<T>(promise: Promise<T>) {
 }
 
 describe('tlon tool execution', () => {
+  describe('browser handoff credential binding', () => {
+    it.each(
+      ['--config', '--ship', '--url', '--code', '--cookie'].flatMap((flag) => [
+        `${flag} private-value browser handoff https://browser-session.tlon.network/s/private.signature`,
+        `${flag}=private-value browser handoff https://browser-session.tlon.network/s/private.signature`,
+        `browser handoff https://browser-session.tlon.network/s/private.signature ${flag}=private-value`,
+      ])
+    )(
+      'rejects an override without executing or logging the capability (%s)',
+      async (command) => {
+        const runCommand = vi.fn();
+        const logError = vi.fn();
+        const execute = createTlonToolExecutor({
+          runCommand,
+          logError,
+          notifyDiaryMigrationDiscovery: vi.fn(),
+        });
+        const result = await execute('handoff', { command });
+        expect(runCommand).not.toHaveBeenCalled();
+        expect(result.details).toMatchObject({
+          status: 'blocked',
+          reason: 'browser_account_override',
+        });
+        expect(JSON.stringify([result, logError.mock.calls])).not.toContain(
+          'private-value'
+        );
+        expect(JSON.stringify([result, logError.mock.calls])).not.toContain(
+          'private.signature'
+        );
+      }
+    );
+
+    it('runs a handoff without overrides and leaves ordinary credential overrides available', async () => {
+      const runCommand = vi.fn().mockResolvedValue('ok');
+      const execute = createTlonToolExecutor({
+        runCommand,
+        notifyDiaryMigrationDiscovery: vi.fn(),
+      });
+      await execute('handoff', {
+        command:
+          'browser handoff https://browser-session.tlon.network/s/payload.signature',
+      });
+      await execute('read', {
+        command: '--config /tmp/other.json contacts self',
+      });
+      expect(runCommand).toHaveBeenCalledTimes(2);
+      expect(runCommand).toHaveBeenLastCalledWith([
+        '--config',
+        '/tmp/other.json',
+        'contacts',
+        'self',
+      ]);
+    });
+  });
+
   it('returns a local diary refusal before discovery delivery settles and preserves notifier deduplication', async () => {
     let settleSend!: (messageId: string | undefined) => void;
     const send = vi.fn(
@@ -218,6 +273,111 @@ describe('tlon tool execution', () => {
       blocked: true,
       reason: 'migration_operation',
     });
+  });
+});
+
+describe('owner credential injection for groups invite-link', () => {
+  const SKILL_DIR = '/srv/tlon-skill';
+  const OWNER_CONFIG = '/srv/tlon-skill/ships/owner.json';
+
+  function makeExecutor(
+    overrides: {
+      ownerShip?: string;
+      env?: NodeJS.ProcessEnv;
+      fileExists?: (path: string) => boolean;
+    } = {}
+  ) {
+    const runCommand = vi.fn(async () => 'https://invite.tlon.io/0vabc');
+    const execute = createTlonToolExecutor({
+      runCommand,
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+      ownerShip: '~owner',
+      env: { TLON_SKILL_DIR: SKILL_DIR } as NodeJS.ProcessEnv,
+      fileExists: (path: string) => path === OWNER_CONFIG,
+      ...overrides,
+    });
+    return { execute, runCommand };
+  }
+
+  it('runs a bare invite-link as the owner via --ship', async () => {
+    // --ship, not --config: ship-only resolution validates the file's ship and
+    // cookie against the owner, so a stale owner-named file cannot mint a
+    // bot-attributed link.
+    const { execute, runCommand } = makeExecutor();
+
+    const result = await execute('inject', {
+      command: 'groups invite-link ~host/book-club',
+    });
+
+    expect(runCommand).toHaveBeenCalledWith([
+      '--ship',
+      '~owner',
+      'groups',
+      'invite-link',
+      '~host/book-club',
+    ]);
+    expect(result.details).toBeUndefined();
+  });
+
+  it.each([
+    ['--self', 'groups invite-link ~host/book-club --self'],
+    ['-h', 'groups invite-link -h'],
+    ['--help', 'groups invite-link --help'],
+    ['separate-value --config', '--config /tmp/x.json groups invite-link ~h/g'],
+    ['=-form --config', '--config=/tmp/x.json groups invite-link ~h/g'],
+    ['separate-value --ship', '--ship ~other groups invite-link ~h/g'],
+    ['=-form --ship', '--ship=~other groups invite-link ~h/g'],
+    ['separate-value --url', '--url https://x groups invite-link ~h/g'],
+    [
+      '=-form --code',
+      '--code=sampel-ticlyt-migfun-falmel groups invite-link ~h/g',
+    ],
+    ['=-form --cookie', '--cookie=urbauth-~zod=0v groups invite-link ~h/g'],
+  ])('leaves the command untouched with %s', async (_label, command) => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('skip', { command });
+
+    const [args] = runCommand.mock.calls[0] as unknown as [string[]];
+    expect(args).toEqual(command.split(' '));
+  });
+
+  it('leaves other subcommands untouched', async () => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('other', { command: 'groups info ~host/book-club' });
+    await execute('other', { command: 'groups list' });
+    await execute('other', { command: 'contacts self' });
+
+    for (const [args] of runCommand.mock.calls as unknown as [string[]][]) {
+      expect(args).not.toContain('--ship');
+    }
+  });
+
+  it('errors instead of silently using bot credentials when provisioning is missing', async () => {
+    const noSkillDir = makeExecutor({ env: {} as NodeJS.ProcessEnv });
+    const missingSkillDir = await noSkillDir.execute('no-dir', {
+      command: 'groups invite-link ~host/book-club',
+    });
+    expect(missingSkillDir.details).toEqual({ error: true });
+    expect(missingSkillDir.content[0]?.text).toContain('TLON_SKILL_DIR');
+    expect(noSkillDir.runCommand).not.toHaveBeenCalled();
+
+    const noFile = makeExecutor({ fileExists: () => false });
+    const missingFile = await noFile.execute('no-file', {
+      command: 'groups invite-link ~host/book-club',
+    });
+    expect(missingFile.details).toEqual({ error: true });
+    expect(missingFile.content[0]?.text).toContain(OWNER_CONFIG);
+    expect(noFile.runCommand).not.toHaveBeenCalled();
+
+    const noOwner = makeExecutor({ ownerShip: undefined });
+    const missingOwner = await noOwner.execute('no-owner', {
+      command: 'groups invite-link ~host/book-club',
+    });
+    expect(missingOwner.details).toEqual({ error: true });
+    expect(missingOwner.content[0]?.text).toContain('--self');
+    expect(noOwner.runCommand).not.toHaveBeenCalled();
   });
 });
 
@@ -404,6 +564,21 @@ describe('checkBlockedTlonOperation', () => {
 
 const documentedActionOperations = {
   activity: ['mentions', 'replies', 'all', 'unreads'],
+  browser: ['handoff'],
+  buckets: [
+    'list',
+    'show',
+    'files',
+    'search',
+    'create',
+    'mkdir',
+    'upload',
+    'read',
+    'rename',
+    'move',
+    'delete',
+    'set-writers',
+  ],
   channels: [
     'dms',
     'group-dms',
@@ -437,6 +612,7 @@ const documentedActionOperations = {
     'create-owned',
     'invite',
     'info',
+    'invite-link',
     'leave',
     'join',
     'request-invite',
@@ -526,6 +702,40 @@ const documentedActionOperations = {
 } as const;
 
 describe('tlon tool telemetry summarizer', () => {
+  it('classifies Bucket reads, uploads, and destructive operations without leaking paths', () => {
+    const read = summarizeTlonCommand(
+      'buckets read buckets/~zod/private-files 12'
+    );
+    expect(read).toMatchObject({
+      channelKind: 'buckets',
+      intent: 'read',
+      operation: 'read',
+      subcommand: 'buckets',
+    });
+
+    const upload = summarizeTlonCommand(
+      'buckets upload buckets/~zod/private-files ./secret-plan.md -t text/markdown'
+    );
+    expect(upload).toMatchObject({
+      channelKind: 'buckets',
+      contentTypeProvided: true,
+      intent: 'write',
+      operation: 'upload',
+      uploadSource: 'local',
+    });
+    expect(JSON.stringify(upload)).not.toContain('secret-plan.md');
+    expect(JSON.stringify(upload)).not.toContain('private-files');
+
+    const deletion = summarizeTlonCommand(
+      'buckets delete buckets/~zod/private-files 12'
+    );
+    expect(deletion).toMatchObject({
+      channelKind: 'buckets',
+      intent: 'admin',
+      operation: 'delete',
+    });
+  });
+
   it('accounts for documented tlon action operations', () => {
     for (const [subcommand, operations] of Object.entries(
       documentedActionOperations
@@ -709,6 +919,21 @@ describe('tlon tool telemetry summarizer', () => {
     expect(JSON.stringify(summary)).not.toContain(
       'https://cdn.example.com/private-assets/avatar.png'
     );
+  });
+
+  it('summarizes browser handoff without storing its signed capability', () => {
+    const summary = summarizeTlonCommand(
+      'browser handoff https://browser-session-ovh1.tlon.network/s/private.signature'
+    );
+
+    expect(summary).toMatchObject({
+      summaryKey: 'browser.handoff',
+      subcommand: 'browser',
+      operation: 'handoff',
+      intent: 'write',
+      isKnownSubcommand: true,
+    });
+    expect(JSON.stringify(summary)).not.toContain('private.signature');
   });
 
   it('marks wrong-path DM sends as blocked without storing the target ship', () => {

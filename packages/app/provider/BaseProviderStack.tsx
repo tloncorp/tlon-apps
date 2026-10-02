@@ -1,4 +1,3 @@
-import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared';
 import { ToastProvider } from '@tloncorp/ui';
 import { PropsWithChildren } from 'react';
@@ -33,7 +32,10 @@ export function BaseProviderStack({
 }: PropsWithChildren<BaseProviderStackProps>) {
   return (
     <GlobalProviderStack>
-      <UIProviderStack tamaguiState={tamaguiState}>
+      <UIProviderStack
+        tamaguiState={tamaguiState}
+        migrationsSucceeded={migrationState.success}
+      >
         <AppProviderStack migrationState={migrationState}>
           {children}
         </AppProviderStack>
@@ -65,19 +67,22 @@ function AppProviderStack({
  */
 function UIProviderStack({
   tamaguiState,
+  migrationsSucceeded,
   children,
 }: PropsWithChildren<{
   tamaguiState?: { defaultTheme?: string };
+  migrationsSucceeded: boolean;
 }>) {
   return (
-    <TamaguiProvider defaultTheme={tamaguiState?.defaultTheme ?? 'light'}>
+    <TamaguiProvider
+      defaultTheme={tamaguiState?.defaultTheme ?? 'light'}
+      migrationsSucceeded={migrationsSucceeded}
+    >
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <GestureHandlerRootView style={{ flex: 1 }}>
-          <BottomSheetModalProvider>
-            <ContentReferenceLoaderProvider>
-              <ComponentsKitProvider>{children}</ComponentsKitProvider>
-            </ContentReferenceLoaderProvider>
-          </BottomSheetModalProvider>
+          <ContentReferenceLoaderProvider>
+            <ComponentsKitProvider>{children}</ComponentsKitProvider>
+          </ContentReferenceLoaderProvider>
         </GestureHandlerRootView>
       </SafeAreaProvider>
     </TamaguiProvider>

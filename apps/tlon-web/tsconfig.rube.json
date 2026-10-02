@@ -9,5 +9,10 @@
     "noEmit": false,
     "outDir": "./rube/dist",
     "rootDir": "./rube"
-  }
+  },
+  "include": ["./rube/**/*.ts"],
+  // The vitest specs are not rube entrypoints — vitest runs them under the
+  // package's own ESM config, and emitting them here would both drop junk into
+  // rube/dist and force their ESM imports through Node16's CommonJS rules.
+  "exclude": ["./rube/dist", "./rube/**/*.test.ts"]
 }

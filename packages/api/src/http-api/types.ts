@@ -240,6 +240,18 @@ export interface Message extends Record<string, any> {
   id: number;
 }
 
+/**
+ * Rewrites the url of a single channel PUT, given the messages that PUT is
+ * about to carry. Hosted ships route on query hints derived from the payload,
+ * so the transformer needs the messages as well as the url. Defaults to
+ * identity; a transformer that cannot describe a given batch must return the
+ * url unchanged.
+ */
+export type ChannelUrlTransformer = (
+  url: string,
+  messages: readonly (Message | Ack)[]
+) => string;
+
 export class ResumableError extends Error {}
 
 export class FatalError extends Error {}
@@ -247,6 +259,27 @@ export class FatalError extends Error {}
 export class ReapError extends Error {}
 
 export class AuthError extends Error {}
+
+/**
+ * A PUT to the channel endpoint came back non-2xx. Eyre answers 403 when the
+ * channel id already exists under a different identity (for example a channel
+ * created before login, as a guest, then reused after authenticating); the
+ * client must mint a new channel id to recover.
+ */
+export class ChannelPutError extends Error {
+  public status: number;
+  constructor(status: number, statusText?: string) {
+    // Carry the status in the message as well as on the error so it shows up
+    // in the issue title and the latest event. This is for diagnosis only --
+    // Sentry groups on the stack first, so it is not a guarantee that
+    // different statuses land in different issues.
+    super(
+      `Failed to PUT channel: ${status}${statusText ? ` ${statusText}` : ''}`
+    );
+    this.name = 'ChannelPutError';
+    this.status = status;
+  }
+}
 
 export class SSETimeoutError extends Error {}
 

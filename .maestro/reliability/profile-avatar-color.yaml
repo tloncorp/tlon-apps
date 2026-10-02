@@ -1,0 +1,47 @@
+appId: ${MAESTRO_APP_ID}
+name: Native profile avatar color
+tags: [regression]
+env:
+  JOURNEY: pc
+onFlowComplete:
+  - runFlow:
+      when:
+        true: ${output.profileColor.changed === true}
+      file: subflows/restore-profile-color.yaml
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/contacts-screen.yaml
+- tapOn: '^You$'
+- assertVisible:
+    id: ProfileAvatar
+    text: '^Profile avatar color (#000000|default)$'
+- runScript: profile-avatar-color.js
+- tapOn:
+    id: ContactEditButton
+- scrollUntilVisible:
+    element:
+      text: '^Default avatar color$'
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: ${output.profileColor.targetId}
+- evalScript: ${output.profileColor.changed = true}
+- assertVisible:
+    id: ProfileAvatarPreview
+    text: ${output.profileColor.targetLabel}
+- tapOn: '^Save$'
+- assertVisible:
+    id: ProfileAvatar
+    text: ${output.profileColor.targetLabel}
+- stopApp
+- launchApp
+- runFlow: subflows/contacts-screen.yaml
+- tapOn: '^You$'
+- assertVisible:
+    id: ProfileAvatar
+    text: ${output.profileColor.targetLabel}
+- runFlow: subflows/restore-profile-color.yaml
+- tapOn: '^Back$'
+- runFlow: subflows/workspaces-tab.yaml
+- assertVisible: '^Workspaces$'

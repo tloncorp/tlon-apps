@@ -81,7 +81,7 @@ const HUSH_DESCRIPTION_NATIVE =
   'No notifications for anything, even if push notifications are enabled on your device.';
 const HUSH_DESCRIPTION_WEB = 'No notifications for anything.';
 
-function getLevelTitle(
+export function getLevelTitle(
   level: ub.NotificationLevel,
   context: NotificationLevelContext
 ): string {

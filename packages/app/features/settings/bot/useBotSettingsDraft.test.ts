@@ -9,6 +9,7 @@ const noPending: BotSettingsPendingFields = {
   nickname: false,
   modelProvider: false,
   model: false,
+  zdr: false,
   fallbacks: false,
   dmAllowlist: false,
   defaultAuthorizedShips: false,
@@ -37,5 +38,14 @@ describe('getChangeLabels', () => {
         fallbacks: true,
       })
     ).toEqual(['Default model', 'Fallback models']);
+  });
+
+  it('tracks zero data retention separately from the default model', () => {
+    expect(
+      getChangeLabels({
+        ...noPending,
+        zdr: true,
+      })
+    ).toEqual(['Zero data retention']);
   });
 });

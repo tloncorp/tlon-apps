@@ -1,0 +1,32 @@
+appId: ${MAESTRO_APP_ID}
+name: Suppress a group invitation from a blocked peer
+env:
+  JOURNEY: blocked-group-invite
+---
+- runScript: ../reliability/data.js
+- runFlow: begin.yaml
+- runFlow: ../reliability/subflows/settings-tab.yaml
+- runFlow:
+    file: ../reliability/subflows/settings-row.yaml
+    env:
+      ROW: '^Blocked users$'
+- assertVisible: '^Blocked users$'
+- assertVisible: '^(~ten|ten)$'
+- runFlow: ../reliability/subflows/workspaces-tab.yaml
+- scrollUntilVisible:
+    element: ${'InviteControl-' + MAESTRO_RUN_TAG}
+    direction: DOWN
+    timeout: 30000
+- assertNotVisible: ${'BlockedInvite-' + MAESTRO_RUN_TAG}
+- tapOn: ${'InviteControl-' + MAESTRO_RUN_TAG}
+- runFlow:
+    file: ../reliability/subflows/send.yaml
+    env:
+      MESSAGE: ${MAESTRO_RUN_TAG + ' blocked invite verified'}
+      MESSAGE_PATTERN: ${MAESTRO_RUN_TAG + ' blocked invite verified ?'}
+      EMPTY_INPUT: '^Message$'
+- hideKeyboard
+- tapOn: '^Back$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Workspaces$'

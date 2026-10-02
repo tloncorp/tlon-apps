@@ -50,7 +50,7 @@ export type React = string | { any: string };
 
 export interface ReplyMeta {
   replyCount: number;
-  lastRepliers: Ship[];
+  lastRepliers: Author[];
   lastReply: number | null;
 }
 
@@ -110,7 +110,7 @@ export type KindDataChat = {
 };
 
 export type KindData = KindDataDiary | KindDataChat | KindDataHeap;
-export type Kind = 'heap' | 'diary' | 'chat' | 'notes';
+export type Kind = 'heap' | 'diary' | 'chat' | 'notes' | 'buckets';
 
 export interface PostEssay {
   content: Story;
@@ -698,11 +698,7 @@ export interface PostSealDataResponse {
   reacts: {
     [ship: Ship]: React;
   };
-  meta: {
-    replyCount: number;
-    lastRepliers: Ship[];
-    lastReply: number | null;
-  };
+  meta: ReplyMeta;
 }
 
 export interface PostDataResponse {

@@ -45,12 +45,9 @@ export function ChannelEditFormLayout({
         useHorizontalTitleLayout={!isWindowNarrow}
         rightControls={rightControls}
       />
-      {/* Keyboard avoidance wraps only the scrollable content, not the
-          ScreenHeader. On Android the shared KeyboardAvoidingView uses
-          behavior="position", which shifts its subtree up when the keyboard
-          opens; including the header there leaves it stranded under the status
-          bar after the keyboard is dismissed (TLON-6173). */}
-      <KeyboardAvoidingView style={{ flex: 1 }}>
+      {/* Keep the header fixed and shrink the scroll viewport; position-based
+          avoidance shifts the form behind the header on Android. */}
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
         <ScrollView
           flex={1}
           keyboardDismissMode="on-drag"

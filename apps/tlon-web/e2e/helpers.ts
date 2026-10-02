@@ -1,6 +1,29 @@
 import { Page, expect } from '@playwright/test';
 import * as path from 'path';
 
+import shipManifest from './shipManifest.json';
+
+/**
+ * Which ship a page is showing, derived from its web port via the manifest.
+ *
+ * Parallel shards offset every web port by a multiple of 20 (see
+ * rube/parallel-runner.sh), so the port is matched modulo 20 rather than
+ * exactly. This was an inline `port % 10` chain that knew three ships and
+ * resolved every other port to '~bus', so ~mug and the N-1 ship both came back
+ * as ~bus and the caller failed to skip its own ship.
+ */
+const SHIP_BY_WEB_PORT = new Map<number, string>(
+  Object.entries(shipManifest).map(([key, ship]: [string, any]) => [
+    parseInt(ship.webUrl.match(/:(\d+)/)?.[1] ?? '0', 10) % 20,
+    key,
+  ])
+);
+
+export function ownShipForPage(page: Page): string | undefined {
+  const port = parseInt(page.url().match(/:(\d+)/)?.[1] ?? '0', 10);
+  return SHIP_BY_WEB_PORT.get(port % 20);
+}
+
 export async function channelIsLoaded(page: Page) {
   await expect(
     page.getByTestId('ScreenHeaderTitle').getByText('Loading…')
@@ -109,12 +132,21 @@ export async function createGroupWithTemplate(
   });
   await page.getByText('Create group').click();
 
-  // Wait for group creation to complete and navigate to group
-  const channelHeader = page.getByTestId('ChannelHeaderTitle');
+  // Wait for group creation to complete and navigate to the group. Single-
+  // channel groups open their channel directly, while multi-channel groups
+  // without a remembered channel open the group channel list.
+  //
+  // `.first()` is required: on desktop the group channel-list pane and the
+  // channel pane render side by side, so both testIDs are present and a bare
+  // `.or()` trips strict mode instead of resolving.
+  const groupDestination = page
+    .getByTestId('ChannelHeaderTitle')
+    .or(page.getByTestId('GroupChannelsHeaderTrigger'))
+    .first();
 
   try {
     // Wait briefly to see if we're automatically navigated to the group
-    await expect(channelHeader).toBeVisible({ timeout: 5000 });
+    await expect(groupDestination).toBeVisible({ timeout: 5000 });
     // Template groups don't show "Welcome to your group!" message
     await page.waitForTimeout(1000);
   } catch {
@@ -126,7 +158,7 @@ export async function createGroupWithTemplate(
     await page
       .getByTestId(`ChatListItem-${expectedGroupTitle}-unpinned`)
       .click();
-    await expect(channelHeader).toBeVisible({ timeout: 5000 });
+    await expect(groupDestination).toBeVisible({ timeout: 5000 });
     await page.waitForTimeout(1000);
   }
 }
@@ -138,7 +170,7 @@ export async function verifyGroupChannels(
   page: Page,
   expectedChannels: Array<{
     title: string;
-    type: 'chat' | 'notebook' | 'gallery';
+    type: 'chat' | 'notes' | 'gallery';
   }>
 ) {
   // Navigate to group settings
@@ -156,39 +188,41 @@ export async function verifyGroupChannels(
     timeout: 5000,
   });
 
-  // Verify the correct number of channels by checking the last one exists
-  const lastChannel = expectedChannels[expectedChannels.length - 1];
-  const lastChannelTestId = `ChannelItem-${lastChannel.title}-${expectedChannels.length - 1}`;
-  await expect(page.getByTestId(lastChannelTestId)).toBeVisible();
+  // Count the channels rather than pinning the last one to an index. A
+  // template's %notes notebook is created after the group rather than in the
+  // group-creation poke, so it doesn't land in template order.
+  await expect(page.getByTestId(/^ChannelItem-/)).toHaveCount(
+    expectedChannels.length,
+    { timeout: 15000 }
+  );
 
   // Verify each expected channel exists with correct title and type
   // Use regex to match any index since order may vary
   for (const channel of expectedChannels) {
-    // Capitalize the channel type for display (e.g., "chat" -> "Chat")
-    const capitalizedType = capitalize(channel.type);
+    const typeLabel = CHANNEL_TYPE_LABELS[channel.type];
 
     // Check that the channel exists (regardless of index)
     const channelItem = page.getByTestId(
-      new RegExp(
-        `^ChannelItem-${channel.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-`
-      )
+      new RegExp(`^ChannelItem-${escapeForRegExp(channel.title)}-`)
     );
     await expect(channelItem).toBeVisible({ timeout: 5000 });
 
     // Verify the channel type is displayed correctly within the channel item
-    const channelPattern = new RegExp(`^${channel.title}${capitalizedType}$`);
+    const channelPattern = new RegExp(`^${channel.title}${typeLabel}$`);
     await expect(
       page.locator('div').filter({ hasText: channelPattern }).first()
     ).toBeVisible({ timeout: 5000 });
   }
 }
 
-/**
- * Capitalizes the first letter of a string
- */
-function capitalize(str: string): string {
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
+// Mirrors `getChannelTypeLabel` in packages/app, where %notes owns the
+// 'Notebook' name. The legacy %diary type isn't here because it can't be
+// created any more, so no spec builds a group containing one.
+const CHANNEL_TYPE_LABELS = {
+  chat: 'Chat',
+  notes: 'Notebook',
+  gallery: 'Gallery',
+} as const;
 
 async function clickVisibleTestId(page: Page, testId: string, timeout = 1000) {
   const locator = page.locator(`[data-testid="${testId}"]:visible`);
@@ -861,7 +895,7 @@ export async function forwardGroupReference(page: Page, channelName: string) {
 export async function createChannel(
   page: Page,
   title: string,
-  type: 'chat' | 'notebook' | 'gallery' = 'chat'
+  type: 'chat' | 'notes' | 'gallery' = 'chat'
 ) {
   // Ensure session is stable before creating channel
   await waitForSessionStability(page);
@@ -879,23 +913,8 @@ export async function createChannel(
 
   await fillFormField(page, 'ChannelTitleInput', title);
 
-  if (type === 'notebook') {
-    // When the %notes desk is installed, the create-channel sheet relabels the
-    // legacy diary type to 'Bulletin' and gives the 'Notebook' label to the new
-    // native %notes type. These tests exercise the diary type, so select
-    // 'Bulletin' when it's present (notes desk installed) and fall back to
-    // 'Notebook' otherwise. The label depends on an async desk probe, so wait
-    // for 'Bulletin' to settle before falling back.
-    const bulletin = page.getByText('Bulletin', { exact: true });
-    const bulletinShown = await bulletin
-      .waitFor({ state: 'visible', timeout: 10000 })
-      .then(() => true)
-      .catch(() => false);
-    if (bulletinShown) {
-      await bulletin.click();
-    } else {
-      await page.getByText('Notebook', { exact: true }).click();
-    }
+  if (type === 'notes') {
+    await page.getByText('Notebook', { exact: true }).click();
   } else if (type === 'gallery') {
     await page.getByText('Gallery', { exact: true }).click();
   }
@@ -909,6 +928,91 @@ export async function createChannel(
 
   // Wait a bit longer for the channel to be created on the backend
   await page.waitForTimeout(2000);
+}
+
+/**
+ * Creates a legacy %diary ("bulletin") channel by poking %channels directly.
+ *
+ * The create-channel sheet no longer offers the diary type — %notes replaced it
+ * and new diary channels are refused (TLON-6480). Legacy diary reading and
+ * writing still has to work, so the specs that cover it build their fixture out
+ * of band rather than through a UI affordance that no longer exists.
+ *
+ * Must be called from a screen whose URL carries the group id (e.g. the group's
+ * manage-channels screen). Returns the new channel's nest.
+ */
+export async function createDiaryChannel(page: Page, title: string) {
+  const groupId = groupIdFromUrl(page);
+  const name = `bulletin-${Date.now().toString(36)}`;
+
+  const { status, channelId } = await page.evaluate(
+    async ([group, channelName, channelTitle]) => {
+      const our = (window as unknown as { ship: string }).ship;
+      const uid = `${Math.floor(Date.now() / 1000)}-${Math.random()
+        .toString(16)
+        .slice(2, 8)}`;
+      const response = await fetch(`/~/channel/${uid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify([
+          {
+            id: 1,
+            action: 'poke',
+            ship: our,
+            app: 'channels',
+            mark: 'channel-action-2',
+            json: {
+              create: {
+                kind: 'diary',
+                group,
+                name: channelName,
+                title: channelTitle,
+                description: '',
+                meta: null,
+                readers: [],
+                writers: [],
+              },
+            },
+          },
+        ]),
+      });
+      return {
+        status: response.status,
+        channelId: `diary/~${our}/${channelName}`,
+      };
+    },
+    [groupId, name, title] as const
+  );
+
+  expect(status, 'diary create poke was not accepted by eyre').toBe(204);
+
+  // The app is already subscribed to %channels, so the new channel arrives over
+  // the existing stream and shows up in the list it was created from.
+  await expect(
+    page.getByTestId(new RegExp(`^ChannelItem-${escapeForRegExp(title)}-`))
+  ).toBeVisible({ timeout: 15000 });
+
+  return channelId;
+}
+
+/**
+ * Reads the group id out of the current URL (`.../group/<id>/...`).
+ *
+ * The id is a flag (`~ship/name`). React Navigation percent-encodes it into the
+ * path, but the unencoded form is matched too so this doesn't silently capture
+ * just the host.
+ */
+export function groupIdFromUrl(page: Page) {
+  const match = page.url().match(/\/group\/(~[a-z-]+(?:%2F|\/)[^/?#]+)/i);
+  if (!match) {
+    throw new Error(`No group id in URL: ${page.url()}`);
+  }
+  return decodeURIComponent(match[1]);
+}
+
+function escapeForRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**
@@ -1788,7 +1892,10 @@ export async function reactToMessage(
   await waitForSessionStability(page);
 
   await longPressMessage(page, messageText);
-  await page.getByTestId(`EmojiToolbarButton-${emoji}`).click();
+  const reactionAction = page.getByTestId(`EmojiToolbarButton-${emoji}`);
+  // A visible popup can still place its reaction toolbar above the viewport.
+  await expect(reactionAction).toBeInViewport({ ratio: 1 });
+  await reactionAction.click();
 
   // Map emoji names to actual emoji characters
   const emojiMap = {
@@ -1832,8 +1939,13 @@ export async function quoteReply(
 
   // In DM context, there's no "Chat Post" text, just quoted content in input
   if (!isDM) {
-    await expect(page.getByText('Chat Post')).toBeVisible();
-    await expect(page.getByText(originalMessage).nth(1)).toBeVisible(); // Quote shows original
+    // The composer sits below the message list, so its quote preview is the
+    // last match on screen. Anchoring to it rather than to the whole page
+    // matters once the channel already holds a quote reply: that earlier reply
+    // renders its own "Chat Post" reference in the feed, which used to make
+    // these two locators resolve to several elements and fail strict mode.
+    await expect(page.getByText('Chat Post').last()).toBeVisible();
+    await expect(page.getByText(originalMessage).last()).toBeVisible(); // Quote shows original
   }
 
   const messageInput = page.getByTestId('MessageInput');
@@ -2085,6 +2197,42 @@ export async function editMessage(
 }
 
 /**
+ * Sends a message whose body is a line of prose followed by a fenced code
+ * block, opens it for editing, and re-sends it unchanged. Both the edit input
+ * and the re-sent post must still carry the code block.
+ */
+export async function editMessageWithCodeBlock(
+  page: Page,
+  { lead, code }: { lead: string; code: string }
+) {
+  const fencedCode = ['```', code, '```'].join('\n');
+
+  await waitForSessionStability(page);
+  await page.getByTestId('MessageInput').click();
+  await page.fill(
+    '[data-testid="MessageInput"]',
+    [lead, fencedCode].join('\n')
+  );
+  await page.getByTestId('MessageInputSendButton').click({ force: true });
+
+  const renderedCode = page.getByTestId('Post').getByText(code).first();
+  await expect(renderedCode).toBeVisible({ timeout: 10000 });
+
+  await longPressMessage(page, lead);
+  await page.getByText('Edit message').click();
+
+  await expect
+    .poll(() => page.getByTestId('MessageInput').inputValue(), {
+      timeout: 10000,
+    })
+    .toContain(fencedCode);
+
+  // Re-send untouched: the code block should come back out the way it went in.
+  await page.getByTestId('MessageInputSendButton').click();
+  await expect(renderedCode).toBeVisible({ timeout: 15000 });
+}
+
+/**
  * Verifies message preview on Home screen
  */
 export async function verifyMessagePreview(
@@ -2163,8 +2311,8 @@ export async function createDirectMessage(page: Page, contactId: string) {
   await waitForSessionStability(page);
 
   await page.getByTestId('CreateChatSheetTrigger').click();
-  await expect(page.getByText('Create a new chat with one')).toBeVisible();
-  await page.getByText('New direct message').click();
+  await expect(page.getByText('Create a private chat with one')).toBeVisible();
+  await page.getByText('New Message', { exact: true }).click();
 
   await expect(page.getByText('Select a contact to chat with')).toBeVisible();
   await page.getByPlaceholder('Filter by nickname or id').click();
@@ -2181,6 +2329,19 @@ export async function createDirectMessage(page: Page, contactId: string) {
 }
 
 /**
+ * Confirms the "Leave <channel>?" dialog that leaving a chat or channel opens
+ */
+export async function confirmLeaveChannel(page: Page) {
+  await expect(
+    page
+      .getByRole('dialog')
+      .getByText('You will no longer receive updates from this channel.')
+  ).toBeVisible({ timeout: 5000 });
+  await page.getByRole('dialog').getByText('Leave', { exact: true }).click();
+  await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 5000 });
+}
+
+/**
  * Leaves a direct message
  */
 export async function leaveDM(page: Page, contactId: string) {
@@ -2193,19 +2354,7 @@ export async function leaveDM(page: Page, contactId: string) {
   await page.getByTestId('ChannelOptionsSheetTrigger').first().click();
   await page.waitForTimeout(500);
   await page.getByTestId('ActionSheetAction-Leave chat').click();
-
-  // Wait for the confirmation dialog to appear
-  await expect(
-    page
-      .getByRole('dialog')
-      .getByText('You will no longer receive updates from this channel.')
-  ).toBeVisible({ timeout: 5000 });
-
-  // Click the Leave button in the confirmation dialog
-  await page.getByRole('dialog').getByText('Leave', { exact: true }).click();
-
-  // Wait for dialog to close first
-  await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 5000 });
+  await confirmLeaveChannel(page);
 
   // Then wait for channel to be removed from list with longer timeout for cross-ship sync
   await expect(
@@ -2428,13 +2577,8 @@ export async function getAllContacts(page: Page): Promise<string[]> {
       // Extract ship ID from aria-label (e.g., "ContactListItem-~zod" -> "~zod")
       const shipId = ariaLabel.replace('ContactListItem-', '');
       if (shipId && shipId.startsWith('~')) {
-        // Skip own ship - determine by port pattern (works with sharding)
-        const urlMatch = page.url().match(/:(\d+)/);
-        const port = urlMatch ? parseInt(urlMatch[1], 10) : 0;
-        const portMod = port % 10;
-        const ownShip =
-          portMod === 0 ? '~zod' : portMod === 2 ? '~ten' : '~bus';
-        if (shipId !== ownShip) {
+        // Skip own ship
+        if (shipId !== ownShipForPage(page)) {
           contacts.push(shipId);
         }
       }
@@ -2517,12 +2661,12 @@ export async function removeAllContacts(page: Page) {
     if (contact.includes('You')) {
       continue;
     }
-    // Skip own ship - determine by port pattern (works with sharding)
-    const urlMatch = page.url().match(/:(\d+)/);
-    const port = urlMatch ? parseInt(urlMatch[1], 10) : 0;
-    const portMod = port % 10;
-    const ownShip = portMod === 0 ? '~zod' : portMod === 2 ? '~ten' : '~bus';
-    if (contact === ownShip || contact.includes(ownShip.substring(1))) {
+    // Skip own ship
+    const ownShip = ownShipForPage(page);
+    if (
+      ownShip &&
+      (contact === ownShip || contact.includes(ownShip.substring(1)))
+    ) {
       continue;
     }
     await removeContact(page, contact);

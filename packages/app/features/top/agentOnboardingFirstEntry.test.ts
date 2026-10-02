@@ -90,14 +90,17 @@ describe('hasAgentOnboardingFirstEntry', () => {
   it('matches only the note cited by the first-entry reveal', () => {
     const reveal = {
       ...markerPost('first-entry-ping'),
-      content: [
+      // This is the representation stored in the posts table. The renderer
+      // deserializes it before displaying the reference card, and telemetry
+      // must do the same before trying to match the opened note.
+      content: JSON.stringify([
         {
           type: 'reference',
           referenceType: 'note',
           channelId: 'notes/~ten/updates',
           noteId: '7',
         },
-      ],
+      ]),
     } as db.Post;
 
     expect(
@@ -112,5 +115,33 @@ describe('hasAgentOnboardingFirstEntry', () => {
     expect(
       matchAgentOnboardingFirstEntryNote([], '~bot', '~ten/updates', 8)
     ).toBe('absent');
+  });
+
+  it('continues past malformed reveal content', () => {
+    const malformedReveal = {
+      ...markerPost('first-entry-ping'),
+      content: '{',
+    } as db.Post;
+    const validReveal = {
+      ...markerPost('first-entry-ping'),
+      id: 'valid-reveal',
+      content: JSON.stringify([
+        {
+          type: 'reference',
+          referenceType: 'note',
+          channelId: 'notes/~ten/updates',
+          noteId: '7',
+        },
+      ]),
+    } as db.Post;
+
+    expect(
+      matchAgentOnboardingFirstEntryNote(
+        [malformedReveal, validReveal],
+        '~bot',
+        '~ten/updates',
+        7
+      )
+    ).toBe('match');
   });
 });

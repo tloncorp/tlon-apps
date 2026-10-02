@@ -120,6 +120,7 @@ export function BotOpenAISubscriptionScreen(props: Props) {
         }}
         backDisabled={!canDismissOpenAIAuth(auth.state.phase)}
         title={subscriptionName}
+        placement="navigation"
       />
       {queries.llmAuthStatusQuery.isLoading ? (
         <YStack flex={1} alignItems="center" justifyContent="center" gap="$m">

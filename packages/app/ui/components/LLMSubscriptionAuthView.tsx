@@ -3,14 +3,14 @@ import {
   Button,
   Icon,
   LoadingSpinner,
-  ParentAgnosticKeyboardAvoidingView,
   Pressable,
   Text,
   useCopy,
   useToast,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, View, YStack } from 'tamagui';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { View, YStack } from 'tamagui';
 
 import {
   type OpenAIAuthState,
@@ -88,167 +88,162 @@ export function LLMSubscriptionAuthView({
   }, [state.phase]);
 
   return (
-    <ParentAgnosticKeyboardAvoidingView contentContainerStyle={{ flex: 1 }}>
-      <YStack flex={1} paddingTop="$2xl">
-        {showBackButton ? (
-          <View paddingHorizontal="$xl">
-            <ScreenHeader.BackButton disabled={!canGoBack} onPress={onCancel} />
-          </View>
-        ) : null}
-        <ScrollView
-          flex={1}
-          keyboardDismissMode="interactive"
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ flexGrow: 1 }}
-        >
-          <YStack gap="$3xl" padding="$xl" flexGrow={1} justifyContent="center">
-            <YStack gap="$xl" alignItems="center">
-              <Text size="$label/2xl" fontWeight="600" textAlign="center">
-                Connect your {subscriptionLabel}
-              </Text>
-              <Text size="$body" color="$secondaryText" textAlign="center">
-                {isSetupToken
-                  ? 'Generate a Claude setup token on a computer with Claude Code, then paste it here.'
-                  : `${providerLabel} will ask you to enter a one-time code. Once confirmed, your subscription will be linked.`}
+    <YStack flex={1} paddingTop="$2xl">
+      {showBackButton ? (
+        <View paddingHorizontal="$xl">
+          <ScreenHeader.BackButton disabled={!canGoBack} onPress={onCancel} />
+        </View>
+      ) : null}
+      <KeyboardAwareScrollView
+        style={{ flex: 1 }}
+        bottomOffset={24}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ flexGrow: 1 }}
+      >
+        <YStack gap="$3xl" padding="$xl" flexGrow={1} justifyContent="center">
+          <YStack gap="$xl" alignItems="center">
+            <Text size="$label/2xl" fontWeight="600" textAlign="center">
+              Connect your {subscriptionLabel}
+            </Text>
+            <Text size="$body" color="$secondaryText" textAlign="center">
+              {isSetupToken
+                ? 'Generate a Claude setup token on a computer with Claude Code, then paste it here.'
+                : `${providerLabel} will ask you to enter a one-time code. Once confirmed, your subscription will be linked.`}
+            </Text>
+          </YStack>
+
+          {state.phase === 'idle' ? (
+            <Button
+              preset="primary"
+              label={`Connect ${providerLabel}`}
+              onPress={onStart}
+            />
+          ) : null}
+
+          {state.phase === 'starting' ? (
+            <YStack alignItems="center" gap="$m">
+              <LoadingSpinner />
+              <Text size="$label/m" color="$secondaryText">
+                Starting secure sign-in…
               </Text>
             </YStack>
+          ) : null}
 
-            {state.phase === 'idle' ? (
+          {state.phase === 'active' && isSetupToken ? (
+            <YStack gap="$2xl">
+              <YStack
+                borderWidth={1}
+                borderColor="$border"
+                borderRadius="$xl"
+                padding="$xl"
+                gap="$s"
+              >
+                <Text size="$label/s" color="$secondaryText">
+                  Run this command on a computer with Claude Code installed:
+                </Text>
+                <Text size="$label/l" fontFamily="$mono">
+                  claude setup-token
+                </Text>
+              </YStack>
+              <TextInput
+                value={setupToken}
+                placeholder="Paste setup token"
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={flow?.status === 'awaiting_token' && !submittingToken}
+                onChangeText={setSetupToken}
+              />
               <Button
                 preset="primary"
-                label={`Connect ${providerLabel}`}
-                onPress={onStart}
+                label={submittingToken ? 'Connecting…' : 'Connect'}
+                loading={submittingToken}
+                disabled={
+                  !setupToken.trim() ||
+                  flow?.status !== 'awaiting_token' ||
+                  submittingToken
+                }
+                onPress={() => void handleSubmitToken()}
               />
-            ) : null}
+            </YStack>
+          ) : null}
 
-            {state.phase === 'starting' ? (
-              <YStack alignItems="center" gap="$m">
-                <LoadingSpinner />
-                <Text size="$label/m" color="$secondaryText">
-                  Starting secure sign-in…
-                </Text>
-              </YStack>
-            ) : null}
-
-            {state.phase === 'active' && isSetupToken ? (
-              <YStack gap="$2xl">
-                <YStack
-                  borderWidth={1}
-                  borderColor="$border"
-                  borderRadius="$xl"
-                  padding="$xl"
-                  gap="$s"
+          {state.phase === 'active' && !isSetupToken ? (
+            <YStack gap="$2xl">
+              {flow?.userCode ? (
+                <Pressable
+                  width="100%"
+                  testID="OpenAISubscriptionUserCode"
+                  accessibilityRole="button"
+                  accessibilityLabel={didCopy ? 'Copied' : 'Copy one-time code'}
+                  onPress={() => void handleCopyCode()}
+                  pressStyle={{ opacity: 0.7 }}
                 >
-                  <Text size="$label/s" color="$secondaryText">
-                    Run this command on a computer with Claude Code installed:
-                  </Text>
-                  <Text size="$label/l" fontFamily="$mono">
-                    claude setup-token
-                  </Text>
-                </YStack>
-                <TextInput
-                  value={setupToken}
-                  placeholder="Paste setup token"
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={
-                    flow?.status === 'awaiting_token' && !submittingToken
-                  }
-                  onChangeText={setSetupToken}
-                />
-                <Button
-                  preset="primary"
-                  label={submittingToken ? 'Connecting…' : 'Connect'}
-                  loading={submittingToken}
-                  disabled={
-                    !setupToken.trim() ||
-                    flow?.status !== 'awaiting_token' ||
-                    submittingToken
-                  }
-                  onPress={() => void handleSubmitToken()}
-                />
-              </YStack>
-            ) : null}
-
-            {state.phase === 'active' && !isSetupToken ? (
-              <YStack gap="$2xl">
-                {flow?.userCode ? (
-                  <Pressable
+                  <YStack
                     width="100%"
-                    testID="OpenAISubscriptionUserCode"
-                    accessibilityRole="button"
-                    accessibilityLabel={
-                      didCopy ? 'Copied' : 'Copy one-time code'
-                    }
-                    onPress={() => void handleCopyCode()}
-                    pressStyle={{ opacity: 0.7 }}
+                    position="relative"
+                    borderWidth={1}
+                    borderColor="$border"
+                    borderRadius="$xl"
+                    padding="$xl"
+                    alignItems="center"
+                    gap="$s"
                   >
-                    <YStack
-                      width="100%"
-                      position="relative"
-                      borderWidth={1}
-                      borderColor="$border"
-                      borderRadius="$xl"
-                      padding="$xl"
-                      alignItems="center"
-                      gap="$s"
-                    >
-                      <Icon
-                        type={didCopy ? 'Checkmark' : 'Copy'}
-                        color="$secondaryText"
-                        customSize={[18, 18]}
-                        position="absolute"
-                        top="$l"
-                        right="$l"
-                      />
-                      <Text size="$label/s" color="$secondaryText">
-                        One-time code
-                      </Text>
-                      <Text size="$title/l" fontWeight="700">
-                        {flow.userCode}
-                      </Text>
-                    </YStack>
-                  </Pressable>
-                ) : (
-                  <YStack alignItems="center">
-                    <LoadingSpinner />
+                    <Icon
+                      type={didCopy ? 'Checkmark' : 'Copy'}
+                      color="$secondaryText"
+                      customSize={[18, 18]}
+                      position="absolute"
+                      top="$l"
+                      right="$l"
+                    />
+                    <Text size="$label/s" color="$secondaryText">
+                      One-time code
+                    </Text>
+                    <Text size="$title/l" fontWeight="700">
+                      {flow.userCode}
+                    </Text>
                   </YStack>
-                )}
-                <Button
-                  preset="primary"
-                  label={`Open ${providerLabel} sign-in`}
-                  disabled={!flow?.verificationUrl}
-                  onPress={onOpenBrowser}
-                />
-              </YStack>
-            ) : null}
+                </Pressable>
+              ) : (
+                <YStack alignItems="center">
+                  <LoadingSpinner />
+                </YStack>
+              )}
+              <Button
+                preset="primary"
+                label={`Open ${providerLabel} sign-in`}
+                disabled={!flow?.verificationUrl}
+                onPress={onOpenBrowser}
+              />
+            </YStack>
+          ) : null}
 
-            {state.phase === 'complete' ? (
-              <YStack alignItems="center" gap="$m">
-                <LoadingSpinner />
-                <Text size="$label/l" color="$positiveActionText">
-                  Connected. Loading your models…
-                </Text>
-              </YStack>
-            ) : null}
-
-            {error ? (
-              <Text
-                size="$label/s"
-                color="$negativeActionText"
-                textAlign="center"
-              >
-                {error}
+          {state.phase === 'complete' ? (
+            <YStack alignItems="center" gap="$m">
+              <LoadingSpinner />
+              <Text size="$label/l" color="$positiveActionText">
+                Connected. Loading your models…
               </Text>
-            ) : null}
+            </YStack>
+          ) : null}
 
-            {state.phase === 'error' ? (
-              <Button preset="primary" label="Try again" onPress={onRetry} />
-            ) : null}
-          </YStack>
-        </ScrollView>
-      </YStack>
-    </ParentAgnosticKeyboardAvoidingView>
+          {error ? (
+            <Text
+              size="$label/s"
+              color="$negativeActionText"
+              textAlign="center"
+            >
+              {error}
+            </Text>
+          ) : null}
+
+          {state.phase === 'error' ? (
+            <Button preset="primary" label="Try again" onPress={onRetry} />
+          ) : null}
+        </YStack>
+      </KeyboardAwareScrollView>
+    </YStack>
   );
 }

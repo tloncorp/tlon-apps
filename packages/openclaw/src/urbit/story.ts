@@ -1,4 +1,134 @@
+import { type Cite } from '@tloncorp/api';
 import { valid } from '@urbit/aura';
+
+/**
+ * A reference path, as the app's composer recognises it when one is pasted:
+ * `/1/group/~host/slug`, `/1/chan/<nest>/...`, `/1/desk/...`. The app converts
+ * these to a cite on the way out, so text carrying one renders as a reference
+ * card rather than as the raw path — do the same for anything we send.
+ */
+const REF_PATH_REGEX = /^\/1\/(?:chan|group|desk)\/[^\s]+/;
+/** Unanchored, to find where a reference starts inside a run of prose. */
+const REF_PATH_START_REGEX = /\/1\/(?:chan|group|desk)\//;
+// Prose ends sentences after a path — "See /1/group/~ten/workspace." — and
+// closes quotations around one; neither the punctuation nor the closing quote
+// is part of the reference.
+const REF_TRAILING_PUNCTUATION = /[.,;:!?)\]"'\u201D\u2019\u00BB]+$/;
+
+/** A slug as the wire accepts it: a Hoon sym is lowercase, no underscores. */
+const REF_SYM_REGEX = /^[a-z][a-z0-9-]*$/;
+/**
+ * A canonical post id: a plain numeral, or dot-grouped in exact threes with a
+ * nonzero leading group. Recipients strip the dots when resolving, so `1..2`,
+ * `1.2`, `012` or `0.001` would point at a different post — reject them.
+ */
+const REF_ID_REGEX = /^(?:0|[1-9]\d*|[1-9]\d{0,2}(?:\.\d{3})+)$/;
+const REF_CHAN_KINDS = ['chat', 'heap', 'diary', 'notes'];
+
+/**
+ * Whether a chan cite's `where` locates something the app renders, for the
+ * given channel kind: a post (`/msg/...`, plus `/curio/...` for heaps and
+ * `/note/...` for diaries and notebooks), each optionally with a reply id as
+ * a second segment — except notebook notes, which have no reply concept. A
+ * bare channel `where` renders nothing, so it is not accepted.
+ */
+function isValidChanWhere(kind: string, where: string): boolean {
+  const parts = where.split('/');
+  if (parts[0] !== '' || parts.length < 3) {
+    return false;
+  }
+  const head = parts[1];
+  if (head === 'msg') {
+    if (kind === 'notes') {
+      return false;
+    }
+    if (parts.length === 3) {
+      return REF_ID_REGEX.test(parts[2]);
+    }
+    if (parts.length === 4) {
+      // `/msg/<id>/<id>`, or the legacy `/msg/~author/<id>`.
+      if (parts[2].startsWith('~')) {
+        return valid('p', parts[2]) && REF_ID_REGEX.test(parts[3]);
+      }
+      return REF_ID_REGEX.test(parts[2]) && REF_ID_REGEX.test(parts[3]);
+    }
+    return false;
+  }
+  // `/curio/<id>` and `/note/<id>`, each optionally with a reply id as a
+  // second segment (notebook notes excepted); unlike `/msg`, neither has a
+  // `~author` variant.
+  if (
+    (parts.length !== 3 && parts.length !== 4) ||
+    !REF_ID_REGEX.test(parts[2]) ||
+    (parts.length === 4 && !REF_ID_REGEX.test(parts[3]))
+  ) {
+    return false;
+  }
+  if (head === 'curio') {
+    return kind === 'heap';
+  }
+  if (head === 'note') {
+    if (kind === 'diary') {
+      return true;
+    }
+    // A notebook NoteReference carries only a noteId and the renderer ignores
+    // anything after `/note/<id>`, so a reply id would silently point the
+    // card at the wrong note.
+    return kind === 'notes' && parts.length === 3;
+  }
+  return false;
+}
+
+/**
+ * Validate a reference path before it is emitted as a cite. A wire-invalid
+ * cite fails more than itself: a group slug that is not a valid Hoon sym
+ * makes the ship's JSON decoder reject the ENTIRE poke, so the whole send
+ * fails; desk cites render as "App references are not yet supported" error
+ * cards; free-form chan `where` paths render nothing. Only the canonical,
+ * render-accepted forms pass — everything else returns null so the caller
+ * keeps the path as literal text.
+ */
+function pathToValidatedCite(path: string): Cite | null {
+  const segments = path.split('/');
+  if (segments[0] !== '' || segments[1] !== '1') {
+    return null;
+  }
+  if (segments[2] === 'group') {
+    // /1/group/~ship/slug — exactly five segments.
+    if (segments.length !== 5) {
+      return null;
+    }
+    const ship = segments[3];
+    const slug = segments[4];
+    if (!valid('p', ship) || !REF_SYM_REGEX.test(slug)) {
+      return null;
+    }
+    return { group: `${ship}/${slug}` };
+  }
+  if (segments[2] === 'chan') {
+    // /1/chan/<kind>/~host/<name><where>, with <where> locating a post.
+    if (segments.length < 6) {
+      return null;
+    }
+    const kind = segments[3];
+    const host = segments[4];
+    const name = segments[5];
+    if (
+      !REF_CHAN_KINDS.includes(kind) ||
+      !valid('p', host) ||
+      !REF_SYM_REGEX.test(name)
+    ) {
+      return null;
+    }
+    const where = segments.length > 6 ? `/${segments.slice(6).join('/')}` : '';
+    if (!isValidChanWhere(kind, where)) {
+      return null;
+    }
+    return { chan: { nest: `${kind}/${host}/${name}`, where } };
+  }
+  // desk cites render as error cards; never emit one.
+  return null;
+}
 
 /**
  * Tlon Story Format - Rich text converter
@@ -30,6 +160,7 @@ export type StoryBlock =
     }
   | { code: { code: string; lang: string } }
   | { image: { src: string; height: number; width: number; alt: string } }
+  | { cite: Cite }
   | { rule: null }
   | { listing: StoryListing };
 
@@ -52,7 +183,17 @@ export type Story = StoryVerse[];
 /**
  * Parse inline markdown formatting (bold, italic, code, links, mentions)
  */
-function parseInlineMarkdown(text: string): StoryInline[] {
+/**
+ * `allowRefs` is true only for the top level of a paragraph. A reference is
+ * hoisted to a cite *block*, and only processInlinesForBlocks does that, on
+ * top-level inlines. Inside bold, a heading or a blockquote the marker would
+ * never be hoisted and would go out as an inline Tlon does not have, failing
+ * the whole message — so there the path stays as the text it was.
+ */
+function parseInlineMarkdown(
+  text: string,
+  { allowRefs = true }: { allowRefs?: boolean } = {}
+): StoryInline[] {
   const result: StoryInline[] = [];
   let remaining = text;
 
@@ -69,7 +210,7 @@ function parseInlineMarkdown(text: string): StoryInline[] {
     const boldMatch = remaining.match(/^\*\*(.+?)\*\*|^__(.+?)__/);
     if (boldMatch) {
       const content = boldMatch[1] || boldMatch[2];
-      result.push({ bold: parseInlineMarkdown(content) });
+      result.push({ bold: parseInlineMarkdown(content, { allowRefs: false }) });
       remaining = remaining.slice(boldMatch[0].length);
       continue;
     }
@@ -80,7 +221,9 @@ function parseInlineMarkdown(text: string): StoryInline[] {
     );
     if (italicsMatch) {
       const content = italicsMatch[1] || italicsMatch[2];
-      result.push({ italics: parseInlineMarkdown(content) });
+      result.push({
+        italics: parseInlineMarkdown(content, { allowRefs: false }),
+      });
       remaining = remaining.slice(italicsMatch[0].length);
       continue;
     }
@@ -88,7 +231,9 @@ function parseInlineMarkdown(text: string): StoryInline[] {
     // Strikethrough: ~~text~~
     const strikeMatch = remaining.match(/^~~(.+?)~~/);
     if (strikeMatch) {
-      result.push({ strike: parseInlineMarkdown(strikeMatch[1]) });
+      result.push({
+        strike: parseInlineMarkdown(strikeMatch[1], { allowRefs: false }),
+      });
       remaining = remaining.slice(strikeMatch[0].length);
       continue;
     }
@@ -106,6 +251,32 @@ function parseInlineMarkdown(text: string): StoryInline[] {
     if (linkMatch) {
       result.push({ link: { href: linkMatch[2], content: linkMatch[1] } });
       remaining = remaining.slice(linkMatch[0].length);
+      continue;
+    }
+
+    // Reference paths, hoisted to a cite block like images below.
+    const refMatch = remaining.match(REF_PATH_REGEX);
+    if (refMatch) {
+      const path = refMatch[0].replace(REF_TRAILING_PUNCTUATION, '');
+      if (!allowRefs) {
+        // Consumed whole as text so the ship-mention scanner cannot claim
+        // the host out of the middle of the path.
+        result.push(path);
+        remaining = remaining.slice(path.length);
+        continue;
+      }
+      const cite = pathToValidatedCite(path);
+      if (cite) {
+        result.push({ __cite: cite } as unknown as StoryInline);
+        remaining = remaining.slice(path.length);
+        continue;
+      }
+      // A recognised but incomplete or wire-invalid path. Keep the whole match
+      // as literal text: left to fall through, `/1/group/` would be consumed
+      // as text and the ship after it claimed as a mention the author never
+      // made.
+      result.push(refMatch[0]);
+      remaining = remaining.slice(refMatch[0].length);
       continue;
     }
 
@@ -154,6 +325,11 @@ function parseInlineMarkdown(text: string): StoryInline[] {
     const urlIndex = remaining.search(/https?:\/\//);
     if (urlIndex >= 0) {
       specialTokenIndices.push(urlIndex);
+    }
+
+    const refIndex = remaining.search(REF_PATH_START_REGEX);
+    if (refIndex >= 0) {
+      specialTokenIndices.push(refIndex);
     }
 
     const nextTokenIndex =
@@ -209,27 +385,30 @@ export function createImageBlock(
 }
 
 /**
- * Process inlines and extract any image markers into blocks
+ * Process inlines and extract image and reference markers into blocks
  */
-function processInlinesForImages(inlines: StoryInline[]): {
+function processInlinesForBlocks(inlines: StoryInline[]): {
   inlines: StoryInline[];
-  imageBlocks: StoryVerse[];
+  blocks: StoryVerse[];
 } {
   const cleanInlines: StoryInline[] = [];
-  const imageBlocks: StoryVerse[] = [];
+  const blocks: StoryVerse[] = [];
 
   for (const inline of inlines) {
     if (typeof inline === 'object' && '__image' in inline) {
       const img = (
         inline as unknown as { __image: { src: string; alt: string } }
       ).__image;
-      imageBlocks.push(createImageBlock(img.src, img.alt));
+      blocks.push(createImageBlock(img.src, img.alt));
+    } else if (typeof inline === 'object' && '__cite' in inline) {
+      const { __cite: cite } = inline as unknown as { __cite: Cite };
+      blocks.push({ block: { cite } });
     } else {
       cleanInlines.push(inline);
     }
   }
 
-  return { inlines: cleanInlines, imageBlocks };
+  return { inlines: cleanInlines, blocks };
 }
 
 /**
@@ -273,7 +452,7 @@ export function markdownToStory(markdown: string): Story {
         block: {
           header: {
             tag,
-            content: parseInlineMarkdown(headerMatch[2]),
+            content: parseInlineMarkdown(headerMatch[2], { allowRefs: false }),
           },
         },
       });
@@ -297,7 +476,9 @@ export function markdownToStory(markdown: string): Story {
       }
       const quoteText = quoteLines.join('\n');
       story.push({
-        inline: [{ blockquote: parseInlineMarkdown(quoteText) }],
+        inline: [
+          { blockquote: parseInlineMarkdown(quoteText, { allowRefs: false }) },
+        ],
       });
       continue;
     }
@@ -313,7 +494,10 @@ export function markdownToStory(markdown: string): Story {
     while (
       i < lines.length &&
       lines[i].trim() !== '' &&
-      !lines[i].startsWith('#') &&
+      // Only a line that will actually parse as a heading may end the
+      // paragraph: a bare '#' or '#no-space' matches no other branch, so
+      // excluding it here would leave i unadvanced and spin forever.
+      !/^#{1,6}\s+.+$/.test(lines[i]) &&
       !lines[i].startsWith('```') &&
       !lines[i].startsWith('> ') &&
       !/^(-{3,}|\*{3,})$/.test(lines[i].trim())
@@ -345,13 +529,13 @@ export function markdownToStory(markdown: string): Story {
       }
 
       // Extract any images from inlines and add as separate blocks
-      const { inlines: cleanInlines, imageBlocks } =
-        processInlinesForImages(withBreaks);
+      const { inlines: cleanInlines, blocks } =
+        processInlinesForBlocks(withBreaks);
 
       if (cleanInlines.length > 0) {
         story.push({ inline: cleanInlines });
       }
-      story.push(...imageBlocks);
+      story.push(...blocks);
     }
   }
 

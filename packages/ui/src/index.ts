@@ -28,7 +28,6 @@ export { default as KeyboardAvoidingView } from './components/KeyboardAvoidingVi
 export * from './components/LoadingSpinner';
 export * from './components/Modal';
 export * from './components/Overlay';
-export * from './components/ParentAgnosticKeyboardAvoidingView';
 export { default as Pressable } from './components/Pressable';
 export * from './components/SectionList';
 export * from './components/Sheet';

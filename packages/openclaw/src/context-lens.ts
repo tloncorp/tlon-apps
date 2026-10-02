@@ -920,6 +920,8 @@ function getBackgroundContextLensRegistry(): ContextLensRegistry {
 export function ensureBackgroundContextLensForSession(
   sessionKey: string | null | undefined,
   input: {
+    chatType?: Extract<ContextLens['chatType'], 'channel' | 'internal'>;
+    conversationId?: string;
     runKind?: ContextLensRunKind;
     trigger?: ContextLensTrigger;
     preview?: string;
@@ -938,21 +940,35 @@ export function ensureBackgroundContextLensForSession(
       delete cleared.finalizeTimer;
       activeLensesBySession.set(resolved.key, cleared);
     }
-    const lens = existing.registry.get(existing.lensId);
+    const current = existing.registry.get(existing.lensId);
+    const lens =
+      current &&
+      input.chatType === 'channel' &&
+      input.conversationId?.trim() &&
+      current.chatType === 'internal'
+        ? existing.registry.update(existing.lensId, {
+            chatType: 'channel',
+            triggerDetails: {
+              conversationId: input.conversationId.trim(),
+              conversationKind: 'channel',
+            },
+          })
+        : current;
     return lens ? { lens, created: false } : null;
   }
 
   const registry = getBackgroundContextLensRegistry();
   const sessionKeyHash = hashSessionKey(key);
   const runKind = input.runKind ?? 'internal';
+  const chatType = input.chatType ?? 'internal';
   const lens = registry.create({
     messageId: `${runKind}:${sessionKeyHash}:${Date.now()}`,
-    chatType: 'internal',
+    chatType,
     runKind,
     visibility: 'owner',
     trigger: input.trigger ?? 'tool',
     sessionKey: key,
-    conversationId: `session:${sessionKeyHash}`,
+    conversationId: input.conversationId?.trim() || `session:${sessionKeyHash}`,
     receivedAt: Date.now(),
     preview: input.preview,
   });

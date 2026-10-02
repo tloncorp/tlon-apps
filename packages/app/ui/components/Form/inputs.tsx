@@ -1,10 +1,5 @@
 import { Attachment } from '@tloncorp/shared/domain';
-import {
-  ActionSheetContext,
-  VariantsFromValues,
-  useIsWindowNarrow,
-  useToast,
-} from '@tloncorp/ui';
+import { VariantsFromValues, useIsWindowNarrow, useToast } from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
 import { Icon, IconType } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
@@ -21,7 +16,7 @@ import {
   useState,
 } from 'react';
 import React from 'react';
-import { Platform, TextInput as RNTextInput } from 'react-native';
+import { TextInput as RNTextInput } from 'react-native';
 import {
   GetProps,
   ScrollView,
@@ -39,7 +34,6 @@ import {
   useMappedImageAttachments,
 } from '../../contexts/attachment';
 import AttachmentSheet from '../AttachmentSheet';
-import { BottomSheetTextInput } from '../BottomSheetWrapper';
 import { ListItem } from '../ListItem';
 import { useBoundHandler } from '../listItems/listItemUtils';
 import { FieldContext } from './Field';
@@ -99,13 +93,6 @@ export const RawTextInput = styled(
   textInputAcceptProps
 );
 
-// Styled version of BottomSheetTextInput for use in ActionSheets on mobile
-export const RawBottomSheetTextInput = styled(
-  BottomSheetTextInput,
-  textInputStyleConfig,
-  textInputAcceptProps
-);
-
 // Text input
 
 export const InputFrame = styled(XStack, {
@@ -153,20 +140,11 @@ const TextInputComponent = RawTextInput.styleable<{
     ref
   ) => {
     const fieldContext = useContext(FieldContext);
-    const actionSheetContext = useContext(ActionSheetContext);
-
-    // Use BottomSheetTextInput when inside an ActionSheet on mobile platforms
-    const shouldUseBottomSheetInput =
-      actionSheetContext?.isInsideSheet && Platform.OS !== 'web';
-
     const isMultiline =
       !!props.multiline ||
       (props.numberOfLines != null && props.numberOfLines !== 1);
 
-    // Shared props for both input components
-    // Type cast needed because Tamagui's styled() wrapper adds broader types (like boxShadow: array)
-    // that don't exactly match TextInput's narrower prop types (boxShadow: string only)
-    const sharedInputProps = {
+    const inputProps = {
       flex: 1,
       ...textInputDefaultProps,
       ...(isMultiline
@@ -186,15 +164,7 @@ const TextInputComponent = RawTextInput.styleable<{
         {...frameStyle}
       >
         {icon ? <Icon type={icon} size="$m" /> : null}
-        {shouldUseBottomSheetInput ? (
-          <RawBottomSheetTextInput
-            // TODO: See if this can be fixed properly.
-            ref={ref as any}
-            {...(sharedInputProps as GetProps<typeof RawBottomSheetTextInput>)}
-          />
-        ) : (
-          <RawTextInput ref={ref} {...sharedInputProps} />
-        )}
+        <RawTextInput ref={ref} {...inputProps} />
         {rightControls}
       </InputFrame>
     );
@@ -724,7 +694,7 @@ export const ListItemInput = <T,>({
   return (
     <YStack {...props}>
       {options.map((option) => (
-        <ListItemInputRow
+        <ListItemInputRow<T>
           key={option.title}
           option={option}
           onPress={onChange}
@@ -790,7 +760,7 @@ export const CheckboxInput = <T,>({
 } & ComponentProps<typeof YStack>) => {
   return (
     <YStack {...props}>
-      <CheckboxInputRow
+      <CheckboxInputRow<T>
         key={option.title}
         option={option}
         onPress={onChange}
@@ -839,15 +809,15 @@ export const CheckboxControl = (
 ) => <Control {...props} type="checkbox" />;
 
 const presets = [
-  '$red',
-  '$orange',
-  '$yellow',
-  '$green',
-  '$blue',
-  '$indigo',
-  '$gray900',
-  '$gray500',
-  '$gray100',
+  ['red', '$red'],
+  ['orange', '$orange'],
+  ['yellow', '$yellow'],
+  ['green', '$green'],
+  ['blue', '$blue'],
+  ['indigo', '$indigo'],
+  ['dark gray', '$gray900'],
+  ['gray', '$gray500'],
+  ['light gray', '$gray100'],
 ] as const;
 
 const ColorSwatchFrame = styled(Pressable, {
@@ -904,12 +874,15 @@ export const ColorInput = ({
       }}
       horizontal
     >
-      {presets.map((color) => {
+      {presets.map(([name, color]) => {
         const colorValue = getTokenValue(color, 'color');
+        const selected = value === colorValue;
         return (
           <ColorSwatchFrame
             key={colorValue}
-            selected={value === colorValue}
+            testID={`ProfileColorSwatch-${colorValue.slice(1)}`}
+            accessibilityLabel={`Profile avatar color ${name}${selected ? ', selected' : ''}`}
+            selected={selected}
             onPress={() => handleSelect(colorValue)}
           >
             <ColorSwatchInner backgroundColor={colorValue} />

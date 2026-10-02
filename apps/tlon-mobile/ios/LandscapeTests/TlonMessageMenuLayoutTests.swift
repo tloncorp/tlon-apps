@@ -1,7 +1,51 @@
 @testable import TlonMessageContextMenu
+import UIKit
 import XCTest
 
 final class TlonMessageMenuLayoutTests: XCTestCase {
+    func testReactionPressDoesNotOpenMessageMenu() {
+        let hostView = UIView()
+        let reactionView = UIView()
+        reactionView.accessibilityIdentifier = "ReactionDisplay"
+        hostView.addSubview(reactionView)
+
+        XCTAssertFalse(
+            TlonMessageContextMenuView.shouldReceiveMessageMenuTouch(
+                reactionView,
+                within: hostView
+            )
+        )
+    }
+
+    func testReactionDescendantPressDoesNotOpenMessageMenu() {
+        let hostView = UIView()
+        let reactionView = UIView()
+        reactionView.accessibilityIdentifier = "ReactionDisplay"
+        let reactionLabel = UILabel()
+        reactionView.addSubview(reactionLabel)
+        hostView.addSubview(reactionView)
+
+        XCTAssertFalse(
+            TlonMessageContextMenuView.shouldReceiveMessageMenuTouch(
+                reactionLabel,
+                within: hostView
+            )
+        )
+    }
+
+    func testOtherPressDoesOpenMessageMenu() {
+        let hostView = UIView()
+        let messageContent = UIView()
+        hostView.addSubview(messageContent)
+
+        XCTAssertTrue(
+            TlonMessageContextMenuView.shouldReceiveMessageMenuTouch(
+                messageContent,
+                within: hostView
+            )
+        )
+    }
+
     func testLeadingLayoutPreservesSourcePositionUntilAccessoriesNeedSpace() {
         let layout = TlonMessageMenuPresentationView.resolveLayout(
             bounds: CGRect(x: 0, y: 0, width: 390, height: 844),
@@ -43,5 +87,62 @@ final class TlonMessageMenuLayoutTests: XCTestCase {
         XCTAssertEqual(layout.previewFrame.minY, 200)
         XCTAssertEqual(layout.actionFrame.minX, 114)
         XCTAssertEqual(layout.reactionFrame?.minX, 166)
+    }
+
+    func testShortMessageSnapshotsWholeWhenPartlyOffScreen() {
+        let (window, message) = makeMessageInList(
+            frame: CGRect(x: 0, y: -50, width: 390, height: 200)
+        )
+
+        XCTAssertEqual(
+            TlonMessageMenuPresentationView.snapshotRect(
+                of: message,
+                restingFrame: nil,
+                in: window
+            ),
+            CGRect(x: 0, y: 0, width: 390, height: 200)
+        )
+    }
+
+    func testLongMessageSnapshotsOnlyItsOnScreenPart() {
+        let (window, message) = makeMessageInList(
+            frame: CGRect(x: 0, y: -3000, width: 390, height: 9000)
+        )
+
+        XCTAssertEqual(
+            TlonMessageMenuPresentationView.snapshotRect(
+                of: message,
+                restingFrame: nil,
+                in: window
+            ),
+            CGRect(x: 0, y: 3000, width: 390, height: 600)
+        )
+    }
+
+    func testLongMessageSnapshotIgnoresPressScale() {
+        let (window, message) = makeMessageInList(
+            frame: CGRect(x: 0, y: -3000, width: 390, height: 9000)
+        )
+        let restingFrame = message.convert(message.bounds, to: window)
+        message.transform = CGAffineTransform(scaleX: 0.985, y: 0.985)
+
+        XCTAssertEqual(
+            TlonMessageMenuPresentationView.snapshotRect(
+                of: message,
+                restingFrame: restingFrame,
+                in: window
+            ),
+            CGRect(x: 0, y: 3000, width: 390, height: 600)
+        )
+    }
+
+    private func makeMessageInList(frame: CGRect) -> (UIWindow, UIView) {
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        let list = UIView(frame: CGRect(x: 0, y: 100, width: 390, height: 600))
+        list.clipsToBounds = true
+        let message = UIView(frame: frame)
+        list.addSubview(message)
+        window.addSubview(list)
+        return (window, message)
     }
 }

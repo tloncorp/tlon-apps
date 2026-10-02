@@ -146,4 +146,29 @@ describe('TlonActorClient createGroupWithChannel', () => {
       groupId,
     });
   });
+
+  test('carries the channel kind in the nest prefix for gallery channels', async () => {
+    const client = new TlonActorClient({
+      shipUrl: 'http://127.0.0.1:12345',
+      shipName: 'zod',
+      code: 'code',
+    });
+
+    const { groupId, chatChannel } = await client.createGroupWithChannel({
+      title: 'Probe group',
+      channelKind: 'heap',
+      channelTitle: 'Gallery',
+    });
+
+    const [call] = api.createGroup.mock.calls.at(-1) as unknown as [
+      { group: { channels: Array<Record<string, unknown>> } },
+    ];
+    expect(chatChannel).toBe(`heap/${groupId}-general`);
+    expect(call.group.channels[0]).toMatchObject({
+      id: chatChannel,
+      title: 'Gallery',
+      type: 'gallery',
+      groupId,
+    });
+  });
 });

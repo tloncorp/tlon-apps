@@ -1,13 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  HostingError,
   completeTlawnLLMAuth,
   configureHostingSessionStore,
   deleteTlawnProviderKey,
   disconnectTlawnLLMAuth,
+  getHostingHeartBeat,
+  getTlawnBotInfo,
   getTlawnLLMAuthFlow,
   getTlawnLLMAuthStatus,
+  getTlawnNickname,
+  getTlawnOpenRouterRecommendedModels,
+  getTlawnOpenRouterZdrEndpoints,
   startTlawnLLMAuth,
+  requestLoginOtpForUser,
+  verifyLoginOtpForUser,
 } from './hostingApi';
 
 const validFlow = {
@@ -204,5 +212,332 @@ describe('Tlawn provider auth', () => {
       'https://hosting.test/v1/tlawn/users/user-1/provider-keys/openai?ship=zod',
       expect.objectContaining({ method: 'DELETE' })
     );
+  });
+
+  it('loads OpenRouter model metadata from Solaris', async () => {
+    const recommendations = ['x-ai/grok-4.6'];
+    const endpoints = [
+      { modelId: 'x-ai/grok-4.6', providerName: 'xAI', promptPrice: '0.1' },
+    ];
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(() => respond(recommendations))
+      .mockImplementationOnce(() => respond(endpoints));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      getTlawnOpenRouterRecommendedModels('user-1')
+    ).resolves.toEqual(recommendations);
+    await expect(getTlawnOpenRouterZdrEndpoints('user-1')).resolves.toEqual(
+      endpoints
+    );
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      'https://hosting.test/v1/tlawn/users/user-1/openrouter/recommended-models',
+      'https://hosting.test/v1/tlawn/users/user-1/openrouter/zdr-endpoints',
+    ]);
+  });
+});
+
+describe('Hosting heartbeat', () => {
+  const setBotEnabled = vi.fn(async () => undefined);
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.stubGlobal('window', undefined);
+    vi.stubGlobal('tlonEnv', {
+      API_URL: 'https://hosting.test',
+      API_AUTH_USERNAME: undefined,
+      API_AUTH_PASSWORD: undefined,
+    });
+    setBotEnabled.mockClear();
+    configureHostingSessionStore({
+      authToken: {
+        getValue: async () => 'session=abc; HttpOnly;',
+        setValue: async () => undefined,
+      },
+      userId: {
+        getValue: async () => 'user-1',
+        setValue: async () => undefined,
+      },
+      botEnabled: {
+        getValue: async () => false,
+        setValue: setBotEnabled,
+      },
+    });
+  });
+
+  it('reports an expired session when a 401 has an empty body', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(null, { status: 401 }))
+    );
+
+    await expect(getHostingHeartBeat()).resolves.toBe('expired');
+  });
+
+  it('updates bot status from a valid heartbeat', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(() => respond({ botEnabled: true }))
+    );
+
+    await expect(getHostingHeartBeat()).resolves.toBe('ok');
+    expect(setBotEnabled).toHaveBeenCalledWith(true);
+  });
+
+  it('reports an indeterminate session for server errors', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(null, { status: 503 }))
+    );
+
+    await expect(getHostingHeartBeat()).resolves.toBe('unknown');
+  });
+});
+
+describe('Hosting auth reconnect', () => {
+  const setAuthToken = vi.fn(async () => undefined);
+  const setUserId = vi.fn(async () => undefined);
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.stubGlobal('window', undefined);
+    vi.stubGlobal('tlonEnv', {
+      API_URL: 'https://hosting.test',
+      API_AUTH_USERNAME: undefined,
+      API_AUTH_PASSWORD: undefined,
+    });
+    setAuthToken.mockClear();
+    setUserId.mockClear();
+    configureHostingSessionStore({
+      authToken: {
+        getValue: async () => 'expired=session; HttpOnly;',
+        setValue: setAuthToken,
+      },
+      userId: {
+        getValue: async () => 'user/1',
+        setValue: setUserId,
+      },
+      botEnabled: {
+        getValue: async () => false,
+        setValue: async () => undefined,
+      },
+    });
+  });
+
+  it('requests an OTP using the stored user identity contract', async () => {
+    const info = {
+      retryAfter: 0,
+      maskedEmail: 'b***@tlon.io',
+    };
+    const fetchMock = vi.fn().mockImplementation(() => respond(info));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      requestLoginOtpForUser({
+        userId: 'user/1',
+        recaptchaToken: 'recaptcha-token',
+        platform: 'ios',
+      })
+    ).resolves.toEqual(info);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://hosting.test/v1/users/user%2F1/request-login-otp',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          recaptcha: {
+            recaptchaToken: { token: 'recaptcha-token' },
+            recaptchaPlatform: 'ios',
+          },
+        }),
+      })
+    );
+  });
+
+  it('stores the renewed session after verifying the OTP', async () => {
+    const user = {
+      id: 'user/1',
+      email: 'user@tlon.io',
+      admin: false,
+      ships: ['~zod'],
+      requirePhoneNumberVerification: false,
+      verified: true,
+    };
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(user), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Set-Cookie': 'SolarisSession=renewed; HttpOnly;',
+        },
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      verifyLoginOtpForUser({ userId: 'user/1', otp: '123456' })
+    ).resolves.toEqual(user);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://hosting.test/v1/users/user%2F1/verify-login-otp',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ otp: '123456' }),
+      })
+    );
+    expect(setAuthToken).toHaveBeenCalledWith(
+      'SolarisSession=renewed; HttpOnly;'
+    );
+    expect(setUserId).toHaveBeenCalledWith('user/1');
+  });
+
+  it.each([60, undefined, 0, -1, '60'])(
+    'preserves only a positive numeric resend interval from a 429 (%s)',
+    async (retryAfter) => {
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockImplementation(() =>
+            respond({ message: 'Code was sent recently', retryAfter }, 429)
+          )
+      );
+      await expect(
+        requestLoginOtpForUser({
+          userId: 'user/1',
+          recaptchaToken: 'recaptcha-token',
+          platform: 'ios',
+        })
+      ).rejects.toMatchObject({
+        details: {
+          status: 429,
+          retryAfter: retryAfter === 60 ? 60 : undefined,
+        },
+      });
+    }
+  );
+
+  it.each([400, 401])(
+    'preserves HTTP %s for empty, text, and JSON verification errors',
+    async (status) => {
+      for (const body of [
+        null,
+        'Unauthorized',
+        'null',
+        '{"message":"Incorrect code"}',
+      ]) {
+        vi.stubGlobal(
+          'fetch',
+          vi.fn().mockResolvedValue(new Response(body, { status }))
+        );
+
+        const result = verifyLoginOtpForUser({
+          userId: 'user/1',
+          otp: '123456',
+        });
+
+        await expect(result).rejects.toBeInstanceOf(HostingError);
+        await expect(result).rejects.toMatchObject({
+          message:
+            body === '{"message":"Incorrect code"}'
+              ? 'Incorrect code'
+              : 'An unknown error has occurred.',
+          details: {
+            status,
+            method: 'POST',
+            path: '/v1/users/user%2F1/verify-login-otp',
+          },
+        });
+        expect(setAuthToken).not.toHaveBeenCalled();
+        expect(setUserId).not.toHaveBeenCalled();
+      }
+    }
+  );
+});
+
+describe('hosting error reporting', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.stubGlobal('window', undefined);
+    vi.stubGlobal('tlonEnv', {
+      API_URL: 'https://hosting.test',
+      API_AUTH_USERNAME: undefined,
+      API_AUTH_PASSWORD: undefined,
+    });
+    configureHostingSessionStore({
+      authToken: {
+        getValue: async () => 'session=abc; HttpOnly;',
+        setValue: async () => undefined,
+      },
+    });
+  });
+
+  it('reports a rejected request by its status, not as a parse failure', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response('', { status: 401, statusText: 'Unauthorized' })
+        )
+    );
+
+    const rejection = await getTlawnBotInfo('~zod').catch((e) => e);
+
+    expect(rejection).toBeInstanceOf(HostingError);
+    expect(rejection.message).toBe('Hosting request failed (401 Unauthorized)');
+    expect(rejection.details).toMatchObject({ status: 401 });
+  });
+
+  it("keeps hosting's own error message when the body carries one", async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ message: 'node is booting' }), {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+    );
+
+    const rejection = await getTlawnBotInfo('~zod').catch((e) => e);
+
+    expect(rejection.message).toBe('node is booting');
+    expect(rejection.details).toMatchObject({ status: 409 });
+  });
+
+  it('still reports an unparseable success body as a parse failure', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response('<html>', { status: 200 }))
+    );
+
+    const rejection = await getTlawnBotInfo('~zod').catch((e) => e);
+
+    expect(rejection.message).toBe('Failed to parse response');
+    expect(rejection.details).toMatchObject({
+      status: 200,
+      responseText: '<html>',
+    });
+  });
+
+  it('carries the status in the nullable-string fallback message', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response('', { status: 404, statusText: 'Not Found' })
+        )
+    );
+
+    const rejection = await getTlawnNickname('~zod').catch((e) => e);
+
+    expect(rejection).toBeInstanceOf(HostingError);
+    expect(rejection.message).toBe(
+      'An unknown error has occurred. (404 Not Found)'
+    );
+    expect(rejection.details).toMatchObject({ status: 404 });
   });
 });

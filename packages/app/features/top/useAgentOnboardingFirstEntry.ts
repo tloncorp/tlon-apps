@@ -10,6 +10,21 @@ import {
 
 const REFRESH_INTERVAL_MS = 5_000;
 const REFRESH_TIMEOUT_MS = 5 * 60_000;
+const STATUS_ROTATION_INTERVAL_MS = 5_000;
+
+/**
+ * The first entry can take a minute or more with nothing new posted in the
+ * chat, so a single label reads as stuck. Cycle through what the bot is doing
+ * instead; the list loops, so every status has to stay true on a second pass.
+ */
+export const AGENT_ONBOARDING_FIRST_ENTRY_STATUSES = [
+  'Writing your first entry…',
+  'Gathering sources…',
+  'Reading up…',
+  'Drafting the entry…',
+  'Checking the details…',
+  'Still working on it…',
+] as const;
 
 export function useAgentOnboardingFirstEntry({
   agentShipId,
@@ -141,7 +156,26 @@ export function useAgentOnboardingFirstEntry({
     Date.now() - firstEntryStartedAt < REFRESH_TIMEOUT_MS &&
     !indicatorExpired
   );
-  return firstEntryActive && !settled && withinTimeout
-    ? 'Writing your first entry…'
+  const showIndicator = firstEntryActive && !settled && withinTimeout;
+
+  const [statusIndex, setStatusIndex] = useState(0);
+  useEffect(() => {
+    if (!showIndicator) return;
+    const interval = setInterval(
+      () =>
+        setStatusIndex(
+          (index) => (index + 1) % AGENT_ONBOARDING_FIRST_ENTRY_STATUSES.length
+        ),
+      STATUS_ROTATION_INTERVAL_MS
+    );
+    return () => {
+      clearInterval(interval);
+      // Start over from the first status if the indicator is shown again.
+      setStatusIndex(0);
+    };
+  }, [showIndicator]);
+
+  return showIndicator
+    ? AGENT_ONBOARDING_FIRST_ENTRY_STATUSES[statusIndex]
     : undefined;
 }

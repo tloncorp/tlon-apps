@@ -22,6 +22,8 @@ import {
   trackMcpError,
   trackMcpEvent,
 } from './botMcpSettingsHelpers';
+import { trackTlonbotSettingUpdated } from './bot/botSettingsTelemetry';
+import { openOAuthUrl } from './openOAuthUrl';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BotMcpSettings'>;
 
@@ -161,6 +163,11 @@ export function BotMcpSettingsScreen(props: Props) {
         trackMcpEvent(MCP_TELEMETRY_EVENTS.connected, {
           providerId: completion.providerId,
         });
+        trackTlonbotSettingUpdated({
+          setting: 'connected_service',
+          action: 'connected',
+          provider: completion.providerId ?? undefined,
+        });
         triggerHaptic('success');
       }
       showMcpToast({
@@ -221,11 +228,23 @@ export function BotMcpSettingsScreen(props: Props) {
       setStartingProviderId(providerId);
       trackMcpEvent(MCP_TELEMETRY_EVENTS.initiatedOAuth, { providerId });
       try {
+        const finalRedirectUrl = getFinalRedirectUrl();
         const response = await api.startTlawnOAuth(currentUserId, {
           providerId,
-          finalRedirectUrl: getFinalRedirectUrl(),
+          finalRedirectUrl,
         });
-        await Linking.openURL(response.authUrl);
+        const openResult = await openOAuthUrl(
+          response.authUrl,
+          finalRedirectUrl
+        );
+        if (openResult.type === 'completed') {
+          handleOAuthCompletion(openResult.url);
+        } else if (openResult.type === 'canceled') {
+          setStartingProviderId(null);
+          showMcpToast({
+            message: 'Connection canceled. You can try again.',
+          });
+        }
       } catch (err) {
         trackMcpError('Failed to start OAuth flow', {
           action: 'startOAuth',
@@ -236,7 +255,13 @@ export function BotMcpSettingsScreen(props: Props) {
         showMcpToast({ message: GENERIC_ERROR_MESSAGE });
       }
     },
-    [currentUserId, disconnectingProviderId, showMcpToast, startingProviderId]
+    [
+      currentUserId,
+      disconnectingProviderId,
+      handleOAuthCompletion,
+      showMcpToast,
+      startingProviderId,
+    ]
   );
 
   useEffect(() => {
@@ -280,6 +305,11 @@ export function BotMcpSettingsScreen(props: Props) {
       try {
         await api.deleteTlawnOAuthGrant(currentUserId, providerId);
         trackMcpEvent(MCP_TELEMETRY_EVENTS.disconnected, { providerId });
+        trackTlonbotSettingUpdated({
+          setting: 'connected_service',
+          action: 'disconnected',
+          provider: providerId,
+        });
         triggerHaptic('success');
         showMcpToast({ message: 'Connection disconnected.' });
         await refreshStatus();

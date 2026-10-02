@@ -8,14 +8,18 @@ import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 
+import { SettingsDrawerParamList } from '../types';
 import { AppInfoScreen } from '../../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../../features/settings/BlockedUsersScreen';
 import { BotApiKeySettingsScreen } from '../../features/settings/BotApiKeySettingsScreen';
 import { BotChannelRuleSettingsScreen } from '../../features/settings/BotChannelRuleSettingsScreen';
 import { BotChannelRulesScreen } from '../../features/settings/BotChannelRulesScreen';
+import { BotIdentitySettingsScreen } from '../../features/settings/BotIdentitySettingsScreen';
 import { BotMcpSettingsScreen } from '../../features/settings/BotMcpSettingsScreen';
 import { BotModelSettingsScreen } from '../../features/settings/BotModelSettingsScreen';
 import { BotOpenAISubscriptionScreen } from '../../features/settings/BotOpenAISubscriptionScreen';
+import { BotPermissionsSettingsScreen } from '../../features/settings/BotPermissionsSettingsScreen';
+import { BotProviderListSettingsScreen } from '../../features/settings/BotProviderListSettingsScreen';
 import { BotSettingsScreen } from '../../features/settings/BotSettingsScreen';
 import { BotShipListSettingsScreen } from '../../features/settings/BotShipListSettingsScreen';
 import { FeatureFlagScreen } from '../../features/settings/FeatureFlagScreen';
@@ -25,7 +29,7 @@ import { PushNotificationSettingsScreen } from '../../features/settings/PushNoti
 import { ThemeScreen } from '../../features/settings/ThemeScreen';
 import { UserBugReportScreen } from '../../features/settings/UserBugReportScreen';
 import { SettingsEmptyState } from '../../features/top/DesktopEmptyStates';
-import { useDMLureLink } from '../../hooks/useBranchLink';
+import { useSettingsRowLabels } from '../../features/settings/useSettingsRowLabels';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
@@ -35,14 +39,13 @@ import {
   useHasExpectedBotDm,
 } from '../../utils/botSettings';
 
-const SettingsDrawer = createDrawerNavigator();
+const SettingsDrawer = createDrawerNavigator<SettingsDrawerParamList>();
 
 function DrawerContent(props: DrawerContentComponentProps) {
   const { navigate } = props.navigation;
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
   const currentUserId = useCurrentUserId();
-  const { dmLink } = useDMLureLink();
   const hasHostedAuth = useHasHostedAuth();
   const hostingBotEnabled = db.hostingBotEnabled.useValue();
   const isHostedUser = getCurrentUserIsHosted();
@@ -55,6 +58,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
       ? isHostedUser && hasExpectedBotDm
       : isHostedUser && hostingBotEnabled;
   const focusedRoute = props.state.routes[props.state.index];
+  const { themeLabel, notificationsLabel } = useSettingsRowLabels();
 
   const onAppInfoPressed = useCallback(() => {
     navigate('AppInfo');
@@ -110,9 +114,10 @@ function DrawerContent(props: DrawerContentComponentProps) {
       onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
       onThemePressed={onThemePressed}
       onPrivacyPressed={onPrivacyPressed}
-      dmLink={dmLink}
       focusedRouteName={focusedRoute.name}
       botEnabled={botEnabled}
+      themeLabel={themeLabel}
+      notificationsLabel={notificationsLabel}
     />
   );
 }
@@ -183,6 +188,18 @@ export const SettingsNavigator = () => {
       <SettingsDrawer.Screen
         name="BotChannelRuleSettings"
         component={BotChannelRuleSettingsScreen}
+      />
+      <SettingsDrawer.Screen
+        name="BotPermissionsSettings"
+        component={BotPermissionsSettingsScreen}
+      />
+      <SettingsDrawer.Screen
+        name="BotIdentitySettings"
+        component={BotIdentitySettingsScreen}
+      />
+      <SettingsDrawer.Screen
+        name="BotProviderListSettings"
+        component={BotProviderListSettingsScreen}
       />
       <SettingsDrawer.Screen
         name="FeatureFlags"

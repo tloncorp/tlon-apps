@@ -8,6 +8,7 @@ const getActiveForegroundContextLensForConversation = vi.fn<() => unknown>(
   () => null
 );
 const resolveTlonAccount = vi.fn(() => ({
+  accountId: 'secondary',
   configured: true,
   ship: '~zod',
   url: 'http://localhost:8080',
@@ -26,6 +27,7 @@ vi.mock('./urbit/upload.js', () => ({
 }));
 
 vi.mock('./urbit/send.js', () => ({
+  buildMediaText: vi.fn((text: string) => text),
   buildMediaStory: vi.fn(() => [{ inline: ['mock'] }]),
   sendChannelPost: vi.fn(async () => ({
     channel: 'tlon',
@@ -122,6 +124,7 @@ describe('sendMedia', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     resolveTlonAccount.mockReturnValue({
+      accountId: 'secondary',
       configured: true,
       ship: '~zod',
       url: 'http://localhost:8080',
@@ -145,18 +148,23 @@ describe('sendMedia', () => {
       new Error('Local file paths are not supported on this channel')
     );
     const { startTlonAgentTurn } = await import('./turn-recorder.js');
+    const recordDispatchAttempted = vi.fn();
+    const recordDispatchFailed = vi.fn();
     const turn = startTlonAgentTurn(
       {
         accountId: 'hosted',
         agentId: 'main',
         destinationKind: 'dm',
+        inputMessageId: '~nec/111',
         runId: 'media-failure',
         sessionKey: 'agent:main:tlon:direct:~nec',
-        ship: '~zod',
+        ship: 'zod',
         trigger: 'dm',
       },
       {
         observer: {
+          recordDispatchAttempted,
+          recordDispatchFailed,
           recordStarted: () => undefined,
           recordTerminal: () => undefined,
         },
@@ -175,11 +183,53 @@ describe('sendMedia', () => {
     expect(sendDm).not.toHaveBeenCalled();
     expect(sendDmWithStory).not.toHaveBeenCalled();
     expect(sendChannelPost).not.toHaveBeenCalled();
+    expect(recordDispatchAttempted).not.toHaveBeenCalled();
+    expect(recordDispatchFailed).not.toHaveBeenCalled();
     expect(turn.finalize({ durationMs: 10 })).toMatchObject({
-      delivery: 'failed',
-      deliveryFailureCount: 1,
+      delivery: 'not_applicable',
+      deliveryFailureCount: 0,
       deliverySuccessCount: 0,
+      dispatch: 'not_applicable',
+      dispatchAttemptCount: 0,
     });
+  });
+
+  it('attributes sends to the resolved outbound account and ship', async () => {
+    const { startTlonAgentTurn } = await import('./turn-recorder.js');
+    const recordDispatchAttempted = vi.fn();
+    const turn = startTlonAgentTurn(
+      {
+        accountId: 'primary',
+        agentId: 'main',
+        destinationKind: 'dm',
+        inputMessageId: '~nec/111',
+        runId: 'cross-account',
+        sessionKey: 'agent:main:tlon:direct:~nec',
+        ship: '~nec',
+        trigger: 'dm',
+      },
+      {
+        observer: {
+          recordDispatchAttempted,
+          recordStarted: () => undefined,
+          recordTerminal: () => undefined,
+        },
+      }
+    );
+
+    await turn.run(() =>
+      tlonRuntimeOutbound.sendText({
+        ...baseCtx,
+        accountId: 'secondary',
+      })
+    );
+
+    expect(recordDispatchAttempted).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        accountId: 'secondary',
+        ship: 'zod',
+      })
+    );
   });
 
   it('posts exactly once with valid https URL', async () => {
@@ -193,6 +243,7 @@ describe('sendMedia', () => {
         accountId: 'hosted',
         agentId: 'main',
         destinationKind: 'dm',
+        inputMessageId: '~nec/222',
         runId: 'media-success',
         sessionKey: 'agent:main:tlon:direct:~nec',
         ship: '~zod',
@@ -221,6 +272,53 @@ describe('sendMedia', () => {
       deliverySuccessCount: 1,
     });
   });
+
+  it('records the actual outbound destination kind for cross-target sends', async () => {
+    const { startTlonAgentTurn } = await import('./turn-recorder.js');
+    const recordDispatchAttempted = vi.fn();
+    const recordMoonReplyEnqueued = vi.fn();
+    const turn = startTlonAgentTurn(
+      {
+        accountId: 'hosted',
+        agentId: 'main',
+        destinationKind: 'dm',
+        inputMessageId: '~nec/333',
+        runId: 'cross-target',
+        sessionKey: 'agent:main:tlon:direct:~nec',
+        ship: '~zod',
+        trigger: 'dm',
+      },
+      {
+        observer: {
+          recordDispatchAttempted,
+          recordMoonReplyEnqueued,
+          recordStarted: () => undefined,
+          recordTerminal: () => undefined,
+        },
+      }
+    );
+
+    await turn.run(() =>
+      tlonRuntimeOutbound.sendText({
+        ...baseCtx,
+        to: 'chat/~zod/general',
+      })
+    );
+
+    expect(sendDm).not.toHaveBeenCalled();
+    expect(sendChannelPost).toHaveBeenCalledTimes(1);
+    expect(recordDispatchAttempted).toHaveBeenCalledWith(
+      expect.objectContaining({
+        destinationKind: 'group_channel',
+      })
+    );
+    expect(recordMoonReplyEnqueued).toHaveBeenCalledWith(
+      expect.objectContaining({
+        destinationKind: 'group_channel',
+        outputMessageId: '~zod/123',
+      })
+    );
+  });
 });
 
 describe('notes delivery', () => {
@@ -230,6 +328,7 @@ describe('notes delivery', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     resolveTlonAccount.mockReturnValue({
+      accountId: 'secondary',
       configured: true,
       ship: '~zod',
       url: 'http://localhost:8080',
@@ -248,6 +347,97 @@ describe('notes delivery', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
+
+  it.each(['sendText', 'sendMedia'] as const)(
+    '%s observes only the notebook write',
+    async (method) => {
+      const { startTlonAgentTurn } = await import('./turn-recorder.js');
+      const recordDispatchAttempted = vi.fn();
+      const recordDispatchFailed = vi.fn();
+      const recordMoonReplyEnqueued = vi.fn();
+      const turn = startTlonAgentTurn(
+        {
+          accountId: 'primary',
+          agentId: 'main',
+          destinationKind: 'dm',
+          inputMessageId: '~nec/111',
+          runId: 'notebook-write',
+          sessionKey: 'agent:main:tlon:direct:~nec',
+          ship: '~nec',
+          trigger: 'dm',
+        },
+        {
+          observer: {
+            recordDispatchAttempted,
+            recordDispatchFailed,
+            recordMoonReplyEnqueued,
+            recordStarted: () => undefined,
+            recordTerminal: () => undefined,
+          },
+        }
+      );
+      prepareOutboundMedia.mockResolvedValue({
+        url: 'https://example.com/image.png',
+      });
+      const send = () =>
+        turn.run(() =>
+          tlonRuntimeOutbound[method]({
+            cfg: {} as never,
+            to: 'notes/~ten/updates',
+            text: '# Report',
+            mediaUrl: 'https://example.com/image.png',
+            accountId: null,
+            replyToId: null,
+            threadId: null,
+          })
+        );
+
+      getNotebook.mockRejectedValueOnce(new Error('notebook unavailable'));
+      await expect(send()).rejects.toThrow('notebook unavailable');
+      listNotes.mockRejectedValueOnce(new Error('listing unavailable'));
+      await expect(send()).rejects.toThrow('listing unavailable');
+      expect(createNote).not.toHaveBeenCalled();
+      expect(recordDispatchAttempted).not.toHaveBeenCalled();
+      expect(recordDispatchFailed).not.toHaveBeenCalled();
+
+      createNote.mockImplementationOnce(async () => {
+        expect(recordDispatchAttempted).toHaveBeenCalledTimes(1);
+        throw new Error('write failed');
+      });
+      await expect(send()).rejects.toThrow('write failed');
+      expect(recordDispatchFailed).toHaveBeenCalledTimes(1);
+
+      await expect(send()).resolves.toMatchObject({
+        messageId: '~zod/notes-42',
+      });
+      expect(recordDispatchAttempted).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          accountId: 'secondary',
+          destinationKind: 'notebook',
+          ship: 'zod',
+        })
+      );
+
+      expect(recordMoonReplyEnqueued).toHaveBeenLastCalledWith(
+        expect.objectContaining({ outputMessageId: '~zod/notes-42' })
+      );
+
+      createNote.mockResolvedValueOnce(null);
+      listNotes
+        .mockResolvedValueOnce([])
+        .mockRejectedValueOnce(new Error('recovery failed'));
+      await expect(send()).rejects.toThrow('recovery failed');
+      expect(recordDispatchFailed).toHaveBeenCalledTimes(1);
+      expect(recordMoonReplyEnqueued.mock.calls.at(-1)?.[0]).not.toHaveProperty(
+        'outputMessageId'
+      );
+      expect(turn.finalize({ durationMs: 10 })).toMatchObject({
+        dispatchAttemptCount: 3,
+        deliveryFailureCount: 1,
+        deliverySuccessCount: 2,
+      });
+    }
+  );
 
   it('creates a Markdown note in the notebook root folder', async () => {
     createNote.mockResolvedValue({ id: 42, title: 'Tuesday briefing' });
@@ -389,6 +579,7 @@ describe('notes delivery', () => {
     const recordOutput = vi.fn();
     const recordPersistence = vi.fn();
     resolveTlonAccount.mockReturnValue({
+      accountId: 'secondary',
       configured: true,
       ship: '~zod',
       url: 'http://localhost:8080',
@@ -442,5 +633,73 @@ describe('notes delivery', () => {
         body: 'Tuesday briefing\n\nThe full report.',
       })
     );
+  });
+});
+
+describe('gateway startup catch-up wiring', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('publishes readiness from the provider and cancels immediately on host abort', async () => {
+    const { startTlonGatewayAccount } = await import('./channel.runtime.js');
+    const { monitorTlonProvider } = await import('./monitor/index.js');
+    const { getRestartCatchupCoordinator } =
+      await import('./restart-catchup.js');
+    const connected = vi.fn();
+    const stop = vi.fn();
+    const attach = vi
+      .spyOn(getRestartCatchupCoordinator(), 'attachMonitor')
+      .mockReturnValue({ connected, stop });
+    let finish!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const connection = { isConnected: () => true, readSettings: vi.fn() };
+    vi.mocked(monitorTlonProvider).mockImplementationOnce(async (opts) => {
+      opts?.onReady?.(connection);
+      await pending;
+    });
+    const abort = new AbortController();
+    const cfg = {};
+    const running = startTlonGatewayAccount({
+      cfg,
+      account: { accountId: 'default', ship: '~zod' },
+      abortSignal: abort.signal,
+      setStatus: vi.fn(),
+      runtime: {},
+    } as never);
+    expect(attach).toHaveBeenCalledWith('default', cfg);
+    expect(connected).toHaveBeenCalledWith(connection);
+    abort.abort();
+    expect(stop).toHaveBeenCalledTimes(1);
+    finish();
+    await running;
+    expect(stop).toHaveBeenCalledTimes(2);
+  });
+
+  it('cleans up catch-up eligibility when authentication or provider bootstrap fails', async () => {
+    const { startTlonGatewayAccount } = await import('./channel.runtime.js');
+    const { monitorTlonProvider } = await import('./monitor/index.js');
+    const { getRestartCatchupCoordinator } =
+      await import('./restart-catchup.js');
+    const connected = vi.fn();
+    const stop = vi.fn();
+    vi.spyOn(getRestartCatchupCoordinator(), 'attachMonitor').mockReturnValue({
+      connected,
+      stop,
+    });
+    vi.mocked(monitorTlonProvider).mockRejectedValueOnce(
+      new Error('authentication failed')
+    );
+    await expect(
+      startTlonGatewayAccount({
+        cfg: {},
+        account: { accountId: 'default' },
+        abortSignal: new AbortController().signal,
+        setStatus: vi.fn(),
+        runtime: {},
+      } as never)
+    ).rejects.toThrow('authentication failed');
+    expect(connected).not.toHaveBeenCalled();
+    expect(stop).toHaveBeenCalledTimes(1);
   });
 });

@@ -17,7 +17,6 @@ import {
   DraftInputContextProvider,
 } from '../ui/components/draftInputs/shared';
 import { ChannelProvider } from '../ui/contexts/channel';
-import { TLAWN_HOME_GROUP_WELCOME_MESSAGE } from '../ui/components/Channel/postVisibility';
 import { ChannelFixture } from './Channel.fixture';
 import { FixtureWrapper } from './FixtureWrapper';
 import { makePost, verse } from './contentHelpers';
@@ -30,8 +29,13 @@ import {
 // This fixture intentionally owns a representative transcript rather than
 // making product copy part of the generic API package. The coordinator tests
 // are authoritative for the actual emitted surfaces.
+const HOME_GROUP_WELCOME =
+  'Welcome! This is your private group with me, your Tlonbot. You can @ me ' +
+  'here anytime and I will respond. Invite some friends, and they can @ me ' +
+  'too—we can all chat together.';
+
 const AGENT_ONBOARDING_GROUP_INTRO =
-  `${TLAWN_HOME_GROUP_WELCOME_MESSAGE}\n\n` +
+  `${HOME_GROUP_WELCOME}\n\n` +
   'I can keep you informed, help you learn, or follow a ' +
   'question over time.';
 const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What can I help you with?';
@@ -254,8 +258,8 @@ const firstEntryReady =
   'Your first entry is ready in Updates, this group’s notebook. That notebook ' +
   'is where everything I write for you lands; this chat is for talking to me.';
 const servicesPitch =
-  'Connect your calendar and docs and your morning digest can cover your own ' +
-  'day — meetings, deadlines, notes — not just the news.';
+  'Connect your docs and notes and your morning digest can cover your own ' +
+  'projects, not just the news.';
 const servicesMessage = `${servicesPitch}\n\nConnect anything you’d like, or tap Done to continue.`;
 const servicesComponent: A2UI.McpConnect = {
   id: 'providers',
@@ -295,11 +299,7 @@ const servicesSurface = makeA2UI('onboarding-services-fixture', [
 
 const servicesPreviewProviders: McpProviderRow[] = [
   { displayName: 'Notion', id: 'notion', status: 'connected' },
-  {
-    displayName: 'Google Calendar',
-    id: 'google-calendar',
-    status: 'connected',
-  },
+  { displayName: 'AgentMail', id: 'agentmail', status: 'connected' },
   { displayName: 'Gmail', id: 'gmail', status: 'not-connected' },
   { displayName: 'GitHub', id: 'github', status: 'not-connected' },
   { displayName: 'Linear', id: 'linear', status: 'not-connected' },
@@ -455,7 +455,7 @@ const transcript = [
 const provisionedWelcomePost = transcriptPost({
   id: 'provisioned-tlawn-welcome',
   author: tlonbot,
-  text: TLAWN_HOME_GROUP_WELCOME_MESSAGE,
+  text: HOME_GROUP_WELCOME,
   minute: 0,
 });
 

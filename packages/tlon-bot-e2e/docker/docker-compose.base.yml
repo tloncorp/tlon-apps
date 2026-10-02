@@ -28,7 +28,7 @@ services:
         mkdir -p /cache
 
         echo "==> fake ships runtime pin"
-        echo "    vere pin: vere-v4.6"
+        echo "    vere: latest release (see pier-archive.json for the producing vere)"
         echo "    pier generation: 31"
         echo "    zod code: lidlut-tabwed-pillex-ridrup"
         echo "    ten code: lapseg-nolmel-riswen-hopryc"
@@ -147,12 +147,6 @@ services:
           md5 \
           dc1e8de5698a8ac4bf7fea2edcf43a0b \
           308574832)"
-        vere_archive="$$(artifact \
-          linux-x86_64-vere-v4.6.tgz \
-          https://github.com/urbit/vere/releases/download/vere-v4.6/linux-x86_64.tgz \
-          sha256 \
-          f332e96d66cb767f847fbf15e04b4f953fd078e610b449fbbc26629ea312a3ae \
-          9729797)"
 
         if [ ! -d zod ]; then
           echo "==> Extracting zod"
@@ -173,19 +167,29 @@ services:
           echo "==> mug pier already extracted"
         fi
 
-        if ! ls -1 vere-*-linux-x86_64 >/dev/null 2>&1; then
-          echo "==> Extracting vere"
-          tar xzf "$$vere_archive" || { echo "ERROR: failed to extract vere"; exit 1; }
-        else
-          echo "==> vere already extracted"
+        # Vere floats to the latest release, like rube: archives are cut on
+        # current vere and pier state only migrates forward, so a pinned older
+        # vere can fail to boot a newer archive. Fetched fresh on every start
+        # into a dir outside /cache (whose entries are keyed by filename and
+        # would pin whatever release was cached first).
+        vere_dir="$$(mktemp -d)"
+        echo "==> Downloading latest vere"
+        download \
+          https://github.com/urbit/vere/releases/latest/download/linux-x86_64.tgz \
+          "$$vere_dir/vere.tgz" || { echo "ERROR: failed to download vere"; exit 1; }
+        tar xzf "$$vere_dir/vere.tgz" -C "$$vere_dir" || { echo "ERROR: failed to extract vere"; exit 1; }
+        set -- "$$vere_dir"/vere-*-linux-x86_64
+        if [ "$$#" -ne 1 ] || [ ! -f "$$1" ]; then
+          echo "ERROR: expected exactly one vere binary in the release tarball"
+          exit 1
         fi
-        VERE="$$(ls -1 vere-*-linux-x86_64 | head -1)"
+        VERE="$$1"
         chmod +x "$$VERE"
-        echo "==> Using vere: $$VERE"
+        echo "==> Using vere: $$(basename "$$VERE")"
         echo "==> Starting ships"
-        ./"$$VERE" -t --loom 31 --http-port 8080 zod &
-        ./"$$VERE" -t --loom 31 --http-port 8081 ten &
-        ./"$$VERE" -t --loom 31 --http-port 8082 mug
+        "$$VERE" -t --loom 31 --http-port 8080 zod &
+        "$$VERE" -t --loom 31 --http-port 8081 ten &
+        "$$VERE" -t --loom 31 --http-port 8082 mug
     volumes:
       - ships-data:/data
       - ${FAKE_SHIP_CACHE_DIR:-fake-ship-cache}:/cache

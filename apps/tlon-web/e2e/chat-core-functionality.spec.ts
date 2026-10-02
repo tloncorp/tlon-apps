@@ -93,6 +93,12 @@ test('should test comprehensive chat functionality', async ({
   await helpers.sendMessage(zodPage, 'Edit this message');
   await helpers.editMessage(zodPage, 'Edit this message', 'Edited message');
 
+  // A fenced code block must survive a round-trip through the edit input
+  await helpers.editMessageWithCodeBlock(zodPage, {
+    lead: 'Code sample below',
+    code: 'const answer = 42;',
+  });
+
   // Mention a user in a message
   await helpers.sendMentionMessage(zodPage, {
     inputText: 'mentioning @ten',

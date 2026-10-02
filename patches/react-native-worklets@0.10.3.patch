@@ -1,0 +1,109 @@
+diff --git a/android/src/main/java/com/swmansion/worklets/runloop/AnimationFrameQueue.kt b/android/src/main/java/com/swmansion/worklets/runloop/AnimationFrameQueue.kt
+index 0952b79f4ee4f69586ee1177364dde9c1587fd6d..bca9daf9102676260a8581e5984ddf12569875d1 100644
+--- a/android/src/main/java/com/swmansion/worklets/runloop/AnimationFrameQueue.kt
++++ b/android/src/main/java/com/swmansion/worklets/runloop/AnimationFrameQueue.kt
+@@ -25,7 +25,9 @@ class AnimationFrameQueue(
+         }
+     private val mCallbackPosted = AtomicBoolean()
+     private val mPaused = AtomicBoolean()
++    private val mInvalidated = AtomicBoolean()
+     private val mFrameCallbacks = mutableListOf<AnimationFrameCallback>()
++    private val mDispatchLock = Any()
+ 
+     fun resume() {
+         if (mPaused.getAndSet(false)) {
+@@ -44,8 +46,21 @@ class AnimationFrameQueue(
+         }
+     }
+ 
++    fun invalidate() {
++        mInvalidated.set(true)
++        removePostedFrameCallback()
++        synchronized(mDispatchLock) {
++            synchronized(mFrameCallbacks) {
++                mFrameCallbacks.clear()
++            }
++        }
++    }
++
+     fun requestAnimationFrame(animationFrameCallback: AnimationFrameCallback) {
+         synchronized(mFrameCallbacks) {
++            if (mInvalidated.get()) {
++                return
++            }
+             mFrameCallbacks.add(animationFrameCallback)
+         }
+         scheduleQueueExecution()
+@@ -64,6 +79,9 @@ class AnimationFrameQueue(
+ 
+     private fun scheduleQueueExecution() {
+         synchronized(mPaused) {
++            if (mInvalidated.get()) {
++                return
++            }
+             if (!mPaused.get() && !mCallbackPosted.getAndSet(true)) {
+                 mReactChoreographer.postFrameCallback(
+                     ReactChoreographer.CallbackType.NATIVE_ANIMATED_MODULE,
+@@ -73,6 +91,15 @@ class AnimationFrameQueue(
+         }
+     }
+ 
++    private fun removePostedFrameCallback() {
++        if (mCallbackPosted.getAndSet(false)) {
++            mReactChoreographer.removeFrameCallback(
++                ReactChoreographer.CallbackType.NATIVE_ANIMATED_MODULE,
++                mChoreographerCallback,
++            )
++        }
++    }
++
+     private fun executeQueue(frameTimeNanos: Long) {
+         val currentFrameTimeMs = calculateTimestamp(frameTimeNanos)
+         if (currentFrameTimeMs <= lastFrameTimeMs) {
+@@ -83,12 +110,17 @@ class AnimationFrameQueue(
+             return
+         }
+ 
+-        val frameCallbacks = pullCallbacks()
+-        mCallbackPosted.set(false)
++        synchronized(mDispatchLock) {
++            val frameCallbacks = pullCallbacks()
++            mCallbackPosted.set(false)
++            if (mInvalidated.get()) {
++                return
++            }
+ 
+-        lastFrameTimeMs = currentFrameTimeMs
+-        for (callback in frameCallbacks) {
+-            callback.onAnimationFrame(currentFrameTimeMs)
++            lastFrameTimeMs = currentFrameTimeMs
++            for (callback in frameCallbacks) {
++                callback.onAnimationFrame(currentFrameTimeMs)
++            }
+         }
+     }
+ 
+diff --git a/android/src/networking/com/swmansion/worklets/WorkletsModule.kt b/android/src/networking/com/swmansion/worklets/WorkletsModule.kt
+index 7e2346c6251535ae1084af274358cfddbb3d75b0..37a9e459c93a4076349183b6a35762586b03a0e8 100644
+--- a/android/src/networking/com/swmansion/worklets/WorkletsModule.kt
++++ b/android/src/networking/com/swmansion/worklets/WorkletsModule.kt
+@@ -165,6 +165,7 @@ class WorkletsModule(
+         if (mInvalidated.getAndSet(true)) {
+             return
+         }
++        mAnimationFrameQueue.invalidate()
+         if (mHybridData != null && mHybridData!!.isValid) {
+             invalidateCpp()
+         }
+diff --git a/android/src/no-networking/com/swmansion/worklets/WorkletsModule.kt b/android/src/no-networking/com/swmansion/worklets/WorkletsModule.kt
+index 56bf3055b60f7d9e58e4f602667d36db5db6ddd7..c057a0fecfe8c47c77b759a3cb2df56710a2a9e9 100644
+--- a/android/src/no-networking/com/swmansion/worklets/WorkletsModule.kt
++++ b/android/src/no-networking/com/swmansion/worklets/WorkletsModule.kt
+@@ -121,6 +121,7 @@ class WorkletsModule(
+         if (mInvalidated.getAndSet(true)) {
+             return
+         }
++        mAnimationFrameQueue.invalidate()
+         if (mHybridData != null && mHybridData!!.isValid) {
+             invalidateCpp()
+         }
