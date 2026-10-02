@@ -1,0 +1,72 @@
+{
+  "activity": {
+    "summary": "Mentions, replies, and unread activity",
+    "reference": "references/reading.md",
+    "toolGuidance": "Read activity; results are bounded."
+  },
+  "browser": {
+    "summary": "Hosted-browser secure form handoff",
+    "reference": "references/browser-handoff.md",
+    "toolGuidance": "Use a session_id from browser_session_create, never a viewer URL; no credential or recipient overrides."
+  },
+  "buckets": {
+    "summary": "Shared group files and folders",
+    "reference": "references/buckets.md",
+    "toolGuidance": "Use for Bucket files, not generic uploads; current ship permissions apply."
+  },
+  "channels": {
+    "summary": "Channel discovery and administration",
+    "reference": "references/groups-channels.md",
+    "toolGuidance": "Manage chat, heap, and notes channels; join/leave affects one channel, not the whole workspace."
+  },
+  "contacts": {
+    "summary": "Contacts and profile management",
+    "reference": "references/contacts-settings.md",
+    "toolGuidance": "Read contacts and update the current ship profile."
+  },
+  "dms": {
+    "summary": "DM management",
+    "reference": "references/reading.md",
+    "toolGuidance": "Use message for sending/replying; other DM operations remain available."
+  },
+  "expose": {
+    "summary": "Public content exposure",
+    "reference": "references/groups-channels.md",
+    "toolGuidance": "Changes public visibility; expose only content requested by the user."
+  },
+  "groups": {
+    "summary": "Workspaces (Tlon groups), roles, and membership",
+    "reference": "references/groups-channels.md",
+    "toolGuidance": "Use create-owned when creating a group for a user."
+  },
+  "hooks": {
+    "summary": "Channel hooks and automation",
+    "reference": "references/hooks-workflow.md",
+    "toolGuidance": "Advanced channel hooks; inspect help and the hook reference first."
+  },
+  "messages": {
+    "summary": "Message history and search",
+    "reference": "references/reading.md",
+    "toolGuidance": "Read history; send ordinary messages through message."
+  },
+  "notes": {
+    "summary": "Markdown notebooks and notes",
+    "reference": "references/notes.md",
+    "toolGuidance": "Use workspace files; owner-confirmed migration writes are unavailable."
+  },
+  "posts": {
+    "summary": "Post reactions, edits, and deletes",
+    "reference": "references/reading.md",
+    "toolGuidance": "Send/reply through message; do not manage deprecated diary posts."
+  },
+  "settings": {
+    "summary": "OpenClaw Tlon settings",
+    "reference": "references/contacts-settings.md",
+    "toolGuidance": "Read or change explicitly requested settings."
+  },
+  "upload": {
+    "summary": "Standalone media upload",
+    "reference": "references/media.md",
+    "toolGuidance": "Use a URL or workspace file; stdin is shell-only."
+  }
+}
