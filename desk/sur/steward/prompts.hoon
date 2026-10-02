@@ -58,10 +58,14 @@
 +$  pending  (map request-id pending-command)
 ::  $state: only projections write .files; edits write request records
 ::
+::    .rewatch: consecutive nacked files watches per trusted bot, for the
+::    retry backoff. cleared by a positive watch-ack or an untrust
+::
 +$  state
   $:  files=(map ship prompts)
       =requests
       =pending
+      rewatch=(map ship @ud)
   ==
 +$  a-prompts
   $%  [%project =prompts]

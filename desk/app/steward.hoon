@@ -564,6 +564,10 @@
       [%prompts %req @ @ %wake ~]
     ?.  ?=([%behn %wake *] sign)  cor
     (po-finalize-pending:po-core (slav %uv i.t.t.t.wire))
+  ::
+      [%prompts %rewatch @ ~]
+    ?.  ?=([%behn %wake *] sign)  cor
+    (po-rewatch:po-core (slav %p i.t.t.wire))
   ==
 ::
 ++  watch-activity
@@ -2189,9 +2193,27 @@
     ?:  =(bot our.bowl)  cor
     =.  cor
       (emit %pass /prompts/files/(scot %p bot) %agent [bot %steward] %leave ~)
+    =.  rewatch.prompts.state  (~(del by rewatch.prompts.state) bot)
     ?.  (~(has by files.prompts.state) bot)  cor
     =.  files.prompts.state  (~(del by files.prompts.state) bot)
     (po-give-update [%gone bot])
+  ::
+  ::  1, 2, 4 … minutes, capped at an hour: each retry crashes the bot's
+  ::  on-watch until it upgrades, and an upgrade takes minutes
+  ::
+  ++  po-rewatch-timer
+    |=  [bot=ship attempt=@ud]
+    ^-  card
+    =/  delay=@dr  (min ~h1 (mul ~m1 (bex (min 6 (dec attempt)))))
+    [%pass /prompts/rewatch/(scot %p bot) %arvo %b %wait (add now.bowl delay)]
+  ::
+  ++  po-rewatch
+    |=  bot=ship
+    ^+  cor
+    ?.  (~(has in bots.state) bot)  cor
+    ?:  (~(has by wex.bowl) [/prompts/files/(scot %p bot) bot %steward])
+      cor
+    (emit (po-watch-card bot))
   ::
   ++  po-watch-card
     |=  bot=ship
@@ -2216,16 +2238,25 @@
       ?.  (~(has in bots.state) bot)  cor
       (emit (po-watch-card bot))
     ::
-    ::  a nack schedules no retry, so dropping the mirror here would
-    ::  strand it until someone re-pokes %trust-bot. keep the last good
-    ::  projection; a %kick or a fresh %trust-bot repairs it
+    ::  a nacked watch is retried on a backoff while the bot stays
+    ::  trusted. the common cause is an upgrade race: this ship reached the
+    ::  prompts module before the bot did, so the bot's %steward has no
+    ::  files path yet, and gall drops a nacked wire for good. the last
+    ::  good projection is kept meanwhile rather than wiped
     ::
         %watch-ack
-      ?~  p.sign  cor
-      %:  po-fail  'Mirror Watch Nacked'
-          ~['prompts mirror watch nacked']  u.p.sign
-          ~['bot'^s+(scot %p bot)]
-      ==
+      ?~  p.sign
+        =.  rewatch.prompts.state  (~(del by rewatch.prompts.state) bot)
+        cor
+      =.  cor
+        %:  po-fail  'Mirror Watch Nacked'
+            ~['prompts mirror watch nacked']  u.p.sign
+            ~['bot'^s+(scot %p bot)]
+        ==
+      ?.  (~(has in bots.state) bot)  cor
+      =/  attempt=@ud  +((~(gut by rewatch.prompts.state) bot 0))
+      =.  rewatch.prompts.state  (~(put by rewatch.prompts.state) bot attempt)
+      (emit (po-rewatch-timer bot attempt))
     ==
   ::
   ++  po-apply-bot-update

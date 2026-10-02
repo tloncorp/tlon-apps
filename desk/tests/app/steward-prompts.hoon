@@ -126,6 +126,12 @@
   |=  bot=ship
   %^  ex-task  /prompts/files/(scot %p bot)  [bot %steward]
   [%watch /v1/prompts/files]
+++  ex-rewatch-timer
+  |=  [bot=ship at=@da]
+  (ex-card %pass /prompts/rewatch/(scot %p bot) %arvo %b %wait at)
+++  do-rewatch-wake
+  |=  bot=ship
+  (do-arvo /prompts/rewatch/(scot %p bot) [%behn %wake ~])
 ++  do-bot-sign
   |=  [bot=ship =sign:agent:gall]
   (do-agent /prompts/files/(scot %p bot) [bot %steward] sign)
@@ -1114,9 +1120,53 @@
   ;<  *  bind:m  (bot-update [%files (my ~[[moon files]])])
   ;<  caz=(list card)  bind:m
     (do-bot-sign moon [%watch-ack `~[leaf+"denied"]])
-  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-rewatch-timer moon (add ~2024.1.1 ~m1))])
   ;<  st=state-5  bind:m  got-state
   (ex-equal !>((~(get by files.prompts.st) moon)) !>(`files))
+::
+::  the upgrade race: the owner reached the prompts module first, so the
+::  bot nacks the migration's watch. it is retried on a backoff and lands
+::  once the bot upgrades
+::
+++  test-prompts-nacked-watch-retries-with-backoff
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  =/  nack=sign:agent:gall  [%watch-ack `~[leaf+"bad-watch-path"]]
+  ;<  caz=(list card)  bind:m  (do-bot-sign moon nack)
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-rewatch-timer moon (add ~2024.1.1 ~m1))])
+  ;<  ~  bind:m  (advance-clock ~m1)
+  ;<  caz=(list card)  bind:m  (do-rewatch-wake moon)
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-files-watch moon)])
+  ;<  caz=(list card)  bind:m  (do-bot-sign moon nack)
+  ;<  ~  bind:m
+    (ex-cards caz ~[(ex-rewatch-timer moon (add ~2024.1.1 ~m3))])
+  ::  a positive ack clears the backoff
+  ::
+  ;<  ~  bind:m  (advance-clock ~m2)
+  ;<  caz=(list card)  bind:m  (do-rewatch-wake moon)
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-files-watch moon)])
+  ;<  *  bind:m  (do-bot-sign moon [%watch-ack ~])
+  ;<  st=state-5  bind:m  got-state
+  (ex-equal !>(rewatch.prompts.st) !>(*(map ship @ud)))
+::
+::  an untrusted bot is never retried, and a retry that fires after an
+::  untrust does nothing
+::
+++  test-prompts-nacked-watch-not-retried-once-untrusted
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  ;<  *  bind:m  (do-bot-sign moon [%watch-ack `~[leaf+"denied"]])
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot moon]))
+  ;<  ~  bind:m  (advance-clock ~m1)
+  ;<  caz=(list card)  bind:m  (do-rewatch-wake moon)
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  st=state-5  bind:m  got-state
+  (ex-equal !>(rewatch.prompts.st) !>(*(map ship @ud)))
 ::
 ::  a late poke-ack refreshes an already-stored %pending result, or a
 ::  poller reads %sending until the request is swept
