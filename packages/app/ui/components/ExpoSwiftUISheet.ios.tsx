@@ -54,6 +54,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from 'tamagui';
 
 import type { Action, ActionGroup } from './ActionSheet';
+import {
+  getActionGroupBorderColor,
+  getActionRowStyle,
+} from './ExpoSwiftUISheet.shared';
 import type {
   ExpoSwiftUIActionContentProps,
   ExpoSwiftUIPaneStackProps,
@@ -211,41 +215,15 @@ function ActionRow({
   groupAccent: ActionGroup['accent'];
 }) {
   const theme = useTheme();
-  const accent = action.accent ?? groupAccent;
-  const isDisabled =
-    action.disabled ||
-    action.accent === 'disabled' ||
-    groupAccent === 'disabled';
+  const {
+    accent,
+    isDisabled,
+    titleColor,
+    descriptionColor,
+    iconColor,
+    rowBackground,
+  } = getActionRowStyle(theme, action, groupAccent);
   const isDestructive = accent === 'negative';
-  const titleColor =
-    accent === 'positive'
-      ? theme.positiveActionText.val
-      : accent === 'negative'
-        ? theme.negativeActionText.val
-        : accent === 'disabled'
-          ? theme.tertiaryText.val
-          : theme.primaryText.val;
-  const descriptionColor =
-    accent === 'positive'
-      ? theme.positiveActionText.val
-      : accent === 'negative'
-        ? theme.negativeActionText.val
-        : theme.tertiaryText.val;
-  const iconColor =
-    accent === 'positive'
-      ? ('$positiveActionText' as const)
-      : accent === 'negative'
-        ? ('$negativeActionText' as const)
-        : accent === 'disabled'
-          ? ('$tertiaryText' as const)
-          : ('$primaryText' as const);
-  const rowBackground = action.selected
-    ? theme.positiveBackground.val
-    : accent === 'positive'
-      ? theme.positiveBackground.val
-      : accent === 'negative'
-        ? theme.negativeBackground.val
-        : undefined;
 
   return (
     <Button
@@ -312,7 +290,7 @@ function ActionRow({
   );
 }
 
-/** Native header and grouped actions for the chat-options pilot. */
+/** Native header and grouped actions for chat options. */
 export function ExpoSwiftUIActionContent({
   title,
   subtitle,
@@ -456,14 +434,7 @@ export function ExpoSwiftUIActionContent({
                 ),
                 clipShape('roundedRectangle', 16),
                 strokeBorder({
-                  color:
-                    group.accent === 'positive'
-                      ? theme.positiveBorder.val
-                      : group.accent === 'negative'
-                        ? theme.negativeBorder.val
-                        : group.accent === 'disabled'
-                          ? theme.secondaryBorder.val
-                          : theme.border.val,
+                  color: getActionGroupBorderColor(theme, group.accent),
                   style: { lineWidth: 1 },
                   shape: 'roundedRectangle',
                   cornerRadius: 16,

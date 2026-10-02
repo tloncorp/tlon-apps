@@ -60,7 +60,6 @@ export function ForwardToChannelSheet({
       <ActionSheet.Content flex={1} paddingBottom="$s">
         <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
         <ForwardChannelSelector
-          isOpen={true}
           onChannelSelected={onChannelSelected}
           channelFilter={targetFilter}
         />

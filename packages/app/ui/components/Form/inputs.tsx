@@ -16,7 +16,7 @@ import {
   useState,
 } from 'react';
 import React from 'react';
-import { Platform, TextInput as RNTextInput } from 'react-native';
+import { TextInput as RNTextInput } from 'react-native';
 import {
   GetProps,
   ScrollView,

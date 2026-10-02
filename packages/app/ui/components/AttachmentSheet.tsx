@@ -71,12 +71,6 @@ export default function AttachmentSheet({
       onOpenChange,
       waitForDismissal: Platform.OS !== 'web' && isWindowNarrow,
     });
-  const openMediaPicker = useCallback(
-    (action: () => void) => {
-      dismissThenRun(action);
-    },
-    [dismissThenRun]
-  );
 
   const {
     attachAssets,
@@ -148,7 +142,7 @@ export default function AttachmentSheet({
 
   const takePicture = useCallback(
     (cameraMediaTypes: ImagePicker.MediaType[] = pickerMediaTypes) => {
-      openMediaPicker(async () => {
+      dismissThenRun(async () => {
         try {
           if (cameraPermissionStatus?.granted === false) {
             const permissionResult = await requestCameraPermission();
@@ -200,7 +194,7 @@ export default function AttachmentSheet({
       attachAssets,
       attachToContext,
       clearAttachments,
-      openMediaPicker,
+      dismissThenRun,
       cameraPermissionStatus,
       pickerMediaTypes,
       requestCameraPermission,
@@ -336,7 +330,7 @@ export default function AttachmentSheet({
       }
     };
 
-    openMediaPicker(() => {
+    dismissThenRun(() => {
       void openImagePicker();
     });
   }, [
@@ -344,7 +338,7 @@ export default function AttachmentSheet({
     attachUploadIntents,
     attachToContext,
     clearAttachments,
-    openMediaPicker,
+    dismissThenRun,
     mediaLibraryPermissionStatus,
     allowMultipleSelection,
     pickerMediaTypes,

@@ -154,7 +154,7 @@ export function GroupOptionsSheetLoader({
   const chatOptions = useChatOptions();
   const { group } = chatOptions;
   const isWindowNarrow = useIsWindowNarrow();
-  const nativeExpoUIPilot = Platform.OS !== 'web' && isWindowNarrow;
+  const isNativeSheet = Platform.OS !== 'web' && isWindowNarrow;
 
   const handlePressNotifications = useCallback(() => {
     setPane('notifications');
@@ -174,10 +174,10 @@ export function GroupOptionsSheetLoader({
   }, [onNativeDismissed, resetPane]);
 
   useEffect(() => {
-    if (!open && !nativeExpoUIPilot) {
+    if (!open && !isNativeSheet) {
       resetPane();
     }
-  }, [open, resetPane, nativeExpoUIPilot]);
+  }, [open, resetPane, isNativeSheet]);
 
   const title = utils.useGroupTitle(group) ?? 'Loading...';
   const currentUserId = useCurrentUserId();
@@ -245,7 +245,7 @@ export function GroupOptionsSheetLoader({
       onNativeDismissed={handleNativeDismissed}
     >
       <ChatOptionsContext.Provider value={chatOptions}>
-        {nativeExpoUIPilot &&
+        {isNativeSheet &&
         (pane === 'initial' || pane === 'notifications' || pane === 'sort') ? (
           <ExpoSwiftUIPaneStack
             selected={pane}
@@ -577,7 +577,7 @@ const ChannelOptionsSheetLoader = memo(
     const [pane, setPane] = useState<ChannelPanes>('initial');
     const chatOptions = useChatOptions();
     const isWindowNarrow = useIsWindowNarrow();
-    const nativeExpoUIPilot = Platform.OS !== 'web' && isWindowNarrow;
+    const isNativeSheet = Platform.OS !== 'web' && isWindowNarrow;
     const channelQuery = store.useChannel({
       id: channelId,
     });
@@ -608,10 +608,10 @@ const ChannelOptionsSheetLoader = memo(
     }, [onNativeDismissed, resetPane]);
 
     useEffect(() => {
-      if (!open && !nativeExpoUIPilot) {
+      if (!open && !isNativeSheet) {
         resetPane();
       }
-    }, [open, resetPane, nativeExpoUIPilot]);
+    }, [open, resetPane, isNativeSheet]);
 
     if (!channelQuery.data) {
       return null;
@@ -662,7 +662,7 @@ const ChannelOptionsSheetLoader = memo(
         onNativeDismissed={handleNativeDismissed}
       >
         <ChatOptionsContext.Provider value={chatOptions}>
-          {nativeExpoUIPilot ? (
+          {isNativeSheet ? (
             <ExpoSwiftUIPaneStack
               selected={pane}
               onSelectionChange={(selected) => {

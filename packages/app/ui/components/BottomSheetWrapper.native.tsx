@@ -42,8 +42,6 @@ export const BottomSheetWrapper = forwardRef<
       showHandle = true,
       enablePanDownToClose = true,
       enableContentPanningGesture = true,
-      enableDynamicSizing,
-      frameStyle,
       footerComponent,
       unmountOnClose = false,
     },
@@ -72,8 +70,7 @@ export const BottomSheetWrapper = forwardRef<
       return snapPoints;
     }, [snapPoints, snapPointsMode]);
 
-    const resolvedEnableDynamicSizing =
-      enableDynamicSizing ?? snapPointsMode !== 'percent';
+    const enableDynamicSizing = snapPointsMode !== 'percent';
     // Compose cannot separate content-originated sheet pans from handle pans.
     // When nested content owns vertical gestures, hide the disabled handle and
     // keep standard back/scrim dismissal available instead of showing inert UI.
@@ -130,17 +127,17 @@ export const BottomSheetWrapper = forwardRef<
 
     const contentStyle = useMemo(
       () => ({
-        ...(resolvedEnableDynamicSizing ? null : { flex: 1 }),
+        ...(enableDynamicSizing ? null : { flex: 1 }),
         backgroundColor: theme.background.val,
       }),
-      [resolvedEnableDynamicSizing, theme.background.val]
+      [enableDynamicSizing, theme.background.val]
     );
     const bodyStyle = useMemo(
       () =>
-        footerComponent && !resolvedEnableDynamicSizing
+        footerComponent && !enableDynamicSizing
           ? ({ flex: 1 } as const)
           : undefined,
-      [footerComponent, resolvedEnableDynamicSizing]
+      [footerComponent, enableDynamicSizing]
     );
 
     if (unmountOnClose && !mounted) {
@@ -153,12 +150,11 @@ export const BottomSheetWrapper = forwardRef<
         ref={ref as any}
         index={open ? 0 : -1}
         snapPoints={transformedSnapPoints}
-        enableDynamicSizing={resolvedEnableDynamicSizing}
+        enableDynamicSizing={enableDynamicSizing}
         enablePanDownToClose={enablePanDownToClose}
         enableContentPanningGesture={enableContentPanningGesture}
         handleComponent={resolvedShowHandle ? BottomSheetHandle : null}
         backgroundStyle={{ backgroundColor: theme.background.val }}
-        style={frameStyle}
         onChange={handleChange}
         onDismiss={handleDismiss}
       >

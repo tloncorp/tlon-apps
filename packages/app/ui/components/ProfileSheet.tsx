@@ -229,6 +229,18 @@ export function ProfileSheet({
     onOpenChange(false);
   }, [onPressRevokeInvite, onOpenChange]);
 
+  const roleSheetProps = {
+    open: rolePickerOpen,
+    onOpenChange: setRolePickerOpen,
+    onNativeDismissed: onRoleDismissed,
+    roles: roles ?? [],
+    selectedUserRoles: selectedUserRoles ?? [],
+    contactIsHost,
+    closeParent: requestParentClose,
+    onAssignRole: (roleId: string) => onPressAsignRole?.(roleId),
+    onRemoveRole: (roleId: string) => onPressRemoveRole?.(roleId),
+  };
+
   const actions: ActionGroup[] = createActionGroups(
     isAdminnable &&
       !userIsInvited &&
@@ -236,8 +248,8 @@ export function ProfileSheet({
         'neutral',
         {
           title: 'Assign Role',
-          render: (props) =>
-            nativeRoleSheet ? (
+          render: (props) => {
+            const assignRole = (
               <ActionSheet.Action
                 {...props}
                 action={{
@@ -245,33 +257,19 @@ export function ProfileSheet({
                   action: () => setRolePickerOpen(true),
                 }}
               />
+            );
+            // The native picker is a sibling sheet mounted below; web anchors
+            // its popover to this row.
+            return nativeRoleSheet ? (
+              assignRole
             ) : (
               <RoleAssignmentSheet
                 key={presentationKey}
-                open={rolePickerOpen}
-                onOpenChange={setRolePickerOpen}
-                onNativeDismissed={onRoleDismissed}
-                roles={roles}
-                selectedUserRoles={selectedUserRoles ?? []}
-                contactIsHost={contactIsHost}
-                closeParent={requestParentClose}
-                onAssignRole={(roleId: string) => {
-                  onPressAsignRole?.(roleId);
-                }}
-                onRemoveRole={(roleId: string) => {
-                  onPressRemoveRole?.(roleId);
-                }}
-                trigger={
-                  <ActionSheet.Action
-                    {...props}
-                    action={{
-                      title: 'Assign role',
-                      action: () => setRolePickerOpen(true),
-                    }}
-                  />
-                }
+                {...roleSheetProps}
+                trigger={assignRole}
               />
-            ),
+            );
+          },
         },
         currentUserId !== contactId &&
           !userIsInvited && {
@@ -334,15 +332,7 @@ export function ProfileSheet({
       {nativeRoleSheet && (
         <RoleAssignmentSheet
           key={`${contactId}:${presentationKey}`}
-          open={rolePickerOpen}
-          onOpenChange={setRolePickerOpen}
-          onNativeDismissed={onRoleDismissed}
-          roles={roles ?? []}
-          selectedUserRoles={selectedUserRoles ?? []}
-          contactIsHost={contactIsHost}
-          closeParent={requestParentClose}
-          onAssignRole={(roleId) => onPressAsignRole?.(roleId)}
-          onRemoveRole={(roleId) => onPressRemoveRole?.(roleId)}
+          {...roleSheetProps}
         />
       )}
     </ActionSheet>

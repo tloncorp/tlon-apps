@@ -35,6 +35,10 @@ import { getTokenValue, useTheme } from 'tamagui';
 import { useIsDarkMode } from '../../hooks/useDarkMode';
 
 import type { Action, ActionGroup } from './ActionSheet';
+import {
+  getActionGroupBorderColor,
+  getActionRowStyle,
+} from './ExpoSwiftUISheet.shared';
 import type {
   ExpoSwiftUIActionContentProps,
   ExpoSwiftUIPaneStackProps,
@@ -213,40 +217,8 @@ function ActionRow({
   groupAccent: ActionGroup['accent'];
 }) {
   const theme = useTheme();
-  const accent = action.accent ?? groupAccent;
-  const isDisabled =
-    action.disabled ||
-    action.accent === 'disabled' ||
-    groupAccent === 'disabled';
-  const titleColor =
-    accent === 'positive'
-      ? theme.positiveActionText.val
-      : accent === 'negative'
-        ? theme.negativeActionText.val
-        : accent === 'disabled'
-          ? theme.tertiaryText.val
-          : theme.primaryText.val;
-  const descriptionColor =
-    accent === 'positive'
-      ? theme.positiveActionText.val
-      : accent === 'negative'
-        ? theme.negativeActionText.val
-        : theme.tertiaryText.val;
-  const iconColor =
-    accent === 'positive'
-      ? ('$positiveActionText' as const)
-      : accent === 'negative'
-        ? ('$negativeActionText' as const)
-        : accent === 'disabled'
-          ? ('$tertiaryText' as const)
-          : ('$primaryText' as const);
-  const rowBackground = action.selected
-    ? theme.positiveBackground.val
-    : accent === 'positive'
-      ? theme.positiveBackground.val
-      : accent === 'negative'
-        ? theme.negativeBackground.val
-        : undefined;
+  const { isDisabled, titleColor, descriptionColor, iconColor, rowBackground } =
+    getActionRowStyle(theme, action, groupAccent);
   const modifiers = [
     fillMaxWidth(),
     defaultMinSize({ minHeight: rowMinHeight }),
@@ -373,15 +345,7 @@ export function ExpoSwiftUIActionContent({
             modifiers={[
               fillMaxWidth(),
               clip(actionGroupShape),
-              background(
-                group.accent === 'positive'
-                  ? theme.positiveBorder.val
-                  : group.accent === 'negative'
-                    ? theme.negativeBorder.val
-                    : group.accent === 'disabled'
-                      ? theme.secondaryBorder.val
-                      : theme.border.val
-              ),
+              background(getActionGroupBorderColor(theme, group.accent)),
               padding(1, 1, 1, 1),
             ]}
           >

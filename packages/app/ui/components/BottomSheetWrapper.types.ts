@@ -10,41 +10,24 @@ export interface BottomSheetWrapperProps {
   onDismiss?: () => void;
   children: ReactNode;
 
-  // Animation & behavior
-  transition?: 'quick' | 'medium' | 'slow';
   dismissOnSnapToBottom?: boolean;
-  handleDisableScroll?: boolean;
 
   // Snap points
   snapPointsMode?: 'fit' | 'percent' | 'constant';
   snapPoints?: Array<number | string>;
 
-  // Styling
-  frameStyle?: ViewStyle;
-
-  // Modal behavior
-  modal?: boolean;
-
-  // Handle
   showHandle?: boolean;
-
-  // Footer
   footerComponent?: React.FC<any>;
 
-  // Overlay
-  showOverlay?: boolean;
-  overlayOpacity?: number;
-
-  // Platform specific - used by native implementation
+  // Native only
   enablePanDownToClose?: boolean;
-  enableDynamicSizing?: boolean;
   enableContentPanningGesture?: boolean;
 
   /**
-   * When `true`, the wrapper unmounts the underlying sheet subtree after each
-   * close (allowing the close animation to play first), and re-mounts a fresh
-   * subtree on each subsequent open. Native-only; ignored on web. Use this for
-   * sheets that exhibit Android render desync after close (TLON-5664).
+   * When `true`, the wrapper keeps the sheet subtree mounted until native
+   * dismissal completes, then unmounts it, and mounts a fresh subtree on each
+   * subsequent open. Native-only; ignored on web. Use this for sheets that
+   * exhibit Android render desync after close (TLON-5664).
    */
   unmountOnClose?: boolean;
 }

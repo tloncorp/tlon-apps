@@ -15,6 +15,7 @@ import {
   useState,
 } from 'react';
 import { Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack } from 'tamagui';
 
 import useGroupSearch from '../../hooks/useGroupSearch';
@@ -248,13 +249,15 @@ const JoinGroupFormContent = ({
   close: () => void;
 }) => {
   const { title, subtitle } = CHAT_TYPE_CONFIG[chatType];
+  const { bottom } = useSafeAreaInsets();
+
   return (
-    <ActionSheet.SafeAreaContent flex={1} gap="$l">
+    <YStack flex={1} gap="$l" paddingBottom={bottom}>
       <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
       <ActionSheet.ContentBlock>
         <JoinGroupByIdPane open={open} close={close} />
       </ActionSheet.ContentBlock>
-    </ActionSheet.SafeAreaContent>
+    </YStack>
   );
 };
 
@@ -267,12 +270,13 @@ const CreateChatFormContent = ({
   onScrollChange,
 }: CreateChatFormContentProps) => {
   const { title, subtitle } = CHAT_TYPE_CONFIG[chatType];
+  const { bottom } = useSafeAreaInsets();
   const isWindowNarrow = useIsWindowNarrow();
   const isGroup = chatType === 'group';
   const disabledIds = store.useGroupsNegotiationClashes({ enabled: isGroup });
 
   return (
-    <ActionSheet.SafeAreaContent flex={1} gap="$l">
+    <YStack flex={1} gap="$l" paddingBottom={bottom}>
       <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
       <YStack flex={1} gap="$l" $sm={{ paddingHorizontal: '$xl' }}>
         <ContactBook
@@ -300,7 +304,7 @@ const CreateChatFormContent = ({
           />
         )}
       </YStack>
-    </ActionSheet.SafeAreaContent>
+    </YStack>
   );
 };
 

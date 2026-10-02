@@ -67,7 +67,6 @@ export function AudioRecorderSheet({
       enablePanDownToClose={false}
       dismissOnSnapToBottom={false}
       showHandle={false}
-      showOverlay
     >
       <View
         backgroundColor="$background"

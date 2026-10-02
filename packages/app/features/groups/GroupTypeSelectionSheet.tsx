@@ -8,6 +8,7 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, YStack, getTokens, useTheme } from 'tamagui';
 
 import { ActionSheet, ListItem, useIsWindowNarrow } from '../../ui';
@@ -322,10 +323,11 @@ export function GroupTypeSelectionSheet({
   onOpenChange: (open: boolean) => void;
   onSelectGroupType: (type: GroupType, templateId?: GroupTemplateId) => void;
 }) {
+  const { bottom } = useSafeAreaInsets();
   const isWindowNarrow = useIsWindowNarrow();
 
   const content = (
-    <ActionSheet.SafeAreaContent flex={1} gap="$l">
+    <YStack flex={1} gap="$l" paddingBottom={bottom}>
       <ActionSheet.SimpleHeader
         title="Create a group"
         subtitle="Choose how you'd like to set up your group"
@@ -347,7 +349,7 @@ export function GroupTypeSelectionSheet({
           onPress={(templateId) => onSelectGroupType('template', templateId)}
         />
       </YStack>
-    </ActionSheet.SafeAreaContent>
+    </YStack>
   );
 
   if (!isWindowNarrow) {

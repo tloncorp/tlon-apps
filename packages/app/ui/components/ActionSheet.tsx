@@ -340,32 +340,55 @@ const ActionSheetComponent = ({
       ? false
       : undefined);
 
-  const sheetContent =
-    useBottomSheet && nativePresentation && nativeExpoUI ? (
-      <ExpoSwiftUISheet
-        open={open}
-        onOpenChange={onOpenChange}
-        onDismiss={onNativeDismissed}
-      >
-        <ActionSheetContext.Provider value={actionSheetContextValue}>
-          {children}
-        </ActionSheetContext.Provider>
-      </ExpoSwiftUISheet>
-    ) : useBottomSheet ? (
-      <BottomSheetWrapper
-        open={open}
-        onOpenChange={onOpenChange}
-        onDidOpen={onDidOpen}
-        onDismiss={onNativeDismissed}
-        dismissOnSnapToBottom={true}
-        snapPoints={props.snapPoints}
-        snapPointsMode={props.snapPointsMode as any}
-        showHandle={true}
-        enablePanDownToClose={true}
-        enableContentPanningGesture={enableContentPanningGesture}
-        footerComponent={footerComponent}
-        unmountOnClose={unmountOnClose}
-      >
+  const sheetContent = nativePresentation ? (
+    <ExpoSwiftUISheet
+      open={open}
+      onOpenChange={onOpenChange}
+      onDismiss={onNativeDismissed}
+    >
+      <ActionSheetContext.Provider value={actionSheetContextValue}>
+        {children}
+      </ActionSheetContext.Provider>
+    </ExpoSwiftUISheet>
+  ) : useBottomSheet ? (
+    <BottomSheetWrapper
+      open={open}
+      onOpenChange={onOpenChange}
+      onDidOpen={onDidOpen}
+      onDismiss={onNativeDismissed}
+      dismissOnSnapToBottom={true}
+      snapPoints={props.snapPoints}
+      snapPointsMode={props.snapPointsMode as any}
+      showHandle={true}
+      enablePanDownToClose={true}
+      enableContentPanningGesture={enableContentPanningGesture}
+      footerComponent={footerComponent}
+      unmountOnClose={unmountOnClose}
+    >
+      <ActionSheetContext.Provider value={actionSheetContextValue}>
+        {forcedMode === 'popover' ? (
+          <ActionSheet.ScrollableContent>
+            <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
+          </ActionSheet.ScrollableContent>
+        ) : (
+          children
+        )}
+      </ActionSheetContext.Provider>
+    </BottomSheetWrapper>
+  ) : (
+    <Sheet
+      open={open}
+      onOpenChange={onOpenChange}
+      dismissOnSnapToBottom
+      snapPointsMode="fit"
+      transition="quick"
+      handleDisableScroll
+      {...props}
+      modal={props.modal}
+    >
+      <Sheet.Overlay transition="quick" />
+      <Sheet.Frame pressStyle={{}}>
+        <Sheet.Handle />
         <ActionSheetContext.Provider value={actionSheetContextValue}>
           {forcedMode === 'popover' ? (
             <ActionSheet.ScrollableContent>
@@ -375,33 +398,9 @@ const ActionSheetComponent = ({
             children
           )}
         </ActionSheetContext.Provider>
-      </BottomSheetWrapper>
-    ) : (
-      <Sheet
-        open={open}
-        onOpenChange={onOpenChange}
-        dismissOnSnapToBottom
-        snapPointsMode="fit"
-        transition="quick"
-        handleDisableScroll
-        {...props}
-        modal={props.modal}
-      >
-        <Sheet.Overlay transition="quick" />
-        <Sheet.Frame pressStyle={{}}>
-          <Sheet.Handle />
-          <ActionSheetContext.Provider value={actionSheetContextValue}>
-            {forcedMode === 'popover' ? (
-              <ActionSheet.ScrollableContent>
-                <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
-              </ActionSheet.ScrollableContent>
-            ) : (
-              children
-            )}
-          </ActionSheetContext.Provider>
-        </Sheet.Frame>
-      </Sheet>
-    );
+      </Sheet.Frame>
+    </Sheet>
+  );
 
   return (
     <>
@@ -434,21 +433,6 @@ const ActionSheetContent = YStack.styleable((props, ref) => {
   const contentStyle = useContentStyle();
   return <YStack {...contentStyle} {...props} ref={ref} />;
 });
-
-const useActionSheetBottomInset = () => {
-  const { bottom } = useSafeAreaInsets();
-  const { nativePresentation } = useContext(ActionSheetContext);
-  // SwiftUI's sheet already reserves the home-indicator area for its content.
-  return Platform.OS === 'ios' && nativePresentation ? 0 : bottom;
-};
-
-const ActionSheetSafeAreaContent = ({
-  bottomSpacing = 0,
-  ...props
-}: ComponentProps<typeof YStack> & { bottomSpacing?: number }) => {
-  const bottom = useActionSheetBottomInset();
-  return <YStack {...props} paddingBottom={bottom + bottomSpacing} />;
-};
 
 const ActionSheetScrollableContent = forwardRef<
   typeof BottomSheetScrollView,
@@ -506,17 +490,12 @@ const ActionSheetScrollableContent = forwardRef<
 ActionSheetScrollableContent.displayName = 'ActionSheetScrollableContent';
 
 const useContentStyle = () => {
-  const bottom = useActionSheetBottomInset();
+  const insets = useSafeAreaInsets();
   const isWindowNarrow = useIsWindowNarrow();
-  const { nativePresentation } = useContext(ActionSheetContext);
   return {
-    // Both native hosts account for the home-indicator area themselves.
-    paddingBottom:
-      Platform.OS === 'ios' && nativePresentation
-        ? 0
-        : isWindowNarrow
-          ? bottom + getTokenValue('$2xl', 'size')
-          : getTokenValue('$xl', 'size'),
+    paddingBottom: isWindowNarrow
+      ? insets.bottom + getTokenValue('$2xl', 'size')
+      : getTokenValue('$xl', 'size'),
   };
 };
 
@@ -927,7 +906,6 @@ export const ActionSheet = withStaticProperties(ActionSheetComponent, {
   // Building blocks
   Header: ActionSheetHeader,
   Content: ActionSheetContent,
-  SafeAreaContent: ActionSheetSafeAreaContent,
   ScrollableContent: ActionSheetScrollableContent,
   ContentBlock: ActionSheetContentBlock,
   FormBlock: ActionSheetFormBlock,
