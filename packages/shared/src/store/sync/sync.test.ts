@@ -1736,6 +1736,17 @@ describe('desk compatibility gate', () => {
   );
 
   test(
+    'a desk that serves Buckets gets /v11/init',
+    async () => {
+      reportedDeskVersion = '12.3.0';
+      await syncStart();
+      expect(didScry('/v11/init')).toBe(true);
+      expect(didScry('/v10/init')).toBe(false);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
     'an unwritable version still drives the activity endpoints',
     async () => {
       // Storage is broken and what's already there is older than the ship, so

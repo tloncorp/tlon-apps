@@ -3,7 +3,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   canGroupHostBuckets,
   createChannel,
-  useBucketsDeskAvailable,
+  useDeskSupportsBuckets,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Button, useToast } from '@tloncorp/ui';
@@ -97,7 +97,7 @@ export function CreateChannelSheet({
   const isGroupAdmin = useIsAdmin(group.id, currentUserId);
   const isNonHostAdmin = isGroupAdmin && !group.currentUserIsHost;
   const [bucketsEnabled] = useFeatureFlag('buckets');
-  const { data: bucketsDeskAvailable = false } = useBucketsDeskAvailable();
+  const bucketsDeskAvailable = useDeskSupportsBuckets() === true;
   const bucketsHostSupported = canGroupHostBuckets(group.hostUserId);
   // Buckets are still behind a flag. This gates the offer, not the channel
   // type: a bucket someone already made keeps working and the host keeps
