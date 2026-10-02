@@ -79,7 +79,7 @@ index 29b1a3ad7a8dc653347899c514fc538f9f9433f3..27c3c8f9ad33f321f263bca16f538a63
        .onChange(of: isPresented, perform: { newIsPresented in
          if props.isPresented == newIsPresented {
 diff --git a/src/community/bottom-sheet/BottomSheet.android.tsx b/src/community/bottom-sheet/BottomSheet.android.tsx
-index ac8ae4af0a1fee8afbea2b9a5393d8eae271b108..2985d501550ae5023fe201a4c8ce8c90ed1c0cc6 100644
+index ac8ae4af0a1fee8afbea2b9a5393d8eae271b108..92b6459504891baff4d89968b7fda42694bd18c5 100644
 --- a/src/community/bottom-sheet/BottomSheet.android.tsx
 +++ b/src/community/bottom-sheet/BottomSheet.android.tsx
 @@ -46,6 +46,23 @@ function findNearestSnapPointIndex(
@@ -285,7 +285,7 @@ index ac8ae4af0a1fee8afbea2b9a5393d8eae271b108..2985d501550ae5023fe201a4c8ce8c90
 +              <View
 +                style={
 +                  singleSnapPointHeight != null
-+                    ? { height: singleSnapPointHeight }
++                    ? { width, height: singleSnapPointHeight }
 +                    : fitToContents
 +                      ? { width }
 +                      : { flexGrow: 1, height: 0 }
