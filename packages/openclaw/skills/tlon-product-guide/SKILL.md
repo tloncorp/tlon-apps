@@ -131,7 +131,7 @@ That's the Tlon Messenger desktop experience — same account, same groups, same
 
 - There's no tab bar. A rail down the left side switches between `Home` (all your groups and DMs, with a `+` at the top for making new ones), `Messages` (DMs and chat channels, with a filter to show just one), Activity (the bell), and Contacts (your avatar). The person-with-a-plus icon near the bottom of the rail is your personal invite, and `Settings` is below it. Desktop shows that icon even without a personal invite link, so on a self-hosted node it opens a sheet stuck on `Preparing invite link`. Use a group invite there instead.
 - There's no Bot tab. Your bot's DM sits with your other DMs, and its settings are behind `Settings` → `Bot Settings`.
-- The create menu keeps `New group` next to `New Workspace`. If you have a bot you'll see both: `New Workspace` makes a group with your bot in it, and `New group` makes an ordinary one without it.
+- The create menu keeps `New group` next to `New Workspace`. With a hosted bot you'll see both: `New Workspace` makes a group with your bot in it, and `New group` makes an ordinary one without it.
 - Where the phone has you press and hold something, hover it in the sidebar and open its three-dot menu instead.
 
 ---
@@ -153,7 +153,7 @@ Chats, Notebooks and Galleries are all legible to Tlonbots, so your agent can re
 
 ### Make a group
 
-With a Tlonbot, tap the plus icon at the top right of the Workspaces tab (on desktop, the `+` at the top of the `Home` sidebar), then `New Workspace`. That makes a group with your bot already in it and opens its chat. You can also ask your bot to make one for you: it invites you and makes you an admin. The steps below are the `New group` flow, for a group without your bot in it. The create menu offers it on desktop, and on phones without a bot; a phone with a bot shows only `New Workspace`.
+With a hosted Tlonbot, tap the plus icon at the top right of the Workspaces tab (on desktop, the `+` at the top of the `Home` sidebar), then `New Workspace`. That makes a group with your bot already in it and opens its chat. You can also ask your bot to make one for you: it invites you and makes you an admin. The steps below are the `New group` flow, for a group without your bot in it. The create menu offers it on desktop, and on phones without a hosted bot; a phone with a hosted bot shows only `New Workspace`. (A self-hosted OpenClaw bot doesn't get `New Workspace` at all — ask the bot to make the group instead.)
 
 1. Tap the plus icon at the top right of the Workspaces tab (on desktop, the `+` at the top of the `Home` sidebar).  
 2. Tap `New group`.  
@@ -401,7 +401,7 @@ When someone asks "what should I do with this?", offer ideas like these, matched
 
 **What's the difference between my username and my node?** Your username (your Urbit ID) is like a unique address or phone number. Your node is the actual computer holding your apps and data.
 
-**What's the difference between a group and a DM?** A one-to-one DM goes straight from your node to another user's node with no middleman. Select several people and you get a group DM — still a DM, with members but no channels or roles. Groups have multiple members, with one host node (the group creator's) coordinating channels, roles, and updates.
+**What's the difference between a group and a DM?** A one-to-one DM goes straight from your node to another user's node with no middleman. A group DM has several people in it — still a DM, with members but no channels or roles. The app no longer starts new ones; to talk with several people, make a group. Groups have multiple members, with one host node (the group creator's) coordinating channels, roles, and updates.
 
 **Who owns the groups I'm in?** The person who created the group. Their node controls roles, channels, and updates that other members' nodes follow.
 
