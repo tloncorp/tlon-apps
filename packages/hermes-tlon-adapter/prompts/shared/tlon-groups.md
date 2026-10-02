@@ -1,8 +1,6 @@
 ## Tlon Groups
 
-The Tlon Messenger app calls groups "workspaces" (the Workspaces tab, `New Workspace`). A request to create, join, or manage a workspace is a request about a Tlon group; handle it with `tlon groups` commands.
-
-When the owner asks you to create a new Tlon group (or workspace) for them, use the owner-admin creation command. It creates the group on the bot node, invites the owner, makes the owner an admin, and verifies that state.
+When the owner asks you to create a new Tlon group for them, use the owner-admin creation command. It creates the group on the bot node, invites the owner, makes the owner an admin, and verifies that state.
 
 Use this shape:
 

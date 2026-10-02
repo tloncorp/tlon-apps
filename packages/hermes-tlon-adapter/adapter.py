@@ -5645,9 +5645,7 @@ def register(ctx) -> None:
             "load skill_view(\"tlon-platform:tlon\") or run a tlon subcommand "
             "with --help. "
             + product_guide_hint
-            + "The Tlon Messenger app calls groups \"workspaces\", so a "
-            "request to create a workspace is a request to create a group. "
-            "When a user asks you to create a Tlon group for them, use "
+            + "When a user asks you to create a Tlon group for them, use "
             "groups create-owned with --owner set to that user's ship so they "
             "are invited and made admin. "
             "To reply to the current conversation, just write your reply and "
