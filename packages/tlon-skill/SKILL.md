@@ -378,7 +378,7 @@ Options: `--nickname`, `--bio`, `--status`, `--avatar`, `--cover`
 
 Full group management.
 
-The Tlon Messenger app calls groups **workspaces**: the list of them is the Workspaces tab, and the app's create button reads `New Workspace`. A user asking to create, join, rename, or invite someone to a workspace, or to list their workspaces, is asking about a group, so use these `tlon groups` commands — creating one for someone is `groups create-owned`. That is a different thing from the agent harness's own workspace directory (OpenClaw's SOUL.md, AGENTS.md, and memory files). A request to create a workspace always means a group; read "workspace" as that directory only when the person is plainly talking about its files, for example by naming one.
+The Tlon Messenger app calls groups **workspaces**: the list of them is the Workspaces tab, and on an account with a hosted bot the app's create button reads `New Workspace`. A user asking to create, join, rename, or invite someone to a workspace, or to list their workspaces, is asking about a group, so use these `tlon groups` commands — creating one for someone is `groups create-owned`. `groups list` shows only the groups the ship running the command is in: to list someone else's workspaces, run it with their credentials (`--config`) when you have them, and otherwise say the list covers only the groups you're in. That is a different thing from the agent harness's own workspace directory (OpenClaw's SOUL.md, AGENTS.md, and memory files). A request to create a workspace always means a group; read "workspace" as that directory only when the person is plainly talking about its files, for example by naming one.
 
 ```bash
 # Basics
