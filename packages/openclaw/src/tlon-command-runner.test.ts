@@ -48,6 +48,21 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
+describe('runTlonCommand input transport', () => {
+  it('closes unavailable stdin so readers see EOF instead of hanging', async () => {
+    const output = await runTlonCommand(
+      process.execPath,
+      [
+        '-e',
+        "process.stdin.resume(); process.stdin.on('end', () => process.stdout.write('EOF'));",
+      ],
+      undefined,
+      { timeoutMs: 2_000 }
+    );
+    expect(output).toBe('EOF');
+  });
+});
+
 describe('runTlonCommand timeout output capture', () => {
   it('terminates and rejects near the timeout when no deadline callback is supplied', async () => {
     const timeoutMs = 300;

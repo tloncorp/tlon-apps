@@ -38,6 +38,38 @@ function beforeImmediate<T>(promise: Promise<T>) {
 }
 
 describe('tlon tool execution', () => {
+  it.each([
+    'notes note-create notes/~zod/blog root "Title" --stdin',
+    'notes note-update notes/~zod/blog 1 --stdin',
+    '--config /tmp/owner.json notes note-update notes/~zod/blog 1 --stdin',
+    'upload --stdin -t image/png',
+  ])('rejects unsupported input before spawning: %s', async (command) => {
+    const runCommand = vi.fn();
+    const execute = createTlonToolExecutor({
+      runCommand,
+      notifyDiaryMigrationDiscovery: vi.fn(),
+    });
+    const result = await execute('stdin', { command });
+    expect(runCommand).not.toHaveBeenCalled();
+    expect(result.details).toMatchObject({ status: 'error' });
+    expect(result.content[0].text).toContain('cannot supply stdin');
+    expect(result.content[0].text).toContain('--body <file>');
+  });
+
+  it.each([
+    'notes note-create notes/~zod/blog root "--stdin" --body post.md',
+    'notes note-update notes/~zod/blog 1 --stdin --help',
+    'upload --help',
+  ])('preserves literal titles and CLI help: %s', async (command) => {
+    const runCommand = vi.fn().mockResolvedValue('ok');
+    const execute = createTlonToolExecutor({
+      runCommand,
+      notifyDiaryMigrationDiscovery: vi.fn(),
+    });
+    expect((await execute('help', { command })).details).toBeUndefined();
+    expect(runCommand).toHaveBeenCalledOnce();
+  });
+
   describe('browser handoff credential binding', () => {
     it.each(
       ['--config', '--ship', '--url', '--code', '--cookie'].flatMap((flag) => [

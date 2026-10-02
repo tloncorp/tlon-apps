@@ -56,7 +56,7 @@ Upload a file to Tlon storage from a URL, local path, or stdin.
 Outputs the uploaded URL on success.
 
 Options:
-  --stdin         Read binary data from stdin instead of a file/URL
+  --stdin         Shell CLI only: read piped data; unavailable through the tlon tool
   -t, --type      Override content type (e.g., image/png, application/pdf)
   -h, --help      Show this help
 

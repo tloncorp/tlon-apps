@@ -353,6 +353,7 @@ Inside the Docker dev container, the package is copied out of the workspace and 
 pnpm test              # Run unit tests
 pnpm test:watch        # Watch mode
 pnpm test:security     # Security tests only
+pnpm test:tool-files   # Workspace file -> notebook regression (Bun; local API fixture)
 ```
 
 ### Integration Tests
