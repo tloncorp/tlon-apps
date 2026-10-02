@@ -93,11 +93,19 @@ export function buildDefaultModelSections({
     const key = `provider:${provider.id}`;
 
     if (provider.id === BASIC_PROVIDER_ID) {
+      // The bot may report a different id for Tlon's model than the one
+      // listed here, and that id is what the Models screen shows.
       const matches =
         !query ||
-        [provider.label, 'tlon'].some((value) =>
-          value.toLowerCase().includes(query)
-        );
+        [
+          provider.label,
+          'tlon',
+          ...provider.models.flatMap((model) => [
+            getModelDisplayName(model),
+            model.id,
+          ]),
+          ...(selection.provider === provider.id ? [selection.model] : []),
+        ].some((value) => value.toLowerCase().includes(query));
       return matches
         ? [
             {

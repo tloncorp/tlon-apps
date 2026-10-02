@@ -167,6 +167,20 @@ describe('buildDefaultModelSections', () => {
     expect(sections[0].rows).toHaveLength(12);
   });
 
+  it('finds Tlon’s model by its name, its id, or the id the bot reports', () => {
+    const tlonTitles = (search: string, model = BASIC_DEFAULT_MODEL) =>
+      build({ search, selection: { provider: BASIC_PROVIDER_ID, model } })
+        .sections.filter((section) => section.title === 'Included with Tlon')
+        .flatMap((section) => titles(section.rows));
+
+    expect(tlonTitles('luna')).toEqual([BASIC_PROVIDER_LABEL]);
+    expect(tlonTitles(BASIC_DEFAULT_MODEL)).toEqual([BASIC_PROVIDER_LABEL]);
+    expect(tlonTitles('newer-id', 'openai/some-newer-id')).toEqual([
+      BASIC_PROVIDER_LABEL,
+    ]);
+    expect(tlonTitles('zzz')).toEqual([]);
+  });
+
   it('says so when a search finds nothing', () => {
     const { sections } = build({ search: 'zzz' });
 

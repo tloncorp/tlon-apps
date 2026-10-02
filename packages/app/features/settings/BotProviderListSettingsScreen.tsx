@@ -12,7 +12,7 @@ import {
   SUBSCRIPTION_PROVIDERS,
   subscriptionProviderLabel,
 } from './bot/constants';
-import { safeKeySummary } from './bot/helpers';
+import { getSubscriptionStatusState, safeKeySummary } from './bot/helpers';
 import {
   getLLMAuthProviderStatus,
   isLLMAuthProviderConnected,
@@ -57,20 +57,23 @@ export function BotProviderListSettingsScreen(props: Props) {
   // key is replaced), so these rows gate on provider-config readiness alone.
   const providerKeysReady = queries.providerConfigQuery.isSuccess;
 
+  const subscriptionStatus = getSubscriptionStatusState(
+    queries.llmAuthStatusQuery
+  );
   const subscriptionProviders = SUBSCRIPTION_PROVIDERS.map((providerId) => {
     const status = getLLMAuthProviderStatus(
       queries.llmAuthStatusQuery.data,
       providerId
     );
     const connected = isLLMAuthProviderConnected(status?.status);
-    const summary = queries.llmAuthStatusQuery.isLoading
-      ? 'Checking…'
-      : queries.llmAuthStatusQuery.isError &&
-          queries.llmAuthStatusQuery.data === undefined
-        ? 'Unavailable'
-        : connected
-          ? 'Active'
-          : 'Add';
+    const summary =
+      subscriptionStatus === 'checking'
+        ? 'Checking…'
+        : subscriptionStatus === 'unavailable'
+          ? 'Unavailable'
+          : connected
+            ? 'Active'
+            : 'Add';
     return { providerId, connected, summary };
   }).sort((left, right) => Number(right.connected) - Number(left.connected));
 

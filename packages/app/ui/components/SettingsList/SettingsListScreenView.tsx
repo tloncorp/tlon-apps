@@ -15,8 +15,9 @@ import { useNativeHeaderSearch } from './useNativeHeaderSearch';
 
 /**
  * A pushed settings screen: its header over a settings list, with an optional
- * bar pinned below. Wide windows show the screen beside the list that opened
- * it, so they get no back button.
+ * bar pinned below. A wide web window shows the screen beside the list that
+ * opened it, so it gets no back button; native screens are always pushed, at
+ * any width, and always get one.
  */
 export function SettingsListScreenView({
   title,
@@ -33,7 +34,7 @@ export function SettingsListScreenView({
   title: string;
   sections: SettingsSectionModel[];
   onBackPressed: () => void;
-  /** For a step inside the screen, whose back button leads to the last step. */
+  /** For a screen that wide web windows can only leave by going back. */
   showsBackOnWideWindows?: boolean;
   rightActions?: ScreenHeaderAction[];
   /** A note under the title while the list refreshes. */
@@ -57,7 +58,9 @@ export function SettingsListScreenView({
         title={title}
         backgroundColor={headerColor}
         backAction={
-          isWindowNarrow || showsBackOnWideWindows ? onBackPressed : undefined
+          Platform.OS !== 'web' || isWindowNarrow || showsBackOnWideWindows
+            ? onBackPressed
+            : undefined
         }
         rightActions={rightActions}
         loadingSubtitle={loadingSubtitle}

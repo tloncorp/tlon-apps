@@ -16,7 +16,7 @@ import {
 } from '../../ui';
 import { BotSettingsSection } from './bot/BotSettingsUI';
 import { providerLabel, subscriptionLabel } from './bot/constants';
-import { getErrorMessage } from './bot/helpers';
+import { getErrorMessage, getSubscriptionStatusState } from './bot/helpers';
 import {
   canDismissOpenAIAuth,
   getLLMAuthProviderStatus,
@@ -51,9 +51,10 @@ export function BotOpenAISubscriptionScreen(props: Props) {
   );
   const connected = isLLMAuthProviderConnected(providerStatus?.status);
   const hasApiKey = Boolean(queries.providerConfig.keys?.[providerId]);
-  const statusUnavailable =
-    queries.llmAuthStatusQuery.isError &&
-    queries.llmAuthStatusQuery.data === undefined;
+  const subscriptionStatus = getSubscriptionStatusState(
+    queries.llmAuthStatusQuery
+  );
+  const statusUnavailable = subscriptionStatus === 'unavailable';
 
   const handleComplete = useCallback(async () => {
     if (hasApiKey) {
@@ -129,7 +130,7 @@ export function BotOpenAISubscriptionScreen(props: Props) {
         title={subscriptionName}
         placement="navigation"
       />
-      {queries.llmAuthStatusQuery.isLoading ? (
+      {subscriptionStatus === 'checking' ? (
         <YStack flex={1} alignItems="center" justifyContent="center" gap="$m">
           <LoadingSpinner />
           <Text size="$label/m" color="$secondaryText">

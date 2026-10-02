@@ -12,6 +12,7 @@ import {
   getConnectionsSummaryState,
   getGroupChannelRuleKeys,
   getModelFormValues,
+  getSubscriptionStatusState,
   groupChannelEntries,
   hasGroupMembership,
   hasProviderCredential,
@@ -1063,5 +1064,29 @@ describe('getConnectionsSummaryState', () => {
         queries: [answered, answered, { data: {}, isError: true }],
       })
     ).toBe('settled');
+  });
+});
+
+describe('getSubscriptionStatusState', () => {
+  it('knows the status once the request has returned data', () => {
+    expect(getSubscriptionStatusState({ data: {}, isError: false })).toBe(
+      'known'
+    );
+    // Data kept from an earlier success outlives a later failed refresh.
+    expect(getSubscriptionStatusState({ data: {}, isError: true })).toBe(
+      'known'
+    );
+  });
+
+  it('is still checking while the request waits on the bot or is in flight', () => {
+    expect(
+      getSubscriptionStatusState({ data: undefined, isError: false })
+    ).toBe('checking');
+  });
+
+  it('is unavailable when the request failed with nothing to show', () => {
+    expect(getSubscriptionStatusState({ data: undefined, isError: true })).toBe(
+      'unavailable'
+    );
   });
 });
