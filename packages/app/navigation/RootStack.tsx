@@ -20,6 +20,10 @@ import { BotChannelRuleSettingsScreen } from '../features/settings/BotChannelRul
 import { BotChannelRulesScreen } from '../features/settings/BotChannelRulesScreen';
 import { BotMcpSettingsScreen } from '../features/settings/BotMcpSettingsScreen';
 import { BotModelSettingsScreen } from '../features/settings/BotModelSettingsScreen';
+import {
+  BotConnectionsScreen,
+  BotModelsScreen,
+} from '../features/settings/BotSettingsAreaScreens';
 import { BotOpenAISubscriptionScreen } from '../features/settings/BotOpenAISubscriptionScreen';
 import { BotIdentitySettingsScreen } from '../features/settings/BotIdentitySettingsScreen';
 import { BotPermissionsSettingsScreen } from '../features/settings/BotPermissionsSettingsScreen';
@@ -186,22 +190,22 @@ function RootStackContent() {
       <Root.Screen
         name="BotSettings"
         component={BotSettingsScreen}
-        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
+        options={nativeHeaderScreenOptions}
       />
       <Root.Screen
         name="BotMcpSettings"
         component={BotMcpSettingsScreen}
-        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
+        options={nativeHeaderScreenOptions}
       />
       <Root.Screen
         name="BotModelSettings"
         component={BotModelSettingsScreen}
-        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
+        options={nativeHeaderScreenOptions}
       />
       <Root.Screen
         name="BotApiKeySettings"
         component={BotApiKeySettingsScreen}
-        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
+        options={nativeHeaderScreenOptions}
       />
       <Root.Screen
         name="BotOpenAISubscription"
@@ -211,32 +215,42 @@ function RootStackContent() {
       <Root.Screen
         name="BotShipListSettings"
         component={BotShipListSettingsScreen}
-        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
+        options={nativeHeaderScreenOptions}
       />
       <Root.Screen
         name="BotChannelRulesSettings"
         component={BotChannelRulesScreen}
-        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
+        options={nativeHeaderScreenOptions}
       />
       <Root.Screen
         name="BotChannelRuleSettings"
         component={BotChannelRuleSettingsScreen}
-        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
+        options={nativeHeaderScreenOptions}
       />
       <Root.Screen
         name="BotPermissionsSettings"
         component={BotPermissionsSettingsScreen}
-        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
+        options={nativeHeaderScreenOptions}
       />
       <Root.Screen
         name="BotIdentitySettings"
         component={BotIdentitySettingsScreen}
-        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
+        options={nativeHeaderScreenOptions}
       />
       <Root.Screen
         name="BotProviderListSettings"
         component={BotProviderListSettingsScreen}
-        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="BotModels"
+        component={BotModelsScreen}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="BotConnections"
+        component={BotConnectionsScreen}
+        options={nativeHeaderScreenOptions}
       />
       <Root.Screen
         name="BlockedUsers"
