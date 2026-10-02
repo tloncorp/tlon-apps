@@ -9,16 +9,24 @@
 /=  agent  /app/steward
 |%
 ++  dap  %steward
-::  state-3 mirrors the current agent state. Persisted shapes below support
+::  state-4 mirrors the current agent state. Persisted shapes below support
 ::  the on-load migration tests. `bots` is the owner-side trusted set.
 ::
++$  state-4
+  $:  %4
+      owner=(unit ship)
+      bots=(set ship)
+      lens=state:v1:l
+      gateway=state:v1:g
+      automation=state:v1:au
+  ==
 +$  state-3
   $:  %3
       owner=(unit ship)
       bots=(set ship)
       lens=state:v1:l
       gateway=state:v1:g
-      automation=state:v1:au
+      automation=state:v0:au
   ==
 +$  state-2
   $:  %2
@@ -26,7 +34,7 @@
       bots=(set ship)
       lens=state:v1:l
       gateway=gateway-1
-      automation=state:v1:au
+      automation=state:v0:au
   ==
 +$  state-1
   $:  %1
@@ -425,16 +433,16 @@
 ++  moon-tasks-wire  ^-  wire  /automation/tasks/(scot %p moon)
 ::
 ++  got-state
-  =/  m  (mare ,state-3)
+  =/  m  (mare ,state-4)
   ^-  form:m
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  (pure:m !<(state-3 !<(vase q.res)))
+  (pure:m !<(state-4 !<(vase q.res)))
 ::
 ::  the local projection: the local ship's entry, read as empty while
 ::  the harness has never projected
 ::
 ++  local-automation-tasks
-  |=  st=state-3
+  |=  st=state-4
   ^-  tasks:v1:au
   (~(gut by tasks.automation.st) ~dev *tasks:v1:au)
 ::
@@ -534,15 +542,49 @@
   ;<  *  bind:m  (do-agent (make-dm-fact ~bus (add ~2024.1.1 ~s10)))
   (pure:m ~)
 ::
+::  the %3 shape of an automation slice: drop .delivery and .tools-allow.
+::  lossless for a task that has neither, which is what the fixtures build
+::
+++  as-v0-automation
+  |=  current=state:v1:au
+  ^-  state:v0:au
+  :+  (~(run by tasks.current) |=(e=tasks:v1:au (~(run by e) narrow-task)))
+    requests.current
+  %-  ~(run by pending.current)
+  |=  pen=pending-command:v1:au
+  ^-  pending-command:v0:au
+  [id.pen requester.pen (narrow-edit edit.pen) sent-at.pen]
+++  narrow-edit
+  |=  =edit:v1:au
+  ^-  edit:v0:au
+  ?-  -.edit
+    %delete  [%delete id.edit]
+    %create  [%create (narrow-task task.edit)]
+    %update  [%update id.edit (narrow-task task.edit)]
+  ==
+++  narrow-task
+  |=  t=task:v1:au
+  ^-  task:v0:au
+  :*  agent-id.t
+      name.t
+      description.t
+      enabled.t
+      schedule.t
+      session-target.t
+      wake-mode.t
+      ?~(payload.t ~ `[kind.u.payload.t message.u.payload.t])
+      created-at.t
+      updated-at.t
+  ==
 ::  the released %1 shape of the current state: everything but automation
 ::
 ++  as-released-state
-  |=  current=state-3
+  |=  current=state-4
   ^-  state-1
   [%1 owner.current bots.current lens.current +.gateway.current]
 ::
 ++  assert-migrated-state
-  |=  [old=state-1 current=state-3]
+  |=  [old=state-1 current=state-4]
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  (ex-equal !>(owner.current) !>(owner.old))
@@ -562,12 +604,12 @@
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  populate-released-slices
   ;<  before-res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  before=state-3  !<(state-3 !<(vase q.before-res))
+  =/  before=state-4  !<(state-4 !<(vase q.before-res))
   =/  old=state-1  (as-released-state before)
   ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
   ;<  ~  bind:m  (ex-cards caz ~[ex-eyre-connect (ex-cleanup-timer ~2024.1.1)])
   ;<  after-res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  after=state-3  !<(state-3 !<(vase q.after-res))
+  =/  after=state-4  !<(state-4 !<(vase q.after-res))
   (assert-migrated-state old after)
 ::
 ++  test-migration-persists-through-current-save-load
@@ -578,11 +620,11 @@
   ;<  ~  bind:m  populate-released-slices
   ;<  before-res=cage  bind:m  (got-peek /x/dbug/state)
   =/  old=state-1
-    (as-released-state !<(state-3 !<(vase q.before-res)))
+    (as-released-state !<(state-4 !<(vase q.before-res)))
   ;<  *  bind:m  (do-load agent `!>(old))
   ;<  *  bind:m  (do-load agent ~)
   ;<  after-res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  after=state-3  !<(state-3 !<(vase q.after-res))
+  =/  after=state-4  !<(state-4 !<(vase q.after-res))
   (assert-migrated-state old after)
 ::
 ::  reloading a current state rebinds eyre and nothing else: the sweep
@@ -603,10 +645,10 @@
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  populate-released-slices
   ;<  before-res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  before=state-3  !<(state-3 !<(vase q.before-res))
+  =/  before=state-4  !<(state-4 !<(vase q.before-res))
   ;<  ~  bind:m  (ex-fail (do-load agent `!>([%0 'malformed'])))
   ;<  after-res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  after=state-3  !<(state-3 !<(vase q.after-res))
+  =/  after=state-4  !<(state-4 !<(vase q.after-res))
   (ex-equal !>(after) !>(before))
 ::
 ::  ==========================================================
@@ -621,13 +663,13 @@
   =/  task-b=task:v1:au  (automation-task 'Task B')
   ;<  ~  bind:m  setup
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-3 !<(vase q.res))
+  =/  st  !<(state-4 !<(vase q.res))
   ;<  ~  bind:m
     (ex-equal !>(tasks.automation.st) !>(*(map ship tasks:v1:au)))
   ;<  ~  bind:m
     (project-automation ~[['task-a' task-a] ['task-b' task-b]])
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-3 !<(vase q.res))
+  =/  st  !<(state-4 !<(vase q.res))
   =/  expected=(map @t task:v1:au)
     %-  ~(gas by *(map @t task:v1:au))
     ~[['task-a' task-a] ['task-b' task-b]]
@@ -645,20 +687,20 @@
   ;<  ~  bind:m  (project-automation both)
   ;<  ~  bind:m  (project-automation both)
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-3 !<(vase q.res))
+  =/  st  !<(state-4 !<(vase q.res))
   =/  expected=(map @t task:v1:au)
     %-  ~(gas by *(map @t task:v1:au))
     both
   ;<  ~  bind:m  (ex-equal !>((local-automation-tasks st)) !>(expected))
   ;<  ~  bind:m  (project-automation ~[['task-b' task-b]])
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-3 !<(vase q.res))
+  =/  st  !<(state-4 !<(vase q.res))
   =/  expected=(map @t task:v1:au)
     (~(put by *(map @t task:v1:au)) 'task-b' task-b)
   ;<  ~  bind:m  (ex-equal !>((local-automation-tasks st)) !>(expected))
   ;<  ~  bind:m  (project-automation ~)
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-3 !<(vase q.res))
+  =/  st  !<(state-4 !<(vase q.res))
   ::  a projected-empty entry still exists; +got proves its presence
   (ex-equal !>((~(got by tasks.automation.st) ~dev)) !>(*tasks:v1:au))
 ::
@@ -674,7 +716,7 @@
   ;<  ~  bind:m
     (ex-fail (project-automation ~[['duplicate' task-a] ['duplicate' task-b]]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-3 !<(vase q.res))
+  =/  st  !<(state-4 !<(vase q.res))
   =/  expected=(map @t task:v1:au)
     (~(put by *(map @t task:v1:au)) 'task-a' task-a)
   (ex-equal !>((local-automation-tasks st)) !>(expected))
@@ -692,7 +734,7 @@
     %-  (do-as ~zod)
     (project-automation-json trace-project-json)
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-3 !<(vase q.res))
+  =/  st  !<(state-4 !<(vase q.res))
   =/  expected=(map @t task:v1:au)
     (~(put by *(map @t task:v1:au)) 'task-a' task-a)
   (ex-equal !>((local-automation-tasks st)) !>(expected))
@@ -822,7 +864,7 @@
   ;<  caz=(list card)  bind:m
     (do-project ~[['task-a' task-a2] ['task-c' task-c]])
   ;<  ~  bind:m  (ex-cards caz (ex-delta-facts ~dev old new))
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-4  bind:m  got-state
   (ex-equal !>((local-automation-tasks st)) !>(new))
 ::
 ::  an equal %project emits no facts and leaves state identical
@@ -834,10 +876,10 @@
   =/  task-a=task:v1:au  (automation-task 'Task A')
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  (project-automation ~[['task-a' task-a]])
-  ;<  before=state-3  bind:m  got-state
+  ;<  before=state-4  bind:m  got-state
   ;<  caz=(list card)  bind:m  (do-project ~[['task-a' task-a]])
   ;<  ~  bind:m  (ex-cards caz ~)
-  ;<  after=state-3  bind:m  got-state
+  ;<  after=state-4  bind:m  got-state
   (ex-equal !>(after) !>(before))
 ::
 ::  the first accepted %project creates the local entry, which is
@@ -865,7 +907,7 @@
   ;<  caz=(list card)  bind:m  (do-project ~)
   ;<  ~  bind:m
     (ex-cards caz ~[(ex-tasks-fact %tasks (ship-tasks-of ~[[~dev *tasks:v1:au]]))])
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-4  bind:m  got-state
   (ex-equal !>((~(got by tasks.automation.st) ~dev)) !>(*tasks:v1:au))
 ::
 ::  watch auth: the configured owner is admitted cross-ship and gets the
@@ -964,7 +1006,7 @@
   ;<  caz=(list card)  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot moon]))
   ;<  ~  bind:m  (ex-cards caz ~[ex-moon-automation-watch])
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-4  bind:m  got-state
   (ex-equal !>((~(has by tasks.automation.st) moon)) !>(|))
 ::
 ::  re-poking %trust-bot while the subscription is live in wex does not
@@ -1009,7 +1051,7 @@
   ;<  caz=(list card)  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot ~dev]))
   ;<  ~  bind:m  (ex-cards caz ~)
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-4  bind:m  got-state
   ;<  ~  bind:m
     (ex-equal !>((local-automation-tasks st)) !>((task-map-of ~[['task-a' task-a]])))
   ;<  b=bowl  bind:m  get-bowl
@@ -1036,7 +1078,7 @@
     :~  ex-moon-automation-leave
         (ex-tasks-fact %gone moon)
     ==
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-4  bind:m  got-state
   (ex-equal !>((~(has by tasks.automation.st) moon)) !>(|))
 ::
 ::  untrust before the first snapshot: leave, but no entry was ever
@@ -1051,7 +1093,7 @@
   ;<  caz=(list card)  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot moon]))
   ;<  ~  bind:m  (ex-cards caz ~[ex-moon-automation-leave])
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-4  bind:m  got-state
   (ex-equal !>((~(has by tasks.automation.st) moon)) !>(|))
 ::
 ::  untrusting the local ship is an automation no-op: no leave, no
@@ -1067,7 +1109,7 @@
   ;<  caz=(list card)  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot ~dev]))
   ;<  ~  bind:m  (ex-cards caz ~)
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-4  bind:m  got-state
   (ex-equal !>((local-automation-tasks st)) !>((task-map-of ~[['task-a' task-a]])))
 ::
 ::  a snapshot fact creates the entry (announced to subscribers as a
@@ -1090,13 +1132,13 @@
     (give-moon-update %tasks (ship-tasks-of ~[[moon initial]]))
   ;<  ~  bind:m
     (ex-cards caz ~[(ex-tasks-fact %tasks (ship-tasks-of ~[[moon initial]]))])
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-4  bind:m  got-state
   ;<  ~  bind:m
     (ex-equal !>((~(got by tasks.automation.st) moon)) !>(initial))
   ;<  caz=(list card)  bind:m
     (give-moon-update %tasks (ship-tasks-of ~[[moon replaced]]))
   ;<  ~  bind:m  (ex-cards caz (ex-delta-facts moon initial replaced))
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-4  bind:m  got-state
   (ex-equal !>((~(got by tasks.automation.st) moon)) !>(replaced))
 ::
 ::  an unchanged snapshot produces no client facts
@@ -1135,7 +1177,7 @@
     (ex-cards caz ~[(ex-tasks-fact %set moon 'task-a' task-a2)])
   ;<  caz=(list card)  bind:m  (give-moon-update %del moon 'task-a')
   ;<  ~  bind:m  (ex-cards caz ~[(ex-tasks-fact %del moon 'task-a')])
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-4  bind:m  got-state
   %+  ex-equal
     !>((~(got by tasks.automation.st) moon))
   !>((task-map-of ~[['task-b' task-b]]))
@@ -1153,7 +1195,7 @@
   ;<  *  bind:m  (give-moon-update %tasks (ship-tasks-of ~[[moon tasks]]))
   ;<  caz=(list card)  bind:m  (give-moon-update %del moon 'missing')
   ;<  ~  bind:m  (ex-cards caz ~)
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-4  bind:m  got-state
   (ex-equal !>((~(got by tasks.automation.st) moon)) !>(tasks))
 ::
 ::  a delta for a bot with no mirror entry (no snapshot yet) is ignored
@@ -1179,7 +1221,7 @@
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  caz=(list card)  bind:m  (give-moon-update %del moon 'task-a')
   ;<  ~  bind:m  (ex-cards caz ~)
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-4  bind:m  got-state
   (ex-equal !>((~(has by tasks.automation.st) moon)) !>(|))
 ::
 ::  a kick while the bot is still trusted resubscribes, and the fresh
@@ -1199,7 +1241,7 @@
   ;<  caz=(list card)  bind:m  (do-moon-tasks-sign %kick ~)
   ;<  ~  bind:m  (ex-cards caz ~[ex-moon-automation-watch])
   ;<  *  bind:m  (give-moon-update %tasks (ship-tasks-of ~[[moon repaired]]))
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-4  bind:m  got-state
   (ex-equal !>((~(got by tasks.automation.st) moon)) !>(repaired))
 ::
 ::  a kick for a no-longer-trusted bot does not resubscribe. the leave
@@ -1240,7 +1282,7 @@
   ;<  caz=(list card)  bind:m
     (do-moon-tasks-sign %watch-ack `~[leaf+"denied"])
   ;<  ~  bind:m  (ex-cards caz ~)
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-4  bind:m  got-state
   (ex-equal !>((~(got by tasks.automation.st) moon)) !>(tasks))
 ::
 ::  a snapshot lacking the bot's entry deletes it — the wiped-bot
@@ -1258,7 +1300,7 @@
   ;<  caz=(list card)  bind:m
     (give-moon-update %tasks *(map ship tasks:v1:au))
   ;<  ~  bind:m  (ex-cards caz ~[(ex-tasks-fact %gone moon)])
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-4  bind:m  got-state
   (ex-equal !>((~(has by tasks.automation.st) moon)) !>(|))
 ::
 ::  a %gone fact naming the wire bot deletes its entry and re-emits
@@ -1274,7 +1316,7 @@
   ;<  *  bind:m  (give-moon-update %tasks (ship-tasks-of ~[[moon tasks]]))
   ;<  caz=(list card)  bind:m  (give-moon-update %gone moon)
   ;<  ~  bind:m  (ex-cards caz ~[(ex-tasks-fact %gone moon)])
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-4  bind:m  got-state
   (ex-equal !>((~(has by tasks.automation.st) moon)) !>(|))
 ::
 ::  content attributed to any ship other than the wire bot is ignored:
@@ -1296,7 +1338,7 @@
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  caz=(list card)  bind:m  (give-moon-update %gone ~zod)
   ;<  ~  bind:m  (ex-cards caz ~)
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-4  bind:m  got-state
   ;<  ~  bind:m
     (ex-equal !>((~(got by tasks.automation.st) moon)) !>(tasks))
   (ex-equal !>((~(has by tasks.automation.st) ~zod)) !>(|))
@@ -1318,7 +1360,7 @@
     (give-moon-update %tasks (ship-tasks-of ~[[moon moon-tasks] [~zod zod-tasks]]))
   ;<  ~  bind:m
     (ex-cards caz ~[(ex-tasks-fact %tasks (ship-tasks-of ~[[moon moon-tasks]]))])
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-4  bind:m  got-state
   ;<  ~  bind:m
     (ex-equal !>((~(got by tasks.automation.st) moon)) !>(moon-tasks))
   (ex-equal !>((~(has by tasks.automation.st) ~zod)) !>(|))
@@ -1464,7 +1506,7 @@
     (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~bus]))
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-3 !<(vase q.res))
+  =/  st  !<(state-4 !<(vase q.res))
   (ex-equal !>(owner.st) !>(`(unit ship)``~bus))
 ::
 ::  a completely foreign ship (not ourselves) must crash the local-only
@@ -1727,7 +1769,7 @@
   ;<  *  bind:m
     (do-poke %steward-lens-action-1 !>(`action:v1:l`[%configure 1]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-3 !<(vase q.res))
+  =/  st  !<(state-4 !<(vase q.res))
   (ex-equal !>(~(wyt by runs.lens.st)) !>(1))
 ::
 ::  /x/v1/lens/since/[da] returns entries with received >= cutoff, newest
@@ -1871,8 +1913,8 @@
         (ex-cleanup-timer ~2000.1.1)
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-3 !<(vase q.res))
-  ;<  ~  bind:m  (ex-equal !>(-.st) !>(%3))
+  =/  st  !<(state-4 !<(vase q.res))
+  ;<  ~  bind:m  (ex-equal !>(-.st) !>(%4))
   ;<  ~  bind:m
     (ex-equal !>(max-runs-per-bot.lens.st) !>(`@ud`3.000))
   (ex-equal !>(tasks.automation.st) !>(*(map ship tasks:v1:au)))
@@ -1917,7 +1959,7 @@
   ^-  form:m
   ;<  ~  bind:m  setup-gateway
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-3 !<(vase q.res))
+  =/  st  !<(state-4 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(active-window.gateway.st) !>(~m5))
   (ex-equal !>(reply-cooldown.gateway.st) !>(~m5))
 ::
@@ -1978,7 +2020,7 @@
   ;<  *  bind:m  (status-messages |)
   ;<  caz=(list card)  bind:m  (do-agent (make-dm-fact ~bus ~2024.1.1))
   ;<  ~  bind:m  (ex-cards caz ~[(ex-fact-paths ~[/v1/gateway])])
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-4  bind:m  got-state
   ;<  ~  bind:m  (ex-equal !>(last-owner-msg.gateway.st) !>(~2024.1.1))
   ;<  ~  bind:m  (ex-equal !>(last-auto-reply.gateway.st) !>(~))
   ;<  ~  bind:m  (ex-equal !>(last-auto-reply-to.gateway.st) !>(~))
@@ -2005,7 +2047,7 @@
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-stop 'boot-1' 'model-change']))
   ;<  ~  bind:m
     (ex-cards caz ~[(ex-arvo /gateway/lease-check %b %rest lease) (liveness-poke |) (ex-fact-paths ~[/v1/gateway])])
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-4  bind:m  got-state
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%down))
   ;<  ~  bind:m  (ex-equal !>(notify-on-start.gateway.st) !>(|))
   ;<  caz=(list card)  bind:m
@@ -2016,7 +2058,7 @@
   ;<  caz=(list card)  bind:m  (do-arvo /gateway/lease-check [%behn %wake ~])
   ;<  ~  bind:m
     (ex-cards caz ~[(liveness-poke |) (ex-fact-paths ~[/v1/gateway])])
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-4  bind:m  got-state
   (ex-equal !>(status.gateway.st) !>(%down))
 ::
 ++  test-gw-disabling-clears-owner-notice-latch
@@ -2042,13 +2084,46 @@
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  populate-released-slices
   ;<  ~  bind:m  (project-automation ~[['task' (automation-task 'Saved task')]])
-  ;<  before=state-3  bind:m  got-state
+  ;<  before=state-4  bind:m  got-state
   =/  old=state-2
-    [%2 owner.before bots.before lens.before +.gateway.before automation.before]
+    :*  %2
+      owner.before
+      bots.before
+      lens.before
+      +.gateway.before
+      (as-v0-automation automation.before)
+  ==
   ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
   ;<  ~  bind:m  (ex-cards caz ~[ex-eyre-connect])
-  ;<  after=state-3  bind:m  got-state
+  ;<  after=state-4  bind:m  got-state
   (ex-equal !>(after) !>(before))
+::
+::  %3 → %4 widens every stored task: the new fields start empty and the
+::  rest of the slice is carried across untouched
+::
+++  test-migration-state-3-widens-tasks
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  populate-released-slices
+  ;<  ~  bind:m  (project-automation ~[['task' (automation-task 'Saved task')]])
+  ;<  before=state-4  bind:m  got-state
+  =/  old=state-3
+    :*  %3
+        owner.before
+        bots.before
+        lens.before
+        gateway.before
+        (as-v0-automation automation.before)
+    ==
+  ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
+  ;<  ~  bind:m  (ex-cards caz ~[ex-eyre-connect])
+  ;<  after=state-4  bind:m  got-state
+  ;<  ~  bind:m  (ex-equal !>(after) !>(before))
+  =/  widened  (~(got by (~(got by tasks.automation.after) ~dev)) 'task')
+  ;<  ~  bind:m  (ex-equal !>(delivery.widened) !>(*(unit delivery:v1:au)))
+  (ex-equal !>(name.widened) !>(`'Saved task'))
 ::
 ++  test-gw-start-sets-status-up
   %-  eval-mare
@@ -2065,7 +2140,7 @@
         (ex-fact-paths ~[/v1/gateway])
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-3 !<(vase q.res))
+  =/  st  !<(state-4 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   (ex-equal !>(lease-until.gateway.st) !>(`lease-time))
 ::
@@ -2083,7 +2158,7 @@
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-heartbeat 'boot-1' new-lease]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-3 !<(vase q.res))
+  =/  st  !<(state-4 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   ;<  ~  bind:m  (ex-equal !>(pending-restart.gateway.st) !>(|))
   (ex-equal !>(lease-until.gateway.st) !>(`new-lease))
@@ -2099,7 +2174,7 @@
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-stop 'boot-1' 'test']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-3 !<(vase q.res))
+  =/  st  !<(state-4 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%down))
   (ex-equal !>(pending-restart.gateway.st) !>(&))
 ::
@@ -2118,7 +2193,7 @@
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-stop 'boot-old' 'model-change']))
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-3 !<(vase q.res))
+  =/  st  !<(state-4 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   ;<  ~  bind:m  (ex-equal !>(boot-id.gateway.st) !>(`'boot-1'))
   ;<  ~  bind:m  (ex-equal !>(notify-on-start.gateway.st) !>(|))
@@ -2138,7 +2213,7 @@
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-heartbeat 'boot-1' new-lease]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-3 !<(vase q.res))
+  =/  st  !<(state-4 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%down))
   ;<  ~  bind:m  (ex-equal !>(boot-id.gateway.st) !>(~))
   (ex-equal !>(pending-restart.gateway.st) !>(&))
@@ -2154,7 +2229,7 @@
   ;<  ~  bind:m  (wait ~s91)
   ;<  *  bind:m  (do-arvo /gateway/lease-check [%behn %wake ~])
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-3 !<(vase q.res))
+  =/  st  !<(state-4 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%down))
   (ex-equal !>(pending-restart.gateway.st) !>(&))
 ::
@@ -2207,7 +2282,7 @@
   ;<  caz=(list card)  bind:m  (do-agent (make-dm-fact ~dev ~2024.1.1))
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-3 !<(vase q.res))
+  =/  st  !<(state-4 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(last-owner-msg.gateway.st) !>(*@da))
   (ex-equal !>(last-interaction.gateway.st) !>(*@da))
 ::
@@ -2259,13 +2334,13 @@
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-stop 'boot-1' 'test']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-3 !<(vase q.res))
+  =/  st  !<(state-4 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(pending-restart.gateway.st) !>(&))
   =/  lease-time-2  (add ~2024.1.1 ~m4)
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-start 'boot-2' lease-time-2]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-3 !<(vase q.res))
+  =/  st  !<(state-4 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   (ex-equal !>(pending-restart.gateway.st) !>(|))
 ::
@@ -2367,17 +2442,17 @@
 ++  got-request
   =/  m  (mare ,incoming-request:v1:au)
   ^-  form:m
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-4  bind:m  got-state
   (pure:m (~(got by requests.automation.st) rid))
 ++  got-requests
   =/  m  (mare ,requests:v1:au)
   ^-  form:m
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-4  bind:m  got-state
   (pure:m requests.automation.st)
 ++  got-pending
   =/  m  (mare ,pending:v1:au)
   ^-  form:m
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-4  bind:m  got-state
   (pure:m pending.automation.st)
 ++  advance-clock
   |=  by=@dr
@@ -2931,7 +3006,7 @@
     %-  (do-as ~bus)
     (do-command edit-create)
   ;<  *  bind:m  (do-finalize created)
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-4  bind:m  got-state
   (ex-equal !>((local-automation-tasks st)) !>((task-map-of ~[['task-a' task-a]])))
 ::
 ::  a self-owned bot: the owner still pokes the bot (itself); gall would
@@ -3156,7 +3231,7 @@
   =/  task-a=task:v1:au  (automation-task 'Task A')
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  (project-automation ~[['task-a' task-a]])
-  ;<  st=state-3  bind:m  got-state
+  ;<  st=state-4  bind:m  got-state
   ;<  caz=(list card)  bind:m
     (do-http 'eyre-1' (http-request & %'GET' tasks-url ~))
   %+  ex-cards  caz
@@ -3275,7 +3350,7 @@
         (ex-fact-paths ~[/v1/gateway])
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-3 !<(vase q.res))
+  =/  st  !<(state-4 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(notify-on-start.gateway.st) !>(&))
   (ex-equal !>(pending-restart.gateway.st) !>(&))
 ::
@@ -3299,7 +3374,7 @@
         (ex-fact-paths ~[/v1/gateway])
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-3 !<(vase q.res))
+  =/  st  !<(state-4 !<(vase q.res))
   (ex-equal !>(notify-on-start.gateway.st) !>(|))
 ::
 ::  the start after an owner-initiated stop sends ✅ without owner activity
@@ -3329,7 +3404,7 @@
         (ex-fact-paths ~[/v1/gateway])
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-3 !<(vase q.res))
+  =/  st  !<(state-4 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(notify-on-start.gateway.st) !>(|))
   (ex-equal !>(pending-restart.gateway.st) !>(|))
 ::
@@ -3358,7 +3433,7 @@
         (ex-fact-paths ~[/v1/gateway])
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-3 !<(vase q.res))
+  =/  st  !<(state-4 !<(vase q.res))
   (ex-equal !>(notify-on-start.gateway.st) !>(|))
 ::
 ::  regression guard for today's generic notices: a recently active owner
@@ -3512,7 +3587,7 @@
   ::  an already-up gateway seeds the liveness claim it predates
   ;<  ~  bind:m  (ex-cards caz (liveness-poke &) ex-eyre-connect (ex-cleanup-timer ~2024.1.1) ~)
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-3 !<(vase q.res))
+  =/  st  !<(state-4 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(owner.st) !>(`(unit ship)``~bus))
   ;<  ~  bind:m  (ex-equal !>((~(has in bots.st) moon)) !>(&))
   ;<  ~  bind:m  (ex-equal !>(notify-on-start.gateway.st) !>(|))
@@ -3606,7 +3681,7 @@
         (ex-fact-paths ~[/v1/gateway])
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-3 !<(vase q.res))
+  =/  st  !<(state-4 !<(vase q.res))
   (ex-equal !>(last-interaction.gateway.st) !>(*@da))
 ::
 ::  a reply in one of the bot's own threads counts even without a mention
