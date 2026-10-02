@@ -63,6 +63,23 @@ export type ChannelListGroup = {
 const CHANNEL_APPS = ['chat', 'heap', 'diary'];
 const DEFAULT_CHANNEL_APP = 'chat';
 
+export type SubscriptionStatusState = 'known' | 'checking' | 'unavailable';
+
+/**
+ * What is known about the bot's subscriptions. The status request only runs
+ * once the bot is up, so "not loading" doesn't mean it has answered: until it
+ * returns data, nothing is known and nothing should read as "none connected".
+ */
+export const getSubscriptionStatusState = (query: {
+  data: unknown;
+  isError: boolean;
+}): SubscriptionStatusState =>
+  query.data !== undefined
+    ? 'known'
+    : query.isError
+      ? 'unavailable'
+      : 'checking';
+
 export type ConnectionsSummaryState = 'settled' | 'checking' | 'unavailable';
 
 /**

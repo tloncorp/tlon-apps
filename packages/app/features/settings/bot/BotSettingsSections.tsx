@@ -16,7 +16,10 @@ import {
   SUBSCRIPTION_PROVIDERS,
   providerLabel,
 } from './constants';
-import { getConnectionsSummaryState } from './helpers';
+import {
+  getConnectionsSummaryState,
+  getSubscriptionStatusState,
+} from './helpers';
 import {
   getLLMAuthProviderStatus,
   isLLMAuthProviderConnected,
@@ -131,6 +134,9 @@ export function useBotSettingsSectionModels(
     ],
   });
   const connectionsSettled = connectionsState === 'settled';
+  const subscriptionStatus = getSubscriptionStatusState(
+    queries.llmAuthStatusQuery
+  );
 
   const liveModelsValue =
     draft.model.model ||
@@ -252,8 +258,6 @@ export function useBotSettingsSectionModels(
       });
     }
 
-    const subscriptionsLoading = queries.llmAuthStatusQuery.isLoading;
-
     return {
       overview: [
         {
@@ -331,13 +335,16 @@ export function useBotSettingsSectionModels(
             {
               key: 'subscriptions',
               title: 'Provider subscriptions',
-              value: subscriptionsLoading
-                ? 'Checking…'
-                : queries.llmAuthStatusQuery.isError &&
-                    queries.llmAuthStatusQuery.data === undefined
-                  ? 'Unavailable'
-                  : `${connectedSubscriptionCount} connected`,
-              disabled: applying || !queries.providerConfigQuery.isSuccess,
+              value:
+                subscriptionStatus === 'checking'
+                  ? 'Checking…'
+                  : subscriptionStatus === 'unavailable'
+                    ? 'Unavailable'
+                    : `${connectedSubscriptionCount} connected`,
+              disabled:
+                applying ||
+                !queries.providerConfigQuery.isSuccess ||
+                subscriptionStatus === 'checking',
               onPress: () =>
                 navigate('BotProviderListSettings', { kind: 'subscriptions' }),
             },
@@ -382,11 +389,10 @@ export function useBotSettingsSectionModels(
     pending,
     queries.botReady,
     queries.llmAuthStatusQuery.data,
-    queries.llmAuthStatusQuery.isError,
-    queries.llmAuthStatusQuery.isLoading,
     queries.oauthProvidersQuery.data,
     queries.providerConfigQuery.isSuccess,
     settingsReady,
+    subscriptionStatus,
   ]);
 }
 
