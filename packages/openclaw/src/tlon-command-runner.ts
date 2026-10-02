@@ -5,6 +5,13 @@ import { normalizeShip } from './targets.js';
 import { listRunnableTlonAccountIds, resolveTlonAccount } from './types.js';
 
 export const DEFAULT_TLON_CLI_TIMEOUT_MS = 45_000;
+export const DEFAULT_BUCKETS_CLI_TIMEOUT_MS = 120_000;
+
+export function defaultTlonCliTimeoutMs(args: string[]) {
+  return args[0] === 'buckets'
+    ? DEFAULT_BUCKETS_CLI_TIMEOUT_MS
+    : DEFAULT_TLON_CLI_TIMEOUT_MS;
+}
 
 const EXPLICIT_CREDENTIAL_ENV_KEYS_TO_CLEAR = [
   'TLON_CONFIG_FILE',
@@ -107,7 +114,7 @@ export function runTlonCommand(
     let spawnError: Error | null = null;
     let killTimer: ReturnType<typeof setTimeout> | null = null;
     let timeout: ReturnType<typeof setTimeout> | null = null;
-    const timeoutMs = options?.timeoutMs ?? DEFAULT_TLON_CLI_TIMEOUT_MS;
+    const timeoutMs = options?.timeoutMs ?? defaultTlonCliTimeoutMs(args);
     const onDeadline = options?.onDeadline;
 
     const onStdoutData = (data: Buffer | string) => {

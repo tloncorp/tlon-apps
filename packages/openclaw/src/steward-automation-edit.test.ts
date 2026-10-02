@@ -9,6 +9,7 @@ import {
   toStewardAutomationCronCreateInput,
   toStewardAutomationCronPatch,
 } from './steward-automation-edit.js';
+import { SLOT_PREFIX } from './monitor/agent-onboarding.js';
 import { setErrorTelemetryReporter } from './telemetry.js';
 
 const requestId = '0v4.jd3o0';
@@ -29,11 +30,13 @@ function cronService(
   add: ReturnType<typeof vi.fn>;
   update: ReturnType<typeof vi.fn>;
   remove: ReturnType<typeof vi.fn>;
+  list: ReturnType<typeof vi.fn>;
 } {
   return {
     add: vi.fn().mockResolvedValue({ id: jobId }),
     update: vi.fn().mockResolvedValue({ id: 'job-1' }),
     remove: vi.fn().mockResolvedValue({ ok: true, removed: true }),
+    list: vi.fn().mockResolvedValue([]),
     ...overrides,
   } as never;
 }
@@ -101,6 +104,88 @@ describe('toStewardAutomationCronCreateInput', () => {
         payload: { kind: 'agentTurn', message: 'Send the daily status.' },
       },
     });
+  });
+
+  it('carries the delivery block and the tool allow-list onto the create', () => {
+    const result = toStewardAutomationCronCreateInput(requestId, {
+      ...createTask,
+      payload: {
+        kind: 'agentTurn',
+        message: 'Send the daily status.',
+        toolsAllow: ['group:web'],
+      },
+      delivery: {
+        mode: 'announce',
+        channel: 'tlon',
+        to: 'diary/~zod/notebook',
+        failureDestination: {
+          mode: 'announce',
+          channel: 'tlon',
+          to: 'chat/~zod/errors',
+        },
+      },
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: expect.objectContaining({
+        payload: {
+          kind: 'agentTurn',
+          message: 'Send the daily status.',
+          toolsAllow: ['group:web'],
+        },
+        delivery: {
+          mode: 'announce',
+          channel: 'tlon',
+          to: 'diary/~zod/notebook',
+          failureDestination: {
+            mode: 'announce',
+            channel: 'tlon',
+            to: 'chat/~zod/errors',
+          },
+        },
+      }),
+    });
+  });
+
+  it('rejects a create whose delivery omits the required mode', () => {
+    expect(
+      toStewardAutomationCronCreateInput(requestId, {
+        ...createTask,
+        delivery: { channel: 'tlon', to: 'diary/~zod/notebook' },
+      })
+    ).toEqual({
+      ok: false,
+      message: 'delivery.mode is required when a create sets a delivery',
+    });
+  });
+
+  it('patches the tool allow-list alone, without resending the prompt', () => {
+    expect(
+      toStewardAutomationCronPatch({
+        payload: { kind: 'agentTurn', toolsAllow: ['group:web'] },
+      })
+    ).toEqual({
+      ok: true,
+      value: { payload: { kind: 'agentTurn', toolsAllow: ['group:web'] } },
+    });
+  });
+
+  it('still requires a payload kind on a patch, as the host discriminates on it', () => {
+    expect(
+      toStewardAutomationCronPatch({ payload: { toolsAllow: ['group:web'] } })
+    ).toEqual({ ok: false, message: 'payload.kind is required' });
+  });
+
+  it('allows an update to patch a delivery without a mode', () => {
+    expect(
+      toStewardAutomationCronPatch({ delivery: { to: 'chat/~zod/elsewhere' } })
+    ).toEqual({ ok: true, value: { delivery: { to: 'chat/~zod/elsewhere' } } });
+  });
+
+  it('leaves delivery off a create that does not set one', () => {
+    const result = toStewardAutomationCronCreateInput(requestId, createTask);
+    expect(result.ok && 'delivery' in result.value).toBe(false);
   });
 
   it('converts an at schedule from Unix milliseconds to ISO text', () => {
@@ -733,5 +818,94 @@ describe('StewardAutomationEditProcessor cancellation', () => {
     controller.abort();
 
     await expect(run).resolves.toBeUndefined();
+  });
+});
+
+describe('onboarding slot-key descriptions', () => {
+  const slot = 'tlon-agent-primary:group-1';
+
+  it('matches the prefix agent onboarding actually uses', () => {
+    expect(slot.startsWith(SLOT_PREFIX)).toBe(true);
+  });
+
+  it('refuses to create a job wearing a slot description', async () => {
+    const cron = cronService();
+    expect(
+      await applyStewardAutomationDispatch(
+        { requestId, action: { create: { ...createTask, description: slot } } },
+        cron
+      )
+    ).toMatchObject({ type: 'error', errorType: 'invalid' });
+    expect(cron.add).not.toHaveBeenCalled();
+  });
+
+  it('refuses to rename a slot description, which would orphan the slot', async () => {
+    const cron = cronService({
+      list: vi.fn().mockResolvedValue([{ id: 'job-1', description: slot }]),
+    } as never);
+
+    expect(
+      await applyStewardAutomationDispatch(
+        {
+          requestId,
+          action: { update: { id: 'job-1', description: 'my daily update' } },
+        },
+        cron
+      )
+    ).toMatchObject({ type: 'error', errorType: 'invalid' });
+    expect(cron.update).not.toHaveBeenCalled();
+  });
+
+  it('allows a client to resend a slot description unchanged', async () => {
+    const cron = cronService({
+      list: vi.fn().mockResolvedValue([{ id: 'job-1', description: slot }]),
+    } as never);
+
+    expect(
+      await applyStewardAutomationDispatch(
+        { requestId, action: { update: { id: 'job-1', description: slot } } },
+        cron
+      )
+    ).toEqual({ type: 'updated', id: 'job-1' });
+    expect(cron.update).toHaveBeenCalledOnce();
+  });
+
+  it('refuses to mint a slot description on an ordinary job', async () => {
+    const cron = cronService({
+      list: vi.fn().mockResolvedValue([{ id: 'job-1', description: 'mine' }]),
+    } as never);
+
+    expect(
+      await applyStewardAutomationDispatch(
+        { requestId, action: { update: { id: 'job-1', description: slot } } },
+        cron
+      )
+    ).toMatchObject({ type: 'error', errorType: 'invalid' });
+    expect(cron.update).not.toHaveBeenCalled();
+  });
+
+  it('leaves ordinary description edits alone', async () => {
+    const cron = cronService({
+      list: vi.fn().mockResolvedValue([{ id: 'job-1', description: 'mine' }]),
+    } as never);
+
+    expect(
+      await applyStewardAutomationDispatch(
+        {
+          requestId,
+          action: { update: { id: 'job-1', description: 'yours' } },
+        },
+        cron
+      )
+    ).toEqual({ type: 'updated', id: 'job-1' });
+  });
+
+  it('does not read the job list when an edit leaves description alone', async () => {
+    const cron = cronService();
+    await applyStewardAutomationDispatch(
+      { requestId, action: { update: { id: 'job-1', enabled: false } } },
+      cron
+    );
+    expect(cron.list).not.toHaveBeenCalled();
   });
 });

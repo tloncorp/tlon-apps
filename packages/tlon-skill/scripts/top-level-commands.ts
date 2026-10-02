@@ -1,6 +1,7 @@
 export const TOP_LEVEL_COMMANDS = [
   'activity',
   'browser',
+  'buckets',
   'channels',
   'contacts',
   'dms',
