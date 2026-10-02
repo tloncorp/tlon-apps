@@ -109,8 +109,6 @@ TLON_TOOL_DESCRIPTION = (
     "user-requested avatars/covers. Do not use SVG profile images. "
     "For exact syntax, load skill_view(\"tlon-platform:tlon\") or run "
     "'<subcommand> --help'. "
-    "The Tlon Messenger app calls groups \"workspaces\"; a request to "
-    "create or manage a workspace is about a Tlon group. "
     "For user-requested group creation, use groups create-owned with "
     "--owner set to the requesting ship. "
     "To reply to the CURRENT conversation, just write the reply — do not use "
