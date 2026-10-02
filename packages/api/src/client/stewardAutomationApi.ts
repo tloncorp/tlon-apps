@@ -277,10 +277,12 @@ export async function scryAutomations(): Promise<ub.StewardAutomationShipTasks> 
 /**
  * Live updates to the mirror. The first fact is a complete `tasks`
  * snapshot; thereafter `set` / `del` per task and `gone` when a bot's
- * entry is removed. Resolves with the subscription id for unsubscribe.
+ * entry is removed. Resolves with the subscription id for unsubscribe. A
+ * channel reset replays the watch under a new id, which the handler's
+ * second argument reports with each fact.
  */
 export function subscribeToAutomations(
-  handler: (update: ub.StewardAutomationUpdate) => void
+  handler: (update: ub.StewardAutomationUpdate, id?: number) => void
 ): Promise<number> {
   return subscribe<ub.StewardAutomationUpdate>(TASKS_FEED, handler);
 }
