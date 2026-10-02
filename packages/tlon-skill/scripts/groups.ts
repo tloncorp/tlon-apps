@@ -78,6 +78,7 @@ import {
   isSubcommandHelpRequest,
   looksLikePositionalChannelKind,
   printErrorAndExit,
+  channelCreateUsage,
   printHelpAndExit,
   printUsageAndExit,
   refuseNotesChannelDescription,
@@ -145,7 +146,7 @@ Commands:
   reject-join <group-id> <ship> [<ship2> ...]
   promote <group-id> <ship> [<ship2> ...]
   demote <group-id> <ship> [<ship2> ...]
-  add-channel <group-id> "Channel Name" [--kind chat|heap|notes] [--description "..."]
+  ${channelCreateUsage('add-channel')}
 
 Examples:
   tlon groups info ~host/group-slug
@@ -181,7 +182,7 @@ const GROUPS_COMMAND_HELP: Record<string, string> = {
   'reject-join': `Usage: tlon groups reject-join <group-id> <ship> [<ship2> ...]\nExample: tlon groups reject-join ~host/group-slug ~nec`,
   promote: `Usage: tlon groups promote <group-id> <ship> [<ship2> ...]\nExample: tlon groups promote ~host/group-slug ~nec`,
   demote: `Usage: tlon groups demote <group-id> <ship> [<ship2> ...]\nExample: tlon groups demote ~host/group-slug ~nec`,
-  'add-channel': `Usage: tlon groups add-channel <group-id> "Channel Name" [--kind chat|heap|notes] [--description "..."]\nExample: tlon groups add-channel ~host/group-slug "Projects" --kind chat`,
+  'add-channel': `Usage: ${channelCreateUsage('tlon groups add-channel')}\nExample: tlon groups add-channel ~host/group-slug "Projects" --kind chat`,
 };
 
 function getGroupsHelp(command?: string) {

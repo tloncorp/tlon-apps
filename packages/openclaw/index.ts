@@ -978,52 +978,61 @@ export default defineBundledChannelEntry({
       );
     }
 
-    const executeTlonTool = createTlonToolExecutor({
-      runCommand: (args) =>
-        isBrowserHandoffCommand(args)
-          ? runBrowserHandoffCommand(tlonBinary, args, api.config)
-          : runTlonCommand(tlonBinary, args, credentials, {
-              timeoutMs: toolTimeoutMs,
-              ownerShip: normalizeShip(account.ownerShip ?? '') || undefined,
-            }),
-      notifyDiaryMigrationDiscovery: (nest) =>
-        notifyDiaryMigrationDiscovery(nest, api.config),
-      logError: (message) => api.logger.warn(`[tlon] ${message}`),
-      // Lets the executor run `groups invite-link` as the owner, so invites
-      // attribute to the owner rather than the bot.
-      ownerShip: normalizeShip(account.ownerShip ?? '') || undefined,
-      env: process.env,
-      fileExists: (path) => existsSync(path),
-    });
+    // Tool factories receive the active agent workspace, including cron runs.
+    api.registerTool(
+      (ctx) => {
+        const executeTlonTool = createTlonToolExecutor({
+          runCommand: (args) =>
+            isBrowserHandoffCommand(args)
+              ? runBrowserHandoffCommand(tlonBinary, args, api.config)
+              : runTlonCommand(tlonBinary, args, credentials, {
+                  timeoutMs: toolTimeoutMs,
+                  cwd: ctx.workspaceDir,
+                  ownerShip:
+                    normalizeShip(account.ownerShip ?? '') || undefined,
+                }),
+          notifyDiaryMigrationDiscovery: (nest) =>
+            notifyDiaryMigrationDiscovery(nest, api.config),
+          logError: (message) => api.logger.warn(`[tlon] ${message}`),
+          // Lets the executor run `groups invite-link` as the owner, so invites
+          // attribute to the owner rather than the bot.
+          ownerShip: normalizeShip(account.ownerShip ?? '') || undefined,
+          env: process.env,
+          fileExists: (path) => existsSync(path),
+        });
 
-    api.registerTool({
-      name: 'tlon',
-      label: 'Tlon CLI',
-      description:
-        'Tlon/Urbit API for reading data and administration: activity, Buckets shared files, channels, contacts, groups, messages, notes, posts, settings, upload, expose, hooks. ' +
-        'To send ordinary messages, use the `message` tool, not this tool. When a hosted browser reaches a login form, use `browser handoff <signed-viewer-url>` to send the owner the secure native login form. ' +
-        '%diary channels are deprecated and unsupported by this CLI tool; ask the owner to type `/migrate <diary-nest>` to move one to %notes. ' +
-        'OpenClaw message delivery still accepts diary/ targets, including writable archives. ' +
-        'Never use LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]) in note bodies or message text — Tlon renders no math; write math as plain text/Unicode or in code blocks. ' +
-        "Examples: 'activity mentions --limit 10', 'buckets list', 'channels groups', 'contacts self', 'groups list', 'notes list'. " +
-        'If a command fails and you cannot complete what the user asked, tell them what failed before ending your turn — never end the turn silently after a failure.',
-      parameters: {
-        type: 'object',
-        properties: {
-          command: {
-            type: 'string',
-            description:
-              'The tlon command and arguments (read/admin operations and browser login handoff). ' +
-              'To send ordinary messages, use the `message` tool, not this tool. When a hosted browser reaches a login form, use `browser handoff <signed-viewer-url>` to send the owner the secure native login form. ' +
-              'Do not try migration writes through this model tool: ask the owner to type `/migrate <diary-nest>`. ' +
-              'The message tool can still send to diary/ targets; migration only renames the source and does not make it read-only. ' +
-              "Examples: 'activity mentions --limit 10', 'buckets list', 'contacts get ~sampel-palnet', 'groups list', 'messages dm ~ship --limit 20', 'notes list'",
+        return {
+          name: 'tlon',
+          label: 'Tlon CLI',
+          description:
+            'Tlon/Urbit API for reading data and administration: activity, Buckets shared files, channels, contacts, groups, messages, notes, posts, settings, upload, expose, hooks. ' +
+            'Commands are argument strings, not shell scripts: omit the leading tlon, pipes, and redirections. Relative file paths use the active agent workspace. Use --body <file> for notes or upload <file>; --stdin is unavailable. ' +
+            'To send ordinary messages, use the `message` tool, not this tool. When a hosted browser reaches a login form, use `browser handoff <signed-viewer-url>` to send the owner the secure native login form. ' +
+            '%diary channels are deprecated and unsupported by this CLI tool; ask the owner to type `/migrate <diary-nest>` to move one to %notes. ' +
+            'OpenClaw message delivery still accepts diary/ targets, including writable archives. ' +
+            'Never use LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]) in note bodies or message text — Tlon renders no math; write math as plain text/Unicode or in code blocks. ' +
+            "Examples: 'activity mentions --limit 10', 'buckets list', 'channels groups', 'contacts self', 'groups list', 'notes list'. " +
+            'If a command fails and you cannot complete what the user asked, tell them what failed before ending your turn — never end the turn silently after a failure.',
+          parameters: {
+            type: 'object',
+            properties: {
+              command: {
+                type: 'string',
+                description:
+                  'The tlon command and arguments (read/admin operations and browser login handoff). ' +
+                  'To send ordinary messages, use the `message` tool, not this tool. When a hosted browser reaches a login form, use `browser handoff <signed-viewer-url>` to send the owner the secure native login form. ' +
+                  'Do not try migration writes through this model tool: ask the owner to type `/migrate <diary-nest>`. ' +
+                  'The message tool can still send to diary/ targets; migration only renames the source and does not make it read-only. ' +
+                  "Examples: 'activity mentions --limit 10', 'buckets list', 'contacts get ~sampel-palnet', 'groups list', 'messages dm ~ship --limit 20', 'notes list'",
+              },
+            },
+            required: ['command'],
           },
-        },
-        required: ['command'],
+          execute: executeTlonTool,
+        };
       },
-      execute: executeTlonTool,
-    });
+      { name: 'tlon' }
+    );
 
     // Tool access control: block sensitive tools for non-owners
     const logToolTraceContents = liveToolTraceContentsEnabled();
