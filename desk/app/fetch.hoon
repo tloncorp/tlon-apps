@@ -100,6 +100,38 @@
       &(=(192 a) =(168 b))                ::  192.168.0.0/16
   ==
 ::
+::  +hop-by-hop: headers that describe a single connection, not the payload
+::
+::    these must not be forwarded in either direction. relaying upstream's
+::    transfer-encoding or content-length in particular breaks the response:
+::    eyre frames the body itself from the octs we hand it, so an inherited
+::    framing header makes the client wait for data that never arrives in
+::    that shape, and the body is dropped. (%dumb-proxy relayed headers
+::    verbatim and had this bug; nothing ever called it, so nobody saw it.)
+::
+++  hop-by-hop
+  ^~
+  %-  ~(gas in *(set @t))
+  :~  'connection'
+      'keep-alive'
+      'transfer-encoding'
+      'te'
+      'trailer'
+      'upgrade'
+      'proxy-authenticate'
+      'proxy-authorization'
+      'content-length'
+  ==
+::
+::  +strip-hops: drop hop-by-hop headers, case-insensitively
+::
+++  strip-hops
+  |=  hes=header-list:http
+  ^-  header-list:http
+  %+  skip  hes
+  |=  [key=@t val=@t]
+  (~(has in hop-by-hop) (crip (cass (trip key))))
+::
 ::  +unsafe-target: why we refuse to fetch this url, if we do
 ::
 ::    this blocks the obvious server-side request forgery shapes: an ip
@@ -212,10 +244,14 @@
   ^-  card
   =.  url.request  url
   =.  header-list.request
-    ::  drop cookies from the original request, don't want to leak these
+    ::  drop cookies from the original request, don't want to leak these,
+    ::  and drop the caller's host header -- it names *us*, not the target.
     ::
     %+  skip  header-list.request
-    |=([k=@t @t] =('cookie' k))
+    |=  [key=@t @t]
+    =/  key  (crip (cass (trip key)))
+    |(=('cookie' key) =('host' key))
+  =.  header-list.request  (strip-hops header-list.request)
   =.  header-list.request
     =-  (set-header:http 'forwarded' - header-list.request)
     ::NOTE  we intentionally don't include the originating ip address
@@ -611,12 +647,11 @@
       %+  spout:hutils  eid
       :-  [502 'x-tlon-fetch'^'too-large' ~]
       ~
-    =*  cod  status-code.response-header.res
     :_  this
     %+  spout:hutils  eid
     :-  =,  response-header.res
         :-  status-code
-        (snoc headers 'x-tlon-fetch'^'finished')
+        (snoc (strip-hops headers) 'x-tlon-fetch'^'finished')
     ?~  full-file.res  ~
     `data.u.full-file.res
   ::
