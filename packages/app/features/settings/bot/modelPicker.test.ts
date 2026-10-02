@@ -81,6 +81,14 @@ describe('buildDefaultModelSections', () => {
     );
   });
 
+  it('marks Tlon’s model as current whatever model id the bot reports', () => {
+    const { sections } = build({
+      selection: { provider: BASIC_PROVIDER_ID, model: 'openai/some-newer-id' },
+    });
+
+    expect(sections[0].rows[0].selected).toBe(true);
+  });
+
   it('shows a long catalog’s first models, then a row that opens the rest', () => {
     const { sections, onExpand } = build();
     const rows = sections[1].rows;

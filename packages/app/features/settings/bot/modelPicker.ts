@@ -106,7 +106,9 @@ export function buildDefaultModelSections({
               rows: provider.models.map((model) => ({
                 key: `${provider.id}:${model.id}`,
                 title: getModelDisplayName(model),
-                selected: isSelected(model),
+                // Tlon picks the model behind this option, so a bot on it may
+                // report a different id than the one listed here.
+                selected: selection.provider === provider.id,
                 onPress: () => onSelect(provider.id, model.id),
               })),
             },
