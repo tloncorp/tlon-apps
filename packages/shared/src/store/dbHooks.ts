@@ -243,6 +243,24 @@ export const useContacts = () => {
   });
 };
 
+export const useMentionCandidates = ({
+  chatId,
+  query,
+  enabled,
+}: {
+  chatId: string;
+  query: string;
+  enabled?: boolean;
+}) => {
+  const deps = useKeyFromQueryDeps(db.getMentionCandidates);
+  return useQuery({
+    queryKey: ['mentionCandidates', deps, chatId, query],
+    queryFn: () => db.getMentionCandidates({ chatId, query }),
+    placeholderData: (previousData) => previousData ?? [],
+    enabled,
+  });
+};
+
 export const useNotifyingUnreadSourceCount = () => {
   return useQuery({
     queryKey: [
