@@ -14,6 +14,10 @@ import React, {
   useState,
 } from 'react';
 import { Keyboard, Platform } from 'react-native';
+import {
+  useSafeAreaFrame,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { useTheme } from 'tamagui';
 
 import {
@@ -60,15 +64,23 @@ export const BottomSheetWrapper = forwardRef<
       if (open) dismissalHandled.current = false;
     }, [open, mountKey]);
 
+    const { height: frameHeight } = useSafeAreaFrame();
+    const { bottom: bottomInset } = useSafeAreaInsets();
     const transformedSnapPoints = useMemo(() => {
       if (!snapPoints) return undefined;
-      if (snapPointsMode === 'percent') {
-        return snapPoints.map((point) =>
-          typeof point === 'number' ? `${point}%` : point
-        );
-      }
-      return snapPoints;
-    }, [snapPoints, snapPointsMode]);
+      if (snapPointsMode !== 'percent') return snapPoints;
+      return snapPoints.map((point) => {
+        if (typeof point !== 'number') return point;
+        // Compose sizes a sheet against the whole window, status bar included,
+        // and then lifts it above the navigation bar, so a tall sheet ends up
+        // under the status bar. Size it against the app's own frame and take
+        // the navigation bar back out, which leaves the top edge where the
+        // percentage puts it. SwiftUI detents already account for both.
+        return Platform.OS === 'android'
+          ? (point / 100) * frameHeight - bottomInset
+          : `${point}%`;
+      });
+    }, [snapPoints, snapPointsMode, frameHeight, bottomInset]);
 
     const enableDynamicSizing = snapPointsMode !== 'percent';
     // Compose cannot separate content-originated sheet pans from handle pans.

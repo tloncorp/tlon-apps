@@ -1,6 +1,6 @@
 import React, { createContext, forwardRef } from 'react';
 import { act, create } from 'react-test-renderer';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { setupReactTestEnvironment } from '../../test/sheetTestUtils';
 
@@ -16,13 +16,15 @@ vi.mock('@tloncorp/ui', () => ({
   useCopy: () => ({}),
   useIsWindowNarrow: () => true,
 }));
+const platform = vi.hoisted(() => ({ OS: 'ios' }));
 vi.mock('react-native', () => ({
-  Platform: { OS: 'ios' },
+  Platform: platform,
   Keyboard: { dismiss: vi.fn() },
   useWindowDimensions: () => ({ height: 852 }),
 }));
 vi.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ bottom: 34 }),
+  useSafeAreaFrame: () => ({ height: 800 }),
+  useSafeAreaInsets: () => ({ bottom: 48 }),
 }));
 vi.mock('tamagui', () => {
   const Container = Object.assign(
@@ -60,6 +62,9 @@ vi.mock('@expo/ui/community/bottom-sheet', () => ({
 }));
 
 setupReactTestEnvironment();
+afterEach(() => {
+  platform.OS = 'ios';
+});
 
 describe('ordinary ActionSheet dismissal forwarding', () => {
   it('forwards the open callback after content layout, but not when closed', () => {
@@ -194,5 +199,36 @@ describe('native unmount-on-close lifetime', () => {
       0
     );
     act(() => tree.unmount());
+  });
+});
+
+describe('percent snap points', () => {
+  const snapPoints = (os: string) => {
+    platform.OS = os;
+    let tree: ReturnType<typeof create>;
+    act(() => {
+      tree = create(
+        <BottomSheetWrapper
+          open
+          onOpenChange={vi.fn()}
+          snapPointsMode="percent"
+          snapPoints={[90]}
+        >
+          {null}
+        </BottomSheetWrapper>
+      );
+    });
+    const points = tree!.root.find((node) => node.props.index === 0).props
+      .snapPoints;
+    act(() => tree.unmount());
+    return points;
+  };
+
+  it('leaves the detent to SwiftUI on iOS', () => {
+    expect(snapPoints('ios')).toEqual(['90%']);
+  });
+
+  it('sizes an Android sheet against the app frame, less the navigation bar', () => {
+    expect(snapPoints('android')).toEqual([0.9 * 800 - 48]);
   });
 });
