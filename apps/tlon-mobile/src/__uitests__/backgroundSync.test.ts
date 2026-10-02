@@ -20,6 +20,7 @@ jest.mock('@tloncorp/app/hooks/useConfigureUrbitClient', () => ({
 }));
 jest.mock('@tloncorp/app/lib/nativeDb', () => ({
   ensureDbReady: async () => {},
+  abandonDbInit: jest.fn(() => 'abandoned'),
 }));
 jest.mock('@tloncorp/app/lib/notifications', () => ({
   discoverContactsAndNotify: jest.fn(async () => ({
@@ -169,17 +170,24 @@ describe('background sync session ownership', () => {
 });
 
 describe('background sync database readiness bound', () => {
-  // The module mock's ensureDbReady is a plain function; spy on it here so
-  // these tests can control readiness without changing the shared mock.
-  const nativeDb = jest.requireMock<{ ensureDbReady: () => Promise<void> }>(
-    '@tloncorp/app/lib/nativeDb'
+  // The module mocks' ensureDbReady and flushErrorLogger are plain functions;
+  // spy on them here so these tests can control and observe them without
+  // changing the shared mocks.
+  const nativeDb = jest.requireMock<{
+    ensureDbReady: () => Promise<void>;
+    abandonDbInit: () => string;
+  }>('@tloncorp/app/lib/nativeDb');
+  const shared = jest.requireMock<{ flushErrorLogger: () => Promise<void> }>(
+    '@tloncorp/shared'
   );
   let ensureDbReady: ReturnType<typeof jest.spyOn>;
+  let flushErrorLogger: ReturnType<typeof jest.spyOn>;
 
   beforeEach(() => {
     jest.useFakeTimers();
     jest.clearAllMocks();
     ensureDbReady = jest.spyOn(nativeDb, 'ensureDbReady');
+    flushErrorLogger = jest.spyOn(shared, 'flushErrorLogger');
     jest
       .mocked(storage.shipInfo.getValue)
       .mockReset()
@@ -192,29 +200,45 @@ describe('background sync database readiness bound', () => {
   });
   afterEach(() => {
     ensureDbReady.mockRestore();
+    flushErrorLogger.mockRestore();
     jest.useRealTimers();
   });
 
   it('fails the task when readiness never settles', async () => {
     // Foreground-only migration timeouts never fire while backgrounded.
     ensureDbReady.mockImplementationOnce(() => new Promise<void>(() => {}));
+    jest
+      .mocked(nativeDb.abandonDbInit)
+      .mockReturnValueOnce('setup-owns-connection');
+    const order: string[] = [];
+    flushErrorLogger.mockImplementationOnce(async () => {
+      order.push('flush');
+    });
 
     let outcome: unknown = 'pending';
     void runTask().then((result) => {
       outcome = result;
+      order.push(`resolved:${result}`);
     });
 
     await jest.advanceTimersByTimeAsync(29_999);
     expect(outcome).toBe('pending');
+    expect(nativeDb.abandonDbInit).not.toHaveBeenCalled();
 
     await jest.advanceTimersByTimeAsync(1);
     expect(outcome).toBe('failed');
+    // The failure must reach telemetry before the OS can suspend the task.
+    expect(order).toEqual(['flush', 'resolved:failed']);
+    expect(nativeDb.abandonDbInit).toHaveBeenCalledTimes(1);
     expect(logger.trackError).toHaveBeenCalledWith('Background sync failed', {
       context: 'db readiness timed out',
       timeoutMs: 30_000,
+      abandonOutcome: 'setup-owns-connection',
     });
     expect(refreshHostingAuth).not.toHaveBeenCalled();
     expect(syncSince).not.toHaveBeenCalled();
+    // Only the telemetry flush's 500 ms cap may outlive the task.
+    await jest.advanceTimersByTimeAsync(500);
     expect(jest.getTimerCount()).toBe(0);
   });
 
@@ -224,6 +248,8 @@ describe('background sync database readiness bound', () => {
     expect(await runTask()).toBe('success');
     expect(syncSince).toHaveBeenCalledTimes(1);
     expect(logger.trackError).not.toHaveBeenCalled();
+    expect(nativeDb.abandonDbInit).not.toHaveBeenCalled();
+    expect(flushErrorLogger).toHaveBeenCalledTimes(1);
     // Only the telemetry flush's 500 ms cap may outlive the task.
     await jest.advanceTimersByTimeAsync(500);
     expect(jest.getTimerCount()).toBe(0);

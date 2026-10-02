@@ -1,5 +1,5 @@
 import { configureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
-import { ensureDbReady } from '@tloncorp/app/lib/nativeDb';
+import { abandonDbInit, ensureDbReady } from '@tloncorp/app/lib/nativeDb';
 import { discoverContactsAndNotify } from '@tloncorp/app/lib/notifications';
 import {
   SyncPriority,
@@ -35,12 +35,26 @@ async function waitForDbReady(): Promise<'ready' | 'timeout'> {
   }
 }
 
+// Flush telemetry so events are sent now, not deferred until next foreground:
+// the OS may suspend the process as soon as the task returns.
+async function flushTelemetry() {
+  await Promise.race([
+    flushErrorLogger(),
+    new Promise<void>((resolve) => setTimeout(resolve, 500)),
+  ]).catch(() => {});
+}
+
 async function performSync(): Promise<BackgroundTask.BackgroundTaskResult> {
   if ((await waitForDbReady()) === 'timeout') {
+    // Detach the pending init so the next task or foreground start begins
+    // fresh instead of rejoining it for another full wait.
+    const abandonOutcome = abandonDbInit();
     logger.trackError('Background sync failed', {
       context: 'db readiness timed out',
       timeoutMs: DB_READY_TIMEOUT_MS,
+      abandonOutcome,
     });
+    await flushTelemetry();
     return BackgroundTask.BackgroundTaskResult.Failed;
   }
   const taskExecutionId = uuidv4();
@@ -167,11 +181,7 @@ async function performSync(): Promise<BackgroundTask.BackgroundTaskResult> {
       didSucceed: result === 'success',
       result,
     });
-    // flush telemetry so events are sent now, not deferred until next foreground
-    await Promise.race([
-      flushErrorLogger(),
-      new Promise<void>((resolve) => setTimeout(resolve, 500)),
-    ]).catch(() => {});
+    await flushTelemetry();
   }
 }
 
