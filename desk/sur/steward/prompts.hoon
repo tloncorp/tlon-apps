@@ -42,7 +42,6 @@
       http-id=(unit @ta)
       =poke-status
       result=(unit response-body)
-      submitted-at=@da
       final-at=(unit @da)
       fetched=?
   ==

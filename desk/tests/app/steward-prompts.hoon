@@ -155,13 +155,23 @@
 ::
 ::  HTTP fixtures
 ::
+::  a request with a body declares it JSON, as every real client does;
+::  +http-request-typed sets the content-type explicitly
+::
 ++  http-request
   |=  [authenticated=? method=method:http url=@t body=(unit @t)]
+  ^-  inbound-request:eyre
+  =/  ct=(unit @t)  ?~(body ~ `'application/json')
+  (http-request-typed authenticated method url body ct)
+++  http-request-typed
+  |=  [authenticated=? method=method:http url=@t body=(unit @t) ct=(unit @t)]
   ^-  inbound-request:eyre
   :*  authenticated
       |
       [%ipv4 .127.0.0.1]
-      [method url ~ ?~(body ~ `(as-octs:mimes:html u.body))]
+      :^  method  url
+        ?~(ct ~ ~[['content-type' u.ct]])
+      ?~(body ~ `(as-octs:mimes:html u.body))
   ==
 ++  do-http
   |=  [eyre-id=@ta req=inbound-request:eyre]
@@ -417,6 +427,35 @@
   =/  expected=pending-command:v1:pr
     [rid ~bus edit-set ~2024.1.1 `[%error %harness-offline ~]]
   (ex-equal !>((~(get by pen) rid)) !>(`expected))
+::
+::  a cross-site form can send only text/plain, urlencoded or multipart, so
+::  every POST must declare JSON. a charset parameter is still JSON
+::
+++  test-prompts-http-post-requires-json
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  =/  forged
+    (http-request-typed & %'POST' edit-url `(edit-post-body &) `'text/plain')
+  ;<  caz=(list card)  bind:m  (do-http 'eyre-1' forged)
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    (ex-http 'eyre-1' 415 'text/plain' 'content-type must be application/json')
+  ;<  caz=(list card)  bind:m
+    %+  do-http  'eyre-2'
+    (http-request-typed & %'POST' finalize-url `(finalize-post-body updated) ~)
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    (ex-http 'eyre-2' 415 'text/plain' 'content-type must be application/json')
+  ;<  reqs=requests:v1:pr  bind:m  got-requests
+  ;<  ~  bind:m  (ex-equal !>(reqs) !>(*requests:v1:pr))
+  =/  charset
+    %:  http-request-typed  &  %'POST'  edit-url  `(edit-post-body &)
+        `'application/json; charset=utf-8'
+    ==
+  ;<  caz=(list card)  bind:m  (do-http 'eyre-3' charset)
+  (ex-cards caz (ex-relay moon edit-set ~2024.1.1))
 ::
 ::  the owner's watch and the command poke ride separate ames flows, so the
 ::  poke can win. the offline answer it gets must still reach the watch
@@ -975,13 +1014,21 @@
   ;<  ~  bind:m  setup-owner
   ;<  *  bind:m  (do-edit moon edit-set)
   ;<  *  bind:m  (do-req-wake moon)
+  ::  still kept at ~h2: the bot's own ~h1 expiry plus a sweep period has to
+  ::  fit inside the owner's wait, so its %harness-offline can land
+  ::
   ;<  ~  bind:m  (advance-clock ~h2)
+  ;<  caz=(list card)  bind:m  do-cleanup-wake
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-cleanup-timer (add ~2024.1.1 ~h2))])
+  ;<  reqs=requests:v1:pr  bind:m  got-requests
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by reqs)) !>(1))
+  ;<  ~  bind:m  (advance-clock ~h1)
   ;<  caz=(list card)  bind:m  do-cleanup-wake
   ;<  ~  bind:m
     %+  ex-cards  caz
     :~  (ex-req-leave moon)
         (ex-card %give %kick ~[local-req-path] ~)
-        (ex-cleanup-timer (add ~2024.1.1 ~h2))
+        (ex-cleanup-timer (add ~2024.1.1 ~h3))
     ==
   ;<  reqs=requests:v1:pr  bind:m  got-requests
   (ex-equal !>(reqs) !>(*requests:v1:pr))

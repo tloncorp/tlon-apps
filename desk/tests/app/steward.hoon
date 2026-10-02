@@ -3368,7 +3368,10 @@
   ;<  ~  bind:m  setup
   ;<  caz=(list card)  bind:m
     (do-http 'eyre-1' (http-request & %'GET' '/steward/~/v1/nope' ~))
-  (ex-equal !>((got-logs caz)) !>(~[[%info 'HTTP Error']]))
+  ::  the catch-all 404 is reachable by any scanner, so it is reported at
+  ::  %dbug rather than as a fleet-wide %info event
+  ::
+  (ex-equal !>((got-logs caz)) !>(~[[%dbug 'HTTP Error']]))
 ::
 ::  OWNER-INITIATED RESTART NOTICES + LIVENESS PUBLICATION
 ::  ==========================================================

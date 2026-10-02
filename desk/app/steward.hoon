@@ -570,14 +570,35 @@
   ^-  card
   [%pass /activity %agent [our.bowl %activity] %watch /v5]
 ::
+::  +handle-http: route the shared /steward binding to a module. auth and
+::  the catch-all 404 are route-independent, so they are answered here and
+::  each module sees only its own authenticated routes. both are logged at
+::  %dbug: /steward is a public binding, and a scanner must not turn into
+::  one fleet-wide log event per request
+::
 ++  handle-http
   |=  [eyre-id=@ta =inbound-request:eyre]
   ^+  cor
   =/  =request-line:server
     (parse-request-line:server url.request.inbound-request)
-  ?:  ?=([%steward %~.~ %v1 %automation *] site.request-line)
+  =*  site  site.request-line
+  ?.  authenticated.inbound-request
+    (quiet-http-error eyre-id 401 'unauthorized')
+  ?:  ?=([%steward %~.~ %v1 %automation *] site)
     (au-handle-http:au-core eyre-id inbound-request)
-  (po-handle-http:po-core eyre-id inbound-request)
+  ?:  ?=([%steward %~.~ %v1 %prompts *] site)
+    (po-handle-http:po-core eyre-id inbound-request)
+  (quiet-http-error eyre-id 404 'not found')
+::
+++  quiet-http-error
+  |=  [eyre-id=@ta code=@ud message=@t]
+  ^+  cor
+  =.  cor
+    %:  log-tell  %dbug  'HTTP Error'
+        ~[(cat 3 'http error: ' message)]
+        ~['status'^n+(scot %ud code) 'detail'^s+message]
+    ==
+  (http-error eyre-id code message)
 ::
 ++  give-http
   |=  [eyre-id=@ta code=@ud ct=@t body=@t]
@@ -2049,20 +2070,28 @@
     ^-  log-data:v1:lg
     ~['requestId'^s+(scot %uv rid) key^s+(scot %p who)]
   ::
+  ++  po-prompt-names
+    ^~  %-  silt
+    ^-  (list @t)
+    ~['AGENTS.md' 'SOUL.md' 'TOOLS.md' 'IDENTITY.md' 'USER.md' 'BOOTSTRAP.md']
+  ::
   ++  po-valid-edit
     |=  =edit:v1:sp
     ^-  ?
     ?&  (lte (met 3 text.edit) 65.536)
-        (~(has in (silt ~['AGENTS.md' 'SOUL.md' 'TOOLS.md' 'IDENTITY.md' 'USER.md' 'BOOTSTRAP.md'])) name.edit)
+        (~(has in po-prompt-names) name.edit)
     ==
+  ::
+  ::  the per-file check runs first: it is cheap, and the jam it guards would
+  ::  serialize up to every allowlisted file just to be measured
   ::
   ++  po-valid-files
     |=  files=prompts:v1:sp
     ^-  ?
-    ?&  (lte (met 3 (jam files)) 524.288)
-        %+  levy  ~(tap by files)
+    ?&  %+  levy  ~(tap by files)
         |=  [name=@t text=@t]
         (po-valid-edit [%set name text])
+        (lte (met 3 (jam files)) 524.288)
     ==
   ::
   ++  po-poke-action
@@ -2323,7 +2352,7 @@
     =?  requests.prompts.state
         !(~(has by requests.prompts.state) rid)
       %+  ~(put by requests.prompts.state)  rid
-      [rid bot edit ~ %sending ~ now.bowl ~ |]
+      [rid bot edit ~ %sending ~ ~ |]
     (po-send-edit rid bot edit)
   ::
   ++  po-send-edit
@@ -2452,6 +2481,7 @@
     |=  rid=request-id:v1:sp
     ^+  cor
     ?~  pen=(~(get by pending.prompts.state) rid)  cor
+    ?.  =(src.bowl requester.u.pen)  cor
     ?~  result.u.pen  cor
     %-  give
     :*  %fact  ~  %steward-prompts-response-1
@@ -2566,8 +2596,11 @@
       ?:  (lth now.bowl u.final-at.req)  cor
       =/  age  (sub now.bowl u.final-at.req)
       =/  waiting  ?=([~ %pending *] result.req)
+      ::  a waiting record outlives the bot's own ~h1 command expiry by more
+      ::  than a sweep period, so the bot's %harness-offline can still land
+      ::
       ?.  ?:  waiting
-            (gth age ~h1)
+            (gth age ~h2)
           |(fetched.req (gth age ~d1))
         cor
       =.  requests.prompts.state.cor
@@ -2616,8 +2649,15 @@
     =*  site  site.request-line
     =*  ext   ext.request-line
     =/  method=@tas  method.request.inbound-request
-    ?.  authenticated.inbound-request
-      (po-http-error eyre-id 401 'unauthorized')
+    ::  every POST must declare a JSON body. a cross-site form can only send
+    ::  text/plain, urlencoded or multipart, and eyre's session cookie has no
+    ::  SameSite, so without this a page the owner visits could forge an edit
+    ::  or a finalize; requiring application/json forces a CORS preflight
+    ::
+    ?:  ?&  =(%'POST' method)
+            !(po-json-request inbound-request)
+        ==
+      (po-http-error eyre-id 415 'content-type must be application/json')
     ?:  =(site ~[%steward %~.~ %v1 %prompts])
       ?.  =(%'POST' method)  (po-http-error eyre-id 405 'method not allowed')
       (po-handle-http-edit eyre-id inbound-request)
@@ -2641,6 +2681,13 @@
         (rap 3 i.t.t.t.t.t.site '.' u.ext ~)
       (po-handle-http-get-request eyre-id rid-knot)
     (po-http-error eyre-id 404 'not found')
+  ::
+  ++  po-json-request
+    |=  =inbound-request:eyre
+    ^-  ?
+    =/  ct  (get-header:http 'content-type' header-list.request.inbound-request)
+    ?~  ct  |
+    =(`0 (find "application/json" (cass (trip u.ct))))
   ::
   ::  POST body: { requestId?, bot, action }. malformed input is a 400,
   ::  never a crash. a client-supplied id is honored when it parses;
@@ -2691,7 +2738,7 @@
       (po-give-http-response eyre-id [rid body])
     =.  requests.prompts.state
       %+  ~(put by requests.prompts.state)  rid
-      [rid p.bot-res p.edit-res `eyre-id %sending ~ now.bowl ~ |]
+      [rid p.bot-res p.edit-res `eyre-id %sending ~ ~ |]
     (po-send-edit rid p.bot-res p.edit-res)
   ::
   ++  po-handle-http-get-request
@@ -2722,6 +2769,10 @@
     ^+  cor
     ?~  body.request.inbound-request
       (po-http-error eyre-id 400 'missing body')
+    ::  an outcome is a name or a short error; anything near this is not one
+    ::
+    ?:  (gth p.u.body.request.inbound-request 65.536)
+      (po-http-error eyre-id 413 'request body too large')
     ?~  jon=(de:json:html q.u.body.request.inbound-request)
       (po-http-error eyre-id 400 'invalid json')
     =/  parsed=(each [request-id:v1:sp outcome:v1:sp] tang)

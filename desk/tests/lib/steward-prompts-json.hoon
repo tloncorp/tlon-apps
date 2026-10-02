@@ -56,4 +56,19 @@
       '{"requestId":"0v1","requester":"~zod","action":{"set":{"name":"SOUL.md","text":"hello"}}}'
     !>((parse text))
   !>((dispatch:enjs:pj [0v1 ~zod %set 'SOUL.md' 'hello']))
+::  the enums parse rather than cast: an unknown value is rejected, and a
+::  known one decodes to its term
+::
+++  test-response-body-rejects-unknown-enums
+  ;:  weld
+    %+  expect-eq  !>(%.n)
+    !>  -:(mule |.((response-body:dejs:pj (parse '{"type":"pending","status":"bogus"}'))))
+  ::
+    %+  expect-eq  !>(%.n)
+    !>  -:(mule |.((response-body:dejs:pj (parse '{"type":"error","errorType":"bogus"}'))))
+  ::
+    %+  expect-eq
+      !>(`response-body:v1:p`[%error %harness-offline ~])
+    !>((response-body:dejs:pj (parse '{"type":"error","errorType":"harness-offline"}')))
+  ==
 --
