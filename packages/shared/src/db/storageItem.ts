@@ -13,6 +13,8 @@ export type StorageItemConfig<T> = {
   defaultValue: T;
   isSecure?: boolean;
   persistAfterLogout?: boolean;
+  /** False for DB/install metadata that must survive both session and first-install cleanup. */
+  registerForReset?: boolean;
   /** Set to true to avoid 5mb max size limit in web AsyncStorage */
   isLarge?: boolean;
   serialize?: (value: T) => string;
@@ -177,7 +179,9 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
     config,
   };
 
-  storageItems.push(storageItem);
+  if (config.registerForReset !== false) {
+    storageItems.push(storageItem);
+  }
 
   return storageItem;
 };

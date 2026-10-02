@@ -30,6 +30,7 @@ import {
   ZStack,
   useWebAppSplash,
 } from '@tloncorp/app/ui';
+import { MessageTextSelectionProvider } from '@tloncorp/app/ui/components/ChatMessage/MessageTextSelectionSheet';
 import {
   createDevLogger,
   observeSyncSinceCompletion,
@@ -410,12 +411,14 @@ function AuthenticatedAppContent({
       */}
       <BottomSheetModalProvider>
         <ForwardPostSheetProvider>
-          <ShareIntentForwardSheetProvider enabled>
-            <AuthenticatedApp
-              onLogout={onLogout}
-              requireHostingAuth={requireHostingAuth}
-            />
-          </ShareIntentForwardSheetProvider>
+          <MessageTextSelectionProvider>
+            <ShareIntentForwardSheetProvider enabled>
+              <AuthenticatedApp
+                onLogout={onLogout}
+                requireHostingAuth={requireHostingAuth}
+              />
+            </ShareIntentForwardSheetProvider>
+          </MessageTextSelectionProvider>
         </ForwardPostSheetProvider>
       </BottomSheetModalProvider>
     </AppDataProvider>
