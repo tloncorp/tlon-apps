@@ -31,7 +31,7 @@ packageExtensionsChecksum: sha256-K4eydWmeQNcdzWbHGrjh8w9sCBKxxun5omSxd05+kpE=
 
 patchedDependencies:
   '@10play/tentap-editor': 520c7388382aa0cadd02408de7c832242dbf1d72c9a80de5712a2cddfa88ca41
-  '@expo/ui@57.0.7': d28990397bd04db95f86c89113ea13032e05b5f0832c841094d2ad7a48757e26
+  '@expo/ui@57.0.21': e61b7471826a26461fb11fcbfc0881f8ec4e8d7c354195cb57da3e4df9c47a3b
   '@legendapp/list@3.3.3': fcd44042e1c7883ea1b22893bda269f5e8dc9ee7a5cecfe36315b3d3ac3ca8cf
   '@mattermost/react-native-paste-input@2.0.1': 313cd7a4e43eaaa79e0a2d2c03a592d1814b7ca83b5f8d6fec9c4603c4ac323d
   '@react-navigation/bottom-tabs@7.18.14': 6c92d56c83cbda5c10b90545c24763ce3cf82aa05beea645706269314a1d52b0
@@ -145,8 +145,8 @@ importers:
         specifier: ^0.4.0
         version: 0.4.0(@tanstack/react-query@5.32.1(react@19.2.3))(expo@57.0.26(ce190d4e93323ec8c151615fd878b5e9))(react@19.2.3)
       '@expo/ui':
-        specifier: 57.0.7
-        version: 57.0.7(patch_hash=d28990397bd04db95f86c89113ea13032e05b5f0832c841094d2ad7a48757e26)(@babel/core@7.29.0)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(expo@57.0.26(ce190d4e93323ec8c151615fd878b5e9))(react-dom@19.2.3(react@19.2.3))(react-native-worklets@0.10.3(patch_hash=493073c3d3dffc3a19003c8bb99960497eb1d81f29e6dc25068c4b85a86c312e)(@babel/core@7.29.0)(@react-native/metro-config@0.86.3)(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+        specifier: 57.0.21
+        version: 57.0.21(patch_hash=e61b7471826a26461fb11fcbfc0881f8ec4e8d7c354195cb57da3e4df9c47a3b)(@babel/core@7.29.0)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(expo@57.0.26(ce190d4e93323ec8c151615fd878b5e9))(react-dom@19.2.3(react@19.2.3))(react-native-worklets@0.10.3(patch_hash=493073c3d3dffc3a19003c8bb99960497eb1d81f29e6dc25068c4b85a86c312e)(@babel/core@7.29.0)(@react-native/metro-config@0.86.3)(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       '@google-cloud/recaptcha-enterprise-react-native':
         specifier: ~18.8.2
         version: 18.8.2(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
@@ -2860,8 +2860,8 @@ packages:
   '@expo/sudo-prompt@9.3.2':
     resolution: {integrity: sha512-HHQigo3rQWKMDzYDLkubN5WQOYXJJE2eNqIQC2axC2iO3mHdwnIR7FgZVvHWtBwAdzBgAP0ECp8KqS8TiMKvgw==}
 
-  '@expo/ui@57.0.7':
-    resolution: {integrity: sha512-WqRVabl8VpHf3+YLHVjUy7PMIuXXI6DG88Vgmavro7Nd8Ks13h9sEJH/RLSCaJE2daVnqzEKY1v797BibuY9aw==}
+  '@expo/ui@57.0.21':
+    resolution: {integrity: sha512-4s1ypGNxJhJv2r1fj3wZo4Aubao0zGnCajCuiaTp8pTNrT+1vR8KvyoFEwp+c7gpKm2D58nGCiGBXhEnmKHtDQ==}
     peerDependencies:
       '@babel/core': '*'
       expo: '*'
@@ -16276,7 +16276,7 @@ snapshots:
 
   '@expo/sudo-prompt@9.3.2': {}
 
-  '@expo/ui@57.0.7(patch_hash=d28990397bd04db95f86c89113ea13032e05b5f0832c841094d2ad7a48757e26)(@babel/core@7.29.0)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(expo@57.0.26(ce190d4e93323ec8c151615fd878b5e9))(react-dom@19.2.3(react@19.2.3))(react-native-worklets@0.10.3(patch_hash=493073c3d3dffc3a19003c8bb99960497eb1d81f29e6dc25068c4b85a86c312e)(@babel/core@7.29.0)(@react-native/metro-config@0.86.3)(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)':
+  '@expo/ui@57.0.21(patch_hash=e61b7471826a26461fb11fcbfc0881f8ec4e8d7c354195cb57da3e4df9c47a3b)(@babel/core@7.29.0)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(expo@57.0.26(ce190d4e93323ec8c151615fd878b5e9))(react-dom@19.2.3(react@19.2.3))(react-native-worklets@0.10.3(patch_hash=493073c3d3dffc3a19003c8bb99960497eb1d81f29e6dc25068c4b85a86c312e)(@babel/core@7.29.0)(@react-native/metro-config@0.86.3)(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)':
     dependencies:
       expo: 57.0.26(ce190d4e93323ec8c151615fd878b5e9)
       react: 19.2.3

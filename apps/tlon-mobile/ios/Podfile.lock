@@ -308,7 +308,7 @@ PODS:
   - ExpoTaskManager (57.0.21):
     - ExpoModulesCore
     - UMAppLoader
-  - ExpoUI (57.0.7):
+  - ExpoUI (57.0.21):
     - ExpoModulesCore
     - ExpoModulesWorklets
     - React-RCTFabric
@@ -3486,7 +3486,7 @@ SPEC CHECKSUMS:
   ExpoSpeechRecognition: 119acf84448579e53f841d040aad76982f945e2d
   ExpoSplashScreen: e771da4f26d550ea4fd067d8fb942657e47bb846
   ExpoTaskManager: ede265f5b4a6e075b422eb4d45c8cb393b0dc465
-  ExpoUI: 19f2ca6e82d91240530ee9762dedccc31fc6f429
+  ExpoUI: 9cc4762adb625c875850b69a66451dd9c6bb7767
   ExpoVideo: 31d5dc617d913808aeba05c3ab900712637b0e47
   ExpoWebBrowser: a4d7c382116fbe33c1ec7f60293f02b7e97042e4
   EXUpdatesInterface: 4c96533f11c8cefe879bd506564cc2d537f56804

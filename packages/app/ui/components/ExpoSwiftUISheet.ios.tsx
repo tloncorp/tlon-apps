@@ -114,7 +114,6 @@ export function ExpoSwiftUISheet({
           <Host style={{ position: 'absolute', width }} pointerEvents="none">
             <BottomSheet
               isPresented={open}
-              contentInteraction="resizes"
               onDismiss={onDismiss}
               onIsPresentedChange={(presented) => {
                 if (!presented) {

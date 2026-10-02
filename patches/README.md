@@ -162,41 +162,55 @@ Removal:
 Drop these hunks if react-native-screens gains native badge styling that can
 draw a small dot beneath the icon, or if the tab bar stops using blank badges.
 
-## @expo/ui@57.0.7
+## @expo/ui@57.0.21
 
 Local patch:
-`patches/@expo__ui@57.0.7.patch`
+`patches/@expo__ui@57.0.21.patch`
 
 Why:
-Tlon's native action sheets need animated custom-height detent selection. Expo
-UI 57 exposes iOS detent selection but does not animate programmatic selection
-changes, and its Android community adapter expands every single snap point to
-full height instead of preserving the requested percentage.
+The shared mobile sheets present through Expo UI's `community/bottom-sheet`
+adapter. Stock Expo UI 57 has no close control on its iOS sheet, reports
+`onDismiss` on iOS in the same call as `onClose`, expands every single Android
+snap point to full height, ignores `enableContentPanningGesture`, and unmounts
+an Android sheet closed through its `index` prop without waiting for the hide
+animation.
+
+Only the close control is native code (`ios/BottomSheetView.swift`). The rest
+is JavaScript in `src/community/bottom-sheet`.
 
 What it does:
-- Adds animation duration to Expo UI's SwiftUI `presentationDetents` modifier
-  while preserving native user-driven detent selection.
-- Adds the native close control, hides the drag indicator and uses the system
-  material for the outer sheet canvas. Dismissible generic content reserves the
-  close control's header area inside its measured height so inputs cannot sit
-  beneath its hit target; non-dismissible sheets omit the close control.
-- Sizes a single Android percentage or point snap to its requested total height,
-  including Material's native drag-handle area, while keeping native presentation
-  and dismissal behavior.
+- iOS: adds a `showCloseButton` prop that draws a native close control in the
+  sheet's top-trailing corner and hides the drag indicator. Dismissible generic
+  content reserves the control's header area inside its measured height so
+  inputs cannot sit beneath its hit target; non-dismissible sheets omit it.
+- iOS: `onClose` and `onChange(-1)` fire when the sheet starts closing, and
+  `onDismiss` fires from SwiftUI's own `onDismiss`, after the transition ends.
+  Follow-up presentations wait for `onDismiss`.
+- Android: sizes a single percentage or point snap to its requested total
+  height, including Material's drag-handle area.
+- Android: `enableContentPanningGesture={false}` disables sheet gestures so
+  nested content owns vertical pans. Back and scrim still dismiss.
+- Android: a close driven by `index` or `close()` awaits Compose's `hide()`
+  before unmounting, then fires `onDismiss`. A remount key rejects callbacks
+  from an earlier presentation.
 
 Validation:
 - Build the iOS preview app from source.
-- Open Chat Options, switch between its notifications and sorting panes, and
-  confirm the sheet height animates in both directions.
-- Confirm the close control aligns with the header and the sheet can be
+- Open Chat Options and a generic sheet (for example the attachment sheet).
+  Confirm the close control aligns with the header, and that each sheet can be
   dismissed and reopened repeatedly in light and dark mode.
+- From the attachment sheet, pick "Photo Library". The picker must appear after
+  the sheet has gone.
 - Build the Android preview app, open sheets with 60%, 70%, 80%, 85% and 90%
   snap points, and confirm each opens at the requested height rather than full
-  screen.
+  screen. Close one with the back button and confirm it animates out.
 
 Removal:
-Drop the patch once Expo UI exposes equivalent controlled-detent animation,
-sheet chrome configuration and single-snap Android sizing upstream.
+Drop the patch once Expo UI exposes sheet chrome configuration, a dismissal
+callback separate from `onClose`, single-snap Android sizing and
+`enableContentPanningGesture` upstream. Expo UI 57.0.21 already defers its iOS
+close callbacks to native dismissal, but fires them together, so the shared
+dismissal hook cannot tell "closing" from "dismissed" without this patch.
 
 ## @10play/tentap-editor@0.5.21
 

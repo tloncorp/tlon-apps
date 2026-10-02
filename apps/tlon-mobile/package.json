@@ -69,7 +69,7 @@
     "@dev-plugins/async-storage": "^0.4.0",
     "@dev-plugins/react-navigation": "^0.4.0",
     "@dev-plugins/react-query": "^0.4.0",
-    "@expo/ui": "57.0.7",
+    "@expo/ui": "57.0.21",
     "@google-cloud/recaptcha-enterprise-react-native": "~18.8.2",
     "@mattermost/react-native-paste-input": "2.0.1",
     "@op-engineering/op-sqlite": "15.2.5",

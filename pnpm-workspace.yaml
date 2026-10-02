@@ -54,7 +54,7 @@ patchedDependencies:
   react-native@0.86.3: patches/react-native@0.86.3.patch
   react-native-worklets@0.10.3: patches/react-native-worklets@0.10.3.patch
   '@legendapp/list@3.3.3': patches/@legendapp__list@3.3.3.patch
-  '@expo/ui@57.0.7': patches/@expo__ui@57.0.7.patch
+  '@expo/ui@57.0.21': patches/@expo__ui@57.0.21.patch
 
 allowUnusedPatches: false
 
