@@ -17,9 +17,12 @@ import { refreshHostingAuth } from './hostingAuth';
 
 const logger = createDevLogger('backgroundSync', true);
 
-// Wall-clock and well inside WorkManager's 10 min budget: Android schedules
-// the next run only once this task returns, so a hung wait would strand it.
-const DB_READY_TIMEOUT_MS = 30_000;
+// Wall-clock. A hung wait would strand the task, and Android schedules the
+// next run only once this one returns. iOS runs it as an app-refresh task with
+// about 30 s in total, so the bound leaves headroom for abandonDbInit, the
+// capped telemetry flush and the return before iOS expires the task. Android's
+// WorkManager budget is far larger and is not the constraint.
+export const DB_READY_TIMEOUT_MS = 20_000;
 
 async function waitForDbReady(): Promise<'ready' | 'timeout'> {
   let timer: ReturnType<typeof setTimeout> | undefined;

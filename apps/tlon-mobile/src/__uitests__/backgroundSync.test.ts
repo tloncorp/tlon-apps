@@ -12,7 +12,10 @@ import { createDevLogger, syncSince } from '@tloncorp/shared';
 import { storage, type ShipInfo } from '@tloncorp/shared/db';
 import * as TaskManager from 'expo-task-manager';
 
-import { initializeBackgroundSync } from '../lib/backgroundSync';
+import {
+  DB_READY_TIMEOUT_MS,
+  initializeBackgroundSync,
+} from '../lib/backgroundSync';
 import { refreshHostingAuth } from '../lib/hostingAuth';
 
 jest.mock('@tloncorp/app/hooks/useConfigureUrbitClient', () => ({
@@ -221,7 +224,7 @@ describe('background sync database readiness bound', () => {
       order.push(`resolved:${result}`);
     });
 
-    await jest.advanceTimersByTimeAsync(29_999);
+    await jest.advanceTimersByTimeAsync(DB_READY_TIMEOUT_MS - 1);
     expect(outcome).toBe('pending');
     expect(nativeDb.abandonDbInit).not.toHaveBeenCalled();
 
@@ -232,7 +235,7 @@ describe('background sync database readiness bound', () => {
     expect(nativeDb.abandonDbInit).toHaveBeenCalledTimes(1);
     expect(logger.trackError).toHaveBeenCalledWith('Background sync failed', {
       context: 'db readiness timed out',
-      timeoutMs: 30_000,
+      timeoutMs: DB_READY_TIMEOUT_MS,
       abandonOutcome: 'setup-owns-connection',
     });
     expect(refreshHostingAuth).not.toHaveBeenCalled();
