@@ -11,6 +11,10 @@ import {
   useMigrations as useMigrationsBase,
 } from './baseDb';
 import {
+  type ForegroundTimeout,
+  startForegroundTimeout,
+} from './foregroundTimeout';
+import {
   getNativeCacheGeneration,
   NativeCacheGeneration,
 } from './nativeCacheGeneration';
@@ -566,6 +570,8 @@ export class NativeDb extends BaseDb {
       throw error;
     }
 
+    // Foreground time only, so a suspension mid-migration doesn't count
+    // against it.
     const MIGRATION_TIMEOUT = 5000; // 5 seconds
     const runMigrationAttempt = async (
       timeoutMessage: string,
@@ -584,12 +590,19 @@ export class NativeDb extends BaseDb {
         migrationPhase,
       });
 
-      await Promise.race([
-        this.connection.migrateClient(this.client),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error(timeoutMessage)), MIGRATION_TIMEOUT)
-        ),
-      ]);
+      let timeout: ForegroundTimeout | undefined;
+      try {
+        await Promise.race([
+          this.connection.migrateClient(this.client),
+          new Promise((_, reject) => {
+            timeout = startForegroundTimeout(MIGRATION_TIMEOUT, () =>
+              reject(new Error(timeoutMessage))
+            );
+          }),
+        ]);
+      } finally {
+        timeout?.cancel();
+      }
 
       // Rechecked after every await from here on, not just once: the deadline
       // can land in any of these gaps, and past this point `this.connection`
