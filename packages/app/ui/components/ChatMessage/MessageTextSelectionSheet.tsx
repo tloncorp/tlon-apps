@@ -45,6 +45,8 @@ export function MessageTextSelectionProvider({ children }: PropsWithChildren) {
     useSheetDismissalAction({
       open,
       onOpenChange: setOpen,
+      // The sheet forces `mode="sheet"`, so it is native on wide windows too.
+      waitForDismissal: Platform.OS !== 'web',
     });
   const show = useCallback(
     (post: db.Post, text: string) => {
