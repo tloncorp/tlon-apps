@@ -137,7 +137,7 @@ Chats, Notebooks and Galleries are all legible to Tlonbots, so your agent can re
 
 ### Make a group
 
-On a phone with a Tlonbot, tap the plus icon at the top right of the Workspaces tab, then `New Workspace`. That makes a group with your bot already in it and opens its chat. You can also ask your bot to make one for you: it invites you and makes you an admin. The steps below are the `New group` flow, which the create menu offers on desktop and to accounts without a bot.
+On a phone with a hosted Tlonbot, tap the plus icon at the top right of the Workspaces tab, then `New Workspace`. That makes a group with your bot already in it and opens its chat. You can also ask your bot to make one for you: it invites you and makes you an admin. The steps below are the `New group` flow, which the create menu offers on desktop and to accounts without a hosted bot (a self-hosted OpenClaw bot doesn't get `New Workspace`).
 
 1. From the Home screen, tap the plus icon at the top right of the navigation bar.  
 2. Tap `New group`.  
