@@ -2100,21 +2100,8 @@
     ?>  =(src.bowl our.bowl)
     ?-  -.action
         %project
-      =/  projected  prompts.action
-      ?>  (po-valid-files projected)
-      ::  .old reads absent-as-empty for the diff; .had keeps the
-      ::  absent/empty distinction for the no-op and creation checks
-      ::
-      =/  old  (~(gut by files.prompts.state) our.bowl *prompts:v1:sp)
-      =/  had  (~(has by files.prompts.state) our.bowl)
-      ?:  &(=(projected old) had)  cor
-      =.  files.prompts.state
-        (~(put by files.prompts.state) our.bowl projected)
-      ::  entry creation is inexpressible as file deltas: the first
-      ::  accepted projection goes out as a full snapshot instead
-      ::
-      ?.  had  po-give-snapshot
-      (po-give-deltas our.bowl old projected)
+      ?>  (po-valid-files prompts.action)
+      (po-project prompts.action)
     ::
         %edit
       ?>  (po-bot-editable bot.action)
@@ -2123,6 +2110,27 @@
         %finalize
       (po-handle-finalize [request-id body]:action)
     ==
+  ::
+  ::  +po-project: store a validated projection of the local workspace.
+  ::  callers validate first: the poke crashes on invalid input, the HTTP
+  ::  route answers 400
+  ::
+  ++  po-project
+    |=  projected=prompts:v1:sp
+    ^+  cor
+    ::  .old reads absent-as-empty for the diff; .had keeps the
+    ::  absent/empty distinction for the no-op and creation checks
+    ::
+    =/  old  (~(gut by files.prompts.state) our.bowl *prompts:v1:sp)
+    =/  had  (~(has by files.prompts.state) our.bowl)
+    ?:  &(=(projected old) had)  cor
+    =.  files.prompts.state
+      (~(put by files.prompts.state) our.bowl projected)
+    ::  entry creation is inexpressible as file deltas: the first
+    ::  accepted projection goes out as a full snapshot instead
+    ::
+    ?.  had  po-give-snapshot
+    (po-give-deltas our.bowl old projected)
   ::
   ++  po-watch-files
     ^+  cor
@@ -2671,6 +2679,13 @@
     ?:  =(site ~[%steward %~.~ %v1 %prompts %finalize])
       ?.  =(%'POST' method)  (po-http-error eyre-id 405 'method not allowed')
       (po-handle-http-finalize eyre-id inbound-request)
+    ::  the harness projects here (bot side) for the same reason: the reply
+    ::  confirms the projection was stored or rejected, where a rejected
+    ::  channel poke is only a log line
+    ::
+    ?:  =(site ~[%steward %~.~ %v1 %prompts %project])
+      ?.  =(%'POST' method)  (po-http-error eyre-id 405 'method not allowed')
+      (po-handle-http-project eyre-id inbound-request)
     ?:  ?=([%steward %~.~ %v1 %prompts %request @ ~] site)
       ?.  =(%'GET' method)  (po-http-error eyre-id 405 'method not allowed')
       ::  a @uv carries dots; apat split its last dot-group off as a
@@ -2810,6 +2825,31 @@
           ~['status'^n+(scot %ud code) 'detail'^s+message]
       ==
     (http-error eyre-id code message)
+  ::
+  ::  POST body: the %project action's own JSON, { project: { name: text } }.
+  ::  a wrapper over the poke: same decode, same arm, but an invalid
+  ::  projection is a 400 rather than a crash. six files of 64 KiB, with
+  ::  JSON escaping, fit well inside the 1 MiB cap
+  ::
+  ++  po-handle-http-project
+    |=  [eyre-id=@ta =inbound-request:eyre]
+    ^+  cor
+    ?~  body.request.inbound-request
+      (po-http-error eyre-id 400 'missing body')
+    ?:  (gth p.u.body.request.inbound-request 1.048.576)
+      (po-http-error eyre-id 413 'request body too large')
+    ?~  jon=(de:json:html q.u.body.request.inbound-request)
+      (po-http-error eyre-id 400 'invalid json')
+    =/  parsed=(each action:v1:sp tang)
+      (mule |.((action:dejs:pj u.jon)))
+    ?.  ?=([%& %project *] parsed)
+      (po-http-error eyre-id 400 'malformed projection')
+    =*  projected  prompts.p.parsed
+    ?.  (po-valid-files projected)
+      (po-http-error eyre-id 400 'unsupported file or oversized text')
+    =.  cor  (po-project projected)
+    %^  give-http  eyre-id  200
+    ['application/json' (en:json:html (frond:enjs:format 'projected' b+&))]
   ::
   ++  po-give-http-response
     |=  [eyre-id=@ta =response:v1:sp]

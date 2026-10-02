@@ -193,6 +193,11 @@
   (en:json:html (response:enjs:pj [rid body]))
 ++  edit-url  ^-  @t  '/steward/~/v1/prompts'
 ++  finalize-url  ^-  @t  '/steward/~/v1/prompts/finalize'
+++  project-url  ^-  @t  '/steward/~/v1/prompts/project'
+++  project-post-body
+  |=  files=prompts:v1:pr
+  ^-  @t
+  (en:json:html (action:enjs:pj [%project files]))
 ++  request-url
   ^-  @t
   (crip "/steward/~/v1/prompts/request/{(scow %uv rid)}")
@@ -427,6 +432,51 @@
   =/  expected=pending-command:v1:pr
     [rid ~bus edit-set ~2024.1.1 `[%error %harness-offline ~]]
   (ex-equal !>((~(get by pen) rid)) !>(`expected))
+::
+::  the harness projects over HTTP so the reply confirms the projection
+::  landed; the route wraps the %project poke, sharing its decode and arm
+::
+++  test-prompts-http-project-stores-and-answers
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    %+  do-http  'eyre-1'
+    (http-request & %'POST' project-url `(project-post-body files))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    %+  weld
+      :~  %^  ex-fact  ~[/v1/prompts/files]  %steward-prompts-update-1
+          !>(`update:v1:pr`[%files (my ~[[~dev files]])])
+      ==
+    (ex-http 'eyre-1' 200 'application/json' '{"projected":true}')
+  ;<  st=state-5  bind:m  got-state
+  (ex-equal !>((~(get by files.prompts.st) ~dev)) !>(`files))
+::
+::  an invalid projection is a 400, not the poke's crash, and stores nothing
+::
+++  test-prompts-http-project-rejects-invalid
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    %+  do-http  'eyre-1'
+    (http-request & %'POST' project-url `(project-post-body (my ~[['MEMORY.md' 'x']])))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    (ex-http 'eyre-1' 400 'text/plain' 'unsupported file or oversized text')
+  ;<  caz=(list card)  bind:m
+    (do-http 'eyre-2' (http-request & %'POST' project-url `'{"edit":{}}'))
+  ;<  ~  bind:m
+    (ex-cards caz (ex-http 'eyre-2' 400 'text/plain' 'malformed projection'))
+  ;<  caz=(list card)  bind:m
+    (do-http 'eyre-3' (http-request & %'GET' project-url ~))
+  ;<  ~  bind:m
+    (ex-cards caz (ex-http 'eyre-3' 405 'text/plain' 'method not allowed'))
+  ;<  st=state-5  bind:m  got-state
+  (ex-equal !>(files.prompts.st) !>(*(map ship prompts:v1:pr)))
 ::
 ::  a cross-site form can send only text/plain, urlencoded or multipart, so
 ::  every POST must declare JSON. a charset parameter is still JSON
