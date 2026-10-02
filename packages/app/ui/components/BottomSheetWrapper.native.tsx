@@ -141,6 +141,9 @@ export const BottomSheetWrapper = forwardRef<
       () => ({
         ...(enableDynamicSizing ? null : { flex: 1 }),
         backgroundColor: theme.background.val,
+        // The native host does not clip, so a list taller than the sheet
+        // would otherwise show through below a footer on iOS.
+        overflow: 'hidden' as const,
       }),
       [enableDynamicSizing, theme.background.val]
     );

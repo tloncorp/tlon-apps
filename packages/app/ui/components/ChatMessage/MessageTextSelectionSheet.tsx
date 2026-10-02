@@ -150,20 +150,23 @@ export function MessageTextSelectionSheet({
         <Text size="$label/2xl" accessibilityRole="header">
           Select text
         </Text>
-        <Pressable
-          position="absolute"
-          right="$m"
-          width={44}
-          height={44}
-          alignItems="center"
-          justifyContent="center"
-          accessibilityRole="button"
-          accessibilityLabel="Close text selection"
-          onPress={() => onOpenChange(false)}
-          testID="CloseTextSelection"
-        >
-          <Icon type="Close" size="$m" color="$secondaryText" />
-        </Pressable>
+        {/* The iOS sheet already draws its own close button. */}
+        {Platform.OS !== 'ios' ? (
+          <Pressable
+            position="absolute"
+            right="$m"
+            width={44}
+            height={44}
+            alignItems="center"
+            justifyContent="center"
+            accessibilityRole="button"
+            accessibilityLabel="Close text selection"
+            onPress={() => onOpenChange(false)}
+            testID="CloseTextSelection"
+          >
+            <Icon type="Close" size="$m" color="$secondaryText" />
+          </Pressable>
+        ) : null}
       </XStack>
       <ActionSheet.ScrollableContent>
         <XStack
