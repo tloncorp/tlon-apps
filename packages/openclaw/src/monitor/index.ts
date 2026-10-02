@@ -137,7 +137,12 @@ import {
   getTlonVersionIdentity,
   resolveTlonSkillVersion,
 } from '../version.js';
-import { createActivityReadTracker, dmReadTarget } from './activity-read.js';
+import {
+  channelReadKey,
+  createActivityReadTracker,
+  dmReadKey,
+  dmReadTarget,
+} from './activity-read.js';
 import {
   RESTART_REPLAY_WINDOW_MS,
   collectMissedMessages,
@@ -338,8 +343,8 @@ export type MonitorTlonOpts = {
   abortSignal?: AbortSignal;
   accountId?: string | null;
   onReady?: (connection: RestartCatchupConnection) => void;
-  /** Resolves when restart catch-up is over; activity reads wait for it.
-   * Absent means there is no catch-up to wait for. */
+  /** Resolves when restart catch-up is over; any activity reads replay has
+   * not released are released then. Absent means there is no catch-up. */
   activityReadsReady?: Promise<void>;
   /**
    * Channel-start config snapshot (the gateway adapter's `ctx.cfg`), used
@@ -941,10 +946,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       markRead: (target) =>
         inApiScope(() => readChannel({ ...target, deep: true })),
       isStopping: () => Boolean(opts.abortSignal?.aborted),
-      ready: opts.activityReadsReady ?? Promise.resolve(),
       onError: (error) =>
         runtime.log?.(`[tlon] Failed to mark activity read: ${String(error)}`),
     });
+    // Replay releases sources as it covers them; once catch-up is over for any
+    // reason (no catch-up, skipped, replay failed, finished), release the rest.
+    void (opts.activityReadsReady ?? Promise.resolve()).then(() =>
+      activityReads.releaseAll()
+    );
     // A channel read needs the channel's group. The startup init scry can fail
     // and, with discovery off, nothing retries it; refresh the mapping (at
     // most once a minute, one at a time) when an unmapped channel needs it.
@@ -4348,13 +4357,16 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           return;
         }
         if (!channelToGroup.has(nest)) void refreshChannelGroups();
-        endActivityRead = activityReads.begin(`channel/${nest}`, async () => {
-          if (!channelToGroup.has(nest)) await refreshChannelGroups();
-          const groupId = channelToGroup.get(nest);
-          return groupId
-            ? { channelId: nest, channelType: 'chat', groupId }
-            : null;
-        });
+        endActivityRead = activityReads.begin(
+          channelReadKey(nest),
+          async () => {
+            if (!channelToGroup.has(nest)) await refreshChannelGroups();
+            const groupId = channelToGroup.get(nest);
+            return groupId
+              ? { channelId: nest, channelType: 'chat', groupId }
+              : null;
+          }
+        );
 
         const senderShip = normalizeShip(extractAuthorShip(content?.author));
         if (!senderShip) {
@@ -4994,7 +5006,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         if (!processedTracker.mark(effectiveMessageId)) {
           return;
         }
-        endActivityRead = activityReads.begin(`dm/${whom}`, () =>
+        endActivityRead = activityReads.begin(dmReadKey(whom), () =>
           dmReadTarget(whom)
         );
 
@@ -6194,15 +6206,34 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           replayMissedMessages: async (signal) => {
             // Changes are keyed by the ship's receipt time; the window is
             // generous enough that clock skew against this host doesn't matter.
-            // One scry, so posts and their unread summaries agree.
-            const changes = await inApiScope(() =>
-              scryChangesSince(Date.now() - RESTART_REPLAY_WINDOW_MS)
-            );
+            // One scry, so posts and their unread summaries agree. Retried:
+            // until it succeeds every source's read stays gated.
+            const since = Date.now() - RESTART_REPLAY_WINDOW_MS;
+            let changes: Awaited<ReturnType<typeof scryChangesSince>>;
+            for (let attempt = 1; ; attempt += 1) {
+              try {
+                changes = await inApiScope(() => scryChangesSince(since));
+                break;
+              } catch (error) {
+                if (attempt >= 3 || signal.aborted) throw error;
+                await new Promise((resolve) =>
+                  setTimeout(resolve, 2_000 * attempt)
+                );
+                signal.throwIfAborted();
+              }
+            }
             signal.throwIfAborted();
             const missed = collectMissedMessages(
               changes,
               toClientUnreads(changes.activity)
             );
+            // Sources without backlog have nothing to protect; each backlog
+            // source opens once its last replayed message is done.
+            const remaining = new Map<string, number>();
+            for (const item of missed) {
+              remaining.set(item.key, (remaining.get(item.key) ?? 0) + 1);
+            }
+            activityReads.releaseExcept(remaining.keys());
             runtime.log?.(
               `[tlon] Restart replay: ${missed.length} unread message(s) from the last ${RESTART_REPLAY_WINDOW_MS / 60_000} minutes`
             );
@@ -6219,6 +6250,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   item.event as unknown as ChatFirehoseEvent
                 );
               }
+              const left = (remaining.get(item.key) ?? 1) - 1;
+              remaining.set(item.key, left);
+              if (left === 0) activityReads.release(item.key);
             }
           },
           establishActivityReadBaseline: async (signal) => {

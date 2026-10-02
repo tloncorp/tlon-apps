@@ -238,6 +238,7 @@ describe('restart replay', () => {
     );
 
     expect(items.map((i) => i.kind)).toEqual(['chat', 'channel']);
+    expect(items.map((i) => i.key)).toEqual(['dm/~bus', `channel/${NEST}`]);
   });
 
   it('ignores tombstones and deleted channels', () => {

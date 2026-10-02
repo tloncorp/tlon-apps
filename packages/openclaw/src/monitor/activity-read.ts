@@ -10,11 +10,18 @@
  * no other message from that source is still being handled. Turns that fail,
  * or that a graceful shutdown cuts short, leave the source unread.
  *
- * A whole-source read is only safe when the plugin has seen everything below
+ * A whole-source read is only safe once the plugin has seen everything below
  * the floor it sets. Right after a restart it hasn't: the messages that arrived
- * while the gateway was down are exactly what replay is looking for. So reads
- * wait for `ready` (restart catch-up has finished) and then flush.
+ * while the gateway was down are what replay is looking for. So reads start
+ * gated. Replay opens the gate for every source without backlog as soon as it
+ * has its snapshot, and for each backlog source once its last replayed message
+ * is done. `releaseAll` (catch-up over, replay failed) and a hard cap make
+ * sure a hold never outlasts startup. Holding only defers the read pokes;
+ * messages are handled live throughout.
  */
+
+/** Longest reads stay gated after monitor start, whatever replay is doing. */
+export const ACTIVITY_READ_HOLD_MAX_MS = 3 * 60 * 1000;
 
 /** What `readChannel` needs to address a channel or DM. */
 export interface ActivityReadTarget {
@@ -22,6 +29,10 @@ export interface ActivityReadTarget {
   channelType: 'chat' | 'dm' | 'groupDm';
   groupId?: string | null;
 }
+
+/** Tracker keys, shared by the firehose handlers and replay. */
+export const channelReadKey = (nest: string) => `channel/${nest}`;
+export const dmReadKey = (whom: string) => `dm/${whom}`;
 
 export function dmReadTarget(whom: string): ActivityReadTarget {
   return {
@@ -39,15 +50,16 @@ export function createActivityReadTracker(deps: {
   /** Marks the target (and its threads) read; retries are its concern. */
   markRead: (target: ActivityReadTarget) => Promise<unknown>;
   isStopping: () => boolean;
-  /** Resolves once restart catch-up is done; reads are held until then. */
-  ready: Promise<void>;
   onError?: (error: unknown, target: ActivityReadTarget | null) => void;
+  holdMaxMs?: number;
 }) {
   const inFlight = new Map<string, { count: number; failed: boolean }>();
-  // Sources that went idle before `ready`. A source is never both held and in
+  // Sources that went idle while gated. A source is never both held and in
   // flight: a new message clears its held entry, and marks it when it ends.
   const held = new Map<string, ResolveTarget>();
-  let isReady = false;
+  // null: everything is gated. Otherwise only these keys still are.
+  let gated: Set<string> | null = null;
+  const isGated = (key: string) => gated === null || gated.has(key);
 
   const send = async (resolve: ResolveTarget) => {
     let target: ActivityReadTarget | null = null;
@@ -60,12 +72,35 @@ export function createActivityReadTracker(deps: {
     }
   };
 
-  void deps.ready.then(() => {
-    isReady = true;
-    const pending = [...held.values()];
-    held.clear();
-    for (const resolve of pending) void send(resolve);
-  });
+  const flush = () => {
+    for (const [key, resolve] of held) {
+      if (isGated(key)) continue;
+      held.delete(key);
+      if (!deps.isStopping()) void send(resolve);
+    }
+  };
+
+  /** Open the gate for every source except those with replay backlog. */
+  const releaseExcept = (backlog: Iterable<string>) => {
+    gated = new Set(gated === null ? backlog : [...backlog].filter(isGated));
+    flush();
+  };
+  /** Open the gate for one backlog source, once replay is done with it. */
+  const release = (key: string) => {
+    if (gated === null) return;
+    gated.delete(key);
+    flush();
+  };
+  const releaseAll = () => {
+    gated = new Set();
+    flush();
+  };
+
+  const cap = setTimeout(
+    releaseAll,
+    deps.holdMaxMs ?? ACTIVITY_READ_HOLD_MAX_MS
+  );
+  cap.unref?.();
 
   /**
    * Call when the plugin accepts a new message. `key` names its channel or
@@ -90,7 +125,7 @@ export function createActivityReadTracker(deps: {
       if (entry.count > 0) return;
       inFlight.delete(key);
       if (entry.failed || deps.isStopping()) return;
-      if (!isReady) {
+      if (isGated(key)) {
         held.set(key, resolveTarget);
         return;
       }
@@ -98,5 +133,5 @@ export function createActivityReadTracker(deps: {
     };
   };
 
-  return { begin };
+  return { begin, releaseExcept, release, releaseAll };
 }

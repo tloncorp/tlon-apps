@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  ACTIVITY_READ_HOLD_MAX_MS,
   type ActivityReadTarget,
   createActivityReadTracker,
   dmReadTarget,
@@ -20,10 +21,11 @@ function deferred<T = void>() {
   return { promise, resolve };
 }
 
+/** `gated` leaves the startup gate closed; by default it is opened. */
 function makeTracker(
   options: {
     stopping?: () => boolean;
-    ready?: Promise<void>;
+    gated?: boolean;
     markRead?: (target: ActivityReadTarget) => Promise<unknown>;
   } = {}
 ) {
@@ -32,11 +34,15 @@ function makeTracker(
   const tracker = createActivityReadTracker({
     markRead,
     isStopping: options.stopping ?? (() => false),
-    ready: options.ready ?? Promise.resolve(),
     onError,
   });
+  if (!options.gated) tracker.releaseAll();
   return { markRead, onError, tracker };
 }
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('activity read tracker', () => {
   it('marks the source read once the message is handled', async () => {
@@ -79,9 +85,8 @@ describe('activity read tracker', () => {
     expect(markRead).toHaveBeenCalledTimes(2);
   });
 
-  it('holds reads until catch-up is done, then flushes each source once', async () => {
-    const ready = deferred();
-    const { markRead, tracker } = makeTracker({ ready: ready.promise });
+  it('holds reads until released, then flushes each source once', async () => {
+    const { markRead, tracker } = makeTracker({ gated: true });
 
     tracker.begin('c', channel)();
     tracker.begin('c', channel)();
@@ -89,18 +94,59 @@ describe('activity read tracker', () => {
     await flush();
     expect(markRead).not.toHaveBeenCalled();
 
-    ready.resolve();
+    tracker.releaseAll();
     await flush();
     expect(markRead).toHaveBeenCalledTimes(2);
   });
 
+  it('opens sources without replay backlog first, and each backlog source on release', async () => {
+    const { markRead, tracker } = makeTracker({ gated: true });
+
+    tracker.begin('c', channel)();
+    tracker.begin('dm/~bus', () => dmReadTarget('~bus'))();
+    tracker.releaseExcept(['dm/~bus']);
+    await flush();
+    expect(markRead).toHaveBeenCalledExactlyOnceWith(CHANNEL);
+
+    // Still gated: a live message in the backlog source is held.
+    tracker.begin('dm/~bus', () => dmReadTarget('~bus'))();
+    await flush();
+    expect(markRead).toHaveBeenCalledTimes(1);
+
+    tracker.release('dm/~bus');
+    await flush();
+    expect(markRead).toHaveBeenCalledTimes(2);
+    expect(markRead.mock.calls[1][0]).toEqual(dmReadTarget('~bus'));
+  });
+
+  it('keeps an already-open gate open when releaseExcept runs late', async () => {
+    const { markRead, tracker } = makeTracker({ gated: true });
+    tracker.releaseAll();
+    tracker.releaseExcept(['c']);
+
+    tracker.begin('c', channel)();
+    await flush();
+    expect(markRead).toHaveBeenCalledTimes(1);
+  });
+
+  it('releases everything after the hold cap, whatever replay is doing', async () => {
+    vi.useFakeTimers();
+    const { markRead, tracker } = makeTracker({ gated: true });
+
+    tracker.begin('c', channel)();
+    await vi.advanceTimersByTimeAsync(ACTIVITY_READ_HOLD_MAX_MS - 1);
+    expect(markRead).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(markRead).toHaveBeenCalledTimes(1);
+  });
+
   it('does not flush a held source that has a newer message in flight', async () => {
-    const ready = deferred();
-    const { markRead, tracker } = makeTracker({ ready: ready.promise });
+    const { markRead, tracker } = makeTracker({ gated: true });
 
     tracker.begin('c', channel)();
     const newer = tracker.begin('c', channel);
-    ready.resolve();
+    tracker.releaseAll();
     await flush();
     expect(markRead).not.toHaveBeenCalled();
 
@@ -150,17 +196,16 @@ describe('activity read tracker', () => {
     expect(markRead).not.toHaveBeenCalled();
   });
 
-  it('drops held reads if the monitor stops before catch-up finishes', async () => {
-    const ready = deferred();
+  it('drops held reads if the monitor stops before they are released', async () => {
     let stopping = false;
     const { markRead, tracker } = makeTracker({
-      ready: ready.promise,
+      gated: true,
       stopping: () => stopping,
     });
 
     tracker.begin('c', channel)();
     stopping = true;
-    ready.resolve();
+    tracker.releaseAll();
     await flush();
 
     expect(markRead).not.toHaveBeenCalled();

@@ -20,6 +20,8 @@ import {
   getCanonicalPostId,
 } from '@tloncorp/api';
 
+import { channelReadKey, dmReadKey } from './activity-read.js';
+
 export const RESTART_REPLAY_WINDOW_MS = 15 * 60 * 1000;
 
 /** Same shape as a `%channels` /v4 firehose post fact. */
@@ -28,9 +30,10 @@ export type ChannelReplayEvent = {
   response: { post: { id: string; 'r-post': PostResponse } };
 };
 
+/** `key` is the source's activity-read tracker key. */
 export type ReplayItem =
-  | { kind: 'channel'; sent: number; event: ChannelReplayEvent }
-  | { kind: 'chat'; sent: number; event: WritResponse };
+  | { kind: 'channel'; key: string; sent: number; event: ChannelReplayEvent }
+  | { kind: 'chat'; key: string; sent: number; event: WritResponse };
 
 // The wire carries a post's replies as a map, i.e. PostDataResponse; ub.Post
 // types them as tuples. DM writs add the ship's receipt time to the seal.
@@ -96,6 +99,7 @@ export function collectMissedMessages(
     items.push(
       ...collect(posts, nest, unreads, (post, reply) => ({
         kind: 'channel',
+        key: channelReadKey(nest),
         sent: (reply?.['reply-essay'] ?? post.essay).sent,
         event: {
           nest,
@@ -121,6 +125,7 @@ export function collectMissedMessages(
     items.push(
       ...collect(writs, whom, unreads, (writ, reply) => ({
         kind: 'chat',
+        key: dmReadKey(whom),
         sent: (reply?.['reply-essay'] ?? writ.essay).sent,
         event: {
           whom,

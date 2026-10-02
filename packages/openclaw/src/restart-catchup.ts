@@ -192,8 +192,8 @@ export function createRestartCatchupCoordinator(
   let task: Promise<void> | undefined;
   let started = false;
   // Resolves once this gateway start's catch-up is over, whether it ran,
-  // was skipped, failed, or was stopped. The monitor holds activity reads
-  // until then; see monitor/activity-read.ts.
+  // was skipped, failed, or was stopped. The monitor then releases any
+  // activity reads replay hasn't; see monitor/activity-read.ts.
   let settle!: () => void;
   let settled = new Promise<void>((resolve) => (settle = resolve));
 
