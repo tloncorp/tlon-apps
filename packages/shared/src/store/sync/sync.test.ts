@@ -39,6 +39,7 @@ import type { MockInstance } from 'vitest';
 import rawChannelPostWithRepliesData from '../../../../api/src/__tests__/fixtures/channelPostWithReplies.json';
 import rawChannelPostsData from '../../../../api/src/__tests__/fixtures/channelPosts.json';
 import * as db from '../../db';
+import { useDebugStore } from '../../debug';
 import { BUCKETS_MIN_GROUPS_VERSION, MIN_GROUPS_VERSION } from '../../logic';
 import rawNewestPostData from '../../test/channelNewestPost.json';
 import rawAfterNewestPostData from '../../test/channelPostsAfterNewest.json';
@@ -2197,6 +2198,65 @@ describe('desk compatibility gate', () => {
 
       expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
       expect(didScry('/v10/init')).toBe(true);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'records a transient probe failure as a breadcrumb, not an error',
+    async () => {
+      probeError = new Error(
+        'HTTP request failed: fetch failed: FetchRequestCanceledException: Fetch request has been canceled (at Expo/NativeResponse.swift:63)'
+      );
+      const capture = vi.fn();
+      useDebugStore.getState().initializeErrorLogger({ capture });
+
+      try {
+        await syncStart();
+      } finally {
+        useDebugStore.setState({ errorLogger: null });
+      }
+
+      expect(capture).not.toHaveBeenCalledWith(
+        'app_error',
+        expect.objectContaining({
+          errorTitle: 'Desk compatibility probe failed',
+        })
+      );
+      expect(
+        useDebugStore
+          .getState()
+          .getBreadcrumbs()
+          .some((crumb) => crumb.includes('Desk compatibility probe failed'))
+      ).toBe(true);
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
+      expect(didScry('/v10/init')).toBe(true);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'reports a probe HTTP failure with its status',
+    async () => {
+      probeError = new Error('HTTP 403');
+      const capture = vi.fn();
+      useDebugStore.getState().initializeErrorLogger({ capture });
+
+      try {
+        await syncStart();
+      } finally {
+        useDebugStore.setState({ errorLogger: null });
+      }
+
+      expect(capture).toHaveBeenCalledWith(
+        'app_error',
+        expect.objectContaining({
+          errorTitle: 'Desk compatibility probe failed',
+          error: 'HTTP 403',
+          status: 403,
+        })
+      );
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
     },
     FULL_SYNC_TIMEOUT
   );

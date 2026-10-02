@@ -491,6 +491,31 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
         };
       }
 
+      // Only inspect the option region, not titles or file names that happen
+      // to contain the flag. CLI help remains available for these commands.
+      const command = args.slice(subIdx);
+      const optionStart =
+        command[0] === 'upload'
+          ? 1
+          : command[0] === 'notes' && command[1] === 'note-create'
+            ? 5
+            : command[0] === 'notes' && command[1] === 'note-update'
+              ? 4
+              : command.length;
+      if (
+        !command.some((arg) => HELP_TOKENS.has(arg)) &&
+        command
+          .slice(optionStart)
+          .some((arg) => arg === '--stdin' || arg.startsWith('--stdin='))
+      ) {
+        const message =
+          'The tlon tool cannot supply stdin. Write content to a workspace file, then use notes note-create/note-update --body <file> or upload <file>. Shell pipes and redirections are not supported.';
+        return {
+          content: [{ type: 'text' as const, text: `Error: ${message}` }],
+          details: { status: 'error', error: message },
+        };
+      }
+
       let commandArgs = args;
       if (shouldInjectOwnerCredentials(args)) {
         const prefixArgs = ownerInviteLinkPrefixArgs(deps);

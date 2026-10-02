@@ -7,38 +7,19 @@ description: Interact with Tlon/Urbit API. Use for reading activity, message his
 
 Use the `tlon` command for reading data, managing channels/groups/contacts, and administration.
 
-This skill is about *operating* a node. Questions about what Tlon Messenger is, how a feature works, or how to walk someone through a task in the app belong to the `tlon-product-guide` skill — reach for that one when the user wants an explanation rather than an action. It ships with the OpenClaw plugin, and registers as `tlon-platform:tlon-product-guide` under Hermes. It is not always installed: a Hermes deployment that has this CLI but not the plugin tree won't have it. Check the skills available to you rather than assuming, and if it isn't there, answer the product question yourself instead of loading a skill that doesn't exist.
-
-## Hermes
-
-When running as a Hermes plugin skill, the `tlon` tool is a wrapper around the `tlon` CLI for reading data, administration, management, and proactive posts.
-
-For exact command syntax, use the command sections below or run `tlon <subcommand> --help` through the tool.
-
-When a Tlon user asks you to create a group for them, use `tlon groups create-owned "Name" --owner ~requester [--description "..."]`. This invites the requester and makes them an admin. Do not use plain `tlon groups create` for user-requested groups; that creates a bot-owned group that does not automatically include the requester. After `create-owned`, share the group by putting the `Ref:` path from the output in your reply (the OpenClaw message tool renders it as a card).
-
-For a normal text reply in the current Tlon conversation, respond with final assistant text and let Hermes deliver it through `TlonAdapter.send()`. To post to a different channel or one-to-one DM (a proactive send), use `posts send` with that target (`chat/~host/slug` for channels, `~ship` for one-to-one DMs). Reserve `dms send <club-id>` for group DMs, whose club IDs start with `0v`.
-
-Gallery channels use `heap/~host/name`. A normal reply in a gallery becomes a comment on the triggering post. Use `posts send heap/~host/name "..."` to create a distinct new top-level gallery item, including when that gallery is the current conversation; gallery items can use `--title "..."`.
-
-Blocked in Hermes' `tlon` tool: plain-text `posts reply`/`dms send`/`dms reply` and `posts send` to a current chat/DM conversation (reply normally instead). Current-gallery `posts send` creates a new item and is allowed. Image sends (`--image`) are allowed anywhere, including the current conversation: `tlon upload <direct-image-url>`, then `posts send <target> [caption] --image <uploaded-url>`.
-
-**Never say an image was posted unless both commands returned success** — `tlon
-upload` (when used) and the `posts send`/`dms send` that carries `--image`. Both
-fail loudly; neither degrades to a plain link. If `upload` reports that the ship
-cannot store uploads (self-hosted moons have no storage), you do not need it:
-pass the direct **https** image URL straight to `--image`, which posts without
-uploading. If `upload` or `--image` fails with `HTTP 429 (rate limited)`, the
-*source host* is throttling automated fetches (Wikimedia does this): choose an
-image from a different host. Retrying the same URL, passing it to `--image`, or
-using the owner config all fetch from that same host. If the task names a
-specific image, report the failure instead of substituting another.
+This skill is about *operating* a node. Questions about what Tlon Messenger is, how a feature works, or how to walk someone through a task in the app belong to the `tlon-product-guide` skill — reach for that one when the user wants an explanation rather than an action. It ships with the OpenClaw plugin. Check the skills available to you before loading it; if it is absent, answer the product question directly.
 
 ## OpenClaw
 
-When running as an OpenClaw skill, use the built-in `message` tool for sending outbound messages (DMs and channel posts). The `tlon` command is for reading data, administration, and management — not for sending messages. The `message` tool routes through the proper delivery infrastructure (threading, bot profile, rate limiting).
+The `tlon` tool takes arguments, not a shell command: omit the leading `tlon`
+from the examples below. Pipes, redirects, environment-variable expansion, and
+`--stdin` are unavailable through this tool. Use `write` to save note content to
+a workspace file, then pass `--body <file>`; upload files with `upload <file>`.
+Relative file paths resolve in the active agent workspace, like `read` and `write`.
 
-**Images are the exception: upload them first.** The `message` tool's `media=` parameter takes only an uploaded https URL — never a local file path, unlike other OpenClaw channels. `tlon upload` accepts a URL, a local file path, or stdin, and prints the uploaded URL:
+Use the built-in `message` tool for sending outbound messages (DMs and channel posts). The `tlon` command is for reading data, administration, and management — not for sending messages. The `message` tool routes through the proper delivery infrastructure (threading, bot profile, rate limiting).
+
+**Images are the exception: upload them first.** The `message` tool's `media=` parameter takes only an uploaded https URL — never a local file path, unlike other OpenClaw channels. `tlon upload` accepts a URL or a local file path, and prints the uploaded URL:
 
 ```bash
 tlon upload ./generated-chart.png      # local file — prints the uploaded URL
@@ -378,6 +359,8 @@ Options: `--nickname`, `--bio`, `--status`, `--avatar`, `--cover`
 
 Full group management.
 
+When a Tlon user asks you to create a group for them, use `tlon groups create-owned "Name" --owner ~requester [--description "..."]`. This invites the requester and makes them an admin. Do not use plain `tlon groups create` for user-requested groups; that creates a bot-owned group that does not automatically include the requester. After `create-owned`, share the group by putting the `Ref:` path from the output in your reply (the OpenClaw message tool renders it as a card).
+
 The Tlon Messenger app calls groups **workspaces**: the list of them is the Workspaces tab, and on an account with a hosted bot the app's create button reads `New Workspace`. A user asking to create, join, rename, or invite someone to a workspace, or to list their workspaces, is asking about a group, so use these `tlon groups` commands — creating one for someone is `groups create-owned`. `groups list` shows only the groups the ship running the command is in: to list someone else's workspaces, run it with their credentials (`--config`) when you have them, and otherwise say the list covers only the groups you're in. That is a different thing from the agent harness's own workspace directory (OpenClaw's SOUL.md, AGENTS.md, and memory files). A request to create a workspace always means a group; read "workspace" as that directory only when the person is plainly talking about its files, for example by naming one.
 
 ```bash
@@ -460,7 +443,7 @@ Invite link behavior (`invite-link`):
 
 -   Prints the canonical Lure URL (`https://invite.tlon.io/<token>`), minting one through the invite service if the group has none yet. Never compose or guess invite URLs — always retrieve them with this command.
 -   The link belongs to whichever ship the command runs as: that ship becomes the inviter of record, and the recipient's onboarding attributes the invite to it.
--   Under a bot harness (the OpenClaw plugin or the Hermes adapter) the bare command runs as the **owner**, so invites attribute to the owner rather than the bot. `--self` opts back out and uses the current credentials; explicit credential flags (`--config`, `--url`, ...) do the same. A harness with no owner credentials provisioned fails loudly instead of quietly returning a bot-attributed link.
+-   Through the OpenClaw `tlon` tool, the bare command runs as the **owner**, so invites attribute to the owner rather than the bot. `--self` opts back out and uses the current credentials; explicit credential flags (`--config`, `--url`, ...) do the same. A harness with no owner credentials provisioned fails loudly instead of quietly returning a bot-attributed link.
 -   Run directly (a terminal, a self-hosted setup) it uses the current credentials like every other command — there is no owner to resolve.
 -   For private/secret groups the acting ship must be the host or an admin — the command refuses otherwise, because a non-admin's link would not deliver the group invite on redemption.
 
@@ -626,7 +609,6 @@ tlon notes notes notes/~host/name                        # List notes in a noteb
 tlon notes note notes/~host/name 12                      # Show a note (with Markdown body)
 tlon notes note-create notes/~host/name root "Title" --body post.md       # New note at the notebook root
 tlon notes note-create notes/~host/name root "Title" --markdown post.md   # Alias for --body on note-create
-tlon notes note-create notes/~host/name 7 "Title" --stdin                 # New note in folder 7 from stdin
 tlon notes note-update notes/~host/name 12 --body new.md --expected-revision 3
 tlon notes note-rename notes/~host/name 12 "New Title"   # Rename a note
 tlon notes note-move notes/~host/name 12 3               # Move a note into folder 3
@@ -646,13 +628,13 @@ tlon notes migrate-apply diary/~host/name --yes          # Owner-gated migration
 tlon notes notebook-delete notes/~host/name --yes        # Owner-gated migration recovery
 ```
 
-Note bodies come from exactly one content source. `note-create` accepts `--body <file>`, `--markdown <file>` (alias), or `--stdin`. `note-update` accepts `--body <file>` or `--stdin`; use `--body`, not `--markdown`, for file-backed updates. `note-create` places the note in a folder id, or `root` (resolved to the notebook's root folder). `--expected-revision` on `note-update` is optional (last-write-wins by default).
+Note bodies come from exactly one content source. `note-create` accepts `--body <file>` or `--markdown <file>` (alias). `note-update` accepts `--body <file>`; use `--body`, not `--markdown`, for file-backed updates. `note-create` places the note in a folder id, or `root` (resolved to the notebook's root folder). `--expected-revision` on `note-update` is optional (last-write-wins by default).
 
 To create a **group-backed** notes channel for the Tlon app, use `tlon channels create ~host/slug "Title" --kind notes` — %notes owns the listing, so `--description` and writer roles aren't accepted there. Do not use `tlon notes create` for app/group channels; it creates a standalone %notes notebook only.
 
 ### Upload
 
-Upload files to Tlon storage from a URL, local path, or stdin.
+Upload files to Tlon storage from a URL or local path.
 
 This is the legacy standalone-media path used by posts and profiles. It does not add a file to a `%buckets` channel. Use `tlon buckets upload ...` for shared group files.
 
@@ -661,12 +643,11 @@ tlon upload https://example.com/image.png         # Upload from URL
 tlon upload ./photo.jpg                            # Upload local file
 tlon upload ~/Pictures/screenshot.png              # Upload with absolute path
 tlon upload ./mystery-file -t image/webp           # Override content type
-cat image.png | tlon upload --stdin -t image/png   # Upload from stdin
 ```
 
-Options: `-t`/`--type` (override MIME type), `--stdin` (read from stdin)
+Options: `-t`/`--type` (override MIME type)
 
-Content type is auto-detected from file extension for local files. For stdin, `-t` is recommended (defaults to `application/octet-stream`).
+Content type is auto-detected from file extension for local files.
 
 Returns the uploaded URL for use in posts, profiles, etc. The printed URL is
 always a credential-free https URL; if storage returns anything else the
@@ -691,8 +672,10 @@ once, after its `Retry-After` delay (5s when the header is absent) and only
 when that delay is understood (delta-seconds or an IMF-fixdate), at most 10s,
 and fits the remaining deadline; otherwise, or on a second refusal, the command
 fails with `HTTP 429 (rate limited)` or `HTTP 503 (temporarily unavailable)`,
-naming the host's answer so you can choose another source. Local-path and stdin
-uploads are unaffected.
+naming the host's answer so you can choose another source. Switching credentials
+or passing the same URL to another image-send path still fetches from that
+host. If the task names a specific image, report the failure instead of
+substituting another. Local-path uploads are unaffected.
 
 ### Settings (OpenClaw)
 

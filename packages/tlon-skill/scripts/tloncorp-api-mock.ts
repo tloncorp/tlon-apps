@@ -21,7 +21,8 @@
  * internalRemoveClient, preSig, scry, subscribe), `dms.ts` (reactions,
  * posts, invites), the notes runtimes (notesV1 et al.), and
  * `invite-link-runtime.ts` (subscribeOnce, createInviteLink, groupsDescribe,
- * enableGroup, BadResponseError).
+ * enableGroup, BadResponseError), and `activity-runtime.ts`
+ * (getInitialActivity, getGroupAndChannelUnreads, getTextContent).
  */
 import type { NotesV1Api } from '@tloncorp/api';
 // The real broker client, by subpath, which the root mock below does not
@@ -253,4 +254,14 @@ mock.module('@tloncorp/api', () => ({
   }),
   enableGroup: (...args: unknown[]) => mockedEnableGroup.impl(...args),
   BadResponseError: MockBadResponseError,
+  // activity runtime value imports (formatter tests call the pure helpers
+  // directly, so these are load-time placeholders)
+  getInitialActivity: async () => ({ events: [], relevantUnreads: {} }),
+  getGroupAndChannelUnreads: async () => ({
+    baseUnread: null,
+    groupUnreads: [],
+    channelUnreads: [],
+    threadActivity: [],
+  }),
+  getTextContent: () => '',
 }));

@@ -1,6 +1,6 @@
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { ActionSheet, YStack } from '@tloncorp/app/ui';
-import { useSheetCloseAfterAnimation } from '@tloncorp/app/ui/hooks/useSheetCloseAfterAnimation';
+import { useSheetDismissalAction } from '@tloncorp/app/ui/hooks/useSheetDismissalAction';
 import {
   AnalyticsEvent,
   AnalyticsSeverity,
@@ -20,9 +20,13 @@ export function useTlonbotRevivalPrompt(
   requireHostingAuth: (options?: { force?: boolean }) => Promise<boolean>
 ) {
   const { ship, shipUrl, startSplashSequence } = useShip();
-  const { closeAfterAnimation } = useSheetCloseAfterAnimation();
   const [open, setOpen] = useState(false);
   const [snoozed, setSnoozed] = useState(false);
+  const { dismissThenRun, onDismissed, presentationKey } =
+    useSheetDismissalAction({
+      open,
+      onOpenChange: setOpen,
+    });
 
   const maybeShowPrompt = useCallback(
     async (nodeCheck: NodeStatusCheckResult | null) => {
@@ -73,7 +77,7 @@ export function useTlonbotRevivalPrompt(
     // callback is scoped to this render's session and updates only splash
     // fields, so it neither revives a replaced session nor replays the stale
     // auth-cookie snapshot held by useShip().
-    closeAfterAnimation(() => {
+    dismissThenRun(() => {
       if (!startSplashSequence('tlonbotRevival')) {
         logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
           context: 'session changed before revival could start',
@@ -96,13 +100,15 @@ export function useTlonbotRevivalPrompt(
           });
         });
     });
-  }, [closeAfterAnimation, ship, shipUrl, startSplashSequence]);
+  }, [dismissThenRun, ship, shipUrl, startSplashSequence]);
 
   const promptSheet = (
     <TlonbotRevivalPromptSheet
+      key={presentationKey}
       open={open}
       onOpenChange={handleOpenChange}
       onStart={handleStart}
+      onNativeDismissed={onDismissed}
     />
   );
 
@@ -116,13 +122,20 @@ export function TlonbotRevivalPromptSheet({
   onOpenChange,
   onStart,
   open,
+  onNativeDismissed,
 }: {
   onOpenChange: (open: boolean) => void;
   onStart: () => void;
   open: boolean;
+  onNativeDismissed?: () => void;
 }) {
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange} modal>
+    <ActionSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      onNativeDismissed={onNativeDismissed}
+      modal
+    >
       <ActionSheet.SimpleHeader title="Ready for Tlonbot?" />
       <ActionSheet.Content marginHorizontal="$xl">
         <ActionSheet.ContentBlock>

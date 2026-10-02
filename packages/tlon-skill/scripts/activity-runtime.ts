@@ -19,32 +19,25 @@ function extractText(content: unknown): string {
   return text || '';
 }
 
-function formatActivityTime(timeStr: string | number): string {
-  try {
-    const str = String(timeStr);
-    const daNum = BigInt(str.replace(/\./g, ''));
-    const daSecond = BigInt('18446744073709551616');
-    const daUnixEpoch = BigInt('170141184475152167957503069145530368000');
-
-    const offset = daSecond / BigInt(2000);
-    const epochAdjusted = offset + (daNum - daUnixEpoch);
-    const unixMs = Math.round(
-      Number((epochAdjusted * BigInt(1000)) / daSecond)
-    );
-
-    const date = new Date(unixMs);
-    if (date.getFullYear() > 2020 && date.getFullYear() < 2100) {
-      return date.toLocaleString();
-    }
-    return 'unknown date';
-  } catch {
-    return 'unknown';
-  }
+function formatAge(ms: number): string {
+  if (ms < 60 * 1000) return 'just now';
+  const minutes = Math.floor(ms / (60 * 1000));
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
 }
 
-function formatEvent(event: ActivityEvent): string {
+// Activity event timestamps arrive from @tloncorp/api as unix ms.
+export function formatActivityTime(timestamp: number, now: number): string {
+  if (!Number.isFinite(timestamp)) return 'unknown';
+  const iso = new Date(timestamp).toISOString().replace(/\.\d{3}Z$/, 'Z');
+  return `${iso} (${formatAge(Math.max(0, now - timestamp))})`;
+}
+
+export function formatEvent(event: ActivityEvent, now: number): string {
   const lines: string[] = [];
-  const timeStr = formatActivityTime(event.timestamp);
+  const timeStr = formatActivityTime(event.timestamp, now);
 
   if (event.type === 'post') {
     const author = event.authorId || 'unknown';
@@ -128,7 +121,7 @@ function createActivityFormatter(): ActivityFormatter {
     activityHeader: (bucket, count) =>
       `\n=== ${bucket.toUpperCase()} (${count} events) ===\n`,
     noActivity: (bucket) => `No ${bucket} activity found.`,
-    event: formatEvent,
+    event: (event) => formatEvent(event, Date.now()),
     unreadsHeader: () => '\n=== UNREADS ===\n',
     noUnreads: () => 'No unreads!',
     baseUnread: (summary) => {
