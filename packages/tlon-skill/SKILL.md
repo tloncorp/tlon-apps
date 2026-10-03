@@ -63,15 +63,17 @@ navigation and non-sensitive form filling should continue through the browser
 tools without a handoff.
 
 First navigate the live session all the way to the visible login or verification
-form. Use the unexpired signed `viewer_url` returned by `browser_session_create`
+form. Use the `session_id` (`sess_` handle) returned by `browser_session_create`
 for that same session. In OpenClaw, call the model-facing `tlon` tool with:
 
 ```json
-{"command": "browser handoff <signed-viewer-url>"}
+{"command": "browser handoff <session_id>"}
 ```
 
-Do not include the executable name in the tool's `command` argument. From a
-shell, the equivalent is `tlon browser handoff <signed-viewer-url>`.
+Do not include the executable name in the tool's `command` argument. Use this
+tool, not a shell command. The plugin resolves a fresh signed viewer link through
+the authenticated browser service and passes it directly to the CLI for card
+delivery. Never copy, construct, edit, or supply a viewer URL yourself.
 
 Do not call `browser_session_handoff` as a prerequisite for this card. That tool
 uses MCP viewer/elicitation capabilities to arrange human browser control; it
@@ -90,9 +92,10 @@ embed the remote page. The browser service re-inspects the live page, tells
 Tlon which standard fields are present, and receives the submitted values
 directly. The values are never posted to chat or returned to the bot. If login
 advances to a separate OTP page, run the same command again with the same live
-session's signed viewer URL, provided it is still valid, to send the owner the
-OTP form. Each time the owner opens the form, the browser service inspects the
-current page and issues a one-use fill handle.
+session handle to send the owner the OTP form. Each handoff resolves a fresh
+link without extending the session's deadline. Each time the owner opens the
+form, the browser service inspects the current page and issues a one-use fill
+handle.
 
 Keep the session live while the owner completes the form. After a successful
 submission, “Return to conversation” automatically sends the same continuation
@@ -105,19 +108,20 @@ finished.
 If handoff reports that no visible password or code form exists, the browser is
 usually on the wrong page or an earlier login step. Inspect it, navigate or
 click until the sensitive form is visibly present, and have the owner reopen
-the card. If the signed viewer URL is missing, rejected, or expired, report that
-the native handoff is unavailable; do not invent or edit a URL, reuse an expired
-one, or claim that `browser_session_handoff` refreshes it. If the live session
-itself expired, create a new one and navigate back to the required form before
-sending a card with its signed viewer URL.
+the card. If a card's link expires while its session is still live, run the
+handoff command again with the same handle to send a fresh card. If the lookup
+fails, report the failure; do not invent or edit a URL or claim a card was sent.
+If the live session itself expires, create a new one and navigate back to the
+required form before sending a card with its session handle.
 
 #### What persists
 
 Do not describe the live session itself as permanent. A live Chrome session,
 its tabs, its current page, and its signed handoff URL are temporary and end on
 release, inactivity timeout, hard timeout, or Pod restart. Signed viewer URLs
-are short-lived bearer capabilities: pass one only to `tlon browser handoff`,
-never quote it into chat or share it with another user.
+are temporary bearer capabilities handled by the plugin and browser service.
+Use only the session handle in the Tlon tool; never quote a signed link into
+chat or share it with another user.
 
 The browser *profile* is persistent. In the self-hosted deployment, the MCP
 credential identifies the owner and transparently selects that owner's durable

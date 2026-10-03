@@ -50,11 +50,7 @@ export type TlonCommandRunnerOptions = {
 };
 
 /** Browser capabilities require credentials and owner from one unambiguous account. */
-export function runBrowserHandoffCommand(
-  binary: string,
-  args: string[],
-  config: OpenClawConfig
-): Promise<string> {
+export function resolveBrowserHandoffAccount(config: OpenClawConfig) {
   const accountIds = listRunnableTlonAccountIds(config);
   if (accountIds.length !== 1) {
     throw new Error(
@@ -68,6 +64,22 @@ export function runBrowserHandoffCommand(
       'Browser handoff requires bot credentials and a configured owner.'
     );
   }
+  return {
+    ...account,
+    ship: account.ship,
+    url: account.url,
+    code: account.code,
+    ownerShip,
+  };
+}
+
+/** Runs a trusted handoff command using the active bot's credentials and owner. */
+export function runBrowserHandoffCommand(
+  binary: string,
+  args: string[],
+  config: OpenClawConfig
+): Promise<string> {
+  const account = resolveBrowserHandoffAccount(config);
   return runTlonCommand(
     binary,
     args,
@@ -77,7 +89,7 @@ export function runBrowserHandoffCommand(
       code: account.code,
     },
     {
-      ownerShip,
+      ownerShip: account.ownerShip,
       timeoutMs: account.lifecycle.toolTimeoutMs ?? DEFAULT_TLON_CLI_TIMEOUT_MS,
     }
   );
