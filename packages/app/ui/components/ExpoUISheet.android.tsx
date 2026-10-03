@@ -313,13 +313,14 @@ export function ExpoUIActionContent({
           verticalArrangement={{ spacedBy: 2 }}
           modifiers={[weight(1), defaultMinSize({ minHeight: 40 })]}
         >
+          {/* Matches the React Native sheet header ($label/l title, $label/m subtitle). */}
           <Text
             color={theme.primaryText.val}
             maxLines={1}
             overflow="ellipsis"
             style={{
-              fontSize: 17,
-              fontWeight: '500',
+              fontSize: 16,
+              fontWeight: '400',
               lineHeight: 24,
               letterSpacing: -0.2,
             }}
@@ -328,10 +329,15 @@ export function ExpoUIActionContent({
           </Text>
           {subtitle ? (
             <Text
-              color={theme.secondaryText.val}
+              color={theme.tertiaryText.val}
               maxLines={1}
               overflow="ellipsis"
-              style={{ fontSize: 14, fontWeight: '400', lineHeight: 20 }}
+              style={{
+                fontSize: 14,
+                fontWeight: '400',
+                lineHeight: 20,
+                letterSpacing: -0.187,
+              }}
             >
               {subtitle}
             </Text>

@@ -26,7 +26,6 @@ import {
   foregroundStyle,
   frame,
   kerning,
-  lineHeight,
   lineLimit,
   onGeometryChange,
   padding,
@@ -396,12 +395,15 @@ export function ExpoUIActionContent({
               }),
             ]}
           >
+            {/* Matches the React Native sheet header ($label/l title, $label/m subtitle).
+                No fixed line height: it pads the lines and pushes the subtitle
+                further down than React Native's trimmed text does. */}
             <Text
               modifiers={[
-                font({ size: 17, weight: 'medium' }),
-                lineHeight(24),
+                font({ size: 16, weight: 'regular' }),
                 kerning(-0.2),
                 lineLimit(1),
+                foregroundStyle(theme.primaryText.val),
               ]}
             >
               {title}
@@ -410,11 +412,9 @@ export function ExpoUIActionContent({
               <Text
                 modifiers={[
                   font({ size: 14, weight: 'regular' }),
+                  kerning(-0.187),
                   lineLimit(1),
-                  foregroundStyle({
-                    type: 'hierarchical',
-                    style: 'secondary',
-                  }),
+                  foregroundStyle(theme.tertiaryText.val),
                 ]}
               >
                 {subtitle}
