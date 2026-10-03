@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import {
   isTrustedBrowserViewerHost,
   MAX_BROWSER_VIEWER_URL_LENGTH,
-} from '@tloncorp/api/client/browserSession';
+} from '@tloncorp/api';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 
 import {
@@ -14,6 +14,42 @@ import { urbitFetch } from './urbit/fetch.js';
 
 export const BROWSER_SESSION_HANDOFF_HELP =
   'Usage: browser handoff <session_id> (the sess_ handle from browser_session_create). Do not supply a viewer URL.';
+
+const LOOKUP_DEADLINE_MS = 15_000;
+const LOOKUP_ATTEMPT_TIMEOUT_MS = 5_000;
+const LOOKUP_MAX_ATTEMPTS = 3;
+const TRANSIENT_NETWORK_CODES = new Set([
+  'EAI_AGAIN',
+  'ENOTFOUND',
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'ETIMEDOUT',
+  'EPIPE',
+  'ENETUNREACH',
+  'EHOSTUNREACH',
+  'UND_ERR_CONNECT_TIMEOUT',
+  'UND_ERR_HEADERS_TIMEOUT',
+  'UND_ERR_BODY_TIMEOUT',
+  'UND_ERR_SOCKET',
+]);
+
+class TransientBrowserLookupError extends Error {}
+
+function isTransientLookupError(error: unknown): boolean {
+  for (let depth = 0; error && depth < 5; depth++) {
+    if (error instanceof TransientBrowserLookupError) return true;
+    const cause = record(error);
+    if (
+      (typeof cause.code === 'string' &&
+        TRANSIENT_NETWORK_CODES.has(cause.code)) ||
+      cause.name === 'TimeoutError' ||
+      cause.name === 'AbortError'
+    )
+      return true;
+    error = cause.cause;
+  }
+  return false;
+}
 
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -113,7 +149,7 @@ function validateViewerUrl(value: unknown): string {
   return value;
 }
 
-/** Resolves a handle through the configured bot MCP proxy, never a model URL. */
+/** The ship's stateless aggregate proxy owns upstream MCP sessions and headers. */
 async function resolveViewerUrl(
   handle: string,
   config: OpenClawConfig,
@@ -151,49 +187,73 @@ async function resolveViewerUrl(
     ) {
       throw new Error('Missing configured MCP proxy credential.');
     }
-    const id = randomUUID();
-    const request = await urbitFetch({
-      baseUrl: url.origin,
-      path: url.pathname,
-      init: {
-        method: 'POST',
-        headers: {
-          ...(headers as Record<string, string>),
-          'Content-Type': 'application/json',
-          Accept: 'application/json, text/event-stream',
-        },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id,
-          method: 'tools/call',
-          params: {
-            name: 'browser_browser_session_live_view',
-            arguments: { session_id: handle },
+    const deadline = Date.now() + LOOKUP_DEADLINE_MS;
+    for (let attempt = 0; attempt < LOOKUP_MAX_ATTEMPTS; attempt++) {
+      try {
+        const remainingMs = deadline - Date.now();
+        if (remainingMs <= 0)
+          throw new Error('Browser lookup deadline reached.');
+        const id = randomUUID();
+        const request = await urbitFetch({
+          baseUrl: url.origin,
+          path: url.pathname,
+          init: {
+            method: 'POST',
+            headers: {
+              ...(headers as Record<string, string>),
+              'Content-Type': 'application/json',
+              Accept: 'application/json, text/event-stream',
+            },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id,
+              method: 'tools/call',
+              params: {
+                name: 'browser_browser_session_live_view',
+                arguments: { session_id: handle },
+              },
+            }),
           },
-        }),
-      },
-      ssrfPolicy: ssrfPolicyFromAllowPrivateNetwork(allowPrivateNetwork),
-      timeoutMs: 15_000,
-      maxRedirects: 0,
-      auditContext: 'tlon-browser-handoff',
-    });
-    try {
-      const reply = record(await readMcpReply(request.response, id));
-      const result = record(reply.result);
-      const metadata = record(result.structuredContent);
-      if (
-        reply.jsonrpc !== '2.0' ||
-        reply.id !== id ||
-        reply.error ||
-        result.isError ||
-        metadata.session_id !== handle
-      ) {
-        throw new Error('Browser session lookup refused.');
+          ssrfPolicy: ssrfPolicyFromAllowPrivateNetwork(allowPrivateNetwork),
+          timeoutMs: Math.min(LOOKUP_ATTEMPT_TIMEOUT_MS, remainingMs),
+          maxRedirects: 0,
+          auditContext: 'tlon-browser-handoff',
+        });
+        try {
+          if ([408, 500, 502, 503, 504].includes(request.response.status)) {
+            await request.response.body?.cancel();
+            throw new TransientBrowserLookupError(
+              'Browser lookup unavailable.'
+            );
+          }
+          const reply = record(await readMcpReply(request.response, id));
+          const result = record(reply.result);
+          const metadata = record(result.structuredContent);
+          if (
+            reply.jsonrpc !== '2.0' ||
+            reply.id !== id ||
+            reply.error ||
+            result.isError ||
+            metadata.session_id !== handle
+          ) {
+            throw new Error('Browser session lookup refused.');
+          }
+          return validateViewerUrl(metadata.viewer_url);
+        } finally {
+          await request.release();
+        }
+      } catch (error) {
+        const delayMs = 500 * 2 ** attempt;
+        if (
+          !isTransientLookupError(error) ||
+          attempt + 1 === LOOKUP_MAX_ATTEMPTS ||
+          Date.now() + delayMs >= deadline
+        )
+          throw error;
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
-      return validateViewerUrl(metadata.viewer_url);
-    } finally {
-      await request.release();
     }
+    throw new Error('Browser lookup attempts exhausted.');
   } catch {
     // Transport and upstream errors can contain bearer URLs or tenant headers.
     throw new Error('Could not resolve a live browser session for handoff.');

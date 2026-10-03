@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { urbitFetch, runBrowserHandoffCommand } = vi.hoisted(() => ({
   urbitFetch: vi.fn(),
@@ -69,7 +69,116 @@ beforeEach(() => {
   );
 });
 
+afterEach(() => vi.useRealTimers());
+
 describe('browser session handoff', () => {
+  it('retries unavailable lookups with bounded exponential backoff and sends one card', async () => {
+    vi.useFakeTimers();
+    reply({ session_id: handle, viewer_url: viewerUrl() });
+    const releases = [vi.fn(), vi.fn()];
+    for (const release of releases) {
+      urbitFetch.mockImplementationOnce(async () => ({
+        response: new Response('private upstream error', { status: 503 }),
+        release,
+      }));
+    }
+    const pending = runBrowserSessionHandoff(
+      'tlon',
+      ['browser', 'handoff', handle],
+      config
+    );
+    await vi.advanceTimersByTimeAsync(499);
+    expect(urbitFetch).toHaveBeenCalledTimes(1);
+    expect(releases[0]).toHaveBeenCalledOnce();
+    expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(urbitFetch).toHaveBeenCalledTimes(2);
+    expect(releases[1]).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(999);
+    expect(urbitFetch).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(pending).resolves.toContain('sent');
+    expect(urbitFetch).toHaveBeenCalledTimes(3);
+    expect(runBrowserHandoffCommand).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    { code: 'EAI_AGAIN' },
+    { code: 'ECONNREFUSED' },
+    { name: 'TimeoutError' },
+    { cause: { code: 'UND_ERR_SOCKET' } },
+  ])('retries transient transport failures (%j)', async (cause) => {
+    vi.useFakeTimers();
+    reply({ session_id: handle, viewer_url: viewerUrl() });
+    urbitFetch.mockRejectedValueOnce(cause);
+    const pending = runBrowserSessionHandoff(
+      'tlon',
+      ['browser', 'handoff', handle],
+      config
+    );
+    await vi.runAllTimersAsync();
+    await expect(pending).resolves.toContain('sent');
+    expect(urbitFetch).toHaveBeenCalledTimes(2);
+    expect(runBrowserHandoffCommand).toHaveBeenCalledOnce();
+  });
+
+  it('limits retries to three attempts and never delivers after exhaustion', async () => {
+    vi.useFakeTimers();
+    const release = vi.fn();
+    urbitFetch.mockImplementation(async () => ({
+      response: new Response('secret failure', { status: 502 }),
+      release,
+    }));
+    const pending = expect(
+      runBrowserSessionHandoff('tlon', ['browser', 'handoff', handle], config)
+    ).rejects.toThrow(
+      /^Could not resolve a live browser session for handoff\.$/
+    );
+    await vi.runAllTimersAsync();
+    await pending;
+    expect(urbitFetch).toHaveBeenCalledTimes(3);
+    expect(release).toHaveBeenCalledTimes(3);
+    expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
+  });
+
+  it('caps attempt timeouts by the shared fifteen-second deadline', async () => {
+    vi.useFakeTimers();
+    const timeouts: number[] = [];
+    urbitFetch.mockImplementation(async ({ timeoutMs }) => {
+      timeouts.push(timeoutMs);
+      await new Promise((resolve) => setTimeout(resolve, timeoutMs));
+      throw Object.assign(new Error('secret timeout'), {
+        name: 'TimeoutError',
+      });
+    });
+    const start = Date.now();
+    const pending = expect(
+      runBrowserSessionHandoff('tlon', ['browser', 'handoff', handle], config)
+    ).rejects.toThrow('Could not resolve');
+    await vi.runAllTimersAsync();
+    await pending;
+    expect(timeouts).toEqual([5_000, 5_000, 3_500]);
+    expect(Date.now() - start).toBe(15_000);
+    expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
+  });
+
+  it.each([400, 401, 403, 404, 409, 429])(
+    'does not retry a definitive HTTP %i response',
+    async (status) => {
+      const release = vi.fn();
+      urbitFetch.mockImplementation(async () => ({
+        response: new Response('denied', { status }),
+        release,
+      }));
+      await expect(
+        runBrowserSessionHandoff('tlon', ['browser', 'handoff', handle], config)
+      ).rejects.toThrow('Could not resolve');
+      expect(urbitFetch).toHaveBeenCalledOnce();
+      expect(release).toHaveBeenCalledOnce();
+      expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
+    }
+  );
+
   it.each([
     { args: ['browser'] },
     { args: ['browser', '--help'] },
@@ -139,6 +248,7 @@ describe('browser session handoff', () => {
       );
       expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
       expect(release).toHaveBeenCalledOnce();
+      expect(urbitFetch).toHaveBeenCalledOnce();
     }
   );
 
@@ -292,6 +402,7 @@ describe('browser session handoff', () => {
       runBrowserSessionHandoff('tlon', ['browser', 'handoff', handle], config)
     ).rejects.toThrow('Could not resolve');
     expect(runBrowserHandoffCommand).not.toHaveBeenCalled();
+    expect(urbitFetch).toHaveBeenCalledOnce();
   });
 
   it('does not leak upstream response bodies or transport errors', async () => {
@@ -312,5 +423,7 @@ describe('browser session handoff', () => {
     await expect(
       runBrowserSessionHandoff('tlon', ['browser', 'handoff', handle], config)
     ).rejects.toThrow(/^Could not send the browser login handoff\.$/);
+    expect(runBrowserHandoffCommand).toHaveBeenCalledOnce();
+    expect(urbitFetch).toHaveBeenCalledOnce();
   });
 });
