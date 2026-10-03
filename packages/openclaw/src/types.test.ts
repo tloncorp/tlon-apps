@@ -280,3 +280,50 @@ describe('resolveTlonAccount contextLens', () => {
     });
   });
 });
+
+describe('resolveTlonAccount showCommentary', () => {
+  const base = { ship: '~zod', url: 'https://example.com', code: 'code-123' };
+
+  it('defaults to enabled', () => {
+    const account = resolveTlonAccount({
+      channels: { tlon: base },
+    } as OpenClawConfig);
+
+    expect(account.showCommentary).toBe(true);
+  });
+
+  it('uses the channel value and lets an account override it', () => {
+    const cfg = {
+      channels: {
+        tlon: {
+          ...base,
+          showCommentary: false,
+          accounts: {
+            hosted: { ...base, showCommentary: true },
+            inherited: { ...base },
+          },
+        },
+      },
+    } as OpenClawConfig;
+
+    expect(resolveTlonAccount(cfg).showCommentary).toBe(false);
+    expect(resolveTlonAccount(cfg, 'hosted').showCommentary).toBe(true);
+    expect(resolveTlonAccount(cfg, 'inherited').showCommentary).toBe(false);
+  });
+
+  it('lets an account turn it off over an enabled or omitted channel value', () => {
+    const cfg = (showCommentary?: boolean) =>
+      ({
+        channels: {
+          tlon: {
+            ...base,
+            ...(showCommentary === undefined ? {} : { showCommentary }),
+            accounts: { hosted: { ...base, showCommentary: false } },
+          },
+        },
+      }) as OpenClawConfig;
+
+    expect(resolveTlonAccount(cfg(true), 'hosted').showCommentary).toBe(false);
+    expect(resolveTlonAccount(cfg(), 'hosted').showCommentary).toBe(false);
+  });
+});

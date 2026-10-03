@@ -230,6 +230,7 @@ import {
 import { recordSentTlonReply } from './output.js';
 import { createOwnerReplyPersistenceQueue } from './owner-reply-persistence.js';
 import { createPendingNudgePersistenceQueue } from './pending-nudge-persistence.js';
+import { buildProgressReplyOptions } from './progress-reply-options.js';
 import { createProcessedMessageTracker } from './processed-messages.js';
 import {
   type TlonInboundRouteRecord,
@@ -3487,6 +3488,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             });
           }
         },
+        ...buildProgressReplyOptions({
+          enabled: account.showCommentary,
+          presenceConversationId,
+          presenceRunId,
+          computingPresence,
+        }),
       };
 
       let dispatchResult:

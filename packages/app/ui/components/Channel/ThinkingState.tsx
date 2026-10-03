@@ -161,7 +161,12 @@ export function ThinkingState({
             </XStack>
           )}
           <Spinner size="small" color="$tertiaryText" />
-          <Text size="$label/m" color="$tertiaryText" flexShrink={1}>
+          <Text
+            size="$label/m"
+            color="$tertiaryText"
+            flexShrink={1}
+            numberOfLines={2}
+          >
             {forcedLabel ?? computingState?.label ?? 'Thinking...'}
           </Text>
         </XStack>
