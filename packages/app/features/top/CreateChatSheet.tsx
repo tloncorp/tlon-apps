@@ -581,7 +581,9 @@ function TypeSelectionContent({
             key={index}
             action={action}
             testID={action.testID}
-            paddingHorizontal={'$xl'}
+            // Phones keep the standard row inset that lines rows up with
+            // the sheet header.
+            {...(isWindowNarrow ? null : { paddingHorizontal: '$xl' })}
           />
         ))}
       </ActionSheet.ActionGroup>

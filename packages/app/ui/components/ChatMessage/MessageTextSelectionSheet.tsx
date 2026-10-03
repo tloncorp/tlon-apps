@@ -144,7 +144,9 @@ export function MessageTextSelectionSheet({
       <ActionSheet.SimpleHeader title="Select text" />
       <ActionSheet.ScrollableContent>
         <ActionSheet.ContentBlock paddingTop={0}>
-          <XStack gap="$l" alignItems="flex-start">
+          {/* Inset like a header or action row so the avatar lines up with
+              their icons. */}
+          <XStack gap="$l" alignItems="flex-start" paddingHorizontal="$2xl">
             <ContactAvatar contactId={post.authorId} size="$3xl" />
             <YStack flex={1} gap="$s">
               <XStack gap="$m" alignItems="center" flexWrap="wrap">

@@ -275,7 +275,6 @@ export function BotFeedbackSheet({
             frameStyle={{
               minHeight: isWindowNarrow ? 88 : 96,
               alignItems: 'flex-start',
-              paddingHorizontal: '$l',
             }}
             testID="BotFeedbackDetails"
           />

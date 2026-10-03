@@ -36,18 +36,20 @@ export function ShipPickerSheet({
   );
 
   const body = (
-    <YStack flex={1} gap="$l" $sm={{ paddingHorizontal: '$xl' }}>
+    <YStack flex={1} gap="$l">
       <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
-      <ContactBook
-        searchable
-        autoFocus={!isWindowNarrow}
-        searchPlaceholder="Filter by nickname or @p"
-        onSelect={onSelect}
-        onScrollChange={setScrolling}
-        disabledIds={disabledIds}
-        disabledReason={disabledReason}
-        maxHeight={isWindowNarrow ? undefined : 500}
-      />
+      <YStack flex={1} $sm={{ paddingHorizontal: '$xl' }}>
+        <ContactBook
+          searchable
+          autoFocus={!isWindowNarrow}
+          searchPlaceholder="Filter by nickname or @p"
+          onSelect={onSelect}
+          onScrollChange={setScrolling}
+          disabledIds={disabledIds}
+          disabledReason={disabledReason}
+          maxHeight={isWindowNarrow ? undefined : 500}
+        />
+      </YStack>
     </YStack>
   );
 
