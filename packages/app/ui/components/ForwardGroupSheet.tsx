@@ -44,7 +44,13 @@ export const ForwardGroupSheetProvider = ({ children }: PropsWithChildren) => {
     },
     [group]
   );
-  const { handleChannelSelected, renderFooter } = useForwardToChannelSheet({
+  const {
+    handleChannelSelected,
+    renderFooter,
+    onNativeDismissed,
+    keepMounted,
+    presentationKey,
+  } = useForwardToChannelSheet({
     isOpen,
     onClose: () => handleOpenChange(false),
     onForwardToChannel: handleForwardToChannel,
@@ -57,8 +63,11 @@ export const ForwardGroupSheetProvider = ({ children }: PropsWithChildren) => {
     <ForwardGroupSheetContext.Provider value={contextValue}>
       {children}
       <ForwardToChannelSheet
+        key={presentationKey}
         open={isOpen}
         onOpenChange={handleOpenChange}
+        onNativeDismissed={onNativeDismissed}
+        keepMounted={keepMounted}
         title="Forward group"
         onChannelSelected={handleChannelSelected}
         footerComponent={renderFooter}

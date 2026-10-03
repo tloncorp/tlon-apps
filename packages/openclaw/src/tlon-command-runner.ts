@@ -44,6 +44,8 @@ export type TlonCommandDeadlineOutput = {
 
 export type TlonCommandRunnerOptions = {
   timeoutMs?: number;
+  /** Active agent workspace; relative file inputs share read/write semantics. */
+  cwd?: string;
   /** Trusted owner from the active OpenClaw account, not tool arguments. */
   ownerShip?: string;
   onDeadline?: (output: TlonCommandDeadlineOutput) => void;
@@ -118,7 +120,13 @@ export function runTlonCommand(
       env.URBIT_CODE = credentials.code;
     }
 
-    const child = spawn(binary, args, { env });
+    // This runner has no input transport. Close stdin instead of leaving a
+    // pipe open that can hang CLI commands waiting for input.
+    const child = spawn(binary, args, {
+      env,
+      cwd: options?.cwd,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
     let stdout = '';
     let stderr = '';
     let completionSettled = false;

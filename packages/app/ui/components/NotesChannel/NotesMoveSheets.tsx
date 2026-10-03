@@ -167,9 +167,7 @@ export function MoveDestinationSheet({
       onOpenChange={onOpenChange}
       snapPointsMode="percent"
       snapPoints={MOVE_DESTINATION_SHEET_SNAP_POINTS}
-      keyboardBehavior="extend"
       enableContentPanningGesture={false}
-      hasScrollableContent
       footerComponent={renderFooter}
       unmountOnClose
     >

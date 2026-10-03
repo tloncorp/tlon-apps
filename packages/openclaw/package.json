@@ -48,6 +48,7 @@
     "test:security": "vitest run src/security.test.ts",
     "test:browser-handoff-package": "pnpm --dir ../api build && tsc && node scripts/test-browser-handoff-package.mjs",
     "test:watch": "vitest src/",
+    "test:tool-files": "bun test test/hermetic/tool-notes.test.ts",
     "prepare:publish": "npm run build && node scripts/prepare-publish-package.js",
     "pack:publish": "npm run prepare:publish && npm pack .publish",
     "publish:clean": "npm run prepare:publish && npm publish .publish --access public"

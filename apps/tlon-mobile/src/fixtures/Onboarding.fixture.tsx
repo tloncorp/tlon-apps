@@ -1,4 +1,3 @@
-import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { NavigationContainer } from '@react-navigation/native';
 import { Context as BranchContext } from '@tloncorp/app/contexts/branch';
 import { exampleContacts } from '@tloncorp/app/fixtures/contentHelpers';
@@ -87,11 +86,9 @@ function OnboardingFixture({
             }}
           >
             <GestureHandlerRootView style={{ flex: 1 }}>
-              <BottomSheetModalProvider>
-                <NavigationContainer navigationInChildEnabled>
-                  {children ?? <OnboardingStack />}
-                </NavigationContainer>
-              </BottomSheetModalProvider>
+              <NavigationContainer navigationInChildEnabled>
+                {children ?? <OnboardingStack />}
+              </NavigationContainer>
             </GestureHandlerRootView>
           </BranchContext.Provider>
         </OnboardingProvider>
