@@ -1,12 +1,17 @@
 import type * as db from '@tloncorp/shared/db';
-import { Text } from '@tloncorp/ui';
-import { useEffect, useRef, useState } from 'react';
+import { Text, mobileTypeStyles } from '@tloncorp/ui';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { PixelRatio } from 'react-native';
 import { AnimatePresence, Spinner, View, XStack } from 'tamagui';
 
 import { ContactAvatar } from '../Avatar';
 import { useConversationComputingState } from './useConversationComputingState';
 
 const MAX_VISIBLE_AVATARS = 3;
+const MIN_ROW_HEIGHT = 52;
+// Mobile `$label/m` line height; the desktop variant is shorter.
+const LABEL_LINE_HEIGHT = mobileTypeStyles['$label/m'].lineHeight;
+const ROW_VERTICAL_PADDING = MIN_ROW_HEIGHT - 2 * LABEL_LINE_HEIGHT;
 
 export function ThinkingState({
   conversationId,
@@ -29,6 +34,17 @@ export function ThinkingState({
   const expectedResponders = useRef<Set<string>>(new Set());
   const wasComputing = useRef(false);
   const collapseTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The two-line label must fit at accessibility font scales without letting
+  // the row's height change between renders.
+  const rowHeight = useMemo(
+    () =>
+      Math.max(
+        MIN_ROW_HEIGHT,
+        Math.ceil(2 * LABEL_LINE_HEIGHT * PixelRatio.getFontScale()) +
+          ROW_VERTICAL_PADDING
+      ),
+    []
+  );
 
   useEffect(() => {
     if (computingState) {
@@ -125,7 +141,7 @@ export function ThinkingState({
   return (
     <View
       accessibilityElementsHidden={!visible}
-      height={visible ? 52 : 0}
+      height={visible ? rowHeight : 0}
       importantForAccessibility={visible ? 'auto' : 'no-hide-descendants'}
       justifyContent="center"
       opacity={visible ? 1 : 0}

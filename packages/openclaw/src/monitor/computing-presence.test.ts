@@ -899,6 +899,27 @@ describe('formatCommentaryForPresence', () => {
     expect(formatCommentaryForPresence('')).toBeNull();
   });
 
+  test('strips delivery directives and collapses the spacing they leave', () => {
+    expect(
+      formatCommentaryForPresence(
+        'Checking [[reply_to_current]] the release notes.'
+      )
+    ).toBe('Checking the release notes.');
+    expect(
+      formatCommentaryForPresence('[[reply_to_current]] [[audio_as_voice]]')
+    ).toBeNull();
+  });
+
+  test('strips a standalone NO_REPLY token but keeps words containing it', () => {
+    expect(formatCommentaryForPresence('NO_REPLY')).toBeNull();
+    expect(formatCommentaryForPresence('Done here NO_REPLY for now.')).toBe(
+      'Done here for now.'
+    );
+    expect(formatCommentaryForPresence('NO_REPLYING is a word.')).toBe(
+      'NO_REPLYING is a word.'
+    );
+  });
+
   test('leaves text at the limit untouched', () => {
     const text = 'a'.repeat(COMMENTARY_MAX_CHARS);
     expect(formatCommentaryForPresence(text)).toBe(text);

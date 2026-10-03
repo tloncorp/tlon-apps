@@ -43,6 +43,7 @@ const STOPPED_RUN_MEMORY = 8;
 export const COMMENTARY_MAX_CHARS = 100;
 const COMMENTARY_WORD_BREAK_WINDOW = 20;
 const ELLIPSIS = '…';
+const DELIVERY_DIRECTIVE_PATTERN = /\[\[[^\]]*\]\]|\bNO_REPLY\b/g;
 
 export type ComputingPresenceReporter = {
   publish: (params: PublishParams) => Promise<void>;
@@ -54,7 +55,9 @@ function normalizeToolName(toolName?: string | null) {
 }
 
 export function formatCommentaryForPresence(text: string): string | null {
-  const collapsed = text.replace(/\s+/g, ' ').trim();
+  // The row must never show delivery markup the model left in its text.
+  const visible = text.replace(DELIVERY_DIRECTIVE_PATTERN, ' ');
+  const collapsed = visible.replace(/\s+/g, ' ').trim();
   if (!collapsed) {
     return null;
   }

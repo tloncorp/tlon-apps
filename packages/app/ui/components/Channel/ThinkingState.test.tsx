@@ -15,6 +15,7 @@ import { ThinkingState } from './ThinkingState';
 
 const mocks = vi.hoisted(() => ({
   computing: null as ConversationComputingState | null,
+  fontScale: 1,
 }));
 
 vi.mock('./useConversationComputingState', () => ({
@@ -22,7 +23,13 @@ vi.mock('./useConversationComputingState', () => ({
 }));
 
 vi.mock('../Avatar', () => ({ ContactAvatar: 'ContactAvatar' }));
-vi.mock('@tloncorp/ui', () => ({ Text: 'Text' }));
+vi.mock('@tloncorp/ui', () => ({
+  Text: 'Text',
+  mobileTypeStyles: { '$label/m': { lineHeight: 20 } },
+}));
+vi.mock('react-native', () => ({
+  PixelRatio: { getFontScale: () => mocks.fontScale },
+}));
 vi.mock('tamagui', () => ({
   AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
   Spinner: 'Spinner',
@@ -48,6 +55,28 @@ describe('ThinkingState', () => {
 
   beforeEach(() => {
     mocks.computing = null;
+    mocks.fontScale = 1;
+  });
+
+  it('sizes the visible row for two label lines at the device font scale', async () => {
+    const rowHeightAt = async (fontScale: number) => {
+      mocks.fontScale = fontScale;
+      mocks.computing = computing();
+      let renderer: ReactTestRenderer;
+      await act(async () => {
+        renderer = create(
+          <ThinkingState conversationId="chat" channelType="chat" />
+        );
+      });
+      const height = renderer!.root.find(
+        (node) => (node.type as unknown) === 'View'
+      ).props.height;
+      act(() => renderer!.unmount());
+      return height;
+    };
+
+    expect(await rowHeightAt(1)).toBe(52);
+    expect(await rowHeightAt(2)).toBeGreaterThanOrEqual(2 * 20 * 2);
   });
 
   it('does not mount an animated spinner while hidden', async () => {
