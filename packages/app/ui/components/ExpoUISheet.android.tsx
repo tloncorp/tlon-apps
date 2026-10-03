@@ -45,7 +45,8 @@ import type {
   ExpoUISheetProps,
 } from './ExpoUISheet.types';
 
-const contentHorizontalInset = 8;
+// Groups sit 16dp from the sheet edge and text 40dp, like the other sheets.
+const contentHorizontalInset = 16;
 const groupGap = 24;
 const rowMinHeight = 72;
 const actionGroupShape = Shapes.RoundedCorner(16);
@@ -305,7 +306,7 @@ export function ExpoUIActionContent({
       <Row
         verticalAlignment="center"
         horizontalArrangement={{ spacedBy: 20 }}
-        modifiers={[fillMaxWidth(), padding(16, 0, 8, 0)]}
+        modifiers={[fillMaxWidth(), padding(24, 0, 8, 0)]}
       >
         {icon ? <HostedIcon icon={icon} rounded={!onBack} /> : null}
         <Column
