@@ -176,6 +176,12 @@ channels:
         # Show model info in responses
         showModelSignature: false
 
+        # Show the agent's short pre-tool commentary (or the current tool's
+        # label) in the Thinking row while a reply is in progress. Default: true.
+        # `false` restores the previous behaviour: no commentary, and tool
+        # labels appear only while `/verbose on` is set.
+        showCommentary: true
+
         # Optional PostHog telemetry. Disabled unless explicitly enabled.
         telemetry:
             enabled: true

@@ -728,16 +728,19 @@ describe('agent onboarding catch-up', () => {
       conversationId: 'chat/~ten/general',
       thinking: true,
       toolNames: [],
+      commentary: null,
     });
     expect(reporter.publish).toHaveBeenNthCalledWith(2, {
       conversationId: 'chat/~ten/general',
       thinking: false,
       toolNames: [],
+      commentary: null,
     });
     expect(reporter.publish).toHaveBeenNthCalledWith(3, {
       conversationId: 'chat/~ten/general',
       thinking: true,
       toolNames: [],
+      commentary: null,
     });
   });
 
