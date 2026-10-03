@@ -10,7 +10,6 @@ import {
 import { View } from 'tamagui';
 
 import { AlphaSegmentedGroups } from '../hooks/groupsSorters';
-import { ListItem } from './ListItem';
 import { GroupListItem } from './listItems';
 
 interface Props {
@@ -89,27 +88,27 @@ function SelectableGroupItemComponent(props: {
       disableOptions
       EndContent={
         props.selectable ? (
-          <ListItem.EndContent>
-            <View
-              justifyContent="center"
-              alignItems="center"
-              height="$4xl"
-              width="$4xl"
-            >
-              {props.selected ? (
-                <Icon type="Checkmark" size="$xl" />
-              ) : (
-                <View
-                  borderWidth={1}
-                  borderRadius="$4xl"
-                  borderColor="$tertiaryText"
-                  opacity={0.6}
-                  height="$3xl"
-                  width="$3xl"
-                />
-              )}
-            </View>
-          </ListItem.EndContent>
+          // An avatar-sized box straight in the row, not ListItem.EndContent:
+          // its top padding (for time labels) pushes the control off-center.
+          <View
+            justifyContent="center"
+            alignItems="center"
+            height="$4xl"
+            width="$4xl"
+          >
+            {props.selected ? (
+              <Icon type="Checkmark" size="$xl" />
+            ) : (
+              <View
+                borderWidth={1}
+                borderRadius="$4xl"
+                borderColor="$tertiaryText"
+                opacity={0.6}
+                height="$3xl"
+                width="$3xl"
+              />
+            )}
+          </View>
         ) : null
       }
     />

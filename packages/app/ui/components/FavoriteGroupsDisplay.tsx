@@ -90,13 +90,11 @@ export function FavoriteGroupsDisplay(props: {
           <ListItem.MainContent>
             <ListItem.Title>Add a group</ListItem.Title>
           </ListItem.MainContent>
-          <ListItem.EndContent backgroundColor="unset">
-            <ListItem.SystemIcon
-              icon="ChevronRight"
-              backgroundColor="unset"
-              color={'$tertiaryText'}
-            />
-          </ListItem.EndContent>
+          <ListItem.SystemIcon
+            icon="ChevronRight"
+            backgroundColor="unset"
+            color={'$tertiaryText'}
+          />
         </ListItem>
       </Pressable>
       <GroupSelectorSheet

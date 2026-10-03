@@ -1,4 +1,4 @@
-import { Icon, IconType, Pressable, useIsWindowNarrow } from '@tloncorp/ui';
+import { IconType, Pressable, useIsWindowNarrow } from '@tloncorp/ui';
 import { Fragment, ReactElement, ReactNode } from 'react';
 import { Alert } from 'react-native';
 import { View, YStack, isWeb } from 'tamagui';
@@ -312,16 +312,26 @@ function ProfileAction({
       testID="SettingsProfileRow"
     >
       <ListItem>
-        <ListItem.ContactIcon size="$3xl" contactId={currentUserId} />
+        {/* The avatar sits in the same slot as the other rows' icons, so the
+            rows share a text edge and the avatar centers on the row. */}
+        <View
+          width="$4xl"
+          height="$4xl"
+          alignItems="center"
+          justifyContent="center"
+        >
+          <ListItem.ContactIcon size="$3xl" contactId={currentUserId} />
+        </View>
         <ListItem.MainContent>
           <ListItem.Title>Your profile</ListItem.Title>
           <ListItem.Subtitle>
             <ContactName expandLongIds contactId={currentUserId} />
           </ListItem.Subtitle>
         </ListItem.MainContent>
-        <ListItem.EndContent>
-          <Icon type="ChevronRight" color="$tertiaryText" size="$m" />
-        </ListItem.EndContent>
+        <ListItem.SystemIcon
+          icon="ChevronRight"
+          backgroundColor={'transparent'}
+        />
       </ListItem>
     </Pressable>
   );

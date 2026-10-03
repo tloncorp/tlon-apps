@@ -97,9 +97,7 @@ const PersonalInviteSheetContent = ({
               <ListItem.MainContent>
                 <ListItem.Title>Invite your friends</ListItem.Title>
               </ListItem.MainContent>
-              <ListItem.EndContent>
-                <ListItem.SystemIcon icon="ChevronRight" />
-              </ListItem.EndContent>
+              <ListItem.SystemIcon icon="ChevronRight" />
             </ListItem>
           </Pressable>
         )}
