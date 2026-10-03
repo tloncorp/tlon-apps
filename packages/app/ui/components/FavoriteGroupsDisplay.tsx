@@ -1,7 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import { Pressable } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
-import { SizableText, XStack } from 'tamagui';
 
 import { useGroups } from '../contexts/groups';
 import { useAlphabeticallySegmentedGroups } from '../hooks/groupsSorters';
@@ -42,17 +41,10 @@ export function FavoriteGroupsDisplay(props: {
     return Array.from(result.values());
   }, [props.groups, allGroups]);
 
-  const SheetTopContent = useMemo(() => {
-    return (
-      <XStack justifyContent="center">
-        <SizableText size="$s" color="$tertiaryText">
-          {props.groups.length >= 5
-            ? `No more groups can be selected (max 5)`
-            : `Choose up to ${5 - props.groups.length} more groups`}
-        </SizableText>
-      </XStack>
-    );
-  }, [props.groups.length]);
+  const selectorSubtitle =
+    props.groups.length >= 5
+      ? 'No more groups can be selected (max 5)'
+      : `Choose up to ${5 - props.groups.length} more groups`;
 
   const handleFavoriteGroupsChange = useCallback(
     (group: db.Group) => {
@@ -114,7 +106,8 @@ export function FavoriteGroupsDisplay(props: {
         selected={props.groups.map((g) => g.id)}
         onSelect={handleFavoriteGroupsChange}
         onClose={() => setSelectorOpen(false)}
-        TopContent={SheetTopContent}
+        title="Pinned groups"
+        subtitle={selectorSubtitle}
       />
     </WidgetPane>
   );

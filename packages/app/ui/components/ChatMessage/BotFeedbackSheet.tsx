@@ -155,6 +155,8 @@ export function BotFeedbackSheet({
     />
   );
 
+  const subtitle = rating === 'up' ? 'What went well?' : 'What went wrong?';
+
   return (
     <ActionSheet
       open={open}
@@ -164,6 +166,9 @@ export function BotFeedbackSheet({
       closeButton
       dialogContentProps={{ width: 576, minWidth: 520, maxWidth: 576 }}
     >
+      {isWindowNarrow ? (
+        <ActionSheet.SimpleHeader title="Share feedback" subtitle={subtitle} />
+      ) : null}
       <ActionSheet.ScrollableContent
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
@@ -172,22 +177,21 @@ export function BotFeedbackSheet({
         paddingHorizontal={isWindowNarrow ? 0 : '$3xl'}
       >
         <YStack
-          paddingTop={isWindowNarrow ? '$xl' : '$3xl'}
+          paddingTop={isWindowNarrow ? 0 : '$3xl'}
           paddingHorizontal={isWindowNarrow ? '$2xl' : 0}
           paddingBottom={isWindowNarrow ? 0 : '$m'}
           gap={isWindowNarrow ? '$xl' : '$2xl'}
         >
-          <YStack
-            gap={isWindowNarrow ? '$xs' : '$s'}
-            paddingRight={isWindowNarrow ? 0 : '$4xl'}
-          >
-            <Text size="$label/xl" fontWeight="600" color="$primaryText">
-              Share feedback
-            </Text>
-            <Text size="$label/m" color="$secondaryText">
-              {rating === 'up' ? 'What went well?' : 'What went wrong?'}
-            </Text>
-          </YStack>
+          {isWindowNarrow ? null : (
+            <YStack gap="$s" paddingRight="$4xl">
+              <Text size="$label/xl" fontWeight="600" color="$primaryText">
+                Share feedback
+              </Text>
+              <Text size="$label/m" color="$secondaryText">
+                {subtitle}
+              </Text>
+            </YStack>
+          )}
 
           <ToggleGroupInput
             variant="inset"

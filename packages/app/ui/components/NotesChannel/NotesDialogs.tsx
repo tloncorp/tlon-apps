@@ -119,19 +119,11 @@ export function RenameFolderDialog({
       title="Rename folder"
       subtitle={`Update ${label}.`}
       testID="NotesRenameFolderDialog"
-      cancelDisabled={isRenaming}
-      confirmButton={
-        <Button
-          size="small"
-          fill="solid"
-          type="primary"
-          leadingIcon="EditList"
-          label="Rename"
-          loading={isRenaming}
-          disabled={!name.trim()}
-          onPress={onRename}
-        />
-      }
+      confirmIcon="EditList"
+      confirmLabel="Rename"
+      confirming={isRenaming}
+      confirmDisabled={!name.trim()}
+      onConfirm={onRename}
     >
       <FolderNameField
         name={name}

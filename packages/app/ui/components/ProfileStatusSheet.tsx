@@ -52,14 +52,15 @@ export default function ProfileStatusSheet({
 
   return (
     <ActionSheet open={open} onOpenChange={handleClose} modal>
+      <ActionSheet.SimpleHeader title="Update your status" />
       <ActionSheet.Content paddingBottom="$xl">
         <YStack marginHorizontal="$2xl" gap="$l">
           <XStack gap="$m" alignItems="flex-end" width="100%">
             <ControlledTextField
               name="status"
-              label="Update your status"
               control={control}
               inputProps={{
+                accessibilityLabel: 'Status',
                 placeholder: 'Hanging out...',
                 autoFocus: true,
                 returnKeyType: isValid ? 'send' : 'done',
