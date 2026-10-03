@@ -930,7 +930,12 @@ function ActionSheetCopyAction({
       description: action.description,
       action: doCopy,
       startIcon: action.startIcon,
-      endIcon: didCopy ? 'Checkmark' : 'Copy',
+      // A row that already leads with a copy icon only shows the checkmark.
+      endIcon: didCopy
+        ? 'Checkmark'
+        : action.startIcon === 'Copy'
+          ? undefined
+          : 'Copy',
     }),
     [action.title, action.description, action.startIcon, doCopy, didCopy]
   );
