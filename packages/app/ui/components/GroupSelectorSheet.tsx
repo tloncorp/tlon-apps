@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { Button, View } from '@tloncorp/ui';
+import { Button } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { YStack, getTokenValue } from 'tamagui';
 
@@ -74,18 +74,17 @@ export function GroupSelectorSheet(props: SheetProps) {
           title={props.title}
           subtitle={props.subtitle}
         />
-        <ActionSheet.ScrollableContent
-          id="GroupSelectorScrollableContent"
-          padding="$xl"
-        >
-          <View flex={1} height="100%">
+        <ActionSheet.ScrollableContent id="GroupSelectorScrollableContent">
+          {/* Native BottomSheetScrollView ignores padding props, so the gutter
+              lives on the content block. */}
+          <ActionSheet.ContentBlock flex={1} height="100%">
             <GroupSelector
               selected={props.selected}
               onSelect={props.onSelect}
               onScrollChange={setContentScrolling}
               alphaSegmentedGroups={props.alphaSegmentedGroups}
             />
-          </View>
+          </ActionSheet.ContentBlock>
         </ActionSheet.ScrollableContent>
       </AppDataContextProvider>
     </ActionSheet>

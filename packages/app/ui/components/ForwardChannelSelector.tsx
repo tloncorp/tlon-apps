@@ -76,7 +76,7 @@ export function ForwardChannelSelector({
 
   const contentContainerStyle = useMemo(
     () => ({
-      padding: getTokenValue('$l', 'size'),
+      padding: getTokenValue('$xl', 'size'),
       paddingBottom: 100,
     }),
     []

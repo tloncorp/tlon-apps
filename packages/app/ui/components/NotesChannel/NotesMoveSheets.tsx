@@ -223,7 +223,7 @@ export function FolderDestinationSearch({
     setQuery('');
   }, []);
 
-  const listPadding = useMemo(() => getTokenValue('$l', 'size'), []);
+  const listPadding = useMemo(() => getTokenValue('$xl', 'size'), []);
   const contentContainerStyle = useMemo(
     () => ({
       padding: listPadding,

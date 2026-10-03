@@ -3,7 +3,7 @@ import { Icon } from '@tloncorp/ui';
 import { useCallback, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
-import { XStack, YStack } from 'tamagui';
+import { XStack } from 'tamagui';
 
 import { useContact, useCurrentUserId } from '../contexts/appDataContext';
 import { ActionSheet } from './ActionSheet';
@@ -54,7 +54,7 @@ export default function ProfileStatusSheet({
     <ActionSheet open={open} onOpenChange={handleClose} modal>
       <ActionSheet.SimpleHeader title="Update your status" />
       <ActionSheet.Content paddingBottom="$xl">
-        <YStack marginHorizontal="$2xl" gap="$l">
+        <ActionSheet.FormBlock paddingVertical={0} gap="$l">
           <XStack gap="$m" alignItems="flex-end" width="100%">
             <ControlledTextField
               name="status"
@@ -84,7 +84,7 @@ export default function ProfileStatusSheet({
               onPress={handleSave}
             />
           </XStack>
-        </YStack>
+        </ActionSheet.FormBlock>
       </ActionSheet.Content>
     </ActionSheet>
   );

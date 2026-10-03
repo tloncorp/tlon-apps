@@ -173,14 +173,18 @@ export function BotFeedbackSheet({
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
         // Native BottomSheetScrollView does not apply this prop to its content
-        // container, so narrow-layout gutters live on the inner stack below.
+        // container, so narrow-layout gutters come from the form block below.
         paddingHorizontal={isWindowNarrow ? 0 : '$3xl'}
       >
-        <YStack
-          paddingTop={isWindowNarrow ? 0 : '$3xl'}
-          paddingHorizontal={isWindowNarrow ? '$2xl' : 0}
-          paddingBottom={isWindowNarrow ? 0 : '$m'}
+        <ActionSheet.FormBlock
           gap={isWindowNarrow ? '$xl' : '$2xl'}
+          {...(isWindowNarrow
+            ? { paddingVertical: 0 }
+            : {
+                paddingTop: '$3xl',
+                paddingHorizontal: 0,
+                paddingBottom: '$m',
+              })}
         >
           {isWindowNarrow ? null : (
             <YStack gap="$s" paddingRight="$4xl">
@@ -297,7 +301,7 @@ export function BotFeedbackSheet({
               {submitButton}
             </XStack>
           )}
-        </YStack>
+        </ActionSheet.FormBlock>
       </ActionSheet.ScrollableContent>
     </ActionSheet>
   );

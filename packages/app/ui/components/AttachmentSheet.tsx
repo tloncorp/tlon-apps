@@ -431,6 +431,8 @@ export default function AttachmentSheet({
   const title = 'Attach a file';
   const subtitle = 'Choose a file to attach';
   const storageInfoQuery = useStorageInfoQuery();
+  const noStorageInfo =
+    storageInfoQuery.isSuccess && storageInfoQuery.data == null;
 
   return (
     <>
@@ -441,8 +443,8 @@ export default function AttachmentSheet({
         key={presentationKey}
         modal
       >
-        <ActionSheet.Header>
-          {storageInfoQuery.isSuccess && storageInfoQuery.data == null ? (
+        <ActionSheet.Header centered={!noStorageInfo}>
+          {noStorageInfo ? (
             // If we definitively do not have storage info, fall back to info box
             <>
               <ListItem.MainContent>

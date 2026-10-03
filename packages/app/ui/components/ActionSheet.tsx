@@ -433,27 +433,29 @@ const ActionSheetHeaderFrame = styled(View, {
   paddingHorizontal: '$xl',
 });
 
-const ActionSheetHeader = ActionSheetHeaderFrame.styleable(
-  ({ children, ...props }, ref) => {
-    const closeButtonOffset = useCloseButtonRowOffset();
-    return (
-      <ActionSheetHeaderFrame
-        {...(closeButtonOffset
-          ? {
-              // The row sits inside ListItem's padding.
-              marginTop: closeButtonOffset - getTokenValue('$l', 'space'),
-              marginBottom: closeButtonRowBottomGap,
-              paddingRight: closeButtonRowTrailingInset,
-            }
-          : null)}
-        {...props}
-        ref={ref}
-      >
-        <ListItem paddingHorizontal="$2xl">{children}</ListItem>
-      </ActionSheetHeaderFrame>
-    );
-  }
-);
+const ActionSheetHeader = ActionSheetHeaderFrame.styleable<{
+  /** Inset both sides to clear the close button, for content centered on the sheet. */
+  centered?: boolean;
+}>(({ children, centered, ...props }, ref) => {
+  const closeButtonOffset = useCloseButtonRowOffset();
+  return (
+    <ActionSheetHeaderFrame
+      {...(closeButtonOffset
+        ? {
+            // The row sits inside ListItem's padding.
+            marginTop: closeButtonOffset - getTokenValue('$l', 'space'),
+            marginBottom: closeButtonRowBottomGap,
+            paddingRight: closeButtonRowTrailingInset,
+            ...(centered ? { paddingLeft: closeButtonRowTrailingInset } : null),
+          }
+        : null)}
+      {...props}
+      ref={ref}
+    >
+      <ListItem paddingHorizontal="$2xl">{children}</ListItem>
+    </ActionSheetHeaderFrame>
+  );
+});
 
 // Content wrappers
 
