@@ -181,13 +181,15 @@ is JavaScript in `src/community/bottom-sheet`.
 What it does:
 - iOS: adds a `showCloseButton` prop that draws a native close control in the
   sheet's top-trailing corner and hides the drag indicator. Dismissible generic
-  content reserves the control's header area inside its measured height so
-  inputs cannot sit beneath its hit target; non-dismissible sheets omit it.
+  content reserves the control's 52pt header area (8pt inset plus its 44pt
+  frame) inside its measured height so inputs cannot sit beneath its hit
+  target; non-dismissible sheets omit it.
 - iOS: `onClose` and `onChange(-1)` fire when the sheet starts closing, and
   `onDismiss` fires from SwiftUI's own `onDismiss`, after the transition ends.
   Follow-up presentations wait for `onDismiss`.
 - Android: sizes a single percentage or point snap to its requested total
-  height, including Material's drag-handle area.
+  height, including Material's drag-handle area, and gives that content the
+  window width (`matchContents` would otherwise size it to its own width).
 - Android: `enableContentPanningGesture={false}` disables sheet gestures so
   nested content owns vertical pans. Back and scrim still dismiss.
 - Android: a close driven by `index` or `close()` awaits Compose's `hide()`
