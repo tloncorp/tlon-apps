@@ -14,6 +14,7 @@ import {
   PropsWithChildren,
   ReactElement,
   ReactNode,
+  createContext,
   forwardRef,
   useCallback,
   useContext,
@@ -164,6 +165,19 @@ export const desktopFlyoutContentProps = {
   minWidth: DESKTOP_FLYOUT_MIN_WIDTH,
   overflow: 'hidden',
 } as const;
+
+// The iOS sheet draws its close button in the top-trailing corner and keeps
+// content below the button's 52pt area (8pt inset plus a 44pt frame, see
+// patches/@expo__ui). A header at the top of the sheet starts level with the
+// button instead, as in chat options. Content in a scroll view stays below
+// the button, since the scroll view would clip anything moved above it.
+const CloseButtonRowContext = createContext(false);
+const closeButtonRowOffset = -44;
+const closeButtonRowTrailingInset = 44;
+
+export function useCloseButtonRowOffset() {
+  return useContext(CloseButtonRowContext) ? closeButtonRowOffset : 0;
+}
 
 // Main component
 
@@ -360,13 +374,15 @@ const ActionSheetComponent = ({
       unmountOnClose={unmountOnClose}
     >
       <ActionSheetContext.Provider value={actionSheetContextValue}>
-        {forcedMode === 'popover' ? (
-          <ActionSheet.ScrollableContent>
-            <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
-          </ActionSheet.ScrollableContent>
-        ) : (
-          children
-        )}
+        <CloseButtonRowContext.Provider value={Platform.OS === 'ios'}>
+          {forcedMode === 'popover' ? (
+            <ActionSheet.ScrollableContent>
+              <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
+            </ActionSheet.ScrollableContent>
+          ) : (
+            children
+          )}
+        </CloseButtonRowContext.Provider>
       </ActionSheetContext.Provider>
     </BottomSheetWrapper>
   ) : (
@@ -413,8 +429,18 @@ const ActionSheetHeaderFrame = styled(View, {
 
 const ActionSheetHeader = ActionSheetHeaderFrame.styleable(
   ({ children, ...props }, ref) => {
+    const closeButtonOffset = useCloseButtonRowOffset();
     return (
-      <ActionSheetHeaderFrame {...props} ref={ref}>
+      <ActionSheetHeaderFrame
+        {...(closeButtonOffset
+          ? {
+              marginTop: closeButtonOffset,
+              paddingRight: closeButtonRowTrailingInset,
+            }
+          : null)}
+        {...props}
+        ref={ref}
+      >
         <ListItem paddingHorizontal="$2xl">{children}</ListItem>
       </ActionSheetHeaderFrame>
     );
@@ -448,6 +474,7 @@ const ActionSheetScrollableContent = forwardRef<
 
   // Use BottomSheetScrollView for native platforms
   if (useBottomSheet) {
+    const { children, ...scrollProps } = props;
     return (
       <BottomSheetScrollView
         ref={ref as any}
@@ -459,8 +486,12 @@ const ActionSheetScrollableContent = forwardRef<
           top: 0,
           bottom: contentStyle.paddingBottom as number,
         }}
-        {...(props as any)}
-      />
+        {...(scrollProps as any)}
+      >
+        <CloseButtonRowContext.Provider value={false}>
+          {children}
+        </CloseButtonRowContext.Provider>
+      </BottomSheetScrollView>
     );
   }
 

@@ -57,6 +57,7 @@ vi.mock('../ActionSheet', () => ({
       ScrollableContent: 'ScrollableContent',
     }
   ),
+  useCloseButtonRowOffset: () => 0,
 }));
 vi.mock('../Avatar', () => ({ ContactAvatar: 'ContactAvatar' }));
 vi.mock('../ContactNameV2', () => ({ ContactName: 'ContactName' }));

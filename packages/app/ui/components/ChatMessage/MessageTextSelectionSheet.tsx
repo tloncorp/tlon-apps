@@ -20,7 +20,7 @@ import {
 import { XStack, YStack, useTheme } from 'tamagui';
 
 import { useSheetDismissalAction } from '../../hooks/useSheetDismissalAction';
-import { ActionSheet } from '../ActionSheet';
+import { ActionSheet, useCloseButtonRowOffset } from '../ActionSheet';
 import { ContactAvatar } from '../Avatar';
 import { ContactName } from '../ContactNameV2';
 import { SentTimeText } from '../SentTimeText';
@@ -141,33 +141,7 @@ export function MessageTextSelectionSheet({
       enableContentPanningGesture={false}
       modal
     >
-      <XStack
-        alignItems="center"
-        justifyContent="center"
-        minHeight={48}
-        marginBottom="$l"
-      >
-        <Text size="$label/2xl" accessibilityRole="header">
-          Select text
-        </Text>
-        {/* The iOS sheet already draws its own close button. */}
-        {Platform.OS !== 'ios' ? (
-          <Pressable
-            position="absolute"
-            right="$m"
-            width={44}
-            height={44}
-            alignItems="center"
-            justifyContent="center"
-            accessibilityRole="button"
-            accessibilityLabel="Close text selection"
-            onPress={() => onOpenChange(false)}
-            testID="CloseTextSelection"
-          >
-            <Icon type="Close" size="$m" color="$secondaryText" />
-          </Pressable>
-        ) : null}
-      </XStack>
+      <TextSelectionHeader onClose={() => onOpenChange(false)} />
       <ActionSheet.ScrollableContent>
         <XStack
           gap="$l"
@@ -237,5 +211,39 @@ export function MessageTextSelectionSheet({
         </Pressable>
       </ActionSheet.ScrollableContent>
     </ActionSheet>
+  );
+}
+
+function TextSelectionHeader({ onClose }: { onClose: () => void }) {
+  const closeButtonOffset = useCloseButtonRowOffset();
+  return (
+    <XStack
+      alignItems="center"
+      justifyContent="center"
+      minHeight={48}
+      marginTop={closeButtonOffset}
+      marginBottom="$l"
+    >
+      <Text size="$label/2xl" accessibilityRole="header">
+        Select text
+      </Text>
+      {/* The iOS sheet already draws its own close button. */}
+      {Platform.OS !== 'ios' ? (
+        <Pressable
+          position="absolute"
+          right="$m"
+          width={44}
+          height={44}
+          alignItems="center"
+          justifyContent="center"
+          accessibilityRole="button"
+          accessibilityLabel="Close text selection"
+          onPress={onClose}
+          testID="CloseTextSelection"
+        >
+          <Icon type="Close" size="$m" color="$secondaryText" />
+        </Pressable>
+      ) : null}
+    </XStack>
   );
 }

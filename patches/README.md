@@ -183,7 +183,9 @@ What it does:
   sheet's top-trailing corner and hides the drag indicator. Dismissible generic
   content reserves the control's 52pt header area (8pt inset plus its 44pt
   frame) inside its measured height so inputs cannot sit beneath its hit
-  target; non-dismissible sheets omit it.
+  target; non-dismissible sheets omit it. The content root clips, so the app
+  can lift a header into that area and a list taller than the sheet does not
+  show below it.
 - iOS: `onClose` and `onChange(-1)` fire when the sheet starts closing, and
   `onDismiss` fires from SwiftUI's own `onDismiss`, after the transition ends.
   Follow-up presentations wait for `onDismiss`.

@@ -294,7 +294,7 @@ index ac8ae4af0a1fee8afbea2b9a5393d8eae271b108..92b6459504891baff4d89968b7fda426
                </View>
              </RNHostView>
 diff --git a/src/community/bottom-sheet/BottomSheet.ios.tsx b/src/community/bottom-sheet/BottomSheet.ios.tsx
-index 4c805f7effb3e278ddf6a12e02ee08264a64ac5e..eed12dbdb84fc658937b90700f307d5520a133a1 100644
+index 4c805f7effb3e278ddf6a12e02ee08264a64ac5e..9b3dc1cf39642661d2da86fe05ad1e9f454b4200 100644
 --- a/src/community/bottom-sheet/BottomSheet.ios.tsx
 +++ b/src/community/bottom-sheet/BottomSheet.ios.tsx
 @@ -118,13 +118,15 @@ export function BottomSheet(props: BottomSheetProps) {
@@ -391,14 +391,19 @@ index 4c805f7effb3e278ddf6a12e02ee08264a64ac5e..eed12dbdb84fc658937b90700f307d55
              <Group modifiers={modifiers}>
                <RNHostView matchContents={fitToContents}>
                  {/* paddingTop compensates for tighter spacing between native drag indicator and content
-@@ -240,8 +250,8 @@ export function BottomSheet(props: BottomSheetProps) {
+@@ -237,11 +247,13 @@ export function BottomSheet(props: BottomSheetProps) {
+                     height without inheriting the scrollable child's intrinsic content height. With matchContents,
+                     RNHostView lays the hosted view out at its own size, so `width` gives it the sheet width
+                     while its height stays content-sized. */}
++                {/* RNHostView does not clip, so the root does: content taller than the sheet must not show
++                    below it, and content may draw into the close button's row above contentTopPadding. */}
                  <View
                    style={
                      fitToContents
 -                      ? { width, paddingTop: handleComponent !== null ? 16 : 0 }
 -                      : { flexGrow: 1, height: 0, paddingTop: handleComponent !== null ? 16 : 0 }
-+                      ? { width, paddingTop: contentTopPadding }
-+                      : { flexGrow: 1, height: 0, paddingTop: contentTopPadding }
++                      ? { width, paddingTop: contentTopPadding, overflow: 'hidden' }
++                      : { flexGrow: 1, height: 0, paddingTop: contentTopPadding, overflow: 'hidden' }
                    }>
                    <SheetScrollContextReset>{children}</SheetScrollContextReset>
                  </View>
