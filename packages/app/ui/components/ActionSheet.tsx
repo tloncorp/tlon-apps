@@ -168,15 +168,21 @@ export const desktopFlyoutContentProps = {
 
 // The iOS sheet draws its close button in the top-trailing corner and keeps
 // content below the button's 52pt area (8pt inset plus a 44pt frame, see
-// patches/@expo__ui). A header at the top of the sheet starts level with the
-// button instead, as in chat options. Content in a scroll view stays below
-// the button, since the scroll view would clip anything moved above it.
+// patches/@expo__ui). A header at the top of the sheet moves up into that
+// area and lines up with the chat options header: title about 35pt from the
+// top of the sheet, first group about 111pt. Content in a scroll view stays
+// below the button, since the scroll view would clip anything moved above it.
 const CloseButtonRowContext = createContext(false);
-const closeButtonRowOffset = -44;
+const closeButtonClearance = 52;
+const closeButtonRowTop = 34;
 const closeButtonRowTrailingInset = 44;
+const closeButtonRowBottomGap = 5;
 
+/** Top margin that moves a header row from below the close button into its row. */
 export function useCloseButtonRowOffset() {
-  return useContext(CloseButtonRowContext) ? closeButtonRowOffset : 0;
+  return useContext(CloseButtonRowContext)
+    ? closeButtonRowTop - closeButtonClearance
+    : 0;
 }
 
 // Main component
@@ -434,7 +440,9 @@ const ActionSheetHeader = ActionSheetHeaderFrame.styleable(
       <ActionSheetHeaderFrame
         {...(closeButtonOffset
           ? {
-              marginTop: closeButtonOffset,
+              // The row sits inside ListItem's padding.
+              marginTop: closeButtonOffset - getTokenValue('$l', 'space'),
+              marginBottom: closeButtonRowBottomGap,
               paddingRight: closeButtonRowTrailingInset,
             }
           : null)}
