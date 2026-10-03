@@ -1,6 +1,6 @@
 import { createDevLogger } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
-import { Icon, Pressable, Text, useCopy, useToast } from '@tloncorp/ui';
+import { Text, useCopy, useToast } from '@tloncorp/ui';
 import { requireOptionalNativeModule } from 'expo-modules-core';
 import {
   PropsWithChildren,
@@ -20,7 +20,7 @@ import {
 import { XStack, YStack, useTheme } from 'tamagui';
 
 import { useSheetDismissalAction } from '../../hooks/useSheetDismissalAction';
-import { ActionSheet, useCloseButtonRowOffset } from '../ActionSheet';
+import { ActionSheet } from '../ActionSheet';
 import { ContactAvatar } from '../Avatar';
 import { ContactName } from '../ContactNameV2';
 import { SentTimeText } from '../SentTimeText';
@@ -141,109 +141,66 @@ export function MessageTextSelectionSheet({
       enableContentPanningGesture={false}
       modal
     >
-      <TextSelectionHeader onClose={() => onOpenChange(false)} />
+      <ActionSheet.SimpleHeader title="Select text" />
       <ActionSheet.ScrollableContent>
-        <XStack
-          gap="$l"
-          paddingHorizontal="$xl"
-          paddingBottom="$xl"
-          alignItems="flex-start"
-        >
-          <ContactAvatar contactId={post.authorId} size="$3xl" />
-          <YStack flex={1} gap="$s">
-            <XStack gap="$m" alignItems="center" flexWrap="wrap">
-              <Text size="$label/2xl" flexShrink={1}>
-                <ContactName contactId={post.authorId} />
-              </Text>
-              <SentTimeText sentAt={post.sentAt} showFullDate />
-            </XStack>
-            {Platform.OS === 'ios' ? (
-              // iOS Text's selectable prop only offers whole-message copying.
-              // A read-only UITextView provides native range-selection handles.
-              <TextInput
-                key={open ? 'open' : 'closed'}
-                ref={inputRef}
-                autoFocus={open}
-                value={text}
-                multiline
-                editable={false}
-                showSoftInputOnFocus={false}
-                scrollEnabled={false}
-                style={{
-                  color: theme.primaryText.val,
-                  fontSize: 16,
-                  lineHeight: 24,
-                  padding: 0,
-                }}
-                testID="SelectableMessageText"
-              />
-            ) : (
-              <NativeText
-                ref={textRef}
-                selectable
-                style={{
-                  color: theme.primaryText.val,
-                  fontSize: 16,
-                  lineHeight: 24,
-                }}
-                testID="SelectableMessageText"
-              >
-                {text}
-              </NativeText>
-            )}
-          </YStack>
-        </XStack>
-        <Pressable
-          onPress={copyAll}
-          accessibilityRole="button"
-          accessibilityLabel="Copy all text"
-          testID="CopyAllMessageText"
-          borderTopWidth={1}
-          borderColor="$secondaryBorder"
-          paddingHorizontal="$xl"
-          paddingVertical="$xl"
-          flexDirection="row"
-          alignItems="center"
-          gap="$l"
-        >
-          <Icon type="Copy" size="$m" />
-          <Text size="$label/l">Copy all text</Text>
-        </Pressable>
+        <ActionSheet.ContentBlock paddingTop={0}>
+          <XStack gap="$l" alignItems="flex-start">
+            <ContactAvatar contactId={post.authorId} size="$3xl" />
+            <YStack flex={1} gap="$s">
+              <XStack gap="$m" alignItems="center" flexWrap="wrap">
+                <Text size="$label/2xl" flexShrink={1}>
+                  <ContactName contactId={post.authorId} />
+                </Text>
+                <SentTimeText sentAt={post.sentAt} showFullDate />
+              </XStack>
+              {Platform.OS === 'ios' ? (
+                // iOS Text's selectable prop only offers whole-message copying.
+                // A read-only UITextView provides native range-selection handles.
+                <TextInput
+                  key={open ? 'open' : 'closed'}
+                  ref={inputRef}
+                  autoFocus={open}
+                  value={text}
+                  multiline
+                  editable={false}
+                  showSoftInputOnFocus={false}
+                  scrollEnabled={false}
+                  style={{
+                    color: theme.primaryText.val,
+                    fontSize: 16,
+                    lineHeight: 24,
+                    padding: 0,
+                  }}
+                  testID="SelectableMessageText"
+                />
+              ) : (
+                <NativeText
+                  ref={textRef}
+                  selectable
+                  style={{
+                    color: theme.primaryText.val,
+                    fontSize: 16,
+                    lineHeight: 24,
+                  }}
+                  testID="SelectableMessageText"
+                >
+                  {text}
+                </NativeText>
+              )}
+            </YStack>
+          </XStack>
+        </ActionSheet.ContentBlock>
+        <ActionSheet.ActionGroup accent="neutral">
+          <ActionSheet.Action
+            action={{
+              title: 'Copy all text',
+              startIcon: 'Copy',
+              action: copyAll,
+            }}
+            testID="CopyAllMessageText"
+          />
+        </ActionSheet.ActionGroup>
       </ActionSheet.ScrollableContent>
     </ActionSheet>
-  );
-}
-
-function TextSelectionHeader({ onClose }: { onClose: () => void }) {
-  const closeButtonOffset = useCloseButtonRowOffset();
-  return (
-    <XStack
-      alignItems="center"
-      justifyContent="center"
-      minHeight={48}
-      marginTop={closeButtonOffset}
-      marginBottom="$l"
-    >
-      <Text size="$label/2xl" accessibilityRole="header">
-        Select text
-      </Text>
-      {/* The iOS sheet already draws its own close button. */}
-      {Platform.OS !== 'ios' ? (
-        <Pressable
-          position="absolute"
-          right="$m"
-          width={44}
-          height={44}
-          alignItems="center"
-          justifyContent="center"
-          accessibilityRole="button"
-          accessibilityLabel="Close text selection"
-          onPress={onClose}
-          testID="CloseTextSelection"
-        >
-          <Icon type="Close" size="$m" color="$secondaryText" />
-        </Pressable>
-      ) : null}
-    </XStack>
   );
 }
