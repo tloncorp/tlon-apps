@@ -17,6 +17,20 @@ type UseForwardToChannelSheetParams = {
 };
 
 export const FORWARD_SHEET_SNAP_POINTS: number[] = [85];
+
+/**
+ * What is being forwarded is cleared as the sheet starts to close, but the
+ * sheet is still on screen while it animates out. This keeps the last one so
+ * the header does not empty on the way down.
+ */
+export function useLastForwarded<T>(item: T | null): T | null {
+  const [last, setLast] = useState(item);
+  if (item && item !== last) {
+    setLast(item);
+  }
+  return item ?? last;
+}
+
 export function useForwardToChannelSheet({
   isOpen,
   onClose,

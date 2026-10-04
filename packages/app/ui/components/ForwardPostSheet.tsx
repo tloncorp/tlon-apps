@@ -10,7 +10,11 @@ import {
 } from 'react';
 
 import { ForwardToChannelSheet } from './ForwardToChannelSheet';
-import { useForwardToChannelSheet } from './useForwardToChannelSheet';
+import { ListItem } from './ListItem';
+import {
+  useForwardToChannelSheet,
+  useLastForwarded,
+} from './useForwardToChannelSheet';
 
 const ForwardPostSheetContext = createContext<{
   open: (post: db.Post) => void;
@@ -55,6 +59,8 @@ export const ForwardPostSheetProvider = ({ children }: PropsWithChildren) => {
     failureMessage: 'Failed to forward post',
   });
 
+  const shownPost = useLastForwarded(post);
+
   const contextValue = useMemo(() => ({ open: handleOpen }), [handleOpen]);
   return (
     <ForwardPostSheetContext.Provider value={contextValue}>
@@ -66,7 +72,12 @@ export const ForwardPostSheetProvider = ({ children }: PropsWithChildren) => {
         onNativeDismissed={onNativeDismissed}
         keepMounted={keepMounted}
         title="Forward to channel"
-        subtitle={post?.textContent?.trim() || undefined}
+        subtitle={shownPost?.textContent?.trim() || undefined}
+        icon={
+          shownPost ? (
+            <ListItem.ContactIcon contactId={shownPost.authorId} />
+          ) : undefined
+        }
         onChannelSelected={handleChannelSelected}
         footerComponent={renderFooter}
       />
