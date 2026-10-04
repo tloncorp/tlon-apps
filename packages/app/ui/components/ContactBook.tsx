@@ -1,5 +1,9 @@
 import * as db from '@tloncorp/shared/db';
-import { BlockSectionList, Text, useIsWindowNarrow } from '@tloncorp/ui';
+import {
+  BlockSectionList,
+  PlainSectionList,
+  useIsWindowNarrow,
+} from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Insets,
@@ -9,7 +13,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, XStack, YStack, getTokenValue, useStyle } from 'tamagui';
+import { View, XStack, getTokenValue, useStyle } from 'tamagui';
 
 import { useContactIndex, useContacts } from '../contexts/appDataContext';
 import {
@@ -17,6 +21,7 @@ import {
   useSortedContacts,
 } from '../hooks/contactSorters';
 import { ContactRow } from './ContactRow';
+import { ListEmptyState } from './ListEmptyState';
 import { SearchBar } from './SearchBar';
 
 export function ContactBook({
@@ -25,6 +30,7 @@ export function ContactBook({
   searchPlaceholder = '',
   onSelect,
   multiSelect = false,
+  appearance = 'block',
   immutableIds = [],
   disabledIds = [],
   disabledReason,
@@ -45,6 +51,11 @@ export function ContactBook({
   searchable?: boolean;
   onSelect?: (contactId: string) => void;
   multiSelect?: boolean;
+  /**
+   * `block` draws each section as a grey card, for full screens. `plain`
+   * draws rows straight on the surface, for pickers inside a sheet.
+   */
+  appearance?: 'block' | 'plain';
   onSelectedChange?: (selected: string[]) => void;
   onScrollChange?: (scrolling: boolean) => void;
   explanationComponent?: React.ReactElement;
@@ -125,13 +136,15 @@ export function ContactBook({
     }
   }, [disabledSet, onSelectedChange]);
 
+  const isPlain = appearance === 'plain';
   const renderItem = useCallback(
     ({ item }: SectionListRenderItemInfo<db.Contact, { label: string }>) => {
       const isSelected = !!selected?.includes(item.id);
       const isDisabled = disabledSet.has(item.id);
       return (
         <ContactRow
-          backgroundColor={'$secondaryBackground'}
+          backgroundColor={isPlain ? undefined : '$secondaryBackground'}
+          paddingHorizontal={isPlain ? '$2xl' : undefined}
           key={item.id}
           contact={item}
           immutable={immutableSet.has(item.id)}
@@ -140,11 +153,14 @@ export function ContactBook({
           selectable={multiSelect}
           selected={isSelected}
           onPress={handleSelect}
-          pressStyle={{ backgroundColor: '$shadow' }}
+          pressStyle={{
+            backgroundColor: isPlain ? '$secondaryBackground' : '$shadow',
+          }}
         />
       );
     },
     [
+      isPlain,
       selected,
       immutableSet,
       disabledSet,
@@ -167,7 +183,8 @@ export function ContactBook({
 
   const contentContainerStyle = useStyle({
     paddingBottom: insets.bottom,
-    paddingTop: '$s',
+    // Plain section labels bring their own space above.
+    paddingTop: isPlain ? 0 : '$s',
   }) as StyleProp<ViewStyle>;
 
   const scrollIndicatorInsets = useStyle({
@@ -176,6 +193,7 @@ export function ContactBook({
   }) as Insets;
 
   const isWindowNarrow = useIsWindowNarrow();
+  const List = isPlain ? PlainSectionList : BlockSectionList;
 
   const listStyle = useMemo(() => {
     if (!isWindowNarrow) {
@@ -224,16 +242,16 @@ export function ContactBook({
         explanationComponent
       ) : (
         <View flex={1} onTouchStart={Keyboard.dismiss}>
-          <BlockSectionList
+          <List
             ListHeaderComponent={!showSearchResults ? quickActions : null}
             ListEmptyComponent={
               showSearchResults ? (
-                <ContactBookEmptyState
+                <ListEmptyState
                   title="No contacts found"
                   subtitle="Check the spelling, or enter a full ID"
                 />
               ) : (
-                <ContactBookEmptyState
+                <ListEmptyState
                   title="No Contacts"
                   subtitle="Your contact book is empty"
                 />
@@ -251,29 +269,5 @@ export function ContactBook({
         </View>
       )}
     </View>
-  );
-}
-
-function ContactBookEmptyState({
-  title,
-  subtitle,
-}: {
-  title: string;
-  subtitle: string;
-}) {
-  return (
-    <YStack
-      alignItems="center"
-      gap="$s"
-      paddingHorizontal="$2xl"
-      paddingVertical="$4xl"
-    >
-      <Text size="$label/l" color="$secondaryText">
-        {title}
-      </Text>
-      <Text size="$label/m" color="$tertiaryText" textAlign="center">
-        {subtitle}
-      </Text>
-    </YStack>
   );
 }

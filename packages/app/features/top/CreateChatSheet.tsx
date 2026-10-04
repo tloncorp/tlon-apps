@@ -282,6 +282,7 @@ const CreateChatFormContent = ({
         <ContactBook
           searchable
           multiSelect={chatType === 'group'}
+          appearance={isWindowNarrow ? 'plain' : 'block'}
           searchPlaceholder="Filter by nickname or id"
           autoFocus={!isWindowNarrow}
           onSelect={onSelectDmContact}

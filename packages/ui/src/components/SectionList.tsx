@@ -119,6 +119,40 @@ export const BlockSectionListComponent = <
   );
 };
 
+const PlainSectionListHeader = styled(View, {
+  paddingHorizontal: '$2xl',
+  paddingTop: '$l',
+  paddingBottom: '$xs',
+});
+
+/**
+ * Sections drawn straight on the surface, with no card behind them. Rows
+ * padded by `$2xl` line up with the section labels.
+ */
+export const PlainSectionList = <
+  TItem,
+  TSection extends { label: string; data: TItem[] },
+>(
+  props: SectionListProps<TItem, TSection>
+) => {
+  const renderSectionHeader = useCallback(
+    ({ section }: { section: SectionListData<TItem, TSection> }) => (
+      <PlainSectionListHeader>
+        <SectionListHeaderText>{section.label}</SectionListHeaderText>
+      </PlainSectionListHeader>
+    ),
+    []
+  );
+
+  return (
+    <SectionList
+      stickySectionHeadersEnabled={false}
+      renderSectionHeader={renderSectionHeader}
+      {...props}
+    />
+  );
+};
+
 export const BlockSectionList = withStaticProperties(
   BlockSectionListComponent,
   {

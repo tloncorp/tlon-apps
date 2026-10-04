@@ -41,6 +41,7 @@ export function ShipPickerSheet({
       <YStack flex={1} $sm={{ paddingHorizontal: '$xl' }}>
         <ContactBook
           searchable
+          appearance={isWindowNarrow ? 'plain' : 'block'}
           autoFocus={!isWindowNarrow}
           searchPlaceholder="Filter by nickname or @p"
           onSelect={onSelect}
