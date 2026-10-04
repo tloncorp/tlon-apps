@@ -13,7 +13,7 @@ type ForwardToChannelSheetProps = {
   keepMounted: boolean;
   title: string;
   subtitle?: string;
-  onChannelSelected: (channel: db.Channel) => void;
+  onChannelSelected: (channel: db.Channel | null) => void;
   // Narrows the targets further. Postless channels are already excluded for
   // every caller -- see below -- so this is only for rules specific to what is
   // being forwarded.

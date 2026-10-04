@@ -1,15 +1,21 @@
-import { FlashList, type ListRenderItem } from '@shopify/flash-list';
+import {
+  FlashList,
+  type FlashListRef,
+  type ListRenderItem,
+} from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
-import { useCallback, useMemo, useState } from 'react';
+import { Text } from '@tloncorp/ui';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useWindowDimensions } from 'react-native';
-import { Text, View, XStack, getTokenValue } from 'tamagui';
+import { View, XStack, YStack, getTokenValue, isWeb } from 'tamagui';
 
 import { useFilteredChannelChats } from '../../hooks/useFilteredChannelChats';
 import { ForwardChannelListItem } from './ForwardChannelListItem';
 import { SearchBar } from './SearchBar';
 
 type ForwardChannelSelectorProps = {
-  onChannelSelected: (channel: db.Channel) => void;
+  // Null clears the selection, when a search hides the chosen row.
+  onChannelSelected: (channel: db.Channel | null) => void;
   channelFilter?: (channel: db.Channel) => boolean;
 };
 
@@ -17,6 +23,14 @@ type ChannelChat = db.Chat & { type: 'channel' };
 
 const ITEM_H = 76;
 const LIST_HEIGHT_RATIO = 0.68;
+const SEARCH_INPUT_PROPS = {
+  spellCheck: false,
+  autoCapitalize: 'none',
+  autoComplete: 'off',
+} as const;
+const NATIVE_LIST_FRAME_STYLE = { flex: 1 } as const;
+// A search swaps the whole list, so there is no row worth keeping in place.
+const MAINTAIN_VISIBLE_CONTENT_POSITION = { disabled: true } as const;
 const getItemType = (chat: ChannelChat) =>
   chat.channel.type === 'dm' || chat.channel.type === 'groupDm'
     ? 'dm'
@@ -29,6 +43,7 @@ export function ForwardChannelSelector({
   channelFilter,
 }: ForwardChannelSelectorProps) {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const listRef = useRef<FlashListRef<ChannelChat>>(null);
   const [query, setQuery] = useState('');
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(
     null
@@ -40,10 +55,15 @@ export function ForwardChannelSelector({
     channelFilter,
   });
 
-  const handleQueryChanged = useCallback((newQuery: string) => {
-    setQuery(newQuery);
-    setSelectedChannelId(null);
-  }, []);
+  const handleQueryChanged = useCallback(
+    (newQuery: string) => {
+      setQuery(newQuery);
+      setSelectedChannelId(null);
+      onChannelSelected(null);
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+    },
+    [onChannelSelected]
+  );
 
   const highlightedChannelId = useMemo(() => {
     if (!selectedChannelId) {
@@ -82,11 +102,17 @@ export function ForwardChannelSelector({
     []
   );
 
-  const estimatedListSize = useMemo(
-    () => ({
-      width: screenWidth,
-      height: Math.floor(screenHeight * LIST_HEIGHT_RATIO),
-    }),
+  // A native sheet bounds its content, so the list fills what is left above
+  // the footer and the keyboard. A web dialog sizes to its content, so the
+  // list needs a height of its own there.
+  const listFrameStyle = useMemo(
+    () =>
+      isWeb
+        ? {
+            width: screenWidth,
+            height: Math.floor(screenHeight * LIST_HEIGHT_RATIO),
+          }
+        : NATIVE_LIST_FRAME_STYLE,
     [screenWidth, screenHeight]
   );
 
@@ -97,17 +123,30 @@ export function ForwardChannelSelector({
           placeholder="Search channels"
           onChangeQuery={handleQueryChanged}
           debounceTime={0}
+          inputProps={SEARCH_INPUT_PROPS}
         />
       </XStack>
 
-      <View style={estimatedListSize}>
+      <View style={listFrameStyle}>
         {isSearching && channelChats.length === 0 ? (
-          <Text color="$tertiaryText" textAlign="center" fontFamily="$body">
-            No results found
-          </Text>
+          <YStack
+            alignItems="center"
+            gap="$s"
+            paddingHorizontal="$2xl"
+            paddingVertical="$4xl"
+          >
+            <Text size="$label/l" color="$secondaryText">
+              No results found
+            </Text>
+            <Text size="$label/m" color="$tertiaryText" textAlign="center">
+              Try a different name
+            </Text>
+          </YStack>
         ) : (
           <FlashList<ChannelChat>
+            ref={listRef}
             data={channelChats}
+            maintainVisibleContentPosition={MAINTAIN_VISIBLE_CONTENT_POSITION}
             extraData={highlightedChannelId}
             contentContainerStyle={contentContainerStyle}
             getItemType={getItemType}

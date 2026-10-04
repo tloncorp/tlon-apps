@@ -103,6 +103,10 @@ export const ForwardChannelListItem = memo(
       disableOptions: true,
       disableFocusedStyle: true,
       showGroupTitle: true,
+      // A destination needs a name, not its latest message or unread count.
+      showActivity: false,
+      // Puts the avatar on the sheet's 40pt text edge, under the title.
+      paddingHorizontal: '$2xl',
       borderWidth: '$2xs',
       marginHorizontal: -1,
       accessibilityLabel: selected

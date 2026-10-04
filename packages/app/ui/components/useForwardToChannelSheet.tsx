@@ -57,7 +57,7 @@ export function useForwardToChannelSheet({
     }
   }, [presentationKey]);
 
-  const handleChannelSelected = useCallback((channel: db.Channel) => {
+  const handleChannelSelected = useCallback((channel: db.Channel | null) => {
     setSelectedChannel(channel);
   }, []);
 
@@ -116,6 +116,7 @@ export function useForwardToChannelSheet({
 
     return (
       <YStack
+        paddingTop="$l"
         paddingBottom={sheetBottomInset + getTokenValue('$xl', 'size')}
         paddingHorizontal="$xl"
       >
