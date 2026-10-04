@@ -2,6 +2,7 @@ import * as db from '@tloncorp/shared/db';
 import {
   BlockSectionList,
   PlainSectionList,
+  Text,
   useIsWindowNarrow,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -23,6 +24,9 @@ import {
 import { ContactRow } from './ContactRow';
 import { ListEmptyState } from './ListEmptyState';
 import { SearchBar } from './SearchBar';
+
+// Letter headings help scan a long list. On a short one they are just noise.
+const SHORT_LIST_MAX = 10;
 
 export function ContactBook({
   autoFocus = false,
@@ -89,10 +93,28 @@ export function ContactBook({
     if (showSearchResults) {
       const label = `Contacts matching ‘${query}’`;
       return queryContacts?.length ? [{ label, data: queryContacts }] : [];
+    } else if (
+      appearance === 'plain' &&
+      contactsForBook.length > 0 &&
+      contactsForBook.length <= SHORT_LIST_MAX
+    ) {
+      return [
+        {
+          label: 'Contacts',
+          data: segmentedContacts.flatMap((section) => section.data),
+        },
+      ];
     } else {
       return segmentedContacts;
     }
-  }, [showSearchResults, query, queryContacts, segmentedContacts]);
+  }, [
+    showSearchResults,
+    query,
+    queryContacts,
+    segmentedContacts,
+    appearance,
+    contactsForBook.length,
+  ]);
 
   const [selected, setSelected] = useState<string[]>([]);
   const selectedRef = useRef(selected);
@@ -232,6 +254,7 @@ export function ContactBook({
               spellCheck: false,
               autoCapitalize: 'none',
               autoComplete: 'off',
+              returnKeyType: 'search',
               flex: 1,
               autoFocus,
             }}
@@ -244,6 +267,18 @@ export function ContactBook({
         <View flex={1} onTouchStart={Keyboard.dismiss}>
           <List
             ListHeaderComponent={!showSearchResults ? quickActions : null}
+            ListFooterComponent={
+              isPlain && searchable && !showSearchResults ? (
+                <Text
+                  size="$label/m"
+                  color="$tertiaryText"
+                  paddingHorizontal="$2xl"
+                  paddingTop="$l"
+                >
+                  Not in your contacts? Enter their full ID.
+                </Text>
+              ) : null
+            }
             ListEmptyComponent={
               showSearchResults ? (
                 <ListEmptyState
