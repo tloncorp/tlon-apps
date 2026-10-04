@@ -207,7 +207,6 @@ export function ContactBook({
           width="100%"
         >
           <SearchBar
-            height="$4xl"
             debounceTime={100}
             onChangeQuery={setQuery}
             placeholder={searchPlaceholder ?? ''}
@@ -228,7 +227,17 @@ export function ContactBook({
           <BlockSectionList
             ListHeaderComponent={!showSearchResults ? quickActions : null}
             ListEmptyComponent={
-              !showSearchResults ? <ContactBookEmptyState /> : null
+              showSearchResults ? (
+                <ContactBookEmptyState
+                  title="No contacts found"
+                  subtitle="Check the spelling, or enter a full ID"
+                />
+              ) : (
+                <ContactBookEmptyState
+                  title="No Contacts"
+                  subtitle="Your contact book is empty"
+                />
+              )
             }
             sections={sections}
             onTouchStart={onTouchStart}
@@ -245,7 +254,13 @@ export function ContactBook({
   );
 }
 
-function ContactBookEmptyState() {
+function ContactBookEmptyState({
+  title,
+  subtitle,
+}: {
+  title: string;
+  subtitle: string;
+}) {
   return (
     <YStack
       alignItems="center"
@@ -254,10 +269,10 @@ function ContactBookEmptyState() {
       paddingVertical="$4xl"
     >
       <Text size="$label/l" color="$secondaryText">
-        No Contacts
+        {title}
       </Text>
       <Text size="$label/m" color="$tertiaryText" textAlign="center">
-        Your contact book is empty
+        {subtitle}
       </Text>
     </YStack>
   );
