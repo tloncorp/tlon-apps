@@ -14,7 +14,13 @@ const harness = vi.hoisted(() => ({
 vi.mock('react-native', () => ({
   useWindowDimensions: () => ({ width: 400, height: 800 }),
 }));
-vi.mock('@tloncorp/ui', () => ({ Text: 'Text' }));
+vi.mock('@tloncorp/ui', () => ({
+  Text: 'Text',
+  PlainSectionListHeader: Object.assign(
+    ({ children }: { children: React.ReactNode }) => children,
+    { Text: 'Label' }
+  ),
+}));
 vi.mock('tamagui', () => ({
   isWeb: false,
   View: 'View',
@@ -36,7 +42,13 @@ vi.mock('@shopify/flash-list', () => ({
     useImperativeHandle(ref, () => ({
       scrollToOffset: harness.scrollToOffset,
     }));
-    return <>{data.map((item) => renderItem({ item }))}</>;
+    return (
+      <>
+        {data.map((item, index) => (
+          <React.Fragment key={index}>{renderItem({ item })}</React.Fragment>
+        ))}
+      </>
+    );
   }),
 }));
 vi.mock('../../hooks/useFilteredChannelChats', () => ({
@@ -44,7 +56,11 @@ vi.mock('../../hooks/useFilteredChannelChats', () => ({
     isSearching: searchQuery.length > 0,
     channelChats: ['general', 'support']
       .filter((id) => id.includes(searchQuery))
-      .map((id) => ({ type: 'channel', channel: { id, type: 'chat' } })),
+      .map((id) => ({
+        type: 'channel',
+        pin: id === 'general' ? { itemId: id } : null,
+        channel: { id, type: 'chat' },
+      })),
   }),
 }));
 vi.mock('./SearchBar', () => ({
@@ -64,7 +80,7 @@ describe('ForwardChannelSelector', () => {
     harness.scrollToOffset.mockClear();
   });
 
-  it('clears the selection and returns to the top when the search changes', () => {
+  function renderSelector() {
     const onChannelSelected = vi.fn();
     let tree: ReturnType<typeof create>;
     act(() => {
@@ -72,7 +88,32 @@ describe('ForwardChannelSelector', () => {
         <ForwardChannelSelector onChannelSelected={onChannelSelected} />
       );
     });
-    const rows = () => tree.root.findAllByType('Row' as never);
+    return {
+      onChannelSelected,
+      rows: () => tree.root.findAllByType('Row' as never),
+      labels: () =>
+        tree.root
+          .findAllByType('Label' as never)
+          .map((label) => label.props.children),
+    };
+  }
+
+  it('labels pinned and recent chats, then what a search matched', () => {
+    const { rows, labels } = renderSelector();
+    expect(labels()).toEqual(['Pinned', 'Recent']);
+    expect(rows().map((row) => row.props.channel.id)).toEqual([
+      'general',
+      'support',
+    ]);
+
+    act(() => harness.changeQuery('sup'));
+
+    expect(labels()).toEqual(['Chats matching ‘sup’']);
+    expect(rows().map((row) => row.props.channel.id)).toEqual(['support']);
+  });
+
+  it('clears the selection and returns to the top when the search changes', () => {
+    const { onChannelSelected, rows } = renderSelector();
 
     const general = rows()[0].props.channel as db.Channel;
     act(() => rows()[0].props.onPress(general));
@@ -84,7 +125,6 @@ describe('ForwardChannelSelector', () => {
     // The sheet's Forward button follows this callback, so a search has to
     // clear it or the button keeps naming a chat that is no longer listed.
     expect(onChannelSelected).toHaveBeenLastCalledWith(null);
-    expect(rows().map((row) => row.props.channel.id)).toEqual(['support']);
     expect(rows()[0].props.selected).toBe(false);
     expect(harness.scrollToOffset).toHaveBeenCalledWith({
       offset: 0,

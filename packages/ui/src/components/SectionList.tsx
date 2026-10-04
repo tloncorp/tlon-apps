@@ -119,11 +119,16 @@ export const BlockSectionListComponent = <
   );
 };
 
-const PlainSectionListHeader = styled(View, {
+const PlainSectionListHeaderFrame = styled(View, {
   paddingHorizontal: '$2xl',
   paddingTop: '$l',
   paddingBottom: '$xs',
 });
+
+export const PlainSectionListHeader = withStaticProperties(
+  PlainSectionListHeaderFrame,
+  { Text: SectionListHeaderText }
+);
 
 /**
  * Sections drawn straight on the surface, with no card behind them. Rows
@@ -138,7 +143,9 @@ export const PlainSectionList = <
   const renderSectionHeader = useCallback(
     ({ section }: { section: SectionListData<TItem, TSection> }) => (
       <PlainSectionListHeader>
-        <SectionListHeaderText>{section.label}</SectionListHeaderText>
+        <PlainSectionListHeader.Text>
+          {section.label}
+        </PlainSectionListHeader.Text>
       </PlainSectionListHeader>
     ),
     []

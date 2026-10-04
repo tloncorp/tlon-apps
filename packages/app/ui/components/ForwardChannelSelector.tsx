@@ -4,6 +4,7 @@ import {
   type ListRenderItem,
 } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
+import { PlainSectionListHeader } from '@tloncorp/ui';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useWindowDimensions } from 'react-native';
 import { View, XStack, getTokenValue, isWeb } from 'tamagui';
@@ -20,6 +21,10 @@ type ForwardChannelSelectorProps = {
 };
 
 type ChannelChat = db.Chat & { type: 'channel' };
+type SectionLabel = { label: string };
+type Row = ChannelChat | SectionLabel;
+
+const isSectionLabel = (row: Row): row is SectionLabel => 'label' in row;
 
 const ITEM_H = 76;
 const LIST_HEIGHT_RATIO = 0.68;
@@ -27,23 +32,28 @@ const SEARCH_INPUT_PROPS = {
   spellCheck: false,
   autoCapitalize: 'none',
   autoComplete: 'off',
+  returnKeyType: 'search',
 } as const;
 const NATIVE_LIST_FRAME_STYLE = { flex: 1 } as const;
 // A search swaps the whole list, so there is no row worth keeping in place.
 const MAINTAIN_VISIBLE_CONTENT_POSITION = { disabled: true } as const;
-const getItemType = (chat: ChannelChat) =>
-  chat.channel.type === 'dm' || chat.channel.type === 'groupDm'
-    ? 'dm'
-    : chat.channel.group
-      ? 'group'
-      : 'channel';
+const getItemType = (row: Row) =>
+  isSectionLabel(row)
+    ? 'label'
+    : row.channel.type === 'dm' || row.channel.type === 'groupDm'
+      ? 'dm'
+      : row.channel.group
+        ? 'group'
+        : 'channel';
+const getRowKey = (row: Row) =>
+  isSectionLabel(row) ? `label:${row.label}` : row.channel.id;
 
 export function ForwardChannelSelector({
   onChannelSelected,
   channelFilter,
 }: ForwardChannelSelectorProps) {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const listRef = useRef<FlashListRef<ChannelChat>>(null);
+  const listRef = useRef<FlashListRef<Row>>(null);
   const [query, setQuery] = useState('');
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(
     null
@@ -83,20 +93,48 @@ export function ForwardChannelSelector({
     [onChannelSelected]
   );
 
-  const renderItem: ListRenderItem<ChannelChat> = useCallback(
-    ({ item }) => (
-      <ForwardChannelListItem
-        channel={item.channel}
-        selected={highlightedChannelId === item.channel.id}
-        onPress={handleChannelSelected}
-      />
-    ),
+  // The list arrives pinned-first, then by recency. Say so when both kinds
+  // are present, and say what a search matched, like the contact picker does.
+  const rows = useMemo((): Row[] => {
+    if (isSearching) {
+      return channelChats.length > 0
+        ? [{ label: `Chats matching ‘${query}’` }, ...channelChats]
+        : [];
+    }
+    const pinned = channelChats.filter((chat) => chat.pin);
+    if (pinned.length === 0 || pinned.length === channelChats.length) {
+      return channelChats;
+    }
+    return [
+      { label: 'Pinned' },
+      ...pinned,
+      { label: 'Recent' },
+      ...channelChats.filter((chat) => !chat.pin),
+    ];
+  }, [channelChats, isSearching, query]);
+
+  const renderItem: ListRenderItem<Row> = useCallback(
+    ({ item }) =>
+      isSectionLabel(item) ? (
+        <PlainSectionListHeader>
+          <PlainSectionListHeader.Text>
+            {item.label}
+          </PlainSectionListHeader.Text>
+        </PlainSectionListHeader>
+      ) : (
+        <ForwardChannelListItem
+          channel={item.channel}
+          selected={highlightedChannelId === item.channel.id}
+          onPress={handleChannelSelected}
+        />
+      ),
     [handleChannelSelected, highlightedChannelId]
   );
 
   const contentContainerStyle = useMemo(
     () => ({
-      padding: getTokenValue('$xl', 'size'),
+      paddingHorizontal: getTokenValue('$xl', 'size'),
+      paddingTop: getTokenValue('$s', 'size'),
       paddingBottom: 100,
     }),
     []
@@ -134,16 +172,17 @@ export function ForwardChannelSelector({
             subtitle="Try a different name"
           />
         ) : (
-          <FlashList<ChannelChat>
+          <FlashList<Row>
             ref={listRef}
-            data={channelChats}
+            data={rows}
             maintainVisibleContentPosition={MAINTAIN_VISIBLE_CONTENT_POSITION}
             extraData={highlightedChannelId}
             contentContainerStyle={contentContainerStyle}
             getItemType={getItemType}
-            keyExtractor={(chat) => chat.channel.id}
+            keyExtractor={getRowKey}
             renderItem={renderItem}
             drawDistance={ITEM_H * 8}
+            keyboardDismissMode="on-drag"
             keyboardShouldPersistTaps="always"
             nestedScrollEnabled
           />
