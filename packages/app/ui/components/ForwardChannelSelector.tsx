@@ -4,13 +4,13 @@ import {
   type ListRenderItem,
 } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
-import { Text } from '@tloncorp/ui';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useWindowDimensions } from 'react-native';
-import { View, XStack, YStack, getTokenValue, isWeb } from 'tamagui';
+import { View, XStack, getTokenValue, isWeb } from 'tamagui';
 
 import { useFilteredChannelChats } from '../../hooks/useFilteredChannelChats';
 import { ForwardChannelListItem } from './ForwardChannelListItem';
+import { ListEmptyState } from './ListEmptyState';
 import { SearchBar } from './SearchBar';
 
 type ForwardChannelSelectorProps = {
@@ -129,19 +129,10 @@ export function ForwardChannelSelector({
 
       <View style={listFrameStyle}>
         {isSearching && channelChats.length === 0 ? (
-          <YStack
-            alignItems="center"
-            gap="$s"
-            paddingHorizontal="$2xl"
-            paddingVertical="$4xl"
-          >
-            <Text size="$label/l" color="$secondaryText">
-              No results found
-            </Text>
-            <Text size="$label/m" color="$tertiaryText" textAlign="center">
-              Try a different name
-            </Text>
-          </YStack>
+          <ListEmptyState
+            title="No results found"
+            subtitle="Try a different name"
+          />
         ) : (
           <FlashList<ChannelChat>
             ref={listRef}

@@ -66,6 +66,7 @@ export const ForwardPostSheetProvider = ({ children }: PropsWithChildren) => {
         onNativeDismissed={onNativeDismissed}
         keepMounted={keepMounted}
         title="Forward to channel"
+        subtitle={post?.textContent?.trim() || undefined}
         onChannelSelected={handleChannelSelected}
         footerComponent={renderFooter}
       />

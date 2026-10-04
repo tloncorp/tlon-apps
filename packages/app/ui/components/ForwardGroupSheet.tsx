@@ -9,6 +9,7 @@ import {
   useState,
 } from 'react';
 
+import { useGroupTitle } from '../utils';
 import { ForwardToChannelSheet } from './ForwardToChannelSheet';
 import { useForwardToChannelSheet } from './useForwardToChannelSheet';
 
@@ -58,6 +59,7 @@ export const ForwardGroupSheetProvider = ({ children }: PropsWithChildren) => {
     failureMessage: 'Failed to forward group',
   });
 
+  const groupTitle = useGroupTitle(group);
   const contextValue = useMemo(() => ({ open: handleOpen }), [handleOpen]);
   return (
     <ForwardGroupSheetContext.Provider value={contextValue}>
@@ -69,6 +71,7 @@ export const ForwardGroupSheetProvider = ({ children }: PropsWithChildren) => {
         onNativeDismissed={onNativeDismissed}
         keepMounted={keepMounted}
         title="Forward group"
+        subtitle={groupTitle ?? undefined}
         onChannelSelected={handleChannelSelected}
         footerComponent={renderFooter}
       />
