@@ -1,5 +1,4 @@
 import * as db from '@tloncorp/shared/db';
-import { Icon } from '@tloncorp/ui';
 import { BlockSectionList } from '@tloncorp/ui';
 import React, { useCallback, useRef } from 'react';
 import {
@@ -7,9 +6,9 @@ import {
   NativeSyntheticEvent,
   SectionListRenderItemInfo,
 } from 'react-native';
-import { View } from 'tamagui';
 
 import { AlphaSegmentedGroups } from '../hooks/groupsSorters';
+import { ListItem } from './ListItem';
 import { GroupListItem } from './listItems';
 
 interface Props {
@@ -88,27 +87,7 @@ function SelectableGroupItemComponent(props: {
       disableOptions
       EndContent={
         props.selectable ? (
-          // An avatar-sized box straight in the row, not ListItem.EndContent:
-          // its top padding (for time labels) pushes the control off-center.
-          <View
-            justifyContent="center"
-            alignItems="center"
-            height="$4xl"
-            width="$4xl"
-          >
-            {props.selected ? (
-              <Icon type="Checkmark" size="$xl" />
-            ) : (
-              <View
-                borderWidth={1}
-                borderRadius="$4xl"
-                borderColor="$tertiaryText"
-                opacity={0.6}
-                height="$3xl"
-                width="$3xl"
-              />
-            )}
-          </View>
+          <ListItem.SelectionIndicator selected={props.selected} />
         ) : null
       }
     />
