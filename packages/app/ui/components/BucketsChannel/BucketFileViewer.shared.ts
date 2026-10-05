@@ -44,6 +44,94 @@ export function canPreviewFromText(
   return item.size === undefined || item.size <= MAX_TEXT_PREVIEW_BYTES;
 }
 
+/** The attributes of a start tag, from the text between its name and its `>`; the first of a name wins. */
+function tagAttributes(text: string): Map<string, string> {
+  const attributes = new Map<string, string>();
+  let i = 0;
+  while (i < text.length) {
+    while (
+      i < text.length &&
+      (isHtmlSpace(text.charCodeAt(i)) || text[i] === '/')
+    )
+      i += 1;
+    const nameStart = i;
+    while (
+      i < text.length &&
+      !isHtmlSpace(text.charCodeAt(i)) &&
+      text[i] !== '=' &&
+      text[i] !== '/'
+    ) {
+      i += 1;
+    }
+    const name = text.slice(nameStart, i).toLowerCase();
+    while (i < text.length && isHtmlSpace(text.charCodeAt(i))) i += 1;
+    let value = '';
+    if (text[i] === '=') {
+      i += 1;
+      while (i < text.length && isHtmlSpace(text.charCodeAt(i))) i += 1;
+      const quote = text[i];
+      if (quote === '"' || quote === "'") {
+        const close = text.indexOf(quote, i + 1);
+        const end = close < 0 ? text.length : close;
+        value = text.slice(i + 1, end);
+        i = end + 1;
+      } else {
+        const start = i;
+        while (i < text.length && !isHtmlSpace(text.charCodeAt(i))) i += 1;
+        value = text.slice(start, i);
+      }
+    }
+    if (name !== '' && !attributes.has(name)) attributes.set(name, value);
+    if (i === nameStart) i += 1;
+  }
+  return attributes;
+}
+
+/**
+ * The charset an HTML file declares in its first bytes, found as a browser's
+ * encoding prescan finds it: comments are skipped, and only a `<meta>` with a
+ * `charset` attribute, or one with `http-equiv="content-type"` whose
+ * `content` names a charset, declares one. `charset=` anywhere else -- in a
+ * comment, in a description -- does not.
+ */
+function metaCharset(head: string): string | undefined {
+  let i = 0;
+  for (;;) {
+    const open = head.indexOf('<', i);
+    if (open < 0) return undefined;
+    if (head.startsWith('<!--', open)) {
+      const close = head.indexOf('-->', open + 4);
+      if (close < 0) return undefined;
+      i = close + 3;
+      continue;
+    }
+    if (!isAsciiLetter(head.charCodeAt(open + 1))) {
+      i = open + 1;
+      continue;
+    }
+    let nameEnd = open + 1;
+    while (nameEnd < head.length) {
+      const code = head.charCodeAt(nameEnd);
+      if (isHtmlSpace(code) || code === 47 || code === 62) break;
+      nameEnd += 1;
+    }
+    const tagEnd = startTagEnd(head, nameEnd);
+    if (tagEnd < 0) return undefined;
+    i = tagEnd;
+    if (head.slice(open + 1, nameEnd).toLowerCase() !== 'meta') continue;
+    const attributes = tagAttributes(head.slice(nameEnd, tagEnd - 1));
+    const charset = attributes.get('charset')?.trim();
+    if (charset) return charset;
+    if (attributes.get('http-equiv')?.trim().toLowerCase() === 'content-type') {
+      const declared = attributes
+        .get('content')
+        ?.match(/charset\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s;"']+))/i);
+      const value = (declared?.[1] ?? declared?.[2] ?? declared?.[3])?.trim();
+      if (value) return value;
+    }
+  }
+}
+
 /**
  * The encoding a preview's bytes are in, decided as a browser decides for a
  * page: a byte order mark first, then the charset the response declares,
@@ -67,10 +155,7 @@ export function previewEncoding({
   const declared = contentType?.match(/;\s*charset\s*=\s*"?([^";\s]+)/i)?.[1];
   if (declared) return declared.toLowerCase();
   if (html) {
-    const meta = head
-      .slice(0, 1024)
-      .match(/<meta\b[^>]*?charset\s*=\s*["']?\s*([a-z0-9_:.+-]+)/i)?.[1]
-      ?.toLowerCase();
+    const meta = metaCharset(head.slice(0, 1024))?.toLowerCase();
     if (meta) return meta.startsWith('utf-16') ? 'utf-8' : meta;
   }
   return 'utf-8';

@@ -258,6 +258,27 @@ describe('previewEncoding', () => {
     ).toBe('iso-8859-1');
   });
 
+  // Only a real declaration counts: charset= in a comment, or in a meta that
+  // is not about the encoding, says nothing about it.
+  it('reads only a genuine declaration', () => {
+    expect(page('<!-- charset=windows-1252 --><p>x</p>')).toBe('utf-8');
+    expect(
+      page('<meta name="description" content="charset=windows-1252">')
+    ).toBe('utf-8');
+    expect(
+      page('<meta http-equiv="refresh" content="0; charset=windows-1252">')
+    ).toBe('utf-8');
+    expect(
+      page(
+        '<meta content="text/html; charset=windows-1252" http-equiv="Content-Type">'
+      )
+    ).toBe('windows-1252');
+    expect(page('<meta charset = " windows-1252 ">')).toBe('windows-1252');
+    expect(
+      page('<!-- <meta charset="shift_jis"> --><meta charset="windows-1252">')
+    ).toBe('windows-1252');
+  });
+
   // An ASCII <meta> cannot be read from a document that really is UTF-16.
   it('reads a UTF-16 declaration as UTF-8', () => {
     expect(page('<meta charset="utf-16">')).toBe('utf-8');
