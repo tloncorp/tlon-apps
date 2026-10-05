@@ -1,6 +1,6 @@
 ---
 name: tlon
-description: Interact with Tlon/Urbit API. Use for reading activity, message history, contacts, channels, and groups; hosted-browser login handoffs; group/channel administration; profile management; and exposing content to the clearweb.
+description: Interact with Tlon/Urbit API. Use for reading activity, message history, contacts, channels, and groups; hosted-browser secure form handoffs; group/channel administration; profile management; and exposing content to the clearweb.
 ---
 
 # Tlon Skill
@@ -28,23 +28,21 @@ tlon upload https://example.com/x.png  # remote URL
 
 Pass that printed URL as `media=`. On Tlon-hosted deployments (where `TLON_HOSTING` is set) the bot's own ship uploads through Tlon file hosting. Self-hosted moons have no storage, so `upload` refuses immediately with `This ship cannot store uploads …`; for a local file, retry through the owner ship's config: `tlon --config "$TLON_OWNER_CONFIG_PATH" upload <path>`. For a source that is already a public https URL, `media=` takes it directly — no upload needed. Never claim an image was sent unless the upload and the send both returned success.
 
-### Hosted-browser login handoff
+### Hosted-browser secure form handoff
 
-Use a browser login handoff when you are controlling a hosted browser on behalf
+Use a secure form handoff when you are controlling a hosted browser on behalf
 of your owner and the live page needs sensitive input that they should provide,
-especially:
+including identifier-only, password, and verification steps, as well as address
+and payment-card fields. The handoff follows the fields visible on the page;
+login steps can continue within the same handoff. Address and card entry fills
+fields without submitting a transaction.
 
-- a username and password form;
-- a password-only form after a username step; or
-- a visible one-time-password or verification-code form.
-
-Do not ask the owner to send a password or code in chat. Do not type, store,
+Do not ask the owner to send credentials, card details, or private addresses in chat. Do not type, store,
 repeat, summarize, or otherwise bring those values into model context. Ordinary
 navigation and non-sensitive form filling should continue through the browser
 tools without a handoff.
 
-First navigate the live session all the way to the visible login or verification
-form. Use the `session_id` (`sess_` handle) returned by `browser_session_create`
+First navigate the live session all the way to the visible form. Use the `session_id` (`sess_` handle) returned by `browser_session_create`
 for that same session. In OpenClaw, call the model-facing `tlon` tool with:
 
 ```json
@@ -59,7 +57,7 @@ delivery. Never copy, construct, edit, or supply a viewer URL yourself.
 Do not call `browser_session_handoff` as a prerequisite for this card. That tool
 uses MCP viewer/elicitation capabilities to arrange human browser control; it
 does not issue or refresh signed viewer URLs. Its `client_capability_missing`
-error does not determine whether the Tlon native login form is available.
+error does not determine whether the Tlon secure form is available.
 
 This is the one exception to the rule against using that tool to send a message.
 The command
@@ -68,32 +66,33 @@ account. It has no recipient argument or override. If no owner is configured,
 it fails instead of sending the form elsewhere. Never claim the handoff was
 sent unless the command returned success.
 
-The card opens a native Tlon password or verification-code form. It does not
-embed the remote page. The browser service re-inspects the live page, tells
-Tlon which standard fields are present, and receives the submitted values
-directly. The values are never posted to chat or returned to the bot. If login
-advances to a separate OTP page, run the same command again with the same live
-session handle to send the owner the OTP form. Each handoff resolves a fresh
-link without extending the session's deadline. Each time the owner opens the
-form, the browser service inspects the current page and issues a one-use fill
-handle.
+The card opens a native Tlon secure form. It does not embed the remote page.
+The browser service describes the visible fields using standard autofill
+purposes, including identifiers, passwords, verification codes, addresses, and
+card details. Each fill is bound to the exact live controls and origin. Values
+travel directly to the browser service, without passing through chat or the
+bot. Do not read or repeat filled sensitive fields through browser tools.
 
-Keep the session live while the owner completes the form. After a successful
-submission, “Return to conversation” automatically sends the same continuation
-message as the card's “I'm signed in” button. Wait for that message, then inspect
-the same browser session to verify that login actually succeeded and continue
-the task. Do not ask the owner to press both controls. The card button is only a
-manual fallback. Release the browser session promptly when the browser task is
-finished.
+Keep the session live while the owner completes the form. The same handoff
+follows successive login steps without another message or model-generated
+selector. Each step shows its destination and requires fresh input. Card and
+address forms are filled without a submit click; filling them does not authorize
+a purchase, payment, or other consequential action.
 
-If handoff reports that no visible password or code form exists, the browser is
-usually on the wrong page or an earlier login step. Inspect it, navigate or
-click until the sensitive form is visibly present, and have the owner reopen
-the card. If a card's link expires while its session is still live, run the
-handoff command again with the same handle to send a fresh card. If the lookup
+When entry finishes, the app resumes the conversation automatically. Wait for
+that continuation message, then inspect the same browser session, check the
+current page and validation state, and continue the task. Entry does not prove
+sign-in or transaction completion. Do not ask the owner to press both controls;
+the card's “Continue task” button is a manual alternative. Release the session
+promptly when the browser task is finished.
+
+Ambiguous forms, custom controls, passkeys, CAPTCHA, and unsupported steps can
+be completed through “Open live browser” on the same screen. Do not guess field
+selectors or ask for the values in chat. If a card expires while its session is
+still live, send a fresh card using the same session handle. If the lookup
 fails, report the failure; do not invent or edit a URL or claim a card was sent.
-If the live session itself expires, create a new one and navigate back to the
-required form before sending a card with its session handle.
+If the live session expires, create a new one and navigate to the required form
+before sending its handoff.
 
 #### What persists
 

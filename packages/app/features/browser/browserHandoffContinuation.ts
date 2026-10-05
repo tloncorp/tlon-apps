@@ -3,7 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import { A2UI, convertContent } from '@tloncorp/shared/logic';
 
 export const BROWSER_HANDOFF_CONTINUATION =
-  'I signed in; continue the browser task.';
+  'Continue the task from the same browser session after the secure form handoff. Check the current page. The handoff does not confirm sign-in or authorize a purchase.';
 
 export function getBrowserHandoffContinuationSelection(
   post: Pick<db.Post, 'id' | 'blob'>,
@@ -27,13 +27,13 @@ export function getBrowserHandoffContinuationSelection(
       );
     });
     if (!login) continue;
-    const continuation = components.find(
+    const continuations = components.filter(
       (component) =>
         component.component === 'Button' &&
-        component.action.event.name === A2UI.action.sendMessage &&
-        component.action.event.context.text.trim() ===
-          BROWSER_HANDOFF_CONTINUATION
+        component.action.event.name === A2UI.action.sendMessage
     );
+    const continuation =
+      continuations.length === 1 ? continuations[0] : undefined;
     return {
       type: 'tlon-a2ui-selection',
       version: 1,
@@ -48,6 +48,41 @@ export function getBrowserHandoffContinuationSelection(
 }
 
 const pendingContinuations = new Map<string, Promise<void>>();
+
+export function isBrowserHandoffContinuationSelection(
+  post: Pick<db.Post, 'id' | 'blob'>,
+  selection: PostBlobDataEntryA2UISelection
+): boolean {
+  if (selection.sourcePostId !== post.id) return false;
+  for (const block of convertContent(undefined, post.blob ?? undefined)) {
+    if (block.type !== 'a2ui') continue;
+    const components =
+      A2UI.getUpdateMessage(block.a2ui)?.updateComponents.components ?? [];
+    for (const component of components) {
+      if (
+        component.component !== 'Button' ||
+        component.action.event.name !== A2UI.action.navigate
+      )
+        continue;
+      const target = component.action.event.context.target;
+      if (
+        target.type !== 'screen' ||
+        target.screen !== 'browserCredentialHandoff'
+      )
+        continue;
+      const continuation = getBrowserHandoffContinuationSelection(
+        post,
+        target.viewerUrl
+      );
+      if (
+        continuation?.surfaceId === selection.surfaceId &&
+        continuation.componentId === selection.componentId
+      )
+        return true;
+    }
+  }
+  return false;
+}
 
 export async function sendBrowserHandoffContinuation({
   channelId,
