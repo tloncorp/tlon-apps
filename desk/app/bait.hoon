@@ -1,15 +1,13 @@
-::  bait: forwarder to %reel
+::  bait: retired, hands its state to %reel
 ::
-::    %reel now serves lure links itself, and owns the token registry and
-::    the /lure binding. this agent stays in the bill because ships that
-::    create links poke [provider %bait] by name. it holds no state of its
-::    own once its old state has been handed to %reel.
-::
-::    local pokes go to %reel unchanged. remote pokes are wrapped in a
-::    %forward so %reel sees the original sender.
+::    %reel now serves lure links, owns the token registry and binds /lure;
+::    ships poke the provider's %reel directly. this agent's only job is to
+::    run once more on upgrade and hand its old state to %reel; it refuses
+::    everything else. delete it, and drop it from desk.bill, in the
+::    release after %reel's state-8 ships.
 ::
 /-  reel
-/+  default-agent, verb, dbug, server, *reel
+/+  default-agent, verb, dbug, *reel
 |%
 +$  card  card:agent:gall
 +$  versioned-state
@@ -45,13 +43,7 @@
       pending=(unit [tokens=(map token:reel metadata:v1:reel) ids=(jug cord token:reel) secret=@t])
   ==
 ::
-++  remote
-  $?  %bait-describe
-      %bait-undescribe
-      %bait-update
-      %bait-update-group
-  ==
-::  +upgrade: bring any pre-forwarder state up to state-3; never given %4
+::  +upgrade: bring any pre-retirement state up to state-3; never given %4
 ::
 ++  upgrade
   |=  old=versioned-state
@@ -116,49 +108,20 @@
   :_  this
   ?~(pend ~ ~[(import:cor u.pend)])
 ::
-++  on-poke
-  |=  [=mark =vase]
-  ^-  (quip card _this)
-  ?:  ?=(%handle-http-request mark)
-    ::  eyre only reaches us between our reload and %reel taking over
-    ::  our bindings, a single event later
-    ::
-    =+  !<([id=@ta *] vase)
-    :_  this
-    %+  give-simple-payload:app:server  id
-    [[503 ['retry-after' '1']~] `(as-octs:mimes:html 'lure is moving to %reel')]
-  ?:  =(our src):bowl
-    [~[(to-reel:cor mark vase)] this]
-  ?.  ?=(remote mark)
-    (on-poke:def mark vase)
-  [~[(to-reel:cor %noun !>(`[%forward ship cage]`[%forward src.bowl mark vase]))] this]
-::
-++  on-watch
-  |=  =path
-  ^-  (quip card _this)
-  ?+  path  (on-watch:def path)
-    [%http-response *]  `this
-  ==
-::
+++  on-poke   on-poke:def
+++  on-watch  on-watch:def
 ++  on-leave  on-leave:def
+++  on-peek   on-peek:def
 ++  on-agent
   |=  [=wire =sign:agent:gall]
   ^-  (quip card _this)
-  ?+    wire  `this
-      [%import ~]
-    ?>  ?=(%poke-ack -.sign)
-    ?~  p.sign  `this(pending ~)
-    ::  keep it and try again on the next load
-    ::
-    %-  (slog leaf+"bait: %reel refused import" u.p.sign)
-    `this
+  ?.  ?=([%import ~] wire)  `this
+  ?>  ?=(%poke-ack -.sign)
+  ?~  p.sign  `this(pending ~)
+  ::  keep it and try again on the next load
   ::
-      [%forward ~]
-    ?>  ?=(%poke-ack -.sign)
-    ?~  p.sign  `this
-    %-  (slog leaf+"bait: %reel refused forwarded poke" u.p.sign)
-    `this
-  ==
+  %-  (slog leaf+"bait: %reel refused import" u.p.sign)
+  `this
 ::
 ::  eyre binds and branch threads started by the old %bait may still
 ::  report here
@@ -168,33 +131,9 @@
   ^-  (quip card _this)
   `this
 ::
-::  the old scry paths, answered from %reel
-::
-++  on-peek
-  |=  =path
-  ^-  (unit (unit cage))
-  =/  base  /(scot %p our.bowl)/reel/(scot %da now.bowl)/v1
-  ?+    path  [~ ~]
-      [%x %metadata ~]
-    ``noun+!>(.^((map token:reel metadata:reel) %gx (weld base /served/noun)))
-  ::
-      [%x token=@ %metadata ~]
-    =/  tokens  .^((map token:reel metadata:reel) %gx (weld base /served/noun))
-    ?~  meta=(~(get by tokens) i.t.path)  [~ ~]
-    ``noun+!>(u.meta)
-  ::
-      [%x %branch-secret ~]
-    ``noun+!>(.^(@t %gx (weld base /branch-secret/noun)))
-  ==
-::
 ++  on-fail   on-fail:def
 --
 |_  =bowl:gall
-++  to-reel
-  |=  [=mark =vase]
-  ^-  card
-  [%pass /forward %agent [our.bowl %reel] %poke mark vase]
-::
 ++  import
   |=  [tokens=(map token:reel metadata:reel) ids=(jug cord token:reel) secret=@t]
   ^-  card

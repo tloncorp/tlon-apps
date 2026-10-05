@@ -13,12 +13,10 @@
 ::                            /lure landing pages, and route bites back to
 ::                            the inviter.
 ::
-::    the cross-ship protocol is unchanged. remote ships address these roles
-::    by agent name, so %grouper and %bait remain in the bill as forwarders
-::    that hand remote pokes to us with the original sender attached (see
-::    the %forward noun poke). we keep poking [civ %bait] and
-::    [ship %grouper] for the same reason: those names answer on every desk
-::    version, old and new. see docs/backend/desk/app/reel.md.
+::    the provider is addressed as %reel too: we poke [civ %reel] with the
+::    bait-* marks, and it answers with reel-* marks as before. %grouper and
+::    %bait only hand their old state to us on upgrade, and go in the next
+::    release. see docs/backend/desk/app/reel.md.
 ::
 /-  reel, groups-ver, c=chat, cv=chat-ver, ch=channels, story
 /+  default-agent, verb, dbug, logs, server, *reel, s=subscriber,
@@ -120,7 +118,6 @@
 ::  state-8 adds the redeem and serve roles.
 ::
 ::  enabled-groups: our groups that accept lure joiners (was %grouper)
-::  open-asks: outstanding remote "is this group enabled?" questions
 ::  served: token -> metadata for links we serve as provider (was %bait)
 ::  served-ids: group id -> tokens, to update every link for a group
 ::  branch-secret: branch.io key used by the branch-update thread
@@ -137,7 +134,6 @@
       =^subs:s
     ::
       enabled-groups=(set cord)
-      open-asks=(set (pair ship cord))
     ::
       served=(map token:reel metadata:v1:reel)
       served-ids=(jug cord token:reel)
@@ -148,17 +144,6 @@
 ++  url-for-token
   |=  [vic=cord token=cord]
   (cat 3 vic token)
-::  +forwardable: marks %grouper and %bait may hand us from a remote ship
-::
-++  forwardable
-  $?  %grouper-ask-enabled
-      %grouper-answer-enabled
-      %bait-describe
-      %bait-undescribe
-      %bait-update
-      %bait-update-group
-  ==
-::
 ++  landing-page
   |=  =metadata:reel
   ^-  manx
@@ -389,7 +374,7 @@
       (turn ~(tap in open-describes.old) (late &))  ::  force sync on open describes
     ==
   ::  v7 -> v8: absorb %grouper and %bait. their state arrives by %import
-  ::  pokes from their forwarders' on-load. take over the eyre bindings
+  ::  pokes from their on-load. take over the eyre bindings
   ::  %bait held in a later event: scrying eyre here would make the load
   ::  depend on eyre's state.
   ::
@@ -404,7 +389,7 @@
             open-describes.old
             stable-id.old
             subs.old
-            ~  ~  ~  ~  ''
+            ~  ~  ~  ''
         ==
     :~  [%pass /eyre/connect %arvo %e %connect [~ /lure] dap.bowl]
         [%pass /takeover %arvo %b %wait now.bowl]
@@ -436,25 +421,11 @@
         [%branch-secret @t]
       `this(branch-secret ;;(@t +.q.vase))
     ::
-    ::  a remote poke handed over by the %grouper or %bait forwarder;
-    ::  handle it as if .from had poked us directly.
-    ::
-        [%forward *]
-      =+  !<([%forward from=ship =cage] vase)
-      ?>  ?=(forwardable p.cage)
-      (on-poke:this(src.bowl from) cage)
+    ::  %grouper and %bait hand over their state once, on upgrade
     ::
         [%import-grouper *]
-      =+  ;;  $:  %import-grouper
-                  enabled=(set cord)
-                  asks=(set (pair ship cord))
-              ==
-          q.vase
-      :-  ~
-      %=  this
-        enabled-groups  (~(uni in enabled-groups) enabled)
-        open-asks       (~(uni in open-asks) asks)
-      ==
+      =+  ;;([%import-grouper enabled=(set cord)] q.vase)
+      `this(enabled-groups (~(uni in enabled-groups) enabled))
     ::
         [%import-bait *]
       =+  ;;  $:  %import-bait
@@ -491,7 +462,7 @@
       %+  turn  ~(tap by our-metadata)
       |=  [token=cord =metadata:reel]
       ^-  card
-      [%pass /bait %agent [civ %bait] %poke %bait-describe !>([token metadata])]
+      [%pass /bait %agent [civ %reel] %poke %bait-describe !>([token metadata])]
     ==
   ::
       %reel-bite
@@ -580,7 +551,7 @@
     =.  open-describes  (~(put by open-describes) nonce |)
     =.  stable-id  (~(put by stable-id) id nonce)
     :_  this
-    ~[[%pass /bait %agent [civ %bait] %poke %bait-describe !>([nonce metadata])]]
+    ~[[%pass /bait %agent [civ %reel] %poke %bait-describe !>([nonce metadata])]]
   ::
       %reel-confirmation
     ?>  =(civ src.bowl)
@@ -615,7 +586,7 @@
     =/  path  (stab (cat 3 '/v1/id-link/' id))
     ?.  sync
       [%give %fact ~[path] %json !>(s+url)]~
-    :~  [%pass /bait %agent [civ %bait] %poke bait-update+!>([token u.md])]
+    :~  [%pass /bait %agent [civ %reel] %poke bait-update+!>([token u.md])]
         [%give %fact ~[path] %json !>(s+url)]
     ==
   ::
@@ -628,7 +599,7 @@
           ~[leaf+"invite link removed"]
         ~['event'^s+'Invite Link Removed' 'lure-id'^s+token]
     :_  this(our-metadata (~(del by our-metadata) token))
-    ~[[%pass /bait %agent [civ %bait] %poke %bait-undescribe !>(token)]]
+    ~[[%pass /bait %agent [civ %reel] %poke %bait-undescribe !>(token)]]
   ::  old pokes for getting links, we no longer use these because all links
   ::  are unique to that ship/user and can be scried out
   ::
@@ -662,20 +633,6 @@
     ?>  =(our.bowl src.bowl)
     =+  !<(name=cord vase)
     `this(enabled-groups (~(del in enabled-groups) name))
-  ::
-      %grouper-ask-enabled
-    =+  !<(name=cord vase)
-    =/  enabled  (~(has in enabled-groups) name)
-    :_  this
-    =/  =cage  grouper-answer-enabled+!>([name enabled])
-    ~[[%pass [%ask name ~] %agent [src.bowl %grouper] %poke cage]]
-  ::
-      %grouper-answer-enabled
-    =/  [name=cord enabled=?]  !<([cord ?] vase)
-    :-  ~[[%give %fact ~[[%group-enabled (scot %p src.bowl) name ~]] %json !>(b+enabled)]]
-    ?:  enabled
-      this(enabled-groups (~(put in enabled-groups) name))
-    this(enabled-groups (~(del in enabled-groups) name))
   ::
       %grouper-check-link
     ?>  =(our.bowl src.bowl)
@@ -921,10 +878,6 @@
     %-  (fail:log %error ~['DM invite failed'] u.p.sign)
     `this
   ::
-      [%group-enabled @ name=@ ~]
-    ?.  ?=(%poke-ack -.sign)  (on-agent:def wire sign)
-    `this(open-asks (~(del in open-asks) [src.bowl name.pole]))
-  ::
       [%contacts ~]
     ?+    -.sign  (on-agent:def wire sign)
         %kick
@@ -1018,7 +971,7 @@
         %+  roll  updates
         |=  [[=token:reel update=metadata:reel] caz=(list card) =_open-describes]
         =/  cad=card
-          [%pass /bait %agent [civ %bait] %poke bait-update+!>([token update])]
+          [%pass /bait %agent [civ %reel] %poke bait-update+!>([token update])]
         :-  [cad caz]
         ?.  (~(has by ^open-describes) token)
           open-describes
@@ -1078,7 +1031,7 @@
       ?.  =(p.flag our.bowl)
         `this
       :_  this
-      [%pass /bait %agent [civ %bait] %poke bait-update-group+!>([flag update])]~
+      [%pass /bait %agent [civ %reel] %poke bait-update-group+!>([flag update])]~
     ==
   ::
       [%token-link @ name=@ ~]
@@ -1097,17 +1050,8 @@
   ::
   ?:  ?=([%http-response *] pole)  `this
   ?>  =(our.bowl src.bowl)
-  ::  redeem: ask another ship whether lure joins are enabled for a group
+  ::  redeem: check that a lure link resolves
   ::
-  ?:  ?=([%group-enabled ship=@ name=@ ~] pole)
-    =/  target  (slav %p ship.pole)
-    =/  key  [target name.pole]
-    ?:  (~(has in open-asks) key)  `this
-    :_  this(open-asks (~(put in open-asks) key))
-    =/  =cage  grouper-ask-enabled+!>(name.pole)
-    :~  [%pass pole %agent [target %grouper] %poke cage]
-        [%pass /ask-expire/[ship.pole]/[name.pole] %arvo %b [%wait (add ~h1 now.bowl)]]
-    ==
   ?:  ?=([%check-link @ @ ~] pole)
     :_  this
     ~[[%pass pole %agent [our dap]:bowl %poke %grouper-check-link !>(`path`pole)]]
@@ -1230,11 +1174,6 @@
         ~[[%give %kick ~[path] ~]]
       (on-arvo:def wire sign-arvo)
     ==
-  ::
-      [%ask-expire @ @ ~]
-    ?>  ?=([%behn %wake *] sign-arvo)
-    =/  target  (slav %p i.t.wire)
-    `this(open-asks (~(del in open-asks) [target i.t.t.wire]))
   ::
       ::  lure-check-link reports by poking us; nothing to do on completion
       ::

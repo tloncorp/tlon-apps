@@ -76,21 +76,13 @@
   ;<  *  bind:m  (do-agent /import [our.bowl %reel] %poke-ack ~)
   ;<  save=vase  bind:m  get-save
   (ex-equal save !>([%4 ~]))
-::  +test-forward: remote provider pokes reach %reel with their sender
+::  +test-refuses: ships poke the provider's %reel now
 ::
-++  test-forward
+++  test-refuses
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  =bowl  bind:m  get-bowl
   ;<  *  bind:m  (do-init dap bait-agent)
   ;<  ~  bind:m  (set-src ~dev)
-  =/  =cage  bait-describe+!>([~.n1 group-invite-meta])
-  ;<  caz=(list card)  bind:m  (do-poke cage)
-  =/  fwd  `[%forward ship ^cage]`[%forward ~dev cage]
-  ;<  ~  bind:m
-    (ex-cards caz ~[(ex-poke /forward [our.bowl %reel] %noun !>(fwd))])
-  ::  only the provider protocol is accepted from other ships
-  ::
-  (ex-fail (do-poke %bind-slash !>(~)))
+  (ex-fail (do-poke bait-describe+!>([~.n1 group-invite-meta])))
 --

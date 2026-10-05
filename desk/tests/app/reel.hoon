@@ -24,7 +24,6 @@
       stable-id=(map cord token:reel)
       =^subs:s
       enabled-groups=(set cord)
-      open-asks=(set (pair ship cord))
       served=(map token:reel metadata:reel)
       served-ids=(jug cord token:reel)
       branch-secret=@t
@@ -83,7 +82,7 @@
   ;<  caz=(list card)  bind:m  (do-poke reel-describe+!>([id metadata]))
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-poke /bait [provider %bait] bait-describe+!>([nonce (v1:metadata:v0:conv:reel-utils metadata)]))
+    :~  (ex-poke /bait [provider %reel] bait-describe+!>([nonce (v1:metadata:v0:conv:reel-utils metadata)]))
     ==
   ;<  *  bind:m  (set-src provider)
   ;<  caz=(list card)  bind:m  (do-poke reel-confirmation+!>([nonce token]))
@@ -168,7 +167,7 @@
   ;<  caz=(list card)  bind:m  (do-poke reel-describe+!>(['~sampel-palnet/sunrise' group-invite-meta]))
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-poke /bait [provider %bait] bait-describe+!>(`[nonce:reel metadata:reel]`[nonce group-invite-meta]))
+    :~  (ex-poke /bait [provider %reel] bait-describe+!>(`[nonce:reel metadata:reel]`[nonce group-invite-meta]))
     ==
   ::  when the agent receives a confirmation, it registers the group invite
   ::  link locally.
@@ -187,7 +186,7 @@
   ;<  caz=(list card)  bind:m  (do-poke reel-describe+!>(['~zod/personal-invite-link' personal-invite-meta]))
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-poke /bait [provider %bait] bait-describe+!>([nonce personal-invite-meta]))
+    :~  (ex-poke /bait [provider %reel] bait-describe+!>([nonce personal-invite-meta]))
     ==
   ::  when the agent receives a confirmation, it registers the personal invite
   ::  link locally.
@@ -247,7 +246,7 @@
     ==
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-poke /bait [provider %bait] bait-update-group+!>([~sampel-palnet^%sunrise update]))
+    :~  (ex-poke /bait [provider %reel] bait-update-group+!>([~sampel-palnet^%sunrise update]))
     ==
   ;<  =metadata:reel  bind:m
     (get-full-peek metadata:reel /x/v1/metadata/~sampel-palnet/sunrise)
@@ -284,7 +283,7 @@
     ==
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-poke /bait [provider %bait] bait-update-group+!>([~sampel-palnet^%sunrise update]))
+    :~  (ex-poke /bait [provider %reel] bait-update-group+!>([~sampel-palnet^%sunrise update]))
     ==
   ::  when a group is deleted, the group host updates the provider with
   ::  invitedGroupDeleted set to true.
@@ -300,7 +299,7 @@
     ==
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-poke /bait [provider %bait] bait-update-group+!>([~sampel-palnet^%sunrise update]))
+    :~  (ex-poke /bait [provider %reel] bait-update-group+!>([~sampel-palnet^%sunrise update]))
     ==
   ;<  =metadata:reel  bind:m
     (get-full-peek metadata:reel /x/v1/metadata/~sampel-palnet/sunrise)
@@ -370,8 +369,8 @@
     ==
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-poke /bait [provider %bait] bait-update+!>([~.0v2 personal-update]))
-        (ex-poke /bait [provider %bait] bait-update+!>([~.0v1 group-update]))
+    :~  (ex-poke /bait [provider %reel] bait-update+!>([~.0v2 personal-update]))
+        (ex-poke /bait [provider %reel] bait-update+!>([~.0v1 group-update]))
     ==
   ::  verify that the personal invite has been updated locally
   ::
@@ -478,7 +477,7 @@
   ;<  ~  bind:m  (ex-equal !>(civ.new) !>(provider))
   ;<  ~  bind:m  (ex-equal !>(enabled-groups.new) !>(*(set cord)))
   (ex-equal !>(served.new) !>(*(map token:reel metadata:reel)))
-::  +test-import: forwarders hand over their old state
+::  +test-import: %grouper and %bait hand over their old state
 ::
 ++  test-import
   %-  eval-mare
@@ -488,21 +487,20 @@
   ;<  *  bind:m  (do-init dap reel-agent)
   ;<  ~  bind:m  (set-src ~sampel-palnet)
   ;<  *  bind:m
-    (do-poke %noun !>([%import-grouper (sy 'sunrise' ~) (sy [~zod 'x'] ~)]))
+    (do-poke %noun !>([%import-grouper (sy 'sunrise' ~)]))
   ;<  *  bind:m
     %+  do-poke  %noun
     !>([%import-bait (my [~.0v1 group-invite-meta] ~) (my ['~sampel-palnet/sunrise' (sy ~.0v1 ~)] ~) 'secret'])
   ;<  save=vase  bind:m  get-save
   =+  !<(new=state-8 save)
   ;<  ~  bind:m  (ex-equal !>(enabled-groups.new) !>((sy 'sunrise' ~)))
-  ;<  ~  bind:m  (ex-equal !>(open-asks.new) !>((sy [~zod 'x'] ~)))
   ;<  ~  bind:m  (ex-equal !>(branch-secret.new) !>('secret'))
   ;<  title=(unit @t)  bind:m  (get-served-field ~.0v1 %'invitedGroupTitle')
   ;<  ~  bind:m  (ex-equal !>(title) !>(`'Sunrise'))
-  ::  imports only come from our own forwarders
+  ::  imports only come from our own agents
   ::
   ;<  ~  bind:m  (set-src ~dev)
-  (ex-fail (do-poke %noun !>([%import-grouper (sy 'evil' ~) ~])))
+  (ex-fail (do-poke %noun !>([%import-grouper (sy 'evil' ~)])))
 ::  +test-personal-bite: redeeming a personal invite
 ::
 ::  a bite from the provider for a personal link sends the joiner a DM.
@@ -557,8 +555,7 @@
   ==
 ::  +test-serve-describe: registering a link as provider
 ::
-::  a group link is indexed by group id; a personal link is not. the
-::  same poke handed over by the %bait forwarder behaves identically.
+::  a group link is indexed by group id; a personal link is not.
 ::
 ++  test-serve-describe
   %-  eval-mare
@@ -574,10 +571,7 @@
     :~  (ex-poke /confirm/[nonce] [~dev %reel] reel-confirmation+!>([nonce ~.0v123]))
     ==
   ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(eny 0v456)))
-  ;<  =bowl  bind:m  get-bowl
-  ;<  ~  bind:m  (set-src our.bowl)
-  =/  =cage  bait-describe+!>([nonce personal-invite-meta])
-  ;<  caz=(list card)  bind:m  (do-poke %noun !>([%forward ~dev cage]))
+  ;<  caz=(list card)  bind:m  (do-poke bait-describe+!>([nonce personal-invite-meta]))
   ;<  ~  bind:m
     %+  ex-cards  caz
     :~  (ex-poke /confirm/[nonce] [~dev %reel] reel-confirmation+!>([nonce ~.0v456]))
@@ -587,12 +581,8 @@
   ;<  ~  bind:m
     %+  ex-equal  !>((~(get by served-ids.new) '~sampel-palnet/sunrise'))
     !>(`(unit (set token:reel))`[~ (sy ~.0v123 ~)])
-  ;<  ~  bind:m
-    %+  ex-equal  !>((~(get by served-ids.new) '~zod/personal-invite-link'))
-    !>(`(unit (set token:reel))`~)
-  ::  only the marks %grouper and %bait own can be forwarded
-  ::
-  (ex-fail (do-poke %noun !>([%forward ~dev grouper-enable+!>('sunrise')])))
+  %+  ex-equal  !>((~(get by served-ids.new) '~zod/personal-invite-link'))
+  !>(`(unit (set token:reel))`~)
 ::  +test-serve-update: updating served links
 ::
 ::  anyone with the token can update one link. the group host updates
