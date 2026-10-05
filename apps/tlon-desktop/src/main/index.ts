@@ -67,6 +67,18 @@ let ENCRYPTION_KEY: Buffer;
 
 let cachedShipUrl: string | null = null;
 
+// Whether a URL is the ship's own, by parsed origin rather than by prefix:
+// `https://ship.example` is also a prefix of `https://ship.example.evil.test/`,
+// and this answer decides which requests carry the reader's auth cookie.
+function isShipUrl(url: string): boolean {
+  if (!cachedShipUrl) return false;
+  try {
+    return new URL(url).origin === new URL(cachedShipUrl).origin;
+  } catch {
+    return false;
+  }
+}
+
 function encrypt(text: string): string {
   const iv = crypto.randomBytes(IV_LENGTH);
   const cipher = crypto.createCipheriv('aes-256-cbc', ENCRYPTION_KEY, iv);
@@ -116,7 +128,7 @@ async function createWindow() {
 
   // Add auth cookie to requests
   webSession.webRequest.onBeforeSendHeaders(async (details, callback) => {
-    if (cachedShipUrl && details.url.startsWith(cachedShipUrl)) {
+    if (isShipUrl(details.url)) {
       const headers = details.requestHeaders;
       if (headers) {
         // Get the auth cookie from storage
@@ -225,7 +237,7 @@ async function createWindow() {
   // Handle external links - open them in the default browser instead of a new electron window
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     // Check if the URL is external (not the cachedShipUrl)
-    if (cachedShipUrl && !url.startsWith(cachedShipUrl)) {
+    if (cachedShipUrl && !isShipUrl(url)) {
       // Open the URL in the user's default browser
       shell.openExternal(url);
       return { action: 'deny' };
@@ -239,7 +251,7 @@ async function createWindow() {
     // Only handle external URLs (not the app URL or cachedShipUrl)
     if (
       cachedShipUrl &&
-      !url.startsWith(cachedShipUrl) &&
+      !isShipUrl(url) &&
       !url.startsWith('http://localhost:3000') &&
       !url.startsWith('file://')
     ) {
