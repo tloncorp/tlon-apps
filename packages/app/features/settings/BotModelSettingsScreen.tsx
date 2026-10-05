@@ -300,6 +300,12 @@ export function BotModelSettingsScreen(props: Props) {
         zdr: {
           enabled: zdrOnly,
           loading: openRouterMetadata.loading,
+          // A refresh that fails keeps the endpoints it had, which still serve.
+          error:
+            openRouterMetadata.error && zdrModelIds.size === 0
+              ? (getErrorMessage(openRouterMetadata.error) ??
+                'Unable to load models.')
+              : null,
           modelIds: zdrModelIds,
           prices: zdrPrices,
         },
@@ -371,6 +377,7 @@ export function BotModelSettingsScreen(props: Props) {
     hiddenSelectableModelCount,
     mode,
     modelValues,
+    openRouterMetadata.error,
     openRouterMetadata.loading,
     pickerProviders,
     recommendedModelRank,

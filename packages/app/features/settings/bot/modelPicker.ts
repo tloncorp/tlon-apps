@@ -78,6 +78,8 @@ export function buildDefaultModelSections({
   zdr: {
     enabled: boolean;
     loading: boolean;
+    /** Why the list of ZDR endpoints is missing, when it could not be loaded. */
+    error: string | null;
     modelIds: ReadonlySet<string>;
     prices: ReadonlyMap<string, number>;
   };
@@ -152,14 +154,17 @@ export function buildDefaultModelSections({
             },
           ];
     }
-    if (provider.error) {
+    // Narrowing to ZDR needs the endpoint list. Without it every model would be
+    // filtered out, and a failed request would read as an empty catalog.
+    const error = provider.error ?? (zdrOnly ? zdr.error : null);
+    if (error) {
       return query
         ? []
         : [
             {
               key,
               title: provider.label,
-              rows: [...zdrRow, noteRow('error', provider.error)],
+              rows: [...zdrRow, noteRow('error', error)],
             },
           ];
     }

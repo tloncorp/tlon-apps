@@ -56,6 +56,7 @@ function build(
     zdr: {
       enabled: false,
       loading: false,
+      error: null,
       modelIds: new Set(),
       prices: new Map(),
     },
@@ -194,6 +195,7 @@ describe('buildDefaultModelSections', () => {
       zdr: {
         enabled: true,
         loading: false,
+        error: null,
         modelIds: new Set(['b']),
         prices: new Map([['b', 2]]),
       },
@@ -206,6 +208,28 @@ describe('buildDefaultModelSections', () => {
     expect(titles(modelRows)).toEqual(['Model b']);
     expect(modelRows[0].value).toBe('ZDR');
     expect(modelRows[0].subtitle).toBe('b · from $2 / 1m');
+  });
+
+  it('says why when the ZDR endpoints fail to load, and lets ZDR be turned off', () => {
+    const zdr = {
+      loading: false,
+      error: 'Lookup failed.',
+      modelIds: new Set<string>(),
+      prices: new Map<string, number>(),
+    };
+    const providers = [provider('openrouter', 'OpenRouter', ['a', 'b'])];
+
+    const narrowed = build({ providers, zdr: { ...zdr, enabled: true } });
+    const [zdrRow, ...rest] = narrowed.sections[0].rows;
+    expect(zdrRow.toggle?.value).toBe(true);
+    expect(zdrRow.disabled).toBe(false);
+    expect(titles(rest)).toEqual(['Lookup failed.']);
+
+    const all = build({ providers, zdr: { ...zdr, enabled: false } });
+    expect(titles(all.sections[0].rows.slice(1))).toEqual([
+      'Model a',
+      'Model b',
+    ]);
   });
 
   it('shows a provider’s loading and error states in its section', () => {
