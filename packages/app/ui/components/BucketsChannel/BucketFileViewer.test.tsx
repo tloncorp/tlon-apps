@@ -97,12 +97,23 @@ describe('BucketFileViewer html preview (web)', () => {
   // With no script anywhere, a link the reader clicks opens as a popup.
   it('withholds scripts under Electron and lets links open as popups', () => {
     mocks.isElectron = true;
-    const [frame] = frames(render(htmlFile));
+    const [frame] = frames(
+      render({
+        ...htmlFile,
+        textContent:
+          '<!doctype html><p>Quarterly numbers</p><a href="https://tlon.io" target="_self">brief</a>',
+      })
+    );
     const popups = 'allow-popups allow-popups-to-escape-sandbox';
     expect(frame.props.sandbox).toBe(popups);
-    expect(frame.props.srcDoc).toContain(
-      `<iframe sandbox="${popups}" srcdoc="`
+    const shell: string = frame.props.srcDoc;
+    expect(shell).toContain(`<iframe sandbox="${popups}" srcdoc="`);
+    // With no script to aim a click, the link itself is aimed at a popup, and
+    // our link script, which would be inert, is left out.
+    expect(shell).toContain(
+      '&lt;a target=&quot;_blank&quot; href=&quot;https://tlon.io&quot;&gt;brief&lt;/a&gt;'
     );
+    expect(shell).not.toContain('composedPath');
   });
 
   it('names the page by its title, with the file beneath', () => {

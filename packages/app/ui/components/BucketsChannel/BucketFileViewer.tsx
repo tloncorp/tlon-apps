@@ -91,7 +91,9 @@ export function BucketFileViewer({
             referrerPolicy="no-referrer"
             sandbox={htmlPreviewSandboxes({ isElectron }).shell}
             srcDoc={htmlPreviewShell({
-              document: htmlPreviewDocument(item.textContent, previewKey),
+              document: htmlPreviewDocument(item.textContent, previewKey, {
+                scripts: !isElectron,
+              }),
               key: previewKey,
               opener: { kind: 'window' },
               sandbox: htmlPreviewSandboxes({ isElectron }).document,

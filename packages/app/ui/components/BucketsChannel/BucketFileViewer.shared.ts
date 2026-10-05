@@ -1,3 +1,5 @@
+import { parseEntities } from 'parse-entities';
+
 export type BucketPreviewKind =
   | 'image'
   | 'video'
@@ -356,122 +358,6 @@ export function getBucketPreviewKind({
   return 'unsupported';
 }
 
-// HTML's named character references for Latin-1, U+00A0 to U+00FF in order.
-// These are also the "legacy" names, which a browser reads in text even
-// without the closing semicolon.
-const LATIN1_ENTITY_NAMES =
-  `nbsp iexcl cent pound curren yen brvbar sect uml copy
-  ordf laquo not shy reg macr deg plusmn sup2 sup3 acute micro para middot cedil
-  sup1 ordm raquo frac14 frac12 frac34 iquest Agrave Aacute Acirc Atilde Auml
-  Aring AElig Ccedil Egrave Eacute Ecirc Euml Igrave Iacute Icirc Iuml ETH Ntilde
-  Ograve Oacute Ocirc Otilde Ouml times Oslash Ugrave Uacute Ucirc Uuml Yacute
-  THORN szlig agrave aacute acirc atilde auml aring aelig ccedil egrave eacute
-  ecirc euml igrave iacute icirc iuml eth ntilde ograve oacute ocirc otilde ouml
-  divide oslash ugrave uacute ucirc uuml yacute thorn yuml`.split(/\s+/);
-
-// The rest of HTML 4's named references, with their code points in hex
-// (HTML's current values, so lang and rang are the mathematical angle
-// brackets).
-const OTHER_ENTITIES = `quot 22 amp 26 apos 27 lt 3c gt 3e QUOT 22 AMP 26 LT 3c
-  GT 3e COPY a9 REG ae OElig 152 oelig 153 Scaron 160 scaron 161 Yuml 178
-  fnof 192 circ 2c6 tilde 2dc Alpha 391 Beta 392 Gamma 393 Delta 394 Epsilon 395
-  Zeta 396 Eta 397 Theta 398 Iota 399 Kappa 39a Lambda 39b Mu 39c Nu 39d Xi 39e
-  Omicron 39f Pi 3a0 Rho 3a1 Sigma 3a3 Tau 3a4 Upsilon 3a5 Phi 3a6 Chi 3a7
-  Psi 3a8 Omega 3a9 alpha 3b1 beta 3b2 gamma 3b3 delta 3b4 epsilon 3b5 zeta 3b6
-  eta 3b7 theta 3b8 iota 3b9 kappa 3ba lambda 3bb mu 3bc nu 3bd xi 3be
-  omicron 3bf pi 3c0 rho 3c1 sigmaf 3c2 sigma 3c3 tau 3c4 upsilon 3c5 phi 3c6
-  chi 3c7 psi 3c8 omega 3c9 thetasym 3d1 upsih 3d2 piv 3d6 ensp 2002 emsp 2003
-  thinsp 2009 zwnj 200c zwj 200d lrm 200e rlm 200f ndash 2013 mdash 2014
-  lsquo 2018 rsquo 2019 sbquo 201a ldquo 201c rdquo 201d bdquo 201e dagger 2020
-  Dagger 2021 bull 2022 hellip 2026 permil 2030 prime 2032 Prime 2033
-  lsaquo 2039 rsaquo 203a oline 203e frasl 2044 euro 20ac image 2111
-  weierp 2118 real 211c trade 2122 alefsym 2135 larr 2190 uarr 2191 rarr 2192
-  darr 2193 harr 2194 crarr 21b5 lArr 21d0 uArr 21d1 rArr 21d2 dArr 21d3
-  hArr 21d4 forall 2200 part 2202 exist 2203 empty 2205 nabla 2207 isin 2208
-  notin 2209 ni 220b prod 220f sum 2211 minus 2212 lowast 2217 radic 221a
-  prop 221d infin 221e ang 2220 and 2227 or 2228 cap 2229 cup 222a int 222b
-  there4 2234 sim 223c cong 2245 asymp 2248 ne 2260 equiv 2261 le 2264 ge 2265
-  sub 2282 sup 2283 nsub 2284 sube 2286 supe 2287 oplus 2295 otimes 2297
-  perp 22a5 sdot 22c5 lceil 2308 rceil 2309 lfloor 230a rfloor 230b lang 27e8
-  rang 27e9 loz 25ca spades 2660 clubs 2663 hearts 2665 diams 2666`.split(
-  /\s+/
-);
-
-const NAMED_ENTITIES = new Map<string, number>(
-  LATIN1_ENTITY_NAMES.map((name, i) => [name, 0xa0 + i])
-);
-for (let i = 0; i < OTHER_ENTITIES.length; i += 2) {
-  NAMED_ENTITIES.set(OTHER_ENTITIES[i], parseInt(OTHER_ENTITIES[i + 1], 16));
-}
-
-// The names a browser decodes without a semicolon: Latin-1's, and the
-// markup characters in either case.
-const LEGACY_ENTITY_NAMES = new Set([
-  ...LATIN1_ENTITY_NAMES,
-  'amp',
-  'AMP',
-  'COPY',
-  'gt',
-  'GT',
-  'lt',
-  'LT',
-  'quot',
-  'QUOT',
-  'REG',
-]);
-
-function numericCharacter(code: number): string {
-  if (code === 0 || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff)) {
-    return '�';
-  }
-  // A reference into C1 means the windows-1252 character, as in a browser.
-  if (code >= 0x80 && code <= 0x9f) {
-    return String.fromCharCode(WINDOWS_1252_HIGH[code - 0x80]);
-  }
-  return String.fromCodePoint(code);
-}
-
-/**
- * Character references decoded as a browser decodes them in text: HTML 4's
- * named references (the ones a title is likely to use), the legacy Latin-1
- * names even without a semicolon (`&copy 2026`), and numeric references with
- * a browser's replacements. A name HTML does not define stays as written.
- */
-function decodeEntities(text: string): string {
-  return text.replace(
-    /&(?:#([xX][0-9a-fA-F]+|[0-9]+);?|([a-zA-Z][a-zA-Z0-9]*)(;?))/g,
-    (
-      reference: string,
-      numeric: string | undefined,
-      name: string | undefined,
-      semicolon: string | undefined
-    ) => {
-      if (numeric !== undefined) {
-        return numericCharacter(
-          numeric[0] === 'x' || numeric[0] === 'X'
-            ? parseInt(numeric.slice(1), 16)
-            : parseInt(numeric, 10)
-        );
-      }
-      if (name === undefined) return reference;
-      const code = semicolon ? NAMED_ENTITIES.get(name) : undefined;
-      if (code !== undefined) return String.fromCodePoint(code);
-      // The longest legacy name the run starts with, as a browser matches.
-      for (let length = Math.min(name.length, 6); length >= 2; length -= 1) {
-        const prefix = name.slice(0, length);
-        if (LEGACY_ENTITY_NAMES.has(prefix)) {
-          return (
-            String.fromCodePoint(NAMED_ENTITIES.get(prefix) ?? 0xfffd) +
-            name.slice(length) +
-            (semicolon ?? '')
-          );
-        }
-      }
-      return reference;
-    }
-  );
-}
-
 // Elements whose content is not read as markup for the document's title: the
 // raw-text and escapable raw-text elements, noscript (raw text with scripting
 // on), plaintext, and template, svg and math, whose titles are not the
@@ -580,7 +466,10 @@ export function htmlPreviewTitle(html: string): string | undefined {
     const close = endTagStart(lower, name, tagEnd);
     if (close < 0) return undefined;
     if (name === 'title') {
-      const title = decodeEntities(html.slice(tagEnd, close))
+      // Character references decoded as a browser decodes them in text: every
+      // named reference, the legacy ones without a semicolon, and numeric
+      // references with a browser's replacements.
+      const title = parseEntities(html.slice(tagEnd, close))
         .replace(/[\t\n\f\r ]+/g, ' ')
         .replace(/^ | $/g, '');
       return title === '' ? undefined : title.slice(0, 200);
@@ -956,6 +845,140 @@ function linkScript(key: string): string {
 </script>`;
 }
 
+// Elements whose content the parser reads as text, not markup: the raw-text
+// and escapable raw-text elements, and plaintext. (In a frame without
+// scripts, noscript's content is markup.)
+const TEXT_CONTENT_ELEMENTS = new Set([
+  'iframe',
+  'noembed',
+  'noframes',
+  'plaintext',
+  'script',
+  'style',
+  'textarea',
+  'title',
+  'xmp',
+]);
+
+/** A start tag's attribute text without its `target` attributes. */
+function withoutTarget(attributes: string): string {
+  let kept = '';
+  let i = 0;
+  while (i < attributes.length) {
+    const start = i;
+    while (
+      i < attributes.length &&
+      (isHtmlSpace(attributes.charCodeAt(i)) || attributes[i] === '/')
+    ) {
+      i += 1;
+    }
+    const nameStart = i;
+    while (
+      i < attributes.length &&
+      !isHtmlSpace(attributes.charCodeAt(i)) &&
+      attributes[i] !== '=' &&
+      attributes[i] !== '/'
+    ) {
+      i += 1;
+    }
+    const name = attributes.slice(nameStart, i).toLowerCase();
+    let valueEnd = i;
+    while (
+      valueEnd < attributes.length &&
+      isHtmlSpace(attributes.charCodeAt(valueEnd))
+    ) {
+      valueEnd += 1;
+    }
+    if (attributes[valueEnd] === '=') {
+      valueEnd += 1;
+      while (
+        valueEnd < attributes.length &&
+        isHtmlSpace(attributes.charCodeAt(valueEnd))
+      ) {
+        valueEnd += 1;
+      }
+      const quote = attributes[valueEnd];
+      if (quote === '"' || quote === "'") {
+        const close = attributes.indexOf(quote, valueEnd + 1);
+        valueEnd = close < 0 ? attributes.length : close + 1;
+      } else {
+        while (
+          valueEnd < attributes.length &&
+          !isHtmlSpace(attributes.charCodeAt(valueEnd))
+        ) {
+          valueEnd += 1;
+        }
+      }
+      i = valueEnd;
+    }
+    if (name !== 'target') kept += attributes.slice(start, i);
+    if (i === start) {
+      kept += attributes[i];
+      i += 1;
+    }
+  }
+  return kept;
+}
+
+/**
+ * The file's markup with every link -- `<a>` and `<area>`, HTML or SVG --
+ * aimed at `_blank` in place of whatever target it had.
+ *
+ * For a frame that runs no scripts, as under Electron, where our link script
+ * cannot point a click at `_blank` as it happens: there a link aimed at the
+ * frame itself would be refused by the shell's `frame-src`, and an SVG link
+ * ignores the `<base>` target, so neither would reach the desktop shell's
+ * window handler. With no script to change it, the markup is the document,
+ * so rewriting it covers every link. The same linear scan as the title's;
+ * text inside script, style, title and the like, and comments, is left as it
+ * is.
+ */
+function withLinksAimedAtBlank(html: string): string {
+  const lower = html.toLowerCase();
+  let rewritten = '';
+  let copied = 0;
+  let i = 0;
+  for (;;) {
+    const open = html.indexOf('<', i);
+    if (open < 0) break;
+    if (html.startsWith('<!--', open)) {
+      const close = html.indexOf('-->', open + 4);
+      if (close < 0) break;
+      i = close + 3;
+      continue;
+    }
+    if (!isAsciiLetter(html.charCodeAt(open + 1))) {
+      i = open + 1;
+      continue;
+    }
+    let nameEnd = open + 1;
+    while (nameEnd < html.length) {
+      const code = html.charCodeAt(nameEnd);
+      if (isHtmlSpace(code) || code === 47 || code === 62) break;
+      nameEnd += 1;
+    }
+    const name = lower.slice(open + 1, nameEnd);
+    const tagEnd = startTagEnd(html, nameEnd);
+    if (tagEnd < 0) break;
+    if (name === 'a' || name === 'area') {
+      rewritten +=
+        html.slice(copied, nameEnd) +
+        ' target="_blank"' +
+        withoutTarget(html.slice(nameEnd, tagEnd - 1)) +
+        '>';
+      copied = tagEnd;
+    }
+    i = tagEnd;
+    if (name === 'plaintext') break;
+    if (TEXT_CONTENT_ELEMENTS.has(name)) {
+      const close = endTagStart(lower, name, tagEnd);
+      if (close < 0) break;
+      i = close;
+    }
+  }
+  return rewritten + html.slice(copied);
+}
+
 /**
  * The file's markup as the frame loads it: the policy, `_blank` as the
  * default link target, and our link script (linkScript), ahead of the file.
@@ -964,15 +987,22 @@ function linkScript(key: string): string {
  * inside a closed shadow root: a `_blank` link the file's frame cannot open
  * is refused outright and the preview stays as it was, where a link aimed at
  * the frame itself would be refused by the shell's `frame-src` and leave
- * Chromium's blocked-page notice behind. Under Electron, where no script
- * runs, it is what turns a link into the popup the desktop shell opens. The
- * first `<base>` with a target wins, so a `<base href>` of the file's own
- * still applies.
+ * Chromium's blocked-page notice behind. The first `<base>` with a target
+ * wins, so a `<base href>` of the file's own still applies.
+ *
+ * In a frame that runs no scripts (`scripts: false`, under Electron) our
+ * script would be inert, so it is left out, and every link in the markup is
+ * aimed at `_blank` instead (withLinksAimedAtBlank): a link the reader clicks
+ * then becomes the popup the desktop shell opens in the system browser.
  */
-export function htmlPreviewDocument(html: string, key: string): string {
+export function htmlPreviewDocument(
+  html: string,
+  key: string,
+  { scripts = true }: { scripts?: boolean } = {}
+): string {
   return withDocumentHead(
-    html,
-    `${HTML_PREVIEW_POLICY_META}<base target="_blank">${linkScript(key)}`
+    scripts ? html : withLinksAimedAtBlank(html),
+    `${HTML_PREVIEW_POLICY_META}<base target="_blank">${scripts ? linkScript(key) : ''}`
   );
 }
 

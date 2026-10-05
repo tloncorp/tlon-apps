@@ -18,6 +18,7 @@
     "@tloncorp/editor": "workspace:*",
     "@tloncorp/shared": "workspace:*",
     "@tloncorp/ui": "workspace:*",
+    "parse-entities": "^4.0.0",
     "posthog-js": "^1.234.4",
     "react-native-ease": "0.8.0",
     "refractor": "^4.8.0",

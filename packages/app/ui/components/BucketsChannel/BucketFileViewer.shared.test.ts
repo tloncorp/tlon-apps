@@ -351,6 +351,10 @@ describe('htmlPreviewTitle', () => {
     expect(htmlPreviewTitle('<title>Report &copy; 2026</title>')).toBe(
       'Report © 2026'
     );
+    // HTML5's references, not only HTML 4's.
+    expect(htmlPreviewTitle('<title>Status &check; &bigstar;</title>')).toBe(
+      'Status ✓ ★'
+    );
     // Legacy names need no semicolon, and match their longest prefix.
     expect(htmlPreviewTitle('<title>&copy 2026 &notit;</title>')).toBe(
       '© 2026 ¬it;'
@@ -680,6 +684,55 @@ describe('htmlPreviewDocument', () => {
       '<!DOCTYPE html SYSTEM "a>',
       'b"><p>x</p>'
     );
+  });
+});
+
+// Under Electron no script runs in the frame, so links are aimed at `_blank`
+// in the markup itself: one aimed at the frame would be refused, and an SVG
+// link ignores the <base> target.
+describe('htmlPreviewDocument without scripts', () => {
+  const scriptless = (html: string) =>
+    htmlPreviewDocument(html, KEY, { scripts: false });
+
+  it('aims every link at _blank, whatever it was aimed at', () => {
+    const out = scriptless(
+      '<a href="https://a.example" target="_self">a</a>' +
+        '<A HREF=b TARGET=_top>b</A>' +
+        '<map><area href="c" target=\'_parent\'></map>' +
+        '<a href="d">d</a>' +
+        '<svg><a xlink:href="e"><text>e</text></a></svg>'
+    );
+    expect(out).toContain('<a target="_blank" href="https://a.example">a</a>');
+    expect(out).toContain('<A target="_blank" HREF=b>b</A>');
+    expect(out).toContain('<area target="_blank" href="c">');
+    expect(out).toContain('<a target="_blank" href="d">d</a>');
+    expect(out).toContain('<a target="_blank" xlink:href="e">');
+  });
+
+  it('leaves text that only looks like a link alone', () => {
+    const out = scriptless(
+      `<script>var s = '<a target="_self">';</script>` +
+        '<!-- <a target="_self"> -->' +
+        '<textarea><a target="_self"></textarea>' +
+        '<a title="target=_self" href="x">x</a>'
+    );
+    expect(out).toContain(`<script>var s = '<a target="_self">';</script>`);
+    expect(out).toContain('<!-- <a target="_self"> -->');
+    expect(out).toContain('<textarea><a target="_self"></textarea>');
+    expect(out).toContain('<a target="_blank" title="target=_self" href="x">');
+  });
+
+  // Our link script would be inert; the policy and the base target stay.
+  it('leaves out our link script', () => {
+    const out = scriptless('<!doctype html><p>x</p>');
+    expect(out).not.toContain('<script>');
+    expect(out).toContain(
+      `content="${HTML_PREVIEW_POLICY}"><base target="_blank"><p>x</p>`
+    );
+  });
+
+  it('rewrites a file of unclosed tags at once', () => {
+    expect(scriptless('<a'.repeat(200_000))).toContain('<a<a');
   });
 });
 
