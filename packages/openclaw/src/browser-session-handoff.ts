@@ -292,8 +292,8 @@ export async function runBrowserSessionHandoff(
       ['browser', 'handoff', viewerUrl],
       config
     );
-    return `✓ Browser login handoff sent to ${account.ownerShip}`;
+    return `✓ Secure browser form sent to ${account.ownerShip}`;
   } catch {
-    throw new Error('Could not send the browser login handoff.');
+    throw new Error('Could not send the secure browser form.');
   }
 }

@@ -5,6 +5,7 @@ import type {
 } from 'openclaw/plugin-sdk/types';
 
 import { sharedMap } from './shared-state.js';
+import { isSuccessfulSilentAgentOutput } from './silent-reply.js';
 
 type CronOutput = {
   runId: string;
@@ -15,10 +16,6 @@ type CronOutput = {
 // Discovery/prewarm and activation can load separate copies of the plugin.
 // Keep only bounded, content-free evidence, consumed by the terminal cron hook.
 const outputs = sharedMap<string, CronOutput>('cronSilence.outputs');
-
-export function isExplicitSilentReply(text: string | undefined): boolean {
-  return text?.trim().toUpperCase() === 'NO_REPLY';
-}
 
 export function beginCronSilenceObservation(ctx: PluginHookAgentContext): void {
   if (!ctx.sessionKey) return;
@@ -53,20 +50,7 @@ export function recordCronSilenceOutput(
   const entry = ctx.sessionKey ? outputs.get(ctx.sessionKey) : undefined;
   if (!entry || entry.runId !== ctx.runId || entry.sessionId !== ctx.sessionId)
     return;
-  entry.silent = false;
-  if (!event.success || event.error) return;
-  const last = event.messages.at(-1);
-  if (!last || typeof last !== 'object') return;
-  const message = last as { role?: unknown; content?: unknown };
-  if (message.role !== 'assistant' || !Array.isArray(message.content)) return;
-  const texts: string[] = [];
-  for (const block of message.content) {
-    if (!block || typeof block !== 'object') return;
-    if (block.type === 'thinking') continue;
-    if (block.type !== 'text' || typeof block.text !== 'string') return;
-    texts.push(block.text);
-  }
-  entry.silent = isExplicitSilentReply(texts.join('\n'));
+  entry.silent = isSuccessfulSilentAgentOutput(event);
 }
 
 export function consumeCronSilenceOutput(

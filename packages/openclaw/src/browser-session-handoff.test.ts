@@ -65,7 +65,7 @@ function reply(structuredContent: unknown, extra = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   runBrowserHandoffCommand.mockResolvedValue(
-    '✓ Browser login handoff sent to ~nec'
+    '✓ Secure browser form sent to ~nec'
   );
 });
 
@@ -422,7 +422,7 @@ describe('browser session handoff', () => {
     runBrowserHandoffCommand.mockRejectedValue(new Error(`failure ${url}`));
     await expect(
       runBrowserSessionHandoff('tlon', ['browser', 'handoff', handle], config)
-    ).rejects.toThrow(/^Could not send the browser login handoff\.$/);
+    ).rejects.toThrow(/^Could not send the secure browser form\.$/);
     expect(runBrowserHandoffCommand).toHaveBeenCalledOnce();
     expect(urbitFetch).toHaveBeenCalledOnce();
   });

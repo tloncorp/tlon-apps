@@ -125,7 +125,7 @@ describe('browser handoff', () => {
     expect(await run(['handoff', viewerUrl], context.deps)).toBe(0);
     expect(context.stderr).toEqual([]);
     expect(context.stdout.join('')).toBe(
-      '✓ Browser login handoff sent to ~owner\n'
+      '✓ Secure browser form sent to ~owner\n'
     );
     expect(context.sent).toHaveLength(1);
     expect(context.sent[0]).toMatchObject({
@@ -148,13 +148,13 @@ describe('browser handoff', () => {
     expect(components).toContainEqual(
       expect.objectContaining({
         id: 'privacy-direct',
-        text: 'Your credentials go directly to the live browser.',
+        text: 'Your input goes directly to the live browser.',
       })
     );
     expect(components).toContainEqual(
       expect.objectContaining({
         id: 'privacy-context',
-        text: 'They are never posted to chat or returned to the bot.',
+        text: 'It does not pass through chat or the bot.',
       })
     );
   });
