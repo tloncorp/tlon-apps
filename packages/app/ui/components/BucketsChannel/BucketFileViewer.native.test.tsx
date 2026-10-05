@@ -2,16 +2,15 @@ import React from 'react';
 import { ReactTestRenderer, act, create } from 'react-test-renderer';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { ScreenHeader } from '../ScreenHeader';
 import { BucketFileViewer } from './BucketFileViewer.native';
 import type { BucketFileViewerItem } from './BucketFileViewer.shared';
 
 const mocks = vi.hoisted(() => ({
-  openURL: vi.fn(() => Promise.resolve(true)),
   platform: { OS: 'ios' as string },
 }));
 
 vi.mock('react-native', () => ({
-  Linking: { openURL: mocks.openURL },
   Platform: mocks.platform,
 }));
 
@@ -46,36 +45,46 @@ vi.mock('../ScreenHeader', () => {
 const htmlFile: BucketFileViewerItem = {
   name: 'report.html',
   mimeType: 'text/html',
-  textContent: '<!doctype html><p>Quarterly numbers</p>',
+  sizeLabel: '4 KB',
+  textContent:
+    '<!doctype html><title>Quarterly numbers</title><p>Quarterly numbers</p>',
   uri: 'https://storage.example/signed-read-url',
 };
 
-function renderWebView(item: BucketFileViewerItem = htmlFile) {
+function render(item: BucketFileViewerItem = htmlFile) {
   let renderer!: ReactTestRenderer;
   act(() => {
     renderer = create(<BucketFileViewer item={item} onClose={() => {}} />);
   });
-  return renderer.root.findByType('WebView' as never);
+  return renderer;
+}
+
+function renderWebView(item: BucketFileViewerItem = htmlFile) {
+  return render(item).root.findByType('WebView' as never);
 }
 
 afterEach(() => {
   mocks.platform.OS = 'ios';
-  mocks.openURL.mockClear();
 });
 
 describe('BucketFileViewer html preview (native)', () => {
-  // The WebView loads a shell of ours; the file sits in a sandboxed frame
-  // inside it, under the policy that keeps its scripts offline.
+  // The WebView loads a shell of ours that carries the policy; the file sits
+  // in a sandboxed frame inside it and inherits that policy.
   it('loads the file inside the shell, sandboxed and under the policy, not from its URL', () => {
     const { props } = renderWebView();
     expect(props.source.uri).toBeUndefined();
     const shell: string = props.source.html;
-    expect(shell).toContain('content="frame-src about:"');
+    expect(shell).toContain(
+      '<head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="connect-src \'none\'; form-action \'none\'; frame-src about:; object-src \'none\'">'
+    );
     expect(shell).toContain('<iframe sandbox="allow-scripts" srcdoc="');
     expect(shell).toContain('&lt;p&gt;Quarterly numbers&lt;/p&gt;');
-    expect(shell).toContain("connect-src 'none'");
-    expect(shell).toContain("form-action 'none'");
-    expect(shell).toContain("frame-src 'none'");
+  });
+
+  it('names the page by its title, with the file beneath', () => {
+    const header = render().root.findByType(ScreenHeader);
+    expect(header.props.title).toBe('Quarterly numbers');
+    expect(header.props.subtitle).toBe('report.html · 4 KB');
   });
 
   // These props are the isolation: a change to any of them is a decision.
@@ -85,6 +94,7 @@ describe('BucketFileViewer html preview (native)', () => {
     expect(props.incognito).toBe(true);
     expect(props.sharedCookiesEnabled).toBe(false);
     expect(props.thirdPartyCookiesEnabled).toBe(false);
+    expect(props.setSupportMultipleWindows).toBe(false);
     expect(props.originWhitelist).toEqual(['*']);
   });
 
@@ -98,19 +108,7 @@ describe('BucketFileViewer html preview (native)', () => {
     expect(props.originWhitelist).toEqual(['*']);
   });
 
-  it('hands a tapped link to the system browser and keeps the preview', () => {
-    const { props } = renderWebView();
-    expect(
-      props.onShouldStartLoadWithRequest({
-        url: 'https://tlon.io/',
-        isTopFrame: false,
-        navigationType: 'click',
-      })
-    ).toBe(false);
-    expect(mocks.openURL).toHaveBeenCalledWith('https://tlon.io/');
-  });
-
-  it('loads the inline documents and refuses a navigation that is not a tap', () => {
+  it('loads the inline documents and refuses every other navigation, a tapped link included', () => {
     const { props } = renderWebView();
     expect(
       props.onShouldStartLoadWithRequest({
@@ -126,6 +124,14 @@ describe('BucketFileViewer html preview (native)', () => {
         navigationType: 'other',
       })
     ).toBe(true);
+    // A tap, or a script's click reported as one.
+    expect(
+      props.onShouldStartLoadWithRequest({
+        url: 'https://tlon.io/',
+        isTopFrame: false,
+        navigationType: 'click',
+      })
+    ).toBe(false);
     expect(
       props.onShouldStartLoadWithRequest({
         url: 'https://evil.example/',
@@ -137,6 +143,5 @@ describe('BucketFileViewer html preview (native)', () => {
     expect(
       props.onShouldStartLoadWithRequest({ url: 'https://evil.example/' })
     ).toBe(false);
-    expect(mocks.openURL).not.toHaveBeenCalled();
   });
 });

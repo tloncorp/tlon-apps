@@ -5,10 +5,11 @@ import { useIsElectron } from '../../../hooks/useIsElectron';
 import { ScreenHeader } from '../ScreenHeader';
 import {
   BucketFileViewerItem,
+  bucketFileViewerHeading,
   getBucketPreviewKind,
+  htmlPreviewDocument,
   htmlPreviewSandbox,
   htmlPreviewShell,
-  htmlPreviewWebDocument,
 } from './BucketFileViewer.shared';
 
 export function BucketFileViewer({
@@ -27,6 +28,7 @@ export function BucketFileViewer({
   onRetry?: () => void;
 }) {
   const previewKind = getBucketPreviewKind(item);
+  const heading = bucketFileViewerHeading(item);
   const isElectron = Boolean(useIsElectron());
 
   return (
@@ -42,8 +44,8 @@ export function BucketFileViewer({
           ) : null
         }
         showSubtitle
-        subtitle={item.sizeLabel ?? 'File'}
-        title={item.name}
+        subtitle={heading.subtitle}
+        title={heading.title}
         useHorizontalTitleLayout
       />
       <View flex={1} minHeight={0} backgroundColor="$secondaryBackground">
@@ -86,7 +88,7 @@ export function BucketFileViewer({
             referrerPolicy="no-referrer"
             sandbox={htmlPreviewSandbox({ isElectron })}
             srcDoc={htmlPreviewShell({
-              document: htmlPreviewWebDocument(item.textContent),
+              document: htmlPreviewDocument(item.textContent),
               sandbox: htmlPreviewSandbox({ isElectron }),
             })}
             style={{

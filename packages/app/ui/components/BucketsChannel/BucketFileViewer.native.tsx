@@ -1,7 +1,7 @@
 import { FilePreview, Image, Pressable, Text } from '@tloncorp/ui';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { useMemo } from 'react';
-import { Linking, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { ScrollView, Spinner, View, YStack } from 'tamagui';
 
@@ -10,8 +10,9 @@ import { ScreenHeader } from '../ScreenHeader';
 import {
   BucketFileViewerItem,
   HTML_PREVIEW_NATIVE_SANDBOX,
+  bucketFileViewerHeading,
   getBucketPreviewKind,
-  htmlPreviewNativeDocument,
+  htmlPreviewDocument,
   htmlPreviewNavigation,
   htmlPreviewShell,
 } from './BucketFileViewer.shared';
@@ -32,6 +33,7 @@ export function BucketFileViewer({
   onRetry?: () => void;
 }) {
   const previewKind = getBucketPreviewKind(item);
+  const heading = bucketFileViewerHeading(item);
   const webview = useWebView();
 
   return (
@@ -47,8 +49,8 @@ export function BucketFileViewer({
           ) : null
         }
         showSubtitle
-        subtitle={item.sizeLabel ?? 'File'}
-        title={item.name}
+        subtitle={heading.subtitle}
+        title={heading.title}
       />
       <View flex={1} minHeight={0} backgroundColor="$secondaryBackground">
         {loading ? (
@@ -165,8 +167,8 @@ function NativeVideoPreview({ uri }: { uri: string }) {
  * It sits in a sandboxed frame inside a shell of ours (htmlPreviewShell), so
  * it cannot navigate itself away or raise a dialog; its scripts run against
  * its own DOM and nothing else, with HTML_PREVIEW_POLICY keeping them off the
- * network and its forms from submitting; and only a link the reader taps
- * leaves the preview (htmlPreviewNavigation). On iOS the WebView also gets a
+ * network and its forms from submitting; and nothing leaves the preview, a
+ * tapped link included (htmlPreviewNavigation). On iOS the WebView also gets a
  * non-persistent data store with the app's cookies kept out, so nothing the
  * document loads carries the reader's ship session. On Android every WebView
  * in the process shares one cookie jar -- the one React Native's own
@@ -178,7 +180,7 @@ function NativeHtmlPreview({ html }: { html: string }) {
   const source = useMemo(
     () => ({
       html: htmlPreviewShell({
-        document: htmlPreviewNativeDocument(html),
+        document: htmlPreviewDocument(html),
         sandbox: HTML_PREVIEW_NATIVE_SANDBOX,
       }),
     }),
@@ -193,13 +195,9 @@ function NativeHtmlPreview({ html }: { html: string }) {
       incognito={Platform.OS === 'ios'}
       javaScriptCanOpenWindowsAutomatically={false}
       javaScriptEnabled
-      onShouldStartLoadWithRequest={(request) => {
-        const navigation = htmlPreviewNavigation(request);
-        if (navigation === 'open-externally') {
-          void Linking.openURL(request.url);
-        }
-        return navigation === 'load';
-      }}
+      onShouldStartLoadWithRequest={(request) =>
+        htmlPreviewNavigation(request) === 'load'
+      }
       // Every navigation reaches the handler above. With the default list the
       // library itself opens any URL outside it in another app, before asking.
       originWhitelist={['*']}
