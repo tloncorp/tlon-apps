@@ -10,23 +10,53 @@ import { Platform } from 'react-native';
  * value; native clipboards have no such rule.
  */
 export async function copyPendingText(text: Promise<string>): Promise<void> {
-  if (
-    Platform.OS === 'web' &&
-    typeof ClipboardItem !== 'undefined' &&
-    navigator.clipboard?.write
-  ) {
-    await navigator.clipboard.write([
-      new ClipboardItem({
-        'text/plain': text.then(
-          (value) => new Blob([value], { type: 'text/plain' })
-        ),
-      }),
-    ]);
+  if (Platform.OS !== 'web') {
+    await Clipboard.setStringAsync(await text);
     return;
   }
-  // Resolves false rather than throwing when the browser refuses.
-  if (!(await Clipboard.setStringAsync(await text))) {
-    throw new Error('Could not copy the link');
+  if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+    const blob = text.then(
+      (value) => new Blob([value], { type: 'text/plain' })
+    );
+    // write() can refuse before it reads the blob, which would leave a failed
+    // fetch unhandled; that failure is reported through `text` below.
+    blob.catch(() => {});
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'text/plain': blob }),
+      ]);
+      return;
+    } catch {
+      // A failed fetch surfaces from write() as a clipboard error, so report
+      // the fetch's own. Otherwise the browser refused the write itself (a
+      // blocked permission, an unfocused page), and the copy below may still
+      // be allowed.
+      await text;
+    }
+  }
+  // Pages served over plain http have no async clipboard at all.
+  if (!copyWithExecCommand(await text)) {
+    throw new Error('Your browser did not allow copying the link');
+  }
+}
+
+/**
+ * expo-clipboard's own fallback reports success whatever execCommand returns,
+ * which here would turn a refused copy into a "Link copied" toast.
+ */
+function copyWithExecCommand(text: string): boolean {
+  const field = document.createElement('textarea');
+  field.value = text;
+  field.style.position = 'fixed';
+  field.style.opacity = '0';
+  document.body.appendChild(field);
+  field.select();
+  try {
+    return document.execCommand('copy');
+  } catch {
+    return false;
+  } finally {
+    document.body.removeChild(field);
   }
 }
 
@@ -44,6 +74,8 @@ export function bucketLinkCopiedMessage(
   if (Number.isNaN(expiry)) {
     return 'Link copied. It expires in a few minutes.';
   }
+  // The grant was minted a moment ago, so anything under a minute means the
+  // device clock disagrees with the broker's, not that the link is spent.
   const minutes = Math.max(1, Math.round((expiry - now) / 60_000));
   return `Link copied. It expires in ${minutes} ${
     minutes === 1 ? 'minute' : 'minutes'

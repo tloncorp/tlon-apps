@@ -552,28 +552,39 @@ export function convertContent(
 
 /**
  * The URLs of the files uploaded to a post -- images, videos, files and voice
- * memos -- in display order.
+ * memos -- in the order `convertContent` displays them.
+ *
+ * Reads the blob entries and the story's image blocks directly rather than
+ * converting the whole post: on iOS every mounted message builds its menu.
  *
  * Only http(s) URLs count: an upload still in flight carries a local URI
  * (`file://`, `blob:`) that is useless to anyone else. A video can appear twice,
  * as a blob entry and as the story block older clients read, so each URL is
  * listed once.
  */
-export function uploadedFileUrlsOf(content: PostContent): string[] {
-  const urls = content.flatMap((block) => {
-    switch (block.type) {
-      case 'image':
-        return [block.src];
-      case 'video':
-        return [block.video.src];
-      case 'file':
-        return [block.file.fileUri];
-      case 'voicememo':
-        return [block.voiceMemo.fileUri];
-      default:
-        return [];
+export function uploadedFileUrlsOf(
+  input: unknown,
+  blob: string | undefined | null
+): string[] {
+  const urls: string[] = [];
+  if (blob != null) {
+    for (const entry of parsePostBlob(blob)) {
+      if (
+        entry.type === 'file' ||
+        entry.type === 'video' ||
+        entry.type === 'voicememo'
+      ) {
+        urls.push(entry.fileUri);
+      }
     }
-  });
+  }
+  const story: ApiPostContent =
+    typeof input === 'string' ? JSON.parse(input) : (input ?? null);
+  for (const verse of story ?? []) {
+    if ('block' in verse && ub.Block.is(verse.block, 'image')) {
+      urls.push(verse.block.image.src);
+    }
+  }
   return [...new Set(urls.filter((url) => /^https?:\/\//i.test(url)))];
 }
 

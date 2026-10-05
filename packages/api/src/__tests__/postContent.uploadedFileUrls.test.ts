@@ -28,12 +28,42 @@ test('lists blob uploads, then story images, in display order', () => {
     image('https://cdn.example.com/two.png'),
   ];
 
-  expect(uploadedFileUrlsOf(convertContent(story, blob))).toEqual([
+  expect(uploadedFileUrlsOf(story, blob)).toEqual([
     'https://cdn.example.com/report.pdf',
     'https://cdn.example.com/memo.m4a',
     'https://cdn.example.com/one.jpg',
     'https://cdn.example.com/two.png',
   ]);
+});
+
+test('matches the order convertContent displays', () => {
+  const blob = JSON.stringify([
+    {
+      type: 'file',
+      version: 1,
+      fileUri: 'https://cdn.example.com/a.pdf',
+      size: 1,
+    },
+  ]);
+  const story = [image('https://cdn.example.com/b.jpg')];
+  const displayed = convertContent(story, blob).flatMap((block) =>
+    block.type === 'file'
+      ? [block.file.fileUri]
+      : block.type === 'image'
+        ? [block.src]
+        : []
+  );
+
+  expect(uploadedFileUrlsOf(story, blob)).toEqual(displayed);
+});
+
+test('reads content stored as a JSON string', () => {
+  expect(
+    uploadedFileUrlsOf(
+      JSON.stringify([image('https://cdn.example.com/one.jpg')]),
+      null
+    )
+  ).toEqual(['https://cdn.example.com/one.jpg']);
 });
 
 test('lists a video once when the blob and the story both carry it', () => {
@@ -42,7 +72,7 @@ test('lists a video once when the blob and the story both carry it', () => {
     { type: 'video', version: 1, fileUri: src, size: 55 },
   ]);
 
-  expect(uploadedFileUrlsOf(convertContent([image(src)], blob))).toEqual([src]);
+  expect(uploadedFileUrlsOf([image(src)], blob)).toEqual([src]);
 });
 
 test('skips uploads that have not left the device', () => {
@@ -59,7 +89,7 @@ test('skips uploads that have not left the device', () => {
     image('https://cdn.example.com/done.jpg'),
   ];
 
-  expect(uploadedFileUrlsOf(convertContent(story, blob))).toEqual([
+  expect(uploadedFileUrlsOf(story, blob)).toEqual([
     'https://cdn.example.com/done.jpg',
   ]);
 });
@@ -74,5 +104,5 @@ test('ignores text and links, which are not uploads', () => {
     },
   ];
 
-  expect(uploadedFileUrlsOf(convertContent(story, null))).toEqual([]);
+  expect(uploadedFileUrlsOf(story, null)).toEqual([]);
 });

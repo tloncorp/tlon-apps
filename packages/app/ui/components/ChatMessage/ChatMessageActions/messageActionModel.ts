@@ -40,12 +40,9 @@ export interface MessageActionVisibilityContext {
 
 export function uploadedFileUrlsOfPost(post: db.Post): string[] {
   try {
-    return logic.uploadedFileUrlsOf(
-      logic.convertContent(post.content, post.blob)
-    );
+    return logic.uploadedFileUrlsOf(post.content, post.blob);
   } catch (e) {
-    // convertContent throws on unrecognized block types (e.g. content
-    // written by a newer client); a post we cannot read offers nothing to copy.
+    // Malformed stored content; a post we cannot read offers nothing to copy.
     return [];
   }
 }
