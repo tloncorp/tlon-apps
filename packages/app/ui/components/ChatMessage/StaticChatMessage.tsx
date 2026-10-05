@@ -24,6 +24,7 @@ import { canUseBrowserHandoff } from '../../../features/browser/browserHandoffTr
 import {
   BROWSER_HANDOFF_CONTINUATION,
   getBrowserHandoffContinuationSelection,
+  isBrowserHandoffContinuationSelection,
   sendBrowserHandoffContinuation,
 } from '../../../features/browser/browserHandoffContinuation';
 import { useA2UINavigation } from '../../../hooks/useA2UINavigation';
@@ -375,7 +376,7 @@ export function StaticChatMessage({
           replyToPostId: null,
           isEdit: false,
         });
-      if (trimmed === BROWSER_HANDOFF_CONTINUATION && selection) {
+      if (selection && isBrowserHandoffContinuationSelection(post, selection)) {
         await sendBrowserHandoffContinuation({
           channelId: post.channelId,
           authorId: currentUserId,
@@ -386,7 +387,7 @@ export function StaticChatMessage({
         await send();
       }
     },
-    [draftInputContext, post.channelId, currentUserId]
+    [draftInputContext, post, currentUserId]
   );
 
   const handleA2UIAction = useCallback(

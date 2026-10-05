@@ -20,10 +20,10 @@ subcommand is the plugin's delivery transport, not a shell session-handle lookup
 
 export const BROWSER_HELP = `${BROWSER_HANDOFF_HELP}
 
-Send the owner a native password or one-time-code form for the login or
-verification page open in a hosted browser session. The form submits directly
-to the browser service; credential values are never posted to chat or returned
-to the bot. The recipient is always the owner configured for the active bot
+Send the owner a secure form for the login, address, or card fields visible in
+a hosted browser session. The form sends input directly to the browser service,
+without passing it through chat or the bot. Login steps continue inside the
+handoff; address and card entry fills fields without submitting a transaction. The recipient is always the owner configured for the active bot
 account and cannot be overridden.
 
 Tlon tool call:
@@ -59,39 +59,39 @@ function browserCredentialHandoffBlob(
       id: 'title',
       component: 'Text',
       variant: 'h3',
-      text: 'Sign in to continue',
+      text: 'Secure browser input',
     },
     { id: 'title-divider', component: 'Divider' },
     {
       id: 'explanation',
       component: 'Text',
-      text: 'The browser reached a login or verification screen that needs your input.',
+      text: 'The browser needs information you can enter securely.',
     },
     {
       id: 'privacy-direct',
       component: 'Text',
       variant: 'caption',
-      text: 'Your credentials go directly to the live browser.',
+      text: 'Your input goes directly to the live browser.',
     },
     {
       id: 'privacy-context',
       component: 'Text',
       variant: 'caption',
-      text: 'They are never posted to chat or returned to the bot.',
+      text: 'It does not pass through chat or the bot.',
     },
     { id: 'action-divider', component: 'Divider' },
     {
       id: 'actions',
       component: 'Row',
-      children: ['open-login', 'continue'],
+      children: ['open-form', 'continue'],
       align: 'center',
     },
     {
-      id: 'open-login',
+      id: 'open-form',
       component: 'Button',
       weight: 1,
       variant: 'primary',
-      child: 'open-login-label',
+      child: 'open-form-label',
       action: {
         event: {
           name: 'tlon.navigate',
@@ -106,9 +106,9 @@ function browserCredentialHandoffBlob(
       },
     },
     {
-      id: 'open-login-label',
+      id: 'open-form-label',
       component: 'Text',
-      text: 'Open secure login',
+      text: 'Open secure form',
     },
     {
       id: 'continue',
@@ -119,14 +119,16 @@ function browserCredentialHandoffBlob(
       action: {
         event: {
           name: 'tlon.sendMessage',
-          context: { text: 'I signed in; continue the browser task.' },
+          context: {
+            text: 'Continue the browser task. Check the current page; this does not confirm sign-in or authorize a purchase.',
+          },
         },
       },
     },
     {
       id: 'continue-label',
       component: 'Text',
-      text: 'I’m signed in',
+      text: 'Continue task',
     },
   ];
 
@@ -186,10 +188,10 @@ export async function run(args: string[], deps: BrowserDeps): Promise<number> {
       content: markdownToStory(
         'The browser needs you to sign in before I can continue.'
       ),
-      blob: browserCredentialHandoffBlob(viewerUrl, `browser-login-${sentAt}`),
+      blob: browserCredentialHandoffBlob(viewerUrl, `browser-form-${sentAt}`),
       botProfile: { nickname: null, avatar: null },
     });
-    writeLine(deps.stdout, `✓ Browser login handoff sent to ${target}`);
+    writeLine(deps.stdout, `✓ Secure browser form sent to ${target}`);
     return 0;
   } catch (error) {
     const handled = handleExpectedCommandError(error, deps);

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   BROWSER_HANDOFF_CONTINUATION,
   getBrowserHandoffContinuationSelection,
+  isBrowserHandoffContinuationSelection,
   sendBrowserHandoffContinuation,
 } from './browserHandoffContinuation';
 
@@ -117,6 +118,23 @@ describe('browser handoff continuation', () => {
     expect(
       getBrowserHandoffContinuationSelection(sourcePost(false), viewerUrl)
     ).toEqual({ ...selection, componentId: 'login' });
+  });
+
+  it('recognizes manual and automatic continuation by receipt, not message text', () => {
+    expect(
+      isBrowserHandoffContinuationSelection(sourcePost(), {
+        ...selection,
+        values: ['I signed in. Continue the task.'],
+      })
+    ).toBe(true);
+    for (const field of ['sourcePostId', 'surfaceId', 'componentId'] as const) {
+      expect(
+        isBrowserHandoffContinuationSelection(sourcePost(), {
+          ...selection,
+          [field]: 'unrelated',
+        })
+      ).toBe(false);
+    }
   });
 
   it('reads durable consumption when invoked, including a receipt from another device', async () => {
