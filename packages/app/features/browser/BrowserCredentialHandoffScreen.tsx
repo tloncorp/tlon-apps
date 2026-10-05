@@ -274,6 +274,8 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
         );
         if (signal.aborted) return;
         setLoading(false);
+        // A filled form with no safe submit control continues through the bot's
+        // browser-owned receipt instead of asking the user to enter it again.
         if (next && (next.formId !== handoff.formId || result.submitted)) {
           setHandoff(next);
           if (next.formId === handoff.formId)

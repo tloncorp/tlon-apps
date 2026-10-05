@@ -273,6 +273,37 @@ describe('secure browser form screen', () => {
     act(() => renderer.unmount());
   });
 
+  it('continues with the bot when the filled login form has no safe submit control', async () => {
+    const handoff = form([password]);
+    mocks.beginHandoff.mockResolvedValue(handoff);
+    mocks.submitCredentials.mockResolvedValue({ submitted: false });
+    mocks.nextHandoff.mockResolvedValue(
+      form([password], {
+        fillUrl:
+          'https://browser-session.tlon.network/credential-fills/fresh-handle',
+      })
+    );
+    const { renderer, navigation } = await render();
+    act(() => enter(renderer, 'Password', 'private-input'));
+    await press(renderer);
+    expect(mocks.submitCredentials).toHaveBeenCalledOnce();
+    expect(mocks.submitCredentials).toHaveBeenCalledWith(
+      handoff,
+      { values: { f1: 'private-input' }, submit: true },
+      expect.any(AbortSignal)
+    );
+    expect(mocks.nextHandoff).toHaveBeenCalledWith(
+      'https://browser-session.tlon.network/s/payload.signature',
+      handoff.formId,
+      expect.any(AbortSignal)
+    );
+    expect(mocks.complete).toHaveBeenCalledOnce();
+    expect(mocks.complete).toHaveBeenCalledWith('opaque-handoff-id');
+    expect(navigation.goBack).toHaveBeenCalledOnce();
+    expect(JSON.stringify(renderer.toJSON())).not.toContain('private-input');
+    act(() => renderer.unmount());
+  });
+
   it('does not auto-replay a form that remains after submission', async () => {
     mocks.beginHandoff.mockResolvedValue(form([password]));
     mocks.submitCredentials.mockResolvedValue({ submitted: true });
