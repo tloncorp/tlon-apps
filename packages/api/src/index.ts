@@ -34,7 +34,13 @@ export {
   type PokeHandlers,
   type Scry,
 } from './http-api';
-export type { Contact, Group, Channel, Post } from './types/models';
+export type {
+  ActivityInit,
+  Contact,
+  Group,
+  Channel,
+  Post,
+} from './types/models';
 export * from './urbit/buckets';
 export type {
   AppReference,
@@ -71,6 +77,9 @@ export {
   type Cite,
   type PostDataResponse,
   type ReplyWithMemo,
+  type Reply,
+  type WritReply,
+  type ChangesV11,
 } from './urbit';
 export {
   appendFileUploadToPostBlob,
