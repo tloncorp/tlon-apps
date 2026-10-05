@@ -31,10 +31,10 @@ import {
   getDefaultTlonCronOtelObserver,
 } from './cron-observability.js';
 import { sharedSlot } from './shared-state.js';
+import { isExplicitSilentReply } from './silent-reply.js';
 import {
   clearCronSilenceObservations,
   consumeCronSilenceOutput,
-  isExplicitSilentReply,
 } from './cron-silence.js';
 import {
   type TlonCronCountFields,

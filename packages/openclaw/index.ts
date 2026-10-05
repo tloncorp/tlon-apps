@@ -100,6 +100,8 @@ import {
   shouldLogAfterToolTrace,
 } from './src/tool-trace.js';
 import {
+  beginTlonTurnSilenceObservation,
+  recordTlonTurnSilenceOutput,
   recordActiveTlonTurnToolCall,
   recordTlonAgentRunTrace,
 } from './src/turn-recorder.js';
@@ -1555,6 +1557,7 @@ export default defineBundledChannelEntry({
     };
     api.on('agent_turn_prepare', async (_event, ctx) => {
       beginCronSilenceObservation(ctx);
+      beginTlonTurnSilenceObservation(ctx);
       // Cron has no active Tlon turn recorder, so its output trace stays nullable.
       if (ctx.trigger !== 'cron') {
         recordTlonAgentRunTrace(ctx.runId, ctx.trace?.traceId);
@@ -1563,6 +1566,7 @@ export default defineBundledChannelEntry({
     });
     api.on('model_call_started', async (_event, ctx) => {
       beginCronSilenceObservation(ctx);
+      beginTlonTurnSilenceObservation(ctx);
       await onCronAgentHook(ctx);
     });
 
@@ -1572,6 +1576,7 @@ export default defineBundledChannelEntry({
     // deliver the reply (stamped + recorded via the outbound send path).
     api.on('agent_end', (event, ctx) => {
       recordCronSilenceOutput(event, ctx);
+      recordTlonTurnSilenceOutput(event, ctx);
       clearCronJobForSession(ctx.sessionKey, ctx.jobId);
       if (!contextLensEnabled) {
         return;
