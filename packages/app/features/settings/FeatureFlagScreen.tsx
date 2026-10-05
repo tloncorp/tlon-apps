@@ -38,6 +38,7 @@ export function FeatureFlagScreen({ navigation }: Props) {
         key: 'contextLensGatewayToken',
         label: 'Context lens gateway token',
         value: contextLensGatewayToken ?? '',
+        placeholder: 'Token',
         secure: true,
         onChange: (value: string) =>
           db.contextLensGatewayToken.setValue(value.trim() || null),
