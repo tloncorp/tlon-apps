@@ -188,9 +188,7 @@ export function ChannelListItem({
             {customSubtitle ? (
               <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
             ) : showGroupTitle && model.group ? (
-              <ListItem.SubtitleWithIcon icon={subtitleIcon}>
-                {groupTitle}
-              </ListItem.SubtitleWithIcon>
+              <ListItem.Subtitle>{groupTitle}</ListItem.Subtitle>
             ) : model.type === 'notes' ? (
               <NotesChannelSubtitle channel={model} />
             ) : (model.type === 'dm' || model.type === 'groupDm') &&
