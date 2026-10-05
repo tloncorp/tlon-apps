@@ -910,6 +910,14 @@ describe('formatCommentaryForPresence', () => {
     ).toBeNull();
   });
 
+  test('strips a trailing directive that has not been closed yet', () => {
+    expect(
+      formatCommentaryForPresence('Checking the notes. [[reply_to_cur')
+    ).toBe('Checking the notes.');
+    expect(formatCommentaryForPresence('[[reply')).toBeNull();
+    expect(formatCommentaryForPresence('A [[x]] B')).toBe('A B');
+  });
+
   test('strips a standalone NO_REPLY token but keeps words containing it', () => {
     expect(formatCommentaryForPresence('NO_REPLY')).toBeNull();
     expect(formatCommentaryForPresence('Done here NO_REPLY for now.')).toBe(
@@ -926,11 +934,11 @@ describe('formatCommentaryForPresence', () => {
   });
 
   test('cuts over-limit text at a word boundary with the ellipsis inside the limit', () => {
-    // Spaces fall at every seventh position, so the hard-cut point (99) lands
-    // inside a word and the cut has to move back to the space at 97.
+    // Spaces fall at every seventh position, so the hard-cut point (79) lands
+    // inside a word and the cut has to move back to the space at 76.
     const result = formatCommentaryForPresence('abcdef '.repeat(20));
 
-    expect(result).toBe(`${'abcdef '.repeat(13)}abcdef…`);
+    expect(result).toBe(`${'abcdef '.repeat(10)}abcdef…`);
     expect(codePointLength(result!)).toBeLessThanOrEqual(COMMENTARY_MAX_CHARS);
   });
 

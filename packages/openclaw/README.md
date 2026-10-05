@@ -176,8 +176,9 @@ channels:
         # Show model info in responses
         showModelSignature: false
 
-        # Show the agent's short pre-tool commentary (or the current tool's
-        # label) in the Thinking row while a reply is in progress. Default: true.
+        # Show the agent's short pre-tool commentary in the Thinking row for the
+        # rest of the turn; tool labels appear only when the model has not
+        # written any commentary in that turn. Default: true.
         # `false` restores the previous behaviour: no commentary, and tool
         # labels appear only while `/verbose on` is set.
         showCommentary: true

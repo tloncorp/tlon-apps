@@ -3773,6 +3773,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         } finally {
           compactionTimeoutObserver.stop();
           stopAgentEventObservation();
+          // A tool call can revive a run that deliver already stopped; a turn
+          // that ends without another delivery would leave it showing.
+          if (presenceConversationId) {
+            computingPresence.stopRun({
+              conversationId: presenceConversationId,
+              runId: presenceRunId,
+            });
+          }
         }
       } catch (error) {
         dispatchError = error;

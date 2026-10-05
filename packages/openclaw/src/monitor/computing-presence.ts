@@ -39,11 +39,13 @@ const DEFAULT_MAX_PUBLISH_AGE_MS = 30_000;
 // cannot resurrect a run that was just stopped. Capped because tombstones
 // only matter for the few seconds until the keepalive loop fully stops.
 const STOPPED_RUN_MEMORY = 8;
-// Guard against runaway commentary; normal pre-tool commentary is far shorter.
-export const COMMENTARY_MAX_CHARS = 100;
+// Released app builds render the row at a fixed 52pt with no line clamp; 80
+// characters keeps commentary to two lines on a 320pt-wide phone.
+export const COMMENTARY_MAX_CHARS = 80;
 const COMMENTARY_WORD_BREAK_WINDOW = 20;
 const ELLIPSIS = '…';
 const DELIVERY_DIRECTIVE_PATTERN = /\[\[[^\]]*\]\]|\bNO_REPLY\b/g;
+const UNTERMINATED_DIRECTIVE_PATTERN = /\[\[[^\]]*$/;
 
 export type ComputingPresenceReporter = {
   publish: (params: PublishParams) => Promise<void>;
@@ -55,8 +57,11 @@ function normalizeToolName(toolName?: string | null) {
 }
 
 export function formatCommentaryForPresence(text: string): string | null {
-  // The row must never show delivery markup the model left in its text.
-  const visible = text.replace(DELIVERY_DIRECTIVE_PATTERN, ' ');
+  // The row must never show delivery markup the model left in its text,
+  // including a directive still cut off mid-stream in a snapshot.
+  const visible = text
+    .replace(DELIVERY_DIRECTIVE_PATTERN, ' ')
+    .replace(UNTERMINATED_DIRECTIVE_PATTERN, ' ');
   const collapsed = visible.replace(/\s+/g, ' ').trim();
   if (!collapsed) {
     return null;

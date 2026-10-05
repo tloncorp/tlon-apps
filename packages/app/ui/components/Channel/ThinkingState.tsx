@@ -1,7 +1,7 @@
 import type * as db from '@tloncorp/shared/db';
 import { Text, mobileTypeStyles } from '@tloncorp/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { PixelRatio } from 'react-native';
+import { useWindowDimensions } from 'react-native';
 import { AnimatePresence, Spinner, View, XStack } from 'tamagui';
 
 import { ContactAvatar } from '../Avatar';
@@ -34,16 +34,16 @@ export function ThinkingState({
   const expectedResponders = useRef<Set<string>>(new Set());
   const wasComputing = useRef(false);
   const collapseTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // The two-line label must fit at accessibility font scales without letting
-  // the row's height change between renders.
+  const { fontScale } = useWindowDimensions();
+  // The two-line label must fit at accessibility font scales; the height only
+  // changes when the font scale does, never with the label.
   const rowHeight = useMemo(
     () =>
       Math.max(
         MIN_ROW_HEIGHT,
-        Math.ceil(2 * LABEL_LINE_HEIGHT * PixelRatio.getFontScale()) +
-          ROW_VERTICAL_PADDING
+        Math.ceil(2 * LABEL_LINE_HEIGHT * fontScale) + ROW_VERTICAL_PADDING
       ),
-    []
+    [fontScale]
   );
 
   useEffect(() => {

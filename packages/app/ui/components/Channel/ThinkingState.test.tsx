@@ -28,7 +28,12 @@ vi.mock('@tloncorp/ui', () => ({
   mobileTypeStyles: { '$label/m': { lineHeight: 20 } },
 }));
 vi.mock('react-native', () => ({
-  PixelRatio: { getFontScale: () => mocks.fontScale },
+  useWindowDimensions: () => ({
+    fontScale: mocks.fontScale,
+    width: 390,
+    height: 844,
+    scale: 3,
+  }),
 }));
 vi.mock('tamagui', () => ({
   AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
@@ -77,6 +82,29 @@ describe('ThinkingState', () => {
 
     expect(await rowHeightAt(1)).toBe(52);
     expect(await rowHeightAt(2)).toBeGreaterThanOrEqual(2 * 20 * 2);
+  });
+
+  it('resizes the row when the font scale changes while mounted', async () => {
+    const rowHeight = (renderer: ReactTestRenderer) =>
+      renderer.root.find((node) => (node.type as unknown) === 'View').props
+        .height;
+    mocks.computing = computing();
+    let renderer: ReactTestRenderer;
+    await act(async () => {
+      renderer = create(
+        <ThinkingState conversationId="chat" channelType="chat" />
+      );
+    });
+    expect(rowHeight(renderer!)).toBe(52);
+
+    mocks.fontScale = 2;
+    await act(async () => {
+      renderer!.update(
+        <ThinkingState conversationId="chat" channelType="chat" />
+      );
+    });
+    expect(rowHeight(renderer!)).toBeGreaterThanOrEqual(2 * 20 * 2);
+    act(() => renderer!.unmount());
   });
 
   it('does not mount an animated spinner while hidden', async () => {
