@@ -46,6 +46,7 @@
     "test:integration:watch": "./test/run-dev.sh --watch",
     "test:manual": "bash ./test/run-manual.sh",
     "test:security": "vitest run src/security.test.ts",
+    "test:browser-handoff-package": "pnpm --dir ../api build && tsc && node scripts/test-browser-handoff-package.mjs",
     "test:watch": "vitest src/",
     "test:tool-files": "bun test test/hermetic/tool-notes.test.ts",
     "prepare:publish": "npm run build && node scripts/prepare-publish-package.js",

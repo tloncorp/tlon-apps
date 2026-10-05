@@ -27,6 +27,10 @@ export type {
 } from './client/hostingApi';
 export { getLandscapeAuthCookie } from './client/landscapeApi';
 export {
+  isTrustedBrowserViewerHost,
+  MAX_BROWSER_VIEWER_URL_LENGTH,
+} from './client/browserSession';
+export {
   AuthError,
   Urbit,
   type ChannelStatus,
