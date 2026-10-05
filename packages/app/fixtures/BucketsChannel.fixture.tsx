@@ -479,6 +479,7 @@ function BucketsFixture({
         ),
       })),
     onDownloadItem: (item: BucketItem) => setSelectedItemId(item.id),
+    onCopyItemLink: (item: BucketItem) => setSelectedItemId(item.id),
     onMoveItem: (item: BucketItem) => setSelectedItemId(item.id),
     onRenameItem: (item: BucketItem) => setSelectedItemId(item.id),
   };
