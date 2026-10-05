@@ -89,9 +89,12 @@
   =/  m  (strand ,@t)
   ^-  form:m
   ;<  =bowl:spider  bind:m  get-bowl
+  ::  +scry-aqua appends the mark itself, and jael's %code answers only a
+  ::  path that ends at the ship, so no trailing /noun here
+  ::
   ;<  code=(unit @p)  bind:m
     %+  scry-aqua  (unit @p)
-    [who /j/(scot %p who)/code/(scot %da now.bowl)/(scot %p who)/noun]
+    [who /j/(scot %p who)/code/(scot %da now.bowl)/(scot %p who)]
   =/  body=@t  (cat 3 'password=' (crip (slag 1 (scow %p (need code)))))
   =/  =request:http
     :^  %'POST'  '/~/login'
