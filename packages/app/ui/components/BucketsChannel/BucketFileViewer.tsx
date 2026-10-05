@@ -1,11 +1,12 @@
 import { FilePreview, Image, Pressable, Text } from '@tloncorp/ui';
 import { ScrollView, Spinner, View, YStack } from 'tamagui';
 
+import { useIsElectron } from '../../../hooks/useIsElectron';
 import { ScreenHeader } from '../ScreenHeader';
 import {
   BucketFileViewerItem,
-  HTML_PREVIEW_SANDBOX,
   getBucketPreviewKind,
+  htmlPreviewSandbox,
   htmlPreviewWebDocument,
 } from './BucketFileViewer.shared';
 
@@ -25,6 +26,7 @@ export function BucketFileViewer({
   onRetry?: () => void;
 }) {
   const previewKind = getBucketPreviewKind(item);
+  const isElectron = Boolean(useIsElectron());
 
   return (
     <YStack flex={1} minHeight={0} backgroundColor="$background">
@@ -81,7 +83,7 @@ export function BucketFileViewer({
         ) : previewKind === 'html' && item.textContent !== undefined ? (
           <iframe
             referrerPolicy="no-referrer"
-            sandbox={HTML_PREVIEW_SANDBOX}
+            sandbox={htmlPreviewSandbox({ isElectron })}
             srcDoc={htmlPreviewWebDocument(item.textContent)}
             style={{
               backgroundColor: 'white',

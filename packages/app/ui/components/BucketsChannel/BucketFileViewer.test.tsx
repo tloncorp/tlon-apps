@@ -1,9 +1,11 @@
 import React from 'react';
 import { ReactTestRenderer, act, create } from 'react-test-renderer';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { BucketFileViewer } from './BucketFileViewer';
 import type { BucketFileViewerItem } from './BucketFileViewer.shared';
+
+const mocks = vi.hoisted(() => ({ isElectron: false }));
 
 vi.mock('@tloncorp/ui', () => {
   const FilePreview = () => null;
@@ -24,6 +26,10 @@ vi.mock('../ScreenHeader', () => {
   return { ScreenHeader };
 });
 
+vi.mock('../../../hooks/useIsElectron', () => ({
+  useIsElectron: () => mocks.isElectron,
+}));
+
 const htmlFile: BucketFileViewerItem = {
   name: 'report.html',
   mimeType: 'text/html',
@@ -43,19 +49,33 @@ function frames(renderer: ReactTestRenderer) {
   return renderer.root.findAllByType('iframe' as never);
 }
 
+afterEach(() => {
+  mocks.isElectron = false;
+});
+
 describe('BucketFileViewer html preview (web)', () => {
   // From its text, so the storage's Content-Type and Content-Disposition
   // cannot turn the preview into a download; sandboxed without the app's
-  // origin, scripts or forms, so the document stays a stranger.
+  // origin or forms; carrying the policy that keeps its scripts offline.
   it('renders the file from its text in a sandboxed frame, not from its URL', () => {
     const [frame] = frames(render(htmlFile));
-    expect(frame.props.srcDoc).toContain('<p>Quarterly numbers</p>');
-    expect(frame.props.srcDoc).toContain('<base target="_blank">');
     expect(frame.props.src).toBeUndefined();
+    expect(frame.props.srcDoc).toContain('<p>Quarterly numbers</p>');
+    expect(frame.props.srcDoc).toContain("connect-src 'none'");
+    expect(frame.props.srcDoc).toContain('<base target="_blank">');
     const tokens = frame.props.sandbox.split(' ');
+    expect(tokens).toContain('allow-scripts');
     expect(tokens).not.toContain('allow-same-origin');
-    expect(tokens).not.toContain('allow-scripts');
     expect(tokens).not.toContain('allow-forms');
+  });
+
+  // The desktop shell disables web security, which defeats the opaque origin.
+  it('withholds scripts under Electron', () => {
+    mocks.isElectron = true;
+    const [frame] = frames(render(htmlFile));
+    const tokens = frame.props.sandbox.split(' ');
+    expect(tokens).not.toContain('allow-scripts');
+    expect(tokens).not.toContain('allow-same-origin');
   });
 
   // Past the size cap the text is never fetched, and the file falls through

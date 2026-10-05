@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  HTML_PREVIEW_SANDBOX,
+  HTML_PREVIEW_POLICY,
   MAX_TEXT_PREVIEW_BYTES,
   canPreviewFromText,
   getBucketPreviewKind,
   htmlPreviewNativeDocument,
   htmlPreviewNavigation,
+  htmlPreviewSandbox,
   htmlPreviewWebDocument,
 } from './BucketFileViewer.shared';
 
@@ -72,33 +73,53 @@ describe('canPreviewFromText', () => {
   });
 });
 
-describe('HTML_PREVIEW_SANDBOX', () => {
-  const tokens = HTML_PREVIEW_SANDBOX.split(' ');
-
+describe('htmlPreviewSandbox', () => {
   // An unsandboxed srcdoc document inherits the app's origin, and
-  // allow-same-origin would hand it back.
-  it('never grants the document the app origin', () => {
-    expect(tokens).not.toContain('allow-same-origin');
-    expect(tokens).not.toContain('allow-top-navigation');
+  // allow-same-origin would hand it back. Forms would post with the reader's
+  // cookie in some browsers. Neither may happen, whatever else is allowed.
+  it('never grants the document the app origin or forms', () => {
+    for (const isElectron of [false, true]) {
+      const tokens = htmlPreviewSandbox({ isElectron }).split(' ');
+      expect(tokens).not.toContain('allow-same-origin');
+      expect(tokens).not.toContain('allow-top-navigation');
+      expect(tokens).not.toContain('allow-forms');
+      expect(tokens).toContain('allow-popups');
+      expect(tokens).toContain('allow-popups-to-escape-sandbox');
+    }
   });
 
-  // The frame sits on the ship's own page, where a script or a form could
-  // reach the ship with the reader's cookie in some browsers.
-  it('withholds scripts and forms', () => {
-    expect(tokens).not.toContain('allow-scripts');
-    expect(tokens).not.toContain('allow-forms');
+  it('runs scripts in a browser, where the opaque origin holds', () => {
+    expect(htmlPreviewSandbox({ isElectron: false }).split(' ')).toContain(
+      'allow-scripts'
+    );
   });
 
-  it('lets a link open a new tab as an ordinary page', () => {
-    expect(tokens).toContain('allow-popups');
-    expect(tokens).toContain('allow-popups-to-escape-sandbox');
+  // The desktop shell disables web security, which grants every document
+  // universal access and so defeats the opaque origin.
+  it('withholds scripts under Electron', () => {
+    expect(htmlPreviewSandbox({ isElectron: true }).split(' ')).not.toContain(
+      'allow-scripts'
+    );
+  });
+});
+
+describe('HTML_PREVIEW_POLICY', () => {
+  it('forbids connections, forms, frames and objects', () => {
+    for (const directive of [
+      "connect-src 'none'",
+      "form-action 'none'",
+      "frame-src 'none'",
+      "object-src 'none'",
+    ]) {
+      expect(HTML_PREVIEW_POLICY).toContain(directive);
+    }
   });
 });
 
 describe('htmlPreviewWebDocument', () => {
-  it('gives links a new-tab target, after the doctype', () => {
+  it('places the policy and a new-tab link target after the doctype', () => {
     expect(htmlPreviewWebDocument('<!doctype html><p>x</p>')).toBe(
-      '<!doctype html><base target="_blank"><p>x</p>'
+      `<!doctype html>${HTML_PREVIEW_POLICY}<base target="_blank"><p>x</p>`
     );
   });
 
@@ -108,37 +129,40 @@ describe('htmlPreviewWebDocument', () => {
     expect(
       htmlPreviewWebDocument('<!-- generated -->\n<!DOCTYPE html>\n<p>x</p>')
     ).toBe(
-      '<!-- generated -->\n<!DOCTYPE html><base target="_blank">\n<p>x</p>'
+      `<!-- generated -->\n<!DOCTYPE html>${HTML_PREVIEW_POLICY}<base target="_blank">\n<p>x</p>`
     );
   });
 });
 
 describe('htmlPreviewNativeDocument', () => {
-  const policy =
-    "<meta http-equiv=\"Content-Security-Policy\" content=\"form-action 'none'; connect-src 'none'; frame-src 'none'; object-src 'none'\">";
-
   it('places the policy after the doctype, keeping standards mode', () => {
     const out = htmlPreviewNativeDocument(
       '<!DOCTYPE html>\n<html><head><title>t</title></head><body>b</body></html>'
     );
-    expect(out.startsWith(`<!DOCTYPE html>${policy}\n<html>`)).toBe(true);
+    expect(
+      out.startsWith(`<!DOCTYPE html>${HTML_PREVIEW_POLICY}\n<html>`)
+    ).toBe(true);
     expect(out.endsWith('<body>b</body></html>')).toBe(true);
   });
 
   it('places the policy first when there is no doctype', () => {
-    expect(htmlPreviewNativeDocument('<p>hi</p>')).toBe(`${policy}<p>hi</p>`);
+    expect(htmlPreviewNativeDocument('<p>hi</p>')).toBe(
+      `${HTML_PREVIEW_POLICY}<p>hi</p>`
+    );
   });
 
   it('tolerates a byte order mark and whitespace before the doctype', () => {
-    const out = htmlPreviewNativeDocument('﻿  <!doctype html><p>x</p>');
-    expect(out).toBe(`﻿  <!doctype html>${policy}<p>x</p>`);
+    expect(htmlPreviewNativeDocument('﻿  <!doctype html><p>x</p>')).toBe(
+      `﻿  <!doctype html>${HTML_PREVIEW_POLICY}<p>x</p>`
+    );
   });
 
   it('keeps a doctype that follows a comment first', () => {
-    const out = htmlPreviewNativeDocument(
-      '<!-- generated -->\n<!DOCTYPE html>\n<p>x</p>'
+    expect(
+      htmlPreviewNativeDocument('<!-- generated -->\n<!DOCTYPE html>\n<p>x</p>')
+    ).toBe(
+      `<!-- generated -->\n<!DOCTYPE html>${HTML_PREVIEW_POLICY}\n<p>x</p>`
     );
-    expect(out).toBe(`<!-- generated -->\n<!DOCTYPE html>${policy}\n<p>x</p>`);
   });
 });
 

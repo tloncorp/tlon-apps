@@ -87,18 +87,46 @@ export function getBucketPreviewKind({
  * It is loaded through `srcdoc`, and an unsandboxed srcdoc document inherits
  * the app's origin -- the file's scripts would run as the app, with its
  * cookies, its database and its ship session. So `allow-same-origin` is never
- * granted: the document gets an opaque origin.
+ * granted: the document gets an opaque origin, and its scripts run inside
+ * that, with HTML_PREVIEW_POLICY keeping them off the network. Forms stay
+ * forbidden. Popups are allowed so that a link in the document opens in a
+ * new tab, and escape the sandbox so that what opens is an ordinary page.
  *
- * Scripts and forms are withheld as well. The frame sits on the ship's own
- * page, and browsers differ on whether a request from a sandboxed frame there
- * still carries the reader's session cookie: Chromium withholds a Lax cookie,
- * WebKit keys first-party cookies on the top-level page. A script in the file
- * could therefore call the reader's ship as them, and a form could post to
- * it. Only popups are allowed, so that a link in the document opens in a new
- * tab, and they escape the sandbox so that what opens is an ordinary page.
+ * Under Electron scripts are withheld. The desktop shell starts its window
+ * with `webSecurity: false` (apps/tlon-desktop/src/main/index.ts), which
+ * grants every document in it universal access, so there the opaque origin
+ * would not keep a script in the file out of the app's window. Until the
+ * shell can isolate the frame, the file renders there without its scripts.
  */
-export const HTML_PREVIEW_SANDBOX =
-  'allow-popups allow-popups-to-escape-sandbox';
+export function htmlPreviewSandbox({
+  isElectron,
+}: {
+  isElectron: boolean;
+}): string {
+  return [
+    ...(isElectron ? [] : ['allow-scripts']),
+    'allow-popups',
+    'allow-popups-to-escape-sandbox',
+  ].join(' ');
+}
+
+/**
+ * The policy every HTML preview carries, placed into the document itself.
+ *
+ * On web the frame sits on the ship's own page, and browsers differ on
+ * whether a request from a sandboxed frame there still carries the reader's
+ * session cookie (Chromium withholds a Lax cookie; WebKit keys first-party
+ * cookies on the top-level page). On Android every WebView shares the cookie
+ * jar React Native's own networking keeps the ship session in. Either way a
+ * script in the file could have called the reader's ship as them, so the
+ * document may open no connection: not by fetch, not by a socket, not by a
+ * beacon. Its forms cannot submit (Android never reports a POST navigation
+ * to the load handler), and no frame or object may load inside it, since one
+ * would carry a policy of its own. What it may still do is render: load its
+ * images, styles and fonts, and run its scripts against its own DOM.
+ */
+export const HTML_PREVIEW_POLICY =
+  "<meta http-equiv=\"Content-Security-Policy\" content=\"connect-src 'none'; form-action 'none'; frame-src 'none'; object-src 'none'\">";
 
 /**
  * The file's markup with `fragment` placed where the parser sees it before
@@ -113,39 +141,28 @@ function withDocumentHead(html: string, fragment: string): string {
 }
 
 /**
- * The file's markup as the web frame loads it.
+ * The file's markup as the web frame loads it: the policy, and `_blank` as
+ * the default link target.
  *
- * A link in the file would otherwise navigate the frame itself: the sandbox
- * has no token that forbids that, and a destination that refuses framing
- * leaves the preview blank. With `_blank` as the default target, and popups
- * allowed to escape the sandbox, a link opens as an ordinary page in a new
- * tab and the preview stays put. The first `<base>` with a target wins, so a
- * `<base href>` of the file's own still applies. Native does not get this:
- * there a `_blank` link comes back as a navigation with no tap on record,
- * which htmlPreviewNavigation refuses.
+ * A link would otherwise navigate the frame itself -- the sandbox has no
+ * token that forbids that, and a destination that refuses framing leaves the
+ * preview blank -- whereas with popups allowed to escape the sandbox it opens
+ * as an ordinary page in a new tab and the preview stays put. The first
+ * `<base>` with a target wins, so a `<base href>` of the file's own still
+ * applies. Native does not get the target: there a `_blank` link comes back
+ * as a navigation with no tap on record, which htmlPreviewNavigation refuses.
  */
 export function htmlPreviewWebDocument(html: string): string {
-  return withDocumentHead(html, '<base target="_blank">');
+  return withDocumentHead(html, `${HTML_PREVIEW_POLICY}<base target="_blank">`);
 }
 
 /**
- * The file's markup as the native WebView loads it: with a policy that keeps
- * the document from submitting forms, opening connections, or embedding
- * another document.
- *
- * On Android every WebView shares the cookie jar React Native's own networking
- * keeps the ship session in, and the platform never reports a POST navigation
- * to `onShouldStartLoadWithRequest`, so a form the reader tapped would reach
- * the ship as them. A frame or object inside the file would carry a policy
- * of its own, so it could show the form the file itself cannot; none may
- * load. iOS holds no cookies in this WebView and needs none of it, but gets
- * the same document for the same behavior.
+ * The file's markup as the native WebView loads it: the policy alone. iOS
+ * holds no cookies in that WebView and would need none of it, but gets the
+ * same document for the same behavior.
  */
 export function htmlPreviewNativeDocument(html: string): string {
-  return withDocumentHead(
-    html,
-    "<meta http-equiv=\"Content-Security-Policy\" content=\"form-action 'none'; connect-src 'none'; frame-src 'none'; object-src 'none'\">"
-  );
+  return withDocumentHead(html, HTML_PREVIEW_POLICY);
 }
 
 export type HtmlPreviewNavigation = 'load' | 'open-externally' | 'block';

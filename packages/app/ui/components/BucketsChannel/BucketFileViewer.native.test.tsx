@@ -68,6 +68,7 @@ describe('BucketFileViewer html preview (native)', () => {
     const { props } = renderWebView();
     expect(props.source.uri).toBeUndefined();
     expect(props.source.html).toContain('<p>Quarterly numbers</p>');
+    expect(props.source.html).toContain("connect-src 'none'");
     expect(props.source.html).toContain("form-action 'none'");
     expect(props.source.html).toContain("frame-src 'none'");
   });
@@ -75,7 +76,7 @@ describe('BucketFileViewer html preview (native)', () => {
   // These props are the isolation: a change to any of them is a decision.
   it('keeps the document apart from the app on iOS', () => {
     const { props } = renderWebView();
-    expect(props.javaScriptEnabled).toBe(false);
+    expect(props.javaScriptEnabled).toBe(true);
     expect(props.incognito).toBe(true);
     expect(props.sharedCookiesEnabled).toBe(false);
     expect(props.thirdPartyCookiesEnabled).toBe(false);
@@ -87,7 +88,7 @@ describe('BucketFileViewer html preview (native)', () => {
     mocks.platform.OS = 'android';
     const { props } = renderWebView();
     expect(props.incognito).toBe(false);
-    expect(props.javaScriptEnabled).toBe(false);
+    expect(props.javaScriptEnabled).toBe(true);
     expect(props.sharedCookiesEnabled).toBe(false);
     expect(props.originWhitelist).toEqual(['*']);
   });

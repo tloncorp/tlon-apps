@@ -44,9 +44,9 @@ const searchRevealFiles = Array.from({ length: 48 }, (_, index) =>
   )
 );
 
-// A self-contained page, as an export or a generated report would be. The
-// preview does not run scripts, so the count reads "three"; a "3" would mean
-// a platform started running them.
+// A self-contained page, as an export or a generated report would be. Where
+// the preview runs scripts the count reads "3"; "three" means they were
+// withheld, as under Electron.
 const launchRecapHtml = `<!doctype html>
 <html lang="en">
   <head>

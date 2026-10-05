@@ -160,14 +160,15 @@ function NativeVideoPreview({ uri }: { uri: string }) {
  * Renders an HTML file from its text, in a WebView kept apart from the app.
  *
  * The document is a stranger's: anyone who can write to the Bucket wrote it.
- * Its scripts do not run, its forms cannot submit (htmlPreviewNativeDocument), and
- * only a link the reader taps leaves the preview (htmlPreviewNavigation). On
- * iOS the WebView also gets a non-persistent data store with the app's
- * cookies kept out, so nothing the document loads carries the reader's ship
- * session. On Android every WebView in the process shares one cookie jar --
- * the one React Native's own networking keeps the session in -- and
- * `incognito` there clears that jar, which would sign the reader out; so it
- * is iOS-only.
+ * Its scripts run against its own DOM and nothing else: HTML_PREVIEW_POLICY
+ * keeps them off the network and its forms from submitting, and only a link
+ * the reader taps leaves the preview (htmlPreviewNavigation). On iOS the
+ * WebView also gets a non-persistent data store with the app's cookies kept
+ * out, so nothing the document loads carries the reader's ship session. On
+ * Android every WebView in the process shares one cookie jar -- the one React
+ * Native's own networking keeps the session in -- which is why the policy
+ * matters there; `incognito` on Android clears that jar, which would sign the
+ * reader out, so it is iOS-only.
  */
 function NativeHtmlPreview({ html }: { html: string }) {
   const source = useMemo(
@@ -182,7 +183,7 @@ function NativeHtmlPreview({ html }: { html: string }) {
       allowsLinkPreview={false}
       incognito={Platform.OS === 'ios'}
       javaScriptCanOpenWindowsAutomatically={false}
-      javaScriptEnabled={false}
+      javaScriptEnabled
       onShouldStartLoadWithRequest={(request) => {
         const navigation = htmlPreviewNavigation(request);
         if (navigation === 'open-externally') {
