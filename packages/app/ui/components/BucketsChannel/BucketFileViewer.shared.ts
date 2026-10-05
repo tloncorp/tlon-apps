@@ -45,45 +45,158 @@ export function canPreviewFromText(
 }
 
 /**
- * The text of a preview response, or null when the object is over the cap.
+ * The encoding a preview's bytes are in, decided as a browser decides for a
+ * page: a byte order mark first, then the charset the response declares,
+ * then -- for HTML -- a `<meta>` charset in the first 1024 bytes, and UTF-8
+ * when nothing says otherwise. `head` is the start of the bytes, one byte per
+ * character. A prescan that names UTF-16 is read as UTF-8, as browsers do: an
+ * ASCII `<meta>` cannot be found in a document that really is UTF-16.
+ */
+export function previewEncoding({
+  contentType,
+  head,
+  html,
+}: {
+  contentType?: string | null;
+  head: string;
+  html: boolean;
+}): string {
+  if (head.startsWith('ï»¿')) return 'utf-8';
+  if (head.startsWith('þÿ')) return 'utf-16be';
+  if (head.startsWith('ÿþ')) return 'utf-16le';
+  const declared = contentType?.match(/;\s*charset\s*=\s*"?([^";\s]+)/i)?.[1];
+  if (declared) return declared.toLowerCase();
+  if (html) {
+    const meta = head
+      .slice(0, 1024)
+      .match(/<meta\b[^>]*?charset\s*=\s*["']?\s*([a-z0-9_:.+-]+)/i)?.[1]
+      ?.toLowerCase();
+    if (meta) return meta.startsWith('utf-16') ? 'utf-8' : meta;
+  }
+  return 'utf-8';
+}
+
+function latin1(bytes: Uint8Array): string {
+  let text = '';
+  for (let i = 0; i < bytes.length; i++) text += String.fromCharCode(bytes[i]);
+  return text;
+}
+
+// The labels the Encoding Standard reads as windows-1252, ISO-8859-1 and
+// US-ASCII among them.
+const WINDOWS_1252_LABELS = new Set([
+  'ansi_x3.4-1968',
+  'ascii',
+  'cp1252',
+  'cp819',
+  'csisolatin1',
+  'ibm819',
+  'iso-8859-1',
+  'iso-ir-100',
+  'iso8859-1',
+  'iso88591',
+  'iso_8859-1',
+  'iso_8859-1:1987',
+  'l1',
+  'latin1',
+  'us-ascii',
+  'windows-1252',
+  'x-cp1252',
+]);
+
+// windows-1252 bytes 0x80-0x9F; every other byte is its own code point.
+const WINDOWS_1252_HIGH = [
+  0x20ac, 0x81, 0x201a, 0x192, 0x201e, 0x2026, 0x2020, 0x2021, 0x2c6, 0x2030,
+  0x160, 0x2039, 0x152, 0x8d, 0x17d, 0x8f, 0x90, 0x2018, 0x2019, 0x201c, 0x201d,
+  0x2022, 0x2013, 0x2014, 0x2dc, 0x2122, 0x161, 0x203a, 0x153, 0x9d, 0x17e,
+  0x178,
+];
+
+function decodeWindows1252(bytes: Uint8Array): string {
+  let text = '';
+  for (let i = 0; i < bytes.length; i++) {
+    const byte = bytes[i];
+    text += String.fromCharCode(
+      byte >= 0x80 && byte <= 0x9f ? WINDOWS_1252_HIGH[byte - 0x80] : byte
+    );
+  }
+  return text;
+}
+
+/**
+ * The bytes as text in `encoding`. Where the runtime's TextDecoder knows the
+ * encoding, it decodes. Expo's, which React Native apps get, knows only
+ * UTF-8, so windows-1252 -- the encoding of most legacy Western pages, and
+ * what ISO-8859-1 means to a browser -- is decoded here instead. Any other
+ * encoding it does not know is read as UTF-8.
+ */
+function decodeBytes(bytes: Uint8Array, encoding: string): string {
+  try {
+    return new TextDecoder(encoding).decode(bytes);
+  } catch {
+    if (WINDOWS_1252_LABELS.has(encoding)) return decodeWindows1252(bytes);
+    return new TextDecoder('utf-8').decode(bytes);
+  }
+}
+
+/**
+ * The text of a preview response, decoded in the encoding the file is in, or
+ * null when the object is over the cap.
  *
  * The manifest size that canPreviewFromText checks is the writer's own
  * word, recorded at upload; the object behind the read URL can be anything.
  * So the response is bounded too: by its declared length first, and then,
- * where the platform streams the body, as the bytes arrive -- the read stops
- * at the first byte past the cap. React Native's fetch has no stream, so
- * there the whole body is read and the result refused if it is longer than
- * the cap could have allowed (a string's UTF-16 length never exceeds its
- * UTF-8 byte count).
+ * as the bytes arrive, the read stops at the first byte past the cap. Where
+ * the body does not stream, the whole of it is read and refused if it is
+ * over.
+ *
+ * The bytes are decoded only once their encoding is known (previewEncoding):
+ * `Response.text()` decodes as UTF-8 whatever the file says, and a page saved
+ * as windows-1252 would lose every accented letter.
  */
 export async function readPreviewText(
   response: Response,
-  limit = MAX_TEXT_PREVIEW_BYTES
+  {
+    html = false,
+    limit = MAX_TEXT_PREVIEW_BYTES,
+  }: { html?: boolean; limit?: number } = {}
 ): Promise<string | null> {
   const declared = Number(response.headers.get('content-length'));
   if (declared > limit) return null;
 
+  let bytes: Uint8Array;
   const body = response.body;
-  if (!body || typeof body.getReader !== 'function') {
-    const text = await response.text();
-    return text.length > limit ? null : text;
+  if (body && typeof body.getReader === 'function') {
+    const reader = body.getReader();
+    const chunks: Uint8Array[] = [];
+    let received = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      received += value.byteLength;
+      if (received > limit) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+    bytes = new Uint8Array(received);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+  } else {
+    bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength > limit) return null;
   }
 
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-  let received = 0;
-  let text = '';
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    received += value.byteLength;
-    if (received > limit) {
-      await reader.cancel();
-      return null;
-    }
-    text += decoder.decode(value, { stream: true });
-  }
-  return text + decoder.decode();
+  const encoding = previewEncoding({
+    contentType: response.headers.get('content-type'),
+    head: latin1(bytes.subarray(0, 1024)),
+    html,
+  });
+  return decodeBytes(bytes, encoding);
 }
 
 export function getBucketPreviewKind({
@@ -146,20 +259,56 @@ function decodeEntities(text: string): string {
   );
 }
 
+// Elements whose content is not read as markup for the document's title: the
+// raw-text and escapable raw-text elements, noscript (raw text with scripting
+// on), plaintext, and template, svg and math, whose titles are not the
+// document's.
+const TITLE_SKIPPED_ELEMENTS = new Set([
+  'iframe',
+  'math',
+  'noembed',
+  'noframes',
+  'noscript',
+  'plaintext',
+  'script',
+  'style',
+  'svg',
+  'template',
+  'textarea',
+  'xmp',
+]);
+
 /**
  * The title of an HTML file, as the page itself would show it: the first
- * `<title>` outside any `<svg>` (an SVG title is a tooltip, not the
- * document's), with entities decoded and whitespace collapsed, the way
- * `document.title` reads it. Undefined when the file has none or it is blank.
+ * `<title>` the parser would make an element of -- not one in a comment, an
+ * attribute, a script or style, a template, or an `<svg>`, whose title is a
+ * tooltip -- with entities decoded and whitespace collapsed, the way
+ * `document.title` reads it. Undefined when the file has none, it is blank,
+ * or it is never closed.
  */
 export function htmlPreviewTitle(html: string): string | undefined {
-  const markup = html
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/<svg[\s>][\s\S]*?<\/svg\s*>/gi, '');
-  const match = markup.match(/<title(?:\s[^>]*)?>([\s\S]*?)<\/title\s*>/i);
-  if (!match) return undefined;
-  const title = decodeEntities(match[1]).replace(/\s+/g, ' ').trim();
-  return title === '' ? undefined : title.slice(0, 200);
+  const token =
+    /<!--[\s\S]*?(?:-->|$)|<(\/?)([a-zA-Z][^\s/>]*)(?:[^>"']|"[^"]*"|'[^']*')*>/g;
+  let match: RegExpExecArray | null;
+  while ((match = token.exec(html))) {
+    // A comment, or an end tag.
+    if (match[1] !== '') continue;
+    const name = match[2].toLowerCase();
+    if (name !== 'title' && !TITLE_SKIPPED_ELEMENTS.has(name)) continue;
+    // Everything after a plaintext start tag is text.
+    if (name === 'plaintext') return undefined;
+    const rest = html.slice(token.lastIndex);
+    const close = new RegExp(`</${name}[\\s/>]`, 'i').exec(rest);
+    if (!close) return undefined;
+    if (name === 'title') {
+      const title = decodeEntities(rest.slice(0, close.index))
+        .replace(/\s+/g, ' ')
+        .trim();
+      return title === '' ? undefined : title.slice(0, 200);
+    }
+    token.lastIndex += close.index + close[0].length;
+  }
+  return undefined;
 }
 
 /**
@@ -382,36 +531,54 @@ function withDocumentHead(html: string, fragment: string): string {
 /**
  * Our script in the file's frame, which runs before any of the file's own.
  *
- * It takes a link click once the page's own handlers have had it, and keeps
- * the frame from following it: a link that leaves the file goes to the shell
- * to be opened (htmlPreviewShell); one to a place in the file scrolls there,
- * since in a srcdoc document `#section` resolves against the parent's
- * address and followed it would leave the file; and a `javascript:` link
- * runs its code in the frame, as an `onclick` of the page's own could.
- * Chromium will not run such a link in a document with an opaque origin, and
- * the `_blank` default target would send it to a window the frame cannot
- * open.
+ * It sees every link click first, at the window, and decides what to do with
+ * it only once the click has finished dispatching, so that a cancel from any
+ * of the page's own handlers -- a router's, an `onclick` returning false --
+ * counts, whenever they were added. Until then the frame's own default action
+ * has to be harmless: a link aimed anywhere but `_blank` is pointed at
+ * `_blank` for this click (an SVG link ignores the `<base>` target, and one
+ * aimed at the frame itself would be refused by the shell's `frame-src`,
+ * leaving Chromium's blocked-page notice behind), so the default is a popup
+ * the sandbox refuses.
+ *
+ * Then, if the page did not cancel it: a link that leaves the file goes to
+ * the shell to be opened (htmlPreviewShell); one to a place in the file
+ * scrolls there, since in a srcdoc document `#section` resolves against the
+ * parent's address; and a `javascript:` link runs its code in the frame, as
+ * an `onclick` of the page's own could (Chromium will not run such a link in a
+ * document with an opaque origin). An SVG link is followed like an HTML one.
  *
  * Only a click the reader made reaches the shell (`isTrusted`, which no
  * script can forge), with the key that marks it as ours. The key lives in
  * this function's closure, the element is gone before the file's first
  * script runs, and the messages go to the parent captured here, so nothing
- * in the file can read the key or reroute them. A page that cancels its own
- * link click keeps it cancelled.
+ * in the file can read the key or reroute them.
  */
 function linkScript(key: string): string {
   return `<script>
 (function (key) {
   'use strict';
   var shell = window.parent;
+  var later = window.setTimeout.bind(window);
   var composedPath = Event.prototype.composedPath;
+  var resolveURL = window.URL;
+  var run = Function;
+  var XLINK = 'http://www.w3.org/1999/xlink';
+  var SVG = 'http://www.w3.org/2000/svg';
+  function hrefOf(node) {
+    var raw = node.getAttribute('href');
+    return raw !== null ? raw : node.getAttributeNS(XLINK, 'href');
+  }
   function linkIn(event) {
     var nodes = composedPath.call(event);
     for (var i = 0; i < nodes.length; i++) {
       var node = nodes[i];
-      if (node && node.nodeType === 1 && (node.localName === 'a' || node.localName === 'area') && node.hasAttribute('href')) return node;
+      if (node && node.nodeType === 1 && (node.localName === 'a' || node.localName === 'area') && hrefOf(node) !== null) return node;
     }
     return null;
+  }
+  function absolute(raw) {
+    try { return new resolveURL(raw, document.baseURI).href; } catch (error) { return null; }
   }
   function scrollToFragment(fragment) {
     var id = fragment;
@@ -421,25 +588,34 @@ function linkScript(key: string): string {
     else if (!id || id.toLowerCase() === 'top') window.scrollTo(0, 0);
   }
   function follow(event) {
-    if (event.defaultPrevented) return;
     if (event.type === 'auxclick' && event.button !== 1) return;
     var link = linkIn(event);
     if (!link) return;
-    var raw = (link.getAttribute('href') || '').trim();
-    event.preventDefault();
-    if (/^javascript:/i.test(raw)) {
-      var code;
-      try { code = decodeURIComponent(raw.replace(/^javascript:/i, '')); } catch (error) { return; }
-      Function(code)();
-      return;
-    }
-    if (raw === '' || raw.charAt(0) === '#') { scrollToFragment(raw.slice(1)); return; }
-    if (event.isTrusted && typeof link.href === 'string') {
-      shell.postMessage({ type: '${HTML_PREVIEW_LINK_MESSAGE}', key: key, href: link.href }, '*');
-    }
+    var target = link.getAttribute('target');
+    var aimed = target === null || target.trim() === '' ? (link.namespaceURI === SVG ? '_self' : '_blank') : target.trim().toLowerCase();
+    if (aimed !== '_blank') link.setAttribute('target', '_blank');
+    var trusted = event.isTrusted;
+    later(function () {
+      if (aimed !== '_blank') {
+        if (target === null) link.removeAttribute('target');
+        else link.setAttribute('target', target);
+      }
+      if (event.defaultPrevented) return;
+      var raw = (hrefOf(link) || '').trim();
+      if (/^javascript:/i.test(raw)) {
+        var code;
+        try { code = decodeURIComponent(raw.replace(/^javascript:/i, '')); } catch (error) { return; }
+        run(code)();
+        return;
+      }
+      if (raw === '' || raw.charAt(0) === '#') { scrollToFragment(raw.slice(1)); return; }
+      if (!trusted) return;
+      var href = typeof link.href === 'string' ? link.href : absolute(raw);
+      if (href) shell.postMessage({ type: '${HTML_PREVIEW_LINK_MESSAGE}', key: key, href: href }, '*');
+    }, 0);
   }
-  window.addEventListener('click', follow);
-  window.addEventListener('auxclick', follow);
+  window.addEventListener('click', follow, true);
+  window.addEventListener('auxclick', follow, true);
   var self = document.currentScript;
   if (self) self.remove();
 })('${key}');

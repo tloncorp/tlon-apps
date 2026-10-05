@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   HTML_PREVIEW_LINK_MESSAGE,
@@ -15,6 +15,7 @@ import {
   htmlPreviewSandboxes,
   htmlPreviewShell,
   htmlPreviewTitle,
+  previewEncoding,
   readPreviewText,
 } from './BucketFileViewer.shared';
 
@@ -81,11 +82,13 @@ describe('canPreviewFromText', () => {
 });
 
 describe('readPreviewText', () => {
-  const streamOf = (...chunks: string[]) =>
+  const streamOf = (...chunks: (string | Uint8Array)[]) =>
     new ReadableStream<Uint8Array>({
       start(controller) {
         for (const chunk of chunks) {
-          controller.enqueue(new TextEncoder().encode(chunk));
+          controller.enqueue(
+            typeof chunk === 'string' ? new TextEncoder().encode(chunk) : chunk
+          );
         }
         controller.close();
       },
@@ -93,7 +96,7 @@ describe('readPreviewText', () => {
 
   it('reads a body within the cap', async () => {
     const response = new Response(streamOf('<p>', 'héllo', '</p>'));
-    expect(await readPreviewText(response, 64)).toBe('<p>héllo</p>');
+    expect(await readPreviewText(response, { limit: 64 })).toBe('<p>héllo</p>');
   });
 
   // The manifest size is the writer's word, so the response's own length is
@@ -106,12 +109,12 @@ describe('readPreviewText', () => {
         touched = true;
         return null;
       },
-      text: () => {
+      arrayBuffer: () => {
         touched = true;
-        return Promise.resolve('');
+        return Promise.resolve(new ArrayBuffer(0));
       },
     } as unknown as Response;
-    expect(await readPreviewText(response, 64)).toBeNull();
+    expect(await readPreviewText(response, { limit: 64 })).toBeNull();
     expect(touched).toBe(false);
   });
 
@@ -132,22 +135,143 @@ describe('readPreviewText', () => {
         },
       })
     );
-    expect(await readPreviewText(response, 64)).toBeNull();
+    expect(await readPreviewText(response, { limit: 64 })).toBeNull();
     expect(cancelled).toBe(true);
     expect(sent).toBeLessThanOrEqual(4);
   });
 
-  // React Native's fetch exposes no stream: the body is read whole, and a
-  // result longer than the cap is refused after the fact.
-  it('falls back to the whole text where the body does not stream', async () => {
+  // `café` in windows-1252: the é is the single byte 0xE9, which UTF-8
+  // decoding turns into a replacement character.
+  const cafe = new Uint8Array([0x63, 0x61, 0x66, 0xe9]);
+
+  it('decodes in the charset the response declares', async () => {
+    const response = new Response(streamOf(cafe), {
+      headers: { 'content-type': 'text/plain; charset=windows-1252' },
+    });
+    expect(await readPreviewText(response)).toBe('café');
+  });
+
+  it('decodes an HTML page in its own <meta> charset', async () => {
+    const page = (html: boolean) =>
+      readPreviewText(
+        new Response(
+          streamOf('<!doctype html><meta charset="windows-1252"><p>', cafe),
+          { headers: { 'content-type': 'text/html' } }
+        ),
+        { html }
+      );
+    expect(await page(true)).toBe(
+      '<!doctype html><meta charset="windows-1252"><p>café'
+    );
+    // A text file's contents are not a declaration.
+    expect(await page(false)).toContain('caf�');
+  });
+
+  // Expo's TextDecoder, which React Native apps get, knows only UTF-8 and
+  // throws for any other label.
+  const RealTextDecoder = TextDecoder;
+  class Utf8OnlyDecoder {
+    private decoder: TextDecoder;
+    constructor(label = 'utf-8') {
+      if (!/^(utf-?8|unicode-1-1-utf-8)$/i.test(label)) {
+        throw new RangeError(`Unknown encoding: ${label}`);
+      }
+      this.decoder = new RealTextDecoder('utf-8');
+    }
+    decode(input: Uint8Array) {
+      return this.decoder.decode(input);
+    }
+  }
+
+  describe('where the runtime decodes only UTF-8', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('still decodes windows-1252 and what a browser reads as it', async () => {
+      vi.stubGlobal('TextDecoder', Utf8OnlyDecoder);
+      const euro = new Uint8Array([0x80, 0x20, 0x93, 0x71, 0x94]);
+      for (const charset of ['windows-1252', 'iso-8859-1', 'latin1']) {
+        const response = new Response(
+          streamOf(cafe, new Uint8Array([0x20]), euro),
+          {
+            headers: { 'content-type': `text/plain; charset=${charset}` },
+          }
+        );
+        expect(await readPreviewText(response)).toBe('café € “q”');
+      }
+    });
+
+    // Anything else it cannot decode is read as UTF-8, as before.
+    it('reads an encoding it does not know as UTF-8', async () => {
+      vi.stubGlobal('TextDecoder', Utf8OnlyDecoder);
+      const response = new Response(streamOf('plain ascii'), {
+        headers: { 'content-type': 'text/plain; charset=shift_jis' },
+      });
+      expect(await readPreviewText(response)).toBe('plain ascii');
+    });
+  });
+
+  // A body that does not stream is read whole and refused if it is over.
+  it('reads a body that does not stream, and refuses one over the cap', async () => {
     const unstreamed = (text: string) =>
       ({
+        arrayBuffer: () =>
+          Promise.resolve(new TextEncoder().encode(text).buffer),
         body: null,
         headers: new Headers(),
-        text: () => Promise.resolve(text),
       }) as unknown as Response;
-    expect(await readPreviewText(unstreamed('short'), 64)).toBe('short');
-    expect(await readPreviewText(unstreamed('x'.repeat(65)), 64)).toBeNull();
+    expect(await readPreviewText(unstreamed('short'), { limit: 64 })).toBe(
+      'short'
+    );
+    expect(
+      await readPreviewText(unstreamed('x'.repeat(65)), { limit: 64 })
+    ).toBeNull();
+  });
+});
+
+describe('previewEncoding', () => {
+  const page = (head: string, contentType?: string, html = true) =>
+    previewEncoding({ contentType, head, html });
+
+  it('lets a byte order mark decide first', () => {
+    expect(
+      page('ï»¿<meta charset="windows-1252">', 'text/html; charset=shift_jis')
+    ).toBe('utf-8');
+    expect(page('ÿþ<\u0000')).toBe('utf-16le');
+    expect(page('þÿ\u0000<')).toBe('utf-16be');
+  });
+
+  it('takes the charset the response declares next', () => {
+    expect(
+      page('<meta charset="windows-1252">', 'text/html; charset="Shift_JIS"')
+    ).toBe('shift_jis');
+  });
+
+  it("reads an HTML page's own declaration, in either form", () => {
+    expect(page('<!doctype html><meta charset=windows-1252>')).toBe(
+      'windows-1252'
+    );
+    expect(
+      page(
+        '<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">'
+      )
+    ).toBe('iso-8859-1');
+  });
+
+  // An ASCII <meta> cannot be read from a document that really is UTF-16.
+  it('reads a UTF-16 declaration as UTF-8', () => {
+    expect(page('<meta charset="utf-16">')).toBe('utf-8');
+  });
+
+  it('defaults to UTF-8, and ignores a declaration past the first 1024 bytes or in plain text', () => {
+    expect(page('<p>no declaration</p>')).toBe('utf-8');
+    expect(page(`${' '.repeat(1024)}<meta charset="windows-1252">`)).toBe(
+      'utf-8'
+    );
+    expect(page('<meta charset="windows-1252">', undefined, false)).toBe(
+      'utf-8'
+    );
   });
 });
 
@@ -168,9 +292,25 @@ describe('htmlPreviewTitle', () => {
     ).toBe('Report');
   });
 
-  it('has none for a file without one, or with a blank one', () => {
+  // The parser reads none of these as a title element.
+  it('ignores a title in a script, a style, a template, a textarea or an attribute', () => {
+    expect(
+      htmlPreviewTitle(
+        `<script>const sample = '<title>Draft</title>';</script>` +
+          '<style>/* <title>Style</title> */</style>' +
+          '<template><title>Inert</title></template>' +
+          '<textarea><title>Typed</title></textarea>' +
+          '<div data-x="a>b<title>Attr</title>"></div>' +
+          '<TITLE>Final</TITLE>'
+      )
+    ).toBe('Final');
+  });
+
+  it('has none for a file without one, a blank one, or one never closed', () => {
     expect(htmlPreviewTitle('<p>hi</p>')).toBeUndefined();
     expect(htmlPreviewTitle('<title>  </title>')).toBeUndefined();
+    expect(htmlPreviewTitle('<title>Unclosed')).toBeUndefined();
+    expect(htmlPreviewTitle('<plaintext><title>Text</title>')).toBeUndefined();
   });
 });
 

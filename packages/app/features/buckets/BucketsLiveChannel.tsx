@@ -34,6 +34,7 @@ import {
   XStack,
   YStack,
   canPreviewFromText,
+  getBucketPreviewKind,
   readPreviewText,
   useCanWrite,
   useCurrentUserId,
@@ -291,7 +292,9 @@ export function BucketsLiveChannel({
         // The manifest size is the writer's word; the body is bounded as
         // it is read. Over the cap the item keeps no text and the viewer
         // falls back to its unsupported notice, as for an oversize manifest.
-        const textContent = await readPreviewText(response);
+        const textContent = await readPreviewText(response, {
+          html: getBucketPreviewKind(readableItem) === 'html',
+        });
         if (previewRequestId.current !== requestId) return;
         if (textContent !== null) {
           setPreviewItem({ ...readableItem, textContent });
