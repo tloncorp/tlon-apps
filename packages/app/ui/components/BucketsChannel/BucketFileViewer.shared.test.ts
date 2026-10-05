@@ -202,6 +202,27 @@ describe('readPreviewText', () => {
       }
     });
 
+    it('still decodes UTF-16 from its byte order mark, either way round', async () => {
+      vi.stubGlobal('TextDecoder', Utf8OnlyDecoder);
+      const text = '<p>café ✓</p>';
+      const units = [...text].map((char) => char.charCodeAt(0));
+      const le = new Uint8Array([
+        0xff,
+        0xfe,
+        ...units.flatMap((u) => [u & 0xff, u >> 8]),
+      ]);
+      const be = new Uint8Array([
+        0xfe,
+        0xff,
+        ...units.flatMap((u) => [u >> 8, u & 0xff]),
+      ]);
+      for (const bytes of [le, be]) {
+        expect(
+          await readPreviewText(new Response(streamOf(bytes)), { html: true })
+        ).toBe(text);
+      }
+    });
+
     // Anything else it cannot decode is read as UTF-8, as before.
     it('reads an encoding it does not know as UTF-8', async () => {
       vi.stubGlobal('TextDecoder', Utf8OnlyDecoder);
@@ -326,6 +347,34 @@ describe('htmlPreviewTitle', () => {
     ).toBe('Final');
   });
 
+  it('decodes references as a browser does', () => {
+    expect(htmlPreviewTitle('<title>Report &copy; 2026</title>')).toBe(
+      'Report © 2026'
+    );
+    // Legacy names need no semicolon, and match their longest prefix.
+    expect(htmlPreviewTitle('<title>&copy 2026 &notit;</title>')).toBe(
+      '© 2026 ¬it;'
+    );
+    expect(
+      htmlPreviewTitle(
+        '<title>&Alpha;&hearts;&euro;&hellip;&lang;&AMP;</title>'
+      )
+    ).toBe('Α♥€…⟨&');
+    // A numeric reference into C1 is the windows-1252 character; zero, a
+    // surrogate or past Unicode is the replacement character.
+    expect(
+      htmlPreviewTitle('<title>a&#150;b&#x0;&#xD800;&#1114112;</title>')
+    ).toBe('a–b���');
+    expect(htmlPreviewTitle('<title>&bogus; &amp</title>')).toBe('&bogus; &');
+  });
+
+  // document.title strips and collapses ASCII whitespace only.
+  it('keeps a no-break space', () => {
+    expect(htmlPreviewTitle('<title>\n A&nbsp;&nbsp;B \t</title>')).toBe(
+      'A  B'
+    );
+  });
+
   it('has none for a file without one, a blank one, or one never closed', () => {
     expect(htmlPreviewTitle('<p>hi</p>')).toBeUndefined();
     expect(htmlPreviewTitle('<title>  </title>')).toBeUndefined();
@@ -422,13 +471,46 @@ describe('htmlPreviewKey', () => {
 });
 
 describe('HTML_PREVIEW_POLICY', () => {
+  const directives = new Map(
+    HTML_PREVIEW_POLICY.split('; ').map((directive) => {
+      const [name, ...sources] = directive.split(' ');
+      return [name, sources] as const;
+    })
+  );
+
   it('forbids connections, forms and objects, and frames anything but inline documents', () => {
-    expect(HTML_PREVIEW_POLICY.split('; ').sort()).toEqual([
-      "connect-src 'none'",
-      "form-action 'none'",
-      'frame-src about:',
-      "object-src 'none'",
+    expect(directives.get('connect-src')).toEqual(["'none'"]);
+    expect(directives.get('form-action')).toEqual(["'none'"]);
+    expect(directives.get('object-src')).toEqual(["'none'"]);
+    expect(directives.get('frame-src')).toEqual(['about:']);
+  });
+
+  // The reader's ship would answer a request as the reader (`/~/logout` is a
+  // GET), and a source list cannot exclude one host, so it names only what
+  // can never be a ship: nothing by default, inline and data: or blob:
+  // resources, and public CDNs.
+  it('lets nothing load from anywhere a ship, or a page author, could be', () => {
+    expect(directives.get('default-src')).toEqual(["'none'"]);
+    const allowedHosts = new Set([
+      'https://cdnjs.cloudflare.com',
+      'https://cdn.jsdelivr.net',
+      'https://unpkg.com',
+      'https://cdn.tailwindcss.com',
+      'https://code.jquery.com',
+      'https://fonts.googleapis.com',
+      'https://fonts.gstatic.com',
     ]);
+    for (const [name, sources] of directives) {
+      for (const source of sources) {
+        const allowed =
+          ["'none'", "'unsafe-inline'", "'unsafe-eval'"].includes(source) ||
+          ['data:', 'blob:', 'about:'].includes(source) ||
+          allowedHosts.has(source);
+        expect(allowed, `${name} ${source}`).toBe(true);
+      }
+    }
+    expect(HTML_PREVIEW_POLICY).not.toContain("'self'");
+    expect(HTML_PREVIEW_POLICY).not.toMatch(/(^|\s)(https?:|\*)(\s|;|$)/);
   });
 });
 

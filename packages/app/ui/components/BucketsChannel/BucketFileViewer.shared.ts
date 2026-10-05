@@ -208,18 +208,53 @@ function decodeWindows1252(bytes: Uint8Array): string {
   return text;
 }
 
+// The labels the Encoding Standard reads as UTF-16, little-endian unless named
+// otherwise.
+const UTF_16LE_LABELS = new Set([
+  'csunicode',
+  'iso-10646-ucs-2',
+  'ucs-2',
+  'unicode',
+  'unicodefeff',
+  'utf-16',
+  'utf-16le',
+]);
+const UTF_16BE_LABELS = new Set(['unicodefffe', 'utf-16be']);
+
+function decodeUtf16(bytes: Uint8Array, littleEndian: boolean): string {
+  let i = 0;
+  if (
+    bytes.length >= 2 &&
+    bytes[0] === (littleEndian ? 0xff : 0xfe) &&
+    bytes[1] === (littleEndian ? 0xfe : 0xff)
+  ) {
+    i = 2;
+  }
+  let text = '';
+  for (; i + 1 < bytes.length; i += 2) {
+    text += String.fromCharCode(
+      littleEndian
+        ? bytes[i] | (bytes[i + 1] << 8)
+        : (bytes[i] << 8) | bytes[i + 1]
+    );
+  }
+  return i < bytes.length ? text + '�' : text;
+}
+
 /**
  * The bytes as text in `encoding`. Where the runtime's TextDecoder knows the
  * encoding, it decodes. Expo's, which React Native apps get, knows only
  * UTF-8, so windows-1252 -- the encoding of most legacy Western pages, and
- * what ISO-8859-1 means to a browser -- is decoded here instead. Any other
- * encoding it does not know is read as UTF-8.
+ * what ISO-8859-1 means to a browser -- and UTF-16 are decoded here instead.
+ * Any other encoding it does not know is read as UTF-8.
  */
 function decodeBytes(bytes: Uint8Array, encoding: string): string {
   try {
     return new TextDecoder(encoding).decode(bytes);
   } catch {
     if (WINDOWS_1252_LABELS.has(encoding)) return decodeWindows1252(bytes);
+    if (UTF_16LE_LABELS.has(encoding)) return decodeUtf16(bytes, true);
+    if (UTF_16BE_LABELS.has(encoding)) return decodeUtf16(bytes, false);
     return new TextDecoder('utf-8').decode(bytes);
   }
 }
@@ -321,27 +356,118 @@ export function getBucketPreviewKind({
   return 'unsupported';
 }
 
-const NAMED_ENTITIES: Record<string, string> = {
-  amp: '&',
-  apos: "'",
-  gt: '>',
-  lt: '<',
-  nbsp: ' ',
-  quot: '"',
-};
+// HTML's named character references for Latin-1, U+00A0 to U+00FF in order.
+// These are also the "legacy" names, which a browser reads in text even
+// without the closing semicolon.
+const LATIN1_ENTITY_NAMES =
+  `nbsp iexcl cent pound curren yen brvbar sect uml copy
+  ordf laquo not shy reg macr deg plusmn sup2 sup3 acute micro para middot cedil
+  sup1 ordm raquo frac14 frac12 frac34 iquest Agrave Aacute Acirc Atilde Auml
+  Aring AElig Ccedil Egrave Eacute Ecirc Euml Igrave Iacute Icirc Iuml ETH Ntilde
+  Ograve Oacute Ocirc Otilde Ouml times Oslash Ugrave Uacute Ucirc Uuml Yacute
+  THORN szlig agrave aacute acirc atilde auml aring aelig ccedil egrave eacute
+  ecirc euml igrave iacute icirc iuml eth ntilde ograve oacute ocirc otilde ouml
+  divide oslash ugrave uacute ucirc uuml yacute thorn yuml`.split(/\s+/);
 
+// The rest of HTML 4's named references, with their code points in hex
+// (HTML's current values, so lang and rang are the mathematical angle
+// brackets).
+const OTHER_ENTITIES = `quot 22 amp 26 apos 27 lt 3c gt 3e QUOT 22 AMP 26 LT 3c
+  GT 3e COPY a9 REG ae OElig 152 oelig 153 Scaron 160 scaron 161 Yuml 178
+  fnof 192 circ 2c6 tilde 2dc Alpha 391 Beta 392 Gamma 393 Delta 394 Epsilon 395
+  Zeta 396 Eta 397 Theta 398 Iota 399 Kappa 39a Lambda 39b Mu 39c Nu 39d Xi 39e
+  Omicron 39f Pi 3a0 Rho 3a1 Sigma 3a3 Tau 3a4 Upsilon 3a5 Phi 3a6 Chi 3a7
+  Psi 3a8 Omega 3a9 alpha 3b1 beta 3b2 gamma 3b3 delta 3b4 epsilon 3b5 zeta 3b6
+  eta 3b7 theta 3b8 iota 3b9 kappa 3ba lambda 3bb mu 3bc nu 3bd xi 3be
+  omicron 3bf pi 3c0 rho 3c1 sigmaf 3c2 sigma 3c3 tau 3c4 upsilon 3c5 phi 3c6
+  chi 3c7 psi 3c8 omega 3c9 thetasym 3d1 upsih 3d2 piv 3d6 ensp 2002 emsp 2003
+  thinsp 2009 zwnj 200c zwj 200d lrm 200e rlm 200f ndash 2013 mdash 2014
+  lsquo 2018 rsquo 2019 sbquo 201a ldquo 201c rdquo 201d bdquo 201e dagger 2020
+  Dagger 2021 bull 2022 hellip 2026 permil 2030 prime 2032 Prime 2033
+  lsaquo 2039 rsaquo 203a oline 203e frasl 2044 euro 20ac image 2111
+  weierp 2118 real 211c trade 2122 alefsym 2135 larr 2190 uarr 2191 rarr 2192
+  darr 2193 harr 2194 crarr 21b5 lArr 21d0 uArr 21d1 rArr 21d2 dArr 21d3
+  hArr 21d4 forall 2200 part 2202 exist 2203 empty 2205 nabla 2207 isin 2208
+  notin 2209 ni 220b prod 220f sum 2211 minus 2212 lowast 2217 radic 221a
+  prop 221d infin 221e ang 2220 and 2227 or 2228 cap 2229 cup 222a int 222b
+  there4 2234 sim 223c cong 2245 asymp 2248 ne 2260 equiv 2261 le 2264 ge 2265
+  sub 2282 sup 2283 nsub 2284 sube 2286 supe 2287 oplus 2295 otimes 2297
+  perp 22a5 sdot 22c5 lceil 2308 rceil 2309 lfloor 230a rfloor 230b lang 27e8
+  rang 27e9 loz 25ca spades 2660 clubs 2663 hearts 2665 diams 2666`.split(
+  /\s+/
+);
+
+const NAMED_ENTITIES = new Map<string, number>(
+  LATIN1_ENTITY_NAMES.map((name, i) => [name, 0xa0 + i])
+);
+for (let i = 0; i < OTHER_ENTITIES.length; i += 2) {
+  NAMED_ENTITIES.set(OTHER_ENTITIES[i], parseInt(OTHER_ENTITIES[i + 1], 16));
+}
+
+// The names a browser decodes without a semicolon: Latin-1's, and the
+// markup characters in either case.
+const LEGACY_ENTITY_NAMES = new Set([
+  ...LATIN1_ENTITY_NAMES,
+  'amp',
+  'AMP',
+  'COPY',
+  'gt',
+  'GT',
+  'lt',
+  'LT',
+  'quot',
+  'QUOT',
+  'REG',
+]);
+
+function numericCharacter(code: number): string {
+  if (code === 0 || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff)) {
+    return '�';
+  }
+  // A reference into C1 means the windows-1252 character, as in a browser.
+  if (code >= 0x80 && code <= 0x9f) {
+    return String.fromCharCode(WINDOWS_1252_HIGH[code - 0x80]);
+  }
+  return String.fromCodePoint(code);
+}
+
+/**
+ * Character references decoded as a browser decodes them in text: HTML 4's
+ * named references (the ones a title is likely to use), the legacy Latin-1
+ * names even without a semicolon (`&copy 2026`), and numeric references with
+ * a browser's replacements. A name HTML does not define stays as written.
+ */
 function decodeEntities(text: string): string {
   return text.replace(
-    /&(#x[0-9a-f]+|#\d+|[a-z]+);/gi,
-    (entity: string, body: string) => {
-      if (body[0] !== '#') {
-        return NAMED_ENTITIES[body.toLowerCase()] ?? entity;
+    /&(?:#([xX][0-9a-fA-F]+|[0-9]+);?|([a-zA-Z][a-zA-Z0-9]*)(;?))/g,
+    (
+      reference: string,
+      numeric: string | undefined,
+      name: string | undefined,
+      semicolon: string | undefined
+    ) => {
+      if (numeric !== undefined) {
+        return numericCharacter(
+          numeric[0] === 'x' || numeric[0] === 'X'
+            ? parseInt(numeric.slice(1), 16)
+            : parseInt(numeric, 10)
+        );
       }
-      const code =
-        body[1]?.toLowerCase() === 'x'
-          ? parseInt(body.slice(2), 16)
-          : parseInt(body.slice(1), 10);
-      return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : entity;
+      if (name === undefined) return reference;
+      const code = semicolon ? NAMED_ENTITIES.get(name) : undefined;
+      if (code !== undefined) return String.fromCodePoint(code);
+      // The longest legacy name the run starts with, as a browser matches.
+      for (let length = Math.min(name.length, 6); length >= 2; length -= 1) {
+        const prefix = name.slice(0, length);
+        if (LEGACY_ENTITY_NAMES.has(prefix)) {
+          return (
+            String.fromCodePoint(NAMED_ENTITIES.get(prefix) ?? 0xfffd) +
+            name.slice(length) +
+            (semicolon ?? '')
+          );
+        }
+      }
+      return reference;
     }
   );
 }
@@ -455,8 +581,8 @@ export function htmlPreviewTitle(html: string): string | undefined {
     if (close < 0) return undefined;
     if (name === 'title') {
       const title = decodeEntities(html.slice(tagEnd, close))
-        .replace(/\s+/g, ' ')
-        .trim();
+        .replace(/[\t\n\f\r ]+/g, ' ')
+        .replace(/^ | $/g, '');
       return title === '' ? undefined : title.slice(0, 200);
     }
     const closeEnd = html.indexOf('>', close);
@@ -542,21 +668,34 @@ export function htmlPreviewKey(): string {
   );
 }
 
+// The public CDNs a preview may load libraries, styles, fonts and images
+// from. None of them can be a reader's ship.
+const PREVIEW_CDNS =
+  'https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com';
+
 /**
  * The policy every HTML preview runs under.
  *
- * On web the frame sits on the ship's own page, and browsers differ on
- * whether a request from a sandboxed frame there still carries the reader's
- * session cookie (Chromium withholds a Lax cookie; WebKit keys first-party
- * cookies on the top-level page). On Android every WebView shares the cookie
- * jar React Native's own networking keeps the ship session in. Either way a
- * script in the file could have called the reader's ship as them, so the
- * document may open no connection: not by fetch, not by a socket, not by a
- * beacon. Its forms cannot submit (Android never reports a POST navigation
- * to the load handler), no object may load inside it, and the only frame it
- * may hold is an inline one, which inherits this same policy. What it may
- * still do is render: load its images, styles and fonts, and run its scripts
- * against its own DOM.
+ * Nothing may load from the reader's ship, nor from anywhere a page's author
+ * controls. On web the frame sits on the ship's own page and the ship's
+ * cookie is `SameSite=None`, so a request from the frame to the ship goes out
+ * with the reader's session; under Electron the desktop shell attaches the
+ * cookie to every request for the ship's address; on Android every WebView
+ * shares the cookie jar React Native's networking keeps it in. Urbit logs out
+ * on a GET to `/~/logout`, so a page whose `<img>` pointed there would sign
+ * the reader out just by being opened, and any other GET on the ship would go
+ * out as them. A source list cannot name everything but the ship, so the
+ * policy names what may load instead: inline scripts and styles and `data:`
+ * or `blob:` resources, which never leave the device, and libraries, styles,
+ * fonts and images from the public CDNs above (plus Google Fonts), which no
+ * one can make into a ship. Everything else is refused, the ship and any host
+ * that could count the page's views among them.
+ *
+ * Beyond loading, the document may open no connection -- not by fetch, not
+ * by a socket, not by a beacon -- its forms cannot submit (Android never
+ * reports a POST navigation to the load handler), no object may load in it,
+ * and the only frame it may hold is an inline one, which inherits this same
+ * policy. It still runs its scripts against its own DOM.
  *
  * The policy is delivered by the shell (htmlPreviewShell), whose markup the
  * file cannot reach: a document loaded through `srcdoc` inherits the policy
@@ -564,8 +703,19 @@ export function htmlPreviewKey(): string {
  * into the file's own markup as well (htmlPreviewDocument), so that it holds
  * even where that inheritance did not.
  */
-export const HTML_PREVIEW_POLICY =
-  "connect-src 'none'; form-action 'none'; frame-src about:; object-src 'none'";
+export const HTML_PREVIEW_POLICY = [
+  "default-src 'none'",
+  `script-src 'unsafe-inline' 'unsafe-eval' data: blob: ${PREVIEW_CDNS} https://cdn.tailwindcss.com https://code.jquery.com`,
+  `style-src 'unsafe-inline' data: blob: ${PREVIEW_CDNS} https://fonts.googleapis.com`,
+  `font-src data: ${PREVIEW_CDNS} https://fonts.gstatic.com`,
+  `img-src data: blob: ${PREVIEW_CDNS}`,
+  'media-src data: blob:',
+  'worker-src blob:',
+  "connect-src 'none'",
+  "form-action 'none'",
+  'frame-src about:',
+  "object-src 'none'",
+].join('; ');
 
 const HTML_PREVIEW_POLICY_META = `<meta http-equiv="Content-Security-Policy" content="${HTML_PREVIEW_POLICY}">`;
 

@@ -4,7 +4,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ScreenHeader } from '../ScreenHeader';
 import { BucketFileViewer } from './BucketFileViewer';
-import type { BucketFileViewerItem } from './BucketFileViewer.shared';
+import {
+  type BucketFileViewerItem,
+  HTML_PREVIEW_POLICY,
+} from './BucketFileViewer.shared';
 
 const mocks = vi.hoisted(() => ({ isElectron: false }));
 
@@ -70,7 +73,7 @@ describe('BucketFileViewer html preview (web)', () => {
     );
     const shell: string = frame.props.srcDoc;
     expect(shell).toContain(
-      '<meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="connect-src \'none\'; form-action \'none\'; frame-src about:; object-src \'none\'">'
+      `<meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="${HTML_PREVIEW_POLICY}">`
     );
     expect(shell).toContain('<iframe sandbox="allow-scripts" srcdoc="');
     expect(shell).toContain('&lt;p&gt;Quarterly numbers&lt;/p&gt;');

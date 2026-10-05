@@ -7,6 +7,7 @@ import { BucketFileViewer } from './BucketFileViewer.native';
 import {
   type BucketFileViewerItem,
   HTML_PREVIEW_LINK_MESSAGE,
+  HTML_PREVIEW_POLICY,
 } from './BucketFileViewer.shared';
 
 const mocks = vi.hoisted(() => ({
@@ -96,7 +97,7 @@ describe('BucketFileViewer html preview (native)', () => {
     expect(props.source.uri).toBeUndefined();
     const shell: string = props.source.html;
     expect(shell).toContain(
-      '<meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="connect-src \'none\'; form-action \'none\'; frame-src about:; object-src \'none\'">'
+      `<meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="${HTML_PREVIEW_POLICY}">`
     );
     expect(shell).toContain('<iframe sandbox="allow-scripts" srcdoc="');
     expect(shell).toContain('&lt;p&gt;Quarterly numbers&lt;/p&gt;');

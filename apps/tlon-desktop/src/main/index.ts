@@ -250,15 +250,17 @@ async function createWindow() {
 
   // Handle external links - open them in the default browser instead of a new electron window
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    // Check if the URL is external (not the cachedShipUrl)
-    if (cachedShipUrl && !isShipUrl(url)) {
-      // Open the URL in the user's default browser
+    // Once signed in, every new window opens in the user's default browser,
+    // the ship's own addresses included: the app opens none of its own, and a
+    // window opened here would inherit this one's preferences, web security
+    // off among them. A link in a previewed file arrives here too, and cannot
+    // be told apart from a link in a message.
+    if (cachedShipUrl) {
       if (isExternalLinkUrl(url)) {
         shell.openExternal(url);
       }
       return { action: 'deny' };
     }
-    // Allow creating new windows for internal URLs, including links to apps running on the current ship (if we provide app launching from our app later)
     return { action: 'allow' };
   });
 
