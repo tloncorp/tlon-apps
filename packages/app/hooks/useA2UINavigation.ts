@@ -168,6 +168,9 @@ export function useA2UINavigation() {
           return;
         case 'screen':
           switch (target.screen) {
+            case 'botSavedLogins':
+              rootNavigation.navigateToBotSavedLogins();
+              return;
             case 'botMcpSettings':
               if (!options?.allowBotMcpSettings) {
                 logger.log('blocked untrusted MCP settings target', target);

@@ -1,4 +1,8 @@
 import { isTrustedBrowserViewerHost } from '@tloncorp/api/client/browserSession';
+import {
+  authorizeBrowserLoginHandoff,
+  type BrowserLoginChoice,
+} from '@tloncorp/api/client/browserVault';
 
 export type BrowserSecureField = {
   id: string;
@@ -24,10 +28,14 @@ export type BrowserCredentialHandoff = {
   expiresAt: number;
   kind: 'login' | 'details';
   fields: BrowserSecureField[];
+  vault?: { authorizeUrl: string; planet: string; moon: string };
 };
 export type BrowserCredentialValues = {
-  values: Record<string, string>;
+  values?: Record<string, string>;
   submit?: boolean;
+  grant?: string;
+  save?: { label?: string; update?: BrowserLoginChoice };
+  use?: BrowserLoginChoice;
 };
 
 function parseViewerUrl(viewerUrl: string): { url: URL; capability: string } {
@@ -44,6 +52,26 @@ function parseViewerUrl(viewerUrl: string): { url: URL; capability: string } {
 
 export function trustedBrowserViewerUrl(viewerUrl: string): string {
   return parseViewerUrl(viewerUrl).url.toString();
+}
+
+export async function cancelBrowserCredentialHandoff(
+  viewerUrl: string
+): Promise<void> {
+  const { url, capability } = parseViewerUrl(viewerUrl);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5_000);
+  try {
+    await fetch(new URL(`/credentials/${capability}`, url.origin), {
+      method: 'DELETE',
+      cache: 'no-store',
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer',
+      redirect: 'error',
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 class BrowserFormError extends Error {
@@ -191,6 +219,25 @@ export async function beginBrowserCredentialHandoff(
     kind: body.kind,
     expiresAt: body.expiresAt,
     fields: parseFields(body.fields),
+    ...(body.vault &&
+    typeof body.vault === 'object' &&
+    'available' in body.vault &&
+    body.vault.available === true &&
+    'planet' in body.vault &&
+    typeof body.vault.planet === 'string' &&
+    'moon' in body.vault &&
+    typeof body.vault.moon === 'string'
+      ? {
+          vault: {
+            authorizeUrl: new URL(
+              `/credential-vault/${body.handoffId}`,
+              url.origin
+            ).toString(),
+            planet: body.vault.planet,
+            moon: body.vault.moon,
+          },
+        }
+      : {}),
   };
 }
 
@@ -221,10 +268,13 @@ export async function submitBrowserCredentials(
   handoff: BrowserCredentialHandoff,
   values: BrowserCredentialValues,
   signal?: AbortSignal
-): Promise<{ submitted: boolean }> {
+): Promise<{
+  submitted: boolean;
+  saveStatus?: 'saved' | 'pending' | 'failed';
+}> {
   if (Date.now() >= handoff.expiresAt)
     throw new Error('This secure form has expired.');
-  if (!validBrowserFormValues(handoff, values.values))
+  if (!values.use && !validBrowserFormValues(handoff, values.values ?? {}))
     throw new Error('Complete the requested form fields.');
   const response = await fetch(handoff.fillUrl, {
     method: 'POST',
@@ -232,6 +282,9 @@ export async function submitBrowserCredentials(
     body: JSON.stringify({
       values: values.values,
       submit: handoff.kind === 'login' && values.submit === true,
+      ...(values.grant ? { grant: values.grant } : {}),
+      ...(values.save ? { save: values.save } : {}),
+      ...(values.use ? { use: values.use } : {}),
     }),
     cache: 'no-store',
     credentials: 'omit',
@@ -246,7 +299,21 @@ export async function submitBrowserCredentials(
     );
   if (body.ok !== true)
     throw new Error('The browser did not confirm that the fields were filled.');
-  return { submitted: body.submitted === true };
+  return {
+    submitted: body.submitted === true,
+    ...(['saved', 'pending', 'failed'].includes(String(body.saveStatus))
+      ? { saveStatus: body.saveStatus as 'saved' | 'pending' | 'failed' }
+      : {}),
+  };
+}
+
+export async function authorizeBrowserLogins(
+  handoff: BrowserCredentialHandoff,
+  signal?: AbortSignal
+) {
+  if (!handoff.vault)
+    throw new Error('Saved logins are unavailable for this form.');
+  return authorizeBrowserLoginHandoff(handoff.vault.authorizeUrl, signal);
 }
 
 function pause(ms: number, signal: AbortSignal): Promise<void> {

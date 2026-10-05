@@ -19,6 +19,8 @@ const mocks = vi.hoisted(() => ({
   beginHandoff: vi.fn(),
   nextHandoff: vi.fn(),
   submitCredentials: vi.fn(),
+  authorize: vi.fn(),
+  cancel: vi.fn(),
   complete: vi.fn(),
   discard: vi.fn(),
   resolve: vi.fn(),
@@ -59,6 +61,8 @@ vi.mock('./browserCredentialHandoff', async (importOriginal) => ({
   beginBrowserCredentialHandoff: mocks.beginHandoff,
   nextBrowserCredentialHandoff: mocks.nextHandoff,
   submitBrowserCredentials: mocks.submitCredentials,
+  authorizeBrowserLogins: mocks.authorize,
+  cancelBrowserCredentialHandoff: mocks.cancel,
 }));
 
 const username: BrowserSecureField = {
@@ -138,6 +142,157 @@ describe('secure browser form screen', () => {
     mocks.nextHandoff.mockResolvedValue(null);
     mocks.submitCredentials.mockResolvedValue({ submitted: false });
     mocks.complete.mockResolvedValue(undefined);
+    mocks.cancel.mockResolvedValue(undefined);
+    mocks.authorize.mockResolvedValue({ grant: 'g'.repeat(43), accounts: [] });
+  });
+
+  const vault = {
+    planet: 'sampel-palnet',
+    moon: 'pinser-botter-sampel-palnet',
+    authorizeUrl:
+      'https://browser-session.tlon.network/credential-vault/handoff',
+  };
+
+  it('clears temporary vault state on cancellation but preserves a completed handoff', async () => {
+    const canceled = await render();
+    await act(async () => canceled.renderer.unmount());
+    expect(mocks.cancel).toHaveBeenCalledWith(
+      'https://browser-session.tlon.network/s/payload.signature'
+    );
+    mocks.cancel.mockClear();
+    const completed = await render();
+    act(() => {
+      enter(completed.renderer, username.label, 'fixture-user');
+      enter(completed.renderer, password.label, 'fixture-password');
+    });
+    await press(completed.renderer);
+    await act(async () => completed.renderer.unmount());
+    expect(mocks.cancel).not.toHaveBeenCalled();
+  });
+
+  it('starts with saving unchecked and only grants save consent after owner action', async () => {
+    mocks.beginHandoff.mockResolvedValue(form(undefined, { vault }));
+    const { renderer } = await render();
+    const checkbox = renderer.root.findByProps({
+      accessibilityRole: 'checkbox',
+    });
+    expect(checkbox.props.accessibilityState.checked).toBe(false);
+    act(() => {
+      enter(renderer, username.label, 'private-user');
+      enter(renderer, password.label, 'private-password');
+      checkbox.props.onPress();
+    });
+    mocks.submitCredentials.mockResolvedValue({
+      submitted: true,
+      saveStatus: 'saved',
+    });
+    await press(renderer);
+    expect(mocks.submitCredentials.mock.calls[0][1]).toMatchObject({
+      values: { f0: 'private-user', f1: 'private-password' },
+      grant: 'g'.repeat(43),
+      save: { label: 'private-user' },
+    });
+    expect(mocks.complete.mock.calls[0]).toEqual(['opaque-handoff-id']);
+  });
+
+  it('uses an explicitly selected account without fetching or submitting its password', async () => {
+    mocks.beginHandoff.mockResolvedValue(form(undefined, { vault }));
+    const account = {
+      id: '8e40b5f5-fd41-4851-8922-b9545e470d6e',
+      revision: 1,
+      label: 'Personal',
+      origin: 'https://example.com',
+      updatedAt: 1,
+    };
+    mocks.authorize.mockResolvedValue({
+      grant: 'g'.repeat(43),
+      accounts: [account, { ...account, id: 'other', label: 'Work' }],
+    });
+    const { renderer } = await render();
+    expect(
+      renderer.root.findByProps({ label: 'Continue' }).props.disabled
+    ).toBe(true);
+    await press(renderer, 'Personal');
+    await press(renderer);
+    expect(mocks.submitCredentials.mock.calls[0][1]).toEqual({
+      values: undefined,
+      submit: true,
+      grant: 'g'.repeat(43),
+      use: { id: account.id, revision: 1 },
+    });
+  });
+
+  it('keeps save consent through a same-origin password step and shows persistence failure', async () => {
+    mocks.beginHandoff.mockResolvedValue(form([username], { vault }));
+    mocks.nextHandoff
+      .mockResolvedValueOnce(
+        form([password], {
+          vault,
+          formId: 'password-step',
+          fillUrl: 'https://browser-session.tlon.network/credential-fills/next',
+        })
+      )
+      .mockResolvedValueOnce(null);
+    mocks.submitCredentials
+      .mockResolvedValueOnce({ submitted: true, saveStatus: 'pending' })
+      .mockResolvedValueOnce({ submitted: true, saveStatus: 'failed' });
+    const { renderer } = await render();
+    act(() => {
+      enter(renderer, username.label, 'private-user');
+      renderer.root
+        .findByProps({ accessibilityRole: 'checkbox' })
+        .props.onPress();
+    });
+    await press(renderer);
+    expect(
+      renderer.root.findByProps({ accessibilityRole: 'checkbox' }).props
+        .accessibilityState.checked
+    ).toBe(true);
+    act(() => enter(renderer, password.label, 'private-password'));
+    await press(renderer);
+    expect(mocks.submitCredentials.mock.calls[1][1]).toMatchObject({
+      save: { label: 'private-user' },
+    });
+    expect(mocks.complete).not.toHaveBeenCalled();
+    expect(JSON.stringify(renderer.toJSON())).toContain('could not be saved');
+    expect(JSON.stringify(renderer.toJSON())).not.toContain('private-password');
+  });
+
+  it('keeps the chosen saved account through a same-origin password step', async () => {
+    const account = {
+      id: '8e40b5f5-fd41-4851-8922-b9545e470d6e',
+      revision: 1,
+      label: 'Personal',
+      origin: 'https://example.com',
+      updatedAt: 1,
+    };
+    mocks.authorize.mockResolvedValue({
+      grant: 'g'.repeat(43),
+      accounts: [account],
+    });
+    mocks.beginHandoff.mockResolvedValue(form([username], { vault }));
+    mocks.nextHandoff
+      .mockResolvedValueOnce(
+        form([password], {
+          vault,
+          formId: 'password-step',
+          fillUrl: 'https://browser-session.tlon.network/credential-fills/next',
+        })
+      )
+      .mockResolvedValueOnce(null);
+    mocks.submitCredentials.mockResolvedValue({ submitted: true });
+    const { renderer } = await render();
+    await press(renderer, 'Personal');
+    await press(renderer);
+    expect(
+      renderer.root.findByProps({ label: 'Continue' }).props.disabled
+    ).toBe(false);
+    await press(renderer);
+    expect(mocks.submitCredentials).toHaveBeenCalledTimes(2);
+    for (const call of mocks.submitCredentials.mock.calls) {
+      expect(call[1]).toMatchObject({ use: { id: account.id, revision: 1 } });
+      expect(call[1].values).toBeUndefined();
+    }
   });
 
   it.each([password, code, username])(
