@@ -1,5 +1,7 @@
 // Leave/join a single group channel without touching group membership.
 
+import { canonicalizeNest } from './cli-utils';
+
 export interface ChannelMembershipSnapshot {
   // The %channels joined set (`channelPerms` from init).
   joinedChannelIds: Set<string>;
@@ -7,26 +9,13 @@ export interface ChannelMembershipSnapshot {
 }
 
 export interface ChannelMembershipDeps {
+  // Leave only; join resolves the group via findGroupIdForChannel so it
+  // doesn't load the init.
   getSnapshot: () => Promise<ChannelMembershipSnapshot>;
+  findGroupIdForChannel: (nest: string) => Promise<string | null>;
   leaveChannel: (nest: string) => Promise<unknown>;
   joinChannel: (nest: string, groupId: string) => Promise<unknown>;
   log: (line: string) => void;
-}
-
-// Parse nest into components: kind/~host/name; a host without `~` is normalized.
-export function parseChannelNest(nest: string): {
-  kind: string;
-  host: string;
-  name: string;
-  nest: string;
-} {
-  const parts = nest.split('/');
-  if (parts.length !== 3) {
-    throw new Error(`Invalid nest format: ${nest}. Expected: kind/~host/name`);
-  }
-  const [kind, rawHost, name] = parts;
-  const host = rawHost.startsWith('~') ? rawHost : `~${rawHost}`;
-  return { kind, host, name, nest: `${kind}/${host}/${name}` };
 }
 
 function findGroupId(
@@ -42,7 +31,7 @@ export async function leaveChannelByNest(
   input: string,
   deps: ChannelMembershipDeps
 ): Promise<void> {
-  const { nest } = parseChannelNest(input);
+  const nest = canonicalizeNest(input);
   const snapshot = await deps.getSnapshot();
   const groupId = findGroupId(snapshot, nest);
   // %leave on an unjoined nest crashes %channels and nacks with a generic
@@ -67,8 +56,8 @@ export async function joinChannelByNest(
   input: string,
   deps: ChannelMembershipDeps
 ): Promise<void> {
-  const { nest } = parseChannelNest(input);
-  const groupId = findGroupId(await deps.getSnapshot(), nest);
+  const nest = canonicalizeNest(input);
+  const groupId = await deps.findGroupIdForChannel(nest);
   if (!groupId) {
     throw new Error(`Channel ${nest} not found in any group you're in.`);
   }

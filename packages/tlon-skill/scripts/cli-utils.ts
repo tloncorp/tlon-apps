@@ -115,6 +115,31 @@ export function channelCreateUsage(command: string): string {
 // explanatory message pointing at %notes.
 export const REMOVED_CHANNEL_KINDS = ['diary'] as const;
 
+export function parseNest(nest: string): {
+  kind: string;
+  host: string;
+  name: string;
+} {
+  const parts = nest.split('/');
+  if (
+    parts.length !== 3 ||
+    parts.some((part) => part.length === 0) ||
+    /\s/.test(nest)
+  ) {
+    throw new Error(`Invalid nest format: ${nest}. Expected: kind/~host/name`);
+  }
+  return {
+    kind: parts[0],
+    host: parts[1].startsWith('~') ? parts[1] : `~${parts[1]}`,
+    name: parts[2],
+  };
+}
+
+export function canonicalizeNest(nest: string): string {
+  const { kind, host, name } = parseNest(nest);
+  return `${kind}/${host}/${name}`;
+}
+
 // True for a nest addressing a %notes channel (e.g. `notes/~host/blog`).
 export function isNotesNest(nest: string | undefined): boolean {
   return !!nest && nest.startsWith('notes/');
@@ -374,13 +399,13 @@ export function refuseNonGroupChannelNest(
   nest: string,
   verb: ChannelMembershipVerb
 ): void {
-  const parts = nest.split('/');
-  if (
-    parts.length !== 3 ||
-    !['chat', 'heap'].includes(parts[0]) ||
-    !parts[1] ||
-    !parts[2]
-  ) {
+  let kind: string;
+  try {
+    ({ kind } = parseNest(nest));
+  } catch (error) {
+    printErrorAndExit(error);
+  }
+  if (!['chat', 'heap'].includes(kind)) {
     printErrorAndExit(nonGroupChannelNestMessage(nest, verb));
   }
 }

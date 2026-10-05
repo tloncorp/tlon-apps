@@ -40,7 +40,6 @@ import {
   type ChannelMembershipDeps,
   joinChannelByNest,
   leaveChannelByNest,
-  parseChannelNest,
 } from './channel-membership';
 import {
   assertKnownChannelKind,
@@ -50,6 +49,7 @@ import {
   isNotesNest,
   isSubcommandHelpRequest,
   looksLikePositionalChannelKind,
+  parseNest,
   printErrorAndExit,
   channelCreateUsage,
   printHelpAndExit,
@@ -302,7 +302,7 @@ async function findChannelGroup(
 
 // Get channel info
 async function getChannelInfo(nest: string) {
-  const { kind, name } = parseChannelNest(nest);
+  const { kind, name } = parseNest(nest);
 
   // Find the group this channel belongs to
   const match = await findChannelGroup(nest);
@@ -545,6 +545,8 @@ function createChannelMembershipDeps(): ChannelMembershipDeps {
         })),
       };
     },
+    findGroupIdForChannel: async (nest) =>
+      (await findChannelGroup(nest))?.group.id ?? null,
     leaveChannel,
     joinChannel,
     log: (line) => console.log(line),

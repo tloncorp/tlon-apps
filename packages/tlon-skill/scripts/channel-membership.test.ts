@@ -4,7 +4,6 @@ import {
   type ChannelMembershipDeps,
   joinChannelByNest,
   leaveChannelByNest,
-  parseChannelNest,
 } from './channel-membership';
 
 const NEST = 'chat/~zod/general';
@@ -19,6 +18,7 @@ interface MakeDepsOptions {
 function makeDeps(options: MakeDepsOptions = {}) {
   const calls = {
     snapshot: 0,
+    groupLookup: [] as string[],
     leave: [] as string[],
     join: [] as [string, string][],
     log: [] as string[],
@@ -30,6 +30,14 @@ function makeDeps(options: MakeDepsOptions = {}) {
         joinedChannelIds: new Set(options.joined ?? [NEST]),
         groups: options.groups ?? [{ id: GROUP, channelIds: [NEST] }],
       };
+    },
+    findGroupIdForChannel: async (nest) => {
+      calls.groupLookup.push(nest);
+      return (
+        (options.groups ?? [{ id: GROUP, channelIds: [NEST] }]).find((group) =>
+          group.channelIds.includes(nest)
+        )?.id ?? null
+      );
     },
     leaveChannel: async (nest) => {
       calls.leave.push(nest);
@@ -52,6 +60,7 @@ describe('leaveChannelByNest', () => {
     await leaveChannelByNest(NEST, deps);
 
     expect(calls.snapshot).toBe(1);
+    expect(calls.groupLookup).toEqual([]);
     expect(calls.leave).toEqual([NEST]);
     expect(calls.log).toEqual([
       `✅ Left ${NEST}.`,
@@ -99,17 +108,28 @@ describe('leaveChannelByNest', () => {
 
 describe('joinChannelByNest', () => {
   it('joins a channel in one of the groups', async () => {
-    const { calls, deps } = makeDeps({ joined: [] });
+    const { calls, deps } = makeDeps();
 
     await joinChannelByNest(NEST, deps);
 
-    expect(calls.snapshot).toBe(1);
+    expect(calls.groupLookup).toEqual([NEST]);
     expect(calls.join).toEqual([[NEST, GROUP]]);
     expect(calls.log).toEqual([`✅ Joined ${NEST}.`]);
   });
 
+  it('never loads the init snapshot', async () => {
+    const { calls, deps } = makeDeps();
+    deps.getSnapshot = async () => {
+      throw new Error('join must not load the init snapshot');
+    };
+
+    await joinChannelByNest('chat/zod/general', deps);
+
+    expect(calls.join).toEqual([[NEST, GROUP]]);
+  });
+
   it('still joins an already-joined channel so subscriptions are repaired', async () => {
-    const { calls, deps } = makeDeps({ joined: [NEST] });
+    const { calls, deps } = makeDeps();
 
     await joinChannelByNest(NEST, deps);
 
@@ -128,19 +148,17 @@ describe('joinChannelByNest', () => {
   });
 });
 
-describe('parseChannelNest', () => {
-  it('parses a nest and normalizes its host', () => {
-    expect(parseChannelNest('heap/zod/links')).toEqual({
-      kind: 'heap',
-      host: '~zod',
-      name: 'links',
-      nest: 'heap/~zod/links',
-    });
-  });
+describe('nest validation', () => {
+  it('rejects a malformed nest before any dep is called', async () => {
+    const { calls, deps } = makeDeps();
 
-  it('rejects a nest with the wrong number of segments', () => {
-    expect(() => parseChannelNest('chat/~zod')).toThrow(
+    await expect(leaveChannelByNest('chat/~zod', deps)).rejects.toThrow(
       'Invalid nest format: chat/~zod. Expected: kind/~host/name'
     );
+    await expect(joinChannelByNest('chat//general', deps)).rejects.toThrow(
+      'Invalid nest format'
+    );
+    expect(calls.snapshot).toBe(0);
+    expect(calls.groupLookup).toEqual([]);
   });
 });

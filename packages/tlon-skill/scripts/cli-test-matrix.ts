@@ -1720,7 +1720,7 @@ export const CHANNEL_MEMBERSHIP_CASES: CliCase[] = (
   refusalCase(
     `channels ${verb} malformed nest refuses`,
     ['channels', verb, 'chat/~zod'],
-    nonGroupChannelNestMessage('chat/~zod', verb)
+    'Invalid nest format: chat/~zod'
   ),
   authRequiredCase(`channels ${verb} chat nest reaches auth`, [
     'channels',
