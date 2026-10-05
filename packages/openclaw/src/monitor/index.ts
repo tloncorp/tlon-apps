@@ -201,6 +201,7 @@ import {
 import { createComputingPresenceTracker } from './computing-presence.js';
 import { resolveDeliverParentId } from './deliver-parent.js';
 import { fetchAllChannels, fetchInitData } from './discovery.js';
+import { createJoinedChannels } from './joined-channels.js';
 import {
   createCompactionTimeoutObserver,
   isAgentTimeoutEvent,
@@ -997,6 +998,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // Config-sourced nests are immune to settings-key removal; see the
     // ownership rule in group-channels.ts.
     const discoveredNests = new Set<string>();
+    const joinedChannels = createJoinedChannels();
     // Where onboarding stands in each DM: the group its last request named,
     // or that it has finished (or holds no request) and replies are just talk.
     const onboardingDmState = new OnboardingDmState();
@@ -1667,10 +1669,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // snapshot is the only way to know which groups those are, so
     // no config gates the fetch.
     try {
+      const joinedSync = joinedChannels.beginSync();
       const initData = await fetchInitData(api, runtime, {
         signal: opts.abortSignal,
         botShip: botShipName,
       });
+      joinedChannels.applySync(joinedSync, initData.joinedChannels);
       if (effectiveAutoDiscoverChannels && initData.channels.length > 0) {
         groupChannels = initData.channels;
         for (const channelNest of initData.channels) {
@@ -3924,10 +3928,17 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     const watchedChannels = new Set<string>(groupChannels);
     const _watchedDMs = new Set<string>();
 
-    const mergeDiscoveredChannels = async () => {
+    const syncJoinedChannels = async () => {
+      const token = joinedChannels.beginSync();
       const initData = await fetchInitData(api, runtime, {
         signal: opts.abortSignal,
       });
+      joinedChannels.applySync(token, initData.joinedChannels);
+      return initData;
+    };
+
+    const mergeDiscoveredChannels = async () => {
+      const initData = await syncJoinedChannels();
       for (const [nest, groupFlag] of initData.channelToGroup) {
         channelToGroup.set(nest, groupFlag);
       }
@@ -4049,6 +4060,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // may still be pending; those must not query, or post into, a channel
       // the owner took away. The bot DM is never in the watched set.
       if (!nestIsDm && !watchedChannels.has(nest)) return;
+      // A left or never-joined channel has no history to read; retrying its
+      // failing scry would never end.
+      if (!nestIsDm && joinedChannels.isKnownNotJoined(nest)) {
+        clearAgentOnboardingRetry(nest);
+        return;
+      }
       let groupId = channelToGroup.get(nest);
       if (!groupId && nestIsDm) {
         // A DM names no group. The app's intro request, posted into this DM,
@@ -4165,6 +4182,20 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
         if (!nest) {
           return;
+        }
+
+        // Only a leave may stop handling a channel: auto-watch below must
+        // still admit a nest the joined set wrongly lacks.
+        const joinChange = joinedChannels.observe(event);
+        if (joinChange === 'left') {
+          watchedChannels.delete(nest);
+          clearAgentOnboardingRetry(nest);
+          runtime.log?.(`[tlon] Left channel ${nest}; no longer watching`);
+          return;
+        }
+        // A nest watched before its join fact had its onboarding scan skipped.
+        if (joinChange === 'became-joined' && watchedChannels.has(nest)) {
+          await onboardingCatchUp.reconcile(nest);
         }
 
         // Auto-watch channels from firehose: if we receive events for a channel,
@@ -6245,6 +6276,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // The foreigns subscription gets no snapshot on watch; catch up now
       // that the channel is live so the boot gap cannot lose an invite.
       await groupInviteRunner.catchUp();
+      // The firehose is live now, so no join or leave can fall between this
+      // snapshot and the facts that follow it.
+      await syncJoinedChannels();
       // watchedChannels holds group channels only; the bot DM is never added
       // to it, and the firehose auto-watch admits only kind/host/slug nests.
       // Without seeding it here an intro request posted while the bot was
@@ -6334,6 +6368,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                     await scanDiscoveredAgentOnboardingNest(channelNest);
                   }
                 }
+              } else {
+                // Discovery's own fetch syncs the joined set; repair any
+                // drift from a dropped subscription either way.
+                await syncJoinedChannels();
               }
             } catch (error: any) {
               runtime.error?.(

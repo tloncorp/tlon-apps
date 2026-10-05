@@ -1,0 +1,211 @@
+import { readFileSync } from 'node:fs';
+import { compileFunction } from 'node:vm';
+import { transformWithOxc } from 'vite';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+
+import { isDmNest } from '../targets.js';
+import {
+  type JoinedChannels,
+  createJoinedChannels,
+} from './joined-channels.js';
+
+const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
+
+/** A closure-scope arrow function of the monitor, by its declaration marker. */
+const sliceFrom = (marker: string) => {
+  const start = source.indexOf(marker);
+  expect(start).toBeGreaterThan(-1);
+  const end = source.indexOf('\n    };', start);
+  expect(end).toBeGreaterThan(start);
+  return source.slice(start, end + '\n    };'.length);
+};
+
+type Deps = {
+  watchedChannels: Set<string>;
+  joinedChannels: JoinedChannels;
+  clearAgentOnboardingRetry: ReturnType<typeof vi.fn>;
+  onboardingCatchUp: { reconcile: ReturnType<typeof vi.fn> };
+  processedTracker: { mark: ReturnType<typeof vi.fn> };
+  scanAgentOnboardingChannel: ReturnType<typeof vi.fn>;
+  runtime: { log: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
+};
+type Monitor = {
+  handleChannelsFirehose(event: unknown): Promise<void>;
+  scanAgentOnboardingNest(nest: string): Promise<boolean | undefined>;
+};
+let makeMonitor: (deps: Deps & { isDmNest: typeof isDmNest }) => Monitor;
+
+beforeAll(async () => {
+  // Execute the real monitor callbacks. Only the paths these tests reach
+  // need their dependencies stubbed.
+  const { code } = await transformWithOxc(
+    `
+    function createMonitor(deps) {
+      const {
+        watchedChannels, joinedChannels, clearAgentOnboardingRetry,
+        onboardingCatchUp, processedTracker, scanAgentOnboardingChannel,
+        runtime, isDmNest,
+      } = deps;
+      const opts = {};
+      const account = { accountId: 'test' };
+      const api = {};
+      const botShipName = '~bot';
+      const effectiveOwnerShip = '~owner';
+      const channelToGroup = new Map([['chat/~zod/general', '~zod/test']]);
+      const computingPresence = {};
+      const getBotProfile = () => undefined;
+      const trackOnboardingStep = () => () => {};
+      const randomUUID = () => 'uuid';
+      const createAgentOnboardingReconciliationPresence = () => ({});
+      ${sliceFrom('const scanAgentOnboardingNest = async')}
+      ${sliceFrom('const handleChannelsFirehose = async')}
+      return { handleChannelsFirehose, scanAgentOnboardingNest };
+    }
+    `,
+    'joined-channels-monitor.ts',
+    { lang: 'ts', target: 'es2022' }
+  );
+  makeMonitor = compileFunction(`${code}\nreturn createMonitor(deps);`, [
+    'deps',
+  ]) as typeof makeMonitor;
+});
+
+const general = 'chat/~zod/general';
+
+function setup(options: { watched?: string[]; joined?: string[] | null }) {
+  const joinedChannels = createJoinedChannels();
+  if (options.joined !== null) {
+    joinedChannels.applySync(
+      joinedChannels.beginSync(),
+      new Set(options.joined ?? [])
+    );
+  }
+  const deps: Deps = {
+    watchedChannels: new Set(options.watched ?? []),
+    joinedChannels,
+    clearAgentOnboardingRetry: vi.fn(),
+    onboardingCatchUp: { reconcile: vi.fn(async () => true) },
+    // Refusing the message ends the handler at its first step.
+    processedTracker: { mark: vi.fn(() => false) },
+    scanAgentOnboardingChannel: vi.fn(async () => true),
+    runtime: { log: vi.fn(), error: vi.fn() },
+  };
+  return { deps, monitor: makeMonitor({ ...deps, isDmNest }) };
+}
+
+const post = (nest: string) => ({
+  nest,
+  response: {
+    post: {
+      id: '170141184507000000000000000000000000',
+      'r-post': {
+        set: { essay: { author: '~nec', content: [], sent: 1 } },
+      },
+    },
+  },
+});
+
+describe('channel firehose with a joined set', () => {
+  it.each([
+    { case: 'a watched', watched: [general] },
+    { case: 'an unwatched', watched: [] },
+  ])(
+    'unwatches $case nest on leave without auto-watching it',
+    async ({ watched }) => {
+      const { deps, monitor } = setup({ watched, joined: [general] });
+
+      await monitor.handleChannelsFirehose({
+        nest: general,
+        response: { leave: null },
+      });
+
+      expect(deps.watchedChannels.has(general)).toBe(false);
+      expect(deps.clearAgentOnboardingRetry).toHaveBeenCalledWith(general);
+      expect(deps.onboardingCatchUp.reconcile).not.toHaveBeenCalled();
+      expect(deps.processedTracker.mark).not.toHaveBeenCalled();
+    }
+  );
+
+  it('still watches and handles a post the joined set says is not joined', async () => {
+    const { deps, monitor } = setup({ joined: [] });
+
+    await monitor.handleChannelsFirehose(post(general));
+
+    expect(deps.watchedChannels.has(general)).toBe(true);
+    expect(deps.onboardingCatchUp.reconcile).toHaveBeenCalledWith(general);
+    expect(deps.processedTracker.mark).toHaveBeenCalledOnce();
+  });
+
+  it('reconciles a watched nest once when it becomes joined', async () => {
+    const { deps, monitor } = setup({ watched: [general], joined: [] });
+    const joinFact = { nest: general, response: { join: '~zod/test' } };
+
+    await monitor.handleChannelsFirehose(joinFact);
+    await monitor.handleChannelsFirehose(joinFact);
+
+    expect(deps.onboardingCatchUp.reconcile).toHaveBeenCalledExactlyOnceWith(
+      general
+    );
+  });
+});
+
+describe('onboarding scan with a joined set', () => {
+  it('skips a watched nest known not to be joined and stops its retry', async () => {
+    const { deps, monitor } = setup({ watched: [general], joined: [] });
+
+    await expect(monitor.scanAgentOnboardingNest(general)).resolves.toBe(
+      undefined
+    );
+    expect(deps.scanAgentOnboardingChannel).not.toHaveBeenCalled();
+    expect(deps.clearAgentOnboardingRetry).toHaveBeenCalledWith(general);
+  });
+
+  it.each([
+    { case: 'joined', joined: [general] },
+    { case: 'unknown', joined: null },
+  ])('scans a watched nest while it is $case', async ({ joined }) => {
+    const { deps, monitor } = setup({ watched: [general], joined });
+
+    await expect(monitor.scanAgentOnboardingNest(general)).resolves.toBe(true);
+    expect(deps.scanAgentOnboardingChannel).toHaveBeenCalledOnce();
+  });
+});
+
+describe('joined set wiring', () => {
+  it('handles a leave before the firehose auto-watch', () => {
+    const fn = sliceFrom('const handleChannelsFirehose = async');
+    const left = fn.indexOf("joinChange === 'left'");
+    expect(left).toBeGreaterThan(-1);
+    expect(left).toBeLessThan(fn.indexOf('watchedChannels.add(nest)'));
+  });
+
+  it('checks the joined set before the scan reads anything', () => {
+    const fn = sliceFrom('const scanAgentOnboardingNest = async');
+    const guard = fn.indexOf('joinedChannels.isKnownNotJoined(nest)');
+    expect(guard).toBeGreaterThan(-1);
+    expect(guard).toBeLessThan(fn.indexOf('await '));
+  });
+
+  it('syncs once the firehose is live, before the startup scans', () => {
+    const connect = source.indexOf('await api.connect();');
+    const sync = source.indexOf('await syncJoinedChannels();', connect);
+    expect(connect).toBeGreaterThan(-1);
+    expect(sync).toBeGreaterThan(connect);
+    expect(sync).toBeLessThan(source.indexOf('const startupOnboardingNests'));
+  });
+
+  it('syncs on every discovery poll tick, with discovery on or off', () => {
+    expect(sliceFrom('const mergeDiscoveredChannels = async')).toContain(
+      'await syncJoinedChannels();'
+    );
+    const tick = source.slice(source.indexOf('const pollInterval'));
+    const discovery = tick.indexOf('if (effectiveAutoDiscoverChannels) {');
+    const merge = tick.indexOf('await mergeDiscoveredChannels();');
+    const otherwise = tick.indexOf('} else {', merge);
+    expect(discovery).toBeGreaterThan(-1);
+    expect(merge).toBeGreaterThan(discovery);
+    expect(tick.slice(otherwise, tick.indexOf('} catch'))).toContain(
+      'await syncJoinedChannels();'
+    );
+  });
+});
