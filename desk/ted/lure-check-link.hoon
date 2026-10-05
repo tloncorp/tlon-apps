@@ -15,6 +15,5 @@
   take-client-response
 ?>  ?=(%finished -.rep)
 =/  result  =(200 status-code.response-header.rep)
-;<  ~  bind:m  (poke [our %grouper] grouper-link-checked+!>([result path]))
-::TODO  make %grouper handle thread result
+;<  ~  bind:m  (poke [our %reel] grouper-link-checked+!>([result path]))
 (pure:m !>(~))

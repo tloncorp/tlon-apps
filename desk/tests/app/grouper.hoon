@@ -1,161 +1,70 @@
-/-  reel, gv=groups-ver, c=chat, cv=chat-ver, ch=channels, meta, story
+/-  reel
 /+  *test-agent, test
 /=  grouper-agent  /app/grouper
 |%
 ++  dap  %grouper-test
-++  provider  ~loshut-lonreg
-++  group-invite-meta
-  ^~
-  ^-  metadata:reel
-  :-  %group-0
-  %-  my
-  :~  [%'inviterUserId' '~sampel-palnet']
-      [%'inviterNickname' 'Sampel Palnet']
-      [%'inviterAvatarImage' 'https://sampel-palnet.arvo.network/avatar.png']
-      [%'invitedGroupTitle' 'Sunrise']
-      [%'invitedGroupDescription' '']
-      [%'invitedGroupId' '~sampel-palnet/sunrise']
-      [%'invitedGroupIconImageUrl' 'https://sampel-palnet.arvo.network/sunrise.jpg']
-      [%'bite-type' '2']
-  ==
-++  personal-invite-meta
-  ^~
-  ^-  metadata:reel
-  :-  %group-0
-  %-  my
-  :~  [%'inviterUserId' '~sampel-palnet']
-      [%'inviterNickname' 'Sampel Palnet']
-      [%'inviterAvatarImage' 'https://sampel-palnet.arvo.network/avatar.png']
-      [%'inviteType' 'user']
-      [%'invitedGroupId' '~zod/personal-invite-link']
-      [%'bite-type' '2']
-  ==
-++  get-full-peek
-  |*  [=mold =path]
-  =/  m  (mare mold)
-  ^-  form:m
-  |=  =state
-  =/  res  ((get-peek path) state)
-  ?:  ?=(%| -.res)  res
-  =/  peek=(unit (unit cage))
-    +<.res
-  ?~  peek
-    |+~['invalid scry path' (spat path)]
-  ?~  u.peek
-    |+~['unexpected empty result at scry path' (spat path)]
-  ::XX there is a compiler bug here if .q face is missing
-  ::   from the peek. it compiles, but fails at runtime when
-  ::   the result is dereferenced.
-  ::
-  &+[!<(mold q.u.u.peek) state]
-::  +ex-poke-wire: assert poke wire
++$  state-2  [%2 enabled-groups=(set cord) outstanding-pokes=(set (pair ship cord))]
+::  +test-load-imports: old state is handed to %reel
 ::
-++  ex-poke-wire
-  |=  =wire
-  |=  car=card
-  ^-  tang
-  =*  fail
-    %-  expect-eq:test
-    [!>(`card`[%pass wire %agent *gill:gall %poke *mark *vase]) !>(`card`car)]
-  ?.  ?=([%pass * %agent * %poke *] car)  fail
-  ?.  =(wire p.car)  fail
-  ~
-::  +ex-kick: expect a kick
+::  loading pre-forwarder state pokes %reel with it and drops the old
+::  bite subscription. the import is kept until %reel acks it.
 ::
-++  ex-kick
-  |=  [paths=(list path) ship=(unit ship)]
-  |=  car=card
-  ^-  tang
-  =*  fail
-    %+  expect-eq:test  !>(`card`car)
-    !>(`card`[%give %kick paths ship])
-  ?.  ?=([%give %kick *] car)  fail
-  ?.  =(paths paths.p.car)     fail
-  ?.  =(ship ship.p.car)       fail
-  ~
-::  +ex-fact-paths: expect a fact with paths
-::
-++  ex-fact-paths
-  |=  paths=(list path)
-  |=  car=card
-  ^-  tang
-  =*  fail
-    %+  expect-eq:test  !>(`card`car)
-    !>(`card`[%give %fact paths *mark *vase])
-  ?.  ?=([%give %fact *] car)  fail
-  ?.  =(paths paths.p.car)     fail
-  ~
-++  scry
-  |=  =path
-  ^-  (unit vase)
-  ?+  path  ~
-    [%gu @ * @ %$ ~]  `!>(&)
-    [%gu @ * @ %groups %~.~sampel-palnet %sunrise ~]  `!>(&)
-
-  ==
-::  +test-personal-bite: test personal invite bite
-::
-::  when a personal bite is received by the grouper agent it issues
-::  a dm invitation.
-::
-++  test-personal-bite
+++  test-load-imports
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  ~  bind:m  (set-scry-gate scry)
   ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(our ~sampel-palnet)))
   ;<  =bowl  bind:m  get-bowl
-  ;<  caz=(list card)  bind:m  (do-init dap grouper-agent)
-  ;<  *  bind:m  (do-agent /bite-wire [~sampel-palnet %reel] %watch-ack ~)
-  =+  joiner=~sampel-botnet
-  =/  =bite:reel
-    [%bite-2 ~.0v1 joiner personal-invite-meta]
-  ;<  caz=(list card)  bind:m  (do-agent /bite-wire [our.bowl %reel] %fact reel-bite+!>(bite))
-  =/  =id:c  [our now]:bowl
-  =/  =memo:ch
-    [~[[%inline ~[[%ship joiner] ' has joined the network']]] id]
-  =/  =action:dm:v7:cv
-    :-  joiner
-    [id %add %*(. *essay:ch - memo, kind [%chat %notice ~]) ~]
+  ;<  *  bind:m  (do-init dap grouper-agent)
+  =/  old=state-2  [%2 (sy 'sunrise' ~) (sy [~zod 'x'] ~)]
+  ;<  caz=(list card)  bind:m  (do-load grouper-agent `!>(old))
+  =/  imp  [%import-grouper (sy 'sunrise' ~) (sy [~zod 'x'] ~)]
+  ;<  ~  bind:m
+    (ex-cards caz ~[(ex-poke /import [our.bowl %reel] %noun !>(imp))])
+  ;<  *  bind:m  (do-agent /import [our.bowl %reel] %poke-ack `~[leaf+"nope"])
+  ;<  save=vase  bind:m  get-save
+  ;<  ~  bind:m  (ex-equal save !>([%3 `[(sy 'sunrise' ~) (sy [~zod 'x'] ~)]]))
+  ;<  *  bind:m  (do-agent /import [our.bowl %reel] %poke-ack ~)
+  ;<  save=vase  bind:m  get-save
+  (ex-equal save !>([%3 ~]))
+::  +test-forward: pokes reach %reel with their sender
+::
+::  local pokes are passed on as-is. a remote ask is wrapped so %reel
+::  answers the asker. remote pokes outside the protocol are refused.
+::
+++  test-forward
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(our ~sampel-palnet)))
+  ;<  =bowl  bind:m  get-bowl
+  ;<  *  bind:m  (do-init dap grouper-agent)
+  ;<  ~  bind:m  (set-src our.bowl)
+  ;<  caz=(list card)  bind:m  (do-poke grouper-enable+!>('sunrise'))
+  ;<  ~  bind:m
+    (ex-cards caz ~[(ex-poke /forward [our.bowl %reel] grouper-enable+!>('sunrise'))])
+  ;<  ~  bind:m  (set-src ~zod)
+  ;<  caz=(list card)  bind:m  (do-poke grouper-ask-enabled+!>('sunrise'))
+  =/  fwd  `[%forward ship cage]`[%forward ~zod %grouper-ask-enabled !>('sunrise')]
+  ;<  ~  bind:m
+    (ex-cards caz ~[(ex-poke /forward [our.bowl %reel] %noun !>(fwd))])
+  (ex-fail (do-poke grouper-enable+!>('sunrise')))
+::  +test-proxy: subscriptions are proxied to %reel
+::
+++  test-proxy
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(our ~sampel-palnet)))
+  ;<  =bowl  bind:m  get-bowl
+  ;<  *  bind:m  (do-init dap grouper-agent)
+  ;<  ~  bind:m  (set-src our.bowl)
+  =/  =path  /group-enabled/~zod/sunrise
+  ;<  caz=(list card)  bind:m  (do-watch path)
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-poke /dm/(scot %p joiner)/0v1 [our.bowl %chat] chat-dm-action-2+!>(action))
-    ==
-  (pure:m ~)
-::  +test-group-bite: test group invite bite
-::
-::  when a group bite is received, a dm invitation is sent, followed
-::  by the group invitation, provided the group has enabled invitations.
-::
-++  test-group-bite
-  %-  eval-mare
-  =/  m  (mare ,~)
-  ^-  form:m
-  ;<  ~  bind:m  (set-scry-gate scry)
-  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(our ~sampel-palnet)))
-  ;<  =bowl  bind:m  get-bowl
-  ;<  caz=(list card)  bind:m  (do-init dap grouper-agent)
-  ;<  *  bind:m  (do-agent /bite-wire [~sampel-palnet %reel] %watch-ack ~)
-  =+  joiner=~sampel-botnet
-  =/  =bite:reel
-    [%bite-2 ~.0v1 joiner group-invite-meta]
-  ;<  *  bind:m  (do-poke grouper-enable+!>('sunrise'))
-  ;<  caz=(list card)  bind:m  (do-agent /bite-wire [our.bowl %reel] %fact reel-bite+!>(bite))
-  =/  =id:c  [our now]:bowl
-  =/  =memo:ch
-    [~[[%inline ~[[%ship joiner] ' has joined the network']]] id]
-  =/  =action:dm:v7:cv
-    :-  joiner
-    [id %add %*(. *essay:ch - memo, kind [%chat %notice ~]) ~]
-  =/  =a-groups:v8:gv
-    =/  note=story:story
-      ~[inline+~['lure invite ~.0v1']]
-    [%invite ~sampel-palnet^%sunrise (sy joiner ~) [~ `note]]
-  ;<  ~  bind:m
-    %+  %*(. ex-cards drop-logs |)  caz
-    :~  (ex-poke-wire /logs)
-        (ex-poke /invite [our.bowl %groups] group-action-4+!>(a-groups))
-        (ex-poke /dm/(scot %p joiner)/0v1 [our.bowl %chat] chat-dm-action-2+!>(action))
-    ==
-  (pure:m ~)
+    ~[(ex-task [%proxy path] [our.bowl %reel] %watch path)]
+  ;<  caz=(list card)  bind:m
+    (do-agent [%proxy path] [our.bowl %reel] %fact json+!>(b+&))
+  (ex-cards caz ~[(ex-fact ~[path] %json !>(b+&))])
 --

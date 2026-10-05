@@ -24,7 +24,7 @@
 ;<  =bowl:strand  bind:m  get-bowl:io
 ::  retrieve the secret from the bait provider
 ::
-;<  branch-secret=@t  bind:m  (scry:io @t %gx /bait/branch-secret/noun)
+;<  branch-secret=@t  bind:m  (scry:io @t %gx /reel/v1/branch-secret/noun)
 ::
 ::  we currently have two services: branch deep linking, and our own
 ::  self-hosted service prototype. below we continue to push out the

@@ -165,7 +165,7 @@
   =/  m  (strand ,~)
   ^-  form:m
   ::
-  ;<  ~  bind:m  (poke-app [~loshut-lonreg %bait] verb+[%volume %info])
+  ;<  ~  bind:m  (poke-app [~loshut-lonreg %reel] verb+[%volume %info])
   ::  host a group on ~zod and enable lure links
   ::
   ;<  ~  bind:m  create-test-group
@@ -200,7 +200,7 @@
 ++  ph-test-lure-personal
   =/  m  (strand ,~)
   ^-  form:m
-  ;<  ~  bind:m  (poke-app [~loshut-lonreg %bait] verb+[%volume %info])
+  ;<  ~  bind:m  (poke-app [~loshut-lonreg %reel] verb+[%volume %info])
   ;<  lure-invite=@t  bind:m  (generate-lure-invite lure-personal-metadata)
   ;<  ~  bind:m  (watch-app /~bud/chat/v4 [~bud %chat] /v4)
   ::  ~bud onboards from hosting through the lure invite.
